@@ -5,12 +5,17 @@ REQUIRE NativeMachinery, ScalesItem;
 NAMESPACE RBS;
 
 loadDefaultScalesModels () + { 
-    loadDefaultScalesModel('Весы РБС KS4010', 'KS4010', 'lsf.rbs.KS4010');
+    loadDefaultScalesModel('Весы РБС KS4010', 'KS4010', 'lsf.integration.rbs.KS4010');
 }
 nonCyr = FORMULA STRING[100] 'regexp_replace(($1), \'[а-я]\', \'\', \'ig\')';
 
+message = DATA LOCAL STRING(INTEGER);
+FORM result
+    OBJECTS message = INTEGER
+    PROPERTIES(message) message EXTID 'value';
+
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
-    IF handlerModel(groupMachinery(t)) = 'lsf.rbs.KS4010' THEN NEWSESSION {
+    IF handlerModel(groupMachinery(t)) = 'lsf.integration.rbs.KS4010' THEN NEWSESSION {
         NEWSESSION {
             dateTimeProcessing(t) <- currentDateTime();
             APPLY;
@@ -22,13 +27,13 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             category_num = nonCyr(id(Group g)),	//The index of the category //не дружит с кирилицей
             category_name = name(g), //The name of the category
             describ = '', //The description of the category.
-            //order = (OVERRIDE order(g), INTEGER (id(g)), 1000), //The order index of the category. The smaller the number, the higher priority it has when sorting categories. //пока не работает
-            image = ('cat_' + id(g) + '.jpg') IF scalesImage(g)
+            order = (OVERRIDE order(g), INTEGER (id(g)), 1000), //The order index of the category. The smaller the number, the higher priority it has when sorting categories. //пока не работает
+            image = ('cat_' + id(g) + '.png') IF hasScalesImage(g)
             WHERE GROUP SUM 1 IF in(t, Barcode b) AND g == (OVERRIDE (scalesGroup(t, b)), skuGroup(t, b))
             TO groups;
             
         FOR [GROUP SUM 1 IF in(t, Barcode b) BY (OVERRIDE (scalesGroup(t, b)), skuGroup(t, b))](Group g) AND hasScalesImage(g) DO
-            zipping(STRING[1000] f) <- FILE(scalesImage(g)) WHERE f == 'cat_' + id(g) + '.jpg';
+            zipping(STRING[1000] f) <- FILE(scalesImage(g)) WHERE f == 'cat_' + id(g) + '.png';
         IF GROUP SUM 1 IF zipping(STRING[1000] f) THEN {
             makeZipFile();
             groupsImages()<- zipped();
@@ -43,23 +48,23 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             name_sort = name(t,b),
             product_abbr =name(t,b),
             abbr_sort =name(t, b),
-            category_num = idSkuGroup(t, b),
+            category_num = nonCyr(idSkuGroup(t, b)),
             department_num = '1',
             sales_price = 0.0,
             original_price  = price(t, b),
             price_unit_index = 0, //-1:/pc, 0:/kg, 1:/100g, 2:/g
             ingredients = left(description(t, b), 1500),
             used_by_days = STRING (expiryDays(t, b)),
-            image_filename = ('item_' + id(b) + '.jpg') IF hasImage(sku(b)),
+            image_filename = ('item_' + id(b) + '.png') IF hasImage(sku(b)),
             disabled = '0',
             barcode = 0,
-            exp_date = expiryDate(t, b)
+            exp_date = STRING(expiryDate(t, b))
             WHERE in(t, b)
             TO items;
         
         zipping(STRING[1000] f) <- NULL;
         FOR in(t, Barcode b) AND hasImage(sku(b)) DO
-            zipping(STRING[1000] f) <- FILE(image(sku(b))) WHERE f == 'item_' + id(b) + '.jpg';
+            zipping(STRING[1000] f) <- FILE(image(sku(b))) WHERE f == 'item_' + id(b) + '.png';
         IF GROUP SUM 1 IF zipping(STRING[1000] f) THEN {
             makeZipFile();
             itemsImages()<- zipped();
@@ -67,20 +72,16 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
         
         FOR groupMachinery(Machinery m) == groupMachinery(t) AND (in(t, m) OR NOT npps(t)) AND NOT succeeded(m,t) AND NOT inactive(m) NOINLINE DO {
             
+            LOCAL code = STRING ();
             LOCAL error = BOOLEAN ();
             LOCAL result = JSONFILE ();
             TRY {
                 IF snapshot(t) AND NOT cleared(m, t) THEN {
                     LOCAL id = STRING (INTEGER );
                     
-                    EXTERNAL HTTP GET 'http://'+ port(m) + ':1235/category' TO result;
-                    IMPORT JSON FROM result() TO id = category_num; 
-                    EXPORT JSON FROM value = id(INTEGER r) ;
+                    EXPORT JSON FROM value = 'ALL'  WHERE INTEGER i == 1;
                     EXTERNAL HTTP DELETE 'http://'+ port(m) + ':1235/category' PARAMS exportFile() TO result;
                     
-                    EXTERNAL HTTP GET 'http://'+ port(m) + ':1235/products' TO result;
-                    IMPORT JSON FROM result() TO id = product_number; 
-                    EXPORT JSON FROM value = id(INTEGER r) ;
                     EXTERNAL HTTP DELETE 'http://'+ port(m) + ':1235/products' PARAMS exportFile() TO result;
                     
                     cleared(m, t) <- TRUE;
@@ -89,18 +90,21 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
                 IF groupsImages() THEN EXTERNAL HTTP POST 'http://'+ port(m) + ':1235/upload/categoryImage' BODYPARAMNAMES 'file' PARAMS groupsImages() TO result;
                 
                 EXTERNAL HTTP POST 'http://'+ port(m) + ':1235/category' PARAMS groups() TO result;
+                IMPORT JSON FROM result() TO() code;
+                IF code() THEN throwException('Ошибка выгрузки категорий');
                 
                 IF itemsImages() THEN EXTERNAL HTTP POST 'http://'+ port(m) + ':1235/upload/productImage' BODYPARAMNAMES 'file' PARAMS itemsImages() TO result;
                 
                 EXTERNAL HTTP POST 'http://'+ port(m) + ':1235/products' PARAMS items() TO result;
+                IMPORT JSON FROM result() TO() code;
+                IF code() THEN throwException('Ошибка выгрузки товаров');
                 
             } CATCH {
                 error() <- TRUE;
                 NEW er = MachineryPriceTransactionError {
-                    LOCAL code = STRING ();
-                    IMPORT JSON FROM result() TO() code;
+                    IMPORT result JSON FROM result();
                     machineryPriceTransaction(er) <- t;
-                    data(er) <- CONCAT ' ', messageCaughtException(), 'error: ' + code();
+                    data(er) <- CONCAT ' ', messageCaughtException(), 'код: ' + code(), 'сообщение: ' + GROUP CONCAT message(INTEGER r), '; ' ORDER r;
                     date(er) <- currentDateTime();
                     errorTrace(er) <- CONCAT '\n\n', lsfStackTraceCaughtException(), javaStackTraceCaughtException ();
                 }
@@ -108,6 +112,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             
             IF NOT error() THEN {
                 succeeded(m, t) <- TRUE;
+                dateTimeSucceeded (m, t) <- currentDateTime();
             }
             
         }
