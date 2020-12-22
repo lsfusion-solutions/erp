@@ -15,7 +15,9 @@ EXTEND FORM eInvoices
 ;
 
 currentOrderMessage = GROUP LAST EInvoiceMessage m ORDER dateTime(m), m WHERE
-    (type(m) == EInvoiceMessageType.blrapn_blrwbr AND NOT isTN2(eInvoice(m))) OR (type(m) == EInvoiceMessageType.blrapn_blrdnr AND isTN2(eInvoice(m))) BY invoice(eInvoice(m));
+    (type(m) == EInvoiceMessageType.blrapn_blrwbr AND NOT isTN2(eInvoice(m))) OR
+    (type(m) == EInvoiceMessageType.blrapn_blrdnr AND isTN2(eInvoice(m)))
+    AND NOT kind(m) == EInvoiceMessageKind.out BY invoice(eInvoice(m));
 statusDescription 'Статус отправки EDI'(Invoice o) = CASE 
     WHEN code(currentOrderMessage(o)) == '2550' THEN 'Подтверждено получение ответа на электронную накладную'
     WHEN exportedCustomer(eInvoice(o)) AND NOT currentOrderMessage(o) THEN 'Отправлен ответ на электронную накладную'

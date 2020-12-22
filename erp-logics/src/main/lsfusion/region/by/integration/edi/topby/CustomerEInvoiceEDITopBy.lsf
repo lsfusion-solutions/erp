@@ -235,6 +235,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                 blrapnDateTime() <- currentDateTimeMillis();
                                 blrapnMsgSender() <- glnCustomer(ei);
                                 blrapnMsgReceiver() <- glnSupplier(ei);
+                                blrapnUserID() <- userIDSupplierStock(ei);
                                 blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
                                 blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
                                 blrapnReferenceDocumentType() <- 'BLRWBL';
@@ -307,6 +308,15 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                                 eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
                                                 NEWSESSION NESTED LOCAL {
                                                     exportedBlrapnCustomer(ei) <- TRUE;
+                                                    NEW em = EInvoiceMessage {
+                                                        number(em) <- STRING[24](resultMilliseconds());
+                                                        eInvoice(em) <- ei;
+                                                        dateTime(em) <- blrapnDateTime();
+                                                        code(em) <- blrapnCode();
+                                                        kind(em) <- EInvoiceMessageKind.out;
+                                                        type(em) <- EInvoiceMessageType.blrapn_blrwbl;
+                                                        XMLPath(em) <- archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                                    }
                                                     APPLY NESTED LOCAL;
                                                 }
                                             }
@@ -575,6 +585,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                 blrapnDateTime() <- currentDateTimeMillis();
                                 blrapnMsgSender() <- glnCustomer(ei);
                                 blrapnMsgReceiver() <- glnSupplier(ei);
+                                blrapnUserID() <- userIDSupplierStock(ei);
                                 blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
                                 blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
                                 blrapnReferenceDocumentType() <- 'BLRDLN';
@@ -647,6 +658,15 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                                 eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
                                                 NEWSESSION NESTED LOCAL {
                                                     exportedBlrapnCustomer(ei) <- TRUE;
+                                                    NEW em = EInvoiceMessage {
+                                                        number(em) <- STRING[24](resultMilliseconds());
+                                                        eInvoice(em) <- ei;
+                                                        dateTime(em) <- blrapnDateTime();
+                                                        code(em) <- blrapnCode();
+                                                        kind(em) <- EInvoiceMessageKind.out;
+                                                        type(em) <- EInvoiceMessageType.blrapn_blrdln;
+                                                        XMLPath(em) <- archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                                    }
                                                     APPLY NESTED LOCAL;
                                                 }
                                             }
@@ -726,6 +746,7 @@ signAndSendBlrapnCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                     blrapnDateTime() <- currentDateTimeMillis();
                     blrapnMsgSender() <- glnCustomer(ei);
                     blrapnMsgReceiver() <- glnSupplier(ei);
+                    blrapnUserID() <- userIDSupplierStock(ei);
                     blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
                     blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
                     blrapnReferenceDocumentType() <- 'BLRWBL';
@@ -779,6 +800,15 @@ signAndSendBlrapnCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                                 logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ' request succeeded');
                                 MESSAGE provider + ' Извещение о прочтении накладной ' + number(ei) + ' выгружено' NOWAIT;
                                 exportedBlrapnCustomer(ei) <- TRUE;
+                                NEW em = EInvoiceMessage {
+                                    number(em) <- STRING[24](resultMilliseconds());
+                                    eInvoice(em) <- ei;
+                                    dateTime(em) <- blrapnDateTime();
+                                    code(em) <- blrapnCode();
+                                    kind(em) <- EInvoiceMessageKind.out;
+                                    type(em) <- EInvoiceMessageType.blrapn_blrwbl;
+                                    XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                }
                                 APPLY NESTED LOCAL;
                             }
                         }
@@ -814,6 +844,7 @@ signAndSendBlrapnCustomerEInvoiceTN2 (EInvoice ei, STRING[100] provider) {
                     blrapnDateTime() <- currentDateTimeMillis();
                     blrapnMsgSender() <- glnCustomer(ei);
                     blrapnMsgReceiver() <- glnSupplier(ei);
+                    blrapnUserID() <- userIDSupplierStock(ei);
                     blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
                     blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
                     blrapnReferenceDocumentType() <- 'BLRDLN';
@@ -867,6 +898,15 @@ signAndSendBlrapnCustomerEInvoiceTN2 (EInvoice ei, STRING[100] provider) {
                                 logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ' request succeeded');
                                 MESSAGE provider + ' Извещение о прочтении накладной ' + number(ei) + ' выгружено' NOWAIT;
                                 exportedBlrapnCustomer(ei) <- TRUE;
+                                NEW em = EInvoiceMessage {
+                                    number(em) <- STRING[24](resultMilliseconds());
+                                    eInvoice(em) <- ei;
+                                    dateTime(em) <- blrapnDateTime();
+                                    code(em) <- blrapnCode();
+                                    kind(em) <- EInvoiceMessageKind.out;
+                                    type(em) <- EInvoiceMessageType.blrapn_blrdln;
+                                    XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                }
                                 APPLY NESTED LOCAL;
                             }
                         }
@@ -909,7 +949,8 @@ FORM exportBlrwbr FORMEXTID 'BLRWBR'
                         msgDateTime = toChar(exportBlrwbrDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
                         messageType = 'BLRWBR' EXTID 'MessageType',
                         glnCustomer(eih) EXTID 'MsgSenderID',
-                        glnSupplier(eih) EXTID 'MsgReceiverID'
+                        glnSupplier(eih) EXTID 'MsgReceiverID',
+                        userIDSupplierStock(eih) EXTID 'UserID'
     
     OBJECTS ein = EInvoice EXTID 'DeliveryNote'
     FILTERS ein == ei
@@ -1046,7 +1087,8 @@ FORM exportBlrdnr FORMEXTID 'BLRDNR'
                         msgDateTime = toChar(exportBlrdnrDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
                         messageType = 'BLRDNR' EXTID 'MessageType',
                         glnCustomer(eih) EXTID 'MsgSenderID',
-                        glnSupplier(eih) EXTID 'MsgReceiverID'
+                        glnSupplier(eih) EXTID 'MsgReceiverID',
+                        userIDSupplierStock(eih) EXTID 'UserID'
     
     OBJECTS ein = EInvoice EXTID 'DeliveryNote'
     FILTERS ein == ei
@@ -1177,6 +1219,7 @@ signAndSendNoticeCustomerEInvoice (EInvoice ei, STRING[1000] d, STRING[100] prov
                     blrapnDateTime() <- currentDateTimeMillis();
                     blrapnMsgSender() <- glnCustomer(ei);
                     blrapnMsgReceiver() <- glnSupplier(ei);
+                    blrapnUserID() <- userIDSupplierStock(ei);
                     blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
                     blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
                     blrapnReferenceDocumentType() <- 'BLRWBL';
@@ -1230,6 +1273,15 @@ signAndSendNoticeCustomerEInvoice (EInvoice ei, STRING[1000] d, STRING[100] prov
                                 logToFile('edi', provider + ' SendNoticeEInvoice ' + number(ei) + ' request succeeded');
                                 MESSAGE provider + ' Уведомление об изменении накладной ' + number(ei) + ' выгружено' NOWAIT;
                                 exportedNoticeCustomer(ei) <- TRUE;
+                                NEW em = EInvoiceMessage {
+                                    number(em) <- STRING[24](resultMilliseconds());
+                                    eInvoice(em) <- ei;
+                                    dateTime(em) <- blrapnDateTime();
+                                    code(em) <- blrapnCode();
+                                    kind(em) <- EInvoiceMessageKind.out;
+                                    type(em) <- EInvoiceMessageType.blrapn_blrwbl;
+                                    XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                }
                                 APPLY NESTED LOCAL;
                             }
                         }
@@ -1265,6 +1317,7 @@ signAndSendNoticeCustomerEInvoiceTN2 (EInvoice ei, STRING[1000] d, STRING[100] p
                     blrapnDateTime() <- currentDateTimeMillis();
                     blrapnMsgSender() <- glnCustomer(ei);
                     blrapnMsgReceiver() <- glnSupplier(ei);
+                    blrapnUserID() <- userIDSupplierStock(ei);
                     blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
                     blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
                     blrapnReferenceDocumentType() <- 'BLRDLN';
@@ -1318,6 +1371,15 @@ signAndSendNoticeCustomerEInvoiceTN2 (EInvoice ei, STRING[1000] d, STRING[100] p
                                 logToFile('edi', provider + ' SendNoticeEInvoice ' + number(ei) + ' request succeeded');
                                 MESSAGE provider + ' Уведомление об изменении накладной ' + number(ei) + ' выгружено' NOWAIT;
                                 exportedNoticeCustomer(ei) <- TRUE;
+                                NEW em = EInvoiceMessage {
+                                    number(em) <- STRING[24](resultMilliseconds());
+                                    eInvoice(em) <- ei;
+                                    dateTime(em) <- blrapnDateTime();
+                                    code(em) <- blrapnCode();
+                                    kind(em) <- EInvoiceMessageKind.out;
+                                    type(em) <- EInvoiceMessageType.blrapn_blrdln;
+                                    XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                }
                                 APPLY NESTED LOCAL;
                             }
                         }
@@ -1352,9 +1414,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
     IF lower(documentType(i)) == 'blradf' AND invoices THEN {
         TRY {
             IMPORT blradf XML FROM data(i);
-            skipBlradf() <- NULL;
-            overImportBlradf();
-            IF blradfMsgReceiverID() == blradfCustomerGLN() AND NOT skipBlradf() THEN {
+            IF blradfMsgReceiverID() == blradfCustomerGLN() THEN {
                 NEWSESSION NESTED LOCAL {
                     importedCustomer(ECreditNote ec) <- TRUE WHERE ec == eCreditNoteActDifNumber(blradfActDifNumber());
                     APPLY NESTED LOCAL;

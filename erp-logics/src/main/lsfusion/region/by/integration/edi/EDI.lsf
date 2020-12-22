@@ -444,6 +444,7 @@ glnSupplierStock 'GLN пункта погрузки' (EInvoice i) = GLN(supplier
 nameSupplierStock 'Пункт погрузки' (EInvoice i) = name(supplierStock(i));
 addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = address(supplierStock(i));
 contactSupplierStock 'ФИО и должность лица, которое отвечает за передачу груза со стороны грузоотправителя' = DATA STRING[150] (EInvoice);
+userIDSupplierStock 'Идентификатор пользователя' = ABSTRACT STRING[35] (EInvoice);
 
 freightPayer 'Заказчик автомобильной перевозки (плательщик)' = DATA LegalEntity (EInvoice);
 glnFreightPayer 'GLN заказчика автомобильной перевозки' (EInvoice i) = GLN(freightPayer(i));
@@ -462,6 +463,7 @@ glnCustomerStock 'GLN склада покупателя' (EInvoice i) = GLN(cust
 nameCustomerStock 'Склад покупателя' (EInvoice i) = name(customerStock(i));
 addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = address(customerStock(i));
 contactCustomerStock 'ФИО и должность лица, которое отвечает за получение груза со стороны грузополучателя' = DATA STRING[150] (EInvoice);
+userIDCustomerStock 'Идентификатор пользователя' = ABSTRACT STRING[35] (EInvoice);
 
 transportContact 'ФИО водителя' = DATA STRING[150] (EInvoice);
 deliveryContact 'Товар к перевозке принял (должность и ФИО)' = DATA STRING[150] (EInvoice);
@@ -537,8 +539,6 @@ TABLE eInvoiceMessage(EInvoiceMessage);
 
 number 'Номер' = DATA STRING[24] (EInvoiceMessage);
 eInvoice 'Накладная' = DATA EInvoice (EInvoiceMessage) NONULL DELETE;
-INDEX eInvoice(EInvoiceMessage m), number(m);
-eInvoiceMessage (eInvoice, number) = GROUP AGGR EInvoiceMessage e BY eInvoice(e), number(e);
 numberEInvoice 'Накладная' (EInvoiceMessage m) = number(eInvoice(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (EInvoiceMessage);
 code 'Код сообщения' = DATA STRING[10] (EInvoiceMessage);
@@ -551,6 +551,17 @@ backgroundStatusDescription (EInvoice o) = RGB(255,238,238) IF currentOrderMessa
 backgroundVAT 'Цвет' (EInvoiceDetail d) = IF sku(lineItemBuyerID(d)) AND NOT overValueVAT(d) == valueVAT(sku(lineItemBuyerID(d)))
                                                    THEN RGB(255,0,0);
 background = ABSTRACT CASE COLOR (EInvoice);
+
+CLASS EInvoiceMessageKind 'Вид сообщения по накладной EDI' {
+    in 'входящее',
+    out 'исходящее'
+}
+
+kind 'Вид' = DATA EInvoiceMessageKind (EInvoiceMessage);
+nameKind 'Вид' (EInvoiceMessage o) = staticCaption(kind(o));
+
+INDEX eInvoice(EInvoiceMessage m), number(m), kind(m);
+eInvoiceMessage (eInvoice, number, kind) = GROUP AGGR EInvoiceMessage e BY eInvoice(e), number(e), kind(e);
 
 CLASS EInvoiceMessageType 'Тип сообщения по накладной EDI' {
     systemmessage_blrwbl 'SYSTEMMESSAGE-BLRWBL',
@@ -584,7 +595,7 @@ FORM eInvoices 'Электронные накладные EDI'
     FILTERS eInvoice(d) == e
 
     OBJECTS m = EInvoiceMessage
-    PROPERTIES(m) READONLY numberEInvoice, dateTime, nameType, code, description
+    PROPERTIES(m) READONLY numberEInvoice, dateTime, nameType, nameKind, code, description
     FILTERS eInvoice(m) == e
     ORDERS dateTime(m);
 ;
