@@ -20,6 +20,7 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 import javax.naming.CommunicationException;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -460,12 +461,9 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
 
     private String getSubLine(String line, int descriptionLineLength) {
         String result = "";
-        int byteCount = 0;
-        for(Character c : line.toCharArray()) {
-            int size = c < 128 ? 1 : 2;
-            if (byteCount + size <= descriptionLineLength) {
+        for (Character c : line.toCharArray()) {
+            if ((result + c).getBytes(StandardCharsets.UTF_8).length <= descriptionLineLength) {
                 result += c;
-                byteCount += size;
             } else break;
         }
         return result;
