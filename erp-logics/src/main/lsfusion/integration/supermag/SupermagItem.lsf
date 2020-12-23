@@ -215,7 +215,7 @@ overImportItemAttribute ABSTRACT LIST (STRING);
 importItemAttribute 'Импорт доп. свойств товаров' (STRING articleId) {
     
     // пока не импортируем, так как там ерунда - \'packbarcode\',         
-    sqlString() <- 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE ARTICLE LIKE \''+ articleId +'\' AND  PROPID IN (\'packsize\', \'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'brutto\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\', \'volume\')';  
+    sqlString() <- 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE ARTICLE LIKE \''+ articleId +'\' AND  PROPID IN (\'composition\', \'packsize\', \'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'brutto\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\', \'volume\')';  
     
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
 
@@ -227,7 +227,7 @@ importItemAttribute 'Импорт доп. свойств товаров' (STRING
         sku(b) <- item(idItem(i));
         transportPack(b) <- TransportPack.outpack;
     }
-
+    
     FOR property(INTEGER i) == 'packsize2' AND NUMERIC[14,3](trim(value(i))) > 0 AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) AND Item s = item(idItem(i)) DO {
         Purchase.packBarcode(s) <- b;
         amount(b) <- NUMERIC[14,3](trim(value(i)));
@@ -293,8 +293,12 @@ importItemAttribute 'Импорт доп. свойств товаров' (STRING
     FOR property(INTEGER i) == 'alcoPercent' AND Item s = item(idItem(i)) DO {
         alcohol(s) <- alcoholName(value(i));
     }
+
+    FOR property(INTEGER i) = 'composition' DO { //}AND Item s = item(idItem(i)) DO {
+        description(Item s) <- value(i) WHERE id(s) = idItem(i);
+    }
     
-    FOR property(INTEGER i) == 'Sys.Composition' AND Item s = item(idItem(i)) DO {
+    FOR property(INTEGER i) = 'Sys.Composition' AND Item s = item(idItem(i)) DO {
         description(s) <- value(i);
     }
     
