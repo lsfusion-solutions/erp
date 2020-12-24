@@ -49,7 +49,7 @@ skuString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_goo
 skusString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT skuString(t, Sku s), ';' IF in(t, Barcode b) AND sku(b) = s ORDER s; 
 
 //uomString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_unit(' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(m, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF split(m,b) THEN ',2' ELSE (IF passScales(b) THEN ',3' ELSE ',1')) + ',null,true)';
-uomString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_unit(' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(m, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF passScales(b) THEN ',3' ELSE (IF split(m,b) THEN ',2' ELSE ',1')) + ',null,true)';
+uomString (MachineryPriceTransaction m, Barcode b) = 'update front.unit set active=false where id_goods=' + STRING(sku(b)) + ';SELECT system.import_front_unit(' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(m, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF passScales(b) THEN ',3' ELSE (IF split(m,b) THEN ',2' ELSE ',1')) + ',null,true)';
 uomsString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT uomString(t, Barcode b), ';' IF in(t, b) ORDER t, b;
 
 priceString(MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + STRING(UOM(idUOM(m, b))) + ',\'-\',' + STRING(stock(m)) + ',' + centsString(price(m, b)) + ',' + centsString(minPrice(m, b)) + ',' + centsString(price(m, b)) + ', true)';
@@ -58,7 +58,7 @@ pricesString (MachineryPriceTransaction m) += WHEN isChameleon26(groupMachinery(
 barcodeString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_bar_codes(\'' + escape(id(b)) + '\',' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ', \'-\', \'\', true)';
 barcodesString (MachineryPriceTransaction m) += WHEN isChameleon26(groupMachinery(m)) THEN GROUP CONCAT barcodeString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
 
-pluGroupPluString (MachineryPriceTransaction m) = 'SELECT system.import_front_group_plu(' + ISTRING(groupMachinery(m)) + ',\'' + name(groupMachinery(m)) + '\',true)';
+pluGroupPluString (MachineryPriceTransaction m) = 'SELECT system.import_front_group_plu(' + ISTRING(groupMachinery(m)) + ',\'' + name(groupMachinery(m)) + '\',true);';
 pluString (Barcode b, MachineryPriceTransaction m) = 'SELECT system.import_front_plu(' + ISTRING(groupMachinery(m)) + ',' + escape(id(b)) + ',' + STRING(sku(b)) + ',true)' IF length(id(b)) <= 5 AND passScales(b);
 plusString (MachineryPriceTransaction m) += WHEN isChameleon26(groupMachinery(m)) THEN pluGroupPluString(m) + GROUP CONCAT pluString(Barcode b, m), ';' IF in(m, b) ORDER m, b;
 
