@@ -419,6 +419,12 @@ public class DigiHandler extends MultithreadScalesHandler {
             return value.getBytes("cp866");
         }
 
+        protected byte[] getBytes(String value, int length) throws UnsupportedEncodingException {
+            ByteBuffer bytes = ByteBuffer.allocate(length);
+            bytes.put(getBytes(value.substring(0, Math.min(value.length(), length))));
+            return bytes.array();
+        }
+
         protected void logError(List<String> errors, String errorText) {
             logError(errors, errorText, null);
         }
