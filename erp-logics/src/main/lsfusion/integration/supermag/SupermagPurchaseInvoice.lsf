@@ -196,7 +196,7 @@ exportPurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
                 location(expMain)  <- id(customerStock(doc));
                 reasonPricing(expMain) <- '0';     
                 priceRoundMode(expMain) <- 0;
-                FOR invoice(InvoiceDetail docd) = doc ORDER sku(docd), retailPrice(docd) DO {
+                FOR invoice(InvoiceDetail docd) = doc AND NOT skipChangeLedger(docd)  DO {
                     NEW expDet = DocDetail {
                         index(expDet) <- index(docd);
                         docMain(expDet) <- expMain;
@@ -385,7 +385,6 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
     FOR Purchase.UserInvoiceDetail det = Purchase.userInvoiceDetail(idDet(INTEGER i)) AND NOT currentVersion(i) = Purchase.lastVersion(det) AND NOT importOnlyStatus(Purchase.operation1Supermag(codeOperation(i))) DO {
         sku(det) <- item(idItem(i));
         shipmentQuantity(det) <- quantity(i);
-////        pricingQuantity(det) <- quantity(i);
         quantity(det) <- OVERRIDE blankquantity(i), quantity(i);
         invoicePrice(det) <- NUMERIC[16,2](round(itemPrice(i),2));
         price(det) <- NUMERIC[16,2](round(itemPriceNoTax(i),2));
@@ -398,11 +397,6 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
         manufacturingPrice(det) <- priceManufacturer(i);
         manufacturingMarkup(det) <- CASE WHEN calcManufacturingMarkupFromPrices(det) THEN NUMERIC[8,3]( (calcBaseManufacturingPrice(det) / manufacturingPrice(det) - 1) *100)      
                                                                                      ELSE calcManufacturingMarkup(det);        
-
-//        retailVAT(det) <- VAT(sku(det));
-//        retailPrice(det) <- OVERRIDE retailPrice(det), retailPrice(i);
-//        valueRetailVAT(det) <- OVERRIDE valueRetailVAT(det), calcSetValueRetailVAT(det);
- //       retailMarkup(det) <- OVERRIDE retailMarkup(det), calcRetailMarkup(det);
         overImportPurchaseInvoiceDetail(det,i);
         imported(det) <- TRUE;
         connectOrder(det);        
