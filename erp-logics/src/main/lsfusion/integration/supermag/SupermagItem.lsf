@@ -93,50 +93,6 @@ shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN
 @defineItemAttribute(shortName, , 'Краткое наименование', itemBase);
 @implementItemAttribute(shortName, 'Краткое наименование', String, itemShortName);
 
-lastBarcodelogId = DATA LONG ();
-EXTEND FORM integrationData
-PROPERTIES lastBarcodelogId();
-
-importBarcodeHistory 'Импорт изменения штрихкодов' () {
-
-    LOCAL id = TEXT (INTEGER);
-    LOCAL name = ISTRING[255] (INTEGER);
-    LOCAL recid = NUMERIC[16,0] (INTEGER);
-    LOCAL flags = INTEGER (INTEGER);
-    LOCAL quantity = NUMERIC[14,3](INTEGER);
-    
-    EXTERNAL SQL connectionString() EXEC 'SELECT h.RECID, u.BARCODE, u.ARTICLE, u.QUANTITY, u.FLAGS FROM Supermag.SMStoreUnitHist h, Supermag.SVStoreUnits u WHERE h.RECID > ' + STRING(lastBarcodelogId()) + ' AND u.ARTICLE = h.ARTICLE' TO SupermagSettings.file;
-    
-    IMPORT TABLE FROM SupermagSettings.file() TO recid, name, id, quantity, flags;
-        
-    name(INTEGER i) <- left(name(i), 15);
-    //весовой товар 
-    name(INTEGER i) <- substrFrom(name(i),3) WHERE substr(name(i),1,2) = '22' AND length(name(i)) = 7; 
-     
-    FOR [GROUP SUM 1 BY name(INTEGER i) IF NOT barcode(name(i))](STRING idBarcode) DO NEW b = Barcode {
-        id(b) <- ISTRING[15] (idBarcode);
-    }
-
-    FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
-        sku(b) <- s;
-        transportPack(b) <- NULL;
-        dataAmount(b) <- quantity(i); // 11.08  я добавил импорт множителя 
-    }
-    
-    // следующее действие нужно, если штрих-код, который был упаковкой становится обычным штрих-кодом
-    FOR Barcode b = barcode(name(INTEGER i)) AND Purchase.packBarcode(Sku s) = b DO {
-        Purchase.packBarcode(s) <- NULL; 
-    }
-
-    FOR Barcode b = barcode(name(INTEGER i)) AND flags(i) >= 9 DO {
-        dataBarcode(Item s) <- b WHERE id(s) = id(i);
-    }
-
-    lastBarcodelogId() <- OVERRIDE (GROUP MAX recid(INTEGER i)), lastBarcodelogId();
-
-    APPLY;
-}
-
 importBarcodeItem 'Импорт штрихкодов товара' (STRING itemlist) {
 
     LOCAL id = TEXT (INTEGER);
@@ -168,6 +124,30 @@ importBarcodeItem 'Импорт штрихкодов товара' (STRING iteml
     FOR Barcode b = barcode(name(INTEGER i)) AND flags(i) >= 9 DO {
         dataBarcode(Item s) <- b WHERE id(s) = id(i);
     }
+}
+
+lastBarcodelogId = DATA LONG ();
+EXTEND FORM integrationData
+PROPERTIES lastBarcodelogId();
+
+importBarcodeHistory 'Импорт изменения штрихкодов' () {
+
+    LOCAL id = STRING (INTEGER);
+    LOCAL recid = NUMERIC[16,0] (INTEGER);
+    
+    EXTERNAL SQL connectionString() EXEC 'SELECT ARTICLE, MAX(RECID) FROM Supermag.SMStoreUnitHist WHERE RECID > ' + STRING(lastBarcodelogId()) + ' GROUP BY ARTICLE' TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO id, recid;
+        
+    LOCAL itemlist = STRING ();   
+
+    itemlist() <- GROUP CONCAT ('\'' + id(INTEGER i) + '\''), ',';
+    
+    IF itemlist() THEN importBarcodeItem(itemlist());  
+    
+    lastBarcodelogId() <- OVERRIDE (GROUP MAX recid(INTEGER i)), lastBarcodelogId();
+
+    APPLY;
 }
 
 overImportItemAttribute ABSTRACT LIST (STRING);
@@ -487,7 +467,7 @@ importItems 'Импорт товаров' () {
 
     itemlist() <- GROUP CONCAT ('\'' + id(INTEGER i) + '\''), ',';
     
-    importItem(itemlist());  
+    IF itemlist() THEN importItem(itemlist());  
     
     lastItemlogId() <- OVERRIDE (GROUP MAX recid(INTEGER i)), lastItemlogId();
     
