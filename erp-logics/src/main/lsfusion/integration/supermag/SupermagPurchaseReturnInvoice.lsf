@@ -130,6 +130,12 @@ exportPurchaseReturnInvoiceWO 'Экспорт в супермаг' (Invoice doc)
                 
                 overExportPurchaseReturnInvoiceWO(doc, expMain);
                 
+                FOR docprops(doc, STRING prop) DO NEW p = DocProp {
+                                                           docMain(p) <- expMain;
+                                                           paramname(p) <- STRING[50](prop);
+                                                           paramvalue(p) <- STRING[100](docprops(doc, prop)); 
+                }              
+                
                 IF countSpec(expMain) > 0 THEN {
                     dt () <- currentDateTime();        
                     TRY EXPORT exportWO XML TO System.exportFile;
@@ -406,6 +412,22 @@ importPurchaseReturnInvoiceFull 'Импорт накладные (закупка
 //            isClosed(doc) <- TRUE;        
         } 
     }      
+
+    LOCAL propDocType = ISTRING[50] (INTEGER);
+    LOCAL propDocNumber = ISTRING[50] (INTEGER);
+    LOCAL propIdDoc = ISTRING[50] (INTEGER);
+
+    sqlString() <- 'SELECT DOCID, DOCTYPE, PARAMNAME, PARAMVALUE FROM Supermag.SMDOCPROPS WHERE DOCTYPE = \'' + getWord(indexDoc,'~',1) + '\' AND DOCID = \'' + getWord(indexDoc,'~',2) + '\')';    
+
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO propDocNumber, propDocType, property, value;
+
+    propIdDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(propDocType(i)), STRING(propDocNumber(i)));
+        
+    FOR UserInvoice doc == userInvoice(propIdDoc(INTEGER i)) AND property(i) DO {
+        docprops(doc, property(i)) <- value(i);
+    }         
     
     overImportPurchaseReturnInvoiceStatus();
                       
