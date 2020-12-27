@@ -93,81 +93,57 @@ shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN
 @defineItemAttribute(shortName, , 'Краткое наименование', itemBase);
 @implementItemAttribute(shortName, 'Краткое наименование', String, itemShortName);
 
-statusInSuperMag 'Статус в Супермаге' = DATA INTEGER (Item);
+lastBarcodelogId = DATA LONG ();
+EXTEND FORM integrationData
+PROPERTIES lastBarcodelogId();
 
-overImportItem ABSTRACT LIST ();
+importBarcodeHistory 'Импорт изменения штрихкодов' () {
 
-lastVersion = DATA STRING (Item);
-imported = DATA LOCAL BOOLEAN (Item);
-imported = DATA LOCAL BOOLEAN (Barcode);
-
-importItem 'Импорт товаров' () {
-    
     LOCAL id = TEXT (INTEGER);
-    LOCAL taxArticle = TEXT (INTEGER);
     LOCAL name = ISTRING[255] (INTEGER);
-    LOCAL shortName = ISTRING[250] (INTEGER);
-    LOCAL idMeasurement = INTEGER (INTEGER);
-    LOCAL idClass = INTEGER (INTEGER);
-    LOCAL country = TEXT (INTEGER);
-    LOCAL accepted = INTEGER (INTEGER);
-    LOCAL scale = STRING[1] (INTEGER);
-    LOCAL width = NUMERIC[14,3] (INTEGER);
-    LOCAL length = NUMERIC[14,3] (INTEGER);
-    LOCAL height = NUMERIC[14,3] (INTEGER);
-    LOCAL vat = NUMERIC[8,4] (INTEGER);
-    LOCAL taxItem = NUMERIC[8,4] (STRING);   
-   
-    EXTERNAL SQL connectionString()    
-        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT FROM Supermag.SMCARD card' TO SupermagSettings.file;
+    LOCAL recid = NUMERIC[16,0] (INTEGER);
+    LOCAL flags = INTEGER (INTEGER);
+    LOCAL quantity = NUMERIC[14,3](INTEGER);
     
-//    logToFile('importSupermag', 'importItem_1');
+    EXTERNAL SQL connectionString() EXEC 'SELECT h.RECID, u.BARCODE, u.ARTICLE, u.QUANTITY, u.FLAGS FROM Supermag.SMStoreUnitHist h, Supermag.SVStoreUnits u WHERE h.RECID > ' + STRING(lastBarcodelogId()) + ' AND u.ARTICLE = h.ARTICLE' TO SupermagSettings.file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height;
-
-    EXTERNAL SQL connectionString()    
-        EXEC 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE cardtax.rgnid = 3 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = 0 AND taxrate.TAXID = 0 AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article AND crdtax.rgnid = 3)' TO SupermagSettings.file;
-    
-    IMPORT TABLE FROM SupermagSettings.file() TO taxArticle, vat;
-    
-    FOR taxArticle(INTEGER i) DO { taxItem (taxArticle(i)) <- vat(i); }
-    
-    currentVersion(INTEGER i) <- CONCAT '~', id(i), name(i), shortName(i), TEXT (idMeasurement(i)), TEXT (idClass(i)), country(i), TEXT (accepted(i)), scale(i), 
-                                            TEXT (width(i)), TEXT (length(i)), TEXT (height(i)), TEXT (taxItem(id(i)));
- //   logToFile('importSupermag', 'importItem_2');
-      
-    FOR country(INTEGER i) AND NOT [GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)))]() DO NEW s = Country {
-        name(s) <- ISTRING[50](upper(trim(country(i))));
+    IMPORT TABLE FROM SupermagSettings.file() TO recid, name, id, quantity, flags;
+        
+    name(INTEGER i) <- left(name(i), 15);
+    //весовой товар 
+    name(INTEGER i) <- substrFrom(name(i),3) WHERE substr(name(i),1,2) = '22' AND length(name(i)) = 7; 
+     
+    FOR [GROUP SUM 1 BY name(INTEGER i) IF NOT barcode(name(i))](STRING idBarcode) DO NEW b = Barcode {
+        id(b) <- ISTRING[15] (idBarcode);
     }
 
-    FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
-        id(s) <- ISTRING[100] (id(i));
+    FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
+        sku(b) <- s;
+        transportPack(b) <- NULL;
+        dataAmount(b) <- quantity(i); // 11.08  я добавил импорт множителя 
     }
-   
-    FOR Item s = item(id(INTEGER i)) AND NOT lastVersion(s) = currentVersion(i) DO {    
-        caption(s) <- STRING[255](replace(name(i), '\t', ' '));
-        shortName(s) <- shortName(i);
-        UOM(s) <- UOM(TEXT (idMeasurement(i)));
-        itemGroup(s) <- itemGroup(TEXT (idClass(i)));
-        skuType(s) <- CASE WHEN id(itemGroup(s)) = '2279' OR id(itemGroup(s)) = '368' THEN SkuType.skuTypeContainer
-                           WHEN id(itemGroup(s)) = '393' THEN SkuType.skuTypeCharge 
-                           ELSE SkuType.skuTypeItem;
-        Item.country(s) <- GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)));
-        width(s) <- max(min(width(i), 99999), -99999);
-        length(s) <- max(min(length(i), 99999), -99999);
-        height(s) <- max(min(height(i), 99999), -99999);
-        inactive(s) <- accepted(i) != 1;
-        passScales(s) <- scale(i) == '1';
-        imported(s) <- TRUE;
-        statusInSuperMag(s) <- accepted(i);
-        lastVersion(s) <- currentVersion(i);    
+    
+    // следующее действие нужно, если штрих-код, который был упаковкой становится обычным штрих-кодом
+    FOR Barcode b = barcode(name(INTEGER i)) AND Purchase.packBarcode(Sku s) = b DO {
+        Purchase.packBarcode(s) <- NULL; 
     }
 
-    FOR Item s = item(id(INTEGER i)) AND imported(s) DO {    
-        VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == taxItem(id(i)) AND c = defaultCountry();    
+    FOR Barcode b = barcode(name(INTEGER i)) AND flags(i) >= 9 DO {
+        dataBarcode(Item s) <- b WHERE id(s) = id(i);
     }
-      
-    EXTERNAL SQL connectionString() EXEC 'SELECT BARCODE, ARTICLE, QUANTITY, FLAGS FROM Supermag.SVStoreUnits' TO SupermagSettings.file;
+
+    lastBarcodelogId() <- OVERRIDE (GROUP MAX recid(INTEGER i)), lastBarcodelogId();
+
+    APPLY;
+}
+
+importBarcodeItem 'Импорт штрихкодов товара' (STRING itemlist) {
+
+    LOCAL id = TEXT (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL recid = NUMERIC[16,0] (INTEGER);
+    
+    EXTERNAL SQL connectionString() EXEC 'SELECT BARCODE, ARTICLE, QUANTITY, FLAGS FROM Supermag.SVStoreUnits WHERE ARTICLE IN ('+ itemlist +')' TO SupermagSettings.file;
     
     IMPORT TABLE FROM SupermagSettings.file() TO name, id, quantity, flags;
         
@@ -181,41 +157,25 @@ importItem 'Импорт товаров' () {
     FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
         sku(b) <- s;
         transportPack(b) <- NULL;
-        dataAmount(b) <- quantity(i); // 11.08  я добавил импорт множителя 
-        barcode(s) <- b;
-   //     dataBarcode(s) <- b IF flags(i) = 9; // 11.08 не проверял значения флага в СМ
-        imported(b) <- TRUE;
+        dataAmount(b) <- quantity(i); // 11.08.20 добавил импорт множителя 
     }
     
-    // следующие 2 действия нужны, если штрих-код, который был упаковкой становится обычным штрих-кодом
+    // следующее действие нужно, если штрих-код, который был упаковкой становится обычным штрих-кодом
     FOR Barcode b = barcode(name(INTEGER i)) AND Purchase.packBarcode(Sku s) = b DO {
         Purchase.packBarcode(s) <- NULL; 
     }
 
-    FOR Barcode b = barcode(name(INTEGER i)) AND Purchase.barcodePack(Purchase.UserOrderDetail d) = b DO {
-        Purchase.barcodePack(d) <- NULL;
+    FOR Barcode b = barcode(name(INTEGER i)) AND flags(i) >= 9 DO {
+        dataBarcode(Item s) <- b WHERE id(s) = id(i);
     }
-    
-    logToFile('importSupermag', 'importItem_6');
-    
-  //  inactive(Item i ) <- TRUE WHERE i IS Item AND NOT imported(i);
-  //  statusInSuperMag(Item i ) <- 2 WHERE i IS Item AND NOT imported(i);
-//    DELETE Item i WHERE i IS Item AND NOT imported(i);
-//    DELETE Barcode b WHERE b IS Barcode AND NOT transportPack(b) AND NOT imported(b);
-    overImportItem();
-
-    APPLY;
 }
-
-EXTEND FORM integrationData PROPERTIES importItem();
-
 
 overImportItemAttribute ABSTRACT LIST (STRING);
 
-importItemAttribute 'Импорт доп. свойств товаров' (STRING articleId) {
+importItemAttribute 'Импорт доп. свойств товаров' (STRING itemlist) {
     
     // пока не импортируем, так как там ерунда - \'packbarcode\',         
-    sqlString() <- 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE ARTICLE LIKE \''+ articleId +'\' AND  PROPID IN (\'composition\', \'packsize\', \'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'brutto\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\', \'volume\')';  
+    sqlString() <- 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE ARTICLE IN ('+ itemlist +') AND  PROPID IN (\'composition\', \'packsize\', \'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'brutto\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\', \'volume\')';  
     
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
 
@@ -344,16 +304,195 @@ importItemAttribute 'Импорт доп. свойств товаров' (STRING
         amount(b) <- NUMERIC[14,3](replace(trim(value(i)), ',', '.'));
     }
     
-    overImportItemAttribute(articleId);           
-    
-    APPLY;
+    overImportItemAttribute(itemlist);           
+        
 }
 
 importItemAttribute 'Импорт доп. свойств товаров' () {
     importItemAttribute('%');
+    APPLY;
 }
 
 EXTEND FORM integrationData PROPERTIES importItemAttribute();
+
+
+statusInSuperMag 'Статус в Супермаге' = DATA INTEGER (Item);
+
+overImportItem ABSTRACT LIST ();
+
+lastVersion = DATA STRING (Item);
+imported = DATA LOCAL BOOLEAN (Item);
+imported = DATA LOCAL BOOLEAN (Barcode);
+
+importItem 'Импорт товаров' () {
+    
+    LOCAL id = TEXT (INTEGER);
+    LOCAL taxArticle = TEXT (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL shortName = ISTRING[250] (INTEGER);
+    LOCAL idMeasurement = INTEGER (INTEGER);
+    LOCAL idClass = INTEGER (INTEGER);
+    LOCAL country = TEXT (INTEGER);
+    LOCAL accepted = INTEGER (INTEGER);
+    LOCAL scale = STRING[1] (INTEGER);
+    LOCAL width = NUMERIC[14,3] (INTEGER);
+    LOCAL length = NUMERIC[14,3] (INTEGER);
+    LOCAL height = NUMERIC[14,3] (INTEGER);
+    LOCAL vat = NUMERIC[8,4] (INTEGER);
+    LOCAL taxItem = NUMERIC[8,4] (STRING);   
+   
+    EXTERNAL SQL connectionString()    
+        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT FROM Supermag.SMCARD card' TO SupermagSettings.file;
+    
+//    logToFile('importSupermag', 'importItem_1');
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height;
+
+    EXTERNAL SQL connectionString()    
+        EXEC 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE cardtax.rgnid = 3 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = 0 AND taxrate.TAXID = 0 AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article AND crdtax.rgnid = 3)' TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO taxArticle, vat;
+    
+    FOR taxArticle(INTEGER i) DO { taxItem (taxArticle(i)) <- vat(i); }
+    
+    currentVersion(INTEGER i) <- CONCAT '~', id(i), name(i), shortName(i), TEXT (idMeasurement(i)), TEXT (idClass(i)), country(i), TEXT (accepted(i)), scale(i), 
+                                            TEXT (width(i)), TEXT (length(i)), TEXT (height(i)), TEXT (taxItem(id(i)));
+ //   logToFile('importSupermag', 'importItem_2');
+      
+    FOR country(INTEGER i) AND NOT [GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)))]() DO NEW s = Country {
+        name(s) <- ISTRING[50](upper(trim(country(i))));
+    }
+
+    FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
+        id(s) <- ISTRING[100] (id(i));
+    }
+   
+    FOR Item s = item(id(INTEGER i)) AND NOT lastVersion(s) = currentVersion(i) DO {    
+        caption(s) <- STRING[255](replace(name(i), '\t', ' '));
+        shortName(s) <- shortName(i);
+        UOM(s) <- UOM(TEXT (idMeasurement(i)));
+        itemGroup(s) <- itemGroup(TEXT (idClass(i)));
+        skuType(s) <- CASE WHEN id(itemGroup(s)) = '2279' OR id(itemGroup(s)) = '368' THEN SkuType.skuTypeContainer
+                           WHEN id(itemGroup(s)) = '393' THEN SkuType.skuTypeCharge 
+                           ELSE SkuType.skuTypeItem;
+        Item.country(s) <- GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)));
+        width(s) <- max(min(width(i), 99999), -99999);
+        length(s) <- max(min(length(i), 99999), -99999);
+        height(s) <- max(min(height(i), 99999), -99999);
+        inactive(s) <- accepted(i) != 1;
+        passScales(s) <- scale(i) == '1';
+        imported(s) <- TRUE;
+        statusInSuperMag(s) <- accepted(i);
+        lastVersion(s) <- currentVersion(i);    
+    }
+
+    FOR Item s = item(id(INTEGER i)) AND imported(s) DO {    
+        VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == taxItem(id(i)) AND c = defaultCountry();    
+    }
+          
+    logToFile('importSupermag', 'importItem_6');
+    
+    overImportItem();
+
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItem();
+
+importItem 'Импорт товаров' (STRING itemlist) {
+    
+    LOCAL id = TEXT (INTEGER);
+    LOCAL taxArticle = TEXT (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL shortName = ISTRING[250] (INTEGER);
+    LOCAL idMeasurement = INTEGER (INTEGER);
+    LOCAL idClass = INTEGER (INTEGER);
+    LOCAL country = TEXT (INTEGER);
+    LOCAL accepted = INTEGER (INTEGER);
+    LOCAL scale = STRING[1] (INTEGER);
+    LOCAL width = NUMERIC[14,3] (INTEGER);
+    LOCAL length = NUMERIC[14,3] (INTEGER);
+    LOCAL height = NUMERIC[14,3] (INTEGER);
+    LOCAL vat = NUMERIC[8,4] (INTEGER);
+    LOCAL taxItem = NUMERIC[8,4] (STRING);   
+
+    sqlString() <- 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT FROM Supermag.SMCARD card WHERE ARTICLE IN (' + itemlist + ')';
+  //  MESSAGE sqlString();
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height;
+
+    FOR country(INTEGER i) AND NOT [GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)))]() DO NEW s = Country {
+        name(s) <- ISTRING[50](upper(trim(country(i))));
+    }
+
+    FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
+        id(s) <- ISTRING[100] (id(i));
+    }
+   
+    FOR Item s = item(id(INTEGER i)) DO {    
+        caption(s) <- STRING[255](replace(name(i), '\t', ' '));
+        shortName(s) <- shortName(i);
+        UOM(s) <- UOM(TEXT (idMeasurement(i)));
+        itemGroup(s) <- itemGroup(TEXT (idClass(i)));
+        skuType(s) <- CASE WHEN id(itemGroup(s)) = '2279' OR id(itemGroup(s)) = '368' THEN SkuType.skuTypeContainer
+                           WHEN id(itemGroup(s)) = '393' THEN SkuType.skuTypeCharge 
+                           ELSE SkuType.skuTypeItem;
+        Item.country(s) <- GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)));
+        width(s) <- max(min(width(i), 99999), -99999);
+        length(s) <- max(min(length(i), 99999), -99999);
+        height(s) <- max(min(height(i), 99999), -99999);
+        inactive(s) <- accepted(i) != 1;
+        passScales(s) <- scale(i) == '1';
+        imported(s) <- TRUE;
+        statusInSuperMag(s) <- accepted(i);
+    }
+         
+    overImportItem();
+    
+    sqlString() <- 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE cardtax.ARTICLE IN (' + itemlist + ') AND cardtax.rgnid = 3 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = 0 AND taxrate.TAXID = 0 AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article AND crdtax.rgnid = 3)';
+  //  MESSAGE sqlString();
+
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO taxArticle, vat;
+    
+    FOR taxArticle(INTEGER i) DO { taxItem (taxArticle(i)) <- vat(i); }
+
+    FOR Item s = item(id(INTEGER i)) AND imported(s) DO {    
+        VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == taxItem(id(i)) AND c = defaultCountry();    
+    }
+    
+    importBarcodeItem(itemlist);
+    
+    importItemAttribute(itemlist);  
+}
+
+lastItemlogId = DATA LONG ();
+
+EXTEND FORM integrationData
+PROPERTIES lastItemlogId();
+
+importItems 'Импорт товаров' () {
+
+    LOCAL recid = NUMERIC[16,0] (INTEGER);
+    LOCAL id = STRING (INTEGER);
+   
+    EXTERNAL SQL connectionString()    
+        EXEC 'SELECT ARTICLE, MAX(RECID) FROM Supermag.SMCardSecurityLog log WHERE RECID > ' + STRING(lastItemlogId()) + ' GROUP BY ARTICLE' TO SupermagSettings.file;
+        
+    IMPORT TABLE FROM SupermagSettings.file() TO id, recid;  
+   
+    LOCAL itemlist = STRING ();   
+
+    itemlist() <- GROUP CONCAT ('\'' + id(INTEGER i) + '\''), ',';
+    
+    importItem(itemlist());  
+    
+    lastItemlogId() <- OVERRIDE (GROUP MAX recid(INTEGER i)), lastItemlogId();
+    
+    APPLY;
+}
 
 importAltUnit 'Импорт альтернативных едениц измерения' (STRING articleId) {
     // пока не импортируем, так как там ерунда - \'packbarcode\',            
