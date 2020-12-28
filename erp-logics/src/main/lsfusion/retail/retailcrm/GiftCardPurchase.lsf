@@ -71,8 +71,8 @@ changeSku 'Заменить товар' (GiftCardPurchaseDetail p )  {
 expiryDays 'Срок действия (дней)' (GiftCardPurchaseDetail d) = expireDaysGiftCard(sku(d));
 price 'Номинал' (GiftCardPurchaseDetail d) = priceGiftCard(sku(d));
 
-fromGiftCard 'Номер с' = DATA INTEGER (GiftCardPurchaseDetail);
-toGiftCard 'Номер по' = DATA INTEGER (GiftCardPurchaseDetail);
+fromGiftCard 'Номер с' = DATA LONG (GiftCardPurchaseDetail);
+toGiftCard 'Номер по' = DATA LONG (GiftCardPurchaseDetail);
 
 giftCardPurchaseDetail = DATA GiftCardPurchaseDetail (GiftCard) NONULL DELETE INDEXED;
 giftCardPurchase(GiftCard g) = giftCardPurchase(giftCardPurchaseDetail(g));
@@ -96,7 +96,7 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
     DELETE GiftCard d WHERE giftCardPurchase (d) == p;
     
     FOR p == giftCardPurchase(GiftCardPurchaseDetail d) DO {
-        LOCAL num = INTEGER();
+        LOCAL num = LONG();
         num() <- fromGiftCard(d);
         WHILE num() <= toGiftCard(d) DO {
             NEW g = GiftCard {
@@ -124,9 +124,9 @@ CONSTRAINT SET (GiftCardPurchaseDetail d IS GiftCardPurchaseDetail) AND NOT [GRO
     MESSAGE 'Сгенерируйте номера сертификатов';
 
 numberReport 'Номер' (GiftCard g) = OVERRIDE 
-    toInteger(right(number(g), lengthGiftCard())),
-    toInteger(substrFrom(number(g),(length(prefixGiftCard())+1))) IF prefixGiftCard() AND substr(number(g),1,length(prefixGiftCard())) == prefixGiftCard(),
-    toInteger(number(g));
+    LONG(right(number(g), lengthGiftCard())),
+    LONG(substrFrom(number(g),(length(prefixGiftCard())+1))) IF prefixGiftCard() AND substr(number(g),1,length(prefixGiftCard())) == prefixGiftCard(),
+    LONG(number(g));
 
     
 select 'Отм.' = DATA LOCAL BOOLEAN (GiftCard); 
@@ -134,8 +134,8 @@ select 'Отм.' = DATA LOCAL BOOLEAN (GiftCard);
 relation = GROUP SUM 1 IF select(GiftCard g) BY sku(g), numberReport(g);
 relation = GROUP SUM 1 IF select(GiftCard g) BY sku(g);
 
-fromN 'Номер с' = DATA LOCAL INTEGER (Sku); 
-toN 'Номер по' = DATA LOCAL INTEGER (Sku); 
+fromN 'Номер с' = DATA LOCAL LONG (Sku); 
+toN 'Номер по' = DATA LOCAL LONG (Sku); 
 
 FORM selectGiftCards 'Выбор ПС'
     OBJECTS s = Sku
@@ -180,25 +180,25 @@ moveGiftCards 'Переместить подарочные сертификат�
     } 
     DIALOG  selectGiftCards NOMANAGESESSION DO {
         FOR fromN(Sku s) AND toN(s) DO {
-            select(GiftCard g) <- TRUE WHERE iterate(INTEGER(numberReport(g)),fromN(s), toN(s)) AND sku(g) == s;  
+            select(GiftCard g) <- TRUE WHERE iterate(LONG(numberReport(g)),fromN(s), toN(s)) AND sku(g) == s;  
         }           
         IF (GROUP SUM 1 IF select(GiftCard g)) THEN {
             FOR relation(Sku s) DO {
-                LOCAL int =  INTEGER ();       
-                LOCAL include =  BOOLEAN (INTEGER);
-                LOCAL from =  INTEGER (INTEGER);
-                LOCAL to =  INTEGER (INTEGER);
+                LOCAL int =  LONG ();       
+                LOCAL include =  BOOLEAN (LONG);
+                LOCAL from =  LONG (LONG);
+                LOCAL to =  LONG (LONG);
                 int() <- 1;      
                 
-                include(INTEGER number) <- TRUE WHERE relation(s,number);
-                FOR include(INTEGER number)  ORDER  number DO {
+                include(LONG number) <- TRUE WHERE relation(s,number);
+                FOR include(LONG number)  ORDER  number DO {
                     IF to(int()) THEN {
                         int() <- int()+1 ;  
                     }    
-                    from(INTEGER in) <- number WHERE in == int() AND NOT include(number-1);            
-                    to(INTEGER in) <- number WHERE in == int() AND NOT include(number+1);                
+                    from(LONG in) <- number WHERE in == int() AND NOT include(number-1);            
+                    to(LONG in) <- number WHERE in == int() AND NOT include(number+1);                
                 }
-                FOR from(INTEGER in)   NEW d =  GiftCardPurchaseDetail DO {
+                FOR from(LONG in)   NEW d =  GiftCardPurchaseDetail DO {
                     giftCardPurchase(d) <- p;    
                     sku(d) <- s;
                     fromGiftCard(d) <- from(in);
