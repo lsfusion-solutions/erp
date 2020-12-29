@@ -42,6 +42,16 @@ sku 'Товар' = DATA Sku (Lot) NONULL DELETE INDEXED;
 idSku 'Код товара' (Lot l) = id(sku(l));
 nameSku 'Наименование товара' (Lot l) = name(sku(l));
 
+changeSku 'Заменить товар' (Lot l) {
+    DIALOG skus OBJECTS s INPUT DO {
+        ASK 'Вы уверены, что хотите изменить товар для контрольной марки ' + id(l) + ' на ' + name(s) + '?\n Все ограничения будут временно отключены. Во всех существущих документах останется предыдущий товар.' DO {
+            sku(l) <- s;
+            setNoCancelInTransaction();
+            APPLY;
+        }
+    }
+}
+
 FORM dialogLots 'Марки'
     OBJECTS l = Lot
     PROPERTIES(l) READONLY id, idSku, nameSku
@@ -52,6 +62,7 @@ FORM dialogLots 'Марки'
 FORM lots 'Марки'
     OBJECTS l = Lot
     PROPERTIES(l) READONLY id, idSku, nameSku
+    PROPERTIES(l) changeSku TOOLBAR
 ;
 
 DESIGN lots {
