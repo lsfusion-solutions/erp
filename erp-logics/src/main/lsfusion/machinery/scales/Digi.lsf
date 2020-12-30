@@ -76,6 +76,8 @@ tareWeight = ABSTRACT NUMERIC[12,3] (Barcode);
 overId = ABSTRACT STRING[100] (CustomGroup);
 idDigi(CustomGroup cg) = OVERRIDE overId(cg), id(cg);
 
+overNewPluNumber = ABSTRACT INTEGER (Barcode, GroupScales);
+
 createAttribute(MachineryPriceTransaction mpt) + {
     IF sidModel(groupScales(mpt)) == 'DigiSM5300' THEN {
         LOCAL custGroup = CustomGroup (Barcode);
@@ -85,9 +87,9 @@ createAttribute(MachineryPriceTransaction mpt) + {
         
         info(mpt, Barcode b) <- ('\{"digism5300":\{'+
                 (CONCAT ',',
-                    (' "numberGroup": "' + (OVERRIDE idDigi(custGroup(b)), '') +
-                    '", nameGroup: "' + (OVERRIDE name(custGroup(b)),'')+ 
-                    '", overPluNumber: "' + newPluNumber(b) + '"'),
+                    (' "numberGroup": "' + (OVERRIDE idDigi(custGroup(b)), '1') +
+                    '", nameGroup: "' + (OVERRIDE name(custGroup(b)),'Все')+ 
+                    '", overPluNumber: "' + (OVERRIDE newPluNumber(b), overNewPluNumber(b, groupMachinery(mpt))) + '"'),
                     '"tareWeight":'+tareWeight(b))
                 +'\}\}') WHERE in(mpt, b);
     }
