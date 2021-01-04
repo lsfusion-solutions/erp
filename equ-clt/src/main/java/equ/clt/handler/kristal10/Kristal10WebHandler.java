@@ -473,7 +473,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     setAttribute(minPriceRestriction, "type", "MIN_PRICE");
                     setAttribute(minPriceRestriction, "value", item.minPrice != null ? item.minPrice : BigDecimal.ZERO);
                     addStringElement(minPriceRestriction, "since-date", currentDate());
-                    addStringElement(minPriceRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2021-01-01T23:59:59"));
+                    addStringElement(minPriceRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2051-01-01T23:59:59"));
                     addStringElement(minPriceRestriction, "since-time", "00:00:00");
                     addStringElement(minPriceRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
                     addStringElement(minPriceRestriction, "deleted", item.minPrice.compareTo(BigDecimal.ZERO) != 0 ? "false" : "true");
@@ -491,7 +491,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
                 setAttribute(maxDiscountRestriction, "value", "0");
                 addStringElement(maxDiscountRestriction, "since-date", currentDate());
-                addStringElement(maxDiscountRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2021-01-01T23:59:59"));
+                addStringElement(maxDiscountRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2051-01-01T23:59:59"));
                 addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
                 addStringElement(maxDiscountRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
                 addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
