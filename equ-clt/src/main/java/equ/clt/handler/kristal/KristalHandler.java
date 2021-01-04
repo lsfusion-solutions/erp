@@ -167,7 +167,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                     Object code = useIdItem ? item.idItem : item.idBarcode;
                                     //String barcode = (isWeightItem ? weightPrefix : "") + (item.idBarcode == null ? "" : item.idBarcode);
                                     boolean forbid = item.flags != null && ((item.flags & 16) == 0);
-                                    String record = (forbid ? "+" : "-") + "|" + code + "|" + code + "|" + "20010101" + "|" + "20210101";
+                                    String record = (forbid ? "+" : "-") + "|" + code + "|" + code + "|" + "20010101" + "|" + "20510101";
                                     writer.println(record);
                                 }
                             }
