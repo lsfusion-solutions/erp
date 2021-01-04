@@ -18,12 +18,10 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 
 public class ImportExcelItemsAction extends ImportExcelAction {
@@ -75,7 +73,7 @@ public class ImportExcelItemsAction extends ImportExcelAction {
                     barcode = BarcodeUtils.appendCheckDigitToBarcode(barcode, 12);
                 }
             }
-            LocalDate date = parseDateValue(sheet.getCell(8, i), new Date(Calendar.getInstance().getTime().getTime()));
+            LocalDate date = parseDateValue(sheet.getCell(8, i), LocalDate.now());
             Boolean split = parseBoolean(sheet.getCell(9, i));
             BigDecimal netWeightItem = parseBigDecimal(sheet.getCell(10, i));
             BigDecimal grossWeightItem = parseBigDecimal(sheet.getCell(11, i));

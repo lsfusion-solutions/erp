@@ -559,12 +559,12 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
     }
 
     protected Time getXLSTimeFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
-        Date date = getXLSDateFieldValue(sheet, row, importColumnDetail, null);
+        Date date = getXLSDateFieldValue(sheet, row, importColumnDetail, null, false);
         return date == null ? null : new Time(date.getTime());
     }
 
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
-        return getXLSDateFieldValue(sheet, row, importColumnDetail, null);
+        return getXLSDateFieldValue(sheet, row, importColumnDetail, null, false);
     }
 
     //7
@@ -574,10 +574,6 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
 
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean ignoreException) throws UniversalImportException {
         return getXLSDateFieldValue(sheet, row, importColumnDetail, null, ignoreException);
-    }
-
-    protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate) throws UniversalImportException {
-        return getXLSDateFieldValue(sheet, row, importColumnDetail, defaultDate, false);
     }
 
     //9
@@ -1075,11 +1071,6 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
         }
     }
 
-    protected Time getJDBFTimeFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
-        Date date = getJDBFDateFieldValue(entry, fieldNamesMap, importColumnDetail, row, null);
-        return date == null ? null : new Time(date.getTime());
-    }
-
     protected Date getJDBFDateFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
         return getJDBFDateFieldValue(entry, fieldNamesMap, importColumnDetail, row, null);
     }
@@ -1321,7 +1312,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
 
     protected String formatValue(Object value) {
         if (value == null) return null;
-        if (value instanceof Date || value instanceof java.util.Date) {
+        if (value instanceof java.util.Date) {
             return new SimpleDateFormat("dd.MM.yyyy").format(value);
         } else return String.valueOf(value);
     }
@@ -1333,7 +1324,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
     private String parseBoolean(String value) {
         //сохраняем обратную совместимость: да - true, нет - null, всё остальное - как раньше
         if (value != null) {
-            return value.toLowerCase().equals("да") ? "true" : value.toLowerCase().equals("нет") ? null : value;
+            return value.equalsIgnoreCase("да") ? "true" : value.equalsIgnoreCase("нет") ? null : value;
         } else {
             return null;
         }

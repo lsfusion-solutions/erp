@@ -8,7 +8,6 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
@@ -16,8 +15,8 @@ import java.time.LocalDate;
 
 public class ImportExcelAction extends DefaultImportAction {
 
-    static long minDate = new Date(2001 - 1900, 0, 1).getTime();
-    static long maxDate = new Date(2030 - 1900, 0, 1).getTime();
+    static LocalDate minDate = LocalDate.of(2001, 1, 1);
+    static LocalDate maxDate = LocalDate.of(2030, 1, 1);
 
     public ImportExcelAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -51,10 +50,10 @@ public class ImportExcelAction extends DefaultImportAction {
         return parseDateValue(cell, null);
     }
 
-    protected static LocalDate parseDateValue(Cell cell, Date defaultDate) throws ParseException {
-        Date date = cell == null ? null : parseDate(cell.getContents(), defaultDate);
-        if (date == null || date.getTime() < minDate || date.getTime() >= maxDate)
+    protected static LocalDate parseDateValue(Cell cell, LocalDate defaultDate) throws ParseException {
+        LocalDate date = cell == null ? null : sqlDateToLocalDate(parseDate(cell.getContents(), localDateToSqlDate(defaultDate)));
+        if (date == null || date.isBefore(minDate) || date.isAfter(maxDate))
             date = defaultDate;
-        return sqlDateToLocalDate(date);
+        return date;
     }
 }
