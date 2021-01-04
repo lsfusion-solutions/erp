@@ -4,6 +4,11 @@ REQUIRE PurchaseShipment, SkuLedgerTax, PurchaseOperation;
 
 NAMESPACE Purchase;
 
+dataVAT 'НДС партии, шкала' = DATA Range (Batch);
+numberDataVAT 'НДС партии, шкала' = number(dataVAT(Batch batch));       
+
+dataValueVAT 'НДС, %' (batch) = DATA NUMERIC[10,5](Batch);
+
 notUseDetailVAT 'Не использовать НДС строки накладной для НДС партии' = DATA BOOLEAN (Purchase.Operation);
 EXTEND FORM Purchase.operation
     PROPERTIES(o) notUseDetailVAT
@@ -15,5 +20,25 @@ DESIGN Purchase.operation {
     }
 }
 
-VAT (ShipmentBatch b) += VAT(invoiceDetail(shipmentDetail(b))) IF NOT notUseDetailVAT(operation(invoiceDetail(shipmentDetail(b))));
-valueVAT (ShipmentBatch b) += valueVAT(invoiceDetail(shipmentDetail(b))) IF NOT notUseDetailVAT(operation(invoiceDetail(shipmentDetail(b))));
+VAT (ShipmentBatch b) += OVERRIDE dataVAT(b), (VAT(invoiceDetail(shipmentDetail(b))) IF NOT notUseDetailVAT(operation(invoiceDetail(shipmentDetail(b)))));
+valueVAT (ShipmentBatch b) += OVERRIDE dataValueVAT(b), (valueVAT(invoiceDetail(shipmentDetail(b))) IF NOT notUseDetailVAT(operation(invoiceDetail(shipmentDetail(b)))));
+
+@extendFormEditable(currentBalanceBatchStock);
+
+changeVAT (Batch bt) {
+    DIALOG range OBJECTS r INPUT DO {
+        VAT(bt) <- r;        
+        valueVAT(bt) <- valueCurrentRate(r);
+    } 
+}
+
+changeValueVAT (Batch bt) {
+    INPUT v=NUMERIC[10,5] DO {
+        valueVAT(bt) <- v;
+        VAT(bt) <- valueCurrentVATDefault(v);    
+    }   
+}
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES(bt) READONLYIF isReadonly() BACKGROUND backgroundBatch(st, bt) numberVAT ON CHANGE changeVAT(bt), valueVAT ON CHANGE changeValueVAT(bt)
+;
