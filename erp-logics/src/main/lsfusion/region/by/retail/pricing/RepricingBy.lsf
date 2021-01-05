@@ -1,0 +1,25 @@
+MODULE RepricingBy;
+
+REQUIRE Repricing, Pricing;
+
+NAMESPACE Repricing;
+
+lastPriceListLedger (Sku sk, Stock s, DATETIME dt) = prevPriceListLedgerB(SystemLedgerPriceListType.retailPricingPriceListType, sk, s, dt);
+
+lastRepricingDetail (Sku sk, Stock s, DATETIME dt) = lastPriceListLedger(sk, s, dt) AS RepricingDetail;
+lastPricingDetail (Sku sk, Stock s, DATETIME dt) = lastPriceListLedger(sk, s, dt) AS PricingDetail;
+
+lastVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = MULTI VAT[RepricingDetail](lastRepricingDetail(sk, s, dt)), 
+                                                              retailVAT[PricingDetail](lastPricingDetail(sk, s, dt));
+lastValueVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = MULTI valueVAT[RepricingDetail](lastRepricingDetail(sk, s, dt)), 
+                                                                                    valueRetailVAT[PricingDetail](lastPricingDetail(sk, s, dt));
+
+WHEN LOCAL (CHANGED(sku(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) 
+    AND Range r = lastVatPriceListLedger (sku(detail), departmentStore(detail), dateTime(detail)) DO {
+        curVAT(detail) <- r;   
+}
+
+WHEN LOCAL (CHANGED(sku(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) 
+    AND NUMERIC[10,5] r = lastValueVatPriceListLedger (sku(detail), departmentStore(detail), dateTime(detail)) DO {
+        valueCurVAT(detail) <- r;   
+}
