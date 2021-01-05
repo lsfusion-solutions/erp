@@ -1,0 +1,32 @@
+MODULE PurchaseShipmentTaxOver;
+
+REQUIRE PurchaseShipmentTax;
+
+NAMESPACE Purchase;
+
+dataVAT 'НДС партии, шкала' = DATA Range (Batch);
+numberDataVAT 'НДС партии, шкала' = number(dataVAT(Batch batch));   
+overVAT(Batch bt) += dataVAT(bt);     
+
+dataValueVAT 'НДС, %' (batch) = DATA NUMERIC[10,5](Batch);
+overValueVAT(Batch bt) += dataValueVAT(bt);  
+
+@extendFormEditable(currentBalanceBatchStock);
+
+changeVAT (Batch bt) {
+    DIALOG range OBJECTS r INPUT DO {
+        VAT(bt) <- r;        
+        valueVAT(bt) <- valueCurrentRate(r);
+    } 
+}
+
+changeValueVAT (Batch bt) {
+    INPUT v=NUMERIC[10,5] DO {
+        valueVAT(bt) <- v;
+        VAT(bt) <- valueCurrentVATDefault(v);    
+    }   
+}
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES(bt) READONLYIF isReadonly() BACKGROUND backgroundBatch(st, bt) numberVAT ON CHANGE changeVAT(bt), valueVAT ON CHANGE changeValueVAT(bt)
+;
