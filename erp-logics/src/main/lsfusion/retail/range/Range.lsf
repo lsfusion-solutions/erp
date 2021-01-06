@@ -78,6 +78,7 @@ DESIGN range {
 @extendFormFilterSkuGroupAccess(range, sg);
 
 showShow = ABSTRACT BOOLEAN (Range);
+showEdit (Range r) = r IS Range AND NOT showShow(r);
 
 FORM ranges 'Ассортиментные матрицы'
     OBJECTS d = DATE PANEL
@@ -91,7 +92,7 @@ FORM ranges 'Ассортиментные матрицы'
     OBJECTS r = Range
     PROPERTIES(r) READONLY name
     PROPERTIES READONLYIF isReadonly() inactive(r)
-    PROPERTIES(r) NEWSESSION NEW, editR = EDIT SHOWIF r IS Range AND NOT showShow(r) 
+    PROPERTIES(r) NEWSESSION NEW, editR = EDIT SHOWIF showEdit(r) 
     FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
     ORDERS name(r)
     FILTERGROUP active FILTER 'Активные' NOT inactive(r) DEFAULT
@@ -106,7 +107,7 @@ show 'Просмотреть' (Range r)   {
 }TOOLBAR;
 
 EXTEND FORM ranges 
-    PROPERTIES show(r) SHOWIF showShow(r) BEFORE editR, DELETE(r) NEWSESSION 
+    PROPERTIES show(r) SHOWIF showShow(r) BEFORE editR, DELETE(r) NEWSESSION SHOWIF showEdit(r)
 ;
 
 DESIGN ranges {
@@ -375,7 +376,7 @@ EXTEND FORM range
     
     OBJECTS v = RangeRev LAST
     PROPERTIES(v) READONLY dateTime
-    PROPERTIES(v) NEWSESSION SHOWIF saved(r) NEW, show, editv = EDIT SHOWIF showEdit(v), copy, deletev = DELETE SHOWIF showDelete(v)
+    PROPERTIES(v) NEWSESSION SHOWIF saved(r) NEW SHOWIF showEdit(r), show, editv = EDIT SHOWIF showEdit(v), copy SHOWIF showEdit(r), deletev = DELETE SHOWIF showDelete(v)
     FILTERS range(v) == r
     ORDERS dateTime(v)
 ;
