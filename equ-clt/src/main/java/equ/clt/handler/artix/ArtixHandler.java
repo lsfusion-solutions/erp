@@ -304,6 +304,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             boolean noMinPrice = item.flags == null || (item.flags & 16) == 0;
             boolean disableInventBack = item.flags != null && (item.flags & 32) != 0;
             boolean ageVerify = item.flags != null && (item.flags & 64) != 0;
+            boolean disableInventSale = item.flags != null && (item.flags & 128) != 0;
 
             //основной штрих-код
             inventObject.put("deptcode", 1); //код отдела
@@ -338,6 +339,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             JSONObject inventItemOptions = new JSONObject();
             inventItemOptions.put("disableinventback", disableInventBack ? 1 : 0);
+            inventItemOptions.put("disableinventsale", disableInventSale ? 1 : 0);
             inventItemOptions.put("ageverify", ageVerify ? 1 : 0);
             if(requireSaleRestrict != null) {
                 inventItemOptions.put("requiresalerestrict", requireSaleRestrict);
