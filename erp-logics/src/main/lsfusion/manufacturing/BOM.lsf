@@ -685,8 +685,8 @@ DESIGN BOM {
 }
 
 @addEventGenerateNumberOnForm(BOM, b, BOM);
-
-WHEN LOCAL FORMS BOM SET(BOM BOM IS BOM) DO {
+isCopyBom = DATA LOCAL BOOLEAN (BOM);
+WHEN LOCAL FORMS BOM SET(BOM BOM IS BOM) AND NOT isCopyBom(BOM) DO {
     dataIn(Stock stock, BOM) <- TRUE WHERE dataAccessCompany(stock, currentUser());
     dataIn(StockGroup group, BOM) <- TRUE WHERE dataAccessCompany(group, currentUser());
 };
@@ -722,7 +722,7 @@ overCopy (BOM from, BOM to) + {
     IF NOT skipCopyStock()THEN {
         dataIn(Stock s, to) <- dataIn(s, from); 
         dataIn(StockGroup g, to) <- dataIn(g, from);	    
-    } 
+    }  
     dataNettoNetWeightComponent(to) <- dataNettoNetWeightComponent(from);
 }
 overCopy (Product to, Product from) + { 
