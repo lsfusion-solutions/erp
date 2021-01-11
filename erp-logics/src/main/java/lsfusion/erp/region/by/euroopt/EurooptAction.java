@@ -62,8 +62,15 @@ public class EurooptAction extends DefaultImportAction {
                 }
             } catch (HttpStatusException | SocketTimeoutException | ConnectException e) {
                 count--;
-                if (count <= 0)
+                if (count <= 0) {
                     ERPLoggers.importLogger.error(logPrefix + "error for url " + url + ": ", e);
+                } else {
+                    try {
+                        ERPLoggers.importLogger.error(logPrefix + "error for url " + url + ", will retry");
+                        Thread.sleep(5000);
+                    } catch (InterruptedException ignored) {
+                    }
+                }
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
