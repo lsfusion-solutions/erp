@@ -18,6 +18,8 @@ import org.silvertunnel_ng.netlib.api.NetLayerIDs;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.sql.SQLException;
@@ -58,7 +60,7 @@ public class EurooptAction extends DefaultImportAction {
                         return Jsoup.parse(responseBodyIS, "utf-8", "");
                     }
                 }
-            } catch (HttpStatusException e) {
+            } catch (HttpStatusException | SocketTimeoutException | ConnectException e) {
                 count--;
                 if (count <= 0)
                     ERPLoggers.importLogger.error(logPrefix + "error for url " + url + ": ", e);
