@@ -1,0 +1,37 @@
+MODULE DisparityLot;
+
+REQUIRE Disparity, DisparityOperation, SkuLedgerLot;
+
+NAMESPACE Disparity;
+
+@defineOperationProperty(useLot, 'Марки', showContainer);
+
+@defineDocumentLotOut(disparity, stock, quantity, dis);
+
+changeSkuLot 'Перенести марки' (Disparity d) {
+    APPLY;
+    IF canceled() THEN RETURN;
+    
+    ASK 'Вы уверены, что хотите перенести марки на новый товар ? Отмена операции будет невозможна.' DO {
+        NEWSESSION {
+            FOR disparity(DisparityDetail dd) = d AND inputSku(dd) AND quantity(dd, Lot l) AND sku(dd) = sku(l) DO {
+                sku(l) <- inputSku(dd);
+            }
+            setNoCancelInTransaction();
+            APPLY;
+        }
+    }
+}
+
+countLot (Disparity d) = GROUP SUM 1 IF quantity(DisparityDetail dd, Lot l) AND sku(dd) = sku(l) AND disparity(dd) = d;
+countInputLot (Disparity d) = GROUP SUM 1 IF quantity(DisparityDetail dd, Lot l) AND inputSku(dd) = sku(l) AND disparity(dd) = d;
+
+statusLot 'Статус марок' (Disparity d) = 
+                                       CASE WHEN countInputLot(d) AND NOT countLot(d) THEN 'Перенесены'  
+                                             WHEN countLot(d) AND NOT countInputLot(d) THEN 'Не перенесены'
+                                             WHEN countLot(d) AND countInputLot(d) THEN 'Частично перенесены'
+                                           ELSE 'Не заданы';
+
+EXTEND FORM disparity
+    PROPERTIES(dis) DRAW d TOOLBAR changeSkuLot, statusLot READONLY 
+;
