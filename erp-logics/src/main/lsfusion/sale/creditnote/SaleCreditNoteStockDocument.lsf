@@ -59,6 +59,8 @@ quantity[InLIFOSkuLedger] (Sale.UserCreditNoteDetail ledger) += quantity(ledger)
 batch[SkuLedger](Sale.UserCreditNoteDetail ledger) += batch(ledger);
 changed(Sale.UserCreditNoteDetail ledger) += CHANGED(batch(ledger));
 
-sum[InSkuLedger](Sale.UserCreditNoteDetail ledger) += OVERRIDE retailSum(ledger), sum(ledger);
+calcBatchShipmentSum (Sale.UserCreditNoteDetail detail) = 
+    NUMERIC[18,4](round(accountPriceA(batch(detail), supplierStock(detail), dateTime(detail))*quantity(detail), defaultRound(currency(supplier(detail)))));
+sum[InSkuLedger](Sale.UserCreditNoteDetail ledger) += OVERRIDE retailSum(ledger), calcBatchShipmentSum(ledger);
 stockDocumentLedger[SkuLedger](Sale.UserCreditNoteDetail ledger) += userCreditNote(ledger);
 show[SkuLedger](Sale.UserCreditNoteDetail d) + {  show(d); }
