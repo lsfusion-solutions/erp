@@ -704,7 +704,7 @@ recalculateBalance 'Заполнить остатки' (Inventory inventory)  {
     endTimeRecalculateBalance(inventory) <- currentDateTime();    
 } CONFIRM IN inventoryAction;
 
-overPriceBalance = ABSTRACT NUMERIC[16,4](CollationSheet, Sku);
+overPriceBalance = ABSTRACT NUMERIC[16,4](Stock, Sku);
 startTimeRecalculatePrice 'Цены старт' = DATA DATETIME(CollationSheet);
 endTimeRecalculatePrice 'Цены конец' = DATA DATETIME(CollationSheet);
 
@@ -717,17 +717,17 @@ recalculatePrice 'Пересчитать цены в сличительной в
 
         IF isBatch (collationSheet) THEN {
             price(PageInventoryDetail pageInventoryDetail)
-                <- OVERRIDE prevAccountPriceB(batch(pageInventoryDetail), st, dt), overPriceBalance(collationSheet, sku(pageInventoryDetail))
+                <- OVERRIDE prevAccountPriceB(batch(pageInventoryDetail), st, dt), overPriceBalance(st, sku(pageInventoryDetail))
                 WHERE collationSheet(pageInventoryDetail) == collationSheet;
         } ELSE {
             price(PageInventoryDetail pageInventoryDetail)
-                <- OVERRIDE prevAccountPriceB(sku(pageInventoryDetail), st, dt), overPriceBalance(collationSheet, sku(pageInventoryDetail))
+                <- OVERRIDE prevAccountPriceB(sku(pageInventoryDetail), st, dt), overPriceBalance(st, sku(pageInventoryDetail))
                 WHERE collationSheet(pageInventoryDetail) == collationSheet;
         }
     
         IF isPartly(inventory(collationSheet)) AND isRemains(inventory(collationSheet)) THEN { 
             priceBalance(collationSheet, Sku sku)
-                <- OVERRIDE prevAccountPriceB(sku, st, dt), overPriceBalance(collationSheet, sku)
+                <- OVERRIDE prevAccountPriceB(sku, st, dt), overPriceBalance(st, sku)
                 WHERE include(inventory(collationSheet), sku);
                 
             IF NOT isPrice(inventory(collationSheet)) THEN {
@@ -750,7 +750,7 @@ recalculatePrice 'Пересчитать цены в сличительной в
         ELSE {
             IF isRemains(inventory(collationSheet)) THEN {
                 priceBalance(collationSheet, Sku sku)
-                    <- OVERRIDE prevAccountPriceB(sku, st, dt), overPriceBalance(collationSheet, sku);
+                    <- OVERRIDE prevAccountPriceB(sku, st, dt), overPriceBalance(st, sku);
                 IF NOT isPrice(inventory(collationSheet)) THEN {
                     sumBalance(collationSheet, Sku sku)
                         <- NUMERIC[18,4](sumB(sku, st, dt));
@@ -765,7 +765,7 @@ recalculatePrice 'Пересчитать цены в сличительной в
                 
             } ELSE {
                 priceBalance(collationSheet, Sku sku)
-                    <- OVERRIDE prevAccountPriceB(sku, st, dt), overPriceBalance(collationSheet, sku)
+                    <- OVERRIDE prevAccountPriceB(sku, st, dt), overPriceBalance(st, sku)
                         WHERE include(collationSheet, sku);
                     
                 IF NOT isPrice(inventory(collationSheet)) THEN {
@@ -798,7 +798,7 @@ recalculatePrice 'Пересчитать цены по всей инвентар
 
 WHEN LOCAL SET(include(CollationSheet collationSheet, Sku sku)) DO {
     priceBalance(collationSheet, sku) <- OVERRIDE prevAccountPriceB(
-                sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku);
+                sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(stock(collationSheet), sku);
 }
 
 // ------------------------------------ Итоги по сличительной ведомости (Sku) ------------------------------------ //
@@ -968,7 +968,7 @@ overReplace(Sku od, Sku d) + {
         WHERE quantityBalance(collationSheet, od) OR PREV(countPageInventoryDetail(collationSheet, od));
 
     priceBalance(CollationSheet collationSheet, d)
-        <- OVERRIDE prevAccountPriceB(od, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, d)
+        <- OVERRIDE prevAccountPriceB(od, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(stock(collationSheet), d)
         WHERE priceBalance(collationSheet, od) OR PREV(countPageInventoryDetail(collationSheet, od));
         
     sumBalance(CollationSheet collationSheet, d)
