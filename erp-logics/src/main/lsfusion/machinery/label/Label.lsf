@@ -680,6 +680,21 @@ META defineLabelTransactionAttribute(object, caption, type, skuClass, skuProp)
     @defineLabelTransactionAttributeAction(object, skuClass, skuProp);
 END
 
+META defineLabelTransactionOverAttributeAction(object, skuClass, skuProp)
+    createAttribute(LabelTransactionDetail d) +
+        {  object(d) <- OVERRIDE over###skuProp(d), skuProp(sku(d)); }
+
+    EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY object;
+    EXTEND FORM customLabelTransaction PROPERTIES(d) object;
+    EXTEND FORM labelTransactions PROPERTIES(dt) READONLY object PROPERTIES(dts) READONLY object;   
+END
+
+META defineLabelTransactionOverAttribute(object, caption, type, skuClass, skuProp)
+    object caption  = DATA type (LabelTransactionDetail);
+    over###skuProp caption  = ABSTRACT type (LabelTransactionDetail);
+    @defineLabelTransactionOverAttributeAction(object, skuClass, skuProp);
+END
+
 // ---------- Атрибуты по умолчанию ------ //
 @defineLabelTransactionAttribute(shortNameUOMSku, 'Ед. изм.', ISTRING[100], Sku, shortNameUOM);
 // -------------------------------------------- Действия по печати ценников ------------------------------ //
@@ -713,14 +728,16 @@ WHEN LOCAL FORMS customLabelTransaction
 
 @defineLabelTransactionAttribute(nameSkuGroupSku, 'Тов. группа', STRING[100], Sku, nameSkuGroup);
 
-@defineLabelTransactionAttribute(nameCountrySku, 'Страна изготовления', STRING[50], Sku, nameCountry);
+@defineLabelTransactionOverAttribute(nameCountrySku, 'Страна изготовления', STRING[50], Sku, nameCountry);
 manufactureDateBatch 'Дата изготовления'  = DATA DATE (LabelTransactionDetail);
+overManufactureDate = ABSTRACT DATE (LabelTransactionDetail);
 createAttribute(LabelTransactionDetail d) +
-    {  manufactureDateBatch(d) <- manufactureDate(lastOrderBatch(sku(d), departmentStore(d))); }
+    {  manufactureDateBatch(d) <- OVERRIDE overManufactureDate(d), manufactureDate(lastOrderBatch(sku(d), departmentStore(d))); }
 
 expiryDateBatch 'Годен до'  = DATA DATE (LabelTransactionDetail);
+overExpiryDate = ABSTRACT DATE (LabelTransactionDetail);
 createAttribute(LabelTransactionDetail d) +
-    {  expiryDateBatch(d) <- expiryDate(lastOrderBatch(sku(d), departmentStore(d))); }
+    {  expiryDateBatch(d) <- OVERRIDE overExpiryDate(d), expiryDate(lastOrderBatch(sku(d), departmentStore(d))); }
 
 EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY manufactureDateBatch, expiryDateBatch;
 EXTEND FORM customLabelTransaction PROPERTIES(d) manufactureDateBatch, expiryDateBatch;
