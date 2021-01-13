@@ -11,9 +11,6 @@ import equ.api.stoplist.StopListItemInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.EnhancedPatternLayout;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -34,8 +31,6 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> {
 
     protected final static Logger astronLogger = Logger.getLogger("AstronLogger");
-
-    private static String logPrefix = "Astron: ";
 
     private static Map<String, Map<String, CashRegisterItemInfo>> deleteBarcodeConnectionStringMap = new HashMap<>();
 
@@ -231,7 +226,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     }
 
                 } catch (Exception e) {
-                    astronLogger.error(logPrefix, e);
+                    astronLogger.error("exportTransaction error", e);
                     exception = e;
                 } finally {
                     connectionSemaphore.remove(params.connectionString);
@@ -1370,7 +1365,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         }
 
                     } catch (Exception e) {
-                        astronLogger.error(logPrefix, e);
+                        astronLogger.error("sendStopListInfo error", e);
                     } finally {
                         connectionSemaphore.remove(params.connectionString);
                     }
@@ -1438,7 +1433,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         exception = waitFlags(conn, params, table, null, null, timeout, true);
                     }
                 } catch (Exception e) {
-                    astronLogger.error(logPrefix, e);
+                    astronLogger.error("sendDiscountCardList error", e);
                     exception = e;
                 }
             }
@@ -1466,7 +1461,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try {
             AstronConnectionString params = new AstronConnectionString(directory);
             if (params.connectionString == null) {
-                sendSalesLogger.error(logPrefix + "no connectionString found");
+                astronLogger.error("readSalesInfo: no connectionString found");
             } else {
                 try (Connection conn = getConnection(params)) {
                     salesBatch = readSalesInfoFromSQL(conn, params, machineryMap, directory);
@@ -1537,7 +1532,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Integer numberReceipt = rs.getInt("FRECNUM");
 
                 if (numberReceipt == 0) {
-                    sendSalesLogger.info(logPrefix + String.format("incorrect record with FRECNUM = 0: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId));
+                    astronLogger.info(String.format("incorrect record with FRECNUM = 0: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId));
                 } else {
 
                     String uniqueReceiptDetailId = getUniqueReceiptDetailId(sAreaId, nppCashRegister, sessionId, numberReceipt, salesNum);
@@ -1626,7 +1621,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     recordList.addAll(curRecordList);
                                 } else {
                                     for(AstronRecord record : curRecordList) {
-                                        sendSalesLogger.info(logPrefix + String.format("incorrect record: SAREAID %s, SYSTEMID %s, SALESNUM %s, SESSIONID %s", record.sAreaId, record.systemId, record.salesNum, record.sessId));
+                                        astronLogger.info(String.format("incorrect record: SAREAID %s, SYSTEMID %s, SALESNUM %s, SESSIONID %s", record.sAreaId, record.systemId, record.salesNum, record.sessId));
                                     }
                                 }
                                 curSalesInfoList = new ArrayList<>();
@@ -1663,7 +1658,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
 
             if (salesInfoList.size() > 0)
-                sendSalesLogger.info(logPrefix + String.format("found %s records", salesInfoList.size()));
+                astronLogger.info(String.format("found %s records", salesInfoList.size()));
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
