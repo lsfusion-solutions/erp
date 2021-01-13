@@ -82,9 +82,6 @@ public class StopListEquipmentServer {
                 slQuery.and(stopListLM.findProperty("toExport[StopList]").getExpr(stopListExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session);
 
-                //todo: temp log
-                EquipmentLoggers.equipmentLogger.info(String.format("readStopListInfo: %s stopLists", slResult.size()));
-
                 for (int i = 0, size = slResult.size(); i < size; i++) {
                     DataObject stopListObject = slResult.getKey(i).get("stopList");
                     ImMap<Object, ObjectValue> slEntry = slResult.getValue(i);
@@ -132,9 +129,6 @@ public class StopListEquipmentServer {
                             itemsInGroupMachineryMap.put(groupMachinery, itemsInGroupMachinerySet);
                         }
                     }
-
-                    //todo: temp log
-                    EquipmentLoggers.equipmentLogger.info(String.format("readStopListInfo: stopList %s, stockResult %s, handlerMachineryMap %s", numberStopList, stockResult.size(), handlerMachineryMap.size()));
 
                     if (!handlerMachineryMap.isEmpty()) {
                         Map<String, StopListItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);

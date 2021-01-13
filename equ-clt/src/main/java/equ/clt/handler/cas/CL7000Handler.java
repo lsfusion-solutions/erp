@@ -70,9 +70,6 @@ public class CL7000Handler extends CL5000JHandler {
             return speedKeys.error;
         } else {
 
-            //todo: temp log
-            processTransactionLogger.info(getLogPrefix() + String.format("speedKeys read data (%s bytes): %s", speedKeys.data.length, Hex.encodeHexString(speedKeys.data)));
-
             ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
             speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -83,13 +80,8 @@ public class CL7000Handler extends CL5000JHandler {
                 if(pluNumber <= 200) {
                     speedKeysByteBuffer.position((pluNumber - 1) * 4);
                     speedKeysByteBuffer.putInt(pluNumber);
-                    //todo: temp log
-                    processTransactionLogger.info(getLogPrefix() + "speedKeys write data: pluNumber " + pluNumber);
                 }
             }
-
-            //todo: temp log
-            processTransactionLogger.info(getLogPrefix() + String.format("speedKeys write data (%s bytes): %s", speedKeysByteBuffer.array().length, Hex.encodeHexString(speedKeysByteBuffer.array())));
 
             return sendSpeedKeys(socket, speedKeysByteBuffer.array());
         }
