@@ -81,13 +81,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Throwable exception = null;
                     Map<Long, SendTransactionBatch> currentSendTransactionBatchMap = new HashMap<>();
                     for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
+                        itemCount += transaction.itemsList.size();
                         boolean firstTransaction = transactionCount == 1;
-                        boolean lastTransaction = transactionCount == transactionsAtATime || transactionCount == totalCount || (itemCount + transaction.itemsList.size()) >= itemsAtATime;
+                        boolean lastTransaction = transactionCount == transactionsAtATime || transactionCount == totalCount || itemCount >= itemsAtATime;
 
                         Set<String> deleteBarcodeSet = new HashSet<>();
                         if(exception == null) {
                             exception = exportTransaction(transaction, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(),
-                                    exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize, useNewScheme);
+                                    exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize, useNewScheme, transactionCount, itemCount);
                         }
                         currentSendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
 
@@ -104,7 +105,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             totalCount -= transactionsAtATime;
                         } else {
                             transactionCount++;
-                            itemCount += transaction.itemsList.size();
                         }
                     }
                 }
@@ -116,7 +116,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         Set<String> deleteBarcodeSet = new HashSet<>();
                         if (exception == null) {
                             exception = exportTransaction(transaction, true, true, directoryTransactionEntry.getKey(),
-                                    exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize, useNewScheme);
+                                    exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize, useNewScheme, 1, transaction.itemsList.size());
                         }
                         sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
                     }
@@ -138,7 +138,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private Exception exportTransaction(TransactionCashRegisterInfo transaction, boolean firstTransaction, boolean lastTransaction, String directory,
                                         boolean exportExtraTables, Map<Integer, Integer> groupMachineryMap, Set<String> deleteBarcodeSet, Integer timeout,
-                                        Integer maxBatchSize, boolean useNewScheme) {
+                                        Integer maxBatchSize, boolean useNewScheme, int transactionCount, int itemCount) {
         Exception exception;
         AstronConnectionString params = new AstronConnectionString(directory);
         if (params.connectionString == null) {
@@ -216,7 +216,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         }
 
                         if (lastTransaction) {
-                            astronLogger.info("waiting for processing transactions");
+                            astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
                             exportFlags(conn, params, tables);
                             Exception e = waitFlags(conn, params, tables, usedDeleteBarcodeList, deleteBarcodeKey, timeout, false);
                             if (e == null) {
@@ -1684,7 +1684,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (String directory : getDirectorySet(entry)) {
                 AstronConnectionString params = new AstronConnectionString(directory);
                 if (params.connectionString != null) {
-                    machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
+                    astronLogger.info("connecting to " + params.connectionString);
                     try (Connection conn = getConnection(params)) {
 
                         checkExtraColumns(conn, params);
@@ -1709,7 +1709,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 String query = params.pgsql ?
                                         "UPDATE sales SET fusion_processed = 0 WHERE SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "") :
                                         "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "");
-                                machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: " + query);
+                                astronLogger.info("RequestSalesInfo: " + query);
                                 statement.executeUpdate(query);
                                 conn.commit();
                             }
@@ -1717,7 +1717,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         } catch (SQLException e) {
                             failedRequests.put(entry.requestExchange, e);
-                            machineryExchangeLogger.info(logPrefix, e);
+                            astronLogger.error("RequestSalesInfo error", e);
                         } finally {
                             if (statement != null) statement.close();
                         }
