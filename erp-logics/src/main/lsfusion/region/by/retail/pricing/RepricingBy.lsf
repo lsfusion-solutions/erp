@@ -9,9 +9,9 @@ lastPriceListLedger (Sku sk, Stock s, DATETIME dt) = prevPriceListLedgerB(System
 lastRepricingDetail (Sku sk, Stock s, DATETIME dt) = lastPriceListLedger(sk, s, dt) AS RepricingDetail;
 lastPricingDetail (Sku sk, Stock s, DATETIME dt) = lastPriceListLedger(sk, s, dt) AS PricingDetail;
 
-lastVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = MULTI VAT[RepricingDetail](lastRepricingDetail(sk, s, dt)), 
+lastVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = OVERRIDE VAT[RepricingDetail](lastRepricingDetail(sk, s, dt)), 
                                                               retailVAT[PricingDetail](lastPricingDetail(sk, s, dt));
-lastValueVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = MULTI valueVAT[RepricingDetail](lastRepricingDetail(sk, s, dt)), 
+lastValueVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = OVERRIDE valueVAT[RepricingDetail](lastRepricingDetail(sk, s, dt)), 
                                                                                     valueRetailVAT[PricingDetail](lastPricingDetail(sk, s, dt));
 
 WHEN LOCAL (CHANGED(sku(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) 
