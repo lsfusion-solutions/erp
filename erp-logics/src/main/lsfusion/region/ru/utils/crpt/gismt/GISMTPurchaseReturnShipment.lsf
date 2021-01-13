@@ -2,12 +2,15 @@ MODULE GISMTPurchaseReturnShipment;
 
 REQUIRE GISMTDocument, GISMTLegalEntity, PurchaseReturnShipmentLot;
 
-PRIORITY GISMT, PurchaseReturn;
+PRIORITY GISMT, PurchaseReturn, Purchase;
 
 NAMESPACE GISMTPurchaseReturn;
 
+@defineOperationProperty(actionReceipt, 'Причина вывода из оборота', STRING, paramsContainer);
+
 createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND supplier(i) != customer(i);
-@defineDocumentGISMT(invoice, createDocument, invoices, i, customer, 'LP_SHIP_GOODS');
+gismtType (Invoice i) = OVERRIDE 'LK_RECEPT' IF actionReceipt(operation(i)), ('LP_SHIP_GOODS' IF i IS Invoice);
+@defineDocumentGISMT(invoice, createDocument, invoices, i, customer);
 
 FORM exportInvoice
     OBJECTS i = Invoice, t = LotType PANEL
@@ -24,6 +27,21 @@ FORM exportInvoice
     FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
 ;
 
+FORM exportInvoiceReceipt
+    OBJECTS i = Invoice, t = LotType PANEL
+    
+    PROPERTIES action = actionReceipt(operation(i)), action_date = toDateISO(date(i)), 
+               document_date = toDateISO(date(i)), document_number = seriesNumber(i),
+               document_type = actionReceipt(operation(i)), inn = inn(customer(i))
+    
+    OBJECTS products = (d = InvoiceDetail, l = Lot)
+    PROPERTIES cis = id(l)
+    FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+;
+
 export (InvoiceDocument i) + {
-    EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
+    IF actionReceipt(operation(invoice(i))) THEN
+        EXPORT exportInvoiceReceipt OBJECTS i = invoice(i), t = lotType(i) JSON;
+    ELSE
+        EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
 }
