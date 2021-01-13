@@ -64,6 +64,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             boolean exportExtraTables = astronSettings.isExportExtraTables();
             Integer transactionsAtATime = astronSettings.getTransactionsAtATime();
             Integer maxBatchSize = astronSettings.getMaxBatchSize();
+            boolean useNewScheme = astronSettings.isNewScheme();
 
             Map<String, List<TransactionCashRegisterInfo>> directoryTransactionMap = new HashMap<>();
             for (TransactionCashRegisterInfo transaction : transactionList) {
@@ -84,7 +85,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         Set<String> deleteBarcodeSet = new HashSet<>();
                         if(exception == null) {
                             exception = exportTransaction(transaction, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(),
-                                    exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize);
+                                    exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize, useNewScheme);
                         }
                         currentSendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
 
@@ -111,7 +112,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         Set<String> deleteBarcodeSet = new HashSet<>();
                         if (exception == null) {
                             exception = exportTransaction(transaction, true, true, directoryTransactionEntry.getKey(),
-                                    exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize);
+                                    exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize, useNewScheme);
                         }
                         sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
                     }
@@ -133,7 +134,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private Exception exportTransaction(TransactionCashRegisterInfo transaction, boolean firstTransaction, boolean lastTransaction, String directory,
                                         boolean exportExtraTables, Map<Integer, Integer> groupMachineryMap, Set<String> deleteBarcodeSet, Integer timeout,
-                                        Integer maxBatchSize) {
+                                        Integer maxBatchSize, boolean useNewScheme) {
         Exception exception;
         AstronConnectionString params = new AstronConnectionString(directory);
         if (params.connectionString == null) {
@@ -167,45 +168,47 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         checkItems(params, transaction);
 
+                        boolean newScheme = !params.pgsql && useNewScheme; //используем новую схему только по опции и только для mssql
+
                         astronLogger.info(String.format("transaction %s, table grp", transaction.id));
-                        exportGrp(conn, params, transaction, maxBatchSize);
+                        exportGrp(conn, params, transaction, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("transaction %s, table art", transaction.id));
-                        exportArt(conn, params, transaction.itemsList, false, false, maxBatchSize);
+                        exportArt(conn, params, transaction.itemsList, false, false, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("transaction %s, table unit", transaction.id));
-                        exportUnit(conn, params, transaction.itemsList, false, maxBatchSize);
+                        exportUnit(conn, params, transaction.itemsList, false, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("transaction %s, table pack", transaction.id));
-                        exportPack(conn, params, transaction.itemsList, false, maxBatchSize);
+                        exportPack(conn, params, transaction.itemsList, false, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
-                        exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize);
+                        exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("transaction %s, table exbarc", transaction.id));
-                        exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize);
+                        exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("transaction %s, table exbarc delete", transaction.id));
-                        exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize);
+                        exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("transaction %s, table packprc", transaction.id));
-                        boolean hasSecondPrice = exportPackPrc(conn, params, transaction, exportExtraTables, maxBatchSize);
+                        boolean hasSecondPrice = exportPackPrc(conn, params, transaction, exportExtraTables, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("transaction %s, table packprc delete", transaction.id));
-                        exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables, maxBatchSize);
+                        exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables, maxBatchSize, newScheme);
 
                         if (exportExtraTables) {
                             astronLogger.info(String.format("transaction %s, table prclevel", transaction.id));
-                            exportPrcLevel(conn, params, transaction, hasSecondPrice);
+                            exportPrcLevel(conn, params, transaction, hasSecondPrice, newScheme);
                             astronLogger.info(String.format("transaction %s, table sarea", transaction.id));
-                            exportSArea(conn, params, transaction);
+                            exportSArea(conn, params, transaction, newScheme);
                             astronLogger.info(String.format("transaction %s, table sareaprc", transaction.id));
-                            exportSAreaPrc(conn, params, transaction, hasSecondPrice);
+                            exportSAreaPrc(conn, params, transaction, hasSecondPrice, newScheme);
                         }
 
                         if (extGrpId != null) {
                             astronLogger.info(String.format("transaction %s, table ARTEXTGRP", transaction.id));
-                            exportArtExtgrp(conn, params, transaction, extGrpId, maxBatchSize);
+                            exportArtExtgrp(conn, params, transaction, extGrpId, maxBatchSize, newScheme);
                         }
 
                         if (lastTransaction) {
@@ -250,10 +253,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             throw new RuntimeException("No GRPID for item " + invalidItems.toString());
     }
 
-    private void exportGrp(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Integer maxBatchSize) throws SQLException {
+    private void exportGrp(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"GRPID"};
         String[] columns = new String[]{"GRPID", "PARENTGRPID", "GRPNAME", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "GRP", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "GRP", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
@@ -272,12 +275,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 3); //GRPNAME
                                     setObject(ps, 0, 4); //DELFLAG
                                 } else {
-                                    setObject(ps, idGroup, 1, offset); //GRPID
-                                    setObject(ps, parseGroup(itemGroup.idParentItemGroup), 2, offset); //PARENTGRPID
-                                    setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 3, offset); //GRPNAME
-                                    setObject(ps, "0", 4, offset); //DELFLAG
+                                    if(newScheme) {
+                                        setObject(ps, parseGroup(itemGroup.idParentItemGroup), 1, offset); //PARENTGRPID
+                                        setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 2, offset); //GRPNAME
+                                        setObject(ps, "0", 3, offset); //DELFLAG
 
-                                    setObject(ps, parseGroup(itemGroup.extIdItemGroup), 5); //GRPID
+                                        setObject(ps, parseGroup(itemGroup.extIdItemGroup), 4, keys.length); //GRPID
+                                    } else {
+                                        setObject(ps, idGroup, 1, offset); //GRPID
+                                        setObject(ps, parseGroup(itemGroup.idParentItemGroup), 2, offset); //PARENTGRPID
+                                        setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 3, offset); //GRPNAME
+                                        setObject(ps, "0", 4, offset); //DELFLAG
+
+                                        setObject(ps, parseGroup(itemGroup.extIdItemGroup), 5); //GRPID
+                                    }
                                 }
                                 ps.addBatch();
                                 batchCount++;
@@ -298,10 +309,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean zeroGrpId, boolean delFlag, Integer maxBatchSize) throws SQLException {
+    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean zeroGrpId, boolean delFlag, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"ARTID"};
         String[] columns = new String[]{"ARTID", "GRPID", "TAXGRPID", "ARTCODE", "ARTNAME", "ARTSNAME", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "ART", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "ART", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
@@ -320,15 +331,26 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, delFlag ? 1 : 0, 7); //DELFLAG
                         }
                     } else {
-                        setObject(ps, idItem, 1, offset); //ARTID
-                        setObject(ps, grpId, 2, offset); //GRPID
-                        setObject(ps, getIdVAT(item.vat), 3, offset); //TAXGRPID
-                        setObject(ps, idItem, 4, offset); //ARTCODE
-                        setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
-                        setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
-                        setObject(ps, delFlag ? "1" : "0", 7, offset); //DELFLAG
+                        if(newScheme) {
+                            setObject(ps, grpId, 1, offset); //GRPID
+                            setObject(ps, getIdVAT(item.vat), 2, offset); //TAXGRPID
+                            setObject(ps, idItem, 3, offset); //ARTCODE
+                            setObject(ps, trim(item.name, "", 50), 4, offset); //ARTNAME
+                            setObject(ps, trim(item.name, "", 50), 5, offset); //ARTSNAME
+                            setObject(ps, delFlag ? "1" : "0", 6, offset); //DELFLAG
 
-                        setObject(ps, idItem, 8); //ARTID
+                            setObject(ps, idItem, 7, keys.length); //ARTID
+                        } else {
+                            setObject(ps, idItem, 1, offset); //ARTID
+                            setObject(ps, grpId, 2, offset); //GRPID
+                            setObject(ps, getIdVAT(item.vat), 3, offset); //TAXGRPID
+                            setObject(ps, idItem, 4, offset); //ARTCODE
+                            setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
+                            setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
+                            setObject(ps, delFlag ? "1" : "0", 7, offset); //DELFLAG
+
+                            setObject(ps, idItem, 8); //ARTID
+                        }
                     }
 
                     ps.addBatch();
@@ -358,10 +380,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return result;
     }
 
-    private void exportArtExtgrp(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Integer extGrpId, Integer maxBatchSize) throws SQLException {
+    private void exportArtExtgrp(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Integer extGrpId, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"ARTID"};
         String[] columns = new String[]{"ARTID", "EXTGRPID", "DELFLAG "};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "ARTEXTGRP", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "ARTEXTGRP", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
@@ -374,11 +396,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         setObject(ps, extGrpId, 2); //EXTGRPID
                         setObject(ps, 0, 3); //DELFLAG
                     } else {
-                        setObject(ps, idItem, 1, offset); //ARTID
-                        setObject(ps, extGrpId, 2, offset); //EXTGRPID
-                        setObject(ps, 0, 3, offset); //DELFLAG
+                        if(newScheme) {
+                            setObject(ps, extGrpId, 1, offset); //EXTGRPID
+                            setObject(ps, 0, 2, offset); //DELFLAG
 
-                        setObject(ps, idItem, 4); //ARTID
+                            setObject(ps, idItem, 3, keys.length); //ARTID
+                        } else {
+                            setObject(ps, idItem, 1, offset); //ARTID
+                            setObject(ps, extGrpId, 2, offset); //EXTGRPID
+                            setObject(ps, 0, 3, offset); //DELFLAG
+
+                            setObject(ps, idItem, 4); //ARTID
+                        }
                     }
 
                     ps.addBatch();
@@ -397,10 +426,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
 
-    private void exportUnit(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize) throws SQLException {
+    private void exportUnit(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"UNITID"};
         String[] columns = new String[]{"UNITID", "UNITNAME", "UNITFULLNAME", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "UNIT", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "UNIT", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             Set<Integer> usedUOM = new HashSet<>();
@@ -416,12 +445,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, item.shortNameUOM, 3); //UNITFULLNAME
                             setObject(ps, delFlag ? 1 : 0, 4); //DELFLAG
                         } else {
-                            setObject(ps, idUOM, 1, offset); //UNITID
-                            setObject(ps, item.shortNameUOM, 2, offset); //UNITNAME
-                            setObject(ps, item.shortNameUOM, 3, offset); //UNITFULLNAME
-                            setObject(ps, delFlag ? "1" : "0", 4, offset); //DELFLAG
+                            if(newScheme) {
+                                setObject(ps, item.shortNameUOM, 1, offset); //UNITNAME
+                                setObject(ps, item.shortNameUOM, 2, offset); //UNITFULLNAME
+                                setObject(ps, delFlag ? "1" : "0", 3, offset); //DELFLAG
 
-                            setObject(ps, idUOM, 5); //UNITID
+                                setObject(ps, idUOM, 4, keys.length); //UNITID
+                            } else {
+                                setObject(ps, idUOM, 1, offset); //UNITID
+                                setObject(ps, item.shortNameUOM, 2, offset); //UNITNAME
+                                setObject(ps, item.shortNameUOM, 3, offset); //UNITFULLNAME
+                                setObject(ps, delFlag ? "1" : "0", 4, offset); //DELFLAG
+
+                                setObject(ps, idUOM, 5); //UNITID
+                            }
                         }
 
                         ps.addBatch();
@@ -450,10 +487,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize) throws SQLException {
+    private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG", "BARCID"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACK", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACK", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             Set<Integer> idItems = new HashSet<>();
@@ -483,24 +520,44 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, delFlag ? 1 : 0, 10); //DELFLAG
                             setObject(ps, item.passScalesItem ? 2 : null, 11); //BARCID
                         } else {
-                            setObject(ps, packId, 1, offset); //PACKID
-                            setObject(ps, idItem, 2, offset); //ARTID
-                            setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 3, offset); //PACKQUANT
-                            setObject(ps, "0", 4, offset); //PACKSHELFLIFE
-                            if (idItems.contains(idItem)) {
-                                setObject(ps, false, 5, offset); //ISDEFAULT
-                            } else {
-                                setObject(ps, true, 5, offset); //ISDEFAULT
-                                idItems.add(idItem);
-                            }
-                            setObject(ps, idUOM, 6, offset); //UNITID
-                            setObject(ps, item.splitItem ? 2 : "", 7, offset); //QUANTMASK
-                            setObject(ps, item.passScalesItem ? 0 : item.splitItem ? 2 : 1, 8, offset); //PACKDTYPE
-                            setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
-                            setObject(ps, delFlag ? "1" : "0", 10, offset); //DELFLAG
-                            setObject(ps, item.passScalesItem ? "2" : null, 11, offset); //BARCID
+                            if(newScheme) {
+                                setObject(ps, idItem, 1, offset); //ARTID
+                                setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 2, offset); //PACKQUANT
+                                setObject(ps, "0", 3, offset); //PACKSHELFLIFE
+                                if (idItems.contains(idItem)) {
+                                    setObject(ps, false, 4, offset); //ISDEFAULT
+                                } else {
+                                    setObject(ps, true, 4, offset); //ISDEFAULT
+                                    idItems.add(idItem);
+                                }
+                                setObject(ps, idUOM, 5, offset); //UNITID
+                                setObject(ps, item.splitItem ? 2 : "", 6, offset); //QUANTMASK
+                                setObject(ps, item.passScalesItem ? 0 : item.splitItem ? 2 : 1, 7, offset); //PACKDTYPE
+                                setObject(ps, trim(item.name, "", 50), 8, offset); //PACKNAME
+                                setObject(ps, delFlag ? "1" : "0", 9, offset); //DELFLAG
+                                setObject(ps, item.passScalesItem ? "2" : null, 10, offset); //BARCID
 
-                            setObject(ps, packId, 12); //PACKID
+                                setObject(ps, packId, 11, keys.length); //PACKID
+                            } else {
+                                setObject(ps, packId, 1, offset); //PACKID
+                                setObject(ps, idItem, 2, offset); //ARTID
+                                setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 3, offset); //PACKQUANT
+                                setObject(ps, "0", 4, offset); //PACKSHELFLIFE
+                                if (idItems.contains(idItem)) {
+                                    setObject(ps, false, 5, offset); //ISDEFAULT
+                                } else {
+                                    setObject(ps, true, 5, offset); //ISDEFAULT
+                                    idItems.add(idItem);
+                                }
+                                setObject(ps, idUOM, 6, offset); //UNITID
+                                setObject(ps, item.splitItem ? 2 : "", 7, offset); //QUANTMASK
+                                setObject(ps, item.passScalesItem ? 0 : item.splitItem ? 2 : 1, 8, offset); //PACKDTYPE
+                                setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
+                                setObject(ps, delFlag ? "1" : "0", 10, offset); //DELFLAG
+                                setObject(ps, item.passScalesItem ? "2" : null, 11, offset); //BARCID
+
+                                setObject(ps, packId, 12); //PACKID
+                            }
                         }
 
                         ps.addBatch();
@@ -519,10 +576,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPackDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItemInfo> usedDeleteBarcodeList, Integer maxBatchSize) throws SQLException {
+    private void exportPackDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItemInfo> usedDeleteBarcodeList, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACK", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACK", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             Set<Integer> idItems = new HashSet<>();
@@ -548,23 +605,42 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         setObject(ps, trim(item.name, "", 50), 9); //PACKNAME
                         setObject(ps, 1, 10); //DELFLAG
                     } else {
-                        setObject(ps, packId, 1, offset); //PACKID
-                        setObject(ps, idItem, 2, offset); //ARTID
-                        setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 3, offset); //PACKQUANT
-                        setObject(ps, "0", 4, offset); //PACKSHELFLIFE
-                        if (idItems.contains(idItem)) {
-                            setObject(ps, false, 5, offset); //ISDEFAULT
-                        } else {
-                            setObject(ps, true, 5, offset); //ISDEFAULT
-                            idItems.add(idItem);
-                        }
-                        setObject(ps, "0", 6, offset); //UNITID
-                        setObject(ps, "", 7, offset); //QUANTMASK
-                        setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
-                        setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
-                        setObject(ps, "1", 10, offset); //DELFLAG
+                        if(newScheme) {
+                            setObject(ps, idItem, 1, offset); //ARTID
+                            setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 2, offset); //PACKQUANT
+                            setObject(ps, "0", 3, offset); //PACKSHELFLIFE
+                            if (idItems.contains(idItem)) {
+                                setObject(ps, false, 4, offset); //ISDEFAULT
+                            } else {
+                                setObject(ps, true, 4, offset); //ISDEFAULT
+                                idItems.add(idItem);
+                            }
+                            setObject(ps, "0", 5, offset); //UNITID
+                            setObject(ps, "", 6, offset); //QUANTMASK
+                            setObject(ps, item.passScalesItem ? 0 : 1, 7, offset); //PACKDTYPE
+                            setObject(ps, trim(item.name, "", 50), 8, offset); //PACKNAME
+                            setObject(ps, "1", 9, offset); //DELFLAG
 
-                        setObject(ps, packId, 11); //PACKID
+                            setObject(ps, packId, 10, keys.length); //PACKID
+                        } else {
+                            setObject(ps, packId, 1, offset); //PACKID
+                            setObject(ps, idItem, 2, offset); //ARTID
+                            setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 3, offset); //PACKQUANT
+                            setObject(ps, "0", 4, offset); //PACKSHELFLIFE
+                            if (idItems.contains(idItem)) {
+                                setObject(ps, false, 5, offset); //ISDEFAULT
+                            } else {
+                                setObject(ps, true, 5, offset); //ISDEFAULT
+                                idItems.add(idItem);
+                            }
+                            setObject(ps, "0", 6, offset); //UNITID
+                            setObject(ps, "", 7, offset); //QUANTMASK
+                            setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
+                            setObject(ps, trim(item.name, "", 50), 9, offset); //PACKNAME
+                            setObject(ps, "1", 10, offset); //DELFLAG
+
+                            setObject(ps, packId, 11); //PACKID
+                        }
                     }
 
                     ps.addBatch();
@@ -612,10 +688,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportExBarc(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize) throws SQLException {
+    private void exportExBarc(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"EXBARCID"};
         String[] columns = new String[]{"EXBARCID", "PACKID", "EXBARCTYPE", "EXBARCBODY", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "EXBARC", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "EXBARC", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
@@ -633,13 +709,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 setObject(ps, getExBarcBody(item), 4); //EXBARCBODY
                                 setObject(ps, delFlag ? 1 : 0, 5); //DELFLAG
                             } else {
-                                setObject(ps, packId, 1, offset); //EXBARCID
-                                setObject(ps, packId, 2, offset); //PACKID
-                                setObject(ps, "", 3, offset); //EXBARCTYPE
-                                setObject(ps, getExBarcBody(item), 4, offset); //EXBARCBODY
-                                setObject(ps, delFlag ? "1" : "0", 5, offset); //DELFLAG
+                                if(newScheme) {
+                                    setObject(ps, packId, 1, offset); //PACKID
+                                    setObject(ps, "", 2, offset); //EXBARCTYPE
+                                    setObject(ps, getExBarcBody(item), 3, offset); //EXBARCBODY
+                                    setObject(ps, delFlag ? "1" : "0", 4, offset); //DELFLAG
 
-                                setObject(ps, packId, 6); //EXBARCID
+                                    setObject(ps, packId, 5, keys.length); //EXBARCID
+                                } else {
+                                    setObject(ps, packId, 1, offset); //EXBARCID
+                                    setObject(ps, packId, 2, offset); //PACKID
+                                    setObject(ps, "", 3, offset); //EXBARCTYPE
+                                    setObject(ps, getExBarcBody(item), 4, offset); //EXBARCBODY
+                                    setObject(ps, delFlag ? "1" : "0", 5, offset); //DELFLAG
+
+                                    setObject(ps, packId, 6); //EXBARCID
+                                }
                             }
 
                             ps.addBatch();
@@ -659,10 +744,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportExBarcDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItemInfo> usedDeleteBarcodeList, Integer maxBatchSize) throws SQLException {
+    private void exportExBarcDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItemInfo> usedDeleteBarcodeList, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"EXBARCID"};
         String[] columns = new String[]{"EXBARCID", "PACKID", "EXBARCTYPE", "EXBARCBODY", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "EXBARC", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "EXBARC", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
@@ -677,13 +762,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, getExBarcBody(item), 4); //EXBARCBODY
                             setObject(ps, 1, 5); //DELFLAG
                         } else {
-                            setObject(ps, packId, 1, offset); //EXBARCID
-                            setObject(ps, packId, 2, offset); //PACKID
-                            setObject(ps, "", 3, offset); //EXBARCTYPE
-                            setObject(ps, getExBarcBody(item), 4, offset); //EXBARCBODY
-                            setObject(ps, "1", 5, offset); //DELFLAG
+                            if(newScheme) {
+                                setObject(ps, packId, 1, offset); //PACKID
+                                setObject(ps, "", 2, offset); //EXBARCTYPE
+                                setObject(ps, getExBarcBody(item), 3, offset); //EXBARCBODY
+                                setObject(ps, "1", 4, offset); //DELFLAG
 
-                            setObject(ps, packId, 6); //EXBARCID
+                                setObject(ps, packId, 5, keys.length); //EXBARCID
+                            } else {
+                                setObject(ps, packId, 1, offset); //EXBARCID
+                                setObject(ps, packId, 2, offset); //PACKID
+                                setObject(ps, "", 3, offset); //EXBARCTYPE
+                                setObject(ps, getExBarcBody(item), 4, offset); //EXBARCBODY
+                                setObject(ps, "1", 5, offset); //DELFLAG
+
+                                setObject(ps, packId, 6); //EXBARCID
+                            }
                         }
 
                         ps.addBatch();
@@ -706,11 +800,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return item.idBarcode.replaceAll("[^0-9]", ""); //Должны быть только цифры, а откуда-то вдруг прилетает символ 0xe2 0x80 0x8e
     }
 
-    private boolean exportPackPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean exportExtraTables, Integer maxBatchSize) throws SQLException {
+    private boolean exportPackPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean exportExtraTables, Integer maxBatchSize, boolean newScheme) throws SQLException {
         boolean hasSecondPrice = false;
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
         String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
@@ -719,7 +813,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
                     if (item.price != null) {
                         Integer packId = getPackId(item);
-                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, false);
+                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, false, keys.length, newScheme);
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
                             ps.executeBatch();
@@ -730,7 +824,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         //{"astron": {"secondPrice":"1.23"}}
                         BigDecimal secondPrice = getJSONBigDecimal(item.info, "astron", "secondPrice");
                         if (exportExtraTables && secondPrice != null) {
-                            addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, secondPrice, true, false);
+                            addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, secondPrice, true, false, keys.length, newScheme);
                             hasSecondPrice = true;
                         }
                         batchCount++;
@@ -754,13 +848,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
                                ItemInfo item, Integer packId, int offset, boolean exportExtraTables,
-                               BigDecimal price, boolean secondPrice, boolean delFlag) throws SQLException {
-        addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, price, secondPrice, delFlag, false);
-    }
-
-    private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
-                               ItemInfo item, Integer packId, int offset, boolean exportExtraTables,
-                               BigDecimal price, boolean secondPrice, boolean delFlag, boolean newScheme) throws SQLException {
+                               BigDecimal price, boolean secondPrice, boolean delFlag, int keysOffset, boolean newScheme) throws SQLException {
 
         Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables, secondPrice);
         BigDecimal packPrice = price == null || price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(price, 100);
@@ -781,7 +869,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, 0, 3, offset); //PACKBONUSMINPRICE
                 setObject(ps, delFlag ? "1" : "0", 4, offset); //DELFLAG
 
-                int keysOffset = 2;
                 setObject(ps, packId, 5, keysOffset); //PACKID
                 setObject(ps, priceLevelId, 6, keysOffset); //PRCLEVELID
             } else {
@@ -801,10 +888,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void exportPackPrcDeleteBarcode(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction,
-                                            List<CashRegisterItemInfo> usedDeleteBarcodeList, boolean exportExtraTables, Integer maxBatchSize) throws SQLException {
+                                            List<CashRegisterItemInfo> usedDeleteBarcodeList, boolean exportExtraTables, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
         String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
@@ -819,15 +906,26 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         setObject(ps, 0, 5); //PACKBONUSMINPRICE
                         setObject(ps, 0, 6); //DELFLAG
                     } else {
-                        setObject(ps, packId, 1, offset); //PACKID
-                        setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 2, offset); //PRCLEVELID
-                        setObject(ps, BigDecimal.ZERO, 3, offset); //PACKPRICE
-                        setObject(ps, BigDecimal.ZERO, 4, offset); //PACKMINPRICE
-                        setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
-                        setObject(ps, "0", 6, offset); //DELFLAG
+                        if(newScheme) {
+                            setObject(ps, BigDecimal.ZERO, 1, offset); //PACKPRICE
+                            setObject(ps, BigDecimal.ZERO, 2, offset); //PACKMINPRICE
+                            setObject(ps, 0, 3, offset); //PACKBONUSMINPRICE
+                            setObject(ps, "0", 4, offset); //DELFLAG
 
-                        setObject(ps, packId, 7); //PACKID
-                        setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 8); //PRCLEVELID
+                            setObject(ps, packId, 5, keys.length); //PACKID
+                            setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 6, keys.length); //PRCLEVELID
+                        } else {
+                            setObject(ps, packId, 1, offset); //PACKID
+                            setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 2, offset); //PRCLEVELID
+                            setObject(ps, BigDecimal.ZERO, 3, offset); //PACKPRICE
+                            setObject(ps, BigDecimal.ZERO, 4, offset); //PACKMINPRICE
+                            setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
+                            setObject(ps, "0", 6, offset); //DELFLAG
+
+                            setObject(ps, packId, 7); //PACKID
+                            setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 8); //PRCLEVELID
+                        }
+
                     }
 
                     ps.addBatch();
@@ -845,10 +943,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPackPrcStopList(Connection conn, AstronConnectionString params, StopListInfo stopListInfo, boolean exportExtraTables, boolean delFlag, Integer maxBatchSize) throws SQLException {
+    private void exportPackPrcStopList(Connection conn, AstronConnectionString params, StopListInfo stopListInfo, boolean exportExtraTables, boolean delFlag, Integer maxBatchSize, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
         String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
-        boolean newScheme = !params.pgsql; //пока пробуем только для packPrc в стоп-листах для mssql
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
@@ -876,7 +973,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         packIdCount++;
                         for (Integer nppGroupMachinery : groupMachinerySet) {
                             recordCount++;
-                            addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, delFlag, newScheme);
+                            addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, delFlag, keys.length, newScheme);
                             if(maxBatchSize != null && recordCount == maxBatchSize) {
                                 //todo: temp log
                                 astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
@@ -900,15 +997,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPrcLevel(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean hasSecondPrice) throws SQLException {
+    private void exportPrcLevel(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean hasSecondPrice, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"PRCLEVELID"};
         String[] columns = new String[]{"PRCLEVELID", "PRCLEVELNAME", "PRCLEVELKEY", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "PRCLEVEL", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "PRCLEVEL", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
-            addPrcLevelRow(ps, params, transaction, offset, false);
+            addPrcLevelRow(ps, params, transaction, offset, false, keys.length, newScheme);
             if(hasSecondPrice) {
-                addPrcLevelRow(ps, params, transaction, offset, true);
+                addPrcLevelRow(ps, params, transaction, offset, true, keys.length, newScheme);
             }
 
             ps.executeBatch();
@@ -916,7 +1013,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void addPrcLevelRow(PreparedStatement ps, AstronConnectionString params, TransactionCashRegisterInfo transaction, int offset, boolean secondPrice) throws SQLException {
+    private void addPrcLevelRow(PreparedStatement ps, AstronConnectionString params, TransactionCashRegisterInfo transaction, int offset, boolean secondPrice, int keysOffset, boolean newScheme) throws SQLException {
         Integer priceLevelId = getPriceLevelId(transaction.nppGroupMachinery, true, secondPrice);
         String priceLevelName = trim(transaction.nameGroupMachinery, secondPrice ? 47 : 50) + (secondPrice ? " №2" : "");
         if(params.pgsql) {
@@ -925,21 +1022,29 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             setObject(ps, 0, 3); //PRCLEVELKEY
             setObject(ps, 0, 4); //DELFLAG
         } else {
-            setObject(ps, priceLevelId, 1, offset); //PRCLEVELID
-            setObject(ps, priceLevelName, 2, offset); //PRCLEVELNAME
-            setObject(ps, 0, 3, offset); //PRCLEVELKEY
-            setObject(ps, "0", 4, offset); //DELFLAG
+            if(newScheme) {
+                setObject(ps, priceLevelName, 1, offset); //PRCLEVELNAME
+                setObject(ps, 0, 2, offset); //PRCLEVELKEY
+                setObject(ps, "0", 3, offset); //DELFLAG
 
-            setObject(ps, priceLevelId, 5); //PRCLEVELID
+                setObject(ps, priceLevelId, 4, keysOffset); //PRCLEVELID
+            } else {
+                setObject(ps, priceLevelId, 1, offset); //PRCLEVELID
+                setObject(ps, priceLevelName, 2, offset); //PRCLEVELNAME
+                setObject(ps, 0, 3, offset); //PRCLEVELKEY
+                setObject(ps, "0", 4, offset); //DELFLAG
+
+                setObject(ps, priceLevelId, 5); //PRCLEVELID
+            }
         }
 
         ps.addBatch();
     }
 
-    private void exportSArea(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction) throws SQLException {
+    private void exportSArea(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"SAREAID"};
         String[] columns = new String[]{"SAREAID", "PRCLEVELID", "CASHPROFILEID", "FIRMID", "CURRENCYID", "SAREANAME", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "SAREA", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "SAREA", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
             if(params.pgsql) {
                 setObject(ps, transaction.nppGroupMachinery, 1); //SAREAID
@@ -950,15 +1055,26 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, trim(transaction.nameGroupMachinery, 50), 6); //SAREANAME
                 setObject(ps, 0, 7); //DELFLAG
             } else {
-                setObject(ps, transaction.nppGroupMachinery, 1, offset); //SAREAID
-                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 2, offset); //PRCLEVELID
-                setObject(ps, 1, 3, offset); //CASHPROFILEID
-                setObject(ps, 1, 4, offset); //FIRMID
-                setObject(ps, 933, 5, offset); //CURRENCYID
-                setObject(ps, trim(transaction.nameGroupMachinery, 50), 6, offset); //SAREANAME
-                setObject(ps, "0", 7, offset); //DELFLAG
+                if(newScheme) {
+                    setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 1, offset); //PRCLEVELID
+                    setObject(ps, 1, 2, offset); //CASHPROFILEID
+                    setObject(ps, 1, 3, offset); //FIRMID
+                    setObject(ps, 933, 4, offset); //CURRENCYID
+                    setObject(ps, trim(transaction.nameGroupMachinery, 50), 5, offset); //SAREANAME
+                    setObject(ps, "0", 6, offset); //DELFLAG
 
-                setObject(ps, transaction.nppGroupMachinery, 8); //SAREAID
+                    setObject(ps, transaction.nppGroupMachinery, 7, keys.length); //SAREAID
+                } else {
+                    setObject(ps, transaction.nppGroupMachinery, 1, offset); //SAREAID
+                    setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 2, offset); //PRCLEVELID
+                    setObject(ps, 1, 3, offset); //CASHPROFILEID
+                    setObject(ps, 1, 4, offset); //FIRMID
+                    setObject(ps, 933, 5, offset); //CURRENCYID
+                    setObject(ps, trim(transaction.nameGroupMachinery, 50), 6, offset); //SAREANAME
+                    setObject(ps, "0", 7, offset); //DELFLAG
+
+                    setObject(ps, transaction.nppGroupMachinery, 8); //SAREAID
+                }
             }
 
             ps.addBatch();
@@ -968,15 +1084,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportSAreaPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean hasSecondPrice) throws SQLException {
+    private void exportSAreaPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean hasSecondPrice, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"SAREAID", "PRCLEVELID"};
         String[] columns = new String[]{"SAREAID", "PRCLEVELID", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "SAREAPRC", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "SAREAPRC", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
-            addSAreaPrcRow(ps, params, transaction, offset, false);
+            addSAreaPrcRow(ps, params, transaction, offset, false, keys.length, newScheme);
             if(hasSecondPrice) {
-                addSAreaPrcRow(ps, params, transaction, offset, true);
+                addSAreaPrcRow(ps, params, transaction, offset, true, keys.length, newScheme);
             }
 
             ps.executeBatch();
@@ -984,28 +1100,35 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void addSAreaPrcRow(PreparedStatement ps, AstronConnectionString params, TransactionCashRegisterInfo transaction, int offset, boolean secondPrice) throws SQLException {
+    private void addSAreaPrcRow(PreparedStatement ps, AstronConnectionString params, TransactionCashRegisterInfo transaction, int offset, boolean secondPrice, int keysOffset, boolean newScheme) throws SQLException {
         Integer priceLevelId = getPriceLevelId(transaction.nppGroupMachinery, true, secondPrice);
         if(params.pgsql) {
             setObject(ps, transaction.nppGroupMachinery, 1); //SAREAID
             setObject(ps, priceLevelId, 2); //PRCLEVELID
             setObject(ps, 0, 3); //DELFLAG
         } else {
-            setObject(ps, transaction.nppGroupMachinery, 1, offset); //SAREAID
-            setObject(ps, priceLevelId, 2, offset); //PRCLEVELID
-            setObject(ps, "0", 3, offset); //DELFLAG
+            if(newScheme) {
+                setObject(ps, "0", 1, offset); //DELFLAG
 
-            setObject(ps, transaction.nppGroupMachinery, 4); //SAREAID
-            setObject(ps, priceLevelId, 5); //PRCLEVELID
+                setObject(ps, transaction.nppGroupMachinery, 2, keysOffset); //SAREAID
+                setObject(ps, priceLevelId, 3, keysOffset); //PRCLEVELID
+            } else {
+                setObject(ps, transaction.nppGroupMachinery, 1, offset); //SAREAID
+                setObject(ps, priceLevelId, 2, offset); //PRCLEVELID
+                setObject(ps, "0", 3, offset); //DELFLAG
+
+                setObject(ps, transaction.nppGroupMachinery, 4); //SAREAID
+                setObject(ps, priceLevelId, 5); //PRCLEVELID
+            }
         }
 
         ps.addBatch();
     }
 
-    private void exportDCard(Connection conn, AstronConnectionString params, List<DiscountCard> discountCardList) throws SQLException {
+    private void exportDCard(Connection conn, AstronConnectionString params, List<DiscountCard> discountCardList, boolean newScheme) throws SQLException {
         String[] keys = new String[]{"DCARDID"};
         String[] columns = new String[]{"DCARDID", "CLNTID", "DCARDCODE", "DCARDNAME", "ISPAYMENT", "DELFLAG", "LOCKED"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "DCARD", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "DCARD", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             for (DiscountCard discountCard : discountCardList) {
@@ -1019,15 +1142,27 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         setObject(ps, 0, 6); //DELFLAG
                         setObject(ps, 0, 7); //LOCKED
                     } else {
-                        setObject(ps, discountCard.idDiscountCard, 1, offset); //DCARDID
-                        setObject(ps, discountCard.idDiscountCard, 2, offset); //CLNTID
-                        setObject(ps, discountCard.idDiscountCard, 3, offset); //DCARDCODE
-                        setObject(ps, discountCard.nameDiscountCard, 4, offset); //DCARDNAME
-                        setObject(ps, false, 5, offset); //ISPAYMENT
-                        setObject(ps, "0", 6, offset); //DELFLAG
-                        setObject(ps, 0, 7, offset); //LOCKED
+                        if(newScheme) {
+                            setObject(ps, discountCard.idDiscountCard, 1, offset); //CLNTID
+                            setObject(ps, discountCard.idDiscountCard, 2, offset); //DCARDCODE
+                            setObject(ps, discountCard.nameDiscountCard, 3, offset); //DCARDNAME
+                            setObject(ps, false, 4, offset); //ISPAYMENT
+                            setObject(ps, "0", 5, offset); //DELFLAG
+                            setObject(ps, 0, 6, offset); //LOCKED
 
-                        setObject(ps, discountCard.idDiscountCard, 8, offset); //DCARDID
+                            setObject(ps, discountCard.idDiscountCard, 7, keys.length); //DCARDID
+                        } else {
+                            setObject(ps, discountCard.idDiscountCard, 1, offset); //DCARDID
+                            setObject(ps, discountCard.idDiscountCard, 2, offset); //CLNTID
+                            setObject(ps, discountCard.idDiscountCard, 3, offset); //DCARDCODE
+                            setObject(ps, discountCard.nameDiscountCard, 4, offset); //DCARDNAME
+                            setObject(ps, false, 5, offset); //ISPAYMENT
+                            setObject(ps, "0", 6, offset); //DELFLAG
+                            setObject(ps, 0, 7, offset); //LOCKED
+
+                            setObject(ps, discountCard.idDiscountCard, 8, offset); //DCARDID
+                        }
+
                     }
 
                     ps.addBatch();
@@ -1154,10 +1289,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         else ps.setObject(index, value);
     }
 
-    private PreparedStatement getPreparedStatement(Connection conn, AstronConnectionString connectionParams, String table, String[] columnNames, String[] keyNames) throws SQLException {
-        return getPreparedStatement(conn, connectionParams, table, columnNames, keyNames, false);
-    }
-
     private PreparedStatement getPreparedStatement(Connection conn, AstronConnectionString connectionParams, String table, String[] columnNames, String[] keyNames, boolean newScheme) throws SQLException {
         String set = "";
         String columns = "";
@@ -1192,6 +1323,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
         boolean exportExtraTables = astronSettings.isExportExtraTables();
         Integer maxBatchSize =astronSettings.getMaxBatchSize();
+        boolean useNewScheme = astronSettings.isNewScheme();
 
         for (String directory : directorySet) {
             AstronConnectionString params = new AstronConnectionString(directory);
@@ -1206,20 +1338,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         List<StopListItemInfo> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
 
+                        boolean newScheme = !params.pgsql && useNewScheme; //используем новую схему только по опции и только для mssql
+
                         astronLogger.info(String.format("stoplist %s, table art", stopListInfo.number));
-                        exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize);
+                        exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("stoplist %s, table unit", stopListInfo.number));
-                        exportUnit(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize);
+                        exportUnit(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("stoplist %s, table pack", stopListInfo.number));
-                        exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize);
+                        exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("stoplist %s, table exbarc", stopListInfo.number));
-                        exportExBarc(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize);
+                        exportExBarc(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, newScheme);
 
                         astronLogger.info(String.format("stoplist %s, table packprc", stopListInfo.number));
-                        exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude, maxBatchSize);
+                        exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude, maxBatchSize, newScheme);
 
                         String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
 
@@ -1269,6 +1403,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
         Integer timeout = astronSettings == null || astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
+        boolean useNewScheme = astronSettings.isNewScheme();
 
         for (String directory : getDirectorySet(requestExchange)) {
 
@@ -1289,8 +1424,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     } else {
                         truncateTable(conn, "DCARD");
 
+                        boolean newScheme = !params.pgsql && useNewScheme; //используем новую схему только по опции и только для mssql
+
                         astronLogger.info("export table dcard");
-                        exportDCard(conn, params, discountCardList);
+                        exportDCard(conn, params, discountCardList, newScheme);
 
                         astronLogger.info("waiting for processing transactions");
                         exportFlags(conn, params, table);
