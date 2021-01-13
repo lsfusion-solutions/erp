@@ -63,6 +63,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             Map<Integer, Integer> groupMachineryMap = astronSettings.getGroupMachineryMap();
             boolean exportExtraTables = astronSettings.isExportExtraTables();
             Integer transactionsAtATime = astronSettings.getTransactionsAtATime();
+            Integer itemsAtATime = astronSettings.getItemsAtATime();
             Integer maxBatchSize = astronSettings.getMaxBatchSize();
             boolean useNewScheme = astronSettings.isNewScheme();
 
@@ -71,16 +72,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 directoryTransactionMap.computeIfAbsent(getDirectory(transaction), t -> new ArrayList<>()).add(transaction);
             }
 
-            if(transactionsAtATime > 1) {
+            if(transactionsAtATime > 1 || itemsAtATime > 0) {
 
                 for(Map.Entry<String, List<TransactionCashRegisterInfo>> directoryTransactionEntry : directoryTransactionMap.entrySet()) {
                     int transactionCount = 1;
+                    int itemCount = 0;
                     int totalCount = directoryTransactionEntry.getValue().size();
                     Throwable exception = null;
                     Map<Long, SendTransactionBatch> currentSendTransactionBatchMap = new HashMap<>();
                     for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
                         boolean firstTransaction = transactionCount == 1;
-                        boolean lastTransaction = transactionCount == transactionsAtATime || transactionCount == totalCount;
+                        boolean lastTransaction = transactionCount == transactionsAtATime || transactionCount == totalCount || (itemCount + transaction.itemsList.size()) >= itemsAtATime;
 
                         Set<String> deleteBarcodeSet = new HashSet<>();
                         if(exception == null) {
@@ -98,9 +100,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             sendTransactionBatchMap.putAll(currentSendTransactionBatchMap);
                             currentSendTransactionBatchMap = new HashMap<>();
                             transactionCount = 1;
+                            itemCount = 0;
                             totalCount -= transactionsAtATime;
                         } else {
                             transactionCount++;
+                            itemCount += transaction.itemsList.size();
                         }
                     }
                 }

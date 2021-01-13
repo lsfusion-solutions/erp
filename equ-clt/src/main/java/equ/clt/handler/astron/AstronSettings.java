@@ -36,6 +36,10 @@ public class AstronSettings implements Serializable {
     //иначе - по одной
     private Integer transactionsAtATime;
 
+    //если задано и больше 0, выгружаем суммарно транзакций на itemsAtATime товаров за блок
+    //в сочетании с transactionsAtATime берётся минимальное кол-во транзакций
+    private Integer itemsAtATime;
+
     //если задано и больше 0, разбиваем выгрузку каждой таблицы на блоки по maxBatchSize
     private Integer maxBatchSize;
 
@@ -152,5 +156,13 @@ public class AstronSettings implements Serializable {
 
     public void setNewScheme(boolean newScheme) {
         this.newScheme = newScheme;
+    }
+
+    public Integer getItemsAtATime() {
+        return itemsAtATime;
+    }
+
+    public void setItemsAtATime(Integer itemsAtATime) {
+        this.itemsAtATime = itemsAtATime;
     }
 }
