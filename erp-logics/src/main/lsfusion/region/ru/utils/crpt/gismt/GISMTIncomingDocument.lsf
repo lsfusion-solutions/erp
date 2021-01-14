@@ -31,12 +31,14 @@ NAMESPACE GISMT;
 // get documents
 FORM getIncomingDocuments
     OBJECTS results = INTEGER
-    PROPERTIES(results) number = number, docDate = docDate, inn = senderInn, status = status 
+    PROPERTIES(results) number = number, docDate = docDate, inn = senderInn, status = status, 
+                        externalId = externalId, invoiceDate = invoiceDate, invoiceNumber = invoiceNumber 
 ;
 
 FORM dialogIncomingDocument 'Выбор документа'
     OBJECTS di 'Документы' = INTEGER
-    PROPERTIES(di) READONLY number 'Номер' = number, docDate 'Дата' = docDate, status 'Статус' = status 
+    PROPERTIES(di) READONLY number 'Номер' = number, docDate 'Дата' = docDate, status 'Статус' = status,
+                            externalId 'ИД' = externalId, invoiceNumber 'Номер СФ/УКД' = invoiceNumber, invoiceDate 'Дата СФ/УКД' = invoiceDate     
     FILTERS number(di) 
 ;
  
@@ -105,12 +107,12 @@ getIncomingDocument (LegalEntity l, STRING[100] id) {
 //    PROPERTIES getIncomingDocuments() DRAW d TOOLBAR
 //;
 
-META defineDocumentIncoming(doc, prop, container)
+META defineDocumentIncoming(doc, prop, container, legal, partner)
     prop 'Документ на отгрузку товара' = DATA STRING[100] (###doc, LotType);
     prop 'Документ на отгрузку товара' (###doc d) = GROUP CONCAT prop(d, LotType t) + '(' + name(t) + ')', ',' ORDER t CHARWIDTH 30;
     
     get###prop 'Запросить из ГИС МТ' (###doc i, LotType t) {
-        getIncomingDocuments(supplier(i), customer(i), t, 'WAIT_ACCEPTANCE');
+        getIncomingDocuments(legal(i), partner(i), t, 'WAIT_ACCEPTANCE');
         IF documentIndex() THEN
             prop(i, t) <- number(documentIndex());
     }
@@ -131,7 +133,7 @@ META defineDocumentIncoming(doc, prop, container)
 
     import 'Загрузить КМ' (###doc i) {
         FOR releaseNumber(i, LotType t) DO {
-            getIncomingDocument(supplier(i), releaseNumber(i, t));
+            getIncomingDocument(legal(i), releaseNumber(i, t));
             FOR [GROUP SUM 1 BY sku(INTEGER j)](Sku sku) AND NOT doc##Detail(sku, i) NEW d = ###doc##Detail DO {
                 doc(d) <- i;
                 sku(d) <- sku;
