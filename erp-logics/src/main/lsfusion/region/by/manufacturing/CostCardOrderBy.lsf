@@ -94,7 +94,7 @@ VATSum 'Сумма НДС' (ProductDetail pd,ComponentDetail cd)= IF VAT(cd)
     ELSE componentsSum(pd,cd) *(valueVAT(cd)/(100+valueVAT(cd)));
 
 totalVATSum 'Сумма НДС компонентов' (ProductDetail pd) = GROUP SUM VATSum (pd,ComponentDetail cd) MATERIALIZED;
-
+skip = DATA LOCAL BOOLEAN (ProductDetail);
 FORM costCardOrderBy 'Калькуляционная карта' // с заменами
 
     OBJECTS o = Order PANEL SUBREPORT
@@ -109,7 +109,8 @@ FORM costCardOrderBy 'Калькуляционная карта' // с заме�
     PROPERTIES(pd) markup, price, productsSumInBOM, valueVAT,
                    retailMarkupPrice, retailVATPrice, overRetailVATSumInBOM, recipes
 
-    FILTERS order(pd)==o
+    FILTERS order(pd)==o,
+            NOT skip(pd)
 
     OBJECTS cd = ComponentDetail
     PROPERTIES(pd,cd)quantityInBOM, componentsSum, VATSum
@@ -118,8 +119,26 @@ FORM costCardOrderBy 'Калькуляционная карта' // с заме�
     FILTERS order(cd)==o             
     FILTERS BOM(cd)== BOM(pd)        
 ;
-printCostCard 'Калькуляционная карта' (Order order)  { PRINT costCardOrderBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
-  
+
+printCostCard 'Калькуляционная карта' (Order order)  { 
+    skip(ProductDetail d) <- NULL;
+    PRINT costCardOrderBy OBJECTS o = order; 
+} IMAGE 'print.png' IN print;
+
+printCostCard 'Калькуляционная карта' (ProductDetail pd)  { 
+    skip(ProductDetail d) <- order(pd)==order(d) AND d!=pd;
+    PRINT costCardOrderBy OBJECTS o = order(pd); 
+} IMAGE 'print.png' IN print;  
+printCostCardXls 'Калькуляционная карта (xls)' (Order order)  { 
+    skip(ProductDetail d) <- NULL;
+    PRINT costCardOrderBy OBJECTS o = order XLSX; 
+} IMAGE 'print.png' IN print;
+
+printCostCardXls 'Калькуляционная карта (xls)' (ProductDetail pd)  { 
+    skip(ProductDetail d) <- order(pd)==order(d) AND d!=pd;
+    PRINT costCardOrderBy OBJECTS o = order(pd) XLSX; 
+} IMAGE 'print.png' IN print;  
+
 coeffSubstitute (ComponentDetail cd) = substituteQuantity(cd) /  bruttoQuantity(cd) IF sku(cd) != bruttoSku(cd);
 priceCard (ComponentDetail cd)  = price(cd)*coeffSubstitute(cd);
 
