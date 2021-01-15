@@ -280,9 +280,20 @@ META defineDocumentLotOut(doc, stock, quantityProp, obj)
         quantity(###doc##Detail d, Lot l) <- prevCurrentBalance(l, stock(o)) 
             WHERE doc(d) = o AND NOT quantityLot(d) AND lotType(sku(d)) AND sku(l) = sku(d) AND [FILTER doc.d](d); 
     }
+
+    fillLotBatch 'Заполнить марки из партий' (###doc o) {
+        quantity(###doc##Detail d, Lot l) <- prevCurrentBalance(l, stock(o)) 
+            WHERE doc(d) = o AND NOT quantityLot(d) AND lotType(sku(d)) AND batch(l) = batch(d) AND [FILTER doc.d](d); 
+    }
+    
+    dropLotBatch 'Сбросить марки' (###doc o) {
+        quantity(###doc##Detail d, Lot l) <- NULL 
+            WHERE doc(d) = o AND [FILTER doc.d](d); 
+    }
     
     EXTEND FORM doc
-        PROPERTIES(d) quantityLot AFTER quantity(d) ON CHANGE changeQuantityLot(d) ON CONTEXTMENU fillLotBalance(obj) 
+        PROPERTIES(d) quantityLot AFTER quantity(d) ON CHANGE changeQuantityLot(d) 
+                      ON CONTEXTMENU fillLotBalance(obj) ON CONTEXTMENU fillLotBatch(obj) ON CONTEXTMENU dropLotBatch(obj)  
                       BACKGROUND backgroundQuantityLot(d) 
                       SHOWIF useLot(operation(obj))
                       READONLYIF NOT lotType(sku(d))
