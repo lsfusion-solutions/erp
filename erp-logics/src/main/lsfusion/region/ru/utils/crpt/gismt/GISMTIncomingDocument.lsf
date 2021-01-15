@@ -28,58 +28,13 @@ NAMESPACE GISMT;
 //    }
 //}
 
-// get documents
-FORM getIncomingDocuments
-    OBJECTS results = INTEGER
-    PROPERTIES(results) number = number, docDate = docDate, inn = senderInn, status = status, 
-                        externalId = externalId, invoiceDate = invoiceDate, invoiceNumber = invoiceNumber 
-;
-
-FORM dialogIncomingDocument 'Выбор документа'
-    OBJECTS di 'Документы' = INTEGER
-    PROPERTIES(di) READONLY number 'Номер' = number, docDate 'Дата' = docDate, status 'Статус' = status,
-                            externalId 'ИД' = externalId, invoiceNumber 'Номер СФ/УКД' = invoiceNumber, invoiceDate 'Дата СФ/УКД' = invoiceDate     
-    FILTERS number(di) 
-;
- 
-documentIndex = DATA LOCAL INTEGER ();
-
-getIncomingDocuments 'Получить входящие документы ГИС МТ' (LegalEntity l, LegalEntity s, LotType lt, STRING status) {
-    getToken(l);
-    
-    LOCAL result = JSONFILE();
-    TRY {
-        EXTERNAL HTTP GET url() + '/facade/doc/listV2?inputFormat=true' + 
-                                  '&participantInn=' + inn(s) + '&pg=' + id(lt) + '&status=' + status HEADERS documentHeaders TO result;
-    } CATCH {
-        logToFile('gismt', messageCaughtException());
-        logToFile('gismt', FILE(result()));
-        MESSAGE CONCAT ' ', 'Ошибка при получении входящих документов ГИС МТ', messageCaughtException();
-        RETURN;
-    }
-    
-    number(INTEGER i) <- NULL;
-    IMPORT getIncomingDocuments JSON FROM result();
-    
-    documentIndex() <- NULL;
-    DIALOG dialogIncomingDocument OBJECTS di INPUT FILTERS status(di) = status DO {
-        documentIndex() <- di;
-    } 
-//            FOR number(INTEGER i) AND NOT incomingDocument(number(i)) AND NOT document(number(i)) NEW d = IncomingDocument DO {
-//                id(d) <- STRING[100](number(i));
-//            }
-//            
-//            FOR id(IncomingDocument d) = number(INTEGER i) INLINE DO {
-//                dateTime(d) <- toDateTimeFormat(docDate(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z');
-//                sender(d) <- legalEntityByInn(senderInn(i));
-//                status(d) <- status(i);
-//                downloadDesc(d) <- downloadDesc(i);
-//            }
-            
-}
-
 // get incoming document
+documentNum = DATA LOCAL STRING ();
+documentDate = DATA LOCAL STRING ();
+
 FORM getIncomingDocument
+    PROPERTIES() document_num = documentNum, document_date = documentDate
+
     OBJECTS products = INTEGER IN body 
     PROPERTIES(products) uit_code = uit_code
 ;
@@ -101,6 +56,63 @@ getIncomingDocument (LegalEntity l, STRING[100] id) {
     
     gtin (INTEGER i) <- idToGtin(uit_code(i));
     sku (INTEGER i) <- skuFromGtin(gtin(i));
+}
+
+// get documents
+FORM getIncomingDocuments
+    OBJECTS results = INTEGER
+    PROPERTIES(results) number = number, docDate = docDate, inn = senderInn, status = status, 
+                        externalId = externalId, invoiceDate = invoiceDate, invoiceNumber = invoiceNumber 
+;
+
+FORM dialogIncomingDocument 'Выбор документа'
+    OBJECTS di 'Документы' = INTEGER
+    PROPERTIES(di) READONLY number, docDate, status,
+                            externalId, invoiceNumber, invoiceDate,
+                            documentNum, documentDate     
+    FILTERS number(di) 
+;
+ 
+documentIndex = DATA LOCAL INTEGER ();
+
+getIncomingDocuments 'Получить входящие документы ГИС МТ' (LegalEntity l, LegalEntity s, LotType lt, STRING status) {
+    getToken(l);
+    
+    LOCAL result = JSONFILE();
+    TRY {
+        EXTERNAL HTTP GET url() + '/facade/doc/listV2?inputFormat=true' + 
+                                  '&participantInn=' + inn(s) + '&pg=' + id(lt) + '&status=' + status HEADERS documentHeaders TO result;
+    } CATCH {
+        logToFile('gismt', messageCaughtException());
+        logToFile('gismt', FILE(result()));
+        MESSAGE CONCAT ' ', 'Ошибка при получении входящих документов ГИС МТ', messageCaughtException();
+        RETURN;
+    }
+    
+    number(INTEGER i) <- NULL;
+    IMPORT getIncomingDocuments JSON FROM result();
+
+    FOR number(INTEGER i) DO {
+        getIncomingDocument(l, number(i));
+        documentNum(i) <- documentNum();
+        documentDate(i) <- documentDate();
+    }
+    
+    documentIndex() <- NULL;
+    DIALOG dialogIncomingDocument OBJECTS di INPUT FILTERS status(di) = status DO {
+        documentIndex() <- di;
+    } 
+//            FOR number(INTEGER i) AND NOT incomingDocument(number(i)) AND NOT document(number(i)) NEW d = IncomingDocument DO {
+//                id(d) <- STRING[100](number(i));
+//            }
+//            
+//            FOR id(IncomingDocument d) = number(INTEGER i) INLINE DO {
+//                dateTime(d) <- toDateTimeFormat(docDate(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z');
+//                sender(d) <- legalEntityByInn(senderInn(i));
+//                status(d) <- status(i);
+//                downloadDesc(d) <- downloadDesc(i);
+//            }
+            
 }
 
 //EXTEND FORM incomingDocuments
