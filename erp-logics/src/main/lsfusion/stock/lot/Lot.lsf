@@ -17,7 +17,7 @@ EXTEND FORM item
 // lot
 CLASS Lot 'Марка';
 
-id 'Код' = DATA STRING[100] (Lot) INDEXED;
+id 'Код' = DATA STRING[100] (Lot) INDEXED IN id;
 lot = GROUP AGGR Lot l BY id(l); 
 
 translateBarcode = FORMULA STRING[100] 'SELECT CASE WHEN ($1) ~* \'[а-яА-Я]\' THEN translate(left(($1), 31), \'ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,йцукенгшщзхъфывапролджэячсмитьбю.\', \'QWERTYUIOP{}ASDFGHJKL:"|ZXCVBNM<>?qwertyuiop[]asdfghjkl;\'\'zxcvbnm,./\') ELSE left(($1), 31) END';
@@ -39,8 +39,8 @@ gtin 'GTIN' (Lot l) = idToGtin(id(l));
 series 'Серия' (Lot l) = idToSeries(id(l));
 
 sku 'Товар' = DATA Sku (Lot) NONULL DELETE INDEXED;
-idSku 'Код товара' (Lot l) = id(sku(l));
-nameSku 'Наименование товара' (Lot l) = name(sku(l));
+idSku 'Код товара' (Lot l) = id(sku(l)) IN id;
+nameSku 'Наименование товара' (Lot l) = name(sku(l)) IN id;
 
 changeSku 'Заменить товар' (Lot l) {
     DIALOG skus OBJECTS s INPUT DO {
