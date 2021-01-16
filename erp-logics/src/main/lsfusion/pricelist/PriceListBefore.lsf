@@ -109,11 +109,24 @@ DESIGN userPriceList{
     }
 }
 
+overFromPriceBeforeDate = ABSTRACT DATE (PriceListDetail);
+fromPriceBeforeDate '{document.date.of} с (Цена до)' (PriceListDetail d) = OVERRIDE overFromPriceBeforeDate(d), fromPriceBeforeDate(priceList(d)) MATERIALIZED;;
+overFromPriceBeforeTime = ABSTRACT TIME (PriceListDetail);
+fromPriceBeforeTime '{document.time.of} с (Цена до)' (PriceListDetail d) = OVERRIDE overFromPriceBeforeTime(d), fromPriceBeforeTime(priceList(d)) MATERIALIZED;;
+fromPriceBeforeDateTime '{document.date.time.of} с (Цена до)' (PriceListDetail d) = dateTimeToDateTime(fromPriceBeforeDate(d), fromPriceBeforeTime(d)) MATERIALIZED INDEXED;
+
+overToPriceBeforeDate = ABSTRACT DATE (PriceListDetail);
+toPriceBeforeDate '{document.date.of} с (Цена до)' (PriceListDetail d) = OVERRIDE overToPriceBeforeDate(d), toPriceBeforeDate(priceList(d)) MATERIALIZED;;
+overToPriceBeforeTime = ABSTRACT TIME (PriceListDetail);
+toPriceBeforeTime '{document.time.of} с (Цена до)' (PriceListDetail d) = OVERRIDE overToPriceBeforeTime(d), toPriceBeforeTime(priceList(d)) MATERIALIZED;;
+toPriceBeforeDateTime '{document.date.time.of} с (Цена до)' (PriceListDetail d) = dateTimeToDateTime(toPriceBeforeDate(d), toPriceBeforeTime(d)) MATERIALIZED INDEXED;
+
+
 CLASS PriceListBeforeLedger : PriceListLedger;
 TABLE priceListBeforeLedger(PriceListBeforeLedger);
 
 needPriceBefore(PriceListDetail d) = priceBefore(d) AND countBeforeDataPriceListTypes(priceList(d))
-    AND fromPriceBeforeDateTime(priceList(d)) AND toPriceBeforeDateTime(priceList(d));
+    AND fromPriceBeforeDateTime(d) AND toPriceBeforeDateTime(d);
 
 priceListBeforeLedger = AGGR PriceListBeforeLedger WHERE needPriceBefore(PriceListDetail priceListDetail) MATERIALIZED INDEXED;
 
@@ -123,8 +136,8 @@ description(PriceListBeforeLedger l) += STRING[200](description[UserPriceList](p
 
 price(PriceListBeforeLedger l, DataPriceListType t) += priceBefore(priceListDetail(l)) IF inBefore(priceList(priceListDetail(l)), t);
 
-fromDateTime(PriceListBeforeLedger l) += fromPriceBeforeDateTime(priceList(priceListDetail(l)));
-toDateTime(PriceListBeforeLedger l) += toPriceBeforeDateTime(priceList(priceListDetail(l)));
+fromDateTime(PriceListBeforeLedger l) += fromPriceBeforeDateTime(priceListDetail(l));
+toDateTime(PriceListBeforeLedger l) += toPriceBeforeDateTime(priceListDetail(l));
 
 isPosted(PriceListBeforeLedger l) += isPosted(priceList(priceListDetail(l)));
 skip(PriceListBeforeLedger l) += exclude(priceListDetail(l));
