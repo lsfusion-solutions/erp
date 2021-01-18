@@ -17,12 +17,14 @@ lastValueVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = OVERRIDE valueVAT[R
 numberLastVatPriceListLedger 'НДС номер, последний'(Sku sk, Stock s) = number(lastVatPriceListLedger (sk, s, currentDateTime()));
 lastValueVatPriceListLedger 'НДС %, последний'(Sku sk, Stock s) = lastValueVatPriceListLedger (sk, s, currentDateTime());
 
-WHEN LOCAL (CHANGED(sku(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) 
+skipChangeVAT = DATA LOCAL BOOLEAN(RepricingDetail);
+
+WHEN LOCAL (CHANGED(sku(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) AND NOT skipChangeVAT(detail)
     AND Range r = lastVatPriceListLedger (sku(detail), departmentStore(detail), dateTime(detail)) DO {
         curVAT(detail) <- r;   
 }
 
-WHEN LOCAL (CHANGED(sku(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) 
+WHEN LOCAL (CHANGED(sku(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) AND NOT skipChangeVAT(detail)
     AND NUMERIC[10,5] r = lastValueVatPriceListLedger (sku(detail), departmentStore(detail), dateTime(detail)) DO {
         valueCurVAT(detail) <- r;   
 }
