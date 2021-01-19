@@ -12,3 +12,133 @@ overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
     limitPrice(Sku sku) <- alcoholLimitPrice(d, sku, dt) WHERE managementRetailPrice(sku);
     managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) > managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
 }
+
+//переоценка товаров с ценой меньше
+alcoholLimitPrice 'Цена минимальная' = DATA LOCAL NESTED NUMERIC[16,4] (Sku);
+
+createPriceLimitAlcoholRepricing 'Создать переоценку'(Stock d, Operation o, DATETIME dt)  { 
+    IF (GROUP SUM 1 IF alcoholLimitPrice(Sku sku)) THEN {
+        NEW r = UserRepricing {
+            departmentStore(r) <- d;
+            operation(r) <- o;
+            date(r) <- toDate(dt);
+            time(r) <- toTime(dt);  
+            isPosted(r) <- TRUE;
+            
+            incrementValue(defaultNumeratorUserRepricing());
+            number(r) <- incrementedValue();
+            series(r) <- series(defaultNumeratorUserRepricing());
+    
+            FOR alcoholLimitPrice(Sku sku) ORDER orderRepricingDetail(sku) NEW rd = UserRepricingDetail DO {
+                userRepricing(rd) <- r;
+                sku(rd) <- sku;
+                quantity(rd) <- currentBalance(sku, d) IF currentBalance(sku, d) > 0;
+                retailPrice(rd) <- alcoholLimitPrice(sku);
+                curRetailPrice(rd) <- prevRetailPricingPriceB(sku, d, dt);
+                price(rd) <- round2(prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, sku, d, dt));
+            }     
+            inRepForm(r) <- TRUE;
+        }
+    }
+};
+
+FORM test
+    OBJECTS dt = DATETIME PANEL
+    PROPERTIES VALUE(dt)
+    
+    OBJECTS d = DepartmentStore PANEL
+    PROPERTIES (d) name
+    
+    OBJECTS s = Sku
+    PROPERTIES (s) READONLY name, alcoholLimitPrice
+    PROPERTIES prevRetailPricingPriceA(s, d, dt)
+    FILTERS alcoholLimitPrice(s)
+;
+
+calculatePriceLimitAlcoholRepricing 'По мин. ценам алкоголя' (DepartmentStore d, DATETIME dt)  { 
+    alcoholLimitPrice(Sku sku) <- NULL;
+    IF onStockPriceListRepricing() THEN {  // переоценивать товары без остатка, настройка в options pricings (Акты расценки?)
+        alcoholLimitPrice (Sku sku) <- alcoholLimitPrice(d, sku, dt) IF prevRetailPricingPriceA(sku, d, dt);
+    } ELSE {
+        alcoholLimitPrice (Sku sku) <- alcoholLimitPrice(d, sku, dt) IF currentBalance(sku, d) > 0.0;
+    }
+//    SHOW test OBJECTS dt=dt, d=d;
+//    FOR alcoholLimitPrice(Sku sku) AND alcoholLimitPrice(sku) >= prevRetailPricingPriceA(sku, d, dt) DO {
+//        alcoholLimitPrice(sku) <- NULL;
+//    }
+    alcoholLimitPrice(Sku sku) <- NULL WHERE alcoholLimitPrice(sku) <= prevRetailPricingPriceA(sku, d, dt);
+}
+
+priceLimitAlcoholRepricingOperation  = DATA Repricing.Operation ();
+namePriceLimitAlcoholRepricingOperation 'Операция для переоценки упр.' = name(toManagementRepricingOperation());
+
+EXTEND FORM options
+    PROPERTIES() namePriceLimitAlcoholRepricingOperation
+;
+DESIGN options {
+    rPanel {
+        MOVE PROPERTY(namePriceLimitAlcoholRepricingOperation());
+    }
+}
+
+createPriceLimitAlcoholRepricingAll 'Создать автоматическую переоценку по мин. ценам алкоголя' (DepartmentStore department)  { 
+    NEWSESSION {
+        calculatePriceLimitAlcoholRepricing(department, currentDateTime());
+        createPriceLimitAlcoholRepricing(department, priceLimitAlcoholRepricingOperation(), currentDateTime()); 
+        APPLY;
+    }
+}
+
+createLimitAlcoholRepricing 'Создать переоценку по мин. ценам алкоголя' (DepartmentStore d, Operation o, DATETIME dt)  {
+	NEWSESSION NESTED LOCAL  {
+	    calculatePriceLimitAlcoholRepricing(d, dt);
+	    createPriceLimitAlcoholRepricing(d, o, dt);
+	    FOR inRepForm(UserRepricing r) DO {
+	        DIALOG userRepricing OBJECTS p = r DOCKED NOCANCEL DO {
+                alcoholLimitPrice(Sku sku) <- NULL;      
+            }
+	    }
+	    inRepForm(UserRepricing r) <- NULL;      
+	}
+}
+
+FORM createLimitAlcoholRepricing
+    OBJECTS dt = DATETIME PANEL
+    PROPERTIES VALUE(dt)
+    
+    OBJECTS d = DepartmentStore PANEL
+    PROPERTIES (d) name SELECTOR
+    
+    OBJECTS o = Operation PANEL
+    PROPERTIES (o) name SELECTOR   
+;
+
+seekOperation ()  { 
+    SEEK createLimitAlcoholRepricing.o = priceLimitAlcoholRepricingOperation();
+}
+
+EXTEND FORM createLimitAlcoholRepricing
+    EVENTS
+        ON INIT seekOperation() 
+;
+
+createLimitAlcoholRepricing 'Создать переоценку по мин. ценам алкоголя' () {
+    DIALOG createLimitAlcoholRepricing OBJECTS dt INPUT, d INPUT, o INPUT DO {
+        createLimitAlcoholRepricing(d, o, dt);    
+    }   
+}
+
+EXTEND FORM alcoholLimits
+    PROPERTIES createLimitAlcoholRepricing()
+;
+
+DESIGN alcoholLimits {
+    actionContainer {
+        NEW repricing {
+            caption = 'Переоценка';
+            type = CONTAINERH;
+            fill = 1;
+            MOVE PROPERTY(createLimitAlcoholRepricing());
+        }
+    }    
+}   
