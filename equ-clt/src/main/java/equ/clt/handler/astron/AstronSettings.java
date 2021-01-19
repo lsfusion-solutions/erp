@@ -159,7 +159,7 @@ public class AstronSettings implements Serializable {
     }
 
     public Integer getItemsAtATime() {
-        return itemsAtATime;
+        return itemsAtATime != null ? itemsAtATime : 0;
     }
 
     public void setItemsAtATime(Integer itemsAtATime) {
