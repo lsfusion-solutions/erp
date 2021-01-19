@@ -78,7 +78,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
                         itemCount += transaction.itemsList.size();
                         boolean firstTransaction = transactionCount == 1;
-                        boolean lastTransaction = transactionCount == transactionsAtATime || transactionCount == totalCount || itemCount >= itemsAtATime;
+                        boolean lastTransaction = transactionCount == transactionsAtATime || transactionCount == totalCount || (itemsAtATime > 0 && itemCount >= itemsAtATime);
 
                         Set<String> deleteBarcodeSet = new HashSet<>();
                         if(exception == null) {
