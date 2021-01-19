@@ -29,7 +29,8 @@ createRepricingLabelTransaction 'Распечатать ценники'(Departme
 	                                                        THEN INTEGER(currentBalance(sku, departmentStore))
 	                                                     ELSE count(labelType, sku(d));
 	                                                     
-	                price(d) <- calcPrice(pt, d);
+	                //price(d) <- calcPrice(pt, d); // проблема при печати ценников с ценой по надбавкам (из операции, магазина или поставщика), не тот вид цен
+	                price(d) <- managementRetailPrice(sku);
 	                retailPrice(d) <- overRetailPrice(d);
 	            } 
 	            print(t);
@@ -90,7 +91,8 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
                 
                             createAttribute(d);                      
                    
-                            price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
+                            //price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d); // проблема при печати ценников с ценой по надбавкам (из операции, магазина или поставщика), не тот вид цен
+                            price(d) <- OVERRIDE documentPrice(d), managementRetailPrice(sku);
                             retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
                     
         //                        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
