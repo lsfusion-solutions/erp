@@ -459,15 +459,18 @@ importItems 'Импорт товаров' () {
     LOCAL id = STRING (INTEGER);
    
     EXTERNAL SQL connectionString()    
-        EXEC 'SELECT * FROM (SELECT ARTICLE, MAX(RECID) FROM Supermag.SMCardSecurityLog log WHERE RECID > ' + STRING(lastItemlogId()) + ' GROUP BY ARTICLE) WHERE ROWNUM < 500' TO SupermagSettings.file;
+        EXEC 'SELECT * FROM (SELECT ARTICLE, MAX(RECID) FROM Supermag.SMCardSecurityLog log WHERE RECID > ' + STRING(lastItemlogId()) + ' GROUP BY ARTICLE ORDER BY MAX(RECID)) WHERE ROWNUM < 500' TO SupermagSettings.file;
         
     IMPORT TABLE FROM SupermagSettings.file() TO id, recid;  
-   
+      
     LOCAL itemlist = STRING ();   
 
     itemlist() <- GROUP CONCAT ('\'' + id(INTEGER i) + '\''), ',';
     
     IF itemlist() THEN importItem(itemlist());  
+    
+    MESSAGE lastItemlogId();
+    MESSAGE (GROUP MAX recid(INTEGER i));
     
     lastItemlogId() <- OVERRIDE (GROUP MAX recid(INTEGER i)), lastItemlogId();
     
