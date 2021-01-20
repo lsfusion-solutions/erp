@@ -1,0 +1,79 @@
+MODULE SaleStatistics2021By;
+
+REQUIRE SaleStatisticsBy;
+
+NAMESPACE Sale;
+
+copy 'Скопировать привязку товаров по коду' (StatisticGroupType gt0, StatisticGroupType gt1) {
+    statistic(gt1,Item i) <- groupIdTypeIdGroup(id(gt1), sid(statistic(gt0,i))) WHERE statistic(gt0,i) AND active(i);    
+} TOOLBAR;
+copy 'Скопировать привязку товаров по коду' (StatisticGroupType gt0, StatisticGroupType gt1, Group gr) {
+    statistic(gt1,Item i) <- groupIdTypeIdGroup(id(gt1), sid(statistic(gt0,i))) WHERE statistic(gt0,i) AND active(i) AND isParent(gr,i);    
+} TOOLBAR;
+
+FORM compareStatisticGroups 'Копирование стат. групп'
+
+    OBJECTS gt=GroupType PANEL
+    PROPERTIES(gt) SELECTOR name
+    
+    OBJECTS gt0=StatisticGroupType PANEL
+    PROPERTIES(gt0) SELECTOR name BACKGROUND RGB(255, 250, 205) 
+    
+    OBJECTS gt1=StatisticGroupType PANEL
+    PROPERTIES(gt1) SELECTOR name BACKGROUND RGB(127,199,255)
+    
+    TREE groupTree g=Group PARENT parent(g)
+    PROPERTIES READONLY order(g), id(g), name(g)
+    FILTERS groupType(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
+    ORDERS order(g), name(g)
+    FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT
+    
+    OBJECTS i=Item  
+    PROPERTIES(i) READONLY idBarcode, id, name, shortNameUOM
+    PROPERTIES name(gt0,i) READONLY BACKGROUND RGB(255, 250, 205) , 
+                name(gt1,i) ON CHANGE {DIALOG statisticGroupDialog OBJECTS c = gt1, s = statistic(gt1,i) CHANGE; } BACKGROUND RGB(127,199,255)
+    PROPERTIES copy(gt0,gt1)
+    PROPERTIES TOOLBAR DRAW i loadDefaultStatisticGroups2021By()
+    PROPERTIES TOOLBAR DRAW g copy(gt0,gt1,g)
+    FILTERGROUP inactive2 FILTER 'Активные' active(i) 'F5' DEFAULT
+    FILTERS isParent(g, i)
+;
+DESIGN compareStatisticGroups{
+    OBJECTS {
+        NEW body{
+            type = SPLITH;
+            fill = 1;
+            NEW left {
+                fill = 1;
+                MOVE BOX(gt);
+                MOVE BOX(TREE groupTree) { caption = 'Группы';}   
+            }    
+            NEW right {
+                fill = 2;
+                NEW gg {
+                    type = CONTAINERH;
+                    caption = 'Стат. классификаторы';
+                    MOVE PROPERTY (name(gt0)){caption = 'Старый';}
+                    MOVE PROPERTY (name(gt1)){caption = 'Новый';}
+                    MOVE PROPERTY (copy(gt0,gt1));
+                }
+                MOVE BOX(i); 
+            }        
+        }
+        PROPERTY (name(gt0,i)){caption = 'Старая стат. группа';}
+        PROPERTY (name(gt1,i)){caption = 'Новая стат. группа';}
+
+    }
+}
+
+EXTEND FORM compareStatisticGroups
+    EVENTS
+        ON INIT {SEEK compareStatisticGroups.gt = SystemGroupType.skuGroupType;}
+;
+
+NAVIGATOR {
+    statisticsNavigator {
+            NEW compareStatisticGroups;
+    }
+}
+
