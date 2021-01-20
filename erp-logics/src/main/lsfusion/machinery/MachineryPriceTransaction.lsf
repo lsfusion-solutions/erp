@@ -171,6 +171,7 @@ statusMachinery 'Статус загрузки в оборудование' (Pri
 TABLE machineryPriceTransactionBarcode (MachineryPriceTransaction, Barcode);
 
 in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode) INDEXED;
+countBarcodes 'Кол-во строк' = GROUP SUM 1 IF in(MachineryPriceTransaction t, Barcode b) BY t;
 
 name 'Наименование' = DATA STRING[255] (MachineryPriceTransaction, Barcode);
 name(MachineryPriceTransaction t, Barcode barcode)  => in(t, barcode) RESOLVE RIGHT;
@@ -358,7 +359,7 @@ FORM machineryPriceTransactions 'Загрузки прайса в оборудо
 
     OBJECTS t = MachineryPriceTransaction LAST
     PROPERTIES(t) READONLY
-                           VALUE, snapshot, nameGroupMachinery, nameStock, objectClassName, date, 
+                           VALUE, snapshot, nameGroupMachinery, nameStock, objectClassName, countBarcodes, date, 
                            time, description, dateTimeProcessing 
     PROPERTIES(t) READONLYIF isReadonly()
                            succeeded , dateTimeSucceeded, canceled, 
