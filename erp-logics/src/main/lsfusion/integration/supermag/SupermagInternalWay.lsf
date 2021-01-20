@@ -55,7 +55,7 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                         priceManufacturer(expDet) <- CASE WHEN manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) 
                                                           WHEN NOT isSubstring('Розн',namePriceListType(docd)) THEN priceNoTax(expDet);
-                     //   extracharge(expDet) <-OVERRIDE wholesaleMarkup(docd), 0;
+                        extracharge(expDet) <- CASE WHEN id(operation(doc)) = 'saleStoreStore' THEN OVERRIDE wholesaleMarkup(docd), 0 ELSE 0;
                         expiryDate(expDet) <- expiryDate(docd); 
                      //   priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);
                         causeType(expDet) <- STRING[10] (OVERRIDE ( getWord(docTypeSupermag(operation(shipmentDetail(batch(docd)))),';',1) IF shipmentDetail(batch(docd))), causeType(docd) );                                          
