@@ -1,0 +1,33 @@
+MODULE BaseValue;
+
+REQUIRE Utils;
+
+
+dataBaseValue 'Базовая величина, руб.' = DATA NUMERIC[12,3](DATE);
+baseValue 'Базовая величина, руб' (DATE dt) = GROUP LAST dataBaseValue(DATE date) ORDER date WHERE dataBaseValue(date) AND date <= dt;
+baseValue 'Базовая величина, руб' = baseValue(currentDate());
+
+FORM addBaseValue 'Добавить значение на дату'
+    OBJECTS d = DATE PANEL
+    PROPERTIES VALUE(d), dataBaseValue(d)
+;
+
+addBaseValue 'Добавить' ()  { SHOW addBaseValue; }  TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
+
+FORM dialogBaseValue 'Базовая величина'
+    OBJECTS d = DATE
+    PROPERTIES addBaseValue() DRAW d , VALUE(d), dataBaseValue(d)
+    FILTERS dataBaseValue(d)
+;
+
+dialogBaseValue 'Базовая величина' ()  { SHOW dialogBaseValue; }  ASON CONTEXTMENU baseValue[] ASON CHANGE baseValue[];
+
+EXTEND FORM options
+    PROPERTIES() baseValue 
+;
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY(baseValue());
+    }    
+}  
