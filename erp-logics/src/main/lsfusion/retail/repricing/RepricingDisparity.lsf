@@ -53,6 +53,11 @@ skip(Disparity ledger) += ledger IS Disparity AND notConduct(ledger);
 
 @deriveDocumentOperationProperty(Disparity, repricingOperation);
 
+negativeMarkupOnAccount90 'Относить отрицательную надбавку на 90 счет' = DATA BOOLEAN (Disparity) IN documentPrm;
+
+negativeMarkupOnAccount90 (Disparity o) <- negativeMarkupOnAccount90(repricingOperation(o))
+    WHEN CHANGED(repricingOperation(o));
+
 // До
 @defineDocumentTimePrefix(disparity, before, ' документа до');
 @deriveDocumentHeaderTimePrefix(Disparity, before);
@@ -175,7 +180,7 @@ beforeTime(DisparityRepricing repricing) += beforeTime(repricing);
 
 operation (DisparityRepricing repricing)+= repricingOperation(disparity(repricing));
 changeSupplierPrice (DisparityRepricing repricing)+= changeSupplierPrice(repricingOperation(disparity(repricing)));
-negativeMarkupOnAccount90 (DisparityRepricing repricing)+= negativeMarkupOnAccount90(repricingOperation(disparity(repricing)));
+negativeMarkupOnAccount90 (DisparityRepricing repricing)+= negativeMarkupOnAccount90(disparity(repricing));
 
 printRepricing 'Акт переоценки' (Disparity disparity)  { print(disparityRepricing(disparity)); } IMAGE 'print.png' IN print;
 
@@ -228,7 +233,7 @@ batch[RepricingDetail](DisparityRepricingDetail detail) += batch(detail);
 EXTEND FORM disparity
     PROPERTIES(dis)   SHOWIF showCreateRepricing(dis) BACKGROUND backgroundCur(dis) createRepricing
     PROPERTIES(dis)   BACKGROUND backgroundCur(dis) SHOWIF createRepricing(dis) nameRepricingOperation,
-                      nameRepricingCommittee, dataNumberDisposal, beforeDate
+                      nameRepricingCommittee, dataNumberDisposal, beforeDate, negativeMarkupOnAccount90
     PROPERTIES(dis)   BACKGROUND backgroundAfter(dis) SHOWIF createRepricing(dis) diffRetailSumDisparityDetail
 
     PROPERTIES(d)   BACKGROUND backgroundCur(dis) SHOWIF createRepricing(dis) BEFORE deletedd
@@ -253,6 +258,7 @@ DESIGN disparity {
             MOVE PROPERTY(nameRepricingCommittee(dis));
             MOVE PROPERTY(dataNumberDisposal(dis));
             MOVE PROPERTY(beforeDate(dis));
+            MOVE PROPERTY(negativeMarkupOnAccount90(dis));
         }
     }
     PROPERTY(diffRetailSumDisparityDetail(dis)) { charWidth = 13;}
