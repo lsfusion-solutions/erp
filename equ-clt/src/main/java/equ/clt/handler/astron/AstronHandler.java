@@ -1497,7 +1497,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
-                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC";
+                    "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC";
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
@@ -1702,8 +1702,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             if (dateWhere.length() > 0) {
                                 statement = conn.createStatement();
                                 String query = params.pgsql ?
-                                        "UPDATE sales SET fusion_processed = 0 WHERE SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "") :
-                                        "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "");
+                                        "UPDATE sales SET fusion_processed = NULL WHERE SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "") :
+                                        "UPDATE [SALES] SET FUSION_PROCESSED = NULL WHERE SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "");
                                 astronLogger.info("RequestSalesInfo: " + query);
                                 statement.executeUpdate(query);
                                 conn.commit();
@@ -1775,8 +1775,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private void createFusionProcessedIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
             String query = params.pgsql ?
-                    String.format("CREATE INDEX IF NOT EXISTS %s ON sales(fusion_processed)", getFusionProcessedIndexName()) :
-                    String.format("IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), '%s', 'IndexId') > 0) BEGIN CREATE INDEX %s ON SALES (FUSION_PROCESSED) END",
+                    String.format("CREATE INDEX IF NOT EXISTS %s ON sales(salescanc, fusion_processed)", getFusionProcessedIndexName()) :
+                    String.format("IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), '%s', 'IndexId') > 0) BEGIN CREATE INDEX %s ON SALES (SALESCANC, FUSION_PROCESSED) END",
                     getFusionProcessedIndexName(), getFusionProcessedIndexName());
             statement.execute(query);
             conn.commit();
