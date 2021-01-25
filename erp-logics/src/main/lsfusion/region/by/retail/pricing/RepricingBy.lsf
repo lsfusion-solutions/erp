@@ -6,13 +6,14 @@ NAMESPACE Repricing;
 
 lastPriceListLedger (Sku sk, Stock s, DATETIME dt) = prevPriceListLedgerB(SystemLedgerPriceListType.retailPricingPriceListType, sk, s, dt);
 
-lastRepricingDetail (Sku sk, Stock s, DATETIME dt) = lastPriceListLedger(sk, s, dt) AS RepricingDetail;
-lastPricingDetail (Sku sk, Stock s, DATETIME dt) = lastPriceListLedger(sk, s, dt) AS PricingDetail;
+VAT (PriceListLedger l) = MULTI VAT[RepricingDetail](l), retailVAT[PricingDetail](l);
+valueVAT (PriceListLedger l) = MULTI valueVAT[RepricingDetail](l), valueRetailVAT[PricingDetail](l);
 
-lastVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = OVERRIDE VAT[RepricingDetail](lastRepricingDetail(sk, s, dt)), 
-                                                              retailVAT[PricingDetail](lastPricingDetail(sk, s, dt));
-lastValueVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = OVERRIDE valueVAT[RepricingDetail](lastRepricingDetail(sk, s, dt)), 
-                                                                                    valueRetailVAT[PricingDetail](lastPricingDetail(sk, s, dt));
+lastVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = VAT(lastPriceListLedger(sk, s, dt));
+prevLastVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = PREV(lastVatPriceListLedger(sk, s, dt));
+
+lastValueVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = valueVAT(lastPriceListLedger(sk, s, dt));
+prevLastValueVatPriceListLedger (Sku sk, Stock s, DATETIME dt) = PREV(lastValueVatPriceListLedger(sk, s, dt));
 
 numberLastVatPriceListLedger 'НДС номер, последний'(Sku sk, Stock s) = number(lastVatPriceListLedger (sk, s, currentDateTime()));
 lastValueVatPriceListLedger 'НДС %, последний'(Sku sk, Stock s) = lastValueVatPriceListLedger (sk, s, currentDateTime());
@@ -20,11 +21,11 @@ lastValueVatPriceListLedger 'НДС %, последний'(Sku sk, Stock s) = la
 skipChangeVAT = DATA LOCAL BOOLEAN(RepricingDetail);
 
 WHEN LOCAL (CHANGED(sku(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) AND NOT skipChangeVAT(detail)
-    AND Range r = lastVatPriceListLedger (sku(detail), departmentStore(detail), dateTime(detail)) DO {
+    AND Range r = prevLastVatPriceListLedger (sku(detail), departmentStore(detail), dateTime(detail)) DO {
         curVAT(detail) <- r;   
 }
 
 WHEN LOCAL (CHANGED(sku(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) AND NOT skipChangeVAT(detail)
-    AND NUMERIC[10,5] r = lastValueVatPriceListLedger (sku(detail), departmentStore(detail), dateTime(detail)) DO {
+    AND NUMERIC[10,5] r = prevLastValueVatPriceListLedger (sku(detail), departmentStore(detail), dateTime(detail)) DO {
         valueCurVAT(detail) <- r;
 }
