@@ -245,14 +245,19 @@ EXTEND FORM userInvoice
                   nameCalcPurchaseRetailPriceListType, nameCalcPurchaseRetailCalcPriceListType,
                   useSupplierStock,
                   purchaseRetailSumUserInvoiceDetail BEFORE purchaseShipmentSumUserInvoiceDetail(i)
+                  
+    OBJECTS sd = UserInvoiceDetail GRID
+    PROPERTIES (sd) READONLY SHOWIF createPurchasePricing(i) index
+    PROPERTIES (sd) READONLY SHOWIF createPurchasePricing(i)  BACKGROUND backgroundSku(sd) idBarcodeSku, 
+                  idSku, nameSku, shortNameUOMSku
 
-    PROPERTIES(d) BEFORE purchaseExpiryDate(d) SHOWIF createPurchasePricing[Invoice](i) BACKGROUND backgroundPurchaseRetail(i)
+    PROPERTIES(sd) SHOWIF createPurchasePricing(i) BACKGROUND backgroundPurchaseRetail(i)
                   namePurchaseRetailPriceListType,
-                  purchaseRetailMarkup ON CHANGE changePurchaseRetailMarkup(d), purchaseRetailMarkupSum, numberPurchaseRetailVAT,
+                  purchaseRetailMarkup ON CHANGE changePurchaseRetailMarkup(sd), purchaseRetailMarkupSum, numberPurchaseRetailVAT,
                   valuePurchaseRetailVAT, purchaseRetailVATSum,
-                  purchaseRetailPrice ON CHANGE changePurchaseRetailPrice(d),
+                  purchaseRetailPrice ON CHANGE changePurchaseRetailPrice(sd),
                   purchaseRetailSum
-    PROPERTIES(d) purchasePricingQuantity AFTER quantity(d) SHOWIF toShowPurchasePricing(i) BACKGROUND backgroundPurchaseRetail(i)
+    PROPERTIES(sd) purchasePricingQuantity SHOWIF toShowPurchasePricing(i) BACKGROUND backgroundPurchaseRetail(i)
 
 //    HINTTABLE LIST purchaseRetailMarkupUserInvoiceDetail, valuePurchaseRetailVATUserInvoiceDetail, purchaseRetailPriceUserInvoiceDetail
 ;
@@ -266,6 +271,11 @@ DESIGN userInvoice {
             MOVE PROPERTY(nameCalcPurchaseRetailPriceListType(i));
             MOVE PROPERTY(nameCalcPurchaseRetailCalcPriceListType(i));
             MOVE PROPERTY(useSupplierStock(i));
+        }
+    }
+    specificationBox {
+        MOVE BOX (sd) {
+            caption = 'Расценка (закупка)';
         }
     }
 }
@@ -332,5 +342,5 @@ backgroundPurchaseRetailPriceB (UserInvoiceDetail d) = CASE
     WHEN purchaseRetailPriceB(d) < purchaseRetailPrice(d) THEN RGB(150,250,200);
 
 EXTEND FORM userInvoice
-    PROPERTIES(d) READONLY SHOWIF createPurchasePricing(i) purchaseRetailPriceB BACKGROUND backgroundPurchaseRetail(i) AFTER purchaseRetailSum(d)
+    PROPERTIES(sd) READONLY SHOWIF createPurchasePricing(i) purchaseRetailPriceB BACKGROUND backgroundPurchaseRetail(i) AFTER purchaseRetailSum(sd)
 ;
