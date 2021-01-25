@@ -1001,7 +1001,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     logToFile('importGestori', 'importPriceList_Spec_Import_complete:' + GROUP SUM 1 IF imported(INTEGER i));
     
     LOCAL idDetail = ISTRING[100](INTEGER);
-    idDetail(INTEGER i) <- CONCAT '-', idItem(i), index(i) WHERE imported(i); 
+    idDetail(INTEGER i) <- CONCAT '-', idItem(i), STRING[14](index(i)) WHERE imported(i); 
     
     FOR [GROUP SUM 1 BY idDetail(INTEGER r), STRING (idPriceList(r))](ISTRING[100] id, ISTRING[100] idP) AND userPriceList(idP)  
         AND NOT userPriceListDetail(id, userPriceList(idP)) DO NEW d = UserPriceListDetail {
@@ -1091,7 +1091,7 @@ importOrder 'Импорт заказов' () {
     
     IMPORT TABLE FROM file() TO idItem, quantity, price, index, idOrder;
 
-    idDetail(INTEGER i) <- CONCAT '-', index(i), idItem(i), idOrder(i) WHERE imported(i); 
+    idDetail(INTEGER i) <- CONCAT '-', index(i), idItem(i), STRING[10](idOrder(i)) WHERE imported(i); 
 
     FOR userOrder(TEXT (idOrder(INTEGER i))) AND NOT userOrderDetail(idDetail(i)) DO NEW d = UserOrderDetail {
         id(d) <- idDetail(i);
@@ -1159,7 +1159,7 @@ importPriceLists 'Импорт прайсов' () {
     }
     
     LOCAL idDetail = ISTRING[100](INTEGER);
-    idDetail(INTEGER i) <- CONCAT '-', id(i), idItem(i) WHERE imported(i); 
+    idDetail(INTEGER i) <- CONCAT '-', id(i), STRING[14](idItem(i)) WHERE imported(i); 
     
     FOR [GROUP SUM 1 BY idDetail(INTEGER i), TEXT (id(i))](STRING[100] idDetail, STRING id)  AND userPriceList(id) AND NOT userPriceListDetail(idDetail, id) DO NEW d = UserPriceListDetail {
         id(d) <- idDetail;
