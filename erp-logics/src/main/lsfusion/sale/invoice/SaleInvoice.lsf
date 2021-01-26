@@ -223,13 +223,13 @@ skipClose(UserInvoice i) += WHEN preventCloseDocument(currentUser(), operation(i
 //                                                   BY skuLedger(batch, stock), stock, dateTime;
 //firstOrderBatch(Sku sku, Stock stock, DATETIME dateTime) = orderBatch(sku, stock, dateTime)[2];
 
-firstOrderBatchBalance (Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock, dateTime) >= q
+firstOrderBatchBalance (Sku sku, Stock stock, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock) >= q
                                                    ORDER DESC dateTime(batch), batch
                                                    BY skuLedger(batch, stock) COMPLEX;
 //firstOrderBatchBalance(Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = orderBatchBalance(sku, stock, dateTime, q)[2];
 
 fillBatch 'Проставить партию'(UserInvoiceDetail d)   {    
-    batch(d) <- firstOrderBatchBalance(sku(d), supplierStock(d), dateTime(d), quantity(d)); 
+    batch(d) <- firstOrderBatchBalance(sku(d), supplierStock(d), quantity(d)); 
 } ASON CONTEXTMENU nameBatch[UserInvoiceDetail];
 
 fillAllBatch 'Проставить партии для всех'(UserInvoiceDetail detail)  { 

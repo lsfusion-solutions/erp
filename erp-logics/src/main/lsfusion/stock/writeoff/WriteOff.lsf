@@ -699,13 +699,13 @@ EXTEND FORM writeOffs
     PROPERTIES show(w) SHOWIF showToShow(w) BEFORE editW
 ;
 
-firstOrderBatchBalance (Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock, dateTime) >= q
+firstOrderBatchBalance (Sku sku, Stock stock, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock) >= q
                                                    ORDER DESC dateTime(batch), batch
                                                    BY skuLedger(batch, stock) COMPLEX;
 
 
 fillBatch 'Проставить партию'(UserWriteOffDetail d)   {    
-    batch(d) <- firstOrderBatchBalance(sku(d), stock(d), dateTime(d), quantity(d)); 
+    batch(d) <- firstOrderBatchBalance(sku(d), stock(d), quantity(d));
 } ASON CONTEXTMENU nameBatch[UserWriteOffDetail];
 
 fillAllBatch 'Проставить партии для всех'(UserWriteOffDetail detail)  { 
