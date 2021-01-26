@@ -186,7 +186,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject);
 
                 List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject, userInfo);
-                Map<String, List<String>> extraBarcodeMap = readExtraBarcodeMap(session);
+                //Map<String, List<String>> extraBarcodeMap = readExtraBarcodeMap(session);
 
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
@@ -198,7 +198,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
 
                 createGoodsTable(connection);
-                updateGoodsTable(connection, barcodeList, orderList, extraBarcodeMap);
+                updateGoodsTable(connection, barcodeList, orderList/*, extraBarcodeMap*/);
 
                 createOrderTable(connection);
                 updateOrderTable(connection, orderList, prefix);
@@ -361,7 +361,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return result;
     }
 
-    private Map<String, List<String>> readExtraBarcodeMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    /*private Map<String, List<String>> readExtraBarcodeMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, List<String>> result = new HashMap<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if (terminalHandlerLM != null) {
@@ -389,7 +389,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             }
         }
         return result;
-    }
+    }*/
 
     private void createOrderTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
@@ -488,8 +488,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<ServerTerminalOrder> orderList,
-                                  Map<String, List<String>> extraBarcodeMap) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<ServerTerminalOrder> orderList/*,
+                                  Map<String, List<String>> extraBarcodeMap*/) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -518,9 +518,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         usedBarcodes.add(barcode.idBarcode);
                     }
                 }
-                for (TerminalOrder order : orderList) {
+                for (ServerTerminalOrder order : orderList) {
                     if (order.barcode != null) {
-                        List<String> extraBarcodeList = extraBarcodeMap.get(order.barcode);
+                        List<String> extraBarcodeList = order.extraBarcodeList;//extraBarcodeMap.get(order.barcode);
                         if (extraBarcodeList != null) {
                             for (String extraBarcode : extraBarcodeList) {
                                 if(!usedBarcodes.contains(extraBarcode)) {
