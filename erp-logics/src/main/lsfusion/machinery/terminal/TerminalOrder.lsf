@@ -1,6 +1,6 @@
 MODULE TerminalOrder;
 
-REQUIRE System, LegalEntity, Sku;
+REQUIRE System, LegalEntity, Barcode;
 
 NAMESPACE Terminal;
 
@@ -24,9 +24,13 @@ dateShipment 'Дата поставки' = ABSTRACT DATE(TerminalOrderDetail);
 
 order = ABSTRACT TerminalOrder(TerminalOrderDetail);
 
-idBarcodeSku 'Штрихкод' = ABSTRACT STRING[100] (TerminalOrderDetail);
-idSku 'Код' (TerminalOrderDetail d) = ABSTRACT STRING[100] (TerminalOrderDetail);
-nameSku 'Наименование' (TerminalOrderDetail d) = ABSTRACT ISTRING[255] (TerminalOrderDetail);
+sku = ABSTRACT Sku(TerminalOrderDetail);
+terminalBarcode = ABSTRACT STRING[100](TerminalOrderDetail);
+idBarcodeSku 'Штрихкод' (TerminalOrderDetail d) = OVERRIDE terminalBarcode(d), idBarcode(sku(d));
+idSku 'Код' (TerminalOrderDetail d) = id(sku(d));
+nameSku 'Наименование' (TerminalOrderDetail d) = name(sku(d));
+extraBarcodes = GROUP CONCAT STRING(id(Barcode b)) IF sku(b) == sku(TerminalOrderDetail td) AND active(b), ',' ORDER b BY td;
+
 price 'Цена' = ABSTRACT NUMERIC[16,4] (TerminalOrderDetail);
 
 dataOrderQuantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (TerminalOrderDetail);
