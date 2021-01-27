@@ -43,9 +43,6 @@ public class AstronSettings implements Serializable {
     //если задано и больше 0, разбиваем выгрузку каждой таблицы на блоки по maxBatchSize
     private Integer maxBatchSize;
 
-    //Опция для mssql - использовать запросы без апдейта ключей
-    private boolean newScheme;
-
     public AstronSettings() {
     }
 
@@ -148,14 +145,6 @@ public class AstronSettings implements Serializable {
 
     public void setMaxBatchSize(Integer maxBatchSize) {
         this.maxBatchSize = maxBatchSize;
-    }
-
-    public boolean isNewScheme() {
-        return newScheme;
-    }
-
-    public void setNewScheme(boolean newScheme) {
-        this.newScheme = newScheme;
     }
 
     public Integer getItemsAtATime() {
