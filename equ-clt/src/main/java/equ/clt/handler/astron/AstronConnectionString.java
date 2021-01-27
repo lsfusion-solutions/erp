@@ -28,4 +28,8 @@ class AstronConnectionString {
             }
         }
     }
+
+    public boolean newScheme() {
+        return !pgsql; //используем новую схему только для mssql
+    }
 }
