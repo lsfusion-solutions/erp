@@ -1355,7 +1355,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 LocalDate dateReceipt = salesTime.toLocalDate();
                 LocalTime timeReceipt = salesTime.toLocalTime();
 
-                Integer numberReceipt = rs.getInt("FRECNUM");
+                Integer numberReceipt;
+                try {
+                    numberReceipt = rs.getInt("FRECNUM");
+                } catch (Exception e) {
+                    //по какой-то причине есть чеки с FRECNUM = пустой строке
+                    numberReceipt = 0;
+                }
 
                 if (numberReceipt == 0) {
                     astronLogger.info(String.format("incorrect record with FRECNUM = 0: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId));
