@@ -1520,27 +1520,24 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         Statement statement = null;
                         try {
-                            StringBuilder dateWhere = new StringBuilder();
-                            LocalDate dateFrom = entry.dateFrom;
-                            LocalDate dateTo = entry.dateTo;
-                            while (dateFrom.compareTo(dateTo) <= 0) {
-                                String dateString = dateFrom.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-                                dateWhere.append((dateWhere.length() == 0) ? "" : " OR ").append("SALESTIME LIKE '").append(dateString).append("%'");
-                                dateFrom = dateFrom.plusDays(1);
-                            }
+
+                            String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+                            String dateTo = entry.dateTo.plusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));;
+                            String dateWhere = String.format("SALESTIME > '%s' AND SALESTIME < '%s'", dateFrom, dateTo);
+
                             StringBuilder stockWhere = new StringBuilder();
                             for(CashRegisterInfo cashRegister : getCashRegisterSet(entry, true)) {
                                 stockWhere.append((stockWhere.length() == 0) ? "" : " OR ").append("SYSTEMID = ").append(cashRegister.number);
                             }
-                            if (dateWhere.length() > 0) {
-                                statement = conn.createStatement();
-                                String query = params.pgsql ?
-                                        "UPDATE sales SET fusion_processed = NULL WHERE SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "") :
-                                        "UPDATE [SALES] SET FUSION_PROCESSED = NULL WHERE SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "");
-                                astronLogger.info("RequestSalesInfo: " + query);
-                                statement.executeUpdate(query);
-                                conn.commit();
-                            }
+
+                            statement = conn.createStatement();
+                            String query = params.pgsql ?
+                                    "UPDATE sales SET fusion_processed = NULL WHERE (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "") :
+                                    "UPDATE [SALES] SET FUSION_PROCESSED = NULL WHERE (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "");
+                            astronLogger.info("RequestSalesInfo: " + query);
+                            statement.executeUpdate(query);
+                            conn.commit();
+
                             succeededRequests.add(entry.requestExchange);
 
                         } catch (SQLException e) {
