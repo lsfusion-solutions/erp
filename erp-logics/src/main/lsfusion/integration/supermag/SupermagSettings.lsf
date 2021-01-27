@@ -1,6 +1,6 @@
 MODULE SupermagSettings;
 
-REQUIRE StockDocument, StockSkuDocument, LogTools, Store, PaymentCondition, PurchaseOperation, Time;
+REQUIRE StockDocument, StockSkuDocument, LogTools, Store, PaymentCondition, PurchaseOperation, Time, CashRegister;
 
 host 'Хост' = DATA ISTRING[30]();
 base 'База' = DATA ISTRING[30]();
@@ -23,18 +23,16 @@ fromSupermagDateTime = FORMULA DATETIME PG 'to_timestamp(CAST($1 as char(17)), \
 EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), directorySupermag(), exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag(), enableLogImport(), pauseBetweenInvoiceFI();
 
 startDate 'Начало работы магазина с Fusion' = DATA DATETIME (Stock);
-inImport 'Отм.' = DATA BOOLEAN (Stock);
-stocksImport 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF inImport(st), ',' ORDER id(st) CHARWIDTH 50;
+endDate 'Окончание работы магазина с Fusion' = DATA DATETIME (Stock);
+stocksImport 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF (startDate(st) <= currentDateTime() AND NOT endDate(st) < currentDateTime()), ',' ORDER id(st) CHARWIDTH 50;
 idSupermagPriceType 'Ид вида цен в Супермаг' = DATA STRING[10] (Stock);
 
 FORM dialogDepartmentStoresImport 'Склады'
     OBJECTS d = Stock
-    PROPERTIES (d) inImport
     PROPERTIES (d) READONLY id, name, nameStore    
-    PROPERTIES (d) startDate, idSupermagPriceType
+    PROPERTIES (d) startDate, endDate, idSupermagPriceType
     FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
     FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
-    FILTERGROUP in FILTER 'Отмеченные' inImport(d)
     ORDERS nameStore(d), name(d)
 ;
 

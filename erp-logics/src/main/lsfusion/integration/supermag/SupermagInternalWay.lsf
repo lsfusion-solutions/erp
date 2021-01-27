@@ -270,11 +270,11 @@ importInternalWayFull 'Импорт накладные (перемещение)'
         customer(doc) <- legalEntity(customerStock(doc));
         date(doc) <- DATE (docDate(i));  
         time(doc) <- OVERRIDE time(doc), 09:00;
-        createShipment(doc) <- DATE(startDate(supplierStock(doc))) <= date(doc); 
-        createPurchaseShipment(doc) <- DATE(startDate(customerStock(doc))) <= date(doc) ;
+        createShipment(doc) <- DATE(startDate(supplierStock(doc))) <= date(doc) AND NOT DATE(endDate(supplierStock(doc))) < date(doc); 
+        createPurchaseShipment(doc) <- DATE(startDate(customerStock(doc))) <= date(doc) AND NOT DATE(endDate(customerStock(doc))) < date(doc) ;
 //        createShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(supplierStock(doc))) <= date(doc); 
 //        createPurchaseShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(customerStock(doc))) <= date(doc) ;
-        updateManufacturingPrice(doc) <- TRUE IF NOT startDate(supplierStock(doc));
+        updateManufacturingPrice(doc) <- TRUE IF NOT DATE(startDate(customerStock(doc))) <= date(doc) OR NOT DATE(endDate(customerStock(doc))) >= date(doc);
         imported(doc) <- TRUE;
     }
     

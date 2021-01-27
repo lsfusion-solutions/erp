@@ -552,7 +552,7 @@ checkBalance 'Сверить остатки' () {
     LOCAL balanceB = NUMERIC[16,5](Sku, Stock);
     LOCAL balanceS = NUMERIC[16,5](Sku, Stock);
     
-    balanceB(Sku sk, Stock st) <-  balanceB(sk, st, dateCheckBalance()) WHERE inImport(st);
+    balanceB(Sku sk, Stock st) <-  balanceB(sk, st, dateCheckBalance()) WHERE startDate(st) <= currentDateTime() AND NOT endDate(st) < currentDateTime();
     balanceS(Sku sk, Stock st) <-  [GROUP MAX quantity(INTEGER i) BY item(idItem(i)), stock(TEXT (idStock(i)))](sk, st);
     
     FOR (balanceB(Sku sk, Stock st) OR balanceS(sk, st)) AND NOT (OVERRIDE balanceB(sk, st), 0.0) == balanceS(sk, st) DO {
