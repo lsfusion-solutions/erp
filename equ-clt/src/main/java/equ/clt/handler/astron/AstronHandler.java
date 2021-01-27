@@ -1516,6 +1516,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         checkExtraColumns(conn, params);
                         createFusionProcessedIndex(conn, params);
+                        createSalestimeIndex(conn, params);
 
                         Statement statement = null;
                         try {
@@ -1627,6 +1628,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             String query = params.pgsql ?
                     String.format("CREATE INDEX IF NOT EXISTS sale ON sales(%s, SESSID, SYSTEMID, SAREAID)", getSalesNumField()) :
                     "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (" + getSalesNumField() + ", SESSID, SYSTEMID, SAREAID) END";
+            statement.execute(query);
+            conn.commit();
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    protected void createSalestimeIndex(Connection conn, AstronConnectionString params) {
+        try (Statement statement = conn.createStatement()) {
+            String query = params.pgsql ?
+                    String.format("CREATE INDEX IF NOT EXISTS salestime ON sales(SALESTIME, SYSTEMID)") :
+                    "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'salestime', 'IndexId') > 0) BEGIN CREATE INDEX salestime ON SALES (SALESTIME, SYSTEMID) END";
             statement.execute(query);
             conn.commit();
         } catch (SQLException e) {
