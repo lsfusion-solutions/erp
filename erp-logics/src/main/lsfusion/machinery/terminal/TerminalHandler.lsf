@@ -71,13 +71,16 @@ defaultPriceListTypeTerminal = ABSTRACT LedgerPriceListType();
 priceListTypeTerminal = OVERRIDE dataPriceListTypeTerminal(), defaultPriceListTypeTerminal();
 namePriceListTypeTerminal 'Вид цен (фильтр ассортимента поставщика)' = name(priceListTypeTerminal());
 
-overPrice = ABSTRACT NUMERIC[16,4] (Sku, Stock, Stock);
-price 'Цена' (Sku sku, Stock stock, Stock le ) = OVERRIDE overPrice(sku, stock, le), prevPriceA(priceListTypeTerminal(), sku, stock, legalEntity(le), currentDateTime()) ; 
+useOverAssortmentPriceInTerminal = ABSTRACT BOOLEAN (Stock) PREREAD;
+overAssortmentPrice = ABSTRACT NUMERIC[16,4] (Sku, Stock, Stock);
+price 'Цена' (Sku sku, Stock stock, Stock le ) = IF useOverAssortmentPriceInTerminal(stock) 
+    THEN overAssortmentPrice(sku, stock, le)
+    ELSE prevPriceA(priceListTypeTerminal(), sku, stock, legalEntity(le), currentDateTime()) ; 
 maxDeviationPrice 'Макс. цена' = ABSTRACT NUMERIC[29,10] (Sku, Stock, Stock); 
 minDeviationPrice 'Мин. цена' = ABSTRACT NUMERIC[29,10] (Sku, Stock, Stock);
 
-skipAssort = ABSTRACT BOOLEAN (Sku, Stock, Stock);
-filterAssortment  (Sku sku, Stock stock, Stock le ) = price(sku, stock, le) AND NOT skipAssort(sku, stock, le);
+skipAssortment = ABSTRACT BOOLEAN (Sku, Stock, Stock);
+filterAssortment  (Sku sku, Stock stock, Stock le ) = price(sku, stock, le) AND NOT skipAssortment(sku, stock, le);
 
 checkOrderResult = DATA LOCAL STRING();
 checkOrder ABSTRACT (STRING);
