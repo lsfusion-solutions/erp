@@ -457,6 +457,7 @@ DESIGN orderBatchLedger {
 banNegativeSku 'Запретить расходовать больше чем в остатке по товару' = DATA BOOLEAN ();
 banNegativeSku 'Запретить расходовать больше чем в остатке по товару' = DATA BOOLEAN (Stock);
 overBanNegativeSku (Stock st) = (banNegativeSku() AND isCompany(st)) OR banNegativeSku(st);
+allowNegativeAvailableSku = ABSTRACT BOOLEAN (Sku, Stock);
 
 EXTEND FORM options
     PROPERTIES() banNegativeSku 
@@ -472,15 +473,15 @@ DESIGN options {
 skipCheckNegativeAvailableSku = DATA LOCAL NESTED BOOLEAN (Sku);
 
 CONSTRAINT SETCHANGED(availableQuantity(Sku sk, Stock st)) AND availableQuantity(sk, st) < 0.0 AND NOT availableQuantity(sk, st) >= PREV(availableQuantity(sk, st)) AND 
-           overBanNegativeSku(st) AND NOT allowNegativeAvailableSku(mainRole(currentUser())) AND NOT skipCheckNegativeAvailableSku(sk)
+           overBanNegativeSku(st) AND NOT allowNegativeAvailableSku(mainRole(currentUser())) AND NOT skipCheckNegativeAvailableSku(sk) AND NOT allowNegativeAvailableSku(sk, st)
     MESSAGE 'Текущий резерв по товарам превышает текущий остаток';
 
 // по партия
 
 banNegativeBatch 'Запретить расходовать больше чем в остатке по партии' = DATA BOOLEAN ();
 banNegativeBatch 'Запретить расходовать больше чем в остатке по партии' = DATA BOOLEAN (Stock);
-overBanNegativeBatch (Stock st) = (banNegativeBatch() AND isCompany(st)) OR banNegativeBatch(st);
-
+overBanNegativeBatch(Stock st) = (banNegativeBatch() AND isCompany(st)) OR banNegativeBatch(st);
+allowNegativeAvailableBatch = ABSTRACT BOOLEAN (Batch, Stock);
 
 EXTEND FORM options 
     PROPERTIES() banNegativeBatch 
@@ -494,7 +495,7 @@ DESIGN options {
 }
 
 CONSTRAINT SETCHANGED(availableQuantity(Batch bt, Stock st)) AND availableQuantity(bt, st) < 0.0 AND NOT availableQuantity(bt, st) >= PREV(availableQuantity(bt, st)) AND
-           overBanNegativeBatch(st) AND NOT allowNegativeAvailableSku(mainRole(currentUser()))
+           overBanNegativeBatch(st) AND NOT allowNegativeAvailableSku(mainRole(currentUser())) AND NOT allowNegativeAvailableBatch(bt, st)
     MESSAGE 'Текущий резерв по партиям превышает текущий остаток';
 
 //---------------------------------------------- Макросы для имплементаций Продажа-------------------------------------//
