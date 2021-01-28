@@ -40,7 +40,11 @@ public class SynchronizeItemsEurooptAction extends EurooptAction {
                 String itemPattern = Pattern.quote(mainPage) + "\\/catalog\\/item_\\d+\\.html";
                 boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
 
-                JSONArray itemsJSON = getItems(useTor ? getNetLayer() : null, mainPage, itemGroupPattern, itemPattern);
+                String ignoreItemGroups = (String) findProperty("ignoreItemGroups[]").read(context);
+
+                List<String> ignoreItemGroupsList = ignoreItemGroups != null ? Arrays.asList(ignoreItemGroups.split(",\\s?")) : new ArrayList<>();
+
+                JSONArray itemsJSON = getItems(useTor ? getNetLayer() : null, mainPage, itemGroupPattern, ignoreItemGroupsList, itemPattern);
                 findProperty("synchronizeItemsFile[]").change(new RawFileData(itemsJSON.toString().getBytes(StandardCharsets.UTF_8)), context);
 
                 context.delayUserInteraction(new MessageClientAction("Cинхронизация успешно завершёна", "Синхронизация товаров Евроопт"));
@@ -53,10 +57,10 @@ public class SynchronizeItemsEurooptAction extends EurooptAction {
 
     }
 
-    private JSONArray getItems(NetLayer lowerNetLayer, String mainPage, String itemGroupPattern, String itemPattern) throws IOException {
+    private JSONArray getItems(NetLayer lowerNetLayer, String mainPage, String itemGroupPattern, List<String> ignoreItemGroups, String itemPattern) throws IOException {
         JSONArray itemsJSON = new JSONArray();
         int count = 0;
-        Set<String> itemGroups = getItemGroupURLSet(lowerNetLayer, mainPage, itemGroupPattern);
+        Set<String> itemGroups = getItemGroupURLSet(lowerNetLayer, mainPage, itemGroupPattern, ignoreItemGroups);
         for (String itemGroupURL : itemGroups) {
             count++;
             int page = 1;
@@ -112,7 +116,7 @@ public class SynchronizeItemsEurooptAction extends EurooptAction {
         return itemsJSON;
     }
 
-    private Set<String> getItemGroupURLSet(NetLayer lowerNetLayer, String mainPage, String itemGroupPattern) throws IOException {
+    private Set<String> getItemGroupURLSet(NetLayer lowerNetLayer, String mainPage, String itemGroupPattern, List<String> ignoreItemGroups) throws IOException {
         Set<String> itemGroupsSet = new HashSet<>();
         String mainUrl = lowerNetLayer == null ? mainPage + "/" : "/catalog/";
         ERPLoggers.importLogger.info(String.format(logPrefix + "reading url %s", mainUrl));
@@ -123,7 +127,8 @@ public class SynchronizeItemsEurooptAction extends EurooptAction {
                 if (href != null && href.matches(itemGroupPattern)) {
                     if (lowerNetLayer != null)
                         href = href.replace(mainPage, "");
-                    if (!itemGroupsSet.contains(href)) {
+                    String idGroup = href.substring(href.length() - 9, href.length() - 5); //ссылка заканчивается на d{4}.html
+                    if (!itemGroupsSet.contains(href) && !ignoreItemGroups.contains(idGroup)) {
                         ERPLoggers.importLogger.info(String.format(logPrefix + "preparing itemGroup url #%s: %s", itemGroupsSet.size() + 1, href));
                         itemGroupsSet.add(href);
                     }

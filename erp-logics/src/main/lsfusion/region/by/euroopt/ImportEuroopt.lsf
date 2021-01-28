@@ -53,6 +53,7 @@ delete (EurooptItem e, MainPage m) = e IS EurooptItem AND mainPage(e) == m;
 useTor 'Использовать Tor' = DATA BOOLEAN();
 mainPage 'Главная страница' = DATA LOCAL MainPage();
 captionMainPage() = staticCaption(mainPage());
+ignoreItemGroups 'Коды игнорируемых групп товаров, через запятую' = DATA STRING();
 
 synchronizeItemsFile = DATA LOCAL JSONFILE ();
 synchronizeItems 'Синхронизировать списки товаров'  INTERNAL  'lsfusion.erp.region.by.euroopt.SynchronizeItemsEurooptAction' ();
@@ -341,7 +342,7 @@ EXTEND FORM integrationData
     PROPERTIES(mp) staticCaption SELECTOR
     PROPERTIES() SHOWIF (mp == MainPage.edostavka) synchronizeItemsEdostavka, importItemsInfoEdostavka, importImageAndPriceEdostavka, exportEdostavka, importEdostavka
     PROPERTIES() SHOWIF (mp == MainPage.gipermall) synchronizeItemsGipermall, importItemsInfoGipermall, importImageAndPriceGipermall, exportGipermall, importGipermall                
-    PROPERTIES() onlyBarcode, importImages, importPrices, useTor
+    PROPERTIES() onlyBarcode, importImages, importPrices, useTor, ignoreItemGroups
     PROPERTIES(eig) READONLY in CHANGEABLE, title, url
     PROPERTIES(eil) in, url READONLY
     PROPERTIES(ei) READONLY in CHANGEABLE, url, noBarcode, idBarcode, name
@@ -355,6 +356,7 @@ DESIGN integrationData {
                 caption = 'Главная страница';
             }
             MOVE PROPERTY(useTor());          
+            MOVE PROPERTY(ignoreItemGroups());          
             MOVE PROPERTY(synchronizeItemsEdostavka());
             MOVE PROPERTY(synchronizeItemsGipermall());
             NEW items {
