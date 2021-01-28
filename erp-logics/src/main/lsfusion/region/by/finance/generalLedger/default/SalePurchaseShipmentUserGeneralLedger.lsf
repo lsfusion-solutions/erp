@@ -1,0 +1,58 @@
+MODULE SalePurchaseShipmentUserGeneralLedger;
+
+REQUIRE GeneralLedgerStock, SalePurchaseShipment, DimensionStock;
+
+NAMESPACE Sale;
+
+//------------------- Внутреннее перемещение  --------------------//
+
+EXTEND CLASS Shipment : GeneralLedger.GLDocument;
+isPosted[GLDocument](Shipment document) += isPosted(document);
+name(Shipment document) += description(document);
+
+number[GLDocument](Shipment document) += number(document);
+series[GLDocument](Shipment document) += series(document);
+
+dateTime[GLDocument](Shipment document) += dateTime(document);
+operation[GLDocument](Shipment document) += operation(document);
+
+//editGLDocument (GLDocument)+= editInvoice(GLDocument);
+
+////////////////////////////// Внутреннее перемещение (магазин-магазин) //////////////////////////////////
+//-------------------------------- Розничная сумма ----------------------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (shipment,                                // основание
+                                          ShipRetC,                                // идентификатор
+                                          supplier,                                // компания
+                                          supplierStock,
+                                          sumContainerShipmentDetail,      // сумма
+                                          description,                             // описание
+                                          '41.3',                                  // дебет
+                                          '41.3',                                  // кредит
+                                          'by_default',                            // идентификатор плана счетов
+                                          'by_default_sale_shipment_retail'         // идентификатор операции
+                                          );
+overCreateShipRetCShipment(UserGeneralLedger generalLedger, Shipment shipment) + {  
+    debit(generalLedger, DimensionType dimensionType) <- customerStock(shipment) WHERE dimensionType == DimensionType.stock;
+    credit(generalLedger, DimensionType dimensionType) <- supplierStock(shipment) WHERE dimensionType == DimensionType.stock;  
+}
+
+//-- Не тара
+@defineGeneralLedgerOperationStock (shipment,
+                                          ShipRetNotC,
+                                          supplier,
+                                          supplierStock,
+                                          sumNotContainerShipmentDetail,
+                                          description,
+                                          '41.2',
+                                          '41.2',
+                                          'by_default',
+                                          'by_default_sale_shipment_retail'
+                                          );
+overCreateShipRetNotCShipment(UserGeneralLedger generalLedger, Shipment shipment) + {  
+    debit(generalLedger, DimensionType dimensionType) <- customerStock(shipment) WHERE dimensionType == DimensionType.stock;
+    credit(generalLedger, DimensionType dimensionType) <- supplierStock(shipment) WHERE dimensionType == DimensionType.stock;  
+}
+
+// ----------------------------------- Стандартные данные ----------------------------------- //
+

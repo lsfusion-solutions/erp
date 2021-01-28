@@ -1,0 +1,112 @@
+MODULE RepricingUserGeneralLedger;
+
+REQUIRE GeneralLedgerStock, Repricing, DimensionStock;
+
+NAMESPACE Repricing;
+
+//------------------- Переоценка --------------------//
+
+EXTEND CLASS Repricing : GeneralLedger.GLDocument;
+isPosted[GLDocument](Repricing document) += isPosted(document);
+name(Repricing document) += description(document);
+
+number[GLDocument](Repricing document) += number(document);
+series[GLDocument](Repricing document) += series(document);
+
+dateTime[GLDocument](Repricing document) += dateTime(document);
+operation[GLDocument](Repricing document) += operation(document);
+
+//editGLDocument (GLDocument)+= editInvoice(GLDocument);
+
+////////////////////////////// Обычная переоценка //////////////////////////////////
+//-------------------------------- Торговая надбавка ----------------------------------//
+//-- Не услуги
+@defineGeneralLedgerOperationStock (repricing,                                      // основание
+                                          RepMark,                                        // идентификатор
+                                          legalEntityStock,                               // компания
+                                          stock,
+                                          diffMarkupSumNotChargeRepricingDetail, // сумма
+                                          description,                                    // описание
+                                          '41.2',                                         // дебет
+                                          '42.1',                                         // кредит
+                                          'by_default',                                   // идентификатор плана счетов
+                                          'by_default_repricing'                          // идентификатор операции
+                                          );
+overCreateRepMarkRepricing(UserGeneralLedger generalLedger, Repricing repricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(repricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '11';
+}    
+
+//-------------------------------- НДС розничный  ----------------------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (repricing,
+                                          RepVATC,
+                                          legalEntityStock,
+                                          stock,
+                                          diffVATSumContainerRepricingDetail,
+                                          description,
+                                          '41.3',
+                                          '42.2',
+                                          'by_default',
+                                          'by_default_repricing'
+                                          );
+overCreateRepVATCRepricing(UserGeneralLedger generalLedger, Repricing repricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(repricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '11';
+}
+
+//-- Не тара
+@defineGeneralLedgerOperationStock (repricing,
+                                          RepVATNotC,
+                                          legalEntityStock,
+                                          stock,
+                                          diffVATSumNotContainerRepricingDetail,
+                                          description,
+                                          '41.2',
+                                          '42.2',
+                                          'by_default',
+                                          'by_default_repricing'
+                                          );
+overCreateRepVATNotCRepricing(UserGeneralLedger generalLedger, Repricing repricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(repricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '11';
+}
+
+//-------------------------------- Сумма поставщика ----------------------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (repricing,
+                                          RepSupC,
+                                          legalEntityStock,
+                                          stock,
+                                          diffSumContainerRepricingDetail,
+                                          description,
+                                          '41.3',
+                                          '92.2',
+                                          'by_default',
+                                          'by_default_repricing'
+                                          );
+overCreateRepSupCRepricing(UserGeneralLedger generalLedger, Repricing repricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(repricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '11';
+}
+
+//-- Не тара
+@defineGeneralLedgerOperationStock (repricing,
+                                          RepSupNotC,
+                                          legalEntityStock,
+                                          stock,
+                                          diffSumNotContainerRepricingDetail,
+                                          description,
+                                          '41.2',
+                                          '92.1',
+                                          'by_default',
+                                          'by_default_repricing'
+                                          );
+overCreateRepSupNotCRepricing(UserGeneralLedger generalLedger, Repricing repricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(repricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '11';
+}
+
+// ----------------------------------- Стандартные данные ----------------------------------- //
+
+@extendFormGeneralLedgerDocument(repricings, p);

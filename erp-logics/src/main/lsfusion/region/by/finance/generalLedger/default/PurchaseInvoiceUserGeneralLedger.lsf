@@ -1,0 +1,137 @@
+MODULE PurchaseInvoiceUserGeneralLedger;
+
+REQUIRE GeneralLedgerStock, PurchaseInvoice, DimensionLegalEntity, DimensionStock, DimensionTax, DimensionContract;
+
+NAMESPACE Purchase;
+
+//------------------- Приход товара/тары от поставщ. --------------------//
+
+EXTEND CLASS Invoice : GeneralLedger.GLDocument;
+isPosted[GLDocument](Invoice document) += isPosted(document);
+name[GLDocument](Invoice document) += description(document);
+
+number[GLDocument](Invoice document) += number(document);
+series[GLDocument](Invoice document) += series(document);
+
+dateTime[GLDocument](Invoice document) += dateTime(document);
+operation[GLDocument](Invoice document) += operation(document);
+//editGLDocument (GLDocument)+= editInvoice(GLDocument);
+
+description(Invoice invoice, Range range) =  CONCAT ', ', description(invoice),
+                                                       staticCaption(tax(range)),
+                                                       'шкала' + number(range),
+                                                       'тек.ставка' + valueRate(range, date(invoice));    
+
+//-------------------------------- НДС поставщика с разбивкой по ставке----------------------------------//
+//-- Тара
+@defineGeneralLedgerDoubleOperationStock (invoice,                                      // основание
+                                          range,                                        // шкала
+                                          InvSupVATC,                                   // идентификатор
+                                          customer,                                     // компания
+                                          customerStock,
+                                          VATSumContainerInvoiceDetail,          // сумма
+                                          description,                                  // описание
+                                          '18.5',                                       // дебет
+                                          '60.1',                                       // кредит
+                                          'by_default',                                 // идентификатор плана счетов
+                                          'by_default_purchase_invoice'                         // идентификатор операции
+                                          );
+overCreateInvSupVATCInvoiceRange(UserGeneralLedger generalLedger, Dimension dimension, Invoice invoice) + {  
+    credit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN supplierStock(invoice)
+                                                               WHEN dimensionType == DimensionType.contract THEN contractSku(invoice);
+    
+    idOperation(generalLedger) <- '01';
+    debit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN customerStock(invoice)
+                                                              WHEN dimensionType == DimensionType.range THEN dimension;
+}
+ 
+
+//-- Услуги
+@defineGeneralLedgerDoubleOperationStock (invoice,
+                                          range,
+                                          InvSupVATCH,
+                                          customer,
+                                          customerStock,
+                                          VATSumChargeInvoiceDetail,
+                                          description,
+                                          '18.6',
+                                          '60.1',
+                                          'by_default',
+                                          'by_default_purchase_invoice'
+                                          );
+overCreateInvSupVATCHInvoiceRange(UserGeneralLedger generalLedger, Dimension dimension, Invoice invoice) + {  
+    credit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN supplierStock(invoice)
+                                                               WHEN dimensionType == DimensionType.contract THEN contractSku(invoice);
+    
+    idOperation(generalLedger) <- '01';
+    debit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN customerStock(invoice)
+                                                              WHEN dimensionType == DimensionType.range THEN dimension;
+}
+
+//-- Товар
+@defineGeneralLedgerDoubleOperationStock (invoice,
+                                          range,
+                                          InvSupVATI,
+                                          customer,
+                                          customerStock,
+                                          VATSumItemInvoiceDetail,
+                                          description,
+                                          '18.1',
+                                          '60.1',
+                                          'by_default',
+                                          'by_default_purchase_invoice'
+                                          );
+overCreateInvSupVATIInvoiceRange(UserGeneralLedger generalLedger, Dimension dimension, Invoice invoice) + {  
+    credit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN supplierStock(invoice)
+                                                               WHEN dimensionType == DimensionType.contract THEN contractSku(invoice);
+    
+    idOperation(generalLedger) <- '01';
+    debit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN customerStock(invoice)
+                                                              WHEN dimensionType == DimensionType.range THEN dimension;
+}
+//-------------------------------- Сумма поставщика с разбивкой по ставкам----------------------------------//
+//-- Тара
+@defineGeneralLedgerDoubleOperationStock (invoice,
+                                          range,
+                                          InvSupC,
+                                          customer,
+                                          customerStock,
+                                          sumContainerInvoiceDetail,
+                                          description,
+                                          '41.3',
+                                          '60.1',
+                                          'by_default',
+                                          'by_default_purchase_invoice'
+                                          );
+overCreateInvSupCInvoiceRange(UserGeneralLedger generalLedger, Dimension dimension, Invoice invoice) + {  
+    credit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN supplierStock(invoice)
+                                                               WHEN dimensionType == DimensionType.contract THEN contractSku(invoice);
+    
+    idOperation(generalLedger) <- '01';
+    debit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN customerStock(invoice)
+                                                              WHEN dimensionType == DimensionType.range THEN dimension;
+}
+//-- Товар
+@defineGeneralLedgerDoubleOperationStock (invoice,
+                                          range,
+                                          InvSupIH,
+                                          customer,
+                                          customerStock,
+                                          sumItemInvoiceDetail,
+                                          description,
+                                          '41.2',
+                                          '60.1',
+                                          'by_default',
+                                          'by_default_purchase_invoice'
+                                          );
+overCreateInvSupIHInvoiceRange(UserGeneralLedger generalLedger, Dimension dimension, Invoice invoice) + {  
+    credit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN supplierStock(invoice)
+                                                               WHEN dimensionType == DimensionType.contract THEN contractSku(invoice);
+    
+    idOperation(generalLedger) <- '01';
+    debit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.stock THEN customerStock(invoice)
+                                                              WHEN dimensionType == DimensionType.range THEN dimension;
+}
+// ----------------------------------- Стандартные данные ----------------------------------- //
+
+@extendFormGeneralLedgerDocument(invoices, i);

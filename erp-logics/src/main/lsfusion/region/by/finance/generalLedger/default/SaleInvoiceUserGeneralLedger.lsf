@@ -1,0 +1,57 @@
+MODULE SaleInvoiceUserGeneralLedger;
+
+REQUIRE GeneralLedgerStock, SaleInvoice, DimensionLegalEntity, DimensionStock;
+
+NAMESPACE Sale;
+
+//------------------- Отгрузка по безналу --------------------//
+
+EXTEND CLASS Invoice : GeneralLedger.GLDocument;
+isPosted[GLDocument](Invoice document) += isPosted(document);
+name[GLDocument](Invoice document) += description(document);
+
+number[GLDocument](Invoice document) += number(document);
+series[GLDocument](Invoice document) += series(document);
+
+dateTime[GLDocument](Invoice document) += dateTime(document);
+operation[GLDocument](Invoice document) += operation(document);
+//editGLDocument (GLDocument)+= editInvoice(GLDocument);
+
+////////////////////////////// Отгрузка по безналу (из розницы) //////////////////////////////////
+//------------------- Розничная сумма --------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (invoice,                                 // основание
+                                          InvRetC,                                 // идентификатор
+                                          supplier,                                // компания
+                                          supplierStock,
+                                          invoiceSumContainerInvoiceDetail, // сумма
+                                          description,                             // описание
+                                          '62.1',                                  // дебет
+                                          '41.3',                                  // кредит
+                                          'by_default',                            // идентификатор плана счетов
+                                          'by_default_sale_invoice_retail'         // идентификатор операции
+                                          );
+overCreateInvRetCInvoice(UserGeneralLedger generalLedger, Invoice invoice) + {  
+    debit(generalLedger, DimensionType dimensionType) <- customer(invoice) WHERE dimensionType == DimensionType.organization;
+    credit(generalLedger, DimensionType dimensionType) <- supplierStock(invoice) WHERE dimensionType == DimensionType.stock;  
+}
+
+//-- Товар
+@defineGeneralLedgerOperationStock (invoice,
+                                          InvRetI,
+                                          supplier,
+                                          supplierStock,
+                                          invoiceSumItemInvoiceDetail,
+                                          description,
+                                          '62.1',
+                                          '41.2',
+                                          'by_default',
+                                          'by_default_sale_invoice_retail'
+                                          );
+overCreateInvRetIInvoice(UserGeneralLedger generalLedger, Invoice invoice) + {  
+    debit(generalLedger, DimensionType dimensionType) <- customer(invoice) WHERE dimensionType == DimensionType.organization;
+    credit(generalLedger, DimensionType dimensionType) <- supplierStock(invoice) WHERE dimensionType == DimensionType.stock;  
+}
+// ----------------------------------- Стандартные данные ----------------------------------- //
+
+@extendFormGeneralLedgerDocument(invoices, i);

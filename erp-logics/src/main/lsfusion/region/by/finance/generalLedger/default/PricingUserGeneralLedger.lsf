@@ -1,0 +1,378 @@
+MODULE PricingUserGeneralLedger;
+
+REQUIRE GeneralLedgerStock, PricingSum, DimensionStock, DimensionLegalEntity, PricingOperationDefaultBy;
+
+NAMESPACE Pricing;
+//------------------- Расценка --------------------//
+                                                                              //todo: добавить в аналитику по кредиту организацию
+EXTEND CLASS Pricing : GeneralLedger.GLDocument;
+isPosted[GLDocument](Pricing document) += isPosted(document);
+name(Pricing document) += description(document);
+
+number[GLDocument](Pricing document) += number(document);
+series[GLDocument](Pricing document) += series(document);
+
+dateTime(Pricing document) += dateTime(document);
+operation[GLDocument](Pricing document) += operation(document);
+
+//editGLDocument (GLDocument)+= editInvoice(GLDocument);
+
+////////////////////////////// Приход от поставщика //////////////////////////////////
+//-------------------------------- Торговая надбавка -------------------------------//
+//-- Тара
+retailPurchaseMarkupSumContainerPricingDetail = retailMarkupSumContainerPricingDetail(Pricing p) IF NOT isReturn(p);
+@defineGeneralLedgerOperationStock (pricing,                                      // основание
+                                          PrPurMarkC,                                   // идентификатор
+                                          legalEntityStock,
+                                          stock,// компания
+                                          retailPurchaseMarkupSumContainerPricingDetail,// сумма
+                                          date,
+                                          time,
+                                          description,                                  // описание
+                                          '41.3',                                       // дебет
+                                          '42.1',                                       // кредит
+                                          'by_default',
+                                          'purchase'                                 // идентификатор плана счетов                                                                 // идентификатор операции
+                                          );
+overCreatePrPurMarkCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+}
+   
+
+//-- Товар
+retailPurchaseMarkupSumItemPricingDetail = retailMarkupSumItemPricingDetail(Pricing p) IF NOT isReturn(p);
+
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrPurMarkI,
+                                          legalEntityStock,
+                                          stock,
+                                          retailPurchaseMarkupSumItemPricingDetail,
+                                          description,
+                                          '41.2',
+                                          '42.1',
+                                          'by_default',
+                                          'purchase'
+                                          );
+overCreatePrPurMarkIPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+}
+ 
+
+//-------------------------------- НДС розничный -------------------------------//
+//-- Тара
+retailPurchaseVATSumContainerPricingDetail = retailVATSumContainerPricingDetail(Pricing p) IF NOT isReturn(p);
+
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrPurVATC,
+                                          legalEntityStock,
+                                          stock,
+                                          retailPurchaseVATSumContainerPricingDetail,
+                                          description,
+                                          '41.3',
+                                          '42.2',
+                                          'by_default',
+                                          'purchase'
+                                          );
+overCreatePrPurVATCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+}
+//-- Товар
+retailPurchaseVATSumItemPricingDetail = retailVATSumItemPricingDetail(Pricing p) IF NOT isReturn(p);
+
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrPurVATI,
+                                          legalEntityStock,
+                                          stock,
+                                          retailPurchaseVATSumItemPricingDetail,
+                                          description,
+                                          '41.2',
+                                          '42.2',
+                                          'by_default',
+                                          'purchase'
+                                          );
+overCreatePrPurVATIPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+}   
+
+////////////////////////////// Возврат товара поставщику (сторно) //////////////////////////////////
+//-------------------------------- Торговая надбавка -------------------------------//
+//-- Тара
+negativeRetailMarkupSumContainerPricingDetail (Pricing p) = -retailMarkupSumContainerPricingDetail(p) IF isReturn(p);
+@defineGeneralLedgerOperationStock (pricing,                                      // основание
+                                          PrPurMarkCR,                                   // идентификатор
+                                          legalEntityStock,                             // компания
+                                          stock,
+                                          negativeRetailMarkupSumContainerPricingDetail, // сумма
+                                          description,                                  // описание
+                                          '41.3',                                       // дебет
+                                          '42.1',                                       // кредит
+                                          'by_default',                                 // идентификатор плана счетов
+                                          'purchase'                         // идентификатор операции
+                                          );
+overCreatePrPurMarkCRPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+
+//-- Товар
+negativeRetailMarkupSumItemPricingDetail (Pricing p) = -retailMarkupSumItemPricingDetail(p) IF isReturn(p);
+
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrPurMarkIR,
+                                          legalEntityStock,
+                                          stock,
+                                          negativeRetailMarkupSumItemPricingDetail,
+                                          description,
+                                          '41.2',
+                                          '42.1',
+                                          'by_default',
+                                          'purchase'
+                                          );
+overCreatePrPurMarkIRPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-------------------------------- НДС розничный -------------------------------//
+//-- Тара
+negativeRetailVATSumContainerPricingDetail (Pricing p) = -retailVATSumContainerPricingDetail(p) IF isReturn(p);
+
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrPurVATCR,
+                                          legalEntityStock,
+                                          stock,
+                                          negativeRetailVATSumContainerPricingDetail,
+                                          description,
+                                          '41.3',
+                                          '42.2',
+                                          'by_default',
+                                          'purchase'
+                                          );
+overCreatePrPurVATCRPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-- Товар
+negativeRetailVATSumItemPricingDetail (Pricing p) = -retailVATSumItemPricingDetail(p) IF isReturn(p);
+
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrPurVATIR,
+                                          legalEntityStock,
+                                          stock,
+                                          negativeRetailVATSumItemPricingDetail,
+                                          description,
+                                          '41.2',
+                                          '42.2',
+                                          'by_default',
+                                          'purchase'
+                                          );
+overCreatePrPurVATIRPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+////////////////////////////// Списание по нормам //////////////////////////////////
+//-------------------------------- Торговая надбавка -------------------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoNMarkC,
+                                          legalEntityStock,
+                                          stock,
+                                          retailMarkupSumContainerPricingDetail,
+                                          description,
+                                          '42.1',
+                                          '41.3',
+                                          'by_default',
+                                          'by_default_pricing_writeOffNorm'
+                                          );
+overCreatePrWoNMarkCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-- Не тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoNMarkNotC,
+                                          legalEntityStock,
+                                          stock,
+                                          retailMarkupSumNotContainerPricingDetail,
+                                          description,
+                                          '42.1',
+                                          '41.2',
+                                          'by_default',
+                                          'by_default_pricing_writeOffNorm'
+                                          );
+overCreatePrWoNMarkNotCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-------------------------------- НДС розничный -------------------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoNVATC,
+                                          legalEntityStock,
+                                          stock,
+                                          retailVATSumContainerPricingDetail,
+                                          description,
+                                          '42.2',
+                                          '41.3',
+                                          'by_default',
+                                          'by_default_pricing_writeOffNorm'
+                                          );
+overCreatePrWoNVATCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-- Не тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoNVATNotC,
+                                          legalEntityStock,
+                                          stock,
+                                          retailVATSumNotContainerPricingDetail,
+                                          description,
+                                          '42.2',
+                                          '41.2',
+                                          'by_default',
+                                          'by_default_pricing_writeOffNorm'
+                                          );
+overCreatePrWoNVATNotCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-------------------------------- Сумма поставщика -------------------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoNSupC,
+                                          legalEntityStock,
+                                          stock,
+                                          sumContainerPricingDetail,
+                                          description,
+                                          '44.1',
+                                          '41.3',
+                                          'by_default',
+                                          'by_default_pricing_writeOffNorm'
+                                          );
+overCreatePrWoNSupCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-- Не тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoNSupNotC,
+                                          legalEntityStock,
+                                          stock,
+                                          sumNotContainerPricingDetail,
+                                          description,
+                                          '44.1',
+                                          '41.2',
+                                          'by_default',
+                                          'by_default_pricing_writeOffNorm'
+                                          );
+overCreatePrWoNSupNotCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+////////////////////////////// Списание (веревки) //////////////////////////////////
+//-------------------------------- Торговая надбавка -------------------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoRMarkC,
+                                          legalEntityStock,
+                                          stock,
+                                          retailMarkupSumContainerPricingDetail,
+                                          description,
+                                          '42.1',
+                                          '41.3',
+                                          'by_default',
+                                          'by_default_pricing_writeOffRopes'
+                                          );
+overCreatePrWoRMarkCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-- Не тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoRMarkNotC,
+                                          legalEntityStock,
+                                          stock,
+                                          retailMarkupSumNotContainerPricingDetail,
+                                          description,
+                                          '42.1',
+                                          '41.2',
+                                          'by_default',
+                                          'by_default_pricing_writeOffRopes'
+                                          );
+overCreatePrWoRMarkNotCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-------------------------------- НДС розничный -------------------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoRVATC,
+                                          legalEntityStock,
+                                          stock,
+                                          retailVATSumContainerPricingDetail,
+                                          description,
+                                          '42.2',
+                                          '41.3',
+                                          'by_default',
+                                          'by_default_pricing_writeOffRopes'
+                                          );
+overCreatePrWoRVATCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-- Не тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoRVATNotC,
+                                          legalEntityStock,
+                                          stock,
+                                          retailVATSumNotContainerPricingDetail,
+                                          description,
+                                          '42.2',
+                                          '41.2',
+                                          'by_default',
+                                          'by_default_pricing_writeOffRopes'
+                                          );
+overCreatePrWoRVATNotCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+//-------------------------------- Сумма поставщика -------------------------------//
+//-- Тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoRSupC,
+                                          legalEntityStock,
+                                          stock,
+                                          sumContainerPricingDetail,
+                                          description,
+                                          '44.7',
+                                          '41.3',
+                                          'by_default',
+                                          'by_default_pricing_writeOffRopes'
+                                          );
+overCreatePrWoRSupCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+}     
+//-- Не тара
+@defineGeneralLedgerOperationStock (pricing,
+                                          PrWoRSupNotC,
+                                          legalEntityStock,
+                                          stock,
+                                          sumNotContainerPricingDetail,
+                                          description,
+                                          '44.7',
+                                          '41.2',
+                                          'by_default',
+                                          'by_default_pricing_writeOffRopes'
+                                          );
+overCreatePrWoRSupNotCPricing(UserGeneralLedger generalLedger, Pricing pricing) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore(pricing) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '10';
+} 
+// ----------------------------------- Стандартные данные ----------------------------------- //
+
+@extendFormGeneralLedgerDocument(pricings, p);

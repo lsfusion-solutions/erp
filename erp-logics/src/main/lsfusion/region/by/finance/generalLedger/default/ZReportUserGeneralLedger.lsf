@@ -1,0 +1,87 @@
+MODULE ZReportUserGeneralLedger;
+
+REQUIRE GeneralLedger, ZReport, DimensionStock;
+
+NAMESPACE ZReport;
+
+EXTEND CLASS ZReport : GeneralLedger.GLDocument;
+isPosted[GLDocument](ZReport document) += isPosted(document);
+name(ZReport document) += description(document);
+
+number[GLDocument](ZReport document) += STRING[28](number(document));
+
+dateTime[GLDocument](ZReport document) += dateTime(document);
+
+//////////////////////////////// 3. Продажа/выручка (ПКО)  //////////////////////////////////
+
+//-- Оплачено налично         sumCashPaymentZReport
+shortDescription 'Название документа' (ZReport zReport) =  STRING[200] (CONCAT '', 'Продажа по кассе ' + nameDepartmentStore(zReport),
+                                            ' от ' + date(zReport));
+
+@defineGeneralLedger (zReport, 
+                                    ZCash, 
+                                    legalEntityStock, 
+                                    sumCash, 
+                                    date, 
+                                    time, 
+                                    shortDescription, 
+                                    '50.2', 
+                                    '90.1', 
+                                    'by_default') ;
+overCreateZCashZReport(UserGeneralLedger generalLedger) + { 
+    credit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '51';
+}
+
+//-- Оплачено карточкой         sumCardPaymentZReport
+@defineGeneralLedger (           zReport, 
+                                 ZCard, 
+                                 legalEntityStock, 
+                                 sumCard, 
+                                 date, 
+                                 time, 
+                                 shortDescription, 
+                                 '57.4.1', 
+                                 '90.1', 
+                                 'by_default'
+                                 );
+overCreateZCashZReport(UserGeneralLedger generalLedger) + { 
+    credit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '51';
+}
+//-- Сумма товара (сумма в чеке)
+@defineGeneralLedger (zReport, 
+                                 costBatch, 
+                                 legalEntityStock, 
+                                 sumSkuReceiptDetail, 
+                                 shortDescription, 
+                                 '90.1', 
+                                 '41.2', 
+                                 'by_default'
+                                 ) ;
+overCreateZCashZReport(UserGeneralLedger generalLedger) + { 
+    credit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
+    idOperation(generalLedger) <- '51';
+}
+
+EXTEND FORM zReports
+    OBJECTS g=GeneralLedger
+    PROPERTIES(g) READONLY description, idDebit, idDimensionsDebit, dimensionsDebit, 
+                            idCredit, idDimensionsCredit, dimensionsCredit, sum
+
+    FILTERS GLDocument(g) == z
+;
+
+DESIGN zReports {
+    firstCase {
+        NEW ledgerContainer AFTER ZFilters {
+            fill =1;
+            type = TABBED;
+            MOVE BOX(b);
+            MOVE BOX(g) {
+                fill = 1;
+                caption = 'Проводки';
+            };
+        }
+    }            
+} 
