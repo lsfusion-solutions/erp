@@ -1,18 +1,8 @@
 MODULE SaleInvoiceTax;
 
-REQUIRE SaleInvoice, SkuLedgerTax;
+REQUIRE SaleInvoice, SkuLedgerTax, SaleTax;
 
 NAMESPACE Sale;
-
-skipSetVATBatch 'Не использовать НДС от партии' = DATA BOOLEAN (Operation);
-EXTEND FORM operation
-    PROPERTIES(o) skipSetVATBatch
-;
-DESIGN operation {
-    paramsContainer {
-        MOVE PROPERTY(skipSetVATBatch(o));
-    }
-}
 
 overVAT(UserInvoiceDetail detail) += VAT(batch(detail)) IF NOT skipSetVATBatch(operation(detail));
 changedVAT(UserInvoiceDetail d) += CHANGED(batch(d));

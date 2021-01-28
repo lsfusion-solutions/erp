@@ -1,11 +1,11 @@
 MODULE SaleOrderTax;
 
-REQUIRE SaleOrder, SkuLedgerTax;
+REQUIRE SaleOrder, SkuLedgerTax, SaleTax;
 
 NAMESPACE Sale;
 
-overVAT(UserOrderDetail detail) += VAT(batch(detail));
+overVAT(UserOrderDetail detail) += VAT(batch(detail)) IF NOT skipSetVATBatch(operation(detail));
 changedVAT(UserOrderDetail d) += CHANGED(batch(d)); 
 
-overSetValueVAT(UserOrderDetail detail) += valueVAT(batch(detail));
-changedValueVAT(UserOrderDetail d) += CHANGED(batch(d));
+overSetValueVAT(UserOrderDetail detail) += prevValueVAT(batch(detail)) IF NOT skipSetVATBatch(operation(detail));
+changedValueVAT(UserOrderDetail d) += CHANGED(batch(d)) OR CHANGED(sku(d));
