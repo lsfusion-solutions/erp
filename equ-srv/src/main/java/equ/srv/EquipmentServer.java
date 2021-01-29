@@ -1754,7 +1754,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             BigDecimal discountDiff = safeSubtract(sale.discountSumReceiptDetail, currentDiscountSum);
             if(!result.isEmpty() && discountDiff != null && discountDiff.compareTo(BigDecimal.ZERO) != 0) {
                 result.get(0).discountSum = safeAdd(result.get(0).discountSum, discountDiff);
-                result.get(0).sum = safeSubtract(result.get(0).sum, result.get(0).discountSum);
+                result.get(0).sum = safeSubtract(result.get(0).sum, discountDiff);
             }
 
         }
