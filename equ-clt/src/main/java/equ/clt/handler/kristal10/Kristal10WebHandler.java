@@ -1362,39 +1362,43 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         @Override
         public void handle(HttpExchange httpExchange) throws IOException {
-            String uri = String.valueOf(httpExchange.getRequestURI());
-            sendSalesLogger.info(getLogPrefix() + "HttpServer received " + uri);
-            boolean purchases = uri.endsWith("purchases");
-            boolean introductions = uri.endsWith("introductions");
-            boolean withdrawals = uri.endsWith("withdrawals");
-            boolean zreports = uri.endsWith("zreports");
+            try {
+                String uri = String.valueOf(httpExchange.getRequestURI());
+                sendSalesLogger.info(getLogPrefix() + "HttpServer received " + uri);
+                boolean purchases = uri.endsWith("purchases");
+                boolean introductions = uri.endsWith("introductions");
+                boolean withdrawals = uri.endsWith("withdrawals");
+                boolean zreports = uri.endsWith("zreports");
 
-            if(purchases) {
-                try {
-                    readSalesInfo(sidEquipmentServer, httpExchange);
-                } catch (Exception e) {
-                    sendSalesLogger.error(getLogPrefix() + "Reading SalesInfo", e);
-                    sendPurchasesResponse(httpExchange, e.getMessage());
-                    reportEquipmentServerError(remote, sidEquipmentServer, e);
+                if (purchases) {
+                    try {
+                        readSalesInfo(sidEquipmentServer, httpExchange);
+                    } catch (Exception e) {
+                        sendSalesLogger.error(getLogPrefix() + "Reading SalesInfo", e);
+                        sendPurchasesResponse(httpExchange, e.getMessage());
+                        reportEquipmentServerError(remote, sidEquipmentServer, e);
+                    }
+                } else if (introductions || withdrawals) {
+                    try {
+                        readCashDocuments(sidEquipmentServer, httpExchange, introductions);
+                    } catch (Exception e) {
+                        sendSalesLogger.error(getLogPrefix() + "Reading CashDocuments", e);
+                        sendCashDocumentResponse(httpExchange, e.getMessage(), introductions);
+                        reportEquipmentServerError(remote, sidEquipmentServer, e);
+                    }
+                } else if (zreports) {
+                    try {
+                        readZReports(sidEquipmentServer, httpExchange);
+                    } catch (Exception e) {
+                        sendSalesLogger.error(getLogPrefix() + "Reading ZReports", e);
+                        sendZReportsResponse(httpExchange, e.getMessage());
+                        reportEquipmentServerError(remote, sidEquipmentServer, e);
+                    }
+                } else {
+                    sendSalesLogger.error(getLogPrefix() + "unknown request: " + uri);
                 }
-            } else if(introductions || withdrawals) {
-                try {
-                    readCashDocuments(sidEquipmentServer, httpExchange, introductions);
-                } catch (Exception e) {
-                    sendSalesLogger.error(getLogPrefix() + "Reading CashDocuments", e);
-                    sendCashDocumentResponse(httpExchange, e.getMessage(), introductions);
-                    reportEquipmentServerError(remote, sidEquipmentServer, e);
-                }
-            } else if(zreports) {
-                try {
-                    readZReports(sidEquipmentServer, httpExchange);
-                } catch (Exception e) {
-                    sendSalesLogger.error(getLogPrefix() + "Reading ZReports", e);
-                    sendZReportsResponse(httpExchange, e.getMessage());
-                    reportEquipmentServerError(remote, sidEquipmentServer, e);
-                }
-            } else {
-                sendSalesLogger.error(getLogPrefix() + "unknown request: " + uri);
+            } finally {
+                httpExchange.close();
             }
         }
     }
