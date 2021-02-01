@@ -155,6 +155,7 @@ public class TerminalEquipmentServer {
                 query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
                 query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
                 query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
+                query.addProperty("quantity", terminalHandlerLM.findProperty("quantity[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
             } else
                 query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
                         skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()));
@@ -181,11 +182,13 @@ public class TerminalEquipmentServer {
 
                 BigDecimal maxPrice = null;
                 BigDecimal minPrice = null;
+                BigDecimal quantity = null;
                 if (terminalHandlerLM != null) {
                     minPrice = (BigDecimal) entry.get("minPrice");
                     maxPrice = (BigDecimal) entry.get("maxPrice");
+                    quantity = (BigDecimal) entry.get("quantity");
                 }
-                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price, minPrice, maxPrice));
+                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price, minPrice, maxPrice, quantity));
             }
         }
         return terminalAssortmentList;

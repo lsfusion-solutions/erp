@@ -579,6 +579,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " price REAL," +
                 " minprice REAL," +
                 " maxprice REAL," +
+                " quant   REAL," +
                 "PRIMARY KEY ( post, barcode))";
         statement.executeUpdate(sql);
         statement.execute("CREATE INDEX assort_k ON assort (post,barcode);");
@@ -590,7 +591,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO assort VALUES(?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO assort VALUES(?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalAssortment assortment : terminalAssortmentList) {
                     if (assortment.idSupplier != null && assortment.idBarcode != null) {
@@ -599,6 +600,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(3, formatValue(assortment.price));
                         statement.setObject(4, formatValue(assortment.minPrice));
                         statement.setObject(5, formatValue(assortment.maxPrice));
+                        statement.setObject(6, formatValue(assortment.quantity));
                         statement.addBatch();
                     }
                 }
