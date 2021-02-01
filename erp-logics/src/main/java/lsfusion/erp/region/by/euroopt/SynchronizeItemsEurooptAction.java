@@ -122,15 +122,22 @@ public class SynchronizeItemsEurooptAction extends EurooptAction {
         ERPLoggers.importLogger.info(String.format(logPrefix + "reading url %s", mainUrl));
         Document doc = getDocument(lowerNetLayer, mainPage, mainUrl);
         if (doc != null) {
-            for (Element url : doc.getElementsByTag("a")) {
-                String href = url.attr("href");
-                if (href != null && href.matches(itemGroupPattern)) {
-                    if (lowerNetLayer != null)
-                        href = href.replace(mainPage, "");
-                    String idGroup = href.substring(href.length() - 9, href.length() - 5); //ссылка заканчивается на d{4}.html
-                    if (!itemGroupsSet.contains(href) && !ignoreItemGroups.contains(idGroup)) {
-                        ERPLoggers.importLogger.info(String.format(logPrefix + "preparing itemGroup url #%s: %s", itemGroupsSet.size() + 1, href));
-                        itemGroupsSet.add(href);
+            for (Element topGroup : doc.getElementsByClass("catalog_menu__subsubmenu")) {
+                for(Element middleGroup : topGroup.getElementsByTag("li")) {
+                    for(Element bottomGroup : middleGroup.getElementsByTag("li")) {
+                        if(!bottomGroup.equals(middleGroup)) {
+                            for (Element url : bottomGroup.getElementsByTag("a")) {
+                                String href = url.attr("href");
+                                if (href != null && href.matches(itemGroupPattern)) {
+                                    if (lowerNetLayer != null) href = href.replace(mainPage, "");
+                                    String idGroup = href.substring(href.length() - 9, href.length() - 5); //ссылка заканчивается на d{4}.html
+                                    if (!itemGroupsSet.contains(href) && !ignoreItemGroups.contains(idGroup)) {
+                                        ERPLoggers.importLogger.info(String.format(logPrefix + "preparing itemGroup url #%s: %s", itemGroupsSet.size() + 1, href));
+                                        itemGroupsSet.add(href);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
