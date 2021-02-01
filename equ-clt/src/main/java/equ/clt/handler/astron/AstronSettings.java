@@ -43,6 +43,9 @@ public class AstronSettings implements Serializable {
     //если задано и больше 0, разбиваем выгрузку каждой таблицы на блоки по maxBatchSize
     private Integer maxBatchSize;
 
+    //Опция для mssql - использовать режим выгрузки "на основе номера обновления"
+    private boolean versionalScheme;
+
     public AstronSettings() {
     }
 
@@ -153,5 +156,13 @@ public class AstronSettings implements Serializable {
 
     public void setItemsAtATime(Integer itemsAtATime) {
         this.itemsAtATime = itemsAtATime;
+    }
+
+    public boolean isVersionalScheme() {
+        return versionalScheme;
+    }
+
+    public void setVersionalScheme(boolean versionalScheme) {
+        this.versionalScheme = versionalScheme;
     }
 }
