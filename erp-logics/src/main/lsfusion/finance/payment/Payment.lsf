@@ -25,7 +25,7 @@ TABLE payment(Payment);
 @defineNumeratedDefault(Payment, 'Платежи', 'ПЛ');
 @defineExternalizable(payment, STRING[100]);
 
-date 'Дата' (payment) = DATA DATE (Payment);
+date 'Дата' (payment) = DATA DATE (Payment) INDEXED;
 date(Payment payment) <- currentDate() WHEN SET(payment IS Payment);
 time 'Время' (payment) = DATA TIME (Payment);
 time(Payment payment) <- currentTime() WHEN SET(payment IS Payment);
@@ -35,7 +35,7 @@ order 'Порядок' (payment) = DATA INTEGER(Payment);
 
 isReturn 'Возвратный' = DATA BOOLEAN (Payment);
 
-payer(payment) = DATA LegalEntity (Payment);
+payer(payment) = DATA LegalEntity (Payment) INDEXED;
 namePayer 'Плательщик' (Payment payment) = name(payer(payment)) IN id;
 accountFrom(payment) = DATA PaymentLedger.Account (Payment);
 accountFrom(Payment payment) <- account(payer(payment))
@@ -48,7 +48,7 @@ sum 'Сумма' (payment) = DATA NUMERIC[18,4] (Payment) CHARWIDTH 16;
 CONSTRAINT payer(Payment payment) != legalEntity(accountFrom(payment))
     CHECKED BY accountFrom[Payment] MESSAGE 'Организация счета должна совпадать с плательщиком';
 
-beneficiary(payment) = DATA LegalEntity (Payment);
+beneficiary(payment) = DATA LegalEntity (Payment) INDEXED;
 nameBeneficiary 'Бенефициар' (Payment payment) = name(beneficiary(payment)) IN id;
 accountTo(payment) = DATA PaymentLedger.Account (Payment);
 accountTo(Payment payment) <- account(beneficiary(payment))
@@ -94,6 +94,8 @@ replace(LegalEntity l, LegalEntity o) + {
 operation = DATA PaymentOperation.Operation (Payment);
 nameOperation 'Операция' = name(operation(Payment Payment));
 idOperation 'ID операции' = id(operation(Payment Payment));
+
+INDEX operation(Payment p), date(p);
 
 defaultPaymentOperation = DATA PaymentOperation.Operation ();
 nameDefaultPaymentOperation 'Операция по умолчанию(платежи)' = name(defaultPaymentOperation());
