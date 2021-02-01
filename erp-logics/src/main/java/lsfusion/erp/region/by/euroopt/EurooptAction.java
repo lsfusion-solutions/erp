@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.DefaultImportAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
@@ -30,8 +31,8 @@ public class EurooptAction extends DefaultImportAction {
 
     String logPrefix = "Import Euroopt: ";
 
-    public EurooptAction(ScriptingLogicsModule LM) {
-        super(LM);
+    public EurooptAction(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
