@@ -593,88 +593,90 @@ valueResidentByTo 'Остаток на конец, бел. пр-ва' (Statistic
 
                 ///////////////--------по регионам и компании----------/////////////////
 
+skipSale = DATA LOCAL BOOLEAN (Stock);
+
                            //c коэффициентом пересчета за период//
 // всего
 quantitySoldBy 'Продано, шт' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
-    [ GROUP SUM quantitySoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) * factor(group, sku)
+    [ GROUP SUM quantitySoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) * factor(group, sku) IF NOT skipSale(stock)
         BY legalEntity(stock), region(stock)]
             (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 netWeightSoldBy 'Продано, кг' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
-    [ GROUP SUM netWeightSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)
+    [ GROUP SUM netWeightSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)  AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 volumeSoldBy 'Продано, л' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
-    [ GROUP SUM volumeSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)
+    [ GROUP SUM volumeSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 retailSumSoldBy 'Продано, руб.' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
-    [ GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)
+    [ GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 // отечест. производствава
 quantitySoldResidentBy 'Продано, шт' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
-    [ GROUP SUM quantitySoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) * factor(group, sku) IF resident (group, sku)
+    [ GROUP SUM quantitySoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) * factor(group, sku) IF resident (group, sku) AND NOT skipSale(stock)
         BY legalEntity(stock), region(stock)]
             (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 netWeightSoldResidentBy 'Продано, кг' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
-    [ GROUP SUM netWeightSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku)
+    [ GROUP SUM netWeightSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 volumeSoldResidentBy 'Продано, л' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
-    [ GROUP SUM volumeSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku)
+    [ GROUP SUM volumeSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 retailSumSoldResidentBy 'Продано, руб.' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
-    [ GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku)
+    [ GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
                              //с коэффициентом пересчета на коцен//
 // всего
 balanceABy 'Остаток на конец' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM balanceA (Sku sku, Stock stock, date) * factor(group, sku)
+    [ GROUP SUM balanceA (Sku sku, Stock stock, date) * factor(group, sku) IF NOT skipSale(stock)
         BY legalEntity(stock), region(stock)]
             (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 netWeightABy 'Вес на конец, кг' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM netWeightBalanceALedger (Sku sku, Stock stock, date) IF isParent(group, sku)
+    [ GROUP SUM netWeightBalanceALedger (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 volumeABy 'Объем на конец, л' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM volumeBalanceALedger (Sku sku, Stock stock, date) IF isParent(group, sku)
+    [ GROUP SUM volumeBalanceALedger (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 retailSumABy 'Сумма на конец, руб' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM sumA (Sku sku, Stock stock, date) IF isParent(group, sku)
+    [ GROUP SUM sumA (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 // белорусского производства
 balanceResidentABy 'Остаток на конец' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM balanceA (Sku sku, Stock stock, date) * factor(group, sku) IF resident (group, sku)
+    [ GROUP SUM balanceA (Sku sku, Stock stock, date) * factor(group, sku) IF resident (group, sku) AND NOT skipSale(stock)
         BY legalEntity(stock), region(stock)]
             (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 netWeightResidentABy 'Вес на конец, кг' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM netWeightBalanceALedger (Sku sku, Stock stock, date) IF resident (group, sku)
+    [ GROUP SUM netWeightBalanceALedger (Sku sku, Stock stock, date) IF resident (group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 volumeResidentABy 'Объем на конец, л' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM volumeBalanceALedger (Sku sku, Stock stock, date) IF resident (group, sku)
+    [ GROUP SUM volumeBalanceALedger (Sku sku, Stock stock, date) IF resident (group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
 retailSumResidentABy 'Сумма на конец, руб' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE date)=
-    [ GROUP SUM sumA (Sku sku, Stock stock, date) IF resident (group, sku)
+    [ GROUP SUM sumA (Sku sku, Stock stock, date) IF resident (group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock)]
         (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
 
@@ -749,25 +751,25 @@ valueResidentByTo 'Остаток на конец отеч. пр-ва' (Statisti
     ;
 
 totalSumSoldBy 'Продано, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku) IF  NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
 totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCorporate (store(stock)) AND isParent(group, sku)
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCorporate (store(stock)) AND isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
 totalSumInternetSoldBy 'В интернет-магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isInternet (store(stock)) AND isParent(group, sku)
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isInternet (store(stock)) AND isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
 totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku)
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
 // суммовые показатели
 
 sumBalanceABy 'Сумма остатка на конец, руб.' (StatisticGroup group, legalEntity, region, DATE date) =
-    GROUP SUM sumA (Sku sku, Stock stock, date) IF isParent(group, sku)
+    GROUP SUM sumA (Sku sku, Stock stock, date) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
 
