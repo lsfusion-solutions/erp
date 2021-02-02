@@ -154,6 +154,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     String tables = "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : "") + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
 
                     boolean versionalScheme = params.versionalScheme(isVersionalScheme);
+                    Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
                     Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
                     Map<String, Integer> outputUpdateNums = new HashMap<>();
 
@@ -172,30 +173,25 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         checkItems(params, transaction);
 
-                        Integer grpUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("GRP", 0) + 1) : null;
-                        astronLogger.info(String.format("transaction %s, table grp", transaction.id));
+                        Integer grpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "GRP");
                         exportGrp(conn, params, transaction, maxBatchSize, grpUpdateNum);
                         outputUpdateNums.put("GRP", grpUpdateNum);
 
-                        Integer artUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("ART", 0) + 1) : null;
-                        astronLogger.info(String.format("transaction %s, table art", transaction.id));
+                        Integer artUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
                         exportArt(conn, params, transaction.itemsList, false, false, maxBatchSize, artUpdateNum);
                         outputUpdateNums.put("ART", artUpdateNum);
 
-                        Integer unitUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("UNIT", 0) + 1) : null;
-                        astronLogger.info(String.format("transaction %s, table unit", transaction.id));
+                        Integer unitUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
                         exportUnit(conn, params, transaction.itemsList, false, maxBatchSize, unitUpdateNum);
                         outputUpdateNums.put("UNIT", unitUpdateNum);
 
-                        Integer packUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("PACK", 0) + 1) : null;
-                        astronLogger.info(String.format("transaction %s, table pack", transaction.id));
+                        Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
                         exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum);
                         astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
                         exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, packUpdateNum);
                         outputUpdateNums.put("PACK", packUpdateNum);
 
-                        Integer exBarcUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("EXBARC", 0) + 1) : null;
-                        astronLogger.info(String.format("transaction %s, table exbarc", transaction.id));
+                        Integer exBarcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
                         exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize, exBarcUpdateNum);
                         astronLogger.info(String.format("transaction %s, table exbarc delete", transaction.id));
                         exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, exBarcUpdateNum);
@@ -205,32 +201,27 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         //таблицы PRCLEVEL, SAREA, SAREAPRC должны выгружаться раньше, чем PACKPRC
                         if (exportExtraTables) {
-                            Integer prcLevelUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("PRCLEVEL", 0) + 1) : null;
-                            astronLogger.info(String.format("transaction %s, table prclevel", transaction.id));
+                            Integer prcLevelUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PRCLEVEL");
                             exportPrcLevel(conn, params, transaction, hasSecondPrice, prcLevelUpdateNum);
                             outputUpdateNums.put("PRCLEVEL", prcLevelUpdateNum);
 
-                            Integer sareaUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("SAREA", 0) + 1) : null;
-                            astronLogger.info(String.format("transaction %s, table sarea", transaction.id));
+                            Integer sareaUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "SAREA");
                             exportSArea(conn, params, transaction, sareaUpdateNum);
                             outputUpdateNums.put("SAREA", sareaUpdateNum);
 
-                            Integer sareaPrcUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("SAREAPRC", 0) + 1) : null;
-                            astronLogger.info(String.format("transaction %s, table sareaprc", transaction.id));
+                            Integer sareaPrcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "SAREAPRC");
                             exportSAreaPrc(conn, params, transaction, hasSecondPrice, sareaPrcUpdateNum);
                             outputUpdateNums.put("SAREAPRC", sareaPrcUpdateNum);
                         }
 
-                        Integer packPrcUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("PACKPRC", 0) + 1) : null;
-                        astronLogger.info(String.format("transaction %s, table packprc", transaction.id));
+                        Integer packPrcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
                         exportPackPrc(conn, params, transaction, exportExtraTables, maxBatchSize, packPrcUpdateNum);
                         astronLogger.info(String.format("transaction %s, table packprc delete", transaction.id));
                         exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables, maxBatchSize, packPrcUpdateNum);
                         outputUpdateNums.put("PACKPRC", packPrcUpdateNum);
 
                         if (extGrpId != null) {
-                            Integer artExtGrpUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("ARTEXTGRP", 0) + 1) : null;
-                            astronLogger.info(String.format("transaction %s, table ARTEXTGRP", transaction.id));
+                            Integer artExtGrpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "ARTEXTGRP");
                             exportArtExtgrp(conn, params, transaction, extGrpId, maxBatchSize, artExtGrpUpdateNum);
                             outputUpdateNums.put("ARTEXTGRP", artExtGrpUpdateNum);
                         }
@@ -265,6 +256,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
         }
         return exception;
+    }
+
+    private Integer getTransactionUpdateNum(TransactionCashRegisterInfo transaction, boolean versionalScheme, Map<String, Integer> processedUpdateNums, Map<String, Integer> inputUpdateNums, String tbl) {
+        Integer updateNum = versionalScheme ? (inputUpdateNums.getOrDefault(tbl, 0) + 1) : null;
+        astronLogger.info(String.format("transaction %s, table %s", transaction.id, tbl) +
+                (versionalScheme ? String.format(" (updateNum processed %s, new %s)", processedUpdateNums.get(tbl), updateNum) : ""));
+        return updateNum;
     }
 
     private void checkItems(AstronConnectionString params, TransactionCashRegisterInfo transaction) {
@@ -1125,6 +1123,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return recordNums;
     }
 
+    private Map<String, Integer> readProcessedUpdateNums(Connection conn, String tables) {
+        Map<String, Integer> recordNums = new HashMap<>();
+        try (Statement statement = conn.createStatement()) {
+            String query = "SELECT dirname, pumpupdatenum FROM DataServer.dbo.DATAPUMPDIRS where [SOURCETYPE]=1 AND dirname IN (" + tables + ")";
+            ResultSet result = statement.executeQuery(query);
+            while (result.next()) {
+                recordNums.put(result.getString("dirname"), result.getInt("pumpupdatenum"));
+
+            }
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+        return recordNums;
+    }
+
     private void exportUpdateNums(Connection conn, AstronConnectionString params, Map<String, Integer> updateNums) throws SQLException {
         assert !params.pgsql;
         try (PreparedStatement ps = conn.prepareStatement("UPDATE DATAPUMP SET recordnum = ? WHERE dirname = ?")) {
@@ -1289,6 +1302,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
 
                         boolean versionalScheme = params.versionalScheme(isVersionalScheme);
+                        Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
                         Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
                         Map<String, Integer> outputUpdateNums = new HashMap<>();
 
@@ -1296,28 +1310,23 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         List<StopListItemInfo> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
 
-                        Integer artUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("ART", 0) + 1) : null;
-                        astronLogger.info(String.format("stoplist %s, table art", stopListInfo.number));
+                        Integer artUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
                         exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize, artUpdateNum);
                         outputUpdateNums.put("ART", artUpdateNum);
 
-                        Integer unitUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("UNIT", 0) + 1) : null;
-                        astronLogger.info(String.format("stoplist %s, table unit", stopListInfo.number));
+                        Integer unitUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
                         exportUnit(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, unitUpdateNum);
                         outputUpdateNums.put("UNIT", unitUpdateNum);
 
-                        Integer packUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("PACK", 0) + 1) : null;
-                        astronLogger.info(String.format("stoplist %s, table pack", stopListInfo.number));
+                        Integer packUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
                         exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, packUpdateNum);
                         outputUpdateNums.put("PACK", packUpdateNum);
 
-                        Integer exBarcUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("EXBARC", 0) + 1) : null;
-                        astronLogger.info(String.format("stoplist %s, table exbarc", stopListInfo.number));
+                        Integer exBarcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
                         exportExBarc(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, exBarcUpdateNum);
                         outputUpdateNums.put("EXBARC", exBarcUpdateNum);
 
-                        Integer packPrcUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("PACKPRC", 0) + 1) : null;
-                        astronLogger.info(String.format("stoplist %s, table packprc", stopListInfo.number));
+                        Integer packPrcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
                         exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude, maxBatchSize, packPrcUpdateNum);
                         outputUpdateNums.put("PACKPRC", packPrcUpdateNum);
 
@@ -1343,6 +1352,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 }
             }
         }
+    }
+
+    private Integer getStopListUpdateNum(StopListInfo stopList, boolean versionalScheme, Map<String, Integer> processedUpdateNums, Map<String, Integer> inputUpdateNums, String tbl) {
+        Integer updateNum = versionalScheme ? (inputUpdateNums.getOrDefault(tbl, 0) + 1) : null;
+        astronLogger.info(String.format("stoplist %s, table %s", stopList.number, tbl) +
+                (versionalScheme ? String.format(" (updateNum processed %s, new %s)", processedUpdateNums.get(tbl), updateNum) : ""));
+        return updateNum;
     }
 
     @Override
@@ -1389,6 +1405,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     String tables = "'DCARD'";
 
                     boolean versionalScheme = params.versionalScheme(isVersionalScheme);
+                    Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
                     Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
                     Map<String, Integer> outputUpdateNums = new HashMap<>();
 
@@ -1398,8 +1415,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     } else {
                         truncateTable(conn, "DCARD");
 
-                        Integer dcardUpdateNum = versionalScheme ? (inputUpdateNums.getOrDefault("DCARD", 0) + 1) : null;
-                        astronLogger.info("export table dcard");
+                        Integer dcardUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, "DCARD");
                         exportDCard(conn, params, discountCardList, dcardUpdateNum);
                         outputUpdateNums.put("DCARD", dcardUpdateNum);
 
@@ -1421,6 +1437,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 throw new RuntimeException(exception);
             }
         }
+    }
+
+    private Integer getDiscountCardUpdateNum(boolean versionalScheme, Map<String, Integer> processedUpdateNums, Map<String, Integer> inputUpdateNums, String tbl) {
+        Integer updateNum = versionalScheme ? (inputUpdateNums.getOrDefault(tbl, 0) + 1) : null;
+        astronLogger.info(String.format("table %s", tbl) +
+                (versionalScheme ? String.format(" (updateNum processed %s, new %s)", processedUpdateNums.get(tbl), updateNum) : ""));
+        return updateNum;
     }
 
     @Override
