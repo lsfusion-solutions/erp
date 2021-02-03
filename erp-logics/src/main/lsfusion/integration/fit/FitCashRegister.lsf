@@ -1,0 +1,307 @@
+MODULE FitCashRegister;
+
+REQUIRE NativeMachinery, CashRegister, Store, ZReport;
+
+NAMESPACE Fit;
+
+loadDefaultCashRegisterModels() + {  EXEC loadDefaultCashRegisterModel('SPAR FIT', 'fit', 'lsf.Fit.Beta', NULL, TRUE, NULL, NULL ); };
+
+isFit (CashRegisterModel m) = left(handler(m), 8) = 'lsf.Fit.';
+isFit (GroupCashRegister g) = isFit(cashRegisterModel(g));
+isFit (CashRegister cr) = isFit(groupCashRegister(cr));
+isFit (Receipt r) = isFit(cashRegister(r));
+
+haveFit (DepartmentStore d) = GROUP MAX isFit(GroupCashRegister g) IF stock(g) = d;
+
+stringToGzip  INTERNAL 'lsfusion.erp.integration.fit.StringToGzip' (TEXT);
+
+notResponcedTransaction() = GROUP LAST MachineryPriceTransaction t ORDER dateTime(t), t
+    IF process(t) AND isFit(groupMachinery(t)) AND NOT dateTimeProcessing(t);
+
+countActiveMachineries 'Кол-во оборудования в группе' (gm) =GROUP SUM 1 IF NOT inactive(Machinery m) BY groupMachinery(m);
+
+WHEN SET (countSucceededMachineries(MachineryPriceTransaction t) == countActiveMachineries(groupMachinery(t))) AND isFit(groupMachinery(t)) DO {
+    NEWSESSION {
+        succeeded(t) <- TRUE;
+        dateTimeSucceeded(t) <- currentDateTime();
+    } 
+}
+wait = DATA LOCAL BOOLEAN ();
+
+wait() {
+    NEWTHREAD {
+        wait() <- BOOLEAN(notResponcedTransaction());
+        WHILE wait() DO {
+        
+        }
+    }
+}
+
+returnExchange = DATA LOCAL BOOLEAN (CashRegister);
+
+pathPut 'Путь выгрузки' (CashRegister cr) = CONCAT '', rtrim((OVERRIDE dataDirectory(cr) IF ignoreCashRegisterServerCashRegisterModel(groupCashRegister(cr)), directory(groupCashRegister(cr))), '/'), '/franprix/bck/out/';
+pathGet 'Путь загрузки' (CashRegister cr) = CONCAT '', rtrim((OVERRIDE dataDirectory(cr) IF ignoreCashRegisterServerCashRegisterModel(groupCashRegister(cr)), directory(groupCashRegister(cr))), '/'), '/franprix/bck/in/';
+
+fitErrorMessage (CashRegister cr, STRING message) = OVERRIDE System.messageCaughtException(), CONCAT ' ', 'fit', '(' + shortDescription(cr) + ')', ': ' + message;
+
+put (CashRegister cr, TEXT t) {
+    returnExchange(cr) <- TRUE;
+    TRY {
+        fileExists(pathPut(cr) + 'plu.adr');
+        IF NOT fileExists() THEN { 
+            fileExists(pathPut(cr) + 'plu.log');
+            IF fileExists() THEN
+                delete(pathPut(cr) + 'plu.log');
+            stringToFile(t, 'cp866', '');
+            WRITE resultFile() TO CONCAT '', pathPut(cr), 'plu.dat';
+            stringToFile('Ok\r\n', 'cp866', '');
+            WRITE resultFile() TO CONCAT '', pathPut(cr), 'plu.adr';
+            returnExchange(cr) <- NULL;
+        } ELSE {
+            System.messageCaughtException() <- fitErrorMessage(cr, 'One of previous transactions failed');
+        }
+    } CATCH {
+        System.messageCaughtException() <- fitErrorMessage(cr, 'File exchange failed');   
+    }
+}
+
+alpha 'Тип alpha' (STRING s, INTEGER i) = rpad(s, i, ' ');
+char 'Тип char' (STRING s, INTEGER i) = lpad(s, i, '0');
+charSpace 'Тип char (с пробелами)' (STRING s, INTEGER i) = lpad(s, i, ' ');
+numeric 'Тип numeric' (INTEGER n, INTEGER i) = lpad(STRING (n), i, '0');  
+
+pluString (MachineryPriceTransaction t, Barcode b) =
+    charSpace(id(b), 16) +                      // 1. Код товара
+    '001' +                                     // 2. Код группы
+    '00' +                                      // 3. Код налоговой ставки    
+    alpha(name(t, b), 20) +                     // 4. Наименование товара
+    numeric(INTEGER(price(t, b) * 100), 12) +   // 5. Цена товара
+    '00' +                                      // 6.1 Время начала "Счастливого часа"
+    '00' +                                      // 6.2 Время окончания "Счастливого часа"
+    '00000' +                                   // 6.3 Множитель цены
+    '0' +                                       // 6.4 Дополнительный признак
+    currentTimeText() +                         // 6.5 Дата время формирования
+    'A' +                                       // 7. Код движения
+    (IF split(t, b) THEN '2' ELSE '0') +        // 8. Признак весового товара
+    numeric(0, 11) +                            // 9. Количество
+    '0' +                                       // 10. Код валюты
+    '001' +                                     // 11. Секция
+    '00' +                                      // 12. Код налога 1
+    '00' +                                      // 13. Код налога 2
+    '00' +                                      // 14. Код налога 3
+    '00' +                                      // 15. Код налога 4
+    '00' +                                      // 16. Код налога 5
+    numeric(INTEGER(price(t, b) * 100), 12) +   // 17. Цена 1
+    numeric(INTEGER(price(t, b) * 100), 12) +   // 18. Цена 2
+    numeric(INTEGER(price(t, b) * 100), 12) +   // 19. Цена 3
+    numeric(INTEGER(price(t, b) * 100), 12) +   // 20. Цена 4
+    numeric(INTEGER(price(t, b) * 100), 12) +   // 21. Цена 5
+    '000000000' +                               // 22. Абсолютная скидка
+    '000000' +                                  // 23. Процентная скидки
+    '000000000' +                               // 24. Количественный порог
+    '0' +                                       // 25. Тип скидки
+    '0' +                                       // 26. Признак флаерса товара
+    '00000' +                                   // 27. Вес тары
+    alpha(name(t, b), 60) +                     // 28. Наименование товара
+    '0000' +                                    // 29. Время начала интервала
+    '0000' +                                    // 30. Время окончания интервала
+    '0' +                                       // 31. Самостоятельное подтверждение возраста
+    '00' +                                      // 32. Минимальный возраст
+    '0' +                                       // 33. Необходим вес
+    '0' +                                       // 34. Необходимо количество
+    '0' +                                       // 35. Необходима цена
+    '0' +                                       // 36. Визуальное подтверждение
+    '0' +                                       // 37. Признак ЕГАИС
+    '0' +                                       // 38. Запрет ручного ввода количества
+    alpha('', 3) +                              // 39. Код вида алкогольной продукции
+    alpha('', 64) +                             // 40. Наименование товарной позиции
+    alpha('', 7) +                              // 41. Крепость
+    alpha('', 8) +                              // 42. Объем тары
+    numeric(0, 3) +                             // 43. Количество товара в упаковке
+    numeric(0, 3) +                             // 44. Код скидки скидочного штрих-кода
+    alpha('', 12) +                             // 45. Код агента
+    numeric(0, 12) +                            // 46. Минимальная цена
+    alpha('', 22) +                             // 47. ТН ВЭД
+    '0' +                                       // 48. Признак маркированной продукции
+    '    ' +                                    // 49. Тип маркированной продукции
+    numeric(INTEGER(trim(OVERRIDE sid(country(b)), sid(defaultCountry()))), 3) + // 50. Код страны происхождения
+    numeric(0, 9) +                             // 51. Акциз
+    numeric(0, 32) +                            // 52. Номер таможенной декларации
+    '  ' +                                      // 53. Признак предмета расчета
+    '  ' +                                      // 54. Признак способа расчета
+    charSpace(trim(id(sku(b))), 16) +           // 55. Локальный код товара
+    alpha('', 32) +                             // 56. Имя графического файла с изображением товара
+    alpha('', 32)                               // 57. Имя звукового файла с изображением товара
+;
+
+pluString (MachineryPriceTransaction t) = GROUP CONCAT pluString(t, Barcode b), '\r\n' IF in(t, b);
+
+checkPut 'Проверить передачу' (CashRegister cr) {
+    returnExchange(cr) <- TRUE;
+    LOCAL firstLine = STRING ();
+    LOCAL logExist = BOOLEAN ();
+    TRY {
+        fileExists(pathPut(cr) + 'plu.log');
+        IF fileExists() THEN { 
+            READ pathPut(cr) + 'plu.log' TO importFile;
+            fileToString(importFile(), 'cp866');
+            firstLine() <- getWord(resultString(), '\r\n', 1);
+            returnExchange(cr) <- NOT getWord(firstLine(), ',', 1) = 'OK';
+        } ELSE {
+            returnExchange(cr) <- TRUE;
+            resultString() <- fitErrorMessage(cr, 'One of previous transactions failed');
+        }
+    }
+}
+
+sendToFit (MachineryPriceTransaction t) {
+    NEWSESSION {
+        FOR isFit(CashRegister cr) AND NOT inactive(cr) AND NOT in(t, cr) DO {
+            put(cr, pluString(t));
+            IF returnExchange(cr) THEN {
+                addMachineryPriceTransactionError(t);
+            } ELSE {
+                dateTimeProcessing(t) <- currentDateTime();
+            }
+            in (t, cr) <- NOT returnExchange(cr);
+        }
+        APPLY;
+    }
+    NEWSESSION {
+        FOR in(t, CashRegister cr) AND NOT succeeded(cr, t) DO {
+            checkPut(cr);
+            succeeded(cr, t) <- NOT returnExchange(cr);
+            dateTimeSucceeded(cr, t) <- currentDateTime() IF NOT returnExchange(cr);
+            IF returnExchange(cr) THEN
+                FOR iterate(INTEGER i, 1, wordCount(resultString(), '\r\n')) DO {
+                    addMachineryPriceTransactionError(t, getWord(resultString(), '\r\n', i));
+                } 
+        }
+    APPLY;
+    }
+}
+
+succeeded(MachineryPriceTransaction t) <- TRUE WHEN SET (countSucceededMachineries(t) = countMachineries(groupMachinery(t)));
+dateTimeSucceeded(MachineryPriceTransaction t) <- currentDateTime() WHEN SET (countSucceededMachineries(t) = countMachineries(groupMachinery(t))); 
+
+sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
+    IF isFit(groupMachinery(t)) AND NOT canceled(t) AND directory(groupMachinery(t)) THEN {
+        sendToFit(t);
+    }
+}
+
+receiveFromFit (CashRegister cr) {
+    LOCAL countLines = INTEGER ();
+    LOCAL receiptString = STRING ();
+    LOCAL idReceipt = STRING[100] ();
+    LOCAL idZReport = STRING[100] ();
+    LOCAL zReport = ZReport ();
+    LOCAL receipt = Receipt ();
+    TRY {
+        fileExists(CONCAT '', pathPut(cr), 'spool.adr');
+        IF NOT fileExists() THEN {
+            NEWSESSION {
+                listFiles(pathGet(cr));
+                FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) DO {
+                    READ pathGet(cr) + fn TO importFile;
+                    fileToString(importFile(), 'cp866');
+                    countLines() <- wordCount(resultString(), '\r\n');
+                    FOR iterate(INTEGER j, 1, countLines()) AND NOT zReport(substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0')) AND left(getWord(resultString(), '\r\n', j), 2) = '07' AND substr(getWord(resultString(), '\r\n', j), 15, 3) = 'OPN' DO NEW z = ZReport {
+                        id(z) <- STRING[100](substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0'));
+                        number(z) <- STRING[28](substr(getWord(resultString(), '\r\n', j), 92, 4));
+                        cashRegister(z) <- cr;
+                    }
+                    FOR iterate(INTEGER j, 1, countLines()) AND left(getWord(resultString(), '\r\n', j), 2) = '01' AND NOT receipt(substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\r\n', j), 3, 12)) DO NEW r = Receipt {
+                        id(r) <- substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\r\n', j), 3, 12);
+                        zReport(r) <- zReport(substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0'));
+                    }
+                
+                    FOR iterate(INTEGER j, 1, countLines()) DO {
+                        receiptString() <- getWord(resultString(), '\r\n', j);
+                        CASE
+                            WHEN left(receiptString(), 2) = '01' THEN {
+                                zReport() <- zReport(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0'));
+                                receipt() <- receipt(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0') + substr(receiptString(), 3, 12));
+                                date(receipt()) <- toDateFormat(substr(receiptString(), 96, 8), 'DDMMYYYY');
+                                time(receipt()) <- TIME (toDateTimeFormat(substr(receiptString(), 48, 5), 'HH24:MI'));
+                            
+                                DELETE ReceiptDetail d WHERE receipt(d) = receipt();
+                                DELETE Payment p WHERE receipt(p) = receipt();
+                            }
+                            WHEN left(receiptString(), 2) = '07' AND substr(receiptString(), 15, 3) = 'OPN' THEN {
+                                zReport() <- zReport(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0'));
+                                receipt() <- receipt(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0') + substr(receiptString(), 3, 12));
+                                date(zReport()) <- toDateFormat(substr(getWord(resultString(), '\r\n', j), 96, 8), 'DDMMYYYY');
+                                time(zReport()) <- TIME (toDateTimeFormat(substr(getWord(resultString(), '\r\n', j), 48, 5), 'HH24:MI'));
+                                isPosted(zReport()) <- TRUE;
+                            }
+                            WHEN left(receiptString(), 2) = '12' AND substr(receiptString(), 77, 1) = '+' THEN NEW d = ReceiptSaleDetail {
+                                receipt(d) <- receipt();
+                                sku(d) <- sku(barcode(ltrim(substr(receiptString(), 5, 16))));
+                                price(d) <- NUMERIC[16,4](NUMERIC(substr(receiptString(), 85, 14)) / 100);
+                                quantity(d) <- NUMERIC[16,5](NUMERIC(substr(receiptString(), 78, 7)) / 1000);
+                                discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(receiptString(), 40, 11)) / 100);
+                            }
+                            WHEN left(receiptString(), 2) = '12' AND substr(receiptString(), 77, 1) = '-' THEN NEW d = ReceiptReturnDetail {
+                                receipt(d) <- receipt();
+                                sku(d) <- sku(barcode(ltrim(substr(receiptString(), 5, 16))));
+                                price(d) <- NUMERIC[16,4](NUMERIC(substr(receiptString(), 85, 14)) / 100);
+                                quantity(d) <- NUMERIC[16,5](NUMERIC(substr(receiptString(), 78, 7)) / 1000);
+                                discountSum(d) <- NUMERIC[18,4](NUMERIC(substr(receiptString(), 40, 11)) / 100);
+                            }
+                            WHEN left(receiptString(), 2) = '04' THEN NEW p = Payment {
+                                receipt(p) <- receipt();
+                                sum(p) <- NUMERIC[18,4](NUMERIC(substr(receiptString(), 85, 14)) / 100);
+                                paymentType(p) <- IF substr(receiptString(), 3, 2) = '13' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
+                            }
+                        ;
+                    }
+                }
+                APPLY NESTED LOCAL;
+                LOCAL succeessDir = STRING ();
+                IF NOT System.canceled() THEN {
+                    succeessDir() <- pathGet(cr) + 'succeess-' + currentTimeText(); 
+                    mkdir(succeessDir());    
+                    FOR STRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND NOT System.canceled() AND [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) DO {
+                        move(pathGet(cr) + fn, succeessDir() + '/' + fn);
+                    }
+                }
+            }
+        }
+        stringToFile('Ok\r\n', 'cp866', '');
+        WRITE resultFile() TO CONCAT '', pathPut(cr), 'spool.adr';
+    } CATCH {
+        MESSAGE fitErrorMessage(cr, System.messageCaughtException());
+    }
+}
+
+receiveGroupMachinery(GroupMachinery g) + {
+    IF isFit(g) THEN {
+//        checkPut(g);
+        FOR groupCashRegister(CashRegister cr) = g AND NOT inactive(cr) AND NOT disableSales(cr) DO {
+            receiveFromFit(cr);
+        } 
+    }
+}
+
+dataInactive 'Неактивна' = DATA BOOLEAN (CashRegister);
+overInactive (CashRegister cr) += dataInactive(cr);
+
+EXTEND FORM cashRegister
+    PROPERTIES (c) SHOWIF isFit(c) AND ignoreCashRegisterServerCashRegisterModel(groupCashRegister(c)) dataInactive AFTER disableSales(c)
+;
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (c) SHOWIF isFit(c) AND ignoreCashRegisterServerCashRegisterModel(groupCashRegister(c)) dataInactive AFTER disableSales(c)
+;
+
+EXTEND FORM groupsCashRegister
+    PROPERTIES (c) READONLY SHOWIF isFit(c) AND ignoreCashRegisterServerCashRegisterModel(groupCashRegister(c)) inactive AFTER disableSales(c)
+;
+
+EXTEND FORM machineryPriceTransaction
+    PROPERTIES (m) READONLY SHOWIF isFit(m) AND ignoreCashRegisterServerCashRegisterModel(groupCashRegister(m)) inactive
+;
+
+
+

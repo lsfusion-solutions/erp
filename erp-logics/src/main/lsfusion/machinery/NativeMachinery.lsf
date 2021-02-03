@@ -10,7 +10,6 @@ sendMachineryPriceTransaction ABSTRACT LIST (MachineryPriceTransaction);
 
 receiveGroupMachinery ABSTRACT LIST (GroupMachinery);
 
-
 sendMachineryPriceTransactions 'Загрузка прайса в оборудование (native)' () {
     FOR process(MachineryPriceTransaction t) AND left(handlerModel(groupMachinery(t)), 4) = 'lsf.' DO
         sendMachineryPriceTransaction(t);
@@ -19,6 +18,26 @@ sendMachineryPriceTransactions 'Загрузка прайса в оборудо�
 receiveGroupsMachinery 'Получение данных из оборудования (native)' () {
     FOR GroupMachinery g IS GroupMachinery AND left(handlerModel(g), 4) = 'lsf.' DO
         receiveGroupMachinery(g);
+}
+
+addMachineryPriceTransactionError (MachineryPriceTransaction t, STRING data, TEXT errorTrace) {
+    NEWSESSION {
+        NEW e = MachineryPriceTransactionError {
+            machineryPriceTransaction(e) <- t;
+            data(e) <- data;
+            errorTrace(e) <- errorTrace;
+            date(e) <- currentDateTime();
+        }
+        APPLY;
+    }
+}
+
+addMachineryPriceTransactionError (MachineryPriceTransaction t, STRING data) {
+    addMachineryPriceTransactionError (t, data, System.messageCaughtException());
+}
+
+addMachineryPriceTransactionError (MachineryPriceTransaction t) {
+    addMachineryPriceTransactionError (t, System.messageCaughtException());
 }
 
 //EXTEND FORM machineryPriceTransactions PROPERTIES sendMachineryPriceTransactions(), receiveGroupsMachinery();
