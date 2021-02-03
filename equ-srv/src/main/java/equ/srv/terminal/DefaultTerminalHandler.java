@@ -5,7 +5,6 @@ import equ.api.terminal.*;
 import equ.srv.EquipmentLoggers;
 import equ.srv.ServerTerminalOrder;
 import equ.srv.TerminalEquipmentServer;
-import lsfusion.base.BaseUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -30,9 +29,7 @@ import lsfusion.server.physics.dev.integration.service.*;
 import equ.srv.terminal.TerminalServer.UserInfo;
 
 import java.awt.*;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.text.DecimalFormat;
@@ -169,24 +166,22 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public RawFileData readBase(DataSession session, UserInfo userInfo) throws SQLException {
-        Connection connection = null;
+    public RawFileData readBase(DataSession session, UserInfo userInfo) {
         File file = null;
-        File zipFile = null;
         try {
 
             BusinessLogics BL = getLogicsInstance().getBusinessLogics();
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
 
+                boolean imagesInReadBase = terminalHandlerLM.findProperty("imagesInReadBase[]").read(session) != null;
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
                 ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
-                List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject);
+                List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase);
 
                 List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject, userInfo);
-                //Map<String, List<String>> extraBarcodeMap = readExtraBarcodeMap(session);
 
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
@@ -195,52 +190,67 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 file = File.createTempFile("terminalHandler", ".db");
 
                 Class.forName("org.sqlite.JDBC");
-                connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+                try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
 
-                createGoodsTable(connection);
-                updateGoodsTable(connection, barcodeList, orderList/*, extraBarcodeMap*/);
+                    createGoodsTable(connection, imagesInReadBase);
+                    updateGoodsTable(connection, barcodeList, orderList, imagesInReadBase);
 
-                createOrderTable(connection);
-                updateOrderTable(connection, orderList, prefix);
+                    createOrderTable(connection);
+                    updateOrderTable(connection, orderList, prefix);
 
-                createAssortTable(connection);
-                updateAssortTable(connection, assortmentList, prefix);
+                    createAssortTable(connection);
+                    updateAssortTable(connection, assortmentList, prefix);
 
-                createVANTable(connection);
-                updateVANTable(connection, handbookTypeList);
+                    createVANTable(connection);
+                    updateVANTable(connection, handbookTypeList);
 
-                createANATable(connection);
-                updateANATable(connection, customANAList);
+                    createANATable(connection);
+                    updateANATable(connection, customANAList);
 
-                createVOPTable(connection);
-                updateVOPTable(connection, terminalDocumentTypeList);
+                    createVOPTable(connection);
+                    updateVOPTable(connection, terminalDocumentTypeList);
 
-                //copy base to exchange directory
-                FileInputStream fis = new FileInputStream(file);
-                zipFile = File.createTempFile("base", ".zip");
-                FileOutputStream fos = new FileOutputStream(zipFile);
-                ZipOutputStream zos = new ZipOutputStream(fos);
-                zos.putNextEntry(new ZipEntry("tsd.db"));
-                byte[] buf = new byte[1024];
-                int len;
-                while ((len = fis.read(buf)) > 0) {
-                    zos.write(buf, 0, len);
+                    //copy base to exchange directory
+                    File zipFile = File.createTempFile("base", ".zip");
+                    try (FileOutputStream fos = new FileOutputStream(zipFile)) {
+                        try (ZipOutputStream zos = new ZipOutputStream(fos)) {
+
+                            try (FileInputStream is = new FileInputStream(file)) {
+                                writeInputStreamToZip(is, zos, "tsd.db");
+                            }
+
+                            for (TerminalBarcode barcode : barcodeList) {
+                                if (barcode.image != null) {
+                                    try (InputStream is = barcode.image.getInputStream()) {
+                                        writeInputStreamToZip(is, zos, "images/" + barcode.idBarcode + ".jpg");
+                                    }
+                                }
+                            }
+
+                            return new RawFileData(zipFile);
+                        }
+                    } finally {
+                        if (!zipFile.delete()) {
+                            zipFile.deleteOnExit();
+                        }
+                    }
                 }
-                fis.close();
-                zos.close();
-
-                return new RawFileData(zipFile);
             } else return null;
 
         } catch (Exception e) {
             throw Throwables.propagate(e);
         } finally {
-            if (connection != null)
-                connection.close();
             if(file != null && !file.delete())
                 file.deleteOnExit();
-            if(zipFile != null && !zipFile.delete())
-                zipFile.deleteOnExit();
+        }
+    }
+
+    private void writeInputStreamToZip(InputStream fis, ZipOutputStream zos, String fileName) throws IOException {
+        zos.putNextEntry(new ZipEntry(fileName));
+        byte[] buf = new byte[1024];
+        int len;
+        while ((len = fis.read(buf)) > 0) {
+            zos.write(buf, 0, len);
         }
     }
 
@@ -281,17 +291,16 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return result;
     }
 
-    private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject, boolean imagesInReadBase) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalBarcode> result = new ArrayList<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
             boolean skipGoodsInReadBase = terminalHandlerLM.findProperty("skipGoodsInReadBase[]").read(session) != null;
             if(!skipGoodsInReadBase) {
-                boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
-                boolean allItems = terminalHandlerLM.findProperty("sendAllItems").read(session) != null;
-                boolean onlyActiveItems = terminalHandlerLM.findProperty("sendOnlyActiveItems").read(session) != null;
-                boolean currentQuantity = terminalHandlerLM.findProperty("useCurrentQuantityInTerminal").read(session) != null;
-                boolean filterCurrentQuantity = terminalHandlerLM.findProperty("filterCurrentQuantityInTerminal").read(session) != null;
+                boolean allItems = terminalHandlerLM.findProperty("sendAllItems[]").read(session) != null;
+                boolean onlyActiveItems = terminalHandlerLM.findProperty("sendOnlyActiveItems[]").read(session) != null;
+                boolean currentQuantity = terminalHandlerLM.findProperty("useCurrentQuantityInTerminal[]").read(session) != null;
+                boolean filterCurrentQuantity = terminalHandlerLM.findProperty("filterCurrentQuantityInTerminal[]").read(session) != null;
 
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
                 ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev("barcode", barcodeExpr);
@@ -308,6 +317,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 barcodeQuery.addProperty("needManufacturingDate", terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("unit", terminalHandlerLM.findProperty("shortNameUOM[Barcode]").getExpr(barcodeExpr));
+                if(imagesInReadBase) {
+                    barcodeQuery.addProperty("image", terminalHandlerLM.findProperty("image[Barcode]").getExpr(barcodeExpr));
+                }
 
                 if(stockObject instanceof DataObject && !allItems)
                     barcodeQuery.and(terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
@@ -351,45 +363,16 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     String fld5 = trim((String) entry.get("fld5"));
                     String unit = trim((String) entry.get("unit"));
                     boolean needManufacturingDate = entry.get("needManufacturingDate") != null;
+                    RawFileData image = (RawFileData) entry.get("image");
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
-                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, needManufacturingDate));
+                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, needManufacturingDate, image));
 
                 }
             }
         }
         return result;
     }
-
-    /*private Map<String, List<String>> readExtraBarcodeMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, List<String>> result = new HashMap<>();
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
-        if (terminalHandlerLM != null) {
-
-            KeyExpr barcodeExpr = new KeyExpr("barcode");
-            ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev("barcode", barcodeExpr);
-
-            QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
-            barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
-            barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
-            barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
-            barcodeQuery.and(terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr).getWhere());
-
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
-            for (ImMap<Object, Object> entry : barcodeResult.values()) {
-
-                String idBarcode = BaseUtils.trim((String) entry.get("idBarcode"));
-                String mainBarcode = BaseUtils.trim((String) entry.get("mainBarcode"));
-
-                List<String> barcodeList = result.get(mainBarcode);
-                if (barcodeList == null)
-                    barcodeList = new ArrayList<>();
-                barcodeList.add(idBarcode);
-                result.put(mainBarcode, barcodeList);
-            }
-        }
-        return result;
-    }*/
 
     private void createOrderTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
@@ -465,7 +448,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         }
     }
 
-    private void createGoodsTable(Connection connection) throws SQLException {
+    private void createGoodsTable(Connection connection, boolean imagesInReadBase) throws SQLException {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE goods " +
                 "(barcode TEXT PRIMARY KEY," +
@@ -483,18 +466,21 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " color TEXT," +
                 " ticket_data TEXT," +
                 " unit TEXT," +
-                " flags INTEGER)";
+                " flags INTEGER" +
+                (imagesInReadBase ? ", images TEXT" : "") + ")";
         statement.executeUpdate(sql);
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<ServerTerminalOrder> orderList/*,
-                                  Map<String, List<String>> extraBarcodeMap*/) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<ServerTerminalOrder> orderList, boolean imagesInReadBase) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?);";
+                String sql = imagesInReadBase ?
+                        "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?);" :
+                        "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?);"
+                        ;
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
@@ -514,13 +500,16 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(13, formatValue(barcode.extInfo)); //ticket_data
                         statement.setObject(14, formatValue(barcode.unit)); //unit
                         statement.setObject(15, barcode.needManufacturingDate ? 1 : 0); //flags
+                        if(imagesInReadBase && barcode.image != null) {
+                            statement.setObject(16, barcode.idBarcode + ".jpg"); //image
+                        }
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
                 }
                 for (ServerTerminalOrder order : orderList) {
                     if (order.barcode != null) {
-                        List<String> extraBarcodeList = order.extraBarcodeList;//extraBarcodeMap.get(order.barcode);
+                        List<String> extraBarcodeList = order.extraBarcodeList;
                         if (extraBarcodeList != null) {
                             for (String extraBarcode : extraBarcodeList) {
                                 if(!usedBarcodes.contains(extraBarcode)) {
@@ -964,10 +953,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         String fld5;
         String unit;
         boolean needManufacturingDate;
+        RawFileData image;
 
         public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock,
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String color,
-                               String extInfo, String fld3, String fld4, String fld5, String unit, boolean needManufacturingDate) {
+                               String extInfo, String fld3, String fld4, String fld5, String unit, boolean needManufacturingDate,
+                               RawFileData image) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.price = price;
@@ -983,6 +974,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             this.fld5 = fld5;
             this.unit = unit;
             this.needManufacturingDate = needManufacturingDate;
+            this.image = image;
         }
     }
 
