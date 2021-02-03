@@ -35,7 +35,10 @@ public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
             return FiscalEpson.printReceipt(receipt, !isReturn, cardType, giftCardType, sendSKNO);
 
         } catch (RuntimeException e) {
-            FiscalEpson.cancelReceipt(false);
+            try {
+                FiscalEpson.cancelReceipt(false);
+            } catch (Exception ignored) { //Нам важна первая ошибка
+            }
             return new PrintReceiptResult(e.getMessage());
         } finally {
             FiscalEpson.closePort();

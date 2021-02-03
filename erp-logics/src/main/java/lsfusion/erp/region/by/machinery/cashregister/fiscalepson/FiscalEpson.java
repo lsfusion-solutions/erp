@@ -51,24 +51,28 @@ public class FiscalEpson {
 
         epsonActiveXComponent.setProperty("ComPort", new Variant(comPort));
         epsonActiveXComponent.setProperty("BaudRate", new Variant(baudRate));
+        logger.info(String.format("Epson Connect comPort %s, baudRate %s", comPort, baudRate));
         Dispatch.call(epsonDispatch, "Connect");
         checkErrors(true);
     }
 
     public static void closePort() throws RuntimeException {
         if(epsonDispatch != null) {
+            logger.info("Epson Disconnect");
             Dispatch.call(epsonDispatch, "Disconnect");
         }
     }
 
     public static void openReceipt(String cashier, int type) throws RuntimeException {
         setCashier(cashier);
+        logger.info("Epson OpenReceipt type " + type);
         epsonActiveXComponent.setProperty("ReceiptType", new Variant(type));
         Dispatch.call(epsonDispatch, "OpenReceipt");
         checkErrors(true);
     }
 
     public static Integer getElectronicJournalReadOffset() throws RuntimeException {
+        logger.info("Epson ElectronicJournalReadOffset");
         return toInt(epsonActiveXComponent.getProperty("ElectronicJournalReadOffset"));
     }
 
@@ -232,6 +236,7 @@ public class FiscalEpson {
 
     public static void printLine(String line) throws RuntimeException {
         if (line != null) {
+            logger.info("Epson PrintLine " + line);
             epsonActiveXComponent.setProperty("StringToPrint", new Variant(line.isEmpty() ? " " : line));
             Dispatch.call(epsonDispatch, "PrintLine");
             checkErrors(true);
