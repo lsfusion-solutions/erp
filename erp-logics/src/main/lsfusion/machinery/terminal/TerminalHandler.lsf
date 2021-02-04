@@ -36,8 +36,6 @@ fld3 = ABSTRACT TEXT (Barcode, Stock);
 fld4 = ABSTRACT TEXT (Barcode, Stock);
 fld5 = ABSTRACT TEXT (Barcode, Stock);
 
-image = ABSTRACT IMAGEFILE (Barcode);
-//image(Barcode b) += image(sku(b));
 
 EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser;
 EXTEND FORM groupsTerminal
@@ -51,6 +49,7 @@ restrictLockedUsers 'Запретить доступ заблокированн�
 restricted (CustomUser user) = isLocked(user) AND restrictLockedUsers(); 
 
 enableStatusOrderTerminal 'Включить обмен статусами для заказов' = DATA BOOLEAN ();
+useCurrentPriceInTerminal 'Загружать в терминал текущие цены' = DATA BOOLEAN ();
 sendAllItems 'Загружать в терминал все товары без цен' = DATA BOOLEAN ();
 sendOnlyActiveItems 'Загружать только активные товары' = DATA BOOLEAN ();
 
@@ -66,7 +65,6 @@ currentBalance (Barcode barcode, Stock stock) = currentBalance(sku(barcode), sto
 activeItem (Barcode barcode) = NOT inactive(sku(barcode));
 
 skipGoodsInReadBase 'Не выгружать товары при выгрузке базы целиком' = DATA BOOLEAN ();
-imagesInReadBase 'Выгружать изображения товаров при выгрузке базы целиком' = DATA BOOLEAN ();
     
 dataPriceListTypeTerminal = DATA LedgerPriceListType();
 defaultPriceListTypeTerminal = ABSTRACT LedgerPriceListType();
@@ -92,8 +90,8 @@ changeStatusTerminalOrder ABSTRACT (STRING, STRING, STRING);
 
 EXTEND FORM options
     PROPERTIES() hostTerminalServer, portTerminalServer, restrictLockedUsers,
-    enableStatusOrderTerminal, sendAllItems, sendOnlyActiveItems, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
-    namePriceListTypeTerminal, skipGoodsInReadBase, imagesInReadBase
+    enableStatusOrderTerminal, useCurrentPriceInTerminal, sendAllItems, sendOnlyActiveItems, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
+    namePriceListTypeTerminal, skipGoodsInReadBase
 ;
 DESIGN options {
     machinery {
@@ -104,6 +102,7 @@ DESIGN options {
             MOVE PROPERTY(restrictLockedUsers());
             NEW terminalServerPrices {
                 caption = 'Цены';
+                MOVE PROPERTY(useCurrentPriceInTerminal());
                 MOVE PROPERTY(sendAllItems());
                 MOVE PROPERTY(sendOnlyActiveItems());
             }
@@ -112,7 +111,6 @@ DESIGN options {
             MOVE PROPERTY(filterCurrentQuantityInTerminal());
             MOVE PROPERTY(namePriceListTypeTerminal());
             MOVE PROPERTY(skipGoodsInReadBase());
-            MOVE PROPERTY(imagesInReadBase());
         }
     }
 }    
