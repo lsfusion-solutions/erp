@@ -226,9 +226,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     }
                                 }
                             }
-
-                            return new RawFileData(zipFile);
                         }
+                        return new RawFileData(zipFile);
                     } finally {
                         if (!zipFile.delete()) {
                             zipFile.deleteOnExit();
