@@ -62,8 +62,9 @@ public class EurooptAction extends DefaultImportAction {
                     }
                 }
             } catch (HttpStatusException | SocketTimeoutException | ConnectException e) {
+                boolean is404 = e instanceof HttpStatusException && ((HttpStatusException) e).getStatusCode() == 404;
                 count--;
-                if (count <= 0) {
+                if (count <= 0 || is404) {
                     ERPLoggers.importLogger.error(logPrefix + "error for url " + url + ": ", e);
                 } else {
                     try {
