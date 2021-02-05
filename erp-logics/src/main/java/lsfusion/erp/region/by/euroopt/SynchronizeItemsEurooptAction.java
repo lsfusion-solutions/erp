@@ -59,59 +59,41 @@ public class SynchronizeItemsEurooptAction extends EurooptAction {
 
     private JSONArray getItems(NetLayer lowerNetLayer, String mainPage, String itemGroupPattern, List<String> ignoreItemGroups, String itemPattern) throws IOException {
         JSONArray itemsJSON = new JSONArray();
-        int count = 0;
+        int groupCount = 1;
         Set<String> itemGroups = getItemGroupURLSet(lowerNetLayer, mainPage, itemGroupPattern, ignoreItemGroups);
         for (String itemGroupURL : itemGroups) {
-            count++;
-            int page = 1;
-            String prevPageHash = null;
-            boolean notLastPage = true;
-            while (notLastPage) {
-                Map<String, JSONObject> pageItemsMap = new LinkedHashMap<>();
-                int step = 1;
-                String prevStepHash = null;
-                boolean notLastStep = true;
-                String pageHash = "";
-                while (notLastStep) {
-                    Set<String> stepItemsSet = new LinkedHashSet<>();
-                    String stepHash = "";
-                    String stepUrl = itemGroupURL + "?page=" + page + "&lazy_steep=" + step;
-                    ERPLoggers.importLogger.info(String.format(logPrefix + "reading itemGroup url %s (%s of %s)", stepUrl, count, itemGroups.size()));
-                    Document doc = getDocument(lowerNetLayer, mainPage, stepUrl);
-                    if (doc != null) {
-                        String itemGroupTitle = doc.getElementsByTag("title").text().replace(" - Каталог товаров", "");
-                        for (Element item : doc.getElementsByTag("a")) {
-                            String href = item.attr("href");
-                            if (href != null && href.matches(itemPattern)) {
-                                if (lowerNetLayer != null)
-                                    href = href.replace(mainPage, "");
-                                if (!stepItemsSet.contains(href)) {
-                                    stepItemsSet.add(href);
-                                    stepHash += href;
-                                    JSONObject itemJSON = new JSONObject();
-                                    itemJSON.put("itemGroupURL", itemGroupURL);
-                                    itemJSON.put("itemGroupTitle", itemGroupTitle);
-                                    itemJSON.put("stepUrl", stepUrl);
-                                    itemJSON.put("href", href);
-                                    pageItemsMap.put(href, itemJSON);
-                                }
+            int step = 1;
+            boolean notLastStep = true;
+            while (notLastStep) {
+                //Раньше мы итерировались по page и lazy_steep. Но сейчас можно получить все товары с page=1, итерируясь лишь по lazy_steep.
+                //На последней lazy_steep вернётся 0 товаров.
+                Set<String> stepItemUrls = new HashSet<>();
+                String stepUrl = itemGroupURL + "?page=1&lazy_steep=" + step;
+                ERPLoggers.importLogger.info(String.format(logPrefix + "reading itemGroup url %s (%s of %s)", stepUrl, groupCount, itemGroups.size()));
+                Document doc = getDocument(lowerNetLayer, mainPage, stepUrl);
+                if (doc != null) {
+                    String itemGroupTitle = doc.getElementsByTag("title").text().replace(" - Каталог товаров", "");
+                    for (Element item : doc.getElementsByTag("a")) {
+                        String href = item.attr("href");
+                        if (href != null && href.matches(itemPattern)) {
+                            if (lowerNetLayer != null)
+                                href = href.replace(mainPage, "");
+                            if (!stepItemUrls.contains(href)) {
+                                stepItemUrls.add(href);
+                                JSONObject itemJSON = new JSONObject();
+                                itemJSON.put("itemGroupURL", itemGroupURL);
+                                itemJSON.put("itemGroupTitle", itemGroupTitle);
+                                itemJSON.put("stepUrl", stepUrl);
+                                itemJSON.put("href", href);
+                                itemsJSON.put(itemJSON);
                             }
                         }
-                        pageHash += stepHash;
-                    }
-                    notLastStep = !stepItemsSet.isEmpty() && !stepHash.equals(prevStepHash);
-                    prevStepHash = stepHash;
-                    step++;
-                }
-                page++;
-                notLastPage = !pageHash.equals(prevPageHash);
-                prevPageHash = pageHash;
-                if(notLastPage) {
-                    for(JSONObject itemJSON : pageItemsMap.values()) {
-                        itemsJSON.put(itemJSON);
                     }
                 }
+                notLastStep = !stepItemUrls.isEmpty();
+                step++;
             }
+            groupCount++;
         }
         return itemsJSON;
     }
