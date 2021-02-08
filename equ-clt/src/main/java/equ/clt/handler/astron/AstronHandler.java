@@ -182,6 +182,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     List<CashRegisterItemInfo> usedDeleteBarcodeList = new ArrayList<>();
                     transaction.itemsList = transaction.itemsList.stream().filter(item -> isValidItem(transaction, deleteBarcodeMap, usedDeleteBarcodeList, item)).collect(Collectors.toList());
 
+                    //todo: temp log
+                    astronLogger.info("usedDeleteBarcode at start");
+                    for(CashRegisterItemInfo deleteBarcode : usedDeleteBarcodeList) {
+                        astronLogger.info(String.format("deleting barcode: %s (idItem %s)", deleteBarcode.idBarcode, deleteBarcode.idItem));
+                    }
+
                     if (!transaction.itemsList.isEmpty()) {
 
                         checkItems(params, transaction);
