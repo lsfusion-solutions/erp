@@ -201,7 +201,7 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
     }
 
     private BigDecimal formatPrice(String value) {
-        return value == null || value.isEmpty() ? null : new BigDecimal(value.replace("р", "").replace("к.", ""));
+        return value == null || value.isEmpty() ? null : new BigDecimal(value.replace("р", "").replace("к.", "").replace("ценаПВЗ", ""));
     }
 
     protected File readImage(NetLayer lowerNetLayer, String mainPage, String url) throws IOException {
