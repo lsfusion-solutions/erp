@@ -185,14 +185,17 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
         BigDecimal newPrice = null;
         BigDecimal oldPrice = null;
         try {
-            Element priceElement = productCard.getElementsByClass("price").first();
-            if (priceElement != null) {
-                boolean red = productCard.classNames().contains("red");
-                Elements oldPriceElement = priceElement.getElementsByClass("Old_price");
-                String oldPriceValue = oldPriceElement == null || !red ? null : oldPriceElement.text().replace(" ", "");
-                oldPrice = formatPrice(oldPriceValue);
-                String priceValue = (oldPriceElement != null && oldPriceElement.size() != 0 ? priceElement.text().replace(oldPriceElement.first().text(), "") : priceElement.text()).replace(" ", "");
-                newPrice = formatPrice(priceValue);
+            Element pricesBlockElement = productCard.getElementsByClass("prices_block").first();
+            if(pricesBlockElement != null) {
+                Element priceElement = pricesBlockElement.getElementsByClass("price").first();
+                if (priceElement != null) {
+                    boolean red = productCard.classNames().contains("red");
+                    Elements oldPriceElement = priceElement.getElementsByClass("Old_price");
+                    String oldPriceValue = oldPriceElement == null || !red ? null : oldPriceElement.text().replace(" ", "");
+                    oldPrice = formatPrice(oldPriceValue);
+                    String priceValue = (oldPriceElement != null && oldPriceElement.size() != 0 ? priceElement.text().replace(oldPriceElement.first().text(), "") : priceElement.text()).replace(" ", "");
+                    newPrice = formatPrice(priceValue);
+                }
             }
         } catch (Exception e) {
             newPrice = null;
