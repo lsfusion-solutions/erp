@@ -338,9 +338,17 @@ exclude 'Искл.' (SnapshotABC snapshot, SkuGroup group) =
     
 exclude 'Искл.' (SnapshotABC snapshot, Sku sku) =
     OVERRIDE dataExclude(snapshot, sku), exclude(snapshot, group(groupType(snapshot), sku));
+    
+include 'Вкл' = DATA BOOLEAN (SnapshotABC, Manufacturer);
+countSelectedManufacturer (SnapshotABC snapshot) = GROUP SUM 1 IF include(snapshot, Manufacturer m);
+
+fltLegalEntity 'Поставщик' = DATA LegalEntity (SnapshotABC);
                       
-include 'Вкл' (SnapshotABC snapshot, Sku sku) = include(snapshot, skuGroup(sku)) AND groupType(skuGroup(sku)) == groupType(snapshot) AND NOT exclude(snapshot, sku);  
-                    
+include 'Вкл' (SnapshotABC snapshot, Sku sku) = 
+    include(snapshot, skuGroup(sku)) AND groupType(skuGroup(sku)) == groupType(snapshot) AND 
+    (NOT countSelectedManufacturer(snapshot) OR include(snapshot, manufacturer(sku))) AND 
+    NOT exclude(snapshot, sku);  
+                        
 countIncludeSku 'Вкл' (SnapshotABC snapshot) = GROUP SUM 1 IF include(snapshot, Sku sku);                    
 
 nameIncludeSkuGroups 'Группы товаров (все)' (SnapshotABC document)= 
@@ -525,17 +533,26 @@ takeFromTo(SnapshotABC snapshot)   {
     LOCAL quantitySold = NUMERIC[16,5] (Sku, DATE);            
     quantitySold (Sku sku, DATE date) <- (GROUP
             SUM quantitySold(sku, Stock st, date) 
-            IF include(snapshot, st)) WHERE include(snapshot, sku) AND date >= fromDate(snapshot) AND date <= toDate(snapshot);
+            IF include(snapshot, st) AND 
+               (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st)) OR NOT fltLegalEntity(snapshot)) 
+            WHERE include(snapshot, sku) AND 
+               date >= fromDate(snapshot) AND date <= toDate(snapshot);
     
     // по товарам
     
     resetProps(snapshot);
     
     markupSumSold (Sku sku, snapshot) <-OVERRIDE (GROUP
-            SUM markupSumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) IF include(snapshot, st)), 0.0 WHERE include(snapshot, sku);
+            SUM markupSumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) 
+            IF include(snapshot, st) AND 
+               (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st)) OR NOT fltLegalEntity(snapshot)), 0.0 
+            WHERE include(snapshot, sku);
     
     sumSold (Sku sku, snapshot) <- OVERRIDE (GROUP
-            SUM sumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) IF include(snapshot, st)), 0.0 WHERE include(snapshot, sku);
+            SUM sumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) 
+            IF include(snapshot, st) AND 
+            (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st)) OR NOT fltLegalEntity(snapshot)), 0.0 
+            WHERE include(snapshot, sku);
     
     percMarkupSold(Sku sku, snapshot) <- OVERRIDE round2(markupSumSold(sku, snapshot)*100.00 / sumSold(sku, snapshot)), 0.0 WHERE include(snapshot, sku);
     
@@ -610,7 +627,9 @@ takeFromTo(SnapshotABC snapshot)   {
     ///// XYZ
     //  Среднее кол-во продаж в день
     averageSold(Sku sku, snapshot) <- round3( (GROUP
-        SUM quantitySold (sku, Stock st, fromDate(snapshot), toDate(snapshot))  IF include(snapshot, st))
+        SUM quantitySold (sku, Stock st, fromDate(snapshot), toDate(snapshot))  
+        IF include(snapshot, st) AND 
+           (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st)) OR NOT fltLegalEntity(snapshot))
         / daysInclBetweenDates(fromDate(snapshot),toDate(snapshot))) WHERE include(snapshot, sku);
 
     //  Дисперсия однодневных продаж 
@@ -878,7 +897,7 @@ DESIGN snapshotABC {
                         MOVE PROPERTY(percY(r));
                     }
                 
-                    MOVE GROUP(documentPrm,r);
+                    MOVE GROUP(documentPrm,r);   
                     
                     NEW itogi {
                         caption = 'Итоги';
