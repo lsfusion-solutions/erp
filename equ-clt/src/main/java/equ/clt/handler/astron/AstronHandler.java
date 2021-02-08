@@ -86,6 +86,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             exception = exportTransaction(transaction, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(),
                                     exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize, isVersionalScheme, transactionCount, itemCount);
                         }
+
+                        //todo: temp log
+                        for(String deleteBarcode : deleteBarcodeSet) {
+                            astronLogger.info(String.format("sending delete barcode to server: %s", deleteBarcode));
+                        }
+
                         currentSendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
 
                         if (lastTransaction) {
@@ -114,6 +120,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             exception = exportTransaction(transaction, true, true, directoryTransactionEntry.getKey(),
                                     exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout, maxBatchSize, isVersionalScheme, 1, transaction.itemsList.size());
                         }
+
+                        //todo: temp log
+                        for(String deleteBarcode : deleteBarcodeSet) {
+                            astronLogger.info(String.format("sending delete barcode to server: %s", deleteBarcode));
+                        }
+
                         sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
                     }
                 }
@@ -168,6 +180,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                     List<CashRegisterItemInfo> usedDeleteBarcodeList = new ArrayList<>();
                     transaction.itemsList = transaction.itemsList.stream().filter(item -> isValidItem(transaction, deleteBarcodeMap, usedDeleteBarcodeList, item)).collect(Collectors.toList());
+
+                    //todo: temp log
+                    for(CashRegisterItemInfo deleteBarcode : usedDeleteBarcodeList) {
+                        astronLogger.info(String.format("deleting barcode: %s (idItem %s)", deleteBarcode.idBarcode, deleteBarcode.idItem));
+                    }
 
                     if (!transaction.itemsList.isEmpty()) {
 
@@ -229,6 +246,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         if(versionalScheme) {
                             astronLogger.info(String.format("transaction %s, table DATAPUMP", transaction.id));
                             exportUpdateNums(conn, params, outputUpdateNums);
+
+                            Map<String, CashRegisterItemInfo> oldDeleteBarcodeMap = deleteBarcodeConnectionStringMap.get(deleteBarcodeKey);
+                            for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
+                                oldDeleteBarcodeMap.remove(usedDeleteBarcode.idItem);
+                            }
+                            deleteBarcodeConnectionStringMap.put(deleteBarcodeKey, oldDeleteBarcodeMap);
+
                             for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
                                 deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
                             }
