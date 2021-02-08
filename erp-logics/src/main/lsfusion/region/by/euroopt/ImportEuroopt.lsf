@@ -1,6 +1,6 @@
 MODULE ImportEuroopt;
 
-REQUIRE System, Item, ItemDescription, ItemNutrition, ImportUserPriceList, PurchasePack, Competitor;
+REQUIRE System, Item, ItemDescription, ItemNutrition, PurchasePack, Competitor;
 
 PRIORITY Competitor;
 
@@ -27,7 +27,7 @@ delete (EurooptItemGroup g, MainPage m) = g IS EurooptItemGroup AND mainPage(g) 
 CLASS EurooptItemList 'Список товаров';
 TABLE eurooptItemList (EurooptItemList);
 
-eurooptItemGroup = DATA EurooptItemGroup(EurooptItemList);
+eurooptItemGroup = DATA EurooptItemGroup(EurooptItemList) NONULL DELETE;
 url 'URL' = DATA STRING[255] (EurooptItemList) INDEXED;
 mainPage(EurooptItemList l) = mainPage(eurooptItemGroup(l));
 dataIn 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItemList);
@@ -88,6 +88,7 @@ synchronizeItemsJSON 'Синхронизировать списки товаро
     FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlItem(ii))](STRING[255] url) AND EurooptItem ei = eurooptItem(url) DO {
         eurooptItemList(ei) <- eurooptItemList(urlList(i));
     }
+    eurooptItemList(EurooptItem ei) <- NULL WHERE mainPage(eurooptItemGroup(eurooptItemList(ei))) == mainPage() AND NOT (GROUP SUM 1 IF lower(urlItem(INTEGER ii)) == url(ei));
     APPLY;
 }
 
@@ -167,6 +168,31 @@ importImageAndPrice 'Импортировать изображения и цен
 
 itemUrlEuroopt = DATA LOCAL STRING ();
 getItemUrlEuroopt 'Получить ссылку по штрихкоду' (STRING barcode) INTERNAL  'lsfusion.erp.region.by.euroopt.GetItemUrlEurooptAction';
+
+eurooptStock = DATA Stock();
+nameEurooptStock 'Эталонный склад для поиска ссылок на товары'() = name(eurooptStock());
+
+getItemsUrls 'Найти товары по штрихкодам'() {
+    IF eurooptStock() THEN NEWSESSION {
+    
+        mainPage() <- MainPage.edostavka;
+        
+        LOCAL countOld = INTEGER ();
+        countOld() <- (GROUP SUM 1 IF idBarcode(EurooptItem ei) == id(Barcode b) AND currentBalance(sku(b), eurooptStock()));
+        
+        FOR id(Barcode b) AND currentBalance(sku(b), eurooptStock()) AND NOT (GROUP SUM 1 IF idBarcode(EurooptItem ei) == id(b)) DO {
+            getItemUrlEuroopt(id(b));
+            logToFile('import', (CONCAT ' ', 'getItemUrlEuroopt', id(b), itemUrlEuroopt()));
+            IF itemUrlEuroopt() THEN {
+                noBarcode(EurooptItem ei) <- NULL;
+                idBarcode(EurooptItem ei) <- id(b) WHERE url(ei) == itemUrlEuroopt();
+            }
+        }
+        
+        MESSAGE CONCAT ', ', 'Было: ' + countOld(),  'Новых: ' + (GROUP SUM 1 IF CHANGED(idBarcode(EurooptItem ei))) NOWAIT;
+        APPLY;
+    }
+}
 
 importPricesJSON 'Импортировать цены товаров' () {
     
@@ -343,13 +369,18 @@ resetSelection() {
 EXTEND FORM integrationData
     OBJECTS mp = MainPage ON CHANGE resetSelection() PANEL, eig = EurooptItemGroup, eil = EurooptItemList, ei = EurooptItem
     PROPERTIES(mp) staticCaption SELECTOR
-    PROPERTIES() SHOWIF (mp == MainPage.edostavka) synchronizeItemsEdostavka, importItemsInfoEdostavka, importImageAndPriceEdostavka, exportEdostavka, importEdostavka
+    PROPERTIES() SHOWIF (mp == MainPage.edostavka) synchronizeItemsEdostavka, importItemsInfoEdostavka, importImageAndPriceEdostavka, exportEdostavka, importEdostavka, nameEurooptStock, getItemsUrls
     PROPERTIES() SHOWIF (mp == MainPage.gipermall) synchronizeItemsGipermall, importItemsInfoGipermall, importImageAndPriceGipermall, exportGipermall, importGipermall                
     PROPERTIES() onlyBarcode, importImages, importPrices, useTor, ignoreItemGroups
     PROPERTIES(eig) READONLY in CHANGEABLE, title, url
     PROPERTIES(eil) in, url READONLY
     PROPERTIES(ei) READONLY in CHANGEABLE, url, noBarcode, idBarcode, name
-    FILTERS eurooptItemGroup(eil) == eig, eurooptItemList(ei) == eil, mainPage(eig) == mp          
+    FILTERS mainPage(eig) == mp, mainPage(eurooptItemGroup(eil)) == mp
+    FILTERGROUP group
+        FILTER 'По группе' eurooptItemGroup(eil) == eig DEFAULT     
+    FILTERGROUP list
+        FILTER 'По списку' eurooptItemList(ei) == eil DEFAULT        
+        FILTER 'По главноей странице' mainPage(eurooptItemList(ei)) == mp       
 ;
 DESIGN integrationData {
     pane {
@@ -367,6 +398,8 @@ DESIGN integrationData {
                 MOVE PROPERTY(onlyBarcode());      
                 MOVE PROPERTY(importItemsInfoEdostavka());                             
                 MOVE PROPERTY(importItemsInfoGipermall());                             
+                MOVE PROPERTY(nameEurooptStock());                             
+                MOVE PROPERTY(getItemsUrls());                             
             }
             NEW prices {
                 caption = 'Импорт изображений и цен';
@@ -381,9 +414,16 @@ DESIGN integrationData {
                 MOVE PROPERTY(importEdostavka());
                 MOVE PROPERTY(importGipermall());
             }
-            MOVE BOX(eig);
-            MOVE BOX(eil);
-            MOVE BOX(ei);
+            NEW eItems {
+                type = SPLITH;
+                fill = 1;
+                NEW left {
+                    type = SPLITV;
+                    MOVE BOX(eig);
+                    MOVE BOX(eil);
+                }
+                MOVE BOX(ei);
+            }
         }
     }
 }
