@@ -255,9 +255,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             }
                             deleteBarcodeConnectionStringMap.put(deleteBarcodeKey, oldDeleteBarcodeMap);
 
-                            for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
-                                deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
-                            }
+//                            for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
+//                                deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
+//                            }
                         } else if (lastTransaction) {
                             astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
 
@@ -272,9 +272,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             if (e == null) {
                                 //todo: temp log
                                 astronLogger.info("exportFlags no errors");
-                                for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
-                                    deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
-                                }
+                                //for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
+                                //    deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
+                                //}
                             } else {
                                 //todo: temp log
                                 astronLogger.info("exportFlags error: " + e.getMessage());
@@ -287,6 +287,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 astronLogger.info(String.format("deleting barcode: %s (idItem %s)", deleteBarcode.idBarcode, deleteBarcode.idItem));
                             }
 
+                        }
+
+                        //todo: temp log
+                        astronLogger.info("usedDeleteBarcode at the end");
+                        for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
+                            astronLogger.info(String.format("deleting barcode: %s (idItem %s)", usedDeleteBarcode.idBarcode, usedDeleteBarcode.idItem));
+                            deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
                         }
                     }
 
