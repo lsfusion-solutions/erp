@@ -205,38 +205,38 @@ paymentType(ISTRING s) = OVERRIDE paymentType(chameleonPaymentType(s)), typePaym
 payment (Receipt r, PaymentType t) = GROUP LAST Payment p ORDER p BY receipt(p), paymentType(p);
 
 receiveFromChameleon(GroupCashRegister g) {
-    returnExchange(g) <- NULL;
-    LOCAL type = ISTRING (INTEGER);
-
-    LOCAL id = LONG (INTEGER);
-    LOCAL guid = ISTRING[36] (INTEGER);
-    LOCAL idCashRegister = INTEGER (INTEGER);
-    LOCAL idSession = INTEGER (INTEGER);
-    LOCAL number = INTEGER (INTEGER);
-    LOCAL dateTime = DATETIME (INTEGER);
-    LOCAL idEmployee = INTEGER (INTEGER);
-    
-    LOCAL cash = STRING (INTEGER);
-    LOCAL card = STRING (INTEGER);
-    LOCAL certificate = STRING (INTEGER);
-    
-    LOCAL summ = INTEGER (INTEGER);
-    LOCAL quantity = NUMERIC[10,3] (INTEGER);
-    LOCAL discount = INTEGER (INTEGER);
-    LOCAL idSku = LONG (INTEGER);
-    LOCAL price = INTEGER (INTEGER);
-    LOCAL idTypePayment = INTEGER (INTEGER);
-    LOCAL idBatch = STRING (INTEGER);
-    LOCAL idBarcode = STRING (INTEGER);
-        
-    LOCAL receiptSql = ISTRING();
-    LOCAL receiptSqlDetail = ISTRING();
-    receiptSql() <- CONCAT ' ', 'select id_check,guid::text,id_workplace,id_session,id_fcheck,time_check,id_employee, attrs->\'cash\' as cash, attrs->\'card\' as card, attrs->\'certificate\' as certificate from sales.checks', conditionRecieve(g);
-    receiptSqlDetail() <- CONCAT ' ',
-        'select checks.guid::text,quantity,price,discount,summ,id_goods,id_series,attrs->\'barcode\' as barcode from sales.check_lines',
-        'inner join (' + receiptSql() + ') checks on checks.guid=sales.check_lines.guid::text'
-    ;
     IF isChameleon(g) THEN {
+        returnExchange(g) <- NULL;
+        LOCAL type = ISTRING (INTEGER);
+    
+        LOCAL id = LONG (INTEGER);
+        LOCAL guid = ISTRING[36] (INTEGER);
+        LOCAL idCashRegister = INTEGER (INTEGER);
+        LOCAL idSession = INTEGER (INTEGER);
+        LOCAL number = INTEGER (INTEGER);
+        LOCAL dateTime = DATETIME (INTEGER);
+        LOCAL idEmployee = INTEGER (INTEGER);
+        
+        LOCAL cash = STRING (INTEGER);
+        LOCAL card = STRING (INTEGER);
+        LOCAL certificate = STRING (INTEGER);
+        
+        LOCAL summ = INTEGER (INTEGER);
+        LOCAL quantity = NUMERIC[10,3] (INTEGER);
+        LOCAL discount = INTEGER (INTEGER);
+        LOCAL idSku = LONG (INTEGER);
+        LOCAL price = INTEGER (INTEGER);
+        LOCAL idTypePayment = INTEGER (INTEGER);
+        LOCAL idBatch = STRING (INTEGER);
+        LOCAL idBarcode = STRING (INTEGER);
+            
+        LOCAL receiptSql = ISTRING();
+        LOCAL receiptSqlDetail = ISTRING();
+        receiptSql() <- CONCAT ' ', 'select id_check,guid::text,id_workplace,id_session,id_fcheck,time_check,id_employee, attrs->\'cash\' as cash, attrs->\'card\' as card, attrs->\'certificate\' as certificate from sales.checks', conditionRecieve(g);
+        receiptSqlDetail() <- CONCAT ' ',
+            'select checks.guid::text,quantity,price,discount,summ,id_goods,id_series,attrs->\'barcode\' as barcode from sales.check_lines',
+            'inner join (' + receiptSql() + ') checks on checks.guid=sales.check_lines.guid::text'
+        ;
         exchangeChameleon(g, 'select id_session,id_workplace,min(time_check) as time_report from (' + receiptSql() + ') as checks group by id_session,id_workplace');
         IF NOT returnExchange(g) THEN NEWSESSION NESTED LOCAL {
             IMPORT FROM exportFile() TO idSession = id_session, idCashRegister = id_workplace, dateTime = time_report;
