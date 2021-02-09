@@ -153,7 +153,7 @@ public class CL7000Handler extends CL5000JHandler {
             final Future<byte[]> future = Executors.newSingleThreadExecutor().submit((Callable) () -> {
                 byte[] buffer = new byte[1024];
                 socket.inputStream.read(buffer);
-                return ArrayUtils.subarray(buffer, ArrayUtils.lastIndexOf(buffer, (byte) ':') + 1, buffer.length);
+                return ArrayUtils.subarray(buffer, ArrayUtils.indexOf(buffer, (byte) ':') + 1, buffer.length);
             });
 
             byte[] result;
