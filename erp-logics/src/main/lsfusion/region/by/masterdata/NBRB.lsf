@@ -17,15 +17,20 @@ importNBRBExchangeRateDaysCount 'Кол-во дней' = DATA INTEGER() IN nbrb;
 importNBRBExchangeRateDateFromDateToAction 'Импортировать курсы НБРБ'  INTERNAL  'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateDateFromDateToAction' (Currency) IN nbrb;
 importNBRBExchangeRateLastDaysAction 'Импортировать последние курсы НБРБ'  INTERNAL  'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateLastDaysAction' (Currency) IN nbrb;
 
+skipImportNBRB 'Не импортировать курсы НБРБ' = DATA BOOLEAN (Currency);
+EXTEND FORM currency
+    PROPERTIES(c) skipImportNBRB 
+;
+
 importNBRBExchangeRateDateFromDateTo 'Импортировать курсы НБРБ'()  { 
-    FOR Currency c IS Currency DO {
+    FOR Currency c IS Currency AND NOT skipImportNBRB(c) DO {
         EXEC importNBRBExchangeRateDateFromDateToAction(c);
     }
     EXEC apply();
 } IN nbrb;
 
 importNBRBExchangeRateLastDays 'Импортировать последние курсы НБРБ'()  { 
-    FOR Currency c IS Currency DO {
+    FOR Currency c IS Currency AND NOT skipImportNBRB(c) DO {
         EXEC importNBRBExchangeRateLastDaysAction(c);
     }
     EXEC apply();
