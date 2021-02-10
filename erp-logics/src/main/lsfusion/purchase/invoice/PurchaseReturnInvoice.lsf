@@ -190,8 +190,9 @@ EXTEND FORM options
     PROPERTIES(s) dataBaseInvoiceDetail
 ;
 
-CONSTRAINT  isPosted(UserInvoice i) AND isContract(operation(i)) AND NOT contractSku[Invoice](i) 
-    MESSAGE 'Для накладной (закупка-возврат) обязан быть задан договор';
+CONSTRAINT (SET(isPosted(UserInvoice i)) OR DROPPED(contractSku[Invoice](i)) OR CHANGED(operation(i))) AND 
+           isPosted(i) AND isContract(operation(i)) AND NOT contractSku[Invoice](i) 
+    MESSAGE 'Для накладной (закупка-возврат) обязан быть задан договор';   
     
 CONSTRAINT  isPosted(UserInvoiceDetail d) AND isPrice(operation(d)) AND NOT price(d)
     MESSAGE 'Для строки накладная (закупка-возврат) должна быть задана цена'; 

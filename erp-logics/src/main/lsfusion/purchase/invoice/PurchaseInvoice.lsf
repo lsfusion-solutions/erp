@@ -433,12 +433,13 @@ CONSTRAINT  isPosted(InvoiceDetail d) AND isItem(sku(d)) AND NOT banBarcode(d) A
     date(d) >= dateBanBarcode(customerStock(d)) AND NOT idBarcodeSku(d)
         MESSAGE 'Для строки накладной (закупка) должен быть задан штрихкод';   
                 
-CONSTRAINT  isPosted(UserInvoice i) AND isContract(operation(i)) AND NOT contractSku[Invoice](i) 
+CONSTRAINT (SET(isPosted(UserInvoice i)) OR DROPPED(contractSku[Invoice](i)) OR CHANGED(operation(i))) AND 
+           isPosted(i) AND isContract(operation(i)) AND NOT contractSku[Invoice](i) 
     MESSAGE 'Для накладной (закупка) обязан быть задан договор';   
     
 disableShowBatch(Invoice i) += disableShowBatch(operation(i));    
     
-CONSTRAINT  isPosted(UserInvoiceDetail d) AND isPrice(operation(d)) AND NOT price(d)
+CONSTRAINT isPosted(UserInvoiceDetail d) AND isPrice(operation(d)) AND NOT price(d)
     MESSAGE 'Для строки накладная (закупка) должна быть задана цена'; 
     
 CONSTRAINT isPosted(UserInvoiceDetail d) AND isPurchaseBatch(operation(d)) AND sku(d) AND NOT skipFillBatch(d) AND NOT batch(d) 
