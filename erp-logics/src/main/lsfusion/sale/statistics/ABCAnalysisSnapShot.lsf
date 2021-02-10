@@ -273,7 +273,7 @@ include 'Вкл' (SnapshotABC snapshot, StockGroup stockGroup) =
 
 include 'Вкл' (SnapshotABC snapshot, Stock stock) =
     (OVERRIDE dataInclude(snapshot, stock),
-             include(snapshot, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
+              include(snapshot, stockGroup(stock))) IF isCompany(stock) MATERIALIZED;
 countIncludeStocks (SnapshotABC r)= GROUP SUM 1 IF include(r,Stock st);
 
 deleteIncludeStocks 'Сбросить отмеченные'(SnapshotABC r)  { 
@@ -534,7 +534,7 @@ takeFromTo(SnapshotABC snapshot)   {
     quantitySold (Sku sku, DATE date) <- (GROUP
             SUM quantitySold(sku, Stock st, date) 
             IF include(snapshot, st) AND 
-               (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st)) OR NOT fltLegalEntity(snapshot)) 
+               (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot))) 
             WHERE include(snapshot, sku) AND 
                date >= fromDate(snapshot) AND date <= toDate(snapshot);
     
@@ -545,13 +545,13 @@ takeFromTo(SnapshotABC snapshot)   {
     markupSumSold (Sku sku, snapshot) <-OVERRIDE (GROUP
             SUM markupSumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) 
             IF include(snapshot, st) AND 
-               (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st)) OR NOT fltLegalEntity(snapshot)), 0.0 
+               (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot))), 0.0 
             WHERE include(snapshot, sku);
     
     sumSold (Sku sku, snapshot) <- OVERRIDE (GROUP
             SUM sumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) 
             IF include(snapshot, st) AND 
-            (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st)) OR NOT fltLegalEntity(snapshot)), 0.0 
+            (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot))), 0.0 
             WHERE include(snapshot, sku);
     
     percMarkupSold(Sku sku, snapshot) <- OVERRIDE round2(markupSumSold(sku, snapshot)*100.00 / sumSold(sku, snapshot)), 0.0 WHERE include(snapshot, sku);
@@ -629,7 +629,7 @@ takeFromTo(SnapshotABC snapshot)   {
     averageSold(Sku sku, snapshot) <- round3( (GROUP
         SUM quantitySold (sku, Stock st, fromDate(snapshot), toDate(snapshot))  
         IF include(snapshot, st) AND 
-           (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st)) OR NOT fltLegalEntity(snapshot))
+           (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot)))
         / daysInclBetweenDates(fromDate(snapshot),toDate(snapshot))) WHERE include(snapshot, sku);
 
     //  Дисперсия однодневных продаж 
