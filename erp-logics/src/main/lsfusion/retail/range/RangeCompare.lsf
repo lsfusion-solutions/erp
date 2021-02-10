@@ -11,7 +11,9 @@ EXTEND FORM range
 ;
 
 levels(RangeRev v, Sku s) = OVERRIDE name(level(v,s)),'';
-changed(Sku s) = (GROUP SUM 1 IF [GROUP SUM 1 IF inSession(RangeRev v) BY levels(v, s)](ISTRING[10] l)) > 1;
+countInRanges 'Сколько раз товар встречается в версиях' = GROUP SUM 1 IF inSession(RangeRev v) AND level(v, Sku s) BY s;
+countInLevels 'Сколько разных уровней (кроме пустых)' (Sku s) = (GROUP SUM 1 IF [GROUP SUM 1 IF inSession(RangeRev v) BY level(v, s)](RangeLevel l));
+changed 'Больше 1 разновидности уровня или есть версии без этого товара' (Sku s) = countInLevels(s) > 1 OR countInRanges(s) != (GROUP SUM 1 IF inSession(RangeRev v));
 nameSupplier 'Поставщик' (Sku s, Stock st)=  
     nameCompanyA(defaultPriceListType(), s, st, (GROUP MAX dateTime(RangeRev v) IF inSession(v)));
 
