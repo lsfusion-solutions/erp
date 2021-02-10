@@ -316,27 +316,30 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     EDIT RangeRev OBJECT v
 ;
 
-EXTEND FORM rangeRev
-    
-    EVENTS ON INIT {
-        IF dateTimePrevRangeRev(v) THEN
-            SEEK rangeRev.dFrom = datePrevRangeRev(v); 
-    }
-;
+dataDefaultDaysSoldInterval = DATA INTEGER ();
+defaultDaysSoldInterval 'Число дней реализации для ассортиментных матриц' = OVERRIDE dataDefaultDaysSoldInterval(), 30;
 
 defaultDepartmentStore = DATA DepartmentStore();
 nameDefaultDepartmentStore 'Отдел магазина для ассортиментных матриц по умолчанию' = name(defaultDepartmentStore());
+
 EXTEND FORM options
-    PROPERTIES() nameDefaultDepartmentStore
+    PROPERTIES() nameDefaultDepartmentStore, defaultDaysSoldInterval
 ;
 DESIGN options {
     pane {
         NEW range {
             caption = 'Ассортиментные матрицы';
             MOVE PROPERTY(nameDefaultDepartmentStore());
+            MOVE PROPERTY(defaultDaysSoldInterval());
         }
     }
 }
+
+EXTEND FORM rangeRev
+    EVENTS ON INIT {
+            SEEK rangeRev.dFrom = MAX datePrevRangeRev(v), sum(currentDate(), -defaultDaysSoldInterval()); 
+    }
+;
 
 seekDefaultDepartmentStore  { SEEK rangeRev.d = defaultDepartmentStore(); }
 EXTEND FORM rangeRev
