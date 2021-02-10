@@ -34,11 +34,12 @@ public class ImportNBRBExchangeRateLastDaysAction extends ImportNBRBExchangeRate
 
             String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, currencyObject);
             Integer days = (Integer) findProperty("importNBRBExchangeRateDaysCount[]").read(context);
+            Boolean useHttp = (Boolean) findProperty("useHTTP[]").read(context);
             if(days != null && days > 0) {
                 if (shortNameCurrency != null) {
                     LocalDate dateFrom = LocalDate.now().minusDays(days);
                     LocalDate dateTo = LocalDate.now().plusDays(1);
-                    importExchanges(dateFrom, dateTo, shortNameCurrency, context);
+                    importExchanges(dateFrom, dateTo, shortNameCurrency, useHttp, context);
 
                 }
             } else {

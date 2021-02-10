@@ -40,10 +40,10 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected void importExchanges(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, SQLHandledException, JSONException {
+    protected void importExchanges(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency, Boolean useHttp, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, SQLHandledException, JSONException {
 
 
-        List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, shortNameCurrency);
+        List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, shortNameCurrency, useHttp);
 
         ImportField typeExchangeBYRField = new ImportField(findProperty("name[TypeExchange]"));
         ImportField typeExchangeForeignField = new ImportField(findProperty("name[TypeExchange]"));
@@ -90,11 +90,12 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
         //session.apply(LM.getBL());
     }
 
-    private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency) throws IOException, JSONException {
+    private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency, Boolean useHttp) throws IOException, JSONException {
 
         List<Exchange> exchangesList = new ArrayList<>();
 
-        JSONArray document = readJsonFromUrl("https://www.nbrb.by/API/ExRates/Currencies");
+        String url = useHttp != null && useHttp ? "http://nbrb.by" :"https://www.nbrb.by";
+        JSONArray document = readJsonFromUrl(url + "/API/ExRates/Currencies");
         for (int i = 0; i < document.length(); i++) {
             JSONObject jsonObject = document.getJSONObject(i);
 
@@ -104,7 +105,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
                 String id = String.valueOf(jsonObject.getInt("Cur_ID"));
                 BigDecimal scale = jsonObject.getBigDecimal("Cur_Scale");
 
-                JSONArray exchangeDocument = readJsonFromUrl("https://www.nbrb.by/API/ExRates/Rates/Dynamics/" + id
+                JSONArray exchangeDocument = readJsonFromUrl(url + "/API/ExRates/Rates/Dynamics/" + id
                         + "?startDate=" + dateFrom.format(DateTimeFormatter.ofPattern("MM/dd/yyyy"))
                         + "&endDate=" + dateTo.format(DateTimeFormatter.ofPattern("MM/dd/yyyy")));
 
