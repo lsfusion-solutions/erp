@@ -146,6 +146,10 @@ META defineDocumentIncoming(doc, prop, container, legal, partner)
     import 'Загрузить КМ' (###doc i) {
         FOR releaseNumber(i, LotType t) DO {
             getIncomingDocument(legal(i), releaseNumber(i, t));
+
+            IF (GROUP CONCAT uit_code(INTEGER j) IF NOT sku(j), '\n' ORDER j) THEN
+                MESSAGE 'Не найдены sku для марок \n' + (GROUP CONCAT uit_code(INTEGER j) IF NOT sku(j), '\n' ORDER j);
+
             FOR [GROUP SUM 1 BY sku(INTEGER j)](Sku sku) AND NOT doc##Detail(sku, i) NEW d = ###doc##Detail DO {
                 doc(d) <- i;
                 sku(d) <- sku;
