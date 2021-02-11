@@ -538,12 +538,6 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    boolean mobilePrint = false;
-                                    if (params.length > 1)
-                                        mobilePrint = true;
-
-                                    logger.info("GetAllBase mobilePrint: ");
-
                                     fileData = readBase(userInfo);
                                     if (fileData == null) {
                                         errorCode = GET_ALL_BASE_ERROR;

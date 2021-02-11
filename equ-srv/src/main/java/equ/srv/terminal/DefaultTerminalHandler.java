@@ -192,7 +192,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 Class.forName("org.sqlite.JDBC");
                 try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
 
-                    createGoodsTable(connection, imagesInReadBase);
+                    createGoodsTable(connection);
                     updateGoodsTable(connection, barcodeList, orderList, imagesInReadBase);
 
                     createOrderTable(connection);
@@ -447,7 +447,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         }
     }
 
-    private void createGoodsTable(Connection connection, boolean imagesInReadBase) throws SQLException {
+    private void createGoodsTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE goods " +
                 "(barcode TEXT PRIMARY KEY," +
@@ -465,8 +465,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " color TEXT," +
                 " ticket_data TEXT," +
                 " unit TEXT," +
-                " flags INTEGER" +
-                (imagesInReadBase ? ", images TEXT" : "") + ")";
+                " flags INTEGER);";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -476,10 +475,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = imagesInReadBase ?
-                        "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?);" :
-                        "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?);"
-                        ;
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
@@ -493,15 +489,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(7, formatValue(barcode.fld3)); //fld3
                         statement.setObject(8, formatValue(barcode.fld4)); //fld4
                         statement.setObject(9, formatValue(barcode.fld5)); //fld5
-                        statement.setObject(10, formatValue(barcode.isWeight)); //weight
-                        statement.setObject(11, formatValue(barcode.mainBarcode)); //main_barcode
-                        statement.setObject(12, formatValue(barcode.color)); //color
-                        statement.setObject(13, formatValue(barcode.extInfo)); //ticket_data
-                        statement.setObject(14, formatValue(barcode.unit)); //unit
-                        statement.setObject(15, barcode.needManufacturingDate ? 1 : 0); //flags
-                        if(imagesInReadBase && barcode.image != null) {
-                            statement.setObject(16, barcode.idBarcode + ".jpg"); //image
-                        }
+                        statement.setObject(10, (imagesInReadBase && barcode.image != null) ? barcode.idBarcode + ".jpg" : ""); //image
+                        statement.setObject(11, formatValue(barcode.isWeight)); //weight
+                        statement.setObject(12, formatValue(barcode.mainBarcode)); //main_barcode
+                        statement.setObject(13, formatValue(barcode.color)); //color
+                        statement.setObject(14, formatValue(barcode.extInfo)); //ticket_data
+                        statement.setObject(15, formatValue(barcode.unit)); //unit
+                        statement.setObject(16, barcode.needManufacturingDate ? 1 : 0); //flags
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
@@ -520,10 +514,14 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     statement.setObject(6, formatValue(order.manufacturer)); //manufacturer, fld2
                                     statement.setObject(7, ""); //fld3
                                     statement.setObject(8, ""); //fld4
-                                    statement.setObject(9, formatValue(order.weight)); //weight
-                                    statement.setObject(10, formatValue(order.barcode)); //main_barcode
-                                    statement.setObject(11, ""); //color
-                                    statement.setObject(12, ""); //ticket_data
+                                    statement.setObject(9, ""); //fld5
+                                    statement.setObject(10, imagesInReadBase ? "" : ""); //image
+                                    statement.setObject(11, formatValue(order.weight)); //weight
+                                    statement.setObject(12, formatValue(order.barcode)); //main_barcode
+                                    statement.setObject(13, ""); //color
+                                    statement.setObject(14, ""); //ticket_data
+                                    statement.setObject(15, ""); //unit
+                                    statement.setObject(16, 0); //flags
                                     statement.addBatch();
                                 }
                             }
@@ -537,10 +535,14 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 statement.setObject(6, formatValue(order.manufacturer)); //manufacturer, fld2
                                 statement.setObject(7, ""); //fld3
                                 statement.setObject(8, ""); //fld4
-                                statement.setObject(9, formatValue(order.weight)); //weight
-                                statement.setObject(10, formatValue(order.barcode)); //main_barcode
-                                statement.setObject(11, ""); //color
-                                statement.setObject(12, ""); //ticket_data
+                                statement.setObject(9, ""); //fld5
+                                statement.setObject(10, imagesInReadBase ? "" : ""); //image
+                                statement.setObject(11, formatValue(order.weight)); //weight
+                                statement.setObject(12, formatValue(order.barcode)); //main_barcode
+                                statement.setObject(13, ""); //color
+                                statement.setObject(14, ""); //ticket_data
+                                statement.setObject(15, ""); //unit
+                                statement.setObject(16, 0); //flags
                                 statement.addBatch();
                             }
                         }
