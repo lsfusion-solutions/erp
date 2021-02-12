@@ -21,8 +21,11 @@ stock (ZReportEMoney ledger) += departmentStore(zReport(ledger));
 description (ZReportEMoney ledger) += description(ledger);
 number(ZReportEMoney ledger) += number(zReport(ledger));
 
+sumEMoneyNotSku (ZReport z) = GROUP SUM negMin(sumEMoneyPayment(ReceiptDetail d), sum(d)) IF NOT sku(d) BY zReport(d) MATERIALIZED;
+sumEMoneySku 'Сумма наличных по товарам Z-отчета' (ZReport z) = sumEMoney(z) - OVERRIDE sumEMoneyNotSku(z), 0.0; 
+
 type(ZReportEMoney l) += STRING[50]('Продажа (Оплати)') IF l IS ZReportEMoney;
-sumItem (ZReportEMoney ledger) += sumEMoney(zReport(ledger));
+sumItem (ZReportEMoney ledger) += sumEMoneySku(zReport(ledger));
 sumContainer (ZReportEMoney ledger) += 0.0 IF ledger IS ZReportEMoney;
 skip (ZReportEMoney ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(zReport(ledger)));
 close(ZReportEMoney ledger) + {  isClosed(ZReport z) <- TRUE WHERE zReport(ledger) == z; }
