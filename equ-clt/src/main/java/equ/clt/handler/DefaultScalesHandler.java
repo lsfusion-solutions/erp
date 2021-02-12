@@ -39,6 +39,8 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
                 return item.passScalesItem && item.splitItem;
             case 1:
                 return item.passScalesItem && (item.shortNameUOM == null || !item.shortNameUOM.toUpperCase().startsWith("ШТ"));
+            case 2:
+                return item.splitItem || (item.shortNameUOM == null || !item.shortNameUOM.toUpperCase().startsWith("ШТ"));
         }
     }
 
