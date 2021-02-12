@@ -221,6 +221,8 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     userShipmentDetail(shipment, sku, dimension) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail), shipmentDimension(detail);
     userShipmentDetail(shipment, sku) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail);
 
+    afterInputBarcodeUserShipmentDetail ABSTRACT LIST (UserShipmentDetail, STRING[100]);
+
     addDetailBarcodeUserShipmentDetail(UserShipment shipment, STRING[15] barcode, ShipmentDimension dimension)  { 
         LOCAL dialogBarcodeSku = Sku ();
         dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
@@ -237,12 +239,14 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                     quantity(detail) (+) (amount(barcode(barcode, date(shipment))) IF detail IS UserShipmentDetail)
                     WHERE detail == dialogBarcodeDetail();
                 seek(dialogBarcodeDetail());
+                afterInputBarcodeUserShipmentDetail(dialogBarcodeDetail(), barcode);
             } ELSE {
                 NEW w = UserShipmentDetail {
                     userShipment(w) <- shipment;
                     sku(w) <- dialogBarcodeSku();
                     quantity(w) <- amount(barcode(barcode, date(shipment)));
                     seek(w);
+                    afterInputBarcodeUserShipmentDetail(w, barcode);
                 }
             }
             setAddedUser(dialogBarcodeSku());
@@ -259,6 +263,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                         sku(w) <- s;
                         quantity(w) <- amount(br);
                         seek(w);
+                        afterInputBarcodeUserShipmentDetail(w, barcode);
                     }
                 }
             }
@@ -270,11 +275,20 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         }
     }
 
+    consumedBarcodeUserShipmentDetail = DATA LOCAL BOOLEAN ();
+    beforeInputBarcodeUserShipmentDetail ABSTRACT LIST (UserShipment, STRING[100]);
     changeAddDetailInputBarcodeDimensionUserShipmentDetail(UserShipment userShipment)  { 
-        INPUT s = STRING[15] DO
-            addDetailBarcodeUserShipmentDetail(userShipment, processedBarcode(s), shipmentDimension(userShipment));
+        INPUT s = STRING[100] DO {
+            weightQuantity() <- NULL;
+            IF length(s) > 11 AND left(s, 2) == weightPrefix() THEN {
+                weightQuantity() <- NUMERIC[7,0](substr(s, 8, 5)) / 1000.0;
+            }
+            beforeInputBarcodeUserShipmentDetail(userShipment, s);
+            IF NOT consumedBarcodeUserShipmentDetail() THEN
+                addDetailBarcodeUserShipmentDetail(userShipment, processedBarcode(s), shipmentDimension(userShipment));
+        }
     };
-    addDetailInputBarcodeDimensionUserShipmentDetail 'Ввод штрихкода :' (userShipment) = DATA LOCAL STRING[15] (UserShipment) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
+    addDetailInputBarcodeDimensionUserShipmentDetail 'Ввод штрихкода :' (userShipment) = DATA LOCAL STRING[100] (UserShipment) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE { changeAddDetailInputBarcodeDimensionUserShipmentDetail(userShipment); }
 
 // --------------------------- Формы --------------------------------- //
