@@ -170,7 +170,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         Map<String, CashRegisterItemInfo> deleteBarcodeMap = new HashMap<>();
                         for (DeleteBarcodeInfo deleteBarcode : deleteBarcodeList) {
-                            if (directory.equals(deleteBarcode.directoryGroupMachinery) && deleteBarcode.nppGroupMachinery.equals(transaction.nppGroupMachinery)) {
+                            if (directory.equals(deleteBarcode.directoryGroupMachinery)) {
                                 for (CashRegisterItemInfo item : deleteBarcode.barcodeList) {
                                     //todo: temp log
                                     astronLogger.info(String.format("Transaction %s, deleteBarcode item %s, barcode %s", transaction.id, item.idItem, item.idBarcode));
