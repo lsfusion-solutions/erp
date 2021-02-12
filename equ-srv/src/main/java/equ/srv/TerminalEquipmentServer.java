@@ -8,6 +8,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.RawFileData;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -45,7 +46,7 @@ public class TerminalEquipmentServer {
         terminalHandlerLM = BL.getModule("TerminalHandler");
     }
 
-    public static List<ServerTerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
+    public static List<ServerTerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, UserInfo userInfo, boolean imagesInReadBase) throws SQLException {
         Map<String, ServerTerminalOrder> terminalOrderMap = new HashMap<>();
 
         if (terminalOrderLM != null) {
@@ -74,6 +75,10 @@ public class TerminalEquipmentServer {
                         "extraBarcodes[TerminalOrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
+                }
+
+                if(imagesInReadBase) {
+                    orderQuery.addProperty("image", terminalOrderLM.findProperty("image[TerminalOrderDetail]").getExpr(orderDetailExpr));
                 }
 
                 orderQuery.and(terminalOrderLM.findProperty("filter[TerminalOrder, Stock]").getExpr(orderExpr, customerStockObject.getExpr()).getWhere());
@@ -113,6 +118,7 @@ public class TerminalEquipmentServer {
                     String vop = (String) entry.get("vop");
                     String extraBarcodes = (String) entry.get("extraBarcodes");
                     List<String> extraBarcodeList = extraBarcodes != null ? Arrays.asList(extraBarcodes.split(",")) : new ArrayList<>();
+                    RawFileData image = (RawFileData) entry.get("image");
 
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
@@ -121,7 +127,8 @@ public class TerminalEquipmentServer {
                     else
                         terminalOrderMap.put(key, new ServerTerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
-                                headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop, extraBarcodeList));
+                                headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
+                                extraBarcodeList, image));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);

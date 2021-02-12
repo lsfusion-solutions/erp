@@ -181,7 +181,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase);
 
-                List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject, userInfo);
+                List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject, userInfo, imagesInReadBase);
 
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
@@ -226,6 +226,15 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     }
                                 }
                             }
+
+                            for (ServerTerminalOrder order : orderList) {
+                                if (order.image != null) {
+                                    try (InputStream is = order.image.getInputStream()) {
+                                        writeInputStreamToZip(is, zos, "images/" + order.barcode + ".jpg");
+                                    }
+                                }
+                            }
+
                         }
                         return new RawFileData(zipFile);
                     } finally {
@@ -489,7 +498,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(7, formatValue(barcode.fld3)); //fld3
                         statement.setObject(8, formatValue(barcode.fld4)); //fld4
                         statement.setObject(9, formatValue(barcode.fld5)); //fld5
-                        statement.setObject(10, (imagesInReadBase && barcode.image != null) ? barcode.idBarcode + ".jpg" : ""); //image
+                        statement.setObject(10, imagesInReadBase && barcode.image != null ? (barcode.idBarcode + ".jpg") : ""); //image
                         statement.setObject(11, formatValue(barcode.isWeight)); //weight
                         statement.setObject(12, formatValue(barcode.mainBarcode)); //main_barcode
                         statement.setObject(13, formatValue(barcode.color)); //color
@@ -515,7 +524,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     statement.setObject(7, ""); //fld3
                                     statement.setObject(8, ""); //fld4
                                     statement.setObject(9, ""); //fld5
-                                    statement.setObject(10, imagesInReadBase ? "" : ""); //image
+                                    statement.setObject(10, imagesInReadBase && order.image != null ? (order.barcode + ".jpg") : ""); //image
                                     statement.setObject(11, formatValue(order.weight)); //weight
                                     statement.setObject(12, formatValue(order.barcode)); //main_barcode
                                     statement.setObject(13, ""); //color
@@ -536,7 +545,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 statement.setObject(7, ""); //fld3
                                 statement.setObject(8, ""); //fld4
                                 statement.setObject(9, ""); //fld5
-                                statement.setObject(10, imagesInReadBase ? "" : ""); //image
+                                statement.setObject(10, imagesInReadBase && order.image != null ? (order.barcode + ".jpg") : ""); //image
                                 statement.setObject(11, formatValue(order.weight)); //weight
                                 statement.setObject(12, formatValue(order.barcode)); //main_barcode
                                 statement.setObject(13, ""); //color
