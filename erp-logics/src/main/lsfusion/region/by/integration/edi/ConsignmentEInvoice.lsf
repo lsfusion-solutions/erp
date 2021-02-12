@@ -48,6 +48,13 @@ CONSTRAINT DROPPED (Invoice i IS Invoice) AND exportedSupplier(eInvoice(i))
 
 numberEInvoice 'Номер ЭТТН'(Invoice i) = deliveryNoteNumber(eInvoice(i));
 isEInvoice 'ЭТТН'  (Invoice i) = TRUE IF eInvoice(i);
+
+isTestEInvoice 'Тестовая ЭТТН' = DATA BOOLEAN (Invoice);
+
+WHEN LOCAL CHANGED(isTestEInvoice(Invoice i)) AND isEInvoice(i) DO {
+    isTestDocument(eInvoice(i)) <- isTestEInvoice(i);
+}
+
 signAndSendSupplierEDI 'Подписать и отправить (поставщик)'(Invoice i)  { 
     NEWSESSION {
         in(EInvoice e) <- e = eInvoice(i);
@@ -144,6 +151,7 @@ createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  {
             contractId(ei) <- seriesNumberContractSku(invoice);
             contractDate(ei) <- dateFromContractSku(invoice);
             currency(ei) <- shortNameCurrency(invoice);
+            isTestDocument(ei) <- isTestEInvoice(invoice);
             
             FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                 eInvoice(ed) <- ei;
@@ -186,6 +194,7 @@ createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice)  {
             contractId(ei) <- seriesNumberContractSku(invoice);
             contractDate(ei) <- dateFromContractSku(invoice);
             currency(ei) <- shortNameCurrency(invoice);
+            isTestDocument(ei) <- isTestEInvoice(invoice);
             
             FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                 eInvoice(ed) <- ei;
