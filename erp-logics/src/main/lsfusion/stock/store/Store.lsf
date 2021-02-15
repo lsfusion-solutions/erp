@@ -74,6 +74,7 @@ FORM chainStoreses 'Торговые сети'
     PROPERTIES(n) NEWSESSION NEW, EDIT, DELETE
     LIST ChainStores OBJECT n
 ;
+
 // -------------------------------------- Магазин ------------------------------- //
 
 CLASS Store 'Магазин' : StockGroup, TaxUnit, POI;
@@ -146,8 +147,6 @@ nameChainStores 'Торговая сеть' (Store store) = name(chainStores(sto
 
 in (ChainStores chainStores, Store store) = chainStores(store) == chainStores;
 
-parent (Store store) += storeType(store);
-
 taxUnitGroup(Store store) += legalEntity(store);
 description(Store store) += CONCAT ' ', name(store), address(store);
 
@@ -159,8 +158,8 @@ EXTEND FORM tax
 in (ChainStores chainStores, StoreType storeType, Store store) =
     (storeType(store) == storeType AND chainStores IS ChainStores) OR
     (chainStores(store) == chainStores AND NOT storeType) OR
-    (store IS Store AND NOT storeType AND NOT chainStores);
-    
+    (store IS Store AND NOT storeType AND NOT chainStores);   
+        
 // Неактивный
 inactive 'Неактивный' = DATA BOOLEAN (Store);
 active 'Активный' (Store s) = s IS Store AND NOT inactive(s);
@@ -261,6 +260,62 @@ in 'Сотрудник магазина' (store, Employee employee) = GROUP SUM 
     
 CONSTRAINT chairman(Store store) AND NOT in(store, chairman(store))
     CHECKED BY chairman[Store] MESSAGE 'Работник должен быть сотрудником магазина';
+
+//parent (Store store) += storeType(store);    включить при отключении StoreGroup
+// ---------------------------------------------------------- Подгруппы магазинов ---------------------------------------------------- //
+CLASS ABSTRACT StoreGroup 'Группа магазина' : StockGroup;
+
+@defineExternalizableAbstract(storeGroup, STRING[100]);
+
+id[StockGroup](StoreGroup storeGroup) += id(storeGroup);
+
+name 'Наименование' = ABSTRACT ISTRING[100](StoreGroup) CHARWIDTH 20;
+name[StockGroup](StoreGroup storeGroup) += name(storeGroup) IF storeGroup IS StoreGroup;
+
+// Неактивный
+inactive 'Неактивный' = ABSTRACT BOOLEAN (StoreGroup);
+active 'Активный' (StoreGroup storeGroup) = storeGroup IS StoreGroup AND NOT inactive(storeGroup);
+
+storeType = ABSTRACT StoreType (StoreGroup);
+nameStoreType 'Формат' (StoreGroup storeGroup) = name(storeType(storeGroup)) IN base;
+
+chainStores 'Торговая сеть' (StoreGroup storeGroup) = chainStores(storeType(storeGroup));
+nameChainStores 'Торговая сеть' (StoreGroup storeGroup) = name(chainStores(storeGroup)) IN base;
+
+in(StoreType storeType, StoreGroup storeGroup) = storeType(storeGroup) == storeType;
+
+parent (StoreGroup storeGroup) += storeType(storeGroup);
+
+FORM storeGroups 'Группы магазинов'
+    OBJECTS sbg=StoreGroup
+    PROPERTIES(sbg) NEWSESSION nameChainStores READONLY, nameStoreType READONLY, name READONLY, DELETE 
+    PROPERTIES(sbg) NEWSESSION NEW, EDIT
+    ORDERS name(sbg)
+    LIST StoreGroup OBJECT sbg
+;
+
+DESIGN storeGroups { BOX { size = (1000, 400); } }
+
+storeGroup = ABSTRACT StoreGroup (Store);
+
+parent (Store store) += OVERRIDE storeGroup(store), storeType(store);
+
+in (ChainStores chainStores, StoreType storeType, StoreGroup storeGroup, Store store) =
+    (storeGroup(store) == storeGroup AND storeType IS StoreType AND chainStores IS ChainStores) OR   
+    (storeType(store) == storeType AND chainStores IS ChainStores AND NOT storeGroup) OR
+    (chainStores(store) == chainStores AND NOT storeType AND NOT storeGroup) OR
+    (store IS Store AND NOT storeType AND NOT chainStores AND NOT storeGroup);
+
+storeGroup(DepartmentStore departmentStore) = storeGroup(store(departmentStore)) MATERIALIZED INDEXED;
+nameStoreGroup 'Группа' (DepartmentStore departmentStore) = name(storeGroup(departmentStore));
+
+//фильтр для отделов
+in (ChainStores chainStores, StoreType storeType, StoreGroup storeGroup, Store store, DepartmentStore department) =
+    (store(department) == store AND storeType IS StoreType AND chainStores IS ChainStores) OR  //тут специально нет storeGroup IS StoreGroup потому что не увсех может использоваться 
+    (storeGroup(department) == storeGroup AND chainStores IS ChainStores AND storeType IS StoreType AND NOT store) OR
+    (storeType(department) == storeType AND chainStores IS ChainStores AND NOT store AND NOT storeGroup) OR
+    (chainStores(department) == chainStores AND NOT store AND NOT storeType) OR
+    (department IS DepartmentStore AND NOT store AND NOT storeType AND NOT chainStores);
 
 // -------------------------------------- Формы отдела магазинов ------------------------------------------ //
 
@@ -453,11 +508,13 @@ DESIGN store {
 // -------------------------------------- Формы магазинов ------------------------------------------ //
 
 FORM stores 'Магазины'
-    TREE treeStore a=BPSTRING[3], t=ChainStores, st=StoreType
-    PROPERTIES READONLY VALUE(a), name(t), name(st)
+    TREE treeStore a=BPSTRING[3], t=ChainStores, st=StoreType, stg=StoreGroup 
+    PROPERTIES READONLY VALUE(a), name(t), name(st), name(stg)
 
     FILTERS stringEqualsAll(a)
     FILTERS in (t, st)
+    FILTERS in (st, stg)
+    
     FILTERGROUP active
         FILTER 'Активные' active(st) DEFAULT
 
@@ -466,7 +523,7 @@ FORM stores 'Магазины'
     OBJECTS s=Store
     PROPERTIES(s) READONLYIF isReadonly() name, id SHOWIF showIDs(), address, email, phone, nameStoreType, nameLegalEntity, nameRegion, orderNumber 
     PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE 
-    FILTERS in(t, st, s)
+    FILTERS in(t, st, stg, s)
     FILTERGROUP group1
         FILTER 'Активные' active(s) 'F10' DEFAULT
 
