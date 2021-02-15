@@ -62,10 +62,6 @@ calculatePriceLimitAlcoholRepricing 'По мин. ценам алкоголя' (
     } ELSE {
         alcoholLimitPrice (Sku sku) <- alcoholLimitPrice(d, sku, dt) IF currentBalance(sku, d) > 0.0;
     }
-//    SHOW test OBJECTS dt=dt, d=d;
-//    FOR alcoholLimitPrice(Sku sku) AND alcoholLimitPrice(sku) >= prevRetailPricingPriceA(sku, d, dt) DO {
-//        alcoholLimitPrice(sku) <- NULL;
-//    }
     alcoholLimitPrice(Sku sku) <- NULL WHERE alcoholLimitPrice(sku) <= prevRetailPricingPriceA(sku, d, dt);
 }
 
@@ -130,17 +126,32 @@ createLimitAlcoholRepricing 'Создать переоценку по мин. ц
     }   
 }
 
+createLimitAlcoholRepricingMulti 'Создать переоценку по мин. ценам алкоголя (несколько магазинов)' () {
+    DIALOG createLimitAlcoholRepricing OBJECTS dt INPUT, d INPUT, o INPUT DO {
+        LOCAL NESTED countRepricings = INTEGER();
+        countRepricings() <- 0;
+        FOR in[Stock](DepartmentStore department) DO NEWSESSION {
+            calculatePriceLimitAlcoholRepricing(department, currentDateTime());
+            createPriceLimitAlcoholRepricing(department, priceLimitAlcoholRepricingOperation(), currentDateTime());
+            APPLY;
+            countRepricings() <- countRepricings() + 1;
+        }
+        MESSAGE 'Создано актов переоценки: ' + countRepricings();
+    }
+} CONFIRM;
+
 EXTEND FORM alcoholLimits
-    PROPERTIES createLimitAlcoholRepricing()
+    PROPERTIES createLimitAlcoholRepricing(), createLimitAlcoholRepricingMulti()
 ;
 
 DESIGN alcoholLimits {
     actionContainer {
         NEW repricing {
             caption = 'Переоценка';
-            type = CONTAINERH;
+            type = CONTAINERV;
             fill = 1;
             MOVE PROPERTY(createLimitAlcoholRepricing());
+            MOVE PROPERTY(createLimitAlcoholRepricingMulti());
         }
     }    
 }   
