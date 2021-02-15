@@ -19,8 +19,6 @@ public class ScalesSettings implements Serializable{
     //латинские занимают 1 байт вместо 2
     private boolean useDescriptionOptimizer;
 
-    private Integer priceMultiplier;
-
     public ScalesSettings() {}
 
     //конструктор оставлен для обратной совместимости
@@ -94,14 +92,6 @@ public class ScalesSettings implements Serializable{
 
     public void setDescriptionLineLength(Integer descriptionLineLength) {
         this.descriptionLineLength = descriptionLineLength;
-    }
-
-    public Integer getPriceMultiplier() {
-        return priceMultiplier;
-    }
-
-    public void setPriceMultiplier(Integer priceMultiplier) {
-        this.priceMultiplier = priceMultiplier;
     }
 
     public boolean isUseDescriptionOptimizer() {

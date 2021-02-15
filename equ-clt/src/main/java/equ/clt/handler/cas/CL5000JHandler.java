@@ -2,13 +2,12 @@ package equ.clt.handler.cas;
 
 import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
-import equ.api.stoplist.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.clt.handler.HandlerUtils;
 import equ.clt.handler.MultithreadScalesHandler;
-import equ.clt.handler.ScalesSettings;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -18,8 +17,12 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.*;
+
+import static lsfusion.base.BaseUtils.nvl;
 
 public class CL5000JHandler extends MultithreadScalesHandler {
 
@@ -47,6 +50,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
 
     class CLSendTransactionTask extends SendTransactionTask {
         private Integer priceMultiplier;
+        private boolean useWeightCodeInBarcodeNumber;
 
         public CLSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
             super(transaction, scales);
@@ -75,6 +79,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
                     processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
 
                     short weightCode = getWeightCode(scales);
+                    short pieceCode = getPieceCode(scales);
 
                     if (localErrors.isEmpty()) {
                         int count = 0;
@@ -85,7 +90,9 @@ public class CL5000JHandler extends MultithreadScalesHandler {
                                 int barcode = getBarcode(item);
                                 int pluNumber = getPluNumber(item.pluNumber, barcode);
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                int reply = sendItem(socket, item, weightCode, pluNumber, barcode, item.name, item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(priceMultiplier)).intValue(), HandlerUtils.trim(item.description, null, descriptionLength - 1));
+                                int reply = sendItem(socket, item, weightCode, pieceCode, pluNumber, barcode, item.name,
+                                        item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(priceMultiplier)).intValue(),
+                                        HandlerUtils.trim(item.description, null, descriptionLength - 1), useWeightCodeInBarcodeNumber);
                                 if (reply != 0) {
                                     localErrors.add(String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply)));
                                     globalError++;
@@ -123,8 +130,9 @@ public class CL5000JHandler extends MultithreadScalesHandler {
         }
 
         protected void initSettings() {
-            ScalesSettings settings = springContext.containsBean("CL5000JSettings") ? (ScalesSettings) springContext.getBean("CL5000JSettings") : null;
-            priceMultiplier = settings == null || settings.getPriceMultiplier() == null ? 100 : settings.getPriceMultiplier();
+            CASSettings settings = springContext.containsBean("casSettings") ? (CASSettings) springContext.getBean("casSettings") : new CASSettings();
+            priceMultiplier = nvl(settings.getPriceMultiplier(), 100);
+            useWeightCodeInBarcodeNumber = settings.isUseWeightCodeInBarcodeNumber();
         }
 
         protected List<String> clearData(DataSocket socket) throws IOException {
@@ -141,10 +149,12 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             return errors;
         }
 
-        private int sendItem(DataSocket socket, ScalesItemInfo item, short weightCode, int pluNumber, int barcode, String name, int price, String description) throws IOException {
+        private int sendItem(DataSocket socket, ScalesItemInfo item, short weightCode, short pieceCode, int pluNumber, int barcode, String name, int price, String description, boolean useWeightCodeInBarcodeNumber) throws IOException {
             int descriptionLength = description == null ? 0 : (description.length() + 1);
             ByteBuffer bytes = ByteBuffer.allocate(160 + descriptionLength);
             bytes.order(ByteOrder.LITTLE_ENDIAN);
+
+            boolean isWeight = isWeight(item, 2);
 
             //header (10 bytes)
             bytes.put(getBytes("W"));
@@ -155,9 +165,9 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             bytes.put(getBytes(":"));
 
             //body (147 bytes + description (max 300 bytes)
-            bytes.putShort(weightCode); //departmentNumber 2 bytes
+            bytes.putShort(useWeightCodeInBarcodeNumber ? 0 : weightCode); //departmentNumber 2 bytes
             bytes.putInt(pluNumber); //pluNumber 4 bytes
-            bytes.put((byte) (isWeight(item, 2) ? 1 : 2)); //pluType (1 весовой, 2 штучный)
+            bytes.put((byte) (isWeight ? 1 : 2)); //pluType (1 весовой, 2 штучный)
             bytes.put(getBytes(fillSpaces(substr(name, 0, 28), 40))); //firstLine
             bytes.put(getBytes(fillSpaces(substr(name, 28, 56), 40)));//secondLine
             bytes.put(getBytes(fillSpaces("", 5)));//thirdLine
@@ -176,7 +186,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             bytes.putInt(0); //tare weight
             BigDecimal extraPercent = item.extraPercent; //пока отключен
             bytes.put((byte) (extraPercent == null ? 0 : extraPercent.intValue()));//tare number, исп. только в cl5000d
-            bytes.putShort((short) 0); //barcode number
+            bytes.putShort(useWeightCodeInBarcodeNumber ? (isWeight ? weightCode : pieceCode) : (short) 0); //barcode number
             bytes.putShort((short) 0); //aux barcode number
             bytes.putShort((short) 0); //produced date
             bytes.putShort((short) 0); //packed date
@@ -222,6 +232,15 @@ public class CL5000JHandler extends MultithreadScalesHandler {
         try {
             String weightCode = scales instanceof ScalesInfo ? ((ScalesInfo) scales).weightCodeGroupScales : null;
             return weightCode == null ? 1 : Short.parseShort(weightCode);
+        } catch (Exception e) {
+            return 1;
+        }
+    }
+
+    private short getPieceCode(MachineryInfo scales) {
+        try {
+            String pieceCode = scales instanceof ScalesInfo ? ((ScalesInfo) scales).pieceCodeGroupScales : null;
+            return pieceCode == null ? 1 : Short.parseShort(pieceCode);
         } catch (Exception e) {
             return 1;
         }
