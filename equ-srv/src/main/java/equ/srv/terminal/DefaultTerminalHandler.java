@@ -175,6 +175,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             if (terminalHandlerLM != null) {
 
                 boolean imagesInReadBase = terminalHandlerLM.findProperty("imagesInReadBase[]").read(session) != null;
+                String baseZipDirectory = (String) terminalHandlerLM.findProperty("baseZipDirectory[]").read(session);
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
                 ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
@@ -212,7 +213,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     updateVOPTable(connection, terminalDocumentTypeList);
 
                     //copy base to exchange directory
-                    File zipFile = File.createTempFile("base", ".zip");
+                    File zipFile = baseZipDirectory == null ? File.createTempFile("base", ".zip") :
+                            new File(String.format("%s/%s_%s.zip", baseZipDirectory,
+                            terminalHandlerLM.findProperty("login[CustomUser]").read(session, userInfo.user),
+                            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"))));
                     try (FileOutputStream fos = new FileOutputStream(zipFile)) {
                         try (ZipOutputStream zos = new ZipOutputStream(fos)) {
 
@@ -243,7 +247,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         }
                         return new RawFileData(zipFile);
                     } finally {
-                        if (!zipFile.delete()) {
+                        if (baseZipDirectory == null && !zipFile.delete()) {
                             zipFile.deleteOnExit();
                         }
                     }
