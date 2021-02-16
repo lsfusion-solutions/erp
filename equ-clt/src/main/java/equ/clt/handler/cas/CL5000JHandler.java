@@ -51,6 +51,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
     class CLSendTransactionTask extends SendTransactionTask {
         private Integer priceMultiplier;
         private boolean useWeightCodeInBarcodeNumber;
+        private Integer maxNameLength;
 
         public CLSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
             super(transaction, scales);
@@ -92,7 +93,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                 int reply = sendItem(socket, item, weightCode, pieceCode, pluNumber, barcode, item.name,
                                         item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(priceMultiplier)).intValue(),
-                                        HandlerUtils.trim(item.description, null, descriptionLength - 1), useWeightCodeInBarcodeNumber);
+                                        HandlerUtils.trim(item.description, null, descriptionLength - 1), useWeightCodeInBarcodeNumber, maxNameLength);
                                 if (reply != 0) {
                                     localErrors.add(String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply)));
                                     globalError++;
@@ -133,6 +134,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             CASSettings settings = springContext.containsBean("casSettings") ? (CASSettings) springContext.getBean("casSettings") : new CASSettings();
             priceMultiplier = nvl(settings.getPriceMultiplier(), 100);
             useWeightCodeInBarcodeNumber = settings.isUseWeightCodeInBarcodeNumber();
+            maxNameLength = nvl(settings.getMaxNameLength(), 28);
         }
 
         protected List<String> clearData(DataSocket socket) throws IOException {
@@ -149,7 +151,8 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             return errors;
         }
 
-        private int sendItem(DataSocket socket, ScalesItemInfo item, short weightCode, short pieceCode, int pluNumber, int barcode, String name, int price, String description, boolean useWeightCodeInBarcodeNumber) throws IOException {
+        private int sendItem(DataSocket socket, ScalesItemInfo item, short weightCode, short pieceCode, int pluNumber, int barcode,
+                             String name, int price, String description, boolean useWeightCodeInBarcodeNumber, Integer maxNameLength) throws IOException {
             int descriptionLength = description == null ? 0 : (description.length() + 1);
             ByteBuffer bytes = ByteBuffer.allocate(160 + descriptionLength);
             bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -165,11 +168,11 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             bytes.put(getBytes(":"));
 
             //body (147 bytes + description (max 300 bytes)
-            bytes.putShort(useWeightCodeInBarcodeNumber ? 0 : weightCode); //departmentNumber 2 bytes
+            bytes.putShort(useWeightCodeInBarcodeNumber ? (short) 0 : weightCode); //departmentNumber 2 bytes
             bytes.putInt(pluNumber); //pluNumber 4 bytes
             bytes.put((byte) (isWeight ? 1 : 2)); //pluType (1 весовой, 2 штучный)
-            bytes.put(getBytes(fillSpaces(substr(name, 0, 28), 40))); //firstLine
-            bytes.put(getBytes(fillSpaces(substr(name, 28, 56), 40)));//secondLine
+            bytes.put(getBytes(fillSpaces(substr(name, 0, maxNameLength), 40))); //firstLine
+            bytes.put(getBytes(fillSpaces(substr(name, maxNameLength, maxNameLength * 2), 40)));//secondLine
             bytes.put(getBytes(fillSpaces("", 5)));//thirdLine
             bytes.putShort((short) 0); //groupNumber
             bytes.putShort((short) 0); //labelNumber
@@ -209,8 +212,8 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             return sendCommand(socket, bytes.array());
         }
 
-        private String fillSpaces(Object value, int length) {
-            String result = value == null ? "" : String.valueOf(value);
+        private String fillSpaces(String value, int length) {
+            String result = value == null ? "" : value;
             if (result.length() > length)
                 result = result.substring(0, length);
             while (result.length() < length)
