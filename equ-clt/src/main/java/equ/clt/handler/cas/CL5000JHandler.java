@@ -168,7 +168,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             bytes.put(getBytes(":"));
 
             //body (147 bytes + description (max 300 bytes)
-            bytes.putShort(useWeightCodeInBarcodeNumber ? (short) 0 : weightCode); //departmentNumber 2 bytes
+            bytes.putShort(useWeightCodeInBarcodeNumber ? (short) 1 : weightCode); //departmentNumber 2 bytes
             bytes.putInt(pluNumber); //pluNumber 4 bytes
             bytes.put((byte) (isWeight ? 1 : 2)); //pluType (1 весовой, 2 штучный)
             bytes.put(getBytes(fillSpaces(substr(name, 0, maxNameLength), 40))); //firstLine
