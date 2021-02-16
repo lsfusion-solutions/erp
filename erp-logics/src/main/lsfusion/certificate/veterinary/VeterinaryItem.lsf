@@ -9,6 +9,26 @@ NAMESPACE Veterinary;
 dataNeedVeterinary 'Обязательно ветеринарное свидетельство' = DATA BOOLEAN (Item);
 needVeterinary 'Обязательно ветеринарное свидетельство' (Item item) = OVERRIDE dataNeedVeterinary(item), needVeterinary(itemGroup(item)) IN itemBase MATERIALIZED;
 
+overChangeNeedVeterinary  ABSTRACT LIST (Sku);
+
+changeNeedVeterinary (Sku s){
+    IF NOT needVeterinary(itemGroup(s)) THEN {
+        IF dataNeedVeterinary(s) THEN dataNeedVeterinary(s) <- NULL ;
+            ELSE dataNeedVeterinary(s) <- TRUE ;
+        
+        overChangeNeedVeterinary(s);
+    }
+}
+
+overChangeNeedVeterinary  ABSTRACT LIST (ItemGroup);
+
+changeNeedVeterinary (ItemGroup g){
+    IF needVeterinary(g) THEN needVeterinary(g) <- NULL ;
+        ELSE needVeterinary(g) <- TRUE ;
+    
+    overChangeNeedVeterinary(g);
+}
+
 FORM veterinarySettings 'Настройки ветеринарного свидетельства'
     OBJECTS gt=GroupType PANEL
     PROPERTIES(gt) SELECTOR name
@@ -18,13 +38,13 @@ FORM veterinarySettings 'Настройки ветеринарного свид�
     FILTERS groupType(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)    
     ORDERS order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
-    PROPERTIES(g) BACKGROUND RGB(210,255,210) needVeterinary
+    PROPERTIES(g) BACKGROUND RGB(210,255,210) needVeterinary ON CHANGE changeNeedVeterinary(g)
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY name, idBarcode
     ORDERS name(s)
     FILTERS isParent(g, s) OR s IS Sku AND NOT g
-    PROPERTIES(s) BACKGROUND RGB(210,255,210) needVeterinary
+    PROPERTIES(s) BACKGROUND RGB(210,255,210) needVeterinary ON CHANGE changeNeedVeterinary(s)
     FILTERGROUP inactiveSku 
         FILTER 'Активный' active(s) 'F5' DEFAULT
 ;
