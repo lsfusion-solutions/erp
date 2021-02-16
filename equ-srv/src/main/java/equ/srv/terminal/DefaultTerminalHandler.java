@@ -181,7 +181,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase);
 
-                List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject, userInfo, imagesInReadBase);
+                List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject, userInfo);
+                Map<String, RawFileData> orderImages = imagesInReadBase ? TerminalEquipmentServer.readTerminalOrderImages(session, stockObject, userInfo) : new HashMap<>();
 
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
@@ -193,7 +194,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
 
                     createGoodsTable(connection);
-                    updateGoodsTable(connection, barcodeList, orderList, imagesInReadBase);
+                    updateGoodsTable(connection, barcodeList, orderList, orderImages, imagesInReadBase);
 
                     createOrderTable(connection);
                     updateOrderTable(connection, orderList, prefix);
@@ -219,18 +220,22 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 writeInputStreamToZip(is, zos, "tsd.db");
                             }
 
+                            Set<String> usedImages = new HashSet<>();
                             for (TerminalBarcode barcode : barcodeList) {
-                                if (barcode.image != null) {
+                                if (barcode.image != null && !usedImages.contains(barcode.idBarcode)) {
                                     try (InputStream is = barcode.image.getInputStream()) {
                                         writeInputStreamToZip(is, zos, "images/" + barcode.idBarcode + ".jpg");
+                                        usedImages.add(barcode.idBarcode);
                                     }
                                 }
                             }
 
                             for (ServerTerminalOrder order : orderList) {
-                                if (order.image != null) {
-                                    try (InputStream is = order.image.getInputStream()) {
+                                RawFileData image = orderImages.get(order.barcode);
+                                if (image != null && !usedImages.contains(order.barcode)) {
+                                    try (InputStream is = image.getInputStream()) {
                                         writeInputStreamToZip(is, zos, "images/" + order.barcode + ".jpg");
+                                        usedImages.add(order.barcode);
                                     }
                                 }
                             }
@@ -479,7 +484,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<ServerTerminalOrder> orderList, boolean imagesInReadBase) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<ServerTerminalOrder> orderList, Map<String, RawFileData> orderImages, boolean imagesInReadBase) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -524,7 +529,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     statement.setObject(7, ""); //fld3
                                     statement.setObject(8, ""); //fld4
                                     statement.setObject(9, ""); //fld5
-                                    statement.setObject(10, imagesInReadBase && order.image != null ? (order.barcode + ".jpg") : ""); //image
+                                    statement.setObject(10, imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : ""); //image
                                     statement.setObject(11, formatValue(order.weight)); //weight
                                     statement.setObject(12, formatValue(order.barcode)); //main_barcode
                                     statement.setObject(13, ""); //color
@@ -545,7 +550,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 statement.setObject(7, ""); //fld3
                                 statement.setObject(8, ""); //fld4
                                 statement.setObject(9, ""); //fld5
-                                statement.setObject(10, imagesInReadBase && order.image != null ? (order.barcode + ".jpg") : ""); //image
+                                statement.setObject(10, imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : ""); //image
                                 statement.setObject(11, formatValue(order.weight)); //weight
                                 statement.setObject(12, formatValue(order.barcode)); //main_barcode
                                 statement.setObject(13, ""); //color

@@ -46,7 +46,7 @@ public class TerminalEquipmentServer {
         terminalHandlerLM = BL.getModule("TerminalHandler");
     }
 
-    public static List<ServerTerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, UserInfo userInfo, boolean imagesInReadBase) throws SQLException {
+    public static List<ServerTerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
         Map<String, ServerTerminalOrder> terminalOrderMap = new HashMap<>();
 
         if (terminalOrderLM != null) {
@@ -77,10 +77,7 @@ public class TerminalEquipmentServer {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
 
-                if(imagesInReadBase) {
-                    orderQuery.addProperty("image", terminalOrderLM.findProperty("image[TerminalOrderDetail]").getExpr(orderDetailExpr));
-                }
-
+                //todo: заменить на одно свойство в lsf
                 orderQuery.and(terminalOrderLM.findProperty("filter[TerminalOrder, Stock]").getExpr(orderExpr, customerStockObject.getExpr()).getWhere());
                 orderQuery.and(terminalOrderLM.findProperty("checkUser[TerminalOrder, Employee]").getExpr(orderExpr, userInfo.user.getExpr()).getWhere());
                 orderQuery.and((terminalOrderLM.findProperty("isOpened[TerminalOrder]")).getExpr(orderExpr).getWhere());
@@ -118,7 +115,6 @@ public class TerminalEquipmentServer {
                     String vop = (String) entry.get("vop");
                     String extraBarcodes = (String) entry.get("extraBarcodes");
                     List<String> extraBarcodeList = extraBarcodes != null ? Arrays.asList(extraBarcodes.split(",")) : new ArrayList<>();
-                    RawFileData image = (RawFileData) entry.get("image");
 
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
@@ -128,13 +124,49 @@ public class TerminalEquipmentServer {
                         terminalOrderMap.put(key, new ServerTerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
-                                extraBarcodeList, image));
+                                extraBarcodeList));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
         return new ArrayList<>(terminalOrderMap.values());
+    }
+
+    public static Map<String, RawFileData> readTerminalOrderImages(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
+        Map<String, RawFileData> terminalOrderImages = new HashMap<>();
+
+        if (terminalOrderLM != null) {
+            try {
+                KeyExpr orderExpr = new KeyExpr("terminalOrder");
+                KeyExpr orderDetailExpr = new KeyExpr("terminalOrderDetail");
+                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap("TerminalOrder", orderExpr, "TerminalOrderDetail", orderDetailExpr);
+                QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
+
+                orderQuery.addProperty("barcode", terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(orderDetailExpr));
+                orderQuery.addProperty("image", terminalOrderLM.findProperty("image[TerminalOrderDetail]").getExpr(orderDetailExpr));
+
+                //todo: заменить на одно свойство в lsf
+                orderQuery.and(terminalOrderLM.findProperty("filter[TerminalOrder, Stock]").getExpr(orderExpr, customerStockObject.getExpr()).getWhere());
+                orderQuery.and(terminalOrderLM.findProperty("checkUser[TerminalOrder, Employee]").getExpr(orderExpr, userInfo.user.getExpr()).getWhere());
+                orderQuery.and((terminalOrderLM.findProperty("isOpened[TerminalOrder]")).getExpr(orderExpr).getWhere());
+                orderQuery.and(terminalOrderLM.findProperty("order[TerminalOrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
+                orderQuery.and(terminalOrderLM.findProperty("number[TerminalOrder]").getExpr(orderExpr).getWhere());
+                orderQuery.and(terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(orderDetailExpr).getWhere());
+                orderQuery.and(terminalOrderLM.findProperty("hasImage[TerminalOrderDetail]").getExpr(orderDetailExpr).getWhere());
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
+                for (ImMap<Object, Object> entry : orderResult.values()) {
+                    String barcode = trim((String) entry.get("barcode"));
+                    RawFileData image = (RawFileData) entry.get("image");
+
+                    terminalOrderImages.put(barcode, image);
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return terminalOrderImages;
     }
 
     private static String formatDate(LocalDate date) {
