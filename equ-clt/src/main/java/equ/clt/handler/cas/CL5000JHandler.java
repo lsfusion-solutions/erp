@@ -95,12 +95,12 @@ public class CL5000JHandler extends MultithreadScalesHandler {
                                         item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(priceMultiplier)).intValue(),
                                         HandlerUtils.trim(item.description, null, descriptionLength - 1), useWeightCodeInBarcodeNumber, maxNameLength);
                                 if (reply != 0) {
-                                    localErrors.add(String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply)));
+                                    localErrors.add(getLogPrefix() + String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply)));
                                     globalError++;
                                 } else {
                                     String errorTouch = sendTouchPlu(socket, pluNumber);
                                     if (errorTouch != null) {
-                                        localErrors.add(String.format("Send item touch %s failed. Error: %s\n", pluNumber, errorTouch));
+                                        localErrors.add(getLogPrefix() + String.format("Send item touch %s failed. Error: %s\n", pluNumber, errorTouch));
                                         globalError++;
                                     }
                                 }
