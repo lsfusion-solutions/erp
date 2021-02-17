@@ -55,9 +55,10 @@ sendOnlyActiveItems 'Загружать только активные товар
 
 useOverPriceInTerminal = ABSTRACT BOOLEAN (Stock) PREREAD;
 overCurrentPriceInTerminal = ABSTRACT NUMERIC[16,4] (Sku, Stock);
-currentPriceInTerminal 'Текущая цена' (Barcode barcode, Stock stock) = IF useOverPriceInTerminal(stock)
-    THEN overCurrentPriceInTerminal(sku(barcode), stock) 
-    ELSE prevAccountPriceA(sku(barcode), stock, currentDateTime());
+currentPriceInTerminal 'Текущая цена' (Sku sku, Stock stock) = IF useOverPriceInTerminal(stock)
+    THEN overCurrentPriceInTerminal(sku, stock) 
+    ELSE prevAccountPriceA(sku, stock, currentDateTime());
+currentPriceInTerminal 'Текущая цена' (Barcode barcode, Stock stock) = currentPriceInTerminal(sku(barcode), stock);
 
 useCurrentQuantityInTerminal 'Загружать в терминал текущие остатки' = DATA BOOLEAN ();
 filterCurrentQuantityInTerminal 'Фильтровать по текущим остаткам' = DATA BOOLEAN ();
@@ -72,6 +73,16 @@ filterGoods(Barcode b, Stock st) = b IS Barcode AND st IS Stock AND
     (sendAllItems() OR currentPriceInTerminal(b, st)) AND 
     (NOT filterCurrentQuantityInTerminal() OR currentBalance(b, st)) AND
     (NOT sendOnlyActiveItems() OR activeItem(b));
+    
+countDaysFilterBatches 'Количество дней для выгрузки партий' = DATA INTEGER ();
+
+filterBatch(Batch b, Stock st) = b IS Batch AND st IS Stock AND 
+    (sendAllItems() OR currentPriceInTerminal(skuLedger(b, st), st)) AND 
+    (NOT filterCurrentQuantityInTerminal() OR currentBalance(skuLedger(b, st), st)) AND
+    (NOT sendOnlyActiveItems() OR active(skuLedger(b, st))) AND
+    dateTime(b, st) > subtractDay(currentDateTime(), countDaysFilterBatches());
+    
+extraField = ABSTRACT STRING (Batch, Stock);
     
 dataPriceListTypeTerminal = DATA LedgerPriceListType();
 defaultPriceListTypeTerminal = ABSTRACT LedgerPriceListType();
@@ -98,7 +109,7 @@ changeStatusTerminalOrder ABSTRACT (STRING, STRING, STRING);
 EXTEND FORM options
     PROPERTIES() hostTerminalServer, portTerminalServer, restrictLockedUsers,
     enableStatusOrderTerminal, sendAllItems, sendOnlyActiveItems, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
-    namePriceListTypeTerminal, skipGoodsInReadBase, imagesInReadBase, baseZipDirectory
+    namePriceListTypeTerminal, skipGoodsInReadBase, imagesInReadBase, baseZipDirectory, countDaysFilterBatches
 ;
 DESIGN options {
     machinery {
@@ -119,6 +130,7 @@ DESIGN options {
             MOVE PROPERTY(skipGoodsInReadBase());
             MOVE PROPERTY(imagesInReadBase());
             MOVE PROPERTY(baseZipDirectory());
+            MOVE PROPERTY(countDaysFilterBatches());
         }
     }
 }    
