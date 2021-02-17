@@ -154,6 +154,9 @@ companyStockGLN = GROUP NAGGR Stock stock WHERE isCompany(stock) BY GLN(stock);
 stockGLN = GROUP MAX Stock stock IF active(stock) BY GLN(stock);
 legalEntityStockGLN(STRING[13] GLN) = legalEntity(stockGLN(GLN));
 
+userID 'Идентификатор пользователя' = ABSTRACT STRING[35] (Stock);
+stockGLNUserID (STRING[13] GLN, STRING[35] userID) = GROUP MIN Stock s IF active(s) AND GLN(s) == GLN AND (OVERRIDE userID(s), '') == userID;
+
 GLNSupplierStock 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplier(e)) ELSE GLN(supplierStock(e));
 GLNSupplierStock1 'GLN склада поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplierStock(e));
 GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
@@ -444,7 +447,7 @@ glnSupplierStock 'GLN пункта погрузки' (EInvoice i) = GLN(supplier
 nameSupplierStock 'Пункт погрузки' (EInvoice i) = name(supplierStock(i));
 addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = address(supplierStock(i));
 contactSupplierStock 'ФИО и должность лица, которое отвечает за передачу груза со стороны грузоотправителя' = DATA STRING[150] (EInvoice);
-userIDSupplierStock 'Идентификатор пользователя' = ABSTRACT STRING[35] (EInvoice);
+userIDSupplierStock 'Идентификатор пользователя' (EInvoice i) = userID(supplierStock(i));
 
 freightPayer 'Заказчик автомобильной перевозки (плательщик)' = DATA LegalEntity (EInvoice);
 glnFreightPayer 'GLN заказчика автомобильной перевозки' (EInvoice i) = GLN(freightPayer(i));
@@ -464,7 +467,7 @@ nameCustomerStock 'Склад покупателя' (EInvoice i) = name(customer
 overAddressCustomerStock = ABSTRACT ISTRING[250] (EInvoice); // иногда пункт разгрузки указан только в атрибутах накладной
 addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = OVERRIDE overAddressCustomerStock(i), address(customerStock(i));
 contactCustomerStock 'ФИО и должность лица, которое отвечает за получение груза со стороны грузополучателя' = DATA STRING[150] (EInvoice);
-userIDCustomerStock 'Идентификатор пользователя' = ABSTRACT STRING[35] (EInvoice);
+userIDCustomerStock 'Идентификатор пользователя' (EInvoice i) = userID(customerStock(i));
 
 transportContact 'ФИО водителя' = DATA STRING[150] (EInvoice);
 deliveryContact 'Товар к перевозке принял (должность и ФИО)' = DATA STRING[150] (EInvoice);
