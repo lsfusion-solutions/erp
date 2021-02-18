@@ -599,9 +599,9 @@ public class InventoryTechHandler extends TerminalHandler {
                                 putField(dbfWriter, CODE, tdt.id, 15, append);
                                 putField(dbfWriter, NAME, tdt.name, 50, append);
                                 String sprt1 = tdt.analytics1 == null ? "" : tdt.analytics1.equals("ПС") ? "Организация" : tdt.analytics1;
-                                Integer vidspr1 = tdt.analytics1 == null ? 0 : tdt.analytics1.equals("ПС") ? 10 : parseInt(tdt.analytics1);
+                                double vidspr1 = tdt.analytics1 == null ? 0 : tdt.analytics1.equals("ПС") ? 10 : parseDouble(tdt.analytics1);
                                 String sprt2 = tdt.analytics2 == null ? "" : tdt.analytics2.equals("ПС") ? "Организация" : tdt.analytics2;
-                                Integer vidspr2 = tdt.analytics2 == null ? 0 : tdt.analytics2.equals("ПС") ? 10 : parseInt(tdt.analytics2);
+                                double vidspr2 = tdt.analytics2 == null ? 0 : tdt.analytics2.equals("ПС") ? 10 : parseDouble(tdt.analytics2);
                                 putNumField(dbfWriter, VIDSPR1, vidspr1, append);
                                 putField(dbfWriter, SPRT1, sprt1, 15, append);
                                 putNumField(dbfWriter, VIDSPR2, vidspr2, append);
@@ -629,11 +629,11 @@ public class InventoryTechHandler extends TerminalHandler {
         }
     }
 
-    private Integer parseInt(String value) {
+    private double parseDouble(String value) {
         try {
-            return value == null ? null : Integer.parseInt(value);
+            return value == null ? 0 : Double.parseDouble(value);
         } catch (Exception e) {
-            return null;
+            return 0;
         }
     }
 
