@@ -191,7 +191,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             if (waitFlagsResult != null) {
                                 throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
                             }
-                            truncateTables(conn, extGrpId);
+                            truncateTables(conn, transaction, extGrpId);
                         }
 
                         List<CashRegisterItemInfo> usedDeleteBarcodeList = new ArrayList<>();
@@ -1249,7 +1249,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return null;
     }
 
-    private void truncateTables(Connection conn, Integer extGrpId) throws SQLException {
+    private void truncateTables(Connection conn, TransactionCashRegisterInfo transaction, Integer extGrpId) throws SQLException {
+        astronLogger.info(String.format("transaction %s, truncate tables", transaction.id));
         String[] tables = extGrpId != null ? new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC", "ARTEXTGRP"} : new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC"};
         for (String table : tables) {
             try (Statement s = conn.createStatement()) {
