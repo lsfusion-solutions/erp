@@ -245,7 +245,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             Integer packPrcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
                             exportPackPrc(conn, params, transaction, exportExtraTables, maxBatchSize, packPrcUpdateNum);
                             astronLogger.info(String.format("transaction %s, table packprc delete", transaction.id));
-                            exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables, maxBatchSize, packPrcUpdateNum);
+                            //exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables, maxBatchSize, packPrcUpdateNum);
                             outputUpdateNums.put("PACKPRC", packPrcUpdateNum);
 
                             if (extGrpId != null) {
@@ -1129,8 +1129,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         boolean isValidItem = parseUOM(item.idUOM) != null && parseIdItem(item) != null;
         if(isValidItem) {
             if(deleteBarcodeMap != null && deleteBarcodeMap.containsKey(item.idItem)) {
-                usedDeleteBarcodeList.add(deleteBarcodeMap.get(item.idItem));
-                astronLogger.info(String.format("Transaction %s, deleteBarcode item %s, barcode %s", transaction.id, item.idItem, item.idBarcode));
+                CashRegisterItemInfo deleteBarcode = deleteBarcodeMap.get(item.idItem);
+                usedDeleteBarcodeList.add(deleteBarcode);
+                astronLogger.info(String.format("Transaction %s, deleteBarcode item %s, barcode %s", transaction.id, deleteBarcode.idItem, deleteBarcode.idBarcode));
             }
         } else {
             astronLogger.info(String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM));
