@@ -372,8 +372,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer idItem = parseIdItem(item);
                     String grpId = getExtIdItemGroup(item, zeroGrpId);
-                    if (params.pgsql) {
-                        if (grpId != null && !grpId.isEmpty()) {
+                    if (grpId != null && !grpId.isEmpty()) {
+                        if (params.pgsql) {
                             setObject(ps, idItem, 1); //ARTID
                             setObject(ps, Integer.parseInt(grpId), 2); //GRPID
                             setObject(ps, getIdVAT(item.vat), 3); //TAXGRPID
@@ -381,19 +381,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, trim(item.name, "", 50), 5); //ARTNAME
                             setObject(ps, trim(item.name, "", 50), 6); //ARTSNAME
                             setObject(ps, delFlag ? 1 : 0, 7); //DELFLAG
+                        } else {
+                            setObject(ps, grpId, 1, offset); //GRPID
+                            setObject(ps, getIdVAT(item.vat), 2, offset); //TAXGRPID
+                            setObject(ps, idItem, 3, offset); //ARTCODE
+                            setObject(ps, trim(item.name, "", 50), 4, offset); //ARTNAME
+                            setObject(ps, trim(item.name, "", 50), 5, offset); //ARTSNAME
+                            setObject(ps, delFlag ? "1" : "0", 6, offset); //DELFLAG
+                            if (updateNum != null) setObject(ps, updateNum, 7, offset); //UPDATENUM
+
+                            setObject(ps, idItem, updateNum != null ? 8 : 7, keys.length); //ARTID
+
                         }
                     } else {
-                        setObject(ps, grpId, 1, offset); //GRPID
-                        setObject(ps, getIdVAT(item.vat), 2, offset); //TAXGRPID
-                        setObject(ps, idItem, 3, offset); //ARTCODE
-                        setObject(ps, trim(item.name, "", 50), 4, offset); //ARTNAME
-                        setObject(ps, trim(item.name, "", 50), 5, offset); //ARTSNAME
-                        setObject(ps, delFlag ? "1" : "0", 6, offset); //DELFLAG
-                        if(updateNum != null)
-                            setObject(ps, updateNum, 7, offset); //UPDATENUM
-
-                        setObject(ps, idItem, updateNum != null ? 8 : 7, keys.length); //ARTID
-
+                        throw new RuntimeException(String.format("item %s, extIdItemGroup is empty", item.idItem));
                     }
 
                     ps.addBatch();
