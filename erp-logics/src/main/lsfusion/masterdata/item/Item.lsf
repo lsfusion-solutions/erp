@@ -1,6 +1,6 @@
 MODULE Item;
 
-REQUIRE System, Stock, Sku, Hierarchy, Barcode, PriceListType, PriceListCalc;
+REQUIRE System, Stock, Sku, Hierarchy, Barcode, PriceListType, PriceListCalc, Image;
 
 // ------------------------------------ Классификатор товаров --------------------------- //
 
@@ -211,6 +211,20 @@ nullImage 'Сбросить'(Item item)  {
 }
 
 image 'Изображение' (Batch batch) = image(sku(batch)); 
+
+smallImage = DATA IMAGEFILE (Item);
+smallImageSize 'Размер уменшенного изображения по горизонтали' = DATA INTEGER () PREREAD;
+
+WHEN SETCHANGED (image(Item i)) AND smallImageSize() DO { 
+    TRY {
+        resizeImage(image(i), smallImageSize(), NULL);
+        smallImage(i) <- resizedImage();
+    }
+}
+
+WHEN DROPPED (image(Item i)) DO { 
+    smallImage(i) <- NULL;
+}
 
 // -------------------------------- Надбавки для расчетных видов цен --------------------------------//
 
