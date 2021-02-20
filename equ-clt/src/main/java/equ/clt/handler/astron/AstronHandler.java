@@ -222,7 +222,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             Integer exBarcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
                             exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize, exBarcUpdateNum);
                             astronLogger.info(String.format("transaction %s, table exbarc delete", transaction.id));
-                            exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, exBarcUpdateNum);
+//                            exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, exBarcUpdateNum);
                             outputUpdateNums.put("EXBARC", exBarcUpdateNum);
 
                             boolean hasSecondPrice = hasSecondPrice(transaction, exportExtraTables);
