@@ -280,7 +280,7 @@ public class TerminalEquipmentServer {
             for (ImMap<Object, Object> entry : result.values()) {
                 String id = trim((String) entry.get("idTerminalDocumentType"));
                 String name = trim((String) entry.get("nameTerminalDocumentType"));
-                Integer flag = (Integer) entry.get("flagTerminalDocumentType");
+                Long flag = (Long) entry.get("flagTerminalDocumentType");
                 String analytics1 = trim((String) entry.get("idTerminalHandbookType1TerminalDocumentType"));
                 String analytics2 = trim((String) entry.get("idTerminalHandbookType2TerminalDocumentType"));
                 terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, flag));
