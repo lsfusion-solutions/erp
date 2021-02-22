@@ -112,7 +112,7 @@ nameGroupTerminalDocumentType 'Группа типов документов' (Te
 notSkip (TerminalDocumentType terminalDocumentType) = NOT skip(groupTerminalDocumentType(terminalDocumentType));
 
 name 'Название' = DATA STRING[200] (TerminalDocumentType) IN base;
-flag 'Флаг' = DATA INTEGER (TerminalDocumentType) IN base;
+flag 'Флаг' = DATA LONG (TerminalDocumentType) IN base;
 
 @defineExternalizable(terminalDocumentType, STRING[100]);
 
@@ -301,6 +301,7 @@ extraField2 'Поле 2' = DATA STRING[100] (TerminalDocumentDetail) IN base;
 extraField3 'Поле 3' = DATA STRING[100] (TerminalDocumentDetail) IN base;
 parentDocument 'Родительские документы' = DATA STRING (TerminalDocument) IN base;
 extraQuantity 'Доп. количество' = DATA NUMERIC[14,3] (TerminalDocumentDetail) IN base;
+batch 'Партии' = DATA STRING[100] (TerminalDocumentDetail) IN base;
 
 stock 'Склад' (TerminalDocumentDetail detail) = stock(terminalDocument(detail)) MATERIALIZED INDEXED;  
 nameStock 'Склад' (TerminalDocumentDetail detail) = name(stock(detail));  
@@ -593,23 +594,23 @@ loadDefaultTerminalHandbookTypes 'Загрузить стандартные ви
 @implementLoadDefaultData(loadDefaultTerminalHandbookTypes);
 
 // Типы документов терминалов сбора данных
-loadDefault 'Добавить тип документа ТСД'(STRING[200] nameString, GroupTerminalDocumentType gtdt, STRING[100] idTypeString, INTEGER flagInteger, STRING[100] handbook1String, STRING[100] handbook2String)  { 
+loadDefault 'Добавить тип документа ТСД'(STRING[200] nameString, GroupTerminalDocumentType gtdt, STRING[100] idTypeString, LONG flagLong, STRING[100] handbook1String, STRING[100] handbook2String)  { 
     NEW tdt = TerminalDocumentType {
         name(tdt) <- nameString;
         groupTerminalDocumentType(tdt) <- gtdt;
         terminalHandbookType1(tdt) <- terminalHandbookType(handbook1String);
         terminalHandbookType2(tdt) <- terminalHandbookType(handbook2String);
         id(tdt) <- idTypeString;
-        flag(tdt) <-flagInteger;
+        flag(tdt) <-flagLong;
     }
 }
 
 loadDefaultTerminalDocumentTypes 'Загрузить стандартные типы документов ТСД'()  { 
     NEW gtdt = GroupTerminalDocumentType {
         name(gtdt) <- 'Группа типов документов';
-        EXEC loadDefault('Инвентаризация', gtdt, '01', 31, ' ', ' ');
-        EXEC loadDefault('Приход', gtdt, '02', 31, '01', ' ');
-        EXEC loadDefault('Отгрузка по безналичному расчёту', gtdt, '03', 31, '01', ' ');
+        EXEC loadDefault('Инвентаризация', gtdt, '01', 31l, ' ', ' ');
+        EXEC loadDefault('Приход', gtdt, '02', 31l, '01', ' ');
+        EXEC loadDefault('Отгрузка по безналичному расчёту', gtdt, '03', 31l, '01', ' ');
     }
 } IN loadDefault;
 
