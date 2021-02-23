@@ -59,7 +59,7 @@ public class CL7000Handler extends CL5000JHandler {
 
         bytes.put(bcc);
 
-        return sendCommandTouch(socket, bytes.array(), false).error;
+        return sendCommandTouch(socket, bytes.array()).error;
     }
 
     @Override
@@ -69,9 +69,6 @@ public class CL7000Handler extends CL5000JHandler {
         if(speedKeys.error != null) {
             return speedKeys.error;
         } else {
-
-            //todo: temp log
-            casLogger.info(getLogPrefix() + String.format("speedKeys read data (%s bytes): %s", speedKeys.data.length, Hex.encodeHexString(speedKeys.data)));
 
             ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
             speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -83,14 +80,8 @@ public class CL7000Handler extends CL5000JHandler {
                 if(pluNumber <= 200) {
                     speedKeysByteBuffer.position((pluNumber - 1) * 4);
                     speedKeysByteBuffer.putInt(pluNumber);
-                    //todo: temp log
-                    casLogger.info(getLogPrefix() + "speedKeys write data: pluNumber " + pluNumber);
-
                 }
             }
-
-            //todo: temp log
-            casLogger.info(getLogPrefix() + String.format("speedKeys write data (%s bytes): %s", speedKeysByteBuffer.array().length, Hex.encodeHexString(speedKeysByteBuffer.array())));
 
             return sendSpeedKeys(socket, speedKeysByteBuffer.array());
         }
@@ -135,7 +126,7 @@ public class CL7000Handler extends CL5000JHandler {
 
         bytes.put(bcc);
 
-        return sendCommandTouch(socket, bytes.array(), false).error;
+        return sendCommandTouch(socket, bytes.array()).error;
     }
 
     private CL7000Reply readTouchSpeedKeys(DataSocket socket) throws IOException {
@@ -144,12 +135,12 @@ public class CL7000Handler extends CL5000JHandler {
         bytes.order(ByteOrder.LITTLE_ENDIAN);
         bytes.put(getBytes(record));
         bytes.put((byte) 0x0a);
-        return sendCommandTouch(socket, bytes.array(), true);
+        return sendCommandTouch(socket, bytes.array());
     }
 
-    private CL7000Reply sendCommandTouch(DataSocket socket, byte[] bytes, boolean logReply) throws IOException {
+    private CL7000Reply sendCommandTouch(DataSocket socket, byte[] bytes) throws IOException {
         socket.outputStream.write(bytes);
-        byte[] result = receiveReplyTouch(socket, logReply);
+        byte[] result = receiveReplyTouch(socket);
         if (result[0] == 'E') {
             return new CL7000Reply(getErrorMessageTouch(new String(result).substring(1, 3)));
         } else {
@@ -157,16 +148,11 @@ public class CL7000Handler extends CL5000JHandler {
         }
     }
 
-    private byte[] receiveReplyTouch(DataSocket socket, boolean logReply) {
+    private byte[] receiveReplyTouch(DataSocket socket) {
         try {
             final Future<byte[]> future = Executors.newSingleThreadExecutor().submit((Callable) () -> {
                 byte[] buffer = new byte[1024];
                 socket.inputStream.read(buffer);
-
-                if(logReply) {
-                    //todo: temp log
-                    casLogger.info(getLogPrefix() + String.format("receiveReplyTouch (%s bytes): %s", buffer.length, Hex.encodeHexString(buffer)));
-                }
 
                 return ArrayUtils.subarray(buffer, ArrayUtils.indexOf(buffer, (byte) ':') + 1, buffer.length);
             });
