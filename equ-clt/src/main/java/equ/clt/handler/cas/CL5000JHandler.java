@@ -10,6 +10,7 @@ import equ.clt.handler.HandlerUtils;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
+import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -25,6 +26,8 @@ import java.util.concurrent.*;
 import static lsfusion.base.BaseUtils.nvl;
 
 public class CL5000JHandler extends MultithreadScalesHandler {
+
+    protected final static Logger casLogger = Logger.getLogger("CASLogger");
 
     private FileSystemXmlApplicationContext springContext;
     private int descriptionLength;
@@ -77,7 +80,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
                 }
 
                 if (cleared || !needToClear) {
-                    processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
+                    casLogger.info(getLogPrefix() + "Sending items..." + scales.port);
 
                     short weightCode = getWeightCode(scales);
                     short pieceCode = getPieceCode(scales);
@@ -90,7 +93,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
 
                                 int barcode = getBarcode(item);
                                 int pluNumber = getPluNumber(item.pluNumber, barcode);
-                                processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                casLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                 int reply = sendItem(socket, item, weightCode, pieceCode, pluNumber, barcode, item.name,
                                         item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(priceMultiplier)).intValue(),
                                         HandlerUtils.trim(item.description, null, descriptionLength - 1), useWeightCodeInBarcodeNumber, maxNameLength);
@@ -122,11 +125,11 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             } catch (Exception e) {
                 logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, transaction.id), e);
             } finally {
-                processTransactionLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
+                casLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
                 socket.close();
             }
 
-            processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
+            casLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return Pair.create(localErrors, cleared);
         }
 
@@ -139,7 +142,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
 
         protected List<String> clearData(DataSocket socket) throws IOException {
             List<String> errors = new ArrayList<>();
-            processTransactionLogger.info(getLogPrefix() + "Deleting all plu at scales " + scales.port);
+            casLogger.info(getLogPrefix() + "Deleting all plu at scales " + scales.port);
             int reply = deleteAllPlu(socket);
             if (reply != 0) {
                 errors.add(String.format("Deleting all plu failed. Error: %s\n", getErrorMessage(reply)));
@@ -227,7 +230,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
 
         protected void logError(List<String> errors, String errorText, Throwable t) {
             errors.add(errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
-            processTransactionLogger.error(errorText, t);
+            casLogger.error(errorText, t);
         }
     }
 
@@ -335,13 +338,13 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             try {
                 result = future.get(30000, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
-                processTransactionLogger.error(getLogPrefix() + "receive reply error", e);
+                casLogger.error(getLogPrefix() + "receive reply error", e);
                 future.cancel(true);
                 result = -2;
             }
             return result;
         } catch (Exception e) {
-            processTransactionLogger.error(getLogPrefix() + "receive reply error", e);
+            casLogger.error(getLogPrefix() + "receive reply error", e);
             return -1;
         }
     }
@@ -350,27 +353,27 @@ public class CL5000JHandler extends MultithreadScalesHandler {
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
 
         if (stopListInfo != null && !stopListInfo.exclude) {
-            processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
+            casLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
             if (!machineryInfoList.isEmpty()) {
                 for (MachineryInfo scales : machineryInfoList) {
                     if (scales.port != null) {
                         DataSocket socket = getDataSocket(scales.port);
                         try {
-                            processStopListLogger.info(getLogPrefix() + "Sending StopList to scale " + scales.port);
+                            casLogger.info(getLogPrefix() + "Sending StopList to scale " + scales.port);
                             socket.open();
                             short weightCode = getWeightCode(scales);
                             for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                                 int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
-                                processStopListLogger.error(String.format(getLogPrefix() + "Sending StopList - Deleting item %s at scales %s", pluNumber, scales.port));
+                                casLogger.error(String.format(getLogPrefix() + "Sending StopList - Deleting item %s at scales %s", pluNumber, scales.port));
                                 int reply = deletePlu(socket, weightCode, pluNumber);
                                 if (reply != 0)
-                                    processStopListLogger.error(String.format(getLogPrefix() + "Failed to delete item %s at scales %s", getErrorMessage(pluNumber), scales.port));
+                                    casLogger.error(String.format(getLogPrefix() + "Failed to delete item %s at scales %s", getErrorMessage(pluNumber), scales.port));
                             }
 
                         } catch (Exception e) {
-                            processStopListLogger.error(String.format(getLogPrefix() + "Send StopList %s to scales %s error", stopListInfo.number, scales.port), e);
+                            casLogger.error(String.format(getLogPrefix() + "Send StopList %s to scales %s error", stopListInfo.number, scales.port), e);
                         } finally {
-                            processStopListLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
+                            casLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
                             socket.close();
                         }
                     }

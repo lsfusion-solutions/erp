@@ -59,7 +59,7 @@ public class CL7000Handler extends CL5000JHandler {
 
         bytes.put(bcc);
 
-        return sendCommandTouch(socket, bytes.array()).error;
+        return sendCommandTouch(socket, bytes.array(), false).error;
     }
 
     @Override
@@ -71,7 +71,7 @@ public class CL7000Handler extends CL5000JHandler {
         } else {
 
             //todo: temp log
-            processTransactionLogger.info(getLogPrefix() + String.format("speedKeys read data (%s bytes): %s", speedKeys.data.length, Hex.encodeHexString(speedKeys.data)));
+            casLogger.info(getLogPrefix() + String.format("speedKeys read data (%s bytes): %s", speedKeys.data.length, Hex.encodeHexString(speedKeys.data)));
 
             ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
             speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -84,13 +84,13 @@ public class CL7000Handler extends CL5000JHandler {
                     speedKeysByteBuffer.position((pluNumber - 1) * 4);
                     speedKeysByteBuffer.putInt(pluNumber);
                     //todo: temp log
-                    processTransactionLogger.info(getLogPrefix() + "speedKeys write data: pluNumber " + pluNumber);
+                    casLogger.info(getLogPrefix() + "speedKeys write data: pluNumber " + pluNumber);
 
                 }
             }
 
             //todo: temp log
-            processTransactionLogger.info(getLogPrefix() + String.format("speedKeys write data (%s bytes): %s", speedKeysByteBuffer.array().length, Hex.encodeHexString(speedKeysByteBuffer.array())));
+            casLogger.info(getLogPrefix() + String.format("speedKeys write data (%s bytes): %s", speedKeysByteBuffer.array().length, Hex.encodeHexString(speedKeysByteBuffer.array())));
 
             return sendSpeedKeys(socket, speedKeysByteBuffer.array());
         }
@@ -135,7 +135,7 @@ public class CL7000Handler extends CL5000JHandler {
 
         bytes.put(bcc);
 
-        return sendCommandTouch(socket, bytes.array()).error;
+        return sendCommandTouch(socket, bytes.array(), false).error;
     }
 
     private CL7000Reply readTouchSpeedKeys(DataSocket socket) throws IOException {
@@ -144,12 +144,12 @@ public class CL7000Handler extends CL5000JHandler {
         bytes.order(ByteOrder.LITTLE_ENDIAN);
         bytes.put(getBytes(record));
         bytes.put((byte) 0x0a);
-        return sendCommandTouch(socket, bytes.array());
+        return sendCommandTouch(socket, bytes.array(), true);
     }
 
-    private CL7000Reply sendCommandTouch(DataSocket socket, byte[] bytes) throws IOException {
+    private CL7000Reply sendCommandTouch(DataSocket socket, byte[] bytes, boolean logReply) throws IOException {
         socket.outputStream.write(bytes);
-        byte[] result = receiveReplyTouch(socket);
+        byte[] result = receiveReplyTouch(socket, logReply);
         if (result[0] == 'E') {
             return new CL7000Reply(getErrorMessageTouch(new String(result).substring(1, 3)));
         } else {
@@ -157,14 +157,16 @@ public class CL7000Handler extends CL5000JHandler {
         }
     }
 
-    private byte[] receiveReplyTouch(DataSocket socket) {
+    private byte[] receiveReplyTouch(DataSocket socket, boolean logReply) {
         try {
             final Future<byte[]> future = Executors.newSingleThreadExecutor().submit((Callable) () -> {
                 byte[] buffer = new byte[1024];
                 socket.inputStream.read(buffer);
 
-                //todo: temp log
-                processTransactionLogger.info(getLogPrefix() + String.format("receiveReplyTouch (%s bytes): %s", buffer.length, Hex.encodeHexString(buffer)));
+                if(logReply) {
+                    //todo: temp log
+                    casLogger.info(getLogPrefix() + String.format("receiveReplyTouch (%s bytes): %s", buffer.length, Hex.encodeHexString(buffer)));
+                }
 
                 return ArrayUtils.subarray(buffer, ArrayUtils.indexOf(buffer, (byte) ':') + 1, buffer.length);
             });
@@ -173,13 +175,13 @@ public class CL7000Handler extends CL5000JHandler {
             try {
                 result = future.get(30000, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
-                processTransactionLogger.error("CL5000J: receive reply error", e);
+                casLogger.error("CL5000J: receive reply error", e);
                 future.cancel(true);
                 result = "E02".getBytes();
             }
             return result;
         } catch (Exception e) {
-            processTransactionLogger.error("CL5000J: receive reply error", e);
+            casLogger.error("CL5000J: receive reply error", e);
             return "E01".getBytes();
         }
     }
