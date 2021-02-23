@@ -222,7 +222,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             Integer exBarcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
                             exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize, exBarcUpdateNum);
                             astronLogger.info(String.format("transaction %s, table exbarc delete", transaction.id));
-//                            exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, exBarcUpdateNum);
+                            exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, exBarcUpdateNum);
                             outputUpdateNums.put("EXBARC", exBarcUpdateNum);
 
                             boolean hasSecondPrice = hasSecondPrice(transaction, exportExtraTables);
@@ -244,7 +244,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                             Integer packPrcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
                             exportPackPrc(conn, params, transaction, exportExtraTables, maxBatchSize, packPrcUpdateNum);
-                            astronLogger.info(String.format("transaction %s, table packprc delete", transaction.id));
+                            //удаление выгружается только с одной из групп касс, и удаление только цены одной группы все равно имеет мало смысла
+                            //полагаемся на то что удаления самого штрихкода достаточно
+                            //astronLogger.info(String.format("transaction %s, table packprc delete", transaction.id));
                             //exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables, maxBatchSize, packPrcUpdateNum);
                             outputUpdateNums.put("PACKPRC", packPrcUpdateNum);
 
