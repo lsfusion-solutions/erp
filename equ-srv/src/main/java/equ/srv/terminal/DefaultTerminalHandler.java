@@ -129,6 +129,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return value;
     }
 
+    private static String formatDate(LocalDate date) {
+        return date != null ? date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : null;
+    }
+
     private String formatColor(Color color) {
         return color == null ? "" : String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
@@ -166,7 +170,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public RawFileData readBase(DataSession session, UserInfo userInfo) {
+    public RawFileData readBase(DataSession session, UserInfo userInfo, boolean readBatch) {
         File file = null;
         try {
 
@@ -182,6 +186,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase);
 
+                List<TerminalBatch> batchList = null;
+                if (readBatch)
+                    batchList = readBatchList(session, stockObject);
+
                 List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject, userInfo);
                 Map<String, RawFileData> orderImages = imagesInReadBase ? TerminalEquipmentServer.readTerminalOrderImages(session, stockObject, userInfo) : new HashMap<>();
 
@@ -196,6 +204,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                     createGoodsTable(connection);
                     updateGoodsTable(connection, barcodeList, orderList, orderImages, imagesInReadBase);
+
+                    createBatchesTable(connection);
+                    updateBatchesTable(connection, batchList, prefix);
 
                     createOrderTable(connection);
                     updateOrderTable(connection, orderList, prefix);
@@ -391,11 +402,50 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return result;
     }
 
+    private List<TerminalBatch> readBatchList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<TerminalBatch> result = new ArrayList<>();
+        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+        if(terminalHandlerLM != null) {
+
+            KeyExpr batchExpr = new KeyExpr("batch");
+            ImRevMap<Object, KeyExpr> batchKeys = MapFact.singletonRev("batch", batchExpr);
+
+            QueryBuilder<Object, Object> batchQuery = new QueryBuilder<>(batchKeys);
+            batchQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("idBarcodeSku[Batch]").getExpr(batchExpr));
+            batchQuery.addProperty("date", terminalHandlerLM.findProperty("date[Batch]").getExpr(batchExpr));
+            batchQuery.addProperty("number", terminalHandlerLM.findProperty("number[Batch]").getExpr(batchExpr));
+            batchQuery.addProperty("idSupplier", terminalHandlerLM.findProperty("idSupplierStock[Batch]").getExpr(batchExpr));
+            batchQuery.addProperty("cost", terminalHandlerLM.findProperty("cost[Batch]").getExpr(batchExpr));
+            batchQuery.addProperty("extraField", terminalHandlerLM.findProperty("extraField[Batch, Stock]").getExpr(batchExpr, stockObject.getExpr()));
+
+            batchQuery.and(terminalHandlerLM.findProperty("filterBatch[Batch, Stock]").getExpr(batchExpr, stockObject.getExpr()).getWhere());
+
+            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> batchResult = batchQuery.executeClasses(session);
+            for (int i = 0; i < batchResult.size(); i++) {
+
+                Long idBatch = (Long)batchResult.getKey(i).get("batch").getValue();
+
+                ImMap<Object, ObjectValue> entry = batchResult.getValue(i);
+
+                String idBarcode = trim((String) entry.get("idBarcode").getValue());
+                String date = formatDate((LocalDate) entry.get("date").getValue());
+                String number = trim((String) entry.get("number").getValue());
+                String idSupplier = trim((String) entry.get("idSupplier").getValue());
+                BigDecimal cost = (BigDecimal) entry.get("cost").getValue();
+                String extraField = trim((String) entry.get("extraField").getValue());
+
+                result.add(new TerminalBatch(String.valueOf(idBatch), idBarcode, idSupplier, date, number, cost, extraField));
+            }
+        }
+        return result;
+    }
+
+
     private void createOrderTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE zayavki " +
                 "(dv     TEXT," +
-                " dateShipment   TEXT," +
+                " date   TEXT," +
                 " num   TEXT," +
                 " post  TEXT," +
                 " barcode   TEXT," +
@@ -705,7 +755,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " van1 TEXT," +
                 " van2 TEXT," +
                 " van3 TEXT," +
-                " FLAGS INTEGER )";
+                " flags INTEGER )";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -731,6 +781,55 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     }
                 }
                 statement.executeBatch();
+            } finally {
+                if (statement != null)
+                    statement.close();
+                connection.setAutoCommit(true);
+            }
+        }
+    }
+
+    private void createBatchesTable(Connection connection) throws SQLException {
+        Statement statement = connection.createStatement();
+        String sql = "CREATE TABLE batch " +
+                "(idbatch TEXT DEFAULT ('')," +
+                " barcode TEXT DEFAULT('')," +
+                " date TEXT DEFAULT('')," +
+                " number TEXT DEFAULT('')," +
+                " idSupplier TEXT DEFAULT('')," +
+                " price REAL DEFAULT(0)," +
+                " extrafield TEXT DEFAULT('')" +
+                ")";
+
+        statement.executeUpdate(sql);
+        statement.execute("CREATE INDEX batch_k ON batch (idbatch,barcode);");
+        statement.close();
+    }
+
+    private void updateBatchesTable(Connection connection, List<TerminalBatch> terminalBatchList, String prefix) throws SQLException {
+        if (terminalBatchList != null && !terminalBatchList.isEmpty() && prefix != null) {
+            PreparedStatement statement = null;
+            try {
+                connection.setAutoCommit(false);
+                String sql = "INSERT OR REPLACE INTO batch VALUES(?,?,?,?,?,?,?);";
+                statement = connection.prepareStatement(sql);
+                for (TerminalBatch batch : terminalBatchList) {
+                    if (batch.idBatch != null && batch.idBarcode != null) {
+                        statement.setObject(1, formatValue(batch.idBatch));
+                        statement.setObject(2, formatValue(batch.idBarcode));
+                        statement.setObject(3, formatValue(batch.date));
+                        statement.setObject(4, formatValue(batch.number));
+                        String idSupplier = null;
+                        if (batch.idSupplier != null)
+                            idSupplier = prefix + batch.idSupplier;
+                        statement.setObject(5, formatValue(idSupplier));
+                        statement.setObject(6, formatValue(batch.price));
+                        statement.setObject(7, formatValue(batch.extraField));
+                        statement.addBatch();
+                    }
+                }
+                statement.executeBatch();
+                connection.commit();
             } finally {
                 if (statement != null)
                     statement.close();
@@ -849,6 +948,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     ImportField extraQuantityTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("extraQuantity[TerminalDocumentDetail]"));
                     props.add(new ImportProperty(extraQuantityTerminalDocumentDetailField, terminalHandlerLM.findProperty("extraQuantity[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     fields.add(extraQuantityTerminalDocumentDetailField);
+
+                    ImportField batchTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("batch[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(batchTerminalDocumentDetailField, terminalHandlerLM.findProperty("batch[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(batchTerminalDocumentDetailField);
                 }
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);

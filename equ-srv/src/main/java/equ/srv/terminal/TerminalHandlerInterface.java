@@ -21,7 +21,7 @@ public interface TerminalHandlerInterface {
 
     String readItemHtml(DataSession session, String barcode, String idStock);
 
-    RawFileData readBase(DataSession session, UserInfo userInfo) throws SQLException;
+    RawFileData readBase(DataSession session, UserInfo userInfo,boolean readBatch) throws SQLException;
 
     String savePallet(DataSession session, ExecutionStack stack, DataObject user, String numberPallet, String nameBin);
 

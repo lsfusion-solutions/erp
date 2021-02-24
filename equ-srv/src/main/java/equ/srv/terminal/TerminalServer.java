@@ -8,6 +8,7 @@ import lsfusion.server.base.controller.thread.ExecutorFactory;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingErrorLog;
+import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
@@ -312,8 +313,8 @@ public class TerminalServer extends MonitorServer {
         return terminalHandlerInterface.readItemHtml(createSession(), barcode, idStock);
     }
 
-    protected RawFileData readBase(UserInfo userInfo) throws SQLException {
-        return terminalHandlerInterface.readBase(createSession(), userInfo);
+    protected RawFileData readBase(UserInfo userInfo, boolean readBatch) throws SQLException {
+        return terminalHandlerInterface.readBase(createSession(), userInfo, readBatch);
     }
 
     protected String savePallet(DataObject user, String numberPallet, String nameBin) throws SQLException {
@@ -476,11 +477,12 @@ public class TerminalServer extends MonitorServer {
                                                 String extraField2DocumentDetail = line.length <= 9 ? null : formatValue(line[9]);
                                                 String extraField3DocumentDetail = line.length <= 10 ? null : formatValue(line[10]);
                                                 BigDecimal extraQuantityDocumentDetail = line.length <= 11 ? null : parseBigDecimal(line[11]);
+                                                String batchDocumentDetail = line.length <= 12 ? null : formatValue(line[12]);
                                                 terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType,
                                                         ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
                                                         priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
                                                         parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
-                                                        extraField2DocumentDetail, extraField3DocumentDetail, parentDocument, extraQuantityDocumentDetail));
+                                                        extraField2DocumentDetail, extraField3DocumentDetail, parentDocument, extraQuantityDocumentDetail, batchDocumentDetail));
                                             }
                                         }
                                         logger.info("receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
@@ -538,7 +540,8 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    fileData = readBase(userInfo);
+                                    boolean readBatch = (params.length > 1 && params[1].equalsIgnoreCase("1"));
+                                    fileData = readBase(userInfo, readBatch);
                                     if (fileData == null) {
                                         errorCode = GET_ALL_BASE_ERROR;
                                         errorText = GET_ALL_BASE_ERROR_TEXT;
@@ -688,6 +691,19 @@ public class TerminalServer extends MonitorServer {
                                 writeBytes(outToClient, result);
                                 writeByte(outToClient, esc);
                                 write(outToClient, String.valueOf(System.currentTimeMillis()));
+
+                                int flags = 0;
+
+                                ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+                                if (terminalHandlerLM != null) {
+                                    Integer countDaysFilterBatches = (Integer) terminalHandlerLM.findProperty("countDaysFilterBatches[]").read(createSession());
+                                    if (countDaysFilterBatches != null && countDaysFilterBatches > 0)
+                                        flags = 1;
+                                }
+                                writeByte(outToClient, esc);
+                                writeBytes(outToClient, String.valueOf(flags));
+
+
                             }
                             writeByte(outToClient, etx);
                             break;
@@ -784,7 +800,7 @@ public class TerminalServer extends MonitorServer {
     }
 
     private String getUnknownErrorText(Exception e) {
-        String errorText = e.getMessage();
+        String errorText = e.toString();
         if(errorText == null)
             errorText = UNKNOWN_ERROR_TEXT;
         else if(errorText.contains("\n"))
