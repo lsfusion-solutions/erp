@@ -1,0 +1,134 @@
+MODULE MachineryPriceTransactionBatch;
+
+REQUIRE MachineryPriceTransaction;
+
+NAMESPACE Machinery;
+
+TABLE machineryPriceTransactionBarcodeBatch (MachineryPriceTransaction, Barcode, Batch);
+
+in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode, Batch) INDEXED;
+
+name 'Наименование' = DATA STRING[255] (MachineryPriceTransaction, Barcode, Batch);
+name(MachineryPriceTransaction t, Barcode barcode, Batch batch)  => in(t, barcode, batch) RESOLVE RIGHT;
+
+price 'Цена' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode, Batch);
+price(MachineryPriceTransaction t, Barcode barcode, Batch batch)  => in(t, barcode, batch) RESOLVE RIGHT;
+
+// INDEX groupInMachineryPriceTransactionBarcode + barcode + Batch
+groupIn = groupMachinery(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode, Batch bt) 
+    AND NOT skipLastTransaction(groupMachinery(transaction)) MATERIALIZED;
+
+dateTimeIn = dateTime(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode, Batch bt) 
+    AND NOT skipLastTransaction(groupMachinery(transaction)) MATERIALIZED;
+    
+INDEX groupIn(MachineryPriceTransaction t, Barcode b, Batch bt), b, dateTimeIn(t,b,bt), t, bt;
+    
+lastTransaction (Batch bt, Barcode barcode, groupMachinery) = 
+    GROUP LAST MachineryPriceTransaction transaction
+          ORDER dateTimeIn(transaction, barcode, bt), transaction
+          WHERE NOT canceled(transaction) 
+          BY groupIn(transaction, barcode, bt) MATERIALIZED;
+prevLastTransaction (Batch bt, Barcode b, GroupMachinery g) = lastTransaction(bt, b, g);
+
+//lastTransaction (sku, stock) =
+//    GROUP LAST lastTransaction(Barcode b, GroupMachinery g)
+//          ORDER dateTimeIn(lastTransaction(b, g), b), lastTransaction(b, g)
+//          WHERE lastTransaction(b, g) 
+//          BY sku(b), stock(g);
+          
+lastFullTransaction (Batch bt, Barcode barcode, groupMachinery) = 
+    GROUP LAST MachineryPriceTransaction transaction
+          ORDER dateTime(transaction), transaction
+          WHERE in(transaction, barcode, bt) AND NOT canceled(transaction) 
+          BY groupMachinery(transaction);
+          
+prevLastFullTransaction (Batch bt, Barcode barcode, GroupMachinery groupMachinery) = PREV(lastFullTransaction (bt, barcode, groupMachinery));
+
+//Остаток
+
+balance 'Баланс' (Batch bt, Barcode b, Stock st) = currentBalance(bt, st) IF barcode(sku(b))==b;
+
+balance 'Остаток' = DATA NUMERIC[16,5] (MachineryPriceTransaction, Barcode, Batch);
+balance(MachineryPriceTransaction t, Barcode barcode, Batch bt) => in(t, barcode, bt) RESOLVE RIGHT;
+prevTransactionBalance 'Остаток (тек.)' (Batch bt, Barcode barcode, GroupMachinery groupMachinery)  =
+    balance(prevLastFullTransaction(bt, barcode, groupMachinery), barcode, bt);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  balance(t, Barcode barcode, Batch bt) <- prevTransactionBalance(bt, barcode, groupMachinery) WHERE in(t, barcode, bt); }
+
+EXTEND FORM machineryPriceTransaction
+    OBJECTS batch=Batch
+    PROPERTIES(batch) READONLY id, idBarcodeSku, nameSku, name
+    PROPERTIES(t, b, batch) in, name, price
+    FILTERS in(t, b, batch)
+;
+
+DESIGN machineryPriceTransaction{
+    pane{
+        MOVE BOX(batch) BEFORE BOX(b);
+    }
+}
+
+EXTEND FORM machineryPriceTransactions
+    OBJECTS batch=Batch
+    PROPERTIES(batch) READONLY id, idBarcodeSku, nameSku, name
+    PROPERTIES(t, b, batch) READONLY in, name, price
+    FILTERS in(t, b, batch)
+    
+    OBJECTS bbatch=Batch
+    PROPERTIES(bbatch) READONLY id, idBarcodeSku, nameSku, name
+    PROPERTIES(mt, bb, bbatch) READONLY in, name, price
+    FILTERS in(mt, bb, bbatch)    
+;
+
+DESIGN machineryPriceTransactions{
+    specContainer{
+        MOVE BOX(batch) BEFORE BOX(b);
+    }
+    barcodeContainer{
+        MOVE BOX(bbatch) BEFORE BOX(bb);
+    }
+}
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) balance;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY balance;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY balance;
+
+balanceToDate 'Загружать в оборудование остатки на дату/время транзакции' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() balanceToDate
+;
+DESIGN options {
+    machinery {
+        MOVE PROPERTY(balanceToDate());
+    }
+}
+
+extraLoad = ABSTRACT BOOLEAN (Stock);
+
+createAttribute(MachineryPriceTransaction t, Stock stock) + {  
+    IF NOT balanceToDate() THEN {
+        balance(t, Barcode barcode, Batch bt) <- OVERRIDE balance(bt, barcode, stock), 0.0 WHERE in(t, barcode, bt) AND NOT extraLoad(sku(barcode)) AND NOT extraLoad(stock); 
+    } ELSE {
+        balance(t, Barcode barcode, Batch bt) <- OVERRIDE prevBalanceB(bt, stock, dateTime(t)), 0.0 WHERE in(t, barcode, bt) AND NOT extraLoad(sku(barcode)) AND NOT extraLoad(stock);  
+    }
+    
+}
+
+balanceDate 'Дата остатка' = DATA DATETIME (MachineryPriceTransaction, Barcode, Batch);
+balanceDate(MachineryPriceTransaction t, Barcode barcode, Batch bt) => in(t, barcode, bt) RESOLVE RIGHT;
+prevTransactionBalanceDate 'Дата остатка (тек.)' (Batch bt, Barcode barcode, GroupMachinery groupMachinery)  =
+    balanceDate(prevLastFullTransaction(bt, barcode, groupMachinery), barcode, bt);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  balanceDate(t, Barcode barcode, Batch bt) <- prevTransactionBalanceDate(bt, barcode, groupMachinery) WHERE in(t, barcode, bt); }
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) balanceDate;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY balanceDate;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  balanceDate;
+
+balanceDate 'Дата остатка' = ABSTRACT DATETIME (Stock);
+
+createAttribute(MachineryPriceTransaction t, Stock s) + {  
+    balanceDate(t, Barcode b, Batch bt) <- OVERRIDE balanceDate(s), currentDateTime() WHERE in(t, b, bt) AND NOT extraLoad(sku(b));
+}
