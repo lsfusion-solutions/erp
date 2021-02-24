@@ -116,7 +116,7 @@ nameRoundCondition 'Условие округления' (CalcPriceListType type
         
 // --------------- Расчет значения цены --------------- //
 
-multiplierVAT (CalcPriceListType type, Sku sku) = multiplier(type, sku) * (IF addVAT(type) THEN (100.0 + valueVAT(sku, country(type))) / 100.0 ELSE 1.0 IF sku IS Sku AND type IS CalcPriceListType) MATERIALIZED;
+multiplierVAT (CalcPriceListType type, Sku sku) = NUMERIC[16,5](multiplier(type, sku) * OVERRIDE (((100.0 + valueVAT(sku, country(type))) / 100.0) IF addVAT(type)), 1.0) MATERIALIZED;
 priceB(BasePriceListType base, CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     round(priceB(base, sku, stock, dateTime) * multiplierVAT(type, sku), roundCondition(type, sku)) COMPLEX CHARWIDTH 7;
 priceA(BasePriceListType base, CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
