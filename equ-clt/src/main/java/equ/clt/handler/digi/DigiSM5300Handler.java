@@ -1,8 +1,13 @@
 package equ.clt.handler.digi;
 
+import com.google.common.base.Throwables;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
+import lsfusion.base.file.FTPPath;
+import org.apache.commons.net.ftp.FTP;
+import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPFile;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -54,7 +59,56 @@ public class DigiSM5300Handler extends DigiHandler {
             protected boolean clearFiles(DataSocket socket, List<String> localErrors) throws IOException {
                 return super.clearFiles(socket, localErrors)
                         && clearFile(socket, localErrors, scales.port, fileKeyAssignment)
-                        && clearFile(socket, localErrors, scales.port, fileDF);
+                        && clearFile(socket, localErrors, scales.port, fileDF)
+                        && clearImages();
+            }
+
+            private boolean clearImages() {
+                String path = "ftp://root:teraoka@" + scales.port + "/../opt/pcscale/files/img/plu/";
+                FTPPath ftpPath = FTPPath.parseFTPPath(path);
+
+                FTPClient ftpClient = new FTPClient();
+                ftpClient.setDataTimeout(120000); //2 minutes = 120 sec
+                ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
+                ftpClient.setAutodetectUTF8(true);
+
+                try {
+                    ftpClient.connect(ftpPath.server, ftpPath.port);
+                    boolean login = ftpClient.login(ftpPath.username, ftpPath.password);
+                    if (login) {
+                        if (ftpPath.passiveMode) {
+                            ftpClient.enterLocalPassiveMode();
+                        }
+                        ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+                        if (ftpPath.binaryTransferMode) {
+                            ftpClient.setFileTransferMode(FTP.BINARY_FILE_TYPE);
+                        }
+
+                        for (FTPFile f : ftpClient.listFiles()) {
+                            if (!f.isDirectory()) {
+                                boolean done = ftpClient.deleteFile(f.getName());
+                                if (!done) {
+                                    throw new RuntimeException("Failed to delete '" + f.getName() + "'");
+                                }
+                            }
+                        }
+                        return true;
+                    } else {
+                        throw new RuntimeException("Incorrect login or password '" + path + "'");
+                    }
+                } catch (IOException e) {
+                    throw Throwables.propagate(e);
+                } finally {
+                    if (ftpClient.isConnected()) {
+                        try {
+                            ftpClient.setSoTimeout(10000);
+                            ftpClient.logout();
+                            ftpClient.disconnect();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
             }
 
             private Set<Integer> usedGroups = new HashSet<>();
