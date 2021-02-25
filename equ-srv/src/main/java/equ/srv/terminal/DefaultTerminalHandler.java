@@ -431,7 +431,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE zayavki " +
                 "(dv     TEXT," +
-                " date   TEXT," +
+                " dateshipment   TEXT," +
                 " num   TEXT," +
                 " post  TEXT," +
                 " barcode   TEXT," +
