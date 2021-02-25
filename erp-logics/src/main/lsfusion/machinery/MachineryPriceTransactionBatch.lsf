@@ -94,6 +94,53 @@ EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) balance;
 EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY balance;
 EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY balance;
 
+// -------------------- Создание новых атрибутов ----------------- //
+
+META defineMachineryPriceTransactionAttributeBaseBatch(object, caption, nameProp)
+    prevTransaction###object caption###' (тек.)' (Batch batch, Barcode barcode, GroupMachinery groupMachinery)  =
+        object(prevLastFullTransaction(batch, barcode, groupMachinery), barcode, batch);
+
+    snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+        {  object(t, Barcode barcode, Batch batch) <- prevTransaction###object(batch, barcode, groupMachinery) WHERE in(t, barcode, batch); }
+
+    EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) nameProp###object;
+    EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY nameProp###object;
+    EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  nameProp###object;
+END
+
+META defineMachineryPriceTransactionAttributeActionBatch(object, caption, type, nameProp)
+    @defineMachineryPriceTransactionAttributeBaseBatch(object, caption, nameProp);
+    over###object = ABSTRACT type (MachineryPriceTransaction, Barcode, Batch);
+    createAttribute(MachineryPriceTransaction t) + {  object(t, Barcode barcode, Batch batch) <- OVERRIDE over###object(t, barcode, batch), object(batch)
+                                                          WHERE in(t, barcode, batch); }
+END
+
+META defineMachineryPriceTransactionAttributeBatch(object, caption, type)
+    object caption = DATA type (MachineryPriceTransaction, Barcode, Batch);
+    object(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+    @defineMachineryPriceTransactionAttributeActionBatch(object, caption, type, );
+END
+
+META defineMachineryPriceTransactionAttributeBatch(object, caption, type, nameProp)
+    object = DATA type (MachineryPriceTransaction, Barcode, Batch);
+    object(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+    nameProp##type caption (MachineryPriceTransaction transaction, Barcode barcode, Batch batch) =
+        nameProp(object(transaction, barcode, batch));
+    @defineMachineryPriceTransactionAttributeActionBatch(object, caption, type, nameProp);
+END
+
+META defineMachineryPriceTransactionAttributeStockActionBatch(type, object, caption, nameProp)
+    @defineMachineryPriceTransactionAttributeBaseBatch(object, caption, nameProp);
+    over###object = ABSTRACT type (MachineryPriceTransaction, Barcode, Batch);
+    createAttribute(MachineryPriceTransaction t, Stock stock) + {  object(t, Barcode barcode, Batch batch) <- OVERRIDE over###object(t, barcode, batch), object(batch, stock)
+                                                                      WHERE in(t, barcode, batch); }
+END
+META defineMachineryPriceTransactionAttributeStockBatch(object, caption, type)
+    object caption = DATA type (MachineryPriceTransaction, Barcode, Batch);
+    object(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+    @defineMachineryPriceTransactionAttributeStockActionBatch(type, object, caption, );
+END
+
 balanceToDate 'Загружать в оборудование остатки на дату/время транзакции' = DATA BOOLEAN ();
 EXTEND FORM options
     PROPERTIES() balanceToDate
@@ -117,18 +164,19 @@ createAttribute(MachineryPriceTransaction t, Stock stock) + {
 
 balanceDate 'Дата остатка' = DATA DATETIME (MachineryPriceTransaction, Barcode, Batch);
 balanceDate(MachineryPriceTransaction t, Barcode barcode, Batch bt) => in(t, barcode, bt) RESOLVE RIGHT;
-prevTransactionBalanceDate 'Дата остатка (тек.)' (Batch bt, Barcode barcode, GroupMachinery groupMachinery)  =
-    balanceDate(prevLastFullTransaction(bt, barcode, groupMachinery), barcode, bt);
-
-snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
-    {  balanceDate(t, Barcode barcode, Batch bt) <- prevTransactionBalanceDate(bt, barcode, groupMachinery) WHERE in(t, barcode, bt); }
-
-EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) balanceDate;
-EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY balanceDate;
-EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  balanceDate;
+@defineMachineryPriceTransactionAttributeBaseBatch(balanceDate, 'Дата остатка', );
 
 balanceDate 'Дата остатка' = ABSTRACT DATETIME (Stock);
 
 createAttribute(MachineryPriceTransaction t, Stock s) + {  
     balanceDate(t, Barcode b, Batch bt) <- OVERRIDE balanceDate(s), currentDateTime() WHERE in(t, b, bt) AND NOT extraLoad(sku(b));
 }
+
+@defineMachineryPriceTransactionAttributeBatch(expiryDate, 'Срок годности (дата)', DATE);
+
+@defineMachineryPriceTransactionAttributeBatch(manufactureDate, 'Дата изготовления', DATE);
+
+retailPrice 'Цена до' = ABSTRACT NUMERIC[16,4] (Batch, Stock);
+retailPrice 'Цена до' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode, Batch);
+retailPrice(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+@defineMachineryPriceTransactionAttributeStockActionBatch(NUMERIC[16,4], retailPrice, 'Цена до', );
