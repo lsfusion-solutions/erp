@@ -1570,7 +1570,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         try (DataSession session = createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("MachineryPriceTransactionError"));
             equLM.findProperty("machineryPriceTransaction[MachineryPriceTransactionError]").change(transactionID, session, errorObject);
-            equLM.findProperty("data[MachineryPriceTransactionError]").change(e.toString(), session, errorObject);
+            equLM.findProperty("data[MachineryPriceTransactionError]").change(BaseUtils.nvl(e.getMessage(), e.toString()), session, errorObject);
             equLM.findProperty("date[MachineryPriceTransactionError]").change(LocalDateTime.now(), session, errorObject);
 
             DataObject transactionObject = session.getDataObject(((CustomClass) equLM.findClass("MachineryPriceTransaction")), transactionID);
