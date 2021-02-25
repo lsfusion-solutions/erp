@@ -325,48 +325,34 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         if(terminalHandlerLM != null) {
             boolean skipGoodsInReadBase = terminalHandlerLM.findProperty("skipGoodsInReadBase[]").read(session) != null;
             if(!skipGoodsInReadBase) {
-                boolean allItems = terminalHandlerLM.findProperty("sendAllItems[]").read(session) != null;
-                boolean onlyActiveItems = terminalHandlerLM.findProperty("sendOnlyActiveItems[]").read(session) != null;
                 boolean currentQuantity = terminalHandlerLM.findProperty("useCurrentQuantityInTerminal[]").read(session) != null;
-                boolean filterCurrentQuantity = terminalHandlerLM.findProperty("filterCurrentQuantityInTerminal[]").read(session) != null;
 
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
                 ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev("barcode", barcodeExpr);
 
                 QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
                 barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("overNameSku", terminalHandlerLM.findProperty("overNameSku[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                if (currentQuantity) {
+                    barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                }
                 barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("passScales", terminalHandlerLM.findProperty("passScales[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("color", terminalHandlerLM.findProperty("color[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("extInfo", terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("fld3", terminalHandlerLM.findProperty("fld3[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("fld4", terminalHandlerLM.findProperty("fld4[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("fld5", terminalHandlerLM.findProperty("fld5[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                barcodeQuery.addProperty("needManufacturingDate", terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("unit", terminalHandlerLM.findProperty("shortNameUOM[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("needManufacturingDate", terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").getExpr(barcodeExpr));
                 if(imagesInReadBase) {
                     barcodeQuery.addProperty("image", terminalHandlerLM.findProperty("image[Barcode]").getExpr(barcodeExpr));
                 }
 
-                if(stockObject instanceof DataObject && !allItems)
-                    barcodeQuery.and(terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
-                if (currentQuantity)
-                    barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                if (filterCurrentQuantity)
-                    barcodeQuery.and(terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
-                if (onlyActiveItems) {
-                    barcodeQuery.and(terminalHandlerLM.findProperty("activeItem[Barcode]").getExpr(barcodeExpr).getWhere());
-                }
-
-                barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
-
-                String[] barcodeStockNames = new String[]{"overNameSku", "color"};
-                LP[] barcodeStockProperties = terminalHandlerLM.findProperties("overNameSku[Barcode,Stock]", "color[Barcode,Stock]");
-                for (int i = 0; i < barcodeStockNames.length; i++) {
-                    barcodeQuery.addProperty(barcodeStockNames[i], barcodeStockProperties[i].getExpr(barcodeExpr, stockObject.getExpr()));
-                }
-
+                barcodeQuery.and(terminalHandlerLM.findProperty("filterGoods[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("active[Barcode]").getExpr(barcodeExpr).getWhere());
 
@@ -577,7 +563,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     statement.setObject(1, formatValue(extraBarcode)); //idBarcode
                                     statement.setObject(2, formatValue(order.name)); //name
                                     statement.setObject(3, formatValue(order.price)); //price
-                                    statement.setObject(4, formatValue(order.quantity)); //quantity
+                                    statement.setObject(4, ""); //quantity
                                     statement.setObject(5, formatValue(order.idItem)); //idItem, fld1
                                     statement.setObject(6, formatValue(order.manufacturer)); //manufacturer, fld2
                                     statement.setObject(7, ""); //fld3
@@ -598,7 +584,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 statement.setObject(1, formatValue(order.barcode)); //idBarcode
                                 statement.setObject(2, formatValue(order.name)); //name
                                 statement.setObject(3, formatValue(order.price)); //price
-                                statement.setObject(4, formatValue(order.quantity)); //quantity
+                                statement.setObject(4, ""); //quantity
                                 statement.setObject(5, formatValue(order.idItem)); //idItem, fld1
                                 statement.setObject(6, formatValue(order.manufacturer)); //manufacturer, fld2
                                 statement.setObject(7, ""); //fld3
