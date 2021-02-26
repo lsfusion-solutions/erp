@@ -64,6 +64,24 @@ priceANotPromotion 'Цена' (LedgerPriceListType type, Sku sku, Stock stock, D
           WHERE fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime AND NOT promotionPriceListDetailA(sku,stock,dateTime) 
           AND sku(ledger, type, stock)==sku COMPLEX CHARWIDTH 7;
 
+countDaysMovedLimitRetail 'За сколько дней проверять движение' = DATA INTEGER ();
+positiveBalanceLimitRetail 'Проверять наличие остатка' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () countDaysMovedLimitRetail, positiveBalanceLimitRetail 
+;
+DESIGN options {
+    pricings {
+        NEW maxRP{
+            type = CONTAINERH;
+            caption = 'Параметры заполенения Максимальной РЦ (не обязательно)';
+            MOVE PROPERTY (countDaysMovedLimitRetail());
+            MOVE PROPERTY (positiveBalanceLimitRetail());        
+        }
+
+    }
+}
+
 fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену' (DATETIME dt) {
 
     LOCAL NESTED incl = BOOLEAN (DepartmentStore);
@@ -71,12 +89,20 @@ fillMaxLimitRetailPrice 'Заполнить максимальную розни�
 
     FOR incl(DepartmentStore stock) DO NEWSESSION {
         dateTimeLimitRetailPrice() <- dt;    
+        LOCAL inn = BOOLEAN (Sku);
+        inn(Sku sku) <- calcCheckLimitRetailForm(sku);
+                
+        IF (countDaysMovedLimitRetail() OR positiveBalanceLimitRetail()) THEN {
+            inn(Sku sku)<- NULL WHERE inn(sku) AND 
+                                ((positiveBalanceLimitRetail() AND NOT balanceB(sku,stock,dt)>0) OR( sku IS Sku AND NOT positiveBalanceLimitRetail())) AND
+                                ((countDaysMovedLimitRetail() AND NOT moved (sku, stock, dt, countDaysMovedLimitRetail())) OR (sku IS Sku AND NOT countDaysMovedLimitRetail())); 
+        }        
         maxLimitRetailPrice(Sku sku, stock)<- NULL;
         
         maxLimitRetailPrice(Sku sku, stock) <- priceANotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
-                                                        WHERE calcCheckLimitRetailForm(sku);       
+                                                        WHERE inn(sku);       
         maxLimitRetailPrice(Sku sku, stock) <- firstPriceNotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
-                                                        WHERE calcCheckLimitRetailForm(sku) AND NOT maxLimitRetailPrice(sku, stock);
+                                                        WHERE inn(sku) AND NOT maxLimitRetailPrice(sku, stock);
         APPLY;
     }
 
