@@ -298,8 +298,6 @@ public class ImportMilaAction extends InternalAction {
         price = price.trim();
         if (price.length() > 2)
             cRet = price.substring(0, price.length() - 2) + "." + price.substring(price.length() - 2);
-        if (cRet.isEmpty())
-            cRet = "0.00";
         return cRet.trim();
     }
 
@@ -308,7 +306,7 @@ public class ImportMilaAction extends InternalAction {
         cResult.append(ch1);
         cResult.append("\"").append(key).append("\":");
         if (value.length() > 0) {
-            value = value.replace("\"", "'");
+            value = value.replace("\"", "'").replace("\\","/");
             if (quote) cResult.append("\"");
             cResult.append(value);
             if (quote) cResult.append("\"");
