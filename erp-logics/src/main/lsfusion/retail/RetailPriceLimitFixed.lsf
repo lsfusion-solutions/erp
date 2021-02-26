@@ -49,14 +49,14 @@ EXTEND FORM items
     PROPERTIES(i) READONLYIF isReadonly() checkLimitRetailPrice, skipCheckRetailPrice
 ;
 
-
-calcCheckLimitRetailPrice 'Контроль розничных цен' (Item s) = checkRetailPrice() AND checkLimitRetailPrice(s) AND NOT skipCheckRetailPrice(s);
+calcCheckLimitRetailForm 'Контроль розничных цен (перегруженный)' (Item s) = checkLimitRetailPrice(s) AND NOT skipCheckRetailPrice(s);
+calcCheckLimitRetailPrice 'Контроль розничных цен' (Item s) = checkRetailPrice() AND calcCheckLimitRetailForm(s);
 
 firstPriceNotPromotion (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     GROUP LAST price(PriceListLedger ledger, type, stock)
           ORDER DESC fromDateTime(ledger, type, stock), ledger
           WHERE fromDateTime(ledger, type, stock) > dateTime AND NOT promotionPriceListDetailA(sku,stock,dateTime)
-          AND sku(ledger, type, stock);
+          AND sku(ledger, type, stock) == sku;
 
 priceANotPromotion 'Цена' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     GROUP LAST price(PriceListLedger ledger, type, stock)
@@ -65,16 +65,21 @@ priceANotPromotion 'Цена' (LedgerPriceListType type, Sku sku, Stock stock, D
           AND sku(ledger, type, stock)==sku COMPLEX CHARWIDTH 7;
 
 fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену' (DATETIME dt) {
-    NEWSESSION {
-        dateTimeLimitRetailPrice() <- dt;
-        maxLimitRetailPrice(Sku sku, Stock stock)<- NULL;
+
+    LOCAL NESTED incl = BOOLEAN (DepartmentStore);
+    incl(DepartmentStore ds)<- ds IS DepartmentStore AND stockGroup(ds) IS Store;
+
+    FOR incl(DepartmentStore stock) DO NEWSESSION {
+        dateTimeLimitRetailPrice() <- dt;    
+        maxLimitRetailPrice(Sku sku, stock)<- NULL;
         
-        maxLimitRetailPrice(Sku sku, Stock stock) <- priceANotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
-                                                        WHERE calcCheckLimitRetailPrice(sku) AND stock IS DepartmentStore AND stockGroup(stock) IS Store;       
-        maxLimitRetailPrice(Sku sku, Stock stock) <- firstPriceNotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
-                                                        WHERE calcCheckLimitRetailPrice(sku) AND NOT maxLimitRetailPrice(sku, stock) AND stock IS DepartmentStore AND stockGroup(stock) IS Store;
+        maxLimitRetailPrice(Sku sku, stock) <- priceANotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
+                                                        WHERE calcCheckLimitRetailForm(sku);       
+        maxLimitRetailPrice(Sku sku, stock) <- firstPriceNotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
+                                                        WHERE calcCheckLimitRetailForm(sku) AND NOT maxLimitRetailPrice(sku, stock);
         APPLY;
     }
+
 }
 FORM dialogDateT 'Выбор даты/время'
     OBJECTS d = DATETIME PANEL
@@ -93,13 +98,32 @@ DESIGN dialogDateT {
     }
 
 }
-fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену (все отделы)' () {
+fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену (все магазины)' () {
     DIALOG dialogDateT OBJECTS d INPUT DO{
         fillMaxLimitRetailPrice(d);
     }
 }
 
-WHEN SET(currentRetailPricingPrice(Sku sku, Stock stock)) AND NOT maxLimitRetailPrice(sku,stock) AND calcCheckLimitRetailPrice(sku) DO {
+addSkuListsLimit 'Отметить по спискам SKU' () {
+    DIALOG dialogAddLists DO {        
+        FOR [GROUP SUM 1 IF in(list(ListDetail d)) BY sku(d)](Sku sk) DO {
+            dataCheckLimitRetailPrice(sk)<-TRUE;
+            dataSkipCheckRetailPrice(sk)<-NULL; 
+        }               
+    }
+}
+
+skipFillNewPrice 'Не заполнять "Максимальная розничная цена" при появлении впервые цены' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () skipFillNewPrice
+;
+DESIGN options {
+    pricings {
+        MOVE PROPERTY (skipFillNewPrice());
+    }
+}
+
+WHEN SET(currentRetailPricingPrice(Sku sku, Stock stock)) AND NOT maxLimitRetailPrice(sku,stock) AND calcCheckLimitRetailPrice(sku) AND NOT skipFillNewPrice() DO {
     maxLimitRetailPrice(sku,stock) <- currentRetailPricingPrice(sku,stock) WHERE NOT promotionPriceListDetailA(sku,stock,currentDate());
 }
 
@@ -242,6 +266,7 @@ FORM maxLimitRetailPrice 'Максимальные розничные цены'
     OBJECTS s = Sku
     PROPERTIES (s) READONLY name, id, idBarcode
     PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly(), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
+    ORDERS name(s)
     FILTERS active(s)
     FILTERGROUP max
         FILTER 'С максимальной РЦ' maxLimitRetailPrice(s,st) 'F9' DEFAULT
@@ -271,8 +296,6 @@ DESIGN maxLimitRetailPrice {
 @extendFormFilterStockAccess(st, maxLimitRetailPrice, company);
 @extendFormEditable(maxLimitRetailPrice);
 
-calcCheckLimitRetailForm 'Контроль розничных цен (перегруженный)' (Item s) = checkLimitRetailPrice(s) AND NOT skipCheckRetailPrice(s);
-
 FORM maxLimitRetailPriceParams 'Максимальные розничные цены (параметры)'
     TREE skuTree g = ItemGroup PARENT parent(g)
     PROPERTIES(g) READONLY order, name, id
@@ -284,6 +307,8 @@ FORM maxLimitRetailPriceParams 'Максимальные розничные це
     PROPERTIES (i) READONLY name, id, idBarcode
     PROPERTIES checkLimitRetailPrice(i), skipCheckRetailPrice(i) 
     PROPERTIES READONLY calcCheckLimitRetailForm(i) BACKGROUND RGB(127,199,255)
+    PROPERTIES addSkuListsLimit() TOOLBAR DRAW i
+    ORDERS name(i)
     FILTERGROUP inactive1 FILTER 'Активные' active(i) 'F5' DEFAULT    
     FILTERGROUP check FILTER 'Контроль' calcCheckLimitRetailForm(i) 'F9' DEFAULT    
     FILTERS isParent(g,i)
