@@ -120,6 +120,7 @@ prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AN
                 AND NOT skipDeriveOrderPrice(d) THEN discountPrice(internetOrderDetail(d));
 
 
+overCreateRetailInvoiceStore  ABSTRACT LIST (DeliveryReport, UserInvoice);
 overCreateRetailInvoiceStore  ABSTRACT LIST ( UserInvoiceDetail);
 useDiscountRetailPrice = DATA LOCAL BOOLEAN ();
 createRetailInvoiceStore 'Создать накладную (розница с магазина)' (DeliveryReport r)  { 
@@ -140,6 +141,7 @@ createRetailInvoiceStore 'Создать накладную (розница с �
                 dataPayer(i) <- legalEntity(internetStock());
                 arrivalTime(i) <- dateTimeToDateTime(currentDate(), 16:00);
                 downtime(i) <- 60;
+                overCreateRetailInvoiceStore(r, i);                                                                                  
 
                 FOR pickingSum(InternetOrderDetail detail) > 0.0 AND isItem(sku(detail)) AND NOT userInvoiceDetail(detail) AND select(deliveryReport(detail))  
                     AND Sale.supplierStock[InternetOrderDetail](detail) == st NEW d = UserInvoiceDetail DO {
