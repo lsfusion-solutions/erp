@@ -1,6 +1,6 @@
 MODULE MachineryPriceTransactionBatch;
 
-REQUIRE MachineryPriceTransaction;
+REQUIRE MachineryPriceTransaction, Item;
 
 NAMESPACE Machinery;
 
@@ -186,7 +186,58 @@ createAttribute(MachineryPriceTransaction t, Stock s) + {
 
 @defineMachineryPriceTransactionAttributeBatch(manufactureDate, 'Дата изготовления', DATE);
 
+@defineMachineryPriceTransactionAttributeBatch(nameManufacturer, 'Производитель', STRING[200]);
+
+@defineMachineryPriceTransactionAttributeBatch(nameCountry, 'Страна', STRING[250]);
+
 retailPrice 'Цена до' = ABSTRACT NUMERIC[16,4] (Batch, Stock);
 retailPrice 'Цена до' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode, Batch);
 retailPrice(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
 @defineMachineryPriceTransactionAttributeStockActionBatch(NUMERIC[16,4], retailPrice, 'Цена до', );
+
+//Фарм
+
+//Серия лекарственного средства
+seriesPharmacy 'Серия лекарственного средства' = DATA STRING[20] (MachineryPriceTransaction, Barcode, Batch);
+seriesPharmacy(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+prevTransactionSeriesPharmacy 'Серия лекарственного средства (тек.)' (Batch batch, Barcode barcode, GroupMachinery groupMachinery)  =
+    seriesPharmacy(prevLastFullTransaction(batch, barcode, groupMachinery), barcode, batch);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  seriesPharmacy(t, Barcode barcode, Batch batch) <- prevTransactionSeriesPharmacy(batch, barcode, groupMachinery) WHERE in(t, barcode, batch); }
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) seriesPharmacy;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY seriesPharmacy;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  seriesPharmacy;
+overSeriesPharmacy = ABSTRACT STRING[20] (MachineryPriceTransaction, Barcode, Batch);
+createAttribute(MachineryPriceTransaction t) + {seriesPharmacy(t, Barcode barcode, Batch batch) <- overSeriesPharmacy(t, barcode, batch) WHERE in(t, barcode, batch);}
+
+//МНН
+nameATCGroup 'МНН' = DATA ISTRING[250] (MachineryPriceTransaction, Barcode, Batch);
+nameATCGroup(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+prevTransactionNameATCGroup 'МНН (тек.)' (Batch batch, Barcode barcode, GroupMachinery groupMachinery)  =
+    nameATCGroup(prevLastFullTransaction(batch, barcode, groupMachinery), barcode, batch);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  nameATCGroup(t, Barcode barcode, Batch batch) <- prevTransactionNameATCGroup(batch, barcode, groupMachinery) WHERE in(t, barcode, batch); }
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) nameATCGroup;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY nameATCGroup;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  nameATCGroup;
+overNameATCGroup = ABSTRACT ISTRING[250] (MachineryPriceTransaction, Barcode, Batch);
+createAttribute(MachineryPriceTransaction t) + {nameATCGroup(t, Barcode barcode, Batch batch) <- overNameATCGroup(t, barcode, batch) WHERE in(t, barcode, batch);}
+
+//Флаги
+flag 'Флаги' = DATA INTEGER (MachineryPriceTransaction, Barcode, Batch);
+flag(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+prevTransactionFlag 'Флаги (тек.)' (Batch batch, Barcode barcode, GroupMachinery groupMachinery)  =
+    flag(prevLastFullTransaction(batch, barcode, groupMachinery), barcode, batch);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  flag(t, Barcode barcode, Batch batch) <- prevTransactionFlag(batch, barcode, groupMachinery) WHERE in(t, barcode, batch); }
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) flag;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY flag;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  flag;
+overFlag = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode, Batch);
+createAttribute(MachineryPriceTransaction t) + {flag(t, Barcode barcode, Batch batch) <- overFlag(t, barcode, batch) WHERE in(t, barcode, batch);}
