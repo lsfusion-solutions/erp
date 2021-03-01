@@ -3,12 +3,14 @@ MODULE GISMTSaleReturnShipment;
 REQUIRE GISMTDocument, GISMTLegalEntity, GISMTIncomingDocument, 
         SaleReturnShipmentLot;
 
-PRIORITY GISMT, SaleReturn;
+PRIORITY GISMT, SaleReturn, Sale;
 
 NAMESPACE GISMTSaleReturn;
 
+@defineOperationProperty(returnType, 'Вид возврата', STRING, paramsContainer);
+
 createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND supplier(i) != customer(i);
-gismtType (Invoice i) = 'LP_ACCEPT_GOODS' IF i IS Invoice;
+gismtType (Invoice i) = OVERRIDE 'LP_RETURN' IF returnType(operation(i)), ('LP_ACCEPT_GOODS' IF i IS Invoice);
 @defineDocumentGISMT(invoice, createDocument, invoices, i, supplier);
 
 // release number
@@ -37,11 +39,32 @@ FORM exportInvoice
     FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
 ;
 
+FORM exportInvoiceReturn
+    OBJECTS i = Invoice, t = LotType PANEL
+    
+    PROPERTIES return_type = returnType(operation(i)), 
+               trade_participant_inn = inn(supplier(i))
+    
+    OBJECTS products = (d = InvoiceDetail, l = Lot)
+    PROPERTIES ki = id(l),
+               document_number = seriesNumber(i),
+               document_date = replace(toChar(dateTime(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ',''),
+               primary_document_date = toDateISO(date(invoiceDetail(d))),
+               primary_document_number = seriesNumber(invoiceDetail(d)),
+               primary_document_type = 'OTHER' IF d IS InvoiceDetail                
+               
+    FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+;
+
 export (InvoiceDocument i) + {
-    IF NOT releaseNumber(invoice(i), lotType(i)) THEN {
-        MESSAGE 'Не задан документ на отгрузку товара. Отсылка в ГИС МТ не будет завершена.';
-        stopCreate() <- TRUE;
-        RETURN;
+    IF returnType(operation(invoice(i))) THEN
+        EXPORT exportInvoiceReturn OBJECTS i = invoice(i), t = lotType(i) JSON;
+    ELSE {
+        IF NOT releaseNumber(invoice(i), lotType(i)) THEN {
+            MESSAGE 'Не задан документ на отгрузку товара. Отсылка в ГИС МТ не будет завершена.';
+            stopCreate() <- TRUE;
+            RETURN;
+        }
+        EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
     }
-    EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
 }
