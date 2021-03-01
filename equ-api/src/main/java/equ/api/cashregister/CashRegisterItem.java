@@ -4,6 +4,7 @@ import equ.api.ItemInfo;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class CashRegisterItem extends ItemInfo {
     public Long itemGroupObject;
@@ -22,13 +23,15 @@ public class CashRegisterItem extends ItemInfo {
     public LocalDateTime restrictionToDateTime;
     public Long barcodeObject;
     public String mainBarcode;
+    public List<CashRegisterItemBatch> batchList;
 
     public CashRegisterItem(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry,
                             LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
                             String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM, String info,
                             Long itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
                             String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode,
-                            BigDecimal balance, LocalDateTime balanceDate, LocalDateTime restrictionToDateTime, Long barcodeObject, String mainBarcode) {
+                            BigDecimal balance, LocalDateTime balanceDate, LocalDateTime restrictionToDateTime, Long barcodeObject, String mainBarcode,
+                            List<CashRegisterItemBatch> batchList) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
                 idUOM, shortNameUOM, info);
         this.itemGroupObject = itemGroupObject;
@@ -47,5 +50,6 @@ public class CashRegisterItem extends ItemInfo {
         this.restrictionToDateTime = restrictionToDateTime;
         this.barcodeObject = barcodeObject;
         this.mainBarcode = mainBarcode;
+        this.batchList = batchList;
     }
 }

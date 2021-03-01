@@ -60,6 +60,9 @@ public class ArtixSettings implements Serializable{
     //тип заполнения поля externalSum. 0 (по умолчанию) = sumGain, 1 = sumProtectedEnd - sumProtectedBeg – sumBack
     private int externalSumType;
 
+    //работа с дополнительными данными для аптек
+    private boolean medicineMode;
+
     public ArtixSettings() {
     }
 
@@ -213,5 +216,13 @@ public class ArtixSettings implements Serializable{
 
     public void setExternalSumType(int externalSumType) {
         this.externalSumType = externalSumType;
+    }
+
+    public boolean isMedicineMode() {
+        return medicineMode;
+    }
+
+    public void setMedicineMode(boolean medicineMode) {
+        this.medicineMode = medicineMode;
     }
 }

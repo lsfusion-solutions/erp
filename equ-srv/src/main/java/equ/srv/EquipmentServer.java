@@ -90,6 +90,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule itemFashionLM;
     private ScriptingLogicsModule machineryLM;
     private ScriptingLogicsModule machineryPriceTransactionLM;
+    private ScriptingLogicsModule machineryPriceTransactionBatchLM;
     private ScriptingLogicsModule machineryPriceTransactionSectionLM;
     private ScriptingLogicsModule machineryPriceTransactionBalanceLM;
     private ScriptingLogicsModule machineryPriceTransactionPartLM;
@@ -158,6 +159,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         itemFashionLM = getBusinessLogics().getModule("ItemFashion");
         machineryLM = getBusinessLogics().getModule("Machinery");
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
+        machineryPriceTransactionBatchLM = getBusinessLogics().getModule("MachineryPriceTransactionBatch");
         machineryPriceTransactionSectionLM = getBusinessLogics().getModule("MachineryPriceTransactionSection");
         machineryPriceTransactionBalanceLM = getBusinessLogics().getModule("MachineryPriceTransactionBalance");
         machineryPriceTransactionPartLM = getBusinessLogics().getModule("MachineryPriceTransactionPart");
@@ -2171,6 +2173,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 if (isCashRegisterPriceTransaction) {
 
+                    Map<String, List<CashRegisterItemBatch>> barcodeBatchMap = readBarcodeBatchMap(session, transactionObject);
+
                     LocalDate startDateGroupCashRegister = (LocalDate) cashRegisterLM.findProperty("startDate[GroupCashRegister]").read(session, groupMachineryObject);
                     boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailed[GroupCashRegister]").read(session, groupMachineryObject) != null;
                     Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberCashRegister[GroupMachinery]").read(session, groupMachineryObject);
@@ -2256,7 +2260,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         CashRegisterItem c = new CashRegisterItem(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, itemGroupObject, description, idBrand, nameBrand,
                                 idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
-                                balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode);
+                                balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode, barcodeBatchMap.get(barcode));
                         cashRegisterItemList.add(c);
                     }
 
@@ -2474,6 +2478,59 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    private Map<String, List<CashRegisterItemBatch>> readBarcodeBatchMap(DataSession session, DataObject transactionObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, List<CashRegisterItemBatch>> result = new HashMap<>();
+        if(machineryPriceTransactionBatchLM != null) {
+
+            ValueExpr transactionExpr = transactionObject.getExpr();
+            KeyExpr barcodeExpr = new KeyExpr("barcode");
+            KeyExpr batchExpr = new KeyExpr("batch");
+            ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("barcode", barcodeExpr, "batch", batchExpr);
+
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+
+            query.addProperty("idBarcode", machineryPriceTransactionBatchLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
+
+            String[] names = new String[]{"idBatch", "expiryDate", "seriesPharmacy", "nameManufacturer", "price",
+                    "balance", "balanceDate", "flag"};
+            LP[] properties = machineryPriceTransactionBatchLM.findProperties("id[MachineryPriceTransaction,Barcode,Batch]",
+                    "expiryDate[MachineryPriceTransaction,Barcode,Batch]", "seriesPharmacy[MachineryPriceTransaction,Barcode,Batch]",
+                    "nameManufacturer[MachineryPriceTransaction,Barcode,Batch]", "price[MachineryPriceTransaction,Barcode,Batch]",
+                    "balance[MachineryPriceTransaction,Barcode,Batch]", "balanceDate[MachineryPriceTransaction,Barcode,Batch]",
+                    "flag[MachineryPriceTransaction,Barcode,Batch]");
+            for (int i = 0; i < properties.length; i++) {
+                query.addProperty(names[i], properties[i].getExpr(transactionExpr, barcodeExpr, batchExpr));
+            }
+
+            query.and(machineryPriceTransactionBatchLM.findProperty("in[MachineryPriceTransaction,Barcode,Batch]").getExpr(transactionExpr, barcodeExpr, batchExpr).getWhere());
+
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> queryResult = query.execute(session);
+
+            for (int i = 0, size = queryResult.size(); i < size; i++) {
+                ImMap<Object, Object> row = queryResult.getValue(i);
+
+                String barcode = getRowValue(row, "idBarcode");
+
+                String idBatch = getRowValue(row, "idBatch");
+                LocalDate expiryDate = (LocalDate) row.get("expiryDate");
+                String seriesPharmacy = getRowValue(row, "seriesPharmacy");
+                String nameManufacturer = getRowValue(row, "nameManufacturer");
+                BigDecimal price = (BigDecimal) row.get("price");
+                String nameSubstance = "inn1,inn2"; //todo: пока непонятно, откуда брать, "inn1,inn2" - из примера
+                BigDecimal balance = (BigDecimal) row.get("balance");
+                LocalDateTime balanceDate = (LocalDateTime) row.get("balanceDate");
+                String countryCode = "933"; //todo: пока непонятно, откуда брать, 933 - из примера
+                Integer flag = (Integer) row.get("flag");
+
+                List<CashRegisterItemBatch> batchList = result.getOrDefault(barcode, new ArrayList<>());
+                batchList.add(new CashRegisterItemBatch(idBatch, expiryDate, seriesPharmacy, nameManufacturer,
+                        price, nameSubstance, balance, balanceDate, countryCode, flag));
+                result.put(barcode, batchList);
+            }
+        }
+        return result;
     }
 
     @Override

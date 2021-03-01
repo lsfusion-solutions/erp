@@ -62,10 +62,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
 
-        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
-        boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
-        boolean isExportSoftCheckItem = artixSettings != null && artixSettings.isExportSoftCheckItem();
-        Integer timeout = artixSettings == null || artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+        boolean appendBarcode = artixSettings.isAppendBarcode();
+        boolean isExportSoftCheckItem = artixSettings.isExportSoftCheckItem();
+        Integer timeout = artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
+        boolean medicineMode = artixSettings.isMedicineMode();
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, Exception> failedTransactionMap = new HashMap<>();
@@ -122,6 +123,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             if(isExportSoftCheckItem) {
                                 //искуственный товар для мягких чеков
                                 writeStringToFile(tmpFile, getAddInventItemSoftJSON() + "\n---\n");
+                            }
+
+                            if(medicineMode) {
+                                writeStringToFile(tmpFile, "{\"command\": \"clearMedicine\"}\n---\n");
                             }
                         }
 
@@ -195,6 +200,21 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
                                 writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item) + "\n---\n");
+                            }
+                        }
+
+                        if(medicineMode) {
+                            for (CashRegisterItem item : transaction.itemsList) {
+                                if(item.batchList != null) {
+                                    for(CashRegisterItemBatch batch : item.batchList) {
+                                        if (!Thread.currentThread().isInterrupted()) {
+                                            String medicine = getAddMedicineJSON(item, batch, appendBarcode);
+                                            if (medicine != null) {
+                                                writeStringToFile(tmpFile, medicine + "\n---\n");
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -330,6 +350,26 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         
         inventObject.put("options", itemOptions);
         rootObject.put("command", "addInventItem");
+        return rootObject.toString();
+    }
+
+    private String getAddMedicineJSON(CashRegisterItem item, CashRegisterItemBatch batch, boolean appendBarcode) throws JSONException {
+        JSONObject rootObject = new JSONObject();
+        JSONObject medicineObject = new JSONObject();
+        rootObject.put("medicine", medicineObject);
+        medicineObject.put("code", item.idItem);
+        medicineObject.put("party", batch.idBatch);
+        medicineObject.put("barcode", removeCheckDigitFromBarcode(item.idBarcode, appendBarcode));
+        medicineObject.put("shelflife", batch.expiryDate); //"2077-01-01" todo: check format
+        medicineObject.put("series", batch.seriesPharmacy);
+        medicineObject.put("producer", batch.nameManufacturer);
+        medicineObject.put("price", batch.price); //"33.33" todo: check format
+        medicineObject.put("inn", batch.nameSubstance);
+        medicineObject.put("remainquant", batch.balance);
+        medicineObject.put("remaindatetime", batch.balanceDate);//"2025-01-01 13:30:00" todo: check format
+        medicineObject.put("countrycode", batch.countryCode);
+        medicineObject.put("options", batch.flag);
+        rootObject.put("command", "addMedicine");
         return rootObject.toString();
     }
 
