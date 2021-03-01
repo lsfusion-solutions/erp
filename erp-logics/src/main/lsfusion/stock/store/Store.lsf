@@ -191,7 +191,8 @@ closeDate 'Дата закрытия' (DepartmentStore d) = closeDate(store(d));
 
 stockGroup (DepartmentStore departmentStore) += OVERRIDE dataStockGroup(departmentStore), store(departmentStore);
 
-in(Store store, DepartmentStore departmentStore) = store(departmentStore) == store;
+//in(Store store, DepartmentStore departmentStore) = store(departmentStore) == store;
+in(StockGroup stg, DepartmentStore departmentStore)= level(store(departmentStore),stg) > 0;     
 
 storeType(DepartmentStore departmentStore) = storeType(store(departmentStore)) MATERIALIZED INDEXED;
 nameStoreType 'Формат' (DepartmentStore departmentStore) = name(storeType(departmentStore));
@@ -298,7 +299,10 @@ storeGroup = ABSTRACT StoreGroup (Store);
 
 parent (Store store) += OVERRIDE storeGroup(store), storeType(store);
 
-in(StoreType storeType, StoreGroup storeGroup) = storeType(storeGroup) == storeType;
+storeGroup(DepartmentStore departmentStore) = storeGroup(store(departmentStore)) MATERIALIZED INDEXED;
+nameStoreGroup 'Группа' (DepartmentStore departmentStore) = name(storeGroup(departmentStore));
+
+//in(StoreType storeType, StoreGroup storeGroup) = storeType(storeGroup) == storeType;
 
 in(StoreType storeType, StockGroup stockGroup) = parent(stockGroup) = storeType;
 
@@ -308,29 +312,26 @@ in (ChainStores chainStores, StoreType storeType, StoreGroup storeGroup, Store s
     (chainStores(store) == chainStores AND NOT storeType AND NOT storeGroup) OR
     (store IS Store AND NOT storeType AND NOT chainStores AND NOT storeGroup);
 
-in (StoreGroup storeGroup, Store store) = storeGroup(store) == storeGroup;
+//in (StoreGroup storeGroup, Store store) = storeGroup(store) == storeGroup;
     
-in (StoreType storeType, StoreGroup storeGroup, Store store) = 
-    (storeGroup(store) == storeGroup AND storeType IS StoreType) OR 
-    (storeType(store) == storeType AND NOT storeGroup);
+//in (StoreType storeType, StoreGroup storeGroup, Store store) = 
+//    (storeGroup(store) == storeGroup AND storeType IS StoreType) OR 
+//    (storeType(store) == storeType AND NOT storeGroup);
 
-in (StoreType storeType, StockGroup stockGroup1, StockGroup stockGroup2) = 
-    (parent(stockGroup2) == stockGroup1 AND parent(stockGroup1) = storeType) OR 
-    (parent(stockGroup2) == storeType AND NOT stockGroup1);
-
-storeGroup(DepartmentStore departmentStore) = storeGroup(store(departmentStore)) MATERIALIZED INDEXED;
-nameStoreGroup 'Группа' (DepartmentStore departmentStore) = name(storeGroup(departmentStore));
+//in (StoreType storeType, StockGroup stockGroup1, StockGroup stockGroup2) = 
+//    (parent(stockGroup2) == stockGroup1 AND parent(stockGroup1) = storeType) OR 
+//    (parent(stockGroup2) == storeType AND NOT stockGroup1);
 
 //фильтр для отделов
-in (ChainStores chainStores, StoreType storeType, StockGroup stockGroup1, StockGroup stockGroup2, DepartmentStore department) =
-    (stockGroup(department) == stockGroup1 AND chainStores IS ChainStores AND storeType IS StoreType) OR   //версия для тех у кого нет StoreGroup и Store находтся на 1лвл
-    (stockGroup(department) == stockGroup2 AND storeType IS StoreType AND chainStores IS ChainStores) OR   // фильтр по Store 2лвл
-    (parent(stockGroup(department)) == stockGroup1 AND chainStores IS ChainStores AND storeType IS StoreType AND NOT stockGroup2) OR //фильтр по StoreGroup 1лвл
-    (storeType(department) == storeType AND chainStores IS ChainStores AND NOT stockGroup1 AND NOT stockGroup2) OR
-    (chainStores(department) == chainStores AND NOT stockGroup1 AND NOT stockGroup2 AND NOT storeType) OR
-    (department IS DepartmentStore AND NOT stockGroup1 AND NOT stockGroup2 AND NOT storeType AND NOT chainStores);
+//in (ChainStores chainStores, StoreType storeType, StockGroup stockGroup1, StockGroup stockGroup2, DepartmentStore department) =
+//    (stockGroup(department) == stockGroup1 AND chainStores IS ChainStores AND storeType IS StoreType) OR   //версия для тех у кого нет StoreGroup и Store находтся на 1лвл
+//    (stockGroup(department) == stockGroup2 AND storeType IS StoreType AND chainStores IS ChainStores) OR   // фильтр по Store 2лвл
+//    (parent(stockGroup(department)) == stockGroup1 AND chainStores IS ChainStores AND storeType IS StoreType AND NOT stockGroup2) OR //фильтр по StoreGroup 1лвл
+//    (storeType(department) == storeType AND chainStores IS ChainStores AND NOT stockGroup1 AND NOT stockGroup2) OR
+//    (chainStores(department) == chainStores AND NOT stockGroup1 AND NOT stockGroup2 AND NOT storeType) OR
+//    (department IS DepartmentStore AND NOT stockGroup1 AND NOT stockGroup2 AND NOT storeType AND NOT chainStores);
 
-in (ChainStores chainStores, StoreType storeType, StoreGroup storeGroup, DepartmentStore departmentStore)= in (chainStores, storeType, storeGroup, store(departmentStore));     
+//in (ChainStores chainStores, StoreType storeType, StoreGroup storeGroup, DepartmentStore departmentStore)= in (chainStores, storeType, storeGroup, store(departmentStore));     
 
 // -------------------------------------- Формы отдела магазинов ------------------------------------------ //
 
@@ -388,38 +389,39 @@ DESIGN departmentStore {
     }
 }
 
-FORM departmentStores 'Отделы магазинов'
-    TREE treeStore a=BPSTRING[3], t=ChainStores, st=StoreType, s=Store
-    PROPERTIES READONLY VALUE(a), name(t), name(st), name(s)
-    FILTERS stringEqualsAll(a), in (t, st), in(st, s)
-    FILTERGROUP activeStore FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
-
-    OBJECTS d=DepartmentStore
-    PROPERTIES (d) in
-    PROPERTIES(d) READONLY id SHOWIF showIDs(), depName = name, fullName
-    FILTERS in(t, st, s, d)
-    ORDERS depName
-    FILTERGROUP activeDS FILTER 'Активный' active(d) 'F10' DEFAULT
-
-    LIST DepartmentStore OBJECT d
-;
-
-//FORM departmentStores 'Отдел магазина'
-//    TREE treeStore a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
-//    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
-//    ORDERS sgTreeName
-//    FILTERS stringEqualsAll(a), (sg IS ChainStores OR sg IS StoreType OR sg IS StoreGroup OR sg IS Store)
+//FORM departmentStores 'Отделы магазинов'
+//    TREE treeStore a=BPSTRING[3], t=ChainStores, st=StoreType, s=Store
+//    PROPERTIES READONLY VALUE(a), name(t), name(st), name(s)
+//    FILTERS stringEqualsAll(a), in (t, st), in(st, s)
+//    FILTERGROUP activeStore FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
 //
 //    OBJECTS d=DepartmentStore
 //    PROPERTIES (d) in
 //    PROPERTIES(d) READONLY id SHOWIF showIDs(), depName = name, fullName
+//    FILTERS in(t, st, s, d)
+//    ORDERS depName
+//    FILTERGROUP activeDS FILTER 'Активный' active(d) 'F10' DEFAULT
 //
-//    FILTERS isParent(sg, d) OR (d IS Stock AND NOT sg) 
-//
-//    FILTERGROUP inactiveStock FILTER 'Активный' active(d) 'ctrl F10' DEFAULT
-//    
 //    LIST DepartmentStore OBJECT d
 //;
+
+FORM departmentStores 'Отдел магазина'
+    TREE treeStore a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a), (sg IS ChainStores OR sg IS StoreType OR sg IS StoreGroup OR sg IS Store)
+    FILTERGROUP activeStore FILTER 'Активный' (active[Store](sg) OR NOT sg IS Store) 'ctrl F10' DEFAULT
+
+    OBJECTS d=DepartmentStore
+    PROPERTIES (d) in
+    PROPERTIES(d) READONLY id SHOWIF showIDs(), depName = name, fullName
+
+    FILTERS isParent(sg, d) OR (d IS Stock AND NOT sg) 
+
+    FILTERGROUP activeDS FILTER 'Активный' active(d) 'F10' DEFAULT
+
+    LIST DepartmentStore OBJECT d
+;
 
 DESIGN departmentStores {
     BOX {
@@ -468,7 +470,8 @@ FORM store 'Магазин'
     OBJECTS d=DepartmentStore
     PROPERTIES(d) READONLYIF isReadonly() name, id SHOWIF showIDs(), nameStockGroup, inactive, tradingSquare
     PROPERTIES(d)          NESTEDSESSION NEW, EDIT, deleteD=DELETE GRID
-    FILTERS in(s, d)
+    FILTERS store(d) == s
+//    FILTERS in(s, d)
 
     FILTERGROUP active
         FILTER 'Активный' NOT inactive(d) DEFAULT 
@@ -539,29 +542,51 @@ DESIGN store {
 
 // -------------------------------------- Формы магазинов ------------------------------------------ //
 
+//FORM stores 'Магазины'
+//    TREE treeStore a=BPSTRING[3], t=ChainStores, st=StoreType, stg=StoreGroup 
+//    PROPERTIES READONLY VALUE(a), name(t), name(st), name(stg)
+//
+//    FILTERS stringEqualsAll(a)
+//    FILTERS in (t, st)
+//    FILTERS in (st, stg)
+//    
+//    FILTERGROUP active
+//        FILTER 'Активные' active(st) DEFAULT
+//
+//    PROPERTIES(t) NEWSESSION addT=NEW[ChainStores] , editT=EDIT[ChainStores] , deletet=DELETE
+//
+//    OBJECTS s=Store
+//    PROPERTIES(s) READONLYIF isReadonly() name, id SHOWIF showIDs(), address, email, phone, nameStoreType, nameLegalEntity, nameRegion, orderNumber 
+//    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE 
+//    FILTERS in(t, st, stg, s)
+//    FILTERGROUP group1
+//        FILTER 'Активные' active(s) 'F10' DEFAULT
+//
+//    OBJECTS d=DepartmentStore
+//    PROPERTIES(d) READONLYIF isReadonly() name, id SHOWIF showIDs()
+//    FILTERS in(s, d)
+//    LIST Store OBJECT s
+//;
+
 FORM stores 'Магазины'
-    TREE treeStore a=BPSTRING[3], t=ChainStores, st=StoreType, stg=StoreGroup 
-    PROPERTIES READONLY VALUE(a), name(t), name(st), name(stg)
+    TREE treeStore a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a), (sg IS ChainStores OR sg IS StoreType OR sg IS StoreGroup)
+    FILTERGROUP activeStore FILTER 'Активный' (active[StoreType](sg) OR NOT sg IS StoreType) 'ctrl F10' DEFAULT
 
-    FILTERS stringEqualsAll(a)
-    FILTERS in (t, st)
-    FILTERS in (st, stg)
-    
-    FILTERGROUP active
-        FILTER 'Активные' active(st) DEFAULT
-
-    PROPERTIES(t) NEWSESSION addT=NEW , editT=EDIT , deletet=DELETE 
+    PROPERTIES(sg) NEWSESSION addT=NEW[ChainStores] , editT=EDIT[ChainStores] , deletet=DELETE
 
     OBJECTS s=Store
     PROPERTIES(s) READONLYIF isReadonly() name, id SHOWIF showIDs(), address, email, phone, nameStoreType, nameLegalEntity, nameRegion, orderNumber 
     PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE 
-    FILTERS in(t, st, stg, s)
+    FILTERS isParent(s,sg) OR (s IS Store AND NOT sg), isCompany(s) 
     FILTERGROUP group1
         FILTER 'Активные' active(s) 'F10' DEFAULT
 
     OBJECTS d=DepartmentStore
     PROPERTIES(d) READONLYIF isReadonly() name, id SHOWIF showIDs()
-    FILTERS in(s, d)
+    FILTERS store(d) == s
     LIST Store OBJECT s
 ;
 
@@ -592,7 +617,7 @@ DESIGN stores {
 }
 @extendFormEditable(stores);
 
-@extendFormFilterStockGroupAccess(st, stores, company);
+@extendFormFilterStockGroupAccess(sg, stores, company);
 
 NAVIGATOR {
     retailMasterData {
