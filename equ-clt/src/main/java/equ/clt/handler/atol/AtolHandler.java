@@ -65,7 +65,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                         goodsWriter.println("$$$ADDQUANTITY");
 
                         LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<>();
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
                                 if(hierarchyItemGroup != null) {
@@ -91,7 +91,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                             }
                         }
 
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 String idItemGroup = item.idItemGroup == null ? "" : item.idItemGroup;
                                 String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3

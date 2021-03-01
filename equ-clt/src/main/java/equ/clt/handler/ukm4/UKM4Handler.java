@@ -6,7 +6,7 @@ import equ.api.ItemGroup;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
@@ -76,7 +76,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                                 new OverJDBField("QUANTITY", 'N', 16, 6)
                         };
                         barDBFWriter = new DBFWriter(directory + "/BAR.DBF", barFields, "CP866");
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 barDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 15), trim(item.idBarcode, 30)/*или что туда надо писать?*/,
                                         "NOSIZE", 1/*без разницы, что писать в количество?*/});
@@ -96,7 +96,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                         };
                         classifDBFWriter = new DBFWriter(directory + "/CLASSIF.DBF", classifFields, "CP866");
                         Set<Long> idItemGroups = new HashSet<>();
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
                                 if(hierarchyItemGroup != null) {
@@ -165,7 +165,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                         };
                         pluCashDBFWriter = new DBFWriter(directory + "/PLUCASH.DBF", pluCashFields, "CP866");
 
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
                                 double mespresisi = item.splitItem ? 0.001 : 1.000;
@@ -193,7 +193,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                                 new OverJDBField("PERCENT", 'N', 16, 2)
                         };
                         pluLimDBFWriter = new DBFWriter(directory + "/PLULIM.DBF", pluLimFields, "CP866");
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 pluLimDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), 0/*откуда брать макс. процент скидки?*/});
                             }

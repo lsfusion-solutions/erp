@@ -17,11 +17,11 @@ public class StopListInfo implements Serializable {
     public LocalTime timeTo;
     public Set<String> idStockSet;
     public Map<Integer, Set<String>> inGroupMachineryItemMap;
-    public Map<String, StopListItemInfo> stopListItemMap;
+    public Map<String, StopListItem> stopListItemMap;
     public Map<String, Set<MachineryInfo>> handlerMachineryMap;
 
     public StopListInfo(boolean exclude, String number, LocalDate dateFrom, LocalTime timeFrom, LocalDate dateTo, LocalTime timeTo, Set<String> idStockSet,
-                        Map<Integer, Set<String>> inGroupMachineryItemMap, Map<String, StopListItemInfo> stopListItemMap,
+                        Map<Integer, Set<String>> inGroupMachineryItemMap, Map<String, StopListItem> stopListItemMap,
                         Map<String, Set<MachineryInfo>> handlerMachineryMap) {
         this.exclude = exclude;
         this.number = number;

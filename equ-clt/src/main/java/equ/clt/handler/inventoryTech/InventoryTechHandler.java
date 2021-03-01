@@ -333,7 +333,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     dbfWriter.startTop();
 
                     Set<String> usedBarcodes = new HashSet<>();
-                    for (TerminalItemInfo item : transaction.itemsList) {
+                    for (TerminalItem item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
                             if (!usedBarcodes.contains(item.idBarcode)) {
                                 Integer recordNumber = null;
@@ -413,7 +413,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     dbfWriter.startTop();
 
                     Set<String> usedBarcodes = new HashSet<>();
-                    for (TerminalItemInfo item : transaction.itemsList) {
+                    for (TerminalItem item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
                             if (!usedBarcodes.contains(item.idBarcode)) {
                                 Integer recordNumber = null;

@@ -1,7 +1,6 @@
 package equ.clt.handler.cas;
 
-import equ.api.scales.ScalesItemInfo;
-import org.apache.commons.codec.binary.Hex;
+import equ.api.scales.ScalesItem;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -63,7 +62,7 @@ public class CL7000Handler extends CL5000JHandler {
     }
 
     @Override
-    protected String sendTouchSpeedKeys(DataSocket socket, List<ScalesItemInfo> itemsList) throws IOException {
+    protected String sendTouchSpeedKeys(DataSocket socket, List<ScalesItem> itemsList) throws IOException {
         CL7000Reply speedKeys = readTouchSpeedKeys(socket);
 
         if(speedKeys.error != null) {
@@ -75,7 +74,7 @@ public class CL7000Handler extends CL5000JHandler {
 
             speedKeysByteBuffer.put(ArrayUtils.subarray(speedKeys.data, 0, 800));
 
-            for(ScalesItemInfo item : itemsList) {
+            for(ScalesItem item : itemsList) {
                 int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
                 if(pluNumber <= 200) {
                     speedKeysByteBuffer.position((pluNumber - 1) * 4);

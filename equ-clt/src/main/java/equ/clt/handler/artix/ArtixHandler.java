@@ -126,16 +126,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         }
 
                         //items
-                        Map<String, List<CashRegisterItemInfo>> barcodeMap = new HashMap<>();
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
-                            List<CashRegisterItemInfo> items = barcodeMap.get(item.mainBarcode);
+                        Map<String, List<CashRegisterItem>> barcodeMap = new HashMap<>();
+                        for (CashRegisterItem item : transaction.itemsList) {
+                            List<CashRegisterItem> items = barcodeMap.get(item.mainBarcode);
                             if (items == null)
                                 items = new ArrayList<>();
                             items.add(item);
                             barcodeMap.put(item.mainBarcode, items);
                         }
 
-                        for (Map.Entry<String, List<CashRegisterItemInfo>> barcodeEntry : barcodeMap.entrySet()) {
+                        for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 String inventItem = getAddInventItemJSON(transaction, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode);
                                 if(inventItem != null) {
@@ -149,7 +149,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         //item groups
                         Set<String> usedItemGroups = new HashSet<>();
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
                                 if (hierarchyItemGroup != null) {
@@ -167,7 +167,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         //Tax groups
                         Set<BigDecimal> usedTaxGroups = new HashSet<>();
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 if (item.vat != null && !usedTaxGroups.contains(item.vat)) {
                                     String group = getAddTaxGroup(item);
@@ -180,7 +180,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         //UOMs
                         Set<String> usedUOMs = new HashSet<>();
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 if (!usedUOMs.contains(item.idUOM)) {
                                     String unit = getAddUnitJSON(item);
@@ -192,7 +192,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         }
 
                         //scale items
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
                                 writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item) + "\n---\n");
                             }
@@ -234,14 +234,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return result;
     }
 
-    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, String mainBarcode, List<CashRegisterItemInfo> items, boolean appendBarcode) throws JSONException {
-        Set<CashRegisterItemInfo> barcodes = new HashSet<>();
-        for(CashRegisterItemInfo item : items) {
+    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode) throws JSONException {
+        Set<CashRegisterItem> barcodes = new HashSet<>();
+        for(CashRegisterItem item : items) {
             if(!item.idBarcode.equals(item.mainBarcode)) {
                 barcodes.add(item);
             }
         }
-        CashRegisterItemInfo item = items.get(0);
+        CashRegisterItem item = items.get(0);
         Integer idUOM = parseUOM(item.idUOM);
         if(idUOM != null) {
             JSONObject rootObject = new JSONObject();
@@ -253,7 +253,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             if(!barcodes.isEmpty()) {
                 JSONArray barcodesArray = new JSONArray();
-                for(CashRegisterItemInfo barcode : barcodes) {
+                for(CashRegisterItem barcode : barcodes) {
                     JSONObject barcodeObject = new JSONObject();
                     barcodeObject.put("barcode", removeCheckDigitFromBarcode(barcode.idBarcode, appendBarcode));
                     barcodesArray.put(barcodeObject);
@@ -347,7 +347,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         } else return null;
     }
 
-    private String getAddTaxGroup(CashRegisterItemInfo item) throws JSONException {
+    private String getAddTaxGroup(CashRegisterItem item) throws JSONException {
         if (item.vat != null) {
             JSONObject rootObject = new JSONObject();
 
@@ -368,7 +368,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         } else return null;
     }
 
-    private String getAddUnitJSON(CashRegisterItemInfo item) throws JSONException {
+    private String getAddUnitJSON(CashRegisterItem item) throws JSONException {
         Integer idUOM = parseUOM(item.idUOM);
         if (idUOM != null) {
             JSONObject rootObject = new JSONObject();
@@ -392,7 +392,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
     }
 
-    private String getAddTmcScaleJSON(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item) throws JSONException {
+    private String getAddTmcScaleJSON(TransactionCashRegisterInfo transaction, CashRegisterItem item) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject tmcScaleObject = new JSONObject();

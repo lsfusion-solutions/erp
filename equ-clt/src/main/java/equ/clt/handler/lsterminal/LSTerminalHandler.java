@@ -473,7 +473,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 connection.setAutoCommit(false);
                 String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, '', '', '', '', '', ?, ?);";
                 statement = connection.prepareStatement(sql);
-                for (TerminalItemInfo item : transaction.itemsList) {
+                for (TerminalItem item : transaction.itemsList) {
                     if (item.idBarcode != null) {
                         statement.setObject(1, formatValue(item.idBarcode));
                         statement.setObject(2, formatValue(item.name));

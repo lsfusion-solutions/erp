@@ -3,7 +3,7 @@ package equ.clt.handler.dreamkas;
 import equ.api.SalesInfo;
 import equ.api.cashregister.CashDocument;
 import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
@@ -389,7 +389,7 @@ public class DreamkasServer {
     //  Создает текст JSON для отправки цен (POST) и заполняет массив для выполнения PATCH
     private void prepPriceList(TransactionCashRegisterInfo transaction) {
         int nPos;
-        for (CashRegisterItemInfo item : transaction.itemsList) {
+        for (CashRegisterItem item : transaction.itemsList) {
             cResult = "";
             addKeyValue("{", "id", getUUID(item), "", "");                // UUID товара
             addKeyValue(",", "name", item.name.trim(), "", "");           // Название товара
@@ -480,7 +480,7 @@ public class DreamkasServer {
     }
 
     //  Возвращает UUID индификатор товара, входной параметр код товара
-    private String getUUID(CashRegisterItemInfo item) {
+    private String getUUID(CashRegisterItem item) {
         String cData = item.idBarcode.trim() + uuidSuffix;
         byte[] bytes = cData.getBytes(StandardCharsets.UTF_8);
         UUID uuid = UUID.nameUUIDFromBytes(bytes);

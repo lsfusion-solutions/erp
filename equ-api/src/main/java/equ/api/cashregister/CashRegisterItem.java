@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-public class CashRegisterItemInfo extends ItemInfo {
+public class CashRegisterItem extends ItemInfo {
     public Long itemGroupObject;
     public String description;
     public String idBrand;
@@ -23,12 +23,12 @@ public class CashRegisterItemInfo extends ItemInfo {
     public Long barcodeObject;
     public String mainBarcode;
 
-    public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry,
-                                LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
-                                String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM, String info,
-                                Long itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
-                                String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode,
-                                BigDecimal balance, LocalDateTime balanceDate, LocalDateTime restrictionToDateTime, Long barcodeObject, String mainBarcode) {
+    public CashRegisterItem(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry,
+                            LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
+                            String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM, String info,
+                            Long itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
+                            String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode,
+                            BigDecimal balance, LocalDateTime balanceDate, LocalDateTime restrictionToDateTime, Long barcodeObject, String mainBarcode) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
                 idUOM, shortNameUOM, info);
         this.itemGroupObject = itemGroupObject;

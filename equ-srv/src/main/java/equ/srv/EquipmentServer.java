@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.api.terminal.*;
@@ -2214,7 +2214,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, sectionGroupCashRegister, null));
                     }
 
-                    List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<>();
+                    List<CashRegisterItem> cashRegisterItemList = new ArrayList<>();
 
                     for (int i = 0, size = skuResult.size(); i < size; i++) {
                         ImMap<Object, Object> row = skuResult.getValue(i);
@@ -2253,16 +2253,16 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
                         LocalDateTime restrictionToDateTime = (LocalDateTime) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
 
-                        CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
+                        CashRegisterItem c = new CashRegisterItem(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, itemGroupObject, description, idBrand, nameBrand,
                                 idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
                                 balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode);
-                        cashRegisterItemInfoList.add(c);
+                        cashRegisterItemList.add(c);
                     }
 
                     transactionList.add(new TransactionCashRegisterInfo((Long) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
-                            nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
+                            nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemList,
                             cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister,
                             idDepartmentStoreGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister, infoMPT));
 
@@ -2314,7 +2314,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     if(enabledCount > 0 && enabledCount==enabledInactiveCount)
                         scalesInfoList = new ArrayList<>();
 
-                    List<ScalesItemInfo> scalesItemInfoList = new ArrayList<>();
+                    List<ScalesItem> scalesItemList = new ArrayList<>();
 
                     for (ImMap<Object, Object> row : skuResult.valueIt()) {
                         String idItem = getRowValue(row, "idSkuBarcode");
@@ -2342,7 +2342,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal retailPrice = (BigDecimal) row.get("retailPrice");
                         Integer imagesCount = (Integer) row.get("imagesCount");
 
-                        scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate,
+                        scalesItemList.add(new ScalesItem(idItem, barcode, name, price, split, daysExpiry, expiryDate,
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
                                 null, description, descriptionNumberCellScales, idUOM, shortNameUOM, info, extraPercent,
                                 retailPrice, imagesCount));
@@ -2350,7 +2350,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                     transactionList.add(new TransactionScalesInfo((Long) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
-                            nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction,
+                            nameGroupMachinery, descriptionTransaction, scalesItemList, scalesInfoList, snapshotTransaction,
                             lastErrorDateTransaction, infoMPT));
 
                 } else if (isPriceCheckerPriceTransaction) {
@@ -2380,7 +2380,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 null, handlerModelGroupMachinery, trim((String) row.get("portMachinery"))));
                     }
 
-                    List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<>();
+                    List<PriceCheckerItem> priceCheckerItemList = new ArrayList<>();
                     for (ImMap<Object, Object> row : skuResult.valueIt()) {
                         String idItem = getRowValue(row, "idSkuBarcode");
                         String barcode = getRowValue(row, "idBarcode");
@@ -2394,13 +2394,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
 
-                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(idItem, barcode, name, price, split,
+                        priceCheckerItemList.add(new PriceCheckerItem(idItem, barcode, name, price, split,
                                 daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null, null));
                     }
 
                     transactionList.add(new TransactionPriceCheckerInfo((Long) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
-                            nameGroupMachinery, descriptionTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
+                            nameGroupMachinery, descriptionTransaction, priceCheckerItemList, priceCheckerInfoList,
                             snapshotTransaction, lastErrorDateTransaction, infoMPT));
 
 
@@ -2439,7 +2439,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 directoryGroupTerminal, idPriceListType));
                     }
 
-                    List<TerminalItemInfo> terminalItemInfoList = new ArrayList<>();
+                    List<TerminalItem> terminalItemList = new ArrayList<>();
                     for (ImMap<Object, Object> row : skuResult.valueIt()) {
                         String idItem = getRowValue(row, "idSkuBarcode");
                         String barcode = getRowValue(row, "idBarcode");
@@ -2454,7 +2454,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
 
-                        terminalItemInfoList.add(new TerminalItemInfo(idItem, barcode, name, price, split, daysExpiry,
+                        terminalItemList.add(new TerminalItem(idItem, barcode, name, price, split, daysExpiry,
                                 expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null));
                     }
 
@@ -2465,7 +2465,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                     transactionList.add(new TransactionTerminalInfo((Long) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
-                            descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
+                            descriptionTransaction, terminalItemList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
                             terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
                             nppGroupTerminal, directoryGroupTerminal, infoMPT));
                 }

@@ -2,7 +2,7 @@ package equ.clt.handler.bizerba;
 
 import equ.api.ItemInfo;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.clt.handler.TCPPort;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -25,7 +25,7 @@ public class BizerbaPCBasedHandler extends BizerbaHandler {
     }
 
     @Override
-    protected String loadImages(List<String> errors, ScalesInfo scales, TCPPort port, ScalesItemInfo item) {
+    protected String loadImages(List<String> errors, ScalesInfo scales, TCPPort port, ScalesItem item) {
         if(item.imagesCount != null) {
             for (int i = 1; i <= item.imagesCount; i++) {
                 clearReceiveBuffer(port);
@@ -50,7 +50,7 @@ public class BizerbaPCBasedHandler extends BizerbaHandler {
         return null;
     }
 
-    private String getLoadImageMessage(ScalesInfo scales, ScalesItemInfo item, int i, int cancelFlag) {
+    private String getLoadImageMessage(ScalesInfo scales, ScalesItem item, int i, int cancelFlag) {
         Integer pluNumber = getPluNumber(item);
         String image = item.idItem + "_" + i + ".jpg";
         return "MDST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(cancelFlag) + separator + "MDK1" + pluNumber + separator + "MDK2" + 1 + separator + "MDK3" + 0

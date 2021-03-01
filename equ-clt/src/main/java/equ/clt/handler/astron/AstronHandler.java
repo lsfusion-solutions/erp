@@ -3,11 +3,11 @@ package equ.clt.handler.astron;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.DiscountCard;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.api.stoplist.StopListInfo;
-import equ.api.stoplist.StopListItemInfo;
+import equ.api.stoplist.StopListItem;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -34,7 +34,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     protected final static Logger astronLogger = Logger.getLogger("AstronLogger");
     protected final static Logger astronSalesLogger = Logger.getLogger("AstronSalesLogger");
 
-    private static Map<String, Map<String, CashRegisterItemInfo>> deleteBarcodeConnectionStringMap = new HashMap<>();
+    private static Map<String, Map<String, CashRegisterItem>> deleteBarcodeConnectionStringMap = new HashMap<>();
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -66,7 +66,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         //todo: temp log
         for(DeleteBarcodeInfo deleteBarcode : deleteBarcodeList) {
-            for(CashRegisterItemInfo barcode : deleteBarcode.barcodeList) {
+            for(CashRegisterItem barcode : deleteBarcode.barcodeList) {
             astronLogger.info(String.format("Read DeleteBarcode item %s, barcode %s, handler %s, group %s",
                     barcode.idItem, barcode.idBarcode, deleteBarcode.handlerModelGroupMachinery, deleteBarcode.nppGroupMachinery));
             }
@@ -168,10 +168,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     try (Connection conn = getConnection(params)) {
                         connectionSemaphore.add(params.connectionString);
 
-                        Map<String, CashRegisterItemInfo> deleteBarcodeMap = new HashMap<>();
+                        Map<String, CashRegisterItem> deleteBarcodeMap = new HashMap<>();
                         for (DeleteBarcodeInfo deleteBarcode : deleteBarcodeList) {
                             if (directory.equals(deleteBarcode.directoryGroupMachinery)) {
-                                for (CashRegisterItemInfo item : deleteBarcode.barcodeList) {
+                                for (CashRegisterItem item : deleteBarcode.barcodeList) {
 //                                    astronLogger.info(String.format("Transaction %s, deleteBarcode item %s, barcode %s", transaction.id, item.idItem, item.idBarcode));
                                     deleteBarcodeMap.put(item.idItem, item);
                                 }
@@ -194,7 +194,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             truncateTables(conn, transaction, extGrpId);
                         }
 
-                        List<CashRegisterItemInfo> usedDeleteBarcodeList = new ArrayList<>();
+                        List<CashRegisterItem> usedDeleteBarcodeList = new ArrayList<>();
                         transaction.itemsList = transaction.itemsList.stream().filter(item -> isValidItem(transaction, deleteBarcodeMap, usedDeleteBarcodeList, item)).collect(Collectors.toList());
 
                         if (!transaction.itemsList.isEmpty()) {
@@ -270,7 +270,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             }
 
 
-                            for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
+                            for (CashRegisterItem usedDeleteBarcode : usedDeleteBarcodeList) {
                                 deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
                             }
                         }
@@ -303,7 +303,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         if (params.pgsql) {
             for (int i = 0; i < transaction.itemsList.size(); i++) {
 
-                CashRegisterItemInfo item = transaction.itemsList.get(i);
+                CashRegisterItem item = transaction.itemsList.get(i);
                 String grpId = parseGroup(item.extIdItemGroup);
                 if (grpId == null || grpId.isEmpty()) {
                     invalidItems.append(invalidItems.length() == 0 ? "" : ", ").append(item.idItem);
@@ -435,7 +435,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int batchCount = 0;
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
-                    CashRegisterItemInfo item = transaction.itemsList.get(i);
+                    CashRegisterItem item = transaction.itemsList.get(i);
                     Integer idItem = parseIdItem(item);
                     if(params.pgsql) {
                         setObject(ps, idItem, 1); //ARTID
@@ -593,7 +593,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPackDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItemInfo> usedDeleteBarcodeList, Integer maxBatchSize, Integer updateNum) throws SQLException {
+    private void exportPackDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItem> usedDeleteBarcodeList, Integer maxBatchSize, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACK", columns, keys)) {
@@ -601,7 +601,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             Set<Integer> idItems = new HashSet<>();
             int batchCount = 0;
-            for (CashRegisterItemInfo item : usedDeleteBarcodeList) {
+            for (CashRegisterItem item : usedDeleteBarcodeList) {
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer idItem = parseIdItem(item);
                     Integer packId = getPackId(item);
@@ -660,17 +660,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private List<Integer> getPackIds(ItemInfo item) {
         List<Integer> packIds = new ArrayList<>();
-        if (item instanceof CashRegisterItemInfo) {
-            packIds.add(getPackId((CashRegisterItemInfo) item));
+        if (item instanceof CashRegisterItem) {
+            packIds.add(getPackId((CashRegisterItem) item));
         } else {
-            for (Long barcodeObject : ((StopListItemInfo) item).barcodeObjectList) {
+            for (Long barcodeObject : ((StopListItem) item).barcodeObjectList) {
                 packIds.add(getPackId(barcodeObject));
             }
         }
         return packIds;
     }
 
-    private Integer getPackId(CashRegisterItemInfo item) {
+    private Integer getPackId(CashRegisterItem item) {
         //Потенциальная опасность, если база перейдёт границу Integer.MAX_VALUE
         return item.barcodeObject.intValue();
     }
@@ -741,14 +741,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return updateNum != null ? ArrayUtils.add(columns, "UPDATENUM") : columns;
     }
 
-    private void exportExBarcDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItemInfo> usedDeleteBarcodeList, Integer maxBatchSize, Integer updateNum) throws SQLException {
+    private void exportExBarcDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItem> usedDeleteBarcodeList, Integer maxBatchSize, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"EXBARCID"};
         String[] columns = getColumns(new String[]{"EXBARCID", "PACKID", "EXBARCTYPE", "EXBARCBODY", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "EXBARC", columns, keys)) {
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
-            for (CashRegisterItemInfo item : usedDeleteBarcodeList) {
+            for (CashRegisterItem item : usedDeleteBarcodeList) {
                 if (!Thread.currentThread().isInterrupted()) {
                     if (item.idBarcode != null) {
                         Integer packId = getPackId(item);
@@ -799,7 +799,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int batchCount = 0;
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
-                    CashRegisterItemInfo item = transaction.itemsList.get(i);
+                    CashRegisterItem item = transaction.itemsList.get(i);
                     if (item.price != null) {
                         Integer packId = getPackId(item);
                         addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, false, keys.length, updateNum);
@@ -838,7 +838,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         for (int i = 0; i < transaction.itemsList.size(); i++) {
             if (!Thread.currentThread().isInterrupted()) {
-                CashRegisterItemInfo item = transaction.itemsList.get(i);
+                CashRegisterItem item = transaction.itemsList.get(i);
                 if (item.price != null) {
                     //{"astron": {"secondPrice":"1.23"}}
                     BigDecimal secondPrice = getJSONBigDecimal(item.info, "astron", "secondPrice");
@@ -858,7 +858,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables, secondPrice);
         BigDecimal packPrice = price == null || price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(price, 100);
-        BigDecimal minPrice = item instanceof CashRegisterItemInfo ? HandlerUtils.safeMultiply(((CashRegisterItemInfo) item).minPrice, 100) : null;
+        BigDecimal minPrice = item instanceof CashRegisterItem ? HandlerUtils.safeMultiply(((CashRegisterItem) item).minPrice, 100) : null;
         BigDecimal packMinPrice = (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(price, 100) != null ? HandlerUtils.safeMultiply(price, 100) : minPrice != null ? minPrice : BigDecimal.ZERO;
 
         if(params.pgsql) {
@@ -886,14 +886,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void exportPackPrcDeleteBarcode(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction,
-                                            List<CashRegisterItemInfo> usedDeleteBarcodeList, boolean exportExtraTables, Integer maxBatchSize, Integer updateNum) throws SQLException {
+                                            List<CashRegisterItem> usedDeleteBarcodeList, boolean exportExtraTables, Integer maxBatchSize, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
         String[] columns = getColumns(new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys)) {
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
-            for (CashRegisterItemInfo item : usedDeleteBarcodeList) {
+            for (CashRegisterItem item : usedDeleteBarcodeList) {
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer packId = getPackId(item);
                     if(params.pgsql) {
@@ -1128,11 +1128,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private boolean isValidItem(TransactionCashRegisterInfo transaction, Map<String, CashRegisterItemInfo> deleteBarcodeMap, List<CashRegisterItemInfo> usedDeleteBarcodeList, CashRegisterItemInfo item) {
+    private boolean isValidItem(TransactionCashRegisterInfo transaction, Map<String, CashRegisterItem> deleteBarcodeMap, List<CashRegisterItem> usedDeleteBarcodeList, CashRegisterItem item) {
         boolean isValidItem = parseUOM(item.idUOM) != null && parseIdItem(item) != null;
         if(isValidItem) {
             if(deleteBarcodeMap != null && deleteBarcodeMap.containsKey(item.idItem)) {
-                CashRegisterItemInfo deleteBarcode = deleteBarcodeMap.get(item.idItem);
+                CashRegisterItem deleteBarcode = deleteBarcodeMap.get(item.idItem);
                 usedDeleteBarcodeList.add(deleteBarcode);
                 astronLogger.info(String.format("Transaction %s, deleteBarcode item %s, barcode %s", transaction.id, deleteBarcode.idItem, deleteBarcode.idBarcode));
             }
@@ -1336,7 +1336,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         connectionSemaphore.add(params.connectionString);
 
-                        List<StopListItemInfo> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
+                        List<StopListItem> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
 
                         Integer artUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
                         exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize, artUpdateNum);
@@ -1861,7 +1861,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private String getExtIdItemGroup(ItemInfo item, boolean zeroGrpId) {
-        return item instanceof CashRegisterItemInfo ? parseGroup(((CashRegisterItemInfo) item).extIdItemGroup) : (zeroGrpId ? "0" : null);
+        return item instanceof CashRegisterItem ? parseGroup(((CashRegisterItem) item).extIdItemGroup) : (zeroGrpId ? "0" : null);
     }
 
     private String parseGroup(String idItemGroup) {

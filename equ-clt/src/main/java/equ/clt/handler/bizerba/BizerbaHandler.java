@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.clt.EquipmentServer;
@@ -123,7 +123,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                         if (localErrors.isEmpty()) {
                             synchronizeTime(localErrors, port, scales.port);
                             int count = 0;
-                            for (ScalesItemInfo item : transaction.itemsList) {
+                            for (ScalesItem item : transaction.itemsList) {
                                 count++;
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
@@ -402,7 +402,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return receiveReply(errors, port, scales.port);
     }
 
-    private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String ip) {
+    private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItem item, String ip) {
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
             Integer messageNumber = entry.getKey();
             String messageText = entry.getValue();
@@ -420,7 +420,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return null;
     }
 
-    private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, int descriptionLineLength, boolean useDescriptionOptimizer) {
+    private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItem item, int descriptionLineLength, boolean useDescriptionOptimizer) {
         List<String> messageLines = new ArrayList<>();
         for (String line : replaceDescription(item.description, useDescriptionOptimizer).split("\\\\n")) {
             while (!line.isEmpty()) {
@@ -469,7 +469,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return result;
     }
 
-    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean capitalLetters,
+    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItem item, boolean capitalLetters,
                            boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer) {
 
         Integer pluNumber = getPluNumber(item);
@@ -583,7 +583,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
 
     protected abstract String getModel();
 
-    public Integer getTarePercent(ScalesItemInfo item) {
+    public Integer getTarePercent(ScalesItem item) {
         return 0;
     }
 
@@ -591,7 +591,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return "1";
     }
 
-    protected String loadImages(List<String> errors, ScalesInfo scales, TCPPort port, ScalesItemInfo item) {
+    protected String loadImages(List<String> errors, ScalesInfo scales, TCPPort port, ScalesItem item) {
         return null;
     }
 

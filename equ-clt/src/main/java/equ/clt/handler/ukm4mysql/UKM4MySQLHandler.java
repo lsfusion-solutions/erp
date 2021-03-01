@@ -241,7 +241,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             conn.setAutoCommit(false);
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO classif (id, owner, name, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE owner=VALUES(owner), name=VALUES(name), deleted=VALUES(deleted)")) {
 
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     forceGroups.remove(item.extIdItemGroup);
                     List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
                     if (itemGroupList != null) {
@@ -311,7 +311,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             "ON DUPLICATE KEY UPDATE percent=VALUES(percent), deleted=VALUES(deleted)")) {
 
                 Set<Integer> usedVAT = new HashSet<>();
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     Integer vat = getTax(item);
                     if (vat != 0 && !usedVAT.contains(vat)) {
                         ps.setInt(1, vat); //id
@@ -343,7 +343,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             "ON DUPLICATE KEY UPDATE name=VALUES(name), descr=VALUES(descr), measure=VALUES(measure), measprec=VALUES(measprec), classif=VALUES(classif)," +
                             "prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted)")) {
 
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     ps.setString(1, getId(item, useBarcodeAsId, appendBarcode)); //id
                     ps.setString(2, trim(item.name, "", 40)); //name
                     ps.setString(3, item.description == null ? "" : item.description); //descr
@@ -369,7 +369,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private int getTax(CashRegisterItemInfo item) {
+    private int getTax(CashRegisterItem item) {
         return item.vat != null ? item.vat.intValue() : 0;
     }
 
@@ -378,7 +378,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             conn.setAutoCommit(false);
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO items_stocks (store, item, stock, version, deleted) VALUES (?, ?, ?, ?, ?)" + "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)")) {
 
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     if (item.section != null) {
                         for (String stock : item.section.split(",")) {
                             String[] splitted = stock.split("\\|");
@@ -416,7 +416,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO stocks (store, id, name, version, deleted) VALUES (?, ?, ?, ?, 0)" + "ON DUPLICATE KEY UPDATE name=VALUES(name), deleted=VALUES(deleted)")) {
 
                 Set<String> sections = new HashSet<>();
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     if (item.section != null) {
                         for (String stock : item.section.split(",")) {
                             if (!sections.contains(stock)) {
@@ -464,7 +464,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             conn.setAutoCommit(false);
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " + "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)")) {
 
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     ps.setInt(1, npp); //pricelist
                     ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
                     ps.setBigDecimal(3, item.price); //price
@@ -489,7 +489,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             conn.setAutoCommit(false);
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)")) {
 
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     String prefix = getPrefix(item, weightCode, pieceCode, usePieceCode);
                     String barcode = makeBarcode(item.idBarcode, item.passScalesItem, prefix);
                     if (barcode != null) {
@@ -561,7 +561,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                         "tare_weight=VALUES(tare_weight)" :
                                 "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                                         "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     String prefix = getPrefix(item, weightCode, pieceCode, usePieceCode);
                     String barcode = makeBarcode(removeCheckDigitFromBarcode(item.idBarcode, appendBarcode), item.passScalesItem, prefix);
                     if (barcode != null && item.idItem != null) {
@@ -598,9 +598,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportVarDeleteBarcode(Connection conn, List<CashRegisterItemInfo> barcodeList, int version) {
+    private void exportVarDeleteBarcode(Connection conn, List<CashRegisterItem> barcodeList, int version) {
         try (PreparedStatement ps = conn.prepareStatement("INSERT INTO var (id, version, deleted) VALUES (?, ?, ?) " + "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)")) {
-            for (CashRegisterItemInfo item : barcodeList) {
+            for (CashRegisterItem item : barcodeList) {
                 ps.setString(1, trim(item.idBarcode, 40)); //id
                 ps.setInt(2, version); //version
                 ps.setInt(3, 1); //deleted
@@ -670,7 +670,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         if (transaction.itemsList != null) {
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                     "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     if (item.info != null) {
                         JSONObject infoJSON = new JSONObject(item.info).optJSONObject("ukm");
                         if (infoJSON != null) {
@@ -790,11 +790,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
        return section != null ? section : String.valueOf(transaction.departmentNumberGroupCashRegister);
     }*/
 
-    private boolean isNonWeight(CashRegisterItemInfo item) {
+    private boolean isNonWeight(CashRegisterItem item) {
         return item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
     }
 
-    private String getPrefix(CashRegisterItemInfo item, String weightCode, String pieceCode, boolean usePieceCode) {
+    private String getPrefix(CashRegisterItem item, String weightCode, String pieceCode, boolean usePieceCode) {
         return usePieceCode && isNonWeight(item) ? pieceCode : weightCode;
     }
 

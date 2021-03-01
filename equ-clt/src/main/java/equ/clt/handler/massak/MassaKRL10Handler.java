@@ -6,7 +6,7 @@ import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.TCPPort;
@@ -297,14 +297,14 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
         return cleared;
     }
 
-    private boolean loadItem(List<String> errors, TCPPort port, ScalesItemInfo item, Integer nameLineLength, String barcodePrefix, short current, short total, boolean first, byte commandFileType) throws IOException {
+    private boolean loadItem(List<String> errors, TCPPort port, ScalesItem item, Integer nameLineLength, String barcodePrefix, short current, short total, boolean first, byte commandFileType) throws IOException {
         byte[] bytes = getItemBytes(item, nameLineLength, barcodePrefix, first);
         clearReceiveBuffer(port);
         sendCommand(errors, port, bytes, current, total, commandFileType);
         return getCommandReply(errors, port, port.getAddress(), commandFileType);
     }
 
-    private byte[] getItemBytes(ScalesItemInfo item, Integer nameLineLength, String barcodePrefix, boolean first) {
+    private byte[] getItemBytes(ScalesItem item, Integer nameLineLength, String barcodePrefix, boolean first) {
         byte[] firstBytes = first ? getBytes("01PC0000000001") : new byte[0];
         //потенциально длина со знаками переноса строк ("|") может превысить максимум
 
@@ -422,14 +422,14 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
         return result;
     }
 
-    private boolean loadPLU(List<String> errors, TCPPort port, ScalesItemInfo item, short current, short total, boolean first, byte commandFileType) throws IOException {
+    private boolean loadPLU(List<String> errors, TCPPort port, ScalesItem item, short current, short total, boolean first, byte commandFileType) throws IOException {
         byte[] bytes = getPLUBytes(item, first);
         clearReceiveBuffer(port);
         sendCommand(errors, port, bytes, current, total, commandFileType);
         return getCommandReply(errors, port, port.getAddress(), commandFileType);
     }
 
-    private byte[] getPLUBytes(ScalesItemInfo item, boolean first) {
+    private byte[] getPLUBytes(ScalesItem item, boolean first) {
         byte[] firstBytes = first ? getBytes("05PC0000000001") : new byte[0];
 
         int length = 25 + firstBytes.length;
@@ -537,7 +537,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
                         processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
                         if (localErrors.isEmpty()) {
                             int count = 0;
-                            for (ScalesItemInfo item : transaction.itemsList) {
+                            for (ScalesItem item : transaction.itemsList) {
                                 count++;
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
@@ -567,7 +567,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
                         processTransactionLogger.info(getLogPrefix() + "Sending plu..." + scales.port);
                         if (localErrors.isEmpty()) {
                             int count = 0;
-                            for (ScalesItemInfo item : transaction.itemsList) {
+                            for (ScalesItem item : transaction.itemsList) {
                                 count++;
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {

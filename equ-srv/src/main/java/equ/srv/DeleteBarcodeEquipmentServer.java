@@ -2,7 +2,7 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import equ.api.DeleteBarcodeInfo;
-import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.CashRegisterItem;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -92,7 +92,7 @@ class DeleteBarcodeEquipmentServer {
                     if(deleteBarcodeInfo == null)
                         deleteBarcodeInfo = new DeleteBarcodeInfo(new ArrayList<>(), nppGroupMachinery,
                                 null, handlerModelGroupMachinery, directory);
-                    deleteBarcodeInfo.barcodeList.add(new CashRegisterItemInfo(idSku, barcode, name, null, false, null, null,
+                    deleteBarcodeInfo.barcodeList.add(new CashRegisterItem(idSku, barcode, name, null, false, null, null,
                             false, valueVAT, null, null, idItemGroup, nameItemGroup, idUOM, shortNameUOM, null, null, null, null, null, null, null,
                             null, null, null, null, null, null, null, null, barcodeObject, null));
                     barcodeMap.put(key, deleteBarcodeInfo);

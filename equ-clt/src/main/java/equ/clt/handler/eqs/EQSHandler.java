@@ -3,7 +3,7 @@ package equ.clt.handler.eqs;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.DiscountCard;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.api.stoplist.StopListInfo;
@@ -120,7 +120,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
                                 " energvalue=VALUES(energvalue), qty=VALUES(qty), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)");
 
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     String[] splittedDescription = item.description != null ? item.description.split("@@") : null;
                     String composition = splittedDescription != null ? splittedDescription[0] : null;
                     String energValue = splittedDescription != null && splittedDescription.length > 1 ? splittedDescription[1] : null;

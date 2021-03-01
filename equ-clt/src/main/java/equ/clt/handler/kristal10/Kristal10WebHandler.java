@@ -7,7 +7,7 @@ import com.sun.net.httpserver.HttpServer;
 import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
-import equ.api.stoplist.StopListItemInfo;
+import equ.api.stoplist.StopListItem;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.DaemonThreadFactory;
@@ -168,7 +168,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
 
-        for (CashRegisterItemInfo item : transaction.itemsList) {
+        for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
                 JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
@@ -270,7 +270,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         return doc;
     }
 
-    private String getShopIndices(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean useNumberGroupInShopIndices, boolean useShopIndices, String weightShopIndices) {
+    private String getShopIndices(TransactionCashRegisterInfo transaction, CashRegisterItem item, boolean useNumberGroupInShopIndices, boolean useShopIndices, String weightShopIndices) {
         String shopIndices = getIdDepartmentStore(transaction.nppGroupMachinery, transaction.idDepartmentStoreGroupCashRegister, useNumberGroupInShopIndices);
         if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
             shopIndices += " " + weightShopIndices;
@@ -292,7 +292,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
 
-        for (CashRegisterItemInfo item : transaction.itemsList) {
+        for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
                 String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
@@ -357,7 +357,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
 
-        for (CashRegisterItemInfo item : transaction.itemsList) {
+        for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
                 JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
@@ -457,7 +457,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
 
-        for (CashRegisterItemInfo item : transaction.itemsList) {
+        for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
                 String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
@@ -662,7 +662,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
 
-        for (Map.Entry<String, StopListItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
+        for (Map.Entry<String, StopListItem> entry : stopListInfo.stopListItemMap.entrySet()) {
             String idBarcode = entry.getKey();
             ItemInfo item = entry.getValue();
 
@@ -769,7 +769,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 Map<String, String> deleteBarcodeSet = deleteBarcodeDirectoryMap.get(exchangeDirectory);
                 if (deleteBarcodeSet == null)
                     deleteBarcodeSet = new HashMap<>();
-                for (CashRegisterItemInfo item : deleteBarcodeInfo.barcodeList) {
+                for (CashRegisterItem item : deleteBarcodeInfo.barcodeList) {
                     if (!deleteBarcodeSet.containsKey(item.idBarcode)) {
                         String idBarcode = transformBarcode(item.idBarcode, null, false, skipWeightPrefix);
                         deleteBarcodeSet.put(item.idBarcode, idItemInMarkingOfTheGood ? item.idItem : idBarcode);

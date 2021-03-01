@@ -5,7 +5,7 @@ import com.google.common.collect.Lists;
 import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
-import equ.api.stoplist.StopListItemInfo;
+import equ.api.stoplist.StopListItem;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
@@ -120,7 +120,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                         Integer departmentNumber = transactionInfo.departmentNumberGroupCashRegister == null ? 1 : transactionInfo.departmentNumberGroupCashRegister;
 
-                        for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        for (CashRegisterItem item : transactionInfo.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
                                 String idItemGroup = zeroesInItemGroup ? "1|00|00|00|00"
@@ -161,7 +161,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             processTransactionLogger.info(String.format("Kristal: creating Restriction file (Transaction #%s)", transactionInfo.id));
                             PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(restrictionFile), "windows-1251"));
 
-                            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                            for (CashRegisterItem item : transactionInfo.itemsList) {
                                 if (!Thread.currentThread().isInterrupted()) {
                                     //boolean isWeightItem = item.passScalesItem && item.splitItem;
                                     Object code = useIdItem ? item.idItem : item.idBarcode;
@@ -183,7 +183,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     if(!noMessageAndScaleFiles) {
                         //message.txt
                         boolean messageEmpty = true;
-                        for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        for (CashRegisterItem item : transactionInfo.itemsList) {
                             if (item.description != null && !item.description.equals("")) {
                                 messageEmpty = false;
                                 break;
@@ -198,7 +198,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 processTransactionLogger.info(String.format("Kristal: creating MESSAGE file (Transaction #%s)", transactionInfo.id));
                                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
 
-                                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                                for (CashRegisterItem item : transactionInfo.itemsList) {
                                     if (!Thread.currentThread().isInterrupted()) {
                                         if (item.description != null && !item.description.equals("")) {
                                             String record = "+|" + item.idBarcode + "|" + item.description.replace("\n", " ") + "|||";
@@ -216,7 +216,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                         //scale.txt
                         boolean scalesEmpty = true;
-                        for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        for (CashRegisterItem item : transactionInfo.itemsList) {
                             if (item.passScalesItem) {
                                 scalesEmpty = false;
                                 break;
@@ -231,7 +231,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 processTransactionLogger.info(String.format("Kristal: creating SCALES file (Transaction #%s)", transactionInfo.id));
                                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
 
-                                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                                for (CashRegisterItem item : transactionInfo.itemsList) {
                                     if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
                                         String messageNumber = (item.description != null ? item.idBarcode : "0");
                                         Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
@@ -265,7 +265,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
 
                             Set<String> numberGroupItems = new HashSet<>();
-                            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                            for (CashRegisterItem item : transactionInfo.itemsList) {
                                 if (!Thread.currentThread().isInterrupted()) {
                                     List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
                                     hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<>() : Lists.reverse(hierarchyItemGroup);
@@ -773,7 +773,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         processStopListLogger.info("Kristal: creating STOPLIST file");
                         PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
 
-                        for (Map.Entry<String, StopListItemInfo> item : stopListInfo.stopListItemMap.entrySet()) {
+                        for (Map.Entry<String, StopListItem> item : stopListInfo.stopListItemMap.entrySet()) {
                             String idBarcode = item.getKey();
                             String code = useIdItem ? item.getValue().idItem : idBarcode;
                             String record = (stopListInfo.exclude ? "+" : "-") + "|" + code + "|" + idBarcode;

@@ -6,7 +6,7 @@ import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -90,7 +90,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                 try(Statement statement = conn.createStatement()) {
                     if (transaction.snapshot) {
                         String section = null;
-                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                        for (CashRegisterItem item : transaction.itemsList) {
                             section = item.section != null && item.section.contains(" ") ? item.section.split(" ")[0] : null;
                             break;
                         }
@@ -116,7 +116,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                         "src.CECUCOD, src.NEOBFREE, src.CESUCOD, src.MESUNAM)"
                 );
 
-                for (CashRegisterItemInfo item : transaction.itemsList) {
+                for (CashRegisterItem item : transaction.itemsList) {
                     String barcode = appendBarcode(item.idBarcode);
                     ps.setString(1, appendSpaces(barcode, 25)); //CEUNIKEY (type NCHAR 25), уникальный ключ записи в базе данных
                     String ceuniref0 = item.section != null && item.section.contains(" ") ? item.section.split(" ")[0] : null;

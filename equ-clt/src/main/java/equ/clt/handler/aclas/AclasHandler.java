@@ -1,7 +1,7 @@
 package equ.clt.handler.aclas;
 
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
@@ -89,7 +89,7 @@ public class AclasHandler extends MultithreadScalesHandler {
         return result;
     }
 
-    private boolean loadPLU(UDPPort udpPort, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
+    private boolean loadPLU(UDPPort udpPort, ScalesInfo scales, ScalesItem item) throws CommunicationException, IOException {
         int attempts = 0;
         Boolean result = null;
         while ((result == null || !result) && attempts < 3) {
@@ -100,12 +100,12 @@ public class AclasHandler extends MultithreadScalesHandler {
         return result;
     }
 
-    private short parseMessageNumber(ScalesItemInfo item) {
+    private short parseMessageNumber(ScalesItem item) {
         Integer messageNumber = Integer.parseInt(item.idBarcode);
         return (short) (messageNumber > Short.MAX_VALUE ? messageNumber % Short.MAX_VALUE : messageNumber);
     }
 
-    private boolean loadMessage(UDPPort udpPort, ScalesItemInfo item) throws CommunicationException, IOException {
+    private boolean loadMessage(UDPPort udpPort, ScalesItem item) throws CommunicationException, IOException {
         int attempts = 0;
         Boolean result = null;
         while ((result == null || !result) && attempts < 3) {
@@ -116,7 +116,7 @@ public class AclasHandler extends MultithreadScalesHandler {
         return result;
     }
 
-    private short getMessageNumber(ScalesItemInfo item) {
+    private short getMessageNumber(ScalesItem item) {
         return (short) (item.pluNumber != null ? item.pluNumber : Integer.parseInt(item.idBarcode));
     }
 
@@ -162,7 +162,7 @@ public class AclasHandler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
-    private byte[] getPLUBytes256(ScalesInfo scales, ScalesItemInfo item) {
+    private byte[] getPLUBytes256(ScalesInfo scales, ScalesItem item) {
         ByteBuffer bytes = ByteBuffer.allocate(256);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -222,7 +222,7 @@ public class AclasHandler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
-    private byte[] getMessageBytes256(ScalesItemInfo item) {
+    private byte[] getMessageBytes256(ScalesItem item) {
         ByteBuffer bytes = ByteBuffer.allocate(256);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -302,7 +302,7 @@ public class AclasHandler extends MultithreadScalesHandler {
                             processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
                             //byte[] ascCode = getScaleStatus(udpPort);
                             int count = 0;
-                            for (ScalesItemInfo item : transaction.itemsList) {
+                            for (ScalesItem item : transaction.itemsList) {
                                 count++;
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {

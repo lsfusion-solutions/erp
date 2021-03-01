@@ -1,7 +1,7 @@
 package equ.clt.handler.mettlerToledo;
 
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
@@ -69,7 +69,7 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
         itemTransactionElement.setAttribute("ActionCode", "Write");
         rootElement.addContent(itemTransactionElement);
 
-        for (ScalesItemInfo item : transaction.itemsList) {
+        for (ScalesItem item : transaction.itemsList) {
 
             Element itemElement = new Element("Item");
             addStringElement(itemElement, "PLU", item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idBarcode);

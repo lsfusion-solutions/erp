@@ -2,7 +2,7 @@ package equ.clt.handler.digi;
 
 import com.google.common.base.Throwables;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import lsfusion.base.file.FTPPath;
 import org.apache.commons.net.ftp.FTP;
@@ -45,7 +45,7 @@ public class DigiSM5300Handler extends DigiHandler {
             }*/
 
             @Override
-            protected BigDecimal getTareWeight(ScalesItemInfo item) {
+            protected BigDecimal getTareWeight(ScalesItem item) {
                 BigDecimal tareWeight = null;
                 if(item.info != null) {
                     JSONObject infoJSON = new JSONObject(item.info).optJSONObject("digism5300");
@@ -113,7 +113,7 @@ public class DigiSM5300Handler extends DigiHandler {
 
             private Set<Integer> usedGroups = new HashSet<>();
             @Override
-            protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
+            protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
                 processTransactionLogger.info(getLogPrefix() + "Send key assignment started");
                 JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("digism5300") : null;
                 processTransactionLogger.info(getLogPrefix() + "Send key assignment started: infoJSON=" + infoJSON + ", pluNumber=" + item.pluNumber);
@@ -145,7 +145,7 @@ public class DigiSM5300Handler extends DigiHandler {
                 }
             }
 
-            private byte[] makeKeyAssignmentRecord(ScalesItemInfo item, Integer originNumberGroup, Integer numberGroup, String nameGroup, String nameItem, Integer overPluNumber, boolean isGroup) throws UnsupportedEncodingException {
+            private byte[] makeKeyAssignmentRecord(ScalesItem item, Integer originNumberGroup, Integer numberGroup, String nameGroup, String nameItem, Integer overPluNumber, boolean isGroup) throws UnsupportedEncodingException {
                 int length = isGroup ? 85 : 44;
                 ByteBuffer bytes = ByteBuffer.allocate(length);
                 bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -189,7 +189,7 @@ public class DigiSM5300Handler extends DigiHandler {
                 return bytes.array();
             }
 
-            private byte[] makeDFRecord(ScalesItemInfo item) {
+            private byte[] makeDFRecord(ScalesItem item) {
                 int length = 10;
                 ByteBuffer bytes = ByteBuffer.allocate(length);
                 bytes.order(ByteOrder.LITTLE_ENDIAN);

@@ -2,7 +2,7 @@ package equ.clt.handler.digi;
 
 import equ.api.MachineryInfo;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
@@ -77,7 +77,7 @@ public class DigiHandler extends MultithreadScalesHandler {
                     processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
                     if (localErrors.isEmpty()) {
                         int count = 0;
-                        for (ScalesItemInfo item : transaction.itemsList) {
+                        for (ScalesItem item : transaction.itemsList) {
                             count++;
                             if (!Thread.currentThread().isInterrupted() && globalError < 3) {
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
@@ -120,7 +120,7 @@ public class DigiHandler extends MultithreadScalesHandler {
             return clearFile(socket, localErrors, scales.port, filePLU);
         }
 
-        protected boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
+        protected boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
             byte[] record = makePluRecord(item, getWeightCode(scales), getPieceCode(scales));
             processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", plu, scales.port));
             int reply = sendRecord(socket, cmdWrite, filePLU, record);
@@ -130,11 +130,11 @@ public class DigiHandler extends MultithreadScalesHandler {
             return reply == 0;
         }
 
-        protected boolean sendIngredient(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
+        protected boolean sendIngredient(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
             return true;
         }
 
-        protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
+        protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
             return true;
         }
 
@@ -142,17 +142,17 @@ public class DigiHandler extends MultithreadScalesHandler {
             return 9;
         }
 
-        protected String getPluNumberForPluRecord(ScalesItemInfo item) {
+        protected String getPluNumberForPluRecord(ScalesItem item) {
             return item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idBarcode;
         }
 
-        protected BigDecimal getTareWeight(ScalesItemInfo item) {
+        protected BigDecimal getTareWeight(ScalesItem item) {
             return null;
         }
 
         //------------------------------------ methods to override ------------------------------------//
 
-        private byte[] makePluRecord(ScalesItemInfo item, String weightCode, String pieceCode) throws UnsupportedEncodingException {
+        private byte[] makePluRecord(ScalesItem item, String weightCode, String pieceCode) throws UnsupportedEncodingException {
             boolean hasDescription = item.description != null && !item.description.isEmpty();
             String[] splittedDescription = hasDescription ? item.description.split("@@") : null;
 
@@ -411,7 +411,7 @@ public class DigiHandler extends MultithreadScalesHandler {
             }
         }
 
-        protected Integer getPlu(ScalesItemInfo item) {
+        protected Integer getPlu(ScalesItem item) {
             return item.pluNumber == null ? Integer.parseInt(item.idBarcode) : item.pluNumber;
         }
 

@@ -1,7 +1,7 @@
 package equ.clt.handler.digi;
 
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -68,7 +68,7 @@ public class DigiSM120Handler extends DigiHandler {
         }
 
         @Override
-        protected boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
+        protected boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
             byte[] record = makePLURecord(item, plu, scales.pieceCodeGroupScales, scales.weightCodeGroupScales, nameLineFont, nameLineLength);
             processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", plu, scales.port));
             int reply = sendRecord(socket, cmdWrite, filePLU, record);
@@ -78,7 +78,7 @@ public class DigiSM120Handler extends DigiHandler {
         }
 
         @Override
-        protected boolean sendIngredient(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
+        protected boolean sendIngredient(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
             if(item.description != null) {
                 String description = item.description.replace("\r", "");
                 int lineNumber = 1;
@@ -94,7 +94,7 @@ public class DigiSM120Handler extends DigiHandler {
         }
 
         @Override
-        protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
+        protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
             byte[] record = makeKeyAssignmentRecord(plu);
             if (record != null) {
                 processTransactionLogger.info(String.format(getLogPrefix() + "Sending keyAssignment file item %s to scales %s", plu, scales.port));
@@ -105,7 +105,7 @@ public class DigiSM120Handler extends DigiHandler {
             } else return true;
         }
 
-        private byte[] makePLURecord(ScalesItemInfo item, Integer plu, String piecePrefix, String weightPrefix, Integer nameLineFont, Integer nameLineLength) throws IOException {
+        private byte[] makePLURecord(ScalesItem item, Integer plu, String piecePrefix, String weightPrefix, Integer nameLineFont, Integer nameLineLength) throws IOException {
             int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
             //временно весовой товар определяется как в старых Digi
             //int isWeight = item.splitItem ? 0 : 1; //0: Weighed item   1: Non-weighed item

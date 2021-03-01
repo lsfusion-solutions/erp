@@ -3,7 +3,7 @@ package equ.clt.handler.kristal10;
 import equ.api.ItemGroup;
 import equ.api.ItemInfo;
 import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.ExtraCheckZReportBatch;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
@@ -47,7 +47,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         addStringElement(good, "product-type", productType);
     }
 
-    protected static Integer getDepartNumber(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean useSectionAsDepartNumber) {
+    protected static Integer getDepartNumber(TransactionCashRegisterInfo transaction, CashRegisterItem item, boolean useSectionAsDepartNumber) {
         return getDepartNumber(item.section, transaction.departmentNumberGroupCashRegister, useSectionAsDepartNumber);
     }
 

@@ -203,7 +203,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                         String lastUnit = null;
 
                                         putField(dbfFile, ISGROUP, "F", append);
-                                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                                        for (CashRegisterItem item : transaction.itemsList) {
                                             if (!Thread.currentThread().isInterrupted()) {
                                                 String barcode = appendBarcode(item.idBarcode);
                                                 if (!usedBarcodes.contains(barcode)) {

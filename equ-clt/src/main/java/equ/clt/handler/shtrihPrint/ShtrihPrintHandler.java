@@ -101,7 +101,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                             if (ip != null) {
                                 ips.add(scales.port);
 
-                                for (ScalesItemInfo item : transaction.itemsList) {
+                                for (ScalesItem item : transaction.itemsList) {
                                     if (item.pluNumber == null) {
                                         logError(localErrors, String.format("Обнаружен товар без номера PLU: id %s (%s)", item.idItem, item.name));
                                     }
@@ -121,7 +121,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                         processTransactionLogger.info("Shtrih: Sending items..." + ip);
                                         if (localErrors.isEmpty()) {
                                             Set<Integer> usedPLUNumberSet = new HashSet<>();
-                                            for (ScalesItemInfo item : transaction.itemsList) {
+                                            for (ScalesItem item : transaction.itemsList) {
 
                                                 if (!Thread.currentThread().isInterrupted()) {
 
@@ -265,7 +265,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                 if (ip != null) {
                                     ips.add(scales.port);
 
-                                    for (ScalesItemInfo item : transaction.itemsList) {
+                                    for (ScalesItem item : transaction.itemsList) {
                                         if (item.pluNumber == null) {
                                             logError(localErrors, String.format("Обнаружен товар без номера PLU: id %s (%s)", item.idItem, item.name));
                                         }
@@ -293,7 +293,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
 
                                                 processTransactionLogger.info("Shtrih: Sending items..." + ip);
                                                 if (localErrors.isEmpty()) {
-                                                    for (ScalesItemInfo item : transaction.itemsList) {
+                                                    for (ScalesItem item : transaction.itemsList) {
                                                         Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                                         Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 

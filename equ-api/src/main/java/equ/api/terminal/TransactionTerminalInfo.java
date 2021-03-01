@@ -6,7 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, TerminalItemInfo> {
+public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, TerminalItem> {
     public List<TerminalHandbookType> terminalHandbookTypeList;
     public List<TerminalDocumentType> terminalDocumentTypeList;
     public List<TerminalLegalEntity> terminalLegalEntityList;
@@ -15,7 +15,7 @@ public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, Termi
     public String directoryGroupTerminal;
     
     public TransactionTerminalInfo(Long id, String dateTimeCode, LocalDate date, String handlerModel, Long idGroupMachinery, Integer nppGroupMachinery,
-                                   String nameGroupMachinery, String description, List<TerminalItemInfo> itemsList,
+                                   String nameGroupMachinery, String description, List<TerminalItem> itemsList,
                                    List<TerminalInfo> machineryInfoList, Boolean snapshot, LocalDateTime lastErrorDate,
                                    List<TerminalHandbookType> terminalHandbookTypeList, List<TerminalDocumentType> terminalDocumentTypeList,
                                    List<TerminalLegalEntity> terminalLegalEntityList, List<TerminalAssortment> terminalAssortmentList,

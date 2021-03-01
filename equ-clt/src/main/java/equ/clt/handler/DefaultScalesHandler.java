@@ -5,7 +5,7 @@ import equ.api.SendTransactionBatch;
 import equ.api.stoplist.StopListInfo;
 import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
@@ -32,7 +32,7 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
 
     protected abstract String getLogPrefix();
 
-    protected boolean isWeight(ScalesItemInfo item, int type) {
+    protected boolean isWeight(ScalesItem item, int type) {
         switch (type) {
             case 0:
             default:

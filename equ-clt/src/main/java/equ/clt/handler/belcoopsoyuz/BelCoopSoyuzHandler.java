@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
@@ -310,7 +310,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             putNumField(dbfFile, NEOPLOS, -1, append); //остаток не контролируется
             putField(dbfFile, CECUCOD, cashRegister.section, 25, append); //секция, "600358416 MF"
             putField(dbfFile, CEOPCURO, "BYN 933 1", 25, append); //валюта
-            for (CashRegisterItemInfo item : transaction.itemsList) {
+            for (CashRegisterItem item : transaction.itemsList) {
                 if (!Thread.currentThread().isInterrupted()) {
 
                     String barcode = appendBarcode(item.idBarcode);

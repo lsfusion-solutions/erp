@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
-public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInfo, CashRegisterItemInfo> {
+public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInfo, CashRegisterItem> {
     public Integer departmentNumberGroupCashRegister;
     public String idDepartmentStoreGroupCashRegister;
     public String weightCodeGroupCashRegister;
@@ -16,7 +16,7 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
     
     public TransactionCashRegisterInfo(Long id, String dateTimeCode, LocalDate date, String handlerModel, Long idGroupMachinery,
                                        Integer nppGroupMachinery, String nameGroupMachinery, String description,
-                                       Map<String, List<ItemGroup>> itemGroupMap, List<CashRegisterItemInfo> itemsList,
+                                       Map<String, List<ItemGroup>> itemGroupMap, List<CashRegisterItem> itemsList,
                                        List<CashRegisterInfo> machineryInfoList, Boolean snapshot, LocalDateTime lastErrorDate,
                                        Integer departmentNumberGroupCashRegister, String idDepartmentStoreGroupCashRegister,
                                        String weightCodeGroupCashRegister, String nameStockGroupCashRegister, String info) {

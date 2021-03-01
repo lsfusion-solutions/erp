@@ -3,7 +3,7 @@ package equ.clt.handler.cas;
 import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.clt.handler.HandlerUtils;
@@ -87,7 +87,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
 
                     if (localErrors.isEmpty()) {
                         int count = 0;
-                        for (ScalesItemInfo item : transaction.itemsList) {
+                        for (ScalesItem item : transaction.itemsList) {
                             count++;
                             if (!Thread.currentThread().isInterrupted() && globalError < 5) {
 
@@ -154,7 +154,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             return errors;
         }
 
-        private int sendItem(DataSocket socket, ScalesItemInfo item, short weightCode, short pieceCode, int pluNumber, int barcode,
+        private int sendItem(DataSocket socket, ScalesItem item, short weightCode, short pieceCode, int pluNumber, int barcode,
                              String name, int price, String description, boolean useWeightCodeInBarcodeNumber, Integer maxNameLength) throws IOException {
             int descriptionLength = description == null ? 0 : (description.length() + 1);
             ByteBuffer bytes = ByteBuffer.allocate(160 + descriptionLength);
@@ -256,7 +256,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
         return null;
     }
 
-    protected String sendTouchSpeedKeys(DataSocket socket, List<ScalesItemInfo> itemsList) throws IOException {
+    protected String sendTouchSpeedKeys(DataSocket socket, List<ScalesItem> itemsList) throws IOException {
         return null;
     }
 

@@ -5,7 +5,7 @@ import equ.api.MachineryInfo;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.stoplist.StopListInfo;
-import equ.api.stoplist.StopListItemInfo;
+import equ.api.stoplist.StopListItem;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -131,7 +131,7 @@ public class StopListEquipmentServer {
                     }
 
                     if (!handlerMachineryMap.isEmpty()) {
-                        Map<String, StopListItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
+                        Map<String, StopListItem> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
                         StopListInfo stopList = stopListInfoMap.get(numberStopList);
                         Map<Integer, Set<String>> inGroupMachineryItemMap = stopList == null ? new HashMap<>() : stopList.inGroupMachineryItemMap;
                         inGroupMachineryItemMap.putAll(itemsInGroupMachineryMap);
@@ -203,8 +203,8 @@ public class StopListEquipmentServer {
         return stockMap;
     }
 
-    private static Map<String, StopListItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, StopListItemInfo> stopListItemList = new HashMap<>();
+    private static Map<String, StopListItem> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, StopListItem> stopListItemList = new HashMap<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
         ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev("stopListDetail", sldExpr);
@@ -248,7 +248,7 @@ public class StopListEquipmentServer {
                 Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[STRING[100],Item]").read(session, new DataObject(idStock), skuObject);
                 stockPluNumberMap.put(idStock, pluNumber);
             }
-            stopListItemList.put(idBarcode, new StopListItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
+            stopListItemList.put(idBarcode, new StopListItem(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
                     valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM, info, barcodeObjectList));
         }
         return stopListItemList;

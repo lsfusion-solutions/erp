@@ -1,7 +1,7 @@
 package equ.clt.handler.mettlerToledo;
 
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.TCPPort;
@@ -77,12 +77,12 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         return receiveReply(port);
     }
 
-    private boolean loadPLU(TCPPort port, ScalesItemInfo item) throws IOException {
+    private boolean loadPLU(TCPPort port, ScalesItem item) throws IOException {
         sendCommand(port, getLoadPLUBytes(item), pluID, (short) 1, (short) 0);
         return receiveReply(port);
     }
 
-    private boolean loadExtraText(TCPPort port, ScalesItemInfo item) throws IOException {
+    private boolean loadExtraText(TCPPort port, ScalesItem item) throws IOException {
         if (item.description != null && !item.description.isEmpty()) {
             sendCommand(port, getLoadExtraTextBytes(item), extraTextID, (short) 1, (short) 0);
             return receiveReply(port);
@@ -93,7 +93,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         return ByteBuffer.allocate(45).array(); //45 empty bytes
     }
 
-    private byte[] getLoadPLUBytes(ScalesItemInfo item) {
+    private byte[] getLoadPLUBytes(ScalesItem item) {
         ByteBuffer bytes = ByteBuffer.allocate(40 + getDescriptionLength());
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -168,7 +168,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
-    private byte[] getLoadExtraTextBytes(ScalesItemInfo item) {
+    private byte[] getLoadExtraTextBytes(ScalesItem item) {
         ByteBuffer bytes = ByteBuffer.allocate(202);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -181,7 +181,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
-    private int getPluNumber(ScalesItemInfo item) {
+    private int getPluNumber(ScalesItem item) {
         return item.pluNumber != null ? item.pluNumber : Integer.parseInt(item.idBarcode);
     }
 
@@ -260,7 +260,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
                     if (cleared || !needToClear) {
                         processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
                         int count = 0;
-                        for (ScalesItemInfo item : transaction.itemsList) {
+                        for (ScalesItem item : transaction.itemsList) {
                             count++;
                             if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                 if (item.idBarcode != null && item.idBarcode.length() <= 5) {

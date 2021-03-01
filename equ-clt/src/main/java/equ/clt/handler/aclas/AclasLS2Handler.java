@@ -3,7 +3,7 @@ package equ.clt.handler.aclas;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
@@ -119,7 +119,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
 
             String barcodePrefix = scales.weightCodeGroupScales != null ? scales.weightCodeGroupScales : "22";
-            for (ScalesItemInfo item : transaction.itemsList) {
+            for (ScalesItem item : transaction.itemsList) {
                 bw.write(0x0d);
                 bw.write(0x0a);
                 boolean isWeight = isWeight(item, 1);
@@ -200,7 +200,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         List<List<Object>> dataNote3 = new ArrayList<>();
         List<List<Object>> dataNote4 = new ArrayList<>();
 
-        for (ScalesItemInfo item : transaction.itemsList) {
+        for (ScalesItem item : transaction.itemsList) {
             Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
             String description = escape(trimToEmpty(item.description));
 
@@ -228,7 +228,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
             bw.write(StringUtils.join(Arrays.asList("ButtonIndex", "ButtonValue").iterator(), "\t"));
 
-            for (ScalesItemInfo item : transaction.itemsList) {
+            for (ScalesItem item : transaction.itemsList) {
                 if(item.pluNumber != null) {
                     bw.write(0x0d);
                     bw.write(0x0a);
