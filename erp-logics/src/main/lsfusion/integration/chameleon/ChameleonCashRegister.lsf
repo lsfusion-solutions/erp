@@ -13,12 +13,6 @@ index(CashRegister cr) = PARTITION SUM 1 ORDER cr IF cr IS CashRegister AND NOT 
 
 WHEN SET(CashRegister cr IS CashRegister) DO id(cr) <- (GROUP MAX id(CashRegister c AS CashRegister)) (+) 1;
 
-onStarted() + {
-    APPLY {
-        id(CashRegister cr) <- index(cr) (+) maxIdCashRegister(cr) WHERE index(cr);
-    };
-}
-
 CLASS ChameleonVersion;
 
 chameleonVersion = ABSTRACT CASE ChameleonVersion (GroupMachinery);
@@ -157,11 +151,19 @@ sendToChameleon (MachineryPriceTransaction t){
 // receive
 CLASS ChameleonReceipt 'Чек Chameleon' : Receipt;
 uid = DATA ISTRING[36] (Receipt);
-receiptUid (ISTRING[36] s) = GROUP AGGR Receipt r BY uid(r);
+
+onStarted() + {
+    APPLY {
+        id(CashRegister cr) <- index(cr) (+) maxIdCashRegister(cr) WHERE index(cr);
+        id(Receipt r) <- uid(r) WHERE uid(r);
+    };
+}
+
+receiptUid (ISTRING[36] s) = GROUP AGGR Receipt r BY OVERRIDE id(r), uid(r);
 
 idReceipt = DATA INTEGER (Receipt);
 maxIdReceipt (CashRegister cr) = GROUP MAX idReceipt(Receipt r) BY cashRegister(r);
-maxIdReceipt (GroupCashRegister g) = GROUP MAX maxIdReceipt(CashRegister cr) BY groupCashRegister(cr);
+maxIdReceipt (GroupCashRegister g) = GROUP MAX maxIdReceipt(CashRegister cr) BY groupCashRegister(cr) MATERIALIZED;
 
 cashRegisterIds (GroupCashRegister g) = GROUP CONCAT ISTRING(id(CashRegister cr)), ',' IF isChameleon(cr) AND groupCashRegister(cr) = g AND NOT disableSales(cr) ORDER cr;
 
@@ -253,7 +255,7 @@ receiveFromChameleon(GroupCashRegister g) {
             IMPORT FROM exportFile() TO id = id_check, guid = guid, idCashRegister = id_workplace, idSession = id_session, number = id_fcheck, dateTime = time_check, idEmployee = id_employee, cash, card, certificate;
             FOR guid(INTEGER i) AND ZReport z = zReport(cashRegister(idCashRegister(i)), STRING(idSession(i))) AND NOT receiptUid(guid(i)) DO NEW r = Receipt {
                 zReport(r) <- z;
-                uid(r) <- guid(i);
+                id(r) <- guid(i);
             }
             FOR Receipt r = receiptUid(guid(INTEGER i)) DO {
                 idReceipt(r) <- id(i);
