@@ -55,13 +55,13 @@ calcCheckLimitRetailPrice 'Контроль розничных цен' (Item s) 
 firstPriceNotPromotion (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     GROUP LAST price(PriceListLedger ledger, type, stock)
           ORDER DESC fromDateTime(ledger, type, stock), ledger
-          WHERE fromDateTime(ledger, type, stock) > dateTime AND NOT promotionPriceListDetailA(sku,stock,dateTime)
+          WHERE fromDateTime(ledger, type, stock) > dateTime AND NOT promotionPriceListDetailA(sku,stock,fromDateTime(ledger, type, stock))
           AND sku(ledger, type, stock) == sku;
 
 priceANotPromotion 'Цена' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     GROUP LAST price(PriceListLedger ledger, type, stock)
           ORDER fromDateTime(ledger, type, stock), ledger
-          WHERE fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime AND NOT promotionPriceListDetailA(sku,stock,dateTime) 
+          WHERE fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime AND NOT promotionPriceListDetailA(sku,stock,fromDateTime(ledger, type, stock)) 
           AND sku(ledger, type, stock)==sku COMPLEX CHARWIDTH 7;
 
 countDaysMovedLimitRetail 'За сколько дней проверять движение' = DATA INTEGER ();
