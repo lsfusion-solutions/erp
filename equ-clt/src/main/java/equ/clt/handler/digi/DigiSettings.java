@@ -16,6 +16,9 @@ public class DigiSettings implements Serializable{
     //размер шрифта. По умолчанию 4
     private Integer fontSize;
 
+    //удаление картинок при загрузке целиком. Только для SM5300. По умолчанию false
+    private boolean clearImages;
+
     public DigiSettings() {
     }
 
@@ -49,5 +52,13 @@ public class DigiSettings implements Serializable{
 
     public void setFontSize(Integer fontSize) {
         this.fontSize = fontSize;
+    }
+
+    public boolean isClearImages() {
+        return clearImages;
+    }
+
+    public void setClearImages(boolean clearImages) {
+        this.clearImages = clearImages;
     }
 }

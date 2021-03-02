@@ -61,8 +61,8 @@ public class DigiSM120Handler extends DigiHandler {
         }
 
         @Override
-        protected boolean clearFiles(DataSocket socket, List<String> localErrors) throws IOException {
-            return super.clearFiles(socket, localErrors)
+        protected boolean clearFiles(DataSocket socket, List<String> localErrors, boolean clearImages) throws IOException {
+            return super.clearFiles(socket, localErrors, clearImages)
                     && clearFile(socket, localErrors, scales.port, fileIngredient)
                     && clearFile(socket, localErrors, scales.port, fileKeyAssignment);
         }

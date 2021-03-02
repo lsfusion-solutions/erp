@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
-import lsfusion.base.file.FTPPath;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
@@ -56,33 +55,26 @@ public class DigiSM5300Handler extends DigiHandler {
                 return tareWeight;
             }
 
-            protected boolean clearFiles(DataSocket socket, List<String> localErrors) throws IOException {
-                return super.clearFiles(socket, localErrors)
+            protected boolean clearFiles(DataSocket socket, List<String> localErrors, boolean clearImages) throws IOException {
+                return super.clearFiles(socket, localErrors, clearImages)
                         && clearFile(socket, localErrors, scales.port, fileKeyAssignment)
-                        && clearFile(socket, localErrors, scales.port, fileDF);
-//                        && clearImages();
+                        && clearFile(socket, localErrors, scales.port, fileDF)
+                        && (!clearImages || clearImages());
             }
 
             private boolean clearImages() {
-                String path = "ftp://root:teraoka@" + scales.port + "/../opt/pcscale/files/img/plu/";
-                FTPPath ftpPath = FTPPath.parseFTPPath(path);
-
                 FTPClient ftpClient = new FTPClient();
                 ftpClient.setDataTimeout(120000); //2 minutes = 120 sec
                 ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
                 ftpClient.setAutodetectUTF8(true);
 
                 try {
-                    ftpClient.connect(ftpPath.server, ftpPath.port);
-                    boolean login = ftpClient.login(ftpPath.username, ftpPath.password);
+                    ftpClient.connect(scales.port, 21);
+                    boolean login = ftpClient.login("root", "teraoka");
                     if (login) {
-                        if (ftpPath.passiveMode) {
-                            ftpClient.enterLocalPassiveMode();
-                        }
+                        ftpClient.enterLocalPassiveMode();
                         ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
-                        if (ftpPath.binaryTransferMode) {
-                            ftpClient.setFileTransferMode(FTP.BINARY_FILE_TYPE);
-                        }
+                        ftpClient.setFileTransferMode(FTP.BINARY_FILE_TYPE);
 
                         for (FTPFile f : ftpClient.listFiles()) {
                             if (!f.isDirectory()) {
@@ -94,7 +86,7 @@ public class DigiSM5300Handler extends DigiHandler {
                         }
                         return true;
                     } else {
-                        throw new RuntimeException("Incorrect login or password '" + path + "'");
+                        throw new RuntimeException("Incorrect login or password for '" + scales.port + "'");
                     }
                 } catch (IOException e) {
                     throw Throwables.propagate(e);

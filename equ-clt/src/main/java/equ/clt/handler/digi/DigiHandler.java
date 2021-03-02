@@ -55,6 +55,7 @@ public class DigiHandler extends MultithreadScalesHandler {
         private Integer maxNameLength;
         private Integer maxNameLinesCount;
         private Integer fontSize;
+        private boolean clearImages;
 
         public DigiSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
             super(transaction, scales);
@@ -71,7 +72,7 @@ public class DigiHandler extends MultithreadScalesHandler {
                 int globalError = 0;
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                 if (needToClear)
-                    cleared = clearFiles(socket, localErrors);
+                    cleared = clearFiles(socket, localErrors, clearImages);
 
                 if (cleared || !needToClear) {
                     processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
@@ -108,15 +109,15 @@ public class DigiHandler extends MultithreadScalesHandler {
         //------------------------------------ methods to override ------------------------------------//
 
         protected void initSettings() {
-            DigiSettings digiSettings = springContext.containsBean("digiSettings") ? (DigiSettings) springContext.getBean("digiSettings") : null;
-            maxLineLength = digiSettings != null ? digiSettings.getMaxLineLength() : null;
-            maxLineLength = maxLineLength == null ? 50 : maxLineLength;
-            maxNameLength = digiSettings != null ? digiSettings.getMaxNameLength() : null;
-            maxNameLinesCount = digiSettings != null ? digiSettings.getMaxNameLinesCount() : null;
-            fontSize = nvl(digiSettings != null ? digiSettings.getFontSize() : null, 4);
+            DigiSettings digiSettings = springContext.containsBean("digiSettings") ? (DigiSettings) springContext.getBean("digiSettings") : new DigiSettings();
+            maxLineLength = nvl(digiSettings.getMaxLineLength(), 50);
+            maxNameLength = digiSettings.getMaxNameLength();
+            maxNameLinesCount = digiSettings.getMaxNameLinesCount();
+            fontSize = nvl(digiSettings.getFontSize(), 4);
+            clearImages = digiSettings.isClearImages();
         }
 
-        protected boolean clearFiles(DataSocket socket, List<String> localErrors) throws IOException {
+        protected boolean clearFiles(DataSocket socket, List<String> localErrors, boolean clearImages) throws IOException {
             return clearFile(socket, localErrors, scales.port, filePLU);
         }
 
