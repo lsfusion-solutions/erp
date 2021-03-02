@@ -59,8 +59,8 @@ public class DigiSM5300Handler extends DigiHandler {
             protected boolean clearFiles(DataSocket socket, List<String> localErrors) throws IOException {
                 return super.clearFiles(socket, localErrors)
                         && clearFile(socket, localErrors, scales.port, fileKeyAssignment)
-                        && clearFile(socket, localErrors, scales.port, fileDF)
-                        && clearImages();
+                        && clearFile(socket, localErrors, scales.port, fileDF);
+//                        && clearImages();
             }
 
             private boolean clearImages() {
