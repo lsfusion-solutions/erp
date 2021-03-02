@@ -75,14 +75,18 @@ public class DigiSM5300Handler extends DigiHandler {
                         ftpClient.enterLocalPassiveMode();
                         ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
                         ftpClient.setFileTransferMode(FTP.BINARY_FILE_TYPE);
+                        if(ftpClient.changeWorkingDirectory("/../opt/pcscale/files/img/plu/")) {
 
-                        for (FTPFile f : ftpClient.listFiles()) {
-                            if (!f.isDirectory()) {
-                                boolean done = ftpClient.deleteFile(f.getName());
-                                if (!done) {
-                                    throw new RuntimeException("Failed to delete '" + f.getName() + "'");
+                            for (FTPFile f : ftpClient.listFiles()) {
+                                if (!f.isDirectory()) {
+                                    boolean done = ftpClient.deleteFile(f.getName());
+                                    if (!done) {
+                                        throw new RuntimeException("Failed to delete '" + f.getName() + "'");
+                                    }
                                 }
                             }
+                        } else {
+                            throw new RuntimeException("Directory '/../opt/pcscale/files/img/plu/'not found for '" + scales.port + "'");
                         }
                         return true;
                     } else {
