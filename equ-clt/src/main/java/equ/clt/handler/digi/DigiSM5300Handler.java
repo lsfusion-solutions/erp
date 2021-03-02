@@ -75,7 +75,7 @@ public class DigiSM5300Handler extends DigiHandler {
                         ftpClient.enterLocalPassiveMode();
                         ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
                         ftpClient.setFileTransferMode(FTP.BINARY_FILE_TYPE);
-                        if(ftpClient.changeWorkingDirectory("/../opt/pcscale/files/img/plu/")) {
+                        if(ftpClient.changeWorkingDirectory("../opt/pcscale/files/img/plu/")) {
 
                             for (FTPFile f : ftpClient.listFiles()) {
                                 if (!f.isDirectory()) {
