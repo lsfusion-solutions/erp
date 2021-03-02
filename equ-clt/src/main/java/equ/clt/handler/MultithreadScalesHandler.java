@@ -6,6 +6,7 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import lsfusion.base.Pair;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.util.*;
@@ -70,7 +71,9 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
                                 if(threadResult.get().localErrors.isEmpty())
                                     succeededScalesList.add(threadResult.get().scalesInfo);
                                 else {
-                                    brokenPortsMap.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors.get(0));
+                                    String error = threadResult.get().localErrors.get(0);
+                                    int secondOccurrence = StringUtils.ordinalIndexOf(error, "\n", 2);
+                                    brokenPortsMap.put(threadResult.get().scalesInfo.port, error.substring(0, secondOccurrence > 0 ? secondOccurrence : error.length()));
                                     errors.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors);
                                 }
                                 if(threadResult.get().cleared)
