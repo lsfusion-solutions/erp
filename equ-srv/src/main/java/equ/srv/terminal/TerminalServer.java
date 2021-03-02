@@ -74,6 +74,7 @@ public class TerminalServer extends MonitorServer {
         terminalHandlerInterface.init();
     }
 
+    public static final byte TEST = 1;
     public static final byte GET_ITEM_INFO = 5;
     public static final byte SAVE_DOCUMENT = 6;
     public static final byte GET_ITEM_HTML = 7;
@@ -192,7 +193,7 @@ public class TerminalServer extends MonitorServer {
                 try {
                     Socket socket = listenServerSocket.accept();
                     socket.setSoTimeout(30000);
-                    logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
+                    //logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
                     listenExecutorService.submit(new SocketCallable(socket));
                 } catch (IOException e) {
                     logger.error("Error occurred while submitting socket: ", e);
@@ -354,13 +355,19 @@ public class TerminalServer extends MonitorServer {
                 byte id = inFromClient.readByte();
                 byte command = inFromClient.readByte();
 
+                if (command != TEST)
+                    logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
+
                 String result = null;
                 List<String> itemInfo = null;
                 RawFileData fileData = null;
                 byte errorCode = 0;
                 String errorText = null;
                 String sessionId;
+
                 switch (command) {
+                    case TEST:
+                        break;
                     case GET_USER_INFO:
                         try {
                             logger.info("requested getUserInfo");
@@ -674,9 +681,12 @@ public class TerminalServer extends MonitorServer {
                         break;
                 }
 
-                logger.info(String.format("Command %s, error code: %s. Sending answer", command, (int) errorCode));
+                if (command != TEST)
+                    logger.info(String.format("Command %s, error code: %s. Sending answer", command, (int) errorCode));
+
                 if (errorText != null)
                     logger.info("error: " + errorText);
+
                 writeByte(outToClient, stx);
                 writeByte(outToClient, id);
                 writeByte(outToClient, command);
@@ -705,6 +715,9 @@ public class TerminalServer extends MonitorServer {
 
 
                             }
+                            writeByte(outToClient, etx);
+                            break;
+                        case TEST:
                             writeByte(outToClient, etx);
                             break;
                         case GET_ITEM_INFO:
@@ -746,9 +759,9 @@ public class TerminalServer extends MonitorServer {
                     }
                 }
 
-//                if (fileData == null)
-//                    writeByte(outToClient, etx);
-                logger.info(String.format("Command %s: answer sent", command));
+                if (command != TEST)
+                    logger.info(String.format("Command %s: answer sent", command));
+
                 Thread.sleep(1000);
                 return null;
             } catch (Throwable e) {
