@@ -288,6 +288,15 @@ WHEN DROPPED(calcCheckLimitRetailPrice(Sku s)) IF NOT disableLimitRetailPriceLog
     }
 }
 
+fillAllStocks 'Выбрать для всех магазинов' (Sku s,Stock st){
+    DIALOG dialogNumeric OBJECTS n = maxLimitRetailPrice(s,st) INPUT DO {
+        maxLimitRetailPrice(s,Stock ds)<- NUMERIC[16,4](n) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
+    }
+}
+useAllStocks 'Применить ко всем магазинам' (Sku s,Stock st){
+    maxLimitRetailPrice(s,Stock ds)<- maxLimitRetailPrice(s,st) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
+}
+
 FORM maxLimitRetailPrice 'Максимальные розничные цены'
     OBJECTS st = DepartmentStore PANEL 
     PROPERTIES SELECTOR name(st)
@@ -295,7 +304,7 @@ FORM maxLimitRetailPrice 'Максимальные розничные цены'
 
     OBJECTS s = Sku
     PROPERTIES (s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode
-    PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly(), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
+    PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
     ORDERS name(s)
     FILTERS active(s)
     FILTERGROUP max
