@@ -81,31 +81,35 @@ DESIGN options {
 
     }
 }
+useMaxLimitRetailPriceCustom  = ABSTRACT BOOLEAN();
+fillMaxLimitRetailPriceCustom  ABSTRACT (DATETIME);
 
 fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену' (DATETIME dt) {
-
-    LOCAL NESTED incl = BOOLEAN (DepartmentStore);
-    incl(DepartmentStore ds)<- ds IS DepartmentStore AND stockGroup(ds) IS Store;
-
-    FOR incl(DepartmentStore stock) DO NEWSESSION {
-        dateTimeLimitRetailPrice() <- dt;    
-        LOCAL inn = BOOLEAN (Sku);
-        inn(Sku sku) <- calcCheckLimitRetailForm(sku);
-                
-        IF (countDaysMovedLimitRetail() OR positiveBalanceLimitRetail()) THEN {
-            inn(Sku sku)<- NULL WHERE inn(sku) AND 
-                                ((positiveBalanceLimitRetail() AND NOT balanceB(sku,stock,dt)>0) OR( sku IS Sku AND NOT positiveBalanceLimitRetail())) AND
-                                ((countDaysMovedLimitRetail() AND NOT moved (sku, stock, dt, countDaysMovedLimitRetail())) OR (sku IS Sku AND NOT countDaysMovedLimitRetail())); 
-        }        
-        maxLimitRetailPrice(Sku sku, stock)<- NULL;
-        
-        maxLimitRetailPrice(Sku sku, stock) <- priceANotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
-                                                        WHERE inn(sku);       
-        maxLimitRetailPrice(Sku sku, stock) <- firstPriceNotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
-                                                        WHERE inn(sku) AND NOT maxLimitRetailPrice(sku, stock);
-        APPLY;
+    IF useMaxLimitRetailPriceCustom() THEN {
+        fillMaxLimitRetailPriceCustom(dt);
+    } ELSE {
+        LOCAL NESTED incl = BOOLEAN (DepartmentStore);
+        incl(DepartmentStore ds)<- ds IS DepartmentStore AND stockGroup(ds) IS Store;
+    
+        FOR incl(DepartmentStore stock) DO NEWSESSION {
+            dateTimeLimitRetailPrice() <- dt;    
+            LOCAL inn = BOOLEAN (Sku);
+            inn(Sku sku) <- calcCheckLimitRetailForm(sku);
+                    
+            IF (countDaysMovedLimitRetail() OR positiveBalanceLimitRetail()) THEN {
+                inn(Sku sku)<- NULL WHERE inn(sku) AND 
+                                    ((positiveBalanceLimitRetail() AND NOT balanceB(sku,stock,dt)>0) OR( sku IS Sku AND NOT positiveBalanceLimitRetail())) AND
+                                    ((countDaysMovedLimitRetail() AND NOT moved (sku, stock, dt, countDaysMovedLimitRetail())) OR (sku IS Sku AND NOT countDaysMovedLimitRetail())); 
+            }        
+            maxLimitRetailPrice(Sku sku, stock)<- NULL;
+            
+            maxLimitRetailPrice(Sku sku, stock) <- priceANotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
+                                                            WHERE inn(sku);       
+            maxLimitRetailPrice(Sku sku, stock) <- firstPriceNotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
+                                                            WHERE inn(sku) AND NOT maxLimitRetailPrice(sku, stock);
+            APPLY;
+        }
     }
-
 }
 FORM dialogDateT 'Выбор даты/время'
     OBJECTS d = DATETIME PANEL
