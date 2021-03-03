@@ -8,8 +8,25 @@ TABLE machineryPriceTransactionBarcodeBatch (MachineryPriceTransaction, Barcode,
 
 in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode, Batch) INDEXED;
 
+balance 'Баланс' (Batch bt, Barcode b, Stock st) = currentBalance(bt, st) IF barcode(sku(bt))==b;
+price 'Цена' (Batch bt, Barcode b, GroupMachinery g) = priceA(priceListType(g),bt,stock(g),currentDateTime()) IF barcode(sku(bt))==b;
+
+countDaysSendBatches 'Кол-во дней движения по партии для загрузки в оборудование' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES countDaysSendBatches()
+;
+
+DESIGN options {
+    machinery {
+        MOVE PROPERTY(countDaysSendBatches());
+    }
+}
+
 createAttribute(MachineryPriceTransaction t) + {
-    in(t, Barcode barcode, Batch batch) <- TRUE WHERE in(t, barcode) AND batch IS Batch;
+    in(t, Barcode barcode, Batch batch) <- TRUE 
+        WHERE in(t, barcode) AND price(batch, barcode, groupMachinery(t)) AND 
+              (balance(batch, barcode, stock(t)) OR countLedger(batch, stock(t), subtract(currentDate(),countDaysSendBatches()),currentDate()));
 }
 
 name 'Наименование' = DATA STRING[255] (MachineryPriceTransaction, Barcode, Batch);
@@ -49,8 +66,6 @@ lastFullTransaction (Batch bt, Barcode barcode, groupMachinery) =
 prevLastFullTransaction (Batch bt, Barcode barcode, GroupMachinery groupMachinery) = PREV(lastFullTransaction (bt, barcode, groupMachinery));
 
 //Остаток
-
-balance 'Баланс' (Batch bt, Barcode b, Stock st) = currentBalance(bt, st) IF barcode(sku(b))==b;
 
 balance 'Остаток' = DATA NUMERIC[16,5] (MachineryPriceTransaction, Barcode, Batch);
 balance(MachineryPriceTransaction t, Barcode barcode, Batch bt) => in(t, barcode, bt) RESOLVE RIGHT;
