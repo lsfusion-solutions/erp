@@ -29,28 +29,43 @@ DESIGN Inventory.operation {
 
 overCreateTerminal ABSTRACT LIST (PageInventory);
 
+getID = FORMULA LONG '$1';
 addInventoryDetails(TerminalDocument td,ListInventory li)  { 
 
-    LOCAL page = PageInventory ();
-    LOCAL detailCount = INTEGER();
-    detailCount() <- 0;
+    LOCAL quantity = NUMERIC[16,5](TerminalDocumentDetail, Batch);
+    FOR terminalDocument(TerminalDocumentDetail d) == td AND iterate(INTEGER j, 1, wordCount(batch(d), ';')) AND STRING str == getWord(batch(d), ';', j) DO {
+        quantity(d, Batch b) <- NUMERIC[16,5](getWord(str, ':', 2)) WHERE getID(b) == LONG(getWord(str, ':', 1)); 
+    }
 
     LOCAL countDetail = INTEGER();
     countDetail() <- (OVERRIDE detailCount(inventory(li)), 20);
     
     LOCAL countPages = INTEGER();
-    countPages() <- (countTerminalDocumentDetail(td) + countDetail() - 1) / countDetail();
+    countPages() <- (((GROUP SUM 1 IF quantity(TerminalDocumentDetail d, Batch b) AND terminalDocument(d) == td) (+) countTerminalDocumentDetail(td)) + countDetail() - 1) / countDetail();
     
     FOR iterate(INTEGER i, 1, countPages()) NEW p = PageInventory DO {
         listInventory(p) <- li;
         overCreateTerminal(p);
     }
     
-    FOR terminalDocument(TerminalDocumentDetail tdd) == td INLINE NEW pid = PageInventoryDetail DO {
-        pageInventory(pid) <- pageInventoryIndex(li, ((index(tdd) - 1)/countDetail()) + 1);
+    LOCAL index = INTEGER (PageInventoryDetail);
+    
+    FOR terminalDocument(TerminalDocumentDetail tdd) == td AND NUMERIC[16,5] qty == quantity(tdd) (-) (GROUP SUM quantity(tdd, Batch b)) INLINE NEW pid = PageInventoryDetail DO {
         sku(pid) <- sku(tdd);
-        quantity(pid) <- quantity(tdd);
+        quantity(pid) <- qty;
+        index(pid) <- index(tdd);
     }
+    
+    FOR terminalDocument(TerminalDocumentDetail tdd) == td AND NUMERIC[16,5] qty == quantity(tdd, Batch b) INLINE NEW pid = PageInventoryDetail DO {
+        sku(pid) <- sku(tdd);
+        quantity(pid) <- qty;
+        batch(pid) <- b;
+        index(pid) <- index(tdd);
+    }
+    
+    index(PageInventoryDetail pd) <- PARTITION SUM 1 ORDER index(pd), pd;
+    
+    pageInventory(PageInventoryDetail pid) <- pageInventoryIndex(li, ((index(pid) - 1)/countDetail()) + 1) WHERE index(pid);
     DELETE PageInventory p WHERE  listInventory(p) == li AND NOT countPageInventoryDetail(p);
 }
 
@@ -60,11 +75,23 @@ quantityOneListInventoryDetails (Sku sku) = GROUP SUM quantity(TerminalDocumentD
 addOneListInventoryDetails(ListInventory li)  { 
     NEW p = PageInventory {
         listInventory(p) <- li;
+        
+        LOCAL quantity = NUMERIC[16,5](Sku, Batch);
+        FOR include(terminalDocument(TerminalDocumentDetail d)) AND iterate(INTEGER j, 1, wordCount(batch(d), ';')) AND STRING str == getWord(batch(d), ';', j) DO {
+            quantity(Sku s, Batch b) <- GROUP SUM NUMERIC[16,5](getWord(str, ':', 2)) IF getID(b) == LONG(getWord(str, ':', 1)) AND sku(d) == s; 
+        }
 
-        FOR inOneListInventoryDetails(Sku sku) NEW pid = PageInventoryDetail DO {
+        FOR inOneListInventoryDetails(Sku sku) AND NUMERIC[16,5] qty == quantityOneListInventoryDetails(sku) (-) (GROUP SUM quantity(sku, Batch b))  NEW pid = PageInventoryDetail DO {
             pageInventory(pid) <- p;
             sku(pid) <- sku;
-            quantity(pid) <- quantityOneListInventoryDetails(sku);
+            quantity(pid) <- qty;
+        }
+        
+        FOR inOneListInventoryDetails(Sku sku) AND NUMERIC[16,5] qty == quantity(sku, Batch b) NEW pid = PageInventoryDetail DO {
+            pageInventory(pid) <- p;
+            sku(pid) <- sku;
+            quantity(pid) <- qty;
+            batch(pid) <- b;
         }
     }
 }
@@ -79,24 +106,21 @@ addDetailDialogTerminal 'Заполнить из документа ТСД' (Lis
 addListInventoryDialogTerminal 'Заполнить из документов ТСД' (Stock stock, Inventory inventory)  { 
     DIALOG terminalDocuments DO {
         IF NOT isOneListInventory(inventory) THEN {
-            FOR include(TerminalDocument td) NEW  li = ListInventory DO {
-                used(td) <- TRUE;
+            FOR include(TerminalDocument td) NOINLINE NEW  li = ListInventory DO {
                 stock(li) <- stock;
                 inventory(li) <- inventory;
-                include(td) <- NULL;
-                
                 addInventoryDetails(td,li);
             }
         }
         ELSE {
             NEW  li = ListInventory {
-                used(TerminalDocument td) <- include(td) WHERE include(td);
                 inventory(li) <- inventory;
                 stock(li) <- stock;
                 addOneListInventoryDetails(li);
-                include(TerminalDocument td) <- NULL;
             }
         }
+        used(TerminalDocument td) <- include(td) WHERE include(td);
+        include(TerminalDocument td) <- NULL;
     }
 } TOOLBAR;
 
