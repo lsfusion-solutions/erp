@@ -192,11 +192,11 @@ overCheckedMarkup = ABSTRACT NUMERIC[8,3] (InvoiceDetail);
 checkedMarkup (UserInvoiceDetail detail) = OVERRIDE overCheckedMarkup(detail), retailMarkup(detail);
 skipAfterRetailPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
 createAfterRetailPrice 'Проверить отриц. ТН' (UserInvoice i)  { 
-    afterRetailPrice(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == i;
     afterSupplierPrice(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == i;
     afterRetailMarkup(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == i;    
     needRepricing(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == i;      
-    
+    afterRetailPrice(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == i;
+        
     afterRetailPrice(UserInvoiceDetail d) <- retailPrice(d) WHERE userInvoice(d) == i AND checkedMarkup(d) <0.0 AND NOT skipAfterRetailPrice(d);
     needRepricing(UserInvoiceDetail d) <- TRUE WHERE userInvoice(d) == i AND checkedMarkup(d) <0.0 AND NOT skipAfterRetailPrice(d);    
     retailMarkup(UserInvoiceDetail d) <- 0.0 WHERE needRepricing(d);  
