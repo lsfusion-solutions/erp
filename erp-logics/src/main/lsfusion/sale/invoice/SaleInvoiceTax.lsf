@@ -4,9 +4,12 @@ REQUIRE SaleInvoice, SkuLedgerTax, SaleTax;
 
 NAMESPACE Sale;
 
-overVAT(UserInvoiceDetail detail) += VAT(batch(detail)) IF NOT skipSetVATBatch(operation(detail));
+useVATBatch = ABSTRACT BOOLEAN (UserInvoiceDetail);
+skipSetVATBatchOver(UserInvoiceDetail d) = skipSetVATBatch(operation(d)) AND NOT useVATBatch(d);
+
+overVAT(UserInvoiceDetail detail) += VAT(batch(detail)) IF NOT skipSetVATBatchOver(detail);
 changedVAT(UserInvoiceDetail d) += CHANGED(batch(d));
 
 overDeriveValueVAT (UserInvoiceDetail d) += prevLastValueVAT(sku(d), supplierStock(d), dateTime(d));
-overSetValueVAT(UserInvoiceDetail detail) += prevValueVAT(batch(detail)) IF NOT skipSetVATBatch(operation(detail));
+overSetValueVAT(UserInvoiceDetail detail) += prevValueVAT(batch(detail)) IF NOT skipSetVATBatchOver(detail);
 changedValueVAT(UserInvoiceDetail d) += CHANGED(batch(d)) OR CHANGED(sku(d));
