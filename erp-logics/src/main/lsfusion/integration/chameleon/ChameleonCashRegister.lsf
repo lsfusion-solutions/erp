@@ -21,6 +21,7 @@ isChameleon (CashRegisterModel m) = left(handler(m), 14) = 'lsf.Chameleon.';
 isChameleon (GroupCashRegister g) = isChameleon(cashRegisterModel(g));
 isChameleon (CashRegister cr) = isChameleon(groupCashRegister(cr));
 isChameleon (Receipt r) = isChameleon(cashRegister(r));
+isChameleon (ReceiptDetail d) = isChameleon(receipt(d));
 
 haveChameleon (DepartmentStore d) = GROUP MAX isChameleon(GroupCashRegister g) IF stock(g) = d;
 
@@ -87,8 +88,6 @@ exchangeChameleon (GroupCashRegister g, STRING q) {
     }
 }
 
-sendPlus 'Передавать PLU' = ABSTRACT CASE BOOLEAN (MachineryPriceTransaction);
-
 overSendToChameleon ABSTRACT LIST (MachineryPriceTransaction);
 
 sendToChameleon (MachineryPriceTransaction t){
@@ -113,31 +112,11 @@ sendToChameleon (MachineryPriceTransaction t){
                 pricesString(t),
                 restsString(t),
                 barcodesString(t),
-                plusString(t) IF sendPlus(t),
+                plusString(t),
                 atcString(t)
-                //
             );
             IF returnExchange(groupMachinery(t)) THEN {
-                NEW e = MachineryPriceTransactionError {
-                    LOCAL p = INTEGER();
-                    dateTimeProcessing(t) <- NULL;
-                    machineryPriceTransaction(e) <- t;
-                    p() <- strpos(System.messageCaughtException(), ':');
-                    IF p() != 0 THEN {
-                        data(e) <- left(System.messageCaughtException(), p() - 1);
-                        System.messageCaughtException() <- substrFrom(System.messageCaughtException(), p() + 1);
-                        p() <- strpos(System.messageCaughtException(), 'in SQL');
-                        IF p() != 0 THEN {
-                            errorTrace(e) <- left(System.messageCaughtException(), p() + 5);
-                        } ELSE {
-                            errorTrace(e) <- System.messageCaughtException();
-                        }
-                    } ELSE {
-                        data(e) <- System.messageCaughtException();
-                        errorTrace(e) <- System.messageCaughtException();
-                    }
-                    date(e) <- currentDateTime();
-                }
+                addMachineryError(t, getWord(System.messageCaughtException(), ':', 1), getWord(System.messageCaughtException(), 'in SQL', 1));
             } ELSE {
                 succeeded(t) <- TRUE;
                 dateTimeSucceeded(t) <- currentDateTime();
@@ -167,11 +146,13 @@ maxIdReceipt (GroupCashRegister g) = GROUP MAX maxIdReceipt(CashRegister cr) BY 
 
 cashRegisterIds (GroupCashRegister g) = GROUP CONCAT ISTRING(id(CashRegister cr)), ',' IF isChameleon(cr) AND groupCashRegister(cr) = g AND NOT disableSales(cr) ORDER cr;
 
-conditionRecieve (GroupCashRegister g) = 'where ' + CONCAT ' and ',
+conditionRecieve (GroupCashRegister g, DATE from, DATE to) = 'where ' + CONCAT ' and ',
     'type_payment < 1000',
     'time_check>=\'' + toDateISO(startDate(g)) + '\'',
     'id_workplace in (' + cashRegisterIds(g) + ')',
-    'id_check>' + maxIdReceipt(g);
+    'id_check>' + maxIdReceipt(g) IF NOT from,
+    'time_check>=\'' + toDateISO(from) + '\'',
+    'time_check<=\'' + toDateISO(to) + '\'';
 
 zReport (CashRegister cr, STRING n) = GROUP LAST ZReport z ORDER z IF number(z) = n AND cashRegister(z) = cr;
 
@@ -206,7 +187,7 @@ paymentType(ISTRING s) = OVERRIDE paymentType(chameleonPaymentType(s)), typePaym
 
 payment (Receipt r, PaymentType t) = GROUP LAST Payment p ORDER p BY receipt(p), paymentType(p);
 
-receiveFromChameleon(GroupCashRegister g) {
+receiveFromChameleon(GroupCashRegister g, DATE from, DATE to) {
     IF isChameleon(g) THEN {
         returnExchange(g) <- NULL;
         LOCAL type = ISTRING (INTEGER);
@@ -234,7 +215,7 @@ receiveFromChameleon(GroupCashRegister g) {
             
         LOCAL receiptSql = ISTRING();
         LOCAL receiptSqlDetail = ISTRING();
-        receiptSql() <- CONCAT ' ', 'select id_check,guid::text,id_workplace,id_session,id_fcheck,time_check,id_employee, attrs->\'cash\' as cash, attrs->\'card\' as card, attrs->\'certificate\' as certificate from sales.checks', conditionRecieve(g);
+        receiptSql() <- CONCAT ' ', 'select id_check,guid::text,id_workplace,id_session,id_fcheck,time_check,id_employee, attrs->\'cash\' as cash, attrs->\'card\' as card, attrs->\'certificate\' as certificate from sales.checks', conditionRecieve(g, from, to);
         receiptSqlDetail() <- CONCAT ' ',
             'select checks.guid::text,quantity,price,discount,summ,id_goods,id_series,attrs->\'barcode\' as barcode from sales.check_lines',
             'inner join (' + receiptSql() + ') checks on checks.guid=sales.check_lines.guid::text'
@@ -320,5 +301,5 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
 }
 
 receiveGroupMachinery(GroupCashRegister g) + {
-    receiveFromChameleon(g);
+    receiveFromChameleon(g, NULL, NULL);
 }

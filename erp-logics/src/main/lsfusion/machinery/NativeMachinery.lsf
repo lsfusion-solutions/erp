@@ -20,24 +20,23 @@ receiveGroupsMachinery 'Получение данных из оборудова�
         receiveGroupMachinery(g);
 }
 
-addMachineryPriceTransactionError (MachineryPriceTransaction t, STRING data, TEXT errorTrace) {
-    NEWSESSION {
-        NEW e = MachineryPriceTransactionError {
-            machineryPriceTransaction(e) <- t;
-            data(e) <- data;
-            errorTrace(e) <- errorTrace;
-            date(e) <- currentDateTime();
-        }
-        APPLY;
+addMachineryError ABSTRACT (Object, STRING, TEXT);
+
+addMachineryError (Object t, STRING data) {
+    addMachineryError (t, data, System.messageCaughtException());
+}
+
+addMachineryError (Object t) {
+    addMachineryError (t, System.messageCaughtException());
+}
+
+addMachineryError (MachineryPriceTransaction t, STRING data, TEXT errorTrace) + {
+    NEW e = MachineryPriceTransactionError {
+        machineryPriceTransaction(e) <- t;
+        data(e) <- data;
+        errorTrace(e) <- errorTrace;
+        date(e) <- currentDateTime();
     }
-}
-
-addMachineryPriceTransactionError (MachineryPriceTransaction t, STRING data) {
-    addMachineryPriceTransactionError (t, data, System.messageCaughtException());
-}
-
-addMachineryPriceTransactionError (MachineryPriceTransaction t) {
-    addMachineryPriceTransactionError (t, System.messageCaughtException());
 }
 
 //EXTEND FORM machineryPriceTransactions PROPERTIES sendMachineryPriceTransactions(), receiveGroupsMachinery();
