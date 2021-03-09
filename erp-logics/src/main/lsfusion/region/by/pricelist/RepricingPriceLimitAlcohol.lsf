@@ -154,4 +154,14 @@ DESIGN alcoholLimits {
             MOVE PROPERTY(createLimitAlcoholRepricingMulti());
         }
     }    
-}   
+}
+
+minAlcoholLimitPrice 'Минимальная цена на алкогольную продукцию' (UserRepricingDetail d) = 
+    IF country(sku(d)) == defaultCountry() THEN minAlcoholLimitPriceRB(sku(d), dateTime(d)) ELSE minAlcoholLimitPrice(sku(d), dateTime(d));
+
+WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
+            SETCHANGED(retailPrice(UserRepricingDetail d))
+            AND minAlcoholLimitPrice(d) > retailPrice(d) DO {
+    retailPrice(d) <- minAlcoholLimitPrice(d);
+//    retailMarkup(d) <- calcRetailMarkup(d);
+}
