@@ -83,7 +83,7 @@ DESIGN options {
 }
 useMaxLimitRetailPriceCustom  = ABSTRACT BOOLEAN();
 fillMaxLimitRetailPriceCustom  ABSTRACT (DATETIME);
-
+fillMaxLimitRetailPriceOver ABSTRACT LIST (DATETIME);
 fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену' (DATETIME dt) {
     IF useMaxLimitRetailPriceCustom() THEN {
         fillMaxLimitRetailPriceCustom(dt);
@@ -107,6 +107,10 @@ fillMaxLimitRetailPrice 'Заполнить максимальную розни�
                                                             WHERE inn(sku);       
             maxLimitRetailPrice(Sku sku, stock) <- firstPriceNotPromotion(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
                                                             WHERE inn(sku) AND NOT maxLimitRetailPrice(sku, stock);
+            APPLY;
+        }
+        NEWSESSION {
+            fillMaxLimitRetailPriceOver(dt);      
             APPLY;
         }
     }
@@ -296,6 +300,7 @@ fillAllStocks 'Выбрать для всех магазинов' (Sku s,Stock s
 useAllStocks 'Применить ко всем магазинам' (Sku s,Stock st){
     maxLimitRetailPrice(s,Stock ds)<- maxLimitRetailPrice(s,st) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
 }
+backgroundRetailPrice = ABSTRACT CASE COLOR(Sku);
 
 FORM maxLimitRetailPrice 'Максимальные розничные цены'
     OBJECTS st = DepartmentStore PANEL 
@@ -303,7 +308,7 @@ FORM maxLimitRetailPrice 'Максимальные розничные цены'
     PROPERTIES () READONLY  dateTimeLimitRetailPrice, dataStepPercLimitRetailPrice
 
     OBJECTS s = Sku
-    PROPERTIES (s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode
+    PROPERTIES (s) BACKGROUND backgroundRetailPrice(s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode
     PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
     ORDERS name(s)
     FILTERS active(s)
