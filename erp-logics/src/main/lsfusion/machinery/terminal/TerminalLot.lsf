@@ -1,0 +1,42 @@
+MODULE TerminalLot;
+
+REQUIRE Terminal;
+
+NAMESPACE Terminal;
+
+CLASS TerminalLotDetail 'Марки документа ТСД';
+
+terminalDocumentDetail = DATA TerminalDocumentDetail (TerminalLotDetail) NONULL DELETE INDEXED;
+
+id 'Код' = DATA STRING[100] (TerminalLotDetail);
+quantity 'Кол-во' = DATA NUMERIC[14,3] (TerminalLotDetail);
+
+EXTEND FORM terminalDocument
+    OBJECTS tld = TerminalLotDetail
+    PROPERTIES(tld) id, quantity, NEW, DELETE
+    FILTERS terminalDocumentDetail(tld) = tdd
+;
+
+DESIGN terminalDocument {
+    OBJECTS {
+        NEW details {
+            fill = 1;
+            type = SPLITH;
+            MOVE BOX(tdd);
+            MOVE BOX(tld) {
+                fill = 0.3;
+            }
+        }
+    }
+}
+
+META defineAddDetailDialogTerminalLot(object)
+    overAddDetailDialogTerminal###object##Detail(###object##Detail d, TerminalDocumentDetail td) + {
+        FOR id(TerminalLotDetail tl) AND NOT lot(id(tl)) DO NEW l = Lot {
+            id(l) <- id(tl);
+            sku(l) <- sku(td);
+            dataCount(l) <- quantity(tl) IF quantity(tl) != 1;
+        }
+        quantity(d, Lot l) <- GROUP SUM 1 IF l = lot(id(TerminalLotDetail tld)) AND td = terminalDocumentDetail(tld); 
+    }
+END
