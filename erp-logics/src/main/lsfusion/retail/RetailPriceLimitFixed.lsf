@@ -84,6 +84,10 @@ DESIGN options {
 useMaxLimitRetailPriceCustom  = ABSTRACT BOOLEAN();
 fillMaxLimitRetailPriceCustom  ABSTRACT (DATETIME);
 fillMaxLimitRetailPriceOver ABSTRACT LIST (DATETIME);
+
+movedLimit (Sku item, Stock departmentStore, DATETIME dateTime, LONG period) =
+    dateTimeLastMoved(item, departmentStore,dateTime) >= toDateTime(subtract(toDate(dateTime), period));
+
 fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену' (DATETIME dt) {
     IF useMaxLimitRetailPriceCustom() THEN {
         fillMaxLimitRetailPriceCustom(dt);
@@ -99,7 +103,7 @@ fillMaxLimitRetailPrice 'Заполнить максимальную розни�
             IF (countDaysMovedLimitRetail() OR positiveBalanceLimitRetail()) THEN {
                 inn(Sku sku)<- NULL WHERE inn(sku) AND 
                                     ((positiveBalanceLimitRetail() AND NOT balanceB(sku,stock,dt)>0) OR( sku IS Sku AND NOT positiveBalanceLimitRetail())) AND
-                                    ((countDaysMovedLimitRetail() AND NOT moved (sku, stock, dt, countDaysMovedLimitRetail())) OR (sku IS Sku AND NOT countDaysMovedLimitRetail())); 
+                                    ((countDaysMovedLimitRetail() AND NOT movedLimit (sku, stock, dt, countDaysMovedLimitRetail())) OR (sku IS Sku AND NOT countDaysMovedLimitRetail())); 
             }        
             maxLimitRetailPrice(Sku sku, stock)<- NULL;
             
@@ -307,11 +311,17 @@ FORM maxLimitRetailPrice 'Максимальные розничные цены'
     PROPERTIES SELECTOR name(st)
     PROPERTIES () READONLY  dateTimeLimitRetailPrice, dataStepPercLimitRetailPrice
 
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive1 FILTER 'Активные' active(sg) 'F5' DEFAULT
+    ORDERS order(sg), skuGroupName
+
     OBJECTS s = Sku
     PROPERTIES (s) BACKGROUND backgroundRetailPrice(s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode
     PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
     ORDERS name(s)
-    FILTERS active(s)
+    FILTERS active(s),
+            isParent(sg,s)
     FILTERGROUP max
         FILTER 'С максимальной РЦ' maxLimitRetailPrice(s,st) 'F9' DEFAULT
     OBJECTS d = LimitRetailPriceLog
@@ -332,7 +342,14 @@ DESIGN maxLimitRetailPrice {
         NEW body{
             fill = 1;
             type = SPLITV;
-            MOVE BOX(s){fill = 2;} 
+            NEW group{
+                fill = 2;
+                caption = '';
+                type = SPLITH;
+                MOVE BOX(TREE skuTree) { caption = 'Группы'; }
+                MOVE BOX(s){fill = 3;}    
+            }
+            
             MOVE BOX(d); 
         }        
     }
