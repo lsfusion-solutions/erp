@@ -1,0 +1,33 @@
+MODULE LotAggregate;
+
+REQUIRE Lot;
+
+NAMESPACE Stock;
+
+aggregated 'Агрегация' = DATA BOOLEAN (Lot);
+parent = DATA Lot (Lot) INDEXED;
+
+WHEN LOCAL SETCHANGED(parent(Lot l)) DO sku(l) <- sku(parent(l));
+
+TABLE parentLot (Lot, Lot);
+level (Lot child, Lot parent) = RECURSION 1l IF child IS Lot AND parent == child
+      STEP 2l IF parent == parent($parent) MATERIALIZED;
+
+nestedLots 'Вложенных марок' (Lot l) = GROUP SUM 1 IF level(Lot child, l) AND NOT aggregated(child) MATERIALIZED;
+
+count(Lot l) += nestedLots(l);
+
+dataCount 'Штук' = DATA INTEGER (Lot);
+count(Lot l) += dataCount(l);
+
+EXTEND FORM lot
+    PROPERTIES(l) aggregated, dataCount
+    
+    OBJECTS cl = Lot
+    PROPERTIES(cl) id, NEW, DELETE
+    FILTERS parent(cl) = l
+;
+ 
+EXTEND FORM lots
+    PROPERTIES(l) READONLY aggregated, count
+;

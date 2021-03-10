@@ -52,6 +52,9 @@ changeSku 'Заменить товар' (Lot l) {
     }
 }
 
+count 'Штук' = ABSTRACT VALUE INTEGER (Lot);
+count (Lot l) += 1 IF l IS Lot; 
+
 FORM lot 'Марка'
     OBJECTS l = Lot PANEL
     PROPERTIES(l) id, idSku, nameSku, tail
@@ -69,7 +72,7 @@ FORM dialogLots 'Марки'
 FORM lots 'Марки'
     OBJECTS l = Lot
     PROPERTIES(l) READONLY id, idSku, nameSku
-    PROPERTIES(l) EDIT
+    PROPERTIES(l) NEWSESSION EDIT
     PROPERTIES(l) changeSku TOOLBAR
 ;
 
@@ -96,7 +99,9 @@ quantity 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Lot);
 
 FORM dialogInLots 'Список марок'
     OBJECTS l = Lot
-    PROPERTIES(l) READONLY id, quantity
+    PROPERTIES(l) READONLY id
+    PROPERTIES(l) count
+    PROPERTIES(l) READONLY quantity
     PROPERTIES(l) DELETE
     FILTERS quantity(l)
 ;
@@ -107,7 +112,7 @@ removeLot 'Убрать' (Lot l) {
 
 FORM dialogOutLots 'Список марок'
     OBJECTS l = Lot
-    PROPERTIES(l) READONLY id, quantity
+    PROPERTIES(l) READONLY id, count, quantity
     PROPERTIES(l) removeLot
     FILTERS quantity(l)
 ;
@@ -119,8 +124,8 @@ META defineDocumentLot (doc, quantityProp)
     CONSTRAINT quantity(###doc##Detail d, Lot l) AND NOT sku(l) = sku(d)
         MESSAGE 'Товар марки не соответствует товару строки документа';
     
-    quantityLot 'Кол-во марок' (###doc##Detail d) = GROUP SUM quantity(d, Lot l) MATERIALIZED;
-    quantityLot 'Кол-во марок' (###doc i) = GROUP SUM quantity(###doc##Detail d) IF doc(d) = i MATERIALIZED;
+    quantityLot 'Кол-во марок' (###doc##Detail d) = GROUP SUM quantity(d, Lot l) * count(l) MATERIALIZED;
+    quantityLot 'Кол-во марок' (###doc i) = GROUP SUM quantityLot(###doc##Detail d) IF doc(d) = i MATERIALIZED;
     quantity 'Кол-во марок' (###doc i, Lot l) = GROUP SUM quantity(###doc##Detail d, l) IF doc(d) = i;
     
     CONSTRAINT SET((quantityProp(###doc##Detail d) OR quantityLot(d)) AND isPosted(d) AND NOT quantityProp(d) = quantityLot(d)) 
@@ -244,8 +249,8 @@ META defineDocumentLotBarcodeOut (doc, stock)
                                 doc(d) <- i;
                                 sku(d) <- sku(l);
                                 batch(d) <- batch(l);
-                                quantity(d) <- 1;
                                 quantity(d, l) <- 1.0;
+                                quantity(d) <- quantityLot(d);
                                 seek(d);
                                 consumedBarcode###doc##Detail() <- TRUE;
                             }

@@ -1,6 +1,6 @@
 MODULE SkuLedgerLot;
 
-REQUIRE LotLedger, SkuLedger, Lot;
+REQUIRE LotLedger, SkuLedger, Lot, LotAggregate;
 
 NAMESPACE Stock;
 
@@ -14,16 +14,19 @@ signedQuantity 'Кол-во' (SkuLedger ledger, Lot lot) =
 batch (Lot l) = GROUP LAST batch(SkuLedger sl) ORDER DESC dateTime(sl), sl WHERE signedQuantity(sl, l) AND batch(sl) MATERIALIZED INDEXED;
 nameBatch 'Партия' (Lot l) = name(batch(l));
 
-skuBalance = GROUP SUM signedQuantity(SkuLedger ledger, Lot lot) IF active(ledger) BY lot, stock(ledger) CHARWIDTH 7 MATERIALIZED;
+skuBalance = GROUP SUM signedQuantity(SkuLedger ledger, Lot lot) IF active(ledger) BY lot, stock(ledger) CHARWIDTH 7;
 
 currentBalance 'Текущий остаток' (Lot l, Stock st) =
-    onHand(l, st) (+) skuBalance(l, st) CHARWIDTH 7 MATERIALIZED;
+    GROUP SUM (onHand(Lot parent, st) (+) skuBalance(parent, st)) IF level(l, parent) CHARWIDTH 7 MATERIALIZED;
 prevCurrentBalance (Lot l, Stock st) = PREV(currentBalance(l, st));
+
+skuCurrentBalance (Lot l, Stock st) = sku(l) IF currentBalance(l, st) MATERIALIZED;
+INDEX skuCurrentBalance(Lot l, Stock st), st;
 
 currentBalance 'Текущий остаток' (Lot l) = GROUP SUM currentBalance(l, Stock st) MATERIALIZED;
 
 currentBalanceLot 'Остаток марок' (Sku sk, Stock st) =
-    GROUP SUM currentBalance(Lot l, st) IF sku(l) = sk MATERIALIZED;
+    GROUP SUM currentBalance(Lot l, st) IF skuCurrentBalance(l, st) = sk AND NOT aggregated(l) MATERIALIZED;
 prevCurrentBalanceLot (Sku sk, Stock st) = PREV(currentBalanceLot(sk, st));
 
 // constraint
@@ -50,9 +53,12 @@ EXTEND FORM currentBalanceSkuStock
     PROPERTIES (s, st) currentBalanceLot
     
     OBJECTS l = Lot
-    PROPERTIES(l) READONLY id, nameBatch
+    PROPERTIES(l) READONLY id, aggregated, count, nameBatch
     PROPERTIES(l, st) READONLY currentBalance
     FILTERS currentBalance(l, st), sku(l) = s
+    
+    FILTERGROUP notAggregated
+        FILTER 'Без агрегаций' NOT aggregated(l) DEFAULT
 ;
 
 DESIGN currentBalanceSkuStock {
