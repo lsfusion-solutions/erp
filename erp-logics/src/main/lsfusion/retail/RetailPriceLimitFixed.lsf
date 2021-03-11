@@ -306,54 +306,178 @@ useAllStocks 'Применить ко всем магазинам' (Sku s,Stock 
 }
 backgroundRetailPrice = ABSTRACT CASE COLOR(Sku);
 
+inLimit 'Отм.' = DATA LOCAL NESTED BOOLEAN (Stock);
+countInLimitStock = GROUP SUM 1 IF inLimit(Stock Stock);
+stocksInLimit 'Отделы' () =
+    GROUP CONCAT name(Stock st) IF inLimit(st) ,', ' ORDER name(st) CHARWIDTH 20;
+    
+FORM departmentStoresLimit 'Отдел магазина'
+    TREE treeStore a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a), (sg IS ChainStores OR sg IS StoreType OR sg IS StoreGroup OR sg IS Store)
+    FILTERGROUP activeStore FILTER 'Активный' (active[Store](sg) OR NOT sg IS Store) 'ctrl F10' DEFAULT
+
+    OBJECTS d=DepartmentStore
+    PROPERTIES (d) inLimit
+    PROPERTIES(d) READONLY id SHOWIF showIDs(), depName = name, fullName
+
+    FILTERS isParent(sg, d) OR (d IS Stock AND NOT sg) 
+
+    FILTERGROUP activeDS FILTER 'Активный' active(d) 'F10' DEFAULT
+
+;
+
+DESIGN departmentStoresLimit {
+    BOX {
+        size = (1024, 768);
+
+        NEW topContainer {
+            fill = 1;
+            type = SPLITH;
+
+            MOVE BOX(TREE treeStore) {
+                caption = 'Склады';
+            }
+
+            MOVE BOX(d) {
+                fill = 3;
+                GRID(d) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+@extendFormFilterStockAccess(d, departmentStoresLimit, company);
+
+changeStocksReport()  { 
+    LOCAL prev = BOOLEAN (Stock);
+    prev(Stock sd)<- inLimit(sd);
+    inLimit(Stock sd) <- NULL;
+    DIALOG departmentStoresLimit OBJECTS d INPUT DO{
+        IF NOT countInLimitStock() THEN {
+            inLimit(d) <- TRUE;
+        } 
+    } ELSE {
+        inLimit(Stock sd) <- prev(sd);
+    }
+    formRefresh();
+}
+
+extraFilter = ABSTRACT BOOLEAN(LimitRetailPriceLog);
+
 FORM maxLimitRetailPrice 'Максимальные розничные цены'
-    OBJECTS st = DepartmentStore PANEL 
-    PROPERTIES SELECTOR name(st)
     PROPERTIES () READONLY  dateTimeLimitRetailPrice, dataStepPercLimitRetailPrice
+    PROPERTIES () stocksInLimit ON CHANGE changeStocksReport()
+    
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDERS order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
-    TREE skuTree sg = SkuGroup PARENT parent(sg)
-    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
-    FILTERGROUP inactive1 FILTER 'Активные' active(sg) 'F5' DEFAULT
-    ORDERS order(sg), skuGroupName
-
-    OBJECTS s = Sku
-    PROPERTIES (s) BACKGROUND backgroundRetailPrice(s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode
+    OBJECTS   sts=(st=Stock, s=Sku)
+    PROPERTIES (s) BACKGROUND backgroundRetailPrice(s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode, nameUOM
+    PROPERTIES  BACKGROUND backgroundRetailPrice(s) READONLY name(st)
     PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
     ORDERS name(s)
-    FILTERS active(s),
-            isParent(sg,s)
     FILTERGROUP max
         FILTER 'С максимальной РЦ' maxLimitRetailPrice(s,st) 'F9' DEFAULT
     OBJECTS d = LimitRetailPriceLog
     PROPERTIES(d) READONLY  dateTimeLimitRetailPrice, stepPercLimitRetailPrice, checkLimitRetailPrice, nameStock, nameSku, idSku, idBarcodeSku, price, nameTypeChange, hostnameComputer, userLogin, nameContact, dateTimeSession, dateSession
     FILTERS sku(d)==s,
-            stock(d)==st OR (typeChange(d)==TypeChange.flagAdd OR typeChange(d)==TypeChange.flagDelete) 
-    PROPERTIES fillMaxLimitRetailPrice() DRAW s TOOLBAR 
+            stock(d)==st OR extraFilter(d) OR (typeChange(d)==TypeChange.flagAdd OR typeChange(d)==TypeChange.flagDelete) 
+    PROPERTIES fillMaxLimitRetailPrice() DRAW sts TOOLBAR 
+          
+    FILTERS  isParent(sk, s),
+             inLimit(st)
+    ORDERS   name(s)
+    FILTERGROUP inactiveStock 
+        FILTER 'Активный' active(st) AND active(s) 'ctrl F10' DEFAULT
+        FILTER 'Неактивный' inactive(s) 'shift F10'
+        
+    EVENTS ON INIT {
+        inLimit(Stock ss)<- TRUE IF ss == [GROUP MIN Stock ff IF accessCompany(currentUser(), ff) AND ff IS DepartmentStore AND stockGroup(ff) IS Store]();  
+    }
 ;
-    
 DESIGN maxLimitRetailPrice {
-    OBJECTS {        
-        MOVE BOX(st) {
+    OBJECTS {  
+        NEW filter {
+            alignment = STRETCH;
             type = CONTAINERH;
-            MOVE PROPERTY (name(st));
+            MOVE PROPERTY (stocksInLimit());
             MOVE PROPERTY (dateTimeLimitRetailPrice());
-            MOVE PROPERTY (dataStepPercLimitRetailPrice());
-        }
-        NEW body{
+            MOVE PROPERTY (dataStepPercLimitRetailPrice());            
+        }    
+        NEW topContainer {
             fill = 1;
-            type = SPLITV;
-            NEW group{
-                fill = 2;
-                caption = '';
-                type = SPLITH;
+            type = SPLITH;
+
+            NEW firstBottom {
+                fill = 1;
                 MOVE BOX(TREE skuTree) { caption = 'Группы'; }
-                MOVE BOX(s){fill = 3;}    
             }
-            
-            MOVE BOX(d); 
-        }        
+            NEW skuBox {
+                fill = 3;
+                MOVE BOX(sts) {
+                    fill = 3;
+                }
+                MOVE BOX(d); 
+            }
+        }                 
     }
 }
+
+//FORM maxLimitRetailPrice 'Максимальные розничные цены'
+//    OBJECTS st = DepartmentStore PANEL 
+//    PROPERTIES SELECTOR name(st)
+//    PROPERTIES () READONLY  dateTimeLimitRetailPrice, dataStepPercLimitRetailPrice
+//
+//    TREE skuTree sg = SkuGroup PARENT parent(sg)
+//    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+//    FILTERGROUP inactive1 FILTER 'Активные' active(sg) 'F5' DEFAULT
+//    ORDERS order(sg), skuGroupName
+//
+//    OBJECTS s = Sku
+//    PROPERTIES (s) BACKGROUND backgroundRetailPrice(s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode
+//    PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
+//    ORDERS name(s)
+//    FILTERS active(s),
+//            isParent(sg,s)
+//    FILTERGROUP max
+//        FILTER 'С максимальной РЦ' maxLimitRetailPrice(s,st) 'F9' DEFAULT
+//    OBJECTS d = LimitRetailPriceLog
+//    PROPERTIES(d) READONLY  dateTimeLimitRetailPrice, stepPercLimitRetailPrice, checkLimitRetailPrice, nameStock, nameSku, idSku, idBarcodeSku, price, nameTypeChange, hostnameComputer, userLogin, nameContact, dateTimeSession, dateSession
+//    FILTERS sku(d)==s,
+//            stock(d)==st OR (typeChange(d)==TypeChange.flagAdd OR typeChange(d)==TypeChange.flagDelete) 
+//    PROPERTIES fillMaxLimitRetailPrice() DRAW s TOOLBAR 
+//;
+//    
+//DESIGN maxLimitRetailPrice {
+//    OBJECTS {        
+//        MOVE BOX(st) {
+//            type = CONTAINERH;
+//            MOVE PROPERTY (name(st));
+//            MOVE PROPERTY (dateTimeLimitRetailPrice());
+//            MOVE PROPERTY (dataStepPercLimitRetailPrice());
+//        }
+//        NEW body{
+//            fill = 1;
+//            type = SPLITV;
+//            NEW group{
+//                fill = 2;
+//                caption = '';
+//                type = SPLITH;
+//                MOVE BOX(TREE skuTree) { caption = 'Группы'; }
+//                MOVE BOX(s){fill = 3;}    
+//            }
+//            
+//            MOVE BOX(d); 
+//        }        
+//    }
+//}
 @extendFormFilterStockAccess(st, maxLimitRetailPrice, company);
 @extendFormEditable(maxLimitRetailPrice);
 
