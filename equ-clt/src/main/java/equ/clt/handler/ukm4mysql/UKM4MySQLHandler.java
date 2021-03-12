@@ -1091,7 +1091,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
         try (Statement statement = conn.createStatement()) {
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
-            String query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number " + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " + "where r.ext_processed = 0 AND r.result = 0 AND p.type = 0"; // type 3 это сдача, type 2 - аннулирование
+            String query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number, p.type " + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " + "where r.ext_processed = 0 AND r.result = 0 AND (p.type = 0 OR p.type = 2)"; // type 3 это сдача, type 2 - аннулирование
             ResultSet rs = statement.executeQuery(query);
             int count = 0;
             while (rs.next()) {
@@ -1103,6 +1103,12 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 Integer receiptType = rs.getInt(5); //r.type
                 boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
                 amount = isReturn ? amount.negate() : amount;
+
+                //если пришёл payment с type = 2, то ищем такой же с type = 0 и удаляем (это аннуляция плате
+                Integer pType = rs.getInt(7); //p.type
+                if(pType == 2) {
+                    paymentMap.remove(key);
+                }
 
                 if(customPayments.contains(paymentType)) {
                     Payment paymentEntry = paymentMap.get(key);
