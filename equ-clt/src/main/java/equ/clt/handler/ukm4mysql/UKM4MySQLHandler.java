@@ -1108,50 +1108,47 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 Integer pType = rs.getInt(7); //p.type
                 if(pType == 2) {
                     paymentMap.remove(key);
-                }
-
-                if(customPayments.contains(paymentType)) {
-                    Payment paymentEntry = paymentMap.get(key);
-                    if (paymentEntry == null)
-                        paymentEntry = new Payment();
-                    BigDecimal customPaymentSum = paymentEntry.customPaymentsMap.get(String.valueOf(paymentType));
-                    paymentEntry.customPaymentsMap.put(String.valueOf(paymentType), HandlerUtils.safeAdd(customPaymentSum, amount));
-                    paymentMap.put(key, paymentEntry);
                 } else {
-                    if (cashPayments.contains(paymentType)) //нал
-                        paymentType = 0;
-                    else if (cardPayments.contains(paymentType)) //безнал
-                        paymentType = 1;
-                    else if (giftCardPayments.contains(paymentType)) //сертификат
-                        paymentType = 2;
-                    String giftCard = rs.getString(6); //p.card_number
-                    if (giftCard.isEmpty())
-                        giftCard = null;
 
-                    if (giftCard != null && giftCardList != null) {
-                        for (String prefix : giftCardList) {
-                            if (giftCard.startsWith(prefix)) {
-                                paymentType = 2;
-                                break;
+                    if (customPayments.contains(paymentType)) {
+                        Payment paymentEntry = paymentMap.get(key);
+                        if (paymentEntry == null) paymentEntry = new Payment();
+                        BigDecimal customPaymentSum = paymentEntry.customPaymentsMap.get(String.valueOf(paymentType));
+                        paymentEntry.customPaymentsMap.put(String.valueOf(paymentType), HandlerUtils.safeAdd(customPaymentSum, amount));
+                        paymentMap.put(key, paymentEntry);
+                    } else {
+                        if (cashPayments.contains(paymentType)) //нал
+                            paymentType = 0;
+                        else if (cardPayments.contains(paymentType)) //безнал
+                            paymentType = 1;
+                        else if (giftCardPayments.contains(paymentType)) //сертификат
+                            paymentType = 2;
+                        String giftCard = rs.getString(6); //p.card_number
+                        if (giftCard.isEmpty()) giftCard = null;
+
+                        if (giftCard != null && giftCardList != null) {
+                            for (String prefix : giftCardList) {
+                                if (giftCard.startsWith(prefix)) {
+                                    paymentType = 2;
+                                    break;
+                                }
                             }
                         }
-                    }
-                    //если тип оплаты не найден, считаем налом
-                    if(paymentType != 0 && paymentType != 1 && paymentType != 2)
-                        paymentType = 0;
+                        //если тип оплаты не найден, считаем налом
+                        if (paymentType != 0 && paymentType != 1 && paymentType != 2)
+                            paymentType = 0;
 
-                    Payment paymentEntry = paymentMap.get(key);
-                    if (paymentEntry == null)
-                        paymentEntry = new Payment();
-                    if (paymentType == 0)
-                        paymentEntry.sumCash = HandlerUtils.safeAdd(paymentEntry.sumCash, amount);
-                    else if (paymentType == 1) {
-                        paymentEntry.sumCard = HandlerUtils.safeAdd(paymentEntry.sumCard, amount);
-                    } else { //paymentType == 2
-                        BigDecimal sumGiftCard = paymentEntry.sumGiftCardMap.get(giftCard);
-                        paymentEntry.sumGiftCardMap.put(giftCard, HandlerUtils.safeAdd(sumGiftCard, amount));
+                        Payment paymentEntry = paymentMap.get(key);
+                        if (paymentEntry == null) paymentEntry = new Payment();
+                        if (paymentType == 0) paymentEntry.sumCash = HandlerUtils.safeAdd(paymentEntry.sumCash, amount);
+                        else if (paymentType == 1) {
+                            paymentEntry.sumCard = HandlerUtils.safeAdd(paymentEntry.sumCard, amount);
+                        } else { //paymentType == 2
+                            BigDecimal sumGiftCard = paymentEntry.sumGiftCardMap.get(giftCard);
+                            paymentEntry.sumGiftCardMap.put(giftCard, HandlerUtils.safeAdd(sumGiftCard, amount));
+                        }
+                        paymentMap.put(key, paymentEntry);
                     }
-                    paymentMap.put(key, paymentEntry);
                 }
                 count++;
             }
