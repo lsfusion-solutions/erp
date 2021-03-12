@@ -7,8 +7,19 @@ NAMESPACE ZReport;
 EXTEND CLASS PaymentMeans {
     eMoney 'Электронные деньги'
 }
+EXTEND CLASS PaymentMeans { paymentMeansEpay 'Электронный платеж "Оплати"' }
+order (PaymentMeans p) += WHEN p = PaymentMeans.paymentMeansEpay THEN 4;
 
-sumEMoneyPayment 'Сумма продажа (Оплати)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.eMoney BY receipt(payment);
+migratedEmoney = DATA BOOLEAN ();
+onStarted() + {
+    IF NOT migratedEmoney() THEN NEWSESSION {
+        paymentMeans(PaymentType pt) <- PaymentMeans.paymentMeansEpay WHERE paymentMeans(pt) == PaymentMeans.eMoney;
+        migratedEmoney() <- TRUE;
+        APPLY;
+    }
+}
+
+sumEMoneyPayment 'Сумма продажа (Оплати)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansEpay BY receipt(payment);
 sumPositiveEMoneyPayment 'Сумма продажа (Оплати)' (Receipt receipt) =  sumEMoneyPayment (receipt) IF sumEMoneyPayment(receipt) >= 0.0 IN documentSum;
 sumNegativeEMoneyPayment 'Сумма возврата (Оплати)' (Receipt receipt) =  sumEMoneyPayment(receipt) IF sumEMoneyPayment(receipt) < 0.0 IN documentSum;
 
