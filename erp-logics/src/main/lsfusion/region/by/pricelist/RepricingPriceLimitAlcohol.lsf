@@ -126,18 +126,48 @@ createLimitAlcoholRepricing 'Создать переоценку по мин. ц
     }   
 }
 
+changeInDepartmentStores () {
+    DIALOG departmentStores;
+}
+
+FORM createLimitAlcoholRepricingMulti 'Переоценка по мин.ценам алкоголя'
+    OBJECTS dt = DATETIME PANEL
+    PROPERTIES VALUE(dt)
+    
+    PROPERTIES () namesStocks ON CHANGE changeInDepartmentStores()
+    
+    OBJECTS o = Operation PANEL
+    PROPERTIES (o) name SELECTOR   
+;
+
+DESIGN createLimitAlcoholRepricingMulti {
+    OBJECTS {
+        NEW stocksContainer BEFORE BOX(o) {
+            type = CONTAINERH;
+            caption = 'Отделы магазинов';
+            MOVE PROPERTY(namesStocks());
+        }    
+    }
+}
+
 createLimitAlcoholRepricingMulti 'Создать переоценку по мин. ценам алкоголя (несколько магазинов)' () {
-    DIALOG createLimitAlcoholRepricing OBJECTS dt INPUT, d INPUT, o INPUT DO {
-        LOCAL NESTED countRepricings = INTEGER();
+    DIALOG createLimitAlcoholRepricingMulti OBJECTS dt INPUT, o INPUT DO {
+        LOCAL NESTED countRepricings = INTEGER();       
         countRepricings() <- 0;
-        FOR in[Stock](DepartmentStore department) DO NEWSESSION {
-            calculatePriceLimitAlcoholRepricing(department, currentDateTime());
-            createPriceLimitAlcoholRepricing(department, priceLimitAlcoholRepricingOperation(), currentDateTime());
-            APPLY;
-            countRepricings() <- countRepricings() + 1;
+        FOR in(DepartmentStore department) DO NEWSESSION {
+            calculatePriceLimitAlcoholRepricing(department, dt);
+            IF [GROUP SUM alcoholLimitPrice(Sku sku)]() THEN {
+                createPriceLimitAlcoholRepricing(department, o, dt);
+                APPLY NESTED LOCAL;
+                IF NOT canceled() THEN {
+                    countRepricings() <- countRepricings() + 1;
+                }            
+            } 
         }
         MESSAGE 'Создано актов переоценки: ' + countRepricings();
+        in(DepartmentStore department) <- NULL WHERE in(department);
     }
+    
 } CONFIRM;
 
 EXTEND FORM alcoholLimits
