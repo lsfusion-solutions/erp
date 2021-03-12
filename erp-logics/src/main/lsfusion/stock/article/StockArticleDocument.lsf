@@ -70,7 +70,7 @@ META extendFormDocumentArticleStockCustom(object, form, concrete, legalEntityPro
     EXTEND FORM form
 
         OBJECTS sta=(stk=Stock, ar=Article)
-        PROPERTIES READONLY id(ar) SHOWIF sh##concrete##wIDs(), capti##concrete##n(ar), name(stk) SHOWIF n##concrete##t###stockProp(concrete)
+        PROPERTIES READONLY id(ar) SHOWIF showIDs(), caption(ar), name(stk) SHOWIF not###stockProp(concrete)
         FILTERS           isParent(sk, ar),
                           (stk == ts AND sg IS StockGroup OR isParent(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT stockProp(concrete) OR
                           stk == stockProp(concrete) AND NOT sg AND NOT ts
@@ -80,14 +80,14 @@ META extendFormDocumentArticleStockCustom(object, form, concrete, legalEntityPro
 
         OBJECTS si=Size
         PROPERTIES(si) name
-        FILTERS c##concrete##unt(si,ar)
+        FILTERS count(si,ar)
 
         OBJECTS co=Color
-        PROPERTIES(co) READONLY id SHOWIF sh##concrete##wIDs(), name
-        FILTERS c##concrete##unt(co,ar)
+        PROPERTIES(co) READONLY id SHOWIF showIDs(), name
+        FILTERS count(co,ar)
 
         PROPERTIES(ar,co,si,concrete,stk) quantity###legalEntityProp ON CHANGE changeQuantity(ar,co,si,concrete,stk)
-                                          COLUMNS (si) HEADER name(si) BACKGROUND backgr##concrete##undQuantity(ar,co,si,concrete,stk)
+                                          COLUMNS (si) HEADER name(si) BACKGROUND backgroundQuantity(ar,co,si,concrete,stk)
         PROPERTIES(ar,co,si,stk,concrete) READONLY priceBalance COLUMNS (si) HEADER nameBalance(si)
 
 //        PROPERTIES(ar,co,si,stk,concrete) priceBalanceArticleColorSizeStock###object ON CHANGE changeQuantityArticleColorSize###object###Stock(ar,co,si,concrete,stk) COLUMNS (si) HEADER nameBalanceSize(si)
@@ -102,8 +102,8 @@ META extendFormDocumentArticleStockCustom(object, form, concrete, legalEntityPro
             NEW articleContainer {
                 caption = 'Артикулы';
                 type = CONTAINERV;
-                M###concrete##VE BOX(sta) {caption = 'Артикул';};
-                M###concrete##VE BOX(co);
+                MOVE BOX(sta) {caption = 'Артикул';};
+                MOVE BOX(co);
                 REMOVE BOX(si);
             }
         }
