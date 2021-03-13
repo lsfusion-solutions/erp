@@ -11,10 +11,6 @@ EXTEND CLASS ChameleonVersion {
 chameleonVersion (GroupCashRegister g) += WHEN isChameleon(g) AND right(handler(cashRegisterModel(g)), 3) = '2.6' THEN ChameleonVersion.version26;
 isChameleon26 (GroupCashRegister g) = chameleonVersion(g) == ChameleonVersion.version26;
 
-//indexTax (Tax t) = PARTITION SUM 1 IF t IS Tax ORDER t;
-//taxString (Range r) = 'SELECT system.import_front_tax(' + STRING(r) + ',' + STRING(valueCurrentRate(r)) + ',\'' + (CONCAT '', valueCurrentRate(r), '%') + '\',' + indexTax(tax(r)) + ',true)';
-//taxesString() = GROUP CONCAT taxString(Range r), ';' ORDER r;
-
 currenciesString (GroupCashRegister g) += WHEN isChameleon26(g) THEN 'SELECT system.import_front_currencies(' + sid(defaultCurrency()) + ',\'' + shortName(defaultCurrency()) + '\',\'' + name(defaultCurrency()) + '\',true,true)';
 currenciesExchangeString (GroupCashRegister g) += WHEN isChameleon26(g) THEN 'SELECT system.import_front_currencies_exchange(' + sid(defaultCurrency()) + ',100,1,current_timestamp,true)';
 
@@ -42,10 +38,11 @@ groupSkuString (Group g) = 'SELECT system.import_front_group_goods(' + STRING(g)
 groupSkuStringHierarchy (Group g) = GROUP CONCAT groupSkuString(Group cg), ';' IF level(g, cg) ORDER DESC level(g, cg), cg;
 groupsSkuStringHierarchy (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT groupSkuStringHierarchy(Group g), ';' IF in(t, Barcode b) AND g = skuGroup(t, b) ORDER g;
 
-//skuString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_goods(' + STRING(s) + ',' + STRING(skuGroup(s)) + ',' + STRING(tax(VAT(s))) + ', \'' + ISTRING[128](name(m, s)) + '\',\'' + STRING(order(s)) + '\',0,0,true);' +
 skuString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_goods(' + STRING(s) + ',' + STRING(skuGroup(s)) + ',1, \'' + ISTRING[128](name(m, s)) + '\',\'' + STRING(order(s)) + '\',0,0,true);' +
     'SELECT system.import_front_series (\'-\',' + STRING(s) + ', \'-\', true);' + 
-    'SELECT system.import_front_goods_attrs(' + STRING(s) + ',false,null::integer,\'' + STRING[50](name(m, s)) + '\',false,false,false,0,null::integer,false,null::integer,0,null::integer,null::integer,true)';
+    'INSERT INTO front.goods_attrs(id_goods,control_rest,print_name_goods,free_price,only_bar_code,control_showcase,min_order,use_series,permission_type,forbidden_return) VALUES (' + STRING(s) + ',false,\'' + STRING[50](name(m, s)) + '\',false,false,false,0,false,0,true)' + 
+    'ON CONFLICT (id_goods) DO UPDATE SET print_name_goods=\'' + STRING[50](name(m, s)) + '\'';
+    //'SELECT system.import_front_goods_attrs(' + STRING(s) + ',false,null::integer,\'' + STRING[50](name(m, s)) + '\',false,false,false,0,null::integer,false,null::integer,0,null::integer,null::integer,true)';
 skusString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT skuString(t, Sku s), ';' IF in(t, Barcode b) AND sku(b) = s ORDER s; 
 
 //uomString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_unit(' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(m, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF split(m,b) THEN ',2' ELSE (IF passScales(b) THEN ',3' ELSE ',1')) + ',null,true)';
