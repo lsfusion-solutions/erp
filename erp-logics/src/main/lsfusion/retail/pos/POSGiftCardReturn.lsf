@@ -1,0 +1,37 @@
+MODULE POSGiftCardReturn;
+
+REQUIRE GiftCard, POS;
+
+NAMESPACE POS;
+
+// если подключено расписывание платежей, то там получается +. Но пока что будем считать это фичей, а не багом.
+
+overBarcodeInput(Receipt r) + {
+    IF giftCardSeriesNumber(barcodeInput()) THEN {
+        LOCAL giftCard = GiftCard();
+        giftCard() <- giftCardSeriesNumber(barcodeInput());
+        barcodeConsumed() <- TRUE;
+
+        IF NOT isExpiredDate(giftCard()) AND NOT used(giftCard()) THEN {
+            IF isSold(giftCard()) AND NOT isReturn(giftCard()) THEN {                                
+                NEW d = ReceiptGiftCardSaleDetail {
+                    receipt(d) <- r;
+                    giftCard(d) <- giftCard();
+                    idBarcode(d) <- barcodeInput();
+                    price(d) <- price(giftCard());
+                    sum(d) <- -price(giftCard());
+                    isReturn(d) <- TRUE;  
+                    seek(d);
+                }
+            } ELSE {                    
+                MESSAGE CONCAT ' ', 'Сертификат не был продан, или уже возвращён', barcodeInput();
+            }
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Сертификат истёк или использован', barcodeInput();
+        }
+    }
+}
+
+EXTEND FORM giftCards
+    PROPERTIES (g) READONLY dateSoldReturn AFTER dateSold(g)
+;

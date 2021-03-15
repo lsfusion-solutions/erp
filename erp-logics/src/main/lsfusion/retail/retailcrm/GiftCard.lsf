@@ -84,11 +84,15 @@ CLASS ABSTRACT SaleGiftCard 'Продажа подарочных сертифи�
 isSold 'Продан' = ABSTRACT BOOLEAN (SaleGiftCard);
 isReturn 'Возвращен' = ABSTRACT BOOLEAN (SaleGiftCard);
 
+lastSaleGiftCard = GROUP LAST SaleGiftCard detail ORDER dateTime(detail), detail BY giftCard(detail) MATERIALIZED;
+
 sold = GROUP LAST SaleGiftCard detail ORDER dateTime(detail), detail WHERE isSold(detail) AND NOT isReturn(detail)
         BY giftCard(detail) MATERIALIZED;
 soldReturn = GROUP LAST SaleGiftCard detail ORDER dateTime(detail), detail WHERE isSold(detail) AND isReturn(detail)
         BY giftCard(detail) MATERIALIZED;
 isSold 'Продан' (GiftCard g) = isSold(sold(g));
+
+isReturn 'Возвращён' (GiftCard g) = isReturn(lastSaleGiftCard(g));  // по-хорошему и isSold так сделать
 
 skipSoldConstraint = ABSTRACT BOOLEAN (GiftCard);
 

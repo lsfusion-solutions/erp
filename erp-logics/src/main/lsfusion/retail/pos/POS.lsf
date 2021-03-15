@@ -964,6 +964,9 @@ DESIGN options {
     }    
 }   
 
+barcodeConsumed = DATA LOCAL BOOLEAN ();
+overBarcodeInput ABSTRACT LIST (Receipt);
+
 scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt)  { 
     DIALOG barcodeInput DO {
         LOCAL dialogBarcodeSku = Sku();
@@ -1001,8 +1004,13 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt)  {
                     MESSAGE 'Выберите чек для возврата';
                 }
             }
-        } ELSE
-            MESSAGE CONCAT ' ', 'Не найден штрихкод', barcodeInput();
+        } ELSE {
+            barcodeConsumed() <- NULL;
+            overBarcodeInput(receipt);
+            
+            IF NOT barcodeConsumed() THEN
+                MESSAGE CONCAT ' ', 'Не найден штрихкод', barcodeInput();
+        }
     }
 } CHANGEKEY 'F7' IN receiptReturnAction;
 

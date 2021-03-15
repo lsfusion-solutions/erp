@@ -20,7 +20,7 @@ overChangeBarcodeGiftCard(STRING[30] string, Receipt receipt)  {
         LOCAL giftCard = GiftCard();
         giftCard() <- giftCardSeriesNumber(string);
 
-        IF sold(giftCard()) THEN {
+        IF isSold(giftCard()) AND NOT isReturn(giftCard()) THEN {
             MESSAGE 'Сертификат ' + seriesNumber(giftCard()) +' уже был продан';
         } ELSE {
             NEW d = ReceiptGiftCardSaleDetail {
@@ -107,7 +107,7 @@ extraDiscountSum = ABSTRACT NUMERIC[18,4] (ReceiptGiftCardSaleDetail);
 extraDiscountSum(ReceiptGiftCardSaleDetail d) += bonusPaid(d);
 calcSum (ReceiptGiftCardSaleDetail detail) = priceSum(detail) (-) extraDiscountSum(detail);
 
-WHEN LOCAL CHANGED (quantity(ReceiptGiftCardSaleDetail detail)) OR CHANGED (price(detail)) OR CHANGED (extraDiscountSum(detail)) OR CHANGED (departmentStore(detail))
+WHEN LOCAL (CHANGED (quantity(ReceiptGiftCardSaleDetail detail)) OR CHANGED (price(detail)) OR CHANGED (extraDiscountSum(detail)) OR CHANGED (departmentStore(detail)))
     AND bonusPaid(detail) DO {
     sum (detail) <- calcSum(detail);   
 }
