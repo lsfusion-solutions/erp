@@ -1,0 +1,56 @@
+MODULE TerminalDashboardLot;
+
+REQUIRE TerminalDashboard, TerminalLot;
+
+NAMESPACE Terminal;
+
+EXTEND FORM terminalDocumentMobile
+    PROPERTIES(d) READONLY quantityLot BACKGROUND backgroundQuantityLot(d)
+    
+    PROPERTIES(d) PANEL nameLot = nameSku READONLY, barcodeLot = barcode READONLY, 
+                        quantityLot = quantity BACKGROUND backgroundQuantityLot(d)
+    
+    OBJECTS ld = TerminalLotDetail
+    PROPERTIES(ld) id READONLY, quantity, NEW, DELETE
+    FILTERS terminalDocumentDetail(ld) = d
+;
+
+DESIGN terminalDocumentMobile {
+    pane {
+        PROPERTY(quantityLot(d)) { charWidth = 5; }
+        NEW lots {
+            caption = 'Марки';
+            MOVE PROPERTY(nameLot) { caption = ''; alignment = STRETCH; }
+            NEW lotRow2 {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                MOVE PROPERTY(barcodeLot) { caption = ''; };
+                MOVE PROPERTY(quantityLot) { caption = ''; };
+            }
+            MOVE GRID(ld) {
+                headerHeight = 24;
+                PROPERTY(quantity(ld)) { charWidth = 5; }
+            }
+            MOVE TOOLBARBOX(ld);
+            REMOVE TOOLBARSYSTEM(ld);
+        }
+    }
+}
+
+lotBarcode() = DATA LOCAL STRING[100] ();
+
+overScanBarcode (STRING[100] s, TerminalDocument t, TerminalDocumentDetail d) + {
+    IF length(s) > 20 AND lotType(sku(d)) THEN {
+        lotBarcode() <- barcodeToId(s);
+        IF (GROUP SUM 1 IF id(TerminalLotDetail ld) = lotBarcode() AND terminalDocument(terminalDocumentDetail(ld)) = t) THEN
+            MESSAGE 'Марка уже была отсканирована в текущем документе';
+        ELSE
+            NEW ld = TerminalLotDetail {
+                terminalDocumentDetail(ld) <- d;
+                id(ld) <- lotBarcode();
+                quantity(ld) <- 1;
+                SEEK terminalDocumentMobile.ld = ld;
+                consumedScanBarcode() <- TRUE;
+            }
+    }
+}

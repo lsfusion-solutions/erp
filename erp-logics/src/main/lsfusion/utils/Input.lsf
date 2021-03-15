@@ -1,0 +1,216 @@
+MODULE Input;
+
+NAMESPACE Utils;
+
+FORM dialogQuantity 'Ввод количества'
+    OBJECTS q = NUMERIC[16,2] PANEL
+    PROPERTIES(q) quantity 'Введите количество :' = VALUE
+;
+
+DESIGN dialogQuantity {
+    PROPERTY(quantity) { fontSize = 16; }
+    PROPERTY(formOk()) { changeKey = 'ENTER'; }
+}
+
+META defineChangeInput (property, type, form, object)
+    change###property () {
+        INPUT s = STRING DO IF s THEN 
+            IF (GROUP SUM 1 IF isISubstring(name(type p), s)) = 1 THEN
+                property() <- GROUP MIN type p IF isISubstring(name(p), s);
+            ELSE
+                DIALOG form OBJECTS object INPUT NULL FILTERS isISubstring(name(object), s) OR NOT s DO
+                    property() <- object;
+    }
+END
+
+META defineChangeInput (property, cls, type, form, object)
+    change###property (cls o) {
+        INPUT string = STRING DO IF string THEN
+            IF (GROUP SUM 1 IF isISubstring(name(type p), string)) = 1 THEN
+                property(o) <- GROUP MIN type p IF isISubstring(name(p), string);
+            ELSE
+                DIALOG form OBJECTS object INPUT NULL FILTERS isISubstring(name(object), string) OR NOT string DO
+                    property(o) <- object;
+    }
+END
+
+META defineChangeInputObject (type, form, object, dialog)
+    change##type () {
+        INPUT s = STRING DO IF s THEN
+            IF (GROUP SUM 1 IF isISubstring(name(type p), s)) = 1 THEN
+                SEEK form.object = GROUP MIN type p IF isISubstring(name(p), s);
+            ELSE
+                DIALOG dialog OBJECTS l INPUT NULL FILTERS isISubstring(name(l), s) OR NOT s DO
+                    SEEK form.object = l;
+    }
+    
+    EXTEND FORM form
+        PROPERTIES(object) name ON CHANGE change##type()
+    ;
+END
+
+// filter
+
+nameFilter 'Наименование' = DATA LOCAL ISTRING () CHARWIDTH 20;
+clearNameFilter '' () { nameFilter() <- NULL; } IMAGE 'delete.png';
+
+META defineNameFilter(form, obj, container)
+    EXTEND FORM form
+        PROPERTIES() nameFilter, clearNameFilter
+        FILTERS isISubstring(name(obj), nameFilter()) OR NOT nameFilter()
+    ;
+    DESIGN form {
+        container {
+            NEW nameFilter {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                MOVE PROPERTY(nameFilter()) { alignment = STRETCH; }
+                MOVE PROPERTY(clearNameFilter());
+            }
+        }
+    }
+END
+
+// keyboard
+
+// single object
+META defineKeyboard(form, cls, obj, container, size, action, number)
+    form##Press##number ''##number (cls o) {
+        action(o, number);
+    }
+    EXTEND FORM form PROPERTIES form##Press##number(obj);
+    DESIGN form {
+        container {
+            MOVE PROPERTY(form##Press##number(obj)) { fill = 1; fontSize = ''##size; focusable = FALSE; }
+        }
+    }
+END
+
+META defineKeyboard(form, cls, obj, container, size, action)
+    @defineKeyboard(form, cls, obj, container, size, action, 0);
+    @defineKeyboard(form, cls, obj, container, size, action, 1);
+    @defineKeyboard(form, cls, obj, container, size, action, 2);
+    @defineKeyboard(form, cls, obj, container, size, action, 3);
+    @defineKeyboard(form, cls, obj, container, size, action, 4);
+    @defineKeyboard(form, cls, obj, container, size, action, 5);
+    @defineKeyboard(form, cls, obj, container, size, action, 6);
+    @defineKeyboard(form, cls, obj, container, size, action, 7);
+    @defineKeyboard(form, cls, obj, container, size, action, 8);
+    @defineKeyboard(form, cls, obj, container, size, action, 9);
+END
+
+// keyboard decimal
+
+keyboardDecimalInput = DATA LOCAL STRING();
+
+META defineKeyboardDecimal (property, form, cls, obj, container, size)
+
+    set###form###property (cls o, INTEGER i) {
+        IF NOT property(o) = NUMERIC(keyboardDecimalInput()) THEN keyboardDecimalInput() <- NULL;
+        keyboardDecimalInput() <- CONCAT '', keyboardDecimalInput(), STRING(i);
+        property(o) <- NUMERIC(keyboardDecimalInput());
+    }
+    
+    DESIGN form {
+        container {
+            NEW keyboard {
+                fill = 1;
+                type = COLUMNS;
+                columns = 3;
+            }
+        }
+    }
+    
+    @defineKeyboard(form, cls, obj, keyboard, size, set###form###property);
+    
+    form##PressD '.' (cls o) {
+        IF NOT isSubstring(keyboardDecimalInput(), '.') THEN
+            keyboardDecimalInput() <- keyboardDecimalInput() + '.'; 
+    }
+    
+    form##PressC 'C' (cls o) {
+        keyboardDecimalInput() <- NULL;
+        property(o) <- NULL;
+    }
+    
+    EXTEND FORM form
+        PROPERTIES(obj) form##PressD, form##PressC
+    
+        EVENTS ON CHANGE obj { keyboardDecimalInput() <- NULL; }
+    ;
+    
+    DESIGN form {
+        keyboard {
+            MOVE PROPERTY(form##PressD(obj)) { fill = 1; fontSize = size; focusable = FALSE; };
+            MOVE PROPERTY(form##Press0(obj));
+            MOVE PROPERTY(form##PressC(obj)) { fill = 1; fontSize = size; focusable = FALSE; };
+        }
+    }
+
+END
+
+// no object
+
+META defineKeyboard(form, container, size, number)
+    form##Press##number ''##number () {
+        keyboardDecimalInput() <- CONCAT '', keyboardDecimalInput(), ''##number;
+    } CHANGEKEY 'NUMPAD'##number HIDE;
+    EXTEND FORM form PROPERTIES form##Press##number();
+    DESIGN form {
+        container {
+            MOVE PROPERTY(form##Press##number()) { fill = 1; fontSize = ''##size; focusable = FALSE; }
+        }
+    }
+END
+
+META defineKeyboard(form, container, size)
+    @defineKeyboard(form, container, size, 0);
+    @defineKeyboard(form, container, size, 1);
+    @defineKeyboard(form, container, size, 2);
+    @defineKeyboard(form, container, size, 3);
+    @defineKeyboard(form, container, size, 4);
+    @defineKeyboard(form, container, size, 5);
+    @defineKeyboard(form, container, size, 6);
+    @defineKeyboard(form, container, size, 7);
+    @defineKeyboard(form, container, size, 8);
+    @defineKeyboard(form, container, size, 9);
+END
+
+META defineKeyboardDecimal (form, container, size)
+
+    DESIGN form {
+        container {
+            NEW keyboard {
+                fill = 1;
+                type = COLUMNS;
+                columns = 3;
+            }
+        }
+    }
+    
+    @defineKeyboard(form, keyboard, size);
+    
+    form##PressD '.' () {
+        IF NOT isSubstring(keyboardDecimalInput(), '.') THEN
+            keyboardDecimalInput() <- keyboardDecimalInput() + '.'; 
+    } CHANGEKEY 'DECIMAL' HIDE;
+    
+    form##PressC 'C' () {
+        keyboardDecimalInput() <- NULL;
+    } CHANGEKEY 'DELETE' HIDE;
+    
+    EXTEND FORM form
+        PROPERTIES() form##PressD, form##PressC
+    
+        EVENTS ON INIT { keyboardDecimalInput() <- NULL; }
+    ;
+    
+    DESIGN form {
+        keyboard {
+            MOVE PROPERTY(form##PressD()) { fill = 1; fontSize = size; focusable = FALSE; };
+            MOVE PROPERTY(form##Press0());
+            MOVE PROPERTY(form##PressC()) { fill = 1; fontSize = size; focusable = FALSE; };
+        }
+    }
+
+END

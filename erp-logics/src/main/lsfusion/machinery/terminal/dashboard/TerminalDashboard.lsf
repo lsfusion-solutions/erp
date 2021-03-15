@@ -1,0 +1,202 @@
+MODULE TerminalDashboard;
+
+REQUIRE Terminal, Input, Mobile, Reflection;
+
+NAMESPACE Terminal;
+
+// order
+@defineChangeInput(stock, TerminalDocument, Stock, dialogStocksMobile, s);
+@defineChangeInput(sku, TerminalDocumentDetail, Sku, dialogSkusMobile, s);
+
+FORM terminalDocumentMobile 'Документ'
+    OBJECTS t = TerminalDocument PANEL
+    PROPERTIES(t) nameTerminalDocumentType, date, time, parentDocument,
+                  nameStock ON CHANGE changeStock(t)
+
+    OBJECTS d = TerminalDocumentDetail
+    PROPERTIES(d) nameSku ON CHANGE changeSku(d) 
+    PROPERTIES(d) 'Кол-во' = quantity, NEW, DELETE
+    PROPERTIES(d) PANEL READONLY idSku, barcode,
+                                 nameUOMSku
+    FILTERS terminalDocument(d) = t
+;
+
+DESIGN terminalDocumentMobile {
+    caption = (CONCAT ' ', 'Документ', '№' + parentDocument(t));
+    
+    OBJECTS {
+        NEW pane {
+            type = TABBED;
+            fill = 1;
+            NEW params {
+                caption = 'Параметры';
+                MOVE PROPERTY(nameTerminalDocumentType(t)) { alignment = STRETCH; }
+                NEW dateTime {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(date(t));
+                    MOVE PROPERTY(time(t));
+                }
+                MOVE PROPERTY(parentDocument(t)) { caption = 'Основание'; alignment = STRETCH; };
+                MOVE PROPERTY(nameStock(t)) { alignment = STRETCH; };
+                
+                NEW amount {
+                    flex = 1;
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                }
+                
+                NEW actions {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                }
+                
+                MOVE TOOLBARBOX;
+            }
+            NEW lines {
+                caption = CONCAT ' ', 'Строки', '(' + countTerminalDocumentDetail(t) + ')';
+                NEW linesHeader {
+                    alignment = STRETCH;
+                }
+                MOVE GRID(d) {
+                    headerHeight = 24;
+                    PROPERTY(quantity(d)) { charWidth = 5; }
+                }
+                MOVE TOOLBARBOX(d);
+                NEW item {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(idSku(d));
+                    MOVE PROPERTY(barcode(d));
+                }
+                NEW misc {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(nameUOMSku(d));
+                }
+                REMOVE TOOLBARSYSTEM(d);
+            }
+        }
+    }
+    PROPERTY(formApply()) { caption = ''; }
+    PROPERTY(formCancel()) { caption = ''; }
+}
+
+// barcode scan
+barcode 'Штрих-код' = DATA STRING () CHANGEKEY 'F4';
+
+consumedScanBarcode = DATA LOCAL BOOLEAN ();
+overScanBarcode ABSTRACT LIST (STRING[100], TerminalDocument, TerminalDocumentDetail);
+scanBarcode (TerminalDocument t, TerminalDocumentDetail td) {
+    INPUT s = STRING[100] DO 
+        IF s THEN {
+            IF skuBarcode(s) THEN {
+                IF NOT terminalDocumentDetail(t, skuBarcode(s)) THEN
+                    NEW d = TerminalDocumentDetail {
+                        terminalDocument(d) <- t;
+                        barcode(d) <- STRING[15](s);
+                        sku(d) <- skuBarcode(s);
+                    }
+                quantity(TerminalDocumentDetail d) <- quantity(d) (+) 1 WHERE d = terminalDocumentDetail(t, skuBarcode(s));
+                SEEK terminalDocumentMobile.d = terminalDocumentDetail(t, skuBarcode(s));
+                ACTIVATE PROPERTY terminalDocumentMobile.quantity(d);
+            } ELSE {
+                consumedScanBarcode() <- NULL;
+                overScanBarcode(s, t, td);
+                IF NOT consumedScanBarcode() THEN
+                    MESSAGE 'Штрих-код не найден.';            
+            }
+    }
+}
+
+EXTEND FORM terminalDocumentMobile
+    PROPERTIES() barcode ON CHANGE scanBarcode(t, d)
+;
+
+DESIGN terminalDocumentMobile {
+    OBJECTS {
+        MOVE PROPERTY(barcode()) FIRST { alignment = STRETCH; };
+    }
+}
+
+// keyboard
+
+// keyboard
+setQuantity(TerminalDocumentDetail d, INTEGER n) { quantity(d) <- n IF n > 0; }
+
+increaseQuantity '+' (TerminalDocumentDetail d) { quantity(d) <- quantity(d) (+) 1; }
+decreaseQuantity '-' (TerminalDocumentDetail d) { quantity(d) <- quantity(d) (-) 1; }
+
+EXTEND FORM terminalDocumentMobile
+    PROPERTIES(d) increaseQuantity, decreaseQuantity
+;
+
+DESIGN terminalDocumentMobile {
+    lines {
+        NEW quantityActions {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            NEW searchKeyboard {
+                fill = 1;
+                type = COLUMNS;
+                columns = 5;
+            }
+            MOVE PROPERTY(increaseQuantity(d)) { fill = 1; focusable = FALSE; }
+            MOVE PROPERTY(decreaseQuantity(d)) { fill = 1; focusable = FALSE; }
+        }
+    }
+}
+
+@defineKeyboard(terminalDocumentMobile, TerminalDocumentDetail, d, searchKeyboard, 16, setQuantity);
+
+
+// documents
+
+newMobile 'Добавить' () {
+    NEWSESSION {
+        NEW o = TerminalDocument {
+            DIALOG terminalDocumentMobile OBJECTS t = o DOCKED DO seek(o);
+        }
+    }
+} IMAGE 'add.png';
+
+editMobile 'Редактировать' (TerminalDocument o) {
+    NEWSESSION {
+        SHOW terminalDocumentMobile OBJECTS t = o DOCKED;
+    }
+} IMAGE 'edit.png' CHANGEMOUSE 'DBLCLK';
+
+FORM terminalDashboard 'Документы ТСД'
+    OBJECTS t = TerminalDocument
+    PROPERTIES(t) READONLY nameTerminalDocumentType, dateTime, 'Основание' = parentDocument
+    PROPERTIES newMobile() DRAW t TOOLBAR, editMobile(t) TOOLBAR, DELETE(t) NEWSESSION
+
+    FILTERS notUsed(t),
+            isOpened(t)
+;
+
+DESIGN terminalDashboard {
+    caption = 'Документы';
+    OBJECTS {
+        NEW filters {
+            type = CONTAINERH;
+            MOVE FILTERGROUPS(t);
+            MOVE PROPERTY(formRefresh());
+        }
+        MOVE GRID(t);
+        MOVE TOOLBARSYSTEM(t);
+        MOVE TOOLBAR(t);
+        REMOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    stockDashboardNavigator {
+        NEW terminalDashboard;
+    }
+}
+
+showMobileForms() + {
+    IF permit(currentUser(), navigatorElementCanonicalName('Terminal.terminalDashboard')) THEN 
+        SHOW terminalDashboard NOWAIT;
+}

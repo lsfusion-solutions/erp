@@ -1,6 +1,6 @@
 MODULE TerminalLot;
 
-REQUIRE Terminal;
+REQUIRE Terminal, Lot;
 
 NAMESPACE Terminal;
 
@@ -10,6 +10,11 @@ terminalDocumentDetail = DATA TerminalDocumentDetail (TerminalLotDetail) NONULL 
 
 id 'Код' = DATA STRING[100] (TerminalLotDetail);
 quantity 'Кол-во' = DATA NUMERIC[14,3] (TerminalLotDetail);
+
+quantityLot 'Марок' (TerminalDocumentDetail td) = GROUP SUM quantity(TerminalLotDetail ld) IF terminalDocumentDetail(ld) = td; 
+
+backgroundQuantityLot (TerminalDocumentDetail d) = (IF quantityLot(d) = quantity(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) 
+                                                       IF lotType(sku(d));
 
 EXTEND FORM terminalDocument
     OBJECTS tld = TerminalLotDetail

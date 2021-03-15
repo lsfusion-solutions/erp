@@ -111,7 +111,7 @@ groupTerminalDocumentType 'Группа типов документов' = DATA 
 nameGroupTerminalDocumentType 'Группа типов документов' (TerminalDocumentType terminalDocumentType) = name(groupTerminalDocumentType(terminalDocumentType));
 notSkip (TerminalDocumentType terminalDocumentType) = NOT skip(groupTerminalDocumentType(terminalDocumentType));
 
-name 'Название' = DATA STRING[200] (TerminalDocumentType) IN base;
+name 'Название' = DATA STRING[200] (TerminalDocumentType) IN base CHARWIDTH 10;
 flag 'Флаг' = DATA LONG (TerminalDocumentType) IN base;
 
 @defineExternalizable(terminalDocumentType, STRING[100]);
@@ -244,7 +244,7 @@ idTerminalHandbookType1 'Код в справочнике 1' = DATA STRING[100] 
 idTerminalHandbookType2 'Код в справочнике 2' = DATA STRING[100] (TerminalDocument) IN base CHARWIDTH 10;
 
 terminalDocumentType = DATA TerminalDocumentType (TerminalDocument) INDEXED;
-nameTerminalDocumentType 'Тип документа' (TerminalDocument terminalDocument) = name (terminalDocumentType (terminalDocument)) CHARWIDTH 20;
+nameTerminalDocumentType 'Тип документа' (TerminalDocument d) = name(terminalDocumentType(d));
 
 groupTerminal = DATA GroupTerminal (TerminalDocument);
 nameGroupTerminal 'Группа ТСД' (TerminalDocument terminalDocument) = name(groupTerminal(terminalDocument));
@@ -309,8 +309,11 @@ nameStock 'Склад' (TerminalDocumentDetail detail) = name(stock(detail));
 sku = DATA Sku (TerminalDocumentDetail) INDEXED;
 nameSku 'Наименование товара' (TerminalDocumentDetail d) = name(sku(d));
 idSku 'Код товара' (TerminalDocumentDetail d) = id(sku(d));
+nameUOMSku 'Ед. изм.' (TerminalDocumentDetail d) = nameUOM(sku(d));
 dataName 'Наименование' = DATA STRING[200] (TerminalDocumentDetail);
 name 'Наименование' (TerminalDocumentDetail d) = OVERRIDE dataName(d), nameSku(d) IN base;
+
+terminalDocumentDetail(terminalDocument, sku) = GROUP MAX TerminalDocumentDetail detail BY terminalDocument(detail), sku(detail);
 
 WHEN LOCAL SETCHANGED(barcode(TerminalDocumentDetail d)) DO {
     sku(d) <- OVERRIDE skuBarcode(barcode(d)), sku(barcode(d));
