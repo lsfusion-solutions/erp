@@ -161,7 +161,13 @@ query(TEXT q)  {
 	}
     
 	stringToFile('\{"query": "' + q + '"\}','UTF-8','json');
-	EXTERNAL HTTP 'http://' + host() + ':' + overPort() + '/druid/v2/sql' PARAMS resultFile() TO queryResult;
+	TRY {
+	    EXTERNAL HTTP 'http://' + host() + ':' + overPort() + '/druid/v2/sql' PARAMS resultFile() TO queryResult;
+    } CATCH {
+        fileToString(queryResult());
+        logToFile('druid', CONCAT '\n', 'Ошибка при обращении к Druid', messageCaughtException(), resultString());
+        throwException(CONCAT '\n', 'Ошибка при обращении к Druid', messageCaughtException(), resultString());
+    }
 	
 }
 // example : IMPORT JSON TO columns = columns FROM result();
