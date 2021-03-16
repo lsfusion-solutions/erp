@@ -1,0 +1,480 @@
+MODULE ConsignmentRu;
+
+REQUIRE System,
+        LegalEntityRu,
+        Stock,
+        Sku,
+        Barcode,
+        Employee,
+        Utils,
+        Transport,
+        Numerator,
+        StockContract,
+        SkuLedger,
+        ItemPack,
+        Barcode;
+
+NAMESPACE ConsignmentRu;
+
+
+CLASS ABSTRACT Consignment 'Накладная';
+
+CLASS ABSTRACT ConsignmentDetail 'Строка накладной';
+               
+dataDate 'Дата' (consignment) = ABSTRACT DATE (Consignment);
+overDate 'Дата' (consignment) = ABSTRACT DATE (Consignment);
+date 'Дата' (Consignment consignment) = OVERRIDE overDate(consignment), dataDate(consignment);
+
+number 'Номер' = ABSTRACT STRING[28] (Consignment) IN numbered CHARWIDTH 7;
+series 'Серия' = ABSTRACT BPSTRING[2] (Consignment) IN numbered CHARWIDTH 3 NOFLEX; 
+
+dataSupplier = ABSTRACT LegalEntity (Consignment);
+overSupplier = ABSTRACT LegalEntity (Consignment);
+supplier (Consignment consignment)= OVERRIDE overSupplier(consignment), dataSupplier(consignment);
+
+overAddressSupplier = ABSTRACT ISTRING[150] (Consignment);
+addressSupplier 'Юр. адрес отправителя' (Consignment consignment) =
+    OVERRIDE overAddressSupplier(consignment), address(supplier(consignment), date(consignment)) CHARWIDTH 30;
+    
+overFullNameSupplier = ABSTRACT ISTRING[200] (Consignment);  
+fullNameSupplier 'Наим-ие отправителя' (Consignment consignment) = 
+    OVERRIDE overFullNameSupplier(consignment), fullName(supplier(consignment)) CHARWIDTH 30;    
+            
+overEmailSupplier = ABSTRACT STRING[400] (Consignment);    
+emailSupplier 'E-mail' (Consignment consignment) = 
+    OVERRIDE overEmailSupplier(consignment), email(supplier(consignment)) CHARWIDTH 30;
+    
+overSiteSupplier = ABSTRACT STRING[100] (Consignment);    
+siteSupplier 'Сайт'  (Consignment consignment) = 
+    OVERRIDE overSiteSupplier(consignment), site(supplier(consignment)) CHARWIDTH 30;    
+
+overPhoneSupplier = ABSTRACT STRING[100] (Consignment);    
+phoneSupplier 'Телефон/факс'  (Consignment consignment) = 
+    OVERRIDE overPhoneSupplier(consignment), phone(supplier(consignment)) CHARWIDTH 30;    
+
+dataSupplierStock (consignment) = ABSTRACT Stock (Consignment);
+overSupplierStock (consignment)= ABSTRACT Stock (Consignment);
+supplierStock (Consignment consignment)= 
+    OVERRIDE overSupplierStock(consignment), dataSupplierStock(consignment) CHARWIDTH 20;
+    
+overNameSupplierStock (Consignment consignment) = ABSTRACT ISTRING[150] (Consignment);
+nameSupplierStock (Consignment consignment) =
+     OVERRIDE overNameSupplierStock(consignment), name(supplierStock(consignment)) CHARWIDTH 20;
+
+FORM dialogEmployeesConsignment 'Сотрудники'
+    OBJECTS e = Employee
+    PROPERTIES (e) READONLY inactive, lastName, firstName, namePosition, nameMainRole, userRoles
+    
+    FILTERGROUP active FILTER 'Активные' active(e) 'F5'  DEFAULT 
+    
+    LIST Employee OBJECT e
+;
+
+DESIGN dialogEmployeesConsignment {
+    size = (800, 600);
+    PROPERTY (lastName(e)) {
+        charWidth = 15;
+    }
+    PROPERTY (firstName(e)) {
+        charWidth = 25;
+    }
+    PROPERTY (namePosition(e)) {
+        charWidth = 30;
+    }
+    PROPERTY (nameMainRole(e)) {
+        charWidth = 25;
+    }
+}
+
+// ------------------------------------- Отпуск товара --------------------------------- //
+GROUP issuanceConsignment 'Отпуск' : base;
+
+dataCustomerStock = ABSTRACT Stock (Consignment);
+overCustomerStock = ABSTRACT Stock (Consignment);
+customerStock (Consignment consignment)= 
+    OVERRIDE overCustomerStock(consignment), dataCustomerStock(consignment) CHARWIDTH 20;
+     
+dataCustomer = ABSTRACT LegalEntity (Consignment);
+overCustomer = ABSTRACT LegalEntity (Consignment);
+customer (Consignment consignment)= OVERRIDE overCustomer(consignment), dataCustomer(consignment);  
+    
+overAddressCustomer = ABSTRACT ISTRING[150] (Consignment);
+addressCustomer 'Юр. адрес отправителя' (Consignment consignment) =
+    OVERRIDE overAddressCustomer(consignment), address(customer(consignment), date(consignment)) CHARWIDTH 30;      
+    
+overNameCustomerStock (Consignment consignment) = ABSTRACT ISTRING[150] (Consignment);
+nameCustomerStock (Consignment consignment) =
+     OVERRIDE overNameCustomerStock(consignment), name(customerStock(consignment)) CHARWIDTH 20;
+      
+overFullNameCustomer = ABSTRACT ISTRING[200] (Consignment);  
+extraFullNameCustomer = ABSTRACT ISTRING[200] (Consignment);  
+fullNameCustomer 'Наим-ие получателя' (Consignment consignment) = 
+    OVERRIDE overFullNameCustomer(consignment), extraFullNameCustomer(consignment), fullName(customer(consignment)) CHARWIDTH 30;
+    
+overEmailCustomer = ABSTRACT STRING[400] (Consignment);    
+emailCustomer 'E-mail' (Consignment consignment) = 
+    OVERRIDE overEmailCustomer(consignment), email(customer(consignment)) CHARWIDTH 30;
+    
+overSiteCustomer = ABSTRACT STRING[100] (Consignment);    
+siteCustomer 'Сайт'  (Consignment consignment) = 
+    OVERRIDE overSiteCustomer(consignment), site(customer(consignment)) CHARWIDTH 30;    
+
+overPhoneCustomer = ABSTRACT STRING[100] (Consignment);    
+phoneCustomer 'Телефон/факс'  (Consignment consignment) = 
+    OVERRIDE overPhoneCustomer(consignment), phone(customer(consignment)) CHARWIDTH 30;     
+    
+    
+contract = ABSTRACT Contract (Consignment);
+overDescription 'Описание' (Contract contract) = 'Договор поставки '+ description(contract);
+descriptionContract = overDescription(contract(Consignment consignment));
+    
+notUseIssuanceExecuted 'Не использовать справочник сотрудников' = DATA BOOLEAN (Consignment);
+dataIssuanceExecuted = DATA Employee(Consignment);
+overIssuanceExecuted (consignment) = DATA Employee(Consignment);
+issuanceExecuted (consignment) = ABSTRACT Employee(Consignment);
+positionIssuanceExecuted 'Отпуск произвел, должность' (Consignment consignment) = 
+    OVERRIDE namePosition(dataIssuanceExecuted(consignment)),
+             namePosition(issuanceExecuted(consignment)),
+             namePosition(overIssuanceExecuted(consignment)) IN issuanceConsignment CHARWIDTH 20;             
+nameIssuanceExecuted 'Отпуск произвел, ФИО' (Consignment consignment) = 
+    OVERRIDE firstShortName(dataIssuanceExecuted(consignment)),
+             firstShortName(issuanceExecuted(consignment)),
+             firstShortName(overIssuanceExecuted(consignment)) IN issuanceConsignment CHARWIDTH 20; 
+overChangeIssuanceExecuted ABSTRACT (Consignment);
+
+customSelectIssuanceExecuted = ABSTRACT BOOLEAN (Consignment);
+overSelectIssuanceExecuted ABSTRACT (Consignment);
+
+notUseDialogForwarder 'Не использовать справочник для принимающих сотрудников' = DATA BOOLEAN(Consignment) IN issuanceConsignment;
+
+dataForwarder  = DATA Employee (Consignment);
+overForwarder (consignment) = ABSTRACT Employee(Consignment);
+
+dataNameForwarder = DATA STRING[100](Consignment);
+overNameForwarder = ABSTRACT STRING[100](Consignment);
+dataPositionForwarder = DATA STRING[100](Consignment);
+overPositionForwarder = ABSTRACT STRING[100](Consignment);
+
+forwarder 'Товар к перевозке принял (экспедитор)' (Consignment consignment) = 
+    OVERRIDE  
+        overForwarder(consignment), 
+        dataForwarder(consignment) IN issuanceConsignment CHARWIDTH 30;
+
+nameForwarder 'Товар принял, ФИО' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseDialogForwarder(consignment) THEN firstShortName(forwarder(consignment)),
+        overNameForwarder(consignment),
+        dataNameForwarder(consignment) IN issuanceConsignment CHARWIDTH 30;
+    
+positionForwarder 'Товар принял, должность' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseDialogForwarder(consignment) THEN namePosition(dataForwarder(consignment)),
+        overPositionForwarder(consignment),
+        dataPositionForwarder(consignment) IN issuanceConsignment CHARWIDTH 30;
+    
+banSeries = ABSTRACT BOOLEAN (Consignment);
+toShowSeries = Consignment c IS Consignment AND NOT banSeries(c);
+
+consignment (d) = ABSTRACT Consignment (ConsignmentDetail);
+
+order 'Порядок сортировки' = ABSTRACT ISTRING[255] (ConsignmentDetail); 
+index 'Номер строки' = ABSTRACT INTEGER (ConsignmentDetail); 
+skip = ABSTRACT BOOLEAN (ConsignmentDetail);
+
+batch = ABSTRACT Batch (ConsignmentDetail);
+nameBatch 'Партия' (ConsignmentDetail d) = name(batch(d)) CHARWIDTH 20;
+
+dataSku (d) = ABSTRACT Sku (ConsignmentDetail);
+overSku (d) = ABSTRACT Sku (ConsignmentDetail);
+sku (ConsignmentDetail d) = OVERRIDE overSku(d), dataSku(d);
+idSku (ConsignmentDetail d) = id(sku(d));
+
+overNameSku = ABSTRACT ISTRING[255](ConsignmentDetail); // дополнительные характеристики
+dataNameSku = ABSTRACT ISTRING[255](ConsignmentDetail);
+nameSku 'Наименование товара' (ConsignmentDetail d) = CONCAT ' ',
+    (OVERRIDE overDocumentNameSku(batch(d)), dataNameSku(d), name(sku(d))),
+    overNameSku(d) CHARWIDTH 30;
+    
+dataQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+quantity 'Количество' (ConsignmentDetail d) = OVERRIDE overQuantity(d), dataQuantity(d);    
+
+dataAmountPack 'Кол-во в упаковке' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
+overAmountPack 'Кол-во в упаковке' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
+amountPack 'Кол-во в упаковке' (ConsignmentDetail d) = OVERRIDE overAmountPack(d), dataAmountPack(d);
+
+dataPackQuantity 'Количество грузовых мест' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
+overPackQuantity 'Количество грузовых мест' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
+packQuantity 'Количество грузовых мест' (ConsignmentDetail d) = OVERRIDE overPackQuantity(d), dataPackQuantity(d);
+
+nameTransportPack 'Количество грузовых мест' (ConsignmentDetail d) = name(transportPack(barcode(sku(d))));
+
+dataGrossWeight 'Масса брутто, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+overGrossWeight 'Масса брутто, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+grossWeight 'Масса брутто, кг.' (ConsignmentDetail d) = OVERRIDE overGrossWeight(d), dataGrossWeight(d);
+
+dataNetWeight 'Масса нетто, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+overNetWeight 'Масса нетто, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+netWeight 'Масса нетто, кг.' (ConsignmentDetail d) = OVERRIDE overNetWeight(d), dataNetWeight(d);
+
+barCode 'Штрихкод' (ConsignmentDetail d) = idBarcode(sku(d));
+sidCountry 'Код страны' (ConsignmentDetail d) = sid(country(sku(d)));
+shortNameCountry 'Краткое наименование страны' (ConsignmentDetail d) = name(country(sku(d)));
+
+shortNameUOMSku (ConsignmentDetail d) = shortNameUOM(sku(d));
+overNameUOM = ABSTRACT ISTRING[255](ConsignmentDetail);    
+shortNameUOM 'Единица измерения' (ConsignmentDetail d) = OVERRIDE overNameUOM(d), shortNameUOM(sku(d)) CHARWIDTH 5;
+
+idUOMSku (ConsignmentDetail d) = idUOM(sku(d));
+overIdUOM = ABSTRACT STRING[100] (ConsignmentDetail) CHARWIDTH 10;
+idUOM 'Код ед. изм.' (ConsignmentDetail d) = OVERRIDE overIdUOM(d), idUOMSku(d) CHARWIDTH 10;
+
+dataPrice 'Цена' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
+overPrice 'Цена' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
+price 'Цена' (ConsignmentDetail d) = OVERRIDE overPrice(d), dataPrice(d);
+
+dataSum 'Сумма без НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+overSum 'Сумма без НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+sum 'Сумма без НДС' (ConsignmentDetail d) = OVERRIDE overSum(d), dataSum(d);
+
+dataShipmentPrice 'Учетная цена' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
+overShipmentPrice 'Учетная цена' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
+shipmentPrice 'Учетная цена' (ConsignmentDetail d) = OVERRIDE overShipmentPrice(d), dataShipmentPrice(d);
+
+dataShipmentSum 'Учетная сумма' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+overShipmentSum 'Учетная сумма' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+shipmentSum 'Учетная сумма' (ConsignmentDetail d)= OVERRIDE overShipmentSum(d), dataShipmentSum(d);
+
+dataVAT 'НДС, %' (d) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
+vat 'НДС, %' (ConsignmentDetail d) = dataVAT(d);
+
+dataSumVAT 'Сумма НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+sumVAT 'Сумма НДС' (ConsignmentDetail d) = dataSumVAT(d);
+
+dataSumInvoice 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+sumInvoice 'Сумма с НДС' (ConsignmentDetail d) = dataSumInvoice(d);
+
+banPrint 'Запрет печати' = ABSTRACT CASE BOOLEAN (Consignment);
+
+changeIssuanceExecuted(Consignment consignment)  {    
+    IF notUseIssuanceExecuted(consignment) THEN {
+        INPUT s = nameIssuanceExecuted(consignment) DO {
+            nameIssuanceExecuted(consignment) <- s;
+        } 
+        INPUT s = positionIssuanceExecuted(consignment) DO {
+            positionIssuanceExecuted(consignment) <- s;
+        } 
+                
+    } ELSE 
+        IF customSelectIssuanceExecuted(consignment) THEN {
+            overSelectIssuanceExecuted(consignment);
+        } ELSE {
+            DIALOG dialogEmployeesConsignment OBJECTS e = issuanceExecuted(consignment) INPUT NULL DO {
+                issuanceExecuted(consignment) <- e;
+                IF NOT issuanceExecuted(consignment) THEN {
+                    overIssuanceExecuted(consignment) <- e;
+                }
+            }               
+        }        
+    overChangeIssuanceExecuted(consignment);
+}
+
+changeNameForwarder(Consignment consignment)  {     
+    IF notUseDialogForwarder(consignment) THEN {
+        INPUT s = dataNameForwarder(consignment) DO {
+            dataNameForwarder(consignment) <- s;
+        }
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataForwarder(consignment) INPUT NULL DO {
+            dataForwarder(consignment) <- e;
+        }
+    }
+}   
+
+changePositionForwarder(Consignment consignment)  {     
+    IF notUseDialogForwarder(consignment) THEN {
+        INPUT s = dataPositionForwarder(consignment) DO {
+            dataPositionForwarder(consignment) <- s;
+        }         
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataForwarder(consignment) INPUT NULL DO {
+            dataForwarder(consignment) <- e;
+        }
+    }        
+} 
+   
+FORM consignmentTorg13 'ТОРГ-13'
+    OBJECTS c=Consignment PANEL
+
+    PROPERTIES (c) date, number, fullNameSupplier, addressSupplier, emailSupplier, siteSupplier, phoneSupplier,
+                   nameSupplierStock, nameCustomerStock, 
+                   nameIssuanceExecuted,
+                   positionIssuanceExecuted, 
+                   nameForwarder,
+                   positionForwarder
+                   
+    OBJECTS d=ConsignmentDetail
+    
+    PROPERTIES(d) shortNameUOMSku, nameSku, 
+                  quantity, barCode, shortNameUOM, idUOM, 
+                  grossWeight, netWeight, 
+                  shipmentPrice, shipmentSum
+        
+    FILTERS consignment(d) == c,
+            quantity(d),
+            NOT skip(d)
+;
+
+printConsignmentTorg13 'ТОРГ-13' (Consignment consignment) { PRINT consignmentTorg13 OBJECTS c = consignment;} IMAGE 'print.png' IN print;
+
+FORM consignmentTorg12 'ТОРГ-12'
+    OBJECTS c=Consignment PANEL
+
+    PROPERTIES (c) fullNameSupplier, addressSupplier, emailSupplier, siteSupplier, phoneSupplier,
+                   fullNameCustomer, addressCustomer, emailCustomer, siteCustomer, phoneCustomer,
+                   nameSupplierStock,
+                   date, number,
+                   nameCustomerStock, 
+                   descriptionContract,
+                   nameIssuanceExecuted, positionIssuanceExecuted, 
+                   nameForwarder, positionForwarder
+    OBJECTS d=ConsignmentDetail
+    
+    PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
+                  quantity, 
+                  nameTransportPack, amountPack, packQuantity, grossWeight, 
+                  price, sum, vat, sumVAT, sumInvoice
+        
+    FILTERS consignment(d) == c,
+            quantity(d),
+            NOT skip(d)
+;
+ 
+printConsignmentTorg12 'ТОРГ-12' (Consignment consignment) { PRINT consignmentTorg12 OBJECTS c = consignment;} IMAGE 'print.png' IN print;    
+
+FORM consignmentUPD 'Универсальный передаточный документ'
+    OBJECTS c=Consignment PANEL
+
+    PROPERTIES (c) fullNameSupplier, addressSupplier, 
+                   fullNameCustomer, addressCustomer, 
+                   date, number,
+                   descriptionContract,
+                   nameIssuanceExecuted, positionIssuanceExecuted, 
+                   nameForwarder, positionForwarder
+    OBJECTS d=ConsignmentDetail
+    
+    PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
+                  quantity, 
+                  grossWeight, 
+                  price, sum, vat, sumVAT, sumInvoice,
+                  sidCountry, shortNameCountry
+        
+    FILTERS consignment(d) == c,
+            quantity(d),
+            NOT skip(d)
+;
+ 
+printConsignmentUPD 'Универсальный передаточный документ' (Consignment consignment) { PRINT consignmentUPD OBJECTS c = consignment;} IMAGE 'print.png' IN print;    
+
+FORM consignment 'Атрибуты накладной'
+    OBJECTS c=Consignment PANEL
+
+    PROPERTIES(c) READONLY nameSupplierStock
+    PROPERTIES(c)  number, series SHOWIF toShowSeries(c), date, 
+                   addressSupplier READONLY, addressCustomer READONLY, fullNameSupplier READONLY, fullNameCustomer READONLY, 
+                   notUseDialogForwarder,
+                   nameIssuanceExecuted ON CHANGE changeIssuanceExecuted(c),
+                   positionIssuanceExecuted ON CHANGE changeIssuanceExecuted(c), 
+                   nameForwarder ON CHANGE changeNameForwarder(c),
+                   positionForwarder ON CHANGE changePositionForwarder(c)
+    OBJECTS d=ConsignmentDetail
+
+    PROPERTIES(d) order, index, nameSku READONLY, shortNameUOM READONLY, quantity, price, sum 
+    ORDERS order(d), index(d)  
+
+    FILTERS consignment(d) == c,
+            NOT skip(d)
+;
+
+DESIGN consignment {
+    size = (1024, 768);
+    NEW pane {
+        fill = 1;
+        type = TABBED;
+        NEW mainContainer {
+            caption = 'Основная информация';
+            NEW mainScroll {
+                fill = 1;
+                height = 1;
+                type = SCROLL;
+                NEW mainTab {
+                    alignment = STRETCH;
+                    NEW header {
+                        alignment = STRETCH;
+                        caption = 'Шапка документа';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameSupplierStock(c));
+                        MOVE PROPERTY(number(c));
+                        MOVE PROPERTY(series(c));
+                        MOVE PROPERTY(date(c));
+                    }
+                
+                    NEW supplier {
+                        alignment = STRETCH;
+                        caption = 'Грузоотправитель';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(fullNameSupplier(c));
+                        MOVE PROPERTY(addressSupplier(c));
+                    }
+                
+                    NEW customer {
+                        alignment = STRETCH;
+                        caption = 'Грузополучатель';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(fullNameCustomer(c));
+                        MOVE PROPERTY(addressCustomer(c));
+                    }    
+                    
+                    MOVE GROUP(issuanceConsignment,c) {                       
+                        type = CONTAINERV;
+                        NEW issuance { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameIssuanceExecuted(c)) { charWidth = 30; };
+                            MOVE PROPERTY(positionIssuanceExecuted(c)) { charWidth = 20; };
+                        }
+                            
+                        MOVE PROPERTY(notUseDialogForwarder(c));    
+                        
+                        NEW forwarder { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameForwarder(c)) { charWidth = 30; };
+                            MOVE PROPERTY(positionForwarder(c)) { charWidth = 20; };  
+                        }                  
+                    }                        
+                }
+            }
+        }
+        
+        MOVE BOX(d) {
+            caption = 'Спецификация';
+            PROPERTY(order(d)) {
+                charWidth = 10;
+            }
+        };
+    }
+    MOVE TOOLBARBOX;
+}
+
+editAttributes 'Заполнить атрибуты накладной' (Consignment consignment)  { 
+	NEWSESSION {	       
+	    SHOW consignment OBJECTS c = consignment DOCKED; 
+	}
+} IMAGE 'edit.png';
+
+showAttributes 'Просмотреть атрибуты накладной' (Consignment consignment) { 
+    NEWSESSION {
+        SHOW consignment OBJECTS c = consignment DOCKED READONLY;
+    }
+}

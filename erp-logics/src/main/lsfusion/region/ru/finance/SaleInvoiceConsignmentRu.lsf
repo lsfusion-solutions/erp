@@ -1,0 +1,76 @@
+MODULE SaleInvoiceConsignmentRu;
+
+REQUIRE SaleInvoice,
+        ConsignmentRu,
+        SaleShipment;
+
+NAMESPACE Sale;
+
+EXTEND CLASS Invoice : Consignment;
+
+dataDate[Consignment] (Invoice consignment) += date(consignment);
+number[Consignment] (Invoice consignment) += number(consignment);
+series[Consignment] (Invoice consignment) += series(consignment);
+
+dataSupplier (Invoice consignment) += from(consignment);
+dataCustomer (Invoice consignment) += to(consignment);
+
+dataSupplierStock[Consignment] (Invoice consignment) += fromStock(consignment);
+dataCustomerStock[Consignment] (Invoice consignment) += toStock(consignment);
+
+contract[Consignment](Invoice consignment) += contractSku(consignment);
+
+EXTEND CLASS InvoiceDetail : ConsignmentDetail;
+
+index[ConsignmentDetail] (InvoiceDetail d) += index (d);
+consignment[ConsignmentDetail] (InvoiceDetail d) += invoice (d);
+skip[ConsignmentDetail](InvoiceDetail d) += skipConsignment (d);
+dataSku[ConsignmentDetail] (InvoiceDetail d) += sku (d);
+batch[ConsignmentDetail] (InvoiceDetail d) += batch (d);    
+dataQuantity[ConsignmentDetail] (InvoiceDetail d) += quantity (d);
+dataAmountPack (InvoiceDetail d) += amountPack (d);
+dataPackQuantity (InvoiceDetail d) += packQuantity (d);
+dataGrossWeight (InvoiceDetail d) += sumGrossWeight (d);
+dataNetWeight (InvoiceDetail d) += sumNetWeight (d);    
+dataPrice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN price(detail);
+dataSum (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN sum(detail);
+dataVAT (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN valueVAT(detail);
+dataSumVAT (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN VATSum(detail);
+dataSumInvoice (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN invoiceSum(detail);
+dataShipmentPrice (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN shipmentPrice(detail);
+dataShipmentSum (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN shipmentSum(detail);
+dataVAT (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN valueVAT(detail);
+dataSumVAT (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN VATSum(detail);
+dataSumInvoice (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN invoiceSum(detail);
+
+EXTEND FORM  invoices
+        PROPERTIES(i)  editAttributes SHOWIF isOpened(i)
+        PROPERTIES(i) READONLYIF banPrint(i) printConsignmentTorg13, printConsignmentTorg12, printConsignmentUPD
+    ;
+
+DESIGN invoices {
+    printTab {
+        NEW consignmentRow1 {
+            align = START;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(i)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printConsignmentTorg13(i)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTorg12(i)) { alignment = STRETCH; }   
+                MOVE PROPERTY(printConsignmentUPD(i)) { alignment = STRETCH; }                           
+            }
+        }
+    }
+}
