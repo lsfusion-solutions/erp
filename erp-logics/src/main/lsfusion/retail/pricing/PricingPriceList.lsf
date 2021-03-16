@@ -42,6 +42,7 @@ inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Sku);
 skipManagementPriceList = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME); 
 
 overSetMarkupManagementRetailPrice  ABSTRACT LIST( DepartmentStore, DATETIME);
+overSetMarkupManagementRetailPrice  ABSTRACT LIST(CalcPriceListType, DepartmentStore, DATETIME);
 overSetManagementRetailPriceFirstAct  ABSTRACT LIST ( DepartmentStore, DATETIME);  // реализовано в Sosedi
 overSetManagementRetailPrice  ABSTRACT LIST ( DepartmentStore, DATETIME); 
 
@@ -62,6 +63,7 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt) 
                 IF NOT skipManagementPriceList(pt, sku, d, dt) AND inSession(skuGroup(sku));
             overSetMarkupManagementRetailPrice(d, dt);
+            overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt)
                 IF NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(skuGroup(sku)) OR calculateAllGroups());
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
