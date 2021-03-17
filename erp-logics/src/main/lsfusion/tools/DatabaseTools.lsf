@@ -314,7 +314,12 @@ loadCurRows 'Заполнить количество записей'(){
     }
 }
 
-needStats(Table t) = curRows(t) / (OVERRIDE rows(t) IF rows(t) > 0, 1) >= 10 OR rows(t) / (OVERRIDE curRows(t) IF curRows(t) > 0, 1) >= 10;
+setSkipStatistic 'Исключить из пересчета статистики'() {
+    loadCurRows();
+    notRecalculateStats(Table t) <-  rows(t) > 100000000 OR max(curRows(t), rows(t))/min(curRows(t), rows(t)) < 2;
+}
+
+needStats(Table t) = max(curRows(t), rows(t))/(OVERRIDE min(curRows(t), rows(t)), 1) >= 5;
 backgroundRows(Table t) = IF needStats(t) THEN RGB (51, 153, 51) ELSE RGB (198, 236, 198);
 
 EXTEND FORM tools
