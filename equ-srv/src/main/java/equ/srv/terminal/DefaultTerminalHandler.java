@@ -18,7 +18,6 @@ import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
@@ -195,7 +194,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
-                List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, BL, userInfo.user);
+                List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeListServer(session, BL, userInfo.user);
                 List<TerminalLegalEntity> customANAList = TerminalEquipmentServer.readCustomANAList(session, BL, userInfo.user);
                 file = File.createTempFile("terminalHandler", ".db");
 
