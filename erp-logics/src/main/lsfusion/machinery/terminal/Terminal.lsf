@@ -397,6 +397,8 @@ in = DATA LOCAL BOOLEAN (TerminalDocumentType);
 filterStock = DATA LOCAL Stock ();
 include 'Отм.' = DATA LOCAL BOOLEAN (TerminalDocument);
 
+backgroundTerminalDocumentDetail = ABSTRACT CASE COLOR (TerminalDocumentDetail);
+
 FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
     OBJECTS td=TerminalDocument
     PROPERTIES(td)  include
@@ -409,8 +411,8 @@ FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
     FILTERS in(terminalDocumentType(td)) OR (td IS TerminalDocument AND NOT (GROUP SUM 1 IF in(TerminalDocumentType t))),
             stock(td) == filterStock() OR (td IS TerminalDocument AND NOT filterStock())
     OBJECTS tdd=TerminalDocumentDetail
-    PROPERTIES(tdd) READONLY id, number, barcode, name, quantity, price, sum, comment, dateTimeScan, extraQuantity,
-                    extraDate1, extraDate2, extraField1, extraField2, extraField3, batch
+    PROPERTIES(tdd) READONLY BACKGROUND backgroundTerminalDocumentDetail(tdd) id, number, barcode, name, quantity, price, sum, 
+        comment, dateTimeScan, extraQuantity, extraDate1, extraDate2, extraField1, extraField2, extraField3, batch
 
     FILTERS terminalDocument(tdd) == td
     FILTERGROUP filterUse
