@@ -32,6 +32,18 @@ dataSupplier = ABSTRACT LegalEntity (Consignment);
 overSupplier = ABSTRACT LegalEntity (Consignment);
 supplier (Consignment consignment)= OVERRIDE overSupplier(consignment), dataSupplier(consignment);
 
+overINNSupplier 'ИНН получателя' = ABSTRACT STRING[50] (Consignment);
+extraINNSupplier 'ИНН получателя' = ABSTRACT STRING[50] (Consignment);
+INNSupplier 'ИНН отправителя' (Consignment consignment) = OVERRIDE overINNSupplier(consignment), extraINNSupplier(consignment), inn(supplier(consignment));
+
+overKPPSupplier 'КПП получателя' = ABSTRACT STRING[50] (Consignment);
+extraKPPSupplier 'КПП получателя' = ABSTRACT STRING[50] (Consignment);
+KPPSupplier 'КПП отправителя' (Consignment consignment) = OVERRIDE overKPPSupplier(consignment), extraKPPSupplier(consignment), kpp(supplier(consignment));
+
+overOKPOSupplier 'ОКПО получателя' = ABSTRACT STRING[50] (Consignment);
+extraOKPOSupplier 'ОКПО получателя' = ABSTRACT STRING[50] (Consignment);
+OKPOSupplier 'ОКПО отправителя' (Consignment consignment) = OVERRIDE overOKPOSupplier(consignment), extraOKPOSupplier(consignment), okpo(supplier(consignment));
+
 overAddressSupplier = ABSTRACT ISTRING[150] (Consignment);
 addressSupplier 'Юр. адрес отправителя' (Consignment consignment) =
     OVERRIDE overAddressSupplier(consignment), address(supplier(consignment), date(consignment)) CHARWIDTH 30;
@@ -97,6 +109,18 @@ customerStock (Consignment consignment)=
 dataCustomer = ABSTRACT LegalEntity (Consignment);
 overCustomer = ABSTRACT LegalEntity (Consignment);
 customer (Consignment consignment)= OVERRIDE overCustomer(consignment), dataCustomer(consignment);  
+    
+overINNCustomer 'ИНН отправителя' = ABSTRACT STRING[50] (Consignment);
+extraINNCustomer 'ИНН отправителя' = ABSTRACT STRING[50] (Consignment);
+INNCustomer 'ИНН отправителя' (Consignment consignment) = OVERRIDE overINNCustomer(consignment), extraINNCustomer(consignment), inn(customer(consignment));
+
+overKPPCustomer 'КПП отправителя' = ABSTRACT STRING[50] (Consignment);
+extraKPPCustomer 'КПП отправителя' = ABSTRACT STRING[50] (Consignment);
+KPPCustomer 'КПП отправителя' (Consignment consignment) = OVERRIDE overKPPCustomer(consignment), extraKPPCustomer(consignment), kpp(customer(consignment));
+
+overOKPOCustomer 'ОКПО отправителя' = ABSTRACT STRING[50] (Consignment);
+extraOKPOCustomer 'ОКПО отправителя' = ABSTRACT STRING[50] (Consignment);
+OKPOCustomer 'ОКПО отправителя' (Consignment consignment) = OVERRIDE overOKPOCustomer(consignment), extraOKPOCustomer(consignment), okpo(customer(consignment));
     
 overAddressCustomer = ABSTRACT ISTRING[150] (Consignment);
 addressCustomer 'Юр. адрес отправителя' (Consignment consignment) =
@@ -306,12 +330,13 @@ changePositionForwarder(Consignment consignment)  {
 FORM consignmentTorg13 'ТОРГ-13'
     OBJECTS c=Consignment PANEL
 
-    PROPERTIES (c) date, number, fullNameSupplier, addressSupplier, emailSupplier, siteSupplier, phoneSupplier,
+    PROPERTIES (c) date, number, 
+                   fullNameSupplier, addressSupplier, emailSupplier, siteSupplier, phoneSupplier, OKPOSupplier,
                    nameSupplierStock, nameCustomerStock, 
                    nameIssuanceExecuted,
                    positionIssuanceExecuted, 
                    nameForwarder,
-                   positionForwarder
+                   positionForwarder                   
                    
     OBJECTS d=ConsignmentDetail
     
@@ -330,8 +355,8 @@ printConsignmentTorg13 'ТОРГ-13' (Consignment consignment) { PRINT consignme
 FORM consignmentTorg12 'ТОРГ-12'
     OBJECTS c=Consignment PANEL
 
-    PROPERTIES (c) fullNameSupplier, addressSupplier, emailSupplier, siteSupplier, phoneSupplier,
-                   fullNameCustomer, addressCustomer, emailCustomer, siteCustomer, phoneCustomer,
+    PROPERTIES (c) fullNameSupplier, addressSupplier, emailSupplier, siteSupplier, phoneSupplier, OKPOSupplier, INNSupplier,
+                   fullNameCustomer, addressCustomer, emailCustomer, siteCustomer, phoneCustomer, OKPOCustomer, INNCustomer,
                    nameSupplierStock,
                    date, number,
                    nameCustomerStock, 
@@ -355,8 +380,8 @@ printConsignmentTorg12 'ТОРГ-12' (Consignment consignment) { PRINT consignme
 FORM consignmentUPD 'Универсальный передаточный документ'
     OBJECTS c=Consignment PANEL
 
-    PROPERTIES (c) fullNameSupplier, addressSupplier, 
-                   fullNameCustomer, addressCustomer, 
+    PROPERTIES (c) fullNameSupplier, addressSupplier, INNSupplier, KPPSupplier,
+                   fullNameCustomer, addressCustomer, INNCustomer, KPPCustomer,
                    date, number,
                    descriptionContract,
                    nameIssuanceExecuted, positionIssuanceExecuted, 

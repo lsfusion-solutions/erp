@@ -2,11 +2,21 @@ MODULE LegalEntityRu;
 
 REQUIRE LegalEntity;
 
-kpp 'КПП' = DATA STRING[20](LegalEntity) IN doc;
+inn 'ИНН' = DATA STRING[12] (LegalEntity) IN doc;
+legalEntityInn = GROUP AGGR LegalEntity b BY inn(b);
+
+kpp 'КПП' = DATA STRING[9] (LegalEntity) IN doc;
+
+okpo 'ОКПО' = DATA STRING[10] (LegalEntity) IN doc;
+legalEntityOkpo = GROUP AGGR LegalEntity b BY okpo(b);
+
+ogrn 'ОГРН' = DATA STRING[13] (LegalEntity) IN doc;
+legalEntityOgrn = GROUP AGGR LegalEntity b BY ogrn(b);
+
 corrAccount 'Корр. счет' = DATA STRING[20](LegalEntity) IN law;
 
-EXTEND FORM legalEntity PROPERTIES (l) kpp, corrAccount;
-EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() kpp, corrAccount;
+EXTEND FORM legalEntity PROPERTIES (l) inn, kpp, okpo, ogrn, corrAccount;
+EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() inn, kpp, okpo, ogrn, corrAccount;
 
 DESIGN legalEntity{
     column2 {
