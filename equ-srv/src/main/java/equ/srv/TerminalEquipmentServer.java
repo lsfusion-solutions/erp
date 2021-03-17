@@ -304,7 +304,7 @@ public class TerminalEquipmentServer {
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
             }
             query.and(terminalLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
-            query.and(terminalLM.findProperty("skip[GroupMachinery]").getExpr(groupMachineryObject.getExpr()).getWhere().not());
+            query.and(terminalLM.findProperty("notSkip[TerminalDocumentType, GroupTerminal]").getExpr(terminalDocumentTypeExpr, groupMachineryObject.getExpr()).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
