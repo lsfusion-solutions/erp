@@ -333,6 +333,40 @@ description 'Название документа' (TerminalDocument o) =
 @defineDocumentHeaderCount(terminalDocument);
 @defineDocumentHeaderQuantity(terminalDocument);
 @defineDocumentHeaderSum(terminalDocument);
+
+include 'Отм.' = DATA LOCAL BOOLEAN (TerminalDocument);
+countInclide = GROUP SUM 1 IF include(TerminalDocument td);
+
+replace 'Объединить' (TerminalDocument td) {
+    NEWSESSION NESTED (include[TerminalDocument]){
+        IF NOT countInclide() THEN {
+            MESSAGE 'Не выбраты документы для объединения';
+            RETURN;
+        }
+        
+        include(td) <- TRUE;
+        
+        IF GROUP MAX (PARTITION SUM 1 BY stock(TerminalDocument tdi), terminalDocumentType(tdi) IF include(tdi)) != countInclide() THEN {
+            MESSAGE 'Выбранные документы относятся к разным складам или разным типам';
+            RETURN;
+        }
+        
+        terminalDocument(TerminalDocumentDetail tdd) <- td WHERE include(terminalDocument(tdd));
+        
+        LOCAL quantity = NUMERIC[14,3] (STRING[15]);
+        quantity(STRING[15] bar) <- GROUP SUM quantity(TerminalDocumentDetail tdd) IF barcode(tdd) = bar AND terminalDocument(tdd) = td;
+        
+        DELETE TerminalDocumentDetail tdd WHERE terminalDocument(tdd) = td AND (PARTITION SUM 1 ORDER tdd BY terminalDocument(tdd), barcode(tdd)) > 1;
+        
+        quantity(TerminalDocumentDetail tdd) <- quantity(barcode(tdd)) WHERE terminalDocument(tdd) = td;
+    
+        DELETE TerminalDocument tdi WHERE include(tdi) AND NOT td = tdi;
+        
+        APPLY;
+    }
+    
+} TOOLBAR;
+
 // ----------------------------------------------- Формы документов ------------------------------------------ //
 
 FORM terminalDocument 'Документ ТСД'
@@ -397,7 +431,6 @@ terminalDocumentPrint 'Печать документа ТСД' (TerminalDocument
 
 in = DATA LOCAL BOOLEAN (TerminalDocumentType);
 filterStock = DATA LOCAL Stock ();
-include 'Отм.' = DATA LOCAL BOOLEAN (TerminalDocument);
 
 backgroundTerminalDocumentDetail = ABSTRACT CASE COLOR (TerminalDocumentDetail);
 
@@ -408,7 +441,7 @@ FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
                     nameTerminalDocumentType, idTerminalHandbookType1, idTerminalHandbookType2,
                     title, parentDocument, comment, quantity, countTerminalDocumentDetail, 
                     quantityTerminalDocumentDetail, sumTerminalDocumentDetail, createdNameUser PANEL, createdTime PANEL
-    PROPERTIES(td)  NEWSESSION NEW, EDIT, DELETE 
+    PROPERTIES(td)  NEWSESSION NEW, EDIT, DELETE, replace
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
     FILTERS in(terminalDocumentType(td)) OR (td IS TerminalDocument AND NOT (GROUP SUM 1 IF in(TerminalDocumentType t))),
             stock(td) == filterStock() OR (td IS TerminalDocument AND NOT filterStock())
