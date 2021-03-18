@@ -8,7 +8,8 @@ loadDefaultScalesModels () + {
     loadDefaultScalesModel('Весы РБС KS4010', 'KS4010', 'lsf.integration.rbs.KS4010');
 }
 
-skilLoadImages 'Не выгружать изображения в весы' = ABSTRACT BOOLEAN (GroupScales) PREREAD; 
+skilLoadImages 'Не выгружать изображения в весы' = ABSTRACT BOOLEAN (GroupScales) PREREAD;
+tareWeight = ABSTRACT NUMERIC[12,3] (Barcode); 
 
 code = DATA LOCAL STRING();
 message = DATA LOCAL STRING(INTEGER);
@@ -61,7 +62,9 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             image_filename = ('item_' + id(b) + '.png') IF hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)),
             disabled = '0',
             barcode = 0,
-            exp_date = STRING(expiryDate(t, b))
+            exp_date = STRING(expiryDate(t, b)),
+            pre_tare_value = tareWeight(b),
+            pre_tare_unit_index = 1 IF tareWeight(b) //0:kg, 1:g, 2:tj, 3:gj, 4:lb, 5:oz, 6:lz
             WHERE in(t, b)
             TO items;
         
