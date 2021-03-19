@@ -691,6 +691,10 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     skipShowEdit = ABSTRACT VALUE BOOLEAN (Order);
     skipShowDelete = ABSTRACT VALUE BOOLEAN (Order);
     
+    skipOpen = ABSTRACT BOOLEAN (UserOrder);
+    showClose (UserOrder o) = isOpened(o) AND NOT skipClose(o);
+    showOpen (UserOrder o) = isClosed(o) AND NOT skipOpen(o);
+    
     backgroundDraft 'Цвет' (Order o) = RGB(212,255,212) IF isDraft(o);      
     overBackgroundDraft(Order o) = OVERRIDE backgroundSku(o), backgroundDraft(o);
     
@@ -721,7 +725,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
         PROPERTIES (o) NEWSESSION addUserOrder = NEW[UserOrder], editO = EDIT  SHOWIF overShowEdit(o)
         PROPERTIES (o) copy
-        PROPERTIES (o) close[UserOrder] SHOWIF isOpened[UserOrder](o), open SHOWIF isClosed[UserOrder](o)
+        PROPERTIES (o) close[UserOrder] SHOWIF showClose[UserOrder](o), open SHOWIF showOpen[UserOrder](o)
         PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
 
         OBJECTS d=OrderDetail
