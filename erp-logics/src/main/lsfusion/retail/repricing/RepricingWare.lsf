@@ -1,0 +1,151 @@
+MODULE RepricingWare;
+
+REQUIRE Repricing, WareItem, RepricingDashboard;
+
+NAMESPACE Repricing;
+
+ware (UserRepricingDetail d) = ware(sku(d));
+curExtraRetailPrice 'Цена посуды до' = DATA NUMERIC[16,4] (UserRepricingDetail);
+curExtraRetailVATSum 'Сумма НДС посуды до' = DATA NUMERIC[18,4] (UserRepricingDetail);
+curExtraRetailSum 'Сумма посуды до'= DATA NUMERIC[18,4] (UserRepricingDetail);
+
+curExtraRetailPrice(UserRepricingDetail d) += curExtraRetailPrice(d);
+curExtraRetailVATSum(UserRepricingDetail d) += curExtraRetailVATSum(d);
+curExtraRetailSum(UserRepricingDetail d) += curExtraRetailSum(d);
+
+curExtraRetailPrice(UserRepricingDetail d) <- price(ware(sku(d)),date(d)) WHEN CHANGED(sku(d)) OR CHANGED(date(d)); 
+calcCurExtraRetailSum(UserRepricingDetail userRepricingDetail) = NUMERIC[18,4](round(quantity(userRepricingDetail) * curExtraRetailPrice(userRepricingDetail), currency(userRepricingDetail))); 
+curExtraRetailSum (UserRepricingDetail userRepricingDetail) <- calcCurExtraRetailSum(userRepricingDetail)
+                WHEN CHANGED(quantity(userRepricingDetail)) OR CHANGED (curExtraRetailPrice(userRepricingDetail)) OR CHANGED(currency(userRepricingDetail));
+                
+curExtraRetailVATSum (UserRepricingDetail d)  <- round([ X*Y/(100+Y)](curExtraRetailSum(d), valueVAT(ware(d),date(d))), currency(d))
+                WHEN CHANGED(curExtraRetailSum(d)) OR CHANGED(sku(d)) OR CHANGED(date(d)) OR CHANGED (currency(d));                
+
+//--
+
+extraRetailPrice 'Цена посуды после' = DATA NUMERIC[16,4] (UserRepricingDetail);
+extraRetailVATSum 'Сумма НДС посуды после' = DATA NUMERIC[18,4] (UserRepricingDetail);
+extraRetailSum 'Сумма посуды после' = DATA NUMERIC[18,4] (UserRepricingDetail);
+
+extraRetailPrice(UserRepricingDetail d) += extraRetailPrice(d);
+extraRetailVATSum(UserRepricingDetail d) += extraRetailVATSum(d);
+extraRetailSum(UserRepricingDetail d) += extraRetailSum(d);
+
+
+extraRetailPrice(UserRepricingDetail d) <- price(ware(sku(d)),date(d)) WHEN CHANGED (sku(d)) OR CHANGED(date(d)); 
+calcExtraRetailSum(UserRepricingDetail userRepricingDetail) = NUMERIC[18,4](round(quantity(userRepricingDetail) * extraRetailPrice(userRepricingDetail), currency(userRepricingDetail))); 
+extraRetailSum (UserRepricingDetail userRepricingDetail) <- calcExtraRetailSum(userRepricingDetail)
+                WHEN CHANGED(quantity(userRepricingDetail)) OR CHANGED (extraRetailPrice(userRepricingDetail)) OR CHANGED(currency(userRepricingDetail));
+                
+extraRetailVATSum (UserRepricingDetail d)  <- round([ X*Y/(100+Y)](extraRetailSum(d), valueVAT(ware(d),date(d))), currency(d))
+                WHEN CHANGED(extraRetailSum(d)) OR CHANGED(sku(d)) OR CHANGED(date(d)) OR CHANGED (currency(d));   
+                
+EXTEND FORM userRepricing
+    PROPERTIES (d) BEFORE curRetailPrice(d) curExtraRetailPrice, curExtraRetailSum 
+    PROPERTIES (d) BEFORE retailPrice(d) extraRetailPrice, extraRetailSum 
+;
+DESIGN userRepricing{
+            PROPERTY(extraRetailPrice(d)) { background = #FFFFCC; }
+            PROPERTY(extraRetailSum(d)) { background = #FFFFCC; }
+}
+
+EXTEND FORM repricings
+    PROPERTIES (d) READONLY BEFORE curRetailPrice(d) curExtraRetailPrice, curExtraRetailSum 
+    PROPERTIES (d) READONLY BEFORE retailPrice(d) extraRetailPrice, extraRetailSum 
+;
+DESIGN repricings{
+    PROPERTY(extraRetailPrice(d)) { background = #FFFFCC; }
+    PROPERTY(extraRetailSum(d)) { background = #FFFFCC; }
+}
+
+calculateDashboardManagementRepricingExtra(DepartmentStore d, PriceListType pt, DATETIME dt ) +{
+    IF pt IS CalcPriceListType AND d IS DepartmentStore THEN {
+        managementPriceListPrice (Sku sku)<- (managementPriceListPrice(sku) (+) price(ware(sku),DATE(dt))) 
+                                                WHERE managementPriceListPrice(sku) AND ware(sku);
+    }
+}
+overSetMarkupManagementRetailPrice(CalcPriceListType ct, DepartmentStore d, DATETIME dt) +{
+    IF ct IS CalcPriceListType AND d IS DepartmentStore THEN {
+        managementRetailPrice(Sku sku)<- (managementRetailPrice(sku) (+) price(ware(sku),DATE(dt))) 
+                                                WHERE managementRetailPrice(sku) AND ware(sku);
+    }
+}
+
+@defineDocumentInterfaceDetailDiffSumPrefix (repricing, extraRetailSum, , cur, ' изменения посуды');
+
+diffExtraRetailSumRepricingDetail 'Сумма изменения посуды' (repricing) = GROUP SUM diffExtraRetailSum(RepricingDetail idetail) BY repricing(idetail) IN documentSum MATERIALIZED;
+EXTEND FORM userRepricing
+    PROPERTIES diffExtraRetailSumRepricingDetail(p)
+;
+DESIGN userRepricing{
+    PROPERTY(diffExtraRetailSumRepricingDetail(p)) { charWidth = 13;}
+}
+EXTEND FORM repricings
+    PROPERTIES READONLY diffExtraRetailSumRepricingDetail(p) BEFORE diffRetailSumRepricingDetail(p)
+;
+extraRetailSumRepricingDetail 'Сумма посуды после' (repricing) =
+    GROUP SUM extraRetailSum(RepricingDetail idetail) BY repricing(idetail);
+curExtraRetailSumRepricingDetail 'Сумма посуды до' (repricing) =
+    GROUP SUM curExtraRetailSum(RepricingDetail idetail) BY repricing(idetail);        
+        
+FORM repricingWare 'Акт переоценки (посуда)'
+
+    OBJECTS p = Repricing PANEL SUBREPORT
+    PROPERTIES (p)  SELECTOR isPosted
+
+    PROPERTIES (p) number, series, date, time, nameStore, seriesNumber,
+               nameDepartmentStore, countRepricingDetail, quantityRepricingDetail, nameLegalEntityStock,
+               curSumRepricingDetail, curMarkupSumRepricingDetail, curVATSumRepricingDetail,
+               curRetailSumRepricingDetail, 
+               sumRepricingDetail, markupSumRepricingDetail, VATSumRepricingDetail,
+               retailSumRepricingDetail,
+               diffSumRepricingDetail, diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
+               diffRetailSumRepricingDetail,
+               note, numberDisposal, repricingCommittee, nameRepricingCommittee,
+               nameChairman, shortNameChairman, namePositionChairman, nameEmployeeCommittee,
+               shortNameEmployeeCommittee, diffExtraRetailSumRepricingDetail, extraRetailSumRepricingDetail, 
+               curExtraRetailSumRepricingDetail
+
+
+    OBJECTS d = RepricingDetail SUBREPORT //reportFileDetail(p)
+    PROPERTIES (d)  index, idBarcodeSku, nameSku, nameBatch, shortNameUOMSku, quantity,
+               curPrice, curSum,
+               curMarkup, curMarkupSum,
+               numberCurVAT, valueCurVAT, curVATSum,
+               curRetailPrice, curRetailSum,
+               price, sum,
+               markup, markupSum,
+               numberVAT, valueVAT, VATSum,
+               retailPrice, retailSum,
+               diffSum, diffMarkupSum, diffVATSum,
+               diffRetailSum,
+               diffExtraRetailSum, extraRetailSum, curExtraRetailSum
+    
+    OBJECTS e=Employee
+    PROPERTIES(e) READONLY   name[Contact], namePosition, shortName
+
+    FILTERS    repricing(d) == p,
+               inCommittee(p, e),
+               (diffSum(d) AND diffSum(d)!=0.0) OR
+               (diffMarkupSum(d) AND diffMarkupSum(d)!=0.0) OR
+               (diffVATSum(d) AND diffVATSum(d)!=0.0) OR
+               (diffRetailSum(d) AND diffRetailSum(d)!=0.0) OR 
+               (diffExtraRetailSum(d) AND diffExtraRetailSum(d)!=0.0) OR 
+               printNullDiffSumUserRepricingDetail()
+
+;
+
+printWare 'Акт переоценки (посуда)' (Repricing r)  { 
+    PRINT repricingWare OBJECTS p = r;
+    IF NOT printedAct(r) AND isPosted(r) THEN NEWSESSION {
+        printedAct(r) <- TRUE;
+        APPLY; 
+    }    
+} IMAGE 'print.png' IN print;
+printWareXls 'Акт переоценки (посуда) (xls)' (Repricing r)  { 
+    PRINT repricingWare OBJECTS p = r XLS; 
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM repricings
+    PROPERTIES (p)  printWare, printWareXls 
+;

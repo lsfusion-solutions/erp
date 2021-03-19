@@ -69,8 +69,9 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         } ELSE {
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt)
-                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND inSession(skuGroup(sku));
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND inSession(skuGroup(sku));                
             overSetMarkupManagementRetailPrice(d, dt);
+            overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt,sku, d, dt)
                 IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(skuGroup(sku)) OR calculateAllGroups());
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
@@ -102,6 +103,7 @@ calculateDashboardAutoRepricing 'По надбавкам и прайсам'(Depa
 customerManagementRepricing = DATA LOCAL BOOLEAN ();
 customerManagementRepricing  ABSTRACT LIST ( DepartmentStore, PriceListType, DATETIME );
 
+calculateDashboardManagementRepricingExtra  ABSTRACT LIST ( DepartmentStore, PriceListType, DATETIME );
 calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, PriceListType pt, DATETIME dt)  { 
     managementRetailPrice(Sku sku) <- NULL;
     IF NOT customerManagementRepricing() THEN {   // используется в Fancy у остальных NULL
@@ -113,6 +115,7 @@ calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, P
                 IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt);
             
         }
+        calculateDashboardManagementRepricingExtra(d,pt,dt);
     } ELSE {
         customerManagementRepricing(d,pt,dt);  // реализовано в Fancy
     }

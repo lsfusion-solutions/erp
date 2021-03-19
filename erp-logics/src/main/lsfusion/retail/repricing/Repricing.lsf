@@ -74,6 +74,10 @@ curRepricingPrice (RepricingDetail detail) = OVERRIDE overCurRepricingPrice(deta
 // Розничная цена
 @defineDocumentInterfaceDetailPricePrefix(repricing, curRetail, ' розничная до');
 
+curExtraRetailPrice 'Цена посуды до' = ABSTRACT NUMERIC[16,4] (RepricingDetail);
+curExtraRetailVATSum 'Сумма НДС посуды до'= ABSTRACT NUMERIC[18,4] (RepricingDetail);
+curExtraRetailSum 'Сумма посуды до' = ABSTRACT NUMERIC[18,4] (RepricingDetail);
+
 //-- Партии
 @showDocumentInterfaceDetailBatch(repricing);
 @defineDocumentInterfaceDetailBatch(repricing, batch);
@@ -126,17 +130,50 @@ curPrice (UserRepricingDetail detail)  <- round2(IF batch(detail)
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRepricing, retailPricingPriceListType, curRetail, sku, departmentStore);
 
 // Автоматическое проставление надбавок
+curRetailOverPrice(UserRepricingDetail d) = (curRetailPrice(d) (-) curExtraRetailPrice(d));
+
 curMarkup(UserRepricingDetail userRepricingDetail)  <- NUMERIC[8,3]([ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
-    curRetailPrice(userRepricingDetail),
+    curRetailOverPrice(userRepricingDetail),
     valueCurVAT(userRepricingDetail),
     curRepricingPrice(userRepricingDetail) IF curRepricingPrice(userRepricingDetail)!=0.0))
-    WHEN CHANGED(curRetailPrice(userRepricingDetail)) OR
+    WHEN CHANGED(curRetailOverPrice(userRepricingDetail)) OR
          CHANGED(curVAT(userRepricingDetail)) OR
          CHANGED(curRepricingPrice(userRepricingDetail));
 
 // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
-@changeDocumentDetailMarkupCustomPrefix(userRepricingDetail, curRetail, curRepricing, cur, cur);
-@changeDocumentDetailPriceCustomPrefix(userRepricingDetail, curRetail, curRepricing, cur, cur);
+
+@changeDocumentDetailMarkupCustomPrefix(userRepricingDetail, curRetail,curRetailOver, curRepricing, cur, cur);
+
+skipCalcCurRetailPrice = ABSTRACT BOOLEAN (UserRepricingDetail);
+calcCurRetailPrice(UserRepricingDetail userRepricingDetail)  = round(NUMERIC[16,4]([ (X*(Y+100)*(Z+100)/10000) (+) AZ](
+    curRepricingPrice(userRepricingDetail),
+    curMarkup(userRepricingDetail),
+    valueCurVAT(userRepricingDetail),
+    curExtraRetailPrice(userRepricingDetail))), roundCondition(userRepricingDetail)) IF NOT skipCalcCurRetailPrice(userRepricingDetail);
+
+changeCurMarkup(UserRepricingDetail userRepricingDetail)  { 
+    INPUT n = NUMERIC[8,3] DO {
+        curMarkup(userRepricingDetail) <- n;
+        curRetailPrice(userRepricingDetail) <- calcCurRetailPrice(userRepricingDetail) WHERE calcCurRetailPrice(userRepricingDetail);
+    }
+}
+//
+//@changeDocumentDetailPriceCustomPrefix(userRepricingDetail, curRetail, curRepricing, cur, cur){
+//    @changeDocumentDetailPriceCustomPrefix(userRepricingDetail, curRetail, curRepricing, cur, cur, ){
+//    skipCalcCurRetailPrice = ABSTRACT BOOLEAN (UserRepricingDetail);
+//    calcCurRetailPrice(UserRepricingDetail userRepricingDetail)  = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
+//        curRepricingPrice(userRepricingDetail),
+//        curMarkup(userRepricingDetail),
+//        valueCurVAT(userRepricingDetail))), roundCondition(userRepricingDetail)) IF NOT skipCalcCurRetailPrice(userRepricingDetail);
+//
+//    changeCurMarkup(UserRepricingDetail userRepricingDetail)  { 
+//        INPUT n = NUMERIC[8,3] DO {
+//            curMarkup(userRepricingDetail) <- n;
+//            curRetailPrice(userRepricingDetail) <- calcCurRetailPrice(userRepricingDetail) WHERE calcCurRetailPrice(userRepricingDetail);
+//        }
+//    }
+//};
+//};
 
 // -- После
 
@@ -168,18 +205,52 @@ repricingPrice (RepricingDetail detail) = OVERRIDE overRepricingPrice(detail), p
 // Розничная цена
 @defineDocumentInterfaceDetailPricePrefix(repricing, retail, ' розничная после');
 
+extraRetailPrice 'Цена посуды после' = ABSTRACT NUMERIC[16,4] (RepricingDetail);
+extraRetailVATSum 'Сумма НДС посуды после' = ABSTRACT NUMERIC[18,4] (RepricingDetail);
+extraRetailSum 'Сумма посуды после' = ABSTRACT NUMERIC[18,4] (RepricingDetail);
+
 // Автоматическое проставление надбавок
+retailOverPrice(UserRepricingDetail d) = (retailPrice(d) (-) extraRetailPrice(d));
 markup(UserRepricingDetail userRepricingDetail)  <- NUMERIC[8,3]([ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
-    retailPrice(userRepricingDetail),
+    retailOverPrice(userRepricingDetail),
     valueVAT(userRepricingDetail),
     repricingPrice(userRepricingDetail) IF repricingPrice(userRepricingDetail)!=0.0))
-    WHEN CHANGED(retailPrice(userRepricingDetail)) OR
+    WHEN CHANGED(retailOverPrice(userRepricingDetail)) OR
          CHANGED (VAT(userRepricingDetail)) OR
          CHANGED(repricingPrice(userRepricingDetail));
 
 // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
-@changeDocumentDetailMarkupCustomPrefix(userRepricingDetail, retail, repricing, , );
-@changeDocumentDetailPriceCustomPrefix(userRepricingDetail, retail, repricing, , );
+@changeDocumentDetailMarkupCustomPrefix(userRepricingDetail, retail, retailOver, repricing, , );
+skipCalcRetailPrice = ABSTRACT BOOLEAN (UserRepricingDetail);
+calcRetailPrice(UserRepricingDetail userRepricingDetail)  = round(NUMERIC[16,4]([ (X*(Y+100)*(Z+100)/10000) (+) AZ](
+    repricingPrice(userRepricingDetail),
+    markup(userRepricingDetail),
+    valueVAT(userRepricingDetail),
+    extraRetailPrice(userRepricingDetail))), roundCondition(userRepricingDetail)) IF NOT skipCalcRetailPrice(userRepricingDetail);
+
+changeMarkup(UserRepricingDetail userRepricingDetail)  { 
+    INPUT n = NUMERIC[8,3] DO {
+        markup(userRepricingDetail) <- n;
+        retailPrice(userRepricingDetail) <- calcRetailPrice(userRepricingDetail) WHERE calcRetailPrice(userRepricingDetail);
+    }
+}
+
+//@changeDocumentDetailPriceCustomPrefix(userRepricingDetail, retail, repricing, , ){
+//    @changeDocumentDetailPriceCustomPrefix(userRepricingDetail, retail, repricing, , , ){
+//    skipCalcRetailPrice = ABSTRACT BOOLEAN (UserRepricingDetail);
+//    calcRetailPrice(UserRepricingDetail userRepricingDetail)  = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
+//        repricingPrice(userRepricingDetail),
+//        markup(userRepricingDetail),
+//        valueVAT(userRepricingDetail))), roundCondition(userRepricingDetail)) IF NOT skipCalcRetailPrice(userRepricingDetail);
+//
+//    changeMarkup(UserRepricingDetail userRepricingDetail)  { 
+//        INPUT n = NUMERIC[8,3] DO {
+//            markup(userRepricingDetail) <- n;
+//            retailPrice(userRepricingDetail) <- calcRetailPrice(userRepricingDetail) WHERE calcRetailPrice(userRepricingDetail);
+//        }
+//    }
+//};
+//};
 
 // ---- Суммы по строкам ---- //
 
@@ -224,14 +295,18 @@ diffSum 'Сумма изменения поставщика ' (UserRepricingDeta
 // Расчет сумм обратным счетом
 // -- До
 @deriveDocumentDetailSumPrefix(userRepricing, curRetail, currency, quantity);
-@deriveDocumentDetailReverseVATSumPrefix(userRepricing, cur, curRetail);
-@deriveDocumentDetailMarkupSumPrefix(userRepricing, cur, curRetail, cur);
+
+curRetailOverSum(UserRepricingDetail d) = curRetailSum(d) (-) curExtraRetailSum(d);
+@deriveDocumentDetailReverseVATSumPrefix(userRepricing, cur, curRetailOver);
+@deriveDocumentDetailMarkupSumPrefix(userRepricing, cur, curRetailOver, cur);
 @deriveDocumentDetailSumPrefix(userRepricing, cur, currency, quantity);
 
 // -- После
+
 @deriveDocumentDetailSumPrefix(userRepricing, retail, currency, quantity);
-@deriveDocumentDetailReverseVATSumPrefix(userRepricing, , retail);
-@deriveDocumentDetailMarkupSumPrefix(userRepricing, , retail, );
+retailOverSum(UserRepricingDetail d) = retailSum(d) (-) extraRetailSum(d);
+@deriveDocumentDetailReverseVATSumPrefix(userRepricing, , retailOver);
+@deriveDocumentDetailMarkupSumPrefix(userRepricing, , retailOver, );
 @deriveDocumentDetailSumPrefix(userRepricing, , currency, quantity);
 
 // ---- Суммы по документу ---- //
