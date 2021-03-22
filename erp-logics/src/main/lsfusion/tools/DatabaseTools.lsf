@@ -11,7 +11,7 @@ indexSize 'Размер индексов (МБ)' = DATA NUMERIC[15,3](Table);
 
 curDataSize 'Тек. размер данных (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](Table);
 curIndexSize 'Тек. размер индексов (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](Table);
-curRows 'Тек. количество записей' = DATA LOCAL NESTED INTEGER (Table);
+curRows 'Тек. количество записей' = DATA LOCAL NESTED LONG (Table);
 
 deleteIndexes 'Удалять индексы при упаковке' = DATA BOOLEAN (Table);
 
@@ -316,7 +316,7 @@ loadCurRows 'Заполнить количество записей'(){
 
 setSkipStatistic 'Исключить из пересчета статистики'() {
     loadCurRows();
-    notRecalculateStats(Table t) <-  rows(t) > 100000000 OR max(curRows(t), rows(t))/min(curRows(t), rows(t)) < 2;
+    notRecalculateStats(Table t) <-  rows(t) > 100000000 OR max(curRows(t), rows(t))/(OVERRIDE min(curRows(t), rows(t)), 1l) < 2;
 }
 
 needStats(Table t) = max(curRows(t), rows(t))/(OVERRIDE min(curRows(t), rows(t)), 1) >= 5;
