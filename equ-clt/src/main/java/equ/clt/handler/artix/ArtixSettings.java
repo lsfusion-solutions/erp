@@ -11,9 +11,6 @@ public class ArtixSettings implements Serializable{
     //Если true, то при отправке обрезаем контрольный символ штрихкода, при получении добавляем
     private boolean appendBarcode;
 
-    //Если задано, при приёме реализации обнаруживаем продажу сертификатов путём сравнения штрихкода с regexp
-    private String giftCardRegexp;
-
     //Если не задано, успешно принятые файлы реализации копируются в подпапку success
     private boolean disableCopyToSuccess;
 
@@ -80,14 +77,6 @@ public class ArtixSettings implements Serializable{
 
     public void setAppendBarcode(boolean appendBarcode) {
         this.appendBarcode = appendBarcode;
-    }
-
-    public String getGiftCardRegexp() {
-        return giftCardRegexp;
-    }
-
-    public void setGiftCardRegexp(String giftCardRegexp) {
-        this.giftCardRegexp = giftCardRegexp;
     }
 
     public boolean isDisableCopyToSuccess() {

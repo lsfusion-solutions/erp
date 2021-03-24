@@ -990,7 +990,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
-        String giftCardRegexp = artixSettings != null ? artixSettings.getGiftCardRegexp() : null;
         boolean bonusesInDiscountPositions = artixSettings != null && artixSettings.isBonusesInDiscountPositions();
         boolean giftCardPriceInCertificatePositions = artixSettings != null && artixSettings.isGiftCardPriceInCertificatePositions();
         boolean notDeleteEmptyFiles = artixSettings != null && artixSettings.isNotDeleteEmptyFiles();
@@ -1203,11 +1202,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                             //обнаруживаем продажу сертификатов
                                             boolean isGiftCard = false;
-                                            if (giftCardRegexp != null && barcodeString != null) {
-                                                Pattern pattern = Pattern.compile(giftCardRegexp);
-                                                Matcher matcher = pattern.matcher(barcodeString);
-                                                isGiftCard = matcher.matches();
-                                            } else if (opCode == 63) {
+                                            if (opCode == 63) {
                                                 barcode = inventPosition.getString("bcode_main");
                                                 isGiftCard = true;
                                             }
