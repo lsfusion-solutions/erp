@@ -119,12 +119,15 @@ supplier (Consignment consignment)= OVERRIDE overSupplier(consignment), dataSupp
 overUNPSupplier 'УНП получателя' = ABSTRACT STRING[50] (Consignment);
 extraUNPSupplier 'УНП получателя' = ABSTRACT STRING[50] (Consignment);
 UNPSupplier 'УНП отправителя' (Consignment consignment) = OVERRIDE overUNPSupplier(consignment), extraUNPSupplier(consignment), UNP(supplier(consignment));
+
+extraAddressSupplier = ABSTRACT CASE ISTRING[150] (Consignment);
 overAddressSupplier = ABSTRACT ISTRING[150] (Consignment);
 addressSupplier 'Юр. адрес отправителя' (Consignment consignment) =
-    OVERRIDE overAddressSupplier(consignment), address(supplier(consignment), date(consignment)) CHARWIDTH 30;
+    OVERRIDE extraAddressSupplier(consignment), overAddressSupplier(consignment), address(supplier(consignment), date(consignment)) CHARWIDTH 30;
+overNameSupplier = ABSTRACT CASE ISTRING[200] (Consignment);
 overFullNameSupplier = ABSTRACT ISTRING[200] (Consignment);  
 fullNameSupplier 'Наим-ие отправителя' (Consignment consignment) = 
-    OVERRIDE overFullNameSupplier(consignment), fullName(supplier(consignment)) CHARWIDTH 30;    
+    OVERRIDE overNameSupplier(consignment), overFullNameSupplier(consignment), fullName(supplier(consignment)) CHARWIDTH 30;    
 extraDescriptionSupplier = ABSTRACT ISTRING[255] (Consignment);  
 
 dataCustomer = ABSTRACT LegalEntity (Consignment);
@@ -135,15 +138,17 @@ overUNPCustomer 'УНП получателя' = ABSTRACT STRING[50] (Consignment
 extraUNPCustomer 'УНП получателя' = ABSTRACT STRING[50] (Consignment);
 UNPCustomer 'УНП получателя' (Consignment consignment) = OVERRIDE overUNPCustomer(consignment), extraUNPCustomer(consignment), UNP(customer(consignment));
 
+overExtraAddressCustomer = ABSTRACT CASE ISTRING[150] (Consignment);
 overAddressCustomer = ABSTRACT ISTRING[150] (Consignment);
 extraAddressCustomer = ABSTRACT ISTRING[150] (Consignment);
 addressCustomer 'Юр. адрес получателя' (Consignment consignment) =
-    OVERRIDE overAddressCustomer(consignment), extraAddressCustomer(consignment), address(customer(consignment), date(consignment)) CHARWIDTH 30;
+    OVERRIDE overExtraAddressCustomer(consignment), overAddressCustomer(consignment), extraAddressCustomer(consignment), address(customer(consignment), date(consignment)) CHARWIDTH 30;
 nameCustomer 'Наим-ие получателя' (Consignment consignment) = name(customer(consignment)) CHARWIDTH 30;
+overNameCustomer = ABSTRACT CASE ISTRING[200] (Consignment);
 overFullNameCustomer = ABSTRACT ISTRING[200] (Consignment);  
 extraFullNameCustomer = ABSTRACT ISTRING[200] (Consignment);  
 fullNameCustomer 'Наим-ие получателя' (Consignment consignment) = 
-    OVERRIDE overFullNameCustomer(consignment), extraFullNameCustomer(consignment), fullName(customer(consignment)) CHARWIDTH 30;
+    OVERRIDE overNameCustomer(consignment), overFullNameCustomer(consignment), extraFullNameCustomer(consignment), fullName(customer(consignment)) CHARWIDTH 30;
 extraDescriptionCustomer = ABSTRACT ISTRING[255] (Consignment);  
 
 extraUNPPayer 'УНП получателя' = ABSTRACT STRING[50] (Consignment);
