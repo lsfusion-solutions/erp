@@ -11,7 +11,11 @@ signedQuantity 'Кол-во' (SkuLedger ledger, Lot lot) =
     MULTI quantity[InSkuLedger, Lot](ledger, lot),
          -quantity[OutFIFOSkuLedger, Lot](ledger, lot) CHARWIDTH 7 MATERIALIZED;
 
-batch (Lot l) = GROUP LAST batch(SkuLedger sl) ORDER DESC dateTime(sl), sl WHERE signedQuantity(sl, l) AND batch(sl) MATERIALIZED INDEXED;
+batch (Lot l) = GROUP LAST batch(SkuLedger sl) 
+                               ORDER DESC dateTime(sl), sl 
+                               WHERE signedQuantity(sl, l) AND batch(sl) AND sku(sl) = sku(l) // проверка на sku(sl) = sku(l) нужна для уценки, когда sku у lot меняется на лету 
+                         MATERIALIZED INDEXED;
+
 nameBatch 'Партия' (Lot l) = name(batch(l));
 
 skuBalance = GROUP SUM signedQuantity(SkuLedger ledger, Lot lot) IF active(ledger) BY lot, stock(ledger) CHARWIDTH 7;
