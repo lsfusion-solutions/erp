@@ -241,7 +241,20 @@ priceListType (Agreement agreement, Sku sku) = OVERRIDE dataPriceListType(agreem
                                                       priceListType(agreement, group(groupType(agreement),sku)),
                                                       priceListType(agreement) IF sku IS Sku;
 
-returnPriceListType (Agreement agreement, Sku sku) = OVERRIDE returnPriceListType(agreement) IF sku IS Sku, priceListType(agreement) IF sku IS Sku;
+migratedReturnPriceListType = DATA BOOLEAN ();
+onStarted() + { 
+    IF NOT migratedReturnPriceListType() THEN {
+        NEWSESSION {
+            setNoCancelInTransaction();
+            migratedReturnPriceListType() <- TRUE;
+            returnPriceListType(Agreement a) <- priceListType(a);
+            APPLY;
+        }    
+    }
+}
+returnPriceListType(Agreement a) <- priceListType(a) WHEN CHANGED(priceListType(a));
+
+returnPriceListType (Agreement agreement, Sku sku) = returnPriceListType(agreement) IF sku IS Sku;
 
 namePriceListType 'Вид цены' = name(priceListType(Agreement agreement, Sku sku));
 
