@@ -270,7 +270,7 @@ FORM importError
 
 extra_id = DATA LOCAL STRING[255]();
 sent_via = DATA LOCAL STRING[10]();
-time = DATA LOCAL INTEGER();
+time = DATA LOCAL LONG();
 status = DATA LOCAL INTEGER();
 substatus  = DATA LOCAL INTEGER();
 hyber_status = DATA LOCAL INTEGER();
@@ -296,16 +296,26 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
         isSend(d) <- TRUE;
         FOR in(d, DiscountCard c) AND phoneLegalEntity(c) DO {
             TRY {
+                error_code() <- NULL;
+                error_text() <- NULL;
+                
                 file() <- textDispatch(d,c);
                 stringToFile(file(),'UTF-8','json');
                 logToFile('MTS', 'POST:' + 'https://' + urlMTS() + '/json2/simple' + '\n' + file());
                 
                 EXTERNAL HTTP POST 'https://' + urlMTS() + '/json2/simple' HEADERS httpHeaders PARAMS resultFile() TO result;
                 logToFile('MTS', result());
+                IMPORT importError JSON FROM result();
+                IF error_code() THEN NEW e = DispatchError {
+                    state(d,c) <- STRING[100](error_code());
+                    name(d,c) <- error_text();
+                    dateTime(d,c) <- currentDateTime();
+                    code(e) <- STRING[100](error_code());
+                    message(e) <- error_text();
+                    dateTime(e) <- currentDateTime();
+                    in(d,e) <- TRUE;
+                }
             } CATCH {
-                error_code() <- NULL;
-                error_text() <- NULL;
-                
                 logToFile('MTS', messageCaughtException());
                 logToFile('MTS', result());
                 IMPORT importError JSON FROM result();
@@ -348,7 +358,7 @@ getStatus (FILE file) {
     FOR Dispatch dd IS Dispatch AND getID(dd) == LONG(getWord(extra_id(),'_',1)) AND DiscountCard dc IS DiscountCard AND getID(dc) == LONG(getWord(extra_id(),'_',2)) DO {
         state(dd,dc) <- STRING[100](status());
         name(dd,dc) <- STRING[255](CONCAT ' ', sent_via(), nameStatus(), STRING(substatus()), STRING(hyber_status()));
-        dateTime(dd,dc) <- fromEpochMSToTimestamp(time());
+        dateTime(dd,dc) <- fromEpochMSToTimestamp(time()/1000);
     }
     APPLY NESTED(extra_id[]);
     logToFile('MTS', 'END: ' + extra_id());
