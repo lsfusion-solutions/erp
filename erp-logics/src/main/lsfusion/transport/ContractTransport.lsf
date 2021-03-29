@@ -1,0 +1,166 @@
+MODULE ContractTransport;
+
+REQUIRE StockContract, Sku, Barcode;
+
+NAMESPACE Contract;
+
+EXTEND CLASS ContractType {
+    transport 'Договор перевозки'
+}
+
+CLASS ContractTransport 'Договор перевозки' : Contract;
+@defineDocumentHeaderNumber(ContractTransport, BPSTRING[2]);
+@defineExternalizable(contractTransport, STRING[100]);
+@defineNumeratedID(ContractTransport, 'Договоры перевозки (код)', Id);
+
+id(ContractTransport c) += id(c);
+
+number (ContractTransport contract) += number(contract);
+series (ContractTransport contract) += series(contract);
+
+@defineNumeratedDefault(ContractTransport, 'Договоры перевозки', 'ПД');
+
+word 'Файл договора' (ContractTransport) = DATA WORDFILE (ContractTransport);
+saveWord 'Загрузить файл договора' (ContractTransport c)  { INPUT =word(c) CHANGE; }
+openWord 'Просмотреть файл договора' (ContractTransport c)  { open(word(c)); }
+
+supplier = DATA LegalEntity (ContractTransport);
+nameSupplier 'Перевозчик' (ContractTransport contract) = name(supplier(contract)) IN id CHARWIDTH 20;
+partyA (ContractTransport contract) += supplier(contract);
+
+//--------------------------------------------//
+customer = DATA LegalEntity (ContractTransport);
+nameCustomer 'Заказчик' (ContractTransport contract) = name(customer(contract)) IN id CHARWIDTH 20;
+partyB (ContractTransport contract) += customer(contract);
+
+isDataDefault 'По умолчанию' = DATA BOOLEAN (ContractTransport);
+isDefault(ContractTransport contractTransport) += isDataDefault(contractTransport);
+skipContract 'По умолчанию' = ABSTRACT BOOLEAN (ContractTransport) MATERIALIZED;
+
+countContractTransportSupplierCustomer (pA, pB, DATE dateIn)= GROUP SUM 1 
+    IF dateFrom(ContractTransport contractTransport) <= dateIn AND NOT dateTo(contractTransport) < dateIn 
+        BY supplier(contractTransport), customer(contractTransport);
+
+singleContractTransportSupplierCustomer (pA, pB, DATE dateIn) = GROUP MAX ContractTransport contractTransport 
+    IF dateFrom(contractTransport) <= dateIn AND NOT dateTo(contractTransport) < dateIn 
+        BY supplier(contractTransport), customer(contractTransport);
+
+defaultContractTransportSupplierCustomer (pA, pB, DATE dateIn) = GROUP MAX ContractTransport contractTransport IF isDataDefault(contractTransport) 
+    AND dateFrom(contractTransport) <= dateIn AND NOT dateTo(contractTransport) < dateIn
+        BY supplier(contractTransport), customer(contractTransport);
+
+
+//объединение организаций
+replace(LegalEntity l, LegalEntity o) + { 
+    supplier(ContractTransport contract) <- o WHERE supplier(contract) == l;
+    customer(ContractTransport contract) <- o WHERE customer(contract) == l;
+}   
+
+// Формы
+FORM contractTransport 'Договор перевозки'
+    OBJECTS c = ContractTransport PANEL
+    PROPERTIES(c) nameSupplier, nameCustomer, isDataDefault, 
+                  nameNumerator, number, series, dateFrom, dateTo,
+                  nameCurrency,  nameTypeExchange, descriptionPaymentCondition,
+                  note, saveWord, openWord, id SHOWIF showIDs()
+
+    EDIT ContractTransport OBJECT c
+
+;
+
+
+DESIGN contractTransport {
+    OBJECTS {
+        NEW north {
+            type = CONTAINERH;
+            MOVE GROUP(numbered,c) {
+                type = CONTAINERH;
+            }
+            MOVE GROUP(contract,c) {
+            MOVE PROPERTY (id(c));
+                type = CONTAINERH;
+            }
+        }
+        NEW params {
+            type = COLUMNS;
+            columns = 4;
+            caption = 'Параметры';
+            MOVE PROPERTY(nameSupplier(c));
+            MOVE PROPERTY(nameCustomer(c));
+            MOVE PROPERTY(isDataDefault(c));
+        }
+        MOVE GROUP(payment,c);
+        NEW text {
+            type = CONTAINERH;
+            caption = 'Содержание';
+            MOVE PROPERTY(saveWord(c));
+            MOVE PROPERTY(openWord(c));
+        }
+        NEW noteContainer {        
+            caption = 'Примечание';
+            fill = 1;
+            MOVE PROPERTY(note(c)){caption='';}
+        } 
+    }
+}
+
+WHEN LOCAL FORMS contractTransport SETCHANGED(supplier(ContractTransport contract)) DO {
+    currency(contract) <- OVERRIDE currency(supplier(contract)), defaultCurrency();
+}
+
+addUserContractTransportSupplierCustomer 'Добавить'(LegalEntity supplier, LegalEntity customer)  { 
+	NESTEDSESSION{
+	    NEW uc = ContractTransport {
+	        supplier(uc) <- supplier;
+	        customer(uc) <- customer;
+	        currency(uc) <- OVERRIDE currency(supplier), defaultCurrency();
+	        SHOW contractTransport OBJECTS c = uc DOCKED;
+	    }
+	}
+} IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
+
+is (ContractTransport contractSku) = contractSku IS ContractTransport;
+
+EXTEND FORM contracts
+    PROPERTIES(c) NEWSESSION newCT = NEW[ContractTransport]
+;
+DESIGN contracts{
+    PROPERTY (newCT) { caption = 'Договор перевозки';}
+}
+
+
+FORM contractTransports 'Договоры перевозки'
+    OBJECTS c = ContractTransport   
+    PROPERTIES(c) READONLY nameSupplier, namePartyAStocks, nameCustomer, namePartyBStocks, 
+                  seriesNumber, dateFrom, dateTo, nameCurrency,  nameTypeExchange, note
+    PROPERTIES(c) NEWSESSION NEW[ContractTransport], EDIT
+
+    LIST ContractTransport OBJECT c
+;
+
+// ----------------------------- Расширяем форму организаций ------------------------------------------- //
+showTransport = ABSTRACT BOOLEAN (LegalEntity);
+showTransport(LegalEntity l,ContractTransport css) = showTransport(l) AND is(css);
+
+EXTEND FORM legalEntity
+
+    OBJECTS tr1 = ContractTransport GRID
+    PROPERTIES(tr1) SHOWIF showTransport(l) READONLY seriesNumber,  dateFrom,
+                    dateTo, nameCurrency, note, descriptionPaymentCondition
+    PROPERTIES      SHOWIF showTransport(l) addUserContractTransportSupplierCustomer(l,s) DRAW tr1 
+    PROPERTIES(tr1) SHOWIF showTransport(l) NESTEDSESSION EDIT
+    PROPERTIES(tr1) DELETE SHOWIF showTransport(l,tr1) GRID
+    
+    FILTERS customer(tr1) == s,
+            supplier(tr1) == l
+;
+
+DESIGN legalEntity {
+    docPurchaseContainer {
+        MOVE BOX(tr1) {
+            caption = 'Договоры перевозки';
+        }
+    }
+}
+
+contractType (ContractTransport c) += ContractType.transport IF  c IS ContractTransport;
