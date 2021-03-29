@@ -274,12 +274,16 @@ public class AclasHandler extends MultithreadScalesHandler {
 
     @Override
     protected SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
-        return new AclasSendTransactionTask(transaction, scales);
+        AclasSettings aclasSettings = springContext.containsBean("aclasSettings") ? (AclasSettings) springContext.getBean("aclasSettings") : new AclasSettings();
+        boolean loadMessages = aclasSettings.isLoadMessages();
+        return new AclasSendTransactionTask(transaction, scales, loadMessages);
     }
 
     class AclasSendTransactionTask extends SendTransactionTask {
-        public AclasSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
+        boolean loadMessages;
+        public AclasSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, boolean loadMessages) {
             super(transaction, scales);
+            this.loadMessages = loadMessages;
         }
 
         @Override
@@ -307,7 +311,7 @@ public class AclasHandler extends MultithreadScalesHandler {
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                        Boolean result = loadPLU(udpPort, scales, item)/* && loadMessage(udpPort, item)*/;
+                                        Boolean result = loadPLU(udpPort, scales, item) && (!loadMessages || loadMessage(udpPort, item));
                                         if (!result) {
                                             logError(localErrors, String.format(getLogPrefix() + "IP %s, send failed, item %s", scales.port, item.idItem));
                                             globalError++;
