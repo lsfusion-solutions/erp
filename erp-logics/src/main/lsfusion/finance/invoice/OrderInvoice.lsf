@@ -90,7 +90,9 @@ META defineOrderInvoice(sign, stockProp)
         orderDetail(d) <- orderDetail(detail);
     }  
     
-    CONSTRAINT isPosted(UserInvoiceDetail detail) AND forbidNullOrderDetailInvoiceDetail(operation(detail)) AND NOT orderDetail(detail)
+    skipNullOrderDetailInvoiceDetail = ABSTRACT BOOLEAN (UserInvoice);
+    
+    CONSTRAINT isPosted(UserInvoiceDetail detail) AND forbidNullOrderDetailInvoiceDetail(operation(detail)) AND NOT skipNullOrderDetailInvoiceDetail(userInvoice(detail))  AND NOT orderDetail(detail)
         MESSAGE 'Запрещено проводить накладные без привязки строк к заказу';
     CONSTRAINT supplier(UserInvoiceDetail detail) != supplier(orderDetail(detail))
         CHECKED BY orderDetail[UserInvoiceDetail]
