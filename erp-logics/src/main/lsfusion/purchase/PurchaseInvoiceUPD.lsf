@@ -1,0 +1,301 @@
+MODULE PurchaseInvoiceUPD;
+
+REQUIRE Purchase, PurchaseInvoice;
+
+NAMESPACE Purchase;
+
+importPathInvoice 'Путь импорта накладных-закупка (ftp://username:password@host:port/path/)' = DATA STRING[250]();
+importPathInvoiceOld 'Путь хранения импортированных накладных-закупка (ftp://username:password@host:port/path/)' = DATA STRING[250]();
+
+autoImportOperation =  DATA Purchase.Operation();
+nameAutoImportOperation 'Операция'() = Purchase.name(autoImportOperation());
+
+EXTEND FORM integrationData PROPERTIES() nameAutoImportOperation, importPathInvoice, importPathInvoiceOld;
+
+DESIGN integrationData {
+    pane{
+        NEW import {
+            caption = 'Импорт УПД';
+            MOVE PROPERTY (nameAutoImportOperation()); 
+            MOVE PROPERTY (importPathInvoice());   
+            MOVE PROPERTY (importPathInvoiceOld());                          
+        }
+    }
+}
+
+// импорт XML
+
+GROUP vsvUchDokObor EXTID 'СвУчДокОбор';
+GROUP vsvOEDOtpr1 EXTID 'СвОЭДОтпр' : vsvUchDokObor;
+GROUP vdokumient EXTID 'Документ';
+GROUP vsvSchFakt EXTID 'СвСчФакт' : vdokumient;
+GROUP visprSchF1 EXTID 'ИспрСчФ' : vsvSchFakt;
+GROUP vsvProd EXTID 'СвПрод' : vsvSchFakt;
+GROUP vidSv EXTID 'ИдСв' : vsvProd;
+GROUP vsvIuLUch1 EXTID 'СвЮЛУч' : vidSv;
+GROUP vadries EXTID 'Адрес' : vsvProd;
+GROUP vadrRF1 EXTID 'АдрРФ' : vadries;
+GROUP vbankRiekv EXTID 'БанкРекв' : vsvProd;
+GROUP vsvBank1 EXTID 'СвБанк' : vbankRiekv;
+GROUP vghruzOt EXTID 'ГрузОт' : vsvSchFakt;
+GROUP vghruzOtpr EXTID 'ГрузОтпр' : vghruzOt;
+GROUP vidSv1 EXTID 'ИдСв' : vghruzOtpr;
+GROUP vsvIuLUch3 EXTID 'СвЮЛУч' : vidSv1;
+GROUP vadries1 EXTID 'Адрес' : vghruzOtpr;
+GROUP vadrRF3 EXTID 'АдрРФ' : vadries1;
+GROUP vbankRiekv1 EXTID 'БанкРекв' : vghruzOtpr;
+GROUP vsvBank3 EXTID 'СвБанк' : vbankRiekv1;
+GROUP vghruzPoluch EXTID 'ГрузПолуч' : vsvSchFakt;
+GROUP vidSv2 EXTID 'ИдСв' : vghruzPoluch;
+GROUP vsvIuLUch5 EXTID 'СвЮЛУч' : vidSv2;
+GROUP vadries2 EXTID 'Адрес' : vghruzPoluch;
+GROUP vadrRF5 EXTID 'АдрРФ' : vadries2;
+GROUP vsvPokup EXTID 'СвПокуп' : vsvSchFakt;
+GROUP vidSv3 EXTID 'ИдСв' : vsvPokup;
+GROUP vsvIuLUch7 EXTID 'СвЮЛУч' : vidSv3;
+GROUP vadries3 EXTID 'Адрес' : vsvPokup;
+GROUP vadrRF7 EXTID 'АдрРФ' : vadries3;
+GROUP vbankRiekv2 EXTID 'БанкРекв' : vsvPokup;
+GROUP vsvBank5 EXTID 'СвБанк' : vbankRiekv2;
+GROUP vinfPolFKhZh1 EXTID 'ИнфПолФХЖ1' : vsvSchFakt;
+GROUP vtablSchFakt EXTID 'ТаблСчФакт' : vdokumient;
+
+GROUP vaktsiz EXTID 'Акциз';
+GROUP vsumNal EXTID 'СумНал';
+GROUP vsviedTov EXTID 'СведТов';
+GROUP vdopSviedTov EXTID 'ДопСведТов';
+GROUP vnomSriedIdientTov EXTID 'НомСредИдентТов' : vdopSviedTov;
+GROUP vvsieghoOpl EXTID 'ВсегоОпл' : vtablSchFakt;
+GROUP vsumNalVsiegho EXTID 'СумНалВсего' : vvsieghoOpl;
+GROUP vsvProdPier EXTID 'СвПродПер' : vdokumient;
+GROUP vsvPier EXTID 'СвПер' : vsvProdPier;
+GROUP vosnPier1 EXTID 'ОснПер' : vsvPier;
+GROUP vpodpisant EXTID 'Подписант' : vdokumient;
+GROUP vIuL EXTID 'ЮЛ' : vpodpisant;
+GROUP vFIO1 EXTID 'ФИО' : vIuL;
+
+vsvOEDOtpr = DATA LOCAL STRING();
+vnaimOrgh = DATA LOCAL STRING();
+vINNIuL = DATA LOCAL STRING();
+vidEDO = DATA LOCAL STRING();
+vidOtpr = DATA LOCAL STRING();
+vidPol = DATA LOCAL STRING();
+visprSchF = DATA LOCAL STRING();
+vdiefNomIsprSchF = DATA LOCAL STRING();
+vdiefDataIsprSchF = DATA LOCAL STRING();
+vsvIuLUch = DATA LOCAL STRING();
+vnaimOrgh1 = DATA LOCAL STRING();
+vINNIuL1 = DATA LOCAL STRING();
+vKPP = DATA LOCAL STRING();
+vadrRF = DATA LOCAL STRING();
+vindieks = DATA LOCAL STRING();
+vkodRieghion = DATA LOCAL STRING();
+vraion = DATA LOCAL STRING();
+vghorod = DATA LOCAL STRING();
+vulitsa = DATA LOCAL STRING();
+vdom = DATA LOCAL STRING();
+vkorpus = DATA LOCAL STRING();
+vsvBank = DATA LOCAL STRING();
+vnaimBank = DATA LOCAL STRING();
+vBIK = DATA LOCAL STRING();
+vnomierSchieta = DATA LOCAL STRING();
+vOKPO = DATA LOCAL STRING();
+vsvIuLUch2 = DATA LOCAL STRING();
+vnaimOrgh2 = DATA LOCAL STRING();
+vINNIuL2 = DATA LOCAL STRING();
+vKPP1 = DATA LOCAL STRING();
+vadrRF2 = DATA LOCAL STRING();
+vindieks1 = DATA LOCAL STRING();
+vkodRieghion1 = DATA LOCAL STRING();
+vghorod1 = DATA LOCAL STRING();
+vulitsa1 = DATA LOCAL STRING();
+vdom1 = DATA LOCAL STRING();
+vsvBank2 = DATA LOCAL STRING();
+vnaimBank1 = DATA LOCAL STRING();
+vBIK1 = DATA LOCAL STRING();
+vnomierSchieta1 = DATA LOCAL STRING();
+vOKPO1 = DATA LOCAL STRING();
+vsvIuLUch4 = DATA LOCAL STRING();
+vnaimOrgh3 = DATA LOCAL STRING();
+vINNIuL3 = DATA LOCAL STRING();
+vKPP2 = DATA LOCAL STRING();
+vadrRF4 = DATA LOCAL STRING();
+vindieks2 = DATA LOCAL STRING();
+vkodRieghion2 = DATA LOCAL STRING();
+vraion1 = DATA LOCAL STRING();
+vghorod2 = DATA LOCAL STRING();
+vulitsa2 = DATA LOCAL STRING();
+vdom2 = DATA LOCAL STRING();
+vsvIuLUch6 = DATA LOCAL STRING();
+vnaimOrgh4 = DATA LOCAL STRING();
+vINNIuL4 = DATA LOCAL STRING();
+vKPP3 = DATA LOCAL STRING();
+vadrRF6 = DATA LOCAL STRING();
+vindieks3 = DATA LOCAL STRING();
+vkodRieghion3 = DATA LOCAL STRING();
+vghorod3 = DATA LOCAL STRING();
+vulitsa3 = DATA LOCAL STRING();
+vdom3 = DATA LOCAL STRING();
+vsvBank4 = DATA LOCAL STRING();
+vnaimBank2 = DATA LOCAL STRING();
+vBIK2 = DATA LOCAL STRING();
+vnomierSchieta2 = DATA LOCAL STRING();
+vtiekstInf = DATA LOCAL STRING(INTEGER);
+vnomierSchF = DATA LOCAL STRING();
+vdataSchF = DATA LOCAL STRING();
+vkodOKV = DATA LOCAL STRING();
+vbiezAktsiz = DATA LOCAL STRING(INTEGER);
+vsumNal1 = DATA LOCAL STRING(INTEGER);
+vnomUpak = DATA LOCAL STRING(INTEGER);
+vnomSriedIdientTovVnomUpak = DATA LOCAL INTEGER(INTEGER);
+vprTovRab = DATA LOCAL STRING(INTEGER);
+vnaimIedIzm = DATA LOCAL STRING(INTEGER);
+vsviedTovVinfPolFKhZh2 = DATA LOCAL INTEGER(INTEGER);
+vinfPolFKhZh2 = DATA LOCAL STRING(INTEGER);
+vnomStr = DATA LOCAL STRING(INTEGER);
+vnaimTov = DATA LOCAL STRING(INTEGER);
+vOKIeI_Tov = DATA LOCAL STRING(INTEGER);
+vkolTov = DATA LOCAL STRING(INTEGER);
+vtsienaTov = DATA LOCAL STRING(INTEGER);
+vstTovBiezNDS = DATA LOCAL STRING(INTEGER);
+vnalSt = DATA LOCAL STRING(INTEGER);
+vstTovUchNal = DATA LOCAL STRING(INTEGER);
+vsumNal2 = DATA LOCAL STRING();
+vkolNiettoVs = DATA LOCAL STRING();
+identif = DATA LOCAL STRING(INTEGER);
+vinfPolFKhZh3 = DATA LOCAL STRING(INTEGER);
+vstTovBiezNDSVsiegho = DATA LOCAL STRING();
+vstTovUchNalVsiegho = DATA LOCAL STRING();
+vosnPier = DATA LOCAL STRING();
+vnaimOsn = DATA LOCAL STRING();
+vnomOsn = DATA LOCAL STRING();
+vdataOsn = DATA LOCAL STRING();
+vsodOpier = DATA LOCAL STRING();
+vdataPier = DATA LOCAL STRING();
+vFIO = DATA LOCAL STRING();
+vfamiliia = DATA LOCAL STRING();
+vimia = DATA LOCAL STRING();
+votchiestvo = DATA LOCAL STRING();
+vINNIuL5 = DATA LOCAL STRING();
+vnaimOrgh5 = DATA LOCAL STRING();
+vdolzhn = DATA LOCAL STRING();
+voblPoln = DATA LOCAL STRING();
+vstatus = DATA LOCAL STRING();
+vosnPoln = DATA LOCAL STRING();
+vKND = DATA LOCAL STRING();
+vfunktsiia = DATA LOCAL STRING();
+vpoFaktKhZh = DATA LOCAL STRING();
+vnaimDokOpr = DATA LOCAL STRING();
+vdataInfPr = DATA LOCAL STRING();
+vvriemInfPr = DATA LOCAL STRING();
+vnaimEkonSubSost = DATA LOCAL STRING();
+vidFail = DATA LOCAL STRING();
+vviersForm = DATA LOCAL STRING();
+vviersProgh = DATA LOCAL STRING();
+
+FORM purchaseImportXML FORMEXTID 'Файл'
+PROPERTIES() vidFail EXTID 'ИдФайл' ATTR, vviersForm EXTID 'ВерсФорм' ATTR, vviersProgh EXTID 'ВерсПрог' ATTR
+PROPERTIES() IN vsvUchDokObor vsvOEDOtpr EXTID 'СвОЭДОтпр', vidOtpr EXTID 'ИдОтпр' ATTR, vidPol EXTID 'ИдПол' ATTR
+PROPERTIES() IN vsvOEDOtpr1 vnaimOrgh EXTID 'НаимОрг' ATTR, vINNIuL EXTID 'ИННЮЛ' ATTR, vidEDO EXTID 'ИдЭДО' ATTR
+PROPERTIES() IN vdokumient vKND EXTID 'КНД' ATTR, vfunktsiia EXTID 'Функция' ATTR, vpoFaktKhZh EXTID 'ПоФактХЖ' ATTR, vnaimDokOpr EXTID 'НаимДокОпр' ATTR, vdataInfPr EXTID 'ДатаИнфПр' ATTR, vvriemInfPr EXTID 'ВремИнфПр' ATTR, vnaimEkonSubSost EXTID 'НаимЭконСубСост' ATTR
+PROPERTIES() IN vsvSchFakt visprSchF EXTID 'ИспрСчФ', vnomierSchF EXTID 'НомерСчФ' ATTR, vdataSchF EXTID 'ДатаСчФ' ATTR, vkodOKV EXTID 'КодОКВ' ATTR
+PROPERTIES() IN visprSchF1 vdiefNomIsprSchF EXTID 'ДефНомИспрСчФ' ATTR, vdiefDataIsprSchF EXTID 'ДефДатаИспрСчФ' ATTR
+PROPERTIES() IN vsvProd vOKPO EXTID 'ОКПО' ATTR
+PROPERTIES() IN vidSv vsvIuLUch EXTID 'СвЮЛУч'
+PROPERTIES() IN vsvIuLUch1 vnaimOrgh1 EXTID 'НаимОрг' ATTR, vINNIuL1 EXTID 'ИННЮЛ' ATTR, vKPP EXTID 'КПП' ATTR
+PROPERTIES() IN vadries vadrRF EXTID 'АдрРФ'
+PROPERTIES() IN vadrRF1 vindieks EXTID 'Индекс' ATTR, vkodRieghion EXTID 'КодРегион' ATTR, vraion EXTID 'Район' ATTR, vghorod EXTID 'Город' ATTR, vulitsa EXTID 'Улица' ATTR, vdom EXTID 'Дом' ATTR, vkorpus EXTID 'Корпус' ATTR
+PROPERTIES() IN vbankRiekv vsvBank EXTID 'СвБанк', vnomierSchieta EXTID 'НомерСчета' ATTR
+PROPERTIES() IN vsvBank1 vnaimBank EXTID 'НаимБанк' ATTR, vBIK EXTID 'БИК' ATTR
+PROPERTIES() IN vghruzOtpr vOKPO1 EXTID 'ОКПО' ATTR
+PROPERTIES() IN vidSv1 vsvIuLUch2 EXTID 'СвЮЛУч'
+PROPERTIES() IN vsvIuLUch3 vnaimOrgh2 EXTID 'НаимОрг' ATTR, vINNIuL2 EXTID 'ИННЮЛ' ATTR, vKPP1 EXTID 'КПП' ATTR
+PROPERTIES() IN vadries1 vadrRF2 EXTID 'АдрРФ'
+PROPERTIES() IN vadrRF3 vindieks1 EXTID 'Индекс' ATTR, vkodRieghion1 EXTID 'КодРегион' ATTR, vghorod1 EXTID 'Город' ATTR, vulitsa1 EXTID 'Улица' ATTR, vdom1 EXTID 'Дом' ATTR
+PROPERTIES() IN vbankRiekv1 vsvBank2 EXTID 'СвБанк', vnomierSchieta1 EXTID 'НомерСчета' ATTR
+PROPERTIES() IN vsvBank3 vnaimBank1 EXTID 'НаимБанк' ATTR, vBIK1 EXTID 'БИК' ATTR
+PROPERTIES() IN vidSv2 vsvIuLUch4 EXTID 'СвЮЛУч'
+PROPERTIES() IN vsvIuLUch5 vnaimOrgh3 EXTID 'НаимОрг' ATTR, vINNIuL3 EXTID 'ИННЮЛ' ATTR, vKPP2 EXTID 'КПП' ATTR
+PROPERTIES() IN vadries2 vadrRF4 EXTID 'АдрРФ'
+PROPERTIES() IN vadrRF5 vindieks2 EXTID 'Индекс' ATTR, vkodRieghion2 EXTID 'КодРегион' ATTR, vraion1 EXTID 'Район' ATTR, vghorod2 EXTID 'Город' ATTR, vulitsa2 EXTID 'Улица' ATTR, vdom2 EXTID 'Дом' ATTR
+PROPERTIES() IN vidSv3 vsvIuLUch6 EXTID 'СвЮЛУч'
+PROPERTIES() IN vsvIuLUch7 vnaimOrgh4 EXTID 'НаимОрг' ATTR, vINNIuL4 EXTID 'ИННЮЛ' ATTR, vKPP3 EXTID 'КПП' ATTR
+PROPERTIES() IN vadries3 vadrRF6 EXTID 'АдрРФ'
+PROPERTIES() IN vadrRF7 vindieks3 EXTID 'Индекс' ATTR, vkodRieghion3 EXTID 'КодРегион' ATTR, vghorod3 EXTID 'Город' ATTR, vulitsa3 EXTID 'Улица' ATTR, vdom3 EXTID 'Дом' ATTR
+PROPERTIES() IN vbankRiekv2 vsvBank4 EXTID 'СвБанк', vnomierSchieta2 EXTID 'НомерСчета' ATTR
+PROPERTIES() IN vsvBank5 vnaimBank2 EXTID 'НаимБанк' ATTR, vBIK2 EXTID 'БИК' ATTR
+
+OBJECTS vtiekstInf = INTEGER EXTID 'ТекстИнф' IN vinfPolFKhZh1
+
+OBJECTS vsviedTov = INTEGER EXTID 'СведТов' IN vtablSchFakt
+
+PROPERTIES(vsviedTov) vnomStr EXTID 'НомСтр' ATTR, vnaimTov EXTID 'НаимТов' ATTR, vOKIeI_Tov EXTID 'ОКЕИ_Тов' ATTR, vkolTov EXTID 'КолТов' ATTR, vtsienaTov EXTID 'ЦенаТов' ATTR, vstTovBiezNDS EXTID 'СтТовБезНДС' ATTR, vnalSt EXTID 'НалСт' ATTR, vstTovUchNal EXTID 'СтТовУчНал' ATTR
+FILTERS vkolTov(vsviedTov)
+PROPERTIES(vsviedTov) IN vaktsiz vbiezAktsiz EXTID 'БезАкциз'
+FILTERS vbiezAktsiz(vsviedTov)
+PROPERTIES(vsviedTov) IN vsumNal vsumNal1 EXTID 'СумНал'
+FILTERS vsumNal1(vsviedTov)
+
+OBJECTS vdopSviedTov = INTEGER EXTID 'ДопСведТов'
+PROPERTIES(vsviedTov) IN vdopSviedTov vprTovRab EXTID 'ПрТовРаб' ATTR, vnaimIedIzm EXTID 'НаимЕдИзм' ATTR
+FILTERS vprTovRab(vsviedTov)
+
+OBJECTS vnomUpak = INTEGER EXTID 'НомУпак' IN vnomSriedIdientTov
+PROPERTIES(vnomUpak) vnomUpak EXTID 'value'
+FILTERS vnomUpak(vnomUpak)
+FILTERS vnomSriedIdientTovVnomUpak(vnomUpak) == vsviedTov
+
+OBJECTS vinfPolFKhZh2 = INTEGER EXTID 'ИнфПолФХЖ2'
+FILTERS vsviedTovVinfPolFKhZh2(vinfPolFKhZh2) == vsviedTov
+PROPERTIES(vinfPolFKhZh2) identif EXTID 'Идентиф' ATTR , vinfPolFKhZh3 EXTID 'Значен' ATTR
+PROPERTIES() IN vvsieghoOpl vkolNiettoVs EXTID 'КолНеттоВс', vstTovBiezNDSVsiegho EXTID 'СтТовБезНДСВсего' ATTR, vstTovUchNalVsiegho EXTID 'СтТовУчНалВсего' ATTR
+PROPERTIES() IN vsumNalVsiegho vsumNal2 EXTID 'СумНал'
+PROPERTIES() IN vsvPier vosnPier EXTID 'ОснПер', vsodOpier EXTID 'СодОпер' ATTR, vdataPier EXTID 'ДатаПер' ATTR
+PROPERTIES() IN vosnPier1 vnaimOsn EXTID 'НаимОсн' ATTR, vnomOsn EXTID 'НомОсн' ATTR, vdataOsn EXTID 'ДатаОсн' ATTR
+PROPERTIES() IN vpodpisant voblPoln EXTID 'ОблПолн' ATTR, vstatus EXTID 'Статус' ATTR, vosnPoln EXTID 'ОснПолн' ATTR
+PROPERTIES() IN vIuL vFIO EXTID 'ФИО', vINNIuL5 EXTID 'ИННЮЛ' ATTR, vnaimOrgh5 EXTID 'НаимОрг' ATTR, vdolzhn EXTID 'Должн' ATTR
+PROPERTIES() IN vFIO1 vfamiliia EXTID 'Фамилия' ATTR, vimia EXTID 'Имя' ATTR, votchiestvo EXTID 'Отчество' ATTR;
+
+purchaseImportOperationXML 'Импорт УПД' (Operation o) {
+    
+    LOCAL f = XMLFILE ();    
+    TRY { listFiles(importPathInvoice()); }
+
+    FOR fileName(INTEGER j) AND NOT fileIsDirectory(j) DO {
+
+        READ importPathInvoice() + fileName(j) TO f;       
+        IMPORT purchaseImportXML XML FROM f();                 
+        
+        NEW i = UserInvoice {           
+            number(i) <- vnomierSchF();
+            date(i) <- DATE(toDateFormat(vdataSchF(), 'DD.MM.YYYY'));
+            isPosted(i) <- NULL;
+            operation(i) <- o;                          
+            FOR vkolTov(INTEGER ii) NEW d = UserInvoiceDetail DO {
+                userInvoice(d) <- i;
+                sku(d) <- skuBarcode(vinfPolFKhZh3(ii));
+                quantity(d) <- NUMERIC[14,0](vkolTov(ii)); 
+                price(d) <- round2(NUMERIC[14,2](vtsienaTov(ii)));  
+            }      
+        }
+        TRY { mkdir(importPathInvoiceOld()); };
+        move(importPathInvoice() + fileName(j), importPathInvoiceOld() + replace(fileName(j), '.xml', '.xml'));
+    }  	    
+    APPLY;
+}
+ 
+purchaseImportXML 'Импорт УПД' () {
+    purchaseImportOperationXML(autoImportOperation());
+}
+
+EXTEND FORM invoices PROPERTIES () purchaseImportXML, nameAutoImportOperation;
+
+DESIGN invoices {
+    actionContainer {
+        NEW otherActions {
+            MOVE PROPERTY(nameAutoImportOperation());
+            MOVE PROPERTY(purchaseImportXML());
+        }
+    }
+}
+
