@@ -61,6 +61,13 @@ zScore 'Z-оценка' (Sku sk) = safetyCoeff(skuGroup(sk));
 lastYearCurrent = DATE(sumYear(currentDate(),-1));
 skipCoeffSeason = ABSTRACT BOOLEAN (Stock);
 
+fromSold = DATA LOCAL DATE ();
+toSold = DATA LOCAL DATE ();
+
+sumSoldAuto 'Продано за интервал (сумма)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
+        sumSold(sku, stock, DATE date) (+) extraSumSold(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND date >= fromSold() AND  date <= toSold();
+
 calcQuantitySoldInterval 'Рассчитать однодневные продажи'()  {
     IF useDaysChange() THEN
         averageSold(Sku sku, Stock stock) <- averageSoldOnStock(sku, stock, fromSoldDate(sku), toSoldDate(sku));
@@ -68,8 +75,11 @@ calcQuantitySoldInterval 'Рассчитать однодневные прода
         averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](quantitySold (sku, stock, fromSoldDate(sku), toSoldDate(sku)) / countSoldDays(skuGroup(sku)));
     APPLY;
 
-    coeffSeason(SkuGroup sk) <- max (min([X/Y]([GROUP SUM sumSold(Sku s, Stock st, lastYearCurrent(), sum(lastYearCurrent(), countSeason(skuGroup(s))-1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk), 
-                                         [GROUP SUM sumSold(Sku s, Stock st, subtract(lastYearCurrent(), countSeason(skuGroup(s))), subtract(lastYearCurrent(),1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk)), 5), 0.2); 
+    fromSold() <- GROUP MIN subtract(lastYearCurrent(), countSeason(SkuGroup s));
+    toSold() <- GROUP MAX sum(lastYearCurrent(), countSeason(SkuGroup s)-1);
+    
+    coeffSeason(SkuGroup sk) <- max (min([X/Y]([GROUP SUM sumSoldAuto(Sku s, Stock st, lastYearCurrent(), sum(lastYearCurrent(), countSeason(skuGroup(s))-1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk), 
+                                         [GROUP SUM sumSoldAuto(Sku s, Stock st, subtract(lastYearCurrent(), countSeason(skuGroup(s))), subtract(lastYearCurrent(),1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk)), 5), 0.2); 
                                              
     APPLY;
     
