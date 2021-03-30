@@ -937,6 +937,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     ImportField batchTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("batch[TerminalDocumentDetail]"));
                     props.add(new ImportProperty(batchTerminalDocumentDetailField, terminalHandlerLM.findProperty("batch[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     fields.add(batchTerminalDocumentDetailField);
+
+                    ImportField markingTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("marking[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(markingTerminalDocumentDetailField, terminalHandlerLM.findProperty("marking[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(markingTerminalDocumentDetailField);
                 }
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
