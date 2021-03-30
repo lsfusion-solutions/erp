@@ -76,6 +76,12 @@ volume 'Объем продукции' = DATA NUMERIC[16,5] (VetDocument);
 unit = DATA Unit (VetDocument);
 nameUnit 'Единица измерения' (VetDocument d) = name(unit(d));
 
+dateOfProduction 'Дата выработки продукции' = DATA DATE (VetDocument);
+dateOfProductionHour 'Час выработки продукции' = DATA INTEGER (VetDocument);
+
+expiryDate 'Дата окончания срока годности продукции' = DATA DATE (VetDocument);
+expiryDateHour 'Час окончания срока годности продукции' = DATA INTEGER (VetDocument);
+
 purpose = DATA Purpose (VetDocument);
 namePurpose 'Назначение груза' (VetDocument d) = name(purpose(d));
 
@@ -103,7 +109,10 @@ FORM vetDocument 'ВСД'
                   
                   transportStorageType, transportInfo,
                   batch, guidProductItem, nameProductItem, 
-                  volume, nameUnit, namePurpose
+                  volume, nameUnit,
+                  dateOfProduction, dateOfProductionHour,
+                  expiryDate, expiryDateHour,
+                  namePurpose
 
     OBJECTS rd = VetReferenceDocument
     PROPERTIES(rd) READONLY issueSeries, issueNumber, issueDate, type, relationshipType
@@ -162,6 +171,13 @@ DESIGN vetDocument {
                     MOVE PROPERTY(volume(o));                    
                     MOVE PROPERTY(nameUnit(o));                    
                 }
+                NEW dates {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(dateOfProduction(o));
+                    MOVE PROPERTY(dateOfProductionHour(o));
+                    MOVE PROPERTY(expiryDate(o));
+                    MOVE PROPERTY(expiryDateHour(o));
+                }
                 MOVE PROPERTY(namePurpose(o));
                 MOVE PROPERTY(batch(o)) {
                     panelCaptionVertical = TRUE;
@@ -182,7 +198,10 @@ FORM vetDocuments 'ВСД'
                            nameConsignorBusinessEntity, nameConsignorEnterprise,
                            nameConsigneeBusinessEntity, nameConsigneeEnterprise,
                            guidProductItem, nameProductItem, 
-                           volume, nameUnit, namePurpose
+                           volume, nameUnit, 
+                           dateOfProduction, dateOfProductionHour,
+                           expiryDate, expiryDateHour,
+                           namePurpose
                 
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
 ;
@@ -192,7 +211,10 @@ FORM dialogVetDocuments 'ВСД'
     PROPERTIES(o) READONLY uuid, issueDate, nameType, nameStatus,
                            nameConsignorBusinessEntity, nameConsignorEnterprise,
                            nameConsigneeBusinessEntity, nameConsigneeEnterprise,
-                           guidProductItem, nameProductItem, volume
+                           guidProductItem, nameProductItem,
+                           volume, nameUnit,
+                           dateOfProduction, dateOfProductionHour,
+                           expiryDate, expiryDateHour
     
     LIST VetDocument OBJECT o
 ;

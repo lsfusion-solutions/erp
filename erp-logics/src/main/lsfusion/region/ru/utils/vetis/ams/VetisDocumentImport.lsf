@@ -49,6 +49,22 @@ volume = DATA LOCAL NUMERIC[16,5]();
 GROUP batchUnit EXTID 'vd:unit' : batch;
 unitGuid = DATA LOCAL STRING();
 
+GROUP dateOfProduction EXTID 'vd:dateOfProduction' : batch;
+GROUP dateOfProductionFirstDate EXTID 'vd:firstDate' : dateOfProduction;
+
+dateOfProductionYear = DATA INTEGER ();
+dateOfProductionMonth = DATA INTEGER ();
+dateOfProductionDay = DATA INTEGER ();
+dateOfProductionHour = DATA INTEGER ();
+
+GROUP expiryDate EXTID 'vd:expiryDate' : batch;
+GROUP expiryDateFirstDate EXTID 'vd:firstDate' : expiryDate;
+
+expiryDateYear = DATA INTEGER ();
+expiryDateMonth = DATA INTEGER ();
+expiryDateDay = DATA INTEGER ();
+expiryDateHour = DATA INTEGER ();
+
 GROUP authentication EXTID 'vd:authentication';
 GROUP purpose EXTID 'vd:purpose' : authentication;
 purposeGuid = DATA LOCAL STRING();
@@ -81,6 +97,14 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
     PROPERTIES() IN batch
                  volume EXTID 'vd:volume',
                  unitGuid IN batchUnit EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+                 
+    PROPERTIES() IN dateOfProductionFirstDate
+                 dateOfProductionYear EXTID 'dt:year', dateOfProductionMonth EXTID 'dt:month', dateOfProductionDay EXTID 'dt:day',
+                 dateOfProductionHour EXTID 'dt:hour'
+
+    PROPERTIES() IN expiryDateFirstDate
+                 expiryDateYear EXTID 'dt:year', expiryDateMonth EXTID 'dt:month', expiryDateDay EXTID 'dt:day',
+                 expiryDateHour EXTID 'dt:hour'
 
     PROPERTIES() purposeGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN purpose
                  
@@ -156,6 +180,12 @@ importVetDocument(TEXT xml) {
             
             volume(d) <- volume();
             unit(d) <- unit(unitGuid());
+            
+            dateOfProduction(d) <- toDateFormat(dateOfProductionYear() + '-' + dateOfProductionMonth() + '-' + dateOfProductionDay(), 'YYYY-MM-DD');
+            dateOfProductionHour(d) <- dateOfProductionHour();
+
+            expiryDate(d) <- toDateFormat(expiryDateYear() + '-' + expiryDateMonth() + '-' + expiryDateDay(), 'YYYY-MM-DD');
+            expiryDateHour(d) <- expiryDateHour();
             
             purpose(d) <- purpose(purposeGuid());
             
