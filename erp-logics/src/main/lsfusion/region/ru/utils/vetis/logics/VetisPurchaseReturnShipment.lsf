@@ -1,0 +1,29 @@
+MODULE VetisPurchaseReturnShipment;
+
+REQUIRE VetisOutgoingConsignment, VetisLegalEntity, VetisPurchaseReturnInvoice, 
+        PurchaseReturnShipment, PurchaseReturnShipmentTransport,
+        VetisPrepareOutgoingConsignment;
+
+PRIORITY PurchaseReturn;
+
+NAMESPACE VetisPurchaseReturn;
+
+@defineDocumentStockEntry(userShipment, customerStock, s, specificationBox);
+
+// shipment detail
+volume 'Объем (ВСД)' = ABSTRACT NUMERIC[16,5] (ShipmentDetail, StockEntry);
+
+// invoice detail
+volume(UserShipmentDetail d, StockEntry s) += volume(d, s);
+volume(InvoiceShipmentDetail d, StockEntry s) += volume(invoiceDetail(d), s);
+
+// consignment
+@defineDocumentOutgoingConsignment(shipment, customer, supplier, ' (закупка-возврат)');
+
+// shipment
+volume (ShipmentDetail d, VetDocument vd) = GROUP SUM volume(d, StockEntry s) IF vetDocument(outgoingConsignment(d, s)) = vd;
+@defineDocumentOutgoingProcess(shipment, s);
+
+// invoice
+outgoingConsignment (InvoiceDetail vd, StockEntry se) = outgoingConsignment(invoiceShipmentDetail(vd), se);
+@defineDocumentOutgoingProcess(invoice, i);

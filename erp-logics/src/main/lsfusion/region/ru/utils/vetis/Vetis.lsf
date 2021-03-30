@@ -1,0 +1,49 @@
+MODULE Vetis;
+
+REQUIRE Utils, Stock;
+
+NAMESPACE Vetis;
+
+login 'Логин' = DATA STRING[100]();
+password 'Пароль' = DATA STRING[100]() ECHO;
+
+encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
+
+httpHeaders(TEXT name) = CASE
+    WHEN name = 'Authorization' THEN 'Basic ' + encodeText(login() + ':' + password(), 'base64');
+
+formatT (DATETIME dt) = replace(toChar(dt, 'yyyy-MM-dd T HH24:MI:SS'),' ','');
+
+EXTEND FORM integrationData
+    PROPERTIES() login, password
+;
+
+DESIGN integrationData {
+    pane {
+        NEW vetis {
+            caption = 'Ветис';
+            MOVE PROPERTY(login());
+            MOVE PROPERTY(password());
+        }
+    }
+}
+
+// export / import
+GROUP body EXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Body';
+
+header = DATA LOCAL STRING();
+
+count = DATA LOCAL INTEGER();
+offset = DATA LOCAL INTEGER();
+
+guid = DATA LOCAL STRING(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+fullName = DATA LOCAL STRING(INTEGER);
+
+// navigator
+NAVIGATOR {
+    stockNavigator {
+        NEW FOLDER vetisNavigator 'Ветис';
+    }
+}
+ 

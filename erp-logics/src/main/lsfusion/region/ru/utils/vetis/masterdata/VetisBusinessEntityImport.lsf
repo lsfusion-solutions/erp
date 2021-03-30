@@ -1,0 +1,87 @@
+MODULE VetisBusinessEntityImport;
+
+REQUIRE VetisBusinessEntity, VetisCerberus;
+
+NAMESPACE Vetis;
+
+GROUP getBusinessEntityListRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityListRequest' : body;
+GROUP getBusinessEntityListRequestListOptions EXTID 'base=http://api.vetrf.ru/schema/cdm/base:listOptions' : getBusinessEntityListRequest;
+GROUP getBusinessEntityListRequestBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : getBusinessEntityListRequest;
+
+FORM getBusinessEntityListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN getBusinessEntityListRequestListOptions count EXTID 'base:count', offset EXTID 'base:offset'
+    
+    OBJECTS b = BusinessEntity PANEL
+    PROPERTIES guid(b) IN getBusinessEntityListRequestBusinessEntity EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'    
+;
+
+// response
+
+GROUP getBusinessEntityListResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getBusinessEntityListResponse' : body;
+GROUP getBusinessEntityListResponseList EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntityList' : getBusinessEntityListResponse;
+
+GROUP juridicalAddress EXTID 'dt:juridicalAddress';
+
+inn = DATA LOCAL STRING(INTEGER);
+
+total = DATA LOCAL STRING();
+
+FORM getBusinessEntityListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getBusinessEntityListResponseList total EXTID 'dt:total' ATTR
+
+    OBJECTS businessEntity = INTEGER EXTID 'dt:businessEntity' IN getBusinessEntityListResponseList
+
+    PROPERTIES(businessEntity) guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid', fullName EXTID 'dt:fullName', inn EXTID 'dt:inn'
+;
+
+
+getBusinessEntityList 'Загрузить данные' (BusinessEntity b) {
+    NEWSESSION {
+        EXPORT getBusinessEntityListRequest OBJECTS b = b XML;
+        
+        LOCAL response = FILE();
+        EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
+        
+        IMPORT getBusinessEntityListResponse XML FROM response();
+        
+        name(b) <- fullName(0);
+        inn(b) <- STRING[12](inn(0));
+
+        APPLY;
+    }
+}
+
+getBusinessEntityList 'Загрузить данные' () {
+    FOR guid(BusinessEntity b) DO getBusinessEntityList(b);
+}
+
+EXTEND FORM businessEntities
+    PROPERTIES() getBusinessEntityList DRAW o TOOLBAR
+;
+
+//uuid = DATA LOCAL STRING(INTEGER);
+//guid = DATA LOCAL STRING(INTEGER);
+//active = DATA LOCAL STRING(INTEGER);
+//last = DATA LOCAL STRING(INTEGER);
+//status = DATA LOCAL STRING(INTEGER);
+//createDate = DATA LOCAL STRING(INTEGER);
+//updateDate = DATA LOCAL STRING(INTEGER);
+//type = DATA LOCAL STRING(INTEGER);
+//fullName = DATA LOCAL STRING(INTEGER);
+//inn = DATA LOCAL STRING(INTEGER);
+//country = DATA LOCAL STRING(INTEGER);
+//federalDistrict = DATA LOCAL STRING(INTEGER);
+//district = DATA LOCAL STRING(INTEGER);
+//locality = DATA LOCAL STRING(INTEGER);
+//addressView = DATA LOCAL STRING(INTEGER);
+//total = DATA LOCAL STRING();
+//
+//FORM envelope FORMEXTID 'Envelope'
+//    PROPERTIES() IN getBusinessEntityListResponseList count EXTID 'ent:count' ATTR, offset EXTID 'ent:offset' ATTR, total EXTID 'ent:total' ATTR
+//
+//    OBJECTS businessEntity = INTEGER EXTID 'ent:businessEntity' IN getBusinessEntityListResponseList
+//
+//    PROPERTIES(businessEntity) uuid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:uuid', guid EXTID 'base:guid', active EXTID 'base:active', last EXTID 'base:last', status EXTID 'base:status', createDate EXTID 'base:createDate', updateDate EXTID 'base:updateDate', type EXTID 'ent:type', fullName EXTID 'ent:fullName', inn EXTID 'ent:inn'
+//    PROPERTIES(businessEntity) IN juridicalAddress country EXTID 'ikar=http://api.vetrf.ru/schema/cdm/ikar:country', federalDistrict EXTID 'ikar:federalDistrict', district EXTID 'ikar:district', locality EXTID 'ikar:locality', addressView EXTID 'ikar:addressView'
+//;

@@ -1,0 +1,215 @@
+MODULE VetisPrepareOutgoingConsignment;
+
+REQUIRE VetisAMSReceiveResponse, VetisOutgoingConsignment, VetisDocumentImport;
+
+NAMESPACE Vetis;
+
+CLASS PrepareOutgoingConsignmentRequest 'Оформление транспортной партии' : ApplicationRequest;
+
+in = DATA BOOLEAN (PrepareOutgoingConsignmentRequest, OutgoingConsignment);
+CONSTRAINT DROPPED(in(PrepareOutgoingConsignmentRequest r, OutgoingConsignment c))
+    MESSAGE 'Запрещено удалять исходящую партию для созданной заявки';
+
+localTransactionId (PrepareOutgoingConsignmentRequest r) = LONG(r AS PrepareOutgoingConsignmentRequest);
+
+GROUP consignor EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignor';
+GROUP consignorBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignor;
+GROUP consignorEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : consignor;
+GROUP consignee EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignee';
+GROUP consigneeBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignee;
+GROUP consigneeEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : consignee;
+
+GROUP unit EXTID 'vd:unit'; 
+GROUP sourceStockEntry EXTID 'vd:sourceStockEntry'; 
+
+GROUP transportInfo EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportInfo';
+GROUP transportNumber EXTID 'vd:transportNumber' : transportInfo;
+
+GROUP accompanyingForms EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:accompanyingForms';
+GROUP waybill EXTID 'vd:waybill' : accompanyingForms;
+
+GROUP vetCertificate EXTID 'vd:vetCertificate' : accompanyingForms;
+GROUP vetCertificateAuthentication EXTID 'vd:authentication' : vetCertificate;
+GROUP authenticationPurpose EXTID 'vd:purpose' : vetCertificateAuthentication;
+
+FORM prepareOutgoingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:prepareOutgoingConsignmentRequest'
+    OBJECTS r = PrepareOutgoingConsignmentRequest PANEL
+    
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
+    PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+
+    OBJECTS d = OutgoingConsignment EXTID 'merc:delivery'
+    FILTERS in(r, d)
+
+    PROPERTIES =formatT(deliveryDate(d)) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:deliveryDate'
+    
+    PROPERTIES =guid(consignorBusinessEntity(d)) IN consignorBusinessEntity EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guid(consignorEnterprise(d)) IN consignorEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guid(consigneeBusinessEntity(d)) IN consigneeBusinessEntity EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guid(consigneeEnterprise(d)) IN consigneeEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+
+    OBJECTS c = OutgoingConsignment EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment'
+    PROPERTIES = 'id' + STRING(c) EXTID 'id' ATTR
+    
+    PROPERTIES volume(c) EXTID 'vd:volume', 
+               =guid(unit(stockEntry(c))) IN unit EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guidStockEntry(c) IN sourceStockEntry EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+
+    FILTERS c = d
+    
+    PROPERTIES = 1 IF d IS OutgoingConsignment EXTID 'vd:transportType' IN transportInfo,
+               = sid(truck(d)) EXTID 'vd:vehicleNumber' IN transportNumber 
+               
+    PROPERTIES = lastTransportStorageType(stockEntry(d)) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportStorageType'
+    
+    PROPERTIES IN waybill
+               waybillSeries(d) EXTID 'vd:issueSeries',
+               waybillNumber(d) EXTID 'vd:issueNumber',
+               = toDateISO(waybillDate(d)) EXTID 'vd:issueDate',
+               = 1 IF d IS OutgoingConsignment EXTID 'vd:type'
+
+    PROPERTIES IN vetCertificateAuthentication
+               = guid(lastPurpose(stockEntry(d))) IN authenticationPurpose EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', 
+               = TRUE IF d IS OutgoingConsignment EXTID 'vd:cargoInspected',
+               = 'VSEFULL' IF d IS OutgoingConsignment EXTID 'vd:cargoExpertized',
+               = 'Местность благополучна' IF d IS OutgoingConsignment EXTID 'vd:locationProsperity'
+;
+
+in 'Вкл' = DATA LOCAL BOOLEAN (OutgoingConsignment);
+
+lastRequest (OutgoingConsignment o) = GROUP LAST PrepareOutgoingConsignmentRequest r ORDER r WHERE in(r, o);
+issueDateLastRequest 'Время заявки' (OutgoingConsignment o) = issueDate(lastRequest(o));
+nameStatusLastRequest 'Статус заявки' (OutgoingConsignment o) = nameStatus(lastRequest(o));
+errorLastRequest 'Ошибка заявки' (OutgoingConsignment o) = error(lastRequest(o));
+
+toProcess 'К отправке' (OutgoingConsignment o) = o IS OutgoingConsignment AND NOT notCompleted(lastRequest(o)) AND NOT succeeded(lastRequest(o));  
+
+processOutgoingConsignment () {
+    NEWSESSION NESTED (in[OutgoingConsignment]) {
+        NEW r = PrepareOutgoingConsignmentRequest {
+            in(r, OutgoingConsignment oc) <- TRUE WHERE in(oc);
+            EXPORT prepareOutgoingConsignmentRequest OBJECTS r = r XML;
+        
+            submitApplicationRequest(r, exportFile());
+            
+            APPLY;
+        }
+    }
+}
+
+process 'Отправить в Ветис' (OutgoingConsignment c) {
+    IF NOT GROUP SUM 1 IF in(OutgoingConsignment oc) THEN
+        in(c) <- TRUE;
+    processOutgoingConsignment();
+    in(OutgoingConsignment oc) <- NULL;
+}
+
+EXTEND FORM outgoingConsignments
+    PROPERTIES(c) READONLY issueDateLastRequest, nameStatusLastRequest 
+
+    PROPERTIES(c) in FIRST
+    PROPERTIES(c) process READONLYIF NOT toProcess(c) GRID
+; 
+
+// process
+GROUP stockEntryBatch EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:batch';
+GROUP stockEntryVetDocument EXTID 'vd:vetDocument';
+
+stockEntryGuid = DATA LOCAL STRING(INTEGER);
+stockEntryActive = DATA LOCAL BOOLEAN(INTEGER);
+
+stockEntryVolume = DATA LOCAL NUMERIC[16,5](INTEGER);
+
+stockEntryQualifier = DATA LOCAL STRING(INTEGER); 
+stockEntryVetDocumentUuid = DATA LOCAL STRING(INTEGER); 
+
+FORM processOutgoingConsignmentResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:processOutgoingConsignmentResponse'
+    OBJECTS i = INTEGER EXTID 'merc:stockEntry'
+    PROPERTIES(i) stockEntryGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+                  stockEntryActive EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active'
+    PROPERTIES(i) IN stockEntryBatch
+                     stockEntryVolume EXTID 'vd:volume'
+
+    OBJECTS j = INTEGER EXTID 'merc:vetDocument'
+    PROPERTIES(j) stockEntryQualifier EXTID 'qualifier' ATTR,
+                  stockEntryVetDocumentUuid EXTID 'bs:uuid',
+                  vetDocument EXTID 'value:full'
+                       
+;
+
+process (PrepareOutgoingConsignmentRequest r) + {
+    NEWSESSION {
+        stringToFile(response(r));
+        IMPORT processOutgoingConsignmentResponse XML FROM resultFile();
+
+        FOR guid(StockEntry s) = stockEntryGuid(INTEGER i) DO {
+            active(s) <- stockEntryActive(i);
+
+            volume(s) <- stockEntryVolume(i);
+        }
+        
+        FOR vetDocument(INTEGER i) DO
+            importVetDocument(vetDocument(i));
+
+//        FOR stockEntryVetDocumentUuid(INTEGER i) AND NOT vetDocument(stockEntryVetDocumentUuid(i)) NEW d = VetDocument DO {
+//            uuid(d) <- stockEntryVetDocumentUuid(i);
+//        }
+       
+        FOR in(r, OutgoingConsignment c) AND ('id' + STRING(c)) = stockEntryQualifier(INTEGER i) DO
+            vetDocument(c) <- vetDocument(stockEntryVetDocumentUuid(i));
+
+        processed(r) <- TRUE;
+        APPLY;
+    }
+}
+
+META defineDocumentOutgoingProcess (doc, obj)
+    uuidVetDocument 'Код ВСД' (###doc##Detail d, StockEntry se) = uuidVetDocument(outgoingConsignment(d, se));
+    nameStatusVetDocument 'Статус ВСД' (###doc##Detail d, StockEntry se) = nameStatusVetDocument(outgoingConsignment(d, se));
+    
+    issueDateLastRequest 'Время заявки' (###doc##Detail vd, StockEntry se) = issueDateLastRequest(outgoingConsignment(vd, se));
+    nameStatusLastRequest 'Статус заявки' (###doc##Detail vd, StockEntry se) = nameStatusLastRequest(outgoingConsignment(vd, se));
+    errorLastRequest 'Ошибка заявки' (###doc##Detail vd, StockEntry se) = errorLastRequest(outgoingConsignment(vd, se));
+    
+    toProcess (###doc##Detail vd, StockEntry se) = toProcess(outgoingConsignment(vd, se));
+    toProcess (###doc i) = GROUP SUM 1 IF toProcess(###doc##Detail vd, StockEntry se) AND doc(vd) = i; 
+    process 'Отправить в Ветис' (###doc##Detail vd, StockEntry se) { process(outgoingConsignment(vd, se)); }
+    
+    process 'Отправить в Ветис' (###doc i) {
+        in(OutgoingConsignment c) <- toProcess(c) IF 
+                                        GROUP SUM 1 IF outgoingConsignment(###doc##Detail d, StockEntry se) = c AND
+                                                       doc(d) = i;
+        IF GROUP SUM 1 IF in(OutgoingConsignment c) THEN
+            processOutgoingConsignment(); 
+    }
+    
+    EXTEND FORM doc##s
+        OBJECTS vse = (vd = ###doc##Detail, se = StockEntry)
+        PROPERTIES(vd) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku 
+        PROPERTIES(se) READONLY guid, number, nameProductItem
+        PROPERTIES(vd, se) READONLY volume
+        ORDERS index(vd)
+        
+        FILTERS doc(vd) = obj, volume(vd, se)
+    
+        PROPERTIES(obj) process DRAW vse TOOLBAR SHOWIF toProcess(obj)
+         
+        PROPERTIES(vd, se) issueDateLastRequest, nameStatusLastRequest, errorLastRequest PANEL,
+                           process READONLYIF NOT toProcess(outgoingConsignment(vd, se)) GRID
+        
+        PROPERTIES(vd, se) READONLY uuidVetDocument, nameStatusVetDocument
+    ;
+    
+    DESIGN doc##s {
+        documentDetail {
+            NEW vetis {
+                caption = 'Ветис';
+                MOVE BOX(vse);
+                MOVE PROPERTY(errorLastRequest(vd, se)) {
+                    alignment = STRETCH;
+                    panelCaptionVertical = TRUE;
+                }
+            }
+        }
+    }
+END

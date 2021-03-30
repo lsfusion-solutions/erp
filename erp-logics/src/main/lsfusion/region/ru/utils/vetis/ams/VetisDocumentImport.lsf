@@ -1,0 +1,307 @@
+MODULE VetisDocumentImport;
+
+REQUIRE VetisDocument;
+
+NAMESPACE Vetis;
+
+xml 'XML' = DATA TEXT (VetDocument);
+vetDocument = DATA LOCAL TEXT(INTEGER);
+
+uuid = DATA LOCAL STRING();
+
+issueDate = DATA LOCAL STRING();
+vetDType = DATA LOCAL STRING();
+vetDStatus = DATA LOCAL STRING();
+
+GROUP certifiedConsignment EXTID 'vd:certifiedConsignment';
+GROUP certifiedConsignor EXTID 'vd:consignor' : certifiedConsignment;
+GROUP certifiedConsignorBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : certifiedConsignor;
+GROUP certifiedConsignorEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : certifiedConsignor;
+GROUP certifiedConsignee EXTID 'vd:consignee' : certifiedConsignment;
+GROUP certifiedConsigneeBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : certifiedConsignee;
+GROUP certifiedConsigneeEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : certifiedConsignee;
+
+GROUP broker EXTID 'vd:broker' : certifiedConsignment;
+
+consignorBusinessEntityGuid = DATA LOCAL STRING();
+consignorEnterpriseGuid = DATA LOCAL STRING();
+
+consigneeBusinessEntityGuid = DATA LOCAL STRING();
+consigneeEnterpriseGuid = DATA LOCAL STRING();
+
+brokerGuid = DATA LOCAL STRING();
+
+transportStorageType = DATA LOCAL STRING();
+transportInfo = DATA LOCAL TEXT();
+
+// batch
+GROUP batch EXTID 'vd:batch' : certifiedConsignment;
+GROUP productItem EXTID 'vd:productItem' : batch;
+
+productItemGuid = DATA LOCAL STRING();
+productItemGlobalID = DATA LOCAL STRING();
+productItemName = DATA LOCAL STRING();
+
+batch = DATA LOCAL TEXT();
+
+volume = DATA LOCAL NUMERIC[16,5]();
+
+GROUP batchUnit EXTID 'vd:unit' : batch;
+unitGuid = DATA LOCAL STRING();
+
+GROUP authentication EXTID 'vd:authentication';
+GROUP purpose EXTID 'vd:purpose' : authentication;
+purposeGuid = DATA LOCAL STRING();
+
+issueSeries = DATA LOCAL STRING (INTEGER); 
+issueNumber = DATA LOCAL STRING (INTEGER);
+issueDate = DATA LOCAL DATE (INTEGER);
+issueKey (INTEGER i) = CONCAT ';', issueSeries(i), issueNumber(i), issueDate(i);
+
+type = DATA LOCAL INTEGER (INTEGER);
+relationshipType = DATA LOCAL INTEGER (INTEGER);
+
+FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetDocument'
+    PROPERTIES() uuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid',
+                 issueDate EXTID 'vd:issueDate', vetDType EXTID 'vd:vetDType', vetDStatus EXTID 'vd:vetDStatus'
+                 
+    PROPERTIES() EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+                 consignorBusinessEntityGuid IN certifiedConsignorBusinessEntity, consignorEnterpriseGuid IN certifiedConsignorEnterprise,
+                 consigneeBusinessEntityGuid IN certifiedConsigneeBusinessEntity, consigneeEnterpriseGuid IN certifiedConsigneeEnterprise,
+                 brokerGuid IN broker
+
+    PROPERTIES() IN certifiedConsignment                 
+                 transportInfo EXTID 'vd:transportInfo', transportStorageType EXTID 'vd:transportStorageType',
+                 batch EXTID 'vd:batch'
+    
+    PROPERTIES() IN productItem 
+                 productItemGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', productItemGlobalID EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:globalID',
+                 productItemName EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:name'
+    
+    PROPERTIES() IN batch
+                 volume EXTID 'vd:volume',
+                 unitGuid IN batchUnit EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+
+    PROPERTIES() purposeGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN purpose
+                 
+    OBJECTS rd = INTEGER EXTID 'vd:referencedDocument'
+    PROPERTIES(rd) issueSeries EXTID 'vd:issueSeries', issueNumber EXTID 'vd:issueNumber', issueDate EXTID 'vd:issueDate',
+                   type EXTID 'vd:type', relationshipType EXTID 'vd:relationshipType'
+;
+
+importVetDocument(TEXT xml) {
+    NEWSESSION {
+        stringToFile('<vd:vetDocument xmlns:vd="http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base" xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2">' + 
+                      xml + 
+                      '</vd:vetDocument>');
+        
+        IMPORT importVetDocument XML FROM resultFile();
+        
+        IF NOT uuid() THEN RETURN;
+
+        IF consignorBusinessEntityGuid() AND NOT businessEntity(consignorBusinessEntityGuid()) THEN NEW b = BusinessEntity {
+            guid(b) <- consignorBusinessEntityGuid();
+        }
+
+        IF consignorEnterpriseGuid() AND NOT enterprise(consignorEnterpriseGuid()) THEN NEW e = Enterprise {
+            guid(e) <- consignorEnterpriseGuid();
+        }
+
+        IF consigneeBusinessEntityGuid() AND NOT businessEntity(consigneeBusinessEntityGuid()) THEN NEW b = BusinessEntity {
+            guid(b) <- consigneeBusinessEntityGuid();
+        }
+
+        IF consigneeEnterpriseGuid() AND NOT enterprise(consigneeEnterpriseGuid()) THEN NEW e = Enterprise {
+            guid(e) <- consigneeEnterpriseGuid();
+        }
+
+        IF brokerGuid() AND NOT businessEntity(brokerGuid()) THEN NEW b = BusinessEntity {
+            guid(b) <- brokerGuid();
+        }
+
+        IF productItemGuid() AND NOT productItem(productItemGuid()) THEN NEW i = ProductItem {
+            guid(i) <- productItemGuid();
+            name(i) <- productItemName();
+            globalID(i) <- productItemGlobalID();
+        } ELSE {
+            IF productItemGlobalID() AND NOT productItemGlobalID(productItemGlobalID()) THEN NEW i = ProductItem {
+                name(i) <- productItemName();
+                globalID(i) <- productItemGlobalID();
+            }
+        }
+        
+        IF NOT vetDocument(uuid()) THEN NEW d = VetDocument {
+            uuid(d) <- uuid();
+        }
+        
+        FOR uuid(VetDocument d) = uuid() DO {
+            issueDate(d) <- toDateFormat(issueDate(), 'YYYY-MM-DD');
+            
+            type(d) <- vetDocumentType(vetDType());
+            status(d) <- vetDocumentStatus(vetDStatus());
+            
+            consignorBusinessEntity(d) <- businessEntity(consignorBusinessEntityGuid());
+            consignorEnterprise(d) <- enterprise(consignorEnterpriseGuid());
+
+            consigneeBusinessEntity(d) <- businessEntity(consigneeBusinessEntityGuid());
+            consigneeEnterprise(d) <- enterprise(consigneeEnterpriseGuid());
+            
+            broker(d) <- businessEntity(brokerGuid());
+            
+            transportInfo(d) <- transportInfo();
+            transportStorageType(d) <- transportStorageType();
+            
+            batch(d) <- batch();
+            productItem(d) <- OVERRIDE productItem(productItemGuid()), productItemGlobalID(productItemGlobalID());
+            
+            volume(d) <- volume();
+            unit(d) <- unit(unitGuid());
+            
+            purpose(d) <- purpose(purposeGuid());
+            
+            FOR issueKey(INTEGER i) AND NOT vetReferenceDocument(d, issueKey(i)) NEW rd = VetReferenceDocument DO {
+                vetDocument(rd) <- d;
+                issueSeries(rd) <- issueSeries(i);
+                issueNumber(rd) <- issueNumber(i);
+                issueDate(rd) <- issueDate(i);
+            }
+            
+            FOR VetReferenceDocument rd = vetReferenceDocument(d, issueKey(INTEGER i)) DO {
+                type(rd) <- type(i);
+                relationshipType(rd) <- relationshipType(i);
+            }
+            
+//            DELETE VetReferenceDocument rd WHERE vetDocument(rd) = d AND NOT [GROUP MAX INTEGER i BY issueKey(i)](issueKey(rd));  
+        }
+        
+        APPLY;
+    } 
+}
+
+
+// generated form
+//GROUP certifiedConsignment EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:certifiedConsignment';
+//GROUP consignor EXTID 'vd:consignor' : certifiedConsignment;
+//GROUP businessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignor;
+//GROUP enterprise EXTID 'dt:enterprise' : consignor;
+//GROUP consignee EXTID 'vd:consignee' : certifiedConsignment;
+//GROUP businessEntity1 EXTID 'dt:businessEntity' : consignee;
+//GROUP enterprise1 EXTID 'dt:enterprise' : consignee;
+//GROUP transportInfo EXTID 'vd:transportInfo' : certifiedConsignment;
+//GROUP transportNumber EXTID 'vd:transportNumber' : transportInfo;
+//GROUP batch EXTID 'vd:batch' : certifiedConsignment;
+//GROUP product EXTID 'vd:product' : batch;
+//GROUP subProduct EXTID 'vd:subProduct' : batch;
+//GROUP productItem EXTID 'vd:productItem' : batch;
+//GROUP unit EXTID 'vd:unit' : batch;
+//GROUP dateOfProduction EXTID 'vd:dateOfProduction' : batch;
+//GROUP firstDate EXTID 'vd:firstDate' : dateOfProduction;
+//GROUP expiryDate EXTID 'vd:expiryDate' : batch;
+//GROUP firstDate1 EXTID 'vd:firstDate' : expiryDate;
+//GROUP origin EXTID 'vd:origin' : batch;
+//GROUP country EXTID 'vd:country' : origin;
+//GROUP producer EXTID 'vd:producer' : origin;
+//GROUP enterprise2 EXTID 'dt:enterprise' : producer;
+//GROUP authentication EXTID 'vd:authentication';
+//GROUP purpose EXTID 'vd:purpose' : authentication;
+//GROUP referencedDocument EXTID 'vd:referencedDocument';
+//GROUP statusChange EXTID 'vd:statusChange';
+//GROUP specifiedPerson EXTID 'vd:specifiedPerson' : statusChange;
+//GROUP organization EXTID 'vd:organization' : specifiedPerson;
+//GROUP address EXTID 'dt:address' : organization;
+//GROUP country1 EXTID 'dt:country' : address;
+//GROUP region EXTID 'dt:region' : address;
+//
+//uuid = DATA LOCAL STRING();
+//issueDate = DATA LOCAL STRING();
+//vetDForm = DATA LOCAL STRING();
+//vetDType = DATA LOCAL STRING();
+//vetDStatus = DATA LOCAL STRING();
+//lastUpdateDate = DATA LOCAL STRING();
+//uuid1 = DATA LOCAL STRING();
+//guid = DATA LOCAL STRING();
+//uuid2 = DATA LOCAL STRING();
+//guid1 = DATA LOCAL STRING();
+//uuid3 = DATA LOCAL STRING();
+//guid2 = DATA LOCAL STRING();
+//uuid4 = DATA LOCAL STRING();
+//guid3 = DATA LOCAL STRING();
+//transportType = DATA LOCAL STRING();
+//vehicleNumber = DATA LOCAL STRING();
+//transportStorageType = DATA LOCAL STRING();
+//productType = DATA LOCAL STRING();
+//uuid5 = DATA LOCAL STRING();
+//guid4 = DATA LOCAL STRING();
+//uuid6 = DATA LOCAL STRING();
+//guid5 = DATA LOCAL STRING();
+//uuid7 = DATA LOCAL STRING();
+//guid6 = DATA LOCAL STRING();
+//name = DATA LOCAL STRING();
+//volume = DATA LOCAL STRING();
+//uuid8 = DATA LOCAL STRING();
+//guid7 = DATA LOCAL STRING();
+//year = DATA LOCAL STRING();
+//month = DATA LOCAL STRING();
+//day = DATA LOCAL STRING();
+//year1 = DATA LOCAL STRING();
+//month1 = DATA LOCAL STRING();
+//day1 = DATA LOCAL STRING();
+//perishable = DATA LOCAL STRING();
+//uuid9 = DATA LOCAL STRING();
+//guid8 = DATA LOCAL STRING();
+//name1 = DATA LOCAL STRING();
+//uuid10 = DATA LOCAL STRING();
+//guid9 = DATA LOCAL STRING();
+//role = DATA LOCAL STRING();
+//lowGradeCargo = DATA LOCAL STRING();
+//uuid11 = DATA LOCAL STRING();
+//guid10 = DATA LOCAL STRING();
+//cargoInspected = DATA LOCAL STRING();
+//cargoExpertized = DATA LOCAL STRING();
+//locationProsperity = DATA LOCAL STRING();
+//specialMarks = DATA LOCAL STRING();
+//issueNumber = DATA LOCAL STRING();
+//issueDate1 = DATA LOCAL STRING();
+//type = DATA LOCAL STRING();
+//relationshipType = DATA LOCAL STRING();
+//status = DATA LOCAL STRING();
+//fio = DATA LOCAL STRING();
+//name2 = DATA LOCAL STRING();
+//uuid12 = DATA LOCAL STRING();
+//guid11 = DATA LOCAL STRING();
+//name3 = DATA LOCAL STRING();
+//uuid13 = DATA LOCAL STRING();
+//guid12 = DATA LOCAL STRING();
+//name4 = DATA LOCAL STRING();
+//addressView = DATA LOCAL STRING();
+//actualDateTime = DATA LOCAL STRING();
+//
+//FORM vetDocument
+//    PROPERTIES() uuid EXTID 'bs:uuid', issueDate EXTID 'vd:issueDate', vetDForm EXTID 'vd:vetDForm', vetDType EXTID 'vd:vetDType', vetDStatus EXTID 'vd:vetDStatus', lastUpdateDate EXTID 'vd:lastUpdateDate'
+//    PROPERTIES() IN certifiedConsignment transportStorageType EXTID 'vd:transportStorageType'
+//    PROPERTIES() IN businessEntity uuid1 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', guid EXTID 'bs:guid'
+//    PROPERTIES() IN enterprise uuid2 EXTID 'bs:uuid', guid1 EXTID 'bs:guid'
+//    PROPERTIES() IN businessEntity1 uuid3 EXTID 'bs:uuid', guid2 EXTID 'bs:guid'
+//    PROPERTIES() IN enterprise1 uuid4 EXTID 'bs:uuid', guid3 EXTID 'bs:guid'
+//    PROPERTIES() IN transportInfo transportType EXTID 'vd:transportType'
+//    PROPERTIES() IN transportNumber vehicleNumber EXTID 'vd:vehicleNumber'
+//    PROPERTIES() IN batch productType EXTID 'vd:productType', volume EXTID 'vd:volume', perishable EXTID 'vd:perishable', lowGradeCargo EXTID 'vd:lowGradeCargo'
+//    PROPERTIES() IN product uuid5 EXTID 'bs:uuid', guid4 EXTID 'bs:guid'
+//    PROPERTIES() IN subProduct uuid6 EXTID 'bs:uuid', guid5 EXTID 'bs:guid'
+//    PROPERTIES() IN productItem uuid7 EXTID 'bs:uuid', guid6 EXTID 'bs:guid', name EXTID 'dt:name'
+//    PROPERTIES() IN unit uuid8 EXTID 'bs:uuid', guid7 EXTID 'bs:guid'
+//    PROPERTIES() IN firstDate year EXTID 'dt:year', month EXTID 'dt:month', day EXTID 'dt:day'
+//    PROPERTIES() IN firstDate1 year1 EXTID 'dt:year', month1 EXTID 'dt:month', day1 EXTID 'dt:day'
+//    PROPERTIES() IN country uuid9 EXTID 'bs:uuid', guid8 EXTID 'bs:guid', name1 EXTID 'dt:name'
+//    PROPERTIES() IN producer role EXTID 'dt:role'
+//    PROPERTIES() IN enterprise2 uuid10 EXTID 'bs:uuid', guid9 EXTID 'bs:guid'
+//    PROPERTIES() IN authentication cargoInspected EXTID 'vd:cargoInspected', cargoExpertized EXTID 'vd:cargoExpertized', locationProsperity EXTID 'vd:locationProsperity', specialMarks EXTID 'vd:specialMarks'
+//    PROPERTIES() IN purpose uuid11 EXTID 'bs:uuid', guid10 EXTID 'bs:guid'
+//    PROPERTIES() IN referencedDocument issueNumber EXTID 'vd:issueNumber', issueDate1 EXTID 'vd:issueDate', type EXTID 'vd:type', relationshipType EXTID 'vd:relationshipType'
+//    PROPERTIES() IN statusChange status EXTID 'vd:status', actualDateTime EXTID 'vd:actualDateTime'
+//    PROPERTIES() IN specifiedPerson fio EXTID 'vd:fio'
+//    PROPERTIES() IN organization name2 EXTID 'dt:name'
+//    PROPERTIES() IN address addressView EXTID 'dt:addressView'
+//    PROPERTIES() IN country1 uuid12 EXTID 'bs:uuid', guid11 EXTID 'bs:guid', name3 EXTID 'dt:name'
+//    PROPERTIES() IN region uuid13 EXTID 'bs:uuid', guid12 EXTID 'bs:guid', name4 EXTID 'dt:name'
+//;

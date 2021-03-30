@@ -1,0 +1,24 @@
+MODULE VetisSaleReturnShipment;
+
+REQUIRE VetisIncomingConsignment, VetisSaleReturnInvoice, SaleReturnShipment,
+        VetisProcessIncomingConsignment;
+
+PRIORITY SaleReturn;
+
+NAMESPACE VetisSaleReturn;
+
+// shipment detail
+volume 'Объем (ВСД)' = ABSTRACT NUMERIC[16,5] (ShipmentDetail, VetDocument);
+
+// invoice detail
+volume(InvoiceShipmentDetail d, VetDocument s) += volume(invoiceDetail(d), s);
+
+// consignment
+@defineDocumentIncomingConsignment(shipment, ' (закупка)');
+
+// shipment
+@defineDocumentIncomingProcess(shipment, s);
+
+// invoice
+incomingConsignment (InvoiceDetail vd, VetDocument vtd) = incomingConsignment(invoiceShipmentDetail(vd), vtd);
+@defineDocumentIncomingProcess(invoice, i);

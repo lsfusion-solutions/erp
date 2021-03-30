@@ -1,0 +1,104 @@
+MODULE VetisGetVDList;
+
+REQUIRE VetisAMSSubmitRequest, VetisAMSReceiveResponse, 
+        VetisDocumentImport, VetisDocument, VetisEnterprise;
+
+NAMESPACE Vetis;
+
+CLASS VetDocumentListRequest 'Получение всех ВСД предприятия с возможностью фильтрации' : ApplicationRequest;
+
+type = DATA VetDocumentType (VetDocumentListRequest);
+idType (VetDocumentListRequest r) = id(type(r));
+nameType 'Тип' (VetDocumentListRequest r) = name(type(r));
+
+status = DATA VetDocumentStatus (VetDocumentListRequest);
+idStatus (VetDocumentListRequest r) = id(status(r));
+nameStatus 'Статус' (VetDocumentListRequest r) = name(status(r));
+
+beginDate 'Дата с' = DATA DATETIME (VetDocumentListRequest);
+endDate 'Дата по' = DATA DATETIME (VetDocumentListRequest);
+
+enterprise = DATA Enterprise (VetDocumentListRequest);
+nameEnterprise 'Площадка' (VetDocumentListRequest r) = name(enterprise(r));
+
+// export
+GROUP listOptions EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:listOptions';
+count = DATA LOCAL STRING(ApplicationRequest);
+offset = DATA LOCAL STRING(ApplicationRequest);
+
+GROUP issueDateInterval EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:issueDateInterval';
+formatBeginDate (VetDocumentListRequest r) = formatT(beginDate(r));
+formatEndDate (VetDocumentListRequest r) = formatT(endDate(r));
+
+localTransactionId (VetDocumentListRequest r) = LONG(r AS VetDocumentListRequest);
+
+enterpriseGuid (VetDocumentListRequest r) = guid(enterprise(r));
+
+FORM getVetDocumentListRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getVetDocumentListRequest' 
+    OBJECTS r = VetDocumentListRequest PANEL
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId' 
+    PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+
+    PROPERTIES(r) IN listOptions count EXTID 'bs:count', offset EXTID 'bs:offset'
+    PROPERTIES(r) idType EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetDocumentType', 
+                  idStatus EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetDocumentStatus' 
+
+    PROPERTIES(r) IN issueDateInterval formatBeginDate EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:beginDate', formatEndDate EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:endDate'
+
+    PROPERTIES(r) enterpriseGuid EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterpriseGuid'
+                  
+;
+
+// dialog
+FORM getVetDocumentListRequestParams 'Параметры списка документов'
+    OBJECTS r = VetDocumentListRequest PANEL
+    PROPERTIES(r) nameType, nameStatus, beginDate, endDate, nameEnterprise
+;
+
+getVetDocumentListRequest 'Получить список документов' (VetDocumentListRequest r) {
+    count(r) <- '1000';
+    EXPORT getVetDocumentListRequest OBJECTS r = r XML;
+    submitApplicationRequest(r, exportFile());
+}
+
+getVetDocumentListRequest 'Получить список документов' () {
+    NEWSESSION {
+        NEW r = VetDocumentListRequest {
+            DIALOG getVetDocumentListRequestParams OBJECTS r = r DO {
+                getVetDocumentListRequest(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES() getVetDocumentListRequest
+;
+
+DESIGN applicationRequests {
+    base {
+        MOVE PROPERTY(getVetDocumentListRequest());
+    }
+}
+
+// process
+GROUP vetDocumentList EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetDocumentList';
+
+FORM getVetDocumentListResponse FORMEXTID 'ns1=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getVetDocumentListResponse'
+    OBJECTS vetDocument = INTEGER EXTID 'vd:vetDocument' IN vetDocumentList
+    PROPERTIES(vetDocument) vetDocument EXTID 'value:full'
+;
+
+process (VetDocumentListRequest r) + {
+    NEWSESSION {
+        stringToFile(response(r));
+        IMPORT getVetDocumentListResponse XML FROM resultFile();
+        FOR vetDocument(INTEGER i) DO {
+            importVetDocument(vetDocument(i));
+        }
+
+        processed(r) <- TRUE;
+        APPLY;
+    }
+}

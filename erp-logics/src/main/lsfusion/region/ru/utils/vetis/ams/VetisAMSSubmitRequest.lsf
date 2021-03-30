@@ -1,0 +1,88 @@
+MODULE VetisAMSSubmitRequest;
+
+REQUIRE VetisAMS;
+
+NAMESPACE Vetis;
+
+GROUP submitApplicationRequest EXTID 'ws=http://api.vetrf.ru/schema/cdm/application/ws-definitions:submitApplicationRequest' : body;
+GROUP submitApplicationRequestApplication EXTID 'app=http://api.vetrf.ru/schema/cdm/application:application' : submitApplicationRequest;
+
+FORM submitApplicationRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS r = ApplicationRequest PANEL
+    
+    PROPERTIES() IN submitApplicationRequest apiKey EXTID 'ws:apiKey'
+    PROPERTIES IN submitApplicationRequestApplication 
+                        serviceId() EXTID 'app:serviceId', issuerId() EXTID 'app:issuerId', 
+                        formatIssueDate(r) EXTID 'app:issueDate', 
+                        request(r) EXTID 'app:data'
+;
+
+applicationId = DATA LOCAL STRING ();
+status = DATA LOCAL STRING();
+
+GROUP submitApplicationResponse EXTID 'ws=http://api.vetrf.ru/schema/cdm/application/ws-definitions:submitApplicationResponse' : body;
+GROUP submitApplicationResponseApplication EXTID 'app=http://api.vetrf.ru/schema/cdm/application:application' : submitApplicationResponse;
+
+FORM submitApplicationResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN submitApplicationResponseApplication applicationId
+;
+
+submitApplicationRequest (ApplicationRequest r) {
+    EXPORT submitApplicationRequest OBJECTS r = r XML;
+    
+    LOCAL response = FILE();
+    TRY {
+        EXTERNAL HTTP POST urlAMS() HEADERS httpHeaders PARAMS exportFile() TO response;
+    } CATCH {
+        fileToString(response());
+        error(r) <- CONCAT '\n', 'Ошибка при формировании запроса к Ветис :', messageCaughtException(), resultString();
+        logToFile('vetis', error(r));
+        MESSAGE error(r);
+        RETURN;
+    }
+    
+    applicationId() <- NULL;
+    IMPORT submitApplicationResponse XML FROM response();
+    
+    id(r) <- applicationId();
+}
+
+submitApplicationRequest(ApplicationRequest r, FILE f) {
+    fileToString(exportFile());
+    request(r) <- replace(resultString(), '<?xml version="1.0" encoding="UTF-8"?>', '');
+    
+    submitApplicationRequest(r);
+}
+
+data = DATA LOCAL TEXT();
+createApplicationRequest 'Отправить заявку' () {
+    NEWSESSION NESTED (data[]) {
+        NEW r = ApplicationRequest {
+            request(r) <- data();
+            submitApplicationRequest(r);
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES() 'Запрос' = data, createApplicationRequest
+;
+
+DESIGN applicationRequests {
+    OBJECTS {
+        NEW request {
+            fill = 0.5;
+            type = TABBED;
+            NEW base {
+                caption = 'Основные';
+            }
+            NEW custom {
+                caption = 'Ручной';
+                MOVE PROPERTY(data()) { panelCaptionVertical = TRUE; fill = 1; }
+                MOVE PROPERTY(createApplicationRequest()) { alignment = STRETCH; }
+            }
+        }
+    }
+}
+

@@ -1,0 +1,60 @@
+MODULE VetisUnitImport;
+
+REQUIRE VetisUnit, VetisDictionary;
+
+NAMESPACE Vetis;
+
+GROUP getUnitListRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getUnitListRequest' : body;
+GROUP getUnitListRequestListOptions EXTID 'base=http://api.vetrf.ru/schema/cdm/base:listOptions' : getUnitListRequest;
+
+FORM getUnitListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getUnitListRequestListOptions count EXTID 'base:count', offset EXTID 'base:offset'
+;
+
+// response
+
+GROUP getUnitListResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getUnitListResponse' : body;
+GROUP getUnitListResponseList EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:unitList' : getUnitListResponse;
+
+commonUnitGuid = DATA LOCAL STRING(INTEGER);
+
+factor = DATA LOCAL INTEGER(INTEGER);
+
+FORM getUnitListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS unit = INTEGER EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:unit' IN getUnitListResponseList
+
+    PROPERTIES(unit) guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid', name EXTID 'dt:name', fullName EXTID 'dt:fullName', 
+                     commonUnitGuid EXTID 'dt:commonUnitGuid', factor EXTID 'dt:factor'
+;
+
+
+getUnitList 'Загрузить данные' () {
+    NEWSESSION {
+        count() <- 1000;
+        EXPORT getUnitListRequest XML;
+        
+        LOCAL response = FILE();
+        EXTERNAL HTTP urlDictionary() HEADERS httpHeaders PARAMS exportFile() TO response;
+        
+        IMPORT getUnitListResponse XML FROM response();
+        
+        FOR guid(INTEGER i) AND NOT unit(guid(i)) NEW u = Unit DO {
+            guid(u) <- guid(i);
+        }
+        
+        FOR guid(Unit u) = guid(INTEGER i) DO {
+            name(u) <- name(i);
+            fullName(u) <- fullName(i);
+            
+            commonUnit(u) <- unit(commonUnitGuid(i));
+            
+            factor(u) <- factor(i);
+        }
+
+        APPLY;
+    }
+}
+
+EXTEND FORM units
+    PROPERTIES() getUnitList DRAW o TOOLBAR
+;

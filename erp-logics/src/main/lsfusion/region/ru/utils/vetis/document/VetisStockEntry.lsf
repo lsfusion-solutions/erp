@@ -1,0 +1,62 @@
+MODULE VetisStockEntry;
+
+REQUIRE VetisDocument, VetisIncomingConsignment;
+
+NAMESPACE Vetis;
+
+CLASS StockEntry 'Запись журнала Ветис';
+
+guid 'Код' = DATA STRING (StockEntry) CHARWIDTH 36 INDEXED;
+stockEntry 'Запись журнала Ветис' = GROUP AGGR StockEntry e BY guid(e);
+
+number 'Номер записи журнала' = DATA STRING (StockEntry);
+
+active 'Активный' = DATA BOOLEAN (StockEntry);
+
+volume 'Объем продукции' = DATA NUMERIC[16,5] (StockEntry);
+
+unit = DATA Unit (StockEntry);
+nameUnit 'Единица измерения' (StockEntry s) = name(unit(s));
+
+enterprise = DATA Enterprise (StockEntry);
+nameEnterprise 'Площадка' (StockEntry s) = name(enterprise(s)); 
+
+in = DATA BOOLEAN (StockEntry, VetDocument);
+uuidVetDocument 'Коды ВСД' (StockEntry s) = GROUP CONCAT uuid(VetDocument d) IF in(s, d), ',' ORDER d;
+
+in = DATA BOOLEAN (StockEntry, ProductItem);
+nameProductItem 'Продукция' (StockEntry s) = GROUP CONCAT name(ProductItem i) IF in(s, i), ',' ORDER i;
+
+lastTransportStorageType (StockEntry s) = GROUP LAST transportStorageType(VetDocument d)
+                                                          ORDER d
+                                                          WHERE in(s, d);
+
+lastPurpose (StockEntry s) = GROUP LAST purpose(VetDocument d)
+                                              ORDER d
+                                              WHERE in(s, d);
+
+FORM stockEntries 'Записи журнала'
+    OBJECTS s = StockEntry
+    PROPERTIES(s) READONLY active, guid, number, nameEnterprise, uuidVetDocument, nameProductItem, 
+                           volume, nameUnit
+    FILTERGROUP active
+        FILTER 'Активные' active(s) DEFAULT
+    
+    LIST StockEntry OBJECT s 
+;
+
+NAVIGATOR {
+    vetisNavigator {
+        NEW stockEntries;
+    }
+}
+
+// vet document
+guidStockEntry 'Записи журнала' (VetDocument d) = GROUP CONCAT guid(StockEntry s) IF in(s, d), ',' ORDER s;
+EXTEND FORM vetDocuments
+    PROPERTIES(o) READONLY guidStockEntry 
+;
+
+// incoming consignment
+incomingConsignment = DATA IncomingConsignment (StockEntry) INDEXED;
+stockEntry = GROUP AGGR StockEntry s BY incomingConsignment(s);

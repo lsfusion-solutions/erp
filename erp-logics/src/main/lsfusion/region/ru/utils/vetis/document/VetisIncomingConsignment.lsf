@@ -1,0 +1,56 @@
+MODULE VetisIncomingConsignment;
+
+REQUIRE VetisDocument;
+
+NAMESPACE Vetis;
+
+CLASS ABSTRACT IncomingConsignment 'Входящая партия (ветис)';
+TABLE incomingConsignment(IncomingConsignment);
+
+deliveryDate 'Дата оформления' = ABSTRACT DATETIME (IncomingConsignment);
+
+vetDocument = ABSTRACT VetDocument (IncomingConsignment) MATERIALIZED INDEXED;
+uuidVetDocument 'Код ВСД' (IncomingConsignment c) = uuid(vetDocument(c));
+
+issueDateVetDocument 'Дата ВСД' (IncomingConsignment c) = issueDate(vetDocument(c));
+
+nameTypeVetDocument 'Тип' (IncomingConsignment c) = nameType(vetDocument(c));
+nameStatusVetDocument 'Статус' (IncomingConsignment c) = nameStatus(vetDocument(c));
+
+consignorBusinessEntityVetDocument (IncomingConsignment c) = consignorBusinessEntity(vetDocument(c));
+nameConsignorBusinessEntityVetDocument 'Отправитель-хозяйствующий субъект' (IncomingConsignment c) = nameConsignorBusinessEntity(vetDocument(c));
+
+consignorEnterpriseVetDocument (IncomingConsignment c) = consignorEnterprise(vetDocument(c));
+nameConsignorEnterpriseVetDocument 'Отправитель-площадка' (IncomingConsignment c) = nameConsignorEnterprise(vetDocument(c));
+
+consigneeBusinessEntityVetDocument (IncomingConsignment c) = consigneeBusinessEntity(vetDocument(c));
+nameConsigneeBusinessEntityVetDocument 'Получатель-хозяйствующий субъект' (IncomingConsignment c) = nameConsigneeBusinessEntity(vetDocument(c));
+
+consigneeEnterpriseVetDocument (IncomingConsignment c) = consigneeEnterprise(vetDocument(c));
+nameConsigneeEnterpriseVetDocument 'Получатель-площадка' (IncomingConsignment c) = nameConsigneeEnterprise(vetDocument(c));
+
+nameProductItemVetDocument 'Продукция' (IncomingConsignment c) = nameProductItem(vetDocument(c));
+volumeVetDocument 'Объем продукции' (IncomingConsignment c) = volume(vetDocument(c));
+
+FORM incomingConsignments 'Входящие партии'
+    OBJECTS c = IncomingConsignment
+    PROPERTIES(c) READONLY 
+                  objectClassName, uuidVetDocument, issueDateVetDocument, nameTypeVetDocument, nameStatusVetDocument,
+                  nameConsignorBusinessEntityVetDocument, nameConsignorEnterpriseVetDocument,
+                  nameConsigneeBusinessEntityVetDocument, nameConsigneeEnterpriseVetDocument,
+                  nameProductItemVetDocument, volumeVetDocument
+;
+
+NAVIGATOR {
+    vetisNavigator {
+        NEW incomingConsignments;
+    }
+}
+
+META defineDocumentIncomingConsignment (doc, caption)
+    CLASS ###doc##IncomingConsignment 'Входящая партия (ветис) на основе поставки'##caption : IncomingConsignment;
+    
+    incomingConsignment = AGGR ###doc##IncomingConsignment WHERE volume(###doc##Detail doc##Detail, VetDocument vetDocument) AND isPosted(doc##Detail) MATERIALIZED INDEXED;
+    vetDocument(###doc##IncomingConsignment c) += vetDocument(c);
+    deliveryDate(###doc##IncomingConsignment c) += dateTime(doc##Detail(c));
+END

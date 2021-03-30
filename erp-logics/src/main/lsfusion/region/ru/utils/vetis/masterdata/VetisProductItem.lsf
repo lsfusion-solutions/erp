@@ -1,0 +1,42 @@
+MODULE VetisProductItem;
+
+REQUIRE Vetis;
+
+NAMESPACE Vetis;
+
+CLASS ProductItem 'Продукция';
+TABLE productItem (ProductItem);
+
+guid 'Код' = DATA STRING (ProductItem) CHARWIDTH 36 INDEXED;
+productItem 'Продукция' = GROUP AGGR ProductItem i BY guid(i);
+
+globalID 'GTIN' = DATA STRING (ProductItem) CHARWIDTH 14 INDEXED;
+productItemGlobalID 'Продукция' = GROUP MAX ProductItem i BY globalID(i);
+
+name 'Наименование' = DATA ISTRING (ProductItem) CHARWIDTH 20;
+
+FORM productItem 'Продукция'
+    OBJECTS o = ProductItem PANEL
+    PROPERTIES(o) guid, name, globalID
+    
+    EDIT ProductItem OBJECT o
+;
+
+FORM productItems 'Продукция'
+    OBJECTS o = ProductItem
+    PROPERTIES(o) READONLY guid, name, globalID
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogProductItems 'Продукция'
+    OBJECTS o = ProductItem
+    PROPERTIES(o) READONLY guid, name, globalID
+    
+    LIST ProductItem OBJECT o
+;
+
+NAVIGATOR {
+    vetisNavigator {
+        NEW productItems;
+    }
+}

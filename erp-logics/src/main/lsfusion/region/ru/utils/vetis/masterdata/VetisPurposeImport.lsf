@@ -1,0 +1,54 @@
+MODULE VetisPurposeImport;
+
+REQUIRE VetisPurpose, VetisDictionary;
+
+NAMESPACE Vetis;
+
+GROUP getPurposeListRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getPurposeListRequest' : body;
+GROUP getPurposeListRequestListOptions EXTID 'base=http://api.vetrf.ru/schema/cdm/base:listOptions' : getPurposeListRequest;
+
+FORM getPurposeListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getPurposeListRequestListOptions count EXTID 'base:count', offset EXTID 'base:offset'
+;
+
+// response
+
+GROUP getPurposeListResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getPurposeListResponse' : body;
+GROUP getPurposeListResponseList EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:purposeList' : getPurposeListResponse;
+
+forSubstandard = DATA LOCAL BOOLEAN(INTEGER);
+
+FORM getPurposeListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS purpose = INTEGER EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:purpose' IN getPurposeListResponseList
+
+    PROPERTIES(purpose) guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid', name EXTID 'dt:name', 
+                        forSubstandard EXTID 'dt:forSubstandard'
+;
+
+
+getPurposeList 'Загрузить данные' () {
+    NEWSESSION {
+        count() <- 1000;
+        EXPORT getPurposeListRequest XML;
+        
+        LOCAL response = FILE();
+        EXTERNAL HTTP urlDictionary() HEADERS httpHeaders PARAMS exportFile() TO response;
+        
+        IMPORT getPurposeListResponse XML FROM response();
+        
+        FOR guid(INTEGER i) AND NOT purpose(guid(i)) NEW u = Purpose DO {
+            guid(u) <- guid(i);
+        }
+        
+        FOR guid(Purpose u) = guid(INTEGER i) DO {
+            name(u) <- name(i);
+            forSubstandard(u) <- forSubstandard(i);
+        }
+
+        APPLY;
+    }
+}
+
+EXTEND FORM purposes
+    PROPERTIES() getPurposeList DRAW o TOOLBAR
+;

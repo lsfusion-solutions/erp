@@ -1,0 +1,187 @@
+MODULE VetisEnterpriseImport;
+
+REQUIRE VetisEnterprise, VetisCerberus;
+
+NAMESPACE Vetis;
+
+// import enterprise
+
+guid = DATA LOCAL STRING();
+name = DATA LOCAL STRING();
+
+GROUP owner EXTID 'dt:owner';
+ownerGuid = DATA LOCAL STRING();
+
+FORM importEnterprise FORMEXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise'
+    PROPERTIES() guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' 
+
+    PROPERTIES() name EXTID 'dt:name'
+
+    PROPERTIES() IN owner ownerGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+importEnterprise(TEXT xml, BusinessEntity owner) {
+    NEWSESSION {
+        stringToFile('<dt:enterprise xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base">' + 
+                      xml + 
+                      '</dt:enterprise>');
+        
+        IMPORT importEnterprise XML FROM resultFile();
+        
+        IF NOT guid() THEN RETURN;
+
+        IF ownerGuid() AND NOT businessEntity(ownerGuid()) THEN NEW b = BusinessEntity {
+            guid(b) <- ownerGuid();
+        }
+        
+        IF NOT enterprise(guid()) THEN NEW e = Enterprise {
+            guid(e) <- guid();
+            owner(e) <- owner;
+        }
+
+        FOR guid(Enterprise e) = guid() DO {
+            name(e) <- name();
+            owner(e) <- businessEntity(ownerGuid()) WHERE ownerGuid();
+        }
+        
+        APPLY;
+    } 
+}
+
+// request by guid
+
+GROUP getEnterpriseByGuidRequest EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getEnterpriseByGuidRequest' : body;
+
+FORM getEnterpriseByGuidRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS e = Enterprise PANEL
+    PROPERTIES(e) IN getEnterpriseByGuidRequest guid EXTID 'base=http://api.vetrf.ru/schema/cdm/base:guid'
+;
+
+GROUP getEnterpriseByGuidResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getEnterpriseByGuidResponse' : body;
+
+enterprise = DATA LOCAL TEXT();
+
+FORM getEnterpriseByGuidResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getEnterpriseByGuidResponse enterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise'
+;
+
+getEnterpriseList 'Загрузить данные' (Enterprise b) {
+    NEWSESSION {
+        EXPORT getEnterpriseByGuidRequest OBJECTS e = b XML;
+        
+        LOCAL response = FILE();
+        EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
+        
+        IMPORT getEnterpriseByGuidResponse XML FROM response();
+        
+        importEnterprise(enterprise(), NULL);
+
+        APPLY;
+    }
+}
+
+getEnterpriseList 'Загрузить данные' () {
+    FOR guid(Enterprise b) DO getEnterpriseList(b);
+}
+
+EXTEND FORM enterprises
+    PROPERTIES(o) getEnterpriseList GRID
+    PROPERTIES() getEnterpriseList DRAW o TOOLBAR
+;
+
+// request by business entity
+
+GROUP getActivityLocationListRequest EXTID 'v2:getActivityLocationListRequest' : body;
+GROUP getActivityLocationListRequestListOptions EXTID 'base:listOptions' : getActivityLocationListRequest;
+GROUP getActivityLocationListRequestBusinessEntity EXTID 'dt:businessEntity' : getActivityLocationListRequest;
+
+FORM getActivityLocationListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS b = BusinessEntity PANEL
+
+    PROPERTIES ATTR ='http://api.vetrf.ru/schema/cdm/base' IF b IS BusinessEntity EXTID 'xmlns:base', 
+                    ='http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2' IF b IS BusinessEntity EXTID 'xmlns:v2', 
+                    ='http://api.vetrf.ru/schema/cdm/dictionary/v2' IF b IS BusinessEntity EXTID 'xmlns:dt'
+    PROPERTIES() IN getActivityLocationListRequestListOptions count EXTID 'base:count', offset EXTID 'base:offset'
+    PROPERTIES(b) IN getActivityLocationListRequestBusinessEntity guid EXTID 'base:guid'
+;
+
+GROUP getActivityLocationListResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getActivityLocationListResponse' : body;
+GROUP activityLocationList EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:activityLocationList' : getActivityLocationListResponse;
+
+enterprise = DATA LOCAL TEXT (INTEGER);
+
+FORM getActivityLocationListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS location = INTEGER EXTID 'dt:location' IN activityLocationList
+    PROPERTIES(location) enterprise EXTID 'dt:enterprise'
+;
+
+getActivityLocationList 'Загрузить данные' (BusinessEntity b) {
+    NEWSESSION {
+        EXPORT getActivityLocationListRequest OBJECTS b = b XML;
+        
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
+        } CATCH {
+            fileToString(response());
+            MESSAGE CONCAT ' ', 'Ошибка при запросе к службе : ', resultString();
+            RETURN;
+        }
+        
+        IMPORT getActivityLocationListResponse XML FROM response();
+        
+        FOR enterprise(INTEGER i) DO
+            importEnterprise(enterprise(i), b);
+    }
+}
+
+EXTEND FORM businessEntity
+    PROPERTIES(o) getActivityLocationList DRAW e TOOLBAR
+;
+
+//GROUP numberList EXTID 'dt:numberList' : getEnterpriseByGuidResponseEnterprise;
+//GROUP address EXTID 'dt:address' : getEnterpriseByGuidResponseEnterprise;
+//GROUP country EXTID 'dt:country' : address;
+//GROUP region EXTID 'dt:region' : address;
+//GROUP locality EXTID 'dt:locality' : address;
+//GROUP owner EXTID 'dt:owner' : getEnterpriseByGuidResponseEnterprise;
+//GROUP juridicalAddress EXTID 'dt:juridicalAddress' : owner;
+//
+//header = DATA LOCAL STRING();
+//uuid = DATA LOCAL STRING();
+//guid = DATA LOCAL STRING();
+//active = DATA LOCAL STRING();
+//last = DATA LOCAL STRING();
+//status = DATA LOCAL STRING();
+//createDate = DATA LOCAL STRING();
+//updateDate = DATA LOCAL STRING();
+//name = DATA LOCAL STRING();
+//type = DATA LOCAL STRING();
+//enterpriseNumber = DATA LOCAL STRING();
+//uuid1 = DATA LOCAL STRING();
+//guid1 = DATA LOCAL STRING();
+//name1 = DATA LOCAL STRING();
+//uuid2 = DATA LOCAL STRING();
+//guid2 = DATA LOCAL STRING();
+//name2 = DATA LOCAL STRING();
+//uuid3 = DATA LOCAL STRING();
+//guid3 = DATA LOCAL STRING();
+//name3 = DATA LOCAL STRING();
+//addressView = DATA LOCAL STRING();
+//uuid4 = DATA LOCAL STRING();
+//guid4 = DATA LOCAL STRING();
+//addressView1 = DATA LOCAL STRING();
+//registryStatus = DATA LOCAL STRING();
+//
+//FORM envelope FORMEXTID 'Envelope'
+//PROPERTIES() header EXTID 'SOAP-ENV:Header'
+//PROPERTIES() IN getEnterpriseByGuidResponseEnterprise uuid EXTID 'bs:uuid', guid EXTID 'bs:guid', active EXTID 'bs:active', last EXTID 'bs:last', status EXTID 'bs:status', createDate EXTID 'bs:createDate', updateDate EXTID 'bs:updateDate', name EXTID 'dt:name', type EXTID 'dt:type', registryStatus EXTID 'dt:registryStatus'
+//PROPERTIES() IN numberList enterpriseNumber EXTID 'dt:enterpriseNumber'
+//PROPERTIES() IN address addressView EXTID 'dt:addressView'
+//PROPERTIES() IN country uuid1 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', guid1 EXTID 'bs:guid', name1 EXTID 'dt:name'
+//PROPERTIES() IN region uuid2 EXTID 'bs:uuid', guid2 EXTID 'bs:guid', name2 EXTID 'dt:name'
+//PROPERTIES() IN locality uuid3 EXTID 'bs:uuid', guid3 EXTID 'bs:guid', name3 EXTID 'dt:name'
+//PROPERTIES() IN owner uuid4 EXTID 'bs:uuid', guid4 EXTID 'bs:guid'
+//PROPERTIES() IN juridicalAddress addressView1 EXTID 'dt:addressView';
+
+// get location lists

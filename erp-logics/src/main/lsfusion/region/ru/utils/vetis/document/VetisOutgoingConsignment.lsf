@@ -1,0 +1,91 @@
+MODULE VetisOutgoingConsignment;
+
+REQUIRE VetisStockEntry, VetisUnit,
+        Transport;
+
+NAMESPACE Vetis;
+
+CLASS ABSTRACT OutgoingConsignment 'Исходящая партия (ветис)';
+TABLE outgoingConsignment(OutgoingConsignment);
+
+deliveryDate 'Дата оформления' = ABSTRACT DATETIME (OutgoingConsignment) MATERIALIZED;
+
+// consignor
+consignorBusinessEntity = ABSTRACT BusinessEntity (OutgoingConsignment) MATERIALIZED; 
+nameConsignorBusinessEntity 'Отправитель-хозяйствующий субъект' (OutgoingConsignment d) = name(consignorBusinessEntity(d));
+
+consignorEnterprise = ABSTRACT Enterprise (OutgoingConsignment) MATERIALIZED; 
+nameConsignorEnterprise 'Отправитель-площадка' (OutgoingConsignment d) = name(consignorEnterprise(d));
+
+// consignee
+consigneeBusinessEntity = ABSTRACT BusinessEntity (OutgoingConsignment) MATERIALIZED; 
+nameConsigneeBusinessEntity 'Получатель-хозяйствующий субъект' (OutgoingConsignment d) = name(consigneeBusinessEntity(d));
+
+consigneeEnterprise = ABSTRACT Enterprise (OutgoingConsignment) MATERIALIZED; 
+nameConsigneeEnterprise 'Получатель-площадка' (OutgoingConsignment d) = name(consigneeEnterprise(d));
+
+// stock entry
+stockEntry = ABSTRACT StockEntry (OutgoingConsignment) MATERIALIZED INDEXED;
+guidStockEntry 'Код складского журнала' (OutgoingConsignment c) = guid(stockEntry(c));
+
+numberStockEntry 'Номер складского журнала' (OutgoingConsignment c) = number(stockEntry(c));
+
+volume 'Объем продукции' = ABSTRACT NUMERIC[16,5] (OutgoingConsignment) MATERIALIZED; 
+
+// transport
+truck = ABSTRACT Truck (OutgoingConsignment) MATERIALIZED;
+nameTruck 'Автомобиль' (OutgoingConsignment c) = name(truck(c));
+
+// waybill
+waybillSeries 'Серия ТТН' = ABSTRACT STRING (OutgoingConsignment); 
+waybillNumber 'Номер ТТН' = ABSTRACT STRING (OutgoingConsignment); 
+waybillDate 'Дата ТТН' = ABSTRACT DATE (OutgoingConsignment);
+
+FORM outgoingConsignments 'Исходящие партии'
+    OBJECTS c = OutgoingConsignment
+    PROPERTIES(c) READONLY 
+                  objectClassName, guidStockEntry, numberStockEntry,
+                  nameConsignorBusinessEntity, nameConsignorEnterprise,
+                  nameConsigneeBusinessEntity, nameConsigneeEnterprise,
+                  volume, nameTruck,
+                  waybillSeries, waybillNumber, waybillDate
+;
+
+NAVIGATOR {
+    vetisNavigator {
+        NEW outgoingConsignments;
+    }
+}
+
+// result vet document
+vetDocument = DATA VetDocument (OutgoingConsignment);
+uuidVetDocument 'Код ВСД' (OutgoingConsignment c) = uuid(vetDocument(c));
+nameStatusVetDocument 'Статус ВСД' (OutgoingConsignment c) = nameStatus(vetDocument(c));
+
+EXTEND FORM outgoingConsignments
+    PROPERTIES(c) READONLY uuidVetDocument, nameStatusVetDocument
+;
+
+META defineDocumentOutgoingConsignment (doc, consignor, consignee, caption)
+    CLASS ###doc##OutgoingConsignment 'Исходящая партия (ветис) на основе поставки'##caption : OutgoingConsignment;
+    
+    outgoingConsignment = AGGR ###doc##OutgoingConsignment WHERE volume(###doc##Detail doc##Detail, StockEntry stockEntry) AND isPosted(doc##Detail) MATERIALIZED INDEXED;
+    
+    deliveryDate(###doc##OutgoingConsignment c) += dateTime(doc##Detail(c));
+    
+    consignorBusinessEntity(###doc##OutgoingConsignment c) += businessEntity(consignor(doc##Detail(c)));
+    consignorEnterprise(###doc##OutgoingConsignment c) += enterprise(consignor##Stock(doc##Detail(c)));
+    
+    consigneeBusinessEntity(###doc##OutgoingConsignment c) += businessEntity(consignee(doc##Detail(c)));
+    consigneeEnterprise(###doc##OutgoingConsignment c) += enterprise(consignee##Stock(doc##Detail(c)));
+    
+    stockEntry(###doc##OutgoingConsignment c) += stockEntry(c);
+    
+    volume(###doc##OutgoingConsignment c) += volume(doc##Detail(c), stockEntry(c));
+    
+    truck(###doc##OutgoingConsignment c) += truck(doc##Detail(c));
+    
+    waybillSeries(###doc##OutgoingConsignment c) += STRING(series(doc##Detail(c)));
+    waybillNumber(###doc##OutgoingConsignment c) += number(doc##Detail(c));
+    waybillDate(###doc##OutgoingConsignment c) += date(doc##Detail(c));
+END

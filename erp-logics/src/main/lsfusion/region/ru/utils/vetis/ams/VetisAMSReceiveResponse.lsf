@@ -1,0 +1,116 @@
+MODULE VetisAMSReceiveResponse;
+
+REQUIRE VetisAMSSubmitRequest;
+
+NAMESPACE Vetis;
+
+// request
+
+GROUP receiveApplicationResultRequest EXTID 'ws=http://api.vetrf.ru/schema/cdm/application/ws-definitions:receiveApplicationResultRequest' : body;
+
+FORM receiveApplicationResultRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN receiveApplicationResultRequest apiKey EXTID 'ws:apiKey'
+    PROPERTIES() IN receiveApplicationResultRequest 
+                        issuerId EXTID 'ws:issuerId', applicationId EXTID 'ws:applicationId' 
+;
+
+// response
+GROUP receiveApplicationResultResponse EXTID '=http://api.vetrf.ru/schema/cdm/application/ws-definitions:receiveApplicationResultResponse' : body;
+GROUP receiveApplicationResultResponseApplication EXTID '=http://api.vetrf.ru/schema/cdm/application:application' : receiveApplicationResultResponse;
+
+result = DATA LOCAL TEXT();
+
+GROUP errors EXTID 'apl=http://api.vetrf.ru/schema/cdm/application:errors' : receiveApplicationResultResponseApplication;
+
+error = DATA LOCAL TEXT();
+
+FORM receiveApplicationResultResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN receiveApplicationResultResponseApplication status, result
+    PROPERTIES() IN errors error EXTID 'apl:error'
+;
+
+response 'Ответ' = DATA TEXT (ApplicationRequest);
+
+// status
+@defineStaticObject(ApplicationRequestStatus, 'Тип статуса заявки Ветис');
+EXTEND CLASS ApplicationRequestStatus {
+    ACCEPTED 'Заявка принята',
+    IN_PROCESS 'Заявка обрабатывается',
+    COMPLETED 'Заявка успешно обработана',
+    REJECTED 'Заявка отклонена'
+}
+
+id 'Код' (ApplicationRequestStatus o) = STRING[100](rtrim(getWord(staticName(o),'.',2),'_')) IF o IS ApplicationRequestStatus CHARWIDTH 10;
+applicationRequestStatus = GROUP MAX ApplicationRequestStatus o BY id(o);
+
+status = DATA ApplicationRequestStatus (ApplicationRequest);
+nameStatus 'Статус' (ApplicationRequest r) = name(status(r));
+
+succeeded 'Успешна' (ApplicationRequest r) = status(r) = ApplicationRequestStatus.COMPLETED; 
+
+toReceive 'Ожидается ответ' (ApplicationRequest r) = (r IS ApplicationRequest AND NOT status(r) AND NOT error(r)) OR status(r) = ApplicationRequestStatus.IN_PROCESS MATERIALIZED INDEXED;
+
+receiveApplicationRequest 'Получить заявку' (ApplicationRequest r) {
+    NEWSESSION {
+        applicationId() <- id(r);
+        EXPORT receiveApplicationResultRequest XML;
+
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP POST urlAMS() HEADERS httpHeaders PARAMS exportFile() TO response;
+        } CATCH {
+            fileToString(response());
+            error(r) <- CONCAT '\n', 'Ошибка при формировании запроса ответа к Ветис :', messageCaughtException(), resultString();
+            logToFile('vetis', error(r));
+            APPLY;
+            MESSAGE error(r);
+            RETURN;
+        }
+        
+        IMPORT receiveApplicationResultResponse XML FROM response();
+        status(r) <- applicationRequestStatus(status()); 
+        IF succeeded(r) THEN {
+            response(r) <- result();
+        } ELSE {
+            fileToString(response());
+            response(r) <- resultString();
+            error(r) <- error();
+        }  
+        APPLY;
+    } 
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES(r) READONLY response, nameStatus
+
+    PROPERTIES(r) receiveApplicationRequest READONLYIF NOT toReceive(r) GRID
+;
+
+// process
+process 'Обработать' ABSTRACT (ApplicationRequest);
+processed 'Обработана' = DATA BOOLEAN (ApplicationRequest);
+
+toProcess 'Требуется обработка' (ApplicationRequest r) = succeeded(r) AND NOT processed(r) MATERIALIZED INDEXED; 
+
+notCompleted 'Не завершена' (ApplicationRequest r) = toReceive(r) OR toProcess(r);
+
+processRequests 'Обмен с Ветис' () {
+    FOR toReceive(ApplicationRequest r) ORDER r DO {
+        receiveApplicationRequest(r);
+    }
+    
+    FOR toProcess(ApplicationRequest r) ORDER r DO {
+        process(r);
+    }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES(r) process READONLYIF NOT toProcess(r) GRID, processed READONLY
+    
+    PROPERTIES() processRequests DRAW r TOOLBAR
+    
+    FILTERGROUP status
+        FILTER 'Не завершена' notCompleted(r) DEFAULT
+        FILTER 'Ожидается ответ' toReceive(r)
+        FILTER 'Требуется обработка' toProcess(r)
+;

@@ -1,0 +1,50 @@
+MODULE VetisEnterprise;
+
+REQUIRE Vetis, VetisBusinessEntity, MasterData;
+ 
+NAMESPACE Vetis;
+
+CLASS Enterprise 'Площадка';
+TABLE enterprise (Enterprise);
+
+guid 'Код' = DATA STRING (Enterprise) CHARWIDTH 36 INDEXED NONULL;
+enterprise 'Площадка' = GROUP AGGR Enterprise e BY guid(e);
+
+name 'Наименование' = DATA ISTRING (Enterprise) CHARWIDTH 20;
+
+owner = DATA BusinessEntity (Enterprise);
+nameOwner 'Владелец' (Enterprise e) = name(owner(e));
+
+FORM enterprise 'Площадка'
+    OBJECTS o = Enterprise PANEL
+    PROPERTIES(o) guid, name, nameOwner
+    
+    EDIT Enterprise OBJECT o
+;
+
+FORM enterprises 'Площадки'
+    OBJECTS o = Enterprise
+    PROPERTIES(o) READONLY guid, name, nameOwner
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogEnterprises 'Площадки'
+    OBJECTS o = Enterprise
+    PROPERTIES(o) READONLY guid, name, nameOwner
+    
+    LIST Enterprise OBJECT o
+;
+
+NAVIGATOR {
+    vetisNavigator {
+        NEW enterprises;
+    }
+}
+
+// business entity
+
+EXTEND FORM businessEntity
+    OBJECTS e = Enterprise
+    PROPERTIES(e) READONLY guid, name 
+    FILTERS owner(e) = o
+;

@@ -1,0 +1,204 @@
+MODULE VetisDocument;
+
+REQUIRE VetisBusinessEntity, VetisEnterprise, VetisProductItem, VetisUnit, VetisPurpose, 
+        MasterData, Utils;
+
+NAMESPACE Vetis;
+
+@defineStaticObject(vetDocumentType, 'Тип ВСД');
+EXTEND CLASS VetDocumentType {
+    INCOMING 'Входящий',
+    OUTGOING 'Исходящий',
+    PRODUCTIVE 'Производственный',
+    TRANSPORT 'Транспортный',
+    RETURNABLE 'Возвратный'
+}
+
+id 'Код' (VetDocumentType o) = STRING[100](rtrim(getWord(staticName(o),'.',2),'_')) IF o IS VetDocumentType CHARWIDTH 10;
+vetDocumentType = GROUP MAX VetDocumentType o BY id(o);
+
+@defineStaticObject(vetDocumentStatus, 'Статус ВСД');
+EXTEND CLASS VetDocumentStatus {
+    CONFIRMED 'Подтверждён',
+    WITHDRAWN 'Аннулирован',
+    UTILIZED 'Погашен'
+}
+
+id 'Код' (VetDocumentStatus o) = STRING[100](rtrim(getWord(staticName(o),'.',2),'_')) IF o IS VetDocumentStatus CHARWIDTH 10;
+vetDocumentStatus = GROUP MAX VetDocumentStatus o BY id(o);
+
+// document
+CLASS VetDocument 'ВСД';
+TABLE vetDocument (VetDocument);
+
+uuid 'Код' = DATA STRING (VetDocument) CHARWIDTH 36 INDEXED;
+vetDocument 'ВСД' = GROUP AGGR VetDocument d BY uuid(d);
+
+issueDate 'Дата оформления ВСД' = DATA DATE (VetDocument);
+
+type = DATA VetDocumentType (VetDocument);
+nameType 'Тип' (VetDocument d) = name(type(d));
+
+status = DATA VetDocumentStatus (VetDocument);
+nameStatus 'Статус' (VetDocument d) = name(status(d));
+
+// consignor
+consignorBusinessEntity = DATA BusinessEntity (VetDocument); 
+nameConsignorBusinessEntity 'Отправитель-хозяйствующий субъект' (VetDocument d) = name(consignorBusinessEntity(d));
+
+consignorEnterprise = DATA Enterprise (VetDocument); 
+nameConsignorEnterprise 'Отправитель-площадка' (VetDocument d) = name(consignorEnterprise(d));
+
+// consignee
+consigneeBusinessEntity = DATA BusinessEntity (VetDocument); 
+nameConsigneeBusinessEntity 'Получатель-хозяйствующий субъект' (VetDocument d) = name(consigneeBusinessEntity(d));
+
+consigneeEnterprise = DATA Enterprise (VetDocument); 
+nameConsigneeEnterprise 'Получатель-площадка' (VetDocument d) = name(consigneeEnterprise(d));
+
+// broker
+broker = DATA BusinessEntity (VetDocument); 
+nameBroker 'Фирма-посредник' (VetDocument d) = name(broker(d));
+
+// transport
+transportInfo 'Информация о транспорте' = DATA TEXT (VetDocument);
+transportStorageType 'Способ хранения продукции при перевозке' = DATA STRING (VetDocument); 
+
+// batch
+batch 'Сведения о партии продукции' = DATA TEXT (VetDocument);
+
+productItem = DATA ProductItem (VetDocument);
+guidProductItem 'Код продукции' (VetDocument d) = guid(productItem(d));
+nameProductItem 'Наименование продукции' (VetDocument d) = name(productItem(d));
+
+volume 'Объем продукции' = DATA NUMERIC[16,5] (VetDocument);
+
+unit = DATA Unit (VetDocument);
+nameUnit 'Единица измерения' (VetDocument d) = name(unit(d));
+
+purpose = DATA Purpose (VetDocument);
+namePurpose 'Назначение груза' (VetDocument d) = name(purpose(d));
+
+// referenced document
+CLASS VetReferenceDocument 'Связанный документ ВСД';
+
+vetDocument = DATA VetDocument (VetReferenceDocument) NONULL DELETE INDEXED;
+
+issueSeries 'Серия документа' = DATA STRING (VetReferenceDocument); 
+issueNumber 'Номер документа' = DATA STRING (VetReferenceDocument);
+issueDate 'Дата оформления документа' = DATA DATE (VetReferenceDocument);
+
+issueKey (VetReferenceDocument rd) = CONCAT ';', issueSeries(rd), issueNumber(rd), issueDate(rd);
+vetReferenceDocument = GROUP MAX VetReferenceDocument rd BY vetDocument(rd), issueKey(rd);
+
+type 'Тип документа' = DATA INTEGER (VetReferenceDocument);
+relationshipType 'Тип отношения между документами' = DATA INTEGER (VetReferenceDocument);
+
+FORM vetDocument 'ВСД'
+    OBJECTS o = VetDocument PANEL
+    PROPERTIES(o) uuid, issueDate, nameType, nameStatus, 
+                  nameConsignorBusinessEntity, nameConsignorEnterprise,
+                  nameConsigneeBusinessEntity, nameConsigneeEnterprise,
+                  nameBroker,
+                  
+                  transportStorageType, transportInfo,
+                  batch, guidProductItem, nameProductItem, 
+                  volume, nameUnit, namePurpose
+
+    OBJECTS rd = VetReferenceDocument
+    PROPERTIES(rd) READONLY issueSeries, issueNumber, issueDate, type, relationshipType
+    FILTERS vetDocument(rd) = o
+        
+    EDIT VetDocument OBJECT o
+;
+
+DESIGN vetDocument {
+    OBJECTS {
+        NEW header {
+            NEW commons {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                MOVE PROPERTY(uuid(o));
+                MOVE PROPERTY(issueDate(o));
+                MOVE PROPERTY(nameType(o));
+                MOVE PROPERTY(nameStatus(o));
+            }
+            NEW consignor {
+                alignment = STRETCH;
+                MOVE PROPERTY(nameConsignorBusinessEntity(o));
+                MOVE PROPERTY(nameConsignorEnterprise(o));
+            }
+            NEW consignee {
+                alignment = STRETCH;
+                MOVE PROPERTY(nameConsigneeBusinessEntity(o));
+                MOVE PROPERTY(nameConsigneeEnterprise(o));
+            }
+            NEW broker {
+                alignment = STRETCH;
+                MOVE PROPERTY(nameBroker(o));
+            }
+        }
+        NEW details {
+            type = TABBED;
+            fill = 1;
+            NEW transport {
+                caption = 'Транспорт';
+                MOVE PROPERTY(transportStorageType(o));
+                MOVE PROPERTY(transportInfo(o)) {
+                    panelCaptionVertical = TRUE;
+                    fill = 1;
+                }
+            }
+            NEW batch {
+                caption = 'Сведения о партии продукции';
+                NEW productItem {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(guidProductItem(o));
+                    MOVE PROPERTY(nameProductItem(o));
+                }
+                NEW volume {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(volume(o));                    
+                    MOVE PROPERTY(nameUnit(o));                    
+                }
+                MOVE PROPERTY(namePurpose(o));
+                MOVE PROPERTY(batch(o)) {
+                    panelCaptionVertical = TRUE;
+                    fill = 1;
+                }
+            }
+            NEW referenceDocument {
+                caption = 'Связанные документы';
+                MOVE BOX(rd);
+            }
+        }
+    }
+}
+
+FORM vetDocuments 'ВСД'
+    OBJECTS o = VetDocument
+    PROPERTIES(o) READONLY uuid, issueDate, nameType, nameStatus,
+                           nameConsignorBusinessEntity, nameConsignorEnterprise,
+                           nameConsigneeBusinessEntity, nameConsigneeEnterprise,
+                           guidProductItem, nameProductItem, 
+                           volume, nameUnit, namePurpose
+                
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogVetDocuments 'ВСД'
+    OBJECTS o = VetDocument
+    PROPERTIES(o) READONLY uuid, issueDate, nameType, nameStatus,
+                           nameConsignorBusinessEntity, nameConsignorEnterprise,
+                           nameConsigneeBusinessEntity, nameConsigneeEnterprise,
+                           guidProductItem, nameProductItem, volume
+    
+    LIST VetDocument OBJECT o
+;
+
+NAVIGATOR {
+    vetisNavigator {
+        NEW vetDocuments;
+    }
+}

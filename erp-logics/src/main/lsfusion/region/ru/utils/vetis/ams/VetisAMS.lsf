@@ -1,0 +1,51 @@
+MODULE VetisAMS;
+
+REQUIRE Vetis, Stock;
+
+NAMESPACE Vetis;
+
+urlAMS 'Url к стенду AMS' = DATA STRING ();
+
+serviceId = 'mercury-g2b.service:2.1';
+apiKey 'Api Key' = DATA STRING ();
+issuerId 'Issuer ID' = DATA STRING ();
+
+GROUP initiator EXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:initiator';
+loginMercury 'Логин в Меркурий' = DATA STRING() IN initiator;
+
+EXTEND FORM integrationData
+    PROPERTIES() vetisUrlAMS = urlAMS, vetisApiKey = apiKey, vetisIssuerId = issuerId,
+                 vetisLoginMercury = loginMercury
+;
+
+DESIGN integrationData {
+    vetis {
+        MOVE PROPERTY(vetisUrlAMS);
+        MOVE PROPERTY(vetisApiKey);
+        MOVE PROPERTY(vetisIssuerId);
+        MOVE PROPERTY(vetisLoginMercury);
+    }
+}
+
+// class
+
+CLASS ApplicationRequest 'Заявка в Ветис';
+id 'Код' = DATA STRING (ApplicationRequest);
+
+issueDate 'Время' = DATA DATETIME (ApplicationRequest);
+issueDate(ApplicationRequest r) <- currentDateTime() WHEN SET(r IS ApplicationRequest);
+formatIssueDate (ApplicationRequest r) = formatT(issueDate(r));
+
+request 'Запрос' = DATA TEXT (ApplicationRequest);
+error 'Ошибка' = DATA TEXT (ApplicationRequest);
+
+FORM applicationRequests 'Заявки'
+    OBJECTS r = ApplicationRequest
+    PROPERTIES(r) READONLY objectClassName, id, issueDate, request, error
+;
+
+NAVIGATOR {
+    vetisNavigator {
+        NEW applicationRequests;
+    }
+}

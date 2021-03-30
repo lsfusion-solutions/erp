@@ -1,0 +1,40 @@
+MODULE VetisPurpose;
+
+REQUIRE Vetis;
+
+NAMESPACE Vetis;
+
+CLASS Purpose 'Назначение груза Ветис';
+TABLE purpose (Purpose);
+
+guid 'Код' = DATA STRING (Purpose) CHARWIDTH 36 INDEXED NONULL;
+purpose 'Назначение груза' = GROUP AGGR Purpose u BY guid(u);
+
+name 'Наименование' = DATA ISTRING (Purpose);
+forSubstandard 'Для некачественных грузов' = DATA BOOLEAN (Purpose);
+
+FORM purpose 'Назначение груза Ветис'
+    OBJECTS o = Purpose PANEL
+    PROPERTIES(o) guid, name, forSubstandard
+    
+    EDIT Purpose OBJECT o
+;
+
+FORM purposes 'Назначения груза'
+    OBJECTS o = Purpose
+    PROPERTIES(o) READONLY guid, name, forSubstandard
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogPurposes 'Единицы измерения'
+    OBJECTS o = Purpose
+    PROPERTIES(o) READONLY guid, name, forSubstandard
+    
+    LIST Purpose OBJECT o
+;
+
+NAVIGATOR {
+    vetisNavigator {
+        NEW purposes;
+    }
+}

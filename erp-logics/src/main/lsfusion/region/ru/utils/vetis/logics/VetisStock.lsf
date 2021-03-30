@@ -1,0 +1,129 @@
+MODULE VetisStock;
+
+REQUIRE Stock, VetisEnterprise,
+        Warehouse, Store;
+
+NAMESPACE Vetis;
+
+enterprise = DATA Enterprise (Stock) INDEXED;
+guidEnterprise 'Код площадки' (Stock st) = guid(enterprise(st));
+nameEnterprise 'Наименование площадки' (Stock st) = name(enterprise(st));
+
+// warehouse
+EXTEND FORM warehouse
+    PROPERTIES(w) guidEnterprise, nameEnterprise
+;
+
+DESIGN warehouse {
+    headerExtraParams {
+        MOVE PROPERTY(guidEnterprise(w));
+        MOVE PROPERTY(nameEnterprise(w));
+    }
+}
+
+// store
+EXTEND FORM departmentStore
+    PROPERTIES(d) guidEnterprise, nameEnterprise
+;
+
+DESIGN departmentStore {
+    headerExtraParams {
+        MOVE PROPERTY(guidEnterprise(d));
+        MOVE PROPERTY(nameEnterprise(d));
+    }
+}
+
+// META 
+META defineDocumentVetDocument (doc, consignor, consignee, obj, container)
+    volume 'Объем (ВСД)' = DATA NUMERIC[16,5] (###doc##Detail, VetDocument);
+    fillVolume 'Выбрать' (###doc##Detail vd, VetDocument vtd) { volume(vd, vtd) <- quantity(vd); }
+    
+    uuidVetDocument 'Коды ВСД' (###doc##Detail d) =
+        GROUP CONCAT uuid(VetDocument s) IF volume(d, s), ',' ORDER s;
+    
+    volumeVetDocument 'Объем (ВСД)' (###doc##Detail d) = GROUP SUM volume(d, VetDocument s) MATERIALIZED;
+    
+    EXTEND FORM doc
+        OBJECTS vd = ###doc##Detail
+        PROPERTIES(vd) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity,
+                                uuidVetDocument, volumeVetDocument
+        ORDERS index(vd)
+        FILTERS doc(vd) = obj,
+                productItem(sku(vd)) OR volumeVetDocument(vd)
+        
+        OBJECTS vtd = VetDocument
+        PROPERTIES(vtd) READONLY nameStatus, uuid, issueDate, nameProductItem, volume
+        PROPERTIES(vd, vtd)      volume, fillVolume GRID
+        FILTERS consignorBusinessEntity(vtd) = businessEntity(consignor(vd)),
+                consignorEnterprise(vtd) = enterprise(consignor##Stock(vd)),
+                consigneeEnterprise(vtd) = enterprise(consignee##Stock(vd)),
+                productItem(vtd) = productItem(sku(vd))
+    
+        FILTERGROUP active
+            FILTER 'Подтвержденные' status(vtd) = VetDocumentStatus.CONFIRMED OR volume(vd, vtd) DEFAULT 
+    ;
+    
+    DESIGN doc {
+        container {
+            NEW vetis {
+                caption = 'ВСД';
+                NEW vetisHeader {
+                    type = CONTAINERH;
+                }
+                NEW vetisDetail {
+                    fill = 1;
+                    type = SPLITH;
+                    MOVE BOX(vd);
+                    MOVE BOX(vtd);
+                }
+            }
+        }
+    }
+END
+
+META defineDocumentStockEntry (doc, stock, obj, container)
+
+    volume 'Объем (ВСД)' = DATA NUMERIC[16,5] (###doc##Detail, StockEntry);
+    fillVolume 'Выбрать' (###doc##Detail d, StockEntry s) { volume(d, s) <- quantity(d); }
+    
+    numberStockEntry 'Номер складского журнала' (###doc##Detail d) =
+        GROUP CONCAT number(StockEntry s) IF volume(d, s), ',' ORDER s;
+    
+    volumeStockEntry 'Объем (ВСД)' (###doc##Detail d) = GROUP SUM volume(d, StockEntry s) MATERIALIZED;
+    
+    EXTEND FORM doc
+        OBJECTS vd = ###doc##Detail
+        PROPERTIES(vd) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity,
+                                numberStockEntry, volumeStockEntry
+        ORDERS index(vd)
+        FILTERS doc(vd) = obj,
+                productItem(sku(vd)) OR volumeStockEntry(vd)
+        
+        OBJECTS se = StockEntry
+        PROPERTIES(se) READONLY guid, number, nameProductItem, volume
+        PROPERTIES(vd, se)      volume, fillVolume GRID
+        FILTERS enterprise(se) = enterprise(stock(vd)),
+                in(se, productItem(sku(vd)))
+    
+        FILTERGROUP active
+            FILTER 'Активные' active(se) OR volume(vd, se) DEFAULT 
+    ;
+    
+    DESIGN doc {
+        specificationBox {
+            NEW vetis {
+                caption = 'ВСД';
+                NEW vetisHeader {
+                    type = CONTAINERH;
+                }
+                NEW vetisDetail {
+                    fill = 1;
+                    type = SPLITH;
+                    MOVE BOX(vd);
+                    MOVE BOX(se);
+                }
+            }
+        }
+    }
+
+END
