@@ -8,6 +8,7 @@ host 'Хост для подключения' = DATA STRING[100] ();
 port 'Порт для подключения' = DATA STRING[10] ();
 overPort 'Порт для подключения' = OVERRIDE port(), '8082';
 maxRowCount 'Максимальное количество записей' = DATA INTEGER ();
+approximateDistinct 'Использовать приблизительное значение для COUNT DISTINCT' = DATA BOOLEAN ();
 // ----------------- Загрузка данных ------------------- //
 
 exportDirectory 'Путь для экспорта файлов' = DATA STRING[500] ();
@@ -19,7 +20,7 @@ importDirectory 'Путь для импорта файлов' = DATA STRING[500]
 
 
 EXTEND FORM integrationData
-    PROPERTIES host(), overPort(), maxRowCount(), exportDirectory(), importDirectory()
+    PROPERTIES host(), overPort(), maxRowCount(), approximateDistinct(), exportDirectory(), importDirectory()
     
     OBJECTS dates = (druidFrom = DATE, druidTo = DATE) PANEL
     PROPERTIES druidFrom 'С' = VALUE(druidFrom), druidTo 'По' = VALUE(druidTo)
@@ -35,6 +36,7 @@ DESIGN integrationData {
                 MOVE PROPERTY(overPort());
             }
             MOVE PROPERTY(maxRowCount());
+            MOVE PROPERTY(approximateDistinct());
             MOVE PROPERTY(exportDirectory());
             MOVE PROPERTY(importDirectory());
             
@@ -160,7 +162,7 @@ query(TEXT q)  {
         APPLY;
 	}
     
-	stringToFile('\{"query": "' + q + '"\}','UTF-8','json');
+	stringToFile('\{"query": "' + q + '"'+IF approximateDistinct() THEN '' ELSE ',"context":\{"useApproximateCountDistinct":"false"\}'+'\}','UTF-8','json');
 	TRY {
 	    EXTERNAL HTTP 'http://' + host() + ':' + overPort() + '/druid/v2/sql' PARAMS resultFile() TO queryResult;
     } CATCH {
