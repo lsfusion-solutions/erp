@@ -65,22 +65,42 @@ transportInfo 'Информация о транспорте' = DATA TEXT (VetDoc
 transportStorageType 'Способ хранения продукции при перевозке' = DATA STRING (VetDocument); 
 
 // batch
-batch 'Сведения о партии продукции' = DATA TEXT (VetDocument);
+//batch 'Сведения о партии продукции' = DATA TEXT (VetDocument);
+
+productType = DATA ProductType (VetDocument);
+nameProductType 'Тип продукции' (VetDocument d) = name(productType(d));
+
+product = DATA Product (VetDocument);
+guidProduct 'Код группы продукции' (VetDocument d) = guid(product(d));
+nameProduct 'Группа продукции' (VetDocument d) = name(product(d));
+
+subProduct = DATA SubProduct (VetDocument);
+guidSubProduct 'Код вида продукции' (VetDocument d) = guid(subProduct(d));
+nameSubProduct 'Вид продукции' (VetDocument d) = name(subProduct(d));
 
 productItem = DATA ProductItem (VetDocument);
 guidProductItem 'Код продукции' (VetDocument d) = guid(productItem(d));
 nameProductItem 'Наименование продукции' (VetDocument d) = name(productItem(d));
+productItemXml 'Продукция' = DATA TEXT (VetDocument);
 
 volume 'Объем продукции' = DATA NUMERIC[16,5] (VetDocument);
 
 unit = DATA Unit (VetDocument);
 nameUnit 'Единица измерения' (VetDocument d) = name(unit(d));
 
+dateOfProductionXml 'Дата выработки продукции' = DATA TEXT (VetDocument);
 dateOfProduction 'Дата выработки продукции' = DATA DATE (VetDocument);
 dateOfProductionHour 'Час выработки продукции' = DATA INTEGER (VetDocument);
 
+expiryDateXml 'Дата окончания срока годности продукции' = DATA TEXT (VetDocument);
 expiryDate 'Дата окончания срока годности продукции' = DATA DATE (VetDocument);
 expiryDateHour 'Час окончания срока годности продукции' = DATA INTEGER (VetDocument);
+
+batchID 'Идентификатор производственной партии продукции' = DATA STRING (VetDocument);
+perishable 'Скоропортящаяся' = DATA BOOLEAN (VetDocument);
+origin 'Сведения о происхождении продукции' = DATA TEXT (VetDocument);
+lowGradeCargo 'Некачественный' = DATA BOOLEAN (VetDocument);
+packageList 'Список физической упаковки' = DATA TEXT (VetDocument);
 
 purpose = DATA Purpose (VetDocument);
 namePurpose 'Назначение груза' (VetDocument d) = name(purpose(d));
@@ -108,11 +128,15 @@ FORM vetDocument 'ВСД'
                   nameBroker,
                   
                   transportStorageType, transportInfo,
-                  batch, guidProductItem, nameProductItem, 
+                  nameProductType, guidProduct, nameProduct,
+                  guidSubProduct, nameSubProduct, 
+                  guidProductItem, nameProductItem, 
                   volume, nameUnit,
                   dateOfProduction, dateOfProductionHour,
                   expiryDate, expiryDateHour,
-                  namePurpose
+                  dateOfProductionXml, expiryDateXml, 
+                  batchID, perishable, lowGradeCargo, namePurpose,
+                  productItemXml, origin, packageList 
 
     OBJECTS rd = VetReferenceDocument
     PROPERTIES(rd) READONLY issueSeries, issueNumber, issueDate, type, relationshipType
@@ -160,9 +184,18 @@ DESIGN vetDocument {
             }
             NEW batch {
                 caption = 'Сведения о партии продукции';
+                NEW productType {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(nameProductType(o));
+                    MOVE PROPERTY(guidProduct(o));
+                    MOVE PROPERTY(nameProduct(o));
+                }
                 NEW productItem {
                     type = CONTAINERH;
                     alignment = STRETCH;
+                    MOVE PROPERTY(guidSubProduct(o));
+                    MOVE PROPERTY(nameSubProduct(o));
                     MOVE PROPERTY(guidProductItem(o));
                     MOVE PROPERTY(nameProductItem(o));
                 }
@@ -178,10 +211,26 @@ DESIGN vetDocument {
                     MOVE PROPERTY(expiryDate(o));
                     MOVE PROPERTY(expiryDateHour(o));
                 }
-                MOVE PROPERTY(namePurpose(o));
-                MOVE PROPERTY(batch(o)) {
-                    panelCaptionVertical = TRUE;
-                    fill = 1;
+                NEW datesXml {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(dateOfProductionXml(o)) { fill = 1; panelCaptionVertical = TRUE; }
+                    MOVE PROPERTY(expiryDateXml(o)) { fill = 1; panelCaptionVertical = TRUE; }
+                }
+                NEW batchExtra {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(batchID(o));
+                    MOVE PROPERTY(perishable(o));
+                    MOVE PROPERTY(lowGradeCargo(o));
+                    MOVE PROPERTY(namePurpose(o));
+                }
+                NEW batchXml {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(productItemXml(o)) { fill = 1; panelCaptionVertical = TRUE; }
+                    MOVE PROPERTY(origin(o)) { fill = 1; panelCaptionVertical = TRUE; }
+                    MOVE PROPERTY(packageList(o)) { fill = 1; panelCaptionVertical = TRUE; }
                 }
             }
             NEW referenceDocument {

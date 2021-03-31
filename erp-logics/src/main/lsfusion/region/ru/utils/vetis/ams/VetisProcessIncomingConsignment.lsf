@@ -19,6 +19,11 @@ GROUP consignee EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2
 GROUP consigneeBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignee;
 GROUP consigneeEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : consignee;
 
+GROUP consignment EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment' : delivery;
+GROUP consignmentProduct EXTID 'vd:product' : consignment;
+GROUP consignmentSubProduct EXTID 'vd:subProduct' : consignment;
+GROUP consignmentUnit EXTID 'vd:unit' : consignment;
+
 GROUP deliveryBroker EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:broker' : delivery;
 
 GROUP deliveryFacts EXTID 'merc:deliveryFacts';
@@ -42,9 +47,23 @@ FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
                =guid(consignorEnterpriseVetDocument(incomingConsignment(r))) IN consignorEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
                =guid(consigneeBusinessEntityVetDocument(incomingConsignment(r))) IN consigneeBusinessEntity EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
                =guid(consigneeEnterpriseVetDocument(incomingConsignment(r))) IN consigneeEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    
+    PROPERTIES = id(productType(vetDocument(incomingConsignment(r)))) EXTID 'vd:productType' IN consignment,
+               = guid(product(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentProduct,
+               = guid(subProduct(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentSubProduct,
+               = productItemXml(vetDocument(incomingConsignment(r))) EXTID 'vd:productItem' IN consignment,
+               = volume(vetDocument(incomingConsignment(r))) EXTID 'vd:volume' IN consignment,
+               = guid(unit(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentUnit,
+               = dateOfProductionXml(vetDocument(incomingConsignment(r))) EXTID 'vd:dateOfProduction' IN consignment,
+               = expiryDateXml(vetDocument(incomingConsignment(r))) EXTID 'vd:expiryDate' IN consignment,
+               = batchID(vetDocument(incomingConsignment(r))) EXTID 'vd:batchID' IN consignment,
+               = IF perishable(vetDocument(incomingConsignment(r))) THEN 'true' ELSE 'false' EXTID 'vd:perishable' IN consignment,
+               = origin(vetDocument(incomingConsignment(r))) EXTID 'vd:origin' IN consignment,
+               = IF lowGradeCargo(vetDocument(incomingConsignment(r))) THEN 'true' ELSE 'false' EXTID 'vd:lowGradeCargo' IN consignment,
+               = packageList(vetDocument(incomingConsignment(r))) EXTID 'vd:packageList' IN consignment
 
-    PROPERTIES =batch(vetDocument(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment',
-               =guid(broker(vetDocument(incomingConsignment(r)))) IN deliveryBroker EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+//=batch(vetDocument(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment',
+    PROPERTIES =guid(broker(vetDocument(incomingConsignment(r)))) IN deliveryBroker EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
                =transportInfo(vetDocument(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportInfo',
                =transportStorageType(vetDocument(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportStorageType'
 
@@ -140,6 +159,12 @@ process (ProcessIncomingConsignmentRequest r) + {
             
             volume(s) <- stockEntryVolume();
             unit(s) <- unit(vetDocument(incomingConsignment(r)));
+
+            dateOfProduction(s) <- dateOfProduction(vetDocument(incomingConsignment(r)));
+            dateOfProductionHour(s) <- dateOfProductionHour(vetDocument(incomingConsignment(r)));
+
+            expiryDate(s) <- expiryDate(vetDocument(incomingConsignment(r)));
+            expiryDateHour(s) <- expiryDateHour(vetDocument(incomingConsignment(r)));
         }
         
         importVetDocument(vetDocument());
@@ -224,7 +249,7 @@ META defineDocumentIncomingProcess (doc, obj)
         PROPERTIES(obj) process DRAW vse TOOLBAR SHOWIF toProcess(obj)
          
         PROPERTIES(vd, vtd) issueDateLastRequest, nameStatusLastRequest, errorLastRequest PANEL,
-                           process READONLYIF toProcess(incomingConsignment(vd, vtd)) GRID
+                           process READONLYIF NOT toProcess(incomingConsignment(vd, vtd)) GRID
     ;
     
     DESIGN doc##s {

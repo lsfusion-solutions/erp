@@ -4,7 +4,6 @@ REQUIRE VetisDocument;
 
 NAMESPACE Vetis;
 
-xml 'XML' = DATA TEXT (VetDocument);
 vetDocument = DATA LOCAL TEXT(INTEGER);
 
 uuid = DATA LOCAL STRING();
@@ -36,11 +35,21 @@ transportInfo = DATA LOCAL TEXT();
 
 // batch
 GROUP batch EXTID 'vd:batch' : certifiedConsignment;
+
+productTypeId = DATA LOCAL INTEGER();
+
+GROUP product EXTID 'vd:product' : batch;
+productGuid = DATA LOCAL STRING();
+
+GROUP subProduct EXTID 'vd:subProduct' : batch;
+subProductGuid = DATA LOCAL STRING();
+
 GROUP productItem EXTID 'vd:productItem' : batch;
 
 productItemGuid = DATA LOCAL STRING();
 productItemGlobalID = DATA LOCAL STRING();
 productItemName = DATA LOCAL STRING();
+productItemXml = DATA LOCAL TEXT();
 
 batch = DATA LOCAL TEXT();
 
@@ -52,18 +61,28 @@ unitGuid = DATA LOCAL STRING();
 GROUP dateOfProduction EXTID 'vd:dateOfProduction' : batch;
 GROUP dateOfProductionFirstDate EXTID 'vd:firstDate' : dateOfProduction;
 
-dateOfProductionYear = DATA INTEGER ();
-dateOfProductionMonth = DATA INTEGER ();
-dateOfProductionDay = DATA INTEGER ();
-dateOfProductionHour = DATA INTEGER ();
+dateOfProductionYear = DATA LOCAL INTEGER ();
+dateOfProductionMonth = DATA LOCAL INTEGER ();
+dateOfProductionDay = DATA LOCAL INTEGER ();
+dateOfProductionHour = DATA LOCAL INTEGER ();
+
+dateOfProductionXml = DATA LOCAL TEXT ();
 
 GROUP expiryDate EXTID 'vd:expiryDate' : batch;
 GROUP expiryDateFirstDate EXTID 'vd:firstDate' : expiryDate;
 
-expiryDateYear = DATA INTEGER ();
-expiryDateMonth = DATA INTEGER ();
-expiryDateDay = DATA INTEGER ();
-expiryDateHour = DATA INTEGER ();
+expiryDateYear = DATA LOCAL INTEGER ();
+expiryDateMonth = DATA LOCAL INTEGER ();
+expiryDateDay = DATA LOCAL INTEGER ();
+expiryDateHour = DATA LOCAL INTEGER ();
+
+expiryDateXml = DATA LOCAL TEXT ();
+
+batchID = DATA LOCAL STRING ();
+perishable = DATA LOCAL BOOLEAN ();
+origin = DATA LOCAL TEXT ();
+lowGradeCargo = DATA LOCAL BOOLEAN ();
+packageList = DATA LOCAL TEXT ();
 
 GROUP authentication EXTID 'vd:authentication';
 GROUP purpose EXTID 'vd:purpose' : authentication;
@@ -90,9 +109,14 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
                  transportInfo EXTID 'vd:transportInfo', transportStorageType EXTID 'vd:transportStorageType',
                  batch EXTID 'vd:batch'
     
+    PROPERTIES() productTypeId IN batch EXTID 'vd:productType',
+                 productGuid IN product EXTID 'bs:guid',
+                 subProductGuid IN subProduct EXTID 'bs:guid'
+    
     PROPERTIES() IN productItem 
                  productItemGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', productItemGlobalID EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:globalID',
                  productItemName EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:name'
+    PROPERTIES() productItemXml EXTID 'vd:productItem' IN batch
     
     PROPERTIES() IN batch
                  volume EXTID 'vd:volume',
@@ -101,10 +125,19 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
     PROPERTIES() IN dateOfProductionFirstDate
                  dateOfProductionYear EXTID 'dt:year', dateOfProductionMonth EXTID 'dt:month', dateOfProductionDay EXTID 'dt:day',
                  dateOfProductionHour EXTID 'dt:hour'
+    PROPERTIES() dateOfProductionXml EXTID 'vd:dateOfProduction' IN batch
 
     PROPERTIES() IN expiryDateFirstDate
                  expiryDateYear EXTID 'dt:year', expiryDateMonth EXTID 'dt:month', expiryDateDay EXTID 'dt:day',
                  expiryDateHour EXTID 'dt:hour'
+    PROPERTIES() expiryDateXml EXTID 'vd:expiryDate' IN batch
+
+    PROPERTIES() IN batch
+                 batchID EXTID 'vd:batchID',
+                 perishable EXTID 'vd:perishable',
+                 origin EXTID 'vd:origin',
+                 lowGradeCargo EXTID 'vd:lowGradeCargo',
+                 packageList EXTID 'vd:packageList'
 
     PROPERTIES() purposeGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN purpose
                  
@@ -141,6 +174,14 @@ importVetDocument(TEXT xml) {
 
         IF brokerGuid() AND NOT businessEntity(brokerGuid()) THEN NEW b = BusinessEntity {
             guid(b) <- brokerGuid();
+        }
+        
+        IF productGuid() AND NOT product(productGuid()) THEN NEW p = Product {
+            guid(p) <- productGuid();
+        }
+
+        IF subProductGuid() AND NOT subProduct(subProductGuid()) THEN NEW p = SubProduct {
+            guid(p) <- subProductGuid();
         }
 
         IF productItemGuid() THEN {
@@ -183,19 +224,31 @@ importVetDocument(TEXT xml) {
             transportInfo(d) <- transportInfo();
             transportStorageType(d) <- transportStorageType();
             
-            batch(d) <- batch();
+            productType(d) <- productType(productTypeId());
+            product(d) <- product(productGuid());
+            subProduct(d) <- subProduct(subProductGuid());
+            
             productItem(d) <- OVERRIDE productItem(productItemGuid()), 
                                        productItemGlobalID(productItemGlobalID()), 
                                        productItemName(productItemName());
+            productItemXml(d) <- productItemXml();
             
             volume(d) <- volume();
             unit(d) <- unit(unitGuid());
             
             dateOfProduction(d) <- toDateFormat(dateOfProductionYear() + '-' + dateOfProductionMonth() + '-' + dateOfProductionDay(), 'YYYY-MM-DD');
             dateOfProductionHour(d) <- dateOfProductionHour();
+            dateOfProductionXml(d) <- dateOfProductionXml();
 
             expiryDate(d) <- toDateFormat(expiryDateYear() + '-' + expiryDateMonth() + '-' + expiryDateDay(), 'YYYY-MM-DD');
             expiryDateHour(d) <- expiryDateHour();
+            expiryDateXml(d) <- expiryDateXml();
+
+            batchID(d) <- batchID();
+            perishable(d) <- perishable();
+            origin(d) <- origin();
+            lowGradeCargo(d) <- lowGradeCargo();
+            packageList(d) <- packageList();
             
             purpose(d) <- purpose(purposeGuid());
             

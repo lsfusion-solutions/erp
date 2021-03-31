@@ -4,6 +4,81 @@ REQUIRE Vetis;
 
 NAMESPACE Vetis;
 
+// product type
+CLASS ProductType 'Тип продукции';
+TABLE productType (ProductType);
+
+id 'Код' = DATA INTEGER (ProductType);
+productType 'Тип продукции' = GROUP AGGR ProductType i BY id(i);
+name 'Наименование' = DATA ISTRING (ProductType);
+
+onStarted() + {
+    IF NOT productType(1) THEN NEW p = ProductType { id(p) <- 1; name(p) <- 'Мясо и мясопродукты'; }
+    IF NOT productType(2) THEN NEW p = ProductType { id(p) <- 2; name(p) <- 'Корма и кормовые добавки'; }
+    IF NOT productType(3) THEN NEW p = ProductType { id(p) <- 3; name(p) <- 'Живые животные'; }
+    IF NOT productType(4) THEN NEW p = ProductType { id(p) <- 4; name(p) <- 'Лекарственные средства'; }
+    IF NOT productType(5) THEN NEW p = ProductType { id(p) <- 5; name(p) <- 'Пищевые продукты'; }
+    IF NOT productType(6) THEN NEW p = ProductType { id(p) <- 6; name(p) <- 'Непищевые продукты и другое'; }
+    IF NOT productType(7) THEN NEW p = ProductType { id(p) <- 7; name(p) <- 'Рыба и морепродукты'; }
+    IF NOT productType(8) THEN NEW p = ProductType { id(p) <- 8; name(p) <- 'Продукция, не требующая разрешения'; }
+}
+
+FORM dialogProductTypes 'Типы продукции'
+    OBJECTS o = ProductType
+    PROPERTIES(o) READONLY id, name
+    
+    LIST ProductType OBJECT o
+;
+
+// product
+CLASS Product 'Группа продукции';
+TABLE product (Product);
+
+guid 'Код' = DATA STRING (Product) CHARWIDTH 36 INDEXED;
+product 'Группа продукции' = GROUP AGGR Product i BY guid(i);
+
+name 'Наименование' = DATA ISTRING (Product) CHARWIDTH 20;
+
+FORM product 'Группа продукции'
+    OBJECTS o = Product PANEL
+    PROPERTIES(o) guid, name
+    
+    EDIT Product OBJECT o
+;
+
+FORM products 'Группы продукции'
+    OBJECTS o = Product
+    PROPERTIES(o) READONLY guid, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST Product OBJECT o
+;
+
+// subProduct
+CLASS SubProduct 'Вид продукции';
+TABLE subProduct (SubProduct);
+
+guid 'Код' = DATA STRING (SubProduct) CHARWIDTH 36 INDEXED;
+subProduct 'Вид продукции' = GROUP AGGR SubProduct i BY guid(i);
+
+name 'Наименование' = DATA ISTRING (SubProduct) CHARWIDTH 20;
+
+FORM subProduct 'Вид продукции'
+    OBJECTS o = SubProduct PANEL
+    PROPERTIES(o) guid, name
+    
+    EDIT SubProduct OBJECT o
+;
+
+FORM subProducts 'Виды продукции'
+    OBJECTS o = SubProduct
+    PROPERTIES(o) READONLY guid, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST SubProduct OBJECT o
+;
+
+// product item
 CLASS ProductItem 'Продукция';
 TABLE productItem (ProductItem);
 
@@ -38,6 +113,8 @@ FORM dialogProductItems 'Продукция'
 
 NAVIGATOR {
     vetisNavigator {
+        NEW products;
+        NEW subProducts;
         NEW productItems;
     }
 }
