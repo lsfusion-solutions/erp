@@ -1,6 +1,6 @@
 MODULE VetisItem;
 
-REQUIRE Item, VetisProductItem;
+REQUIRE Item, VetisProductItem, VetisUnit;
 
 NAMESPACE Vetis;
 
@@ -10,3 +10,17 @@ nameProductItem 'Продукция (Ветис)' (Item i) = name(productItem(i)
 EXTEND FORM item
     PROPERTIES(i) nameProductItem
 ;
+
+factorItem 'Коэффициент в литры/килограммы' = DATA NUMERIC[14,3] (Unit);
+volume 'Объем' = DATA BOOLEAN (Unit);
+weight 'Вес' = DATA BOOLEAN (Unit);
+EXTEND FORM unit PROPERTIES(o) volume, weight, factorItem;
+EXTEND FORM units PROPERTIES(o) READONLY volume, weight, factorItem;
+
+volume(Unit u) <- nameCommonUnit(u) = 'мл' WHEN SET(commonUnit(u)); 
+weight(Unit u) <- nameCommonUnit(u) = 'мг' OR nameCommonUnit(u) = 'кг' WHEN SET(commonUnit(u)); 
+factorItem(Unit u) <- 1000.0 IF (name(u) = 'мл' OR name(u) = 'мг') WHEN SET(u IS Unit); 
+
+factorResult (Unit u) = NUMERIC[17,6]((OVERRIDE factorItem(commonUnit(u)), (1.0 IF u IS Unit)) / factor(u)) MATERIALIZED;
+
+factor 'Коэффициент' (Item i, Unit u) = (OVERRIDE volume(i) IF volume(u), netWeight(i) IF weight(u)) * factorResult(u); 

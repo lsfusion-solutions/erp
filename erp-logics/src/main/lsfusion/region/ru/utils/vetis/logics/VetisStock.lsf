@@ -36,7 +36,9 @@ DESIGN departmentStore {
 // META 
 META defineDocumentVetDocument (doc, consignor, consignee, obj, container)
     volume 'Объем (ВСД)' = DATA NUMERIC[16,5] (###doc##Detail, VetDocument);
-    fillVolume 'Выбрать' (###doc##Detail vd, VetDocument vtd) { volume(vd, vtd) <- quantity(vd); }
+    
+    volumeDetail 'Объем в документе' (###doc##Detail vd, VetDocument vtd) = NUMERIC[16,5](quantity(vd) * OVERRIDE factor(sku(vd), unit(vtd)), 1.0); 
+    fillVolume 'Выбрать' (###doc##Detail vd, VetDocument vtd) { volume(vd, vtd) <- volumeDetail(vd, vtd); }
     
     uuidVetDocument 'Коды ВСД' (###doc##Detail d) =
         GROUP CONCAT uuid(VetDocument s) IF volume(d, s), ',' ORDER s;
@@ -84,7 +86,9 @@ END
 META defineDocumentStockEntry (doc, stock, obj, container)
 
     volume 'Объем (ВСД)' = DATA NUMERIC[16,5] (###doc##Detail, StockEntry);
-    fillVolume 'Выбрать' (###doc##Detail d, StockEntry s) { volume(d, s) <- quantity(d); }
+
+    volumeDetail 'Объем в документе' (###doc##Detail vd, StockEntry s) = NUMERIC[16,5](quantity(vd) * OVERRIDE factor(sku(vd), unit(s)), 1.0); 
+    fillVolume 'Выбрать' (###doc##Detail d, StockEntry s) { volume(d, s) <- volumeDetail(d, s); }
     
     numberStockEntry 'Номер складского журнала' (###doc##Detail d) =
         GROUP CONCAT number(StockEntry s) IF volume(d, s), ',' ORDER s;

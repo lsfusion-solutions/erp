@@ -143,14 +143,22 @@ importVetDocument(TEXT xml) {
             guid(b) <- brokerGuid();
         }
 
-        IF productItemGuid() AND NOT productItem(productItemGuid()) THEN NEW i = ProductItem {
-            guid(i) <- productItemGuid();
-            name(i) <- productItemName();
-            globalID(i) <- productItemGlobalID();
-        } ELSE {
-            IF productItemGlobalID() AND NOT productItemGlobalID(productItemGlobalID()) THEN NEW i = ProductItem {
+        IF productItemGuid() THEN {
+            IF NOT productItem(productItemGuid()) THEN NEW i = ProductItem {
+                guid(i) <- productItemGuid();
                 name(i) <- productItemName();
                 globalID(i) <- productItemGlobalID();
+            }
+        } ELSE {
+            IF productItemGlobalID() THEN { 
+                IF NOT productItemGlobalID(productItemGlobalID()) THEN NEW i = ProductItem {
+                    name(i) <- productItemName();
+                    globalID(i) <- productItemGlobalID();
+                }
+            } ELSE {
+                IF productItemName() AND NOT productItemName(productItemName()) THEN NEW i = ProductItem {
+                    name(i) <- productItemName();
+                }
             }
         }
         
@@ -176,7 +184,9 @@ importVetDocument(TEXT xml) {
             transportStorageType(d) <- transportStorageType();
             
             batch(d) <- batch();
-            productItem(d) <- OVERRIDE productItem(productItemGuid()), productItemGlobalID(productItemGlobalID());
+            productItem(d) <- OVERRIDE productItem(productItemGuid()), 
+                                       productItemGlobalID(productItemGlobalID()), 
+                                       productItemName(productItemName());
             
             volume(d) <- volume();
             unit(d) <- unit(unitGuid());
