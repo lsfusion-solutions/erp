@@ -20,7 +20,7 @@ GROUP certifiedConsignee EXTID 'vd:consignee' : certifiedConsignment;
 GROUP certifiedConsigneeBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : certifiedConsignee;
 GROUP certifiedConsigneeEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : certifiedConsignee;
 
-GROUP broker EXTID 'vd:broker' : certifiedConsignment;
+GROUP certifiedConsignmentBroker EXTID 'vd:broker' : certifiedConsignment;
 
 consignorBusinessEntityGuid = DATA LOCAL STRING();
 consignorEnterpriseGuid = DATA LOCAL STRING();
@@ -92,6 +92,8 @@ lowGradeCargo = DATA LOCAL BOOLEAN ();
 packageList = DATA LOCAL TEXT ();
 
 GROUP authentication EXTID 'vd:authentication';
+authentication = DATA TEXT ();
+
 GROUP purpose EXTID 'vd:purpose' : authentication;
 purposeGuid = DATA LOCAL STRING();
 
@@ -110,7 +112,7 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
     PROPERTIES() EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
                  consignorBusinessEntityGuid IN certifiedConsignorBusinessEntity, consignorEnterpriseGuid IN certifiedConsignorEnterprise,
                  consigneeBusinessEntityGuid IN certifiedConsigneeBusinessEntity, consigneeEnterpriseGuid IN certifiedConsigneeEnterprise,
-                 brokerGuid IN broker
+                 brokerGuid IN certifiedConsignmentBroker
 
     PROPERTIES() IN certifiedConsignment                 
                  transportInfo EXTID 'vd:transportInfo', transportStorageType EXTID 'vd:transportStorageType',
@@ -150,8 +152,9 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
     PROPERTIES() IN batch
                  lowGradeCargo EXTID 'vd:lowGradeCargo',
                  packageList EXTID 'vd:packageList'
-
-    PROPERTIES() purposeGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN purpose
+    
+    PROPERTIES() authentication EXTID 'vd:authentication',
+                 purposeGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN purpose
                  
     OBJECTS rd = INTEGER EXTID 'vd:referencedDocument'
     PROPERTIES(rd) issueSeries EXTID 'vd:issueSeries', issueNumber EXTID 'vd:issueNumber', issueDate EXTID 'vd:issueDate',
@@ -265,6 +268,7 @@ importVetDocument(TEXT xml) {
             lowGradeCargo(d) <- lowGradeCargo();
             packageList(d) <- packageList();
             
+            authentication(d) <- authentication();
             purpose(d) <- purpose(purposeGuid());
             
             FOR issueKey(INTEGER i) AND NOT vetReferenceDocument(d, issueKey(i)) NEW rd = VetReferenceDocument DO {

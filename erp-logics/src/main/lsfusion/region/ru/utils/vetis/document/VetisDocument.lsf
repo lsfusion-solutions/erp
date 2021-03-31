@@ -102,6 +102,8 @@ origin 'Сведения о происхождении продукции' = DAT
 lowGradeCargo 'Некачественный' = DATA BOOLEAN (VetDocument);
 packageList 'Список физической упаковки' = DATA TEXT (VetDocument);
 
+authentication 'Результаты осмотра/исследований партии' = DATA TEXT (VetDocument);
+
 purpose = DATA Purpose (VetDocument);
 namePurpose 'Назначение груза' (VetDocument d) = name(purpose(d));
 
@@ -126,8 +128,7 @@ FORM vetDocument 'ВСД'
                   nameConsignorBusinessEntity, nameConsignorEnterprise,
                   nameConsigneeBusinessEntity, nameConsigneeEnterprise,
                   nameBroker,
-                  
-                  transportStorageType, transportInfo,
+
                   nameProductType, guidProduct, nameProduct,
                   guidSubProduct, nameSubProduct, 
                   guidProductItem, nameProductItem, 
@@ -135,8 +136,12 @@ FORM vetDocument 'ВСД'
                   dateOfProduction, dateOfProductionHour,
                   expiryDate, expiryDateHour,
                   dateOfProductionXml, expiryDateXml, 
-                  batchID, perishable, lowGradeCargo, namePurpose,
-                  productItemXml, origin, packageList 
+                  batchID, perishable, lowGradeCargo, 
+                  productItemXml, origin, packageList, 
+                  
+                  transportStorageType, transportInfo,
+
+                  authentication, namePurpose
 
     OBJECTS rd = VetReferenceDocument
     PROPERTIES(rd) READONLY issueSeries, issueNumber, issueDate, type, relationshipType
@@ -233,6 +238,12 @@ DESIGN vetDocument {
                     MOVE PROPERTY(packageList(o)) { fill = 1; panelCaptionVertical = TRUE; }
                 }
             }
+            NEW authentication {
+                caption = 'Ветеринарно-санитарная экспертиза';
+                MOVE PROPERTY(namePurpose(o));
+                MOVE PROPERTY(authentication(o)) { fill = 1; panelCaptionVertical = TRUE; }
+            }
+
             NEW referenceDocument {
                 caption = 'Связанные документы';
                 MOVE BOX(rd);

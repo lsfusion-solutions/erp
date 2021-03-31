@@ -12,19 +12,22 @@ localTransactionId (ProcessIncomingConsignmentRequest r) = LONG(r AS ProcessInco
 
 GROUP delivery EXTID 'merc:delivery';
 
-GROUP consignor EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignor' : delivery;
-GROUP consignorBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignor;
-GROUP consignorEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : consignor;
-GROUP consignee EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignee' : delivery;
-GROUP consigneeBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignee;
-GROUP consigneeEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : consignee;
+GROUP deliveryConsignor EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignor' : delivery;
+GROUP deliveryConsignorBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : deliveryConsignor;
+GROUP deliveryConsignorEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : deliveryConsignor;
+GROUP deliveryConsignee EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignee' : delivery;
+GROUP deliveryConsigneeBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : deliveryConsignee;
+GROUP deliveryConsigneeEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : deliveryConsignee;
 
-GROUP consignment EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment' : delivery;
-GROUP consignmentProduct EXTID 'vd:product' : consignment;
-GROUP consignmentSubProduct EXTID 'vd:subProduct' : consignment;
-GROUP consignmentUnit EXTID 'vd:unit' : consignment;
+GROUP deliveryConsignment EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment' : delivery;
+GROUP deliveryConsignmentProduct EXTID 'vd:product' : deliveryConsignment;
+GROUP deliveryConsignmentSubProduct EXTID 'vd:subProduct' : deliveryConsignment;
+GROUP deliveryConsignmentUnit EXTID 'vd:unit' : deliveryConsignment;
 
 GROUP deliveryBroker EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:broker' : delivery;
+
+GROUP deliveryAccompanyingForms EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:accompanyingForms' : delivery;
+GROUP deliveryVetCertificate EXTID 'vd:vetCertificate' : deliveryAccompanyingForms;
 
 GROUP deliveryFacts EXTID 'merc:deliveryFacts';
 GROUP docInspection EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:docInspection' : deliveryFacts;
@@ -32,8 +35,13 @@ GROUP docInspectionResponsible EXTID 'vd:responsible' : docInspection;
 GROUP vetInspection EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetInspection' : deliveryFacts;
 GROUP vetInspectionResponsible EXTID 'vd:responsible' : vetInspection;
 
-GROUP accompanyingForms EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:accompanyingForms' : delivery;
-GROUP vetCertificate EXTID 'vd:vetCertificate' : accompanyingForms;
+result (IncomingConsignment c) = CASE WHEN volumeVetDocument(c) = volume(c) THEN 'ACCEPT_ALL'
+                                                    WHEN volume(c) > 0 THEN 'PARTIALLY'
+                                                    ELSE 'RETURN_ALL'; 
+
+// returned delivery
+returnedDelivery (IncomingConsignment c) = c IS IncomingConsignment AND NOT volumeVetDocument(c) = volume(c); 
+returnedDelivery = DATA LOCAL TEXT ();
 
 FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:processIncomingConsignmentRequest'
     OBJECTS r = ProcessIncomingConsignmentRequest PANEL
@@ -43,38 +51,37 @@ FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
 
     PROPERTIES =formatT(deliveryDate(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:deliveryDate'
     
-    PROPERTIES =guid(consignorBusinessEntityVetDocument(incomingConsignment(r))) IN consignorBusinessEntity EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
-               =guid(consignorEnterpriseVetDocument(incomingConsignment(r))) IN consignorEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
-               =guid(consigneeBusinessEntityVetDocument(incomingConsignment(r))) IN consigneeBusinessEntity EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
-               =guid(consigneeEnterpriseVetDocument(incomingConsignment(r))) IN consigneeEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    PROPERTIES =guid(consignorBusinessEntityVetDocument(incomingConsignment(r))) IN deliveryConsignorBusinessEntity EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guid(consignorEnterpriseVetDocument(incomingConsignment(r))) IN deliveryConsignorEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guid(consigneeBusinessEntityVetDocument(incomingConsignment(r))) IN deliveryConsigneeBusinessEntity EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guid(consigneeEnterpriseVetDocument(incomingConsignment(r))) IN deliveryConsigneeEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
     
-    PROPERTIES = id(productType(vetDocument(incomingConsignment(r)))) EXTID 'vd:productType' IN consignment,
-               = guid(product(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentProduct,
-               = guid(subProduct(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentSubProduct,
-               = productItemXml(vetDocument(incomingConsignment(r))) EXTID 'vd:productItem' IN consignment,
-               = volume(vetDocument(incomingConsignment(r))) EXTID 'vd:volume' IN consignment,
-               = guid(unit(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentUnit,
-               = dateOfProductionXml(vetDocument(incomingConsignment(r))) EXTID 'vd:dateOfProduction' IN consignment,
-               = expiryDateXml(vetDocument(incomingConsignment(r))) EXTID 'vd:expiryDate' IN consignment,
-               = batchID(vetDocument(incomingConsignment(r))) EXTID 'vd:batchID' IN consignment,
-               = IF perishable(vetDocument(incomingConsignment(r))) THEN 'true' ELSE 'false' EXTID 'vd:perishable' IN consignment,
-               = origin(vetDocument(incomingConsignment(r))) EXTID 'vd:origin' IN consignment,
-               = IF lowGradeCargo(vetDocument(incomingConsignment(r))) THEN 'true' ELSE 'false' EXTID 'vd:lowGradeCargo' IN consignment,
-               = packageList(vetDocument(incomingConsignment(r))) EXTID 'vd:packageList' IN consignment
+    PROPERTIES = id(productType(vetDocument(incomingConsignment(r)))) EXTID 'vd:productType' IN deliveryConsignment,
+               = guid(product(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN deliveryConsignmentProduct,
+               = guid(subProduct(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN deliveryConsignmentSubProduct,
+               = productItemXml(vetDocument(incomingConsignment(r))) EXTID 'vd:productItem' IN deliveryConsignment,
+               = volume(incomingConsignment(r)) EXTID 'vd:volume' IN deliveryConsignment,
+               = guid(unit(vetDocument(incomingConsignment(r)))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN deliveryConsignmentUnit,
+               = dateOfProductionXml(vetDocument(incomingConsignment(r))) EXTID 'vd:dateOfProduction' IN deliveryConsignment,
+               = expiryDateXml(vetDocument(incomingConsignment(r))) EXTID 'vd:expiryDate' IN deliveryConsignment,
+               = batchID(vetDocument(incomingConsignment(r))) EXTID 'vd:batchID' IN deliveryConsignment,
+               = IF perishable(vetDocument(incomingConsignment(r))) THEN 'true' ELSE 'false' EXTID 'vd:perishable' IN deliveryConsignment,
+               = origin(vetDocument(incomingConsignment(r))) EXTID 'vd:origin' IN deliveryConsignment,
+               = IF lowGradeCargo(vetDocument(incomingConsignment(r))) THEN 'true' ELSE 'false' EXTID 'vd:lowGradeCargo' IN deliveryConsignment,
+               = packageList(vetDocument(incomingConsignment(r))) EXTID 'vd:packageList' IN deliveryConsignment
 
 //=batch(vetDocument(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment',
     PROPERTIES =guid(broker(vetDocument(incomingConsignment(r)))) IN deliveryBroker EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
                =transportInfo(vetDocument(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportInfo',
                =transportStorageType(vetDocument(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportStorageType'
 
-    OBJECTS rd = VetReferenceDocument IN accompanyingForms EXTID 'vd:waybill' 
+    OBJECTS rd = VetReferenceDocument IN deliveryAccompanyingForms EXTID 'vd:waybill' 
     PROPERTIES issueSeries(rd) EXTID 'vd:issueSeries', issueNumber(rd) EXTID 'vd:issueNumber', =toDateISO(issueDate(rd)) EXTID 'vd:issueDate', 
                type(rd) EXTID 'vd:type'
     FILTERS vetDocument(rd) = vetDocument(incomingConsignment(r)),
             relationshipType(rd) = 1
-            
     
-    PROPERTIES IN vetCertificate =uuid(vetDocument(incomingConsignment(r))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid'
+    PROPERTIES IN deliveryVetCertificate =uuid(vetDocument(incomingConsignment(r))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid'
 
     PROPERTIES   IN deliveryFacts ='ELECTRONIC' EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetCertificatePresence'
     
@@ -84,13 +91,78 @@ FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
     PROPERTIES() IN vetInspectionResponsible vetInspectionResponsible = loginMercury EXTID 'vd:login'
     PROPERTIES   IN vetInspection ='CORRESPONDS' EXTID 'vd:result'
 
-    PROPERTIES   IN deliveryFacts ='ACCEPT_ALL' EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:decision'
+    PROPERTIES   IN deliveryFacts =result(incomingConsignment(r)) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:decision'
+
+    PROPERTIES returnedDelivery() EXTID 'merc:returnedDelivery'
 ;
+
+// return 
+GROUP consignor EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignor';
+GROUP consignorBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignor;
+GROUP consignorEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : consignor;
+GROUP consignee EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignee';
+GROUP consigneeBusinessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignee;
+GROUP consigneeEnterprise EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterprise' : consignee;
+
+GROUP consignment EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignment';
+GROUP consignmentProduct EXTID 'vd:product' : consignment;
+GROUP consignmentSubProduct EXTID 'vd:subProduct' : consignment;
+GROUP consignmentUnit EXTID 'vd:unit' : consignment;
+
+GROUP broker EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:broker';
+
+FORM processIncomingConsignmentRequestReturnedDelivery
+    OBJECTS c = IncomingConsignment PANEL
+    
+    PROPERTIES =formatT(deliveryDate(c)) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:deliveryDate'
+
+    PROPERTIES =guid(consigneeBusinessEntityVetDocument(c)) IN consignorBusinessEntity EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guid(consigneeEnterpriseVetDocument(c)) IN consignorEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guid(consignorBusinessEntityVetDocument(c)) IN consigneeBusinessEntity EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =guid(consignorEnterpriseVetDocument(c)) IN consigneeEnterprise EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+
+    PROPERTIES = id(productType(vetDocument(c))) EXTID 'vd:productType' IN consignment,
+               = guid(product(vetDocument(c))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentProduct,
+               = guid(subProduct(vetDocument(c))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentSubProduct,
+               = productItemXml(vetDocument(c)) EXTID 'vd:productItem' IN consignment,
+               = volume(vetDocument(c)) (-) volume(c) EXTID 'vd:volume' IN consignment,
+               = guid(unit(vetDocument(c))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid' IN consignmentUnit,
+               = dateOfProductionXml(vetDocument(c)) EXTID 'vd:dateOfProduction' IN consignment,
+               = expiryDateXml(vetDocument(c)) EXTID 'vd:expiryDate' IN consignment,
+               = batchID(vetDocument(c)) EXTID 'vd:batchID' IN consignment,
+               = IF perishable(vetDocument(c)) THEN 'true' ELSE 'false' EXTID 'vd:perishable' IN consignment,
+               = origin(vetDocument(c)) EXTID 'vd:origin' IN consignment,
+               = IF lowGradeCargo(vetDocument(c)) THEN 'true' ELSE 'false' EXTID 'vd:lowGradeCargo' IN consignment,
+               = packageList(vetDocument(c)) EXTID 'vd:packageList' IN consignment
+
+    PROPERTIES =guid(broker(vetDocument(c))) IN broker EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+               =transportInfo(vetDocument(c)) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportInfo',
+               =transportStorageType(vetDocument(c)) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportStorageType'
+
+    OBJECTS rd = VetReferenceDocument IN accompanyingForms EXTID 'vd:waybill' 
+    PROPERTIES issueSeries(rd) EXTID 'vd:issueSeries', issueNumber(rd) EXTID 'vd:issueNumber', =toDateISO(issueDate(rd)) EXTID 'vd:issueDate', 
+               type(rd) EXTID 'vd:type'
+    FILTERS vetDocument(rd) = vetDocument(c),
+            relationshipType(rd) = 1
+
+    PROPERTIES = authentication(vetDocument(c)) EXTID 'vd:authentication' IN vetCertificate
+
+; 
 
 process 'Отправить в Ветис' (IncomingConsignment c) {
     NEWSESSION {
         NEW r = ProcessIncomingConsignmentRequest {
             incomingConsignment(r) <- c;
+
+            IF returnedDelivery(c) THEN {
+                EXPORT processIncomingConsignmentRequestReturnedDelivery OBJECTS c = c XML;
+                fileToString(exportFile());
+                returnedDelivery() <- replace(replace(replace(resultString(), 
+                                                      '<?xml version="1.0" encoding="UTF-8"?>', ''),
+                                                      '<processIncomingConsignmentRequestReturnedDelivery>', ''),
+                                                      '</processIncomingConsignmentRequestReturnedDelivery>', '');
+            }         
+
             EXPORT processIncomingConsignmentRequest OBJECTS r = r XML;
             
             submitApplicationRequest(r, exportFile());
@@ -123,7 +195,6 @@ stockEntryActive = DATA LOCAL BOOLEAN();
 
 stockEntryVolume = DATA NUMERIC[16,5]();
 
-vetDocument = DATA LOCAL TEXT();
 
 FORM processIncomingConsignmentResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:processIncomingConsignmentResponse'
     PROPERTIES() IN stockEntry
@@ -133,7 +204,8 @@ FORM processIncomingConsignmentResponse FORMEXTID 'merc=http://api.vetrf.ru/sche
     PROPERTIES() IN stockEntryBatch
                     stockEntryVolume EXTID 'vd:volume'
     
-    PROPERTIES() vetDocument EXTID 'merc:vetDocument'
+    OBJECTS vetDocument = INTEGER EXTID 'merc:vetDocument'
+    PROPERTIES(vetDocument) vetDocument EXTID 'value:full'
 ;
 
 process (ProcessIncomingConsignmentRequest r) + {
@@ -167,61 +239,13 @@ process (ProcessIncomingConsignmentRequest r) + {
             expiryDateHour(s) <- expiryDateHour(vetDocument(incomingConsignment(r)));
         }
         
-        importVetDocument(vetDocument());
+        FOR vetDocument(INTEGER i) DO 
+            importVetDocument(vetDocument(i));
         
         processed(r) <- TRUE;
         APPLY;
     }
 }
-
-
-//GROUP delivery EXTID 'merc:delivery' : processIncomingConsignmentRequest;
-//GROUP consignor EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:consignor' : delivery;
-//GROUP businessEntity EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:businessEntity' : consignor;
-//GROUP enterprise EXTID 'dt:enterprise' : consignor;
-//GROUP consignee EXTID 'vd:consignee' : delivery;
-//GROUP businessEntity1 EXTID 'dt:businessEntity' : consignee;
-//GROUP enterprise1 EXTID 'dt:enterprise' : consignee;
-//GROUP deliveryFacts EXTID 'merc:deliveryFacts' : processIncomingConsignmentRequest;
-//GROUP docInspection EXTID 'vd:docInspection' : deliveryFacts;
-//GROUP responsible EXTID 'vd:responsible' : docInspection;
-//GROUP vetInspection EXTID 'vd:vetInspection' : deliveryFacts;
-//GROUP responsible1 EXTID 'vd:responsible' : vetInspection;
-//
-//header1 = DATA LOCAL STRING();
-//apiKey1 = DATA LOCAL STRING();
-//serviceId1 = DATA LOCAL STRING();
-//issuerId1 = DATA LOCAL STRING();
-//issueDate1 = DATA LOCAL STRING();
-//localTransactionId1 = DATA LOCAL STRING();
-//login3 = DATA LOCAL STRING();
-//deliveryDate1 = DATA LOCAL STRING();
-//guid4 = DATA LOCAL STRING();
-//guid5 = DATA LOCAL STRING();
-//guid6 = DATA LOCAL STRING();
-//guid7 = DATA LOCAL STRING();
-//consignment1 = DATA LOCAL STRING();
-//transportInfo1 = DATA LOCAL STRING();
-//transportStorageType1 = DATA LOCAL STRING();
-//vetCertificatePresence1 = DATA LOCAL STRING();
-//login4 = DATA LOCAL STRING();
-//result2 = DATA LOCAL STRING();
-//login5 = DATA LOCAL STRING();
-//result3 = DATA LOCAL STRING();
-//decision1 = DATA LOCAL STRING();
-//
-//PROPERTIES() IN processIncomingConsignmentRequest1 localTransactionId1 EXTID 'merc:localTransactionId'
-//PROPERTIES() IN initiator1 login3 EXTID 'vd:login'
-//PROPERTIES() IN delivery1 deliveryDate1 EXTID 'vd:deliveryDate', consignment1 EXTID 'vd:consignment', transportInfo1 EXTID 'vd:transportInfo', transportStorageType1 EXTID 'vd:transportStorageType'
-//PROPERTIES() IN businessEntity2 guid4 EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
-//PROPERTIES() IN enterprise2 guid5 EXTID 'bs:guid'
-//PROPERTIES() IN businessEntity3 guid6 EXTID 'bs:guid'
-//PROPERTIES() IN enterprise3 guid7 EXTID 'bs:guid'
-//PROPERTIES() IN deliveryFacts1 vetCertificatePresence1 EXTID 'vd:vetCertificatePresence', decision1 EXTID 'vd:decision'
-//PROPERTIES() IN docInspection1 result2 EXTID 'vd:result'
-//PROPERTIES() IN responsible2 login4 EXTID 'vd:login'
-//PROPERTIES() IN vetInspection1 result3 EXTID 'vd:result'
-//PROPERTIES() IN responsible3 login5 EXTID 'vd:login';
 
 META defineDocumentIncomingProcess (doc, obj)
     issueDateLastRequest 'Время заявки' (###doc##Detail vd, VetDocument vtd) = issueDateLastRequest(incomingConsignment(vd, vtd));

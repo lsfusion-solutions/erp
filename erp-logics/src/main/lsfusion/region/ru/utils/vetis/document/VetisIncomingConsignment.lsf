@@ -8,6 +8,7 @@ CLASS ABSTRACT IncomingConsignment 'Входящая партия (ветис)';
 TABLE incomingConsignment(IncomingConsignment);
 
 deliveryDate 'Дата оформления' = ABSTRACT DATETIME (IncomingConsignment);
+volume 'Объем продукции' = ABSTRACT NUMERIC[16,5] (IncomingConsignment);
 
 vetDocument = ABSTRACT VetDocument (IncomingConsignment) MATERIALIZED INDEXED;
 uuidVetDocument 'Код ВСД' (IncomingConsignment c) = uuid(vetDocument(c));
@@ -35,7 +36,8 @@ volumeVetDocument 'Объем продукции' (IncomingConsignment c) = volu
 FORM incomingConsignments 'Входящие партии'
     OBJECTS c = IncomingConsignment
     PROPERTIES(c) READONLY 
-                  objectClassName, uuidVetDocument, issueDateVetDocument, nameTypeVetDocument, nameStatusVetDocument,
+                  objectClassName, deliveryDate, volume,
+                  uuidVetDocument, issueDateVetDocument, nameTypeVetDocument, nameStatusVetDocument,
                   nameConsignorBusinessEntityVetDocument, nameConsignorEnterpriseVetDocument,
                   nameConsigneeBusinessEntityVetDocument, nameConsigneeEnterpriseVetDocument,
                   nameProductItemVetDocument, volumeVetDocument
@@ -53,4 +55,5 @@ META defineDocumentIncomingConsignment (doc, caption)
     incomingConsignment = AGGR ###doc##IncomingConsignment WHERE volume(###doc##Detail doc##Detail, VetDocument vetDocument) AND isPosted(doc##Detail) MATERIALIZED INDEXED;
     vetDocument(###doc##IncomingConsignment c) += vetDocument(c);
     deliveryDate(###doc##IncomingConsignment c) += dateTime(doc##Detail(c));
+    volume(###doc##IncomingConsignment c) += volume(doc##Detail(c), vetDocument(c));
 END
