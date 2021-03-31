@@ -80,7 +80,14 @@ expiryDateXml = DATA LOCAL TEXT ();
 
 batchID = DATA LOCAL STRING ();
 perishable = DATA LOCAL BOOLEAN ();
+
 origin = DATA LOCAL TEXT ();
+
+GROUP origin EXTID 'vd:origin' : batch;
+GROUP originProductItem EXTID 'vd:productItem' : origin;
+originProductItemGuid = DATA LOCAL STRING();
+originProductItemName = DATA LOCAL STRING();
+
 lowGradeCargo = DATA LOCAL BOOLEAN ();
 packageList = DATA LOCAL TEXT ();
 
@@ -134,8 +141,13 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
 
     PROPERTIES() IN batch
                  batchID EXTID 'vd:batchID',
-                 perishable EXTID 'vd:perishable',
-                 origin EXTID 'vd:origin',
+                 perishable EXTID 'vd:perishable'
+    
+    PROPERTIES() origin EXTID 'vd:origin' IN batch,
+                 originProductItemGuid EXTID 'bs:guid' IN originProductItem,
+                 originProductItemName EXTID 'dt:name' IN originProductItem
+                 
+    PROPERTIES() IN batch
                  lowGradeCargo EXTID 'vd:lowGradeCargo',
                  packageList EXTID 'vd:packageList'
 
@@ -183,7 +195,10 @@ importVetDocument(TEXT xml) {
         IF subProductGuid() AND NOT subProduct(subProductGuid()) THEN NEW p = SubProduct {
             guid(p) <- subProductGuid();
         }
-
+        
+        IF NOT productItemGuid() THEN productItemGuid() <- originProductItemGuid();
+        IF NOT productItemName() THEN productItemGuid() <- originProductItemName();
+        
         IF productItemGuid() THEN {
             IF NOT productItem(productItemGuid()) THEN NEW i = ProductItem {
                 guid(i) <- productItemGuid();
