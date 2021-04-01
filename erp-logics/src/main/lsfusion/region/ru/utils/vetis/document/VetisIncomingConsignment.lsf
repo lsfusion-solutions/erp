@@ -41,6 +41,11 @@ FORM incomingConsignments 'Входящие партии'
                   nameConsignorBusinessEntityVetDocument, nameConsignorEnterpriseVetDocument,
                   nameConsigneeBusinessEntityVetDocument, nameConsigneeEnterpriseVetDocument,
                   nameProductItemVetDocument, volumeVetDocument
+    PROPERTIES(c) NEWSESSION EDIT
+
+    FILTERGROUP status
+        FILTER 'Подтверждён' status(vetDocument(c)) = VetDocumentStatus.CONFIRMED
+        FILTER 'Погашен' status(vetDocument(c)) = VetDocumentStatus.UTILIZED
 ;
 
 NAVIGATOR {
@@ -56,4 +61,6 @@ META defineDocumentIncomingConsignment (doc, caption)
     vetDocument(###doc##IncomingConsignment c) += vetDocument(c);
     deliveryDate(###doc##IncomingConsignment c) += dateTime(doc##Detail(c));
     volume(###doc##IncomingConsignment c) += volume(doc##Detail(c), vetDocument(c));
+    
+    edit(###doc##IncomingConsignment c) + { edit(doc##Detail(c)); }
 END

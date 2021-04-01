@@ -70,12 +70,12 @@ FORM prepareOutgoingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
 
 in 'Вкл' = DATA LOCAL BOOLEAN (OutgoingConsignment);
 
-lastRequest (OutgoingConsignment o) = GROUP LAST PrepareOutgoingConsignmentRequest r ORDER r WHERE in(r, o);
+lastRequest (OutgoingConsignment o) = GROUP LAST PrepareOutgoingConsignmentRequest r ORDER r WHERE in(r, o) MATERIALIZED;
 issueDateLastRequest 'Время заявки' (OutgoingConsignment o) = issueDate(lastRequest(o));
 nameStatusLastRequest 'Статус заявки' (OutgoingConsignment o) = nameStatus(lastRequest(o));
 errorLastRequest 'Ошибка заявки' (OutgoingConsignment o) = error(lastRequest(o));
 
-toProcess 'К отправке' (OutgoingConsignment o) = o IS OutgoingConsignment AND NOT notCompleted(lastRequest(o)) AND NOT succeeded(lastRequest(o));  
+toProcess 'К отправке' (OutgoingConsignment o) = o IS OutgoingConsignment AND NOT notCompleted(lastRequest(o)) AND NOT succeeded(lastRequest(o)) MATERIALIZED INDEXED;  
 
 processOutgoingConsignment () {
     NEWSESSION NESTED (in[OutgoingConsignment]) {
@@ -102,6 +102,9 @@ EXTEND FORM outgoingConsignments
 
     PROPERTIES(c) in FIRST
     PROPERTIES(c) process READONLYIF NOT toProcess(c) GRID
+
+    EXTEND FILTERGROUP status
+        FILTER 'К отправке' toProcess(c) DEFAULT
 ; 
 
 // process

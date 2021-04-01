@@ -49,6 +49,8 @@ FORM outgoingConsignments 'Исходящие партии'
                   nameConsigneeBusinessEntity, nameConsigneeEnterprise,
                   volume, nameTruck,
                   waybillSeries, waybillNumber, waybillDate
+                  
+    PROPERTIES(c) NEWSESSION EDIT
 ;
 
 NAVIGATOR {
@@ -64,6 +66,10 @@ nameStatusVetDocument 'Статус ВСД' (OutgoingConsignment c) = nameStatus
 
 EXTEND FORM outgoingConsignments
     PROPERTIES(c) READONLY uuidVetDocument, nameStatusVetDocument
+
+    FILTERGROUP status
+        FILTER 'Подтверждён' status(vetDocument(c)) = VetDocumentStatus.CONFIRMED
+        FILTER 'Погашен' status(vetDocument(c)) = VetDocumentStatus.UTILIZED
 ;
 
 META defineDocumentOutgoingConsignment (doc, consignor, consignee, caption)
@@ -88,4 +94,6 @@ META defineDocumentOutgoingConsignment (doc, consignor, consignee, caption)
     waybillSeries(###doc##OutgoingConsignment c) += STRING(series(doc##Detail(c)));
     waybillNumber(###doc##OutgoingConsignment c) += number(doc##Detail(c));
     waybillDate(###doc##OutgoingConsignment c) += date(doc##Detail(c));
+    
+    edit(###doc##OutgoingConsignment c) + { edit(doc##Detail(c)); }
 END

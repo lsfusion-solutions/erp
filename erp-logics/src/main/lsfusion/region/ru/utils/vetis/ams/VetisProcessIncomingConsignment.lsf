@@ -172,17 +172,20 @@ process 'Отправить в Ветис' (IncomingConsignment c) {
     }
 }
 
-lastRequest (IncomingConsignment o) = GROUP LAST ProcessIncomingConsignmentRequest r ORDER r WHERE incomingConsignment(r) = o;
+lastRequest (IncomingConsignment o) = GROUP LAST ProcessIncomingConsignmentRequest r ORDER r WHERE incomingConsignment(r) = o MATERIALIZED;
 issueDateLastRequest 'Время заявки' (IncomingConsignment o) = issueDate(lastRequest(o));
 nameStatusLastRequest 'Статус заявки' (IncomingConsignment o) = nameStatus(lastRequest(o));
 errorLastRequest 'Ошибка заявки' (IncomingConsignment o) = error(lastRequest(o));
 
-toProcess 'К отправке' (IncomingConsignment o) = o IS IncomingConsignment AND NOT notCompleted(lastRequest(o)) AND NOT succeeded(lastRequest(o));  
+toProcess 'К отправке' (IncomingConsignment o) = o IS IncomingConsignment AND NOT notCompleted(lastRequest(o)) AND NOT succeeded(lastRequest(o)) MATERIALIZED INDEXED;  
 
 EXTEND FORM incomingConsignments
     PROPERTIES(c) READONLY issueDateLastRequest, nameStatusLastRequest 
 
     PROPERTIES(c) process READONLYIF NOT toProcess(c) GRID
+
+    EXTEND FILTERGROUP status
+        FILTER 'К отправке' toProcess(c) DEFAULT
 ; 
 
 // process
