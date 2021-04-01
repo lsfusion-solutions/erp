@@ -1,6 +1,6 @@
 MODULE VetisAMS;
 
-REQUIRE Vetis, Stock;
+REQUIRE Vetis;
 
 NAMESPACE Vetis;
 
@@ -10,12 +10,15 @@ serviceId = 'mercury-g2b.service:2.1';
 apiKey 'Api Key' = DATA STRING ();
 issuerId 'Issuer ID' = DATA STRING ();
 
+defaultLoginMercury 'Логин в Меркурий' = DATA STRING();
+
 GROUP initiator EXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:initiator';
-loginMercury 'Логин в Меркурий' = DATA STRING() IN initiator;
+loginMercury 'Логин в Меркурий' = DATA STRING (CustomUser);
+loginMercury () = OVERRIDE loginMercury(currentUser()), defaultLoginMercury() IN initiator;
 
 EXTEND FORM integrationData
     PROPERTIES() vetisUrlAMS = urlAMS, vetisApiKey = apiKey, vetisIssuerId = issuerId,
-                 vetisLoginMercury = loginMercury
+                 vetisLoginMercury = defaultLoginMercury
 ;
 
 DESIGN integrationData {
