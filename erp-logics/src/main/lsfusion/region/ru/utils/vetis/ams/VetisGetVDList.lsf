@@ -1,11 +1,13 @@
 MODULE VetisGetVDList;
 
-REQUIRE VetisAMSSubmitRequest, VetisAMSReceiveResponse, 
+REQUIRE Time, VetisAMSSubmitRequest, VetisAMSReceiveResponse, 
         VetisDocumentImport, VetisDocument, VetisEnterprise;
 
 NAMESPACE Vetis;
 
-CLASS VetDocumentListRequest 'Получение всех ВСД предприятия с возможностью фильтрации' : ApplicationRequest;
+CLASS VetDocumentListRequest 'Получение списка ВСД предприятия' : ApplicationRequest;
+
+changes 'Изменившиеся' = DATA BOOLEAN (VetDocumentListRequest);
 
 type = DATA VetDocumentType (VetDocumentListRequest);
 idType (VetDocumentListRequest r) = id(type(r));
@@ -20,6 +22,9 @@ endDate 'Дата по' = DATA DATETIME (VetDocumentListRequest);
 
 enterprise = DATA Enterprise (VetDocumentListRequest);
 nameEnterprise 'Площадка' (VetDocumentListRequest r) = name(enterprise(r));
+CONSTRAINT SETCHANGED(enterprise(VetDocumentListRequest r)) AND NOT own(owner(enterprise(r)))
+    CHECKED BY enterprise[VetDocumentListRequest]
+    MESSAGE 'Получение всех ВСД возможно только по собственным площадкам';
 
 // export
 GROUP listOptions EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:listOptions';
@@ -27,6 +32,7 @@ count = DATA LOCAL STRING(ApplicationRequest);
 offset = DATA LOCAL STRING(ApplicationRequest);
 
 GROUP issueDateInterval EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:issueDateInterval';
+GROUP updateDateInterval EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:updateDateInterval';
 formatBeginDate (VetDocumentListRequest r) = formatT(beginDate(r));
 formatEndDate (VetDocumentListRequest r) = formatT(endDate(r));
 
@@ -43,7 +49,12 @@ FORM getVetDocumentListRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/me
     PROPERTIES(r) idType EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetDocumentType', 
                   idStatus EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetDocumentStatus' 
 
-    PROPERTIES(r) IN issueDateInterval formatBeginDate EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:beginDate', formatEndDate EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:endDate'
+    PROPERTIES IN issueDateInterval 
+                  ibd = formatBeginDate(r) IF NOT changes(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:beginDate', 
+                  ied = formatEndDate(r) IF NOT changes(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:endDate'
+    PROPERTIES IN updateDateInterval
+                  ubd = formatBeginDate(r) IF changes(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:beginDate', 
+                  ued = formatEndDate(r) IF changes(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:endDate'
 
     PROPERTIES(r) enterpriseGuid EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterpriseGuid'
                   
@@ -52,16 +63,21 @@ FORM getVetDocumentListRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/me
 // dialog
 FORM getVetDocumentListRequestParams 'Параметры списка документов'
     OBJECTS r = VetDocumentListRequest PANEL
-    PROPERTIES(r) nameType, nameStatus, beginDate, endDate, nameEnterprise
+    PROPERTIES(r) changes, nameType, nameStatus, beginDate, endDate, nameEnterprise
 ;
 
 getVetDocumentListRequest 'Получить список документов' (VetDocumentListRequest r) {
     count(r) <- '1000';
     EXPORT getVetDocumentListRequest OBJECTS r = r XML;
-    submitApplicationRequest(r, exportFile());
+    IF changes(r) THEN {
+        fileToString(exportFile());
+        stringToFile(replace(resultString(), 'getVetDocumentListRequest', 'getVetDocumentChangesListRequest'));
+        submitApplicationRequest(r, resultFile());
+    } ELSE
+        submitApplicationRequest(r, exportFile());
 }
 
-getVetDocumentListRequest 'Получить список документов' () {
+getVetDocumentListRequest 'Получить список ВСД' () {
     NEWSESSION {
         NEW r = VetDocumentListRequest {
             DIALOG getVetDocumentListRequestParams OBJECTS r = r DO {
@@ -92,7 +108,7 @@ FORM getVetDocumentListResponse FORMEXTID 'ns1=http://api.vetrf.ru/schema/cdm/me
 
 process (VetDocumentListRequest r) + {
     NEWSESSION {
-        stringToFile(response(r));
+        stringToFile(replace(response(r), 'getVetDocumentChangesListResponse', 'getVetDocumentListResponse'));
         IMPORT getVetDocumentListResponse XML FROM resultFile();
         FOR vetDocument(INTEGER i) DO {
             importVetDocument(vetDocument(i));
@@ -100,5 +116,35 @@ process (VetDocumentListRequest r) + {
 
         processed(r) <- TRUE;
         APPLY;
+    }
+}
+
+// interval changes
+getVDListInterval 'Запрашивать изменененные ВСД за интервал (ч.)' = DATA INTEGER ();
+
+EXTEND FORM integrationData PROPERTIES() getVDListInterval;
+DESIGN integrationData { vetis { MOVE PROPERTY(getVDListInterval()); } }
+
+getVetDocumentChangesListRequest 'Получить изменившиеся ВСД' () {
+    FOR own(owner(Enterprise e)) DO { 
+        NEWSESSION {
+            NEW r = VetDocumentListRequest {
+                changes(r) <- TRUE;
+                beginDate(r) <- subtractSeconds(currentDateTime(), (OVERRIDE getVDListInterval(), 72) * 3600);
+                enterprise(r) <- e;
+
+                getVetDocumentListRequest(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES() getVetDocumentChangesListRequest
+;
+DESIGN applicationRequests {
+    base {
+        MOVE PROPERTY(getVetDocumentChangesListRequest());
     }
 }
