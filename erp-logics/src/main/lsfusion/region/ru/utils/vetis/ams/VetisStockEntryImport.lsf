@@ -1,0 +1,40 @@
+MODULE VetisStockEntryImport;
+
+REQUIRE VetisAMS, VetisStockEntry;
+
+NAMESPACE Vetis;
+
+stockEntry = DATA LOCAL TEXT(INTEGER);
+
+active = DATA LOCAL BOOLEAN();
+
+FORM importStockEntry FORMEXTID 'merc:stockEntry'
+    PROPERTIES() guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+                 active EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active'
+    PROPERTIES() IN batch
+                 volume EXTID 'vd:volume'
+;
+
+importStockEntry(TEXT xml) {
+    NEWSESSION {
+        stringToFile('<merc:stockEntry xmlns:merc="http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2" xmlns:vd="http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base" xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2">' + 
+                      xml + 
+                      '</merc:stockEntry>');
+        
+        IMPORT importStockEntry XML FROM resultFile();
+        
+        IF NOT guid() THEN RETURN;
+
+        IF NOT stockEntry(guid()) THEN NEW d = StockEntry {
+            guid(d) <- guid();
+        }
+        
+        FOR guid(StockEntry d) = guid() DO {
+            active(d) <- active();
+            
+            volume(d) <- volume();
+        }
+        
+        APPLY;
+    } 
+}

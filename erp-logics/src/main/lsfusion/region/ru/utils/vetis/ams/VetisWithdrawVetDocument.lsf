@@ -1,0 +1,82 @@
+MODULE VetisWithdrawVetDocument;
+
+REQUIRE VetisAMSReceiveResponse, VetisDocumentImport, VetisStockEntryImport;
+
+NAMESPACE Vetis;
+
+CLASS WithdrawVetDocumentRequest 'Аннулирование ВСД' : ApplicationRequest;
+
+vetDocument = DATA VetDocument (WithdrawVetDocumentRequest) INDEXED NONULL;
+uuidVetDocument 'Код ВСД' (WithdrawVetDocumentRequest r) = uuid(vetDocument(r));
+
+reason 'Причина' = DATA STRING (WithdrawVetDocumentRequest) CHARWIDTH 30;
+date 'Дата события' = DATA DATETIME (WithdrawVetDocumentRequest);
+
+localTransactionId (WithdrawVetDocumentRequest r) = LONG(r AS WithdrawVetDocumentRequest);
+
+GROUP specifiedPerson EXTID 'merc:specifiedPerson';
+
+FORM withdrawVetDocumentRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:withdrawVetDocumentRequest'
+    OBJECTS r = WithdrawVetDocumentRequest PANEL
+
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId' 
+    PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    
+    PROPERTIES(r) uuidVetDocument EXTID 'merc:vetDocumentId',
+                  reason EXTID 'merc:withdrawReason'
+    PROPERTIES    = formatT(date(r)) EXTID 'merc:withdrawDate'
+    
+    PROPERTIES() IN specifiedPerson specifiedPersonLogin = loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+;
+
+// dialog
+FORM withdrawVetDocumentRequestParams 'Параметры аннулирования'
+    OBJECTS r = WithdrawVetDocumentRequest PANEL
+    PROPERTIES(r) reason, date
+;
+
+withdraw 'Аннулировать ВСД' (VetDocument d) {
+    NEWSESSION {
+        NEW r = WithdrawVetDocumentRequest {
+            vetDocument(r) <- d;
+            date(r) <- currentDateTime();
+            
+            DIALOG withdrawVetDocumentRequestParams OBJECTS r = r DO {
+                EXPORT withdrawVetDocumentRequest OBJECTS r = r XML;
+                
+                submitApplicationRequest(r, exportFile());
+                
+                APPLY;
+            }
+        }
+    }
+}
+
+// process
+FORM withdrawVetDocumentResponse FORMEXTID 'merc:withdrawVetDocumentResponse'
+    PROPERTIES() vetDocument EXTID 'merc:vetDocument'
+    
+    OBJECTS se = INTEGER EXTID 'merc:stockEntry'
+    PROPERTIES(se) stockEntry EXTID 'value:full'
+;
+
+process (WithdrawVetDocumentRequest r) + {
+    NEWSESSION {
+        stringToFile(response(r));
+        IMPORT withdrawVetDocumentResponse XML FROM resultFile();
+
+        importVetDocument(vetDocument());
+        
+        importStockEntry(OVERRIDE stockEntry(1), stockEntry(0));
+        
+        processed(r) <- TRUE;
+        APPLY;
+    }
+}
+
+META defineDocumentOutgoingWithdraw (doc)
+    withdraw 'Аннулировать ВСД' (###doc##Detail vd, StockEntry se) { withdraw(vetDocument(vd, se)); } CONFIRM;
+    EXTEND FORM doc##s
+        PROPERTIES(vd, se) withdraw GRID READONLYIF NOT status(vetDocument(vd, se)) = VetDocumentStatus.CONFIRMED
+    ;
+END

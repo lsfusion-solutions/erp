@@ -75,7 +75,11 @@ issueDateLastRequest 'Время заявки' (OutgoingConsignment o) = issueDa
 nameStatusLastRequest 'Статус заявки' (OutgoingConsignment o) = nameStatus(lastRequest(o));
 errorLastRequest 'Ошибка заявки' (OutgoingConsignment o) = error(lastRequest(o));
 
-toProcess 'К отправке' (OutgoingConsignment o) = o IS OutgoingConsignment AND NOT notCompleted(lastRequest(o)) AND NOT succeeded(lastRequest(o)) MATERIALIZED INDEXED;  
+toProcess 'К отправке' (OutgoingConsignment o) = o IS OutgoingConsignment AND 
+        NOT notCompleted(lastRequest(o)) AND // не обрабатывается заявка 
+        (NOT succeeded(lastRequest(o)) OR // не успешно обработана заявка 
+         status(vetDocument(o)) = VetDocumentStatus.WITHDRAWN) // или документ аннулировали
+        MATERIALIZED INDEXED;  
 
 processOutgoingConsignment () {
     NEWSESSION NESTED (in[OutgoingConsignment]) {
@@ -108,9 +112,6 @@ EXTEND FORM outgoingConsignments
 ; 
 
 // process
-GROUP stockEntryBatch EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:batch';
-GROUP stockEntryVetDocument EXTID 'vd:vetDocument';
-
 stockEntryGuid = DATA LOCAL STRING(INTEGER);
 stockEntryActive = DATA LOCAL BOOLEAN(INTEGER);
 
@@ -123,7 +124,7 @@ FORM processOutgoingConsignmentResponse FORMEXTID 'merc=http://api.vetrf.ru/sche
     OBJECTS i = INTEGER EXTID 'merc:stockEntry'
     PROPERTIES(i) stockEntryGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
                   stockEntryActive EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active'
-    PROPERTIES(i) IN stockEntryBatch
+    PROPERTIES(i) IN batch
                      stockEntryVolume EXTID 'vd:volume'
 
     OBJECTS j = INTEGER EXTID 'merc:vetDocument'
@@ -160,8 +161,9 @@ process (PrepareOutgoingConsignmentRequest r) + {
 }
 
 META defineDocumentOutgoingProcess (doc, obj)
-    uuidVetDocument 'Код ВСД' (###doc##Detail d, StockEntry se) = uuidVetDocument(outgoingConsignment(d, se));
-    nameStatusVetDocument 'Статус ВСД' (###doc##Detail d, StockEntry se) = nameStatusVetDocument(outgoingConsignment(d, se));
+    vetDocument 'Код ВСД' (###doc##Detail d, StockEntry se) = vetDocument(outgoingConsignment(d, se));
+    uuidVetDocument 'Код ВСД' (###doc##Detail d, StockEntry se) = uuid(vetDocument(d, se));
+    nameStatusVetDocument 'Статус ВСД' (###doc##Detail d, StockEntry se) = nameStatus(vetDocument(d, se));
     
     issueDateLastRequest 'Время заявки' (###doc##Detail vd, StockEntry se) = issueDateLastRequest(outgoingConsignment(vd, se));
     nameStatusLastRequest 'Статус заявки' (###doc##Detail vd, StockEntry se) = nameStatusLastRequest(outgoingConsignment(vd, se));

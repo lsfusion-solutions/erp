@@ -1,9 +1,10 @@
 MODULE VetisDocumentImport;
 
-REQUIRE VetisDocument;
+REQUIRE VetisAMS, VetisDocument;
 
 NAMESPACE Vetis;
 
+vetDocument = DATA LOCAL TEXT();
 vetDocument = DATA LOCAL TEXT(INTEGER);
 
 uuid = DATA LOCAL STRING();
@@ -34,17 +35,17 @@ transportStorageType = DATA LOCAL STRING();
 transportInfo = DATA LOCAL TEXT();
 
 // batch
-GROUP batch EXTID 'vd:batch' : certifiedConsignment;
+GROUP certifiedConsignmentBatch EXTID 'vd:batch' : certifiedConsignment;
 
 productTypeId = DATA LOCAL INTEGER();
 
-GROUP product EXTID 'vd:product' : batch;
+GROUP product EXTID 'vd:product' : certifiedConsignmentBatch;
 productGuid = DATA LOCAL STRING();
 
-GROUP subProduct EXTID 'vd:subProduct' : batch;
+GROUP subProduct EXTID 'vd:subProduct' : certifiedConsignmentBatch;
 subProductGuid = DATA LOCAL STRING();
 
-GROUP productItem EXTID 'vd:productItem' : batch;
+GROUP productItem EXTID 'vd:productItem' : certifiedConsignmentBatch;
 
 productItemGuid = DATA LOCAL STRING();
 productItemGlobalID = DATA LOCAL STRING();
@@ -53,12 +54,10 @@ productItemXml = DATA LOCAL TEXT();
 
 batch = DATA LOCAL TEXT();
 
-volume = DATA LOCAL NUMERIC[16,5]();
-
-GROUP batchUnit EXTID 'vd:unit' : batch;
+GROUP batchUnit EXTID 'vd:unit' : certifiedConsignmentBatch;
 unitGuid = DATA LOCAL STRING();
 
-GROUP dateOfProduction EXTID 'vd:dateOfProduction' : batch;
+GROUP dateOfProduction EXTID 'vd:dateOfProduction' : certifiedConsignmentBatch;
 GROUP dateOfProductionFirstDate EXTID 'vd:firstDate' : dateOfProduction;
 
 dateOfProductionYear = DATA LOCAL INTEGER ();
@@ -68,7 +67,7 @@ dateOfProductionHour = DATA LOCAL INTEGER ();
 
 dateOfProductionXml = DATA LOCAL TEXT ();
 
-GROUP expiryDate EXTID 'vd:expiryDate' : batch;
+GROUP expiryDate EXTID 'vd:expiryDate' : certifiedConsignmentBatch;
 GROUP expiryDateFirstDate EXTID 'vd:firstDate' : expiryDate;
 
 expiryDateYear = DATA LOCAL INTEGER ();
@@ -83,7 +82,7 @@ perishable = DATA LOCAL BOOLEAN ();
 
 origin = DATA LOCAL TEXT ();
 
-GROUP origin EXTID 'vd:origin' : batch;
+GROUP origin EXTID 'vd:origin' : certifiedConsignmentBatch;
 GROUP originProductItem EXTID 'vd:productItem' : origin;
 originProductItemGuid = DATA LOCAL STRING();
 originProductItemName = DATA LOCAL STRING();
@@ -118,38 +117,38 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
                  transportInfo EXTID 'vd:transportInfo', transportStorageType EXTID 'vd:transportStorageType',
                  batch EXTID 'vd:batch'
     
-    PROPERTIES() productTypeId IN batch EXTID 'vd:productType',
+    PROPERTIES() productTypeId IN certifiedConsignmentBatch EXTID 'vd:productType',
                  productGuid IN product EXTID 'bs:guid',
                  subProductGuid IN subProduct EXTID 'bs:guid'
     
     PROPERTIES() IN productItem 
                  productItemGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', productItemGlobalID EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:globalID',
                  productItemName EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:name'
-    PROPERTIES() productItemXml EXTID 'vd:productItem' IN batch
+    PROPERTIES() productItemXml EXTID 'vd:productItem' IN certifiedConsignmentBatch
     
-    PROPERTIES() IN batch
+    PROPERTIES() IN certifiedConsignmentBatch
                  volume EXTID 'vd:volume',
                  unitGuid IN batchUnit EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
                  
     PROPERTIES() IN dateOfProductionFirstDate
                  dateOfProductionYear EXTID 'dt:year', dateOfProductionMonth EXTID 'dt:month', dateOfProductionDay EXTID 'dt:day',
                  dateOfProductionHour EXTID 'dt:hour'
-    PROPERTIES() dateOfProductionXml EXTID 'vd:dateOfProduction' IN batch
+    PROPERTIES() dateOfProductionXml EXTID 'vd:dateOfProduction' IN certifiedConsignmentBatch
 
     PROPERTIES() IN expiryDateFirstDate
                  expiryDateYear EXTID 'dt:year', expiryDateMonth EXTID 'dt:month', expiryDateDay EXTID 'dt:day',
                  expiryDateHour EXTID 'dt:hour'
-    PROPERTIES() expiryDateXml EXTID 'vd:expiryDate' IN batch
+    PROPERTIES() expiryDateXml EXTID 'vd:expiryDate' IN certifiedConsignmentBatch
 
-    PROPERTIES() IN batch
+    PROPERTIES() IN certifiedConsignmentBatch
                  batchID EXTID 'vd:batchID',
                  perishable EXTID 'vd:perishable'
     
-    PROPERTIES() origin EXTID 'vd:origin' IN batch,
+    PROPERTIES() origin EXTID 'vd:origin' IN certifiedConsignmentBatch,
                  originProductItemGuid EXTID 'bs:guid' IN originProductItem,
                  originProductItemName EXTID 'dt:name' IN originProductItem
                  
-    PROPERTIES() IN batch
+    PROPERTIES() IN certifiedConsignmentBatch
                  lowGradeCargo EXTID 'vd:lowGradeCargo',
                  packageList EXTID 'vd:packageList'
     
