@@ -186,6 +186,9 @@ EXTEND FORM options
 ;
   
 createExtraValuationStockTimeOperationNotForm ABSTRACT LIST ( UserRepricing);
+retailExtraPriceCustom = ABSTRACT NUMERIC[16,4](InvoiceDetail);
+retailExtraPriceOver(InvoiceDetail d) = OVERRIDE retailExtraPriceCustom(d), retailExtraPrice(d);
+
 createExtraValuationNotForm 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation)  { 
     LOCAL in = BOOLEAN (Invoice);
     in(Invoice invoice) <- filterToRepricingDate (invoice, department, timeFrom, timeTo);
@@ -197,7 +200,7 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
         positive(InvoiceDetail detail) <- NULL;
         positive(InvoiceDetail detail) <- in(invoice(detail));
         positive(InvoiceDetail detail) <- NULL WHERE positive(detail) AND skipRepricing(skuGroup(sku(detail)));        
-        positive(InvoiceDetail detail) <- prevRetailPricingPriceB(detail) != retailExtraPrice(detail) WHERE positive(detail);
+        positive(InvoiceDetail detail) <- prevRetailPricingPriceB(detail) != retailExtraPriceOver(detail) WHERE positive(detail);
         repricingQuantity(InvoiceDetail detail) <- toRepricingQuantityTo(detail, timeTo) WHERE positive(detail);
         positive(InvoiceDetail detail) <- repricingQuantity(detail) > 0 AND isStockSku(detail) WHERE positive(detail);
         positive(InvoiceDetail detail) <- maxInvoiceDetail(sku(detail), invoice(detail)) == detail WHERE positive(detail);
@@ -215,7 +218,7 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
             negative(InvoiceDetail detail) <- NULL;
             negative(InvoiceDetail detail) <- in(invoice(detail));
             negative(InvoiceDetail detail) <- NULL WHERE negative(detail) AND skipRepricing(skuGroup(sku(detail)));        
-            negative(InvoiceDetail detail) <- prevRetailPricingPriceB(detail) != retailExtraPrice(detail) WHERE negative(detail);
+            negative(InvoiceDetail detail) <- prevRetailPricingPriceB(detail) != retailExtraPriceOver(detail) WHERE negative(detail);
             repricingQuantity(InvoiceDetail detail) <- toRepricingQuantityTo(detail, timeTo) WHERE negative(detail);
             negative(InvoiceDetail detail) <- repricingQuantity(detail) < 0 AND isStockSku(detail) WHERE negative(detail);
             negative(InvoiceDetail detail) <- maxInvoiceDetail(sku(detail), invoice(detail))==detail WHERE negative(detail);
@@ -251,7 +254,7 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
         
 //                        price(rd) <- IF NOT keepSupplierPriceInRepricing(detail, department) THEN price(detail) ELSE curPrice(rd);
                         price(rd) <- price(detail);
-                        retailPrice(rd) <- retailExtraPrice(detail);                          
+                        retailPrice(rd) <- retailExtraPriceOver(detail);                          
         
                         overExtraValuation(rd, detail);
                 }
@@ -263,7 +266,7 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
                         quantity(rd) <- - repricingQuantity(detail);
         
                         curPrice(rd) <- price(detail);
-                        curRetailPrice(rd) <- retailExtraPrice(detail);
+                        curRetailPrice(rd) <- retailExtraPriceOver(detail);
         
                         price(rd) <- price(detail);
                         retailPrice(rd) <- prevRetailPricingPriceB(detail);                          
