@@ -1,0 +1,100 @@
+MODULE VetisGetSEList;
+
+REQUIRE VetisAMSReceiveResponse, VetisStockEntryImport;
+
+NAMESPACE Vetis;
+
+CLASS StockEntryListRequest 'Получение списка ВСД предприятия' : ApplicationRequest;
+
+beginDate 'Дата с' = DATA DATETIME (StockEntryListRequest);
+endDate 'Дата по' = DATA DATETIME (StockEntryListRequest);
+
+enterprise = DATA Enterprise (StockEntryListRequest);
+nameEnterprise 'Площадка' (StockEntryListRequest r) = name(enterprise(r));
+CONSTRAINT SETCHANGED(enterprise(StockEntryListRequest r)) AND NOT own(owner(enterprise(r)))
+    CHECKED BY enterprise[StockEntryListRequest]
+    MESSAGE 'Получение всех ВСД возможно только по собственным площадкам';
+
+// export
+GROUP listOptions EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:listOptions';
+offset 'Начальная запись' = DATA LOCAL INTEGER(StockEntryListRequest);
+count 'Кол-во записей' = DATA LOCAL INTEGER(StockEntryListRequest);
+
+GROUP searchPattern EXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:searchPattern';
+
+GROUP receiptDateInterval EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:receiptDateInterval' : searchPattern;
+formatBeginDate (StockEntryListRequest r) = formatT(beginDate(r));
+formatEndDate (StockEntryListRequest r) = formatT(endDate(r));
+
+localTransactionId (StockEntryListRequest r) = LONG(r AS StockEntryListRequest);
+
+enterpriseGuid (StockEntryListRequest r) = guid(enterprise(r));
+
+FORM getStockEntryListRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getStockEntryListRequest' 
+    OBJECTS r = StockEntryListRequest PANEL
+    PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId' 
+    PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+
+    PROPERTIES(r) IN listOptions count EXTID 'bs:count', offset EXTID 'bs:offset'
+
+    PROPERTIES IN receiptDateInterval 
+                  ibd = formatBeginDate(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:beginDate', 
+                  ied = formatEndDate(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:endDate'
+
+    PROPERTIES(r) enterpriseGuid EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:enterpriseGuid'
+                  
+;
+
+// dialog
+FORM getStockEntryListRequestParams 'Параметры списка документов'
+    OBJECTS r = StockEntryListRequest PANEL
+    PROPERTIES(r) beginDate, endDate, nameEnterprise, offset, count
+;
+
+getStockEntryListRequest 'Получить список записей журнала' (StockEntryListRequest r) {
+    EXPORT getStockEntryListRequest OBJECTS r = r XML;
+    submitApplicationRequest(r, exportFile());
+}
+
+getStockEntryListRequest 'Получить список записей журнала' () {
+    NEWSESSION {
+        NEW r = StockEntryListRequest {
+            count(r) <- 1000;
+            DIALOG getStockEntryListRequestParams OBJECTS r = r DO {
+                getStockEntryListRequest(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM applicationRequests
+    PROPERTIES() getStockEntryListRequest
+;
+
+DESIGN applicationRequests {
+    base {
+        MOVE PROPERTY(getStockEntryListRequest());
+    }
+}
+
+// process
+GROUP stockEntryList EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:stockEntryList';
+
+FORM getStockEntryListResponse FORMEXTID 'ns1=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getStockEntryListResponse'
+    OBJECTS stockEntry = INTEGER EXTID 'vd:stockEntry' IN stockEntryList
+    PROPERTIES(stockEntry) stockEntry EXTID 'value:full'
+;
+
+process (StockEntryListRequest r) + {
+    NEWSESSION {
+        stringToFile(replace(response(r), 'getStockEntryChangesListResponse', 'getStockEntryListResponse'));
+        IMPORT getStockEntryListResponse XML FROM resultFile();
+        FOR stockEntry(INTEGER i) DO {
+            importStockEntry(stockEntry(i), enterprise(r));
+        }
+
+        processed(r) <- TRUE;
+        APPLY;
+    }
+}

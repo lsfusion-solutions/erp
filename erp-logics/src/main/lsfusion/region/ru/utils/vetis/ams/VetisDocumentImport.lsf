@@ -1,6 +1,6 @@
 MODULE VetisDocumentImport;
 
-REQUIRE VetisAMS, VetisDocument;
+REQUIRE VetisAMS, VetisDocument, VetisProductItemImport;
 
 NAMESPACE Vetis;
 
@@ -47,33 +47,19 @@ subProductGuid = DATA LOCAL STRING();
 
 GROUP productItem EXTID 'vd:productItem' : certifiedConsignmentBatch;
 
-productItemGuid = DATA LOCAL STRING();
-productItemGlobalID = DATA LOCAL STRING();
-productItemName = DATA LOCAL STRING();
 productItemXml = DATA LOCAL TEXT();
 
 batch = DATA LOCAL TEXT();
 
 GROUP batchUnit EXTID 'vd:unit' : certifiedConsignmentBatch;
-unitGuid = DATA LOCAL STRING();
 
 GROUP dateOfProduction EXTID 'vd:dateOfProduction' : certifiedConsignmentBatch;
 GROUP dateOfProductionFirstDate EXTID 'vd:firstDate' : dateOfProduction;
-
-dateOfProductionYear = DATA LOCAL INTEGER ();
-dateOfProductionMonth = DATA LOCAL INTEGER ();
-dateOfProductionDay = DATA LOCAL INTEGER ();
-dateOfProductionHour = DATA LOCAL INTEGER ();
 
 dateOfProductionXml = DATA LOCAL TEXT ();
 
 GROUP expiryDate EXTID 'vd:expiryDate' : certifiedConsignmentBatch;
 GROUP expiryDateFirstDate EXTID 'vd:firstDate' : expiryDate;
-
-expiryDateYear = DATA LOCAL INTEGER ();
-expiryDateMonth = DATA LOCAL INTEGER ();
-expiryDateDay = DATA LOCAL INTEGER ();
-expiryDateHour = DATA LOCAL INTEGER ();
 
 expiryDateXml = DATA LOCAL TEXT ();
 
@@ -84,8 +70,6 @@ origin = DATA LOCAL TEXT ();
 
 GROUP origin EXTID 'vd:origin' : certifiedConsignmentBatch;
 GROUP originProductItem EXTID 'vd:productItem' : origin;
-originProductItemGuid = DATA LOCAL STRING();
-originProductItemName = DATA LOCAL STRING();
 
 lowGradeCargo = DATA LOCAL BOOLEAN ();
 packageList = DATA LOCAL TEXT ();
@@ -122,7 +106,8 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
                  subProductGuid IN subProduct EXTID 'bs:guid'
     
     PROPERTIES() IN productItem 
-                 productItemGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', productItemGlobalID EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:globalID',
+                 productItemGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+                 productItemGlobalID EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:globalID',
                  productItemName EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:name'
     PROPERTIES() productItemXml EXTID 'vd:productItem' IN certifiedConsignmentBatch
     
@@ -146,6 +131,7 @@ FORM importVetDocument FORMEXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-
     
     PROPERTIES() origin EXTID 'vd:origin' IN certifiedConsignmentBatch,
                  originProductItemGuid EXTID 'bs:guid' IN originProductItem,
+                 originProductItemGlobalID EXTID 'dt:globalID' IN originProductItem,
                  originProductItemName EXTID 'dt:name' IN originProductItem
                  
     PROPERTIES() IN certifiedConsignmentBatch
@@ -198,26 +184,10 @@ importVetDocument(TEXT xml) {
             guid(p) <- subProductGuid();
         }
         
-        IF NOT productItemGuid() THEN productItemGuid() <- originProductItemGuid();
-        IF NOT productItemName() THEN productItemGuid() <- originProductItemName();
+        importProductItem();
         
-        IF productItemGuid() THEN {
-            IF NOT productItem(productItemGuid()) THEN NEW i = ProductItem {
-                guid(i) <- productItemGuid();
-                name(i) <- productItemName();
-                globalID(i) <- productItemGlobalID();
-            }
-        } ELSE {
-            IF productItemGlobalID() THEN { 
-                IF NOT productItemGlobalID(productItemGlobalID()) THEN NEW i = ProductItem {
-                    name(i) <- productItemName();
-                    globalID(i) <- productItemGlobalID();
-                }
-            } ELSE {
-                IF productItemName() AND NOT productItemName(productItemName()) THEN NEW i = ProductItem {
-                    name(i) <- productItemName();
-                }
-            }
+        IF NOT unit(unitGuid()) THEN NEW u = Unit {
+            guid(u) <- unitGuid();
         }
         
         IF NOT vetDocument(uuid()) THEN NEW d = VetDocument {
@@ -245,9 +215,7 @@ importVetDocument(TEXT xml) {
             product(d) <- product(productGuid());
             subProduct(d) <- subProduct(subProductGuid());
             
-            productItem(d) <- OVERRIDE productItem(productItemGuid()), 
-                                       productItemGlobalID(productItemGlobalID()), 
-                                       productItemName(productItemName());
+            productItem(d) <- productItem();
             productItemXml(d) <- productItemXml();
             
             volume(d) <- volume();

@@ -1,21 +1,61 @@
 MODULE VetisStockEntryImport;
 
-REQUIRE VetisAMS, VetisStockEntry;
+REQUIRE VetisAMS, VetisStockEntry, VetisProductItemImport;
 
 NAMESPACE Vetis;
 
+stockEntry = DATA LOCAL TEXT();
 stockEntry = DATA LOCAL TEXT(INTEGER);
 
 active = DATA LOCAL BOOLEAN();
+number = DATA LOCAL STRING();
+
+GROUP productItem EXTID 'vd:productItem' : batch;
+
+GROUP batchUnit EXTID 'vd:unit' : batch;
+
+GROUP dateOfProduction EXTID 'vd:dateOfProduction' : batch;
+GROUP dateOfProductionFirstDate EXTID 'vd:firstDate' : dateOfProduction;
+
+GROUP expiryDate EXTID 'vd:expiryDate' : batch;
+GROUP expiryDateFirstDate EXTID 'vd:firstDate' : expiryDate;
+
+GROUP origin EXTID 'vd:origin' : batch;
+GROUP originProductItem EXTID 'vd:productItem' : origin;
+
+vetDocumentUuid = DATA LOCAL STRING (INTEGER);
 
 FORM importStockEntry FORMEXTID 'merc:stockEntry'
     PROPERTIES() guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
-                 active EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active'
+                 active EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active',
+                 number EXTID 'vd:entryNumber'
+
     PROPERTIES() IN batch
-                 volume EXTID 'vd:volume'
+                 volume EXTID 'vd:volume',
+                 unitGuid IN batchUnit EXTID 'bs:guid'
+
+    PROPERTIES() IN productItem 
+                 productItemGuid EXTID 'bs:guid',
+                 productItemGlobalID EXTID 'dt:globalID',
+                 productItemName EXTID 'dt:name'
+
+    PROPERTIES() IN dateOfProductionFirstDate
+                 dateOfProductionYear EXTID 'dt:year', dateOfProductionMonth EXTID 'dt:month', dateOfProductionDay EXTID 'dt:day',
+                 dateOfProductionHour EXTID 'dt:hour'
+
+    PROPERTIES() IN expiryDateFirstDate
+                 expiryDateYear EXTID 'dt:year', expiryDateMonth EXTID 'dt:month', expiryDateDay EXTID 'dt:day',
+                 expiryDateHour EXTID 'dt:hour'
+
+    PROPERTIES() originProductItemGuid EXTID 'bs:guid' IN originProductItem,
+                 originProductItemGlobalID EXTID 'dt:globalID' IN originProductItem,
+                 originProductItemName EXTID 'dt:name' IN originProductItem
+                 
+    OBJECTS vetDocument = INTEGER EXTID 'vd:vetDocument'
+    PROPERTIES(vetDocument) vetDocumentUuid EXTID 'bs:uuid'
 ;
 
-importStockEntry(TEXT xml) {
+importStockEntry(TEXT xml, Enterprise e) {
     NEWSESSION {
         stringToFile('<merc:stockEntry xmlns:merc="http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2" xmlns:vd="http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2" xmlns:bs="http://api.vetrf.ru/schema/cdm/base" xmlns:dt="http://api.vetrf.ru/schema/cdm/dictionary/v2">' + 
                       xml + 
@@ -25,14 +65,39 @@ importStockEntry(TEXT xml) {
         
         IF NOT guid() THEN RETURN;
 
+        IF unitGuid() AND NOT unit(unitGuid()) THEN NEW u = Unit {
+            guid(u) <- unitGuid();
+        }
+        
+        importProductItem();
+        
+        FOR vetDocumentUuid(INTEGER i) AND NOT vetDocument(vetDocumentUuid(i)) DO NEW d = VetDocument {
+            uuid(d) <- vetDocumentUuid(i);
+        }
+
         IF NOT stockEntry(guid()) THEN NEW d = StockEntry {
             guid(d) <- guid();
+            enterprise(d) <- e;
         }
         
         FOR guid(StockEntry d) = guid() DO {
             active(d) <- active();
             
+            number(d) <- number();
+            
             volume(d) <- volume();
+            
+            unit(d) <- unit(unitGuid());
+
+            dateOfProduction(d) <- toDateFormat(dateOfProductionYear() + '-' + dateOfProductionMonth() + '-' + dateOfProductionDay(), 'YYYY-MM-DD');
+            dateOfProductionHour(d) <- dateOfProductionHour();
+
+            expiryDate(d) <- toDateFormat(expiryDateYear() + '-' + expiryDateMonth() + '-' + expiryDateDay(), 'YYYY-MM-DD');
+            expiryDateHour(d) <- expiryDateHour();
+            
+            in(d, VetDocument vd) <- TRUE IF GROUP SUM 1 IF uuid(vd) = vetDocumentUuid(INTEGER i);
+            
+            in(d, ProductItem i) <- TRUE IF i = productItem();
         }
         
         APPLY;

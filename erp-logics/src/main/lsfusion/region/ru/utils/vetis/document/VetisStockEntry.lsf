@@ -33,9 +33,8 @@ uuidVetDocument 'Коды ВСД' (StockEntry s) = GROUP CONCAT uuid(VetDocument
 in = DATA BOOLEAN (StockEntry, ProductItem);
 nameProductItem 'Продукция' (StockEntry s) = GROUP CONCAT name(ProductItem i) IF in(s, i), ',' ORDER i;
 
-lastTransportStorageType (StockEntry s) = GROUP LAST transportStorageType(VetDocument d)
-                                                          ORDER d
-                                                          WHERE in(s, d);
+lastTransportStorageType 'Способ хранения продукции при перевозке' (StockEntry s) = 
+    GROUP LAST transportStorageType(VetDocument d) ORDER d WHERE in(s, d);
 
 lastPurpose (StockEntry s) = GROUP LAST purpose(VetDocument d)
                                               ORDER d
@@ -44,7 +43,9 @@ lastPurpose (StockEntry s) = GROUP LAST purpose(VetDocument d)
 FORM stockEntries 'Записи журнала'
     OBJECTS s = StockEntry
     PROPERTIES(s) READONLY active, guid, number, nameEnterprise, uuidVetDocument, nameProductItem, 
-                           volume, nameUnit, dateOfProduction, dateOfProductionHour, expiryDate, expiryDateHour
+                           volume, nameUnit, dateOfProduction, dateOfProductionHour, expiryDate, expiryDateHour,
+                           lastTransportStorageType
+                           
     FILTERGROUP active
         FILTER 'Активные' active(s) DEFAULT
     

@@ -1,6 +1,6 @@
 MODULE VetisProcessIncomingConsignment;
 
-REQUIRE VetisAMSReceiveResponse, VetisIncomingConsignment, VetisStockEntry, VetisDocumentImport;
+REQUIRE VetisAMSReceiveResponse, VetisIncomingConsignment, VetisStockEntryImport, VetisDocumentImport;
 
 NAMESPACE Vetis;
 
@@ -189,23 +189,24 @@ EXTEND FORM incomingConsignments
 ; 
 
 // process
-GROUP stockEntry EXTID 'merc:stockEntry';
-GROUP stockEntryBatch EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:batch' : stockEntry;
-
-stockEntryGuid = DATA LOCAL STRING();
-stockEntryNumber = DATA LOCAL STRING();
-stockEntryActive = DATA LOCAL BOOLEAN();
-
-stockEntryVolume = DATA NUMERIC[16,5]();
+//GROUP stockEntry EXTID 'merc:stockEntry';
+//GROUP stockEntryBatch EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:batch' : stockEntry;
+//
+//stockEntryGuid = DATA LOCAL STRING();
+//stockEntryNumber = DATA LOCAL STRING();
+//stockEntryActive = DATA LOCAL BOOLEAN();
+//
+//stockEntryVolume = DATA NUMERIC[16,5]();
 
 
 FORM processIncomingConsignmentResponse FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:processIncomingConsignmentResponse'
-    PROPERTIES() IN stockEntry
-                    stockEntryGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
-                    stockEntryActive EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active',
-                    stockEntryNumber EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:entryNumber'
-    PROPERTIES() IN stockEntryBatch
-                    stockEntryVolume EXTID 'vd:volume'
+    PROPERTIES() stockEntry EXTID 'merc:stockEntry'
+//    PROPERTIES() IN stockEntry
+//                    stockEntryGuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid',
+//                    stockEntryActive EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:active',
+//                    stockEntryNumber EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:entryNumber'
+//    PROPERTIES() IN stockEntryBatch
+//                    stockEntryVolume EXTID 'vd:volume'
     
     OBJECTS vetDocument = INTEGER EXTID 'merc:vetDocument'
     PROPERTIES(vetDocument) vetDocument EXTID 'value:full'
@@ -216,31 +217,32 @@ process (ProcessIncomingConsignmentRequest r) + {
         stringToFile(response(r));
         IMPORT processIncomingConsignmentResponse XML FROM resultFile();
         
-        IF NOT stockEntry(stockEntryGuid()) THEN NEW s = StockEntry {
-            guid(s) <- stockEntryGuid();            
-        }
-        
-        FOR guid(StockEntry s) = stockEntryGuid() DO {
-            incomingConsignment(s) <- incomingConsignment(r);
-            
-            number(s) <- stockEntryNumber();
-            
-            active(s) <- stockEntryActive();
-            
-            enterprise(s) <- consigneeEnterprise(vetDocument(incomingConsignment(r)));
-            
-            in(s, VetDocument d) <- TRUE WHERE d = vetDocument(incomingConsignment(r));
-            in(s, ProductItem i) <- TRUE WHERE i = productItem(vetDocument(incomingConsignment(r)));
-            
-            volume(s) <- stockEntryVolume();
-            unit(s) <- unit(vetDocument(incomingConsignment(r)));
-
-            dateOfProduction(s) <- dateOfProduction(vetDocument(incomingConsignment(r)));
-            dateOfProductionHour(s) <- dateOfProductionHour(vetDocument(incomingConsignment(r)));
-
-            expiryDate(s) <- expiryDate(vetDocument(incomingConsignment(r)));
-            expiryDateHour(s) <- expiryDateHour(vetDocument(incomingConsignment(r)));
-        }
+        importStockEntry(stockEntry(), consigneeEnterprise(vetDocument(incomingConsignment(r))));
+//        IF NOT stockEntry(stockEntryGuid()) THEN NEW s = StockEntry {
+//            guid(s) <- stockEntryGuid();            
+//        }
+//        
+//        FOR guid(StockEntry s) = stockEntryGuid() DO {
+//            incomingConsignment(s) <- incomingConsignment(r);
+//            
+//            number(s) <- stockEntryNumber();
+//            
+//            active(s) <- stockEntryActive();
+//            
+//            enterprise(s) <- consigneeEnterprise(vetDocument(incomingConsignment(r)));
+//            
+//            in(s, VetDocument d) <- TRUE WHERE d = vetDocument(incomingConsignment(r));
+//            in(s, ProductItem i) <- TRUE WHERE i = productItem(vetDocument(incomingConsignment(r)));
+//            
+//            volume(s) <- stockEntryVolume();
+//            unit(s) <- unit(vetDocument(incomingConsignment(r)));
+//
+//            dateOfProduction(s) <- dateOfProduction(vetDocument(incomingConsignment(r)));
+//            dateOfProductionHour(s) <- dateOfProductionHour(vetDocument(incomingConsignment(r)));
+//
+//            expiryDate(s) <- expiryDate(vetDocument(incomingConsignment(r)));
+//            expiryDateHour(s) <- expiryDateHour(vetDocument(incomingConsignment(r)));
+//        }
         
         FOR vetDocument(INTEGER i) DO 
             importVetDocument(vetDocument(i));
