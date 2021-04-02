@@ -1,0 +1,86 @@
+MODULE VetisProductItemImport;
+
+REQUIRE VetisBusinessEntity, VetisEnterprise, VetisProduct, VetisProductItem;
+
+NAMESPACE Vetis;
+
+GROUP getProductItemListRequest EXTID 'v2:getProductItemListRequest' : body;
+GROUP getProductItemListRequestListOptions EXTID 'bs:listOptions' : getProductItemListRequest;
+
+GROUP getProductItemListRequestProducer EXTID 'dt:producer' : getProductItemListRequest;
+
+GROUP getProductItemListRequestBusinessEntity EXTID 'dt:businessEntity' : getProductItemListRequestProducer;
+
+businessEntity = DATA LOCAL BusinessEntity ();
+nameBusinessEntity 'Хозяйствующий субъект' () = name(businessEntity());
+
+GROUP getProductItemListRequestEnterprise EXTID 'dt:businessEntity' : getProductItemListRequestProducer;
+
+enterprise = DATA LOCAL Enterprise ();
+nameEnterprise 'Предприятие-производитель продукции' () = name(enterprise());
+
+FORM getProductItemListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://api.vetrf.ru/schema/cdm/base' EXTID 'xmlns:bs', 
+                    ='http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2' EXTID 'xmlns:v2', 
+                    ='http://api.vetrf.ru/schema/cdm/dictionary/v2' EXTID 'xmlns:dt'
+    PROPERTIES() IN getProductItemListRequestListOptions count EXTID 'bs:count', offset EXTID 'bs:offset'
+    PROPERTIES   IN getProductItemListRequestBusinessEntity = guid(businessEntity()) EXTID 'bs:guid'
+    PROPERTIES   IN getProductItemListRequestEnterprise = guid(enterprise()) EXTID 'bs:guid'
+;
+
+FORM getProductItemListRequestParams 'Параметры запроса продукции'
+    PROPERTIES() nameBusinessEntity, nameEnterprise, offset, count
+;
+
+GROUP getProductItemListResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getProductItemListResponse' : body;
+GROUP getProductItemListResponseList EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:productItemList' : getProductItemListResponse;
+
+active = DATA LOCAL BOOLEAN (INTEGER);
+globalID = DATA LOCAL STRING (INTEGER);
+code = DATA LOCAL STRING (INTEGER);
+
+FORM getProductItemListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS i = INTEGER EXTID 'dt:productItem' IN getProductItemListResponseList
+    PROPERTIES(i) guid EXTID 'bs:guid',
+                  active EXTID 'bs:active',
+                  name EXTID 'dt:name',
+                  globalID EXTID 'dt:globalID',
+                  code EXTID 'dt:code'
+;
+
+getProductItemList 'Загрузить данные' () {
+    NEWSESSION {
+        count() <- 1000;
+        DIALOG getProductItemListRequestParams DO {
+            EXPORT getProductItemListRequest XML;
+            
+            LOCAL response = FILE();
+            TRY {
+                EXTERNAL HTTP urlProduct() HEADERS httpHeaders PARAMS exportFile() TO response;
+            } CATCH {
+                fileToString(response());
+                MESSAGE CONCAT ' ', 'Ошибка при запросе к службе : ', resultString();
+                RETURN;
+            }
+            
+            IMPORT getProductItemListResponse XML FROM response();
+            
+            FOR guid(INTEGER i) AND NOT productItem(guid(i)) DO NEW p = ProductItem {
+                guid(p) <- guid(i); 
+            }
+            
+            FOR guid(INTEGER i) = guid(ProductItem p) DO {
+                name(p) <- name(i);
+                globalID(p) <- globalID(i);
+                code(p) <- code(i);
+                inactive(p) <- NOT active(i);
+            }
+            
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM productItems
+    PROPERTIES() getProductItemList DRAW o TOOLBAR
+;

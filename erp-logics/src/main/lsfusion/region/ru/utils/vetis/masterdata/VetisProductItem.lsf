@@ -91,24 +91,34 @@ productItemGlobalID 'Продукция' = GROUP MAX ProductItem i BY globalID(i
 name 'Наименование' = DATA ISTRING (ProductItem) CHARWIDTH 20;
 productItemName 'Продукция' = GROUP MAX ProductItem i BY name(i);
 
+code 'Артикул' = DATA ISTRING (ProductItem);
+
+inactive 'Неактивен' = DATA BOOLEAN (ProductItem);
+
 FORM productItem 'Продукция'
     OBJECTS o = ProductItem PANEL
-    PROPERTIES(o) guid, name, globalID
+    PROPERTIES(o) guid, name, globalID, code, inactive
     
     EDIT ProductItem OBJECT o
 ;
 
 FORM productItems 'Продукция'
     OBJECTS o = ProductItem
-    PROPERTIES(o) READONLY guid, name, globalID
+    PROPERTIES(o) READONLY guid, name, globalID, code, inactive
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+
+    FILTERGROUP active
+        FILTER 'Активная' NOT inactive(o) DEFAULT
 ;
 
 FORM dialogProductItems 'Продукция'
     OBJECTS o = ProductItem
-    PROPERTIES(o) READONLY guid, name, globalID
+    PROPERTIES(o) READONLY guid, name, globalID, code, inactive
     
     LIST ProductItem OBJECT o
+    
+    FILTERGROUP active
+        FILTER 'Активная' NOT inactive(o) DEFAULT
 ;
 
 NAVIGATOR {
