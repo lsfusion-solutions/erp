@@ -114,6 +114,8 @@ vetDocument = DATA VetDocument (VetReferenceDocument) NONULL DELETE INDEXED;
 
 issueSeries 'Серия документа' = DATA STRING (VetReferenceDocument); 
 issueNumber 'Номер документа' = DATA STRING (VetReferenceDocument);
+issueSeriesNumber (VetReferenceDocument r) = CONCAT '', issueSeries(r), issueNumber(r) CHARWIDTH 10; 
+
 issueDate 'Дата оформления документа' = DATA DATE (VetReferenceDocument);
 
 issueKey (VetReferenceDocument rd) = CONCAT ';', issueSeries(rd), issueNumber(rd), issueDate(rd);
@@ -121,6 +123,9 @@ vetReferenceDocument = GROUP MAX VetReferenceDocument rd BY vetDocument(rd), iss
 
 type 'Тип документа' = DATA INTEGER (VetReferenceDocument);
 relationshipType 'Тип отношения между документами' = DATA INTEGER (VetReferenceDocument);
+
+waybill (VetDocument d) = GROUP LAST VetReferenceDocument r ORDER r WHERE vetDocument(r) = d AND relationshipType(r) = 1;
+issueSeriesNumberWaybill 'Накладная' (VetDocument d) = issueSeriesNumber(waybill(d)); 
 
 FORM vetDocument 'ВСД'
     OBJECTS o = VetDocument PANEL
@@ -254,7 +259,7 @@ DESIGN vetDocument {
 
 FORM vetDocuments 'ВСД'
     OBJECTS o = VetDocument
-    PROPERTIES(o) READONLY uuid, issueDate, nameType, nameStatus,
+    PROPERTIES(o) READONLY uuid, issueDate, issueSeriesNumberWaybill, nameType, nameStatus,
                            nameConsignorBusinessEntity, nameConsignorEnterprise,
                            nameConsigneeBusinessEntity, nameConsigneeEnterprise,
                            guidProductItem, nameProductItem, 
@@ -273,7 +278,7 @@ FORM vetDocuments 'ВСД'
 
 FORM dialogVetDocuments 'ВСД'
     OBJECTS o = VetDocument
-    PROPERTIES(o) READONLY uuid, issueDate, nameType, nameStatus,
+    PROPERTIES(o) READONLY uuid, issueDate, issueSeriesNumberWaybill, nameType, nameStatus,
                            nameConsignorBusinessEntity, nameConsignorEnterprise,
                            nameConsigneeBusinessEntity, nameConsigneeEnterprise,
                            guidProductItem, nameProductItem,
