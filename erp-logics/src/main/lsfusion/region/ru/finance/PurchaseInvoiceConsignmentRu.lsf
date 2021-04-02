@@ -1,0 +1,96 @@
+MODULE PurchaseInvoiceConsignmentRu;
+
+REQUIRE PurchaseInvoice, ConsignmentRu, PurchaseShipment;
+
+NAMESPACE Purchase;
+
+warrantNumber 'По доверенности, номер' (invoice) = DATA STRING[30] (Invoice) IN issuanceConsignment CHARWIDTH 15;
+warrantDate 'По доверенности, дата' (invoice) = DATA DATE (Invoice) IN issuanceConsignment CHARWIDTH 15;
+ 
+countPages 'Кол-во страниц в приложении' (invoice) = DATA INTEGER (Invoice);
+opinionCommittee 'Заключение комиссии' (invoice) = DATA TEXT (Invoice);
+decisionChief 'Решение руководителя' (invoice)= DATA TEXT (Invoice);
+
+EXTEND CLASS Invoice : Consignment;
+
+dataDate[Consignment] (Invoice consignment) += date(consignment);
+number[Consignment] (Invoice consignment) += number(consignment);
+series[Consignment] (Invoice consignment) += series(consignment);
+
+dataSupplier (Invoice consignment) += to(consignment);
+dataCustomer (Invoice consignment) += from(consignment);
+
+dataSupplierStock[Consignment] (Invoice consignment) += fromStock(consignment);
+dataCustomerStock[Consignment] (Invoice consignment) += toStock(consignment);
+
+contract[Consignment](Invoice consignment) += contractSku(consignment);
+
+managerCustomer[Consignment](Invoice consignment) += nameCustomUserChief(customer(consignment));
+accountantCustomer[Consignment](Invoice consignment) += nameCustomUserBooker(customer(consignment));
+
+EXTEND CLASS InvoiceDetail : ConsignmentDetail;
+
+index[ConsignmentDetail] (InvoiceDetail d) += index (d);
+consignment[ConsignmentDetail] (InvoiceDetail d) += invoice (d);
+dataOrderDetail[ConsignmentDetail] (InvoiceDetail d) += orderDetail(d);
+skip[ConsignmentDetail](InvoiceDetail d) += skipConsignment (d);
+dataSku[ConsignmentDetail] (InvoiceDetail d) += sku (d);
+batch[ConsignmentDetail] (InvoiceDetail d) += batch (d);    
+dataQuantity[ConsignmentDetail] (InvoiceDetail d) += quantity (d);
+dataAmountPack (InvoiceDetail d) += amountPack (d);
+dataPackQuantity (InvoiceDetail d) += packQuantity (d);
+dataGrossWeight (InvoiceDetail d) += sumGrossWeight (d);
+dataNetWeight (InvoiceDetail d) += sumNetWeight (d);    
+dataShipmentQuantity (InvoiceDetail d) += shipmentQuantity(d);
+dataShipmentGrossWeight (InvoiceDetail d) += shipmentQuantity(d) * grossWeight(sku(d));
+dataShipmentNetWeight (InvoiceDetail d) += shipmentQuantity(d) * netWeight(sku(d));
+dataPrice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN price(detail);
+dataSum (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN sum(detail);
+dataVAT (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN valueVAT(detail);
+dataSumVAT (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN VATSum(detail);
+dataSumInvoice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN invoiceSum(detail);
+dataShipmentPrice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN shipmentPrice(detail);
+dataShipmentSum (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN shipmentSum(detail);
+dataVAT (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN valueVAT(detail);
+dataSumVAT (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN VATSum(detail);
+dataSumInvoice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN invoiceSum(detail);
+     
+warrantNumber[Consignment] (Invoice consignment) += warrantNumber (consignment);
+warrantDate[Consignment] (Invoice consignment) += warrantDate (consignment);
+
+overCountPages[Consignment] (Invoice consignment) += countPages (consignment);
+
+opinionCommittee [Consignment] (Invoice consignment) += opinionCommittee (consignment);
+decisionChief [Consignment] (Invoice consignment) += decisionChief (consignment);
+
+EXTEND FORM  invoices
+    PROPERTIES(i)  editAttributes SHOWIF isOpened(i)
+    PROPERTIES(i) READONLYIF banPrint(i) printConsignmentTorg1, printConsignmentTorg2, printConsignmentTorg3
+;
+
+DESIGN invoices {
+    printTab {
+        NEW consignmentRow1 {
+            align = START;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(i)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printConsignmentTorg1(i)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTorg2(i)) { alignment = STRETCH; }   
+                MOVE PROPERTY(printConsignmentTorg3(i)) { alignment = STRETCH; }                           
+            }
+        }
+    }
+}
