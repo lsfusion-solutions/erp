@@ -19,6 +19,8 @@ toRepricing (ReceiptReturnDetail d) = (d IS ReceiptReturnDetail) AND NOT (retail
             NOT userRepricingDetail(d) AND NOT skipRepricing(d);
 toRepricingReceiptReturnDetail (stock) =  GROUP SUM 1 IF toRepricing(ReceiptReturnDetail d) BY departmentStore(d);
 
+fillCurPriceRepricingZReport 'Заполнять цену поставщика (до) при создании переоценки' = DATA BOOLEAN () COMPLEX;
+
 setReceiptReturnDetailUserRepricingStock 'Создать акт переоценки'(DepartmentStore stock, Operation operation)   { 
 	NEWSESSION {
 	    IF toRepricingReceiptReturnDetail (stock) AND stock IS DepartmentStore THEN {
@@ -38,6 +40,18 @@ setReceiptReturnDetailUserRepricingStock 'Создать акт переоцен
 	                quantity(d) <- quantity(detail);
 	                curRetailPrice(d) <- soldPrice(detail);
 	                retailPrice(d) <- retailPricingPriceB(detail);
+	                
+	                IF fillCurPriceRepricingZReport() AND receiptSaleDetail(detail) THEN {
+                        curPrice(d) <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                      sku(d),
+                                      departmentStore(d),
+                                      dateTime(receiptSaleDetail(detail)));        
+              
+                        price(d) <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                      sku(d),
+                                      departmentStore(d),
+                                      dateTime(d));        
+                    }
 	            }  
 	            SHOW userRepricing OBJECTS p = p DOCKED NOCANCEL;
 	        }
@@ -93,6 +107,18 @@ createRepricingReceiptReturnAllStocks 'Создать автоматическу
                 quantity(d) <- quantity(detail);
                 curRetailPrice(d) <- soldPrice(detail);
                 retailPrice(d) <- retailPricingPriceB(detail);
+
+                IF fillCurPriceRepricingZReport() AND receiptSaleDetail(detail) THEN {
+                    curPrice(d) <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                  sku(d),
+                                  departmentStore(d),
+                                  dateTime(receiptSaleDetail(detail)));        
+          
+                    price(d) <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                  sku(d),
+                                  departmentStore(d),
+                                  dateTime(d));        
+                }
             } 
             isPosted(p)<- TRUE;
         }
@@ -101,7 +127,7 @@ createRepricingReceiptReturnAllStocks 'Создать автоматическу
 }
 
 EXTEND FORM options
-    PROPERTIES() nameToRepricingReceiptReturnOperation, createRepricingReceiptReturnAllStocks
+    PROPERTIES() nameToRepricingReceiptReturnOperation, createRepricingReceiptReturnAllStocks, fillCurPriceRepricingZReport
 ;
 
 DESIGN options {
@@ -109,6 +135,7 @@ DESIGN options {
         NEW repricingReceiptReturn {
             caption = 'Автоматическая переоценка по возвратам через кассу';
             MOVE PROPERTY(nameToRepricingReceiptReturnOperation());
+            MOVE PROPERTY(fillCurPriceRepricingZReport());
             MOVE PROPERTY(createRepricingReceiptReturnAllStocks());
         }
     }
