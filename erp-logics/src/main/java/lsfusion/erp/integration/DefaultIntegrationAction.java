@@ -109,8 +109,8 @@ public class DefaultIntegrationAction extends InternalAction {
 
     protected BigDecimal parseBigDecimal(String value, BigDecimal defaultValue) {
         try {
-            value = trim(value);
-            return value == null || value.isEmpty() ? defaultValue : new BigDecimal(value.replace(" ", "").replace(",", "."));
+            value = trim(value); //char 160 = nbsp
+            return value == null || value.isEmpty() ? defaultValue : new BigDecimal(value.replace(" ", "").replace(String.valueOf((char) 160), "").replace(",", "."));
         } catch (Exception e) {
             return defaultValue;
         }
