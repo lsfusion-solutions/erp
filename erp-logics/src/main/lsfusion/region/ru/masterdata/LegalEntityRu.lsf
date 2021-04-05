@@ -15,13 +15,18 @@ legalEntityOgrn = GROUP AGGR LegalEntity b BY ogrn(b);
 
 corrAccount 'Корр. счет' = DATA STRING[20](LegalEntity) IN law;
 
-EXTEND FORM legalEntity PROPERTIES (l) inn, kpp, okpo, ogrn, corrAccount;
-EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() inn, kpp, okpo, ogrn, corrAccount;
+isNotVATPayer 'Не плательщик НДС' = DATA BOOLEAN (LegalEntity);
 
-DESIGN legalEntity{
+EXTEND FORM legalEntity PROPERTIES (l) inn, kpp, okpo, ogrn, corrAccount, isNotVATPayer;
+EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() inn, kpp, okpo, ogrn, corrAccount, isNotVATPayer;
+
+DESIGN legalEntity {
     column2 {
         MOVE GROUP(doc,l) {
             columns = 3;
         }
+        row11 {
+            MOVE PROPERTY (isNotVATPayer(l));
+        }    
     }
 }
