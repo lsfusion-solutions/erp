@@ -40,6 +40,18 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     volumeDetail 'Объем в документе' (###doc##Detail vd, VetDocument vtd) = NUMERIC[16,5](quantity(vd) * OVERRIDE factor(sku(vd), unit(vtd)), 1.0); 
     fillVolume 'Выбрать' (###doc##Detail vd, VetDocument vtd) { volume(vd, vtd) <- volumeDetail(vd, vtd); }
     
+    matches (###doc##Detail vd, VetDocument vtd) = 
+        consignorBusinessEntity(vtd) = businessEntity(consignor(vd)) AND
+        consignorEnterprise(vtd) = enterprise(consignor##Stock(vd)) AND
+        consigneeEnterprise(vtd) = enterprise(consignee##Stock(vd)) AND
+        productItem(vtd) = productItem(sku(vd));
+    
+    fillVolume 'Заполнить' (###doc d) {
+        volume(###doc##Detail vd, VetDocument vtd) <- volumeDetail(vd, vtd) 
+                IF seriesNumber(vd) = issueSeriesNumberWaybill(vtd) AND matches(vd, vtd)
+                   WHERE doc(vd) = d;
+    }
+    
     uuidVetDocument 'Коды ВСД' (###doc##Detail d) =
         GROUP CONCAT uuid(VetDocument s) IF volume(d, s), ',' ORDER s;
     
@@ -52,14 +64,13 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
         ORDERS index(vd)
         FILTERS doc(vd) = obj,
                 productItem(sku(vd)) OR volumeVetDocument(vd)
+
+        PROPERTIES(obj) fillVolume DRAW vd TOOLBAR
         
         OBJECTS vtd = VetDocument
         PROPERTIES(vtd) READONLY nameStatus, uuid, issueDate, issueSeriesNumberWaybill, nameProductItem, volume, expiryDate
         PROPERTIES(vd, vtd)      volume, fillVolume GRID
-        FILTERS consignorBusinessEntity(vtd) = businessEntity(consignor(vd)),
-                consignorEnterprise(vtd) = enterprise(consignor##Stock(vd)),
-                consigneeEnterprise(vtd) = enterprise(consignee##Stock(vd)),
-                productItem(vtd) = productItem(sku(vd))
+        FILTERS matches(vd, vtd)
     
         FILTERGROUP active
             FILTER 'Подтвержденные' status(vtd) = VetDocumentStatus.CONFIRMED OR volume(vd, vtd) DEFAULT 
@@ -89,6 +100,17 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
 
     volumeDetail 'Объем в документе' (###doc##Detail vd, StockEntry s) = NUMERIC[16,5](quantity(vd) * OVERRIDE factor(sku(vd), unit(s)), 1.0); 
     fillVolume 'Выбрать' (###doc##Detail d, StockEntry s) { volume(d, s) <- volumeDetail(d, s); }
+
+    quantity (###doc##Detail vd, StockEntry s) = volume(s) / OVERRIDE factor(sku(vd), unit(s)), 1.0;
+    
+    matches (###doc##Detail vd, StockEntry s) = enterprise(s) = enterprise(stock(vd)) AND in(s, productItem(sku(vd)));
+    
+    calcQuantity(###doc##Detail vd, StockEntry s) = 
+        PARTITION UNGROUP quantity LIMIT quantity(vd, s) IF matches(vd, s) ORDER expiryDate(s), s BY vd;
+
+    fillVolume 'Заполнить' (###doc d) {
+        volume(###doc##Detail vd, StockEntry s) <- NUMERIC[16,5](calcQuantity(vd, s) * OVERRIDE factor(sku(vd), unit(s)), 1.0) WHERE doc(vd) = d;
+    }
     
     numberStockEntry 'Номер складского журнала' (###doc##Detail d) =
         GROUP CONCAT number(StockEntry s) IF volume(d, s), ',' ORDER s;
@@ -103,11 +125,12 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
         FILTERS doc(vd) = obj,
                 productItem(sku(vd)) OR volumeStockEntry(vd)
         
+        PROPERTIES(obj) fillVolume DRAW vd TOOLBAR
+        
         OBJECTS se = StockEntry
         PROPERTIES(se) READONLY guid, number, nameProductItem, volume, expiryDate
         PROPERTIES(vd, se)      volume, fillVolume GRID
-        FILTERS enterprise(se) = enterprise(stock(vd)),
-                in(se, productItem(sku(vd)))
+        FILTERS matches(vd, se)
     
         FILTERGROUP active
             FILTER 'Активные' active(se) OR volume(vd, se) DEFAULT 
