@@ -118,11 +118,11 @@ issueSeriesNumber (VetReferenceDocument r) = CONCAT '', issueSeries(r), issueNum
 
 issueDate 'Дата оформления документа' = DATA DATE (VetReferenceDocument);
 
-issueKey (VetReferenceDocument rd) = CONCAT ';', issueSeries(rd), issueNumber(rd), issueDate(rd);
-vetReferenceDocument = GROUP MAX VetReferenceDocument rd BY vetDocument(rd), issueKey(rd);
-
 type 'Тип документа' = DATA INTEGER (VetReferenceDocument);
 relationshipType 'Тип отношения между документами' = DATA INTEGER (VetReferenceDocument);
+
+issueKey (VetReferenceDocument rd) = CONCAT ';', issueSeries(rd), issueNumber(rd), issueDate(rd), type(rd), relationshipType(rd);
+vetReferenceDocument = GROUP MAX VetReferenceDocument rd BY vetDocument(rd), issueKey(rd);
 
 waybill (VetDocument d) = GROUP LAST VetReferenceDocument r ORDER r WHERE vetDocument(r) = d AND relationshipType(r) = 1;
 issueSeriesNumberWaybill 'Накладная' (VetDocument d) = issueSeriesNumber(waybill(d)); 
