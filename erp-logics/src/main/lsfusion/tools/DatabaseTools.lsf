@@ -195,14 +195,14 @@ smartVacuum 'Smart VACUUM'() {
 
     EXPORT CSV '|' HEADER 
         FROM sid(Table t), vacuumOrder(t), skipVacuum(t), dataSize(t), curDataSize(t), dataGrow(t), indexSize(t), curIndexSize(t), indexGrow(t)
-        WHERE curDataSize(t) < dataSize(t) OR curIndexSize(t) < indexSize(t) TO file;
+        WHERE  (NOT curDataSize(t) >= dataSize(t)) OR ( NOT curIndexSize(t) >= indexSize(t)) TO file;
             
     IF file() THEN {
         logToFile('database-tools', 'Smart VACUUM - new stat for externaly shrinked tables:');
         logToFile('database-tools', file());
         NEWSESSION NESTED LOCAL {
-            dataSize(Table t) <- curDataSize(t) WHERE curDataSize(t) < dataSize(t);
-            indexSize(Table t) <- curIndexSize(t) WHERE curIndexSize(t) < indexSize(t);
+            dataSize(Table t) <- curDataSize(t) WHERE NOT curDataSize(t) >= dataSize(t);
+            indexSize(Table t) <- curIndexSize(t) WHERE NOT curIndexSize(t) >= indexSize(t);
             APPLY NESTED LOCAL;
         }
     }
