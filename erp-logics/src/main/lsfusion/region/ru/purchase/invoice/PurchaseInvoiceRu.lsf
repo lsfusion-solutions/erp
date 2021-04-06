@@ -4,28 +4,4 @@ REQUIRE PurchaseInvoice, PurchaseShipment, LegalEntityRu;
 
 NAMESPACE Purchase;
 
-FORM printM4Ru 'M-4'
-    OBJECTS i = Invoice PANEL SUBREPORT 
-    PROPERTIES(i) number, nameCustomer, date, nameCustomerStock, nameSupplier, shipmentQuantityInvoiceDetail,
-                  sumInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail
-    
-    OBJECTS d = InvoiceDetail
-    PROPERTIES(d) nameSku, shortNameUOMSku, quantity, shipmentQuantity, price, sum, VATSum, invoiceSum
-    FILTERS invoice(d) == i
-;
-
-printM4Ru 'M-4 (xls)' (Invoice i)  { 
-    PRINT printM4Ru OBJECTS i = i XLS;
-} IMAGE 'print.png' IN print;
-
-EXTEND FORM invoices  
-    PROPERTIES(i)  printM4Ru
-;
-
-DESIGN invoices {
-    printContainer {
-        MOVE PROPERTY (printM4Ru(i));
-    }
-}
-
 overVAT(UserInvoiceDetail d) += valueCurrentVAT(country(supplierStock(d)), 0.0) IF isNotVATPayer(supplier(d));
