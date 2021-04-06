@@ -59,7 +59,9 @@ cashRegister (zReport) = DATA CashRegister(ZReport) INDEXED;
 numberCashRegister 'Касса Z-отчета' (ZReport zReport) = npp(cashRegister(zReport)) IN documentPrm;
 overNumberCashRegister 'Касса Z-отчета' (ZReport zReport) = overNpp(cashRegister(zReport)) IN documentPrm;
 
-basis 'Основание' (ZReport zReport) = 'Z-отчет №' + number(zReport) + ' с кассы ' + overNumberCashRegister(zReport) + ' от ' + date(zReport) IN documentPrm;
+overBasis = ABSTRACT STRING[20](ZReport);
+
+basis 'Основание' (ZReport zReport) = (OVERRIDE overBasis(zReport), 'Z-отчет №') + number(zReport) + ' с кассы ' + overNumberCashRegister(zReport) + ' от ' + date(zReport) IN documentPrm;
 
 departmentStore(ZReport zReport) <- stock(cashRegister(zReport))
     WHEN CHANGED(cashRegister(zReport));
