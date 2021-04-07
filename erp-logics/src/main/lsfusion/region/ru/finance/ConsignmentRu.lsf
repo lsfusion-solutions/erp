@@ -11,11 +11,9 @@ REQUIRE System,
         StockContract,
         SkuLedger,
         ItemPack,
-        Barcode, Employee, ItemDescription, Transport,
-        PurchaseOrder, Transport;
+        Barcode;
 
 NAMESPACE ConsignmentRu;
-
 
 CLASS ABSTRACT Consignment 'Накладная';
 
@@ -69,10 +67,10 @@ overSupplierStock (consignment)= ABSTRACT Stock (Consignment);
 supplierStock (Consignment consignment)= 
     OVERRIDE overSupplierStock(consignment), dataSupplierStock(consignment) CHARWIDTH 20;
     
-overNameSupplierStock = ABSTRACT ISTRING[150] (Consignment);
-nameSupplierStock 'Склад погрузки' (Consignment consignment) =
+overNameSupplierStock (Consignment consignment) = ABSTRACT ISTRING[150] (Consignment);
+nameSupplierStock (Consignment consignment) =
      OVERRIDE overNameSupplierStock(consignment), name(supplierStock(consignment)) CHARWIDTH 20;
-    
+
 FORM dialogEmployeesConsignment 'Сотрудники'
     OBJECTS e = Employee
     PROPERTIES (e) READONLY inactive, lastName, firstName, namePosition, nameMainRole, userRoles
@@ -147,19 +145,10 @@ overPhoneCustomer = ABSTRACT STRING[100] (Consignment);
 phoneCustomer 'Телефон/факс'  (Consignment consignment) = 
     OVERRIDE overPhoneCustomer(consignment), phone(customer(consignment)) CHARWIDTH 30;     
     
+    
 contract = ABSTRACT Contract (Consignment);
-
-overDescriptionContract = ABSTRACT ISTRING[28] (Consignment);
-descriptionContract 'Описание договора' (Consignment consignment)= 
-    OVERRIDE overDescriptionContract(consignment), 'Договор поставки '+ description(contract(consignment));
-
-overSeriesNumberContract = ABSTRACT ISTRING[28] (Consignment);
-seriesNumberContract 'Серия/номер договора'(Consignment consignment)= 
-    OVERRIDE overSeriesNumberContract(consignment), seriesNumber(contract(consignment));
-
-overDateFromContract = ABSTRACT DATE (Consignment);
-dateFromContract 'Серия/номер договора'(Consignment consignment)= 
-    OVERRIDE overDateFromContract(consignment), dateFrom(contract(consignment));
+overDescription 'Описание' (Contract contract) = 'Договор поставки '+ description(contract);
+descriptionContract = overDescription(contract(Consignment consignment));
     
 notUseIssuanceExecuted 'Не использовать справочник сотрудников' = DATA BOOLEAN (Consignment);
 dataIssuanceExecuted = DATA Employee(Consignment);
@@ -193,59 +182,20 @@ forwarder 'Товар к перевозке принял (экспедитор)'
         overForwarder(consignment), 
         dataForwarder(consignment) IN issuanceConsignment CHARWIDTH 30;
 
-nameForwarder 'Товар к перевозке принял, ФИО' (Consignment consignment) = 
+nameForwarder 'Товар принял, ФИО' (Consignment consignment) = 
     OVERRIDE  
         IF NOT notUseDialogForwarder(consignment) THEN firstShortName(forwarder(consignment)),
         overNameForwarder(consignment),
         dataNameForwarder(consignment) IN issuanceConsignment CHARWIDTH 30;
     
-positionForwarder 'Товар к перевозке принял, должность' (Consignment consignment) = 
+positionForwarder 'Товар принял, должность' (Consignment consignment) = 
     OVERRIDE  
-        IF NOT notUseDialogForwarder(consignment) THEN namePosition(forwarder(consignment)),
+        IF NOT notUseDialogForwarder(consignment) THEN namePosition(dataForwarder(consignment)),
         overPositionForwarder(consignment),
         dataPositionForwarder(consignment) IN issuanceConsignment CHARWIDTH 30;
-        
-warrantNumber 'По доверенности, номер' (consignment) = ABSTRACT STRING[30] (Consignment) IN issuanceConsignment CHARWIDTH 15;
-warrantDate 'По доверенности, дата' (consignment) = ABSTRACT DATE (Consignment) IN issuanceConsignment CHARWIDTH 15;
-
-//грузополучатель
-notUseDialogGoodsAccepted 'Не использовать справочник для грузополучателя' = DATA BOOLEAN(Consignment) IN issuanceConsignment;
-
-dataGoodsAccepted  = DATA Employee (Consignment);
-overGoodsAccepted (consignment) = ABSTRACT Employee(Consignment);
-
-dataNameGoodsAccepted = DATA STRING[100](Consignment);
-overNameGoodsAccepted = ABSTRACT STRING[100](Consignment);
-dataPositionGoodsAccepted = DATA STRING[100](Consignment);
-overPositionGoodsAccepted = ABSTRACT STRING[100](Consignment);
-
-goodsAccepted 'Принял грузополучатель' (Consignment consignment) = 
-    OVERRIDE  
-        overGoodsAccepted(consignment), 
-        dataGoodsAccepted(consignment) IN issuanceConsignment CHARWIDTH 30;
-
-nameGoodsAccepted 'Принял грузополучатель, ФИО' (Consignment consignment) = 
-    OVERRIDE  
-        IF NOT notUseDialogGoodsAccepted(consignment) THEN firstShortName(goodsAccepted(consignment)),
-        overNameGoodsAccepted(consignment),
-        dataNameGoodsAccepted(consignment) IN issuanceConsignment CHARWIDTH 30;
-    
-positionGoodsAccepted 'Принял грузополучатель, должность' (Consignment consignment) = 
-    OVERRIDE  
-        IF NOT notUseDialogGoodsAccepted(consignment) THEN namePosition(goodsAccepted(consignment)),
-        overPositionGoodsAccepted(consignment),
-        dataPositionGoodsAccepted(consignment) IN issuanceConsignment CHARWIDTH 30;
-     
     
 banSeries = ABSTRACT BOOLEAN (Consignment);
 toShowSeries = Consignment c IS Consignment AND NOT banSeries(c);
-
-dataCountPages 'Кол-во листов в приложении' (consignment) = DATA INTEGER (Consignment);
-overCountPages 'Кол-во листов в приложении' (consignment) = ABSTRACT INTEGER (Consignment);
-countPages 'Кол-во листов в приложении' (Consignment consignment) = OVERRIDE overCountPages(consignment), dataCountPages(consignment);
-
-managerCustomer 'Руководитель' = ABSTRACT ISTRING[250] (Consignment);
-accountantCustomer 'Главный бухгалтер' = ABSTRACT ISTRING[250] (Consignment);
 
 consignment (d) = ABSTRACT Consignment (ConsignmentDetail);
 
@@ -289,18 +239,6 @@ dataNetWeight 'Масса нетто, кг.' (d) = ABSTRACT NUMERIC[16,5] (Consi
 overNetWeight 'Масса нетто, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 netWeight 'Масса нетто, кг.' (ConsignmentDetail d) = OVERRIDE overNetWeight(d), dataNetWeight(d);
 
-dataShipmentQuantity 'Количество (посталено)' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
-overShipmentQuantity 'Количество (посталено)' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
-shipmentQuantity 'Количество (посталено)' (ConsignmentDetail d) = OVERRIDE overShipmentQuantity(d), dataShipmentQuantity(d);
-
-dataShipmentGrossWeight 'Масса брутто (посталено), кг.' (d) = ABSTRACT NUMERIC[27,10] (ConsignmentDetail);
-overShipmentGrossWeight 'Масса брутто (посталено), кг.' (d) = ABSTRACT NUMERIC[27,10] (ConsignmentDetail);
-shipmentGrossWeight 'Масса брутто (посталено), кг.' (ConsignmentDetail d) = OVERRIDE overGrossWeight(d), dataGrossWeight(d);
-
-dataShipmentNetWeight 'Масса нетто (посталено), кг.' (d) = ABSTRACT NUMERIC[27,10] (ConsignmentDetail);
-overShipmentNetWeight 'Масса нетто (посталено), кг.' (d) = ABSTRACT NUMERIC[27,10] (ConsignmentDetail);
-shipmentNetWeight 'Масса нетто (посталено), кг.' (ConsignmentDetail d) = OVERRIDE overNetWeight(d), dataNetWeight(d);
-
 barCode 'Штрихкод' (ConsignmentDetail d) = idBarcode(sku(d));
 sidCountry 'Код страны' (ConsignmentDetail d) = sid(country(sku(d)));
 shortNameCountry 'Краткое наименование страны' (ConsignmentDetail d) = name(country(sku(d)));
@@ -338,69 +276,9 @@ sumVAT 'Сумма НДС' (ConsignmentDetail d) = dataSumVAT(d);
 dataSumInvoice 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
 sumInvoice 'Сумма с НДС' (ConsignmentDetail d) = dataSumInvoice(d);
 
-deviationQuantity 'Отклонение количества' (ConsignmentDetail d) = quantity(d) - shipmentQuantity(d);
-deviationGrossWeight 'Отклонение массы брутто' (ConsignmentDetail d) = grossWeight(d) - shipmentGrossWeight(d);
-deviationNetWeight 'Отклонение массы нетто' (ConsignmentDetail d) = netWeight(d) - shipmentNetWeight(d);
-deviationSum 'Отклонение стоимости' (ConsignmentDetail d) = sum(d) - shipmentSum(d);
-
-overplusQuantity 'Излишек, количество' (ConsignmentDetail d) = - deviationQuantity(d);
-overplusSum 'Излишек, сумма' (ConsignmentDetail d) = - deviationSum(d);
-
-nameSort 'Сорт' (ConsignmentDetail d) = nameSort(sku(d));
-
 banPrint 'Запрет печати' = ABSTRACT CASE BOOLEAN (Consignment);
 
-// Заказ
-dataOrderDetail = ABSTRACT Purchase.OrderDetail (ConsignmentDetail);
-overOrderDetail = ABSTRACT Purchase.OrderDetail (ConsignmentDetail);
-orderDetail (ConsignmentDetail d)= OVERRIDE overOrderDetail(d), dataOrderDetail(d);
-
-overSeriesNumberOreder 'Серия/номер заказа' (Consignment consignment) = ABSTRACT STRING[200] (Consignment);
-seriesNumberOreder (Consignment consignment) = OVERRIDE overSeriesNumberOreder(consignment),
-    GROUP CONCAT seriesNumber(orderDetail(ConsignmentDetail d)) IF [GROUP LAST ConsignmentDetail d2 BY d2](d) AND consignment == consignment(d), ' ';
-
-overDateFromOreder = ABSTRACT DATE (Consignment);
-dateOreder'Дата заказа'(Consignment consignment)= OVERRIDE overDateFromContract(consignment), 
-    GROUP LAST date(orderDetail(ConsignmentDetail d)) IF consignment == consignment(d);
-
-// Автомобиль
-GROUP carConsignment 'Автомобиль' : base;
-
-notUseDriverTruck 'Не использовать справочники для выбора водителей и машин' = ABSTRACT BOOLEAN(Consignment);
-
-dataTruck  = DATA Truck (Consignment);
-overTruck (consignment) = ABSTRACT Truck(Consignment);
-truck(Consignment consignment) = OVERRIDE overTruck(consignment), dataTruck(consignment); 
-
-dataSidTruck = DATA STRING[100](Consignment);
-overSidTruck = ABSTRACT STRING[100](Consignment);
-
-sidTruck 'Номер автомобиля' (Consignment consignment) = 
-    OVERRIDE  
-        IF NOT notUseDriverTruck(consignment) THEN sid(truck(consignment)),
-        overSidTruck(consignment),
-        dataSidTruck(consignment) IN issuanceConsignment CHARWIDTH 30;
-        
-// Комиссия в атрибутах накладной
-CLASS ConsignmentCommittee 'Комиссия для накладной' : Committee;
-
-GROUP consignmentCommittee 'Комиссия' : public;
-
-name 'Наименование' = DATA ISTRING[150](ConsignmentCommittee);
-name(ConsignmentCommittee committee) += name(committee) IF committee IS ConsignmentCommittee;
-
-committee(consignment) = DATA ConsignmentCommittee(Consignment);
-nameCommittee 'Название комиссии' (Consignment consignment) = name(committee(consignment)) IN consignmentCommittee CHARWIDTH 30;
-shortNameChairman 'Председатель комиссии' (Consignment consignment) = shortNameChairman(committee(consignment)) IN consignmentCommittee CHARWIDTH 30;
-namePositionChairman 'Должность председателя' (Consignment consignment)  = namePositionChairman(committee(consignment)) IN consignmentCommittee CHARWIDTH 30;
-nameEmployee 'Члены комиссии' (Consignment consignment) = nameEmployee(committee(consignment)) IN consignmentCommittee CHARWIDTH 30;
-shortNamePositionEmployee (Consignment consignment) = shortNamePositionEmployee(committee(consignment)) IN consignmentCommittee CHARWIDTH 30;
-in 'Является членом комиссии' (Consignment consignment, Employee employee) = in(committee(consignment), employee);
-
-opinionCommittee 'Заключение комиссии'  (Consignment consignment) = ABSTRACT TEXT (Consignment);
-decisionChief 'Решение руководителя' (Consignment consignment) = ABSTRACT TEXT (Consignment);
-
-changeIssuanceExecuted(Consignment consignment) {    
+changeIssuanceExecuted(Consignment consignment)  {    
     IF notUseIssuanceExecuted(consignment) THEN {
         INPUT s = nameIssuanceExecuted(consignment) DO {
             nameIssuanceExecuted(consignment) <- s;
@@ -423,7 +301,7 @@ changeIssuanceExecuted(Consignment consignment) {
     overChangeIssuanceExecuted(consignment);
 }
 
-changeNameForwarder(Consignment consignment) {     
+changeNameForwarder(Consignment consignment)  {     
     IF notUseDialogForwarder(consignment) THEN {
         INPUT s = dataNameForwarder(consignment) DO {
             dataNameForwarder(consignment) <- s;
@@ -446,45 +324,6 @@ changePositionForwarder(Consignment consignment)  {
         }
     }        
 } 
-           
-changeNameGoodsAccepted(Consignment consignment) {     
-    IF notUseDialogGoodsAccepted(consignment) THEN {
-        INPUT s = dataNameGoodsAccepted(consignment) DO {
-            dataNameGoodsAccepted(consignment) <- s;
-        }
-    } ELSE {
-        DIALOG dialogEmployeesConsignment OBJECTS e = dataGoodsAccepted(consignment) INPUT NULL DO {
-            dataGoodsAccepted(consignment) <- e;
-        }
-    }
-}   
-
-changePositionGoodsAccepted(Consignment consignment) {     
-    IF notUseDialogGoodsAccepted(consignment) THEN {
-        INPUT s = dataPositionGoodsAccepted(consignment) DO {
-            dataPositionGoodsAccepted(consignment) <- s;
-        }         
-    } ELSE {
-        DIALOG dialogEmployeesConsignment OBJECTS e = dataGoodsAccepted(consignment) INPUT NULL DO {
-            dataGoodsAccepted(consignment) <- e;
-        }
-    }        
-}      
-
-overChangeTruck  ABSTRACT (Consignment); 
-
-changeTruck (Consignment consignment)  {    
-    IF notUseDriverTruck(consignment) THEN {
-        INPUT s = dataSidTruck(consignment) DO {
-            dataSidTruck(consignment) <- s;
-        }
-    } ELSE {        
-        DIALOG trucks OBJECTS t = dataTruck(consignment) INPUT NULL DO {
-            dataTruck(consignment) <- t;
-        }
-    }        
-    overChangeTruck(consignment);
-}
    
 FORM consignmentTorg13 'ТОРГ-13'
     OBJECTS c=Consignment PANEL
@@ -560,229 +399,6 @@ FORM consignmentUPD 'Универсальный передаточный док�
  
 printConsignmentUPD 'Универсальный передаточный документ' (Consignment consignment) { PRINT consignmentUPD OBJECTS c = consignment;} IMAGE 'print.png' IN print;    
 
-FORM consignmentTorg1 'ТОРГ-1'
-    // 1 страница
-    OBJECTS ct=Consignment PANEL
-    PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer,
-                    fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
-                    nameCustomerStock, 
-                    nameSupplierStock,
-                    date, number,
-                    descriptionContract,
-                    sidTruck,
-                    seriesNumberOreder, dateOreder, seriesNumberContract, dateFromContract
-    
-    // 2 страница
-    OBJECTS cd=Consignment
-    OBJECTS d=ConsignmentDetail
-    
-    PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
-                  quantity, grossWeight, netWeight,
-                  price, sum
-        
-    FILTERS consignment(d) == cd,
-            quantity(d),
-            NOT skip(d)
-        
-    // 3 страница
-    OBJECTS cd2=Consignment    
-    OBJECTS d2=ConsignmentDetail
-        PROPERTIES(d2) nameSku, barCode, shortNameUOM, idUOM, 
-                       shipmentQuantity, shipmentGrossWeight, shipmentNetWeight, shipmentPrice, shipmentSum,
-                       sumInvoice, vat, sumVAT,
-                       deviationQuantity, deviationGrossWeight, deviationNetWeight, deviationSum 
-                      
-            
-    FILTERS consignment(d2) == cd2,
-            quantity(d2),
-            NOT skip(d2)        
-                        
-    // 4 страница                    
-    OBJECTS ct2=Consignment     
-    PROPERTIES (ct2)  shortNameChairman, namePositionChairman,
-                      nameIssuanceExecuted, positionIssuanceExecuted, 
-                      nameForwarder, positionForwarder, 
-                      warrantNumber, warrantDate,
-                      nameGoodsAccepted, positionGoodsAccepted,                     
-                      opinionCommittee, decisionChief,
-                      countPages
-    
-    OBJECTS  e = Employee
-    PROPERTIES (e) shortName, namePosition
-    
-    FILTERS in(committee(ct2), e)
-;
- 
-printConsignmentTorg1 'ТОРГ-1' (Consignment consignment) { 
-    PRINT consignmentTorg1 OBJECTS ct = consignment, cd = consignment, cd2 = consignment, ct2 = consignment;
-} IMAGE 'print.png' IN print;    
-
-
-FORM consignmentTorg2 'ТОРГ-2'
-    // 1 страница
-    OBJECTS ct=Consignment PANEL
-    PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer,
-                    fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
-                    nameCustomerStock, 
-                    nameSupplierStock,
-                    date, number,
-                    descriptionContract,
-                    sidTruck,
-                    seriesNumberOreder, dateOreder, seriesNumberContract, dateFromContract
-    
-    // 2 страница
-    OBJECTS cd=Consignment
-    OBJECTS d=ConsignmentDetail
-    
-    PROPERTIES(d) nameSku, shortNameUOM, idUOM, nameSort,  
-                  quantity,
-                  price, sum
-        
-    FILTERS consignment(d) == cd,
-            quantity(d),
-            NOT skip(d)
-        
-    // 3 страница
-    OBJECTS cd2=Consignment    
-    OBJECTS d2=ConsignmentDetail
-        PROPERTIES(d2) nameSort, shipmentQuantity,shipmentPrice, shipmentSum,
-                       sumInvoice, vat, sumVAT,
-                       deviationQuantity, deviationSum, 
-                       overplusQuantity, overplusSum  
-                                  
-    FILTERS consignment(d2) == cd2,
-            quantity(d2),
-            NOT skip(d2)        
-                        
-    // 4 страница                    
-    OBJECTS ct2=Consignment     
-    PROPERTIES (ct2)  shortNameChairman, namePositionChairman,
-                      nameIssuanceExecuted, positionIssuanceExecuted, 
-                      nameForwarder, positionForwarder, 
-                      warrantNumber, warrantDate,
-                      nameGoodsAccepted, positionGoodsAccepted,                     
-                      opinionCommittee, decisionChief,
-                      countPages
-    
-    OBJECTS  e = Employee
-    PROPERTIES (e) shortName, namePosition
-    
-    FILTERS in(committee(ct2), e)
-;
-
-printConsignmentTorg2 'ТОРГ-2' (Consignment consignment) { 
-    PRINT consignmentTorg2 OBJECTS ct = consignment, cd = consignment, cd2 = consignment, ct2 = consignment;
-} IMAGE 'print.png' IN print; 
-
-FORM consignmentTorg3 'ТОРГ-3'
-        // 2 страница
-        OBJECTS cd=Consignment 
-        OBJECTS d=ConsignmentDetail
-        
-        PROPERTIES(d) nameSku, shortNameUOM, idUOM, nameSort,  
-                      quantity,
-                      price, sum, 
-                      shipmentQuantity, 
-                      deviationQuantity, deviationSum, 
-                      overplusQuantity, overplusSum,
-                      barCode
-            
-        FILTERS consignment(d) == cd,
-                quantity(d),
-                NOT skip(d)            
-                            
-        // 4 страница                    
-        OBJECTS ct2=Consignment     
-        PROPERTIES (ct2)  shortNameChairman, namePositionChairman,
-                          nameIssuanceExecuted, positionIssuanceExecuted, 
-                          nameForwarder, positionForwarder, 
-                          warrantNumber, warrantDate,
-                          nameGoodsAccepted, positionGoodsAccepted,                     
-                          opinionCommittee, decisionChief,
-                          countPages
-        
-        OBJECTS  e = Employee
-        PROPERTIES (e) shortName, namePosition
-        
-        FILTERS in(committee(ct2), e)
-;
-
-FORM consignmentTorg3FirstPage 'ТОРГ-3'
-    // 1 страница
-        OBJECTS ct=Consignment PANEL
-        PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer,
-                        fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
-                        nameCustomerStock, 
-                        nameSupplierStock,
-                        date, number,
-                        descriptionContract,
-                        sidTruck,
-                        seriesNumberOreder, dateOreder, seriesNumberContract, dateFromContract       
-;
-printConsignmentTorg3 'ТОРГ-3' (Consignment consignment) { 
-    PRINT consignmentTorg3FirstPage OBJECTS ct = consignment;
-    PRINT consignmentTorg3 OBJECTS cd = consignment, ct2 = consignment;    
-} IMAGE 'print.png' IN print; 
-
-FORM consignmentCommittee 'Комиссия для накладной'
-    OBJECTS c=ConsignmentCommittee PANEL
-    PROPERTIES(c) name, nameChairman
-
-    TREE stockTree sg = StockGroup PARENT parent(sg)
-    PROPERTIES READONLY sgTreeName = name(sg)
-
-    OBJECTS ts=Stock
-    PROPERTIES READONLY tsTreeName = name(ts)
-    PROPERTIES(c, ts) in 
-    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
-    FILTERS isParent(sg, ts)
-    ORDERS tsTreeName
-
-    OBJECTS e=Employee
-    PROPERTIES(e) READONLY name[Contact], firstName, lastName, namePosition
-    PROPERTIES(e) NEWEDIT, EDIT, DELETE GRID
-
-    PROPERTIES(c, e) in
-    FILTERS (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
-    FILTERGROUP filters6
-        FILTER 'Показывать только членов комиссии' in(c, e) 'F10'
-
-    FILTERGROUP filters5
-        FILTER 'Показывать отделы только для данной комиссии' in(c, ts) 'F9'
-    FILTERGROUP active FILTER 'Активные' active(e) 'F5' DEFAULT 
-    EDIT ConsignmentCommittee OBJECT c
-;
-@extendFormFilterStockAccess(ts, consignmentCommittee);
-@extendFormFilterStockGroupAccess(sg, consignmentCommittee);
-
-DESIGN consignmentCommittee {
-    BOX {
-        size = (1024, 768);
-
-        OBJECTS {
-            NEW caseOne BEFORE BOX(e) {
-                fill = 1;
-                type = SPLITH;
-    
-                MOVE BOX(TREE stockTree) {
-                    caption = 'Группы складов';
-                }
-                MOVE BOX(ts) {
-                    fill = 1;
-                }
-            }
-        }
-    }
-}
-
-FORM consignmentCommittees 'Комиссии для накладной'
-    OBJECTS w=ConsignmentCommittee
-    PROPERTIES(w) READONLY name, nameStocks, nameEmployee, nameChairman
-    PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE
-
-    LIST ConsignmentCommittee OBJECT w
-;
-
 FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment PANEL
 
@@ -793,22 +409,14 @@ FORM consignment 'Атрибуты накладной'
                    nameIssuanceExecuted ON CHANGE changeIssuanceExecuted(c),
                    positionIssuanceExecuted ON CHANGE changeIssuanceExecuted(c), 
                    nameForwarder ON CHANGE changeNameForwarder(c),
-                   positionForwarder ON CHANGE changePositionForwarder(c),                   
-                   notUseDialogGoodsAccepted,
-                   nameGoodsAccepted ON CHANGE changeNameGoodsAccepted(c),
-                   positionGoodsAccepted ON CHANGE changePositionGoodsAccepted(c),
-                   sidTruck ON CHANGE changeTruck(c),
-                   nameCommittee, opinionCommittee, 
-                   warrantNumber, warrantDate,
-                   decisionChief, 
-                   countPages
+                   positionForwarder ON CHANGE changePositionForwarder(c)
     OBJECTS d=ConsignmentDetail
 
     PROPERTIES(d) order, index, nameSku READONLY, shortNameUOM READONLY, quantity, price, sum 
     ORDERS order(d), index(d)  
 
-    FILTERS consignment(d) == c, 
-            NOT skip(d) 
+    FILTERS consignment(d) == c,
+            NOT skip(d)
 ;
 
 DESIGN consignment {
@@ -832,7 +440,6 @@ DESIGN consignment {
                         MOVE PROPERTY(number(c));
                         MOVE PROPERTY(series(c));
                         MOVE PROPERTY(date(c));
-                        MOVE PROPERTY(nameCommittee(c));
                     }
                 
                     NEW supplier {
@@ -849,17 +456,16 @@ DESIGN consignment {
                         type = CONTAINERH;
                         MOVE PROPERTY(fullNameCustomer(c));
                         MOVE PROPERTY(addressCustomer(c));
-                    } 
+                    }    
                     
                     MOVE GROUP(issuanceConsignment,c) {                       
                         type = CONTAINERV;
-                        
                         NEW issuance { 
                             alignment = STRETCH;
                             type = CONTAINERH;
                             MOVE PROPERTY(nameIssuanceExecuted(c)) { charWidth = 30; };
                             MOVE PROPERTY(positionIssuanceExecuted(c)) { charWidth = 20; };
-                        }    
+                        }
                             
                         MOVE PROPERTY(notUseDialogForwarder(c));    
                         
@@ -867,41 +473,9 @@ DESIGN consignment {
                             alignment = STRETCH;
                             type = CONTAINERH;
                             MOVE PROPERTY(nameForwarder(c)) { charWidth = 30; };
-                            MOVE PROPERTY(positionForwarder(c)) { charWidth = 20; };                              
-                        }         
-                        
-                        NEW warrant {
-                            alignment = STRETCH;
-                            type = CONTAINERH;
-                            MOVE PROPERTY(warrantNumber(c));
-                            MOVE PROPERTY(warrantDate(c));
-                        }
-                        
-                        MOVE PROPERTY(notUseDialogGoodsAccepted(c)); 
-                        
-                        NEW goodsAccepted { 
-                            alignment = STRETCH;
-                            type = CONTAINERH;
-                            MOVE PROPERTY(nameGoodsAccepted(c)) { charWidth = 30; };
-                            MOVE PROPERTY(positionGoodsAccepted(c)) { charWidth = 20; };                              
-                        }    
-                        
-                        MOVE PROPERTY(sidTruck(c));
-                    }   
-                    
-                    NEW committee {
-                        caption = 'Комиссия';
-                        type = CONTAINERV;                        
-                        MOVE PROPERTY(nameCommittee(c));
-                        MOVE PROPERTY(opinionCommittee(c)) { charWidth = 30; charHeight=2;};
-                    }  
-                    
-                    NEW other {
-                        caption = 'Дополнительные параметры';
-                        type = CONTAINERV;
-                        MOVE PROPERTY(countPages(c)) { charWidth = 30; }; 
-                        MOVE PROPERTY(decisionChief(c)) { charWidth = 30; charHeight=2;};                                               
-                    }                                         
+                            MOVE PROPERTY(positionForwarder(c)) { charWidth = 20; };  
+                        }                  
+                    }                        
                 }
             }
         }
@@ -913,11 +487,10 @@ DESIGN consignment {
             }
         };
     }
-    
     MOVE TOOLBARBOX;
 }
 
-editAttributes 'Заполнить атрибуты накладной' (Consignment consignment) { 
+editAttributes 'Заполнить атрибуты накладной' (Consignment consignment)  { 
 	NEWSESSION {	       
 	    SHOW consignment OBJECTS c = consignment DOCKED; 
 	}

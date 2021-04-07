@@ -1,0 +1,844 @@
+MODULE AcceptanceRu;
+
+REQUIRE System,
+        LegalEntityRu,
+        Stock,
+        Sku,
+        Barcode,
+        Employee,
+        Utils,
+        
+        StockContract,
+        SkuLedger,
+        ItemPack,
+        Barcode, Employee, Transport, Order;
+
+NAMESPACE AcceptanceRu;
+
+CLASS ABSTRACT Acceptance 'Приемка';
+
+CLASS ABSTRACT AcceptanceDetail 'Строка приемки';
+               
+dataDate 'Дата' (acceptance) = ABSTRACT DATE (Acceptance);
+overDate 'Дата' (acceptance) = ABSTRACT DATE (Acceptance);
+date 'Дата' (Acceptance acceptance) = OVERRIDE overDate(acceptance), dataDate(acceptance);
+
+number 'Номер' = ABSTRACT STRING[28] (Acceptance) IN numbered CHARWIDTH 7;
+series 'Серия' = ABSTRACT BPSTRING[2] (Acceptance) IN numbered CHARWIDTH 3 NOFLEX; 
+
+dataSupplier = ABSTRACT LegalEntity (Acceptance);
+overSupplier = ABSTRACT LegalEntity (Acceptance);
+supplier (Acceptance acceptance)= OVERRIDE overSupplier(acceptance), dataSupplier(acceptance);
+
+overINNSupplier 'ИНН получателя' = ABSTRACT STRING[50] (Acceptance);
+extraINNSupplier 'ИНН получателя' = ABSTRACT STRING[50] (Acceptance);
+INNSupplier 'ИНН отправителя' (Acceptance acceptance) = OVERRIDE overINNSupplier(acceptance), extraINNSupplier(acceptance), inn(supplier(acceptance));
+
+overKPPSupplier 'КПП получателя' = ABSTRACT STRING[50] (Acceptance);
+extraKPPSupplier 'КПП получателя' = ABSTRACT STRING[50] (Acceptance);
+KPPSupplier 'КПП отправителя' (Acceptance acceptance) = OVERRIDE overKPPSupplier(acceptance), extraKPPSupplier(acceptance), kpp(supplier(acceptance));
+
+overOKPOSupplier 'ОКПО получателя' = ABSTRACT STRING[50] (Acceptance);
+extraOKPOSupplier 'ОКПО получателя' = ABSTRACT STRING[50] (Acceptance);
+OKPOSupplier 'ОКПО отправителя' (Acceptance acceptance) = OVERRIDE overOKPOSupplier(acceptance), extraOKPOSupplier(acceptance), okpo(supplier(acceptance));
+
+overAddressSupplier = ABSTRACT ISTRING[150] (Acceptance);
+addressSupplier 'Юр. адрес отправителя' (Acceptance acceptance) =
+    OVERRIDE overAddressSupplier(acceptance), address(supplier(acceptance), date(acceptance)) CHARWIDTH 30;
+    
+overFullNameSupplier = ABSTRACT ISTRING[200] (Acceptance);  
+fullNameSupplier 'Наим-ие отправителя' (Acceptance acceptance) = 
+    OVERRIDE overFullNameSupplier(acceptance), fullName(supplier(acceptance)) CHARWIDTH 30;    
+            
+overEmailSupplier = ABSTRACT STRING[400] (Acceptance);    
+emailSupplier 'E-mail' (Acceptance acceptance) = 
+    OVERRIDE overEmailSupplier(acceptance), email(supplier(acceptance)) CHARWIDTH 30;
+    
+overSiteSupplier = ABSTRACT STRING[100] (Acceptance);    
+siteSupplier 'Сайт'  (Acceptance acceptance) = 
+    OVERRIDE overSiteSupplier(acceptance), site(supplier(acceptance)) CHARWIDTH 30;    
+
+overPhoneSupplier = ABSTRACT STRING[100] (Acceptance);    
+phoneSupplier 'Телефон/факс'  (Acceptance acceptance) = 
+    OVERRIDE overPhoneSupplier(acceptance), phone(supplier(acceptance)) CHARWIDTH 30;    
+
+dataSupplierStock (acceptance) = ABSTRACT Stock (Acceptance);
+overSupplierStock (acceptance)= ABSTRACT Stock (Acceptance);
+supplierStock (Acceptance acceptance)= 
+    OVERRIDE overSupplierStock(acceptance), dataSupplierStock(acceptance) CHARWIDTH 20;
+    
+overNameSupplierStock = ABSTRACT ISTRING[150] (Acceptance);
+nameSupplierStock 'Склад погрузки' (Acceptance acceptance) =
+     OVERRIDE overNameSupplierStock(acceptance), name(supplierStock(acceptance)) CHARWIDTH 20;
+    
+FORM dialogEmployeesAcceptance 'Сотрудники'
+    OBJECTS e = Employee
+    PROPERTIES (e) READONLY inactive, lastName, firstName, namePosition, nameMainRole, userRoles
+    
+    FILTERGROUP active FILTER 'Активные' active(e) 'F5'  DEFAULT 
+    
+    LIST Employee OBJECT e
+;
+
+DESIGN dialogEmployeesAcceptance {
+    size = (800, 600);
+    PROPERTY (lastName(e)) {
+        charWidth = 15;
+    }
+    PROPERTY (firstName(e)) {
+        charWidth = 25;
+    }
+    PROPERTY (namePosition(e)) {
+        charWidth = 30;
+    }
+    PROPERTY (nameMainRole(e)) {
+        charWidth = 25;
+    }
+}
+
+// ------------------------------------- Отпуск товара --------------------------------- //
+GROUP issuanceAcceptance 'Отпуск' : base;
+
+dataCustomerStock = ABSTRACT Stock (Acceptance);
+overCustomerStock = ABSTRACT Stock (Acceptance);
+customerStock (Acceptance acceptance)= 
+    OVERRIDE overCustomerStock(acceptance), dataCustomerStock(acceptance) CHARWIDTH 20;
+     
+dataCustomer = ABSTRACT LegalEntity (Acceptance);
+overCustomer = ABSTRACT LegalEntity (Acceptance);
+customer (Acceptance acceptance)= OVERRIDE overCustomer(acceptance), dataCustomer(acceptance);  
+    
+overINNCustomer 'ИНН отправителя' = ABSTRACT STRING[50] (Acceptance);
+extraINNCustomer 'ИНН отправителя' = ABSTRACT STRING[50] (Acceptance);
+INNCustomer 'ИНН отправителя' (Acceptance acceptance) = OVERRIDE overINNCustomer(acceptance), extraINNCustomer(acceptance), inn(customer(acceptance));
+
+overKPPCustomer 'КПП отправителя' = ABSTRACT STRING[50] (Acceptance);
+extraKPPCustomer 'КПП отправителя' = ABSTRACT STRING[50] (Acceptance);
+KPPCustomer 'КПП отправителя' (Acceptance acceptance) = OVERRIDE overKPPCustomer(acceptance), extraKPPCustomer(acceptance), kpp(customer(acceptance));
+
+overOKPOCustomer 'ОКПО отправителя' = ABSTRACT STRING[50] (Acceptance);
+extraOKPOCustomer 'ОКПО отправителя' = ABSTRACT STRING[50] (Acceptance);
+OKPOCustomer 'ОКПО отправителя' (Acceptance acceptance) = OVERRIDE overOKPOCustomer(acceptance), extraOKPOCustomer(acceptance), okpo(customer(acceptance));
+    
+overAddressCustomer = ABSTRACT ISTRING[150] (Acceptance);
+addressCustomer 'Юр. адрес отправителя' (Acceptance acceptance) =
+    OVERRIDE overAddressCustomer(acceptance), address(customer(acceptance), date(acceptance)) CHARWIDTH 30;      
+    
+overNameCustomerStock (Acceptance acceptance) = ABSTRACT ISTRING[150] (Acceptance);
+nameCustomerStock (Acceptance acceptance) =
+     OVERRIDE overNameCustomerStock(acceptance), name(customerStock(acceptance)) CHARWIDTH 20;
+      
+overFullNameCustomer = ABSTRACT ISTRING[200] (Acceptance);  
+extraFullNameCustomer = ABSTRACT ISTRING[200] (Acceptance);  
+fullNameCustomer 'Наим-ие получателя' (Acceptance acceptance) = 
+    OVERRIDE overFullNameCustomer(acceptance), extraFullNameCustomer(acceptance), fullName(customer(acceptance)) CHARWIDTH 30;
+    
+overEmailCustomer = ABSTRACT STRING[400] (Acceptance);    
+emailCustomer 'E-mail' (Acceptance acceptance) = 
+    OVERRIDE overEmailCustomer(acceptance), email(customer(acceptance)) CHARWIDTH 30;
+    
+overSiteCustomer = ABSTRACT STRING[100] (Acceptance);    
+siteCustomer 'Сайт'  (Acceptance acceptance) = 
+    OVERRIDE overSiteCustomer(acceptance), site(customer(acceptance)) CHARWIDTH 30;    
+
+
+overPhoneCustomer = ABSTRACT STRING[100] (Acceptance);    
+phoneCustomer 'Телефон/факс'  (Acceptance acceptance) = 
+    OVERRIDE overPhoneCustomer(acceptance), phone(customer(acceptance)) CHARWIDTH 30;     
+
+seriesNumberContract 'Серия/номер договора' = ABSTRACT ISTRING[28] (Acceptance);
+//seriesNumberContract 'Серия/номер договора'(Acceptance acceptance)= 
+//    OVERRIDE overSeriesNumberContract(acceptance), seriesNumber(contract(acceptance));
+
+dateFromContract = ABSTRACT DATE (Acceptance);
+//dateFromContract 'Серия/номер договора'(Acceptance acceptance)= 
+//    OVERRIDE overDateFromContract(acceptance), dateFrom(contract(acceptance));
+    
+notUseIssuanceExecuted 'Не использовать справочник сотрудников' = DATA BOOLEAN (Acceptance);
+dataIssuanceExecuted = DATA Employee(Acceptance);
+overIssuanceExecuted (acceptance) = DATA Employee(Acceptance);
+issuanceExecuted (acceptance) = ABSTRACT Employee(Acceptance);
+positionIssuanceExecuted 'Отпуск произвел, должность' (Acceptance acceptance) = 
+    OVERRIDE namePosition(dataIssuanceExecuted(acceptance)),
+             namePosition(issuanceExecuted(acceptance)),
+             namePosition(overIssuanceExecuted(acceptance)) IN issuanceAcceptance CHARWIDTH 20;             
+nameIssuanceExecuted 'Отпуск произвел, ФИО' (Acceptance acceptance) = 
+    OVERRIDE firstShortName(dataIssuanceExecuted(acceptance)),
+             firstShortName(issuanceExecuted(acceptance)),
+             firstShortName(overIssuanceExecuted(acceptance)) IN issuanceAcceptance CHARWIDTH 20; 
+overChangeIssuanceExecuted ABSTRACT (Acceptance);
+
+customSelectIssuanceExecuted = ABSTRACT BOOLEAN (Acceptance);
+overSelectIssuanceExecuted ABSTRACT (Acceptance);
+
+notUseDialogForwarder 'Не использовать справочник для принимающих сотрудников' = DATA BOOLEAN(Acceptance) IN issuanceAcceptance;
+
+dataForwarder  = DATA Employee (Acceptance);
+overForwarder (acceptance) = ABSTRACT Employee(Acceptance);
+
+dataNameForwarder = DATA STRING[100](Acceptance);
+overNameForwarder = ABSTRACT STRING[100](Acceptance);
+dataPositionForwarder = DATA STRING[100](Acceptance);
+overPositionForwarder = ABSTRACT STRING[100](Acceptance);
+
+forwarder 'Товар к перевозке принял (экспедитор)' (Acceptance acceptance) = 
+    OVERRIDE  
+        overForwarder(acceptance), 
+        dataForwarder(acceptance) IN issuanceAcceptance CHARWIDTH 30;
+
+nameForwarder 'Товар к перевозке принял, ФИО' (Acceptance acceptance) = 
+    OVERRIDE  
+        IF NOT notUseDialogForwarder(acceptance) THEN firstShortName(forwarder(acceptance)),
+        overNameForwarder(acceptance),
+        dataNameForwarder(acceptance) IN issuanceAcceptance CHARWIDTH 30;
+    
+positionForwarder 'Товар к перевозке принял, должность' (Acceptance acceptance) = 
+    OVERRIDE  
+        IF NOT notUseDialogForwarder(acceptance) THEN namePosition(forwarder(acceptance)),
+        overPositionForwarder(acceptance),
+        dataPositionForwarder(acceptance) IN issuanceAcceptance CHARWIDTH 30;
+        
+warrantNumber 'По доверенности, номер' (acceptance) = ABSTRACT STRING[30] (Acceptance) IN issuanceAcceptance CHARWIDTH 15;
+warrantDate 'По доверенности, дата' (acceptance) = ABSTRACT DATE (Acceptance) IN issuanceAcceptance CHARWIDTH 15;
+
+//грузополучатель
+notUseDialogGoodsAccepted 'Не использовать справочник для грузополучателя' = DATA BOOLEAN(Acceptance) IN issuanceAcceptance;
+
+dataGoodsAccepted  = DATA Employee (Acceptance);
+overGoodsAccepted (acceptance) = ABSTRACT Employee(Acceptance);
+
+dataNameGoodsAccepted = DATA STRING[100](Acceptance);
+overNameGoodsAccepted = ABSTRACT STRING[100](Acceptance);
+dataPositionGoodsAccepted = DATA STRING[100](Acceptance);
+overPositionGoodsAccepted = ABSTRACT STRING[100](Acceptance);
+
+goodsAccepted 'Принял грузополучатель' (Acceptance acceptance) = 
+    OVERRIDE  
+        overGoodsAccepted(acceptance), 
+        dataGoodsAccepted(acceptance) IN issuanceAcceptance CHARWIDTH 30;
+
+nameGoodsAccepted 'Принял грузополучатель, ФИО' (Acceptance acceptance) = 
+    OVERRIDE  
+        IF NOT notUseDialogGoodsAccepted(acceptance) THEN firstShortName(goodsAccepted(acceptance)),
+        overNameGoodsAccepted(acceptance),
+        dataNameGoodsAccepted(acceptance) IN issuanceAcceptance CHARWIDTH 30;
+    
+positionGoodsAccepted 'Принял грузополучатель, должность' (Acceptance acceptance) = 
+    OVERRIDE  
+        IF NOT notUseDialogGoodsAccepted(acceptance) THEN namePosition(goodsAccepted(acceptance)),
+        overPositionGoodsAccepted(acceptance),
+        dataPositionGoodsAccepted(acceptance) IN issuanceAcceptance CHARWIDTH 30;
+     
+    
+banSeries = ABSTRACT BOOLEAN (Acceptance);
+toShowSeries = Acceptance c IS Acceptance AND NOT banSeries(c);
+
+dataCountPages 'Кол-во листов в приложении' (acceptance) = DATA INTEGER (Acceptance);
+overCountPages 'Кол-во листов в приложении' (acceptance) = ABSTRACT INTEGER (Acceptance);
+countPages 'Кол-во листов в приложении' (Acceptance acceptance) = OVERRIDE overCountPages(acceptance), dataCountPages(acceptance);
+
+managerCustomer 'Руководитель' = ABSTRACT ISTRING[250] (Acceptance);
+accountantCustomer 'Главный бухгалтер' = ABSTRACT ISTRING[250] (Acceptance);
+
+acceptance (d) = ABSTRACT Acceptance (AcceptanceDetail);
+
+order 'Порядок сортировки' = ABSTRACT ISTRING[255] (AcceptanceDetail); 
+index 'Номер строки' = ABSTRACT INTEGER (AcceptanceDetail); 
+skip = ABSTRACT BOOLEAN (AcceptanceDetail);
+
+batch = ABSTRACT Batch (AcceptanceDetail);
+nameBatch 'Партия' (AcceptanceDetail d) = name(batch(d)) CHARWIDTH 20;
+
+dataSku (d) = ABSTRACT Sku (AcceptanceDetail);
+overSku (d) = ABSTRACT Sku (AcceptanceDetail);
+sku (AcceptanceDetail d) = OVERRIDE overSku(d), dataSku(d);
+idSku (AcceptanceDetail d) = id(sku(d));
+
+overNameSku = ABSTRACT ISTRING[255](AcceptanceDetail); // дополнительные характеристики
+dataNameSku = ABSTRACT ISTRING[255](AcceptanceDetail);
+nameSku 'Наименование товара' (AcceptanceDetail d) = CONCAT ' ',
+    (OVERRIDE overDocumentNameSku(batch(d)), dataNameSku(d), name(sku(d))),
+    overNameSku(d) CHARWIDTH 30;
+    
+dataQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (AcceptanceDetail);
+overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (AcceptanceDetail);
+quantity 'Количество' (AcceptanceDetail d) = OVERRIDE overQuantity(d), dataQuantity(d);    
+
+dataAmountPack 'Кол-во в упаковке' (d) = ABSTRACT NUMERIC[21,6] (AcceptanceDetail);
+overAmountPack 'Кол-во в упаковке' (d) = ABSTRACT CASE NUMERIC[21,6] (AcceptanceDetail);
+amountPack 'Кол-во в упаковке' (AcceptanceDetail d) = OVERRIDE overAmountPack(d), dataAmountPack(d);
+
+dataPackQuantity 'Количество грузовых мест' (d) = ABSTRACT NUMERIC[21,6] (AcceptanceDetail);
+overPackQuantity 'Количество грузовых мест' (d) = ABSTRACT CASE NUMERIC[21,6] (AcceptanceDetail);
+packQuantity 'Количество грузовых мест' (AcceptanceDetail d) = OVERRIDE overPackQuantity(d), dataPackQuantity(d);
+
+nameTransportPack 'Количество грузовых мест' (AcceptanceDetail d) = name(transportPack(barcode(sku(d))));
+
+dataGrossWeight 'Масса брутто, кг.' (d) = ABSTRACT NUMERIC[16,5] (AcceptanceDetail);
+overGrossWeight 'Масса брутто, кг.' (d) = ABSTRACT NUMERIC[16,5] (AcceptanceDetail);
+grossWeight 'Масса брутто, кг.' (AcceptanceDetail d) = OVERRIDE overGrossWeight(d), dataGrossWeight(d);
+
+dataNetWeight 'Масса нетто, кг.' (d) = ABSTRACT NUMERIC[16,5] (AcceptanceDetail);
+overNetWeight 'Масса нетто, кг.' (d) = ABSTRACT NUMERIC[16,5] (AcceptanceDetail);
+netWeight 'Масса нетто, кг.' (AcceptanceDetail d) = OVERRIDE overNetWeight(d), dataNetWeight(d);
+
+dataShipmentQuantity 'Количество (посталено)' (d) = ABSTRACT NUMERIC[16,5] (AcceptanceDetail);
+overShipmentQuantity 'Количество (посталено)' (d) = ABSTRACT NUMERIC[16,5] (AcceptanceDetail);
+shipmentQuantity 'Количество (посталено)' (AcceptanceDetail d) = OVERRIDE overShipmentQuantity(d), dataShipmentQuantity(d);
+
+dataShipmentGrossWeight 'Масса брутто (посталено), кг.' (d) = ABSTRACT NUMERIC[27,10] (AcceptanceDetail);
+overShipmentGrossWeight 'Масса брутто (посталено), кг.' (d) = ABSTRACT NUMERIC[27,10] (AcceptanceDetail);
+shipmentGrossWeight 'Масса брутто (посталено), кг.' (AcceptanceDetail d) = OVERRIDE overGrossWeight(d), dataGrossWeight(d);
+
+dataShipmentNetWeight 'Масса нетто (посталено), кг.' (d) = ABSTRACT NUMERIC[27,10] (AcceptanceDetail);
+overShipmentNetWeight 'Масса нетто (посталено), кг.' (d) = ABSTRACT NUMERIC[27,10] (AcceptanceDetail);
+shipmentNetWeight 'Масса нетто (посталено), кг.' (AcceptanceDetail d) = OVERRIDE overNetWeight(d), dataNetWeight(d);
+
+barCode 'Штрихкод' (AcceptanceDetail d) = idBarcode(sku(d));
+sidCountry 'Код страны' (AcceptanceDetail d) = sid(country(sku(d)));
+shortNameCountry 'Краткое наименование страны' (AcceptanceDetail d) = name(country(sku(d)));
+
+shortNameUOMSku (AcceptanceDetail d) = shortNameUOM(sku(d));
+overNameUOM = ABSTRACT ISTRING[255](AcceptanceDetail);    
+shortNameUOM 'Единица измерения' (AcceptanceDetail d) = OVERRIDE overNameUOM(d), shortNameUOM(sku(d)) CHARWIDTH 5;
+
+idUOMSku (AcceptanceDetail d) = idUOM(sku(d));
+overIdUOM = ABSTRACT STRING[100] (AcceptanceDetail) CHARWIDTH 10;
+idUOM 'Код ед. изм.' (AcceptanceDetail d) = OVERRIDE overIdUOM(d), idUOMSku(d) CHARWIDTH 10;
+
+dataPrice 'Цена' (d) = ABSTRACT CASE NUMERIC[16,4] (AcceptanceDetail);
+overPrice 'Цена' (d) = ABSTRACT CASE NUMERIC[16,4] (AcceptanceDetail);
+price 'Цена' (AcceptanceDetail d) = OVERRIDE overPrice(d), dataPrice(d);
+
+dataSum 'Сумма без НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (AcceptanceDetail);
+overSum 'Сумма без НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (AcceptanceDetail);
+sum 'Сумма без НДС' (AcceptanceDetail d) = OVERRIDE overSum(d), dataSum(d);
+
+dataShipmentPrice 'Учетная цена' (d) = ABSTRACT CASE NUMERIC[16,4] (AcceptanceDetail);
+overShipmentPrice 'Учетная цена' (d) = ABSTRACT CASE NUMERIC[16,4] (AcceptanceDetail);
+shipmentPrice 'Учетная цена' (AcceptanceDetail d) = OVERRIDE overShipmentPrice(d), dataShipmentPrice(d);
+
+dataShipmentSum 'Учетная сумма' (d) = ABSTRACT CASE NUMERIC[18,4] (AcceptanceDetail);
+overShipmentSum 'Учетная сумма' (d) = ABSTRACT CASE NUMERIC[18,4] (AcceptanceDetail);
+shipmentSum 'Учетная сумма' (AcceptanceDetail d)= OVERRIDE overShipmentSum(d), dataShipmentSum(d);
+
+dataVAT 'НДС, %' (d) = ABSTRACT CASE NUMERIC[10,5] (AcceptanceDetail);
+vat 'НДС, %' (AcceptanceDetail d) = dataVAT(d);
+
+dataSumVAT 'Сумма НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (AcceptanceDetail);
+sumVAT 'Сумма НДС' (AcceptanceDetail d) = dataSumVAT(d);
+
+dataSumInvoice 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (AcceptanceDetail);
+sumInvoice 'Сумма с НДС' (AcceptanceDetail d) = dataSumInvoice(d);
+
+deviationQuantity 'Отклонение количества' (AcceptanceDetail d) = quantity(d) - shipmentQuantity(d);
+deviationGrossWeight 'Отклонение массы брутто' (AcceptanceDetail d) = grossWeight(d) - shipmentGrossWeight(d);
+deviationNetWeight 'Отклонение массы нетто' (AcceptanceDetail d) = netWeight(d) - shipmentNetWeight(d);
+deviationSum 'Отклонение стоимости' (AcceptanceDetail d) = sum(d) - shipmentSum(d);
+
+overplusQuantity 'Излишек, количество' (AcceptanceDetail d) = - deviationQuantity(d);
+overplusSum 'Излишек, сумма' (AcceptanceDetail d) = - deviationSum(d);
+
+nameSort 'Сорт' = ABSTRACT ISTRING[100](AcceptanceDetail);
+
+banPrint 'Запрет печати' = ABSTRACT CASE BOOLEAN (Acceptance);
+
+// Заказ
+orderDetail = ABSTRACT OrderDetail (AcceptanceDetail);
+
+overSeriesNumberOreder 'Серия/номер заказа' (Acceptance acceptance) = ABSTRACT STRING[200] (Acceptance);
+seriesNumberOreder (Acceptance acceptance) = OVERRIDE overSeriesNumberOreder(acceptance),
+    GROUP CONCAT seriesNumber(orderDetail(AcceptanceDetail d)) IF [GROUP LAST AcceptanceDetail d2 BY d2](d) AND acceptance == acceptance(d), ' ';
+
+overDateFromOreder = ABSTRACT DATE (Acceptance);
+dateOreder'Дата заказа'(Acceptance acceptance)= OVERRIDE overDateFromOreder(acceptance), 
+    GROUP LAST date(orderDetail(AcceptanceDetail d)) IF acceptance == acceptance(d);
+
+// Автомобиль
+GROUP carAcceptance 'Автомобиль' : base;
+
+notUseDriverTruck 'Не использовать справочники для выбора водителей и машин' = ABSTRACT BOOLEAN(Acceptance);
+
+dataTruck  = ABSTRACT Truck (Acceptance);
+overTruck (acceptance) = ABSTRACT Truck(Acceptance);
+truck(Acceptance acceptance) = OVERRIDE overTruck(acceptance), dataTruck(acceptance); 
+
+dataSidTruck = DATA STRING[100](Acceptance);
+overSidTruck = ABSTRACT STRING[100](Acceptance);
+
+sidTruck 'Номер автомобиля' (Acceptance acceptance) = 
+    OVERRIDE  
+        IF NOT notUseDriverTruck(acceptance) THEN sid(truck(acceptance)),
+        overSidTruck(acceptance),
+        dataSidTruck(acceptance) IN issuanceAcceptance CHARWIDTH 30;
+        
+// Комиссия в атрибутах приемки
+CLASS AcceptanceCommittee 'Комиссия для приемки' : Committee;
+
+GROUP acceptanceCommittee 'Комиссия' : public;
+
+name 'Наименование' = DATA ISTRING[150](AcceptanceCommittee);
+name(AcceptanceCommittee committee) += name(committee) IF committee IS AcceptanceCommittee;
+
+committee(acceptance) = DATA AcceptanceCommittee(Acceptance);
+nameCommittee 'Название комиссии' (Acceptance acceptance) = name(committee(acceptance)) IN acceptanceCommittee CHARWIDTH 30;
+shortNameChairman 'Председатель комиссии' (Acceptance acceptance) = shortNameChairman(committee(acceptance)) IN acceptanceCommittee CHARWIDTH 30;
+namePositionChairman 'Должность председателя' (Acceptance acceptance)  = namePositionChairman(committee(acceptance)) IN acceptanceCommittee CHARWIDTH 30;
+nameEmployee 'Члены комиссии' (Acceptance acceptance) = nameEmployee(committee(acceptance)) IN acceptanceCommittee CHARWIDTH 30;
+shortNamePositionEmployee (Acceptance acceptance) = shortNamePositionEmployee(committee(acceptance)) IN acceptanceCommittee CHARWIDTH 30;
+in 'Является членом комиссии' (Acceptance acceptance, Employee employee) = in(committee(acceptance), employee);
+
+opinionCommittee 'Заключение комиссии'  (Acceptance acceptance) = ABSTRACT TEXT (Acceptance);
+decisionChief 'Решение руководителя' (Acceptance acceptance) = ABSTRACT TEXT (Acceptance);
+
+changeIssuanceExecuted(Acceptance acceptance) {    
+    IF notUseIssuanceExecuted(acceptance) THEN {
+        INPUT s = nameIssuanceExecuted(acceptance) DO {
+            nameIssuanceExecuted(acceptance) <- s;
+        } 
+        INPUT s = positionIssuanceExecuted(acceptance) DO {
+            positionIssuanceExecuted(acceptance) <- s;
+        } 
+                
+    } ELSE 
+        IF customSelectIssuanceExecuted(acceptance) THEN {
+            overSelectIssuanceExecuted(acceptance);
+        } ELSE {
+            DIALOG dialogEmployeesAcceptance OBJECTS e = issuanceExecuted(acceptance) INPUT NULL DO {
+                issuanceExecuted(acceptance) <- e;
+                IF NOT issuanceExecuted(acceptance) THEN {
+                    overIssuanceExecuted(acceptance) <- e;
+                }
+            }               
+        }        
+    overChangeIssuanceExecuted(acceptance);
+}
+
+changeNameForwarder(Acceptance acceptance) {     
+    IF notUseDialogForwarder(acceptance) THEN {
+        INPUT s = dataNameForwarder(acceptance) DO {
+            dataNameForwarder(acceptance) <- s;
+        }
+    } ELSE {
+        DIALOG dialogEmployeesAcceptance OBJECTS e = dataForwarder(acceptance) INPUT NULL DO {
+            dataForwarder(acceptance) <- e;
+        }
+    }
+}   
+
+changePositionForwarder(Acceptance acceptance)  {     
+    IF notUseDialogForwarder(acceptance) THEN {
+        INPUT s = dataPositionForwarder(acceptance) DO {
+            dataPositionForwarder(acceptance) <- s;
+        }         
+    } ELSE {
+        DIALOG dialogEmployeesAcceptance OBJECTS e = dataForwarder(acceptance) INPUT NULL DO {
+            dataForwarder(acceptance) <- e;
+        }
+    }        
+} 
+           
+changeNameGoodsAccepted(Acceptance acceptance) {     
+    IF notUseDialogGoodsAccepted(acceptance) THEN {
+        INPUT s = dataNameGoodsAccepted(acceptance) DO {
+            dataNameGoodsAccepted(acceptance) <- s;
+        }
+    } ELSE {
+        DIALOG dialogEmployeesAcceptance OBJECTS e = dataGoodsAccepted(acceptance) INPUT NULL DO {
+            dataGoodsAccepted(acceptance) <- e;
+        }
+    }
+}   
+
+changePositionGoodsAccepted(Acceptance acceptance) {     
+    IF notUseDialogGoodsAccepted(acceptance) THEN {
+        INPUT s = dataPositionGoodsAccepted(acceptance) DO {
+            dataPositionGoodsAccepted(acceptance) <- s;
+        }         
+    } ELSE {
+        DIALOG dialogEmployeesAcceptance OBJECTS e = dataGoodsAccepted(acceptance) INPUT NULL DO {
+            dataGoodsAccepted(acceptance) <- e;
+        }
+    }        
+}      
+
+overChangeTruck  ABSTRACT (Acceptance); 
+
+changeTruck (Acceptance acceptance)  {    
+    IF notUseDriverTruck(acceptance) THEN {
+        INPUT s = dataSidTruck(acceptance) DO {
+            dataSidTruck(acceptance) <- s;
+        }
+    } ELSE {        
+        DIALOG trucks OBJECTS t = dataTruck(acceptance) INPUT NULL DO {
+            dataTruck(acceptance) <- t;
+        }
+    }        
+    overChangeTruck(acceptance);
+}
+
+FORM acceptanceTorg1 'ТОРГ-1'
+    // 1 страница
+    OBJECTS ct=Acceptance PANEL
+    PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer,
+                    fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
+                    nameCustomerStock, 
+                    nameSupplierStock,
+                    date, number,
+                    sidTruck,
+                    seriesNumberOreder, dateOreder, seriesNumberContract, dateFromContract
+    
+    // 2 страница
+    OBJECTS cd=Acceptance
+    OBJECTS d=AcceptanceDetail
+    
+    PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
+                  quantity, grossWeight, netWeight,
+                  price, sum
+        
+    FILTERS acceptance(d) == cd,
+            quantity(d),
+            NOT skip(d)
+        
+    // 3 страница
+    OBJECTS cd2=Acceptance    
+    OBJECTS d2=AcceptanceDetail
+        PROPERTIES(d2) nameSku, barCode, shortNameUOM, idUOM, 
+                       shipmentQuantity, shipmentGrossWeight, shipmentNetWeight, shipmentPrice, shipmentSum,
+                       sumInvoice, vat, sumVAT,
+                       deviationQuantity, deviationGrossWeight, deviationNetWeight, deviationSum 
+                      
+            
+    FILTERS acceptance(d2) == cd2,
+            quantity(d2),
+            NOT skip(d2)        
+                        
+    // 4 страница                    
+    OBJECTS ct2=Acceptance     
+    PROPERTIES (ct2)  shortNameChairman, namePositionChairman,
+                      nameIssuanceExecuted, positionIssuanceExecuted, 
+                      nameForwarder, positionForwarder, 
+                      warrantNumber, warrantDate,
+                      nameGoodsAccepted, positionGoodsAccepted,                     
+                      opinionCommittee, decisionChief,
+                      countPages
+    
+    OBJECTS  e = Employee
+    PROPERTIES (e) shortName, namePosition
+    
+    FILTERS in(committee(ct2), e)
+;
+ 
+printAcceptanceTorg1 'ТОРГ-1' (Acceptance acceptance) { 
+    PRINT acceptanceTorg1 OBJECTS ct = acceptance, cd = acceptance, cd2 = acceptance, ct2 = acceptance;
+} IMAGE 'print.png' IN print;    
+
+
+FORM acceptanceTorg2 'ТОРГ-2'
+    // 1 страница
+    OBJECTS ct=Acceptance PANEL
+    PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer,
+                    fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
+                    nameCustomerStock, 
+                    nameSupplierStock,
+                    date, number,
+                    sidTruck,
+                    seriesNumberOreder, dateOreder, seriesNumberContract, dateFromContract
+    
+    // 2 страница
+    OBJECTS cd=Acceptance
+    OBJECTS d=AcceptanceDetail
+    
+    PROPERTIES(d) nameSku, shortNameUOM, idUOM, nameSort,  
+                  quantity,
+                  price, sum
+        
+    FILTERS acceptance(d) == cd,
+            quantity(d),
+            NOT skip(d)
+        
+    // 3 страница
+    OBJECTS cd2=Acceptance    
+    OBJECTS d2=AcceptanceDetail
+        PROPERTIES(d2) nameSort, shipmentQuantity,shipmentPrice, shipmentSum,
+                       sumInvoice, vat, sumVAT,
+                       deviationQuantity, deviationSum, 
+                       overplusQuantity, overplusSum  
+                                  
+    FILTERS acceptance(d2) == cd2,
+            quantity(d2),
+            NOT skip(d2)        
+                        
+    // 4 страница                    
+    OBJECTS ct2=Acceptance     
+    PROPERTIES (ct2)  shortNameChairman, namePositionChairman,
+                      nameIssuanceExecuted, positionIssuanceExecuted, 
+                      nameForwarder, positionForwarder, 
+                      warrantNumber, warrantDate,
+                      nameGoodsAccepted, positionGoodsAccepted,                     
+                      opinionCommittee, decisionChief,
+                      countPages
+    
+    OBJECTS  e = Employee
+    PROPERTIES (e) shortName, namePosition
+    
+    FILTERS in(committee(ct2), e)
+;
+
+printAcceptanceTorg2 'ТОРГ-2' (Acceptance acceptance) { 
+    PRINT acceptanceTorg2 OBJECTS ct = acceptance, cd = acceptance, cd2 = acceptance, ct2 = acceptance;
+} IMAGE 'print.png' IN print; 
+
+FORM acceptanceTorg3 'ТОРГ-3'
+        // 2 страница
+        OBJECTS cd=Acceptance 
+        OBJECTS d=AcceptanceDetail
+        
+        PROPERTIES(d) nameSku, shortNameUOM, idUOM, nameSort,  
+                      quantity,
+                      price, sum, 
+                      shipmentQuantity, 
+                      deviationQuantity, deviationSum, 
+                      overplusQuantity, overplusSum,
+                      barCode
+            
+        FILTERS acceptance(d) == cd,
+                quantity(d),
+                NOT skip(d)            
+                            
+        // 4 страница                    
+        OBJECTS ct2=Acceptance     
+        PROPERTIES (ct2)  shortNameChairman, namePositionChairman,
+                          nameIssuanceExecuted, positionIssuanceExecuted, 
+                          nameForwarder, positionForwarder, 
+                          warrantNumber, warrantDate,
+                          nameGoodsAccepted, positionGoodsAccepted,                     
+                          opinionCommittee, decisionChief,
+                          countPages
+        
+        OBJECTS  e = Employee
+        PROPERTIES (e) shortName, namePosition
+        
+        FILTERS in(committee(ct2), e)
+;
+
+FORM acceptanceTorg3FirstPage 'ТОРГ-3'
+    // 1 страница
+        OBJECTS ct=Acceptance PANEL
+        PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer,
+                        fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
+                        nameCustomerStock, 
+                        nameSupplierStock,
+                        date, number,
+                        sidTruck,
+                        seriesNumberOreder, dateOreder, seriesNumberContract, dateFromContract       
+;
+printAcceptanceTorg3 'ТОРГ-3' (Acceptance acceptance) { 
+    PRINT acceptanceTorg3FirstPage OBJECTS ct = acceptance;
+    PRINT acceptanceTorg3 OBJECTS cd = acceptance, ct2 = acceptance;    
+} IMAGE 'print.png' IN print; 
+
+FORM acceptanceCommittee 'Комиссия для приемки'
+    OBJECTS c=AcceptanceCommittee PANEL
+    PROPERTIES(c) name, nameChairman
+
+    TREE stockTree sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY sgTreeName = name(sg)
+
+    OBJECTS ts=Stock
+    PROPERTIES READONLY tsTreeName = name(ts)
+    PROPERTIES(c, ts) in 
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+    FILTERS isParent(sg, ts)
+    ORDERS tsTreeName
+
+    OBJECTS e=Employee
+    PROPERTIES(e) READONLY name[Contact], firstName, lastName, namePosition
+    PROPERTIES(e) NEWEDIT, EDIT, DELETE GRID
+
+    PROPERTIES(c, e) in
+    FILTERS (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
+    FILTERGROUP filters6
+        FILTER 'Показывать только членов комиссии' in(c, e) 'F10'
+
+    FILTERGROUP filters5
+        FILTER 'Показывать отделы только для данной комиссии' in(c, ts) 'F9'
+    FILTERGROUP active FILTER 'Активные' active(e) 'F5' DEFAULT 
+    EDIT AcceptanceCommittee OBJECT c
+;
+@extendFormFilterStockAccess(ts, acceptanceCommittee);
+@extendFormFilterStockGroupAccess(sg, acceptanceCommittee);
+
+DESIGN acceptanceCommittee {
+    BOX {
+        size = (1024, 768);
+
+        OBJECTS {
+            NEW caseOne BEFORE BOX(e) {
+                fill = 1;
+                type = SPLITH;
+    
+                MOVE BOX(TREE stockTree) {
+                    caption = 'Группы складов';
+                }
+                MOVE BOX(ts) {
+                    fill = 1;
+                }
+            }
+        }
+    }
+}
+
+FORM acceptanceCommittees 'Комиссии для приемки'
+    OBJECTS w=AcceptanceCommittee
+    PROPERTIES(w) READONLY name, nameStocks, nameEmployee, nameChairman
+    PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE
+
+    LIST AcceptanceCommittee OBJECT w
+;
+
+FORM acceptance 'Атрибуты приемки'
+    OBJECTS c=Acceptance PANEL
+
+    PROPERTIES(c) READONLY nameSupplierStock
+    PROPERTIES(c)  number, series SHOWIF toShowSeries(c), date, 
+                   addressSupplier READONLY, addressCustomer READONLY, fullNameSupplier READONLY, fullNameCustomer READONLY, 
+                   notUseDialogForwarder,
+                   nameIssuanceExecuted ON CHANGE changeIssuanceExecuted(c),
+                   positionIssuanceExecuted ON CHANGE changeIssuanceExecuted(c), 
+                   nameForwarder ON CHANGE changeNameForwarder(c),
+                   positionForwarder ON CHANGE changePositionForwarder(c),                   
+                   notUseDialogGoodsAccepted,
+                   nameGoodsAccepted ON CHANGE changeNameGoodsAccepted(c),
+                   positionGoodsAccepted ON CHANGE changePositionGoodsAccepted(c),
+                   sidTruck ON CHANGE changeTruck(c),
+                   nameCommittee, opinionCommittee, 
+                   warrantNumber, warrantDate,
+                   decisionChief, 
+                   countPages
+    OBJECTS d=AcceptanceDetail
+
+    PROPERTIES(d) order, index, nameSku READONLY, shortNameUOM READONLY, quantity, price, sum 
+    ORDERS order(d), index(d)  
+
+    FILTERS acceptance(d) == c, 
+            NOT skip(d) 
+;
+
+DESIGN acceptance {
+    size = (1024, 768);
+    NEW pane {
+        fill = 1;
+        type = TABBED;
+        NEW mainContainer {
+            caption = 'Основная информация';
+            NEW mainScroll {
+                fill = 1;
+                height = 1;
+                type = SCROLL;
+                NEW mainTab {
+                    alignment = STRETCH;
+                    NEW header {
+                        alignment = STRETCH;
+                        caption = 'Шапка документа';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameSupplierStock(c));
+                        MOVE PROPERTY(number(c));
+                        MOVE PROPERTY(series(c));
+                        MOVE PROPERTY(date(c));
+                        MOVE PROPERTY(nameCommittee(c));
+                    }
+                
+                    NEW supplier {
+                        alignment = STRETCH;
+                        caption = 'Грузоотправитель';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(fullNameSupplier(c));
+                        MOVE PROPERTY(addressSupplier(c));
+                    }
+                
+                    NEW customer {
+                        alignment = STRETCH;
+                        caption = 'Грузополучатель';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(fullNameCustomer(c));
+                        MOVE PROPERTY(addressCustomer(c));
+                    } 
+                    
+                    MOVE GROUP(issuanceAcceptance,c) {                       
+                        type = CONTAINERV;
+                        
+                        NEW issuance { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameIssuanceExecuted(c)) { charWidth = 30; };
+                            MOVE PROPERTY(positionIssuanceExecuted(c)) { charWidth = 20; };
+                        }    
+                            
+                        MOVE PROPERTY(notUseDialogForwarder(c));    
+                        
+                        NEW forwarder { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameForwarder(c)) { charWidth = 30; };
+                            MOVE PROPERTY(positionForwarder(c)) { charWidth = 20; };                              
+                        }         
+                        
+                        NEW warrant {
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(warrantNumber(c));
+                            MOVE PROPERTY(warrantDate(c));
+                        }
+                        
+                        MOVE PROPERTY(notUseDialogGoodsAccepted(c)); 
+                        
+                        NEW goodsAccepted { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameGoodsAccepted(c)) { charWidth = 30; };
+                            MOVE PROPERTY(positionGoodsAccepted(c)) { charWidth = 20; };                              
+                        }    
+                        
+                        MOVE PROPERTY(sidTruck(c));
+                    }   
+                    
+                    NEW committee {
+                        caption = 'Комиссия';
+                        type = CONTAINERV;                        
+                        MOVE PROPERTY(nameCommittee(c));
+                        MOVE PROPERTY(opinionCommittee(c)) { charWidth = 30; charHeight=2;};
+                    }  
+                    
+                    NEW other {
+                        caption = 'Дополнительные параметры';
+                        type = CONTAINERV;
+                        MOVE PROPERTY(countPages(c)) { charWidth = 30; }; 
+                        MOVE PROPERTY(decisionChief(c)) { charWidth = 30; charHeight=2;};                                               
+                    }                                         
+                }
+            }
+        }
+        
+        MOVE BOX(d) {
+            caption = 'Спецификация';
+            PROPERTY(order(d)) {
+                charWidth = 10;
+            }
+        };
+    }
+    
+    MOVE TOOLBARBOX;
+}
+
+editAttributes 'Заполнить атрибуты приемки' (Acceptance acceptance) { 
+	NEWSESSION {	       
+	    SHOW acceptance OBJECTS c = acceptance DOCKED; 
+	}
+} IMAGE 'edit.png';
+
+showAttributes 'Просмотреть атрибуты приемки' (Acceptance acceptance) { 
+    NEWSESSION {
+        SHOW acceptance OBJECTS c = acceptance DOCKED READONLY;
+    }
+}

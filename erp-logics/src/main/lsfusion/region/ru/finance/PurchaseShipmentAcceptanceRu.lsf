@@ -1,0 +1,97 @@
+MODULE PurchaseShipmentAcceptanceRu;
+
+REQUIRE AcceptanceRu, PurchaseShipment, ItemDescription, PurchaseOrder;
+
+NAMESPACE Purchase;
+
+warrantNumber 'По доверенности, номер' (shipment) = DATA STRING[30] (Shipment) IN issuanceAcceptance CHARWIDTH 15;
+warrantDate 'По доверенности, дата' (shipment) = DATA DATE (Shipment) IN issuanceAcceptance CHARWIDTH 15;
+ 
+countPages 'Кол-во страниц в приложении' (shipment) = DATA INTEGER (Shipment);
+opinionCommittee 'Заключение комиссии' (shipment) = DATA TEXT (Shipment);
+decisionChief 'Решение руководителя' (shipment)= DATA TEXT (Shipment);
+
+dataTruck (shipment) = DATA Truck (Shipment);
+
+EXTEND CLASS Shipment : Acceptance;
+
+dataDate[Acceptance] (Shipment acceptance) += date(acceptance);
+number[Acceptance] (Shipment acceptance) += number(acceptance);
+series[Acceptance] (Shipment acceptance) += series(acceptance);
+
+dataSupplier (Shipment acceptance) += supplier(acceptance);
+dataCustomer (Shipment acceptance) += customer(acceptance);
+
+dataSupplierStock[Acceptance] (Shipment acceptance) += fromStock(acceptance);
+dataCustomerStock[Acceptance] (Shipment acceptance) += toStock(acceptance);
+
+managerCustomer[Acceptance](Shipment acceptance) += nameCustomUserChief(customer(acceptance));
+accountantCustomer[Acceptance](Shipment acceptance) += nameCustomUserBooker(customer(acceptance));
+
+dataTruck[Acceptance](Shipment acceptance) += dataTruck(acceptance); 
+
+EXTEND CLASS ShipmentDetail : AcceptanceDetail;
+
+index[AcceptanceDetail] (ShipmentDetail d) += index (d);
+acceptance[AcceptanceDetail] (ShipmentDetail d) += shipment(d);
+orderDetail[AcceptanceDetail] (ShipmentDetail d) += orderDetail(d);
+skip[AcceptanceDetail](ShipmentDetail d) += skipConsignment(invoiceDetail(d));
+dataSku[AcceptanceDetail] (ShipmentDetail d) += sku (d);
+batch[AcceptanceDetail] (ShipmentDetail d) += batch (d);    
+dataQuantity[AcceptanceDetail] (ShipmentDetail d) += OVERRIDE quantity(invoiceDetail(d)), quantity(d);
+dataAmountPack[AcceptanceDetail] (ShipmentDetail d) += amountPack(d);
+dataPackQuantity[AcceptanceDetail] (ShipmentDetail d) += packQuantity(d);
+dataGrossWeight[AcceptanceDetail] (ShipmentDetail d) += sumGrossWeight(invoiceDetail(d));
+dataNetWeight[AcceptanceDetail] (ShipmentDetail d) += sumNetWeight(invoiceDetail(d));    
+dataShipmentQuantity[AcceptanceDetail] (ShipmentDetail d) += quantity(d);
+dataShipmentGrossWeight[AcceptanceDetail] (ShipmentDetail d) += quantity(d) * grossWeight(sku(d));
+dataShipmentNetWeight[AcceptanceDetail] (ShipmentDetail d) += quantity(d) * netWeight(sku(d));
+dataPrice[AcceptanceDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN price(invoiceDetail(d));
+dataSum[AcceptanceDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN sum(invoiceDetail(d));
+dataVAT[AcceptanceDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN valueVAT(invoiceDetail(d));
+dataSumVAT[AcceptanceDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN VATSum(invoiceDetail(d));
+dataSumInvoice[AcceptanceDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN invoiceSum(invoiceDetail(d));
+dataShipmentPrice[AcceptanceDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN price(d);
+dataShipmentSum[AcceptanceDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN sum(d);
+     
+nameSort(ShipmentDetail d) += nameSort(sku(d));     
+     
+warrantNumber[Acceptance] (Shipment acceptance) += warrantNumber (acceptance);
+warrantDate[Acceptance] (Shipment acceptance) += warrantDate (acceptance);
+
+overCountPages[Acceptance] (Shipment acceptance) += countPages (acceptance);
+
+opinionCommittee [Acceptance] (Shipment acceptance) += opinionCommittee (acceptance);
+decisionChief [Acceptance] (Shipment acceptance) += decisionChief (acceptance);
+
+EXTEND FORM shipments
+    PROPERTIES(s)  editAttributes SHOWIF isOpened(s)
+    PROPERTIES(s) READONLYIF banPrint(s) printAcceptanceTorg1, printAcceptanceTorg2, printAcceptanceTorg3
+;
+
+DESIGN shipments {
+    printTab {
+        NEW acceptanceRow1 {
+            align = START;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Поставка';
+                MOVE PROPERTY(editAttributes(s)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW torg {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printAcceptanceTorg1(s)) { alignment = STRETCH; }
+                MOVE PROPERTY(printAcceptanceTorg2(s)) { alignment = STRETCH; }   
+                MOVE PROPERTY(printAcceptanceTorg3(s)) { alignment = STRETCH; }                           
+            }
+        }
+    }
+}

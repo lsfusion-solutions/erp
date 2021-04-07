@@ -1,0 +1,100 @@
+MODULE PurchaseInvoiceAcceptanceRu;
+
+REQUIRE PurchaseInvoice, AcceptanceRu, PurchaseShipment, ItemDescription, PurchaseOrder;
+
+NAMESPACE Purchase;
+
+warrantNumber 'По доверенности, номер' (invoice) = DATA STRING[30] (Invoice) IN issuanceAcceptance CHARWIDTH 15;
+warrantDate 'По доверенности, дата' (invoice) = DATA DATE (Invoice) IN issuanceAcceptance CHARWIDTH 15;
+ 
+countPages 'Кол-во страниц в приложении' (invoice) = DATA INTEGER (Invoice);
+opinionCommittee 'Заключение комиссии' (invoice) = DATA TEXT (Invoice);
+decisionChief 'Решение руководителя' (invoice)= DATA TEXT (Invoice);
+
+dataTruck (invoice) = DATA Truck (Invoice);
+
+EXTEND CLASS Invoice : Acceptance;
+
+dataDate[Acceptance] (Invoice acceptance) += date(acceptance);
+number[Acceptance] (Invoice acceptance) += number(acceptance);
+series[Acceptance] (Invoice acceptance) += series(acceptance);
+
+dataSupplier (Invoice acceptance) += to(acceptance);
+dataCustomer (Invoice acceptance) += from(acceptance);
+
+dataSupplierStock[Acceptance] (Invoice acceptance) += fromStock(acceptance);
+dataCustomerStock[Acceptance] (Invoice acceptance) += toStock(acceptance);
+
+seriesNumberContract (Invoice acceptance) = seriesNumber(contractSku(acceptance));
+dateFromContract (Invoice acceptance) = dateFrom(contractSku(acceptance));
+
+managerCustomer[Acceptance](Invoice acceptance) += nameCustomUserChief(customer(acceptance));
+accountantCustomer[Acceptance](Invoice acceptance) += nameCustomUserBooker(customer(acceptance));
+
+dataTruck[Acceptance](Invoice acceptance) += dataTruck(acceptance); 
+
+EXTEND CLASS InvoiceDetail : AcceptanceDetail;
+
+index[AcceptanceDetail] (InvoiceDetail d) += index (d);
+acceptance[AcceptanceDetail] (InvoiceDetail d) += invoice (d);
+orderDetail[AcceptanceDetail] (InvoiceDetail d) += orderDetail(d);
+skip[AcceptanceDetail](InvoiceDetail d) += skipConsignment (d);
+dataSku[AcceptanceDetail] (InvoiceDetail d) += sku (d);
+batch[AcceptanceDetail] (InvoiceDetail d) += batch (d);    
+dataQuantity[AcceptanceDetail] (InvoiceDetail d) += quantity (d);
+dataAmountPack (InvoiceDetail d) += amountPack (d);
+dataPackQuantity (InvoiceDetail d) += packQuantity (d);
+dataGrossWeight (InvoiceDetail d) += sumGrossWeight (d);
+dataNetWeight (InvoiceDetail d) += sumNetWeight (d);    
+dataShipmentQuantity (InvoiceDetail d) += shipmentQuantity(d);
+dataShipmentGrossWeight (InvoiceDetail d) += shipmentQuantity(d) * grossWeight(sku(d));
+dataShipmentNetWeight (InvoiceDetail d) += shipmentQuantity(d) * netWeight(sku(d));
+dataPrice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN price(detail);
+dataSum (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN sum(detail);
+dataVAT (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN valueVAT(detail);
+dataSumVAT (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN VATSum(detail);
+dataSumInvoice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN invoiceSum(detail);
+dataShipmentPrice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN shipmentPrice(detail);
+dataShipmentSum (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN shipmentSum(detail);
+     
+nameSort(InvoiceDetail detail) += nameSort(sku(detail));     
+     
+warrantNumber[Acceptance] (Invoice acceptance) += warrantNumber (acceptance);
+warrantDate[Acceptance] (Invoice acceptance) += warrantDate (acceptance);
+
+overCountPages[Acceptance] (Invoice acceptance) += countPages (acceptance);
+
+opinionCommittee [Acceptance] (Invoice acceptance) += opinionCommittee (acceptance);
+decisionChief [Acceptance] (Invoice acceptance) += decisionChief (acceptance);
+
+EXTEND FORM  invoices
+    PROPERTIES(i)  editAttributes SHOWIF isOpened(i)
+    PROPERTIES(i) READONLYIF banPrint(i) printAcceptanceTorg1, printAcceptanceTorg2, printAcceptanceTorg3
+;
+
+DESIGN invoices {
+    printTab {
+        NEW acceptanceRow1 {
+            align = START;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(i)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printAcceptanceTorg1(i)) { alignment = STRETCH; }
+                MOVE PROPERTY(printAcceptanceTorg2(i)) { alignment = STRETCH; }   
+                MOVE PROPERTY(printAcceptanceTorg3(i)) { alignment = STRETCH; }                           
+            }
+        }
+    }
+}
