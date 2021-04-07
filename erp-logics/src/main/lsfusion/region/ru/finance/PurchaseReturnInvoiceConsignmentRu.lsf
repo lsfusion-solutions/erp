@@ -2,7 +2,8 @@ MODULE PurchaseReturnInvoiceConsignmentRu;
 
 REQUIRE PurchaseReturnInvoice,
         ConsignmentRu,
-        PurchaseReturnShipment;
+        PurchaseReturnShipment,
+        InvoiceRu;
 
 NAMESPACE PurchaseReturn;
 
@@ -76,3 +77,6 @@ DESIGN invoices {
 }
 
 overVAT(UserInvoiceDetail d) += valueCurrentVAT(country(supplierStock(d)), 0.0) IF isNotVATPayer(supplier(d));
+
+CONSTRAINT isPosted(UserInvoiceDetail d) AND supplier(userInvoice(d)) AND sku(d) AND NOT valueVAT(d) AND NOT isNotVATPayer(supplier(d)) AND inVATPayer()
+    MESSAGE 'Поставщик является плательщиком НДС';

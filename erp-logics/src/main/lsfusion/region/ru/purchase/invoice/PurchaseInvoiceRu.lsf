@@ -1,7 +1,10 @@
 MODULE PurchaseInvoiceRu;
 
-REQUIRE PurchaseInvoice, PurchaseShipment, LegalEntityRu;
+REQUIRE PurchaseInvoice, PurchaseShipment, LegalEntityRu, InvoiceRu;
 
 NAMESPACE Purchase;
 
 overVAT(UserInvoiceDetail d) += valueCurrentVAT(country(supplierStock(d)), 0.0) IF isNotVATPayer(supplier(d));
+
+CONSTRAINT isPosted(UserInvoiceDetail d) AND supplier(userInvoice(d)) AND sku(d) AND NOT valueVAT(d) AND NOT isNotVATPayer(supplier(d)) AND inVATPayer()
+    MESSAGE 'Поставщик является плательщиком НДС';
