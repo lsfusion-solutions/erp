@@ -96,7 +96,7 @@ public class DefaultTerminalHandler {
                 String isWeight = terminalHandlerLM.findProperty("passScales[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
                 ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
                 BigDecimal price = (BigDecimal) terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").read(session, barcodeObject, stockObject);
-                BigDecimal quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Sku,Stock]").read(session, skuObject, stockObject);
+                BigDecimal quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Barcode,CustomUser]").read(session, barcodeObject, user);
                 String priceValue = bigDecimalToString(price, 2);
                 String quantityValue = bigDecimalToString(quantity, 3);
 
@@ -186,7 +186,7 @@ public class DefaultTerminalHandler {
                 ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
-                List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase);
+                List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase, userInfo.user);
 
                 List<TerminalBatch> batchList = null;
                 if (readBatch)
@@ -317,7 +317,7 @@ public class DefaultTerminalHandler {
         return result;
     }
 
-    private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject, boolean imagesInReadBase) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject, boolean imagesInReadBase, DataObject user) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalBarcode> result = new ArrayList<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
@@ -333,7 +333,7 @@ public class DefaultTerminalHandler {
                 barcodeQuery.addProperty("overNameSku", terminalHandlerLM.findProperty("overNameSku[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 if (currentQuantity) {
-                    barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                    barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,CustomUser]").getExpr(barcodeExpr, user.getExpr()));
                 }
                 barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));

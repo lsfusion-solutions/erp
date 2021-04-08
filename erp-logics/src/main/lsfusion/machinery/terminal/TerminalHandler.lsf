@@ -61,6 +61,9 @@ currentPriceInTerminal 'Текущая цена' (Sku sku, Stock stock) = IF use
 currentPriceInTerminal 'Текущая цена' (Barcode barcode, Stock stock) = currentPriceInTerminal(sku(barcode), stock);
 
 useCurrentQuantityInTerminal 'Загружать в терминал текущие остатки' = DATA BOOLEAN ();
+@addRoleApplicationSetting(blockCurrentQuantityInTerminal, 'Запретить выгрузку остатков в ТСД', BOOLEAN);
+currentBalance (Barcode barcode, CustomUser user) = currentBalance(sku(barcode), stock(user)) IF NOT blockCurrentQuantityInTerminal(mainRole(user));
+
 filterCurrentQuantityInTerminal 'Фильтровать по текущим остаткам' = DATA BOOLEAN ();
 currentBalance (Barcode barcode, Stock stock) = currentBalance(sku(barcode), stock);
 activeItem (Barcode barcode) = NOT inactive(sku(barcode));
@@ -72,7 +75,7 @@ baseZipDirectory 'Папка для файлов base.zip' = DATA STRING ();
 overGoods = ABSTRACT BOOLEAN (Barcode, Stock);
 filterGoods(Barcode b, Stock st) = b IS Barcode AND st IS Stock AND 
     ((sendAllItems() OR currentPriceInTerminal(b, st)) AND 
-    (NOT filterCurrentQuantityInTerminal() OR currentBalance(b, st)) AND
+    (NOT filterCurrentQuantityInTerminal() OR currentBalance(sku(b), st)) AND
     (NOT sendOnlyActiveItems() OR activeItem(b)) 
     OR overGoods(b, st));
     
