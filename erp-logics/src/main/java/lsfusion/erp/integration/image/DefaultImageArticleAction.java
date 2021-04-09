@@ -3,7 +3,6 @@ package lsfusion.erp.integration.image;
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultIntegrationAction;
-import lsfusion.server.logics.classes.data.utils.geo.JsonReader;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -12,11 +11,13 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.*;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -151,5 +152,25 @@ public class DefaultImageArticleAction extends DefaultIntegrationAction {
                 idBrandArticle + "%20" + idArticle + "&rsz=" + pageSize + "&start=" + start * pageSize +
                 (siteBrandArticle == null ? "" : "&as_sitesearch=" + siteBrandArticle);
         return url.replace(" ", "+");
+    }
+
+    private static class JsonReader {
+
+        private static String readAll(final Reader rd) throws IOException {
+            final StringBuilder sb = new StringBuilder();
+            int cp;
+            while ((cp = rd.read()) != -1) {
+                sb.append((char) cp);
+            }
+            return sb.toString();
+        }
+
+        public static JSONObject read(final String url) throws IOException, JSONException {
+            try (InputStream is = new URL(url).openStream()) {
+                final BufferedReader rd = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+                final String jsonText = readAll(rd);
+                return new JSONObject(jsonText);
+            }
+        }
     }
 }
