@@ -9,7 +9,9 @@ NAMESPACE GISMTSaleReturn;
 
 @defineOperationProperty(returnType, 'Вид возврата', STRING, paramsContainer);
 
-createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND supplier(i) != customer(i);
+needDocument = ABSTRACT VALUE BOOLEAN (Invoice);
+needDocument(Invoice i) += supplier(i) != customer(i);
+createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND needDocument(i);
 gismtType (Invoice i) = OVERRIDE 'LP_RETURN' IF returnType(operation(i)), ('LP_ACCEPT_GOODS' IF i IS Invoice);
 @defineDocumentGISMT(invoice, createDocument, invoices, i, supplier);
 
