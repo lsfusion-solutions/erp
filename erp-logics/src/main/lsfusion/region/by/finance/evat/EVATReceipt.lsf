@@ -97,6 +97,7 @@ countLegalEntitiesByName(STRING[150] str) = GROUP SUM 1 IF isISubstring(name(Leg
 countLegalEntitiesByUNP(STRING[9] str) = GROUP SUM 1 IF isISubstring(UNP(LegalEntity l),str)  AND str !='' 
                                                         AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT());
 overCreateEVATReceipt 'Создать ЭСЧФ'  ABSTRACT ( EVAT, Receipt);
+overCreateEVATReceipt 'Создать ЭСЧФ'  ABSTRACT ( EVATDetail, ReceiptDetail);
 
 createEVAT 'Создать ЭСЧФ' (Receipt r)  { 
 	NEWSESSION {
@@ -182,6 +183,7 @@ createEVAT 'Создать ЭСЧФ' (Receipt r)  {
 	                        descriptionType(ed) <- DescriptionType.vatExcemption;
 	                    ELSE
 	                        descriptionType(ed) <- DescriptionType.deductionInFull IF NOT notDeductionInFull();
+                        overCreateEVATReceipt(ed, rd);
 	                }    
 	                
 	                SHOW evat OBJECTS e = e DOCKED;
