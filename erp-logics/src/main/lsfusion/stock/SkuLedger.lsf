@@ -1275,6 +1275,7 @@ EXTEND FORM balanceSkuStock FILTERS accessCompany(currentUser(), st) OR NOT mult
 // ------------------------------------------------ Остатки по партиям ---------------------------------------- //
 
 backgroundBatch = ABSTRACT CASE COLOR (Stock, Batch);
+backgroundBatch = ABSTRACT CASE COLOR (SkuLedger);
 
 FORM currentBalanceBatchStock 'Текущие остатки по партиям'
 
@@ -1311,7 +1312,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     ORDERS          dateTime(bt)
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY dateTime, description,
+    PROPERTIES(bil) READONLY BACKGROUND backgroundBatch(bil) dateTime, description,
                     signedQuantity, signedPrice, signedSum, skip
     PROPERTIES      READONLY cost(bil, bt) AFTER signedQuantity(bil)
     FILTERS isPosted(bil) AND (cost(bil, bt) OR batch(bil)==bt) AND stock(bil)==st   //skuSkuLedger(bil)==skuBatch(bt)
