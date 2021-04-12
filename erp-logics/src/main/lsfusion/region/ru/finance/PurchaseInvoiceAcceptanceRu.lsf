@@ -1,6 +1,6 @@
 MODULE PurchaseInvoiceAcceptanceRu;
 
-REQUIRE PurchaseInvoice, AcceptanceRu, PurchaseShipment, ItemDescription, PurchaseOrder;
+REQUIRE PurchaseInvoice, AcceptanceRu, PurchaseShipment, ItemDescription, PurchaseOrder, PurchaseOperationAcceptanceRu;
 
 NAMESPACE Purchase;
 
@@ -19,8 +19,8 @@ dataDate[Acceptance] (Invoice acceptance) += date(acceptance);
 number[Acceptance] (Invoice acceptance) += number(acceptance);
 series[Acceptance] (Invoice acceptance) += series(acceptance);
 
-dataSupplier (Invoice acceptance) += to(acceptance);
-dataCustomer (Invoice acceptance) += from(acceptance);
+dataSupplier (Invoice acceptance) += from(acceptance);
+dataCustomer (Invoice acceptance) += to(acceptance);
 
 dataSupplierStock[Acceptance] (Invoice acceptance) += fromStock(acceptance);
 dataCustomerStock[Acceptance] (Invoice acceptance) += toStock(acceptance);
@@ -69,7 +69,8 @@ decisionChief [Acceptance] (Invoice acceptance) += decisionChief (acceptance);
 
 EXTEND FORM  invoices
     PROPERTIES(i)  editAttributes SHOWIF isOpened(i)
-    PROPERTIES(i) READONLYIF banPrint(i) printAcceptanceTorg1, printAcceptanceTorg2, printAcceptanceTorg3
+    PROPERTIES(i) READONLYIF banPrint(i) printAcceptanceTorg1, printAcceptanceTorg2, printAcceptanceTorg3 
+    PROPERTIES(i) SHOWIF isCommissionPurchase(operation(i)) printAcceptanceMX1                              
 ;
 
 DESIGN invoices {
@@ -86,14 +87,15 @@ DESIGN invoices {
                     alignment = STRETCH;
                 }
             }
-            NEW tn2 {
+            NEW torg {
                 alignment = STRETCH;
                 type = COLUMNS;
                 columns = 3;
                 caption = 'Отчеты';
                 MOVE PROPERTY(printAcceptanceTorg1(i)) { alignment = STRETCH; }
                 MOVE PROPERTY(printAcceptanceTorg2(i)) { alignment = STRETCH; }   
-                MOVE PROPERTY(printAcceptanceTorg3(i)) { alignment = STRETCH; }                           
+                MOVE PROPERTY(printAcceptanceTorg3(i)) { alignment = STRETCH; } 
+                MOVE PROPERTY(printAcceptanceMX1(i))   { alignment = STRETCH; }                          
             }
         }
     }

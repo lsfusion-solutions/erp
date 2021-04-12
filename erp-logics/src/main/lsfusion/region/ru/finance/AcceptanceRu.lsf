@@ -11,7 +11,8 @@ REQUIRE System,
         StockContract,
         SkuLedger,
         ItemPack,
-        Barcode, Employee, Transport, Order;
+        Barcode, Employee, Transport, Order,
+        PurchaseOperation;
 
 NAMESPACE AcceptanceRu;
 
@@ -30,16 +31,16 @@ dataSupplier = ABSTRACT LegalEntity (Acceptance);
 overSupplier = ABSTRACT LegalEntity (Acceptance);
 supplier (Acceptance acceptance)= OVERRIDE overSupplier(acceptance), dataSupplier(acceptance);
 
-overINNSupplier 'ИНН получателя' = ABSTRACT STRING[50] (Acceptance);
-extraINNSupplier 'ИНН получателя' = ABSTRACT STRING[50] (Acceptance);
+overINNSupplier 'ИНН отправителя' = ABSTRACT STRING[50] (Acceptance);
+extraINNSupplier 'ИНН отправителя' = ABSTRACT STRING[50] (Acceptance);
 INNSupplier 'ИНН отправителя' (Acceptance acceptance) = OVERRIDE overINNSupplier(acceptance), extraINNSupplier(acceptance), inn(supplier(acceptance));
 
-overKPPSupplier 'КПП получателя' = ABSTRACT STRING[50] (Acceptance);
-extraKPPSupplier 'КПП получателя' = ABSTRACT STRING[50] (Acceptance);
+overKPPSupplier 'КПП отправителя' = ABSTRACT STRING[50] (Acceptance);
+extraKPPSupplier 'КПП отправителя' = ABSTRACT STRING[50] (Acceptance);
 KPPSupplier 'КПП отправителя' (Acceptance acceptance) = OVERRIDE overKPPSupplier(acceptance), extraKPPSupplier(acceptance), kpp(supplier(acceptance));
 
-overOKPOSupplier 'ОКПО получателя' = ABSTRACT STRING[50] (Acceptance);
-extraOKPOSupplier 'ОКПО получателя' = ABSTRACT STRING[50] (Acceptance);
+overOKPOSupplier 'ОКПО отправителя' = ABSTRACT STRING[50] (Acceptance);
+extraOKPOSupplier 'ОКПО отправителя' = ABSTRACT STRING[50] (Acceptance);
 OKPOSupplier 'ОКПО отправителя' (Acceptance acceptance) = OVERRIDE overOKPOSupplier(acceptance), extraOKPOSupplier(acceptance), okpo(supplier(acceptance));
 
 overAddressSupplier = ABSTRACT ISTRING[150] (Acceptance);
@@ -47,7 +48,7 @@ addressSupplier 'Юр. адрес отправителя' (Acceptance acceptance
     OVERRIDE overAddressSupplier(acceptance), address(supplier(acceptance), date(acceptance)) CHARWIDTH 30;
     
 overFullNameSupplier = ABSTRACT ISTRING[200] (Acceptance);  
-fullNameSupplier 'Наим-ие отправителя' (Acceptance acceptance) = 
+fullNameSupplier 'Наим-ие получателя' (Acceptance acceptance) = 
     OVERRIDE overFullNameSupplier(acceptance), fullName(supplier(acceptance)) CHARWIDTH 30;    
             
 overEmailSupplier = ABSTRACT STRING[400] (Acceptance);    
@@ -108,20 +109,24 @@ dataCustomer = ABSTRACT LegalEntity (Acceptance);
 overCustomer = ABSTRACT LegalEntity (Acceptance);
 customer (Acceptance acceptance)= OVERRIDE overCustomer(acceptance), dataCustomer(acceptance);  
     
-overINNCustomer 'ИНН отправителя' = ABSTRACT STRING[50] (Acceptance);
-extraINNCustomer 'ИНН отправителя' = ABSTRACT STRING[50] (Acceptance);
-INNCustomer 'ИНН отправителя' (Acceptance acceptance) = OVERRIDE overINNCustomer(acceptance), extraINNCustomer(acceptance), inn(customer(acceptance));
+overINNCustomer 'ИНН получателя' = ABSTRACT STRING[50] (Acceptance);
+extraINNCustomer 'ИНН получателя' = ABSTRACT STRING[50] (Acceptance);
+INNCustomer 'ИНН получателя' (Acceptance acceptance) = OVERRIDE overINNCustomer(acceptance), extraINNCustomer(acceptance), inn(customer(acceptance));
 
-overKPPCustomer 'КПП отправителя' = ABSTRACT STRING[50] (Acceptance);
-extraKPPCustomer 'КПП отправителя' = ABSTRACT STRING[50] (Acceptance);
-KPPCustomer 'КПП отправителя' (Acceptance acceptance) = OVERRIDE overKPPCustomer(acceptance), extraKPPCustomer(acceptance), kpp(customer(acceptance));
+overKPPCustomer 'КПП получателя' = ABSTRACT STRING[50] (Acceptance);
+extraKPPCustomer 'КПП получателя' = ABSTRACT STRING[50] (Acceptance);
+KPPCustomer 'КПП получателя' (Acceptance acceptance) = OVERRIDE overKPPCustomer(acceptance), extraKPPCustomer(acceptance), kpp(customer(acceptance));
 
-overOKPOCustomer 'ОКПО отправителя' = ABSTRACT STRING[50] (Acceptance);
-extraOKPOCustomer 'ОКПО отправителя' = ABSTRACT STRING[50] (Acceptance);
-OKPOCustomer 'ОКПО отправителя' (Acceptance acceptance) = OVERRIDE overOKPOCustomer(acceptance), extraOKPOCustomer(acceptance), okpo(customer(acceptance));
+overOKPOCustomer 'ОКПО получателя' = ABSTRACT STRING[50] (Acceptance);
+extraOKPOCustomer 'ОКПО получателя' = ABSTRACT STRING[50] (Acceptance);
+OKPOCustomer 'ОКПО получателя' (Acceptance acceptance) = OVERRIDE overOKPOCustomer(acceptance), extraOKPOCustomer(acceptance), okpo(customer(acceptance));
+    
+overOKDPCustomer 'ОКДП получателя' = ABSTRACT STRING[50] (Acceptance);
+extraOKDPCustomer 'ОКДП получателя' = ABSTRACT STRING[50] (Acceptance);
+OKDPCustomer 'ОКДП получателя' (Acceptance acceptance) = OVERRIDE overOKDPCustomer(acceptance), extraOKDPCustomer(acceptance), okdp(customer(acceptance));
     
 overAddressCustomer = ABSTRACT ISTRING[150] (Acceptance);
-addressCustomer 'Юр. адрес отправителя' (Acceptance acceptance) =
+addressCustomer 'Юр. адрес получателя' (Acceptance acceptance) =
     OVERRIDE overAddressCustomer(acceptance), address(customer(acceptance), date(acceptance)) CHARWIDTH 30;      
     
 overNameCustomerStock (Acceptance acceptance) = ABSTRACT ISTRING[150] (Acceptance);
@@ -294,7 +299,8 @@ dataShipmentNetWeight 'Масса нетто (посталено), кг.' (d) = 
 overShipmentNetWeight 'Масса нетто (посталено), кг.' (d) = ABSTRACT NUMERIC[27,10] (AcceptanceDetail);
 shipmentNetWeight 'Масса нетто (посталено), кг.' (AcceptanceDetail d) = OVERRIDE overNetWeight(d), dataNetWeight(d);
 
-barCode 'Штрихкод' (AcceptanceDetail d) = idBarcode(sku(d));
+code 'Код' (AcceptanceDetail d)  =OVERRIDE id(sku(d)), idBarcode(sku(d));
+
 sidCountry 'Код страны' (AcceptanceDetail d) = sid(country(sku(d)));
 shortNameCountry 'Краткое наименование страны' (AcceptanceDetail d) = name(country(sku(d)));
 
@@ -480,7 +486,7 @@ changeTruck (Acceptance acceptance)  {
 FORM acceptanceTorg1 'ТОРГ-1'
     // 1 страница
     OBJECTS ct=Acceptance PANEL
-    PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer,
+    PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer, OKDPCustomer,
                     fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
                     nameCustomerStock, 
                     nameSupplierStock,
@@ -492,7 +498,7 @@ FORM acceptanceTorg1 'ТОРГ-1'
     OBJECTS cd=Acceptance
     OBJECTS d=AcceptanceDetail
     
-    PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
+    PROPERTIES(d) nameSku, code, shortNameUOM, idUOM,  
                   quantity, grossWeight, netWeight,
                   price, sum
         
@@ -503,7 +509,7 @@ FORM acceptanceTorg1 'ТОРГ-1'
     // 3 страница
     OBJECTS cd2=Acceptance    
     OBJECTS d2=AcceptanceDetail
-        PROPERTIES(d2) nameSku, barCode, shortNameUOM, idUOM, 
+        PROPERTIES(d2) nameSku, code, shortNameUOM, idUOM, 
                        shipmentQuantity, shipmentGrossWeight, shipmentNetWeight, shipmentPrice, shipmentSum,
                        sumInvoice, vat, sumVAT,
                        deviationQuantity, deviationGrossWeight, deviationNetWeight, deviationSum 
@@ -537,7 +543,7 @@ printAcceptanceTorg1 'ТОРГ-1' (Acceptance acceptance) {
 FORM acceptanceTorg2 'ТОРГ-2'
     // 1 страница
     OBJECTS ct=Acceptance PANEL
-    PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer,
+    PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer, OKDPCustomer,
                     fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
                     nameCustomerStock, 
                     nameSupplierStock,
@@ -600,7 +606,7 @@ FORM acceptanceTorg3 'ТОРГ-3'
                       shipmentQuantity, 
                       deviationQuantity, deviationSum, 
                       overplusQuantity, overplusSum,
-                      barCode
+                      code 
             
         FILTERS acceptance(d) == cd,
                 quantity(d),
@@ -625,7 +631,7 @@ FORM acceptanceTorg3 'ТОРГ-3'
 FORM acceptanceTorg3FirstPage 'ТОРГ-3'
     // 1 страница
         OBJECTS ct=Acceptance PANEL
-        PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer,
+        PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer, OKDPCustomer,
                         fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
                         nameCustomerStock, 
                         nameSupplierStock,
@@ -637,6 +643,32 @@ printAcceptanceTorg3 'ТОРГ-3' (Acceptance acceptance) {
     PRINT acceptanceTorg3FirstPage OBJECTS ct = acceptance;
     PRINT acceptanceTorg3 OBJECTS cd = acceptance, ct2 = acceptance;    
 } IMAGE 'print.png' IN print; 
+
+FORM acceptanceMX1  'МХ-1'
+    OBJECTS ct=Acceptance PANEL
+    PROPERTIES (ct) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer, OKDPCustomer,
+                    fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
+                    nameCustomerStock, 
+                    date, number,
+                    seriesNumberContract, dateFromContract,
+                    nameIssuanceExecuted, positionIssuanceExecuted,
+                    nameGoodsAccepted, positionGoodsAccepted
+    
+    OBJECTS d=AcceptanceDetail SUBREPORT 
+    
+    PROPERTIES(d) nameSku, code, shortNameUOM, idUOM,  
+                  quantity,
+                  price, sum
+        
+    FILTERS acceptance(d) == ct,
+            quantity(d),
+            NOT skip(d)    
+;
+
+printAcceptanceMX1 'МХ-1' (Acceptance acceptance) { 
+    PRINT acceptanceMX1 OBJECTS ct = acceptance;
+} IMAGE 'print.png' IN print; 
+
 
 FORM acceptanceCommittee 'Комиссия для приемки'
     OBJECTS c=AcceptanceCommittee PANEL
