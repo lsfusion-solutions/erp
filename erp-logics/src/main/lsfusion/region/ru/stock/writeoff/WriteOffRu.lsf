@@ -1,0 +1,84 @@
+MODULE WriteOffRu;
+
+REQUIRE WriteOff, LegalEntityRu, PurchaseShipment;
+
+NAMESPACE WriteOff;
+
+CLASS DetailReason'Причина списания';
+
+id 'Код' = DATA STRING[100] (Reason) IN id INDEXED CHARWIDTH 10;
+
+EXTEND FORM reason
+    PROPERTIES(r) id 
+;
+
+EXTEND FORM reasons
+    PROPERTIES(r) READONLY BEFORE name(r) id
+;
+
+EXTEND FORM userWriteOff
+    PROPERTIES(d) nameReason
+;
+
+EXTEND FORM writeOffs 
+    PROPERTIES(d) nameReason
+;
+
+idReason 'Код списания' (WriteOffDetail d) = id(reason(d));
+
+okpo 'ОКПО' (WriteOff writeOff) = okpo(legalEntityStock (writeOff));
+okdp 'ОКДП' (WriteOff writeOff) = okpo(legalEntityStock (writeOff));
+positionResponsiblePerson 'Материально ответственное лицо' (WriteOff writeOff) = namePosition(responsiblePerson(stock(writeOff)));
+shortNameResponsiblePerson 'Материально ответственное лицо' (WriteOff writeOff) = shortName(responsiblePerson(stock(writeOff)));
+
+code 'Код' (WriteOffDetail d)  = OVERRIDE id(sku(d)), idBarcodeSku(d);
+idUOM (WriteOffDetail d)  = idUOM(sku(d));
+netWeightSku 'Вес нетто' (WriteOffDetail d) = netWeight(sku(d));
+netWeight 'Вес нетто' (WriteOffDetail d) = netWeightSku(d) * quantity(d);
+
+invoiceDetail (WriteOffDetail d) = invoiceDetail(batch(d));
+invoice(WriteOffDetail d) = invoice(invoiceDetail(batch(d)));
+numberInvoice 'Номер накладной' (WriteOffDetail d) = number(invoice(d));
+dateInvoice 'Дата накладной' (WriteOffDetail d) = date(invoice(d));
+
+FORM writeOffTorg16A 'ТОРГ-16'
+    OBJECTS w=WriteOff PANEL 
+    PROPERTIES (w) fullNameLegalEntityStock, fullNameStock,
+                   number, series, date, 
+                   okpo, okdp,
+                   nameReason                   
+    
+    OBJECTS wd=WriteOffDetail SUBREPORT
+    PROPERTIES (wd) date, number, idReason, nameReason, dateInvoice, numberInvoice
+    FILTERS (wd = GROUP LAST WriteOffDetail d IF invoice(wd) == invoice(d) AND batch(wd) IS Batch AND invoice(wd) AND reason(wd) == reason(d)),
+            in(w, wd)  
+;            
+FORM writeOffTorg16B 'ТОРГ-16 (оборотная сторона)'  
+    OBJECTS w=WriteOff     
+    PROPERTIES (w)  namePositionChairmanWriteOffCommittee, shortNameChairmanWriteOffCommittee,
+                    sumWriteOffDetail, positionResponsiblePerson, shortNameResponsiblePerson
+
+    OBJECTS d=WriteOffDetail SUBREPORT 
+        PROPERTIES (d) READONLY nameSku, code, shortNameUOMSku, idUOM,
+                       quantity, netWeight, price, sum 
+
+    OBJECTS e=Employee SUBREPORT 
+    PROPERTIES(e) shortName, namePosition
+    FILTERS in(w, d),
+            inWriteOffCommittee(w, e)
+;
+
+printWriteOffTorg16 'ТОРГ-16' (WriteOff writeOff)  { 
+    PRINT writeOffTorg16A OBJECTS w = writeOff; 
+    PRINT writeOffTorg16B OBJECTS w = writeOff;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM writeOffs
+    PROPERTIES (w) printWriteOffTorg16
+;
+
+DESIGN writeOffs{
+    printContainer{
+        MOVE PROPERTY(printWriteOffTorg16(w));
+    }
+}
