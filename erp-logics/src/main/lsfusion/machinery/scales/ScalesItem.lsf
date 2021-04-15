@@ -67,6 +67,15 @@ description 'Описание' = OVERRIDE overMachineryDescription(Barcode barco
 
 descriptionNumber(MachineryPriceTransaction t, Barcode b) = number(cellScales(groupMachinery(t), description(t, b)));
 
+clearApplicationLog () + { 
+	NEWSESSION {
+	    IF countDaysClearMachineryPriceTransaction() THEN {
+            description(MachineryPriceTransaction t, Barcode b) <- NULL WHERE date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
+            APPLY;
+	    }
+	}
+}   
+
 extraPercent 'Доп. процент' = ABSTRACT NUMERIC[6,2] (MachineryPriceTransaction, Barcode);
 
 imagesCount 'Кол-во изображений' = ABSTRACT INTEGER (Barcode);
