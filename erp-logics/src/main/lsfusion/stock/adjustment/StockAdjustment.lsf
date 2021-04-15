@@ -845,14 +845,29 @@ DESIGN options {
 accountSumB 'Учетная сумма'  (Sku s, Stock st, DATETIME dt)= balanceB(s,st,dt) * prevAccountPriceB(s, st, dt);
 diff 'Разница' (Sku s, Stock st, DATETIME dt) = sumB(s,st,dt)(-) accountSumB(s,st,dt);
 
+accountSumB 'Учетная сумма'  (Batch b, Stock st, DATETIME dt)= balanceB(b,st,dt) * prevAccountPriceB(b, st, dt);
+diff 'Разница' (Batch b, Stock st, DATETIME dt) = sumB(b,st,dt)(-) accountSumB(b,st,dt);
+
 createSumUserAdjustment (UserAdjustment adjustment)  { 
 
     // todo : деноминация
-    FOR NUMERIC[32,9] sumDiff == diff(Sku s, stock(adjustment), dateTime(adjustment)) AND abs(sumDiff) > (OVERRIDE minSumAdjustment(), 0.1) AND inAdjustment(s) ORDER name(s) NEW d = UserAdjustmentDetail DO {            
-        userAdjustment(d) <- adjustment;
-        sku(d) <- s;       
-        quantity(d) <- 0.0;
-        sum(d) <- NUMERIC[18,4](-sumDiff);
+    IF explicitBatchLedger(stock(adjustment)) THEN {
+        FOR NUMERIC[32,9] sumDiff == diff(Batch b, stock(adjustment), dateTime(adjustment)) AND abs(sumDiff) > (OVERRIDE minSumAdjustment(), 0.1)
+        AND inAdjustment(sku(b)) ORDER name(sku(b)), name(b) NEW d = UserAdjustmentDetail DO {            
+            userAdjustment(d) <- adjustment;
+            sku(d) <- sku(b);
+            batch(d) <- b;       
+            quantity(d) <- 0.0;
+            sum(d) <- NUMERIC[18,4](-sumDiff);
+        }
+    } ELSE {
+        FOR NUMERIC[32,9] sumDiff == diff(Sku s, stock(adjustment), dateTime(adjustment)) AND abs(sumDiff) > (OVERRIDE minSumAdjustment(), 0.1)
+        AND inAdjustment(s) ORDER name(s) NEW d = UserAdjustmentDetail DO {            
+            userAdjustment(d) <- adjustment;
+            sku(d) <- s;       
+            quantity(d) <- 0.0;
+            sum(d) <- NUMERIC[18,4](-sumDiff);
+        }
     }
 }
 
