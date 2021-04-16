@@ -19,8 +19,8 @@ CLASS ABSTRACT Consignment 'Накладная';
 
 CLASS ABSTRACT ConsignmentDetail 'Строка накладной';
                
-dataDate 'Дата' (consignment) = ABSTRACT DATE (Consignment);
-overDate 'Дата' (consignment) = ABSTRACT DATE (Consignment);
+dataDate 'Дата' = ABSTRACT DATE (Consignment);
+overDate 'Дата' = ABSTRACT DATE (Consignment);
 date 'Дата' (Consignment consignment) = OVERRIDE overDate(consignment), dataDate(consignment);
 
 number 'Номер' = ABSTRACT STRING[28] (Consignment) IN numbered CHARWIDTH 7;
@@ -62,8 +62,8 @@ overPhoneSupplier = ABSTRACT STRING[100] (Consignment);
 phoneSupplier 'Телефон/факс'  (Consignment consignment) = 
     OVERRIDE overPhoneSupplier(consignment), phone(supplier(consignment)) CHARWIDTH 30;    
 
-dataSupplierStock (consignment) = ABSTRACT Stock (Consignment);
-overSupplierStock (consignment)= ABSTRACT Stock (Consignment);
+dataSupplierStock = ABSTRACT Stock (Consignment);
+overSupplierStock = ABSTRACT Stock (Consignment);
 supplierStock (Consignment consignment)= 
     OVERRIDE overSupplierStock(consignment), dataSupplierStock(consignment) CHARWIDTH 20;
     
@@ -138,7 +138,7 @@ emailCustomer 'E-mail' (Consignment consignment) =
     OVERRIDE overEmailCustomer(consignment), email(customer(consignment)) CHARWIDTH 30;
     
 overSiteCustomer = ABSTRACT STRING[100] (Consignment);    
-siteCustomer 'Сайт'  (Consignment consignment) = 
+siteCustomer 'Сайт' (Consignment consignment) = 
     OVERRIDE overSiteCustomer(consignment), site(customer(consignment)) CHARWIDTH 30;    
 
 overPhoneCustomer = ABSTRACT STRING[100] (Consignment);    
@@ -152,8 +152,8 @@ descriptionContract = overDescription(contract(Consignment consignment));
     
 notUseIssuanceExecuted 'Не использовать справочник сотрудников' = DATA BOOLEAN (Consignment);
 dataIssuanceExecuted = DATA Employee(Consignment);
-overIssuanceExecuted (consignment) = DATA Employee(Consignment);
-issuanceExecuted (consignment) = ABSTRACT Employee(Consignment);
+overIssuanceExecuted = DATA Employee(Consignment);
+issuanceExecuted = ABSTRACT Employee(Consignment);
 positionIssuanceExecuted 'Отпуск произвел, должность' (Consignment consignment) = 
     OVERRIDE namePosition(dataIssuanceExecuted(consignment)),
              namePosition(issuanceExecuted(consignment)),
@@ -169,8 +169,8 @@ overSelectIssuanceExecuted ABSTRACT (Consignment);
 
 notUseDialogForwarder 'Не использовать справочник для принимающих сотрудников' = DATA BOOLEAN(Consignment) IN issuanceConsignment;
 
-dataForwarder  = DATA Employee (Consignment);
-overForwarder (consignment) = ABSTRACT Employee(Consignment);
+dataForwarder = DATA Employee (Consignment);
+overForwarder = ABSTRACT Employee(Consignment);
 
 dataNameForwarder = DATA STRING[100](Consignment);
 overNameForwarder = ABSTRACT STRING[100](Consignment);
@@ -197,7 +197,7 @@ positionForwarder 'Товар принял, должность' (Consignment con
 banSeries = ABSTRACT BOOLEAN (Consignment);
 toShowSeries = Consignment c IS Consignment AND NOT banSeries(c);
 
-consignment (d) = ABSTRACT Consignment (ConsignmentDetail);
+consignment = ABSTRACT Consignment (ConsignmentDetail);
 
 order 'Порядок сортировки' = ABSTRACT ISTRING[255] (ConsignmentDetail); 
 index 'Номер строки' = ABSTRACT INTEGER (ConsignmentDetail); 
@@ -206,8 +206,8 @@ skip = ABSTRACT BOOLEAN (ConsignmentDetail);
 batch = ABSTRACT Batch (ConsignmentDetail);
 nameBatch 'Партия' (ConsignmentDetail d) = name(batch(d)) CHARWIDTH 20;
 
-dataSku (d) = ABSTRACT Sku (ConsignmentDetail);
-overSku (d) = ABSTRACT Sku (ConsignmentDetail);
+dataSku = ABSTRACT Sku (ConsignmentDetail);
+overSku = ABSTRACT Sku (ConsignmentDetail);
 sku (ConsignmentDetail d) = OVERRIDE overSku(d), dataSku(d);
 idSku (ConsignmentDetail d) = id(sku(d));
 
@@ -217,26 +217,26 @@ nameSku 'Наименование товара' (ConsignmentDetail d) = CONCAT '
     (OVERRIDE overDocumentNameSku(batch(d)), dataNameSku(d), name(sku(d))),
     overNameSku(d) CHARWIDTH 30;
     
-dataQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
-overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+dataQuantity 'Количество' = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+overQuantity 'Количество' = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 quantity 'Количество' (ConsignmentDetail d) = OVERRIDE overQuantity(d), dataQuantity(d);    
 
-dataAmountPack 'Кол-во в упаковке' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
-overAmountPack 'Кол-во в упаковке' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
+dataAmountPack 'Кол-во в упаковке' = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
+overAmountPack 'Кол-во в упаковке' = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
 amountPack 'Кол-во в упаковке' (ConsignmentDetail d) = OVERRIDE overAmountPack(d), dataAmountPack(d);
 
-dataPackQuantity 'Количество грузовых мест' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
-overPackQuantity 'Количество грузовых мест' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
+dataPackQuantity 'Количество грузовых мест' = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
+overPackQuantity 'Количество грузовых мест' = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
 packQuantity 'Количество грузовых мест' (ConsignmentDetail d) = OVERRIDE overPackQuantity(d), dataPackQuantity(d);
 
 nameTransportPack 'Количество грузовых мест' (ConsignmentDetail d) = name(transportPack(barcode(sku(d))));
 
-dataGrossWeight 'Масса брутто, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
-overGrossWeight 'Масса брутто, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+dataGrossWeight 'Масса брутто, кг.' = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+overGrossWeight 'Масса брутто, кг.' = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 grossWeight 'Масса брутто, кг.' (ConsignmentDetail d) = OVERRIDE overGrossWeight(d), dataGrossWeight(d);
 
-dataNetWeight 'Масса нетто, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
-overNetWeight 'Масса нетто, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+dataNetWeight 'Масса нетто, кг.' = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+overNetWeight 'Масса нетто, кг.' = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 netWeight 'Масса нетто, кг.' (ConsignmentDetail d) = OVERRIDE overNetWeight(d), dataNetWeight(d);
 
 barCode 'Штрихкод' (ConsignmentDetail d) = idBarcode(sku(d));
@@ -251,8 +251,8 @@ idUOMSku (ConsignmentDetail d) = idUOM(sku(d));
 overIdUOM = ABSTRACT STRING[100] (ConsignmentDetail) CHARWIDTH 10;
 idUOM 'Код ед. изм.' (ConsignmentDetail d) = OVERRIDE overIdUOM(d), idUOMSku(d) CHARWIDTH 10;
 
-dataPrice 'Цена' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
-overPrice 'Цена' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
+dataPrice 'Цена' = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
+overPrice 'Цена' = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
 price 'Цена' (ConsignmentDetail d) = OVERRIDE overPrice(d), dataPrice(d);
 
 dataSum 'Сумма без НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
@@ -267,14 +267,20 @@ dataShipmentSum 'Учетная сумма' (d) = ABSTRACT CASE NUMERIC[18,4] (C
 overShipmentSum 'Учетная сумма' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
 shipmentSum 'Учетная сумма' (ConsignmentDetail d)= OVERRIDE overShipmentSum(d), dataShipmentSum(d);
 
-dataVAT 'НДС, %' (d) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
+dataVAT 'НДС, %' = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
 vat 'НДС, %' (ConsignmentDetail d) = dataVAT(d);
 
 dataSumVAT 'Сумма НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
 sumVAT 'Сумма НДС' (ConsignmentDetail d) = dataSumVAT(d);
 
-dataSumInvoice 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
-sumInvoice 'Сумма с НДС' (ConsignmentDetail d) = dataSumInvoice(d);
+dataSumConsignment 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+sumConsignment 'Сумма с НДС' (ConsignmentDetail d) = dataSumConsignment(d);
+
+dataSumConsignmentDetail 'Сумма с НДС' = ABSTRACT CASE NUMERIC[18,4] (Consignment);
+sumConsignmentDetail 'Сумма с НДС' (Consignment consignment) = dataSumConsignmentDetail(consignment);
+
+dataVATSumConsignmentDetail 'Сумма НДС' = ABSTRACT CASE NUMERIC[18,4] (Consignment);
+VATSumConsignmentDetail 'Сумма НДС' (Consignment consignment) = dataVATSumConsignmentDetail(consignment);
 
 banPrint 'Запрет печати' = ABSTRACT CASE BOOLEAN (Consignment);
 
@@ -324,6 +330,22 @@ changePositionForwarder(Consignment consignment)  {
         }
     }        
 } 
+
+FORM consignmentCustomerRu 'Счет покупателю'
+    OBJECTS c = Consignment PANEL SUBREPORT 
+    PROPERTIES fullNameCustomer(c), fullNameSupplier(c), number(c), date(c), sumConsignmentDetail(c), VATSumConsignmentDetail(c),
+               nameCustomUserChief = nameCustomUserChief(customer(c)), nameCustomUserBooker = nameCustomUserBooker(customer(c)),
+               addressCustomer(c), phoneCustomer(c)
+    
+    OBJECTS d = ConsignmentDetail
+    PROPERTIES(d) index, nameSku, price, vat, quantity, shortNameUOMSku, sumConsignment
+    FILTERS consignment(d) == c
+;
+
+printConsignmentCustomerRu 'Счет покупателю (xls)' (Consignment c)  { 
+    PRINT consignmentCustomerRu OBJECTS c = c XLS;
+} IMAGE 'print.png' IN print;
+
    
 FORM consignmentTorg13 'ТОРГ-13'
     OBJECTS c=Consignment PANEL
@@ -366,7 +388,7 @@ FORM consignmentTorg12 'ТОРГ-12'
     PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
                   quantity, 
                   nameTransportPack, amountPack, packQuantity, grossWeight, 
-                  price, sum, vat, sumVAT, sumInvoice
+                  price, sum, vat, sumVAT, sumConsignment
         
     FILTERS consignment(d) == c,
             quantity(d),
@@ -389,7 +411,7 @@ FORM consignmentUPD 'Универсальный передаточный док�
     PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
                   quantity, 
                   grossWeight, 
-                  price, sum, vat, sumVAT, sumInvoice,
+                  price, sum, vat, sumVAT, sumConsignment,
                   sidCountry, shortNameCountry
         
     FILTERS consignment(d) == c,
@@ -398,6 +420,10 @@ FORM consignmentUPD 'Универсальный передаточный док�
 ;
  
 printConsignmentUPD 'Универсальный передаточный документ' (Consignment consignment) { PRINT consignmentUPD OBJECTS c = consignment;} IMAGE 'print.png' IN print;    
+
+
+
+
 
 FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment PANEL

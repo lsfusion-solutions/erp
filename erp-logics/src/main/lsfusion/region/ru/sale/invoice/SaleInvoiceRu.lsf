@@ -4,31 +4,6 @@ REQUIRE SaleInvoice, CurrencyRu;
 
 NAMESPACE Sale;
 
-FORM printInvoiceToCustomerRu 'Счет покупателю'
-    OBJECTS i = Invoice PANEL SUBREPORT 
-    PROPERTIES nameCustomer(i), nameSupplier(i), number(i), date(i), invoiceSumInvoiceDetail(i), VATSumInvoiceDetail(i),
-               nameCustomUserChief = nameCustomUserChief(customer(i)), nameCustomUserBooker = nameCustomUserBooker(customer(i)),
-               addressCustomer(i), phoneCustomer(i)
-    
-    OBJECTS d = InvoiceDetail
-    PROPERTIES(d) index, nameSku, price, valueVAT, quantity, shortNameUOMSku, invoiceSum
-    FILTERS invoice(d) == i
-;
-
-printInvoiceToCustomerRu 'Счет покупателю (xls)' (Invoice i)  { 
-    PRINT printInvoiceToCustomerRu OBJECTS i = i XLS;
-} IMAGE 'print.png' IN print;
-
-EXTEND FORM invoices  
-    PROPERTIES(i)  printInvoiceToCustomerRu
-;
-
-DESIGN invoices {
-    printContainer {
-        MOVE PROPERTY (printInvoiceToCustomerRu(i));
-    }
-}
-
 FORM printConsignmentARu 'Товарно-транспортная накладная (сторона А)'
     OBJECTS i = Invoice PANEL SUBREPORT
     PROPERTIES(i) includeOrders, nameSupplier, addressSupplier, nameCustomer, addressCustomer, number, date
