@@ -6,10 +6,12 @@ PRIORITY GISMT, Purchase;
 
 NAMESPACE GISMTPurchase;
 
+@defineOperationProperty(returnType, 'Вид возврата', STRING, paramsContainer);
+
 needDocument = ABSTRACT VALUE BOOLEAN (Invoice);
 needDocument(Invoice i) += supplier(i) != customer(i);
 createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND needDocument(i);
-gismtType (Invoice i) = 'LP_ACCEPT_GOODS' IF i IS Invoice;
+gismtType (Invoice i) = OVERRIDE 'LP_RETURN' IF returnType(operation(i)), ('LP_ACCEPT_GOODS' IF i IS Invoice);
 @defineDocumentGISMT(invoice, createDocument, invoices, i, customer);
 
 // release number
@@ -43,12 +45,29 @@ FORM exportInvoice
     FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
 ;
 
-export (InvoiceDocument i) + {
-    IF NOT releaseNumber(invoice(i), lotType(i)) THEN {
-        MESSAGE 'Не задан номер документа отгрузки ГИС МТ';
-        stopCreate() <- TRUE;
-        RETURN;
-    }
+FORM exportInvoiceReturn
+    OBJECTS i = Invoice, t = LotType PANEL
     
-    EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
+    PROPERTIES return_type = returnType(operation(i)), 
+               trade_participant_inn = inn(supplier(i))
+    
+    OBJECTS products = (d = InvoiceDetail, l = Lot)
+    PROPERTIES ki = id(l),
+               paid = 'false'
+               
+    FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+;
+
+export (InvoiceDocument i) + {
+    IF returnType(operation(invoice(i))) THEN
+        EXPORT exportInvoiceReturn OBJECTS i = invoice(i), t = lotType(i) JSON;
+    ELSE {
+        IF NOT releaseNumber(invoice(i), lotType(i)) THEN {
+            MESSAGE 'Не задан номер документа отгрузки ГИС МТ';
+            stopCreate() <- TRUE;
+            RETURN;
+        }
+        
+        EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
+    }
 }
