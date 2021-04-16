@@ -1,0 +1,592 @@
+MODULE UpdDocument;
+
+REQUIRE MasterData, Utils, Numerator, LegalEntityRu, Contract, Certificate;
+
+NAMESPACE Upd;
+
+@defineStaticObject(updDocumentStatus, 'Статус УПД');
+
+EXTEND CLASS UpdDocumentStatus {
+    SHCF 'СЧФ',
+    DOP 'ДОП',
+    SHCFDOP 'СЧФДОП'
+}
+
+@defineStaticObject(updDocumentPaperStatus, 'Статус УПД (бумажный)');
+
+EXTEND CLASS UpdDocumentPaperStatus {
+    first '1',
+    second '2'
+}
+
+//participant id
+idUpd 'ИД участника документооборота (УПД)' = DATA STRING[46] (LegalEntity);
+legalEntityUpd (id) = GROUP AGGR LegalEntity legalEntity BY idUpd (legalEntity);
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) idUpd
+;
+
+DESIGN legalEntity {
+    column1 {
+        NEW upd {
+            caption = 'УПД';
+            MOVE PROPERTY(idUpd(l));
+        }
+    }
+}
+
+EXTEND FORM legalEntities
+    PROPERTIES (l) READONLY idUpd
+;
+
+//UpdDocument
+CLASS UpdDocument 'УПД';
+TABLE updDocument(UpdDocument);
+
+number 'Номер' = DATA STRING[28] (UpdDocument) IN numbered CHARWIDTH 7;
+
+//Титул продавца
+
+//-------СвУчДокОбор---------
+
+idConsignor 'ИД отправителя' = DATA STRING[46] (UpdDocument); //ИдОтпр
+idConsignee 'ИД получателя' = DATA STRING[46] (UpdDocument); //ИдПол
+
+//СвОЭДОтпр
+
+
+//-------Документ---------
+status 'Статус' = DATA UpdDocumentStatus (UpdDocument);
+nameStatus 'Статус' (UpdDocument upd) = staticCaption(status(upd)); //Функция
+
+nameDocument 'Наименование документа' = DATA STRING[255] (UpdDocument); //НаимДокОпр
+dateSupplier 'Дата формирования (поставщик)' = DATA DATE (UpdDocument); //ДатаИнфПр
+timeSupplier 'Время формирования (поставщик)' = DATA TIME (UpdDocument); //ВремИнфПр
+nameOriginatorSupplier 'Наименование составителя (поставщик)' = DATA STRING[1000] (UpdDocument) CHARWIDTH 45; //НаимЭконСубСост
+
+//СвСчФакт
+numberInvoice 'Номер СЧФ' = DATA STRING[1000] (UpdDocument) CHARWIDTH 15; //НомерСчФ
+dateInvoice 'Дата СЧФ' = DATA DATE (UpdDocument); //ДатаСчФ
+codeCurrency 'Код валюты' = DATA STRING[3] (UpdDocument); //КодОКВ
+
+//-СвПрод
+supplier 'Продавец' = DATA LegalEntity(UpdDocument);
+
+okpoSupplier 'ОКПО продавца' = DATA STRING[10] (UpdDocument); //ОКПО
+
+//--ИдСв
+//---СвЮЛУч
+nameSupplier 'Наименование продавца' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
+innSupplier 'ИНН продавца' = DATA STRING[10] (UpdDocument); //ИННЮЛ
+kppSupplier 'КПП продавца' = DATA STRING[9] (UpdDocument); //КПП
+
+//---Адрес
+//----АдрРФ
+regionCodeSupplier 'Код региона продавца' = DATA STRING[3](UpdDocument); //КодРегион
+
+//----АдрИнф
+countryCodeAddressSupplier 'Код страны продавца' = DATA STRING[3] (UpdDocument); //КодСтр
+adrressSupplier 'Адрес продавца' = DATA STRING[150] (UpdDocument); //АдрТекст
+
+//----КодГАР
+codeAdrressSupplier 'Код адреса продавца' = DATA STRING[36] (UpdDocument); //КодГАР
+
+//--ГрузОт
+isConsignerSupplier 'Продавец является отправителем' = DATA BOOLEAN (UpdDocument); //ОнЖе
+
+//-СвПокуп
+customer 'Покупатель' = DATA LegalEntity(UpdDocument);
+
+okpoCustomer 'ОКПО покупателя' = DATA STRING[10] (UpdDocument); //ОКПО
+
+//--ИдСв
+//---СвЮЛУч
+nameCustomer 'Наименование покупателя' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
+innCustomer 'ИНН покупателя' = DATA STRING[10] (UpdDocument); //ИННЮЛ
+kppCustomer 'КПП покупателя' = DATA STRING[9] (UpdDocument); //КПП
+
+//---Адрес
+//----АдрРФ
+regionCodeCustomer 'Код региона покупателя' = DATA STRING[3](UpdDocument); //КодРегион
+
+//----АдрИнф
+countryCodeAddressCustomer 'Код страны покупателя' = DATA STRING[3] (UpdDocument); //КодСтр
+adrressCustomer 'Адрес покупателя' = DATA STRING[150] (UpdDocument); //АдрТекст
+
+//----КодГАР
+codeAdrressCustomer 'Код адреса покупателя' = DATA STRING[36] (UpdDocument); //КодГАР
+
+//СвПродПер
+//-СвПер
+description 'Содержание операции' = DATA STRING[255] (UpdDocument); //СодОпер
+
+//--ОснПер
+descriptionContract 'Основание передачи' = DATA STRING[255] (UpdDocument); //НаимОсн
+
+//---СвЛицПер
+//----РабОргПрод
+positionAgentSupplier 'Должность (работник продавца)' = DATA STRING[128](UpdDocument); //Должность
+
+//-----ФИО
+lastNameAgentSupplier 'Фамилия' = DATA STRING[60](UpdDocument); //Фамилия
+firsNameAgentSupplier 'Имя' = DATA STRING[60](UpdDocument); //Имя
+middleAgentSupplier 'Отчество' = DATA STRING[60](UpdDocument); //Отчество
+
+//----ИнЛицо
+//-----ПредОргПер
+positionAgentExecuter 'Должность (представитель передающей орг.)' = DATA STRING[128](UpdDocument); //Должность
+
+//------ФИО
+lastNameAgentExecuter 'Фамилия' = DATA STRING[60](UpdDocument); //Фамилия
+firsNametAgentExecuter 'Имя' = DATA STRING[60](UpdDocument); //Имя
+middleNameAgentExecuter 'Отчество' = DATA STRING[60](UpdDocument); //Отчество
+
+//-----ФЛПер
+positionExecuter 'Должность (передающее ФЛ)' = DATA STRING[128](UpdDocument); //Должность
+
+//------ФИО
+lastNameExecuter 'Фамилия (передающее ФЛ)' = DATA STRING[60](UpdDocument); //Фамилия
+firsNameExecuter 'Имя (передающее ФЛ)' = DATA STRING[60](UpdDocument); //Имя
+middleNameExecuter 'Отчество (передающее ФЛ)' = DATA STRING[60](UpdDocument); //Отчество
+
+//details
+CLASS UpdDocumentDetail 'Строка УПД';
+TABLE updDocumentDetail(UpdDocumentDetail);
+
+updDocument = DATA UpdDocument(UpdDocumentDetail) NONULL DELETE INDEXED;
+
+//ТаблСчФакт
+//-СведТов
+number 'Номер строки' = DATA NUMERIC[6,0] (UpdDocumentDetail); //НомСтр
+nameSku 'Наименование товара' = DATA STRING[1000] (UpdDocumentDetail) CHARWIDTH 45; //НаимТов
+valueVAT 'Ставка НДС' = DATA STRING[35] (UpdDocumentDetail) CHARWIDTH 10; //НалСт
+
+quantity 'Кол-во товара' = DATA NUMERIC[26,11] (UpdDocumentDetail); //КолТов
+price 'Цена' = DATA NUMERIC[26,11] (UpdDocumentDetail); //ЦенаТов
+sum 'Сумма без НДС' = DATA NUMERIC[19,2] (UpdDocumentDetail); //СтТовБезНДС
+invoiceSum 'Сумма с НДС' = DATA NUMERIC[19,2] (UpdDocumentDetail); //СтТовУчНал
+
+//--ДопСведТов
+idUOM 'ОКЕИ' = DATA STRING[4] (UpdDocumentDetail) CHARWIDTH 10; //ОКЕИ_Тов
+nameUOM 'ЕИ' = DATA STRING[255] (UpdDocumentDetail) CHARWIDTH 10; //НаимЕдИзм
+nameCountry 'Страна' = DATA STRING[255] (UpdDocumentDetail) CHARWIDTH 10; //КрНаимСтрПр
+idSku 'Код товара' = DATA STRING[100] (UpdDocumentDetail) CHARWIDTH 15; //КодТов
+
+//--СвТД
+idCountry 'Код страны' = DATA STRING[3] (UpdDocumentDetail) CHARWIDTH 10; //КодПроисх
+numberDeclaration 'Код страны' = DATA STRING[3] (UpdDocumentDetail) CHARWIDTH 10;//НомерТД
+
+VATSum 'Сумма НДС' = DATA NUMERIC[19,2] (UpdDocumentDetail); //СумНал
+
+//-ВсегоОпл
+sum 'Сумма без НДС' = DATA NUMERIC[19,2] (UpdDocument); //СтТовБезНДСВсего
+invoiceSum 'Сумма с НДС' = DATA NUMERIC[19,2] (UpdDocument); //СтТовУчНалВсего
+
+//--СумНалВсего 
+VATSum 'Сумма НДС' = DATA NUMERIC[19,2] (UpdDocument); //СумНал
+withoutVAT 'БезНДС' = DATA BOOLEAN (UpdDocument); //БезНДС
+
+//Подписант
+supplierSignerCredentials 'Область полномочий подписанта (продавец)' = DATA INTEGER (UpdDocument); //ОблПолн
+supplierSignerStatus 'Статус подписанта (продавец)' = DATA INTEGER (UpdDocument); //Статус
+supplierSignerCredentialsBase 'Основание полномочий подписанта (продавец)' = DATA STRING[255] (UpdDocument) CHARWIDTH 50; //ОснПолн
+
+//-ФЛ
+//--ФИО
+supplierSignerLastName 'Фамилия подписанта (продавец)' = DATA STRING[60] (UpdDocument);//Фамилия
+supplierSignerFirstName 'Имя подписанта (продавец)' = DATA STRING[60] (UpdDocument);//Имя
+supplierSignerMiddleName 'Отчество (продавец)' = DATA STRING[60](UpdDocument); //Отчество
+
+//-ЮЛ
+supplierSignerInn 'ИНН организации-подписанта (продавец)' = DATA STRING[10] (UpdDocument);//ИННЮЛ
+supplierSignerPosition 'Должность подписанта (продавец)' = DATA STRING[10] (UpdDocument);//Должн
+
+//--ФИО
+supplierSignerAgentLastName 'Фамилия' = DATA STRING[60] (UpdDocument);//Фамилия
+supplierSignerAgentFirstName 'Имя' = DATA STRING[60] (UpdDocument);//Имя
+supplierSignerAgentMiddleName 'Отчество' = DATA STRING[60](UpdDocument); //Отчество
+
+//Титул покупателя
+//-------ИнфПок---------
+dateCustomer 'Дата формирования (покупатель)' = DATA DATE (UpdDocument); //ДатаИнфПок
+timeCustomer 'Время формирования (покупатель)' = DATA TIME (UpdDocument); //ВремИнфПок
+nameOriginatorCustomer 'Наименование составителя (покупатель)' = DATA STRING[1000] (UpdDocument) CHARWIDTH 45; //НаимЭконСубСост
+
+//СодФХЖ4
+//-СвПрин
+dateExceptance 'Дата принятия' = DATA DATE (UpdDocument); //ДатаПрин
+
+//--СвЛицПрин
+//---РабОргПок
+positionAgentCustomer 'Должность (работник покупателя)' = DATA STRING[128](UpdDocument); //Должность
+customerAgentCredentialsBase 'Основание полномочий (работник покупателя)' = DATA STRING[255] (UpdDocument) CHARWIDTH 50; //ОснПолн
+
+//----ФИО
+lastNameAgentCustomer 'Фамилия (работник покупателя)' = DATA STRING[60](UpdDocument); //Фамилия
+firsNameAgentCustomer 'Имя (работник покупателя)' = DATA STRING[60](UpdDocument); //Имя
+middleAgentCustomer 'Отчество (работник покупателя)' = DATA STRING[60](UpdDocument); //Отчество
+
+//---ИнЛицо
+//----ПредОргПрин
+positionAgentReceiver 'Должность (представитель принимающей орг.)' = DATA STRING[128](UpdDocument); //Должность
+
+//-----ФИО
+lastNameAgentReceiver 'Фамилия' = DATA STRING[60](UpdDocument); //Фамилия
+firsNametAgentReceiver 'Имя' = DATA STRING[60](UpdDocument); //Имя
+middleNameAgentReceiver 'Отчество' = DATA STRING[60](UpdDocument); //Отчество
+
+//----ФЛПрин
+receiverAgentCredentialsBase 'Основание полномочий (принимающее ФЛ)' = DATA STRING[120](UpdDocument); //ОснДоверФЛ
+
+//------ФИО
+lastNameReceiver 'Фамилия (принимающее ФЛ)' = DATA STRING[60](UpdDocument); //Фамилия
+firsNameReceiver 'Имя (принимающее ФЛ)' = DATA STRING[60](UpdDocument); //Имя
+middleNameReceiver 'Отчество (принимающее ФЛ)' = DATA STRING[60](UpdDocument); //Отчество
+
+
+//Подписант
+customerSignerCredentials 'Область полномочий подписанта' = DATA INTEGER (UpdDocument); //ОблПолн
+customerSignerStatus 'Статус подписанта' = DATA INTEGER (UpdDocument); //Статус
+customerSignerCredentialsBase 'Основание полномочий подписанта' = DATA STRING[255] (UpdDocument) CHARWIDTH 50; //ОснПолн
+
+//-ФЛ
+//--ФИО
+customerSignerLastName 'Фамилия подписанта' = DATA STRING[60] (UpdDocument);//Фамилия
+customerSignerFirstName 'Имя подписанта' = DATA STRING[60] (UpdDocument);//Имя
+customerSignerMiddleName 'Отчество' = DATA STRING[60](UpdDocument); //Отчество
+
+//-ЮЛ
+customerSignerInn 'ИНН организации-подписанта' = DATA STRING[10] (UpdDocument);//ИННЮЛ
+customerSignerPosition 'Должность представителя подписанта' = DATA STRING[10] (UpdDocument);//Должн
+
+//--ФИО
+customerSignerAgentLastName 'Фамилия представителя подписанта' = DATA STRING[60] (UpdDocument);//Фамилия
+customerSignerAgentFirstName 'Имя представителя подписанта' = DATA STRING[60] (UpdDocument);//Имя
+customerSignerAgentMiddleName 'Отчество представителя' = DATA STRING[60](UpdDocument); //Отчество
+
+FORM updDocument 'Универсальный передаточный документ'
+    OBJECTS u=UpdDocument PANEL
+
+    PROPERTIES (u) idConsignor, idConsignee, nameStatus, nameDocument
+    PROPERTIES (u) nameSupplier, innSupplier, kppSupplier, okpoSupplier, nameOriginatorSupplier
+    PROPERTIES (u) dateSupplier, timeSupplier
+    PROPERTIES (u) numberInvoice, dateInvoice, codeCurrency
+    PROPERTIES (u) regionCodeSupplier, countryCodeAddressSupplier, adrressSupplier, codeAdrressSupplier
+    PROPERTIES (u) isConsignerSupplier
+    PROPERTIES (u) nameCustomer, innCustomer, kppCustomer, okpoCustomer
+    PROPERTIES (u) regionCodeCustomer, countryCodeAddressCustomer, codeAdrressCustomer
+    PROPERTIES (u) description, descriptionContract
+    PROPERTIES (u) positionAgentSupplier, lastNameAgentSupplier, firsNameAgentSupplier, middleAgentSupplier
+    PROPERTIES (u) positionAgentExecuter, lastNameAgentExecuter, firsNametAgentExecuter, middleNameAgentExecuter
+    PROPERTIES (u) positionExecuter, lastNameExecuter, firsNameExecuter, middleNameExecuter
+    PROPERTIES (u) sum, invoiceSum, VATSum, withoutVAT
+    PROPERTIES (u) supplierSignerCredentials, supplierSignerStatus, supplierSignerCredentialsBase
+    PROPERTIES (u) supplierSignerLastName, supplierSignerFirstName, supplierSignerMiddleName
+    PROPERTIES (u) supplierSignerInn, supplierSignerPosition
+    PROPERTIES (u) supplierSignerAgentLastName, supplierSignerAgentFirstName, supplierSignerAgentMiddleName
+    
+    PROPERTIES (u) dateCustomer, timeCustomer, nameOriginatorCustomer
+    PROPERTIES (u) dateExceptance
+    PROPERTIES (u) positionAgentCustomer, customerAgentCredentialsBase, lastNameAgentCustomer, firsNameAgentCustomer, middleAgentCustomer
+    PROPERTIES (u) positionAgentReceiver, lastNameAgentReceiver, firsNametAgentReceiver, middleNameAgentReceiver
+    PROPERTIES (u) receiverAgentCredentialsBase, lastNameReceiver, firsNameReceiver, middleNameReceiver
+    PROPERTIES (u) customerSignerCredentials, customerSignerStatus, customerSignerCredentialsBase
+    PROPERTIES (u) customerSignerLastName, customerSignerFirstName, customerSignerMiddleName
+    PROPERTIES (u) customerSignerInn, customerSignerPosition, customerSignerAgentLastName, customerSignerAgentFirstName, customerSignerAgentMiddleName
+    
+    OBJECTS d=UpdDocumentDetail
+    
+    PROPERTIES(d) number, idSku, nameSku, quantity, price, sum, valueVAT, invoiceSum, VATSum
+    PROPERTIES(d) idUOM, nameUOM, idCountry, nameCountry, numberDeclaration 
+                  
+    PROPERTIES (d) NEW, DELETE
+        
+    FILTERS updDocument(d) == u,
+            quantity(d)
+    
+    EDIT UpdDocument OBJECT u           
+;
+
+DESIGN updDocument {
+    BOX {
+        size = (1024, 768);
+        NEW mainContainer {
+            fill = 1;
+            NEW documentContainer {
+                caption = 'УПД';
+                fill = 1;
+                type = CONTAINERV;
+                NEW mainDocumentAttributes {
+                    caption = 'Основные атрибуты';
+                    //fill = 1;
+                    type = COLUMNS;
+                    columns = 2;
+                    NEW partsInfo {
+                        caption = 'Стороны';
+                        fill = 1;
+                        type = COLUMNS;
+                        columns = 2;
+                        MOVE PROPERTY(idConsignor(u));
+                        MOVE PROPERTY(idConsignee(u));
+                        MOVE PROPERTY(nameStatus(u));
+                        MOVE PROPERTY(nameDocument(u));                        
+                    }
+                    NEW sums {
+                        caption = 'Итоговые суммы';
+                        //fill = 1;
+                        type = CONTAINERV;
+                        MOVE PROPERTY(sum(u));
+                        MOVE PROPERTY(invoiceSum(u));
+                        MOVE PROPERTY(VATSum(u));
+                        MOVE PROPERTY(withoutVAT(u));                            
+                    }
+                }
+                NEW titlesContainer {
+                    fill = 1;
+                    type = TABBED;
+                    NEW supplierTitle {
+                        caption = 'Титул поставщика';
+                        fill = 1;
+                        type = COLUMNS;
+                        columns = 2;
+                        
+                        NEW supplierInfo {
+                            caption = 'Поставщик';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(nameSupplier(u));
+                            MOVE PROPERTY(innSupplier(u));
+                            MOVE PROPERTY(kppSupplier(u));
+                            MOVE PROPERTY(okpoSupplier(u));
+                            MOVE PROPERTY(nameOriginatorSupplier(u));
+                        }
+                        
+                        NEW supplierDate {
+                            caption = 'Дата/время';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(dateSupplier(u));
+                            MOVE PROPERTY(timeSupplier(u));
+                        }
+                        NEW supplierInvoice {
+                            caption = 'СЧФ';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(numberInvoice(u));
+                            MOVE PROPERTY(dateInvoice(u));
+                            MOVE PROPERTY(codeCurrency(u));
+                        }
+                        NEW supplierAddress {
+                            caption = 'Адрес поставщика';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(regionCodeSupplier(u));
+                            MOVE PROPERTY(countryCodeAddressSupplier(u));
+                            MOVE PROPERTY(adrressSupplier(u));
+                            MOVE PROPERTY(codeAdrressSupplier(u));
+                        }
+                                               
+                        MOVE PROPERTY(isConsignerSupplier(u));
+                        
+                        NEW customerInfo {
+                            caption = 'Покупатель';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(nameCustomer(u));
+                            MOVE PROPERTY(innCustomer(u));
+                            MOVE PROPERTY(kppCustomer(u));
+                            MOVE PROPERTY(okpoCustomer(u));
+                        }
+
+                        NEW customerAddress {
+                            caption = 'Адрес покупатель';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(regionCodeCustomer(u));
+                            MOVE PROPERTY(countryCodeAddressCustomer(u));
+                            MOVE PROPERTY(codeAdrressCustomer(u));
+                        }
+                        
+                        NEW description {
+                            caption = 'Содержание операции';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(description(u));
+                            MOVE PROPERTY(descriptionContract(u));
+                        }                                               
+                        
+                        NEW supplierAgent {
+                            caption = 'Работник продавца';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(positionAgentSupplier(u));
+                            MOVE PROPERTY(lastNameAgentSupplier(u));
+                            MOVE PROPERTY(firsNameAgentSupplier(u));
+                            MOVE PROPERTY(middleAgentSupplier(u));                            
+                        }
+                        NEW executerAgent {
+                            caption = 'Представитель передающей организации';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(positionAgentExecuter(u));
+                            MOVE PROPERTY(lastNameAgentExecuter(u));
+                            MOVE PROPERTY(firsNametAgentExecuter(u));
+                            MOVE PROPERTY(middleNameAgentExecuter(u));                            
+                        }
+                        NEW executer {
+                            caption = 'Передающее физлицо';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(positionExecuter(u));
+                            MOVE PROPERTY(lastNameExecuter(u));
+                            MOVE PROPERTY(firsNameExecuter(u));
+                            MOVE PROPERTY(middleNameExecuter(u));                            
+                        }
+                        NEW signerCredentials {
+                            caption = 'Полномочия подписанта';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(supplierSignerCredentials(u));
+                            MOVE PROPERTY(supplierSignerStatus(u));
+                            MOVE PROPERTY(supplierSignerCredentialsBase(u));                                                        
+                        }
+                        NEW signer {
+                            caption = 'Подписант (физлицо)';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(supplierSignerLastName(u));
+                            MOVE PROPERTY(supplierSignerFirstName(u));
+                            MOVE PROPERTY(supplierSignerMiddleName(u));                            
+                        }
+                        NEW signerLegalEntity {
+                            caption = 'Подписант (юрлицо)';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(supplierSignerInn(u));
+                            MOVE PROPERTY(supplierSignerPosition(u));
+                            NEW signerLegalEntityAgent {
+                                caption = 'Представитель';
+                                MOVE PROPERTY(supplierSignerAgentLastName(u));
+                                MOVE PROPERTY(supplierSignerAgentFirstName(u));
+                                MOVE PROPERTY(supplierSignerAgentMiddleName(u));                                
+                            }                            
+                        }
+                    }
+                    NEW customerTitle {
+                        caption = 'Титул покупателя';
+                        fill = 1;
+                        type = COLUMNS;
+                        columns = 2;
+                        
+                        NEW customerInfoCT {
+                            caption = 'Покупатель';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(dateCustomer(u));
+                            MOVE PROPERTY(timeCustomer(u));
+                            MOVE PROPERTY(nameOriginatorCustomer(u));                            
+                        }
+                        NEW acceptanceInfo {
+                            caption = 'Приемка';
+                            fill =1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(dateExceptance(u));
+                        }
+                        NEW customerAgent {
+                            caption = 'Работник покупателя';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(positionAgentCustomer(u));
+                            MOVE PROPERTY(customerAgentCredentialsBase(u));
+                            MOVE PROPERTY(lastNameAgentCustomer(u));
+                            MOVE PROPERTY(firsNameAgentCustomer(u));
+                            MOVE PROPERTY(middleAgentCustomer(u));                            
+                        }
+                        NEW receiverAgent {
+                            caption = 'Представитель передающей организации';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(positionAgentReceiver(u));
+                            MOVE PROPERTY(lastNameAgentReceiver(u));
+                            MOVE PROPERTY(firsNametAgentReceiver(u));
+                            MOVE PROPERTY(middleNameAgentReceiver(u));                            
+                        }                       
+                        NEW receiver {
+                            caption = 'Принимающее физлицо';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(receiverAgentCredentialsBase(u));
+                            MOVE PROPERTY(lastNameReceiver(u));
+                            MOVE PROPERTY(firsNameReceiver(u));
+                            MOVE PROPERTY(middleNameReceiver(u));                            
+                        }
+                        NEW customerSignerCredentials {
+                            caption = 'Полномочия подписанта';
+                            fill = 1;
+                            type = CONTAINERV;                            
+                            MOVE PROPERTY(customerSignerCredentials(u));
+                            MOVE PROPERTY(customerSignerStatus(u));
+                            MOVE PROPERTY(customerSignerCredentialsBase(u));                           
+                        }
+                        NEW customerSigner {
+                            caption = 'Подписант (физлицо)';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(customerSignerLastName(u));
+                            MOVE PROPERTY(customerSignerFirstName(u));
+                            MOVE PROPERTY(customerSignerMiddleName(u));                    
+                        }
+                        NEW signerCustomerLegalEntity {
+                            caption = 'Подписант (юрлицо)';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(customerSignerInn(u));
+                            MOVE PROPERTY(customerSignerPosition(u));
+                            NEW signerCustomerLegalEntityAgent {
+                                caption = 'Представитель';
+                                MOVE PROPERTY(customerSignerAgentLastName(u));
+                                MOVE PROPERTY(customerSignerAgentFirstName(u));
+                                MOVE PROPERTY(customerSignerAgentMiddleName(u));                          
+                            }                            
+                        }                        
+                    }
+                    NEW detailsContainer {
+                        caption = 'Строки УПД';
+                        fill = 1;
+                        type = CONTAINERV;
+                        MOVE BOX(d) {
+                            fill = 1;
+                        }
+                    }    
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    } 
+}
+
+FORM updDocuments 'УПД'
+    OBJECTS u = UpdDocument
+    PROPERTIES (u) READONLY nameStatus, nameDocument, idConsignor, nameSupplier, idConsignee, nameCustomer,
+                            dateSupplier, timeSupplier, numberInvoice, dateInvoice, codeCurrency,
+                            regionCodeSupplier, countryCodeAddressSupplier, adrressSupplier, codeAdrressSupplier,
+                            isConsignerSupplier, sum, invoiceSum, VATSum, withoutVAT
+    
+    OBJECTS d = UpdDocumentDetail
+    
+    PROPERTIES(d) READONLY number, idSku, nameSku, quantity, price, sum, valueVAT, invoiceSum, VATSum
+                  
+    PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE            
+        
+    FILTERS updDocument(d) == u,
+            quantity(d)
+;
+
+NAVIGATOR {
+    customsNavigator {
+        NEW FOLDER UPD 'УПД' {
+            NEW updDocuments;
+        }
+    }
+}
