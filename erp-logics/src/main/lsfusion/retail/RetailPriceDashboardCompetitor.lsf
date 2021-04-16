@@ -7,12 +7,18 @@ NAMESPACE Competitor;
 backgroundCompare (Competitor c, Sku sk, Stock d, DATETIME dt) = CASE
     WHEN currentOwn(sk,d,dt) <= price(c, sk, DATE (dt)) THEN RGB(204,255,204)
     WHEN currentOwn(sk,d,dt) > price(c, sk, DATE (dt)) THEN RGB(255,117,117);
-  
+    
+showPromotionPrice 'Отображать акционную цену' = DATA BOOLEAN (Competitor);
+EXTEND FORM competitor PROPERTIES showPromotionPrice(c);
+
+header(Competitor c) = CONCAT '-', name(c), (GROUP MAX date(PriceList p) IF in(p, c));
+
 EXTEND FORM retailPriceDashboard
     
     OBJECTS c = Competitor
     PROPERTIES (c) SHOWIF NULL name, order 
-    PROPERTIES price = price(c, sk, DATE (dt)) COLUMNS (c) HEADER name(c) BACKGROUND backgroundCompare(c, sk, d, dt)
+    PROPERTIES price = price(c, sk, DATE (dt)) COLUMNS 'a' (c) HEADER header(c) BACKGROUND backgroundCompare(c, sk, d, dt)
+    PROPERTIES promotionPrice = promotionPrice(c, sk, DATE (dt)) COLUMNS 'a' (c) HEADER header(c) + ' (акция)' SHOWIF showPromotionPrice(c)
     ORDERS order(c), name(c)
 ;
 

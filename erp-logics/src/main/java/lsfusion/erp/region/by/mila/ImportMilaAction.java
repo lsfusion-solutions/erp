@@ -29,7 +29,7 @@ import java.util.Iterator;
 public class ImportMilaAction extends InternalAction {
 
     protected final ClassPropertyInterface fullInfoInterface;
-    protected final ClassPropertyInterface addLogInterface;
+    protected final ClassPropertyInterface baseUrlInterface;
 
     StringBuilder cResult = new StringBuilder();    // Строка в формате JSON - результат работы
     String errMsg = "";                             // Текст сообщений об ошибках
@@ -47,14 +47,16 @@ public class ImportMilaAction extends InternalAction {
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         fullInfoInterface = i.next();
-        addLogInterface = i.next();
+        baseUrlInterface = i.next();
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
             fullInfo = context.getKeyValue(fullInfoInterface).getValue() != null;
-            addLog = context.getKeyValue(addLogInterface).getValue() != null;
+            String url = (String) context.getKeyValue(baseUrlInterface).getValue();
+            if (url != null)
+                baseUrl = url;
 
             ioFile.lAdd = false;
             File tmpFile = File.createTempFile("mila_js", ".txt");
