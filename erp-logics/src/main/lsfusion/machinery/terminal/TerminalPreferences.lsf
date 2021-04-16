@@ -2,298 +2,204 @@ MODULE TerminalPreferences;
 
 REQUIRE System, Terminal;
 
-CLASS ExchangeFormat 'Формат обмена' {
-    Format_SQLite 'SQLite',
-    Format_CSV 'CSV',
-    Format_XML 'XML'
-}
+CLASS Preference 'Настройки' {
+// nameGroup|order|jsonName|name|type
+    GENERAL_DB_NAME						'GENERAL|01|DatabaseName|Файл БД|0|tsd',
+    GENERAL_AUTODOCNUM					'GENERAL|02|AutoDocumentNumbering|Автоматическая нумерация документа|1',
+    GENERAL_CONFIRM_OVERQUANTITY		'GENERAL|03|ConfirmOverQuantity|Подтверждать превышение количества при вводе документа|1',
+    GENERAL_CONFIRM_LOAD_DB				'GENERAL|04|ConfirmLoadDB|Подтверждать загрузку БД при наличии невыгруженных документов|1',    
+    GENERAL_DEFDOCVOP					'GENERAL|05|DefaultDocumentVop|Код операции для документа по умолчанию',
+    GENERAL_POST_VAN					'GENERAL|06|PostVan|Вид аналитики поставщика|0|ПС',
+    GENERAL_STOCK_VAN					'GENERAL|07|StockVan|Вид аналитики склада|0|СК',
+    GENERAL_VOICE						'GENERAL|08|Voice|Голосовое сопровождение|1',    
     
-exchangeFormatValue(ExchangeFormat f) = CASE 
-                        WHEN f = ExchangeFormat.Format_SQLite THEN 0
-                        WHEN f = ExchangeFormat.Format_CSV THEN 1
-                        WHEN f = ExchangeFormat.Format_XML THEN 2
-                        ELSE 0;
-                        
-exchangeValue 'Значение' (ExchangeFormat f) = exchangeFormatValue(f);                                                                       
-exchangeName 'Формат' (ExchangeFormat f) = staticCaption(f);
+    GENERAL_ALIAS_DATE1					'GENERAL|21|AliasDate1|Наименование поля ввода "Дата1"',
+    GENERAL_ALIAS_DATE2					'GENERAL|22|AliasDate2|Наименование поля ввода "Дата2"',
+    GENERAL_ALIAS_FIELD1				'GENERAL|23|AliasField1|Наименование поля ввода "Поле1"',
+    GENERAL_ALIAS_FIELD2				'GENERAL|24|AliasField2|Наименование поля ввода "Поле2"',
+    GENERAL_ALIAS_FIELD3				'GENERAL|25|AliasField3|Наименование поля ввода "Поле3"',
+    GENERAL_ALIAS_EXTRAQUANT			'GENERAL|26|AliasExtraQuant|Наименование поля ввода "Доп. кол-во"',
+    
+    GENERAL_VESTEMPLATE					'GENERAL|08|VesTemplate|Шаблоны весовых штрихкодов|3',
+        
+    GENERAL_SHOW_MENU_IK                'GENERAL|27|ShowMenuIk|Пункт меню "Проверка цен"|1',
+    GENERAL_SHOW_MENU_CHECKORDERPICKING 'GENERAL|28|ShowMenuCheckOrderPicking|Пункт меню "Проверка комплектации заказа"|1',
+        
+    ONLINE_ENABLE						'ONLINE|01|OnlineEnable|Включить On-line режим|1',
+    ONLINE_SERVER						'ONLINE|01|OnlineServer|Сервер',
+    ONLINE_PORT							'ONLINE|02|OnlinePort|Порт|2|2004',
+    ONLINE_SEND_ORDER_STATU				'ONLINE|03|OnlineSendOrderStatus|Обмен статусами заказов|1',
+    ONLINE_REQ_STOCK					'ONLINE|04|OnlineReqStock|Запрашивать склад при авторизации|1',
+    ONLINE_TEST_CONNECT					'ONLINE|05|OnlineTestConnect|Мониторинг подключения к серверу|1',
+    
+    OBMEN_TYPE                      	'OBMEN|31|ObmenType|Формат файлового обмена|0|XML',
+    OBMEN_DIR                       	'OBMEN|32|ObmenDir|Каталог обмена|0|smb://192.168.1.1/obmen',
+    OBMEN_USER                      	'OBMEN|33|ObmenUserName|Пользователь',
+    OBMEN_PASS                      	'OBMEN|34|ObmenPass|Пароль',
+    OBMEN_DOMAIN                    	'OBMEN|35|ObmenDomain|Домен',
+    OBMEN_FTP                       	'OBMEN|36|ObmenFtp|Включить FTP-обмен|1',
+    OBMEN_FTP_SERVER                	'OBMEN|37|ObmenFtpServer|FTP-сервер',
+    OBMEN_FTP_USER                  	'OBMEN|38|ObmenFtpUserName|FTP-логин',
+    OBMEN_FTP_PASS                  	'OBMEN|39|ObmenFtpPass|FTP-пароль',
+    OBMEN_FTP_DIR                   	'OBMEN|40|ObmenFtpDir|FTP-каталог обмена',
+    
+    UPDATEAPP_STARTUP					'UPD|51|UpdateAppStartUp|Проверять наличие обновления при старте приложения|1',
+    UPDATEAPP_SERVER					'UPD|52|UpdateAppServer|FTP-сервер|0|office.luxsoft.by',
+    UPDATEAPP_USER						'UPD|53|UpdateAppUser|Логин|0|tsd',
+    UPDATEAPP_PASS						'UPD|54|UpdateAppPassword|Пароль|0|tsd',
+    UPDATEAPP_DIR						'UPD|55|UpdateAppDir|Каталог'   
+}
 
-FORM exchangeFormats 'Форматы обмена'
-    OBJECTS f = ExchangeFormat
-    PROPERTIES(f) READONLY exchangeValue, exchangeName
-    LIST ExchangeFormat OBJECT f
-    ORDERS exchangeValue(f)
+CLASS Obmen 'Формат обмена' {
+    Obmen_SQLite '0|SQLite',
+    Obmen_CSV '1|CSV',
+    Obmen_XML '2|XML'
+}
+
+value (Obmen o) = STRING(getWord(staticCaption(o), '|',1));
+name 'Формат' (Obmen o) = STRING(getWord(staticCaption(o), '|',2));
+obmen (STRING s) = CASE 
+    WHEN s == 'SQLite' THEN Obmen.Obmen_SQLite
+    WHEN s == 'CSV' THEN Obmen.Obmen_CSV
+    WHEN s == 'XML' THEN Obmen.Obmen_XML
+;
+        
+FORM dialogObmen 'Формат обмена'
+    OBJECTS o = Obmen
+    PROPERTIES(o) READONLY name
+    LIST Obmen OBJECT o
+    ORDERS name(o);
+
+CLASS PreferenceType {
+    TYPE_STRING,
+    TYPE_NUMERIC,
+    TYPE_YESNO,
+    TYPE_TEXT
+}
+
+CLASS YesNo {
+    true 'true|Yes',
+    false 'false|No'
+}
+value (YesNo y) = STRING(getWord(staticCaption(y), '|',1));
+name (YesNo y) = STRING(getWord(staticCaption(y), '|',2));
+
+nameYesNo(STRING s) = CASE 
+    WHEN s = 'true' THEN name(YesNo.true)
+    WHEN s = 'false' THEN name(YesNo.false) MATERIALIZED;
+
+stringToYesNo(STRING s) = CASE 
+    WHEN s = 'Yes' THEN YesNo.true
+    WHEN s = 'No' THEN YesNo.false MATERIALIZED;
+
+
+FORM dialogYesNo 'Значение'
+    OBJECTS y = YesNo
+    PROPERTIES name(y) READONLY
+;
+
+getType(STRING s) = CASE 
+    WHEN s = '0' THEN PreferenceType.TYPE_STRING
+    WHEN s = '1' THEN PreferenceType.TYPE_YESNO
+    WHEN s = '2' THEN PreferenceType.TYPE_NUMERIC
+    WHEN s = '3' THEN PreferenceType.TYPE_TEXT
+    ELSE PreferenceType.TYPE_STRING;
+
+enable 'Вкл' (Preference p) = DATA BOOLEAN;
+nameGroup (Preference p) = STRING(getWord(staticCaption(p),'|', 1));
+order (Preference p) = STRING(getWord(staticCaption(p),'|', 2));
+namePreference (Preference p) = STRING(getWord(staticCaption(p),'|', 3));
+name 'Параметр' (Preference p) = STRING(getWord(staticCaption(p),'|', 4));
+defaultValue (Preference p) = STRING(getWord(staticCaption(p),'|', 6));
+value = DATA STRING[100] (Preference);
+type (Preference p) = getType(getWord(staticCaption(p),'|', 5));
+overValue 'Значение' (Preference p) =
+        OVERRIDE 'No' IF type(p) = PreferenceType.TYPE_YESNO AND NOT value(p),
+        OVERRIDE defaultValue(p) IF NOT value(p), value(p);
+foregroundLine (Preference p) = IF NOT enable(p) THEN RGB(169,169,169);
+
+overNameGroup 'Группа' (Preference p) = CASE
+    WHEN nameGroup(p) = 'GENERAL' THEN 'Основные настройки'
+    WHEN nameGroup(p) = 'ONLINE' THEN 'On-line настройки'
+    WHEN nameGroup(p) = 'OBMEN' THEN 'Обмен данными'
+    WHEN nameGroup(p) = 'UPD' THEN 'Обновление'
+    ELSE nameGroup(p);  
+
+TABLE preferences (Preference);
+
+FORM dialogText 'Текст'
+    OBJECTS s = TEXT PANEL
+    PROPERTIES(s) objValue = VALUE
+;
+
+DESIGN dialogText {
+	BOX {
+		size = (300, 150); 
+        MOVE PROPERTY(objValue) { fill = 1; caption = ''; focusable = FALSE; font = 'bold 16'; }                  
+	}
+	MOVE TOOLBARBOX; 
+}
+
+changePreferenceValue(Preference p)  {
+    CASE
+        WHEN p == Preference.OBMEN_TYPE THEN {           
+            DIALOG dialogObmen OBJECTS o = obmen(value(p)) INPUT DO {
+                value(p) <- name(o);
+            }
+        }
+        WHEN type(p) == PreferenceType.TYPE_TEXT THEN {
+            DIALOG dialogText OBJECTS s = value(p) INPUT DO {
+                value(p) <- s;
+            }        	           
+        }
+        WHEN type(p) == PreferenceType.TYPE_STRING THEN {
+            INPUT s = STRING DO {
+                value(p) <- s;
+            }
+        }
+        WHEN type(p) == PreferenceType.TYPE_NUMERIC THEN {
+            INPUT s = NUMERIC DO {
+                value(p) <- trim(TEXT(s));
+            }
+        }
+        WHEN type(p) == PreferenceType.TYPE_YESNO THEN {           
+            DIALOG dialogYesNo OBJECTS y = stringToYesNo(overValue(p)) INPUT DO {
+                value(p) <- name(y);
+            }
+        }
+}
+
+FORM preferences 'Конфигурация ТСД'
+    OBJECTS p = Preference    
+    PROPERTIES(p) FOREGROUND foregroundLine(p) enable, overNameGroup, name, overValue ON CHANGE changePreferenceValue(p), order SHOWIF NULL
+    ORDERS overNameGroup(p), order(p)
+;
+
+jsonValue(Preference p) = CASE
+    WHEN p = Preference.OBMEN_TYPE THEN value(obmen(overValue(p))) 
+    WHEN type(p) = PreferenceType.TYPE_YESNO THEN value(stringToYesNo(overValue(p)))
+    WHEN type(p) = PreferenceType.TYPE_NUMERIC THEN overValue(p)
+    ELSE '"' + overValue(p) + '"'
 ;
 
 terminalPreferencesJSON = DATA LOCAL STRING();
-
-CLASS TerminalPreferences 'Конфигурация ТСД';
-TABLE terminalPreferences (TerminalPreferences);
-
-name 'Наименование конфигурации' = DATA STRING[100] (TerminalPreferences);
-ID 'ID терминала' = DATA STRING[50] (TerminalPreferences);
-terminalPreferencesID = GROUP AGGR TerminalPreferences t BY ID(t);
-
-dbFile 'Файл базы данных' = DATA STRING[255] (TerminalPreferences);
-autoDocNum 'Автоматическая нумерация документа' = DATA BOOLEAN (TerminalPreferences);
-defaultVopDocument 'Код операции для документа' = DATA STRING[3] (TerminalPreferences);
-postVan 'Вид аналитики поставщика' = DATA STRING[5] (TerminalPreferences);
-weightTemplate 'Весовые шаблоны' = DATA TEXT (TerminalPreferences);
-voice 'Голосовые сообщения' = DATA BOOLEAN (TerminalPreferences);
-fieldDate1Alias 'Дата 1' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 30;
-fieldDate2Alias 'Дата 2' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 30;
-fieldField1Alias 'Поле 1' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 30;
-fieldField2Alias 'Поле 2' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 30;
-fieldField3Alias 'Поле 3' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 30;
-menuIk 'Проверка цен' = DATA BOOLEAN (TerminalPreferences);
-menuCheckOrderPicking 'Проверка комплектации заказа' = DATA BOOLEAN (TerminalPreferences);
-
-onlineEnable 'Включить On-line обмена с сервером' = DATA BOOLEAN (TerminalPreferences);
-onlineServer 'Имя/IP-адрес сервера' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 15;
-onlinePort 'Порт сервера' = DATA INTEGER (TerminalPreferences);
-onlineSendOrderStatus 'Передавать статус заказов' = DATA BOOLEAN (TerminalPreferences);
-
-mobCennikEnable 'Включить мобильную печать ценников' = DATA BOOLEAN (TerminalPreferences);
-mobCennikVop 'Код операции для On-line ценника' = DATA STRING[3] (TerminalPreferences);
-
-exchangeFormat = DATA ExchangeFormat (TerminalPreferences);
-exchangeFormatName 'Формат файлового обмена' (TerminalPreferences t) = staticCaption(exchangeFormat(t));
-exchangeDir 'Каталог' = DATA STRING[255] (TerminalPreferences);
-exchangeUser 'Пользователь' = DATA STRING[30] (TerminalPreferences);
-exchangePass 'Пароль' = DATA STRING[30] (TerminalPreferences);
-exchangeDomain 'Домен' = DATA STRING[30] (TerminalPreferences);
-exchangeFtp 'Включить FTP-обмен' = DATA BOOLEAN (TerminalPreferences);
-exchangeFtpServer 'FTP-cервер' = DATA STRING[50] (TerminalPreferences) CHARWIDTH 50;
-exchangeFtpUser 'Пользователь' = DATA STRING[30] (TerminalPreferences);
-exchangeFtpPass 'Пароль' = DATA STRING[30] (TerminalPreferences);
-exchangeFtpDir 'Каталог' = DATA STRING[30] (TerminalPreferences);
-
-updateAppStartUp 'Автоматическая проверка обновления' = DATA BOOLEAN (TerminalPreferences);
-updateAppServer 'FTP-сервер' = DATA STRING[50] (TerminalPreferences) CHARWIDTH 50;
-updateAppUser 'Пользователь' = DATA STRING[30] (TerminalPreferences);
-updateAppPass 'Пароль' = DATA STRING[30] (TerminalPreferences);
-updateAppDir 'Каталог' = DATA STRING[30] (TerminalPreferences);
-
-FORM terminalPreferences 'Конфигурация ТСД'
-    OBJECTS t=TerminalPreferences PANEL
-    PROPERTIES(t) name, ID
-    
-    PROPERTIES(t) dbFile
-    PROPERTIES(t) autoDocNum    
-    PROPERTIES(t) defaultVopDocument
-    PROPERTIES(t) postVan
-    PROPERTIES(t) weightTemplate
-    PROPERTIES(t) voice
-    PROPERTIES(t) fieldDate1Alias
-    PROPERTIES(t) fieldDate2Alias
-    PROPERTIES(t) fieldField1Alias
-    PROPERTIES(t) fieldField2Alias
-    PROPERTIES(t) fieldField3Alias
-    PROPERTIES(t) menuIk, menuCheckOrderPicking
-    
-    PROPERTIES(t) mobCennikEnable, mobCennikVop
-        
-    PROPERTIES(t) exchangeFormatName
-    PROPERTIES(t) exchangeUser
-    PROPERTIES(t) exchangePass
-    PROPERTIES(t) exchangeDir
-    PROPERTIES(t) exchangeDomain
-    PROPERTIES(t) exchangeFtp
-    PROPERTIES(t) exchangeFtpServer
-    PROPERTIES(t) exchangeFtpUser
-    PROPERTIES(t) exchangeFtpPass
-    PROPERTIES(t) exchangeFtpDir
-    
-    PROPERTIES(t) onlineEnable, onlineServer, onlinePort, onlineSendOrderStatus
-    
-    PROPERTIES(t) updateAppStartUp
-    PROPERTIES(t) updateAppServer
-    PROPERTIES(t) updateAppUser
-    PROPERTIES(t) updateAppPass
-    PROPERTIES(t) updateAppDir
-        
-    EDIT TerminalPreferences OBJECT t    
-;
-
-initDefaultValues (TerminalPreferences tp)  {
-         
-    dbFile(tp) <- 'tsd.db';
-    postVan(tp) <- 'ПС'; 
-    weightTemplate(tp) <- '20TTTTTWWWWW'; 
-    menuIk(tp) <- TRUE;
-    //menuCheckOrderPicking(tp) <- FALSE;
-    
-    onlinePort(tp) <- 2004;
-    
-    updateAppServer(tp) <- 'office.luxsoft.by';
-    updateAppUser(tp) <- 'tsd';
-    updateAppPass(tp) <- 'tsd';
-}
 
 getTerminalPreferences(terminalID) {
 
     LOCAL json = STRING();
     json() <- '';
     
-    FOR TerminalPreferences t IS TerminalPreferences AND (NOT ID(t) OR ID(t) == terminalID) DO {
-            
-        json() <- json() + '"DatabaseName":"' + (OVERRIDE dbFile(t), '') + '",';
-        json() <- json() + '"AutoDocumentNumbering":' + (IF autoDocNum(t) THEN 'true' ELSE 'false') + ',';
-        json() <- json() + '"DefaultDocumentVop":"' + (OVERRIDE defaultVopDocument(t), '') + '",';
-        json() <- json() + '"PostVan":"' + (OVERRIDE postVan(t), '') + '",';
-        json() <- json() + '"VesTemplate":"' + (OVERRIDE weightTemplate(t), '') + '",';             
-        json() <- json() + '"Voice":' + (IF voice(t) THEN 'true' ELSE 'false') + ',';
-        json() <- json() + '"AliasDate1":"' + (OVERRIDE fieldDate1Alias(t), '') + '",';
-        json() <- json() + '"AliasDate2":"' + (OVERRIDE fieldDate2Alias(t), '') + '",';
-        json() <- json() + '"AliasField1":"' + (OVERRIDE fieldField1Alias(t), '') + '",';
-        json() <- json() + '"AliasField2":"' + (OVERRIDE fieldField2Alias(t), '') + '",';
-        json() <- json() + '"AliasField3":"' + (OVERRIDE fieldField3Alias(t), '') + '",';
-        json() <- json() + '"ShowMenuIk":' + (IF menuIk(t) THEN 'true' ELSE 'false') + ',';
-        json() <- json() + '"ShowMenuCheckOrderPicking":' + (IF menuCheckOrderPicking(t) THEN 'true' ELSE 'false') + ',';
-            
-        json() <- json() + '"MobCennikEnable":' + (IF mobCennikEnable(t) THEN 'true' ELSE 'false') + ',';
-        json() <- json() + '"MobCennikVop":"' + (OVERRIDE mobCennikVop(t), '') + '",';
-                        
-        json() <- json() + '"ObmenType":"' + exchangeValue(exchangeFormat(t)) + '",';
-        json() <- json() + '"ObmenUserName":"' + (OVERRIDE exchangeUser(t), '') + '",';
-        json() <- json() + '"ObmenPass":"' + (OVERRIDE exchangePass(t), '') + '",';
-        json() <- json() + '"ObmenDir":"' + (OVERRIDE exchangeDir(t), '') + '",';
-        json() <- json() + '"ObmenDomain":"' + (OVERRIDE exchangeDomain(t), '') + '",';
-        json() <- json() + '"ObmenFtp":' + (IF exchangeFtp(t) THEN 'true' ELSE 'false') + ',';
-        json() <- json() + '"ObmenFtpServer":"' + (OVERRIDE exchangeFtpServer(t), '') + '",';
-        json() <- json() + '"ObmenFtpUserName":"' + (OVERRIDE exchangeFtpUser(t), '') + '",';
-        json() <- json() + '"ObmenFtpPass":"' + (OVERRIDE exchangeFtpPass(t), '') + '",';
-        json() <- json() + '"ObmenFtpDir":"' + (OVERRIDE exchangeFtpDir(t), '') + '",';
-    
-        json() <- json() + '"OnlineEnable":' + (IF onlineEnable(t) THEN 'true' ELSE 'false') + ',';
-        IF onlineServer(t) THEN json() <- json() + '"OnlineServer":"' + onlineServer(t) + '",';
-        IF onlinePort(t) THEN json() <- json() + '"OnlinePort":"' + onlinePort(t) + '",';
-        json() <- json() + '"OnlineSendOrderStatus":' + (IF onlineSendOrderStatus(t) THEN 'true' ELSE 'false') + ',';
-    
-        json() <- json() + '"UpdateAppStartUp":' + (IF updateAppStartUp(t) THEN 'true' ELSE 'false') + ',';
-        json() <- json() + '"UpdateAppServer":"' + (OVERRIDE updateAppServer(t), '') + '",';
-        json() <- json() + '"UpdateAppUser":"' + (OVERRIDE updateAppUser(t), '') + '",';
-        json() <- json() + '"UpdateAppPassword":"' + (OVERRIDE updateAppPass(t), '') + '",';
-        json() <- json() + '"UpdateAppDir":"' + (OVERRIDE updateAppDir(t), '') + '"';              
+    FOR Preference p IS Preference AND enable(p) DO {
+        IF length(json()) > 0 THEN json() <- json() + ','; 
+        json() <- json() + '"' + namePreference(p) + '":' + (OVERRIDE jsonValue(p), '');
     }
-
     IF length(json()) > 0 THEN json() <- '[\{' + json() + '\}]'; ELSE json() <- NULL;
     
     terminalPreferencesJSON() <- json();
 }
 
-FORM terminalsPreferences 'Конфигурация ТСД'
-    OBJECTS t=TerminalPreferences
-    PROPERTIES(t) READONLY name, ID
-    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE    
-;
-
-EXTEND FORM terminalPreferences
-    EVENTS ON INIT {
-//        initDefaultValues(t);
-    }      
-;
-
-DESIGN terminalPreferences {
-    
-    NEW orderPane FIRST {
-        fill = 1;
-        type = CONTAINERV;
-        
-        NEW box {
-            type = CONTAINERH;
-            MOVE PROPERTY(name(t));        
-            MOVE PROPERTY(ID(t));
-        }
-        
-        NEW preferences {
-            fill = 1;
-            type = TABBED;
-            NEW general {
-                caption = 'Основные';
-                fill = 0;
-                type = CONTAINERV;
-                MOVE PROPERTY(dbFile(t));   
-                MOVE PROPERTY(autoDocNum(t));
-                MOVE PROPERTY(weightTemplate(t));
-                MOVE PROPERTY(defaultVopDocument(t));
-                MOVE PROPERTY(postVan(t));
-                MOVE PROPERTY(voice(t));
-                NEW fieldsAliases {
-                    caption = 'Наименования полей ввода';
-                    fill = 1;
-                    type = CONTAINERV;
-                    MOVE PROPERTY(fieldDate1Alias(t));
-                    MOVE PROPERTY(fieldDate2Alias(t));
-                    MOVE PROPERTY(fieldField1Alias(t));
-                    MOVE PROPERTY(fieldField2Alias(t));
-                    MOVE PROPERTY(fieldField3Alias(t));
-                }
-                NEW mainMenu {
-                    caption = 'Главное меню';
-                    fontStyle = 'bold';
-                    fill = 1;
-                    type = CONTAINERV;
-                    MOVE PROPERTY(menuIk(t));
-                    MOVE PROPERTY(menuCheckOrderPicking(t));
-                }                                  
-            }
-            NEW cennik {
-                caption = 'Печать ценников';
-                fill = 0;
-                type = CONTAINERV;
-                MOVE PROPERTY(mobCennikEnable(t));        
-                MOVE PROPERTY(mobCennikVop(t));
-            }            
-            NEW online {
-                caption = 'On-line настройки';
-                fill = 0;
-                type = CONTAINERV;
-                MOVE PROPERTY(onlineEnable(t));        
-                MOVE PROPERTY(onlineServer(t));
-                MOVE PROPERTY(onlinePort(t));
-                MOVE PROPERTY(onlineSendOrderStatus(t));
-            }
-            NEW obmen {
-                caption = 'Обмен';
-                fill = 0;
-                type = CONTAINERV;
-                MOVE PROPERTY(exchangeFormatName(t)); 
-                NEW filesObmen {
-                    caption = 'Сетевой обмен';
-                    fill = 1;
-                    type = CONTAINERV;
-                    MOVE PROPERTY(exchangeDir(t));
-                    MOVE PROPERTY(exchangeUser(t));
-                    MOVE PROPERTY(exchangePass(t));
-                    MOVE PROPERTY(exchangeDomain(t));
-                }                                  
-                NEW ftpObmen {
-                    caption = 'FTP обмен';
-                    fill = 1;
-                    type = CONTAINERV;
-                    MOVE PROPERTY(exchangeFtp(t));
-                    MOVE PROPERTY(exchangeFtpServer(t));
-                    MOVE PROPERTY(exchangeFtpUser(t));
-                    MOVE PROPERTY(exchangeFtpPass(t));
-                    MOVE PROPERTY(exchangeFtpDir(t));
-                }                                                     
-            } 
-            NEW updateApp {
-                caption = 'Обновление приложения';
-                fill = 0;
-                type = CONTAINERV;
-                MOVE PROPERTY(updateAppStartUp(t));
-                MOVE PROPERTY(updateAppServer(t));
-                MOVE PROPERTY(updateAppUser(t));
-                MOVE PROPERTY(updateAppPass(t));
-                MOVE PROPERTY(updateAppDir(t));
-            }                                                          
-        }
-    }
-}
-
 NAVIGATOR {
     terminalNavigator {
-        NEW terminalsPreferences;
+        NEW preferences;
     }
 }
