@@ -2494,12 +2494,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             query.addProperty("idBarcode", machineryPriceTransactionBatchLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
 
             String[] names = new String[]{"idBatch", "expiryDate", "seriesPharmacy", "nameManufacturer", "price",
-                    "balance", "balanceDate", "flag"};
+                    "nameATCGroup", "balance", "balanceDate", "sidOrigin3Country", "nameCountry", "flag"};
             LP[] properties = machineryPriceTransactionBatchLM.findProperties("id[MachineryPriceTransaction,Barcode,Batch]",
                     "expiryDate[MachineryPriceTransaction,Barcode,Batch]", "seriesPharmacy[MachineryPriceTransaction,Barcode,Batch]",
                     "nameManufacturer[MachineryPriceTransaction,Barcode,Batch]", "price[MachineryPriceTransaction,Barcode,Batch]",
-                    "balance[MachineryPriceTransaction,Barcode,Batch]", "balanceDate[MachineryPriceTransaction,Barcode,Batch]",
-                    "flag[MachineryPriceTransaction,Barcode,Batch]");
+                    "nameATCGroup[MachineryPriceTransaction,Barcode,Batch]", "balance[MachineryPriceTransaction,Barcode,Batch]",
+                    "balanceDate[MachineryPriceTransaction,Barcode,Batch]", "sidOrigin3Country[MachineryPriceTransaction,Barcode,Batch]",
+                    "nameCountry[MachineryPriceTransaction,Barcode,Batch]", "flag[MachineryPriceTransaction,Barcode,Batch]");
             for (int i = 0; i < properties.length; i++) {
                 query.addProperty(names[i], properties[i].getExpr(transactionExpr, barcodeExpr, batchExpr));
             }
@@ -2518,15 +2519,16 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 String seriesPharmacy = getRowValue(row, "seriesPharmacy");
                 String nameManufacturer = getRowValue(row, "nameManufacturer");
                 BigDecimal price = (BigDecimal) row.get("price");
-                String nameSubstance = "inn1,inn2"; //todo: пока непонятно, откуда брать, "inn1,inn2" - из примера
+                String nameSubstance = getRowValue(row, "nameATCGroup");
                 BigDecimal balance = (BigDecimal) row.get("balance");
                 LocalDateTime balanceDate = (LocalDateTime) row.get("balanceDate");
-                String countryCode = "933"; //todo: пока непонятно, откуда брать, 933 - из примера
+                String countryCode = getRowValue(row, "sidOrigin3Country");
+                String countryName = getRowValue(row, "nameCountry");
                 Integer flag = (Integer) row.get("flag");
 
                 List<CashRegisterItemBatch> batchList = result.getOrDefault(barcode, new ArrayList<>());
                 batchList.add(new CashRegisterItemBatch(idBatch, expiryDate, seriesPharmacy, nameManufacturer,
-                        price, nameSubstance, balance, balanceDate, countryCode, flag));
+                        price, nameSubstance, balance, balanceDate, countryCode, countryName, flag));
                 result.put(barcode, batchList);
             }
         }

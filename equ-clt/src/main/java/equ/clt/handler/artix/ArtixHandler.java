@@ -208,6 +208,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 if(item.batchList != null) {
                                     for(CashRegisterItemBatch batch : item.batchList) {
                                         if (!Thread.currentThread().isInterrupted()) {
+                                            String country = getAddCountryJSON(batch);
+                                            if (country != null) {
+                                                writeStringToFile(tmpFile, country + "\n---\n");
+                                            }
                                             String medicine = getAddMedicineJSON(item, batch, appendBarcode);
                                             if (medicine != null) {
                                                 writeStringToFile(tmpFile, medicine + "\n---\n");
@@ -353,13 +357,27 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
+    Set<String> usedCountries = new HashSet<>();
+    private String getAddCountryJSON(CashRegisterItemBatch batch) throws JSONException {
+        if(!usedCountries.contains(batch.countryCode)) {
+            usedCountries.add(batch.countryCode);
+            JSONObject rootObject = new JSONObject();
+            JSONObject medicineObject = new JSONObject();
+            rootObject.put("country", medicineObject);
+            medicineObject.put("code", batch.countryCode);
+            medicineObject.put("name", batch.countryName);
+            rootObject.put("command", "addCountry");
+            return rootObject.toString();
+        } else return null;
+    }
+
     private String getAddMedicineJSON(CashRegisterItem item, CashRegisterItemBatch batch, boolean appendBarcode) throws JSONException {
         JSONObject rootObject = new JSONObject();
         JSONObject medicineObject = new JSONObject();
         rootObject.put("medicine", medicineObject);
         medicineObject.put("code", item.idItem);
         medicineObject.put("party", batch.idBatch);
-        medicineObject.put("barcode", removeCheckDigitFromBarcode(item.idBarcode, appendBarcode));
+        medicineObject.put("barcode", removeCheckDigitFromBarcode(item.mainBarcode, appendBarcode));
         medicineObject.put("shelflife", batch.expiryDate); //"2077-01-01" todo: check format
         medicineObject.put("series", batch.seriesPharmacy);
         medicineObject.put("producer", batch.nameManufacturer);
