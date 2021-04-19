@@ -1,0 +1,46 @@
+MODULE LotInitReplace;
+
+REQUIRE LotInit, SkuLedgerLot;
+
+NAMESPACE Lot;
+
+replaceLot = DATA Lot (LotInitDetail, Lot) INDEXED;
+idReplaceLot 'Замена' (LotInitDetail d, Lot l) = id(replaceLot(d, l));
+
+CONSTRAINT replaceLot(LotInitDetail d, Lot l) AND NOT sku(d) = sku(replaceLot(d, l))
+           CHECKED BY replaceLot[LotInitDetail, Lot] MESSAGE 'Sku марки замены должен соответствовать sku строки ввода в оборот';
+
+idReplaceLot 'Замена с' (LotInitDetail d) = GROUP CONCAT idReplaceLot(d, Lot l), ',' ORDER l CHARWIDTH 30;
+
+FORM replaceLots 'Замена марок'
+    OBJECTS d = LotInitDetail PANEL
+    
+    OBJECTS lt = Lot
+    PROPERTIES READONLY id(lt), quantity(d, lt)
+    PROPERTIES idReplaceLot(d, lt) ON CHANGE { DIALOG dialogStockLot OBJECTS s = stock(d), l = replaceLot(d, lt) CHANGE FILTERS sku(l) = sku(d); }
+    FILTERS quantity(d, lt)
+;
+changeReplaceLot (LotInitDetail d) {
+    SHOW replaceLots OBJECTS d = d;
+}
+
+EXTEND FORM lotInit
+    PROPERTIES(d) idReplaceLot ON CHANGE changeReplaceLot(d)
+;
+
+EXTEND FORM lotInits
+    PROPERTIES(d) READONLY idReplaceLot 
+;
+
+CLASS ReplaceLotLedger 'Списание при замене марки' : LotLedger;
+
+replaceLotLedger = AGGR ReplaceLotLedger WHERE quantity(LotInitDetail detail, Lot lot) AND replaceLot(detail, lot) MATERIALIZED INDEXED; 
+
+active(ReplaceLotLedger l) += isPosted(detail(l));
+
+dateTime(ReplaceLotLedger l) += dateTime(detail(l));
+description(ReplaceLotLedger l) += ISTRING[200](CONCAT ' ', 'Замена марки', '№ ' + seriesNumber(detail(l)), 'от ' + date(detail(l)));
+
+stock(ReplaceLotLedger l) += stock(detail(l));
+
+quantity(ReplaceLotLedger li, Lot lr) += -quantity(detail(li), lot(li)) IF lr = replaceLot(detail(li), lot(li));
