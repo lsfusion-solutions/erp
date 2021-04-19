@@ -1,8 +1,44 @@
 MODULE GISMTLotInit;
 
-REQUIRE GISMTDocument, LotInit, SkuLedgerLot;
+REQUIRE GISMTDocument, GISMTSku, LotInit, SkuLedgerLot;
 
 NAMESPACE GISMT;
+
+// action
+CLASS LotInitAction 'Тип ввода в оборот' {
+    LP_INTRODUCE_OST 'Маркировка остатков',
+    LK_REMARK 'Перемаркировка'
+}
+id 'Код' (LotInitAction o) = STRING[100](rtrim(getWord(staticName(o),'.',2),'_')) IF o IS LotInitAction CHARWIDTH 10;
+name '{master.data.name}' (LotInitAction o) = staticCaption(o) IF o IS LotInitAction CHARWIDTH 15;
+
+FORM dialogLotInitActions 'Тип ввода в оборот'
+    OBJECTS o = LotInitAction
+    PROPERTIES(o) READONLY name
+    
+    LIST LotInitAction OBJECT o
+;
+
+action = DATA LotInitAction (LotInit) NONULL;
+idAction (LotInit i) = id(action(i));
+nameAction 'Тип' (LotInit i) = name(action(i));
+
+EXTEND FORM lotInit
+    PROPERTIES(i) nameAction
+;
+DESIGN lotInit {
+    header {
+        NEW headerRow3 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(nameAction(i)) { notNull = TRUE; }
+        }
+    } 
+}
+
+EXTEND FORM lotInits
+    PROPERTIES(i) READONLY nameAction
+;
 
 DESIGN lotInits {
     tabbedPane {
@@ -17,7 +53,7 @@ EXTEND CLASS LotInit : Document;
 id (LotInit i) += Lot.id(i);
 dateTime (LotInit i) += Lot.dateTime(i);
 type (LotInit i) += Lot.type(i);
-gismtType (LotInit i) += 'LP_INTRODUCE_OST' IF i IS LotInit;
+gismtType (LotInit i) += idAction(i);
 
 legalEntity (LotInit i) += legalEntityStock(i);
 
@@ -26,13 +62,58 @@ canceled(LotInit i) += Lot.canceled(i);
 
 toCreate(LotInit i) += i IS LotInit AND NOT Lot.id(i) AND NOT Lot.canceled(i);
 
-FORM exportLotInit
+// ost
+FORM exportLotInitOst
     OBJECTS i = LotInit PANEL
     
     PROPERTIES trade_participant_inn = inn(legalEntityStock(i))
     
     OBJECTS products_list = (d = LotInitDetail, l = Lot)
     PROPERTIES ki = id(l)
+    FILTERS lotInit(d) = i, quantity(d, l)
+;
+
+// remark
+CLASS RemarkingCause 'Причина перемаркировки' {
+    KM_SPOILED 'испорчено либо утеряно СИ с КМ',
+    DESCRIPTION_ERRORS 'выявлены ошибки описания товара',
+    RETAIL_RETURN 'возврат товаров с поврежденным СИ/без СИ при розничной реализации (возврат от розничного покупателя)',
+    REMOTE_SALE_RETURN 'возврат товаров с поврежденным СИ/без СИ при дистанционном способе продажи (возврат в случае дистанционной продажи)',
+    LEGAL_RETURN 'возврат от конечного покупателя (юр. лица/ИП)',
+    INTERNAL_RETURN 'решение о реализации товаров, приобретённых в целях, не связанных с их реализацией',
+    EEC_EXPORT_RETURN 'возврат ранее экспортированного в ЕАЭС'
+}
+id 'Код' (RemarkingCause o) = STRING[100](rtrim(getWord(staticName(o),'.',2),'_')) IF o IS RemarkingCause CHARWIDTH 10;
+name '{master.data.name}' (RemarkingCause o) = staticCaption(o) IF o IS RemarkingCause CHARWIDTH 40;
+
+cause = DATA RemarkingCause (LotInit);
+idCause (LotInit i) = id(cause(i));
+nameCause 'Причина маркировки' (LotInit i) = name(cause(i));
+
+EXTEND FORM lotInit
+    PROPERTIES(i) nameCause SHOWIF action(i) = LotInitAction.LK_REMARK
+;
+DESIGN lotInit {
+    headerRow3 {
+        MOVE PROPERTY(nameCause(i));
+    }
+}
+
+EXTEND FORM lotInits
+    PROPERTIES(i) READONLY nameCause
+;
+
+FORM exportLotInitRemark
+    OBJECTS i = LotInit PANEL
+    
+    PROPERTIES participant_inn = inn(legalEntityStock(i)),
+               remarking_date = replace(toChar(dateTime(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ',''),
+               remarking_cause = idCause(i)
+    
+    OBJECTS products = (d = LotInitDetail, l = Lot)
+    PROPERTIES new_uin = id(l),
+               tnved_10 = tnved(sku(d)),
+               production_country = sid(country(sku(d)))
     FILTERS lotInit(d) = i, quantity(d, l)
 ;
 
@@ -43,8 +124,12 @@ export (LotInit i) + {
             GROUP CONCAT (CONCAT ' ', id(Sku sk), name(sk), idBarcode(sk)) IF excess(sk, i), '\n' ORDER sk;
         stopCreate() <- TRUE;
         RETURN;        
-    } 
-    EXPORT exportLotInit OBJECTS i = i JSON;
+    }
+    CASE 
+        WHEN action(i) = LotInitAction.LP_INTRODUCE_OST THEN
+            EXPORT exportLotInitOst OBJECTS i = i JSON;
+        WHEN action(i) = LotInitAction.LK_REMARK THEN
+            EXPORT exportLotInitRemark OBJECTS i = i JSON;
 }
 
 EXTEND FORM lotInits
