@@ -26,7 +26,7 @@ DESIGN options {
 createAttribute(MachineryPriceTransaction t) + {
     in(t, Barcode barcode, Batch batch) <- TRUE 
         WHERE in(t, barcode) AND price(batch, barcode, groupMachinery(t)) AND 
-              (balance(batch, barcode, stock(t)) OR countLedger(batch, stock(t), subtract(currentDate(),(OVERRIDE countDaysSendBatches(),7)), currentDate()));
+              (balance(batch, barcode, stock(t)) OR countLedger(batch, stock(t), subtract(currentDate(),(OVERRIDE countDaysSendBatches(),7)), currentDate()));            
 }
 
 name 'Наименование' = DATA STRING[255] (MachineryPriceTransaction, Barcode, Batch);
@@ -159,6 +159,10 @@ META defineMachineryPriceTransactionAttributeStockBatch(object, caption, type)
     object(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
     @defineMachineryPriceTransactionAttributeStockActionBatch(type, object, caption, );
 END
+
+createAttribute(MachineryPriceTransaction t) + {
+    price(t, Barcode barcode, Batch bt) <- price(bt, barcode, groupMachinery(t)) WHERE in(t, barcode, bt);              
+}
 
 balanceToDate 'Загружать в оборудование остатки на дату/время транзакции' = DATA BOOLEAN ();
 EXTEND FORM options
