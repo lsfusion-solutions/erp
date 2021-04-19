@@ -42,6 +42,11 @@ overOKPOSupplier 'ОКПО получателя' = ABSTRACT STRING[50] (Consignm
 extraOKPOSupplier 'ОКПО получателя' = ABSTRACT STRING[50] (Consignment);
 OKPOSupplier 'ОКПО отправителя' (Consignment consignment) = OVERRIDE overOKPOSupplier(consignment), extraOKPOSupplier(consignment), okpo(supplier(consignment));
 
+overOKDPSupplier 'ОКДП получателя' = ABSTRACT STRING[50] (Consignment);
+extraOKDPSupplier 'ОКДП получателя' = ABSTRACT STRING[50] (Consignment);
+OKDPSupplier 'ОКДП получателя' (Consignment consignment) = OVERRIDE overOKDPSupplier(consignment), extraOKDPSupplier(consignment), okdp(supplier(consignment));
+
+
 overAddressSupplier = ABSTRACT ISTRING[150] (Consignment);
 addressSupplier 'Юр. адрес отправителя' (Consignment consignment) =
     OVERRIDE overAddressSupplier(consignment), address(supplier(consignment), date(consignment)) CHARWIDTH 30;
@@ -276,13 +281,17 @@ sumVAT 'Сумма НДС' (ConsignmentDetail d) = dataSumVAT(d);
 dataSumConsignment 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
 sumConsignment 'Сумма с НДС' (ConsignmentDetail d) = dataSumConsignment(d);
 
-dataSumConsignmentDetail 'Сумма с НДС' = ABSTRACT CASE NUMERIC[18,4] (Consignment);
+dataSumConsignmentDetail 'Сумма с НДС' = ABSTRACT NUMERIC[18,4] (Consignment);
 sumConsignmentDetail 'Сумма с НДС' (Consignment consignment) = dataSumConsignmentDetail(consignment);
 
-dataVATSumConsignmentDetail 'Сумма НДС' = ABSTRACT CASE NUMERIC[18,4] (Consignment);
+dataVATSumConsignmentDetail 'Сумма НДС' = ABSTRACT NUMERIC[18,4] (Consignment);
 VATSumConsignmentDetail 'Сумма НДС' (Consignment consignment) = dataVATSumConsignmentDetail(consignment);
 
+includeOrders 'Заказы в накладной' = ABSTRACT STRING[2550] (Consignment);
+
 banPrint 'Запрет печати' = ABSTRACT CASE BOOLEAN (Consignment);
+
+shipmentSumTotal 'Учетная сумма по документу' (Consignment consignment) = GROUP SUM shipmentSum(ConsignmentDetail d) BY consignment(d);
 
 changeIssuanceExecuted(Consignment consignment)  {    
     IF notUseIssuanceExecuted(consignment) THEN {
@@ -347,19 +356,43 @@ printConsignmentCustomerRu 'Счет покупателю (xls)' (Consignment c)
 } IMAGE 'print.png' IN print;
 
    
+FORM consignmentTTNARu 'Товарно-транспортная накладная (сторона А)'
+     OBJECTS c = Consignment PANEL SUBREPORT
+     PROPERTIES(c) includeOrders, fullNameSupplier, addressSupplier, fullNameCustomer, addressCustomer, number, date
+;   
+ 
+printConsignmentTTNARu 'Товарно-транспортная накладная (сторона А) (xls)' (Consignment c)  { 
+    PRINT consignmentTTNARu OBJECTS c = c XLS;
+} IMAGE 'print.png' IN print;
+   
+FORM consignmentTTNBRu 'Товарно-транспортная накладная (сторона Б)'
+    OBJECTS c = Consignment PANEL SUBREPORT
+    PROPERTIES(c) includeOrders
+;   
+
+printConsignmentTTNBRu 'Товарно-транспортная накладная (сторона Б) (xls)' (Consignment c)  { 
+    PRINT consignmentTTNBRu OBJECTS c = c XLS;
+} IMAGE 'print.png' IN print;  
+
+printConsignmentTTNABRu 'Товарно-транспортная накладная (сторона А/Б) (xls)' (Consignment c)  { 
+    PRINT consignmentTTNARu OBJECTS c = c XLS;
+    PRINT consignmentTTNBRu OBJECTS c = c XLS;
+} IMAGE 'print.png' IN print;
+   
 FORM consignmentTorg13 'ТОРГ-13'
     OBJECTS c=Consignment PANEL
 
     PROPERTIES (c) date, number, 
-                   fullNameSupplier, addressSupplier, emailSupplier, siteSupplier, phoneSupplier, OKPOSupplier,
+                   fullNameSupplier, addressSupplier, emailSupplier, siteSupplier, phoneSupplier, 
+                   OKPOSupplier, OKDPSupplier,
                    nameSupplierStock, nameCustomerStock, 
                    nameIssuanceExecuted,
                    positionIssuanceExecuted, 
                    nameForwarder,
-                   positionForwarder                   
+                   positionForwarder,
+                   shipmentSumTotal                  
                    
-    OBJECTS d=ConsignmentDetail
-    
+    OBJECTS d=ConsignmentDetail SUBREPORT   
     PROPERTIES(d) shortNameUOMSku, nameSku, 
                   quantity, barCode, shortNameUOM, idUOM, 
                   grossWeight, netWeight, 
@@ -376,14 +409,16 @@ FORM consignmentTorg12 'ТОРГ-12'
     OBJECTS c=Consignment PANEL
 
     PROPERTIES (c) fullNameSupplier, addressSupplier, emailSupplier, siteSupplier, phoneSupplier, OKPOSupplier, INNSupplier,
+                   OKDPSupplier,
                    fullNameCustomer, addressCustomer, emailCustomer, siteCustomer, phoneCustomer, OKPOCustomer, INNCustomer,
                    nameSupplierStock,
                    date, number,
                    nameCustomerStock, 
                    descriptionContract,
                    nameIssuanceExecuted, positionIssuanceExecuted, 
-                   nameForwarder, positionForwarder
-    OBJECTS d=ConsignmentDetail
+                   nameForwarder, positionForwarder,
+                   sumConsignmentDetail
+    OBJECTS d=ConsignmentDetail SUBREPORT
     
     PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
                   quantity, 
@@ -406,8 +441,8 @@ FORM consignmentUPD 'Универсальный передаточный док�
                    descriptionContract,
                    nameIssuanceExecuted, positionIssuanceExecuted, 
                    nameForwarder, positionForwarder
-    OBJECTS d=ConsignmentDetail
-    
+                   
+    OBJECTS d=ConsignmentDetail  SUBREPORT    
     PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
                   quantity, 
                   grossWeight, 
@@ -420,10 +455,6 @@ FORM consignmentUPD 'Универсальный передаточный док�
 ;
  
 printConsignmentUPD 'Универсальный передаточный документ' (Consignment consignment) { PRINT consignmentUPD OBJECTS c = consignment;} IMAGE 'print.png' IN print;    
-
-
-
-
 
 FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment PANEL
