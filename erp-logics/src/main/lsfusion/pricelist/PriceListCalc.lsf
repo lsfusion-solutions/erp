@@ -142,6 +142,16 @@ priceA(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += p
 
 //backgroundMarkup 'Цвет' (CalcPriceListType calcPriceListType, Group group) = RGB(255,160,160) IF dataMarkup(calcPriceListType, group);
 
+allowChangeMarkup 'Разрешить менять надбавки по группам Priority' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () allowChangeMarkup
+;
+DESIGN options{
+    price{
+        MOVE PROPERTY (allowChangeMarkup());
+    }
+}
+
 FORM calcPriceListType 'Расчетный вид цен'
     OBJECTS c = CalcPriceListType PANEL
     PROPERTIES(c) name, id SHOWIF showIDs(), includeVAT[PriceListType], nameCurrency, nameCountry, nameBasePriceListType,
@@ -152,7 +162,7 @@ FORM calcPriceListType 'Расчетный вид цен'
     FILTERS groupType(g) == groupType(c)
     ORDERS order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
-    PROPERTIES(c, g) dataMarkup , markup BACKGROUND backgroundMarkup(c,g), nameDataRoundCondition, nameNearestRoundConditionCalc READONLY 
+    PROPERTIES(c, g) dataMarkup , markup BACKGROUND backgroundMarkup(c,g) READONLYIF (NOT allowChangeMarkup()), nameDataRoundCondition, nameNearestRoundConditionCalc READONLY 
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY name, idBarcode
