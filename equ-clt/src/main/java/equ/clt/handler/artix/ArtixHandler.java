@@ -33,6 +33,7 @@ import java.util.regex.Pattern;
 
 import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
+import static lsfusion.base.BaseUtils.nvl;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
@@ -332,6 +333,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             itemOptions.put("inventitemoptions", inventItemOptions);
 
             inventObject.put("options", itemOptions);
+
+            //кол-во блистеров в упаковке
+            if(item.batchList != null) {
+                Integer blisterAmount = 0;
+                for (CashRegisterItemBatch batch : item.batchList) {
+                    blisterAmount = Math.max(blisterAmount, nvl(batch.blisterAmount, 0));
+                }
+                inventObject.put("cquant", blisterAmount);
+            }
 
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
