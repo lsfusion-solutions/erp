@@ -6,11 +6,25 @@ NAMESPACE Tools;
 
 @defineLogRotate(databaseTools, 5, weekly,'database-tools');
 
-dataSize 'Размер данных (МБ)' = DATA NUMERIC[15,3](Table);
-indexSize 'Размер индексов (МБ)' = DATA NUMERIC[15,3](Table);
+CLASS ABSTRACT DatabaseTable 'Tаблица';
+EXTEND CLASS Table: DatabaseTable;
 
-curDataSize 'Тек. размер данных (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](Table);
-curIndexSize 'Тек. размер индексов (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](Table);
+CLASS PgTable 'Системная таблица' : DatabaseTable;
+TABLE pgTable(PgTable);
+sid '{reflection.sid.table}' = DATA ISTRING[100] (PgTable);
+sid '{reflection.sid.table}' (DatabaseTable t) = MULTI sid[Table](t), sid[PgTable](t);
+table '{reflection.table}' = GROUP MAX DatabaseTable table BY sid (table);
+
+dataSize 'Размер данных (МБ)' = DATA NUMERIC[15,3](Table);
+dataSize 'Размер данных (МБ)' = DATA NUMERIC[15,3](PgTable);
+dataSize 'Размер данных (МБ)' (DatabaseTable t) = MULTI dataSize[Table](t), dataSize[PgTable](t);
+
+indexSize 'Размер индексов (МБ)' = DATA NUMERIC[15,3](Table);
+indexSize 'Размер индексов (МБ)' = DATA NUMERIC[15,3](PgTable);
+indexSize 'Размер индексов (МБ)' (DatabaseTable t) = MULTI indexSize[Table](t), indexSize[PgTable](t);
+
+curDataSize 'Тек. размер данных (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](DatabaseTable);
+curIndexSize 'Тек. размер индексов (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](DatabaseTable);
 curRows 'Тек. количество записей' = DATA LOCAL NESTED LONG (Table);
 
 deleteIndexes 'Удалять индексы при упаковке' = DATA BOOLEAN (Table);
@@ -47,7 +61,7 @@ getIndexes 'Получить список индексов'(Table t) {
         APPLY;
         
     }
-} ASON CONTEXTMENU sid[Table];
+} ASON CONTEXTMENU sid[DatabaseTable];
 
 dropIndexes 'Удалить индексы' (Table t) {
     logToFile('database-tools', 'start - DROP INDEXES');
@@ -112,22 +126,42 @@ reindex 'REINDEX' (Table t) {
         indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
         APPLY;
     }
-} ASON CONTEXTMENU sid[Table];
+} ASON CONTEXTMENU sid[DatabaseTable];
 
-vacuum 'VACUUM FULL' (Table t) {
+vacuumSysTab  ABSTRACT (INTEGER, STRING);
+vacuumSysTab (INTEGER count, STRING table) + {
+    TRY {
+        runSQL('VACUUM FULL ' + table);
+    } CATCH {
+        IF count > 2 THEN {
+            MESSAGE 'Error while vacuum table ' + table + '. See database-tools.log for details.' NOWAIT;
+            logToFile('database-tools', CONCAT '\n', 'VACUUM SYSTEM TABLES ERROR:', messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException());
+            RETURN;
+        } ELSE {
+            vacuumSysTab(count + 1, table);
+        }  
+    }
+}
+
+vacuum 'VACUUM FULL' (DatabaseTable t) {
     IF deleteIndexes(t) THEN {
         getIndexes(t);
         dropIndexes(t);
     }
     logToFile('database-tools', 'start - VACUUM FULL ' + sid(t) );
-    IF skipExceptions() THEN {
+    IF skipExceptions() AND NOT t IS PgTable THEN {
         TRY {
             runSQL('VACUUM FULL ' + sid(t));
         } CATCH {
             logToFile('database-tools', (CONCAT '\n', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()));
         }
-    } ELSE 
-        runSQL('VACUUM FULL ' + sid(t));
+    } ELSE {
+        IF t IS PgTable THEN {
+            vacuumSysTab(0, sid(t));
+        } ELSE {
+            runSQL('VACUUM FULL ' + sid(t));
+        }
+    }
     logToFile('database-tools', 'end - VACUUM FULL ' + sid(t));
     IF deleteIndexes(t) THEN {
         createIndexes(t);
@@ -137,7 +171,7 @@ vacuum 'VACUUM FULL' (Table t) {
         indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
         APPLY;
     }
-} ASON CONTEXTMENU sid[Table];
+} ASON CONTEXTMENU sid[DatabaseTable];
 
 loadCurSize 'Заполнить размеры таблиц'(){
     EXTERNAL SQL 'LOCAL'
@@ -151,19 +185,49 @@ loadCurSize 'Заполнить размеры таблиц'(){
     }
 }
 
+loadSystemCurSize 'Заполнить размеры системных таблиц'(){
+
+    IF NOT (GROUP SUM 1 IF PgTable t IS PgTable) THEN NEWSESSION {
+        EXTERNAL SQL 'LOCAL'
+            EXEC 'SELECT tablename FROM pg_tables WHERE schemaname = \'pg_catalog\''
+            TO file;
+            
+        IMPORT TABLE FROM file() FIELDS STRING[100] table DO {
+            IF NOT table(table) THEN {
+                NEW t = PgTable {
+                    sid(t) <- table;
+                    curDataSize(t) <- 5000;
+                    curIndexSize(t) <- 5000;
+                }
+            }
+        }
+        APPLY;
+    }
+
+    EXTERNAL SQL 'LOCAL'
+        EXEC 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
+             'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'pg_catalog\''
+        TO file;
+    
+    IMPORT TABLE FROM file() FIELDS STRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
+        curDataSize(PgTable t) <- t_size WHERE lower(sid(t)) == table;
+        curIndexSize(PgTable t) <- i_size WHERE lower(sid(t)) == table;
+    }
+}
+
 grow = [NUMERIC[12,3](OVERRIDE (((OVERRIDE A, 0.001)-(OVERRIDE B, 0.001))/(OVERRIDE B, 0.001)), 0.0)](a,b);
 dataVacuumCoeff = DATA NUMERIC[5,2]();
 vacuumCoeff 'Коэффициент роста' () = OVERRIDE dataVacuumCoeff(), 0.1;
 dataVacuumSize = DATA NUMERIC[5,2]();
 vacuumSize 'Минимальный размер (МБ)' () = OVERRIDE dataVacuumSize(), 1.0;
 
-dataGrow(Table t) = grow(curDataSize(t), dataSize(t));
-needVacuum(Table t) = dataGrow(t) > vacuumCoeff() AND curDataSize(t) + curIndexSize(t) > vacuumSize();
-backgroundData(Table t) = IF needVacuum(t) THEN RGB (255, 80, 80) ELSE RGB (255, 179, 179);
+dataGrow(DatabaseTable t) = grow(curDataSize(t), dataSize(t));
+needVacuum(DatabaseTable t) = dataGrow(t) > vacuumCoeff() AND curDataSize(t) + curIndexSize(t) > vacuumSize();
+backgroundData(DatabaseTable t) = IF needVacuum(t) THEN RGB (255, 80, 80) ELSE RGB (255, 179, 179);
 
-indexGrow(Table t) = grow(curIndexSize(t), indexSize(t));
-needReindex(Table t) = indexGrow(t) > vacuumCoeff() AND curDataSize(t) + curIndexSize(t) > vacuumSize();
-backgroundIndex(Table t) = IF needReindex(t) THEN RGB (255, 80, 169) ELSE RGB (255, 179, 217);
+indexGrow(DatabaseTable t) = grow(curIndexSize(t), indexSize(t));
+needReindex(DatabaseTable t) = indexGrow(t) > vacuumCoeff() AND curDataSize(t) + curIndexSize(t) > vacuumSize();
+backgroundIndex(DatabaseTable t) = IF needReindex(t) THEN RGB (255, 80, 169) ELSE RGB (255, 179, 217);
 
 CLASS VacuumOrderType 'Сортировка'{
     totalSize 'По возрастанию размера',
@@ -183,39 +247,40 @@ dataVacuumOrderType = DATA VacuumOrderType();
 vacuumOrderType() = OVERRIDE dataVacuumOrderType(), VacuumOrderType.totalSize;
 nameVacuumOrderType 'Сортировка'() = name(vacuumOrderType());
 
-vacuumOrder(Table t) = CASE 
+vacuumOrder(DatabaseTable t) = CASE 
     WHEN vacuumOrderType() == VacuumOrderType.totalSize THEN curDataSize(t) (+) curIndexSize(t)
     WHEN vacuumOrderType() == VacuumOrderType.growSizeDesc THEN (dataSize(t) (-) curDataSize(t)) (+) (indexSize(t) (-) curIndexSize(t))
     ;
 
-smartVacuum 'Smart VACUUM'() {
+smartVacuum 'Smart VACUUM'(BOOLEAN pgOnly) {
     logToFile('database-tools', 'Smart VACUUM - starting');
     
-    loadCurSize();
+    IF NOT pgOnly THEN loadCurSize();
+    loadSystemCurSize();
 
     EXPORT CSV '|' HEADER 
-        FROM sid(Table t), vacuumOrder(t), skipVacuum(t), dataSize(t), curDataSize(t), dataGrow(t), indexSize(t), curIndexSize(t), indexGrow(t)
-        WHERE  (NOT curDataSize(t) >= dataSize(t)) OR ( NOT curIndexSize(t) >= indexSize(t)) TO file;
+        FROM sid(DatabaseTable t), vacuumOrder(t), skipVacuum(t), dataSize(t), curDataSize(t), dataGrow(t), indexSize(t), curIndexSize(t), indexGrow(t)
+        WHERE  (curDataSize(t) AND NOT curDataSize(t) >= dataSize(t)) OR (curIndexSize(t) AND NOT curIndexSize(t) >= indexSize(t)) TO file;
             
     IF file() THEN {
         logToFile('database-tools', 'Smart VACUUM - new stat for externaly shrinked tables:');
         logToFile('database-tools', file());
         NEWSESSION NESTED LOCAL {
-            dataSize(Table t) <- curDataSize(t) WHERE NOT curDataSize(t) >= dataSize(t);
-            indexSize(Table t) <- curIndexSize(t) WHERE NOT curIndexSize(t) >= indexSize(t);
+            dataSize(DatabaseTable t) <- curDataSize(t) WHERE NOT curDataSize(t) >= dataSize(t);
+            indexSize(DatabaseTable t) <- curIndexSize(t) WHERE NOT curIndexSize(t) >= indexSize(t);
             APPLY NESTED LOCAL;
         }
     }
     
     EXPORT CSV '|' HEADER 
-        FROM sid(Table t), vacuumOrder(t), skipVacuum(t), dataSize(t), curDataSize(t), dataGrow(t), indexSize(t), curIndexSize(t), indexGrow(t)
+        FROM sid(DatabaseTable t), vacuumOrder(t), skipVacuum(t), dataSize(t), curDataSize(t), dataGrow(t), indexSize(t), curIndexSize(t), indexGrow(t)
         WHERE curDataSize(t) AND (needVacuum(t) OR needReindex(t)) ORDER vacuumOrder(t), t TO file;
     IF file() THEN {
         logToFile('database-tools', 'Smart VACUUM - plan for today:');
         logToFile('database-tools', file());
     }
     
-    FOR curDataSize(Table t)  AND NOT skipVacuum(t) AND (needVacuum(t) OR needReindex(t)) ORDER vacuumOrder(t), t DO {
+    FOR curDataSize(DatabaseTable t)  AND NOT skipVacuum(t) AND (needVacuum(t) OR needReindex(t)) ORDER vacuumOrder(t), t DO {
         IF needVacuum(t) THEN {
             vacuum(t);
         } ELSE {
@@ -229,7 +294,9 @@ smartVacuum 'Smart VACUUM'() {
     
     logToFile('database-tools', 'Smart VACUUM - ended');
 }
-
+smartVacuum 'Smart VACUUM'(){
+    smartVacuum(NULL); 
+} 
 
 //статистика
 CLASS StatisticGrowType 'Вид роста статистики'{
@@ -316,7 +383,7 @@ recalculateStatsQ 'Пересчет статистики (быстрый)' (Tabl
         
         APPLY;
     }
-} ASON CONTEXTMENU sid[Table];
+} ASON CONTEXTMENU sid[DatabaseTable];
 
 loadCurRows 'Заполнить количество записей'(){
     EXTERNAL SQL 'LOCAL'
@@ -337,7 +404,7 @@ needStats(Table t) = max(curRows(t), rows(t))/(OVERRIDE min(curRows(t), rows(t))
 backgroundRows(Table t) = IF needStats(t) THEN RGB (51, 153, 51) ELSE RGB (198, 236, 198);
 
 EXTEND FORM tools
-    OBJECTS t =  Table
+    OBJECTS t =  DatabaseTable
     PROPERTIES (t) READONLY sid
     PROPERTIES (t) skipVacuum
     PROPERTIES (t) READONLY BACKGROUND backgroundData(t) dataSize, curDataSize
@@ -348,6 +415,9 @@ EXTEND FORM tools
         FILTER 'REINDEX' needReindex(t)
         FILTER 'Пересчет статистики' needStats(t)
         FILTER 'Любые' needVacuum(t) OR needReindex(t) OR needStats(t)
+    
+    FILTERGROUP system 
+        FILTER 'Системные' t IS PgTable
         
     OBJECTS tk=TableKey
     PROPERTIES(tk) READONLY class, classSID, name, nameStatisticGrowType CHANGEABLE, quantity, quantityTop
@@ -361,8 +431,8 @@ EXTEND FORM tools
     PROPERTIES(i)  READONLY name, definition, isConstraint
     FILTERS table(i)==t
     
-    PROPERTIES () loadCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows, countTreads, 
-                  reindexConcurrently, skipExceptions, stopAfter
+    PROPERTIES () loadCurSize, loadSystemCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, countTreads,
+                  loadCurRows, setSkipStatistic,  reindexConcurrently, skipExceptions, stopAfter
 ;
 
 DESIGN tools{
@@ -374,6 +444,7 @@ DESIGN tools{
                 NEW vacuum {
                     caption = 'Упаковка';
                     MOVE PROPERTY (loadCurSize());
+                    MOVE PROPERTY (loadSystemCurSize());
                     MOVE PROPERTY (vacuumSize());
                     MOVE PROPERTY (vacuumCoeff());
                     MOVE PROPERTY (nameVacuumOrderType());
@@ -386,6 +457,7 @@ DESIGN tools{
                 NEW stats{
                     caption = 'Статистика';
                     MOVE PROPERTY (loadCurRows());
+                    MOVE PROPERTY (setSkipStatistic());
                 }
             }
             NEW dbRight{
@@ -406,5 +478,6 @@ DESIGN tools{
 
 WHEN LOCAL SET(ACTIVE TAB tools.dbMain) DO {
     loadCurSize();
+    loadSystemCurSize();
     loadCurRows();
 }

@@ -15,7 +15,7 @@ CLASS RotareType {
 }
 
 rotateType 'Производить ротацию раз в' = ABSTRACT CASE RotareType(LogRotate);
-nameRotateType 'Производить ротацию раз в'(LogRotate l) = staticCaption(rotateType(l));
+nameRotateType 'Производить ротацию раз в' (LogRotate l) = staticCaption(rotateType(l));
 
 META defineLogRotate(name, count, type, caption)
     EXTEND CLASS LogRotate {name caption}
@@ -39,6 +39,10 @@ logString'Тескст'(LogRotate l) = logsPath() + staticCaption(l) + '.log \{'
                           '\n   notifempty' +
                           '\n\}';
                           
+showLogRotate 'Отобразить запись для logrotate.d'() {
+    MESSAGE GROUP CONCAT logString(LogRotate r) ,'\n' ORDER r;
+}
+                          
 makeLogRotate 'Создать запись в logrotate.d'() {
     stringToFile(GROUP CONCAT logString(LogRotate r) ,'\n' ORDER r);
     
@@ -49,7 +53,7 @@ makeLogRotate 'Создать запись в logrotate.d'() {
 EXTEND FORM tools
     OBJECTS l =  LogRotate
     PROPERTIES (l) READONLY staticName, staticCaption, rotate, nameRotateType, logString
-    PROPERTIES () logsPath, makeLogRotate
+    PROPERTIES () logsPath, showLogRotate, makeLogRotate
 ;
 
 DESIGN tools{
@@ -60,6 +64,7 @@ DESIGN tools{
             NEW linux {
                 caption = 'Linux';
                 MOVE PROPERTY (logsPath());
+                MOVE PROPERTY (showLogRotate());
                 MOVE PROPERTY (makeLogRotate());
             } 
         }
