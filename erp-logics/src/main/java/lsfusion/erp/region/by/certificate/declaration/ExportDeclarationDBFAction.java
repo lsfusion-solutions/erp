@@ -68,38 +68,38 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
                     Map<Field, Object> dbfFields = readDBFFields(entry.getValue());
 
-                    if (entry.getKey().toLowerCase().equals("decl02.dbf") && declaration != null)
+                    if (entry.getKey().equalsIgnoreCase("decl02.dbf") && declaration != null)
                         outputFiles.put(entry.getKey(), new RawFileData(exportDECL02(dbfFields, declaration)));
 
-                    if (entry.getKey().toLowerCase().equals("dobl.dbf") && declaration != null)
+                    if (entry.getKey().equalsIgnoreCase("dobl.dbf") && declaration != null)
                         outputFiles.put(entry.getKey(), new RawFileData(exportDOBL(dbfFields, declaration)));
 
-                    if (entry.getKey().toLowerCase().equals("g18.dbf"))
+                    if (entry.getKey().equalsIgnoreCase("g18.dbf"))
                         outputFiles.put(entry.getKey(), new RawFileData(exportG18(dbfFields)));
 
-                    if (entry.getKey().toLowerCase().equals("g20.dbf") && declaration != null)
+                    if (entry.getKey().equalsIgnoreCase("g20.dbf") && declaration != null)
                         outputFiles.put(entry.getKey(), new RawFileData(exportG20(dbfFields, declaration)));
 
-                    if (entry.getKey().toLowerCase().equals("g21.dbf"))
+                    if (entry.getKey().equalsIgnoreCase("g21.dbf"))
                         outputFiles.put(entry.getKey(), new RawFileData(exportG21(dbfFields)));
 
-                    if (entry.getKey().toLowerCase().equals("g40.dbf"))
+                    if (entry.getKey().equalsIgnoreCase("g40.dbf"))
                         outputFiles.put(entry.getKey(), new RawFileData(exportG40(dbfFields)));
 
-                    if (entry.getKey().toLowerCase().equals("g44.dbf")) {
+                    if (entry.getKey().equalsIgnoreCase("g44.dbf")) {
                         outputFiles.put(entry.getKey(), new RawFileData(exportG44(dbfFields, g44)));
                     }
 
-                    if (entry.getKey().toLowerCase().equals("g47.dbf") && declaration != null)
+                    if (entry.getKey().equalsIgnoreCase("g47.dbf") && declaration != null)
                         outputFiles.put(entry.getKey(), new RawFileData(exportG47(dbfFields, declaration)));
 
-                    if (entry.getKey().toLowerCase().equals("g313.dbf") && declaration != null)
+                    if (entry.getKey().equalsIgnoreCase("g313.dbf") && declaration != null)
                         outputFiles.put(entry.getKey(), new RawFileData(exportG313(dbfFields, declaration)));
 
-                    if (entry.getKey().toLowerCase().equals("gb.dbf"))
+                    if (entry.getKey().equalsIgnoreCase("gb.dbf"))
                         outputFiles.put(entry.getKey(), new RawFileData(exportGB(dbfFields)));
 
-                    if (entry.getKey().toLowerCase().equals("g316.dbf"))
+                    if (entry.getKey().equalsIgnoreCase("g316.dbf"))
                         outputFiles.put(entry.getKey(), new RawFileData(exportG316(dbfFields)));
 
                 }

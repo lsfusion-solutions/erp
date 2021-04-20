@@ -222,7 +222,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
                                         } catch (Exception e) {
                                             imported = false;
-                                            String error = String.format("email %s, file %s: %s", subjectEmail, file.first, e.toString() + "\n" + ExceptionUtils.getStackTrace(e));
+                                            String error = String.format("email %s, file %s: %s", subjectEmail, file.first, e + "\n" + ExceptionUtils.getStackTrace(e));
                                             errors.add(error);
                                             logImportError(context, attachmentEmailObject, error, isOld);
                                             ERPLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
@@ -289,15 +289,14 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                     String fileName = (fh.isUnicode() ? fh.getFileNameW() : fh.getFileNameString());
                     outputFile = new File(outputDirectory.getPath() + "/" + fileName);
                     File dir = outputFile.getParentFile();
-                    dir.mkdirs();
-                    if(!dirList.contains(dir))
+                    if(dir.mkdirs() && !dirList.contains(dir))
                         dirList.add(dir);
                     if(!outputFile.isDirectory()) {
                         try (FileOutputStream os = new FileOutputStream(outputFile)) {
                             a.extractFile(fh, os);
                         }
                         String outExtension = BaseUtils.getFileExtension(outputFile);
-                        if (outExtension != null && extensionFilter.toLowerCase().equals(outExtension.toLowerCase()))
+                        if (extensionFilter.equalsIgnoreCase(outExtension))
                             result.add(Pair.create(fileName, new RawFileData(outputFile)));
                         if(!outputFile.delete())
                             outputFile.deleteOnExit();
@@ -342,8 +341,9 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                 while (ze != null) {
                     if(ze.isDirectory()) {
                         File dir = new File(outputDirectory.getPath() + "/" + ze.getName());
-                        dir.mkdirs();
-                        dirList.add(dir);
+                        if(dir.mkdirs()) {
+                            dirList.add(dir);
+                        }
                     }
                     else {
                         String fileName = ze.getName();
@@ -358,7 +358,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                             }
                             outputStream.close();
                             String outExtension = BaseUtils.getFileExtension(outputFile);
-                            if (extensionFilter.toLowerCase().equals(outExtension.toLowerCase()))
+                            if (extensionFilter.equalsIgnoreCase(outExtension))
                                 result.add(Pair.create(fileName, new RawFileData(outputFile)));
                             if(!outputFile.delete())
                                 outputFile.deleteOnExit();
