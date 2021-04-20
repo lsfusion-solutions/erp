@@ -248,6 +248,21 @@ EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  name
 overNameATCGroup = ABSTRACT ISTRING[250] (MachineryPriceTransaction, Barcode, Batch);
 createAttribute(MachineryPriceTransaction t) + {nameATCGroup(t, Barcode barcode, Batch batch) <- overNameATCGroup(t, barcode, batch) WHERE in(t, barcode, batch);}
 
+//Блистеры
+blisterAmount 'Кол-во блистеров (в ед.)' = DATA INTEGER (MachineryPriceTransaction, Barcode, Batch);
+blisterAmount(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+prevBlisterAmount 'Кол-во блистеров (в ед.) (тек.)' (Batch batch, Barcode barcode, GroupMachinery groupMachinery)  =
+    blisterAmount(prevLastFullTransaction(batch, barcode, groupMachinery), barcode, batch);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  blisterAmount(t, Barcode barcode, Batch batch) <- prevBlisterAmount(batch, barcode, groupMachinery) WHERE in(t, barcode, batch); }
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) blisterAmount;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY blisterAmount;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  blisterAmount;
+overBlisterAmount = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode, Batch);
+createAttribute(MachineryPriceTransaction t) + {blisterAmount(t, Barcode barcode, Batch batch) <- overBlisterAmount(t, barcode, batch) WHERE in(t, barcode, batch);}
+
 //Флаги
 flag 'Флаги' = DATA INTEGER (MachineryPriceTransaction, Barcode, Batch);
 flag(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
