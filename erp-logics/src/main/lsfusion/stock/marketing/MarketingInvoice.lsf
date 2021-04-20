@@ -38,7 +38,7 @@ deleteScanFile 'Удалить' (MarketingInvoice i)  { scanFile(i) <- NULL; }
 CLASS MarketingInvoiceDetail 'Строка акта на оплату';
 TABLE marketingInvoiceDetail(MarketingInvoiceDetail);
 
-marketingInvoice 'Акт' = DATA MarketingInvoice (MarketingInvoiceDetail) NONULL DELETE INDEXED;
+marketingInvoice 'Акт' = DATA MarketingInvoice (MarketingInvoiceDetail) NONULL DELETE;
 
 @defineDocumentDetailPosted(marketingInvoice, MarketingInvoiceDetail);
 
@@ -70,6 +70,8 @@ sumMarketing 'Сумма маркетинга' = DATA NUMERIC[18,5] (MarketingIn
 
 condition = DATA MarketingCondition (MarketingInvoiceDetail) INDEXED;
 fixedCondition = DATA FixedMarketingCondition (MarketingInvoiceDetail);
+
+INDEX marketingInvoice(MarketingInvoiceDetail d), condition(d);
 
 isCreated 'Создан' (ContractMarketing c, DATE df, DATE dt) =
     GROUP SUM 1 IF contract(MarketingInvoice i) == c AND dateFrom(i) == df AND dateTo(i) == dt;
@@ -214,11 +216,16 @@ DESIGN contractMarketings {
         MOVE BOX (r) { caption = 'Диапазон'; }
     }
 }
+quantitySku 'Кол-во поступившего/проданного товара' (MarketingInvoice i, MarketingCondition c) = 
+    GROUP SUM quantity(MarketingInvoiceDetail dd) IF marketingInvoice(dd) == i AND condition(dd) == c;
+sumSku 'Сумма поступившего/проданного товара' (MarketingInvoice i, MarketingCondition c) = 
+    GROUP SUM (sum(MarketingInvoiceDetail dd) (-) returnSum(dd)) IF marketingInvoice(dd) == i AND condition(dd) == c;
+
 quantitySku 'Кол-во поступившего/проданного товара' (MarketingInvoiceDetail d) = 
-    GROUP SUM quantity(MarketingInvoiceDetail dd) IF marketingInvoice(dd) == marketingInvoice(d) AND condition(dd) == condition(d);
+    quantitySku(marketingInvoice(d), condition(d));
 sumSku 'Сумма поступившего/проданного товара' (MarketingInvoiceDetail d) = 
-    GROUP SUM (sum(MarketingInvoiceDetail dd) (-) returnSum(dd)) IF marketingInvoice(dd) == marketingInvoice(d) AND condition(dd) == condition(d);
-weightSku 'Вес поступившего/проданного товара' (MarketingInvoiceDetail d) = quantitySku(d) * netWeight(sku(d));
+    sumSku(marketingInvoice(d), condition(d));
+weightSku 'Вес поступившего/проданного товара' (MarketingInvoiceDetail d) = quantitySku(marketingInvoice(d), condition(d)) * netWeight(sku(d));
 
 in (MarketingInvoiceDetail d, ConditionRange r) = conditionList(condition(d)) == conditionList(r) AND 
     NOT quantitySku(d) < quantityFrom(r) AND NOT quantitySku(d) > quantityTo(r) AND 
