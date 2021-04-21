@@ -2494,12 +2494,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             query.addProperty("idBarcode", machineryPriceTransactionBatchLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
 
             String[] names = new String[]{"idBatch", "expiryDate", "seriesPharmacy", "nameManufacturer", "price",
-                    "nameATCGroup", "balance", "balanceDate", "sidOrigin3Country", "nameCountry", "blisterAmount", "flag"};
+                    "nameATCGroup", "balance", "balanceDate", "sicCountry", "nameCountry", "blisterAmount", "flag"};
             LP[] properties = machineryPriceTransactionBatchLM.findProperties("id[MachineryPriceTransaction,Barcode,Batch]",
                     "expiryDate[MachineryPriceTransaction,Barcode,Batch]", "seriesPharmacy[MachineryPriceTransaction,Barcode,Batch]",
                     "nameManufacturer[MachineryPriceTransaction,Barcode,Batch]", "price[MachineryPriceTransaction,Barcode,Batch]",
                     "nameATCGroup[MachineryPriceTransaction,Barcode,Batch]", "balance[MachineryPriceTransaction,Barcode,Batch]",
-                    "balanceDate[MachineryPriceTransaction,Barcode,Batch]", "sidOrigin3Country[MachineryPriceTransaction,Barcode,Batch]",
+                    "balanceDate[MachineryPriceTransaction,Barcode,Batch]", "sidCountry[MachineryPriceTransaction,Barcode,Batch]",
                     "nameCountry[MachineryPriceTransaction,Barcode,Batch]", "blisterAmount[MachineryPriceTransaction,Barcode,Batch]",
                     "flag[MachineryPriceTransaction,Barcode,Batch]");
             for (int i = 0; i < properties.length; i++) {
@@ -2523,7 +2523,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 String nameSubstance = getRowValue(row, "nameATCGroup");
                 BigDecimal balance = (BigDecimal) row.get("balance");
                 LocalDateTime balanceDate = (LocalDateTime) row.get("balanceDate");
-                String countryCode = getRowValue(row, "sidOrigin3Country");
+                String countryCode = getRowValue(row, "sidCountry");
                 String countryName = getRowValue(row, "nameCountry");
                 Integer blisterAmount = (Integer) row.get("blisterAmount");
                 Integer flag = (Integer) row.get("flag");
