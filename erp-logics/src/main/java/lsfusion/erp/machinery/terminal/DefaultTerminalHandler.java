@@ -337,6 +337,7 @@ public class DefaultTerminalHandler {
                 }
                 barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("nameCountry", terminalHandlerLM.findProperty("nameCountry[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("passScales", terminalHandlerLM.findProperty("passScales[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("color", terminalHandlerLM.findProperty("color[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
@@ -366,6 +367,7 @@ public class DefaultTerminalHandler {
 
                     String idSkuBarcode = trim((String) entry.get("idSkuBarcode"));
                     String nameManufacturer = trim((String) entry.get("nameManufacturer"));
+                    String nameCountry = trim((String) entry.get("nameCountry"));
                     String isWeight = entry.get("passScales") != null ? "1" : "0";
                     String mainBarcode = trim((String) entry.get("mainBarcode"));
                     String color = formatColor((Color) entry.get("color"));
@@ -378,7 +380,7 @@ public class DefaultTerminalHandler {
                     RawFileData image = (RawFileData) entry.get("image");
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
-                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, needManufacturingDate, image));
+                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, needManufacturingDate, image, nameCountry));
 
                 }
             }
@@ -517,7 +519,8 @@ public class DefaultTerminalHandler {
                 " color TEXT," +
                 " ticket_data TEXT," +
                 " unit TEXT," +
-                " flags INTEGER);";
+                " flags INTEGER," +
+                " country TEXT);";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -527,7 +530,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
@@ -548,6 +551,7 @@ public class DefaultTerminalHandler {
                         statement.setObject(14, formatValue(barcode.extInfo)); //ticket_data
                         statement.setObject(15, formatValue(barcode.unit)); //unit
                         statement.setObject(16, barcode.needManufacturingDate ? 1 : 0); //flags
+                        statement.setObject(17, formatValue(barcode.nameCountry)); //nameCountry
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
@@ -574,6 +578,7 @@ public class DefaultTerminalHandler {
                                     statement.setObject(14, ""); //ticket_data
                                     statement.setObject(15, ""); //unit
                                     statement.setObject(16, 0); //flags
+                                    statement.setObject(17, ""); //nameCountry
                                     statement.addBatch();
                                 }
                             }
@@ -595,6 +600,7 @@ public class DefaultTerminalHandler {
                                 statement.setObject(14, ""); //ticket_data
                                 statement.setObject(15, ""); //unit
                                 statement.setObject(16, 0); //flags
+                                statement.setObject(17, ""); //nameCountry
                                 statement.addBatch();
                             }
                         }
@@ -1393,8 +1399,9 @@ public class DefaultTerminalHandler {
         String unit;
         boolean needManufacturingDate;
         RawFileData image;
+        String nameCountry;
 
-        public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock, String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String color, String extInfo, String fld3, String fld4, String fld5, String unit, boolean needManufacturingDate, RawFileData image) {
+        public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock, String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String color, String extInfo, String fld3, String fld4, String fld5, String unit, boolean needManufacturingDate, RawFileData image, String nameCountry) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.price = price;
@@ -1411,6 +1418,7 @@ public class DefaultTerminalHandler {
             this.unit = unit;
             this.needManufacturingDate = needManufacturingDate;
             this.image = image;
+            this.nameCountry = nameCountry;
         }
     }
 
