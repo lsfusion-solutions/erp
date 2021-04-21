@@ -131,6 +131,27 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                         }
 
+                        List<String> batchItems = new ArrayList<>();
+                        if(medicineMode) {
+                            for (CashRegisterItem item : transaction.itemsList) {
+                                if(item.batchList != null) {
+                                    for(CashRegisterItemBatch batch : item.batchList) {
+                                        if (!Thread.currentThread().isInterrupted()) {
+                                            String country = getAddCountryJSON(batch);
+                                            if (country != null) {
+                                                writeStringToFile(tmpFile, country + "\n---\n");
+                                            }
+                                            String medicine = getAddMedicineJSON(item, batch, appendBarcode);
+                                            if (medicine != null) {
+                                                batchItems.add(item.mainBarcode);
+                                                writeStringToFile(tmpFile, medicine + "\n---\n");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         //items
                         Map<String, List<CashRegisterItem>> barcodeMap = new HashMap<>();
                         for (CashRegisterItem item : transaction.itemsList) {
@@ -143,7 +164,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                String inventItem = getAddInventItemJSON(transaction, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode);
+                                String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode);
                                 if(inventItem != null) {
                                     writeStringToFile(tmpFile, inventItem + "\n---\n");
                                 } else {
@@ -204,25 +225,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                         }
 
-                        if(medicineMode) {
-                            for (CashRegisterItem item : transaction.itemsList) {
-                                if(item.batchList != null) {
-                                    for(CashRegisterItemBatch batch : item.batchList) {
-                                        if (!Thread.currentThread().isInterrupted()) {
-                                            String country = getAddCountryJSON(batch);
-                                            if (country != null) {
-                                                writeStringToFile(tmpFile, country + "\n---\n");
-                                            }
-                                            String medicine = getAddMedicineJSON(item, batch, appendBarcode);
-                                            if (medicine != null) {
-                                                writeStringToFile(tmpFile, medicine + "\n---\n");
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
                         String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                         File file = new File(directory + "/pos" + currentTime + ".aif");
                         try {
@@ -259,10 +261,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return result;
     }
 
-    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode) throws JSONException {
+    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode) throws JSONException {
         Set<CashRegisterItem> barcodes = new HashSet<>();
         for(CashRegisterItem item : items) {
-            if(!item.idBarcode.equals(item.mainBarcode)) {
+            //если есть addMedicine, дополнительные ШК не выгружаем
+            if(!batchItems.contains(item.mainBarcode) && !item.idBarcode.equals(item.mainBarcode)) {
                 barcodes.add(item);
             }
         }
@@ -336,11 +339,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             //кол-во блистеров в упаковке
             if(item.batchList != null) {
-                Integer blisterAmount = 0;
+                Integer blisterAmount = null;
                 for (CashRegisterItemBatch batch : item.batchList) {
-                    blisterAmount = Math.max(blisterAmount, nvl(batch.blisterAmount, 0));
+                    blisterAmount = blisterAmount == null ? batch.blisterAmount : batch.blisterAmount == null ? blisterAmount : Math.max(blisterAmount, batch.blisterAmount);
                 }
-                inventObject.put("cquant", blisterAmount);
+                inventObject.put("cquant", nvl(blisterAmount, 1));
             }
 
             rootObject.put("command", "addInventItem");
