@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
-import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
 
@@ -84,10 +83,10 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     }
 
     private boolean loadExtraText(TCPPort port, ScalesItem item) throws IOException {
-        //if (item.description != null && !item.description.isEmpty()) {
+        if (item.description != null && !item.description.isEmpty()) {
             sendCommand(port, getLoadExtraTextBytes(item), extraTextID, (short) 1, (short) 0);
             return receiveReply(port);
-        //} else return true;
+        } else return true;
     }
 
     private byte[] getClearBytes() {
@@ -177,7 +176,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         bytes.putShort(getExtraTextNumber(getPluNumber(item)));
 
         //Дополнительный текст, 200 bytes
-        bytes.put(fillTrailingSpaces(trimToEmpty(item.description), 200).getBytes(Charset.forName("cp866")));
+        bytes.put(fillTrailingSpaces(item.description, 200).getBytes(Charset.forName("cp866")));
 
         return bytes.array();
     }
