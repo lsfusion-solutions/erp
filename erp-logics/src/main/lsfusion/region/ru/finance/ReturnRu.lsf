@@ -1,0 +1,468 @@
+MODULE ReturnRu;
+
+REQUIRE System,
+        LegalEntityRu,
+        Stock,
+        Sku,
+        Barcode,
+        Employee,
+        
+        StockContract,
+        SkuLedger,
+        ItemPack,
+        Barcode, Employee;
+       // PurchaseOperation;
+
+NAMESPACE ReturnRu;
+
+CLASS ABSTRACT Return 'Возврат';
+
+CLASS ABSTRACT ReturnDetail 'Строка возврат';
+               
+dataDate 'Дата' (return) = ABSTRACT DATE (Return);
+overDate 'Дата' (return) = ABSTRACT DATE (Return);
+date 'Дата' (Return return) = OVERRIDE overDate(return), dataDate(return);
+
+number 'Номер' = ABSTRACT STRING[28] (Return) IN numbered CHARWIDTH 7;
+series 'Серия' = ABSTRACT BPSTRING[2] (Return) IN numbered CHARWIDTH 3 NOFLEX; 
+
+dataSupplier = ABSTRACT LegalEntity (Return);
+overSupplier = ABSTRACT LegalEntity (Return);
+supplier (Return acceptance)= OVERRIDE overSupplier(acceptance), dataSupplier(acceptance);
+
+overOKPOSupplier 'ОКПО отправителя' = ABSTRACT STRING[50] (Return);
+extraOKPOSupplier 'ОКПО отправителя' = ABSTRACT STRING[50] (Return);
+OKPOSupplier 'ОКПО отправителя' (Return return) = OVERRIDE overOKPOSupplier(return), extraOKPOSupplier(return), okpo(supplier(return));
+
+overAddressSupplier = ABSTRACT ISTRING[150] (Return);
+addressSupplier 'Юр. адрес отправителя' (Return acceptance) =
+    OVERRIDE overAddressSupplier(acceptance), address(supplier(acceptance), date(acceptance)) CHARWIDTH 30;
+    
+overFullNameSupplier = ABSTRACT ISTRING[200] (Return);  
+fullNameSupplier 'Наим-ие получателя' (Return return) = 
+    OVERRIDE overFullNameSupplier(return), fullName(supplier(return)) CHARWIDTH 30;    
+
+overPhoneSupplier = ABSTRACT STRING[100] (Return);    
+phoneSupplier 'Телефон/факс'  (Return return) = 
+    OVERRIDE overPhoneSupplier(return), phone(supplier(return)) CHARWIDTH 30;    
+
+dataSupplierStock = ABSTRACT Stock (Return);
+overSupplierStock= ABSTRACT Stock (Return);
+supplierStock (Return return)= 
+    OVERRIDE overSupplierStock(return), dataSupplierStock(return) CHARWIDTH 20;
+    
+overNameSupplierStock = ABSTRACT ISTRING[150] (Return);
+nameSupplierStock 'Склад погрузки' (Return return) =
+     OVERRIDE overNameSupplierStock(return), name(supplierStock(return)) CHARWIDTH 20;
+    
+FORM dialogEmployeesAcceptance 'Сотрудники'
+    OBJECTS e = Employee
+    PROPERTIES (e) READONLY inactive, lastName, firstName, namePosition, nameMainRole, userRoles
+    
+    FILTERGROUP active FILTER 'Активные' active(e) 'F5'  DEFAULT 
+    
+    LIST Employee OBJECT e
+;
+
+DESIGN dialogEmployeesAcceptance {
+    size = (800, 600);
+    PROPERTY (lastName(e)) {
+        charWidth = 15;
+    }
+    PROPERTY (firstName(e)) {
+        charWidth = 25;
+    }
+    PROPERTY (namePosition(e)) {
+        charWidth = 30;
+    }
+    PROPERTY (nameMainRole(e)) {
+        charWidth = 25;
+    }
+}
+
+// ------------------------------------- Отпуск товара --------------------------------- //
+GROUP issuanceAcceptance 'Отпуск' : base;
+
+dataCustomerStock = ABSTRACT Stock (Return);
+overCustomerStock = ABSTRACT Stock (Return);
+customerStock (Return return)= 
+    OVERRIDE overCustomerStock(return), dataCustomerStock(return) CHARWIDTH 20;
+     
+dataCustomer = ABSTRACT LegalEntity (Return);
+overCustomer = ABSTRACT LegalEntity (Return);
+customer (Return return)= OVERRIDE overCustomer(return), dataCustomer(return);  
+  
+overOKPOCustomer 'ОКПО получателя' = ABSTRACT STRING[50] (Return);
+extraOKPOCustomer 'ОКПО получателя' = ABSTRACT STRING[50] (Return);
+OKPOCustomer 'ОКПО получателя' (Return return) = OVERRIDE overOKPOCustomer(return), extraOKPOCustomer(return), okpo(customer(return));
+    
+overOKDPCustomer 'ОКДП получателя' = ABSTRACT STRING[50] (Return);
+extraOKDPCustomer 'ОКДП получателя' = ABSTRACT STRING[50] (Return);
+OKDPCustomer 'ОКДП получателя' (Return return) = OVERRIDE overOKDPCustomer(return), extraOKDPCustomer(return), okdp(customer(return));
+    
+overAddressCustomer = ABSTRACT ISTRING[150] (Return);
+addressCustomer 'Юр. адрес получателя' (Return return) =
+    OVERRIDE overAddressCustomer(return), address(customer(return), date(return)) CHARWIDTH 30;      
+    
+overNameCustomerStock = ABSTRACT ISTRING[150] (Return);
+nameCustomerStock (Return return) =
+     OVERRIDE overNameCustomerStock(return), name(customerStock(return)) CHARWIDTH 20;
+      
+overFullNameCustomer = ABSTRACT ISTRING[200] (Return);  
+extraFullNameCustomer = ABSTRACT ISTRING[200] (Return);  
+fullNameCustomer 'Наим-ие получателя' (Return return) = 
+    OVERRIDE overFullNameCustomer(return), extraFullNameCustomer(return), fullName(customer(return)) CHARWIDTH 30;
+
+overPhoneCustomer = ABSTRACT STRING[100] (Return);    
+phoneCustomer 'Телефон/факс'  (Return return) = 
+    OVERRIDE overPhoneCustomer(return), phone(customer(return)) CHARWIDTH 30;     
+
+seriesNumberContract 'Серия/номер договора' = ABSTRACT ISTRING[28] (Return);
+//seriesNumberContract 'Серия/номер договора'(Acceptance acceptance)= 
+//    OVERRIDE overSeriesNumberContract(acceptance), seriesNumber(contract(acceptance));
+
+dateFromContract = ABSTRACT DATE (Return);
+//dateFromContract 'Серия/номер договора'(Acceptance acceptance)= 
+//    OVERRIDE overDateFromContract(acceptance), dateFrom(contract(acceptance));
+    
+notUseIssuanceExecuted 'Не использовать справочник сотрудников' = DATA BOOLEAN (Return);
+dataIssuanceExecuted = DATA Employee(Return);
+overIssuanceExecuted  = DATA Employee(Return);
+issuanceExecuted = ABSTRACT Employee(Return);
+positionIssuanceExecuted 'Отпуск произвел, должность' (Return return) = 
+    OVERRIDE namePosition(dataIssuanceExecuted(return)),
+             namePosition(issuanceExecuted(return)),
+             namePosition(overIssuanceExecuted(return)) IN issuanceAcceptance CHARWIDTH 20;             
+nameIssuanceExecuted 'Отпуск произвел, ФИО' (Return return) = 
+    OVERRIDE firstShortName(dataIssuanceExecuted(return)),
+             firstShortName(issuanceExecuted(return)),
+             firstShortName(overIssuanceExecuted(return)) IN issuanceAcceptance CHARWIDTH 20; 
+overChangeIssuanceExecuted ABSTRACT (Return);
+
+customSelectIssuanceExecuted = ABSTRACT BOOLEAN (Return);
+overSelectIssuanceExecuted ABSTRACT (Return);
+
+notUseDialogForwarder 'Не использовать справочник для принимающих сотрудников' = DATA BOOLEAN(Return) IN issuanceAcceptance;
+
+dataForwarder = DATA Employee(Return);
+overForwarder = ABSTRACT Employee(Return);
+
+dataNameForwarder = DATA STRING[100](Return);
+overNameForwarder = ABSTRACT STRING[100](Return);
+dataPositionForwarder = DATA STRING[100](Return);
+overPositionForwarder = ABSTRACT STRING[100](Return);
+
+forwarder 'Товар к перевозке принял (экспедитор)' (Return return) = 
+    OVERRIDE  
+        overForwarder(return), 
+        dataForwarder(return) IN issuanceAcceptance CHARWIDTH 30;
+
+nameForwarder 'Товар к перевозке принял, ФИО' (Return return) = 
+    OVERRIDE  
+        IF NOT notUseDialogForwarder(return) THEN firstShortName(forwarder(return)),
+        overNameForwarder(return),
+        dataNameForwarder(return) IN issuanceAcceptance CHARWIDTH 30;
+    
+positionForwarder 'Товар к перевозке принял, должность' (Return return) = 
+    OVERRIDE  
+        IF NOT notUseDialogForwarder(return) THEN namePosition(forwarder(return)),
+        overPositionForwarder(return),
+        dataPositionForwarder(return) IN issuanceAcceptance CHARWIDTH 30;
+        
+//грузополучатель
+notUseDialogGoodsReturn 'Не использовать справочник для грузополучателя' = DATA BOOLEAN(Return) IN issuanceAcceptance;
+
+dataGoodsReturn = DATA Employee (Return);
+overGoodsReturn (acceptance) = ABSTRACT Employee(Return);
+
+dataNameGoodsReturn = DATA STRING[100](Return);
+overNameGoodsReturn = ABSTRACT STRING[100](Return);
+dataPositionGoodsReturn = DATA STRING[100](Return);
+overPositionGoodsReturn = ABSTRACT STRING[100](Return);
+
+goodsReturn 'Принял грузополучатель' (Return return) = 
+    OVERRIDE  
+        overGoodsReturn(return), 
+        dataGoodsReturn(return) IN issuanceAcceptance CHARWIDTH 30;
+
+nameGoodsReturn 'Принял грузополучатель, ФИО' (Return return) = 
+    OVERRIDE  
+        IF NOT notUseDialogGoodsReturn(return) THEN firstShortName(goodsReturn(return)),
+        overNameGoodsReturn(return),
+        dataNameGoodsReturn(return) IN issuanceAcceptance CHARWIDTH 30;
+    
+positionGoodsReturn 'Принял грузополучатель, должность' (Return return) = 
+    OVERRIDE  
+        IF NOT notUseDialogGoodsReturn(return) THEN namePosition(goodsReturn(return)),
+        overPositionGoodsReturn(return),
+        dataPositionGoodsReturn(return) IN issuanceAcceptance CHARWIDTH 30;
+     
+    
+banSeries = ABSTRACT BOOLEAN (Return);
+toShowSeries = Return c IS Return AND NOT banSeries(c);
+
+
+return = ABSTRACT Return (ReturnDetail);
+
+order 'Порядок сортировки' = ABSTRACT ISTRING[255] (ReturnDetail); 
+index 'Номер строки' = ABSTRACT INTEGER (ReturnDetail); 
+skip = ABSTRACT BOOLEAN (ReturnDetail);
+
+
+dataSku = ABSTRACT Sku (ReturnDetail);
+overSku = ABSTRACT Sku (ReturnDetail);
+sku (ReturnDetail d) = OVERRIDE overSku(d), dataSku(d);
+idSku (ReturnDetail d) = id(sku(d));
+
+batch = ABSTRACT Batch (ReturnDetail);
+nameBatch 'Партия' (ReturnDetail d) = name(batch(d)) CHARWIDTH 20;
+
+overNameSku = ABSTRACT ISTRING[255](ReturnDetail); // дополнительные характеристики
+dataNameSku = ABSTRACT ISTRING[255](ReturnDetail);
+nameSku 'Наименование товара' (ReturnDetail d) = CONCAT ' ',
+    (OVERRIDE overDocumentNameSku(batch(d)), dataNameSku(d), name(sku(d))),
+    overNameSku(d) CHARWIDTH 30;
+    
+dataQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ReturnDetail);
+overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ReturnDetail);
+quantity 'Количество' (ReturnDetail d) = OVERRIDE overQuantity(d), dataQuantity(d);    
+
+code 'Код' (ReturnDetail d)  =OVERRIDE id(sku(d)), idBarcode(sku(d));
+
+shortNameUOMSku (ReturnDetail d) = shortNameUOM(sku(d));
+overNameUOM = ABSTRACT ISTRING[255](ReturnDetail);    
+shortNameUOM 'Единица измерения' (ReturnDetail d) = OVERRIDE overNameUOM(d), shortNameUOM(sku(d)) CHARWIDTH 5;
+
+idUOMSku (ReturnDetail d) = idUOM(sku(d));
+overIdUOM = ABSTRACT STRING[100] (ReturnDetail) CHARWIDTH 10;
+idUOM 'Код ед. изм.' (ReturnDetail d) = OVERRIDE overIdUOM(d), idUOMSku(d) CHARWIDTH 10;
+
+dataPrice 'Цена' = ABSTRACT CASE NUMERIC[16,4] (ReturnDetail);
+overPrice 'Цена' = ABSTRACT CASE NUMERIC[16,4] (ReturnDetail);
+price 'Цена' (ReturnDetail d) = OVERRIDE overPrice(d), dataPrice(d);
+
+dataSum 'Сумма без НДС' = ABSTRACT CASE NUMERIC[18,4] (ReturnDetail);
+overSum 'Сумма без НДС' = ABSTRACT CASE NUMERIC[18,4] (ReturnDetail);
+sum 'Сумма без НДС' (ReturnDetail d) = OVERRIDE overSum(d), dataSum(d);
+
+
+
+
+dataSumInvoice 'Сумма с НДС' = ABSTRACT CASE NUMERIC[18,4] (ReturnDetail);
+sumInvoice 'Сумма с НДС' (ReturnDetail d) = dataSumInvoice(d);
+
+banPrint 'Запрет печати' = ABSTRACT CASE BOOLEAN (Return);
+
+changeIssuanceExecuted(Return return) {    
+    IF notUseIssuanceExecuted(return) THEN {
+        INPUT s = nameIssuanceExecuted(return) DO {
+            nameIssuanceExecuted(return) <- s;
+        } 
+        INPUT s = positionIssuanceExecuted(return) DO {
+            positionIssuanceExecuted(return) <- s;
+        } 
+                
+    } ELSE 
+        IF customSelectIssuanceExecuted(return) THEN {
+            overSelectIssuanceExecuted(return);
+        } ELSE {
+            DIALOG dialogEmployeesAcceptance OBJECTS e = issuanceExecuted(return) INPUT NULL DO {
+                issuanceExecuted(return) <- e;
+                IF NOT issuanceExecuted(return) THEN {
+                    overIssuanceExecuted(return) <- e;
+                }
+            }               
+        }        
+    overChangeIssuanceExecuted(return);
+}
+
+changeNameForwarder(Return return) {     
+    IF notUseDialogForwarder(return) THEN {
+        INPUT s = dataNameForwarder(return) DO {
+            dataNameForwarder(return) <- s;
+        }
+    } ELSE {
+        DIALOG dialogEmployeesAcceptance OBJECTS e = dataForwarder(return) INPUT NULL DO {
+            dataForwarder(return) <- e;
+        }
+    }
+}   
+
+changePositionForwarder(Return return)  {     
+    IF notUseDialogForwarder(return) THEN {
+        INPUT s = dataPositionForwarder(return) DO {
+            dataPositionForwarder(return) <- s;
+        }         
+    } ELSE {
+        DIALOG dialogEmployeesAcceptance OBJECTS e = dataForwarder(return) INPUT NULL DO {
+            dataForwarder(return) <- e;
+        }
+    }        
+} 
+           
+changeNameGoodsReturn(Return return) {     
+    IF notUseDialogGoodsReturn(return) THEN {
+        INPUT s = dataNameGoodsReturn(return) DO {
+            dataNameGoodsReturn(return) <- s;
+        }
+    } ELSE {
+        DIALOG dialogEmployeesAcceptance OBJECTS e = dataGoodsReturn(return) INPUT NULL DO {
+            dataGoodsReturn(return) <- e;
+        }
+    }
+}   
+
+changePositionGoodsReturn(Return return) {     
+    IF notUseDialogGoodsReturn(return) THEN {
+        INPUT s = dataPositionGoodsReturn(return) DO {
+            dataPositionGoodsReturn(return) <- s;
+        }         
+    } ELSE {
+        DIALOG dialogEmployeesAcceptance OBJECTS e = dataGoodsReturn(return) INPUT NULL DO {
+            dataGoodsReturn(return) <- e;
+        }
+    }        
+}      
+
+FORM returnMX3  'МХ-3'
+    OBJECTS r=Return PANEL
+    PROPERTIES (r) fullNameCustomer, addressCustomer, phoneCustomer, OKPOCustomer, OKDPCustomer,
+                    fullNameSupplier, addressSupplier, phoneSupplier, OKPOSupplier,
+                    nameCustomerStock, 
+                    date, number,
+                    seriesNumberContract, dateFromContract,
+                    nameIssuanceExecuted, positionIssuanceExecuted,
+                    nameGoodsReturn, positionGoodsReturn
+    
+    OBJECTS d=ReturnDetail SUBREPORT 
+    
+    PROPERTIES(d) nameSku, code, shortNameUOM, idUOM,  
+                  quantity,
+                  price, sum
+        
+    FILTERS return(d) == r,
+            quantity(d),
+            NOT skip(d)    
+;
+
+printReturnMX3 'МХ-3' (Return return) { 
+    PRINT returnMX3 OBJECTS r = return;
+} IMAGE 'print.png' IN print; 
+
+FORM return 'Атрибуты возврата'
+    OBJECTS r=Return PANEL
+
+    PROPERTIES(r) READONLY nameSupplierStock
+    PROPERTIES(r)  number, series SHOWIF toShowSeries(r), date, 
+                   addressSupplier READONLY, addressCustomer READONLY, fullNameSupplier READONLY, fullNameCustomer READONLY, 
+                   notUseDialogForwarder,
+                   nameIssuanceExecuted ON CHANGE changeIssuanceExecuted(r),
+                   positionIssuanceExecuted ON CHANGE changeIssuanceExecuted(r), 
+                   nameForwarder ON CHANGE changeNameForwarder(r),
+                   positionForwarder ON CHANGE changePositionForwarder(r),                   
+                   notUseDialogGoodsReturn,
+                   nameGoodsReturn ON CHANGE changeNameGoodsReturn(r),
+                   positionGoodsReturn ON CHANGE changePositionGoodsReturn(r)
+    OBJECTS d=ReturnDetail
+
+    PROPERTIES(d) order, index, nameSku READONLY, shortNameUOM READONLY, quantity, price, sum 
+    ORDERS order(d), index(d)  
+
+    FILTERS return(d) == r, 
+            NOT skip(d) 
+;
+
+DESIGN return {
+    size = (1024, 768);
+    NEW pane {
+        fill = 1;
+        type = TABBED;
+        NEW mainContainer {
+            caption = 'Основная информация';
+            NEW mainScroll {
+                fill = 1;
+                height = 1;
+                type = SCROLL;
+                NEW mainTab {
+                    alignment = STRETCH;
+                    NEW header {
+                        alignment = STRETCH;
+                        caption = 'Шапка документа';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameSupplierStock(r));
+                        MOVE PROPERTY(number(r));
+                        MOVE PROPERTY(series(r));
+                        MOVE PROPERTY(date(r));
+                    }
+                
+                    NEW supplier {
+                        alignment = STRETCH;
+                        caption = 'Грузоотправитель';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(fullNameSupplier(r));
+                        MOVE PROPERTY(addressSupplier(r));
+                    }
+                
+                    NEW customer {
+                        alignment = STRETCH;
+                        caption = 'Грузополучатель';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(fullNameCustomer(r));
+                        MOVE PROPERTY(addressCustomer(r));
+                    } 
+                    
+                    MOVE GROUP(issuanceAcceptance,r) {                       
+                        type = CONTAINERV;
+                        
+                        NEW issuance { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameIssuanceExecuted(r)) { charWidth = 30; };
+                            MOVE PROPERTY(positionIssuanceExecuted(r)) { charWidth = 20; };
+                        }    
+                            
+                        MOVE PROPERTY(notUseDialogForwarder(r));    
+                        
+                        NEW forwarder { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameForwarder(r)) { charWidth = 30; };
+                            MOVE PROPERTY(positionForwarder(r)) { charWidth = 20; };                              
+                        }         
+                     
+                        
+                        MOVE PROPERTY(notUseDialogGoodsReturn(r)); 
+                        
+                        NEW goodsReturn { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameGoodsReturn(r)) { charWidth = 30; };
+                            MOVE PROPERTY(positionGoodsReturn(r)) { charWidth = 20; };                              
+                        }
+                    }                                      
+                }
+            }
+        }
+        
+        MOVE BOX(d) {
+            caption = 'Спецификация';
+            PROPERTY(order(d)) {
+                charWidth = 10;
+            }
+        };
+    }
+    
+    MOVE TOOLBARBOX;
+}
+
+editReturnAttributes 'Заполнить атрибуты возврата' (Return return) { 
+	NEWSESSION {	       
+	    SHOW return OBJECTS r = return DOCKED; 
+	}
+} IMAGE 'edit.png';
+
+showReturnAttributes 'Просмотреть атрибуты возврата' (Return return) { 
+    NEWSESSION {
+        SHOW return OBJECTS r = return DOCKED READONLY;
+    }
+}

@@ -1,0 +1,66 @@
+MODULE PurchaseReturnShipmentReturnRu;
+
+REQUIRE ReturnRu, PurchaseReturnShipment, ItemDescription, PurchaseOperationAcceptanceRu;
+
+NAMESPACE PurchaseReturn;
+
+warrantNumber 'По доверенности, номер' = DATA STRING[30] (Shipment) IN issuanceAcceptance CHARWIDTH 15;
+warrantDate 'По доверенности, дата' = DATA DATE (Shipment) IN issuanceAcceptance CHARWIDTH 15;
+ 
+countPages 'Кол-во страниц в приложении' = DATA INTEGER (Shipment);
+opinionCommittee 'Заключение комиссии' = DATA TEXT (Shipment);
+decisionChief 'Решение руководителя' = DATA TEXT (Shipment);
+
+EXTEND CLASS Shipment : Return;
+
+dataDate[Return] (Shipment return) += date(return);
+number[Return] (Shipment return) += number(return);
+series[Return] (Shipment return) += series(return);
+
+dataSupplier (Shipment return) += customer(return);
+dataCustomer (Shipment return) += supplier(return);
+
+dataSupplierStock[Return] (Shipment return) += toStock(return);
+dataCustomerStock[Return] (Shipment return) += fromStock(return);
+
+EXTEND CLASS ShipmentDetail : ReturnDetail;
+
+index[ReturnDetail] (ShipmentDetail d) += index (d);
+return[ReturnDetail] (ShipmentDetail d) += shipment(d);
+skip[ReturnDetail](ShipmentDetail d) += skipConsignment(invoiceDetail(d));
+dataSku[ReturnDetail] (ShipmentDetail d) += sku (d);  
+batch[ReturnDetail] (ShipmentDetail d) += batch (d); 
+dataQuantity[ReturnDetail] (ShipmentDetail d) += OVERRIDE quantity(invoiceDetail(d)), quantity(d);
+dataPrice[ReturnDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN price(invoiceDetail(d));
+dataSum[ReturnDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN sum(invoiceDetail(d));
+dataSumInvoice[ReturnDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN invoiceSum(invoiceDetail(d));
+     
+EXTEND FORM shipments
+    PROPERTIES(s) SHOWIF isOpened(s) editReturnAttributes 
+    PROPERTIES(s) SHOWIF isCommissionPurchase(operation(s)) printReturnMX3  
+;
+
+DESIGN shipments {
+    printTab {
+        NEW returnRow1 {
+            align = START;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Возврат';
+                MOVE PROPERTY(editReturnAttributes(s)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW torg {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printReturnMX3(s)) { alignment = STRETCH; }                          
+            }
+        }
+    }
+}

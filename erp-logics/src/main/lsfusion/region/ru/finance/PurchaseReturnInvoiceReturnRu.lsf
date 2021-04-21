@@ -1,0 +1,62 @@
+MODULE PurchaseReturnInvoiceReturnRu;
+
+REQUIRE PurchaseReturnInvoice, ReturnRu, PurchaseReturnShipment, ItemDescription, PurchaseOperationAcceptanceRu;
+
+NAMESPACE PurchaseReturn;
+
+EXTEND CLASS Invoice : Return;
+
+dataDate[Return] (Invoice return) += date(return);
+number[Return] (Invoice return) += number(return);
+series[Return] (Invoice return) += series(return);
+
+dataSupplier (Invoice return) += to(return);
+dataCustomer (Invoice return) += from(return);
+
+dataSupplierStock[Return] (Invoice return) += toStock(return);
+dataCustomerStock[Return] (Invoice return) += fromStock(return);
+
+seriesNumberContract (Invoice return) = seriesNumber(contractSku(return));
+dateFromContract (Invoice return) = dateFrom(contractSku(return));
+
+EXTEND CLASS InvoiceDetail : ReturnDetail;
+
+index[ReturnDetail] (InvoiceDetail d) += index (d);
+return[ReturnDetail] (InvoiceDetail d) += invoice (d);
+skip[ReturnDetail](InvoiceDetail d) += skipConsignment (d);
+dataSku[ReturnDetail] (InvoiceDetail d) += sku (d);
+batch[ReturnDetail] (InvoiceDetail d) += batch (d);    
+dataQuantity[ReturnDetail] (InvoiceDetail d) += quantity (d);
+dataPrice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN price(detail);
+dataSum (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN sum(detail);
+dataSumInvoice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN invoiceSum(detail);
+          
+EXTEND FORM  invoices
+    PROPERTIES(i)  editReturnAttributes SHOWIF isOpened(i)
+    PROPERTIES(i) SHOWIF isCommissionPurchase(operation(i)) printReturnMX3                              
+;
+
+DESIGN invoices {
+    printTab {
+        NEW returnRow1 {
+            align = START;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editReturnAttributes(i)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW torg {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printReturnMX3(i)) { alignment = STRETCH; }                          
+            }
+        }
+    }
+}
