@@ -521,8 +521,11 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                     WHEN documentType() == 'BLRDLN' THEN EInvoiceMessageType.systemmessage_blrdln
                                     WHEN documentType() == 'BLRDNR' THEN EInvoiceMessageType.systemmessage_blrdnr;
                                 IF code(m) >= '1350' AND type(m) == EInvoiceMessageType.systemmessage_blrwbr 
-                                    AND NOT (GROUP SUM 1 IF type(EInvoiceMessage em) == EInvoiceMessageType.blrapn_blrwbr AND code(em) == '2550' AND eInvoice(em) == eInvoice() AND NOT kind(em) == EInvoiceMessageKind.out)  THEN {
                                      //подверждение уже приходило, не трогаем больше
+                                    AND NOT (GROUP SUM 1 IF type(EInvoiceMessage em) == EInvoiceMessageType.blrapn_blrwbr AND code(em) == '2550' AND eInvoice(em) == eInvoice() AND NOT kind(em) == EInvoiceMessageKind.out) 
+                                    //10 ошибок, значит есть системная проблема и автоматически не убираем признак выгрузки
+                                    AND NOT (GROUP SUM 1 IF (code(EInvoiceMessage em) == '1354' OR code(em) == '1354') AND eInvoice(em) == eInvoice()) > 10
+                                     THEN {
                                     exportedCustomer(eInvoice(m)) <- NULL;
                                 }
                                 XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
@@ -841,7 +844,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                     WHEN lower(blrapnReferenceDocumentType()) == 'blrdnr' THEN EInvoiceMessageType.blrapn_blrdnr
                                     WHEN lower(blrapnReferenceDocumentType()) == 'blrdln' THEN EInvoiceMessageType.blrapn_blrdln;
                                 IF code(m) == '2570'  AND type(m) == EInvoiceMessageType.blrapn_blrwbr 
-                                    AND NOT (GROUP SUM 1 IF type(EInvoiceMessage em) == EInvoiceMessageType.blrapn_blrwbr AND code(em) == '2550' AND eInvoice(em) == eInvoice() AND NOT kind(em) == EInvoiceMessageKind.out) THEN {
+                                    AND NOT (GROUP SUM 1 IF type(EInvoiceMessage em) == EInvoiceMessageType.blrapn_blrwbr AND code(em) == '2550' AND eInvoice(em) == eInvoice() AND NOT kind(em) == EInvoiceMessageKind.out) 
+                                    AND NOT (GROUP SUM 1 IF (code(EInvoiceMessage em) == '1354' OR code(em) == '1354') AND eInvoice(em) == eInvoice()) > 10 THEN {
                                     exportedCustomer(eInvoice(m)) <- NULL;
                                 }
                                 IF code(m) == '2750' AND (type(m) == EInvoiceMessageType.blrapn_blrwbl OR type(m) == EInvoiceMessageType.blrapn_blrdln) THEN {
