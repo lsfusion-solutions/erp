@@ -792,27 +792,6 @@ DESIGN ranges {
     }
 }
 
-createNewTopLevel 'Добавить верхний уровень'()  { 
-
-    NEW l = RangeLevel;
-    
-    LOCAL level = RangeLevel();
-    
-    FOR RangeLevel l IS RangeLevel ORDER DESC l DO {
-        IF level() THEN {
-            dataLevel(Range.Range r, Store s, DATE d) <- level() WHERE dataLevel(r, s, d) == l;
-            in(Range.Range r, RangeLevel ln) <- TRUE WHERE ln == level() AND in(r, l);
-            in(Range.Range r, l) <- NULL;
-            level(RangeRev v, Sku s) <- level() WHERE level(v, s) == l;
-            name(RangeLevel ln) <- name(l) WHERE ln == level();
-            name(l) <- NULL;
-        }
-        level() <- l;
-    }
-    APPLY;
-
-}
-
 allowChangePast 'Разрешить изменять уровни за прошедшие дни' = DATA BOOLEAN();
 
 EXTEND FORM options PROPERTIES allowChangePast();
@@ -881,6 +860,41 @@ showRangeLevelStoreTypeLog 'Лог изменения уровня' (Range r, St
 } ASON CONTEXTMENU nameLevel[Range, StoreType, DATE];
 
 //----------------------------------
+overCreateNewtopLevel ABSTRACT(RangeLevel, RangeLevel);
+
+createNewTopLevel 'Добавить верхний уровень'()  { 
+    NEWSESSION {
+       
+        NEW l = RangeLevel;
+        
+        LOCAL level = RangeLevel();
+        
+        FOR RangeLevel l IS RangeLevel ORDER DESC l DO {
+            IF level() THEN {
+                dataLevel(Range.Range r, Store s, DATE d) <- level() WHERE dataLevel(r, s, d) == l;
+                dataLevel(Range.Range r, StoreType s, DATE d) <- level() WHERE dataLevel(r, s, d) == l;
+                in(Range.Range r, RangeLevel ln) <- TRUE WHERE ln == level() AND in(r, l);
+                in(Range.Range r, l) <- NULL;
+                level(RangeRev v, Sku s) <- level() WHERE level(v, s) == l;
+                name(RangeLevel ln) <- name(l) WHERE ln == level();
+                name(l) <- NULL;
+                depth(Range.Range r, RangeLevel ln) <- depth(r, l)  WHERE ln == level();
+                depth(Range.Range r, l) <- NULL;
+                overCreateNewtopLevel(level(), l);
+            }
+            level() <- l;
+        }
+        IF NOT allowChangePast() THEN {
+            allowChangePast() <- TRUE;
+            APPLY;
+            allowChangePast() <- NULL;
+        }
+        APPLY;
+    }
+} CONFIRM TOOLBAR;
+
+EXTEND FORM rangeLevels PROPERTIES createNewTopLevel() DRAW l;   
+
 countFilterRangeRev 'Количество версий в фильтре' = DATA INTEGER ();
 
 EXTEND FORM options
