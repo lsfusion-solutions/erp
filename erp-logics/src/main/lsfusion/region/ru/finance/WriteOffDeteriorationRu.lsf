@@ -1,0 +1,47 @@
+MODULE WriteOffDeteriorationRu;
+
+REQUIRE DeteriorationRu, WriteOffRu, ItemDescription, ItemArticle;
+
+NAMESPACE WriteOff;
+
+opinionCommittee 'Заключение комиссии' = DATA TEXT (WriteOff);
+decisionChief 'Решение руководителя' = DATA TEXT (WriteOff);
+
+EXTEND CLASS WriteOff : Deterioration;
+
+dataDate[Deterioration] (WriteOff deterioration) += date(deterioration);
+number[Deterioration] (WriteOff deterioration) += number(deterioration);
+
+dataStock[Deterioration] (WriteOff deterioration) += stock(deterioration);
+
+dataLegalEntity (WriteOff deterioration) += legalEntityStock(deterioration);
+nameReason (WriteOff deterioration) += nameReason(deterioration);
+
+committee [Deterioration] (WriteOff deterioration) += writeOffCommittee(deterioration);
+dataShortNameChairman (WriteOff deterioration) += shortNameChairmanWriteOffCommittee(deterioration);
+dataNamePositionChairman (WriteOff deterioration) += namePositionChairmanWriteOffCommittee(deterioration);
+
+decisionChief [Deterioration] (WriteOff deterioration) += decisionChief (deterioration);
+
+EXTEND CLASS WriteOffDetail : DeteriorationDetail;
+
+deterioration (WriteOffDetail d) += writeOff(d);
+dataSku[DeteriorationDetail] (WriteOffDetail d) += sku (d);
+batch[DeteriorationDetail] (WriteOffDetail d) += batch (d);    
+dataQuantity[DeteriorationDetail] (WriteOffDetail d) += quantity(d);
+dataPrice[DeteriorationDetail] (WriteOffDetail d) += price(d);
+dataSum[DeteriorationDetail] (WriteOffDetail d) += sum(d);
+nameReason(WriteOffDetail d) += nameReason(d);
+     
+nameSort(WriteOffDetail d) += nameSort(sku(d));     
+idArticle(WriteOffDetail d) += idArticle(sku(d)); 
+
+EXTEND FORM writeOffs
+    PROPERTIES (w) printDeteriorationTorg15
+;
+
+DESIGN writeOffs{
+    printContainer{
+        MOVE PROPERTY(printDeteriorationTorg15(w));
+    }
+}

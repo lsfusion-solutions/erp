@@ -1,0 +1,136 @@
+MODULE DeteriorationRu;
+
+REQUIRE LegalEntityRu, Stock, Sku, SkuLedger, Barcode, EmployeeStock;
+
+NAMESPACE DeteriorationRu;
+
+CLASS ABSTRACT Deterioration 'Аннулирование';
+
+CLASS ABSTRACT DeteriorationDetail 'Строка аннулирование';
+
+dataDate 'Дата' = ABSTRACT DATE (Deterioration);
+overDate 'Дата' = ABSTRACT DATE (Deterioration);
+date 'Дата' (Deterioration deterioration) = OVERRIDE overDate(deterioration), dataDate(deterioration);
+
+number 'Номер' = ABSTRACT STRING[28] (Deterioration) IN numbered CHARWIDTH 7;
+
+dataStock = ABSTRACT Stock (Deterioration);
+overStock = ABSTRACT Stock (Deterioration);
+stock (Deterioration deterioration)= 
+    OVERRIDE overStock(deterioration), dataStock(deterioration) CHARWIDTH 20;
+    
+overNameStock  = ABSTRACT ISTRING[150] (Deterioration);
+nameStock (Deterioration deterioration) =
+     OVERRIDE overNameStock(deterioration), name(stock(deterioration)) CHARWIDTH 20;    
+    
+dataLegalEntity = ABSTRACT LegalEntity (Deterioration);
+overLegalEntity = ABSTRACT LegalEntity (Deterioration);
+legalEntity (Deterioration deterioration)= OVERRIDE overLegalEntity(deterioration), dataLegalEntity(deterioration); 
+
+overFullNameLegalEntity = ABSTRACT ISTRING[200] (Deterioration);  
+extraFullNameLegalEntity = ABSTRACT ISTRING[200] (Deterioration);  
+fullNameLegalEntity 'Наим-ие получателя' (Deterioration deterioration) = 
+    OVERRIDE overFullNameLegalEntity(deterioration), extraFullNameLegalEntity(deterioration), fullName(legalEntity(deterioration)) CHARWIDTH 30;
+
+overAddressLegalEntity = ABSTRACT ISTRING[150] (Deterioration);
+addressLegalEntity'Юр. адрес получателя' (Deterioration deterioration) =
+    OVERRIDE overAddressLegalEntity(deterioration), address(legalEntity(deterioration), date(deterioration)) CHARWIDTH 30;      
+
+overOKPOLegalEntity 'ОКПО получателя' = ABSTRACT STRING[50] (Deterioration);
+extraOKPOLegalEntity 'ОКПО получателя' = ABSTRACT STRING[50] (Deterioration);
+OKPOLegalEntity 'ОКПО получателя' (Deterioration deterioration) = OVERRIDE overOKPOLegalEntity(deterioration), extraOKPOLegalEntity(deterioration), okpo(legalEntity(deterioration));
+
+overOKDPLegalEntity 'ОКДП получателя' = ABSTRACT STRING[50] (Deterioration);
+extraOKDPLegalEntity 'ОКДП получателя' = ABSTRACT STRING[50] (Deterioration);
+OKDPLegalEntity 'ОКДП получателя' (Deterioration deterioration) = OVERRIDE overOKDPLegalEntity(deterioration), extraOKDPLegalEntity(deterioration), okdp(legalEntity(deterioration));
+
+// Committee  
+GROUP deteriorationCommittee 'Комиссия' : public;
+committee (Deterioration deterioration) =  ABSTRACT Committee(Deterioration);
+nameCommittee 'Название комиссии' (Deterioration deterioration) = name(committee(deterioration)) IN deteriorationCommittee CHARWIDTH 30;
+
+dataShortNameChairman = ABSTRACT ISTRING[201] (Deterioration);
+shortNameChairman 'Председатель комиссии' (Deterioration deterioration) = OVERRIDE dataShortNameChairman(deterioration), shortNameChairman(committee(deterioration));
+
+dataNamePositionChairman = ABSTRACT ISTRING[200] (Deterioration);
+namePositionChairman 'Должность председателя' (Deterioration deterioration)  = OVERRIDE dataNamePositionChairman(deterioration), namePositionChairman(committee(deterioration));
+
+nameEmployee 'Члены комиссии' (Deterioration deterioration) = nameEmployee(committee(deterioration)) IN deteriorationCommittee CHARWIDTH 30;
+shortNamePositionEmployee (Deterioration deterioration) = shortNamePositionEmployee(committee(deterioration)) IN deteriorationCommittee CHARWIDTH 30;
+in 'Является членом комиссии' (Deterioration deterioration, Employee employee) = in(committee(deterioration), employee);
+opinionCommittee 'Заключение комиссии' = ABSTRACT TEXT (Deterioration);
+decisionChief 'Решение руководителя'  = ABSTRACT TEXT (Deterioration);
+
+inDeteriorationCommittee (Deterioration deterioration, Employee employee) = in(committee(deterioration), employee);
+
+nameReason = ABSTRACT ISTRING[50](Deterioration);
+idReason 'Код списания' = ABSTRACT STRING[100] (Deterioration) ;
+
+deterioration = ABSTRACT Deterioration (DeteriorationDetail) MATERIALIZED INDEXED AGGR;
+in(Deterioration o, DeteriorationDetail d) = deterioration(d) == o;
+nameReason = ABSTRACT ISTRING[50](DeteriorationDetail);
+
+batch = ABSTRACT Batch (DeteriorationDetail);
+nameBatch 'Партия' (DeteriorationDetail d) = name(batch(d)) CHARWIDTH 20;
+
+dataSku (d) = ABSTRACT Sku (DeteriorationDetail);
+overSku (d) = ABSTRACT Sku (DeteriorationDetail);
+sku (DeteriorationDetail d) = OVERRIDE overSku(d), dataSku(d);
+idSku (DeteriorationDetail d) = id(sku(d));
+
+overNameSku = ABSTRACT ISTRING[255](DeteriorationDetail); // дополнительные характеристики
+dataNameSku = ABSTRACT ISTRING[255](DeteriorationDetail);
+nameSku 'Наименование товара' (DeteriorationDetail d) = CONCAT ' ',
+    (OVERRIDE overDocumentNameSku(batch(d)), dataNameSku(d), name(sku(d))),
+    overNameSku(d) CHARWIDTH 30;
+    
+code 'Код' (DeteriorationDetail d)  =OVERRIDE id(sku(d)), idBarcode(sku(d));   
+
+shortNameUOMSku (DeteriorationDetail d) = shortNameUOM(sku(d));
+overNameUOM = ABSTRACT ISTRING[255](DeteriorationDetail);    
+shortNameUOM 'Единица измерения' (DeteriorationDetail d) = OVERRIDE overNameUOM(d), shortNameUOM(sku(d)) CHARWIDTH 5;
+
+idUOMSku (DeteriorationDetail d) = idUOM(sku(d));
+overIdUOM = ABSTRACT STRING[100] (DeteriorationDetail) CHARWIDTH 10;
+idUOM 'Код ед. изм.' (DeteriorationDetail d) = OVERRIDE overIdUOM(d), idUOMSku(d) CHARWIDTH 10;
+
+dataQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (DeteriorationDetail);
+overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (DeteriorationDetail);
+quantity 'Количество' (DeteriorationDetail d) = OVERRIDE overQuantity(d), dataQuantity(d);    
+
+dataPrice 'Цена' (d) = ABSTRACT NUMERIC[16,4] (DeteriorationDetail);
+overPrice 'Цена' (d) = ABSTRACT NUMERIC[16,4] (DeteriorationDetail);
+price 'Цена' (DeteriorationDetail d) = OVERRIDE overPrice(d), dataPrice(d);
+
+dataSum 'Сумма без НДС' (d) = ABSTRACT NUMERIC[18,4] (DeteriorationDetail);
+overSum 'Сумма без НДС' (d) = ABSTRACT NUMERIC[18,4] (DeteriorationDetail);
+sum 'Сумма без НДС' (DeteriorationDetail d) = OVERRIDE overSum(d), dataSum(d);
+
+nameSort 'Сорт' = ABSTRACT ISTRING[100](DeteriorationDetail);
+idArticle 'Артикул' = ABSTRACT STRING[100](DeteriorationDetail);
+
+FORM deteriorationTorg15A 'ТОРГ-15'
+    OBJECTS c=Deterioration PANEL 
+    PROPERTIES (c) fullNameLegalEntity, addressLegalEntity, nameStock,
+                   number, date, 
+                   OKPOLegalEntity, OKDPLegalEntity,
+                   nameReason, idReason                  
+    
+    OBJECTS d=DeteriorationDetail SUBREPORT
+    PROPERTIES (d) nameSku, code, shortNameUOM, idUOM, quantity, price, sum, nameReason, nameSort, idArticle
+    FILTERS in(c, d)
+;
+           
+FORM deteriorationTorg15B 'ТОРГ-15 (оборотная сторона)'  
+    OBJECTS c=Deterioration     
+    PROPERTIES (c) nameCommittee, namePositionChairman, shortNameChairman    
+    
+    OBJECTS e=Employee SUBREPORT 
+    PROPERTIES(e) shortName, namePosition
+    FILTERS inDeteriorationCommittee(c, e)
+;
+
+printDeteriorationTorg15 'ТОРГ-15' (Deterioration deterioration)  { 
+    PRINT deteriorationTorg15A OBJECTS c = deterioration; 
+    PRINT deteriorationTorg15B OBJECTS c = deterioration;
+} IMAGE 'print.png' IN print;
