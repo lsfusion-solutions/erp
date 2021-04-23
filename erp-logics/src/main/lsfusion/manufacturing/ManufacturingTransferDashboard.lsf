@@ -212,6 +212,9 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	}
 } TOOLBAR;
 
+extraConditionSale = ABSTRACT BOOLEAN (Sale.Invoice);
+extraConditionPurchase = ABSTRACT BOOLEAN (UserInvoice);
+
 FORM manufacturingTransfer 'Перемещение на цех производства'
     OBJECTS d = DATE PANEL
     PROPERTIES(d) VALUE
@@ -222,7 +225,7 @@ FORM manufacturingTransfer 'Перемещение на цех производ�
                                         number, series, date, time                                
     PROPERTIES (si) READONLY nameSupplierStock, nameCustomerStock, statusInvoice
     PROPERTIES (si) createManufacturingPurchaseSale
-    FILTERS operation(si) == cateringSaleOperation()
+    FILTERS operation(si) == cateringSaleOperation() OR extraConditionSale(si)
     
     FILTERGROUP saleDate
         FILTER 'На дату' date(si) == d DEFAULT 
@@ -235,7 +238,7 @@ FORM manufacturingTransfer 'Перемещение на цех производ�
                                         number[Invoice], series[Invoice], date[Invoice], time[Invoice]                                
     PROPERTIES (pi) READONLY nameSupplierStock[Invoice], nameCustomerStock[Invoice]
     PROPERTIES (pi) NEWSESSION EDIT SHOWIF isOpened[Invoice](pi), DELETE SHOWIF isOpened[Invoice](pi) 
-    FILTERS operation[Invoice](pi) == cateringPurchaseOperation()
+    FILTERS operation[Invoice](pi) == cateringPurchaseOperation() OR extraConditionPurchase(pi)
     FILTERGROUP purchaseDate
         FILTER 'На дату' date[Invoice](pi) == d DEFAULT 
 ;
