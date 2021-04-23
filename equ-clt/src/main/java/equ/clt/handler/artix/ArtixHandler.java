@@ -352,7 +352,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Integer blisterAmount = null;
         if(item.batchList != null) {
             for (CashRegisterItemBatch batch : item.batchList) {
-                blisterAmount = blisterAmount == null ? batch.blisterAmount : batch.blisterAmount == null ? blisterAmount : Math.max(blisterAmount, batch.blisterAmount);
+                if(blisterAmount == null) {
+                    blisterAmount = batch.blisterAmount;
+                } else {
+                    blisterAmount = batch.blisterAmount == null ? blisterAmount : Math.max(blisterAmount, batch.blisterAmount);
+                }
+
             }
             blisterAmount = nvl(blisterAmount, 1);
         }
