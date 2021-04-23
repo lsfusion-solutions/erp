@@ -337,18 +337,26 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             inventObject.put("options", itemOptions);
 
-            //кол-во блистеров в упаковке
-            if(item.batchList != null) {
-                Integer blisterAmount = null;
-                for (CashRegisterItemBatch batch : item.batchList) {
-                    blisterAmount = blisterAmount == null ? batch.blisterAmount : batch.blisterAmount == null ? blisterAmount : Math.max(blisterAmount, batch.blisterAmount);
-                }
-                inventObject.put("cquant", nvl(blisterAmount, 1));
+            Integer blisterAmount = getBlisterAmount(item);
+            if(blisterAmount != null) {
+                inventObject.put("cquant", blisterAmount);
             }
 
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
         } else return null;
+    }
+
+    private Integer getBlisterAmount(CashRegisterItem item) {
+        //кол-во блистеров в упаковке
+        Integer blisterAmount = null;
+        if(item.batchList != null) {
+            for (CashRegisterItemBatch batch : item.batchList) {
+                blisterAmount = blisterAmount == null ? batch.blisterAmount : batch.blisterAmount == null ? blisterAmount : Math.max(blisterAmount, batch.blisterAmount);
+            }
+            blisterAmount = nvl(blisterAmount, 1);
+        }
+        return blisterAmount;
     }
 
     private String getAddInventItemSoftJSON() throws JSONException {
@@ -448,7 +456,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             rootObject.put("unit", inventGroupObject);
             inventGroupObject.put("unitCode", idUOM); //код единицы измерения
             inventGroupObject.put("name", item.shortNameUOM); //наименование единицы измерения
-            inventGroupObject.put("fractional", item.splitItem); //дробная единица измерения: true весовой, false штучный
+
+            Integer blisterAmount = getBlisterAmount(item);
+            inventGroupObject.put("fractional", blisterAmount != null ? blisterAmount.compareTo(1) > 0 : item.splitItem); //дробная единица измерения: true весовой, false штучный
             rootObject.put("command", "addUnit");
             return rootObject.toString();
         } else return null;
