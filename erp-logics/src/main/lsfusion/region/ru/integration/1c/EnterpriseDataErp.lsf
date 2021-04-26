@@ -1,0 +1,225 @@
+MODULE EnterpriseDataErp;
+
+REQUIRE EnterpriseDataSend, EnterpriseDataReceive, PurchaseInvoiceRu, PurchaseReturnInvoice, SaleInvoice, SaleReturnInvoice;
+
+NAMESPACE EnterpriseData;
+
+@defineStaticObject(TypeDocument1C, 'Тип документа 1С');
+
+type1C 'Тип операции 1С' = DATA TypeDocument1C (Purchase.Operation);
+nameType1C 'Тип операции 1С' (Purchase.Operation o) = name(type1C(o));
+
+EXTEND FORM Purchase.operation PROPERTIES nameType1C(o);
+DESIGN Purchase.operation { paramsContainer { MOVE PROPERTY(nameType1C(o)); } }
+
+type1C 'Тип операции 1С' = DATA TypeDocument1C (Sale.Operation);
+nameType1C 'Тип операции 1С' (Sale.Operation o) = name(type1C(o));
+
+EXTEND FORM Sale.operation PROPERTIES nameType1C(o);
+DESIGN Sale.operation { paramsContainer { MOVE PROPERTY(nameType1C(o)); } }
+
+// UOM
+EXTEND CLASS Stock.UOM : UOM;
+
+name (Stock.UOM uom) += STRING(Stock.name(uom));
+
+// country
+EXTEND CLASS Country.Country : Country;
+
+id (Country.Country c) += STRING(Country.sid(c));
+name (Country.Country c) += STRING(Country.name(c));
+
+// item
+EXTEND CLASS TypeVat : Item;
+
+article (TypeVat i) += STRING(getWord(staticName(i), '.', 2));
+id (TypeVat i) += CONCAT '-', prefix(), STRING(i);
+name (TypeVat i) += STRING(staticCaption(i));
+
+// partner
+EXTEND CLASS LegalEntity : Partner, Company;
+
+inn (LegalEntity le) += STRING[12](LegalEntity.inn(le));
+kpp (LegalEntity le) += STRING[9](LegalEntity.kpp(le));
+name (LegalEntity le) += STRING(LegalEntity.name(le));
+fullName (LegalEntity le) += STRING(LegalEntity.fullName(le));
+type (LegalEntity le) += TypePartner.legalEntity IF le IS LegalEntity;
+
+// contract
+EXTEND CLASS Contract.Contract : Contract;
+
+type (Contract.Contract c) += CASE EXCLUSIVE
+                                        WHEN Contract.type(c) == ContractSkuType.sale THEN TypeContract.supplier
+                                        WHEN Contract.type(c) == ContractSkuType.commission THEN TypeContract.consignor
+                                        ELSE TypeContract.other IF c IS Contract.Contract;
+partner (Contract.Contract c) += partyA(c);
+company (Contract.Contract c) += partyB(c);
+number (Contract.Contract c) += seriesNumber(c);
+currency (Contract.Contract c) += Contract.currency(c);
+date (Contract.Contract c) += dateFrom(c);
+
+// stock
+EXTEND CLASS Stock.Stock : Stock;
+
+name (Stock.Stock s) += STRING(Stock.name(s));
+type (Stock.Stock s) += TypeStock.nonAutomatedShop IF s IS Stock.Stock;
+
+// currency
+EXTEND CLASS Currency.Currency : Currency;
+
+name (Currency.Currency c) += STRING(Currency.name(c));
+id (Currency.Currency c) += STRING(sid(c));
+
+typeVat (NUMERIC[10,5] value) = CASE
+    WHEN value = 10.0 THEN TypeVat.vat10
+    WHEN value = 18.0 THEN TypeVat.vat18
+    WHEN value = 20.0 THEN TypeVat.vat20
+    ELSE TypeVat.withoutVat IF value IS NUMERIC[10,5];
+
+// purchase invoice
+EXTEND CLASS TypeDocument1C {
+    purchaseInvoice 'Документ.ПоступлениеТоваровУслуг / Документ.ВозвратТоваровПоставщику'
+}
+
+CLASS Document1CPurchaseInvoice : PurchaseInvoice, Settlement;
+
+document1CPurchaseInvoice = AGGR Document1CPurchaseInvoice WHERE type1C(Purchase.operation(Purchase.Invoice invoice)) = TypeDocument1C.purchaseInvoice;
+
+isDeleted (Document1CPurchaseInvoice i) += isDraft(invoice(i));
+company (Document1CPurchaseInvoice i) += Purchase.customer(invoice(i)); 
+partner (Document1CPurchaseInvoice i) += Purchase.supplier(invoice(i));
+currency (Document1CPurchaseInvoice i) += Purchase.currency(invoice(i));
+dateTime (Document1CPurchaseInvoice i) += Purchase.dateTime(invoice(i));
+id (Document1CPurchaseInvoice i) += ISTRING(right((CONCAT '-', prefix(), Purchase.seriesNumber(invoice(i))), 11));
+operation (Document1CPurchaseInvoice i) += TypePurchaseInvoice.delivery IF i IS Document1CPurchaseInvoice;
+stock (Document1CPurchaseInvoice i) += Purchase.customerStock(invoice(i));
+
+settlements (Document1CPurchaseInvoice b) += b AS Document1CPurchaseInvoice;
+contract[Settlement] (Document1CPurchaseInvoice i) += Purchase.contractSku(invoice(i));
+
+// lines of Invoice
+sum (Purchase.Invoice i, TypeVat v) = GROUP SUM Purchase.sum(Purchase.InvoiceDetail d) BY invoice(d), typeVat(valueVAT(d));
+sumVat (Purchase.Invoice i, TypeVat v) = GROUP SUM Purchase.VATSum(Purchase.InvoiceDetail d) BY invoice(d), typeVat(valueVAT(d));
+
+CLASS TypeVatPurchaseInvoiceDetail : PurchaseInvoiceProduct;
+
+typeVatPurchaseInvoiceDetail = AGGR TypeVatPurchaseInvoiceDetail WHERE sum(invoice(Document1CPurchaseInvoice invoice), TypeVat typeVat);
+
+purchaseInvoice (TypeVatPurchaseInvoiceDetail d) += invoice(d); 
+declaration (TypeVatPurchaseInvoiceDetail d) += '' IF d IS TypeVatPurchaseInvoiceDetail;
+item (TypeVatPurchaseInvoiceDetail d) += typeVat(d);
+isProduct (TypeVatPurchaseInvoiceDetail l) += l IS TypeVatPurchaseInvoiceDetail;
+quantity (TypeVatPurchaseInvoiceDetail d) += 1.0 IF d IS TypeVatPurchaseInvoiceDetail;
+sum (TypeVatPurchaseInvoiceDetail d) += NUMERIC[15,2](sum(invoice(invoice(d)), typeVat(d)));
+rateVat (TypeVatPurchaseInvoiceDetail d) += typeVat(d);
+sumVat (TypeVatPurchaseInvoiceDetail d) += NUMERIC[15,2](sumVat(invoice(invoice(d)), typeVat(d)));
+uom (TypeVatPurchaseInvoiceDetail d) += UOM('1') IF d IS TypeVatPurchaseInvoiceDetail; // todo hardcode for demo only
+
+// purchase return invoice
+CLASS Document1CPurchaseReturnInvoice : PurchaseReturnInvoice, Settlement;
+
+document1CPurchaseReturnInvoice = AGGR Document1CPurchaseReturnInvoice WHERE type1C(PurchaseReturn.operation(PurchaseReturn.Invoice returnInvoice)) = TypeDocument1C.purchaseInvoice;
+
+isDeleted (Document1CPurchaseReturnInvoice i) += isDraft(returnInvoice(i));
+company (Document1CPurchaseReturnInvoice i) += PurchaseReturn.customer(returnInvoice(i)); 
+partner (Document1CPurchaseReturnInvoice i) += PurchaseReturn.supplier(returnInvoice(i));
+currency (Document1CPurchaseReturnInvoice i) += PurchaseReturn.currency(returnInvoice(i));
+dateTime (Document1CPurchaseReturnInvoice i) += PurchaseReturn.dateTime(returnInvoice(i));
+id (Document1CPurchaseReturnInvoice i) += ISTRING(right((CONCAT '-', prefix(), PurchaseReturn.seriesNumber(returnInvoice(i))), 11));
+operation (Document1CPurchaseReturnInvoice i) += TypePurchaseReturnInvoice.delivery IF i IS Document1CPurchaseReturnInvoice;
+stock (Document1CPurchaseReturnInvoice i) += PurchaseReturn.customerStock(returnInvoice(i));
+
+settlements (Document1CPurchaseReturnInvoice b) += b AS Document1CPurchaseReturnInvoice;
+contract[Settlement] (Document1CPurchaseReturnInvoice i) += PurchaseReturn.contractSku(returnInvoice(i));
+
+// lines of Return Invoice
+sum (PurchaseReturn.Invoice i, TypeVat v) = GROUP SUM PurchaseReturn.sum(PurchaseReturn.InvoiceDetail d) BY PurchaseReturn.invoice(d), typeVat(valueVAT(d));
+sumVat (PurchaseReturn.Invoice i, TypeVat v) = GROUP SUM PurchaseReturn.VATSum(PurchaseReturn.InvoiceDetail d) BY PurchaseReturn.invoice(d), typeVat(valueVAT(d));
+
+CLASS TypeVatPurchaseInvoiceReturnDetail : PurchaseReturnInvoiceProduct;
+
+typeVatPurchaseInvoiceReturnDetail = AGGR TypeVatPurchaseInvoiceReturnDetail WHERE sum(returnInvoice(Document1CPurchaseReturnInvoice invoice), TypeVat typeVat);
+
+purchaseReturnInvoice (TypeVatPurchaseInvoiceReturnDetail d) += invoice(d); 
+declaration (TypeVatPurchaseInvoiceReturnDetail d) += '' IF d IS TypeVatPurchaseInvoiceReturnDetail;
+item (TypeVatPurchaseInvoiceReturnDetail d) += typeVat(d);
+isProduct (TypeVatPurchaseInvoiceReturnDetail l) += l IS TypeVatPurchaseInvoiceReturnDetail;
+quantity (TypeVatPurchaseInvoiceReturnDetail d) += 1.0 IF d IS TypeVatPurchaseInvoiceReturnDetail;
+sum (TypeVatPurchaseInvoiceReturnDetail d) += NUMERIC[15,2](sum(returnInvoice(invoice(d)), typeVat(d)));
+rateVat (TypeVatPurchaseInvoiceReturnDetail d) += typeVat(d);
+sumVat (TypeVatPurchaseInvoiceReturnDetail d) += NUMERIC[15,2](sumVat(returnInvoice(invoice(d)), typeVat(d)));
+uom (TypeVatPurchaseInvoiceReturnDetail d) += UOM('1') IF d IS TypeVatPurchaseInvoiceReturnDetail; // todo hardcode for demo only
+
+// sale invoice
+EXTEND CLASS TypeDocument1C {
+    saleInvoice 'Документ.РеализацияТоваровУслуг / Документ.ВозвратТоваровОтПокупателя'
+}
+
+CLASS Document1CSaleInvoice : SaleInvoice, Settlement;
+
+document1CSaleInvoice = AGGR Document1CSaleInvoice WHERE type1C(Sale.operation(Sale.Invoice invoice)) = TypeDocument1C.saleInvoice;
+
+isDeleted (Document1CSaleInvoice i) += isDraft(invoice(i));
+company (Document1CSaleInvoice i) += Sale.customer(invoice(i)); 
+partner (Document1CSaleInvoice i) += Sale.supplier(invoice(i));
+currency (Document1CSaleInvoice i) += Sale.currency(invoice(i));
+dateTime (Document1CSaleInvoice i) += Sale.dateTime(invoice(i));
+id (Document1CSaleInvoice i) += ISTRING(right((CONCAT '-', prefix(), Sale.seriesNumber(invoice(i))), 11));
+operation (Document1CSaleInvoice i) += TypeSaleInvoice.sale IF i IS Document1CSaleInvoice;
+stock (Document1CSaleInvoice i) += Sale.customerStock(invoice(i));
+
+settlements (Document1CSaleInvoice b) += b AS Document1CSaleInvoice;
+contract[Settlement] (Document1CSaleInvoice i) += Sale.contractSku(invoice(i));
+
+// lines of Invoice
+sum (Sale.Invoice i, TypeVat v) = GROUP SUM Sale.sum(Sale.InvoiceDetail d) BY invoice(d), typeVat(valueVAT(d));
+sumVat (Sale.Invoice i, TypeVat v) = GROUP SUM Sale.VATSum(Sale.InvoiceDetail d) BY invoice(d), typeVat(valueVAT(d));
+
+CLASS TypeVatSaleInvoiceDetail : SaleInvoiceProduct;
+
+typeVatSaleInvoiceDetail = AGGR TypeVatSaleInvoiceDetail WHERE sum(invoice(Document1CSaleInvoice invoice), TypeVat typeVat);
+
+saleInvoice (TypeVatSaleInvoiceDetail d) += invoice(d); 
+declaration (TypeVatSaleInvoiceDetail d) += '' IF d IS TypeVatSaleInvoiceDetail;
+item (TypeVatSaleInvoiceDetail d) += typeVat(d);
+isProduct (TypeVatSaleInvoiceDetail l) += l IS TypeVatSaleInvoiceDetail;
+quantity (TypeVatSaleInvoiceDetail d) += 1.0 IF d IS TypeVatSaleInvoiceDetail;
+sum (TypeVatSaleInvoiceDetail d) += NUMERIC[15,2](sum(invoice(invoice(d)), typeVat(d)));
+rateVat (TypeVatSaleInvoiceDetail d) += typeVat(d);
+sumVat (TypeVatSaleInvoiceDetail d) += NUMERIC[15,2](sumVat(invoice(invoice(d)), typeVat(d)));
+uom (TypeVatSaleInvoiceDetail d) += UOM('1') IF d IS TypeVatSaleInvoiceDetail; // todo hardcode for demo only
+
+// sale return invoice
+CLASS Document1CSaleReturnInvoice : SaleReturnInvoice, Settlement;
+
+document1CSaleReturnInvoice = AGGR Document1CSaleReturnInvoice WHERE type1C(SaleReturn.operation(SaleReturn.Invoice returnInvoice)) = TypeDocument1C.saleInvoice;
+
+isDeleted (Document1CSaleReturnInvoice i) += isDraft(returnInvoice(i));
+company (Document1CSaleReturnInvoice i) += SaleReturn.customer(returnInvoice(i)); 
+partner (Document1CSaleReturnInvoice i) += SaleReturn.supplier(returnInvoice(i));
+currency (Document1CSaleReturnInvoice i) += SaleReturn.currency(returnInvoice(i));
+dateTime (Document1CSaleReturnInvoice i) += SaleReturn.dateTime(returnInvoice(i));
+id (Document1CSaleReturnInvoice i) += ISTRING(right((CONCAT '-', prefix(), SaleReturn.seriesNumber(returnInvoice(i))), 11));
+operation (Document1CSaleReturnInvoice i) += TypeSaleReturnInvoice.customer IF i IS Document1CSaleReturnInvoice;
+stock (Document1CSaleReturnInvoice i) += SaleReturn.customerStock(returnInvoice(i));
+
+settlements (Document1CSaleReturnInvoice b) += b AS Document1CSaleReturnInvoice;
+contract[Settlement] (Document1CSaleReturnInvoice i) += SaleReturn.contractSku(returnInvoice(i));
+
+// lines of Return Invoice
+sum (SaleReturn.Invoice i, TypeVat v) = GROUP SUM SaleReturn.sum(SaleReturn.InvoiceDetail d) BY SaleReturn.invoice(d), typeVat(valueVAT(d));
+sumVat (SaleReturn.Invoice i, TypeVat v) = GROUP SUM SaleReturn.VATSum(SaleReturn.InvoiceDetail d) BY SaleReturn.invoice(d), typeVat(valueVAT(d));
+
+CLASS TypeVatSaleInvoiceReturnDetail : SaleReturnInvoiceProduct;
+
+typeVatSaleInvoiceReturnDetail = AGGR TypeVatSaleInvoiceReturnDetail WHERE sum(returnInvoice(Document1CSaleReturnInvoice invoice), TypeVat typeVat);
+
+saleReturnInvoice (TypeVatSaleInvoiceReturnDetail d) += invoice(d); 
+declaration (TypeVatSaleInvoiceReturnDetail d) += '' IF d IS TypeVatSaleInvoiceReturnDetail;
+item (TypeVatSaleInvoiceReturnDetail d) += typeVat(d);
+isProduct (TypeVatSaleInvoiceReturnDetail l) += l IS TypeVatSaleInvoiceReturnDetail;
+quantity (TypeVatSaleInvoiceReturnDetail d) += 1.0 IF d IS TypeVatSaleInvoiceReturnDetail;
+sum (TypeVatSaleInvoiceReturnDetail d) += NUMERIC[15,2](sum(returnInvoice(invoice(d)), typeVat(d)));
+rateVat (TypeVatSaleInvoiceReturnDetail d) += typeVat(d);
+sumVat (TypeVatSaleInvoiceReturnDetail d) += NUMERIC[15,2](sumVat(returnInvoice(invoice(d)), typeVat(d)));
+uom (TypeVatSaleInvoiceReturnDetail d) += UOM('1') IF d IS TypeVatSaleInvoiceReturnDetail; // todo hardcode for demo only
