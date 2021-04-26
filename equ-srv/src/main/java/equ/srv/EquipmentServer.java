@@ -2494,11 +2494,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             query.addProperty("idBarcode", machineryPriceTransactionBatchLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
 
             String[] names = new String[]{"idBatch", "expiryDate", "seriesPharmacy", "nameManufacturer", "price",
-                    "nameATCGroup", "balance", "balanceDate", "sicCountry", "nameCountry", "blisterAmount", "flag"};
+                    "nameATCGroup", "balanceBlister", "balanceDate", "sicCountry", "nameCountry", "blisterAmount", "flag"};
             LP[] properties = machineryPriceTransactionBatchLM.findProperties("id[MachineryPriceTransaction,Barcode,Batch]",
                     "expiryDate[MachineryPriceTransaction,Barcode,Batch]", "seriesPharmacy[MachineryPriceTransaction,Barcode,Batch]",
                     "nameManufacturer[MachineryPriceTransaction,Barcode,Batch]", "price[MachineryPriceTransaction,Barcode,Batch]",
-                    "nameATCGroup[MachineryPriceTransaction,Barcode,Batch]", "balance[MachineryPriceTransaction,Barcode,Batch]",
+                    "nameATCGroup[MachineryPriceTransaction,Barcode,Batch]", "balanceBlister[MachineryPriceTransaction,Barcode,Batch]",
                     "balanceDate[MachineryPriceTransaction,Barcode,Batch]", "sidCountry[MachineryPriceTransaction,Barcode,Batch]",
                     "nameCountry[MachineryPriceTransaction,Barcode,Batch]", "blisterAmount[MachineryPriceTransaction,Barcode,Batch]",
                     "flag[MachineryPriceTransaction,Barcode,Batch]");
@@ -2521,7 +2521,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 String nameManufacturer = getRowValue(row, "nameManufacturer");
                 BigDecimal price = (BigDecimal) row.get("price");
                 String nameSubstance = getRowValue(row, "nameATCGroup");
-                BigDecimal balance = (BigDecimal) row.get("balance");
+                BigDecimal balance = (BigDecimal) row.get("balanceBlister");
                 LocalDateTime balanceDate = (LocalDateTime) row.get("balanceDate");
                 String countryCode = getRowValue(row, "sidCountry");
                 String countryName = getRowValue(row, "nameCountry");
