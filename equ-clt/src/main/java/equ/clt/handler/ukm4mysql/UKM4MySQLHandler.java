@@ -23,6 +23,7 @@ import java.util.*;
 import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.safeDivide;
 import static equ.clt.handler.HandlerUtils.trim;
+import static lsfusion.base.BaseUtils.nvl;
 
 public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesBatch> {
 
@@ -56,19 +57,19 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                 Class.forName("com.mysql.jdbc.Driver");
 
-                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
-                timeout = timeout == null ? 300 : timeout;
-                boolean skipItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
-                boolean skipClassif = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipClassif() != null && ukm4MySQLSettings.getSkipClassif();
-                boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
-                boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
-                boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
-                boolean exportTaxes = ukm4MySQLSettings != null && ukm4MySQLSettings.isExportTaxes();
-                boolean sendZeroQuantityForWeightItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSendZeroQuantityForWeightItems() != null && ukm4MySQLSettings.getSendZeroQuantityForWeightItems();
-                List<String> forceGroups = ukm4MySQLSettings == null ? new ArrayList<>() : ukm4MySQLSettings.getForceGroupsList();
-                boolean tareWeightFieldInVarTable = ukm4MySQLSettings != null && ukm4MySQLSettings.isTareWeightFieldInVarTable();
-                boolean usePieceCode = ukm4MySQLSettings != null && ukm4MySQLSettings.isUsePieceCode();
+                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
+                Integer timeout = nvl(ukm4MySQLSettings.getTimeout(), 300);
+                boolean skipItems = ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
+                boolean skipClassif = ukm4MySQLSettings.getSkipClassif() != null && ukm4MySQLSettings.getSkipClassif();
+                boolean skipBarcodes = ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
+                boolean useBarcodeAsId = ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
+                boolean appendBarcode = ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
+                boolean exportTaxes = ukm4MySQLSettings.isExportTaxes();
+                boolean sendZeroQuantityForWeightItems = ukm4MySQLSettings.getSendZeroQuantityForWeightItems() != null && ukm4MySQLSettings.getSendZeroQuantityForWeightItems();
+                boolean sendZeroQuantityForSplitItems = ukm4MySQLSettings.getSendZeroQuantityForSplitItems() != null && ukm4MySQLSettings.getSendZeroQuantityForSplitItems();
+                List<String> forceGroups = ukm4MySQLSettings.getForceGroupsList();
+                boolean tareWeightFieldInVarTable = ukm4MySQLSettings.isTareWeightFieldInVarTable();
+                boolean usePieceCode = ukm4MySQLSettings.isUsePieceCode();
 
                 Map<String, List<TransactionCashRegisterInfo>> transactionsMap = new HashMap<>();
                 for (TransactionCashRegisterInfo transaction : transactionList) {
@@ -168,7 +169,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                         exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
-                                        exportVar(conn, transaction, useBarcodeAsId, weightCode, pieceCode, usePieceCode, appendBarcode, sendZeroQuantityForWeightItems, tareWeightFieldInVarTable, version);
+                                        exportVar(conn, transaction, useBarcodeAsId, weightCode, pieceCode, usePieceCode, appendBarcode,
+                                                sendZeroQuantityForWeightItems, sendZeroQuantityForSplitItems, tareWeightFieldInVarTable, version);
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table properties", transaction.id));
                                         exportProperties(conn, transaction, version);
@@ -546,7 +548,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, String weightCode, String pieceCode, boolean usePieceCode,
-                           boolean appendBarcode, boolean sendZeroQuantityForWeightItems, boolean tareWeightFieldInVarTable, int version) throws SQLException {
+                           boolean appendBarcode, boolean sendZeroQuantityForWeightItems, boolean sendZeroQuantityForSplitItems, boolean tareWeightFieldInVarTable, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -567,7 +569,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (barcode != null && item.idItem != null) {
                         ps.setString(1, trim(barcode, 40)); //id
                         ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
-                        ps.setDouble(3, sendZeroQuantityForWeightItems && item.passScalesItem ? 0 :
+                        ps.setDouble(3, ((sendZeroQuantityForWeightItems && item.passScalesItem) || (sendZeroQuantityForSplitItems && item.splitItem)) ? 0 :
                                 (item.amountBarcode != null ? item.amountBarcode.doubleValue() : 1)); //quantity
                         ps.setInt(4, 1); //stock
                         ps.setInt(5, version); //version

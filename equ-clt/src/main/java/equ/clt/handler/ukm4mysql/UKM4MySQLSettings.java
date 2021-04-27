@@ -52,8 +52,11 @@ public class UKM4MySQLSettings implements Serializable{
     //Если true, то при 100% скидке создаём платёж с нулевой суммой (для hoddabi)
     private boolean zeroPaymentForZeroSumReceipt;
 
-    //Если true, то для весовых товаров отправляем кол-во 0
+    //Если true и passScales, то для товара отправляем кол-во 0
     private Boolean sendZeroQuantityForWeightItems;
+
+    //Если true и splitItem, то для товара отправляем кол-во 0
+    private Boolean sendZeroQuantityForSplitItems;
 
     //Если true, то касса ищется по store и номеру кассы, иначе - только по номеру
     private boolean cashRegisterByStoreAndNumber;
@@ -209,6 +212,14 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setSendZeroQuantityForWeightItems(Boolean sendZeroQuantityForWeightItems) {
         this.sendZeroQuantityForWeightItems = sendZeroQuantityForWeightItems;
+    }
+
+    public Boolean getSendZeroQuantityForSplitItems() {
+        return sendZeroQuantityForSplitItems;
+    }
+
+    public void setSendZeroQuantityForSplitItems(Boolean sendZeroQuantityForSplitItems) {
+        this.sendZeroQuantityForSplitItems = sendZeroQuantityForSplitItems;
     }
 
     public List<String> getForceGroupsList() {
