@@ -797,7 +797,7 @@ public class DefaultTerminalHandler {
     }
 
     private void updateBatchesTable(Connection connection, List<TerminalBatch> terminalBatchList, String prefix) throws SQLException {
-        if (terminalBatchList != null && !terminalBatchList.isEmpty() && prefix != null) {
+        if (terminalBatchList != null && !terminalBatchList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
@@ -810,7 +810,7 @@ public class DefaultTerminalHandler {
                         statement.setObject(3, formatValue(batch.date));
                         statement.setObject(4, formatValue(batch.number));
                         String idSupplier = null;
-                        if (batch.idSupplier != null)
+                        if (batch.idSupplier != null && prefix != null)
                             idSupplier = prefix + batch.idSupplier;
                         statement.setObject(5, formatValue(idSupplier));
                         statement.setObject(6, formatValue(batch.price));

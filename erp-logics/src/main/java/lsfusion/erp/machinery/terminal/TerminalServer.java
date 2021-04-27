@@ -539,6 +539,8 @@ public class TerminalServer extends MonitorServer {
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
                                     boolean readBatch = (params.length > 1 && params[1].equalsIgnoreCase("1"));
+                                    if(readBatch)
+                                        logger.info("requested readBatch");
                                     fileData = readBase(userInfo, readBatch);
                                     if (fileData == null) {
                                         errorCode = GET_ALL_BASE_ERROR;
