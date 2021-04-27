@@ -1896,7 +1896,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     private void processReceiptDetailExtraFields(DataSession session, ExecutionStack stack, RowsData rowsData) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        if(cashRegisterLM != null && rowsData.receiptDetailExtraFields != null) {
+        if(cashRegisterLM != null && rowsData.receiptDetailExtraFields != null && cashRegisterLM.findProperty("executeProcessReceiptDetailExtraFields[]").read(session) != null) {
             cashRegisterLM.findAction("processReceiptDetailExtraFields[STRING]").execute(session, stack, new DataObject(rowsData.receiptDetailExtraFields.toString()));
         }
     }
