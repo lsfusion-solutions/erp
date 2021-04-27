@@ -2503,7 +2503,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             query.addProperty("idBarcode", machineryPriceTransactionBatchLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
 
             String[] names = new String[]{"idBatch", "expiryDate", "seriesPharmacy", "nameManufacturer", "price",
-                    "nameATCGroup", "balanceBlister", "balanceDate", "sicCountry", "nameCountry", "blisterAmount", "flag"};
+                    "nameATCGroup", "balanceBlister", "balanceDate", "sidCountry", "nameCountry", "blisterAmount", "flag"};
             LP[] properties = machineryPriceTransactionBatchLM.findProperties("id[MachineryPriceTransaction,Barcode,Batch]",
                     "expiryDate[MachineryPriceTransaction,Barcode,Batch]", "seriesPharmacy[MachineryPriceTransaction,Barcode,Batch]",
                     "nameManufacturer[MachineryPriceTransaction,Barcode,Batch]", "price[MachineryPriceTransaction,Barcode,Batch]",
