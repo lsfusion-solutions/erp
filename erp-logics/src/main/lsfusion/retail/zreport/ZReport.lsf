@@ -97,7 +97,10 @@ is(ReceiptReturnDetail receiptReturnDetail) = receiptReturnDetail IS ReceiptRetu
 
 number 'Номер позиции чека' = DATA INTEGER (ReceiptDetail); 
 
-@defineDocumentRelation(zReport, Receipt);
+zReport = DATA ZReport (Receipt) NONULL DELETE AGGR;
+in(ZReport o, Receipt d) = zReport(d) == o;
+
+@defineDocumentHeaderCount(zReport, Receipt);
 numberZReport 'Номер Z-отчета' (Receipt receipt) = number(zReport(receipt)) IN id;
 cashRegister (Receipt receipt) = cashRegister(zReport(receipt));
 numberCashRegister 'Номер кассы' (Receipt receipt) = npp(cashRegister(receipt)) IN id;
@@ -821,6 +824,8 @@ filterDepartmentStore (ZReport z) = departmentStore(z) == filterZReportDepartmen
  
 filterZReportCashRegister 'Касса Z-отчета'   = DATA LOCAL STRING[10] ();
 filterCashRegister (ZReport z) = overNumberCashRegister(z) == filterZReportCashRegister() OR (z IS ZReport AND NOT filterZReportCashRegister()); 
+
+INDEX zReport(Receipt b), dateTime(b), b;
 
 lastDateTimeReceipt 'Время последнего чека'  = GROUP LAST dateTime(Receipt b)
         ORDER dateTime(b), b
