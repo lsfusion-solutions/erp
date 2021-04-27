@@ -1044,6 +1044,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Set<Integer> giftCardPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getGiftCardPayments());
         Set<Integer> customPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCustomPayments());
         int externalSumType = artixSettings == null ? 0 : artixSettings.getExternalSumType();
+        boolean medicineMode = artixSettings.isMedicineMode();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1311,6 +1312,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 }
                                             }
 
+                                            String idBatch = null;
+                                            if(medicineMode) {
+                                                JSONObject medicine = inventPosition.optJSONObject("medicine");
+                                                idBatch = medicine != null ? medicine.optString("party") : null;
+                                            }
+
                                             sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
 
                                             CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
@@ -1331,7 +1338,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     salesInfo.detailExtraFields.put("bonusSum", bonusSum);
                                                     salesInfo.detailExtraFields.put("bonusPaid", bonusPaid);
                                                 }
-                                                //todo: при изменении equ-api перекинуть в receiptExtraFields
+                                                salesInfo.detailExtraFields.put("idBatch", idBatch);
                                                 salesInfo.detailExtraFields.put("externalNumber", externalNumber);
                                                 currentSalesInfoList.add(salesInfo);
                                             }
