@@ -41,18 +41,22 @@ public class NewLandBoardDaemon extends BoardDaemon {
     @Override
     protected void onInit(LifecycleEvent event) {
         LM = logicsInstance.getBusinessLogics().getModule("NewLandBoard");
-        Assert.notNull(LM, "can't find NewLandBoard module");
+//        Assert.notNull(LM, "can't find NewLandBoard module");
     }
 
     @Override
     public void setupDaemon() {
-        startLogger.info("Starting " + getEventName() + " Daemon");
-        try (DataSession session = createSession()) {
-            String host = (String) LM.findProperty("hostNewLandBoard[]").read(session);
-            Integer port = (Integer) LM.findProperty("portNewLandBoard[]").read(session);
-            setupDaemon(dbManager, host, port != null ? port : 2005);
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException | IOException e) {
-            throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
+        if (LM == null) {
+            startLogger.info("Starting " + getEventName() + " Daemon : NewLandBoard module not found");
+        } else {
+            startLogger.info("Starting " + getEventName() + " Daemon");
+            try (DataSession session = createSession()) {
+                String host = (String) LM.findProperty("hostNewLandBoard[]").read(session);
+                Integer port = (Integer) LM.findProperty("portNewLandBoard[]").read(session);
+                setupDaemon(dbManager, host, port != null ? port : 2005);
+            } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException | IOException e) {
+                throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
+            }
         }
     }
 
