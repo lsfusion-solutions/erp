@@ -628,6 +628,7 @@ public class DefaultTerminalHandler {
                 " minprice REAL," +
                 " maxprice REAL," +
                 " quant   REAL," +
+                " mainpost TEXT," +
                 "PRIMARY KEY ( post, barcode))";
         statement.executeUpdate(sql);
         statement.execute("CREATE INDEX assort_k ON assort (post,barcode);");
@@ -639,7 +640,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO assort VALUES(?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO assort VALUES(?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalAssortment assortment : terminalAssortmentList) {
                     if (assortment.idSupplier != null && assortment.idBarcode != null) {
@@ -649,6 +650,7 @@ public class DefaultTerminalHandler {
                         statement.setObject(4, formatValue(assortment.minPrice));
                         statement.setObject(5, formatValue(assortment.maxPrice));
                         statement.setObject(6, formatValue(assortment.quantity));
+                        statement.setObject(7, formatValue((prefix + assortment.idOriginalSupplier)));
                         statement.addBatch();
                     }
                 }
@@ -1191,6 +1193,7 @@ public class DefaultTerminalHandler {
                 query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
                 query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
                 query.addProperty("quantity", terminalHandlerLM.findProperty("quantity[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
+                query.addProperty("idOriginalSupplier", terminalHandlerLM.findProperty("supplier[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
             } else
                 query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
                         skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()));
@@ -1209,6 +1212,7 @@ public class DefaultTerminalHandler {
             for (ImMap<Object, Object> entry : result.values()) {
                 String idBarcodeSku = StringUtils.trim((String) entry.get("idBarcodeSku"));
                 String idSupplier = StringUtils.trim((String) entry.get("idSupplier"));
+                String idOriginalSupplier = null;
                 BigDecimal price;
                 if (terminalHandlerLM != null)
                     price = (BigDecimal) entry.get("price");
@@ -1222,8 +1226,9 @@ public class DefaultTerminalHandler {
                     minPrice = (BigDecimal) entry.get("minPrice");
                     maxPrice = (BigDecimal) entry.get("maxPrice");
                     quantity = (BigDecimal) entry.get("quantity");
+                    idOriginalSupplier = StringUtils.trim((String) entry.get("idOriginalSupplier"));
                 }
-                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price, minPrice, maxPrice, quantity));
+                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price, minPrice, maxPrice, quantity, idOriginalSupplier));
             }
         }
         return terminalAssortmentList;
@@ -1367,18 +1372,20 @@ public class DefaultTerminalHandler {
     private static class TerminalAssortment implements Serializable {
         public String idBarcode;
         public String idSupplier;
+        public String idOriginalSupplier;
         public BigDecimal price;
         public BigDecimal minPrice;
         public BigDecimal maxPrice;
         public BigDecimal quantity;
 
-        public TerminalAssortment(String idBarcode, String idSupplier, BigDecimal price, BigDecimal minPrice, BigDecimal maxPrice, BigDecimal quantity) {
+        public TerminalAssortment(String idBarcode, String idSupplier, BigDecimal price, BigDecimal minPrice, BigDecimal maxPrice, BigDecimal quantity, String idOriginalSupplier) {
             this.idBarcode = idBarcode;
             this.idSupplier = idSupplier;
             this.price = price;
             this.minPrice = minPrice;
             this.maxPrice = maxPrice;
             this.quantity = quantity;
+            this.idOriginalSupplier = idOriginalSupplier;
         }
     }
 
