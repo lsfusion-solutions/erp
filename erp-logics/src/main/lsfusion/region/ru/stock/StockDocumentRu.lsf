@@ -1,0 +1,67 @@
+MODULE StockDocumentRu;
+
+REQUIRE StockDocument, LegalEntityRu;
+
+NAMESPACE StockDocument;
+
+positionShortNameResponsiblePerson 'Материально ответственное лицо' (Stock stock) = positionShortName(responsiblePerson(stock));
+OKPOLegalEntity 'ОКПО' (Stock st)= okpo(legalEntity(st));
+OKDPLegalEntity 'ОКДП' (Stock st)= okdp(legalEntity(st));
+isSelfStock (IncStockDocumentLedger il) = legalEntity(il) == legalEntity(stock(il));
+
+shortNameResponsiblePerson 'Материально ответственное лицо' (Stock stock) = shortName(responsiblePerson(stock));
+shortNameController 'Материально ответственное лицо' (Stock stock) = shortName(controller(stock));
+
+FORM stockDocumentTorg29 'ТОРГ-29'
+    OBJECTS params = (dtFrom = DATE, dtTo = DATE) PANEL SUBREPORT,
+            ds = Stock PANEL
+    PROPERTIES objFrom = VALUE(dtFrom), objTo = VALUE(dtTo)
+    PROPERTIES(ds) SELECTOR fullName, address, nameLegalEntity, fullNameLegalEntity,
+                            OKPOLegalEntity, OKDPLegalEntity,
+                            nameCustomUserController, namePositionController, 
+                            nameCustomUserResponsiblePerson, shortNameResponsiblePerson, namePositionResponsiblePerson
+
+    PROPERTIES sumAccountBDocumentLedger(ds, dtFrom), sumItemAccountBDocumentLedger(ds, dtFrom), sumContainerAccountBDocumentLedger(ds, dtFrom),
+               sumItemAccountADocumentLedger(ds, dtTo), sumContainerAccountADocumentLedger(ds, dtTo), sumAccountADocumentLedger(ds, dtTo)
+                              
+    PROPERTIES(ds, dtFrom, dtTo) 
+               sumItemIncStockDocumentInterval, sumContainerIncStockDocumentInterval,
+               subtotalItemIncStockDocumentInterval, subtotalContainerIncStockDocumentInterval,
+               sumItemOutStockDocumentInterval, sumContainerOutStockDocumentInterval,               
+               countIncStockDocumentInterval, countOutStockDocumentInterval 
+
+    OBJECTS il = IncStockDocumentLedger
+    PROPERTIES(il) SELECTOR iDateTime = dateTime, iObjName = objectClassName, iDescription = description, iNote = note,
+                   sumItem, sumContainer, nameLegalEntity, 
+                   date, seriesNumber, nameLegalEntityStock,
+                   isSelfStock
+    FILTERS active(il),
+            stock(il) == ds,
+            date(il) >= dtFrom,
+            date(il) <= dtTo
+    ORDERS date(il), seriesNumber(il) 
+
+    OBJECTS ol = OutStockDocumentLedger
+    PROPERTIES(ol) SELECTOR oDateTime = dateTime, oObjName = objectClassName, oDescription = description, oNote = note,
+                   sumItem, sumContainer, sum, nameLegalEntity,
+                   date, seriesNumber, nameLegalEntityStock,
+                   nameOperation
+    FILTERS active(ol),
+            stock(ol) == ds,
+            date(ol) >= dtFrom,
+            date(ol) <= dtTo
+    ORDERS date(ol), seriesNumber(ol)
+;
+
+printTorg29 'ТОРГ-29' (DATE dateFrom, DATE dateTo, Stock stock) 
+    { PRINT stockDocumentTorg29 OBJECTS dtFrom = dateFrom, dtTo = dateTo, ds = stock; }   IMAGE 'print.png' IN print;
+
+EXTEND FORM sumStockDocumentLedger
+    PROPERTIES printTorg29(dtFrom, dtTo, ds) DRAW params 
+;
+
+DESIGN sumStockDocumentLedger{
+    print {
+        MOVE PROPERTY(printTorg29(dtFrom,dtTo,ds));
+    }
+}
