@@ -7,7 +7,7 @@ TABLE barcode (Barcode);
 
 id 'Штрих-код' = DATA STRING[15] (Barcode) IN id CHARWIDTH 15 NOFLEX INDEXED DEFAULTCOMPARE 'CONTAINS';
 WHEN SETCHANGED (id(Barcode b)) INLINE DO id(b) <- replace(id(b), ' ','');
-@defineExternalizable(barcode, STRING[100], ext);
+@defineExternalizable(barcode, STRING[200], ext);
 extValue = ABSTRACT INTEGER (Barcode);
 value(Barcode b) = OVERRIDE extValue(b), LONG (b);
 
@@ -191,8 +191,8 @@ FORM barcodeDialog 'Штрих-код'
 
 
 // ---------------------------------- Предобработка штрихкода --------------------------- //
-overPreprocessedBarcode = ABSTRACT CASE STRING[100] (STRING[100]);
-processedBarcode (STRING[100] b) = OVERRIDE overPreprocessedBarcode(b), b AS STRING[100];
+overPreprocessedBarcode = ABSTRACT CASE STRING[200] (STRING[200]);
+processedBarcode (STRING[200] b) = OVERRIDE overPreprocessedBarcode(b), b AS STRING[200];
 
 weightPrefix 'Префикс весового штрихкода' = DATA STRING[2]();
 weightQuantity = DATA LOCAL NUMERIC[14,3]();
@@ -269,9 +269,9 @@ DESIGN options {
 META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuProp)
     idetail(object, sku) = GROUP MAX ###idetail detail BY object(detail), skuProp(detail);
 
-    afterInputBarcode###idetail ABSTRACT LIST (idetailClass, STRING[100]);
+    afterInputBarcode###idetail ABSTRACT LIST (idetailClass, STRING[200]);
 
-    create###idetail##New (###object object, STRING[100] barcode, Sku skuProp)  { 
+    create###idetail##New (###object object, STRING[200] barcode, Sku skuProp)  { 
         LOCAL dialogBarcodeDetail = idetailClass();
         dialogBarcodeDetail() <- idetail(object, skuProp);
         IF dialogBarcodeDetail() IS idetailClass THEN {
@@ -298,7 +298,7 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
         setAddedUser(skuProp);
     }
 
-    addDetailBarcode###idetail(###object object, STRING[100] barcode)  { 
+    addDetailBarcode###idetail(###object object, STRING[200] barcode)  { 
         LOCAL dialogBarcode###skuProp = Sku ();
         dialogBarcode###skuProp() <- skuProp##Barcode(barcode, date(object));
 
@@ -338,9 +338,9 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
     } TOOLBAR CHANGEKEY 'F4';
 
     consumedBarcode###idetail = DATA LOCAL BOOLEAN ();
-    beforeInputBarcode###idetail ABSTRACT LIST (###object, STRING[100]);
+    beforeInputBarcode###idetail ABSTRACT LIST (###object, STRING[200]);
     changeAddDetailInputBarcode###idetail(###object object)  { 
-        INPUT s = STRING[100] DO {
+        INPUT s = STRING[200] DO {
             weightQuantity() <- NULL;
             IF length(s) > 11 AND left(s, 2) == weightPrefix() THEN {
                 weightQuantity() <- NUMERIC[7,0](substr(s, 8, 5)) / 1000.0;
@@ -350,7 +350,7 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
                 addDetailBarcode###idetail(object, processedBarcode(s));
         }
     };
-    addDetailInputBarcode###idetail 'Ввод штрихкода :' (object) = DATA LOCAL STRING[100] (###object) TOOLBAR CHARWIDTH 13 CHANGEKEY 'F4' EVENTID 'SCANNER'
+    addDetailInputBarcode###idetail 'Ввод штрихкода :' (object) = DATA LOCAL STRING[200] (###object) TOOLBAR CHARWIDTH 13 CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE { changeAddDetailInputBarcode###idetail(object); }
 END
 

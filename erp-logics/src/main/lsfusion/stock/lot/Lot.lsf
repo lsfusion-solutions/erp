@@ -17,23 +17,23 @@ EXTEND FORM item
 // lot
 CLASS Lot 'Марка';
 
-id 'Код' = DATA STRING[100] (Lot) INDEXED IN id;
+id 'Код' = DATA STRING[200] (Lot) INDEXED IN id;
 lot = GROUP AGGR Lot l BY id(l); 
 
-translateBarcode = FORMULA STRING[100] 'SELECT CASE WHEN ($1) ~* \'[а-яА-Я]\' THEN translate(left(($1), 31), \'ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,йцукенгшщзхъфывапролджэячсмитьбю.\', \'QWERTYUIOP{}ASDFGHJKL:"|ZXCVBNM<>?qwertyuiop[]asdfghjkl;\'\'zxcvbnm,./\') ELSE left(($1), 31) END';
+translateBarcode = FORMULA STRING[200] 'SELECT CASE WHEN ($1) ~* \'[а-яА-Я]\' THEN translate(left(($1), 31), \'ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,йцукенгшщзхъфывапролджэячсмитьбю.\', \'QWERTYUIOP{}ASDFGHJKL:"|ZXCVBNM<>?qwertyuiop[]asdfghjkl;\'\'zxcvbnm,./\') ELSE left(($1), 31) END';
 
-barcodeToId = ABSTRACT CASE STRING[100] (STRING[100]);
-barcodeToId (STRING[100] s) += WHEN s IS STRING[100] THEN translateBarcode(s);
+barcodeToId = ABSTRACT CASE STRING[200] (STRING[200]);
+barcodeToId (STRING[200] s) += WHEN s IS STRING[200] THEN translateBarcode(s);
 
-tail 'Хвост' = DATA STRING[100] (Lot);
+tail 'Хвост' = DATA STRING[200] (Lot);
 
-barcodeToTail = ABSTRACT CASE STRING[100] (STRING[100]);
-barcodeToTail (STRING[100] s) += WHEN s IS STRING[100] THEN STRING[100](substrFrom(s, 32)); 
+barcodeToTail = ABSTRACT CASE STRING[200] (STRING[200]);
+barcodeToTail (STRING[200] s) += WHEN s IS STRING[200] THEN STRING[200](substrFrom(s, 32)); 
 
 code 'КИ' (Lot l) = CONCAT '', id(l), tail(l);
 
-idToGtin (STRING[100] s) = substr(s, 3, 14);
-idToSeries (STRING[100] s) = substr(s, 19, 13);
+idToGtin (STRING[200] s) = substr(s, 3, 14);
+idToSeries (STRING[200] s) = substr(s, 19, 13);
  
 gtin 'GTIN' (Lot l) = idToGtin(id(l));
 series 'Серия' (Lot l) = idToSeries(id(l));
@@ -152,7 +152,7 @@ META defineDocumentLotType(doc)
     }
 END
 
-lotBarcode() = DATA LOCAL STRING[100] ();
+lotBarcode() = DATA LOCAL STRING[200] ();
 
 META defineDocumentLotBarcodeIn (doc, quantityProp)
     EXTEND FORM doc
@@ -160,7 +160,7 @@ META defineDocumentLotBarcodeIn (doc, quantityProp)
         FILTERS cd = d
     ;
     
-    beforeInputBarcode###doc##Detail(###doc i, STRING[100] s) + {
+    beforeInputBarcode###doc##Detail(###doc i, STRING[200] s) + {
         lotBarcode() <- NULL;
         consumedBarcode###doc##Detail() <- NULL;
         IF length(s) > 20 THEN {
@@ -191,9 +191,9 @@ META defineDocumentLotBarcodeIn (doc, quantityProp)
         }
     }
     
-    overPreprocessedBarcode(STRING[100] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
+    overPreprocessedBarcode(STRING[200] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
     
-    afterInputBarcode###doc##Detail(###doc##Detail d, STRING[100] barcode) + {
+    afterInputBarcode###doc##Detail(###doc##Detail d, STRING[200] barcode) + {
         IF lotBarcode() THEN
             quantity(d, Lot l) <- 1.0 WHERE l = lot(lotBarcode());
     }
@@ -227,11 +227,11 @@ META defineDocumentLotIn(doc, quantityProp, obj, formList)
 END
 
 META defineDocumentLotBarcodeOut (doc, stock)
-    beforeInputBarcode###doc##Detail(###doc i, STRING[100] s) + {
+    beforeInputBarcode###doc##Detail(###doc i, STRING[200] s) + {
         lotBarcode() <- NULL;
         consumedBarcode###doc##Detail() <- NULL;
         IF length(s) > 20 THEN {
-            FOR STRING[100] bc = barcodeToId(s) AND Lot l = lot(bc) DO {
+            FOR STRING[200] bc = barcodeToId(s) AND Lot l = lot(bc) DO {
                 lotBarcode() <- bc;
                 IF quantity(i, l) = 1.0 THEN {
                     MESSAGE 'Марка уже была отсканирована в текущем документе';
@@ -268,9 +268,9 @@ META defineDocumentLotBarcodeOut (doc, stock)
         }
     }
     
-    overPreprocessedBarcode(STRING[100] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
+    overPreprocessedBarcode(STRING[200] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
     
-    afterInputBarcode###doc##Detail(###doc##Detail d, STRING[100] barcode) + {
+    afterInputBarcode###doc##Detail(###doc##Detail d, STRING[200] barcode) + {
         IF lotBarcode() THEN
             quantity(d, Lot l) <- 1.0 WHERE l = lot(lotBarcode());
             IF explicitBatchLedger(stock(d)) THEN {
