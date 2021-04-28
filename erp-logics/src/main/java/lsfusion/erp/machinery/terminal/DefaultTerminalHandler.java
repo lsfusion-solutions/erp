@@ -195,7 +195,7 @@ public class DefaultTerminalHandler {
                 List<TerminalOrder> orderList = readTerminalOrderList(session, stockObject, userInfo);
                 Map<String, RawFileData> orderImages = imagesInReadBase ? readTerminalOrderImages(session, stockObject, userInfo) : new HashMap<>();
 
-                List<TerminalAssortment> assortmentList = readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
+                List<TerminalAssortment> assortmentList = readTerminalAssortmentList(session, stockObject);
                 List<TerminalHandbookType> handbookTypeList = readTerminalHandbookTypeList(session, BL);
                 List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, BL, userInfo.user);
                 List<TerminalLegalEntity> customANAList = readCustomANAList(session, BL, userInfo.user);
@@ -650,7 +650,10 @@ public class DefaultTerminalHandler {
                         statement.setObject(4, formatValue(assortment.minPrice));
                         statement.setObject(5, formatValue(assortment.maxPrice));
                         statement.setObject(6, formatValue(assortment.quantity));
-                        statement.setObject(7, formatValue((prefix + assortment.idOriginalSupplier)));
+                        String idOriginalSupplier = null;
+                        if (assortment.idOriginalSupplier!=null)
+                            idOriginalSupplier = prefix + assortment.idOriginalSupplier;
+                        statement.setObject(7, formatValue(idOriginalSupplier));
                         statement.addBatch();
                     }
                 }
@@ -1175,59 +1178,39 @@ public class DefaultTerminalHandler {
         return terminalOrderImages;
     }
 
-    public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, BusinessLogics BL, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)
+    public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, ObjectValue stockObject)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalAssortment> terminalAssortmentList = new ArrayList<>();
-        ScriptingLogicsModule machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
-        if (machineryPriceTransactionLM != null) {
-
-            DataObject currentDateTimeObject = new DataObject(LocalDateTime.now(), DateTimeClass.instance);
+        if (terminalHandlerLM != null) {
 
             KeyExpr skuExpr = new KeyExpr("Sku");
             KeyExpr supplierExpr = new KeyExpr("Stock");
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("Sku", skuExpr, "Stock", supplierExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            if (terminalHandlerLM != null) {
-                query.addProperty("filterAssortment", terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-                query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-                query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-                query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-                query.addProperty("quantity", terminalHandlerLM.findProperty("quantity[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-                query.addProperty("idOriginalSupplier", terminalHandlerLM.findProperty("supplier[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-            } else
-                query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
-                        skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()));
-            query.addProperty("idBarcodeSku", machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
-            query.addProperty("idSupplier", machineryPriceTransactionLM.findProperty("id[Stock]").getExpr(supplierExpr));
 
-            query.and(machineryPriceTransactionLM.findProperty("id[Stock]").getExpr(supplierExpr).getWhere());
-            query.and(machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
-            if (terminalHandlerLM != null) {
-                query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr).getWhere());
-            } else
-                query.and(machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
-                        skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()).getWhere());
+            query.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
+            query.addProperty("idSupplier", terminalHandlerLM.findProperty("id[Stock]").getExpr(supplierExpr));
+            query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
+            query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
+            query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
+            query.addProperty("quantity", terminalHandlerLM.findProperty("quantity[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
+            query.addProperty("idOriginalSupplier", terminalHandlerLM.findProperty("idSupplier[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
+
+            query.and(terminalHandlerLM.findProperty("id[Stock]").getExpr(supplierExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr).getWhere());
+
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String idBarcodeSku = StringUtils.trim((String) entry.get("idBarcodeSku"));
                 String idSupplier = StringUtils.trim((String) entry.get("idSupplier"));
-                String idOriginalSupplier = null;
-                BigDecimal price;
-                if (terminalHandlerLM != null)
-                    price = (BigDecimal) entry.get("price");
-                else
-                    price = (BigDecimal) entry.get("priceALedgerPriceListTypeSkuStockCompanyDateTime");
+                BigDecimal price = (BigDecimal) entry.get("price");
+                BigDecimal minPrice = (BigDecimal) entry.get("minPrice");
+                BigDecimal maxPrice = (BigDecimal) entry.get("maxPrice");
+                BigDecimal quantity = (BigDecimal) entry.get("quantity");
+                String idOriginalSupplier = StringUtils.trim((String) entry.get("idOriginalSupplier"));
 
-                BigDecimal maxPrice = null;
-                BigDecimal minPrice = null;
-                BigDecimal quantity = null;
-                if (terminalHandlerLM != null) {
-                    minPrice = (BigDecimal) entry.get("minPrice");
-                    maxPrice = (BigDecimal) entry.get("maxPrice");
-                    quantity = (BigDecimal) entry.get("quantity");
-                    idOriginalSupplier = StringUtils.trim((String) entry.get("idOriginalSupplier"));
-                }
                 terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price, minPrice, maxPrice, quantity, idOriginalSupplier));
             }
         }
