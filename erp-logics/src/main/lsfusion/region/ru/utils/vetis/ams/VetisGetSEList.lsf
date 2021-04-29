@@ -36,7 +36,8 @@ FORM getStockEntryListRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mer
     PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
 
     PROPERTIES(r) IN listOptions count EXTID 'bs:count', offset EXTID 'bs:offset'
-
+    
+    PROPERTIES ='NOT_BLANK' EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:blankFilter' IN searchPattern
     PROPERTIES IN receiptDateInterval 
                   ibd = formatBeginDate(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:beginDate', 
                   ied = formatEndDate(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:endDate'
@@ -50,6 +51,9 @@ FORM getStockEntryListRequestParams 'Параметры списка докум�
     OBJECTS r = StockEntryListRequest PANEL
     PROPERTIES(r) beginDate, endDate, nameEnterprise, offset, count
 ;
+DESIGN getStockEntryListRequestParams {
+    PROPERTY(nameEnterprise(r)) { notNull = TRUE; }
+}
 
 getStockEntryListRequest 'Получить список записей журнала' (StockEntryListRequest r) {
     EXPORT getStockEntryListRequest OBJECTS r = r XML;
@@ -59,6 +63,7 @@ getStockEntryListRequest 'Получить список записей журн�
 getStockEntryListRequest 'Получить список записей журнала' () {
     NEWSESSION {
         NEW r = StockEntryListRequest {
+            offset(r) <- 0;
             count(r) <- 1000;
             DIALOG getStockEntryListRequestParams OBJECTS r = r DO {
                 getStockEntryListRequest(r);

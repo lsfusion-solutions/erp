@@ -65,6 +65,9 @@ FORM getVetDocumentListRequestParams 'Параметры списка докум
     OBJECTS r = VetDocumentListRequest PANEL
     PROPERTIES(r) changes, nameType, nameStatus, beginDate, endDate, nameEnterprise, offset, count
 ;
+DESIGN getVetDocumentListRequestParams {
+    PROPERTY(nameEnterprise(r)) { notNull = TRUE; }
+}
 
 getVetDocumentListRequest 'Получить список документов' (VetDocumentListRequest r) {
     EXPORT getVetDocumentListRequest OBJECTS r = r XML;
@@ -79,6 +82,7 @@ getVetDocumentListRequest 'Получить список документов' (
 getVetDocumentListRequest 'Получить список ВСД' () {
     NEWSESSION {
         NEW r = VetDocumentListRequest {
+            offset(r) <- 0;
             count(r) <- 1000;
             DIALOG getVetDocumentListRequestParams OBJECTS r = r DO {
                 getVetDocumentListRequest(r);
