@@ -29,7 +29,7 @@ FORM prepareOutgoingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
     OBJECTS r = PrepareOutgoingConsignmentRequest PANEL
     
     PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
-    PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
 
     OBJECTS d = OutgoingConsignment EXTID 'merc:delivery'
     FILTERS in(r, d)
@@ -84,6 +84,7 @@ toProcess 'К отправке' (OutgoingConsignment o) = o IS OutgoingConsignme
 processOutgoingConsignment () {
     NEWSESSION NESTED (in[OutgoingConsignment]) {
         NEW r = PrepareOutgoingConsignmentRequest {
+            businessEntity(r) <- GROUP MAX consignorBusinessEntity(OutgoingConsignment oc) IF in(oc);
             in(r, OutgoingConsignment oc) <- TRUE WHERE in(oc);
             EXPORT prepareOutgoingConsignmentRequest OBJECTS r = r XML;
         

@@ -43,7 +43,7 @@ enterpriseGuid (VetDocumentListRequest r) = guid(enterprise(r));
 FORM getVetDocumentListRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getVetDocumentListRequest' 
     OBJECTS r = VetDocumentListRequest PANEL
     PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId' 
-    PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
 
     PROPERTIES(r) IN listOptions count EXTID 'bs:count', offset EXTID 'bs:offset'
     PROPERTIES(r) idType EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetDocumentType', 
@@ -85,6 +85,7 @@ getVetDocumentListRequest 'Получить список ВСД' () {
             offset(r) <- 0;
             count(r) <- 1000;
             DIALOG getVetDocumentListRequestParams OBJECTS r = r DO {
+                businessEntity(r) <- owner(enterprise(r));
                 getVetDocumentListRequest(r);
                 APPLY;
             }
@@ -133,6 +134,7 @@ getVetDocumentChangesListRequest 'Получить изменившиеся ВС
     FOR own(owner(Enterprise e)) DO { 
         NEWSESSION {
             NEW r = VetDocumentListRequest {
+                businessEntity(r) <- owner(e);
                 changes(r) <- TRUE;
                 beginDate(r) <- subtractSeconds(currentDateTime(), (OVERRIDE getVDListInterval(), 72) * 3600);
                 enterprise(r) <- e;

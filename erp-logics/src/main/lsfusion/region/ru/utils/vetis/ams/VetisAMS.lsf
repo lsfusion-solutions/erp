@@ -1,6 +1,6 @@
 MODULE VetisAMS;
 
-REQUIRE Vetis;
+REQUIRE Vetis, VetisBusinessEntityOwn;
 
 NAMESPACE Vetis;
 
@@ -13,23 +13,21 @@ serviceId = 'mercury-g2b.service:2.1';
 apiKey 'Api Key' = DATA STRING ();
 issuerId 'Issuer ID' = DATA STRING ();
 
-defaultLoginMercury 'Логин в Меркурий' = DATA STRING();
-
 GROUP initiator EXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:initiator';
-loginMercury 'Логин в Меркурий' = DATA STRING (CustomUser);
-loginMercury () = OVERRIDE loginMercury(currentUser()), defaultLoginMercury() IN initiator;
 
 EXTEND FORM integrationData
-    PROPERTIES() vetisUrlAMS = urlAMS, vetisApiKey = apiKey, vetisIssuerId = issuerId,
-                 vetisLoginMercury = defaultLoginMercury
+    PROPERTIES() vetisUrlAMS = urlAMS
+    
+    OBJECTS beo = BusinessEntity
+    PROPERTIES(beo) READONLY guid, name
+    PROPERTIES(beo)          apiKey, defaultLoginMercury
+    FILTERS own(beo)
 ;
 
 DESIGN integrationData {
     vetis {
         MOVE PROPERTY(vetisUrlAMS);
-        MOVE PROPERTY(vetisApiKey);
-        MOVE PROPERTY(vetisIssuerId);
-        MOVE PROPERTY(vetisLoginMercury);
+        MOVE BOX(beo);
     }
 }
 
@@ -37,6 +35,13 @@ DESIGN integrationData {
 
 CLASS ApplicationRequest 'Заявка в Ветис';
 id 'Код' = DATA STRING (ApplicationRequest);
+
+businessEntity = DATA BusinessEntity (ApplicationRequest) INDEXED;
+nameBusinessEntity 'Хозяйствующий субъект' (ApplicationRequest r) = name(businessEntity(r));
+
+apiKey (ApplicationRequest r) = apiKey(businessEntity(r));
+issuerId (ApplicationRequest r) = guid(businessEntity(r));
+loginMercury (ApplicationRequest r) = loginMercury(businessEntity(r));
 
 issueDate 'Время' = DATA DATETIME (ApplicationRequest);
 issueDate(ApplicationRequest r) <- currentDateTime() WHEN SET(r IS ApplicationRequest);
@@ -47,7 +52,7 @@ error 'Ошибка' = DATA TEXT (ApplicationRequest);
 
 FORM applicationRequests 'Заявки'
     OBJECTS r = ApplicationRequest
-    PROPERTIES(r) READONLYIF isReadonly() objectClassName, id, issueDate, request, error
+    PROPERTIES(r) READONLYIF isReadonly() objectClassName, nameBusinessEntity, id, issueDate, request, error
 ;
 
 @extendFormEditable(applicationRequests);

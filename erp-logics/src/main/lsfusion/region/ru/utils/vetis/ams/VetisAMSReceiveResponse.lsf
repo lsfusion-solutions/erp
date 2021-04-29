@@ -9,9 +9,12 @@ NAMESPACE Vetis;
 GROUP receiveApplicationResultRequest EXTID 'ws=http://api.vetrf.ru/schema/cdm/application/ws-definitions:receiveApplicationResultRequest' : body;
 
 FORM receiveApplicationResultRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-    PROPERTIES() IN receiveApplicationResultRequest apiKey EXTID 'ws:apiKey'
-    PROPERTIES() IN receiveApplicationResultRequest 
-                        issuerId EXTID 'ws:issuerId', applicationId EXTID 'ws:applicationId' 
+    OBJECTS r = ApplicationRequest PANEL
+
+    PROPERTIES(r) IN receiveApplicationResultRequest 
+                    apiKey EXTID 'ws:apiKey',
+                    issuerId EXTID 'ws:issuerId',
+                    id EXTID 'ws:applicationId'
 ;
 
 // response
@@ -52,8 +55,7 @@ toReceive 'Ожидается ответ' (ApplicationRequest r) = (r IS Applica
 
 receiveApplicationRequest 'Получить заявку' (ApplicationRequest r) {
     NEWSESSION {
-        applicationId() <- id(r);
-        EXPORT receiveApplicationResultRequest XML;
+        EXPORT receiveApplicationResultRequest OBJECTS r = r XML;
 
         LOCAL response = FILE();
         TRY {

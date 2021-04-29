@@ -33,11 +33,11 @@ enterpriseGuid (StockEntryListRequest r) = guid(enterprise(r));
 FORM getStockEntryListRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:getStockEntryListRequest' 
     OBJECTS r = StockEntryListRequest PANEL
     PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId' 
-    PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
 
     PROPERTIES(r) IN listOptions count EXTID 'bs:count', offset EXTID 'bs:offset'
     
-    PROPERTIES ='NOT_BLANK' EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:blankFilter' IN searchPattern
+//    PROPERTIES ='NOT_BLANK' EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:blankFilter' IN searchPattern
     PROPERTIES IN receiptDateInterval 
                   ibd = formatBeginDate(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:beginDate', 
                   ied = formatEndDate(r) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:endDate'
@@ -66,6 +66,7 @@ getStockEntryListRequest 'Получить список записей журн�
             offset(r) <- 0;
             count(r) <- 1000;
             DIALOG getStockEntryListRequestParams OBJECTS r = r DO {
+                businessEntity(r) <- owner(enterprise(r));
                 getStockEntryListRequest(r);
                 APPLY;
             }

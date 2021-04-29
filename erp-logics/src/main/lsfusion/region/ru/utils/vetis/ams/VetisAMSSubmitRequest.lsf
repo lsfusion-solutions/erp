@@ -10,9 +10,10 @@ GROUP submitApplicationRequestApplication EXTID 'app=http://api.vetrf.ru/schema/
 FORM submitApplicationRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     OBJECTS r = ApplicationRequest PANEL
     
-    PROPERTIES() IN submitApplicationRequest apiKey EXTID 'ws:apiKey'
-    PROPERTIES IN submitApplicationRequestApplication 
-                        serviceId() EXTID 'app:serviceId', issuerId() EXTID 'app:issuerId', 
+    PROPERTIES(r) IN submitApplicationRequest apiKey EXTID 'ws:apiKey'
+    PROPERTIES    IN submitApplicationRequestApplication 
+                        serviceId() EXTID 'app:serviceId', 
+                        issuerId(r) EXTID 'app:issuerId', 
                         formatIssueDate(r) EXTID 'app:issueDate', 
                         request(r) EXTID 'app:data'
 ;
@@ -55,9 +56,10 @@ submit(ApplicationRequest r, FILE f) {
 }
 
 data = DATA LOCAL TEXT();
-createApplicationRequest 'Отправить заявку' () {
+createApplicationRequest 'Отправить заявку' (BusinessEntity b) {
     NEWSESSION NESTED (data[]) {
         NEW r = ApplicationRequest {
+            businessEntity(r) <- b;
             request(r) <- data();
             submit(r);
             APPLY;
@@ -66,7 +68,11 @@ createApplicationRequest 'Отправить заявку' () {
 }
 
 EXTEND FORM applicationRequests
-    PROPERTIES() 'Запрос' = data, createApplicationRequest
+    OBJECTS beo = BusinessEntity PANEL
+    PROPERTIES(beo) name SELECTOR
+    FILTERS own(beo)
+    
+    PROPERTIES 'Запрос' = data(), createApplicationRequest(beo)
 ;
 
 DESIGN applicationRequests {
@@ -79,8 +85,9 @@ DESIGN applicationRequests {
             }
             NEW custom {
                 caption = 'Ручной';
+                MOVE PROPERTY(name(beo)) { alignment = STRETCH; };
                 MOVE PROPERTY(data()) { panelCaptionVertical = TRUE; fill = 1; }
-                MOVE PROPERTY(createApplicationRequest()) { alignment = STRETCH; }
+                MOVE PROPERTY(createApplicationRequest(beo)) { alignment = STRETCH; }
             }
         }
     }

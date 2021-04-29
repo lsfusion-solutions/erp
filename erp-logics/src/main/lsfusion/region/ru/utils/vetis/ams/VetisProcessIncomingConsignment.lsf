@@ -47,7 +47,7 @@ FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
     OBJECTS r = ProcessIncomingConsignmentRequest PANEL
 
     PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId'
-    PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES IN initiator =loginMercury(businessEntity(r)) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
 
     PROPERTIES =formatT(deliveryDate(incomingConsignment(r))) IN delivery EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:deliveryDate'
     
@@ -85,10 +85,10 @@ FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
 
     PROPERTIES   IN deliveryFacts ='ELECTRONIC' EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:vetCertificatePresence'
     
-    PROPERTIES() IN docInspectionResponsible docInspectionResponsible = loginMercury EXTID 'vd:login'
+    PROPERTIES(r) IN docInspectionResponsible docInspectionResponsible = loginMercury EXTID 'vd:login'
     PROPERTIES   IN docInspection ='CORRESPONDS' EXTID 'vd:result'
     
-    PROPERTIES() IN vetInspectionResponsible vetInspectionResponsible = loginMercury EXTID 'vd:login'
+    PROPERTIES(r) IN vetInspectionResponsible vetInspectionResponsible = loginMercury EXTID 'vd:login'
     PROPERTIES   IN vetInspection ='CORRESPONDS' EXTID 'vd:result'
 
     PROPERTIES   IN deliveryFacts =result(incomingConsignment(r)) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:decision'
@@ -152,6 +152,8 @@ FORM processIncomingConsignmentRequestReturnedDelivery
 process 'Отправить в Ветис' (IncomingConsignment c) {
     NEWSESSION {
         NEW r = ProcessIncomingConsignmentRequest {
+            businessEntity(r) <- consigneeBusinessEntityVetDocument(c);
+
             incomingConsignment(r) <- c;
 
             IF returnedDelivery(c) THEN {

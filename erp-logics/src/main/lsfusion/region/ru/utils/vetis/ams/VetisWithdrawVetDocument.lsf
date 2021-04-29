@@ -20,13 +20,13 @@ FORM withdrawVetDocumentRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/m
     OBJECTS r = WithdrawVetDocumentRequest PANEL
 
     PROPERTIES(r) localTransactionId EXTID 'merc:localTransactionId' 
-    PROPERTIES() IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES(r) IN initiator loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
     
     PROPERTIES(r) uuidVetDocument EXTID 'merc:vetDocumentId',
                   reason EXTID 'merc:withdrawReason'
     PROPERTIES    = formatT(date(r)) EXTID 'merc:withdrawDate'
     
-    PROPERTIES() IN specifiedPerson specifiedPersonLogin = loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+    PROPERTIES(r) IN specifiedPerson specifiedPersonLogin = loginMercury EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
 ;
 
 // dialog
@@ -38,6 +38,7 @@ FORM withdrawVetDocumentRequestParams 'Параметры аннулирован
 withdraw 'Аннулировать ВСД' (VetDocument d) {
     NEWSESSION {
         NEW r = WithdrawVetDocumentRequest {
+            businessEntity(r) <- consignorBusinessEntity(d);
             vetDocument(r) <- d;
             date(r) <- currentDateTime();
             
