@@ -23,6 +23,21 @@ onStarted() + {
     IF NOT productType(8) THEN NEW p = ProductType { id(p) <- 8; name(p) <- 'Продукция, не требующая разрешения'; }
 }
 
+FORM productType 'Тип продукции'
+    OBJECTS o = ProductType PANEL
+    PROPERTIES(o) id, name
+    
+    EDIT ProductType OBJECT o
+;
+
+FORM productTypes 'Типы продукции'
+    OBJECTS o = ProductType
+    PROPERTIES(o) READONLY id, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST ProductType OBJECT o
+;
+
 FORM dialogProductTypes 'Типы продукции'
     OBJECTS o = ProductType
     PROPERTIES(o) READONLY id, name
@@ -31,22 +46,22 @@ FORM dialogProductTypes 'Типы продукции'
 ;
 
 // product
-CLASS Product 'Группа продукции';
+CLASS Product 'Продукция';
 TABLE product (Product);
 
 guid 'Код' = DATA STRING (Product) CHARWIDTH 36 INDEXED;
-product 'Группа продукции' = GROUP AGGR Product i BY guid(i);
+product 'Продукция' = GROUP AGGR Product i BY guid(i);
 
 name 'Наименование' = DATA ISTRING (Product) CHARWIDTH 20;
 
-FORM product 'Группа продукции'
+FORM product 'Продукция'
     OBJECTS o = Product PANEL
     PROPERTIES(o) guid, name
     
     EDIT Product OBJECT o
 ;
 
-FORM products 'Группы продукции'
+FORM products 'Продукция'
     OBJECTS o = Product
     PROPERTIES(o) READONLY guid, name
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
@@ -79,30 +94,30 @@ FORM subProducts 'Виды продукции'
 ;
 
 // product item
-CLASS ProductItem 'Продукция';
+CLASS ProductItem 'Номенклатура';
 TABLE productItem (ProductItem);
 
 guid 'Код' = DATA STRING (ProductItem) CHARWIDTH 36 INDEXED;
-productItem 'Продукция' = GROUP AGGR ProductItem i BY guid(i);
+productItem 'Номенклатура' = GROUP AGGR ProductItem i BY guid(i);
 
 globalID 'GTIN' = DATA STRING (ProductItem) CHARWIDTH 14 INDEXED;
-productItemGlobalID 'Продукция' = GROUP MAX ProductItem i BY globalID(i);
+productItemGlobalID 'Номенклатура' = GROUP MAX ProductItem i BY globalID(i);
 
 name 'Наименование' = DATA ISTRING (ProductItem) CHARWIDTH 20;
-productItemName 'Продукция' = GROUP MAX ProductItem i BY name(i);
+productItemName 'Номенклатура' = GROUP MAX ProductItem i BY name(i);
 
 code 'Артикул' = DATA ISTRING (ProductItem);
 
 inactive 'Неактивен' = DATA BOOLEAN (ProductItem);
 
-FORM productItem 'Продукция'
+FORM productItem 'Номенклатура'
     OBJECTS o = ProductItem PANEL
     PROPERTIES(o) guid, name, globalID, code, inactive
     
     EDIT ProductItem OBJECT o
 ;
 
-FORM productItems 'Продукция'
+FORM productItems 'Номенклатура'
     OBJECTS o = ProductItem
     PROPERTIES(o) READONLY guid, name, globalID, code, inactive
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
@@ -111,7 +126,7 @@ FORM productItems 'Продукция'
         FILTER 'Активная' NOT inactive(o) DEFAULT
 ;
 
-FORM dialogProductItems 'Продукция'
+FORM dialogProductItems 'Номенклатура'
     OBJECTS o = ProductItem
     PROPERTIES(o) READONLY guid, name, globalID, code, inactive
     
@@ -123,6 +138,7 @@ FORM dialogProductItems 'Продукция'
 
 NAVIGATOR {
     vetisMasterData {
+        NEW productTypes;
         NEW products;
         NEW subProducts;
         NEW productItems;
