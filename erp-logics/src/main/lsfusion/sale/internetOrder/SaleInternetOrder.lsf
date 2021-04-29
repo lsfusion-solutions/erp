@@ -871,6 +871,7 @@ WHEN LOCAL FORMS internetOrder (SET([ VIEW internetOrder.sts](Stock stock, Sku s
     updateViewPrice[Sku,Stock,InternetOrder](sku, stock, o);
 
 skipChangePriceStock = ABSTRACT BOOLEAN (InternetOrderDetail);
+overChangePrice ABSTRACT LIST (InternetOrderDetail);
 
 WHEN LOCAL FORMS internetOrder 
     (CHANGED(sku(InternetOrderDetail detail)) OR
@@ -882,7 +883,8 @@ WHEN LOCAL FORMS internetOrder
     price (detail)  <- IF batch(detail)
                     THEN prevPriceB(pt, batch(detail), Sale.supplierStock[InternetOrderDetail](detail), dateTime(detail))
                     ELSE prevPriceB(pt, sku(detail), Sale.supplierStock[InternetOrderDetail](detail), dateTime(detail)); 
-    discountPrice (detail)  <- price(detail);                        
+    discountPrice (detail)  <- price(detail);   
+    overChangePrice(detail);                     
 }
 
 CLASS Carrier 'Перевозчик';
