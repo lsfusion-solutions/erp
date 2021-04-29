@@ -1,0 +1,284 @@
+MODULE EGAISWayBillExchange;
+
+REQUIRE EGAISWayBillDoc, EGAISClientImport, EGAISProductImport, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+// out
+
+EXTEND CLASS DocType { WayBill_v3 'ТТН' }
+
+CLASS WayBillOutDoc 'ТТН' : OutDoc;
+docType(WayBillOutDoc r) += DocType.WayBill_v3 IF r IS WayBillOutDoc; 
+
+wayBillOutDoc = GROUP LAST WayBillOutDoc a ORDER a WHERE a IS WayBillOutDoc BY wayBill(a);
+commentsWayBillOutDoc 'Комментарий отправки' (WayBill t) = comments(wayBillOutDoc(t));
+
+GROUP header EXTID 'wb:Header';
+
+GROUP transport EXTID 'wb:Transport' : header;
+GROUP content EXTID 'wb:Content';
+
+GROUP informF2 EXTID 'wb:InformF2';
+
+FORM wayBill_v3 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill_v3'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/CommonV3' EXTID 'xmlns:ce', ='http://fsrar.ru/WEGAIS/ClientRef_v2' EXTID 'xmlns:oref', ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref', ='http://fsrar.ru/WEGAIS/TTNSingle_v3' EXTID 'xmlns:wb', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    
+    OBJECTS w = WayBillOutDoc PANEL
+    
+    PROPERTIES =id(wayBill(w)) EXTID 'wb:Identity'
+    
+    PROPERTIES IN header =number(wayBill(w)) EXTID 'wb:NUMBER', 
+                         =toDateISO(date(wayBill(w))) EXTID 'wb:Date', 
+                         =toDateISO(shippingDate(wayBill(w))) EXTID 'wb:ShippingDate', 
+                         ='WBInvoiceFromMe' EXTID 'wb:Type', 
+                         =base(wayBill(w)) EXTID 'wb:Base', 
+                         =note(wayBill(w)) EXTID 'wb:Note',
+                         
+                         =xml(shipper(wayBill(w))) EXTID 'wb:Shipper',
+                         =xml(consignee(wayBill(w))) EXTID 'wb:Consignee'
+
+    PROPERTIES IN transport ='TRAN_TYPE' EXTID 'wb:TRAN_TYPE', 
+                            ='TRAN_COMPANY' EXTID 'wb:TRAN_COMPANY', 
+                            ='TRAN_CAR' EXTID 'wb:TRAN_CAR', 
+                            ='TRAN_TRAILER' EXTID 'wb:TRAN_TRAILER', 
+                            ='TRAN_CUSTOMER' EXTID 'wb:TRAN_CUSTOMER', 
+                            ='TRAN_DRIVER' EXTID 'wb:TRAN_DRIVER', 
+                            ='TRAN_LOADPOINT' EXTID 'wb:TRAN_LOADPOINT', 
+                            ='TRAN_UNLOADPOINT' EXTID 'wb:TRAN_UNLOADPOINT', 
+                            ='TRAN_REDIRECT' EXTID 'wb:TRAN_REDIRECT', 
+                            ='TRAN_FORWARDER' EXTID 'wb:TRAN_FORWARDER'
+    
+    OBJECTS p = WayBillPosition EXTID 'wb:Position' IN content
+    
+    PROPERTIES =LONG(p) EXTID 'wb:Identity',
+               =xml(product(p)) EXTID 'wb:Product', 
+               quantity(p) EXTID 'wb:Quantity', 
+               price(p) EXTID 'wb:Price', 
+               idF1Reg(p) EXTID 'wb:FARegId'
+    FILTERS wayBill(p) = wayBill(w)
+
+    PROPERTIES IN informF2 
+                 idF2Reg(p) EXTID 'ce:F2RegId'
+;
+
+submitWayBill (WayBillOutDoc w) {
+    EXPORT wayBill_v3 OBJECTS w = w XML;
+    submit(w, exportFile());
+}
+
+submitWayBill (WayBill w) {
+    NEW wd = WayBillOutDoc {
+        client(wd) <- shipper(w);
+        wayBill(wd) <- w;
+        submitWayBill(wd);
+    }
+}
+
+// in
+GROUP wayBill_v3 EXTID 'ns:WayBill_v3' : document;
+GROUP wayBillHeader EXTID 'wb:Header' : wayBill_v3;
+
+GROUP wayBillContent EXTID 'wb:Content' : wayBill_v3;
+
+NUMBER = DATA LOCAL STRING();
+date = DATA LOCAL DATE();
+shippingDate = DATA LOCAL DATE();
+
+shipper = DATA LOCAL STRING();
+consignee = DATA LOCAL STRING();
+
+base = DATA LOCAL STRING();
+
+GROUP wbProduct EXTID 'wb:Product';
+
+price = DATA LOCAL NUMERIC[16,4](INTEGER);
+F1RegId = DATA LOCAL STRING(INTEGER);
+
+F2RegId = DATA LOCAL STRING(INTEGER);
+
+GROUP inform2MarkInfo EXTID 'ce:MarkInfo' : informF2;
+
+positionBox = DATA LOCAL INTEGER (INTEGER);
+boxnumber = DATA LOCAL STRING (INTEGER);
+
+GROUP amclist EXTID 'ce:amclist';
+
+boxposAmc = DATA LOCAL INTEGER (INTEGER);
+amc = DATA LOCAL STRING[200] (INTEGER);
+
+FORM inWayBill_v3 FORMEXTID 'ns:Documents'
+    PROPERTIES() IN wayBill_v3 identity EXTID 'wb:Identity'
+
+    PROPERTIES() IN wayBillHeader NUMBER EXTID 'wb:NUMBER', 
+                           date EXTID 'wb:Date', 
+                           shippingDate EXTID 'wb:ShippingDate', 
+                           shipper EXTID 'wb:Shipper', 
+                           consignee EXTID 'wb:Consignee', 
+                           base EXTID 'wb:Base',
+                           note EXTID 'wb:Note'
+
+    OBJECTS position = INTEGER EXTID 'wb:Position' IN wayBillContent
+    
+    PROPERTIES(position) product EXTID 'wb:Product',
+                         productCode IN wbProduct EXTID 'pref:AlcCode', 
+                         quantity EXTID 'wb:Quantity', 
+                         price EXTID 'wb:Price', 
+                         positionIdentity EXTID 'wb:Identity', 
+                         F1RegId EXTID 'wb:FARegId'
+    
+    PROPERTIES(position) IN informF2 F2RegId EXTID 'ce:F2RegId'
+    
+    OBJECTS boxpos = INTEGER EXTID 'ce:boxpos' IN inform2MarkInfo
+    PROPERTIES(boxpos) boxnumber EXTID 'ce:boxnumber'
+    FILTERS positionBox(boxpos) = position
+    
+    OBJECTS amc = INTEGER EXTID 'ce:amc' IN amclist 
+    PROPERTIES(amc) amc EXTID 'value'
+    FILTERS boxposAmc(amc) = boxpos                              
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.WayBill_v3 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT inWayBill_v3 XML FROM resultFile();
+            
+            IF identity() OR NUMBER() OR date() THEN {
+                NEW w = WayBill {
+                    wayBill(d) <- w;
+                    
+                    id(w) <- identity();
+                    
+                    number(w) <- NUMBER();
+                    date(w) <- date();
+                    shippingDate(w) <- shippingDate();
+                    
+                    importClient(shipper());
+                    shipper(w) <- client(clientRegId());
+                    
+                    importClient(consignee());
+                    consignee(w) <- client(clientRegId());
+                    
+                    base(w) <- base();
+                    note(w) <- note();
+                    
+                    FOR productCode(INTEGER i) DO { // AND NOT product(productCode(i)) DO {
+                        importProduct(product(i));
+                    }
+                    
+                    FOR F1RegId(INTEGER i) AND NOT f1Reg(F1RegId(i)) DO NEW r = F1Reg {
+                        id(r) <- F1RegId(i);
+                        product(r) <- product(productCode(i));
+                    } 
+
+                    FOR F2RegId(INTEGER i) AND NOT f2Reg(F2RegId(i)) DO NEW r = F2Reg {
+                        id(r) <- F2RegId(i);
+                        f1Reg(r) <- f1Reg(F1RegId(i));
+                        client(r) <- shipper(w);
+                    } 
+
+                    FOR [GROUP SUM 1 BY boxnumber(INTEGER i)](STRING id) AND NOT box(id) DO NEW b = Box {
+                        id(b) <- id;
+                    } 
+
+                    FOR amc(INTEGER i) AND NOT markCode(amc(i)) DO NEW m = MarkCode {
+                        id(m) <- amc(i);
+                    } 
+                    
+                    FOR product(INTEGER i) NEW p = WayBillPosition DO {
+                        wayBill(p) <- w;
+                        
+                        product(p) <- product(productCode(i));
+                        
+                        identity(p) <- positionIdentity(i);
+                                                
+                        quantity(p) <- quantity(i);                        
+                        price(p) <- price(i);
+                        
+                        f1Reg(p) <- f1Reg(F1RegId(i));                        
+                        f2Reg(p) <- f2Reg(F2RegId(i));
+                        
+                        FOR positionBox(boxposAmc(INTEGER ci)) = i NEW m = WayBillMark DO {
+                            wayBillPosition(m) <- p;
+                            markCode(m) <- markCode(amc(ci));
+                            box(m) <- box(boxnumber(boxposAmc(ci)));
+                        }
+                    }
+                }
+                 
+                processed(d) <- TRUE;
+                APPLY;
+            }
+        }
+    }
+}
+
+META defineDocumentOutWayBillProcess (doc, supplierStock, customerStock)
+    wayBill = DATA WayBill (###doc) INDEXED;
+    
+    doc##Detail = DATA ###doc##Detail (WayBillPosition) INDEXED;
+    
+    process 'Отправить в ЕГАИС' (###doc i) {
+        NEWSESSION {
+            NEW w = WayBill {
+                wayBill(i) <- w;
+                
+                id(w) <- STRING(w);
+                number(w) <- seriesNumber(i);
+                
+                date(w) <- date(i);
+                shippingDate(w) <- date(i);
+                
+                shipper(w) <- client(supplierStock(i));
+                consignee(w) <- client(customerStock(i));
+                
+                FOR quantity(###doc##Detail d, F2Reg r) IF doc(d) = i NEW p = WayBillPosition DO {
+                    wayBill(p) <- w;
+                    
+                    doc##Detail(p) <- d;
+                    
+                    product(p) <- product(r);
+                    
+                    identity(p) <- STRING(d) + '/' + STRING(r);
+                    
+                    quantity(p) <- quantity(d, r);
+                    price(p) <- price(d);
+                    
+                    f1Reg(p) <- f1Reg(r);
+                    f2Reg(p) <- r;
+                } 
+                
+                submitWayBill(wayBill(i));
+                APPLY;
+            }
+        }
+    }
+END
+
+META defineDocumentOutWayBillForm (doc, obj)
+    EXTEND FORM doc##s
+        OBJECTS w = WayBill PANEL
+        PROPERTIES(w) READONLY accepted, canceled, number, date, shippingDate
+        FILTERS w = wayBill(obj)
+    
+        OBJECTS wp = WayBillPosition
+        PROPERTIES(wp) READONLY idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg, 
+                                idConsigneeF2Reg, realQuantity BACKGROUND backgroundRealQuantity(wp), bottlingDate
+        FILTERS wayBill(wp) = w
+    
+        PROPERTIES READONLY commentsWayBillAct 'Комментарий' = comments(wayBillOutDoc(w)) PANEL     
+        PROPERTIES(obj) processEGAIS = process SHOWIF isPosted(obj) AND NOT notRejected(wayBillOutDoc(w)) DRAW wp TOOLBAR 
+    ;
+    
+    DESIGN doc##s {
+        documentDetail {
+            NEW EGAIS {
+                caption = 'ЕГАИС';
+                MOVE BOX(w);
+                MOVE BOX(wp);
+                MOVE PROPERTY(commentsWayBillAct) { panelCaptionVertical = TRUE; fill = 0.2; }
+            }
+        }
+    }
+END

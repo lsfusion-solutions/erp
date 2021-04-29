@@ -1,0 +1,34 @@
+MODULE EGAISWayBillLedger;
+
+REQUIRE EGAISWayBill, EGAISFRegLedger;
+
+NAMESPACE EGAIS;
+
+// out
+CLASS WayBillOutLedger 'Расход по ТТН' : FRegLedger;
+ 
+resultQuantity (WayBillPosition p) = IF accepted(p) THEN realQuantity(p) ELSE quantity(p);
+wayBillOutLedger = AGGR WayBillOutLedger WHERE resultQuantity(WayBillPosition position) IF own(shipper(position)) AND NOT canceled(position) MATERIALIZED INDEXED;
+
+posted(WayBillOutLedger l) += l IS WayBillOutLedger;
+
+date(WayBillOutLedger l) += date(position(l));
+number(WayBillOutLedger l) += number(position(l));
+
+f2Reg(WayBillOutLedger l) += f2Reg(position(l));
+
+quantity(WayBillOutLedger l) += -resultQuantity(position(l));
+
+// in
+CLASS WayBillInLedger 'Приход по ТТН' : FRegLedger;
+ 
+wayBillInLedger = AGGR WayBillInLedger WHERE realQuantity(WayBillPosition position) IF accepted(position) AND own(consignee(position)) AND NOT canceled(position) MATERIALIZED INDEXED;
+
+posted(WayBillInLedger l) += l IS WayBillInLedger;
+
+date(WayBillInLedger l) += date(position(l));
+number(WayBillInLedger l) += number(position(l));
+
+f2Reg(WayBillInLedger l) += consigneeF2Reg(position(l));
+
+quantity(WayBillInLedger l) += resultQuantity(position(l));

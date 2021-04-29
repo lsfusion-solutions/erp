@@ -1,0 +1,27 @@
+MODULE EGAISPurchaseReturnShipment;
+
+REQUIRE PurchaseReturnShipment, EGAISFRegLedger,
+        EGAISItem, EGAISStock,
+        EGAISWayBillExchange, EGAISPurchaseReturnInvoice;
+
+PRIORITY PurchaseReturn;
+
+NAMESPACE EGAISPurchaseReturn;
+
+@defineDocumentOutBalance(userShipment, s, customerStock);
+
+quantity = ABSTRACT NUMERIC[16,5] (ShipmentDetail, F2Reg);
+quantity(UserShipmentDetail d, F2Reg r) += quantity(d, r);
+
+@defineDocumentOutWayBillProcess(shipment, customerStock, supplierStock);
+
+@defineDocumentOutWayBillForm(shipment, s);
+
+// invoice
+
+quantity (InvoiceShipmentDetail d, F2Reg r) += quantity(invoiceDetail(d), r);
+
+process 'Отправить в ЕГАИС' (Invoice i) { process(invoiceShipment(i)); }
+wayBill (Invoice i) = wayBill(invoiceShipment(i));
+
+@defineDocumentOutWayBillForm(invoice, i);

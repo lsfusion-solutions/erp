@@ -1,0 +1,63 @@
+MODULE EGAISProductImport;
+
+REQUIRE EGAISProduct, EGAISClientImport;
+
+NAMESPACE EGAIS;
+
+product = DATA LOCAL STRING(INTEGER);
+productCode = DATA LOCAL STRING(INTEGER);
+
+quantity = DATA LOCAL NUMERIC[16,5](INTEGER);
+
+GROUP product EXTID 'pref:Product';
+
+fullName = DATA LOCAL STRING();
+alcCode = DATA LOCAL STRING();
+capacity = DATA LOCAL NUMERIC[16,5]();
+unitType = DATA LOCAL STRING();
+alcVolume = DATA LOCAL NUMERIC[12,3]();
+productVCode = DATA LOCAL STRING[5]();
+
+GROUP producer EXTID 'pref:Producer';
+GROUP producerUL EXTID 'oref:UL' : producer;
+
+producer = DATA LOCAL TEXT();
+
+FORM importProduct
+    PROPERTIES() fullName EXTID 'pref:FullName', 
+                 alcCode EXTID 'pref:AlcCode', 
+                 capacity EXTID 'pref:Capacity', 
+                 unitType EXTID 'pref:UnitType', 
+                 alcVolume EXTID 'pref:AlcVolume', 
+                 productVCode EXTID 'pref:ProductVCode'
+                 
+    PROPERTIES() producer EXTID 'pref:Producer',
+                 clientRegId IN producerUL EXTID 'oref:ClientRegId'
+;
+
+importProduct(TEXT xml) {
+    stringToFile('<pref:Product xmlns:pref="http://fsrar.ru/WEGAIS/ProductRef_v2" xmlns:oref="http://fsrar.ru/WEGAIS/ClientRef_v2">' + 
+                  xml + 
+                  '</pref:Product>');
+        
+    IMPORT importProduct XML FROM resultFile();
+    
+    IF NOT product(alcCode()) THEN NEW p = Product {
+        id(p) <- alcCode();
+    } 
+    
+    importClient(producer());
+    
+    FOR id(Product p) = alcCode() DO {
+        fullName(p) <- fullName();
+        capacity(p) <- capacity();
+        unitTypeId(p) <- unitType();
+        alcVolume(p) <- alcVolume();
+       
+        producer(p) <- client(clientRegId());
+
+        type(p) <- productType(productVCode());
+        
+        xml(p) <- xml;
+    }
+}

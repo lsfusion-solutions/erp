@@ -1,0 +1,45 @@
+MODULE EGAISTransferFromShopExchange;
+
+REQUIRE EGAISTransferFromShop, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+@defineDocumentOutDoc(transferFromShop, TransferFromShop, 'Возврат продукции из торгового зала на склад');
+
+GROUP header EXTID 'tts:Header';
+GROUP content EXTID 'tts:Content';
+GROUP informF2 EXTID 'tts:InformF2';
+
+FORM transferFromShopOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:TransferFromShop'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref', ='http://fsrar.ru/WEGAIS/TransferFromShop' EXTID 'xmlns:tts'
+    
+    OBJECTS r = TransferFromShopOutDoc PANEL
+    
+    PROPERTIES =LONG(r) EXTID 'tts:Identity'
+    
+    PROPERTIES IN header 
+                  =number(transferFromShop(r)) EXTID 'tts:TransferNumber', 
+                  =toDateISO(date(transferFromShop(r))) EXTID 'tts:TransferDate'
+    
+    OBJECTS p = TransferFromShopPosition IN content EXTID 'tts:Position'
+    PROPERTIES =LONG(p) EXTID 'tts:Identity', 
+               idProduct(p) EXTID 'tts:ProductCode', 
+               quantity(p) EXTID 'tts:Quantity',
+               idF2Reg(p) IN informF2 EXTID 'pref:F2RegId'
+    FILTERS transferFromShop(p) = transferFromShop(r)
+;
+
+@defineDocumentOutProcess(transferFromShop, tabbedPane);
+
+// ticket
+
+@defineOutDocTicket(transferFromShop, d, tabbedPane);
+
+process (Ticket t) + {
+    IF docType(t) = 'TransferFromShop' THEN {
+        IF operationResult(t) = 'Accepted' THEN {
+            posted(transferFromShop(outDoc(t))) <- TRUE;
+        }
+        processed() <- TRUE;
+    }
+}

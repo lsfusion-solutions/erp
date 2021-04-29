@@ -1,0 +1,154 @@
+MODULE EGAISOutDoc;
+
+REQUIRE EGAISDoc, EGAISClient;
+
+NAMESPACE EGAIS;
+
+CLASS OutDoc 'Исходящий документ ЕГАИС';
+
+utm = DATA UTM (OutDoc) INDEXED NONULL;
+urlUtm (OutDoc d) = url(utm(d));
+nameUtm 'УТМ' (OutDoc d) = name(utm(d));
+
+id 'ИД' = DATA STRING (OutDoc) INDEXED;
+outDoc = GROUP AGGR OutDoc d BY id(d); 
+
+docType = ABSTRACT DocType (OutDoc);
+idDocType 'Код типа' (OutDoc d) = id(docType(d));
+nameDocType 'Тип документа' (OutDoc d) = name(docType(d));
+
+dateTime 'Время' = DATA DATETIME (OutDoc);
+dateTime(OutDoc d) <- currentDateTime() WHEN SET(d IS OutDoc);
+
+date 'Дата' (OutDoc d) = DATE(dateTime(d));
+
+client 'Организация' = DATA Client (OutDoc);
+idClient 'СИО' (OutDoc o) = id(client(o)); 
+shortNameClient 'СИО' (OutDoc o) = shortName(client(o)); 
+
+client(OutDoc d) <- defaultClient() WHEN SET(d IS OutDoc);
+
+FORM outDocs 'Исходящие документы'
+    OBJECTS r = OutDoc
+    PROPERTIES(r) READONLY nameUtm, id, idDocType, nameDocType, dateTime, idClient, shortNameClient
+    PROPERTIES(r) NEWSESSION SHOWIF isEditable() DELETE 
+;
+
+DESIGN outDocs {
+    OBJECTS {
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 0.3;
+        }
+    }
+}
+
+@extendFormEditable(outDocs);
+
+NAVIGATOR {
+    EGAISDocuments {
+        NEW outDocs;
+    }
+}
+
+// request
+
+sign 'Подпись' = DATA STRING (OutDoc);
+ver 'Версия' = DATA STRING (OutDoc);
+
+document 'Документ' = DATA TEXT (OutDoc);
+error 'Ошибка' = DATA TEXT (OutDoc);
+
+EXTEND FORM outDocs
+    PROPERTIES(r) READONLY document, error, sign, ver
+;
+
+GROUP owner EXTID 'ns:Owner';
+GROUP document EXTID 'ns:Document';
+
+FORM submitOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES ='1.0' EXTID 'Version' ATTR
+//    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    OBJECTS r = OutDoc
+    
+    PROPERTIES IN owner idClient(r) EXTID 'ns:FSRAR_ID'
+    
+    PROPERTIES document(r) EXTID 'ns:Document' 
+;
+
+id = DATA LOCAL STRING();
+sign = DATA LOCAL STRING();
+ver = DATA LOCAL STRING();
+
+FORM submitOutDocResponse FORMEXTID 'A'
+    PROPERTIES() id EXTID 'url', sign EXTID 'sign', ver EXTID 'ver'
+;
+
+submit (OutDoc r) {
+    EXPORT submitOutDoc OBJECTS r = r XML;
+    
+    IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm();
+    
+    LOCAL response = FILE();
+    TRY {
+        EXTERNAL HTTP POST urlUtm(r) + '/opt/in/' + idDocType(r) BODYPARAMNAMES 'xml_file' PARAMS exportFile() TO response;
+    } CATCH {
+        fileToString(response());
+        error(r) <- CONCAT '\n', 'Ошибка при формировании запроса к ЕГАИС :', messageCaughtException(), resultString();
+        logToFile('egais', error(r));
+        throwException(error(r));
+    }
+    
+    IMPORT submitOutDocResponse XML FROM response();
+    
+    id(r) <- id();
+    sign(r) <- sign();
+    ver(r) <- ver();
+}
+
+submit (OutDoc r, FILE f) {
+    fileToString(f);
+    document(r) <- replace(resultString(), '<?xml version="1.0" encoding="UTF-8"?>', '');
+    
+    submit(r);
+}
+
+META defineDocumentOutDoc(doc, type, caption)
+    EXTEND CLASS DocType { type caption }
+    
+    CLASS ###doc##OutDoc caption : OutDoc;
+    docType(###doc##OutDoc r) += DocType.type IF r IS ###doc##OutDoc; 
+    
+    doc = DATA ###doc (###doc##OutDoc) INDEXED;
+    doc##OutDoc = GROUP LAST ###doc##OutDoc a ORDER a BY doc(a);
+    comments###doc##OutDoc 'Комментарий отправки' (###doc t) = comments(doc##OutDoc(t));
+END
+
+META defineDocumentOutProcess(doc, container)
+    process 'Отправить в ЕГАИС' (###doc t) {
+        NEWSESSION {
+            NEW r = ###doc##OutDoc {
+                client(r) <- client(t);
+                doc(r) <- t;
+    
+                EXPORT doc##OutDoc OBJECTS r = r XML;
+                submit(r, exportFile());
+                APPLY;
+            }
+        }
+    }
+    
+    EXTEND FORM doc##s
+        PROPERTIES(d) READONLY comments###doc##OutDoc PANEL
+        PROPERTIES(d) process SHOWIF NOT notRejected(doc##OutDoc(d)) TOOLBAR
+    ;
+    
+    DESIGN doc##s {
+        container {
+            NEW comments {
+                caption = 'Комментарии';
+                MOVE PROPERTY(comments###doc##OutDoc(d)) { fill = 1; panelCaptionVertical = TRUE; }
+            }
+        }
+    }
+END

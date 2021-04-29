@@ -1,0 +1,27 @@
+MODULE EGAISDoc;
+
+REQUIRE MasterData, Utils;
+
+NAMESPACE EGAIS;
+
+identity = DATA LOCAL STRING();
+positionIdentity = DATA LOCAL STRING(INTEGER);
+
+regId = DATA LOCAL STRING ();
+
+CLASS DocType 'Тип документа ЕГАИС' {
+    none 'Отсутствует'
+}
+TABLE docType (DocType);
+
+id 'Код' (DocType o) = STRING[100](rtrim(getWord(staticName(o),'.',2),'_')) IF o IS DocType CHARWIDTH 10;
+docType = GROUP MAX DocType t BY id(t);
+
+name 'Наименование' (DocType o) = staticCaption(o) IF o IS DocType CHARWIDTH 15;
+
+FORM dialogDocTypes 'Тип документа ЕГАИС'
+    OBJECTS o = DocType
+    PROPERTIES(o) READONLY name
+    
+    LIST DocType OBJECT o
+;

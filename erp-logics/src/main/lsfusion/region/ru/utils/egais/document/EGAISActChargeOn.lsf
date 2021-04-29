@@ -1,0 +1,94 @@
+MODULE EGAISActChargeOn;
+
+REQUIRE EGAISClient, EGAISFReg;
+
+NAMESPACE EGAIS;
+
+CLASS ActChargeOn 'Постановка на баланс ЕГАИС';
+
+posted 'Проведен' = DATA BOOLEAN (ActChargeOn);
+
+number 'Номер' = DATA STRING (ActChargeOn) IN id;
+number(ActChargeOn a) <- STRING(a) WHEN SET(a IS ActChargeOn);
+
+dateTime 'Время' = DATA DATETIME (ActChargeOn) IN id;
+dateTime(ActChargeOn a) <- currentDateTime() WHEN SET(a IS ActChargeOn);
+
+date 'Дата' (ActChargeOn a) = DATE(dateTime(a));
+
+numberDate (ActChargeOn w) = CONCAT ' от ', number(w), toDateDDMMYY(dateTime(w));
+
+// transport
+
+client = DATA Client (ActChargeOn) INDEXED;
+shortNameClient 'Организация' (ActChargeOn w) = shortName(client(w)) IN id;
+
+note 'Примечание' = DATA STRING (ActChargeOn);
+
+// position
+
+CLASS ActChargeOnPosition 'Строка постановки на баланс ЕГАИС';
+
+actChargeOn 'Постановка на баланс ЕГАИС' = DATA ActChargeOn (ActChargeOnPosition) INDEXED NONULL DELETE;
+
+product 'Продукция' = DATA Product (ActChargeOnPosition) NONULL INDEXED;
+idProduct 'Код продукции' (ActChargeOnPosition p) = id(product(p));
+fullNameProduct 'Продукция' (ActChargeOnPosition p) = fullName(product(p));
+
+quantity 'Кол-во' = DATA NUMERIC[16,5] (ActChargeOnPosition);
+
+f2Reg 'Справка Б' = DATA F2Reg (ActChargeOnPosition) NONULL;
+idF2Reg 'Справка Б' (ActChargeOnPosition p) = id(f2Reg(p));
+
+// header properties
+
+posted (ActChargeOnPosition p) = posted(actChargeOn(p));
+
+client (ActChargeOnPosition p) = client(actChargeOn(p));
+
+number 'Номер' (ActChargeOnPosition p) = number(actChargeOn(p));
+
+dateTime 'Время' (ActChargeOnPosition p) = dateTime(actChargeOn(p));
+date 'Дата' (ActChargeOnPosition p) = date(actChargeOn(p));
+
+FORM actChargeOn 'Постановка на баланс ЕГАИС'
+    OBJECTS w = ActChargeOn PANEL
+    PROPERTIES(w) posted, number, dateTime,
+                  shortNameClient, note
+    
+    OBJECTS p = ActChargeOnPosition
+    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, quantity, 
+                  NEW, DELETE
+    FILTERS actChargeOn(p) = w
+    
+    EDIT ActChargeOn OBJECT w
+;
+
+FORM actChargeOns 'Постановка на баланс'
+    OBJECTS w = ActChargeOn
+    PROPERTIES(w) READONLY posted, number, dateTime,
+                           shortNameClient, note
+    PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE
+
+    OBJECTS p = ActChargeOnPosition
+    PROPERTIES(p) READONLY idProduct, fullNameProduct, idF2Reg, quantity 
+    FILTERS actChargeOn(p) = w
+    
+    LIST ActChargeOn OBJECT w
+;
+
+DESIGN actChargeOns {
+    OBJECTS {
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(p) { caption = 'Позиции'; }
+        }
+    }
+}
+
+NAVIGATOR {
+    EGAISReg {
+        NEW actChargeOns;
+    }
+}

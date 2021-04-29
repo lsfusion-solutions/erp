@@ -1,0 +1,84 @@
+MODULE EGAISQueryClientsv2;
+
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISClientImport;
+
+NAMESPACE EGAIS;
+
+CLASS QueryClientsv2 'Запрос на справочник организации' : OutDoc;
+TABLE queryClientsv2(QueryClientsv2);
+
+EXTEND CLASS DocType { QueryClients_v2 'Запрос на справочник организации' }
+docType (QueryClientsv2 r) += DocType.QueryClients_v2 IF r IS QueryClientsv2; 
+
+INN 'ИНН' = DATA STRING[12] (QueryClientsv2);
+id 'СИО' = DATA STRING (QueryClientsv2);
+
+GROUP parameters EXTID 'qp:Parameters';
+GROUP parameter EXTID 'qp:Parameter' : parameters;
+
+name (QueryClientsv2 r, INTEGER i) = CASE WHEN i = 0 AND id(r) THEN 'СИО'
+                                                      WHEN i = 1 AND INN(r) THEN 'ИНН';  
+value (QueryClientsv2 r, INTEGER i) = CASE WHEN i = 0 AND id(r) THEN id(r)
+                                                    WHEN i = 0 AND INN(r) THEN INN(r);
+
+FORM queryClientsv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryClients_v2'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
+    
+    OBJECTS r = QueryClientsv2 PANEL 
+    
+    OBJECTS i = INTEGER IN parameters EXTID 'qp:Parameter'
+    PROPERTIES name(r, i) EXTID 'qp:Name', value(r, i) EXTID 'qp:Value'
+    FILTERS name(r, i)
+;
+
+FORM queryClientsv2Params 'Параметры запроса'
+    OBJECTS r = QueryClientsv2 PANEL
+    PROPERTIES(r) nameUtm, id, INN
+;
+
+queryClientsv2 (QueryClientsv2 r) {
+    EXPORT queryClientsv2 OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+queryClientsv2 'Запросить справочник организаций' () {
+    NEWSESSION {
+        NEW r = QueryClientsv2 {
+            DIALOG queryClientsv2Params OBJECTS r = r NOMANAGESESSION DO {
+                queryClientsv2(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM clients
+    PROPERTIES() queryClientsv2 DRAW o TOOLBAR
+;
+
+// response
+EXTEND CLASS DocType { ReplyClient_v2 'Ответ на запрос справочника организаций' }
+
+GROUP replyClient_v2 EXTID 'ns:ReplyClient_v2' : document;
+GROUP replyClients EXTID 'rc:Clients' : replyClient_v2;
+
+client = DATA LOCAL TEXT (INTEGER);
+
+FORM replyClientv2 FORMEXTID 'ns:Documents'
+    OBJECTS client = INTEGER EXTID 'rc:Client' IN replyClients
+    PROPERTIES(client) client EXTID 'oref:OrgInfoV2'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyClient_v2 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyClientv2 XML FROM resultFile();
+            FOR client(INTEGER i) DO
+                importClient(client(i));
+    
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}

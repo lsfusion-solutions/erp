@@ -1,0 +1,155 @@
+MODULE EGAISTicket;
+
+REQUIRE EGAISInDoc;
+
+NAMESPACE EGAIS;
+
+CLASS Ticket 'Квитанция';
+
+inDoc = DATA InDoc (Ticket) INDEXED;
+
+outDoc = DATA OutDoc (Ticket) INDEXED; 
+countTickets 'Квитанции' (OutDoc d) = GROUP SUM 1 IF outDoc(Ticket t) = d MATERIALIZED;
+
+docId 'ИД документа' = DATA STRING (Ticket);
+transportId 'ИД траспортный' = DATA STRING (Ticket);
+
+regId 'Регистрационный номер' = DATA STRING (Ticket);
+
+docType 'Тип документа' = DATA STRING (Ticket);
+
+conclusion 'Результат' = DATA STRING (Ticket);
+conclusionDate 'Дата результата' = DATA DATETIME (Ticket);
+comments 'Комментарий' = DATA STRING (Ticket);
+
+rejected 'Отклонена' (Ticket t) = conclusion(t) = 'Rejected';
+
+lastTicket (OutDoc o) = GROUP LAST Ticket t ORDER t BY outDoc(t) MATERIALIZED INDEXED;
+
+operationName 'Название операции' = DATA STRING(Ticket);
+operationResult 'Результат операции' = DATA STRING(Ticket);
+operationDate 'Дата операции' = DATA DATETIME(Ticket);
+operationComment 'Комментарий операции' = DATA STRING(Ticket);
+
+operationRejected 'Отклонена операция' (Ticket t) = operationResult(t) = 'Rejected'; 
+
+lastOperationTicket (OutDoc o) = GROUP LAST Ticket t ORDER t WHERE operationResult(t) BY outDoc(t) MATERIALIZED INDEXED;
+
+rejected 'Отклонен' (OutDoc o) = operationRejected(lastOperationTicket(o)) OR rejected(lastTicket(o)); 
+notRejected 'Не отклонен' (OutDoc o) = o IS OutDoc AND NOT rejected(o);
+comments 'Комментарий' (OutDoc o) = OVERRIDE operationComment(lastOperationTicket(o)), comments(lastTicket(o));
+
+EXTEND FORM outDocs
+    PROPERTIES(r) countTickets
+    
+    OBJECTS t = Ticket
+    PROPERTIES(t) READONLY docId, transportId, regId, docType, conclusion, conclusionDate, comments
+    FILTERS outDoc(t) = r 
+;
+
+DESIGN outDocs {
+    tabbedPane {
+        MOVE BOX(t) {
+            caption = CONCAT '', 'Квитанции', '(' + countTickets(r) +  ')';
+        }
+    }
+}
+
+EXTEND CLASS DocType { Ticket 'Квитанция' }
+
+GROUP ticket EXTID 'ns:Ticket' : document;
+
+docId = DATA LOCAL STRING ();
+transportId = DATA LOCAL STRING();
+
+docType = DATA LOCAL STRING ();
+
+GROUP result EXTID 'tc:Result' : ticket;
+conclusion = DATA LOCAL STRING();
+conclusionDate = DATA LOCAL STRING();
+comments = DATA LOCAL STRING();
+
+GROUP operationResult EXTID 'tc:OperationResult' : ticket;
+operationName = DATA LOCAL STRING();
+operationResult = DATA LOCAL STRING();
+operationDate = DATA LOCAL STRING();
+operationComment = DATA LOCAL STRING();
+
+FORM ticket FORMEXTID 'ns:Documents'
+    PROPERTIES() IN ticket docId EXTID 'tc:DocId', 
+                           transportId EXTID 'tc:TransportId',
+                           regId EXTID 'tc:RegID',
+                           docType EXTID 'tc:DocType' 
+
+    PROPERTIES() IN result conclusion EXTID 'tc:Conclusion', 
+                           conclusionDate EXTID 'tc:ConclusionDate', 
+                           comments EXTID 'tc:Comments'
+
+    PROPERTIES() IN operationResult 
+                           operationName EXTID 'tc:OperationName', 
+                           operationResult EXTID 'tc:OperationResult', 
+                           operationDate EXTID 'tc:OperationDate',
+                           operationComment EXTID 'tc:OperationComment'
+;
+
+processed = DATA LOCAL BOOLEAN ();
+process ABSTRACT LIST (Ticket);
+
+process (InDoc d) + {
+    IF docType(d) = DocType.Ticket THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT ticket XML FROM resultFile();
+            
+            NEW t = Ticket {
+                inDoc(t) <- d;
+                outDoc(t) <- outDoc(d);
+                
+                docId(t) <- docId();
+                transportId(t) <- transportId();
+                
+                regId(t) <- regId();
+                docType(t) <- docType();
+               
+                conclusion(t) <- conclusion();
+                
+                conclusionDate(t) <- toDateTimeFormat(conclusionDate(),'yyyy-MM-ddThh24:mi:ss');
+                comments(t) <- comments();
+
+                operationName(t) <- operationName();
+                operationResult(t) <- operationResult();
+                operationDate(t) <- toDateTimeFormat(operationDate(),'yyyy-MM-ddThh24:mi:ss');
+                operationComment(t) <- operationComment();
+                
+                processed() <- NULL;
+                process(t); 
+                
+                IF NOT processed() THEN RETURN;
+            }
+             
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}
+
+META defineOutDocTicket (doc, obj, container)
+    doc (Ticket t) = doc(outDoc(t)) MATERIALIZED INDEXED;
+    countTickets 'Квитанции' (###doc d) = GROUP SUM 1 IF doc(Ticket t) = d MATERIALIZED;
+    
+    EXTEND FORM doc##s
+        PROPERTIES(obj) READONLY countTickets
+    
+        OBJECTS tc = Ticket
+        PROPERTIES(tc) READONLY docId, transportId, conclusion, comments, operationName, operationResult, operationDate, operationComment
+        FILTERS doc(tc) = obj
+    ;
+    
+    DESIGN doc##s {
+        container {
+            MOVE BOX(tc) {
+                caption = CONCAT '', 'Квитанции', '(' + countTickets(obj) +  ')';
+            }        
+        }
+    }
+END

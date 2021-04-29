@@ -1,0 +1,291 @@
+MODULE EGAISWayBill;
+
+REQUIRE EGAISInDoc, EGAISProduct, EGAISFReg;
+
+NAMESPACE EGAIS;
+
+CLASS WayBill 'ТТН ЕГАИС';
+
+id 'Код' = DATA STRING (WayBill) INDEXED IN id;
+
+number 'Номер' = DATA STRING (WayBill) IN id;
+date 'Дата' = DATA DATE (WayBill) IN id;
+numberDate (WayBill w) = CONCAT ' от ', number(w), toDateDDMMYY(date(w));
+
+shippingDate 'Дата поставки' = DATA DATE (WayBill);
+
+key 'Ключ' (WayBill b) = CONCAT '/', id(b), number(b), date(b);
+
+// status
+
+canceled 'Отменена' = DATA BOOLEAN (WayBill);
+accepted 'Принята получателем' = DATA BOOLEAN (WayBill);
+
+toAccept 'К приемке' (WayBill w) = w IS WayBill AND NOT accepted(w) AND NOT canceled(w) MATERIALIZED INDEXED; 
+
+// transport
+
+shipper = DATA Client (WayBill) INDEXED;
+shortNameShipper 'Отправитель' (WayBill w) = shortName(shipper(w)) IN id;
+
+wayBill = GROUP MAX WayBill b BY shipper(b), key(b);
+
+consignee = DATA Client (WayBill) INDEXED;
+shortNameConsignee 'Получатель' (WayBill w) = shortName(consignee(w)) IN id;
+
+base 'Основание' = DATA STRING (WayBill);
+note 'Примечание' = DATA STRING (WayBill);
+
+regId 'Рег. номер' = DATA STRING (WayBill);
+wayBill = GROUP MAX WayBill b BY regId(b);
+
+// position
+
+CLASS WayBillPosition 'Строка ТТН ЕГАИС';
+
+wayBill 'ТТН' = DATA WayBill (WayBillPosition) NONULL DELETE;
+
+product 'Продукция' = DATA Product (WayBillPosition) NONULL INDEXED;
+idProduct 'Код продукции' (WayBillPosition p) = id(product(p)) IN id;
+fullNameProduct 'Продукция' (WayBillPosition p) = fullName(product(p));
+
+identity 'Код' = DATA STRING (WayBillPosition) IN id;
+wayBillPosition = GROUP MAX WayBillPosition p BY wayBill(p), identity(p);
+
+INDEX wayBill(WayBillPosition p), identity(p); 
+
+quantity 'Кол-во' = DATA NUMERIC[16,5] (WayBillPosition);
+price 'Цена' = DATA NUMERIC[16,4] (WayBillPosition);
+
+f1Reg 'Справка A' = DATA F1Reg (WayBillPosition) NONULL;
+idF1Reg 'Справка A' (WayBillPosition p) = id(f1Reg(p));
+
+f2Reg 'Справка Б' = DATA F2Reg (WayBillPosition) NONULL INDEXED;
+idF2Reg 'Справка Б' (WayBillPosition p) = id(f2Reg(p));
+
+// box
+CLASS Box 'Короб ЕГАИС';
+
+id 'Код' = DATA STRING (Box) INDEXED IN id;
+box = GROUP AGGR Box b BY id(b);
+
+// mark code
+CLASS MarkCode 'Код маркировки ЕГАИС';
+
+id 'Код' = DATA STRING[200] (MarkCode) INDEXED IN id;
+markCode = GROUP AGGR MarkCode b BY id(b);
+
+// way bill mark
+CLASS WayBillMark 'Строка маркировки ТТН ЕГАИС';
+
+wayBillPosition 'Строка ТТН' = DATA WayBillPosition (WayBillMark) NONULL DELETE INDEXED;
+
+markCode 'Код маркировки' = DATA MarkCode (WayBillMark) NONULL INDEXED;
+idMarkCode 'Код маркировки' (WayBillMark m) = id(markCode(m));
+
+INDEX markCode(WayBillMark m), wayBillPosition(m);
+wayBillPosition (MarkCode c) = GROUP LAST wayBillPosition(WayBillMark m) ORDER m BY markCode(m) MATERIALIZED INDEXED;
+f2Reg (MarkCode c) = f2Reg(wayBillPosition(c)) MATERIALIZED INDEXED;
+
+countMarkCodes 'Кол-во марок' (WayBillPosition p) = GROUP SUM 1 IF wayBillPosition(WayBillMark m) = p MATERIALIZED;
+
+//wayBillPosition = GROUP LAST wayBillPosition(WayBillMark m) ORDER m BY markCode(m), wayBill(wayBillPosition(m));
+
+box = DATA Box (WayBillMark) INDEXED;
+
+box (MarkCode c) = GROUP LAST box(WayBillMark m) ORDER m BY markCode(m) MATERIALIZED INDEXED;
+
+countMarkCodes 'Кол-во марок' (WayBillPosition p, Box b) = GROUP SUM 1 IF wayBillPosition(WayBillMark m) = p AND box(m) = b MATERIALIZED;
+
+accepted 'Принята получателем' = DATA BOOLEAN (WayBillMark);
+
+// header properties
+
+canceled 'Отменена' (WayBillPosition p) = canceled(wayBill(p));
+accepted 'Принята получателем' (WayBillPosition p) = accepted(wayBill(p));
+
+shipper (WayBillPosition p) = shipper(wayBill(p));
+consignee (WayBillPosition p) = consignee(wayBill(p));
+
+number 'Номер' (WayBillPosition p) = number(wayBill(p));
+date 'Дата' (WayBillPosition p) = date(wayBill(p));
+
+// accept
+
+realQuantity 'Принятое кол-во' = DATA NUMERIC[16,5] (WayBillPosition);
+backgroundRealQuantity (WayBillPosition p) = CASE WHEN realQuantity(p) > (OVERRIDE quantity(p), 0.0) THEN RGB(255,212,212)
+                                                           WHEN (OVERRIDE realQuantity(p), 0.0) < quantity(p) THEN RGB(212,212,255);
+                                            
+
+countRealQuantity (WayBill w) = GROUP SUM 1 IF wayBill(WayBillPosition p) = w AND realQuantity(p) > 0;
+realDifferences (WayBill w) = GROUP SUM 1 IF wayBill(WayBillPosition p) = w AND NOT quantity(p) = realQuantity(p);
+isAccept (WayBill w) = CASE WHEN w IS WayBill AND NOT countRealQuantity(w) THEN 'Rejected'
+                                          WHEN realDifferences(w) THEN 'Differences'
+                                          ELSE 'Accepted';
+
+consigneeF2Reg 'Справка Б получателя' = DATA F2Reg (WayBillPosition);
+idConsigneeF2Reg 'Справка Б получателя' (WayBillPosition p) = id(consigneeF2Reg(p));
+
+bottlingDate 'Дата розлива' = DATA DATE (WayBillPosition);
+
+FORM wayBill 'ТТН ЕГАИС'
+    OBJECTS w = WayBill PANEL
+    PROPERTIES(w) accepted, canceled, id, number, date, shippingDate,
+                  shortNameShipper, shortNameConsignee, regId,
+                  base, note
+    
+    OBJECTS p = WayBillPosition
+    PROPERTIES(p) identity, idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg,  
+                  idConsigneeF2Reg, realQuantity BACKGROUND backgroundRealQuantity(p), bottlingDate,
+                  countMarkCodes READONLY BACKGROUND RGB(212,255,212) IF quantity(p) = countMarkCodes(p),  
+                  NEW, DELETE
+    FILTERS wayBill(p) = w
+    
+    OBJECTS b = Box
+    PROPERTIES(b) id
+    PROPERTIES READONLY countMarkCodes(p, b)
+    FILTERS countMarkCodes(p, b)
+    
+    OBJECTS m = WayBillMark
+    PROPERTIES(m) idMarkCode, NEW, DELETE
+    FILTERS wayBillPosition(m) = p,
+            box(m) = b
+    
+    EDIT WayBill OBJECT w
+;
+
+DESIGN wayBill {
+    OBJECTS {
+        NEW detail {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(p);
+            NEW detailBox {
+                fill = 0.5;
+                type = SPLITV;
+                MOVE BOX(b) {
+                    fill = 0.2;
+                }
+                MOVE BOX(m);
+            }
+        }
+    }
+}
+
+FORM wayBills 'ТТН'
+    OBJECTS w = WayBill
+    PROPERTIES(w) READONLY accepted, canceled, id, number, date, shippingDate,
+                           shortNameShipper, shortNameConsignee, regId,
+                           base, note
+    PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE
+
+    OBJECTS p = WayBillPosition
+    PROPERTIES(p) READONLY identity, idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg, 
+                           idConsigneeF2Reg, realQuantity, bottlingDate
+    FILTERS wayBill(p) = w
+    
+    LIST WayBill OBJECT w
+;
+
+DESIGN wayBills {
+    OBJECTS {
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(p) { caption = 'Позиции'; }
+        }
+    }
+}
+
+NAVIGATOR {
+    EGAISReg {
+        NEW wayBills;
+    }
+}
+
+META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock)
+    quantity 'Кол-во (ЕГАИС)' = DATA NUMERIC[16,5] (###doc##Detail, WayBillPosition);
+    
+    fillQuantity 'Выбрать' (###doc##Detail d, WayBillPosition p) { 
+        quantity(d, p) <- quantityProp(d);
+        in(sku(d), product(p)) <- TRUE; 
+    }
+    
+    matches (###doc i, WayBill w) = 
+        shipper(w) = client(supplierStock(i)) AND
+        consignee(w) = client(customerStock(i));
+    
+    quantityWayBill 'Кол-во (ЕГАИС)' (###doc##Detail d) = GROUP SUM quantity(d, WayBillPosition s) MATERIALIZED;
+    incorrectQuantityWayBill (###doc##Detail d) = quantityProp(d) AND NOT quantityProp(d) = quantityWayBill(d);
+    backgroundQuantityWayBill(###doc##Detail d) = RGB(255,212,212) IF incorrectQuantityWayBill(d);
+    
+    quantity###doc 'Кол-во (в документе)' (WayBillPosition p) = GROUP SUM quantity(###doc##Detail d, p) MATERIALIZED;
+    left###doc (WayBillPosition p) = quantity(p) (-) quantity###doc(p);
+    CONSTRAINT left###doc(WayBillPosition p) < 0
+        MESSAGE 'По строке документа привязано больше строк ЕГАИС чем в документе';  
+    
+//    WHEN CHANGED(quantity###doc(WayBillPosition p)) DO 
+//        realQuantity(p) <- quantity###doc(p);
+    
+    wayBill 'ТТН ЕГАИС' = DATA WayBill (###doc) INDEXED;
+    numberDateWayBill 'ТТН ЕГАИС' (###doc i) = numberDate(wayBill(i));
+    
+    changeNumberDateWayBill (###doc d) {
+        DIALOG wayBills OBJECTS w = wayBill(d) NULL INPUT FILTERS toAccept(w) AND matches(d, w) DO {
+            wayBill(d) <- w;
+        }
+    }
+    
+    fillQuantity 'Заполнить' (###doc i) {
+        quantity(###doc##Detail d, WayBillPosition p) <- quantityProp(d) 
+                IF in(sku(d), product(p))
+                   WHERE doc(d) = i AND wayBill(p) = wayBill(i);
+    }
+    
+    EXTEND FORM doc
+        OBJECTS ed = ###doc##Detail
+        PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantityProp,
+                                quantityWayBill BACKGROUND backgroundQuantityWayBill(ed)
+        ORDERS index(ed)
+        FILTERS doc(ed) = i
+    
+        PROPERTIES(i) fillQuantity DRAW ed TOOLBAR
+        PROPERTIES(i) numberDateWayBill ON CHANGE changeNumberDateWayBill(i)
+        
+        OBJECTS wp = WayBillPosition
+        PROPERTIES(wp) READONLY idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg, 
+                                idConsigneeF2Reg, bottlingDate
+        PROPERTIES(ed, wp)      quantity, fillQuantity GRID
+        FILTERS wayBill(wp) = wayBill(i)
+        
+        FILTERGROUP sku
+            FILTER 'По товару' in(sku(ed), product(wp)) OR quantity(ed, wp) DEFAULT
+    
+        FILTERGROUP quantity
+            FILTER 'По количеству' quantity(ed) = quantity(wp) OR quantity(ed, wp) DEFAULT
+    
+        FILTERGROUP left
+            FILTER 'Непривязанные' (left###doc(wp) > 0) OR quantity(ed, wp) 
+    ;
+    
+    DESIGN doc {
+        specificationBox {
+            NEW EGAIS {
+                caption = 'ЕГАИС';
+                NEW EGAISHeader {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberDateWayBill(i));
+                }
+                NEW EGAISDetail {
+                    fill = 1;
+                    type = SPLITH;
+                    MOVE BOX(ed);
+                    MOVE BOX(wp);
+                }
+            }
+        }
+    }
+END
+
+WBRegId = DATA LOCAL STRING();
+note = DATA LOCAL STRING();

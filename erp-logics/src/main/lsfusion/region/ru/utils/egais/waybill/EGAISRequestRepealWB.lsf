@@ -1,0 +1,97 @@
+MODULE EGAISRequestRepealWB;
+
+REQUIRE EGAISOutDoc, EGAISWayBillDoc, EGAISWayBillAct;
+
+NAMESPACE EGAIS;
+
+numberRRWB 'Номер запроса на отмену' = DATA STRING (WayBillAct);
+dateRRWB 'Дата запроса на отмену' = DATA DATETIME (WayBillAct);
+
+EXTEND FORM wayBills
+    PROPERTIES(a) READONLY numberRRWB, dateRRWB 
+;
+
+CLASS RequestRepealWBOutDoc 'Запрос на отмену проведения ТТН от грузополучателя' : OutDoc;
+
+EXTEND CLASS DocType { RequestRepealWB 'Запрос на отмену проведения ТТН от грузополучателя' }
+docType (RequestRepealWBOutDoc r) += DocType.RequestRepealWB IF r IS RequestRepealWBOutDoc;
+
+wayBillAct = DATA WayBillAct (RequestRepealWBOutDoc) INDEXED;
+requestRepealWBOutDoc = GROUP LAST RequestRepealWBOutDoc d ORDER d BY wayBillAct(d);
+commentsRequestRepealWBOutDoc 'Комментарий запроса на отмену' (WayBillAct a) = comments(requestRepealWBOutDoc(a));
+
+FORM requestRepealWB FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:RequestRepealWB'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/RequestRepealWB' EXTID 'xmlns:qp', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    
+    OBJECTS r = RequestRepealWBOutDoc PANEL
+    
+    PROPERTIES = id(client(r)) EXTID 'qp:ClientId', 
+               = numberRRWB(wayBillAct(r)) EXTID 'qp:RequestNumber', 
+               = formatT(dateRRWB(wayBillAct(r))) EXTID 'qp:RequestDate', 
+               = regId(wayBill(r)) EXTID 'qp:WBRegId'
+;
+
+request (RequestRepealWBOutDoc r) {
+    EXPORT requestRepealWB OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+cancel 'Запросить отмену проведения' (WayBillAct wa) {
+    NEWSESSION {
+        NEW r = RequestRepealWBOutDoc {
+            client(r) <- consignee(wayBill(wa));
+            numberRRWB(wa) <- STRING(r);
+            dateRRWB(wa) <- currentDateTime();
+
+            wayBillAct(r) <- wa;
+            wayBill(r) <- wayBill(wa);
+
+            request(r);
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM wayBills
+    PROPERTIES(a) READONLY commentsRequestRepealWBOutDoc PANEL
+    PROPERTIES(a) cancel SHOWIF accepted(w) AND own(consignee(w)) AND NOT notRejected(requestRepealWBOutDoc(a)) TOOLBAR
+;
+
+DESIGN wayBills {
+    wayBillDetails {
+        MOVE PROPERTY(commentsRequestRepealWBOutDoc(a)) { fill = 1; panelCaptionVertical = TRUE; }
+    }
+}
+
+// import
+
+GROUP requestRepealWB EXTID 'ns:RequestRepealWB' : document;
+
+requestNumber = DATA LOCAL STRING();
+requestDate = DATA LOCAL DATETIME();
+
+FORM inRequestRepealWB FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES() IN requestRepealWB 
+                    requestNumber EXTID 'qp:RequestNumber', 
+                    requestDate EXTID 'qp:RequestDate', 
+                    WBRegId EXTID 'qp:WBRegId'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.RequestRepealWB THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT inRequestRepealWB XML FROM resultFile();
+            
+            FOR WayBill b = wayBill(WBRegId()) AND wayBillAct(b) = WayBillAct wa DO {            
+                wayBill(d) <- b;
+                
+                numberRRWB(wa) <- requestNumber();
+                dateRRWB(wa) <- requestDate();
+
+                processed(d) <- TRUE;
+                APPLY;
+            }
+        }
+    }
+}

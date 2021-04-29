@@ -1,0 +1,90 @@
+MODULE EGAISFReg;
+
+REQUIRE EGAISProduct;
+
+NAMESPACE EGAIS;
+
+CLASS F1Reg 'Справка А';
+
+id 'Код' = DATA STRING (F1Reg) IN id;
+f1Reg = GROUP AGGR F1Reg r BY id(r);
+
+product 'Продукция' = DATA Product (F1Reg) NONULL INDEXED;
+idProduct 'Код продукции' (F1Reg r) = id(product(r)) IN id;
+fullNameProduct 'Продукция' (F1Reg r) = fullName(product(r)) IN id;
+
+FORM f1Regs 'Справки А'
+    OBJECTS r = F1Reg
+    PROPERTIES(r) READONLYIF isReadonly() id, idProduct, fullNameProduct
+;
+
+@extendFormEditable(f1Regs);
+
+NAVIGATOR {
+    EGAISDocuments {
+        NEW f1Regs;
+    }
+}
+
+// f2
+
+CLASS F2Reg 'Справка Б';
+
+id 'Код' = DATA STRING (F2Reg) IN id;
+f2Reg = GROUP AGGR F2Reg r BY id(r);
+
+f1Reg 'Справка А' = DATA F1Reg (F2Reg) INDEXED;
+idF1Reg 'Справка А' (F2Reg r) = id(f1Reg(r)) IN id;
+
+product 'Продукция' (F2Reg r) = product(f1Reg(r)) MATERIALIZED INDEXED;
+idProduct 'Код продукции' (F2Reg r) = id(product(r)) IN id;
+fullNameProduct 'Продукция' (F2Reg r) = fullName(product(r)) IN id;
+
+client 'Организация' = DATA Client(F2Reg) NONULL INDEXED;
+shortNameClient 'Организация' (F2Reg r) = shortName(client(r)); 
+
+FORM f2Regs 'Справки Б'
+    OBJECTS r = F2Reg
+    PROPERTIES(r) READONLYIF isReadonly() id, idF1Reg, idProduct, fullNameProduct, shortNameClient
+    
+    LIST F2Reg OBJECT r
+;
+
+@extendFormEditable(f2Regs);
+
+NAVIGATOR {
+    EGAISDocuments {
+        NEW f2Regs;
+    }
+}
+
+META defineDocumentF2Reg(doc, capt)
+
+    @defineDocumentProduct(doc, capt);
+    
+    f2Reg 'Справка Б' = DATA F2Reg (###doc##Position) NONULL INDEXED;
+    idF2Reg 'Справка Б' (###doc##Position p) = id(f2Reg(p));
+    
+    CONSTRAINT f2Reg(###doc##Position p) AND NOT product(p) = product(f2Reg(p))
+        CHECKED BY f2Reg[###doc##Position]
+        MESSAGE 'Продукция справки Б должна соответствовать продукции строки';
+    
+    CONSTRAINT f2Reg(###doc##Position p) AND NOT client(doc(p)) = client(f2Reg(p))
+        CHECKED BY f2Reg[###doc##Position]
+        MESSAGE 'Организация справки Б должна соответствовать организовать строки';
+    
+    WHEN LOCAL SETCHANGED(f2Reg(###doc##Position p)) DO product(p) <- product(f2Reg(p));
+    
+    EXTEND FORM doc
+        PROPERTIES(p) AFTER fullNameProduct(p) idF2Reg
+    ;
+    
+    EXTEND FORM doc##s
+        PROPERTIES(p) READONLY AFTER fullNameProduct(p) idF2Reg
+    ;
+    
+END
+
+// import
+informF1RegId = DATA LOCAL STRING(INTEGER);
+informF2RegId = DATA LOCAL STRING(INTEGER);

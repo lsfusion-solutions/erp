@@ -1,0 +1,53 @@
+MODULE EGAISActWriteOffShopType;
+
+REQUIRE EGAIS;
+
+NAMESPACE EGAIS;
+
+CLASS WriteOffShopType 'Тип списания из торгового зала';
+
+id 'Наименование' = DATA STRING[30] (WriteOffShopType) CHARWIDTH 15;
+writeOffShopType = GROUP AGGR WriteOffShopType t BY id(t);
+
+name 'Наименование' = DATA ISTRING (WriteOffShopType) CHARWIDTH 30;
+
+FORM writeOffShopType 'Тип списания из торгового зала'
+    OBJECTS o = WriteOffShopType PANEL
+    PROPERTIES(o) id, name
+    
+    EDIT WriteOffShopType OBJECT o
+;
+
+FORM writeOffShopTypes 'Типы списания из торгового зала'
+    OBJECTS o = WriteOffShopType
+    PROPERTIES(o) READONLY id, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogWriteOffShopTypes 'Тип списания из торгового зала'
+    OBJECTS o = WriteOffShopType
+    PROPERTIES(o) READONLY id, name
+    
+    LIST WriteOffShopType OBJECT o
+;
+
+NAVIGATOR {
+    EGAISMasterData {
+        NEW writeOffShopTypes;
+    }
+}
+
+onStarted() + {
+    IF NOT GROUP SUM 1 IF t IS WriteOffShopType THEN {
+        NEW t = WriteOffShopType { id(t) <- 'Пересортица'; name(t) <- 'Недостача пересортица'; }
+        NEW t = WriteOffShopType { id(t) <- 'Недостача'; name(t) <- 'Недостача (хищение, злоупотребление материально ответственных лиц, ошибки учета, естественная убыль,...)'; }
+        NEW t = WriteOffShopType { id(t) <- 'Уценка'; name(t) <- 'Уценка (списание) в результате порчи'; }
+        NEW t = WriteOffShopType { id(t) <- 'Порча'; name(t) <- 'Списание объема продукции, не подлежащей дальнейшей реализации (бой, срок годности, порча)'; }
+        NEW t = WriteOffShopType { id(t) <- 'Потери'; name(t) <- 'Потери при транспортировке'; }
+        NEW t = WriteOffShopType { id(t) <- 'Проверки'; name(t) <- 'Списание объема продукции, израсходованной на лабораторные нужды для прохождения добровольной проверки качества, рекламные образцы. Требуется указание штрихкодов.'; }
+        NEW t = WriteOffShopType { id(t) <- 'Арест'; name(t) <- 'Списание арестованной продукции, изъятой из оборота продукции, конфискованной продукции по решению суда. Требуется указание штрихкодов'; }
+        NEW t = WriteOffShopType { id(t) <- 'Иные цели'; name(t) <- 'Списание продукции, когда ФСМ/АМ не возможно считать'; }
+        NEW t = WriteOffShopType { id(t) <- 'Реализация'; name(t) <- 'Розничная реализация продукции, не подлежащей фиксации в ЕГАИС'; }
+        NEW t = WriteOffShopType { id(t) <- 'Производственные потери'; name(t) <- 'Списание продукции при производственных потерях'; }
+    }
+}

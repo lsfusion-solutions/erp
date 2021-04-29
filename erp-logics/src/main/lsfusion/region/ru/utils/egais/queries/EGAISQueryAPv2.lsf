@@ -1,0 +1,98 @@
+MODULE EGAISQueryAPv2;
+
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISProductImport;
+
+NAMESPACE EGAIS;
+
+CLASS QueryAPv2 'Запрос на справочник алкогольной продукции' : OutDoc;
+TABLE queryAPv2(QueryAPv2);
+
+EXTEND CLASS DocType { QueryAP_v2 'Запрос на справочник продукции' }
+docType (QueryAPv2 r) += DocType.QueryAP_v2 IF r IS QueryAPv2; 
+
+producer = DATA Client (QueryAPv2);
+idClient 'Код производителя' (QueryAPv2 q) = id(producer(q));
+shortNameClient 'Производитель' (QueryAPv2 q) = shortName(producer(q));
+
+GROUP parameters EXTID 'qp:Parameters';
+GROUP parameter EXTID 'qp:Parameter' : parameters;
+
+name (INTEGER i) = CASE WHEN i = 0 THEN 'СИО';  
+value (QueryAPv2 r, INTEGER i) = CASE WHEN i = 0 THEN idClient(r);
+
+FORM queryAPv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryAP_v2'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
+    
+    OBJECTS r = QueryAPv2 PANEL 
+    
+    OBJECTS i = INTEGER IN parameters EXTID 'qp:Parameter'
+    PROPERTIES name(i) EXTID 'qp:Name', value(r, i) EXTID 'qp:Value'
+    FILTERS name(i)
+;
+
+FORM queryAPv2Params 'Параметры запроса'
+    OBJECTS r = QueryAPv2 PANEL
+    PROPERTIES(r) nameUtm, idClient, shortNameClient
+;
+
+queryAPv2 (QueryAPv2 r) {
+    EXPORT queryAPv2 OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+queryAPv2 'Запросить справочник алкогольной продукции' () {
+    NEWSESSION {
+        NEW r = QueryAPv2 {
+            DIALOG queryAPv2Params OBJECTS r = r NOMANAGESESSION DO {
+                queryAPv2(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM products
+    PROPERTIES() queryAPv2 DRAW o TOOLBAR
+;
+
+queryAPv2 'Запросить справочник алкогольной продукции' (Client c) {
+    APPLY;
+    IF canceled() THEN RETURN;
+    
+    NEWSESSION {
+        NEW r = QueryAPv2 {
+            producer(r) <- c;
+            queryAPv2(r);
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM client
+    PROPERTIES queryAPv2(o) DRAW p TOOLBAR
+;
+
+// response
+EXTEND CLASS DocType { ReplyAP_v2 'Ответ на запрос справочника продукции' }
+
+GROUP replyAP_v2 EXTID 'ns:ReplyAP_v2' : document;
+GROUP products EXTID 'rap:Products' : replyAP_v2;
+
+FORM replyAPv2 FORMEXTID 'ns:Documents'
+    OBJECTS product = INTEGER EXTID 'rap:Product' IN products
+    PROPERTIES(product) product EXTID 'value:full'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyAP_v2 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyAPv2 XML FROM resultFile();
+            FOR product(INTEGER i) DO
+                importProduct(product(i));
+    
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}

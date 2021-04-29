@@ -1,0 +1,47 @@
+MODULE EGAISActChargeOnShopType;
+
+REQUIRE EGAIS;
+
+NAMESPACE EGAIS;
+
+CLASS ChargeOnShopType 'Тип постановки на баланс в торговом зале';
+
+id 'Наименование' = DATA STRING[40] (ChargeOnShopType) CHARWIDTH 15;
+chargeOnShopType = GROUP AGGR ChargeOnShopType t BY id(t);
+
+name 'Наименование' = DATA ISTRING (ChargeOnShopType) CHARWIDTH 30;
+
+FORM chargeOnShopType 'Тип постановки на баланс в торговом зале'
+    OBJECTS o = ChargeOnShopType PANEL
+    PROPERTIES(o) id, name
+    
+    EDIT ChargeOnShopType OBJECT o
+;
+
+FORM chargeOnShopTypes 'Тип постановки на баланс в торговом зале'
+    OBJECTS o = ChargeOnShopType
+    PROPERTIES(o) READONLY id, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogChargeOnShopTypes 'Тип списания из торгового зала'
+    OBJECTS o = ChargeOnShopType
+    PROPERTIES(o) READONLY id, name
+    
+    LIST ChargeOnShopType OBJECT o
+;
+
+NAVIGATOR {
+    EGAISMasterData {
+        NEW chargeOnShopTypes;
+    }
+}
+
+onStarted() + {
+    IF NOT GROUP SUM 1 IF t IS ChargeOnShopType THEN {
+        NEW t = ChargeOnShopType { id(t) <- 'Пересортица'; name(t) <- 'Излишки пересортица'; }
+        NEW t = ChargeOnShopType { id(t) <- 'Излишки'; name(t) <- 'Излишки продукции. В случае обнаружения излишков продукции организация предоставляет в ЕГАИС акт постановки на баланс с указанием основания «Излишки»'; }
+        NEW t = ChargeOnShopType { id(t) <- 'Продукция, полученная до 01.01.2016'; name(t) <- 'Продукция, полученная до 01.01.2016'; }
+        NEW t = ChargeOnShopType { id(t) <- 'Производство_Сливы'; name(t) <- 'Собственное производство/сливы продукции'; }
+    }
+}

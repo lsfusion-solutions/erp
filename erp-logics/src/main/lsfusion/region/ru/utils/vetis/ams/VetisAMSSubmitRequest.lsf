@@ -27,7 +27,7 @@ FORM submitApplicationResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soa
     PROPERTIES() IN submitApplicationResponseApplication applicationId
 ;
 
-submitApplicationRequest (ApplicationRequest r) {
+submit (ApplicationRequest r) {
     EXPORT submitApplicationRequest OBJECTS r = r XML;
     
     LOCAL response = FILE();
@@ -47,11 +47,11 @@ submitApplicationRequest (ApplicationRequest r) {
     id(r) <- applicationId();
 }
 
-submitApplicationRequest(ApplicationRequest r, FILE f) {
+submit(ApplicationRequest r, FILE f) {
     fileToString(f);
     request(r) <- replace(resultString(), '<?xml version="1.0" encoding="UTF-8"?>', '');
     
-    submitApplicationRequest(r);
+    submit(r);
 }
 
 data = DATA LOCAL TEXT();
@@ -59,7 +59,7 @@ createApplicationRequest 'Отправить заявку' () {
     NEWSESSION NESTED (data[]) {
         NEW r = ApplicationRequest {
             request(r) <- data();
-            submitApplicationRequest(r);
+            submit(r);
             APPLY;
         }
     }

@@ -1,0 +1,53 @@
+MODULE EGAISItem;
+
+REQUIRE EGAISProduct, Item;
+
+NAMESPACE EGAIS;
+
+in 'Вкл' = DATA BOOLEAN (Item, Product);
+
+// item
+add 'Добавить' (Item i){
+    DIALOG dialogProducts OBJECTS o INPUT DO {
+        in(i, o) <- TRUE;
+    }
+}
+delete 'Отключить' (Item i, Product p) {
+    in(i, p) <- NULL;
+} 
+
+EXTEND FORM item
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY id, fullName, capacity, unitTypeId, alcVolume, nameType,
+                           idProducer, shortNameProducer
+    PROPERTIES add(i) DRAW p TOOLBAR, delete(i, p) GRID
+    FILTERS in(i, p)
+;
+
+DESIGN item {
+    itemDetail {
+        MOVE BOX(p) {
+            caption = 'ЕГАИС';
+        }
+    }
+}
+
+// product
+add 'Добавить' (Product p){
+    DIALOG items OBJECTS i INPUT DO {
+        in(i, p) <- TRUE;
+    }
+}
+
+EXTEND FORM product
+    OBJECTS i = Item
+    PROPERTIES(i) READONLY idBarcode, id, name, nameUOM
+    PROPERTIES add(o) DRAW i TOOLBAR, delete(i, o) GRID
+    FILTERS in(i, o)
+;
+
+DESIGN product {
+    tabbedPane {
+        MOVE BOX(i) { caption = 'Товары'; }
+    }
+}

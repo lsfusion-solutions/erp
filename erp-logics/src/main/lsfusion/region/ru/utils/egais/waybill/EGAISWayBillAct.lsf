@@ -1,0 +1,36 @@
+MODULE EGAISWayBillAct;
+
+REQUIRE EGAISOutDoc, EGAISTicket, EGAISWayBillDoc;
+
+NAMESPACE EGAIS;
+
+CLASS WayBillAct 'Акт приемки';
+
+wayBill 'Накладная' = DATA WayBill (WayBillAct) NONULL INDEXED;
+wayBillAct = GROUP LAST WayBillAct a ORDER a BY wayBill(a);
+countWayBillActs 'Акты приемки' (WayBill w) = GROUP SUM 1 IF wayBill(WayBillAct a) = w MATERIALIZED;
+
+differences 'Есть расхождения' = DATA BOOLEAN (WayBillAct);
+
+number 'Номер' = DATA STRING (WayBillAct);
+date 'Дата' = DATA DATE (WayBillAct);
+note 'Примечание' = DATA STRING (WayBillAct);
+
+EXTEND FORM wayBills
+    OBJECTS a = WayBillAct
+    PROPERTIES(a) READONLY differences, number, date, note
+    PROPERTIES(a) NEWSESSION DELETE
+    FILTERS wayBill(a) = w
+;
+
+DESIGN wayBills {
+    tabbedPane {
+        NEW wayBillActs {
+            caption = CONCAT '', 'Акты приемки', '(' + countWayBillActs(w) +  ')';
+            MOVE BOX(a);
+            NEW wayBillDetails {
+                fill = 0.3;
+            }
+        }
+    }
+}

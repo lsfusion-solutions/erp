@@ -1,0 +1,40 @@
+MODULE EGAISPurchaseShipment;
+
+REQUIRE EGAISPurchaseInvoice, PurchaseShipment,
+        PurchaseShipmentLot;
+
+PRIORITY Purchase;
+
+NAMESPACE EGAISPurchase;
+
+// create lots
+
+createLots 'Создать марки' (UserInvoice i) {
+    LOCAL detail = UserInvoiceDetail (WayBillMark);
+    detail (WayBillMark m) <- (GROUP MAX UserInvoiceDetail d IF quantity(d, wayBillPosition(m))) WHERE wayBill(wayBillPosition(m)) = wayBill(i); 
+
+    FOR Sku sku = sku(detail(WayBillMark m)) AND NOT lot(idMarkCode(m)) NEW l = Lot DO {
+        id(l) <- idMarkCode(m);
+        sku(l) <- sku;
+    }
+    
+    FOR UserInvoiceDetail d = detail(WayBillMark m) AND idMarkCode(m) = id(Lot l) DO
+        quantity(d, l) <- 1;
+        
+    MESSAGE 'Марки успешно созданы';
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) createLots DRAW ed TOOLBAR
+;
+
+// process
+wayBill = ABSTRACT WayBill (Shipment);
+wayBill (InvoiceShipment s) += wayBill(invoice(s));
+
+quantity = ABSTRACT NUMERIC[16,5] (ShipmentDetail, WayBillPosition);
+quantity(InvoiceShipmentDetail d, WayBillPosition p) += quantity(invoiceDetail(d), p);
+
+@defineDocumentInWayBillActProcess(shipment);  
+
+@defineDocumentInWayBillActForm(shipment, s);

@@ -1,0 +1,43 @@
+MODULE EGAISFRegShopLedger;
+
+REQUIRE EGAISProduct;
+
+NAMESPACE EGAIS;
+
+CLASS ABSTRACT FRegShopLedger 'Регистр 2 ЕГАИС';
+TABLE fRegShopLedger(FRegShopLedger);
+
+posted 'Проведен' = ABSTRACT BOOLEAN (FRegShopLedger) MATERIALIZED;
+
+date 'Дата' = ABSTRACT DATE (FRegShopLedger) MATERIALIZED;
+
+number 'Номер' = ABSTRACT STRING (FRegShopLedger) MATERIALIZED;
+
+client = ABSTRACT Client (FRegShopLedger) MATERIALIZED;
+
+product = ABSTRACT Product (FRegShopLedger) MATERIALIZED;
+
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (FRegShopLedger) MATERIALIZED;
+
+INDEX client(FRegShopLedger l), product(l), date(l), l;
+
+currentBalance 'Текущий остаток' (Client c, Product p) = 
+    GROUP SUM quantity(FRegShopLedger l) IF posted(l) BY client(l), product(l) MATERIALIZED;
+
+FORM balanceRegShop 'Остатки на регистре 2'
+    OBJECTS cp = (c = Client, p = Product)
+    PROPERTIES(c) READONLY    id, shortName
+    PROPERTIES(p) READONLY    id, fullName, shortNameProducer
+    PROPERTIES(c, p) READONLY currentBalance
+    FILTERS currentBalance(c, p)
+    
+    OBJECTS l = FRegShopLedger
+    PROPERTIES(l) READONLY objectClassName, date, number, quantity
+    FILTERS posted(l), client(l) = c, product(l) = p
+;
+
+NAVIGATOR {
+    EGAISRegShop {
+        NEW balanceRegShop;
+    }
+}

@@ -1,0 +1,59 @@
+MODULE EGAISTTNInformF2Reg;
+
+REQUIRE EGAISWayBillDoc;
+
+NAMESPACE EGAIS;
+
+EXTEND CLASS DocType { TTNInformF2Reg 'Информация по справке 2' }
+
+GROUP TTNInformF2Reg EXTID 'ns:TTNInformF2Reg' : document;
+GROUP TTNInformF2RegHeader EXTID 'wbr:Header' : TTNInformF2Reg;
+GROUP TTNInform2RegShipper EXTID 'wbr:Shipper' : TTNInformF2RegHeader;
+GROUP TTNInform2RegShipperUL EXTID 'oref:UL' : TTNInform2RegShipper;
+
+GROUP TTNInform2RegContent EXTID 'wbr:Content' : TTNInformF2Reg;
+
+WBNUMBER = DATA LOCAL STRING();
+WBDate = DATA LOCAL STRING();
+shipperClientRegId = DATA LOCAL STRING();
+
+bottlingDate = DATA LOCAL DATE(INTEGER);
+
+FORM TTNInform2Reg FORMEXTID 'ns:Documents'
+    PROPERTIES() IN TTNInformF2RegHeader identity EXTID 'wbr:Identity', WBRegId EXTID 'wbr:WBRegId', WBNUMBER EXTID 'wbr:WBNUMBER', WBDate EXTID 'wbr:WBDate'
+    PROPERTIES() IN TTNInform2RegShipperUL shipperClientRegId EXTID 'oref:ClientRegId'
+
+    OBJECTS position = INTEGER EXTID 'wbr:Position' IN TTNInform2RegContent
+    PROPERTIES(position) positionIdentity EXTID 'wbr:Identity', 
+                         informF2RegId EXTID 'wbr:InformF2RegId', 
+                         bottlingDate EXTID 'wbr:BottlingDate'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.TTNInformF2Reg THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT TTNInform2Reg XML FROM resultFile();
+            
+            FOR WayBill b = wayBill(client(shipperClientRegId()), (CONCAT '/', identity(), WBNUMBER(), WBDate())) DO {
+                
+                wayBill(d) <- b;
+                regId(b) <- WBRegId();
+                
+                FOR informF2RegId(INTEGER i) AND NOT f2Reg(informF2RegId(i)) DO NEW r = F2Reg {
+                    id(r) <- informF2RegId(i);
+                    f1Reg(r) <- f1Reg(wayBillPosition(b, positionIdentity(i)));
+                    client(r) <- consignee(b);
+                } 
+
+                FOR WayBillPosition p = wayBillPosition(b, positionIdentity(INTEGER i)) DO {
+                    consigneeF2Reg(p) <- f2Reg(informF2RegId(i));
+                    bottlingDate(p) <- bottlingDate(i);
+                }
+                                 
+                processed(d) <- TRUE;
+                APPLY;
+            }
+        }
+    }
+}

@@ -1,0 +1,113 @@
+MODULE EGAISWayBillConfirmTicket;
+
+REQUIRE EGAISInDoc, EGAISWayBillDoc, EGAISWayBillAct;
+
+NAMESPACE EGAIS;
+
+EXTEND CLASS DocType { WayBillTicket 'Подтверждение акта разногласий' }
+
+confirmNote 'Примечание отправителя к акту разногласий' = DATA STRING (WayBillAct) CHARWIDTH 40;
+EXTEND FORM wayBills
+    PROPERTIES(a) READONLY confirmNote
+;
+
+CLASS WayBillTicketOutDoc 'Подтверждение акта разногласий' : OutDoc;
+docType (WayBillTicketOutDoc r) += DocType.WayBillTicket IF r IS WayBillTicketOutDoc;
+
+wayBillAct = DATA WayBillAct (WayBillTicketOutDoc) INDEXED;
+wayBillTicketOutDoc = GROUP LAST WayBillTicketOutDoc d ORDER d BY wayBillAct(d);
+commentsWayBillTicketOutDoc 'Комментарий запроса на подтверждение' (WayBillAct a) = comments(wayBillTicketOutDoc(a));
+
+rejected 'Отказать' = DATA BOOLEAN (WayBillTicketOutDoc);
+
+GROUP header EXTID 'wt:Header';
+
+FORM wayBillTicket FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ConfirmTicket'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ConfirmTicket' EXTID 'xmlns:qp', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    
+    OBJECTS r = WayBillTicketOutDoc PANEL
+    
+    PROPERTIES IN header
+               = IF rejected(r) THEN 'Rejected' ELSE 'Accepted' EXTID 'wt:IsConfirm', 
+               = LONG(r) EXTID 'wt:TicketNumber', 
+               = toDateISO(date(wayBillAct(r))) EXTID 'wt:TicketDate', 
+               = regId(wayBill(wayBillAct(r))) EXTID 'wt:WBRegId',
+               = confirmNote(wayBillAct(r)) EXTID 'wt:Note'
+;
+
+request (WayBillTicketOutDoc r) {
+    EXPORT wayBillTicket OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+FORM wayBillTicketParams 'Параметры запроса'
+    OBJECTS r = WayBillTicketOutDoc PANEL
+    PROPERTIES rejected(r),
+               = confirmNote(wayBillAct(r)) ON CHANGE { INPUT s = confirmNote(wayBillAct(r)) DO confirmNote(WayBillAct wa) <- s WHERE wa = wayBillAct(r); }
+;
+
+confirm 'Ответить на акт разногласий' (WayBillAct wa) {
+    NEWSESSION {
+        NEW r = WayBillTicketOutDoc {
+            client(r) <- shipper(wayBill(wa));
+            wayBillAct(r) <- wa;
+            wayBill(r) <- wayBill(wa);
+            
+            DIALOG wayBillTicketParams OBJECTS r = r NOMANAGESESSION DO {
+                request(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM wayBills
+    PROPERTIES(a) READONLY commentsWayBillTicketOutDoc PANEL
+    PROPERTIES(a) confirm SHOWIF differences(a) AND NOT accepted(wayBill(a)) AND own(shipper(w)) AND NOT notRejected(wayBillTicketOutDoc(a)) TOOLBAR
+;
+
+DESIGN wayBills {
+    wayBillDetails {
+        MOVE PROPERTY(commentsWayBillTicketOutDoc(a)) { fill = 1; panelCaptionVertical = TRUE; }
+    }
+}
+
+// import
+
+GROUP confirmTicket EXTID 'ns:ConfirmTicket' : document;
+GROUP confirmTicketHeader EXTID 'wt:Header' : confirmTicket;
+
+isConfirm = DATA LOCAL STRING();
+
+ticketNumber = DATA LOCAL STRING();
+ticketDate = DATA LOCAL STRING();
+
+FORM inWayBillTicket FORMEXTID 'ns:Documents'
+    PROPERTIES() IN confirmTicketHeader 
+                           isConfirm EXTID 'wt:IsConfirm', 
+                           ticketNumber EXTID 'wt:TicketNumber',
+                           ticketDate EXTID 'wt:TicketDate',
+                           WBRegId EXTID 'wt:WBRegId',
+                           note EXTID 'tc:Note' 
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.WayBillTicket THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT inWayBillTicket XML FROM resultFile();
+            
+            FOR WayBill b = wayBill(WBRegId()) DO {            
+                wayBill(d) <- b;
+                
+                IF isConfirm() = 'Rejected' THEN canceled(b) <- TRUE;
+                IF isConfirm() = 'Accepted' THEN accepted(b) <- TRUE;
+                
+                confirmNote(wayBillAct(b)) <- note();
+
+                processed(d) <- TRUE;
+                APPLY;
+            }
+        }
+    }
+}

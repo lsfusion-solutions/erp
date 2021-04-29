@@ -1,0 +1,56 @@
+MODULE EGAIS;
+
+REQUIRE Certificate, Utils, Stock;
+
+NAMESPACE EGAIS;
+
+CLASS UTM 'УТМ';
+TABLE UTM (UTM);
+
+name 'Наименование' = DATA ISTRING (UTM) CHARWIDTH 20;
+url 'Url' = DATA STRING (UTM) CHARWIDTH 40;
+
+formatT (DATETIME dt) = replace(toChar(dt, 'yyyy-MM-dd T HH24:MI:SS'),' ','');
+
+defaultUtm = DATA UTM ();
+default 'По умолчанию' (UTM t) = defaultUtm() = t; 
+
+FORM UTM 'УТМ'
+    OBJECTS o = UTM PANEL
+    PROPERTIES(o) name, url, default
+    
+    EDIT UTM OBJECT o
+;
+
+FORM dialogUTMs 'УТМ'
+    OBJECTS o = UTM
+    PROPERTIES(o) READONLY name
+    
+    LIST UTM OBJECT o
+;
+
+EXTEND FORM integrationData
+    OBJECTS utm = UTM
+    PROPERTIES(utm) READONLY name, url, default
+    PROPERTIES(utm) NEWSESSION NEW, EDIT, DELETE
+;
+
+DESIGN integrationData {
+    pane {
+        NEW EGAIS {
+            caption = 'ЕГАИС';
+            MOVE BOX(utm);
+        }
+    }
+}
+
+NAVIGATOR {
+    customsNavigator {
+        NEW FOLDER EGAISNavigator 'ЕГАИС' {
+            NEW FOLDER EGAISDocuments 'Документы';
+            NEW FOLDER EGAISReg 'Регистр 1';
+            NEW FOLDER EGAISRegShop 'Регистр 2';
+            NEW FOLDER EGAISMasterData 'Справочники';
+        }
+    }
+}

@@ -1,0 +1,117 @@
+MODULE EGAISClient;
+
+REQUIRE EGAIS;
+
+NAMESPACE EGAIS;
+
+CLASS Client 'Организация ЕГАИС';
+TABLE client (Client);
+
+id 'Код' = DATA STRING (Client) INDEXED NONULL IN id;
+client = GROUP AGGR Client c BY id(c);
+
+shortName 'Наименование' = DATA ISTRING (Client) CHARWIDTH 20 IN id;
+fullName 'Полное наименование' = DATA ISTRING (Client) CHARWIDTH 30 IN id;
+
+INN 'ИНН' = DATA STRING[12] (Client) IN id;
+KPP 'КПП' = DATA STRING[9] (Client);
+
+country = DATA Country (Client);
+sidCountry 'Код страны' (Client c) = sid(country(c));
+nameCountry 'Страна' (Client c) = name(country(c));
+
+regionCode 'Код региона' = DATA STRING[10] (Client);
+description 'Описание' = DATA STRING (Client);
+
+xml 'Описание в XML' = DATA TEXT (Client); 
+
+own 'Собственный' = DATA BOOLEAN (Client);
+
+utm = DATA UTM (Client);
+nameUtm 'УТМ' (Client c) = name(utm(c));
+
+FORM client 'Организация'
+    OBJECTS o = Client PANEL
+    PROPERTIES(o) id, shortName, fullName, own, nameUtm SHOWIF own(o),
+                  INN, KPP, sidCountry, nameCountry, regionCode, description, xml
+    
+    EDIT Client OBJECT o
+;
+
+DESIGN client {
+    OBJECTS {
+        NEW header {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(id(o));
+            MOVE PROPERTY(shortName(o));
+            MOVE PROPERTY(fullName(o));
+            MOVE PROPERTY(own(o));
+            MOVE PROPERTY(nameUtm(o));
+        }
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 1;
+            NEW parameters {
+                caption = 'Параметры';
+                NEW parametersRow1 {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(INN(o));
+                    MOVE PROPERTY(KPP(o));
+                }
+                NEW parametersRow2 {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(sidCountry(o));
+                    MOVE PROPERTY(nameCountry(o));
+                    MOVE PROPERTY(regionCode(o));
+                }
+                MOVE PROPERTY(description(o)) {
+                    alignment = STRETCH;
+                } 
+            }
+            NEW xml {
+                caption = 'XML';
+                MOVE PROPERTY(xml(o)) { fill = 1; panelCaptionVertical = TRUE; }
+            }
+        }
+    }
+}
+
+FORM clients 'Организации'
+    OBJECTS o = Client
+    PROPERTIES(o) READONLY id, shortName, fullName, own, nameUtm, INN, KPP, sidCountry, nameCountry, regionCode, description
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogClients 'Организации'
+    OBJECTS o = Client
+    PROPERTIES(o) READONLY id, shortName, fullName, INN, KPP, sidCountry, nameCountry, regionCode, description
+    
+    LIST Client OBJECT o
+;
+
+NAVIGATOR {
+    EGAISMasterData {
+        NEW clients;
+    }
+}
+
+// default client
+
+defaultClient = DATA Client();
+idDefaultClient 'Код организации' () = id(defaultClient());
+shortNameDefaultClient 'Организация' () = shortName(defaultClient());
+
+EXTEND FORM integrationData
+    PROPERTIES() idDefaultClient, shortNameDefaultClient
+;
+
+DESIGN integrationData {
+    EGAIS {
+        MOVE PROPERTY(idDefaultClient());
+        MOVE PROPERTY(shortNameDefaultClient());
+    }
+}
+
+FSRAR_ID = DATA LOCAL STRING();

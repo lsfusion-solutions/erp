@@ -1,0 +1,119 @@
+MODULE EGAISConfirmRepealWB;
+
+REQUIRE EGAISWayBillAct, EGAISRequestRepealWB;
+
+NAMESPACE EGAIS;
+
+EXTEND CLASS DocType { ConfirmRepealWB 'Подтверждение запроса на отмену проведения ТТН' }
+
+numberCRWB 'Номер подтверждения запроса на отмену проведения ТТН' = DATA STRING (WayBillAct);
+dateCRWB 'Дата подтверждения запроса на отмену проведения ТТН' = DATA DATETIME (WayBillAct);
+noteCRWB 'Примечание подтверждения запроса на отмену проведения ТТН' = DATA STRING (WayBillAct) CHARWIDTH 40;
+
+EXTEND FORM wayBills
+    PROPERTIES(a) READONLY numberCRWB, dateCRWB, noteCRWB 
+;
+
+// out doc
+CLASS ConfirmRepealWBOutDoc 'Подтверждение запроса на отмену проведения ТТН' : OutDoc;
+docType (ConfirmRepealWBOutDoc r) += DocType.ConfirmRepealWB IF r IS ConfirmRepealWBOutDoc;
+
+wayBillAct = DATA WayBillAct (ConfirmRepealWBOutDoc) INDEXED;
+confirmRepealWBOutDoc = GROUP LAST ConfirmRepealWBOutDoc d ORDER d BY wayBillAct(d);
+commentsConfirmRepealWBOutDoc 'Комментарий запроса на подтверждение отмены проведения ТТН' (WayBillAct a) = comments(confirmRepealWBOutDoc(a));
+
+rejected 'Отказать' = DATA BOOLEAN (ConfirmRepealWBOutDoc);
+
+GROUP header EXTID 'wt:Header';
+
+FORM confirmRepealWB FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ConfirmRepealWB'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ConfirmRepealWB' EXTID 'xmlns:wt'
+
+    OBJECTS r = ConfirmRepealWBOutDoc PANEL
+
+    PROPERTIES IN header =IF rejected(r) THEN 'Rejected' ELSE 'Accepted' EXTID 'wt:IsConfirm', 
+                         =numberCRWB(wayBillAct(r)) EXTID 'wt:ConfirmNumber', 
+                         =toDateISO(dateCRWB(wayBillAct(r))) EXTID 'wt:ConfirmDate', 
+                         =regId(wayBill(wayBillAct(r))) EXTID 'wt:WBRegId', 
+                         =noteCRWB(wayBillAct(r)) EXTID 'wt:Note'
+;
+
+request (ConfirmRepealWBOutDoc r) {
+    EXPORT confirmRepealWB OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+FORM confirmRepealWBParams 'Параметры запроса'
+    OBJECTS r = ConfirmRepealWBOutDoc PANEL
+    PROPERTIES rejected(r),
+               = noteCRWB(wayBillAct(r)) ON CHANGE { INPUT s = noteCRWB(wayBillAct(r)) DO noteCRWB(WayBillAct wa) <- s WHERE wa = wayBillAct(r); }
+;
+
+confirmRepeal 'Подтвердить запрос на отмену' (WayBillAct wa) {
+    NEWSESSION {
+        NEW r = ConfirmRepealWBOutDoc {
+            client(r) <- shipper(wayBill(wa));
+            wayBillAct(r) <- wa;
+            wayBill(r) <- wayBill(wa);
+            
+            numberCRWB(wa) <- STRING(r);
+            dateCRWB(wa) <- currentDateTime();
+            
+            DIALOG confirmRepealWBParams OBJECTS r = r NOMANAGESESSION DO {
+                request(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM wayBills
+    PROPERTIES(a) READONLY commentsConfirmRepealWBOutDoc PANEL
+    PROPERTIES(a) confirmRepeal SHOWIF numberRRWB(a) AND own(shipper(w)) AND NOT notRejected(confirmRepealWBOutDoc(a)) TOOLBAR
+;
+
+DESIGN wayBills {
+    wayBillDetails {
+        MOVE PROPERTY(commentsConfirmRepealWBOutDoc(a)) { fill = 1; panelCaptionVertical = TRUE; }
+    }
+}
+
+// in doc
+
+GROUP confirmRepealWB EXTID 'ns:ConfirmRepealWB' : document;
+GROUP confirmRepealWBHeader EXTID 'wt:Header' : confirmRepealWB;
+
+isConfirmRepeal = DATA LOCAL STRING();
+confirmNumber = DATA LOCAL STRING();
+confirmDate = DATA LOCAL STRING();
+
+FORM inConfirmRepealWB FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES() IN confirmRepealWBHeader 
+                        isConfirmRepeal EXTID 'wt:IsConfirm', 
+                        confirmNumber EXTID 'wt:ConfirmNumber', 
+                        confirmDate EXTID 'wt:ConfirmDate', 
+                        WBRegId EXTID 'wt:WBRegId', 
+                        note EXTID 'wt:Note'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ConfirmRepealWB THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT inConfirmRepealWB XML FROM resultFile();
+            
+            FOR WayBill b = wayBill(WBRegId()) AND WayBillAct wa = wayBillAct(b) DO {
+                wayBill(d) <- b;
+                
+                IF isConfirmRepeal() = 'Accepted' THEN accepted(b) <- NULL;
+                
+                numberCRWB(wa) <- confirmNumber();
+                dateCRWB(wa) <- toDateTimeFormat(confirmDate(),'yyyy-MM-ddThh24:mi:ss');
+                noteCRWB(wa) <- note();
+    
+                processed(d) <- TRUE;
+                APPLY;
+            }                
+        }
+    }
+}

@@ -1,0 +1,124 @@
+MODULE EGAISQueryRestsv2;
+
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISProductImport, EGAISFRegLedger, EGAISActChargeOn;
+
+NAMESPACE EGAIS;
+
+CLASS QueryRestsv2 'Запрос остатков' : OutDoc;
+TABLE queryRestsv2(QueryRestsv2);
+
+EXTEND CLASS DocType { QueryRests_v2 'Запрос остатков' }
+docType (QueryRestsv2 r) += DocType.QueryRests_v2 IF r IS QueryRestsv2; 
+
+client = DATA Client (QueryRestsv2);
+idClient 'Код организации' (QueryRestsv2 q) = id(client(q));
+shortNameClient 'Организации' (QueryRestsv2 q) = shortName(client(q));
+
+GROUP parameters EXTID 'qp:Parameters';
+GROUP parameter EXTID 'qp:Parameter' : parameters;
+
+queryRestsv2Name (INTEGER i) = CASE WHEN i = 0 THEN 'СИО';  
+queryRestsv2Value (QueryRestsv2 r, INTEGER i) = CASE WHEN i = 0 THEN idClient(r);
+
+FORM queryRestsv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryRests_v2'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
+    
+    OBJECTS r = QueryRestsv2 PANEL 
+    
+    OBJECTS i = INTEGER IN parameters EXTID 'qp:Parameter'
+    PROPERTIES queryRestsv2Name(i) EXTID 'qp:Name', queryRestsv2Value(r, i) EXTID 'qp:Value'
+    FILTERS queryRestsv2Name(i)
+;
+
+FORM queryRestsv2Params 'Параметры запроса'
+    OBJECTS r = QueryRestsv2 PANEL
+    PROPERTIES(r) nameUtm, idClient, shortNameClient
+;
+
+queryRestsv2 (QueryRestsv2 r) {
+    EXPORT queryRestsv2 OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+queryRestsv2 'Запросить остатки' () {
+    NEWSESSION {
+        NEW r = QueryRestsv2 {
+            DIALOG queryRestsv2Params OBJECTS r = r NOMANAGESESSION DO {
+                queryRestsv2(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM balanceReg
+    PROPERTIES() queryRestsv2 DRAW r TOOLBAR
+;
+
+// response
+EXTEND CLASS DocType { ReplyRests_v2 'Ответ на запрос остатков' }
+
+GROUP replyRests_v2 EXTID 'ns:ReplyRests_v2' : document;
+GROUP products EXTID 'rap:Products' : replyRests_v2;
+
+GROUP rstProduct EXTID 'rst:Product';
+
+restsDate = DATA LOCAL DATETIME();
+
+FORM replyRestsv2 FORMEXTID 'ns:Documents'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:oref', ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:pref', ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp', ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:rst', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES() IN owner FSRAR_ID EXTID 'ns:FSRAR_ID'
+    PROPERTIES() IN replyRests_v2 restsDate EXTID 'rst:RestsDate'
+    
+    OBJECTS stockPosition = INTEGER EXTID 'rst:StockPosition' IN products
+    
+    PROPERTIES(stockPosition) quantity EXTID 'rst:Quantity', 
+                              informF1RegId EXTID 'rst:InformF1RegId', 
+                              informF2RegId EXTID 'rst:InformF2RegId',
+                              
+                              product EXTID 'rst:Product',
+                              productCode IN rstProduct EXTID 'pref:AlcCode'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyRests_v2 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyRestsv2 XML FROM resultFile();
+            
+            FOR product(INTEGER i) DO
+                importProduct(product(i));
+            
+            FOR informF1RegId(INTEGER i) AND NOT f1Reg(informF1RegId(i)) DO NEW r = F1Reg {
+                id(r) <- informF1RegId(i);
+                product(r) <- product(productCode(i));
+            } 
+            
+            FOR informF2RegId(INTEGER i) AND NOT f2Reg(informF2RegId(i)) DO NEW r = F2Reg {
+                id(r) <- informF2RegId(i);
+                f1Reg(r) <- f1Reg(informF2RegId(i));
+                client(r) <- client(outDoc(d));
+            }
+            
+            NEW a = ActChargeOn {
+                client(a) <- client(outDoc(d));
+                dateTime(a) <- restsDate();
+                
+                note(a) <- 'Запрос остатков из ЕГАИС';
+                
+                FOR NUMERIC[16,5] delta = (quantity(INTEGER i) (-) currentBalance(f2Reg(informF2RegId(i)))) NEW p = ActChargeOnPosition DO {
+                    actChargeOn(p) <- a;
+                    
+                    product(p) <- product(productCode(i));
+                    
+                    quantity(p) <- quantity(i);
+                    
+                    f2Reg(p) <- f2Reg(informF2RegId(i));
+                }
+            } 
+    
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}

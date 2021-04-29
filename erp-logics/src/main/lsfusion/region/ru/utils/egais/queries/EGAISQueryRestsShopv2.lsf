@@ -1,0 +1,100 @@
+MODULE EGAISQueryRestsShopv2;
+
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISProductImport, EGAISFRegShopLedger, EGAISActChargeOnShop;
+
+NAMESPACE EGAIS;
+
+CLASS QueryRestsShopv2 'Запрос остатков в магазине' : OutDoc;
+TABLE queryRestsShopv2(QueryRestsShopv2);
+
+EXTEND CLASS DocType { QueryRestsShop_v2 'Запрос остатков в магазине' }
+docType (QueryRestsShopv2 r) += DocType.QueryRestsShop_v2 IF r IS QueryRestsShopv2; 
+
+producer = DATA Client (QueryRestsShopv2);
+idClient 'Код организации' (QueryRestsShopv2 q) = id(producer(q));
+shortNameClient 'Организации' (QueryRestsShopv2 q) = shortName(producer(q));
+
+GROUP parameters EXTID 'qp:Parameters';
+GROUP parameter EXTID 'qp:Parameter' : parameters;
+
+FORM queryRestsShopv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryRestsShop_v2';
+
+FORM queryRestsShopv2Params 'Параметры запроса'
+    OBJECTS r = QueryRestsShopv2 PANEL
+    PROPERTIES(r) nameUtm, idClient, shortNameClient
+;
+
+queryRestsShopv2 (QueryRestsShopv2 r) {
+    EXPORT queryRestsShopv2 XML;
+    submit(r, exportFile());
+}
+
+queryRestsShopv2 'Запросить остатки' () {
+    NEWSESSION {
+        NEW r = QueryRestsShopv2 {
+            DIALOG queryRestsShopv2Params OBJECTS r = r NOMANAGESESSION DO {
+                queryRestsShopv2(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM balanceRegShop
+    PROPERTIES() queryRestsShopv2 DRAW cp TOOLBAR
+;
+
+// response
+EXTEND CLASS DocType { ReplyRestsShop_v2 'Ответ на запрос остатков в магазине' }
+
+GROUP replyRestsShop_v2 EXTID 'ns:ReplyRestsShop_v2' : document;
+GROUP products EXTID 'rap:Products' : replyRestsShop_v2;
+
+GROUP rstProduct EXTID 'rst:Product';
+
+restsShopDate = DATA LOCAL DATETIME();
+
+FORM replyRestsShopv2 FORMEXTID 'ns:Documents'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:oref', ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:pref', ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp', ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:rst', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES() IN owner FSRAR_ID EXTID 'ns:FSRAR_ID'
+    PROPERTIES() IN replyRestsShop_v2 restsShopDate EXTID 'rst:RestsDate'
+    
+    OBJECTS shopPosition = INTEGER EXTID 'rst:ShopPosition' IN products
+    
+    PROPERTIES(shopPosition) quantity EXTID 'rst:Quantity', 
+                              
+                             product EXTID 'rst:Product',
+                             productCode IN rstProduct EXTID 'pref:AlcCode'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyRestsShop_v2 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyRestsShopv2 XML FROM resultFile();
+            
+            FOR product(INTEGER i) DO
+                importProduct(product(i));
+            
+            NEW a = ActChargeOnShop {
+                client(a) <- client(outDoc(d));
+                dateTime(a) <- restsShopDate();
+                
+                type(a) <- chargeOnShopType('Пересортица');
+                
+                note(a) <- 'Запрос остатков из ЕГАИС';
+                
+                FOR NUMERIC[16,5] delta = (quantity(INTEGER i) (-) currentBalance(client(a), product(productCode(i)))) NEW p = ActChargeOnShopPosition DO {
+                    actChargeOnShop(p) <- a;
+                    
+                    product(p) <- product(productCode(i));
+                    
+                    quantity(p) <- quantity(i);
+                }
+            } 
+    
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}

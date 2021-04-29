@@ -1,0 +1,31 @@
+MODULE EGAISWayBillTicket;
+
+REQUIRE EGAISWayBillDoc, EGAISWayBillExchange, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+@defineOutDocTicket(wayBill, w, tabbedPane);
+
+process (Ticket t) + {
+    IF docType(t) = 'WayBill_v3' THEN {
+        FOR WayBill b = wayBill(outDoc(t)) DO {
+            IF conclusion(t) = 'Rejected' THEN
+                canceled(b) <- TRUE;
+            IF NOT regId(b) THEN regId(b) <- regId(t);  
+            processed() <- TRUE;
+        }
+            
+        FOR WayBill b = wayBill(regId(t)) DO {
+            wayBill(inDoc(t)) <- b;
+            IF operationName(t) = 'UnConfirm' AND operationResult(t) = 'Accepted' THEN {
+                IF outDoc(inDoc(t)) THEN
+                    accepted(b) <- NULL;
+                ELSE
+                    canceled(b) <- TRUE;
+            }
+            IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN 
+                accepted(b) <- TRUE;
+            processed() <- TRUE;
+        }
+    }
+}

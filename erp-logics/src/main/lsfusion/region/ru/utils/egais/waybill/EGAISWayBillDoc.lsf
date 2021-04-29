@@ -1,0 +1,47 @@
+MODULE EGAISWayBillDoc;
+
+REQUIRE EGAISWayBill, EGAISInDoc;
+
+NAMESPACE EGAIS;
+
+// in doc
+wayBill = DATA WayBill (InDoc) INDEXED;
+countInDocs 'Входящие документы' (WayBill w) = GROUP SUM 1 IF wayBill(InDoc i) = w MATERIALIZED;
+
+EXTEND FORM wayBills
+    OBJECTS i = InDoc
+    PROPERTIES(i) READONLY nameUtm, idOutDoc, idDocType, nameDocType, url, document PANEL
+    FILTERS wayBill(i) = w
+;
+
+DESIGN wayBills {
+    tabbedPane {
+        NEW inDocs {
+            caption = CONCAT '', 'Входящие документы', '(' + countInDocs(w) +  ')';
+            type = SPLITH;
+            MOVE BOX(i);
+            MOVE PROPERTY(document(i)) { panelCaptionVertical = TRUE; fill = 0.5; }
+        }
+    }
+}
+
+// out doc
+wayBill = DATA WayBill (OutDoc) INDEXED;
+countOutDocs 'Исходящие документы' (WayBill w) = GROUP SUM 1 IF wayBill(OutDoc o) = w MATERIALIZED;
+
+EXTEND FORM wayBills
+    OBJECTS o = OutDoc
+    PROPERTIES(o) READONLY nameUtm, id, idDocType, nameDocType, dateTime, document PANEL
+    FILTERS wayBill(o) = w
+;
+
+DESIGN wayBills {
+    tabbedPane {
+        NEW outDocs {
+            caption = CONCAT '', 'Исходящие документы', '(' + countOutDocs(w) +  ')';
+            type = SPLITH;
+            MOVE BOX(o);
+            MOVE PROPERTY(document(o)) { panelCaptionVertical = TRUE; fill = 0.5; }
+        }
+    }
+}

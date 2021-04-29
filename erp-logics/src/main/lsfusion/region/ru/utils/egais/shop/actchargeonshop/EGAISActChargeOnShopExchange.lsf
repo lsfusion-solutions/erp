@@ -1,0 +1,47 @@
+MODULE EGAISActChargeOnShopExchange;
+
+REQUIRE EGAISActChargeOnShop, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+@defineDocumentOutDoc(actChargeOnShop, ActChargeOnShop_v2, 'Постановка на баланс в торговом зале');
+
+GROUP header EXTID 'awr:Header';
+GROUP content EXTID 'awr:Content';
+
+GROUP informF2 EXTID 'tts:InformF2';
+
+FORM actChargeOnShopOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ActChargeOnShop_v2'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ActChargeOnShop_v2' EXTID 'xmlns:awr', ='http://fsrar.ru/WEGAIS/CommonEnum' EXTID 'xmlns:ce'
+    
+    OBJECTS r = ActChargeOnShopOutDoc PANEL
+    
+    PROPERTIES =LONG(r) EXTID 'awr:Identity'
+    
+    PROPERTIES IN header 
+                  =number(actChargeOnShop(r)) EXTID 'awr:Number', 
+                  =toDateISO(date(actChargeOnShop(r))) EXTID 'awr:ActDate', 
+                  =id(type(actChargeOnShop(r))) EXTID 'awr:TypeChargeOn', 
+                  =note(actChargeOnShop(r)) EXTID 'awr:Note'
+    
+    OBJECTS p = ActChargeOnShopPosition IN content EXTID 'awr:Position'
+    PROPERTIES =LONG(p) EXTID 'awr:Identity', 
+               =xml(product(p)) EXTID 'awr:Product', 
+               quantity(p) EXTID 'awr:Quantity'
+    FILTERS actChargeOnShop(p) = actChargeOnShop(r)
+;
+
+@defineDocumentOutProcess(actChargeOnShop, tabbedPane);
+
+// ticket
+
+@defineOutDocTicket(actChargeOnShop, d, tabbedPane);
+
+process (Ticket t) + {
+    IF docType(t) = 'ActChargeOnShop_v2' THEN {
+        IF operationResult(t) = 'Accepted' THEN {
+            posted(actChargeOnShop(outDoc(t))) <- TRUE;
+        }
+        processed() <- TRUE;
+    }
+}

@@ -1,0 +1,34 @@
+MODULE EGAISStock;
+
+REQUIRE Stock, EGAISClient,
+        Warehouse, Store;
+
+NAMESPACE EGAIS;
+
+client = DATA Client (Stock) INDEXED;
+idClient 'Код организации ЕГАИС' (Stock st) = id(client(st));
+shortNameClient 'Организация ЕГАИС' (Stock st) = shortName(client(st));
+
+// warehouse
+EXTEND FORM warehouse
+    PROPERTIES(w) idClient, shortNameClient
+;
+
+DESIGN warehouse {
+    headerExtraParams {
+        MOVE PROPERTY(idClient(w));
+        MOVE PROPERTY(shortNameClient(w));
+    }
+}
+
+// store
+EXTEND FORM departmentStore
+    PROPERTIES(d) idClient, shortNameClient
+;
+
+DESIGN departmentStore {
+    headerExtraParams {
+        MOVE PROPERTY(idClient(d));
+        MOVE PROPERTY(shortNameClient(d));
+    }
+}

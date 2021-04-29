@@ -1,0 +1,194 @@
+MODULE EGAISProduct;
+
+REQUIRE EGAIS, EGAISClient, EGAISProductType;
+
+NAMESPACE EGAIS;
+
+CLASS Product 'Алкогольная продукция';
+TABLE product (Product);
+
+id 'Код' = DATA STRING (Product) CHARWIDTH 19 INDEXED NONULL;
+product = GROUP AGGR Product p BY id(p);
+
+fullName 'Наименование' = DATA ISTRING (Product) CHARWIDTH 15;
+
+capacity 'Объем' = DATA NUMERIC[16,5] (Product);
+unitTypeId 'Тип' = DATA STRING (Product);
+alcVolume 'Алкоголь, %' = DATA NUMERIC[12,3] (Product);
+
+producer = DATA Client (Product) INDEXED;
+idProducer 'Код производителя' (Product p) = id(producer(p));
+shortNameProducer 'Производитель' (Product p) = shortName(producer(p));
+
+type 'Вид алкогольной продукции' = DATA ProductType (Product) NONULL;
+idType 'Код вида алкогольной продукции' (Product p) = name(type(p));
+nameType 'Вид алкогольной продукции' (Product p) = name(type(p));
+
+xml 'Описание в XML' = DATA TEXT (Product); 
+
+FORM product 'Алкогольная продукция'
+    OBJECTS o = Product PANEL
+    PROPERTIES(o) id, fullName, capacity, unitTypeId, alcVolume, nameType,
+                  idProducer, shortNameProducer, xml
+    
+    EDIT Product OBJECT o
+;
+
+DESIGN product {
+    OBJECTS {
+        NEW header {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(id(o));
+            MOVE PROPERTY(fullName(o));
+        }
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 1;
+            NEW parameters {
+                caption = 'Параметры';
+                NEW parametersRow1 {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(capacity(o));
+                    MOVE PROPERTY(unitTypeId(o));
+                }
+                NEW parametersRow2 {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(alcVolume(o));
+                    MOVE PROPERTY(nameType(o));
+                }
+                NEW parametersRow3 {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(idProducer(o));
+                    MOVE PROPERTY(shortNameProducer(o));
+                }
+            }
+            NEW xml {
+                caption = 'XML';
+                MOVE PROPERTY(xml(o)) { fill = 1; panelCaptionVertical = TRUE; }
+            }
+        }
+    }
+}
+
+
+FORM products 'Алкогольная продукция'
+    OBJECTS o = Product
+    PROPERTIES(o) READONLY id, fullName, capacity, unitTypeId, alcVolume, nameType,
+                           idProducer, shortNameProducer
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogProducts 'Алкогольная продукция'
+    OBJECTS o = Product
+    PROPERTIES(o) READONLY id, fullName, capacity, unitTypeId, alcVolume, nameType,
+                           idProducer, shortNameProducer
+    
+    LIST Product OBJECT o
+;
+
+NAVIGATOR {
+    EGAISMasterData {
+        NEW products;
+    }
+}
+
+// extend client
+
+EXTEND FORM client
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY id, fullName, capacity, unitTypeId, alcVolume, nameType
+    PROPERTIES(p) NEWSESSION EDIT
+    FILTERS producer(p) = o
+;
+
+DESIGN client {
+    tabbedPane {
+        NEW products {
+            caption = 'Продукция';
+            MOVE BOX(p);
+        }
+    }
+}
+
+META defineDocumentProduct(doc, capt)
+    CLASS ###doc capt##' ЕГАИС';
+    
+    posted 'Проведен' = DATA BOOLEAN (###doc);
+    
+    number 'Номер' = DATA STRING (###doc) IN id;
+    number(###doc d) <- STRING(d) WHEN SET(d IS ###doc);
+    
+    dateTime 'Время' = DATA DATETIME (###doc) IN id;
+    dateTime(###doc d) <- currentDateTime() WHEN SET(d IS ###doc);
+    date 'Дата' (###doc d) = DATE(dateTime(d));
+    
+    numberDate (###doc d) = CONCAT ' от ', number(d), toDateDDMMYY(date(d));
+    
+    client = DATA Client (###doc) INDEXED;
+    shortNameClient 'Организация' (###doc d) = shortName(client(d)) IN id;
+    
+    CONSTRAINT client(###doc d) AND NOT own(client(d))
+        CHECKED BY client[###doc]
+        MESSAGE 'Для документа ЕГАИС выбрана не собственная организация'; 
+        
+    note 'Примечание' = DATA STRING (###doc);
+    
+    // position
+    CLASS ###doc##Position 'Строка ЕГАИС ('##capt##')';
+    
+    doc capt = DATA ###doc (###doc##Position) INDEXED NONULL DELETE;
+    
+    product 'Продукция' = DATA Product (###doc##Position) NONULL INDEXED;
+    idProduct 'Код продукции' (###doc##Position p) = id(product(p));
+    fullNameProduct 'Продукция' (###doc##Position p) = fullName(product(p));
+    
+    quantity 'Кол-во' = DATA NUMERIC[16,5] (###doc##Position);
+    
+    // header properties
+    
+    posted (###doc##Position p) = posted(doc(p));
+    
+    client (###doc##Position p) = client(doc(p));
+    
+    number 'Номер' (###doc##Position p) = number(doc(p));
+    date 'Дата' (###doc##Position p) = date(doc(p));
+    
+    FORM doc capt##' ЕГАИС'
+        OBJECTS d = ###doc PANEL
+        PROPERTIES(d) posted, number, dateTime,
+                      shortNameClient, note
+        
+        OBJECTS p = ###doc##Position
+        PROPERTIES(p) idProduct, fullNameProduct, quantity, 
+                      NEW, DELETE
+        FILTERS doc(p) = d
+        
+        EDIT ###doc OBJECT d
+    ;
+    
+    FORM doc##s capt
+        OBJECTS d = ###doc
+        PROPERTIES(d) READONLY posted, number, dateTime,
+                               shortNameClient, note
+        PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+    
+        OBJECTS p = ###doc##Position
+        PROPERTIES(p) READONLY idProduct, fullNameProduct, quantity 
+        FILTERS doc(p) = d
+        
+        LIST ###doc OBJECT d
+    ;
+    
+    DESIGN doc##s {
+        OBJECTS {
+            NEW tabbedPane {
+                type = TABBED;
+                fill = 1;
+                MOVE BOX(p) { caption = 'Позиции'; }
+            }
+        }
+    }
+END

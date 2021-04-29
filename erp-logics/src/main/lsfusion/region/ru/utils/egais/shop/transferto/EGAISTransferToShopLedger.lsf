@@ -1,0 +1,33 @@
+MODULE EGAISTransferToShopLedger;
+
+REQUIRE EGAISTransferToShop, EGAISFRegLedger, EGAISFRegShopLedger;
+
+NAMESPACE EGAIS;
+
+EXTEND CLASS TransferToShopPosition : FRegLedger;
+
+posted(TransferToShopPosition l) += posted(l);
+
+date(TransferToShopPosition l) += date(l);
+number(TransferToShopPosition l) += number(l);
+
+f2Reg(TransferToShopPosition l) += f2Reg(l);
+
+quantity(TransferToShopPosition l) += quantity(l);
+
+// 2й регистр
+
+CLASS TransferToShopLedger 'Перемещение с регистра 1' : FRegShopLedger;
+
+transferToShopLedger = AGGR TransferToShopLedger WHERE product(TransferToShopPosition position) MATERIALIZED INDEXED; 
+
+posted(TransferToShopLedger l) += l IS TransferToShopLedger;
+
+date(TransferToShopLedger l) += date(position(l));
+number(TransferToShopLedger l) += number(position(l));
+
+client(TransferToShopLedger l) += client(position(l)); 
+
+product(TransferToShopLedger l) += product(position(l));
+
+quantity(TransferToShopLedger l) += quantity(position(l));

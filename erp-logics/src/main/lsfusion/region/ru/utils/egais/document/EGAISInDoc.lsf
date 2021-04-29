@@ -1,0 +1,177 @@
+MODULE EGAISInDoc;
+
+REQUIRE EGAIS, EGAISDoc, EGAISOutDoc;
+
+NAMESPACE EGAIS;
+
+CLASS InDoc 'Входящий документ ЕГАИС';
+
+utm = DATA UTM (InDoc) INDEXED NONULL;
+urlUtm (InDoc d) = url(utm(d));
+nameUtm 'УТМ' (InDoc d) = name(utm(d));
+
+outDoc = DATA OutDoc (InDoc) INDEXED;
+idOutDoc 'Исходящий документ' (InDoc d) = id(outDoc(d));
+countInDocs 'Входящие документы' (OutDoc d) = GROUP SUM 1 IF outDoc(InDoc i) = d MATERIALIZED;
+
+docType = DATA DocType (InDoc) INDEXED;
+idDocType 'Код типа' (InDoc d) = id(docType(d));
+nameDocType 'Тип документа' (InDoc d) = name(docType(d));
+
+url 'Url' = DATA STRING (InDoc) INDEXED;
+inDoc = GROUP MAX InDoc d BY utm(d), url(d);
+
+document 'Документ' = DATA TEXT (InDoc); 
+
+FORM inDoc 'Входящий документ'
+    OBJECTS d = InDoc PANEL
+    PROPERTIES(d) nameUtm, idOutDoc, idDocType, nameDocType, url, document
+    
+    EDIT InDoc OBJECT d
+;
+
+DESIGN inDoc {
+    OBJECTS {
+        MOVE PROPERTY(document(d)) { panelCaptionVertical = TRUE; fill = 1; }
+    }
+}
+
+FORM inDocs 'Входящие документы'
+    OBJECTS d = InDoc
+    PROPERTIES(d) READONLYIF isReadonly() nameUtm, idOutDoc, idDocType, nameDocType, url, document PANEL
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+;
+
+DESIGN inDocs {
+    OBJECTS {
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 0.3;
+            NEW response {
+                caption = 'Ответ';
+                MOVE PROPERTY(document(d)) { fill = 1; panelCaptionVertical = TRUE; }
+            }
+        }
+    }
+}
+
+@extendFormEditable(inDocs);
+
+NAVIGATOR {
+    EGAISDocuments {
+        NEW inDocs;
+    }
+}
+
+// extend out docs
+EXTEND FORM outDocs
+    PROPERTIES(r) READONLY countInDocs
+
+    OBJECTS i = InDoc
+    PROPERTIES(i) READONLY idDocType, nameDocType, url, document
+    FILTERS outDoc(i) = r 
+;
+
+DESIGN outDocs {
+    tabbedPane {
+        MOVE BOX(i) {
+            caption = CONCAT '', 'Входящие документы', '(' + countInDocs(r) +  ')';
+        }
+    }
+}
+
+// delete
+delete 'Удалить из УТМ' (InDoc d) {
+    LOCAL response = FILE();
+    TRY {
+        EXTERNAL HTTP DELETE url(d) TO response;
+    } CATCH {
+        fileToString(response());
+        LOCAL error = TEXT();
+        error() <- CONCAT '\n', 'Ошибка при формировании запроса на удаление к ЕГАИС :', url(d), messageCaughtException(), resultString();
+        logToFile('egais', error());
+        MESSAGE error();
+    }
+    
+}
+
+EXTEND FORM inDocs
+    PROPERTIES(d) delete GRID
+;
+
+// request in docs
+
+replyId = DATA LOCAL STRING(INTEGER);
+url = DATA LOCAL STRING(INTEGER);
+
+regexpMatch = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
+docTypeId (INTEGER i) = regexpMatch(url(i), '.*\\/opt\\/out\\/([a-zA-Z_0-9]*)\\/.*');
+docType (INTEGER i) = docType(docTypeId(i));
+
+FORM getInDocs FORMEXTID 'A'
+    OBJECTS i = INTEGER EXTID 'url'
+    PROPERTIES(i) url EXTID 'value', replyId EXTID 'replyId' ATTR 
+;
+
+getInDocs 'Получить входящие документы' (UTM u) {
+    LOCAL response = FILE();
+    TRY {
+        EXTERNAL HTTP GET url(u) + '/opt/out' PARAMS exportFile() TO response;
+    } CATCH {
+        fileToString(response());
+        LOCAL error = TEXT();
+        error() <- CONCAT '\n', 'Ошибка при формировании запроса к ЕГАИС :', messageCaughtException(), resultString();
+        logToFile('egais', error());
+        MESSAGE error();
+        RETURN;
+    }
+    
+    IMPORT getInDocs XML FROM response();
+        
+    FOR docType(INTEGER i) AND NOT inDoc(u, url(i)) DO {
+        NEWSESSION NESTED LOCAL {
+            TRY {
+                EXTERNAL HTTP GET url(i) TO response;
+                fileToString(response());
+                NEW d = InDoc {
+                    utm(d) <- u;
+                    outDoc(d) <- outDoc(replyId(i));
+                    docType(d) <- docType(i);
+                    url(d) <- url(i);
+                    document(d) <- resultString();
+                    APPLY NESTED LOCAL;
+                    IF NOT canceled() THEN {
+                        delete(d);
+                    }
+                }
+            } CATCH {
+                fileToString(response());
+                LOCAL error = TEXT();
+                error() <- CONCAT '\n', 'Ошибка при формировании запроса на получение документа к ЕГАИС :', url(i), messageCaughtException(), resultString();
+                logToFile('egais', error());
+                MESSAGE error();
+            }
+        }
+    }
+}
+
+process 'Обработать' ABSTRACT LIST (InDoc);
+
+processed 'Обработана' = DATA BOOLEAN (InDoc);
+toProcess 'Требуется обработка' (InDoc d) = d IS InDoc AND NOT processed(d) MATERIALIZED INDEXED; 
+
+processInDocs 'Обмен с ЕГАИС' () {
+    FOR url(UTM u) DO
+        getInDocs(u);
+    
+    FOR toProcess(InDoc d) ORDER d DO {
+        process(d);
+    }
+}
+
+EXTEND FORM inDocs
+    PROPERTIES(d) READONLYIF isReadonly() processed
+    PROPERTIES(d) process GRID READONLYIF NOT toProcess(d)
+     
+    PROPERTIES() processInDocs DRAW d TOOLBAR
+;

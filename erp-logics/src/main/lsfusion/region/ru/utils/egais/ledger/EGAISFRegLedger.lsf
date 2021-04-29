@@ -1,0 +1,92 @@
+MODULE EGAISFRegLedger;
+
+REQUIRE EGAISFReg;
+
+NAMESPACE EGAIS;
+
+CLASS ABSTRACT FRegLedger 'Регистр 1 ЕГАИС';
+TABLE fRegLedger(FRegLedger);
+
+posted 'Проведен' = ABSTRACT BOOLEAN (FRegLedger) MATERIALIZED;
+
+date 'Дата' = ABSTRACT DATE (FRegLedger) MATERIALIZED;
+
+number 'Номер' = ABSTRACT STRING (FRegLedger) MATERIALIZED;
+
+f2Reg = ABSTRACT F2Reg (FRegLedger) MATERIALIZED;
+
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (FRegLedger) MATERIALIZED;
+
+INDEX f2Reg(FRegLedger l), date(l), l;
+
+TABLE balanceF2Reg(F2Reg);
+currentBalance 'Текущий остаток' (F2Reg r) = GROUP SUM quantity(FRegLedger l) IF posted(l) BY f2Reg(l) MATERIALIZED TABLE balanceF2Reg;
+CONSTRAINT currentBalance(F2Reg r) < 0 MESSAGE 'Остаток по справке Б не может быть отрицательным'; 
+
+FORM balanceReg 'Остатки на регистре 1'
+    OBJECTS r = F2Reg
+    PROPERTIES(r) READONLY id, idF1Reg, idProduct, fullNameProduct, shortNameClient, currentBalance
+
+    FILTERGROUP balance
+        FILTER 'С остатком' currentBalance(r) > 0
+
+    OBJECTS l = FRegLedger
+    PROPERTIES(l) READONLY objectClassName, date, number, quantity
+    FILTERS posted(l), f2Reg(l) = r
+;
+
+META defineDocumentOutBalance (doc, obj, supplierStock)
+
+    quantity 'Кол-во (ЕГАИС)' = DATA NUMERIC[16,5] (###doc##Detail, F2Reg);
+    fillQuantity 'Выбрать' (###doc##Detail d, F2Reg s) { quantity(d, s) <- quantity(d); }
+    
+    matches (###doc##Detail d, F2Reg r) = client(r) = client(supplierStock(d)) AND in(sku(d), product(r));
+    
+    calcQuantity(###doc##Detail d, F2Reg r) = 
+        PARTITION UNGROUP quantity LIMIT currentBalance(r) IF matches(d, r) ORDER r BY d;
+    
+    fillQuantity 'Заполнить' (###doc s) {
+        quantity(###doc##Detail d, F2Reg r) <- calcQuantity(d, r) WHERE doc(d) = s;
+    }
+    
+    numberF2Reg 'Справка Б' (###doc##Detail d) =
+        GROUP CONCAT id(F2Reg r) IF quantity(d, r), ',' ORDER r;
+    
+    quantityF2Reg 'Кол-во (ЕГАИС)' (###doc##Detail d) = GROUP SUM quantity(d, F2Reg s) MATERIALIZED;
+    
+    EXTEND FORM doc
+        OBJECTS ed = ###doc##Detail
+        PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity,
+                                numberF2Reg, quantityF2Reg
+        ORDERS index(ed)
+        FILTERS doc(ed) = obj
+        
+        PROPERTIES(obj) fillQuantity DRAW ed TOOLBAR
+        
+        OBJECTS re = F2Reg
+        PROPERTIES(re) READONLY id, idF1Reg, fullNameProduct, currentBalance
+        PROPERTIES(ed, re)      quantity, fillQuantity GRID
+        FILTERS matches(ed, re)
+    
+        FILTERGROUP active
+            FILTER 'С остатком' currentBalance(re) > 0 OR quantity(ed, re) DEFAULT 
+    ;
+    
+    DESIGN doc {
+        specificationBox {
+            NEW EGAIS {
+                caption = 'ЕГАИС';
+                NEW EGAISHeader {
+                    type = CONTAINERH;
+                }
+                NEW EGAISDetail {
+                    fill = 1;
+                    type = SPLITH;
+                    MOVE BOX(ed);
+                    MOVE BOX(re);
+                }
+            }
+        }
+    }
+
+END

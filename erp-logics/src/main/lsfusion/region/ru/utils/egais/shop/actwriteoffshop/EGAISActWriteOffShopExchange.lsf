@@ -1,0 +1,47 @@
+MODULE EGAISActWriteOffShopExchange;
+
+REQUIRE EGAISActWriteOffShop, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+@defineDocumentOutDoc(actWriteOffShop, ActWriteOffShop_v2, 'Списание из торгового зала');
+
+GROUP header EXTID 'awr:Header';
+GROUP content EXTID 'awr:Content';
+
+GROUP informF2 EXTID 'tts:InformF2';
+
+FORM actWriteOffShopOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ActWriteOffShop_v2'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ActWriteOffShop_v2' EXTID 'xmlns:awr', ='http://fsrar.ru/WEGAIS/CommonEnum' EXTID 'xmlns:ce'
+    
+    OBJECTS r = ActWriteOffShopOutDoc PANEL
+    
+    PROPERTIES =LONG(r) EXTID 'awr:Identity'
+    
+    PROPERTIES IN header 
+                  =number(actWriteOffShop(r)) EXTID 'awr:ActNumber', 
+                  =toDateISO(date(actWriteOffShop(r))) EXTID 'awr:ActDate', 
+                  =id(type(actWriteOffShop(r))) EXTID 'awr:TypeWriteOff', 
+                  =note(actWriteOffShop(r)) EXTID 'awr:Note'
+    
+    OBJECTS p = ActWriteOffShopPosition IN content EXTID 'awr:Position'
+    PROPERTIES =LONG(p) EXTID 'awr:Identity', 
+               =xml(product(p)) EXTID 'awr:Product', 
+               quantity(p) EXTID 'awr:Quantity'
+    FILTERS actWriteOffShop(p) = actWriteOffShop(r)
+;
+
+@defineDocumentOutProcess(actWriteOffShop, tabbedPane);
+
+// ticket
+
+@defineOutDocTicket(actWriteOffShop, d, tabbedPane);
+
+process (Ticket t) + {
+    IF docType(t) = 'ActWriteOffShop_v2' THEN {
+        IF operationResult(t) = 'Accepted' THEN {
+            posted(actWriteOffShop(outDoc(t))) <- TRUE;
+        }
+        processed() <- TRUE;
+    }
+}

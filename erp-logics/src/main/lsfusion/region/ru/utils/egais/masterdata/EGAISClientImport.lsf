@@ -1,0 +1,59 @@
+MODULE EGAISClientImport;
+
+REQUIRE EGAISClient;
+
+NAMESPACE EGAIS;
+
+GROUP UL EXTID 'oref:UL';
+
+clientRegId = DATA LOCAL STRING();
+INN = DATA LOCAL STRING[12]();
+KPP = DATA LOCAL STRING[9]();
+clientFullName = DATA LOCAL STRING();
+clientShortName = DATA LOCAL STRING();
+
+GROUP addressUL EXTID 'oref:address' : UL;
+
+sidCountry = DATA LOCAL STRING();
+regionCode = DATA LOCAL STRING[10]();
+description = DATA LOCAL STRING();
+
+FORM importClient FORMEXTID 'oref:Client'
+    PROPERTIES() IN UL
+                 clientRegId EXTID 'oref:ClientRegId', 
+                 INN EXTID 'oref:INN', 
+                 KPP EXTID 'oref:KPP', 
+                 clientFullName EXTID 'oref:FullName', 
+                 clientShortName EXTID 'oref:ShortName'
+    
+    PROPERTIES() IN addressUL sidCountry EXTID 'oref:Country', 
+                              regionCode EXTID 'oref:RegionCode', 
+                              description EXTID 'oref:description'
+;
+
+importClient(TEXT xml) {
+    stringToFile('<oref:Client xmlns:oref="http://fsrar.ru/WEGAIS/ClientRef_v2">' + 
+                  replace(replace(replace(xml, 'oref:FO', 'oref:UL'), 'oref:FL', 'oref:UL'), 'oref:TS', 'oref:UL') + 
+                  '</oref:Client>');
+        
+    IMPORT importClient XML FROM resultFile();
+    
+    IF NOT client(clientRegId()) THEN NEW c = Client {
+        id(c) <- clientRegId();
+    } 
+    
+    FOR id(Client c) = clientRegId() DO {
+        shortName(c) <- clientShortName();
+        fullName(c) <- clientFullName();
+
+        INN(c) <- INN();
+        KPP(c) <- KPP();
+        
+        country(c) <- country(sidCountry());
+        
+        regionCode(c) <- regionCode();
+        description(c) <- description();
+        
+        xml(c) <- xml;
+    }
+}

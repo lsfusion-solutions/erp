@@ -1,0 +1,190 @@
+MODULE EGAISWayBillActExchange;
+
+REQUIRE EGAISOutDoc, EGAISTicket, EGAISWayBillDoc, EGAISWayBillAct;
+
+NAMESPACE EGAIS;
+
+EXTEND CLASS DocType { WayBillAct_v3 'Акт разногласий' }
+
+// out
+CLASS WayBillActOutDoc 'Акт разногласий' : OutDoc;
+docType (WayBillActOutDoc r) += DocType.WayBillAct_v3 IF r IS WayBillActOutDoc; 
+
+wayBillAct = DATA WayBillAct (WayBillActOutDoc) INDEXED;
+wayBillActOutDoc = GROUP LAST WayBillActOutDoc a ORDER a BY wayBillAct(a);
+
+// export
+GROUP header EXTID 'wa:Header';
+GROUP content EXTID 'wa:Content';
+GROUP contentMarkInfo EXTID 'wa:MarkInfo';
+
+FORM wayBillAct_v3 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBillAct_v3'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/CommonV3' EXTID 'xmlns:ce', ='http://fsrar.ru/WEGAIS/ActTTNSingle_v3' EXTID 'xmlns:wa'
+    
+    OBJECTS a = WayBillActOutDoc PANEL
+    
+    PROPERTIES IN header =isAccept(wayBill(a)) EXTID 'wa:IsAccept', 
+                         =number(wayBillAct(a)) EXTID 'wa:ACTNUMBER', 
+                         =toDateISO(date(wayBillAct(a))) EXTID 'wa:ActDate', 
+                         =regId(wayBill(a)) EXTID 'wa:WBRegId', 
+                         =OVERRIDE note(wayBillAct(a)), '' EXTID 'wa:Note'
+    
+    OBJECTS p = WayBillPosition EXTID 'wa:Position' IN content
+    PROPERTIES identity(p) EXTID 'wa:Identity', 
+               idF2Reg(p) EXTID 'wa:InformF2RegId', 
+               = OVERRIDE realQuantity(p), 0.0 EXTID 'wa:RealQuantity'
+    FILTERS wayBill(p) = wayBill(a) AND isAccept(wayBill(a)) = 'Differences' 
+
+    OBJECTS amc = WayBillMark EXTID 'ce:amc' IN contentMarkInfo
+    PROPERTIES(amc) idMarkCode EXTID 'value'
+    FILTERS wayBillPosition(amc) = p AND NOT accepted(amc)
+;
+
+submitAct (WayBillActOutDoc a) {
+    EXPORT wayBillAct_v3 OBJECTS a = a XML;
+    submit(a, exportFile());
+}
+
+submitAct (WayBillAct wa) {
+    NEW a = WayBillActOutDoc {
+        client(a) <- consignee(wayBill(wa));
+        wayBillAct(a) <- wa;
+        wayBill(a) <- wayBill(wa);
+        submitAct(a);
+    }
+}
+
+createAct 'Отправить акт приемки' (WayBill w) {
+    NEWSESSION {
+        IF NOT rejected(wayBillActOutDoc(wayBillAct(w))) THEN {
+            NEW wa = WayBillAct {
+                wayBill(wa) <- w;
+                number(wa) <- STRING(wa);
+                date(wa) <- currentDate();
+            }
+        }
+        submitAct(wayBillAct(w));
+        APPLY;
+    }
+}
+
+EXTEND FORM wayBills
+    PROPERTIES createAct(w) SHOWIF own(consignee(w)) AND NOT accepted(w) AND NOT notRejected(wayBillActOutDoc(wayBillAct(w))) TOOLBAR
+;
+
+// in
+GROUP wayBillAct EXTID 'ns:WayBillAct_v3' : document;
+GROUP wayBillActHeader EXTID 'wa:Header' : wayBillAct;
+GROUP wayBillContent EXTID 'wa:Content' : wayBillAct; 
+
+isAccept = DATA LOCAL STRING ();
+actNumber = DATA LOCAL STRING ();
+actDate = DATA LOCAL DATE ();
+
+actNote = DATA LOCAL STRING ();
+
+identity = DATA STRING (INTEGER);
+realQuantity = DATA NUMERIC[16,5] (INTEGER);
+
+FORM inWayBillAct_v3 FORMEXTID 'ns:Documents'
+    
+    PROPERTIES IN wayBillActHeader 
+                         isAccept() EXTID 'wa:IsAccept', 
+                         actNumber() EXTID 'wa:ACTNUMBER', 
+                         actDate() EXTID 'wa:ActDate', 
+                         WBRegId() EXTID 'wa:WBRegId', 
+                         actNote() EXTID 'wa:Note'
+    
+    OBJECTS p = INTEGER EXTID 'wa:Position' IN wayBillContent
+    PROPERTIES(p) identity EXTID 'wa:Identity', 
+                  realQuantity EXTID 'wa:RealQuantity'
+
+//    OBJECTS amc = INTEGER EXTID 'ce:amc' IN contentMarkInfo
+//    PROPERTIES(amc) amc EXTID 'ce:value'
+//    FILTERS amc(amc)
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.WayBillAct_v3 THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT inWayBillAct_v3 XML FROM resultFile();
+            
+            FOR WayBill b = wayBill(WBRegId()) DO {
+                wayBill(d) <- b;
+                
+                IF isAccept() = 'Rejected' THEN {
+                    canceled(b) <- TRUE;
+//                    realQuantity(WayBillPosition p) <- 0.0 WHERE wayBill(p) = b;
+                }
+                IF isAccept() = 'Accepted' THEN {
+                    accepted(b) <- TRUE;
+                    realQuantity(WayBillPosition p) <- quantity(p) WHERE wayBill(p) = b;
+                }
+            
+                IF NOT (number(wayBillAct(b)) = actNumber() AND date(wayBillAct(b)) = actDate()) THEN NEW a = WayBillAct {
+                    wayBill(a) <- b;
+                    
+                    IF isAccept() = 'Differences' THEN differences(a) <- TRUE;
+                    
+                    number(a) <- actNumber();
+                    date(a) <- actDate();
+                    note(a) <- actNote();
+
+                    IF isAccept() = 'Differences' THEN {
+                        FOR WayBillPosition p = wayBillPosition(b, identity(INTEGER i)) DO {
+                            realQuantity(p) <- realQuantity(i);
+                        }
+                    }
+                }
+    
+                processed(d) <- TRUE;
+                APPLY;
+            }                
+        }
+    }
+}
+
+META defineDocumentInWayBillActProcess (doc)
+    quantity###doc 'Кол-во (в документе)' (WayBillPosition p) = GROUP SUM quantity(###doc##Detail d, p);
+
+    process 'Отправить в ЕГАИС' (###doc d) {
+        FOR WayBill w = wayBill(d) DO {
+            NEWSESSION {
+                realQuantity(WayBillPosition p) <- quantity###doc(p) WHERE wayBill(p) = w;
+                accepted(WayBillMark m) <- TRUE IF quantity(d, lot(idMarkCode(m))) WHERE wayBill(wayBillPosition(m)) = w;
+                APPLY;
+                IF canceled() THEN RETURN;
+            }
+            
+            createAct(w);
+        }
+    }
+END
+
+META defineDocumentInWayBillActForm (doc, obj)
+    EXTEND FORM doc##s
+        OBJECTS w = WayBill PANEL
+        PROPERTIES(w) READONLY accepted, canceled, number, date, shippingDate
+        FILTERS w = wayBill(obj)
+    
+        OBJECTS wp = WayBillPosition
+        PROPERTIES(wp) READONLY idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg, 
+                                idConsigneeF2Reg, realQuantity BACKGROUND backgroundRealQuantity(wp), bottlingDate
+        FILTERS wayBill(wp) = w
+    
+        PROPERTIES READONLY commentsWayBillAct 'Комментарий' = comments(wayBillActOutDoc(wayBillAct(w))) PANEL     
+        PROPERTIES(obj) processEGAIS = process SHOWIF isPosted(obj) AND NOT notRejected(wayBillActOutDoc(wayBillAct(wayBill(obj)))) DRAW wp TOOLBAR 
+    ;
+    
+    DESIGN doc##s {
+        documentDetail {
+            NEW EGAIS {
+                caption = 'ЕГАИС';
+                MOVE BOX(w);
+                MOVE BOX(wp);
+                MOVE PROPERTY(commentsWayBillAct) { panelCaptionVertical = TRUE; fill = 0.2; }
+            }
+        }
+    }
+END
