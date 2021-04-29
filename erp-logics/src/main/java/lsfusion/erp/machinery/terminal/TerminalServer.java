@@ -315,15 +315,15 @@ public class TerminalServer extends MonitorServer {
         }
     }
 
-    protected String checkOrder(DataObject user, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    protected String checkOrder(String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = createSession()) {
-            return terminalHandler.checkOrder(session, getStack(), user, numberOrder);
+            return terminalHandler.checkOrder(session, getStack(), numberOrder);
         }
     }
 
-    protected String changeStatusOrder(DataObject user, String vop, String status, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    protected String changeStatusOrder(String vop, String status, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = createSession()) {
-            return terminalHandler.changeStatusOrder(session, getStack(), user, vop, status, numberOrder);
+            return terminalHandler.changeStatusOrder(session, getStack(), vop, status, numberOrder);
         }
     }
 
@@ -598,7 +598,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    result = checkOrder(userInfo.user, numberOrder);
+                                    result = checkOrder(numberOrder);
                                     if (result == null) {
                                         errorCode = UNKNOWN_ERROR;
                                         errorText = UNKNOWN_ERROR_TEXT;
@@ -628,7 +628,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    changeStatusOrder(userInfo.user, vop, status, numberOrder);
+                                    changeStatusOrder(vop, status, numberOrder);
                                 }
                             } else {
                                 errorCode = WRONG_PARAMETER_COUNT;

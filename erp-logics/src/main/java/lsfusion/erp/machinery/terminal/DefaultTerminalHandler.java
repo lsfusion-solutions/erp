@@ -22,7 +22,6 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
-import lsfusion.server.logics.classes.data.time.DateTimeClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.property.classes.IsClassProperty;
@@ -73,7 +72,6 @@ public class DefaultTerminalHandler {
 
     public List<Object> readHostPort(DataSession session) {
         try {
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
                 String host = (String) terminalHandlerLM.findProperty("hostTerminalServer[]").read(session);
                 Integer port = (Integer) terminalHandlerLM.findProperty("portTerminalServer[]").read(session);
@@ -86,7 +84,6 @@ public class DefaultTerminalHandler {
 
     public Object readItem(DataSession session, DataObject user, String barcode, String bin) {
         try {
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
                 ObjectValue barcodeObject = terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
                 ObjectValue stockObject = user == null ? NullValue.instance : terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, user);
@@ -143,7 +140,6 @@ public class DefaultTerminalHandler {
 
     public String readItemHtml(DataSession session, String barcode, String idStock) {
         try {
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
                 String overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock]").read(session,
@@ -177,13 +173,11 @@ public class DefaultTerminalHandler {
         try {
 
             BusinessLogics BL = getLogicsInstance().getBusinessLogics();
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
 
                 boolean imagesInReadBase = terminalHandlerLM.findProperty("imagesInReadBase[]").read(session) != null;
                 String baseZipDirectory = (String) terminalHandlerLM.findProperty("baseZipDirectory[]").read(session);
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
-                ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase, userInfo.user);
@@ -196,8 +190,8 @@ public class DefaultTerminalHandler {
                 Map<String, RawFileData> orderImages = imagesInReadBase ? readTerminalOrderImages(session, stockObject, userInfo) : new HashMap<>();
 
                 List<TerminalAssortment> assortmentList = readTerminalAssortmentList(session, stockObject);
-                List<TerminalHandbookType> handbookTypeList = readTerminalHandbookTypeList(session, BL);
-                List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, BL, userInfo.user);
+                List<TerminalHandbookType> handbookTypeList = readTerminalHandbookTypeList(session);
+                List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, userInfo.user);
                 List<TerminalLegalEntity> customANAList = readCustomANAList(session, BL, userInfo.user);
                 file = File.createTempFile("terminalHandler", ".db");
 
@@ -288,9 +282,8 @@ public class DefaultTerminalHandler {
         return null;
     }
 
-    public String checkOrder(DataSession session, ExecutionStack stack, DataObject user, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public String checkOrder(DataSession session, ExecutionStack stack, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
             terminalHandlerLM.findAction("checkOrder[STRING]").execute(session, stack, new DataObject(numberOrder));
             result = (String) terminalHandlerLM.findProperty("checkOrderResult[]").read(session);
@@ -298,13 +291,11 @@ public class DefaultTerminalHandler {
         return result;
     }
 
-    public String changeStatusOrder(DataSession session, ExecutionStack stack, DataObject user, String vop, String status, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        String result = null;
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+    public String changeStatusOrder(DataSession session, ExecutionStack stack, String vop, String status, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if(terminalHandlerLM != null) {
             terminalHandlerLM.findAction("changeStatusTerminalOrder[STRING, STRING, STRING]").execute(session, stack, new DataObject(vop), new DataObject(status), new DataObject(numberOrder));
         }
-        return result;
+        return null;
     }
 
     public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -319,7 +310,6 @@ public class DefaultTerminalHandler {
 
     private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject, boolean imagesInReadBase, DataObject user) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalBarcode> result = new ArrayList<>();
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
             boolean skipGoodsInReadBase = terminalHandlerLM.findProperty("skipGoodsInReadBase[]").read(session) != null;
             if(!skipGoodsInReadBase) {
@@ -390,7 +380,6 @@ public class DefaultTerminalHandler {
 
     private List<TerminalBatch> readBatchList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalBatch> result = new ArrayList<>();
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
 
             KeyExpr batchExpr = new KeyExpr("batch");
@@ -841,7 +830,6 @@ public class DefaultTerminalHandler {
                                          String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) {
         try {
 
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
 
                 List<ImportProperty<?>> props = new ArrayList<>();
@@ -1217,19 +1205,18 @@ public class DefaultTerminalHandler {
         return terminalAssortmentList;
     }
 
-    public static List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalHandbookType> terminalHandbookTypeList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
-        if(terminalLM != null) {
+        if(terminalHandlerLM != null) {
             KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
-            LP<?>[] properties = terminalLM.findProperties("id[TerminalHandbookType]", "name[TerminalHandbookType]");
+            LP<?>[] properties = terminalHandlerLM.findProperties("id[TerminalHandbookType]", "name[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
             }
-            query.and(terminalLM.findProperty("id[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("id[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String id = StringUtils.trim((String) entry.get("idTerminalHandbookType"));
@@ -1240,26 +1227,22 @@ public class DefaultTerminalHandler {
         return terminalHandbookTypeList;
     }
 
-    public static List<TerminalDocumentType> readTerminalDocumentTypeListServer(DataSession session, BusinessLogics BL, DataObject userObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalDocumentType> readTerminalDocumentTypeListServer(DataSession session,DataObject userObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
-        if(terminalLM != null) {
+        if(terminalHandlerLM != null) {
             KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("terminalDocumentType", terminalDocumentTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
                     "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
-            LP<?>[] properties = terminalLM.findProperties("id[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
+            LP<?>[] properties = terminalHandlerLM.findProperties("id[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
                     "idTerminalHandbookType1[TerminalDocumentType]", "idTerminalHandbookType2[TerminalDocumentType]");
             for (int i = 0; i < properties.length; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
             }
-            query.and(terminalLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
-            if(userObject != null) {
-                query.and(terminalLM.findProperty("notSkip[TerminalDocumentType, CustomUser]").getExpr(terminalDocumentTypeExpr, userObject.getExpr()).getWhere());
-            } else {
-                query.and(terminalLM.findProperty("notSkip[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
-            }
+            query.and(terminalHandlerLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("notSkip[TerminalDocumentType, CustomUser]").getExpr(terminalDocumentTypeExpr, userObject.getExpr()).getWhere());
+
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String id = StringUtils.trim((String) entry.get("idTerminalDocumentType"));
@@ -1275,22 +1258,21 @@ public class DefaultTerminalHandler {
 
     public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL, DataObject userObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalLegalEntity> customANAList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
-        if (terminalLM != null) {
+        if (terminalHandlerLM != null) {
 
             KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
             ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev("terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(terminalHandbookTypeKeys);
             String[] names = new String[]{"exportId", "name", "propertyID", "propertyName", "filterProperty", "extInfoProperty"};
-            LP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
+            LP<?>[] properties = terminalHandlerLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
                     "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]",
                     "canonicalNameFilterProperty[TerminalHandbookType]", "canonicalNameExtInfoProperty[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
             }
-            query.and(terminalLM.findProperty("exportId[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
-            query.and(terminalLM.findProperty("canonicalNamePropertyID[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
-            query.and(terminalLM.findProperty("canonicalNamePropertyName[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("exportId[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("canonicalNamePropertyID[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("canonicalNamePropertyName[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String prefix = StringUtils.trim((String) entry.get("exportId"));
