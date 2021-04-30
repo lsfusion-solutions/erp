@@ -172,7 +172,7 @@ public class LoyaAction extends InternalAction {
     }
 
     protected boolean authenticationFailed(String response) {
-        return response != null && response.startsWith("Authentication failed");
+        return response != null && (response.startsWith("Authentication failed") || response.contains("Authentication required"));
     }
 
     //as in ukm4mysqlhandler
