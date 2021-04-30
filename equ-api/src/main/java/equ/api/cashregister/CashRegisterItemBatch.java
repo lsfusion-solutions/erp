@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 
 public class CashRegisterItemBatch implements Serializable {
     public String idBatch;
+    public LocalDate dateBatch;
     public LocalDate expiryDate;
     public String seriesPharmacy;
     public String nameManufacturer;
@@ -19,10 +20,11 @@ public class CashRegisterItemBatch implements Serializable {
     public Integer blisterAmount;
     public Integer flag;
 
-    public CashRegisterItemBatch(String idBatch, LocalDate expiryDate, String seriesPharmacy, String nameManufacturer,
+    public CashRegisterItemBatch(String idBatch, LocalDate dateBatch, LocalDate expiryDate, String seriesPharmacy, String nameManufacturer,
                                  BigDecimal price, String nameSubstance, BigDecimal balance, LocalDateTime balanceDate,
                                  String countryCode, String countryName, Integer blisterAmount, Integer flag) {
         this.idBatch = idBatch;
+        this.dateBatch = dateBatch;
         this.expiryDate = expiryDate;
         this.seriesPharmacy = seriesPharmacy;
         this.nameManufacturer = nameManufacturer;

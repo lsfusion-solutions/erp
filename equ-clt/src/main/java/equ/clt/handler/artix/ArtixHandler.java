@@ -402,15 +402,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         JSONObject medicineObject = new JSONObject();
         rootObject.put("medicine", medicineObject);
         medicineObject.put("code", batch.idBatch);
-        medicineObject.put("party", batch.idBatch);
+        medicineObject.put("party", batch.dateBatch);
         medicineObject.put("barcode", removeCheckDigitFromBarcode(item.mainBarcode, appendBarcode));
-        medicineObject.put("shelflife", batch.expiryDate); //"2077-01-01" todo: check format
+        medicineObject.put("shelflife", batch.expiryDate);
         medicineObject.put("series", batch.seriesPharmacy);
         medicineObject.put("producer", batch.nameManufacturer);
-        medicineObject.put("price", batch.price); //"33.33" todo: check format
+        medicineObject.put("price", batch.price);
         medicineObject.put("inn", batch.nameSubstance);
         medicineObject.put("remainquant", batch.balance);
-        medicineObject.put("remaindatetime", batch.balanceDate);//"2025-01-01 13:30:00" todo: check format
+        medicineObject.put("remaindatetime", batch.balanceDate);
         medicineObject.put("countrycode", batch.countryCode);
         medicineObject.put("options", batch.flag);
         rootObject.put("command", "addMedicine");

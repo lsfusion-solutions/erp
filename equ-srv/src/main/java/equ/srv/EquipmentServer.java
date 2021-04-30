@@ -2502,9 +2502,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             query.addProperty("idBarcode", machineryPriceTransactionBatchLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
 
-            String[] names = new String[]{"idBatch", "expiryDate", "seriesPharmacy", "nameManufacturer", "price",
+            String[] names = new String[]{"idBatch", "dateBatch", "expiryDate", "seriesPharmacy", "nameManufacturer", "price",
                     "nameATCGroup", "balanceBlister", "balanceDate", "sidCountry", "nameCountry", "blisterAmount", "flag"};
-            LP[] properties = machineryPriceTransactionBatchLM.findProperties("id[MachineryPriceTransaction,Barcode,Batch]",
+            LP[] properties = machineryPriceTransactionBatchLM.findProperties("id[MachineryPriceTransaction,Barcode,Batch]", "date[MachineryPriceTransaction,Barcode,Batch]",
                     "expiryDate[MachineryPriceTransaction,Barcode,Batch]", "seriesPharmacy[MachineryPriceTransaction,Barcode,Batch]",
                     "nameManufacturer[MachineryPriceTransaction,Barcode,Batch]", "price[MachineryPriceTransaction,Barcode,Batch]",
                     "nameATCGroup[MachineryPriceTransaction,Barcode,Batch]", "balanceBlister[MachineryPriceTransaction,Barcode,Batch]",
@@ -2525,6 +2525,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 String barcode = getRowValue(row, "idBarcode");
 
                 String idBatch = getRowValue(row, "idBatch");
+                LocalDate dateBatch = (LocalDate) row.get("dateBatch");
                 LocalDate expiryDate = (LocalDate) row.get("expiryDate");
                 String seriesPharmacy = getRowValue(row, "seriesPharmacy");
                 String nameManufacturer = getRowValue(row, "nameManufacturer");
@@ -2538,7 +2539,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 Integer flag = (Integer) row.get("flag");
 
                 List<CashRegisterItemBatch> batchList = result.getOrDefault(barcode, new ArrayList<>());
-                batchList.add(new CashRegisterItemBatch(idBatch, expiryDate, seriesPharmacy, nameManufacturer,
+                batchList.add(new CashRegisterItemBatch(idBatch, dateBatch, expiryDate, seriesPharmacy, nameManufacturer,
                         price, nameSubstance, balance, balanceDate, countryCode, countryName, blisterAmount, flag));
                 result.put(barcode, batchList);
             }
