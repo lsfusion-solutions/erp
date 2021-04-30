@@ -1,13 +1,18 @@
 MODULE VetisStock;
 
 REQUIRE Stock, VetisEnterprise,
-        Warehouse, Store;
+        Warehouse, Store,
+        VetisLegalEntity;
 
 NAMESPACE Vetis;
 
 enterprise = DATA Enterprise (Stock) INDEXED;
 guidEnterprise 'Код площадки' (Stock st) = guid(enterprise(st));
 nameEnterprise 'Наименование площадки' (Stock st) = name(enterprise(st));
+
+CONSTRAINT enterprise(Stock st) AND businessEntity(legalEntity(st)) AND NOT owner(enterprise(st)) = businessEntity(legalEntity(st))
+    CHECKED BY enterprise[Stock]
+    MESSAGE 'ХС организации склада должен совпадать с владельцем площадки склада'; 
 
 // warehouse
 EXTEND FORM warehouse
