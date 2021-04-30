@@ -479,7 +479,9 @@ DESIGN ranges {
 
 filterStoreType  = DATA LOCAL StoreType();
 nameFilterStoreType 'Формат' = name(filterStoreType());          
-filterStoreType (Store st) = storeType(st) == filterStoreType() OR NOT filterStoreType();       
+filterStoreType (Store st) = storeType(st) == filterStoreType() OR NOT filterStoreType(); 
+
+backgroundStoreRange = ABSTRACT CASE COLOR (Sku, Stock);       
 
 FORM storeRange 'Ассортимент магазинов'
     OBJECTS d = DATE PANEL
@@ -524,8 +526,10 @@ FORM storeRange 'Ассортимент магазинов'
     ORDERS order(g), name(g)
     FILTERGROUP inactiveD FILTER 'Активные' active(g) 'F5' DEFAULT
 
+    OBJECTS depStore = DepartmentStore
+
     OBJECTS sk = Sku 
-    PROPERTIES (sk) READONLY idBarcode, id SHOWIF showIDs(), name
+    PROPERTIES (sk) BACKGROUND backgroundStoreRange(sk, depStore) READONLY idBarcode, id SHOWIF showIDs(), name
     //PROPERTIES statusRange(ds, sk, d)
     FILTERS isParent(g, sk) OR sk IS Sku AND NOT g 
             
