@@ -4,6 +4,8 @@ REQUIRE VetisProductItem;
 
 NAMESPACE Vetis;
 
+subProductGuid = DATA LOCAL STRING();
+
 productItemGuid = DATA LOCAL STRING();
 productItemGlobalID = DATA LOCAL STRING();
 productItemName = DATA LOCAL STRING();
@@ -16,7 +18,7 @@ originProductItemGuid = DATA LOCAL STRING();
 originProductItemName = DATA LOCAL STRING();
 originProductItemGlobalID = DATA LOCAL STRING();
 
-importProductItem () {
+importProductItem (SubProduct s) {
     IF NOT productItemGuid() THEN productItemGuid() <- originProductItemGuid();
     IF NOT productItemName() THEN productItemName() <- originProductItemName();
     IF NOT productItemGlobalID() THEN productItemGlobalID() <- originProductItemGlobalID();
@@ -26,16 +28,19 @@ importProductItem () {
             guid(i) <- productItemGuid();
             name(i) <- productItemName();
             globalID(i) <- productItemGlobalID();
+            subProduct(i) <- s;
         }
     } ELSE {
         IF productItemGlobalID() THEN { 
             IF NOT productItemGlobalID(productItemGlobalID()) THEN NEW i = ProductItem {
                 name(i) <- productItemName();
                 globalID(i) <- productItemGlobalID();
+                subProduct(i) <- s;
             }
         } ELSE {
             IF productItemName() AND NOT productItemName(productItemName()) THEN NEW i = ProductItem {
                 name(i) <- productItemName();
+                subProduct(i) <- s;
             }
         }
     }

@@ -14,7 +14,7 @@ GROUP getProductItemListRequestBusinessEntity EXTID 'dt:businessEntity' : getPro
 businessEntity = DATA LOCAL BusinessEntity ();
 nameBusinessEntity 'Хозяйствующий субъект' () = name(businessEntity());
 
-GROUP getProductItemListRequestEnterprise EXTID 'dt:businessEntity' : getProductItemListRequestProducer;
+GROUP getProductItemListRequestEnterprise EXTID 'dt:enterprise' : getProductItemListRequestProducer;
 
 enterprise = DATA LOCAL Enterprise ();
 nameEnterprise 'Предприятие-производитель продукции' () = name(enterprise());
@@ -39,13 +39,22 @@ active = DATA LOCAL BOOLEAN (INTEGER);
 globalID = DATA LOCAL STRING (INTEGER);
 code = DATA LOCAL STRING (INTEGER);
 
+GROUP subProduct EXTID 'dt:subProduct';
+subProductGuid = DATA LOCAL STRING(INTEGER);
+
+GROUP producer EXTID 'dt:producer';
+producerGuid = DATA LOCAL STRING(INTEGER);
+
 FORM getProductItemListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     OBJECTS i = INTEGER EXTID 'dt:productItem' IN getProductItemListResponseList
     PROPERTIES(i) guid EXTID 'bs:guid',
                   active EXTID 'bs:active',
                   name EXTID 'dt:name',
                   globalID EXTID 'dt:globalID',
-                  code EXTID 'dt:code'
+                  code EXTID 'dt:code',
+                  
+                  subProductGuid IN subProduct EXTID 'bs:guid',
+                  producerGuid IN producer EXTID 'bs:guid'
 ;
 
 getProductItemList 'Загрузить данные' () {
@@ -69,10 +78,18 @@ getProductItemList 'Загрузить данные' () {
                 guid(p) <- guid(i); 
             }
             
+            FOR [GROUP SUM 1 BY producerGuid(INTEGER i)](STRING id) AND NOT businessEntity(id) DO NEW e = BusinessEntity {
+                guid(e) <- id;
+            } 
+            
             FOR guid(INTEGER i) = guid(ProductItem p) DO {
                 name(p) <- name(i);
                 globalID(p) <- globalID(i);
                 code(p) <- code(i);
+                
+                subProduct(p) <- subProduct(subProductGuid(i));
+                producer(p) <- businessEntity(producerGuid(i));
+                
                 inactive(p) <- NOT active(i);
             }
             

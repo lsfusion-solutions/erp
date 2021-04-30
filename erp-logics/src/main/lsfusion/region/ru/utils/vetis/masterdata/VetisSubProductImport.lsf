@@ -1,0 +1,92 @@
+MODULE VetisSubProductImport;
+
+REQUIRE VetisProduct, VetisProductItemImport;
+
+NAMESPACE Vetis;
+
+GROUP getSubProductByProductListRequest EXTID 'v2:getSubProductByProductListRequest' : body;
+GROUP getSubProductByProductListRequestListOptions EXTID 'bs:listOptions' : getSubProductByProductListRequest;
+
+FORM getSubProductByProductListRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://api.vetrf.ru/schema/cdm/base' EXTID 'xmlns:bs', 
+                    ='http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2' EXTID 'xmlns:v2', 
+                    ='http://api.vetrf.ru/schema/cdm/dictionary/v2' EXTID 'xmlns:prod'
+    PROPERTIES() IN getSubProductByProductListRequestListOptions count EXTID 'bs:count', offset EXTID 'bs:offset'
+    
+    OBJECTS t = Product PANEL
+    PROPERTIES guid(t) EXTID 'prod:productGuid' IN getSubProductByProductListRequest
+;
+
+FORM getSubProductByProductListRequestParams 'Параметры запроса продукции'
+    PROPERTIES() offset, count
+;
+
+GROUP getSubProductByProductListResponse EXTID 'v2=http://api.vetrf.ru/schema/cdm/registry/ws-definitions/v2:getSubProductByProductListResponse' : body;
+GROUP getSubProductByProductListResponseList EXTID 'dt:subProductList' : getSubProductByProductListResponse;
+
+FORM getSubProductByProductListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS i = INTEGER EXTID 'dt:subProduct' IN getSubProductByProductListResponseList
+    PROPERTIES(i) guid EXTID 'bs:guid',
+                  active EXTID 'bs:active',
+                  name EXTID 'dt:name'
+;
+
+importSubProductByProductList (Product pt) {
+    EXPORT getSubProductByProductListRequest OBJECTS t = pt XML;
+    
+    LOCAL response = FILE();
+    TRY {
+        EXTERNAL HTTP urlProduct() HEADERS httpHeaders PARAMS exportFile() TO response;
+    } CATCH {
+        fileToString(response());
+        MESSAGE CONCAT ' ', 'Ошибка при запросе к службе : ', resultString();
+        RETURN;
+    }
+    
+    IMPORT getSubProductByProductListResponse XML FROM response();
+    
+    FOR guid(INTEGER i) AND NOT subProduct(guid(i)) DO NEW p = SubProduct {
+        guid(p) <- guid(i); 
+    }
+    
+    FOR guid(INTEGER i) = guid(SubProduct p) DO {
+        name(p) <- name(i);
+        
+        product(p) <- pt;
+        
+        inactive(p) <- NOT active(i);
+    }
+}
+
+getSubProductByProductList 'Загрузить данные' (Product pt) {
+    NEWSESSION {
+        offset() <- 0;
+        count() <- 1000;
+        DIALOG getSubProductByProductListRequestParams DO {
+            importSubProductByProductList(pt);
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM product
+    PROPERTIES(o) getSubProductByProductList DRAW s TOOLBAR
+;
+
+getSubProductByProductList 'Загрузить данные' () {
+    NEWSESSION {
+        offset() <- 0;
+        count() <- 1000;
+        DIALOG getSubProductByProductListRequestParams DO {   
+            FOR Product pt IS Product DO
+                importSubProductByProductList(pt);
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM subProducts
+    PROPERTIES() getSubProductByProductList DRAW o TOOLBAR
+;
+
+

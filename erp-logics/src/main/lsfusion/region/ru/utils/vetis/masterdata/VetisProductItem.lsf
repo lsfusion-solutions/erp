@@ -1,6 +1,6 @@
 MODULE VetisProductItem;
 
-REQUIRE Vetis;
+REQUIRE Vetis, VetisEnterprise;
 
 NAMESPACE Vetis;
 
@@ -54,19 +54,30 @@ product 'Продукция' = GROUP AGGR Product i BY guid(i);
 
 name 'Наименование' = DATA ISTRING (Product) CHARWIDTH 20;
 
+productType = DATA ProductType (Product);
+nameProductType 'Тип продукции' (Product p) = name(productType(p));
+
+inactive 'Неактивен' = DATA BOOLEAN (Product);
+
 FORM product 'Продукция'
     OBJECTS o = Product PANEL
-    PROPERTIES(o) guid, name
+    PROPERTIES(o) guid, name, nameProductType, inactive
     
     EDIT Product OBJECT o
 ;
 
 FORM products 'Продукция'
     OBJECTS o = Product
-    PROPERTIES(o) READONLY guid, name
+    PROPERTIES(o) READONLY guid, name, nameProductType, inactive
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
     
     LIST Product OBJECT o
+;
+
+EXTEND FORM productType
+    OBJECTS p = Product 
+    PROPERTIES(p) READONLY guid, name, nameProductType, inactive
+    FILTERS productType(p) = o
 ;
 
 // subProduct
@@ -78,19 +89,30 @@ subProduct 'Вид продукции' = GROUP AGGR SubProduct i BY guid(i);
 
 name 'Наименование' = DATA ISTRING (SubProduct) CHARWIDTH 20;
 
+product = DATA Product (SubProduct);
+nameProduct 'Продукция' (SubProduct s) = name(product(s));
+
+inactive 'Неактивен' = DATA BOOLEAN (SubProduct);
+
 FORM subProduct 'Вид продукции'
     OBJECTS o = SubProduct PANEL
-    PROPERTIES(o) guid, name
+    PROPERTIES(o) guid, name, nameProduct, inactive
     
     EDIT SubProduct OBJECT o
 ;
 
 FORM subProducts 'Виды продукции'
     OBJECTS o = SubProduct
-    PROPERTIES(o) READONLY guid, name
+    PROPERTIES(o) READONLY guid, name, nameProduct, inactive
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
     
     LIST SubProduct OBJECT o
+;
+
+EXTEND FORM product
+    OBJECTS s = SubProduct 
+    PROPERTIES(s) READONLY guid, name, nameProduct, inactive
+    FILTERS product(s) = o
 ;
 
 // product item
@@ -108,33 +130,57 @@ productItemName 'Номенклатура' = GROUP MAX ProductItem i BY name(i);
 
 code 'Артикул' = DATA ISTRING (ProductItem);
 
+subProduct = DATA SubProduct (ProductItem);
+nameSubProduct 'Вид продукции' (ProductItem i) = name(subProduct(i));
+
+producer = DATA BusinessEntity (ProductItem);
+nameProducer 'Производитель' (ProductItem i) = name(producer(i));
+
 inactive 'Неактивен' = DATA BOOLEAN (ProductItem);
 
 FORM productItem 'Номенклатура'
     OBJECTS o = ProductItem PANEL
-    PROPERTIES(o) guid, name, globalID, code, inactive
+    PROPERTIES(o) guid, name, globalID, code, nameSubProduct, nameProducer, inactive
     
     EDIT ProductItem OBJECT o
 ;
 
 FORM productItems 'Номенклатура'
+    
+    TREE tree a = BPSTRING[3], pt = ProductType, p = Product, sp = SubProduct
+    PROPERTIES READONLY VALUE(a), name(pt), name(p), name(sp)
+    
+    FILTERS a = 'Все',
+            productType(p) = pt,
+            product(sp) = p
+    
+    FILTERGROUP activeTree
+        FILTER 'Активные' NOT inactive(p) AND NOT inactive(sp) DEFAULT
+
     OBJECTS o = ProductItem
-    PROPERTIES(o) READONLY guid, name, globalID, code, inactive
+    PROPERTIES(o) READONLY guid, name, globalID, code, nameSubProduct, nameProducer, inactive
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
 
     FILTERGROUP active
         FILTER 'Активная' NOT inactive(o) DEFAULT
+    
+    FILTERS productType(product(subProduct(o))) = pt OR NOT pt,
+            product(subProduct(o)) = p OR NOT p,
+            subProduct(o) = sp OR NOT sp
+
+    LIST ProductItem OBJECT o
 ;
 
-FORM dialogProductItems 'Номенклатура'
-    OBJECTS o = ProductItem
-    PROPERTIES(o) READONLY guid, name, globalID, code, inactive
-    
-    LIST ProductItem OBJECT o
-    
-    FILTERGROUP active
-        FILTER 'Активная' NOT inactive(o) DEFAULT
-;
+DESIGN productItems {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            type = SPLITH;
+            MOVE BOX(TREE tree) { fill = 0.3; }
+            MOVE BOX(o);
+        }
+    }
+}
 
 NAVIGATOR {
     vetisMasterData {

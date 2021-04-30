@@ -43,7 +43,6 @@ GROUP product EXTID 'vd:product' : certifiedConsignmentBatch;
 productGuid = DATA LOCAL STRING();
 
 GROUP subProduct EXTID 'vd:subProduct' : certifiedConsignmentBatch;
-subProductGuid = DATA LOCAL STRING();
 
 GROUP productItem EXTID 'vd:productItem' : certifiedConsignmentBatch;
 
@@ -179,13 +178,15 @@ importVetDocument(TEXT xml) {
         
         IF productGuid() AND NOT product(productGuid()) THEN NEW p = Product {
             guid(p) <- productGuid();
+            productType(p) <- productType(productTypeId());
         }
 
         IF subProductGuid() AND NOT subProduct(subProductGuid()) THEN NEW p = SubProduct {
             guid(p) <- subProductGuid();
+            product(p) <- product(productGuid());
         }
         
-        importProductItem();
+        importProductItem(subProduct(subProductGuid()));
         
         IF unitGuid() AND NOT unit(unitGuid()) THEN NEW u = Unit {
             guid(u) <- unitGuid();

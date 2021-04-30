@@ -10,6 +10,7 @@ stockEntry = DATA LOCAL TEXT(INTEGER);
 active = DATA LOCAL BOOLEAN();
 number = DATA LOCAL STRING();
 
+GROUP subProduct EXTID 'vd:subProduct' : batch;
 GROUP productItem EXTID 'vd:productItem' : batch;
 
 GROUP batchUnit EXTID 'vd:unit' : batch;
@@ -33,6 +34,8 @@ FORM importStockEntry FORMEXTID 'merc:stockEntry'
     PROPERTIES() IN batch
                  volume EXTID 'vd:volume',
                  unitGuid IN batchUnit EXTID 'bs:guid'
+
+    PROPERTIES() subProductGuid IN subProduct EXTID 'bs:guid'
 
     PROPERTIES() IN productItem 
                  productItemGuid EXTID 'bs:guid',
@@ -69,7 +72,7 @@ importStockEntry(TEXT xml, Enterprise e) {
             guid(u) <- unitGuid();
         }
         
-        importProductItem();
+        importProductItem(subProduct(subProductGuid()));
         
         FOR vetDocumentUuid(INTEGER i) AND NOT vetDocument(vetDocumentUuid(i)) DO NEW d = VetDocument {
             uuid(d) <- vetDocumentUuid(i);
