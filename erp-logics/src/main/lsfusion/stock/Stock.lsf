@@ -359,6 +359,50 @@ DESIGN dialogStocksMobile {
     }
 }
 
+FORM dialogMultiStocks 'Выбор складов'
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES (s) in
+    PROPERTIES(s) READONLY id, name
+    ORDERS name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCompany(s),
+            countCompanyStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'F5' DEFAULT    
+;
+
+DESIGN dialogMultiStocks {
+    BOX {
+        size = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    charWidth = 35;
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
 // ---------------------------------------------- Макросы для документов ------------------------------------------------- //
 
 // Склады
