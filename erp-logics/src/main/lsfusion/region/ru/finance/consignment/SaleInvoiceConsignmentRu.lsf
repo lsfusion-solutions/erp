@@ -1,11 +1,10 @@
-MODULE PurchaseReturnInvoiceConsignmentRu;
+MODULE SaleInvoiceConsignmentRu;
 
-REQUIRE PurchaseReturnInvoice,
+REQUIRE SaleInvoice,
         ConsignmentRu,
-        PurchaseReturnShipment,
-        InvoiceRu;
+        SaleShipment;
 
-NAMESPACE PurchaseReturn;
+NAMESPACE Sale;
 
 EXTEND CLASS Invoice : Consignment;
 
@@ -13,11 +12,11 @@ dataDate[Consignment] (Invoice consignment) += date(consignment);
 number[Consignment] (Invoice consignment) += number(consignment);
 series[Consignment] (Invoice consignment) += series(consignment);
 
-dataSupplier (Invoice consignment) += to(consignment);
-dataCustomer (Invoice consignment) += from(consignment);
+dataSupplier (Invoice consignment) += from(consignment);
+dataCustomer (Invoice consignment) += to(consignment);
 
-dataSupplierStock[Consignment] (Invoice consignment) += toStock(consignment);
-dataCustomerStock[Consignment] (Invoice consignment) += fromStock(consignment);
+dataSupplierStock[Consignment] (Invoice consignment) += fromStock(consignment);
+dataCustomerStock[Consignment] (Invoice consignment) += toStock(consignment);
 
 contract[Consignment](Invoice consignment) += contractSku(consignment);
 
@@ -41,10 +40,18 @@ dataSumConsignment (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN 
 dataShipmentPrice (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN shipmentPrice(detail);
 dataShipmentSum (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN shipmentSum(detail);
 
+dataSumConsignmentDetail (Invoice consignment) += invoiceSumInvoiceDetail(consignment);
+dataVATSumConsignmentDetail (Invoice consignment) += VATSumInvoiceDetail(consignment);
+
+includeOrders (Invoice consignment) += includeOrders(consignment);
+
 EXTEND FORM  invoices
-        PROPERTIES(i)  editAttributes SHOWIF isOpened(i)
-        PROPERTIES(i) READONLYIF banPrint(i) printConsignmentTorg13, printConsignmentTorg12, printConsignmentUPD
-    ;
+    PROPERTIES(i)  editAttributes SHOWIF isOpened(i)
+    PROPERTIES(i) READONLYIF banPrint(i) printConsignmentCustomerRu, 
+        printConsignmentTTNARu, printConsignmentTTNBRu, printConsignmentTTNABRu,
+        printConsignmentTorg13, printConsignmentTorg12, printConsignmentUPD,
+        printConsignmentM15
+;
 
 DESIGN invoices {
     printTab {
@@ -65,15 +72,15 @@ DESIGN invoices {
                 type = COLUMNS;
                 columns = 3;
                 caption = 'Отчеты';
+                MOVE PROPERTY(printConsignmentCustomerRu(i)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTTNARu(i)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTTNBRu(i)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTTNABRu(i)) { alignment = STRETCH; }                
                 MOVE PROPERTY(printConsignmentTorg13(i)) { alignment = STRETCH; }
                 MOVE PROPERTY(printConsignmentTorg12(i)) { alignment = STRETCH; }   
-                MOVE PROPERTY(printConsignmentUPD(i)) { alignment = STRETCH; }                           
+                MOVE PROPERTY(printConsignmentUPD(i)) { alignment = STRETCH; }   
+                MOVE PROPERTY(printConsignmentM15(i)) { alignment = STRETCH; }                        
             }
         }
     }
 }
-
-overVAT(UserInvoiceDetail d) += valueCurrentVAT(country(supplierStock(d)), 0.0) IF isNotVATPayer(supplier(d));
-
-CONSTRAINT isPosted(UserInvoiceDetail d) AND supplier(userInvoice(d)) AND sku(d) AND NOT valueVAT(d) AND NOT isNotVATPayer(supplier(d)) AND inVATPayer()
-    MESSAGE 'Поставщик является плательщиком НДС';

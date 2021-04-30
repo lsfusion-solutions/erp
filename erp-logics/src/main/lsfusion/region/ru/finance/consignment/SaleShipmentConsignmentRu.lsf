@@ -1,0 +1,68 @@
+MODULE SaleShipmentConsignmentRu;
+
+REQUIRE SaleShipment,
+        ConsignmentRu;
+
+NAMESPACE Sale;
+
+EXTEND CLASS Shipment : Consignment;
+
+dataDate[Consignment] (Shipment consignment) += date(consignment);
+number[Consignment] (Shipment consignment) += number(consignment);
+series[Consignment] (Shipment consignment) += series(consignment);
+
+dataSupplier (Shipment consignment) += supplier(consignment);
+dataCustomer (Shipment consignment) += customer(consignment);
+
+dataSupplierStock[Consignment] (Shipment consignment) += fromStock(consignment);
+dataCustomerStock[Consignment] (Shipment consignment) += toStock(consignment);
+
+EXTEND CLASS ShipmentDetail : ConsignmentDetail;
+
+index[ConsignmentDetail] (ShipmentDetail d) += index (d);
+consignment (ShipmentDetail d) += shipment(d);
+skip[ConsignmentDetail](ShipmentDetail d) += skipConsignment(invoiceDetail(d));
+dataSku[ConsignmentDetail] (ShipmentDetail d) += sku (d);
+batch[ConsignmentDetail] (ShipmentDetail d) += batch (d);    
+dataQuantity[ConsignmentDetail] (ShipmentDetail d) += OVERRIDE quantity(invoiceDetail(d)), quantity(d);
+dataAmountPack[ConsignmentDetail] (ShipmentDetail d) += amountPack(d);
+dataPackQuantity[ConsignmentDetail] (ShipmentDetail d) += packQuantity(d);
+dataGrossWeight[ConsignmentDetail] (ShipmentDetail d) += sumGrossWeight(invoiceDetail(d));
+dataNetWeight[ConsignmentDetail] (ShipmentDetail d) += sumNetWeight(invoiceDetail(d));    
+dataPrice[ConsignmentDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN price(invoiceDetail(d));
+dataSum[ConsignmentDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN sum(invoiceDetail(d));
+dataVAT[ConsignmentDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN valueVAT(invoiceDetail(d));
+dataSumVAT[ConsignmentDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN VATSum(invoiceDetail(d));
+dataShipmentPrice[ConsignmentDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN price(d);
+dataShipmentSum[ConsignmentDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN sum(d);
+dataSumConsignment[ConsignmentDetail] (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN invoiceSum(invoiceDetail(d));
+
+EXTEND FORM  shipments
+    PROPERTIES(s)  editAttributes SHOWIF isOpened(s)
+    PROPERTIES(s) READONLYIF banPrint(s) printConsignmentM15
+;
+
+DESIGN shipments {
+    printTab {
+        NEW consignmentRow1 {
+            align = START;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(s)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'Отчеты'; 
+                MOVE PROPERTY(printConsignmentM15(s)) { alignment = STRETCH; }                        
+            }
+        }
+    }
+}
