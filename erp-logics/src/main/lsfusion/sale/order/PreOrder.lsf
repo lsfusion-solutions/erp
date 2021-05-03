@@ -325,8 +325,8 @@ EXTEND FORM preOrders
 ;
 
 batchReserve 'Резерв по партиям' = DATA BOOLEAN ();
-
-WHEN (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND NOT batchReserve() DO {
+customReserve = ABSTRACT BOOLEAN ();
+WHEN (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND NOT (batchReserve() OR customReserve())  DO {
     preOrderDetail(d) <- NULL;
     preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) 
                                AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
@@ -346,13 +346,18 @@ WHEN FORMS userWriteOff (SETCHANGED(sku(WriteOffDetail d)) OR SETCHANGED(stock(d
                                    ORDER DESC fromDate(pd), pd]() WHERE NOT preOrderDetail(d);
 }
 
+fillPreOrderDetailOver ABSTRACT();
 fillPreOrderDetail 'Проставить в заказы на продажу ссылки на резерв' ()  { 
-    FOR Sale.Order o IS Sale.Order AND dateTime(o) >= [ GROUP MIN fromDateTime(PreOrder po)]() DO {
-        preOrderDetail(Sale.OrderDetail d) <- [ GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) //prevCalcQuantity(d,pd) >= quantity(d) 
-                                                       AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
-                                                       AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
-                                                       ORDER DESC fromDate(pd), pd]() WHERE order(d) == o AND NOT preOrderDetail(d);
-        IF [ GROUP SUM 1 IF CHANGED(preOrderDetail(Sale.OrderDetail d))]() THEN APPLY;
+    IF NOT customReserve() THEN {    
+        FOR Sale.Order o IS Sale.Order AND dateTime(o) >= [ GROUP MIN fromDateTime(PreOrder po)]() DO {
+            preOrderDetail(Sale.OrderDetail d) <- [ GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) //prevCalcQuantity(d,pd) >= quantity(d) 
+                                                           AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
+                                                           AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
+                                                           ORDER DESC fromDate(pd), pd]() WHERE order(d) == o AND NOT preOrderDetail(d);
+            IF [ GROUP SUM 1 IF CHANGED(preOrderDetail(Sale.OrderDetail d))]() THEN APPLY;
+        }
+    } ELSE {
+        fillPreOrderDetailOver();
     }
 }
 
