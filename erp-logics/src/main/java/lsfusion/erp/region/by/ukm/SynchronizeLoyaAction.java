@@ -652,7 +652,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
 
             String deleteList = "";
             int deleteCount = 0;
-            LoyaResponse getResponse = executeRequestWithRelogin(context, new HttpGet(settings.url + "goodgrouplink/" + settings.partnerId + "/" + idItemGroup));
+            LoyaResponse getResponse = executeRequestWithRelogin(context, new HttpGet(settings.url + "goodgrouplink/" + settings.partnerId + "/" + idItemGroup + "?pager.limit=100000"));
             try {
                 JSONArray itemsArray = new JSONArray(getResponse.message);
                 ERPLoggers.importLogger.info(String.format("Loya: synchronizing goodGroupLinks. Group %s: %s items before synchronization", idItemGroup, itemsArray.length()));
