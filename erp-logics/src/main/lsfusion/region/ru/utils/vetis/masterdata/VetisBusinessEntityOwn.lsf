@@ -19,3 +19,32 @@ EXTEND FORM businessEntity
 EXTEND FORM businessEntities 
     PROPERTIES(o) READONLY own
 ;
+
+// business entity login
+login 'Логин' = DATA STRING[100](BusinessEntity);
+password 'Пароль' = DATA STRING[100](BusinessEntity) ECHO;
+
+defaultBusinessEntity = DATA BusinessEntity ();
+default 'По умолчанию' (BusinessEntity b) = defaultBusinessEntity() = b;
+
+encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
+
+httpBusinessEntity = DATA LOCAL BusinessEntity ();
+
+httpHeaders(TEXT name) = CASE
+    WHEN name = 'Authorization' THEN 
+        'Basic ' + encodeText(login(OVERRIDE httpBusinessEntity(), defaultBusinessEntity()) + ':' + 
+                              password(OVERRIDE httpBusinessEntity(), defaultBusinessEntity()), 'base64');
+
+EXTEND FORM integrationData
+    OBJECTS beo = BusinessEntity
+    PROPERTIES(beo) READONLY guid, name
+    PROPERTIES(beo) default, login, password, apiKey, defaultLoginMercury
+    FILTERS own(beo)
+;
+
+DESIGN integrationData {
+    vetis {
+        MOVE BOX(beo);
+    }
+}
