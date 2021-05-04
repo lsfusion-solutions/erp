@@ -1,6 +1,6 @@
 MODULE EGAISQueryRestsv2;
 
-REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISProductImport, EGAISFRegLedger, EGAISActChargeOn;
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISProductImport, EGAISFRegLedger, EGAISActChargeOn, EGAISTicket;
 
 NAMESPACE EGAIS;
 
@@ -9,10 +9,6 @@ TABLE queryRestsv2(QueryRestsv2);
 
 EXTEND CLASS DocType { QueryRests_v2 'Запрос остатков' }
 docType (QueryRestsv2 r) += DocType.QueryRests_v2 IF r IS QueryRestsv2; 
-
-client = DATA Client (QueryRestsv2);
-idClient 'Код организации' (QueryRestsv2 q) = id(client(q));
-shortNameClient 'Организации' (QueryRestsv2 q) = shortName(client(q));
 
 GROUP parameters EXTID 'qp:Parameters';
 GROUP parameter EXTID 'qp:Parameter' : parameters;
@@ -59,7 +55,7 @@ EXTEND FORM balanceReg
 EXTEND CLASS DocType { ReplyRests_v2 'Ответ на запрос остатков' }
 
 GROUP replyRests_v2 EXTID 'ns:ReplyRests_v2' : document;
-GROUP products EXTID 'rap:Products' : replyRests_v2;
+GROUP products EXTID 'rst:Products' : replyRests_v2;
 
 GROUP rstProduct EXTID 'rst:Product';
 
@@ -120,5 +116,12 @@ process (InDoc d) + {
             processed(d) <- TRUE;
             APPLY;
         }
+    }
+}
+
+// ticket
+process (Ticket t) + {
+    IF docType(t) = 'QueryRests_v2' THEN {
+        processed() <- TRUE;
     }
 }

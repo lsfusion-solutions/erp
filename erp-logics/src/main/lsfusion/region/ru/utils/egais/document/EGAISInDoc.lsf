@@ -18,6 +18,9 @@ docType = DATA DocType (InDoc) INDEXED;
 idDocType 'Код типа' (InDoc d) = id(docType(d));
 nameDocType 'Тип документа' (InDoc d) = name(docType(d));
 
+dateTime 'Время' = DATA DATETIME (InDoc);
+dateTime(InDoc d) <- currentDateTime() WHEN SET(d IS InDoc);
+
 url 'Url' = DATA STRING (InDoc) INDEXED;
 inDoc = GROUP MAX InDoc d BY utm(d), url(d);
 
@@ -38,7 +41,7 @@ DESIGN inDoc {
 
 FORM inDocs 'Входящие документы'
     OBJECTS d = InDoc
-    PROPERTIES(d) READONLYIF isReadonly() nameUtm, idOutDoc, idDocType, nameDocType, url, document PANEL
+    PROPERTIES(d) READONLYIF isReadonly() nameUtm, idOutDoc, idDocType, nameDocType, dateTime, url, document PANEL
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
 ;
 
@@ -68,7 +71,7 @@ EXTEND FORM outDocs
     PROPERTIES(r) READONLY countInDocs
 
     OBJECTS i = InDoc
-    PROPERTIES(i) READONLY idDocType, nameDocType, url, document
+    PROPERTIES(i) READONLY idDocType, nameDocType, dateTime, url, document
     FILTERS outDoc(i) = r 
 ;
 
@@ -106,11 +109,17 @@ url = DATA LOCAL STRING(INTEGER);
 
 regexpMatch = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
 docTypeId (INTEGER i) = regexpMatch(url(i), '.*\\/opt\\/out\\/([a-zA-Z_0-9]*)\\/.*');
-docType (INTEGER i) = docType(docTypeId(i));
+docType (INTEGER i) = docType[STRING](lower(docTypeId(i)));
 
 FORM getInDocs FORMEXTID 'A'
     OBJECTS i = INTEGER EXTID 'url'
     PROPERTIES(i) url EXTID 'value', replyId EXTID 'replyId' ATTR 
+;
+
+skipImport 'Не импортировать' = DATA BOOLEAN (DocType);
+skipDelete 'Не удалять' = DATA BOOLEAN (DocType);
+EXTEND FORM integrationData
+    PROPERTIES(edt) skipImport, skipDelete
 ;
 
 getInDocs 'Получить входящие документы' (UTM u) {
@@ -128,7 +137,7 @@ getInDocs 'Получить входящие документы' (UTM u) {
     
     IMPORT getInDocs XML FROM response();
         
-    FOR docType(INTEGER i) AND NOT inDoc(u, url(i)) DO {
+    FOR docType(INTEGER i) AND NOT skipImport(docType(i)) AND NOT inDoc(u, url(i)) DO {
         NEWSESSION NESTED LOCAL {
             TRY {
                 EXTERNAL HTTP GET url(i) TO response;
@@ -140,7 +149,7 @@ getInDocs 'Получить входящие документы' (UTM u) {
                     url(d) <- url(i);
                     document(d) <- resultString();
                     APPLY NESTED LOCAL;
-                    IF NOT canceled() THEN {
+                    IF NOT canceled() AND NOT skipDelete(docType(d)) THEN {
                         delete(d);
                     }
                 }

@@ -6,10 +6,11 @@ NAMESPACE EGAIS;
 
 // out
 
-EXTEND CLASS DocType { WayBill_v3 'ТТН' }
+EXTEND CLASS DocType { WayBill_v3 'ТТН (версия 3)' }
+EXTEND CLASS DocType { WayBill_v4 'ТТН (версия 4)'}
 
 CLASS WayBillOutDoc 'ТТН' : OutDoc;
-docType(WayBillOutDoc r) += DocType.WayBill_v3 IF r IS WayBillOutDoc; 
+docType(WayBillOutDoc r) += DocType.WayBill_v4 IF r IS WayBillOutDoc; 
 
 wayBillOutDoc = GROUP LAST WayBillOutDoc a ORDER a WHERE a IS WayBillOutDoc BY wayBill(a);
 commentsWayBillOutDoc 'Комментарий отправки' (WayBill t) = comments(wayBillOutDoc(t));
@@ -21,8 +22,8 @@ GROUP content EXTID 'wb:Content';
 
 GROUP informF2 EXTID 'wb:InformF2';
 
-FORM wayBill_v3 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill_v3'
-    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/CommonV3' EXTID 'xmlns:ce', ='http://fsrar.ru/WEGAIS/ClientRef_v2' EXTID 'xmlns:oref', ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref', ='http://fsrar.ru/WEGAIS/TTNSingle_v3' EXTID 'xmlns:wb', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+FORM wayBill_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill_v4'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/CommonV3' EXTID 'xmlns:ce', ='http://fsrar.ru/WEGAIS/ClientRef_v2' EXTID 'xmlns:oref', ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref', ='http://fsrar.ru/WEGAIS/TTNSingle_v4' EXTID 'xmlns:wb', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
     
     OBJECTS w = WayBillOutDoc PANEL
     
@@ -38,9 +39,10 @@ FORM wayBill_v3 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill_v3
                          =xml(shipper(wayBill(w))) EXTID 'wb:Shipper',
                          =xml(consignee(wayBill(w))) EXTID 'wb:Consignee'
 
-    PROPERTIES IN transport ='TRAN_TYPE' EXTID 'wb:TRAN_TYPE', 
+    PROPERTIES IN transport ='Автомобиль' EXTID 'wb:TRAN_TYPE', 
+                            =IF shipper(wayBill(w)) = consignee(wayBill(w)) THEN 'NotChange' ELSE 'IsChange' EXTID 'wb:ChangeOwnership', 
+                            ='car' EXTID 'wb:TRANSPORT_TYPE', 
                             ='TRAN_COMPANY' EXTID 'wb:TRAN_COMPANY', 
-                            ='TRAN_CAR' EXTID 'wb:TRAN_CAR', 
                             ='TRAN_TRAILER' EXTID 'wb:TRAN_TRAILER', 
                             ='TRAN_CUSTOMER' EXTID 'wb:TRAN_CUSTOMER', 
                             ='TRAN_DRIVER' EXTID 'wb:TRAN_DRIVER', 
@@ -51,7 +53,7 @@ FORM wayBill_v3 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill_v3
     
     OBJECTS p = WayBillPosition EXTID 'wb:Position' IN content
     
-    PROPERTIES =LONG(p) EXTID 'wb:Identity',
+    PROPERTIES identity(p) EXTID 'wb:Identity',
                =xml(product(p)) EXTID 'wb:Product', 
                quantity(p) EXTID 'wb:Quantity', 
                price(p) EXTID 'wb:Price', 
@@ -63,7 +65,7 @@ FORM wayBill_v3 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill_v3
 ;
 
 submitWayBill (WayBillOutDoc w) {
-    EXPORT wayBill_v3 OBJECTS w = w XML;
+    EXPORT wayBill_v4 OBJECTS w = w XML;
     submit(w, exportFile());
 }
 
@@ -76,10 +78,10 @@ submitWayBill (WayBill w) {
 }
 
 // in
-GROUP wayBill_v3 EXTID 'ns:WayBill_v3' : document;
-GROUP wayBillHeader EXTID 'wb:Header' : wayBill_v3;
+GROUP wayBill_v4 EXTID 'ns:WayBill_v4' : document;
+GROUP wayBillHeader EXTID 'wb:Header' : wayBill_v4;
 
-GROUP wayBillContent EXTID 'wb:Content' : wayBill_v3;
+GROUP wayBillContent EXTID 'wb:Content' : wayBill_v4;
 
 NUMBER = DATA LOCAL STRING();
 date = DATA LOCAL DATE();
@@ -107,8 +109,8 @@ GROUP amclist EXTID 'ce:amclist';
 boxposAmc = DATA LOCAL INTEGER (INTEGER);
 amc = DATA LOCAL STRING[200] (INTEGER);
 
-FORM inWayBill_v3 FORMEXTID 'ns:Documents'
-    PROPERTIES() IN wayBill_v3 identity EXTID 'wb:Identity'
+FORM inWayBill_v4 FORMEXTID 'ns:Documents'
+    PROPERTIES() IN wayBill_v4 identity EXTID 'wb:Identity'
 
     PROPERTIES() IN wayBillHeader NUMBER EXTID 'wb:NUMBER', 
                            date EXTID 'wb:Date', 
@@ -139,10 +141,10 @@ FORM inWayBill_v3 FORMEXTID 'ns:Documents'
 ;
 
 process (InDoc d) + {
-    IF docType(d) = DocType.WayBill_v3 THEN {
+    IF docType(d) = DocType.WayBill_v3 OR docType(d) = DocType.WayBill_v4 THEN {
         NEWSESSION {
-            stringToFile(document(d));
-            IMPORT inWayBill_v3 XML FROM resultFile();
+            stringToFile(replace(document(d), 'WayBill_v3', 'WayBill_v4'));
+            IMPORT inWayBill_v4 XML FROM resultFile();
             
             IF identity() OR NUMBER() OR date() THEN {
                 NEW w = WayBill {
@@ -213,72 +215,3 @@ process (InDoc d) + {
         }
     }
 }
-
-META defineDocumentOutWayBillProcess (doc, supplierStock, customerStock)
-    wayBill = DATA WayBill (###doc) INDEXED;
-    
-    doc##Detail = DATA ###doc##Detail (WayBillPosition) INDEXED;
-    
-    process 'Отправить в ЕГАИС' (###doc i) {
-        NEWSESSION {
-            NEW w = WayBill {
-                wayBill(i) <- w;
-                
-                id(w) <- STRING(w);
-                number(w) <- seriesNumber(i);
-                
-                date(w) <- date(i);
-                shippingDate(w) <- date(i);
-                
-                shipper(w) <- client(supplierStock(i));
-                consignee(w) <- client(customerStock(i));
-                
-                FOR quantity(###doc##Detail d, F2Reg r) IF doc(d) = i NEW p = WayBillPosition DO {
-                    wayBill(p) <- w;
-                    
-                    doc##Detail(p) <- d;
-                    
-                    product(p) <- product(r);
-                    
-                    identity(p) <- STRING(d) + '/' + STRING(r);
-                    
-                    quantity(p) <- quantity(d, r);
-                    price(p) <- price(d);
-                    
-                    f1Reg(p) <- f1Reg(r);
-                    f2Reg(p) <- r;
-                } 
-                
-                submitWayBill(wayBill(i));
-                APPLY;
-            }
-        }
-    }
-END
-
-META defineDocumentOutWayBillForm (doc, obj)
-    EXTEND FORM doc##s
-        OBJECTS w = WayBill PANEL
-        PROPERTIES(w) READONLY accepted, canceled, number, date, shippingDate
-        FILTERS w = wayBill(obj)
-    
-        OBJECTS wp = WayBillPosition
-        PROPERTIES(wp) READONLY idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg, 
-                                idConsigneeF2Reg, realQuantity BACKGROUND backgroundRealQuantity(wp), bottlingDate
-        FILTERS wayBill(wp) = w
-    
-        PROPERTIES READONLY commentsWayBillAct 'Комментарий' = comments(wayBillOutDoc(w)) PANEL     
-        PROPERTIES(obj) processEGAIS = process SHOWIF isPosted(obj) AND NOT notRejected(wayBillOutDoc(w)) DRAW wp TOOLBAR 
-    ;
-    
-    DESIGN doc##s {
-        documentDetail {
-            NEW EGAIS {
-                caption = 'ЕГАИС';
-                MOVE BOX(w);
-                MOVE BOX(wp);
-                MOVE PROPERTY(commentsWayBillAct) { panelCaptionVertical = TRUE; fill = 0.2; }
-            }
-        }
-    }
-END

@@ -1,6 +1,6 @@
 MODULE EGAISDoc;
 
-REQUIRE MasterData, Utils;
+REQUIRE EGAIS, MasterData, Utils;
 
 NAMESPACE EGAIS;
 
@@ -14,8 +14,10 @@ CLASS DocType 'Тип документа ЕГАИС' {
 }
 TABLE docType (DocType);
 
-id 'Код' (DocType o) = STRING[100](rtrim(getWord(staticName(o),'.',2),'_')) IF o IS DocType CHARWIDTH 10;
-docType = GROUP MAX DocType t BY id(t);
+transportId = ABSTRACT CASE STRING (DocType);
+
+id 'Код' (DocType o) = ISTRING[100](rtrim(getWord(staticName(o),'.',2),'_')) IF o IS DocType CHARWIDTH 10;
+docType = GROUP MAX DocType t BY lower(OVERRIDE transportId(t), id(t));
 
 name 'Наименование' (DocType o) = staticCaption(o) IF o IS DocType CHARWIDTH 15;
 
@@ -25,3 +27,14 @@ FORM dialogDocTypes 'Тип документа ЕГАИС'
     
     LIST DocType OBJECT o
 ;
+
+EXTEND FORM integrationData
+    OBJECTS edt = DocType
+    PROPERTIES(edt) READONLY id, name
+;
+
+DESIGN integrationData {
+    EGAIS {
+        MOVE BOX(edt);
+    }
+}

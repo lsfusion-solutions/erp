@@ -23,17 +23,30 @@ TABLE balanceF2Reg(F2Reg);
 currentBalance 'Текущий остаток' (F2Reg r) = GROUP SUM quantity(FRegLedger l) IF posted(l) BY f2Reg(l) MATERIALIZED TABLE balanceF2Reg;
 CONSTRAINT currentBalance(F2Reg r) < 0 MESSAGE 'Остаток по справке Б не может быть отрицательным'; 
 
+EXTEND FORM f2Regs
+    PROPERTIES(r) READONLY currentBalance
+
+    FILTERGROUP balance
+        FILTER 'С остатком' currentBalance(r) > 0 DEFAULT
+;
+
 FORM balanceReg 'Остатки на регистре 1'
     OBJECTS r = F2Reg
     PROPERTIES(r) READONLY id, idF1Reg, idProduct, fullNameProduct, shortNameClient, currentBalance
 
     FILTERGROUP balance
-        FILTER 'С остатком' currentBalance(r) > 0
+        FILTER 'С остатком' currentBalance(r) > 0 DEFAULT
 
     OBJECTS l = FRegLedger
     PROPERTIES(l) READONLY objectClassName, date, number, quantity
     FILTERS posted(l), f2Reg(l) = r
 ;
+
+NAVIGATOR {
+    EGAISReg {
+        NEW balanceReg;
+    }
+}
 
 META defineDocumentOutBalance (doc, obj, supplierStock)
 
@@ -64,7 +77,7 @@ META defineDocumentOutBalance (doc, obj, supplierStock)
         PROPERTIES(obj) fillQuantity DRAW ed TOOLBAR
         
         OBJECTS re = F2Reg
-        PROPERTIES(re) READONLY id, idF1Reg, fullNameProduct, currentBalance
+        PROPERTIES(re) READONLY id, idF1Reg PANEL, fullNameProduct, currentBalance
         PROPERTIES(ed, re)      quantity, fillQuantity GRID
         FILTERS matches(ed, re)
     

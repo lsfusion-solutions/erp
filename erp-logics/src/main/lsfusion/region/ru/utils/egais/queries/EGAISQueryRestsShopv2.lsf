@@ -1,6 +1,6 @@
 MODULE EGAISQueryRestsShopv2;
 
-REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISProductImport, EGAISFRegShopLedger, EGAISActChargeOnShop;
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISProductImport, EGAISFRegShopLedger, EGAISActChargeOnShop, EGAISTicket;
 
 NAMESPACE EGAIS;
 
@@ -9,10 +9,6 @@ TABLE queryRestsShopv2(QueryRestsShopv2);
 
 EXTEND CLASS DocType { QueryRestsShop_v2 'Запрос остатков в магазине' }
 docType (QueryRestsShopv2 r) += DocType.QueryRestsShop_v2 IF r IS QueryRestsShopv2; 
-
-producer = DATA Client (QueryRestsShopv2);
-idClient 'Код организации' (QueryRestsShopv2 q) = id(producer(q));
-shortNameClient 'Организации' (QueryRestsShopv2 q) = shortName(producer(q));
 
 GROUP parameters EXTID 'qp:Parameters';
 GROUP parameter EXTID 'qp:Parameter' : parameters;
@@ -48,7 +44,7 @@ EXTEND FORM balanceRegShop
 EXTEND CLASS DocType { ReplyRestsShop_v2 'Ответ на запрос остатков в магазине' }
 
 GROUP replyRestsShop_v2 EXTID 'ns:ReplyRestsShop_v2' : document;
-GROUP products EXTID 'rap:Products' : replyRestsShop_v2;
+GROUP products EXTID 'rst:Products' : replyRestsShop_v2;
 
 GROUP rstProduct EXTID 'rst:Product';
 
@@ -96,5 +92,12 @@ process (InDoc d) + {
             processed(d) <- TRUE;
             APPLY;
         }
+    }
+}
+
+// ticket
+process (Ticket t) + {
+    IF docType(t) = 'QueryRestsShop_v2' THEN {
+        processed() <- TRUE;
     }
 }

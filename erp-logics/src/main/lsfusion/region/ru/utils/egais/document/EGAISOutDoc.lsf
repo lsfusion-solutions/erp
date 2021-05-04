@@ -24,9 +24,13 @@ date 'Дата' (OutDoc d) = DATE(dateTime(d));
 
 client 'Организация' = DATA Client (OutDoc);
 idClient 'СИО' (OutDoc o) = id(client(o)); 
-shortNameClient 'СИО' (OutDoc o) = shortName(client(o)); 
+shortNameClient 'Организация' (OutDoc o) = shortName(client(o)); 
 
 client(OutDoc d) <- defaultClient() WHEN SET(d IS OutDoc);
+
+CONSTRAINT client(OutDoc r) AND NOT own(client(r)) CHECKED BY client[OutDoc]
+    MESSAGE 'Для исходящего документа ЕГАИС выбрана не собственная организация';
+
 
 FORM outDocs 'Исходящие документы'
     OBJECTS r = OutDoc
@@ -122,6 +126,8 @@ META defineDocumentOutDoc(doc, type, caption)
     doc = DATA ###doc (###doc##OutDoc) INDEXED;
     doc##OutDoc = GROUP LAST ###doc##OutDoc a ORDER a BY doc(a);
     comments###doc##OutDoc 'Комментарий отправки' (###doc t) = comments(doc##OutDoc(t));
+    
+    countOutDocs 'Исходящие документы' (###doc d) = GROUP SUM 1 IF doc(###doc##OutDoc od) = d MATERIALIZED;
 END
 
 META defineDocumentOutProcess(doc, container)
@@ -141,6 +147,9 @@ META defineDocumentOutProcess(doc, container)
     EXTEND FORM doc##s
         PROPERTIES(d) READONLY comments###doc##OutDoc PANEL
         PROPERTIES(d) process SHOWIF NOT notRejected(doc##OutDoc(d)) TOOLBAR
+        
+        OBJECTS odd = ###doc##OutDoc
+        PROPERTIES(odd) READONLY id, dateTime, comments
     ;
     
     DESIGN doc##s {
@@ -148,6 +157,10 @@ META defineDocumentOutProcess(doc, container)
             NEW comments {
                 caption = 'Комментарии';
                 MOVE PROPERTY(comments###doc##OutDoc(d)) { fill = 1; panelCaptionVertical = TRUE; }
+            }
+            NEW outDocs {
+                caption = CONCAT ' ', 'Исходящие документы', '(' + countOutDocs(d) + ')';
+                MOVE BOX(odd);
             }
         }
     }
