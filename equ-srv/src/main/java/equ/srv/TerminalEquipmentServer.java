@@ -1,15 +1,13 @@
 package equ.srv;
 
-import com.google.common.base.Throwables;
-import equ.api.terminal.*;
-import equ.srv.terminal.TerminalServer.*;
+import equ.api.terminal.TerminalAssortment;
+import equ.api.terminal.TerminalDocumentType;
+import equ.api.terminal.TerminalHandbookType;
+import equ.api.terminal.TerminalLegalEntity;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
-import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.base.file.RawFileData;
-import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -21,161 +19,16 @@ import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.data.time.DateTimeClass;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.property.classes.IsClassProperty;
-import lsfusion.server.logics.property.oraction.PropertyInterface;
 
-import java.awt.*;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class TerminalEquipmentServer {
-
-    static ScriptingLogicsModule terminalOrderLM;
-    static ScriptingLogicsModule terminalHandlerLM;
-
-    public static void init(BusinessLogics BL) {
-        terminalOrderLM = BL.getModule("TerminalOrder");
-        terminalHandlerLM = BL.getModule("TerminalHandler");
-    }
-
-    public static List<ServerTerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
-        Map<String, ServerTerminalOrder> terminalOrderMap = new HashMap<>();
-
-        if (terminalOrderLM != null) {
-            try {
-                KeyExpr orderExpr = new KeyExpr("terminalOrder");
-                KeyExpr orderDetailExpr = new KeyExpr("terminalOrderDetail");
-                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap("TerminalOrder", orderExpr, "TerminalOrderDetail", orderDetailExpr);
-                QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
-                String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
-                LP<?>[] orderProperties = terminalOrderLM.findProperties("date[TerminalOrder]", "number[TerminalOrder]", "idSupplier[TerminalOrder]");
-                for (int i = 0; i < orderProperties.length; i++) {
-                    orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
-                }
-                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
-                        "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail", "minDeviationQuantityOrderDetail",
-                        "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
-                        "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
-                        "minDeviationDate", "maxDeviationDate", "vop", "dateShipment", "extraBarcodes"};
-                LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
-                        "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
-                        "nameManufacturerSku[TerminalOrderDetail]", "passScalesSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
-                        "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
-                        "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
-                        "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]",
-                        "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]", "vop[TerminalOrderDetail]", "dateShipment[TerminalOrderDetail]",
-                        "extraBarcodes[TerminalOrderDetail]");
-                for (int i = 0; i < orderDetailProperties.length; i++) {
-                    orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
-                }
-
-                //todo: заменить на одно свойство в lsf
-                orderQuery.and(terminalOrderLM.findProperty("filter[TerminalOrder, Stock]").getExpr(orderExpr, customerStockObject.getExpr()).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("checkUser[TerminalOrder, Employee]").getExpr(orderExpr, userInfo.user.getExpr()).getWhere());
-                orderQuery.and((terminalOrderLM.findProperty("isOpened[TerminalOrder]")).getExpr(orderExpr).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("order[TerminalOrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-                orderQuery.and(terminalOrderLM.findProperty("number[TerminalOrder]").getExpr(orderExpr).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(orderDetailExpr).getWhere());
-
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
-                for (ImMap<Object, Object> entry : orderResult.values()) {
-                    LocalDate dateOrder = (LocalDate) entry.get("dateOrder");
-                    LocalDate dateShipment = (LocalDate) entry.get("dateShipment");
-                    String numberOrder = trim((String) entry.get("numberOrder"));
-                    String idSupplier = trim((String) entry.get("idSupplierOrder"));
-                    String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail"));
-                    String idItem = trim((String) entry.get("idSkuOrderDetail"));
-                    String name = trim((String) entry.get("nameSkuOrderDetail"));
-                    BigDecimal price = (BigDecimal) entry.get("priceOrderDetail");
-                    BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail");
-                    BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail");
-                    BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail");
-                    BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail");
-                    BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail");
-                    String nameManufacturer = (String) entry.get("nameManufacturerSkuOrderDetail");
-                    String weight = entry.get("passScalesSkuOrderDetail") != null ? "1" : "0";
-                    String color = formatColor((Color) entry.get("color"));
-
-                    String headField1 = (String) entry.get("headField1");
-                    String headField2 = (String) entry.get("headField2");
-                    String headField3 = (String) entry.get("headField3");
-                    String posField1 = (String) entry.get("posField1");
-                    String posField2 = (String) entry.get("posField2");
-                    String posField3 = (String) entry.get("posField3");
-                    String minDeviationDate = formatDate((LocalDate) entry.get("minDeviationDate"));
-                    String maxDeviationDate = formatDate((LocalDate) entry.get("maxDeviationDate"));
-                    String vop = (String) entry.get("vop");
-                    String extraBarcodes = (String) entry.get("extraBarcodes");
-                    List<String> extraBarcodeList = extraBarcodes != null ? Arrays.asList(extraBarcodes.split(",")) : new ArrayList<>();
-
-                    String key = numberOrder + "/" + barcode;
-                    TerminalOrder terminalOrder = terminalOrderMap.get(key);
-                    if (terminalOrder != null)
-                        terminalOrder.quantity = safeAdd(terminalOrder.quantity, quantity);
-                    else
-                        terminalOrderMap.put(key, new ServerTerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, price,
-                                quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
-                                headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
-                                extraBarcodeList));
-                }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return new ArrayList<>(terminalOrderMap.values());
-    }
-
-    public static Map<String, RawFileData> readTerminalOrderImages(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
-        Map<String, RawFileData> terminalOrderImages = new HashMap<>();
-
-        if (terminalOrderLM != null) {
-            try {
-                KeyExpr orderExpr = new KeyExpr("terminalOrder");
-                KeyExpr orderDetailExpr = new KeyExpr("terminalOrderDetail");
-                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap("TerminalOrder", orderExpr, "TerminalOrderDetail", orderDetailExpr);
-                QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
-
-                orderQuery.addProperty("barcode", terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(orderDetailExpr));
-                orderQuery.addProperty("image", terminalOrderLM.findProperty("image[TerminalOrderDetail]").getExpr(orderDetailExpr));
-
-                //todo: заменить на одно свойство в lsf
-                orderQuery.and(terminalOrderLM.findProperty("filter[TerminalOrder, Stock]").getExpr(orderExpr, customerStockObject.getExpr()).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("checkUser[TerminalOrder, Employee]").getExpr(orderExpr, userInfo.user.getExpr()).getWhere());
-                orderQuery.and((terminalOrderLM.findProperty("isOpened[TerminalOrder]")).getExpr(orderExpr).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("order[TerminalOrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-                orderQuery.and(terminalOrderLM.findProperty("number[TerminalOrder]").getExpr(orderExpr).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(orderDetailExpr).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("hasImage[TerminalOrderDetail]").getExpr(orderDetailExpr).getWhere());
-
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
-                for (ImMap<Object, Object> entry : orderResult.values()) {
-                    String barcode = trim((String) entry.get("barcode"));
-                    RawFileData image = (RawFileData) entry.get("image");
-
-                    terminalOrderImages.put(barcode, image);
-                }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return terminalOrderImages;
-    }
-
-    private static String formatDate(LocalDate date) {
-        return date != null ? date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : null;
-    }
-
-    private static String formatColor(Color color) {
-        return color == null ? null : String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
-    }
 
     public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, BusinessLogics BL, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -189,45 +42,24 @@ public class TerminalEquipmentServer {
             KeyExpr supplierExpr = new KeyExpr("Stock");
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("Sku", skuExpr, "Stock", supplierExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            if (terminalHandlerLM != null) {
-                query.addProperty("filterAssortment", terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-                query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-                query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-                query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-                query.addProperty("quantity", terminalHandlerLM.findProperty("quantity[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
-            } else
-                query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
-                        skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()));
+            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
+                    skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()));
             query.addProperty("idBarcodeSku", machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
             query.addProperty("idSupplier", machineryPriceTransactionLM.findProperty("id[Stock]").getExpr(supplierExpr));
 
             query.and(machineryPriceTransactionLM.findProperty("id[Stock]").getExpr(supplierExpr).getWhere());
             query.and(machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
-            if (terminalHandlerLM != null) {
-                query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr).getWhere());
-            } else
-                query.and(machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
-                    skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()).getWhere());
+            query.and(machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
+                skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String idBarcodeSku = trim((String) entry.get("idBarcodeSku"));
                 String idSupplier = trim((String) entry.get("idSupplier"));
                 BigDecimal price;
-                if (terminalHandlerLM != null)
-                    price = (BigDecimal) entry.get("price");
-                else
-                    price = (BigDecimal) entry.get("priceALedgerPriceListTypeSkuStockCompanyDateTime");
+                price = (BigDecimal) entry.get("priceALedgerPriceListTypeSkuStockCompanyDateTime");
 
-                BigDecimal maxPrice = null;
-                BigDecimal minPrice = null;
-                BigDecimal quantity = null;
-                if (terminalHandlerLM != null) {
-                    minPrice = (BigDecimal) entry.get("minPrice");
-                    maxPrice = (BigDecimal) entry.get("maxPrice");
-                    quantity = (BigDecimal) entry.get("quantity");
-                }
-                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price, minPrice, maxPrice, quantity));
+                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price, null, null, null));
             }
         }
         return terminalAssortmentList;
@@ -254,39 +86,6 @@ public class TerminalEquipmentServer {
             }
         }
         return terminalHandbookTypeList;
-    }
-
-    public static List<TerminalDocumentType> readTerminalDocumentTypeListServer(DataSession session, BusinessLogics BL, DataObject userObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
-        if(terminalLM != null) {
-            KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
-            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("terminalDocumentType", terminalDocumentTypeExpr);
-            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
-                    "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
-            LP<?>[] properties = terminalLM.findProperties("id[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
-                    "idTerminalHandbookType1[TerminalDocumentType]", "idTerminalHandbookType2[TerminalDocumentType]");
-            for (int i = 0; i < properties.length; i++) {
-                query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
-            }
-            query.and(terminalLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
-            if(userObject != null) {
-                query.and(terminalLM.findProperty("notSkip[TerminalDocumentType, CustomUser]").getExpr(terminalDocumentTypeExpr, userObject.getExpr()).getWhere());
-            } else {
-                query.and(terminalLM.findProperty("notSkip[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
-            }
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-            for (ImMap<Object, Object> entry : result.values()) {
-                String id = trim((String) entry.get("idTerminalDocumentType"));
-                String name = trim((String) entry.get("nameTerminalDocumentType"));
-                Long flag = (Long) entry.get("flagTerminalDocumentType");
-                String analytics1 = trim((String) entry.get("idTerminalHandbookType1TerminalDocumentType"));
-                String analytics2 = trim((String) entry.get("idTerminalHandbookType2TerminalDocumentType"));
-                terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, flag));
-            }
-        }
-        return terminalDocumentTypeList;
     }
 
     public static List<TerminalDocumentType> readTerminalDocumentTypeListEquipment(DataSession session, BusinessLogics BL, DataObject groupMachineryObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -319,78 +118,6 @@ public class TerminalEquipmentServer {
         return terminalDocumentTypeList;
     }
 
-    public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL, DataObject userObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        List<TerminalLegalEntity> customANAList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
-        if (terminalLM != null) {
-
-            KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
-            ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev("terminalHandbookType", terminalHandbookTypeExpr);
-            QueryBuilder<Object, Object> query = new QueryBuilder<>(terminalHandbookTypeKeys);
-            String[] names = new String[]{"exportId", "name", "propertyID", "propertyName", "filterProperty", "extInfoProperty"};
-            LP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
-                    "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]",
-                    "canonicalNameFilterProperty[TerminalHandbookType]", "canonicalNameExtInfoProperty[TerminalHandbookType]");
-            for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
-                query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
-            }
-            query.and(terminalLM.findProperty("exportId[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
-            query.and(terminalLM.findProperty("canonicalNamePropertyID[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
-            query.and(terminalLM.findProperty("canonicalNamePropertyName[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-            for (ImMap<Object, Object> entry : result.values()) {
-                String prefix = trim((String) entry.get("exportId"));
-                LP propertyID = (LP<?>) BL.findSafeProperty(trim((String) entry.get("propertyID")));
-                LP propertyName = (LP<?>) BL.findSafeProperty(trim((String) entry.get("propertyName")));
-                String canonicalNameFilterProperty = trim((String) entry.get("filterProperty"));
-                LP filterProperty = canonicalNameFilterProperty != null ? (LP<?>) BL.findSafeProperty(canonicalNameFilterProperty) : null;
-                String canonicalNameExtInfoProperty = trim((String) entry.get("extInfoProperty"));
-                LP extInfoProperty = canonicalNameExtInfoProperty != null ? (LP<?>) BL.findSafeProperty(canonicalNameExtInfoProperty) : null;
-
-                if(propertyID != null && propertyName != null) {
-                    ImOrderSet<PropertyInterface> interfaces = propertyID.listInterfaces;
-                    if (interfaces.size() == 1) {
-                        KeyExpr customANAExpr = new KeyExpr("customANA");
-                        ImRevMap<Object, KeyExpr> customANAKeys = MapFact.singletonRev("customANA", customANAExpr);
-                        QueryBuilder<Object, Object> customANAQuery = new QueryBuilder<>(customANAKeys);
-                        customANAQuery.addProperty("id", propertyID.getExpr(customANAExpr));
-                        customANAQuery.addProperty("name", propertyName.getExpr(customANAExpr));
-                        if(extInfoProperty != null) {
-                            customANAQuery.addProperty("extInfo", extInfoProperty.getExpr(customANAExpr));
-                        }
-                        if (filterProperty != null) {
-                            switch (filterProperty.listInterfaces.size()) {
-                                case 1:
-                                    customANAQuery.and(filterProperty.getExpr(customANAExpr).getWhere());
-                                    break;
-                                case 2:
-                                    //небольшой хак, для случая, когда второй параметр в фильтре - пользователь
-                                    Object interfaceObject = filterProperty.listInterfaces.get(1);
-                                    if (interfaceObject instanceof ClassPropertyInterface) {
-                                        if (IsClassProperty.fitClass(userObject.objectClass, ((ClassPropertyInterface) interfaceObject).interfaceClass))
-                                            customANAQuery.and(filterProperty.getExpr(customANAExpr, userObject.getExpr()).getWhere());
-                                    } else { //если не data property и второй параметр не пользователь, то фильтр отсечёт всё
-                                        customANAQuery.and(filterProperty.getExpr(customANAExpr, userObject.getExpr()).getWhere());
-                                    }
-                                    break;
-                            }
-                        }
-
-                        customANAQuery.and(propertyID.getExpr(customANAExpr).getWhere());
-                        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> customANAResult = customANAQuery.execute(session);
-                        for (ImMap<Object, Object> customANAEntry : customANAResult.values()) {
-                            String idCustomANA = trim((String) customANAEntry.get("id"));
-                            String nameCustomANA = trim((String) customANAEntry.get("name"));
-                            String extInfo = trim((String) customANAEntry.get("extInfo"));
-                            customANAList.add(new TerminalLegalEntity(prefix + idCustomANA, nameCustomANA, extInfo));
-                        }
-                    }
-                }
-            }
-        }
-        return customANAList;
-    }
-
     public static List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalLegalEntity> terminalLegalEntityList = new ArrayList<>();
         ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
@@ -412,11 +139,5 @@ public class TerminalEquipmentServer {
             }
         }
         return terminalLegalEntityList;
-    }
-
-    private static BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 }
