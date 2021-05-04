@@ -1,0 +1,403 @@
+MODULE PromotionalGame;
+
+REQUIRE ZReportDiscountCard, LogTools;
+
+CLASS PromotionalGame 'Рекламная игра';
+TABLE promotionalGame (PromotionalGame);
+
+id 'Код' = DATA STRING[100] (PromotionalGame) NONULL;
+promotionalGame = GROUP AGGR PromotionalGame g BY id(g);
+name 'Название' = DATA ISTRING[150] (PromotionalGame);
+fromDate 'Дата с' = DATA DATE (PromotionalGame);
+toDate 'Дата по' = DATA DATE (PromotionalGame);
+
+checkingPeriod 'Проверять чеки за (минут)' = DATA INTEGER (PromotionalGame);
+numerator 'Нумератор для генерации кодов' = DATA Numerator (PromotionalGame);
+nameNumerator 'Нумератор для генерации кодов' (PromotionalGame g) = name(numerator(g));
+
+TABLE promotionalGameInteger (PromotionalGame,INTEGER);
+countRaffle 'Количество розыгрышей' = DATA INTEGER (PromotionalGame);
+idRaffle 'Код розыгрыша' = DATA STRING[100] (PromotionalGame,INTEGER) CHARWIDTH 10;
+promotionalGameRaffle = GROUP AGGR INTEGER i BY PromotionalGame g, idRaffle(g,i);
+nameRaffle 'Название розыгрыша' = DATA ISTRING[50] (PromotionalGame,INTEGER) CHARWIDTH 20;
+
+TABLE promotionalGameIntegerDate (PromotionalGame,INTEGER,DATE);
+in 'Вкл.' = DATA BOOLEAN (PromotionalGame,INTEGER,DATE);
+
+TABLE promotionalGameItem (PromotionalGame,Item);
+in 'Акционный' = DATA BOOLEAN (PromotionalGame,Item);
+
+agreePromotionalGame 'Согласие на участие во всех РИ' = DATA BOOLEAN (DiscountCard);
+
+FORM addDateRaffle 'Дата розыгрыша'
+    OBJECTS d = DATE PANEL
+    PROPERTIES(d) VALUE
+;
+addDate 'Добавить' (PromotionalGame g, INTEGER i) {
+    DIALOG addDateRaffle OBJECTS d INPUT DO {
+        in(g,i,d) <- TRUE;
+    }
+} IMAGE 'add.png';
+deleteDate 'Удалить' (PromotionalGame g, INTEGER i, DATE d) {
+    in(g,i,d) <- NULL;
+} IMAGE 'delete.png';
+
+FORM promotionalGame 'Рекламная игра'
+    OBJECTS g = PromotionalGame PANEL
+    PROPERTIES(g) id, name, fromDate, toDate, countRaffle, checkingPeriod, nameNumerator
+    
+    OBJECTS r = INTEGER
+    PROPERTIES(r) VALUE HEADER 'Номер'
+    PROPERTIES(g,r) idRaffle, nameRaffle
+    FILTERS iterate(r,1,countRaffle(g))
+    
+    OBJECTS d = DATE
+    PROPERTIES(d) date = VALUE HEADER 'Дата розыгрыша'
+    PROPERTIES TOOLBAR DRAW d addDate(g,r), deleteDate(g,r,d) GRID
+    FILTERS in(g,r,d)
+    
+    TREE itemGroups ig = ItemGroup PARENT parent(ig)
+    PROPERTIES(ig) READONLY order, id SHOWIF showIDs(), name
+    ORDERS order(ig), name(ig)
+    FILTERGROUP inactive FILTER 'Активные' active(ig) DEFAULT
+    
+    OBJECTS i = Item
+    PROPERTIES(g,i) in
+    PROPERTIES(i) READONLY id SHOWIF showIDs(), idBarcode, name, nameBrand
+    ORDERS name(i)
+    FILTERS isParent(ig,i)
+    FILTERGROUP inactiveI FILTER 'Активные' active(i) DEFAULT
+    FILTERGROUP include FILTER 'Акционный' in(g,i)
+    
+    EDIT PromotionalGame OBJECT g
+;
+DESIGN promotionalGame {
+    OBJECTS {
+        NEW header {
+            type = CONTAINERH;
+            align = STRETCH;
+            alignment = STRETCH;
+            NEW col1 {
+                flex = 1;
+                align = STRETCH;
+                MOVE PROPERTY(id(g));
+                MOVE PROPERTY(fromDate(g));
+                MOVE PROPERTY(toDate(g));
+                MOVE PROPERTY(countRaffle(g));
+            }
+            NEW col2 {
+                flex = 1;
+                align = STRETCH;
+                MOVE PROPERTY(name(g));
+                MOVE PROPERTY(checkingPeriod(g));
+                MOVE PROPERTY(nameNumerator(g));
+            }
+        }
+        NEW grids {
+            type = SPLITV;
+            fill = 1;
+            NEW raffles {
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX(r){
+                    caption='Розыгрыши';
+                    fill = 2;
+                }
+                MOVE BOX(d){
+                    caption='Даты проведения';
+                    fill = 1;
+                }
+            }
+            NEW items {
+                type = SPLITH;
+                fill = 2;
+                MOVE BOX(TREE itemGroups) {
+                    fill = 1;
+                }
+                MOVE BOX(i) {
+                    fill = 2;
+                    TOOLBAR(i) {
+                        type = COLUMNS;
+                        columns = 2;
+                    }
+                }
+            }
+        }
+    }
+}
+
+FORM promotionalGames 'Рекламные игры'
+    OBJECTS g = PromotionalGame LAST
+    PROPERTIES(g) READONLY id, name, fromDate, toDate
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+;
+
+NAVIGATOR {
+    retailMasterData {
+        NEW promotionalGames;
+    }
+}
+
+FORM dialogPromotionalGames 'Рекламные игры'
+    OBJECTS g = PromotionalGame
+    PROPERTIES(g) READONLY id, name, fromDate, toDate
+    
+    LIST PromotionalGame OBJECT g
+;
+
+//логирование
+@defineLogRotate(PromotionalGame, 5, weekly);
+WHEN SET(agreePromotionalGame(DiscountCard c)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', 'Установлен флаг "Согласие на участие во всех РИ" для дисконтной карты', number(c));
+}
+WHEN DROPPED(agreePromotionalGame(DiscountCard c)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', 'Сброшен флаг "Согласие на участие во всех РИ" для дисконтной карты', PREV(number(c)));
+}
+WHEN SETCHANGED(id(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Код рекламной игры изменен на ' + id(g));
+}
+WHEN SETCHANGED(name(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Название рекламной игры изменено на ' + name(g));
+}
+WHEN DROPPED(name(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Название рекламной игры сброшено');
+}
+WHEN SETCHANGED(fromDate(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Дата начала рекламной игры изменена на ' + fromDate(g));
+}
+WHEN DROPPED(fromDate(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Дата начала рекламной игры сброшена');
+}
+WHEN SETCHANGED(toDate(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Дата окончания рекламной игры изменена на ' + toDate(g));
+}
+WHEN DROPPED(toDate(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Дата окончания рекламной игры сброшена');
+}
+WHEN SETCHANGED(checkingPeriod(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Период проверки чеков изменен на ' + checkingPeriod(g) + ' минут');
+}
+WHEN DROPPED(checkingPeriod(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Период проверки чеков сброшен');
+}
+WHEN SETCHANGED(numerator(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Нумератор для генерации кодов изменен на ' + nameNumerator(g));
+}
+WHEN DROPPED(numerator(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Нумератор для генерации кодов сброшен');
+}
+WHEN SET(in(PromotionalGame g, Item i)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Установлен флаг "Акционный" для товара', id(i), idBarcode(i), name(i));
+}
+WHEN DROPPED(in(PromotionalGame g, Item i)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Сброшен флаг "Акционный" для товара', PREV(id(i)), PREV(idBarcode(i)), PREV(name(i)));
+}
+WHEN SETCHANGED(countRaffle(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Количество розыгрышей изменено на ' + countRaffle(g));
+}
+WHEN DROPPED(countRaffle(PromotionalGame g)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Количество розыгрышей сброшено');
+}
+WHEN SETCHANGED(idRaffle(PromotionalGame g, INTEGER r)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Код розыгрыша ' + r + ' изменен на ' + idRaffle(g,r));
+}
+WHEN DROPPED(idRaffle(PromotionalGame g, INTEGER r)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Код розыгрыша ' + r + ' сброшен');
+}
+WHEN SETCHANGED(nameRaffle(PromotionalGame g, INTEGER r)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Название розыгрыша ' + r + ' изменено на ' + nameRaffle(g,r));
+}
+WHEN DROPPED(nameRaffle(PromotionalGame g, INTEGER r)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Название розыгрыша ' + r + ' сброшено');
+}
+WHEN SET(in(PromotionalGame g, INTEGER r, DATE d)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(g), 'Для розыгрыша ' + r + ' добавлена дата проведения ' + d);
+}
+WHEN DROPPED(in(PromotionalGame g, INTEGER r, DATE d)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', PREV(id(g)), 'Для розыгрыша ' + r + ' удалена дата проведения ' + d);
+}
+
+CLASS GameCode 'Код рекламной игры';
+TABLE gameCode (GameCode);
+TABLE gameCodeInteger (GameCode,INTEGER);
+
+code 'Код' = DATA STRING[28](GameCode) NONULL;
+promotionalGame = DATA PromotionalGame (GameCode) NONULL;
+receipt = DATA Receipt(GameCode) NONULL;
+dateReceipt 'Дата покупки' (GameCode c) = date(receipt(c));
+
+INDEX receipt(GameCode c), promotionalGame(c);
+INDEX promotionalGame(GameCode c), receipt(c);
+
+dateRaffle 'Дата розыгрыша' = DATA DATE (GameCode,INTEGER);
+prizeRaffle 'Код приза розыгрыша' = DATA STRING[100] (GameCode,INTEGER) CHARWIDTH 10;
+
+createdTime '{historizable.created.time}'= DATA DATETIME (GameCode);
+createdTime (GameCode c) <- currentDateTime() WHEN SET(c IS GameCode);
+
+gameCode = GROUP AGGR GameCode c BY promotionalGame(c), code(c);
+
+headerDateRaffle (PromotionalGame g, INTEGER r) = 'Дата розыгрыша (' + (OVERRIDE nameRaffle(g,r), idRaffle(g,r)) + ')';
+headerDateRaffle (GameCode c, INTEGER r) = headerDateRaffle(promotionalGame(c),r);
+headerPrizeRaffle (PromotionalGame g, INTEGER r) = 'Код приза розыгрыша (' + (OVERRIDE nameRaffle(g,r), idRaffle(g,r)) + ')';
+headerPrizeRaffle (GameCode c, INTEGER r) = headerPrizeRaffle(promotionalGame(c),r);
+
+
+WHEN SET(GameCode c IS GameCode) AND numerator(promotionalGame(c)) AND NOT code(c) DO {
+    code(c) <- curStringValue(numerator(promotionalGame(c)));  
+    incrementValueSession(numerator(promotionalGame(c)));
+    logToFile('PromotionalGame', CONCAT ' ', id(promotionalGame(c)), 'Сгенерирован код ' + code(c), 'для чека ' + description(receipt(c)), 'документа ' + description(zReport(receipt(c))), 'дисконтной карты ' + number(discountCard(receipt(c))));
+}
+WHEN DROPPED(GameCode c IS GameCode) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(PREV(promotionalGame(c))), 'Удален код ' + PREV(code(c)), 'для чека ' + PREV(description(receipt(c))), 'документа ' + PREV(description(zReport(receipt(c)))), 'дисконтной карты ' + PREV(number(discountCard(receipt(c)))));
+}
+WHEN CHANGED(code(GameCode c)) AND PREV(code(c)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(promotionalGame(c)), 'Код акционной игры изменился с ' + PREV(code(c)) + ' на ' + code(c));
+}
+WHEN CHANGED(receipt(GameCode c)) AND PREV(receipt(c)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(promotionalGame(c)), 'Чек кода ' + code(c) + ' изменился на', description(receipt(c)), 'документа ' + description(zReport(receipt(c))), 'дисконтной карты ' + number(discountCard(receipt(c))));
+}
+WHEN CHANGED(promotionalGame(GameCode c)) AND PREV(promotionalGame(c)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(PREV(promotionalGame(c))), 'Рекламная игра кода ' + code(c) + ' изменилась на', id(promotionalGame(c)));
+    logToFile('PromotionalGame', CONCAT ' ', id(promotionalGame(c)), 'Рекламная игра кода ' + code(c) + ' изменилась c', id(PREV(promotionalGame(c))));
+}
+WHEN SETCHANGED(dateRaffle(GameCode c, INTEGER r)) AND PREV(dateRaffle(c,r)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(promotionalGame(c)), 'Дата розыгрыша ' + idRaffle(promotionalGame(c),r) + ' для кода ' + code(c) + ' изменена c ' + PREV(dateRaffle(c,r)) + ' на ' + dateRaffle(c,r));
+}
+WHEN DROPPED(dateRaffle(GameCode c, INTEGER r)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(PREV(promotionalGame(c))), 'Дата розыгрыша ' + idRaffle(PREV(promotionalGame(c)),r) + ' для кода ' + PREV(code(c)) + ' сброшена');
+}
+WHEN SETCHANGED(prizeRaffle(GameCode c, INTEGER r)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(promotionalGame(c)), 'Код приза розыгрыша ' + idRaffle(promotionalGame(c),r) + ' для кода ' + code(c) + ' изменен на ' + prizeRaffle(c,r));
+}
+WHEN DROPPED(prizeRaffle(GameCode c, INTEGER r)) DO {
+    logToFile('PromotionalGame', CONCAT ' ', id(PREV(promotionalGame(c))), 'Код приза розыгрыша ' + idRaffle(PREV(promotionalGame(c)),r) + ' для кода ' + PREV(code(c)) + ' сброшен');
+}
+
+filterPromotionalGame = DATA LOCAL NESTED PromotionalGame ();
+nameFilterPromotionalGame 'Рекламная игра' () = name(filterPromotionalGame());
+
+promotionalGameDateTimeFrom = DATA LOCAL NESTED DATETIME(); // оптимизация начисления игровых кодов
+
+quantityPromotionalGame 'Количество игрового товара' (PromotionalGame g, Receipt r) = GROUP SUM signedQuantity(ReceiptDetail detail) IF receipt(detail) == r AND in(g,sku(detail)) AND dateTime(detail) > promotionalGameDateTimeFrom();
+quantityPromotionalGame 'Количество игрового товара' (GameCode c, Receipt r) = quantityPromotionalGame(promotionalGame(c),r);
+
+show 'Просмотреть' (Receipt r)  { 
+	NEWSESSION {
+	    SHOW zReport OBJECTS z = zReport(r), b = r DOCKED READONLY;
+	}
+} TOOLBAR;
+
+EXTEND FORM discountCards
+    PROPERTIES PANEL nameFilterPromotionalGame()
+    
+    OBJECTS ir = INTEGER
+    FILTERS iterate(ir,1,countRaffle(filterPromotionalGame()))
+        
+    OBJECTS gc = GameCode
+    PROPERTIES(gc) READONLY code, createdTime
+    PROPERTIES READONLY dateRaffle(gc,ir) COLUMNS 'ir' (ir) HEADER headerDateRaffle(filterPromotionalGame(),ir),
+                        prizeRaffle(gc,ir) COLUMNS 'ir' (ir) HEADER headerPrizeRaffle(filterPromotionalGame(),ir)
+    FILTERS discountCard(receipt(gc)) == d AND promotionalGame(gc) == filterPromotionalGame()
+    
+    OBJECTS gr = Receipt
+    PROPERTIES(gr) READONLY number, dateTime, sumReceiptDetail
+    PROPERTIES(gc,gr) READONLY quantityPromotionalGame
+    PROPERTIES(gr) show
+    FILTERS gr == receipt(gc)
+    
+    EVENTS ON INIT {
+        filterPromotionalGame() <- GROUP MAX PromotionalGame g IF currentDate() >= fromDate(g) AND currentDate() <= toDate(g);
+        promotionalGameDateTimeFrom() <- toDateTime(2000_01_01);
+    }
+;
+
+DESIGN discountCards {
+    tabbed {
+        NEW promotionalGame {
+            caption = 'Рекламная игра';
+            NEW header {
+                type = CONTAINERH;
+                MOVE PROPERTY(nameFilterPromotionalGame());
+            }
+            NEW grids {
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX(gc);
+                MOVE BOX(gr);
+            }
+        }
+    }
+}
+
+div = FORMULA 'div($1,$2)';
+countGameCodes(PromotionalGame g, Receipt r) = GROUP SUM 1 BY promotionalGame(PromotionalGame.GameCode c), receipt(c);
+leftGameCodes(PromotionalGame g, Receipt r, INTEGER i) = div(quantityPromotionalGame(g,r),i) (-) countGameCodes(g,r);
+
+//------------------------------ заполнение призов ----------------------------------//
+
+filterDate 'Дата' = DATA LOCAL NESTED DATE ();
+
+FORM prizeRaffleDashboard 'Заполнение призов по рекламным играм'
+    OBJECTS g = PromotionalGame PANEL
+    PROPERTIES(g) SELECTOR name
+    
+    PROPERTIES filterDate()
+    
+    OBJECTS r = INTEGER
+    PROPERTIES(r) VALUE HEADER 'Номер'
+    PROPERTIES(g,r) READONLY idRaffle, nameRaffle
+    FILTERS iterate(r,1,countRaffle(g)) AND (in(g,r,filterDate()) OR NOT filterDate())
+    
+    OBJECTS d = DATE
+    PROPERTIES(d) VALUE HEADER 'Дата розыгрыша'
+    FILTERS in(g,r,d) AND (d == filterDate() OR NOT filterDate())
+    
+    OBJECTS c = GameCode
+    PROPERTIES READONLY code(c),
+                        number = numberDiscountCard(receipt(c)) HEADER 'Номер дисконтной карты',
+                        lastName = lastNameContact(discountCard(receipt(c))) HEADER 'Фамилия',
+                        firstName = firstNameContact(discountCard(receipt(c))) HEADER 'Имя',
+                        phone = phoneLegalEntity(discountCard(receipt(c))) HEADER 'Телефон',
+                        birthday = birthdayContact(discountCard(receipt(c))) HEADER 'День рождения'
+     
+    FILTERS promotionalGame(c) == g AND dateRaffle(c,r) == d
+    FILTERGROUP required FILTER 'С призами' prizeRaffle(c,r) 'F11'    
+    
+    EVENTS ON INIT {
+        SEEK prizeRaffleDashboard.g = GROUP LAST PromotionalGame pg ORDER fromDate(pg);
+    }
+;
+DESIGN prizeRaffleDashboard {
+    OBJECTS {
+        NEW filters {
+            caption = 'Фильтры';
+            type = CONTAINERH;
+            MOVE PROPERTY(name(g)) {caption = 'Рекламная игра';} 
+            MOVE PROPERTY(filterDate());
+        }
+        NEW grids {
+            type = SPLITV;
+            fill = 1;
+            NEW raffles {
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX(r){
+                    caption='Розыгрыши';
+                    fill = 2;
+                }
+                MOVE BOX(d){
+                    caption='Даты проведения';
+                    fill = 1;
+                }
+            }
+            MOVE BOX(c);
+        }
+    }
+}
+
+NAVIGATOR {
+    retailMasterData {
+        NEW prizeRaffleDashboard;
+    }
+}
