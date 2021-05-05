@@ -13,6 +13,7 @@ public abstract class ItemInfo implements Serializable {
     public BigDecimal price;
     public boolean splitItem;
     public Integer daysExpiry;
+    public Integer hoursExpiry;
     public LocalDate expiryDate;
     public boolean passScalesItem;
     public BigDecimal vat;
@@ -24,9 +25,9 @@ public abstract class ItemInfo implements Serializable {
     public String shortNameUOM;
     public String info;
     
-    public ItemInfo(Map<String, Integer> stockPluNumberMap, String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry,
-                    LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags, String idItemGroup,
-                    String nameItemGroup, String idUOM, String shortNameUOM, String info) {
+    public ItemInfo(Map<String, Integer> stockPluNumberMap, String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem,
+                    Integer daysExpiry, Integer hoursExpiry, LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber,
+                    Integer flags, String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM, String info) {
         this.stockPluNumberMap = stockPluNumberMap;
         this.idItem = idItem;
         this.idBarcode = idBarcode;
@@ -34,6 +35,7 @@ public abstract class ItemInfo implements Serializable {
         this.price = price;
         this.splitItem = splitItem;
         this.daysExpiry = daysExpiry;
+        this.hoursExpiry = hoursExpiry;
         this.expiryDate = expiryDate;
         this.passScalesItem = passScales;
         this.vat = vat;

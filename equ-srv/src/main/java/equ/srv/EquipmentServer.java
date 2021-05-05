@@ -2172,6 +2172,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             machineryPriceTransactionPromotionLM.findProperty("restrictionToDateTime[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
                 }
 
+                if(machineryPriceTransactionLM != null) {
+                    skuQuery.addProperty("manufactureDays", machineryPriceTransactionLM.findProperty("manufactureDays[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                }
+
                 skuQuery.and(equLM.findProperty("in[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
@@ -2239,6 +2243,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
                         LocalDate expiryDate = (LocalDate) row.get("expiryDateMachineryPriceTransactionBarcode");
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
@@ -2265,10 +2270,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
                         LocalDateTime restrictionToDateTime = (LocalDateTime) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
 
-                        CashRegisterItem c = new CashRegisterItem(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
+                        Integer manufactureDays = (Integer) row.get("manufactureDays");
+
+                        CashRegisterItem c = new CashRegisterItem(idItem, barcode, name, price, split, daysExpiry, hoursExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, itemGroupObject, description, idBrand, nameBrand,
                                 idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
-                                balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode, barcodeBatchMap.get(barcode));
+                                balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode, manufactureDays, barcodeBatchMap.get(barcode));
                         cashRegisterItemList.add(c);
                     }
 
@@ -2354,8 +2361,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal retailPrice = (BigDecimal) row.get("retailPrice");
                         Integer imagesCount = (Integer) row.get("imagesCount");
 
-                        scalesItemList.add(new ScalesItem(idItem, barcode, name, price, split, daysExpiry, expiryDate,
-                                passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
+                        scalesItemList.add(new ScalesItem(idItem, barcode, name, price, split, daysExpiry, hoursExpiry,
+                                expiryDate, passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup,
                                 null, description, descriptionNumberCellScales, idUOM, shortNameUOM, info, extraPercent,
                                 retailPrice, imagesCount));
                     }
@@ -2400,6 +2407,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
                         LocalDate expiryDate = (LocalDate) row.get("expiryDateMachineryPriceTransactionBarcode");
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
@@ -2407,7 +2415,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
 
                         priceCheckerItemList.add(new PriceCheckerItem(idItem, barcode, name, price, split,
-                                daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null, null));
+                                daysExpiry, hoursExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null, null));
                     }
 
                     transactionList.add(new TransactionPriceCheckerInfo((Long) transactionObject.getValue(), dateTimeCode,
@@ -2459,6 +2467,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
                         LocalDate expiryDate = (LocalDate) row.get("expiryDateMachineryPriceTransactionBarcode");
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
@@ -2466,7 +2475,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
 
-                        terminalItemList.add(new TerminalItem(idItem, barcode, name, price, split, daysExpiry,
+                        terminalItemList.add(new TerminalItem(idItem, barcode, name, price, split, daysExpiry, hoursExpiry,
                                 expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null));
                     }
 

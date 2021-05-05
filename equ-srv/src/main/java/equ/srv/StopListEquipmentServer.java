@@ -248,8 +248,8 @@ public class StopListEquipmentServer {
                 Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[STRING[100],Item]").read(session, new DataObject(idStock), skuObject);
                 stockPluNumberMap.put(idStock, pluNumber);
             }
-            stopListItemList.put(idBarcode, new StopListItem(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
-                    valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM, info, barcodeObjectList));
+            stopListItemList.put(idBarcode, new StopListItem(stockPluNumberMap, idItem, idBarcode, nameItem, null, split,
+                    null, null, null, passScales, valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM, info, barcodeObjectList));
         }
         return stopListItemList;
     }

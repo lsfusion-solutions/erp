@@ -493,6 +493,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         if(transaction.weightCodeGroupCashRegister != null)
             tmcScaleObject.put("prefix", Integer.parseInt(transaction.weightCodeGroupCashRegister)); //Префикс штрих-кода
 
+        tmcScaleObject.put("produceddate", item.manufactureDays); //Дата производства, в сутках, вычитается из даты упаковки, Дата упаковки - текущая дата взвешивания и печати этикетки
+        tmcScaleObject.put("sellbydate", item.daysExpiry); //Срок годности, в сутках, прибавляется к дате упаковки
+        tmcScaleObject.put("sellbytime", item.hoursExpiry); //Срок годности, в часах, прибавляется к дате упаковки
+
         rootObject.put("command", "addTmcScale");
         return rootObject.toString();
     }

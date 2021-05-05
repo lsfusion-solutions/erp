@@ -6,7 +6,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class ScalesItem extends ItemInfo {
-    public Integer hoursExpiry;
     public Integer labelFormat;
     public String description;
     public Integer descriptionNumber;
@@ -15,13 +14,12 @@ public class ScalesItem extends ItemInfo {
     public Integer imagesCount;
 
     public ScalesItem(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem,
-                      Integer daysExpiry, LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber,
-                      Integer flags, String idItemGroup, String canonicalNameSkuGroup, Integer hoursExpiry,
+                      Integer daysExpiry, Integer hoursExpiry, LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber,
+                      Integer flags, String idItemGroup, String canonicalNameSkuGroup,
                       Integer labelFormat, String description, Integer descriptionNumber, String idUOM,
                       String shortNameUOM, String info, BigDecimal extraPercent, BigDecimal retailPrice, Integer imagesCount) {
-        super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags,
+        super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, hoursExpiry, expiryDate, passScales, vat, pluNumber, flags,
                 idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info);
-        this.hoursExpiry = hoursExpiry;
         this.labelFormat = labelFormat;
         this.description = description;
         this.descriptionNumber = descriptionNumber;
