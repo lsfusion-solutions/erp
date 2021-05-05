@@ -23,7 +23,7 @@ rejected 'Отказать' = DATA BOOLEAN (WayBillTicketOutDoc);
 GROUP header EXTID 'wt:Header';
 
 FORM wayBillTicket FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ConfirmTicket'
-    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ConfirmTicket' EXTID 'xmlns:qp', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ConfirmTicket' EXTID 'xmlns:qp', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi', ='http://fsrar.ru/WEGAIS/ConfirmTicket' EXTID 'xmlns:wt'
     
     OBJECTS r = WayBillTicketOutDoc PANEL
     
@@ -63,7 +63,7 @@ confirm 'Ответить на акт разногласий' (WayBillAct wa) {
 
 EXTEND FORM wayBills
     PROPERTIES(a) READONLY commentsWayBillTicketOutDoc PANEL
-    PROPERTIES(a) confirm SHOWIF differences(a) AND NOT accepted(wayBill(a)) AND own(shipper(w)) AND NOT notRejected(wayBillTicketOutDoc(a)) TOOLBAR
+    PROPERTIES(a) confirm SHOWIF differences(a) AND NOT accepted(wayBill(a)) AND NOT canceled(wayBill(a)) AND own(shipper(w)) AND NOT notRejected(wayBillTicketOutDoc(a)) TOOLBAR
 ;
 
 DESIGN wayBills {
@@ -108,6 +108,14 @@ process (InDoc d) + {
                 processed(d) <- TRUE;
                 APPLY;
             }
+        }
+    }
+}
+
+process (Ticket t) + {
+    IF docType(t) = 'WayBillTicket' THEN {
+        FOR WayBillAct wa = wayBillAct(outDoc(t)) DO {
+            processed() <- TRUE;
         }
     }
 }

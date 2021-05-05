@@ -87,6 +87,8 @@ actNote = DATA LOCAL STRING ();
 identity = DATA STRING (INTEGER);
 realQuantity = DATA NUMERIC[16,5] (INTEGER);
 
+positionAmc = DATA INTEGER (INTEGER);
+
 FORM inWayBillAct_v4 FORMEXTID 'ns:Documents'
     
     PROPERTIES IN wayBillActHeader 
@@ -100,9 +102,9 @@ FORM inWayBillAct_v4 FORMEXTID 'ns:Documents'
     PROPERTIES(p) identity EXTID 'wa:Identity', 
                   realQuantity EXTID 'wa:RealQuantity'
 
-//    OBJECTS amc = INTEGER EXTID 'ce:amc' IN contentMarkInfo
-//    PROPERTIES(amc) amc EXTID 'ce:value'
-//    FILTERS amc(amc)
+    OBJECTS amc = INTEGER EXTID 'ce:amc' IN contentMarkInfo
+    PROPERTIES(amc) amc EXTID 'value'
+    FILTERS positionAmc(amc) = p
 ;
 
 process (InDoc d) + {
@@ -136,6 +138,11 @@ process (InDoc d) + {
                         FOR WayBillPosition p = wayBillPosition(b, identity(INTEGER i)) DO {
                             realQuantity(p) <- realQuantity(i);
                         }
+                        accepted(WayBillMark m) <- TRUE WHERE wayBill(wayBillPosition(m)) = b;
+                        FOR WayBillPosition p = wayBillPosition(b, identity(INTEGER i)) AND wayBillPosition(WayBillMark m) = p
+                            AND positionAmc(INTEGER im) = i AND idMarkCode(m) = amc(im) DO {
+                                accepted(m) <- NULL;
+                            } 
                     }
                 }
     

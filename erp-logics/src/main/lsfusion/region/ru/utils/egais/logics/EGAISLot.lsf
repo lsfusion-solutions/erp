@@ -1,0 +1,24 @@
+MODULE EGAISLot;
+
+NAMESPACE EGAIS;
+
+META defineDocumentInWayBillLot (doc, obj)
+    createLots 'Создать марки' (###doc i) {
+        LOCAL detail = ###doc##Detail (WayBillMark);
+        detail (WayBillMark m) <- (GROUP MAX ###doc##Detail d IF quantity(d, wayBillPosition(m))) WHERE wayBill(wayBillPosition(m)) = wayBill(i); 
+    
+        FOR Sku sku = sku(detail(WayBillMark m)) AND NOT lot(idMarkCode(m)) NEW l = Lot DO {
+            id(l) <- idMarkCode(m);
+            sku(l) <- sku;
+        }
+        
+        FOR ###doc##Detail d = detail(WayBillMark m) AND idMarkCode(m) = id(Lot l) DO
+            quantity(d, l) <- 1;
+            
+        MESSAGE 'Марки успешно созданы';
+    }
+    
+    EXTEND FORM doc
+        PROPERTIES(obj) createLots DRAW ed TOOLBAR
+    ;
+END

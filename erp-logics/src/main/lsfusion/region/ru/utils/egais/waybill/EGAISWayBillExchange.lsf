@@ -21,6 +21,9 @@ GROUP transport EXTID 'wb:Transport' : header;
 GROUP content EXTID 'wb:Content';
 
 GROUP informF2 EXTID 'wb:InformF2';
+GROUP inform2MarkInfo EXTID 'ce:MarkInfo' : informF2;
+
+GROUP amclist EXTID 'ce:amclist';
 
 FORM wayBill_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill_v4'
     PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/CommonV3' EXTID 'xmlns:ce', ='http://fsrar.ru/WEGAIS/ClientRef_v2' EXTID 'xmlns:oref', ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref', ='http://fsrar.ru/WEGAIS/TTNSingle_v4' EXTID 'xmlns:wb', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
@@ -62,6 +65,15 @@ FORM wayBill_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill_v4
 
     PROPERTIES IN informF2 
                  idF2Reg(p) EXTID 'ce:F2RegId'
+
+    OBJECTS boxpos = Box EXTID 'ce:boxpos' IN inform2MarkInfo
+    PROPERTIES(boxpos) id EXTID 'ce:boxnumber'
+    FILTERS countMarkCodes(p, boxpos)
+    
+    OBJECTS amc = WayBillMark EXTID 'ce:amc' IN amclist 
+    PROPERTIES(amc) idMarkCode EXTID 'value'
+    FILTERS wayBillPosition(amc) = p,
+            box(amc) = boxpos
 ;
 
 submitWayBill (WayBillOutDoc w) {
@@ -99,15 +111,10 @@ F1RegId = DATA LOCAL STRING(INTEGER);
 
 F2RegId = DATA LOCAL STRING(INTEGER);
 
-GROUP inform2MarkInfo EXTID 'ce:MarkInfo' : informF2;
-
 positionBox = DATA LOCAL INTEGER (INTEGER);
 boxnumber = DATA LOCAL STRING (INTEGER);
 
-GROUP amclist EXTID 'ce:amclist';
-
 boxposAmc = DATA LOCAL INTEGER (INTEGER);
-amc = DATA LOCAL STRING[200] (INTEGER);
 
 FORM inWayBill_v4 FORMEXTID 'ns:Documents'
     PROPERTIES() IN wayBill_v4 identity EXTID 'wb:Identity'

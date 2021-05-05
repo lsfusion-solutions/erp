@@ -1,14 +1,14 @@
 MODULE EGAISSaleShipment;
 
-REQUIRE SaleShipment, EGAISFRegLedger,
-        EGAISItem, EGAISStock,
-        EGAISWayBillProcess, EGAISSaleInvoice;
+REQUIRE EGAISFRegLedger, EGAISItem, EGAISStock,
+        EGAISWayBillProcess, EGAISSaleInvoice,
+        SaleShipmentLot;
 
 PRIORITY Sale;
 
 NAMESPACE EGAISSale;
 
-@defineDocumentOutBalance(userShipment, s, supplierStock);
+@defineDocumentOutBalance(userShipment, s, supplierStock, quantity);
 
 quantity = ABSTRACT NUMERIC[16,5] (ShipmentDetail, F2Reg);
 quantity(UserShipmentDetail d, F2Reg r) += quantity(d, r);
@@ -23,6 +23,7 @@ quantity (InvoiceShipmentDetail d, F2Reg r) += quantity(invoiceDetail(d), r);
 
 process 'Отправить в ЕГАИС' (Invoice i) { process(invoiceShipment(i)); }
 cancel 'Отменить' (Invoice i) { cancel(invoiceShipment(i)); }
+confirm 'Ответить на акт разногласий' (Invoice i) { confirm(invoiceShipment(i)); }
 wayBill (Invoice i) = wayBill(invoiceShipment(i));
 
 @defineDocumentOutWayBillForm(invoice, i);

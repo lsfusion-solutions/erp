@@ -21,6 +21,8 @@ INDEX f2Reg(FRegLedger l), date(l), l;
 
 TABLE balanceF2Reg(F2Reg);
 currentBalance 'Текущий остаток' (F2Reg r) = GROUP SUM quantity(FRegLedger l) IF posted(l) BY f2Reg(l) MATERIALIZED TABLE balanceF2Reg;
+prevCurrentBalance (F2Reg r) = PREV(currentBalance(r));
+
 CONSTRAINT currentBalance(F2Reg r) < 0 MESSAGE 'Остаток по справке Б не может быть отрицательным'; 
 
 EXTEND FORM f2Regs
@@ -48,29 +50,33 @@ NAVIGATOR {
     }
 }
 
-META defineDocumentOutBalance (doc, obj, supplierStock)
+META defineDocumentOutBalance (doc, obj, supplierStock, quantityProp)
 
     quantity 'Кол-во (ЕГАИС)' = DATA NUMERIC[16,5] (###doc##Detail, F2Reg);
-    fillQuantity 'Выбрать' (###doc##Detail d, F2Reg s) { quantity(d, s) <- quantity(d); }
+    fillQuantity 'Выбрать' (###doc##Detail d, F2Reg s) { quantity(d, s) <- quantityProp(d); }
     
+    quantityF2Reg 'Кол-во (ЕГАИС)' (###doc##Detail d) = GROUP SUM quantity(d, F2Reg s) MATERIALIZED;
+    incorrectQuantityF2Reg (###doc##Detail d) = quantityProp(d) AND NOT quantityProp(d) = quantityF2Reg(d);
+    backgroundQuantityF2Reg(###doc##Detail d) = RGB(255,212,212) IF incorrectQuantityF2Reg(d);
+
     matches (###doc##Detail d, F2Reg r) = client(r) = client(supplierStock(d)) AND in(sku(d), product(r));
     
     calcQuantity(###doc##Detail d, F2Reg r) = 
-        PARTITION UNGROUP quantity LIMIT currentBalance(r) IF matches(d, r) ORDER r BY d;
+        PARTITION UNGROUP quantityProp LIMIT prevCurrentBalance(r) IF matches(d, r) ORDER r BY d;
     
     fillQuantity 'Заполнить' (###doc s) {
-        quantity(###doc##Detail d, F2Reg r) <- calcQuantity(d, r) WHERE doc(d) = s;
+        quantity(###doc##Detail d, F2Reg r) <- NULL WHERE doc(d) = s;
+        quantity(###doc##Detail d, F2Reg r) <- (GROUP SUM quantity(d, Lot l) IF f2Reg(markCode(id(l))) = r) WHERE doc(d) = s;
+        quantity(###doc##Detail d, F2Reg r) <- calcQuantity(d, r) WHERE doc(d) = s AND NOT quantityF2Reg(d);
     }
     
     numberF2Reg 'Справка Б' (###doc##Detail d) =
         GROUP CONCAT id(F2Reg r) IF quantity(d, r), ',' ORDER r;
     
-    quantityF2Reg 'Кол-во (ЕГАИС)' (###doc##Detail d) = GROUP SUM quantity(d, F2Reg s) MATERIALIZED;
-    
     EXTEND FORM doc
         OBJECTS ed = ###doc##Detail
-        PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity,
-                                numberF2Reg, quantityF2Reg
+        PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantityProp,
+                                numberF2Reg, quantityF2Reg BACKGROUND backgroundQuantityF2Reg(ed)
         ORDERS index(ed)
         FILTERS doc(ed) = obj
         

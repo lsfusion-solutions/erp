@@ -63,42 +63,6 @@ idF1Reg 'Справка A' (WayBillPosition p) = id(f1Reg(p));
 f2Reg 'Справка Б' = DATA F2Reg (WayBillPosition) NONULL INDEXED;
 idF2Reg 'Справка Б' (WayBillPosition p) = id(f2Reg(p));
 
-// box
-CLASS Box 'Короб ЕГАИС';
-
-id 'Код' = DATA STRING (Box) INDEXED IN id;
-box = GROUP AGGR Box b BY id(b);
-
-// mark code
-CLASS MarkCode 'Код маркировки ЕГАИС';
-
-id 'Код' = DATA STRING[200] (MarkCode) INDEXED IN id;
-markCode = GROUP AGGR MarkCode b BY id(b);
-
-// way bill mark
-CLASS WayBillMark 'Строка маркировки ТТН ЕГАИС';
-
-wayBillPosition 'Строка ТТН' = DATA WayBillPosition (WayBillMark) NONULL DELETE INDEXED;
-
-markCode 'Код маркировки' = DATA MarkCode (WayBillMark) NONULL INDEXED;
-idMarkCode 'Код маркировки' (WayBillMark m) = id(markCode(m));
-
-INDEX markCode(WayBillMark m), wayBillPosition(m);
-wayBillPosition (MarkCode c) = GROUP LAST wayBillPosition(WayBillMark m) ORDER m BY markCode(m) MATERIALIZED INDEXED;
-f2Reg (MarkCode c) = f2Reg(wayBillPosition(c)) MATERIALIZED INDEXED;
-
-countMarkCodes 'Кол-во марок' (WayBillPosition p) = GROUP SUM 1 IF wayBillPosition(WayBillMark m) = p MATERIALIZED;
-
-//wayBillPosition = GROUP LAST wayBillPosition(WayBillMark m) ORDER m BY markCode(m), wayBill(wayBillPosition(m));
-
-box = DATA Box (WayBillMark) INDEXED;
-
-box (MarkCode c) = GROUP LAST box(WayBillMark m) ORDER m BY markCode(m) MATERIALIZED INDEXED;
-
-countMarkCodes 'Кол-во марок' (WayBillPosition p, Box b) = GROUP SUM 1 IF wayBillPosition(WayBillMark m) = p AND box(m) = b MATERIALIZED;
-
-accepted 'Принята получателем' = DATA BOOLEAN (WayBillMark);
-
 // header properties
 
 canceled 'Отменена' (WayBillPosition p) = canceled(wayBill(p));
@@ -126,6 +90,48 @@ isAccept (WayBill w) = CASE WHEN w IS WayBill AND NOT countRealQuantity(w) THEN 
 consigneeF2Reg 'Справка Б получателя' = DATA F2Reg (WayBillPosition);
 idConsigneeF2Reg 'Справка Б получателя' (WayBillPosition p) = id(consigneeF2Reg(p));
 
+// box
+CLASS Box 'Короб ЕГАИС';
+
+id 'Код' = DATA STRING (Box) INDEXED IN id;
+box = GROUP AGGR Box b BY id(b);
+
+// mark code
+CLASS MarkCode 'Код маркировки ЕГАИС';
+
+id 'Код' = DATA STRING[200] (MarkCode) INDEXED IN id;
+markCode = GROUP AGGR MarkCode b BY id(b);
+
+// way bill mark
+CLASS WayBillMark 'Строка маркировки ТТН ЕГАИС';
+
+wayBillPosition 'Строка ТТН' = DATA WayBillPosition (WayBillMark) NONULL DELETE INDEXED;
+
+markCode 'Код маркировки' = DATA MarkCode (WayBillMark) NONULL INDEXED;
+idMarkCode 'Код маркировки' (WayBillMark m) = id(markCode(m));
+
+INDEX markCode(WayBillMark m), wayBillPosition(m);
+wayBillPosition (MarkCode c) = GROUP LAST wayBillPosition(WayBillMark m) ORDER m WHERE accepted(wayBillPosition(m)) BY markCode(m) MATERIALIZED INDEXED;
+f2Reg (MarkCode c) = consigneeF2Reg(wayBillPosition(c)) MATERIALIZED INDEXED;
+prevF2Reg (MarkCode c) = PREV(f2Reg(c));
+
+countMarkCodes 'Кол-во марок' (WayBillPosition p) = GROUP SUM 1 IF wayBillPosition(WayBillMark m) = p MATERIALIZED;
+
+//wayBillPosition = GROUP LAST wayBillPosition(WayBillMark m) ORDER m BY markCode(m), wayBill(wayBillPosition(m));
+
+box = DATA Box (WayBillMark) INDEXED;
+
+box (MarkCode c) = GROUP LAST box(WayBillMark m) ORDER m BY markCode(m) MATERIALIZED INDEXED;
+prevBox (MarkCode c) = PREV(box(c));
+
+countMarkCodes 'Кол-во марок' (WayBillPosition p, Box b) = GROUP SUM 1 IF wayBillPosition(WayBillMark m) = p AND box(m) = b MATERIALIZED;
+
+accepted 'Принята получателем' = DATA BOOLEAN (WayBillMark);
+acceptedMarkCodes (WayBillPosition p) = GROUP SUM 1 IF accepted(WayBillMark m) AND wayBillPosition(m) = p;
+
+CONSTRAINT countMarkCodes(WayBillPosition p) AND (OVERRIDE realQuantity(p), 0.0) != (OVERRIDE acceptedMarkCodes(p), 0.0)
+    MESSAGE 'Количество принятого товара не равно количеству принятых марок';
+
 bottlingDate 'Дата розлива' = DATA DATE (WayBillPosition);
 
 FORM wayBill 'ТТН ЕГАИС'
@@ -147,9 +153,14 @@ FORM wayBill 'ТТН ЕГАИС'
     FILTERS countMarkCodes(p, b)
     
     OBJECTS m = WayBillMark
-    PROPERTIES(m) idMarkCode, NEW, DELETE
-    FILTERS wayBillPosition(m) = p,
-            box(m) = b
+    PROPERTIES(m) accepted, idMarkCode, NEW, DELETE
+    FILTERS wayBill(wayBillPosition(m)) = w
+    
+    FILTERGROUP position
+        FILTER 'По позиции' wayBillPosition(m) = p DEFAULT
+        
+    FILTERGROUP box
+        FILTER 'По коробу' box(m) = b DEFAULT
     
     EDIT WayBill OBJECT w
 ;
@@ -289,3 +300,5 @@ END
 
 WBRegId = DATA LOCAL STRING();
 note = DATA LOCAL STRING();
+
+amc = DATA STRING[200] (INTEGER);

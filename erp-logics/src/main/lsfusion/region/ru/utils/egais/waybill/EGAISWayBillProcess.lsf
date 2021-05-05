@@ -1,6 +1,6 @@
 MODULE EGAISWayBillProcess;
 
-REQUIRE EGAISWayBillActExchange, EGAISRequestRepealWB;
+REQUIRE EGAISWayBillActExchange, EGAISRequestRepealWB, EGAISWayBillConfirmTicket;
 
 NAMESPACE EGAIS;
 
@@ -76,8 +76,12 @@ META defineDocumentOutWayBillProcess (doc, supplierStock, customerStock)
                 
                 shipper(w) <- client(supplierStock(i));
                 consignee(w) <- client(customerStock(i));
+
+                FOR quantity(###doc##Detail d, Lot l) IF doc(d) = s AND NOT markCode(id(l)) DO NEW m = MarkCode {
+                    id(m) <- id(l);
+                }
                 
-                FOR quantity(###doc##Detail d, F2Reg r) IF doc(d) = i NEW p = WayBillPosition DO {
+                FOR quantity(###doc##Detail d, F2Reg r) IF doc(d) = i INLINE NEW p = WayBillPosition DO {
                     wayBill(p) <- w;
                     
                     doc##Detail(p) <- d;
@@ -91,7 +95,13 @@ META defineDocumentOutWayBillProcess (doc, supplierStock, customerStock)
                     
                     f1Reg(p) <- f1Reg(r);
                     f2Reg(p) <- r;
-                } 
+
+                    FOR quantity(d, Lot l) IF MarkCode mc = markCode(id(l)) AND prevF2Reg(mc) = r INLINE NEW m = WayBillMark DO {
+                        wayBillPosition(m) <- p;
+                        markCode(m) <- mc;
+                        box(m) <- prevBox(mc);
+                    }
+                }
                 
                 submitWayBill(wayBill(i));
                 APPLY;
@@ -102,6 +112,10 @@ META defineDocumentOutWayBillProcess (doc, supplierStock, customerStock)
     cancel 'Отменить' (###doc i) {
         createAct(wayBill(i));
     } CONFIRM;
+    
+    confirm 'Ответить на акт разногласий' (###doc i) {
+        confirm(wayBillAct(wayBill(i)));
+    }
 END
 
 META defineDocumentOutWayBillForm (doc, obj)
@@ -115,11 +129,16 @@ META defineDocumentOutWayBillForm (doc, obj)
                                 idConsigneeF2Reg, realQuantity BACKGROUND backgroundRealQuantity(wp), bottlingDate
         FILTERS wayBill(wp) = w
     
-        PROPERTIES READONLY commentsWayBillAct 'Комментарий' = comments(wayBillOutDoc(w)) PANEL     
+        PROPERTIES READONLY PANEL
+                        commentsWayBillAct 'Комментарий' = comments(wayBillOutDoc(w)),
+                        commentsWayBillTicket 'Комментарий запроса на подтверждение акта разногласий' = commentsWayBillTicketOutDoc(wayBillAct(w))
+                                 
         PROPERTIES(obj) DRAW wp TOOLBAR 
                         processEGAIS = process SHOWIF isPosted(obj) AND (NOT notRejected(wayBillOutDoc(w)) OR canceled(w)),
                         cancelEGAIS = cancel SHOWIF notRejected(wayBillOutDoc(w)) AND NOT rejected(wayBillActOutDoc(wayBillAct(w))) 
-                                                    AND NOT accepted(w) AND NOT canceled(w)  
+                                                    AND NOT accepted(w) AND NOT canceled(w),
+                        confirmEGAIS = confirm SHOWIF differences(wayBillAct(w)) AND NOT accepted(w) AND NOT canceled(w) AND 
+                                                      NOT notRejected(wayBillTicketOutDoc(wayBillAct(w)))  
     ;
     
     DESIGN doc##s {
@@ -128,7 +147,12 @@ META defineDocumentOutWayBillForm (doc, obj)
                 caption = 'ЕГАИС';
                 MOVE BOX(w);
                 MOVE BOX(wp);
-                MOVE PROPERTY(commentsWayBillAct) { panelCaptionVertical = TRUE; fill = 0.2; }
+                NEW comments {
+                    fill = 0.2;
+                    type = CONTAINERH;
+                    MOVE PROPERTY(commentsWayBillAct) { panelCaptionVertical = TRUE; fill = 1; }
+                    MOVE PROPERTY(commentsWayBillTicket) { panelCaptionVertical = TRUE; fill = 1; }
+                }
             }
         }
     }

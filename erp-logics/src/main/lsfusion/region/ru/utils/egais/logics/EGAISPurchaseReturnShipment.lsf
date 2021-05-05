@@ -1,6 +1,6 @@
 MODULE EGAISPurchaseReturnShipment;
 
-REQUIRE PurchaseReturnShipment, EGAISFRegLedger,
+REQUIRE PurchaseReturnShipmentLot, EGAISFRegLedger,
         EGAISItem, EGAISStock,
         EGAISWayBillProcess, EGAISPurchaseReturnInvoice;
 
@@ -8,7 +8,7 @@ PRIORITY PurchaseReturn;
 
 NAMESPACE EGAISPurchaseReturn;
 
-@defineDocumentOutBalance(userShipment, s, customerStock);
+@defineDocumentOutBalance(userShipment, s, customerStock, quantity);
 
 quantity = ABSTRACT NUMERIC[16,5] (ShipmentDetail, F2Reg);
 quantity(UserShipmentDetail d, F2Reg r) += quantity(d, r);
@@ -23,6 +23,7 @@ quantity (InvoiceShipmentDetail d, F2Reg r) += quantity(invoiceDetail(d), r);
 
 process 'Отправить в ЕГАИС' (Invoice i) { process(invoiceShipment(i)); }
 cancel 'Отменить' (Invoice i) { cancel(invoiceShipment(i)); }
+confirm 'Ответить на акт разногласий' (Invoice i) { confirm(invoiceShipment(i)); }
 wayBill (Invoice i) = wayBill(invoiceShipment(i));
 
 @defineDocumentOutWayBillForm(invoice, i);
