@@ -59,7 +59,7 @@ public class TerminalEquipmentServer {
                 BigDecimal price;
                 price = (BigDecimal) entry.get("priceALedgerPriceListTypeSkuStockCompanyDateTime");
 
-                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price, null, null, null));
+                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price));
             }
         }
         return terminalAssortmentList;
@@ -135,7 +135,7 @@ public class TerminalEquipmentServer {
             for (ImMap<Object, Object> entry : legalEntityResult.values()) {
                 String idLegalEntity = trim((String) entry.get("idLegalEntity"));
                 String nameLegalEntity = trim((String) entry.get("nameLegalEntity"));
-                terminalLegalEntityList.add(new TerminalLegalEntity(idLegalEntity, nameLegalEntity, null));
+                terminalLegalEntityList.add(new TerminalLegalEntity(idLegalEntity, nameLegalEntity));
             }
         }
         return terminalLegalEntityList;
