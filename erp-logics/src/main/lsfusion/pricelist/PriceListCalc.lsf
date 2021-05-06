@@ -152,6 +152,13 @@ DESIGN options{
     }
 }
 
+changeMarkup(CalcPriceListType t, Sku s)  { 
+    INPUT n = NUMERIC[8,2] DO {
+        dataMarkup(t, s) <- n;
+        apply();
+    }
+}
+
 FORM calcPriceListType 'Расчетный вид цен'
     OBJECTS c = CalcPriceListType PANEL
     PROPERTIES(c) name, id SHOWIF showIDs(), includeVAT[PriceListType], nameCurrency, nameCountry, nameBasePriceListType,
@@ -168,7 +175,7 @@ FORM calcPriceListType 'Расчетный вид цен'
     PROPERTIES(s) READONLY name, idBarcode
     ORDERS name(s)
     FILTERS isParent(g, s) OR s IS Sku AND NOT g
-    PROPERTIES(c, s) dataMarkup, overMarkup, nameRoundCondition
+    PROPERTIES(c, s) dataMarkup, overMarkup  ON CHANGE changeMarkup(c,s), nameRoundCondition
     FILTERGROUP inactiveSku 
         FILTER 'Активный' active(s) 'F5' DEFAULT
 
