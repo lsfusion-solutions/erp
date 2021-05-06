@@ -103,6 +103,9 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     showCreatePricing (###concrete invoice) = stockProp##Stock(invoice) IS DepartmentStore; //AND NOT costLedger(stockProp##Stock(invoice)); пока уберем из-за модульности
        
     backgroundRetail 'Цвет' (###concrete invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
+    backgroundRetailMarkup = ABSTRACT VALUE COLOR (User###concrete##Detail);
+    backgroundRetailMarkup (User###concrete##Detail uid) += backgroundRetail(invoice(uid)); 
+        
     EXTEND FORM userInvoice
         PROPERTIES(i) SHOWIF showCreatePricing(i) BACKGROUND backgroundRetail(i) createPricing
                       
@@ -114,7 +117,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
                         pricingPrice SHOWIF createPricing[###concrete](i)              
                        
         PROPERTIES(pd) SHOWIF createPricing[###concrete](i) BACKGROUND backgroundRetail(i)
-                      retailMarkup ON CHANGE changeRetailMarkup(pd), numberRetailVAT,
+                      retailMarkup ON CHANGE changeRetailMarkup(pd) BACKGROUND backgroundRetailMarkup(pd), numberRetailVAT,
                       valueRetailVAT,
                       retailPrice ON CHANGE changeRetailPrice(pd)
         ORDERS index(pd)                      
