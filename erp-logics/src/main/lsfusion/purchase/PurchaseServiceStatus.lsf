@@ -54,22 +54,15 @@ nameServiceStatus 'Статус качества сервиса' (ServiceStatusD
 
 @defineCreated(ServiceStatusDetail);
 
-//lastStatus   =
-//    GROUP LAST serviceStatus(ServiceStatusDetail d)
-//        BY legalEntity(d)
-//        ORDER toDate(d), d
-//        WHERE d IS ServiceStatusDetail AND NOT isChange(d);
 lastServiceStatusDetail   =
     GROUP LAST ServiceStatusDetail d
         ORDER toDate(d), d
-        WHERE d IS ServiceStatusDetail
         BY legalEntity(d);
 INDEX legalEntity(ServiceStatusDetail d), toDate(d), d;
 
 
 nameServiceStatus 'Статус качества сервиса' (LegalEntity l) = staticCaption(serviceStatus(lastServiceStatusDetail(l))); 
 percService 'Качество сервиса, %' (LegalEntity l) = percService(lastServiceStatusDetail(l)); 
-isStopping 'В стоп-листе' (LegalEntity l) = serviceStatus(lastServiceStatusDetail(l)) == ServiceStatus.stopping;
 
 backgroundServiceStatus (LegalEntity l) = CASE 
     WHEN serviceStatus(lastServiceStatusDetail(l)) == ServiceStatus.stopping THEN RGB(255,0,0)
@@ -77,11 +70,6 @@ backgroundServiceStatus (LegalEntity l) = CASE
     ELSE RGB(255,255,255) 
 ;
 
-prevStatus 'Статус качества сервиса'  =
-    GROUP LAST serviceStatus(ServiceStatusDetail d)
-        ORDER toDate(d), d
-        WHERE DATE date >= fromDate(d) AND date <= toDate(d) AND NOT isChange(d)
-        BY legalEntity(d), date;
 
 
 isChange = DATA LOCAL NESTED BOOLEAN (LegalEntity);
@@ -95,83 +83,10 @@ overExcludeService  = ABSTRACT VALUE BOOLEAN (Purchase.Order);
 excludeGroupService 'Исключить из подстчета "Качество сервиса"' (Purchase.Order o) = [GROUP SUM 1 IF sum(OrderDetail idetail) AND excludePercService(skuGroup(sku(idetail))) BY order(idetail)](o);
 excludeService 'Исключить из подстчета "Качество сервиса"' (Purchase.Order o) =excludeGroupService(o) OR overExcludeService(o);
 
-sumShippedService (supplier, DATE dateFrom, DATE dateTo)= GROUP SUM sumShippedOrderDetail(Order order) 
-    IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
-        BY supplier(order);                                                   
-sumService (supplier, DATE dateFrom, DATE dateTo)= GROUP SUM sumOrderDetail(Order order) 
-    IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
-        BY supplier(order);      
-percentSumExecutionService '% исп. заявки (сумма)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = sumShippedService(supplier, dateFrom, dateTo)*100.00 /
-    (sumService(supplier, dateFrom, dateTo) IF sumService(supplier, dateFrom, dateTo)!=0);   
-
 overCreateServiceStatusDetail  ABSTRACT LIST ( );
-skipCreateServiceStatus = ABSTRACT VALUE BOOLEAN (); 
-extraCreateServiceStatusDetail  ABSTRACT LIST ( DATE ,DATE);
-createServiceStatusDetail 'Заполнить статусы качества' (DATE dFrom, DATE dTo)  { 
-    IF NOT skipCreateServiceStatus() THEN {
-        NEWSESSION {
-            isChange(LegalEntity l) <- NULL;
-            
-            LOCAL prev = ServiceStatus(LegalEntity);
-            prev(LegalEntity l) <- serviceStatus(lastServiceStatusDetail(l)) WHERE isSupplier(l);
-            FOR isSupplier(LegalEntity l) AND NOT notCalcServiceStatus(l) AND NOT isCompany(l) NEW d = ServiceStatusDetail DO {
-            
-                legalEntity(d) <- l;
-                fromDate(d) <- dFrom;
-                toDate(d) <- dTo;
-                percService(d) <- NUMERIC[16,2](OVERRIDE percentSumExecutionService(l,fromDate(d),toDate(d)), 0.0 IF sumService(l,fromDate(d),toDate(d)));
-                IF percService(d) AND dataPercService(l) THEN {
-                    
-                    IF percService(d) >= dataPercService(l) THEN {
-                        serviceStatus(d) <- ServiceStatus.good;
-                    } ELSE {
-                        serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
-                                                THEN ServiceStatus.stopping 
-                                                ELSE ServiceStatus.warning;    
-                    }                 
-                }
-                isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));                
-            }
-            apply();
-            overCreateServiceStatusDetail();
-        }
-    } ELSE {
-        extraCreateServiceStatusDetail(dFrom,dTo);
-    }
-}
-
-createServiceStatusDetail()  { 
-    createServiceStatusDetail(firstDayOfMonth(sumMonth (currentDate(), -1)), lastDayOfMonth(sumMonth (currentDate(), -1)));
-};
-
-changeServiceStatusDetail (LegalEntity l)  { 
-    IF NOT skipCreateServiceStatus() THEN {   
-        NEWSESSION {
-            IF NOT notCalcServiceStatus(l) THEN {
-                DIALOG serviceStatus OBJECTS t INPUT DO {
-                    isChange(l) <- NULL;
-                    LOCAL prev = ServiceStatus(LegalEntity);
-                    prev(l) <- serviceStatus(lastServiceStatusDetail(l));
-                    NEW  d = ServiceStatusDetail {
-                        legalEntity(d) <- l;
-                        fromDate(d) <- currentDate();
-                        toDate(d) <- currentDate();   
-    //                    percService(d) <-  0.0;
-                        serviceStatus(d) <- t;
-                        isChange(d) <- TRUE;
-                        isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));
-                    }            
-                    apply();
-                    overCreateServiceStatusDetail();
-                }   
-            }
-            ELSE MESSAGE 'Для данного поставщика не заполняется статус качества';
-        }  
-    }
-}
 
 EXTEND FORM legalEntity    
-    PROPERTIES (l) notCalcServiceStatus, dataPercService , nameServiceStatus ON CHANGE changeServiceStatusDetail(l) BACKGROUND backgroundServiceStatus(l), percService READONLY
+    PROPERTIES (l) notCalcServiceStatus, dataPercService , nameServiceStatus BACKGROUND backgroundServiceStatus(l), percService READONLY
 
     OBJECTS sd = ServiceStatusDetail
     
