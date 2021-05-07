@@ -1,25 +1,37 @@
 MODULE TripShipment;
 
-REQUIRE TripOrder, OrderShipment;
+REQUIRE TripStock, Shipment;
 
 NAMESPACE Trip;
 
-// поставки
-trip = DATA Trip(Shipment);
-in 'Включен' (Trip trip, Shipment shipment) = trip(shipment)==trip;
+trip = DATA Trip (Shipment) INDEXED;
+in 'Включен' (Trip trip, Shipment shipment) = trip(shipment) = trip;
 
-filter(Trip trip, Shipment shipment) = trip(shipment)==trip OR (trip IS Trip AND shipment IS Shipment AND NOT trip(shipment));
+descriptionTrip 'Рейс' (Shipment s) = description(trip(s));
+nameDriverTrip 'Водитель' (Shipment s) = nameDriver(trip(s));
+sidTruckTrip 'Машина (номер)' (Shipment s) = sidTruck(trip(s));
+nameTruckModelTrip 'Марка' (Shipment s) = nameTruckModelTruck(trip(s));
+
+CONSTRAINT trip(Shipment s) AND customer(trip(s)) AND NOT customer(s) = customer(trip(s))
+    CHECKED BY trip[Shipment]
+    MESSAGE 'Покупатель поставки должен совпадать с покупателем в рейсе';
+
+CONSTRAINT trip(Shipment s) AND supplier(trip(s)) AND NOT supplier(s) = supplier(trip(s))
+    CHECKED BY trip[Shipment]
+    MESSAGE 'Поставщик поставки должен совпадать с поставщиком в рейсе';
+
+CONSTRAINT trip(Shipment s) AND fromStock(trip(s)) AND NOT fromStock(s) = fromStock(trip(s))
+    CHECKED BY trip[Shipment]
+    MESSAGE 'Склад (откуда) поставки должен совпадать со складом (откуда) в рейсе';
 
 grossWeightShipped 'Суммарный вес поставок' (trip) = GROUP SUM grossWeightShipmentDetail(Shipment shipment) BY trip(shipment);
-
-quantityShipmentDetail (trip, Shipment shipment) = GROUP SUM quantityShipmentDetail (Order order, shipment) BY trip(order);
 
 quantityShipped 'Кол-во в поставках' (trip, sku) = GROUP SUM quantity(ShipmentDetail shipmentDetail) BY trip(shipment(shipmentDetail)), sku(shipmentDetail);
 
 EXTEND FORM trip
     PROPERTIES (t) READONLY grossWeightShipped
     
-    OBJECTS s=Shipment
+    OBJECTS s = Shipment
     PROPERTIES (t, s) in
     PROPERTIES(s) READONLY number, series, date, nameSupplier, nameFromStock,
                   nameCustomer, nameToStock, grossWeightShipmentDetail
@@ -27,18 +39,19 @@ EXTEND FORM trip
 
     FILTERS isPosted(s)
 
-    FILTERS customer(s) == customer(t) OR (s IS Shipment AND NOT customer(t)),
-            supplier(s) == supplier(t) OR (s IS Shipment AND NOT supplier(t))
+    FILTERS customer(s) = customer(t) OR NOT customer(t),
+            supplier(s) = supplier(t) OR NOT supplier(t),
+            fromStock(s) = fromStock(t) OR NOT fromStock(t)
 
     FILTERGROUP filterDateShipment
         FILTER 'Текущие' date(s) <= date(t) 'F9' DEFAULT
     FILTERGROUP filterShipment
-        FILTER 'Не расписанные или в текущем рейсе' filter(t, s) 'F11'
+        FILTER 'Не расписанные или в текущем рейсе' trip(s) = t OR NOT trip(s) 'F11'
         FILTER 'В текущем рейсе' in(t, s) 'F10' DEFAULT
 
-    OBJECTS sd=ShipmentDetail
+    OBJECTS sd = ShipmentDetail
     PROPERTIES(sd) READONLY idBarcodeSku, nameSku, shortNameUOMSku, quantity, grossWeight, nameFromStock, nameToStock
-    FILTERS shipment(sd)==s
+    FILTERS shipment(sd) = s
 ;
 
 DESIGN trip {
@@ -59,7 +72,7 @@ DESIGN trip {
 EXTEND FORM trips
     PROPERTIES(t) READONLY grossWeightShipped
 
-    OBJECTS s=Shipment
+    OBJECTS s = Shipment
     PROPERTIES(s) READONLY number, series, date, nameSupplier, nameFromStock, nameCustomer, nameToStock, grossWeightShipmentDetail
     FILTERS in(t, s)
 ;
@@ -71,3 +84,63 @@ DESIGN trips {
         }
     }
 }
+
+// actions
+FORM changeShipmentTrip 'Выбор рейса'
+    OBJECTS s = Shipment PANEL
+    
+    OBJECTS t = Trip
+    PROPERTIES(t) READONLY number, series, date, time, nameDriver, sidTruck, nameTruckModelTruck, trailerTruck, weightTruck
+    PROPERTIES(t) NEWSESSION EDIT
+    FILTERGROUP date
+        FILTER 'На дату' date(s) <= date(t) DEFAULT
+        FILTER 'С той же датой' date(t) = date(s)
+;
+changeTrip (Shipment s) {
+    NEWSESSION {
+        DIALOG changeShipmentTrip OBJECTS s = s, t = trip(s) NULL CHANGE DO APPLY;
+    }
+}
+
+createTrip 'Создать новый рейс' (Shipment s) {
+    NEWSESSION {
+        NEW t = Trip {
+            trip(s) <- t;
+            fromStock(t) <- fromStock(s);
+            SHOW trip OBJECTS t = t DOCKED;
+        }
+    }
+}
+
+META defineDocumentTrip (doc, obj, container)
+    EXTEND FORM doc##s
+        PROPERTIES(obj) PANEL ON CHANGE changeTrip(obj) descriptionTrip
+        PROPERTIES(obj) PANEL READONLY nameDriverTrip, sidTruckTrip, nameTruckModelTrip  
+        PROPERTIES(obj) createTrip
+    ;
+    
+    DESIGN doc##s {
+        container {
+            NEW transport {
+                type = CONTAINERH;
+                caption = 'Транспорт';
+                MOVE PROPERTY(descriptionTrip(obj));
+                MOVE PROPERTY(nameDriverTrip(obj));
+                MOVE PROPERTY(sidTruckTrip(obj));
+                MOVE PROPERTY(nameTruckModelTrip(obj));
+                MOVE PROPERTY(createTrip(obj));
+            }
+        }
+    }
+END
+
+META defineInvoiceTrip (dumb)
+    EXTEND FORM invoices
+        OBJECTS tis = InvoiceShipment PANEL
+        FILTERS invoice(tis) = i
+    ;
+    
+    @defineDocumentTrip(invoice, tis, documentDetail);
+    
+    DESIGN invoices { transport { showIf = invoiceShipment(i); } }
+END

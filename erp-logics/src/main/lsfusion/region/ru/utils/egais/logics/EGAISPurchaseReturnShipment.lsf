@@ -2,7 +2,8 @@ MODULE EGAISPurchaseReturnShipment;
 
 REQUIRE PurchaseReturnShipmentLot, EGAISFRegLedger,
         EGAISItem, EGAISStock,
-        EGAISWayBillProcess, EGAISPurchaseReturnInvoice;
+        EGAISWayBillProcess, EGAISPurchaseReturnInvoice,
+        TripShipment;
 
 PRIORITY PurchaseReturn;
 
@@ -13,7 +14,7 @@ NAMESPACE EGAISPurchaseReturn;
 quantity = ABSTRACT NUMERIC[16,5] (ShipmentDetail, F2Reg);
 quantity(UserShipmentDetail d, F2Reg r) += quantity(d, r);
 
-@defineDocumentOutWayBillProcess(shipment, customerStock, supplierStock);
+@defineDocumentOutWayBillProcess(shipment, customer, supplier);
 
 @defineDocumentOutWayBillForm(shipment, s);
 
@@ -27,3 +28,5 @@ confirm 'Ответить на акт разногласий' (Invoice i) { conf
 wayBill (Invoice i) = wayBill(invoiceShipment(i));
 
 @defineDocumentOutWayBillForm(invoice, i);
+
+DESIGN invoices { documentDetail { showIf = invoiceShipment(i); }}

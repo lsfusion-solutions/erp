@@ -23,7 +23,7 @@ accepted 'Принята получателем' = DATA BOOLEAN (WayBill);
 
 toAccept 'К приемке' (WayBill w) = w IS WayBill AND NOT accepted(w) AND NOT canceled(w) MATERIALIZED INDEXED; 
 
-// transport
+// properties
 
 shipper = DATA Client (WayBill) INDEXED;
 shortNameShipper 'Отправитель' (WayBill w) = shortName(shipper(w)) IN id;
@@ -38,6 +38,24 @@ note 'Примечание' = DATA STRING (WayBill);
 
 regId 'Рег. номер' = DATA STRING (WayBill);
 wayBill = GROUP MAX WayBill b BY regId(b);
+
+// transport
+tranType 'Тип перевозки' = DATA STRING (WayBill);
+changeOwnership 'Смена собственности' = DATA BOOLEAN (WayBill);
+
+tranCompany 'Название компании перевозчика' = DATA STRING (WayBill);
+
+transportType 'Транспортное средство' = DATA STRING (WayBill);
+transportRegNumber 'Регистрационный номер транспортного средства' = DATA STRING (WayBill);
+tranTrailer 'Прицеп' = DATA STRING (WayBill);
+
+tranCustomer 'Заказчики' = DATA STRING (WayBill);
+tranDriver 'Водитель' = DATA STRING (WayBill);   
+tranLoadPoint 'Место погрузки' = DATA STRING (WayBill);
+tranUnloadPoint 'Место разгрузки' = DATA STRING (WayBill);
+
+tranRedirect 'Перенаправление' = DATA STRING (WayBill);
+tranForwarder 'Экспедитор' = DATA STRING (WayBill);
 
 // position
 
@@ -136,9 +154,16 @@ bottlingDate 'Дата розлива' = DATA DATE (WayBillPosition);
 
 FORM wayBill 'ТТН ЕГАИС'
     OBJECTS w = WayBill PANEL
-    PROPERTIES(w) accepted, canceled, id, number, date, shippingDate,
-                  shortNameShipper, shortNameConsignee, regId,
-                  base, note
+    PROPERTIES(w) accepted, canceled, 
+                  id, number, date, shippingDate, regId,
+                  shortNameShipper, shortNameConsignee, 
+                  base, note,
+                  
+                  tranType, changeOwnership, 
+                  tranCompany, tranCustomer,
+                  transportType, transportRegNumber, tranTrailer,
+                  tranDriver, tranRedirect, tranForwarder,
+                  tranLoadPoint, tranUnloadPoint
     
     OBJECTS p = WayBillPosition
     PROPERTIES(p) identity, idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg,  
@@ -167,6 +192,58 @@ FORM wayBill 'ТТН ЕГАИС'
 
 DESIGN wayBill {
     OBJECTS {
+        NEW header {
+            NEW statuses {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                caption = 'Статусы';
+                MOVE PROPERTY(accepted(w));
+                MOVE PROPERTY(canceled(w));
+            }
+            NEW base {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                caption = 'Основные';
+                MOVE PROPERTY(id(w));
+                MOVE PROPERTY(number(w));
+                MOVE PROPERTY(date(w));
+                MOVE PROPERTY(shippingDate(w));
+                MOVE PROPERTY(regId(w));
+            }
+            NEW legalEntities {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                caption = 'Контрагенты';
+                MOVE PROPERTY(shortNameShipper(w));
+                MOVE PROPERTY(shortNameConsignee(w));
+            }
+            NEW notes {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                caption = 'Примечания';
+                MOVE PROPERTY(base(w));
+                MOVE PROPERTY(note(w));
+            }
+            NEW transport {
+                type = COLUMNS;
+                columns = 3;
+                alignment = STRETCH;
+                caption = 'Транспорт';
+                
+                MOVE PROPERTY(tranType(w));
+                MOVE PROPERTY(changeOwnership(w));
+                MOVE PROPERTY(tranCompany(w));
+                MOVE PROPERTY(tranCustomer(w));
+                MOVE PROPERTY(transportType(w));
+                MOVE PROPERTY(transportRegNumber(w));
+                MOVE PROPERTY(tranTrailer(w));
+                MOVE PROPERTY(tranDriver(w));
+                MOVE PROPERTY(tranRedirect(w));
+                MOVE PROPERTY(tranForwarder(w));
+                MOVE PROPERTY(tranLoadPoint(w));
+                MOVE PROPERTY(tranUnloadPoint(w));
+            }
+        }
         NEW detail {
             type = SPLITH;
             fill = 1;
@@ -175,7 +252,7 @@ DESIGN wayBill {
                 fill = 0.5;
                 type = SPLITV;
                 MOVE BOX(b) {
-                    fill = 0.2;
+                    fill = 0.3;
                 }
                 MOVE BOX(m);
             }

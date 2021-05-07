@@ -1,0 +1,23 @@
+MODULE TripStock;
+
+REQUIRE Trip, EmployeeStock;
+
+NAMESPACE Trip;
+
+fromStock = DATA Stock (Trip) INDEXED;
+nameFromStock 'Откуда' (Trip t) = name(fromStock(t));
+
+EXTEND FORM trip
+    PROPERTIES(t) nameFromStock ON CHANGE { DIALOG companysStock OBJECTS s = fromStock(t) CHANGE; }
+;
+DESIGN trip {
+    headerFilter {
+        MOVE PROPERTY(nameFromStock(t));
+    }
+}
+
+EXTEND FORM trips
+    PROPERTIES(t) READONLY nameFromStock
+;
+
+@extendFormFilterAccessStock(Trip, t, trips, fromStock, company);

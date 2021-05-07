@@ -15,31 +15,37 @@ TABLE trip(Trip);
 
 trip (number) = GROUP AGGR Trip trip BY number(trip);
 
-truck = DATA Truck(Trip);
-sidTruck 'Машина (номер)'(Trip trip) = sid(truck(trip));
-weightTruck 'Грузоподъёмность (кг)'(Trip trip) = weight(truck(trip));
-ownerTruck 'Владелец'(Trip trip) = owner(truck(trip));
-truckModelTruck (Trip trip) = truckModel(truck(trip));
-nameTruckModelTruck 'Марка' (Trip trip) = name(truckModelTruck(trip));
-trailerTruck 'Прицеп' (Trip trip) = trailer(truck(trip));
-nameTruck 'Автомобиль' (Trip trip) = name(truck(trip));
-
-driver = DATA Driver(Trip);
+driver = DATA Driver (Trip) INDEXED;
 nameDriver 'Водитель' (Trip trip) = name[Contact](driver(trip));
 sidDriver 'Табельный номер' (Trip trip) = sid(driver(trip));
 typeDriver 'Класс' (Trip trip) = type(driver(trip));
 
-supplier = DATA LegalEntity(Trip);
+truck = DATA Truck (Trip) INDEXED;
+sidTruck 'Машина (номер)'(Trip trip) = sid(truck(trip));
+weightTruck 'Грузоподъёмность (кг)'(Trip trip) = weight(truck(trip));
+nameOwnerTruck 'Владелец'(Trip trip) = nameOwner(truck(trip));
+nameTruckModelTruck 'Марка' (Trip trip) = nameTruckModel(truck(trip));
+trailerTruck 'Прицеп' (Trip trip) = trailer(truck(trip));
+nameTruck 'Автомобиль' (Trip trip) = name(truck(trip));
+
+WHEN LOCAL SETCHANGED(driver(Trip t)) AND defaultTruck(driver(t)) AND NOT CHANGED(truck(t)) DO
+    truck(t) <- defaultTruck(driver(t));
+
+redirect 'Перенаправление' = DATA STRING (Trip);
+forwarder 'Экспедитор' = DATA STRING (Trip);
+
+supplier = DATA LegalEntity (Trip) INDEXED;
 nameSupplier 'Организация (поставщик)' (Trip t) = name(supplier(t));
-customer = DATA LegalEntity(Trip);
+customer = DATA LegalEntity (Trip) INDEXED;
 nameCustomer 'Организация (покупатель)' (Trip t) = name(customer(t));
 
 description 'Рейс' (Trip o) = CONCAT ' ', seriesNumber(o), toDateDDMMYY(date(o)) CHARWIDTH 20; 
 
 FORM trip 'Рейс'
-    OBJECTS t=Trip PANEL
+    OBJECTS t = Trip PANEL
     PROPERTIES(t) nameNumerator, number, series, date, time, 
                   nameDriver, sidTruck, nameTruckModelTruck, trailerTruck, weightTruck,
+                  redirect, forwarder,
                   nameSupplier, nameCustomer
     
     EDIT Trip OBJECT t
@@ -68,6 +74,8 @@ DESIGN trip {
                 MOVE PROPERTY(nameTruckModelTruck(t));
                 MOVE PROPERTY(trailerTruck(t));
                 MOVE PROPERTY(weightTruck(t));
+                MOVE PROPERTY(redirect(t));
+                MOVE PROPERTY(forwarder(t));
             }
 
             NEW headerSum {

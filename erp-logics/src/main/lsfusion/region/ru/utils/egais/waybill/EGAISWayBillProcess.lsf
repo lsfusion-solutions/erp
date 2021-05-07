@@ -58,7 +58,7 @@ META defineDocumentInWayBillActForm (doc, obj)
 END
 
 // out
-META defineDocumentOutWayBillProcess (doc, supplierStock, customerStock)
+META defineDocumentOutWayBillProcess (doc, supplier, customer)
     wayBill = DATA WayBill (###doc) INDEXED;
     
     doc##Detail = DATA ###doc##Detail (WayBillPosition) INDEXED;
@@ -74,8 +74,26 @@ META defineDocumentOutWayBillProcess (doc, supplierStock, customerStock)
                 date(w) <- date(i);
                 shippingDate(w) <- date(i);
                 
-                shipper(w) <- client(supplierStock(i));
-                consignee(w) <- client(customerStock(i));
+                shipper(w) <- client(supplier##Stock(i));
+                consignee(w) <- client(customer##Stock(i));
+                
+                tranType(w) <- 'Автомобиль';
+                changeOwnership(w) <- shipper(w) = consignee(w);
+                transportType(w) <- 'car';
+                
+                tranCompany(w) <- OVERRIDE nameOwner(truck(trip(i))), name(supplier(i));
+
+                transportRegNumber(w) <- sid(truck(trip(i)));
+                tranTrailer(w) <- trailer(truck(trip(i)));
+
+                tranCustomer(w) <- name(customer(i));
+                tranDriver(w) <- nameDriver(trip(i));
+
+                tranLoadPoint(w) <- address(supplier##Stock(i));
+                tranUnloadPoint(w) <- address(customer##Stock(i));
+
+                tranRedirect(w) <- redirect(trip(i));
+                tranForwarder(w) <- forwarder(trip(i));
 
                 FOR quantity(###doc##Detail d, Lot l) IF doc(d) = s AND NOT markCode(id(l)) DO NEW m = MarkCode {
                     id(m) <- id(l);
