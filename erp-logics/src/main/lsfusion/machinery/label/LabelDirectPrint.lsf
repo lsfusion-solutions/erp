@@ -169,6 +169,7 @@ DESIGN labelType{
         MOVE PROPERTY (skipComletBarcode(l));
         NEW lpad{
             caption = 'Отступы слева для цены';
+            type = CONTAINERH;
             MOVE PROPERTY (lpad1Char(l));
             MOVE PROPERTY (lpad2Char(l));
             MOVE PROPERTY (lpad3Char(l));
@@ -186,8 +187,11 @@ caseLpad(TEXT t, LabelType lt) = CASE
 
 dynamicLpad(INTEGER p, LabelType lt) = lpad(TEXT(p), caseLpad(TEXT(p), lt),' ');
 
-beforeDirectPrint  ABSTRACT LIST ( LabelTransaction);
-overDirectPrint  ABSTRACT LIST ( LabelTransactionDetail);
+beforeDirectPrint  ABSTRACT LIST (LabelTransaction);
+beforeDirectPrint  ABSTRACT LIST (LabelTransactionDetail);
+overDirectPrint  ABSTRACT LIST (LabelTransactionDetail);
+
+discountPercentPrefix = ABSTRACT STRING ();
 
 overPrintNameSku = ABSTRACT STRING[255](LabelTransactionDetail);
 overLabelDirectDate = ABSTRACT ISTRING[50](LabelTransaction);
@@ -268,6 +272,8 @@ customPrint(LabelTransaction labelTrans) + {
     FOR labelTrans == labelTransaction(LabelTransactionDetail ld) ORDER ld DO {
         formattedText() <- text(ld);
         
+        beforeDirectPrint(ld);
+            
         CASE 
         WHEN isSubstring(formattedText(),'#EncodeWindows = Yes') OR isSubstring(formattedText(),'CODEPAGE 1251') OR codepageDirectPrint(labelType(labelTrans)) == CodepageDirectPrint.cp1251 THEN {
             charset() <-  'CP1251';
@@ -370,8 +376,8 @@ customPrint(LabelTransaction labelTrans) + {
             formattedText() <- replace(formattedText(),'@retailPriceKop@', retailPriceKopB(ld));
         } ELSE formattedText() <- replace(formattedText(),'@retailPriceKop@', '');
         
-        IF discountPercent(ld) THEN {
-            formattedText() <- replace(formattedText(),'@discountPercent@', discountPercent(ld) + '%');
+        IF discountPercent(ld) > 0 THEN {
+            formattedText() <- replace(formattedText(),'@discountPercent@', (OVERRIDE discountPercentPrefix(), '') + discountPercent(ld) + '%');
         } ELSE formattedText() <- replace(formattedText(),'@discountPercent@', '');
         
         formattedText() <- replace(formattedText(),'@33.4@', STRING[4](OVERRIDE quantity(ld), 1 IF ld IS LabelTransactionDetail));
