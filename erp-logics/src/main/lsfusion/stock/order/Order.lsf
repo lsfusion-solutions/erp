@@ -416,6 +416,9 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         } 
     }
     
+    hideWithoutVAT = ABSTRACT BOOLEAN (Order);    
+    hideWithVAT = ABSTRACT BOOLEAN (Order);
+        
     FORM userOrder 'Заказ'###sign
         OBJECTS o = UserOrder PANEL
         PROPERTIES (o) isPosted, nameSupplier ON CHANGE changeSupplier###supplierFilter(o),
@@ -424,7 +427,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        nameCustomerStock ON CHANGE changeCustomerStock###customerFilter(o) BACKGROUND backgroundCustomer(o),
                        nameNumerator, number, series, date, time,
                        nameCurrency, nameAgreement, namePriceListType SHOWIF noAgreement(o), note, nameAcquisitionTarget
-        PROPERTIES (o) READONLY countUserOrderDetail, quantityUserOrderDetail, sumUserOrderDetail,
+        PROPERTIES (o) READONLY countUserOrderDetail, quantityUserOrderDetail, sumUserOrderDetail SHOWIF NOT hideWithoutVAT(o),
                        VATSumUserOrderDetail, invoiceSumUserOrderDetail
         PROPERTIES (o) shipmentDate, shipmentTime, closeDate, nextShipmentDate,
                        quantityDaysNextShipment READONLY,
@@ -435,10 +438,11 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         PROPERTIES (d) ON EDIT editSku(d) BACKGROUND backgroundSku(d) idBarcodeSku, 
                        idSku, nameSku BACKGROUND backgroundName(d), shortNameUOMSku
         PROPERTIES (d) quantity BACKGROUND backgroundQuantityParam(d), namePriceListType BACKGROUND backgroundSku(d),
-                       price ON CHANGE changePrice(d) BACKGROUND backgroundPriceParam(d), sum BACKGROUND backgroundSku(d),
-                       numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundSku(d),
-                       valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundSku(d),
-                       invoicePrice ON CHANGE changeInvoicePrice(d) BACKGROUND backgroundSku(d),
+                       price ON CHANGE changePrice(d) BACKGROUND backgroundPriceParam(d) SHOWIF NOT hideWithoutVAT(o), 
+                       sum BACKGROUND backgroundSku(d) SHOWIF NOT hideWithoutVAT(o),
+                       numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundSku(d) SHOWIF NOT hideWithoutVAT(o),
+                       valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundSku(d) SHOWIF NOT hideWithoutVAT(o),
+                       invoicePrice ON CHANGE changeInvoicePrice(d) BACKGROUND backgroundSku(d) SHOWIF NOT hideWithVAT(o),
                        VATSum BACKGROUND backgroundSku(d), invoiceSum BACKGROUND backgroundSku(d),
                        shipmentDate BACKGROUND backgroundSku(d), shipmentTime BACKGROUND backgroundSku(d), 
                        closeDate BACKGROUND backgroundSku(d), NEW, deleteod = DELETE GRID
@@ -732,8 +736,9 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         PROPERTIES (d) READONLY index BACKGROUND backgroundSkuDetail(d), idBarcodeSku BACKGROUND backgroundSkuDetail(d), 
                        idSku BACKGROUND backgroundSkuDetail(d), nameSku, shortNameUOMSku BACKGROUND backgroundSkuDetail(d)
         PROPERTIES (d) READONLY quantity BACKGROUND backgroundQuantityParam(d), namePriceListType BACKGROUND backgroundSkuDetail(d), 
-                       price BACKGROUND backgroundPriceParam(d), sum BACKGROUND backgroundSkuDetail(d),
-                       numberVAT BACKGROUND backgroundSkuDetail(d), valueVAT BACKGROUND backgroundSkuDetail(d), 
+                       price BACKGROUND backgroundPriceParam(d) SHOWIF NOT hideWithoutVAT(o), sum BACKGROUND backgroundSkuDetail(d) SHOWIF NOT hideWithoutVAT(o),
+                       numberVAT BACKGROUND backgroundSkuDetail(d) SHOWIF NOT hideWithoutVAT(o), valueVAT BACKGROUND backgroundSkuDetail(d) SHOWIF NOT hideWithoutVAT(o), 
+                       invoicePrice BACKGROUND backgroundSkuDetail(d) SHOWIF NOT hideWithVAT(o),
                        VATSum BACKGROUND backgroundSkuDetail(d), invoiceSum BACKGROUND backgroundSkuDetail(d),
                        name###stockProp##Stock, shipmentDate BACKGROUND backgroundSkuDetail(d), shipmentTime BACKGROUND backgroundSkuDetail(d)
         ORDERS index(d)

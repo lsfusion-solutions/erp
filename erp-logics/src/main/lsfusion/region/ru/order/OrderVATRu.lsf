@@ -1,0 +1,71 @@
+MODULE OrderVATRu;
+
+REQUIRE Order, LegalEntityRu;
+
+NAMESPACE Order;
+
+META defineWithVATOrder (part)
+    @defineDocumentInterfaceProperty (order, withVATPrice, 'Цена с НДС');
+    
+    hideWithoutVAT (Order o) += withVATPrice(o);  
+    hideWithVAT (Order o) += o IS Order AND NOT withVATPrice(o);
+    
+    changeReverseNumberVAT (UserOrderDetail userOrderDetail)  { 
+        DIALOG rangeDialog OBJECTS c = countryCustomerStock(userOrderDetail), r = VAT(userOrderDetail) INPUT NULL DO {
+            VAT (userOrderDetail) <- r;
+            price (userOrderDetail) <- round(invoicePrice(userOrderDetail) * 100.0 /(100.0 (+) calcValueVAT(userOrderDetail)), defaultRound(currency(userOrderDetail)));
+        }
+    }
+    
+    changeReverseValueVAT (UserOrderDetail userOrderDetail)  { 
+        INPUT n = NUMERIC[10,5] DO {
+            valueVAT (userOrderDetail) <- n;
+            VAT(userOrderDetail) <- valueCurrentVAT(country###part##Stock(userOrderDetail), n);
+            price (userOrderDetail) <- round(invoicePrice(userOrderDetail) * 100.0 /(100.0 (+) calcValueVAT(userOrderDetail)), defaultRound(currency(userOrderDetail)));
+        }
+    }
+    
+    EXTEND FORM userOrder
+        PROPERTIES (o) withVATPrice
+        PROPERTIES  reverseValueVAT 'НДС, %' = valueVAT(d) AFTER invoicePrice(d) ON CHANGE changeReverseValueVAT(d) SHOWIF withVATPrice(d),
+                    reverseNumberVAT 'НДС, номер' = numberVAT(d) AFTER invoicePrice(d) ON CHANGE changeReverseNumberVAT(d) SHOWIF withVATPrice(d) 
+                   
+    ;
+    
+    DESIGN userOrder {
+        headerExtraParams {
+            NEW VATContainer {
+                caption = 'НДС';
+                MOVE PROPERTY (withVATPrice(o));            
+            }
+        }
+        PROPERTY (invoicePrice(d)){
+            background = RGB(212,255,212);
+        }
+    }
+    
+    DESIGN orders {
+        PROPERTY (invoicePrice(d)){
+            background = RGB(212,255,212);
+        }
+    }
+    
+    EXTEND FORM orders
+        PROPERTIES  READONLY reverseValueVAT 'НДС, %' = valueVAT(d) AFTER invoicePrice(d) SHOWIF withVATPrice(d),
+                    reverseNumberVAT 'НДС, номер' = numberVAT(d) AFTER invoicePrice(d) SHOWIF withVATPrice(d) 
+                   
+    ;
+    
+    withVATPrice (UserOrder o) <- isVATPayer(##part(o))
+        WHEN CHANGED(##part(o));
+    
+    invoiceSum (UserOrderDetail userOrderDetail) <- NUMERIC[18,4](round(quantity(userOrderDetail) * invoicePrice(userOrderDetail), currency(userOrderDetail)))
+        WHEN (CHANGED(quantity(userOrderDetail)) OR CHANGED(invoicePrice(userOrderDetail)) OR CHANGED (currency (userOrderDetail))) AND withVATPrice(userOrderDetail);
+    
+    VATSum (UserOrderDetail userOrderDetail)  <- NUMERIC[18,4](round(invoiceSum(userOrderDetail) * valueVAT(userOrderDetail) / (100 (+) valueVAT (userOrderDetail)), currency(userOrderDetail)))
+        WHEN (CHANGED(invoiceSum(userOrderDetail)) OR CHANGED (valueVAT (userOrderDetail)) OR CHANGED (currency (userOrderDetail))) AND withVATPrice(userOrderDetail);
+    
+    sum (UserOrderDetail userOrderDetail) <- NUMERIC[18,4](invoiceSum(userOrderDetail) (-) VATSum(userOrderDetail))
+        WHEN (CHANGED(invoiceSum(userOrderDetail)) OR CHANGED (VATSum(userOrderDetail))) AND withVATPrice(userOrderDetail);
+
+END
