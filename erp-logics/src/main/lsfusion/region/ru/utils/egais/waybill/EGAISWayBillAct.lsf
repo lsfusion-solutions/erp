@@ -1,6 +1,6 @@
 MODULE EGAISWayBillAct;
 
-REQUIRE EGAISOutDoc, EGAISTicket, EGAISWayBillDoc;
+REQUIRE EGAISOutDoc, EGAISTicket, EGAISWayBillDoc, EGAISWayBillStatus;
 
 NAMESPACE EGAIS;
 
@@ -34,3 +34,16 @@ DESIGN wayBills {
         }
     }
 }
+
+// status
+
+EXTEND CLASS WayBillStatus {
+    wayBillAct 'Есть акт расхождений'
+}
+
+EXTEND FORM wayBills
+    EXTEND FILTERGROUP status
+        FILTER 'Есть акт расхождений' status(w) = WayBillStatus.wayBillAct
+;
+
+status (WayBill w) += WHEN toAccept(w) AND wayBillAct(w) THEN WayBillStatus.wayBillAct;

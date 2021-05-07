@@ -56,6 +56,8 @@ confirmRepeal 'Подтвердить запрос на отмену' (WayBillAc
             wayBillAct(r) <- wa;
             wayBill(r) <- wayBill(wa);
             
+            hasRRWB(wa) <- NULL;
+            
             numberCRWB(wa) <- STRING(r);
             dateCRWB(wa) <- currentDateTime();
             
@@ -69,7 +71,7 @@ confirmRepeal 'Подтвердить запрос на отмену' (WayBillAc
 
 EXTEND FORM wayBills
     PROPERTIES(a) READONLY commentsConfirmRepealWBOutDoc PANEL
-    PROPERTIES(a) confirmRepeal SHOWIF numberRRWB(a) AND own(shipper(w)) AND NOT notRejected(confirmRepealWBOutDoc(a)) TOOLBAR
+    PROPERTIES(a) confirmRepeal SHOWIF hasRRWB(a) AND own(shipper(w)) AND NOT notRejected(confirmRepealWBOutDoc(a)) TOOLBAR
 ;
 
 DESIGN wayBills {
@@ -107,6 +109,7 @@ process (InDoc d) + {
                 
                 IF isConfirmRepeal() = 'Accepted' THEN accepted(b) <- NULL;
                 
+                hasRRWB(wa) <- NULL;
                 numberCRWB(wa) <- confirmNumber();
                 dateCRWB(wa) <- toDateTimeFormat(confirmDate(),'yyyy-MM-ddThh24:mi:ss');
                 noteCRWB(wa) <- note();

@@ -4,11 +4,12 @@ REQUIRE EGAISOutDoc, EGAISWayBillDoc, EGAISWayBillAct;
 
 NAMESPACE EGAIS;
 
+hasRRWB 'Запрос на отмену' = DATA BOOLEAN (WayBillAct);
 numberRRWB 'Номер запроса на отмену' = DATA STRING (WayBillAct);
 dateRRWB 'Дата запроса на отмену' = DATA DATETIME (WayBillAct);
 
 EXTEND FORM wayBills
-    PROPERTIES(a) READONLY numberRRWB, dateRRWB 
+    PROPERTIES(a) READONLY hasRRWB, numberRRWB, dateRRWB 
 ;
 
 CLASS RequestRepealWBOutDoc 'Запрос на отмену проведения ТТН от грузополучателя' : OutDoc;
@@ -86,6 +87,7 @@ process (InDoc d) + {
             FOR WayBill b = wayBill(WBRegId()) AND wayBillAct(b) = WayBillAct wa DO {            
                 wayBill(d) <- b;
                 
+                hasRRWB(wa) <- TRUE;
                 numberRRWB(wa) <- requestNumber();
                 dateRRWB(wa) <- requestDate();
 
@@ -107,3 +109,16 @@ process (Ticket t) + {
         }
     }
 }
+
+// status
+
+EXTEND CLASS WayBillStatus {
+    requestRepeal 'Запрос на отмену проведения'
+}
+
+EXTEND FORM wayBills
+    EXTEND FILTERGROUP status
+        FILTER 'Запрос на отмену проведения' status(w) = WayBillStatus.requestRepeal
+;
+
+status (WayBill w) += WHEN toAccept(w) AND hasRRWB(wayBillAct(w)) THEN WayBillStatus.requestRepeal;

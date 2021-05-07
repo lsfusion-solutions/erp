@@ -1,0 +1,37 @@
+MODULE EGAISWayBillStatus;
+
+REQUIRE EGAISWayBill;
+
+NAMESPACE EGAIS;
+
+// status
+CLASS WayBillStatus 'Статус ТТН ЕГАИС' {
+    sent 'Отправлена',
+    accepted 'Принята',
+    canceled 'Отменена'    
+}
+
+name 'Наименование' (WayBillStatus o) = staticCaption(o) IF o IS WayBillStatus CHARWIDTH 15;
+
+FORM dialogWayBillStatuss 'Статус ТТН ЕГАИС'
+    OBJECTS o = WayBillStatus
+    PROPERTIES(o) READONLY name
+    
+    LIST WayBillStatus OBJECT o
+;
+
+status = ABSTRACT CASE WayBillStatus (WayBill) MATERIALIZED INDEXED;
+nameStatus 'Статус' (WayBill w) = name(status(w));
+
+EXTEND FORM wayBills
+    PROPERTIES(w) READONLY nameStatus FIRST
+    
+    FILTERGROUP status
+        FILTER 'Отправлена' status(w) = WayBillStatus.sent
+        FILTER 'Принята' status(w) = WayBillStatus.accepted
+        FILTER 'Отменена' status(w) = WayBillStatus.canceled
+;
+
+status (WayBill w) += WHEN w IS WayBill THEN WayBillStatus.sent;
+status (WayBill w) += WHEN accepted(w) THEN WayBillStatus.accepted;
+status (WayBill w) += WHEN canceled(w) THEN WayBillStatus.canceled;
