@@ -488,6 +488,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     editSku 'Редактировать SKU' (UserInvoiceDetail d)  { NEWSESSION { edit(sku(d)); } }
     
     backgroundCustomer 'Цвет'  (d)= ABSTRACT CASE COLOR (UserInvoice);
+    
+    hideWithoutVAT = ABSTRACT BOOLEAN (Invoice);    
+    hideWithVAT = ABSTRACT BOOLEAN (Invoice);
         
     FORM userInvoice 'Накладная'###sign
         OBJECTS i = UserInvoice PANEL
@@ -498,7 +501,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                        nameNumerator, number, series, date, time,
                        nameCurrency, nameAgreement, namePriceListType SHOWIF noAgreement(i), note,
                        seriesNumberContractSku, isCommission
-        PROPERTIES (i) countUserInvoiceDetail, quantityUserInvoiceDetail, sumUserInvoiceDetail,
+        PROPERTIES (i) countUserInvoiceDetail, quantityUserInvoiceDetail, sumUserInvoiceDetail SHOWIF NOT hideWithoutVAT(i),
                        VATSumUserInvoiceDetail, invoiceSumUserInvoiceDetail, sumNetWeightInvoiceDetail, 
                        sumGrossWeightInvoiceDetail ON CHANGE changeGrossWeight(i) 
 
@@ -507,10 +510,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         PROPERTIES (d) ON EDIT editSku(d) BACKGROUND backgroundSku(d) idBarcodeSku, 
                        idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
         PROPERTIES (d) quantity SHOWIF showQuantity(i), namePriceListType,
-                       price ON CHANGE changePrice(d), sum,
-                       numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundVAT(d),
-                       valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundVAT(d),
-                       invoicePrice ON CHANGE changeInvoicePrice(d),
+                       price ON CHANGE changePrice(d) SHOWIF NOT hideWithoutVAT(i), sum SHOWIF NOT hideWithoutVAT(i),
+                       numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
+                       valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
+                       invoicePrice ON CHANGE changeInvoicePrice(d) SHOWIF NOT hideWithVAT(i),
                        VATSum, invoiceSum, sumNetWeight BACKGROUND backgroundSku(d), 
                        sumGrossWeight BACKGROUND backgroundSku(d), NEW, deleteid=DELETE GRID
         ORDERS index(d)
@@ -813,8 +816,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         OBJECTS d = InvoiceDetail
         PROPERTIES (d) READONLY index
         PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
-        PROPERTIES (d) READONLY quantity, namePriceListType, price, sum,
-                       numberVAT, valueVAT, VATSum, invoiceSum
+        PROPERTIES (d) READONLY quantity, namePriceListType, price SHOWIF NOT hideWithoutVAT(i), sum SHOWIF NOT hideWithoutVAT(i),
+                       numberVAT SHOWIF NOT hideWithoutVAT(i), valueVAT SHOWIF NOT hideWithoutVAT(i), VATSum, invoiceSum
         ORDERS index(d)
 
         FILTERS invoice(d) == i

@@ -1,0 +1,65 @@
+MODULE InvoiceVATRu;
+
+REQUIRE Invoice, LegalEntityRu;
+
+NAMESPACE Invoice;
+
+META defineWithVATInvoice (part)
+    @defineDocumentInterfaceProperty (invoice, withVATPrice, 'Цена с НДС');
+    
+    hideWithoutVAT (Invoice i) += withVATPrice(i);  
+    hideWithVAT (Invoice i) += i IS Invoice AND NOT withVATPrice(i);
+    
+    changeReverseNumberVAT (UserInvoiceDetail userInvoiceDetail)  { 
+        DIALOG rangeDialog OBJECTS c = countryCustomerStock(userInvoiceDetail), r = VAT(userInvoiceDetail) INPUT NULL DO {
+            VAT (userInvoiceDetail) <- r;
+            price (userInvoiceDetail) <- round(invoicePrice(userInvoiceDetail) * 100.0 /(100.0 (+) calcValueVAT(userInvoiceDetail)), defaultRound(currency(userInvoiceDetail)));
+        }
+    }
+    
+    changeReverseValueVAT (UserInvoiceDetail userInvoiceDetail)  { 
+        INPUT n = NUMERIC[10,5] DO {
+            valueVAT (userInvoiceDetail) <- n;
+            VAT(userInvoiceDetail) <- valueCurrentVAT(country###part##Stock(userInvoiceDetail), n);
+            price (userInvoiceDetail) <- round(invoicePrice(userInvoiceDetail) * 100.0 /(100.0 (+) calcValueVAT(userInvoiceDetail)), defaultRound(currency(userInvoiceDetail)));
+        }
+    }
+    
+    EXTEND FORM userInvoice
+        PROPERTIES (i) withVATPrice
+        PROPERTIES  reverseValueVAT 'НДС, %' = valueVAT(d) AFTER invoicePrice(d) ON CHANGE changeReverseValueVAT(d) SHOWIF withVATPrice(d),
+                    reverseNumberVAT 'НДС, номер' = numberVAT(d) AFTER invoicePrice(d) ON CHANGE changeReverseNumberVAT(d) SHOWIF withVATPrice(d) 
+                   
+    ;
+    
+    DESIGN userInvoice {
+        headerExtraParams {
+            NEW VATContainer {
+                caption = 'НДС';
+                MOVE PROPERTY (withVATPrice(i));            
+            }
+        }
+        PROPERTY (invoicePrice(d)){
+            background = RGB(212,255,212);
+        }
+    }
+       
+    EXTEND FORM invoices
+        PROPERTIES  READONLY reverseValueVAT 'НДС, %' = valueVAT(d) AFTER price(d) SHOWIF withVATPrice(d),
+                    reverseNumberVAT 'НДС, номер' = numberVAT(d) AFTER price(d) SHOWIF withVATPrice(d) 
+                   
+    ;
+    
+    withVATPrice (UserInvoice i) <- isVATPayer(##part(i))
+        WHEN CHANGED(##part(i));
+    
+    invoiceSum (UserInvoiceDetail userInvoiceDetail) <- NUMERIC[18,4](round(quantity(userInvoiceDetail) * invoicePrice(userInvoiceDetail), currency(userInvoiceDetail)))
+        WHEN (CHANGED(quantity(userInvoiceDetail)) OR CHANGED(invoicePrice(userInvoiceDetail)) OR CHANGED (currency (userInvoiceDetail))) AND withVATPrice(userInvoiceDetail);
+    
+    VATSum (UserInvoiceDetail userInvoiceDetail)  <- NUMERIC[18,4](round(invoiceSum(userInvoiceDetail) * valueVAT(userInvoiceDetail) / (100 (+) valueVAT (userInvoiceDetail)), currency(userInvoiceDetail)))
+        WHEN (CHANGED(invoiceSum(userInvoiceDetail)) OR CHANGED (valueVAT (userInvoiceDetail)) OR CHANGED (currency (userInvoiceDetail))) AND withVATPrice(userInvoiceDetail);
+    
+    sum (UserInvoiceDetail userInvoiceDetail) <- NUMERIC[18,4](invoiceSum(userInvoiceDetail) (-) VATSum(userInvoiceDetail))
+        WHEN (CHANGED(invoiceSum(userInvoiceDetail)) OR CHANGED (VATSum(userInvoiceDetail))) AND withVATPrice(userInvoiceDetail);
+
+END
