@@ -1,0 +1,39 @@
+MODULE ItemLegalEntityId;
+
+REQUIRE Item, LegalEntity;
+
+TABLE itemLegalEntity (Item, LegalEntity);
+
+dataId 'Код товара для организации' = DATA STRING[100] (Item, LegalEntity) INDEXED;
+id 'Код товара для организации' (Item i, LegalEntity le) = OVERRIDE dataId(i, le), id(i) IF le IS LegalEntity;
+item (LegalEntity le, STRING[100] id) = GROUP AGGR Item i BY id(i, le);
+legalEntity (Item i, STRING[100] id) = GROUP AGGR LegalEntity le BY id(i, le);
+
+EXTEND FORM item
+
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES READONLY order(lg), lgTreeName = name(lg)
+    ORDERS order(lg)
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) READONLY name, id SHOWIF showIDs(), fullName, shortNameOwnership, nameLegalEntityGroup
+    PROPERTIES id(i, l) BACKGROUND #F0F000 IF dataId(i, l) = id(i, l)
+    ORDERS name(l)
+
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT    
+    FILTERS isParent(legalEntityGroup(l), lg) OR
+            l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+;
+
+DESIGN item {
+    itemDetail {
+        NEW itemLegalEntityId {
+            type = SPLITH;
+            fill = 1;
+            caption = 'Коды для организаций';
+            MOVE BOX (TREE legalEntityGroupTree) { fill = 1; }
+            MOVE BOX (l) { fill = 3; }
+        }
+    }
+}
