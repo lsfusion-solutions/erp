@@ -192,6 +192,7 @@ beforeDirectPrint  ABSTRACT LIST (LabelTransactionDetail);
 overDirectPrint  ABSTRACT LIST (LabelTransactionDetail);
 
 discountPercentPrefix = ABSTRACT STRING ();
+skipPrintDiscountPrice = ABSTRACT BOOLEAN (LabelTransactionDetail);
 
 overPrintNameSku = ABSTRACT STRING[255](LabelTransactionDetail);
 overLabelDirectDate = ABSTRACT ISTRING[50](LabelTransaction);
@@ -351,7 +352,7 @@ customPrint(LabelTransaction labelTrans) + {
             formattedText() <- replace(formattedText(),'@52.25.1@', '');
             formattedText() <- replace(formattedText(),'@5.70.1@', '');
         }
-        IF discountSum(ld) > 0.0 THEN {
+        IF discountSum(ld) > 0.0 AND NOT skipPrintDiscountPrice(ld) THEN {
             formattedText() <- replace(formattedText(),'@YourDiscount@', 'Ваша скидка:');
         } ELSE formattedText() <- replace(formattedText(),'@YourDiscount@', '');
                
@@ -359,24 +360,24 @@ customPrint(LabelTransaction labelTrans) + {
         IF priceRubB(ld) THEN {
             formattedText() <- replace(formattedText(),'@priceRub@', dynamicLpad(priceRubB(ld), labelType(ld) )) WHERE priceRubB(ld);
         } ELSE formattedText() <- replace(formattedText(),'@priceRub@', '');
-        IF discountPriceRubB(ld) AND discountSum(ld) > 0.0 THEN {
+        IF discountPriceRubB(ld) AND discountSum(ld) > 0.0 AND NOT skipPrintDiscountPrice(ld) THEN {
             formattedText() <- replace(formattedText(),'@discountPriceRub@', dynamicLpad(discountPriceRubB(ld), labelType(ld)) + '.') WHERE discountPriceRubB(ld);
         } ELSE formattedText() <- replace(formattedText(),'@discountPriceRub@', '');
-        IF retailPriceRubB(ld) THEN {
+        IF retailPriceRubB(ld) AND NOT skipPrintDiscountPrice(ld) THEN {
             formattedText() <- replace(formattedText(),'@retailPriceRub@', dynamicLpad(retailPriceRubB(ld), labelType(ld))) WHERE retailPriceRubB(ld);
         } ELSE formattedText() <- replace(formattedText(),'@retailPriceRub@', '');    
         
         IF priceKopB(ld) THEN {
             formattedText() <- replace(formattedText(),'@priceKop@', priceKopB(ld));
         } ELSE formattedText() <- replace(formattedText(),'@priceKop@', '');
-        IF discountPriceKopB(ld) AND discountSum(ld) > 0.0 THEN {
+        IF discountPriceKopB(ld) AND discountSum(ld) > 0.0 AND NOT skipPrintDiscountPrice(ld) THEN {
             formattedText() <- replace(formattedText(),'@discountPriceKop@', discountPriceKopB(ld)) ;
         } ELSE formattedText() <- replace(formattedText(),'@discountPriceKop@', '');
-        IF retailPriceKopB(ld) THEN {
+        IF retailPriceKopB(ld) AND NOT skipPrintDiscountPrice(ld)THEN {
             formattedText() <- replace(formattedText(),'@retailPriceKop@', retailPriceKopB(ld));
         } ELSE formattedText() <- replace(formattedText(),'@retailPriceKop@', '');
         
-        IF discountPercent(ld) > 0 THEN {
+        IF discountPercent(ld) > 0 AND NOT skipPrintDiscountPrice(ld) THEN {
             formattedText() <- replace(formattedText(),'@discountPercent@', (OVERRIDE discountPercentPrefix(), '') + discountPercent(ld) + '%');
         } ELSE formattedText() <- replace(formattedText(),'@discountPercent@', '');
         
