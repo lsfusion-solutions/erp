@@ -42,6 +42,8 @@ sku 'Товар' = DATA Sku (Lot) NONULL DELETE INDEXED;
 idSku 'Код товара' (Lot l) = id(sku(l)) IN id;
 nameSku 'Наименование товара' (Lot l) = name(sku(l)) IN id;
 
+overPreprocessedBarcode(STRING[200] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
+
 changeSku 'Заменить товар' (Lot l) {
     DIALOG skus OBJECTS s INPUT DO {
         ASK 'Вы уверены, что хотите изменить товар для контрольной марки ' + id(l) + ' на ' + name(s) + '?\n Все ограничения будут временно отключены. Во всех существущих документах останется предыдущий товар.' DO {
@@ -191,8 +193,6 @@ META defineDocumentLotBarcodeIn (doc, quantityProp)
         }
     }
     
-    overPreprocessedBarcode(STRING[200] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
-    
     afterInputBarcode###doc##Detail(###doc##Detail d, STRING[200] barcode) + {
         IF lotBarcode() THEN
             quantity(d, Lot l) <- 1.0 WHERE l = lot(lotBarcode());
@@ -267,8 +267,6 @@ META defineDocumentLotBarcodeOut (doc, stock)
             }
         }
     }
-    
-    overPreprocessedBarcode(STRING[200] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
     
     afterInputBarcode###doc##Detail(###doc##Detail d, STRING[200] barcode) + {
         IF lotBarcode() THEN
