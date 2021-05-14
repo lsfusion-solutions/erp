@@ -1,0 +1,57 @@
+MODULE EGAISSaleLedger;
+
+REQUIRE SaleLedger, 
+        EGAISStock, EGAISItem, 
+        EGAISActWriteOffShop, EGAISFRegShopLedger, EGAISTransferToShopLedger;
+
+NAMESPACE EGAIS;
+
+sold 'Продано за день' (Client c, Product p, DATE d) = 
+    GROUP SUM quantitySold(Sku sk, Stock st, d) IF in(sk, p) AND client(st) = c;
+
+actWriteOffShop = GROUP MAX ActWriteOffShop a BY client(a), date(a), type(a);
+
+createActWriteOffShop 'Создать списание по реализации' (Client c, DATE d) {
+    FOR WriteOffShopType t = writeOffShopType('Реализация') DO {
+        IF NOT actWriteOffShop(c, d, t) THEN {
+            NEWSESSION {
+                quantity(Product p) <- sold(c, p, d) IF sold(c, p, d) > 0;
+                IF NOT GROUP SUM 1 IF quantity(Product p) THEN {
+                    MESSAGE 'Не найдено ни одного товара, подлежащего списанию';
+                    RETURN;
+                }
+                
+                createTransferToShop(c, d, 'Перемещение для реализации');
+                
+                NEW a = ActWriteOffShop {
+                    posted(a) <- TRUE;
+                    
+                    client(a) <- c;
+                    dateTime(a) <- DATETIME(d);
+                    type(a) <- t;
+                    note(a) <- 'Списание по реализации';
+                    
+                    FOR quantity(Product p) NEW ps = ActWriteOffShopPosition DO {
+                        actWriteOffShop(ps) <- a;
+                        
+                        product(ps) <- p;
+                        quantity(ps) <- quantity(p);
+                    }
+                }
+                
+                APPLY;
+            }
+        }
+    }
+}
+
+createActWriteOffShop 'Создать списание по реализации' () {
+    DIALOG dialogClients OBJECTS o INPUT FILTERS own(o) DO {
+        DIALOG dialogDate OBJECTS d INPUT DO {
+            createActWriteOffShop(o, d);
+        }
+    } 
+}
+EXTEND FORM actWriteOffShops
+    PROPERTIES() createActWriteOffShop DRAW d TOOLBAR
+;

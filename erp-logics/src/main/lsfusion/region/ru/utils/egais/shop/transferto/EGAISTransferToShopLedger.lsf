@@ -31,3 +31,30 @@ client(TransferToShopLedger l) += client(position(l));
 product(TransferToShopLedger l) += product(position(l));
 
 quantity(TransferToShopLedger l) += quantity(position(l));
+
+// create transfer to shop
+createTransferToShop (Client c, DATE d, STRING caption) {
+    LOCAL balance = NUMERIC[16,5] (F2Reg);
+    balance (F2Reg r) <- currentBalance(r) IF client(r) = c AND quantity(product(r));
+    
+    LOCAL quantity = NUMERIC[16,5] (F2Reg);
+    quantity (F2Reg r) <- PARTITION UNGROUP quantity LIMIT balance(r) ORDER r BY product(r);
+    
+    IF GROUP SUM 1 IF quantity(F2Reg r) THEN {
+        NEW t = TransferToShop {
+            posted(t) <- TRUE;
+            
+            client(t) <- c;
+            dateTime(t) <- DATETIME(d);
+            
+            note(t) <- caption;
+            
+            FOR quantity(F2Reg r) NEW p = TransferToShopPosition DO {
+                transferToShop(p) <- t;
+                product(p) <- product(r);
+                f2Reg(p) <- r;
+                quantity(p) <- quantity(r);
+            }
+        }
+    }
+}
