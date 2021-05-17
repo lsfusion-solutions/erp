@@ -499,6 +499,10 @@ DESIGN promotion {
     MOVE TOOLBARBOX;
 }
 
+isActive(Promotion promotion, DATE date) = (fromDate(promotion) <= (date AS DATE) AND toDate(promotion) >= date) OR
+                                                 (fromDate(promotion) <= (date AS DATE) AND NOT toDate(promotion));
+isActive(Promotion promotion) = isActive(promotion, currentDate());
+
 FORM promotions 'Акции'
     OBJECTS p = Promotion
     PROPERTIES(p) READONLY series, number, seriesNumber, name, fromDate, toDate, namePromotionType, nameExtraPromotionType, 
@@ -517,6 +521,10 @@ FORM promotions 'Акции'
     ORDERS nameSku(d)
     FILTERS promotion(d) == p,
             accessManager(currentUser(), sku(d)) OR NOT sku(d)
+    
+    FILTERGROUP active
+                FILTER 'Текущие' isActive(p) 'F11'
+                FILTER 'Активные' isActive(p) OR (fromDate(p) > currentDate()) 'F10' DEFAULT
     
     LIST Promotion OBJECT p
 ;
