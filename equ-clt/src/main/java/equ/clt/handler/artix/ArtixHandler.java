@@ -8,6 +8,7 @@ import equ.clt.handler.HandlerUtils;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.Pair;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -1319,7 +1320,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             String idBatch = null;
                                             if(medicineMode) {
                                                 JSONObject medicine = inventPosition.optJSONObject("medicine");
-                                                idBatch = medicine != null ? medicine.optString("party") : null;
+                                                idBatch = medicine != null ? medicine.optString("code") : null;
+                                                if (idBatch != null && !idBatch.isEmpty())
+                                                    idBatch = StringUtils.leftPad(idBatch, 10, "0");
                                             }
 
                                             sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
