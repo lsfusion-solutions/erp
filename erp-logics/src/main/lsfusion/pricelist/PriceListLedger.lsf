@@ -766,6 +766,7 @@ showEdit(PriceListLedger p) = p IS PriceListLedger AND NOT skipShowEdit(p) ;
 
 showToShow(PriceListLedger p) = p IS PriceListLedger AND NOT showEdit(p); 
 
+background(Sku s, Stock st, LedgerPriceListType t, PriceListLedger pl) = IF prevPriceListLedgerA(t, s, st, currentDateTime()) == pl THEN #FFFFBC;
 
 FORM movementPriceSkuStock 'Изменение цены товара по складу'
     OBJECTS s = Sku PANEL
@@ -776,8 +777,12 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
     PROPERTIES(s,st) nameDialogPriceListType
 
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger)
-    PROPERTIES READONLY  name[PriceListType](t),  description(pl), fromDateTime(pl, t, st), toDateTime(pl, t, st),
-                        price(pl, t, st) 
+    PROPERTIES READONLY name[PriceListType](t) BACKGROUND background(s, st, t,pl),
+                        description(pl) BACKGROUND background(s, st, t,pl),
+                        fromDateTime(pl, t, st) BACKGROUND background(s, st, t,pl),
+                        toDateTime(pl, t, st) BACKGROUND background(s, st, t,pl),
+                        price(pl, t, st) BACKGROUND background(s, st, t,pl)
+ 
     PROPERTIES(pl) NEWSESSION EDIT SHOWIF showEdit(pl), show SHOWIF showToShow(pl)
     ORDERS name(t), fromDateTime(pl, t, st) DESC
 
