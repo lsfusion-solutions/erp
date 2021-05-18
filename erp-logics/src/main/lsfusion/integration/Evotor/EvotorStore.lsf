@@ -1,0 +1,79 @@
+MODULE EvotorStore;
+
+REQUIRE Store, Machinery, System, EvotorSettings;
+
+NAMESPACE Evotor;
+
+CLASS EvotorStore 'Магазин Эвотор';
+uuid 'ID Эвотор' = DATA STRING (EvotorStore);
+address 'Адрес' = DATA STRING (EvotorStore);
+name 'Название' = DATA STRING (EvotorStore);
+code 'Код' = DATA STRING (EvotorStore);
+token = DATA AuthEvotor (EvotorStore);
+
+address = DATA LOCAL STRING(INTEGER);
+codeStore = DATA LOCAL STRING(INTEGER);
+nameStore = DATA LOCAL STRING(INTEGER);
+uuid = DATA LOCAL STRING(INTEGER);
+
+
+FORM storesEvotor FORMEXTID 'null'
+    OBJECTS value = INTEGER
+    PROPERTIES(value) address, codeStore, nameStore, uuid
+    FILTERS imported(value)
+;
+
+
+
+evotorStoreByUuid (STRING uuid) = GROUP LAST EvotorStore es WHERE uuid(es) == uuid;
+
+
+getStoresList 'Получить список магазинов'(AuthEvotor auth)  {
+    LOCAL f = FILE ();
+    LOCAL headers = TEXT(STRING[100]);
+    headers('X-Authorization') <- tokenXAuth(auth);
+    EXTERNAL HTTP GET 'https://api.evotor.ru/api/v1/inventories/stores/search' HEADERS headers TO f;
+    IMPORT storesEvotor FROM f();
+    FOR (imported(INTEGER i)) DO {
+        IF NOT evotorStoreByUuid(uuid(i)) THEN
+        {
+            NEW es = EvotorStore{
+                uuid(es) <- uuid(i);
+                address(es) <- address(i);
+                name(es) <- nameStore(i);
+                code(es) <- codeStore(i);
+                token(es) <- auth;
+            }   
+        }       
+        IF evotorStoreByUuid(uuid(i)) THEN {
+            address(evotorStoreByUuid(uuid(i))) <- address(i);
+            name(evotorStoreByUuid(uuid(i))) <- nameStore(i);
+            code(evotorStoreByUuid(uuid(i))) <- codeStore(i);
+            token(evotorStoreByUuid(uuid(i))) <- auth;
+        } 
+    }
+}
+
+
+isEditable 'Включить корректировку на форме' = DATA LOCAL NESTED BOOLEAN();
+
+FORM evotorStores 'Магазины Эвотор'
+    OBJECTS auth = AuthEvotor
+    PROPERTIES (auth) READONLY phoneReg, tokenXAuth 
+    PROPERTIES (auth) getStoresList TOOLBAR
+    
+    OBJECTS es = EvotorStore
+    PROPERTIES (es) READONLYIF NOT isEditable() uuid, address, name, code
+    PROPERTIES (es) READONLYIF NOT isEditable() NEW, EDIT, DELETE
+    
+    FILTERS token(es) == auth
+    
+    LIST EvotorStore OBJECT es
+    
+    OBJECTS l = LegalEntity
+
+    FILTERS legalEntity(auth) == l
+    
+    PROPERTIES isEditable() TOOLBAR 
+    ;
+    

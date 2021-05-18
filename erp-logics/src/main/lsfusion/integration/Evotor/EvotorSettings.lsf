@@ -1,0 +1,33 @@
+MODULE EvotorSettings;
+
+REQUIRE Store, CashRegister;
+
+NAMESPACE Evotor;
+
+evotorTokenXauth = DATA STRING (LegalEntity); 
+
+CLASS AuthEvotor 'Авторизация Эвотор';
+
+legalEntity = DATA LegalEntity (AuthEvotor);
+nameLegalEntity 'Компания' (AuthEvotor auth) = name(legalEntity(auth));
+phoneReg 'Телефон регистрации' = DATA STRING[30] (AuthEvotor);
+tokenXAuth 'Токен авторизации' = DATA STRING[60] (AuthEvotor);
+
+
+EXTEND FORM integrationData
+    OBJECTS auth = AuthEvotor
+    PROPERTIES (auth)  READONLYIF NOT isEditable() nameLegalEntity, phoneReg, tokenXAuth
+    PROPERTIES (auth) SHOWIF isEditable() NEW, EDIT, DELETE 
+    PROPERTIES isEditable() TOOLBAR 
+    ;
+
+DESIGN integrationData{
+    pane{
+        NEW evotor{
+            caption = 'Эвотор';
+            MOVE BOX(auth);
+        }
+    }
+}
+
+

@@ -1,0 +1,133 @@
+MODULE EvotorPriceTransaction;
+
+REQUIRE EvotorCashRegister, CashRegisterPriceTransaction, NativeMachinery, MachineryPriceTransactionBalance;
+
+NAMESPACE Evotor;
+
+//атрибуты для передачи Evotor
+@defineMachineryPriceTransactionAttribute(id, 'Код товара', STRING[100]){
+    id 'Код товара' = DATA STRING[100] (MachineryPriceTransaction, Barcode);
+    id(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
+    @defineMachineryPriceTransactionAttributeAction(id, 'Код товара', STRING[100], ){
+    @defineMachineryPriceTransactionAttributeBase(id, 'Код товара', ){
+    prevTransactionId 'Код товара (тек.)' (Barcode barcode, GroupMachinery groupMachinery)  =
+        id(prevLastFullTransaction(barcode, groupMachinery), barcode);
+
+    snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+        {  id(t, Barcode barcode) <- prevTransactionId(barcode, groupMachinery) WHERE in(t, barcode); }
+
+    EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) id;
+    EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY id;
+    EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb) READONLY  id;
+};
+    overId = ABSTRACT STRING[100] (MachineryPriceTransaction, Barcode);
+    createAttribute(MachineryPriceTransaction t) + {  id(t, Barcode barcode) <- OVERRIDE overId(t, barcode), id(barcode)
+                                                          WHERE in(t, barcode); }
+};
+};
+
+quantity(CashRegisterPriceTransaction crp, Barcode b) = CASE 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN currentBalance(sku(b), stock(crp)) ;
+
+tax(CashRegisterPriceTransaction crp, Barcode b) = CASE 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN 'VAT_18';
+
+type (CashRegisterPriceTransaction crp, Barcode b) = ABSTRACT CASE STRING;
+
+type(CashRegisterPriceTransaction crp, Barcode b) += 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN 'NORMAL';
+alowToSell (CashRegisterPriceTransaction crp, Barcode b) = CASE 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN 'true';
+description(CashRegisterPriceTransaction crp, Barcode b) = CASE 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN '';
+parentUuid(CashRegisterPriceTransaction crp, Barcode b) = CASE 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN CONCAT '','a12aad7d-d6a8-413b-acd8-', LONG(skuGroup(b));
+groupEvotor(CashRegisterPriceTransaction crp, Barcode b) = CASE 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN 'false';
+barCode (CashRegisterPriceTransaction crp, Barcode b) = CASE 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN id(b);
+uuid(CashRegisterPriceTransaction crp,Barcode b) =  CASE 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN CONCAT '','42110e1b-d9c4-45c4-8952-', LONG(b);
+    
+
+//очитска товара в магазине
+clearItemEvotor(GroupCashRegister c){
+    LOCAL headers = TEXT(STRING[100]);
+    headers('X-Authorization') <- tokenXAuth(token(evotorStore(c)));
+    headers('Content-Type') <- 'application/json';
+    EXTERNAL HTTP POST CONCAT '', 'https://api.evotor.ru/api/v1/inventories/stores/', uidEvotorStore(c), '/products/delete'
+        HEADERS headers;
+}
+    
+skuGroupTransaction(SkuGroup sc, MachineryPriceTransaction t) = GROUP LAST Barcode b
+    WHERE (in(t,b) AND skuGroup(t,b) == sc) OR (level(skuGroup(t,b), sc)); 
+
+
+sendSkuGroupEvotor(MachineryPriceTransaction t) {
+    LOCAL g = FILE();
+    LOCAL headers = TEXT(STRING[100]);
+    headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupMachinery(t))));
+    headers('Content-Type') <- 'application/json';
+    EXPORT JSON FROM
+        name = name(SkuGroup sc),
+        group = 'true',
+        uuid = (CONCAT '','a12aad7d-d6a8-413b-acd8-', LONG(sc)),
+        parentUuid = IF parent(sc) THEN 
+            (CONCAT '','a12aad7d-d6a8-413b-acd8-', LONG(parent(sc))) ELSE ''            
+        WHERE skuGroupTransaction(sc,t)
+        TO g;
+    LOCAL result = TEXT ();
+    EXTERNAL HTTP POST CONCAT '','https://api.evotor.ru/api/v1/inventories/stores/', uidEvotorStore(groupMachinery(t)), '/products'
+        HEADERS headers PARAMS g() TO result;    
+}
+
+sendSkuEvotor ABSTRACT LIST (MachineryPriceTransaction);
+
+sendSkuEvotor (MachineryPriceTransaction t) +{
+    LOCAL f = FILE ();
+    LOCAL headers = TEXT(STRING[100]);
+    headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupMachinery(t))));
+    headers('Content-Type') <- 'application/json';
+    EXPORT JSON FROM 
+        code = id(Barcode b),
+        quantity = quantity(t, b),
+        group = groupEvotor(t,b),
+        costPrice = price(t,b),
+        description = description(t,b),
+        tax = tax(t,b),
+        type = type(t,b),
+        uuid = uuid(t,b),
+        measureName = shortNameUOM(t,b),
+        parentUuid = parentUuid(t,b),
+        articleNumber = id(t,b),
+        price = price(t,b),
+        name = name(t,b),
+        allowToSell = 'true',
+        barCodes = CONCAT '','["',barCode(t, b),'"]'
+    WHERE in(t,b) TO f;
+    LOCAL result = TEXT ();
+    EXTERNAL HTTP POST CONCAT '','https://api.evotor.ru/api/v1/inventories/stores/', uidEvotorStore(groupMachinery(t)), '/products'
+        HEADERS headers PARAMS f() TO result;
+}
+    
+sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
+    IF handlerModel(groupMachinery(t)) = 'lsf.evotor' AND t IS CashRegisterPriceTransaction THEN NEWSESSION {
+        NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
+        TRY {
+            //очистка товаров в магазине, в случае загрузки "Целиком"
+            IF snapshot(t) THEN clearItemEvotor(groupMachinery(t)); 
+            sendSkuGroupEvotor(t);
+            sendSkuEvotor(t);
+            succeeded(t) <- TRUE;
+            dateTimeSucceeded(t) <- currentDateTime();
+        }
+        CATCH {
+            addMachineryError(t, getWord(System.messageCaughtException(), ':', 1), getWord(System.messageCaughtException(), 'Evotor', 1));
+        }
+        FINALLY {
+            APPLY ;
+        }
+    }
+}
+ 
+    

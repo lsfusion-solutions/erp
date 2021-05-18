@@ -1,0 +1,84 @@
+MODULE EvotorCashRegister;
+
+REQUIRE CashRegister, EvotorStore;
+
+NAMESPACE Evotor;
+
+EXTEND CLASS GroupCashRegister;
+
+isEvotor (GroupCashRegister group) = IF handlerModel(group) = 'lsf.evotor' THEN TRUE;
+
+evotorStore = DATA EvotorStore (GroupCashRegister);
+uidEvotorStore 'ID магазина Evotor' (GroupCashRegister gcr) = uuid(evotorStore(gcr));
+
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) READONLY uidEvotorStore SHOWIF isEvotor(grc)
+    ;
+
+
+EXTEND CLASS CashRegister;
+
+uuidEvotor 'Uid Evotor' = DATA STRING (CashRegister) CHARWIDTH 30;
+storeUidEvotor (CashRegister cr) = uidEvotorStore(groupCashRegister(cr));
+
+cashRegisterByUidInStore(STRING uid, GroupCashRegister gcr) = 
+    GROUP LAST CashRegister cr WHERE (uuidEvotor(cr) == uid AND groupCashRegister(cr) == gcr); 
+
+//импорт касс с личного кабинета
+timezoneOffset = DATA LOCAL STRING(INTEGER);
+storeUuid = DATA LOCAL STRING(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+imei = DATA LOCAL STRING(INTEGER);
+
+
+FORM listTerminalEvotorStore FORMEXTID 'null'
+    OBJECTS value = INTEGER
+    PROPERTIES(value) timezoneOffset, storeUuid, name, imei, uuid
+    FILTERS imported(value)
+    ;
+
+
+getListTerminalEvotor 'Заполнить из кабинета Evotor' (GroupCashRegister gcr){
+    LOCAL f = FILE ();
+    LOCAL headers = TEXT(STRING[100]);
+    headers('X-Authorization') <- tokenXAuth(token(evotorStore(gcr)));
+    EXTERNAL HTTP GET 'https://api.evotor.ru/api/v1/inventories/devices/search' HEADERS headers TO f;
+    IMPORT listTerminalEvotorStore FROM f();
+    FOR imported(INTEGER x) DO{
+        IF (storeUuid(x) ==  uidEvotorStore(gcr) AND NOT cashRegisterByUidInStore(uuid(x), gcr) AND isEvotor(gcr)) THEN {
+            NEW cr = CashRegister{
+                groupCashRegister(cr) <- gcr;
+                uuidEvotor(cr) <- uuid(x);
+                description(cr) <- STRING[200] (name(x));
+                npp(cr) <- PARTITION SUM 1 IF groupCashRegister(cr) == gcr;
+            }
+        }   
+    }
+}
+
+
+getUuidEvotorStore 'Магазин Эвотор'(GroupCashRegister g){
+    DIALOG evotorStores OBJECTS l = legalEntity(stock(g)), es INPUT DO {
+        evotorStore(g) <- es;
+    };
+}
+
+
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (c) uuidEvotor BEFORE description(c) SHOWIF isEvotor(grc)
+    PROPERTIES (grc) getListTerminalEvotor SHOWIF (uidEvotorStore(grc) AND isEvotor(grc))
+    PROPERTIES (grc) getUuidEvotorStore SHOWIF isEvotor(grc)
+    ;
+
+
+
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY (uidEvotorStore(grc));
+        MOVE PROPERTY (getUuidEvotorStore(grc));
+        MOVE PROPERTY (getListTerminalEvotor(grc));
+    }
+}
+    

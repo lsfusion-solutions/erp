@@ -1,0 +1,114 @@
+MODULE EvotorUser;
+
+REQUIRE EvotorStore;
+
+NAMESPACE Evotor;
+
+lastName = DATA LOCAL STRING[30](INTEGER);
+code = DATA LOCAL STRING(INTEGER);
+role = DATA LOCAL STRING(INTEGER);
+phone = DATA LOCAL STRING[30](INTEGER);
+stores = DATA LOCAL STRING(INTEGER);
+valueStores = DATA LOCAL INTEGER(INTEGER);
+nameUser = DATA LOCAL STRING[30](INTEGER);
+patronymicName = DATA LOCAL STRING[30](INTEGER);
+uuidUser = DATA LOCAL STRING(INTEGER);
+
+
+FORM importUsersEvotor FORMEXTID 'null'
+
+OBJECTS value = INTEGER
+PROPERTIES(value) lastName, code, role, phone, nameUser, patronymicName, uuidUser
+FILTERS imported(value)
+
+OBJECTS stores = INTEGER
+PROPERTIES(stores) stores EXTID 'value'
+FILTERS imported(stores)
+FILTERS valueStores(stores) == value;
+
+
+
+CLASS EvotorUser 'Пользователи Эвотор';
+
+name 'Имя' = DATA STRING[30] (EvotorUser);
+lastName 'Фамилия' = DATA STRING[30] (EvotorUser);
+patronymicName 'Отчество' = DATA STRING[30] (EvotorUser);
+phone 'Телефон' = DATA STRING[30] (EvotorUser);
+nameUser 'Пользователь' (EvotorUser u) = IF (name(u) AND lastName(u) AND patronymicName(u) ) THEN 
+    CONCAT '.', left(name(u),1), left(patronymicName(u),1), ' ' + lastName(u) ELSE name(u);
+uuid = DATA STRING (EvotorUser);
+
+token = DATA AuthEvotor (EvotorUser);
+
+role = DATA STRING (EvotorUser);
+roleName 'Роль' (EvotorUser u) = CASE 
+    WHEN role(u) == 'ADMIN' THEN 'Администатор'
+    WHEN role(u) == 'CASHIER' THEN 'Кассир'
+    WHEN role(u) == 'MANUAL' THEN 'Пользовательская';
+
+evotorUserByUuid (STRING uuid) = GROUP LAST EvotorUser u WHERE uuid = uuid(u);
+
+getUsersEvotor 'Получить список пользователей'(AuthEvotor auth) {
+    LOCAL ul = FILE();
+    LOCAL headers = TEXT(STRING[100]);
+    headers('X-Authorization') <- tokenXAuth(auth);
+    EXTERNAL HTTP GET 'https://api.evotor.ru/api/v1/inventories/employees/search'
+        HEADERS headers TO ul;
+    IMPORT importUsersEvotor FROM ul();
+    FOR (imported(INTEGER i)) DO{
+        IF (NOT evotorUserByUuid(uuid(i))) THEN {
+            NEW u = EvotorUser{
+                uuid(u) <- uuidUser(i);
+                name(u) <- nameUser(i);
+                lastName(u) <- lastName(i);
+                patronymicName(u) <- patronymicName(i);
+                phone(u) <- phone(i);
+                token(u) <- auth;
+            }
+        }
+        ELSE {
+            name(evotorUserByUuid(uuid(i))) <- nameUser(i);
+            lastName(evotorUserByUuid(uuid(i))) <- lastName(i);
+            patronymicName(evotorUserByUuid(uuid(i))) <- patronymicName(i);
+            phone(evotorUserByUuid(uuid(i))) <- phone(i);
+            token(evotorUserByUuid(uuid(i))) <- auth;
+        }
+    }
+}
+
+
+
+FORM evotorUsers 'Пользователи Эвотор'
+    OBJECTS auth = AuthEvotor
+    PROPERTIES (auth) getUsersEvotor TOOLBAR 
+    
+    OBJECTS u = EvotorUser
+    PROPERTIES (u) READONLY nameUser, lastName, patronymicName, roleName, phone
+    
+    FILTERS token(u) == auth;
+
+DESIGN evotorUsers{
+    caption = CONCAT ' ', 'Ползователи ', phoneReg(auth);
+    OBJECTS {
+       MOVE BOX (u);
+       MOVE PROPERTY (getUsersEvotor(auth));
+    }
+}
+
+
+listEvotor 'Пользователи Эвотор'(AuthEvotor auth){
+    SHOW evotorUsers OBJECTS auth = auth ;
+}
+
+EXTEND FORM integrationData
+    PROPERTIES (auth) listEvotor
+    ;
+    
+DESIGN integrationData{
+    pane{
+        evotor{
+            MOVE PROPERTY (listEvotor(auth));
+        }
+    }
+}
+
