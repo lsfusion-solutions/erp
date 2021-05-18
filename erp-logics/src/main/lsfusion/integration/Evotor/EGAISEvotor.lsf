@@ -1,0 +1,47 @@
+MODULE EGAISEvotor;
+
+REQUIRE EGAISMachineryPriceTransaction, EvotorPriceTransaction;
+
+
+type(CashRegisterPriceTransaction crp, Barcode b) += 
+    WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode 
+    AND alcVolumeMinProduct(crp,b) THEN 'ALCOHOL_MARKED';
+
+egaisEvotor 'ЕГАИС' = DATA BOOLEAN (GroupCashRegister);
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) egaisEvotor SHOWIF isEvotor(grc);
+
+sendSkuEvotor (MachineryPriceTransaction t) +{
+    IF egaisEvotor(groupMachinery(t)) THEN{
+        LOCAL f = FILE ();
+        LOCAL headers = TEXT(STRING[100]);
+        headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupMachinery(t))));
+        headers('Content-Type') <- 'application/json';
+        EXPORT JSON FROM 
+            code = id(Barcode b),
+            quantity = quantity(t, b),
+            group = groupEvotor(t,b),
+            costPrice = price(t,b),
+            description = description(t,b),
+            tax = tax(t,b),
+            type = type(t,b),
+            uuid = uuid(t,b),
+            measureName = shortNameUOM(t,b),
+            parentUuid = parentUuid(t,b),
+            articleNumber = id(t,b),
+            price = price(t,b),
+            name = name(t,b),
+            allowToSell = 'true',
+            barCodes = (CONCAT '','["',barCode(t, b),'"]'),
+             //здесь должны быть коды(Массив строк кодов алкогольной продукции ЕГАИС.)
+            alcoCodes = (CONCAT'', '["',barCode(t, b),'"]'), 
+            alcoholByVolume = alcVolumeMinProduct(t,b),
+            alcoholProductKindCode = idType(t,b),
+            tareVolume = capacityMinProduct(t,b)
+    WHERE in(t,b) TO f;
+    LOCAL result = TEXT ();
+    EXTERNAL HTTP POST CONCAT '','https://api.evotor.ru/api/v1/inventories/stores/', uidEvotorStore(groupMachinery(t)), '/products'
+        HEADERS headers PARAMS f() TO result;
+        }
+}

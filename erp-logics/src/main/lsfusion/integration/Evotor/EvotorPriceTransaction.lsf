@@ -5,26 +5,7 @@ REQUIRE EvotorCashRegister, CashRegisterPriceTransaction, NativeMachinery, Machi
 NAMESPACE Evotor;
 
 //атрибуты для передачи Evotor
-@defineMachineryPriceTransactionAttribute(id, 'Код товара', STRING[100]){
-    id 'Код товара' = DATA STRING[100] (MachineryPriceTransaction, Barcode);
-    id(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
-    @defineMachineryPriceTransactionAttributeAction(id, 'Код товара', STRING[100], ){
-    @defineMachineryPriceTransactionAttributeBase(id, 'Код товара', ){
-    prevTransactionId 'Код товара (тек.)' (Barcode barcode, GroupMachinery groupMachinery)  =
-        id(prevLastFullTransaction(barcode, groupMachinery), barcode);
-
-    snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
-        {  id(t, Barcode barcode) <- prevTransactionId(barcode, groupMachinery) WHERE in(t, barcode); }
-
-    EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) id;
-    EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY id;
-    EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb) READONLY  id;
-};
-    overId = ABSTRACT STRING[100] (MachineryPriceTransaction, Barcode);
-    createAttribute(MachineryPriceTransaction t) + {  id(t, Barcode barcode) <- OVERRIDE overId(t, barcode), id(barcode)
-                                                          WHERE in(t, barcode); }
-};
-};
+@defineMachineryPriceTransactionAttribute(id, 'Код товара', STRING[100]);
 
 quantity(CashRegisterPriceTransaction crp, Barcode b) = CASE 
     WHEN crp IS CashRegisterPriceTransaction AND b IS Barcode THEN currentBalance(sku(b), stock(crp)) ;
