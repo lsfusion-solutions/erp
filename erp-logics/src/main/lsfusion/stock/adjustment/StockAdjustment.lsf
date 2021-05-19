@@ -259,13 +259,11 @@ skipShowDelete = ABSTRACT BOOLEAN (Adjustment);
 showEdit (Adjustment a) = showEditDeleteUser(a) AND isOpened(a) AND NOT skipShowEdit(a); 
 showDelete(UserAdjustment a) = showEditDeleteUser(a) AND isOpened(a) AND is(a) AND NOT skipShowDelete(a);
 
-actualBalance 'Остаток фактический' (Sku sku, UserAdjustment userAdjustment, Stock stock) = 
-    OVERRIDE (currentBalance(sku, stock) (+) quantity(sku, userAdjustment, stock)) IF quantity(sku, userAdjustment, stock) AND NOT isPosted(userAdjustment), 
-             currentBalance(sku, stock);
-             
+actualBalance 'Остаток фактический' (Sku sku, UserAdjustment userAdjustment, Stock stock)= currentBalance(sku, stock) (+) quantity(sku, userAdjustment, stock);
+
 changeActualQuantity(Sku sku, UserAdjustment userAdjustment, Stock stock)  { 
     INPUT n = NUMERIC[16,5] DO
-        changeQuantityValue(sku, userAdjustment, stock, n (-) prevCurrentBalance(sku, stock) (+) (PREV(quantity(sku, userAdjustment, stock)) IF isPosted(userAdjustment)));
+        changeQuantityValue(sku, userAdjustment, stock, n (-) currentBalance(sku, stock));
 }
 
 EXTEND FORM userAdjustment
