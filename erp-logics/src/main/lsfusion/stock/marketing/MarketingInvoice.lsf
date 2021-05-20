@@ -286,19 +286,19 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
             in(Purchase.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
     
             LOCAL marketingCondition = MarketingCondition (Purchase.UserInvoiceDetail, ConditionType);
-            marketingCondition (Purchase.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
+            marketingCondition (Purchase.InvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
     
             LOCAL in = BOOLEAN (PurchaseReturn.UserInvoiceDetail);
             in(PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
             
             LOCAL marketingCondition = MarketingCondition (PurchaseReturn.UserInvoiceDetail, ConditionType);
-            marketingCondition (PurchaseReturn.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
+            marketingCondition (PurchaseReturn.InvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
             
             LOCAL quantityPurchase = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
-            quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantityMarketing(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+            quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantityMarketing(Purchase.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
     
             LOCAL quantityPurchaseReturn = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
-            quantityPurchaseReturn(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+            quantityPurchaseReturn(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(PurchaseReturn.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
             
             FOR (quantityPurchase(MarketingCondition mc, Sku sk, Stock st) OR quantityPurchaseReturn(mc, sk, st))
                 AND (calcBase(mc) == CalcBase.supplier 
@@ -314,17 +314,17 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
                 marketingPercent(md) <- marketingPercent(mc);
                 sum (md) <- CASE 
                                 WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
-                                    [ GROUP SUM invoiceSumMarketing(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
+                                    [ GROUP SUM invoiceSumMarketing(Purchase.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
                                 WHEN calcBase(mc) == CalcBase.supplier THEN 
-                                    [ GROUP SUM sumMarketing(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+                                    [ GROUP SUM sumMarketing(Purchase.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
                 returnSum(md) <- CASE 
                                     WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
-                                        [ GROUP SUM invoiceSum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
+                                        [ GROUP SUM invoiceSum(PurchaseReturn.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
                                     WHEN calcBase(mc) == CalcBase.supplier THEN
-                                        [ GROUP SUM sum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+                                        [ GROUP SUM sum(PurchaseReturn.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
                        
-                in(md, Purchase.UserInvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 IF date(d) >= df AND date(d) <= dt BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);                 
-                in(md, PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+                in(md, Purchase.InvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 IF date(d) >= df AND date(d) <= dt BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);                 
+                in(md, PurchaseReturn.InvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
             }
         }
                 
