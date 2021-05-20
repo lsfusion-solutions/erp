@@ -40,6 +40,8 @@ TABLE marketingInvoiceDetail(MarketingInvoiceDetail);
 
 marketingInvoice 'Акт' = DATA MarketingInvoice (MarketingInvoiceDetail) NONULL DELETE;
 
+countMarketingInvoiceDetail = GROUP SUM 1 BY marketingInvoice(MarketingInvoiceDetail d);
+
 @defineDocumentDetailPosted(marketingInvoice, MarketingInvoiceDetail);
 
 dateFrom 'Дата с' (MarketingInvoiceDetail d) = dateFrom(marketingInvoice(d));
@@ -238,6 +240,7 @@ conditionRange = DATA ConditionRange(MarketingInvoiceDetail);
 in = DATA BOOLEAN (MarketingInvoiceDetail, Invoice.InvoiceDetail);
 
 overCreateMarketingInvoice ABSTRACT LIST (ContractMarketing, MarketingInvoice, DATE, DATE);
+afterCreateMarketingInvoice ABSTRACT LIST (MarketingInvoice);
 
 skipMarketing = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
 skipMarketing = ABSTRACT BOOLEAN (PurchaseReturn.UserInvoiceDetail);
@@ -377,7 +380,10 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
             marketingPercent(d) <- marketingPercent(lastConditionRange(d));
             conditionRange(d) <- lastConditionRange(d);
         }
+
         overCreateMarketingInvoice(c, i, df, dt);
+        afterCreateMarketingInvoice(i);
+
         APPLY;
     }
 }
