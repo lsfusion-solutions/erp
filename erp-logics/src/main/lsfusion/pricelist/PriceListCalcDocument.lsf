@@ -169,6 +169,24 @@ DESIGN calcPriceListTypeDocument {
     }
 }
 
+overCopy ABSTRACT LIST (CalcPriceListTypeDocument, CalcPriceListTypeDocument);
+
+copy 'Копировать'(CalcPriceListTypeDocument p)  { 
+	NEWSESSION {
+	    NEW u = CalcPriceListTypeDocument {
+            fromDate(u) <- currentDate();
+            fromTime(u) <- currentTime();
+            in(u, CalcPriceListType priceListType) <- in(p, priceListType);
+            dataMarkup(u, Group g) <- dataMarkup(p, g);
+            dataMarkup(u, Sku sk) <- dataMarkup(p, sk);
+
+            overCopy(p, u); 
+            
+	        SHOW calcPriceListTypeDocument OBJECTS d = u DOCKED;
+	    }
+	}
+}
+
 // ---------------------- Активность --------------------------- //
 isActive(CalcPriceListTypeDocument document, DATETIME dateTime) = (fromDateTime(document) <= (dateTime AS DATETIME) AND toDateTime(document) >= dateTime) OR
                                                  (fromDateTime(document) <= (dateTime AS DATETIME) AND NOT toDateTime(document));
@@ -189,6 +207,7 @@ FORM calcPriceListTypeDocuments 'Торговые надбавки'
                            includeCalcPriceListTypes, guser = createdNameUser
 
     PROPERTIES (d) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES (d) TOOLBAR copy
     PROPERTIES (d) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                   postedNameUser, postedTime, postedHostnameComputer
 
