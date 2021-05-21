@@ -36,14 +36,17 @@ purchaseReserve 'Страховой запас (ручн)' = ABSTRACT NUMERIC[16
 extraReserve 'Страховой запас (доп)' = ABSTRACT NUMERIC[16,5](Stock, Sku, DATE);
 totalReserve 'Страховой запас (кол-во)' (Stock st, Sku sk, DATE d) = purchaseReserve(st, sk, d) (+) extraReserve(st, sk, d);
 
+extraDemand 'Потребность (доп)' = ABSTRACT NUMERIC[16,5](Stock, Sku, DATE);
+
 recommendedQuantity 'Рекомендуемое к закупке кол-во' = ABSTRACT NUMERIC[16,5] (Sku, UserOrder) CHARWIDTH 7;    
 
 purchaseReserve 'Страховой запас (кол-во)' (Sku sku, Stock stock, UserOrder userOrder) = totalReserve(stock, sku, date(userOrder));
 purchaseReserve 'Страховой запас (ручн)' (Sku sk, UserOrder o) = purchaseReserve(customerStock(o), sk, date(o));
 extraReserve 'Страховой запас (доп)' (Sku sk, UserOrder o) = extraReserve(customerStock(o), sk, date(o));
 
+
 calcDiffPurchaseReserve 'Потребность' (Stock stock, Sku sku, INTEGER int, DATE date) =
-    averageSold(sku, stock) * (int AS INTEGER) (+) totalReserve(stock, sku, date) (-) currentReservePurchase(sku, stock) (-) (currentBalance(sku, stock) IF currentBalance(sku, stock) > 0.0);
+    averageSold(sku, stock) * (int AS INTEGER) (+) totalReserve(stock, sku, date) (-) currentReservePurchase(sku, stock) (-) (currentBalance(sku, stock) IF currentBalance(sku, stock) > 0.0) (+) extraDemand(stock, sku, date);
 calcDiffPurchaseReserve 'Потребность' (Stock stock, Sku sku, INTEGER int, DATETIME dateTime) = calcDiffPurchaseReserve(stock, sku, int, toDate(dateTime));
 
 //diffPurchaseReserveStockSkuIntegerDate 'Потребность' (stock, sku, int, date) = calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) IF calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) > 0; 
