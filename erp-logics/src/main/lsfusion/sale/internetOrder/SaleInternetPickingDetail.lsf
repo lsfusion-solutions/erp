@@ -18,6 +18,12 @@ EXTEND FORM pickingDashboard
 skipStatusNotAvailable = DATA BOOLEAN (InternetOrderDetail);
 overStatusPicked = ABSTRACT BOOLEAN ();
 
+countPickingInternetOrderDetail (o) =
+    GROUP SUM 1 BY internetOrder(InternetOrderDetail d) IF pickingQuantity(d) > 0;
+
+countNotPickingInternetOrderDetail (o) =
+    GROUP SUM 1 BY internetOrder(InternetOrderDetail d) IF NOT pickingQuantity(d);
+        
 setPickedStatus (InternetOrderDetail d)  { 
     status(d) <- StatusInternetOrderDetail.picked WHERE quantity(d) > 0.0 AND quantity(d) == pickingQuantity(d);
 //    status(d) <- StatusInternetOrderDetail.partlyPicked WHERE  (quantity(d) > pickingQuantity(d)) AND (pickingQuantity(d) != 0.0);
@@ -30,7 +36,7 @@ setPickedStatus (InternetOrderDetail d)  {
             WHERE internetOrder(d) == o AND quantityInternetOrderDetail(o) == pickingQuantityInternetOrderDetail(o);
     ELSE 
         status(InternetOrder o) <- StatusInternetOrder.picked                                    
-                WHERE internetOrder(d) == o AND [GROUP SUM 1 BY internetOrder(d) IF pickingQuantity(d) > 0](o) AND [GROUP SUM 1 BY internetOrder(d) IF pickingQuantity(d)](o) ==  countInternetOrderDetail(internetOrder(d));                
+            WHERE internetOrder(d) == o AND countPickingInternetOrderDetail(o) AND NOT countNotPickingInternetOrderDetail(o);                
 
 }
 
