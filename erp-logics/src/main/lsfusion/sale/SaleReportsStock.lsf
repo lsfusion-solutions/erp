@@ -86,6 +86,9 @@ fillFromToBalanceAndPrice 'Пересчитать остатки и цену'(Gr
 }
 
 EXTEND FORM salesReport 
+    OBJECTS sts = Stock BEFORE sku
+    FILTERS inSaleReport(sts)
+
     PROPERTIES() showBalanceSku ON CHANGE checkFromToBalance(gt, df, dt), 
                  showMaxRetailPrice ON CHANGE checkFromToPrice(gt, df, dt)
                  
@@ -96,6 +99,8 @@ EXTEND FORM salesReport
     PROPERTIES(sku) READONLY SHOWIF showBalanceSku() balanceAStore, balanceAWarehouse, balanceATotal, balanceADays, averageCost, averagePriceStore
     PROPERTIES(sku) READONLY SHOWIF showMaxRetailPrice() maxPrice
     PROPERTIES(sku) READONLY SHOWIF showBalanceSku() averageMarkup
+    
+    PROPERTIES READONLY SHOWIF showBalanceSku() currentBalance(sku,sts) COLUMNS (sts) HEADER (name(sts)+' (тек.ост. ТО)')
     
     EVENTS 
         ON CHANGE gt fillFromToBalanceAndPrice(gt, df, dt), 
