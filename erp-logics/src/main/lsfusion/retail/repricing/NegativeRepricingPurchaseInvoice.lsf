@@ -116,15 +116,22 @@ show(InvoiceRepricingNDetail d) + {  show(invoiceDetail(d)); }
 
 //----------------------------------------------------------------------------------------------------------
 
+extraPricingQuantityN = ABSTRACT NUMERIC[16,5] (UserInvoiceDetail);
+pricingQuantityN 'К-во к переоценке' (UserInvoiceDetail d) = (pricingQuantity(d) (+) (extraPricingQuantityN(d))) IF afterRetailPrice(d);
+pricingSumN(UserInvoiceDetail d) = NUMERIC[18,4](Utils.round(pricingQuantityN(d) * price(d), homePriceRound(d))) IF extraPricingQuantityN(d);
+retailSumN(UserInvoiceDetail d) = NUMERIC[18,4](Utils.round(pricingQuantityN(d) * retailPrice(d), homePriceRound(d))) IF extraPricingQuantityN(d); 
+retailVATSumN (UserInvoiceDetail d)  = NUMERIC[18,4](Utils.round([ X*Y/(100+Y)](retailSumN(d), calcValueRetailVAT(d)), homePriceRound(d))) IF  extraPricingQuantityN(d);
+retailMarkupSumN(UserInvoiceDetail d) = retailSumN(d) (-) retailVATSumN (d) (-) pricingSumN(d);
+
 @defineDocumentDetailDataSumCustomPrefix (UserInvoiceDetail, afterRetail, ' розничная после');
-calcAfterRetailSum(UserInvoiceDetail d) = NUMERIC[18,4](round(pricingQuantity(d) * afterRetailPrice(d), currency(d))); 
+calcAfterRetailSum(UserInvoiceDetail d) = NUMERIC[18,4](round(pricingQuantityN(d) * afterRetailPrice(d), currency(d))); 
 afterRetailSum (UserInvoiceDetail d) <- calcAfterRetailSum(d)
-                WHEN DO CHANGED(pricingQuantity(d)) OR CHANGED (afterRetailPrice(d)) OR CHANGED(currency(d));
+                WHEN DO CHANGED(pricingQuantityN(d)) OR CHANGED (afterRetailPrice(d)) OR CHANGED(currency(d));
 
 @defineDocumentDetailMarkupPrefix (UserInvoice, afterRetail, ' после');
 pricingNPrice (UserInvoiceDetail d) = OVERRIDE afterSupplierPrice(d),pricingPrice(d);
-afterSupplierSum(UserInvoiceDetail d)= NUMERIC[18,4](Utils.round(pricingQuantity(d) * afterSupplierPrice(d), homePriceRound(d)));
-pricingNSum (UserInvoiceDetail d) = OVERRIDE afterSupplierSum(d), pricingSum(d);
+afterSupplierSum(UserInvoiceDetail d)= NUMERIC[18,4](Utils.round(pricingQuantityN(d) * afterSupplierPrice(d), homePriceRound(d)));
+pricingNSum (UserInvoiceDetail d) = OVERRIDE afterSupplierSum(d), pricingSumN(d), pricingSum(d);
 
 afterRetailMarkup(UserInvoiceDetail d)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
     afterRetailPrice(d),
@@ -145,7 +152,7 @@ valueAfterRetailVAT(UserInvoiceDetail d) = valueRetailVAT(d) IF d IS UserInvoice
 @changeDocumentDetailMarkupCustomPrefix(UserInvoiceDetail,afterRetail, pricingN,  afterRetail, afterRetail);
 
 //-------------------------------------------------------------------------------------------//
-quantity(InvoiceRepricingNDetail repricingDetail) += pricingQuantity(invoiceDetail(repricingDetail));
+quantity(InvoiceRepricingNDetail repricingDetail) += pricingQuantityN(invoiceDetail(repricingDetail));
 
 price(InvoiceRepricingNDetail repricingDetail) += OVERRIDE afterSupplierPrice(invoiceDetail(repricingDetail)), price(invoiceDetail(repricingDetail));
 curPrice(InvoiceRepricingNDetail repricingDetail) += price(invoiceDetail(repricingDetail));
@@ -154,7 +161,7 @@ retailPrice(InvoiceRepricingNDetail repricingDetail) += afterRetailPrice(invoice
 curRetailPrice(InvoiceRepricingNDetail repricingDetail) += retailPrice(invoiceDetail(repricingDetail));
 
 retailSum(InvoiceRepricingNDetail repricingDetail) += afterRetailSum(invoiceDetail(repricingDetail));
-curRetailSum(InvoiceRepricingNDetail repricingDetail) += retailSum(invoiceDetail(repricingDetail));
+curRetailSum(InvoiceRepricingNDetail repricingDetail) += OVERRIDE retailSumN(invoiceDetail(repricingDetail)), retailSum(invoiceDetail(repricingDetail));
 
 markup(InvoiceRepricingNDetail repricingDetail) += afterRetailMarkup(invoiceDetail(repricingDetail));
 curMarkup(InvoiceRepricingNDetail repricingDetail) += retailMarkup(invoiceDetail(repricingDetail));
@@ -165,14 +172,14 @@ curMarkup(InvoiceRepricingNDetail repricingDetail) += retailMarkup(invoiceDetail
 valueVAT(InvoiceRepricingNDetail repricingDetail) += valueRetailVAT(invoiceDetail(repricingDetail));
 valueCurVAT(InvoiceRepricingNDetail repricingDetail) += valueRetailVAT(invoiceDetail(repricingDetail));
 
-sum(InvoiceRepricingNDetail repricingDetail) += OVERRIDE afterSupplierSum(invoiceDetail(repricingDetail)), pricingSum(invoiceDetail(repricingDetail)), sum(invoiceDetail(repricingDetail));
-curSum(InvoiceRepricingNDetail repricingDetail) += OVERRIDE pricingSum(invoiceDetail(repricingDetail)), sum(invoiceDetail(repricingDetail));
+sum(InvoiceRepricingNDetail repricingDetail) += OVERRIDE afterSupplierSum(invoiceDetail(repricingDetail)), pricingSumN(invoiceDetail(repricingDetail)), pricingSum(invoiceDetail(repricingDetail)), sum(invoiceDetail(repricingDetail));
+curSum(InvoiceRepricingNDetail repricingDetail) += OVERRIDE pricingSumN(invoiceDetail(repricingDetail)), pricingSum(invoiceDetail(repricingDetail)), sum(invoiceDetail(repricingDetail));
 
 VATSum(InvoiceRepricingNDetail repricingDetail) += afterRetailVATSum(invoiceDetail(repricingDetail));
-curVATSum(InvoiceRepricingNDetail repricingDetail) += retailVATSum(invoiceDetail(repricingDetail));
+curVATSum(InvoiceRepricingNDetail repricingDetail) += OVERRIDE retailVATSumN(invoiceDetail(repricingDetail)), retailVATSum(invoiceDetail(repricingDetail));
 
 markupSum(InvoiceRepricingNDetail repricingDetail) += afterRetailMarkupSum(invoiceDetail(repricingDetail));
-curMarkupSum(InvoiceRepricingNDetail repricingDetail) += retailMarkupSum(invoiceDetail(repricingDetail));
+curMarkupSum(InvoiceRepricingNDetail repricingDetail) += OVERRIDE retailMarkupSumN(invoiceDetail(repricingDetail)), retailMarkupSum(invoiceDetail(repricingDetail));
 
 edit(InvoiceRepricingN repricing) + {  edit(invoice(repricing)); }
 
@@ -213,7 +220,7 @@ EXTEND FORM userInvoice
                     nameCommittee = nameRepricingCommittee, numberDisposal = dataNumberDisposal
 
     PROPERTIES(pd) BACKGROUND backgroundAfter(i) SHOWIF showRepricingN(i) 
-                    afterPrice, afterSum,
+                    pricingQuantityN READONLY, afterPrice, afterSum,
                     afterRetailMarkup ON CHANGE changeAfterRetailMarkup(pd), afterRetailMarkupSum1 ,
                     afterRetailVAT READONLY, afterRetailVATSum, afterRetailPrice ON CHANGE changeAfterRetailPrice(pd), afterRetailSum
     PROPERTIES (i) SHOWIF showRepricingN(i) createAfterRetailPrice TOOLBAR DRAW pd         
