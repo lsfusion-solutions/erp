@@ -224,31 +224,37 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
             for (int i = 0; i < userPriceListDetailList.size(); i++)
                 data.get(i).add(userPriceListDetailList.get(i).getFieldValue("extraBarcodeItem"));
 
-            ImportField extIdPackBarcodeSkuField = new ImportField(findProperty("extId[Barcode]"));
-            ImportKey<?> packBarcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcode[STRING[100]]").getMapping(extIdPackBarcodeSkuField));
-            if (settings.isDoNotCreateItems())
-                packBarcodeKey.skipKey = true;
-            keys.add(packBarcodeKey);
-            props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("extId[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
-            fields.add(extIdPackBarcodeSkuField);
-            for (int i = 0; i < userPriceListDetailList.size(); i++)
-                data.get(i).add(userPriceListDetailList.get(i).extIdPackBarcode);
+            boolean showPackBarcode = showField(userPriceListDetailList, "packBarcode");
+            boolean showAmountPackBarcode = showField(userPriceListDetailList, "amountPackBarcode");
+            boolean createPackBarcode = showPackBarcode || showAmountPackBarcode;
 
-            if (showField(userPriceListDetailList, "packBarcode")) {
-                ImportField packBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
-                props.add(new ImportProperty(packBarcodeSkuField, findProperty("id[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
-                fields.add(packBarcodeSkuField);
+            ImportField extIdPackBarcodeSkuField = null;
+            ImportKey<?> packBarcodeKey = null;
+            if(createPackBarcode) {
+                extIdPackBarcodeSkuField = new ImportField(findProperty("extId[Barcode]"));
+                packBarcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"), findProperty("extBarcode[STRING[100]]").getMapping(extIdPackBarcodeSkuField));
+                if (settings.isDoNotCreateItems()) packBarcodeKey.skipKey = true;
+                keys.add(packBarcodeKey);
+                props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("extId[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
+                fields.add(extIdPackBarcodeSkuField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(userPriceListDetailList.get(i).packBarcode);
-            }
+                    data.get(i).add(userPriceListDetailList.get(i).extIdPackBarcode);
 
-            if (showField(userPriceListDetailList, "amountPackBarcode")) {
-                ImportField amountBarcodeField = new ImportField(findProperty("dataAmount[Barcode]"));
-                props.add(new ImportProperty(amountBarcodeField, findProperty("dataAmount[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "amountPackBarcode")));
-                fields.add(amountBarcodeField);
-                for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(userPriceListDetailList.get(i).getFieldValue("amountPackBarcode"));
+                if (showPackBarcode) {
+                    ImportField packBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
+                    props.add(new ImportProperty(packBarcodeSkuField, findProperty("id[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
+                    fields.add(packBarcodeSkuField);
+                    for (int i = 0; i < userPriceListDetailList.size(); i++)
+                        data.get(i).add(userPriceListDetailList.get(i).packBarcode);
+                }
+
+                if (showAmountPackBarcode) {
+                    ImportField amountBarcodeField = new ImportField(findProperty("dataAmount[Barcode]"));
+                    props.add(new ImportProperty(amountBarcodeField, findProperty("dataAmount[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "amountPackBarcode")));
+                    fields.add(amountBarcodeField);
+                    for (int i = 0; i < userPriceListDetailList.size(); i++)
+                        data.get(i).add(userPriceListDetailList.get(i).getFieldValue("amountPackBarcode"));
+                }
             }
 
             ImportField idItemField = new ImportField(findProperty("id[Item]"));
@@ -268,7 +274,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                     data.get(i).add(userPriceListDetailList.get(i).idItem);
             }
             
-            if (!settings.isDoNotCreateItems()) {
+            if (!settings.isDoNotCreateItems() && createPackBarcode) {
                 if (purchasePackLM != null)
                     props.add(new ImportProperty(extIdPackBarcodeSkuField, purchasePackLM.findProperty("packBarcode[Sku]").getMapping(itemKey),
                             object(findClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
@@ -329,8 +335,10 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                     object(findClass("Item")).getMapping(itemKey)));
             props.add(new ImportProperty(iField, findProperty("sku[Barcode]").getMapping(extraBarcodeKey),
                     object(findClass("Item")).getMapping(itemKey)));
-            props.add(new ImportProperty(iField, findProperty("sku[Barcode]").getMapping(packBarcodeKey),
-                    object(findClass("Item")).getMapping(itemKey)));
+            if(createPackBarcode) {
+                props.add(new ImportProperty(iField, findProperty("sku[Barcode]").getMapping(packBarcodeKey),
+                        object(findClass("Item")).getMapping(itemKey)));
+            }
             fields.add(idUserPriceListDetailField);
             for (int i = 0; i < userPriceListDetailList.size(); i++)
                 data.get(i).add(userPriceListDetailList.get(i).idUserPriceListDetail);
