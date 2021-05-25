@@ -1039,17 +1039,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     @Override
     public ArtixSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
 
-        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
-        boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
-        boolean bonusesInDiscountPositions = artixSettings != null && artixSettings.isBonusesInDiscountPositions();
-        boolean giftCardPriceInCertificatePositions = artixSettings != null && artixSettings.isGiftCardPriceInCertificatePositions();
-        boolean notDeleteEmptyFiles = artixSettings != null && artixSettings.isNotDeleteEmptyFiles();
-        Set<Integer> cashPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCashPayments());
-        Set<Integer> cardPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCardPayments());
-        Set<Integer> giftCardPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getGiftCardPayments());
-        Set<Integer> customPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCustomPayments());
-        int externalSumType = artixSettings == null ? 0 : artixSettings.getExternalSumType();
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+        boolean appendBarcode = artixSettings.isAppendBarcode();
+        boolean bonusesInDiscountPositions = artixSettings.isBonusesInDiscountPositions();
+        boolean giftCardPriceInCertificatePositions = artixSettings.isGiftCardPriceInCertificatePositions();
+        boolean notDeleteEmptyFiles = artixSettings.isNotDeleteEmptyFiles();
+        Set<Integer> cashPayments = parsePayments(artixSettings.getCashPayments());
+        Set<Integer> cardPayments = parsePayments(artixSettings.getCardPayments());
+        Set<Integer> giftCardPayments = parsePayments(artixSettings.getGiftCardPayments());
+        Set<Integer> customPayments = parsePayments(artixSettings.getCustomPayments());
+        int externalSumType = artixSettings.getExternalSumType();
         boolean medicineMode = artixSettings.isMedicineMode();
+        boolean receiptIdentifiersToExternalNumber = artixSettings.isReceiptIdentifiersToExternalNumber();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1156,6 +1157,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         String numberZReport = String.valueOf(documentObject.getInt("shift"));
                                         Integer numberReceipt = documentObject.getInt("docNum");
                                         String idEmployee = documentObject.getString("userCode");
+
+                                        String identifier = documentObject.optString("identifier");
+                                        String sourceIdentifier = documentObject.optString("sourceidentifier");
 
                                         Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
                                         LocalDate dateReceipt = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
@@ -1288,7 +1292,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     bonusPaid = safeAdd(bonusPaid, discountPosition.getBigDecimal("discSum"));
                                             }
 
-                                            String externalNumber = trimToNull(inventPosition.optString("extdocid"));
+                                            String externalNumber;
+                                            if(receiptIdentifiersToExternalNumber) {
+                                                externalNumber = isSale ? identifier : (sourceIdentifier + "/" + inventPosition.optString("posNum"));
+                                            } else {
+                                                externalNumber = trimToNull(inventPosition.optString("extdocid"));
+                                            }
 
                                             if(bonusesInDiscountPositions && bonusPaid != null) {
                                                 BigDecimal baseSum = BigDecimal.valueOf((inventPosition.getDouble("baseSum")));

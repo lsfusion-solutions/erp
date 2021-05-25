@@ -60,6 +60,9 @@ public class ArtixSettings implements Serializable{
     //работа с дополнительными данными для аптек
     private boolean medicineMode;
 
+    //Если true, записываем identifier для чека продажи и sourceIdentifier для чека возврата в externalNumber
+    private boolean receiptIdentifiersToExternalNumber;
+
     public ArtixSettings() {
     }
 
@@ -213,5 +216,13 @@ public class ArtixSettings implements Serializable{
 
     public void setMedicineMode(boolean medicineMode) {
         this.medicineMode = medicineMode;
+    }
+
+    public boolean isReceiptIdentifiersToExternalNumber() {
+        return receiptIdentifiersToExternalNumber;
+    }
+
+    public void setReceiptIdentifiersToExternalNumber(boolean receiptIdentifiersToExternalNumber) {
+        this.receiptIdentifiersToExternalNumber = receiptIdentifiersToExternalNumber;
     }
 }
