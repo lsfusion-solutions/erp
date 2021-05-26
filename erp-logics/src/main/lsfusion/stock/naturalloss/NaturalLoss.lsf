@@ -140,10 +140,13 @@ FORM naturalLossGroup 'Группа естественной убыли'
     EDIT NaturalLossGroup  OBJECT n
 ;
 
+showAllContries 'Показать все страны' = DATA LOCAL BOOLEAN ();
 
 FORM naturalLossGroups 'Справочник норм естественной убыли'
     OBJECTS c=Country PANEL
-    PROPERTIES(c) SELECTOR name
+    PROPERTIES(c) name
+    
+    PROPERTIES showAllContries()
 
     TREE treeNaturalLoss a =BPSTRING[3], n=NaturalLossGroup
     PROPERTIES READONLY VALUE(a)
@@ -162,13 +165,13 @@ FORM naturalLossGroups 'Справочник норм естественной �
     FILTERS stringEqualsAll(a), inParentNull(n, sg),  in(sg, d)
     ORDERS name(sg)
 
-    FILTERS country(n) == c OR n IS NaturalLossGroup AND NOT c,
-            country(sg) == c OR sg IS SubNaturalLossGroup AND NOT c
+    FILTERS country(n) == c OR n IS NaturalLossGroup AND (NOT c OR showAllContries()), 
+            country(sg) == c OR sg IS SubNaturalLossGroup AND (NOT c OR showAllContries())
 ;
 
 seekDefaultCountryNaturalLoss()  { 
     IF defaultCountry() THEN {
-        SEEK naturalLossGroups.c = defaultCountry();
+        SEEK naturalLossGroups.c = defaultCountry(); 
     }
 }
 EXTEND FORM naturalLossGroups
@@ -176,11 +179,13 @@ EXTEND FORM naturalLossGroups
 ;
 
 DESIGN naturalLossGroups {
-
     NEW topContainer {
         fill = 1;
         type = CONTAINERV;
-        MOVE BOX(c);
+        MOVE BOX(c) {
+            type = CONTAINERH;
+            MOVE PROPERTY(showAllContries());            
+        }
         NEW firstContainer {
             fill = 1;
             type = SPLITH;
