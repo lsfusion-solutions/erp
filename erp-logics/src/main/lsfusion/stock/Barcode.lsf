@@ -106,7 +106,9 @@ idSkuBarcode (STRING[15] id) = id(skuBarcode(id));
 dataBarcode = DATA Barcode (Sku);
 CONSTRAINT sku(dataBarcode(Sku item)) != item CHECKED BY dataBarcode[Sku] MESSAGE 'Выбран неверный sku для штрихкода';
 
-replace(Sku s, Sku d) + { sku(Barcode barcode) <- d WHERE sku(barcode) == s;}
+//штрихкоды упаковок при копировании копируем а при объединении наоборот игнорируем
+toCopy = ABSTRACT CASE BOOLEAN (Barcode);
+replace(Sku s, Sku d) + { sku(Barcode barcode) <- d WHERE sku(barcode) == s AND NOT toCopy(barcode);}
 
 overPrimaryBarcode (Sku s) = ABSTRACT Barcode (Sku);
 barcode(Sku sku) = OVERRIDE dataBarcode(sku) IF active(dataBarcode(sku)), 
