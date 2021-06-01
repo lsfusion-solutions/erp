@@ -1,6 +1,6 @@
 MODULE PurchaseComponentStore;
 
-REQUIRE PurchaseComponent, PricingSum;
+REQUIRE PurchaseComponent, PricingSumPurchase;
 
 NAMESPACE Purchase;
 
@@ -8,4 +8,27 @@ overCostPrice(ComponentShipmentDetail d) += ( IF roundConditionComponent()
     THEN NUMERIC[16,4](round((costPrice(invoiceDetail(d)) / coeffComponent(invoiceDetail(d))),roundConditionComponent()))
     ELSE NUMERIC[16,4]((costPrice(invoiceDetail(d)) / coeffComponent(invoiceDetail(d)))))
     IF customerStock[ShipmentDetail](d) IS DepartmentStore AND NOT costLedger(customerStock[ShipmentDetail](d)); 
+
+
+retailComponentPrice 'Цена (компонент) (розничная)' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) CHARWIDTH 7;
+retailComponentPrice 'Цена (компонент) (розничная)' = DATA NUMERIC[16,4] (UserInvoiceDetail) CHARWIDTH 7 TABLE shipmentUserComponent;
+retailComponentPrice(UserInvoiceDetail d) += retailComponentPrice(d);
+
+retailComponentPrice (UserInvoiceDetail d) <- IF roundConditionComponent() THEN NUMERIC[16,4](round((retailPrice(d) / coeffComponent(d)),roundConditionComponent()))
+                                                                    ELSE round2(NUMERIC[16,4](retailPrice(d) / coeffComponent(d)))
+                WHEN CHANGED(retailPrice(d)) OR CHANGED (coeffComponent(d));
+                
+EXTEND FORM userInvoice
+    PROPERTIES (dcd) retailComponentPrice BACKGROUND backgroundRetail(i) SHOWIF (createComponent(i) AND createPricing(i))
+;
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY retailComponentPrice BACKGROUND backgroundRetail(i) SHOWIF (createComponent(i) AND createPricing(i)) AFTER shipmentComponentSum(d)
+;
+                
+createComponentPricing(InvoiceDetail d) = createComponent(d) AND createPricing(d) AND isStock(sku(d));
+
+in (ComponentShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN retailComponentPrice(invoiceDetail(ledger)) AND sku(ledger) AND createComponentPricing(invoiceDetail(ledger)) AND
+        type == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
+price (ComponentShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN retailComponentPrice(invoiceDetail(ledger)) AND sku(ledger) AND createComponentPricing(invoiceDetail(ledger)) AND
+        type == SystemLedgerPriceListType.retailPricingPriceListType THEN retailComponentPrice(invoiceDetail(ledger));
 
