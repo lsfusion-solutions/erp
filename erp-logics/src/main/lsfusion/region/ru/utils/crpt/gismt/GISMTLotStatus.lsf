@@ -1,0 +1,63 @@
+MODULE GISMTLotStatus;
+
+REQUIRE GISMTDocument, Lot;
+
+NAMESPACE GISMT;
+
+CLASS LotStatus 'Статус марки' {
+    EMITTED 'Эмитирован. Выпущен',
+    APPLIED 'Эмитирован. Получен',
+    INTRODUCED 'В обороте',
+    WRITTEN_OFF 'Списан',
+    RETIRED 'Выбыл',
+    WITHDRAWN 'Выбыл (табак)',
+    INTRODUCED_RETURNED 'Возвращён в оборот',
+    DISAGGREGATION 'Расформирован',
+    DISAGGREGATED 'Расформирован (КИТУ и табак)'
+}
+id 'Код' (LotStatus o) = STRING[100](rtrim(getWord(staticName(o),'.',2),'_')) IF o IS LotStatus CHARWIDTH 10;
+name 'Название' (LotStatus o) = staticCaption(o) IF o IS LotStatus CHARWIDTH 15;
+lotStatus = GROUP MAX LotStatus o BY id(o);
+
+status 'Статус' = DATA LotStatus (Lot, LegalEntity);
+nameStatus 'Статус' (Lot l, LegalEntity le) = name(status(l, le));
+
+lastDocId 'Последний документ' = DATA STRING (Lot, LegalEntity);
+
+getStatus 'Получить статус' (Lot l, LegalEntity le) {
+    NEWSESSION {
+        getToken(le);
+        
+        LOCAL result = JSONFILE();
+        TRY {
+            EXTERNAL HTTP GET url() + '/facade/cis/info?cisId=' + id(l) HEADERS documentHeaders TO result;
+        } CATCH {
+            fileToString(FILE(result()));
+            LOCAL error = TEXT();
+            error() <- CONCAT '\n', 'Ошибка при получении статуса марки :', messageCaughtException(), resultString();
+            logToFile('gismt', error());
+            MESSAGE error();
+            RETURN;
+        }
+        
+        LOCAL status = STRING();
+        LOCAL lastDocId = STRING();
+        IMPORT JSON FROM result() TO() status, lastDocId;
+        
+        IF lotStatus(status()) THEN {
+            status(l, le) <- lotStatus(status());
+            lastDocId(l, le) <- lastDocId();
+        }
+        
+        APPLY;
+    }
+}
+
+EXTEND FORM lots
+    OBJECTS le = LegalEntity PANEL BEFORE l
+    PROPERTIES(le) name SELECTOR
+    FILTERS keyAlias(le)
+    
+    PROPERTIES(l, le) READONLY nameStatus, lastDocId 
+    PROPERTIES(l, le) getStatus GRID
+;
