@@ -16,7 +16,10 @@ needDocument = ABSTRACT VALUE BOOLEAN (Invoice);
 needDocument(Invoice i) += supplier(i) != customer(i);
 createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND needDocument(i);
 gismtType (Invoice i) = OVERRIDE 'LK_RECEIPT' IF actionReceipt(operation(i)), ('LP_SHIP_GOODS' IF i IS Invoice);
-@defineDocumentGISMT(invoice, createDocument, invoices, i, customer);
+@defineDocumentGISMT(invoice, createDocument, invoices, i, customer, customerStock);
+
+participant (InvoiceDocument i) += supplier(invoice(i));
+participantStock (InvoiceDocument i) += supplierStock(invoice(i));
 
 FORM exportInvoice
     OBJECTS i = Invoice, t = LotType PANEL

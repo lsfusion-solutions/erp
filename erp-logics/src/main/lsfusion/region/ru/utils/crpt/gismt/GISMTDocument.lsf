@@ -13,9 +13,19 @@ id 'Код' = ABSTRACT STRING[100] (Document) MATERIALIZED INDEXED;
 document 'Документ ГИС МТ' = GROUP AGGR Document d BY id(d);
 
 dateTime 'Дата/время' = ABSTRACT DATETIME (Document) MATERIALIZED;
+number 'Номер' = ABSTRACT STRING (Document) MATERIALIZED;
 
 legalEntity = ABSTRACT LegalEntity (Document) MATERIALIZED;
 nameLegalEntity 'Организация' (Document d) = name(legalEntity(d));
+
+legalEntityStock = ABSTRACT Stock (Document) MATERIALIZED;
+nameLegalEntityStock 'Склад' (Document d) = name(legalEntityStock(d));
+
+participant = ABSTRACT LegalEntity (Document) MATERIALIZED;
+nameParticipant 'Контрагент' (Document d) = name(participant(d));
+
+participantStock = ABSTRACT Stock (Document) MATERIALIZED;
+nameParticipantStock 'Склад контрагента' (Document d) = name(participantStock(d));
 
 type = ABSTRACT LotType (Document) MATERIALIZED;
 idType (Document d) = id(type(d));
@@ -30,6 +40,10 @@ documentHeaders (TEXT name) = CASE
 
 status 'Статус ГИС МТ' = DATA STRING (Document);
 downloadDesc 'Описание ГИС МТ' = DATA STRING (Document);
+
+statusOk (Document d) = status(d) = 'CHECKED_OK' OR status(d) = 'ACCEPTED';
+statusError (Document d) = status(d) = 'CHECKED_NOT_OK' OR status(d) = 'PARSE_ERROR';
+statusWait (Document d) = status(d) = 'WAIT_ACCEPTANCE';
 
 stopCreate = DATA LOCAL BOOLEAN ();
 export ABSTRACT (Document);
@@ -167,7 +181,7 @@ getDocumentStatuses 'Импортировать статусы документ�
 }
 
 postDocuments 'Изменить статусы документов ГИС МТ' () {
-    FOR dateTime(Document d) >= checkDocStatusDateTime() AND (status(d) = 'CHECKED_OK' OR status(d) = 'ACCEPTED') AND NOT isPosted(d) DO {
+    FOR dateTime(Document d) >= checkDocStatusDateTime() AND statusOk(d) AND NOT isPosted(d) DO {
         NEWSESSION {
             isPosted(d) <- TRUE;
             APPLY;
@@ -193,7 +207,7 @@ DESIGN employee {
 }
 
 
-META defineDocumentGISMT(doc, property, form, obj, legalEntityProp)
+META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, stockProp)
     DESIGN form {
         documentDetail {
             NEW gismt {
@@ -210,9 +224,11 @@ META defineDocumentGISMT(doc, property, form, obj, legalEntityProp)
     
     id (###doc##Document i) += id(i);
     dateTime (###doc##Document i) += dateTime(doc(i));
+    number (###doc##Document i) += seriesNumber(doc(i));
     gismtType (###doc##Document i) += gismtType(doc(i));
     
     legalEntity (###doc##Document i) += legalEntityProp(doc(i));
+    legalEntityStock (###doc##Document i) += stockProp(doc(i));
     
     isPosted 'Проведена' = DATA BOOLEAN (###doc##Document);
     isPosted(###doc##Document i) += isPosted(i);
@@ -263,10 +279,14 @@ END
 
 // form list
 
+background (Document d) = CASE WHEN statusOk(d) THEN RGB(224,255,224)
+                                        WHEN statusWait(d) THEN RGB(255,255,224)
+                                        WHEN statusError(d) THEN RGB(255,224,224);
+
 FORM documents 'Исходящие документы'
     OBJECTS d = Document
-    PROPERTIES(d) READONLYIF isReadonly() isPosted, canceled, id 
-    PROPERTIES(d) READONLY dateTimeCreated, dateTime, nameLegalEntity, gismtType 
+    PROPERTIES(d) READONLYIF isReadonly() BACKGROUND background(d) isPosted, canceled, id 
+    PROPERTIES(d) READONLY BACKGROUND background(d) dateTimeCreated, dateTime, number, nameLegalEntity, nameLegalEntityStock, nameParticipant, nameParticipantStock, gismtType 
     PROPERTIES(d) READONLYIF isReadonly() status, downloadDesc
     PROPERTIES exception = STRING(exception(d))
     
