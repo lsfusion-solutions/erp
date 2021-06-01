@@ -38,6 +38,10 @@ importEnterprise(TEXT xml, BusinessEntity owner) {
             owner(e) <- owner;
         }
 
+        IF NOT ownerGuid() THEN {
+            ownerGuid() <- guid(owner);
+        }
+
         FOR guid(Enterprise e) = guid() DO {
             name(e) <- name();
             owner(e) <- businessEntity(ownerGuid()) WHERE ownerGuid();
@@ -69,7 +73,13 @@ getEnterpriseList 'Загрузить данные' (Enterprise b) {
         EXPORT getEnterpriseByGuidRequest OBJECTS e = b XML;
         
         LOCAL response = FILE();
-        EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
+        TRY {
+            EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
+        } CATCH {
+            fileToString(response());
+            MESSAGE CONCAT ' ', 'Ошибка при запросе к службе : ', resultString();
+            RETURN;
+        }
         
         IMPORT getEnterpriseByGuidResponse XML FROM response();
         
