@@ -15,6 +15,8 @@ EXTEND FORM departmentStore PROPERTIES idPermissionProfile(e) BEFORE deletee;
 chameleonVersion (GroupCashRegister g) += WHEN isChameleon(g) AND right(handler(cashRegisterModel(g)), 3) = '2.7' THEN ChameleonVersion.version27;
 isChameleon27 (GroupCashRegister g) = chameleonVersion(g) == ChameleonVersion.version27;
 
+updateFieldSQL (STRING table, STRING condition, STRING field, STRING value) = ISTRING ('UPDATE ' + table + ' SET ' + field + '=' + value + ' WHERE (SELECT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=\'' + getWord(table, '.', 1) + '\' AND table_name=\'' + getWord(table, '.', 2) + '\' AND column_name=\'' + field + '\')) AND ' + condition);
+
 currencyString (Currency c) = 'SELECT system.import_front_currencies(' + sid(c) + ',\'' + shortName(c) + '\',\'' + name(c) + '\',' + trueFalse(c = defaultCurrency()) + ',true)';
 currenciesString (GroupCashRegister g) += WHEN isChameleon27(g) THEN GROUP CONCAT currencyString(Currency c), ';' ORDER c = defaultCurrency(), sid(c), c IF c IS Currency;
 
@@ -40,17 +42,20 @@ taxString (GroupCashRegister g) += WHEN isChameleon27(g) THEN 'SELECT system.imp
                                                               'SELECT system.import_front_tax_map(2,2);' +
                                                               'SELECT system.import_front_tax_map(3,3)';
 
-employeeString (Employee e) = 'SELECT system.import_front_employees(' + STRING(e) + ',\'' + ISTRING[15](escape(login(e))) + '\',\'' + escape(shortName(e)) + '\',\'password\',\'' + STRING(e) + '\',' + ISTRING(idPermissionProfile(e)) + ',true,' + trueFalse(active(e)) +',true)';
-employeesString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT employeeString(Employee e), ';' IF in(DepartmentStore d, e) AND d = stock(t);
+employeeString (Employee e) =
+    'INSERT INTO front.employees(id_employee,login,name_employee,passwd,bar_code,id_profile,show_in_doc,active,all_outlets) VALUES (' + STRING(e) + ',\'' + ISTRING[15](escape(login(e))) + '\',\'' + ISTRING[20](escape(shortName(e))) + '\',\'password\',\'' + ISTRING[21](e) + '\',' + ISTRING(idPermissionProfile(e)) + ',true,' + trueFalse(active(e)) +',true)' +
+    'ON CONFLICT (id_employee) DO UPDATE SET login=\'' + ISTRING[15](escape(login(e))) + '\',name_employee=\'' + ISTRING[20](escape(shortName(e))) + '\',id_profile=' + ISTRING(idPermissionProfile(e)) +',active=' + trueFalse(active(e));
+
+employeesString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT employeeString(Employee e), ';' IF in(DepartmentStore d, e) AND d = stock(t) ORDER active(e), e, d;
 
 priceLevelString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN 'SELECT system.import_front_price_level(' + STRING(stock(t)) + ',\'' + (CONCAT ' ', 'Розничная', '(' + nameStock(t) + ')') + '\',true)';
 
 chainStoreString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN 'SELECT system.import_front_group_outlet(' + STRING(chainStores(stock(groupMachinery(t)))) + ',\'' + name(chainStores(stock(groupMachinery(t)))) + '\', 0,true)';
-storeString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN 
-    'SELECT system.import_front_outlet(' + STRING(stock(t)) + ',\'' + escape(name(stock(t))) + '\',' + STRING(stock(t)) + ',' + STRING(chairman(store(stock(t)))) + ',' + idTellerSettings(stock(t)) + ',' + STRING(chainStores(stock(t))) + ',true)'; 
 
-//employeesStoreString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN
-//    GROUP CONCAT 'SELECT system.import_front_employees_outlet(' + ISTRING(Employee e) + ',' + ISTRING(stock(t)) + ',' + trueFalse(active(e)) + ')', ';' IF in(DepartmentStore d, e) AND d = stock(t); 
+storeString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN
+        'INSERT INTO front.outlet(id_outlet,organization_name,name_outlet,address,id_price_level,id_employee,id_teller_setting,id_group_outlet,active) VALUES (' + STRING(stock(t)) + ',\'' + escape(name(legalEntity(stock(t)))) + '\'' + ',\'' + escape(name(stock(t))) + '\',\'' + escape(address(stock(t))) + '\',' + STRING(stock(t)) + ',' + STRING(chairman(store(stock(t)))) + ',' + idTellerSettings(stock(t)) + ',' + STRING(chainStores(stock(t))) + ',true)' +
+        'ON CONFLICT (id_outlet) DO UPDATE SET name_outlet=\'' + escape(name(stock(t))) + '\',id_price_level=' + STRING(stock(t)) + ',id_employee=' + STRING(chairman(store(stock(t)))) + ',id_teller_setting=' + idTellerSettings(stock(t)) + ',id_group_outlet=' + STRING(chainStores(stock(t)))
+;
 
 cashRegisterString (CashRegister cr) =
     'SELECT system.import_front_workplace(' + STRING(id(cr)) + ',' + STRING(stock(cr)) + ',\'' + escape(OVERRIDE shortDescription(cr), 'Касса №' + npp(cr)) + '\',false,false,false,false,false,false,false,true)';
@@ -62,28 +67,37 @@ groupSkuStringHierarchy (Group g) = GROUP CONCAT groupSkuString(Group cg), ';' I
 groupsSkuStringHierarchy (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT groupSkuStringHierarchy(Group g), ';' IF in(t, Barcode b) AND g = skuGroup(t, b) ORDER g;
 
 skuString (MachineryPriceTransaction t, Sku s) = 'SELECT system.import_front_goods(' + STRING(s) + ',' + STRING(skuGroup(s)) + ',1, \'' + ISTRING[128](name(t, s)) + '\',\'' + STRING(order(s)) + '\',0,0,true);' +
-    'SELECT system.import_front_goods_attrs(' + STRING(s) + ',false,0,null::integer,\'' + STRING[50](name(t, s)) + '\',false,false,false,0,null::integer,' + trueFalse(explicitBatchLedger(stock(t))) + ',null::integer,0)';
+        'INSERT INTO front.goods_attrs(id_goods,control_rest,print_name_goods,free_price,only_bar_code,control_showcase,min_order,use_series,permission_type,full_name) VALUES (' + STRING(s) + ',false,\'' + STRING[50](name(t, s)) + '\',false,false,false,0,false,0,\'' + escape(uniqName(s)) + '\')' + 
+        'ON CONFLICT (id_goods) DO UPDATE SET print_name_goods=\'' + STRING[50](name(t, s)) + '\',full_name=\'' + escape(uniqName(s)) + '\'';
 
 skusString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT skuString(t, Sku s), ';' IF in(t, Barcode b) AND sku(b) = s ORDER s;
 
-batchString (MachineryPriceTransaction t, Batch b) = 'SELECT system.import_front_series (\'' + STRING(b) + '\',' + STRING(sku(b)) + ', \'' + STRING[25](name(b)) + '\', true)';
+batchString (Batch b) =
+    'INSERT INTO front.series(id_series,id_goods,name_series,expiry_date,certificate_type,certificate,manufacture_date,package_quantity,quantity,active) VALUES (\'' + STRING(b) + '\',' + STRING(sku(b)) + ',\'' + escape(STRING[25](name(b))) +'\',' + dateString(OVERRIDE expiryDate(b), DATE('2099-01-01')) + ',0,\'-\',' + dateString(OVERRIDE manufactureDate(b), currentDate()) + ',1,1,true)' +
+    'ON CONFLICT ON CONSTRAINT pk_series DO UPDATE SET name_series=\'' + escape(STRING[25](name(b))) + '\',active=true'; 
 batchesString (MachineryPriceTransaction t, Sku s) = IF NOT explicitBatchLedger(stock(t))
-    THEN 'SELECT system.import_front_series (\'-\',' + STRING(s) + ', \'-\', true)'
+    THEN 'INSERT INTO front.series(id_series,id_goods,name_series,expiry_date,certificate_type,certificate,manufacture_date,package_quantity,quantity,active) VALUES (\'-\',' + STRING(s) + ',\'NOT_SERIES\',\'2099-01-01\'::date,0,\'-\',\'' + currentDate()+ '\'::date,1,1,true)' +
+         'ON CONFLICT ON CONSTRAINT pk_series DO UPDATE SET active=true' 
     ELSE CONCAT ';',
         'UPDATE front.series SET active = false WHERE id_goods=' + STRING(s),
-        GROUP CONCAT batchString(t, Batch b), ';' IF sku(b) = s AND currentBalance(b, stock(t)) > 0 ORDER b
+        GROUP CONCAT batchString(Batch b), ';' IF sku(b) = s AND currentBalance(b, stock(t)) > 0 ORDER b
 ;
 batchesString (MachineryPriceTransaction t) += WHEN  isChameleon27(groupMachinery(t)) THEN GROUP CONCAT batchesString(t, Sku s), ';' IF in(t, Barcode b) AND sku(b) = s ORDER s; 
 
-uomString (MachineryPriceTransaction t, Barcode b) = 'SELECT system.import_front_unit(' + UOM(idUOM(t, b)) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(t, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF passScales(b) THEN ',3' ELSE (IF split(t,b) THEN ',2' ELSE ',1')) + ',null,true,0,0)';
+uomString (MachineryPriceTransaction t, Barcode b) =
+    'INSERT INTO front.unit(id_unit,id_goods,name_unit,is_default,rate,type_unit,active,amount) VALUES (' + UOM(idUOM(t, b)) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(t, b))) + '\',' + trueFalse(primary(b)) + ',1,3,true,' + (OVERRIDE amount(b), 1) + ')' + 
+    'ON CONFLICT ON CONSTRAINT pk_unit DO UPDATE SET name_unit=\'' + escape(ISTRING[10](shortNameUOM(t, b))) + '\',is_default=' + trueFalse(primary(b)) + ',amount=' + (OVERRIDE amount(b), 1);
 uomsString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT uomString(t, Barcode b), ';' IF in(t, b) ORDER t, b;
 
-priceString (MachineryPriceTransaction t, Barcode b, Batch btch) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + UOM(idUOM(t, b)) + ',\'' + STRING(btch) + '\',' + STRING(stock(t)) + ',' + centsString(price(t, b)) + ',' + centsString(minPrice(t, b)) + ',' + centsString(price(t, b)) + ',true)'; 
+priceString (MachineryPriceTransaction t, Barcode b, STRING[18] btch) =
+        'INSERT INTO front.price(id_goods,id_unit,id_series,id_price_level,price,min_price,max_price,effective_since,active) VALUES (' + STRING(sku(b)) + ',' + UOM(idUOM(t, b)) + ',\'' + btch + '\',' + STRING(stock(t)) + ',' + centsString(price(t, b)) + ',' + centsString(minPrice(t, b)) + ',' + centsString(price(t, b)) + ',current_timestamp,true)' +
+        'ON CONFLICT ON CONSTRAINT pk_price DO UPDATE SET id_price_level=' + STRING(stock(t)) + ',price=' + centsString(price(t, b)) + ',min_price=' + centsString(minPrice(t, b)) + ',max_price=' + centsString(price(t, b)) + ',active=true';                        
+
 priceString (MachineryPriceTransaction t, Barcode b) = IF NOT explicitBatchLedger(stock(t))
-    THEN 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + UOM(idUOM(t, b)) + ',\'-\',' + STRING(stock(t)) + ',' + centsString(price(t, b)) + ',' + centsString(minPrice(t, b)) + ',' + centsString(price(t, b)) + ', true)'
+    THEN priceString(t, b, '-')
     ELSE CONCAT ';',
         'UPDATE front.price SET active = false WHERE id_goods=' + STRING(sku(b)),
-        GROUP CONCAT priceString(t, b, Batch btch), ';' IF sku(b) = sku(btch) AND currentBalance(btch, stock(t)) > 0 ORDER btch
+        GROUP CONCAT priceString(t, b, STRING[18](Batch btch)), ';' IF sku(b) = sku(btch) AND currentBalance(btch, stock(t)) > 0 ORDER btch
 ;
 pricesString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT priceString(t, Barcode b), ';' IF in(t, b) ORDER t, b;
 
