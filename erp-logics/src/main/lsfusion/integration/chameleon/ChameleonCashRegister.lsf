@@ -31,11 +31,13 @@ idTellerSettings 'Ид. настройки ККМ' (MachineryPriceTransaction t)
 EXTEND FORM store PROPERTIES idTellerSettings(d) BEFORE deleteD SHOWIF haveChameleon(d);
 
 trueFalse (BOOLEAN flag) = IF flag THEN 'true' ELSE 'false';
-escape (ISTRING s) = ISTRING(replace(s, '\'', '\'\''));
+escape (ISTRING s) = OVERRIDE ISTRING(replace(s, '\'', '\'\'')), '';
+dateString (DATE d) = '\'' + toDateISO(d) + '\'::date';
 
 centsString(NUMERIC[16,4] n) = IF n THEN STRING(round(n * 100, 0)) ELSE '0';
 
 name(MachineryPriceTransaction t, Sku s) = escape((GROUP LAST name(t, Barcode b) ORDER t, b IF in(t, b) AND sku(b) = s));
+uniqName (Sku s) = CONCAT ' ', STRING(s), name(s);
 order (Sku s) = PARTITION SUM 1 IF s IS Sku ORDER name(s), s;
 
 currenciesString = ABSTRACT CASE ISTRING (GroupMachinery);
@@ -131,14 +133,16 @@ sendToChameleon (MachineryPriceTransaction t){
 CLASS ChameleonReceipt 'Чек Chameleon' : Receipt;
 uid = DATA ISTRING[36] (Receipt);
 
+// migration (need delete)
+index (ReceiptDetail d) = (CONCAT '_', id(receipt(d)), lpad(STRING(PARTITION SUM 1 ORDER d BY receipt(d)), 10, '0')) IF isChameleon(d);
+
 onStarted() + {
     APPLY {
         id(CashRegister cr) <- index(cr) (+) maxIdCashRegister(cr) WHERE index(cr);
         id(Receipt r) <- uid(r) WHERE uid(r);
-    };
+        id(ReceiptDetail d) <- Chameleon.index(d) WHERE Chameleon.index(d) AND NOT id(d);
+    }
 }
-
-receiptUid (ISTRING[36] s) = GROUP AGGR Receipt r BY OVERRIDE id(r), uid(r);
 
 idReceipt = DATA INTEGER (Receipt);
 maxIdReceipt (CashRegister cr) = GROUP MAX idReceipt(Receipt r) BY cashRegister(r);
@@ -151,8 +155,8 @@ conditionRecieve (GroupCashRegister g, DATE from, DATE to) = 'where ' + CONCAT '
     'time_check>=\'' + toDateISO(startDate(g)) + '\'',
     'id_workplace in (' + cashRegisterIds(g) + ')',
     'id_check>' + maxIdReceipt(g) IF NOT from,
-    'time_check>=\'' + toDateISO(from) + '\'',
-    'time_check<=\'' + toDateISO(to) + '\'';
+    'date(time_check)>=\'' + toDateISO(from) + '\'::date',
+    'date(time_check)<=\'' + toDateISO(to) + '\'::date';
 
 zReport (CashRegister cr, STRING n) = GROUP LAST ZReport z ORDER z IF number(z) = n AND cashRegister(z) = cr;
 
@@ -234,45 +238,45 @@ receiveFromChameleon(GroupCashRegister g, DATE from, DATE to) {
             }
             exchangeChameleon(g, receiptSql());
             IMPORT FROM exportFile() TO id = id_check, guid = guid, idCashRegister = id_workplace, idSession = id_session, number = id_fcheck, dateTime = time_check, idEmployee = id_employee, cash, card, certificate;
-            FOR guid(INTEGER i) AND ZReport z = zReport(cashRegister(idCashRegister(i)), STRING(idSession(i))) AND NOT receiptUid(guid(i)) DO NEW r = Receipt {
+            FOR guid(INTEGER i) AND ZReport z = zReport(cashRegister(idCashRegister(i)), STRING(idSession(i))) AND NOT receipt(guid(i)) DO NEW r = Receipt {
                 zReport(r) <- z;
                 id(r) <- guid(i);
             }
-            FOR Receipt r = receiptUid(guid(INTEGER i)) DO {
+            FOR Receipt r = receipt(guid(INTEGER i)) DO {
                 idReceipt(r) <- id(i);
                 number(r) <- number(i);
                 date(r) <- DATE(dateTime(i));
                 time(r) <- TIME(dateTime(i));
                 employee(r) <- employee(idEmployee(i));    
             }
-            FOR cash(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND NOT payment(r, paymentType('cash')) DO NEW p = Payment {
+            FOR cash(INTEGER i) AND Receipt r = receipt(guid(i)) AND NOT payment(r, paymentType('cash')) DO NEW p = Payment {
                 receipt(p) <- r;
                 paymentType(p) <- paymentType('cash');
             }
-            FOR cash(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND Payment p = payment(r, paymentType('cash')) DO {
+            FOR cash(INTEGER i) AND Receipt r = receipt(guid(i)) AND Payment p = payment(r, paymentType('cash')) DO {
                 sum(p) <- NUMERIC[18,4](cash(i)) / 100;
             }
-            FOR card(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND NOT payment(r, paymentType('card')) DO NEW p = Payment {
+            FOR card(INTEGER i) AND Receipt r = receipt(guid(i)) AND NOT payment(r, paymentType('card')) DO NEW p = Payment {
                 receipt(p) <- r;
                 paymentType(p) <- paymentType('card');               
             }
-            FOR card(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND Payment p = payment(r, paymentType('card')) DO {
+            FOR card(INTEGER i) AND Receipt r = receipt(guid(i)) AND Payment p = payment(r, paymentType('card')) DO {
                 sum(p) <- NUMERIC[18,4](card(i)) / 100;
             }
-            FOR certificate(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND NOT payment(r, paymentType('certificate')) DO NEW p = Payment {
+            FOR certificate(INTEGER i) AND Receipt r = receipt(guid(i)) AND NOT payment(r, paymentType('certificate')) DO NEW p = Payment {
                 receipt(p) <- r;
                 paymentType(p) <- paymentType('certificate');
             }
-            FOR certificate(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND Payment p = payment(r, paymentType('certificate')) DO {
+            FOR certificate(INTEGER i) AND Receipt r = receipt(guid(i)) AND Payment p = payment(r, paymentType('certificate')) DO {
                 sum(p) <- NUMERIC[18,4](certificate(i)) / 100;
             }
             exchangeChameleon(g, receiptSqlDetail());
             IMPORT FROM exportFile() TO guid, summ, quantity, discount, price, idSku = id_goods, idBatch = id_series, idBarcode = barcode;
-            FOR Receipt r = receiptUid(guid(INTEGER i)) DO {
-                DELETE ReceiptDetail rd WHERE receipt(rd) = r;
-            }
-            FOR Receipt r = receiptUid(guid(INTEGER i)) AND summ(i) > 0 DO NEW d = ReceiptSaleDetail {
+            FOR Receipt r = receipt(guid(INTEGER i)) AND summ(i) > 0 DO NEW d = ReceiptSaleDetail {
+                id(d) <- STRING[100](CONCAT '_', guid(i), lpad(TEXT(i), 10, '0'));
                 receipt(d) <- r;
+            }
+            FOR receipt(ReceiptSaleDetail d) = receipt(guid(INTEGER i)) AND summ(i) > 0 AND id(d) = STRING[100](CONCAT '_', guid(i), lpad(TEXT(i), 10, '0')) DO {
                 sku(d) <- sku(idSku(i));
                 batch[DocumentDetail](d) <- batch(LONG(idBatch(i)));
                 price(d) <- NUMERIC[16,4](price(i)) / 100;
@@ -281,14 +285,17 @@ receiveFromChameleon(GroupCashRegister g, DATE from, DATE to) {
                 discountSum(d) <-NUMERIC[18,4](discount(i)) / 100;
                 idBarcode(d) <- idBarcode(i);
             }
-            FOR Receipt r = receiptUid(guid(INTEGER i)) AND summ(i) < 0 DO NEW d = ReceiptReturnDetail {
+            FOR Receipt r = receipt(guid(INTEGER i)) AND summ(i) < 0 DO NEW d = ReceiptReturnDetail {
+                id(d) <- STRING[100](CONCAT '_', guid(i), lpad(TEXT(i), 10, '0'));
                 receipt(d) <- r;
+            }
+            FOR receipt(ReceiptReturnDetail d) = receipt(guid(INTEGER i)) AND summ(i) < 0 AND STRING[100](CONCAT '_', guid(i), lpad(TEXT(i), 10, '0')) DO {
                 sku(d) <- sku(idSku(i));
                 batch[DocumentDetail](d) <- batch(LONG(idBatch(i)));
                 price(d) <- NUMERIC[16,4](price(i)) / 100;
                 quantity(d) <- abs(quantity(i));
                 sum(d) <- abs(NUMERIC[18,4](summ(i))) / 100;
-                discountSum(d) <-abs(NUMERIC[18,4](discount(i))) / 100;
+                discountSum(d) <- abs(NUMERIC[18,4](discount(i))) / 100;
                 idBarcode(d) <- idBarcode(i);
             }
             IF NOT returnExchange(g) THEN APPLY; ELSE CANCEL;
