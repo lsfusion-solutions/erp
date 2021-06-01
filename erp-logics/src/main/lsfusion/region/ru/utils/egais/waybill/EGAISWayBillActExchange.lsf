@@ -46,16 +46,16 @@ submitAct (WayBillActOutDoc a) {
     submit(a, exportFile());
 }
 
-submitAct (WayBillAct wa) {
+submitAct (WayBillAct wa, BOOLEAN shipper) {
     NEW a = WayBillActOutDoc {
-        client(a) <- IF own(shipper(wayBill(wa))) THEN shipper(wayBill(wa)) ELSE consignee(wayBill(wa));
+        client(a) <- IF shipper THEN shipper(wayBill(wa)) ELSE consignee(wayBill(wa));
         wayBillAct(a) <- wa;
         wayBill(a) <- wayBill(wa);
         submitAct(a);
     }
 }
 
-createAct 'Отправить акт приемки' (WayBill w) {
+createAct 'Отправить акт приемки' (WayBill w, BOOLEAN shipper) {
     NEWSESSION {
         IF NOT rejected(wayBillActOutDoc(wayBillAct(w))) THEN {
             NEW wa = WayBillAct {
@@ -64,9 +64,13 @@ createAct 'Отправить акт приемки' (WayBill w) {
                 date(wa) <- currentDate();
             }
         }
-        submitAct(wayBillAct(w));
+        submitAct(wayBillAct(w), shipper);
         APPLY;
     }
+}
+
+createAct 'Отправить акт приемки' (WayBill w) {
+    createAct(w, NULL);
 }
 
 EXTEND FORM wayBills

@@ -94,6 +94,9 @@ submitWayBill (WayBill w) {
 GROUP wayBill_v4 EXTID 'ns:WayBill_v4' : document;
 GROUP wayBillHeader EXTID 'wb:Header' : wayBill_v4;
 
+GROUP wayBillShipper EXTID 'wb:Shipper' : wayBillHeader;
+GROUP wayBillShipperUL EXTID 'oref:UL' : wayBillShipper;
+
 GROUP wayBillContent EXTID 'wb:Content' : wayBill_v4;
 
 NUMBER = DATA LOCAL STRING();
@@ -123,7 +126,8 @@ FORM inWayBill_v4 FORMEXTID 'ns:Documents'
     PROPERTIES() IN wayBillHeader NUMBER EXTID 'wb:NUMBER', 
                            date EXTID 'wb:Date', 
                            shippingDate EXTID 'wb:ShippingDate', 
-                           shipper EXTID 'wb:Shipper', 
+                           shipper EXTID 'wb:Shipper',
+                           shipperClientRegId IN wayBillShipperUL EXTID 'oref:ClientRegId',
                            consignee EXTID 'wb:Consignee', 
                            base EXTID 'wb:Base',
                            note EXTID 'wb:Note'
@@ -154,69 +158,71 @@ process (InDoc d) + {
             stringToFile(replace(document(d), 'WayBill_v3', 'WayBill_v4'));
             IMPORT inWayBill_v4 XML FROM resultFile();
             
-            IF identity() OR NUMBER() OR date() THEN {
-                NEW w = WayBill {
-                    wayBill(d) <- w;
-                    
-                    id(w) <- identity();
-                    
-                    number(w) <- NUMBER();
-                    date(w) <- date();
-                    shippingDate(w) <- shippingDate();
-                    
-                    importClient(shipper());
-                    shipper(w) <- client(clientRegId());
-                    
-                    importClient(consignee());
-                    consignee(w) <- client(clientRegId());
-                    
-                    base(w) <- base();
-                    note(w) <- note();
-                    
-                    FOR productCode(INTEGER i) DO { // AND NOT product(productCode(i)) DO {
-                        importProduct(product(i));
-                    }
-                    
-                    FOR F1RegId(INTEGER i) AND NOT f1Reg(F1RegId(i)) DO NEW r = F1Reg {
-                        id(r) <- F1RegId(i);
-                        product(r) <- product(productCode(i));
-                    } 
-
-                    FOR F2RegId(INTEGER i) AND NOT f2Reg(F2RegId(i)) DO NEW r = F2Reg {
-                        id(r) <- F2RegId(i);
-                        f1Reg(r) <- f1Reg(F1RegId(i));
-                        client(r) <- shipper(w);
-                    } 
-
-                    FOR [GROUP SUM 1 BY boxnumber(INTEGER i)](STRING id) AND NOT box(id) DO NEW b = Box {
-                        id(b) <- id;
-                    } 
-
-                    FOR amc(INTEGER i) AND NOT markCode(amc(i)) DO NEW m = MarkCode {
-                        id(m) <- amc(i);
-                    } 
-                    
-                    FOR product(INTEGER i) NEW p = WayBillPosition DO {
-                        wayBill(p) <- w;
+            IF (identity() OR NUMBER() OR date()) THEN {
+                IF NOT wayBill(client(shipperClientRegId()), (CONCAT '/', identity(), NUMBER(), date())) THEN {
+                    NEW w = WayBill {
+                        wayBill(d) <- w;
                         
-                        product(p) <- product(productCode(i));
+                        id(w) <- identity();
                         
-                        identity(p) <- positionIdentity(i);
-                                                
-                        quantity(p) <- quantity(i);                        
-                        price(p) <- price(i);
+                        number(w) <- NUMBER();
+                        date(w) <- date();
+                        shippingDate(w) <- shippingDate();
                         
-                        f1Reg(p) <- f1Reg(F1RegId(i));                        
-                        f2Reg(p) <- f2Reg(F2RegId(i));
+                        importClient(shipper());
+                        shipper(w) <- client(clientRegId());
                         
-                        FOR positionBox(boxposAmc(INTEGER ci)) = i NEW m = WayBillMark DO {
-                            wayBillPosition(m) <- p;
-                            markCode(m) <- markCode(amc(ci));
-                            box(m) <- box(boxnumber(boxposAmc(ci)));
+                        importClient(consignee());
+                        consignee(w) <- client(clientRegId());
+                        
+                        base(w) <- base();
+                        note(w) <- note();
+                        
+                        FOR productCode(INTEGER i) DO { // AND NOT product(productCode(i)) DO {
+                            importProduct(product(i));
+                        }
+                        
+                        FOR F1RegId(INTEGER i) AND NOT f1Reg(F1RegId(i)) DO NEW r = F1Reg {
+                            id(r) <- F1RegId(i);
+                            product(r) <- product(productCode(i));
+                        } 
+    
+                        FOR F2RegId(INTEGER i) AND NOT f2Reg(F2RegId(i)) DO NEW r = F2Reg {
+                            id(r) <- F2RegId(i);
+                            f1Reg(r) <- f1Reg(F1RegId(i));
+                            client(r) <- shipper(w);
+                        } 
+    
+                        FOR [GROUP SUM 1 BY boxnumber(INTEGER i)](STRING id) AND NOT box(id) DO NEW b = Box {
+                            id(b) <- id;
+                        } 
+    
+                        FOR amc(INTEGER i) AND NOT markCode(amc(i)) DO NEW m = MarkCode {
+                            id(m) <- amc(i);
+                        } 
+                        
+                        FOR product(INTEGER i) NEW p = WayBillPosition DO {
+                            wayBill(p) <- w;
+                            
+                            product(p) <- product(productCode(i));
+                            
+                            identity(p) <- positionIdentity(i);
+                                                    
+                            quantity(p) <- quantity(i);                        
+                            price(p) <- price(i);
+                            
+                            f1Reg(p) <- f1Reg(F1RegId(i));                        
+                            f2Reg(p) <- f2Reg(F2RegId(i));
+                            
+                            FOR positionBox(boxposAmc(INTEGER ci)) = i NEW m = WayBillMark DO {
+                                wayBillPosition(m) <- p;
+                                markCode(m) <- markCode(amc(ci));
+                                box(m) <- box(boxnumber(boxposAmc(ci)));
+                            }
                         }
                     }
                 }
-                 
+                
                 processed(d) <- TRUE;
                 APPLY;
             }

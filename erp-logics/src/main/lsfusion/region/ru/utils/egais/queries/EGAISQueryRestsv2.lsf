@@ -107,9 +107,18 @@ process (InDoc d) + {
                     
                     product(p) <- product(productCode(i));
                     
-                    quantity(p) <- quantity(i);
+                    quantity(p) <- delta;
                     
                     f2Reg(p) <- f2Reg(informF2RegId(i));
+                }
+                FOR NUMERIC[16,5] delta = currentBalance(F2Reg r) AND client(r) = client(a) AND NOT (GROUP SUM 1 IF informF2RegId(INTEGER i) = id(r)) NEW p = ActChargeOnPosition DO {
+                    actChargeOn(p) <- a;
+                    
+                    product(p) <- product(r);
+                    
+                    quantity(p) <- -delta;
+                    
+                    f2Reg(p) <- r;
                 }
             } 
     
