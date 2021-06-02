@@ -11,7 +11,8 @@ REQUIRE System,
         StockContract,
         SkuLedger,
         ItemPack,
-        Barcode;
+        Barcode,
+        StatusUPD;
 
 NAMESPACE ConsignmentRu;
 
@@ -46,8 +47,7 @@ overOKDPSupplier 'ОКДП отправителя' = ABSTRACT STRING[50] (Consig
 extraOKDPSupplier 'ОКДП отправителя' = ABSTRACT STRING[50] (Consignment);
 OKDPSupplier 'ОКДП отправителя' (Consignment consignment) = OVERRIDE overOKDPSupplier(consignment), extraOKDPSupplier(consignment), okdp(supplier(consignment));
 
-
-overAddressSupplier = ABSTRACT ISTRING[150] (Consignment);
+overAddressSupplier = ABSTRACT ISTRING[350] (Consignment);
 addressSupplier 'Юр. адрес отправителя' (Consignment consignment) =
     OVERRIDE overAddressSupplier(consignment), address(supplier(consignment), date(consignment)) CHARWIDTH 30;
     
@@ -75,6 +75,13 @@ supplierStock (Consignment consignment)=
 overNameSupplierStock (Consignment consignment) = ABSTRACT ISTRING[150] (Consignment);
 nameSupplierStock 'Склад отправителя' (Consignment consignment) =
      OVERRIDE overNameSupplierStock(consignment), name(supplierStock(consignment)) CHARWIDTH 20;
+     
+currency = ABSTRACT Currency (Consignment);
+nameCurrency 'Валюта' (Consignment consignment)= name(currency(consignment)) CHARWIDTH 10;
+sidCurrency 'Код валюты' (Consignment consignment) = sid(currency(consignment)) CHARWIDTH 10;
+
+managerSupplier 'Руководитель, ФИО' = ABSTRACT ISTRING[250] (Consignment);
+accountantSupplier 'Главный бухгалтер, ФИО' = ABSTRACT ISTRING[250] (Consignment);
 
 FORM dialogEmployeesConsignment 'Сотрудники'
     OBJECTS e = Employee
@@ -125,11 +132,11 @@ overOKPOCustomer 'ОКПО получателя' = ABSTRACT STRING[50] (Consignm
 extraOKPOCustomer 'ОКПО получателя' = ABSTRACT STRING[50] (Consignment);
 OKPOCustomer 'ОКПО получателя' (Consignment consignment) = OVERRIDE overOKPOCustomer(consignment), extraOKPOCustomer(consignment), okpo(customer(consignment));
     
-overAddressCustomer = ABSTRACT ISTRING[150] (Consignment);
+overAddressCustomer = ABSTRACT ISTRING[350] (Consignment);
 addressCustomer 'Юр. адрес получателя' (Consignment consignment) =
     OVERRIDE overAddressCustomer(consignment), address(customer(consignment), date(consignment)) CHARWIDTH 30;      
     
-overNameCustomerStock (Consignment consignment) = ABSTRACT ISTRING[150] (Consignment);
+overNameCustomerStock (Consignment consignment) = ABSTRACT ISTRING[350] (Consignment);
 nameCustomerStock (Consignment consignment) =
      OVERRIDE overNameCustomerStock(consignment), name(customerStock(consignment)) CHARWIDTH 20;
       
@@ -152,7 +159,7 @@ phoneCustomer 'Телефон/факс получателя'  (Consignment consi
     
     
 contract = ABSTRACT Contract (Consignment);
-overDescription 'Описание' (Contract contract) = 'Договор поставки '+ description(contract);
+overDescription 'Описание' (Contract contract) = CONCAT '', 'Договор поставки ', description(contract);
 descriptionContract = overDescription(contract(Consignment consignment));
     
 notUseIssuanceExecuted 'Не использовать справочник сотрудников' = DATA BOOLEAN (Consignment);
@@ -486,31 +493,6 @@ FORM consignmentTorg12 'ТОРГ-12'
  
 printConsignmentTorg12 'ТОРГ-12' (Consignment consignment) { PRINT consignmentTorg12 OBJECTS c = consignment;} IMAGE 'print.png' IN print;    
 
-FORM consignmentUPD 'Универсальный передаточный документ'
-    OBJECTS c=Consignment PANEL
-
-    PROPERTIES (c) fullNameSupplier, addressSupplier, INNSupplier, KPPSupplier,
-                   fullNameCustomer, addressCustomer, INNCustomer, KPPCustomer,
-                   date, number,
-                   descriptionContract,
-                   nameIssuanceExecuted, positionIssuanceExecuted, 
-                   nameForwarder, positionForwarder,
-                   nameGoodsConsignment, positionGoodsConsignment
-                   
-    OBJECTS d=ConsignmentDetail  SUBREPORT    
-    PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
-                  quantity, 
-                  grossWeight, 
-                  price, sum, vat, sumVAT, sumConsignment,
-                  sidCountry, shortNameCountry
-        
-    FILTERS consignment(d) == c,
-            quantity(d),
-            NOT skip(d)
-;
- 
-printConsignmentUPD 'Универсальный передаточный документ' (Consignment consignment) { PRINT consignmentUPD OBJECTS c = consignment;} IMAGE 'print.png' IN print;    
-
 FORM consignmentM15 'М-15'
     OBJECTS c=Consignment PANEL   
 
@@ -654,3 +636,405 @@ showAttributes 'Просмотреть атрибуты накладной' (Con
         SHOW consignment OBJECTS c = consignment DOCKED READONLY;
     }
 }
+
+// атрибуты УПД
+statusUPD 'Статус УПД' = ABSTRACT StatusUPD (Consignment);
+dataStatusAttrUPD = DATA StatusUPD (Consignment);
+statusAttrUPD (Consignment c) = OVERRIDE dataStatusAttrUPD(c), statusUPD(c);
+nameStatusAttrUPD 'Статус УПД' (Consignment c) = name(statusAttrUPD(c));
+
+dataNumberAttrUPD 'Номер' = DATA STRING[28] (Consignment) CHARWIDTH 7;
+numberAttrUPD 'Номер' (Consignment c) = OVERRIDE dataNumberAttrUPD(c), number(c);
+
+dataDescriptionContractAttrUPD 'Описание договора' = DATA STRING[50](Consignment) CHARWIDTH 30;
+descriptionContractAttrUPD 'Описание договора' (Consignment c) = OVERRIDE dataDescriptionContractAttrUPD(c), descriptionContract(c);
+
+dataManagerSupplierAttrUPD 'Руководитель, ФИО' = DATA STRING[28] (Consignment);
+managerSupplierAttrUPD 'Руководитель, ФИО' (Consignment c) = OVERRIDE dataManagerSupplierAttrUPD(c), managerSupplier(c);
+
+dataAccountantSupplierAttrUPD 'Главный бухгалтер, ФИО' = DATA STRING[28] (Consignment);
+accountantSupplierAttrUPD 'Главный бухгалтер, ФИО' (Consignment c) = OVERRIDE dataAccountantSupplierAttrUPD(c), accountantSupplier(c);
+
+// Товар передал
+notUseIssuanceExecutedAttrUPD 'Не использовать справочник для передающих сотрудников' = DATA BOOLEAN (Consignment);
+
+dataIssuanceExecutedAttrUPD = DATA Employee (Consignment);
+overIssuanceExecutedAttrUPD = ABSTRACT Employee(Consignment);
+
+dataNameIssuanceExecutedAttrUPD = DATA STRING[100](Consignment);
+overNameIssuanceExecutedAttrUPD = ABSTRACT STRING[100](Consignment);
+dataPositionIssuanceExecutedAttrUPD = DATA STRING[100](Consignment);
+overPositionIssuanceExecutedAttrUPD = ABSTRACT STRING[100](Consignment);
+
+issuanceExecutedAttrUPD 'Товар передал' (Consignment consignment) = 
+    OVERRIDE  
+        overIssuanceExecutedAttrUPD(consignment), 
+        dataIssuanceExecutedAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+
+nameIssuanceExecutedAttrUPD 'Товар передал, ФИО' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseIssuanceExecutedAttrUPD(consignment) THEN shortName(issuanceExecutedAttrUPD(consignment)),
+        overNameIssuanceExecutedAttrUPD(consignment),
+        dataNameIssuanceExecutedAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+    
+positionIssuanceExecutedAttrUPD 'Товар передал, должность' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseIssuanceExecutedAttrUPD(consignment) THEN namePosition(dataIssuanceExecutedAttrUPD(consignment)),
+        overPositionIssuanceExecutedAttrUPD(consignment),
+        dataPositionIssuanceExecutedAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+
+// Ответственный (передача)
+notUseIssuanceResponsibleAttrUPD 'Не использовать справочник для ответственных (передача)' = DATA BOOLEAN (Consignment);
+
+dataIssuanceResponsibleAttrUPD = DATA Employee (Consignment);
+overIssuanceResponsibleAttrUPD = ABSTRACT Employee(Consignment);
+
+dataNameIssuanceResponsibleAttrUPD = DATA STRING[100](Consignment);
+overNameIssuanceResponsibleAttrUPD = ABSTRACT STRING[100](Consignment);
+dataPositionIssuanceResponsibleAttrUPD = DATA STRING[100](Consignment);
+overPositionIssuanceResponsibleAttrUPD = ABSTRACT STRING[100](Consignment);
+
+issuanceResponsibleAttrUPD 'Ответственный (передача)' (Consignment consignment) = 
+    OVERRIDE  
+        overIssuanceResponsibleAttrUPD(consignment), 
+        dataIssuanceResponsibleAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+
+nameIssuanceResponsibleAttrUPD 'Ответственный (передача), ФИО' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseIssuanceResponsibleAttrUPD(consignment) THEN shortName(issuanceResponsibleAttrUPD(consignment)),
+        overNameIssuanceResponsibleAttrUPD(consignment),
+        dataNameIssuanceResponsibleAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+        
+positionIssuanceResponsibleAttrUPD 'Ответственный (передача), должность' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseIssuanceResponsibleAttrUPD(consignment) THEN namePosition(dataIssuanceResponsibleAttrUPD(consignment)),
+        overPositionIssuanceResponsibleAttrUPD(consignment),
+        dataPositionIssuanceResponsibleAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+    
+// Товар принял
+notUseDialogForwarderAttrUPD 'Не использовать справочник для принимающих сотрудников' = DATA BOOLEAN(Consignment) IN issuanceConsignment;
+
+dataForwarderAttrUPD = DATA Employee (Consignment);
+overForwarderAttrUPD = ABSTRACT Employee(Consignment);
+
+dataNameForwarderAttrUPD = DATA STRING[100](Consignment);
+overNameForwarderAttrUPD = ABSTRACT STRING[100](Consignment);
+dataPositionForwarderAttrUPD = DATA STRING[100](Consignment);
+overPositionForwarderAttrUPD = ABSTRACT STRING[100](Consignment);
+
+forwarderAttrUPD 'Товар принял' (Consignment consignment) = 
+    OVERRIDE  
+        overForwarderAttrUPD(consignment), 
+        dataForwarderAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+
+nameForwarderAttrUPD 'Товар принял, ФИО' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseDialogForwarderAttrUPD(consignment) THEN shortName(forwarderAttrUPD(consignment)),
+        overNameForwarderAttrUPD(consignment),
+        dataNameForwarderAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+    
+positionForwarderAttrUPD 'Товар принял, должность' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseDialogForwarderAttrUPD(consignment) THEN namePosition(dataForwarderAttrUPD(consignment)),
+        overPositionForwarderAttrUPD(consignment),
+        dataPositionForwarderAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+    
+// Ответственный (прием)
+notUseDialogGoodsConsignmentAttrUPD 'Не использовать справочник для ответственных (прием)' = DATA BOOLEAN(Consignment) IN issuanceConsignment;
+
+dataGoodsConsignmentAttrUPD  = DATA Employee (Consignment);
+overGoodsConsignmentAttrUPD (acceptance) = ABSTRACT Employee(Consignment);
+
+dataNameGoodsConsignmentAttrUPD = DATA STRING[100](Consignment);
+overNameGoodsConsignmentAttrUPD = ABSTRACT STRING[100](Consignment);
+dataPositionGoodsConsignmentAttrUPD = DATA STRING[100](Consignment);
+overPositionGoodsConsignmentAttrUPD = ABSTRACT STRING[100](Consignment);
+
+goodsConsignmentAttrUPD 'Ответственный (прием)' (Consignment consignment) = 
+    OVERRIDE  
+        overGoodsConsignmentAttrUPD(consignment), 
+        dataGoodsConsignmentAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+
+nameGoodsConsignmentAttrUPD 'Ответственный (прием), ФИО' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseDialogGoodsConsignmentAttrUPD(consignment) THEN shortName(goodsConsignmentAttrUPD(consignment)),
+        overNameGoodsConsignmentAttrUPD(consignment),
+        dataNameGoodsConsignmentAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+    
+positionGoodsConsignmentAttrUPD 'Ответственный (прием), должность' (Consignment consignment) = 
+    OVERRIDE  
+        IF NOT notUseDialogGoodsConsignmentAttrUPD(consignment) THEN namePosition(goodsConsignmentAttrUPD(consignment)),
+        overPositionGoodsConsignmentAttrUPD(consignment),
+        dataPositionGoodsConsignmentAttrUPD(consignment) IN issuanceConsignment CHARWIDTH 30;
+
+transportationInfoAttrUPD 'Данные о транспортировке' = DATA STRING[255] (Consignment) CHARWIDTH 30;
+otherInfoIssuanceAttrUPD 'Иные сведения (передача)' = DATA STRING[255] (Consignment) CHARWIDTH 30;
+otherAcceptanceAttrUPD 'Иные сведения (прием)' = DATA STRING[255] (Consignment) CHARWIDTH 30;
+
+// атрибуты УПД, действия
+changeNumberAttrUPD(Consignment consignment)  {    
+    INPUT name = ISTRING[150] DO {
+        dataNumberAttrUPD(consignment) <- name;
+    }  
+}
+
+changeManagerSupplierAttrUPD(Consignment consignment)  {    
+    INPUT name = ISTRING[28] DO {
+        dataManagerSupplierAttrUPD(consignment) <- name;
+    }  
+}
+
+changeAccountantSupplierAttrUPD(Consignment consignment)  {    
+    INPUT name = ISTRING[28] DO {
+        dataAccountantSupplierAttrUPD(consignment) <- name;
+    }  
+}
+
+changeDescriptionContractAttrUPD(Consignment consignment)  {    
+    INPUT description = STRING[50] DO {
+        dataDescriptionContractAttrUPD(consignment) <- description;
+    }  
+}
+
+changeNameIssuanceExecutedAttrUPD(Consignment consignment)  {    
+    IF notUseIssuanceExecutedAttrUPD(consignment) THEN {
+        INPUT s = dataNameIssuanceExecutedAttrUPD(consignment) DO {
+            dataNameIssuanceExecutedAttrUPD(consignment) <- s;
+        }
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataIssuanceExecutedAttrUPD(consignment) INPUT NULL DO {
+            dataIssuanceExecutedAttrUPD(consignment) <- e;
+        }
+    }
+}
+
+changePositionIssuanceExecutedAttrUPD(Consignment consignment)  {    
+    IF notUseIssuanceExecutedAttrUPD(consignment) THEN {
+        INPUT s = dataPositionIssuanceExecutedAttrUPD(consignment) DO {
+            dataPositionIssuanceExecutedAttrUPD(consignment) <- s;
+        }         
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataIssuanceExecutedAttrUPD(consignment) INPUT NULL DO {
+            dataIssuanceExecutedAttrUPD(consignment) <- e;
+        }
+    }
+}
+
+changeNameIssuanceResponsibleAttrUPD(Consignment consignment)  {    
+    IF notUseIssuanceResponsibleAttrUPD(consignment) THEN {
+        INPUT s = dataNameIssuanceResponsibleAttrUPD(consignment) DO {
+            dataNameIssuanceResponsibleAttrUPD(consignment) <- s;
+        }
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataIssuanceResponsibleAttrUPD(consignment) INPUT NULL DO {
+            dataIssuanceResponsibleAttrUPD(consignment) <- e;
+        }
+    }
+}
+
+changePositionIssuanceResponsibleAttrUPD(Consignment consignment)  {    
+    IF notUseIssuanceResponsibleAttrUPD(consignment) THEN {
+        INPUT s = dataPositionIssuanceResponsibleAttrUPD(consignment) DO {
+            dataPositionIssuanceResponsibleAttrUPD(consignment) <- s;
+        }         
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataIssuanceResponsibleAttrUPD(consignment) INPUT NULL DO {
+            dataIssuanceResponsibleAttrUPD(consignment) <- e;
+        }
+    }
+}
+
+changeNameForwarderAttrUPD(Consignment consignment)  {     
+    IF notUseDialogForwarderAttrUPD(consignment) THEN {
+        INPUT s = dataNameForwarderAttrUPD(consignment) DO {
+            dataNameForwarderAttrUPD(consignment) <- s;
+        }
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataForwarderAttrUPD(consignment) INPUT NULL DO {
+            dataForwarderAttrUPD(consignment) <- e;
+        }
+    }
+}   
+
+changePositionForwarderAttrUPD(Consignment consignment)  {     
+    IF notUseDialogForwarderAttrUPD(consignment) THEN {
+        INPUT s = dataPositionForwarderAttrUPD(consignment) DO {
+            dataPositionForwarderAttrUPD(consignment) <- s;
+        }         
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataForwarderAttrUPD(consignment) INPUT NULL DO {
+            dataForwarderAttrUPD(consignment) <- e;
+        }
+    }        
+} 
+
+changeNameGoodsConsignmentAttrUPD(Consignment consignment) {     
+    IF notUseDialogGoodsConsignmentAttrUPD(consignment) THEN {
+        INPUT s = dataNameGoodsConsignmentAttrUPD(consignment) DO {
+            dataNameGoodsConsignmentAttrUPD(consignment) <- s;
+        }
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataGoodsConsignmentAttrUPD(consignment) INPUT NULL DO {
+            dataGoodsConsignmentAttrUPD(consignment) <- e;
+        }
+    }
+}   
+
+changePositionGoodsConsignmentAttrUPD(Consignment consignment) {     
+    IF notUseDialogGoodsConsignmentAttrUPD(consignment) THEN {
+        INPUT s = dataPositionGoodsConsignmentAttrUPD(consignment) DO {
+            dataPositionGoodsConsignmentAttrUPD(consignment) <- s;
+        }         
+    } ELSE {
+        DIALOG dialogEmployeesConsignment OBJECTS e = dataGoodsConsignmentAttrUPD(consignment) INPUT NULL DO {
+            dataGoodsConsignmentAttrUPD(consignment) <- e;
+        }
+    }        
+}   
+
+FORM consignmentUPD 'Универсальный передаточный документ'
+    OBJECTS c=Consignment PANEL
+
+    PROPERTIES (c) fullNameSupplier, addressSupplier, INNSupplier, KPPSupplier,
+                   fullNameCustomer, addressCustomer, INNCustomer, KPPCustomer,
+                   date, numberAttrUPD, 
+                   descriptionContractAttrUPD,
+                   transportationInfoAttrUPD,
+                   //передача
+                   nameIssuanceExecutedAttrUPD, positionIssuanceExecutedAttrUPD, 
+                   nameIssuanceResponsibleAttrUPD, positionIssuanceResponsibleAttrUPD, 
+                   otherInfoIssuanceAttrUPD,  
+                   //прием                 
+                   nameForwarderAttrUPD, positionForwarderAttrUPD,
+                   nameGoodsConsignmentAttrUPD, positionGoodsConsignmentAttrUPD, 
+                   otherAcceptanceAttrUPD,
+                   
+                   nameCurrency, sidCurrency, nameStatusAttrUPD,
+                   managerSupplierAttrUPD, accountantSupplierAttrUPD
+                   
+    OBJECTS d=ConsignmentDetail  SUBREPORT    
+    PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
+                  quantity, 
+                  grossWeight, 
+                  price, sum, vat, sumVAT, sumConsignment,
+                  sidCountry, shortNameCountry
+        
+    FILTERS consignment(d) == c,
+            quantity(d),
+            NOT skip(d)
+;
+ 
+printConsignmentUPD 'Универсальный передаточный документ' (Consignment consignment) { PRINT consignmentUPD OBJECTS c = consignment;} IMAGE 'print.png' IN print;
+
+FORM attributesUPD 'Атрибуты УПД'
+    OBJECTS c=Consignment PANEL
+
+    PROPERTIES(c)  numberAttrUPD ON CHANGE changeNumberAttrUPD(c), nameStatusAttrUPD, 
+                   descriptionContractAttrUPD ON CHANGE changeDescriptionContractAttrUPD(c),
+                   managerSupplierAttrUPD, accountantSupplierAttrUPD, 
+                   transportationInfoAttrUPD, otherInfoIssuanceAttrUPD, otherAcceptanceAttrUPD,
+                   notUseIssuanceExecutedAttrUPD,
+                   notUseIssuanceResponsibleAttrUPD,                
+                   notUseDialogForwarderAttrUPD,
+                   notUseDialogGoodsConsignmentAttrUPD,
+                   nameIssuanceExecutedAttrUPD ON CHANGE changeNameIssuanceExecutedAttrUPD(c),
+                   positionIssuanceExecutedAttrUPD ON CHANGE changePositionIssuanceExecutedAttrUPD(c),
+                   nameIssuanceResponsibleAttrUPD ON CHANGE changeNameIssuanceResponsibleAttrUPD(c),
+                   positionIssuanceResponsibleAttrUPD ON CHANGE changePositionIssuanceResponsibleAttrUPD(c),
+                   nameForwarderAttrUPD ON CHANGE changeNameForwarderAttrUPD(c),
+                   positionForwarderAttrUPD ON CHANGE changePositionForwarderAttrUPD(c),
+                   nameGoodsConsignmentAttrUPD ON CHANGE changeNameGoodsConsignmentAttrUPD(c),
+                   positionGoodsConsignmentAttrUPD ON CHANGE changePositionGoodsConsignmentAttrUPD(c)
+;
+
+DESIGN attributesUPD {
+    size = (1024, 768);
+    NEW pane {
+        fill = 1;
+        type = TABBED;
+        NEW mainContainer {
+            caption = 'Основная информация';
+            NEW mainScroll {
+                fill = 1;
+                height = 1;
+                type = SCROLL;
+                NEW mainTab {
+                    alignment = STRETCH;
+                    NEW header {
+                        alignment = STRETCH;
+                        caption = 'Шапка документа';
+                        type = CONTAINERV;
+                        NEW row1 {
+                            type = CONTAINERH;
+                            MOVE PROPERTY(numberAttrUPD(c));
+                            MOVE PROPERTY(nameStatusAttrUPD(c));
+                            MOVE PROPERTY(descriptionContractAttrUPD(c));                            
+                        }
+                        
+                        MOVE PROPERTY(transportationInfoAttrUPD(c));
+                        MOVE PROPERTY(otherInfoIssuanceAttrUPD(c));
+                        MOVE PROPERTY(otherAcceptanceAttrUPD(c));
+                    }
+                                        
+                    NEW employees {                       
+                        type = CONTAINERV;
+                        caption = 'Сотрудники';                        
+                        
+                        MOVE PROPERTY(managerSupplierAttrUPD(c));
+                        MOVE PROPERTY(accountantSupplierAttrUPD(c));
+                        
+                        MOVE PROPERTY(notUseIssuanceExecutedAttrUPD(c));
+                                           
+                        NEW issuance { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameIssuanceExecutedAttrUPD(c)) { charWidth = 30; };
+                            MOVE PROPERTY(positionIssuanceExecutedAttrUPD(c)) { charWidth = 20; };
+                        }
+                        
+                        MOVE PROPERTY(notUseIssuanceResponsibleAttrUPD(c));
+                        
+                        NEW issuanceResponsible { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameIssuanceResponsibleAttrUPD(c)) { charWidth = 30; };
+                            MOVE PROPERTY(positionIssuanceResponsibleAttrUPD(c)) { charWidth = 20; };
+                        }
+                            
+                        MOVE PROPERTY(notUseDialogForwarderAttrUPD(c));    
+                        
+                        NEW forwarder { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameForwarderAttrUPD(c)) { charWidth = 30; };
+                            MOVE PROPERTY(positionForwarderAttrUPD(c)) { charWidth = 20; };  
+                        } 
+                        
+                        MOVE PROPERTY(notUseDialogGoodsConsignmentAttrUPD(c)); 
+                                                
+                        NEW goodsAccepted { 
+                            alignment = STRETCH;
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameGoodsConsignmentAttrUPD(c)) { charWidth = 30; };
+                            MOVE PROPERTY(positionGoodsConsignmentAttrUPD(c)) { charWidth = 20; };                              
+                        }                
+                    }                        
+                }
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+editAttributesUPD 'Заполнить атрибуты УПД' (Consignment consignment)  { 
+	NEWSESSION {	       
+	    SHOW attributesUPD OBJECTS c = consignment DOCKED; 
+	}
+} IMAGE 'edit.png';
+
+showAttributesUPD 'Просмотреть атрибуты УПД' (Consignment consignment) { 
+    NEWSESSION {
+        SHOW attributesUPD OBJECTS c = consignment DOCKED READONLY;
+    }
+}
+

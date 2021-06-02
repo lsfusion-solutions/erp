@@ -3,7 +3,10 @@ MODULE PurchaseReturnInvoiceConsignmentRu;
 REQUIRE PurchaseReturnInvoice,
         ConsignmentRu,
         PurchaseReturnShipment,
-        InvoiceRu;
+        InvoiceRu,
+        LegalEntity,
+        Store,
+        StatusUPD, SaleOperationRu;
 
 NAMESPACE PurchaseReturn;
 
@@ -14,12 +17,22 @@ number[Consignment] (Invoice consignment) += number(consignment);
 series[Consignment] (Invoice consignment) += series(consignment);
 
 dataSupplier (Invoice consignment) += to(consignment);
+overAddressSupplier (Invoice consignment) += CONCAT ', ', (OVERRIDE name(store(dataSupplierStock(consignment))), name(dataSupplierStock(consignment))), address(store(dataSupplierStock(consignment)));
+
 dataCustomer (Invoice consignment) += from(consignment);
+overAddressCustomer (Invoice consignment) += CONCAT ', ', (OVERRIDE name(store(dataCustomerStock(consignment))), name(dataCustomerStock(consignment))), address(dataCustomerStock(consignment));
 
 dataSupplierStock[Consignment] (Invoice consignment) += toStock(consignment);
 dataCustomerStock[Consignment] (Invoice consignment) += fromStock(consignment);
 
+currency[Consignment] (Invoice consignment) += currency(consignment);
+
+managerSupplier[Consignment] (Invoice consignment)  += shortName(chief(to(consignment), currentDate()));
+accountantSupplier[Consignment] (Invoice consignment) += shortName(booker(to(consignment),currentDate()));
+
 contract[Consignment](Invoice consignment) += contractSku(consignment);
+
+statusUPD[Consignment](Invoice consignment) += statusUPD(operation(consignment));
 
 EXTEND CLASS InvoiceDetail : ConsignmentDetail;
 
@@ -42,10 +55,10 @@ dataShipmentPrice (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN s
 dataShipmentSum (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN shipmentSum(detail);
 
 EXTEND FORM  invoices
-        PROPERTIES(i)  editAttributes SHOWIF isOpened(i)
-        PROPERTIES(i) READONLYIF banPrint(i) printConsignmentTorg13, printConsignmentTorg12, printConsignmentUPD, 
-        printConsignmentM15
-    ;
+    PROPERTIES(i) SHOWIF isOpened(i) editAttributes , editAttributesUPD
+    PROPERTIES(i) READONLYIF banPrint(i) printConsignmentTorg13, printConsignmentTorg12, printConsignmentUPD, 
+    printConsignmentM15
+;
 
 DESIGN invoices {
     printTab {
@@ -61,17 +74,38 @@ DESIGN invoices {
                     alignment = STRETCH;
                 }
             }
-            NEW tn2 {
+            NEW tn {
                 alignment = STRETCH;
                 type = COLUMNS;
                 columns = 3;
                 caption = 'Отчеты';
                 MOVE PROPERTY(printConsignmentTorg13(i)) { alignment = STRETCH; }
-                MOVE PROPERTY(printConsignmentTorg12(i)) { alignment = STRETCH; }   
-                MOVE PROPERTY(printConsignmentUPD(i)) { alignment = STRETCH; }      
+                MOVE PROPERTY(printConsignmentTorg12(i)) { alignment = STRETCH; }    
                 MOVE PROPERTY(printConsignmentM15(i)) { alignment = STRETCH; }                    
             }
         }
+            
+        NEW consignmentUPD{
+            align = START;
+            type = CONTAINERH;
+            
+            NEW contUPD {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'УПД';
+                MOVE PROPERTY(editAttributesUPD(i)) {
+                    alignment = STRETCH;
+                }
+            }
+            
+            NEW upd {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printConsignmentUPD(i)) { alignment = STRETCH; }
+            }
+        }        
     }
 }
 
