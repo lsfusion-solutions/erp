@@ -1595,6 +1595,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
                                 curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, customPaymentsMap, idBarcode, idItem, null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, salesNum, null, null, receiptDetailExtraFields, cashRegister));
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                                //todo: temp log
+                                astronSalesLogger.info(uniqueReceiptDetailId + " sale: " + rs.getBigDecimal("SALESSUM"));
                                 prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
                                 break;
                             }
@@ -1639,12 +1641,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     salesInfoList.addAll(curSalesInfoList);
                                     recordList.addAll(curRecordList);
                                 } else {
+                                    //todo: temp log
+                                    astronSalesLogger.info(uniqueReceiptDetailId + " difference: " + prologSum);
                                     for(AstronRecord record : curRecordList) {
                                         astronSalesLogger.info(String.format("incorrect record: SAREAID %s, SYSTEMID %s, SALESNUM %s, SESSIONID %s", record.sAreaId, record.systemId, record.salesNum, record.sessId));
                                     }
                                 }
                                 curSalesInfoList = new ArrayList<>();
                                 curRecordList = new ArrayList<>();
+                                //todo: temp log
+                                astronSalesLogger.info(uniqueReceiptDetailId + " prolog: " + rs.getBigDecimal("SALESSUM"));
                                 prologSum = rs.getBigDecimal("SALESSUM");
                                 idDiscountCard = trimToNull(rs.getString("SALESBARC"));
 
