@@ -41,6 +41,8 @@ cancel 'Запросить отмену проведения' (WayBillAct wa) {
     NEWSESSION {
         NEW r = RequestRepealWBOutDoc {
             client(r) <- consignee(wayBill(wa));
+
+            hasRRWB(wa) <- TRUE;
             numberRRWB(wa) <- STRING(r);
             dateRRWB(wa) <- currentDateTime();
 
@@ -101,6 +103,7 @@ process (InDoc d) + {
 process (Ticket t) + {
     IF docType(t) = 'RequestRepealWB' THEN {
         FOR WayBillAct wa = wayBillAct(outDoc(t)) DO {
+            wayBill(inDoc(t)) <- wayBill(wa);
 //            IF conclusion(t) = 'Rejected' THEN {
 //                dateRRWB(wa) <- NULL;
 //                numberRRWB(wa) <- NULL;
@@ -121,4 +124,4 @@ EXTEND FORM wayBills
         FILTER 'Запрос на отмену проведения' status(w) = WayBillStatus.requestRepeal
 ;
 
-status (WayBill w) += WHEN toAccept(w) AND hasRRWB(wayBillAct(w)) THEN WayBillStatus.requestRepeal;
+status (WayBill w) += WHEN accepted(w) AND hasRRWB(wayBillAct(w)) THEN WayBillStatus.requestRepeal;

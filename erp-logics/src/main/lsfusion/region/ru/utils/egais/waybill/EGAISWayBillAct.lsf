@@ -6,9 +6,14 @@ NAMESPACE EGAIS;
 
 CLASS WayBillAct 'Акт приемки';
 
+canceled 'Отменен' = DATA BOOLEAN (WayBillAct);
+
 wayBill 'Накладная' = DATA WayBill (WayBillAct) NONULL INDEXED;
-wayBillAct = GROUP LAST WayBillAct a ORDER a BY wayBill(a);
+wayBillAct = GROUP LAST WayBillAct a ORDER a WHERE NOT canceled(a) BY wayBill(a);
 countWayBillActs 'Акты приемки' (WayBill w) = GROUP SUM 1 IF wayBill(WayBillAct a) = w MATERIALIZED;
+
+WHEN DROPPED(accepted(WayBill b)) AND WayBillAct a = wayBillAct(b) DO
+    canceled(a) <- TRUE;
 
 differences 'Есть расхождения' = DATA BOOLEAN (WayBillAct);
 
@@ -18,7 +23,7 @@ note 'Примечание' = DATA STRING (WayBillAct);
 
 EXTEND FORM wayBills
     OBJECTS a = WayBillAct
-    PROPERTIES(a) READONLY differences, number, date, note
+    PROPERTIES(a) READONLY canceled, differences, number, date, note
     PROPERTIES(a) NEWSESSION DELETE
     FILTERS wayBill(a) = w
 ;

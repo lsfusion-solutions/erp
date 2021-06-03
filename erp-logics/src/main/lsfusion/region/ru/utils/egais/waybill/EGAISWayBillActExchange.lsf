@@ -57,6 +57,10 @@ submitAct (WayBillAct wa, BOOLEAN shipper) {
 
 createAct 'Отправить акт приемки' (WayBill w, BOOLEAN shipper) {
     NEWSESSION {
+        IF shipper THEN {
+            realQuantity(WayBillPosition p) <- NULL WHERE wayBill(p) = w;
+            accepted(WayBillMark a) <- NULL WHERE wayBill(wayBillPosition(a)) = w;
+        }
         IF NOT rejected(wayBillActOutDoc(wayBillAct(w))) THEN {
             NEW wa = WayBillAct {
                 wayBill(wa) <- w;

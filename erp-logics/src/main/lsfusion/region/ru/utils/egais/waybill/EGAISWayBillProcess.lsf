@@ -29,7 +29,7 @@ END
 META defineDocumentInWayBillActForm (doc, obj)
     EXTEND FORM doc##s
         OBJECTS w = WayBill PANEL
-        PROPERTIES(w) READONLY accepted, canceled, number, date, shippingDate
+        PROPERTIES(w) READONLY accepted, canceled, number, date, shippingDate, nameStatus
         FILTERS w = wayBill(obj)
     
         OBJECTS wp = WayBillPosition
@@ -42,7 +42,7 @@ META defineDocumentInWayBillActForm (doc, obj)
                         processEGAIS = process SHOWIF isPosted(obj) AND NOT notRejected(wayBillActOutDoc(wayBillAct(w))),
                         cancelEGAIS = cancel SHOWIF accepted(w) AND NOT canceled(w) AND 
                                                     notRejected(wayBillActOutDoc(wayBillAct(w))) AND
-                                                    NOT notRejected(requestRepealWBOutDoc(wayBillAct(w)))
+                                                    NOT (notRejected(requestRepealWBOutDoc(wayBillAct(w))) AND hasRRWB(wayBillAct(w)))
     ;
     
     DESIGN doc##s {
@@ -143,7 +143,7 @@ END
 META defineDocumentOutWayBillForm (doc, obj)
     EXTEND FORM doc##s
         OBJECTS w = WayBill PANEL
-        PROPERTIES(w) READONLY accepted, canceled, id, number, date, shippingDate
+        PROPERTIES(w) READONLY accepted, canceled, id, number, date, shippingDate, nameStatus
         FILTERS w = wayBill(obj)
     
         OBJECTS wp = WayBillPosition

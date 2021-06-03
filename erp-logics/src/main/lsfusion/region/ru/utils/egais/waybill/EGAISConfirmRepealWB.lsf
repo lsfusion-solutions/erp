@@ -9,9 +9,10 @@ EXTEND CLASS DocType { ConfirmRepealWB 'Подтверждение запрос�
 numberCRWB 'Номер подтверждения запроса на отмену проведения ТТН' = DATA STRING (WayBillAct);
 dateCRWB 'Дата подтверждения запроса на отмену проведения ТТН' = DATA DATETIME (WayBillAct);
 noteCRWB 'Примечание подтверждения запроса на отмену проведения ТТН' = DATA STRING (WayBillAct) CHARWIDTH 40;
+rejectedCRWB 'Отказ запроса на отмену' = DATA BOOLEAN (WayBillAct);
 
 EXTEND FORM wayBills
-    PROPERTIES(a) READONLY numberCRWB, dateCRWB, noteCRWB 
+    PROPERTIES(a) READONLY numberCRWB, dateCRWB, noteCRWB, rejectedCRWB 
 ;
 
 // out doc
@@ -22,8 +23,6 @@ wayBillAct = DATA WayBillAct (ConfirmRepealWBOutDoc) INDEXED;
 confirmRepealWBOutDoc = GROUP LAST ConfirmRepealWBOutDoc d ORDER d BY wayBillAct(d);
 commentsConfirmRepealWBOutDoc 'Комментарий запроса на подтверждение отмены проведения ТТН' (WayBillAct a) = comments(confirmRepealWBOutDoc(a));
 
-rejected 'Отказать' = DATA BOOLEAN (ConfirmRepealWBOutDoc);
-
 GROUP header EXTID 'wt:Header';
 
 FORM confirmRepealWB FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ConfirmRepealWB'
@@ -31,7 +30,7 @@ FORM confirmRepealWB FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Confi
 
     OBJECTS r = ConfirmRepealWBOutDoc PANEL
 
-    PROPERTIES IN header =IF rejected(r) THEN 'Rejected' ELSE 'Accepted' EXTID 'wt:IsConfirm', 
+    PROPERTIES IN header =IF rejectedCRWB(wayBillAct(r)) THEN 'Rejected' ELSE 'Accepted' EXTID 'wt:IsConfirm', 
                          =numberCRWB(wayBillAct(r)) EXTID 'wt:ConfirmNumber', 
                          =toDateISO(dateCRWB(wayBillAct(r))) EXTID 'wt:ConfirmDate', 
                          =regId(wayBill(wayBillAct(r))) EXTID 'wt:WBRegId', 
@@ -45,7 +44,7 @@ request (ConfirmRepealWBOutDoc r) {
 
 FORM confirmRepealWBParams 'Параметры запроса'
     OBJECTS r = ConfirmRepealWBOutDoc PANEL
-    PROPERTIES rejected(r),
+    PROPERTIES 'Отказать' = rejectedCRWB(wayBillAct(r)) ON CHANGE { INPUT s = rejectedCRWB(wayBillAct(r)) DO rejectedCRWB(WayBillAct wa) <- s WHERE wa = wayBillAct(r); },
                'Примечание' = noteCRWB(wayBillAct(r)) ON CHANGE { INPUT s = noteCRWB(wayBillAct(r)) DO noteCRWB(WayBillAct wa) <- s WHERE wa = wayBillAct(r); }
 ;
 
@@ -71,12 +70,21 @@ confirmRepeal 'Подтвердить запрос на отмену' (WayBillAc
 
 EXTEND FORM wayBills
     PROPERTIES(a) READONLY commentsConfirmRepealWBOutDoc PANEL
-    PROPERTIES(a) confirmRepeal SHOWIF hasRRWB(a) AND own(shipper(w)) AND NOT notRejected(confirmRepealWBOutDoc(a)) TOOLBAR
+    PROPERTIES(a) confirmRepeal SHOWIF hasRRWB(a) AND own(shipper(w)) AND NOT (notRejected(confirmRepealWBOutDoc(a)) AND NOT rejectedCRWB(a)) TOOLBAR
 ;
 
 DESIGN wayBills {
     wayBillDetails {
         MOVE PROPERTY(commentsConfirmRepealWBOutDoc(a)) { fill = 1; panelCaptionVertical = TRUE; }
+    }
+}
+
+process (Ticket t) + {
+    IF docType(t) = 'ConfirmRepealWB' THEN {
+        FOR WayBillAct wa = wayBillAct[ConfirmRepealWBOutDoc](outDoc(t)) DO {
+            wayBill(inDoc(t)) <- wayBill(wa);
+            processed() <- TRUE;
+        }
     }
 }
 
@@ -106,10 +114,12 @@ process (InDoc d) + {
             
             FOR WayBill b = wayBill(WBRegId()) AND WayBillAct wa = wayBillAct(b) DO {
                 wayBill(d) <- b;
-                
-                IF isConfirmRepeal() = 'Accepted' THEN accepted(b) <- NULL;
+
+//              С accepted придти не может, только rejected                
+//                IF isConfirmRepeal() = 'Accepted' THEN accepted(b) <- NULL;
                 
                 hasRRWB(wa) <- NULL;
+                rejectedCRWB(wa) <- TRUE;
                 numberCRWB(wa) <- confirmNumber();
                 dateCRWB(wa) <- toDateTimeFormat(confirmDate(),'yyyy-MM-ddThh24:mi:ss');
                 noteCRWB(wa) <- note();
