@@ -1558,6 +1558,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     //некоторые записи просто дублируются, такие игнорируем
                     if ((cashRegister != null || !ignoreSalesInfoWithoutCashRegister) && !uniqueReceiptDetailIdSet.contains(uniqueReceiptDetailId)) {
                         uniqueReceiptDetailIdSet.add(uniqueReceiptDetailId);
+                        //todo: temp log
+                        astronSalesLogger.info("READ " + uniqueReceiptDetailId);
 
                         LocalDateTime sessStart = LocalDateTime.parse(rs.getString("SESSSTART"), DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                         LocalDate dateZReport = sessStart.toLocalDate();
