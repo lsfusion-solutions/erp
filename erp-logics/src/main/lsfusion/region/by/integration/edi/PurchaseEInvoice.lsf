@@ -58,6 +58,7 @@ DESIGN selectEInvoice {
 
 overCopy ABSTRACT LIST ( EInvoice, UserInvoice);
 overCopy  ABSTRACT LIST ( EInvoiceDetail, UserInvoiceDetail);
+ignoreDetail = ABSTRACT BOOLEAN (EInvoiceDetail);
 copyData(EInvoice ei, Invoice i)  { 
     invoice(EInvoice e) <- NULL WHERE invoice(e) == i AND NOT isCancel(e);
     invoice(ei) <- i;
@@ -72,7 +73,7 @@ copyData(EInvoice ei, Invoice i)  {
     time(i) <- TIME(dateTime(ei));
     overCopy(ei,i);
     
-    FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) NEW id = UserInvoiceDetail DO {
+    FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) AND NOT ignoreDetail(eid) NEW id = UserInvoiceDetail DO {
         userInvoice(id) <- i;
         sku(id) <- OVERRIDE sku(lineItemBuyerID(eid)), skuGTIN(lineItemID(eid)), sku(lineItemID(eid));
         quantity(id) <- quantityDespatched(eid);
