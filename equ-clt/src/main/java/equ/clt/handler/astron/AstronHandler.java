@@ -1559,8 +1559,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 if (numberReceipt == 0) {
                     astronSalesLogger.info(String.format("incorrect record with FRECNUM = 0: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId));
-                } else if ((!sAreaId.equals(prevSAreaId) || !nppCashRegister.equals(prevNppCashRegister) || !numberReceipt.equals(prevNumberReceipt)) && recordType != 2 && recordType != 3) {
-                    astronSalesLogger.info(String.format("incorrect record (new receipt started, but salesTag != 2 or 3) with SAREAID %s, SYSTEMID %s, FRECNUM %s, SALESTAG %s", sAreaId, nppCashRegister, numberReceipt, recordType));
+                } else if ((!sAreaId.equals(prevSAreaId) || !nppCashRegister.equals(prevNppCashRegister) || !numberReceipt.equals(prevNumberReceipt)) && recordType != 2 && recordType != 3 && recordType != 5) {
+                    astronSalesLogger.info(String.format("incorrect record (new receipt started, but salesTag != 2 or 3 or 5) with SAREAID %s, SYSTEMID %s, FRECNUM %s, SALESTAG %s", sAreaId, nppCashRegister, numberReceipt, recordType));
                 } else {
 
                     prevSAreaId = sAreaId;
@@ -1683,7 +1683,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                                 break;
                             }
-                            case 3: {//Возвращенная товарная позиция - игнорируем эту запись. В дополнение к ней создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
+                            case 3:  //Возвращенная товарная позиция
+                            case 5: {//Аннулированная товарная позиция
+                                     //Игнорируем эти записи. В дополнение к ним создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                                 break;
                             }
