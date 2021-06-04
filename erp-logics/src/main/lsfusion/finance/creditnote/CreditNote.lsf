@@ -323,11 +323,14 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     invoiceDetail = DATA InvoiceDetail (UserCreditNoteDetail);
     invoiceDetail(UserCreditNoteDetail creditNoteDetail) += invoiceDetail(creditNoteDetail);
 
-    CONSTRAINT supplier[CreditNoteDetail](UserCreditNoteDetail detail) != supplier(invoiceDetail(detail)) OR
-               customer(detail) != customer(invoiceDetail(detail)) OR
-               sku(detail) != sku(invoiceDetail(detail))
-        CHECKED BY invoiceDetail[UserCreditNoteDetail]
-            MESSAGE 'Поставщик, покупатель и товар в накладной и акте расхождения должны соответствовать друг другу';
+    CONSTRAINT sku(invoiceDetail(UserCreditNoteDetail d)) != sku(d) CHECKED BY invoiceDetail[UserCreditNoteDetail]
+        MESSAGE 'SKU строки накладной должен соответствовать SKU строки акта расхождений';
+
+    CONSTRAINT supplier(invoiceDetail(UserCreditNoteDetail d)) != supplier(d) CHECKED BY invoiceDetail[UserCreditNoteDetail]
+        MESSAGE 'Поставщик строки накладной должен соответствовать поставщику строки акта расхождений';
+
+    CONSTRAINT customer(invoiceDetail(UserCreditNoteDetail d)) != customer(d) CHECKED BY invoiceDetail[UserCreditNoteDetail]
+        MESSAGE 'Покупатель строки накладной должен соответствовать покупателю строки акта расхождений';
 
     descriptionIndexInvoice 'Накладная' (UserCreditNoteDetail userCreditNoteDetail) =  descriptionIndex(invoiceDetail(userCreditNoteDetail));
     descriptionIndexInvoiceInvoice 'Накладная' (CreditNoteDetail creditNoteDetail) =  descriptionIndex(invoiceDetail(creditNoteDetail));
