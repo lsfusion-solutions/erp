@@ -477,11 +477,11 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     //from ImportPurchaseInvoiceSkuImportCode
                     UOMKey.skipKey = context.getBL().getModule("SkuImportCode") != null && showField(userInvoiceDetailsList, "importCodeUOM");
                     keys.add(UOMKey);
-                    props.add(new ImportProperty(idUOMField, findProperty("id[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                    props.add(new ImportProperty(idUOMField, findProperty("name[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                    props.add(new ImportProperty(idUOMField, findProperty("shortName[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                    props.add(new ImportProperty(idUOMField, findProperty("id[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "UOMItem")));
+                    props.add(new ImportProperty(idUOMField, findProperty("name[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "UOMItem")));
+                    props.add(new ImportProperty(idUOMField, findProperty("shortName[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "UOMItem")));
                     props.add(new ImportProperty(idUOMField, findProperty("UOM[Item]").getMapping(itemKey),
-                            object(findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                            object(findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "UOMItem")));
                     fields.add(idUOMField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("UOMItem"));
