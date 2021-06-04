@@ -1526,6 +1526,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             BigDecimal sumGiftCard = null;
             Map<String, BigDecimal> customPaymentsMap = new HashMap<>();
             String idSaleReceiptReceiptReturnDetail = null;
+
+            Integer prevSAreaId = null;
+            Integer prevNppCashRegister = null;
+            Integer prevNumberReceipt = null;
+
             while (rs.next()) {
 
                 Integer sAreaId = rs.getInt("SAREAID");
@@ -1550,9 +1555,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     numberReceipt = 0;
                 }
 
+                Integer recordType = rs.getInt("SALESTAG");
+
                 if (numberReceipt == 0) {
                     astronSalesLogger.info(String.format("incorrect record with FRECNUM = 0: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId));
+                } else if ((!sAreaId.equals(prevSAreaId) || nppCashRegister.equals(prevNppCashRegister) || numberReceipt.equals(prevNumberReceipt)) && recordType != 2) {
+                    astronSalesLogger.info(String.format("incorrect record (new receipt started, but salesTag != 2) with SAREAID %s, SYSTEMID %s, FRECNUM %s, SALESTAG %s", sAreaId, nppCashRegister, numberReceipt, recordType));
                 } else {
+
+                    prevSAreaId = sAreaId;
+                    prevNppCashRegister = nppCashRegister;
+                    prevNumberReceipt = numberReceipt;
 
                     String uniqueReceiptDetailId = getUniqueReceiptDetailId(sAreaId, nppCashRegister, sessionId, numberReceipt, salesNum);
                     //некоторые записи просто дублируются, такие игнорируем
@@ -1580,7 +1593,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             else if (giftCardPayments.contains(type)) type = 2;
                         }
 
-                        Integer recordType = rs.getInt("SALESTAG");
+
                         boolean isReturn = rs.getInt(getSalesRefundField()) != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
 
                         switch (recordType) {
