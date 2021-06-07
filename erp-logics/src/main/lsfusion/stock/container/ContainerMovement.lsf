@@ -69,32 +69,42 @@ accountSumContainerStockDateTo 'Остаток на конец по склада
 
 includeContainerMovementBatchFromTo 'Рассчитать'(DATE dateFrom, DATE dateTo)  { 
     
-    inContainerMovement(Stock st, Batch bt) <- isPosted(bt) AND isContainer(bt) AND in(st);
+    LOCAL isContainer = BOOLEAN (Sku, Stock);
+    isContainer (Sku sk, Stock st) <- NULL;
+    isContainer (Sku sk, Stock st) <- TRUE WHERE in(st) AND isContainer(sk);
+     
+    inContainerMovement(Stock st, Batch bt) <- isPosted(bt) AND isContainer(skuLedger(bt, st), st);
     
     inContainerMovement(Stock st, Batch bt) <- NULL WHERE (GROUP SUM 1 IF LegalEntity.in(LegalEntity l)) AND NOT LegalEntity.in(supplier(bt));
     inContainerMovement(Stock st, Batch bt) <- NULL WHERE (GROUP SUM 1 IF in(Item i)) AND NOT in(sku(bt));
     
-    inContainerMovement(Stock st, Batch bt) <- NULL WHERE inContainerMovement(st,bt) AND NOT overMovementContainer(bt, st, dateFrom, dateTo);     
+//    inContainerMovement(Stock st, Batch bt) <- NULL WHERE inContainerMovement(st,bt) AND NOT overMovementContainer(bt, st, dateFrom, dateTo);     
     
     balanceIn(Stock st, Batch bt) <- NULL;
     balanceIn(Stock st, Batch bt) <- balanceB(bt, st, dateFrom) WHERE inContainerMovement(st,bt);
     
-    sumIn(Stock st, Batch bt) <- NULL;
-    sumIn(Stock st, Batch bt) <- balanceIn(st,bt) * accountPriceB(bt, st, dateFrom) WHERE inContainerMovement(st,bt);
-    
     balanceOut(Stock st, Batch bt) <- NULL;
     balanceOut(Stock st, Batch bt) <- balanceA(bt, st, dateTo) WHERE inContainerMovement(st,bt);
+
+    balanceMoveIn(Stock st, Batch bt) <- NULL;
+    balanceMoveIn(Stock st, Batch bt) <- costInBalance(bt, st, dateFrom, dateTo) WHERE inContainerMovement(st,bt);
+
+    balanceMoveOut(Stock st, Batch bt) <- NULL;
+    balanceMoveOut(Stock st, Batch bt) <- costOutBalance(bt, st, dateFrom, dateTo) WHERE inContainerMovement(st,bt);
+    
+    inContainerMovement(Stock st, Batch bt) <- NULL WHERE inContainerMovement(st,bt) 
+        AND NOT balanceIn(st, bt) AND NOT balanceOut(st, bt) AND NOT balanceMoveIn(st, bt) AND NOT balanceMoveOut(st, bt);
     
     lastPrice(Stock st, Batch bt) <- NULL;
     lastPrice(Stock st, Batch bt) <- accountPriceA(bt, st, dateTo) WHERE inContainerMovement(st,bt);
     
     lastPrice(Stock st, Batch bt) <- accountPriceA(bt, st, 2030_01_01) WHERE inContainerMovement(st,bt) AND NOT lastPrice(st,bt);
+
+    sumIn(Stock st, Batch bt) <- NULL;
+    sumIn(Stock st, Batch bt) <- balanceIn(st,bt) * accountPriceB(bt, st, dateFrom) WHERE inContainerMovement(st,bt);
     
     sumOut(Stock st, Batch bt) <- NULL;
     sumOut(Stock st, Batch bt) <- balanceOut(st,bt) * lastPrice(st,bt) WHERE inContainerMovement(st,bt);
-    
-    balanceMoveIn(Stock st, Batch bt) <- NULL;
-    balanceMoveIn(Stock st, Batch bt) <- costInBalance(bt, st, dateFrom, dateTo) WHERE inContainerMovement(st,bt);
     
     sumMoveIn(Stock st, Batch bt) <- NULL;
     sumMoveIn(Stock st, Batch bt) <- [ GROUP SUM cost (InSkuLedger ledger, bt) * (OVERRIDE accountPriceA(bt, stock(ledger), dateTime(ledger)), lastPrice(stock(ledger), bt))
@@ -102,9 +112,6 @@ includeContainerMovementBatchFromTo 'Рассчитать'(DATE dateFrom, DATE d
                                AND date(ledger) >= dateFrom AND date(ledger)<= dateTo
                                BY stock(ledger)](st) WHERE inContainerMovement(st,bt);
     
-    balanceMoveOut(Stock st, Batch bt) <- NULL;
-    balanceMoveOut(Stock st, Batch bt) <- costOutBalance(bt, st, dateFrom, dateTo) WHERE inContainerMovement(st,bt);
-
     sumMoveOut(Stock st, Batch bt) <- NULL;
     sumMoveOut(Stock st, Batch bt) <- [ GROUP SUM cost (OutSkuLedger ledger, bt) * (OVERRIDE accountPriceA(bt, stock(ledger), dateTime(ledger)), lastPrice(stock(ledger),bt))
                                 IF ledger IS OutSkuLedger AND isPosted(ledger)
