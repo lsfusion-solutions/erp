@@ -259,25 +259,30 @@ skipShowDelete = ABSTRACT BOOLEAN (Adjustment);
 showEdit (Adjustment a) = showEditDeleteUser(a) AND isOpened(a) AND NOT skipShowEdit(a); 
 showDelete(UserAdjustment a) = showEditDeleteUser(a) AND isOpened(a) AND is(a) AND NOT skipShowDelete(a);
 
-actualBalance 'Остаток фактический' (Sku sku, UserAdjustment userAdjustment, Stock stock)= currentBalance(sku, stock) (+) quantity(sku, userAdjustment, stock);
+prevCurrentBalance 'Остаток (до)' (Sku sku, UserAdjustment userAdjustment, Stock stock) = prevBalanceB(sku, stock, dateTime(userAdjustment)) ;
+actualBalance 'Остаток фактический' (Sku sku, UserAdjustment userAdjustment, Stock stock)= prevCurrentBalance(sku, userAdjustment, stock) (+) quantity(sku, userAdjustment, stock);
 
 changeActualQuantity(Sku sku, UserAdjustment userAdjustment, Stock stock)  { 
     INPUT n = NUMERIC[16,5] DO
-        changeQuantityValue(sku, userAdjustment, stock, n (-) currentBalance(sku, stock));
+        changeQuantityValue(sku, userAdjustment, stock, n (-) prevCurrentBalance(sku, userAdjustment, stock));
 }
 
 EXTEND FORM userAdjustment
     PROPERTIES actualBalance(ks,i,st) ON CHANGE changeActualQuantity(ks,i,st) BEFORE prevCurrentBalance(ks,st)
+    PROPERTIES READONLY prevCurrentBalance(ks,i,st) BEFORE prevCurrentBalance(ks,st)
 ;
-actualBalance 'Остаток фактический' (Batch batch, UserAdjustment userAdjustment, Stock stock)= currentBalance(batch, stock) (+) quantity(batch, userAdjustment, stock);
+
+prevCurrentBalance 'Остаток (до)' (Batch batch, UserAdjustment userAdjustment, Stock stock) = prevBalanceB(batch, stock, dateTime(userAdjustment)) ;
+actualBalance 'Остаток фактический' (Batch batch, UserAdjustment userAdjustment, Stock stock)= prevCurrentBalance(batch, userAdjustment, stock) (+) quantity(batch, userAdjustment, stock);
 
 changeActualQuantity(Batch batch, UserAdjustment userAdjustment, Stock stock)  { 
     INPUT n = NUMERIC[16,5] DO
-        changeQuantityValue(batch, userAdjustment, stock, n (-) currentBalance(batch, stock));
+        changeQuantityValue(batch, userAdjustment, stock, n (-) prevCurrentBalance(batch, userAdjustment, stock));
 }
 
 EXTEND FORM userAdjustment
     PROPERTIES actualBalance(b,i,sto) ON CHANGE changeActualQuantity(b,i,sto) BEFORE prevCurrentBalance(b,sto)
+    PROPERTIES READONLY prevCurrentBalance(b,i,sto) BEFORE prevCurrentBalance(b,sto)
 ;
 
 filterAdjustmentDateFrom 'Дата с' = DATA LOCAL DATE ();
