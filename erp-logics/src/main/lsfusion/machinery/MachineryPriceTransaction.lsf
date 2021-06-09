@@ -114,7 +114,8 @@ skipSnapshot = ABSTRACT BOOLEAN (MachineryPriceTransaction);
 
 @addRoleApplicationSetting(skipSnapshotMachinery, 'Запрещено загружать в оборудование целиком', BOOLEAN);
 
-dateTimeProcessing 'Принята в обработку' = DATA DATETIME (MachineryPriceTransaction);
+TABLE processMachineryPriceTransaction (MachineryPriceTransaction);
+dateTimeProcessing 'Принята в обработку' = DATA DATETIME (MachineryPriceTransaction) TABLE processMachineryPriceTransaction;
 succeeded 'Загружена' = DATA BOOLEAN (MachineryPriceTransaction);
 notSucceeded 'Не загружена' (MachineryPriceTransaction machineryPriceTransaction) = NOT succeeded(machineryPriceTransaction);
 dateTimeSucceeded 'Время загрузки' = DATA DATETIME (MachineryPriceTransaction);
@@ -262,8 +263,8 @@ errorTrace 'След исключения' = DATA TEXT (MachineryPriceTransactio
 priority (MachineryPriceTransaction m) = priority(groupMachinery(m));
 filter (MachineryPriceTransaction m) = m AS MachineryPriceTransaction;
 machineryPriceTransaction 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) NONULL DELETE IN base INDEXED;
-quantityMachineryPriceTransactionError 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) MATERIALIZED IN base;
-lastDateMachineryPriceTransactionError 'Время последней ошибки' (MachineryPriceTransaction) = GROUP MAX date(MachineryPriceTransactionError machineryPriceTransactionError) BY machineryPriceTransaction (machineryPriceTransactionError) MATERIALIZED;
+quantityMachineryPriceTransactionError 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) MATERIALIZED IN base TABLE processMachineryPriceTransaction;
+lastDateMachineryPriceTransactionError 'Время последней ошибки' (MachineryPriceTransaction) = GROUP MAX date(MachineryPriceTransactionError machineryPriceTransactionError) BY machineryPriceTransaction (machineryPriceTransactionError) MATERIALIZED TABLE processMachineryPriceTransaction;
 
 lastTransaction (Barcode barcode, stock) =
     GROUP LAST lastTransaction(barcode, GroupMachinery g)
