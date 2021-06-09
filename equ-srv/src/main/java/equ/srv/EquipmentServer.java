@@ -2765,12 +2765,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 returnKeys.add(batchKey);
                 
                 saleProperties.add(new ImportProperty(idBatchField, zReportBatchLM.findProperty("id[Batch]").getMapping(batchKey), true));
-                saleProperties.add(new ImportProperty(idBatchField, zReportBatchLM.findProperty("batch[ReceiptDetail]").getMapping(receiptSaleDetailKey),
-                        zReportBatchLM.object(zReportBatchLM.findClass("Batch")).getMapping(batchKey)));
+                saleProperties.add(new ImportProperty(idBatchField, zReportBatchLM.findProperty("batch[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey),
+                        zReportBatchLM.object(zReportBatchLM.findClass("Batch")).getMapping(batchKey), true));
                 
                 returnProperties.add(new ImportProperty(idBatchField, zReportBatchLM.findProperty("id[Batch]").getMapping(batchKey), true));
-                returnProperties.add(new ImportProperty(idBatchField, zReportBatchLM.findProperty("batch[ReceiptDetail]").getMapping(receiptReturnDetailKey),
-                        zReportBatchLM.object(zReportBatchLM.findClass("Batch")).getMapping(batchKey)));
+                returnProperties.add(new ImportProperty(idBatchField, zReportBatchLM.findProperty("batch[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
+                        zReportBatchLM.object(zReportBatchLM.findClass("Batch")).getMapping(batchKey), true));
             }
         }
     }
