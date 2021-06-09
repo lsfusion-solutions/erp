@@ -50,11 +50,12 @@ EXTEND FORM zReports
 
 //--Накопленные суммы
 
-posSum 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetail (Receipt receipt) BY discountCard(receipt) MATERIALIZED;
-posReturnSum 'Сумма возвратов' (discountCard) = GROUP SUM sum(ReceiptReturnDetail d) IF NOT discountCard[ReceiptDetail](d) BY discountCard(receiptSale(d)) MATERIALIZED; 
+TABLE zReportDiscountCard (DiscountCard);
+posSum 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetail (Receipt receipt) BY discountCard(receipt) MATERIALIZED TABLE zReportDiscountCard;
+posReturnSum 'Сумма возвратов' (discountCard) = GROUP SUM sum(ReceiptReturnDetail d) IF NOT discountCard[ReceiptDetail](d) BY discountCard(receiptSale(d)) MATERIALIZED TABLE zReportDiscountCard; 
 signedTransferSum 'Сумма переводов' (discountCard) = ABSTRACT NUMERIC[18,4] (DiscountCard) MATERIALIZED;
 
-cumulativeSum 'Накопленная сумма (основная)' (DiscountCard discountCard) = initialSum(discountCard) (+) posSum(discountCard) (-) posReturnSum(discountCard) (+) signedTransferSum(discountCard) MATERIALIZED;
+cumulativeSum 'Накопленная сумма (основная)' (DiscountCard discountCard) = initialSum(discountCard) (+) posSum(discountCard) (-) posReturnSum(discountCard) (+) signedTransferSum(discountCard) MATERIALIZED TABLE zReportDiscountCard;
 
 externalSum 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[18,4] (DiscountCard) MATERIALIZED;
 totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d); 
