@@ -6,8 +6,8 @@ TABLE itemLegalEntity (Item, LegalEntity);
 
 dataId 'Код товара для организации' = DATA STRING[100] (Item, LegalEntity);
 id 'Код товара для организации' (Item i, LegalEntity le) = OVERRIDE dataId(i, le), id(i) IF le IS LegalEntity MATERIALIZED INDEXED;
-item (LegalEntity le, STRING[100] id) = GROUP AGGR Item i BY id(i, le);
-legalEntity (Item i, STRING[100] id) = GROUP AGGR LegalEntity le BY id(i, le);
+item (LegalEntity le, STRING[100] id) = GROUP AGGR Item i BY dataId(i, le);
+//legalEntity (Item i, STRING[100] id) = GROUP AGGR LegalEntity le BY id(i, le);
 
 EXTEND FORM item
 
@@ -17,7 +17,8 @@ EXTEND FORM item
 
     OBJECTS l = LegalEntity
     PROPERTIES(l) READONLY name, id SHOWIF showIDs(), fullName, shortNameOwnership, nameLegalEntityGroup
-    PROPERTIES id(i, l) BACKGROUND #F0F000 IF dataId(i, l) = id(i, l)
+    PROPERTIES dataId(i, l)
+    //PROPERTIES id(i, l) BACKGROUND #F0F000 IF dataId(i, l) = id(i, l)
     ORDERS name(l)
 
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT    
