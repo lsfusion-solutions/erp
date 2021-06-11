@@ -60,6 +60,9 @@ CLASS ABSTRACT EnterpriseData 'Универсальный обмен 1С';
 uid 'UID' = DATA STRING[36] (EnterpriseData) INDEXED;
 object 'Объект ЕД' (STRING[36] id) = GROUP AGGR EnterpriseData ed BY uid(ed);
 
+skipUid = ABSTRACT BOOLEAN (EnterpriseData);
+sendUid (EnterpriseData ed) = uid(ed) IF NOT skipUid(ed);
+
 packet 'Пакет' = DATA INTEGER (EnterpriseData) INDEXED;
 
 isDeleted 'Пометка удаления' = ABSTRACT BOOLEAN (EnterpriseData);
@@ -210,8 +213,8 @@ END
 META extDeleteObject(objtype, caption)
     EXTEND FORM sendMessage
         OBJECTS objtype##Deleted = ###objtype EXTID 'УдалениеОбъекта' IN body
-        PROPERTIES(objtype##Deleted) IN link IN linkInLink uid EXTID caption
-        FILTERS uid(objtype##Deleted), EnterpriseData.isDeleted(objtype##Deleted)
+        PROPERTIES(objtype##Deleted) IN link IN linkInLink sendUid EXTID caption
+        FILTERS sendUid(objtype##Deleted), EnterpriseData.isDeleted(objtype##Deleted)
         
         FILTERS NOT DATE(dateTime(objtype##Deleted)) < dateStartExchange(), NOT packet(objtype##Deleted) <= idTicket()
     ;
@@ -231,11 +234,11 @@ META extDocument(doctype, caption)
     
     EXTEND FORM sendMessage
         OBJECTS doctype = ###doctype EXTID caption IN body
-        PROPERTIES(doctype) IN keyProperties###doctype uid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+        PROPERTIES(doctype) IN keyProperties###doctype sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
         FILTERS dateTimeString(doctype), id(doctype), NOT EnterpriseData.isDeleted(doctype)
        
         OBJECTS company###doctype = Company EXTID 'Организация' IN keyProperties###doctype
-        PROPERTIES(company###doctype) uid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        PROPERTIES(company###doctype) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
         FILTERS company###doctype = company(doctype)
         
         FILTERS NOT DATE(dateTime(doctype)) < dateStartExchange(), NOT packet(doctype) <= idTicket()
