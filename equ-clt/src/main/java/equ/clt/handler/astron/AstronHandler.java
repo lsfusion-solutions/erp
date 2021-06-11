@@ -64,14 +64,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             throw Throwables.propagate(e);
         }
 
-        //todo: temp log
-        for(DeleteBarcodeInfo deleteBarcode : deleteBarcodeList) {
-            for(CashRegisterItem barcode : deleteBarcode.barcodeList) {
-            astronLogger.info(String.format("Read DeleteBarcode item %s, barcode %s, handler %s, group %s",
-                    barcode.idItem, barcode.idBarcode, deleteBarcode.handlerModelGroupMachinery, deleteBarcode.nppGroupMachinery));
-            }
-        }
-
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         if (transactionList != null) {
@@ -283,10 +275,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     }
                 }
             }
-        }
-        //todo: temp log
-        for(String barcode : deleteBarcodeSet) {
-            astronLogger.info(String.format("Transaction %s, deleteBarcode %s sending to server", transaction.id, barcode));
         }
         return new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception);
     }
@@ -1571,8 +1559,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     //некоторые записи просто дублируются, такие игнорируем
                     if ((cashRegister != null || !ignoreSalesInfoWithoutCashRegister) && !uniqueReceiptDetailIdSet.contains(uniqueReceiptDetailId)) {
                         uniqueReceiptDetailIdSet.add(uniqueReceiptDetailId);
-                        //todo: temp log
-                        astronSalesLogger.info("READ " + uniqueReceiptDetailId);
 
                         LocalDateTime sessStart = LocalDateTime.parse(rs.getString("SESSSTART"), DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                         LocalDate dateZReport = sessStart.toLocalDate();
@@ -1610,8 +1596,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
                                 curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, customPaymentsMap, idBarcode, idItem, null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, salesNum, null, null, receiptDetailExtraFields, cashRegister));
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
-                                //todo: temp log
-                                astronSalesLogger.info(uniqueReceiptDetailId + " sale: " + rs.getBigDecimal("SALESSUM"));
                                 prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
                                 break;
                             }
@@ -1656,16 +1640,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     salesInfoList.addAll(curSalesInfoList);
                                     recordList.addAll(curRecordList);
                                 } else {
-                                    //todo: temp log
-                                    astronSalesLogger.info(uniqueReceiptDetailId + " difference: " + prologSum);
                                     for(AstronRecord record : curRecordList) {
                                         astronSalesLogger.info(String.format("incorrect record: SAREAID %s, SYSTEMID %s, SALESNUM %s, SESSIONID %s", record.sAreaId, record.systemId, record.salesNum, record.sessId));
                                     }
                                 }
                                 curSalesInfoList = new ArrayList<>();
                                 curRecordList = new ArrayList<>();
-                                //todo: temp log
-                                astronSalesLogger.info(uniqueReceiptDetailId + " prolog: " + rs.getBigDecimal("SALESSUM"));
                                 prologSum = rs.getBigDecimal("SALESSUM");
                                 idDiscountCard = trimToNull(rs.getString("SALESBARC"));
 
