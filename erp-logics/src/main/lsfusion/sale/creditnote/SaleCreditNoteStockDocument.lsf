@@ -4,6 +4,13 @@ REQUIRE PurchaseSaleCreditNote, SalePurchaseInvoice, PricingSum;
 
 NAMESPACE Sale;
 
+accountPrice 'Цена (учетная)' = DATA NUMERIC[16,4] (UserCreditNoteDetail) CHARWIDTH 7;
+@deriveDocumentDetailPriceAccountBatchDisable (userCreditNote, account, sku, supplierStock);
+
+EXTEND FORM userCreditNote
+    PROPERTIES(d) accountPrice
+;
+
 // ------------------------------- Проведение по товарному отчету ------------------------ //
 EXTEND CLASS UserCreditNote : IncStockDocumentLedger;
 
@@ -59,8 +66,8 @@ quantity[InLIFOSkuLedger] (Sale.UserCreditNoteDetail ledger) += quantity(ledger)
 batch[SkuLedger](Sale.UserCreditNoteDetail ledger) += batch(ledger);
 changed(Sale.UserCreditNoteDetail ledger) += CHANGED(batch(ledger));
 
-calcBatchShipmentSum (Sale.UserCreditNoteDetail detail) = 
-    NUMERIC[18,4](round(accountPriceA(batch(detail), supplierStock(detail), dateTime(detail))*quantity(detail), defaultRound(currency(supplier(detail)))));
-sum[InSkuLedger](Sale.UserCreditNoteDetail ledger) += OVERRIDE retailSum(ledger), calcBatchShipmentSum(ledger);
+accountSum (Sale.UserCreditNoteDetail detail) = 
+    NUMERIC[18,4](round(quantity(detail)*accountPrice(detail), defaultRound(currency(supplier(detail)))));
+sum[InSkuLedger](Sale.UserCreditNoteDetail ledger) += OVERRIDE retailSum(ledger), accountSum(ledger);
 stockDocumentLedger[SkuLedger](Sale.UserCreditNoteDetail ledger) += userCreditNote(ledger);
 show[SkuLedger](Sale.UserCreditNoteDetail d) + {  show(d); }
