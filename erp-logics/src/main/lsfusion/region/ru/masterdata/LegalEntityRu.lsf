@@ -4,26 +4,54 @@ REQUIRE LegalEntity;
 
 NAMESPACE LegalEntity;
 
-inn 'ИНН' = DATA STRING[12] (LegalEntity) IN doc;
-legalEntityInn = GROUP AGGR LegalEntity b BY inn(b);
+META uniqueProp(name, capt, type)
+    name capt = DATA type (LegalEntity) IN doc;
+    legalEntity###name (type name) = GROUP LAST LegalEntity legalEntity ORDER legalEntity BY name(legalEntity);
+    
+    skipUnique###name = ABSTRACT BOOLEAN (LegalEntity);
+    changeUnique###name = ABSTRACT BOOLEAN (LegalEntity);
+    
+    unique###name##Supplier 'Запретить повтор '##capt##' для поставщиков' = DATA BOOLEAN ();
+    CONSTRAINT unique###name##Supplier() AND (CHANGED (name(LegalEntity l)) OR changeUnique###name(l)) AND [ GROUP SUM 1 IF isSupplier(LegalEntity ll) AND NOT skipUnique###name(ll) BY name(ll)](name(l)) > 1 MESSAGE 'Запрещен повтор ' + capt + ' для поставщиков';
+    
+    unique###name##Customer 'Запретить повтор '##capt##' для покупателей' = DATA BOOLEAN ();
+    CONSTRAINT unique###name##Customer() AND (CHANGED (name(LegalEntity l)) OR changeUnique###name(l)) AND [ GROUP SUM 1 IF isCustomer(LegalEntity ll) AND NOT skipUnique###name(ll) BY name(ll)](name(l)) > 1 MESSAGE 'Запрещен повтор ' + capt + ' для покупателей';
+    
+    unique###name 'Запретить повтор '##capt##'' = DATA BOOLEAN ();
+    CONSTRAINT unique###name() AND (CHANGED (name(LegalEntity l)) OR changeUnique###name(l)) AND [ GROUP SUM 1 IF LegalEntity ll IS LegalEntity AND NOT skipUnique###name(ll) BY name(ll)](name(l)) > 1 MESSAGE 'Запрещен повтор ' + capt;
+    
+    EXTEND FORM options
+        PROPERTIES() unique###name##Supplier, unique###name##Customer, unique###name
+    ;
+    DESIGN options {
+        legalEntity {
+            NEW name##Box {
+                caption = 'Код '##capt##'';
+                MOVE PROPERTY(unique###name##Supplier());
+                MOVE PROPERTY(unique###name##Customer());
+                MOVE PROPERTY(unique###name());
+            }
+        }
+    }
+    EXTEND FORM legalEntity PROPERTIES (l) name;
+    EXTEND FORM legalEntities PROPERTIES (l) name READONLYIF isReadonly();
+END
+
+@uniqueProp(inn, 'ИНН', STRING[12]);
+@uniqueProp(okpo, 'ОКПО', STRING[10]);
+@uniqueProp(ogrn, 'ОГРН', STRING[13]);
 
 kpp 'КПП' = DATA STRING[9] (LegalEntity) IN doc;
 
-okpo 'ОКПО' = DATA STRING[10] (LegalEntity) IN doc;
-legalEntityOkpo = GROUP AGGR LegalEntity b BY okpo(b);
-
 okdp 'ОКДП' = DATA STRING[7] (LegalEntity) IN doc;
-
-ogrn 'ОГРН' = DATA STRING[13] (LegalEntity) IN doc;
-legalEntityOgrn = GROUP AGGR LegalEntity b BY ogrn(b);
 
 corrAccount 'Корр. счет' = DATA STRING[20](LegalEntity) IN law;
 
 isNotVATPayer 'Неплательщик НДС' = DATA BOOLEAN (LegalEntity);
 isVATPayer (LegalEntity l) = l IS LegalEntity AND NOT isNotVATPayer(l) MATERIALIZED;
 
-EXTEND FORM legalEntity PROPERTIES (l) inn, kpp, okdp, okpo, ogrn, corrAccount, isNotVATPayer;
-EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() inn, kpp, okdp, okpo, ogrn, corrAccount, isNotVATPayer;
+EXTEND FORM legalEntity PROPERTIES (l) kpp, okdp, corrAccount, isNotVATPayer;
+EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() kpp, okdp, corrAccount, isNotVATPayer;
 
 DESIGN legalEntity {
     column2 {

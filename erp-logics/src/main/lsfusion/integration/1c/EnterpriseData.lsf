@@ -73,8 +73,8 @@ WHEN SET (EnterpriseData ed IS EnterpriseData) AND NOT uid(ed) DO {
     uid(ed) <- generatedUUID();
 }
 
-afterReceive ABSTRACT LIST ();
-afterImport ABSTRACT LIST ();
+overReceive ABSTRACT LIST ();
+overImport ABSTRACT LIST ();
 
 receiveMessage 'Получить' () {
     NEWSESSION {
@@ -82,11 +82,11 @@ receiveMessage 'Получить' () {
         TRY {
             READ receivePath() + '.xml' TO f;
             IMPORT receiveMessage XML FROM f();
-            afterImport();
+            overImport();
             IF idReceivedTemp() AND NOT idReceivedTemp() <= idReceived() THEN {
                 idReceived() <- idReceivedTemp();
                 isReceived() <- TRUE;
-                afterReceive();
+                overReceive();
             } ELSE {
                 isReceived() <- NULL;    
             }
@@ -97,7 +97,7 @@ receiveMessage 'Получить' () {
     }
 }
 
-afterSend ABSTRACT LIST ();
+overSend ABSTRACT LIST ();
 
 sendMessage 'Передать' () {
     NEWSESSION {
@@ -107,7 +107,7 @@ sendMessage 'Передать' () {
             EXPORT sendMessage XML TO f;
             WRITE f() TO sendPath();
             isSended() <- TRUE;
-            afterSend();
+            overSend();
             APPLY;
         } CATCH {
             MESSAGE System.messageCaughtException();
@@ -244,7 +244,7 @@ META extDocument(doctype, caption)
         FILTERS NOT DATE(dateTime(doctype)) < dateStartExchange(), NOT packet(doctype) <= idTicket()
     ;
     
-    afterSend () + { 
+    overSend () + { 
         FOR ###doctype doctype IS ###doctype AND NOT packet(doctype) AND NOT DATE(dateTime(doctype)) < dateStartExchange() DO {
             packet(doctype) <- messageNo();
         }
@@ -268,83 +268,84 @@ META extDocument(doctype, caption, delcaption)
 END
 
 // static types
-CLASS TypePartner {
-    legalEntity 'ЮридическоеЛицо',
-    individual 'ФизическоеЛицо'
-}
+META defStaticType (id, caption)
+    @defineStaticObject(###id, caption);
+    id (STRING s) = GROUP AGGR ###id id BY name(id);
+END
 
-CLASS TypeStock {
-    nonAutomatedShop 'НеавтоматизированнаяТорговаяТочка',
-    warehouse 'Оптовый',
-    retail 'Розничный'
-}
+META defStaticTypeValue (class, id, caption)
+    EXTEND CLASS ###class { id caption };
+    is###id###class (###class class) = class = ###class.id;
+    is###id###class (STRING s) = is###id###class(class(s));
+END
 
-CLASS TypeContract {
-    other 'Прочее',
-    agent 'СКомиссионером',
-    purchaseAgent 'СКомиссионеромНаЗакупку',
-    consignor 'СКомитентом',
-    purchaseConsignor 'СКомитентомНаЗакупку',
-    customer 'СПокупателем',
-    supplier 'СПоставщиком'
-}
+@defStaticType (typePartner, 'ЮридическоеФизическоеЛицо');
+@defStaticTypeValue (typePartner, legalEntity, 'ЮридическоеЛицо');
+@defStaticTypeValue (typePartner, individual, 'ФизическоеЛицо');
 
-CLASS TypePurchaseInvoice 'ВидыОперацийПоступленияТоваров' {
-    import 'ЗакупкаПоИмпорту',
-    delivery 'ПокупкаУПоставщика',
-    comission 'ПриемНаКомиссию'
-}
+@defStaticType(typeStock, 'ВидыСкладов');
+@defStaticTypeValue(typeStock, nonAutomatedShop, 'НеавтоматизированнаяТорговаяТочка');
+@defStaticTypeValue(typeStock, warehouse, 'Оптовый');
+@defStaticTypeValue(typeStock, retail, 'Розничный');
 
-CLASS TypeSaleInvoice 'ВидыОперацийРеализацияТоваровУслуг' {
-    sale 'РеализацияКлиенту',
-    comission 'ПередачаНаКомиссию',
-    shipmentTransit 'ОтгрузкаБезПереходаПравСобственности_ВПути',
-    shipmentSale 'ОтгрузкаБезПереходаПравСобственности_Реализовано'
-}
+@defStaticType(typeContract, 'ВидыДоговоров');
+@defStaticTypeValue(typeContract, other, 'Прочее');
+@defStaticTypeValue(typeContract, agent, 'СКомиссионером');
+@defStaticTypeValue(typeContract, purchaseAgent, 'СКомиссионеромНаЗакупку');
+@defStaticTypeValue(typeContract, consignor, 'СКомитентом');
+@defStaticTypeValue(typeContract, purchaseConsignor, 'СКомитентомНаЗакупку');
+@defStaticTypeValue(typeContract, customer, 'СПокупателем');
+@defStaticTypeValue(typeContract, supplier, 'СПоставщиком');
 
-CLASS TypeInventory 'ТипЗапасов' {
-    revolvingPackage 'ОборотнаяТара',
-    finishedProduct 'ГотоваяПродукция',
-    contractorMaterial 'ДавальческиеСырьеИМатериалы',
-    sparePart 'ЗапасныеЧасти',
-    comissionItem 'КомиссионныеТовары',
-    purchaseItem 'ПокупныеИзделия',
-    purchaseSemifinishedProduct 'ПокупныеПолуфабрикатыИКомплектующие',
-    otherMaterial 'ПрочиеМатериалы',
-    goods 'СобственныеТовары',
-    uniform 'СпецоснасткаИСпецодеждаНаСкладе',
-    buildingMaterial 'СтроительныеМатериалы',
-    material 'СырьеИМатериалы',
-    fuel 'Топливо'        
-}
+@defStaticType(typePurchaseInvoice, 'ВидыОперацийПоступленияТоваров');
+@defStaticTypeValue(typePurchaseInvoice, import, 'ЗакупкаПоИмпорту');
+@defStaticTypeValue(typePurchaseInvoice, delivery, 'ПокупкаУПоставщика');
+@defStaticTypeValue(typePurchaseInvoice, comission, 'ПриемНаКомиссию');
 
-CLASS TypePurchaseReturnInvoice 'ВидыОперацийВозвратПоставщику' {
-    delivery 'ВозвратПоставщику',
-    comission 'ВозвратКомитенту'
-}
+@defStaticType(typeSaleInvoice, 'ВидыОперацийРеализацияТоваровУслуг');
+@defStaticTypeValue(typeSaleInvoice, sale, 'РеализацияКлиенту');
+@defStaticTypeValue(typeSaleInvoice, comission, 'ПередачаНаКомиссию');
+@defStaticTypeValue(typeSaleInvoice, shipmentTransit, 'ОтгрузкаБезПереходаПравСобственности_ВПути');
+@defStaticTypeValue(typeSaleInvoice, shipmentSale, 'ОтгрузкаБезПереходаПравСобственности_Реализовано');
 
-CLASS TypeSaleReturnInvoice 'ВидыОперацийВозвратОтПокупателя' {
-    customer 'ВозвратОтКлиента',
-    comission 'ВозвратОтКомиссионера',
-    retailCustomer 'ВозвратОтРозничногоПокупателя'
-}
+@defStaticType(typeInventory, 'ТипЗапасов');
 
-CLASS TypeOutcomeCashOrderBank {
-    collection 'Инкассация',
-    cash 'ВзносНаличными'
-}
+@defStaticTypeValue(typeInventory, revolvingPackage, 'ОборотнаяТара');
+@defStaticTypeValue(typeInventory, finishedProduct, 'ГотоваяПродукция');
+@defStaticTypeValue(typeInventory, contractorMaterial, 'ДавальческиеСырьеИМатериалы');
+@defStaticTypeValue(typeInventory, sparePart, 'ЗапасныеЧасти');
+@defStaticTypeValue(typeInventory, comissionItem, 'КомиссионныеТовары');
+@defStaticTypeValue(typeInventory, purchaseItem, 'ПокупныеИзделия');
+@defStaticTypeValue(typeInventory, purchaseSemifinishedProduct, 'ПокупныеПолуфабрикатыИКомплектующие');
+@defStaticTypeValue(typeInventory, goods, 'СобственныеТовары');
+@defStaticTypeValue(typeInventory, uniform, 'СпецоснасткаИСпецодеждаНаСкладе');
+@defStaticTypeValue(typeInventory, buildingMaterial, 'СтроительныеМатериалы');
+@defStaticTypeValue(typeInventory, material, 'СырьеИМатериалы');
+@defStaticTypeValue(typeInventory, fuel, 'Топливо');
 
-CLASS TypeVat {
-    vat4 'НДС4',
-    vat4_104 'НДС4_104',
-    vat18 'НДС18',
-    vat18_118 'НДС18_118',
-    vat2 'НДС2',
-    vat2_102 'НДС2_102',
-    vat10 'НДС10',
-    vat10_110 'НДС10_110',
-    vat0 'НДС0',
-    vat20 'НДС20',
-    vat20_120 'НДС20_120',
-    withoutVat 'БезНДС'
-}
+@defStaticType(typePurchaseReturnInvoice, 'ВидыОперацийВозвратПоставщику');
+@defStaticTypeValue(typePurchaseReturnInvoice, delivery, 'ВозвратПоставщику');
+@defStaticTypeValue(typePurchaseReturnInvoice, comission, 'ВозвратКомитенту');
+
+@defStaticType(typeSaleReturnInvoice, 'ВидыОперацийВозвратОтПокупателя');
+@defStaticTypeValue(typeSaleReturnInvoice, customer, 'ВозвратОтКлиента');
+@defStaticTypeValue(typeSaleReturnInvoice, comission, 'ВозвратОтКомиссионера');
+@defStaticTypeValue(typeSaleReturnInvoice, retailCustomer, 'ВозвратОтРозничногоПокупателя');
+
+@defStaticType(typeOutcomeCashOrderBank, );
+@defStaticTypeValue(typeOutcomeCashOrderBank, collection, 'Инкассация');
+@defStaticTypeValue(typeOutcomeCashOrderBank, cash, 'ВзносНаличными');
+
+@defStaticType(typeVat, );
+@defStaticTypeValue(typeVat, vat4, 'НДС4');
+@defStaticTypeValue(typeVat, vat4d104, 'НДС4_104');
+@defStaticTypeValue(typeVat, vat18, 'НДС18');
+@defStaticTypeValue(typeVat, vat18d118, 'НДС18_118');
+@defStaticTypeValue(typeVat, vat2, 'НДС2');
+@defStaticTypeValue(typeVat, vat2d102, 'НДС2_102');
+@defStaticTypeValue(typeVat, vat10, 'НДС10');
+@defStaticTypeValue(typeVat, vat10d110, 'НДС10_110');
+@defStaticTypeValue(typeVat, vat0, 'НДС0');
+@defStaticTypeValue(typeVat, vat20, 'НДС20');
+@defStaticTypeValue(typeVat, vat20d120, 'НДС20_120');
+@defStaticTypeValue(typeVat, withoutVat, 'БезНДС');
