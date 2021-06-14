@@ -1493,7 +1493,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, " +
-                    "sales." + getSalesNumField() + ", sales.SAREAID, sales." + getSalesRefundField() + ", sales.PRCLEVELID, sales.SALESATTRI, " +
+                    "sales." + getSalesNumField() + ", sales.SAREAID, sales." + getSalesRefundField() + ", sales.PRCLEVELID, sales.SALESATTRI, sales.SALESEXT, " +
                     "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
@@ -1511,7 +1511,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             BigDecimal sumCash = null;
             BigDecimal sumCard = null;
-            BigDecimal sumGiftCard = null;
+            Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
             Map<String, BigDecimal> customPaymentsMap = new HashMap<>();
             String idSaleReceiptReceiptReturnDetail = null;
 
@@ -1594,7 +1594,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
                                 totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
                                 sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
-                                curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, customPaymentsMap, idBarcode, idItem, null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, salesNum, null, null, receiptDetailExtraFields, cashRegister));
+                                curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
+                                        idEmployee, nameEmployee, null, sumCard, sumCash, sumGiftCardMap, customPaymentsMap, idBarcode, idItem, null,
+                                        idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, null, discountSumReceiptDetail,
+                                        null, idDiscountCard, salesNum, null, null, false, receiptDetailExtraFields, cashRegister));
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                                 prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
                                 break;
@@ -1611,7 +1614,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                             sumCard = safeAdd(sumCard, sum);
                                             break;
                                         case 2:
-                                            sumGiftCard = safeAdd(sumGiftCard, sum);
+                                            String numberGiftCard = rs.getString("SALESEXT");
+                                            sumGiftCardMap.put(numberGiftCard, new GiftCard(sum));
                                             break;
                                         case 0:
                                         default:
@@ -1634,7 +1638,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                                 sumCash = null;
                                 sumCard = null;
-                                sumGiftCard = null;
+                                sumGiftCardMap = new HashMap<>();
                                 customPaymentsMap = new HashMap<>();
                                 if (prologSum.compareTo(BigDecimal.ZERO) == 0) {
                                     salesInfoList.addAll(curSalesInfoList);

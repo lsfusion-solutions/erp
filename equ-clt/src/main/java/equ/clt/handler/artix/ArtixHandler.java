@@ -1350,7 +1350,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, null, null,
                                                         sumCard, sumCash, sumGiftCardMap, customPaymentsMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
-                                                        numberReceiptDetail, fileName, null, isSkip, cashRegister);
+                                                        numberReceiptDetail, fileName, null, isSkip, null, cashRegister);
                                                 salesInfo.detailExtraFields = new HashMap<>();
                                                 if(!bonusesInDiscountPositions) {
                                                     salesInfo.detailExtraFields.put("bonusSum", bonusSum);
