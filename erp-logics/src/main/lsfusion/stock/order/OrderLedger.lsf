@@ -281,27 +281,35 @@ DESIGN orderSkuLedgerNotDate {
 }
 @extendFormFilterStockAccess(st, orderSkuLedgerNotDate);
  
-META defineReserveSku(detail, stockProp)
-    showReserveSkuStock 'Показать резерв товара по складу' (###detail detail)  { 
-        FOR sk == sku(detail) AND st == stockProp(detail) DO
+META defineReserveSku(detail, stockProp, skuProp, nameSkuProp)
+    showReserve###skuProp##Stock 'Показать резерв товара по складу' (###detail detail)  { 
+        FOR sk == skuProp(detail) AND st == stockProp(detail) DO
             NEWSESSION SHOW orderSkuLedgerNotDate OBJECTS sk = sk, st = st; } 
-    ASON CONTEXTMENU nameSku[###detail];
+    ASON CONTEXTMENU nameSkuProp[###detail];
     
-    showReserveSku 'Показать резерв товара' (###detail detail)  { 
-        FOR sk == sku(detail) DO
+    showReserve###skuProp 'Показать резерв товара' (###detail detail)  { 
+        FOR sk == skuProp(detail) DO
             NEWSESSION SHOW orderSkuLedgerStocksNotDate OBJECTS sk = sk; } 
-    ASON CONTEXTMENU nameSku[###detail];
+    ASON CONTEXTMENU nameSkuProp[###detail];
+END
+META defineReserveSku(detail, stockProp)
+    @defineReserveSku(detail, stockProp, sku, nameSku);
+END
+
+
+META defineReserveSku(detail, skuProp, nameSkuProp)
+    showReserve###skuProp##Stock 'Показать резерв товара по складу' (###detail detail) {
+         FOR sk == skuProp(detail) DO 
+             NEWSESSION SHOW orderSkuLedgerNotDate OBJECTS sk = sk;  
+    } ASON CONTEXTMENU nameSkuProp[###detail];
+    
+    showReserve###skuProp 'Показать резерв товара' (###detail detail) {
+        FOR sk == skuProp(detail) DO 
+            NEWSESSION SHOW orderSkuLedgerStocksNotDate OBJECTS sk = sk;    
+    } ASON CONTEXTMENU nameSkuProp[###detail];
 END
 META defineReserveSku(detail)
-    showReserveSkuStock 'Показать резерв товара по складу' (###detail detail) =
-        FOR sk == sku(detail) DO 
-            NEWSESSION FORM orderSkuLedgerNotDate OBJECTS sk = sk
-    CONTEXTMENU nameSku[###detail];
-    
-    showReserveSku 'Показать резерв товара' (###detail detail) =
-        FOR sk == sku(detail) DO 
-            NEWSESSION FORM orderSkuLedgerStocksNotDate OBJECTS sk = sk
-    CONTEXTMENU nameSku[###detail];
+    @defineReserveSku(detail, sku, nameSku);
 END
     
 showReserveSku 'Показать резерв' (Sku sku)  { NEWSESSION SHOW orderSkuLedgerStocksNotDate OBJECTS sk = sku; }  ASON CONTEXTMENU name[Sku];

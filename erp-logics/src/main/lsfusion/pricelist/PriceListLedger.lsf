@@ -907,27 +907,34 @@ DESIGN movementPriceSkuStocks {
     MOVE TOOLBARBOX;
 }
 
-META defineMovementPriceSku(detail, stockProp)
-    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail)  { 
-        FOR s == sku(detail) AND st == stockProp(detail) DO
+META defineMovementPriceSku(detail, stockProp, skuProp, nameSkuProp)
+    showMovementPrice###skuProp##Stock 'Показать изменение цены товара по складу' (###detail detail)  { 
+        FOR s == skuProp(detail) AND st == stockProp(detail) DO
             NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s, st = st; } 
-    ASON CONTEXTMENU nameSku[###detail];
+    ASON CONTEXTMENU nameSkuProp[###detail];
     
-    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail)  { 
-        FOR s == sku(detail) DO 
+    showMovementPrice###skuProp##Stocks 'Показать изменение цены товара' (###detail detail)  { 
+        FOR s == skuProp(detail) DO 
             NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = s; } 
-    ASON CONTEXTMENU nameSku[###detail];
+    ASON CONTEXTMENU nameSkuProp[###detail];
+END
+META defineMovementPriceSku(detail, skuProp, nameSkuProp)
+    showMovementPrice###skuProp##Stock 'Показать изменение цены товара по складу' (###detail detail)  { 
+        FOR s == skuProp(detail) DO
+            NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s; } 
+    ASON CONTEXTMENU nameSkuProp[###detail];
+    
+    showMovementPrice###skuProp##Stocks 'Показать изменение цены товара' (###detail detail)  { 
+        FOR s == skuProp(detail) DO
+            NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = s; } 
+    ASON CONTEXTMENU nameSkuProp[###detail];
+END
+
+META defineMovementPriceSku(detail, stockProp)
+    @defineMovementPriceSku(detail, stockProp, sku, nameSku);
 END
 META defineMovementPriceSku(detail)
-    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail)  { 
-        FOR s == sku(detail) DO
-            NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s; } 
-    ASON CONTEXTMENU nameSku[###detail];
-    
-    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail)  { 
-        FOR s == sku(detail) DO
-            NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = s; } 
-    ASON CONTEXTMENU nameSku[###detail];
+    @defineMovementPriceSku(detail, sku, nameSku);
 END
 
 showMovementPriceSku 'Показать изменение цены товара по складу' (Sku sku, Stock stock)  { NEWSESSION SHOW movementPriceSkuStock OBJECTS s = sku, st = stock ; }

@@ -97,27 +97,34 @@ DESIGN movementSkuStock {
 }
 @extendFormFilterStockAccess(st, movementSkuStock);
 
-META defineMovementSku(detail, stockProp)
-    showMovementSkuStock 'Показать движение товара по складу' (###detail detail)  { 
-        FOR s == sku(detail) AND st == stockProp(detail) DO
+META defineMovementSku(detail, stockProp, skuProp, nameSkuProp)
+    showMovement###skuProp##Stock 'Показать движение товара по складу' (###detail detail)  { 
+        FOR s == skuProp(detail) AND st == stockProp(detail) DO
             NEWSESSION SHOW movementSkuStock OBJECTS s = s, st = st; } 
-    ASON CONTEXTMENU nameSku[###detail];
+    ASON CONTEXTMENU nameSkuProp[###detail];
     
-    showMovementSku 'Показать движение товара' (###detail detail)  { 
-        FOR s == sku(detail) DO
+    showMovement###skuProp 'Показать движение товара' (###detail detail)  { 
+        FOR s == skuProp(detail) DO
             NEWSESSION SHOW movementSku OBJECTS s = s; } 
-    ASON CONTEXTMENU nameSku[###detail];
+    ASON CONTEXTMENU nameSkuProp[###detail];
+END
+META defineMovementSku(detail, skuProp, nameSkuProp)
+    showMovement###skuProp##Stock 'Показать движение товара по складу' (###detail detail)  { 
+        FOR s == skuProp(detail) DO
+            NEWSESSION SHOW movementSkuStock OBJECTS s = s; } 
+    ASON CONTEXTMENU nameSkuProp[###detail];
+    
+    showMovement###skuProp 'Показать движение товара' (###detail detail)  { 
+        FOR s == skuProp(detail) DO
+            NEWSESSION SHOW movementSku OBJECTS s = s; } 
+    ASON CONTEXTMENU nameSkuProp[###detail];
+END
+
+META defineMovementSku(detail, stockProp)
+    @defineMovementSku(detail, stockProp, sku, nameSku);
 END
 META defineMovementSku(detail)
-    showMovementSkuStock 'Показать движение товара по складу' (###detail detail)  { 
-        FOR s == sku(detail) DO
-            NEWSESSION SHOW movementSkuStock OBJECTS s = s; } 
-    ASON CONTEXTMENU nameSku[###detail];
-    
-    showMovementSku 'Показать движение товара' (###detail detail)  { 
-        FOR s == sku(detail) DO
-            NEWSESSION SHOW movementSku OBJECTS s = s; } 
-    ASON CONTEXTMENU nameSku[###detail];
+    @defineMovementSku(detail, sku, nameSku);
 END
 
 
@@ -140,12 +147,16 @@ DESIGN balancesSkuStock {
 
 @extendFormFilterStockAccess(st, balancesSkuStock);
 
-META defineBalancesSku(detail)
-    showBalancesSkuStock 'Показать остатки товара' (###detail detail)  { 
-        FOR s == sku(detail) DO
+META defineBalancesSku(detail, skuProp, nameSkuProp)
+    showBalances###skuProp###Stock 'Показать остатки товара' (###detail detail)  { 
+        FOR s == skuProp(detail) DO
             NEWSESSION SHOW balancesSkuStock OBJECTS s = s; } 
-    ASON CONTEXTMENU nameSku[###detail];
+    ASON CONTEXTMENU nameSkuProp[###detail];
 END
+META defineBalancesSku(detail)
+    @defineBalancesSku(detail, sku, nameSku);
+END
+
 
 showMovementSku'Показать движение товара' (Sku sku)  { NEWSESSION SHOW movementSku OBJECTS s = sku; }  ASON CONTEXTMENU name[Sku];
 showBalancesSku 'Показать остатки товара' (Sku sku)  { NEWSESSION SHOW balancesSkuStock OBJECTS s = sku; }  ASON CONTEXTMENU name[Sku];
