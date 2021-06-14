@@ -1139,7 +1139,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
                                 customPaymentMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                 discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, null,
-                                useSectionAsDepartNumber ? positionDepartNumber : null, false, cashRegisterByKey));
+                                useSectionAsDepartNumber ? positionDepartNumber : null, false, null, cashRegisterByKey));
                     }
                     count++;
                 }
