@@ -1,0 +1,48 @@
+MODULE SaleUpdDocument;
+
+REQUIRE SaleInvoiceConsignmentRu, ConsignmentUpdDocument;
+
+NAMESPACE Sale;
+
+//задание статуса УПД
+updDocumentStatus 'Статус УПД (электронный)' = DATA UpdDocumentStatus (Operation);
+nameUpdDocumentStatus 'Статус УПД (электронный)' (Operation operation) = name(updDocumentStatus(operation)) CHARWIDTH 10;
+
+EXTEND FORM operation
+    PROPERTIES (o) nameUpdDocumentStatus
+;
+
+DESIGN operation {
+    tabContainer {
+        NEW updDocument {
+            caption = 'УПД';
+            MOVE PROPERTY(nameUpdDocumentStatus(o));
+        }
+    }
+}
+
+updStatus (Operation operation) += updDocumentStatus(operation);
+
+updInvoiceNumber 'Номер СЧФ' (Invoice i) = numberInvoice(updDocument(i));
+
+showUpd 'Просмотреть УПД' (Invoice i) {
+    show(updDocument(i));
+}
+
+EXTEND FORM invoices
+    PROPERTIES createUPD(i) SHOWIF NOT updDocument(i),
+               updInvoiceNumber(i) SHOWIF updDocument(i) PANEL,
+               showUpd(i) SHOWIF updDocument(i)
+;
+
+DESIGN invoices {
+    documentDetail {
+        NEW updDocument {
+            type = CONTAINERV;
+            caption = 'УПД';
+            MOVE PROPERTY(createUPD(i));
+            MOVE PROPERTY(updInvoiceNumber(i));
+            MOVE PROPERTY(showUpd(i));            
+        }
+    }
+}

@@ -80,8 +80,8 @@ currency = ABSTRACT Currency (Consignment);
 nameCurrency 'Валюта' (Consignment consignment)= name(currency(consignment)) CHARWIDTH 10;
 sidCurrency 'Код валюты' (Consignment consignment) = sid(currency(consignment)) CHARWIDTH 10;
 
-managerSupplier 'Руководитель, ФИО' = ABSTRACT ISTRING[250] (Consignment);
-accountantSupplier 'Главный бухгалтер, ФИО' = ABSTRACT ISTRING[250] (Consignment);
+managerSupplier 'Руководитель, ФИО' = ABSTRACT Employee (Consignment);
+accountantSupplier 'Главный бухгалтер, ФИО' = ABSTRACT Employee (Consignment);
 
 FORM dialogEmployeesConsignment 'Сотрудники'
     OBJECTS e = Employee
@@ -279,7 +279,7 @@ dataNetWeight 'Масса нетто, кг.' = ABSTRACT NUMERIC[16,5] (Consignme
 overNetWeight 'Масса нетто, кг.' = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 netWeight 'Масса нетто, кг.' (ConsignmentDetail d) = OVERRIDE overNetWeight(d), dataNetWeight(d);
 
-barCode 'Штрихкод' (ConsignmentDetail d) = idBarcode(sku(d));
+barCode 'Код товара' (ConsignmentDetail d) = OVERRIDE idBarcode(sku(d)), id(sku(d));
 sidCountry 'Код страны' (ConsignmentDetail d) = sid(country(sku(d)));
 shortNameCountry 'Краткое наименование страны' (ConsignmentDetail d) = name(country(sku(d)));
 
@@ -650,10 +650,10 @@ dataDescriptionContractAttrUpd 'Описание договора' = DATA STRING
 descriptionContractAttrUpd 'Описание договора' (Consignment c) = OVERRIDE dataDescriptionContractAttrUpd(c), descriptionContract(c);
 
 dataManagerSupplierAttrUpd 'Руководитель, ФИО' = DATA STRING[28] (Consignment);
-managerSupplierAttrUpd 'Руководитель, ФИО' (Consignment c) = OVERRIDE dataManagerSupplierAttrUpd(c), managerSupplier(c);
+managerSupplierAttrUpd 'Руководитель, ФИО' (Consignment c) = OVERRIDE dataManagerSupplierAttrUpd(c), shortName(managerSupplier(c));
 
 dataAccountantSupplierAttrUpd 'Главный бухгалтер, ФИО' = DATA STRING[28] (Consignment);
-accountantSupplierAttrUpd 'Главный бухгалтер, ФИО' (Consignment c) = OVERRIDE dataAccountantSupplierAttrUpd(c), accountantSupplier(c);
+accountantSupplierAttrUpd 'Главный бухгалтер, ФИО' (Consignment c) = OVERRIDE dataAccountantSupplierAttrUpd(c), shortName(accountantSupplier(c));
 
 // Товар передал
 notUseIssuanceExecutedAttrUpd 'Не использовать справочник для передающих сотрудников' = DATA BOOLEAN (Consignment);

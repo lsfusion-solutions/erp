@@ -58,7 +58,7 @@ idConsignee 'ИД получателя' = DATA STRING[46] (UpdDocument); //Ид�
 
 //-------Документ---------
 status 'Статус' = DATA UpdDocumentStatus (UpdDocument);
-nameStatus 'Статус' (UpdDocument upd) = staticCaption(status(upd)); //Функция
+nameStatus 'Статус' (UpdDocument upd) = staticCaption(status(upd)) CHARWIDTH 10; //Функция
 
 businessNameDocument 'Наименование документа (по факту хоз.жизни)' = DATA STRING[255] (UpdDocument);//ПоФактХЖ
 supplierNameDocument 'Наименование документа' = DATA STRING[255] (UpdDocument); //НаимДокОпр
@@ -96,8 +96,20 @@ adrressSupplier 'Адрес продавца' = DATA STRING[150] (UpdDocument); 
 //----КодГАР
 codeAdrressSupplier 'Код адреса продавца' = DATA STRING[36] (UpdDocument); //КодГАР
 
-//--ГрузОт
+//-ГрузОт
 isConsignerSupplier 'Продавец является отправителем' = DATA BOOLEAN (UpdDocument); //ОнЖе
+
+//-ГрузПолуч
+//--ИдСв
+//---СвЮЛУч
+nameReceiverCompany 'Наименование груполучателя' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
+innReceiverCompany 'ИНН груполучателя' = DATA STRING[10] (UpdDocument);//ИННЮЛ
+
+//--ГрузПолуч
+//---Адрес
+//----АдрИнф
+countryCodeAddressReceiverCompany 'Код страны груполучателя' = DATA STRING[3] (UpdDocument); //КодСтр
+adrressReceiverCompany 'Адрес груполучателя' = DATA STRING[150] (UpdDocument);//АдрТекст
 
 //-СвПокуп
 customer 'Покупатель' = DATA LegalEntity(UpdDocument);
@@ -121,12 +133,19 @@ adrressCustomer 'Адрес покупателя' = DATA STRING[150] (UpdDocumen
 //----КодГАР
 codeAdrressCustomer 'Код адреса покупателя' = DATA STRING[36] (UpdDocument); //КодГАР
 
+//-ИнфПолФХЖ1
+//--ТекстИнф
+codeBusinessEvent 'Идентификатор факта хоз.жизни' = DATA STRING[50] (UpdDocument); //Идентиф
+descriptionBusinessEvent 'Описание факта хоз.жизни' = DATA STRING[50] (UpdDocument); //Значен
+
 //СвПродПер
 //-СвПер
 description 'Содержание операции' = DATA STRING[255] (UpdDocument); //СодОпер
 
 //--ОснПер
 descriptionContract 'Основание передачи' = DATA STRING[255] (UpdDocument); //НаимОсн
+numberContract 'Номер документа основания' = DATA STRING[255] (UpdDocument);//НомОсн
+dateContract 'Дата документа основания' = DATA DATE (UpdDocument);//ДатаОсн
 
 //---СвЛицПер
 //----РабОргПрод
@@ -171,6 +190,10 @@ price 'Цена' = DATA NUMERIC[26,11] (UpdDocumentDetail); //ЦенаТов
 sum 'Сумма без НДС' = DATA NUMERIC[19,2] (UpdDocumentDetail); //СтТовБезНДС
 invoiceSum 'Сумма с НДС' = DATA NUMERIC[19,2] (UpdDocumentDetail); //СтТовУчНал
 
+//--Акциз
+dutySum 'Сумма акциза' = DATA NUMERIC[19,2](UpdDocumentDetail);//СумАкциз
+withoutDuty 'Без акциза' = DATA BOOLEAN (UpdDocumentDetail);//БезАкциз
+
 //--ДопСведТов
 idUOM 'ОКЕИ' = DATA STRING[4] (UpdDocumentDetail) CHARWIDTH 10; //ОКЕИ_Тов
 nameUOM 'ЕИ' = DATA STRING[255] (UpdDocumentDetail) CHARWIDTH 10; //НаимЕдИзм
@@ -179,7 +202,7 @@ idSku 'Код товара' = DATA STRING[100] (UpdDocumentDetail) CHARWIDTH 15;
 
 //--СвТД
 idCountry 'Код страны' = DATA STRING[3] (UpdDocumentDetail) CHARWIDTH 10; //КодПроисх
-numberDeclaration 'Код страны' = DATA STRING[3] (UpdDocumentDetail) CHARWIDTH 10;//НомерТД
+numberDeclaration 'Номер ТД' = DATA STRING[3] (UpdDocumentDetail) CHARWIDTH 10;//НомерТД
 
 VATSum 'Сумма НДС' = DATA NUMERIC[19,2] (UpdDocumentDetail); //СумНал
 
@@ -280,7 +303,10 @@ FORM updDocument 'Универсальный передаточный докум
     PROPERTIES (u) isConsignerSupplier
     PROPERTIES (u) nameCustomer, innCustomer, kppCustomer, okpoCustomer
     PROPERTIES (u) regionCodeCustomer, countryCodeAddressCustomer, codeAdrressCustomer
-    PROPERTIES (u) description, descriptionContract
+    PROPERTIES (u) nameReceiverCompany, innReceiverCompany
+    PROPERTIES (u) countryCodeAddressReceiverCompany, adrressReceiverCompany
+    PROPERTIES (u) codeBusinessEvent, descriptionBusinessEvent
+    PROPERTIES (u) description, descriptionContract, numberContract, dateContract
     PROPERTIES (u) positionAgentSupplier, lastNameAgentSupplier, firsNameAgentSupplier, middleAgentSupplier
     PROPERTIES (u) positionAgentExecuter, lastNameAgentExecuter, firsNametAgentExecuter, middleNameAgentExecuter
     PROPERTIES (u) positionExecuter, lastNameExecuter, firsNameExecuter, middleNameExecuter
@@ -301,7 +327,7 @@ FORM updDocument 'Универсальный передаточный докум
     
     OBJECTS d=UpdDocumentDetail
     
-    PROPERTIES(d) number, idSku, nameSku, quantity, price, sum, valueVAT, invoiceSum, VATSum
+    PROPERTIES(d) number, idSku, nameSku, quantity, price, sum, valueVAT, invoiceSum, VATSum, dutySum, withoutDuty
     PROPERTIES(d) idUOM, nameUOM, idCountry, nameCountry, numberDeclaration 
                   
     PROPERTIES (d) NEW, DELETE
@@ -378,6 +404,7 @@ DESIGN updDocument {
                             caption = 'СЧФ';
                             fill = 1;
                             type = CONTAINERV;
+                            MOVE PROPERTY(nameInvoiceNumerator(u));
                             MOVE PROPERTY(numberInvoice(u));
                             MOVE PROPERTY(dateInvoice(u));
                             MOVE PROPERTY(codeCurrency(u));
@@ -413,12 +440,38 @@ DESIGN updDocument {
                             MOVE PROPERTY(codeAdrressCustomer(u));
                         }
                         
+                        NEW companyReceiver {
+                            caption = 'Грузополучатель';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(nameReceiverCompany(u));
+                            MOVE PROPERTY(innReceiverCompany(u));
+                        }
+                        
+                        NEW companyReceiverAddress {
+                            caption = 'Адрес грузоплучателя';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(countryCodeAddressReceiverCompany(u));
+                            MOVE PROPERTY(adrressReceiverCompany(u));                            
+                        }
+                        
+                        NEW businessEvent {
+                            caption = 'Факт хоз.жизни 1';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(codeBusinessEvent(u));
+                            MOVE PROPERTY(descriptionBusinessEvent(u));
+                        }                          
+                        
                         NEW description {
                             caption = 'Содержание операции';
                             fill = 1;
                             type = CONTAINERV;
                             MOVE PROPERTY(description(u));
                             MOVE PROPERTY(descriptionContract(u));
+                            MOVE PROPERTY(numberContract(u));
+                            MOVE PROPERTY(dateContract(u));
                         }                                               
                         
                         NEW supplierAgent {
@@ -573,14 +626,14 @@ DESIGN updDocument {
 
 FORM updDocuments 'УПД'
     OBJECTS u = UpdDocument
-    PROPERTIES (u) READONLY nameStatus, businessNameDocument, supplierNameDocument, idConsignor, nameSupplier, idConsignee, nameCustomer,
-                            dateSupplier, timeSupplier, numberInvoice, dateInvoice, codeCurrency,
+    PROPERTIES (u) READONLY nameStatus, numberInvoice, dateInvoice, businessNameDocument, supplierNameDocument, idConsignor, nameSupplier, idConsignee, nameCustomer,
+                            dateSupplier, timeSupplier, codeCurrency,
                             regionCodeSupplier, countryCodeAddressSupplier, adrressSupplier, codeAdrressSupplier,
                             isConsignerSupplier, sum, invoiceSum, VATSum, withoutVAT
     
     OBJECTS d = UpdDocumentDetail
     
-    PROPERTIES(d) READONLY number, idSku, nameSku, quantity, price, sum, valueVAT, invoiceSum, VATSum
+    PROPERTIES(d) READONLY number, idSku, nameSku, quantity, price, sum, valueVAT, invoiceSum, VATSum, dutySum, withoutDuty
                   
     PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE            
         
