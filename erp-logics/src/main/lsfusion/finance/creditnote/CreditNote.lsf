@@ -320,7 +320,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     
 //--  Связь акта и накладной
     invoiceDetail = ABSTRACT InvoiceDetail (CreditNoteDetail) MATERIALIZED INDEXED;
-    invoiceDetail = DATA InvoiceDetail (UserCreditNoteDetail);
+    invoiceDetail = DATA InvoiceDetail (UserCreditNoteDetail) INDEXED;
     invoiceDetail(UserCreditNoteDetail creditNoteDetail) += invoiceDetail(creditNoteDetail);
 
     CONSTRAINT invoiceDetail(UserCreditNoteDetail d) AND NOT sku(invoiceDetail(d)) = sku(d) CHECKED BY invoiceDetail[UserCreditNoteDetail]
@@ -340,9 +340,33 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
                                                     CONCAT STRING[255](description(Invoice invoice)) IF quantity(invoice, creditNote) , ', '
                                                     ORDER invoice IN invoice CHARWIDTH 30;
 
+    FORM baseCreditNoteDetails 'Строки накладной'
+        OBJECTS st = Stock PANEL
+        OBJECTS ct = Stock PANEL
+    
+        OBJECTS d = InvoiceDetail
+        PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                               description,
+                               quantity, price, sum,
+                               numberVAT, valueVAT, VATSum, invoiceSum,
+                               name###stockProp##Stock
+
+        FILTERGROUP filterSupplier
+                    FILTER  'По складу поставщика' supplierStock(d) = st DEFAULT     
+        FILTERGROUP filterCustomer
+                    FILTER  'По складу покупателя' customerStock(d) = ct DEFAULT             
+    ;
+
+    changeInvoiceDetail (UserCreditNoteDetail c) {
+        DIALOG baseCreditNoteDetails OBJECTS st = supplierStock(c),
+                                             ct = customerStock(c),
+                                             d = invoiceDetail(c) NULL CHANGE
+                                     FILTERS sku(d) = sku(c), supplier(d) = supplier(c), customer(d) = customer(c); 
+    }
+
     EXTEND FORM userCreditNote
         PROPERTIES(c) READONLY invoices
-        PROPERTIES(d) descriptionIndexInvoice BEFORE deletecd
+        PROPERTIES(d) descriptionIndexInvoice ON CHANGE changeInvoiceDetail(d) BEFORE deletecd
     ;
     DESIGN userCreditNote { headerRow12 { MOVE GROUP(invoice,c) {type = CONTAINERH;}}}
 
