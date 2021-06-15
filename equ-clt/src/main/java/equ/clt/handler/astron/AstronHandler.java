@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static equ.clt.handler.HandlerUtils.*;
+import static lsfusion.base.BaseUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @SuppressWarnings("SqlDialectInspection")
@@ -1493,7 +1494,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, " +
-                    "sales." + getSalesNumField() + ", sales.SAREAID, sales." + getSalesRefundField() + ", sales.PRCLEVELID, sales.SALESATTRI, sales.SALESEXT, " +
+                    "sales." + getSalesNumField() + ", sales.SAREAID, sales." + getSalesRefundField() + ", sales.PRCLEVELID, sales.SALESATTRI, " +
                     "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
@@ -1614,7 +1615,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                             sumCard = safeAdd(sumCard, sum);
                                             break;
                                         case 2:
-                                            String numberGiftCard = rs.getString("SALESEXT");
+                                            String numberGiftCard = trimToEmpty(rs.getString("SALESBARC")).split(":")[0];
                                             sumGiftCardMap.put(numberGiftCard, new GiftCard(sum));
                                             break;
                                         case 0:
