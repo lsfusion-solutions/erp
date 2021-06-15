@@ -1118,9 +1118,11 @@ public class DefaultTerminalHandler {
 
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
-                    if (terminalOrder != null)
+                    if (terminalOrder != null) {
                         terminalOrder.quantity = safeAdd(terminalOrder.quantity, quantity);
-                    else
+                        terminalOrder.minQuantity = safeAdd(terminalOrder.minQuantity, minQuantity);
+                        terminalOrder.maxQuantity = safeAdd(terminalOrder.maxQuantity, maxQuantity);
+                    } else
                         terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
