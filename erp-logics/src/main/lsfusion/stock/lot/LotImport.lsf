@@ -1,0 +1,35 @@
+MODULE LotImport;
+
+REQUIRE Lot;
+
+NAMESPACE Lot;
+
+importBarcode 'Импорт по штрихкодам (CSV)' () {
+    NEWSESSION { 
+        INPUT f = FILE DO {
+            LOCAL barcodeId = STRING(INTEGER);
+        
+            LOCAL barcode = STRING (INTEGER); 
+            LOCAL id = STRING[200] (INTEGER); 
+            IMPORT CSV '!!!' HEADER NOESCAPE FROM f TO barcodeId;
+            
+            barcode(INTEGER i) <- left(barcodeId(i), strpos(barcodeId(i), ';') - 1);
+            id(INTEGER i) <- substrFrom(barcodeId(i), strpos(barcodeId(i), ';') + 1);
+            
+            FOR imported(INTEGER i) AND Sku s = skuBarcode(barcode(i)) AND NOT lot(id(i)) DO NEW l = Lot {
+                id(l) <- id(i);
+                sku(l) <- s;
+            }
+            IF GROUP SUM 1 IF imported(INTEGER i) AND NOT skuBarcode(barcode(i)) THEN {
+                ASK 'Не найдены товары для штрих-кодов. Импортировать остальные ?\n' + GROUP CONCAT barcode(INTEGER i) IF NOT skuBarcode(barcode(i)), '\n' ORDER i DO {
+                    APPLY;
+                }
+            } ELSE APPLY;
+            MESSAGE 'Импорт завершен';
+        }
+    }
+}
+
+EXTEND FORM lots
+    PROPERTIES() importBarcode DRAW l TOOLBAR
+;
