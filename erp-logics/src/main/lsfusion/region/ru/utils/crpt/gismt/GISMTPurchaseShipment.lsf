@@ -1,6 +1,6 @@
 MODULE GISMTPurchaseShipment;
 
-REQUIRE GISMTDocument, GISMTLegalEntity, PurchaseShipmentLot, GISMTIncomingDocument;
+REQUIRE GISMTDocument, GISMTLegalEntity, PurchaseShipmentLot, GISMTIncomingDocument, GISMTSku;
 
 PRIORITY GISMT, Purchase;
 
@@ -37,6 +37,7 @@ FORM exportInvoice
                trade_sender_inn = (OVERRIDE senderInn(supplier(i)), inn(supplier(i))),
                trade_recipient_inn = inn(customer(i)),
                release_order_number = releaseNumber(i, t),
+               
                exporter_taxpayer_id = inn(supplier(i)) IF senderInn(supplier(i)),
                exporter_name = name(supplier(i)) IF senderInn(supplier(i)),
                release_method = 'CROSSBORDER' IF senderInn(supplier(i))
@@ -45,7 +46,12 @@ FORM exportInvoice
     PROPERTIES accepted = TRUE IF d IS InvoiceDetail AND l IS Lot, 
                uit_code = id(l) IF NOT aggregated(l),
                uitu_code = id(l) IF aggregated(l), 
-               product_description = nameSku(d)
+               product_description = nameSku(d),
+               
+               tnved_code = tnved(sku(d)) IF senderInn(supplier(i)),
+               product_cost = sum(d) IF senderInn(supplier(i)),
+               product_tax = (OVERRIDE VATSum(d), 0.0) IF senderInn(supplier(i))
+               
     FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
 ;
 
