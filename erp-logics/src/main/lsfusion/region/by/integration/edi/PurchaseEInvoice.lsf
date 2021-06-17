@@ -147,11 +147,58 @@ DESIGN userInvoice {
     }
 }
 
+signAndSendCustomerEDI 'Подписать и отправить (покупатель)'(Invoice i)  { 
+    NEWSESSION {
+        in(EInvoice e) <- e = eInvoice(i);
+        signAndSendCustomerEDI();
+        in(EInvoice e) <- NULL;
+    }
+}
+signAndSendNoticeCustomerEDI 'Подписать и отправить уведомление об изменении (покупатель)'(Invoice i)  { 
+    NEWSESSION {
+        in(EInvoice e) <- e = eInvoice(i);
+        signAndSendNoticeCustomerEDI();
+        in(EInvoice e) <- NULL;
+    }
+}
+
+hideSignAndSendCustomerEDI = ABSTRACT BOOLEAN (Invoice);
+hideSignAndSendNoticeCustomerEDI = ABSTRACT BOOLEAN (Invoice);
+
+EXTEND FORM invoices
+    PROPERTIES READONLY numberEInvoice = numberEInvoice(i), statusDescription = statusDescription(i) BACKGROUND backgroundStatusDescription(i)
+    PROPERTIES numberEInvoice(i) SHOWIF eInvoice(i) PANEL READONLY,
+               signAndSendCustomerEDI(i) SHOWIF (eInvoice(i) AND NOT exportedCustomer(eInvoice(i)) AND NOT exportedNoticeCustomer(eInvoice(i)) AND NOT hideSignAndSendCustomerEDI(i)),
+               signAndSendNoticeCustomerEDI(i) SHOWIF (eInvoice(i) AND NOT exportedCustomer(eInvoice(i)) AND NOT exportedNoticeCustomer(eInvoice(i)) AND NOT hideSignAndSendNoticeCustomerEDI(i)),
+               statusDescription(i) SHOWIF eInvoice(i) PANEL
+;
+
+DESIGN invoices {
+    printTabScroll {
+        NEW tabConsignment{
+            type = TABBED;
+            MOVE printTab {caption = 'Накладная';};
+            NEW eInvoice {
+                caption = 'Электронная накладная';
+                NEW createEI {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberEInvoice(i));
+                    MOVE PROPERTY(signAndSendCustomerEDI(i));
+                    MOVE PROPERTY(signAndSendNoticeCustomerEDI(i));
+                    MOVE PROPERTY(statusDescription(i));
+                }
+            }
+        }
+    }    
+}
+
 skipNumberCheck(Invoice i) += IF (GROUP SUM 1 IF invoice(EInvoice ei) == i) THEN TRUE;
  
 @defineOption(createPurchaseInvoiceFromEInvoice, 'Автоматически создавать накладную (закупка) при создании накладной EDI', EDI);
 
-WHEN SET(EInvoice ei IS EInvoice) AND createPurchaseInvoiceFromEInvoice() DO {
+skipCreatePurchaseInvoice = ABSTRACT BOOLEAN (EInvoice);
+
+WHEN SET(EInvoice ei IS EInvoice) AND createPurchaseInvoiceFromEInvoice() AND NOT skipCreatePurchaseInvoice(ei) DO {
     NEW i = UserInvoice {
         copyData(ei,i);
     }        
@@ -283,20 +330,16 @@ EXTEND FORM invoices
 ;
 
 DESIGN invoices {
-    printTabScroll {
-        NEW tabConsignment{
-            type = TABBED;
-            MOVE printTab {caption = 'Накладная';};
-            NEW eCreditNote {
-                caption = 'Электронный акт приемки';
-                NEW createCN {
-                    type = CONTAINERH;
-                    MOVE PROPERTY(numberECreditNote(i));
-                    MOVE PROPERTY(createECreditNote(i));
-                    MOVE PROPERTY(signAndSendCustomerCreditNoteEDI(i));
-                    MOVE PROPERTY(cancelSignAndSendCustomerCreditNoteEDII(i));
-                }
+    tabConsignment{
+        NEW eCreditNote {
+            caption = 'Электронный акт приемки';
+            NEW createCN {
+                type = CONTAINERH;
+                MOVE PROPERTY(numberECreditNote(i));
+                MOVE PROPERTY(createECreditNote(i));
+                MOVE PROPERTY(signAndSendCustomerCreditNoteEDI(i));
+                MOVE PROPERTY(cancelSignAndSendCustomerCreditNoteEDII(i));
             }
         }
-    }    
+    }
 }

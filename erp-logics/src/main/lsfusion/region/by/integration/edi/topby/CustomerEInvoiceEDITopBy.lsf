@@ -37,6 +37,7 @@ blrwblTransportOwnerName = DATA LOCAL NESTED STRING[175]();
 blrwblTransportID = DATA LOCAL NESTED STRING[35]();
 blrwblTrailerID = DATA LOCAL NESTED STRING[35]();
 blrwblSealIDReceiver = DATA LOCAL NESTED STRING[35]();
+blrwblOrderID = DATA LOCAL NESTED STRING[35]();
 blrwblCurrency = DATA LOCAL NESTED STRING[3]();
 blrwblFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
 blrwblFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
@@ -82,6 +83,7 @@ FORM blrwbl
                                blrwblTransportID() EXTID 'TransportID',
                                blrwblTrailerID() EXTID 'TrailerID',
                                blrwblSealIDReceiver() EXTID 'SealID',
+                               blrwblOrderID() EXTID 'OrderID',
                                blrwblCurrency() EXTID 'Currency'
     PROPERTIES IN blrwblShipper blrwblSupplierGLN() EXTID 'GLN',
                                 blrwblContactSupplier() EXTID 'Contact'
@@ -177,8 +179,10 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         transportID(ei) <- blrwblTransportID();
                         trailerID(ei) <- blrwblTrailerID();
                         sealIDReceiver(ei) <- blrwblSealIDReceiver();
+                        orderID(ei) <- blrwblOrderID();
                         currency(ei) <- blrwblCurrency();
                         isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'PW0013' AND blrwblFieldValue(e) == '1');
+                        replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014');
                         overCreateEInvoiceBlrwbl(ei);
                         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
@@ -413,6 +417,7 @@ blrdlnDeliveryContact = DATA LOCAL NESTED STRING[150]();
 blrdlnProxyID = DATA LOCAL NESTED STRING[70]();
 blrdlnProxyDate = DATA LOCAL NESTED DATE();
 blrdlnPartyIssuingProxyName = DATA LOCAL NESTED STRING[175]();
+blrdlnOrderID = DATA LOCAL NESTED STRING[35]();
 blrdlnCurrency = DATA LOCAL NESTED STRING[3]();
 blrdlnFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
 blrdlnFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
@@ -450,6 +455,7 @@ FORM blrdln
                                blrdlnContractName() EXTID 'ContractName',
                                blrdlnContractID() EXTID 'ContractID',
                                blrdlnContractDate() EXTID 'ContractDate',
+                               blrdlnOrderID() EXTID 'OrderID',
                                blrdlnCurrency() EXTID 'Currency'
     PROPERTIES IN blrdlnShipper blrdlnSupplierGLN() EXTID 'GLN',
                                 blrdlnContactSupplier() EXTID 'Contact'
@@ -533,8 +539,10 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         proxyID(ei) <- blrdlnProxyID();
                         proxyDate(ei) <- blrdlnProxyDate();
                         partyIssuingProxyName(ei) <- blrdlnPartyIssuingProxyName();
+                        orderID(ei) <- blrdlnOrderID();
                         currency(ei) <- blrdlnCurrency();
                         isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrdlnFieldCode(INTEGER e) == 'PW0013' AND blrdlnFieldValue(e) == '1');
+                        replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014');
                         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR blrdlnLineItemID(INTEGER l) OR blrdlnLineItemBuyerID(l) OR blrdlnLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
                             eInvoice(ed) <- ei;
