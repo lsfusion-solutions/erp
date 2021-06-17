@@ -6,10 +6,11 @@ NAMESPACE BI;
 
 
 //Грузить остаток на начало
-exportBalanceB 'Грузить остаток на начало' = DATA BOOLEAN ();
+exportBalanceB 'Грузить остаток на начало' = DATA BOOLEAN () PREREAD;
+useAccountPrice 'Использовать регистр с учетной ценой' = DATA BOOLEAN () PREREAD;
 
 EXTEND FORM integrationData
-    PROPERTIES exportBalanceB() DRAW dates
+    PROPERTIES DRAW dates exportBalanceB(), useAccountPrice()
 ;
 
 overExportTurnover  ABSTRACT (DATE);
@@ -25,7 +26,12 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
     IF exportBalanceB() THEN
         balanceB(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, dTo);
     balance(Sku s, Stock st) <- balanceA(s, st, dTo);
-    sum(Sku s, Stock st) <- sumA(s, st, dTo);
+    
+    LOCAL accountPrice = NUMERIC[16,4] (Sku, Stock);
+    IF useAccountPrice() THEN
+        accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(sum(dTo, 1))) WHERE balance(s, st) OR quantityPurchase(s, st, dTo) OR quantitySold(s, st, dTo); 
+    ELSE
+        sum(Sku s, Stock st) <- sumA(s, st, dTo);
 
     LOCAL date = DATE ();
     date() <- dTo;
@@ -39,7 +45,8 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
                                     stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
                                     sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
                                     manufacturer = manufacturer(sku(b)),
-                                    price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
+                                    price = DOUBLE(IF useAccountPrice() THEN accountPrice(sku(b), st) ELSE (sum(sku(b), st) / balance(sku(b), st))), 
+                                    UOM = UOM(sku(b)),
                                     balance = DOUBLE(balance(b, st)), balanceB = DOUBLE(balanceB(b, st)),
                                     quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
                                     quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
@@ -49,7 +56,8 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
                                     stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
                                     sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
                                     manufacturer = manufacturer(sku(b)),
-                                    price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
+                                    price = DOUBLE(IF useAccountPrice() THEN accountPrice(sku(b), st) ELSE (sum(sku(b), st) / balance(sku(b), st))), 
+                                    UOM = UOM(sku(b)),
                                     balance = DOUBLE(balance(b, st)),
                                     quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
                                     quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
@@ -65,14 +73,16 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
 
         balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
         balance(Sku s, Stock st) <- balance(s, st) (-) signedQuantity(s, st, date()) WHERE signedQuantity(s, st, date()); 
-        sum(Sku s, Stock st) <- sum(s, st) (-) signedSum(s, st, date()) WHERE signedSum(s, st, date()); 
+        IF useAccountPrice() THEN
+            accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(date())) WHERE balance(s, st) OR quantityPurchase(s, st, subtract(date(), 1)) OR quantitySold(s, st, subtract(date(), 1));
+        ELSE 
+            sum(Sku s, Stock st) <- sum(s, st) (-) signedSum(s, st, date()) WHERE signedSum(s, st, date());
         date() <- subtract(date(), 1);
         IF exportBalanceB() THEN
             balanceB(Batch b, Stock st) <- balanceB(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date());
     }
     
     runKillTask('turnover', dFrom, dTo);
-     
 } CONFIRM;
 
 EXTEND FORM integrationData
