@@ -79,11 +79,21 @@ WHEN CHANGED (isDeleted(EnterpriseData ed)) AND ed IS EnterpriseData DO packet(e
 
 WHEN SET (EnterpriseData ed IS EnterpriseData) AND NOT uid(ed) DO {
     generateUUID();
-    uid(ed) <- generatedUUID();
+    uid(ed) <- STRING[36](generatedUUID());
 }
 
 overReceive ABSTRACT LIST ();
 overImport ABSTRACT LIST ();
+
+generateUid 'Генерировать UID' () {
+    NEWSESSION {
+        FOR EnterpriseData e IS EnterpriseData AND NOT uid(e) DO {
+            generateUUID();
+            uid(e) <- STRING[36](generatedUUID());
+        }
+        APPLY;
+    }
+} CONFIRM;
 
 receiveMessage 'Получить' () {
     NEWSESSION {
@@ -130,7 +140,7 @@ EXTEND FORM integrationData
     PROPERTIES () idSended BACKGROUND (IF isSended() THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
                   idReceived BACKGROUND (IF isReceived() THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
                   dateStartExchange, toBase, fromBase, path,
-                  sendMessage, receiveMessage
+                  sendMessage, receiveMessage, generateUid
 ;
 
 DESIGN integrationData {
@@ -153,6 +163,7 @@ DESIGN integrationData {
                 type = CONTAINERH;
                 MOVE PROPERTY (sendMessage());
                 MOVE PROPERTY (receiveMessage());
+                MOVE PROPERTY (generateUid());
             }
         }
     }
@@ -356,7 +367,7 @@ END
 @defStaticTypeValue(typeOutcomeCashOrderBank, collection, 'Инкассация');
 @defStaticTypeValue(typeOutcomeCashOrderBank, cash, 'ВзносНаличными');
 
-@defStaticType(typeVat, );
+@defStaticType(typeVat, 'СтавкиНДС');
 @defStaticTypeValue(typeVat, vat4, 'НДС4');
 @defStaticTypeValue(typeVat, vat4d104, 'НДС4_104');
 @defStaticTypeValue(typeVat, vat18, 'НДС18');
