@@ -38,6 +38,15 @@ GROUP header EXTID 'msg:Header';
 GROUP confirmation EXTID 'msg:Confirmation' : header;
 GROUP body EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5:Body';
 
+GROUP keyProperties EXTID 'КлючевыеСвойства';
+
+GROUP product EXTID 'Товары';
+GROUP service EXTID 'Услуги';
+GROUP paymentCard EXTID 'ОплатаПлатежнымиКартами';
+GROUP reason EXTID 'ДокументыОснования';
+GROUP reasonDocument EXTID 'ДокументОснование';
+
+
 FORM sendMessage FORMEXTID 'Message'
     PROPERTIES ATTR = 'http://www.1c.ru/SSL/Exchange/Message' EXTID 'xmlns:msg'
     PROPERTIES ATTR = 'http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs'
@@ -204,10 +213,26 @@ END
 
 META defPropBoolean(name, caption, class);
     @defProp(name, caption, BOOLEAN, ###class);
-    ##name##BooleanString (###class class) = IF class THEN 'true' ELSE 'false';
+    ##name##BooleanString (###class class) = IF name(class) THEN 'true' ELSE 'false';
     EXTEND FORM sendMessage
-        PROPERTIES (class) name EXTID caption
+        PROPERTIES (class) ##name##BooleanString EXTID caption
     ;
+END
+
+META extKeyProperties (nm, type, caption, group, obj, detail)
+    EXTEND FORM sendMessage
+        OBJECTS nm###obj###detail = ###type EXTID caption IN group
+        PROPERTIES(nm###obj###detail) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+        FILTERS nm###obj###detail = nm(obj###detail)
+    
+        OBJECTS company###obj###detail = Company EXTID 'Организация'
+        PROPERTIES(company###obj###detail) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS company###obj###detail = company(nm###obj###detail)
+    ;   
+END
+
+META extKeyProperties (type, caption, group, obj, detail)
+    @extKeyProperties (type, ###type, caption, group, obj, detail);
 END
 
 META extDeleteObject(objtype, caption)
@@ -218,37 +243,6 @@ META extDeleteObject(objtype, caption)
         
         FILTERS NOT DATE(dateTime(objtype##Deleted)) < dateStartExchange(), NOT packet(objtype##Deleted) <= idTicket()
     ;
-END
-
-META extDocument(doctype, caption)
-    CLASS ABSTRACT ###doctype caption : Document;
-    
-    CLASS ABSTRACT ###doctype##Detail 'Строка';
-    
-    ##doctype = ABSTRACT ###doctype (###doctype##Detail);
-    in (###doctype ##doctype, ###doctype##Detail ##doctype##Detail) = ##doctype(##doctype##Detail) == ##doctype; 
-    
-    GROUP keyProperties###doctype EXTID 'КлючевыеСвойства';
-    
-    @defProp(company, 'Организация', Company, ###doctype);
-    
-    EXTEND FORM sendMessage
-        OBJECTS doctype = ###doctype EXTID caption IN body
-        PROPERTIES(doctype) IN keyProperties###doctype sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
-        FILTERS dateTimeString(doctype), id(doctype), NOT EnterpriseData.isDeleted(doctype)
-       
-        OBJECTS company###doctype = Company EXTID 'Организация' IN keyProperties###doctype
-        PROPERTIES(company###doctype) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-        FILTERS company###doctype = company(doctype)
-        
-        FILTERS NOT DATE(dateTime(doctype)) < dateStartExchange(), NOT packet(doctype) <= idTicket()
-    ;
-    
-    overSend () + { 
-        FOR ###doctype doctype IS ###doctype AND NOT packet(doctype) AND NOT DATE(dateTime(doctype)) < dateStartExchange() DO {
-            packet(doctype) <- messageNo();
-        }
-}
 END
 
 META extTable(class, group)
@@ -262,9 +256,35 @@ META extTable(class, group)
     ;
 END
 
-META extDocument(doctype, caption, delcaption)
-    @extDocument(doctype, caption);
-    @extDeleteObject(doctype, delcaption);
+META extDocument(doctype, caption)
+    CLASS ABSTRACT ###doctype 'Документ.'##caption : Document;
+    
+    CLASS ABSTRACT ###doctype##Detail 'Строка';
+    
+    ##doctype = ABSTRACT ###doctype (###doctype##Detail);
+    in (###doctype ##doctype, ###doctype##Detail ##doctype##Detail) = ##doctype(##doctype##Detail) == ##doctype; 
+    
+    @defProp(company, 'Организация', Company, ###doctype);
+    
+    EXTEND FORM sendMessage
+        OBJECTS doctype = ###doctype EXTID 'Документ.'##caption IN body
+        PROPERTIES(doctype) IN keyProperties sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+        FILTERS dateTimeString(doctype), id(doctype), NOT EnterpriseData.isDeleted(doctype)
+       
+        OBJECTS company###doctype = Company EXTID 'Организация' IN keyProperties
+        PROPERTIES(company###doctype) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS company###doctype = company(doctype)
+        
+        FILTERS NOT DATE(dateTime(doctype)) < dateStartExchange(), NOT packet(doctype) <= idTicket()
+    ;
+    
+    overSend () + { 
+        FOR ###doctype doctype IS ###doctype AND NOT packet(doctype) AND NOT DATE(dateTime(doctype)) < dateStartExchange() DO {
+            packet(doctype) <- messageNo();
+        }
+}
+
+    @extDeleteObject(doctype, caption##'Ссылка');
 END
 
 // static types
@@ -349,3 +369,16 @@ END
 @defStaticTypeValue(typeVat, vat20, 'НДС20');
 @defStaticTypeValue(typeVat, vat20d120, 'НДС20_120');
 @defStaticTypeValue(typeVat, withoutVat, 'БезНДС');
+
+@defStaticType(typeVatInvoice, 'ВидыСчетаФактуры');
+@defStaticTypeValue(typeVatInvoice, sale, 'НаРеализацию');
+@defStaticTypeValue(typeVatInvoice, adjustment, 'Корректировочный');
+@defStaticTypeValue(typeVatInvoice, advance, 'НаАванс');
+@defStaticTypeValue(typeVatInvoice, advanceComission, 'НаАвансКомитента');
+@defStaticTypeValue(typeVatInvoice, amountDifference, 'СуммовыеРазницы');
+@defStaticTypeValue(typeVatInvoice, taxOfficial, 'НалоговыйАгент');
+@defStaticTypeValue(typeVatInvoice, purchase, 'НаПоступление');
+
+@defStaticType(typeInvoiced, 'СпособыВыставленияСчетаФактуры');
+@defStaticTypeValue(typeInvoiced, eDoc, 'ВЭлектронномВиде');
+@defStaticTypeValue(typeInvoiced, paper, 'НаБумажномНосителе');
