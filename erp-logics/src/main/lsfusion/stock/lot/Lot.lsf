@@ -120,6 +120,8 @@ FORM dialogOutLots 'Список марок'
 ;
 
 // meta
+@defineOption(skipCheckDocumentLot, 'Не проверять КМ в документе', stock1);
+
 META defineDocumentLot (doc, quantityProp)
     quantity 'Кол-во' = DATA NUMERIC[16,5] (###doc##Detail, Lot);
     
@@ -131,7 +133,7 @@ META defineDocumentLot (doc, quantityProp)
     quantity 'Кол-во марок' (###doc i, Lot l) = GROUP SUM quantity(###doc##Detail d, l) IF doc(d) = i;
     
     CONSTRAINT SET((quantityProp(###doc##Detail d) OR quantityLot(d)) AND isPosted(d) AND NOT quantityProp(d) = quantityLot(d)) 
-               IF explicitLot(sku(d))
+               IF explicitLot(sku(d)) AND NOT skipCheckDocumentLot()
         MESSAGE 'Для строки документа неправильно заданы марки';
     
     backgroundQuantityLot (###doc##Detail d) = (IF quantityLot(d) = quantityProp(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) 
