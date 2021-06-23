@@ -69,6 +69,6 @@ public class HandlerUtils {
     }
 
     public static BigDecimal getJSONBigDecimal(JSONObject jsonObject, String valueKey) {
-        return jsonObject != null ? jsonObject.optBigDecimal(valueKey, null) : null;
+        return jsonObject != null && jsonObject.has(valueKey) ? jsonObject.getBigDecimal(valueKey) : null;
     }
 }
