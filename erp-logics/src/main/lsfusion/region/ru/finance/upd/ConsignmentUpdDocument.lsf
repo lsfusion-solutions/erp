@@ -100,8 +100,8 @@ createUPD 'Создать УПД' (Consignment invoice)  {
             numberContract(ei) <- number(contract(invoice));
             dateContract(ei) <- dateFrom(contract(invoice));
             
-            supplierSignerCredentials(ei) <- 0 IF invoice IS Consignment; //todo: переделать на справочник
-            supplierSignerStatus(ei) <- 1 IF invoice IS Consignment; //todo: переделать на справочник
+            supplierSignerCredentials(ei) <- Credential.c0 IF invoice IS Consignment; 
+            supplierSignerStatus(ei) <- CStatus.c1 IF invoice IS Consignment; 
             supplierSignerCredentialsBase(ei) <- 'Должностные обязанности' IF invoice IS Consignment; //todo: переделать на проверку
             
             supplierSignerInn(ei) <- inn(supplier(invoice));
@@ -127,9 +127,15 @@ createUPD 'Создать УПД' (Consignment invoice)  {
                 quantity(ed) <- quantity(d);
                 price(ed) <- price(d);
                 sum(ed) <- sum(d);
-                valueVAT(ed) <- IF isNotVATPayer(supplier(ei)) 
-                                    THEN 'Без НДС'
-                                    ELSE STRING[35](INTEGER(vat(d)));
+
+                VATStatus(ed)<- CASE 
+                               WHEN isNotVATPayer(supplier(ei))  THEN VATStatus.vatNot
+                               WHEN vat(d)==0.0  THEN VATStatus.vat0
+                               WHEN vat(d)==10.0  THEN VATStatus.vat10
+                               WHEN vat(d)==18.0  THEN VATStatus.vat18
+                               WHEN vat(d)==20.0  THEN VATStatus.vat20
+                               ;//todo: со временем надо остальные добавить
+                                                 
                 invoiceSum(ed) <- sumConsignment(d);
                 VATSum(ed) <- sumVAT(d);
                 withoutDuty(ed) <- TRUE;

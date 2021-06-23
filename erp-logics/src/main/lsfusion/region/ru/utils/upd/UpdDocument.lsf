@@ -1,6 +1,6 @@
 MODULE UpdDocument;
 
-REQUIRE MasterData, Utils, Numerator, LegalEntityRu, Contract, Certificate;
+REQUIRE MasterData, Utils, Numerator, LegalEntityRu, Contract, Certificate, XMLUtils;
 
 NAMESPACE Upd;
 
@@ -52,6 +52,16 @@ number 'Номер' = DATA STRING[28] (UpdDocument) IN numbered CHARWIDTH 7;
 
 idConsignor 'ИД отправителя' = DATA STRING[46] (UpdDocument); //ИдОтпр
 idConsignee 'ИД получателя' = DATA STRING[46] (UpdDocument); //ИдПол
+
+idFile 'ИдФайл' = DATA STRING[255] (UpdDocument); //ИдПол
+
+generateIdFile(UpdDocument d){
+    IF NOT idFile(d) THEN NEWSESSION {
+        generateUUID();
+        idFile(d)<- STRING[255](CONCAT '_', 'ON_NSCHFDOPPR',  idConsignee(d), idConsignor(d), generatedUUID());
+        APPLY;    
+    }
+}
 
 //СвОЭДОтпр
 
@@ -155,16 +165,18 @@ positionAgentSupplier 'Должность (работник продавца)' =
 lastNameAgentSupplier 'Фамилия' = DATA STRING[60](UpdDocument); //Фамилия
 firsNameAgentSupplier 'Имя' = DATA STRING[60](UpdDocument); //Имя
 middleAgentSupplier 'Отчество' = DATA STRING[60](UpdDocument); //Отчество
+isAgentSupplier (UpdDocument d) = lastNameAgentSupplier(d) AND firsNameAgentSupplier(d) AND positionAgentSupplier(d);
 
 //----ИнЛицо
 //-----ПредОргПер
 positionAgentExecuter 'Должность (представитель передающей орг.)' = DATA STRING[128](UpdDocument); //Должность
+nameCompanyAgentExecuter 'Наименование организации (представитель передающей орг.)' = DATA STRING[128](UpdDocument); //НаимОргПер
 
 //------ФИО
 lastNameAgentExecuter 'Фамилия' = DATA STRING[60](UpdDocument); //Фамилия
 firsNametAgentExecuter 'Имя' = DATA STRING[60](UpdDocument); //Имя
 middleNameAgentExecuter 'Отчество' = DATA STRING[60](UpdDocument); //Отчество
-
+isAgentExecuter (UpdDocument d) = positionAgentExecuter(d) AND nameCompanyAgentExecuter(d) AND lastNameAgentExecuter(d) AND firsNametAgentExecuter(d);
 //-----ФЛПер
 positionExecuter 'Должность (передающее ФЛ)' = DATA STRING[128](UpdDocument); //Должность
 
@@ -178,12 +190,30 @@ CLASS UpdDocumentDetail 'Строка УПД';
 TABLE updDocumentDetail(UpdDocumentDetail);
 
 updDocument = DATA UpdDocument(UpdDocumentDetail) NONULL DELETE INDEXED;
+defaultIndex '{document.default.index.detail.class}' (UpdDocumentDetail d) =
+    PARTITION SUM 1
+    ORDER d BY updDocument(d) CHARWIDTH 4;
 
 //ТаблСчФакт
 //-СведТов
 number 'Номер строки' = DATA NUMERIC[6,0] (UpdDocumentDetail); //НомСтр
 nameSku 'Наименование товара' = DATA STRING[1000] (UpdDocumentDetail) CHARWIDTH 45; //НаимТов
-valueVAT 'Ставка НДС' = DATA STRING[35] (UpdDocumentDetail) CHARWIDTH 10; //НалСт
+//valueVAT 'Ставка НДС' = DATA STRING[35] (UpdDocumentDetail) CHARWIDTH 10; //НалСт
+
+CLASS VATStatus {
+    vat0 '0%',
+    vat10 '10%',
+    vat18 '18%',
+    vat20 '20%',
+    vat10110 '10/110',
+    vat18118 '18/118',
+    vat20120 '20/120',
+    vatNot 'без НДС',  
+    vatAgent 'НДС исчисляется налоговым агентом'         
+}
+VATStatus = DATA VATStatus(UpdDocumentDetail);
+nameVATStatus 'Ставка НДС' = staticCaption(VATStatus(UpdDocumentDetail d));
+
 
 quantity 'Кол-во товара' = DATA NUMERIC[26,11] (UpdDocumentDetail); //КолТов
 price 'Цена' = DATA NUMERIC[26,11] (UpdDocumentDetail); //ЦенаТов
@@ -202,7 +232,7 @@ idSku 'Код товара' = DATA STRING[100] (UpdDocumentDetail) CHARWIDTH 15;
 
 //--СвТД
 idCountry 'Код страны' = DATA STRING[3] (UpdDocumentDetail) CHARWIDTH 10; //КодПроисх
-numberDeclaration 'Номер ТД' = DATA STRING[3] (UpdDocumentDetail) CHARWIDTH 10;//НомерТД
+numberDeclaration 'Номер ТД' = DATA STRING[29] (UpdDocumentDetail) CHARWIDTH 10;//НомерТД
 
 VATSum 'Сумма НДС' = DATA NUMERIC[19,2] (UpdDocumentDetail); //СумНал
 
@@ -215,8 +245,26 @@ VATSum 'Сумма НДС' = DATA NUMERIC[19,2] (UpdDocument); //СумНал
 withoutVAT 'БезНДС' = DATA BOOLEAN (UpdDocument); //БезНДС
 
 //Подписант
-supplierSignerCredentials 'Область полномочий подписанта (продавец)' = DATA INTEGER (UpdDocument); //ОблПолн
-supplierSignerStatus 'Статус подписанта (продавец)' = DATA INTEGER (UpdDocument); //Статус
+CLASS  Credential 'Область полномочий подписанта (продавец)' {
+    c0 '0',
+    c1 '1',
+    c2 '2', 
+    c3 '3',
+    c4 '4',
+    c5 '5', 
+    c6 '6'    
+}
+supplierSignerCredentials = DATA Credential(UpdDocument);
+nameSupplierSignerCredentials 'Область полномочий подписанта (продавец)' = staticCaption(supplierSignerCredentials(UpdDocument d)); //ОблПолн
+
+CLASS  CStatus 'Статус подписанта (продавец)' {
+    c1 '1',
+    c2 '2', 
+    c3 '3',
+    c4 '4'  
+}
+supplierSignerStatus = DATA CStatus(UpdDocument);
+nameSupplierSignerStatus 'Статус подписанта (продавец)' = staticCaption(supplierSignerStatus(UpdDocument d)); //Статус
 supplierSignerCredentialsBase 'Основание полномочий подписанта (продавец)' = DATA STRING[255] (UpdDocument) CHARWIDTH 50; //ОснПолн
 
 //-ФЛ
@@ -224,6 +272,7 @@ supplierSignerCredentialsBase 'Основание полномочий подп�
 supplierSignerLastName 'Фамилия подписанта (продавец)' = DATA STRING[60] (UpdDocument);//Фамилия
 supplierSignerFirstName 'Имя подписанта (продавец)' = DATA STRING[60] (UpdDocument);//Имя
 supplierSignerMiddleName 'Отчество (продавец)' = DATA STRING[60](UpdDocument); //Отчество
+isSupplierSigner (UpdDocument d) = supplierSignerLastName(d) AND supplierSignerFirstName(d);
 
 //-ЮЛ
 supplierSignerInn 'ИНН организации-подписанта (продавец)' = DATA STRING[10] (UpdDocument);//ИННЮЛ
@@ -308,10 +357,10 @@ FORM updDocument 'Универсальный передаточный докум
     PROPERTIES (u) codeBusinessEvent, descriptionBusinessEvent
     PROPERTIES (u) description, descriptionContract, numberContract, dateContract
     PROPERTIES (u) positionAgentSupplier, lastNameAgentSupplier, firsNameAgentSupplier, middleAgentSupplier
-    PROPERTIES (u) positionAgentExecuter, lastNameAgentExecuter, firsNametAgentExecuter, middleNameAgentExecuter
+    PROPERTIES (u) positionAgentExecuter, nameCompanyAgentExecuter, lastNameAgentExecuter, firsNametAgentExecuter, middleNameAgentExecuter
     PROPERTIES (u) positionExecuter, lastNameExecuter, firsNameExecuter, middleNameExecuter
     PROPERTIES (u) sum, invoiceSum, VATSum, withoutVAT
-    PROPERTIES (u) supplierSignerCredentials, supplierSignerStatus, supplierSignerCredentialsBase
+    PROPERTIES (u) nameSupplierSignerCredentials, nameSupplierSignerStatus, supplierSignerCredentialsBase
     PROPERTIES (u) supplierSignerLastName, supplierSignerFirstName, supplierSignerMiddleName
     PROPERTIES (u) supplierSignerInn, supplierSignerPosition
     PROPERTIES (u) supplierSignerAgentLastName, supplierSignerAgentFirstName, supplierSignerAgentMiddleName
@@ -327,7 +376,7 @@ FORM updDocument 'Универсальный передаточный докум
     
     OBJECTS d=UpdDocumentDetail
     
-    PROPERTIES(d) number, idSku, nameSku, quantity, price, sum, valueVAT, invoiceSum, VATSum, dutySum, withoutDuty
+    PROPERTIES(d) number, idSku, nameSku, quantity, price, sum,  nameVATStatus, invoiceSum, VATSum, dutySum, withoutDuty
     PROPERTIES(d) idUOM, nameUOM, idCountry, nameCountry, numberDeclaration 
                   
     PROPERTIES (d) NEW, DELETE
@@ -488,6 +537,7 @@ DESIGN updDocument {
                             fill = 1;
                             type = CONTAINERV;
                             MOVE PROPERTY(positionAgentExecuter(u));
+                            MOVE PROPERTY(nameCompanyAgentExecuter(u));
                             MOVE PROPERTY(lastNameAgentExecuter(u));
                             MOVE PROPERTY(firsNametAgentExecuter(u));
                             MOVE PROPERTY(middleNameAgentExecuter(u));                            
@@ -505,8 +555,8 @@ DESIGN updDocument {
                             caption = 'Полномочия подписанта';
                             fill = 1;
                             type = CONTAINERV;
-                            MOVE PROPERTY(supplierSignerCredentials(u));
-                            MOVE PROPERTY(supplierSignerStatus(u));
+                            MOVE PROPERTY(nameSupplierSignerCredentials(u));
+                            MOVE PROPERTY(nameSupplierSignerStatus(u));
                             MOVE PROPERTY(supplierSignerCredentialsBase(u));                                                        
                         }
                         NEW signer {
@@ -633,7 +683,7 @@ FORM updDocuments 'УПД'
     
     OBJECTS d = UpdDocumentDetail
     
-    PROPERTIES(d) READONLY number, idSku, nameSku, quantity, price, sum, valueVAT, invoiceSum, VATSum, dutySum, withoutDuty
+    PROPERTIES(d) READONLY number, idSku, nameSku, quantity, price, sum, nameVATStatus, invoiceSum, VATSum, dutySum, withoutDuty
                   
     PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE            
         
@@ -645,6 +695,295 @@ NAVIGATOR {
     customsNavigator {
         NEW FOLDER UPD 'УПД' {
             NEW updDocuments;
+        }
+    }
+}
+
+inReport = DATA LOCAL BOOLEAN (UpdDocument);
+minUpdDocument = GROUP MIN UpdDocument d IF inReport(d);
+
+GROUP UPDExportA EXTID  'СвСчФакт';
+    GROUP UPDExportA2 EXTID  'СвПрод' :UPDExportA;   
+        GROUP UPDExportA2_1 EXTID  'ИдСв' :UPDExportA2;        
+            GROUP UPDExportA2_1_1 EXTID  'СвЮЛУч' :UPDExportA2_1;            
+        GROUP UPDExportA2_2 EXTID  'Адрес' :UPDExportA2;
+            GROUP UPDExportA2_2_1 EXTID  'АдрРФ' :UPDExportA2_2;
+            GROUP UPDExportA2_2_2 EXTID  'АдрИнф' :UPDExportA2_2;
+            
+    GROUP UPDExportA3 EXTID  'ГрузОт' :UPDExportA;
+    GROUP UPDExportA4 EXTID  'ГрузПолуч' :UPDExportA;
+        GROUP UPDExportA4_1 EXTID  'ИдСв' :UPDExportA4;
+            GROUP UPDExportA4_1_1 EXTID  'СвЮЛУч' :UPDExportA4_1;
+        GROUP UPDExportA4_2 EXTID  'Адрес' :UPDExportA4;
+            GROUP UPDExportA4_2_1 EXTID  'АдрРФ' :UPDExportA4_2;
+            GROUP UPDExportA4_2_2 EXTID  'АдрИнф' :UPDExportA4_2;
+    GROUP UPDExportA6 EXTID  'СвПокуп' :UPDExportA;
+        GROUP UPDExportA6_1 EXTID  'ИдСв' :UPDExportA6;
+            GROUP UPDExportA6_1_1 EXTID  'СвЮЛУч' :UPDExportA6_1;
+        GROUP UPDExportA6_2 EXTID  'Адрес' :UPDExportA6;
+            GROUP UPDExportA6_2_1 EXTID  'АдрРФ' :UPDExportA6_2;
+            GROUP UPDExportA6_2_2 EXTID  'АдрИнф' :UPDExportA6_2;
+    GROUP UPDExportA9 EXTID  'ИнфПолФХЖ1' :UPDExportA;
+        GROUP UPDExportA9_1 EXTID  'ТекстИнф' :UPDExportA9;
+        
+GROUP UPDExportB EXTID  'ТаблСчФакт';      
+    GROUP UPDExportB1 EXTID  'Акциз';      
+    GROUP UPDExportB2 EXTID  'СумНал';     
+    GROUP UPDExportB3 EXTID  'СвТД';    
+    GROUP UPDExportB4 EXTID  'ДопСведТов';     
+GROUP UPDExportBB EXTID  'ВсегоОпл' : UPDExportB;              
+GROUP UPDExportBB_1 EXTID  'СумНалВсего' : UPDExportBB;            
+            
+GROUP UPDExportC EXTID  'СвПродПер';
+    GROUP UPDExportC1 EXTID  'СвПер': UPDExportC;
+        GROUP UPDExportC1_1 EXTID  'ОснПер': UPDExportC1;   
+        GROUP UPDExportC1_2 EXTID  'СвЛицПер': UPDExportC1;           
+            GROUP UPDExportC1_2_1 EXTID  'РабОргПрод': UPDExportC1_2;  
+                GROUP UPDExportC1_2_1_1 EXTID  'ФИО': UPDExportC1_2_1;                        
+            GROUP UPDExportC1_2_2 EXTID  'ИнЛицо': UPDExportC1_2; 
+                GROUP UPDExportC1_2_2_1 EXTID  'ПредОргПер': UPDExportC1_2_2;  
+                    GROUP UPDExportC1_2_2_1_1 EXTID  'ФИО': UPDExportC1_2_2_1;             
+                GROUP UPDExportC1_2_2_2 EXTID  'ФЛПер': UPDExportC1_2_2;     
+                    GROUP UPDExportC1_2_2_2_1 EXTID  'ФИО': UPDExportC1_2_2_2;                      
+                
+GROUP UPDExportD EXTID  'Подписант';
+    GROUP UPDExportD_1 EXTID  'ФЛ':UPDExportD;   
+        GROUP UPDExportD_1_1 EXTID  'ФИО':UPDExportD_1;             
+    GROUP UPDExportD_2 EXTID  'ИП':UPDExportD; 
+        GROUP UPDExportD_2_1 EXTID  'ФИО':UPDExportD_2;  
+    GROUP UPDExportD_3 EXTID  'ЮЛ':UPDExportD;          
+        GROUP UPDExportD_3_1 EXTID  'ФИО':UPDExportD_3;  
+                     
+FORM UPDPR FORMEXTID '=:Файл'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xsd', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES   = (OVERRIDE idFile(minUpdDocument()), '') EXTID 'ИдФайл' ATTR, 
+                 = '3.19.710' EXTID 'ВерсПрог' ATTR, 
+                 = '5.01'  EXTID 'ВерсФорм' ATTR
+    OBJECTS g = UpdDocument EXTID 'СвУчДокОбор'
+    FILTERS inReport(g)
+
+    PROPERTIES = (OVERRIDE idConsignor(g),'') EXTID 'ИдОтпр' ATTR ,
+               = (OVERRIDE idConsignee(g),'') EXTID 'ИдПол' ATTR  
+               
+    OBJECTS d = UpdDocument EXTID 'Документ'
+    FILTERS inReport(d)    
+    PROPERTIES = '1115131' IF d IS UpdDocument EXTID 'КНД' ATTR,
+               = (OVERRIDE nameStatus(d),'') EXTID 'Функция' ATTR,
+               = toDateDDMMYYYY(OVERRIDE dateSupplier(d), currentDate()) EXTID 'ДатаИнфПр' ATTR,                     
+               = [FORMULA STRING[20] 'to_char(($1),\'HH24.MI.SS\')'](OVERRIDE timeSupplier(d), currentTime()) EXTID 'ВремИнфПр' ATTR,
+               = (OVERRIDE nameOriginatorSupplier(d),'')  EXTID 'НаимЭконСубСост' ATTR
+               
+    PROPERTIES = (OVERRIDE numberInvoice(d),' ') EXTID 'НомерСчФ' ATTR IN UPDExportA,
+               = toDateDDMMYYYY(OVERRIDE dateInvoice(d), currentDate()) EXTID 'ДатаСчФ' ATTR IN UPDExportA,
+               = (OVERRIDE codeCurrency(d),'') EXTID 'КодОКВ' ATTR IN UPDExportA
+               
+    PROPERTIES = okpoSupplier(d) EXTID 'ОКПО' ATTR IN UPDExportA2    
+    
+    PROPERTIES = (OVERRIDE nameSupplier(d),' ') EXTID 'НаимОрг' ATTR IN UPDExportA2_1_1,
+               = innSupplier(d) EXTID 'ИННЮЛ' ATTR IN UPDExportA2_1_1,
+               = kppSupplier(d) EXTID 'КПП' ATTR IN UPDExportA2_1_1    
+               
+    PROPERTIES = (regionCodeSupplier(d) IF regionCodeSupplier(d) AND NOT codeAdrressSupplier(d)) EXTID 'КодРегион' ATTR IN UPDExportA2_2_1            
+    PROPERTIES = (countryCodeAddressSupplier(d) IF NOT (codeAdrressSupplier(d) AND regionCodeSupplier(d))) EXTID 'КодСтр' ATTR IN UPDExportA2_2_2,
+               = (adrressSupplier(d) IF NOT (codeAdrressSupplier(d) AND regionCodeSupplier(d))) EXTID 'АдрТекст' ATTR IN UPDExportA2_2_2    
+    PROPERTIES = codeAdrressSupplier(d) EXTID 'КодГАР' IN UPDExportA2_2      
+    
+    PROPERTIES = 'он же' IF isConsignerSupplier(d) EXTID 'ОнЖе' IN UPDExportA3      
+
+    PROPERTIES = (OVERRIDE nameReceiverCompany(d),'') EXTID 'НаимОрг' ATTR IN UPDExportA4_1_1,
+               = innReceiverCompany(d)EXTID 'ИННЮЛ' ATTR IN UPDExportA4_1_1
+               
+//    PROPERTIES = (regionCodeCustomer(d) IF regionCodeCustomer(d) AND NOT codeAdrressReceiverCompany(d)) EXTID 'КодРегион' ATTR IN UPDExportA4_2_1 
+    PROPERTIES = countryCodeAddressReceiverCompany(d) EXTID 'КодСтр' ATTR IN UPDExportA4_2_2,
+               = adrressReceiverCompany(d)  EXTID 'АдрТекст' ATTR IN UPDExportA4_2_2    
+//    PROPERTIES = codeAdrressReceiverCompany(d) EXTID 'КодГАР' IN UPDExportA4_2    
+                   
+    PROPERTIES = okpoCustomer(d) EXTID 'ОКПО' ATTR IN UPDExportA6   
+    
+    PROPERTIES = (OVERRIDE nameCustomer(d),'') EXTID 'НаимОрг' ATTR IN UPDExportA6_1_1,
+               = innCustomer(d) EXTID 'ИННЮЛ' ATTR IN UPDExportA6_1_1,
+               = kppCustomer(d) EXTID 'КПП' ATTR IN UPDExportA6_1_1    
+               
+    PROPERTIES = (regionCodeCustomer(d) IF regionCodeCustomer(d) AND NOT codeAdrressCustomer(d)) EXTID 'КодРегион' ATTR IN UPDExportA6_2_1                 
+    PROPERTIES = (countryCodeAddressCustomer(d) IF NOT(regionCodeCustomer(d) AND codeAdrressCustomer(d))) EXTID 'КодСтр' ATTR IN UPDExportA6_2_2,
+               = (adrressCustomer(d) IF NOT(regionCodeCustomer(d) AND codeAdrressCustomer(d))) EXTID 'АдрТекст' ATTR IN UPDExportA6_2_2   
+    PROPERTIES = codeAdrressCustomer(d) EXTID 'КодГАР' IN UPDExportA6_2    
+    
+    PROPERTIES = (OVERRIDE codeBusinessEvent(d),'') EXTID 'Идентиф' ATTR IN UPDExportA9_1,
+               = (OVERRIDE descriptionBusinessEvent(d),'') EXTID 'Значен' ATTR IN UPDExportA9_1    
+    
+    //--           
+    OBJECTS detail = UpdDocumentDetail EXTID 'СведТов' IN UPDExportB
+    FILTERS updDocument(detail)==d   
+    
+    PROPERTIES = (OVERRIDE INTEGER(number(detail)), defaultIndex(detail)) EXTID 'НомСтр' ATTR,
+               = nameSku(detail) EXTID 'НаимТов' ATTR,
+               = idUOM(detail) EXTID 'ОКЕИ_Тов' ATTR,
+               = quantity(detail)  EXTID 'КолТов' ATTR,               
+               = price(detail)  EXTID 'ЦенаТов' ATTR,               
+               = sum(detail)  EXTID 'СтТовБезНДС' ATTR,       
+               = nameVATStatus(detail)EXTID 'НалСт' ATTR,                       
+               = invoiceSum(detail)  EXTID 'СтТовУчНал' ATTR                       
+    
+    PROPERTIES = dutySum(detail) EXTID 'СумАкциз' IN UPDExportB1           
+    PROPERTIES = 'без акциза' IF withoutDuty(detail)  EXTID 'БезАкциз' IN UPDExportB1  
+    
+    PROPERTIES = VATSum(detail) EXTID 'СумНал' IN UPDExportB2           
+    PROPERTIES = 'без НДС' IF NOT VATSum(detail)  EXTID 'БезНДС' IN UPDExportB2      
+    //PROPERTIES = '-' IF NOT VATSum(detail)  EXTID 'ДефНДС' IN UPDExportB2   todo: Знак прочерка. Что это пока непонятно.
+    
+    PROPERTIES = idCountry(detail)  EXTID 'КодПроисх' ATTR IN UPDExportB3,      
+               = numberDeclaration(detail)  EXTID 'НомерТД' ATTR IN UPDExportB3
+       
+    PROPERTIES = nameUOM(detail)  EXTID 'НаимЕдИзм' ATTR IN UPDExportB4,      
+               = nameCountry(detail)  EXTID 'КрНаимСтрПр' ATTR IN UPDExportB4,
+               = idSku(detail)  EXTID 'КодТов' ATTR IN UPDExportB4 
+        
+    PROPERTIES = sum(d) EXTID 'СтТовБезНДСВсего' ATTR IN UPDExportBB          
+    PROPERTIES = invoiceSum(d)  EXTID 'СтТовУчНалВсего' ATTR IN UPDExportBB       
+        
+    PROPERTIES = VATSum(d) EXTID 'СумНал' IN UPDExportBB_1           
+    PROPERTIES = 'без НДС' IF withoutVAT(d)  EXTID 'БезНДС' IN UPDExportBB_1      
+    //PROPERTIES = '-' IF NOT VATSum(r)  EXTID 'ДефНДС' IN UPDExportBB   todo: Знак прочерка. Что это пока непонятно.  
+            
+    //--           
+    PROPERTIES = (OVERRIDE description(d),'') EXTID 'СодОпер' ATTR IN UPDExportC1
+    
+    PROPERTIES = (OVERRIDE descriptionContract(d),'') EXTID 'НаимОсн' ATTR IN UPDExportC1_1,
+               = numberContract(d) EXTID 'НомОсн' ATTR IN UPDExportC1_1,
+               = toDateDDMMYYYY(dateContract(d)) EXTID 'ДатаОсн' ATTR IN UPDExportC1_1      
+               
+    PROPERTIES = ((OVERRIDE positionAgentSupplier(d),' ') IF isAgentSupplier(d)) EXTID 'Должность' ATTR IN UPDExportC1_2_1,        
+               = ((OVERRIDE lastNameAgentSupplier(d),' ') IF isAgentSupplier(d)) EXTID 'Фамилия' ATTR IN UPDExportC1_2_1_1,      
+               = ((OVERRIDE firsNameAgentSupplier(d),' ') IF isAgentSupplier(d)) EXTID 'Имя' ATTR IN UPDExportC1_2_1_1,  
+               = (middleAgentSupplier(d) IF isAgentSupplier(d)) EXTID 'Отчество' ATTR IN UPDExportC1_2_1_1    
+               
+    PROPERTIES = ((OVERRIDE positionAgentExecuter(d),'') IF isAgentExecuter(d) AND NOT isAgentSupplier(d)) EXTID 'Должность' ATTR IN UPDExportC1_2_2_1,                                                                                 
+               = ((OVERRIDE nameCompanyAgentExecuter(d),'') IF isAgentExecuter(d) AND NOT isAgentSupplier(d)) EXTID 'НаимОргПер' ATTR IN UPDExportC1_2_2_1               
+    PROPERTIES = ((OVERRIDE lastNameAgentExecuter(d),'') IF isAgentExecuter(d) AND NOT isAgentSupplier(d)) EXTID 'Фамилия' ATTR IN UPDExportC1_2_2_1_1,      
+               = ((OVERRIDE firsNametAgentExecuter(d),'') IF isAgentExecuter(d) AND NOT isAgentSupplier(d)) EXTID 'Имя' ATTR IN UPDExportC1_2_2_1_1,  
+               = (middleNameAgentExecuter(d) IF isAgentExecuter(d) AND NOT isAgentSupplier(d)) EXTID 'Отчество' ATTR IN UPDExportC1_2_2_1_1 
+               
+    PROPERTIES = ((OVERRIDE lastNameExecuter(d),'') IF NOT (isAgentExecuter(d) AND isAgentSupplier(d))) EXTID 'Фамилия' ATTR IN UPDExportC1_2_2_2_1, // todo: Есть еще должность. Что с ней делать непонятно.   
+               = ((OVERRIDE firsNameExecuter(d),'') IF NOT (isAgentExecuter(d) AND isAgentSupplier(d))) EXTID 'Имя' ATTR IN UPDExportC1_2_2_2_1,  
+               = (middleNameExecuter(d) IF NOT (isAgentExecuter(d) AND isAgentSupplier(d))) EXTID 'Отчество' ATTR IN UPDExportC1_2_2_2_1   
+
+    //-- Подписант
+    PROPERTIES = nameSupplierSignerCredentials(d) EXTID 'ОблПолн' ATTR IN UPDExportD,
+               = nameSupplierSignerStatus(d) EXTID 'Статус' ATTR IN UPDExportD,
+               = supplierSignerCredentialsBase(d) EXTID 'ОснПолн' ATTR IN UPDExportD   
+               
+    PROPERTIES = supplierSignerLastName(d) IF isSupplierSigner(d)  EXTID 'Фамилия' ATTR IN UPDExportD_1_1,
+               = supplierSignerFirstName(d) IF isSupplierSigner(d) EXTID 'Имя' ATTR IN UPDExportD_1_1,
+               = supplierSignerMiddleName(d) IF isSupplierSigner(d) EXTID 'Отчество' ATTR IN UPDExportD_1_1   
+               
+    PROPERTIES = supplierSignerInn(d) IF NOT isSupplierSigner(d)  EXTID 'ИННЮЛ' ATTR IN UPDExportD_3,
+               = supplierSignerPosition(d) IF NOT isSupplierSigner(d) EXTID 'Должн' ATTR IN UPDExportD_3            
+    PROPERTIES = supplierSignerAgentLastName(d) IF NOT isSupplierSigner(d)  EXTID 'Фамилия' ATTR IN UPDExportD_3_1,
+               = supplierSignerAgentFirstName(d) IF NOT isSupplierSigner(d) EXTID 'Имя' ATTR IN UPDExportD_3_1,
+               = supplierSignerAgentMiddleName(d) IF NOT isSupplierSigner(d) EXTID 'Отчество' ATTR IN UPDExportD_3_1                                           
+;
+
+filePPR 'Файл схема ON_NSCHFDOPPR' = DATA FILE ();
+
+saveFilePPR 'Загрузить файл оригинала' ()  { INPUT = filePPR() CHANGE; }
+openFilePPR  'Просмотреть файл' ()  { open(filePPR()); }
+deleteFilePPR  'Удалить файл' ()  { filePPR() <- NULL; } CONFIRM; 
+
+EXTEND FORM options
+
+    PROPERTIES() saveFilePPR 
+    PROPERTIES() SHOWIF filePPR() openFilePPR, deleteFilePPR
+;
+
+DESIGN options{
+    pane{
+        NEW upd{
+            fill = 1;
+            caption = 'УПД';
+            NEW updScroll{
+                fill = 1;
+                NEW updPPR{
+                    type = CONTAINERH;
+                    caption = 'ON_NSCHFDOPPR';
+                    MOVE PROPERTY (saveFilePPR());
+                    MOVE PROPERTY (openFilePPR());
+                    MOVE PROPERTY (deleteFilePPR());                          
+                }          
+            }
+        }
+    }       
+}
+
+exportUpdDocument 'Экспорт (xml)' (UpdDocument d){    
+    generateIdFile(d);
+    inReport(UpdDocument g)<- TRUE IF g==d;    
+    EXPORT UPDPR XML CHARSET 'WINDOWS-1251' TO System.exportFile;
+    open(System.exportFile());    
+} TOOLBAR;
+checkExportUpdDocument 'Проверка по схеме (xml)' (UpdDocument d){
+    IF filePPR() THEN {
+        generateIdFile(d);
+        inReport(UpdDocument g)<- TRUE IF g==d;
+        EXPORT UPDPR XML CHARSET 'WINDOWS-1251' TO System.exportFile;
+        validateXML(filePPR(),System.exportFile());
+        IF validateError() THEN {
+            MESSAGE validateError() NOWAIT;
+        } ELSE {
+            MESSAGE 'Файл соответствует схеме' NOWAIT;
+        }
+    } ELSE {
+        MESSAGE 'Не задан Файл схема ON_NSCHFDOPPR' NOWAIT;
+    } 
+} TOOLBAR;
+
+checkAndExportUpdDocument11 'Проверка и экспорт (xml)' (UpdDocument d){
+    IF filePPR() THEN {
+        generateIdFile(d);
+        inReport(UpdDocument g)<- TRUE IF g==d;
+        EXPORT UPDPR XML CHARSET 'WINDOWS-1251' TO System.exportFile;
+        validateXML(filePPR(),System.exportFile());
+        IF validateError() THEN {
+            MESSAGE validateError() NOWAIT;
+        } ELSE {
+            open(System.exportFile());    
+        }
+    } ELSE {
+        MESSAGE 'Не задан Файл схема ON_NSCHFDOPPR' NOWAIT;
+    } 
+} TOOLBAR;
+
+EXTEND FORM updDocuments
+    PROPERTIES (u) exportUpdDocument, checkExportUpdDocument, checkAndExportUpdDocument11
+;
+DESIGN updDocuments {
+    OBJECTS {
+        NEW body{
+            fill = 1;
+            type = SPLITV;
+            MOVE BOX(u);
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE BOX(d) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERV;
+                    NEW export {
+                        caption = 'Экспорт';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(exportUpdDocument(u));
+                        MOVE PROPERTY(checkExportUpdDocument(u));           
+                        MOVE PROPERTY(checkAndExportUpdDocument11(u));                                     
+                    }
+
+                }
+            }
         }
     }
 }
