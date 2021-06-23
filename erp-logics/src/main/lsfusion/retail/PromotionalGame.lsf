@@ -235,8 +235,13 @@ prizeRaffle 'Код приза розыгрыша' = DATA STRING[100] (GameCode,
 createdTime '{historizable.created.time}'= DATA DATETIME (GameCode);
 createdTime (GameCode c) <- currentDateTime() WHEN SET(c IS GameCode);
 
-gameCode = GROUP AGGR GameCode c BY promotionalGame(c), code(c);
 INDEX promotionalGame(GameCode c), code(c);
+
+TABLE promotionalGameCode(STRING[28], GameCode);
+countCode = GROUP SUM 1 BY code(GameCode gc), promotionalGame(gc) MATERIALIZED;
+
+CONSTRAINT countCode(STRING[28] code, PromotionalGame g) > 1
+    MESSAGE 'Запрещено иметь несколько одинаковых кодов в одной игре';
 
 headerDateRaffle (PromotionalGame g, INTEGER r) = 'Дата розыгрыша (' + (OVERRIDE nameRaffle(g,r), idRaffle(g,r)) + ')';
 headerDateRaffle (GameCode c, INTEGER r) = headerDateRaffle(promotionalGame(c),r);
