@@ -6,6 +6,8 @@ NAMESPACE EGAIS;
 
 in 'Вкл' = DATA BOOLEAN (Item, Product);
 
+fullNameProduct 'Алкогольная продукция' (Item i) = GROUP CONCAT fullName(Product p) IF in(i, p), ',' ORDER p CHARWIDTH 20;
+
 minProduct (Item i) = GROUP MIN Product p IF in(i, p) MATERIALIZED;
 
 capacityMinProduct 'Объем' (Item i) = capacity(minProduct(i));
@@ -38,7 +40,18 @@ DESIGN item {
     }
 }
 
+EXTEND FORM items
+    PROPERTIES(i) READONLY fullNameProduct
+;
+
+DESIGN items {
+    PROPERTY(fullNameProduct(i)) { hide = TRUE; }
+}
+
 // product
+
+nameItem 'Товары' (Product p) = GROUP CONCAT name(Item i) IF in(i, p), ',' ORDER i CHARWIDTH 20;
+
 add 'Добавить' (Product p){
     DIALOG items OBJECTS i INPUT DO {
         in(i, p) <- TRUE;
@@ -57,3 +70,7 @@ DESIGN product {
         MOVE BOX(i) { caption = 'Товары'; }
     }
 }
+
+EXTEND FORM products
+    PROPERTIES(o) READONLY nameItem
+;

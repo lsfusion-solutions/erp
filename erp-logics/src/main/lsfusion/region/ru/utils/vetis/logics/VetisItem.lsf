@@ -11,6 +11,22 @@ EXTEND FORM item
     PROPERTIES(i) nameProductItem
 ;
 
+EXTEND FORM items
+    PROPERTIES(i) nameProductItem
+;
+
+DESIGN items {
+    PROPERTY(nameProductItem(i)) { hide = TRUE; }
+}
+
+// product item
+idItem 'Коды товаров' (ProductItem pi) = GROUP CONCAT id(Item i) IF productItem(i) = pi, ',' ORDER i CHARWIDTH 10;
+nameItem 'Товары' (ProductItem pi) = GROUP CONCAT name(Item i) IF productItem(i) = pi, ',' ORDER i CHARWIDTH 20;
+
+EXTEND FORM productItems
+    PROPERTIES(o) READONLY idItem, nameItem
+;
+
 // auto link
 WHEN SET(id(Barcode b) = globalID(ProductItem i) AND active(b)) AND NOT productItem(sku(b)) DO
     productItem(sku(b)) <- i; 
