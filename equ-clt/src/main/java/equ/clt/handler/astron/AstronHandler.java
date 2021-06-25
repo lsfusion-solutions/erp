@@ -1630,8 +1630,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                             sumCard = safeAdd(sumCard, sum);
                                             break;
                                         case 2:
-                                            String numberGiftCard = trimToEmpty(rs.getString("SALESBARC")).split(":")[0];
-                                            sumGiftCardMap.put(numberGiftCard, new GiftCard(sum));
+                                            try {
+                                                String numberGiftCard = trimToEmpty(rs.getString("SALESBARC")).split(":")[0];
+                                                sumGiftCardMap.put(numberGiftCard, new GiftCard(sum));
+                                            } catch (Exception e){
+                                                astronSalesLogger.error("error handling numberGiftCard " +e);
+                                                astronSalesLogger.info(String.format("error handling numberGiftCard with SAREAID %s, SYSTEMID %s, FRECNUM %s, SALESTAG %s", sAreaId, nppCashRegister, numberReceipt, recordType));
+                                            }
                                             break;
                                         case 0:
                                         default:
