@@ -50,6 +50,9 @@ signAndSendCustomerEDI 'Подписать и отправить (покупат
         MESSAGE 'Не выбрано ни одной накладной';
 }
 
+noticeMessage = DATA LOCAL TEXT ();
+fillNoticeMessage ABSTRACT LIST (EInvoice);
+
 FORM signAndSendNotice 'Уведомление об изменении'
     OBJECTS d = TEXT PANEL
     PROPERTIES description = VALUE(d)
@@ -72,7 +75,9 @@ signAndSendNoticeCustomerEDI 'Подписать и отправить увед�
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
             IF EDIProvider(supplier(i)) THEN {
-                DIALOG signAndSendNotice OBJECTS d INPUT DO {
+                noticeMessage() <- NULL;
+                fillNoticeMessage(i);
+                DIALOG signAndSendNotice OBJECTS d = noticeMessage() INPUT DO {
                     IF d THEN {
                         signAndSendNoticeCustomer(i,STRING[1000](d));
                     } 
