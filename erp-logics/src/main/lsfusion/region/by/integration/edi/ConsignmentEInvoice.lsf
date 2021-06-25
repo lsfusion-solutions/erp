@@ -37,8 +37,8 @@ WHEN CHANGED (supplier(EInvoice o)) AND NOT deliveryNoteNumber(o) AND NOT skipGe
 //исходящие (Sale OR PurchaseReturn)
 invoice = DATA Invoice(EInvoice) INDEXED;
 invoiceDetail = DATA InvoiceDetail(EInvoiceDetail) INDEXED;
-eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER dateTime(ei), ei BY invoice(ei);
-eInvoiceAll = GROUP LAST EInvoice ei AS EInvoice IF ei IS EInvoice ORDER dateTime(ei), ei BY invoice(ei);
+eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER deliveryNoteDateTime(ei), ei BY invoice(ei);
+eInvoiceAll = GROUP LAST EInvoice ei AS EInvoice IF ei IS EInvoice ORDER deliveryNoteDateTime(ei), ei BY invoice(ei);
 
 numberInvoice 'Номер накладной EDI (расход)' (EInvoice i) = number(invoice(i));
 EXTEND FORM eInvoices
@@ -146,8 +146,8 @@ createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  {
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         NEW ei = EInvoice {
             invoice(ei) <- invoice;
-            number(ei) <- number(invoice);
-            dateTime(ei) <- dateTime[Invoice](invoice);
+            numberSupplier(ei) <- number(invoice);
+            dateSupplier(ei) <- dateTime[Invoice](invoice);
             deliveryNoteDateTime(ei) <- dateTime[Invoice](invoice);
             supplier(ei) <- supplier(invoice);
             supplierStock(ei) <- supplierStock(invoice);
@@ -189,8 +189,8 @@ createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice)  {
         NEW ei = EInvoice {
             isTN2(ei) <- TRUE;
             invoice(ei) <- invoice;
-            number(ei) <- number(invoice);
-            dateTime(ei) <- dateTime[Invoice](invoice);
+            numberSupplier(ei) <- number(invoice);
+            dateSupplier(ei) <- dateTime[Invoice](invoice);
             deliveryNoteDateTime(ei) <- dateTime[Invoice](invoice);
             supplier(ei) <- supplier(invoice);
             supplierStock(ei) <- supplierStock(invoice);
@@ -255,7 +255,7 @@ UNPfullNameSupplier (EInvoice i) = CONCAT ', ', unpSupplier(i), nameSupplier(i);
 addAddressSupplier = ABSTRACT ISTRING[50] (EInvoice);
 addressSupplierAddressSupplierStock (EInvoice i) = CONCAT ', ', addressSupplier(i), addressSupplierStock(i), addAddressSupplier(i);
 overNumberDate = ABSTRACT STRING (EInvoice);
-numberDate (EInvoice i) = OVERRIDE overNumberDate(i), CONCAT ', ', deliveryNoteNumber(i), toDateDDMMYY(deliveryNoteDateTime(i)), (OVERRIDE seriesNumber(invoice(i)),number(i));
+numberDate (EInvoice i) = OVERRIDE overNumberDate(i), CONCAT ', ', deliveryNoteNumber(i), toDateDDMMYY(deliveryNoteDateTime(i)), seriesNumber(invoice(i));
 infoCustomerBase (EInvoice i) = CONCAT ', ', unpCustomer(i), nameCustomer(i), addressCustomer(i), (CONCAT ' ', contractId(i),contractDate(i)), ('разгрузка: '+addressCustomerStock(i));
 
 include 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
@@ -272,7 +272,7 @@ FORM EInvoiceConsignment 'РЕЕСТР'
 ;
 FORM EInvoiceAttachment 'Приложение'
     OBJECTS e = EInvoice  
-    PROPERTIES(e) READONLY number, dateTime, deliveryNoteDateTime, deliveryNoteNumber, isTN2
+    PROPERTIES(e) READONLY deliveryNoteDateTime, deliveryNoteNumber, isTN2
     PROPERTIES multy()
     
     OBJECTS d = EInvoiceDetail
@@ -465,7 +465,7 @@ printConsignmentEAttachmentXLSX 'Приложение (xlsx)' (EInvoice i)  {
 printConsignmentEInvoicesAll 'Реестр ТТН (несколько)' ()  { 
     IF NOT ([ GROUP SUM 1 IF [GROUP SUM 1 IF in(EInvoice i) BY supplierStock(i)](Stock st)]() >1 OR 
             [ GROUP SUM 1 IF [GROUP SUM 1 IF in(EInvoice i) BY customerStock(i)](Stock st)]()>1 OR 
-            [ GROUP SUM 1 IF [GROUP SUM 1 IF in(EInvoice i) BY DATE(dateTime(i))](DATE dt)]()>1)  THEN {
+            [ GROUP SUM 1 IF [GROUP SUM 1 IF in(EInvoice i) BY DATE(deliveryNoteDateTime(i))](DATE dt)]()>1)  THEN {
         include(EInvoice e) <- NULL;
         multy() <- TRUE;
         include(EInvoice e) <- TRUE WHERE in(e);    

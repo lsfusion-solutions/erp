@@ -409,23 +409,40 @@ dateTimeCreated 'Создана' = DATA DATETIME (EInvoice);
 dateTimeCreated(EInvoice i) <- currentDateTime() WHEN (i IS EInvoice); 
 
 @defineExternalizable(eInvoice, STRING[100]);
+
+numberCustomer 'Номер документа покупателя (BLRWBR/BLRDNR)' = DATA STRING[35] (EInvoice);
+eInvoiceCustomer(number) = GROUP MAX EInvoice e BY numberCustomer(e);
+dateCustomer'Дата документа покупателя' = DATA DATETIME (EInvoice);
+
+numberSupplier 'Номер документа поставщика (BLRWBL/BLRDLN)'= DATA STRING[35] (EInvoice);
+eInvoiceSupplier (number) = GROUP MAX EInvoice e BY numberSupplier(e);
+dateSupplier 'Дата документа поставщика' = DATA DATETIME (EInvoice);
+
+numberSupplierCancel 'Номер документа отмены поставщика' = DATA STRING[35] (EInvoice);
+dateSupplierCancel 'Дата документа поставщика' = DATA DATETIME (EInvoice);
+
 dateTime 'Дата/время документа' = DATA DATETIME (EInvoice);
 number 'Номер' = DATA STRING[35] (EInvoice);
-
-//blrapn = DATA STRING[14] (EInvoice);
-//eInvoiceBlrapn (number) = GROUP MAX EInvoice e BY blrapn(e);
 blrwbr = DATA STRING[35] (EInvoice);
 blrwbrDate = DATA DATETIME (EInvoice);
-eInvoiceBlrwbr (number) = GROUP MAX EInvoice e BY blrwbr(e);
 blrwbl = DATA STRING[35] (EInvoice);
 blrwblDate = DATA DATETIME (EInvoice);
-eInvoiceBlrwbl (number) = GROUP MAX EInvoice e BY blrwbl(e);
 blrdnr = DATA STRING[35] (EInvoice);
 blrdnrDate = DATA DATETIME (EInvoice);
-eInvoiceBlrdnr (number) = GROUP MAX EInvoice e BY blrdnr(e);
 blrdln = DATA STRING[35] (EInvoice);
 blrdlnDate = DATA DATETIME (EInvoice);
-eInvoiceBlrdln (number) = GROUP MAX EInvoice e BY blrdln(e);
+
+migrateNumbers = DATA BOOLEAN ();
+onStarted()+{
+    IF NOT migrateNumbers() THEN {
+        numberCustomer(EInvoice ei) <- OVERRIDE blrwbr(ei), blrdnr(ei), number(ei);
+        dateCustomer(EInvoice ei) <- OVERRIDE blrwbrDate(ei), blrdnrDate(ei), dateTime(ei);
+        numberSupplier(EInvoice ei) <- OVERRIDE blrwbl(ei), blrdln(ei), number(ei);
+        dateSupplier(EInvoice ei) <- OVERRIDE blrwblDate(ei), blrdlnDate(ei), dateTime(ei);
+
+        migrateNumbers() <- TRUE;
+    }
+}
 
 dataReportId 'Номер акта' = DATA STRING[70] (EInvoice);
 reportId 'Номер акта' = DATA STRING[70] (EInvoice);
@@ -437,10 +454,10 @@ dataReportName 'Вид  акта' = DATA STRING[512] (EInvoice);
 reportName 'Вид  акта' = DATA STRING[512] (EInvoice);
 overReportName 'Вид  акта' (EInvoice e) = OVERRIDE dataReportName(e), reportName(e);
 
-deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA STRING[70] (EInvoice) IN id CHARWIDTH 20;
+deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA STRING[70] (EInvoice) NONULL IN id CHARWIDTH 20;
 deliveryNoteNumber28 'Серия и номер бумажной накладной' (EInvoice ei) =STRING[28](right(deliveryNoteNumber(ei), 28));
 eInvoiceDeliveryNoteNumber (number) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e);
-deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATETIME (EInvoice);
+deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATETIME (EInvoice) NONULL INDEXED;
 sealIDReceiver 'Номер пломбы (грузоотправитель)' = DATA STRING[35] (EInvoice);
 
 contractName 'Наименование документа, который служит основанием отпуска' = DATA STRING[70] (EInvoice);
@@ -496,6 +513,8 @@ orderID 'Номер заказа' = DATA STRING[35] (EInvoice);
 currency '3-х буквенный код валюты, в которой указаны ценовые значения' = DATA STRING[3] (EInvoice);
 
 isCancel 'Отмена накладной' = DATA BOOLEAN (EInvoice);
+blrwblCancel'Ссылка на ЭТТН отмены' = DATA STRING[35] (EInvoice);
+blrdnrCancel'Ссылка на ЭТН отмены' = DATA STRING[35] (EInvoice);
 isCancelNumber (EInvoice e) = IF isCancel(e) THEN 1 ELSE 0;
 eInvoiceDeliveryNoteNumberIsCancel (number, isCancel) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e), isCancelNumber(e);
 
@@ -561,7 +580,7 @@ TABLE eInvoiceMessage(EInvoiceMessage);
 
 number 'Номер' = DATA STRING[24] (EInvoiceMessage);
 eInvoice 'Накладная' = DATA EInvoice (EInvoiceMessage) NONULL DELETE;
-numberEInvoice 'Накладная' (EInvoiceMessage m) = number(eInvoice(m));
+numberEInvoice 'Накладная' (EInvoiceMessage m) = deliveryNoteNumber(eInvoice(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (EInvoiceMessage);
 code 'Код сообщения' = DATA STRING[10] (EInvoiceMessage);
 description 'Текст сообщения' = DATA STRING[1000] (EInvoiceMessage);
@@ -604,8 +623,9 @@ FORM eInvoices 'Электронные накладные EDI'
     OBJECTS e = EInvoice
     PROPERTIES(e) in
     PROPERTIES(e) READONLYIF isReadonly() isCancel
-    PROPERTIES(e) READONLY isTN2, dateTime BACKGROUND background(e), number BACKGROUND background(e), deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
-                           nameSupplierStock, nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractName, contractId
+    PROPERTIES(e) BACKGROUND background(e) READONLY isTN2, numberSupplier, dateSupplier, deliveryNoteNumber, deliveryNoteDateTime,
+                  glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
+                  nameSupplierStock, nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractName, contractId
     PROPERTIES(e) contactCustomerStock, overReportId, overReportDate, overReportName
     FILTERGROUP notExported
     
@@ -654,7 +674,7 @@ NAVIGATOR {
 
 FORM eInvoice 'Электронная накладная EDI'
     OBJECTS e = EInvoice PANEL 
-    PROPERTIES(e)  dateTime BACKGROUND background(e), number BACKGROUND background(e),
+    PROPERTIES(e)  BACKGROUND background(e) dateSupplier, numberSupplier, 
                    deliveryNoteNumber, deliveryNoteDateTime, dateTimeCreated,
                    contractName, contractId, contractDate, waybillId SHOWIF NOT isTN2(e),
                    nameSupplier, addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, contactSupplierStock,

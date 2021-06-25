@@ -22,7 +22,7 @@ receiver(UserInvoice i) += receiver(i);
 nameReceiver 'Приёмщик'(Invoice i) = name(receiver(i));
 
 filterDate 'Дата' = DATA LOCAL DATE ();
-filterDate (EInvoice i) = DATE(dateTime(i)) == filterDate() OR NOT filterDate();      
+filterDate (EInvoice i) = DATE(deliveryNoteDateTime(i)) == filterDate() OR NOT filterDate();      
 
 filterSupplier = DATA LOCAL LegalEntity ();
 filterSupplier (EInvoice i) = supplier(i)= filterSupplier() OR (i IS EInvoice AND NOT filterSupplier()) OR NOT supplier(i);
@@ -37,7 +37,7 @@ FORM selectEInvoice 'Накладные EDI'
     PROPERTIES filterDate()
     
     OBJECTS ei = EInvoice
-    PROPERTIES(ei) READONLY dateTime, number, deliveryNoteNumber, nameSupplier, nameCustomer
+    PROPERTIES(ei) READONLY dateSupplier, numberSupplier, deliveryNoteNumber, nameSupplier, nameCustomer
     FILTERS filterDate(ei), 
             filterSupplier(ei),
             filterCustomer(ei),
@@ -69,8 +69,8 @@ copyData(EInvoice ei, Invoice i)  {
     supplierStock(i) <- OVERRIDE supplierStock(ei), defaultStock(supplier(ei));
     customer(i) <- customer(ei);
     customerStock(i) <- customerStock(ei);
-    date(i) <- DATE(dateTime(ei));
-    time(i) <- TIME(dateTime(ei));
+    date(i) <- DATE(deliveryNoteDateTime(ei));
+    time(i) <- TIME(deliveryNoteDateTime(ei));
     overCopy(ei,i);
     
     FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) AND NOT ignoreDetail(eid) NEW id = UserInvoiceDetail DO {
@@ -103,7 +103,7 @@ importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  {
 }
 
 createInvoice 'Создать на основе накладных EDI' (DATE d) {
-    FOR DATE(dateTime(EInvoice ei)) == d AND NOT invoice(ei) DO {
+    FOR DATE(deliveryNoteDateTime(EInvoice ei)) == d AND NOT invoice(ei) DO {
         NEWSESSION NEW i = UserInvoice {
             copyData(ei, i);
             IF [GROUP SUM 1 IF invoice(UserInvoiceDetail id) == i]() == [GROUP SUM 1 IF invoice(UserInvoiceDetail id) == i AND prevPriceB(priceListType('own'), sku(id), customerStock(id), dateTime(id))]() THEN {
@@ -117,7 +117,7 @@ createInvoice 'Создать на основе накладных EDI' (DATE d)
 
 FORM dialogEInvoiceCustomer 'Выбор электронной накладной'
     OBJECTS i = EInvoice
-    PROPERTIES(i) READONLY dateTime, number, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
+    PROPERTIES(i) READONLY dateSupplier, numberSupplier, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
     FILTERS importedCustomer(i)
 ;
 @extendFormFilterAccessStock(dialogEInvoiceCustomer, i, dialogEInvoiceCustomer, customerStock, Company);
@@ -249,7 +249,7 @@ createECreditNote 'Создать электронный акт приемки' 
             dateTime(ec) <- dateTime(c);
             actDifDateTime(ec) <- dateTime(c);
             deliveryNoteNumber(ec) <- GROUP MAX deliveryNoteNumber(eInvoice(Invoice i)) IF quantity(i, c);
-            deliveryNoteDateTime(ec) <- GROUP MAX dateTime(eInvoice(Invoice i)) IF quantity(i, c);
+            deliveryNoteDateTime(ec) <- GROUP MAX deliveryNoteDateTime(eInvoice(Invoice i)) IF quantity(i, c);
             supplier(ec) <- supplier(c);
             customer(ec) <- customer(c);
             customerStock(ec) <- customerStock(c);
