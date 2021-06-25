@@ -1,0 +1,17 @@
+MODULE LegalEntityCURu;
+
+REQUIRE LegalEntity;
+
+NAMESPACE LegalEntity;
+
+innForeign 'ИНН (иностр.)' = DATA STRING[50] (LegalEntity) IN doc CHARWIDTH 15;
+//CONSTRAINT country(LegalEntity l) != defaultCountry() AND NOT toShowIndividual(l) AND NOT innForeign(l) MESSAGE 'Для организации должен быть задан ИНН';
+
+toShowForeign(LegalEntity l) += l IS LegalEntity AND defaultCountry() != country(l) AND NOT toShowIndividual(l);
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) SHOWIF toShowForeign(l) innForeign
+;
+EXTEND FORM legalEntities
+    PROPERTIES (l) READONLY innForeign
+;
