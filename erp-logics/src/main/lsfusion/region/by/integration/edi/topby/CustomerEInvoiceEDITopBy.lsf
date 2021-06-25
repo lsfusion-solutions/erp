@@ -188,9 +188,10 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014');
                         overCreateEInvoiceBlrwbl(ei);
                         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
-                        FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
+                        FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) ORDER blrwblLineItemNumber(l) DO NEW ed = EInvoiceDetail {
                             eInvoice(ed) <- ei;
                             id(ed) <- id(ei) + '/' + blrwblLineItemNumber(l);
+                            dataIndex(ed) <- blrwblLineItemNumber(l);
                             lineItemSign(ed) <- blrwblLineItemSign(l);
                             lineItemID(ed) <- blrwblLineItemID(l);
                             lineItemBuyerID(ed) <- blrwblLineItemBuyerID(l);
@@ -550,8 +551,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrdlnFieldCode(INTEGER e) == 'PW0013' AND blrdlnFieldValue(e) == '1');
                         replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014');
                         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
-                        FOR blrdlnLineItemID(INTEGER l) OR blrdlnLineItemBuyerID(l) OR blrdlnLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
+                        FOR blrdlnLineItemID(INTEGER l) OR blrdlnLineItemBuyerID(l) OR blrdlnLineItemSupplierID(l) ORDER blrwblLineItemNumber(l) DO NEW ed = EInvoiceDetail {
                             eInvoice(ed) <- ei;
+                            dataIndex(ed) <- blrwblLineItemNumber(l);
                             id(ed) <- id(ei) + '/' + blrdlnLineItemNumber(l);
                             lineItemSign(ed) <- blrdlnLineItemSign(l);
                             lineItemID(ed) <- blrdlnLineItemID(l);
