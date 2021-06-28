@@ -489,8 +489,10 @@ forwarder 'Товар к перевозке принял (экспедитор),
     overNameForwarder(consignment),
     positionShortName(dataForwarder(consignment)) IN issuanceConsignment CHARWIDTH 30;
 
-changeForwarder(Consignment consignment)  { 
-    
+customSelectForwarder = ABSTRACT BOOLEAN (Consignment);
+overSelectForwarder ABSTRACT (Consignment);
+
+changeForwarder(Consignment consignment)  {     
     IF notUseDriverTruck(consignment) THEN {
         INPUT s = dataNameForwarder(consignment) DO {
             dataNameForwarder(consignment) <- s;
@@ -501,6 +503,14 @@ changeForwarder(Consignment consignment)  {
         }
     }        
 }
+
+pickForwarder 'Выбрать принимающего товар к перевозке (экспедитора)' (Consignment consignment)  { 
+    IF customSelectForwarder(consignment) THEN {
+        overSelectForwarder(consignment);
+        dataNameForwarder(consignment) <- NULL;
+    } 
+} ASON CONTEXTMENU forwarder[Consignment];
+
 
 warrant 'По доверенности (номер, дата)' (consignment) = ABSTRACT STRING[30] (Consignment) IN issuanceConsignment CHARWIDTH 15;
 warrantHolder 'По доверенности выданной ' (consignment) = ABSTRACT STRING[200] (Consignment) IN issuanceConsignment CHARWIDTH 15;
