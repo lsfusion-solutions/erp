@@ -250,10 +250,13 @@ isSku (ListInventory listInventory) = isSku(inventory(listInventory));
 userCommittee(listInventory) = DATA InventoryCommittee (ListInventory);
 committee(ListInventory listInventory) = OVERRIDE userCommittee(listInventory), committee(inventory(listInventory));
 nameCommittee 'Название комиссии' (ListInventory listInventory) = name(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
-nameChairmanCommittee 'Председатель комиссии' (ListInventory listInventory) = nameChairman(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
-namePositionChairman 'Должность председателя' (ListInventory listInventory)  = namePositionChairman(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
+overNameChairmanCommittee = ABSTRACT ISTRING[201] (ListInventory);
+nameChairmanCommittee 'Председатель комиссии' (ListInventory listInventory) = OVERRIDE nameChairman(committee(listInventory)), overNameChairmanCommittee(listInventory) IN inventoryCommittee CHARWIDTH 30;
+overNamePositionCommittee = ABSTRACT ISTRING[200] (ListInventory);
+namePositionChairman 'Должность председателя' (ListInventory listInventory)  = OVERRIDE namePositionChairman(committee(listInventory)), overNamePositionCommittee(listInventory) IN inventoryCommittee CHARWIDTH 30;
 nameEmployee 'Члены комиссии' (ListInventory listInventory) = nameEmployee(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
-in 'Является членом комиссии' (ListInventory listInventory, Employee employee) = in(committee(listInventory), employee);
+overIn = ABSTRACT BOOLEAN (ListInventory, Employee);
+in 'Является членом комиссии' (ListInventory listInventory, Employee employee) = OVERRIDE in(committee(listInventory), employee), overIn(listInventory, employee);
 
 // --------------------------------------------- Страницы описи ------------------------------------------ //
 
