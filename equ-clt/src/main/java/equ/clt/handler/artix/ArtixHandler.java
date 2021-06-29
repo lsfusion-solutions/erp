@@ -338,7 +338,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             inventObject.put("options", itemOptions);
 
-            Integer blisterAmount = getBlisterAmount(item);
+            Integer blisterAmount = getMaxBlisterAmount(item);
             if(blisterAmount != null) {
                 inventObject.put("cquant", blisterAmount);
             }
@@ -348,7 +348,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         } else return null;
     }
 
-    private Integer getBlisterAmount(CashRegisterItem item) {
+    private Integer getMaxBlisterAmount(CashRegisterItem item) {
         //кол-во блистеров в упаковке
         Integer blisterAmount = null;
         if(item.batchList != null) {
@@ -410,6 +410,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         medicineObject.put("producer", batch.nameManufacturer);
         medicineObject.put("price", batch.price);
         medicineObject.put("inn", batch.nameSubstance);
+        medicineObject.put("cquant", batch.blisterAmount);
         medicineObject.put("remainquant", batch.balance);
         medicineObject.put("remaindatetime", batch.balanceDate);
         medicineObject.put("countrycode", batch.countryCode);
@@ -463,7 +464,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             inventGroupObject.put("unitCode", idUOM); //код единицы измерения
             inventGroupObject.put("name", item.shortNameUOM); //наименование единицы измерения
 
-            Integer blisterAmount = getBlisterAmount(item);
+            Integer blisterAmount = getMaxBlisterAmount(item);
             inventGroupObject.put("fractional", blisterAmount != null ? blisterAmount.compareTo(1) > 0 : item.splitItem); //дробная единица измерения: true весовой, false штучный
             rootObject.put("command", "addUnit");
             return rootObject.toString();
