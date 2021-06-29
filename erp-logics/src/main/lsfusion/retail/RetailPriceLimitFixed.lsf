@@ -12,15 +12,19 @@ dataStepPercLimitRetailPrice '% Доступного отклонения' = DAT
 stepPercLimitRetailPrice '% Доступного отклонения' = OVERRIDE dataStepPercLimitRetailPrice(), 0.0;
 checkRetailPrice 'Контроль розничных цен' = DATA BOOLEAN ();
 
-maxLimitRetailPricePerc 'Максимальная розничная цена (шаг)' (Sku s, Stock st) = NUMERIC[16,4](floor(maxLimitRetailPrice(s,st)* (100.0+stepPercLimitRetailPrice()))/100.0);
+maxLimitRetailPriceCustom 'МРЦ' = DATA NUMERIC[16,4] (Sku, Stock) TABLE retailPrice; // Для разовых поднятий
+useCustomRetailPrice 'Использовать пользовательскую МРЦ' = DATA BOOLEAN ();
+
+maxLimitRetailPricePerc 'Максимальная розничная цена (шаг)' (Sku s, Stock st) = MAX maxLimitRetailPriceCustom(s,st), NUMERIC[16,4](floor(maxLimitRetailPrice(s,st)* (100.0+stepPercLimitRetailPrice()))/100.0);
 
 EXTEND FORM options
-    PROPERTIES () checkRetailPrice, stepPercLimitRetailPrice 
+    PROPERTIES () checkRetailPrice, stepPercLimitRetailPrice,  useCustomRetailPrice
 ;
 DESIGN options {
     pricings {
         MOVE PROPERTY (checkRetailPrice());
         MOVE PROPERTY (stepPercLimitRetailPrice());
+        MOVE PROPERTY (useCustomRetailPrice());
     }
 }
 
@@ -304,6 +308,15 @@ fillAllStocks 'Выбрать для всех магазинов' (Sku s,Stock s
 useAllStocks 'Применить ко всем магазинам' (Sku s,Stock st){
     maxLimitRetailPrice(s,Stock ds)<- maxLimitRetailPrice(s,st) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
 }
+fillAllStocksCustom 'Выбрать для всех магазинов' (Sku s,Stock st){
+    DIALOG dialogNumeric OBJECTS n = maxLimitRetailPriceCustom(s,st) INPUT DO {
+        maxLimitRetailPriceCustom(s,Stock ds)<- NUMERIC[16,4](n) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
+    }
+}
+useAllStocksCustom 'Применить ко всем магазинам' (Sku s,Stock st){
+    maxLimitRetailPriceCustom(s,Stock ds)<- maxLimitRetailPriceCustom(s,st) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
+}
+
 backgroundRetailPrice = ABSTRACT CASE COLOR(Sku);
 
 inLimit 'Отм.' = DATA LOCAL NESTED BOOLEAN (Stock);
@@ -384,6 +397,7 @@ FORM maxLimitRetailPrice 'Максимальные розничные цены'
     OBJECTS   sts=(st=Stock, s=Sku)
     PROPERTIES (s) BACKGROUND backgroundRetailPrice(s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode, nameUOM
     PROPERTIES  BACKGROUND backgroundRetailPrice(s) READONLY name(st)
+    PROPERTIES BACKGROUND RGB(214,234,248) maxLimitRetailPriceCustom (s,st) SHOWIF useCustomRetailPrice() READONLYIF isReadonly() ON CONTEXTMENU fillAllStocksCustom(s,st) ON CONTEXTMENU useAllStocksCustom(s,st)
     PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
     ORDERS name(s)
     FILTERGROUP max
