@@ -29,9 +29,12 @@ name(InventoryCommittee committee) += name(committee) IF committee IS InventoryC
 committee(inventory) = DATA InventoryCommittee (Inventory);
 nameCommittee 'Название комиссии' (Inventory inventory) = name(committee(inventory)) IN inventoryCommittee CHARWIDTH 30;
 nameChairmanCommittee 'Председатель комиссии' (Inventory inventory) = nameChairman(committee(inventory)) IN inventoryCommittee CHARWIDTH 30;
-namePositionChairman 'Должность председателя' (Inventory inventory)  = namePositionChairman(committee(inventory)) IN inventoryCommittee CHARWIDTH 30;
-nameEmployee 'Члены комиссии' (Inventory inventory) = nameEmployee(committee(inventory)) IN inventoryCommittee CHARWIDTH 30;
-in 'Является членом комиссии' (Inventory inventory, Employee employee) = in(committee(inventory), employee);
+overNameChairmanCommittee = ABSTRACT ISTRING[201] (Inventory);
+namePositionChairman 'Должность председателя' (Inventory inventory)  = OVERRIDE namePositionChairman(committee(inventory)), overNameChairmanCommittee(inventory) IN inventoryCommittee CHARWIDTH 30;
+overNamePositionCommittee = ABSTRACT ISTRING[200] (Inventory);
+nameEmployee 'Члены комиссии' (Inventory inventory) = OVERRIDE nameEmployee(committee(inventory)), overNamePositionCommittee(inventory) IN inventoryCommittee CHARWIDTH 30;
+overIn = ABSTRACT BOOLEAN (Inventory, Employee);
+in 'Является членом комиссии' (Inventory inventory, Employee employee) = OVERRIDE in(committee(inventory), employee), overIn(inventory, employee);
 
 FORM inventoryCommittee 'Комиссия для инвентаризации'
     OBJECTS c=InventoryCommittee PANEL
@@ -250,13 +253,10 @@ isSku (ListInventory listInventory) = isSku(inventory(listInventory));
 userCommittee(listInventory) = DATA InventoryCommittee (ListInventory);
 committee(ListInventory listInventory) = OVERRIDE userCommittee(listInventory), committee(inventory(listInventory));
 nameCommittee 'Название комиссии' (ListInventory listInventory) = name(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
-overNameChairmanCommittee = ABSTRACT ISTRING[201] (ListInventory);
-nameChairmanCommittee 'Председатель комиссии' (ListInventory listInventory) = OVERRIDE nameChairman(committee(listInventory)), overNameChairmanCommittee(listInventory) IN inventoryCommittee CHARWIDTH 30;
-overNamePositionCommittee = ABSTRACT ISTRING[200] (ListInventory);
-namePositionChairman 'Должность председателя' (ListInventory listInventory)  = OVERRIDE namePositionChairman(committee(listInventory)), overNamePositionCommittee(listInventory) IN inventoryCommittee CHARWIDTH 30;
+nameChairmanCommittee 'Председатель комиссии' (ListInventory listInventory) = OVERRIDE nameChairman(committee(listInventory)), overNameChairmanCommittee(inventory(listInventory)) IN inventoryCommittee CHARWIDTH 30;
+namePositionChairman 'Должность председателя' (ListInventory listInventory)  = OVERRIDE namePositionChairman(committee(listInventory)), overNamePositionCommittee(inventory(listInventory)) IN inventoryCommittee CHARWIDTH 30;
 nameEmployee 'Члены комиссии' (ListInventory listInventory) = nameEmployee(committee(listInventory)) IN inventoryCommittee CHARWIDTH 30;
-overIn = ABSTRACT BOOLEAN (ListInventory, Employee);
-in 'Является членом комиссии' (ListInventory listInventory, Employee employee) = OVERRIDE in(committee(listInventory), employee), overIn(listInventory, employee);
+in 'Является членом комиссии' (ListInventory listInventory, Employee employee) = OVERRIDE in(committee(listInventory), employee), overIn(inventory(listInventory), employee);
 
 // --------------------------------------------- Страницы описи ------------------------------------------ //
 
@@ -398,11 +398,11 @@ prevDate 'Дата предыдущей инвентаризации' (Collation
 // Комиссии
 committee = committee(inventory(CollationSheet collationSheet));
 nameCommittee 'Название комиссии' (CollationSheet collationSheet) = name(committee(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
-nameChairmanCommittee 'Председатель комиссии' (CollationSheet collationSheet) = nameChairman(committee(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
+nameChairmanCommittee 'Председатель комиссии' (CollationSheet collationSheet) = OVERRIDE nameChairman(committee(collationSheet)), overNameChairmanCommittee(inventory(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
 firstShortNameChairmanCommittee 'Председатель комиссии (И.О. Фамилия)' (CollationSheet collationSheet) = firstShortName(chairman(committee(collationSheet))) IN inventoryCommittee CHARWIDTH 30;
-namePositionChairman 'Должность председателя' (CollationSheet collationSheet)  = namePositionChairman(committee(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
+namePositionChairman 'Должность председателя' (CollationSheet collationSheet)  = OVERRIDE namePositionChairman(committee(collationSheet)), overNamePositionCommittee(inventory(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
 nameEmployee 'Члены комиссии' (CollationSheet collationSheet) = nameEmployee(committee(collationSheet)) IN inventoryCommittee CHARWIDTH 30;
-in 'Является членом комиссии' (CollationSheet collationSheet, Employee employee) = in(committee(collationSheet), employee);
+in 'Является членом комиссии' (CollationSheet collationSheet, Employee employee) = OVERRIDE in(committee(collationSheet), employee), overIn(inventory(collationSheet), employee);
 
 //---------------------------- Состав сличительной ведомости (Sku) ----------------------------//
 
