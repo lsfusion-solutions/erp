@@ -767,7 +767,7 @@ importContractMarketings 'Импорт договоров' ()  {
     LOCAL idStock = STRING[10](INTEGER);
     LOCAL inGroup = BOOLEAN (Stock, INTEGER);
     
-    LOCAL number = STRING[28](INTEGER);
+    LOCAL number = STRING[48](INTEGER);
     LOCAL dfrom = DATE (INTEGER);
     LOCAL dto = DATE (INTEGER);
     LOCAL name = STRING[100](INTEGER);
@@ -812,13 +812,13 @@ importContractMarketings 'Импорт договоров' ()  {
         category, subCategory, brand, country, weight, region, stocks, barcode, percent, exeption, currency, sum;
 
         FOR [GROUP MIN INTEGER i IF i > 0 BY number(i), dfrom(i), dto(i), idSupplier(i)]
-        (STRING[28] number, DATE df, DATE dt, STRING[100] sup) NEW c = ContractMarketing DO {
+        (STRING[48] number, DATE df, DATE dt, STRING[100] sup) NEW c = ContractMarketing DO {
             number(c) <- number;
             Contract.dateFrom(c) <- df;
             Contract.dateTo(c) <- dt;
             supplier(c) <- legalEntity(sup);
         }
-        FOR INTEGER i == [GROUP MIN INTEGER ii BY  number(ii), dfrom(ii), dto(ii), idSupplier(ii)](STRING[28] number, DATE df, DATE dt, STRING[10] idsup)
+        FOR INTEGER i == [GROUP MIN INTEGER ii BY  number(ii), dfrom(ii), dto(ii), idSupplier(ii)](STRING[48] number, DATE df, DATE dt, STRING[10] idsup)
             AND ContractMarketing c == (GROUP LAST ContractMarketing cc WHERE number(cc) = number AND Contract.dateFrom(cc) == df AND Contract.dateTo(cc) == dt AND id(supplier(cc)) == idsup) DO {
             
             name(c) <- name(i);
@@ -831,7 +831,7 @@ importContractMarketings 'Импорт договоров' ()  {
             fromPayment(c) <- fromPayment(i) == 1;
         }
                 
-        FOR [GROUP MIN INTEGER i IF i > 0 BY number(i), dfrom(i), dto(i), idSupplier(i), dfList(i), dtList(i)](STRING[28] n, DATE df, DATE dt, STRING[10] ids, DATE dfl, DATE dtl)
+        FOR [GROUP MIN INTEGER i IF i > 0 BY number(i), dfrom(i), dto(i), idSupplier(i), dfList(i), dtList(i)](STRING[48] n, DATE df, DATE dt, STRING[10] ids, DATE dfl, DATE dtl)
             NEW c = ConditionList DO {
                 contractMarketing(c) <- (GROUP LAST ContractMarketing m WHERE number(m) == n AND Contract.dateFrom(m) = df AND Contract.dateTo(m) = dt AND id(supplier(m)) = ids);
                 dateFrom(c) <- dfl;

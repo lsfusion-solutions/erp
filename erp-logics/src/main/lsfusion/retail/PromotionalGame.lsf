@@ -221,7 +221,7 @@ CLASS GameCode 'Код рекламной игры';
 TABLE gameCode (GameCode);
 TABLE gameCodeInteger (GameCode,INTEGER);
 
-code 'Код' = DATA STRING[28](GameCode) NONULL;
+code 'Код' = DATA STRING[48](GameCode) NONULL;
 promotionalGame = DATA PromotionalGame (GameCode) NONULL;
 receipt = DATA Receipt(GameCode) NONULL;
 dateReceipt 'Дата покупки' (GameCode c) = date(receipt(c));
@@ -237,10 +237,10 @@ createdTime (GameCode c) <- currentDateTime() WHEN SET(c IS GameCode);
 
 INDEX promotionalGame(GameCode c), code(c);
 
-TABLE promotionalGameCode(STRING[28], GameCode);
+TABLE promotionalGameCode(STRING[48], PromotionalGame);
 countCode = GROUP SUM 1 BY code(GameCode gc), promotionalGame(gc) MATERIALIZED;
 
-CONSTRAINT countCode(STRING[28] code, PromotionalGame g) > 1
+CONSTRAINT countCode(STRING[48] code, PromotionalGame g) > 1
     MESSAGE 'Запрещено иметь несколько одинаковых кодов в одной игре';
 
 headerDateRaffle (PromotionalGame g, INTEGER r) = 'Дата розыгрыша (' + (OVERRIDE nameRaffle(g,r), idRaffle(g,r)) + ')';
