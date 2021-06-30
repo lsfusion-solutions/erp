@@ -62,6 +62,11 @@ blrwblLineItemAmountWithoutCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrwblLineItemAmount = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrwblLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrwblLineItemAmountExcise = DATA LOCAL NESTED NUMERIC[12,5](INTEGER);
+blrwblLineItemLineItemIdentification = DATA LOCAL NESTED INTEGER(INTEGER);
+GROUP blrwblLineItemIdentification EXTID 'LineItemIdentification';
+blrwblGroupPackingCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
+blrwblUpperLevelCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
+blrwblFieldCodeMark = DATA LOCAL NESTED STRING[130000](INTEGER);
 blrwblLineItemLineItemExtraField = DATA LOCAL NESTED INTEGER(INTEGER);
 blrwblLineItemFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
 blrwblLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
@@ -123,6 +128,11 @@ FORM blrwbl
                   blrwblLineItemAmount EXTID 'LineItemAmount',
                   blrwblLineItemAmountCharges EXTID 'LineItemAmountCharges',
                   blrwblLineItemAmountExcise EXTID 'LineItemAmountExcise'
+    OBJECTS d = INTEGER EXTID 'GroupPackingHeader' IN blrwblLineItemIdentification
+    PROPERTIES(d) blrwblGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
+                  blrwblUpperLevelCodeMark EXTID 'UpperLevelCodeMark'
+    PROPERTIES(i) IN blrwblLineItemIdentification blrwblFieldCodeMark EXTID 'FieldCodeMark'
+    FILTERS blrwblLineItemLineItemIdentification(d) == i
     OBJECTS f = INTEGER EXTID 'LineItemExtraField'
     PROPERTIES(f) blrwblLineItemFieldName EXTID 'FieldName',
                   blrwblLineItemFieldCode EXTID 'FieldCode',
@@ -210,6 +220,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             lineItemAmount(ed) <- blrwblLineItemAmount(l);
                             lineItemAmountCharges(ed) <- blrwblLineItemAmountCharges(l);
                             lineItemAmountExcise(ed) <- blrwblLineItemAmountExcise(l);
+                            groupPackingCodeMark(ed, INTEGER j) <- blrwblGroupPackingCodeMark(j) WHERE blrwblLineItemLineItemIdentification(j) == l;
+                            upperLevelCodeMark(ed, INTEGER j) <- blrwblUpperLevelCodeMark(j) WHERE blrwblLineItemLineItemIdentification(j) == l;
+                            fieldCodeMark(ed) <- blrwblFieldCodeMark(l);
                             lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrwblLineItemFieldName(INTEGER f), blrwblLineItemFieldValue(f)) IF blrwblLineItemLineItemExtraField(f) == l, ', ' ORDER blrwblLineItemFieldName(f);
                         }
                     }
@@ -444,6 +457,11 @@ blrdlnLineItemAmountWithoutCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrdlnLineItemAmount = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrdlnLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrdlnLineItemAmountExcise = DATA LOCAL NESTED NUMERIC[12,5](INTEGER);
+blrdlnLineItemLineItemIdentification = DATA LOCAL NESTED INTEGER(INTEGER);
+GROUP blrdlnLineItemIdentification EXTID 'LineItemIdentification';
+blrdlnGroupPackingCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
+blrdlnUpperLevelCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
+blrdlnFieldCodeMark = DATA LOCAL NESTED STRING[130000](INTEGER);
 blrdlnLineItemLineItemExtraField = DATA LOCAL NESTED INTEGER(INTEGER);
 blrdlnLineItemFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
 blrdlnLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
@@ -495,6 +513,11 @@ FORM blrdln
                   blrdlnLineItemAmount EXTID 'LineItemAmount',
                   blrdlnLineItemAmountCharges EXTID 'LineItemAmountCharges',
                   blrdlnLineItemAmountExcise EXTID 'LineItemAmountExcise'
+    OBJECTS d = INTEGER EXTID 'GroupPackingHeader' IN blrdlnLineItemIdentification
+    PROPERTIES(d) blrdlnGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
+                  blrdlnUpperLevelCodeMark EXTID 'UpperLevelCodeMark'
+    PROPERTIES(i) IN blrdlnLineItemIdentification blrdlnFieldCodeMark EXTID 'FieldCodeMark'
+    FILTERS blrdlnLineItemLineItemIdentification(d) == i
     OBJECTS f = INTEGER EXTID 'LineItemExtraField'
     PROPERTIES(f) blrdlnLineItemFieldName EXTID 'FieldName',
                   blrdlnLineItemFieldCode EXTID 'FieldCode',
@@ -571,6 +594,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             lineItemAmount(ed) <- blrdlnLineItemAmount(l);
                             lineItemAmountCharges(ed) <- blrdlnLineItemAmountCharges(l);
                             lineItemAmountExcise(ed) <- blrdlnLineItemAmountExcise(l);
+                            groupPackingCodeMark(ed, INTEGER j) <- blrdlnGroupPackingCodeMark(j) WHERE blrdlnLineItemLineItemIdentification(j) == l;
+                            upperLevelCodeMark(ed, INTEGER j) <- blrdlnUpperLevelCodeMark(j) WHERE blrdlnLineItemLineItemIdentification(j) == l;
+                            fieldCodeMark(ed) <- blrdlnFieldCodeMark(l);
                             lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrdlnLineItemFieldName(INTEGER f), blrdlnLineItemFieldValue(f)) IF blrdlnLineItemLineItemExtraField(f) == l, ', ' ORDER blrdlnLineItemFieldName(f);
                         }
                     }
