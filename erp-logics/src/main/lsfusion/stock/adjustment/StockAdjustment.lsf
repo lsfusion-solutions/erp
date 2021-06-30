@@ -273,7 +273,8 @@ EXTEND FORM userAdjustment
 ;
 
 prevCurrentBalance 'Остаток (до)' (Batch batch, UserAdjustment userAdjustment, Stock stock) = prevBalanceB(batch, stock, dateTime(userAdjustment)) ;
-actualBalance 'Остаток фактический' (Batch batch, UserAdjustment userAdjustment, Stock stock)= prevCurrentBalance(batch, userAdjustment, stock) (+) quantity(batch, userAdjustment, stock);
+actualBalance 'Остаток фактический' (Batch batch, UserAdjustment userAdjustment, Stock stock, DATETIME dt) = 
+    prevBalanceB(batch, stock, dt) (+) quantity(batch, userAdjustment, stock);
 
 changeActualQuantity(Batch batch, UserAdjustment userAdjustment, Stock stock)  { 
     INPUT n = NUMERIC[16,5] DO
@@ -281,8 +282,11 @@ changeActualQuantity(Batch batch, UserAdjustment userAdjustment, Stock stock)  {
 }
 
 EXTEND FORM userAdjustment
-    PROPERTIES actualBalance(b,i,sto) ON CHANGE changeActualQuantity(b,i,sto) BEFORE prevCurrentBalance(b,sto)
-    PROPERTIES READONLY prevCurrentBalance(b,i,sto) BEFORE prevCurrentBalance(b,sto)
+    OBJECTS dt = DATETIME PANEL BEFORE stb
+    FILTERS dt = dateTime(i)
+    
+    PROPERTIES actualBalance(b, i, sto, dt) ON CHANGE changeActualQuantity(b,i,sto) BEFORE prevCurrentBalance(b,sto)
+    PROPERTIES READONLY prevBalanceB(b, sto, dt) BEFORE prevCurrentBalance(b,sto)
 ;
 
 filterAdjustmentDateFrom 'Дата с' = DATA LOCAL DATE ();

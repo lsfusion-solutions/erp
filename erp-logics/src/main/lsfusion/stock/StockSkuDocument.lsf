@@ -544,13 +544,13 @@ META extendFormDocumentSkuStockPriceListTypeAgreement(object, form, concrete, le
     @extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockProp);
     
     current###form###form() = DATA LOCAL NESTED Object ();
-    setCurrent###form###form(###concrete##bject concrete)  { current###form###form() <- concrete; }
+    setCurrent###form###form(###object concrete)  { current###form###form() <- concrete; }
     
     EXTEND FORM form
         EVENTS ON CHANGE concrete setCurrent###form###form(concrete)
     ;
 
-    WHEN LOCAL FORMS form (SET([ VIEW form.sts](St##concrete##ck stock, Sku sku)) AND current###form###form() == ###concrete##bject concrete) OR 
+    WHEN LOCAL FORMS form (SET([ VIEW form.sts](St##concrete##ck stock, Sku sku)) AND current###form###form() == ###object concrete) OR 
                             ((CHANGED(dateTimeProp[###form](concrete)) OR
                               CHANGED(priceListType[###form](concrete)) OR
                               CHANGED(agreement[###form](concrete))) AND [ VIEW form.sts](stock, sku)) DO 
@@ -642,18 +642,20 @@ END
 META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stockProp)
 
     EXTEND FORM form
-
-        OBJECTS           stb=(sto=Stock, b=Batch) GRID
+        
+        OBJECTS sto = Stock PANEL
+        FILTERS sto = stockProp###stock(concrete)
+         
+        OBJECTS           stb = (b = Batch) GRID
         PROPERTIES(b) READONLY SHOWIF showBatch(concrete)  prevNameSku BACKGROUND backgroundName###form(b), idBarcodeSku, shortNameUOM, id, name
-        PROPERTIES(sto) READONLY SHOWIF showBatch(concrete) stockNameB = name SHOWIF not###stockProp##Stock(concrete)
+//        PROPERTIES(sto) READONLY SHOWIF showBatch(concrete) stockNameB = name SHOWIF not###stockProp##Stock(concrete)
 
-        FILTERS           isParent(sk, b),
+        FILTERS           isParent(sk, b)
                           // пока отключаем работу по многим складам, а то люди путаются
 //                          (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
 //                          sto == stockProp###stock###object(concrete) AND NOT sg AND NOT ts,
 //                          legalEntityStock(sto) == legalEntityProp###object(concrete),
 //                          activeStock(sto)
-                          sto == stockProp###stock(concrete)
         ORDERS          prevNameSku(b)
 
         PROPERTIES        SHOWIF showBatch(concrete) quantity###stockProp(b, concrete, sto) ON CHANGE changeQuantity(b, concrete, sto) 
@@ -679,11 +681,12 @@ END
 META extendFormDocumentBatchStockPriceListTypeAgreement(object, form, concrete, legalEntityProp, stockProp)
     @extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stockProp);
     
-    WHEN LOCAL FORMS form (SET([ VIEW form.stb](St##concrete##ck stock, Batch batch)) AND current###form###form() == ###concrete##bject concrete) OR
+    WHEN LOCAL FORMS form (SET([ VIEW form.stb](Batch batch)) AND current###form###form() == ###object concrete) OR
                             ((CHANGED(dateTime[###form](concrete)) OR
                               CHANGED(priceListType[###form](concrete)) OR
-                              CHANGED(agreement[###form](concrete))) AND [ VIEW form.stb](stock, batch)) DO
-        updateViewPrice(batch, stock, concrete);
+                              CHANGED(agreement[###form](concrete)) OR 
+                              CHANGED(stockProp##Stock(concrete))) AND [ VIEW form.stb](batch)) DO
+        updateViewPrice(batch, stockProp##Stock(concrete), concrete);
     ;
 END
 
