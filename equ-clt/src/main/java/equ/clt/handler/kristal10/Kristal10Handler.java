@@ -232,12 +232,10 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             addProductType(good, item, tobaccoGroups);
 
-                            if(item.splitItem && !item.passScalesItem) {
-                                Element pluginProperty = new Element("plugin-property");
-                                setAttribute(pluginProperty, "key", "precision");
-                                setAttribute(pluginProperty, "value", "0.001");
-                                good.addContent(pluginProperty);
-                            }
+                            Element pluginProperty = new Element("plugin-property");
+                            setAttribute(pluginProperty, "key", "precision");
+                            setAttribute(pluginProperty, "value", (item.splitItem && !item.passScalesItem) ? "0.001" : "1.0");
+                            good.addContent(pluginProperty);
 
                             //parent: good
                             Element priceEntry = new Element("price-entry");
