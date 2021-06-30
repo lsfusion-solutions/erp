@@ -234,7 +234,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             Element pluginProperty = new Element("plugin-property");
                             setAttribute(pluginProperty, "key", "precision");
-                            setAttribute(pluginProperty, "value", (item.splitItem && !item.passScalesItem) ? "0.001" : "1.0");
+                            setAttribute(pluginProperty, "value", (item.splitItem || item.passScalesItem) ? "0.001" : "1.0");
                             good.addContent(pluginProperty);
 
                             //parent: good
