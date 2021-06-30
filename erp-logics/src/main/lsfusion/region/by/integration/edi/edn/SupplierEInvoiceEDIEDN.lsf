@@ -1,0 +1,472 @@
+MODULE SupplierEInvoiceEDIEDN;
+
+REQUIRE EDN, SupplierEInvoiceEDITopBy;
+
+NAMESPACE EDI;
+
+overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
+    IF lower(documentType(i)) == 'blrwbr' AND invoices AND receiveSupplierMessages AND NOT disableConfirmation THEN {
+        TRY {
+            IMPORT blrwbr XML FROM data(i);
+            skipBlrwbr() <- NULL;
+            overImportBlrwbr();
+            IF NOT skipBlrwbr() THEN {
+                FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrwbrDeliveryNoteNumber()) DO {
+                    IF NOT disableAutoBlrapn() THEN {
+                        LOCAL contentSubXML = FILE();
+                        blrapnDateTime() <- currentDateTimeMillis();
+                        blrapnMsgSender() <- glnSupplier(ei);
+                        blrapnMsgReceiver() <- glnCustomer(ei);
+                        blrapnUserID() <- userIDCustomerStock(ei);
+                        blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
+                        blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
+                        blrapnReferenceDocumentType() <- 'BLRWBR';
+                        blrapnReferenceDocumentId() <- blrwbrDocumentId();
+                        blrapnReferenceDocumentDate() <- blrwbrDateTime();
+                        blrapnShipper() <- glnSupplier(ei);
+                        blrapnReceiver() <- glnCustomer(ei);
+                        blrapnCode() <- '2650';
+                        blrapnDescription() <- NULL;
+                        toMilliseconds(blrapnDateTime());
+                        EXPORT exportBlrapn XML TO contentSubXML;
+                        IF archiveDir THEN {
+                            TRY{ mkdir(archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                        }
+                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                        TRY{ mkdir(exportDir + 'BLRAPN'); }
+                        TRY {
+                            WRITE data(i) TO exportDir + 'BLRAPN/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                            IF NOT disableConfirmation THEN {
+                                TRY {
+                                    delete(importDir + id(i)); 
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                } CATCH {
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + messageCaughtException());
+                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + messageCaughtException() NOWAIT;
+                                }
+                            }
+                            blrwbrCount() <- blrwbrCount() + 1;
+                            NEWSESSION NESTED LOCAL {
+                                IF isCancel(ei) THEN {
+                                    importedSupplierCancel(ei) <- TRUE;
+                                } ELSE {
+                                    importedSupplier(ei) <- TRUE;
+                                }
+                                exportedBlrapnSupplier(ei) <- TRUE;
+                                NEW em = EInvoiceMessage {
+                                    number(em) <- STRING[24](resultMilliseconds());
+                                    eInvoice(em) <- ei;
+                                    dateTime(em) <- blrapnDateTime();
+                                    code(em) <- blrapnCode();
+                                    kind(em) <- EInvoiceMessageKind.out;
+                                    type(em) <- EInvoiceMessageType.blrapn_blrwbr;
+                                    XMLPath(em) <- archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                                }
+                                APPLY NESTED LOCAL;
+                            }
+                        } CATCH {
+                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + messageCaughtException());
+                            MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + messageCaughtException() NOWAIT;
+                        }
+                    } ELSE {
+                        IF NOT disableConfirmation THEN {
+                            TRY {
+                                delete(importDir + id(i)); 
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                            } CATCH {
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + messageCaughtException());
+                                MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + messageCaughtException() NOWAIT;
+                            }
+                        }
+                        blrwbrCount() <- blrwbrCount() + 1;
+                        NEWSESSION NESTED LOCAL {
+                            IF isCancel(ei) THEN {
+                                importedSupplierCancel(ei) <- TRUE;
+                            } ELSE {
+                                importedSupplier(ei) <- TRUE;
+                            }
+                            numberCustomer(ei) <- blrwbrDocumentId();
+                            dateCustomer(ei) <- blrwbrDateTime();
+                            APPLY NESTED LOCAL;
+                        }
+                    }
+                }
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте накладной ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+        }
+    }
+}
+
+overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
+    IF lower(documentType(i)) == 'blrdnr' AND invoices AND receiveSupplierMessages AND NOT disableConfirmation THEN {
+        TRY {
+            IMPORT blrdnr XML FROM data(i);
+            skipBlrdnr() <- NULL;
+            overImportBlrdnr();
+            IF NOT skipBlrdnr() THEN {
+                FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrdnrDeliveryNoteNumber()) DO {
+                    IF NOT disableAutoBlrapn() THEN {
+                        LOCAL contentSubXML = FILE();
+                        blrapnDateTime() <- currentDateTimeMillis();
+                        blrapnMsgSender() <- glnSupplier(ei);
+                        blrapnMsgReceiver() <- glnCustomer(ei);
+                        blrapnUserID() <- userIDCustomerStock(ei);
+                        blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
+                        blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
+                        blrapnReferenceDocumentType() <- 'BLRDNR';
+                        blrapnReferenceDocumentId() <- blrdnrDocumentId();
+                        blrapnReferenceDocumentDate() <- blrdnrDateTime();
+                        blrapnShipper() <- glnSupplier(ei);
+                        blrapnReceiver() <- glnCustomer(ei);
+                        blrapnCode() <- '2650';
+                        blrapnDescription() <- NULL;
+                        toMilliseconds(blrapnDateTime());
+                        EXPORT exportBlrapn XML TO contentSubXML;
+                        IF archiveDir THEN {
+                            TRY{ mkdir(archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                        }
+                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                        TRY{ mkdir(exportDir + 'BLRAPN'); }
+                        TRY {
+                            WRITE data(i) TO exportDir + 'BLRAPN/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                            IF NOT disableConfirmation THEN {
+                                TRY {
+                                    delete(importDir + id(i)); 
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                } CATCH {
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + messageCaughtException());
+                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + messageCaughtException() NOWAIT;
+                                }
+                            }
+                            blrdnrCount() <- blrdnrCount() + 1;
+                            NEWSESSION NESTED LOCAL {
+                                IF isCancel(ei) THEN {
+                                    importedSupplierCancel(ei) <- TRUE;
+                                } ELSE {
+                                    importedSupplier(ei) <- TRUE;
+                                }
+                                exportedBlrapnSupplier(ei) <- TRUE;
+                                NEW em = EInvoiceMessage {
+                                    number(em) <- STRING[24](resultMilliseconds());
+                                    eInvoice(em) <- ei;
+                                    dateTime(em) <- blrapnDateTime();
+                                    code(em) <- blrapnCode();
+                                    kind(em) <- EInvoiceMessageKind.out;
+                                    type(em) <- EInvoiceMessageType.blrapn_blrdnr;
+                                    XMLPath(em) <- archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                                }
+                                APPLY NESTED LOCAL;
+                            }
+                        } CATCH {
+                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + messageCaughtException());
+                            MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + messageCaughtException() NOWAIT;
+                        }
+                    } ELSE {
+                        IF NOT disableConfirmation THEN {
+                            TRY {
+                                delete(importDir + id(i)); 
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                            } CATCH {
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + messageCaughtException());
+                                MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + messageCaughtException() NOWAIT;
+                            }
+                        }
+                        blrdnrCount() <- blrdnrCount() + 1;
+                        NEWSESSION NESTED LOCAL {
+                            IF isCancel(ei) THEN {
+                                importedSupplierCancel(ei) <- TRUE;
+                            } ELSE {
+                                importedSupplier(ei) <- TRUE;
+                            }
+                            numberCustomer(ei) <- blrdnrDocumentId();
+                            dateCustomer(ei) <- blrdnrDateTime();
+                            APPLY NESTED LOCAL;
+                        }
+                    }
+                }
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+        }
+    }
+}
+
+signAndSendSupplierEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
+    checkIsServer();
+    IF isServer() THEN {
+        TRY {
+            IF exportDirectoryDocuDrive() THEN {
+                LOCAL error = TEXT();
+                error() <- '';
+                IF NOT length(contractName(ei)) > 0 AND DATE(dateTimeCreated(ei)) >= 2020_09_13 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Наименование документа, который служит основанием отпуска\'\n';
+                IF NOT length(contractId(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Номер Договора (или другого документа, служащего основанием отпуска)\'\n';
+//              IF NOT contractDate(ei) THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Дата договора в формате ГГГГММДД (или другого документа, служащего основанием отпуска)\'\n';
+//              IF NOT length(waybillId(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Номер путевого листа\'\n';
+                IF NOT length(contactSupplier(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Отпуск разрешил (должность и ФИО)\'\n';
+                IF NOT length(glnSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'GLN пункта погрузки\'\n';
+                IF NOT length(addressSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Адрес пункта погрузки\'\n';
+                IF NOT length(contactSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'ФИО и должность лица, которое отвечает за передачу груза со стороны грузоотправителя\'\n';
+                IF NOT length(addressCustomerStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Адрес пункта разгрузки (Адрес склада получателя)\'\n';
+                IF NOT length(transportContact(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'ФИО водителя\'\n';
+                IF NOT length(deliveryContact(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Товар к перевозке принял (должность и ФИО)\'\n';
+                IF NOT length(transportID(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Марка и гос. номер автомобиля\'\n';
+                IF NOT length(currency(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'3-х буквенный код валюты, в которой указаны ценовые значения\'\n';
+                IF NOT totalGrossWeight(ei) THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Всего масса груза в тоннах\'\n';
+                FOR eInvoice(EInvoiceDetail d) == ei DO {
+                    IF NOT length(lineItemSign(d)) > 0 AND DATE(dateTimeCreated(ei)) >= 2020_09_13 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Признак вида товарной позиции\'\n';
+                    IF NOT grossWeightValue(d) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Масса груза\'\n';
+                    IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета\'\n';
+                    IF NOT despatchUnitQuantityDespatched(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Количество в грузовых местах\'\n';
+                    IF NOT lineItemAmountWithoutCharges(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Стоимость товарной позиции без НДС\'\n';
+                }
+                IF error() == '' THEN {
+                    LOCAL contentSubXML = FILE();
+                    exportBlrwblDateTime() <- currentDateTimeMillis();
+                    toMilliseconds(exportBlrwblDateTime());
+                    EXPORT exportBlrwbl OBJECTS ei = ei XML TO contentSubXML;
+                    IF outputDirTopBy() THEN {                        
+                        LOCAL filePath = STRING();
+                        filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
+                        TRY{ mkdir(filePath()); }
+                        WRITE contentSubXML() TO filePath() + '/' + 'blrwbl_' + OVERRIDE overInvoiceOutputFileName(ei), STRING(LONG(resultMilliseconds() + 1));
+                    }
+                    logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                    TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRWBL'); }
+                    TRY {
+                        WRITE contentSubXML() TO exportDirectoryDocuDrive() + 'BLRWBL/' + 'blrwbl_' + LONG(resultMilliseconds() + 1);
+                        logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                        MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
+                        //NEWSESSION NESTED LOCAL {
+                            exportedSupplier(ei) <- TRUE;
+                            numberSupplier(ei) <- STRING[14](resultMilliseconds());
+                            dateSupplier(ei) <- exportBlrwblDateTime();
+                            APPLY NESTED LOCAL;
+                        //}
+                    } CATCH {
+                        logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ': ' + messageCaughtException());
+                        MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + ' не выгружена: ' + messageCaughtException() NOWAIT;
+                    }
+                } ELSE {
+                    logToFile('edi', provider + ' SendEInvoice: Не все поля заполнены. ' + error());
+                    MESSAGE provider + ' Накладная не выгружена: Не все поля заполнены ' + error() NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' SendEInvoice: не задан каталог выгрузки сообщений для DocuDrive');
+                MESSAGE provider + ' Накладная не выгружена: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Накладная не выгружена. Обратитесь к администратору' NOWAIT;
+        }
+    } ELSE {
+        logToFile('edi', provider + ' error: ' + 'SendEInvoice disabled, change serverComputer() to enable');
+        MESSAGE  provider + ' error: ' + 'SendEInvoice disabled, change serverComputer() to enable' NOWAIT;
+    }
+}
+
+signAndSendSupplierEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
+    checkIsServer();
+    IF isServer() THEN {
+        TRY {
+            IF exportDirectoryDocuDrive() THEN {
+                LOCAL error = TEXT();
+                error() <- '';
+                IF NOT length(contractName(ei)) > 0 AND DATE(dateTimeCreated(ei)) >= 2020_09_13 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Наименование документа, который служит основанием отпуска\'\n';
+                IF NOT length(contractId(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Номер Договора (или другого документа, служащего основанием отпуска)\'\n';
+//              IF NOT contractDate(ei) THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Дата договора в формате ГГГГММДД (или другого документа, служащего основанием отпуска)\'\n';
+                IF NOT length(contactSupplier(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Отпуск разрешил (должность и ФИО)\'\n';
+                IF NOT length(glnSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'GLN пункта погрузки\'\n';
+                IF NOT length(addressSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Адрес пункта погрузки\'\n';
+                IF NOT length(contactSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'ФИО и должность лица, которое отвечает за передачу груза со стороны грузоотправителя\'\n';
+                IF NOT length(addressCustomerStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Адрес пункта разгрузки (Адрес склада получателя)\'\n';
+                IF NOT length(deliveryContact(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Товар к перевозке принял (должность и ФИО)\'\n';
+                IF NOT length(currency(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'3-х буквенный код валюты, в которой указаны ценовые значения\'\n';
+                FOR eInvoice(EInvoiceDetail d) == ei DO {
+                    IF NOT length(lineItemSign(d)) > 0 AND DATE(dateTimeCreated(ei)) >= 2020_09_13 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Признак вида товарной позиции\'\n';
+                    IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета\'\n';
+                    IF NOT lineItemAmountWithoutCharges(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Стоимость товарной позиции без НДС\'\n';
+                }
+                IF error() == '' THEN {
+                    LOCAL contentSubXML = FILE();
+                    exportBlrdlnDateTime() <- currentDateTimeMillis();
+                    toMilliseconds(exportBlrdlnDateTime());
+                    EXPORT exportBlrdln OBJECTS ei = ei XML TO contentSubXML;
+                    IF outputDirTopBy() THEN {
+                        LOCAL filePath = STRING();
+                        filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
+                        TRY{ mkdir(filePath()); }
+                        WRITE contentSubXML() TO filePath() + '/' + 'blrdln_' + OVERRIDE overInvoiceOutputFileName(ei), STRING(LONG(resultMilliseconds() + 1));
+                    }
+                    logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                    TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRDLN'); }
+                    TRY {
+                        WRITE contentSubXML() TO exportDirectoryDocuDrive() + 'BLRDLN/' + 'blrdln_' + LONG(resultMilliseconds() + 1);
+                        logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                        MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
+                        //NEWSESSION NESTED LOCAL {
+                            exportedSupplier(ei) <- TRUE;
+                            numberSupplier(ei) <- STRING[14](resultMilliseconds());
+                            dateSupplier(ei) <- exportBlrdlnDateTime();
+                            APPLY NESTED LOCAL;
+                        //}
+                    } CATCH {
+                        logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ': ' + messageCaughtException());
+                        MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + ' не выгружена: ' + messageCaughtException() NOWAIT;
+                    }
+                } ELSE {
+                    logToFile('edi', provider + ' SendEInvoice: Не все поля заполнены. ' + error());
+                    MESSAGE provider + ' Накладная не выгружена: Не все поля заполнены ' + error() NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' SendEInvoice: не задан каталог выгрузки сообщений для DocuDrive');
+                MESSAGE provider + ' Накладная не выгружена: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Накладная не выгружена. Обратитесь к администратору' NOWAIT;
+        }
+    } ELSE {
+        logToFile('edi', provider + ' error: ' + 'SendEInvoice disabled, change serverComputer() to enable');
+        MESSAGE  provider + ' error: ' + 'SendEInvoice disabled, change serverComputer() to enable' NOWAIT;
+    }
+}
+
+signAndSendSupplier(EInvoice e) + {  IF EDIProviderInvoice(supplier(e)) == EDIProvider.edn THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE IF isTN2(e) THEN {signAndSendSupplierEInvoiceTN2DocuDrive(e,'TopBy');} ELSE {signAndSendSupplierEInvoiceDocuDrive(e,'TopBy');}}
+
+signAndSendBlrapnSupplierEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
+    checkIsServer();
+    IF isServer() THEN {
+        TRY {
+            IF exportDirectoryDocuDrive() THEN {
+                LOCAL contentSubXML = FILE();
+                blrapnDateTime() <- currentDateTimeMillis();
+                blrapnMsgSender() <- glnSupplier(ei);
+                blrapnMsgReceiver() <- glnCustomer(ei);
+                blrapnUserID() <- userIDCustomerStock(ei);
+                blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
+                blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
+                blrapnReferenceDocumentType() <- IF importedNoticeSupplier(ei) THEN 'BLRWBL' ELSE 'BLRWBR';
+                blrapnReferenceDocumentId() <- IF importedNoticeSupplier(ei) THEN numberSupplier(ei) ELSE numberCustomer(ei);
+                blrapnReferenceDocumentDate() <- IF importedNoticeSupplier(ei) THEN dateSupplier(ei) ELSE dateCustomer(ei);
+                blrapnShipper() <- glnSupplier(ei);
+                blrapnReceiver() <- glnCustomer(ei);
+                blrapnCode() <- IF importedNoticeSupplier(ei) THEN '2651' ELSE '2650';
+                blrapnDescription() <- NULL;
+                toMilliseconds(blrapnDateTime());
+                EXPORT exportBlrapn XML TO contentSubXML;
+                IF outputDirTopBy() THEN {
+                    LOCAL filePath = STRING();
+                    filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
+                    TRY{ mkdir(filePath()); }
+                    WRITE contentSubXML() TO filePath() + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                }
+                logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRAPN'); }
+                TRY {
+                    WRITE contentSubXML() TO exportDirectoryDocuDrive() + 'BLRAPN/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                    logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                    MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
+                    exportedBlrapnSupplier(ei) <- TRUE;
+                    NEW em = EInvoiceMessage {
+                        number(em) <- STRING[24](resultMilliseconds());
+                        eInvoice(em) <- ei;
+                        dateTime(em) <- blrapnDateTime();
+                        code(em) <- blrapnCode();
+                        kind(em) <- EInvoiceMessageKind.out;
+                        type(em) <- IF importedNoticeSupplier(ei) THEN EInvoiceMessageType.blrapn_blrwbl ELSE EInvoiceMessageType.blrapn_blrwbr;
+                        XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                    }
+                    APPLY NESTED LOCAL;
+                } CATCH {
+                    logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + messageCaughtException());
+                    MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + messageCaughtException() NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' SendBlrapnEInvoice: не задан каталог выгрузки сообщений для DocuDrive');
+                MESSAGE provider + ' Извещение о прочтении не выгружено: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Извещение о прочтении не выгружено. Обратитесь к администратору' NOWAIT;
+        }
+    } ELSE {
+        logToFile('edi', provider + ' error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable');
+        MESSAGE  provider + ' error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable' NOWAIT;
+    }
+}
+
+signAndSendBlrapnSupplierEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
+    checkIsServer();
+    IF isServer() THEN {
+        TRY {
+            IF exportDirectoryDocuDrive() THEN {
+                IF hostEDSServiceSupplierTopBy(ei) AND portEDSServiceSupplierTopBy(ei) THEN {
+                    LOCAL contentSubXML = FILE();
+                    blrapnDateTime() <- currentDateTimeMillis();
+                    blrapnMsgSender() <- glnSupplier(ei);
+                    blrapnMsgReceiver() <- glnCustomer(ei);
+                    blrapnUserID() <- userIDCustomerStock(ei);
+                    blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
+                    blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
+                    blrapnReferenceDocumentType() <- IF importedNoticeSupplier(ei) THEN 'BLRDLN' ELSE 'BLRDNR';
+                    blrapnReferenceDocumentId() <- IF importedNoticeSupplier(ei) THEN numberSupplier(ei) ELSE numberCustomer(ei);
+                    blrapnReferenceDocumentDate() <- IF importedNoticeSupplier(ei) THEN dateSupplier(ei) ELSE dateCustomer(ei);
+                    blrapnShipper() <- glnSupplier(ei);
+                    blrapnReceiver() <- glnCustomer(ei);
+                    blrapnCode() <- IF importedNoticeSupplier(ei) THEN '2651' ELSE '2650';
+                    blrapnDescription() <- NULL;
+                    toMilliseconds(blrapnDateTime());
+                    EXPORT exportBlrapn XML TO contentSubXML;
+                    IF outputDirTopBy() THEN {
+                        LOCAL filePath = STRING();
+                        filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
+                        TRY{ mkdir(filePath()); }
+                        WRITE contentSubXML() TO filePath() + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                    }
+                    logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                    TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRAPN'); }
+                    TRY {
+                        WRITE contentSubXML() TO exportDirectoryDocuDrive() + 'BLRAPN/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                        MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
+                        exportedBlrapnSupplier(ei) <- TRUE;
+                        NEW em = EInvoiceMessage {
+                            number(em) <- STRING[24](resultMilliseconds());
+                            eInvoice(em) <- ei;
+                            dateTime(em) <- blrapnDateTime();
+                            code(em) <- blrapnCode();
+                            kind(em) <- EInvoiceMessageKind.out;
+                            type(em) <- IF importedNoticeSupplier(ei) THEN EInvoiceMessageType.blrapn_blrdln ELSE EInvoiceMessageType.blrapn_blrdnr;
+                            XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                        }
+                        APPLY NESTED LOCAL;
+                    } CATCH {
+                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + messageCaughtException());
+                        MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + messageCaughtException() NOWAIT;
+                    }
+                } ELSE {
+                    logToFile('edi', provider + ' SendBlrapnEInvoice: не заданы параметры EDSService');
+                    MESSAGE provider + ' Извещение о прочтении не выгружено: не заданы параметры EDSService' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' SendBlrapnEInvoice: не задан каталог выгрузки сообщений для DocuDrive');
+                MESSAGE provider + ' Извещение о прочтении не выгружено: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Извещение о прочтении не выгружено. Обратитесь к администратору' NOWAIT;
+        }
+    } ELSE {
+        logToFile('edi', provider + ' error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable');
+        MESSAGE  provider + ' error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable' NOWAIT;
+    }
+}
+
+signAndSendBlrapnSupplier(EInvoice e) + {  IF EDIProviderInvoice(supplier(e)) == EDIProvider.edn THEN IF exportedBlrapnSupplier(e) THEN MESSAGE 'Извещение о прочтении (поставщик) уже отправлено'; ELSE IF isTN2(e) THEN {signAndSendBlrapnSupplierEInvoiceTN2DocuDrive(e,'TopBy');} ELSE {signAndSendBlrapnSupplierEInvoiceDocuDrive(e,'TopBy');}}
