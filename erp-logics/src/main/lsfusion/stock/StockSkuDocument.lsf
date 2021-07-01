@@ -22,6 +22,7 @@ META defineDocumentSkuPriceListTypeAgreement(object, stockProp, prefix)
             viewPrice(sku, object) <- prevPriceB(pt, sku, stockProp##Stock(object), dateTime(object));
     }
 END
+
 META defineDocumentSkuPriceListTypeSystemLedger(object, stockClass, stockProp)
     @defineDocumentSku(object, sku, stockClass, stockProp);
     price 'Цена' (Sku sku, ###object object) = prevAccountPriceB(sku, stockProp###stockClass(object), dateTime(object));
@@ -178,7 +179,7 @@ META extendFormDocumentSkuPriceListTypeAgreement(eobj, detail, form, concrete, s
                               CHANGED(dateT##concrete##me[###eobj](concrete)) OR
                               CHANGED(pr##concrete##ceL##concrete##stType[###eobj](concrete)) OR
                               CHANGED(agreement[###eobj](concrete))) AND [ VIEW form.ks](sku)) DO
-        updateV##concrete##ewPr##concrete##ce(sku, concrete);
+        updateViewPrice(sku, concrete);
 END
 
 META extendFormDocumentSku(object, form, concrete)
@@ -191,6 +192,8 @@ END
 
 // ----------- Подбор (партий / один склад)---------------//    Не забывать имплементить цвет, если нужно!!!!!!!!
 
+viewPrice 'Цена' (batch) = DATA LOCAL NESTED NUMERIC[16,4] (Batch);
+
 META defineDocumentBatchPriceListTypeAgreement(object, stockProp, prefix)
     @defineDocumentBatch(object, batch, sku, stock, stockProp);
     priceListType(###object object, Batch batch) = OVERRIDE prefix###priceListType(agreement(object), sku(batch)), priceListType(object) IF batch IS Batch;
@@ -198,14 +201,7 @@ META defineDocumentBatchPriceListTypeAgreement(object, stockProp, prefix)
 //    priceBatch###object 'Цена' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(priceListType###object###batch(object, batch), batch, stockProp###object(object), dateTime###object(object));
     ledgerPrice 'Цена (базовая)' (Batch batch, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](ledgerPriceListType(priceListType(object, batch)), batch, stockProp##Stock(object), dateTime(object));
 
-    viewPrice 'Цена' (batch, object) = DATA LOCAL NESTED NUMERIC[16,4] (Batch, ###object);
-
-    price 'Цена' (Batch batch, ###object object) = viewPrice(batch, object);
-
-    updateViewPrice (Batch batch, ###object object)  { 
-        FOR PriceListType pt == priceListType(object, batch) NOINLINE (pt) DO
-            viewPrice(batch, object) <- prevPriceB(pt, batch, stockProp##Stock(object), dateTime(object));
-    }
+    price 'Цена' (Batch batch, ###object object) = viewPrice(batch) IF object IS ###object;
 END
 
 META defineDocumentBatchPriceListTypeSystemLedger(object, stockClass, stockProp)
@@ -309,12 +305,14 @@ END
 META extendFormDocumentBatchPriceListTypeAgreement(eobj, detail, form, concrete, batchProp, stockProp)
     @extendFormDocumentBatch(eobj, detail, form, concrete, batchProp);
     
-    WHEN LOCAL FORMS form (SET([ VIEW form.b](###batchProp batch)) AND (Object concrete) == current###eobj###eobj()) OR
-                            ((CHANGED(stockProp[###eobj](concrete)) OR 
-                              CHANGED(dateT##concrete##me[###eobj](concrete)) OR
-                              CHANGED(pr##concrete##ceL##concrete##stType[###eobj](concrete)) OR
-                              CHANGED(agreement[###eobj](concrete))) AND [ VIEW form.b](batch)) DO
-        updateV##concrete##ewPr##concrete##ce(batch, concrete);
+    WHEN LOCAL FORMS form 
+        ((SET([ VIEW form.b](###batchProp batch)) AND (###eobj concrete) == current###eobj###eobj()) OR
+         ((CHANGED(stockProp(concrete)) OR 
+           CHANGED(dateTime(concrete)) OR
+           CHANGED(priceListType(concrete)) OR
+           CHANGED(agreement(concrete))) AND [ VIEW form.b](batch)))
+         AND PriceListType pt == priceListType(concrete, batch) NOINLINE (pt) DO
+            viewPrice(batch) <- prevPriceB(pt, batch, stockProp(concrete), dateTime(concrete));
 END
 
 META extendFormDocumentBatchPriceListTypeAgreement(object, form, concrete, stockProp)
@@ -567,15 +565,9 @@ META defineDocumentBatchStockPriceListTypeAgreement(object, stockProp, dateTimeP
 //    priceBatchStock###object 'Цена' (batch, stock, object) = prevPriceBPriceListTypeBatchStockDateTime(priceListType###object###batch(object, batch), batch, stock, dateTime###object(object));
     ledgerPrice 'Цена (базовая)' (Batch batch, Stock stock, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](ledgerPriceListType(priceListType(object, batch)), batch, stock, dateTimeProp(object));
 
-    viewPrice 'Цена' (batch, stock, object) = DATA LOCAL NESTED NUMERIC[16,4] (Batch, Stock, ###object);
-
-    price 'Цена' (Batch batch, Stock stock, ###object object) = viewPrice(batch, stock, object);
-
-    updateViewPrice (Batch batch, Stock stock, ###object object)  { 
-        FOR PriceListType pt == priceListType(object, batch) AND stock IS Stock NOINLINE (pt) DO
-            viewPrice(batch, stock, object) <- prevPriceB(pt, batch, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTimeProp(object));
-    }
+    price 'Цена' (Batch batch, Stock stock, ###object object) = viewPrice(batch) IF stock = stockProp##Stock(object);
 END
+
 META defineDocumentBatchStockPriceListTypeSystemLedger(object, stockProp)
     @defineDocumentBatchStock(object, batch, sku, stockProp);
     price 'Цена' (Batch batch, Stock stock, ###object object) = prevAccountPriceB(batch, stock, dateTime(object));
@@ -681,12 +673,14 @@ END
 META extendFormDocumentBatchStockPriceListTypeAgreement(object, form, concrete, legalEntityProp, stockProp)
     @extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stockProp);
     
-    WHEN LOCAL FORMS form (SET([ VIEW form.stb](Batch batch)) AND current###form###form() == ###object concrete) OR
-                            ((CHANGED(dateTime[###form](concrete)) OR
-                              CHANGED(priceListType[###form](concrete)) OR
-                              CHANGED(agreement[###form](concrete)) OR 
-                              CHANGED(stockProp##Stock(concrete))) AND [ VIEW form.stb](batch)) DO
-        updateViewPrice(batch, stockProp##Stock(concrete), concrete);
+    WHEN LOCAL FORMS form 
+        ((SET([ VIEW form.stb](Batch batch)) AND current###form###form() == ###object concrete) OR
+         ((CHANGED(dateTime[###form](concrete)) OR
+           CHANGED(priceListType[###form](concrete)) OR
+           CHANGED(agreement[###form](concrete)) OR 
+           CHANGED(stockProp##Stock(concrete))) AND [ VIEW form.stb](batch))) AND
+            PriceListType pt = priceListType(concrete, batch) NOINLINE(pt) DO 
+            viewPrice(batch) <- prevPriceB(pt, batch, stockProp##Stock(concrete), dateTime(concrete));
     ;
 END
 
