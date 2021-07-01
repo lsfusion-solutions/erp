@@ -198,6 +198,7 @@ GROUP carConsignment 'Автомобиль' : base;
 defaultTruck = ABSTRACT CASE Truck (Consignment);
 dataTruck = ABSTRACT Truck(Consignment);
 truck(Consignment consignment) = OVERRIDE dataTruck(consignment), defaultTruck(consignment);  
+mandatoryTruck 'Обязательный выбор автомобиля из справочника' = ABSTRACT CASE BOOLEAN (Consignment);
 
 dataNameTruck = DATA STRING[70](Consignment);
 nameTruck 'Автомобиль' (Consignment consignment) = OVERRIDE dataNameTruck(consignment), name(truck(consignment)) CHARWIDTH 15 IN carConsignment;
@@ -281,6 +282,7 @@ trailer 'Прицеп' (Consignment consignment) = OVERRIDE dataTrailer(consignm
 
 driver = ABSTRACT CASE Employee(Consignment);
 dataEmployee = ABSTRACT Employee(Consignment);
+mandatoryDriver 'Обязательный выбор водителя из справочника' = ABSTRACT CASE BOOLEAN (Consignment);
 
 dataNameDriver = DATA STRING[30] (Consignment);
 nameDriver 'Водитель' (Consignment consignment) = OVERRIDE dataNameDriver(consignment), 
@@ -750,17 +752,30 @@ stopPrintConsignment = DATA LOCAL BOOLEAN ();
 checkMandatoryAttribute  ABSTRACT LIST ( Consignment);
 
 META checkConsignmentAttribute(type, attrib, msg, skipProp)
-
-checkMandatoryAttribute(Consignment c) + { 
-    IF is##type(c) AND NOT attrib(c) AND NOT skipProp(c) THEN {
-        stopPrintConsignment() <- TRUE;
-        MESSAGE msg NOWAIT;
+    checkMandatoryAttribute(Consignment c) + { 
+        IF is##type(c) AND NOT attrib(c) AND NOT skipProp(c) THEN {
+            stopPrintConsignment() <- TRUE;
+            MESSAGE msg NOWAIT;
+        }
     }
-}
 END
 
 @checkConsignmentAttribute(TTN1, nameDriver, 'Для накладной должен быть заполнен водитель', skipDriver);
+checkMandatoryAttribute(Consignment c) + { 
+    IF mandatoryDriver(c) AND NOT (driver(c) OR dataEmployee(c)) THEN {
+        stopPrintConsignment() <- TRUE;
+        MESSAGE 'Для накладной должен быть выбран водитель из справочника' NOWAIT;
+    }
+}
+
 @checkConsignmentAttribute(TTN1, nameTruck, 'Для накладной должен быть заполнен автомобиль', skipTruck);
+checkMandatoryAttribute(Consignment c) + { 
+    IF mandatoryTruck(c) AND NOT truck(c) THEN {
+        stopPrintConsignment() <- TRUE;
+        MESSAGE 'Для накладной должен быть выбран автомобиль из справочника' NOWAIT;
+    }
+}
+
 @checkConsignmentAttribute(TTN1, overWaybill, 'Для накладной должен быть заполнен путевой лист', skipWaybill);
 
 // ---------------------------- Формы для накладных --------------------------------- //

@@ -6,6 +6,27 @@ NAMESPACE Production;
 
 @defineConsignmentHeader (order);
 
+DESIGN operation {
+    tabContainer {
+        NEW consignment {
+            caption = 'Оформление накладных';
+        }
+    }    
+}
+
+consignmentType 'Тип накладной' = DATA ConsignmentType (Operation);
+nameConsignmentType 'Тип накладной' (Operation o) = staticCaption(consignmentType(o));
+
+EXTEND FORM operation
+    PROPERTIES nameConsignmentType(o);
+;
+
+DESIGN operation {
+    consignment {
+        MOVE PROPERTY(nameConsignmentType(o));
+    }
+}
+
 invoiceNumber 'Номер ТТН' = DATA STRING[48] (Order) IN numbered CHARWIDTH 7;
 invoiceSeries 'Серия ТТН' = DATA BPSTRING[2] (Order) IN numbered CHARWIDTH 3 NOFLEX;
 
@@ -54,6 +75,7 @@ countPages (Order consignment) += countPages (consignment);
 
 additionalDocuments (Order consignment) += additionalDocuments (consignment);
 
+consignmentType (Order consignment) += consignmentType(operation(consignment));
 overShipmentBase (Order consignment) += overShipmentBase (consignment);
 
 issuanceAllowed (Order consignment) += issuanceAllowed (consignment);
@@ -114,14 +136,6 @@ dataSumInvoice (ProductDetail detail) += WHEN detail IS ProductDetail THEN (OVER
 
 overShipmentBase(Order order) <- (CONCAT '', 'Заказ № ', seriesNumber(order)+' ', 'от '+toDateDDMMYYYY(date(order))) WHEN CHANGED(date(order)) OR CHANGED(seriesNumber(order));
 
-DESIGN operation {
-    tabContainer {
-        NEW consignment {
-            caption = 'Оформление накладных';
-        }
-    }    
-}
-
 @defineOperationProperty(shipmentBase, 'Основание отпуска (ТТН)', STRING[100], consignment);
 dataShipmentBase (Order consignment) += shipmentBase(operation(consignment));
 
@@ -136,7 +150,21 @@ useEmptyVAT(ProductDetail d) += WHEN useEmptyVATConsignment(operation(d)) THEN T
 @defineOperationProperty(notPrintGr, 'Не писать прописью граммы в ТТН', consignment);
 @defineOperationProperty(banOpenedPrint, 'Запрещено печатать непроведенные документы', consignment);
 
+@defineOperationProperty(skipWaybill, 'Пропустить проверку путевого листа', consignment); 
+
+@defineOperationProperty(mandatoryTruck, 'Обязательный выбор автомобиля из справочника', consignment);
+@defineOperationProperty(skipTruck, 'Пропустить проверку автомобиля', consignment);     
+
+@defineOperationProperty(mandatoryDriver, 'Обязательный выбор водителя из справочника', consignment);
+@defineOperationProperty(skipDriver, 'Пропустить проверку водителя', consignment);
+
 notUseDriverTruck(Order c) += notUseDriverTruck(operation(c));
+skipWaybill (Order c) += WHEN skipWaybill(operation(c)) THEN skipWaybill(operation(c));
+mandatoryTruck (Order c) += WHEN mandatoryTruck(operation(c)) THEN mandatoryTruck(operation(c));
+skipTruck (Order c) += WHEN skipTruck(operation(c)) THEN skipTruck(operation(c));
+mandatoryDriver (Order c) += WHEN mandatoryDriver(operation(c)) THEN mandatoryDriver(operation(c));
+skipDriver (Order c) += WHEN skipDriver(operation(c)) THEN skipDriver(operation(c));
+
 notUseIssuanceAllowed(Order c) += notUseIssuanceAllowed(operation(c));
 notUseIssuanceExecuted(Order c) += notUseIssuanceExecuted(operation(c));
 useGoodsAccepted(Order c) += useGoodsAccepted(operation(c));
