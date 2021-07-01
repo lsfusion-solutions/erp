@@ -28,13 +28,9 @@ import java.util.Iterator;
 
 public class ImportMilaAction extends InternalAction {
 
-    protected final ClassPropertyInterface fullInfoInterface;
-    protected final ClassPropertyInterface baseUrlInterface;
-
     StringBuilder cResult = new StringBuilder();    // Строка в формате JSON - результат работы
     String errMsg = "";                             // Текст сообщений об ошибках
     String baseUrl = "https://mila.by";             // Базовый URL для подстановки
-    boolean fullInfo = true;                        // Получать полную информацию о товаре
     boolean addLog = true;                          // Включает дополнительное логирование в файл addLogFile
     String addLogFile = "logs/import_mila.log";     // Имя файла дополнительного логирования
     int maxPage = 0;                                // Ограничение на количество принимаемых страниц в группе, 0 - все
@@ -45,18 +41,10 @@ public class ImportMilaAction extends InternalAction {
     public ImportMilaAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
-        fullInfoInterface = i.next();
-        baseUrlInterface = i.next();
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-
-            fullInfo = context.getKeyValue(fullInfoInterface).getValue() != null;
-            String url = (String) context.getKeyValue(baseUrlInterface).getValue();
-            if (url != null)
-                baseUrl = url;
 
             ioFile.lAdd = false;
             File tmpFile = File.createTempFile("mila_js", ".txt");
@@ -123,15 +111,12 @@ public class ImportMilaAction extends InternalAction {
         String c_class, c_url;
         readSite oRS = new readSite();
         saveLog(1,"Получение списка групп", url,1);
-        if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
+        if (!oRS.loadUrl(url+"/catalog/")) return errbox(oRS.errMsg);
         saveLog(1,"getGroups, ok", "", 2);
         addKeyValue("{", "title", oRS.doc.title(), ",", true);
         addKeyValue("", "groups", "", "[\n", true);
         int i = 0;
-        for (Element item : oRS.doc.getElementsByTag("li")) {
-            c_class = getItemValue(item, "li", "class", null);
-            if (c_class.length() < 6) continue;
-            if (!c_class.substring(0,6).equals("eChild")) continue;
+        for (Element item : oRS.doc.getElementsByClass("contact-item")) {
             c_url = getItemValue(item, "a", "href", null);
             if (c_url.length() < 2) continue;  // так не должно быть, но на всякий случай
             c_url = baseUrl + c_url;
@@ -157,26 +142,19 @@ public class ImportMilaAction extends InternalAction {
     //  Метод запустит последовательную обработку всех последующих страниц группы
     private boolean getPagesGoods(String url, File tmpFile) throws IOException {
         boolean lRet = true;
-        int n1 = -1, n2 = 0;
-        String c_class, c_url, c_num;
+        int n1 = -1, n2 = 1;
+        String c_url, c_num;
         readSite oRS = new readSite();
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
         saveLog(2,"getPagesGoods, ok", "", 2);
-        for (Element item : oRS.doc.getElementsByTag("ul")) {
-            c_class = getItemValue(item, "li", "class", 0);
-            if (!c_class.equals("bx-pag-prev")) continue;
-            for (int i = 0; i < 10; ++i) {
-                c_num = getItemValue(item, "li", "", i);
-                n1 = str2Int(c_num);
-                if (n1 > n2) n2 = n1;
-                if ((n1 == 0) && (n2 > 0)) break;
-            }
-            break;
+        for (Element item : oRS.doc.getElementsByClass("pagination")) {
+            c_num = item.text();
+            n1 = str2Int(c_num);
+            if (n1 > n2) n2 = n1;
         }
-        if (n2 == 0) return errbox("Не определено количество страниц группы\n" + url);
         for (int i = 1; i <= n2; ++i) {
             if ((maxPage > 0) && (i > maxPage)) break;
-            c_url = url + "?PAGEN_1=" + Integer.toString(i);
+            c_url = url + "?page=" + i;
             int attempt = 0;
             do {
                 attempt++;
@@ -197,38 +175,17 @@ public class ImportMilaAction extends InternalAction {
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
         saveLog(3,"getGoods, ok", "", 2);
         int i = 0;
-        for (Element item : oRS.doc.getElementsByTag("div")) {
-            c_class = getItemValue(item, "div", "class", null);
-            if (!c_class.equals("tabloid")) continue;
+        for (Element item : oRS.doc.getElementsByClass("showcase-element")) {
             i += 1;
             if ((maxGoods > 0) && (i > maxGoods)) break;
             if ((i == 1) && (nPage > 1) && (cResult.length() < 2 || cResult.charAt(cResult.length() - 2) != ',')) cResult.append(",\n");
             if (i > 1 && (cResult.length() < 2 || cResult.charAt(cResult.length() - 2) != ',')) cResult.append(",\n");
-            c_url = getItemValue(item, "a", "href", 1);
+            c_url = getItemValue(item, "a", "href", null);
             if (c_url.length() > 0) {
                 c_url = baseUrl + c_url;
-                if (fullInfo) {
-                    saveLog(4,"Получение расширенной информации по товару", c_url, 1);
-                    lRet = getProduct(c_url); // расширенная информация по товару
-                    if (lRet) saveResult(tmpFile);
-                } else {
-                    i += 0;
-                    addKeyValue("{", "tname", getItemValue(item, "span[class=middle]", "", null), ",", true);
-                    addKeyValue("", "tcode", " ", ",", true);
-                    c_class = getItemValue(item, "div", "class", 4);
-                    if (c_class.equals("price-left")) {
-                        addKeyValue("", "price1", getPrice(getItemValue(item, "span[class=pr]", "", 0)), ",", false);
-                        addKeyValue("", "price2", getPrice(getItemValue(item, "span[class=pr]", "", 1)), ",", false);
-                        addKeyValue("","price3","0.00",",", true);
-                    } else {
-                        addKeyValue("", "price1", getPrice(getItemValue(item, "a[class=price]", "",null)), ",", false);
-                        addKeyValue("", "price2", getPrice(getItemValue(item, "a[class=price]", "", null)), ",", false);
-                        addKeyValue("", "price3", getPriceValue(item,"div[class=dashed-price]","",null), ",", false);
-                    }
-                    addKeyValue("", "picture", " ", ",", true);
-                    addKeyValue("", "url", c_url, "}", true);
-                    saveResult(tmpFile);
-                }
+                saveLog(4,"Получение расширенной информации по товару", c_url, 1);
+                lRet = getProduct(c_url); // расширенная информация по товару
+                if (lRet) saveResult(tmpFile);
             } else {
                 lRet = errbox("getGoods: URL товара не найден");
             }
@@ -239,30 +196,14 @@ public class ImportMilaAction extends InternalAction {
 
     //  Получаем расширенную информацию по конкретному товару
     private boolean getProduct(String url) {
-        String cid = "", c_pic = "", c1 = "";
         readSite oRS = new readSite();
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
         saveLog(4,"getProduct, ok", "", 2);
-        for (Element item : oRS.doc.getElementsByTag("div")) {
-            cid = getItemValue(item, "div", "id", null);
-            if (!cid.equals("catalogElement")) continue;
-            c_pic = getItemValue(item, "a", "href", null);
-            if (c_pic.length() > 0) c_pic = baseUrl + c_pic;
-            c1 = getItemValue(item,"div[class=price dashed]","",null).trim();
-            addKeyValue("{","tname",getItemValue(item,"div[class=short-desc]","",null),",", true);
-            addKeyValue("","tcode",getItemValue(item,"div[class=num]","",null),",", true);
-            if (c1.length() == 0) {
-                addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",", false);
-                addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 0), ",", false);
-                addKeyValue("", "price3","0.00",",", false);
-            } else {
-                addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",", false);
-                addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 1), ",", false);
-                addKeyValue("", "price3", getPriceValue(item, "div[class=value]", "", 0), ",", false);
-            }
-            addKeyValue("","picture",c_pic,",", true);
-            addKeyValue("","url",url,"}", true);
-        }
+        addKeyValue("{","tname",oRS.doc.getElementsByTag("h1").first().text(),",", true);
+        addKeyValue("","tcode",oRS.doc.getElementsByAttribute("data-product-id").first().attr("data-product-id"),",", true);
+        addKeyValue("","barcode",oRS.doc.getElementsByClass("ean").first().child(1).text(),",", true);
+        addKeyValue("","url",url,"}", true);
+
         return true;
     }
 

@@ -5,23 +5,21 @@ REQUIRE System, Barcode, PriceListOperation, Competitor;
 PRIORITY Competitor;
 
 importMilaFile = DATA LOCAL FILE ();
-importMila 'Импортировать'  INTERNAL  'lsfusion.erp.region.by.mila.ImportMilaAction' (BOOLEAN, STRING);
+importMila 'Импортировать'  INTERNAL  'lsfusion.erp.region.by.mila.ImportMilaAction' ();
 
-importMilaLight 'Импорт списка товаров (mila.by)' () { importMila(NULL, NULL); open(importMilaFile()); }
-importMilaFull 'Импорт всей информации по товарам (mila.by)' () { importMila(TRUE, NULL); open(importMilaFile()); }
+importMilaFull 'Импорт всей информации по товарам (mila.by)' () { importMila(); open(importMilaFile()); }
 
 FORM importMilaEuroopt 'Импорт Mila'
-    PROPERTIES() importMilaLight, importMilaFull
+    PROPERTIES() importMilaFull
 ;
 
 EXTEND FORM integrationData
-    PROPERTIES() importMilaLight, importMilaFull   
+    PROPERTIES() importMilaFull   
 ;
 DESIGN integrationData {
     pane {
         NEW mila {
             caption = 'Мила';
-            MOVE PROPERTY(importMilaLight());          
             MOVE PROPERTY(importMilaFull());          
         }
     }
@@ -31,20 +29,32 @@ gname = DATA LOCAL STRING[100] (INTEGER);
 
 group = DATA LOCAL INTEGER (INTEGER);
 tcode = DATA LOCAL STRING[25] (INTEGER);
-price2 = DATA LOCAL NUMERIC[10,3](INTEGER);
-price3 = DATA LOCAL NUMERIC[10,3](INTEGER);
+barcode = DATA LOCAL STRING[25](INTEGER);
 
 FORM importMila
     OBJECTS groups = INTEGER
     PROPERTIES(groups) gname=gname
     
     OBJECTS goods = INTEGER
-    PROPERTIES(goods) tcode=tcode, price2=price2, price3=price3
+    PROPERTIES(goods) tcode, barcode
     FILTERS group(goods) = groups
 ;
 
-importPriceList (STRING url, STRING name) {
-    importMila(TRUE, url);
+GROUP offer;
+GROUP PRICES : offer;
+GROUP PRICE : PRICES;
+GROUP PRICE_CROSSED_OUT : PRICES;
+
+PRICE1 = DATA LOCAL NUMERIC();
+PRICE2 = DATA LOCAL NUMERIC();
+
+FORM milaOffersApi FORMEXTID 'null'
+PROPERTIES() IN PRICE PRICE1 EXTID 'PRICE'
+PROPERTIES() IN PRICE_CROSSED_OUT PRICE2 EXTID 'PRICE'
+;
+
+importPriceList () {
+    importMila();
     
     IMPORT importMila JSON FROM importMilaFile();
     
@@ -56,18 +66,20 @@ importPriceList (STRING url, STRING name) {
         date(p) <- currentDate();
         note(p) <- 'Цены Мила';
          
-        FOR Sku s = skuBarcode(trim(replace(tcode(INTEGER i),'Код: ',''))) AND Competitor c == competitor('Мила') DO NEW d = Competitor.PriceListDetail {
+        FOR Sku s = skuBarcode(trim(barcode(INTEGER i))) AND Competitor c == competitor('Мила') DO {
+            LOCAL result = JSONFILE ();
+            EXTERNAL HTTP POST 'https://api.mila.by/get-all-offer/' BODYURL 'product_id=$1' PARAMS tcode(i) TO result;
             
-            priceList(d) <- p;
-            sku(d) <- s;
-            price(d, c) <- OVERRIDE (price3(i) IF price3(i) != 0), price2(i);
-            promotionPrice(d, c) <- price2(i) IF price3(i) != 0;
+            IMPORT milaOffersApi JSON FROM result();
+        
+            NEW d = Competitor.PriceListDetail {
+                
+                priceList(d) <- p;
+                sku(d) <- s;
+                price(d, c) <- OVERRIDE (PRICE2() IF PRICE2() != 0), PRICE1();
+                promotionPrice(d, c) <- PRICE1() IF PRICE2() != 0;
+            }
         }
         APPLY;
     }
-}
-
-importPriceList() {
-    importPriceList(NULL, 'Мила');
-    importPriceList('https://milashop.by', 'Мила-shop');
 }
