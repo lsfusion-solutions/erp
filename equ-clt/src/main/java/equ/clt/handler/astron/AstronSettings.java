@@ -46,6 +46,9 @@ public class AstronSettings implements Serializable {
     //Опция для mssql - использовать режим выгрузки "на основе номера обновления"
     private boolean versionalScheme;
 
+    //Выгружать deleteBarcode не вместе с со следующей выгрузкой, а отдельно
+    private boolean deleteBarcodeInSeparateProcess;
+
     public AstronSettings() {
     }
 
@@ -164,5 +167,13 @@ public class AstronSettings implements Serializable {
 
     public void setVersionalScheme(boolean versionalScheme) {
         this.versionalScheme = versionalScheme;
+    }
+
+    public boolean isDeleteBarcodeInSeparateProcess() {
+        return deleteBarcodeInSeparateProcess;
+    }
+
+    public void setDeleteBarcodeInSeparateProcess(boolean deleteBarcodeInSeparateProcess) {
+        this.deleteBarcodeInSeparateProcess = deleteBarcodeInSeparateProcess;
     }
 }

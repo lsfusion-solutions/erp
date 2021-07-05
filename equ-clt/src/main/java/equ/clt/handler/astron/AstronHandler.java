@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static equ.clt.handler.HandlerUtils.*;
+import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -51,32 +52,34 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
+        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
+        Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
+        Map<Integer, Integer> groupMachineryMap = astronSettings.getGroupMachineryMap();
+        boolean exportExtraTables = astronSettings.isExportExtraTables();
+        Integer transactionsAtATime = astronSettings.getTransactionsAtATime();
+        Integer itemsAtATime = astronSettings.getItemsAtATime();
+        Integer maxBatchSize = astronSettings.getMaxBatchSize();
+        boolean isVersionalScheme = astronSettings.isVersionalScheme();
+        boolean deleteBarcodeInSeparateProcess = astronSettings.isDeleteBarcodeInSeparateProcess();
 
         List<DeleteBarcodeInfo> deleteBarcodeList = new ArrayList<>();
-        try {
-            //todo: если делать для всех, то вынести чтение deleteBarcode выше
-            List<DeleteBarcodeInfo> allDeleteBarcodeList = remote.readDeleteBarcodeInfoList();
-            for (DeleteBarcodeInfo deleteBarcodeInfo : allDeleteBarcodeList) {
-                if (deleteBarcodeInfo.handlerModelGroupMachinery.equals(getClass().getName())) {
-                    deleteBarcodeList.add(deleteBarcodeInfo);
+        if (!deleteBarcodeInSeparateProcess) {
+            try {
+                //todo: если делать для всех, то вынести чтение deleteBarcode выше
+                List<DeleteBarcodeInfo> allDeleteBarcodeList = remote.readDeleteBarcodeInfoList();
+                for (DeleteBarcodeInfo deleteBarcodeInfo : allDeleteBarcodeList) {
+                    if (deleteBarcodeInfo.handlerModelGroupMachinery.equals(getClass().getName())) {
+                        deleteBarcodeList.add(deleteBarcodeInfo);
+                    }
                 }
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
             }
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
         }
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         if (transactionList != null) {
-
-            AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
-            Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
-            Map<Integer, Integer> groupMachineryMap = astronSettings.getGroupMachineryMap();
-            boolean exportExtraTables = astronSettings.isExportExtraTables();
-            Integer transactionsAtATime = astronSettings.getTransactionsAtATime();
-            Integer itemsAtATime = astronSettings.getItemsAtATime();
-            Integer maxBatchSize = astronSettings.getMaxBatchSize();
-            boolean isVersionalScheme = astronSettings.isVersionalScheme();
 
             Map<String, List<TransactionCashRegisterInfo>> directoryTransactionMap = new HashMap<>();
             for (TransactionCashRegisterInfo transaction : transactionList) {
@@ -192,7 +195,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         if (!transaction.itemsList.isEmpty()) {
 
-                            checkItems(params, transaction);
+                            checkItems(params, transaction.itemsList);
 
                             Integer grpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "GRP");
                             exportGrp(conn, params, transaction, maxBatchSize, grpUpdateNum);
@@ -281,6 +284,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception);
     }
 
+    private Integer getTransactionUpdateNum(boolean versionalScheme, Map<String, Integer> inputUpdateNums, String tbl) {
+        return versionalScheme ? (inputUpdateNums.getOrDefault(tbl, 0) + 1) : null;
+    }
+
     private Integer getTransactionUpdateNum(TransactionCashRegisterInfo transaction, boolean versionalScheme, Map<String, Integer> processedUpdateNums, Map<String, Integer> inputUpdateNums, String tbl) {
         Integer updateNum = versionalScheme ? (inputUpdateNums.getOrDefault(tbl, 0) + 1) : null;
         astronLogger.info(String.format("transaction %s, table %s", transaction.id, tbl) +
@@ -288,12 +295,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return updateNum;
     }
 
-    private void checkItems(AstronConnectionString params, TransactionCashRegisterInfo transaction) {
+    private void checkItems(AstronConnectionString params, List<CashRegisterItem> items) {
         StringBuilder invalidItems = new StringBuilder();
         if (params.pgsql) {
-            for (int i = 0; i < transaction.itemsList.size(); i++) {
-
-                CashRegisterItem item = transaction.itemsList.get(i);
+            for (CashRegisterItem item : items) {
                 String grpId = parseGroup(item.extIdItemGroup);
                 if (grpId == null || grpId.isEmpty()) {
                     invalidItems.append(invalidItems.length() == 0 ? "" : ", ").append(item.idItem);
@@ -301,7 +306,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
         }
         if (invalidItems.length() > 0)
-            throw new RuntimeException("No GRPID for item " + invalidItems.toString());
+            throw new RuntimeException("No GRPID for item " + invalidItems);
     }
 
     private void exportGrp(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Integer maxBatchSize, Integer updateNum) throws SQLException {
@@ -1268,6 +1273,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         conn.commit();
     }
 
+    private void truncateTablesDeleteBarcode(Connection conn) throws SQLException {
+        for (String table : new String[]{"ART", "PACK", "EXBARC"}) {
+            try (Statement s = conn.createStatement()) {
+                s.execute("TRUNCATE TABLE " + table);
+            }
+        }
+        conn.commit();
+    }
+
     private void truncateTable(Connection conn, String name) throws SQLException {
         try (Statement s = conn.createStatement()) {
             s.execute("TRUNCATE TABLE " + name);
@@ -1394,8 +1408,80 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     @Override
-    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
-        //do nothing, все действия с deleteBarcode производятся в sendTransaction
+    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcode) {
+        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
+        Integer timeout = nvl(astronSettings.getTimeout(), 300);
+        Integer maxBatchSize = astronSettings.getMaxBatchSize();
+        boolean isVersionalScheme = astronSettings.isVersionalScheme();
+        boolean deleteBarcodeInSeparateProcess = astronSettings.isDeleteBarcodeInSeparateProcess();
+
+        if(deleteBarcodeInSeparateProcess) {
+
+            AstronConnectionString params = new AstronConnectionString(deleteBarcode.directoryGroupMachinery);
+            if (params.connectionString == null) {
+                astronLogger.error("no connectionString found");
+            } else {
+                Exception exception = waitConnectionSemaphore(params, timeout, false);
+                if (exception == null) {
+                    try (Connection conn = getConnection(params)) {
+                        connectionSemaphore.add(params.connectionString);
+
+                        String tables = "'ART', 'PACK', 'EXBARC'";
+
+                        boolean versionalScheme = params.versionalScheme(isVersionalScheme);
+                        Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
+                        Map<String, Integer> outputUpdateNums = new HashMap<>();
+
+                        if (!versionalScheme) {
+                            Exception waitFlagsResult = waitFlags(conn, params, tables, timeout);
+                            if (waitFlagsResult != null) {
+                                throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
+                            }
+                            truncateTablesDeleteBarcode(conn);
+                        }
+
+                        deleteBarcode.barcodeList = deleteBarcode.barcodeList.stream().filter(item -> parseUOM(item.idUOM) != null && parseIdItem(item) != null).collect(Collectors.toList());
+
+                        if (!deleteBarcode.barcodeList.isEmpty()) {
+
+                            checkItems(params, deleteBarcode.barcodeList);
+
+                            Integer artUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "ART");
+                            exportArt(conn, params, deleteBarcode.barcodeList, false, false, maxBatchSize, artUpdateNum);
+                            outputUpdateNums.put("ART", artUpdateNum);
+
+                            Integer packUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "PACK");
+                            exportPack(conn, params, deleteBarcode.barcodeList, false, maxBatchSize, packUpdateNum);
+                            outputUpdateNums.put("PACK", packUpdateNum);
+
+                            Integer exBarcUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "EXBARC");
+                            exportExBarc(conn, params, deleteBarcode.barcodeList, false, maxBatchSize, exBarcUpdateNum);
+                            outputUpdateNums.put("EXBARC", exBarcUpdateNum);
+
+                            if (versionalScheme) {
+                                astronLogger.info("deleteBarcode, table DATAPUMP");
+                                exportUpdateNums(conn, params, outputUpdateNums);
+                            } else {
+                                astronLogger.info(String.format("waiting for processing %s deleteBarcode(s)", deleteBarcode.barcodeList.size()));
+
+                                exportFlags(conn, params, tables);
+                                Exception e = waitFlags(conn, params, tables, timeout);
+                                if (e != null) {
+                                    throw e;
+                                }
+                            }
+                            return true;
+                        }
+
+                    } catch (Exception e) {
+                        astronLogger.error("exportTransaction error", e);
+                    } finally {
+                        connectionSemaphore.remove(params.connectionString);
+                    }
+                }
+            }
+
+        }
         return false;
     }
 
