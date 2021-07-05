@@ -316,8 +316,13 @@ createAutoOrders 'Создание автозаказов' () {
                 overCreateAuto(o);
                 
                 DELETE o WHERE NOT countUserOrderDetail(o);                     
-                IF countUserOrderDetail(o) THEN 
+                IF countUserOrderDetail(o) THEN {
                     APPLY;
+                    IF canceled() THEN {
+                        printToLog(CONCAT ' ', 'Автозаказ. ERROR:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), applyMessage());
+                    }                
+                }
+
             }
         }
     }
