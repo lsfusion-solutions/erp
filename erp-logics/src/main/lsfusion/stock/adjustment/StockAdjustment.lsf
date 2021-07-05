@@ -754,8 +754,10 @@ createBatchUserAdjustmentDetail(UserAdjustment adjustment)  {
 defaultOperationBatch 'Операция для документа пересорта по партиям' = DATA Operation ();
 nameDefaultOperationBatch 'Операция для документа пересорта по партиям' = name(defaultOperationBatch());
 
+notCreateEmptyAdjustment 'Не создавать документы без строк при регламентных операциях' = DATA BOOLEAN () COMPLEX;
+
 EXTEND FORM options
-    PROPERTIES() nameDefaultOperationBatch
+    PROPERTIES() nameDefaultOperationBatch, notCreateEmptyAdjustment
 ;
 
 DESIGN options {
@@ -763,6 +765,7 @@ DESIGN options {
         NEW stockAdjustment {
             caption = 'Изменение остатков';
             MOVE PROPERTY(nameDefaultOperationBatch());
+            MOVE PROPERTY(notCreateEmptyAdjustment());
         }
     }
 }
@@ -829,6 +832,9 @@ createBatchUserAdjustment 'Документ пересорта'()  {
         
         createBatchUserAdjustmentDetail(a);  
         createBatchUserAdjustmentDetailEx(a);
+        
+        IF notCreateEmptyAdjustment() AND NOT countUserAdjustmentDetail(a) THEN
+            DELETE a;
     }
 }//-- для планировщика
 
@@ -922,6 +928,9 @@ createSumUserAdjustment 'Корректировка суммы ТО'()  {
         overCreateSumUserAdjustment(a);
         
         createSumUserAdjustment(a);      
+        
+        IF notCreateEmptyAdjustment() AND NOT countUserAdjustmentDetail(a) THEN
+            DELETE a;
     }
 }//-- для планировщика
 
