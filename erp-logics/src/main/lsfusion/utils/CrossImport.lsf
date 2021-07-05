@@ -1,0 +1,18 @@
+MODULE CrossImport;
+
+REQUIRE Utils;
+
+imported = DATA LOCAL STRING (INTEGER, INTEGER);
+
+var (INTEGER count) = GROUP CONCAT 'LOCAL value' + STRING(INTEGER i) + '=STRING(INTEGER)', ';' ORDER i IF iterate(i, 0, count - 1);
+import (INTEGER count) = 'IMPORT XLS FROM excelFile TO (INTEGER) ' + GROUP CONCAT 'value' + STRING (INTEGER i), ',' ORDER i IF iterate(i, 0, count - 1);
+let (INTEGER count) = GROUP CONCAT 'CrossImport.imported(' + STRING(INTEGER i) + ',i)<-value' + STRING(i) + '(i) WHERE System.imported(i)', ';' ORDER i IF iterate(i, 0, count - 1);
+
+eval (INTEGER count) = CONCAT ';', var(count), import(count), let(count);
+
+// action можно использовать начиная с версии 4.2CR
+crossImport(EXCELFILE file) {
+    columnsCount(file);
+    imported(INTEGER i, INTEGER j) <- NULL WHERE imported(i, j);
+    EVAL 'run(EXCELFILE excelFile) \{' + eval(columnsCount()) + ';\}' PARAMS file;
+}
