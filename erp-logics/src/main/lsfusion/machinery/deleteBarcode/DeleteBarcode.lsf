@@ -1,6 +1,6 @@
 MODULE DeleteBarcode;
 
-REQUIRE System, CashRegisterStore, StockTax;
+REQUIRE System, CashRegisterStore, StockTax, CashRegisterItem;
 
 CLASS DeleteBarcode 'Запрос удаления штрихкода';
 TABLE deleteBarcode(DeleteBarcode);
@@ -27,6 +27,9 @@ shortNameUOMSku 'Ед. изм. товара' = DATA STRING[100] (DeleteBarcode);
 valueVATSku 'НДС, %' = DATA NUMERIC[10,5] (DeleteBarcode);
 idItemGroup 'Код группы товара' = DATA STRING[100] (DeleteBarcode);
 nameItemGroup 'Наименование группы товара' = DATA STRING[250] (DeleteBarcode);
+overIdSkuGroup = DATA STRING[100] (DeleteBarcode);
+passScales = DATA BOOLEAN (DeleteBarcode);
+split = DATA BOOLEAN (DeleteBarcode);
 
 finishDeleteBarcode(INTEGER nppGroupMachinery, BOOLEAN markSucceeded)  { 
     IF markSucceeded THEN {
@@ -84,5 +87,8 @@ WHEN (DROPPED (Barcode b IS Barcode) OR DROPPED (active(b))) AND PREV(id(b)) AND
         idItemGroup(d) <- PREV(id(skuGroup(sku(b))));
         nameItemGroup(d) <- name(PREV(skuGroup(sku(b))));
         groupMachinery(d) <- gm;
+        overIdSkuGroup(d) <- PREV(overIdSkuGroup(b));
+        passScales(d) <- PREV(passScales(b));
+        split(d) <- PREV(split(b));
     } 
 }
