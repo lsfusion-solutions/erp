@@ -34,7 +34,7 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
         IF NOT overExportTurnoverBatch() THEN {
             IF exportBalanceBBatch() THEN {
                 EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
-                                    stock = Stock st, sku = sku(Batch b),
+                                    stock = Stock st, legalEntityStock = legalEntity(st), sku = sku(Batch b),
                                     batch = b, nameBatch = STRING(CONCAT '/ ', BPSTRING[10](date(b)), seriesNumber(b)),
                                     supplier = supplier(b), supplierStock = supplierStock(b),
                                     manufacturer = manufacturer(sku(b)), UOM = UOM(sku(b)),
@@ -45,7 +45,7 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
                        WHERE balanceBBatch(b, st) OR balanceBatch(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
             } ELSE {
                 EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
-                                    stock = Stock st, sku = sku(Batch b),
+                                    stock = Stock st, legalEntityStock = legalEntity(st), sku = sku(Batch b),
                                     batch = b, nameBatch = STRING(CONCAT '/ ', BPSTRING[10](date(b)), seriesNumber(b)),
                                     supplier = supplier(b), supplierStock = supplierStock(b),
                                     manufacturer = manufacturer(sku(b)), UOM = UOM(sku(b)),
@@ -112,22 +112,23 @@ DESIGN turnoverBatchReport {
 }
 
 @createGroupCount(turnoverBatch, stock, 'По магазину', 1, 'stock', 'LOOKUP(stock,\'stock_name\')', 'Магазин', stockContainer, 4);
-@createGroupCount(turnoverBatch, supplier, 'По поставщику', 2, 'supplier', 'LOOKUP(supplier,\'legalEntity_name\')', 'Поставщик', supplierContainer, 4);
-@createGroupCount(turnoverBatch, group1, 'По направлению', 3, 'LOOKUP(sku,\'sku_group1\')', 'LOOKUP(LOOKUP(sku,\'sku_group1\'),\'group_name\')', 'Направление', itemContainer, 4);
-@createGroupCount(turnoverBatch, group2, 'По группе', 4, 'LOOKUP(sku,\'sku_group2\')', 'LOOKUP(LOOKUP(sku,\'sku_group2\'),\'group_name\')', 'Группа', itemContainer, 4);
-@createGroupCount(turnoverBatch, group3, 'По подгруппе', 5, 'LOOKUP(sku,\'sku_group3\')', 'LOOKUP(LOOKUP(sku,\'sku_group3\'),\'group_name\')', 'Подгруппа', itemContainer, 4);
-@createGroupCount(turnoverBatch, group4, 'По субгруппе', 6, 'LOOKUP(sku,\'sku_group4\')', 'LOOKUP(LOOKUP(sku,\'sku_group4\'),\'group_name\')', 'Субгруппа', itemContainer, 4);
-@createGroupCount(turnoverBatch, group5, 'По виду', 7, 'LOOKUP(sku,\'sku_group5\')', 'LOOKUP(LOOKUP(sku,\'sku_group5\'),\'group_name\')', 'Вид', itemContainer, 4);
-@createGroupCount(turnoverBatch, batch, 'По партии', 8, 'batch', 'nameBatch || \'/ \' || batch', 'Партия', itemContainer, 4);
-@createGroupCount(turnoverBatch, sku, 'По товару', 9, 'sku', 'LOOKUP(sku,\'sku_name\')', 'Товар', itemContainer, 4);
-@createGroupCount(turnoverBatch, brand, 'По бренду', 10, 'LOOKUP(sku,\'sku_brand\')', 'LOOKUP(LOOKUP(sku,\'sku_brand\'),\'brand_name\')', 'Бренд', itemContainer, 4);
-@createGroupCount(turnoverBatch, manufacturer, 'По производителю', 11, 'manufacturer', 'LOOKUP(manufacturer,\'manufacturer_name\')', 'Производитель', itemContainer, 4);
-@createGroupCount(turnoverBatch, month, 'По месяцам', 12, 'TIME_FORMAT(__time,\'yyyy-MM\')', 'Месяц', timeContainer, 4);
-@createGroupCount(turnoverBatch, week, 'По неделям', 13, 'TIME_FORMAT(__time,\'xxxx неделя ww\')', 'Неделя', timeContainer, 4);
-@createGroupCount(turnoverBatch, day, 'По дням', 14, 'TIME_FORMAT(__time,\'yyyy-MM-dd\')', 'День', timeContainer, 4);
-@createGroupCount(turnoverBatch, supplierStock, 'По складу поставщика', 15, 'supplierStock', 'LOOKUP(supplierStock,\'stock_name\')', 'Склад поставщика', supplierContainer, 4);
-@createGroupCount(turnoverBatch, UOM, 'По единице измерения', 16, 'UOM', 'LOOKUP(UOM,\'UOM_name\')', 'Единица измерения', itemContainer, 4);
-@createGroupCount(turnoverBatch, country, 'По стране', 17, 'LOOKUP(sku,\'sku_country\')', 'LOOKUP(LOOKUP(sku,\'sku_country\'),\'country_name\')', 'Страна', itemContainer, 4);
+@createGroupCount(turnoverBatch, legalEntity, 'По организации', 2, 'legalEntityStock', 'LOOKUP(legalEntityStock,\'legalEntity_name\')', 'Организация', stockContainer, 4);
+@createGroupCount(turnoverBatch, supplier, 'По поставщику', 3, 'supplier', 'LOOKUP(supplier,\'legalEntity_name\')', 'Поставщик', supplierContainer, 4);
+@createGroupCount(turnoverBatch, group1, 'По направлению', 4, 'LOOKUP(sku,\'sku_group1\')', 'LOOKUP(LOOKUP(sku,\'sku_group1\'),\'group_name\')', 'Направление', itemContainer, 4);
+@createGroupCount(turnoverBatch, group2, 'По группе', 5, 'LOOKUP(sku,\'sku_group2\')', 'LOOKUP(LOOKUP(sku,\'sku_group2\'),\'group_name\')', 'Группа', itemContainer, 4);
+@createGroupCount(turnoverBatch, group3, 'По подгруппе', 6, 'LOOKUP(sku,\'sku_group3\')', 'LOOKUP(LOOKUP(sku,\'sku_group3\'),\'group_name\')', 'Подгруппа', itemContainer, 4);
+@createGroupCount(turnoverBatch, group4, 'По субгруппе', 7, 'LOOKUP(sku,\'sku_group4\')', 'LOOKUP(LOOKUP(sku,\'sku_group4\'),\'group_name\')', 'Субгруппа', itemContainer, 4);
+@createGroupCount(turnoverBatch, group5, 'По виду', 8, 'LOOKUP(sku,\'sku_group5\')', 'LOOKUP(LOOKUP(sku,\'sku_group5\'),\'group_name\')', 'Вид', itemContainer, 4);
+@createGroupCount(turnoverBatch, batch, 'По партии', 9, 'batch', 'nameBatch || \'/ \' || batch', 'Партия', itemContainer, 4);
+@createGroupCount(turnoverBatch, sku, 'По товару', 10, 'sku', 'LOOKUP(sku,\'sku_name\')', 'Товар', itemContainer, 4);
+@createGroupCount(turnoverBatch, brand, 'По бренду', 11, 'LOOKUP(sku,\'sku_brand\')', 'LOOKUP(LOOKUP(sku,\'sku_brand\'),\'brand_name\')', 'Бренд', itemContainer, 4);
+@createGroupCount(turnoverBatch, manufacturer, 'По производителю', 12, 'manufacturer', 'LOOKUP(manufacturer,\'manufacturer_name\')', 'Производитель', itemContainer, 4);
+@createGroupCount(turnoverBatch, month, 'По месяцам', 13, 'TIME_FORMAT(__time,\'yyyy-MM\')', 'Месяц', timeContainer, 4);
+@createGroupCount(turnoverBatch, week, 'По неделям', 14, 'TIME_FORMAT(__time,\'xxxx неделя ww\')', 'Неделя', timeContainer, 4);
+@createGroupCount(turnoverBatch, day, 'По дням', 15, 'TIME_FORMAT(__time,\'yyyy-MM-dd\')', 'День', timeContainer, 4);
+@createGroupCount(turnoverBatch, supplierStock, 'По складу поставщика', 16, 'supplierStock', 'LOOKUP(supplierStock,\'stock_name\')', 'Склад поставщика', supplierContainer, 4);
+@createGroupCount(turnoverBatch, UOM, 'По единице измерения', 17, 'UOM', 'LOOKUP(UOM,\'UOM_name\')', 'Единица измерения', itemContainer, 4);
+@createGroupCount(turnoverBatch, country, 'По стране', 18, 'LOOKUP(sku,\'sku_country\')', 'LOOKUP(LOOKUP(sku,\'sku_country\'),\'country_name\')', 'Страна', itemContainer, 4);
 
 nameGroupsTurnoverBatch = CONCAT ', ', (OVERRIDE exprGroup1TurnoverBatch(), '\'\'') + ' AS nameGroup1',
                                            (OVERRIDE exprGroup2TurnoverBatch(), '\'\'') + ' AS nameGroup2',
@@ -146,9 +147,9 @@ isTimeGroupBatch() += WHEN gWeekTurnoverBatch() THEN TRUE;
 isTimeGroupBatch() += WHEN gDayTurnoverBatch() THEN TRUE;
 
 isTimeGroupBatch = ABSTRACT CASE BOOLEAN (INTEGER);
-isTimeGroupBatch(INTEGER i) += WHEN i == 12 THEN TRUE;
 isTimeGroupBatch(INTEGER i) += WHEN i == 13 THEN TRUE;
 isTimeGroupBatch(INTEGER i) += WHEN i == 14 THEN TRUE;
+isTimeGroupBatch(INTEGER i) += WHEN i == 15 THEN TRUE;
 
 isTimeGroup2Batch() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 2 AND isTimeGroupBatch(i));
 isTimeGroup3Batch() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 3 AND isTimeGroupBatch(i));
