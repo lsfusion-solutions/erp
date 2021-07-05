@@ -1,0 +1,1009 @@
+MODULE TurnoverBatchBI;
+
+REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI, DefaultLookupBI, ItemBrandGroup;
+
+NAMESPACE BI;
+
+//Грузить остаток на начало
+exportBalanceBBatch 'Грузить остаток на начало (по партиям)' = DATA BOOLEAN () PREREAD;
+
+EXTEND FORM integrationData
+    PROPERTIES DRAW dates exportBalanceBBatch()
+;
+
+overExportTurnoverBatch  ABSTRACT (DATE);
+overExportTurnoverBatch = DATA LOCAL BOOLEAN ();
+
+balanceBatch = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
+balanceBBatch = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
+
+exportTurnoverBatch 'Выгрузить Оборачиваемость (по партиям)' (DATE dFrom, DATE dTo)  { 
+    balanceBatch(Batch b, Stock st) <- balanceA(b, st, dTo);
+    IF exportBalanceBBatch() THEN
+        balanceBBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantity(b, st, dTo);
+    
+    LOCAL accountPrice = NUMERIC[16,4] (Batch, Stock);
+    accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(sum(dTo, 1))) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, dTo) OR quantitySold(b, st, dTo);
+
+    LOCAL date = DATE ();
+    date() <- dTo;
+    
+    WHILE date() >= dFrom DO {
+        logToFile('druid', 'Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balanceBatch(Batch b, Stock st)));
+        overExportTurnoverBatch(date());
+        IF NOT overExportTurnoverBatch() THEN {
+            IF exportBalanceBBatch() THEN {
+                EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
+                                    stock = Stock st, sku = sku(Batch b),
+                                    batch = b, nameBatch = STRING(CONCAT '/ ', BPSTRING[10](date(b)), seriesNumber(b)),
+                                    supplier = supplier(b), supplierStock = supplierStock(b),
+                                    manufacturer = manufacturer(sku(b)), UOM = UOM(sku(b)),
+                                    cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), price = DOUBLE(accountPrice(b, st)),
+                                    balance = DOUBLE(balanceBatch(b, st)), balanceB = DOUBLE(balanceBBatch(b, st)),
+                                    quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
+                                    quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
+                       WHERE balanceBBatch(b, st) OR balanceBatch(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
+            } ELSE {
+                EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
+                                    stock = Stock st, sku = sku(Batch b),
+                                    batch = b, nameBatch = STRING(CONCAT '/ ', BPSTRING[10](date(b)), seriesNumber(b)),
+                                    supplier = supplier(b), supplierStock = supplierStock(b),
+                                    manufacturer = manufacturer(sku(b)), UOM = UOM(sku(b)),
+                                    cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), price = DOUBLE(accountPrice(b, st)),
+                                    balance = DOUBLE(balanceBatch(b, st)),
+                                    quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
+                                    quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
+                       WHERE balanceBatch(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
+                        
+            }
+        }
+        logToFile('druid', 'Ended EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balanceBatch(Batch b, Stock st)));
+
+        IF exportBalanceBBatch() THEN 
+            ingestBatch('turnoverBatch', 'turnoverBBatch', date());
+        ELSE ingestBatch('turnoverBatch', date());
+
+        balanceBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date());
+        accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(date())) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, subtract(date(), 1)) OR quantitySold(b, st, subtract(date(), 1));
+        date() <- subtract(date(), 1);
+        IF exportBalanceBBatch() THEN
+            balanceBBatch(Batch b, Stock st) <- balanceBBatch(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date());
+    }
+    
+    runKillTask('turnoverBatch', dFrom, dTo);
+} CONFIRM;
+
+EXTEND FORM integrationData
+    PROPERTIES exportTurnoverBatch(druidFrom, druidTo)
+;
+
+@defineReport(turnoverBatch, 'Оборачиваемость (по партиям)');
+
+nameGroup4TurnoverBatch() = GROUP MAX nameGroupDBTurnoverBatch(INTEGER i) IF order(i) == 4;
+exprGroup4TurnoverBatch() = GROUP MAX exprGroupDBTurnoverBatch(INTEGER i) IF order(i) == 4;
+captionGroup4TurnoverBatch() = GROUP MAX captionGroupTurnoverBatch(INTEGER i) IF order(i) == 4;
+
+DESIGN turnoverBatchReport {
+    checkBoxContainer {
+        NEW groupContainer {
+            type = CONTAINERV;
+            NEW line1 {
+                type = CONTAINERH;
+                NEW column1 {
+                    type = CONTAINERV;
+                    NEW stockContainer {
+                        caption = 'Склады';
+                    }
+                    NEW supplierContainer {
+                        caption = 'Поставщики';
+                    }
+                }
+                NEW timeContainer {
+                    caption = 'Время';
+                }
+            } 
+            NEW itemContainer {
+                type = COLUMNS;
+                columns = 2;
+                caption = 'Товары';
+            }
+        }
+    }
+}
+
+@createGroupCount(turnoverBatch, stock, 'По магазину', 1, 'stock', 'LOOKUP(stock,\'stock_name\')', 'Магазин', stockContainer, 4);
+@createGroupCount(turnoverBatch, supplier, 'По поставщику', 2, 'supplier', 'LOOKUP(supplier,\'legalEntity_name\')', 'Поставщик', supplierContainer, 4);
+@createGroupCount(turnoverBatch, group1, 'По направлению', 3, 'LOOKUP(sku,\'sku_group1\')', 'LOOKUP(LOOKUP(sku,\'sku_group1\'),\'group_name\')', 'Направление', itemContainer, 4);
+@createGroupCount(turnoverBatch, group2, 'По группе', 4, 'LOOKUP(sku,\'sku_group2\')', 'LOOKUP(LOOKUP(sku,\'sku_group2\'),\'group_name\')', 'Группа', itemContainer, 4);
+@createGroupCount(turnoverBatch, group3, 'По подгруппе', 5, 'LOOKUP(sku,\'sku_group3\')', 'LOOKUP(LOOKUP(sku,\'sku_group3\'),\'group_name\')', 'Подгруппа', itemContainer, 4);
+@createGroupCount(turnoverBatch, group4, 'По субгруппе', 6, 'LOOKUP(sku,\'sku_group4\')', 'LOOKUP(LOOKUP(sku,\'sku_group4\'),\'group_name\')', 'Субгруппа', itemContainer, 4);
+@createGroupCount(turnoverBatch, group5, 'По виду', 7, 'LOOKUP(sku,\'sku_group5\')', 'LOOKUP(LOOKUP(sku,\'sku_group5\'),\'group_name\')', 'Вид', itemContainer, 4);
+@createGroupCount(turnoverBatch, batch, 'По партии', 8, 'batch', 'nameBatch || \'/ \' || batch', 'Партия', itemContainer, 4);
+@createGroupCount(turnoverBatch, sku, 'По товару', 9, 'sku', 'LOOKUP(sku,\'sku_name\')', 'Товар', itemContainer, 4);
+@createGroupCount(turnoverBatch, brand, 'По бренду', 10, 'LOOKUP(sku,\'sku_brand\')', 'LOOKUP(LOOKUP(sku,\'sku_brand\'),\'brand_name\')', 'Бренд', itemContainer, 4);
+@createGroupCount(turnoverBatch, manufacturer, 'По производителю', 11, 'manufacturer', 'LOOKUP(manufacturer,\'manufacturer_name\')', 'Производитель', itemContainer, 4);
+@createGroupCount(turnoverBatch, month, 'По месяцам', 12, 'TIME_FORMAT(__time,\'yyyy-MM\')', 'Месяц', timeContainer, 4);
+@createGroupCount(turnoverBatch, week, 'По неделям', 13, 'TIME_FORMAT(__time,\'xxxx неделя ww\')', 'Неделя', timeContainer, 4);
+@createGroupCount(turnoverBatch, day, 'По дням', 14, 'TIME_FORMAT(__time,\'yyyy-MM-dd\')', 'День', timeContainer, 4);
+@createGroupCount(turnoverBatch, supplierStock, 'По складу поставщика', 15, 'supplierStock', 'LOOKUP(supplierStock,\'stock_name\')', 'Склад поставщика', supplierContainer, 4);
+@createGroupCount(turnoverBatch, UOM, 'По единице измерения', 16, 'UOM', 'LOOKUP(UOM,\'UOM_name\')', 'Единица измерения', itemContainer, 4);
+@createGroupCount(turnoverBatch, country, 'По стране', 17, 'LOOKUP(sku,\'sku_country\')', 'LOOKUP(LOOKUP(sku,\'sku_country\'),\'country_name\')', 'Страна', itemContainer, 4);
+
+nameGroupsTurnoverBatch = CONCAT ', ', (OVERRIDE exprGroup1TurnoverBatch(), '\'\'') + ' AS nameGroup1',
+                                           (OVERRIDE exprGroup2TurnoverBatch(), '\'\'') + ' AS nameGroup2',
+                                           (OVERRIDE exprGroup3TurnoverBatch(), '\'\'') + ' AS nameGroup3',
+                                           (OVERRIDE exprGroup4TurnoverBatch(), '\'\'') + ' AS nameGroup4',
+                                           (IF gSkuTurnoverBatch() THEN 'LOOKUP(sku,\'sku_barcode\')' ELSE '\'\'') + ' AS barcodeSku';
+groupsTurnoverBatch = CONCAT ', ', (OVERRIDE nameGroup1TurnoverBatch(), '\'\'') + ' AS group1',
+                                        (OVERRIDE nameGroup2TurnoverBatch(), '\'\'') + ' AS group2',
+                                        (OVERRIDE nameGroup3TurnoverBatch(), '\'\'') + ' AS group3',
+                                        (OVERRIDE nameGroup4TurnoverBatch(), '\'\'') + ' AS group4',
+                                        (IF gBatchTurnoverBatch() THEN 'nameBatch' ELSE '\'\'') + ' AS nameBatch';
+
+isTimeGroupBatch = ABSTRACT CASE BOOLEAN ();
+isTimeGroupBatch() += WHEN gMonthTurnoverBatch() THEN TRUE;
+isTimeGroupBatch() += WHEN gWeekTurnoverBatch() THEN TRUE;
+isTimeGroupBatch() += WHEN gDayTurnoverBatch() THEN TRUE;
+
+isTimeGroupBatch = ABSTRACT CASE BOOLEAN (INTEGER);
+isTimeGroupBatch(INTEGER i) += WHEN i == 12 THEN TRUE;
+isTimeGroupBatch(INTEGER i) += WHEN i == 13 THEN TRUE;
+isTimeGroupBatch(INTEGER i) += WHEN i == 14 THEN TRUE;
+
+isTimeGroup2Batch() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 2 AND isTimeGroupBatch(i));
+isTimeGroup3Batch() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 3 AND isTimeGroupBatch(i));
+isTimeGroup4Batch() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 4 AND isTimeGroupBatch(i));
+printSumGroup1Batch() = TRUE IF NOT isTimeGroupBatch() OR NOT (isTimeGroup2Batch() OR isTimeGroup3Batch() OR isTimeGroup4Batch());
+printSumGroup2Batch() = TRUE IF NOT isTimeGroupBatch() OR NOT (isTimeGroup3Batch() OR isTimeGroup4Batch());
+printSumGroup3Batch() = TRUE IF NOT isTimeGroupBatch() OR NOT isTimeGroup4Batch();
+
+isSupplierGroupBatch = ABSTRACT CASE BOOLEAN ();
+isSupplierGroupBatch() += WHEN gSupplierTurnoverBatch() THEN TRUE;
+isSupplierGroupBatch() += WHEN gSupplierStockTurnoverBatch() THEN TRUE;
+
+nameGroup1TurnoverBatch = DATA LOCAL STRING[255] (INTEGER);
+nameGroup2TurnoverBatch = DATA LOCAL STRING[255] (INTEGER);
+nameGroup3TurnoverBatch = DATA LOCAL STRING[255] (INTEGER);
+nameGroup4TurnoverBatch = DATA LOCAL STRING[255] (INTEGER);
+barcodeSkuBatch = DATA LOCAL STRING[15] (INTEGER);
+group1TurnoverBatch = DATA LOCAL STRING[255] (INTEGER);
+group2TurnoverBatch = DATA LOCAL STRING[255] (INTEGER);
+group3TurnoverBatch = DATA LOCAL STRING[255] (INTEGER);
+group4TurnoverBatch = DATA LOCAL STRING[255] (INTEGER);
+nameBatchBatch = DATA LOCAL STRING[255] (INTEGER);
+
+quantitySoldBatch 'Продано (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
+costSumSoldBatch 'Продано (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+costSumVATSoldBatch 'Продано (себестоимость с НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+markupSumSoldBatch 'Продано (надбавка, руб)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+percMarkupSumSoldBatch 'Продано (надбавка, %)' = DATA LOCAL NUMERIC[12,2] (INTEGER);
+sumVATSoldBatch 'Продано (сумма НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumSoldBatch 'Продано (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumPriceSoldBatch 'Продано (сумма учетная)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+quantityPurchaseBatch 'Закуплено (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
+sumMinusVATPurchaseBatch 'Закуплено (сумма без НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumVATPurchaseBatch 'Закуплено (сумма НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumPurchaseBatch 'Закуплено (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumPricePurchaseBatch 'Закуплено (сумма учетная)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+costBalanceBatch 'Себестоимость' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+turnoverBatch 'Оборачиваемость' = DATA LOCAL NUMERIC[16,3] (INTEGER);
+daysOnStockBatch 'Дней на складе' = DATA LOCAL INTEGER (INTEGER);
+
+balanceBBatch 'Остаток (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
+costBalanceBBatch 'Остаток (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+VATSupplierBBatch 'НДС поставщика' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+costVATBalanceBBatch 'Остаток (себестоимость с НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumBalanceBBatch 'Остаток (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+balanceABatch 'Остаток (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
+costBalanceABatch 'Остаток (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+VATSupplierABatch 'НДС поставщика' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+costVATBalanceABatch 'Остаток (себестоимость с НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumBalanceABatch 'Остаток (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+countRowsTurnoverBatch 'Количество строк' () = GROUP SUM 1 IF nameGroup1TurnoverBatch(INTEGER i);
+
+isBalanceBBatch 'Остаток на начало' = DATA LOCAL BOOLEAN ();
+isInBatch 'Поступление' = DATA LOCAL BOOLEAN ();
+isOutBatch 'Продажа' = DATA LOCAL BOOLEAN ();
+isBalanceABatch 'Остаток на конец' = DATA LOCAL BOOLEAN ();
+
+isQuantityBatch 'Количество' = DATA LOCAL BOOLEAN ();
+isCostBatch 'Себестоимость' = DATA LOCAL BOOLEAN ();
+isVATSupplierBatch 'НДС поставщика' = DATA LOCAL BOOLEAN ();
+isCostVATBatch 'Себестоимость с НДС' = DATA LOCAL BOOLEAN ();
+isMarkupBatch 'Надбавка' = DATA LOCAL BOOLEAN ();
+isSumBatch 'Сумма' = DATA LOCAL BOOLEAN ();
+isTurnoverBatch 'Оборачиваемость' = DATA LOCAL BOOLEAN ();
+isDaysOnStockBatch 'Дней на складе' = DATA LOCAL BOOLEAN ();
+
+extraIsBalanceABatch 'Остаток на конец' = ABSTRACT BOOLEAN ();
+extraIsQuantityBatch 'Количество' = ABSTRACT BOOLEAN ();
+
+overIsOutBatch 'Продажа' = OVERRIDE isOutBatch(), (isMarkupBatch() OR isTurnoverBatch());
+overIsBalanceABatch 'Остаток на конец' = OVERRIDE isBalanceABatch(), extraIsBalanceABatch();
+overIsQuantityBatch 'Количество' = OVERRIDE isQuantityBatch(), extraIsQuantityBatch();
+overIsCostBatch 'Себестоимость' = OVERRIDE isCostBatch(), (isMarkupBatch() OR isTurnoverBatch());
+
+//------- Группы складов -------
+dataIncludeBatch 'Вкл' = DATA LOCAL BOOLEAN (StockGroup);
+
+levelParentIncludeBatch(StockGroup stockGroup) = GROUP MIN level(stockGroup, StockGroup parent) IF dataIncludeBatch(parent);    
+nearestParentIncludeBatch(StockGroup stockGroup) = stockGroup(stockGroup, levelParentIncludeBatch(stockGroup));
+nearestIncludeBatch(StockGroup stockGroup) = dataIncludeBatch(nearestParentIncludeBatch(stockGroup));
+
+includeBatch 'Вкл' (StockGroup stockGroup) = OVERRIDE dataIncludeBatch(stockGroup), nearestIncludeBatch(stockGroup);
+
+deleteIncludeStockGroupsBatch 'Сбросить отмеченные'()  { 
+    dataIncludeBatch(StockGroup g) <- NULL;
+};
+
+nameIncludeStockGroupsBatch 'Группы складов (все)' ()= GROUP CONCAT TEXT(name(StockGroup stockGroup)) IF dataIncludeBatch(stockGroup), ', ' ORDER stockGroup CHARWIDTH 20;
+
+//------- Склады -------
+dataIncludeBatch 'Вкл' = DATA LOCAL BOOLEAN (Stock);
+
+includeBatch 'Вкл' (Stock stock) = (OVERRIDE dataIncludeBatch(stock), includeBatch(stockGroup(stock))) IF isCompany(stock);
+
+deleteIncludeStocksBatch 'Сбросить отмеченные'()  { 
+    dataIncludeBatch(Stock st) <- NULL;
+};
+
+nameIncludeStocksBatch 'Склады (все)' ()= GROUP CONCAT TEXT(name(Stock stock)) IF dataIncludeBatch(stock), ', ' ORDER stock CHARWIDTH 20;
+countIncludeStocksBatch () = GROUP SUM 1 IF dataIncludeBatch(Stock stock);
+indexIncludeStockBatch (Stock stock) = PARTITION SUM 1 ORDER stock IF dataIncludeBatch(stock);
+
+nameIncludeStockGroupsStockBatch 'Группы складов, склады (все)' () = CONCAT '; ', nameIncludeStockGroupsBatch(), nameIncludeStocksBatch() CHARWIDTH 20;
+
+FORM dialogStockGroupsStockBatch 'Склады'
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    PROPERTIES includeBatch(sg)
+    ORDERS name(sg)
+    PROPERTIES deleteIncludeStockGroupsBatch() DRAW sg TOOLBAR
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES (s) includeBatch
+    ORDERS name(s)
+    PROPERTIES deleteIncludeStocksBatch() DRAW s TOOLBAR
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCompany(s),
+            countCompanyStock(sg),
+            accessCompany(currentUser(),s)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP select FILTER 'Отм.' includeBatch(s) 'F9'
+;
+DESIGN dialogStockGroupsStockBatch {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+            MOVE BOX(s) {
+                fill = 1.5;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    charWidth = 35;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeIncludeStockGroupsStockBatch()  { 
+    DIALOG dialogStockGroupsStockBatch;
+}
+
+//------- Поставщики -------
+includeBatch 'Вкл' = DATA LOCAL BOOLEAN (LegalEntity);
+
+deleteIncludeLegalEntitiesBatch 'Сбросить отмеченные'()  { 
+    includeBatch(LegalEntity l) <- NULL;
+};
+
+nameIncludeLegalEntitiesBatch 'Поставщики (все)' () = GROUP CONCAT TEXT((OVERRIDE name(LegalEntity le),'')) IF includeBatch(le), ', ' ORDER le CHARWIDTH 20;
+
+FORM dialogLegalEntityBatch 'Поставщики'
+    OBJECTS le = LegalEntity
+    PROPERTIES includeBatch(le)
+    PROPERTIES(le) READONLY id, name, fullName
+    ORDERS name(le)
+    FILTERS isSupplier(le)
+    FILTERGROUP inLegalEntity FILTER 'Отмеченные' includeBatch(le)
+    PROPERTIES deleteIncludeLegalEntitiesBatch() DRAW le TOOLBAR
+;
+DESIGN dialogLegalEntityBatch {
+    BOX { size = (1024, 768); }
+}
+
+changeIncludeLegalEntitiesBatch()  { 
+    DIALOG dialogLegalEntityBatch OBJECTS le INPUT DO {
+        IF NOT (GROUP SUM 1 IF includeBatch(LegalEntity l)) THEN
+            includeBatch(le) <- TRUE;
+    }
+}
+
+//------- Бренды -------
+includeBatch 'Вкл' = DATA LOCAL BOOLEAN (Brand);
+
+deleteIncludeBrandsBatch 'Сбросить отмеченные'()  { 
+    includeBatch(Brand b) <- NULL;
+};
+
+nameIncludeBrandsBatch 'Бренд (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Brand b),'')) IF includeBatch(b), ', ' ORDER b CHARWIDTH 20;
+
+commaBrandIdBatch 'Список кодов' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
+
+addCommaBrandIdBatch 'Добавить' ()  { 
+    IF commaBrandIdBatch() THEN {
+        includeBatch(Brand b) <- TRUE WHERE (GROUP SUM 1 IF isWordInCSV(id(b), replace(commaBrandIdBatch(),' ',',')));
+        commaBrandIdBatch() <- NULL;
+    }
+}
+
+FORM dialogBrandBatch 'Бренды'
+
+    TREE treeGroups g = BrandGroup PARENT parent(g)
+    PROPERTIES READONLY name(g)
+    
+    OBJECTS b = Brand
+    PROPERTIES PANEL commaBrandIdBatch(), addCommaBrandIdBatch()
+    PROPERTIES includeBatch(b)
+    PROPERTIES(b) READONLY id, name
+    ORDERS name(b)
+    FILTERS isParent(brandGroup(b), g) OR NOT brandGroup(b)
+    FILTERGROUP inBrand FILTER 'Отмеченные' includeBatch(b)
+    PROPERTIES deleteIncludeBrandsBatch() DRAW b TOOLBAR    
+;
+DESIGN dialogBrandBatch {
+    BOX { size = (1024, 768); }
+    OBJECTS {
+        type = CONTAINERH;
+        MOVE BOX (TREE treeGroups) FIRST;
+    }
+}
+
+changeIncludeBrandsBatch()  { 
+    DIALOG dialogBrandBatch OBJECTS b INPUT DO {
+        IF NOT (GROUP SUM 1 IF includeBatch(Brand br)) THEN
+            includeBatch(b) <- TRUE;
+    }
+}
+
+//------- Производители -------
+includeBatch 'Вкл' = DATA LOCAL BOOLEAN (Manufacturer);
+
+deleteIncludeManufacturersBatch 'Сбросить отмеченные'()  { 
+    includeBatch(Manufacturer m) <- NULL;
+};
+
+nameIncludeManufacturersBatch 'Производитель (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Manufacturer m),'')) IF includeBatch(m), ', ' ORDER m CHARWIDTH 20;
+
+commaManufacturerIdBatch 'Список кодов' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
+
+addCommaManufacturerIdBatch 'Добавить' ()  { 
+    IF commaManufacturerIdBatch() THEN {
+        includeBatch(Manufacturer m) <- TRUE WHERE (GROUP SUM 1 IF isWordInCSV(id(m), replace(commaManufacturerIdBatch(),' ',',')));
+        commaManufacturerIdBatch() <- NULL;
+    }
+}
+
+FORM dialogManufacturerBatch 'Производители'
+    OBJECTS m = Manufacturer
+    PROPERTIES PANEL commaManufacturerIdBatch(), addCommaManufacturerIdBatch()
+    PROPERTIES includeBatch(m)
+    PROPERTIES(m) READONLY id, name
+    ORDERS name(m)
+    FILTERGROUP inManufacturer FILTER 'Отмеченные' includeBatch(m)
+    PROPERTIES deleteIncludeManufacturersBatch() DRAW m TOOLBAR    
+;
+DESIGN dialogManufacturerBatch {
+    BOX { size = (1024, 768); }
+}
+
+changeIncludeManufacturersBatch()  { 
+    DIALOG dialogManufacturerBatch OBJECTS m INPUT DO {
+        IF NOT (GROUP SUM 1 IF includeBatch(Manufacturer mr)) THEN
+            includeBatch(m) <- TRUE;
+    }
+}
+
+//------- Страны -------
+includeBatch 'Вкл' = DATA LOCAL BOOLEAN (Country);
+
+deleteIncludeCountriesBatch 'Сбросить отмеченные'()  { 
+    includeBatch(Country c) <- NULL;
+};
+
+nameIncludeCountriesBatch 'Страны (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Country c),'')) IF includeBatch(c), ', ' ORDER c CHARWIDTH 20;
+
+commaCountryIdBatch 'Список кодов' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
+
+addCommaCountryIdBatch 'Добавить' ()  { 
+    IF commaCountryIdBatch() THEN {
+        includeBatch(Country c) <- TRUE WHERE (GROUP SUM 1 IF isWordInCSV(sid(c), replace(commaCountryIdBatch(),' ',',')));
+        commaCountryIdBatch() <- NULL;
+    }
+}
+
+FORM dialogCountryBatch 'Страны'
+    OBJECTS c = Country
+    PROPERTIES PANEL commaCountryIdBatch(), addCommaCountryIdBatch()
+    PROPERTIES includeBatch(c)
+    PROPERTIES(c) READONLY sid, name
+    ORDERS name(c)
+    FILTERGROUP inCountry FILTER 'Отмеченные' includeBatch(c)
+    PROPERTIES deleteIncludeCountriesBatch() DRAW c TOOLBAR    
+;
+DESIGN dialogCountryBatch {
+    BOX { size = (1024, 768); }
+}
+
+changeIncludeCountriesBatch()  { 
+    DIALOG dialogCountryBatch OBJECTS c INPUT DO {
+        IF NOT (GROUP SUM 1 IF includeBatch(Country cr)) THEN
+            includeBatch(c) <- TRUE;
+    }
+}
+
+//------- Группы товаров -------
+dataIncludeBatch 'Вкл' = DATA LOCAL BOOLEAN (SkuGroup);
+
+levelParentIncludeBatch(SkuGroup skuGroup) = GROUP MIN level(skuGroup, SkuGroup parent) IF dataIncludeBatch(parent);    
+nearestParentIncludeBatch(SkuGroup skuGroup) = skuGroup(skuGroup, levelParentIncludeBatch(skuGroup));
+nearestIncludeBatch(SkuGroup skuGroup) = dataIncludeBatch(nearestParentIncludeBatch(skuGroup));
+
+includeBatch 'Вкл' (SkuGroup skuGroup) = OVERRIDE dataIncludeBatch(skuGroup), nearestIncludeBatch(skuGroup);
+
+deleteIncludeSkuGroupsBatch 'Сбросить отмеченные'()  { 
+    dataIncludeBatch(SkuGroup g) <- NULL;
+};
+
+nameIncludeSkuGroupsBatch 'Группы товаров (все)' ()= GROUP CONCAT TEXT(name(SkuGroup skuGroup)) IF dataIncludeBatch(skuGroup), ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups1Batch 'Направления (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataIncludeBatch(skuGroup) AND level(skuGroup) == 2, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups2Batch 'Группы (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataIncludeBatch(skuGroup) AND level(skuGroup) == 3, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups3Batch 'Подгруппы (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataIncludeBatch(skuGroup) AND level(skuGroup) == 4, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups4Batch 'Субгруппы (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataIncludeBatch(skuGroup) AND level(skuGroup) == 5, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups5Batch 'Виды (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataIncludeBatch(skuGroup) AND level(skuGroup) == 6, ', ' ORDER skuGroup CHARWIDTH 20;
+
+//------- Товары -------
+dataIncludeBatch 'Вкл' = DATA LOCAL BOOLEAN (Sku);
+
+includeSkuGroupBatch (Sku sku) = TRUE IF (GROUP MAX 1 IF includeBatch(SkuGroup g) AND isParent(g, sku));
+
+includeBatch 'Вкл' (Sku sku) = OVERRIDE dataIncludeBatch(sku), includeSkuGroupBatch(sku);
+
+deleteIncludeSkusBatch 'Сбросить отмеченные'()  { 
+    dataIncludeBatch(Sku b) <- NULL;
+};
+
+nameIncludeSkusBatch 'Товары (все)' = GROUP CONCAT replace(name(Sku sku), '\n', '') IF dataIncludeBatch(sku), ', ' ORDER sku CHARWIDTH 20;
+nameIncludeBarcodesBatch 'ШК (все)' = GROUP CONCAT TEXT(idBarcode(Sku sku)) IF dataIncludeBatch(sku), ',' ORDER sku CHARWIDTH 20;
+countIncludeSkusBatch () = GROUP SUM 1 IF dataIncludeBatch(Sku sku);
+indexIncludeSkuBatch (Sku sku) = PARTITION SUM 1 ORDER sku IF dataIncludeBatch(sku);
+
+commaBarcodeIdBatch 'Список ШК' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
+
+addCommaBarcodeIdBatch 'Добавить' ()  { 
+    IF commaBarcodeIdBatch() THEN {
+        dataIncludeBatch(Sku sku) <- TRUE WHERE [GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(commaBarcodeIdBatch(),' ',',')) BY sku(barcode)](sku);
+        commaBarcodeIdBatch() <- NULL;
+    }
+}
+
+addSkuListsBatch 'Отметить списки SKU' () {
+    DIALOG dialogAddLists DO {
+        FOR [GROUP SUM 1 IF in(list(ListDetail d)) BY sku(d)](Sku sk) DO {
+            includeBatch(sk) <- TRUE;
+        }
+    }
+    in(List l) <- NULL;
+}
+
+FORM dialogSkuBatch 'Товары'
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), name(sk)
+    PROPERTIES includeBatch(sk)
+    ORDERS order(sk), name(sk)
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT   
+    PROPERTIES deleteIncludeSkuGroupsBatch() DRAW sk TOOLBAR
+
+    OBJECTS sku = Sku
+    PROPERTIES() PANEL commaBarcodeIdBatch, addCommaBarcodeIdBatch, addSkuListsBatch
+    PROPERTIES includeBatch(sku)
+    PROPERTIES(sku) READONLY idBarcode, name, shortNameUOM
+    ORDERS name(sku)
+    FILTERS isParent(sk,sku)
+    FILTERGROUP inSku FILTER 'Отмеченные' includeBatch(sku)
+    PROPERTIES deleteIncludeSkusBatch() DRAW sku TOOLBAR
+;
+DESIGN dialogSkuBatch {
+    BOX {
+        size = (1024, 768);
+        GROUP () {
+            type = CONTAINERH;
+        }
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(TREE skuTree) {
+                caption = 'Товары';
+            }
+            MOVE BOX(sku) {
+                fill = 1.5;
+                GRID(sku) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeIncludeSkusBatch()  { 
+    DIALOG dialogSkuBatch;
+}
+changeIncludeBarcodesBatch()  { 
+    INPUT s = ISTRING[4000] DO {
+        dataIncludeBatch(Sku sku) <- TRUE IF [GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(s,' ',',')) BY sku(barcode)](sku);
+    }
+}
+
+filterGroupsBatch() = CONCAT ' OR', ' LOOKUP(sku,\'sku_group1\') IN (' + nameIncludeSkuGroups1Batch() + ')',
+                                       ' LOOKUP(sku,\'sku_group2\') IN (' + nameIncludeSkuGroups2Batch() + ')',
+                                       ' LOOKUP(sku,\'sku_group3\') IN (' + nameIncludeSkuGroups3Batch() + ')',
+                                       ' LOOKUP(sku,\'sku_group4\') IN (' + nameIncludeSkuGroups4Batch() + ')',
+                                       ' LOOKUP(sku,\'sku_group5\') IN (' + nameIncludeSkuGroups5Batch() + ')';
+filterBatch() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF (includeBatch(s) OR (NOT (GROUP SUM 1 IF includeBatch(Stock stock)) AND limitAccess(currentUser()))) AND accessCompany(currentUser(),s),',') + ')','')
+                    + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF includeBatch(le),',') + ')','')
+                    + (OVERRIDE ' AND LOOKUP(sku,\'sku_brand\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF includeBatch(b),',') + ')','')
+                    + (OVERRIDE ' AND manufacturer IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Manufacturer b) +'\'') IF includeBatch(b),',') + ')','')
+                    + (OVERRIDE ' AND LOOKUP(sku,\'sku_country\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Country c) +'\'') IF includeBatch(c),',') + ')','')
+                    + (OVERRIDE ' AND (' + filterGroupsBatch() + ')','')
+                    + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataIncludeBatch(sku),',') + ')','');
+valuesBatch() = (IF overIsOutBatch() AND overIsQuantityBatch() THEN 'SUM(quantitySold) AS quantitySold, ' ELSE '')
+                            + (IF overIsOutBatch() AND overIsCostBatch() THEN 'SUM(costSumSold) AS costSumSold, ' ELSE '')
+                            + (IF overIsOutBatch() AND isCostVATBatch() THEN 'SUM(costSumVATSold) AS costSumVATSold, ' ELSE '')
+                            + (IF overIsOutBatch() AND isMarkupBatch() THEN 'SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, ' ELSE '')
+                            + (IF overIsOutBatch() AND isMarkupBatch() THEN '(SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold))*100/SUM(costSumSold) AS percMarkupSumSold, ' ELSE '')
+                            + (IF overIsOutBatch() AND isSumBatch() THEN 'SUM(sumVATSold) AS sumVATSold, ' ELSE '')
+                            + (IF overIsOutBatch() AND isSumBatch() THEN 'SUM(sumSold) AS sumSold, ' ELSE '')
+                            + (IF overIsOutBatch() AND isSumBatch() THEN 'SUM(sumPriceSold) AS sumPriceSold, ' ELSE '')
+                            + (IF isInBatch() AND overIsQuantityBatch() THEN 'SUM(quantityPurchase) AS quantityPurchase, ' ELSE '')
+                            + (IF isInBatch() AND (isSumBatch() OR overIsCostBatch()) THEN 'SUM(sumPurchase)-SUM(sumVATPurchase) AS sumMinusVATPurchase, ' ELSE '')
+                            + (IF isInBatch() AND (isSumBatch() OR overIsCostBatch()) THEN 'SUM(sumVATPurchase) AS sumVATPurchase, ' ELSE '')
+                            + (IF isInBatch() AND (isSumBatch() OR isCostVATBatch()) THEN 'SUM(sumPurchase) AS sumPurchase, ' ELSE '')
+                            + (IF isInBatch() AND isSumBatch() THEN 'SUM(sumPricePurchase) AS sumPricePurchase, ' ELSE '')
+                            + (IF isTurnoverBatch() THEN 'SUM(costBalance)/COALESCE(SUM(costSumSold),0.0001) AS turnover, ' ELSE '')
+                            + (IF isTurnoverBatch() THEN 'SUM(costBalance) AS costBalance, ' ELSE '')
+                            + (IF isDaysOnStockBatch() THEN 'COUNT(DISTINCT __time) AS daysOnStock, ' ELSE '');
+
+overFillTurnoverBatchReport  ABSTRACT LIST ( DATE, DATE);
+overFillTurnoverBatchReport = DATA LOCAL BOOLEAN ();
+
+fillTurnoverBatchReport (DATE dateFrom, DATE dateTo)  { 
+    nameGroup1TurnoverBatch(INTEGER i) <- NULL;
+    nameGroup2TurnoverBatch(INTEGER i) <- NULL;
+    nameGroup3TurnoverBatch(INTEGER i) <- NULL;
+    nameGroup4TurnoverBatch(INTEGER i) <- NULL;
+    barcodeSkuBatch(INTEGER i) <- NULL;
+    group1TurnoverBatch(INTEGER i) <- NULL;
+    group2TurnoverBatch(INTEGER i) <- NULL;
+    group3TurnoverBatch(INTEGER i) <- NULL;
+    group4TurnoverBatch(INTEGER i) <- NULL;
+    nameBatchBatch(INTEGER i) <- NULL;
+    
+    quantitySoldBatch(INTEGER i) <- NULL;
+    costSumSoldBatch(INTEGER i) <- NULL;
+    costSumVATSoldBatch(INTEGER i) <- NULL;
+    markupSumSoldBatch(INTEGER i) <- NULL;
+    percMarkupSumSoldBatch(INTEGER i) <- NULL;
+    sumVATSoldBatch(INTEGER i) <- NULL;
+    sumSoldBatch(INTEGER i) <- NULL;
+    sumPriceSoldBatch(INTEGER i) <- NULL;
+    
+    quantityPurchaseBatch(INTEGER i) <- NULL;
+    sumMinusVATPurchaseBatch(INTEGER i) <- NULL;
+    sumVATPurchaseBatch(INTEGER i) <- NULL;
+    sumPurchaseBatch(INTEGER i) <- NULL;
+    sumPricePurchaseBatch(INTEGER i) <- NULL;
+    
+    costBalanceBatch(INTEGER i) <- NULL;
+    turnoverBatch(INTEGER i) <- NULL;
+    daysOnStockBatch(INTEGER i) <- NULL;
+    
+    balanceBBatch(INTEGER i) <- NULL;
+    costBalanceBBatch(INTEGER i) <- NULL;
+    VATSupplierBBatch(INTEGER i) <- NULL;
+    costVATBalanceBBatch(INTEGER i) <- NULL;
+    sumBalanceBBatch(INTEGER i) <- NULL;
+    
+    balanceABatch(INTEGER i) <- NULL;
+    costBalanceABatch(INTEGER i) <- NULL;
+    VATSupplierABatch(INTEGER i) <- NULL;
+    costVATBalanceABatch(INTEGER i) <- NULL;
+    sumBalanceABatch(INTEGER i) <- NULL;
+    
+    overFillTurnoverBatchReport(dateFrom,dateTo);
+    IF NOT overFillTurnoverBatchReport() THEN {
+        IF gDayTurnoverBatch() THEN {
+            IF exportBalanceBBatch() THEN {
+                query(replace('SELECT ' + valuesBatch() 
+                     + (IF overIsBalanceABatch() AND overIsQuantityBatch() THEN 'SUM(balance) AS balanceA, ' ELSE '')
+                     + (IF overIsBalanceABatch() AND overIsCostBatch() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
+                     + (IF overIsBalanceABatch() AND isVATSupplierBatch() THEN '(SUM(costVATBalance)-SUM(costBalance)) AS VATSupplierA, ' ELSE '')
+                     + (IF overIsBalanceABatch() AND isCostVATBatch() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
+                     + (IF overIsBalanceABatch() AND isSumBatch() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+                     + (IF isBalanceBBatch() AND overIsQuantityBatch() THEN 'SUM(balanceB) AS balanceB, ' ELSE '')
+                     + (IF isBalanceBBatch() AND overIsCostBatch() THEN 'SUM(costBalanceB) AS costBalanceB, ' ELSE '')
+                     + (IF isBalanceBBatch() AND isVATSupplierBatch() THEN '(SUM(costVATBalanceB)-SUM(costBalanceB)) AS VATSupplierB, ' ELSE '')
+                     + (IF isBalanceBBatch() AND isCostVATBatch() THEN 'SUM(costVATBalanceB) AS costVATBalanceB, ' ELSE '')
+                     + (IF isBalanceBBatch() AND isSumBatch() THEN 'SUM(sumBalanceB) AS sumBalanceB, ' ELSE '')
+                     + nameGroupsTurnoverBatch() + ', ' + groupsTurnoverBatch()
+                     + ' FROM turnoverBatch'
+                     + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+                     + filterBatch()
+                     + ' GROUP BY ' + (CONCAT ', ', nameGroup1TurnoverBatch(), nameGroup2TurnoverBatch(), nameGroup3TurnoverBatch(), nameGroup4TurnoverBatch(), 'nameBatch' IF gBatchTurnoverBatch())
+                     + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                    
+                IMPORT JSON FROM queryResult() TO nameGroup1TurnoverBatch = nameGroup1, nameGroup2TurnoverBatch = nameGroup2, nameGroup3TurnoverBatch = nameGroup3, nameGroup4TurnoverBatch = nameGroup4,
+                                                  group1TurnoverBatch = group1, group2TurnoverBatch = group2, group3TurnoverBatch = group3, group4TurnoverBatch = group4, nameBatchBatch = nameBatch,
+                                                  quantitySoldBatch = quantitySold, costSumSoldBatch = costSumSold, costSumVATSoldBatch = costSumVATSold,
+                                                  markupSumSoldBatch = markupSumSold, percMarkupSumSoldBatch = percMarkupSumSold,
+                                                  sumVATSoldBatch = sumVATSold, sumSoldBatch = sumSold, sumPriceSoldBatch = sumPriceSold,
+                                                  quantityPurchaseBatch = quantityPurchase, sumMinusVATPurchaseBatch = sumMinusVATPurchase,
+                                                  sumVATPurchaseBatch = sumVATPurchase, sumPurchaseBatch = sumPurchase, sumPricePurchaseBatch = sumPricePurchase,
+                                                  turnoverBatch = turnover, costBalanceBatch = costBalance, balanceABatch = balanceA, costBalanceABatch = costBalanceA,
+                                                  VATSupplierABatch = VATSupplierA, costVATBalanceABatch = costVATBalanceA, sumBalanceABatch = sumBalanceA,
+                                                  daysOnStockBatch = daysOnStock, barcodeSkuBatch = barcodeSku, balanceBBatch = balanceB, costBalanceBBatch = costBalanceB,
+                                                  VATSupplierBBatch = VATSupplierB, costVATBalanceBBatch = costVATBalanceB, sumBalanceBBatch = sumBalanceB;
+            } ELSE {
+                query(replace('SELECT ' + valuesBatch() 
+                     + (IF overIsBalanceABatch() AND overIsQuantityBatch() THEN 'SUM(balance) AS balanceA, ' ELSE '')
+                     + (IF overIsBalanceABatch() AND overIsCostBatch() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
+                     + (IF overIsBalanceABatch() AND isVATSupplierBatch() THEN '(SUM(costVATBalance)-SUM(costBalance)) AS VATSupplierA, ' ELSE '')
+                     + (IF overIsBalanceABatch() AND isCostVATBatch() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
+                     + (IF overIsBalanceABatch() AND isSumBatch() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+                     + nameGroupsTurnoverBatch() + ', ' + groupsTurnoverBatch()
+                     + ' FROM turnoverBatch'
+                     + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+                     + filterBatch()
+                     + ' GROUP BY ' + (CONCAT ', ', nameGroup1TurnoverBatch(), nameGroup2TurnoverBatch(), nameGroup3TurnoverBatch(), nameGroup4TurnoverBatch(), 'nameBatch' IF gBatchTurnoverBatch())
+                     + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                    
+                IMPORT JSON FROM queryResult() TO nameGroup1TurnoverBatch = nameGroup1, nameGroup2TurnoverBatch = nameGroup2, nameGroup3TurnoverBatch = nameGroup3, nameGroup4TurnoverBatch = nameGroup4,
+                                                  group1TurnoverBatch = group1, group2TurnoverBatch = group2, group3TurnoverBatch = group3, group4TurnoverBatch = group4, nameBatchBatch = nameBatch,
+                                                  quantitySoldBatch = quantitySold, costSumSoldBatch = costSumSold, costSumVATSoldBatch = costSumVATSold,
+                                                  markupSumSoldBatch = markupSumSold, percMarkupSumSoldBatch = percMarkupSumSold,
+                                                  sumVATSoldBatch = sumVATSold, sumSoldBatch = sumSold, sumPriceSoldBatch = sumPriceSold,
+                                                  quantityPurchaseBatch = quantityPurchase, sumMinusVATPurchaseBatch = sumMinusVATPurchase,
+                                                  sumVATPurchaseBatch = sumVATPurchase, sumPurchaseBatch = sumPurchase, sumPricePurchaseBatch = sumPricePurchase,
+                                                  turnoverBatch = turnover, costBalanceBatch = costBalance, balanceABatch = balanceA, costBalanceABatch = costBalanceA,
+                                                  VATSupplierABatch = VATSupplierA, costVATBalanceABatch = costVATBalanceA, sumBalanceABatch = sumBalanceA,
+                                                  daysOnStockBatch = daysOnStock, barcodeSkuBatch = barcodeSku;
+            }
+        } ELSE {
+            query(replace('SELECT ' + valuesBatch() 
+                 + nameGroupsTurnoverBatch() + ', ' + groupsTurnoverBatch()
+                 + ' FROM turnoverBatch'
+                 + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+                 + filterBatch()
+                 + ' GROUP BY ' + (CONCAT ', ', nameGroup1TurnoverBatch(), nameGroup2TurnoverBatch(), nameGroup3TurnoverBatch(), nameGroup4TurnoverBatch(), 'nameBatch' IF gBatchTurnoverBatch())
+                 + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                
+            IMPORT JSON FROM queryResult() TO nameGroup1TurnoverBatch = nameGroup1, nameGroup2TurnoverBatch = nameGroup2, nameGroup3TurnoverBatch = nameGroup3, nameGroup4TurnoverBatch = nameGroup4,
+                                              group1TurnoverBatch = group1, group2TurnoverBatch = group2, group3TurnoverBatch = group3, group4TurnoverBatch = group4, nameBatchBatch = nameBatch,
+                                              quantitySoldBatch = quantitySold, costSumSoldBatch = costSumSold, costSumVATSoldBatch = costSumVATSold,
+                                              markupSumSoldBatch = markupSumSold, percMarkupSumSoldBatch = percMarkupSumSold,
+                                              sumVATSoldBatch = sumVATSold, sumSoldBatch = sumSold, sumPriceSoldBatch = sumPriceSold,
+                                              quantityPurchaseBatch = quantityPurchase, sumMinusVATPurchaseBatch = sumMinusVATPurchase,
+                                              sumVATPurchaseBatch = sumVATPurchase, sumPurchaseBatch = sumPurchase, sumPricePurchaseBatch = sumPricePurchase,
+                                              turnoverBatch = turnover, costBalanceBatch = costBalance, daysOnStockBatch = daysOnStock, barcodeSkuBatch = barcodeSku;
+            
+            LOCAL localNameGroup1 = STRING[255] (INTEGER);
+            LOCAL localNameGroup2 = STRING[255] (INTEGER);
+            LOCAL localNameGroup3 = STRING[255] (INTEGER);
+            LOCAL localNameGroup4 = STRING[255] (INTEGER);
+            LOCAL localGroup1 = STRING[255] (INTEGER);
+            LOCAL localGroup2 = STRING[255] (INTEGER);
+            LOCAL localGroup3 = STRING[255] (INTEGER);
+            LOCAL localGroup4 = STRING[255] (INTEGER);
+            LOCAL localNameBatch = STRING[255] (INTEGER);
+            LOCAL localBarcodeSku = STRING[15] (INTEGER);
+            LOCAL localBalanceB = NUMERIC[16,5] (INTEGER);
+            LOCAL localCostBalanceB = NUMERIC[18,4] (INTEGER);
+            LOCAL localVATSupplierB = NUMERIC[18,4] (INTEGER);
+            LOCAL localCostVATBalanceB = NUMERIC[18,4] (INTEGER);
+            LOCAL localSumBalanceB = NUMERIC[18,4] (INTEGER);
+            LOCAL localBalanceA = NUMERIC[16,5] (INTEGER);
+            LOCAL localCostBalanceA = NUMERIC[18,4] (INTEGER);
+            LOCAL localVATSupplierA = NUMERIC[18,4] (INTEGER);
+            LOCAL localCostVATBalanceA = NUMERIC[18,4] (INTEGER);
+            LOCAL localSumBalanceA = NUMERIC[18,4] (INTEGER);
+            LOCAL localStatisticUOMBalanceB = NUMERIC[16,5] (INTEGER);
+            LOCAL localStatisticUOMBalanceA = NUMERIC[16,5] (INTEGER);
+            
+            IF isBalanceBBatch() AND NOT isTimeGroupBatch() THEN {
+                query(replace('SELECT '
+                    + (IF isBalanceBBatch() AND overIsQuantityBatch() THEN 'SUM(balance) AS balanceB, ' ELSE '')
+                    + (IF isBalanceBBatch() AND overIsCostBatch() THEN 'SUM(costBalance) AS costBalanceB, ' ELSE '')
+                    + (IF isBalanceBBatch() AND isVATSupplierBatch() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierB, ' ELSE '')
+                    + (IF isBalanceBBatch() AND isCostVATBatch() THEN 'SUM(costVATBalance) AS costVATBalanceB, ' ELSE '')
+                    + (IF isBalanceBBatch() AND isSumBatch() THEN 'SUM(sumBalance) AS sumBalanceB, ' ELSE '')
+                    + nameGroupsTurnoverBatch() + ', ' + groupsTurnoverBatch()
+                    + ' FROM turnoverBatch'
+                    + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
+                    + filterBatch()
+                    + ' GROUP BY ' + (CONCAT ', ', nameGroup1TurnoverBatch(), nameGroup2TurnoverBatch(), nameGroup3TurnoverBatch(), nameGroup4TurnoverBatch(), 'nameBatch' IF gBatchTurnoverBatch())
+                    + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                    
+                IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3, localNameGroup4 = nameGroup4,
+                                                  localGroup1 = group1, localGroup2 = group2, localGroup3 = group3, localGroup4 = group4, localNameBatch = nameBatch,
+                                                  localBalanceB = balanceB, localStatisticUOMBalanceB = statisticUOMBalanceB, localCostBalanceB = costBalanceB,
+                                                  localVATSupplierB = VATSupplierB, localCostVATBalanceB = costVATBalanceB, localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
+                
+                FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1TurnoverBatch(n), group2TurnoverBatch(n), group3TurnoverBatch(n), group4TurnoverBatch(n), nameBatchBatch(n), barcodeSkuBatch(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localNameBatch(i), localBarcodeSku(i)) DO {
+                    balanceBBatch(number) <- localBalanceB(i);
+                    costBalanceBBatch(number) <- localCostBalanceB(i);
+                    VATSupplierBBatch(number) <- localVATSupplierB(i);
+                    costVATBalanceBBatch(number) <- localCostVATBalanceB(i);
+                    sumBalanceBBatch(number) <- localSumBalanceB(i);
+                }
+            }
+            
+            IF isBalanceBBatch() AND exportBalanceBBatch() AND isTimeGroupBatch() THEN {                        
+                query(replace('SELECT '
+                    + (IF isBalanceBBatch() AND overIsQuantityBatch() THEN 'SUM(balanceB) AS balanceB, ' ELSE '')
+                    + (IF isBalanceBBatch() AND overIsCostBatch() THEN 'SUM(costBalanceB) AS costBalanceB, ' ELSE '')
+                    + (IF isBalanceBBatch() AND isVATSupplierBatch() THEN 'SUM(costVATBalanceB)-SUM(costBalanceB) AS VATSupplierB, ' ELSE '')
+                    + (IF isBalanceBBatch() AND isCostVATBatch() THEN 'SUM(costVATBalanceB) AS costVATBalanceB, ' ELSE '')
+                    + (IF isBalanceBBatch() AND isSumBatch() THEN 'SUM(sumBalanceB) AS sumBalanceB, ' ELSE '')
+                    + nameGroupsTurnoverBatch() + ', ' + groupsTurnoverBatch()
+                    + ' FROM turnoverBatch'
+                    + (IF isTimeGroupBatch() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')')
+                    + (IF gWeekTurnoverBatch() THEN ' AND (EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, -1, __time)) OR __time = TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\'))' ELSE
+                       IF gMonthTurnoverBatch() THEN ' AND (EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, -1, __time)) OR __time = TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\'))' ELSE '')
+                    + filterBatch()
+                    + ' GROUP BY ' + (CONCAT ', ', nameGroup1TurnoverBatch(), nameGroup2TurnoverBatch(), nameGroup3TurnoverBatch(), nameGroup4TurnoverBatch(), 'nameBatch' IF gBatchTurnoverBatch())
+                    + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                    
+                IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3, localNameGroup4 = nameGroup4,
+                                                  localGroup1 = group1, localGroup2 = group2, localGroup3 = group3, localGroup4 = group4, localNameBatch = nameBatch,
+                                                  localBalanceB = balanceB, localStatisticUOMBalanceB = statisticUOMBalanceB, localCostBalanceB = costBalanceB,
+                                                  localVATSupplierB = VATSupplierB, localCostVATBalanceB = costVATBalanceB, localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
+                
+                FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1TurnoverBatch(n), group2TurnoverBatch(n), group3TurnoverBatch(n), group4TurnoverBatch(n), nameBatchBatch(n), barcodeSkuBatch(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localNameBatch(i), localBarcodeSku(i)) DO {
+                    balanceBBatch(number) <- localBalanceB(i);
+                    costBalanceBBatch(number) <- localCostBalanceB(i);
+                    VATSupplierBBatch(number) <- localVATSupplierB(i);
+                    costVATBalanceBBatch(number) <- localCostVATBalanceB(i);
+                    sumBalanceBBatch(number) <- localSumBalanceB(i);
+                }
+            }
+            
+            IF overIsBalanceABatch() THEN {                        
+                query(replace('SELECT '
+                    + (IF overIsBalanceABatch() AND overIsQuantityBatch() THEN 'SUM(balance) AS balanceA, ' ELSE '')
+                    + (IF overIsBalanceABatch() AND overIsCostBatch() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
+                    + (IF overIsBalanceABatch() AND isVATSupplierBatch() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierA, ' ELSE '')
+                    + (IF overIsBalanceABatch() AND isCostVATBatch() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
+                    + (IF overIsBalanceABatch() AND isSumBatch() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+                    + nameGroupsTurnoverBatch() + ', ' + groupsTurnoverBatch()
+                    + ' FROM turnoverBatch'
+                    + (IF isTimeGroupBatch() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')' ELSE ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')')
+                    + (IF gWeekTurnoverBatch() THEN ' AND (EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\'))' ELSE
+                       IF gMonthTurnoverBatch() THEN ' AND (EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\'))' ELSE '')
+                    + filterBatch()
+                    + ' GROUP BY ' + (CONCAT ', ', nameGroup1TurnoverBatch(), nameGroup2TurnoverBatch(), nameGroup3TurnoverBatch(), nameGroup4TurnoverBatch(), 'nameBatch' IF gBatchTurnoverBatch())
+                    + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                    
+                IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3, localNameGroup4 = nameGroup4,
+                                                  localGroup1 = group1, localGroup2 = group2, localGroup3 = group3, localGroup4 = group4, localNameBatch = nameBatch,
+                                                  localBalanceA = balanceA, localStatisticUOMBalanceA = statisticUOMBalanceA, localCostBalanceA = costBalanceA,
+                                                  localVATSupplierA = VATSupplierA, localCostVATBalanceA = costVATBalanceA, localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
+                
+                FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1TurnoverBatch(n), group2TurnoverBatch(n), group3TurnoverBatch(n), group4TurnoverBatch(n), nameBatchBatch(n), barcodeSkuBatch(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localNameBatch(i), localBarcodeSku(i)) DO {
+                    balanceABatch(number) <- localBalanceA(i);
+                    costBalanceABatch(number) <- localCostBalanceA(i);
+                    VATSupplierABatch(number) <- localVATSupplierA(i);
+                    costVATBalanceABatch(number) <- localCostVATBalanceA(i);
+                    sumBalanceABatch(number) <- localSumBalanceA(i);
+                }
+            }
+        }
+    }
+}
+
+//----------------
+nameIncludeStockGroupsStockReportBatch () = IF countIncludeStocksBatch() > 15 
+    THEN CONCAT '; ', nameIncludeStockGroupsBatch(), ((GROUP CONCAT TEXT(name(Stock stock)) IF dataIncludeBatch(stock) AND indexIncludeStockBatch(stock) <= 15, ', ' ORDER stock) + ' и еще ' + (countIncludeStocksBatch() - 15))
+    ELSE nameIncludeStockGroupsStockBatch();
+nameIncludeSkusReportBatch () = IF countIncludeSkusBatch() > 10 
+    THEN ((GROUP CONCAT replace(name(Sku sku), '\n', '') IF dataIncludeBatch(sku) AND indexIncludeSkuBatch(sku) <= 10, ', ' ORDER sku) + ' и еще ' + (countIncludeSkusBatch() - 10))
+    ELSE nameIncludeSkusBatch();
+
+extraFilterBatch = ABSTRACT CASE BOOLEAN (INTEGER);
+
+FORM printTurnoverBatchReport 'Оборачиваемость'
+    OBJECTS df=DATE PANEL SUBREPORT
+    PROPERTIES dateFrom = VALUE(df)
+   
+    OBJECTS dt=DATE PANEL
+    PROPERTIES dateTo = VALUE(dt)
+       
+    PROPERTIES() countGroup, countRowsTurnoverBatch, maxRowCount, nameIncludeStockGroupsStockReportBatch, nameIncludeLegalEntitiesBatch, nameIncludeBrandsBatch, nameIncludeManufacturersBatch, nameIncludeSkuGroupsBatch, nameIncludeSkusReportBatch, 
+                 printSumGroup1Batch, printSumGroup2Batch, printSumGroup3Batch
+    
+    OBJECTS i = INTEGER
+    PROPERTIES(i) READONLY nameGroup1TurnoverBatch, nameGroup2TurnoverBatch, nameGroup3TurnoverBatch, nameGroup4TurnoverBatch, group1TurnoverBatch, group2TurnoverBatch, group3TurnoverBatch, group4TurnoverBatch, barcodeSkuBatch SHOWIF gSkuTurnoverBatch()
+    PROPERTIES(i) READONLY balanceBBatch SHOWIF (isBalanceBBatch() AND overIsQuantityBatch()),
+                           costBalanceBBatch SHOWIF (isBalanceBBatch() AND overIsCostBatch()),
+                           costVATBalanceBBatch SHOWIF (isBalanceBBatch() AND isCostVATBatch()),
+                           sumBalanceBBatch SHOWIF (isBalanceBBatch() AND isSumBatch())
+    PROPERTIES(i) READONLY quantitySoldBatch SHOWIF (overIsOutBatch() AND overIsQuantityBatch()),
+                           costSumSoldBatch SHOWIF (overIsOutBatch() AND overIsCostBatch()),
+                           costSumVATSoldBatch SHOWIF (overIsOutBatch() AND isCostVATBatch()),
+                           markupSumSoldBatch SHOWIF (overIsOutBatch() AND isMarkupBatch()),
+                           percMarkupSumSoldBatch SHOWIF (overIsOutBatch() AND isMarkupBatch()),
+                           sumVATSoldBatch SHOWIF (overIsOutBatch() AND isSumBatch()),
+                           sumSoldBatch SHOWIF (overIsOutBatch() AND isSumBatch()),
+                           sumPriceSoldBatch SHOWIF (overIsOutBatch() AND isSumBatch())
+    PROPERTIES(i) READONLY quantityPurchaseBatch SHOWIF (isInBatch() AND overIsQuantityBatch()),
+                           sumMinusVATPurchaseBatch SHOWIF (isInBatch() AND (isSumBatch() OR overIsCostBatch())),
+                           sumVATPurchaseBatch SHOWIF (isInBatch() AND (isSumBatch() OR isCostVATBatch())),
+                           sumPurchaseBatch SHOWIF (isInBatch() AND (isSumBatch() OR isCostVATBatch())),
+                           sumPricePurchaseBatch SHOWIF (isInBatch() AND isSumBatch())
+    PROPERTIES(i) READONLY turnoverBatch SHOWIF isTurnoverBatch(),
+                           costBalanceBatch SHOWIF isTurnoverBatch(),
+                           daysOnStockBatch SHOWIF isDaysOnStockBatch()
+    PROPERTIES(i) READONLY balanceABatch SHOWIF (overIsBalanceABatch() AND overIsQuantityBatch()),
+                           costBalanceABatch SHOWIF (overIsBalanceABatch() AND overIsCostBatch()),
+                           costVATBalanceABatch SHOWIF (overIsBalanceABatch() AND isCostVATBatch()),
+                           sumBalanceABatch SHOWIF (overIsBalanceABatch() AND isSumBatch())
+    FILTERS nameGroup1TurnoverBatch(i) AND dt IS DATE AND df IS DATE,
+            balanceBBatch(i)!=0 OR quantitySoldBatch(i)!=0 OR balanceABatch(i)!=0 OR quantityPurchaseBatch(i)!=0 OR sumBalanceBBatch(i)!=0 OR sumSoldBatch(i)!=0 OR sumBalanceABatch(i)!=0 OR sumPurchaseBatch(i)!=0 OR extraFilterBatch(i)
+            
+    ORDERS nameGroup1TurnoverBatch(i), nameGroup2TurnoverBatch(i), nameGroup3TurnoverBatch(i), nameGroup4TurnoverBatch(i), barcodeSkuBatch(i)
+;
+
+printTurnoverBatchReportXLSX 'С группировкой (XLSX)' (DATE dateFrom, DATE dateTo)  { 
+    IF countGroup() == 0 THEN {
+        MESSAGE 'Не задана группировка';
+        RETURN;
+    }
+    fillTurnoverBatchReport(dateFrom, dateTo);
+    PRINT printTurnoverBatchReport OBJECTS df = dateFrom, dt = dateTo XLSX;
+}  IMAGE 'print.png' IN print;
+
+FORM printTurnoverBatchReportTable 'Оборачиваемость'
+    OBJECTS df=DATE PANEL SUBREPORT
+    PROPERTIES dateFrom = VALUE(df)
+   
+    OBJECTS dt=DATE PANEL
+    PROPERTIES dateTo = VALUE(dt)
+       
+    PROPERTIES() countGroup, countRowsTurnoverBatch, maxRowCount, nameIncludeStockGroupsStockReportBatch, nameIncludeLegalEntitiesBatch, nameIncludeBrandsBatch, nameIncludeManufacturersBatch, nameIncludeSkuGroupsBatch, nameIncludeSkusReportBatch,
+                 captionGroup1TurnoverBatch, captionGroup2TurnoverBatch, captionGroup3TurnoverBatch, captionGroup4TurnoverBatch
+    
+    OBJECTS i = INTEGER
+    PROPERTIES(i) READONLY nameGroup1TurnoverBatch SHOWIF nameGroup1TurnoverBatch(),
+                           nameGroup2TurnoverBatch SHOWIF nameGroup2TurnoverBatch(),
+                           nameGroup3TurnoverBatch SHOWIF nameGroup3TurnoverBatch(),
+                           nameGroup4TurnoverBatch SHOWIF nameGroup4TurnoverBatch(),
+                           barcodeSkuBatch SHOWIF gSkuTurnoverBatch()
+    PROPERTIES(i) READONLY balanceBBatch SHOWIF (isBalanceBBatch() AND overIsQuantityBatch()),
+                           costBalanceBBatch SHOWIF (isBalanceBBatch() AND overIsCostBatch()),
+                           costVATBalanceBBatch SHOWIF (isBalanceBBatch() AND isCostVATBatch()),
+                           sumBalanceBBatch SHOWIF (isBalanceBBatch() AND isSumBatch())
+    PROPERTIES(i) READONLY quantitySoldBatch SHOWIF (overIsOutBatch() AND overIsQuantityBatch()),
+                           costSumSoldBatch SHOWIF (overIsOutBatch() AND overIsCostBatch()),
+                           costSumVATSoldBatch SHOWIF (overIsOutBatch() AND isCostVATBatch()),
+                           markupSumSoldBatch SHOWIF (overIsOutBatch() AND isMarkupBatch()),
+                           percMarkupSumSoldBatch SHOWIF (overIsOutBatch() AND isMarkupBatch()),
+                           sumVATSoldBatch SHOWIF (overIsOutBatch() AND isSumBatch()),
+                           sumSoldBatch SHOWIF (overIsOutBatch() AND isSumBatch()),
+                           sumPriceSoldBatch SHOWIF (overIsOutBatch() AND isSumBatch())
+    PROPERTIES(i) READONLY quantityPurchaseBatch SHOWIF (isInBatch() AND overIsQuantityBatch()),
+                           sumMinusVATPurchaseBatch SHOWIF (isInBatch() AND (isSumBatch() OR overIsCostBatch())),
+                           sumVATPurchaseBatch SHOWIF (isInBatch() AND (isSumBatch() OR isCostVATBatch())),
+                           sumPurchaseBatch SHOWIF (isInBatch() AND (isSumBatch() OR isCostVATBatch())),
+                           sumPricePurchaseBatch SHOWIF (isInBatch() AND isSumBatch())
+    PROPERTIES(i) READONLY turnoverBatch SHOWIF isTurnoverBatch(),
+                           costBalanceBatch SHOWIF isTurnoverBatch(),
+                           daysOnStockBatch SHOWIF isDaysOnStockBatch()
+    PROPERTIES(i) READONLY balanceABatch SHOWIF (overIsBalanceABatch() AND overIsQuantityBatch()),
+                           costBalanceABatch SHOWIF (overIsBalanceABatch() AND overIsCostBatch()),
+                           costVATBalanceABatch SHOWIF (overIsBalanceABatch() AND isCostVATBatch()),
+                           sumBalanceABatch SHOWIF (overIsBalanceABatch() AND isSumBatch())
+    FILTERS nameGroup1TurnoverBatch(i) AND dt IS DATE AND df IS DATE,
+            balanceBBatch(i)!=0 OR quantitySoldBatch(i)!=0 OR balanceABatch(i)!=0 OR quantityPurchaseBatch(i)!=0 OR sumBalanceBBatch(i)!=0 OR sumSoldBatch(i)!=0 OR sumBalanceABatch(i)!=0 OR sumPurchaseBatch(i)!=0 OR extraFilterBatch(i)
+            
+    ORDERS nameGroup1TurnoverBatch(i), nameGroup2TurnoverBatch(i), nameGroup3TurnoverBatch(i), nameGroup4TurnoverBatch(i), barcodeSkuBatch(i)
+;
+
+printTurnoverBatchReportTableXLSX 'Без группировки (XLSX)' (DATE dateFrom, DATE dateTo)  { 
+    IF countGroup() == 0 THEN {
+        MESSAGE 'Не задана группировка';
+        RETURN;
+    }
+    fillTurnoverBatchReport(dateFrom, dateTo);
+    PRINT printTurnoverBatchReportTable OBJECTS df = dateFrom, dt = dateTo XLSX;
+}  IMAGE 'print.png' IN print;
+
+showGroup1Batch = GROUP SUM 1 IF level(SkuGroup skuGroup) == 2;
+showGroup2Batch = GROUP SUM 1 IF level(SkuGroup skuGroup) == 3;
+showGroup3Batch = GROUP SUM 1 IF level(SkuGroup skuGroup) == 4;
+showGroup4Batch = GROUP SUM 1 IF level(SkuGroup skuGroup) == 5;
+showGroup5Batch = GROUP SUM 1 IF level(SkuGroup skuGroup) == 6;
+hideGroup1TurnoverBatch() += TRUE IF NOT showGroup1Batch();
+hideGroup2TurnoverBatch() += TRUE IF NOT showGroup2Batch();
+hideGroup3TurnoverBatch() += TRUE IF NOT showGroup3Batch();
+hideGroup4TurnoverBatch() += TRUE IF NOT showGroup4Batch();
+hideGroup5TurnoverBatch() += TRUE IF NOT showGroup5Batch();
+
+EXTEND FORM turnoverBatchReport    
+    PROPERTIES() isBalanceBBatch, isInBatch, overIsOutBatch, overIsBalanceABatch,
+                 overIsQuantityBatch, overIsCostBatch, isCostVATBatch, isMarkupBatch, isSumBatch, isTurnoverBatch, isDaysOnStockBatch
+    
+    PROPERTIES nameIncludeStockGroupsBatch() ON CHANGE changeIncludeStockGroupsStockBatch()
+    PROPERTIES nameIncludeStocksBatch() ON CHANGE changeIncludeStockGroupsStockBatch()
+    PROPERTIES nameIncludeLegalEntitiesBatch() ON CHANGE changeIncludeLegalEntitiesBatch()
+    PROPERTIES nameIncludeBrandsBatch() ON CHANGE changeIncludeBrandsBatch()
+    PROPERTIES nameIncludeManufacturersBatch() ON CHANGE changeIncludeManufacturersBatch()
+    PROPERTIES nameIncludeCountriesBatch() ON CHANGE changeIncludeCountriesBatch()
+    PROPERTIES nameIncludeSkuGroupsBatch() ON CHANGE changeIncludeSkusBatch()
+    PROPERTIES nameIncludeSkusBatch() ON CHANGE changeIncludeSkusBatch()
+    PROPERTIES nameIncludeBarcodesBatch() ON CHANGE changeIncludeBarcodesBatch()
+    
+    PROPERTIES(df,dt) printTurnoverBatchReportXLSX, printTurnoverBatchReportTableXLSX
+;
+
+DESIGN turnoverBatchReport {
+    filters {
+        type = COLUMNS;
+        columns = 3;
+        MOVE PROPERTY(nameIncludeStockGroupsBatch()) { panelCaptionVertical = TRUE; }
+        MOVE PROPERTY(nameIncludeStocksBatch()) { panelCaptionVertical = TRUE; }
+        MOVE PROPERTY(nameIncludeLegalEntitiesBatch()) { panelCaptionVertical = TRUE; }
+        MOVE PROPERTY(nameIncludeBrandsBatch()) { panelCaptionVertical = TRUE; }
+        MOVE PROPERTY(nameIncludeManufacturersBatch()) { panelCaptionVertical = TRUE; }
+        MOVE PROPERTY(nameIncludeCountriesBatch()) { panelCaptionVertical = TRUE; }
+        MOVE PROPERTY(nameIncludeSkuGroupsBatch()) { panelCaptionVertical = TRUE; }
+        MOVE PROPERTY(nameIncludeSkusBatch()) { panelCaptionVertical = TRUE; }
+        MOVE PROPERTY(nameIncludeBarcodesBatch()) { panelCaptionVertical = TRUE; }
+    }
+    lhContainer {
+        NEW col1 {
+            type = CONTAINERV;
+            MOVE PROPERTY(isBalanceBBatch());
+            MOVE PROPERTY(isInBatch());
+            MOVE PROPERTY(overIsOutBatch());
+            MOVE PROPERTY(overIsBalanceABatch());
+        }
+        NEW col2 {
+            type = CONTAINERV;
+            MOVE PROPERTY(overIsQuantityBatch());
+            MOVE PROPERTY(overIsCostBatch());
+            MOVE PROPERTY(isCostVATBatch());
+            MOVE PROPERTY(isMarkupBatch());
+            MOVE PROPERTY(isSumBatch());
+            MOVE PROPERTY(isTurnoverBatch());
+            MOVE PROPERTY(isDaysOnStockBatch());
+        }
+    }
+    print {
+        MOVE PROPERTY (printTurnoverBatchReportXLSX(df,dt)) {fill = 1; valueSize = (-1,40);};
+        MOVE PROPERTY (printTurnoverBatchReportTableXLSX(df,dt)) {fill = 1; valueSize = (-1,40);};
+    }
+}
