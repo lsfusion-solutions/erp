@@ -64,6 +64,10 @@ EXTEND FORM integrationData
     OBJECTS le = LegalEntity
     FILTERS isCompany(le)
     PROPERTIES(le) name READONLY, aliasEDSService, passwordEDSService, hostEDSServiceTopBy, portEDSServiceTopBy
+    
+    OBJECTS seds = Stock
+    PROPERTIES(seds) name READONLY, aliasEDSService, passwordEDSService, hostEDSServiceTopBy, portEDSServiceTopBy
+    FILTERS isCompany(seds)
 ;
 
 hostEDSServiceCustomerTopBy (EInvoice i) = OVERRIDE hostEDSServiceTopBy(customerStock(i)), hostEDSServiceTopBy(customer(i));
@@ -1206,7 +1210,12 @@ DESIGN integrationData {
                     MOVE PROPERTY(receiveInvoiceTopBy());
                     MOVE PROPERTY(askPasswordEDSService());
                     fill = 1;
-                    MOVE BOX(le);
+                    NEW EDSService {
+                        type = TABBED;
+                        fill = 1;
+                        MOVE BOX(le);
+                        MOVE BOX(seds);
+                    }
                 }
             }
         }
