@@ -508,12 +508,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private Integer parseUOM(String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (Exception e) {
-            astronLogger.error("Unable to parse UOM " + value, e);
-            return null;
+        if (value != null) {
+            try {
+                return Integer.parseInt(value);
+            } catch (Exception e) {
+                astronLogger.error("Unable to parse UOM " + value, e);
+            }
         }
+        return null;
     }
 
     private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
