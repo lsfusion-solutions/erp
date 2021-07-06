@@ -55,7 +55,7 @@ toInvoiced (OrderDetail d) += WHEN d IS OrderDetail THEN TRUE IF toInvoice(d);
 skipDefaultOpened = ABSTRACT BOOLEAN (Invoice.Invoice);
 
 printConsignmentReadonly = ABSTRACT CASE BOOLEAN (Order);
-
+skipConsignmentDashboard = ABSTRACT VALUE BOOLEAN (Order);
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
 
     OBJECTS dt = DATE PANEL
@@ -67,7 +67,8 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
                   nameTo, nameToStock, addressToStock, quantityOrderDetail,
                   note
     PROPERTIES(o) printConsignment READONLYIF printConsignmentReadonly(o) 
-    FILTERS isPosted (o)
+    FILTERS isPosted (o),
+            NOT skipConsignmentDashboard(o)
     FILTERGROUP toInvoice FILTER 'Не выписаны' toInvoiced(o) 'ctrl F6' DEFAULT
     FILTERGROUP opened FILTER 'Открыт' isOpened(o) 'F4' DEFAULT
     FILTERGROUP filters FILTER 'Текущие заказы' date(o)<=dt 'F5' DEFAULT
