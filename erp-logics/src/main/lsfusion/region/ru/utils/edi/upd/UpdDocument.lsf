@@ -76,6 +76,14 @@ adrressSupplier 'Адрес продавца' = DATA STRING[150] (UpdDocument); 
 //----КодГАР
 codeAdrressSupplier 'Код адреса продавца' = DATA STRING[36] (UpdDocument); //КодГАР
 
+//-БанкРекв
+numberAccountSupplier 'Номер банковского счета' = DATA STRING[20](UpdDocument);//НомерСчета
+
+//--СвБанк
+nameBankSupplier 'Наименование банка' = DATA STRING[1000](UpdDocument) CHARWIDTH 25;//НаимБанк
+MFOBankSupplier 'БИК' = DATA STRING[9](UpdDocument)  CHARWIDTH 9;//БИК
+corrAccountBankSupplier 'Корреспондентский счет банка' = DATA STRING[20](UpdDocument);//КорСчет
+
 //-ГрузОт
 isConsignerSupplier 'Продавец является отправителем' = DATA BOOLEAN (UpdDocument); //ОнЖе
 
@@ -312,7 +320,7 @@ customerSignerAgentFirstName 'Имя представителя подписан
 customerSignerAgentMiddleName 'Отчество представителя' = DATA STRING[60](UpdDocument); //Отчество
 
 uuid 'UUID' = DATA ISTRING[36] (UpdDocument);
-idFile 'ИдФайл' (UpdDocument d) = STRING[255](CONCAT '_', 'ON_NSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d));
+idFile 'ИдФайл' (UpdDocument d) = STRING[255](CONCAT '_', 'ON_NSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
 
 generateIdFile(UpdDocument d){
     IF NOT uuid(d) THEN NEWSESSION {
@@ -325,11 +333,13 @@ generateIdFile(UpdDocument d){
 FORM updDocument 'Универсальный передаточный документ'
     OBJECTS u=UpdDocument PANEL
 
-    PROPERTIES (u) idConsignor, idConsignee, nameStatus, businessNameDocument, supplierNameDocument
+    PROPERTIES (u) idFile READONLY , idConsignor, idConsignee, nameStatus, businessNameDocument, supplierNameDocument
     PROPERTIES (u) nameSupplier, innSupplier, kppSupplier, okpoSupplier, nameOriginatorSupplier
     PROPERTIES (u) dateSupplier, timeSupplier
     PROPERTIES (u) nameInvoiceNumerator, numberInvoice, dateInvoice, codeCurrency
     PROPERTIES (u) regionCodeSupplier, countryCodeAddressSupplier, adrressSupplier, codeAdrressSupplier
+    PROPERTIES (u) numberAccountSupplier, nameBankSupplier, MFOBankSupplier, corrAccountBankSupplier
+    
     PROPERTIES (u) isConsignerSupplier
     PROPERTIES (u) nameCustomer, innCustomer, kppCustomer, okpoCustomer
     PROPERTIES (u) regionCodeCustomer, countryCodeAddressCustomer, codeAdrressCustomer
@@ -388,6 +398,7 @@ DESIGN updDocument {
                         fill = 1;
                         type = COLUMNS;
                         columns = 2;
+                        MOVE PROPERTY(idFile(u));
                         MOVE PROPERTY(idConsignor(u));
                         MOVE PROPERTY(idConsignee(u));
                         MOVE PROPERTY(nameStatus(u));
@@ -449,6 +460,15 @@ DESIGN updDocument {
                             MOVE PROPERTY(adrressSupplier(u));
                             MOVE PROPERTY(codeAdrressSupplier(u));
                         }
+                        NEW supplierBank {
+                            caption = 'Банк поставщика';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(numberAccountSupplier(u));
+                            MOVE PROPERTY(nameBankSupplier(u));
+                            MOVE PROPERTY(MFOBankSupplier(u));
+                            MOVE PROPERTY(corrAccountBankSupplier(u));
+                        }                        
                                                
                         MOVE PROPERTY(isConsignerSupplier(u));
                         
@@ -658,7 +678,8 @@ DESIGN updDocument {
 
 FORM updDocuments 'УПД'
     OBJECTS u = UpdDocument
-    PROPERTIES (u) READONLY nameStatus, numberInvoice, dateInvoice, businessNameDocument, supplierNameDocument, idConsignor, nameSupplier, idConsignee, nameCustomer,
+    PROPERTIES (u) READONLY nameStatus, numberInvoice, dateInvoice, businessNameDocument, supplierNameDocument, idFile, 
+                            idConsignor, nameSupplier, idConsignee, nameCustomer,
                             dateSupplier, timeSupplier, codeCurrency,
                             regionCodeSupplier, countryCodeAddressSupplier, adrressSupplier, codeAdrressSupplier,
                             isConsignerSupplier, sum, invoiceSum, VATSum, withoutVAT
@@ -691,7 +712,8 @@ GROUP UPDExportA EXTID  'СвСчФакт';
         GROUP UPDExportA2_2 EXTID  'Адрес' :UPDExportA2;
             GROUP UPDExportA2_2_1 EXTID  'АдрРФ' :UPDExportA2_2;
             GROUP UPDExportA2_2_2 EXTID  'АдрИнф' :UPDExportA2_2;
-            
+        GROUP UPDExportA2_4 EXTID  'БанкРекв' :UPDExportA2;            
+            GROUP UPDExportA2_4_1 EXTID  'СвБанк' :UPDExportA2_4;     
     GROUP UPDExportA3 EXTID  'ГрузОт' :UPDExportA;
     GROUP UPDExportA4 EXTID  'ГрузПолуч' :UPDExportA;
         GROUP UPDExportA4_1 EXTID  'ИдСв' :UPDExportA4;
@@ -770,7 +792,12 @@ FORM UPDPR FORMEXTID '=:Файл'
     PROPERTIES = (regionCodeSupplier(d) IF regionCodeSupplier(d) AND NOT codeAdrressSupplier(d)) EXTID 'КодРегион' ATTR IN UPDExportA2_2_1            
     PROPERTIES = (countryCodeAddressSupplier(d) IF NOT (codeAdrressSupplier(d) OR regionCodeSupplier(d))) EXTID 'КодСтр' ATTR IN UPDExportA2_2_2,
                = (adrressSupplier(d) IF NOT (codeAdrressSupplier(d) OR regionCodeSupplier(d))) EXTID 'АдрТекст' ATTR IN UPDExportA2_2_2    
-    PROPERTIES = codeAdrressSupplier(d) EXTID 'КодГАР' IN UPDExportA2_2      
+    PROPERTIES = codeAdrressSupplier(d) EXTID 'КодГАР' IN UPDExportA2_2  
+        
+    PROPERTIES = numberAccountSupplier(d) EXTID 'НомерСчета' ATTR IN UPDExportA2_4            
+    PROPERTIES = nameBankSupplier(d) EXTID 'НаимБанк' ATTR IN UPDExportA2_4_1,   
+               = MFOBankSupplier(d) EXTID 'БИК' ATTR IN UPDExportA2_4_1,
+               = corrAccountBankSupplier(d) EXTID 'КорСчет' ATTR IN UPDExportA2_4_1                              
     
     PROPERTIES = 'он же' IF isConsignerSupplier(d) EXTID 'ОнЖе' IN UPDExportA3      
 
