@@ -1276,7 +1276,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void truncateTablesDeleteBarcode(Connection conn) throws SQLException {
-        for (String table : new String[]{"ART", "PACK", "EXBARC"}) {
+        for (String table : new String[]{"ART", "UNIT", "PACK", "EXBARC"}) {
             try (Statement s = conn.createStatement()) {
                 s.execute("TRUNCATE TABLE " + table);
             }
@@ -1428,7 +1428,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     try (Connection conn = getConnection(params)) {
                         connectionSemaphore.add(params.connectionString);
 
-                        String tables = "'ART', 'PACK', 'EXBARC'";
+                        String tables = "'ART', 'UNIT', 'PACK', 'EXBARC'";
 
                         boolean versionalScheme = params.versionalScheme(isVersionalScheme);
                         Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
@@ -1449,15 +1449,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             checkItems(params, deleteBarcode.barcodeList);
 
                             Integer artUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "ART");
-                            exportArt(conn, params, deleteBarcode.barcodeList, false, false, maxBatchSize, artUpdateNum);
+                            exportArt(conn, params, deleteBarcode.barcodeList, false, true, maxBatchSize, artUpdateNum);
                             outputUpdateNums.put("ART", artUpdateNum);
 
+                            Integer unitUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "UNIT");
+                            exportUnit(conn, params, deleteBarcode.barcodeList, true, maxBatchSize, unitUpdateNum);
+                            outputUpdateNums.put("UNIT", unitUpdateNum);
+
                             Integer packUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "PACK");
-                            exportPack(conn, params, deleteBarcode.barcodeList, false, maxBatchSize, packUpdateNum);
+                            exportPack(conn, params, deleteBarcode.barcodeList, true, maxBatchSize, packUpdateNum);
                             outputUpdateNums.put("PACK", packUpdateNum);
 
                             Integer exBarcUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "EXBARC");
-                            exportExBarc(conn, params, deleteBarcode.barcodeList, false, maxBatchSize, exBarcUpdateNum);
+                            exportExBarc(conn, params, deleteBarcode.barcodeList, true, maxBatchSize, exBarcUpdateNum);
                             outputUpdateNums.put("EXBARC", exBarcUpdateNum);
 
                             if (versionalScheme) {
