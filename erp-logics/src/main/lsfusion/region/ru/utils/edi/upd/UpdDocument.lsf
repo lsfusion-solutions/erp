@@ -32,15 +32,6 @@ number 'Номер' = DATA STRING[48] (UpdDocument) IN numbered CHARWIDTH 7;
 idConsignor 'ИД отправителя' = DATA STRING[46] (UpdDocument); //ИдОтпр
 idConsignee 'ИД получателя' = DATA STRING[46] (UpdDocument); //ИдПол
 
-idFile 'ИдФайл' = DATA STRING[255] (UpdDocument); //ИдПол
-
-generateIdFile(UpdDocument d){
-    IF NOT idFile(d) THEN NEWSESSION {
-        generateUUID();
-        idFile(d)<- STRING[255](CONCAT '_', 'ON_NSCHFDOPPR',  idConsignee(d), idConsignor(d), generatedUUID());
-        APPLY;    
-    }
-}
 
 //СвОЭДОтпр
 
@@ -319,6 +310,17 @@ customerSignerPosition 'Должность представителя подпи
 customerSignerAgentLastName 'Фамилия представителя подписанта' = DATA STRING[60] (UpdDocument);//Фамилия
 customerSignerAgentFirstName 'Имя представителя подписанта' = DATA STRING[60] (UpdDocument);//Имя
 customerSignerAgentMiddleName 'Отчество представителя' = DATA STRING[60](UpdDocument); //Отчество
+
+uuid 'UUID' = DATA ISTRING[36] (UpdDocument);
+idFile 'ИдФайл' (UpdDocument d) = STRING[255](CONCAT '_', 'ON_NSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d));
+
+generateIdFile(UpdDocument d){
+    IF NOT uuid(d) THEN NEWSESSION {
+        generateUUID();
+        uuid(d) <- ISTRING[36](generatedUUID());
+        APPLY;    
+    }
+}
 
 FORM updDocument 'Универсальный передаточный документ'
     OBJECTS u=UpdDocument PANEL
