@@ -23,6 +23,7 @@ GROUP blrwblFreightPayer EXTID 'FreightPayer' : deliveryNote;
 blrwblFreightPayerGLN = DATA LOCAL NESTED STRING[13]();
 GROUP blrwblShipFrom EXTID 'ShipFrom' : deliveryNote;
 blrwblSupplierStockGLN = DATA LOCAL NESTED STRING[13]();
+blrwblSupplierStockAddress = DATA LOCAL NESTED STRING[150]();
 blrwblContactSupplierStock = DATA LOCAL NESTED STRING[150]();
 GROUP blrwblShipTo EXTID 'ShipTo' : deliveryNote;
 blrwblCustomerStockGLN = DATA LOCAL NESTED STRING[13]();
@@ -95,6 +96,7 @@ FORM blrwbl
     PROPERTIES IN blrwblReceiver blrwblCustomerGLN() EXTID 'GLN'
     PROPERTIES IN blrwblFreightPayer blrwblFreightPayerGLN() EXTID 'GLN'
     PROPERTIES IN blrwblShipFrom blrwblSupplierStockGLN() EXTID 'GLN',
+                                 blrwblSupplierStockAddress() EXTID 'Address',
                                  blrwblContactSupplierStock() EXTID 'Contact'
     PROPERTIES IN blrwblShipTo blrwblCustomerStockGLN() EXTID 'GLN'
     PROPERTIES IN blrwblCarrier blrwblTransportContact() EXTID 'TransportContact',
@@ -426,6 +428,7 @@ GROUP blrdlnReceiver EXTID 'Receiver' : deliveryNote;
 blrdlnCustomerGLN = DATA LOCAL NESTED STRING[13]();
 GROUP blrdlnShipFrom EXTID 'ShipFrom' : deliveryNote;
 blrdlnSupplierStockGLN = DATA LOCAL NESTED STRING[13]();
+blrdlnSupplierStockAddress = DATA LOCAL NESTED STRING[150]();
 blrdlnContactSupplierStock = DATA LOCAL NESTED STRING[150]();
 GROUP blrdlnShipTo EXTID 'ShipTo' : deliveryNote;
 blrdlnCustomerStockGLN = DATA LOCAL NESTED STRING[13]();
@@ -483,6 +486,7 @@ FORM blrdln
                                 blrdlnContactSupplier() EXTID 'Contact'
     PROPERTIES IN blrdlnReceiver blrdlnCustomerGLN() EXTID 'GLN'
     PROPERTIES IN blrdlnShipFrom blrdlnSupplierStockGLN() EXTID 'GLN',
+                                 blrdlnSupplierStockAddress() EXTID 'Address',
                                  blrdlnContactSupplierStock() EXTID 'Contact'
     PROPERTIES IN blrdlnShipTo blrdlnCustomerStockGLN() EXTID 'GLN'
     PROPERTIES IN blrdlnCarrier blrdlnDeliveryContact() EXTID 'DeliveryContact',
@@ -527,6 +531,7 @@ FORM blrdln
 
 overImportBlrdln ABSTRACT ();
 skipBlrdln = DATA LOCAL NESTED BOOLEAN();
+overCreateEInvoiceBlrdln ABSTRACT LIST (EInvoice);
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrdln' AND invoices THEN {
@@ -573,6 +578,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         currency(ei) <- blrdlnCurrency();
                         isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrdlnFieldCode(INTEGER e) == 'PW0013' AND blrdlnFieldValue(e) == '1');
                         replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014');
+                        overCreateEInvoiceBlrdln(ei);
                         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR blrdlnLineItemID(INTEGER l) OR blrdlnLineItemBuyerID(l) OR blrdlnLineItemSupplierID(l) ORDER blrwblLineItemNumber(l) DO NEW ed = EInvoiceDetail {
                             eInvoice(ed) <- ei;
