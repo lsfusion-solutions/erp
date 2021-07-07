@@ -289,7 +289,7 @@ createAutoOrders 'Создание автозаказов' () {
 
             NEW o = UserOrder {
                 scheduleOrderDetail(o) <- scheduleOrderDetail;
-                numerator(o) <- autoOrderNumerator();
+                numerator(o) <- OVERRIDE autoOrderNumerator(), defaultNumeratorUserOrder();
                 date(o) <- currentDate();
                 time(o) <- currentTime();
                 shipmentDate(o) <- dateSupply(scheduleOrderDetail);
@@ -323,6 +323,7 @@ createAutoOrders 'Создание автозаказов' () {
                 IF NOT useCreateAutoAfter(o) THEN {                                      
                     DELETE o WHERE NOT countUserOrderDetail(o);                     
                     IF countUserOrderDetail(o) THEN {
+                        generateNumber(o); 
                         APPLY;
                         IF canceled() THEN {
                             printToLog(CONCAT ' ', 'Автозаказ. ERROR:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), applyMessage());
