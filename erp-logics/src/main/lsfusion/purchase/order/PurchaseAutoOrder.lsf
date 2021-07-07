@@ -270,8 +270,14 @@ CONSTRAINT autoQuantity(UserOrderDetail d) AND banQuantityAutoDetail() AND isAut
 
 overCreateAuto ABSTRACT LIST (UserOrder);
 
+useCreateAutoAfter = ABSTRACT BOOLEAN (UserOrder);
+createAutoAfter  ABSTRACT LIST (UserOrder);
+
+createAutoOrdersExtra ABSTRACT LIST ();
+
+toCreate = DATA LOCAL NESTED BOOLEAN (ScheduleOrderDetail);
 createAutoOrders 'Создание автозаказов' () {    
-    LOCAL NESTED toCreate = BOOLEAN (ScheduleOrderDetail);
+    toCreate(ScheduleOrderDetail d)<- NULL;
     toCreate(ScheduleOrderDetail d) <- TRUE WHERE dateOrder(d) == currentDate() AND createUserOrderAuto(scheduleOrder(d)) 
             AND active(customerStock(d)) AND NOT isClosed(d) AND NOT (GROUP SUM 1 IF scheduleOrderDetail(Order o) == d AND isOpened(o));    
  
@@ -312,20 +318,24 @@ createAutoOrders 'Создание автозаказов' () {
                     price(d) <- NUMERIC[16,4](prevListMVAT (pt, d));
                     invoicePrice(d) <- NUMERIC[16,4](prevListPVAT (pt, d));
                 }
-                
                 overCreateAuto(o);
                 
-                DELETE o WHERE NOT countUserOrderDetail(o);                     
-                IF countUserOrderDetail(o) THEN {
-                    APPLY;
-                    IF canceled() THEN {
-                        printToLog(CONCAT ' ', 'Автозаказ. ERROR:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), applyMessage());
-                    }                
+                IF NOT useCreateAutoAfter(o) THEN {                                      
+                    DELETE o WHERE NOT countUserOrderDetail(o);                     
+                    IF countUserOrderDetail(o) THEN {
+                        APPLY;
+                        IF canceled() THEN {
+                            printToLog(CONCAT ' ', 'Автозаказ. ERROR:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), applyMessage());
+                        }                
+                    }
+                } ELSE {
+                    createAutoAfter(o);
                 }
-
             }
         }
     }
+    createAutoOrdersExtra();
+    toCreate(ScheduleOrderDetail d)<- NULL;
 }
 
 EXTEND FORM options
