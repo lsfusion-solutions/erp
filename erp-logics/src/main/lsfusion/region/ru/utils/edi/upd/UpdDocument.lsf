@@ -34,7 +34,9 @@ idConsignee 'ИД получателя' = DATA STRING[46] (UpdDocument); //Ид�
 
 
 //СвОЭДОтпр
-
+nameOperatorConsignor 'Наименование оператора ЭДО' = DATA STRING[1000] (UpdDocument); //ИдОтпр
+innOperatorConsignor 'ИНН оператора ЭДО' = DATA STRING[10] (UpdDocument); //ИННЮЛ
+codeOperatorConsignor 'ИД оператара ЭДО' = DATA STRING[3] (UpdDocument); //ИдЭДО
 
 //-------Документ---------
 status 'Статус' = DATA UpdDocumentStatus (UpdDocument);
@@ -334,6 +336,8 @@ FORM updDocument 'Универсальный передаточный докум
     OBJECTS u=UpdDocument PANEL
 
     PROPERTIES (u) idFile READONLY , idConsignor, idConsignee, nameStatus, businessNameDocument, supplierNameDocument
+    PROPERTIES (u) nameOperatorConsignor, innOperatorConsignor, codeOperatorConsignor
+                
     PROPERTIES (u) nameSupplier, innSupplier, kppSupplier, okpoSupplier, nameOriginatorSupplier
     PROPERTIES (u) dateSupplier, timeSupplier
     PROPERTIES (u) nameInvoiceNumerator, numberInvoice, dateInvoice, codeCurrency
@@ -393,17 +397,27 @@ DESIGN updDocument {
                     //fill = 1;
                     type = COLUMNS;
                     columns = 2;
-                    NEW partsInfo {
-                        caption = 'Стороны';
+                    NEW partsInfo0{
                         fill = 1;
-                        type = COLUMNS;
-                        columns = 2;
-                        MOVE PROPERTY(idFile(u));
-                        MOVE PROPERTY(idConsignor(u));
-                        MOVE PROPERTY(idConsignee(u));
-                        MOVE PROPERTY(nameStatus(u));
-                        MOVE PROPERTY(businessNameDocument(u));
-                        MOVE PROPERTY(supplierNameDocument(u));                        
+                        NEW partsInfo {
+                            caption = 'Стороны';
+                            fill = 1;
+                            type = COLUMNS;
+                            columns = 2;
+                            MOVE PROPERTY(idFile(u));
+                            MOVE PROPERTY(idConsignor(u));
+                            MOVE PROPERTY(idConsignee(u));
+                            MOVE PROPERTY(nameStatus(u));
+                            MOVE PROPERTY(businessNameDocument(u));
+                            MOVE PROPERTY(supplierNameDocument(u));                        
+                        }
+                        NEW edo{
+                            caption = 'Оператор ЭДО отправителя';
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameOperatorConsignor(u));
+                            MOVE PROPERTY(innOperatorConsignor(u));
+                            MOVE PROPERTY(codeOperatorConsignor(u));                               
+                        } 
                     }
                     NEW sums {
                         caption = 'Итоговые суммы';
@@ -705,6 +719,8 @@ NAVIGATOR {
 inReport = DATA LOCAL BOOLEAN (UpdDocument);
 minUpdDocument = GROUP MIN UpdDocument d IF inReport(d);
 
+GROUP UPDExportA0 EXTID  'СвОЭДОтпр';
+
 GROUP UPDExportA EXTID  'СвСчФакт';
     GROUP UPDExportA2 EXTID  'СвПрод' :UPDExportA;   
         GROUP UPDExportA2_1 EXTID  'ИдСв' :UPDExportA2;        
@@ -767,7 +783,11 @@ FORM UPDPR FORMEXTID '=:Файл'
     FILTERS inReport(g)
 
     PROPERTIES = (OVERRIDE idConsignor(g),'') EXTID 'ИдОтпр' ATTR ,
-               = (OVERRIDE idConsignee(g),'') EXTID 'ИдПол' ATTR  
+               = (OVERRIDE idConsignee(g),'') EXTID 'ИдПол' ATTR                 
+               
+    PROPERTIES = nameOperatorConsignor(g) EXTID 'НаимОрг' ATTR IN UPDExportA0,
+               = innOperatorConsignor(g) EXTID 'ИННЮЛ' ATTR IN UPDExportA0,
+               = codeOperatorConsignor(g) EXTID 'ИдЭДО' ATTR IN UPDExportA0                 
                
     OBJECTS d = UpdDocument EXTID 'Документ'
     FILTERS inReport(d)    
