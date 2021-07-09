@@ -1149,9 +1149,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     JSONObject documentObject = new JSONObject(document + "}");
 
                                     Integer docType = documentObject.getInt("docType");
-                                    boolean isSale = docType == 1 || docType == 8; //sale or sale cancellation
+                                    boolean isSaleInvoice = docType == 18; //Импортируем как продажу, записываем json в receiptDetailExtraFields
+                                    boolean isSale = docType == 1 || docType == 8 || isSaleInvoice; //sale or sale cancellation
                                     boolean isReturn = docType == 2 || docType == 25 || docType == 7; //return or return cancellation
-                                    boolean isSkip = docType == 7 || docType == 8;
+                                    boolean isSkip = docType == 7 || docType == 8 || isSaleInvoice;
                                     if (isSale || isReturn) {
 
                                         Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
@@ -1347,11 +1348,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                                 if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                     sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
+
+                                                Map<String, Object> receiptDetailExtraFields = new HashMap<>();
+                                                if(isSaleInvoice) {
+                                                    receiptDetailExtraFields.put("saleInvoice", document);
+                                                }
+
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, null, null,
                                                         sumCard, sumCash, sumGiftCardMap, customPaymentsMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
-                                                        numberReceiptDetail, fileName, null, isSkip, null, cashRegister);
+                                                        numberReceiptDetail, fileName, null, isSkip, receiptDetailExtraFields, cashRegister);
                                                 salesInfo.detailExtraFields = new HashMap<>();
                                                 if(!bonusesInDiscountPositions) {
                                                     salesInfo.detailExtraFields.put("bonusSum", bonusSum);
