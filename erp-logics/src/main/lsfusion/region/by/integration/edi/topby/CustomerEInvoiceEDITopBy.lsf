@@ -1467,8 +1467,8 @@ signAndSendNoticeCustomerEInvoiceTN2 (EInvoice ei, STRING[1000] d, STRING[100] p
 
 signAndSendNoticeCustomer(EInvoice e, STRING[1000] d) + {  IF EDIProviderInvoice(supplier(e)) == EDIProvider.topBy THEN IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены'; ELSE IF isTN2(e) THEN {signAndSendNoticeCustomerEInvoiceTN2(e,d,'TopBy');} ELSE {signAndSendNoticeCustomerEInvoice(e,d,'TopBy');}}
 
-hostEDSServiceCustomerTopBy (ECreditNote c) = OVERRIDE hostEDSServiceTopBy(customerStock(c)), hostEDSServiceTopBy(customer(c));
-portEDSServiceCustomerTopBy (ECreditNote c) = OVERRIDE portEDSServiceTopBy(customerStock(c)), portEDSServiceTopBy(customer(c));
+hostEDSServiceCustomerTopBy (ECreditNote c) = OVERRIDE hostEDSServiceTopBy(currentUser()), hostEDSServiceTopBy(customerStock(c)), hostEDSServiceTopBy(customer(c));
+portEDSServiceCustomerTopBy (ECreditNote c) = OVERRIDE portEDSServiceTopBy(currentUser()), portEDSServiceTopBy(customerStock(c)), portEDSServiceTopBy(customer(c));
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blradf' AND invoices THEN {
