@@ -134,13 +134,12 @@ EXTEND FORM userOrder
     
     FILTERS iterate(day, dateFromSoldPeriod(o), dateToSoldPeriod(o))
     
-    OBJECTS po = Order
-    PROPERTIES (po) READONLY date,series, number, nameSupplierStock
-    PROPERTIES READONLY quantityOrderDetail(ks,po)
-    FILTERS quantityOrderDetail(ks,po),
-            customerStock(po)==st,
-            isPosted(po),
-            NOT po==o
+    OBJECTS po = OrderDetail
+    PROPERTIES (po) READONLY date,series, number, nameSupplierStock, quantity
+    FILTERS customerStock(po) = st,
+            sku(po) = ks,
+            isPosted(po)
+            
     ORDERS date(po) DESC          
 ;
 
@@ -154,9 +153,8 @@ DESIGN userOrder {
                 
                 fill = 1;
                 type = TABBED;
-                MOVE BOX(po){
+                MOVE BOX(po) {
                     caption = 'История закупок';       
-                    PROPERTY (quantityOrderDetail(ks,po)) {caption = 'Кол-во';}          
                 }  
                 MOVE BOX (day) {
                     caption = 'История продаж';                     
