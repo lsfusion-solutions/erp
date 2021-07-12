@@ -25,6 +25,7 @@ sumWithVATRange[EVATDocument, Range](PurchaseReturn.Invoice i, Range r) += [ GRO
 customer[EVATDocument](PurchaseReturn.Invoice i) += customer(i);
 
 overCreateEVATPurchaseReturnInvoice  ABSTRACT LIST ( EVAT, PurchaseReturn.Invoice);
+overEVATDetailPurchaseReturnInvoiceDetail  ABSTRACT LIST ( EVATDetail, InvoiceDetail);
 
 createEVATPurchaseReturnInvoice 'Накладные (закупка-возврат)' (DATE dFrom, DATE dTo)  { 
     IF dFrom IS DATE AND dTo IS DATE THEN {
@@ -71,24 +72,25 @@ createEVATPurchaseReturnInvoice 'Накладные (закупка-возвра
             overCreateEVATPurchaseReturnInvoice(e,i);
     
             FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 NEW ed = EVATDetail DO {
-            evat(ed) <- e;
-
-            name(ed) <- nameSku(id);
-            sku(ed) <- sku(id);
-            code(ed) <- codeCustomsGroup(defaultCountry(), sku(id));
-            UOM(ed) <- UOM(sku(id));
-            quantity(ed) <- quantity(id); 
-            price(ed) <- price(id);
-            sum(ed) <- sum(id);
-            exciseSum(ed) <- 0;
-            vatRate(ed) <- valueVAT(id);
-            vatSum(ed) <- VATSum(id);
-            sumWithVAT(ed) <- invoiceSum(id);
-            
-            IF valueVAT(id) == 0 THEN
-                descriptionType(ed) <- DescriptionType.vatExcemption;
-            ELSE
-                descriptionType(ed) <- DescriptionType.deductionInFull IF NOT notDeductionInFull();
+                evat(ed) <- e;
+    
+                name(ed) <- nameSku(id);
+                sku(ed) <- sku(id);
+                code(ed) <- codeCustomsGroup(defaultCountry(), sku(id));
+                UOM(ed) <- UOM(sku(id));
+                quantity(ed) <- quantity(id); 
+                price(ed) <- price(id);
+                sum(ed) <- sum(id);
+                exciseSum(ed) <- 0;
+                vatRate(ed) <- valueVAT(id);
+                vatSum(ed) <- VATSum(id);
+                sumWithVAT(ed) <- invoiceSum(id);
+                overEVATDetailPurchaseReturnInvoiceDetail(ed,id);
+                
+                IF valueVAT(id) == 0 THEN
+                    in(ed, DescriptionType.vatExcemption) <- TRUE;
+                ELSE
+                    in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
             }
         }
         APPLY;    

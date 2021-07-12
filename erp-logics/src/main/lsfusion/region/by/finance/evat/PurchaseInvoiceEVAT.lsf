@@ -13,7 +13,7 @@ dateTime[EVATDocument](Invoice document) += dateTime(document);
 
 @defineOperationProperty(eVAT, 'Создавать ЭСЧФ', createContainer);
 
-overCreateEVATPurchaseInvoice  ABSTRACT LIST ( EVATDetail, InvoiceDetail);
+overEVATDetailPurchaseInvoiceDetail  ABSTRACT LIST ( EVATDetail, InvoiceDetail);
 overCreateEVATPurchaseInvoice  ABSTRACT LIST ( EVAT, Invoice);
 overCreateEVATPurchaseInvoice 'Накладные (закупка-возврат)'  ABSTRACT LIST ( DATE, DATE);//-- для возвратов
 skipEVAT = ABSTRACT CASE BOOLEAN (Invoice);
@@ -77,9 +77,9 @@ createEVATPurchaseInvoice (EVAT e, InvoiceDetail id, EVATDetail ed)  {
     vatRate(ed) <- valueVAT(sku(id), date(id));
     vatSum(ed) <- 0;
     sumWithVAT(ed) <- 0;
-    overCreateEVATPurchaseInvoice(ed,id);
+    overEVATDetailPurchaseInvoiceDetail(ed,id);
     
-    descriptionType(ed) <- DescriptionType.importVAT;
+    in(ed, DescriptionType.importVAT) <- TRUE;
 
 }
 
@@ -124,7 +124,7 @@ createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DAT
             vatSum(ed) <- vatSum;
             sumWithVAT(ed) <- 0;
             
-            descriptionType(ed) <- DescriptionType.importVAT;
+            in(ed, DescriptionType.importVAT) <- TRUE;
             overCreateEVATDetailPurchaseInvoice(ed, i, vat);
         }
     } 

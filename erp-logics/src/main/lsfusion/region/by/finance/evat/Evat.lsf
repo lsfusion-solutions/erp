@@ -342,16 +342,69 @@ CLASS DescriptionType 'Описание' {
     analyzedDeal 'анализируемая сделка'
 }
 
+name 'Название в XML' = DATA STRING[250] (DescriptionType);
+caption 'Описание' = DATA STRING[100] (DescriptionType);
+
+FORM descriptionType 'Описание'
+    OBJECTS d = DescriptionType PANEL
+    PROPERTIES(d) name, caption
+    
+    EDIT DescriptionType OBJECT d
+;
+
 FORM descriptionTypes 'Описания'
     OBJECTS d = DescriptionType
-    PROPERTIES(d) READONLY staticCaption
+    PROPERTIES(d) READONLY name, caption
+    PROPERTIES(d) NEWSESSION  NEW, EDIT
+
     LIST DescriptionType OBJECT d
 ;
 
-descriptionType = DATA DescriptionType(EVATDetail);
-overNameDescriptionType = ABSTRACT TEXT (EVATDetail);
-nameDescriptionType (EVATDetail evatDetail) = staticName(descriptionType(evatDetail));
-captionDescriptionType 'Описание' (EVATDetail evatDetail)= staticCaption(descriptionType(evatDetail));
+TABLE EVATDetailDescriptionType (EVATDetail, DescriptionType);
+in 'Вкл.' = DATA BOOLEAN (EVATDetail, DescriptionType);
+
+nameDescriptionTypes (EVATDetail d) = GROUP CONCAT TEXT(name(DescriptionType t)) IF in(d,t), ', ' ORDER t;
+captionDescriptionTypes 'Описание' (EVATDetail d)= STRING(GROUP CONCAT TEXT(caption(DescriptionType t)) IF in(d,t), ', ' ORDER t);
+
+FORM EVATDetailDescriptionType 'Описания'
+    OBJECTS d = EVATDetail PANEL
+    OBJECTS t = DescriptionType
+    PROPERTIES(d,t) in
+    PROPERTIES(t) READONLY name, caption
+    PROPERTIES(t) NEWSESSION  NEW, EDIT
+;
+DESIGN EVATDetailDescriptionType {
+    size = (800, 600);
+}
+
+changeDescriptionTypes (EVATDetail d) {
+    SHOW EVATDetailDescriptionType OBJECTS d = d;
+}
+
+descriptionType = DATA DescriptionType(EVATDetail); // устаревшее поле
+overNameDescriptionType (EVATDetail evatDetail) = nameDescriptionTypes(evatDetail);  // для xml
+nameDescriptionType (EVATDetail evatDetail) = staticName(descriptionType(evatDetail));  // для xml, потом можно будет убрать
+//captionDescriptionType 'Описание' (EVATDetail evatDetail)= staticCaption(descriptionType(evatDetail));
+
+migrateDescriptionTypes = DATA BOOLEAN ();
+onStarted() +{
+    IF NOT migrateDescriptionTypes() THEN {
+        in(EVATDetail d, DescriptionType t) <- TRUE WHERE descriptionType(d) == t;
+        name(DescriptionType t) <- CASE
+            WHEN t == DescriptionType.deductionInFull THEN 'DEDUCTION_IN_FULL'
+            WHEN t == DescriptionType.vatExcemption THEN 'VAT_EXEMPTION'
+            WHEN t == DescriptionType.outsideRB THEN 'OUTSIDE_RB'
+            WHEN t == DescriptionType.importVAT THEN 'IMPORT_VAT'
+            WHEN t == DescriptionType.exciseMark THEN 'EXCISE_MARK'
+            WHEN t == DescriptionType.controlMark THEN 'CONTROL_MARK'
+            WHEN t == DescriptionType.customsExcise THEN 'CUSTOMS_EXCISE'
+            WHEN t == DescriptionType.identifiedMark THEN 'IDENTIFIED_MARK'
+            WHEN t == DescriptionType.analyzedDeal THEN 'ANALYZED_DEAL';
+        caption(DescriptionType t) <- staticCaption(t) WHERE NOT caption(t);
+        migrateDescriptionTypes() <- TRUE;
+        APPLY;
+    }
+}
 
 totalSum 'Сумма (всего)'(EVAT evat) = GROUP SUM sum(EVATDetail evatDetail) BY evat(evatDetail);  
 totalExciseSum 'Сумма акциза (всего)' (EVAT evat) = GROUP SUM exciseSum(EVATDetail evatDetail) BY evat(evatDetail);  
@@ -376,7 +429,7 @@ FORM evat 'Электронная счёт-фактура'
                   totalSum, totalExciseSum, totalVATSum, totalSumWithVAT, allowZeroVAT, exportProviderTaxes, refund
 
     OBJECTS d = EVATDetail
-    PROPERTIES(d) name, evatCodeUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, NEW, DELETE
+    PROPERTIES(d) name, evatCodeUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionTypes ON CHANGE changeDescriptionTypes(d), NEW, DELETE
     FILTERS evat(d) == e
     EDIT EVAT OBJECT e
 ;
@@ -508,7 +561,7 @@ FORM evats 'Электронные счета-фактуры'
     
      
     OBJECTS d = EVATDetail
-    PROPERTIES(d) READONLYIF isReadonly() name, evatCodeUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
+    PROPERTIES(d) READONLYIF isReadonly() name, evatCodeUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionTypes ON CHANGE changeDescriptionTypes(d)
     FILTERS evat(d) == e
     LIST EVAT OBJECT e
 
