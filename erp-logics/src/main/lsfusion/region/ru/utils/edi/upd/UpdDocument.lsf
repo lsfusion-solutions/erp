@@ -23,8 +23,6 @@ EXTEND CLASS UpdDocumentPaperStatus {
 CLASS UpdDocument 'УПД';
 TABLE updDocument(UpdDocument);
 
-isTransfered 'Отправлен' = ABSTRACT BOOLEAN (UpdDocument);
-
 number 'Номер' = DATA STRING[48] (UpdDocument) IN numbered CHARWIDTH 7;
 
 //Титул продавца
@@ -42,12 +40,13 @@ codeOperatorConsignor 'ИД оператара ЭДО' = DATA STRING[3] (UpdDocu
 
 //-------Документ---------
 status 'Статус' = DATA UpdDocumentStatus (UpdDocument);
-nameStatus 'Статус' (UpdDocument upd) = staticCaption(status(upd)) CHARWIDTH 10; //Функция
+nameStatus 'Статус' (UpdDocument upd) = staticCaption(status(upd)) CHARWIDTH 8; //Функция
 
 businessNameDocument 'Наименование документа (по факту хоз.жизни)' = DATA STRING[255] (UpdDocument);//ПоФактХЖ
 supplierNameDocument 'Наименование документа' = DATA STRING[255] (UpdDocument); //НаимДокОпр
 dateSupplier 'Дата формирования (поставщик)' = DATA DATE (UpdDocument); //ДатаИнфПр - заполнять при формировании XML-файла
 timeSupplier 'Время формирования (поставщик)' = DATA TIME (UpdDocument); //ВремИнфПр - заполнять при формировании XML-файла
+dateTimeSupplier 'Дата/время формирования (поставщик)' (UpdDocument u) = dateTimeToDateTime(dateSupplier(u), timeSupplier(u)) MATERIALIZED; 
 nameOriginatorSupplier 'Наименование составителя (поставщик)' = DATA STRING[1000] (UpdDocument) CHARWIDTH 45; //НаимЭконСубСост
 
 //СвСчФакт
@@ -65,7 +64,7 @@ okpoSupplier 'ОКПО продавца' = DATA STRING[10] (UpdDocument); //ОК
 
 //--ИдСв
 //---СвЮЛУч
-nameSupplier 'Наименование продавца' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
+nameSupplier 'Наименование продавца' = DATA STRING[1000] (UpdDocument) CHARWIDTH 20; //НаимОрг
 innSupplier 'ИНН продавца' = DATA STRING[10] (UpdDocument); //ИННЮЛ
 kppSupplier 'КПП продавца' = DATA STRING[9] (UpdDocument); //КПП
 
@@ -110,7 +109,7 @@ okpoCustomer 'ОКПО покупателя' = DATA STRING[10] (UpdDocument); //
 
 //--ИдСв
 //---СвЮЛУч
-nameCustomer 'Наименование покупателя' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
+nameCustomer 'Наименование покупателя' = DATA STRING[1000] (UpdDocument) CHARWIDTH 20; //НаимОрг
 innCustomer 'ИНН покупателя' = DATA STRING[10] (UpdDocument); //ИННЮЛ
 kppCustomer 'КПП покупателя' = DATA STRING[9] (UpdDocument); //КПП
 
@@ -194,7 +193,7 @@ CLASS VATStatus {
     vatAgent 'НДС исчисляется налоговым агентом'         
 }
 VATStatus = DATA VATStatus(UpdDocumentDetail);
-nameVATStatus 'Ставка НДС' = staticCaption(VATStatus(UpdDocumentDetail d));
+nameVATStatus 'Ставка НДС' = staticCaption(VATStatus(UpdDocumentDetail d)) CHARWIDTH 7;
 
 
 quantity 'Кол-во товара' = DATA NUMERIC[26,11] (UpdDocumentDetail); //КолТов
@@ -323,6 +322,10 @@ customerSignerAgentLastName 'Фамилия представителя подп�
 customerSignerAgentFirstName 'Имя представителя подписанта' = DATA STRING[60] (UpdDocument);//Имя
 customerSignerAgentMiddleName 'Отчество представителя' = DATA STRING[60](UpdDocument); //Отчество
 
+//sending
+transfered 'Дата/время отправки' = DATA DATETIME (UpdDocument);
+isTransfered 'Отправлен' (UpdDocument u) = u IS UpdDocument AND transfered(u);
+
 uuid 'UUID' = DATA ISTRING[36] (UpdDocument);
 idFile 'ИдФайл' (UpdDocument d) = STRING[255](CONCAT '_', 'ON_NSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
 
@@ -337,7 +340,7 @@ generateIdFile(UpdDocument d){
 FORM updDocument 'Универсальный передаточный документ'
     OBJECTS u=UpdDocument PANEL
 
-    PROPERTIES (u) idFile READONLY , idConsignor, idConsignee, nameStatus, businessNameDocument, supplierNameDocument
+    PROPERTIES (u) idFile READONLY, idConsignor, idConsignee, nameStatus, businessNameDocument, supplierNameDocument
     PROPERTIES (u) nameOperatorConsignor, innOperatorConsignor, codeOperatorConsignor
                 
     PROPERTIES (u) nameSupplier, innSupplier, kppSupplier, okpoSupplier, nameOriginatorSupplier
@@ -692,13 +695,35 @@ DESIGN updDocument {
     } 
 }
 
+filterDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (UpdDocument u) = dateInvoice(u) >= filterDateFrom() OR (u IS UpdDocument AND NOT filterDateFrom());      
+
+filterDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (UpdDocument u) = dateInvoice(u) <= filterDateTo() OR (u IS UpdDocument AND NOT filterDateTo());      
+
+filterSupplier  = DATA LOCAL LegalEntity ();
+nameFilterSupplier 'Продавец' = name(filterSupplier()) CHARWIDTH 15;          
+filterSupplier (UpdDocument u) = supplier(u) == filterSupplier() OR (u IS UpdDocument AND NOT filterSupplier());
+
+filterCustomer  = DATA LOCAL LegalEntity ();
+nameFilterCustomer 'Покупатель' = name(filterCustomer()) CHARWIDTH 15;          
+filterCustomer (UpdDocument u) = customer(u) == filterCustomer() OR (u IS UpdDocument AND NOT filterCustomer());
+    
 FORM updDocuments 'УПД'
+
+    PROPERTIES filterDateFrom(), filterDateTo(), nameFilterSupplier(), nameFilterCustomer()
+    
     OBJECTS u = UpdDocument
-    PROPERTIES (u) READONLY nameStatus, numberInvoice, dateInvoice, businessNameDocument, supplierNameDocument, idFile, 
-                            idConsignor, nameSupplier, idConsignee, nameCustomer,
-                            dateSupplier, timeSupplier, codeCurrency,
-                            regionCodeSupplier, countryCodeAddressSupplier, adrressSupplier, codeAdrressSupplier,
-                            isConsignerSupplier, sum, invoiceSum, VATSum, withoutVAT
+    PROPERTIES (u) READONLY nameStatus, isTransfered, transfered, numberInvoice, dateInvoice, 
+                            nameSupplier, nameCustomer,
+                            dateTimeSupplier, codeCurrency,
+                            sum, invoiceSum, VATSum, withoutVAT, idFile, idConsignor, idConsignee
+                            
+    FILTERGROUP transfered
+        FILTER 'Отправленные' transfered(u)
+        FILTER 'Неотправленные' NOT transfered(u)
+
+    FILTERS filterDateFrom(u), filterDateTo(u), filterSupplier(u), filterCustomer(u)
     
     OBJECTS d = UpdDocumentDetail
     
@@ -970,7 +995,7 @@ checkExportUpdDocument 'Проверка по схеме (xml)' (UpdDocument d){
     } 
 } TOOLBAR;
 
-checkAndExportUpdDocument 'Проверка и экспорт (xml)' (UpdDocument d){
+checkAndExportUpdDocument 'Проверка и экспорт (xml)' (UpdDocument d) {
     IF filePPR() THEN {
         generateIdFile(d);
         inReport(UpdDocument g)<- TRUE IF g==d;
@@ -990,31 +1015,41 @@ EXTEND FORM updDocuments
     PROPERTIES (u) checkExportUpdDocument, checkAndExportUpdDocument
 ;
 DESIGN updDocuments {
-    OBJECTS {
-        NEW body{
+    NEW documentContainer BEFORE TOOLBARBOX {
+        fill = 1;
+        type = SPLITV;
+        NEW body {
             fill = 1;
-            type = SPLITV;
+            NEW topFilters {  
+                caption = 'Фильтры';
+                alignment = STRETCH;
+                type = CONTAINERH; 
+                MOVE PROPERTY(filterDateFrom());
+                MOVE PROPERTY(filterDateTo());                                                    
+                MOVE PROPERTY(nameFilterSupplier()) { fill = 1; }
+                MOVE PROPERTY(nameFilterCustomer()) { fill = 1; }                                            
+            }
             MOVE BOX(u);
-            NEW documentDetail {
+        }    
+        NEW documentDetail {
+            fill = 1;
+            type = TABBED;
+
+            MOVE BOX(d) {
                 fill = 1;
-                type = TABBED;
+                caption = 'Спецификация';
+            }
 
-                MOVE BOX(d) {
-                    fill = 1;
-                    caption = 'Спецификация';
+            NEW actionContainer {
+                caption = 'Действия';
+                type = CONTAINERV;
+                NEW export {
+                    caption = 'Экспорт';
+                    type = CONTAINERH;
+                    MOVE PROPERTY(checkExportUpdDocument(u));           
+                    MOVE PROPERTY(checkAndExportUpdDocument(u));                                     
                 }
 
-                NEW actionContainer {
-                    caption = 'Действия';
-                    type = CONTAINERV;
-                    NEW export {
-                        caption = 'Экспорт';
-                        type = CONTAINERH;
-                        MOVE PROPERTY(checkExportUpdDocument(u));           
-                        MOVE PROPERTY(checkAndExportUpdDocument(u));                                     
-                    }
-
-                }
             }
         }
     }
