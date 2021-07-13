@@ -45,118 +45,145 @@ overFill ABSTRACT LIST (UpdDocument, Consignment);
 showMessage (UpdDocument) = DATA BOOLEAN (UpdDocument);
 
 overNameCustomerStock(Consignment c) += ISTRING[350] (CONCAT ', ', fullName(customer(c)), name(customerStock(c)));
+   
+createUPD(Consignment invoice, UpdDocument ei) {
+    invoice(ei) <- invoice;
+    idConsignor(ei) <- idEdi(supplier(invoice));
+    idConsignee(ei) <- idEdi(customer(invoice));
+    
+    nameOperatorConsignor(ei) <- name(documentOperator(supplier(invoice)));
+    innOperatorConsignor(ei) <- STRING[10](inn(documentOperator(supplier(invoice))));
+    codeOperatorConsignor(ei) <- codeOperator(documentOperator(supplier(invoice)));
+    
+    status(ei) <- updStatus(Invoice.operation(invoice));
+    
+    businessNameDocument(ei) <- 'Документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)' 
+                                    IF status(ei)=UpdDocumentStatus.DOP OR status(ei)=UpdDocumentStatus.SHCFDOP;
+                                    
+    supplierNameDocument(ei) <- 'Счет-фактура и документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)'
+                                    WHERE status(ei)=UpdDocumentStatus.SHCFDOP;
+                                    
+    supplierNameDocument(ei) <- 'Документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)'
+                                    WHERE status(ei)=UpdDocumentStatus.DOP;                                         
+    
+    dateSupplier(ei) <- date(invoice);
+    timeSupplier(ei) <- time(invoice);
+    nameOriginatorSupplier(ei) <- fullNameSupplier(invoice);
+    
+    showMessage(ei) <- TRUE;
+    
+    //invoiceNumerator(ei) <- defaultNumeratorConsignmentUpd(); //возможно нужно будет сделать параметризацию нумератора для организации
+    dateInvoice(ei) <- date(invoice);
+    codeCurrency(ei) <- sid(currency(invoice));
+    
+    supplier(ei) <- supplier(invoice);            
+    numberAccountSupplier(ei) <-  STRING[20](numberAccount(supplier(invoice)));            
+    nameBankSupplier(ei) <- nameBank(account(supplier(invoice)));
+    MFOBankSupplier(ei) <- STRING[9](MFOBank(account(supplier(invoice))));
+    corrAccountBankSupplier(ei) <- corrAccount(bank(account(supplier(invoice))));
+    
+    nameSupplier(ei) <- fullNameSupplier(invoice);
+    innSupplier(ei) <- inn(supplier(invoice));
+    kppSupplier(ei) <- kpp(supplier(invoice));
+    regionCodeSupplier(ei) <- STRING[2](id(region(supplierStock(invoice))));
+    
+    countryCodeAddressSupplier(ei) <- sid(country(supplier(invoice)));
+    adrressSupplier(ei) <- address(supplier(invoice), date(invoice));
+    
+    isConsignerSupplier(ei) <- TRUE IF invoice IS Consignment;
+    
+    nameReceiverCompany(ei) <- nameCustomerStock(invoice);
+    innReceiverCompany(ei) <- inn(customer(invoice));
+    countryCodeAddressReceiverCompany(ei) <- sid(country(customer(invoice)));
+    adrressReceiverCompany(ei) <- address(customerStock(invoice));
+    
+    customer(ei) <- customer(invoice);
+    nameCustomer(ei) <- fullName(customer(invoice));
+    innCustomer(ei) <- inn(customer(invoice));
+    kppCustomer(ei) <- kpp(customer(invoice));
+    regionCodeCustomer(ei) <- STRING[2](id(region(customerStock(invoice))));
+    
+    countryCodeAddressCustomer(ei) <- sid(country(customer(invoice)));
+    adrressCustomer(ei) <- address(customer(invoice), date(invoice));
+    
+    description(ei) <- 'Товары переданы, результаты работ сдал, услуги оказаны в полном объеме' IF invoice IS Consignment;
+    descriptionContract(ei) <- 'Договор: (руб.)' IF invoice IS Consignment;
+    numberContract(ei) <- number(contract(invoice));
+    dateContract(ei) <- dateFrom(contract(invoice));
+    
+    supplierSignerCredentials(ei) <- Credential.c0 IF invoice IS Consignment; 
+    supplierSignerStatus(ei) <- CStatus.c1 IF invoice IS Consignment; 
+    supplierSignerCredentialsBase(ei) <- 'Должностные обязанности' IF invoice IS Consignment; //todo: переделать на проверку
+    
+    supplierSignerInn(ei) <- inn(supplier(invoice));
+    supplierSignerPosition(ei) <- name(position(managerSupplier(invoice)));
+    
+    supplierSignerAgentLastName(ei) <- lastName(managerSupplier(invoice));
+    supplierSignerAgentFirstName(ei) <- firstName(managerSupplier(invoice));
+    supplierSignerAgentMiddleName(ei) <- middleName(managerSupplier(invoice));
+    
+    sum(ei) <- [GROUP SUM sum(ConsignmentDetail d) BY consignment(d)](invoice);
+    invoiceSum(ei) <- [GROUP SUM sumConsignment(ConsignmentDetail d) BY consignment(d)](invoice);
+    VATSum(ei) <- [GROUP SUM sumVAT(ConsignmentDetail d) BY consignment(d)](invoice); 
+    
+    overFill(ei, invoice);
+    
+    FOR consignment(ConsignmentDetail d) == invoice NEW ed = UpdDocumentDetail  DO {
+        updDocument(ed) <- ei;
+        invoiceDetail(ed) <- d;
+        number(ed) <- index(d);
+        idSku(ed) <- barCode(d); 
+        nameSku(ed) <- nameSku(d);
+        idUOM(ed) <- idUOM(d);
+        quantity(ed) <- quantity(d);
+        price(ed) <- price(d);
+        sum(ed) <- sum(d);
+
+        VATStatus(ed)<- CASE 
+                       WHEN isNotVATPayer(supplier(ei))  THEN VATStatus.vatNot
+                       WHEN vat(d)==0.0  THEN VATStatus.vat0
+                       WHEN vat(d)==10.0  THEN VATStatus.vat10
+                       WHEN vat(d)==18.0  THEN VATStatus.vat18
+                       WHEN vat(d)==20.0  THEN VATStatus.vat20
+                       ;//todo: со временем надо остальные добавить
+                                         
+        invoiceSum(ed) <- sumConsignment(d);
+        VATSum(ed) <- sumVAT(d);
+        withoutDuty(ed) <- TRUE;
+    }
+}
      
 createUPD 'Создать УПД' (Consignment invoice)  {
-    LOCAL NESTED numberDoc = STRING[1000]();
     IF NOT updDocument(invoice) THEN NEWSESSION {
         NEW ei = UpdDocument {
-            invoice(ei) <- invoice;
-            idConsignor(ei) <- idEdi(supplier(invoice));
-            idConsignee(ei) <- idEdi(customer(invoice));
-            
-            nameOperatorConsignor(ei) <- name(documentOperator(supplier(invoice)));
-            innOperatorConsignor(ei) <- STRING[10](inn(documentOperator(supplier(invoice))));
-            codeOperatorConsignor(ei) <- codeOperator(documentOperator(supplier(invoice)));
-            
-            status(ei) <- updStatus(Invoice.operation(invoice));
-            
-            businessNameDocument(ei) <- 'Документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)' 
-                                            IF status(ei)=UpdDocumentStatus.DOP OR status(ei)=UpdDocumentStatus.SHCFDOP;
-                                            
-            supplierNameDocument(ei) <- 'Счет-фактура и документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)'
-                                            WHERE status(ei)=UpdDocumentStatus.SHCFDOP;
-                                            
-            supplierNameDocument(ei) <- 'Документ об отгрузке товаров (выполнении работ), передаче имущественных прав (документ об оказании услуг)'
-                                            WHERE status(ei)=UpdDocumentStatus.DOP;                                         
-            
-            dateSupplier(ei) <- date(invoice);
-            timeSupplier(ei) <- time(invoice);
-            nameOriginatorSupplier(ei) <- fullNameSupplier(invoice);
-            
-            showMessage(ei) <- TRUE;
-            
-            //invoiceNumerator(ei) <- defaultNumeratorConsignmentUpd(); //возможно нужно будет сделать параметризацию нумератора для организации
-            dateInvoice(ei) <- date(invoice);
-            codeCurrency(ei) <- sid(currency(invoice));
-            
-            supplier(ei) <- supplier(invoice);            
-            numberAccountSupplier(ei) <-  STRING[20](numberAccount(supplier(invoice)));            
-            nameBankSupplier(ei) <- nameBank(account(supplier(invoice)));
-            MFOBankSupplier(ei) <- STRING[9](MFOBank(account(supplier(invoice))));
-            corrAccountBankSupplier(ei) <- corrAccount(bank(account(supplier(invoice))));
-            
-            nameSupplier(ei) <- fullNameSupplier(invoice);
-            innSupplier(ei) <- inn(supplier(invoice));
-            kppSupplier(ei) <- kpp(supplier(invoice));
-            regionCodeSupplier(ei) <- STRING[2](id(region(supplierStock(invoice))));
-            
-            countryCodeAddressSupplier(ei) <- sid(country(supplier(invoice)));
-            adrressSupplier(ei) <- address(supplier(invoice), date(invoice));
-            
-            isConsignerSupplier(ei) <- TRUE IF invoice IS Consignment;
-            
-            nameReceiverCompany(ei) <- nameCustomerStock(invoice);
-            innReceiverCompany(ei) <- inn(customer(invoice));
-            countryCodeAddressReceiverCompany(ei) <- sid(country(customer(invoice)));
-            adrressReceiverCompany(ei) <- address(customerStock(invoice));
-            
-            customer(ei) <- customer(invoice);
-            nameCustomer(ei) <- fullName(customer(invoice));
-            innCustomer(ei) <- inn(customer(invoice));
-            kppCustomer(ei) <- kpp(customer(invoice));
-            regionCodeCustomer(ei) <- STRING[2](id(region(customerStock(invoice))));
-            
-            countryCodeAddressCustomer(ei) <- sid(country(customer(invoice)));
-            adrressCustomer(ei) <- address(customer(invoice), date(invoice));
-            
-            description(ei) <- 'Товары переданы, результаты работ сдал, услуги оказаны в полном объеме' IF invoice IS Consignment;
-            descriptionContract(ei) <- 'Договор: (руб.)' IF invoice IS Consignment;
-            numberContract(ei) <- number(contract(invoice));
-            dateContract(ei) <- dateFrom(contract(invoice));
-            
-            supplierSignerCredentials(ei) <- Credential.c0 IF invoice IS Consignment; 
-            supplierSignerStatus(ei) <- CStatus.c1 IF invoice IS Consignment; 
-            supplierSignerCredentialsBase(ei) <- 'Должностные обязанности' IF invoice IS Consignment; //todo: переделать на проверку
-            
-            supplierSignerInn(ei) <- inn(supplier(invoice));
-            supplierSignerPosition(ei) <- name(position(managerSupplier(invoice)));
-            
-            supplierSignerAgentLastName(ei) <- lastName(managerSupplier(invoice));
-            supplierSignerAgentFirstName(ei) <- firstName(managerSupplier(invoice));
-            supplierSignerAgentMiddleName(ei) <- middleName(managerSupplier(invoice));
-            
-            sum(ei) <- [GROUP SUM sum(ConsignmentDetail d) BY consignment(d)](invoice);
-            invoiceSum(ei) <- [GROUP SUM sumConsignment(ConsignmentDetail d) BY consignment(d)](invoice);
-            VATSum(ei) <- [GROUP SUM sumVAT(ConsignmentDetail d) BY consignment(d)](invoice); 
-            
-            overFill(ei, invoice);
-            
-            FOR consignment(ConsignmentDetail d) == invoice NEW ed = UpdDocumentDetail  DO {
-                updDocument(ed) <- ei;
-                invoiceDetail(ed) <- d;
-                number(ed) <- index(d);
-                idSku(ed) <- barCode(d); 
-                nameSku(ed) <- nameSku(d);
-                idUOM(ed) <- idUOM(d);
-                quantity(ed) <- quantity(d);
-                price(ed) <- price(d);
-                sum(ed) <- sum(d);
-
-                VATStatus(ed)<- CASE 
-                               WHEN isNotVATPayer(supplier(ei))  THEN VATStatus.vatNot
-                               WHEN vat(d)==0.0  THEN VATStatus.vat0
-                               WHEN vat(d)==10.0  THEN VATStatus.vat10
-                               WHEN vat(d)==18.0  THEN VATStatus.vat18
-                               WHEN vat(d)==20.0  THEN VATStatus.vat20
-                               ;//todo: со временем надо остальные добавить
-                                                 
-                invoiceSum(ed) <- sumConsignment(d);
-                VATSum(ed) <- sumVAT(d);
-                withoutDuty(ed) <- TRUE;
-            }
+            createUPD(invoice, ei);
         }
         APPLY;
-        MESSAGE 'УПД создан';
+        IF NOT canceled() THEN {
+            MESSAGE 'УПД создан';    
+        }         
+    }
+}
+
+reCreateUPD 'Пересоздать УПД' (Consignment invoice)  {
+    IF updDocument(invoice) THEN {
+        IF isTransfered(updDocument(invoice)) THEN {
+            MESSAGE 'Докумен УПД не может быть пересоздан, т.к. уже отправлен' NOWAIT;
+        } ELSE {
+            LOCAL upd = UpdDocument();
+            upd()<- updDocument(invoice);
+            NEW ei = UpdDocument {
+                createUPD(invoice, ei);
+                numberInvoice(ei)<- numberInvoice(upd());
+            }
+            DELETE UpdDocument d WHERE d==upd();
+            APPLY;
+            IF NOT canceled() THEN {
+                MESSAGE 'УПД пересоздан';    
+            }                
+        }
+    } ELSE {
+        createUPD(invoice);
     }
 }
 
