@@ -105,3 +105,34 @@ DESIGN typeExchangeCurrencyDate {
         MOVE PROPERTY(fillCrossLastDays());
     }
 }
+
+importNBRBExchangeRateLastDaysNew 'Импортировать последние курсы НБРБ (new)' () {
+    NEWSESSION {
+        IF NOT typeExchange('НБРБ (BYN)') AND NOT typeExchange('НБРБ (BYR)') THEN NEW te = TypeExchange {
+            name(te)<-'НБРБ (BYN)';
+            currency(te)<-currencyShortName('BYN');
+        }
+        IF NOT typeExchange('НБРБ (BYN)') AND NOT typeExchange('НБРБ (BYR)') THEN NEW te = TypeExchange {
+            name(te)<-'НБРБ (BYN)';
+            currency(te)<-currencyShortName('BYN');
+        }
+        FOR shortName(Currency c) != 'BYN' AND NOT skipImportNBRB(c) AND NOT typeExchange('НБРБ (' +shortName(c)+')') NEW te = TypeExchange DO {
+            name(te)<-'НБРБ (' +shortName(c)+')';
+            currency(te)<-c;
+        }
+        FOR  iterate(DATE d, sum(currentDate(), -importNBRBExchangeRateDaysCount()), sum(currentDate(), 1)) DO { 
+            LOCAL result = FILE();
+            LOCAL Cur_Abbreviation = STRING(INTEGER );
+            LOCAL Cur_OfficialRate = NUMERIC[20,13](INTEGER);
+            LOCAL Cur_Scale = INTEGER (INTEGER);
+            EXTERNAL HTTP GET 'https://www.nbrb.by/api/exrates/rates?ondate=' + d + '&periodicity=0' TO result;
+            IMPORT JSON FROM result() TO Cur_OfficialRate, Cur_Scale, Cur_Abbreviation;
+            
+            FOR Cur_OfficialRate(INTEGER j) AND shortName(Currency c) == Cur_Abbreviation(j) AND NOT skipImportNBRB(c) DO {
+                rate(TypeExchange te, c, d) <- NUMERIC[20,13](Cur_OfficialRate(j)/Cur_Scale(j)) WHERE shortName(currency(te))  = 'BYN' AND left(name(te), 4) == 'НБРБ';
+                rate(TypeExchange te, Currency c1, d) <- NUMERIC[20,13](1/(Cur_OfficialRate(j)/Cur_Scale(j))) WHERE shortName(c1)  = 'BYN' AND currency(te) = c AND left(name(te), 4) == 'НБРБ';
+            }
+        } 
+        APPLY ;
+    } 
+}
