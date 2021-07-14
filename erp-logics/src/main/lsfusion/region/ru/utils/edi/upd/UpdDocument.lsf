@@ -758,12 +758,16 @@ filterSupplier (UpdDocument u) = supplier(u) == filterSupplier() OR (u IS UpdDoc
 filterCustomer  = DATA LOCAL LegalEntity ();
 nameFilterCustomer 'Покупатель' = name(filterCustomer()) CHARWIDTH 15;          
 filterCustomer (UpdDocument u) = customer(u) == filterCustomer() OR (u IS UpdDocument AND NOT filterCustomer());
-    
+
+select 'Отм.' = DATA LOCAL NESTED BOOLEAN (UpdDocument);
+countSelectUpd = GROUP SUM 1 IF select(UpdDocument u);
+
 FORM updDocuments 'УПД'
 
     PROPERTIES filterDateFrom(), filterDateTo(), nameFilterSupplier(), nameFilterCustomer()
     
     OBJECTS u = UpdDocument
+    PROPERTIES (u) select
     PROPERTIES (u) READONLY nameStatus, isTransfered, transfered, numberInvoice, dateInvoice, 
                             nameSupplier, nameCustomer,
                             dateTimeSupplier, codeCurrency,
