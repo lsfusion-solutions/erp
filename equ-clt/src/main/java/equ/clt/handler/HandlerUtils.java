@@ -71,4 +71,13 @@ public class HandlerUtils {
     public static BigDecimal getJSONBigDecimal(JSONObject jsonObject, String valueKey) {
         return jsonObject != null && jsonObject.has(valueKey) ? jsonObject.getBigDecimal(valueKey) : null;
     }
+
+    public static String appendSpaces(String line, int length) {
+        if(line == null)
+            line = "";
+        StringBuilder lineBuilder = new StringBuilder(line.substring(0, Math.min(line.length(), length)));
+        while(lineBuilder.length() < length)
+            lineBuilder.append(" ");
+        return lineBuilder.toString();
+    }
 }

@@ -706,10 +706,6 @@ public class InventoryTechHandler extends TerminalHandler {
         return list != null && !list.isEmpty();
     }
 
-    protected String trim(String input, Integer length) {
-        return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
-    }
-
     public static void safeDelete(File file) {
         if (file != null && !file.delete()) {
             file.deleteOnExit();

@@ -457,19 +457,6 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
         }
     }
 
-    protected String trim(String input, Integer length) {
-        return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
-    }
-
-    private String appendSpaces(String line, int length) {
-        if(line == null)
-            line = "";
-        StringBuilder lineBuilder = new StringBuilder(line.substring(0, Math.min(line.length(), length)));
-        while(lineBuilder.length() < length)
-            lineBuilder.append(" ");
-        return lineBuilder.toString();
-    }
-
     private Connection getConnection(String url) throws SQLException {
         Locale.setDefault(Locale.ENGLISH); //хак. То ли этот конкретный сервер, то ли oracle вообще хочет английскую локаль
         return DriverManager.getConnection(url);

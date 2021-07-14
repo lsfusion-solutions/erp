@@ -667,10 +667,6 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
         }
     }
 
-    protected String trim(String input, Integer length) {
-        return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
-    }
-
     public String appendBarcode(String barcode) {
         if (barcode != null) {
             if (barcode.length() == 5)
