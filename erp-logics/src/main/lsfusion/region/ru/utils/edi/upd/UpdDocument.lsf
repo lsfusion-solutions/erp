@@ -34,9 +34,9 @@ idConsignee 'ИД получателя' = DATA STRING[46] (UpdDocument); //Ид�
 
 
 //СвОЭДОтпр
-nameOperatorConsignor 'Наименование оператора ЭДО' = DATA STRING[1000] (UpdDocument); //ИдОтпр
+nameOperatorConsignor 'Оператор ЭДО' = DATA STRING[1000] (UpdDocument); //ИдОтпр
 innOperatorConsignor 'ИНН оператора ЭДО' = DATA STRING[10] (UpdDocument); //ИННЮЛ
-codeOperatorConsignor 'ИД оператара ЭДО' = DATA STRING[3] (UpdDocument); //ИдЭДО
+codeOperatorConsignor 'ИД оператора ЭДО' = DATA STRING[3] (UpdDocument); //ИдЭДО
 
 //-------Документ---------
 status 'Статус' = DATA UpdDocumentStatus (UpdDocument);
@@ -44,10 +44,10 @@ nameStatus 'Статус' (UpdDocument upd) = staticCaption(status(upd)) CHARWID
 
 businessNameDocument 'Наименование документа (по факту хоз.жизни)' = DATA STRING[255] (UpdDocument);//ПоФактХЖ
 supplierNameDocument 'Наименование документа' = DATA STRING[255] (UpdDocument); //НаимДокОпр
-dateSupplier 'Дата формирования (поставщик)' = DATA DATE (UpdDocument); //ДатаИнфПр - заполнять при формировании XML-файла
-timeSupplier 'Время формирования (поставщик)' = DATA TIME (UpdDocument); //ВремИнфПр - заполнять при формировании XML-файла
-dateTimeSupplier 'Дата/время формирования (поставщик)' (UpdDocument u) = dateTimeToDateTime(dateSupplier(u), timeSupplier(u)) MATERIALIZED; 
-nameOriginatorSupplier 'Наименование составителя (поставщик)' = DATA STRING[1000] (UpdDocument) CHARWIDTH 45; //НаимЭконСубСост
+dateSupplier 'Дата формирования' = DATA DATE (UpdDocument); //ДатаИнфПр - заполнять при формировании XML-файла
+timeSupplier 'Время формирования' = DATA TIME (UpdDocument); //ВремИнфПр - заполнять при формировании XML-файла
+dateTimeSupplier 'Дата/время формирования' (UpdDocument u) = dateTimeToDateTime(dateSupplier(u), timeSupplier(u)) MATERIALIZED; 
+nameOriginatorSupplier 'Составитель' = DATA STRING[1000] (UpdDocument) CHARWIDTH 45; //НаимЭконСубСост
 
 //СвСчФакт
 invoiceNumerator 'Нумератор СЧФ' = DATA Numerator (UpdDocument);
@@ -64,7 +64,7 @@ okpoSupplier 'ОКПО продавца' = DATA STRING[10] (UpdDocument); //ОК
 
 //--ИдСв
 //---СвЮЛУч
-nameSupplier 'Наименование продавца' = DATA STRING[1000] (UpdDocument) CHARWIDTH 20; //НаимОрг
+nameSupplier 'Продавец' = DATA STRING[1000] (UpdDocument) CHARWIDTH 20; //НаимОрг
 innSupplier 'ИНН продавца' = DATA STRING[10] (UpdDocument); //ИННЮЛ
 kppSupplier 'КПП продавца' = DATA STRING[9] (UpdDocument); //КПП
 
@@ -93,7 +93,7 @@ isConsignerSupplier 'Продавец является отправителем'
 //-ГрузПолуч
 //--ИдСв
 //---СвЮЛУч
-nameReceiverCompany 'Наименование грузополучателя' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
+nameReceiverCompany 'Грузополучатель' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
 innReceiverCompany 'ИНН грузополучателя' = DATA STRING[10] (UpdDocument);//ИННЮЛ
 
 //--ГрузПолуч
@@ -109,7 +109,7 @@ okpoCustomer 'ОКПО покупателя' = DATA STRING[10] (UpdDocument); //
 
 //--ИдСв
 //---СвЮЛУч
-nameCustomer 'Наименование покупателя' = DATA STRING[1000] (UpdDocument) CHARWIDTH 20; //НаимОрг
+nameCustomer 'Покупатель' = DATA STRING[1000] (UpdDocument) CHARWIDTH 20; //НаимОрг
 innCustomer 'ИНН покупателя' = DATA STRING[10] (UpdDocument); //ИННЮЛ
 kppCustomer 'КПП покупателя' = DATA STRING[9] (UpdDocument); //КПП
 
@@ -394,40 +394,36 @@ DESIGN updDocument {
             type = SCROLL;
             fill = 1;
             NEW documentContainer {
-                caption = 'УПД';
                 fill = 1;
                 type = CONTAINERV;
                 NEW mainDocumentAttributes {
-                    caption = 'Основные атрибуты';
-                    //fill = 1;
-                    type = COLUMNS;
-                    columns = 2;
+                    alignment = STRETCH;
+                    type = CONTAINERH;
+                    
+                    NEW supplierInvoice {
+                        caption = 'СЧФ';
+                        fill = 1;
+                        type = CONTAINERV;
+                        MOVE PROPERTY(nameInvoiceNumerator(u));
+                        MOVE PROPERTY(numberInvoice(u));
+                        MOVE PROPERTY(dateInvoice(u));
+                        MOVE PROPERTY(nameStatus(u));                       
+                    }
                     NEW partsInfo0{
                         fill = 1;
                         NEW partsInfo {
                             caption = 'Стороны';
                             fill = 1;
-                            type = COLUMNS;
-                            columns = 2;
-                            MOVE PROPERTY(idFile(u));
-                            MOVE PROPERTY(idConsignor(u));
-                            MOVE PROPERTY(idConsignee(u));
-                            MOVE PROPERTY(nameStatus(u));
-                            MOVE PROPERTY(businessNameDocument(u));
-                            MOVE PROPERTY(supplierNameDocument(u));                        
+                            type = CONTAINERV;
+                            MOVE PROPERTY(nameSupplier(u));
+                            MOVE PROPERTY(nameCustomer(u));                       
                         }
-                        NEW edo{
-                            caption = 'Оператор ЭДО отправителя';
-                            type = CONTAINERH;
-                            MOVE PROPERTY(nameOperatorConsignor(u));
-                            MOVE PROPERTY(innOperatorConsignor(u));
-                            MOVE PROPERTY(codeOperatorConsignor(u));                               
-                        } 
                     }
                     NEW sums {
                         caption = 'Итоговые суммы';
-                        //fill = 1;
+                        fill = 1;
                         type = CONTAINERV;
+                        MOVE PROPERTY(codeCurrency(u));
                         MOVE PROPERTY(sum(u));
                         MOVE PROPERTY(invoiceSum(u));
                         MOVE PROPERTY(VATSum(u));
@@ -440,245 +436,292 @@ DESIGN updDocument {
                     NEW supplierTitle {
                         caption = 'Титул поставщика';
                         fill = 1;
-                        type = COLUMNS;
-                        columns = 2;
+                        type = SPLITV;
                         
                         NEW supplierInfo {
                             caption = 'Поставщик';
                             fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(nameSupplier(u));
-                            MOVE PROPERTY(innSupplier(u));
-                            MOVE PROPERTY(kppSupplier(u));
-                            MOVE PROPERTY(okpoSupplier(u));
-                            MOVE PROPERTY(nameOriginatorSupplier(u));
+                            type = TABBED;
+                            
+                            NEW supplierMainInfo {
+                                caption = 'Реквизиты поставщика';
+                                fill = 1;
+                                type = CONTAINERH;
+                                NEW innSupplier {
+                                    caption = 'Основные';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(innSupplier(u));
+                                    MOVE PROPERTY(kppSupplier(u));
+                                    MOVE PROPERTY(okpoSupplier(u));
+                                    MOVE PROPERTY(nameOriginatorSupplier(u));
+                                }
+                                NEW supplierAddress {
+                                    caption = 'Адрес';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(regionCodeSupplier(u));
+                                    MOVE PROPERTY(countryCodeAddressSupplier(u));
+                                    MOVE PROPERTY(adrressSupplier(u));
+                                    MOVE PROPERTY(codeAdrressSupplier(u));
+                                }
+                                NEW supplierBank {
+                                    caption = 'Банк';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(numberAccountSupplier(u));
+                                    MOVE PROPERTY(nameBankSupplier(u));
+                                    MOVE PROPERTY(MFOBankSupplier(u));
+                                    MOVE PROPERTY(corrAccountBankSupplier(u));
+                                }
+                            }
+                            NEW documentInfo {
+                                caption = 'Реквизиты документа';
+                                fill = 1;
+                                type = TABBED; 
+                                NEW documentDescription {
+                                    caption = 'Описание';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(description(u));
+                                    MOVE PROPERTY(codeBusinessEvent(u));
+                                    MOVE PROPERTY(descriptionBusinessEvent(u));
+                                }
+                                NEW supplierDateTime {
+                                    caption = 'Время формирования';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(dateSupplier(u));
+                                    MOVE PROPERTY(timeSupplier(u));
+                                }
+                                NEW contractInfo {
+                                    caption = 'Основание';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(descriptionContract(u));
+                                    MOVE PROPERTY(numberContract(u));
+                                    MOVE PROPERTY(dateContract(u)); 
+                                }                                                        
+                            }
+                            
+                            NEW itemTransfer {
+                                caption = 'Передача';
+                                fill = 1;
+                                type = CONTAINERV;
+                                MOVE PROPERTY(isConsignerSupplier(u));
+                                NEW itemTransferTabbedContainer {
+                                     fill = 1;
+                                     type = TABBED;
+                                     NEW supplierAgent {
+                                         caption = 'Работник продавца';
+                                         fill = 1;
+                                         type = CONTAINERV;
+                                         MOVE PROPERTY(positionAgentSupplier(u));
+                                         MOVE PROPERTY(lastNameAgentSupplier(u));
+                                         MOVE PROPERTY(firsNameAgentSupplier(u));
+                                         MOVE PROPERTY(middleAgentSupplier(u));                            
+                                     }
+                                     NEW executerAgent {
+                                         caption = 'Представитель передающей организации';
+                                         fill = 1;
+                                         type = CONTAINERV;
+                                         MOVE PROPERTY(positionAgentExecuter(u));
+                                         MOVE PROPERTY(nameCompanyAgentExecuter(u));
+                                         MOVE PROPERTY(lastNameAgentExecuter(u));
+                                         MOVE PROPERTY(firsNametAgentExecuter(u));
+                                         MOVE PROPERTY(middleNameAgentExecuter(u));                            
+                                     }
+                                     NEW executer {
+                                         caption = 'Передающее физлицо';
+                                         fill = 1;
+                                         type = CONTAINERV;
+                                         MOVE PROPERTY(positionExecuter(u));
+                                         MOVE PROPERTY(lastNameExecuter(u));
+                                         MOVE PROPERTY(firsNameExecuter(u));
+                                         MOVE PROPERTY(middleNameExecuter(u));                            
+                                     }
+                                }
+                            }
+                            NEW signerInfo {
+                                caption = 'Подписи';
+                                fill = 1;
+                                type = TABBED;
+                                NEW signerCredentials {
+                                    caption = 'Полномочия подписанта';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(nameSupplierSignerCredentials(u));
+                                    MOVE PROPERTY(nameSupplierSignerStatus(u));
+                                    MOVE PROPERTY(supplierSignerCredentialsBase(u));                                                        
+                                }
+                                NEW signer {
+                                    caption = 'Подписант (физлицо)';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(supplierSignerLastName(u));
+                                    MOVE PROPERTY(supplierSignerFirstName(u));
+                                    MOVE PROPERTY(supplierSignerMiddleName(u));                            
+                                }
+                                NEW signerLegalEntity {
+                                    caption = 'Подписант (юрлицо)';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(supplierSignerInn(u));
+                                    MOVE PROPERTY(supplierSignerPosition(u));
+                                    NEW signerLegalEntityAgent {
+                                        caption = 'Представитель';
+                                        MOVE PROPERTY(supplierSignerAgentLastName(u));
+                                        MOVE PROPERTY(supplierSignerAgentFirstName(u));
+                                        MOVE PROPERTY(supplierSignerAgentMiddleName(u));                                
+                                    }                            
+                                }
+                            }                            
                         }
-                        
-                        NEW supplierDate {
-                            caption = 'Дата/время';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(dateSupplier(u));
-                            MOVE PROPERTY(timeSupplier(u));
-                        }
-                        NEW supplierInvoice {
-                            caption = 'СЧФ';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(nameInvoiceNumerator(u));
-                            MOVE PROPERTY(numberInvoice(u));
-                            MOVE PROPERTY(dateInvoice(u));
-                            MOVE PROPERTY(codeCurrency(u));
-                        }
-                        NEW supplierAddress {
-                            caption = 'Адрес поставщика';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(regionCodeSupplier(u));
-                            MOVE PROPERTY(countryCodeAddressSupplier(u));
-                            MOVE PROPERTY(adrressSupplier(u));
-                            MOVE PROPERTY(codeAdrressSupplier(u));
-                        }
-                        NEW supplierBank {
-                            caption = 'Банк поставщика';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(numberAccountSupplier(u));
-                            MOVE PROPERTY(nameBankSupplier(u));
-                            MOVE PROPERTY(MFOBankSupplier(u));
-                            MOVE PROPERTY(corrAccountBankSupplier(u));
-                        }                        
-                                               
-                        MOVE PROPERTY(isConsignerSupplier(u));
                         
                         NEW customerInfo {
                             caption = 'Покупатель';
                             fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(nameCustomer(u));
-                            MOVE PROPERTY(innCustomer(u));
-                            MOVE PROPERTY(kppCustomer(u));
-                            MOVE PROPERTY(okpoCustomer(u));
-                        }
-
-                        NEW customerAddress {
-                            caption = 'Адрес покупатель';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(regionCodeCustomer(u));
-                            MOVE PROPERTY(countryCodeAddressCustomer(u));
-                            MOVE PROPERTY(codeAdrressCustomer(u));
-                        }
-                        
-                        NEW companyReceiver {
-                            caption = 'Грузополучатель';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(nameReceiverCompany(u));
-                            MOVE PROPERTY(innReceiverCompany(u));
-                        }
-                        
-                        NEW companyReceiverAddress {
-                            caption = 'Адрес грузоплучателя';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(countryCodeAddressReceiverCompany(u));
-                            MOVE PROPERTY(adrressReceiverCompany(u));                            
-                        }
-                        
-                        NEW businessEvent {
-                            caption = 'Факт хоз.жизни 1';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(codeBusinessEvent(u));
-                            MOVE PROPERTY(descriptionBusinessEvent(u));
-                        }                          
-                        
-                        NEW description {
-                            caption = 'Содержание операции';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(description(u));
-                            MOVE PROPERTY(descriptionContract(u));
-                            MOVE PROPERTY(numberContract(u));
-                            MOVE PROPERTY(dateContract(u));
-                        }                                               
-                        
-                        NEW supplierAgent {
-                            caption = 'Работник продавца';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(positionAgentSupplier(u));
-                            MOVE PROPERTY(lastNameAgentSupplier(u));
-                            MOVE PROPERTY(firsNameAgentSupplier(u));
-                            MOVE PROPERTY(middleAgentSupplier(u));                            
-                        }
-                        NEW executerAgent {
-                            caption = 'Представитель передающей организации';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(positionAgentExecuter(u));
-                            MOVE PROPERTY(nameCompanyAgentExecuter(u));
-                            MOVE PROPERTY(lastNameAgentExecuter(u));
-                            MOVE PROPERTY(firsNametAgentExecuter(u));
-                            MOVE PROPERTY(middleNameAgentExecuter(u));                            
-                        }
-                        NEW executer {
-                            caption = 'Передающее физлицо';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(positionExecuter(u));
-                            MOVE PROPERTY(lastNameExecuter(u));
-                            MOVE PROPERTY(firsNameExecuter(u));
-                            MOVE PROPERTY(middleNameExecuter(u));                            
-                        }
-                        NEW signerCredentials {
-                            caption = 'Полномочия подписанта';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(nameSupplierSignerCredentials(u));
-                            MOVE PROPERTY(nameSupplierSignerStatus(u));
-                            MOVE PROPERTY(supplierSignerCredentialsBase(u));                                                        
-                        }
-                        NEW signer {
-                            caption = 'Подписант (физлицо)';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(supplierSignerLastName(u));
-                            MOVE PROPERTY(supplierSignerFirstName(u));
-                            MOVE PROPERTY(supplierSignerMiddleName(u));                            
-                        }
-                        NEW signerLegalEntity {
-                            caption = 'Подписант (юрлицо)';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(supplierSignerInn(u));
-                            MOVE PROPERTY(supplierSignerPosition(u));
-                            NEW signerLegalEntityAgent {
-                                caption = 'Представитель';
-                                MOVE PROPERTY(supplierSignerAgentLastName(u));
-                                MOVE PROPERTY(supplierSignerAgentFirstName(u));
-                                MOVE PROPERTY(supplierSignerAgentMiddleName(u));                                
-                            }                            
-                        }
+                            type = TABBED;
+                            NEW customerMainInfo {
+                                caption = 'Реквизиты покупателя';
+                                fill = 1;
+                                type = CONTAINERH;
+                                NEW innCustomer {
+                                    fill = 1;
+                                    caption = 'Основные';
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(innCustomer(u));
+                                    MOVE PROPERTY(kppCustomer(u));
+                                    MOVE PROPERTY(okpoCustomer(u));
+                                }    
+                                NEW customerAddress {
+                                    caption = 'Адрес';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(regionCodeCustomer(u));
+                                    MOVE PROPERTY(countryCodeAddressCustomer(u));
+                                    MOVE PROPERTY(codeAdrressCustomer(u));
+                                }
+                            }    
+                            NEW companyReceiver {
+                                caption = 'Грузополучатель';
+                                fill = 1;
+                                type = CONTAINERH;
+                                NEW companyReceiverInfo {
+                                    fill = 1;
+                                    caption = 'Реквизиты';
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(nameReceiverCompany(u));
+                                    MOVE PROPERTY(innReceiverCompany(u));
+                                }
+                                NEW companyReceiverAddress {
+                                    caption = 'Адрес грузополучателя';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(countryCodeAddressReceiverCompany(u));
+                                    MOVE PROPERTY(adrressReceiverCompany(u));                            
+                                }
+                            }
+                        }                                                                     
                     }
                     NEW customerTitle {
                         caption = 'Титул покупателя';
                         fill = 1;
-                        type = COLUMNS;
-                        columns = 2;
+                        type = TABBED;
                         
                         NEW customerInfoCT {
                             caption = 'Покупатель';
                             fill = 1;
                             type = CONTAINERV;
+                            MOVE PROPERTY(nameOriginatorCustomer(u));  
                             MOVE PROPERTY(dateCustomer(u));
-                            MOVE PROPERTY(timeCustomer(u));
-                            MOVE PROPERTY(nameOriginatorCustomer(u));                            
+                            MOVE PROPERTY(timeCustomer(u));                          
                         }
                         NEW acceptanceInfo {
                             caption = 'Приемка';
-                            fill =1;
+                            fill = 1;
                             type = CONTAINERV;
                             MOVE PROPERTY(dateExceptance(u));
+                            NEW acceptanceInfoVerticalContainer {
+                                alignment = STRETCH;
+                                type = CONTAINERH;
+                                NEW receiverAgent {
+                                    caption = 'Представитель принимающей организации';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(positionAgentReceiver(u));
+                                    MOVE PROPERTY(lastNameAgentReceiver(u));
+                                    MOVE PROPERTY(firsNametAgentReceiver(u));
+                                    MOVE PROPERTY(middleNameAgentReceiver(u));                            
+                                }                       
+                                NEW receiver {
+                                    caption = 'Принимающее физлицо';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(receiverAgentCredentialsBase(u));
+                                    MOVE PROPERTY(lastNameReceiver(u));
+                                    MOVE PROPERTY(firsNameReceiver(u));
+                                    MOVE PROPERTY(middleNameReceiver(u));                            
+                                } 
+                            }                           
                         }
-                        NEW customerAgent {
-                            caption = 'Работник покупателя';
+                        NEW customerSignerContainer {
+                            caption = 'Подписи';
                             fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(positionAgentCustomer(u));
-                            MOVE PROPERTY(customerAgentCredentialsBase(u));
-                            MOVE PROPERTY(lastNameAgentCustomer(u));
-                            MOVE PROPERTY(firsNameAgentCustomer(u));
-                            MOVE PROPERTY(middleAgentCustomer(u));                            
+                            type = COLUMNS;
+                            columns = 2;
+                            NEW customerAgent {
+                                caption = 'Работник покупателя';
+                                fill = 1;
+                                type = CONTAINERV;
+                                MOVE PROPERTY(positionAgentCustomer(u));
+                                MOVE PROPERTY(customerAgentCredentialsBase(u));
+                                MOVE PROPERTY(lastNameAgentCustomer(u));
+                                MOVE PROPERTY(firsNameAgentCustomer(u));
+                                MOVE PROPERTY(middleAgentCustomer(u));                            
+                            }
+    
+                            NEW customerSignerCredentials {
+                                caption = 'Полномочия подписанта';
+                                fill = 1;
+                                type = CONTAINERV;                            
+                                MOVE PROPERTY(customerSignerCredentials(u));
+                                MOVE PROPERTY(customerSignerStatus(u));
+                                MOVE PROPERTY(customerSignerCredentialsBase(u));                           
+                            }
+                            NEW customerSigner {
+                                caption = 'Подписант (физлицо)';
+                                fill = 1;
+                                type = CONTAINERV;
+                                MOVE PROPERTY(customerSignerLastName(u));
+                                MOVE PROPERTY(customerSignerFirstName(u));
+                                MOVE PROPERTY(customerSignerMiddleName(u));                    
+                            }
+                            NEW signerCustomerLegalEntity {
+                                caption = 'Подписант (юрлицо)';
+                                fill = 1;
+                                type = CONTAINERV;
+                                MOVE PROPERTY(customerSignerInn(u));
+                                MOVE PROPERTY(customerSignerPosition(u));
+                                NEW signerCustomerLegalEntityAgent {
+                                    caption = 'Представитель';
+                                    MOVE PROPERTY(customerSignerAgentLastName(u));
+                                    MOVE PROPERTY(customerSignerAgentFirstName(u));
+                                    MOVE PROPERTY(customerSignerAgentMiddleName(u));                          
+                                }                            
+                            }
                         }
-                        NEW receiverAgent {
-                            caption = 'Представитель передающей организации';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(positionAgentReceiver(u));
-                            MOVE PROPERTY(lastNameAgentReceiver(u));
-                            MOVE PROPERTY(firsNametAgentReceiver(u));
-                            MOVE PROPERTY(middleNameAgentReceiver(u));                            
-                        }                       
-                        NEW receiver {
-                            caption = 'Принимающее физлицо';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(receiverAgentCredentialsBase(u));
-                            MOVE PROPERTY(lastNameReceiver(u));
-                            MOVE PROPERTY(firsNameReceiver(u));
-                            MOVE PROPERTY(middleNameReceiver(u));                            
-                        }
-                        NEW customerSignerCredentials {
-                            caption = 'Полномочия подписанта';
-                            fill = 1;
-                            type = CONTAINERV;                            
-                            MOVE PROPERTY(customerSignerCredentials(u));
-                            MOVE PROPERTY(customerSignerStatus(u));
-                            MOVE PROPERTY(customerSignerCredentialsBase(u));                           
-                        }
-                        NEW customerSigner {
-                            caption = 'Подписант (физлицо)';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(customerSignerLastName(u));
-                            MOVE PROPERTY(customerSignerFirstName(u));
-                            MOVE PROPERTY(customerSignerMiddleName(u));                    
-                        }
-                        NEW signerCustomerLegalEntity {
-                            caption = 'Подписант (юрлицо)';
-                            fill = 1;
-                            type = CONTAINERV;
-                            MOVE PROPERTY(customerSignerInn(u));
-                            MOVE PROPERTY(customerSignerPosition(u));
-                            NEW signerCustomerLegalEntityAgent {
-                                caption = 'Представитель';
-                                MOVE PROPERTY(customerSignerAgentLastName(u));
-                                MOVE PROPERTY(customerSignerAgentFirstName(u));
-                                MOVE PROPERTY(customerSignerAgentMiddleName(u));                          
-                            }                            
-                        }                        
+                        
+                    }
+                    NEW idsContainer {
+                        caption = 'ИД';
+                        fill = 1;
+                        type = CONTAINERV;
+                        MOVE PROPERTY(idFile(u));
+                        MOVE PROPERTY(idConsignor(u));
+                        MOVE PROPERTY(idConsignee(u));
+                        MOVE PROPERTY(businessNameDocument(u));
+                        MOVE PROPERTY(supplierNameDocument(u));                        
                     }
                     NEW detailsContainer {
                         caption = 'Строки УПД';
@@ -687,7 +730,14 @@ DESIGN updDocument {
                         MOVE BOX(d) {
                             fill = 1;
                         }
-                    }    
+                    }                   
+                    NEW edo {
+                        caption = 'Оператор ЭДО';
+                        type = CONTAINERV;
+                        MOVE PROPERTY(nameOperatorConsignor(u));
+                        MOVE PROPERTY(innOperatorConsignor(u));
+                        MOVE PROPERTY(codeOperatorConsignor(u));                               
+                    }   
                 }
             }
         }
