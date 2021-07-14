@@ -1,6 +1,6 @@
 MODULE TerminalHandler; //для работы терминалов нужна зависимость equ-srv в pom.xml, создать lsfusion-bootstrap.xml 
 
-REQUIRE Terminal, PriceListAccount, Item;
+REQUIRE Terminal, PriceListAccount, Item, PurchasePack;
 
 process 'Обработка документа ТСД' (terminalDocument)  ABSTRACT LIST ( TerminalDocument);
 process (TerminalDocument document) + { 
@@ -30,6 +30,10 @@ overNameSku (Barcode b, Stock s) = OVERRIDE terminalName(b, s), nameSku(b);
 
 color 'Цвет' = ABSTRACT COLOR (Sku, Stock);
 color(Barcode b, Stock s) = color(sku(b), s);
+
+//amountPack 'Количество в упаковке' = DATA NUMERIC[16,5] (Sku);
+
+amountPack (Barcode b) = amountPack(sku(b));
 
 extInfo 'Дополнительная информация' = ABSTRACT TEXT (Barcode, Stock);
 fld3 = ABSTRACT TEXT (Barcode, Stock);
@@ -112,7 +116,11 @@ filterAssortment  (Sku sku, Stock stock, Stock le ) = price(sku, stock, le) AND 
 
 checkOrderResult = DATA LOCAL STRING();
 checkOrder ABSTRACT (STRING);
+
+checkOrderDetail ABSTRACT (STRING, STRING);
+
 changeStatusTerminalOrder ABSTRACT (STRING, STRING, STRING);
+
 
 EXTEND FORM options
     PROPERTIES() hostTerminalServer, portTerminalServer, restrictLockedUsers,
@@ -189,7 +197,8 @@ CLASS TerminalFlags {
     FLG_VOP_EXTRA_QUANT 'Запрос дополнительного количества',   // 28   
     FLG_VOP_DISABLE_EDIT_QUANT 'Запрет радактирования количества в документе',   // 29
     FLG_VOP_DISABLE_EDIT_DOCNUM 'Запрет редактирования номера документа',   // 30       
-    FLG_VOP_ENABLE_BATCH 'Включить партионный учет'   // 31 
+    FLG_VOP_ENABLE_BATCH 'Включить партионный учет',   // 31 
+    FLG_VOP_ENABLE_EXPORT 'Разрешить экспорт документа'   // 33
 
 }
 TABLE terminalFlags (TerminalFlags);
@@ -226,7 +235,8 @@ order(TerminalFlags f) = CASE
     WHEN f = TerminalFlags.FLG_VOP_EXTRA_QUANT THEN 28l
     WHEN f = TerminalFlags.FLG_VOP_DISABLE_EDIT_QUANT THEN 29l
     WHEN f = TerminalFlags.FLG_VOP_DISABLE_EDIT_DOCNUM THEN 30l
-    WHEN f = TerminalFlags.FLG_VOP_ENABLE_BATCH THEN 31l MATERIALIZED; // Включить партионный учет
+    WHEN f = TerminalFlags.FLG_VOP_ENABLE_BATCH THEN 31l // Включить партионный учет 
+    WHEN f = TerminalFlags.FLG_VOP_ENABLE_EXPORT THEN 33l MATERIALIZED; // Включить партионный учет 
     
 flag 'Число'(TerminalFlags f) = LONG (power(2l, order(f)));
 
