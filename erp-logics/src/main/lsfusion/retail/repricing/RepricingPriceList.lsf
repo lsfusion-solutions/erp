@@ -114,6 +114,12 @@ createAutoRepricingAll 'Создать автоматическую переоц
     }
 }
 
+createAutoRepricingAllStocks 'Создать автоматическую переоценку по надбавкам и прайсам'()  { 
+    FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO {
+    	createAutoRepricingAll(department);
+	}
+}
+
 createAutoRepricingAllStocksMultithread 'Создать автоматическую переоценку по надбавкам и прайсам (Многопоточно)'()  { 
     NEWEXECUTOR 
         FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO 
@@ -124,7 +130,7 @@ createAutoRepricingAllStocksMultithread 'Создать автоматическ
 }
 
 EXTEND FORM options
-    PROPERTIES() nameToManagementRepricingOperation, createManagementRepricingAllStocks, countTreadsRepricingAllStocks, 
+    PROPERTIES() nameToManagementRepricingOperation, createManagementRepricingAllStocks, createAutoRepricingAllStocks, countTreadsRepricingAllStocks, 
                  createManagementRepricingAllStocksMultithread, createAutoRepricingAllStocksMultithread
 ;
 DESIGN options {
@@ -133,6 +139,7 @@ DESIGN options {
             caption = 'Автоматическая переоценка упр.';
             MOVE PROPERTY(nameToManagementRepricingOperation());
             MOVE PROPERTY(createManagementRepricingAllStocks());
+            MOVE PROPERTY(createAutoRepricingAllStocks());
             MOVE PROPERTY(countTreadsRepricingAllStocks());
             MOVE PROPERTY(createManagementRepricingAllStocksMultithread());
             MOVE PROPERTY(createAutoRepricingAllStocksMultithread());
