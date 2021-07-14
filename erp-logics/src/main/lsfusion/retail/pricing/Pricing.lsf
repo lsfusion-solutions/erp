@@ -28,7 +28,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
          CHANGED(stockProp(detail)) OR
         (CHANGED(prefixTime###dateTime(detail)) AND NOT isPosted(detail)) OR
          CHANGED(value###prefix##VAT(detail)))
-        AND prefixSku###sku(detail) AND CalcPriceListType priceListType == prefix###priceListType(detail) AND RoundCondition roundCondition == roundCondition(priceListType, prefixSku###sku(detail))
+        AND prefixSku###sku(detail) AND CalcPriceListType priceListType == prefix###priceListType(detail) AND RoundCondition roundCondition == roundCondition(prefix###priceListType(detail), prefixSku###sku(detail))
         AND NOT CHANGED(prefix###price(detail)) AND NOT skipChangePrice(detail)
         AND pricingDocument(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
             prefix###markup(detail) <- markup(priceListType, prefixSku###sku(detail))
@@ -84,7 +84,7 @@ META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, pref
 
     recalculate###prefix##Price 'Пересчитать розн. цену'###cap ()  { 
         FOR sku(###idetail detail)  AND CalcPriceListType priceListType == prefix##PriceListType(detail) 
-            AND RoundCondition roundCondition == roundCondition(priceListType, sku(detail))    
+            AND RoundCondition roundCondition == roundCondition(prefix##PriceListType(detail), sku(detail))    
             AND pricingDocument(priceListType) AND [ FILTER form.concrete](detail) NOINLINE (priceListType, roundCondition) INLINE DO {
             
             prefix##Markup(detail) <- markup(priceListType, sku(detail))
