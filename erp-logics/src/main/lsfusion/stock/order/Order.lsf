@@ -437,18 +437,18 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        seriesNumberContractSku, isCommission
 
         OBJECTS d = UserOrderDetail
-        PROPERTIES (d) index BACKGROUND backgroundSku(d) 
+        PROPERTIES (d) index 
         PROPERTIES (d) ON EDIT editSku(d) FOREGROUND foregroundSku(d, o) BACKGROUND backgroundSku(d) 
                        idBarcodeSku, idSku, nameSku BACKGROUND backgroundName(d), shortNameUOMSku
-        PROPERTIES (d) quantity BACKGROUND backgroundQuantityParam(d), namePriceListType BACKGROUND backgroundSku(d),
+        PROPERTIES (d) quantity BACKGROUND backgroundQuantityParam(d), namePriceListType,
                        price ON CHANGE changePrice(d) BACKGROUND backgroundPriceParam(d) SHOWIF NOT hideWithoutVAT(o), 
-                       sum BACKGROUND backgroundSku(d) SHOWIF NOT hideWithoutVAT(o),
-                       numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundSku(d) SHOWIF NOT hideWithoutVAT(o),
-                       valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundSku(d) SHOWIF NOT hideWithoutVAT(o),
-                       invoicePrice ON CHANGE changeInvoicePrice(d) BACKGROUND backgroundSku(d) SHOWIF NOT hideWithVAT(o),
-                       VATSum BACKGROUND backgroundSku(d), invoiceSum BACKGROUND backgroundSku(d),
-                       shipmentDate BACKGROUND backgroundSku(d), shipmentTime BACKGROUND backgroundSku(d), 
-                       closeDate BACKGROUND backgroundSku(d), NEW, deleteod = DELETE GRID
+                       sum SHOWIF NOT hideWithoutVAT(o),
+                       numberVAT ON CHANGE changeNumberVAT(d) SHOWIF NOT hideWithoutVAT(o),
+                       valueVAT ON CHANGE changeValueVAT(d) SHOWIF NOT hideWithoutVAT(o),
+                       invoicePrice ON CHANGE changeInvoicePrice(d) SHOWIF NOT hideWithVAT(o),
+                       VATSum, invoiceSum,
+                       shipmentDate, shipmentTime, 
+                       closeDate, NEW, deleteod = DELETE GRID
         ORDERS index(d)
 
         PROPERTIES(o) DRAW d fillDocument, addDetailDialogSkuStockUserOrderDetail,
@@ -736,14 +736,14 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         PROPERTIES     NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
 
         OBJECTS d=OrderDetail
-        PROPERTIES (d) READONLY index BACKGROUND backgroundSkuDetail(d), idBarcodeSku BACKGROUND backgroundSkuDetail(d), 
-                       idSku BACKGROUND backgroundSkuDetail(d), nameSku, shortNameUOMSku BACKGROUND backgroundSkuDetail(d)
-        PROPERTIES (d) READONLY quantity BACKGROUND backgroundQuantityParam(d), namePriceListType BACKGROUND backgroundSkuDetail(d), 
-                       price BACKGROUND backgroundPriceParam(d) SHOWIF NOT hideWithoutVAT(o), sum BACKGROUND backgroundSkuDetail(d) SHOWIF NOT hideWithoutVAT(o),
-                       numberVAT BACKGROUND backgroundSkuDetail(d) SHOWIF NOT hideWithoutVAT(o), valueVAT BACKGROUND backgroundSkuDetail(d) SHOWIF NOT hideWithoutVAT(o), 
-                       invoicePrice BACKGROUND backgroundSkuDetail(d) SHOWIF NOT hideWithVAT(o),
-                       VATSum BACKGROUND backgroundSkuDetail(d), invoiceSum BACKGROUND backgroundSkuDetail(d),
-                       name###stockProp##Stock, shipmentDate BACKGROUND backgroundSkuDetail(d), shipmentTime BACKGROUND backgroundSkuDetail(d)
+        PROPERTIES (d) READONLY index, idBarcodeSku BACKGROUND backgroundSkuDetail(d), 
+                       idSku BACKGROUND backgroundSkuDetail(d), nameSku BACKGROUND backgroundSkuDetail(d), shortNameUOMSku BACKGROUND backgroundSkuDetail(d)
+        PROPERTIES (d) READONLY quantity BACKGROUND backgroundQuantityParam(d), namePriceListType, 
+                       price BACKGROUND backgroundPriceParam(d) SHOWIF NOT hideWithoutVAT(o), sum SHOWIF NOT hideWithoutVAT(o),
+                       numberVAT SHOWIF NOT hideWithoutVAT(o), valueVAT SHOWIF NOT hideWithoutVAT(o), 
+                       invoicePrice SHOWIF NOT hideWithVAT(o),
+                       VATSum, invoiceSum,
+                       name###stockProp##Stock, shipmentDate, shipmentTime
         ORDERS index(d)
 
         FILTERS order(d) == o
@@ -927,9 +927,9 @@ META defineOrderBatchDialog(dumb)
     }
 
     EXTEND FORM userOrder
-        PROPERTIES (d) SHOWIF showBatch[Order](o) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d)  BACKGROUND backgroundSku(d)
+        PROPERTIES (d) SHOWIF showBatch[Order](o) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d)
     ;
-    EXTEND FORM orders PROPERTIES (d) READONLY SHOWIF showBatch(o) nameBatch AFTER shortNameUOMSku(d) BACKGROUND backgroundSkuDetail(d);
+    EXTEND FORM orders PROPERTIES (d) READONLY SHOWIF showBatch(o) nameBatch AFTER shortNameUOMSku(d);
 END
 
 META defineOrderBatchDialogStock(stockProp, dialog)
