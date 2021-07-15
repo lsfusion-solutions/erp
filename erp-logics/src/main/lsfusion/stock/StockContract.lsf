@@ -53,6 +53,107 @@ META defineInStockGroupObject(prop, object)
     @defineInStockGroupObject(prop, object, ###object);
 END
 
+// ------------------------------------ Макрос для создания договоров по умолчанию ----------------------------- //
+META defineContractDefault (contract, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB)
+    @defineContractDefault(contract, ###contract, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB);
+END
+
+META defineContractDefault (contract, contractClass, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB)
+
+    isDataDefault 'По умолчанию' = DATA BOOLEAN (###contract);
+    isDefault(###contract contract) += isDataDefault(contract);
+    skipContract 'По умолчанию' = ABSTRACT BOOLEAN (###contract) MATERIALIZED;
+    
+    count###contract###prefixA###prefixB (pA, pB, DATE dateIn)= GROUP SUM 1 
+        IF dateFrom(###contract contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
+
+    single###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX ###contract contract 
+        IF dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
+
+    default###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX ###contract contract IF isDataDefault(contract) 
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
+        
+    default###contract###prefixA###prefixB(stockAClass sA, stockAClass sB, DATE dateIn)  = GROUP
+            MAX ###contract contract 
+        IF in###prefixA(sA,contract) AND in###prefixB(sB,contract)
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);
+            
+    default###contract###prefixA (pA, stockAClass sA, DATE dateIn) = GROUP MAX ###contract contract 
+        IF in###prefixA(sA,contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract);      
+                  
+    count###contract###prefixA (pA, stockAClass sA, DATE dateIn) = GROUP SUM 1 
+        IF in###prefixA(sA,###contract contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract);  
+                                
+    default###contract###prefixA###prefixB (pA, stockAClass sA, pB, DATE dateIn) = GROUP MAX ###contract contract 
+        IF in###prefixA(sA,contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);      
+                  
+    count###contract###prefixA###prefixB (pA, stockAClass sA, pB, DATE dateIn) = GROUP SUM 1 
+        IF in###prefixA(sA,###contract contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
+            
+    default###contract###prefixA###prefixB (pA, stockAClass sB, DATE dateIn) = GROUP MAX ###contract contract 
+        IF in###prefixB[stockAClass,contractClass](sB,contract)
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract);    
+                  
+END
+
+META defineDocumentContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS)
+    @defineDocumentContract (objectClass, contractType, prefixA, prefixB, default###contractType###prefixA###prefixB, partyAMessage, partyBMessage, caption, NS);
+END
+
+META defineDocumentContract (objectClass, contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS)
+    @defineDocumentContractStock (objectClass, contractType, ###contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS);
+END
+
+META defineDocumentContractStock (objectClass, contractType, contractTypeClass, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS)
+    @defineDocumentContract (objectClass, contractType, contractTypeClass, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS);
+    CONSTRAINT contractType(objectClass o) AND count###prefixA##sStock(contractType(o)) AND NOT in###prefixA(prefixA##Stock(o),contractType(o))
+        CHECKED BY contractType[objectClass] MESSAGE 'Для документа выбран склад поставщика, который не включен в договор';        
+                  
+    CONSTRAINT contractType(objectClass o) AND count###prefixB##sStock(contractType(o)) AND NOT in###prefixB(prefixB##Stock(o),contractType(o))
+        CHECKED BY contractType[objectClass] MESSAGE 'Для документа выбран склад покупателя, который не включен в договор';                                    
+END
+
+META defineDocumentInterfaceContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS)
+    @defineDocumentAbstractContract(objectClass, contractType);
+    @defineDocumentContract(User###objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS);
+    contractType(User##objectClass o) += contractType(o);
+    isCommission(User##objectClass o) += isCommission(o);
+END
+
+TABLE stockContract (Stock, Contract);
+
+inPartyA 'Вкл.'  = ABSTRACT BOOLEAN (Stock, Contract) MATERIALIZED INDEXED;
+inPartyB 'Вкл.' = ABSTRACT BOOLEAN (Stock, Contract) MATERIALIZED INDEXED;
+
+namePartyAStocks 'Склады поставщика' (Contract contract) = GROUP
+                                                 CONCAT name(Stock stock) IF inPartyA(stock, contract) , ', '
+                                                 ORDER stock CHARWIDTH 30 MATERIALIZED;
+namePartyBStocks 'Склады покупателя' (Contract contract) = GROUP
+                                                 CONCAT name(Stock stock) IF inPartyB(stock, contract) , ', '
+                                                 ORDER stock CHARWIDTH 30 MATERIALIZED;
+EXTEND FORM contracts
+    PROPERTIES (c) READONLY namePartyAStocks AFTER namePartyA(c), namePartyBStocks AFTER namePartyB(c)
+;
+
+EXTEND FORM contractDialog
+    PROPERTIES (c) READONLY namePartyAStocks AFTER namePartyA(c), namePartyBStocks AFTER namePartyB(c)
+;
+
+countContract 'Кол-во договоров' (partyA, Stock stockA, partyB, Stock stockB) =
+    GROUP SUM 1 IF inPartyA(stockA, Contract contract) AND inPartyB(stockB, contract) BY partyA(contract), partyB(contract);
+
 CLASS ABSTRACT ContractSku 'Договор на поставку' : Contract;
 TABLE contractSku(ContractSku);
 

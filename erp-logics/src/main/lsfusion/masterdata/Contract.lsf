@@ -1,6 +1,6 @@
 MODULE Contract;
 
-REQUIRE System, Historizable, LegalEntity, Numerator, Document, PaymentCondition, Stock;
+REQUIRE System, Historizable, LegalEntity, Numerator, Document, PaymentCondition;
 
 // ---------------------------------------- Договора ------------------------------------ //
 
@@ -19,7 +19,6 @@ seriesNumber 'Серия/Номер' (Contract o) =
     CONCAT '', series(o), number(o) 
     CHARWIDTH 7 INDEXED MATERIALIZED;
 
-//numberContract 'Номер договора' = DATA BPSTRING[30] (Contract) IN contract;
 dateFrom 'Действует (с)' = DATA DATE (Contract) IN contract;
 dateTo 'Действует (по)' = DATA DATE (Contract) IN contract;
 active 'Действуюший' (Contract contract, DATE date) =
@@ -40,21 +39,6 @@ addressPartyB 'Адрес организация (покупатель)' (Contra
 
 countContract 'Кол-во договоров' (LegalEntity partyA, LegalEntity partyB) =
     GROUP SUM 1 IF partyA(Contract contract) == partyA AND partyB(contract) == partyB;
-
-TABLE stockContract (Stock, Contract);
-
-inPartyA 'Вкл.'  = ABSTRACT BOOLEAN (Stock, Contract) MATERIALIZED INDEXED;
-inPartyB 'Вкл.' = ABSTRACT BOOLEAN (Stock, Contract) MATERIALIZED INDEXED;
-
-namePartyAStocks 'Склады поставщика' (Contract contract) = GROUP
-                                                 CONCAT name(Stock stock) IF inPartyA(stock, contract) , ', '
-                                                 ORDER stock CHARWIDTH 30 MATERIALIZED;
-namePartyBStocks 'Склады покупателя' (Contract contract) = GROUP
-                                                 CONCAT name(Stock stock) IF inPartyB(stock, contract) , ', '
-                                                 ORDER stock CHARWIDTH 30 MATERIALIZED;
-
-countContract 'Кол-во договоров' (partyA, Stock stockA, partyB, Stock stockB) =
-    GROUP SUM 1 IF inPartyA(stockA, Contract contract) AND inPartyB(stockB, contract) BY partyA(contract), partyB(contract);
 
 GROUP payment 'Оплата' : public;
 
@@ -89,7 +73,7 @@ nameContractType 'Тип договора'  = staticCaption(contractType(Contrac
 
 FORM contracts 'Договоры'
     OBJECTS c = Contract
-    PROPERTIES(c) READONLY namePartyA, namePartyAStocks, namePartyB, namePartyBStocks, id SHOWIF showIDs(),
+    PROPERTIES(c) READONLY namePartyA, namePartyB, id SHOWIF showIDs(),
                            seriesNumber, dateFrom, dateTo, isDefault, nameCurrency, 
                            nameTypeExchange, descriptionPaymentCondition, note
     PROPERTIES(c) NEWSESSION EDIT, DELETE 
@@ -117,8 +101,7 @@ FORM contractDialog 'Договоры'
     PROPERTIES nameContractSupplier(), nameContractCustomer() 
     
     OBJECTS c = Contract
-    PROPERTIES(c) READONLY namePartyA, namePartyAStocks, namePartyB, namePartyBStocks, 
-                           seriesNumber, dateFrom, dateTo, isDefault, nameCurrency, 
+    PROPERTIES(c) READONLY namePartyA, namePartyB, seriesNumber, dateFrom, dateTo, isDefault, nameCurrency, 
                            nameTypeExchange, descriptionPaymentCondition, note
     FILTERS partyA(c) == contractSupplier() OR c IS Contract AND NOT contractSupplier(),
             partyB(c) == contractCustomer() OR c IS Contract AND NOT contractCustomer()
@@ -209,72 +192,18 @@ DESIGN contracts {
    }
 }
 
-// ------------------------------------ Макрос для создания договоров по умолчанию ----------------------------- //
-
-//META defineContractDefault (contract, partyA, partyB)
-//    @defineContractDefault (contract, ###partyA, ###partyB, partyA, partyB);
-//END
-
-META defineContractDefault (contract, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB)
-    @defineContractDefault(contract, ###contract, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB);
+META defineDocumentAbstractContract (objectClass, contractType)
+    @defineDocumentAbstractContract(objectClass, contractType, ###contractType);
 END
 
-META defineContractDefault (contract, contractClass, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB)
-
-    isDataDefault 'По умолчанию' = DATA BOOLEAN (###contract);
-    isDefault(###contract contract) += isDataDefault(contract);
-    skipContract 'По умолчанию' = ABSTRACT BOOLEAN (###contract) MATERIALIZED;
+META defineDocumentAbstractContract (objectClass, contractType, contractTypeClass)
+    contractType = ABSTRACT contractTypeClass (objectClass) MATERIALIZED INDEXED;
+    seriesNumber###contractType 'Номер договора' (objectClass o) = seriesNumber[Contract](contractType(o)) IN documentPrm;
+    dateFrom###contractType 'Дата договора' (objectClass o) = dateFrom(contractType(o)) IN documentPrm;
     
-    count###contract###prefixA###prefixB (pA, pB, DATE dateIn)= GROUP SUM 1 
-        IF dateFrom(###contract contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract), prefixB(contract);
+    description###contractType 'Описание договора' (objectClass o)= CONCAT ' ', seriesNumber###contractType(o), ' от ' + toDateDDMMYYYY(dateFrom###contractType(o));
 
-    single###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX ###contract contract 
-        IF dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract), prefixB(contract);
-
-    default###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX ###contract contract IF isDataDefault(contract) 
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract), prefixB(contract);
-        
-    default###contract###prefixA###prefixB(stockAClass sA, stockAClass sB, DATE dateIn)  = GROUP
-            MAX ###contract contract 
-        IF in###prefixA(sA,contract) AND in###prefixB(sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract);
-            
-    default###contract###prefixA (pA, stockAClass sA, DATE dateIn) = GROUP MAX ###contract contract 
-        IF in###prefixA(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract);      
-                  
-    count###contract###prefixA (pA, stockAClass sA, DATE dateIn) = GROUP SUM 1 
-        IF in###prefixA(sA,###contract contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract);  
-                                
-    default###contract###prefixA###prefixB (pA, stockAClass sA, pB, DATE dateIn) = GROUP MAX ###contract contract 
-        IF in###prefixA(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract), prefixB(contract);      
-                  
-    count###contract###prefixA###prefixB (pA, stockAClass sA, pB, DATE dateIn) = GROUP SUM 1 
-        IF in###prefixA(sA,###contract contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract), prefixB(contract);
-            
-    default###contract###prefixA###prefixB (pA, stockAClass sB, DATE dateIn) = GROUP MAX ###contract contract 
-        IF in###prefixB[stockAClass,contractClass](sB,contract)
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract);    
-                  
-END
-
-META defineDocumentContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS)
-    @defineDocumentContract (objectClass, contractType, prefixA, prefixB, default###contractType###prefixA###prefixB, partyAMessage, partyBMessage, caption, NS);
-END
-
-META defineDocumentContract (objectClass, contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS)
-    @defineDocumentContract (objectClass, contractType, ###contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS);
+    isCommission 'Продажа на комиссию' = ABSTRACT BOOLEAN (objectClass) MATERIALIZED IN documentPrm;
 END
 
 META defineDocumentContract (objectClass, contractType, contractTypeClass, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS)
@@ -323,31 +252,4 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
                AND NOT skipCheckDateContract(o)
                CHECKED BY contractType[objectClass]
                MESSAGE 'Договор просрочен или еще не действует';
-                  
-    CONSTRAINT contractType(objectClass o) AND count###prefixA##sStock(contractType(o)) AND NOT in###prefixA(prefixA##Stock(o),contractType(o))
-        CHECKED BY contractType[objectClass] MESSAGE 'Для документа выбран склад поставщика, который не включен в договор';        
-                  
-    CONSTRAINT contractType(objectClass o) AND count###prefixB##sStock(contractType(o)) AND NOT in###prefixB(prefixB##Stock(o),contractType(o))
-        CHECKED BY contractType[objectClass] MESSAGE 'Для документа выбран склад покупателя, который не включен в договор';                    
-                  
-END
-
-META defineDocumentAbstractContract (objectClass, contractType)
-    @defineDocumentAbstractContract(objectClass, contractType, ###contractType);
-END
-
-META defineDocumentAbstractContract (objectClass, contractType, contractTypeClass)
-    contractType = ABSTRACT contractTypeClass (objectClass) MATERIALIZED INDEXED;
-    seriesNumber###contractType 'Номер договора' (objectClass o) = seriesNumber[Contract](contractType(o)) IN documentPrm;
-    dateFrom###contractType 'Дата договора' (objectClass o) = dateFrom(contractType(o)) IN documentPrm;
-    
-    description###contractType 'Описание договора' (objectClass o)= CONCAT ' ', seriesNumber###contractType(o), ' от ' + toDateDDMMYYYY(dateFrom###contractType(o));
-
-    isCommission 'Продажа на комиссию' = ABSTRACT BOOLEAN (objectClass) MATERIALIZED IN documentPrm;
-END
-META defineDocumentInterfaceContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS)
-    @defineDocumentAbstractContract(objectClass, contractType);
-    @defineDocumentContract(User###objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS);
-    contractType(User##objectClass o) += contractType(o);
-    isCommission(User##objectClass o) += isCommission(o);
 END
