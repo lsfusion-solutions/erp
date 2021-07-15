@@ -1351,7 +1351,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                                 Map<String, Object> receiptDetailExtraFields = new HashMap<>();
                                                 if(isSaleInvoice) {
-                                                    receiptDetailExtraFields.put("saleInvoice", document);
+                                                    //as in equ-srv
+                                                    receiptDetailExtraFields.put("idReceipt", nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy")) + "_" + numberReceipt);
                                                 }
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
