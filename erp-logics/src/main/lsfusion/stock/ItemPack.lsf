@@ -194,7 +194,8 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
                 }
             }
     }
-
+    changeValuePackCustom###object  ABSTRACT (Sku, NUMERIC[14,3]);
+    useChangeValuePackCustom = ABSTRACT BOOLEAN (###object);
     changeAmountPack(###skuProp skuProp, ###object object, Stock stock)  { 
         INPUT n = NUMERIC[14,3] DO { 
             IF detail###stockProp(sku, object, stock) THEN {
@@ -207,7 +208,12 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
                 }
     
             }
-            changeValuePack(sku, n);
+            IF NOT useChangeValuePackCustom(object) THEN{
+                changeValuePack(sku, n);
+            } ELSE {
+                changeValuePackCustom###object(sku, n);
+            }
+            
         }
     }
 
@@ -258,6 +264,9 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
                     }
             }
     }
+    
+    changeValuePackCustom###object  ABSTRACT (Sku, NUMERIC[14,3]);
+    useChangeValuePackCustom = ABSTRACT BOOLEAN (###object);
     changeAmountPack(###skuProp skuProp, ###object object)  { 
         INPUT n = NUMERIC[14,3] DO {
             IF detail(sku, object) THEN {
@@ -269,7 +278,11 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
                 }
     
             }
-            changeValuePack(sku, n);
+            IF NOT useChangeValuePackCustom(object) THEN {
+                changeValuePack(sku, n);
+            } ELSE {
+                changeValuePackCustom###object(sku, n);
+            }
         }
     }
 

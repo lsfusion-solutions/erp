@@ -518,12 +518,24 @@ END
 
 // ------------------------------------------ Автоматическое проставление штрихкода ------------------------------------ //
 
+//META deriveDocumentDetailBarcodeCustom (detail, skuProp, toShowProp)
+//    barcodePack(###detail detail) <- packBarcode(skuProp(detail)) IF toShowProp(detail)
+//        WHEN CHANGED(skuProp(detail)) OR CHANGED(toShowProp(detail));
+//    amountPack(###detail detail) <- amount(packBarcode(skuProp(detail))) IF toShowProp(detail)
+//        WHEN CHANGED(skuProp(detail)) OR CHANGED(toShowProp(detail));
+//END
+
 META deriveDocumentDetailBarcodeCustom (detail, skuProp, toShowProp)
-    barcodePack(###detail detail) <- packBarcode(skuProp(detail)) IF toShowProp(detail)
-        WHEN CHANGED(skuProp(detail)) OR CHANGED(toShowProp(detail));
-    amountPack(###detail detail) <- amount(packBarcode(skuProp(detail))) IF toShowProp(detail)
-        WHEN CHANGED(skuProp(detail)) OR CHANGED(toShowProp(detail));
+    packBarcode = ABSTRACT VALUE Barcode(###detail);   
+    packBarcodeChange = ABSTRACT VALUE BOOLEAN(###detail);
+    packBarcode (###detail detail) += packBarcode(skuProp(detail));    
+    
+    barcodePack(###detail detail) <- packBarcode(detail) IF toShowProp(detail)
+        WHEN CHANGED(skuProp(detail)) OR CHANGED(toShowProp(detail)) OR packBarcodeChange(detail);
+    amountPack(###detail detail) <- amount(packBarcode(detail)) IF toShowProp(detail)
+        WHEN CHANGED(skuProp(detail)) OR CHANGED(toShowProp(detail)) OR packBarcodeChange(detail);
 END
+
 
 
 FORM barcodeSku 'Штрихкоды'
