@@ -495,8 +495,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
             }
         } catch (InterruptedException e) {
+            executor.shutdownNow();
+            logger.info("Interrupted ImportSalesInfo executor");
             for (Future<String> future : futures) {
-                future.cancel(true);
+                boolean done = future.isDone();
+                boolean canceled = future.cancel(true);
+                if(!done) {
+                    logger.info("Interrupted ImportSalesInfo thread: " + canceled);
+                }
             }
             throw Throwables.propagate(e);
         }
