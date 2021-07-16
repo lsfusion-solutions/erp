@@ -55,27 +55,11 @@ END
 
 // ------------------------------------ Макрос для создания договоров по умолчанию ----------------------------- //
 META defineContractDefault (contract, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB)
-    @defineContractDefault(contract, ###contract, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB);
+    @defineContractDefault(contract, prefixA, prefixB);
+    @defineContractDefaultStock(contract, ###contract, stockAClass, prefixA, prefixB);
 END
 
-META defineContractDefault (contract, contractClass, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB)
-
-    isDataDefault 'По умолчанию' = DATA BOOLEAN (###contract);
-    isDefault(###contract contract) += isDataDefault(contract);
-    skipContract 'По умолчанию' = ABSTRACT BOOLEAN (###contract) MATERIALIZED;
-    
-    count###contract###prefixA###prefixB (pA, pB, DATE dateIn)= GROUP SUM 1 
-        IF dateFrom(###contract contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract), prefixB(contract);
-
-    single###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX ###contract contract 
-        IF dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract), prefixB(contract);
-
-    default###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX ###contract contract IF isDataDefault(contract) 
-        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
-            BY prefixA(contract), prefixB(contract);
-        
+META defineContractDefaultStock (contract, contractClass, stockAClass, prefixA, prefixB)
     default###contract###prefixA###prefixB(stockAClass sA, stockAClass sB, DATE dateIn)  = GROUP
             MAX ###contract contract 
         IF in###prefixA(sA,contract) AND in###prefixB(sB,contract)
@@ -105,7 +89,6 @@ META defineContractDefault (contract, contractClass, partyAClass, stockAClass, p
         IF in###prefixB[stockAClass,contractClass](sB,contract)
         AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
             BY prefixA(contract);    
-                  
 END
 
 META defineDocumentContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS)
@@ -118,6 +101,20 @@ END
 
 META defineDocumentContractStock (objectClass, contractType, contractTypeClass, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS)
     @defineDocumentContract (objectClass, contractType, contractTypeClass, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS);
+
+    isCommission 'Продажа на комиссию' = DATA BOOLEAN (objectClass) IN documentPrm;
+    isCommission(objectClass o) <- type(contractType(o)) == ContractSkuType.commission
+        WHEN CHANGED(contractType(o));
+
+    skipSet###contractType = ABSTRACT VALUE BOOLEAN (###objectClass) PREREAD;
+    WHEN LOCAL (CHANGED(prefixA(objectClass o)) OR CHANGED(prefixB(o)) OR CHANGED(prefixA##Stock(o))
+                OR CHANGED(prefixB##Stock(o)) OR CHANGED(date(o))) AND NOT CHANGED(contractType(o)) AND NOT skipSet###contractType(o) NOINLINE DO {
+                
+        contractType(o) <- OVERRIDE defaultContractProp(prefixA##Stock(o), prefixB##Stock(o), date(o)),
+                                                 defaultContractProp(prefixA(o), prefixB(o), date(o)),
+                                                 single###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) IF count###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) == 1; 
+    }
+
     CONSTRAINT contractType(objectClass o) AND count###prefixA##sStock(contractType(o)) AND NOT in###prefixA(prefixA##Stock(o),contractType(o))
         CHECKED BY contractType[objectClass] MESSAGE 'Для документа выбран склад поставщика, который не включен в договор';        
                   
@@ -224,7 +221,6 @@ CONSTRAINT customer(ContractSku contract) AND inCustomer(Stock stock, contract) 
 
 TABLE supplierCustomer(LegalEntity, LegalEntity);
 @defineContractDefault(contractSku, LegalEntity, Stock, LegalEntity, Stock, supplier, customer);
-
 //объединение организаций
 replace(LegalEntity l, LegalEntity o) + { 
     supplier(ContractSku contract) <- o WHERE supplier(contract) == l;

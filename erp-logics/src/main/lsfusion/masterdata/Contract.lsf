@@ -192,6 +192,24 @@ DESIGN contracts {
    }
 }
 
+META defineContractDefault (contract, prefixA, prefixB)
+    isDataDefault 'По умолчанию' = DATA BOOLEAN (###contract);
+    isDefault(###contract contract) += isDataDefault(contract);
+    skipContract 'По умолчанию' = ABSTRACT BOOLEAN (###contract) MATERIALIZED;
+    
+    count###contract###prefixA###prefixB (pA, pB, DATE dateIn)= GROUP SUM 1 
+        IF dateFrom(###contract contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
+
+    single###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX ###contract contract 
+        IF dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
+
+    default###contract###prefixA###prefixB (pA, pB, DATE dateIn) = GROUP MAX ###contract contract IF isDataDefault(contract) 
+        AND dateFrom(contract) <= dateIn AND NOT dateTo(contract) < dateIn AND NOT skipContract(contract)
+            BY prefixA(contract), prefixB(contract);
+END
+
 META defineDocumentAbstractContract (objectClass, contractType)
     @defineDocumentAbstractContract(objectClass, contractType, ###contractType);
 END
@@ -212,22 +230,9 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
     seriesNumber###contractType 'Договор (серия/номер)' (objectClass o) = seriesNumber[Contract](contractType(o)) IN documentPrm;
     dateFrom###contractType 'Дата договора' (objectClass o) = dateFrom(contractType(o)) IN documentPrm;
 
-    description###contractType 'Описание договора' (objectClass o)= CONCAT ' ', seriesNumber###contractType(o), ' от ' + dateFrom###contractType(o);
+    description###contractType 'Описание договора' (objectClass o)= description(contractType(o));
     
     replace(contractTypeClass c, contractTypeClass o) + { contractType(objectClass object) <- o WHERE contractType(object) == c;}
-
-    isCommission 'Продажа на комиссию' = DATA BOOLEAN (objectClass) IN documentPrm;
-    isCommission(objectClass o) <- type(contractType(o)) == ContractSkuType.commission
-        WHEN CHANGED(contractType(o));
-
-    skipSet###contractType = ABSTRACT VALUE BOOLEAN (###objectClass) PREREAD;
-    WHEN LOCAL (CHANGED(prefixA(objectClass o)) OR CHANGED(prefixB(o)) OR CHANGED(prefixA##Stock(o))
-                OR CHANGED(prefixB##Stock(o)) OR CHANGED(date(o))) AND NOT CHANGED(contractType(o)) AND NOT skipSet###contractType(o) NOINLINE DO {
-                
-        contractType(o) <- OVERRIDE defaultContractProp(prefixA##Stock(o), prefixB##Stock(o), date(o)),
-                                                 defaultContractProp(prefixA(o), prefixB(o), date(o)),
-                                                 single###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) IF count###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) == 1; 
-    }
 
     CONSTRAINT contractType(objectClass o) AND NOT prefixA(o) == partyA(contractType(o))
         CHECKED BY contractType[objectClass] MESSAGE partyAMessage;
