@@ -49,10 +49,12 @@ daccountSumA 'Учетная сумма на конец дня' = DATA LOCAL NUM
     
 dmoved = DATA LOCAL BOOLEAN (Batch, Stock);
 
+skipBatchReport = ABSTRACT CASE BOOLEAN (Batch);
+
 overFillPropertyFromTo  ABSTRACT LIST ( DATE, DATE);   
                    
 fillPropertyBatchStockFromTo 'Заполнить данные'(DATE dFrom,DATE dTo)   { 
-    dbalanceB(Batch bb,Stock sts) <- balanceB(bb,sts,dFrom) IF inBatchReport(sts);  
+    dbalanceB(Batch bb,Stock sts) <- balanceB(bb,sts,dFrom) IF inBatchReport(sts) AND NOT skipBatchReport(bb);
     dcostB(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceB(bb,sts) * cost(bb)); 
     dVATSumB(Batch bb, Stock sts) <- NUMERIC[18,4](dcostB(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0);
     dSumB(Batch bb, Stock sts) <- NUMERIC[18,4](dcostB(bb, sts) (+) dVATSumB(bb, sts));         
@@ -60,17 +62,17 @@ fillPropertyBatchStockFromTo 'Заполнить данные'(DATE dFrom,DATE d
     daccountSumB(Batch bb,Stock sts) <- NULL;
     daccountSumB(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceB(bb,sts) * accountPriceB(bb,sts,dFrom)) WHERE dbalanceB(bb,sts); 
 //--            
-    dquantitySold(Batch bb,Stock sts) <- quantitySold(bb,sts,dFrom,dTo) IF inBatchReport(sts);
-    dcostSumSold(Batch bb,Stock sts) <- costSumSold(bb,sts,dFrom,dTo) IF inBatchReport(sts);
-    dmarkupSumSold(Batch bb,Stock sts) <- markupSumSold(bb,sts,dFrom,dTo) IF inBatchReport(sts);     
-    dsumVATSold(Batch bb,Stock sts) <- sumVATSold(bb,sts,dFrom,dTo) IF inBatchReport(sts);
-    dsumSold(Batch bb,Stock sts) <- sumSold(bb,sts,dFrom,dTo) IF inBatchReport(sts);
+    dquantitySold(Batch bb,Stock sts) <- quantitySold(bb,sts,dFrom,dTo) IF inBatchReport(sts) AND NOT skipBatchReport(bb);
+    dcostSumSold(Batch bb,Stock sts) <- costSumSold(bb,sts,dFrom,dTo) IF inBatchReport(sts) AND NOT skipBatchReport(bb);
+    dmarkupSumSold(Batch bb,Stock sts) <- markupSumSold(bb,sts,dFrom,dTo) IF inBatchReport(sts) AND NOT skipBatchReport(bb);
+    dsumVATSold(Batch bb,Stock sts) <- sumVATSold(bb,sts,dFrom,dTo) IF inBatchReport(sts) AND NOT skipBatchReport(bb);
+    dsumSold(Batch bb,Stock sts) <- sumSold(bb,sts,dFrom,dTo) IF inBatchReport(sts) AND NOT skipBatchReport(bb);
     daveragePriceSold(Batch bb,Stock sts) <- NUMERIC[22,8](dsumSold(bb,sts) / dquantitySold(bb,sts)); 
     daverageMarkupSold(Batch bb,Stock sts) <- NUMERIC[22,8](dmarkupSumSold(bb,sts) / dcostSumSold(bb,sts) * 100.0);
     //--
 
-    dbalanceA(Batch bb,Stock sts) <- balanceA(bb,sts,dTo) IF inBatchReport(sts);
-    dcostA(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceA(bb,sts) * cost(bb)) IF inBatchReport(sts); 
+    dbalanceA(Batch bb,Stock sts) <- balanceA(bb,sts,dTo) IF inBatchReport(sts) AND NOT skipBatchReport(bb);
+    dcostA(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceA(bb,sts) * cost(bb)) IF inBatchReport(sts) AND NOT skipBatchReport(bb);
     dVATSumA(Batch bb, Stock sts) <- NUMERIC[18,4](dcostA(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0);
     dSumA(Batch bb, Stock sts) <- NUMERIC[18,4](dcostA(bb, sts) (+) dVATSumA(bb, sts));
                
@@ -114,7 +116,8 @@ FORM saleBatch 'Продажи по партиям'
     PROPERTIES     READONLY BACKGROUND backgroundSky(b) balanceA(b,st,dTo)  COLUMNS (st) HEADER nameBatchBalanceA(st)
     PROPERTIES     READONLY BACKGROUND backgroundSky(b) accountSumA(b,st,dTo)  COLUMNS (st) HEADER nameBatchSumA(st)    
                 
-    FILTERS           isParent(sk, b)                
+    FILTERS isParent(sk, b),
+            NOT skipBatchReport(b)
                             
     FILTERGROUP filtersSold
         FILTER 'С движением' filterSoldDate(b,dFrom,dTo) OR filterBalanceDate(b,dFrom,dTo) 'F11' DEFAULT
@@ -138,7 +141,8 @@ FORM saleBatch 'Продажи по партиям'
     PROPERTIES(bb,sts,dTo) READONLY BACKGROUND backgroundSky(bb) balanceA, costA, accountSumA                 
                              
     FILTERS inBatchReport(sts),
-            isParent(sk, bb)  
+            isParent(sk, bb),
+            NOT skipBatchReport(bb)
     FILTERGROUP filtersSold1
         FILTER 'С движением' quantitySold(bb,sts,dFrom,dTo) OR balanceB(bb,sts,dFrom) OR balanceA(bb,sts,dTo) 'F11' DEFAULT
         FILTER 'С продажей' quantitySold(bb,sts,dFrom,dTo) 'F10'
@@ -166,7 +170,8 @@ FORM saleBatch 'Продажи по партиям'
                     dcostA, dVATSumA, dSumA, daccountSumA                 
                              
     FILTERS inBatchReport(stst),
-            isParent(sk, bbb)  
+            isParent(sk, bbb),
+            NOT skipBatchReport(bbb)
     FILTERGROUP filtersSold2
         FILTER 'С движением' dmoved(bbb, stst) 'F11' DEFAULT 
         FILTER 'С продажей' dquantitySold(bbb,stst) 'F10'
