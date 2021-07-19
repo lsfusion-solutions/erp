@@ -410,7 +410,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         medicineObject.put("producer", batch.nameManufacturer);
         medicineObject.put("price", batch.price);
         medicineObject.put("inn", batch.nameSubstance);
-        medicineObject.put("cquant", batch.blisterAmount);
+        medicineObject.put("cquant", nvl(batch.blisterAmount, 1));
         medicineObject.put("remainquant", batch.balance);
         medicineObject.put("remaindatetime", batch.balanceDate);
         medicineObject.put("countrycode", batch.countryCode);
