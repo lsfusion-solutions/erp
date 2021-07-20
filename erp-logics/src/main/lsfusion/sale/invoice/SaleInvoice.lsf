@@ -225,18 +225,19 @@ skipClose(UserInvoice i) += WHEN preventCloseDocument(currentUser(), operation(i
 //                                                   BY skuLedger(batch, stock), stock, dateTime;
 //firstOrderBatch(Sku sku, Stock stock, DATETIME dateTime) = orderBatch(sku, stock, dateTime)[2];
 
-firstOrderBatchBalance (Sku sku, Stock stock, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock) >= q
+firstOrderBatchBalance (Sku sku, Stock stock, NUMERIC[16,5] q) = GROUP LAST Batch batch IF availableQuantity(batch, stock) >= q
                                                    ORDER DESC dateTime(batch), batch
                                                    BY skuLedger(batch, stock) COMPLEX;
+prevFirstOrderBatchBalance (Sku sku, Stock stock, NUMERIC[16,5] q) = PREV(firstOrderBatchBalance(sku, stock, q));
 //firstOrderBatchBalance(Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = orderBatchBalance(sku, stock, dateTime, q)[2];
 
 fillBatch 'Проставить партию'(UserInvoiceDetail d)   {    
-    batch(d) <- firstOrderBatchBalance(sku(d), supplierStock(d), quantity(d)); 
+    batch(d) <- prevFirstOrderBatchBalance(sku(d), supplierStock(d), quantity(d)); 
 } ASON CONTEXTMENU nameBatch[UserInvoiceDetail];
 
 fillAllBatch 'Проставить партии для всех'(UserInvoiceDetail detail)  { 
-   FOR userInvoice(detail) == userInvoice(UserInvoiceDetail d) AND NOT batch(d) DO
-       fillBatch(d);
+   FOR userInvoice(detail) = userInvoice(UserInvoiceDetail d) AND NOT batch(d) AND Stock stock = supplierStock(d) NOINLINE (stock) DO
+        batch(d) <- prevFirstOrderBatchBalance(sku(d), stock, quantity(d)); 
 } ASON CONTEXTMENU nameBatch[UserInvoiceDetail];
 
 NAVIGATOR {
