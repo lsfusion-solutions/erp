@@ -491,6 +491,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     
     hideWithoutVAT = ABSTRACT BOOLEAN (Invoice);    
     hideWithVAT = ABSTRACT BOOLEAN (Invoice);
+    hideAdd = ABSTRACT BOOLEAN (Invoice);
     hideDelete = ABSTRACT BOOLEAN (Invoice);
         
     FORM userInvoice 'Накладная'###sign
@@ -516,11 +517,11 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                        valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
                        invoicePrice ON CHANGE changeInvoicePrice(d) SHOWIF NOT hideWithVAT(i),
                        VATSum, invoiceSum, sumNetWeight BACKGROUND backgroundSku(d), 
-                       sumGrossWeight BACKGROUND backgroundSku(d), NEW, deleteid=DELETE SHOWIF NOT hideDelete(i) GRID
+                       sumGrossWeight BACKGROUND backgroundSku(d), NEW SHOWIF NOT hideAdd(i), deleteid=DELETE SHOWIF NOT hideDelete(i) GRID
         ORDERS index(d)
 
         PROPERTIES(i) DRAW d fillDocument, addDetailDialogSkuStockUserInvoiceDetail,
-                               addDetailInputBarcodeUserInvoiceDetail, deleteUserInvoiceDetail
+                               addDetailInputBarcodeUserInvoiceDetail SHOWIF NOT hideAdd(i), deleteUserInvoiceDetail SHOWIF NOT hideDelete(i)
         FILTERS userInvoice(d) == i
 
         EVENTS
@@ -739,7 +740,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         }
     } CHANGEKEY 'F5' TOOLBAR;
     
-    EXTEND FORM userInvoice PROPERTIES(d) copy ;
+    EXTEND FORM userInvoice PROPERTIES(d) copy SHOWIF NOT hideAdd(i);
     DESIGN userInvoice { PROPERTY(copy(d)) { focusable = FALSE; } }
 
     isUserOpened(UserInvoice i)=  isOpened[Invoice](i) AND is(i);
