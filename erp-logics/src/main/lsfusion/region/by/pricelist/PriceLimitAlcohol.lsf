@@ -17,18 +17,18 @@ alcoholLimitDetail = GROUP AGGR AlcoholLimitDetail d BY volume(d), alcoholLimit(
 basePrice 'Цена за 1 л' = DATA NUMERIC[16,5](AlcoholLimit);
 basePrice 'Цена за 1 л'(AlcoholLimitDetail d) = basePrice(alcoholLimit(d));
 
-baseAlcohol = DATA Alcohol(AlcoholLimit) NONULL;
+baseAlcohol = DATA Alcohol(AlcoholLimit) NONULL INDEXED;
 nameBaseAlcohol 'Эталонное содержание алкоголя' (AlcoholLimit h) = name(baseAlcohol(h));
 baseAlcohol (AlcoholLimitDetail d) = baseAlcohol(alcoholLimit(d));
 
 minAlcoholValue 'Минимальное содержание алкоголя, %' = DATA NUMERIC[8,3] (AlcoholLimit);
-minAlcoholValue (AlcoholLimitDetail d) = minAlcoholValue(alcoholLimit(d));
+minAlcoholValue (AlcoholLimitDetail d) = minAlcoholValue(alcoholLimit(d)) MATERIALIZED;
 
 roundCondition  = DATA RoundCondition(AlcoholLimit);
 nameRoundCondition 'Условия округления'(AlcoholLimit h) = name(roundCondition(h));
 roundCondition (AlcoholLimitDetail h) = roundCondition(alcoholLimit(h));
 
-minPrice 'Минимальная цена'(AlcoholLimitDetail d, Alcohol a) = round(volume(d) * basePrice(d) / value(baseAlcohol(d)) * value(a), roundCondition(d));
+minPrice 'Минимальная цена' (AlcoholLimitDetail d, Alcohol a) = round(volume(d) * basePrice(d) / value(baseAlcohol(d)) * value(a), roundCondition(d)) MATERIALIZED;
 
 isRB 'Производство РБ' = DATA BOOLEAN (AlcoholLimit);
 
