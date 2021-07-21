@@ -38,6 +38,7 @@ DESIGN options {
 managementRetailPrice 'Цена (управленческая)' = DATA LOCAL NESTED NUMERIC[16,4] (Sku);
 managementPriceListPrice = DATA LOCAL NESTED NUMERIC[16,4] (Sku); 
 inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Sku); 
+info = DATA LOCAL NESTED TEXT (Sku);
 
 skipManagementPriceList = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME); 
 
@@ -45,6 +46,7 @@ overSetMarkupManagementRetailPrice  ABSTRACT LIST( DepartmentStore, DATETIME);
 overSetMarkupManagementRetailPrice  ABSTRACT LIST(CalcPriceListType, DepartmentStore, DATETIME);
 overSetManagementRetailPriceFirstAct  ABSTRACT LIST ( DepartmentStore, DATETIME);  // реализовано в Sosedi
 overSetManagementRetailPrice  ABSTRACT LIST ( DepartmentStore, DATETIME); 
+overSetManagementRetailPrice  ABSTRACT LIST (PriceListType, DepartmentStore, DATETIME); 
 
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + { overSetManagementRetailPriceFirstAct(d, dt); }
 
@@ -58,6 +60,7 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
     IF NOT skipDialog() THEN {
         DIALOG dialogSkuGroup;
     }
+    info(Sku s) <- NULL;
     IF NOT requestCanceled() THEN {
         IF onStockPriceListRepricing() THEN {  // переоценивать товары без остатка, настройка в options pricings (Акты расценки?)
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt) 
@@ -78,6 +81,7 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
         }
         
         overSetManagementRetailPrice(d, dt);  // контроль мин. и макс. фиксиров. цен, мин. цен на алкоголь, предельных надбавок
+        overSetManagementRetailPrice(pt, d, dt); 
         
         IF withoutCurrentRetailPrice() THEN //Формировать цену, если нет текущих розничных цен
             inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt)  
@@ -106,6 +110,7 @@ customerManagementRepricing  ABSTRACT LIST ( DepartmentStore, PriceListType, DAT
 calculateDashboardManagementRepricingExtra  ABSTRACT LIST ( DepartmentStore, PriceListType, DATETIME );
 calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, PriceListType pt, DATETIME dt)  {
     managementRetailPrice(Sku sku) <- NULL;
+    info(Sku s) <- NULL;
     IF NOT customerManagementRepricing() THEN {   // используется в Fancy у остальных NULL
         IF onStockPriceListRepricing() THEN {  // переоценивать товары без остатка, настройка в options pricings 
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt)
@@ -121,6 +126,7 @@ calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, P
     }
     managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku) AND skuType(sku) != SkuType.skuTypeContainer;  //тару не берем  
     overSetManagementRetailPrice(d, dt); // контроль мин. и макс. фиксиров. цен, мин. цен на алкоголь, предельных надбавок
+    overSetManagementRetailPrice(pt, d, dt);
     
     IF withoutCurrentRetailPrice() THEN //Формировать цену, если нет текущих розничных цен
         inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt)  
