@@ -8,6 +8,7 @@ REQUIRE ZReport, StockDocumentSkuLedger;
 type(ZReport l) += STRING[50]('Z-отчет') IF l IS ZReport;
 sumItem (ZReport ledger) += sumSkuReceiptDetail(ledger);
 sumContainer (ZReport ledger) += 0.0 IF ledger IS ZReport;
-skip (ZReport ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger));
+overSkip 'Не проводить' = ABSTRACT BOOLEAN (ZReport);
+skip (ZReport ledger) += OVERRIDE date(ledger) < startDateGroupCashRegister(departmentStore(ledger)), overSkip(ledger);
 
 close(ZReport l) + {  isClosed(l) <- TRUE; }
