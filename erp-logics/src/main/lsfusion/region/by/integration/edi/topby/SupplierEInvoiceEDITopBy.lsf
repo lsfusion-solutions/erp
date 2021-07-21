@@ -348,12 +348,14 @@ GROUP extraField0 EXTID 'ExtraField';
 GROUP despatchAdviceLogisticUnitLineItem EXTID 'DespatchAdviceLogisticUnitLineItem';
 GROUP lineItemIdentification EXTID 'LineItemIdentification';
 
+hideMessageHeaderBlrwbl = DATA LOCAL BOOLEAN ();
+
 FORM exportBlrwbl FORMEXTID 'BLRWBL'
     PROPERTIES ATTR ='0.1' EXTID 'version'
     OBJECTS ei = EInvoice PANEL
     
     OBJECTS eih = EInvoice EXTID 'MessageHeader'
-    FILTERS eih == ei
+    FILTERS (eih == ei AND NOT hideMessageHeaderBlrwbl()) OR NOT eih IS EInvoice
     PROPERTIES DRAW eih messageId = resultMilliseconds() EXTID 'MessageID',
                         msgDateTime = toChar(exportBlrwblDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
                         messageType = 'BLRWBL' EXTID 'MessageType',
@@ -566,12 +568,14 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
 
 exportBlrdlnDateTime = DATA LOCAL NESTED DATETIME();
 
+hideMessageHeaderBlrdln = DATA LOCAL BOOLEAN ();
+
 FORM exportBlrdln FORMEXTID 'BLRDLN'
     PROPERTIES ATTR ='0.1' EXTID 'version'
     OBJECTS ei = EInvoice PANEL
     
     OBJECTS eih = EInvoice EXTID 'MessageHeader'
-    FILTERS eih == ei
+    FILTERS (eih == ei AND NOT hideMessageHeaderBlrdln()) OR NOT eih IS EInvoice
     PROPERTIES DRAW eih messageId = resultMilliseconds() EXTID 'MessageID',
                         msgDateTime = toChar(exportBlrdlnDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
                         messageType = 'BLRDLN' EXTID 'MessageType',

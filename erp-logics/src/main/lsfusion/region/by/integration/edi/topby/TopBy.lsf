@@ -803,15 +803,17 @@ FORM importBlrapn
     PROPERTIES() IN blrapnErrorOrAcknowledgement blrapnCode EXTID 'Code', blrapnDescription EXTID 'Description'
 ;
 
+hideMessageHeaderBlrapn = DATA LOCAL BOOLEAN ();
+
 FORM exportBlrapn FORMEXTID 'BLRAPN'
     PROPERTIES ATTR ='0.1' EXTID 'version'
     PROPERTIES IN messageHeader
-        messageId = resultMilliseconds() EXTID 'MessageID',
-        msgDateTime = toChar(blrapnDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
-        messageType = 'BLRAPN' EXTID 'MessageType',
-        blrapnMsgSender() EXTID 'MsgSenderID',
-        blrapnMsgReceiver() EXTID 'MsgReceiverID',
-        blrapnUserID() EXTID 'UserID'
+        messageId = resultMilliseconds() IF NOT hideMessageHeaderBlrapn() EXTID 'MessageID',
+        msgDateTime = toChar(blrapnDateTime(),'YYYYMMDDHH24MISS') IF NOT hideMessageHeaderBlrapn() EXTID 'MsgDateTime',
+        messageType = 'BLRAPN' IF NOT hideMessageHeaderBlrapn() EXTID 'MessageType',
+        msgSenderID = blrapnMsgSender() IF NOT hideMessageHeaderBlrapn() EXTID 'MsgSenderID',
+        msgReceiverID = blrapnMsgReceiver() IF NOT hideMessageHeaderBlrapn() EXTID 'MsgReceiverID',
+        userID = blrapnUserID() IF NOT hideMessageHeaderBlrapn() EXTID 'UserID'
     PROPERTIES IN acknowledgement
         documentId = resultMilliseconds() EXTID 'DocumentID',
         functionCode = '6' EXTID 'FunctionCode',
