@@ -21,16 +21,26 @@ balanceB = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
 balance = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 sum = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
-exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, DATE dTo)  { 
+accountPrice = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+accountPriceB = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+
+revertAccountPrice = DATA LOCAL BOOLEAN ();
+accountPriceR (Sku sk, Stock st) = IF revertAccountPrice() THEN accountPriceB(sk, st) ELSE accountPrice(sk, st);
+accountPriceRB (Sku sk, Stock st) = IF revertAccountPrice() THEN accountPrice(sk, st) ELSE accountPriceB(sk, st);
+
+exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, DATE dTo)  {
+    CANCEL; // на всякий случай
+     
     balance(Batch b, Stock st) <- balanceA(b, st, dTo);
     IF exportBalanceB() THEN
         balanceB(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, dTo);
     balance(Sku s, Stock st) <- balanceA(s, st, dTo);
     
-    LOCAL accountPrice = NUMERIC[16,4] (Sku, Stock);
-    IF useAccountPrice() THEN
-        accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(sum(dTo, 1))) WHERE balance(s, st) OR quantityPurchase(s, st, dTo) OR quantitySold(s, st, dTo); 
-    ELSE
+    IF useAccountPrice() THEN {
+        accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(sum(dTo, 1))) WHERE balance(s, st) OR quantityPurchase(s, st, dTo) OR quantitySold(s, st, dTo);
+        IF exportBalanceB() THEN
+            accountPriceB(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(dTo)) WHERE balance(s, st) OR quantityPurchase(s, st, dTo) OR quantitySold(s, st, dTo);
+    } ELSE
         sum(Sku s, Stock st) <- sumA(s, st, dTo);
 
     LOCAL date = DATE ();
@@ -45,7 +55,8 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
                                     stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
                                     sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
                                     manufacturer = manufacturer(sku(b)),
-                                    price = DOUBLE(IF useAccountPrice() THEN accountPrice(sku(b), st) ELSE (sum(sku(b), st) / balance(sku(b), st))), 
+                                    price = DOUBLE(IF useAccountPrice() THEN accountPriceR(sku(b), st) ELSE (sum(sku(b), st) / balance(sku(b), st))),
+                                    priceB = (OVERRIDE accountPriceRB(sku(b), st), accountPriceR(sku(b), st)),  
                                     UOM = UOM(sku(b)),
                                     balance = DOUBLE(balance(b, st)), balanceB = DOUBLE(balanceB(b, st)),
                                     quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
@@ -73,9 +84,18 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
 
         balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
         balance(Sku s, Stock st) <- balance(s, st) (-) signedQuantity(s, st, date()) WHERE signedQuantity(s, st, date()); 
-        IF useAccountPrice() THEN
-            accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(date())) WHERE balance(s, st) OR quantityPurchase(s, st, subtract(date(), 1)) OR quantitySold(s, st, subtract(date(), 1));
-        ELSE 
+        IF useAccountPrice() THEN 
+            IF exportBalanceB() THEN {
+                IF revertAccountPrice() THEN {
+                    revertAccountPrice() <- NULL;
+                    accountPriceB(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(subtract(date(),1))) WHERE balance(s, st) OR quantityPurchase(s, st, subtract(date(),1)) OR quantitySold(s, st, subtract(date(),1));
+                } ELSE {
+                    accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(subtract(date(),1))) WHERE balance(s, st) OR quantityPurchase(s, st, subtract(date(),1)) OR quantitySold(s, st, subtract(date(),1));
+                    revertAccountPrice() <- TRUE;
+                }
+            } ELSE
+                accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(date())) WHERE balance(s, st) OR quantityPurchase(s, st, subtract(date(), 1)) OR quantitySold(s, st, subtract(date(), 1));
+        ELSE
             sum(Sku s, Stock st) <- sum(s, st) (-) signedSum(s, st, date()) WHERE signedSum(s, st, date());
         date() <- subtract(date(), 1);
         IF exportBalanceB() THEN
