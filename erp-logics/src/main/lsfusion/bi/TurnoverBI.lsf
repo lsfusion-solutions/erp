@@ -91,9 +91,13 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
         IF exportBalanceB() THEN {
             IF revertBalance() THEN {
                 revertBalance() <- NULL;
-                balanceB(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, subtract(date(),1)) WHERE signedQuantity(b, st, subtract(date(),1));
+                balanceB(Batch b, Stock st) <- balanceB(b, st) (-) 
+                                              (signedQuantity(b, st, date()) (+) signedQuantity(b, st, subtract(date(),1))) 
+                                         WHERE signedQuantity(b, st, date()) (+) signedQuantity(b, st, subtract(date(),1));
             } ELSE {
-                balance(Batch b, Stock st) <- balanceB(b, st) (-) signedQuantity(b, st, subtract(date(),1)) WHERE signedQuantity(b, st, subtract(date(),1));
+                balance(Batch b, Stock st) <- balance(b, st) (-) 
+                                              (signedQuantity(b, st, date()) (+) signedQuantity(b, st, subtract(date(),1))) 
+                                         WHERE signedQuantity(b, st, date()) (+) signedQuantity(b, st, subtract(date(),1));
                 revertBalance() <- TRUE;
             }
         } ELSE
