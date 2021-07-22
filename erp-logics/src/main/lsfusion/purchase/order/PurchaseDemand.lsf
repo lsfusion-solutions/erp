@@ -11,6 +11,8 @@ nameDefaultDemandOrderPriceListType 'Вид цены для заказов по 
 EXTEND FORM options PROPERTIES() nameDefaultDemandOrderPriceListType;
 DESIGN options { purchase { MOVE PROPERTY(nameDefaultDemandOrderPriceListType()); } }
 
+defaultDemandOrderLedgerPriceListType = ledgerPriceListType(defaultDemandOrderPriceListType()) MATERIALIZED;
+
 @defineOption(defaultDemandOrderPeriod, 'Период (дней) для заказов по потребностям', INTEGER, purchase);
 
 dateFromSoldPeriod 'Дата с' = DATA DATE (UserOrder);
@@ -73,7 +75,7 @@ overFillRecommended ABSTRACT LIST (UserOrder);
 
 fillRecommendedBase (UserOrder userOrder) {
         in(Sku sku) <- prevPriceA(
-                                  (OVERRIDE ledgerPriceListType(priceListType(userOrder, sku)), defaultDemandOrderPriceListType()),
+                                  (OVERRIDE ledgerPriceListType(priceListType(userOrder, sku)), defaultDemandOrderLedgerPriceListType()),
                                   sku, customerStock(userOrder), supplier(userOrder), dateTime(userOrder))
                               AND NOT limitRecommendedQuantity(sku, userOrder); 
         FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) NEW d = UserOrderDetail DO {
