@@ -18,6 +18,11 @@ overExportTurnover = DATA LOCAL BOOLEAN ();
 
 balance = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
 balanceB = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
+
+revertBalance = DATA LOCAL BOOLEAN ();
+balanceR (Batch b, Stock st) = IF revertBalance() THEN balanceB(b, st) ELSE balance(b, st);
+balanceRB (Batch b, Stock st) = IF revertBalance() THEN balance(b, st) ELSE balanceB(b, st);
+
 balance = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 sum = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
@@ -58,7 +63,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
                                     price = DOUBLE(IF useAccountPrice() THEN accountPriceR(sku(b), st) ELSE (sum(sku(b), st) / balance(sku(b), st))),
                                     priceB = (OVERRIDE accountPriceRB(sku(b), st), accountPriceR(sku(b), st)),  
                                     UOM = UOM(sku(b)),
-                                    balance = DOUBLE(balance(b, st)), balanceB = DOUBLE(balanceB(b, st)),
+                                    balance = DOUBLE(balanceR(b, st)), balanceB = DOUBLE(balanceRB(b, st)),
                                     quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
                                     quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
                        WHERE balanceB(b, st) OR balance(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
@@ -82,8 +87,18 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
             ingestBatch('turnover', 'turnoverB', date());
         ELSE ingestBatch('turnover', date());
 
-        balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
         balance(Sku s, Stock st) <- balance(s, st) (-) signedQuantity(s, st, date()) WHERE signedQuantity(s, st, date()); 
+        IF exportBalanceB() THEN {
+            IF revertBalance() THEN {
+                revertBalance() <- NULL;
+                balanceB(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, subtract(date(),1)) WHERE signedQuantity(b, st, subtract(date(),1));
+            } ELSE {
+                balance(Batch b, Stock st) <- balanceB(b, st) (-) signedQuantity(b, st, subtract(date(),1)) WHERE signedQuantity(b, st, subtract(date(),1));
+                revertBalance() <- TRUE;
+            }
+        } ELSE
+            balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
+
         IF useAccountPrice() THEN 
             IF exportBalanceB() THEN {
                 IF revertAccountPrice() THEN {
@@ -98,8 +113,6 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
         ELSE
             sum(Sku s, Stock st) <- sum(s, st) (-) signedSum(s, st, date()) WHERE signedSum(s, st, date());
         date() <- subtract(date(), 1);
-        IF exportBalanceB() THEN
-            balanceB(Batch b, Stock st) <- balanceB(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date());
     }
     
     runKillTask('turnover', dFrom, dTo);
