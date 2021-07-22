@@ -4,7 +4,13 @@ REQUIRE PurchaseReturnManufacturingPrice, PricingPurchaseReturn, PricingManufact
 
 NAMESPACE PurchaseReturn;
 
-overPricingPrice(InvoicePricingDetail detail) += manufacturingPrice(invoiceDetail(detail)) IF NOT skipCalcPricingManufacturingPrice();
-overPricingPrice[UserInvoiceDetail](UserInvoiceDetail detail) += manufacturingPrice(detail) IF NOT skipCalcPricingManufacturingPrice();
+manufacturingPricePricing 'Расценка от цены изготовителя' = ABSTRACT BOOLEAN (InvoicePricingDetail);
+manufacturingPricePricing 'Расценка от цены изготовителя' = ABSTRACT BOOLEAN (InvoiceDetail);
+manufacturingPricePricing(InvoicePricingDetail detail) += manufacturingPricePricing(invoiceDetail(detail));
+
+PricingManufacturingPrice.manufacturingPricePricing(InvoicePricingDetail detail) += manufacturingPricePricing(detail);
+
+overPricingPrice(InvoicePricingDetail detail) += manufacturingPrice(invoiceDetail(detail))  IF (NOT skipCalcPricingManufacturingPrice()) OR manufacturingPricePricing(detail);
+overPricingPrice[UserInvoiceDetail](UserInvoiceDetail detail) += manufacturingPrice(detail) IF (NOT skipCalcPricingManufacturingPrice()) OR manufacturingPricePricing(detail);
 
 manufacturingPrice(InvoicePricingDetail detail) += manufacturingPrice(invoiceDetail(detail));
