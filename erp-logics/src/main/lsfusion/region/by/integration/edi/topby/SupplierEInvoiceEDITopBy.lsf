@@ -452,7 +452,7 @@ FORM exportBlrwbl FORMEXTID 'BLRWBL'
                         totalDespatchUnitQuantity(eint) EXTID 'TotalDespatchUnitQuantity',
                         totalAmountExcise(eint) EXTID 'TotalAmountExcise'
 ;
-
+logEDSResponse = DATA BOOLEAN ();
 signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
@@ -503,6 +503,13 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                             fileToString(xml());
                             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
                             sendRequestEDI(hostEDSServiceSupplierTopBy(ei), portEDSServiceSupplierTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(ei) + ':' + portEDSServiceSupplierTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                            IF logEDSResponse() THEN {
+                                LOCAL filePath = STRING();
+                                filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + 'EDS' + toChar(currentDateTimeMillis(),'YYYY-MM-DD-HH24-MI-SS-MS');  
+                                TRY{ mkdir(filePath()); }
+                                logToFile('edi','EDS Response saved to' + filePath() +'.xml');
+                                WRITE sendRequestEDIResponse() TO filePath();
+                            }
                             IMPORT getEDSResponse FROM sendRequestEDIResponse();
                             IF faultstring() THEN {
                                 logToFile('edi', provider + ' SendEInvoice error: BLRWBL ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -522,6 +529,13 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                                 envelopeDocumentType() <- 'BLRWBL';
                                 envelopeContent() <- encodedBase64();
                                 EXPORT envelope XML TO ixml;
+                                IF logEDSResponse() THEN {
+                                    LOCAL filePath = STRING();
+                                    filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + 'Envelope' + toChar(currentDateTimeMillis(),'YYYY-MM-DD-HH24-MI-SS-MS');  
+                                    TRY{ mkdir(filePath()); }
+                                    logToFile('edi','Envelope saved to' + filePath() +'.xml');
+                                    WRITE ixml() TO filePath();
+                                }
                                 sendRequestEDI(hostTopBy(supplier(ei)), portTopBy(supplier(ei)), loginTopBy(supplier(ei)), passwordTopBy(supplier(ei)), ('http://' + hostTopBy(supplier(ei)) +':' + portTopBy(supplier(ei)) + '/DmcService'), ixml());
                                 logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
