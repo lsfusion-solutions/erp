@@ -31,6 +31,7 @@ roundCondition (AlcoholLimitDetail h) = roundCondition(alcoholLimit(h));
 minPrice 'Минимальная цена' (AlcoholLimitDetail d, Alcohol a) = round(volume(d) * basePrice(d) / value(baseAlcohol(d)) * value(a), roundCondition(d)) MATERIALIZED;
 
 isRB 'Производство РБ' = DATA BOOLEAN (AlcoholLimit);
+isRB (AlcoholLimitDetail d) = isRB(alcoholLimit(d)) MATERIALIZED;
 
 FORM alcoholLimit 'Минимальные цены на алкоголь'
 
@@ -203,10 +204,10 @@ NAVIGATOR {
 minAlcoholLimitPrice (Item s, DATETIME dt) = GROUP 
             LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
             ORDER dateTime(ad), ad
-            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND NOT isRB(alcoholLimit(ad));
+            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND NOT isRB(ad);
             
 minAlcoholLimitPriceRB (Item s, DATETIME dt) = GROUP 
             LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
             ORDER dateTime(ad), ad
-            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND isRB(alcoholLimit(ad));
+            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND isRB(ad);
    
