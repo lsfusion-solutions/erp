@@ -274,10 +274,14 @@ countSku 'Кол-во товаров' (Range r, StoreType t, DATE d) = countRecS
 TABLE rangeStoreDate(Range, Store, DATE);
 dataLevel = DATA RangeLevel (Range, Store, DATE);
 excludeLevel = DATA BOOLEAN (Range, Store, DATE);
+hasLevel (Range r, Store s, DATE d) = dataLevel(r, s, d) OR excludeLevel(r, s, d) MATERIALIZED;
+
 dateTime 'Дата/время' = DATA DATETIME (Range, Store, DATE);
+dateTime(Range r, Store s, DATE d) <- currentDateTime() WHEN SET(hasLevel(r, s, d));
+
 user = DATA User (Range, Store, DATE);
 nameUser 'Пользователь' (Range r, Store s, DATE d) = name(user(r, s, d));
-hasLevel (Range r, Store s, DATE d) = dataLevel(r, s, d) OR excludeLevel(r, s, d) MATERIALIZED;
+user(Range r, Store s, DATE d) <- currentUser() WHEN SET(hasLevel(r, s, d));
    
 CONSTRAINT dataLevel(Range r, Store st, DATE d) AND NOT in(r, dataLevel(r, st, d))
     CHECKED BY dataLevel[Range,Store,DATE]
@@ -296,8 +300,6 @@ date (Range range, Store st, DATE date) = GROUP
 changeLevel (Range r, Store st, DATE d) { 
     DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, st, d) CHANGE DO {
         excludeLevel (r, st, d) <- NOT l;
-        dateTime(r, st, d) <- currentDateTime();
-        user(r, st, d) <- currentUser();
     }
 }              
 
