@@ -215,6 +215,7 @@ stock = DATA Stock (LimitRetailPriceLog) INDEXED;
 nameStock 'Склад' (LimitRetailPriceLog l) = name(stock(l));
 
 price 'Максимальная РЦ' = DATA NUMERIC[16,4] (LimitRetailPriceLog) ;
+prevPrice 'Максимальная РЦ, до' = DATA NUMERIC[16,4] (LimitRetailPriceLog) ;
 
 hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (LimitRetailPriceLog); 
 userLogin 'Логин пользователя' = DATA STRING[100] (LimitRetailPriceLog); 
@@ -246,6 +247,7 @@ WHEN SETCHANGED (maxLimitRetailPrice(Sku s,Stock st)) IF NOT disableLimitRetailP
         stepPercLimitRetailPrice(d)<- stepPercLimitRetailPrice();
         checkLimitRetailPrice(d) <- calcCheckLimitRetailPrice(s);
         
+        prevPrice(d)<-PREV(maxLimitRetailPrice(s,st));
         price(d)<-maxLimitRetailPrice(s,st);
         typeChange(d) <- IF PREV(maxLimitRetailPrice(s,st)) THEN TypeChange.change ELSE TypeChange.add;
         hostnameComputer(d) <- hostnameCurrentComputer();
@@ -262,6 +264,7 @@ WHEN DROPPED(maxLimitRetailPrice(Sku s,Stock st)) IF NOT disableLimitRetailPrice
         stepPercLimitRetailPrice(d)<- stepPercLimitRetailPrice();
         checkLimitRetailPrice(d) <- calcCheckLimitRetailPrice(s);
         
+        prevPrice(d)<-PREV(maxLimitRetailPrice(s,st));
         price(d)<-maxLimitRetailPrice(s,st);
         typeChange(d) <- TypeChange.delete;
         hostnameComputer(d) <- hostnameCurrentComputer();
@@ -403,7 +406,7 @@ FORM maxLimitRetailPrice 'Максимальные розничные цены'
     FILTERGROUP max
         FILTER 'С максимальной РЦ' maxLimitRetailPrice(s,st) 'F9' DEFAULT
     OBJECTS d = LimitRetailPriceLog
-    PROPERTIES(d) READONLY  dateTimeLimitRetailPrice, stepPercLimitRetailPrice, checkLimitRetailPrice, nameStock, nameSku, idSku, idBarcodeSku, price, nameTypeChange, hostnameComputer, userLogin, nameContact, dateTimeSession, dateSession
+    PROPERTIES(d) READONLY  dateTimeLimitRetailPrice, stepPercLimitRetailPrice, checkLimitRetailPrice, nameStock, nameSku, idSku, idBarcodeSku, prevPrice, price, nameTypeChange, hostnameComputer, userLogin, nameContact, dateTimeSession, dateSession
     FILTERS sku(d)==s,
             stock(d)==st OR extraFilter(d) OR (typeChange(d)==TypeChange.flagAdd OR typeChange(d)==TypeChange.flagDelete) 
     PROPERTIES fillMaxLimitRetailPrice() DRAW sts TOOLBAR 
