@@ -65,6 +65,7 @@ CONSTRAINT Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d) AND st
 
 CLASS StatusPicking 'Статус' {
     new 'Новый',
+    inWork 'В работе',
     picked 'Собрано'
 }
 
@@ -102,6 +103,12 @@ diffDiscountSumPicking(InternetOrderDetail d) = pickingSum(d) (-) discountSumPic
 carrier = DATA Carrier (Picking); 
 nameCarrier 'Перевозчик' (Picking p) = name(carrier(p)) CHARWIDTH 20;
 
+executor = DATA Employee(Picking);
+nameExecutor 'Исполнитель' (Picking p) = name(executor(p)) CHARWIDTH 15;
+CONSTRAINT executor(Picking p) AND NOT in(stock(p), executor(p))
+    CHECKED BY executor[Picking]
+    MESSAGE 'Не является сотрудником склада';
+
 EXTEND FORM internetOrder
     PROPERTIES (d) pickingQuantity AFTER quantity(d)
 ;
@@ -126,7 +133,7 @@ changeStatus (Picking picking)  {
 FORM picking 'Комплектация'
     OBJECTS p = Picking PANEL
     PROPERTIES (p) nameStock, nameCarrier, nameStatus ON CHANGE changeStatus(p),
-                   nameNumerator, number, series, date, time,
+                   nameNumerator, number, series, date, time, nameExecutor, 
                    note, countInternetOrderDetail, pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail                   
 
     OBJECTS d = InternetOrderDetail
@@ -175,6 +182,11 @@ DESIGN picking {
                         MOVE PROPERTY(date(p));
                         MOVE PROPERTY(time(p));
                     }
+                    NEW executor {
+                        fill = 1;
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameExecutor(p));  
+                    }
                     MOVE GROUP(documentPrm,p);
                 }
                 NEW sumContainer {
@@ -187,14 +199,11 @@ DESIGN picking {
     }
 }
 
-//pickingQuantity(InternetOrderDetail detail) <- quantity(detail) IF picking(detail)
-//    WHEN (CHANGED(quantity(detail)) OR CHANGED(picking(detail)));
-
 FORM pickings 'Комплектации'
 
     OBJECTS p = Picking
-    PROPERTIES (p) READONLY nameStatus, number, series, date, time, nameStock, countInternetOrderDetail, pickingQuantityInternetOrderDetail, 
-    pickingSumInternetOrderDetail, seriesNumberInternetOrders
+    PROPERTIES (p) READONLY nameStatus, number, series, date, time, nameStock, nameExecutor, countInternetOrderDetail, 
+                   pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail, seriesNumberInternetOrders
     PROPERTIES (p) PANEL READONLY createdTime, createdNameUser, createdHostnameComputer  
     PROPERTIES(p) NEWSESSION NEW, EDIT , deletep = DELETE  
         
@@ -318,9 +327,6 @@ createPicking 'Создать комплектацию' (InternetOrder order)  {
 
 
 FORM pickingDashboard 'Комплектации'
-
-//    OBJECTS dt = DATE PANEL 
-//    PROPERTIES (dt) val = VALUE 
     
     OBJECTS o = InternetOrder LAST 
     PROPERTIES (o) select
@@ -343,7 +349,7 @@ FORM pickingDashboard 'Комплектации'
     FILTERS internetOrder(d) == o 
                       
     OBJECTS p = Picking LAST
-    PROPERTIES (p) READONLY nameStatus, number, series, date, time, nameStock, nameCarrier, countInternetOrderDetail, 
+    PROPERTIES (p) READONLY nameStatus, number, series, date, time, nameStock, nameCarrier, nameExecutor, countInternetOrderDetail, 
                    pickingQuantityInternetOrderDetail, pickingSumInternetOrderDetail, seriesNumberInternetOrders
     PROPERTIES (p) PANEL READONLY createdTime, createdNameUser, createdHostnameComputer  
     PROPERTIES (p) NEWSESSION NEW, EDIT, DELETE  

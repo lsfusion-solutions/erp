@@ -1,0 +1,29 @@
+MODULE SaleInternetPickingTerminalOrder;
+
+REQUIRE SaleInternetPicking, TerminalOrder;
+
+NAMESPACE Sale;
+
+EXTEND CLASS Picking : TerminalOrder;
+EXTEND CLASS InternetOrderDetail : TerminalOrderDetail;
+
+date[TerminalOrder] (Picking o) += date(o);
+dataNumber[TerminalOrder] (Picking o) += number(o);
+isOpened[TerminalOrder] (Picking o) += TRUE IF o IS Picking;
+idSupplier[TerminalOrder] (Picking o) += id(stock(o));
+user(TerminalOrder d) += executor(d); 
+
+//filter(Picking o, Stock s) += (o IS Picking AND stock(o) == s);
+
+order[TerminalOrderDetail] (InternetOrderDetail d) += picking(d);
+
+sku[TerminalOrderDetail] (InternetOrderDetail d) += sku(d);
+
+price[TerminalOrderDetail] (InternetOrderDetail d) += price(d);
+dataOrderQuantity[TerminalOrderDetail] (InternetOrderDetail d) += quantity(d);
+
+nameManufacturerSku[TerminalOrderDetail] (InternetOrderDetail d) += name(manufacturer(sku(d)));
+
+passScalesSku(InternetOrderDetail d) = passScales(sku(d));
+passScalesSku[TerminalOrderDetail] (InternetOrderDetail d) += passScalesSku(d);
+
