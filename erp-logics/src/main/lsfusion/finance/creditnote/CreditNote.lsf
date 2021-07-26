@@ -579,22 +579,31 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     ;
     EXTEND FORM userInvoice 
         PROPERTIES (i) READONLY SHOWIF showCreditSum() BACKGROUND backgroundCreditNote(i) creditQuantityInvoiceDetail, creditSumInvoiceDetail, creditVATSumInvoiceDetail, creditInvoiceSumInvoiceDetail
-        PROPERTIES (d) READONLY SHOWIF showCreditSum() BACKGROUND backgroundCreditNote(i) creditQuantity, creditSum, creditVATSum, creditInvoiceSum
+
+        OBJECTS dcn = UserInvoiceDetail
+        PROPERTIES (dcn) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity
+        PROPERTIES (dcn) READONLY BACKGROUND backgroundCreditNote(i) creditQuantity, creditSum, creditVATSum, creditInvoiceSum
+        FILTERS userInvoice(dcn) = i
     ;
     DESIGN userInvoice {
-        headerBox {
-            NEW sumBox AFTER headerParams{
-                type = CONTAINERH;
-                MOVE GROUP(documentSum,i);
-                NEW creditNote {
-                    type = CONTAINERV;
+        specificationBox {
+            NEW creditNoteContainer AFTER BOX(d) {
+                caption = 'Акт расхождений';
+                showIf = showCreditSum();
+                NEW creditNoteSum {
+                    type = CONTAINERH;
+                    caption = 'Суммы акта';
+                
+                }
+                NEW creditNoteInvoice {
+                    type = CONTAINERH;
                     caption = 'Суммы с учетом акта';
                     MOVE PROPERTY(creditQuantityInvoiceDetail(i)) {caption = 'Кол-во (всего)';}
                     MOVE PROPERTY(creditSumInvoiceDetail(i)) {caption = 'Сумма';}
                     MOVE PROPERTY(creditVATSumInvoiceDetail(i)) {caption = 'Сумма НДС';}
                     MOVE PROPERTY(creditInvoiceSumInvoiceDetail(i)) {caption = 'Сумма с НДС';}                               
                 }            
-             
+                MOVE BOX(dcn);
             }
         }
     }

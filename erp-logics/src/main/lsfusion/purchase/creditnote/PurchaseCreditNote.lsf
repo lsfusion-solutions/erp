@@ -114,20 +114,6 @@ sumCreditNoteDetail 'Сумма без НДС' (UserInvoice i) = sumCreditNoteDe
 VATSumCreditNoteDetail 'Сумма НДС' (UserInvoice i) = VATSumCreditNoteDetail(invoiceCreditNote(i)) IN creditNote;
 invoiceSumCreditNoteDetail 'Сумма с НДС' (UserInvoice i) = invoiceSumCreditNoteDetail(invoiceCreditNote(i)) IN creditNote;
 
-EXTEND FORM userInvoice PROPERTIES (i) READONLY SHOWIF createCreditNote(i) 
-    quantityCreditNoteDetail, sumCreditNoteDetail, VATSumCreditNoteDetail, invoiceSumCreditNoteDetail;
-
-DESIGN userInvoice {
-    headerCreateDocuments {
-        MOVE GROUP (creditNote,i) BEFORE headerCreateCreditNote {
-            caption = 'Акт расхождений';
-            MOVE PROPERTY (createCreditNote(i)) FIRST;
-            type = CONTAINERH;
-        }
-        REMOVE headerCreateCreditNote;
-    }
-}
-
 filterCreditNoteDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (CreditNote c) = date(c) >= filterCreditNoteDateFrom() OR (c IS CreditNote AND NOT filterCreditNoteDateFrom());      
 

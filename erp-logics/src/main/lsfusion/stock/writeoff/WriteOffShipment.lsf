@@ -103,18 +103,32 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
         PROPERTIES (i) createPurchaseWriteOff BACKGROUND backgroundWritten(i) 
         PROPERTIES (i) BACKGROUND backgroundWritten(i) SHOWIF createPurchaseWriteOff(i)
                        nameWriteOffOperation, nameWriteOffCommittee, nameReason, writeOffSumUserInvoiceDetail
-        PROPERTIES (d) SHOWIF createPurchaseWriteOff(i) BEFORE deleteid BACKGROUND backgroundWritten(i)
+        
+        OBJECTS dw = UserInvoiceDetail
+        PROPERTIES (dw) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameBatch, quantity
+        PROPERTIES (dw) BACKGROUND backgroundWritten(i)
                        nameWriteOffRate, percentWriteOffRate, writeOffQuantity,
                        writeOffPrice,  writeOffSum
+        FILTERS userInvoice(dw) = i
     ;
     DESIGN userInvoice {
         headerCreateDocuments {
             NEW headerCreateWriteOff {
                 caption = 'Акт списания';
                 MOVE PROPERTY(createPurchaseWriteOff(i));
-                MOVE PROPERTY(nameWriteOffOperation(i));
-                MOVE PROPERTY(nameWriteOffCommittee(i));
-                MOVE PROPERTY(nameReason(i));
+            }
+        }
+        specificationBox {
+            NEW writeOffContainer AFTER BOX(d) {
+                showIf = createPurchaseWriteOff(i);
+                caption = 'Списание';
+                NEW writeOffHeader {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(nameWriteOffOperation(i));
+                    MOVE PROPERTY(nameWriteOffCommittee(i));
+                    MOVE PROPERTY(nameReason(i));
+                }
+                MOVE BOX(dw);
             }
         }
         PROPERTY(writeOffSumUserInvoiceDetail(i)) { charWidth = 13;}
