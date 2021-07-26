@@ -162,18 +162,19 @@ DESIGN scheduleOrder {
     }
 }
 
+INDEX isOpened(ScheduleOrderDetail d), dateSupply(d), supplier(d);
+
 includeShipmentDowSupplierCustomer '' = GROUP SUM 1 IF isOpened(ScheduleOrderDetail d) AND dateSupply(d) >= DATE date AND
     in(d,Ramp r,Interval i) 
-        BY extractDOW(dateSupply(d)), supplier(d), customer(d), r, i, date;
+        BY extractDOW(dateSupply(d)), supplier(d), r, i, date;
         
-descriptionSuppliersCustomer 'Поставщики' (DOW dow, LegalEntity c, Ramp r, Interval i, DATE date)= 
+descriptionSuppliersCustomer 'Поставщики' (DOW dow, Ramp r, Interval i, DATE date)= 
     GROUP 
-    CONCAT name(LegalEntity s) IF includeShipmentDowSupplierCustomer(dow, s, c, r, i,date), ', '
+    CONCAT name(LegalEntity s) IF includeShipmentDowSupplierCustomer(dow, s, r, i,date), ', '
     ORDER name(s), s
     CHARWIDTH 20; 
-prevDescriptionSuppliersCustomer 'Поставщики' (DOW dow, LegalEntity c, Ramp r, Interval i, DATE date) = PREV(descriptionSuppliersCustomer(dow, c, r, i, date)) CHARWIDTH 20;
   
-descriptionSuppliers 'Поставщики' (ScheduleOrderTime d,Ramp r,Interval i) = descriptionSuppliersCustomer(shipmentDOW(d), customer(scheduleOrder(d)), r, i, startDate(scheduleOrder(d)));
+descriptionSuppliers 'Поставщики' (ScheduleOrderTime d,Ramp r,Interval i) = descriptionSuppliersCustomer(shipmentDOW(d), r, i, startDate(scheduleOrder(d)));
 
     
 includeShipmentDowScheduleOrderCustomer '' = GROUP SUM 1 IF isOpened(ScheduleOrderDetail d) AND dateSupply(d) >= DATE date AND
