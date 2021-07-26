@@ -4,6 +4,19 @@ REQUIRE EnterpriseData;
 
 NAMESPACE EnterpriseData;
 
+// complex props
+CLASS ABSTRACT PaymentDetail : EnterpriseData;
+@defProp(paymentType, 'ВидПлатежа', STRING[15], PaymentDetail);
+@defProp(priority, 'Очередность', STRING[1], PaymentDetail);
+@defProp(purpose, 'НазначениеПлатежа', STRING[250], PaymentDetail);
+META defPaymentDetail(nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = PaymentDetail EXTID extid
+        PROPERTIES (nm###class) paymentType EXTID 'ВидПлатежа', priority EXTID 'Очередность', purpose EXTID 'НазначениеПлатежа'
+        FILTERS nm###class = nm(class)
+    ;
+END
+
 // all references
 CLASS ABSTRACT Reference : EnterpriseData;
 @defProp(name, 'Наименование', STRING, Reference);
@@ -12,9 +25,9 @@ CLASS ABSTRACT Reference : EnterpriseData;
 //UOM
 CLASS ABSTRACT UOM 'Справочник.ЕдиницыИзмерения' : Reference;
 @defProp(fullName, 'НаименованиеПолое', STRING, UOM);
-META defUOM (nm, class, table)
+META defUOM (nm, class, table, extid)
     EXTEND FORM sendMessage
-        OBJECTS nm###class###table = UOM EXTID 'ЕдиницаИзмерения'
+        OBJECTS nm###class###table = UOM EXTID extid
         PROPERTIES(nm###class###table) id EXTID 'Код', name EXTID 'Наименование'
         FILTERS nm###class###table = nm(class###table)
     ;
@@ -24,9 +37,9 @@ END
 CLASS ABSTRACT Item 'Справочник.Номенклатура' : Reference;
 @defProp(article, 'Артикул', STRING, Item);
 @defProp(fullName, 'НаименованиеПолное', STRING, Item);
-META defItem(nm, class, table)
+META defItem(nm, class, table, extid)
     EXTEND FORM sendMessage
-        OBJECTS nm###class###table = Item EXTID 'Номенклатура'
+        OBJECTS nm###class###table = Item EXTID extid
         PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', article EXTID 'Артикул', id EXTID 'КодВПрограмме', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное'
         FILTERS nm###class###table = nm(class###table)
     ;
@@ -39,22 +52,30 @@ CLASS ABSTRACT Partner 'Справочник.Контрагенты' : Reference
 @defProp(fullName, 'НаименованиеПолное', STRING, Partner);
 @defProp(type, 'ЮридическоеФизическоеЛицо', TypePartner, Partner);
 idType 'ЮридическоеФизическоеЛицо' (Partner p) = staticCaption(type(p));
-META defPartner(nm, class)
+
+META defPartner(nm, class, extid)
     EXTEND FORM sendMessage
-        OBJECTS nm###class = Partner EXTID 'Контрагент'
+        OBJECTS nm###class = Partner EXTID extid
         PROPERTIES(nm###class) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
         FILTERS nm###class = nm(class)
     ;
 END
 
+META defPartner(nm, class)
+    @defPartner(nm, class, 'Контрагент');
+END
+
 // company
 CLASS ABSTRACT Company 'Справочник.Организации' : Partner;
-META defCompany(nm, class)
+META defCompany(nm, class, extid)
     EXTEND FORM sendMessage
-        OBJECTS nm###class = Partner EXTID 'Организация'
+        OBJECTS nm###class = Partner EXTID extid
         PROPERTIES(nm###class) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
         FILTERS nm###class = nm(class)
     ;
+END
+META defCompany(nm, class)
+    @defCompany(nm, class, 'Организация');
 END
 
 // stock
@@ -62,9 +83,9 @@ CLASS ABSTRACT Stock 'Справочник.Склады' : Reference;
 
 @defProp(type, 'ТипСклада', TypeStock, Stock);
 idType 'ТипСклада' (Stock s) = staticCaption(type(s));
-META defStock(nm, class)
+META defStock(nm, class, extid)
     EXTEND FORM sendMessage
-        OBJECTS nm###class = Stock EXTID 'Склад' 
+        OBJECTS nm###class = Stock EXTID extid 
         PROPERTIES(nm###class) sendUid EXTID 'Ссылка', name EXTID 'Наименование', idType EXTID 'ТипСклада'
         FILTERS nm###class = nm(class)
     ;
@@ -73,9 +94,9 @@ END
 // department
 CLASS ABSTRACT Department 'Справочник.Подразделения' : Reference;
 @defProp(nameDepartment, 'Наименование', STRING, department);
-META defDepartment(nm, class)
+META defDepartment(nm, class, extid)
     EXTEND FORM sendMessage
-        OBJECTS nm###class = Department EXTID 'Подразделение' 
+        OBJECTS nm###class = Department EXTID extid 
         PROPERTIES(nm###class) nameDepartment EXTID 'Наименование'
         FILTERS nm###class = nm(class)
     ;
@@ -104,9 +125,9 @@ idType 'ВидДоговора' (Contract c) = staticCaption(type(c));
 dateString 'Дата' (Contract c) = dateToString(date(c));
 @defProp(number, 'Номер', STRING, Contract);
 @defProp(company, 'Организация', Company, Contract);
-META defContract(nm, class)
+META defContract(nm, class, extid)
     EXTEND FORM sendMessage
-        OBJECTS nm###class = Contract EXTID 'Договор'
+        OBJECTS nm###class = Contract EXTID extid
         FILTERS nm###class = nm(class)
         
         PROPERTIES(nm###class) sendUid EXTID 'Ссылка', idType EXTID 'ВидДоговора' 
@@ -124,12 +145,12 @@ CLASS Settlement 'ДанныеВзаиморасчетов' : EnterpriseData;
 
 @defProp(contract, 'Договор', Contract, settlement);
 
-META defSettlement(nm, class)
+META defSettlement(nm, class, extid)
     EXTEND FORM sendMessage
-        OBJECTS nm###class = Settlement EXTID 'ДанныеВзаиморасчетов'
+        OBJECTS nm###class = Settlement EXTID extid
         FILTERS nm###class = nm(class)
     ;
-    @defContract(contract, nm###class);
+    @defContract(contract, nm###class, 'Договор');
 END
 
 //country
@@ -137,12 +158,49 @@ CLASS ABSTRACT Country 'Справочник.СтраныМира' : Reference;
 @defProp(alha2, 'КодАльфа2', STRING[2], Country);
 @defProp(alha3, 'КодАльфа3', STRING[3], Country);
 @defProp(fullName, 'НаименованиеПолное', STRING, Country);
-META defCountry (nm, class, table)
+META defCountry (nm, class, table, extid)
     EXTEND FORM sendMessage
-        OBJECTS nm###class###table = Country EXTID 'СтранаПроисхождения' 
+        OBJECTS nm###class###table = Country EXTID extid 
         PROPERTIES(nm###class###table) id EXTID 'Код', name EXTID 'Наименование'
         FILTERS nm###class###table = nm(class###table)
     ;
+END
+
+// bank
+CLASS ABSTRACT Bank 'Справочник.Банки' : Reference;
+@defProp(bic, 'БИК', STRING[9], Bank);
+@defProp(correspondentAccount, 'КоррСчет', STRING[20], Bank);
+@defProp(swiftBic, 'СВИФТБИК', STRING[11], Bank);
+META defBank (nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Bank EXTID extid 
+        PROPERTIES(nm###class) uid EXTID 'Ссылка', bic EXTID 'БИК', name EXTID 'Наименование', swiftBic EXTID 'СВИФТБИК'
+        FILTERS nm###class = nm(class)
+    ;
+END
+META defBank(nm, class)
+    @defBank(nm, class, 'Банк');    
+END
+
+// bank account
+CLASS ABSTRACT BankAccount 'Справочник.БанковскиеСчета' : Reference;
+@defProp(number, 'НомерСчета', STRING[34], BankAccount);
+@defProp(bank, 'Банк', Bank, BankAccount);
+@defProp(owner, 'Владелец', Partner, BankAccount);
+
+META defBankAccount(nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = BankAccount EXTID extid
+        PROPERTIES (nm###class) sendUid EXTID 'Ссылка', number EXTID 'НомерСчета'
+        FILTERS nm###class = nm(class)
+    ;
+    @defBank(bank, nm###class)
+    ;
+    @defPartner(owner, nm###class, 'Владелец');
+END
+
+META defBankAccount(nm, class)
+    @defBankAccount(nm, class, 'БанковскийСчет');
 END
 
 // all documents
@@ -159,16 +217,16 @@ dateTimeString 'Дата' (Document d) = dateTimeToString(dateTime(d));
 @defPropSimple(note, 'Комментарий', STRING, saleOrder);
 
 @extTable(saleOrder, service);
-@defPropObject(item, 'Номенклатура', Item, saleOrder, service);
-@defPropSimple(quantity, 'Количество', NUMERIC[15,3], saleOrder, service);
-@defPropSimple(sum, 'Сумма', NUMERIC[15,2], saleOrder, service);
-@defPropSimple(price, 'Цена', NUMERIC[15,2], saleOrder, service);
+@defPropObjectDetail(item, 'Номенклатура', Item, saleOrder, service);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleOrder, service);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], saleOrder, service);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], saleOrder, service);
 settlements (SaleOrder s) += '' IF s IS SaleOrder; //todo
 
 // Purchase invoice
 @extDocument(purchaseInvoice, 'ПоступлениеТоваровУслуг');
 @extTable(purchaseInvoice, product);
-@defPropSimple(index, 'НомерСтрокиДокумента', INTEGER, purchaseInvoice, product);
+@defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, purchaseInvoice, product);
 @defPropDetail(item, 'Номенклатура', Item, purchaseInvoice);
 GROUP itemDataPurchaseInvoiceProduct EXTID 'ДанныеНоменклатуры';
 EXTEND FORM sendMessage
@@ -180,15 +238,15 @@ EXTEND FORM sendMessage
 EXTEND FORM sendMessage
     PROPERTIES (purchaseInvoiceProduct) idBarcodePurchaseInvoiceProduct EXTID 'Штрихкод' IN itemDataPurchaseInvoiceProduct
 ;
-@defPropObject(uom, 'ЕдиницаИзмерения', UOM, purchaseInvoice, product);
-@defPropSimple(quantity, 'Количество', NUMERIC[15,3], purchaseInvoice, product);
-@defPropSimple(sum, 'Сумма', NUMERIC[15,2], purchaseInvoice, product);
-@defPropSimple(price, 'Цена', NUMERIC[15,2], purchaseInvoice, product);
-@defPropId(rateVat, 'СтавкаНДС', TypeVat, purchaseInvoice, product);
-@defPropSimple(sumVat, 'СуммаНДС', NUMERIC[15,2], purchaseInvoice, product);
-@defPropSimple(retailSum, 'СуммаРозничная', NUMERIC[15,2], purchaseInvoice, product);
-@defPropSimple(retailPrice, 'ЦенаРозничная', NUMERIC[15,2], purchaseInvoice, product);
-@defPropSimple(declaration, 'НомерГТД', STRING[30], purchaseInvoice, product);
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, purchaseInvoice, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], purchaseInvoice, product);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], purchaseInvoice, product);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], purchaseInvoice, product);
+@defPropIdDetail(rateVat, 'СтавкаНДС', TypeVat, purchaseInvoice, product);
+@defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], purchaseInvoice, product);
+@defPropSimpleDetail(retailSum, 'СуммаРозничная', NUMERIC[15,2], purchaseInvoice, product);
+@defPropSimpleDetail(retailPrice, 'ЦенаРозничная', NUMERIC[15,2], purchaseInvoice, product);
+@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], purchaseInvoice, product);
 
 @defPropObject(currency, 'Валюта', Currency, purchaseInvoice);
 @defPropId(operation, 'ВидОперации', TypePurchaseInvoice, purchaseInvoice);
@@ -200,8 +258,8 @@ EXTEND FORM sendMessage
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseInvoice);
 
 // Sale invoice
-META defSaleInvoice(nm, class, table)
-    @extKeyProperties(nm, 'РеализацияТоваровУслугСсылка', reasonDocument, class, table);
+META defSaleInvoice(nm, class, table, extid)
+    @extKeyProperties(nm, extid, reasonDocument, class, table);
 END
 @extDocument(saleInvoice, 'РеализацияТоваровУслуг');
 @defPropId(operation, 'ВидОперации', TypeSaleInvoice, saleInvoice);
@@ -213,7 +271,7 @@ END
 @defPropSimple(note, 'Комментарий', STRING, saleInvoice);
 
 @extTable(saleInvoice, product);
-@defPropSimple(index, 'НомерСтрокиДокумента', INTEGER, saleInvoice, product);
+@defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, saleInvoice, product);
 @defPropDetail(item, 'Номенклатура', Item, saleInvoice);
 GROUP itemDataSaleInvoiceProduct EXTID 'ДанныеНоменклатуры';
 EXTEND FORM sendMessage
@@ -221,15 +279,16 @@ EXTEND FORM sendMessage
     PROPERTIES(itemSaleInvoiceProduct) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
     FILTERS itemSaleInvoiceProduct = item(saleInvoiceProduct)
 ;
-@defPropObject(uom, 'ЕдиницаИзмерения', UOM, saleInvoice, product);
-@defPropSimple(quantity, 'Количество', NUMERIC[15,3], saleInvoice, product);
-@defPropSimple(sum, 'Сумма', NUMERIC[15,2], saleInvoice, product);
-@defPropSimple(price, 'Цена', NUMERIC[15,2], saleInvoice, product);
-@defPropId(rateVat, 'СтавкаНДС', TypeVat, saleInvoice, product);
-@defPropSimple(sumVat, 'СуммаНДС', NUMERIC[15,2], saleInvoice, product);
-@defPropSimple(retailSum, 'СуммаРозничная', NUMERIC[15,2], saleInvoice, product);
-@defPropSimple(retailPrice, 'ЦенаРозничная', NUMERIC[15,2], saleInvoice, product);
-@defPropSimple(declaration, 'НомерГТД', STRING[30], saleInvoice, product);
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, saleInvoice, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleInvoice, product);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], saleInvoice, product);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], saleInvoice, product);
+@defPropIdDetail(rateVat, 'СтавкаНДС', TypeVat, saleInvoice, product);
+@defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], saleInvoice, product);
+@defPropSimpleDetail(cost, 'Себестоимость', NUMERIC[15,2], saleInvoice, product);
+@defPropSimpleDetail(retailSum, 'СуммаРозничная', NUMERIC[15,2], saleInvoice, product);
+@defPropSimpleDetail(retailPrice, 'ЦенаРозничная', NUMERIC[15,2], saleInvoice, product);
+@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], saleInvoice, product);
 
 //outcome vat invoice
 CLASS ABSTRACT OutcomeVatInvoice 'Документ.СчетФактураВыданный' : Document;
@@ -272,7 +331,7 @@ overSend () + {
 @defPropId(typeInvoiced, 'СпособВыставления', TypeInvoiced, outcomeVatInvoice);
 
 @extTable(outcomeVatInvoice, reason);
-@defPropObject(saleInvoice, 'РеализацияТоваровУслуг', SaleInvoice, outcomeVatInvoice, reason);
+@defPropObjectDetail(saleInvoice, 'РеализацияТоваровУслуг', SaleInvoice, outcomeVatInvoice, reason);
 
 // shipment
 @extDocument(shipment, 'ПеремещениеТоваров');
@@ -281,12 +340,12 @@ overSend () + {
 @defPropObject(customerStock, 'СкладПолучатель', Stock, shipment);
 
 @extTable(shipment, product); 
-@defPropObject(uom, 'ЕдиницаИзмерения', UOM, shipment, product);
-@defPropObject(item, 'Номенклатура', Item, shipment, product);
-@defPropSimple(quantity, 'Количество', NUMERIC[15,3], shipment, product);
-@defPropSimple(retailSum, 'СуммаВРознице', NUMERIC[15,2], shipment, product);
-@defPropId(typeInventory, 'ТипЗапасов', TypeInventory, shipment, product);
-@defPropSimple(idBarcode, 'Штрихкод', STRING[200], shipment, product);
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, shipment, product);
+@defPropObjectDetail(item, 'Номенклатура', Item, shipment, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], shipment, product);
+@defPropSimpleDetail(retailSum, 'СуммаВРознице', NUMERIC[15,2], shipment, product);
+@defPropIdDetail(typeInventory, 'ТипЗапасов', TypeInventory, shipment, product);
+@defPropSimpleDetail(idBarcode, 'Штрихкод', STRING[200], shipment, product);
 
 // purchase return invoice
 @extDocument(purchaseReturnInvoice, 'ВозвратТоваровПоставщику');
@@ -296,10 +355,9 @@ overSend () + {
 @defPropObject(partner, 'Контрагент', Partner, purchaseReturnInvoice);
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseReturnInvoice);
 @defPropSimple(note, 'Комментарий', STRING, purchaseReturnInvoice);
-//@defPropObject(contract, 'Договор', Contract, purchaseReturnInvoice);
 
 @extTable(purchaseReturnInvoice, product);
-@defPropSimple(index, 'НомерСтрокиДокумента', INTEGER, purchaseReturnInvoice, product);
+@defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, purchaseReturnInvoice, product);
 @defPropDetail(item, 'Номенклатура', Item, purchaseReturnInvoice);
 GROUP itemDataPurchaseReturnInvoiceProduct EXTID 'ДанныеНоменклатуры';
 EXTEND FORM sendMessage
@@ -307,13 +365,13 @@ EXTEND FORM sendMessage
     PROPERTIES(itemPurchaseReturnInvoiceProduct) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
     FILTERS itemPurchaseReturnInvoiceProduct = item(purchaseReturnInvoiceProduct)
 ;
-@defPropObject(uom, 'ЕдиницаИзмерения', UOM, purchaseReturnInvoice, product);
-@defPropSimple(quantity, 'Количество', NUMERIC[15,3], purchaseReturnInvoice, product);
-@defPropSimple(sum, 'Сумма', NUMERIC[15,2], purchaseReturnInvoice, product);
-@defPropSimple(price, 'Цена', NUMERIC[15,2], purchaseReturnInvoice, product);
-@defPropId(rateVat, 'СтавкаНДС', TypeVat, purchaseReturnInvoice, product);
-@defPropSimple(sumVat, 'СуммаНДС', NUMERIC[15,2], purchaseReturnInvoice, product);
-@defPropSimple(declaration, 'НомерГТД', STRING[30], purchaseReturnInvoice, product);
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, purchaseReturnInvoice, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], purchaseReturnInvoice, product);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], purchaseReturnInvoice, product);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], purchaseReturnInvoice, product);
+@defPropIdDetail(rateVat, 'СтавкаНДС', TypeVat, purchaseReturnInvoice, product);
+@defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], purchaseReturnInvoice, product);
+@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], purchaseReturnInvoice, product);
 
 // sale return invoice
 @extDocument(saleReturnInvoice, 'ВозвратТоваровОтПокупателя');
@@ -325,7 +383,7 @@ EXTEND FORM sendMessage
 @defPropSimple(note, 'Комментарий', STRING, saleReturnInvoice);
 
 @extTable(saleReturnInvoice, product);
-@defPropSimple(index, 'НомерСтрокиДокумента', INTEGER, saleReturnInvoice, product);
+@defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, saleReturnInvoice, product);
 @defPropDetail(item, 'Номенклатура', Item, saleReturnInvoice);
 GROUP itemDataSaleReturnInvoiceProduct EXTID 'ДанныеНоменклатуры';
 EXTEND FORM sendMessage
@@ -333,13 +391,13 @@ EXTEND FORM sendMessage
     PROPERTIES(itemSaleReturnInvoiceProduct) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
     FILTERS itemSaleReturnInvoiceProduct = item(saleReturnInvoiceProduct)
 ;
-@defPropObject(uom, 'ЕдиницаИзмерения', UOM, saleReturnInvoice, product);
-@defPropSimple(quantity, 'Количество', NUMERIC[15,3], saleReturnInvoice, product);
-@defPropSimple(sum, 'Сумма', NUMERIC[15,2], saleReturnInvoice, product);
-@defPropSimple(price, 'Цена', NUMERIC[15,2], saleReturnInvoice, product);
-@defPropId(rateVat, 'СтавкаНДС', TypeVat, saleReturnInvoice, product);
-@defPropSimple(sumVat, 'СуммаНДС', NUMERIC[15,2], saleReturnInvoice, product);
-@defPropSimple(declaration, 'НомерГТД', STRING[30], saleReturnInvoice, product);
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, saleReturnInvoice, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleReturnInvoice, product);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], saleReturnInvoice, product);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], saleReturnInvoice, product);
+@defPropIdDetail(rateVat, 'СтавкаНДС', TypeVat, saleReturnInvoice, product);
+@defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], saleReturnInvoice, product);
+@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], saleReturnInvoice, product);
 
 // write off
 @extDocument(writeOff, 'СписаниеЗапасов');
@@ -348,15 +406,15 @@ EXTEND FORM sendMessage
 @defPropObject(stock, 'Склад', Stock, writeOff);
 
 @extTable(writeOff, product);
-@defPropObject(uom, 'ЕдиницаИзмерения', UOM, writeOff, product);
-@defPropSimple(quantity, 'Количество', NUMERIC[15,3], writeOff, product);
-@defPropObject(item, 'Номенклатура', Item, writeOff, product);
-@defPropSimple(declaration, 'НомерГТД', STRING[30], writeOff, product);
-@defPropObject(country, 'СтранаПроисхождения', Country, writeOff, product);
-@defPropSimple(sum, 'Сумма', NUMERIC[15,2], writeOff, product);
-@defPropId(typeInventory, 'ТипЗапасов', TypeInventory, writeOff, product);
-@defPropSimple(price, 'Цена', NUMERIC[15,2], writeOff, product);
-@defPropSimple(idBarcode, 'Штрихкод', STRING[200], writeOff, product);
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, writeOff, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], writeOff, product);
+@defPropObjectDetail(item, 'Номенклатура', Item, writeOff, product);
+@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], writeOff, product);
+@defPropObjectDetail(country, 'СтранаПроисхождения', Country, writeOff, product);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], writeOff, product);
+@defPropIdDetail(typeInventory, 'ТипЗапасов', TypeInventory, writeOff, product);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], writeOff, product);
+@defPropSimpleDetail(idBarcode, 'Штрихкод', STRING[200], writeOff, product);
 
 // income cash orders
 @extDocument(incomeCashOrderRetailSales, 'ПКОРозничнаяВыручка');
@@ -436,4 +494,48 @@ EXTEND FORM sendMessage
 @defPropObject(stock, 'Склад', Stock, retailReport);
 
 @extTable(retailReport, paymentCard);
-@defPropSimple(sum, 'СуммаОплаты', NUMERIC[15,2], retailReport, paymentCard);
+@defPropSimpleDetail(sum, 'СуммаОплаты', NUMERIC[15,2], retailReport, paymentCard);
+
+//payment order
+@extDocument(paymentOrder, 'ПлатежноеПоручение');
+@defProp(companyBankAccount, 'БанковскийСчетОрганизации', BankAccount, PaymentOrder);
+EXTEND FORM sendMessage
+    OBJECTS companyBankAccountPaymentOrder = BankAccount EXTID 'БанковскийСчетОрганизации'
+    PROPERTIES (companyBankAccountPaymentOrder) uid EXTID 'Ссылка', number EXTID 'НомерСчета'
+    FILTERS companyBankAccountPaymentOrder = companyBankAccount(paymentOrder)
+;
+@defBank(bank, companyBankAccountPaymentOrder)
+;
+GROUP companyLink  EXTID 'ОрганизацииСсылка';
+EXTEND FORM sendMessage
+    OBJECTS ownerCompanyBankAccountPaymentOrder = Partner EXTID 'Владелец'
+    PROPERTIES(ownerCompanyBankAccountPaymentOrder) IN companyLink sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS ownerCompanyBankAccountPaymentOrder = owner(companyBankAccountPaymentOrder)
+;
+@defPropObject(partner, 'Контрагент', Partner, paymentOrder);
+@defProp(partnerBankAccount, 'БанковскийСчет', BankAccount, PaymentOrder);
+EXTEND FORM sendMessage
+    OBJECTS partnerBankAccountPaymentOrder = BankAccount EXTID 'БанковскийСчет'
+    PROPERTIES (partnerBankAccountPaymentOrder) sendUid EXTID 'Ссылка', number EXTID 'НомерСчета'
+    FILTERS partnerBankAccountPaymentOrder = partnerBankAccount(paymentOrder)
+;
+@defBank(bank, partnerBankAccountPaymentOrder)
+;
+GROUP partnerLink  EXTID 'КонтрагентыСсылка';
+EXTEND FORM sendMessage
+    OBJECTS ownerPartnerBankAccountPaymentOrder = Partner EXTID 'Владелец'
+    PROPERTIES(ownerPartnerBankAccountPaymentOrder) IN partnerLink sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS ownerPartnerBankAccountPaymentOrder = owner(partnerBankAccountPaymentOrder)
+;
+
+@defPropObject(paymentDetail, 'РеквизитыПлатежа', PaymentDetail, paymentOrder);
+@defPropObject(currency, 'Валюта', Currency, paymentOrder);
+@defPropSimple(sum, 'Сумма', NUMERIC[15,2], paymentOrder);
+@defPropObject(contract, 'Договор', Contract, paymentOrder);
+@defPropSimple(note, 'Комментарий', STRING, paymentOrder);
+@defPropSimple(textPayer, 'ТекстПлательщика', STRING, paymentOrder);
+@defPropSimple(textBeneficiary, 'ТекстПолучателя', STRING, paymentOrder);
+@defPropSimple(innPayer, 'ИННПлательщика', STRING[12], paymentOrder);
+@defPropSimple(kppPayer, 'КПППлательщика', STRING[12], paymentOrder);
+@defPropSimple(innBeneficiary, 'ИННПолучателя', STRING[12], paymentOrder);
+@defPropSimple(kppBeneficiary, 'КПППолучателя', STRING[12], paymentOrder);
