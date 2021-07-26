@@ -214,6 +214,13 @@ afterSum 'Сумма поставщика после'(UserInvoiceDetail d) = pri
 afterRetailVAT 'НДС, % розничный после'(UserInvoiceDetail d) = valueRetailVAT(d) IF afterRetailPrice(d);
 afterRetailMarkupSum1 'Сумма надбавки после' (UserInvoiceDetail d) = afterRetailMarkupSum(d) IF afterRetailPrice(d);
 
+customShowCreateAfterRetailPrice = ABSTRACT BOOLEAN (UserInvoice);
+dataShowCreateAfterRetailPrice = ABSTRACT BOOLEAN (UserInvoice);
+
+showCreateAfterRetailPrice(UserInvoice i) = 
+    IF customShowCreateAfterRetailPrice(i) THEN dataShowCreateAfterRetailPrice(i)
+    ELSE showRepricingN(i);
+
 EXTEND FORM userInvoice
 
     PROPERTIES(i)   BACKGROUND backgroundAfter(i) SHOWIF showRepricingN(i) nameOperation = nameRepricingOperation,
@@ -223,7 +230,7 @@ EXTEND FORM userInvoice
                     pricingQuantityN READONLY, afterPrice, afterSum,
                     afterRetailMarkup ON CHANGE changeAfterRetailMarkup(pd), afterRetailMarkupSum1 ,
                     afterRetailVAT READONLY, afterRetailVATSum, afterRetailPrice ON CHANGE changeAfterRetailPrice(pd), afterRetailSum
-    PROPERTIES (i) SHOWIF showRepricingN(i) createAfterRetailPrice TOOLBAR DRAW pd         
+    PROPERTIES (i) SHOWIF showCreateAfterRetailPrice(i) createAfterRetailPrice TOOLBAR DRAW pd         
 ;
 DESIGN userInvoice {
     headerCreateDocuments {
