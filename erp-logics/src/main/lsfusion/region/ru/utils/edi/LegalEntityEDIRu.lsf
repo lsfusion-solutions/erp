@@ -4,32 +4,43 @@ REQUIRE LegalEntityRu;
 
 NAMESPACE LegalEntity;
 
+// operator edi
+isOperatorEdi 'Явл. оператором ЭДО' = DATA BOOLEAN (LegalEntity) IN filterEntity;
+skipSignLegalEntity (LegalEntity le) += isOperatorEdi(le);
+
+dataCodeOperatorEdi 'ИД оператора ЭДО' = DATA STRING[3] (LegalEntity) IN filterEntity;
+operatorEdi (STRING[3] id) = GROUP AGGR LegalEntity operator WHERE isOperatorEdi(operator) BY dataCodeOperatorEdi(operator);
+CONSTRAINT isOperatorEdi(LegalEntity le) AND NOT dataCodeOperatorEdi(le) MESSAGE 'Для оператора ЭДО ИД оператора должен быть заполнен';
+
+operatorEdi = DATA LegalEntity (LegalEntity);
+nameOperatorEdi 'Оператор ЭДО' (LegalEntity l) = name(operatorEdi(l)) CHARWIDTH 20 IN law;
+codeOperatorEdi 'ИД оператора ЭДО' (LegalEntity le) = dataCodeOperatorEdi(operatorEdi(le)); 
+
+CONSTRAINT SETCHANGED (operatorEdi(LegalEntity le)) AND NOT isOperatorEdi(operatorEdi(le)) CHECKED MESSAGE 'В качестве оператора ЭДО может быть выбрана только организация с соответствующим признаком';
+ 
 //participant id
-idEdi 'ИД участника документооборота' = DATA STRING[46] (LegalEntity) CHARWIDTH 46;
-legalEntityUpd (id) = GROUP AGGR LegalEntity legalEntity BY idEdi (legalEntity);
+idEdi 'ИД участника ЭДО' = DATA STRING[46] (LegalEntity) CHARWIDTH 46;
+legalEntityEdi 'Организация (ЭДО)' (STRING[46] id) = GROUP AGGR LegalEntity le BY idEdi(le);
 
 EXTEND FORM legalEntity
-    PROPERTIES (l) idEdi
+    PROPERTIES (l)  isOperatorEdi
+    PROPERTIES (l) SHOWIF isOperatorEdi(l) dataCodeOperatorEdi
+;
+
+EXTEND FORM legalEntities
+    PROPERTIES (l) READONLYIF isReadonly() isOperatorEdi, nameOperatorEdi, idEdi
+;
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) nameOperatorEdi SHOWIF isCustomer(l) OR isSupplier(l), idEdi SHOWIF operatorEdi(l)
 ;
 
 DESIGN legalEntity {
     column1 {
         NEW edo {            
             type = CONTAINERH;
-            NEW edo1{
-                type = CONTAINERH;
-                caption = 'ЭДО ИД';
-                MOVE PROPERTY(idEdi(l)){caption = 'ИД участника';}
-                MOVE PROPERTY(codeOperator(l)){caption = 'ИД оператора';}
-            }
-            NEW edo2{
-                caption = 'ЭДО Оператор';
-                MOVE PROPERTY(nameDocumentOperator(l)) {caption = 'Оператор';}    
-            }                       
+            MOVE PROPERTY(nameOperatorEdi(l));
+            MOVE PROPERTY(idEdi(l));
         }
     }
 }
-
-EXTEND FORM legalEntities
-    PROPERTIES (l) READONLY idEdi
-;
