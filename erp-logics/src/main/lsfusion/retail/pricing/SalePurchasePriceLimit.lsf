@@ -41,6 +41,49 @@ EXTEND FORM invoices
 
 // Имплементим для расчета оптимальной розничной цены
 
+
+overLimitBasePrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail);
+limitBasePrice(UserInvoiceDetail d) = OVERRIDE overLimitBasePrice(d), price(d);
+
+limitMarkupPrice (UserInvoiceDetail d) =
+                                           round(
+                                                [ (X+Y)*(Z+100.0)/100.0](
+                                                    limitBasePrice(d),
+                                                    purchaseLimitMarkup(d),
+                                                    valuePurchaseRetailVAT(d)), roundCondition(priceLimitPriceListType(customerStock(d)), sku(d)));
+
+limitPrice (UserInvoiceDetail detail) =
+                                       round(
+                                           [ X*(Y+100.0)*(Z+100.0)/10000.0](
+                                                    limitBasePrice(detail),
+                                                    purchaseLimitMarkup(detail),
+                                                    valuePurchaseRetailVAT(detail)), roundCondition(priceLimitPriceListType(customerStock(detail)), sku(detail)));
+
+WHEN LOCAL FORMS userInvoice GOAFTER purchaseRetailPrice[UserInvoiceDetail] 
+            (SETCHANGED(purchaseRetailPrice(UserInvoiceDetail d)) OR CHANGED(purchaseLimitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showPurchaseLimitPrice(d) AND purchaseLimitMarkup(d) > 0.3 AND purchaseLimitMarkup(d) <= 1 AND purchaseLimitMarkup(d) < purchaseRetailPrice(d) NOINLINE DO {
+    purchaseRetailPrice(d) <- purchaseLimitMarkup(d);
+    purchaseRetailMarkup(d) <- calcPurchaseRetailMarkup(d);
+}
+
+WHEN LOCAL FORMS userInvoice GOAFTER purchaseRetailPrice[UserInvoiceDetail] 
+            (SETCHANGED(purchaseRetailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(purchaseLimitMarkup(d))) 
+            AND showPurchaseLimitPrice(d) AND purchaseLimitMarkup(d) <= 0.3 NOINLINE DO {
+    IF limitMarkupPrice(d) < purchaseRetailPrice(d) THEN {
+        purchaseRetailPrice(d) <- limitMarkupPrice(d);
+        purchaseRetailMarkup(d) <- calcPurchaseRetailMarkup(d);
+    }
+}
+
+WHEN LOCAL FORMS userInvoice GOAFTER purchaseRetailPrice[UserInvoiceDetail] 
+            (SETCHANGED(purchaseRetailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(purchaseLimitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showPurchaseLimitPrice(d) AND purchaseLimitMarkup(d) > 1 NOINLINE DO {
+    IF limitPrice(d) < purchaseRetailPrice(d) THEN {
+        purchaseRetailPrice(d) <- limitPrice(d);
+        purchaseRetailMarkup(d) <- calcPurchaseRetailMarkup(d);
+    }
+}
+
 showLimitPrice(PurchaseInvoice invoice) += showPurchaseLimitPrice(invoice(invoice));
 limitMarkup(PurchaseInvoiceDetail detail) += purchaseLimitMarkup(invoiceDetail(detail));
 
