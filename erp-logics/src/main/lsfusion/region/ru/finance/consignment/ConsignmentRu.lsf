@@ -644,6 +644,8 @@ nameStatusAttrUpd 'Статус УПД' (Consignment c) = name(statusAttrUpd(c))
 dataNumberAttrUpd 'Номер' = DATA STRING[48] (Consignment) CHARWIDTH 7;
 numberAttrUpd 'Номер' (Consignment c) = OVERRIDE dataNumberAttrUpd(c), number(c);
 
+dateAttrUpd 'Дата' (Consignment consignment) = DATA DATE (Consignment);
+
 dataDescriptionContractAttrUpd 'Описание договора' = DATA STRING[50](Consignment) CHARWIDTH 30;
 descriptionContractAttrUpd 'Описание договора' (Consignment c) = OVERRIDE dataDescriptionContractAttrUpd(c), descriptionContract(c);
 
@@ -776,6 +778,12 @@ changeNumberAttrUpd(Consignment consignment)  {
     }  
 }
 
+changeDateAttrUpd(Consignment consignment) {    
+    INPUT dateAttrUpd = DATE DO {
+        dateAttrUpd(consignment) <- dateAttrUpd;
+    }  
+}
+
 changeManagerSupplierAttrUpd(Consignment consignment)  {    
     INPUT name = ISTRING[28] DO {
         dataManagerSupplierAttrUpd(consignment) <- name;
@@ -897,7 +905,7 @@ FORM consignmentUpd 'Универсальный передаточный док�
 
     PROPERTIES (c) fullNameSupplier, addressSupplier, INNSupplier, KPPSupplier,
                    fullNameCustomer, addressCustomer, INNCustomer, KPPCustomer,
-                   date, numberAttrUpd, 
+                   date, numberAttrUpd, dateAttrUpd,
                    descriptionContractAttrUpd,
                    transportationInfoAttrUpd,
                    //передача
@@ -936,7 +944,7 @@ printConsignmentUpd 'Универсальный передаточный док�
 FORM attributesUpd 'Атрибуты УПД'
     OBJECTS c=Consignment PANEL
 
-    PROPERTIES(c)  numberAttrUpd ON CHANGE changeNumberAttrUpd(c), nameStatusAttrUpd, 
+    PROPERTIES(c)  numberAttrUpd ON CHANGE changeNumberAttrUpd(c), dateAttrUpd ON CHANGE changeDateAttrUpd(c), nameStatusAttrUpd, 
                    descriptionContractAttrUpd ON CHANGE changeDescriptionContractAttrUpd(c),
                    managerSupplierAttrUpd, accountantSupplierAttrUpd, 
                    transportationInfoAttrUpd, otherInfoIssuanceAttrUpd, otherAcceptanceAttrUpd,
@@ -974,6 +982,7 @@ DESIGN attributesUpd {
                         NEW row1 {
                             type = CONTAINERH;
                             MOVE PROPERTY(numberAttrUpd(c));
+                            MOVE PROPERTY(dateAttrUpd(c));
                             MOVE PROPERTY(nameStatusAttrUpd(c));
                             MOVE PROPERTY(descriptionContractAttrUpd(c));                            
                         }
