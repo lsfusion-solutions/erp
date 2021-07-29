@@ -195,3 +195,63 @@ show 'Просмотреть' (UpdDocument d)  {
         SHOW updDocument OBJECTS u = d DOCKED READONLY;
     }
 }
+
+overNumberAttrUpd (Consignment c) += numberInvoice(updDocument(c));
+overDateAttrUpd (Consignment c) += dateInvoice(updDocument(c));
+
+selectUpdDocument(Consignment c) = select(updDocument(c));
+
+printConsignmentUpd 'Печать УПД'(UpdDocument u) {
+    IF NOT countSelectUpd() THEN {
+        select(UpdDocument updDocument) <- TRUE IF updDocument==u;
+    }       
+    
+    inPrint(Consignment c) <- selectUpdDocument(c); 
+    
+    PRINT consignmentUpd;
+    inPrint(invoice(u)) <- NULL; 
+    select(u) <- NULL; 
+}
+
+editAttributesUpd 'Заполнить атрибуты УПД'(UpdDocument u) {
+    editAttributesUpd(invoice(u));
+}
+
+EXTEND FORM updDocuments
+    PROPERTIES (u) editAttributesUpd, printConsignmentUpd
+;
+
+DESIGN updDocuments {
+    documentDetail {
+        NEW printContainer {
+            caption = 'Печать';
+            type = CONTAINERV;
+            NEW consignmentUPD{
+                align = START;
+                type = CONTAINERH;
+                
+                NEW contUPD {
+                    alignment = STRETCH;
+                    type = CONTAINERH;
+                    caption = 'УПД';
+                    MOVE PROPERTY(editAttributesUpd(u)) {
+                        alignment = STRETCH;
+                    }
+                }
+                
+                NEW upd {
+                    alignment = STRETCH;
+                    type = COLUMNS;
+                    columns = 3;
+                    caption = 'Отчеты';
+                    MOVE PROPERTY(printConsignmentUpd(u)) { alignment = STRETCH; }
+                }
+            }        
+        }
+        
+    }
+    PROPERTY(nameCustomer(u)) {
+        charWidth = 40;
+    }
+}
+
