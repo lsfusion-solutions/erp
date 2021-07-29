@@ -3,6 +3,7 @@ MODULE ConsignmentRu;
 REQUIRE System,
         LegalEntityRu,
         Stock,
+        Store,
         SkuRu,
         Barcode,
         Employee,
@@ -132,11 +133,19 @@ OKPOCustomer 'ОКПО получателя' (Consignment consignment) = OVERRID
     
 overAddressCustomer = ABSTRACT ISTRING[350] (Consignment);
 addressCustomer 'Юр. адрес получателя' (Consignment consignment) =
-    OVERRIDE overAddressCustomer(consignment), address(customer(consignment), date(consignment)) CHARWIDTH 30;      
+    OVERRIDE overAddressCustomer(consignment), address(customer(consignment), date(consignment)) CHARWIDTH 30;    
+    
+overAddressCustomerStock = ABSTRACT ISTRING[350] (Consignment);
+addressCustomerStock 'Юр. адрес склада получателя' (Consignment consignment) =
+    OVERRIDE overAddressCustomerStock(consignment), address(customerStock(consignment)) CHARWIDTH 30;   
     
 overNameCustomerStock (Consignment consignment) = ABSTRACT ISTRING[350] (Consignment);
 nameCustomerStock (Consignment consignment) =
      OVERRIDE overNameCustomerStock(consignment), name(customerStock(consignment)) CHARWIDTH 20;
+     
+overNameCustomerStore (Consignment consignment) = ABSTRACT ISTRING[350] (Consignment);
+nameCustomerStore (Consignment consignment) =
+     OVERRIDE overNameCustomerStore(consignment), nameStore(customerStock(consignment)) CHARWIDTH 20;
       
 overFullNameCustomer = ABSTRACT ISTRING[200] (Consignment);  
 extraFullNameCustomer = ABSTRACT ISTRING[200] (Consignment);  
@@ -637,8 +646,9 @@ showAttributes 'Просмотреть атрибуты накладной' (Con
 
 // атрибуты УПД
 statusUpd 'Статус УПД' = ABSTRACT StatusUpd (Consignment);
+overStatusUpd 'Статус УПД' = ABSTRACT StatusUpd (Consignment);
 dataStatusAttrUpd = DATA StatusUpd (Consignment);
-statusAttrUpd (Consignment c) = OVERRIDE dataStatusAttrUpd(c), statusUpd(c);
+statusAttrUpd (Consignment c) = OVERRIDE statusUpd(c), overStatusUpd(c), dataStatusAttrUpd(c);
 nameStatusAttrUpd 'Статус УПД' (Consignment c) = name(statusAttrUpd(c));
 
 dataNumberAttrUpd 'Номер' = DATA STRING[48] (Consignment) CHARWIDTH 7;
@@ -648,7 +658,6 @@ numberAttrUpd 'Номер' (Consignment c) = OVERRIDE overNumberAttrUpd(c), data
 dataDateAttrUpd 'Дата' (Consignment consignment) = DATA DATE (Consignment);
 overDateAttrUpd 'Дата' (Consignment consignment) = ABSTRACT DATE (Consignment);
 dateAttrUpd 'Номер' (Consignment c) = OVERRIDE overDateAttrUpd(c), dataDateAttrUpd(c);
-
 
 dataDescriptionContractAttrUpd 'Описание договора' = DATA STRING[50](Consignment) CHARWIDTH 30;
 descriptionContractAttrUpd 'Описание договора' (Consignment c) = OVERRIDE dataDescriptionContractAttrUpd(c), descriptionContract(c);
@@ -904,14 +913,21 @@ changePositionGoodsConsignmentAttrUpd(Consignment consignment) {
 inPrint 'Печать' = DATA LOCAL BOOLEAN (Consignment);
 countInPrint = GROUP SUM 1 IF inPrint(Consignment c);
 
+countDetail 'Кол-во позиций' (Consignment c) = GROUP SUM 1 IF consignment(ConsignmentDetail d) == c;
+
+numberAttrUpd (ConsignmentDetail d) = numberAttrUpd(consignment(d));
+dateAttrUpd (ConsignmentDetail d) = dateAttrUpd(consignment(d));
+
 FORM consignmentUpd 'Универсальный передаточный документ'
     OBJECTS c=Consignment 
 
     PROPERTIES (c) fullNameSupplier, addressSupplier, INNSupplier, KPPSupplier,
-                   fullNameCustomer, addressCustomer, INNCustomer, KPPCustomer,
+                   fullNameCustomer, addressCustomer, INNCustomer, KPPCustomer, nameCustomerStock, nameCustomerStore,
                    date, numberAttrUpd, dateAttrUpd,
                    descriptionContractAttrUpd,
                    transportationInfoAttrUpd,
+                   addressCustomerStock,
+                   
                    //передача
                    nameIssuanceExecutedAttrUpd, positionIssuanceExecutedAttrUpd, 
                    nameIssuanceResponsibleAttrUpd, positionIssuanceResponsibleAttrUpd, 
@@ -922,14 +938,17 @@ FORM consignmentUpd 'Универсальный передаточный док�
                    otherAcceptanceAttrUpd,
                    
                    nameCurrency, sidCurrency, nameStatusAttrUpd,
-                   managerSupplierAttrUpd, accountantSupplierAttrUpd
+                   managerSupplierAttrUpd, accountantSupplierAttrUpd, 
+                   
+                   countDetail
                    
     OBJECTS d=ConsignmentDetail  SUBREPORT    
     PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
                   quantity, 
                   grossWeight, 
                   price, sum, vat, sumVAT, sumConsignment,
-                  sidCountry, shortNameCountry
+                  sidCountry, shortNameCountry,
+                  numberAttrUpd, dateAttrUpd
         
     FILTERS inPrint(c),
             consignment(d) == c,

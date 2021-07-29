@@ -45,7 +45,12 @@ overFill ABSTRACT LIST (UpdDocument, Consignment);
 showMessage (UpdDocument) = DATA BOOLEAN (UpdDocument);
 
 overNameCustomerStock(Consignment c) += ISTRING[350] (CONCAT ', ', fullName(customer(c)), name(customerStock(c)));
-   
+overNameCustomerStore(Consignment c) += ISTRING[350] (CONCAT ', ', fullName(customer(c)), (OVERRIDE nameStore(customerStock(c)), name(customerStock(c))));
+overStatusUpd(Consignment c) += 
+    IF status(updDocument(c)) == UpdDocumentStatus.SHCF OR status(updDocument(c)) == UpdDocumentStatus.SHCFDOP 
+    THEN StatusUpd.one
+    ELSE IF status(updDocument(c)) == UpdDocumentStatus.DOP THEN StatusUpd.two;
+
 createUPD(Consignment invoice, UpdDocument ei) {
     invoice(ei) <- invoice;
     idConsignor(ei) <- idEdi(supplier(invoice));

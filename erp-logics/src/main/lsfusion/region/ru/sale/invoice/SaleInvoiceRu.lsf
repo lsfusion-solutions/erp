@@ -1,0 +1,23 @@
+MODULE SaleInvoiceRu;
+
+REQUIRE SaleInvoice, InvoiceVATRu, OperationRu;
+
+NAMESPACE Sale;
+
+statusUpd 'Статус УПД' = DATA StatusUpd(Invoice);
+nameStatusUpd 'Статус УПД' (Invoice i) = name(statusUpd(i)) IN documentPrm;
+
+WHEN SET (Invoice i IS Invoice) DO statusUpd(i) <- statusUpd(operation(i));
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) nameStatusUpd
+;
+
+DESIGN userInvoice {
+    headerExtraParams {
+        NEW statusUpd {
+            caption = 'УПД';
+            MOVE PROPERTY (nameStatusUpd(i));            
+        }
+    }
+}
