@@ -1402,8 +1402,8 @@ TABLE documentLog(DocumentLog);
 
 dataDisableDocumentLog 'Отключить запись лога документов' = DATA BOOLEAN ();
 overDisableDocumentLog = DATA LOCAL BOOLEAN ();
-disableDocumentLog 'Отключить запись лога документов' () = dataDisableDocumentLog() OR overDisableDocumentLog();
-enableDocumentLog = TRUE AND NOT disableDocumentLog();
+disableDocumentLog 'Отключить запись лога документов' () = dataDisableDocumentLog() OR overDisableDocumentLog() PREREAD;
+enableDocumentLog = NOT disableDocumentLog() PREREAD;
 
 EXTEND FORM options
     PROPERTIES() dataDisableDocumentLog
@@ -1460,7 +1460,7 @@ note 'Примечание' = DATA STRING[255] (DocumentLog) CHARWIDTH 30;
 
 file 'Файл' = DATA FILE (DocumentLog);
 openFile 'Открыть Файл' (DocumentLog l)  { open((file(l))); } TOOLBAR;
-showFile = enableDocumentLog() AND file(DocumentLog dLog);
+showFile = TRUE IF file(DocumentLog dLog);
 
 WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {
     NEW d = DocumentLog {
@@ -1739,14 +1739,14 @@ END
 META defineDocumentLogForm(form, concrete, container)
     EXTEND FORM form
         OBJECTS dLog=DocumentLog GRID
-        PROPERTIES(dLog) SHOWIF enableDocumentLog() READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
+        PROPERTIES(dLog) READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
                       hostnameComputer, userLogin, nameContact, dateSession, timeSession, nameTypeChange,
                       note
         PROPERTIES (dLog) openFile SHOWIF showFile(dLog)
         FILTERS documentId(dLog) == LONG(concrete)
 
         OBJECTS ddLog = DocumentDetailLog GRID
-        PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity, price, nameUser, date, time, note
+        PROPERTIES (ddLog) READONLY index, idSku, nameSku, quantity, price, nameUser, date, time, note
         FILTERS documentId(ddLog) == LONG(concrete)
     ;
     
@@ -1755,6 +1755,7 @@ META defineDocumentLogForm(form, concrete, container)
             NEW historyTabs {
                  fill = 1;
                  type = TABBED;
+                 showIf = enableDocumentLog();
                  NEW historyLog{
                     caption = 'По документу';
                     type = CONTAINERV;
