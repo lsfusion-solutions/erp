@@ -278,6 +278,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     } finally {
                         connectionSemaphore.remove(params.connectionString);
                     }
+                } else {
+                    astronLogger.error("semaphore transaction timeout", exception);
                 }
             }
         }
@@ -1344,7 +1346,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             if (params.connectionString != null && !stopListInfo.stopListItemMap.isEmpty()) {
                 Exception exception = waitConnectionSemaphore(params, timeout, true);
                 if((exception != null)) {
-                    throw new RuntimeException(exception);
+                    throw new RuntimeException("semaphore stopList timeout", exception);
                 } else {
                     try (Connection conn = getConnection(params)) {
                         String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
@@ -1480,10 +1482,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         }
 
                     } catch (Exception e) {
-                        astronLogger.error("exportTransaction error", e);
+                        astronLogger.error("deleteBarcode error", e);
                     } finally {
                         connectionSemaphore.remove(params.connectionString);
                     }
+                } else {
+                    astronLogger.error("deleteBarcode semaphore timeout", exception);
                 }
             }
 
