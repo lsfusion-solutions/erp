@@ -133,12 +133,13 @@ customUser = DATA CustomUser (QueryLog);
 nameCustomUser 'Пользователь' (QueryLog l) = name(customUser(l));
 dateTimeStart 'Время начала' = DATA DATETIME(QueryLog);
 dateTimeEnd 'Время окончания' = DATA DATETIME(QueryLog);
+size 'Размер ответа (МБ)' = DATA NUMERIC[12,3](QueryLog) CHARWIDTH 6;
 
 text 'Текст' = DATA TEXT (QueryLog);
 
 EXTEND FORM integrationData
     OBJECTS ql = QueryLog LAST
-    PROPERTIES(ql) READONLY nameCustomUser, dateTimeStart, dateTimeEnd, text PANEL
+    PROPERTIES(ql) READONLY nameCustomUser, dateTimeStart, dateTimeEnd, text PANEL, size
 ;
 DESIGN integrationData {
     druid {
@@ -149,14 +150,14 @@ DESIGN integrationData {
 }
 
 query(TEXT q)  { 
-    LOCAL startTime = DATETIME();
-    startTime() <- currentDateTime();
-
-	NEWSESSION NESTED (startTime) {
+    LOCAL NESTED currentLog = QueryLog();
+    LOCAL NESTED size = NUMERIC[12,3]();
+    
+	NEWSESSION {
 	    NEW l = QueryLog {
+	        currentLog() <- l;
 	        customUser(l) <- currentUser();
-	        dateTimeStart(l) <- startTime();
-	        dateTimeEnd(l) <- currentDateTime();
+	        dateTimeStart(l) <- currentDateTime();
 	        text(l) <- q;
 	    }
         APPLY;
@@ -170,7 +171,13 @@ query(TEXT q)  {
         logToFile('druid', CONCAT '\n', 'Ошибка при обращении к Druid', messageCaughtException(), resultString());
         throwException(CONCAT '\n', 'Ошибка при обращении к Druid', messageCaughtException(), resultString());
     }
-	
+    
+    size() <- length(queryResult())/1024/1024.0;
+    NEWSESSION {
+        size(currentLog()) <- size();
+        dateTimeEnd(currentLog()) <- currentDateTime();
+        APPLY;
+    }
 }
 // example : IMPORT JSON TO columns = columns FROM result();
 
