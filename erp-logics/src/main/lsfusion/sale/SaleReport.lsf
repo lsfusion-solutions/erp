@@ -443,13 +443,18 @@ calcEmailSupplier 'Отправить акт поставщику' (SaleReport r
     LOCAL bodyFile = FILE ();
     PRINT messageSaleReports OBJECTS s=report HTML TO bodyFile;
     
-    EMAIL
-    FROM OVERRIDE email(createdUser(report)) IF NOT notUseUserEmail(), fromEmailOrders()
-    SUBJECT 'Акт реализации по ' + (OVERRIDE ('магазину ' + nameCompanyStock(report)), ('организации ' + nameCompany(report))) + ' за период с '  + fromDate(report)+ ' по ' + toDate(report)
-    TO email(supplier(report))
-    BODY bodyFile()
-    ATTACH file() 
-           NAME number(report) + '/' + fromDate(report)+ '/' + toDate(report);// без кирилицы должно быть         
+    TRY {
+        EMAIL
+        FROM OVERRIDE email(createdUser(report)) IF NOT notUseUserEmail(), fromEmailOrders()
+        SUBJECT 'Акт реализации по ' + (OVERRIDE ('магазину ' + nameCompanyStock(report)), ('организации ' + nameCompany(report))) + ' за период с '  + fromDate(report)+ ' по ' + toDate(report)
+        TO email(supplier(report))
+        BODY bodyFile()
+        ATTACH file() 
+               NAME number(report) + '/' + fromDate(report)+ '/' + toDate(report);// без кирилицы должно быть         
+    } CATCH {
+        MESSAGE CONCAT ' ', 'Ошибка при отправке акта реализации на адрес ', email(supplier(report)), ' поставщику ', name(supplier(report)), ' : ', messageCaughtException();
+        isSent(report) <- NULL;
+    }
 }
     
 emailSupplierSingle  'Отправить акт поставщику' (SaleReport report) { 
