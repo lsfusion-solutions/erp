@@ -156,8 +156,11 @@ META defineInvoicePricingAggregationSum(concrete, concreteClass, sign, captionPr
     // -- Суммы по строкам
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, pricingSum, 'Сумма поставщика');
-    sum(###concrete##PricingDetail pricingDetail) += NUMERIC[18,4](OVERRIDE round(overPrice(pricingDetail)*quantity(pricingDetail), homePriceRound(concrete##Detail(pricingDetail))) IF pricingDetail IS concreteClass###PricingDetail,
-            pricingSum(pricingDetail));
+    overSum = ABSTRACT VALUE NUMERIC[18,4](###concrete##PricingDetail);
+    overSum(###concrete##PricingDetail pricingDetail) += pricingSum(pricingDetail);
+    overSum(###concrete##PricingDetail pricingDetail) += NUMERIC[18,4](round(overPrice(pricingDetail)*quantity(pricingDetail), homePriceRound(concrete##Detail(pricingDetail))));
+       
+    sum(###concrete##PricingDetail pricingDetail) += overSum(pricingDetail);
 
     @defineDocumentAggregationDetailProperty (invoice, concrete###pricing, retailMarkupSum, 'Сумма надбавки');
     retailMarkupSum(###concrete##PricingDetail pricingDetail) += retailMarkupSum(pricingDetail);
