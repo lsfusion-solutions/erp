@@ -330,20 +330,21 @@ transfered 'Дата/время отправки' = DATA DATETIME (UpdDocument);
 isTransfered 'Отправлен' (UpdDocument u) = u IS UpdDocument AND transfered(u);
 
 uuid 'UUID' = DATA ISTRING[36] (UpdDocument);
-idFile 'ИдФайл' (UpdDocument d) = STRING[255](CONCAT '_', 'ON_NSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
+idFile 'ИдФайл' (UpdDocument d) = 
+    STRING[255](CONCAT '_', 'ON_NSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
 
 generateIdFile (UpdDocument d) {
     IF NOT uuid(d) THEN NEWSESSION {
         generateUUID();
         uuid(d) <- ISTRING[36](generatedUUID());
-        APPLY;    
+        APPLY;
     }
 }
 
 FORM updDocument 'Универсальный передаточный документ'
     OBJECTS u=UpdDocument PANEL
 
-    PROPERTIES (u) idFile, idConsignor, idConsignee, nameStatus, businessNameDocument, supplierNameDocument
+    PROPERTIES (u) uuid, idFile, idConsignor, idConsignee, nameStatus, businessNameDocument, supplierNameDocument
     PROPERTIES (u) nameOperatorConsignor, innOperatorConsignor, codeOperatorConsignor
                 
     PROPERTIES (u) nameSupplier, innSupplier, kppSupplier, okpoSupplier, nameOriginatorSupplier
@@ -722,6 +723,7 @@ DESIGN updDocument {
                         caption = 'ИД';
                         fill = 1;
                         type = CONTAINERV;
+                        MOVE PROPERTY(uuid(u));
                         MOVE PROPERTY(idFile(u));
                         MOVE PROPERTY(idConsignor(u));
                         MOVE PROPERTY(idConsignee(u));
@@ -1038,8 +1040,8 @@ DESIGN options{
 
 exportUpdDocument 'Экспорт (xml)' (UpdDocument d){    
     generateIdFile(d);
-    inReport(UpdDocument g)<- TRUE IF g==d;    
-    EXPORT UPDPR XML  CHARSET 'windows-1251' TO xmlFile;
+    inReport(UpdDocument g) <- TRUE IF g==d;    
+    EXPORT UPDPR XML CHARSET 'windows-1251' TO xmlFile;
     //open(xmlFile());    
 } TOOLBAR;
 checkExportUpdDocument 'Проверка по схеме (xml)' (UpdDocument d){
@@ -1109,8 +1111,12 @@ DESIGN updDocuments {
                 NEW export {
                     caption = 'Экспорт';
                     type = CONTAINERH;
-                    MOVE PROPERTY(checkExportUpdDocument(u));           
-                    MOVE PROPERTY(checkAndExportUpdDocument(u));                                     
+                    NEW baseExport {
+                        caption = 'Выгрузка';
+                        type = CONTAINERV;
+                        MOVE PROPERTY(checkExportUpdDocument(u));           
+                        MOVE PROPERTY(checkAndExportUpdDocument(u));   
+                    }                                  
                 }
 
             }
