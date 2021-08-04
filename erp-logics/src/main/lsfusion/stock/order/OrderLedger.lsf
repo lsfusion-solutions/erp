@@ -213,13 +213,18 @@ reserveA 'Резерв (после)' (Batch batch, Stock stock, DATETIME dateTim
 prevReserveB 'Резерв (до)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(reserveB(batch, stock, dateTime)) CHARWIDTH 7;
 
 // ----------------------- Доступное к-во -------------------------- //
-availableQuantity 'Доступное к-во (всего)' (Sku sku, Stock stock) = currentBalance(sku, stock) (+) currentReserve(sku, stock) CHARWIDTH 7;
+extraReserve 'Дополнительный резерв' = ABSTRACT VALUE NUMERIC[16,5] (Sku, Stock);
+prevExtraReserve (Sku sku, Stock stock) = PREV(extraReserve(sku, stock));
+
+availableQuantity 'Доступное к-во (всего)' (Sku sku, Stock stock) = currentBalance(sku, stock) (+) currentReserve(sku, stock) (-) extraReserve(sku, stock) CHARWIDTH 7;
 availableQuantity 'Доступное к-во (всего)' (Batch batch, Stock stock) = currentBalance(batch, stock) (+) currentReserve(batch, stock) CHARWIDTH 7;
 
 prevAvailableQuantity 'Доступное к-во (всего)' (Sku sku, Stock stock) = prevCurrentBalance(sku, stock) (+) prevCurrentReserve(sku, stock) CHARWIDTH 7;
 prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, Stock stock) = prevCurrentBalance(batch, stock) (+) prevCurrentReserve(batch, stock) CHARWIDTH 7;
 
-prevAvailableQuantity 'Доступное к-во' (Sku sku, Stock stock, DATETIME dateTime) = (prevCurrentBalance(sku, stock) IF dateTime IS DATETIME) (+) prevReserveB(sku, stock, dateTime) CHARWIDTH 7;
+prevAvailableQuantity 'Доступное к-во' (Sku sku, Stock stock, DATETIME dateTime) = 
+    ((prevCurrentBalance(sku, stock) (-) prevExtraReserve(sku, stock)) IF dateTime IS DATETIME) (+) 
+     prevReserveB(sku, stock, dateTime) CHARWIDTH 7;
 prevAvailableQuantity 'Доступное к-во' (Batch batch, Stock stock, DATETIME dateTime) = (prevCurrentBalance(batch, stock) IF dateTime IS DATETIME) (+) prevReserveB(batch, stock, dateTime) CHARWIDTH 7;
 
 //---------------------------------------------- Формы продаж -------------------------------------//
@@ -373,13 +378,17 @@ FORM orderSkuLedger 'Резерв по позициям на дату'
 DESIGN orderSkuLedger {
     BOX {
         type = CONTAINERV;
-        NEW row{
+        NEW row {
             type = CONTAINERH;
             MOVE BOX(t);            
             MOVE BOX(sk);
             MOVE BOX(st);
         }
-        MOVE BOX(s);
+        NEW pane {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(s);            
+        }
     }
     MOVE TOOLBARBOX;
 }

@@ -1,0 +1,174 @@
+MODULE ZoneLedger;
+
+REQUIRE Zone, Stock, Sku, Barcode, Operation;
+
+NAMESPACE Zone;
+
+CLASS ABSTRACT ZoneLedger 'Изменение остатка по зоне';
+TABLE zoneLedger (ZoneLedger);
+
+dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (ZoneLedger) MATERIALIZED INDEXED;
+date 'Дата' (ZoneLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED;
+
+number 'Номер' (ledger) = ABSTRACT STRING[48] (ZoneLedger) MATERIALIZED CHARWIDTH 10;
+
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (ZoneLedger) MATERIALIZED;
+skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (ZoneLedger) MATERIALIZED; 
+active (ZoneLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
+
+sku (ledger) = ABSTRACT Sku (ZoneLedger) MATERIALIZED INDEXED;
+nameSku 'SKU' (ZoneLedger ledger) = name(sku(ledger));
+idBarcodeSku 'Штрихкод' (ZoneLedger l) = idBarcode(sku(l));
+
+canonicalNameSkuGroup 'Группа (полная)' (ZoneLedger ledger) = canonicalName(skuGroup(sku(ledger)));
+
+stock (ledger) = ABSTRACT Stock (ZoneLedger) MATERIALIZED INDEXED;
+idStock 'Склад' (ZoneLedger ledger) = id(stock(ledger));
+nameStock 'Склад' (ZoneLedger ledger) = name(stock(ledger));
+
+operation (ledger) = ABSTRACT Operation.Operation (ZoneLedger) MATERIALIZED;
+nameOperation 'Операция' (ZoneLedger ledger) = name(operation (ledger));
+
+description 'Название документа' (ledger) = ABSTRACT STRING[200] (ZoneLedger) MATERIALIZED CHARWIDTH 20;
+
+quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (ZoneLedger) MATERIALIZED;
+
+fromZone (ledger) = ABSTRACT Zone (ZoneLedger) MATERIALIZED;
+nameFromZone 'Зона с' (ZoneLedger ledger) = staticCaption(fromZone(ledger));
+
+INDEX fromZone(ZoneLedger l), stock(l), sku(l), dateTime(l);
+
+toZone (ledger) = ABSTRACT Zone (ZoneLedger) MATERIALIZED INDEXED;
+nameToZone 'Зона на' (ZoneLedger ledger) = staticCaption(toZone(ledger));
+
+INDEX toZone(ZoneLedger l), stock(l), sku(l), dateTime(l);
+
+quantityZoneLedgerFrom (st, fz ,s) = 
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) BY stock(d), fromZone(d), sku(d);
+quantityZoneLedgerTo (st, tz, s) = 
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) BY stock(d), toZone(d), sku(d);    
+
+TABLE stockZoneSku(Stock, Zone, Sku);
+currentBalance 'Текущий остаток' (Stock st, Zone z, Sku s) =  quantityZoneLedgerTo(st,z,s) (-) quantityZoneLedgerFrom(st,z,s) MATERIALIZED;
+prevCurrentBalance(Stock st, Zone z, Sku s)= PREV(currentBalance(st, z, s));
+   
+currentBalanceDefectZone 'Зона брака (текущий остаток)' (Stock st, Sku s) = currentBalance(st, Zone.defect, s);    
+currentBalanceReturnZone 'Зона возврата (текущий остаток)' (Stock st, Sku s) = currentBalance(st, Zone.return, s);  
+currentBalanceDiffZone 'Зона расхождения (текущий остаток)' (Stock st, Sku s) = currentBalance(st, Zone.diff, s);  
+
+currentBalanceZones 'Текущий остаток в зонах' (Stock st, Sku s) = GROUP SUM currentBalance(st, Zone z, s);
+
+prevCurrentBalanceDefectZone 'Зона брака (текущий остаток)'(Stock st, Sku s)= PREV(currentBalanceDefectZone(st, s));
+prevCurrentBalanceReturnZone 'Зона возврата (текущий остаток)'(Stock st, Sku s)= PREV(currentBalanceReturnZone(st, s));
+prevCurrentBalanceDiffZone 'Зона расхождения (текущий остаток)'(Stock st, Sku s)= PREV(currentBalanceDiffZone(st, s));
+prevCurrentBalanceZones 'Текущий остаток' (Stock st, Sku s)= GROUP SUM prevCurrentBalance(st, Zone z, s);
+
+overCurrentBalance 'Остаток без зон' (Sku s, Stock st) = currentBalance(s, st) (-) (currentBalanceZones(st, s) IF currentBalanceZones(st, s) > 0);
+overPrevCurrentBalance 'Остаток без зон' (Sku s, Stock st) = prevCurrentBalance(s, st) (-) (prevCurrentBalanceZones(st, s) IF prevCurrentBalanceZones(st, s) > 0);
+
+//-- расчет на дату
+quantityZoneLedgerFromB (Zone z, Stock st, Sku s, DATETIME dt) = 
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) AND dateTime(d) >= dt BY fromZone(d), stock(d), sku(d);
+
+quantityZoneLedgerToB (Zone z, Stock st, Sku s, DATETIME dt) = 
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) AND dateTime(d) >= dt BY toZone(d), stock(d), sku(d);
+    
+signedQuantityB (Zone z, Stock st, Sku s, DATETIME dt) = 
+    quantityZoneLedgerToB(z, st, s, dt) (-) quantityZoneLedgerFromB(z, st, s, dt);  
+
+balanceB 'Остаток на начало дня' (Stock st, Zone z, Sku s, DATE date) = 
+    currentBalance(st, z, s) (-) signedQuantityB(z, st, s, DATETIME(date));
+prevBalanceB 'Остаток на начало дня' (Stock st, Zone z, Sku s, DATE date) = PREV(balanceB(st, z, s, date));
+
+balanceA 'Остаток на конец дня' (Stock st, Zone z, Sku s, DATE date) = 
+    currentBalance(st,z,s) (-) signedQuantityB(z, st, s, DATETIME(sum(date, 1)));
+prevBalanceA 'Остаток на конец дня' (Stock st, Zone z, Sku s, DATE date) = PREV(balanceA(st, z, s, date));
+
+//-- расчет на дату/время
+balanceB 'Остаток на начало' (Stock st, Zone z, Sku s, DATETIME dateTime) = 
+    currentBalance(st, z, s) (-) signedQuantityB(z, st, s, dateTime);
+prevBalanceB 'Остаток на начало' (Stock st, Zone z, Sku s, DATETIME dateTime) = PREV(balanceB(st, z, s, dateTime)); 
+   
+// form
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES (s, st) READONLY overCurrentBalance
+                                
+    PROPERTIES (st, s) READONLY currentBalanceDefectZone, 
+                                currentBalanceReturnZone,
+                                currentBalanceDiffZone
+;
+
+FORM zoneLedger 'Регистр движения по зонам'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
+
+
+    OBJECTS s = ZoneLedger
+    PROPERTIES(s) READONLY dateTime, nameStock, nameFromZone, nameToZone,                          
+                           canonicalNameSkuGroup, nameSku, idBarcodeSku, description, number,
+                           quantity
+    PROPERTIES(s) NEWSESSION EDIT
+    ORDERS dateTime(s)
+    
+    FILTERS active(s),
+            dateTime(s) >= DATETIME(dFrom), dateTime(s) < DATETIME(sum(dTo, 1))
+    
+;
+
+@extendFormFilterAccessStock(ZoneLedger, s, zoneLedger, stock, company);
+
+NAVIGATOR {
+    zoneNavigator  {
+        NEW zoneLedger;
+    }
+}
+
+// meta
+META implementZoneLedger(concrete, stockProp, NS)
+    EXTEND CLASS concrete##Detail : ZoneLedger;
+
+    dateTime (concrete##Detail ledger) += NS.dateTime(ledger);
+    number (concrete##Detail ledger) += NS.number(ledger);
+    isPosted (concrete##Detail ledger) += NS.isPosted(ledger);
+    sku (concrete##Detail ledger) += NS.sku(ledger);
+    stock (concrete##Detail ledger) += NS.stockProp(ledger);
+    description (concrete##Detail ledger) += NS.description(ledger);
+END
+
+META extendFormZoneLedger (form, skuObject, stockObject, container)
+
+    EXTEND FORM form
+        OBJECTS z = Zone
+        PROPERTIES READONLY name(z), currentBalance(stockObject, z, skuObject)
+        FILTERGROUP zoneBalance
+            FILTER 'С остатком' currentBalance(stockObject, z, skuObject) DEFAULT
+    
+        OBJECTS zl = ZoneLedger
+        PROPERTIES(zl) READONLY dateTime, nameFromZone, nameToZone,                          
+                               description, number, quantity
+        PROPERTIES(zl) NEWSESSION EDIT
+        ORDERS dateTime(zl) DESC
+        
+        FILTERS active(zl),
+                sku(zl) = skuObject,
+                stock(zl) = stockObject
+    
+        FILTERGROUP zoneFilter
+            FILTER 'По зоне' fromZone(zl) = z OR toZone(zl) = z DEFAULT
+    ;
+                                           
+    DESIGN form {
+        container {
+            NEW zoneContainer {
+                caption = 'Зоны';
+                type = SPLITH;
+                MOVE BOX(z);            
+                MOVE BOX(zl) { fill = 2; }
+            }
+        }
+    }
+
+END
+
+@extendFormZoneLedger(currentBalanceSkuStock, s, st, ledgerBox);

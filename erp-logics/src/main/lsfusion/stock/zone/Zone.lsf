@@ -1,0 +1,59 @@
+MODULE Zone;
+
+REQUIRE Stock;
+
+CLASS Zone 'Зона хранения' {
+    defect 'Зона брака',
+    return 'Зона возврата',
+    diff 'Зона расхождения' 
+}
+TABLE zone (Zone);
+
+dataName = DATA BPISTRING[100] (Zone);
+
+name 'Наименование' (Zone z) = OVERRIDE dataName(z), staticCaption(z) CHARWIDTH 12; 
+
+FORM zone 'Зона хранения'
+    OBJECTS z = Zone PANEL
+    PROPERTIES(z) name
+    EDIT Zone OBJECT z
+;
+
+FORM zones 'Зоны хранения'    
+    OBJECTS z = Zone
+    PROPERTIES(z) READONLY name 
+    PROPERTIES(z) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST Zone OBJECT z      
+;
+
+// reason
+
+CLASS Reason 'Причина перемещения';
+TABLE reason (Reason);
+
+name 'Наименование' = DATA ISTRING[50](Reason);
+
+FORM reason 'Причина перемещения'
+    OBJECTS r = Reason PANEL
+    PROPERTIES(r) name
+
+    EDIT Reason OBJECT r
+;
+
+FORM reasons 'Причины перемещения'
+    OBJECTS r = Reason
+    PROPERTIES(r) READONLY name
+    PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE 
+
+    LIST Reason OBJECT r
+;
+
+NAVIGATOR {
+    stockNavigator {
+        NEW FOLDER zoneNavigator 'Зоны хранения' BEFORE stockReports {
+            NEW zones;
+            NEW reasons;
+        }
+    }
+}

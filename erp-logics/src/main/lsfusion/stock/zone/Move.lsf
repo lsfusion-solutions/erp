@@ -1,0 +1,301 @@
+MODULE Move;
+
+REQUIRE Zone, StockSkuDocument, PurchaseLedger, ZoneLedger;
+
+NAMESPACE Zone;
+
+CLASS Move 'Перемещение';
+CLASS MoveDetail 'Строка перемещения';
+
+// header
+@defineDocument(move);
+@deriveDocumentHeaderTimePrefix(Move, );
+
+@defineDocumentHeaderNumber(Move, BPSTRING[2]);
+@defineNumeratedDefault(Move, 'Перемещение', 'ПП');
+
+@defineDocumentPosted(move);
+@defineDocumentClosed(move);
+@defineDocumentDescription(move, 'Перемещение');
+
+@defineDocumentDataStock (move, stock, 'Склад', );
+@defineDocumentDialogStocks(move, stock, company, , );
+
+fromZone = DATA Zone(Move);
+nameFromZone 'Зона с' (Move move) = name(fromZone(move)) IN documentHeader CHARWIDTH 15;
+                                                                 
+toZone = DATA Zone(Move);
+nameToZone 'Зона на' (Move move) = name(toZone(move)) IN documentHeader CHARWIDTH 15;  
+
+reason = DATA Reason(Move);
+nameReason 'Причина перемещения' (Move move) = name(reason(move)) IN documentPrm CHARWIDTH 20;  
+
+// detail
+@defineDocumentDetailNumber(move, MoveDetail);
+
+@defineDocumentDetailSkuPrefix (move, sku, , );
+@defineDocumentDetailQuantityCustomPrefix (moveDetail, , );
+@defineDocumentHeaderQuantityCustomPrefix(move, moveDetail, , );
+                                                                  
+CONSTRAINT isPosted(Move m) AND NOT (fromZone(m) OR toZone(m))     
+    MESSAGE 'Для документа Перемещения должна быть задана минимум одна зона.';   
+
+@defineAddDetailDialogSkuStock(move, sku, stock, dialogSku);
+@defineAddDetailDialogBarcode(move, sku);
+
+fromZone (MoveDetail idetail) = fromZone(move(idetail)) MATERIALIZED;
+toZone (MoveDetail idetail) = toZone(move(idetail)) MATERIALIZED;
+
+overCopy ABSTRACT (MoveDetail, MoveDetail);
+copy 'Копировать' (MoveDetail from)  { 
+    NEW to = MoveDetail {
+        move(to) <- move(from);
+        sku(to) <- sku(from);
+        quantity(to) <- quantity(from);
+        overCopy(to, from);
+    }
+} TOOLBAR;
+
+// move
+
+FORM move 'Перемещение между зонами'
+    OBJECTS m = Move PANEL
+
+    PROPERTIES(m) isPosted, nameStock ON CHANGE changeStockCompany(m), nameFromZone, nameToZone,
+                  nameNumerator, number, series, date, time,  
+                  note, nameReason,
+                  quantityMoveDetail
+
+    OBJECTS d = MoveDetail
+    PROPERTIES(d) index, idBarcodeSku, nameSku, shortNameUOMSku, quantity  
+    PROPERTIES(d) NEW, deletedd = DELETE GRID
+    FILTERS move(d) = m
+
+    PROPERTIES(m) DRAW d addDetailDialogSkuStockMoveDetail, addDetailInputBarcodeMoveDetail, deleteMoveDetail
+    PROPERTIES(d) copy
+
+    EVENTS
+        ON OK prePost(m)
+
+    EDIT Move OBJECT m
+;
+
+DESIGN move {
+    OBJECTS {
+        NEW mainTabbed {
+            fill = 1;
+            type = TABBED;
+            NEW documentBox {
+                fill = 1;
+                type = CONTAINERV;
+                caption = 'Перемещение';
+
+                NEW headerBox {
+                    type = CONTAINERH;
+        
+                    NEW headerRow1 {
+                        fill = 1;
+                        MOVE GROUP(documentHeader,m) {
+                            type = CONTAINERV;
+                            NEW doc1 {
+                                type = CONTAINERH;
+                                MOVE PROPERTY(isPosted(m)) { charWidth = 10; }
+                                MOVE PROPERTY(nameStock(m));
+                                MOVE PROPERTY(nameFromZone(m));
+                                MOVE PROPERTY(nameToZone(m));                    
+                            }
+                            NEW doc2 {
+                                type = CONTAINERH;
+                                MOVE PROPERTY(nameNumerator(m));
+                                MOVE PROPERTY(number(m));
+                                MOVE PROPERTY(series(m));
+                                MOVE PROPERTY(date(m));
+                                MOVE PROPERTY(time(m));                
+                            }                   
+                        }
+        
+                        NEW headerTabbedPane {
+                            alignment = STRETCH;
+                            type = TABBED;
+                            NEW headerMainParams {
+                                caption = 'Основные параметры';
+                                MOVE GROUP(documentPrm,m) {
+                                    type = COLUMNS;
+                                    columns = 3;
+                                }
+                            }
+                            NEW headerExtraParams {
+                                caption = 'Дополнительные параметры';
+                            }
+                            NEW headerCreateDetail {
+                                caption = 'Основание';
+                            }
+                            NEW headerCreateDocuments {
+                                caption = 'Производные документы';
+                            }
+                        }
+                    }
+        
+                    MOVE GROUP(documentSum,m) {
+                        columns = 1;
+                    }
+                }
+                NEW specificationBox {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                    }
+                }
+            }
+        }
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+    }
+}
+
+edit(MoveDetail d) + { DIALOG move OBJECTS m = move(d), d = d DOCKED; }
+
+@defineDocumentSkuStockPriceListTypeSystemLedger(move, );
+@extendFormDocumentSkuStock(move, move, m, legalEntityStock, );
+
+@defineDocumentSkuStockSupplier (move, move, m);
+
+EXTEND FORM move
+    FILTERGROUP balance 
+        FILTER 'С остатком' (fromZone(m) AND prevCurrentBalance(st, fromZone(m), ks)) OR 
+                            (prevCurrentBalance(ks, st) AND NOT fromZone(m)) 'F5' DEFAULT 
+;
+
+// moves
+filterMoveDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterMoveDateTo 'Дата по' = DATA LOCAL DATE ();
+
+filterMoveCustomUser  = DATA LOCAL CustomUser ();
+nameFilterMoveCustomUser 'Создан пользователем' = name[Contact](filterMoveCustomUser()) CHARWIDTH 15;          
+    
+FORM moves 'Перемещения между зонами'
+
+    PROPERTIES() filterMoveDateFrom, filterMoveDateTo, nameFilterMoveCustomUser
+    
+    OBJECTS m = Move
+    PROPERTIES(m) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, 
+                                           nameStock, nameFromZone, nameToZone, nameReason
+    PROPERTIES(m) READONLY countMoveDetail, quantityMoveDetail, createdName = createdNameUser
+    PROPERTIES(m) READONLYIF isReadonly() note
+
+    PROPERTIES(m) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                 postedNameUser, postedTime, postedHostnameComputer
+
+    PROPERTIES(m) NEWSESSION NEW, EDIT SHOWIF isOpened(m)
+    PROPERTIES(m) close SHOWIF isOpened(m), open SHOWIF isClosed(m)     
+    
+    PROPERTIES(m) NEWSESSION deleted = DELETE SHOWIF isOpened(m)
+
+    OBJECTS d = MoveDetail
+    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch, quantity  
+
+    FILTERS move(d) == m,
+            date(m) >= filterMoveDateFrom() OR NOT filterMoveDateFrom(),
+            date(m) <= filterMoveDateTo() OR NOT filterMoveDateTo(),
+            createdUser(m) = filterMoveCustomUser() OR NOT filterMoveCustomUser();
+;
+@extendFormFilterAccessStock(Move, m, moves, stock, company);
+
+DESIGN moves {
+    OBJECTS {
+        NEW filter {
+            caption = 'Фильтры';
+            type = CONTAINERH;
+            MOVE PROPERTY (filterMoveDateFrom());
+            MOVE PROPERTY (filterMoveDateTo());
+            MOVE PROPERTY (nameFilterMoveCustomUser());
+        }
+        NEW documentContainer  {
+            fill = 1;
+            type = SPLITV;
+
+            MOVE BOX(m) {
+                fill = 2;
+            }
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE BOX(d) {
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    MOVE GROUP(created,m);
+                    MOVE GROUP(posted,m);
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                }
+            }
+        }
+    }
+}
+
+@extendFormEditable(moves);
+
+@defineFilterIsOpened (move, moves, m);
+NAVIGATOR {
+    zoneNavigator {
+        NEW moves;
+    }
+}
+
+// implement document
+
+EXTEND CLASS Move : Document;
+isClosed(Move move) += isClosed(move);
+isPosted(Move move) += isPosted(move);
+
+number(Move move) += number(move);
+series(Move move) += series(move);
+date(Move move) += date(move);
+
+supplierStock(Move move) += stock(move);
+
+EXTEND CLASS MoveDetail : DocumentDetail;
+document(MoveDetail detail) += move(detail);
+
+Stock.index(MoveDetail detail) += index(detail);
+Stock.sku(MoveDetail detail) += sku(detail);
+Stock.quantity(MoveDetail detail) += quantity(detail);
+
+overFillDocument  ABSTRACT LIST ( MoveDetail, DocumentDetail); 
+fillDocument 'Подбор документа' (Move move)  { 
+    DIALOG documents DO {
+        FOR inSession(document(DocumentDetail documentDetail)) NEW i = MoveDetail DO {
+            move(i) <- move;
+            sku(i) <- sku(documentDetail);
+            quantity(i) <- quantity(documentDetail);
+            price(i) <- price(documentDetail) WHERE fillPriceDocuments();
+            overFillDocument(i, documentDetail);
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM move
+    PROPERTIES(m) DRAW d fillDocument
+;
+
+@implementDocumentForm(move, mv, 'Перемещение между зонами');
+
+// implement zone ledger
+@implementZoneLedger(Move, stock, Zone); 
+quantity(MoveDetail l) += quantity(l);                                          
+fromZone(MoveDetail l) += fromZone(l);   
+toZone(MoveDetail l) += toZone(l);         

@@ -1,0 +1,16 @@
+MODULE ZoneOrderLedger;
+
+REQUIRE ZoneLedger, OrderLedger;
+
+NAMESPACE Zone;
+
+skipChangeAvailable 'Не изменять доступное количество' = DATA BOOLEAN (Zone);
+EXTEND FORM zone
+    PROPERTIES(z) skipChangeAvailable
+;
+
+extraReserveZones 'Текущий остаток в зонах' (Sku sk, Stock st) = GROUP SUM currentBalance(st, Zone z, sk) IF NOT skipChangeAvailable(z) MATERIALIZED;
+
+extraReserve(Sku sk, Stock st) += extraReserveZones(sk, st);
+
+@extendFormZoneLedger(orderSkuLedger, sk, st, pane);
