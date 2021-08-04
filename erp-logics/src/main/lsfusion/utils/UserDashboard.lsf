@@ -1,0 +1,388 @@
+MODULE UserDashboard;
+
+REQUIRE Security, Hierarchy, Service, MasterData;
+
+// image
+encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\r]+\', \' \', \'g\' )';
+
+firstBytes (IMAGEFILE f) = ISTRING[4](encode(f, 'hex'));
+
+@defineStaticObject(imageType, );
+EXTEND CLASS ImageType {
+    png 'data:image/png',
+    bmp 'data:image/bmp',
+    jpg 'data:image/jpeg'
+};
+
+imageType (IMAGEFILE f) = CASE
+                            WHEN firstBytes(f) = '8950' THEN ImageType.png
+                            WHEN firstBytes(f) = '424D' THEN ImageType.bmp
+                            ELSE ImageType.jpg IF f IS IMAGEFILE;
+;
+
+imageHtml (IMAGEFILE f, STRING style, STRING width, STRING height) = CONCAT ' ', '<img', 'style = "' + style +'"', 'width='+width,'height=' + height, 'src="' + name(imageType(f)) + ';base64, ' + encodeBase64(f) + '" alt="Image" />';
+imageHtml (IMAGEFILE f) = imageHtml(f, 'padding:2px', '' IF NOT f, '25px'); 
+
+// navigator elements
+FORM navigatorActions 'Навигатор'
+    
+    TREE folder nf = NavigatorFolder PARENT parent(nf)
+    PROPERTIES (nf) caption
+    
+    OBJECTS na = NavigatorAction
+    PROPERTIES (na) READONLY canonicalName, caption
+    FILTERS level(na, nf)
+    
+    LIST NavigatorAction OBJECT na
+;
+
+DESIGN navigatorActions {
+    OBJECTS {
+        NEW splitPane {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX (TREE folder) { fill = 0.3; }
+            MOVE BOX (na) { fill = 0.7; }
+        }
+    }
+}
+
+// local resources
+favFile = DATA LOCAL IMAGEFILE ();
+folder = DATA LOCAL IMAGEFILE ();
+upFolder = DATA LOCAL IMAGEFILE ();
+
+loadResources () {
+    readResource('images/blue/favFile.png');
+    favFile() <- IMAGEFILE (resourceFile());
+    readResource('images/blue/folder.png');
+    folder() <- IMAGEFILE (resourceFile());
+    readResource('images/blue/upFolder.png');
+    upFolder() <- IMAGEFILE (resourceFile());
+}
+
+CLASS ABSTRACT DashboardNode 'Элемент рабочего стола';
+TABLE dashboardNode (DashboardNode);
+
+parent 'Родитель' = ABSTRACT InterfaceNode (DashboardNode);
+name 'Наименование' = ABSTRACT ISTRING(DashboardNode);
+order 'Порядок' = ABSTRACT INTEGER (DashboardNode);
+image 'Картинка' = ABSTRACT IMAGEFILE (DashboardNode);
+
+imageHtml (DashboardNode n) = '<p>' + (imageHtml(image(n)) IF isWeb()) + '</p>';
+
+CLASS ABSTRACT InterfaceNode;
+TABLE interfaceNode (InterfaceNode);
+TABLE interfaceNodeInterfaceNode(InterfaceNode, InterfaceNode);
+
+name 'Наименование' = ABSTRACT ISTRING(InterfaceNode);
+
+@defineHierarchyAbstract(interfaceNode);
+
+CLASS UpFolder : DashboardNode;
+
+upFolder = AGGR UpFolder WHERE parent(InterfaceNode interfaceNode);
+
+name (UpFolder u) += '...' IF u IS UpFolder;
+image (UpFolder u) += upFolder() IF u IS UpFolder;
+parent (UpFolder u) += interfaceNode(u);
+order (UpFolder u) += -1 IF u IS UpFolder;
+
+CLASS Interface 'Интерфейс' : InterfaceNode;
+
+name 'Наименование' = DATA ISTRING (Interface);
+name (Interface i) += name(i);
+
+style 'CSS-style' = DATA STRING (Interface) CHARWIDTH 100;
+
+denyCloseDashboard 'Запретить закрытие рабочего стола' = DATA BOOLEAN (Interface);
+
+interface 'Интерфейс рабочего стола' = DATA Interface (UserRole);
+nameInterface 'Интерфейс рабочего стола' (UserRole r) = name(interface(r));
+
+copy (UserRole from, UserRole to) + { interface(to) <- interface(from); }
+
+interface 'Интерфейс рабочего стола' = DATA Interface (CustomUser);
+nameInterface 'Интерфейс рабочего стола' (CustomUser u) = name(interface(u));
+
+EXTEND FORM securityPolicy
+    PROPERTIES (ur) nameInterface PANEL
+    
+    PROPERTIES (u) nameInterface
+;
+
+DESIGN securityPolicy {
+    BOX (u) {
+        MOVE PROPERTY (nameInterface(ur)) FIRST;
+    }
+}
+
+currentInterface() = OVERRIDE interface(currentUser()), interface(mainRole(currentUser())), [GROUP LAST interface(UserRole r) ORDER r]();
+
+richName '' (DashboardNode n) = RICHTEXT (
+    CONCAT '',
+        CONCAT '', '<div style="padding:5px;display:flex;', style(currentInterface()), '">', imageHtml(n),'<p>', name(n), '</p>', '</div>'
+);
+
+CLASS Element 'Элемент навигатора' : DashboardNode;
+CLASS Folder 'Группа навигатора' : DashboardNode, InterfaceNode;
+
+// element
+parent 'Группа' = DATA InterfaceNode (Element) AUTOSET NONULL DELETE;
+image (Folder f) += folder() IF f IS Folder;
+name 'Наименование' = DATA ISTRING (Element);
+name (Element e) += name(e);
+dataImage 'Изображение' = DATA IMAGEFILE (Element);
+
+image (Element e) += OVERRIDE dataImage(e), favFile();
+
+navigatorAction 'Форма' = DATA NavigatorAction (Element);
+nameForm 'Форма' (Element e) = canonicalName(navigatorAction(e));
+order 'Порядок' = DATA INTEGER (Element);
+order (Element e) += order(e);
+parent[DashboardNode] (Element e) += parent(e);
+
+up '' (Element element) {
+    LOCAL prevElement = Element ();
+    LOCAL prevOrder = INTEGER ();
+    prevElement() <- GROUP LAST Element e ORDER order(e), e WHERE order(e) < order(element) AND parent(e) = parent(element);
+    prevOrder() <- order(prevElement());
+    IF prevElement() AND prevOrder() AND order(element) THEN {
+        order(prevElement()) <- order(element);
+        order(element) <- prevOrder();
+    }
+} IMAGE 'blueUp20.png' TOOLBAR;
+
+down '' (Element element) {
+    LOCAL prevElement = Element ();
+    LOCAL prevOrder = INTEGER ();
+    prevElement() <- GROUP LAST Element e ORDER order(e), e WHERE order(e) > order(element) AND parent(e) = parent(element);
+    prevOrder() <- order(prevElement());
+    IF prevElement() AND prevOrder() AND order(element) THEN {
+        order(prevElement()) <- order(element);
+        order(element) <- prevOrder();
+    }
+} IMAGE 'blueDown20.png' TOOLBAR;
+
+WHEN LOCAL SETCHANGED (parent(Element e)) DO order(e) <- [GROUP MAX order(Element element) BY parent(element)](parent(e)) (+) 1;
+
+// folder 
+parent 'Родитель' = DATA InterfaceNode (Folder);
+parent[InterfaceNode] (Folder f) += parent(f);
+parent[DashboardNode] (Folder f) += parent(f);
+order[DashboardNode] (Folder f) += 0 IF f IS Folder; //todo Пока не сделаю перемещение групп
+
+name 'Наименование' = DATA ISTRING (Folder);
+name[InterfaceNode] (Folder f) += name(f);
+name[DashboardNode] (Folder f) += name(f);
+
+nameParent 'Родитель' (Folder f) = name(parent(f));
+
+show (Element e) = permit(currentUser(), navigatorElementCanonicalName(canonicalName(navigatorAction(e))));
+show (Folder f) = GROUP MAX show(Element e) IF level(parent(e), f);
+show (DashboardNode n) = MULTI show[Folder](n), show[Element](n), n IS UpFolder;
+show (InterfaceNode n) = MULTI n IS Interface, show[Folder](n);
+
+showForm (NavigatorAction a) {
+    EVAL ACTION 'SHOW ' + canonicalName(form(a)) + ' NOWAIT';
+}
+
+showForm 'Открыть форму' (Element e) {
+    showForm(navigatorAction(e));
+};
+
+FORM folder
+    OBJECTS f = Folder PANEL
+    PROPERTIES (f) nameParent, name
+    
+    EDIT Folder OBJECT f;
+;
+
+FORM interfaceNodes 'Элементы интерфейса'
+    TREE node f = InterfaceNode PARENT parent(f)
+    PROPERTIES (f) name
+    
+    LIST InterfaceNode OBJECT f
+;
+
+seek ABSTRACT (Folder);
+
+addFolder 'Добавить' (InterfaceNode in) {
+    NEW f = Folder {
+        parent(f) <- in;
+        DIALOG folder OBJECTS f = f DOCKED DO {
+            seek[Folder](f);
+        }
+    }
+} IMAGE 'add.png' TOOLBAR;
+
+FORM interface 'Интерфейс рабочего стола'
+    OBJECTS i = Interface PANEL
+    PROPERTIES (i) name, style, denyCloseDashboard
+    
+    TREE inTree in = InterfaceNode PARENT parent(in)
+    PROPERTIES(in) READONLY  name
+    FILTERS level(in, i)
+    
+    PROPERTIES (in) addFolder, EDIT, DELETE
+
+    OBJECTS e = Element
+    PROPERTIES (e) order SHOWIF NULL, up, down
+    PROPERTIES (e) SHOWIF show(e) name, nameForm, image, NEW, EDIT, DELETE
+    FILTERS parent(e) = in
+    ORDERS order(e)
+    
+    EVENTS ON INIT {
+        EXPAND ALL TOP interface.in;
+        loadResources();
+    }
+    EDIT Interface OBJECT i
+;
+
+seek (Folder f) + {
+    EXPAND interface.in OBJECTS in = parent(f);
+    seek[Object](f);
+}
+
+createDefaultDashboard ABSTRACT LIST (Interface);
+
+FORM interfaces 'Интерфейсы рабочего стола'
+    OBJECTS i = Interface
+    PROPERTIES (i) READONLY name
+    PROPERTIES (i) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST Interface OBJECT i
+;
+
+createDefaultDashboard (Interface i) + {
+    name(i) <- 'Новый интерфейс';
+    style(i) <- 'width:500px;padding:5px;border-radius:10px;border-style: solid;border-color: var(--component-border-color);';
+    ASK 'Заполнить дерево по умолчанию' DO {
+        LOCAL id = LONG (Folder);
+        FOR level(NavigatorFolder nf AS NavigatorFolder, navigatorElementCanonicalName('System.root')) > 1 ORDER number(nf), nf DO NEW f = Folder {
+            name(f) <- caption(nf);
+            id(f) <- LONG(nf);
+        }
+        FOR LONG(NavigatorFolder nf AS NavigatorFolder) = id(Folder f AS Folder) DO {
+            parent[Folder](f) <- OVERRIDE [GROUP AGGR Folder folder BY id(folder)](LONG(parent(nf))), i AS Interface;
+        }
+        
+        FOR level(NavigatorAction nf AS NavigatorAction, navigatorElementCanonicalName('System.root')) > 1 AND form(nf) ORDER nf
+                DO NEW e = Element {
+                    name(e) <- caption(nf);
+                    navigatorAction(e) <- nf;
+                    parent(e) <- OVERRIDE [GROUP AGGR Folder folder BY id(folder)](LONG(parent(nf))), i AS Interface;
+        }
+    }
+}
+
+WHEN LOCAL SET (Interface i IS Interface) DO createDefaultDashboard(i);
+WHEN LOCAL SET (navigatorAction(Element e)) AND NOT name(e) DO name(e) <- caption(navigatorAction(e));
+
+DESIGN interface {
+    OBJECTS {
+        fill = 1;
+        NEW splitBox {
+            fill = 1;
+            type = SPLITH;
+            NEW tree {
+                MOVE BOX (TREE inTree);
+                fill = 0.3;
+            }
+            NEW forms {
+                fill = 0.7;
+                MOVE BOX (e);
+            }
+        }
+    }
+}
+
+initDashboard ABSTRACT LIST (Interface);
+
+action ABSTRACT (DashboardNode);
+
+FORM dashboard 'Рабочий стол'
+    OBJECTS i = Interface
+
+    TREE dTree in = InterfaceNode PARENT parent(in)
+    PROPERTIES (in) READONLY name
+    FILTERS level(in, i), show(in) 
+
+    OBJECTS dn = DashboardNode BACKGROUND overrideTableGridColor()
+    PROPERTIES (dn) order SHOWIF NULL
+    PROPERTIES (dn) richName ON CHANGE { action(dn); } 
+    FILTERS parent(dn) = in, show(dn)
+    ORDERS order(dn)
+
+    EVENTS
+        ON INIT initDashboard(i),
+        ON QUERYCLOSE {
+            IF NOT denyCloseDashboard(i) THEN formClose();
+        }
+;
+
+DESIGN dashboard {
+    caption = name(i);
+    OBJECTS {
+        fill = 1;
+        NEW splitBox{
+            fill = 1;
+            type = SPLITH;
+            MOVE BOX (TREE dTree){ fill = 0.3;}
+            MOVE BOX (dn) {
+                GRID (dn) {
+                    headerHeight = 1;
+                }
+                fill = 0.7;
+                PROPERTY (richName(dn)) {
+                    background = RGB (213,229,232);
+                }
+            }
+        }
+    }   
+}
+
+action (Element e) + {
+    showForm(navigatorAction(e));
+}
+
+action (Folder f) + {
+    EXPAND dashboard.in OBJECTS in = f;
+    SEEK dashboard.in = f;
+}
+
+action (UpFolder u) + {
+    EXPAND dashboard.in OBJECTS in = parent(parent(u));
+    SEEK dashboard.in = parent(parent(u));
+}
+
+initDashboard (Interface i) + {
+    EXPAND ALL TOP dashboard.in;
+    loadResources();
+}
+
+showDashboard 'Рабочий стол' () {
+    LOCAL conn = Connection ();
+    IF currentInterface() THEN {
+        conn() <- currentConnection();
+        ACTIVATE FORM UserDashboard.dashboard;
+        NEWTHREAD {
+            ACTIVE FORM UserDashboard.dashboard;
+            IF NOT isActiveForm() 
+                THEN {
+                    SHOW dashboard OBJECTS i = currentInterface() NOWAIT NOCANCEL NOMANAGESESSION;
+                }    
+        } CONNECTION conn();
+    }
+}
+
+NAVIGATOR {
+    NEW showDashboard FIRST;
+    application {
+        NEW interfaces;
+    }
+}
+
+onClientStarted() + {
+    showDashboard();
+}
