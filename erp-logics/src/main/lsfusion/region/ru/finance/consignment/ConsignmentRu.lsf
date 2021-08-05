@@ -910,8 +910,8 @@ changePositionGoodsConsignmentAttrUpd(Consignment consignment) {
         }
     }        
 }   
-inPrint 'Печать' = DATA LOCAL BOOLEAN (Consignment);
-countInPrint = GROUP SUM 1 IF inPrint(Consignment c);
+incl 'Отм.' = DATA LOCAL BOOLEAN (Consignment);
+countIncl = GROUP SUM 1 IF incl(Consignment c);
 
 countDetail 'Кол-во позиций' (Consignment c) = GROUP SUM 1 IF consignment(ConsignmentDetail d) == c;
 
@@ -950,18 +950,18 @@ FORM consignmentUpd 'Универсальный передаточный док�
                   sidCountry, shortNameCountry,
                   numberAttrUpd, dateAttrUpd
         
-    FILTERS inPrint(c),
+    FILTERS incl(c),
             consignment(d) == c,
             quantity(d),
             NOT skip(d)
 ;
  
 printConsignmentUpd 'Универсальный передаточный документ' (Consignment consignment) { 
-    IF NOT countInPrint() THEN {
-        inPrint(Consignment c) <- TRUE  IF c==consignment;     
+    IF NOT countIncl() THEN {
+        incl(Consignment c) <- TRUE  IF c==consignment;     
     }       
     PRINT consignmentUpd;
-    inPrint(Consignment c) <- NULL; 
+    incl(Consignment c) <- NULL; 
 } IMAGE 'print.png' IN print;
 
 FORM attributesUpd 'Атрибуты УПД'
