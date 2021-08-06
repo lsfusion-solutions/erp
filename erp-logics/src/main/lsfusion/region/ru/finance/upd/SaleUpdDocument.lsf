@@ -29,10 +29,33 @@ showUpd 'Просмотреть УПД' (Invoice i) {
     show(updDocument(i));
 }
 
+createUpdDocuments 'Создать УПД (отм.)' () {
+    NEWSESSION NESTED(incl[Invoice]) {
+        FOR incl(Invoice i) DO {
+            IF updDocument(i) THEN {
+                recreateUpdDocument(i);
+            } ELSE {
+                NEW ei = UpdDocument {
+                    fill(i, ei);
+                }
+            }
+        }
+        APPLY;
+    }
+}
+
+createUpdDocuments (Consignment invoice) {
+     IF countIncl() THEN {
+        createUpdDocuments();   
+     } ELSE {
+        recreateUpd(invoice);
+     }
+}
+
 EXTEND FORM invoices
     PROPERTIES (i) READONLY updInvoiceNumber AFTER series(i)
-    PROPERTIES createUPD(i) SHOWIF NOT updDocument(i),
-               reCreateUPD(i) SHOWIF updDocument(i),
+    PROPERTIES //createUpd(i) SHOWIF NOT updDocument(i),
+               createUpdDocuments(i) HEADER captionCreateUpd(i),
                updNumber = updInvoiceNumber(i) SHOWIF updDocument(i) PANEL READONLY,
                showUpd(i) SHOWIF updDocument(i)
 ;
@@ -42,8 +65,8 @@ DESIGN invoices {
         NEW updDocument {
             type = CONTAINERV;
             caption = 'УПД';
-            MOVE PROPERTY(createUPD(i));
-            MOVE PROPERTY(reCreateUPD(i));
+            //MOVE PROPERTY(createUpd(i));
+            MOVE PROPERTY(createUpdDocuments(i));
             MOVE PROPERTY(updNumber);
             MOVE PROPERTY(showUpd(i));            
         }
