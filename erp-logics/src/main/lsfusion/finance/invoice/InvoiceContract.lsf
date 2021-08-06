@@ -15,6 +15,9 @@ META defineInvoicePaymentCondition (sign)
         WHEN CHANGED(agreement(prop)) OR
              CHANGED(contractSku(prop));
 
+    firstPaymentDate (Invoice i) = IF bankingDays(paymentCondition(i)) THEN
+                                              jumpWorkdays(country(customer(i)), date(i), countDaysFirstPaymentPeriod(paymentCondition(i))) ELSE
+                                              sum(date(i), countDaysFirstPaymentPeriod(paymentCondition(i)));
     EXTEND FORM userInvoice
         PROPERTIES(i) descriptionPaymentCondition
     ;

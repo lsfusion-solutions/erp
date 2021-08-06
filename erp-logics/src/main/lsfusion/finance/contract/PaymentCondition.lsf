@@ -41,8 +41,12 @@ TABLE paymentPeriod(PaymentPeriod);
 @defineExternalizable(paymentPeriod, STRING[100]);
 countDays 'Кол-во дней' = DATA INTEGER (PaymentPeriod);
 percent 'Процент' = DATA NUMERIC[8,3] (PaymentPeriod);
+
 paymentCondition 'Условия оплаты периода рассрочки' = DATA PaymentCondition(PaymentPeriod) NONULL DELETE;
 bankingDays 'Банковских дней'(PaymentPeriod p) = bankingDays(paymentCondition(p));
+
+firstPaymentPeriod (PaymentCondition c) = GROUP LAST PaymentPeriod p ORDER DESC p BY paymentCondition(p) MATERIALIZED;
+countDaysFirstPaymentPeriod (PaymentCondition c) = countDays(firstPaymentPeriod(c));
 
 description(PaymentPeriod paymentPeriod) =
     countDays(paymentPeriod) + (IF bankingDays(paymentPeriod) THEN ' банковских дн.' ELSE ' календарных дн.')+  ' ( ' + percent(paymentPeriod) + ' %)';
