@@ -363,10 +363,14 @@ daysToClosePriceList 'Кол-во дней через которое прайс 
 priceListTypeToClosePriceList  = DATA DataPriceListType();
 nameOperationToClosePriceList 'Вид цен для исключения из регистра прайсов с компанией' = name(priceListTypeToClosePriceList());
 
+checkClosePriceListInterval 'Пропускать проверку (дней)' = DATA INTEGER ();
+
+checkCloseDate = DATA DATE (UserPriceListDetail);
+
 closePriceLists 'Исключить прайсы с компанией из регистра до даты' () {
     NEWSESSION {
         FOR fromDate(UserPriceListDetail d) < subtract(currentDate(), daysToClosePriceList()) AND in(d, priceListTypeToClosePriceList()) AND company(d)
-                AND NOT exclude(d)  ORDER fromDateTime(d), d DO {
+            AND NOT exclude(d) AND NOT checkCloseDate(d) >= subtract(currentDate(), checkClosePriceListInterval())  ORDER fromDateTime(d), d DO {
             
             LOCAL notSkip = BOOLEAN ();
             IF active(sku(d)) THEN {
@@ -374,6 +378,7 @@ closePriceLists 'Исключить прайсы с компанией из ре
                     IF prevPriceListLedgerA(t, sku(d), s, company(d), currentDateTime()) == d OR prevPriceListLedgerA(t, sku(d), s, company(d), 2040_01_01_00:00) == d THEN {
                         notSkip() <- TRUE;
                         logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), company(d), idBarcodeSku(d), name(s), name(t));
+                        checkCloseDate(d) <- currentDate();
                         BREAK;
                     }
                 }
@@ -426,7 +431,7 @@ closePriceListsNotCompany 'Исключить прайсы без компани
     }
 }
 
-EXTEND FORM options PROPERTIES () daysToClosePriceList, nameOperationToClosePriceList, closePriceLists,
+EXTEND FORM options PROPERTIES () daysToClosePriceList, checkClosePriceListInterval, nameOperationToClosePriceList, closePriceLists,
     nameOperationToClosePriceListNotCompany, closePriceListsNotCompany
 ;
 
