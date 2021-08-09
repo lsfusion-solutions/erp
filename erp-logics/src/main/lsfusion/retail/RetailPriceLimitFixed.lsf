@@ -217,6 +217,9 @@ nameStock 'Склад' (LimitRetailPriceLog l) = name(stock(l));
 price 'Максимальная РЦ' = DATA NUMERIC[16,4] (LimitRetailPriceLog) ;
 prevPrice 'Максимальная РЦ, до' = DATA NUMERIC[16,4] (LimitRetailPriceLog) ;
 
+priceCustom 'МРЦ' = DATA NUMERIC[16,4] (LimitRetailPriceLog) ;
+prevPriceCustom 'МРЦ, до' = DATA NUMERIC[16,4] (LimitRetailPriceLog) ;
+
 hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (LimitRetailPriceLog); 
 userLogin 'Логин пользователя' = DATA STRING[100] (LimitRetailPriceLog); 
 nameContact 'Имя пользователя' =  DATA STRING[100] (LimitRetailPriceLog) IN id;
@@ -229,8 +232,11 @@ dateSession 'Дата' (LimitRetailPriceLog d) = DATE(dateTimeSession(d));
 
 CLASS TypeChange 'Тип изменения' {
     add 'Добавление',
+    addC 'Добавление МРЦ',    
     delete 'Удаление',
-    change 'Изменение',
+    deleteC 'Удаление МРЦ',    
+    changeC 'Изменение МРЦ',
+    change 'Изменение',    
     flagAdd 'Признак добавлен',
     flagDelete 'Признак удален'
 }
@@ -239,7 +245,7 @@ typeChange= DATA TypeChange (LimitRetailPriceLog);
 nameTypeChange 'Тип изменения' (LimitRetailPriceLog l) = staticCaption(typeChange(l)) IN id;
 
 
-WHEN SETCHANGED (maxLimitRetailPrice(Sku s,Stock st)) IF NOT disableLimitRetailPriceLog() DO {
+WHEN (SETCHANGED(maxLimitRetailPrice(Sku s,Stock st)) OR (SETCHANGED(maxLimitRetailPriceCustom(s,st)) IF useCustomRetailPrice())) IF NOT disableLimitRetailPriceLog() DO {
     NEW d = LimitRetailPriceLog {        
         sku(d) <- s ;
         stock(d) <- st;
@@ -248,15 +254,23 @@ WHEN SETCHANGED (maxLimitRetailPrice(Sku s,Stock st)) IF NOT disableLimitRetailP
         checkLimitRetailPrice(d) <- calcCheckLimitRetailPrice(s);
         
         prevPrice(d)<-PREV(maxLimitRetailPrice(s,st));
-        price(d)<-maxLimitRetailPrice(s,st);
-        typeChange(d) <- IF PREV(maxLimitRetailPrice(s,st)) THEN TypeChange.change ELSE TypeChange.add;
+        price(d)<-maxLimitRetailPrice(s,st);        
+        prevPriceCustom(d)<-PREV(maxLimitRetailPriceCustom(s,st));
+        priceCustom(d)<-maxLimitRetailPriceCustom(s,st);        
+                
+        typeChange(d) <- CASE
+                        WHEN SET(maxLimitRetailPrice(s,st)) THEN TypeChange.add
+                        WHEN CHANGED(maxLimitRetailPrice(s,st)) THEN TypeChange.change
+                        WHEN SET(maxLimitRetailPriceCustom(s,st)) THEN TypeChange.addC
+                        WHEN CHANGED(maxLimitRetailPriceCustom(s,st)) THEN TypeChange.changeC;
+
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
         nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();                      
     }
 }
-WHEN DROPPED(maxLimitRetailPrice(Sku s,Stock st)) IF NOT disableLimitRetailPriceLog() AND NOT (DROPPED(s IS Sku) OR DROPPED(st IS Stock)) DO {
+WHEN (DROPPED(maxLimitRetailPrice(Sku s,Stock st)) OR (DROPPED(maxLimitRetailPriceCustom(s,st) IF useCustomRetailPrice()))) IF NOT disableLimitRetailPriceLog() AND NOT (DROPPED(s IS Sku) OR DROPPED(st IS Stock)) DO {
     NEW d = LimitRetailPriceLog {   
         sku(d) <- s;
         stock(d) <- st;
@@ -266,7 +280,10 @@ WHEN DROPPED(maxLimitRetailPrice(Sku s,Stock st)) IF NOT disableLimitRetailPrice
         
         prevPrice(d)<-PREV(maxLimitRetailPrice(s,st));
         price(d)<-maxLimitRetailPrice(s,st);
-        typeChange(d) <- TypeChange.delete;
+        prevPriceCustom(d)<-PREV(maxLimitRetailPriceCustom(s,st));
+        priceCustom(d)<-maxLimitRetailPriceCustom(s,st);   
+                
+        typeChange(d) <- IF DROPPED(maxLimitRetailPrice(s, st)) THEN TypeChange.delete ELSE TypeChange.deleteC;
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
         nameContact(d) <- STRING[100](name(currentUser()));
@@ -404,9 +421,11 @@ FORM maxLimitRetailPrice 'Максимальные розничные цены'
     PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
     ORDERS name(s)
     FILTERGROUP max
-        FILTER 'С максимальной РЦ' maxLimitRetailPrice(s,st) 'F9' DEFAULT
+        FILTER 'С максимальной РЦ' maxLimitRetailPrice(s,st) OR maxLimitRetailPriceCustom(s,st) 'F9' DEFAULT
     OBJECTS d = LimitRetailPriceLog
-    PROPERTIES(d) READONLY  dateTimeLimitRetailPrice, stepPercLimitRetailPrice, checkLimitRetailPrice, nameStock, nameSku, idSku, idBarcodeSku, prevPrice, price, nameTypeChange, hostnameComputer, userLogin, nameContact, dateTimeSession, dateSession
+    PROPERTIES(d) READONLY  dateTimeLimitRetailPrice, stepPercLimitRetailPrice, checkLimitRetailPrice, nameStock, nameSku, idSku, idBarcodeSku
+    PROPERTIES(d) READONLY SHOWIF useCustomRetailPrice() BACKGROUND RGB(214,234,248) prevPriceCustom, priceCustom
+    PROPERTIES(d) READONLY  prevPrice, price, nameTypeChange, hostnameComputer, userLogin, nameContact, dateTimeSession, dateSession
     FILTERS sku(d)==s,
             stock(d)==st OR extraFilter(d) OR (typeChange(d)==TypeChange.flagAdd OR typeChange(d)==TypeChange.flagDelete) 
     PROPERTIES fillMaxLimitRetailPrice() DRAW sts TOOLBAR 
