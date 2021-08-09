@@ -41,6 +41,8 @@ index = GROUP AGGR Index x BY name(x);
 
 getIndexes 'Получить список индексов'(Table t) {
     NEWSESSION {
+        LOCAL is = BOOLEAN (Index);
+        
         EXTERNAL SQL 'LOCAL'
             EXEC 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid) from pg_indexes i left join pg_constraint c ON i.indexname = c.conname where tablename = $1' 
             PARAMS lower(sid(t))
@@ -55,8 +57,11 @@ getIndexes 'Получить список индексов'(Table t) {
                 tablespace(i) <- tablespace;
                 definition(i) <- definition;
                 isConstraint(i) <- TRUE IF constraint;
+                is(i) <- TRUE;
             }
         }
+        
+        DELETE Index i WHERE table(i) == t AND NOT is(i);
         
         APPLY;
         
