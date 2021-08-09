@@ -40,7 +40,7 @@ DESIGN departmentStore {
 
 // META 
 META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, container)
-    volume 'Объем (ВСД)' = DATA NUMERIC[16,5] (###doc##Detail, VetDocument);
+    volume 'Объем в документе' = DATA NUMERIC[16,5] (###doc##Detail, VetDocument);
     
     volumeDetail 'Объем в документе' (###doc##Detail vd, VetDocument vtd) = NUMERIC[16,5](quantity(vd) * OVERRIDE factor(sku(vd), unit(vtd)), 1.0); 
     fillVolume 'Выбрать' (###doc##Detail vd, VetDocument vtd) { volume(vd, vtd) <- volumeDetail(vd, vtd); }
@@ -60,7 +60,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     uuidVetDocument 'Коды ВСД' (###doc##Detail d) =
         GROUP CONCAT uuid(VetDocument s) IF volume(d, s), ',' ORDER s;
     
-    volumeVetDocument 'Объем (ВСД)' (###doc##Detail d) = GROUP SUM volume(d, VetDocument s) MATERIALIZED;
+    volumeVetDocument 'Объем в документе' (###doc##Detail d) = GROUP SUM volume(d, VetDocument s) MATERIALIZED;
     
     EXTEND FORM doc
         OBJECTS vd = ###doc##Detail
@@ -101,7 +101,7 @@ END
 
 META defineDocumentStockEntry (doc, stock, quantity, obj, container)
 
-    volume 'Объем (ВСД)' = DATA NUMERIC[16,5] (###doc##Detail, StockEntry);
+    volume 'Объем в документе' = DATA NUMERIC[16,5] (###doc##Detail, StockEntry);
 
     volumeDetail 'Объем в документе' (###doc##Detail vd, StockEntry s) = NUMERIC[16,5](quantity(vd) * OVERRIDE factor(sku(vd), unit(s)), 1.0); 
     fillVolume 'Выбрать' (###doc##Detail d, StockEntry s) { volume(d, s) <- volumeDetail(d, s); }
@@ -120,7 +120,7 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
     numberStockEntry 'Номер складского журнала' (###doc##Detail d) =
         GROUP CONCAT number(StockEntry s) IF volume(d, s), ',' ORDER s;
     
-    volumeStockEntry 'Объем (ВСД)' (###doc##Detail d) = GROUP SUM volume(d, StockEntry s) MATERIALIZED;
+    volumeStockEntry 'Объем в документе' (###doc##Detail d) = GROUP SUM volume(d, StockEntry s) MATERIALIZED;
     
     EXTEND FORM doc
         OBJECTS vd = ###doc##Detail
