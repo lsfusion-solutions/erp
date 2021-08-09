@@ -1,12 +1,13 @@
 MODULE MachineryPriceTransactionBatch;
 
-REQUIRE MachineryPriceTransaction, Item;
+REQUIRE MachineryPriceTransactionBalance, Item;
 
 NAMESPACE Machinery;
 
 TABLE machineryPriceTransactionBarcodeBatch (MachineryPriceTransaction, Barcode, Batch);
 
 in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode, Batch) INDEXED;
+in 'Вкл' (MachineryPriceTransaction t, Sku s, Batch btch) = GROUP MAX in(t, Barcode b, btch) BY sku(b);
 
 balance 'Баланс' (Batch bt, Barcode b, Stock st) = currentBalance(bt, st) IF sku(bt)==sku(b);
 price 'Цена' (Batch bt, Barcode b, GroupMachinery g) = priceA(priceListType(g),bt,stock(g),currentDateTime()) IF sku(bt)==sku(b);
@@ -168,18 +169,6 @@ createAttribute(MachineryPriceTransaction t) + {
     price(t, Barcode barcode, Batch bt) <- price(bt, barcode, groupMachinery(t)) WHERE in(t, barcode, bt);              
 }
 
-balanceToDate 'Загружать в оборудование остатки на дату/время транзакции' = DATA BOOLEAN ();
-EXTEND FORM options
-    PROPERTIES() balanceToDate
-;
-DESIGN options {
-    machinery {
-        MOVE PROPERTY(balanceToDate());
-    }
-}
-
-extraLoad = ABSTRACT BOOLEAN (Stock);
-
 createAttribute(MachineryPriceTransaction t, Stock stock) + {  
     IF NOT balanceToDate() THEN {
         balance(t, Barcode barcode, Batch bt) <- OVERRIDE balance(bt, barcode, stock), 0.0 WHERE in(t, barcode, bt) AND NOT extraLoad(sku(barcode)) AND NOT extraLoad(stock); 
@@ -192,8 +181,6 @@ createAttribute(MachineryPriceTransaction t, Stock stock) + {
 balanceDate 'Дата остатка' = DATA DATETIME (MachineryPriceTransaction, Barcode, Batch);
 balanceDate(MachineryPriceTransaction t, Barcode barcode, Batch bt) => in(t, barcode, bt) RESOLVE RIGHT;
 @defineMachineryPriceTransactionAttributeBaseBatch(balanceDate, 'Дата остатка', );
-
-balanceDate 'Дата остатка' = ABSTRACT DATETIME (Stock);
 
 createAttribute(MachineryPriceTransaction t, Stock s) + {  
     balanceDate(t, Barcode b, Batch bt) <- OVERRIDE balanceDate(s), currentDateTime() WHERE in(t, b, bt) AND NOT extraLoad(sku(b));
