@@ -1,0 +1,34 @@
+MODULE UserDashboardFavorite;
+
+REQUIRE UserDashboard;
+
+NAMESPACE UserDashboard;
+
+in = DATA BOOLEAN (Element, User);
+orderElement = DATA INTEGER (Element);
+
+setFavorite 'В избранное' (Element e) {
+    NEWSESSION {
+        in(e, currentUser()) <- TRUE;
+        APPLY;
+    }
+} ASON CONTEXTMENU richName[Element];
+
+resetFavorite 'Из избранного' (Element e) {
+    NEWSESSION {
+        in(e, currentUser()) <- NULL;
+        APPLY;
+    }
+} ASON CONTEXTMENU openForm[Element];
+
+EXTEND FORM dashboard
+    OBJECTS favorite = (favElement = Element, favUser = User)
+    PROPERTIES openForm(favElement) SHOWIF show(favElement) COLUMNS (favorite) HEADER name(favElement) IMAGE image(favElement) GRID
+    FILTERS favUser = currentUser(), in(favElement, favUser)
+;
+
+DESIGN dashboard {
+    NEW favPanel {
+        MOVE BOX (favorite) { height = 3; }
+    }
+}
