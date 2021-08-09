@@ -714,89 +714,84 @@ DESIGN options {
     }
 }
 
-overCheckPromotion ABSTRACT LIST (Promotion);
-skipCreatePriceList = DATA LOCAL BOOLEAN ();
 overCreatePriceList  ABSTRACT LIST (Promotion, UserPriceList);
 overCreatePriceListDetail  ABSTRACT LIST (PromotionDetail, UserPriceListDetail);
-afterCreatePriceList  ABSTRACT LIST (UserPriceList);
+
+createPriceListMain (Promotion p) {
+    NEW priceList = UserPriceList {
+        isPosted(priceList) <- TRUE;
+        fromDate(priceList) <- fromDate(p);
+        fromTime(priceList) <- 00:00;
+        fromPriceBeforeDate(priceList) <- subtract(fromDate(p), 1);
+        toDate(priceList) <- toDate(p);
+        operation(priceList) <- (GROUP LAST PriceList.Operation o IF isPromotion(o));
+        IF NOT skipConstraintPriceBefore(operation(priceList)) THEN {
+            fromPriceBeforeTime(priceList) <- 00:00;
+            toPriceBeforeDate(priceList) <- sum(toDate(p), 1);
+            toPriceBeforeTime(priceList) <- 23:59;
+        }
+        company(priceList) <- dataLegalEntity(operation(priceList));
+        currency(priceList) <- defaultCurrency(operation(priceList));
+        note(priceList) <- name(p);
+        
+        allStocks(priceList) <- allStocks(p);
+        dataIn(priceList, StockGroup stockGroup) <- dataIn(p,stockGroup);
+        dataIn(priceList, Stock stock) <- dataIn(p,stock);
+    
+        in(priceList, DataPriceListType type) <- change(type, operation(priceList));
+        show(priceList, DataPriceListType type) <- show(type, operation(priceList));
+        
+        overCreatePriceList(p,priceList);
+        
+        FOR promotion(PromotionDetail pd) == p NEW detail = UserPriceListDetail DO {
+            priceList(detail) <- priceList;
+            sku(detail) <- sku(pd);
+            price(detail, DataPriceListType type) <- proposedPromotionPrice(pd) WHERE in(priceList, type);
+            priceBefore(detail) <- retailPrice(pd);
+            
+            overCreatePriceListDetail(pd,detail);
+        }
+        promotion(priceList) <- p;
+    }
+}
 
 createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)  { 
     IF NOT stocks(p) THEN {
         MESSAGE 'Не выбран ни один склад. Прайсы не созданы';
         RETURN;
     }
-    skipCreatePriceList() <- NULL;
-    overCheckPromotion(p);
-    IF NOT skipCreatePriceList() THEN {
-        NEWSESSION {
-            NEW priceList = UserPriceList {
+    NEWSESSION {
+        createPriceListMain(p);
+        
+        IF NOT skipCompany THEN {
+            FOR in(p, LegalEntity company) AND (GROUP SUM 1 IF promotion(PromotionDetail pd) == p AND countStocks(pd,company) AND NOT price(pd) = promotionPrice(pd)) NEW priceList = UserPriceList DO {
                 isPosted(priceList) <- TRUE;
                 fromDate(priceList) <- fromDate(p);
                 fromTime(priceList) <- 00:00;
-                fromPriceBeforeDate(priceList) <- subtract(fromDate(p), 1);
                 toDate(priceList) <- toDate(p);
-                operation(priceList) <- (GROUP LAST PriceList.Operation o IF isPromotion(o));
-                IF NOT skipConstraintPriceBefore(operation(priceList)) THEN {
-                    fromPriceBeforeTime(priceList) <- 00:00;
-                    toPriceBeforeDate(priceList) <- sum(toDate(p), 1);
-                    toPriceBeforeTime(priceList) <- 23:59;
-                }
-                company(priceList) <- dataLegalEntity(operation(priceList));
+                operation(priceList) <- defaultSupplierOperation();
+                company(priceList) <- company;
                 currency(priceList) <- defaultCurrency(operation(priceList));
                 note(priceList) <- name(p);
                 
-                allStocks(priceList) <- allStocks(p);
-                dataIn(priceList, StockGroup stockGroup) <- dataIn(p,stockGroup);
-                dataIn(priceList, Stock stock) <- dataIn(p,stock);
-    
-                in(priceList, DataPriceListType type) <- change(type, operation(priceList));
-                show(priceList, DataPriceListType type) <- show(type, operation(priceList));
+                dataIn(priceList, Stock stock) <- TRUE IF [ GROUP SUM 1 IF prevPriceA(defaultPriceListType(), sku(PromotionDetail d), stock, company, DATETIME dateTime) AND in(promotion(d),stock) BY promotion(d), dateTime](p, toDateTime(fromDate(p))) ;
+                
+                in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
+                show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
                 
                 overCreatePriceList(p,priceList);
                 
-                FOR promotion(PromotionDetail pd) == p NEW detail = UserPriceListDetail DO {
+                FOR promotion(PromotionDetail pd) == p AND countStocks(pd,company) AND NOT price(pd) = promotionPrice(pd) NEW detail = UserPriceListDetail DO {
                     priceList(detail) <- priceList;
                     sku(detail) <- sku(pd);
-                    price(detail, DataPriceListType type) <- proposedPromotionPrice(pd) WHERE in(priceList, type);
-                    priceBefore(detail) <- retailPrice(pd);
+                    price(detail, DataPriceListType type) <- promotionPrice(pd) WHERE in(priceList, type);
                     
                     overCreatePriceListDetail(pd,detail);
                 }
                 promotion(priceList) <- p;
             }
-            
-            IF NOT skipCompany THEN {
-                FOR in(p, LegalEntity company) AND (GROUP SUM 1 IF promotion(PromotionDetail pd) == p AND countStocks(pd,company) AND NOT price(pd) = promotionPrice(pd)) NEW priceList = UserPriceList DO {
-                    isPosted(priceList) <- TRUE;
-                    fromDate(priceList) <- fromDate(p);
-                    fromTime(priceList) <- 00:00;
-                    toDate(priceList) <- toDate(p);
-                    operation(priceList) <- defaultSupplierOperation();
-                    company(priceList) <- company;
-                    currency(priceList) <- defaultCurrency(operation(priceList));
-                    note(priceList) <- name(p);
-                    
-                    dataIn(priceList, Stock stock) <- TRUE IF [ GROUP SUM 1 IF prevPriceA(defaultPriceListType(), sku(PromotionDetail d), stock, company, DATETIME dateTime) AND in(promotion(d),stock) BY promotion(d), dateTime](p, toDateTime(fromDate(p))) ;
-                    
-                    in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
-                    show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
-                    
-                    overCreatePriceList(p,priceList);
-                    
-                    FOR promotion(PromotionDetail pd) == p AND countStocks(pd,company) AND NOT price(pd) = promotionPrice(pd) NEW detail = UserPriceListDetail DO {
-                        priceList(detail) <- priceList;
-                        sku(detail) <- sku(pd);
-                        price(detail, DataPriceListType type) <- promotionPrice(pd) WHERE in(priceList, type);
-                        
-                        overCreatePriceListDetail(pd,detail);
-                    }
-                    promotion(priceList) <- p;
-                    
-                    afterCreatePriceList(priceList);
-                }
-            }
-            APPLY;
         }
+        APPLY;
     }
 } CONFIRM;
 
