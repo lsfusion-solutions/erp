@@ -408,9 +408,9 @@ signAndSendBlrapnCustomerEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                 toMilliseconds(blrapnDateTime());
                 hideMessageHeaderBlrapn() <- TRUE;
                 EXPORT exportBlrapn XML TO contentSubXML;
-                IF outputDirTopBy() THEN {
-                    TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                    WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                IF outputDirEDN() THEN {
+                    TRY{ mkdir(outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                    WRITE contentSubXML() TO outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
                 }
                 logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                 TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRAPN'); }
@@ -426,7 +426,7 @@ signAndSendBlrapnCustomerEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                         code(em) <- blrapnCode();
                         kind(em) <- EInvoiceMessageKind.out;
                         type(em) <- EInvoiceMessageType.blrapn_blrwbl;
-                        XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                        XMLPath(em) <- outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
                     }
                     APPLY NESTED LOCAL;
                 } CATCH {
@@ -469,9 +469,9 @@ signAndSendBlrapnCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider
                 toMilliseconds(blrapnDateTime());
                 hideMessageHeaderBlrapn() <- TRUE;
                 EXPORT exportBlrapn XML TO contentSubXML;
-                IF outputDirTopBy() THEN {
-                    TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                    WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                IF outputDirEDN() THEN {
+                    TRY{ mkdir(outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                    WRITE contentSubXML() TO outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
                 }
                 logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                 TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRAPN'); }
@@ -487,7 +487,7 @@ signAndSendBlrapnCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider
                         code(em) <- blrapnCode();
                         kind(em) <- EInvoiceMessageKind.out;
                         type(em) <- EInvoiceMessageType.blrapn_blrdln;
-                        XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                        XMLPath(em) <- outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
                     }
                     APPLY NESTED LOCAL;
                 } CATCH {
@@ -508,7 +508,17 @@ signAndSendBlrapnCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider
     }
 }
 
-signAndSendBlrapnCustomer(EInvoice e) + {  IF EDIProviderInvoice(customer(e)) == EDIProvider.edn THEN IF exportedBlrapnCustomer(e) THEN MESSAGE 'Извещение о прочтении (покупатель) уже отправлено'; ELSE IF isTN2(e) THEN {signAndSendBlrapnCustomerEInvoiceTN2DocuDrive(e,'TopBy');} ELSE {signAndSendBlrapnCustomerEInvoiceDocuDrive(e,'TopBy');}}
+signAndSendBlrapnCustomer(EInvoice e) + {  IF EDIProviderInvoice(customer(e)) == EDIProvider.edn AND useDocuDrive() THEN IF exportedBlrapnCustomer(e) THEN MESSAGE 'Извещение о прочтении (покупатель) уже отправлено'; ELSE IF isTN2(e) THEN {signAndSendBlrapnCustomerEInvoiceTN2DocuDrive(e,'EDN');} ELSE {signAndSendBlrapnCustomerEInvoiceDocuDrive(e,'EDN');}}
+signAndSendBlrapnCustomer(EInvoice e) + {
+    IF EDIProviderInvoice(customer(e)) == EDIProvider.edn AND NOT useDocuDrive() THEN
+        IF exportedBlrapnCustomer(e) THEN
+            MESSAGE 'Извещение о прочтении (покупатель) уже отправлено';
+            ELSE IF isTN2(e) THEN {
+                signAndSendBlrapnCustomerEInvoiceTN2(e, loginEDN(customer(e)), passwordEDN(customer(e)), hostEDN(customer(e)), portEDN(customer(e)), ('https://' + hostEDN(customer(e)) +':' + portEDN(customer(e)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+            } ELSE {
+                signAndSendBlrapnCustomerEInvoice(e, loginEDN(customer(e)), passwordEDN(customer(e)), hostEDN(customer(e)), portEDN(customer(e)), ('https://' + hostEDN(customer(e)) +':' + portEDN(customer(e)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+            }
+}
 
 signAndSendCustomerEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
     checkIsServer();
@@ -527,9 +537,9 @@ signAndSendCustomerEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                         toMilliseconds(exportBlrwbrDateTime());
                         hideMessageHeaderBlrwbr() <- TRUE;
                         EXPORT exportBlrwbr OBJECTS ei = ei XML TO contentSubXML;
-                        IF outputDirTopBy() THEN {
-                            TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                            WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbr_' + LONG(resultMilliseconds() + 1);
+                        IF outputDirEDN() THEN {
+                            TRY{ mkdir(outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbr_' + LONG(resultMilliseconds() + 1);
                         }
                         logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                         TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRWBR'); }
@@ -587,9 +597,9 @@ signAndSendCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
                         toMilliseconds(exportBlrdnrDateTime());
                         hideMessageHeaderBlrdnr() <- TRUE;
                         EXPORT exportBlrdnr OBJECTS ei = ei XML TO contentSubXML;
-                        IF outputDirTopBy() THEN {
-                            TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                            WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrdnr_' + LONG(resultMilliseconds() + 1);
+                        IF outputDirEDN() THEN {
+                            TRY{ mkdir(outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrdnr_' + LONG(resultMilliseconds() + 1);
                         }
                         logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                         TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRDNR'); }
@@ -630,7 +640,16 @@ signAndSendCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
     }
 }
 
-signAndSendCustomer(EInvoice e) + {  IF EDIProviderInvoice(supplier(e)) == EDIProvider.edn THEN IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены'; ELSE IF isTN2(e) THEN {signAndSendCustomerEInvoiceTN2DocuDrive(e,'TopBy');} ELSE {signAndSendCustomerEInvoiceDocuDrive(e,'TopBy');}}
+signAndSendCustomer(EInvoice e) + {  IF EDIProviderInvoice(supplier(e)) == EDIProvider.edn AND useDocuDrive() THEN IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены'; ELSE IF isTN2(e) THEN {signAndSendCustomerEInvoiceTN2DocuDrive(e,'EDN');} ELSE {signAndSendCustomerEInvoiceDocuDrive(e,'EDN');}}
+signAndSendCustomer(EInvoice e) + {
+    IF EDIProviderInvoice(supplier(e)) == EDIProvider.edn AND NOT useDocuDrive() THEN
+        IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
+        ELSE IF isTN2(e) THEN {
+            signAndSendCustomerEInvoiceTN2(e, loginEDN(customer(e)), passwordEDN(customer(e)), hostEDN(customer(e)), portEDN(customer(e)), ('https://' + hostEDN(customer(e)) +':' + portEDN(customer(e)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+        } ELSE {
+            signAndSendCustomerEInvoice(e, loginEDN(customer(e)), passwordEDN(customer(e)), hostEDN(customer(e)), portEDN(customer(e)), ('https://' + hostEDN(customer(e)) +':' + portEDN(customer(e)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+        }
+}
 
 signAndSendNoticeCustomerEInvoiceDocuDrive (EInvoice ei, STRING[1000] d, STRING[100] provider) {
     checkIsServer();
@@ -654,9 +673,9 @@ signAndSendNoticeCustomerEInvoiceDocuDrive (EInvoice ei, STRING[1000] d, STRING[
                 toMilliseconds(blrapnDateTime());
                 hideMessageHeaderBlrapn() <- TRUE;
                 EXPORT exportBlrapn XML TO contentSubXML;
-                IF outputDirTopBy() THEN {
-                    TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                    WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                IF outputDirEDN() THEN {
+                    TRY{ mkdir(outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                    WRITE contentSubXML() TO outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
                 }
                 logToFile('edi', provider + ' SendNoticeEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                 TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRAPN'); }
@@ -673,7 +692,7 @@ signAndSendNoticeCustomerEInvoiceDocuDrive (EInvoice ei, STRING[1000] d, STRING[
                         kind(em) <- EInvoiceMessageKind.out;
                         type(em) <- EInvoiceMessageType.blrapn_blrwbl;
                         description(em) <- blrapnDescription();
-                        XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                        XMLPath(em) <- outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
                     }
                     APPLY NESTED LOCAL;
                 } CATCH {
@@ -716,9 +735,9 @@ signAndSendNoticeCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[1000] d, STRI
                 toMilliseconds(blrapnDateTime());
                 hideMessageHeaderBlrapn() <- TRUE;
                 EXPORT exportBlrapn XML TO contentSubXML;
-                IF outputDirTopBy() THEN {
-                    TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                    WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                IF outputDirEDN() THEN {
+                    TRY{ mkdir(outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                    WRITE contentSubXML() TO outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
                 }
                 logToFile('edi', provider + ' SendNoticeEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                 TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRAPN'); }
@@ -735,7 +754,7 @@ signAndSendNoticeCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[1000] d, STRI
                         kind(em) <- EInvoiceMessageKind.out;
                         type(em) <- EInvoiceMessageType.blrapn_blrdln;
                         description(em) <- blrapnDescription();
-                        XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
+                        XMLPath(em) <- outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn_' + LONG(resultMilliseconds() + 1);
                     }
                     APPLY NESTED LOCAL;
                 } CATCH {
@@ -756,4 +775,13 @@ signAndSendNoticeCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[1000] d, STRI
     }
 }
 
-signAndSendNoticeCustomer(EInvoice e, STRING[1000] d) + {  IF EDIProviderInvoice(supplier(e)) == EDIProvider.edn THEN IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены'; ELSE IF isTN2(e) THEN {signAndSendNoticeCustomerEInvoiceTN2DocuDrive(e,d,'TopBy');} ELSE {signAndSendNoticeCustomerEInvoiceDocuDrive(e,d,'TopBy');}}
+signAndSendNoticeCustomer(EInvoice e, STRING[1000] d) + {  IF EDIProviderInvoice(supplier(e)) == EDIProvider.edn AND useDocuDrive() THEN IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены'; ELSE IF isTN2(e) THEN {signAndSendNoticeCustomerEInvoiceTN2DocuDrive(e,d,'EDN');} ELSE {signAndSendNoticeCustomerEInvoiceDocuDrive(e,d,'EDN');}}
+signAndSendNoticeCustomer(EInvoice e, STRING[1000] d) + {
+    IF EDIProviderInvoice(supplier(e)) == EDIProvider.edn AND NOT useDocuDrive() THEN
+        IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
+        ELSE IF isTN2(e) THEN {
+            signAndSendNoticeCustomerEInvoiceTN2(e, d, loginEDN(customer(e)), passwordEDN(customer(e)), hostEDN(customer(e)), portEDN(customer(e)), ('https://' + hostEDN(customer(e)) +':' + portEDN(customer(e)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+        } ELSE {
+            signAndSendNoticeCustomerEInvoice(e, d, loginEDN(customer(e)), passwordEDN(customer(e)), hostEDN(customer(e)), portEDN(customer(e)), ('https://' + hostEDN(customer(e)) +':' + portEDN(customer(e)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+        }
+}

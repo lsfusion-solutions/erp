@@ -53,7 +53,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
                         IF aliasEDSServiceSupplier(ei) AND passwordEDSServiceSupplier(ei) THEN {
-                            IF hostEDSServiceSupplierTopBy(ei) AND portEDSServiceSupplierTopBy(ei) THEN {
+                            IF hostEDSServiceSupplier(provider,ei) AND portEDSServiceSupplier(provider,ei) THEN {
                                 LOCAL xml = FILE();
                                 fileToString(contentSubXML());
                                 EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(ei),password = passwordEDSServiceSupplier(ei) XML TO xml;
@@ -61,7 +61,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                 innerXML() <- resultString();
                                 fileToString(xml());
                                 stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                                sendRequestEDI(hostEDSServiceSupplierTopBy(ei), portEDSServiceSupplierTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(ei) + ':' + portEDSServiceSupplierTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                                sendRequestEDI(hostEDSServiceSupplier(provider,ei), portEDSServiceSupplier(provider,ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,ei) + ':' + portEDSServiceSupplier(provider,ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                                 IMPORT getEDSResponse FROM sendRequestEDIResponse();
                                 IF faultstring() THEN {
                                     logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -220,7 +220,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
                         IF aliasEDSServiceSupplier(ei) AND passwordEDSServiceSupplier(ei) THEN {
-                            IF hostEDSServiceSupplierTopBy(ei) AND portEDSServiceSupplierTopBy(ei) THEN {
+                            IF hostEDSServiceSupplier(provider,ei) AND portEDSServiceSupplier(provider,ei) THEN {
                                 LOCAL xml = FILE();
                                 fileToString(contentSubXML());
                                 EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(ei),password = passwordEDSServiceSupplier(ei) XML TO xml;
@@ -228,7 +228,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                 innerXML() <- resultString();
                                 fileToString(xml());
                                 stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                                sendRequestEDI(hostEDSServiceSupplierTopBy(ei), portEDSServiceSupplierTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(ei) + ':' + portEDSServiceSupplierTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                                sendRequestEDI(hostEDSServiceSupplier(provider,ei), portEDSServiceSupplier(provider,ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,ei) + ':' + portEDSServiceSupplier(provider,ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                                 IMPORT getEDSResponse FROM sendRequestEDIResponse();
                                 IF faultstring() THEN {
                                     logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -452,12 +452,12 @@ FORM exportBlrwbl FORMEXTID 'BLRWBL'
                         totalDespatchUnitQuantity(eint) EXTID 'TotalDespatchUnitQuantity',
                         totalAmountExcise(eint) EXTID 'TotalAmountExcise'
 ;
-signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
+signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] outputDir , STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
         TRY {
-            IF loginTopBy(supplier(ei)) AND passwordTopBy(supplier(ei)) AND hostTopBy(supplier(ei)) AND portTopBy(supplier(ei)) THEN {
-                IF hostEDSServiceSupplierTopBy(ei) AND portEDSServiceSupplierTopBy(ei) THEN {
+            IF login AND password AND host AND port THEN {
+                IF hostEDSServiceSupplier(provider,ei) AND portEDSServiceSupplier(provider,ei) THEN {
                     LOCAL error = TEXT();
                     error() <- '';
                     IF NOT length(contractName(ei)) > 0 AND DATE(dateTimeCreated(ei)) >= 2020_09_13 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Наименование документа, который служит основанием отпуска\'\n';
@@ -487,11 +487,9 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                         exportBlrwblDateTime() <- currentDateTimeMillis();
                         toMilliseconds(exportBlrwblDateTime());
                         EXPORT exportBlrwbl OBJECTS ei = ei XML TO contentSubXML;
-                        IF outputDirTopBy() THEN {                        
-                            LOCAL filePath = STRING();
-                            filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
-                            TRY{ mkdir(filePath()); }
-                            WRITE contentSubXML() TO filePath() + '/' + 'blrwbl-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS'); 
+                        IF outputDir THEN {
+                            TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbl-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS'); 
                         }
                         IF aliasEDSServiceSupplier(ei) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(ei)) THEN {
                             LOCAL xml = FILE();
@@ -501,7 +499,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                             innerXML() <- resultString();
                             fileToString(xml());
                             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                            sendRequestEDI(hostEDSServiceSupplierTopBy(ei), portEDSServiceSupplierTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(ei) + ':' + portEDSServiceSupplierTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                            sendRequestEDI(hostEDSServiceSupplier(provider,ei), portEDSServiceSupplier(provider,ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,ei) + ':' + portEDSServiceSupplier(provider,ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                             IMPORT getEDSResponse FROM sendRequestEDIResponse();
                             IF faultstring() THEN {
                                 logToFile('edi', provider + ' SendEInvoice error: BLRWBL ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -510,8 +508,8 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                             ELSE IF waybill() THEN {
                                 encodeBase64(waybill());
                                 LOCAL ixml = XMLFILE();
-                                envelopeLogin() <- loginTopBy(supplier(ei));
-                                envelopePassword() <- passwordTopBy(supplier(ei));
+                                envelopeLogin() <- login;
+                                envelopePassword() <- password;
                                 envelopeFilename() <- CONCAT '', 'invoice', deliveryNoteNumber(ei);
                                 envelopeDocumentDate() <- exportBlrwblDateTime();
                                 envelopeDocumentNumber() <- numberSupplier(ei);
@@ -521,7 +519,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                                 envelopeDocumentType() <- 'BLRWBL';
                                 envelopeContent() <- encodedBase64();
                                 EXPORT envelope XML TO ixml;
-                                sendRequestEDI(hostTopBy(supplier(ei)), portTopBy(supplier(ei)), loginTopBy(supplier(ei)), passwordTopBy(supplier(ei)), ('http://' + hostTopBy(supplier(ei)) +':' + portTopBy(supplier(ei)) + '/DmcService'), ixml());
+                                sendRequestEDI(host, port, login, password, url, ixml());
                                 logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
@@ -656,12 +654,12 @@ FORM exportBlrdln FORMEXTID 'BLRDLN'
                         totalAmountExcise(eint) EXTID 'TotalAmountExcise'
 ;
 
-signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] provider) {
+signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] outputDir , STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
         TRY {
-            IF loginTopBy(supplier(ei)) AND passwordTopBy(supplier(ei)) AND hostTopBy(supplier(ei)) AND portTopBy(supplier(ei)) THEN {
-                IF hostEDSServiceSupplierTopBy(ei) AND portEDSServiceSupplierTopBy(ei) THEN {
+            IF login AND password AND host AND port THEN {
+                IF hostEDSServiceSupplier(provider,ei) AND portEDSServiceSupplier(provider,ei) THEN {
                     LOCAL error = TEXT();
                     error() <- '';
                     IF NOT length(contractName(ei)) > 0 AND DATE(dateTimeCreated(ei)) >= 2020_09_13 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Наименование документа, который служит основанием отпуска\'\n';
@@ -685,11 +683,9 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] provider) {
                         exportBlrdlnDateTime() <- currentDateTimeMillis();
                         toMilliseconds(exportBlrdlnDateTime());
                         EXPORT exportBlrdln OBJECTS ei = ei XML TO contentSubXML;
-                        IF outputDirTopBy() THEN {
-                            LOCAL filePath = STRING();
-                            filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
-                            TRY{ mkdir(filePath()); }
-                            WRITE contentSubXML() TO filePath() + '/' + 'blrdln-' + toChar(exportBlrdlnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS'); 
+                        IF outputDir THEN {
+                            TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrdln-' + toChar(exportBlrdlnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS'); 
                         }
                         IF aliasEDSServiceSupplier(ei) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(ei)) THEN {
                             LOCAL xml = FILE();
@@ -699,7 +695,7 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] provider) {
                             innerXML() <- resultString();
                             fileToString(xml());
                             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                            sendRequestEDI(hostEDSServiceSupplierTopBy(ei), portEDSServiceSupplierTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(ei) + ':' + portEDSServiceSupplierTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                            sendRequestEDI(hostEDSServiceSupplier(provider,ei), portEDSServiceSupplier(provider,ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,ei) + ':' + portEDSServiceSupplier(provider,ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                             IMPORT getEDSResponse FROM sendRequestEDIResponse();
                             IF faultstring() THEN {
                                 logToFile('edi', provider + ' SendEInvoice error: BLRDLN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -708,8 +704,8 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] provider) {
                             ELSE IF waybill() THEN {
                                 encodeBase64(waybill());
                                 LOCAL ixml = XMLFILE();
-                                envelopeLogin() <- loginTopBy(supplier(ei));
-                                envelopePassword() <- passwordTopBy(supplier(ei));
+                                envelopeLogin() <- login;
+                                envelopePassword() <- password;
                                 envelopeFilename() <- CONCAT '', 'invoice', deliveryNoteNumber(ei);
                                 envelopeDocumentDate() <- exportBlrdlnDateTime();
                                 envelopeDocumentNumber() <- numberSupplier(ei);
@@ -719,7 +715,7 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] provider) {
                                 envelopeDocumentType() <- 'BLRDLN';
                                 envelopeContent() <- encodedBase64();
                                 EXPORT envelope XML TO ixml;
-                                sendRequestEDI(hostTopBy(supplier(ei)), portTopBy(supplier(ei)), loginTopBy(supplier(ei)), passwordTopBy(supplier(ei)), ('http://' + hostTopBy(supplier(ei)) +':' + portTopBy(supplier(ei)) + '/DmcService'), ixml());
+                                sendRequestEDI(host, port, login, password, url, ixml());
                                 logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
@@ -763,15 +759,23 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] provider) {
     }
 }
 
-signAndSendSupplier(EInvoice e) + {  IF EDIProviderInvoice(supplier(e)) == EDIProvider.topBy THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE IF isTN2(e) THEN {signAndSendSupplierEInvoiceTN2(e,'TopBy');} ELSE {signAndSendSupplierEInvoice(e,'TopBy');}}
+signAndSendSupplier(EInvoice e) + {
+    IF EDIProviderInvoice(supplier(e)) == EDIProvider.topBy THEN
+        IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена';
+        ELSE IF isTN2(e) THEN {
+            signAndSendSupplierEInvoiceTN2(e, loginTopBy(supplier(e)), passwordTopBy(supplier(e)), hostTopBy(supplier(e)), portTopBy(supplier(e)), ('http://' + hostTopBy(supplier(e)) +':' + portTopBy(supplier(e)) + '/DmcService'), (OVERRIDE overInvoiceOutputDirTopBy(e),outputDirTopBy()), 'TopBy');
+        } ELSE {
+            signAndSendSupplierEInvoice(e, loginTopBy(supplier(e)), passwordTopBy(supplier(e)), hostTopBy(supplier(e)), portTopBy(supplier(e)), ('http://' + hostTopBy(supplier(e)) +':' + portTopBy(supplier(e)) + '/DmcService'), (OVERRIDE overInvoiceOutputDirTopBy(e),outputDirTopBy()), 'TopBy');
+        }
+}
 
 
-signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] provider) {
+signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] outputDir , STRING outputDirInvoice, STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
         TRY {
-            IF loginTopBy(supplier(ei)) AND passwordTopBy(supplier(ei)) AND hostTopBy(supplier(ei)) AND portTopBy(supplier(ei)) THEN {
-                IF hostEDSServiceSupplierTopBy(ei) AND portEDSServiceSupplierTopBy(ei) THEN {
+            IF login AND password AND host AND port THEN {
+                IF hostEDSServiceSupplier(provider,ei) AND portEDSServiceSupplier(provider,ei) THEN {
                     LOCAL contentSubXML = FILE();
                     blrapnDateTime() <- currentDateTimeMillis();
                     blrapnMsgSender() <- glnSupplier(ei);
@@ -788,11 +792,9 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                     blrapnDescription() <- NULL;
                     toMilliseconds(blrapnDateTime());
                     EXPORT exportBlrapn XML TO contentSubXML;
-                    IF outputDirTopBy() THEN {
-                        LOCAL filePath = STRING();
-                        filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
-                        TRY{ mkdir(filePath()); }
-                        WRITE contentSubXML() TO filePath() + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                    IF outputDir THEN {
+                        TRY{ mkdir((OVERRIDE outputDirInvoice, outputDir) + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                        WRITE contentSubXML() TO (OVERRIDE outputDirInvoice, outputDir) + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                     }
                     IF aliasEDSServiceSupplier(ei) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(ei)) THEN {
                         LOCAL xml = FILE();
@@ -802,7 +804,7 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                         innerXML() <- resultString();
                         fileToString(xml());
                         stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                        sendRequestEDI(hostEDSServiceSupplierTopBy(ei), portEDSServiceSupplierTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(ei) + ':' + portEDSServiceSupplierTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                        sendRequestEDI(hostEDSServiceSupplier(provider,ei), portEDSServiceSupplier(provider,ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,ei) + ':' + portEDSServiceSupplier(provider,ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                         IMPORT getEDSResponse FROM sendRequestEDIResponse();
                         IF faultstring() THEN {
                             logToFile('edi', provider + ' SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -811,8 +813,8 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                         ELSE IF waybill() THEN {
                             encodeBase64(waybill());
                             LOCAL ixml = XMLFILE();
-                            envelopeLogin() <- loginTopBy(supplier(ei));
-                            envelopePassword() <- passwordTopBy(supplier(ei));
+                            envelopeLogin() <- login;
+                            envelopePassword() <- password;
                             envelopeFilename() <- CONCAT '', 'invoice', deliveryNoteNumber(ei);
                             envelopeDocumentDate() <- blrapnDateTime();
                             envelopeDocumentNumber() <- numberSupplier(ei);
@@ -822,7 +824,7 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                             envelopeDocumentType() <- 'BLRAPN';
                             envelopeContent() <- encodedBase64();
                             EXPORT envelope XML TO ixml;
-                            sendRequestEDI(hostTopBy(supplier(ei)), portTopBy(supplier(ei)), loginTopBy(supplier(ei)), passwordTopBy(supplier(ei)), ('http://' + hostTopBy(supplier(ei)) +':' + portTopBy(supplier(ei)) + '/DmcService'), ixml());
+                            sendRequestEDI(host, port, login, password, url, ixml());
                             logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                             IF requestError() THEN {
@@ -839,7 +841,7 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                                     code(em) <- blrapnCode();
                                     kind(em) <- EInvoiceMessageKind.out;
                                     type(em) <- IF importedNoticeSupplier(ei) THEN EInvoiceMessageType.blrapn_blrwbl ELSE EInvoiceMessageType.blrapn_blrwbr;
-                                    XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                    XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                                 }
                                 APPLY NESTED LOCAL;
                             }
@@ -866,12 +868,12 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] provider) {
     }
 }
 
-signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] provider) {
+signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] outputDir , STRING outputDirInvoice, STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
         TRY {
-            IF loginTopBy(supplier(ei)) AND passwordTopBy(supplier(ei)) AND hostTopBy(supplier(ei)) AND portTopBy(supplier(ei)) THEN {
-                IF hostEDSServiceSupplierTopBy(ei) AND portEDSServiceSupplierTopBy(ei) THEN {
+            IF login AND password AND host AND port THEN {
+                IF hostEDSServiceSupplier(provider,ei) AND portEDSServiceSupplier(provider,ei) THEN {
                     LOCAL contentSubXML = FILE();
                     blrapnDateTime() <- currentDateTimeMillis();
                     blrapnMsgSender() <- glnSupplier(ei);
@@ -888,11 +890,9 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] provider) {
                     blrapnDescription() <- NULL;
                     toMilliseconds(blrapnDateTime());
                     EXPORT exportBlrapn XML TO contentSubXML;
-                    IF outputDirTopBy() THEN {
-                        LOCAL filePath = STRING();
-                        filePath() <- OVERRIDE overInvoiceOutputDir(ei),outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
-                        TRY{ mkdir(filePath()); }
-                        WRITE contentSubXML() TO filePath() + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                    IF outputDir THEN {
+                        TRY{ mkdir((OVERRIDE outputDirInvoice,outputDir) + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                        WRITE contentSubXML() TO (OVERRIDE outputDirInvoice,outputDir) + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                     }
                     IF aliasEDSServiceSupplier(ei) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(ei)) THEN {
                         LOCAL xml = FILE();
@@ -902,7 +902,7 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] provider) {
                         innerXML() <- resultString();
                         fileToString(xml());
                         stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                        sendRequestEDI(hostEDSServiceSupplierTopBy(ei), portEDSServiceSupplierTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(ei) + ':' + portEDSServiceSupplierTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                        sendRequestEDI(hostEDSServiceSupplier(provider,ei), portEDSServiceSupplier(provider,ei), 'eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,ei) + ':' + portEDSServiceSupplier(provider,ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                         IMPORT getEDSResponse FROM sendRequestEDIResponse();
                         IF faultstring() THEN {
                             logToFile('edi', provider + ' SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -911,8 +911,8 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] provider) {
                         ELSE IF waybill() THEN {
                             encodeBase64(waybill());
                             LOCAL ixml = XMLFILE();
-                            envelopeLogin() <- loginTopBy(supplier(ei));
-                            envelopePassword() <- passwordTopBy(supplier(ei));
+                            envelopeLogin() <- login;
+                            envelopePassword() <- password;
                             envelopeFilename() <- CONCAT '', 'invoice', deliveryNoteNumber(ei);
                             envelopeDocumentDate() <- blrapnDateTime();
                             envelopeDocumentNumber() <- numberSupplier(ei);
@@ -922,7 +922,7 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] provider) {
                             envelopeDocumentType() <- 'BLRAPN';
                             envelopeContent() <- encodedBase64();
                             EXPORT envelope XML TO ixml;
-                            sendRequestEDI(hostTopBy(supplier(ei)), portTopBy(supplier(ei)), loginTopBy(supplier(ei)), passwordTopBy(supplier(ei)), ('http://' + hostTopBy(supplier(ei)) +':' + portTopBy(supplier(ei)) + '/DmcService'), ixml());
+                            sendRequestEDI(host, port, login, password, url, ixml());
                             logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                             IF requestError() THEN {
@@ -939,7 +939,7 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] provider) {
                                     code(em) <- blrapnCode();
                                     kind(em) <- EInvoiceMessageKind.out;
                                     type(em) <- IF importedNoticeSupplier(ei) THEN EInvoiceMessageType.blrapn_blrdln ELSE EInvoiceMessageType.blrapn_blrdnr;
-                                    XMLPath(em) <- outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                    XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                                 }
                                 APPLY NESTED LOCAL;
                             }
@@ -966,10 +966,24 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] provider) {
     }
 }
 
-signAndSendBlrapnSupplier(EInvoice e) + {  IF EDIProviderInvoice(supplier(e)) == EDIProvider.topBy THEN IF exportedBlrapnSupplier(e) THEN MESSAGE 'Извещение о прочтении (поставщик) уже отправлено'; ELSE IF isTN2(e) THEN {signAndSendBlrapnSupplierEInvoiceTN2(e,'TopBy');} ELSE {signAndSendBlrapnSupplierEInvoice(e,'TopBy');}}
+signAndSendBlrapnSupplier(EInvoice e) + {
+    IF EDIProviderInvoice(supplier(e)) == EDIProvider.topBy THEN
+        IF exportedBlrapnSupplier(e) THEN MESSAGE 'Извещение о прочтении (поставщик) уже отправлено';
+        ELSE IF isTN2(e) THEN {
+            signAndSendBlrapnSupplierEInvoiceTN2(e, loginTopBy(supplier(e)), passwordTopBy(supplier(e)), hostTopBy(supplier(e)), portTopBy(supplier(e)), ('http://' + hostTopBy(supplier(e)) +':' + portTopBy(supplier(e)) + '/DmcService'), outputDirTopBy(), overInvoiceOutputDirTopBy(e), 'TopBy');
+        } ELSE {
+            signAndSendBlrapnSupplierEInvoice(e, loginTopBy(supplier(e)), passwordTopBy(supplier(e)), hostTopBy(supplier(e)), portTopBy(supplier(e)), ('http://' + hostTopBy(supplier(e)) +':' + portTopBy(supplier(e)) + '/DmcService'), outputDirTopBy(), overInvoiceOutputDirTopBy(e), 'TopBy');
+        }
+}
 
-hostEDSServiceSupplierTopBy (ECreditNote c) = hostEDSServiceTopBy(supplier(c));
-portEDSServiceSupplierTopBy (ECreditNote c) = portEDSServiceTopBy(supplier(c));
+hostEDSServiceSupplier = ABSTRACT CASE STRING[100] (STRING[100], ECreditNote);
+portEDSServiceSupplier = ABSTRACT CASE INTEGER (STRING[100], ECreditNote);
+
+hostEDSServiceSupplierTopBy (ECreditNote c) = OVERRIDE hostEDSServiceTopBy(currentUser()), hostEDSServiceTopBy(supplier(c));
+portEDSServiceSupplierTopBy (ECreditNote c) = OVERRIDE portEDSServiceTopBy(currentUser()), portEDSServiceTopBy(supplier(c));
+
+hostEDSServiceSupplier(STRING[100] provider, ECreditNote c) += WHEN provider == 'TopBy' AND c IS ECreditNote THEN hostEDSServiceSupplierTopBy(c);
+portEDSServiceSupplier(STRING[100] provider, ECreditNote c) += WHEN provider == 'TopBy' AND c IS ECreditNote THEN portEDSServiceSupplierTopBy(c);
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blradf' AND invoices AND receiveSupplierMessages THEN {
@@ -1076,7 +1090,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                     WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                                 }
                                 IF aliasEDSServiceSupplier(c) AND passwordEDSServiceSupplier(c) THEN {
-                                    IF hostEDSServiceSupplierTopBy(c) AND portEDSServiceSupplierTopBy(c) THEN {
+                                    IF hostEDSServiceSupplier(provider,c) AND portEDSServiceSupplier(provider,c) THEN {
                                         LOCAL xml = FILE();
                                         fileToString(contentSubXML());
                                         EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(c),password = passwordEDSServiceSupplier(c) XML TO xml;
@@ -1084,7 +1098,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                         innerXML() <- resultString();
                                         fileToString(xml());
                                         stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                                        sendRequestEDI(hostEDSServiceSupplierTopBy(c), portEDSServiceSupplierTopBy(c), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(c) + ':' + portEDSServiceSupplierTopBy(c) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                                        sendRequestEDI(hostEDSServiceSupplier(provider,c), portEDSServiceSupplier(provider,c), 'eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,c) + ':' + portEDSServiceSupplier(provider,c) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                                         IMPORT getEDSResponse FROM sendRequestEDIResponse();
                                         IF faultstring() THEN {
                                             logToFile('edi', provider + ' Parse Message ' + id(i) + ' error: BLRAPN ' + number(c) + ' не подписан. Ошибка: ' + faultstring());
@@ -1199,12 +1213,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
 //т.е. накладывает ВТОРУЮ подпись на полученный документ, ничего в нем не меняя. меняется только шапка документа, которая не подписывается
 //при этом MessageHeader нужен новый... поэтому просто взять файл и отправить нельзя
 
-signAndSendSupplierECreditNote (ECreditNote c, STRING[100] provider) {
+signAndSendSupplierECreditNote (ECreditNote c, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] outputDir , STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
         TRY {
-            IF loginTopBy(supplier(c)) AND passwordTopBy(supplier(c)) AND hostTopBy(supplier(c)) AND portTopBy(supplier(c)) THEN {
-                IF hostEDSServiceSupplierTopBy(c) AND portEDSServiceSupplierTopBy(c) THEN {
+            IF login AND password AND host AND port THEN {
+                IF hostEDSServiceSupplier(provider,c) AND portEDSServiceSupplier(provider,c) THEN {
                     IF NOT isCancel(c) THEN {
                         LOCAL error = TEXT();
                         error() <- '';
@@ -1224,9 +1238,9 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] provider) {
                             blradfSignatureValue() <- signatureValue(c);
                             toMilliseconds(blradfDateTime());
                             EXPORT exportBlradf OBJECTS ec = c XML TO contentSubXML;
-                            IF outputDirTopBy() THEN {
-                                TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                                WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(blradfDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            IF outputDir THEN {
+                                TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                                WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(blradfDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                             }
                             IF aliasEDSServiceSupplier(c) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(c)) THEN {
                                 LOCAL xml = FILE();
@@ -1236,7 +1250,7 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] provider) {
                                 innerXML() <- resultString();
                                 fileToString(xml());
                                 stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                                sendRequestEDI(hostEDSServiceSupplierTopBy(c), portEDSServiceSupplierTopBy(c), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(c) + ':' + portEDSServiceSupplierTopBy(c) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                                sendRequestEDI(hostEDSServiceSupplier(provider,c), portEDSServiceSupplier(provider,c), 'eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,c) + ':' + portEDSServiceSupplier(provider,c) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                                 IMPORT getEDSResponse FROM sendRequestEDIResponse();
                                 IF faultstring() THEN {
                                     logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' error: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + faultstring());
@@ -1245,8 +1259,8 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] provider) {
                                 ELSE IF waybill() THEN {
                                     encodeBase64(waybill());
                                     LOCAL ixml = XMLFILE();
-                                    envelopeLogin() <- loginTopBy(supplier(c));
-                                    envelopePassword() <- passwordTopBy(supplier(c));
+                                    envelopeLogin() <- login;
+                                    envelopePassword() <- password;
                                     envelopeFilename() <- CONCAT '', 'creditnote', number(c);
                                     envelopeDocumentDate() <- blradfDateTime();
                                     envelopeDocumentNumber() <- number(c);
@@ -1256,7 +1270,7 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] provider) {
                                     envelopeDocumentType() <- 'BLRADF';
                                     envelopeContent() <- encodedBase64();
                                     EXPORT envelope XML TO ixml;
-                                    sendRequestEDI(hostTopBy(supplier(c)), portTopBy(supplier(c)), loginTopBy(supplier(c)), passwordTopBy(supplier(c)), ('http://' + hostTopBy(supplier(c)) +':' + portTopBy(supplier(c)) + '/DmcService'), ixml());
+                                    sendRequestEDI(host, port, login, password, url, ixml());
                                     logToFile('edi', provider + ' SendECreditNote ' + number(c) +' request sent');
                                     importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                     IF requestError() THEN {
@@ -1300,4 +1314,8 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] provider) {
     }
 }
 
-signAndSendSupplier(ECreditNote c) + { IF EDIProviderInvoice(customer(c)) == EDIProvider.topBy THEN IF exportedSupplier(c) THEN MESSAGE 'Акт приемки (поставщик) уже отправлен'; ELSE signAndSendSupplierECreditNote(c,'TopBy'); }
+signAndSendSupplier(ECreditNote c) + {
+    IF EDIProviderInvoice(customer(c)) == EDIProvider.topBy THEN
+        IF exportedSupplier(c) THEN MESSAGE 'Акт приемки (поставщик) уже отправлен';
+        ELSE signAndSendSupplierECreditNote(c, loginTopBy(supplier(c)), passwordTopBy(supplier(c)), hostTopBy(supplier(c)), portTopBy(supplier(c)), ('http://' + hostTopBy(supplier(c)) +':' + portTopBy(supplier(c)) + '/DmcService'), outputDirTopBy(), 'TopBy');
+}

@@ -10,17 +10,86 @@ EXTEND CLASS EDIProvider {
 
 loginEDN 'Имя пользователя EDN' = DATA STRING[100] ();
 passwordEDN 'Пароль EDN' = DATA STRING[100] () ECHO;
+loginEDN 'Имя пользователя EDN' = DATA STRING[100] (LegalEntity);
+passwordEDN 'Пароль EDN' = DATA STRING[100] (LegalEntity) ECHO;
 hostEDN 'Хост' = DATA STRING[100] ();
 portEDN 'Порт' = DATA INTEGER ();
+hostEDN 'Хост' = DATA STRING[100] (LegalEntity);
+portEDN 'Порт' = DATA INTEGER (LegalEntity);
 archiveDirEDN 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirEDN 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesEDN 'Получать сообщения для поставщика' = DATA BOOLEAN ();
 
+overInvoiceOutputDirEDN 'Путь сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
+//overInvoiceOutputFileNameEDN 'Имя файла для сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
+
+migratedLoginPasswordEDN = DATA BOOLEAN (); 
+
+onStarted() + {
+    IF NOT migratedLoginPasswordEDN() THEN {
+        loginEDN(LegalEntity le) <- loginEDN() WHERE isCompany(le);
+        passwordEDN(LegalEntity le) <- passwordEDN() WHERE isCompany(le);
+        migratedLoginPasswordEDN() <- TRUE;
+    }
+}
+
+migratedHostPortEDN = DATA BOOLEAN (); 
+
+onStarted() + {
+    IF NOT migratedHostPortEDN() THEN {
+        hostEDN(LegalEntity le) <- hostEDN() WHERE isCompany(le);
+        portEDN(LegalEntity le) <- portEDN() WHERE isCompany(le);
+        migratedHostPortEDN() <- TRUE;
+    }
+}
+
+hostEDSServiceEDN 'Хост EDSService' = DATA STRING[100] (LegalEntity);
+portEDSServiceEDN 'Порт EDSService' = DATA INTEGER (LegalEntity);
+hostEDSServiceEDN 'Хост EDSService' (stock) = ABSTRACT STRING[100] (Stock) MATERIALIZED;
+hostEDSServiceEDN 'Хост EDSService' = DATA STRING[100] (DepartmentStore);
+hostEDSServiceEDN 'Хост EDSService' = DATA STRING[100] (Warehouse);
+hostEDSServiceEDN(DepartmentStore stock) += hostEDSServiceEDN(stock);
+hostEDSServiceEDN(Warehouse stock) += hostEDSServiceEDN(stock);
+portEDSServiceEDN 'Порт EDSService' (stock) = ABSTRACT INTEGER (Stock) MATERIALIZED;
+portEDSServiceEDN 'Порт EDSService' = DATA INTEGER (DepartmentStore);
+portEDSServiceEDN 'Порт EDSService' = DATA INTEGER (Warehouse);
+portEDSServiceEDN(DepartmentStore stock) += portEDSServiceEDN(stock);
+portEDSServiceEDN(Warehouse stock) += portEDSServiceEDN(stock);
+hostEDSServiceEDN 'Хост EDSService' = DATA STRING[100] (Employee);
+portEDSServiceEDN 'Порт EDSService' = DATA INTEGER (Employee);
+
+useDocuDrive 'Использовать DocuDrive' = DATA BOOLEAN();
+
+EXTEND FORM integrationData
+    OBJECTS lee = LegalEntity
+    FILTERS isCompany(lee)
+    PROPERTIES(lee) SHOWIF NOT useDocuDrive() name READONLY, aliasEDSService, passwordEDSService, hostEDSServiceEDN, portEDSServiceEDN
+    
+    OBJECTS sedse = Stock
+    PROPERTIES(sedse) SHOWIF NOT useDocuDrive() name READONLY, aliasEDSService, passwordEDSService, hostEDSServiceEDN, portEDSServiceEDN
+    FILTERS isCompany(sedse)
+    
+    OBJECTS eedse = Employee
+    PROPERTIES(eedse) SHOWIF NOT useDocuDrive() lastName READONLY, firstName READONLY, namePosition READONLY, aliasEDSService, passwordEDSService, hostEDSServiceEDN, portEDSServiceEDN
+    FILTERS active(eedse)
+;
+
+hostEDSServiceCustomerEDN (EInvoice i) = OVERRIDE hostEDSServiceEDN(currentUser()), hostEDSServiceEDN(customerStock(i)), hostEDSServiceEDN(customer(i));
+portEDSServiceCustomerEDN (EInvoice i) = OVERRIDE portEDSServiceEDN(currentUser()), portEDSServiceEDN(customerStock(i)), portEDSServiceEDN(customer(i));
+hostEDSServiceSupplierEDN (EInvoice i) = OVERRIDE hostEDSServiceEDN(currentUser()), hostEDSServiceEDN(supplierStock(i)), hostEDSServiceEDN(supplier(i));
+portEDSServiceSupplierEDN (EInvoice i) = OVERRIDE portEDSServiceEDN(currentUser()), portEDSServiceEDN(supplierStock(i)), portEDSServiceEDN(supplier(i));
+
+hostEDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN hostEDSServiceCustomerEDN(i);
+portEDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN portEDSServiceCustomerEDN(i);
+hostEDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN hostEDSServiceSupplierEDN(i);
+portEDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN portEDSServiceSupplierEDN(i);
+
 @receiveMessages(soap);
 
 receiveMessagesEDN (BOOLEAN invoices) {
-    receiveMessagesSoap(loginEDN(), passwordEDN(), hostEDN(), portEDN(), ('https://' +  hostEDN() + ':' + portEDN() + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, invoices, 'EDN');
+    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO
+        receiveMessagesSoap(login, passwordEDN(le), hostEDN(le), portEDN(le), ('https://' +  hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, invoices, 'EDN');
 }
 
 receiveEDN 'Получить сообщения' {
@@ -279,13 +348,17 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
 
 receiveInvoiceEDN 'Получить сообщения по электронным накладным' () {
     checkIsServer();
-    IF isServer() THEN {receiveMessagesDocuDrive(TRUE); };  
+    IF isServer() THEN { IF useDocuDrive() THEN {receiveMessagesDocuDrive(TRUE);} ELSE {receiveMessagesEDN(TRUE);} }  
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() loginEDN, passwordEDN, hostEDN, portEDN, receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN,
-                 receiveSupplierMessagesEDN, receiveInvoiceEDN, exportDirectoryDocuDrive, importDirectoryDocuDrive
+    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN, receiveInvoiceEDN, useDocuDrive
+    PROPERTIES() SHOWIF useDocuDrive() exportDirectoryDocuDrive, importDirectoryDocuDrive
     PROPERTIES() READONLY confirmNotFoundOrdersEDN = confirmNotFoundOrders, confirmNotFoundInvoicesEDN = confirmNotFoundInvoices, disableAutoBlrapnEDN = disableAutoBlrapn
+    PROPERTIES() SHOWIF useDocuDrive() READONLY askPasswordEDSServiceEDN = askPasswordEDSService
+    OBJECTS lete = LegalEntity
+    FILTERS isCompany(lete)
+    PROPERTIES(lete) name READONLY, loginEDN, passwordEDN, hostEDN, portEDN
 ;
     
 DESIGN integrationData {
@@ -294,14 +367,12 @@ DESIGN integrationData {
             caption = 'EDN';
             NEW paramsEDN {
                 caption = 'Общие';
-                MOVE PROPERTY(loginEDN());
-                MOVE PROPERTY(passwordEDN());
-                MOVE PROPERTY(hostEDN());
-                MOVE PROPERTY(portEDN());
+                fill = 1;
                 MOVE PROPERTY(archiveDirEDN());
                 MOVE PROPERTY(outputDirEDN());
                 MOVE PROPERTY(disableConfirmationEDN());
                 MOVE PROPERTY(receiveSupplierMessagesEDN());
+                MOVE BOX(lete);
             }
             NEW colEDN {
                 type = CONTAINERH;
@@ -313,12 +384,21 @@ DESIGN integrationData {
                 }
                 NEW ivsEDN {
                     caption = 'Электронные накладные';
+                    MOVE PROPERTY (useDocuDrive());
                     MOVE PROPERTY (importDirectoryDocuDrive());
                     MOVE PROPERTY (exportDirectoryDocuDrive());
                     MOVE PROPERTY (confirmNotFoundInvoicesEDN);
                     MOVE PROPERTY (disableAutoBlrapnEDN);
                     MOVE PROPERTY(receiveInvoiceEDN());
+                    MOVE PROPERTY(askPasswordEDSServiceEDN);
                     fill = 1;
+                    NEW EDSServiceEDN {
+                        type = TABBED;
+                        fill = 1;
+                        MOVE BOX(lee);
+                        MOVE BOX(sedse);
+                        MOVE BOX(eedse);
+                    }
                 }
             }
         }

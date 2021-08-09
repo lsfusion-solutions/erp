@@ -24,7 +24,7 @@ confirmNotFoundOrders 'Подтверждать ответы по которым
 confirmNotFoundInvoices 'Подтверждать ответы по которым не найдена накладная' = DATA BOOLEAN ();
 disableAutoBlrapn 'Отключить автоматическую отправку извещений о прочтении' = DATA BOOLEAN ();
 
-overInvoiceOutputDir 'Путь сохранения отправленных документов'= ABSTRACT CASE STRING (EInvoice);
+overInvoiceOutputDirTopBy 'Путь сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
 overInvoiceOutputFileName 'Имя файла для сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
 
 migratedLoginPasswordTopBy = DATA BOOLEAN (); 
@@ -76,10 +76,20 @@ EXTEND FORM integrationData
     FILTERS active(eeds)
 ;
 
+hostEDSServiceCustomer = ABSTRACT CASE STRING[100] (STRING[100], EInvoice);
+portEDSServiceCustomer = ABSTRACT CASE INTEGER (STRING[100], EInvoice);
+hostEDSServiceSupplier = ABSTRACT CASE STRING[100] (STRING[100], EInvoice);
+portEDSServiceSupplier = ABSTRACT CASE INTEGER (STRING[100], EInvoice);
+
 hostEDSServiceCustomerTopBy (EInvoice i) = OVERRIDE hostEDSServiceTopBy(currentUser()), hostEDSServiceTopBy(customerStock(i)), hostEDSServiceTopBy(customer(i));
 portEDSServiceCustomerTopBy (EInvoice i) = OVERRIDE portEDSServiceTopBy(currentUser()), portEDSServiceTopBy(customerStock(i)), portEDSServiceTopBy(customer(i));
 hostEDSServiceSupplierTopBy (EInvoice i) = OVERRIDE hostEDSServiceTopBy(currentUser()), hostEDSServiceTopBy(supplierStock(i)), hostEDSServiceTopBy(supplier(i));
 portEDSServiceSupplierTopBy (EInvoice i) = OVERRIDE portEDSServiceTopBy(currentUser()), portEDSServiceTopBy(supplierStock(i)), portEDSServiceTopBy(supplier(i));
+
+hostEDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN hostEDSServiceCustomerTopBy(i);
+portEDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN portEDSServiceCustomerTopBy(i);
+hostEDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN hostEDSServiceSupplierTopBy(i);
+portEDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN portEDSServiceSupplierTopBy(i);
 
 GROUP body EXTID 'soapenv:Body';
 GROUP sendDocument EXTID 'top:SendDocument' : body;
@@ -923,7 +933,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                                 WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                                             }
                                             IF aliasEDSServiceSupplier(eInvoice(m)) AND passwordEDSServiceSupplier(eInvoice(m)) THEN {
-                                                IF hostEDSServiceSupplierTopBy(eInvoice(m)) AND portEDSServiceSupplierTopBy(eInvoice(m)) THEN {
+                                                IF hostEDSServiceSupplier(provider,eInvoice(m)) AND portEDSServiceSupplier(provider,eInvoice(m)) THEN {
                                                     LOCAL xml = FILE();
                                                     fileToString(contentSubXML());
                                                     EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(eInvoice(m)),password = passwordEDSServiceSupplier(eInvoice(m)) XML TO xml;
@@ -931,7 +941,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                                     innerXML() <- resultString();
                                                     fileToString(xml());
                                                     stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                                                    sendRequestEDI(hostEDSServiceSupplierTopBy(eInvoice(m)), portEDSServiceSupplierTopBy(eInvoice(m)), 'eds', 'eds', ('http://' + hostEDSServiceSupplierTopBy(eInvoice(m)) + ':' + portEDSServiceSupplierTopBy(eInvoice(m)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                                                    sendRequestEDI(hostEDSServiceSupplier(provider,eInvoice(m)), portEDSServiceSupplier(provider,eInvoice(m)), 'eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,eInvoice(m)) + ':' + portEDSServiceSupplier(provider,eInvoice(m)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                                                     IMPORT getEDSResponse FROM sendRequestEDIResponse();
                                                     IF faultstring() THEN {
                                                         logToFile('edi', provider + ' Parse Message ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(eInvoice(m)) + ' не подписан. Ошибка: ' + faultstring());
@@ -1218,7 +1228,7 @@ DESIGN integrationData {
                     MOVE PROPERTY(receiveInvoiceTopBy());
                     MOVE PROPERTY(askPasswordEDSService());
                     fill = 1;
-                    NEW EDSService {
+                    NEW EDSServiceTopBy {
                         type = TABBED;
                         fill = 1;
                         MOVE BOX(le);
