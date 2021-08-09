@@ -73,6 +73,15 @@ pharmString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
 
 returnExchange = DATA LOCAL BOOLEAN (GroupCashRegister);
 
+sqlInErrorLog 'Включать текст SQL в лог ошибок' = DATA BOOLEAN (GroupCashRegister);
+
+EXTEND FORM groupCashRegister PROPERTIES sqlInErrorLog(grc) SHOWIF isChameleon(grc); 
+DESIGN groupCashRegister {
+    topContainer {
+        MOVE PROPERTY (sqlInErrorLog(grc));
+    }
+}
+
 exchangeChameleon (GroupCashRegister g, STRING q) {
     exportFile() <- NULL;
     IF NOT returnExchange(g) AND directory(g) AND isChameleon(g) THEN {
@@ -83,6 +92,7 @@ exchangeChameleon (GroupCashRegister g, STRING q) {
             IF System.messageCaughtException() != 'java.lang.UnsupportedOperationException' AND System.messageCaughtException() !=  'java.lang.RuntimeException: java.io.IOException' THEN {
                 returnExchange(g) <- TRUE;
                 MESSAGE System.messageCaughtException();
+                System.messageCaughtException() <- CONCAT ' in SQL: ', System.messageCaughtException(), q IF sqlInErrorLog(g);  
             }
         }
     } ELSE {
@@ -118,7 +128,8 @@ sendToChameleon (MachineryPriceTransaction t){
                 pharmString(t)
             );
             IF returnExchange(groupMachinery(t)) THEN {
-                addMachineryError(t, getWord(System.messageCaughtException(), ':', 1), getWord(System.messageCaughtException(), 'in SQL', 1));
+                //addMachineryError(t, getWord(System.messageCaughtException(), ':', 1), getWord(System.messageCaughtException(), 'in SQL', 1));
+                addMachineryError(t, System.messageCaughtException());
             } ELSE {
                 succeeded(t) <- TRUE;
                 dateTimeSucceeded(t) <- currentDateTime();

@@ -1,0 +1,35 @@
+MODULE ChameleonCashRegister27Batch;
+
+REQUIRE ChameleonCashRegister27, MachineryPriceTransactionBatch;
+
+NAMESPACE Chameleon27;
+
+zDateTimeBalance (MachineryPriceTransaction t, Barcode b, Batch btch) = ZDATETIME (OVERRIDE balanceDate(t, b, btch), currentDateTime());
+zDateTimeBalance (MachineryPriceTransaction t, Sku s, Batch btch) = GROUP MAX zDateTimeBalance(t, Barcode b, btch) BY sku(b);
+
+batchString (Batch btch) =
+    'INSERT INTO front.series(id_series,id_goods,name_series,expiry_date,certificate_type,certificate,manufacture_date,package_quantity,quantity,active) VALUES (\'' + STRING(btch) + '\',' + STRING(sku(btch)) + ',\'' + escape(STRING[25](name(btch))) +'\',' + dateString(OVERRIDE expiryDate(btch), DATE('2099-01-01')) + ',0,\'-\',' + dateString(OVERRIDE manufactureDate(btch), currentDate()) + ',1,1,true)' +
+    'ON CONFLICT ON CONSTRAINT pk_series DO UPDATE SET name_series=\'' + escape(STRING[25](name(btch))) + '\',active=true'; 
+
+batchesBatchString (MachineryPriceTransaction t, Sku s) += CONCAT ';',
+    'UPDATE front.series SET active = false WHERE id_goods=' + STRING(s),
+    GROUP CONCAT batchString(Batch btch), ';' IF in(t, s, btch)
+;
+
+balance (MachineryPriceTransaction t, Sku s, Batch btch) = GROUP MAX balance(t, Barcode b, btch) BY sku(b);
+
+barcodeString (MachineryPriceTransaction t, Barcode b, Batch btch) = 'SELECT system.import_front_bar_codes(\'' + escape(id(b)) + '\',' + UOM(idUOM(t, b)) + ',' + STRING(sku(b)) + ', \'' + STRING(btch) + '\', \'\',true)';
+    
+barcodeBatchString (MachineryPriceTransaction t, Barcode b) += CONCAT ';', 
+    'UPDATE front.bar_codes SET active = false WHERE id_goods=' + STRING(sku(b)),
+    GROUP CONCAT barcodeString(t, b, Batch btch), ';' IF in(t, b, btch) ORDER btch
+;
+
+restString (MachineryPriceTransaction t, Sku s, Batch btch) ='SELECT system.import_front_rest(' + STRING(s) + ',\'' + STRING(btch) + '\',' + STRING(stock(t)) + ',null,' + STRING(NUMERIC[15,3](balance(t, s, btch))) + ',\'' + STRING(zDateTimeBalance(t, s, btch)) + '\',true)'; 
+
+restString (MachineryPriceTransaction t, Sku s) = CONCAT ';',
+    'UPDATE front.rest SET active=false, rest=0 WHERE id_goods=' + STRING (s) + ' and id_outlet=' + STRING(stock(t)),
+    GROUP CONCAT restString(t, s, Batch btch), ';' IF in(t, s, btch) ORDER btch
+;
+
+restBatchString (MachineryPriceTransaction t) += GROUP CONCAT restString(t, Sku s), ';' IF in(t, s);
