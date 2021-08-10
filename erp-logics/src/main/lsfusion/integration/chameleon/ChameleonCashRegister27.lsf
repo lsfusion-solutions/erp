@@ -91,14 +91,13 @@ priceString (MachineryPriceTransaction t, Barcode b, STRING[18] btch) =
         'INSERT INTO front.price(id_goods,id_unit,id_series,id_price_level,price,min_price,max_price,effective_since,active) VALUES (' + STRING(sku(b)) + ',' + UOM(idUOM(t, b)) + ',\'' + btch + '\',' + STRING(stock(t)) + ',' + centsString(price(t, b)) + ',' + centsString(minPrice(t, b)) + ',' + centsString(price(t, b)) + ',current_timestamp,true)' +
         'ON CONFLICT ON CONSTRAINT pk_price DO UPDATE SET id_price_level=' + STRING(stock(t)) + ',price=' + centsString(price(t, b)) + ',min_price=' + centsString(minPrice(t, b)) + ',max_price=' + centsString(price(t, b)) + ',active=true';                        
 
-priceString = ABSTRACT STRING (MachineryPriceTransaction, Barcode, Batch);
+priceBatchString = ABSTRACT STRING (MachineryPriceTransaction, Barcode);
 
-priceString (MachineryPriceTransaction t, Barcode b) = IF NOT explicitBatchLedger(stock(t))
-    THEN priceString(t, b, '-')
-    ELSE CONCAT ';',
-        'UPDATE front.price SET active = false WHERE id_goods=' + STRING(sku(b)),
-        GROUP CONCAT priceString(t, b, Batch btch), ';' IF sku(b) = sku(btch) ORDER btch
+priceString (MachineryPriceTransaction t, Barcode b) = CONCAT ';',
+    priceString(t, b, '-'),
+    priceBatchString (t, b)
 ;
+
 pricesString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT priceString(t, Barcode b), ';' IF in(t, b) ORDER t, b;
 
 barcodeBatchString = ABSTRACT ISTRING (MachineryPriceTransaction, Barcode);
