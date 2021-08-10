@@ -188,10 +188,13 @@ EXTEND FORM userOrder
 ;     
 
 //
-maxDeviationPriceOrder 'Макс. цена' (InvoiceDetail d) = maxDeviationPrice(orderDetail(d));
-minDeviationPriceOrder 'Мин. цена' (InvoiceDetail d) = minDeviationPrice(orderDetail(d)); 
+maxDeviationPriceOrder 'Макс. цена заказ' (InvoiceDetail d) = maxDeviationPrice(orderDetail(d));
+minDeviationPriceOrder 'Мин. цена заказ' (InvoiceDetail d) = minDeviationPrice(orderDetail(d)); 
 
-agreementsPrice 'Цена из соглашения' (InvoiceDetail d) = IF useAgreementsSupplierStock() 
+overAgreementsPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail);  
+
+agreementsPrice 'Цена из соглашения' (InvoiceDetail d) = OVERRIDE overAgreementsPrice(d),  //вообще никак не был учтен перегруженный вид цены  
+    IF useAgreementsSupplierStock() 
     THEN prevPriceB(priceListType(d), sku(d), customerStock(d), supplierStock(d), dateTime(d))
     ELSE prevPriceB(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d)) COMPLEX;
     // todo : добавлен PREV для того, чтобы при изменении в прайсах (до) она не тормозила. Почему это работает при изменении цены в прайсе - вообще загадка.
