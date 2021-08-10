@@ -30,17 +30,24 @@ showUpd 'Просмотреть УПД' (Invoice i) {
 }
 
 createUpdDocuments 'Создать УПД (отм.)' () {
-    NEWSESSION NESTED(incl[Invoice]) {
-        FOR incl(Invoice i) DO {
-            IF updDocument(i) THEN {
-                recreateUpdDocument(i);
-            } ELSE {
-                NEW ei = UpdDocument {
-                    fill(i, ei);
+    IF countIncl() THEN {
+        NEWSESSION NESTED(incl[Invoice]) {
+            LOCAL count = INTEGER ();
+            count() <- countIncl();
+            FOR incl(Invoice i) DO {
+                IF updDocument(i) THEN {
+                    recreateUpdDocument(i);
+                } ELSE {
+                    NEW ei = UpdDocument {
+                        fill(i, ei);
+                    }
                 }
             }
-        }
-        APPLY;
+            APPLY NESTED(count);
+            IF NOT canceled() THEN MESSAGE CONCAT ' ', 'Обработано', count(), 'документов(-а).';
+        }    
+    } ELSE {
+        MESSAGE 'Проставьте признак "Отм." для обрабатываемых документов.';
     }
 }
 
