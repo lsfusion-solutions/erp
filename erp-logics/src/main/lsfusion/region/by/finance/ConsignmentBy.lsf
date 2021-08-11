@@ -338,9 +338,10 @@ editDriver 'Ввести водителя' (Consignment consignment)  {
     }
 } ASON CONTEXTMENU nameDriver[Consignment];
 
-ownerTruckLegalEntity 'Владелец автомобиля' (Consignment consignment) = CASE 
-    WHEN supplier(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.supplier THEN supplier(consignment)
-    WHEN customer(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.customer THEN customer(consignment);
+ownerTruckLegalEntity 'Владелец автомобиля' (Consignment consignment) = 
+    IF ownerTrackType(consignment) == OwnerTrackType.supplier THEN supplier(consignment) ELSE
+        IF ownerTrackType(consignment) == OwnerTrackType.customer THEN customer(consignment) ELSE
+            legalEntity(truck(consignment));
 
 overPayer(Consignment consignment) += ownerTruckLegalEntity(consignment);
 
