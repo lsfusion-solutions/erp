@@ -626,13 +626,18 @@ filterGroups() = CONCAT ' OR', ' LOOKUP(sku,\'sku_group1\') IN (' + nameIncludeS
                                        ' LOOKUP(sku,\'sku_group3\') IN (' + nameIncludeSkuGroups3() + ')',
                                        ' LOOKUP(sku,\'sku_group4\') IN (' + nameIncludeSkuGroups4() + ')',
                                        ' LOOKUP(sku,\'sku_group5\') IN (' + nameIncludeSkuGroups5() + ')';
+
+extraFilter = ABSTRACT TEXT();
+
 filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF (include(s) OR (NOT (GROUP SUM 1 IF include(Stock stock)) AND limitAccess(currentUser()))) AND accessCompany(currentUser(),s),',') + ')','')
                     + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF include(le),',') + ')','')
                     + (OVERRIDE ' AND LOOKUP(sku,\'sku_brand\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF include(b),',') + ')','')
                     + (OVERRIDE ' AND manufacturer IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Manufacturer b) +'\'') IF include(b),',') + ')','')
                     + (OVERRIDE ' AND LOOKUP(sku,\'sku_country\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Country c) +'\'') IF include(c),',') + ')','')
                     + (OVERRIDE ' AND (' + filterGroups() + ')','')
-                    + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataInclude(sku),',') + ')','');
+                    + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataInclude(sku),',') + ')','')
+                    + (OVERRIDE extraFilter(), '');
+                    
 values() = (IF overIsOut() AND overIsQuantity() THEN 'SUM(quantitySold) AS quantitySold, ' ELSE '')
                             + (IF overIsOut() AND overIsCost() THEN 'SUM(costSumSold) AS costSumSold, ' ELSE '')
                             + (IF overIsOut() AND isCostVAT() THEN 'SUM(costSumVATSold) AS costSumVATSold, ' ELSE '')
