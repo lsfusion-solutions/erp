@@ -128,7 +128,7 @@ addressSupplier 'Юр. адрес отправителя' (Consignment consignme
 overFullNameSupplier = ABSTRACT ISTRING[200] (Consignment);  
 fullNameSupplier 'Наим-ие отправителя' (Consignment consignment) = 
     OVERRIDE overFullNameSupplier(consignment), fullName(supplier(consignment)) CHARWIDTH 30;    
-extraDescriptionSupplier = ABSTRACT ISTRING[255] (Consignment) PREREAD;  
+extraDescriptionSupplier = ABSTRACT ISTRING[255] (Consignment);  
 
 dataCustomer = ABSTRACT LegalEntity (Consignment);
 overCustomer = ABSTRACT LegalEntity (Consignment);
@@ -150,18 +150,18 @@ fullNameCustomer 'Наим-ие получателя' (Consignment consignment) 
 extraDescriptionCustomer = ABSTRACT ISTRING[255] (Consignment);  
 
 extraUNPPayer 'УНП получателя' = ABSTRACT STRING[50] (Consignment);
-dataPayer = ABSTRACT LegalEntity (Consignment) PREREAD;
-overPayer = ABSTRACT LegalEntity (Consignment) PREREAD;
+dataPayer = ABSTRACT LegalEntity (Consignment);
+overPayer = ABSTRACT LegalEntity (Consignment);
 payer(Consignment c) = OVERRIDE dataPayer(c), overPayer(c);
 dataUNPPayer = DATA STRING[9] (Consignment);
 UNPPayer 'УНП заказчика' (Consignment consignment) = OVERRIDE dataUNPPayer(consignment), extraUNPPayer(consignment), UNP(payer(consignment));
 dataAddressPayer = DATA STRING[150] (Consignment);
 addressPayer 'Юр. адрес заказчика' (Consignment consignment) = OVERRIDE dataAddressPayer(consignment),
-    address(payer(consignment), date(consignment)) PREREAD;
+    address(payer(consignment), date(consignment));
 
 dataFullNamePayer = DATA STRING[200] (Consignment);
 fullNamePayer 'Наим-ие заказчика' (Consignment consignment) =
-    OVERRIDE dataFullNamePayer(consignment), fullName(payer(consignment)) PREREAD;
+    OVERRIDE dataFullNamePayer(consignment), fullName(payer(consignment)) ;
 
 overChangePayer ABSTRACT (Consignment);
 
@@ -195,8 +195,8 @@ changeAddressPayer (Consignment consignment) {
 
 GROUP carConsignment 'Автомобиль' : base;
 
-defaultTruck = ABSTRACT CASE Truck (Consignment) PREREAD;
-dataTruck = ABSTRACT Truck(Consignment) PREREAD;
+defaultTruck = ABSTRACT CASE Truck (Consignment);
+dataTruck = ABSTRACT Truck(Consignment);
 truck(Consignment consignment) = OVERRIDE dataTruck(consignment), defaultTruck(consignment);  
 mandatoryTruck 'Обязательный выбор автомобиля из справочника' = ABSTRACT CASE BOOLEAN (Consignment);
 
@@ -354,7 +354,7 @@ skipWaybill 'Пропустить проверку путевого листа' 
 // Склад погрузки
 dataSupplierStock (consignment) = ABSTRACT Stock (Consignment);
 overSupplierStock (consignment) = ABSTRACT Stock (Consignment);
-supplierStock (Consignment c) = OVERRIDE overSupplierStock(c), dataSupplierStock(c) PREREAD;
+supplierStock (Consignment c) = OVERRIDE overSupplierStock(c), dataSupplierStock(c);
 nameSupplierStock 'Склад погрузки' (Consignment consignment) = name(supplierStock(consignment)) CHARWIDTH 30;
 
 dataAddressSupplierStock 'Пункт погрузки' (consignment) = ABSTRACT STRING[250] (Consignment);
@@ -364,7 +364,7 @@ addressSupplierStock 'Пункт погрузки' (Consignment consignment) = O
 // Склад разгрузки
 dataCustomerStock (consignment) = ABSTRACT Stock (Consignment);
 overCustomerStock (consignment) = ABSTRACT Stock (Consignment);
-customerStock (Consignment c) = OVERRIDE overCustomerStock(c), dataCustomerStock(c) PREREAD;
+customerStock (Consignment c) = OVERRIDE overCustomerStock(c), dataCustomerStock(c);
 nameCustomerStock 'Склад разгрузки' (Consignment consignment) = name(customerStock(consignment)) CHARWIDTH 30;
 
 dataAddressCustomerStock 'Пункт разгрузки' (consignment) = ABSTRACT STRING[250] (Consignment) IN carConsignment;
