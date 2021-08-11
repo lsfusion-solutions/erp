@@ -172,3 +172,30 @@ META extendFormZoneLedger (form, skuObject, stockObject, container)
 END
 
 @extendFormZoneLedger(currentBalanceSkuStock, s, st, ledgerBox);
+
+META defineZoneLedger(objectClass)
+    CLASS ###objectClass##ZoneLedger : ZoneLedger;
+    TABLE ##objectClass###ZoneLedger (###objectClass##ZoneLedger);
+    
+    ##objectClass##ZoneLedger = AGGR ###objectClass##ZoneLedger WHERE zone(###objectClass ##objectClass) MATERIALIZED INDEXED;
+    
+    dateTime(###objectClass##ZoneLedger ledger) += dateTime(##objectClass(ledger));
+    number(###objectClass##ZoneLedger ledger) += number(##objectClass(ledger));
+    isPosted(###objectClass##ZoneLedger ledger) += isPosted(##objectClass(ledger));
+    sku(###objectClass##ZoneLedger ledger) += sku(##objectClass(ledger));
+    description(###objectClass##ZoneLedger ledger) += description(##objectClass(ledger));
+END
+
+META defineZoneLedgerIn(objectClass, house)
+    @defineZoneLedger(objectClass);
+    stock(###objectClass##ZoneLedger ledger) += ##house(##objectClass(ledger));
+    toZone(###objectClass##ZoneLedger ledger) += zone(##objectClass(ledger));
+    quantity(###objectClass##ZoneLedger ledger) += quantity(##objectClass(ledger));
+END
+
+META defineZoneLedgerOut(objectClass, house)
+    @defineZoneLedger(objectClass);
+    stock(###objectClass##ZoneLedger ledger) += ##house(##objectClass(ledger));
+    fromZone(###objectClass##ZoneLedger ledger) += zone(##objectClass(ledger));
+    quantity(###objectClass##ZoneLedger ledger) += -quantity(##objectClass(ledger));
+END
