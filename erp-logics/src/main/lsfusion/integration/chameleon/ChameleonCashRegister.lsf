@@ -173,7 +173,6 @@ zReport (CashRegister cr, STRING n) = GROUP LAST ZReport z ORDER z IF number(z) 
 
 employee (LONG id) = GROUP LAST Employee e AS Employee ORDER e BY LONG(e);
 sku (LONG id) = GROUP LAST Sku s AS Sku ORDER s BY LONG(s);
-batch (LONG id) = GROUP LAST Batch b AS Batch ORDER b BY LONG(b);
 
 @defineStaticObject(chameleonPaymentType, 'Тип оплаты Chameleon');
 
@@ -201,6 +200,8 @@ EXTEND FORM paymentType PROPERTIES nameChameleonPaymentType(pt);
 paymentType(ISTRING s) = OVERRIDE paymentType(chameleonPaymentType(s)), typePaymentSID(BPISTRING[10](s));
 
 payment (Receipt r, PaymentType t) = GROUP LAST Payment p ORDER p BY receipt(p), paymentType(p);
+
+setBatch ABSTRACT (ReceiptDetail, LONG);
 
 receiveFromChameleon(GroupCashRegister g, DATE from, DATE to) {
     IF isChameleon(g) THEN {
@@ -289,7 +290,8 @@ receiveFromChameleon(GroupCashRegister g, DATE from, DATE to) {
             }
             FOR receipt(ReceiptSaleDetail d) = receipt(guid(INTEGER i)) AND summ(i) > 0 AND id(d) = STRING[100](CONCAT '_', guid(i), lpad(TEXT(i), 10, '0')) DO {
                 sku(d) <- sku(idSku(i));
-                batch[DocumentDetail](d) <- batch(LONG(idBatch(i)));
+                setBatch(d, LONG(idBatch(i)));
+                //batch[ReceiptSaleDetail](d) <- batch(LONG(idBatch(i)));
                 price(d) <- NUMERIC[16,4](price(i)) / 100;
                 quantity(d) <- quantity(i);
                 sum(d) <- NUMERIC[18,4](summ(i)) / 100;
@@ -302,7 +304,8 @@ receiveFromChameleon(GroupCashRegister g, DATE from, DATE to) {
             }
             FOR receipt(ReceiptReturnDetail d) = receipt(guid(INTEGER i)) AND summ(i) < 0 AND STRING[100](CONCAT '_', guid(i), lpad(TEXT(i), 10, '0')) DO {
                 sku(d) <- sku(idSku(i));
-                batch[DocumentDetail](d) <- batch(LONG(idBatch(i)));
+                setBatch(d, LONG(idBatch(i)));
+                //batch[ReceiptReturnDetail](d) <- batch(LONG(idBatch(i)));
                 price(d) <- NUMERIC[16,4](price(i)) / 100;
                 quantity(d) <- abs(quantity(i));
                 sum(d) <- abs(NUMERIC[18,4](summ(i))) / 100;

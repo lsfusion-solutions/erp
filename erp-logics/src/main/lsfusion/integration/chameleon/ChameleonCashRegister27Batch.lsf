@@ -1,11 +1,13 @@
 MODULE ChameleonCashRegister27Batch;
 
-REQUIRE ChameleonCashRegister27, MachineryPriceTransactionBatch;
+REQUIRE ChameleonCashRegister27, MachineryPriceTransactionBatch, ZReportBatch;
 
 NAMESPACE Chameleon27;
 
 zDateTimeBalance (MachineryPriceTransaction t, Barcode b, Batch btch) = ZDATETIME (OVERRIDE balanceDate(t, b, btch), currentDateTime());
 zDateTimeBalance (MachineryPriceTransaction t, Sku s, Batch btch) = GROUP MAX zDateTimeBalance(t, Barcode b, btch) BY sku(b);
+
+batch (LONG id) = GROUP MAX Batch b AS Batch BY LONG(b);
 
 batchString (Batch btch) =
     'INSERT INTO front.series(id_series,id_goods,name_series,expiry_date,certificate_type,certificate,manufacture_date,package_quantity,quantity,active) VALUES (\'' + STRING(btch) + '\',' + STRING(sku(btch)) + ',\'' + escape(STRING[25](name(btch))) +'\',' + dateString(OVERRIDE expiryDate(btch), DATE('2099-01-01')) + ',0,\'-\',' + dateString(OVERRIDE manufactureDate(btch), currentDate()) + ',1,1,true)' +
@@ -35,3 +37,6 @@ restString (MachineryPriceTransaction t, Sku s) = CONCAT ';',
 ;
 
 restBatchString (MachineryPriceTransaction t) += GROUP CONCAT restString(t, Sku s), ';' IF in(t, s);
+
+setBatch (ReceiptSaleDetail d, LONG b) + { batch(d) <- batch(b); }
+setBatch (ReceiptReturnDetail d, LONG b) + { batch(d) <- batch(b); }
