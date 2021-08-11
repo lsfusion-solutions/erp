@@ -8,11 +8,9 @@ writeFileToSocket (file, type, ip)  INTERNAL  'lsfusion.erp.machinery.scales.Wri
 
 
 //DigiSM5300
-overImage = ABSTRACT IMAGEFILE (Barcode);
-image = OVERRIDE overImage(Barcode b), image(sku(b));
+image = OVERRIDE smallImage(sku(Barcode b)), image(sku(b));
 
-overPluNumber = ABSTRACT INTEGER (Barcode, Stock);
-pluNumber = OVERRIDE overPluNumber(Barcode b, Stock s), plu(b, s);
+pluNumber(GroupMachinery g, Barcode b) = OVERRIDE plu(g, b), plu(b, stock(g));
 
 loadImages 'Загрузить картинки в весы' () {
     NEWSESSION NESTED (select[Sku,Stock]) {
@@ -22,10 +20,10 @@ loadImages 'Загрузить картинки в весы' () {
                     TRY {
                         mkdir('ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/');
                     }
-                    FOR select(sku(Barcode barcode), stock) AND pluNumber(barcode, stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                    FOR select(sku(Barcode barcode), stock) AND pluNumber(groupScales(scales), barcode) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
                         TRY {
                             convertImage(image(barcode), 'bmp');
-                            WRITE convertedImage() TO 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + pluNumber(barcode, stock) + '?binarytransfermode=false';
+                            WRITE convertedImage() TO 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' +pluNumber(groupScales(scales), barcode) + '?binarytransfermode=false';
                         } CATCH {
                             //logToFile('scales','ERROR WRITE TO ' + 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + (OVERRIDE STRING (pluNumber(barcode, stock)),'NULL'));
                             MESSAGE 'Ошибка загрузки изображений в весы' NOWAIT;
@@ -46,9 +44,9 @@ deleteImages 'Удалить картинки из весов' () {
         IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
             FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
                 FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'DigiSM5300' DO {
-                    FOR select(sku(Barcode barcode), stock) AND pluNumber(barcode, stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                    FOR select(sku(Barcode barcode), stock) AND pluNumber(groupScales(scales), barcode) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
                         TRY {
-                            delete('ftp://root:teraoka@' + port(scales) + '//opt/pcscale/files/img/plu/Plu' + pluNumber(barcode, stock));
+                            delete('ftp://root:teraoka@' + port(scales) + '//opt/pcscale/files/img/plu/Plu' + pluNumber(groupScales(scales), barcode));
                         }
                     }
                 }
@@ -70,18 +68,22 @@ DESIGN currentBalanceSkuStock {
     }
 }
 
+dataCustomGroupType = DATA CustomGroupType(GroupScales);
 customGroupType = ABSTRACT CustomGroupType(GroupScales);
+customGroupTypeDigi(GroupScales gs) = OVERRIDE dataCustomGroupType(gs), customGroupType(gs);
+nameCustomGroupTypeDigi 'Тип классификатора'(GroupScales gs) = name(customGroupTypeDigi(gs));
+EXTEND FORM groupScales 
+    PROPERTIES (grs) nameCustomGroupTypeDigi SHOWIF sidModel(grs) == 'DigiSM5300';
+
 tareWeight = ABSTRACT NUMERIC[12,3] (Barcode);
 
 overId = ABSTRACT STRING[100] (CustomGroup);
 idDigi(CustomGroup cg) = OVERRIDE overId(cg), id(cg);
 
-overNewPluNumber = ABSTRACT INTEGER (Barcode, GroupScales);
-
 createAttribute(MachineryPriceTransaction mpt) + {
     IF sidModel(groupScales(mpt)) == 'DigiSM5300' THEN {
         LOCAL custGroup = CustomGroup (Barcode);
-        custGroup(Barcode b) <- customGroup(customGroupType(groupMachinery(mpt)), sku(b)) WHERE in(mpt, b);
+        custGroup(Barcode b) <- customGroup(customGroupTypeDigi(groupMachinery(mpt)), sku(b)) WHERE in(mpt, b);
         LOCAL newPluNumber = INTEGER (Barcode);
         newPluNumber(Barcode b) <- PARTITION SUM 1 IF id(b) AND active(b) ORDER b BY custGroup(b) WHERE in(mpt, b);
         
@@ -89,7 +91,7 @@ createAttribute(MachineryPriceTransaction mpt) + {
                 (CONCAT ',',
                     (' "numberGroup": "' + (OVERRIDE idDigi(custGroup(b)), '1') +
                     '", nameGroup: "' + (OVERRIDE name(custGroup(b)),'Все')+ 
-                    '", overPluNumber: "' + (OVERRIDE newPluNumber(b), overNewPluNumber(b, groupMachinery(mpt))) + '"'),
+                    '", overPluNumber: "' + newPluNumber(b) + '"'),
                     '"tareWeight":'+tareWeight(b))
                 +'\}\}') WHERE in(mpt, b);
     }
@@ -102,7 +104,7 @@ loadImagesGroup 'Загрузить картинки в весы' (GroupScales g
             TRY {
                 mkdir('ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/common/');
             }
-            FOR idDigi(CustomGroup cg) AND customGroupType(cg) == customGroupType(gm) DO {
+            FOR idDigi(CustomGroup cg) AND customGroupType(cg) == customGroupTypeDigi(gm) DO {
                 TRY {
                     convertImage(imageDigi(cg), 'bmp');
                     WRITE convertedImage() TO 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/common/' + idDigi(cg) + '?binarytransfermode=false';

@@ -8,6 +8,13 @@ loadDefaultScalesModels () + {
     loadDefaultScalesModel('Весы РБС KS4010', 'KS4010', 'lsf.integration.rbs.KS4010');
 }
 
+dataCustomGroupTypeRBS = DATA CustomGroupType(GroupScales);
+nameCustomGroupTypeRBS 'Тип классификатора'(GroupScales gs) = name(dataCustomGroupTypeRBS(gs));
+EXTEND FORM groupScales 
+    PROPERTIES (grs) nameCustomGroupTypeRBS SHOWIF sidModel(grs) == 'KS4010';
+
+scalesGroup (MachineryPriceTransaction t, Barcode b) += group(dataCustomGroupTypeRBS(groupScales(t)), sku(b)) IF t IS MachineryPriceTransaction ;
+
 skilLoadImages 'Не выгружать изображения в весы' = ABSTRACT BOOLEAN (GroupScales) PREREAD;
 tareWeight = ABSTRACT NUMERIC[12,3] (Barcode); 
 
