@@ -1,0 +1,27 @@
+MODULE Dibal;
+
+REQUIRE ScalesPriceTransaction, Image, Item;
+
+dataCustomGroupType = DATA CustomGroupType(GroupScales);
+customGroupType = ABSTRACT CustomGroupType(GroupScales);
+customGroupTypeDibal(GroupScales gs) = OVERRIDE dataCustomGroupType(gs), customGroupType(gs);
+nameCustomGroupTypeDibal 'Тип классификатора'(GroupScales gs) = name(customGroupTypeDibal(gs));
+EXTEND FORM groupScales 
+    PROPERTIES (grs) nameCustomGroupTypeDibal SHOWIF sidModel(grs) == 'Dibal';
+
+overId = ABSTRACT STRING[100] (CustomGroup);
+idDibal(CustomGroup cg) = OVERRIDE overId(cg), id(cg);
+
+createAttribute(MachineryPriceTransaction mpt) + {
+    IF sidModel(groupScales(mpt)) == 'Dibal' THEN {
+        LOCAL custGroup = CustomGroup (Barcode);
+        custGroup(Barcode b) <- customGroup(customGroupTypeDibal(groupMachinery(mpt)), sku(b)) WHERE in(mpt, b);
+        
+        info(mpt, Barcode b) <- ('\{"Dibal":\{'+
+                (CONCAT ',',
+                    (' "numberGroup": "' + (OVERRIDE idDibal(custGroup(b)), '1') +
+                    '", nameGroup: "' + (OVERRIDE name(custGroup(b)),'Все') + '"')
+                    )
+                +'\}\}') WHERE in(mpt, b);
+    }
+}
