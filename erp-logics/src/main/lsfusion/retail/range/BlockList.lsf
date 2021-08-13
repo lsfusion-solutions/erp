@@ -1,0 +1,331 @@
+MODULE BlockList;
+
+REQUIRE System,
+        Stock,        
+        Sku,
+        Barcode,
+        Numerator,        
+        Utils,
+        Document,
+        Range;
+
+NAMESPACE BlockList;
+
+//----------------------------------- Временная блокировка товара -------------------------------------------------------
+
+CLASS BlockList 'Временная блокировка товара';
+CLASS BlockListDetail 'Строка временной блокировки товара';
+
+@defineDocument(blockList);
+@defineCreatedAbstract(BlockListDetail);
+
+@deriveDocumentHeaderTimePrefix(BlockList, );
+
+@defineDocumentTimePrefix (blockList, from, ' с');
+@deriveDocumentHeaderTimePrefix(BlockList, from);
+
+@defineDocumentTimePrefix (blockList, to, ' по');
+
+@defineDocumentHeaderNumber(BlockList, BPSTRING[2]);
+@defineDocumentDetailNumber(blockList, BlockListDetail);
+
+@defineNumeratedDefault(BlockList, 'Временная блокировка товара', 'ЗЗ');
+
+@defineDocumentHeaderLegalEntity(blockList, supplier, 'Поставщик');
+supplier (BlockListDetail d) = supplier(blockList(d));
+CONSTRAINT BlockList b IS BlockList AND NOT supplier(b)
+    MESSAGE 'Для документа "Временная блокировка товара" обязательно должен быть задан поставщик';
+ 
+
+
+// ---------------------  Склады, для которых действует прайс
+
+// Шапка
+
+allStocks 'Отм' = DATA BOOLEAN (BlockList);
+
+TABLE blockListStockGroup(BlockList, StockGroup);
+dataIn 'Отм' = DATA BOOLEAN (BlockList, StockGroup);
+
+TABLE blockListStock(BlockList, Stock);
+dataIn 'Отм' = DATA BOOLEAN (BlockList, Stock);
+
+levelParent (BlockList b, StockGroup stockGroup) = GROUP
+                                                               MIN level(stockGroup, StockGroup parent) IF dataIn(b, parent) MATERIALIZED;
+
+inParent (BlockList b, StockGroup stockGroup) = TRUE IF levelParent (b, stockGroup) MATERIALIZED;
+
+in 'Отм' (BlockList b, StockGroup stockGroup) = OVERRIDE
+    dataIn(b, stockGroup),
+    inParent (b, stockGroup),
+    allStocks(b) AND stockGroup IS StockGroup;
+
+in 'Отм' (BlockList b, Stock stock) =
+    (OVERRIDE dataIn(b, stock), (in(b, stockGroup(stock)) AND active(stock)))
+    AND isCompany(stock) MATERIALIZED;  
+             
+@defineBackgroundNearestBoolean(allStocks, in, blockList, stock, inParent, isCompany);                    
+
+stocks 'Склады' (BlockList b) = GROUP
+                                       CONCAT ISTRING[250] (name(Stock stock)) IF in(b, stock) , ', '
+                                       ORDER stock CHARWIDTH 20 MATERIALIZED;
+stocks 'Склады' (BlockListDetail d) = stocks(blockList(d));                                       
+
+@defineDocumentPosted(blockList);
+@defineDocumentClosed(blockList);
+@defineDocumentDescription (blockList, 'Временная блокировка товара');
+
+@defineDocumentDetailSkuPrefix (blockList, sku, , '');
+
+overIdSku(BlockListDetail d) = overId(sku(d));
+
+@defineExternalizable(blockListDetail, STRING[100]);
+
+//-- SKU
+blockListDetail (sku, blockList) =  GROUP MAX BlockListDetail blockListDetail
+    BY sku(blockListDetail), blockList(blockListDetail);
+
+count 'Вкл.' (Sku sku, BlockList blockList) =  TRUE IF [GROUP SUM 1 
+    BY sku(BlockListDetail blockListDetail), blockList(blockListDetail)](sku, blockList);    
+                                    
+    
+changeValue(Sku sku, BlockList blockList)  { 
+    INPUT b = BOOLEAN DO
+        IF blockListDetail(sku, blockList) THEN {
+            IF NOT b THEN {
+                DELETE BlockListDetail d WHERE d == blockListDetail(sku, blockList);
+            } 
+        } ELSE {
+            IF b THEN {
+                NEW d = BlockListDetail {
+                   blockList(d) <- blockList;
+                   sku(d) <- sku;
+                }
+            }
+        }
+}
+
+
+active(Stock stock, BlockListDetail detail) = in(blockList(detail), stock) AND isPosted(detail) MATERIALIZED;
+sku(Stock stock, BlockListDetail detail) = sku(detail) IF active(stock, detail) MATERIALIZED INDEXED; 
+fromDateTime(Stock stock, BlockListDetail detail) = fromDateTime(detail) IF active(stock, detail) MATERIALIZED; 
+toDateTime(Stock stock, BlockListDetail detail) = toDateTime(detail) IF active(stock, detail) MATERIALIZED; 
+   
+inBlockList (sku, Stock stock, supplier, DATETIME dateTime) =
+    GROUP LAST active(stock, BlockListDetail detail)
+          ORDER fromDateTime(stock, detail) , detail 
+          WHERE dateTime >= fromDateTime(stock, detail) 
+                AND NOT dateTime >  toDateTime(stock, detail)
+          BY   sku(stock, detail), supplier(detail) COMPLEX;        
+inBlockList (sku, Stock stock, DATETIME dateTime) =
+    GROUP LAST active(stock, BlockListDetail detail)
+          ORDER fromDateTime(stock, detail) , detail 
+          WHERE dateTime >= fromDateTime(stock, detail) 
+                AND NOT dateTime >  toDateTime(stock, detail)
+          BY   sku(stock, detail) COMPLEX; 
+          
+lastBlockListDetail (sku, Stock stock, supplier, DATETIME dateTime) =
+    GROUP LAST BlockListDetail detail IF active(stock, detail)
+          ORDER fromDateTime(stock, detail) , detail 
+          WHERE dateTime >= fromDateTime(stock, detail) 
+                AND NOT dateTime >  toDateTime(stock, detail)
+          BY   sku(stock, detail), supplier(detail) COMPLEX;        
+inBlockListCurrent 'Временная блокировка товара' (LegalEntity sup, Sku sku, Stock stock) = inBlockList(sku,stock,sup,currentDateTime());
+
+FORM blockList 'Временная блокировка товара'
+
+    OBJECTS b=BlockList PANEL
+
+    PROPERTIES(b) isPosted, nameNumerator, number, series, date, time,
+                   countBlockListDetail, note,
+                   fromDate, fromTime, toDate, toTime, nameSupplier
+                   
+    TREE stockTree a=BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    PROPERTIES(b) allStocks[BlockList] DRAW a BACKGROUND backgroundAllStocks(b)
+    PROPERTIES(b, sg) in BACKGROUND backgroundIn(b,sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a)
+    FILTERS countCompanyStock(sg)// OR (showNotCompanyStocks(p) AND sg IS StockGroup)
+
+    OBJECTS ts = Stock
+    PROPERTIES READONLY  name(ts), nameLegalEntity(ts)
+    PROPERTIES(b, ts)    in BACKGROUND backgroundIn(b,ts)
+    FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParent(sg, ts)
+    FILTERGROUP filters2
+            FILTER 'Выбранные склады' in(b, ts) 'F10'
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+    
+
+    OBJECTS d = BlockListDetail
+    PROPERTIES(d)   index,
+                    idBarcodeSku, nameSku, shortNameUOMSku
+
+    PROPERTIES(d)   NEW, deletedd=DELETE GRID
+
+    PROPERTIES(b) DRAW d deleteBlockListDetail
+
+    FILTERS         blockList(d) == b    
+    
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), name(sk)
+    ORDERS order(sk), name(sk)
+
+    OBJECTS           ks=Sku 
+    PROPERTIES        READONLY name(ks), idBarcode(ks), shortNameUOM(ks)
+    PROPERTIES        addSku() DRAW ks, EDIT(ks) NEWSESSION, copy(ks), count(ks,b) ON CHANGE changeValue(ks,b)
+    ORDERS            name(ks) 
+    FILTERS           isParent(sk, ks),
+                      name(ks)
+      
+    FILTERGROUP inDocument FILTER 'В док-те' count(ks,b) 'F10'      
+
+    EVENTS
+        ON OK prePost(b)
+
+    EDIT BlockList OBJECT b
+;
+
+DESIGN blockList {
+    BOX {
+        size = (1024, 768);
+        NEW headerBox {
+            type = CONTAINERH;
+
+            NEW headerRow1 {
+                fill = 1;
+                type = CONTAINERV;
+                MOVE GROUP(documentHeader,b) {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(isPosted(b)) { charWidth = 10; }
+                    MOVE PROPERTY(nameNumerator(b));
+                    MOVE PROPERTY(number(b));
+                    MOVE PROPERTY(series(b));
+                    MOVE PROPERTY(date(b));
+                    MOVE PROPERTY(time(b));
+                }
+                NEW bBox{
+                    type = CONTAINERH;
+                    NEW supplier{
+                        type = CONTAINERH;
+                        caption = 'Поставщик';
+                        MOVE PROPERTY (nameSupplier(b));
+                    }
+                    NEW timeContainer {
+                        caption = 'Период действия';
+                        type = CONTAINERH;
+                        MOVE PROPERTY (fromDate(b));
+                        MOVE PROPERTY (fromTime(b));
+                        MOVE PROPERTY (toDate(b));
+                        MOVE PROPERTY (toTime(b));   
+                    }                    
+                }
+
+                MOVE GROUP(documentPrm,b);
+            }
+
+            MOVE GROUP(documentSum,b) {
+                columns = 1;
+            }
+        }
+        NEW row {
+            fill = 1;
+            type = TABBED;
+            NEW selectStock {
+                caption = 'Выбор складов';
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX(TREE stockTree) {caption = 'Группы складов';}
+                MOVE BOX(ts) { fill = 2;}     
+            }
+            NEW specificationBox {
+                caption = 'Спецификация';
+                fill = 1;
+                type = TABBED;
+                MOVE BOX(d);
+                NEW itemBox {
+                    caption = 'Подбор';
+                    type = SPLITH;
+                    MOVE BOX(TREE skuTree) { caption = 'Группы SKU'; }
+                    MOVE BOX(ks) { fill = 2;}
+                }
+            }
+        }    
+        MOVE TOOLBARBOX;
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+    }
+}
+
+@addEventGenerateNumberOnForm(blockList, b, blockList);
+
+FORM blockLists 'Временная блокировка товара'
+
+    OBJECTS b=BlockList
+    PROPERTIES (b) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, nameSupplier
+    PROPERTIES(b)  READONLY fromDate, fromTime, toDate, toTime, countBlockListDetail
+    PROPERTIES (b) READONLYIF isReadonly() note
+    PROPERTIES (b) READONLY stocks
+
+    PROPERTIES(b)  READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                          postedNameUser, postedTime, postedHostnameComputer
+
+    PROPERTIES (b) NEWSESSION NEW, EDIT SHOWIF isOpened(b)
+    PROPERTIES(b)  close SHOWIF isOpened(b), open SHOWIF isClosed(b)     
+    
+    PROPERTIES (b) NEWSESSION deleted=DELETE SHOWIF isOpened(b)
+
+    OBJECTS d=BlockListDetail
+    PROPERTIES(d)   READONLY index,
+                    idBarcodeSku, nameSku, shortNameUOMSku
+    FILTERS         blockList(d) == b
+    
+    OBJECTS st = Stock GRID
+    PROPERTIES (st) READONLY name, id SHOWIF showIDs()
+    PROPERTIES READONLY in(b,st)
+    FILTERS in(b,st)
+;
+
+DESIGN blockLists {
+    BOX {
+        size = (1024, 768);
+        NEW documentContainer  {
+            fill = 1;
+            type = SPLITV;
+
+            MOVE BOX(b) {
+                fill = 2;
+            }
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE BOX(d) {
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    MOVE GROUP(created,b);
+                    MOVE GROUP(posted,b);
+                }
+                MOVE BOX(st);
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+@extendFormEditable(blockLists);
+@defineFilterIsOpened (blockList, blockLists, b);
+NAVIGATOR {
+    retailRangeNavigator {
+        NEW blockLists;
+    }
+}
