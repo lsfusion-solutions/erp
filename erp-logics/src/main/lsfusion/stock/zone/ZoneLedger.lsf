@@ -173,6 +173,9 @@ END
 
 @extendFormZoneLedger(currentBalanceSkuStock, s, st, ledgerBox);
 
+CONSTRAINT SET(currentBalance(Stock st, Zone z, Sku s) < 0)
+    MESSAGE 'На зоне склада не может быть отрицательный остаток по товару';
+    
 META defineZoneLedger(objectClass)
     CLASS ###objectClass##ZoneLedger : ZoneLedger;
     TABLE ##objectClass###ZoneLedger (###objectClass##ZoneLedger);
@@ -184,18 +187,17 @@ META defineZoneLedger(objectClass)
     isPosted(###objectClass##ZoneLedger ledger) += isPosted(##objectClass(ledger));
     sku(###objectClass##ZoneLedger ledger) += sku(##objectClass(ledger));
     description(###objectClass##ZoneLedger ledger) += description(##objectClass(ledger));
+    quantity(###objectClass##ZoneLedger ledger) += quantity(##objectClass(ledger));
 END
 
 META defineZoneLedgerIn(objectClass, house)
     @defineZoneLedger(objectClass);
     stock(###objectClass##ZoneLedger ledger) += ##house(##objectClass(ledger));
     toZone(###objectClass##ZoneLedger ledger) += zone(##objectClass(ledger));
-    quantity(###objectClass##ZoneLedger ledger) += quantity(##objectClass(ledger));
 END
 
 META defineZoneLedgerOut(objectClass, house)
     @defineZoneLedger(objectClass);
     stock(###objectClass##ZoneLedger ledger) += ##house(##objectClass(ledger));
     fromZone(###objectClass##ZoneLedger ledger) += zone(##objectClass(ledger));
-    quantity(###objectClass##ZoneLedger ledger) += -quantity(##objectClass(ledger));
 END

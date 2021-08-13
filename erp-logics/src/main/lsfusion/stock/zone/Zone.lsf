@@ -58,24 +58,27 @@ NAVIGATOR {
     }
 }
 
-META defineOperationZone(container)
-    defaultZone 'Зона по умолчанию'= DATA Zone (Operation);
-    defaultZoneName 'Зона по умолчанию' (Operation o) = name(defaultZone(o)); 
-    showZone 'Отображать зону' = DATA BOOLEAN (Operation);
+META defineOperationZone(container, prefix, captionPost)
+    default###prefix##Zone 'Зона по умолчанию'##captionPost= DATA Zone (Operation);
+    default###prefix##ZoneName 'Зона по умолчанию'##captionPost (Operation o) = name(default###prefix##Zone(o)); 
+    show###prefix##Zone 'Отображать зону' = DATA BOOLEAN (Operation);
+    isReadOnly###prefix##Zone 'Запрет на изменения' = DATA BOOLEAN (Operation);
     
-    WHEN LOCAL DROPPED (showZone(Operation o)) DO {
-        defaultZone(o) <- NULL;
+    WHEN LOCAL DROPPED (show###prefix##Zone(Operation o)) DO {
+        default###prefix##Zone(o) <- NULL;
     }
     
     EXTEND FORM operation
-        PROPERTIES(o) showZone, defaultZoneName READONLYIF NOT (defaultZone(o) OR showZone(o))
+        PROPERTIES(o) show###prefix##Zone, isReadOnly###prefix##Zone, default###prefix##ZoneName READONLYIF NOT (default###prefix##Zone(o) OR show###prefix##Zone(o))
     ;
     DESIGN operation{
         container {
-            NEW zoneContainer {
+            NEW ##prefix##zoneContainer {
                 type = CONTAINERH;
-                MOVE PROPERTY(showZone(o));
-                MOVE PROPERTY(defaultZoneName(o));
+                caption = 'Зона'##captionPost;
+                MOVE PROPERTY(show###prefix##Zone(o));
+                MOVE PROPERTY(isReadOnly###prefix##Zone(o));               
+                MOVE PROPERTY(default###prefix##ZoneName(o));
             }   
         }    
     }
@@ -108,31 +111,27 @@ META defineDocumentInterfaceZoneProperty(objectClass, property)
     zone(###objectClass o) += zone(o); 
 END
 
-META defineDocumentZoneOperationDefault(objectClass, checkProperty)
+META defineDocumentZoneOperationDefault(objectClass, checkProperty, prefix)
     WHEN LOCAL (CHANGED(operation(###objectClass o)) OR CHANGED(checkProperty(o))) AND NOT CHANGED(zone(o)) DO {
-        zone(o) <- defaultZone(operation(o)) IF checkProperty(o);
+        zone(o) <- default###prefix##Zone(operation(o)) IF checkProperty(o);
     }
 END
 
-META defineDocumentZoneOperationDefault(objectClass)
+META defineDocumentZoneOperationDefault(objectClass, prefix)
     WHEN LOCAL CHANGED(operation(###objectClass o)) AND NOT CHANGED(zone(o)) DO {
-        zone(o) <- defaultZone(operation(o));
+        zone(o) <- default###prefix##Zone(operation(o));
     }
 END
 
-META defineDocumentInterfaceZone(objectClass, concrete)
+META defineDocumentInterfaceZoneOperation(objectClass, concrete, container, prefix)
     @defineDocumentInterfaceZone(objectClass);
-    
-    EXTEND FORM ##objectClass##s
-        PROPERTIES(concrete) READONLYIF isReadonly() nameZone
-    ;
-END
 
-META defineDocumentInterfaceZoneOperation(objectClass, concrete, container)
-    @defineDocumentInterfaceZone(objectClass, concrete);
+    EXTEND FORM ##objectClass##s
+        PROPERTIES(concrete) READONLYIF isReadonly() OR isReadOnly###prefix##Zone(operation(concrete)) nameZone
+    ;
     
     EXTEND FORM user###objectClass
-        PROPERTIES nameZone(concrete) SHOWIF (showZone(operation(concrete)) OR zone(concrete)) 
+        PROPERTIES nameZone(concrete) SHOWIF (show###prefix##Zone(operation(concrete)) OR zone(concrete)) READONLYIF isReadOnly###prefix##Zone(operation(concrete))
     ;
     DESIGN user###objectClass{
         container {
