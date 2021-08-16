@@ -51,6 +51,39 @@ overStatusUpd(Consignment c) +=
     THEN StatusUpd.one
     ELSE IF status(updDocument(c)) == UpdDocumentStatus.DOP THEN StatusUpd.two;
 
+fill(ConsignmentDetail d, UpdDocumentDetail ed) {
+    //updDocument(ed) <- ei;
+    invoiceDetail(ed) <- d;
+    number(ed) <- index(d);
+    idUOM(ed) <- codeOKEI(UOM(sku(d)));
+    nameUOM(ed) <- nameUOM(sku(d));
+    idSku(ed) <- barCode(d); 
+    nameSku(ed) <- nameSku(d);
+    idUOM(ed) <- idUOM(d);
+    quantity(ed) <- quantity(d);
+    price(ed) <- price(d);
+    sum(ed) <- sum(d);
+
+    VATStatus(ed)<- CASE 
+                   WHEN isNotVATPayer(supplier(updDocument(ed)))  THEN VATStatus.vatNot
+                   WHEN vat(d)==0.0  THEN VATStatus.vat0
+                   WHEN vat(d)==10.0  THEN VATStatus.vat10
+                   WHEN vat(d)==18.0  THEN VATStatus.vat18
+                   WHEN vat(d)==20.0  THEN VATStatus.vat20
+                   ;//todo: со временем надо остальные добавить
+                                     
+    invoiceSum(ed) <- sumConsignment(d);
+    VATSum(ed) <- sumVAT(d);
+    withoutDuty(ed) <- TRUE;
+}
+
+createDetails (Consignment c, UpdDocument upd) {
+    FOR consignment(ConsignmentDetail d) == c NEW ed = UpdDocumentDetail  DO {
+        updDocument(ed) <- upd;
+        fill(d, ed);
+    }
+}
+
 fill(Consignment invoice, UpdDocument ei) {
     invoice(ei) <- invoice;
     idConsignor(ei) <- idEdi(supplier(invoice));
@@ -134,31 +167,7 @@ fill(Consignment invoice, UpdDocument ei) {
     
     overFill(ei, invoice);
     
-    FOR consignment(ConsignmentDetail d) == invoice NEW ed = UpdDocumentDetail  DO {
-        updDocument(ed) <- ei;
-        invoiceDetail(ed) <- d;
-        number(ed) <- index(d);
-        idUOM(ed) <- codeOKEI(UOM(sku(d)));
-        nameUOM(ed) <- nameUOM(sku(d));
-        idSku(ed) <- barCode(d); 
-        nameSku(ed) <- nameSku(d);
-        idUOM(ed) <- idUOM(d);
-        quantity(ed) <- quantity(d);
-        price(ed) <- price(d);
-        sum(ed) <- sum(d);
-
-        VATStatus(ed)<- CASE 
-                       WHEN isNotVATPayer(supplier(ei))  THEN VATStatus.vatNot
-                       WHEN vat(d)==0.0  THEN VATStatus.vat0
-                       WHEN vat(d)==10.0  THEN VATStatus.vat10
-                       WHEN vat(d)==18.0  THEN VATStatus.vat18
-                       WHEN vat(d)==20.0  THEN VATStatus.vat20
-                       ;//todo: со временем надо остальные добавить
-                                         
-        invoiceSum(ed) <- sumConsignment(d);
-        VATSum(ed) <- sumVAT(d);
-        withoutDuty(ed) <- TRUE;
-    }
+    createDetails(invoice, ei);
 }
      
 createUpd 'Создать УПД' (Consignment invoice)  {
@@ -174,13 +183,8 @@ createUpd 'Создать УПД' (Consignment invoice)  {
 }
 
 recreateUpdDocument (Consignment invoice) {
-    LOCAL upd = UpdDocument();
-    upd()<- updDocument(invoice);
-    NEW ei = UpdDocument {
-        fill(invoice, ei);
-        numberInvoice(ei)<- numberInvoice(upd());
-    }
-    DELETE UpdDocument d WHERE d==upd();
+    DELETE UpdDocumentDetail d WHERE updDocument(d)=updDocument(invoice);
+    fill(invoice, updDocument(invoice));
 }
 
 recreateUpd 'Перезаполнить УПД' (Consignment invoice) {
