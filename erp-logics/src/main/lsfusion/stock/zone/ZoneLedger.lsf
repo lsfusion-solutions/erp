@@ -124,6 +124,104 @@ NAVIGATOR {
     }
 }
 
+allStocks 'Отм' = DATA BOOLEAN (Zone);
+dataInBanNegativeBalance 'Отм' = DATA BOOLEAN (Zone, StockGroup);
+dataInBanNegativeBalance 'Отм' = DATA BOOLEAN (Zone, Stock);
+levelParent (Zone zone, StockGroup stockGroup) = GROUP
+    MIN level(stockGroup, StockGroup parent) IF dataInBanNegativeBalance(zone, parent) MATERIALIZED;
+parentInBanNegativeBalance (Zone zone, StockGroup stockGroup) = TRUE IF levelParent (zone, stockGroup) MATERIALIZED;
+                                                               
+inBanNegativeBalance 'Запрет отрицательного остатка' (Zone zone, StockGroup stockGroup) = OVERRIDE
+    dataInBanNegativeBalance[Zone,Stock](zone, stockGroup),
+    parentInBanNegativeBalance (zone, stockGroup),
+    allStocks(zone) AND stockGroup IS StockGroup;
+
+inBanNegativeBalance 'Запрет отрицательного остатка' (Zone zone, Stock stock) =
+    (OVERRIDE dataInBanNegativeBalance(zone, stock),
+              (inBanNegativeBalance(zone, stockGroup(stock))))
+    AND isCompany(stock) AND active(stock) MATERIALIZED;
+
+EXTEND FORM zone 
+    TREE stockTree a=BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    PROPERTIES(z) allStocks DRAW a 
+    PROPERTIES(z, sg) inBanNegativeBalance
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a)
+    FILTERS countCompanyStock(sg)
+
+    OBJECTS ts = Stock
+    PROPERTIES(z, ts) inBanNegativeBalance
+    PROPERTIES READONLY active(ts), name(ts), nameLegalEntity(ts), nameRegion(ts)
+    FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParent(sg, ts),
+            isCompany(ts)
+    FILTERGROUP filters2
+            FILTER 'Выбранные склады' inBanNegativeBalance(z, ts) 'F10'
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT  
+; 
+
+DESIGN zone {
+    OBJECTS {
+        NEW stockContainer {
+            caption = 'Запрет отрицательного остатка';
+            type = SPLITH;
+            fill = 1;
+            NEW stockGroups {
+                fill = 1;
+                MOVE BOX(TREE stockTree) {
+                    caption = 'Группы складов';
+                }
+            }
+            MOVE BOX(ts) {
+                fill = 2;
+            }
+        }                    
+    }    
+}
+
+EXTEND FORM zones 
+    TREE stockTree a=BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    PROPERTIES(z) READONLY allStocks DRAW a 
+    PROPERTIES(z, sg) READONLY inBanNegativeBalance
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a)
+    FILTERS countCompanyStock(sg)
+
+    OBJECTS ts = Stock
+    PROPERTIES(z, ts) inBanNegativeBalance
+    PROPERTIES READONLY active(ts), name(ts), nameLegalEntity(ts), nameRegion(ts)
+    FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParent(sg, ts),
+            isCompany(ts)
+    FILTERGROUP filters2
+            FILTER 'Выбранные склады' inBanNegativeBalance(z, ts) 'F10' DEFAULT 
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT  
+; 
+
+DESIGN zones {
+    OBJECTS {
+        NEW stockContainer {
+            caption = 'Запрет отрицательного остатка';
+            type = SPLITH;
+            fill = 0.5;
+            NEW stockGroups {
+                fill = 1;
+                MOVE BOX(TREE stockTree) {
+                    caption = 'Группы складов';
+                }
+            }
+            MOVE BOX(ts) {
+                fill = 2;
+            }
+        }                    
+    }    
+}    
+
+CONSTRAINT SET(currentBalance(Stock st, Zone z, Sku s) < 0) AND inBanNegativeBalance(z, st)
+    MESSAGE 'На зоне склада не может быть отрицательный остаток по товару';
+CONSTRAINT SET(inBanNegativeBalance(Zone z, Stock st)) AND GROUP MAX Sku s IF currentBalance(st, z, s) < 0
+    MESSAGE 'На зоне склада не может быть отрицательный остаток по товару';
+
 // meta
 META implementZoneLedger(concrete, stockProp, NS)
     EXTEND CLASS concrete##Detail : ZoneLedger;
@@ -173,9 +271,6 @@ END
 
 @extendFormZoneLedger(currentBalanceSkuStock, s, st, ledgerBox);
 
-CONSTRAINT SET(currentBalance(Stock st, Zone z, Sku s) < 0)
-    MESSAGE 'На зоне склада не может быть отрицательный остаток по товару';
-    
 META defineZoneLedger(objectClass)
     CLASS ###objectClass##ZoneLedger : ZoneLedger;
     TABLE ##objectClass###ZoneLedger (###objectClass##ZoneLedger);
