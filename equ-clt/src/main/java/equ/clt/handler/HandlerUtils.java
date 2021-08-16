@@ -72,12 +72,37 @@ public class HandlerUtils {
         return jsonObject != null && jsonObject.has(valueKey) ? jsonObject.getBigDecimal(valueKey) : null;
     }
 
-    public static String appendSpaces(String line, int length) {
-        if(line == null)
-            line = "";
-        StringBuilder lineBuilder = new StringBuilder(line.substring(0, Math.min(line.length(), length)));
-        while(lineBuilder.length() < length)
-            lineBuilder.append(" ");
-        return lineBuilder.toString();
+    public static String appendSpaces(Object value, int length) {
+        return append(value, ' ', length);
+    }
+
+    public static String fillSpaces(int length) {
+        return append(null, ' ', length);
+    }
+
+    public static String fillZeroes(int length) {
+        return append(null, '0', length);
+    }
+
+    private static String append(Object value, Character c, int length) {
+        String result = value == null ? "" : String.valueOf(value);
+        if (result.length() > length) result = result.substring(0, length);
+        while (result.length() < length) {
+            result += c;
+        }
+        return result;
+    }
+
+    public static String prependZeroes(Object value, int length) {
+        return prepend(value, '0', length);
+    }
+
+    private static String prepend(Object value, Character c, int length) {
+        String result = value == null ? "" : String.valueOf(value);
+        if (result.length() > length) result = result.substring(0, length);
+        while (result.length() < length) {
+            result = c + result;
+        }
+        return result;
     }
 }

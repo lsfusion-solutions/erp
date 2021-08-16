@@ -23,15 +23,12 @@ public class DibalUtils {
     static int showWindow = 0; //If this value is greater than 0 the window showing the status of the communication is shown.
     static int closeTime = 0; //It determines the time which the communcation window will wait to close after the process ends.
 
-    public static String sendImageToSingleScale(String dibalImageFusionPath, String ip, Integer plu, String imagePath, String logsPath) {
-        //name of image file should be plu + 100
-        int indexImage = plu + 100; //it is code or ID number of the image. Int variable of 4 bytes.
+    public static String sendImageToSingleScale(String dibalImageFusionPath, String ip, Integer indexImage, String imagePath, String logsPath) {
         return DibalUtils.sendCommand(String.format("%s sendimagetosinglescale %s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s",
                 dibalImageFusionPath, masterAddress, ip, txPort, rxPort, model, display, section, group, trimToEmpty(logsPath), imageType, indexImage, imagePath, assignPlu, displaySize, showWindow, closeTime));
     }
 
     public static String sendMultiImagesToSingleScale(String dibalImageFusionPath, String ip, String imageDir, String logsPath) {
-        //name of image file should be plu + 100
         return DibalUtils.sendCommand(String.format("%s sendmultiimagestosinglescale %s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s",
                 dibalImageFusionPath, masterAddress, ip, txPort, rxPort, model, display, section, group, trimToEmpty(logsPath), imageType, imageDir, assignPlu, displaySize, showWindow, closeTime));
     }

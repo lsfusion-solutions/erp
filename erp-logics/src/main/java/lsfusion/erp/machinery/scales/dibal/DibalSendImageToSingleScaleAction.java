@@ -12,7 +12,7 @@ import java.util.Iterator;
 public class DibalSendImageToSingleScaleAction extends InternalAction {
     public final ClassPropertyInterface dibalImageFusionPathInterface;
     public final ClassPropertyInterface ipInterface;
-    public final ClassPropertyInterface pluInterface;
+    public final ClassPropertyInterface indexImageInterface;
     public final ClassPropertyInterface imagePathInterface;
     public final ClassPropertyInterface logsPathInterface;
 
@@ -23,7 +23,7 @@ public class DibalSendImageToSingleScaleAction extends InternalAction {
         Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         dibalImageFusionPathInterface = i.next();
         ipInterface = i.next();
-        pluInterface = i.next();
+        indexImageInterface = i.next();
         imagePathInterface = i.next();
         logsPathInterface = i.next();
     }
@@ -32,13 +32,13 @@ public class DibalSendImageToSingleScaleAction extends InternalAction {
 
         String dibalImageFusionPath = (String) context.getKeyValue(dibalImageFusionPathInterface).getValue();
         String ip = (String) context.getKeyValue(ipInterface).getValue();
-        Integer plu = (Integer) context.getKeyValue(pluInterface).getValue();
+        Integer indexImage = (Integer) context.getKeyValue(indexImageInterface).getValue();
         String imagePath = (String) context.getKeyValue(imagePathInterface).getValue();
         String logsPath = (String) context.getKeyValue(logsPathInterface).getValue();
 
-        String result = DibalUtils.sendImageToSingleScale(dibalImageFusionPath, ip, plu, imagePath, logsPath);
+        String result = DibalUtils.sendImageToSingleScale(dibalImageFusionPath, ip, indexImage, imagePath, logsPath);
         if(!result.equals("OK")) {
-            throw new RuntimeException(String.format("DibalSendImageToSingleScaleAction %s failed: %s", plu, result));
+            throw new RuntimeException(String.format("DibalSendImageToSingleScaleAction %s failed: %s", indexImage, result));
         }
     }
 
