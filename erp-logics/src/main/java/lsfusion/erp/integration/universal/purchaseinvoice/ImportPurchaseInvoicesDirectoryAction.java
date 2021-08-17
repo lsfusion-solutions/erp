@@ -43,16 +43,19 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
     }
 
     public int makeImport(ExecutionContext.NewSession<ClassPropertyInterface> newContext, DataObject invoiceObject, DataObject importTypeObject, File f, String fileExtension,
-                          ImportDocumentSettings settings, String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN) throws ScriptingErrorLog.SemanticErrorException, IOException, ParseException, UniversalImportException, SQLHandledException, SQLException, BiffException, xBaseJException {
+                          ImportDocumentSettings settings, String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN, boolean allowIncorrectBarcode)
+            throws ScriptingErrorLog.SemanticErrorException, IOException, ParseException, UniversalImportException, SQLHandledException, SQLException, BiffException, xBaseJException {
         return new ImportPurchaseInvoiceAction(LM).makeImport(newContext, invoiceObject,
                 importTypeObject, new RawFileData(f), fileExtension, settings, staticNameImportType, staticCaptionImportType,
-                completeIdItemAsEAN, false, false);
+                completeIdItemAsEAN, allowIncorrectBarcode, false, false);
     }
 
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         super.executeInternal(context);
         try {
+
+            boolean allowIncorrectBarcode = readAllowIncorrectBarcode(context);
 
             LP<PropertyInterface> isImportType = (LP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
@@ -94,7 +97,8 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
 
                                         findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
-                                        importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN);
+                                        importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType,
+                                                staticCaptionImportType, completeIdItemAsEAN, allowIncorrectBarcode);
                                     } catch (Exception e) {
                                         ERPLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
                                     }

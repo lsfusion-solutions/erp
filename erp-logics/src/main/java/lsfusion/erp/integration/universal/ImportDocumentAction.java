@@ -183,7 +183,7 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if(keyColumn != null && keyColumn.equals("barcodeItem"))
             keyColumnValue = BarcodeUtils.appendCheckDigitToBarcode(keyColumnValue, 7);
-        return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+")) 
+        return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+"))
                 && (!checkExistence || getItemKeyGroupAggr(keyType).read(context, new DataObject(keyColumnValue)) != null);
     }
 
@@ -217,6 +217,10 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
             if (renamedFile == null || !importedFile.renameTo(renamedFile))
                 context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
         }
+    }
+
+    protected boolean readAllowIncorrectBarcode(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        return findProperty("allowIncorrectBarcode[]").read(context) != null;
     }
 }
 

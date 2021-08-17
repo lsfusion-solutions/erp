@@ -56,11 +56,11 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
     }
 
     public int makeImport(ExecutionContext.NewSession<ClassPropertyInterface> newContext, DataObject invoiceObject, DataObject importTypeObject, Pair<String, RawFileData> file,
-                          String fileExtension, ImportDocumentSettings settings, String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN,
+                          String fileExtension, ImportDocumentSettings settings, String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN, boolean allowIncorrectBarcode,
                           boolean checkInvoiceExistence, boolean ignoreInvoicesAfterDocumentsClosedDate) throws ScriptingErrorLog.SemanticErrorException, ParseException, UniversalImportException, SQLHandledException, SQLException, BiffException, xBaseJException, IOException {
         return new ImportPurchaseInvoiceAction(LM).makeImport(
                 newContext, invoiceObject, importTypeObject, file.second, fileExtension,
-                settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN,
+                settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, allowIncorrectBarcode,
                 checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
     }
 
@@ -68,6 +68,8 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         super.executeInternal(context);
         try {
+
+            boolean allowIncorrectBarcode = readAllowIncorrectBarcode(context);
 
             List<String> errors = new ArrayList<>();
 
@@ -183,7 +185,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
                                             boolean ignoreInvoicesAfterDocumentsClosedDate = findProperty("ignoreInvoicesAfterDocumentsClosedDate[]").read(context) != null;
                                             int importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType,
-                                                    completeIdItemAsEAN, checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
+                                                    completeIdItemAsEAN, checkInvoiceExistence, allowIncorrectBarcode, ignoreInvoicesAfterDocumentsClosedDate);
 
                                             if(invoiceObject != null) {
                                                 findProperty("original[Purchase.Invoice]").change(new DataObject(new FileData(file.second, fileExtension), DynamicFormatFileClass.get()), newContext, invoiceObject);

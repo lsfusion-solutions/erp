@@ -29,14 +29,18 @@ public class ImportPurchaseInvoicesAction extends ImportDocumentAction {
     }
 
     public void makeImport(ExecutionContext.NewSession<ClassPropertyInterface> newContext, DataObject invoiceObject, ObjectValue importTypeObject, RawFileData file, String fileExtension,
-                           ImportDocumentSettings settings, String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN) throws ScriptingErrorLog.SemanticErrorException, ParseException, UniversalImportException, SQLHandledException, SQLException, BiffException, xBaseJException, IOException {
-        new ImportPurchaseInvoiceAction(LM).makeImport(newContext, invoiceObject, (DataObject) importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false, false);
+                           ImportDocumentSettings settings, String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN, boolean allowIncorrectBarcode)
+            throws ScriptingErrorLog.SemanticErrorException, ParseException, UniversalImportException, SQLHandledException, SQLException, BiffException, xBaseJException, IOException {
+        new ImportPurchaseInvoiceAction(LM).makeImport(newContext, invoiceObject, (DataObject) importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType,
+                completeIdItemAsEAN, allowIncorrectBarcode, false, false);
     }
 
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         super.executeInternal(context);
         try {
+
+            boolean allowIncorrectBarcode = readAllowIncorrectBarcode(context);
 
             ObjectValue importTypeObject = findProperty("importTypeUserInvoices[]").readClasses(context);
             String staticNameImportType = (String) findProperty("staticNameImportTypeDetail[ImportType]").read(context, importTypeObject);
@@ -57,7 +61,7 @@ public class ImportPurchaseInvoicesAction extends ImportDocumentAction {
                         try(ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
                             DataObject invoiceObject = multipleDocuments ? null : newContext.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
-                            makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN);
+                            makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, allowIncorrectBarcode);
 
                             if (invoiceObject != null) {
                                 findProperty("currentInvoice[]").change(invoiceObject, newContext);

@@ -35,8 +35,8 @@ public class BarcodeUtils {
             } else if (barcode.length() == 7) {  //EAN-8
                 int checkSum = 0;
                 for (int i = 0; i <= 6; i = i + 2) {
-                    checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i))) * 3;
-                    checkSum += i == 6 ? 0 : Integer.valueOf(String.valueOf(barcode.charAt(i + 1)));
+                    checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i))) * 3;
+                    checkSum += i == 6 ? 0 : Integer.parseInt(String.valueOf(barcode.charAt(i + 1)));
                 }
                 checkSum %= 10;
                 if (checkSum != 0)
@@ -52,12 +52,20 @@ public class BarcodeUtils {
     private static String appendEAN13(String barcode) {
         int checkSum = 0;
         for (int i = 0; i <= 10; i = i + 2) {
-            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
-            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+            checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i)));
+            checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i + 1))) * 3;
         }
         checkSum %= 10;
         if (checkSum != 0)
             checkSum = 10 - checkSum;
         return barcode.concat(String.valueOf(checkSum));
     }
+
+    public static boolean isCheckDigitCorrect(String barcode) {
+        if (barcode != null && (barcode.length() == 13 || barcode.length() == 8)) {
+            return barcode.equals(appendCheckDigitToBarcode(barcode.substring(0, barcode.length() - 1)));
+        }
+        return true;
+    }
+
 }

@@ -81,19 +81,21 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         super.executeInternal(context);
         try {
 
+            boolean allowIncorrectBarcode = readAllowIncorrectBarcode(context);
+
             DataObject userInvoiceObject = context.getDataKeyValue(userInvoiceInterface);
 
             ObjectValue importTypeObject = findProperty("importType[UserInvoice]").readClasses(context, userInvoiceObject);
 
             if (importTypeObject instanceof DataObject) {
 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
-                ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, (DataObject) importTypeObject);
-                ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
-                ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(context, (DataObject) importTypeObject);
-                ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
-                boolean checkInvoiceExistence = findProperty("autoImportCheckInvoiceExistence[ImportType]").read(context, (DataObject) importTypeObject) != null;
-                boolean completeIdItemAsEAN = findProperty("completeIdItemAsEAN[ImportType]").read(context, (DataObject) importTypeObject) != null;
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, importTypeObject);
+                ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, importTypeObject);
+                ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(context, importTypeObject);
+                ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(context, importTypeObject);
+                ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(context, importTypeObject);
+                boolean checkInvoiceExistence = findProperty("autoImportCheckInvoiceExistence[ImportType]").read(context, importTypeObject) != null;
+                boolean completeIdItemAsEAN = findProperty("completeIdItemAsEAN[ImportType]").read(context, importTypeObject) != null;
 
                 String staticCaptionImportType = trim((String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(context, importTypeObject));
                 String nameFieldImportType = trim((String) findProperty("staticNameImportTypeDetail[ImportType]").read(context, importTypeObject));
@@ -113,7 +115,8 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     if (objectValue != null) {
                         RawFileData file = (RawFileData) objectValue.getValue();
                         List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, 
-                                userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence, file, fileExtension, importSettings, staticNameImportType, staticCaptionImportType);
+                                userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, allowIncorrectBarcode,
+                                checkInvoiceExistence, file, fileExtension, importSettings, staticNameImportType, staticCaptionImportType);
 
                         boolean needToApply = false;
                         if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1) {
@@ -171,7 +174,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
     public int makeImport(ExecutionContext<ClassPropertyInterface> context, DataObject userInvoiceObject,
                           DataObject importTypeObject, RawFileData file, String fileExtension, ImportDocumentSettings importSettings,
-                          String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN,
+                          String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN, boolean allowIncorrectBarcode,
                           boolean checkInvoiceExistence, boolean ignoreInvoicesAfterDocumentsClosedDate)
             throws SQLHandledException, UniversalImportException, IOException, SQLException,
             xBaseJException, ScriptingErrorLog.SemanticErrorException {
@@ -179,15 +182,15 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, importTypeObject);
         Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(context, checkInvoiceExistence);
 
-        ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
-        ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, (DataObject) importTypeObject);
-        ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
-        ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(context, (DataObject) importTypeObject);
-        ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, importTypeObject);
+        ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, importTypeObject);
+        ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(context, importTypeObject);
+        ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(context, importTypeObject);
+        ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(context, importTypeObject);
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context,
-                userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence, file, fileExtension,
-                importSettings, staticNameImportType, staticCaptionImportType);
+                userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, allowIncorrectBarcode,
+                checkInvoiceExistence, file, fileExtension, importSettings, staticNameImportType, staticCaptionImportType);
 
         Integer result1 = (userInvoiceDetailData == null || userInvoiceDetailData.size() < 1) ? IMPORT_RESULT_EMPTY :
             importUserInvoices(userInvoiceDetailData.get(0), context, importColumns.get(0), importColumns.get(1),
@@ -850,9 +853,9 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext<ClassPropertyInterface> context, DataObject userInvoiceObject,
                                                                            Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
-                                                                           Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean checkInvoiceExistence,
-                                                                           RawFileData file, String fileExtension, ImportDocumentSettings importSettings,
-                                                                           String staticNameImportType, String staticCaptionImportType)
+                                                                           Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean allowIncorrectBarcode,
+                                                                           boolean checkInvoiceExistence, RawFileData file, String fileExtension,
+                                                                           ImportDocumentSettings importSettings, String staticNameImportType, String staticCaptionImportType)
             throws UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
@@ -876,24 +879,24 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         switch (fileExtension) {
             case "DBF":
                 userInvoiceDetailsList = importUserInvoicesFromDBF(context, file, defaultColumns, customColumns,
-                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
-                        importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
+                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, allowIncorrectBarcode,
+                        checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
                 break;
             case "XLS":
                 userInvoiceDetailsList = importUserInvoicesFromXLS(context, file, defaultColumns, customColumns,
-                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
-                        importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
+                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, allowIncorrectBarcode,
+                        checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
                 break;
             case "XLSX":
                 userInvoiceDetailsList = importUserInvoicesFromXLSX(context, file, defaultColumns, customColumns,
-                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
-                        importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
+                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, allowIncorrectBarcode,
+                        checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
                 break;
             case "CSV":
             case "TXT":
                 userInvoiceDetailsList = importUserInvoicesFromCSV(context, file, defaultColumns, customColumns,
-                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
-                        importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
+                        stringFields, bigDecimalFields, dateFields, timeFields, purchaseInvoiceSet, completeIdItemAsEAN, allowIncorrectBarcode,
+                        checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType, staticCaptionImportType);
                 break;
             default:
                 userInvoiceDetailsList = null;
@@ -906,7 +909,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile,
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
-                                                                        Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
+                                                                        Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean allowIncorrectBarcode,
                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType, String staticCaptionImportType)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -1017,7 +1020,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 customValues.put(column.getKey(), getXLSFieldValue(sheet, i, column.getValue()));
             }
 
-            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence, fieldValues, allowIncorrectBarcode)) {
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(),
                         idDocument, numberDocument, seriesDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum,
                         grossWeight, grossWeightSum);
@@ -1039,7 +1042,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile,
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
-                                                                        Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
+                                                                        Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean allowIncorrectBarcode,
                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType, String staticCaptionImportType)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -1145,7 +1148,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 customValues.put(column.getKey(), getCSVFieldValue(valuesList, column.getValue(), count));
             }
 
-            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence, fieldValues, allowIncorrectBarcode)) {
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(), 
                         idDocument, numberDocument, seriesDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
 
@@ -1167,7 +1170,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile,
                                                                          Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                          List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
-                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
+                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean allowIncorrectBarcode,
                                                                          boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                          String staticNameImportType, String staticCaptionImportType)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -1268,7 +1271,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 customValues.put(column.getKey(), getXLSXFieldValue(sheet, i, column.getValue()));
             }
 
-            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence, fieldValues, allowIncorrectBarcode)) {
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(), 
                         idDocument, numberDocument, seriesDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
 
@@ -1290,7 +1293,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile,
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
-                                                                        Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
+                                                                        Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean allowIncorrectBarcode,
                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType, String staticCaptionImportType)
             throws IOException, xBaseJException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -1408,7 +1411,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     customValues.put(column.getKey(), getDBFFieldValue(file, column.getValue(), i, charset));
                 }
 
-                if (checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+                if (checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence, fieldValues, allowIncorrectBarcode)) {
                     PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(),
                             idDocument, numberDocument, seriesDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
 
@@ -1435,8 +1438,8 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private boolean checkInvoice(Set<String> invoiceSet, String idInvoice, boolean checkInvoiceExistence) {
-        return !checkInvoiceExistence || !invoiceSet.contains(idInvoice);
+    private boolean checkInvoice(Set<String> invoiceSet, String idInvoice, boolean checkInvoiceExistence, Map<String, Object> fieldValues, boolean allowIncorrectBarcode) {
+        return (allowIncorrectBarcode || BarcodeUtils.isCheckDigitCorrect((String) fieldValues.get("barcodeItem"))) && (!checkInvoiceExistence || !invoiceSet.contains(idInvoice));
     }
 
     private boolean checkArticles(ExecutionContext<ClassPropertyInterface> context, String propertyImportType, String staticNameImportType,
@@ -1563,7 +1566,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
     
     private String readIdCustomer(ExecutionContext<ClassPropertyInterface> context, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[STRING[100]]").readClasses(context, new DataObject(idCustomerStock));
-        ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(context, (DataObject) customerStockObject));
+        ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(context, customerStockObject));
         return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(context, customerObject));
     }
 }
