@@ -4,12 +4,14 @@ REQUIRE MachineryPriceTransactionBalance, Item;
 
 NAMESPACE Machinery;
 
+overBalance = ABSTRACT NUMERIC[16,5](Batch, Barcode, Stock);
+
 TABLE machineryPriceTransactionBarcodeBatch (MachineryPriceTransaction, Barcode, Batch);
 
 in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode, Batch) INDEXED;
 in 'Вкл' (MachineryPriceTransaction t, Sku s, Batch btch) = GROUP MAX in(t, Barcode b, btch) BY sku(b);
 
-balance 'Баланс' (Batch bt, Barcode b, Stock st) = currentBalance(bt, st) IF sku(bt)==sku(b);
+balance 'Баланс' (Batch bt, Barcode b, Stock st) = OVERRIDE overBalance(bt, b, st), currentBalance(bt, st) IF sku(bt)==sku(b);
 price 'Цена' (Batch bt, Barcode b, GroupMachinery g) = priceA(priceListType(g),bt,stock(g),currentDateTime()) IF sku(bt)==sku(b);
 
 countDaysSendBatches 'Кол-во дней движения по партии для загрузки в оборудование' = DATA INTEGER ();
