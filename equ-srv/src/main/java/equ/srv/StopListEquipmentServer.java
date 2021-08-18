@@ -66,7 +66,6 @@ public class StopListEquipmentServer {
         Map<String, StopListInfo> stopListInfoMap = new HashMap<>();
         if(machineryLM != null && stopListLM != null) {
             try (DataSession session = server.createSession()) {
-                Map<String, Map<String, Set<MachineryInfo>>> stockMap = null;
                 KeyExpr stopListExpr = new KeyExpr("stopList");
                 ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev("stopList", stopListExpr);
                 QueryBuilder<Object, Object> slQuery = new QueryBuilder<>(slKeys);
@@ -83,6 +82,7 @@ public class StopListEquipmentServer {
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session);
 
                 for (int i = 0, size = slResult.size(); i < size; i++) {
+                    Map<String, Map<String, Set<MachineryInfo>>> stockMap = null;
                     DataObject stopListObject = slResult.getKey(i).get("stopList");
                     ImMap<Object, ObjectValue> slEntry = slResult.getValue(i);
                     String numberStopList = trim((String) slEntry.get("numberStopList").getValue());
