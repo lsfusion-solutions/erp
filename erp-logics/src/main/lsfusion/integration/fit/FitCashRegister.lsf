@@ -185,7 +185,7 @@ succeeded(MachineryPriceTransaction t) <- TRUE WHEN SET (countSucceededMachineri
 dateTimeSucceeded(MachineryPriceTransaction t) <- currentDateTime() WHEN SET (countSucceededMachineries(t) = countMachineries(groupMachinery(t))); 
 
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
-    IF isFit(groupMachinery(t)) AND NOT canceled(t) AND directory(groupMachinery(t)) THEN {
+    IF isFit(groupMachinery(t)) AND NOT canceled(t) THEN {
         sendToFit(t);
     }
 }
@@ -205,6 +205,7 @@ receiveFromFit (CashRegister cr) {
                 FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) DO {
                     READ pathGet(cr) + fn TO importFile;
                     fileToString(importFile(), 'cp866');
+                    printToLog(resultString());
                     countLines() <- wordCount(resultString(), '\r\n');
                     FOR iterate(INTEGER j, 1, countLines()) AND NOT zReport(substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0')) AND left(getWord(resultString(), '\r\n', j), 2) = '07' AND substr(getWord(resultString(), '\r\n', j), 15, 3) = 'OPN' DO NEW z = ZReport {
                         id(z) <- STRING[100](substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0'));
