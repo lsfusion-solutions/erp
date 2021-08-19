@@ -205,7 +205,19 @@ useFilterDeliveryDashboard = ABSTRACT BOOLEAN ();
 
 filterDelivery (InternetOrder o) = IF useFilterDeliveryDashboard() THEN filterDeliveryDashboard(o) ELSE status(o) == StatusInternetOrder.picked;
 
+countDaysFilterInternetOrder 'Количество дней для фильтра на форме "Отчет курьера"' = DATA INTEGER ();
+
+EXTEND FORM options PROPERTIES countDaysFilterInternetOrder();
+
+DESIGN options {
+    sale {
+        MOVE PROPERTY(countDaysFilterInternetOrder()); 
+    }
+}
+
 FORM deliveryDashboard 'Отчеты курьера'
+    OBJECTS df = DATE PANEL
+    PROPERTIES dateFrom 'Дата с' = VALUE(df)
     
     OBJECTS o = InternetOrder 
     PROPERTIES (o) select
@@ -219,7 +231,8 @@ FORM deliveryDashboard 'Отчеты курьера'
                                                                                                      
     FILTERS filterDashboardDelivery(o),
             filterDelivery(o),
-            isOpened(o)
+            isOpened(o),
+            date(o) >= df
     PROPERTIES createDeliveryReport(o) TOOLBAR           
                    
     OBJECTS d = InternetOrderDetail
@@ -243,7 +256,12 @@ FORM deliveryDashboard 'Отчеты курьера'
     PROPERTIES (pd) READONLY seriesNumber, date, time, nameInternetCustomer, addressInternetCustomer, phoneInternetCustomer, nameSupplierStock
     PROPERTIES (pd) NEWSESSION EDIT TOOLBAR           
     ORDERS indexDeliveryReport(pd) 
-    FILTERS deliveryReport(pd)==r       
+    FILTERS deliveryReport(pd)==r,
+            date(r) >= df
+    
+    EVENTS ON INIT {
+        SEEK deliveryDashboard.df = OVERRIDE subtract(currentDate(), countDaysFilterInternetOrder()), subtract(currentDate(), 30);
+    }           
     
 ;
 
@@ -251,7 +269,7 @@ DESIGN deliveryDashboard {
     BOX {
         NEW top {
             fill = 1;
-            //MOVE BOX(dt);
+            MOVE BOX(df);
             NEW tabContainer{
                 fill =1;
                 type = TABBED;
