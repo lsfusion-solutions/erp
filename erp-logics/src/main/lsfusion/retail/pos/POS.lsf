@@ -888,6 +888,8 @@ DESIGN options {
 
 returnQuantity 'Количество возврата' (receiptDetail) = ABSTRACT NUMERIC[16,5] (ReceiptReturnDetail);
 
+overCreateReturn  ABSTRACT LIST ( ReceiptReturnDetail);
+
 createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, STRING[30] barcode)  { 
     NEW d = ReceiptReturnDetail {
         receipt(d) <- receipt;
@@ -900,8 +902,10 @@ createReturn 'Добавить строку возврата'(Receipt receipt, R
         batch(d) <- batch(receiptSaleDetail);
         discountCard(receipt) <- discountCard(receiptSaleDetail);
         focusQuantity(d);
+        overCreateReturn(d);
     }
 }
+
 overCreateReturn  ABSTRACT LIST ( ReceiptReturnDetail, ReceiptSaleDetail);
 createReturn 'Добавить строки возврата'(Receipt receipt, Receipt receiptReturn)  { 
     FOR receipt(ReceiptSaleDetail receiptSaleDetail) == receiptReturn NEW d = ReceiptReturnDetail DO {
