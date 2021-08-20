@@ -918,8 +918,19 @@ countDetail 'Кол-во позиций' (Consignment c) = GROUP SUM 1 IF consig
 numberAttrUpd (ConsignmentDetail d) = numberAttrUpd(consignment(d));
 dateAttrUpd (ConsignmentDetail d) = dateAttrUpd(consignment(d));
 
+numberCopiesConsignment 'Кол-во экз. УПД' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES () numberCopiesConsignment
+;
+
+numberCopiesConsignmentData = DATA INTEGER (Consignment);
+countCopies 'Кол-во экз. УПД' (Consignment c) = OVERRIDE numberCopiesConsignmentData(c), numberCopiesConsignment(), 1;
+
+doubleSided 'Двухсторонний' = DATA LOCAL BOOLEAN ();
+
 FORM consignmentUpd 'Универсальный передаточный документ'
-    OBJECTS c=Consignment 
+    OBJECTS dd = (c=Consignment,i=INTEGER ) 
 
     PROPERTIES (c) fullNameSupplier, addressSupplier, INNSupplier, KPPSupplier,
                    fullNameCustomer, addressCustomer, INNCustomer, KPPCustomer, nameCustomerStock, nameCustomerStore,
@@ -940,8 +951,10 @@ FORM consignmentUpd 'Универсальный передаточный док�
                    nameCurrency, sidCurrency, nameStatusAttrUpd,
                    managerSupplierAttrUpd, accountantSupplierAttrUpd, 
                    
-                   countDetail
-                   
+                   countDetail,
+                   countCopies
+    PROPERTIES doubleSided() DRAW dd       
+          
     OBJECTS d=ConsignmentDetail  SUBREPORT    
     PROPERTIES(d) nameSku, barCode, shortNameUOM, idUOM,  
                   quantity, 
@@ -952,16 +965,37 @@ FORM consignmentUpd 'Универсальный передаточный док�
         
     FILTERS incl(c),
             consignment(d) == c,
+            count(i,countCopies(c)),
             quantity(d),
             NOT skip(d)
 ;
  
 printConsignmentUpd 'Универсальный передаточный документ' (Consignment consignment) { 
+    doubleSided()<- NULL;
     IF NOT countIncl() THEN {
         incl(Consignment c) <- TRUE  IF c==consignment;     
     }       
     PRINT consignmentUpd;
     incl(Consignment c) <- NULL; 
+} IMAGE 'print.png' IN print;
+printConsignmentUpdBreake 'УПД (двухсторонний)' (Consignment consignment) { 
+    doubleSided()<- TRUE ;
+    IF NOT countIncl() THEN {
+        incl(Consignment c) <- TRUE  IF c==consignment;     
+    }       
+    PRINT consignmentUpd;
+    incl(Consignment c) <- NULL; 
+    doubleSided()<- NULL ;
+} IMAGE 'print.png' IN print;
+
+printConsignmentUpdBreakeAuto 'УПД (двухсторонний) АВТО' (Consignment consignment) { 
+    doubleSided()<- TRUE ;
+    IF NOT countIncl() THEN {
+        incl(Consignment c) <- TRUE  IF c==consignment;     
+    }       
+    PRINT consignmentUpd NOPREVIEW;
+    incl(Consignment c) <- NULL; 
+    doubleSided()<- NULL ;
 } IMAGE 'print.png' IN print;
 
 FORM attributesUpd 'Атрибуты УПД'
@@ -982,7 +1016,8 @@ FORM attributesUpd 'Атрибуты УПД'
                    nameForwarderAttrUpd ON CHANGE changeNameForwarderAttrUpd(c),
                    positionForwarderAttrUpd ON CHANGE changePositionForwarderAttrUpd(c),
                    nameGoodsConsignmentAttrUpd ON CHANGE changeNameGoodsConsignmentAttrUpd(c),
-                   positionGoodsConsignmentAttrUpd ON CHANGE changePositionGoodsConsignmentAttrUpd(c)
+                   positionGoodsConsignmentAttrUpd ON CHANGE changePositionGoodsConsignmentAttrUpd(c),
+                   countCopies
 ;
 
 DESIGN attributesUpd {
@@ -1057,7 +1092,13 @@ DESIGN attributesUpd {
                             MOVE PROPERTY(nameGoodsConsignmentAttrUpd(c)) { charWidth = 30; };
                             MOVE PROPERTY(positionGoodsConsignmentAttrUpd(c)) { charWidth = 20; };                              
                         }                
-                    }                        
+                    } 
+                    NEW Consignment {
+                        alignment = STRETCH;
+                        type = CONTAINERH;
+                        caption = 'Печать';
+                        MOVE PROPERTY(countCopies(c)) { charWidth = 30; };                                         
+                    }                       
                 }
             }
         }

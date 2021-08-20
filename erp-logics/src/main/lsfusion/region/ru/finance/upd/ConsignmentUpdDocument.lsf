@@ -221,6 +221,7 @@ overDateAttrUpd (Consignment c) += dateInvoice(updDocument(c));
 selectUpdDocument(Consignment c) = select(updDocument(c));
 
 printConsignmentUpd 'Печать УПД'(UpdDocument u) {
+    doubleSided()<- NULL;
     IF NOT countSelectUpd() THEN {
         select(UpdDocument updDocument) <- TRUE IF updDocument==u;
     }       
@@ -229,7 +230,33 @@ printConsignmentUpd 'Печать УПД'(UpdDocument u) {
     
     PRINT consignmentUpd;
     incl(invoice(u)) <- NULL; 
-    select(u) <- NULL; 
+    select(UpdDocument updDocument) <- NULL; 
+}
+printConsignmentUpdBreake 'Печать УПД (двухсторонний)'(UpdDocument u) {
+    doubleSided()<- TRUE ;
+    IF NOT countSelectUpd() THEN {
+        select(UpdDocument updDocument) <- TRUE IF updDocument==u;
+    }       
+    
+    incl(Consignment c) <- selectUpdDocument(c); 
+    
+    PRINT consignmentUpd;
+    incl(invoice(u)) <- NULL; 
+    select(UpdDocument updDocument) <- NULL; 
+    doubleSided()<- NULL;
+}
+printConsignmentUpdBreakeAuto 'Печать УПД (двухсторонний) АВТО'(UpdDocument u) {
+    doubleSided()<- TRUE ;
+    IF NOT countSelectUpd() THEN {
+        select(UpdDocument updDocument) <- TRUE IF updDocument==u;
+    }       
+    
+    incl(Consignment c) <- selectUpdDocument(c); 
+    
+    PRINT consignmentUpd NOPREVIEW;
+    incl(invoice(u)) <- NULL; 
+    select(UpdDocument updDocument) <- NULL; 
+    doubleSided()<- NULL;
 }
 
 editAttributesUpd 'Заполнить атрибуты УПД'(UpdDocument u) {
@@ -237,7 +264,7 @@ editAttributesUpd 'Заполнить атрибуты УПД'(UpdDocument u) {
 } IMAGE 'edit.png';
 
 EXTEND FORM updDocuments
-    PROPERTIES (u) editAttributesUpd, printConsignmentUpd
+    PROPERTIES (u) editAttributesUpd, printConsignmentUpd, printConsignmentUpdBreake, printConsignmentUpdBreakeAuto
 ;
 
 DESIGN updDocuments {
@@ -264,13 +291,19 @@ DESIGN updDocuments {
                     columns = 3;
                     caption = 'Отчеты';
                     MOVE PROPERTY(printConsignmentUpd(u)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printConsignmentUpdBreake(u)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printConsignmentUpdBreakeAuto(u)) { alignment = STRETCH; }
                 }
             }        
-        }
-        
+        }        
     }
     PROPERTY(nameCustomer(u)) {
         charWidth = 40;
     }
 }
 
+DESIGN options{
+    upd {
+        MOVE PROPERTY (numberCopiesConsignment());
+    }
+}
