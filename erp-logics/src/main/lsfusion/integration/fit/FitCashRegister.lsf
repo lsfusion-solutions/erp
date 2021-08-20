@@ -26,16 +26,6 @@ WHEN SET (countSucceededMachineries(MachineryPriceTransaction t) == countActiveM
         dateTimeSucceeded(t) <- currentDateTime();
     } 
 }
-wait = DATA LOCAL BOOLEAN ();
-
-wait() {
-    NEWTHREAD {
-        wait() <- BOOLEAN(notResponcedTransaction());
-        WHILE wait() DO {
-        
-        }
-    }
-}
 
 returnExchange = DATA LOCAL BOOLEAN (CashRegister);
 
@@ -54,7 +44,7 @@ put (CashRegister cr, TEXT t) {
                 delete(pathPut(cr) + 'plu.log');
             stringToFile(t, 'cp866', '');
             WRITE resultFile() TO CONCAT '', pathPut(cr), 'plu.dat';
-            stringToFile('Ok\r\n', 'cp866', '');
+            stringToFile('Ok\n', 'cp866', '');
             WRITE resultFile() TO CONCAT '', pathPut(cr), 'plu.adr';
             returnExchange(cr) <- NULL;
         } ELSE {
@@ -134,7 +124,7 @@ pluString (MachineryPriceTransaction t, Barcode b) =
     alpha('', 32)                               // 57. Имя звукового файла с изображением товара
 ;
 
-pluString (MachineryPriceTransaction t) = GROUP CONCAT pluString(t, Barcode b), '\r\n' IF in(t, b);
+pluString (MachineryPriceTransaction t) = GROUP CONCAT pluString(t, Barcode b), '\n' IF in(t, b);
 
 checkPut 'Проверить передачу' (CashRegister cr) {
     returnExchange(cr) <- TRUE;
@@ -145,7 +135,7 @@ checkPut 'Проверить передачу' (CashRegister cr) {
         IF fileExists() THEN { 
             READ pathPut(cr) + 'plu.log' TO importFile;
             fileToString(importFile(), 'cp866');
-            firstLine() <- getWord(resultString(), '\r\n', 1);
+            firstLine() <- getWord(resultString(), '\n', 1);
             returnExchange(cr) <- NOT getWord(firstLine(), ',', 1) = 'OK';
         } ELSE {
             returnExchange(cr) <- TRUE;
@@ -173,8 +163,8 @@ sendToFit (MachineryPriceTransaction t) {
             succeeded(cr, t) <- NOT returnExchange(cr);
             dateTimeSucceeded(cr, t) <- currentDateTime() IF NOT returnExchange(cr);
             IF returnExchange(cr) THEN
-                FOR iterate(INTEGER i, 1, wordCount(resultString(), '\r\n')) DO {
-                    addMachineryError(t, getWord(resultString(), '\r\n', i));
+                FOR iterate(INTEGER i, 1, wordCount(resultString(), '\n')) DO {
+                    addMachineryError(t, getWord(resultString(), '\n', i));
                 } 
         }
     APPLY;
@@ -205,20 +195,19 @@ receiveFromFit (CashRegister cr) {
                 FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) DO {
                     READ pathGet(cr) + fn TO importFile;
                     fileToString(importFile(), 'cp866');
-                    printToLog(resultString());
-                    countLines() <- wordCount(resultString(), '\r\n');
-                    FOR iterate(INTEGER j, 1, countLines()) AND NOT zReport(substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0')) AND left(getWord(resultString(), '\r\n', j), 2) = '07' AND substr(getWord(resultString(), '\r\n', j), 15, 3) = 'OPN' DO NEW z = ZReport {
-                        id(z) <- STRING[100](substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0'));
-                        number(z) <- STRING[48](substr(getWord(resultString(), '\r\n', j), 92, 4));
+                    countLines() <- wordCount(resultString(), '\n');
+                    FOR iterate(INTEGER j, 1, countLines()) AND NOT zReport(substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0')) AND left(getWord(resultString(), '\n', j), 2) = '07' AND substr(getWord(resultString(), '\n', j), 15, 3) = 'OPN' DO NEW z = ZReport {
+                        id(z) <- STRING[100](substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0'));
+                        number(z) <- STRING[48](substr(getWord(resultString(), '\n', j), 92, 4));
                         cashRegister(z) <- cr;
                     }
-                    FOR iterate(INTEGER j, 1, countLines()) AND left(getWord(resultString(), '\r\n', j), 2) = '01' AND NOT receipt(substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\r\n', j), 3, 12)) DO NEW r = Receipt {
-                        id(r) <- substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\r\n', j), 3, 12);
-                        zReport(r) <- zReport(substr(getWord(resultString(), '\r\n', j), 92, 4) + lpad(STRING(cr), 18, '0'));
+                    FOR iterate(INTEGER j, 1, countLines()) AND left(getWord(resultString(), '\n', j), 2) = '01' AND NOT receipt(substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\n', j), 3, 12)) DO NEW r = Receipt {
+                        id(r) <- substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\n', j), 3, 12);
+                        zReport(r) <- zReport(substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0'));
                     }
                 
                     FOR iterate(INTEGER j, 1, countLines()) DO {
-                        receiptString() <- getWord(resultString(), '\r\n', j);
+                        receiptString() <- getWord(resultString(), '\n', j);
                         CASE
                             WHEN left(receiptString(), 2) = '01' THEN {
                                 zReport() <- zReport(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0'));
@@ -232,8 +221,8 @@ receiveFromFit (CashRegister cr) {
                             WHEN left(receiptString(), 2) = '07' AND substr(receiptString(), 15, 3) = 'OPN' THEN {
                                 zReport() <- zReport(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0'));
                                 receipt() <- receipt(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0') + substr(receiptString(), 3, 12));
-                                date(zReport()) <- toDateFormat(substr(getWord(resultString(), '\r\n', j), 96, 8), 'DDMMYYYY');
-                                time(zReport()) <- TIME (toDateTimeFormat(substr(getWord(resultString(), '\r\n', j), 48, 5), 'HH24:MI'));
+                                date(zReport()) <- toDateFormat(substr(getWord(resultString(), '\n', j), 96, 8), 'DDMMYYYY');
+                                time(zReport()) <- TIME (toDateTimeFormat(substr(getWord(resultString(), '\n', j), 48, 5), 'HH24:MI'));
                                 isPosted(zReport()) <- TRUE;
                             }
                             WHEN left(receiptString(), 2) = '12' AND substr(receiptString(), 77, 1) = '+' THEN NEW d = ReceiptSaleDetail {
@@ -269,7 +258,7 @@ receiveFromFit (CashRegister cr) {
                 }
             }
         }
-        stringToFile('Ok\r\n', 'cp866', '');
+        stringToFile('Ok\n', 'cp866', '');
         WRITE resultFile() TO CONCAT '', pathPut(cr), 'spool.adr';
     } CATCH {
         MESSAGE fitErrorMessage(cr, System.messageCaughtException());
