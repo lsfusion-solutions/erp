@@ -159,8 +159,10 @@ marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DAT
     AND NOT skipMarketingCondition(c, st, sk, p)
     BY contractMarketing(c), conditionType(c);
 
-WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d)) OR CHANGED (marketingPercent(d))) AND NOT CHANGED (sumMarketing(d)) DO {
-        sumMarketing(d) <- (sum(d) (-) returnSum(d)) * marketingPercent(d) / 100;
+
+overCalcSumMarketing = ABSTRACT NUMERIC[18,2] (MarketingInvoiceDetail);
+WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d)) OR CHANGED (marketingPercent(d)) OR CHANGED (overCalcSumMarketing(d))) AND NOT CHANGED (sumMarketing(d)) DO {
+        sumMarketing(d) <- OVERRIDE overCalcSumMarketing(d),  (sum(d) (-) returnSum(d)) * marketingPercent(d) / 100;
 }
 
 //CONSTRAINT (conditionTypeMarketing(MarketingInvoiceDetail d) == ConditionType.retail OR conditionTypeMarketing(d) == ConditionType.logistic OR 
