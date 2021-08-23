@@ -1027,14 +1027,16 @@ END
 // Партии с диалогом по складам
 META defineInvoiceBatchDialogStock(stockProp, dialog)
 
+    overSupplierStock = ABSTRACT Stock (UserInvoiceDetail);
+     
     changeBatch(UserInvoiceDetail d)  { 
         DIALOG dialogBatchStock##dialog OBJECTS 
-                                    st = stockProp(d),
-                                    t = dateTime(d),
-                                    sk = sku(d),
-                                    bt = batch(d) INPUT NULL NEWSESSION DO {
-            batch(d) <- bt;                            
-        }
+                                st = (OVERRIDE overSupplierStock(d), stockProp(d)),
+                                t = dateTime(d),
+                                sk = sku(d),
+                                bt = batch(d) INPUT NULL NEWSESSION DO {
+            batch(d) <- bt;    
+            }                                    
     }
 
     changeWYSBatch(UserInvoiceDetail d)  {
