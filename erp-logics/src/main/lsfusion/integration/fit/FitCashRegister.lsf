@@ -200,6 +200,9 @@ receiveFromFit (CashRegister cr) {
                         id(z) <- STRING[100](substr(getWord(resultString(), '\n', j), 92, 4)  + lpad(STRING(cr), 18, '0'));
                         number(z) <- STRING[48](substr(getWord(resultString(), '\n', j), 92, 4));
                         cashRegister(z) <- cr;
+                        date(z) <- toDateFormat(substr(getWord(resultString(), '\n', j), 96, 8), 'DDMMYYYY');
+                        time(z) <- TIME (toDateTimeFormat(substr(getWord(resultString(), '\n', j), 48, 5), 'HH24:MI'));
+                        isPosted(z) <- TRUE;
                     }
                     FOR iterate(INTEGER j, 1, countLines()) AND left(getWord(resultString(), '\n', j), 2) = '01' AND NOT receipt(substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\n', j), 3, 12)) DO NEW r = Receipt {
                         id(r) <- substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\n', j), 3, 12);
@@ -217,13 +220,6 @@ receiveFromFit (CashRegister cr) {
                             
                                 DELETE ReceiptDetail d WHERE receipt(d) = receipt();
                                 DELETE Payment p WHERE receipt(p) = receipt();
-                            }
-                            WHEN left(receiptString(), 2) = '07' AND substr(receiptString(), 15, 3) = 'OPN' THEN {
-                                zReport() <- zReport(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0'));
-                                receipt() <- receipt(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0') + substr(receiptString(), 3, 12));
-                                date(zReport()) <- toDateFormat(substr(getWord(resultString(), '\n', j), 96, 8), 'DDMMYYYY');
-                                time(zReport()) <- TIME (toDateTimeFormat(substr(getWord(resultString(), '\n', j), 48, 5), 'HH24:MI'));
-                                isPosted(zReport()) <- TRUE;
                             }
                             WHEN left(receiptString(), 2) = '12' AND substr(receiptString(), 77, 1) = '+' THEN NEW d = ReceiptSaleDetail {
                                 receipt(d) <- receipt();
