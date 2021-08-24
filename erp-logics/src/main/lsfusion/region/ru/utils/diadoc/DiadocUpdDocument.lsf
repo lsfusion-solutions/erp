@@ -1,0 +1,166 @@
+MODULE DiadocUpdDocument;
+
+REQUIRE UpdDocument, DiadocMessage, CryptoPro;
+
+NAMESPACE Diadoc;
+
+GROUP sellersUTD EXTID 'Sellers';
+GROUP sellerUTD EXTID 'Seller': sellersUTD;
+GROUP organizationReferenceSellerUTD EXTID 'OrganizationReference': sellerUTD;
+GROUP buyersUTD EXTID 'Buyers';
+GROUP buyerUTD EXTID 'Buyer': buyersUTD;
+GROUP organizationReferenceBuyerUTD EXTID 'OrganizationReference': buyerUTD;
+GROUP signersUTD EXTID 'Signers';
+GROUP signerDetailsUTD EXTID 'SignerDetails': signersUTD;
+GROUP additionalInfoIdUTD EXTID 'AdditionalInfoId';
+GROUP additionalInfoUTD EXTID 'AdditionalInfo': additionalInfoIdUTD;
+GROUP tableUTD EXTID 'Table';
+GROUP customsDeclarationsUTD EXTID 'CustomsDeclarations';
+GROUP customsDeclarationUTD EXTID 'CustomsDeclaration': customsDeclarationsUTD;
+GROUP transferInfoUTD EXTID 'TransferInfo';
+GROUP transferBasesUTD EXTID 'TransferBases': transferInfoUTD;
+GROUP transferBaseUTD EXTID 'TransferBase': transferBasesUTD;
+GROUP employeeUTD EXTID 'Employee': transferInfoUTD;
+GROUP otherIssuerUTD EXTID 'OtherIssuer': transferInfoUTD;
+
+exportUpdDocument = DATA LOCAL UpdDocument ();
+
+FORM universalTransferDocument FORMEXTID 'UniversalTransferDocument'
+    PROPERTIES ATTR function = (OVERRIDE nameStatus(exportUpdDocument()),'') EXTID 'Function',//Функция - Функция документа
+                    documentDate = toDateDDMMYYYY(OVERRIDE dateInvoice(exportUpdDocument()), currentDate()) EXTID 'DocumentDate',//ДатаСчФ - дата УПД
+                    documentNumber = (OVERRIDE numberInvoice(exportUpdDocument()),'') EXTID 'DocumentNumber',//НомерСчФ - номер УПД
+                    currency = (OVERRIDE codeCurrency(exportUpdDocument()),'') EXTID 'Currency',//КодОКВ - валюта (код)
+                    documentCreator = (OVERRIDE nameOriginatorCustomer(exportUpdDocument()),'') EXTID 'DocumentCreator'//НаимЭконСубСост - Составитель файла обмена счета-фактуры (информации продавца)
+    
+    PROPERTIES ATTR IN organizationReferenceSellerUTD
+                    orgTypeS = id(organizationType(organization(fromBox()))) EXTID 'OrgType',//СвИП - СвЮЛУч - СвИнНеУч
+                    boxIdS = fromBoxId() EXTID 'BoxId'
+    
+    PROPERTIES ATTR IN organizationReferenceBuyerUTD
+                    orgTypeB = id(organizationType(organization(toBox()))) EXTID 'OrgType',//СвИП - СвЮЛУч - СвИнНеУч
+                    boxIdB = toBoxId() EXTID 'BoxId'
+    
+    PROPERTIES ATTR IN signerDetailsUTD
+                    innSG = supplierSignerInn(exportUpdDocument()) EXTID 'Inn',//ИННЮЛ
+                    lastNameSG = (OVERRIDE supplierSignerLastName(exportUpdDocument()), supplierSignerAgentLastName(exportUpdDocument())) EXTID 'LastName',//Фамилия
+                    firstNameSG = (OVERRIDE supplierSignerFirstName(exportUpdDocument()), supplierSignerAgentFirstName(exportUpdDocument())) EXTID 'FirstName',//Имя
+                    middleNameSG = (OVERRIDE supplierSignerMiddleName(exportUpdDocument()), supplierSignerAgentMiddleName(exportUpdDocument())) EXTID 'MiddleName',//Отчество
+                    positionSG = supplierSignerPosition(exportUpdDocument()) EXTID 'Position',//Должн
+                    signerPowersSG = nameSupplierSignerCredentials(exportUpdDocument()) EXTID 'SignerPowers',//ОблПолн - Область полномочий
+                    signerTypeSG = (IF isSupplierSigner(exportUpdDocument()) THEN '3' ELSE '1') EXTID 'SignerType',
+                    signerStatusSG = nameSupplierSignerStatus(exportUpdDocument()) EXTID 'SignerStatus',//Статус
+                    signerPowersBaseSG = supplierSignerCredentialsBase(exportUpdDocument()) EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
+    
+    PROPERTIES ATTR IN additionalInfoUTD
+                    idAI = codeBusinessEvent(exportUpdDocument()) EXTID 'Id',//Идентиф - идентификатор (наименование)
+                    valueAI = descriptionBusinessEvent(exportUpdDocument()) EXTID 'Value'//Значен - значение
+    
+    PROPERTIES ATTR IN tableUTD
+                    totalWithVatExcludedT = sum(exportUpdDocument()) EXTID 'TotalWithVatExcluded',//СтТовБезНДСВсего - Сумма без учета налога
+                    vatT = VATSum(exportUpdDocument()) EXTID 'Vat',//СумНалВсего - Сумма налога всего
+                    withoutVatT = withoutVAT(exportUpdDocument()) EXTID 'WithoutVat',//БезНДС - Указывается, если для суммы налога всего не требуется НДС
+                    totalT = invoiceSum(exportUpdDocument()) EXTID 'Total'//СтТовУчНалВсего - Сумма всего
+    
+    OBJECTS i = UpdDocumentDetail EXTID 'Item' IN tableUTD
+    FILTERS updDocument(i) == exportUpdDocument()
+    PROPERTIES ATTR productI = nameSku(i) EXTID 'Product',//НаимТов - наименование товара
+                    unitI = idUOM(i) EXTID 'Unit',//ОКЕИ_Тов - единицы измерения товара (код)
+                    unitNameI = nameUOM(i) EXTID 'UnitName',//НаимЕдИзм - наименование единицы измерения товара
+                    quantityI = quantity(i) EXTID 'Quantity',//КолТов - количество единиц товара
+                    priceI = price(i) EXTID 'Price',//ЦенаТов - цена за единицу товара
+                    exciseI = dutySum(i) EXTID 'Excise',//СумАкциз - акциз
+                    taxRateI = nameVATStatus(i) EXTID 'TaxRate',//НалСт - ставка налога
+                    subtotalWithVatExcludedI = sum(i) EXTID 'SubtotalWithVatExcluded',//СтТовБезНДС - сумма без учета налога
+                    vatI = VATSum(i) EXTID 'Vat',//СумНал - сумма налога
+                    withoutVatI = TRUE IF NOT VATSum(i) EXTID 'WithoutVat',//БезНДС - Указывается, если для товара не требуется НДС
+                    subtotalI = invoiceSum(i) EXTID 'Subtotal',//СтТовУчНал - сумма всего
+                    itemVendorCodeI = idSku(i) EXTID 'ItemVendorCode'//КодТов - Характеристика/код/артикул/сорт товара
+    PROPERTIES ATTR IN customsDeclarationUTD
+                    countryI = idCountry(i) EXTID 'Country',//КодПроисх - Код страны происхождения товара по Общероссийскому классификатору стран мира (ОКСМ) или 980 - Евросоюз, 981 - ЕАЭС
+                    declarationNumberI = numberDeclaration(i) EXTID 'DeclarationNumber'//НомерТД - Номер таможенной декларации
+    
+    PROPERTIES ATTR IN transferInfoUTD
+                    operationInfoTI = (OVERRIDE description(exportUpdDocument()),'') EXTID 'OperationInfo'//СодОпер - Содержание операции
+    PROPERTIES ATTR IN transferBaseUTD
+                    baseDocumentNameTB = (OVERRIDE descriptionContract(exportUpdDocument()),'') EXTID 'BaseDocumentName',//НаимОсн - Наименование документа-основания отгрузки
+                    baseDocumentNumberTB = numberContract(exportUpdDocument()) EXTID 'BaseDocumentNumber',//НомОсн - Номер документа-основания отгрузки
+                    baseDocumentDateTB = toDateDDMMYYYY(dateContract(exportUpdDocument())) EXTID 'BaseDocumentDate'//ДатаОсн - Дата документа-основания отгрузки
+    PROPERTIES ATTR IN employeeUTD
+                    positionE = ((OVERRIDE positionAgentSupplier(exportUpdDocument()),' ') IF isAgentSupplier(exportUpdDocument())) EXTID 'Position',//Должность
+                    lastNameE = ((OVERRIDE lastNameAgentSupplier(exportUpdDocument()),' ') IF isAgentSupplier(exportUpdDocument())) EXTID 'LastName',//Фамилия
+                    firstNameE = ((OVERRIDE firsNameAgentSupplier(exportUpdDocument()),' ') IF isAgentSupplier(exportUpdDocument())) EXTID 'FirstName',//Имя
+                    middleNameE = (middleAgentSupplier(exportUpdDocument()) IF isAgentSupplier(exportUpdDocument())) EXTID 'MiddleName'//Отчество
+    PROPERTIES ATTR IN otherIssuerUTD
+                    positionOI = ((OVERRIDE positionAgentExecuter(exportUpdDocument()),'') IF isAgentExecuter(exportUpdDocument()) AND NOT isAgentSupplier(exportUpdDocument())) EXTID 'Position',//Должность - Должность представителя организации
+                    organizationNameOI = ((OVERRIDE nameCompanyAgentExecuter(exportUpdDocument()),'') IF isAgentExecuter(exportUpdDocument()) AND NOT isAgentSupplier(exportUpdDocument())) EXTID 'OrganizationName',//НаимОргПер - Наименование организации, которой доверена передача
+                    lastNameOI = ((OVERRIDE lastNameAgentExecuter(exportUpdDocument()),'') IF isAgentExecuter(exportUpdDocument()) AND NOT isAgentSupplier(exportUpdDocument())) EXTID 'LastName',//Фамилия
+                    firstNameOI = ((OVERRIDE firsNametAgentExecuter(exportUpdDocument()),'') IF isAgentExecuter(exportUpdDocument()) AND NOT isAgentSupplier(exportUpdDocument())) EXTID 'FirstName',//Имя
+                    middleNameOI = (middleNameAgentExecuter(exportUpdDocument()) IF isAgentExecuter(exportUpdDocument()) AND NOT isAgentSupplier(exportUpdDocument())) EXTID 'MiddleName'//Отчество
+;
+
+document = DATA Document (UpdDocument);
+titleDocument 'Документ Диадока' (UpdDocument d) = title(document(d)) CHARWIDTH 20;
+primaryStatusTextDocument 'Статус' (UpdDocument d) = primaryStatusText(document(d)) CHARWIDTH 20;
+
+messageUniversalTransferDocument 'Подписать и отправить через Диадок' (UpdDocument d) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        fromBox() <- GROUP LAST Box b IF organization(b) == (OVERRIDE organizationInn(innSupplier(d)), organizationKpp(kppSupplier(d))) ORDER b;
+        toBox() <- GROUP LAST Box b IF organization(b) == (OVERRIDE organizationInn(innCustomer(d)), organizationKpp(kppCustomer(d))) ORDER b;
+        DIALOG dialogMessageToPost DO {
+            getToken(u);
+            exportUpdDocument() <- d;
+            EXPORT universalTransferDocument XML;
+            
+            LOCAL result = FILE ();
+            TRY {
+                EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + fromBoxId() + '&documentTypeNamedId=UniversalTransferDocument&documentFunction=' + nameStatus(d) + '&documentVersion=utd820_05_01_01&titleIndex=0' HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                typeNamedIdDocument(0) <- 'UniversalTransferDocument';
+                functionDocument(0) <- nameStatus(d);
+                versionDocument(0) <- 'utd820_05_01_01';
+                sign(RAWFILE(result()), TRUE);
+                contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+                signatureDocument(0) <- encodedSignature();
+                //signWithTestSignature(0) <- TRUE;
+                
+                postMessage(u);
+                document(d) <- createdDocument();
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка отправки УПД ' + statusHttp() + ' ' + resultString();
+            }
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM updDocument
+    PROPERTIES(u) SHOWIF document(u) READONLY titleDocument, primaryStatusTextDocument
+    PROPERTIES(u) SHOWIF NOT document(u) messageUniversalTransferDocument
+;
+DESIGN updDocument {
+    transfer {
+        NEW diadoc {
+            caption = 'Диадок API';
+            MOVE PROPERTY (titleDocument(u));
+            MOVE PROPERTY (primaryStatusTextDocument(u));
+            MOVE PROPERTY (messageUniversalTransferDocument(u));
+        }
+    }
+}
+
+EXTEND FORM updDocuments
+    PROPERTIES(u) READONLY titleDocument = titleDocument AFTER isTransfered(u)
+    PROPERTIES(u) PANEL SHOWIF document(u) READONLY titleDocument, primaryStatusTextDocument 
+    PROPERTIES(u) PANEL SHOWIF NOT document(u) messageUniversalTransferDocument
+;
+
+DESIGN updDocuments {
+    export {
+        NEW diadoc {
+            caption = 'Диадок API';
+            MOVE PROPERTY (titleDocument(u));
+            MOVE PROPERTY (primaryStatusTextDocument(u));
+            MOVE PROPERTY (messageUniversalTransferDocument(u));
+        }
+    }
+}

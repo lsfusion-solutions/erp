@@ -1,0 +1,95 @@
+MODULE DiadocAuthentication;
+
+REQUIRE Utils, Time, Integration, Certificate, Authentication;
+
+NAMESPACE Diadoc;
+
+url 'Url' = DATA STRING ();
+clientId 'Ключ разработчика' = DATA STRING ();
+
+CLASS User 'Пользователь Диадока';
+TABLE user (User); 
+
+login 'Логин' = DATA STRING (User) IN id INDEXED CHARWIDTH 50 NONULL;
+user (login) = GROUP AGGR User user BY login(user);
+password 'Пароль' = DATA STRING (User) IN id ECHO CHARWIDTH 50 NONULL;
+
+FORM diadocUser 'Пользователь Диадока'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) login, password
+    
+    EDIT User OBJECT u
+;
+
+FORM diadocUsers 'Пользователи Диадока'
+    OBJECTS u = User
+    PROPERTIES(u) READONLY login
+    PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST User OBJECT u
+;
+
+token = DATA LOCAL STRING();
+token = DATA STRING (User);
+tokenDateTime = DATA DATETIME (User);
+
+httpHeaders(TEXT name) = CASE
+    WHEN name == 'Authorization' THEN 'DiadocAuth ddauth_api_client_id=' + clientId();
+
+httpHeadersToken(TEXT name) = CASE
+    WHEN name == 'Authorization' THEN 'DiadocAuth ddauth_api_client_id=' + clientId() + ',ddauth_token=' + token()
+    WHEN name == 'Accept' THEN 'application/json';
+
+getToken (User u) {
+    IF NOT tokenDateTime(u) > sumMinutes(currentDateTime(), -480) OR NOT token(u) THEN { 
+        NEWSESSION NESTED LOCAL {
+            LOCAL result = STRING ();
+            TRY {
+                EXTERNAL HTTP POST url() + '/Authenticate?login=' + login(u) + '&password=' + password(u) HEADERS httpHeaders TO result;
+                            
+                token(u) <- result();
+                tokenDateTime(u) <- currentDateTime();
+            } CATCH {
+                MESSAGE 'Ошибка авторизации ' + statusHttp() + ' ' + result();
+            }
+            APPLY;
+        }
+    }
+    token() <- token(u);
+}
+
+userDiadoc 'Пользователь Диадока' = DATA User (CustomUser);
+loginDiadoc 'Пользователь Диадока' (CustomUser u) = login(userDiadoc(u));
+
+EXTEND FORM employee
+    PROPERTIES(e) loginDiadoc
+;
+
+DESIGN employee {
+    authentication {
+        MOVE PROPERTY(loginDiadoc(e));
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES urlDiadoc = url(), clientIdDiadoc = clientId()
+;
+
+
+DESIGN integrationData {
+    pane {
+        NEW diadocAPI {
+            caption = 'Диадок API';
+            MOVE PROPERTY(urlDiadoc);
+            MOVE PROPERTY(clientIdDiadoc);
+        }
+    }
+}
+
+NAVIGATOR {
+    customsNavigator {
+        NEW FOLDER diadocNavigator 'Диадок' {
+            NEW diadocUsers;
+        }
+    }
+}

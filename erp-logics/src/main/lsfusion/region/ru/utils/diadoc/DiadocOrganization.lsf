@@ -1,0 +1,695 @@
+MODULE DiadocOrganization;
+
+REQUIRE DiadocAuthentication;
+
+NAMESPACE Diadoc;
+
+CLASS Sociability 'Прием документов от' {
+    allOrganizations 'Все организации, кроме списка "Заблокированные"',
+    counteragentsOnly 'Только организации из списка "Ваши контрагенты"'
+}
+name 'Наименование' (Sociability s) = staticCaption(s);
+id 'Код' (Sociability s) = CASE
+    WHEN s == Sociability.allOrganizations THEN 'AllOrganizations'
+    WHEN s == Sociability.counteragentsOnly THEN 'CounteragentsOnly';
+sociability (sociabilityId) = GROUP MAX Sociability sociability BY id(sociability);
+
+FORM sociabilities 'Прием документов от'
+    OBJECTS s = Sociability
+    PROPERTIES(s) READONLY name, id
+
+    LIST Sociability OBJECT s
+;
+
+CLASS OrganizationType 'Тип организации' {
+    type1 'Юридическое лицо, состоящее на учете в налоговых органах',
+    type2 'Индивидуальный предприниматель',
+    type3 'Иностранное лицо, не состоящее на учете в налоговых органах',
+    type4 'Физическое лицо'
+}
+name 'Наименование' (OrganizationType t) = staticCaption(t);
+id 'Код' (OrganizationType t) = CASE
+    WHEN t == OrganizationType.type1 THEN '1'
+    WHEN t == OrganizationType.type2 THEN '2'
+    WHEN t == OrganizationType.type3 THEN '3'
+    WHEN t == OrganizationType.type4 THEN '4';
+organizationType (organizationTypeId) = GROUP MAX OrganizationType organizationType BY id(organizationType);
+
+FORM organizationTypes 'Типы организации'
+    OBJECTS t = OrganizationType
+    PROPERTIES(t) READONLY name, id
+
+    LIST OrganizationType OBJECT t
+;
+
+CLASS Organization 'Организация Диадока';
+TABLE organization (Organization);
+
+orgId 'Идентификатор' = DATA STRING (Organization) IN id INDEXED CHARWIDTH 10 NONULL;
+organization (orgId) = GROUP AGGR Organization organization BY orgId(organization);
+inn 'ИНН' = DATA STRING[12] (Organization) IN id NONULL;
+kpp 'КПП' = DATA STRING[9] (Organization);
+fullName 'Полное наименование' = DATA ISTRING (Organization) CHARWIDTH 20 IN id NONULL;
+shortName 'Наименование' = DATA ISTRING (Organization) CHARWIDTH 20 IN id;
+ogrn 'ОГРН' = DATA STRING[13] (Organization);
+fnsParticipantId 'Идентификатор участника документооборота СФ' = DATA STRING[46] (Organization);
+ifnsCode 'Код ИФНС' = DATA STRING[4] (Organization);
+isPilot 'Пилотный режим' = DATA BOOLEAN (Organization);
+isActive 'Активная' = DATA BOOLEAN (Organization);
+isTest 'Тестовый режим' = DATA BOOLEAN (Organization);
+isBranch 'Явл. филиалом' = DATA BOOLEAN (Organization);
+isRoaming 'Работает через роуминг' = DATA BOOLEAN (Organization);
+sociability 'Прием документов от' = DATA Sociability (Organization);
+sociabilityName 'Прием документов от' (Organization o) = staticCaption(sociability(o)) CHARWIDTH 10;
+liquidationDate 'Дата ликвидации' = DATA STRING[20] (Organization) CHARWIDTH 10;
+certificateOfRegistryInfo 'Свидетельство о государственной регистрации' = DATA STRING (Organization) CHARWIDTH 10;
+isForeign 'Явл. иностранной' = DATA BOOLEAN (Organization);
+hasCertificateToSign 'Есть сертификат для подписания документов' = DATA BOOLEAN (Organization);
+
+TABLE organizationUser (Organization,User);
+isEmployee 'Явл. сотрудником' = DATA BOOLEAN (Organization,User);
+
+//РФ
+zipCode 'Почтовый Индекс' = DATA STRING (Organization) CHARWIDTH 10;
+region 'Регион (код)' = DATA STRING (Organization) CHARWIDTH 10;
+territory 'Район' = DATA STRING (Organization) CHARWIDTH 20;
+city 'Город' = DATA STRING (Organization) CHARWIDTH 20;
+locality 'Населенный пункт' = DATA STRING (Organization) CHARWIDTH 20;
+street 'Улица' = DATA STRING (Organization) CHARWIDTH 20;
+building 'Дом' = DATA STRING (Organization) CHARWIDTH 5;
+block 'Корпус' = DATA STRING (Organization) CHARWIDTH 5;
+apartment 'Квартира' = DATA STRING (Organization) CHARWIDTH 5;
+
+//Зарубежный
+country 'Страна (код)' = DATA STRING (Organization) CHARWIDTH 10;
+address 'Текст адреса' = DATA STRING (Organization) CHARWIDTH 20;
+
+addressCode 'Код ГАР' = DATA STRING (Organization) CHARWIDTH 10;
+
+organizationType 'Тип организации' = DATA OrganizationType (Organization) NONULL;
+organizationTypeName 'Тип организации' (Organization o) = staticCaption(organizationType(o)) CHARWIDTH 10;
+
+CLASS OrganizationInvoiceFormatVersion 'Версия СФ' {
+    v5_01 'v5_01',
+    v5_02 'v5_02'
+}
+name 'Наименование' (OrganizationInvoiceFormatVersion v) = staticCaption(v);
+organizationInvoiceFormatVersion (organizationInvoiceFormatVersionName) = GROUP MAX OrganizationInvoiceFormatVersion organizationInvoiceFormatVersion BY staticCaption(organizationInvoiceFormatVersion);
+
+FORM organizationInvoiceFormatVersions 'Версии СФ'
+    OBJECTS v = OrganizationInvoiceFormatVersion
+    PROPERTIES(v) READONLY name
+
+    LIST OrganizationInvoiceFormatVersion OBJECT v
+;
+
+CLASS Box 'Ящик в Диадоке';
+TABLE box (Box);
+
+boxId 'Идентификатор' = DATA STRING (Box) IN id INDEXED CHARWIDTH 10 NONULL;
+box (boxId) = GROUP AGGR Box box BY boxId(box);
+title 'Наименование' = DATA ISTRING (Box) CHARWIDTH 20 IN id NONULL;
+organization = DATA Organization (Box) NONULL DELETE;
+invoiceFormatVersion 'Версия СФ' = DATA OrganizationInvoiceFormatVersion (Box);
+invoiceFormatVersionName 'Версия СФ' (Box b) = staticCaption(invoiceFormatVersion(b));
+encryptedDocumentsAllowed 'Поддкржка зашифрованных документов' = DATA BOOLEAN (Box);
+
+CLASS Department 'Подразделение организации Диадока';
+TABLE department (Department);
+
+departmentId 'Идентификатор' = DATA STRING (Department) IN id INDEXED CHARWIDTH 10 NONULL;
+department (departmentId) = GROUP AGGR Department department BY departmentId(department);
+name 'Полное наименование' = DATA ISTRING (Department) CHARWIDTH 20 IN id NONULL;
+abbreviation 'Наименование' = DATA ISTRING (Department) CHARWIDTH 20 IN id;
+kpp 'КПП' = DATA STRING[9] (Department);
+parentDepartment = DATA Department (Department);
+parentDepartmentId 'Идентификатор родительского подразделения' (Department department) = OVERRIDE departmentId(parentDepartment(department)), '00000000-0000-0000-0000-000000000000';
+parentDepartmentName 'Родительское подразделение' (Department department) = name(parentDepartment(department));
+
+//РФ
+zipCode 'Почтовый Индекс' = DATA STRING (Department) CHARWIDTH 10;
+region 'Регион (код)' = DATA STRING (Department) CHARWIDTH 10;
+territory 'Район' = DATA STRING (Department) CHARWIDTH 20;
+city 'Город' = DATA STRING (Department) CHARWIDTH 20;
+locality 'Населенный пункт' = DATA STRING (Department) CHARWIDTH 20;
+street 'Улица' = DATA STRING (Department) CHARWIDTH 20;
+building 'Дом' = DATA STRING (Department) CHARWIDTH 5;
+block 'Корпус' = DATA STRING (Department) CHARWIDTH 5;
+apartment 'Квартира' = DATA STRING (Department) CHARWIDTH 5;
+
+//Зарубежный
+country 'Страна (код)' = DATA STRING (Department) CHARWIDTH 10;
+address 'Текст адреса' = DATA STRING (Department) CHARWIDTH 20;
+
+addressCode 'Код ГАР' = DATA STRING (Department) CHARWIDTH 10;
+
+organization = DATA Organization (Department) NONULL DELETE;
+
+organizationInn (STRING[12] inn) = GROUP LAST Organization o ORDER o BY inn(o);
+organizationKpp (STRING[9] kpp) = GROUP LAST Organization o ORDER o BY kpp(o);
+
+FORM organization 'Организация Диадока'
+    OBJECTS o = Organization PANEL
+    PROPERTIES(o) orgId, inn, kpp, fullName, shortName, ogrn, fnsParticipantId, ifnsCode,
+                  isPilot, isActive, isTest, isBranch, isRoaming, isForeign,
+                  zipCode, region, territory, city, locality, street, building, block, apartment,
+                  country, address, addressCode, sociabilityName, liquidationDate,
+                  certificateOfRegistryInfo, hasCertificateToSign, organizationTypeName
+    
+    OBJECTS b = Box
+    PROPERTIES(b) boxId, title, invoiceFormatVersionName, encryptedDocumentsAllowed
+    FILTERS organization(b) == o
+    
+    OBJECTS d = Department
+    PROPERTIES(d) departmentId, name, abbreviation, kpp, parentDepartmentName, zipCode, region, territory, city,
+                  locality, street, building, block, apartment, country, address, addressCode
+    FILTERS organization(d) == o
+    
+    EDIT Organization OBJECT o
+;
+
+DESIGN organization {
+    OBJECTS {
+        NEW header {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(orgId(o));
+            MOVE PROPERTY(shortName(o));
+            MOVE PROPERTY(fullName(o));
+        }
+        NEW parametersRow1 {
+            type = CONTAINERH;
+            MOVE PROPERTY(inn(o));
+            MOVE PROPERTY(kpp(o));
+            MOVE PROPERTY(organizationTypeName(o));
+        }
+        NEW parametersRow2 {
+            type = CONTAINERH;
+            MOVE PROPERTY(ogrn(o));
+            MOVE PROPERTY(fnsParticipantId(o));
+            MOVE PROPERTY(ifnsCode(o));
+        }
+        NEW parametersRow3 {
+            type = CONTAINERH;
+            MOVE PROPERTY(isPilot(o));
+            MOVE PROPERTY(isActive(o));
+            MOVE PROPERTY(isTest(o));
+            MOVE PROPERTY(isBranch(o));
+            MOVE PROPERTY(isRoaming(o));
+            MOVE PROPERTY(isForeign(o));
+            MOVE PROPERTY(hasCertificateToSign(o));
+        }
+        NEW parametersRow4 {
+            type = CONTAINERH;
+            MOVE PROPERTY(sociabilityName(o));
+            MOVE PROPERTY(liquidationDate(o));
+            MOVE PROPERTY(certificateOfRegistryInfo(o));
+        }
+        NEW address {
+            type = CONTAINERV;
+            NEW russian {
+                caption = 'Адрес в РФ';
+                type = COLUMNS;
+                columns = 3;
+                MOVE PROPERTY(zipCode(o));
+                MOVE PROPERTY(city(o));
+                MOVE PROPERTY(building(o));
+                MOVE PROPERTY(region(o));
+                MOVE PROPERTY(locality(o));
+                MOVE PROPERTY(block(o));
+                MOVE PROPERTY(territory(o));
+                MOVE PROPERTY(street(o));
+                MOVE PROPERTY(apartment(o));
+            }
+            NEW foreign {
+                caption = 'Адрес зарубежом';
+                type = CONTAINERH;
+                MOVE PROPERTY(country(o));
+                MOVE PROPERTY(address(o));
+            }
+            MOVE PROPERTY(addressCode(o));
+        }
+        NEW tabs {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(b);
+            MOVE BOX(d);
+        }
+    }
+}
+
+show 'Просмотреть' (Organization o) { 
+	NEWSESSION {
+	    SHOW organization OBJECTS o = o DOCKED READONLY;
+	}
+} TOOLBAR;
+
+FORM organizations 'Организации Диадока'
+    OBJECTS o = Organization
+    PROPERTIES(o) READONLY orgId, shortName, fullName, inn, kpp
+    PROPERTIES(o) organizationTypeName
+    PROPERTIES(o) show
+    FILTERS isEmployee(o,userDiadoc(currentUser()))
+;
+
+FORM dialogOrganizations 'Организации Диадока'
+    OBJECTS o = Organization
+    PROPERTIES(o) READONLY orgId, shortName, fullName, inn, kpp
+    FILTERS isEmployee(o,userDiadoc(currentUser()))
+    
+    LIST Organization OBJECT o
+;
+
+NAVIGATOR {
+    diadocNavigator {
+        NEW organizations;
+    }
+}
+
+
+
+orgId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+inn 'ИНН' = DATA LOCAL STRING[12] (INTEGER);
+kpp 'КПП' = DATA LOCAL STRING[9] (INTEGER);
+fullName 'Полное наименование' = DATA LOCAL ISTRING (INTEGER);
+shortName 'Наименование' = DATA LOCAL ISTRING (INTEGER);
+ogrn 'ОГРН' = DATA LOCAL STRING[13] (INTEGER);
+fnsParticipantId 'Идентификатор участника документооборота СФ' = DATA LOCAL STRING[46] (INTEGER);
+ifnsCode 'Код ИФНС' = DATA LOCAL STRING[4] (INTEGER);
+isPilot 'Пилотный режим' = DATA LOCAL BOOLEAN (INTEGER);
+isActive 'Активная' = DATA LOCAL BOOLEAN (INTEGER);
+isTest 'Тестовый режим' = DATA LOCAL BOOLEAN (INTEGER);
+isBranch 'Явл. филиалом' = DATA LOCAL BOOLEAN (INTEGER);
+isRoaming 'Работает через роуминг' = DATA LOCAL BOOLEAN (INTEGER);
+isEmployee 'Пользователь является сотрудником организации' = DATA LOCAL BOOLEAN (INTEGER);
+sociability 'Прием документов от' = DATA LOCAL STRING (INTEGER);
+liquidationDate 'Дата ликвидации' = DATA LOCAL STRING (INTEGER);
+certificateOfRegistryInfo 'Свидетельство о государственной регистрации' = DATA LOCAL STRING (INTEGER);
+isForeign 'Явл. иностранной' = DATA LOCAL BOOLEAN (INTEGER);
+hasCertificateToSign 'Есть сертификат для подписания документов' = DATA LOCAL BOOLEAN (INTEGER);
+
+GROUP address EXTID 'Address';
+addressCode 'Код ГАР' = DATA LOCAL STRING (INTEGER);
+GROUP russianAddress EXTID 'RussianAddress': address;
+zipCode 'Почтовый Индекс' = DATA LOCAL STRING (INTEGER);
+region 'Регион (код)' = DATA LOCAL STRING (INTEGER);
+territory 'Район' = DATA LOCAL STRING (INTEGER);
+city 'Город' = DATA LOCAL STRING (INTEGER);
+locality 'Населенный пункт' = DATA LOCAL STRING (INTEGER);
+street 'Улица' = DATA LOCAL STRING (INTEGER);
+building 'Дом' = DATA LOCAL STRING (INTEGER);
+block 'Корпус' = DATA LOCAL STRING (INTEGER);
+apartment 'Квартира' = DATA LOCAL STRING (INTEGER);
+GROUP foreignAddress EXTID 'ForeignAddress': address;
+country 'Страна (код)' = DATA LOCAL STRING (INTEGER);
+address 'Текст адреса' = DATA LOCAL STRING (INTEGER);
+
+organizationBox = DATA LOCAL INTEGER (INTEGER);
+boxId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+title 'Наименование' = DATA LOCAL ISTRING (INTEGER);
+invoiceFormatVersion 'Версия СФ' = DATA LOCAL STRING (INTEGER);
+encryptedDocumentsAllowed 'Поддкржка зашифрованных документов' = DATA LOCAL BOOLEAN (INTEGER);
+
+organizationDepartment = DATA LOCAL INTEGER (INTEGER);
+departmentId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+parentDepartmentId 'Идентификатор родительского подразделения' = DATA LOCAL STRING (INTEGER);
+name 'Полное наименование' = DATA LOCAL ISTRING (INTEGER);
+abbreviation 'Наименование' = DATA LOCAL ISTRING (INTEGER);
+kppD 'КПП' = DATA LOCAL STRING[9] (INTEGER);
+
+addressCodeD 'Код ГАР' = DATA LOCAL STRING (INTEGER);
+zipCodeD 'Почтовый Индекс' = DATA LOCAL STRING (INTEGER);
+regionD 'Регион (код)' = DATA LOCAL STRING (INTEGER);
+territoryD 'Район' = DATA LOCAL STRING (INTEGER);
+cityD 'Город' = DATA LOCAL STRING (INTEGER);
+localityD 'Населенный пункт' = DATA LOCAL STRING (INTEGER);
+streetD 'Улица' = DATA LOCAL STRING (INTEGER);
+buildingD 'Дом' = DATA LOCAL STRING (INTEGER);
+blockD 'Корпус' = DATA LOCAL STRING (INTEGER);
+apartmentD 'Квартира' = DATA LOCAL STRING (INTEGER);
+countryD 'Страна (код)' = DATA LOCAL STRING (INTEGER);
+addressD 'Текст адреса' = DATA LOCAL STRING (INTEGER);
+
+FORM importOrganizations
+    OBJECTS o = INTEGER EXTID 'Organizations'
+    PROPERTIES(o) orgId EXTID 'OrgId',
+                  inn EXTID 'Inn',
+                  kpp EXTID 'Kpp',
+                  fullName EXTID 'FullName',
+                  shortName EXTID 'ShortName',
+                  ogrn EXTID 'Ogrn',
+                  fnsParticipantId EXTID 'FnsParticipantId',
+                  ifnsCode EXTID 'IfnsCode',
+                  isPilot EXTID 'IsPilot',
+                  isActive EXTID 'IsActive',
+                  isTest EXTID 'IsTest',
+                  isBranch EXTID 'IsBranch',
+                  isRoaming EXTID 'IsRoaming',
+                  isEmployee EXTID 'IsEmployee',
+                  sociability EXTID 'Sociability',
+                  liquidationDate EXTID 'LiquidationDate',
+                  certificateOfRegistryInfo EXTID 'CertificateOfRegistryInfo',
+                  isForeign EXTID 'IsForeign',
+                  hasCertificateToSign EXTID 'HasCertificateToSign'
+    PROPERTIES(o) IN russianAddress
+                  zipCode EXTID 'ZipCode',
+                  region EXTID 'Region',
+                  territory EXTID 'Territory',
+                  city EXTID 'City',
+                  locality EXTID 'Locality',
+                  street EXTID 'Street',
+                  building EXTID 'Building',
+                  block EXTID 'Block',
+                  apartment EXTID 'Apartment'
+    PROPERTIES(o) IN foreignAddress
+                  country EXTID 'Country',
+                  address EXTID 'Address'
+    PROPERTIES(o) IN address
+                  addressCode EXTID 'AddressCode'
+    
+    OBJECTS b = INTEGER EXTID 'Boxes'
+    FILTERS organizationBox(b) == o
+    PROPERTIES(b) boxId EXTID 'BoxId',
+                  title EXTID 'Title',
+                  invoiceFormatVersion EXTID 'InvoiceFormatVersion',
+                  encryptedDocumentsAllowed EXTID 'EncryptedDocumentsAllowed'
+    
+    OBJECTS d = INTEGER EXTID 'Departments'
+    FILTERS organizationDepartment(d) == o
+    PROPERTIES(d) departmentId EXTID 'DepartmentId',
+                  parentDepartmentId EXTID 'ParentDepartmentId',
+                  name EXTID 'Name',
+                  abbreviation EXTID 'Abbreviation',
+                  kppD EXTID 'Kpp'
+    PROPERTIES(d) IN russianAddress
+                  zipCodeD EXTID 'ZipCode',
+                  regionD EXTID 'Region',
+                  territoryD EXTID 'Territory',
+                  cityD EXTID 'City',
+                  localityD EXTID 'Locality',
+                  streetD EXTID 'Street',
+                  buildingD EXTID 'Building',
+                  blockD EXTID 'Block',
+                  apartmentD EXTID 'Apartment'
+    PROPERTIES(d) IN foreignAddress
+                  countryD EXTID 'Country',
+                  addressD EXTID 'Address'
+    PROPERTIES(d) IN address
+                  addressCodeD EXTID 'AddressCode'
+;
+
+getMyOrganizations 'Получить мои организации' () {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        getToken(u);
+        
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetMyOrganizations' HEADERS httpHeadersToken TO result;
+            IMPORT importOrganizations JSON FROM result();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка получения организаций ' + statusHttp() + ' ' + resultString();
+        }
+        
+        FOR orgId(INTEGER i) AND NOT organization(orgId(i)) NEW o = Organization DO {
+            orgId(o) <- orgId(i);
+        }
+        FOR Organization o == organization(orgId(INTEGER i)) DO {
+            inn(o) <- inn(i);
+            kpp(o) <- kpp(i);
+            fullName(o) <- fullName(i);
+            shortName(o) <- shortName(i);
+            ogrn(o) <- ogrn(i);
+            fnsParticipantId(o) <- fnsParticipantId(i);
+            ifnsCode(o) <- ifnsCode(i);
+            isPilot(o) <- isPilot(i);
+            isActive(o) <- isActive(i);
+            isTest(o) <- isTest(i);
+            isBranch(o) <- isBranch(i);
+            isRoaming(o) <- isRoaming(i);
+            isEmployee(o,u) <- isEmployee(i);
+            sociability(o) <- sociability(sociability(i));
+            liquidationDate(o) <- liquidationDate(i);
+            certificateOfRegistryInfo(o) <- certificateOfRegistryInfo(i);
+            isForeign(o) <- isForeign(i);
+            hasCertificateToSign(o) <- hasCertificateToSign(i);
+            zipCode(o) <- zipCode(i);
+            region(o) <- region(i);
+            territory(o) <- territory(i);
+            city(o) <- city(i);
+            locality(o) <- locality(i);
+            street(o) <- street(i);
+            building(o) <- building(i);
+            block(o) <- block(i);
+            apartment(o) <- apartment(i);
+            country(o) <- country(i);
+            address(o) <- address(i);
+            addressCode(o) <- addressCode(i);
+            organizationType(o) <- OrganizationType.type1 WHERE NOT organizationType(o);
+        }
+        FOR boxId(INTEGER i) AND NOT box(boxId(i)) NEW b = Box DO {
+            boxId(b) <- boxId(i);
+        }
+        FOR Box b == box(boxId(INTEGER i)) DO {
+            title(b) <- title(i);
+            organization(b) <- organization(orgId(organizationBox(i)));
+            invoiceFormatVersion(b) <- organizationInvoiceFormatVersion(invoiceFormatVersion(i));
+            encryptedDocumentsAllowed(b) <- encryptedDocumentsAllowed(i);
+        }
+        FOR departmentId(INTEGER i) AND NOT department(departmentId(i)) NEW d = Department DO {
+            departmentId(d) <- departmentId(i);
+        }
+        FOR Department d == department(departmentId(INTEGER i)) DO {
+            parentDepartment(d) <- department(parentDepartmentId(i));
+            name(d) <- name(i);
+            abbreviation(d) <- abbreviation(i);
+            kpp(d) <- kppD(i);
+            zipCode(d) <- zipCodeD(i);
+            region(d) <- regionD(i);
+            territory(d) <- territoryD(i);
+            city(d) <- cityD(i);
+            locality(d) <- localityD(i);
+            street(d) <- streetD(i);
+            building(d) <- buildingD(i);
+            block(d) <- blockD(i);
+            apartment(d) <- apartmentD(i);
+            country(d) <- countryD(i);
+            address(d) <- addressD(i);
+            addressCode(d) <- addressCodeD(i);
+            organization(d) <- organization(orgId(organizationDepartment(i)));
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM organizations
+    PROPERTIES DRAW o TOOLBAR getMyOrganizations()
+;
+
+//--------- Контрагенты ----------//
+
+CLASS CounteragentStatus 'Статус отношения партнерства' {
+    unknownCounteragentStatus 'Неизвестный',
+    isMyCounteragent 'Отношение партнерства установлено и действует',
+    invitesMe 'Получен запрос на установление отношения партнерства',
+    isInvitedByMe 'Отправлен запрос на установление отношения партнерства',
+    rejectsMe 'Отклонено контрагентом',
+    isRejectedByMe 'Отклонено нами',
+    notInCounteragentList 'Отсутствует в списке контрагентов'
+}
+name 'Наименование' (CounteragentStatus s) = staticCaption(s);
+id 'Код' (CounteragentStatus s) = CASE
+    WHEN s == CounteragentStatus.unknownCounteragentStatus THEN 'UnknownCounteragentStatus'
+    WHEN s == CounteragentStatus.isMyCounteragent THEN 'IsMyCounteragent'
+    WHEN s == CounteragentStatus.invitesMe THEN 'InvitesMe'
+    WHEN s == CounteragentStatus.isInvitedByMe THEN 'IsInvitedByMe'
+    WHEN s == CounteragentStatus.rejectsMe THEN 'RejectsMe'
+    WHEN s == CounteragentStatus.isRejectedByMe THEN 'IsRejectedByMe'
+    WHEN s == CounteragentStatus.notInCounteragentList THEN 'NotInCounteragentList';
+counteragentStatus (counteragentStatusId) = GROUP MAX CounteragentStatus counteragentStatus BY id(counteragentStatus);
+
+FORM counteragentStatuses 'Статусы отношения партнерства'
+    OBJECTS s = CounteragentStatus
+    PROPERTIES(s) READONLY name, id
+
+    LIST CounteragentStatus OBJECT s
+;
+
+TABLE organizationOrganization (Organization,Organization);
+counteragentStatus 'Статус отношения партнерства' = DATA CounteragentStatus (Organization, Organization);
+counteragentStatusName 'Статус отношения партнерства' (Organization o, Organization c) = staticCaption(counteragentStatus(o,c)) CHARWIDTH 20;
+
+GROUP organization EXTID 'Organization';
+currentStatus 'Статус отношения партнерства' = DATA LOCAL STRING (INTEGER);
+GROUP addressO EXTID 'Address': organization;
+GROUP russianAddressO EXTID 'RussianAddress': addressO;
+GROUP foreignAddressO EXTID 'ForeignAddress': addressO;
+
+FORM importCounteragents
+    OBJECTS o = INTEGER EXTID 'Counteragents'
+    PROPERTIES(o) currentStatus EXTID 'CurrentStatus'
+    PROPERTIES(o) IN organization
+                  orgId EXTID 'OrgId',
+                  inn EXTID 'Inn',
+                  kpp EXTID 'Kpp',
+                  fullName EXTID 'FullName',
+                  shortName EXTID 'ShortName',
+                  ogrn EXTID 'Ogrn',
+                  fnsParticipantId EXTID 'FnsParticipantId',
+                  ifnsCode EXTID 'IfnsCode',
+                  isPilot EXTID 'IsPilot',
+                  isActive EXTID 'IsActive',
+                  isTest EXTID 'IsTest',
+                  isBranch EXTID 'IsBranch',
+                  isRoaming EXTID 'IsRoaming',
+                  sociability EXTID 'Sociability',
+                  liquidationDate EXTID 'LiquidationDate',
+                  certificateOfRegistryInfo EXTID 'CertificateOfRegistryInfo',
+                  isForeign EXTID 'IsForeign',
+                  hasCertificateToSign EXTID 'HasCertificateToSign'
+    PROPERTIES(o) IN russianAddressO
+                  zipCode EXTID 'ZipCode',
+                  region EXTID 'Region',
+                  territory EXTID 'Territory',
+                  city EXTID 'City',
+                  locality EXTID 'Locality',
+                  street EXTID 'Street',
+                  building EXTID 'Building',
+                  block EXTID 'Block',
+                  apartment EXTID 'Apartment'
+    PROPERTIES(o) IN foreignAddressO
+                  country EXTID 'Country',
+                  address EXTID 'Address'
+    PROPERTIES(o) IN addressO
+                  addressCode EXTID 'AddressCode'
+    
+    OBJECTS b = INTEGER EXTID 'Boxes' IN organization
+    FILTERS organizationBox(b) == o
+    PROPERTIES(b) boxId EXTID 'BoxId',
+                  title EXTID 'Title',
+                  invoiceFormatVersion EXTID 'InvoiceFormatVersion',
+                  encryptedDocumentsAllowed EXTID 'EncryptedDocumentsAllowed'
+    
+    OBJECTS d = INTEGER EXTID 'Departments' IN organization
+    FILTERS organizationDepartment(d) == o
+    PROPERTIES(d) departmentId EXTID 'DepartmentId',
+                  parentDepartmentId EXTID 'ParentDepartmentId',
+                  name EXTID 'Name',
+                  abbreviation EXTID 'Abbreviation',
+                  kppD EXTID 'Kpp'
+    PROPERTIES(d) IN russianAddressO
+                  zipCodeD EXTID 'ZipCode',
+                  regionD EXTID 'Region',
+                  territoryD EXTID 'Territory',
+                  cityD EXTID 'City',
+                  localityD EXTID 'Locality',
+                  streetD EXTID 'Street',
+                  buildingD EXTID 'Building',
+                  blockD EXTID 'Block',
+                  apartmentD EXTID 'Apartment'
+    PROPERTIES(d) IN foreignAddressO
+                  countryD EXTID 'Country',
+                  addressD EXTID 'Address'
+    PROPERTIES(d) IN addressO
+                  addressCodeD EXTID 'AddressCode'
+;
+
+getCounteragents 'Получить список контрагентов организации' (Organization organization) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        getToken(u);
+        
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetCounteragents?myOrgId=' + orgId(organization) HEADERS httpHeadersToken TO result;
+            IMPORT importCounteragents JSON FROM result();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка получения контрагентов ' + statusHttp() + ' ' + resultString();
+        }
+        
+        FOR orgId(INTEGER i) AND NOT organization(orgId(i)) NEW o = Organization DO {
+            orgId(o) <- orgId(i);
+        }
+        FOR Organization o == organization(orgId(INTEGER i)) DO {
+            inn(o) <- inn(i);
+            kpp(o) <- kpp(i);
+            fullName(o) <- fullName(i);
+            shortName(o) <- shortName(i);
+            ogrn(o) <- ogrn(i);
+            fnsParticipantId(o) <- fnsParticipantId(i);
+            ifnsCode(o) <- ifnsCode(i);
+            isPilot(o) <- isPilot(i);
+            isActive(o) <- isActive(i);
+            isTest(o) <- isTest(i);
+            isBranch(o) <- isBranch(i);
+            isRoaming(o) <- isRoaming(i);
+            sociability(o) <- sociability(sociability(i));
+            liquidationDate(o) <- liquidationDate(i);
+            certificateOfRegistryInfo(o) <- certificateOfRegistryInfo(i);
+            isForeign(o) <- isForeign(i);
+            hasCertificateToSign(o) <- hasCertificateToSign(i);
+            zipCode(o) <- zipCode(i);
+            region(o) <- region(i);
+            territory(o) <- territory(i);
+            city(o) <- city(i);
+            locality(o) <- locality(i);
+            street(o) <- street(i);
+            building(o) <- building(i);
+            block(o) <- block(i);
+            apartment(o) <- apartment(i);
+            country(o) <- country(i);
+            address(o) <- address(i);
+            addressCode(o) <- addressCode(i);
+            organizationType(o) <- OrganizationType.type1 WHERE NOT organizationType(o);
+            counteragentStatus(organization,o) <- counteragentStatus(currentStatus(i));
+        }
+        FOR boxId(INTEGER i) AND NOT box(boxId(i)) NEW b = Box DO {
+            boxId(b) <- boxId(i);
+        }
+        FOR Box b == box(boxId(INTEGER i)) DO {
+            title(b) <- title(i);
+            organization(b) <- organization(orgId(organizationBox(i)));
+            invoiceFormatVersion(b) <- organizationInvoiceFormatVersion(invoiceFormatVersion(i));
+            encryptedDocumentsAllowed(b) <- encryptedDocumentsAllowed(i);
+        }
+        FOR departmentId(INTEGER i) AND NOT department(departmentId(i)) NEW d = Department DO {
+            departmentId(d) <- departmentId(i);
+        }
+        FOR Department d == department(departmentId(INTEGER i)) DO {
+            parentDepartment(d) <- department(parentDepartmentId(i));
+            name(d) <- name(i);
+            abbreviation(d) <- abbreviation(i);
+            kpp(d) <- kppD(i);
+            zipCode(d) <- zipCodeD(i);
+            region(d) <- regionD(i);
+            territory(d) <- territoryD(i);
+            city(d) <- cityD(i);
+            locality(d) <- localityD(i);
+            street(d) <- streetD(i);
+            building(d) <- buildingD(i);
+            block(d) <- blockD(i);
+            apartment(d) <- apartmentD(i);
+            country(d) <- countryD(i);
+            address(d) <- addressD(i);
+            addressCode(d) <- addressCodeD(i);
+            organization(d) <- organization(orgId(organizationDepartment(i)));
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM organizations
+    OBJECTS c = Organization
+    PROPERTIES(o,c) READONLY counteragentStatusName
+    PROPERTIES(c) READONLY orgId, shortName, fullName, inn, kpp
+    PROPERTIES(c) organizationTypeName
+    PROPERTIES(c) show
+    FILTERS counteragentStatus(o,c)
+    
+    FILTERGROUP isMyCounteragent FILTER 'Действует отношение партнерства' counteragentStatus(o,c) == CounteragentStatus.isMyCounteragent DEFAULT
+    
+    PROPERTIES DRAW c TOOLBAR getCounteragents(o)
+;
+DESIGN organizations {
+    BOX(c) {caption='Организация Диадока (Контрагент)';}
+}

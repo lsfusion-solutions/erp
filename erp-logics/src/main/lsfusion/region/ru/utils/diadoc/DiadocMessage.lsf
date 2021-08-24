@@ -1,0 +1,2122 @@
+MODULE DiadocMessage;
+
+REQUIRE DiadocOrganization;
+
+NAMESPACE Diadoc;
+
+fromTicksToTimestamp (LONG t) = [FORMULA DATETIME PG 'SELECT to_timestamp((($1 - 621355968000000000) / 10000000.0))'](t) IF t > 0;
+
+//----------------------- BoxEvent -----------------------//
+CLASS BoxEvent 'Cобытие в ящике Диадока';
+TABLE boxEvent (BoxEvent);
+
+eventId 'Идентификатор' = DATA STRING (BoxEvent) IN id INDEXED CHARWIDTH 10 NONULL;
+boxEvent (eventId) = GROUP AGGR BoxEvent event BY eventId(event);
+
+
+//----------------------- Message -----------------------//
+CLASS LockMode 'Режим блокировки сообщения' {
+    none 'Блокировка не производится',
+    send 'Для документов пакета возможна только совместная отправка',
+    full 'Документы сообщения будут отправлены закрытым пакетом'
+}
+name 'Наименование' (LockMode m) = staticCaption(m);
+id 'Код' (LockMode m) = CASE
+    WHEN m == LockMode.none THEN 'None'
+    WHEN m == LockMode.send THEN 'Send'
+    WHEN m == LockMode.full THEN 'Full';
+lockMode (lockModeId) = GROUP MAX LockMode lockMode BY id(lockMode);
+
+FORM lockModes 'Режимы блокировки сообщения'
+    OBJECTS m = LockMode
+    PROPERTIES(m) READONLY name, id
+
+    LIST LockMode OBJECT m
+;
+
+CLASS MessageType 'Тип сообщения' {
+    unknown 'Неизвестный',
+    letter 'Письмо',
+    draft 'Черновик',
+    template 'Шаблон'
+}
+name 'Наименование' (MessageType t) = staticCaption(t);
+id 'Код' (MessageType t) = CASE
+    WHEN t == MessageType.unknown THEN 'Unknown'
+    WHEN t == MessageType.letter THEN 'Letter'
+    WHEN t == MessageType.draft THEN 'Draft'
+    WHEN t == MessageType.template THEN 'Template';
+messageType (messageTypeId) = GROUP MAX MessageType messageType BY id(messageType);
+
+FORM messageTypes 'Типы сообщения'
+    OBJECTS t = MessageType
+    PROPERTIES(t) READONLY name, id
+
+    LIST MessageType OBJECT t
+;
+
+CLASS Message 'Cообщение Диадока';
+TABLE message (Message);
+
+messageId 'Идентификатор' = DATA STRING (Message) IN id INDEXED CHARWIDTH 10 NONULL;
+message (messageId) = GROUP AGGR Message message BY messageId(message);
+
+timestampTicks 'Время создания' = DATA LONG (Message) NONULL;
+timestamp 'Время создания' (Message m) = fromTicksToTimestamp(timestampTicks(m));
+lastPatchTimestampTicks 'Время последнего дополнения' = DATA LONG (Message) NONULL;
+lastPatchTimestamp 'Время последнего дополнения' (Message m) = fromTicksToTimestamp(lastPatchTimestampTicks(m));
+
+fromBox 'Ящик отправителя сообщения' = DATA Box (Message) NONULL;
+fromBoxId 'Идентификатор ящика отправителя сообщения' (Message message) = boxId(fromBox(message)) CHARWIDTH 10;
+fromBoxTitle 'Наименование ящика отправителя сообщения' (Message message) = title(fromBox(message)) CHARWIDTH 20;
+
+toBox 'Ящик получателя сообщения' = DATA Box (Message);
+toBoxId 'Идентификатор ящика получателя сообщения' (Message message) = boxId(toBox(message)) CHARWIDTH 10;
+toBoxTitle 'Наименование ящика получателя сообщения' (Message message) = title(toBox(message)) CHARWIDTH 20;
+
+isDraft 'Черновик' = DATA BOOLEAN (Message);
+draftIsLocked 'Черновик заблокирован' = DATA BOOLEAN (Message);
+draftIsRecycled 'Черновик утилизирован' = DATA BOOLEAN (Message);
+createdFromDraftId 'Черновик-основание' = DATA STRING (Message) CHARWIDTH 10;
+//draftIsTransformedToMessageIdList 'Созданное сообщение' = DATA STRING (Message, INTEGER); можно сделать ссылку через createdFromDraftId (это массив)
+isDeleted 'Удалено' = DATA BOOLEAN (Message);
+isTest 'Тестовое' = DATA BOOLEAN (Message);
+isInternal 'Внутреннее' = DATA BOOLEAN (Message);
+isProxified 'Отправлен через промежуточного получателя' = DATA BOOLEAN (Message);
+proxyBox 'Ящик промежуточного получателя' = DATA Box (Message);
+proxyBoxId 'Идентификатор ящика промежуточного получателя' (Message message) = boxId(proxyBox(message)) CHARWIDTH 10;
+proxyBoxTitle 'Наименование ящика промежуточного получателя' (Message message) = title(proxyBox(message)) CHARWIDTH 20;
+packetIsLocked 'Закрытый пакет' = DATA BOOLEAN (Message);
+lockMode 'Режим блокировки сообщения' = DATA LockMode (Message);
+lockModeName 'Режим блокировки сообщения' (Message m) = staticCaption(lockMode(m)) CHARWIDTH 20;
+messageType 'Тип сообщения' = DATA MessageType (Message);
+messageTypeName 'Тип сообщения' (Message m) = staticCaption(messageType(m)) CHARWIDTH 20;
+isReusable 'Создано на основе шаблона' = DATA BOOLEAN (Message);
+//Entities
+message = DATA Message (BoxEvent);
+
+
+//----------------------- MessagePatch -----------------------//
+CLASS MessagePatch 'Дополнение к сообщению Диадока';
+TABLE messagePatch (MessagePatch);
+
+patchId 'Идентификатор' = DATA STRING (MessagePatch) IN id INDEXED CHARWIDTH 10 NONULL;
+messagePatch (patchId) = GROUP AGGR MessagePatch messagePatch BY patchId(messagePatch);
+
+message = DATA Message (MessagePatch) NONULL DELETE;
+messageId 'Идентификатор сообщения' (MessagePatch p) = messageId(message(p)) IN id CHARWIDTH 10;
+timestampTicks 'Время создания' = DATA LONG (MessagePatch) NONULL;
+timestamp 'Время создания' (MessagePatch p) = fromTicksToTimestamp(timestampTicks(p));
+forDraft 'К черновику' = DATA BOOLEAN (MessagePatch);
+draftIsRecycled 'Черновик утилизирован' = DATA BOOLEAN (MessagePatch);
+//draftIsTransformedToMessageIdList 'Созданное сообщение' = DATA STRING (MessagePatch, INTEGER); можно сделать ссылку через createdFromDraftId (это массив)
+draftIsLocked 'Черновик заблокирован' = DATA BOOLEAN (MessagePatch);
+messageIsDeleted 'Сообщение удалено' = DATA BOOLEAN (MessagePatch);
+messageIsRestored 'Сообщение восстановлено' = DATA BOOLEAN (MessagePatch);
+messageIsDelivered 'Сообщение доставлено' = DATA BOOLEAN (MessagePatch);
+deliveredEventId 'Идентификатор доставленного получателю события' = DATA STRING (MessagePatch) CHARWIDTH 10;
+messageType 'Тип сообщения' = DATA MessageType (MessagePatch);
+messageTypeName 'Тип сообщения' (MessagePatch p) = staticCaption(messageType(p)) CHARWIDTH 20;
+
+//EntityPatches
+patch = DATA MessagePatch (BoxEvent);
+
+timestampTicks 'Время создания' (BoxEvent e) = OVERRIDE timestampTicks(patch(e)), timestampTicks(message(e));
+
+WHEN DROPPED(BoxEvent e IS BoxEvent) DO {
+    DELETE Message m WHERE PREV(message(e)) == m;
+    DELETE MessagePatch p WHERE PREV(patch(e)) == p;
+}
+CONSTRAINT SET(BoxEvent e IS BoxEvent) AND NOT (message(e) OR patch(e))
+    MESSAGE 'Для cобытия в ящике Диадока должно быть задано сообщение или дополнение к сообщению';
+
+
+//----------------------- Entity -----------------------//
+CLASS EntityType 'Тип сущности' {
+    unknownEntityType 'Неизвестный',
+    attachment 'Файл-вложение в сообщении',
+    signature 'ЭП под вложением'
+}
+name 'Наименование' (EntityType t) = staticCaption(t);
+id 'Код' (EntityType t) = CASE
+    WHEN t == EntityType.unknownEntityType THEN 'UnknownEntityType'
+    WHEN t == EntityType.attachment THEN 'Attachment'
+    WHEN t == EntityType.signature THEN 'Signature';
+entityType (entityTypeId) = GROUP MAX EntityType entityType BY id(entityType);
+
+FORM entityTypes 'Типы сущности'
+    OBJECTS t = EntityType
+    PROPERTIES(t) READONLY name, id
+
+    LIST EntityType OBJECT t
+;
+
+CLASS AttachmentType 'Тип вложения' {
+    unknownAttachmentType 'Неизвестный',
+    nonformalized 'Неформализованный документ',
+    invoice 'Счет-фактура',
+    invoiceReceipt 'Извещение о получении счета-фактуры, подтверждения оператора электронного документооборота или уведомления об уточнении счета-фактуры',
+    invoiceConfirmation 'Подтверждение оператора электронного документооборота',
+    invoiceCorrectionRequest 'Уведомление об уточнении счета-фактуры',
+    attachmentComment 'Tекстовый комментарий к другой сущности-вложению',
+    deliveryFailureNotification 'Уведомление о невозможности доставки сообщения',
+    signatureRequestRejection 'Отказ в формировании запрошенной подписи',
+    signatureVerificationReport 'Протокол проверки подписи, сформированный Диадоком',
+    trustConnectionRequest 'Запрос на инициацию канала обмена документами через Диадок',
+    torg12 'Товарная накладная ТОРГ-12',
+    invoiceRevision 'Исправление счета-фактуры',
+    invoiceCorrection 'Корректировочный счет-фактура',
+    invoiceCorrectionRevision 'Исправление корректировочного счета-фактуры',
+    acceptanceCertificate 'Акт о выполнении работ / оказании услуг',
+    structuredData 'Произвольный файл со структурированными данными, описывающими тот или иной документ, представленный в виде печатной формы)',
+    proformaInvoice 'Счет на оплату',
+    xmlTorg12 'Товарная накладная ТОРГ-12 в XML-формате, титул продавца',
+    xmlAcceptanceCertificate 'Акт о выполнении работ / оказании услуг в XML-формате, титул исполнителя',
+    xmlTorg12BuyerTitle 'Товарная накладная ТОРГ-12 в XML-формате, титул покупателя',
+    xmlAcceptanceCertificateBuyerTitle 'Акт о выполнении работ / оказании услуг в XML-формате, титул заказчика',
+    resolution 'Информация о статусе согласования документа',
+    resolutionRequest 'Запрос согласования документа',
+    resolutionRequestDenial 'Отказ в запросе подписи документа',
+    priceList 'Ценовой лист',
+    receipt 'Извещение о получении',
+    xmlSignatureRejection 'Формализованный отказ в подписи',
+    revocationRequest 'Предложение об аннулировании',
+    priceListAgreement 'Протокол согласования цены',
+    certificateRegistry 'Реестр сертификатов',
+    reconciliationAct 'Акт сверки',
+    contract 'Договор',
+    torg13 'Накладная ТОРГ-13',
+    serviceDetails 'Детализация',
+    roamingNotification 'Роуминговая квитанция',
+    supplementaryAgreement 'Дополнительное соглашение к договору',
+    universalTransferDocument 'Универсальный передаточный документ',
+    universalTransferDocumentBuyerTitle 'Универсальный передаточный документ, титул покупателя',
+    universalTransferDocumentRevision 'Исправление универсального передаточного документа',
+    universalCorrectionDocument 'Универсальный корректировочный документ',
+    universalCorrectionDocumentRevision 'Исправление универсального корректировочного документа',
+    universalCorrectionDocumentBuyerTitle 'Универсальный корректировочный документ, титул покупателя',
+    customData 'Произвольные данные к документу',
+    moveDocument 'Информация о перемещении документа в подразделение',
+    resolutionRouteAssignment 'Информация о запуске документа по маршруту согласования',
+    resolutionRouteRemoval 'Информация о снятии документа с маршрута согласования',
+    title 'Титул документа',
+    cancellation 'Информация об отмене сущности, которая указана родительской по отношению к данной',
+    edition 'Информация о редактировании контента документа, который указан родительским по отношению к данной сущности',
+    deletionRestoration 'Восстановление удалённого документа',
+    templateTransformation 'Информация о трансформации',
+    templateRefusal 'Информация об отклонении или отзыве шаблона',
+    outerDocflow 'Информация о внешнем документообороте'
+}
+
+name 'Наименование' (AttachmentType t) = staticCaption(t);
+id 'Код' (AttachmentType t) = (CASE
+    WHEN t == AttachmentType.unknownAttachmentType THEN 'UnknownAttachmentType'
+    WHEN t == AttachmentType.nonformalized THEN 'Nonformalized'
+    WHEN t == AttachmentType.invoice THEN 'Invoice'
+    WHEN t == AttachmentType.invoiceReceipt THEN 'InvoiceReceipt'
+    WHEN t == AttachmentType.invoiceConfirmation THEN 'InvoiceConfirmation'
+    WHEN t == AttachmentType.invoiceCorrectionRequest THEN 'InvoiceCorrectionRequest'
+    WHEN t == AttachmentType.attachmentComment THEN 'AttachmentComment'
+    WHEN t == AttachmentType.deliveryFailureNotification THEN 'DeliveryFailureNotification'
+    WHEN t == AttachmentType.signatureRequestRejection THEN 'SignatureRequestRejection'
+    WHEN t == AttachmentType.signatureVerificationReport THEN 'SignatureVerificationReport'
+    WHEN t == AttachmentType.trustConnectionRequest THEN 'TrustConnectionRequest'
+    WHEN t == AttachmentType.torg12 THEN 'Torg12'
+    WHEN t == AttachmentType.invoiceRevision THEN 'InvoiceRevision'
+    WHEN t == AttachmentType.invoiceCorrection THEN 'InvoiceCorrection'
+    WHEN t == AttachmentType.invoiceCorrectionRevision THEN 'InvoiceCorrectionRevision'
+    WHEN t == AttachmentType.acceptanceCertificate THEN 'AcceptanceCertificate'
+    WHEN t == AttachmentType.structuredData THEN 'StructuredData'
+    WHEN t == AttachmentType.proformaInvoice THEN 'ProformaInvoice'
+    WHEN t == AttachmentType.xmlTorg12 THEN 'XmlTorg12'
+    WHEN t == AttachmentType.xmlAcceptanceCertificate THEN 'XmlAcceptanceCertificate'
+    WHEN t == AttachmentType.xmlTorg12BuyerTitle THEN 'XmlTorg12BuyerTitle'
+    WHEN t == AttachmentType.xmlAcceptanceCertificateBuyerTitle THEN 'XmlAcceptanceCertificateBuyerTitle'
+    WHEN t == AttachmentType.resolution THEN 'Resolution'
+    WHEN t == AttachmentType.resolutionRequest THEN 'ResolutionRequest'
+    WHEN t == AttachmentType.resolutionRequestDenial THEN 'ResolutionRequestDenial'
+    WHEN t == AttachmentType.priceList THEN 'PriceList'
+    WHEN t == AttachmentType.receipt THEN 'Receipt'
+    WHEN t == AttachmentType.xmlSignatureRejection THEN 'XmlSignatureRejection'
+    WHEN t == AttachmentType.revocationRequest THEN 'RevocationRequest'
+    WHEN t == AttachmentType.priceListAgreement THEN 'PriceListAgreement'
+    WHEN t == AttachmentType.certificateRegistry THEN 'CertificateRegistry'
+    WHEN t == AttachmentType.reconciliationAct THEN 'ReconciliationAct'
+    WHEN t == AttachmentType.contract THEN 'Contract'
+    WHEN t == AttachmentType.torg13 THEN 'Torg13'
+    WHEN t == AttachmentType.serviceDetails THEN 'ServiceDetails'
+    WHEN t == AttachmentType.roamingNotification THEN 'RoamingNotification'
+    WHEN t == AttachmentType.supplementaryAgreement THEN 'SupplementaryAgreement'
+    WHEN t == AttachmentType.universalTransferDocument THEN 'UniversalTransferDocument'
+    WHEN t == AttachmentType.universalTransferDocumentBuyerTitle THEN 'UniversalTransferDocumentBuyerTitle'
+    WHEN t == AttachmentType.universalTransferDocumentRevision THEN 'UniversalTransferDocumentRevision'
+    WHEN t == AttachmentType.universalCorrectionDocument THEN 'UniversalCorrectionDocument'
+    WHEN t == AttachmentType.universalCorrectionDocumentRevision THEN 'UniversalCorrectionDocumentRevision'
+    WHEN t == AttachmentType.universalCorrectionDocumentBuyerTitle THEN 'UniversalCorrectionDocumentBuyerTitle'
+    WHEN t == AttachmentType.customData THEN 'CustomData'
+    WHEN t == AttachmentType.moveDocument THEN 'MoveDocument'
+    WHEN t == AttachmentType.resolutionRouteAssignment THEN 'ResolutionRouteAssignment'
+    WHEN t == AttachmentType.resolutionRouteRemoval THEN 'ResolutionRouteRemoval'
+    WHEN t == AttachmentType.title THEN 'Title'
+    WHEN t == AttachmentType.cancellation THEN 'Cancellation'
+    WHEN t == AttachmentType.edition THEN 'Edition'
+    WHEN t == AttachmentType.deletionRestoration THEN 'DeletionRestoration'
+    WHEN t == AttachmentType.templateTransformation THEN 'TemplateTransformation'
+    WHEN t == AttachmentType.templateRefusal THEN 'TemplateRefusal'
+    WHEN t == AttachmentType.outerDocflow THEN 'OuterDocflow'
+    ) MATERIALIZED;
+attachmentType (attachmentTypeId) = GROUP MAX AttachmentType attachmentType BY id(attachmentType);
+
+FORM attachmentTypes 'Типы вложения'
+    OBJECTS t = AttachmentType
+    PROPERTIES(t) READONLY name, id
+
+    LIST AttachmentType OBJECT t
+;
+
+
+CLASS Entity 'Сущность Диадока';
+TABLE entity (Entity);
+
+entityType 'Тип сущности' = DATA EntityType (Entity);
+entityTypeName 'Тип сущности' (Entity e) = staticCaption(entityType(e)) CHARWIDTH 20;
+
+entityId 'Идентификатор' = DATA STRING (Entity) IN id INDEXED CHARWIDTH 10 NONULL;
+entity (entityId) = GROUP AGGR Entity entity BY entityId(entity);
+
+parentEntityId 'Идентификатор родительской сущности' = DATA STRING (Entity) CHARWIDTH 10;
+
+//Content
+TABLE contentEntity (Entity);
+size 'Количество байтов в файле документа' = DATA LONG (Entity);
+data 'Байты содержимого' = DATA FILE (Entity) TABLE contentEntity;
+
+attachmentType 'Тип вложения' = DATA AttachmentType (Entity);
+attachmentTypeName 'Тип вложения' (Entity e) = staticCaption(attachmentType(e)) CHARWIDTH 20;
+
+fileName 'Исходное имя файла' = DATA STRING[255] (Entity) CHARWIDTH 25;
+needRecipientSignature 'Запрос подписи получателя' = DATA BOOLEAN (Entity);
+
+signerBox 'Ящик автора подписи' = DATA Box (Entity);
+signerBoxId 'Идентификатор ящика автора подписи' (Entity e) = boxId(signerBox(e)) CHARWIDTH 10;
+signerBoxTitle 'Наименование ящика автора подписи' (Entity e) = title(signerBox(e)) CHARWIDTH 20;
+notDeliveredEventId 'Идентификатор недоставленного сообщения' = DATA STRING (Entity) CHARWIDTH 10;
+
+//DocumentInfo
+
+rawCreationDateTicks 'Метка времени создания сущности' = DATA LONG (Entity);
+rawCreationDate 'Метка времени создания сущности' (Entity e) = fromTicksToTimestamp(rawCreationDateTicks(e));
+
+//ResolutionInfo
+
+signerDepartment 'Подразделение, в котором лежала сущность в момент подписания' = DATA Department (Entity);
+signerDepartmentId 'Идентификатор подразделения, в котором лежала сущность в момент подписания' (Entity e) = departmentId(signerDepartment(e)) CHARWIDTH 10;
+signerDepartmentName 'Наименование подразделения, в котором лежала сущность в момент подписания' (Entity e) = name(signerDepartment(e)) CHARWIDTH 20;
+
+//ResolutionRequestInfo
+//ResolutionRequestDenialInfo
+
+needReceipt 'Нужна подпись' = DATA BOOLEAN (Entity);
+packetId 'Идентификатор пакета' = DATA STRING (Entity) CHARWIDTH 10;
+isApprovementSignature 'Согласующая подпись' = DATA BOOLEAN (Entity);
+isEncryptedContent 'Контент зашифрован' = DATA BOOLEAN (Entity);
+attachmentVersion 'Версия XSD схемы' = DATA STRING[50] (Entity) CHARWIDTH 10;
+
+//ResolutionRouteAssignmentInfo
+//ResolutionRouteRemovalInfo
+//CancellationInfo
+
+labels 'Метки' = DATA STRING (Entity) CHARWIDTH 10;
+version 'Версия документа' = DATA STRING[50] (Entity) CHARWIDTH 10;
+
+//TemplateTransformationInfos
+//TemplateRefusalInfo
+//OuterDocflow
+//RevocationRequestInfo
+
+message = DATA Message (Entity);
+patch = DATA MessagePatch (Entity);
+
+WHEN DROPPED(Entity e IS Entity) DO {
+    DELETE Message m WHERE PREV(message(e)) == m;
+    DELETE MessagePatch p WHERE PREV(patch(e)) == p;
+}
+CONSTRAINT SET(Entity e IS Entity) AND NOT (message(e) OR patch(e))
+    MESSAGE 'Для cущности Диадока должно быть задано сообщение или дополнение к сообщению';
+
+
+//----------------------- Document -----------------------//
+CLASS SenderSignatureStatus 'Статус подписи отправителя' {
+    unknownSenderSignatureStatus 'Неизвестный',
+    waitingForSenderSignature 'Ожидается подпись отправителя',
+    senderSignatureUnchecked 'Подпись отправителя еще не проверена',
+    senderSignatureCheckedAndValid 'Подпись отправителя проверена и валидна',
+    senderSignatureCheckedAndInvalid 'Подпись отправителя проверена и невалидна'
+}
+name 'Наименование' (SenderSignatureStatus s) = staticCaption(s);
+id 'Код' (SenderSignatureStatus s) = CASE
+    WHEN s == SenderSignatureStatus.unknownSenderSignatureStatus THEN 'UnknownSenderSignatureStatus'
+    WHEN s == SenderSignatureStatus.waitingForSenderSignature THEN 'WaitingForSenderSignature'
+    WHEN s == SenderSignatureStatus.senderSignatureUnchecked THEN 'SenderSignatureUnchecked'
+    WHEN s == SenderSignatureStatus.senderSignatureCheckedAndValid THEN 'SenderSignatureCheckedAndValid'
+    WHEN s == SenderSignatureStatus.senderSignatureCheckedAndInvalid THEN 'SenderSignatureCheckedAndInvalid';
+senderSignatureStatus (senderSignatureStatusId) = GROUP MAX SenderSignatureStatus senderSignatureStatus BY id(senderSignatureStatus);
+
+FORM senderSignatureStatuses 'Статусы подписи отправителя'
+    OBJECTS s = SenderSignatureStatus
+    PROPERTIES(s) READONLY name, id
+
+    LIST SenderSignatureStatus OBJECT s
+;
+
+CLASS RevocationStatus 'Статус аннулирования документа' {
+    unknownRevocationStatus 'Неизвестный',
+    revocationStatusNone 'Документ не аннулирован, и не было предложений об аннулировании',
+    revocationIsRequestedByMe 'Отправлено исходящее предложение об аннулировании документа',
+    requestsMyRevocation 'Получено входящее предложение об аннулировании документа',
+    revocationAccepted 'Документ аннулирован',
+    revocationRejected 'Получен или отправлен отказ от предложения об аннулировании документа'
+}
+name 'Наименование' (RevocationStatus s) = staticCaption(s);
+id 'Код' (RevocationStatus s) = CASE
+    WHEN s == RevocationStatus.unknownRevocationStatus THEN 'UnknownRevocationStatus'
+    WHEN s == RevocationStatus.revocationStatusNone THEN 'RevocationStatusNone'
+    WHEN s == RevocationStatus.revocationIsRequestedByMe THEN 'RevocationIsRequestedByMe'
+    WHEN s == RevocationStatus.requestsMyRevocation THEN 'RequestsMyRevocation'
+    WHEN s == RevocationStatus.revocationAccepted THEN 'RevocationAccepted'
+    WHEN s == RevocationStatus.revocationRejected THEN 'RevocationRejected';
+revocationStatus (revocationStatusId) = GROUP MAX RevocationStatus revocationStatus BY id(revocationStatus);
+
+FORM revocationStatuses 'Статусы аннулирования документа'
+    OBJECTS s = RevocationStatus
+    PROPERTIES(s) READONLY name, id
+
+    LIST RevocationStatus OBJECT s
+;
+
+CLASS RoamingNotificationStatus 'Статус доставки в роуминг' {
+    roamingNotificationStatusNone 'Не подтверждена доставка в роуминг',
+    roamingNotificationStatusSuccess 'Подтверждена успешная доставка в роуминг',
+    roamingNotificationStatusError 'Ошибка доставки в роуминг',
+    unknownRoamingNotificationStatus 'Неизвестный'
+}
+name 'Наименование' (RoamingNotificationStatus s) = staticCaption(s);
+id 'Код' (RoamingNotificationStatus s) = CASE
+    WHEN s == RoamingNotificationStatus.roamingNotificationStatusNone THEN 'RoamingNotificationStatusNone'
+    WHEN s == RoamingNotificationStatus.roamingNotificationStatusSuccess THEN 'RoamingNotificationStatusSuccess'
+    WHEN s == RoamingNotificationStatus.roamingNotificationStatusError THEN 'RoamingNotificationStatusError'
+    WHEN s == RoamingNotificationStatus.unknownRoamingNotificationStatus THEN 'UnknownRoamingNotificationStatus';
+roamingNotificationStatus (roamingNotificationStatusId) = GROUP MAX RoamingNotificationStatus roamingNotificationStatus BY id(roamingNotificationStatus);
+
+FORM roamingNotificationStatuses 'Статусы доставки в роуминг'
+    OBJECTS s = RoamingNotificationStatus
+    PROPERTIES(s) READONLY name, id
+
+    LIST RoamingNotificationStatus OBJECT s
+;
+
+CLASS ProxySignatureStatus 'Статус промежуточной подписи' {
+    unknownProxySignatureStatus 'Неизвестный',
+    proxySignatureStatusNone 'Документ не требует промежуточной подписи',
+    waitingForProxySignature 'Ожидается промежуточная подпись',
+    withProxySignature 'Промежуточная подпись проверена и валидна',
+    proxySignatureRejected 'Промежуточный получатель отказал в подписи',
+    invalidProxySignature 'Промежуточная подпись проверена и невалидна'
+}
+name 'Наименование' (ProxySignatureStatus s) = staticCaption(s);
+id 'Код' (ProxySignatureStatus s) = CASE
+    WHEN s == ProxySignatureStatus.unknownProxySignatureStatus THEN 'UnknownProxySignatureStatus'
+    WHEN s == ProxySignatureStatus.proxySignatureStatusNone THEN 'ProxySignatureStatusNone'
+    WHEN s == ProxySignatureStatus.waitingForProxySignature THEN 'WaitingForProxySignature'
+    WHEN s == ProxySignatureStatus.withProxySignature THEN 'WithProxySignature'
+    WHEN s == ProxySignatureStatus.proxySignatureRejected THEN 'ProxySignatureRejected'
+    WHEN s == ProxySignatureStatus.invalidProxySignature THEN 'InvalidProxySignature';
+proxySignatureStatus (proxySignatureStatusId) = GROUP MAX ProxySignatureStatus proxySignatureStatus BY id(proxySignatureStatus);
+
+FORM proxySignatureStatuses 'Статусы доставки в роуминг'
+    OBJECTS s = ProxySignatureStatus
+    PROPERTIES(s) READONLY name, id
+
+    LIST ProxySignatureStatus OBJECT s
+;
+
+CLASS GeneralReceiptStatus 'Обобщенный статус извещения о получении' {
+    generalReceiptStatusUnknown 'Неизвестный',
+    generalReceiptStatusNotAcceptable 'ИОП не поддерживается либо не запрошен',
+    haveToCreateReceipt 'Нужно подписать ИОП',
+    waitingForReceipt 'Ожидание подписания ИОПа',
+    finished 'ИОП подписано'
+}
+name 'Наименование' (GeneralReceiptStatus s) = staticCaption(s);
+id 'Код' (GeneralReceiptStatus s) = CASE
+    WHEN s == GeneralReceiptStatus.generalReceiptStatusUnknown THEN 'GeneralReceiptStatusUnknown'
+    WHEN s == GeneralReceiptStatus.generalReceiptStatusNotAcceptable THEN 'GeneralReceiptStatusNotAcceptable'
+    WHEN s == GeneralReceiptStatus.haveToCreateReceipt THEN 'HaveToCreateReceipt'
+    WHEN s == GeneralReceiptStatus.waitingForReceipt THEN 'WaitingForReceipt'
+    WHEN s == GeneralReceiptStatus.finished THEN 'Finished';
+generalReceiptStatus (generalReceiptStatusId) = GROUP MAX GeneralReceiptStatus generalReceiptStatus BY id(generalReceiptStatus);
+
+FORM generalReceiptStatuses 'Обобщенные статусы извещения о получении'
+    OBJECTS s = GeneralReceiptStatus
+    PROPERTIES(s) READONLY name, id
+
+    LIST GeneralReceiptStatus OBJECT s
+;
+
+CLASS RecipientResponseStatus 'Статус ответного действия со стороны получателя' {
+    recipientResponseStatusUnknown 'Неизвестный',
+    recipientResponseStatusNotAcceptable 'Ответного действия не требуется',
+    waitingForRecipientSignature 'Ожидается ответное действие получателя документа',
+    withRecipientSignature 'Получатель подписал документ',
+    recipientSignatureRequestRejected 'Получатель документа отказал в подписи',
+    invalidRecipientSignature 'Получатель подписал документ невалидной подписью',
+    withRecipientPartiallySignature 'Получатель подписал документ с разногласиями'
+}
+name 'Наименование' (RecipientResponseStatus s) = staticCaption(s);
+id 'Код' (RecipientResponseStatus s) = CASE
+    WHEN s == RecipientResponseStatus.recipientResponseStatusUnknown THEN 'RecipientResponseStatusUnknown'
+    WHEN s == RecipientResponseStatus.recipientResponseStatusNotAcceptable THEN 'RecipientResponseStatusNotAcceptable'
+    WHEN s == RecipientResponseStatus.withRecipientSignature THEN 'WithRecipientSignature'
+    WHEN s == RecipientResponseStatus.recipientSignatureRequestRejected THEN 'RecipientSignatureRequestRejected'
+    WHEN s == RecipientResponseStatus.invalidRecipientSignature THEN 'InvalidRecipientSignature'
+    WHEN s == RecipientResponseStatus.withRecipientPartiallySignature THEN 'WithRecipientPartiallySignature';
+recipientResponseStatus (recipientResponseStatusId) = GROUP MAX RecipientResponseStatus recipientResponseStatus BY id(recipientResponseStatus);
+
+FORM recipientResponseStatuses 'Статусы ответного действия со стороны получателя'
+    OBJECTS s = RecipientResponseStatus
+    PROPERTIES(s) READONLY name, id
+
+    LIST RecipientResponseStatus OBJECT s
+;
+
+CLASS Severity 'Критичность статуса' {
+    unknownStatusSeverity 'Неизвестный',
+    info 'Действие по документу не требуется или ожидается действие',
+    success 'Запрашиваемое действие выполнено успешно',
+    warning 'Требуется действие по документу',
+    error 'Отказано в действии по документу, аннулирован документ или произошла ошибка'
+}
+name 'Наименование' (Severity s) = staticCaption(s);
+id 'Код' (Severity s) = CASE
+    WHEN s == Severity.unknownStatusSeverity THEN 'UnknownStatusSeverity'
+    WHEN s == Severity.info THEN 'Info'
+    WHEN s == Severity.success THEN 'Success'
+    WHEN s == Severity.warning THEN 'Warning'
+    WHEN s == Severity.error THEN 'error';
+severity (severityId) = GROUP MAX Severity severity BY id(severity);
+
+FORM severities 'Критичность статуса'
+    OBJECTS s = Severity
+    PROPERTIES(s) READONLY name, id
+
+    LIST Severity OBJECT s
+;
+
+
+CLASS Document 'Документ Диадока';
+TABLE document (Document);
+
+message = DATA Message (Document) NONULL DELETE;
+messageId 'Идентификатор сообщения' (Document d) = messageId(message(d)) IN id CHARWIDTH 10;
+entity = DATA Entity (Document) NONULL DELETE;
+entityId 'Идентификатор сущности' (Document d) = entityId(entity(d)) IN id CHARWIDTH 10;
+document (messageId, entityId) = GROUP AGGR Document document BY messageId(document), entityId(document);
+
+creationTimestampTicks 'Время создания' = DATA LONG (Document);
+creationTimestamp 'Время создания' (Document d) = fromTicksToTimestamp(creationTimestampTicks(d));
+counteragentBox 'Ящик контрагента' = DATA Box (Document);
+counteragentBoxId 'Идентификатор ящика контрагента' (Document d) = boxId(counteragentBox(d)) CHARWIDTH 10;
+counteragentBoxTitle 'Наименование ящика контрагента' (Document d) = title(counteragentBox(d)) CHARWIDTH 20;
+
+//InitialDocumentIds
+//SubordinateDocumentIds
+
+//Content
+size 'Количество байтов в файле документа' = DATA LONG (Document);
+
+fileName 'Исходное имя файла' = DATA STRING[255] (Document) CHARWIDTH 25;
+isDeleted 'Удален' = DATA BOOLEAN (Document);
+department 'Подразделение, в котором находится документ' = DATA Department (Document);
+departmentId 'Идентификатор подразделения, в котором находится документ' (Document d) = departmentId(department(d)) CHARWIDTH 10;
+departmentName 'Наименование подразделения, в котором находится документ' (Document d) = name(department(d)) CHARWIDTH 20;
+isTest 'Тестовый' = DATA BOOLEAN (Document);
+fromDepartment 'Подразделение, из которого отправляется документ' = DATA Department (Document);
+fromDepartmentId 'Идентификатор подразделения, из которого отправляется документ' (Document d) = departmentId(fromDepartment(d)) CHARWIDTH 10;
+fromDepartmentName 'Наименование подразделения, из которого отправляется документ' (Document d) = name(fromDepartment(d)) CHARWIDTH 20;
+toDepartment 'Подразделение, в которое отправляется документ' = DATA Department (Document);
+toDepartmentId 'Идентификатор подразделения, в которое отправляется документ' (Document d) = departmentId(toDepartment(d)) CHARWIDTH 10;
+toDepartmentName 'Наименование подразделения, в которое отправляется документ' (Document d) = name(toDepartment(d)) CHARWIDTH 20;
+customDocumentId 'Идентификатор документа, определяемый внешней системой' = DATA STRING (Document) CHARWIDTH 10;
+isEncryptedContent 'Контент зашифрован' = DATA BOOLEAN (Document);
+senderSignatureStatus 'Статус подписи отправителя' = DATA SenderSignatureStatus (Document);
+senderSignatureStatusName 'Статус подписи отправителя' (Document d) = staticCaption(senderSignatureStatus(d)) CHARWIDTH 20;
+
+//ResolutionStatus
+
+revocationStatus 'Статус аннулирования документа' = DATA RevocationStatus (Document);
+revocationStatusName 'Статус аннулирования документа' (Document d) = staticCaption(revocationStatus(d)) CHARWIDTH 20;
+sendTimestampTicks 'Время отправки' = DATA LONG (Document);
+sendTimestamp 'Время отправки' (Document d) = fromTicksToTimestamp(sendTimestampTicks(d));
+deliveryTimestampTicks 'Время доставки' = DATA LONG (Document);
+deliveryTimestamp 'Время доставки' (Document d) = fromTicksToTimestamp(deliveryTimestampTicks(d));
+
+//ForwardDocumentEvents
+
+roamingNotificationStatus 'Статус доставки в роуминг' = DATA RoamingNotificationStatus (Document);
+roamingNotificationStatusName 'Статус доставки в роуминг' (Document d) = staticCaption(roamingNotificationStatus(d)) CHARWIDTH 20;
+isRead 'Прочитан сотрудником организации' = DATA BOOLEAN (Document);
+roamingNotificationStatusDescription 'Текстовое описание ошибки при доставке документов в роуминг' = DATA STRING (Document) CHARWIDTH 10;
+resolutionRouteId 'Идентификатор маршрута согласования' = DATA STRING (Document) CHARWIDTH 10;
+proxySignatureStatus 'Статус промежуточной подписи' = DATA ProxySignatureStatus (Document);
+proxySignatureStatusName 'Статус промежуточной подписи' (Document d) = staticCaption(proxySignatureStatus(d)) CHARWIDTH 15;
+typeNamedId 'Идентификатор типа документа' = DATA STRING[100] (Document) CHARWIDTH 15;
+function 'Функция документа' = DATA STRING[10] (Document);
+workflowId 'Идентификатор типа документооброта' = DATA INTEGER (Document);
+title 'Название документа' = DATA STRING (Document) CHARWIDTH 20;
+
+TABLE documentString (Document,STRING);
+metadata 'Mетаданные' = DATA STRING (Document,STRING) CHARWIDTH 20;
+
+//RecipientReceiptMetadata
+recipientReceiptReceiptStatus 'Обобщенный статус извещения о получении' = DATA GeneralReceiptStatus (Document);
+recipientReceiptReceiptStatusName 'Обобщенный статус извещения о получении' (Document d) = staticCaption(recipientReceiptReceiptStatus(d)) CHARWIDTH 10;
+recipientReceiptConfirmationReceiptStatus 'Cтатус подтверждении оператором даты отправки ИОПа' = DATA GeneralReceiptStatus (Document);
+recipientReceiptConfirmationReceiptStatusName 'Cтатус подтверждении оператором даты отправки ИОПа' (Document d) = staticCaption(recipientReceiptConfirmationReceiptStatus(d)) CHARWIDTH 10;
+recipientReceiptConfirmationDateTimeTicks 'Время статуса подтверждении оператором даты отправки ИОПа' = DATA LONG (Document);
+recipientReceiptConfirmationDateTime 'Время статуса подтверждении оператором даты отправки ИОПа' (Document d) = fromTicksToTimestamp(recipientReceiptConfirmationDateTimeTicks(d));
+
+//ConfirmationMetadata
+confirmationReceiptStatus 'Cтатус извещения о получении под подтверждением даты' = DATA GeneralReceiptStatus (Document);
+confirmationReceiptStatusName 'Cтатус извещения о получении под подтверждением даты' (Document d) = staticCaption(confirmationReceiptStatus(d)) CHARWIDTH 10;
+confirmationDateTimeTicks 'Время статуса извещения о получении под подтверждением даты' = DATA LONG (Document);
+confirmationDateTime 'Время статуса извещения о получении под подтверждением даты' (Document d) = fromTicksToTimestamp(recipientReceiptConfirmationDateTimeTicks(d));
+
+recipientResponseStatus 'Статус ответного действия со стороны получателя' = DATA RecipientResponseStatus (Document);
+recipientResponseStatusName 'Статус ответного действия со стороны получателя' (Document d) = staticCaption(recipientResponseStatus(d)) CHARWIDTH 15;
+
+//AmendmentRequestMetadata
+amendmentFlags 'Статус уведомления об уточнении' = DATA INTEGER (Document);
+amendmentRequestReceiptStatus 'Cтатус извещения о получении под УОУ подтверждением даты' = DATA GeneralReceiptStatus (Document);
+amendmentRequestReceiptStatusName 'Cтатус извещения о получении под УОУ подтверждением даты' (Document d) = staticCaption(recipientReceiptConfirmationReceiptStatus(d)) CHARWIDTH 10;
+
+lockMode 'Режим блокировки сообщения' = DATA LockMode (Document);
+lockModeName 'Режим блокировки сообщения' (Document d) = staticCaption(lockMode(d)) CHARWIDTH 10;
+
+//SenderReceiptMetadata
+senderReceiptStatus 'Cтатус извещения о получении титула получателя' = DATA GeneralReceiptStatus (Document);
+senderReceiptStatusName 'Cтатус извещения о получении титула получателя' (Document d) = staticCaption(senderReceiptStatus(d)) CHARWIDTH 10;
+
+version 'Версия документа' = DATA STRING[50] (Document) CHARWIDTH 10;
+proxyBox 'Ящик промежуточного получателя' = DATA Box (Document);
+proxyBoxId 'Идентификатор ящика промежуточного получателя' (Document d) = boxId(proxyBox(d)) CHARWIDTH 10;
+proxyTitle 'Наименование ящика промежуточного получателя' (Document d) = title(proxyBox(d)) CHARWIDTH 20;
+proxyDepartment 'Подразделение промежуточного получателя' = DATA Department (Document);
+proxyDepartmentId 'Идентификатор подразделения промежуточного получателя' (Document d) = departmentId(proxyDepartment(d)) CHARWIDTH 10;
+proxyDepartmentName 'Наименование подразделения промежуточного получателя' (Document d) = name(proxyDepartment(d)) CHARWIDTH 20;
+
+//DocflowStatus
+primaryStatusSeverity 'Критичность основного статуса' = DATA Severity (Document);
+primaryStatusSeverityName 'Критичность основного статуса' (Document d) = name(primaryStatusSeverity(d)) CHARWIDTH 10;
+primaryStatusText 'Основной статус' = DATA STRING (Document) CHARWIDTH 20;
+secondaryStatusSeverity 'Критичность второстепенного статуса' = DATA Severity (Document);
+secondaryStatusSeverityName 'Критичность второстепенного статуса' (Document d) = name(secondaryStatusSeverity(d)) CHARWIDTH 10;
+secondaryStatusText 'Второстепенный статус' = DATA STRING (Document) CHARWIDTH 20;
+
+
+//----------------------- EntityPatch -----------------------//
+//CLASS EntityPatch 'Дополнение к сущности Диадока';
+//TABLE entityPatch (EntityPatch);
+//
+//это ссылка на Entity, а у EntityPatch отсутствует идентификатор
+//entityId 'Идентификатор' = DATA STRING (EntityPatch) IN id INDEXED CHARWIDTH 10 NONULL;
+//entityPatch (entityId) = GROUP AGGR EntityPatch entityPatch BY entityId(entityPatch);
+//
+//documentIsDeleted 'Документ был удален' = DATA BOOLEAN (EntityPatch);
+//movedToDepartment 'Идентификатор подразделения, куда перемещен документ' = DATA STRING (EntityPatch) CHARWIDTH 10;
+//documentIsRestored 'Документ был восстановлен' = DATA BOOLEAN (EntityPatch);
+//contentIsPatched 'Документ был подписан' = DATA BOOLEAN (EntityPatch);
+//forwardedToBoxId 'Идентификатор ящика получателя при пересылке третьей стороне' = DATA STRING (EntityPatch) CHARWIDTH 10;
+//
+//messagePatch 'Дополнение к сообщению Диадока' = DATA MessagePatch (EntityPatch) NONULL DELETE;
+
+openData 'Открыть содержимое' (Entity e) {
+    open(data(e));
+} TOOLBAR;
+
+FORM message 'Cообщение Диадока'
+    OBJECTS m = Message PANEL
+    PROPERTIES(m) messageId, timestamp, lastPatchTimestamp, fromBoxTitle, toBoxTitle, isDraft, draftIsLocked, draftIsRecycled,
+                  createdFromDraftId, isDeleted, isTest, isInternal, isProxified, proxyBoxTitle, packetIsLocked, lockModeName,
+                  messageTypeName, isReusable
+    OBJECTS e = Entity
+    PROPERTIES(e) entityId, parentEntityId, entityTypeName, size, attachmentTypeName, fileName, needRecipientSignature, signerBoxTitle, notDeliveredEventId,
+                  rawCreationDate, signerDepartmentName, needReceipt, packetId, isApprovementSignature, isEncryptedContent, attachmentVersion,
+                  labels, version
+    PROPERTIES(e) openData
+    FILTERS message(e) == m
+    
+    EDIT Message OBJECT m
+;
+
+DESIGN message {
+    OBJECTS {
+        NEW line1 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(messageId(m));
+            MOVE PROPERTY(timestamp(m));
+            MOVE PROPERTY(lastPatchTimestamp(m));
+        }
+        NEW line2 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(messageTypeName(m));
+            MOVE PROPERTY(fromBoxTitle(m));
+            MOVE PROPERTY(toBoxTitle(m));
+        }
+        NEW line3 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(isDraft(m));
+            MOVE PROPERTY(draftIsLocked(m));
+            MOVE PROPERTY(draftIsRecycled(m));
+            MOVE PROPERTY(createdFromDraftId(m));
+        }
+        NEW line4 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(isDeleted(m));
+            MOVE PROPERTY(isTest(m));
+            MOVE PROPERTY(isInternal(m));
+            MOVE PROPERTY(isReusable(m));
+        }
+        NEW line5 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(isProxified(m));
+            MOVE PROPERTY(proxyBoxTitle(m));
+        }
+        NEW line6 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(packetIsLocked(m));
+            MOVE PROPERTY(lockModeName(m));
+        }
+        MOVE BOX(e);
+    }
+}
+
+FORM messagePatch 'Дополнение к сообщению Диадока'
+    OBJECTS p = MessagePatch PANEL
+    PROPERTIES(p) patchId, messageId, timestamp, forDraft, draftIsRecycled, draftIsLocked, messageIsDeleted, messageIsRestored,
+                  messageIsDelivered, deliveredEventId, messageTypeName
+    OBJECTS e = Entity
+    PROPERTIES(e) entityId, parentEntityId, entityTypeName, size, attachmentTypeName, fileName, needRecipientSignature, signerBoxTitle, notDeliveredEventId,
+                  rawCreationDate, signerDepartmentName, needReceipt, packetId, isApprovementSignature, isEncryptedContent, attachmentVersion,
+                  labels, version
+    PROPERTIES(e) openData
+    FILTERS patch(e) == p
+    
+    EDIT MessagePatch OBJECT p
+;
+
+DESIGN messagePatch {
+    OBJECTS {
+        NEW line1 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(patchId(p));
+            MOVE PROPERTY(messageId(p));
+            MOVE PROPERTY(timestamp(p));
+            MOVE PROPERTY(messageTypeName(p));
+        }
+        NEW line2 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(forDraft(p));
+            MOVE PROPERTY(draftIsLocked(p));
+            MOVE PROPERTY(draftIsRecycled(p));
+        }
+        NEW line3 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(messageIsDeleted(p));
+            MOVE PROPERTY(messageIsRestored(p));
+            MOVE PROPERTY(messageIsDelivered(p));
+            MOVE PROPERTY(deliveredEventId(p));
+        }
+        MOVE BOX(e);
+    }
+}
+
+show 'Просмотреть' (Message m) { 
+	NEWSESSION {
+	    SHOW message OBJECTS m = m DOCKED READONLY;
+	}
+} TOOLBAR;
+show 'Просмотреть' (MessagePatch p) { 
+	NEWSESSION {
+	    SHOW messagePatch OBJECTS p = p DOCKED READONLY;
+	}
+} TOOLBAR;
+
+FORM messages 'Cообщения Диадока'
+    OBJECTS b = Box PANEL
+    PROPERTIES(b) title IN base SELECTOR
+    FILTERS isEmployee(organization(b),userDiadoc(currentUser()))
+
+    OBJECTS m = Message LAST
+    PROPERTIES(m) READONLY messageId, timestamp, lastPatchTimestamp, fromBoxTitle, toBoxTitle, isDraft, draftIsLocked, draftIsRecycled,
+                  createdFromDraftId, isDeleted, isTest, isInternal, isProxified, proxyBoxTitle, packetIsLocked, lockModeName,
+                  messageTypeName, isReusable
+    //PROPERTIES(m) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(m) show
+    FILTERS fromBox(m) == b OR toBox(m) == b OR proxyBox(m) == b
+    ORDERS lastPatchTimestamp(m), timestamp(m), messageId(m)
+    
+    OBJECTS p = MessagePatch LAST
+    PROPERTIES(p) READONLY patchId, timestamp, forDraft, draftIsRecycled, draftIsLocked, messageIsDeleted, messageIsRestored,
+                  messageIsDelivered, deliveredEventId, messageTypeName
+    //PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(p) show
+    FILTERS message(p) == m
+    ORDERS timestamp(p), patchId(p)
+;
+
+NAVIGATOR {
+    diadocNavigator {
+        NEW messages;
+    }
+}
+
+
+openData 'Открыть содержимое' (Document d) {
+    open(data(entity(d)));
+} TOOLBAR;
+
+FORM document 'Документ Диадока'
+    OBJECTS d = Document PANEL
+    PROPERTIES(d) messageId, entityId, creationTimestamp, counteragentBoxTitle, size, fileName, isDeleted, departmentName,
+                  isTest, fromDepartmentName, toDepartmentName, customDocumentId, isEncryptedContent, senderSignatureStatusName,
+                  revocationStatusName, sendTimestamp, deliveryTimestamp, roamingNotificationStatusName, isRead,
+                  roamingNotificationStatusDescription, resolutionRouteId, proxySignatureStatusName, typeNamedId, function,
+                  workflowId, title, recipientReceiptReceiptStatusName, recipientReceiptConfirmationReceiptStatusName,
+                  recipientReceiptConfirmationDateTime, confirmationReceiptStatusName, confirmationDateTime, recipientResponseStatusName,
+                  amendmentFlags, amendmentRequestReceiptStatusName, lockModeName, senderReceiptStatusName, version, proxyTitle,
+                  proxyDepartmentName, primaryStatusSeverityName, primaryStatusText, secondaryStatusSeverityName, secondaryStatusText
+    
+    OBJECTS k = STRING
+    PROPERTIES key = VALUE(k) HEADER 'Ключ', value = metadata(d,k) HEADER 'Значение'
+    FILTERS metadata(d,k)
+    
+    EDIT Document OBJECT d
+;
+DESIGN document {
+    OBJECTS {
+        NEW data {
+            type = SPLITH;
+            alignment = STRETCH;
+            NEW params {
+                type = CONTAINERV;
+                alignment = STRETCH;
+                fill = 3;
+                NEW line1 {
+                    type = COLUMNS;
+                    alignment = STRETCH;
+                    columns = 2;
+                    MOVE PROPERTY(messageId(d));
+                    MOVE PROPERTY(entityId(d));
+                    MOVE PROPERTY(counteragentBoxTitle(d));
+                    MOVE PROPERTY(departmentName(d));
+                    MOVE PROPERTY(fromDepartmentName(d));
+                    MOVE PROPERTY(toDepartmentName(d));
+                    MOVE PROPERTY(proxyTitle(d));
+                    MOVE PROPERTY(proxyDepartmentName(d));
+                    MOVE PROPERTY(primaryStatusSeverityName(d));
+                    MOVE PROPERTY(primaryStatusText(d));
+                    MOVE PROPERTY(secondaryStatusSeverityName(d));
+                    MOVE PROPERTY(secondaryStatusText(d));
+                }
+                NEW line2 {
+                    type = COLUMNS;
+                    alignment = STRETCH;
+                    columns = 2;
+                    MOVE PROPERTY(size(d));
+                    MOVE PROPERTY(fileName(d));
+                    MOVE PROPERTY(customDocumentId(d));
+                    MOVE PROPERTY(resolutionRouteId(d));
+                    MOVE PROPERTY(typeNamedId(d));
+                    MOVE PROPERTY(function(d));
+                    MOVE PROPERTY(workflowId(d));
+                    MOVE PROPERTY(title(d));
+                    MOVE PROPERTY(lockModeName(d));
+                    MOVE PROPERTY(version(d));
+                }
+                NEW line3 {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(isDeleted(d));
+                    MOVE PROPERTY(isTest(d));
+                    MOVE PROPERTY(isEncryptedContent(d));
+                    MOVE PROPERTY(isRead(d));
+                }
+                NEW line4 {
+                    type = COLUMNS;
+                    columns = 2;
+                    MOVE PROPERTY(creationTimestamp(d));
+                    MOVE PROPERTY(recipientReceiptConfirmationDateTime(d));
+                    MOVE PROPERTY(sendTimestamp(d));
+                    MOVE PROPERTY(confirmationDateTime(d));
+                    MOVE PROPERTY(deliveryTimestamp(d));
+                }
+                NEW line5 {
+                    type = COLUMNS;
+                    alignment = STRETCH;
+                    columns = 2;
+                    MOVE PROPERTY(senderSignatureStatusName(d));
+                    MOVE PROPERTY(revocationStatusName(d));
+                    MOVE PROPERTY(roamingNotificationStatusName(d));
+                    MOVE PROPERTY(roamingNotificationStatusDescription(d));
+                    MOVE PROPERTY(proxySignatureStatusName(d));
+                    MOVE PROPERTY(recipientReceiptReceiptStatusName(d));
+                    MOVE PROPERTY(recipientReceiptConfirmationReceiptStatusName(d));
+                    MOVE PROPERTY(confirmationReceiptStatusName(d));
+                    MOVE PROPERTY(recipientResponseStatusName(d));
+                    MOVE PROPERTY(amendmentFlags(d));
+                    MOVE PROPERTY(amendmentRequestReceiptStatusName(d));
+                    MOVE PROPERTY(senderReceiptStatusName(d));
+                }
+            }
+            MOVE BOX(k) {
+                caption = 'Mетаданные';
+                fill = 1;
+                PROPERTY(key) { charWidth = 20; }
+                PROPERTY(value) { charWidth = 20; }
+            }
+        }
+    }
+}
+
+show 'Просмотреть' (Document d) { 
+	NEWSESSION {
+	    SHOW document OBJECTS d = d DOCKED READONLY;
+	}
+} TOOLBAR;
+
+FORM documents 'Документы Диадока'
+    OBJECTS b = Box PANEL
+    PROPERTIES(b) title IN base SELECTOR
+    FILTERS isEmployee(organization(b),userDiadoc(currentUser()))
+    
+    OBJECTS d = Document LAST
+    PROPERTIES(d) READONLY isDeleted, isTest, messageId, entityId, title, counteragentBoxTitle, creationTimestamp,
+                  sendTimestamp, deliveryTimestamp, primaryStatusText, secondaryStatusText
+    //PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(d) openData, show
+    FILTERS fromBox(message(d)) == b OR toBox(message(d)) == b OR proxyBox(message(d)) == b
+    ORDERS creationTimestamp(d)
+;
+
+NAVIGATOR {
+    diadocNavigator {
+        NEW documents;
+    }
+}
+
+
+//------------ Получение сообщений -------------//
+
+totalCount = DATA LOCAL INTEGER ();
+totalCountType = DATA LOCAL STRING ();
+
+eventId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+
+GROUP message EXTID 'Message';
+messageId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+timestampTicks 'Время создания' = DATA LOCAL LONG (INTEGER);
+lastPatchTimestampTicks 'Время последнего дополнения' = DATA LOCAL LONG (INTEGER);
+fromBoxId 'Идентификатор ящика отправителя сообщения' = DATA LOCAL STRING (INTEGER);
+toBoxId 'Идентификатор ящика получателя сообщения' = DATA LOCAL STRING (INTEGER);
+isDraft 'Черновик' = DATA LOCAL BOOLEAN (INTEGER);
+draftIsLocked 'Черновик заблокирован' = DATA LOCAL BOOLEAN (INTEGER);
+draftIsRecycled 'Черновик утилизирован' = DATA LOCAL BOOLEAN (INTEGER);
+createdFromDraftId 'Черновик-основание' = DATA LOCAL STRING (INTEGER);
+isDeleted 'Удалено' = DATA LOCAL BOOLEAN (INTEGER);
+isTestM 'Тестовое' = DATA LOCAL BOOLEAN (INTEGER);
+isInternal 'Внутреннее' = DATA LOCAL BOOLEAN (INTEGER);
+isProxified 'Отправлен через промежуточного получателя' = DATA LOCAL BOOLEAN (INTEGER);
+proxyBoxId 'Идентификатор ящика промежуточного получателя' = DATA LOCAL STRING (INTEGER);
+packetIsLocked 'Закрытый пакет' = DATA LOCAL BOOLEAN (INTEGER);
+lockMode 'Режим блокировки сообщения' = DATA LOCAL STRING (INTEGER);
+messageType 'Тип сообщения' = DATA LOCAL STRING (INTEGER);
+isReusable 'Создано на основе шаблона' = DATA LOCAL BOOLEAN (INTEGER);
+
+//Entity для Message
+messageEntity = DATA LOCAL INTEGER (INTEGER);
+entityTypeM 'Тип сущности' = DATA LOCAL STRING (INTEGER);
+entityIdM 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+parentEntityIdM 'Идентификатор родительской сущности' = DATA LOCAL STRING (INTEGER);
+attachmentTypeM 'Тип вложения' = DATA LOCAL STRING (INTEGER);
+fileNameM 'Исходное имя файла' = DATA LOCAL STRING[255] (INTEGER);
+needRecipientSignatureM 'Запрос подписи получателя' = DATA LOCAL BOOLEAN (INTEGER);
+signerBoxIdM 'Идентификатор ящика автора подписи' = DATA LOCAL STRING (INTEGER);
+notDeliveredEventIdM 'Идентификатор недоставленного сообщения' = DATA LOCAL STRING (INTEGER);
+rawCreationDateM 'Метка времени создания сущности' = DATA LOCAL LONG (INTEGER);
+signerDepartmentIdM 'Идентификатор подразделения в котором лежала сущность в момент подписания' = DATA LOCAL STRING (INTEGER);
+needReceiptM 'Нужна подпись' = DATA LOCAL BOOLEAN (INTEGER);
+packetIdM 'Идентификатор пакета' = DATA LOCAL STRING (INTEGER);
+isApprovementSignatureM 'Согласующая подпись' = DATA LOCAL BOOLEAN (INTEGER);
+isEncryptedContentM 'Контент зашифрован' = DATA LOCAL BOOLEAN (INTEGER);
+attachmentVersionM 'Версия XSD схемы' = DATA LOCAL STRING[50] (INTEGER);
+labelsM 'Метки' = DATA LOCAL STRING (INTEGER);
+versionM 'Версия документа' = DATA LOCAL STRING (INTEGER);
+GROUP content EXTID 'Content';
+sizeM 'Количество байтов в файле документа' = DATA LOCAL LONG (INTEGER);
+//Document для Message
+GROUP documentInfo EXTID 'DocumentInfo';
+messageIdDM 'Идентификатор сообщения' = DATA LOCAL STRING (INTEGER);
+entityIdDM 'Идентификатор сущности' = DATA LOCAL STRING (INTEGER);
+creationTimestampTicksDM 'Время создания' = DATA LOCAL LONG (INTEGER);
+counteragentBoxIdDM 'Идентификатор ящика контрагента' = DATA LOCAL STRING (INTEGER);
+fileNameDM 'Исходное имя файла' = DATA LOCAL STRING[255] (INTEGER);
+isDeletedDM 'Удален' = DATA LOCAL BOOLEAN (INTEGER);
+departmentIdDM 'Идентификатор подразделения, в котором находится документ' = DATA LOCAL STRING (INTEGER);
+isTestDM 'Тестовый' = DATA LOCAL BOOLEAN (INTEGER);
+fromDepartmentIdDM 'Идентификатор подразделения, из которого отправляется документ' =DATA LOCAL STRING (INTEGER);
+toDepartmentIdDM 'Идентификатор подразделения, в которое отправляется документ' = DATA LOCAL STRING (INTEGER);
+customDocumentIdDM 'Идентификатор документа, определяемый внешней системой' = DATA LOCAL STRING (INTEGER);
+isEncryptedContentDM 'Контент зашифрован' = DATA LOCAL BOOLEAN (INTEGER);
+senderSignatureStatusDM 'Статус подписи отправителя' = DATA LOCAL STRING (INTEGER);
+revocationStatusDM 'Статус аннулирования документа' = DATA LOCAL STRING (INTEGER);
+sendTimestampTicksDM 'Время отправки' = DATA LOCAL LONG (INTEGER);
+deliveryTimestampTicksDM 'Время доставки' = DATA LOCAL LONG (INTEGER);
+roamingNotificationStatusDM 'Статус доставки в роуминг' = DATA LOCAL STRING (INTEGER);
+isReadDM 'Прочитан сотрудником организации' = DATA LOCAL BOOLEAN (INTEGER);
+roamingNotificationStatusDescriptionDM 'Текстовое описание ошибки при доставке документов в роуминг' = DATA LOCAL STRING (INTEGER);
+resolutionRouteIdDM 'Идентификатор маршрута согласования' = DATA LOCAL STRING (INTEGER);
+proxySignatureStatusDM 'Статус промежуточной подписи' = DATA LOCAL STRING (INTEGER);
+typeNamedIdDM 'Идентификатор типа документа' = DATA LOCAL STRING[100] (INTEGER);
+functionDM 'Функция документа' = DATA LOCAL STRING[10] (INTEGER);
+workflowIdDM 'Идентификатор типа документооброта' = DATA LOCAL INTEGER (INTEGER);
+titleDM 'Название документа' = DATA LOCAL STRING (INTEGER);
+recipientResponseStatusDM 'Статус ответного действия со стороны получателя' = DATA LOCAL STRING (INTEGER);
+lockModeDM 'Режим блокировки сообщения' = DATA LOCAL STRING (INTEGER);
+versionDM 'Версия документа' = DATA LOCAL STRING[50] (INTEGER);
+proxyBoxIdDM 'Идентификатор ящика промежуточного получателя' = DATA LOCAL STRING (INTEGER);
+proxyDepartmentIdDM 'Идентификатор подразделения промежуточного получателя' = DATA LOCAL STRING (INTEGER);
+GROUP contentD EXTID 'Content': documentInfo;
+sizeDM 'Количество байтов в файле документа' = DATA LOCAL LONG (INTEGER);
+GROUP recipientReceiptMetadataD EXTID 'RecipientReceiptMetadata': documentInfo;
+recipientReceiptReceiptStatusDM 'Обобщенный статус извещения о получении' = DATA LOCAL STRING (INTEGER);
+GROUP confirmationMetadataDR EXTID 'ConfirmationMetadata': recipientReceiptMetadataD;
+recipientReceiptConfirmationReceiptStatusDM 'Cтатус подтверждении оператором даты отправки ИОПа' = DATA LOCAL STRING (INTEGER);
+recipientReceiptConfirmationDateTimeTicksDM 'Время статуса подтверждении оператором даты отправки ИОПа' = DATA LOCAL LONG (INTEGER);
+GROUP amendmentRequestMetadataD EXTID 'AmendmentRequestMetadata': documentInfo;
+amendmentFlagsDM 'Статус уведомления об уточнении' = DATA LOCAL INTEGER (INTEGER);
+amendmentRequestReceiptStatusDM 'Cтатус извещения о получении под УОУ подтверждением даты' = DATA LOCAL STRING (INTEGER);
+GROUP senderReceiptMetadataD EXTID 'SenderReceiptMetadata': documentInfo;
+senderReceiptStatusDM 'Cтатус извещения о получении титула получателя' = DATA LOCAL STRING (INTEGER);
+GROUP docflowStatusD EXTID 'DocflowStatus': documentInfo;
+GROUP primaryStatusD EXTID 'PrimaryStatus': docflowStatusD;
+primaryStatusSeverityDM 'Критичность основного статуса' = DATA LOCAL STRING (INTEGER);
+primaryStatusTextDM 'Основной статус' = DATA LOCAL STRING (INTEGER);
+GROUP secondaryStatusD EXTID 'SecondaryStatus': docflowStatusD;
+secondaryStatusSeverityDM 'Критичность второстепенного статуса' = DATA LOCAL STRING (INTEGER);
+secondaryStatusTextDM 'Второстепенный статус' = DATA LOCAL STRING (INTEGER);
+//Metadata для Message
+messageMetadata = DATA LOCAL INTEGER (INTEGER);
+keyDM 'Ключ' = DATA LOCAL STRING (INTEGER);
+valueDM 'Значение' = DATA LOCAL STRING (INTEGER);
+
+GROUP patch EXTID 'Patch';
+patchId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+messageIdP 'Идентификатор сообщения' = DATA LOCAL STRING (INTEGER);
+timestampTicksP 'Время создания' = DATA LOCAL LONG (INTEGER);
+forDraft 'К черновику' = DATA LOCAL BOOLEAN (INTEGER);
+draftIsRecycledP 'Черновик утилизирован' = DATA LOCAL BOOLEAN (INTEGER);
+draftIsLockedP 'Черновик заблокирован' = DATA LOCAL BOOLEAN (INTEGER);
+messageIsDeleted 'Сообщение удалено' = DATA LOCAL BOOLEAN (INTEGER);
+messageIsRestored 'Сообщение восстановлено' = DATA LOCAL BOOLEAN (INTEGER);
+messageIsDelivered 'Сообщение доставлено' = DATA LOCAL BOOLEAN (INTEGER);
+deliveredEventId 'Идентификатор доставленного получателю события' = DATA LOCAL STRING (INTEGER);
+messageTypeP 'Тип сообщения' = DATA LOCAL STRING (INTEGER);
+
+//Entity для MessagePatch
+patchEntity = DATA LOCAL INTEGER (INTEGER);
+entityTypeP 'Тип сущности' = DATA LOCAL STRING (INTEGER);
+entityIdP 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+parentEntityIdP 'Идентификатор родительской сущности' = DATA LOCAL STRING (INTEGER);
+attachmentTypeP 'Тип вложения' = DATA LOCAL STRING (INTEGER);
+fileNameP 'Исходное имя файла' = DATA LOCAL STRING[255] (INTEGER);
+needRecipientSignatureP 'Запрос подписи получателя' = DATA LOCAL BOOLEAN (INTEGER);
+signerBoxIdP 'Идентификатор ящика автора подписи' = DATA LOCAL STRING (INTEGER);
+notDeliveredEventIdP 'Идентификатор недоставленного сообщения' = DATA LOCAL STRING (INTEGER);
+rawCreationDateP 'Метка времени создания сущности' = DATA LOCAL LONG (INTEGER);
+signerDepartmentIdP 'Идентификатор подразделения в котором лежала сущность в момент подписания' = DATA LOCAL STRING (INTEGER);
+needReceiptP 'Нужна подпись' = DATA LOCAL BOOLEAN (INTEGER);
+packetIdP 'Идентификатор пакета' = DATA LOCAL STRING (INTEGER);
+isApprovementSignatureP 'Согласующая подпись' = DATA LOCAL BOOLEAN (INTEGER);
+isEncryptedContentP 'Контент зашифрован' = DATA LOCAL BOOLEAN (INTEGER);
+attachmentVersionP 'Версия XSD схемы' = DATA LOCAL STRING[50] (INTEGER);
+labelsP 'Метки' = DATA LOCAL STRING (INTEGER);
+versionP 'Версия документа' = DATA LOCAL STRING (INTEGER);
+sizeP 'Количество байтов в файле документа' = DATA LOCAL LONG (INTEGER);
+//Document для MessagePatch
+messageIdDP 'Идентификатор сообщения' = DATA LOCAL STRING (INTEGER);
+entityIdDP 'Идентификатор сущности' = DATA LOCAL STRING (INTEGER);
+creationTimestampTicksDP 'Время создания' = DATA LOCAL LONG (INTEGER);
+counteragentBoxIdDP 'Идентификатор ящика контрагента' = DATA LOCAL STRING (INTEGER);
+fileNameDP 'Исходное имя файла' = DATA LOCAL STRING[255] (INTEGER);
+isDeletedDP 'Удален' = DATA LOCAL BOOLEAN (INTEGER);
+departmentIdDP 'Идентификатор подразделения, в котором находится документ' = DATA LOCAL STRING (INTEGER);
+isTestDP 'Тестовый' = DATA LOCAL BOOLEAN (INTEGER);
+fromDepartmentIdDP 'Идентификатор подразделения, из которого отправляется документ' =DATA LOCAL STRING (INTEGER);
+toDepartmentIdDP 'Идентификатор подразделения, в которое отправляется документ' = DATA LOCAL STRING (INTEGER);
+customDocumentIdDP 'Идентификатор документа, определяемый внешней системой' = DATA LOCAL STRING (INTEGER);
+isEncryptedContentDP 'Контент зашифрован' = DATA LOCAL BOOLEAN (INTEGER);
+senderSignatureStatusDP 'Статус подписи отправителя' = DATA LOCAL STRING (INTEGER);
+revocationStatusDP 'Статус аннулирования документа' = DATA LOCAL STRING (INTEGER);
+sendTimestampTicksDP 'Время отправки' = DATA LOCAL LONG (INTEGER);
+deliveryTimestampTicksDP 'Время доставки' = DATA LOCAL LONG (INTEGER);
+roamingNotificationStatusDP 'Статус доставки в роуминг' = DATA LOCAL STRING (INTEGER);
+isReadDP 'Прочитан сотрудником организации' = DATA LOCAL BOOLEAN (INTEGER);
+roamingNotificationStatusDescriptionDP 'Текстовое описание ошибки при доставке документов в роуминг' = DATA LOCAL STRING (INTEGER);
+resolutionRouteIdDP 'Идентификатор маршрута согласования' = DATA LOCAL STRING (INTEGER);
+proxySignatureStatusDP 'Статус промежуточной подписи' = DATA LOCAL STRING (INTEGER);
+typeNamedIdDP 'Идентификатор типа документа' = DATA LOCAL STRING[100] (INTEGER);
+functionDP 'Функция документа' = DATA LOCAL STRING[10] (INTEGER);
+workflowIdDP 'Идентификатор типа документооброта' = DATA LOCAL INTEGER (INTEGER);
+titleDP 'Название документа' = DATA LOCAL STRING (INTEGER);
+recipientResponseStatusDP 'Статус ответного действия со стороны получателя' = DATA LOCAL STRING (INTEGER);
+lockModeDP 'Режим блокировки сообщения' = DATA LOCAL STRING (INTEGER);
+versionDP 'Версия документа' = DATA LOCAL STRING[50] (INTEGER);
+proxyBoxIdDP 'Идентификатор ящика промежуточного получателя' = DATA LOCAL STRING (INTEGER);
+proxyDepartmentIdDP 'Идентификатор подразделения промежуточного получателя' = DATA LOCAL STRING (INTEGER);
+sizeDP 'Количество байтов в файле документа' = DATA LOCAL LONG (INTEGER);
+recipientReceiptReceiptStatusDP 'Обобщенный статус извещения о получении' = DATA LOCAL STRING (INTEGER);
+recipientReceiptConfirmationReceiptStatusDP 'Cтатус подтверждении оператором даты отправки ИОПа' = DATA LOCAL STRING (INTEGER);
+recipientReceiptConfirmationDateTimeTicksDP 'Время статуса подтверждении оператором даты отправки ИОПа' = DATA LOCAL LONG (INTEGER);
+amendmentFlagsDP 'Статус уведомления об уточнении' = DATA LOCAL INTEGER (INTEGER);
+amendmentRequestReceiptStatusDP 'Cтатус извещения о получении под УОУ подтверждением даты' = DATA LOCAL STRING (INTEGER);
+senderReceiptStatusDP 'Cтатус извещения о получении титула получателя' = DATA LOCAL STRING (INTEGER);
+primaryStatusSeverityDP 'Критичность основного статуса' = DATA LOCAL STRING (INTEGER);
+primaryStatusTextDP 'Основной статус' = DATA LOCAL STRING (INTEGER);
+secondaryStatusSeverityDP 'Критичность второстепенного статуса' = DATA LOCAL STRING (INTEGER);
+secondaryStatusTextDP 'Второстепенный статус' = DATA LOCAL STRING (INTEGER);
+//Metadata для MessagePatch
+patchMetadata = DATA LOCAL INTEGER (INTEGER);
+keyDP 'Ключ' = DATA LOCAL STRING (INTEGER);
+valueDP 'Значение' = DATA LOCAL STRING (INTEGER);
+
+//EntityPatch
+//boxEventEntityPatch = DATA LOCAL INTEGER (INTEGER);
+//entityIdEP 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+//documentIsDeleted 'Документ был удален' = DATA LOCAL BOOLEAN (INTEGER);
+//movedToDepartment 'Идентификатор подразделения, куда перемещен документ' = DATA LOCAL STRING (INTEGER);
+//documentIsRestored 'Документ был восстановлен' = DATA LOCAL BOOLEAN (INTEGER);
+//contentIsPatched 'Документ был подписан' = DATA LOCAL BOOLEAN (INTEGER);
+//forwardedToBoxId 'Идентификатор ящика получателя при пересылке третьей стороне' = DATA LOCAL STRING (INTEGER);
+
+FORM importEvents
+    PROPERTIES() totalCount EXTID 'TotalCount',
+                 totalCountType EXTID 'TotalCountType'
+    OBJECTS e = INTEGER EXTID 'Events'
+    PROPERTIES(e) eventId EXTID 'EventId'
+    PROPERTIES(e) IN message //Message
+                  messageId EXTID 'MessageId',
+                  timestampTicks EXTID 'TimestampTicks',
+                  lastPatchTimestampTicks EXTID 'LastPatchTimestampTicks',
+                  fromBoxId EXTID 'FromBoxId',
+                  toBoxId EXTID 'ToBoxId',
+                  isDraft EXTID 'IsDraft',
+                  draftIsLocked EXTID 'DraftIsLocked',
+                  draftIsRecycled EXTID 'DraftIsRecycled',
+                  createdFromDraftId EXTID 'CreatedFromDraftId',
+                  isDeleted EXTID 'IsDeleted',
+                  isTestM EXTID 'IsTest',
+                  isInternal EXTID 'IsInternal',
+                  isProxified EXTID 'IsProxified',
+                  proxyBoxId EXTID 'ProxyBoxId',
+                  packetIsLocked EXTID 'PacketIsLocked',
+                  lockMode EXTID 'LockMode',
+                  messageType EXTID 'MessageType',
+                  isReusable EXTID 'IsReusable'
+    OBJECTS em = INTEGER IN message EXTID 'Entities'
+    FILTERS messageEntity(em) == e
+    PROPERTIES(em) entityTypeM EXTID 'EntityType',
+                   entityIdM EXTID 'EntityId',
+                   parentEntityIdM EXTID 'ParentEntityId',
+                   attachmentTypeM EXTID 'AttachmentType',
+                   fileNameM EXTID 'FileName',
+                   needRecipientSignatureM EXTID 'NeedRecipientSignature',
+                   signerBoxIdM EXTID 'SignerBoxId',
+                   notDeliveredEventIdM EXTID 'NotDeliveredEventId',
+                   rawCreationDateM EXTID 'RawCreationDate',
+                   signerDepartmentIdM EXTID 'SignerDepartmentId',
+                   needReceiptM EXTID 'NeedReceipt',
+                   packetIdM EXTID 'PacketId',
+                   isApprovementSignatureM EXTID 'IsApprovementSignature',
+                   isEncryptedContentM EXTID 'IsEncryptedContent',
+                   attachmentVersionM EXTID 'AttachmentVersion',
+                   labelsM EXTID 'Labels',
+                   versionM EXTID 'Version'
+    PROPERTIES(em) IN content
+                   sizeM EXTID 'Size'
+    PROPERTIES(em) IN documentInfo // Document
+                   messageIdDM EXTID 'MessageId',
+                   entityIdDM EXTID 'EntityId',
+                   creationTimestampTicksDM EXTID 'CreationTimestampTicks',
+                   counteragentBoxIdDM EXTID 'CounteragentBoxId',
+                   fileNameDM EXTID 'FileName',
+                   isDeletedDM EXTID 'IsDeleted',
+                   departmentIdDM EXTID 'DepartmentId',
+                   isTestDM EXTID 'IsTest',
+                   fromDepartmentIdDM EXTID 'FromDepartmentId',
+                   toDepartmentIdDM EXTID 'ToDepartmentId',
+                   customDocumentIdDM EXTID 'CustomDocumentId',
+                   isEncryptedContentDM EXTID 'IsEncryptedContent',
+                   senderSignatureStatusDM EXTID 'SenderSignatureStatus',
+                   revocationStatusDM EXTID 'RevocationStatus',
+                   sendTimestampTicksDM EXTID 'SendTimestampTicks',
+                   deliveryTimestampTicksDM EXTID 'DeliveryTimestampTicks',
+                   roamingNotificationStatusDM EXTID 'RoamingNotificationStatus',
+                   isReadDM EXTID 'IsRead',
+                   roamingNotificationStatusDescriptionDM EXTID 'RoamingNotificationStatusDescription',
+                   resolutionRouteIdDM EXTID 'ResolutionRouteId',
+                   proxySignatureStatusDM EXTID 'ProxySignatureStatus',
+                   typeNamedIdDM EXTID 'TypeNamedId',
+                   functionDM EXTID 'Function',
+                   workflowIdDM EXTID 'WorkflowId',
+                   titleDM EXTID 'Title',
+                   recipientResponseStatusDM EXTID 'RecipientResponseStatus',
+                   lockModeDM EXTID 'LockMode',
+                   versionDM EXTID 'Version',
+                   proxyBoxIdDM EXTID 'ProxyBoxId',
+                   proxyDepartmentIdDM EXTID 'ProxyDepartmentId'
+    PROPERTIES(em) IN contentD
+                   sizeDM EXTID 'Size'
+    PROPERTIES(em) IN recipientReceiptMetadataD
+                   recipientReceiptReceiptStatusDM EXTID 'ReceiptStatus'
+    PROPERTIES(em) IN confirmationMetadataDR
+                   recipientReceiptConfirmationReceiptStatusDM EXTID 'ReceiptStatus',
+                   recipientReceiptConfirmationDateTimeTicksDM EXTID 'DateTimeTicks'
+    PROPERTIES(em) IN amendmentRequestMetadataD
+                   amendmentFlagsDM EXTID 'AmendmentFlags',
+                   amendmentRequestReceiptStatusDM EXTID 'ReceiptStatus'
+    PROPERTIES(em) IN senderReceiptMetadataD
+                   senderReceiptStatusDM EXTID 'ReceiptStatus'
+    PROPERTIES(em) IN primaryStatusD
+                   primaryStatusSeverityDM EXTID 'Severity',
+                   primaryStatusTextDM EXTID 'StatusText'
+    PROPERTIES(em) IN secondaryStatusD
+                   secondaryStatusSeverityDM EXTID 'Severity',
+                   secondaryStatusTextDM EXTID 'StatusText'
+    OBJECTS md = INTEGER IN documentInfo EXTID 'Metadata'
+    FILTERS messageMetadata(md) == em
+    PROPERTIES(md) keyDM EXTID 'Key',
+                   valueDM EXTID 'Value'
+    PROPERTIES(e) IN patch // MessagePatch
+                  messageIdP EXTID 'MessageId',
+                  timestampTicksP EXTID 'TimestampTicks',
+                  forDraft EXTID 'ForDraft',
+                  draftIsRecycledP EXTID 'DraftIsRecycled',
+                  draftIsLockedP EXTID 'DraftIsLocked',
+                  messageIsDeleted EXTID 'MessageIsDeleted',
+                  messageIsRestored EXTID 'MessageIsRestored',
+                  messageIsDelivered EXTID 'MessageIsDelivered',
+                  deliveredEventId EXTID 'DeliveredEventId',
+                  patchId EXTID 'PatchId',
+                  messageTypeP EXTID 'MessageType'
+    OBJECTS ep = INTEGER IN patch EXTID 'Entities'
+    FILTERS patchEntity(ep) == e
+    PROPERTIES(ep) entityTypeP EXTID 'EntityType',
+                   entityIdP EXTID 'EntityId',
+                   parentEntityIdP EXTID 'ParentEntityId',
+                   attachmentTypeP EXTID 'AttachmentType',
+                   fileNameP EXTID 'FileName',
+                   needRecipientSignatureP EXTID 'NeedRecipientSignature',
+                   signerBoxIdP EXTID 'SignerBoxId',
+                   notDeliveredEventIdP EXTID 'NotDeliveredEventId',
+                   rawCreationDateP EXTID 'RawCreationDate',
+                   signerDepartmentIdP EXTID 'SignerDepartmentId',
+                   needReceiptP EXTID 'NeedReceipt',
+                   packetIdP EXTID 'PacketId',
+                   isApprovementSignatureP EXTID 'IsApprovementSignature',
+                   isEncryptedContentP EXTID 'IsEncryptedContent',
+                   attachmentVersionP EXTID 'AttachmentVersion',
+                   labelsP EXTID 'Labels',
+                   versionP EXTID 'Version'
+    PROPERTIES(ep) IN content
+                   sizeP EXTID 'Size'
+    PROPERTIES(ep) IN documentInfo // Document
+                   messageIdDP EXTID 'MessageId',
+                   entityIdDP EXTID 'EntityId',
+                   creationTimestampTicksDP EXTID 'CreationTimestampTicks',
+                   counteragentBoxIdDP EXTID 'CounteragentBoxId',
+                   fileNameDP EXTID 'FileName',
+                   isDeletedDP EXTID 'IsDeleted',
+                   departmentIdDP EXTID 'DepartmentId',
+                   isTestDP EXTID 'IsTest',
+                   fromDepartmentIdDP EXTID 'FromDepartmentId',
+                   toDepartmentIdDP EXTID 'ToDepartmentId',
+                   customDocumentIdDP EXTID 'CustomDocumentId',
+                   isEncryptedContentDP EXTID 'IsEncryptedContent',
+                   senderSignatureStatusDP EXTID 'SenderSignatureStatus',
+                   revocationStatusDP EXTID 'RevocationStatus',
+                   sendTimestampTicksDP EXTID 'SendTimestampTicks',
+                   deliveryTimestampTicksDP EXTID 'DeliveryTimestampTicks',
+                   roamingNotificationStatusDP EXTID 'RoamingNotificationStatus',
+                   isReadDP EXTID 'IsRead',
+                   roamingNotificationStatusDescriptionDP EXTID 'RoamingNotificationStatusDescription',
+                   resolutionRouteIdDP EXTID 'ResolutionRouteId',
+                   proxySignatureStatusDP EXTID 'ProxySignatureStatus',
+                   typeNamedIdDP EXTID 'TypeNamedId',
+                   functionDP EXTID 'Function',
+                   workflowIdDP EXTID 'WorkflowId',
+                   titleDP EXTID 'Title',
+                   recipientResponseStatusDP EXTID 'RecipientResponseStatus',
+                   lockModeDP EXTID 'LockMode',
+                   versionDP EXTID 'Version',
+                   proxyBoxIdDP EXTID 'ProxyBoxId',
+                   proxyDepartmentIdDP EXTID 'ProxyDepartmentId'
+    PROPERTIES(ep) IN contentD
+                   sizeDP EXTID 'Size'
+    PROPERTIES(ep) IN recipientReceiptMetadataD
+                   recipientReceiptReceiptStatusDP EXTID 'ReceiptStatus'
+    PROPERTIES(ep) IN confirmationMetadataDR
+                   recipientReceiptConfirmationReceiptStatusDP EXTID 'ReceiptStatus',
+                   recipientReceiptConfirmationDateTimeTicksDP EXTID 'DateTimeTicks'
+    PROPERTIES(ep) IN amendmentRequestMetadataD
+                   amendmentFlagsDP EXTID 'AmendmentFlags',
+                   amendmentRequestReceiptStatusDP EXTID 'ReceiptStatus'
+    PROPERTIES(ep) IN senderReceiptMetadataD
+                   senderReceiptStatusDP EXTID 'ReceiptStatus'
+    PROPERTIES(ep) IN primaryStatusD
+                   primaryStatusSeverityDP EXTID 'Severity',
+                   primaryStatusTextDP EXTID 'StatusText'
+    PROPERTIES(ep) IN secondaryStatusD
+                   secondaryStatusSeverityDP EXTID 'Severity',
+                   secondaryStatusTextDP EXTID 'StatusText'
+    OBJECTS pd = INTEGER IN documentInfo EXTID 'Metadata'
+    FILTERS patchMetadata(pd) == ep
+    PROPERTIES(pd) keyDP EXTID 'Key',
+                   valueDP EXTID 'Value'
+//    OBJECTS ep = INTEGER IN messagePatch EXTID 'EntityPatches'
+//    FILTERS boxEventEntityPatch(ep) == e
+//    PROPERTIES(ep) entityIdEP EXTID 'EntityId',
+//                   documentIsDeleted EXTID 'DocumentIsDeleted',
+//                   movedToDepartment EXTID 'MovedToDepartment',
+//                   documentIsRestored EXTID 'DocumentIsRestored',
+//                   contentIsPatched EXTID 'ContentIsPatched',
+//                   forwardedToBoxId EXTID 'ForwardedToBoxId'
+;
+
+getNewEvents 'Получить новые сообщения' (Box box) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        getToken(u);
+
+        WHILE NOT totalCountType() == 'Equal' DO {
+            LOCAL result = FILE ();
+            LOCAL lastEvent = BoxEvent ();
+
+            lastEvent() <- GROUP LAST BoxEvent e IF e IS BoxEvent ORDER timestampTicks(e), e;
+            
+            TRY {
+                EXTERNAL HTTP GET url() + '/GetNewEvents?boxId=' + boxId(box) + (OVERRIDE '&afterEventId=' + eventId(lastEvent()),'') HEADERS httpHeadersToken TO result;
+                IMPORT importEvents JSON FROM result();
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка получения сообщений ' + statusHttp() + ' ' + resultString();
+            }
+
+            FOR eventId(INTEGER i) AND NOT boxEvent(eventId(i)) NEW e = BoxEvent DO {
+                eventId(e) <- eventId(i);
+            }
+            FOR messageId(INTEGER i) AND NOT message(messageId(i)) NEW m = Message DO {
+                messageId(m) <- messageId(i);
+            }
+            FOR Message m == message(messageId(INTEGER i)) DO {
+                timestampTicks(m) <- timestampTicks(i);
+                lastPatchTimestampTicks(m) <- lastPatchTimestampTicks(i);
+                fromBox(m) <- box(fromBoxId(i));
+                toBox(m) <- box(toBoxId(i));
+                isDraft(m) <- isDraft(i);
+                draftIsLocked(m) <- draftIsLocked(i);
+                draftIsRecycled(m) <- draftIsRecycled(i);
+                createdFromDraftId(m) <- createdFromDraftId(i);
+                isDeleted(m) <- isDeleted(i);
+                isTest(m) <- isTestM(i);
+                isInternal(m) <- isInternal(i);
+                isProxified(m) <- isProxified(i);
+                proxyBox(m) <- box(proxyBoxId(i));
+                packetIsLocked(m) <- packetIsLocked(i);
+                lockMode(m) <- lockMode(lockMode(i));
+                messageType(m) <- messageType(messageType(i));
+                isReusable(m) <- isReusable(i);
+                message(boxEvent(eventId(i))) <- m;
+            }
+            FOR entityIdM(INTEGER i) AND NOT entity(entityIdM(i)) NEW e = Entity DO {
+                entityId(e) <- entityIdM(i);
+            }
+            FOR Entity e == entity(entityIdM(INTEGER i)) DO {
+                entityType(e) <- entityType(entityTypeM(i));
+                parentEntityId(e) <- parentEntityIdM(i);
+                attachmentType(e) <- attachmentType(attachmentTypeM(i));
+                fileName(e) <- fileNameM(i);
+                needRecipientSignature(e) <- needRecipientSignatureM(i);
+                signerBox(e) <- box(signerBoxIdM(i));
+                notDeliveredEventId(e) <- notDeliveredEventIdM(i);
+                rawCreationDateTicks(e) <- rawCreationDateM(i);
+                signerDepartment(e) <- department(signerDepartmentIdM(i));
+                needReceipt(e) <- needReceiptM(i);
+                packetId(e) <- packetIdM(i);
+                isApprovementSignature(e) <- isApprovementSignatureM(i);
+                isEncryptedContent(e) <- isEncryptedContentM(i);
+                attachmentVersion(e) <- attachmentVersionM(i);
+                labels(e) <- labelsM(i);
+                version(e) <- versionM(i);
+                size(e) <- sizeM(i);
+                message(e) <- message(messageId(messageEntity(i)));
+                IF size(e) > 0 THEN {
+                    LOCAL data = RAWFILE ();
+                    TRY {
+                        EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + boxId(box) + '&messageId=' + messageId(message(e)) + '&entityId=' + entityId(e)  HEADERS httpHeadersToken TO data; 
+                    } CATCH {
+                        fileToString(FILE(data()), 'UTF-8');
+                        MESSAGE 'Ошибка получения контента ' + statusHttp() + ' ' + resultString();
+                    }
+                    data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+                }
+            }
+            // Документы только создаем, т.к. тут информация только о первом состоянии, обновление по отдельному событию
+            FOR messageIdDM(INTEGER i) AND entityIdDM(i) AND NOT document(messageIdDM(i),entityIdDM(i)) NEW d = Document DO {
+                message(d) <- message(messageIdDM(i));
+                entity(d) <- entity(entityIdDM(i));
+                creationTimestampTicks(d) <- creationTimestampTicksDM(i);
+                counteragentBox(d) <- box(counteragentBoxIdDM(i));
+                fileName(d) <- fileNameDM(i);
+                isDeleted(d) <- isDeletedDM(i);
+                department(d) <- department(departmentIdDM(i));
+                isTest(d) <- isTestDM(i);
+                fromDepartment(d) <- department(fromDepartmentIdDM(i));
+                toDepartment(d) <- department(toDepartmentIdDM(i));
+                customDocumentId(d) <- customDocumentIdDM(i);
+                isEncryptedContent(d) <- isEncryptedContentDM(i);
+                senderSignatureStatus(d) <- senderSignatureStatus(senderSignatureStatusDM(i));
+                revocationStatus(d) <- revocationStatus(revocationStatusDM(i));
+                sendTimestampTicks(d) <- sendTimestampTicksDM(i);
+                deliveryTimestampTicks(d) <- deliveryTimestampTicksDM(i);
+                roamingNotificationStatus(d) <- roamingNotificationStatus(roamingNotificationStatusDM(i));
+                isRead(d) <- isReadDM(i);
+                roamingNotificationStatusDescription(d) <- roamingNotificationStatusDescriptionDM(i);
+                resolutionRouteId(d) <- resolutionRouteIdDM(i);
+                proxySignatureStatus(d) <- proxySignatureStatus(proxySignatureStatusDM(i));
+                typeNamedId(d) <- typeNamedIdDM(i);
+                function(d) <- functionDM(i);
+                workflowId(d) <- workflowIdDM(i);
+                title(d) <- titleDM(i);
+                recipientResponseStatus(d) <- recipientResponseStatus(recipientResponseStatusDM(i));
+                lockMode(d) <- lockMode(lockModeDM(i));
+                version(d) <- versionDM(i);
+                proxyBox(d) <- box(proxyBoxIdDM(i));
+                proxyDepartment(d) <- department(proxyDepartmentIdDM(i));
+                size(d) <- sizeDM(i);
+                recipientReceiptReceiptStatus(d) <- generalReceiptStatus(recipientReceiptReceiptStatusDM(i));
+                recipientReceiptConfirmationReceiptStatus(d) <- generalReceiptStatus(recipientReceiptConfirmationReceiptStatusDM(i));
+                recipientReceiptConfirmationDateTimeTicks(d) <- recipientReceiptConfirmationDateTimeTicksDM(i);
+                amendmentFlags(d) <- amendmentFlagsDM(i);
+                amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusDM(i));
+                senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusDM(i));
+                primaryStatusSeverity(d) <- severity(primaryStatusSeverityDM(i));
+                primaryStatusText(d) <- primaryStatusTextDM(i);
+                secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityDM(i));
+                secondaryStatusText(d) <- secondaryStatusTextDM(i);
+                FOR messageMetadata(INTEGER m) == i DO {
+                    metadata(d,keyDM(m)) <- valueDM(m);
+                }
+            }
+            FOR patchId(INTEGER i) AND NOT messagePatch(patchId(i)) NEW p = MessagePatch DO {
+                patchId(p) <- patchId(i);
+            }
+            FOR MessagePatch p == messagePatch(patchId(INTEGER i)) DO {
+                message(p) <- message(messageIdP(i));
+                timestampTicks(p) <- timestampTicksP(i);
+                forDraft(p) <- forDraft(i);
+                draftIsRecycled(p) <- draftIsRecycledP(i);
+                draftIsLocked(p) <- draftIsLockedP(i);
+                messageIsDeleted(p) <- messageIsDeleted(i);
+                messageIsRestored(p) <- messageIsRestored(i);
+                messageIsDelivered(p) <- messageIsDelivered(i);
+                deliveredEventId(p) <- deliveredEventId(i);
+                messageType(p) <- messageType(messageTypeP(i));
+                patch(boxEvent(eventId(i))) <- p;
+                lastPatchTimestampTicks(message(p)) <- timestampTicks(p) WHERE timestampTicks(p) > lastPatchTimestampTicks(message(p));
+            }
+            FOR entityIdP(INTEGER i) AND NOT entity(entityIdP(i)) NEW e = Entity DO {
+                entityId(e) <- entityIdP(i);
+            }
+            FOR Entity e == entity(entityIdP(INTEGER i)) DO {
+                entityType(e) <- entityType(entityTypeP(i));
+                parentEntityId(e) <- parentEntityIdP(i);
+                attachmentType(e) <- attachmentType(attachmentTypeP(i));
+                fileName(e) <- fileNameP(i);
+                needRecipientSignature(e) <- needRecipientSignatureP(i);
+                signerBox(e) <- box(signerBoxIdP(i));
+                notDeliveredEventId(e) <- notDeliveredEventIdP(i);
+                rawCreationDateTicks(e) <- rawCreationDateP(i);
+                signerDepartment(e) <- department(signerDepartmentIdP(i));
+                needReceipt(e) <- needReceiptP(i);
+                packetId(e) <- packetIdP(i);
+                isApprovementSignature(e) <- isApprovementSignatureP(i);
+                isEncryptedContent(e) <- isEncryptedContentP(i);
+                attachmentVersion(e) <- attachmentVersionP(i);
+                labels(e) <- labelsP(i);
+                version(e) <- versionP(i);
+                size(e) <- sizeP(i);
+                patch(e) <- messagePatch(patchId(patchEntity(i)));
+                IF size(e) > 0 THEN {
+                    LOCAL data = RAWFILE ();
+                    TRY {
+                        EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + boxId(box) + '&messageId=' + messageId(patch(e)) + '&entityId=' + entityId(e)  HEADERS httpHeadersToken TO data;
+                    } CATCH {
+                        fileToString(FILE(data()), 'UTF-8');
+                        MESSAGE 'Ошибка получения контента ' + statusHttp() + ' ' + resultString();
+                    }
+                    data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+                }
+            }
+            // Документы только создаем, т.к. тут информация только о первом состоянии, обновление по отдельному событию
+            FOR messageIdDP(INTEGER i) AND entityIdDP(i) AND NOT document(messageIdDP(i),entityIdDP(i)) NEW d = Document DO {
+                message(d) <- message(messageIdDP(i));
+                entity(d) <- entity(entityIdDP(i));
+                creationTimestampTicks(d) <- creationTimestampTicksDP(i);
+                counteragentBox(d) <- box(counteragentBoxIdDP(i));
+                fileName(d) <- fileNameDP(i);
+                isDeleted(d) <- isDeletedDP(i);
+                department(d) <- department(departmentIdDP(i));
+                isTest(d) <- isTestDP(i);
+                fromDepartment(d) <- department(fromDepartmentIdDP(i));
+                toDepartment(d) <- department(toDepartmentIdDP(i));
+                customDocumentId(d) <- customDocumentIdDP(i);
+                isEncryptedContent(d) <- isEncryptedContentDP(i);
+                senderSignatureStatus(d) <- senderSignatureStatus(senderSignatureStatusDP(i));
+                revocationStatus(d) <- revocationStatus(revocationStatusDP(i));
+                sendTimestampTicks(d) <- sendTimestampTicksDP(i);
+                deliveryTimestampTicks(d) <- deliveryTimestampTicksDP(i);
+                roamingNotificationStatus(d) <- roamingNotificationStatus(roamingNotificationStatusDP(i));
+                isRead(d) <- isReadDP(i);
+                roamingNotificationStatusDescription(d) <- roamingNotificationStatusDescriptionDP(i);
+                resolutionRouteId(d) <- resolutionRouteIdDP(i);
+                proxySignatureStatus(d) <- proxySignatureStatus(proxySignatureStatusDP(i));
+                typeNamedId(d) <- typeNamedIdDP(i);
+                function(d) <- functionDP(i);
+                workflowId(d) <- workflowIdDP(i);
+                title(d) <- titleDP(i);
+                recipientResponseStatus(d) <- recipientResponseStatus(recipientResponseStatusDP(i));
+                lockMode(d) <- lockMode(lockModeDP(i));
+                version(d) <- versionDP(i);
+                proxyBox(d) <- box(proxyBoxIdDP(i));
+                proxyDepartment(d) <- department(proxyDepartmentIdDP(i));
+                size(d) <- sizeDP(i);
+                recipientReceiptReceiptStatus(d) <- generalReceiptStatus(recipientReceiptReceiptStatusDP(i));
+                recipientReceiptConfirmationReceiptStatus(d) <- generalReceiptStatus(recipientReceiptConfirmationReceiptStatusDP(i));
+                recipientReceiptConfirmationDateTimeTicks(d) <- recipientReceiptConfirmationDateTimeTicksDP(i);
+                amendmentFlags(d) <- amendmentFlagsDP(i);
+                amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusDP(i));
+                senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusDP(i));
+                primaryStatusSeverity(d) <- severity(primaryStatusSeverityDP(i));
+                primaryStatusText(d) <- primaryStatusTextDP(i);
+                secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityDP(i));
+                secondaryStatusText(d) <- secondaryStatusTextDP(i);
+                FOR patchMetadata(INTEGER m) == i DO {
+                    metadata(d,keyDP(m)) <- valueDP(m);
+                }
+            }
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM messages
+    PROPERTIES(b) getNewEvents
+;
+
+//Document
+messageIdD 'Идентификатор сообщения' = DATA LOCAL STRING ();
+entityIdD 'Идентификатор сущности' = DATA LOCAL STRING ();
+creationTimestampTicksD 'Время создания' = DATA LOCAL LONG ();
+counteragentBoxIdD 'Идентификатор ящика контрагента' = DATA LOCAL STRING ();
+fileNameD 'Исходное имя файла' = DATA LOCAL STRING[255] ();
+isDeletedD 'Удален' = DATA LOCAL BOOLEAN ();
+departmentIdD 'Идентификатор подразделения, в котором находится документ' = DATA LOCAL STRING ();
+isTestD 'Тестовый' = DATA LOCAL BOOLEAN ();
+fromDepartmentIdD 'Идентификатор подразделения, из которого отправляется документ' = DATA LOCAL STRING ();
+toDepartmentIdD 'Идентификатор подразделения, в которое отправляется документ' = DATA LOCAL STRING ();
+customDocumentIdD 'Идентификатор документа, определяемый внешней системой' = DATA LOCAL STRING ();
+isEncryptedContentD 'Контент зашифрован' = DATA LOCAL BOOLEAN ();
+senderSignatureStatusD 'Статус подписи отправителя' = DATA LOCAL STRING ();
+revocationStatusD 'Статус аннулирования документа' = DATA LOCAL STRING ();
+sendTimestampTicksD 'Время отправки' = DATA LOCAL LONG ();
+deliveryTimestampTicksD 'Время доставки' = DATA LOCAL LONG ();
+roamingNotificationStatusD 'Статус доставки в роуминг' = DATA LOCAL STRING ();
+isReadD 'Прочитан сотрудником организации' = DATA LOCAL BOOLEAN ();
+roamingNotificationStatusDescriptionD 'Текстовое описание ошибки при доставке документов в роуминг' = DATA LOCAL STRING ();
+resolutionRouteIdD 'Идентификатор маршрута согласования' = DATA LOCAL STRING ();
+proxySignatureStatusD 'Статус промежуточной подписи' = DATA LOCAL STRING ();
+typeNamedIdD 'Идентификатор типа документа' = DATA LOCAL STRING[100] ();
+functionD 'Функция документа' = DATA LOCAL STRING[10] ();
+workflowIdD 'Идентификатор типа документооброта' = DATA LOCAL INTEGER ();
+titleD 'Название документа' = DATA LOCAL STRING ();
+recipientResponseStatusD 'Статус ответного действия со стороны получателя' = DATA LOCAL STRING ();
+lockModeD 'Режим блокировки сообщения' = DATA LOCAL STRING ();
+versionD 'Версия документа' = DATA LOCAL STRING[50] ();
+proxyBoxIdD 'Идентификатор ящика промежуточного получателя' = DATA LOCAL STRING ();
+proxyDepartmentIdD 'Идентификатор подразделения промежуточного получателя' = DATA LOCAL STRING ();
+sizeD 'Количество байтов в файле документа' = DATA LOCAL LONG ();
+GROUP recipientReceiptMetadata EXTID 'RecipientReceiptMetadata';
+recipientReceiptReceiptStatusD 'Обобщенный статус извещения о получении' = DATA LOCAL STRING ();
+GROUP confirmationMetadataR EXTID 'ConfirmationMetadata': recipientReceiptMetadata;
+recipientReceiptConfirmationReceiptStatusD 'Cтатус подтверждении оператором даты отправки ИОПа' = DATA LOCAL STRING ();
+recipientReceiptConfirmationDateTimeTicksD 'Время статуса подтверждении оператором даты отправки ИОПа' = DATA LOCAL LONG ();
+GROUP amendmentRequestMetadata EXTID 'AmendmentRequestMetadata';
+amendmentFlagsD 'Статус уведомления об уточнении' = DATA LOCAL INTEGER ();
+amendmentRequestReceiptStatusD 'Cтатус извещения о получении под УОУ подтверждением даты' = DATA LOCAL STRING ();
+GROUP senderReceiptMetadata EXTID 'SenderReceiptMetadata';
+senderReceiptStatusD 'Cтатус извещения о получении титула получателя' = DATA LOCAL STRING ();
+GROUP docflowStatus EXTID 'DocflowStatus';
+GROUP primaryStatus EXTID 'PrimaryStatus': docflowStatus;
+primaryStatusSeverityD 'Критичность основного статуса' = DATA LOCAL STRING ();
+primaryStatusTextD 'Основной статус' = DATA LOCAL STRING ();
+GROUP secondaryStatus EXTID 'SecondaryStatus';
+secondaryStatusSeverityD 'Критичность второстепенного статуса' = DATA LOCAL STRING ();
+secondaryStatusTextD 'Второстепенный статус' = DATA LOCAL STRING ();
+//Metadata
+keyD 'Ключ' = DATA LOCAL STRING (INTEGER);
+valueD 'Значение' = DATA LOCAL STRING (INTEGER);
+
+FORM importDocument
+    PROPERTIES() messageIdD EXTID 'MessageId',
+                 entityIdD EXTID 'EntityId',
+                 creationTimestampTicksD EXTID 'CreationTimestampTicks',
+                 counteragentBoxIdD EXTID 'CounteragentBoxId',
+                 fileNameD EXTID 'FileName',
+                 isDeletedD EXTID 'IsDeleted',
+                 departmentIdD EXTID 'DepartmentId',
+                 isTestD EXTID 'IsTest',
+                 fromDepartmentIdD EXTID 'FromDepartmentId',
+                 toDepartmentIdD EXTID 'ToDepartmentId',
+                 customDocumentIdD EXTID 'CustomDocumentId',
+                 isEncryptedContentD EXTID 'IsEncryptedContent',
+                 senderSignatureStatusD EXTID 'SenderSignatureStatus',
+                 revocationStatusD EXTID 'RevocationStatus',
+                 sendTimestampTicksD EXTID 'SendTimestampTicks',
+                 deliveryTimestampTicksD EXTID 'DeliveryTimestampTicks',
+                 roamingNotificationStatusD EXTID 'RoamingNotificationStatus',
+                 isReadD EXTID 'IsRead',
+                 roamingNotificationStatusDescriptionD EXTID 'RoamingNotificationStatusDescription',
+                 resolutionRouteIdD EXTID 'ResolutionRouteId',
+                 proxySignatureStatusD EXTID 'ProxySignatureStatus',
+                 typeNamedIdD EXTID 'TypeNamedId',
+                 functionD EXTID 'Function',
+                 workflowIdD EXTID 'WorkflowId',
+                 titleD EXTID 'Title',
+                 recipientResponseStatusD EXTID 'RecipientResponseStatus',
+                 lockModeD EXTID 'LockMode',
+                 versionD EXTID 'Version',
+                 proxyBoxIdD EXTID 'ProxyBoxId',
+                 proxyDepartmentIdD EXTID 'ProxyDepartmentId'
+ PROPERTIES() IN content
+              sizeD EXTID 'Size'
+ PROPERTIES() IN recipientReceiptMetadata
+              recipientReceiptReceiptStatusD EXTID 'ReceiptStatus'
+ PROPERTIES() IN confirmationMetadataR
+              recipientReceiptConfirmationReceiptStatusD EXTID 'ReceiptStatus',
+              recipientReceiptConfirmationDateTimeTicksD EXTID 'DateTimeTicks'
+ PROPERTIES() IN amendmentRequestMetadata
+              amendmentFlagsD EXTID 'AmendmentFlags',
+              amendmentRequestReceiptStatusD EXTID 'ReceiptStatus'
+ PROPERTIES() IN senderReceiptMetadata
+              senderReceiptStatusD EXTID 'ReceiptStatus'
+ PROPERTIES() IN primaryStatus
+              primaryStatusSeverityD EXTID 'Severity',
+              primaryStatusTextD EXTID 'StatusText'
+ PROPERTIES() IN secondaryStatus
+              secondaryStatusSeverityD EXTID 'Severity',
+              secondaryStatusTextD EXTID 'StatusText'
+ OBJECTS m = INTEGER EXTID 'Metadata'
+ PROPERTIES(m) keyD EXTID 'Key',
+               valueD EXTID 'Value'
+;
+
+getDocument 'Обновить информацию по документу' (Box b, Document d) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        getToken(u);
+        
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/GetDocument?boxId=' + boxId(b) + '&messageId=' + messageId(message(d)) + '&entityId=' + entityId(d)  HEADERS httpHeadersToken TO result;
+            IMPORT importDocument JSON FROM result();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка получения документа ' + statusHttp() + ' ' + resultString();
+        }
+        
+        IF d == document(messageIdD(),entityIdD()) THEN {
+            creationTimestampTicks(d) <- creationTimestampTicksD();
+            counteragentBox(d) <- box(counteragentBoxIdD());
+            fileName(d) <- fileNameD();
+            isDeleted(d) <- isDeletedD();
+            department(d) <- department(departmentIdD());
+            isTest(d) <- isTestD();
+            fromDepartment(d) <- department(fromDepartmentIdD());
+            toDepartment(d) <- department(toDepartmentIdD());
+            customDocumentId(d) <- customDocumentIdD();
+            isEncryptedContent(d) <- isEncryptedContentD();
+            senderSignatureStatus(d) <- senderSignatureStatus(senderSignatureStatusD());
+            revocationStatus(d) <- revocationStatus(revocationStatusD());
+            sendTimestampTicks(d) <- sendTimestampTicksD();
+            deliveryTimestampTicks(d) <- deliveryTimestampTicksD();
+            roamingNotificationStatus(d) <- roamingNotificationStatus(roamingNotificationStatusD());
+            isRead(d) <- isReadD();
+            roamingNotificationStatusDescription(d) <- roamingNotificationStatusDescriptionD();
+            resolutionRouteId(d) <- resolutionRouteIdD();
+            proxySignatureStatus(d) <- proxySignatureStatus(proxySignatureStatusD());
+            typeNamedId(d) <- typeNamedIdD();
+            function(d) <- functionD();
+            workflowId(d) <- workflowIdD();
+            title(d) <- titleD();
+            recipientResponseStatus(d) <- recipientResponseStatus(recipientResponseStatusD());
+            lockMode(d) <- lockMode(lockModeD());
+            version(d) <- versionD();
+            proxyBox(d) <- box(proxyBoxIdD());
+            proxyDepartment(d) <- department(proxyDepartmentIdD());
+            size(d) <- sizeD();
+            recipientReceiptReceiptStatus(d) <- generalReceiptStatus(recipientReceiptReceiptStatusD());
+            recipientReceiptConfirmationReceiptStatus(d) <- generalReceiptStatus(recipientReceiptConfirmationReceiptStatusD());
+            recipientReceiptConfirmationDateTimeTicks(d) <- recipientReceiptConfirmationDateTimeTicksD();
+            amendmentFlags(d) <- amendmentFlagsD();
+            amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusD());
+            senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusD());
+            primaryStatusSeverity(d) <- severity(primaryStatusSeverityD());
+            primaryStatusText(d) <- primaryStatusTextD();
+            secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityD());
+            secondaryStatusText(d) <- secondaryStatusTextD();
+            FOR keyD(INTEGER m) DO {
+                metadata(d,keyD(m)) <- valueD(m);
+            }
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM documents
+    PROPERTIES(b,d) getDocument TOOLBAR
+;
+
+
+//------------ Отправка сообщений -------------//
+
+//----------------------- MessageToPost (передаем в PostMessage) -----------------------//
+fromBox = DATA LOCAL Box ();
+fromBoxId 'Идентификатор ящика отправителя сообщения' () = boxId(fromBox());
+fromBoxTitle 'Ящик отправителя сообщения' () = title(fromBox());
+
+toBox = DATA LOCAL Box ();
+toBoxId 'Идентификатор ящика получателя сообщения' () = boxId(toBox());
+toBoxTitle 'Ящик получателя сообщения' () = title(toBox());
+
+isInternal 'Внутреннее' = DATA LOCAL BOOLEAN ();
+
+toDepartment = DATA LOCAL Department ();
+toDepartmentId 'Идентификатор подразделения получателя' () = departmentId(toDepartment());
+toDepartmentName 'Подразделение получателя' () = name(toDepartment());
+
+fromDepartment = DATA LOCAL Department ();
+fromDepartmentId 'Идентификатор подразделения отправителя' () = departmentId(fromDepartment());
+fromDepartmentName 'Подразделение отправителя' () = name(fromDepartment());
+
+proxyBox = DATA LOCAL Box ();
+proxyBoxId 'Идентификатор ящика промежуточного получателя' () = boxId(proxyBox());
+proxyBoxTitle 'Ящик промежуточного получателя' () = title(proxyBox());
+
+proxyDepartment = DATA LOCAL Department ();
+proxyDepartmentId 'Идентификатор подразделения промежуточного получателя' () = departmentId(proxyDepartment());
+proxyDepartmentName 'Подразделение промежуточного получателя' () = name(proxyDepartment());
+
+contentDocument 'Подписываемые данные' = DATA LOCAL TEXT (INTEGER);
+signatureDocument 'Электронная подпись' = DATA LOCAL TEXT (INTEGER);
+signWithTestSignature 'Сформировать тестовую ЭП' = DATA LOCAL BOOLEAN (INTEGER);
+typeNamedIdDocument 'Идентификатор типа документа' = DATA LOCAL STRING (INTEGER);
+functionDocument 'Идентификатор функции документа' = DATA LOCAL STRING (INTEGER);
+versionDocument 'Идентификатор версии документа' = DATA LOCAL STRING (INTEGER);
+
+GROUP signedContent EXTID 'SignedContent';
+
+FORM exportMessageToPost
+    PROPERTIES fromBoxId() EXTID 'FromBoxId',
+               toBoxId = (toBoxId() IF NOT isInternal()) EXTID 'ToBoxId',
+               toDepartmentId() EXTID 'ToDepartmentId',
+               isInternal() EXTID 'IsInternal',
+               fromDepartmentId() EXTID 'FromDepartmentId',
+               proxyBoxId = (proxyBoxId() IF NOT isInternal()) EXTID 'ProxyBoxId',
+               proxyDepartmentId() EXTID 'ProxyDepartmentId'
+    
+    OBJECTS d = INTEGER EXTID 'DocumentAttachments'
+    PROPERTIES(d) IN signedContent
+                  contentDocument EXTID 'Content',
+                  signatureDocument EXTID 'Signature',
+                  signWithTestSignature EXTID 'SignWithTestSignature'
+    PROPERTIES(d) typeNamedIdDocument EXTID 'TypeNamedId',
+                  functionDocument EXTID 'Function',
+                  versionDocument EXTID 'Version'
+    FILTERS contentDocument(d)
+;
+
+CONSTRAINT fromBox() AND NOT isEmployee(organization(fromBox()),userDiadoc(currentUser()))
+    CHECKED BY fromBox[] MESSAGE 'Для сообщения выбран ящик отправителя к которому нет доступа для пользователя';
+CONSTRAINT toBox() AND NOT counteragentStatus(organization(fromBox()),organization(toBox())) == CounteragentStatus.isMyCounteragent
+    CHECKED BY toBox[] MESSAGE 'Для сообщения выбран ящик получателя с организацией которого не действует отношение партнерства';
+CONSTRAINT proxyBox() AND NOT counteragentStatus(organization(fromBox()),organization(proxyBox())) == CounteragentStatus.isMyCounteragent
+    CHECKED BY proxyBox[] MESSAGE 'Для сообщения выбран ящик промежуточного получателя с организацией которого не действует отношение партнерства';
+CONSTRAINT fromBox() AND fromDepartment() AND NOT organization(fromBox()) == organization(fromDepartment())
+    CHECKED BY fromDepartment[] MESSAGE 'Ящик и подразделение отправителя для сообщения не имеют связи';
+CONSTRAINT toBox() AND toDepartment() AND NOT isInternal() AND NOT organization(toBox()) == organization(toDepartment())
+    CHECKED BY toDepartment[] MESSAGE 'Ящик и подразделение получателя для сообщения не имеют связи';
+CONSTRAINT proxyBox() AND proxyDepartment() AND NOT isInternal() AND NOT organization(proxyBox()) == organization(proxyDepartment())
+    CHECKED BY proxyDepartment[] MESSAGE 'Ящик и подразделение промежуточного получателя для сообщения не имеют связи';
+CONSTRAINT isInternal() AND fromBox() AND toDepartment() AND NOT organization(fromBox()) == organization(toDepartment())
+    CHECKED BY toDepartment[] MESSAGE 'Ящик отправителя и подразделение получателя для внутреннего сообщения не имеют связи';
+CONSTRAINT isInternal() AND fromBox() AND proxyDepartment() AND NOT organization(fromBox()) == organization(proxyDepartment())
+    CHECKED BY proxyDepartment[] MESSAGE 'Ящик отправителя и подразделение промежуточного получателя для внутреннего сообщения не имеют связи';
+
+FORM dialogMessageToPost 'Сообщение к отправке через Диадок'
+    PROPERTIES() fromBoxTitle, isInternal, fromDepartmentName, toDepartmentName, proxyDepartmentName
+    PROPERTIES() SHOWIF NOT isInternal() toBoxTitle, proxyBoxTitle
+    
+    EVENTS ON OK BEFORE {
+        IF NOT fromBox() THEN {
+            MESSAGE 'Не задан ящик отправителя' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF fromBox() AND NOT isEmployee(organization(fromBox()),userDiadoc(currentUser())) THEN {
+            MESSAGE 'Выбран ящик отправителя к которому нет доступа для пользователя' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF fromBox() AND toBox() AND NOT counteragentStatus(organization(fromBox()),organization(toBox())) == CounteragentStatus.isMyCounteragent THEN {
+            MESSAGE 'Выбран ящик получателя с организацией которого не действует отношение партнерства' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF fromBox() AND proxyBox() AND NOT counteragentStatus(organization(fromBox()),organization(proxyBox())) == CounteragentStatus.isMyCounteragent THEN {
+            MESSAGE 'Выбран ящик промежуточного получателя с организацией которого не действует отношение партнерства' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF fromBox() AND fromDepartment() AND NOT organization(fromBox()) == organization(fromDepartment()) THEN {
+            MESSAGE 'Ящик и подразделение отправителя для сообщения не имеют связи' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF isInternal() THEN {
+            IF NOT (fromDepartment() OR toDepartment()) THEN {
+                MESSAGE 'Для внутреннего сообщения должно быть задано подразделение отправителя или получателя' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
+            IF fromBox() AND toDepartment() AND NOT organization(fromBox()) == organization(toDepartment()) THEN {
+                MESSAGE 'Ящик отправителя и подразделение получателя для внутреннего сообщения не имеют связи' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
+            IF fromBox() AND proxyDepartment() AND NOT organization(fromBox()) == organization(proxyDepartment()) THEN {
+                MESSAGE 'Ящик отправителя и подразделение промежуточного получателя для внутреннего сообщения не имеют связи' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
+        } ELSE {
+            IF NOT toBox() THEN {
+                MESSAGE 'Не задан ящик получателя' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
+            IF proxyDepartment() AND NOT proxyBox() THEN {
+                MESSAGE 'Для подразделения промежуточного получателя не задан ящик промежуточного получателя' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
+            IF toBox() AND toDepartment() AND NOT organization(toBox()) == organization(toDepartment()) THEN {
+                MESSAGE 'Ящик и подразделение получателя для сообщения не имеют связи' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
+            IF proxyBox() AND proxyDepartment() AND NOT organization(proxyBox()) == organization(proxyDepartment()) THEN {
+                MESSAGE 'Ящик и подразделение промежуточного получателя для сообщения не имеют связи' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
+        }
+    }
+;
+
+DESIGN dialogMessageToPost {
+    GROUP() {
+        type = CONTAINERV;
+        NEW line1 {
+            type = CONTAINERH;
+            MOVE PROPERTY(isInternal());
+        }
+        NEW line2 {
+            type = CONTAINERH;
+            MOVE PROPERTY(fromBoxTitle());
+            MOVE PROPERTY(toBoxTitle());
+        }
+        NEW line3 {
+            type = CONTAINERH;
+            MOVE PROPERTY(fromDepartmentName());
+            MOVE PROPERTY(toDepartmentName());
+        }
+        NEW line4 {
+            type = CONTAINERH;
+            MOVE PROPERTY(proxyBoxTitle());
+            MOVE PROPERTY(proxyDepartmentName());
+        }
+    }
+}
+
+//Message
+messageIdM 'Идентификатор' = DATA LOCAL STRING ();
+timestampTicksM 'Время создания' = DATA LOCAL LONG ();
+lastPatchTimestampTicksM 'Время последнего дополнения' = DATA LOCAL LONG ();
+fromBoxIdM 'Идентификатор ящика отправителя сообщения' = DATA LOCAL STRING ();
+toBoxIdM 'Идентификатор ящика получателя сообщения' = DATA LOCAL STRING ();
+isDraftM 'Черновик' = DATA LOCAL BOOLEAN ();
+draftIsLockedM 'Черновик заблокирован' = DATA LOCAL BOOLEAN ();
+draftIsRecycledM 'Черновик утилизирован' = DATA LOCAL BOOLEAN ();
+createdFromDraftIdM 'Черновик-основание' = DATA LOCAL STRING ();
+isDeletedM 'Удалено' = DATA LOCAL BOOLEAN ();
+isTestM 'Тестовое' = DATA LOCAL BOOLEAN ();
+isInternalM 'Внутреннее' = DATA LOCAL BOOLEAN ();
+isProxifiedM 'Отправлен через промежуточного получателя' = DATA LOCAL BOOLEAN ();
+proxyBoxIdM 'Идентификатор ящика промежуточного получателя' = DATA LOCAL STRING ();
+packetIsLockedM 'Закрытый пакет' = DATA LOCAL BOOLEAN ();
+lockModeM 'Режим блокировки сообщения' = DATA LOCAL STRING ();
+messageTypeM 'Тип сообщения' = DATA LOCAL STRING ();
+isReusableM 'Создано на основе шаблона' = DATA LOCAL BOOLEAN ();
+
+FORM importMessage
+    PROPERTIES() messageIdM EXTID 'MessageId',
+                 timestampTicksM EXTID 'TimestampTicks',
+                 lastPatchTimestampTicksM EXTID 'LastPatchTimestampTicks',
+                 fromBoxIdM EXTID 'FromBoxId',
+                 toBoxIdM EXTID 'ToBoxId',
+                 isDraftM EXTID 'IsDraft',
+                 draftIsLockedM EXTID 'DraftIsLocked',
+                 draftIsRecycledM EXTID 'DraftIsRecycled',
+                 createdFromDraftIdM EXTID 'CreatedFromDraftId',
+                 isDeletedM EXTID 'IsDeleted',
+                 isTestM EXTID 'IsTest',
+                 isInternalM EXTID 'IsInternal',
+                 isProxifiedM EXTID 'IsProxified',
+                 proxyBoxIdM EXTID 'ProxyBoxId',
+                 packetIsLockedM EXTID 'PacketIsLocked',
+                 lockModeM EXTID 'LockMode',
+                 messageTypeM EXTID 'MessageType',
+                 isReusableM EXTID 'IsReusable'
+    OBJECTS em = INTEGER EXTID 'Entities'
+    PROPERTIES(em) entityTypeM EXTID 'EntityType',
+                   entityIdM EXTID 'EntityId',
+                   parentEntityIdM EXTID 'ParentEntityId',
+                   attachmentTypeM EXTID 'AttachmentType',
+                   fileNameM EXTID 'FileName',
+                   needRecipientSignatureM EXTID 'NeedRecipientSignature',
+                   signerBoxIdM EXTID 'SignerBoxId',
+                   notDeliveredEventIdM EXTID 'NotDeliveredEventId',
+                   rawCreationDateM EXTID 'RawCreationDate',
+                   signerDepartmentIdM EXTID 'SignerDepartmentId',
+                   needReceiptM EXTID 'NeedReceipt',
+                   packetIdM EXTID 'PacketId',
+                   isApprovementSignatureM EXTID 'IsApprovementSignature',
+                   isEncryptedContentM EXTID 'IsEncryptedContent',
+                   attachmentVersionM EXTID 'AttachmentVersion',
+                   labelsM EXTID 'Labels',
+                   versionM EXTID 'Version'
+    PROPERTIES(em) IN content
+                   sizeM EXTID 'Size'
+    PROPERTIES(em) IN documentInfo // Document
+                   messageIdDM EXTID 'MessageId',
+                   entityIdDM EXTID 'EntityId',
+                   creationTimestampTicksDM EXTID 'CreationTimestampTicks',
+                   counteragentBoxIdDM EXTID 'CounteragentBoxId',
+                   fileNameDM EXTID 'FileName',
+                   isDeletedDM EXTID 'IsDeleted',
+                   departmentIdDM EXTID 'DepartmentId',
+                   isTestDM EXTID 'IsTest',
+                   fromDepartmentIdDM EXTID 'FromDepartmentId',
+                   toDepartmentIdDM EXTID 'ToDepartmentId',
+                   customDocumentIdDM EXTID 'CustomDocumentId',
+                   isEncryptedContentDM EXTID 'IsEncryptedContent',
+                   senderSignatureStatusDM EXTID 'SenderSignatureStatus',
+                   revocationStatusDM EXTID 'RevocationStatus',
+                   sendTimestampTicksDM EXTID 'SendTimestampTicks',
+                   deliveryTimestampTicksDM EXTID 'DeliveryTimestampTicks',
+                   roamingNotificationStatusDM EXTID 'RoamingNotificationStatus',
+                   isReadDM EXTID 'IsRead',
+                   roamingNotificationStatusDescriptionDM EXTID 'RoamingNotificationStatusDescription',
+                   resolutionRouteIdDM EXTID 'ResolutionRouteId',
+                   proxySignatureStatusDM EXTID 'ProxySignatureStatus',
+                   typeNamedIdDM EXTID 'TypeNamedId',
+                   functionDM EXTID 'Function',
+                   workflowIdDM EXTID 'WorkflowId',
+                   titleDM EXTID 'Title',
+                   recipientResponseStatusDM EXTID 'RecipientResponseStatus',
+                   lockModeDM EXTID 'LockMode',
+                   versionDM EXTID 'Version',
+                   proxyBoxIdDM EXTID 'ProxyBoxId',
+                   proxyDepartmentIdDM EXTID 'ProxyDepartmentId'
+    PROPERTIES(em) IN contentD
+                   sizeDM EXTID 'Size'
+    PROPERTIES(em) IN recipientReceiptMetadataD
+                   recipientReceiptReceiptStatusDM EXTID 'ReceiptStatus'
+    PROPERTIES(em) IN confirmationMetadataDR
+                   recipientReceiptConfirmationReceiptStatusDM EXTID 'ReceiptStatus',
+                   recipientReceiptConfirmationDateTimeTicksDM EXTID 'DateTimeTicks'
+    PROPERTIES(em) IN amendmentRequestMetadataD
+                   amendmentFlagsDM EXTID 'AmendmentFlags',
+                   amendmentRequestReceiptStatusDM EXTID 'ReceiptStatus'
+    PROPERTIES(em) IN senderReceiptMetadataD
+                   senderReceiptStatusDM EXTID 'ReceiptStatus'
+    PROPERTIES(em) IN primaryStatusD
+                   primaryStatusSeverityDM EXTID 'Severity',
+                   primaryStatusTextDM EXTID 'StatusText'
+    PROPERTIES(em) IN secondaryStatusD
+                   secondaryStatusSeverityDM EXTID 'Severity',
+                   secondaryStatusTextDM EXTID 'StatusText'
+    OBJECTS md = INTEGER IN documentInfo EXTID 'Metadata'
+    FILTERS messageMetadata(md) == em
+    PROPERTIES(md) keyDM EXTID 'Key',
+                   valueDM EXTID 'Value'
+;
+
+//созданное сообщение
+createdMessage = DATA LOCAL Message();
+//созданный документ
+createdDocument = DATA LOCAL Document();
+
+postMessage 'Отправить сообщение' (User u) {
+    getToken(u);
+    
+    createdMessage() <- NULL;
+    createdDocument() <- NULL;
+    
+    LOCAL result = FILE ();
+    EXPORT exportMessageToPost JSON;
+    TRY {
+        EXTERNAL HTTP POST url() + '/V3/PostMessage?boxId=' + fromBoxId() HEADERS httpHeadersToken PARAMS exportFile() TO result;
+        IMPORT importMessage JSON FROM result();
+    } CATCH {
+        fileToString(result(), 'UTF-8');
+        MESSAGE 'Ошибка отправки сообщения ' + statusHttp() + ' ' + resultString();
+    }
+        
+    IF messageIdM() AND NOT message(messageIdM()) THEN NEW m = Message {
+        messageId(m) <- messageIdM();
+    }
+    FOR Message m == message(messageIdM()) DO {
+        timestampTicks(m) <- timestampTicksM();
+        lastPatchTimestampTicks(m) <- lastPatchTimestampTicksM();
+        fromBox(m) <- box(fromBoxIdM());
+        toBox(m) <- box(toBoxIdM());
+        isDraft(m) <- isDraftM();
+        draftIsLocked(m) <- draftIsLockedM();
+        draftIsRecycled(m) <- draftIsRecycledM();
+        createdFromDraftId(m) <- createdFromDraftIdM();
+        isDeleted(m) <- isDeletedM();
+        isTest(m) <- isTestM();
+        isInternal(m) <- isInternalM();
+        isProxified(m) <- isProxifiedM();
+        proxyBox(m) <- box(proxyBoxIdM());
+        packetIsLocked(m) <- packetIsLockedM();
+        lockMode(m) <- lockMode(lockModeM());
+        messageType(m) <- messageType(messageTypeM());
+        isReusable(m) <- isReusableM();
+        createdMessage() <- m;
+    }
+    FOR entityIdM(INTEGER i) AND NOT entity(entityIdM(i)) NEW e = Entity DO {
+        entityId(e) <- entityIdM(i);
+    }
+    FOR Entity e == entity(entityIdM(INTEGER i)) DO {
+        entityType(e) <- entityType(entityTypeM(i));
+        parentEntityId(e) <- parentEntityIdM(i);
+        attachmentType(e) <- attachmentType(attachmentTypeM(i));
+        fileName(e) <- fileNameM(i);
+        needRecipientSignature(e) <- needRecipientSignatureM(i);
+        signerBox(e) <- box(signerBoxIdM(i));
+        notDeliveredEventId(e) <- notDeliveredEventIdM(i);
+        rawCreationDateTicks(e) <- rawCreationDateM(i);
+        signerDepartment(e) <- department(signerDepartmentIdM(i));
+        needReceipt(e) <- needReceiptM(i);
+        packetId(e) <- packetIdM(i);
+        isApprovementSignature(e) <- isApprovementSignatureM(i);
+        isEncryptedContent(e) <- isEncryptedContentM(i);
+        attachmentVersion(e) <- attachmentVersionM(i);
+        labels(e) <- labelsM(i);
+        version(e) <- versionM(i);
+        size(e) <- sizeM(i);
+        message(e) <- message(messageIdM());
+        IF size(e) > 0 THEN {
+            LOCAL data = RAWFILE ();
+            TRY {
+                EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + fromBoxId() + '&messageId=' + messageId(message(e)) + '&entityId=' + entityId(e)  HEADERS httpHeadersToken TO data;
+            } CATCH {
+                fileToString(FILE(data()), 'UTF-8');
+                MESSAGE 'Ошибка получения контента ' + statusHttp() + ' ' + resultString();
+            }
+            data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+        }
+    }
+    // Документы только создаем, т.к. тут информация только о первом состоянии, обновление по отдельному событию
+    FOR messageIdDM(INTEGER i) AND entityIdDM(i) AND NOT document(messageIdDM(i),entityIdDM(i)) NEW d = Document DO {
+        message(d) <- message(messageIdDM(i));
+        entity(d) <- entity(entityIdDM(i));
+        creationTimestampTicks(d) <- creationTimestampTicksDM(i);
+        counteragentBox(d) <- box(counteragentBoxIdDM(i));
+        fileName(d) <- fileNameDM(i);
+        isDeleted(d) <- isDeletedDM(i);
+        department(d) <- department(departmentIdDM(i));
+        isTest(d) <- isTestDM(i);
+        fromDepartment(d) <- department(fromDepartmentIdDM(i));
+        toDepartment(d) <- department(toDepartmentIdDM(i));
+        customDocumentId(d) <- customDocumentIdDM(i);
+        isEncryptedContent(d) <- isEncryptedContentDM(i);
+        senderSignatureStatus(d) <- senderSignatureStatus(senderSignatureStatusDM(i));
+        revocationStatus(d) <- revocationStatus(revocationStatusDM(i));
+        sendTimestampTicks(d) <- sendTimestampTicksDM(i);
+        deliveryTimestampTicks(d) <- deliveryTimestampTicksDM(i);
+        roamingNotificationStatus(d) <- roamingNotificationStatus(roamingNotificationStatusDM(i));
+        isRead(d) <- isReadDM(i);
+        roamingNotificationStatusDescription(d) <- roamingNotificationStatusDescriptionDM(i);
+        resolutionRouteId(d) <- resolutionRouteIdDM(i);
+        proxySignatureStatus(d) <- proxySignatureStatus(proxySignatureStatusDM(i));
+        typeNamedId(d) <- typeNamedIdDM(i);
+        function(d) <- functionDM(i);
+        workflowId(d) <- workflowIdDM(i);
+        title(d) <- titleDM(i);
+        recipientResponseStatus(d) <- recipientResponseStatus(recipientResponseStatusDM(i));
+        lockMode(d) <- lockMode(lockModeDM(i));
+        version(d) <- versionDM(i);
+        proxyBox(d) <- box(proxyBoxIdDM(i));
+        proxyDepartment(d) <- department(proxyDepartmentIdDM(i));
+        size(d) <- sizeDM(i);
+        recipientReceiptReceiptStatus(d) <- generalReceiptStatus(recipientReceiptReceiptStatusDM(i));
+        recipientReceiptConfirmationReceiptStatus(d) <- generalReceiptStatus(recipientReceiptConfirmationReceiptStatusDM(i));
+        recipientReceiptConfirmationDateTimeTicks(d) <- recipientReceiptConfirmationDateTimeTicksDM(i);
+        amendmentFlags(d) <- amendmentFlagsDM(i);
+        amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusDM(i));
+        senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusDM(i));
+        primaryStatusSeverity(d) <- severity(primaryStatusSeverityDM(i));
+        primaryStatusText(d) <- primaryStatusTextDM(i);
+        secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityDM(i));
+        secondaryStatusText(d) <- secondaryStatusTextDM(i);
+        FOR messageMetadata(INTEGER m) == i DO {
+            metadata(d,keyDM(m)) <- valueDM(m);
+        }
+        createdDocument() <- d;
+    }
+}
+
+//----------------------- MessagePatchToPost (передаем в PostMessagePatch) -----------------------//
+box = DATA LOCAL Box ();
+boxId 'Идентификатор ящика исходного сообщения' () = boxId(box());
+boxTitle 'Ящик исходного сообщения' () = title(box());
+
+message = DATA LOCAL Message ();
+messageId 'Идентификатор сообщения' () = messageId(message());
