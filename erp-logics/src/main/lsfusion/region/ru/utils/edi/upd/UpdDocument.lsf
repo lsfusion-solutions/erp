@@ -1,6 +1,6 @@
 MODULE UpdDocument;
 
-REQUIRE MasterData, Utils, Numerator, LegalEntityEDIRu, Contract, Certificate, XMLUtils;
+REQUIRE MasterData, Utils, Numerator,  Contract, Certificate, XMLUtils;
 
 NAMESPACE Upd;
 
@@ -326,8 +326,10 @@ customerSignerAgentFirstName 'Имя представителя подписан
 customerSignerAgentMiddleName 'Отчество представителя' = DATA STRING[60](UpdDocument); //Отчество
 
 //sending
-transfered 'Дата/время отправки' = DATA DATETIME (UpdDocument);
-isTransfered 'Отправлен' (UpdDocument u) = u IS UpdDocument AND transfered(u);
+dataDateTimeTransfer 'Дата/время отправки' = DATA DATETIME (UpdDocument);
+overDateTimeTransfer 'Дата/время отправки' = ABSTRACT DATETIME (UpdDocument);
+dateTimeTransfer 'Дата/время отправки' (UpdDocument upd) = OVERRIDE overDateTimeTransfer(upd), dataDateTimeTransfer(upd);
+isTransferred 'Отправлен' (UpdDocument u) = u IS UpdDocument AND dateTimeTransfer(u);
 
 uuid 'UUID' = DATA ISTRING[36] (UpdDocument);
 idFile 'ИдФайл' (UpdDocument d) = 
@@ -378,7 +380,7 @@ FORM updDocument 'Универсальный передаточный докум
     PROPERTIES (u) customerSignerLastName, customerSignerFirstName, customerSignerMiddleName
     PROPERTIES (u) customerSignerInn, customerSignerPosition, customerSignerAgentLastName, customerSignerAgentFirstName, customerSignerAgentMiddleName
     
-    PROPERTIES (u) transfered READONLY
+    PROPERTIES (u) dateTimeTransfer READONLY
     
     OBJECTS d=UpdDocumentDetail
     
@@ -747,7 +749,7 @@ DESIGN updDocument {
                     }
                     NEW transfer {
                         caption = 'Отправка';
-                        MOVE PROPERTY (transfered(u));
+                        MOVE PROPERTY (dateTimeTransfer(u));
                     }
                 }
             }
@@ -779,14 +781,14 @@ FORM updDocuments 'УПД'
     
     OBJECTS u = UpdDocument
     PROPERTIES (u) select
-    PROPERTIES (u) READONLY nameStatus, isTransfered, transfered, numberInvoice, dateInvoice, 
+    PROPERTIES (u) READONLY nameStatus, isTransferred, dateTimeTransfer, numberInvoice, dateInvoice, 
                             nameSupplier, nameCustomer,
                             dateTimeSupplier, codeCurrency,
                             sum, invoiceSum, VATSum, withoutVAT, idFile, idConsignor, idConsignee
                             
     FILTERGROUP transfered
-        FILTER 'Отправленные' transfered(u)
-        FILTER 'Неотправленные' NOT transfered(u)
+        FILTER 'Отправленные' dateTimeTransfer(u)
+        FILTER 'Неотправленные' NOT dateTimeTransfer(u)
 
     FILTERS filterDateFrom(u), filterDateTo(u), filterSupplier(u), filterCustomer(u)
     

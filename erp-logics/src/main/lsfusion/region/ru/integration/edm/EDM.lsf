@@ -1,0 +1,66 @@
+MODULE EDM;
+
+REQUIRE LegalEntityEDIRu;
+
+CLASS EDMProvider 'Провайдер ЭДО' : StaticObject;
+
+code 'ИД' = DATA STRING[3](EDMProvider);
+name 'Наименование' (EDMProvider ep) = staticCaption(ep) IF ep IS EDMProvider CHARWIDTH 15;
+
+legalEntity = DATA LegalEntity (EDMProvider);
+nameLegalEntity 'Организация' (EDMProvider ep) = name(legalEntity(ep));
+
+CONSTRAINT legalEntity(EDMProvider ep)=LegalEntity l AND NOT isOperatorEdi(l)
+    CHECKED BY legalEntity[EDMProvider]
+    MESSAGE 'Для провайдера ЭДО должен быть задан признак "Явл. оператором ЭДО"';
+
+EXTEND FORM integrationData
+    OBJECTS ep = EDMProvider
+    PROPERTIES (ep) name READONLY, code, nameLegalEntity
+;
+
+DESIGN integrationData {
+    pane {
+        NEW edmProviders {
+            caption = 'Провайдеры ЭДО';
+            MOVE BOX(ep);         
+        }
+    }    
+}
+
+FORM EDMProviders 'Провайдеры EDI'
+    OBJECTS p = EDMProvider
+    PROPERTIES (p) name, code
+    LIST EDMProvider OBJECT p
+;
+
+DESIGN EDMProviders { 
+    size = (600, 400);
+}
+
+mainEDMProvider = DATA EDMProvider (LegalEntity);
+    
+main 'Основной' (LegalEntity legalEntity, EDMProvider provider) = mainEDMProvider(legalEntity) == provider;
+
+idEDM 'ИД организации' = DATA STRING[46] (LegalEntity, EDMProvider);
+
+EXTEND FORM legalEntity
+    OBJECTS ep = EDMProvider
+    PROPERTIES (ep) READONLY name, code
+    PROPERTIES (l, ep) idEDM, main
+;
+
+DESIGN legalEntity {
+    extendContainer {
+        NEW edmProviders {
+            caption = 'Провайдеры ЭДО';
+            MOVE BOX(ep);
+        }
+    }
+}
+
+
+
+
+
+

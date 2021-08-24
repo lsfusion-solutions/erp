@@ -1,0 +1,75 @@
+MODULE UPDDocumentEDMtransfer;
+
+REQUIRE EDM, UpdDocument, ConsignmentUpdDocument;
+
+NAMESPACE Upd;
+
+EDMProvider = DATA EDMProvider (UpdDocument);
+
+overFill (UpdDocument ei, Consignment invoice) + {
+    EDMProvider(ei) <- mainEDMProvider(supplier(invoice));
+    operatorEdi(ei) <- legalEntity(mainEDMProvider(supplier(invoice))) IF legalEntity(mainEDMProvider(supplier(invoice)));
+    nameOperatorConsignor(ei) <- fullName(legalEntity(mainEDMProvider(supplier(invoice)))) IF legalEntity(mainEDMProvider(supplier(invoice)));
+    innOperatorConsignor(ei) <- STRING[10](inn(legalEntity(mainEDMProvider(supplier(invoice))))) IF legalEntity(mainEDMProvider(supplier(invoice)));
+    codeOperatorConsignor(ei) <- code(mainEDMProvider(supplier(invoice))) IF code(mainEDMProvider(supplier(invoice)));
+}
+
+transferUpd ABSTRACT LIST (UpdDocument, EDMProvider);
+
+dateTimeTransfer 'Дата/время отправки' = DATA DATETIME (UpdDocument, EDMProvider);
+lastDateTimeTransfer = GROUP LAST dateTimeTransfer(UpdDocument upd, EDMProvider provider) ORDER dateTimeTransfer(upd, provider) BY upd;
+overDateTimeTransfer (UpdDocument upd) += lastDateTimeTransfer(upd);
+
+allowRepeatTransfer 'Разрешить повторную вышгрузку' = DATA BOOLEAN (EDMProvider);
+
+EXTEND FORM integrationData
+    PROPERTIES (ep) allowRepeatTransfer
+;
+
+manualTransfer 'Отправить провайдеру' (UpdDocument upd, EDMProvider ed) {
+    IF allowRepeatTransfer(ed) OR NOT dateTimeTransfer(upd, ed) THEN {
+        transferUpd(upd, ed);
+        IF NOT canceled() THEN {
+            dateTimeTransfer(upd, ed) <- currentDateTime();
+            APPLY;
+        }
+    } ELSE {
+        MESSAGE CONCAT ' ', 'Документ УПД с номером СЧФ -',numberInvoice(upd),' был отправлен ранее. Повторной выгрузки не требуется.' NOWAIT;
+    }
+} CONFIRM;
+
+EXTEND FORM updDocuments
+    OBJECTS ep = EDMProvider
+    PROPERTIES (u, ep) manualTransfer DRAW ep GRID
+    PROPERTIES (ep) READONLY name, code
+    PROPERTIES (u, ep) READONLY dateTimeTransfer
+    FILTERGROUP mainProvider
+        FILTER 'Основной' ep = EDMProvider(u) DEFAULT
+;
+
+DESIGN updDocuments {
+    documentDetail {
+        NEW edmProvider {
+            caption = 'ЭДО';
+            MOVE BOX(ep) {
+                PROPERTY(manualTransfer(u, ep)){
+                    charWidth = 20;
+                }
+            }
+        }
+    }
+}
+
+EXTEND FORM updDocument
+    OBJECTS ep = EDMProvider
+    PROPERTIES (u, ep) manualTransfer DRAW ep GRID
+    PROPERTIES (ep) READONLY name, code
+    PROPERTIES (u, ep) READONLY dateTimeTransfer
+;
+
+DESIGN updDocument {
+    transfer {
+        MOVE BOX(ep);
+    }
+}
+
