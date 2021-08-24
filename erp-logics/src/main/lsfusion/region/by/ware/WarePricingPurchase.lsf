@@ -1,0 +1,47 @@
+MODULE WarePricingPurchase;
+
+REQUIRE WarePurchaseInvoice, PricingPurchase;
+
+NAMESPACE Purchase;
+
+WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
+                               (CHANGED(retailPrice[InvoiceDetail](wareUserInvoiceDetail(UserInvoiceDetail d))) OR 
+                                CHANGED(pricingPrice(d)) OR 
+                                CHANGED(retailMarkup(d)) OR
+                                CHANGED(valueRetailVAT(d))) AND 
+                                retailPrice[InvoiceDetail](wareUserInvoiceDetail(d)) AND
+                               CalcPriceListType priceListType == retailPriceListType(d) AND RoundCondition roundCondition == roundCondition(priceListType, sku(d)) 
+                               NOINLINE (priceListType, roundCondition) DO {
+    retailPrice(d) <- round([ X*(Y+100)*(Z+100)/10000](pricingPrice(d),
+                                                                                                     retailMarkup(d),
+                                                                                                     valueRetailVAT(d)) (+) retailPrice[InvoiceDetail](wareUserInvoiceDetail(d)), roundCondition) (-) retailPrice[InvoiceDetail](wareUserInvoiceDetail(d))
+                                                                      WHERE retailPriceListType(d) == priceListType; 
+}
+
+WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
+                               (CHANGED(retailPrice[InvoiceDetail](wareUserInvoiceDetail(UserInvoiceDetail detail))) OR 
+                                CHANGED(pricingPrice(detail)) OR 
+                                CHANGED(retailMarkup(detail)) OR
+                                CHANGED(customerStock(detail)) OR
+                                CHANGED(pricingDateTime(detail)) OR
+                                CHANGED(valueRetailVAT(detail))) AND 
+                                retailPrice[InvoiceDetail](wareUserInvoiceDetail(detail)) AND
+                               PriceListType priceListType == retailPriceListType(detail) AND NOT pricingDocument(priceListType) 
+                               NOINLINE (priceListType) DO {
+    retailPrice(detail) <- (IF batch(detail) THEN
+                                                    prevPriceB(priceListType,
+                                                                               batch(detail),
+                                                                               customerStock(detail),
+                                                                               pricingDateTime(detail))
+                                            ELSE
+                                                    prevPriceB(priceListType,
+                                                                               sku(detail),
+                                                                               customerStock(detail),
+                                                                               pricingDateTime(detail))) (-) retailPrice[InvoiceDetail](wareUserInvoiceDetail(detail))
+                                                 WHERE retailPriceListType(detail) == priceListType;
+    retailMarkup(detail) <- [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                       retailPrice(detail),
+                                                       pricingPrice(detail),
+                                                       valueRetailVAT(detail))
+                                                 WHERE retailPriceListType(detail) == priceListType;
+}
