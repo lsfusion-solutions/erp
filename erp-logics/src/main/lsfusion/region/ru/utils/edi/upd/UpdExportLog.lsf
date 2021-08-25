@@ -1,0 +1,47 @@
+MODULE UpdExportLog;
+
+REQUIRE UpdDocument, EDM;
+
+NAMESPACE Upd;
+
+CLASS UpdExportLog 'Выгрузка УПД';
+TABLE updExportLog(UpdExportLog);
+
+disableUpdExportLog 'Отключить запись лога товара' = DATA BOOLEAN ();
+enableUpdExportLog = TRUE AND NOT disableUpdExportLog();
+
+EXTEND FORM options
+    PROPERTIES() disableUpdExportLog
+;
+
+DESIGN options { 
+    log { 
+        MOVE PROPERTY(disableUpdExportLog()) FIRST;   
+    } 
+}
+
+EDMProvider = DATA EDMProvider(UpdExportLog);
+nameEDMProvider 'Провайдер' (UpdExportLog d) = staticCaption(EDMProvider(d));
+isError 'Ошибка' = DATA BOOLEAN (UpdExportLog); 
+message 'Сообщение' = DATA STRING (UpdExportLog); 
+updDocument  = DATA UpdDocument (UpdExportLog) INDEXED NONULL DELETE;
+
+hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (UpdExportLog); 
+userLogin 'Логин пользователя' = DATA STRING[100] (UpdExportLog); 
+nameContact 'Имя пользователя' =  DATA STRING[100] (UpdExportLog) IN id;
+dateTimeSession 'Время' = DATA DATETIME (UpdExportLog) IN id;
+dateSession 'Дата' (UpdExportLog d) = DATE(dateTimeSession(d));
+
+@defineLog (UpdExportLog, 'выгрузки УПД', log, dateSession);
+
+EXTEND FORM updDocuments
+    OBJECTS e = UpdExportLog
+    PROPERTIES(e) SHOWIF enableUpdExportLog() READONLY hostnameComputer, userLogin, dateTimeSession, nameEDMProvider, isError, message
+    FILTERS updDocument(e)==u
+;
+
+DESIGN updDocuments{
+    documentDetail{
+        MOVE BOX(e);
+    }
+}
