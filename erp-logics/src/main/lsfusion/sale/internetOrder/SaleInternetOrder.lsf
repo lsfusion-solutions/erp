@@ -954,3 +954,25 @@ DESIGN internetOrder {
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY nameCarrier
 ;
+
+EXTEND CLASS TypeChange{
+    changeStatus 'Изменение статуса'
+}
+
+WHEN (CHANGED(status(InternetOrder o)) AND PREV(status(o)) AND o IS Document) IF NOT disableDocumentLog() DO {
+    NEW d = DocumentLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.changeStatus;
+        note(d) <- STRING[255]('Предыдущее значение: '+ PREV(nameStatus(o)));      
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser()); 
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();                 
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
+    }
+}
