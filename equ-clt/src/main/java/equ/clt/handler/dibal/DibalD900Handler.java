@@ -14,6 +14,8 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -350,6 +352,7 @@ public class DibalD900Handler extends MultithreadScalesHandler {
             List<String> localErrors = new ArrayList<>();
             TCPPort port = new TCPPort(scales.port, 3000);
             String openPortResult = openPort(port, scales.port);
+            boolean cleared = false;
             if (openPortResult != null) {
                 localErrors.add(openPortResult + ", transaction: " + transaction.id + ";");
             } else {
@@ -357,16 +360,26 @@ public class DibalD900Handler extends MultithreadScalesHandler {
                     if (needToClear) {
                         processTransactionLogger.info(getLogPrefix() + "Clearing items..." + scales.port);
                         sendCommand(port, getClearPBBytes());
-                        Thread.sleep(15000); //сразу после очистки весы не реагируют на следующие команды
+                        try {
+                            ServerSocket serverSocket = new ServerSocket(3001, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
+                            serverSocket.setSoTimeout(60000);
+                            serverSocket.accept(); // Блокирует выполнение, пока не придёт ответ.
+                            cleared = true;
+                            // Нам неважно, что пришло в ответ, главное, что мы его дождались - значит, очистка выполнилась
+                        } catch (IOException e) {
+                            logError(localErrors, String.format(getLogPrefix() + "Clearing items failed. IP %s, transaction %s, error", scales.port, transaction.id, e.getMessage()), e);
+                        }
                     }
 
-                    processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
-                    int count = 0;
-                    for (ScalesItem item : transaction.itemsList) {
-                        if (!Thread.currentThread().isInterrupted()) {
-                            processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, ++count, item.idBarcode, transaction.itemsList.size()));
-                            loadItem(port, item);
-                        } else break;
+                    if(cleared || !needToClear) {
+                        processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
+                        int count = 0;
+                        for (ScalesItem item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, ++count, item.idBarcode, transaction.itemsList.size()));
+                                loadItem(port, item);
+                            } else break;
+                        }
                     }
 
                 } catch (Exception e) {
@@ -381,7 +394,7 @@ public class DibalD900Handler extends MultithreadScalesHandler {
                 }
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return Pair.create(localErrors, needToClear);
+            return Pair.create(localErrors, cleared);
         }
     }
 
