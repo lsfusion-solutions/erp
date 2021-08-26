@@ -73,7 +73,7 @@ kppSupplier 'КПП продавца' = DATA STRING[9] (UpdDocument); //КПП
 
 //---Адрес
 //----АдрРФ
-regionCodeSupplier 'Код региона продавца' = DATA STRING[3](UpdDocument); //КодРегион
+regionCodeSupplier 'Код региона продавца' = DATA STRING[2](UpdDocument); //КодРегион
 
 //----АдрИнф
 countryCodeAddressSupplier 'Код страны продавца' = DATA STRING[3] (UpdDocument); //КодСтр
@@ -126,6 +126,11 @@ adrressCustomer 'Адрес покупателя' = DATA STRING[150] (UpdDocumen
 
 //----КодГАР
 codeAdrressCustomer 'Код адреса покупателя' = DATA STRING[36] (UpdDocument); //КодГАР
+
+//-ДокПодтвОтгр
+shipmentDocumentName 'Наимен. док-та отгрузки' (UpdDocument upd) = 'УПД' IF upd IS UpdDocument; //НаимДокОтгр
+shipmentDocumentNumber 'Номер док-та отгрузки' (UpdDocument upd) = numberInvoice(upd) IF upd IS UpdDocument;//НомДокОтгр
+shipmentDocumentDate 'Дата док-та отгрузки' (UpdDocument upd) = toDateDDMMYYYY(dateInvoice(upd)); //ДатаДокОтгр
 
 //-ИнфПолФХЖ1
 //--ТекстИнф
@@ -837,6 +842,7 @@ GROUP UPDExportA EXTID  'СвСчФакт';
         GROUP UPDExportA6_2 EXTID  'Адрес' :UPDExportA6;
             GROUP UPDExportA6_2_1 EXTID  'АдрРФ' :UPDExportA6_2;
             GROUP UPDExportA6_2_2 EXTID  'АдрИнф' :UPDExportA6_2;
+    GROUP UPDExportA7 EXTID 'ДокПодтвОтгр' :UPDExportA;
     GROUP UPDExportA9 EXTID  'ИнфПолФХЖ1' :UPDExportA;
         GROUP UPDExportA9_1 EXTID  'ТекстИнф' :UPDExportA9;
         
@@ -903,9 +909,9 @@ FORM UPDPR FORMEXTID '=:Файл'
                = innSupplier(d) EXTID 'ИННЮЛ' ATTR IN UPDExportA2_1_1,
                = kppSupplier(d) EXTID 'КПП' ATTR IN UPDExportA2_1_1    
                
-    PROPERTIES = (regionCodeSupplier(d) IF regionCodeSupplier(d) AND NOT codeAdrressSupplier(d)) EXTID 'КодРегион' ATTR IN UPDExportA2_2_1            
-    PROPERTIES = (countryCodeAddressSupplier(d) IF NOT (codeAdrressSupplier(d) OR regionCodeSupplier(d))) EXTID 'КодСтр' ATTR IN UPDExportA2_2_2,
-               = (adrressSupplier(d) IF NOT (codeAdrressSupplier(d) OR regionCodeSupplier(d))) EXTID 'АдрТекст' ATTR IN UPDExportA2_2_2    
+    //PROPERTIES = (regionCodeSupplier(d) IF regionCodeSupplier(d) AND NOT codeAdrressSupplier(d)) EXTID 'КодРегион' ATTR IN UPDExportA2_2_1            
+    PROPERTIES = countryCodeAddressSupplier(d) EXTID 'КодСтр' ATTR IN UPDExportA2_2_2,
+               = adrressSupplier(d) EXTID 'АдрТекст' ATTR IN UPDExportA2_2_2    
     PROPERTIES = codeAdrressSupplier(d) EXTID 'КодГАР' IN UPDExportA2_2  
         
     PROPERTIES = numberAccountSupplier(d) EXTID 'НомерСчета' ATTR IN UPDExportA2_4            
@@ -931,8 +937,12 @@ FORM UPDPR FORMEXTID '=:Файл'
                
     PROPERTIES = (regionCodeCustomer(d) IF regionCodeCustomer(d) AND NOT codeAdrressCustomer(d)) EXTID 'КодРегион' ATTR IN UPDExportA6_2_1                 
     PROPERTIES = (countryCodeAddressCustomer(d) IF NOT(regionCodeCustomer(d) OR codeAdrressCustomer(d))) EXTID 'КодСтр' ATTR IN UPDExportA6_2_2,
-               = (adrressCustomer(d) IF NOT(regionCodeCustomer(d) OR codeAdrressCustomer(d))) EXTID 'АдрТекст' ATTR IN UPDExportA6_2_2   
-    PROPERTIES = codeAdrressCustomer(d) EXTID 'КодГАР' IN UPDExportA6_2    
+               = adrressCustomer(d) EXTID 'АдрТекст' ATTR IN UPDExportA6_2_2   
+    PROPERTIES = codeAdrressCustomer(d) EXTID 'КодГАР' IN UPDExportA6_2
+    
+    PROPERTIES = shipmentDocumentName(d) EXTID 'НаимДокОтгр' ATTR IN UPDExportA7,
+               = shipmentDocumentNumber(d) EXTID 'НомДокОтгр' ATTR IN UPDExportA7,
+               = shipmentDocumentDate(d) EXTID 'ДатаДокОтгр' ATTR IN UPDExportA7
     
     PROPERTIES = (OVERRIDE codeBusinessEvent(d),'') EXTID 'Идентиф' ATTR IN UPDExportA9_1,
                = (OVERRIDE descriptionBusinessEvent(d),'') EXTID 'Значен' ATTR IN UPDExportA9_1    
