@@ -73,16 +73,26 @@ CONSTRAINT customsGroup(Country country, Item item) AND VATCustomsException(coun
 
 background 'Цвет' (Country country, Sku sku) = RGB(212, 255, 212) IF countVATCustomsException(customsGroup(country, sku)) > 0;
 
+notCustomsGroupChangeItemVAT 'Не изменять НДС при изменинии ТНВЭД в карточке товара'  = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () notCustomsGroupChangeItemVAT
+;
+DESIGN options{
+    customs{
+        MOVE PROPERTY (notCustomsGroupChangeItemVAT());
+    }
+}
+
 changeCustomsGroup(Country country, Item item, DATE date)  { 
     DIALOG customsGroups OBJECTS cg = customsGroup(country, item) INPUT NULL DO {
         customsGroup(country, item) <- cg;
         IF NOT customsGroup(VATCustomsException(country, item)) == cg THEN
             VATCustomsException(country, item) <- NULL;
             
-        VAT(item, country) <- IF VATCustomsException(country, item) THEN
+        VAT(item, country) <- (IF VATCustomsException(country, item) THEN
                                             rangeVATCustomsException(country, item)
                                          ELSE
-                                            VAT(country, item, date);
+                                            VAT(country, item, date)) WHERE NOT notCustomsGroupChangeItemVAT();
     } 
 }
 
