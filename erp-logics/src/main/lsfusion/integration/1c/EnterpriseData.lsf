@@ -7,7 +7,6 @@ NAMESPACE EnterpriseData;
 dateTimeToString = FORMULA STRING 'to_char($1, \'YYYY-MM-DD"T"HH24:MI:SS\')';
 dateToString = FORMULA STRING 'to_char($1, \'YYYY-MM-DD\')';
 
-
 idSended 'Номер переданного сообщения' = DATA INTEGER ();
 isSended 'Сообщение передано' = DATA BOOLEAN ();
 idTicket 'Получена квитанция' = DATA INTEGER ();
@@ -45,7 +44,6 @@ GROUP service EXTID 'Услуги';
 GROUP paymentCard EXTID 'ОплатаПлатежнымиКартами';
 GROUP reason EXTID 'ДокументыОснования';
 GROUP reasonDocument EXTID 'ДокументОснование';
-
 
 FORM sendMessage FORMEXTID 'Message'
     PROPERTIES ATTR = 'http://www.1c.ru/SSL/Exchange/Message' EXTID 'xmlns:msg'
@@ -177,9 +175,13 @@ META defProp(name, caption, type, class)
     WHEN CHANGED(name(###class o)) DO packet(o) <- NULL;
 END
 
+META defPropDetail(name, caption, type, class, table)
+    name caption = ABSTRACT type (###class###table);
+    WHEN CHANGED(name(###class###table d)) DO packet(class(d)) <- NULL;
+END
+
 META defPropDetail(name, caption, type, class)
-    name caption = ABSTRACT type (###class##Detail);
-    WHEN CHANGED(name(###class##Detail d)) DO packet(class(d)) <- NULL;
+    @defPropDetail(name, caption, type, class, detail);
 END
 
 META defPropObject(name, caption, type, class)
@@ -216,7 +218,7 @@ META defPropSimple(name, caption, type, class)
 END
 
 META defPropSimpleDetail(name, caption, type, class, table)
-    @defPropDetail(name, caption, type, class);
+    @defPropDetail(name, caption, type, class, table);
     EXTEND FORM sendMessage
         PROPERTIES (class###table) name EXTID caption
     ;
@@ -340,7 +342,6 @@ END
 @defStaticTypeValue(typeSaleInvoice, shipmentSale, 'ОтгрузкаБезПереходаПравСобственности_Реализовано');
 
 @defStaticType(typeInventory, 'ТипЗапасов');
-
 @defStaticTypeValue(typeInventory, revolvingPackage, 'ОборотнаяТара');
 @defStaticTypeValue(typeInventory, finishedProduct, 'ГотоваяПродукция');
 @defStaticTypeValue(typeInventory, contractorMaterial, 'ДавальческиеСырьеИМатериалы');
