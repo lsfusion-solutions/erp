@@ -483,6 +483,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     backgroundSku 'Цвет'   (d)= ABSTRACT CASE COLOR (UserInvoiceDetail);
     backgroundVAT 'Цвет'   (d)= ABSTRACT CASE COLOR (UserInvoiceDetail);
     backgroundPrice 'Цвет' (d)= ABSTRACT CASE COLOR (UserInvoiceDetail);
+    overBackgroundBarcode 'Цвет' (d)= ABSTRACT COLOR (UserInvoiceDetail);
+    backgroundBarcode 'Цвет'  (UserInvoiceDetail d)= OVERRIDE overBackgroundBarcode(d), backgroundSku(d);
         
     skipShowQuantity = ABSTRACT BOOLEAN (Invoice);
     showQuantity (Invoice i) = i IS Invoice AND NOT skipShowQuantity(i);
@@ -510,8 +512,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
         OBJECTS d = UserInvoiceDetail GRID
         PROPERTIES (d) index
-        PROPERTIES (d) ON EDIT editSku(d) BACKGROUND backgroundSku(d) idBarcodeSku, 
-                       idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
+        PROPERTIES (d) ON EDIT editSku(d) BACKGROUND backgroundBarcode(d) idBarcodeSku 
+        PROPERTIES (d) BACKGROUND backgroundSku(d) idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
         PROPERTIES (d) quantity SHOWIF showQuantity(i), namePriceListType,
                        price ON CHANGE changePrice(d) SHOWIF NOT hideWithoutVAT(i) BACKGROUND backgroundPrice(d), sum SHOWIF NOT hideWithoutVAT(i),
                        numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
