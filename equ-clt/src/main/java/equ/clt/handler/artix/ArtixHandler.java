@@ -1097,6 +1097,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         Map<String, Map<String, Object>> externalSumMap = new HashMap<>();
                         List<ShiftInfo> shiftList = new ArrayList<>();
+                        Map<String, String> cashiersMap = new HashMap();
                         Pattern shiftPattern = Pattern.compile("(?:.*)?### shift info begin ###(.*)### shift info end ###(?:.*)?");
                         Matcher shiftMatcher = shiftPattern.matcher(fileContent);
                         if (shiftMatcher.matches()) {
@@ -1134,6 +1135,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         externalSumMap.put(numberCashRegister + "/" + numberZReport, zReportExtraFields);
                                         shiftList.add(new ShiftInfo(numberCashRegister, numberZReport, timeBeg, timeEnd));
                                     }
+
+                                    JSONArray users = documentObject.optJSONArray("users");
+                                    if(users != null) {
+                                        for(int i = 0; i < users.length(); i++) {
+                                            JSONObject user = users.getJSONObject(i);
+                                            String userCode = user.optString("usercode");
+                                            String userName = user.optString("username");
+                                            if(userCode != null && userName != null) {
+                                                cashiersMap.put(userCode, userName);
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1159,6 +1172,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         String numberZReport = String.valueOf(documentObject.getInt("shift"));
                                         Integer numberReceipt = documentObject.getInt("docNum");
                                         String idEmployee = documentObject.getString("userCode");
+                                        String nameEmployee = cashiersMap.get(idEmployee);
 
                                         String identifier = documentObject.optString("identifier");
                                         String sourceIdentifier = documentObject.optString("sourceidentifier");
@@ -1356,7 +1370,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 }
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
-                                                        dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, null, null,
+                                                        dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, null,
                                                         sumCard, sumCash, sumGiftCardMap, customPaymentsMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
                                                         numberReceiptDetail, fileName, null, isSkip, receiptDetailExtraFields, cashRegister);
