@@ -179,44 +179,6 @@ DESIGN zone {
     }    
 }
 
-EXTEND FORM zones 
-    TREE stockTree a=BPSTRING[3], sg = StockGroup PARENT parent(sg)
-    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
-    PROPERTIES(z) READONLY allStocks DRAW a 
-    PROPERTIES(z, sg) READONLY inBanNegativeBalance
-    ORDERS sgTreeName
-    FILTERS stringEqualsAll(a)
-    FILTERS countCompanyStock(sg)
-
-    OBJECTS ts = Stock
-    PROPERTIES(z, ts) inBanNegativeBalance
-    PROPERTIES READONLY active(ts), name(ts), nameLegalEntity(ts), nameRegion(ts)
-    FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParent(sg, ts),
-            isCompany(ts)
-    FILTERGROUP filters2
-            FILTER 'Выбранные склады' inBanNegativeBalance(z, ts) 'F10' DEFAULT 
-    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT  
-; 
-
-DESIGN zones {
-    OBJECTS {
-        NEW stockContainer {
-            caption = 'Запрет отрицательного остатка';
-            type = SPLITH;
-            fill = 0.5;
-            NEW stockGroups {
-                fill = 1;
-                MOVE BOX(TREE stockTree) {
-                    caption = 'Группы складов';
-                }
-            }
-            MOVE BOX(ts) {
-                fill = 2;
-            }
-        }                    
-    }    
-}    
-
 CONSTRAINT SET(currentBalance(Stock st, Zone z, Sku s) < 0) AND inBanNegativeBalance(z, st)
     MESSAGE 'На зоне склада не может быть отрицательный остаток по товару';
 CONSTRAINT SET(inBanNegativeBalance(Zone z, Stock st)) AND GROUP MAX Sku s IF currentBalance(st, z, s) < 0
@@ -297,9 +259,21 @@ META defineZoneLedgerOut(objectClass, house)
     fromZone(###objectClass##ZoneLedger ledger) += zone(##objectClass(ledger));
 END
 
-META extendFormUserOrder(form, skuObject, stockObject)
-    EXTEND FORM form
-        PROPERTIES (skuObject, stockObject) READONLY overCurrentBalance
-        PROPERTIES (stockObject, skuObject) READONLY currentBalanceDefectZone, currentBalanceReturnZone, currentBalanceDiffZone
+META extendFormDocumentSkuZone(objectClass, stockProp, sku, object)
+    prevCurrentBalanceDefectZone 'Зона брака' (Sku s, ###objectClass o) = prevCurrentBalanceDefectZone(stockProp(o), s); 
+    prevCurrentBalanceReturnZone 'Зона возврата' (Sku s, ###objectClass o) = prevCurrentBalanceReturnZone(stockProp(o), s); 
+    prevCurrentBalanceDiffZone 'Зона расхождений' (Sku s, ###objectClass o) = prevCurrentBalanceDiffZone(stockProp(o), s); 
+
+    overPrevCurrentBalance 'Остаток без зон' (Sku s, ###objectClass o) = overPrevCurrentBalance(s, stockProp(o)); 
+
+    EXTEND FORM objectClass
+        PROPERTIES (sku, object) READONLY overPrevCurrentBalance, prevCurrentBalanceDefectZone, prevCurrentBalanceReturnZone, prevCurrentBalanceDiffZone 
     ;      
+END
+
+META extendFormDocumentSkuZoneStock(objectClass, sku, stock)
+    EXTEND FORM objectClass
+        PROPERTIES (sku, stock) READONLY overPrevCurrentBalance 
+        PROPERTIES (stock, sku) READONLY prevCurrentBalanceDefectZone, prevCurrentBalanceReturnZone, prevCurrentBalanceDiffZone
+    ; 
 END

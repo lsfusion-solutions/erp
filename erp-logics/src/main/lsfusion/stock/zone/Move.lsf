@@ -21,6 +21,9 @@ CLASS MoveDetail 'Строка перемещения';
 @defineDocumentDataStock (move, stock, 'Склад', );
 @defineDocumentDialogStocks(move, stock, company, , );
 
+CONSTRAINT Move m IS Move AND NOT stock(m)
+    MESSAGE 'Не задан склад для перемещения между зонами';
+
 fromZone = DATA Zone(Move);
 nameFromZone 'Зона с' (Move move) = name(fromZone(move)) IN documentHeader CHARWIDTH 15;
                                                                  
@@ -100,7 +103,7 @@ DESIGN move {
                             NEW doc1 {
                                 type = CONTAINERH;
                                 MOVE PROPERTY(isPosted(m)) { charWidth = 10; }
-                                MOVE PROPERTY(nameStock(m));
+                                MOVE PROPERTY(nameStock(m)) { notNull = TRUE; };
                                 MOVE PROPERTY(nameFromZone(m));
                                 MOVE PROPERTY(nameToZone(m));                    
                             }

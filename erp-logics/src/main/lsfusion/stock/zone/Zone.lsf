@@ -11,11 +11,15 @@ TABLE zone (Zone);
 
 dataName = DATA BPISTRING[100] (Zone);
 
-name 'Наименование' (Zone z) = OVERRIDE dataName(z), staticCaption(z) CHARWIDTH 12; 
+name 'Наименование' (Zone z) = OVERRIDE dataName(z), staticCaption(z) CHARWIDTH 12;
+
+inactive 'Неактивная' = DATA BOOLEAN (Zone);
+active 'Активный' (Zone z) = z IS Zone AND NOT inactive(z) MATERIALIZED;
 
 FORM zone 'Зона хранения'
     OBJECTS z = Zone PANEL
-    PROPERTIES(z) name
+    PROPERTIES(z) name, inactive
+    
     EDIT Zone OBJECT z
 ;
 
@@ -24,6 +28,8 @@ FORM zones 'Зоны хранения'
     PROPERTIES(z) READONLY name 
     PROPERTIES(z) NEWSESSION NEW, EDIT, DELETE
     
+    FILTERGROUP active FILTER 'Активные' active(z) DEFAULT
+
     LIST Zone OBJECT z      
 ;
 
