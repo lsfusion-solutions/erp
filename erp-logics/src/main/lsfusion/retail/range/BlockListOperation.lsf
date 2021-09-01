@@ -1,0 +1,100 @@
+MODULE BlockListOperation;
+
+REQUIRE BlockList;
+
+NAMESPACE BlockList;
+
+@defineOperation(' (блокировка товара)');
+@defineOperationRole();
+@extendFormFilterRole(o, dialogOperations);
+
+@defineOperationStock(, st, 'Склады');
+
+operation = DATA Operation (BlockList);
+nameOperation 'Операция' = name(operation(BlockList b));
+idOperation 'ID операции' = id(operation(BlockList b));
+
+operation 'Операция' (BlockListDetail b) = operation(blockList(b)) MATERIALIZED;
+
+//@defineOperationChangesDocument(blockList, BlockList, preventChangesDocument, created){    
+//    @defineOperationChangesDocumentPrefix(blockList, BlockList, BlockList, preventChangesDocument, created, ){
+//    skipPreventShowEditDelete = ABSTRACT BOOLEAN(BlockList);
+//    showEditDeleteUser (BlockList o) = (o IS BlockList AND NOT (preventChangesDocument(currentUser(),operation(o)) AND NOT sum(date(o),countDaysDocument(currentUser(),operation(o))) >= currentDate())) OR skipPreventShowEditDelete(o);          
+//};      
+//};
+//
+//overShowEditDelete(BlockList p) += showEditDeleteUser(p);
+
+
+@defineDocumentOperationConstraint(blockList, 'временная блокировка товара', BlockList);
+@extendFormFilterRoleAccess(blockList, b, blockLists);
+
+EXTEND FORM blockList
+    PROPERTIES(b) nameOperation
+;
+
+DESIGN blockList{
+    first {
+        MOVE PROPERTY(nameOperation(b)){charWidth = 30;} 
+    }
+}
+EXTEND FORM blockLists
+    PROPERTIES(b) READONLYIF isReadonly() nameOperation AFTER isPosted(b)
+;
+
+@defineDocumentOperationRole(blockList);
+
+
+
+doNotSetStocks 'Не проставлять склады по умолчанию' = DATA BOOLEAN (Operation);
+EXTEND FORM operation
+    PROPERTIES(o) doNotSetStocks
+;
+DESIGN operation {
+    BOX(st) {
+        MOVE PROPERTY(doNotSetStocks(o)) FIRST;
+    }
+}
+
+skipSetStocks = DATA LOCAL BOOLEAN (BlockList);
+
+WHEN LOCAL CHANGED(operation(BlockList b)) AND NOT doNotSetStocks(operation(b))
+    AND NOT skipSetStocks(b) DO {
+    allStocks(b) <- allStocks(operation(b));
+    dataIn(b, StockGroup stockGroup) <- dataIn(stockGroup, operation(b));
+    dataIn(b, Stock stock) <- dataIn(stock, operation(b));
+} 
+
+//-- Фильтр
+filterBlockListOperation  = DATA LOCAL Operation ();
+nameFilterBlockListOperation 'Операция' = name(filterBlockListOperation()) CHARWIDTH 15;          
+filterOperation (BlockList i) = operation(i) == filterBlockListOperation() OR (i IS BlockList AND NOT filterBlockListOperation());   
+
+EXTEND FORM blockLists
+    PROPERTIES() nameFilterBlockListOperation
+    
+    FILTERS filterOperation(b)
+;
+DESIGN blockLists {
+    documentContainer {
+        NEW filtersBox FIRST{                       
+            fill = 2;
+            NEW topFilters  {
+                alignment = STRETCH;
+                caption = 'Фильтры';
+                type = CONTAINERH;          
+                MOVE PROPERTY(nameFilterBlockListOperation());                    
+            }
+            MOVE BOX(b) {
+                fill = 1;
+            }
+        } 
+    }
+}
+
+//NAVIGATOR {
+//    retailRangeNavigator {
+//        NEW operations AFTER blockLists;
+//    }
+//}
+

@@ -196,13 +196,22 @@ DESIGN blockList {
                 fill = 1;
                 type = CONTAINERV;
                 MOVE GROUP(documentHeader,b) {
-                    type = CONTAINERH;
-                    MOVE PROPERTY(isPosted(b)) { charWidth = 10; }
-                    MOVE PROPERTY(nameNumerator(b));
-                    MOVE PROPERTY(number(b));
-                    MOVE PROPERTY(series(b));
-                    MOVE PROPERTY(date(b));
-                    MOVE PROPERTY(time(b));
+                    type = CONTAINERV;
+                    
+                    NEW first {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(isPosted(b)) { charWidth = 10; }
+                    }
+                    NEW second { 
+                        type = CONTAINERH;
+                        MOVE PROPERTY (nameNumerator(b));
+                        MOVE PROPERTY (number(b));
+                        MOVE PROPERTY (series(b));
+                        MOVE PROPERTY (date(b));
+                        MOVE PROPERTY (time(b));
+                    }        
+                
+                    
                 }
                 NEW bBox{
                     type = CONTAINERH;
@@ -231,13 +240,6 @@ DESIGN blockList {
         NEW row {
             fill = 1;
             type = TABBED;
-            NEW selectStock {
-                caption = 'Выбор складов';
-                type = SPLITH;
-                fill = 1;
-                MOVE BOX(TREE stockTree) {caption = 'Группы складов';}
-                MOVE BOX(ts) { fill = 2;}     
-            }
             NEW specificationBox {
                 caption = 'Спецификация';
                 fill = 1;
@@ -249,7 +251,15 @@ DESIGN blockList {
                     MOVE BOX(TREE skuTree) { caption = 'Группы SKU'; }
                     MOVE BOX(ks) { fill = 2;}
                 }
+            }            
+            NEW selectStock {
+                caption = 'Выбор складов';
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX(TREE stockTree) {caption = 'Группы складов';}
+                MOVE BOX(ts) { fill = 2;}     
             }
+
         }    
         MOVE TOOLBARBOX;
         PROPERTY(formOk()) {
@@ -259,6 +269,7 @@ DESIGN blockList {
 }
 
 @addEventGenerateNumberOnForm(blockList, b, blockList);
+
 
 FORM blockLists 'Временная блокировка товара'
 
@@ -324,8 +335,47 @@ DESIGN blockLists {
 }
 @extendFormEditable(blockLists);
 @defineFilterIsOpened (blockList, blockLists, b);
+
 //NAVIGATOR {
 //    retailRangeNavigator {
 //        NEW blockLists;
 //    }
 //}
+
+CLASS Reason 'Причина блокировки';
+TABLE reason (Reason);
+
+name 'Наименование' = DATA ISTRING[255](Reason);
+reason = GROUP AGGR Reason r BY name(r);
+
+inactive 'Неактивная' = DATA BOOLEAN (Reason);
+active 'Активный' (Reason r) = r IS Reason AND NOT inactive(r);
+
+FORM reason 'Причина блокировки'
+    OBJECTS r=Reason  PANEL
+    PROPERTIES(r) name, inactive
+    EDIT Reason OBJECT r
+;
+
+FORM reasons 'Причины блокировки'
+    OBJECTS r=Reason
+    PROPERTIES(r) READONLY name
+    PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE     
+    FILTERGROUP inactive FILTER 'Активные' active(r) 'F5' DEFAULT
+        
+    LIST Reason OBJECT r       
+;
+DESIGN reasons { BOX { size = (600, 400); } }
+
+reason = DATA Reason(BlockList);
+nameReason 'Причина блокировки' (BlockList b) = name(reason(b)) CHARWIDTH 20 IN documentPrm;
+
+reason (BlockListDetail b) = reason(blockList(b));
+nameReason 'Причина блокировки' (BlockListDetail b) = name(reason(b));
+
+EXTEND FORM blockList
+    PROPERTIES (b)  nameReason   
+;
+EXTEND FORM blockLists
+    PROPERTIES (b) READONLYIF isReadonly()  nameReason   
+;
