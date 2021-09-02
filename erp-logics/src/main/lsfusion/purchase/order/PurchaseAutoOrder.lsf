@@ -276,10 +276,20 @@ createAutoAfter  ABSTRACT LIST (UserOrder);
 createAutoOrdersExtra ABSTRACT LIST ();
 
 toCreate = DATA LOCAL NESTED BOOLEAN (ScheduleOrderDetail);
+
+//-- где дата заказа больше даты окончания графика
+closeScheduleOrderDetailsEndDate 'Аннулировать точки заказов'()  { 
+    NEWSESSION {
+        isClosed(Purchase.ScheduleOrderDetail d) <- TRUE WHERE dateOrder(d)>= currentDate() AND endDate(scheduleOrder(d)) < dateOrder(d);
+        APPLY;
+    }    
+}
+
 createAutoOrders 'Создание автозаказов' () {    
     toCreate(ScheduleOrderDetail d)<- NULL;
     toCreate(ScheduleOrderDetail d) <- TRUE WHERE dateOrder(d) == currentDate() AND createUserOrderAuto(scheduleOrder(d)) 
-            AND active(customerStock(d)) AND NOT isClosed(d) AND NOT (GROUP SUM 1 IF scheduleOrderDetail(Order o) == d AND isOpened(o));    
+            AND active(customerStock(d)) AND NOT isClosed(d) AND NOT (GROUP SUM 1 IF scheduleOrderDetail(Order o) == d AND isOpened(o)) 
+            AND NOT dateOrder(d)>endDate(scheduleOrder(d));    
  
     FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) DO {                 
         NEWSESSION {
