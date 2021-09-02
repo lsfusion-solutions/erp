@@ -9,7 +9,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportAction;
-import lsfusion.erp.integration.OverJDBField;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.language.property.LP;
@@ -20,6 +20,7 @@ import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.logics.form.stat.struct.export.plain.dbf.OverJDBField;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -35,6 +36,8 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.*;
+
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 public class ExportDeclarationDBFAction extends DefaultExportAction {
     private final ClassPropertyInterface declarationInterface;
@@ -241,9 +244,9 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         }
 
 
-        String[] complianceNames = new String[]{"seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
+        String[] complianceNames = new String[]{"seriesCompliance", "seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
                 "toDateCompliance", "numberDeclarationCompliance", "dateDeclarationCompliance"};
-        LP<?>[] complianceProperties = findProperties("seriesNumber[Compliance]", "date[Compliance]", "fromDate[Compliance]",
+        LP<?>[] complianceProperties = findProperties("series[Compliance]", "seriesNumber[Compliance]", "date[Compliance]", "fromDate[Compliance]",
                 "toDate[Compliance]", "numberDeclaration[Compliance]", "dateDeclaration[Compliance]");
 
         KeyExpr declarationDetail2Expr = new KeyExpr("declarationDetail");
@@ -265,6 +268,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
             ImMap<Object, Object> resultValues = complianceResult.getValue(i);
 
             Integer numberDeclarationDetail = (Integer) resultValues.get("numberDeclarationDetail");
+            String seriesCompliance = trimToEmpty((String) resultValues.get("seriesCompliance"));
             String seriesNumberCompliance = (String) resultValues.get("seriesNumberCompliance");
             LocalDate dateCompliance = (LocalDate) resultValues.get("dateCompliance");
             LocalDate fromDateCompliance = (LocalDate) resultValues.get("fromDateCompliance");
@@ -272,8 +276,13 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
             String numberDeclarationCompliance = (String) resultValues.get("numberDeclarationCompliance");
             LocalDate dateDeclarationCompliance = (LocalDate) resultValues.get("dateDeclarationCompliance");
 
-            complianceDetailList.add(new G44Detail(numberDeclarationDetail, 100000000L, "01191", seriesNumberCompliance,
-                    dateCompliance, fromDateCompliance, toDateCompliance, "BY", "", "", "", numberDeclarationCompliance, dateDeclarationCompliance));
+            String KD = seriesCompliance.equals("С") ? "01401" : seriesCompliance.equals("Д") ? "01402" : null;
+            if(KD == null) {
+                context.delayUserInterfaction(new MessageClientAction("Invalid series: '" + seriesCompliance + "'", "ExportDeclaration error"));
+            } else {
+                complianceDetailList.add(new G44Detail(numberDeclarationDetail, 100000000L, KD, seriesNumberCompliance,
+                        dateCompliance, fromDateCompliance, toDateCompliance, "BY", "", "", "", numberDeclarationCompliance, dateDeclarationCompliance));
+            }
         }
 
         customsDocumentDetailList.addAll(complianceDetailList);
