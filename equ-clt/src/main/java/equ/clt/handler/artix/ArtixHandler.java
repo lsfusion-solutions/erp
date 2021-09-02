@@ -320,9 +320,24 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             if(item.info != null) {
                 JSONObject infoJSON = new JSONObject(item.info).optJSONObject("artix");
                 if (infoJSON != null) {
-                    BigDecimal alcoholPercent = infoJSON.getBigDecimal("alcoholpercent");
-                    requireSaleRestrict = infoJSON.getInt("requiresalerestrict");
-                    inventObject.put("alcoholpercent", alcoholPercent);
+                    Double alcoholPercent = infoJSON.optDouble("alcoholpercent");
+                    if(!alcoholPercent.isNaN()) {
+                        requireSaleRestrict = infoJSON.getInt("requiresalerestrict");
+                        inventObject.put("alcoholpercent", alcoholPercent);
+                    }
+
+                    Double secondPrice = infoJSON.optDouble("secondPrice");
+                    Double thirdPrice = infoJSON.optDouble("thirdPrice");
+                    if(!secondPrice.isNaN() || !thirdPrice.isNaN()) {
+                        JSONArray additionalPrices = new JSONArray();
+                        if(!secondPrice.isNaN()) {
+                            additionalPrices.put(getAdditionalPriceJSON(2, secondPrice, "VIP"));
+                        }
+                        if(!thirdPrice.isNaN()) {
+                            additionalPrices.put(getAdditionalPriceJSON(3, thirdPrice, "Опт"));
+                        }
+                        inventObject.put("additionalprices", additionalPrices);
+                    }
                 }
             }
 
@@ -343,9 +358,28 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 inventObject.put("cquant", blisterAmount);
             }
 
+
+//            "additionalprices": [ {
+//                "pricecode": 2,
+//                        "price": 2.50,
+//                        "name": "VIP"}, {
+//                "pricecode": 3,
+//                        "price": 1.50,
+//                        "name": "Опт"
+//            }
+//]
+
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
         } else return null;
+    }
+
+    private JSONObject getAdditionalPriceJSON(int priceCode, Double price, String name) {
+        JSONObject additionalPrice = new JSONObject();
+        additionalPrice.put("pricecode", priceCode);
+        additionalPrice.put("price", price);
+        additionalPrice.put("name", name);
+        return additionalPrice;
     }
 
     private Integer getMaxBlisterAmount(CashRegisterItem item) {
