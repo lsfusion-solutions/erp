@@ -108,7 +108,7 @@ calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневны�
     overCalcQuantityPromotionSoldIntervalNew();   
       
     regularPromotionDetail(Sku s, Stock st) <- NULL WHERE in(st);
-    regularPromotionDetail(Sku s, Stock st) <- lastRegularPromotionDetail(s, st) WHERE dateFromPromotion(s, st) AND in(st);
+    regularPromotionDetail(Sku s, Stock st) <- lastRegularPromotionDetail(s, st) WHERE dateFromPromotion(s, st) AND toDate(lastPromotionPriceListDetail(s, st), st) >= subtract(currentDate(), countSoldDays(skuGroup(s))) AND in(st);
 
     dateToRegular(Sku s, Stock st) <- NULL WHERE in(st);
     dateToRegular(Sku s, Stock st) <- IF dateToPromotion(s, st) < subtract(currentDate(), 1) THEN subtract(currentDate(), 1) ELSE (MIN subtract(currentDate(), 1), subtract(fromDate(regularPromotionDetail(s, st), st), 1)) WHERE regularPromotionDetail(s, st) AND in(st);
