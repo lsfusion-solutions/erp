@@ -72,8 +72,11 @@ dataCustomGroupType = DATA CustomGroupType(GroupScales);
 customGroupType = ABSTRACT CustomGroupType(GroupScales);
 customGroupTypeDigi(GroupScales gs) = OVERRIDE dataCustomGroupType(gs), customGroupType(gs);
 nameCustomGroupTypeDigi 'Тип классификатора'(GroupScales gs) = name(customGroupTypeDigi(gs));
+skipSkuWioutGroup 'Не выгружать товары без классификатора' = DATA BOOLEAN (GroupScales);
 EXTEND FORM groupScales 
-    PROPERTIES (grs) nameCustomGroupTypeDigi SHOWIF sidModel(grs) == 'DigiSM5300';
+    PROPERTIES (grs) SHOWIF sidModel(grs) == 'DigiSM5300'nameCustomGroupTypeDigi, skipSkuWioutGroup;
+
+skip(GroupMachinery gm, Barcode b) += WHEN sidModel(gm) == 'DigiSM5300' AND skipSkuWioutGroup(gm) AND NOT customGroup(customGroupTypeDigi(gm), sku(b)) THEN TRUE;
 
 tareWeight = ABSTRACT NUMERIC[12,3] (Barcode);
 
