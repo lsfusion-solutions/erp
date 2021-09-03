@@ -10,8 +10,11 @@ loadDefaultScalesModels () + {
 
 dataCustomGroupTypeRBS = DATA CustomGroupType(GroupScales);
 nameCustomGroupTypeRBS 'Тип классификатора'(GroupScales gs) = name(dataCustomGroupTypeRBS(gs));
+skipSkuWioutGroupRBS 'Не выгружать товары без классификатора' = DATA BOOLEAN (GroupScales);
 EXTEND FORM groupScales 
-    PROPERTIES (grs) nameCustomGroupTypeRBS SHOWIF sidModel(grs) == 'KS4010';
+    PROPERTIES (grs) SHOWIF sidModel(grs) == 'KS4010' nameCustomGroupTypeRBS, skipSkuWioutGroupRBS;
+
+skip(GroupMachinery gm, Barcode b) += WHEN sidModel(gm) == 'KS4010' AND skipSkuWioutGroupRBS(gm) AND NOT customGroup(dataCustomGroupTypeRBS(gm), sku(b)) THEN TRUE;
 
 scalesGroup (MachineryPriceTransaction t, Barcode b) += group(dataCustomGroupTypeRBS(groupScales(t)), sku(b)) IF t IS MachineryPriceTransaction ;
 
