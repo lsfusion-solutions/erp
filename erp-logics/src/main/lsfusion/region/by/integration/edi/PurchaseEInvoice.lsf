@@ -21,6 +21,11 @@ receiver(UserInvoice i) += receiver(i);
 
 nameReceiver 'Приёмщик'(Invoice i) = name(receiver(i));
 
+eInvoiceDetail 'Строка ЭТТН' = DATA EInvoiceDetail (Purchase.InvoiceDetail);
+numberEInvoiceDetail 'Строка ЭТТН' (Purchase.InvoiceDetail d) = lineItemNumber(eInvoiceDetail(d));
+
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN lineItemPrice(eInvoiceDetail(d));
+
 filterDate 'Дата' = DATA LOCAL DATE ();
 filterDate (EInvoice i) = DATE(deliveryNoteDateTime(i)) == filterDate() OR NOT filterDate();      
 
@@ -84,6 +89,8 @@ copyData(EInvoice ei, Invoice i)  {
         sum(id) <- lineItemAmountWithoutCharges(eid) WHERE isEDI(ei);
         VATSum(id) <- lineItemAmountCharges(eid) WHERE isEDI(ei);
         invoiceSum(id) <- lineItemAmount(eid) WHERE isEDI(ei);
+        eInvoiceDetail(id) <- eid;
+
         overCopy(eid,id); 
     }
 }
