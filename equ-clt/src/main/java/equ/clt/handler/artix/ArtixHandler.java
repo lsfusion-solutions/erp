@@ -816,6 +816,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 //                          safeFileDelete(file, false);
                         } catch (Throwable e) {
                             softCheckLogger.error("File: " + file.getAbsolutePath(), e);
+                            throw new RuntimeException(logPrefix + "failed to parse " + file.getAbsolutePath(), e);
                         }
                     }
                 }
