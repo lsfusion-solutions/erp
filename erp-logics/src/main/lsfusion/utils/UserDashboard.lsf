@@ -1,6 +1,6 @@
 MODULE UserDashboard;
 
-REQUIRE Security, Hierarchy, Service, MasterData;
+REQUIRE Security, Hierarchy, Service, MasterData, Image;
 
 NAMESPACE UserDashboard;
 
@@ -23,6 +23,7 @@ imageType (IMAGEFILE f) = CASE
 ;
 
 imageHtml (IMAGEFILE f, STRING style, STRING width, STRING height) = CONCAT ' ', '<img', 'style = "' + style +'"', 'width='+width,'height=' + height, 'src="' + name(imageType(f)) + ';base64, ' + encodeBase64(f) + '" alt="Image" />';
+imageHtml (IMAGEFILE f, INTEGER size) = imageHtml(f, 'padding:2px', STRING(size) + 'px', STRING(size) + 'px'); 
 imageHtml (IMAGEFILE f) = imageHtml(f, 'padding:2px', '' IF NOT f, '25px'); 
 
 // navigator elements
@@ -81,11 +82,11 @@ name 'Наименование' = ABSTRACT ISTRING(DashboardNode);
 order 'Порядок' = ABSTRACT INTEGER (DashboardNode);
 image 'Картинка' = ABSTRACT IMAGEFILE (DashboardNode);
 
-imageHtml (DashboardNode n) = '<p>' + (imageHtml(image(n)) IF isWeb()) + '</p>';
 
 CLASS HomeFolder { home } : DashboardNode;
 
 in (InterfaceNode in, DashboardNode dn) = OVERRIDE parent(dn) = in, dn IS HomeFolder AND NOT in IS Interface;
+interfaceNode (DashboardNode dn) = GROUP MAX InterfaceNode in IF in(in, dn);
 
 name (HomeFolder h) += '' IF h IS HomeFolder;
 image (HomeFolder h) +=  homeFolder() IF h IS HomeFolder;
@@ -105,6 +106,7 @@ name 'Наименование' = DATA ISTRING (Interface);
 name (Interface i) += name(i);
 
 style 'CSS-style' = DATA STRING (Interface) CHARWIDTH 100;
+sizeImage 'Масштабироваать иконки до, px' = DATA INTEGER (Interface) CHARWIDTH 3;
 
 denyCloseDashboard 'Запретить закрытие рабочего стола' = DATA BOOLEAN (Interface);
 hideTree 'Скрыть дерево' = DATA BOOLEAN (Interface);
@@ -130,6 +132,8 @@ DESIGN securityPolicy {
 }
 
 currentInterface() = OVERRIDE interface(currentUser()), interface(mainRole(currentUser())), [GROUP LAST interface(UserRole r) ORDER r]();
+
+imageHtml (DashboardNode n) = '<p>' + (imageHtml(image(n), OVERRIDE sizeImage(currentInterface()), 25 ) IF isWeb()) + '</p>';
 
 richName '' (DashboardNode n) = RICHTEXT (
     CONCAT '',
@@ -188,7 +192,6 @@ END
 @upDownOrder(element);
 @upDownOrder(folder);
 
-
 // folder 
 parent 'Родитель' = DATA InterfaceNode (Folder);
 parent[InterfaceNode] (Folder f) += parent(f);
@@ -236,7 +239,7 @@ addFolder 'Добавить' (InterfaceNode in) {
 
 FORM interface 'Интерфейс рабочего стола'
     OBJECTS i = Interface PANEL
-    PROPERTIES (i) name, style, denyCloseDashboard, hideTree
+    PROPERTIES (i) name, style, sizeImage, denyCloseDashboard, hideTree
     
     TREE inTree in = InterfaceNode PARENT parent(in)
     PROPERTIES (in) order[Folder] SHOWIF NULL, up, down
@@ -360,6 +363,7 @@ DESIGN dashboard {
                 fill = 0.7;
                 PROPERTY (richName(dn)) {
                     background = RGB (213,229,232);
+                    toolTip = 'Элемент рабочего стола';
                 }
             }
         }
