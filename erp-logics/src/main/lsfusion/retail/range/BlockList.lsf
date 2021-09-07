@@ -33,6 +33,8 @@ CLASS BlockListDetail 'Строка временной блокировки то
 
 @defineDocumentHeaderLegalEntity(blockList, supplier, 'Поставщик');
 supplier (BlockListDetail d) = supplier(blockList(d));
+nameSupplier 'Поставщик' (BlockListDetail d)= name(supplier(d)) IN documentPrm CHARWIDTH 20;
+
 CONSTRAINT BlockList b IS BlockList AND NOT supplier(b)
     MESSAGE 'Для документа "Временная блокировка товара" обязательно должен быть задан поставщик';
  
@@ -69,7 +71,7 @@ in 'Отм' (BlockList b, Stock stock) =
 stocks 'Склады' (BlockList b) = GROUP
                                        CONCAT ISTRING[250] (name(Stock stock)) IF in(b, stock) , ', '
                                        ORDER stock CHARWIDTH 20 MATERIALIZED;
-stocks 'Склады' (BlockListDetail d) = stocks(blockList(d));                                       
+stocks 'Склады' (BlockListDetail d) = stocks(blockList(d)) CHARWIDTH 20;                                       
 
 @defineDocumentPosted(blockList);
 @defineDocumentClosed(blockList);
@@ -336,11 +338,11 @@ DESIGN blockLists {
 @extendFormEditable(blockLists);
 @defineFilterIsOpened (blockList, blockLists, b);
 
-//NAVIGATOR {
-//    retailRangeNavigator {
-//        NEW blockLists;
-//    }
-//}
+NAVIGATOR {
+    retailRangeNavigator {
+        NEW blockLists;
+    }
+}
 
 CLASS Reason 'Причина блокировки';
 TABLE reason (Reason);
@@ -379,3 +381,14 @@ EXTEND FORM blockList
 EXTEND FORM blockLists
     PROPERTIES (b) READONLYIF isReadonly()  nameReason   
 ;
+
+show 'Просмотреть' (BlockList i)   { 
+    NEWSESSION {
+        SHOW blockList OBJECTS b = i DOCKED READONLY;
+    }
+}TOOLBAR;
+show 'Просмотреть' (BlockListDetail d)  { 
+	NEWSESSION {
+	    SHOW blockList OBJECTS b = blockList(d), d = d DOCKED READONLY ;
+	}
+}TOOLBAR;
