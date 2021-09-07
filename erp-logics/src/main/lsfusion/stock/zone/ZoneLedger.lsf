@@ -133,14 +133,13 @@ levelParent (Zone zone, StockGroup stockGroup) = GROUP
 parentInBanNegativeBalance (Zone zone, StockGroup stockGroup) = TRUE IF levelParent (zone, stockGroup) MATERIALIZED;
                                                                
 inBanNegativeBalance 'Запрет отрицательного остатка' (Zone zone, StockGroup stockGroup) = OVERRIDE
-    dataInBanNegativeBalance[Zone,Stock](zone, stockGroup),
+    dataInBanNegativeBalance(zone, stockGroup),
     parentInBanNegativeBalance (zone, stockGroup),
     allStocks(zone) AND stockGroup IS StockGroup;
 
 inBanNegativeBalance 'Запрет отрицательного остатка' (Zone zone, Stock stock) =
     (OVERRIDE dataInBanNegativeBalance(zone, stock),
-              (inBanNegativeBalance(zone, stockGroup(stock))))
-    AND isCompany(stock) AND active(stock) MATERIALIZED;
+              (inBanNegativeBalance(zone, stockGroup(stock)))) MATERIALIZED;
 
 EXTEND FORM zone 
     TREE stockTree a=BPSTRING[3], sg = StockGroup PARENT parent(sg)
