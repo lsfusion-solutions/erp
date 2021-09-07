@@ -1352,6 +1352,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 externalNumber = trimToNull(inventPosition.optString("extdocid"));
                                             }
 
+                                            String extendedOptions = trimToNull(inventPosition.optString("extendetoptions"));
+
                                             if(bonusesInDiscountPositions && bonusPaid != null) {
                                                 BigDecimal baseSum = BigDecimal.valueOf((inventPosition.getDouble("baseSum")));
                                                 for (int j = 0; j < discountPositionsArray.length(); j++) {
@@ -1402,6 +1404,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 if(isSaleInvoice) {
                                                     //as in equ-srv
                                                     receiptDetailExtraFields.put("idReceipt", nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy")) + "_" + numberReceipt);
+                                                }
+                                                if(extendedOptions != null) {
+                                                    receiptDetailExtraFields.put("extendedOptions", extendedOptions);
                                                 }
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
