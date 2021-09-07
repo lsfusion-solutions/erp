@@ -21,6 +21,12 @@ scalesGroup (MachineryPriceTransaction t, Barcode b) += group(dataCustomGroupTyp
 skilLoadImages 'Не выгружать изображения в весы' = ABSTRACT BOOLEAN (GroupScales) PREREAD;
 tareWeight = ABSTRACT NUMERIC[12,3] (Barcode); 
 
+imageRBS = DATA IMAGEFILE (Item);
+
+WHEN CHANGED (image(Item i)) DO { 
+    imageRBS(i) <- NULL;
+}
+
 code = DATA LOCAL STRING();
 message = DATA LOCAL STRING(INTEGER);
 FORM result
@@ -78,9 +84,16 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             WHERE in(t, b)
             TO items;
         
+        FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) AND NOT imageRBS(sku(b)) DO {
+            TRY {
+                convertImage((OVERRIDE smallImage(sku(b)), image(sku(b))), 'png');
+                imageRBS(Sku s) <- convertedImage();
+            }
+        }
+        
         zipping(STRING[1000] f) <- NULL;
         FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) DO
-            zipping(STRING[1000] f) <- FILE(OVERRIDE smallImage(sku(b)), image(sku(b))) WHERE f == 'item_' + id(b) + '.png';
+            zipping(STRING[1000] f) <- FILE(imageRBS(sku(b))) WHERE f == 'item_' + id(b) + '.png';
         IF GROUP SUM 1 IF zipping(STRING[1000] f) THEN {
             makeZipFile();
             itemsImages()<- zipped();
