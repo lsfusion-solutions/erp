@@ -1,0 +1,88 @@
+MODULE ItemInternet;
+
+REQUIRE Item;
+
+NAMESPACE Iteml;
+
+//работа с изображениями
+GROUP images;
+
+dataImageTimeChanged = DATA DATETIME (Item);
+urlHttpAccess 'Url изображения' = DATA STRING[255] (Item);
+hashImage = DATA STRING[128] (Item);
+
+calcmd5 (IMAGEFILE f)= FORMULA STRING[100] 'md5($1)';
+
+WHEN SETCHANGED (dataImage(Item i)) DO {
+    dataImageTimeChanged(i) <- currentDateTime();
+    hashImage(i) <- calcmd5(dataImage(i));
+}
+
+ftpConnectionString 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
+imageFolderName 'Директория на FTP для изображений' = DATA STRING[60] ();
+pathHttpAccess 'Путь для доступа по http' = DATA STRING[255] ();
+imageHttps 'Работа с изображениями по https' = DATA BOOLEAN ();
+pathHttpsAccess 'Путь для доступа по https' = DATA STRING[255] ();
+pathImageWebAccess = IF imageHttps() THEN pathHttpsAccess() ELSE pathHttpAccess();
+
+sendImageItemToFtp(Item i){
+    WRITE dataImage(i) TO CONCAT '', ftpConnectionString(), imageFolderName(), id(i);
+    urlHttpAccess(i) <- CONCAT '', pathImageWebAccess(), imageFolderName(), id(i), '.jpg';
+    dataImageTimeChanged(i) <- NULL;
+}
+
+//задание для планировщика
+sendImageToFTP 'Выгрузка изображений на FTP'(){
+    NEWSESSION {
+        FOR dataImageTimeChanged(Item i) DO {
+            sendImageItemToFtp(i);
+        }
+        APPLY;
+    }
+}
+
+sendAllImageToFTP 'Выгрузка всех изображений на FTP'(){
+    NEWSESSION {
+        FOR dataImage(Item i) DO {
+            sendImageItemToFtp(i);
+        }
+        APPLY;
+    }
+}
+
+calcAllImageHash 'Рачитать md5 всех изображений' (){
+    FOR dataImage(Item i) AND NOT hashImage(i)DO {
+        hashImage(i) <- calcmd5(dataImage(i));
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData
+    PROPERTIES ftpConnectionString(), imageFolderName(), imageHttps(),
+        pathHttpAccess(), pathHttpsAccess(), sendImageToFTP(), sendAllImageToFTP(),
+        calcAllImageHash();
+
+DESIGN integrationData{
+    pane{
+        NEW delivery{
+            caption = 'Доставка';
+            type = TABBED;
+            NEW settings{
+                caption = 'Настройки';
+                type = CONTAINERV;
+                MOVE PROPERTY (ftpConnectionString());
+                MOVE PROPERTY (imageFolderName());
+                MOVE PROPERTY (imageHttps());
+                MOVE PROPERTY (pathHttpAccess());
+                MOVE PROPERTY (pathHttpsAccess());
+                NEW action{
+                    caption ='Выгрузка';
+                    type = CONTAINERH ;
+                    MOVE PROPERTY (sendImageToFTP());
+                    MOVE PROPERTY (sendAllImageToFTP());
+                    MOVE PROPERTY (calcAllImageHash());              
+                }
+            }
+        }
+    }
+}

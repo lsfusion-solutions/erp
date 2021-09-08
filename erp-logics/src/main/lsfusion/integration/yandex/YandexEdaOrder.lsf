@@ -1,0 +1,198 @@
+MODULE YandexEdaOrder;
+
+REQUIRE YandexEda, SaleInternetOrderIntegration;
+
+NAMESPACE YandexEda;
+
+GROUP deliveryInfo;
+GROUP deliveryAddress : deliveryInfo;
+GROUP paymentInfo;
+
+eatsId = DATA LOCAL STRING();
+persons = DATA LOCAL STRING();
+phoneNumber = DATA LOCAL STRING();
+clientName = DATA LOCAL STRING();
+latitude = DATA LOCAL STRING();
+full = DATA LOCAL STRING();
+longitude = DATA LOCAL STRING();
+pariatura = DATA LOCAL STRING();
+deliveryDate = DATA LOCAL STRING();
+comment = DATA LOCAL STRING();
+restaurantId = DATA LOCAL STRING();
+quantity = DATA LOCAL STRING(INTEGER);
+price = DATA LOCAL STRING(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+id = DATA LOCAL STRING(INTEGER);
+itemsPromos = DATA LOCAL INTEGER(INTEGER);
+discount = DATA LOCAL STRING(INTEGER);
+type = DATA LOCAL STRING(INTEGER);
+itemsModifications = DATA LOCAL INTEGER(INTEGER);
+quantity1 = DATA LOCAL STRING(INTEGER);
+price1 = DATA LOCAL STRING(INTEGER);
+name1 = DATA LOCAL STRING(INTEGER);
+id1 = DATA LOCAL STRING(INTEGER);
+discount1 = DATA LOCAL STRING(INTEGER);
+type1 = DATA LOCAL STRING(INTEGER);
+total = DATA LOCAL STRING();
+deliveryFee = DATA LOCAL STRING();
+change = DATA LOCAL STRING();
+itemsCost = DATA LOCAL STRING();
+paymentType = DATA LOCAL STRING();
+discriminator = DATA LOCAL STRING();
+
+FORM yandexorder FORMEXTID 'null'
+    PROPERTIES() eatsId, persons, comment, restaurantId, discriminator
+    PROPERTIES() IN deliveryInfo phoneNumber, clientName, pariatura, deliveryDate
+    PROPERTIES() IN deliveryAddress latitude, full, longitude
+
+    OBJECTS items = INTEGER
+    PROPERTIES(items) quantity, price, name, id
+    FILTERS imported(items)
+
+    OBJECTS promos = INTEGER
+    FILTERS itemsPromos(promos) == items
+    PROPERTIES(promos) discount, type
+    FILTERS imported(promos)
+
+    OBJECTS modifications = INTEGER
+    FILTERS itemsModifications(modifications) == items
+    PROPERTIES(modifications) quantity1 EXTID 'quantity', price1 EXTID 'price', name1 EXTID 'name', id1 EXTID 'id'
+    FILTERS imported(modifications)
+
+    OBJECTS promos1 = INTEGER EXTID 'promos'
+    PROPERTIES(promos1) discount1 EXTID 'discount', type1 EXTID 'type'
+    FILTERS imported(promos1)
+    PROPERTIES() IN paymentInfo total, deliveryFee, change, itemsCost, paymentType;
+
+
+uuid = DATA STRING (InternetOrder) INDEXED ;
+itemById (STRING id) = GROUP LAST Item i ORDER id(i) WHERE id(i) == id;
+yandexCarrier = GROUP MAX Carrier r IF id(r) = 'yandex';
+//yandexEdaOrderStatus (InternetOrder d) = CASE 
+//    WHEN status(d) = StatusInternetOrder.isPicking THEN ''
+
+createorder(FILE f){
+    LOCAL tokenClient = STRING ();
+    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    logToFile('yandex', CONCAT ' : ', 'Create order');
+    IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
+    }
+    ELSE {
+        IMPORT yandexorder FROM f;
+        NEW order = InternetOrder {
+            carrier(order) <- yandexCarrier();
+            idAggregator(order) <- eatsId();
+            supplierStock(order) <-departmentStore(GROUP MAX Carrier c IF id(departmentStore(c)) = restaurantId() AND name(c) = 'sber');;
+            customerComment(order) <- comment();
+            nameInternetCustomer(order) <- STRING[255](clientName());
+            addressInternetCustomer(order) <- STRING[400](full());
+            phoneInternetCustomer(order) <- STRING[100](phoneNumber());
+            deliveryDate(order) <- DATE(deliveryDate());
+            isPosted(order) <- TRUE;
+            uuid(order) <- STRING(LONG(order));
+            FOR id(INTEGER items) NEW detail = InternetOrderDetail DO{
+                sku(detail) <- itemById(id(items));
+                quantity(detail) <- NUMERIC[16,5](quantity(items));
+                price(detail) <- NUMERIC[15,2](price(items));
+                internetOrder(detail) <- order;
+            }
+            APPLY ;
+            
+            EXPORT JSON FROM result = 'OK', orderId = uuid(order);
+        }
+    } 
+}  
+
+internetOrderByUuid (STRING id) = GROUP LAST InternetOrder order  
+    WHERE uuid(order) == id;
+
+updateorder(FILE f){
+    LOCAL order = STRING ();
+    order() <- replace(servletPath(), TEXT('/exec/order/'), TEXT (''));
+    logToFile('yandex', CONCAT ' : ', 'Update order', order());
+    LOCAL tokenClient = STRING ();
+    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
+    }
+    ELSE {
+        IMPORT yandexorder FROM f;
+        IF internetOrderByUuid(order()) THEN{
+            //aggregatorName(internetOrderByUuid(order())) <- discriminator();
+            idAggregator(internetOrderByUuid(order())) <- eatsId();
+            supplierStock(internetOrderByUuid(order())) <- departmentStore(GROUP MAX Carrier c IF id(departmentStore(c)) = restaurantId() AND name(c) = 'sber');
+            customerComment(internetOrderByUuid(order())) <- comment();
+            nameInternetCustomer(internetOrderByUuid(order())) <- STRING[255](clientName());
+            addressInternetCustomer(internetOrderByUuid(order())) <- STRING[400](full());
+            phoneInternetCustomer(internetOrderByUuid(order())) <- STRING[100](phoneNumber());
+            deliveryDate(internetOrderByUuid(order())) <- DATE(deliveryDate());
+            isPosted(internetOrderByUuid(order())) <- TRUE;
+            DELETE InternetOrderDetail detail WHERE internetOrder(detail) == internetOrderByUuid(order());
+            FOR id(INTEGER items) NEW detail = InternetOrderDetail DO{
+                sku(detail) <- itemById(id(items));
+                quantity(detail) <- NUMERIC[16,5](quantity(items));
+                price(detail) <- NUMERIC[15,2](price(items));
+                internetOrder(detail) <- internetOrderByUuid(order());
+            }
+            APPLY ;
+            EXPORT JSON FROM result = 'OK';
+        }
+        ELSE {
+            EXPORT JSON FROM code = 100, description = 'Не найден заказ'; 
+        }
+    }  
+}
+
+deleteorder(FILE f){
+    LOCAL tokenClient = STRING ();
+    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
+    }
+    ELSE {
+        LOCAL order = STRING ();
+        order() <- replace(servletPath(), TEXT('/exec/order/'), TEXT (''));
+        IF internetOrderByUuid(order()) THEN{
+            status(internetOrderByUuid(order())) <- StatusInternetOrder.closed;
+            APPLY ;
+            EXPORT JSON FROM order = uuid(internetOrderByUuid(order())), status = 'Отменён';
+        }
+        ELSE {
+            EXPORT JSON FROM code = 100, description = 'Не найден заказ'; 
+       
+        }
+    }
+}
+
+getOrder (FILE f) {
+    LOCAL tokenClient = STRING ();
+    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
+    }
+    ELSE{
+        LOCAL path = STRING ();
+        path() <- replace(servletPath(), TEXT('/exec/order/'), TEXT (''));
+        LOCAL orderNumber = STRING ();
+        LOCAL param = STRING ();
+        orderNumber() <- getWord(path(), '/', 1);
+        param() <- getWord(path(), '/', 2);
+        logToFile('yandex', CONCAT ' : ', 'IN order method', method(), 'path', path(), 'order', orderNumber(), 'param', param());
+        LOCAL order = InternetOrder();
+        //order() <- GROUP MAX 
+        IF (param() = 'status' AND order()) THEN {}
+            EXPORT JSON FROM param = param(), order = order();
+    }
+}
+
+
+//основной метод api для работы с заказами
+order (FILE f) {
+    logToFile('yandex', CONCAT ' : ', 'IN order method', method());
+    CASE 
+        WHEN method() = 'POST' THEN createorder(f);
+        WHEN method() = 'PUT' THEN updateorder(f);
+        WHEN method() = 'DELETE' THEN deleteorder(f);
+        WHEN method() = 'GET' THEN getOrder(f);
+}

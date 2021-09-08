@@ -1,0 +1,182 @@
+MODULE GlovoOrder;
+
+REQUIRE System, SaleInternetOrder, DeliveryOption, GlovoMenu, SaleInternetOrderIntegration;
+
+NAMESPACE Glovo;
+
+GROUP delivery_address;
+GROUP courier;
+GROUP customer;
+GROUP invoicing_details : customer;
+
+store_id = DATA LOCAL STRING();
+partner_discounted_products_total = DATA LOCAL STRING();
+minimum_basket_surcharge = DATA LOCAL STRING();
+latitude = DATA LOCAL STRING();
+label = DATA LOCAL STRING();
+longitude = DATA LOCAL STRING();
+pick_up_code = DATA LOCAL STRING();
+partner_discounts_products = DATA LOCAL STRING();
+is_picked_up_by_customer = DATA LOCAL STRING();
+cutlery_requested = DATA LOCAL STRING();
+order_time = DATA LOCAL STRING();
+estimated_total_price = DATA LOCAL STRING();
+estimated_pickup_time = DATA LOCAL STRING();
+utc_offset_minutes = DATA LOCAL STRING();
+quantity = DATA LOCAL STRING(INTEGER);
+price = DATA LOCAL STRING(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+productsAttributes = DATA LOCAL INTEGER(INTEGER);
+quantity1 = DATA LOCAL STRING(INTEGER);
+price1 = DATA LOCAL STRING(INTEGER);
+name1 = DATA LOCAL STRING(INTEGER);
+id = DATA LOCAL STRING(INTEGER);
+id1 = DATA LOCAL STRING(INTEGER);
+purchased_product_id = DATA LOCAL STRING(INTEGER);
+order_code = DATA LOCAL STRING();
+delivery_fee = DATA LOCAL STRING();
+name2 = DATA LOCAL STRING();
+phone_number = DATA LOCAL STRING();
+bundled_orders = DATA LOCAL STRING(INTEGER);
+total_customer_to_pay = DATA LOCAL STRING();
+allergy_info = DATA LOCAL STRING();
+currency = DATA LOCAL STRING();
+customer_cash_payment_amount = DATA LOCAL STRING();
+order_id = DATA LOCAL STRING();
+payment_method = DATA LOCAL STRING();
+name3 = DATA LOCAL STRING();
+company_name = DATA LOCAL STRING();
+company_address = DATA LOCAL STRING();
+tax_id = DATA LOCAL STRING();
+phone_number1 = DATA LOCAL STRING();
+hash = DATA LOCAL STRING();
+
+FORM importOrderGlovo FORMEXTID 'null'
+    PROPERTIES() store_id, partner_discounted_products_total, minimum_basket_surcharge, pick_up_code, partner_discounts_products, is_picked_up_by_customer, cutlery_requested, order_time, estimated_total_price, estimated_pickup_time, utc_offset_minutes, order_code, delivery_fee, total_customer_to_pay, allergy_info, currency, customer_cash_payment_amount, order_id, payment_method
+    PROPERTIES() IN delivery_address latitude, label, longitude
+
+    OBJECTS products = INTEGER
+    PROPERTIES(products) quantity, price, name, id1 EXTID 'id', purchased_product_id
+    FILTERS imported(products)
+
+    OBJECTS attributes = INTEGER
+    FILTERS productsAttributes(attributes) == products
+    PROPERTIES(attributes) quantity1 EXTID 'quantity', price1 EXTID 'price', name1 EXTID 'name', id
+    FILTERS imported(attributes)
+    PROPERTIES() IN courier name2 EXTID 'name', phone_number
+
+    OBJECTS bundled_orders = INTEGER
+    PROPERTIES(bundled_orders) bundled_orders EXTID 'value'
+    FILTERS imported(bundled_orders)
+    PROPERTIES() IN customer name3 EXTID 'name', phone_number1 EXTID 'phone_number', hash
+    PROPERTIES() IN invoicing_details company_name, company_address, tax_id;
+
+
+inToken 'Токен получения Glovo' = DATA STRING ();
+testUrlServer 'Url тестового сервера' = DATA STRING[255] ();
+prodUrlServer 'Url сервера' = DATA STRING[255] ();
+testMode 'Тестовый режим' = DATA BOOLEAN ();
+
+
+EXTEND FORM integrationData
+    PROPERTIES() inToken, testUrlServer, prodUrlServer, testMode;
+    
+DESIGN integrationData{
+    glovo{
+        MOVE PROPERTY (inToken());
+        MOVE PROPERTY (testUrlServer());
+        MOVE PROPERTY (prodUrlServer());
+        MOVE PROPERTY (testMode());
+    }
+}
+    
+glovoCarrier = GROUP MAX Carrier r IF id(r) = 'glovo';
+itemById (STRING id) = GROUP MAX Item i IF id(i) == id;
+stockOrder (STRING id) = ABSTRACT DepartmentStore;
+ 
+createOrder(FILE f){
+    IMPORT importOrderGlovo FROM f;
+    NEW order = InternetOrder{
+        date(order) <- currentDate();
+        time(order) <- currentTime();
+        idAggregator(order) <- order_id();
+        carrier(order) <- glovoCarrier();
+        courierName(order) <- name2();
+        courierPhone(order) <- STRING[30](phone_number());
+        paymentTypeInternetOrder(order) <- PaymentTypeInternetOrder.prepayment;
+        paymentCardSumInternetOrder(order) <- NUMERIC[18,4](NUMERIC[18,4](estimated_total_price())/100);
+        deliveryDate(order) <- DATE (estimated_pickup_time());
+        deliveryTimeToInternetOrder(order) <- toTime(DATETIME(estimated_pickup_time()));
+        nameInternetCustomer(order) <- STRING[255](name3());
+        phoneInternetCustomer(order) <- STRING[100](phone_number1());
+        addressInternetCustomer(order) <- STRING[400](label());
+        customerComment(order) <- allergy_info();
+        supplierStock(order) <- stockOrder(store_id());//GROUP MAX DepartmentStore d IF idStock(glovoCarrier(),d) = store_id();
+        isPosted(order) <- TRUE;
+        FOR id1(INTEGER products) NEW detail = InternetOrderDetail DO{
+            internetOrder(detail) <- order;
+            sku(detail) <- itemById(id1(products));
+            quantity(detail) <-NUMERIC[16,5](quantity(products));
+            price(detail) <- NUMERIC[16,4](NUMERIC[16,4](price(products))/100);
+        }
+    }
+    APPLY;
+    IF canceled() THEN {
+        EXPORT JSON FROM result = 'error', description = applyMessage();
+    }
+    ELSE EXPORT JSON FROM status = 'ok';      
+}
+
+cancel_reason = DATA LOCAL STRING();
+payment_strategy = DATA LOCAL STRING();
+
+FORM updateOrder FORMEXTID 'null'
+    PROPERTIES() store_id, cancel_reason, payment_strategy, order_id;
+
+updateOrder(FILE f){
+    IMPORT updateOrder FROM f;
+    IF (GROUP MAX InternetOrder order IF idAggregator(order) = order_id()) THEN {
+        status(GROUP MAX InternetOrder order IF idAggregator(order) = order_id()) <- StatusInternetOrder.closed;
+    }    
+    APPLY ;
+    EXPORT JSON FROM status = 'ok';  
+}
+
+importOrder(FILE f){
+    IMPORT importOrderGlovo FROM f;
+    NEW order = InternetOrder{
+        date(order) <- DATE(order_time());
+        time(order) <- toTime(DATETIME(order_time()));
+    }
+}
+
+statusGlovo (InternetOrder o) = CASE 
+    WHEN status(o) = StatusInternetOrder.isPicking THEN 'ACCEPTED'
+    WHEN status(o) = StatusInternetOrder.picked THEN 'READY_FOR_PICKUP'
+    WHEN status(o) = StatusInternetOrder.delivery THEN 'OUT_FOR_DELIVERY'
+;
+
+updateStatusOrder 'Обновление статуса заказа' (InternetOrder order){
+    TRY {
+        LOCAL f = FILE ();
+        LOCAL answer = FILE ();
+        LOCAL headers = TEXT(STRING[100]);
+        headers('Authorization') <- token();
+        headers('content-type') <- 'application/json';
+        EXPORT JSON FROM status = statusGlovo(order) TO f;
+        EXTERNAL HTTP CONCAT '', 'https://stageapi.glovoapp.com/webhook/stores/201077/orders/', idAggregator(order),
+            '/status' HEADERS headers PARAMS f() TO answer;
+    }
+    CATCH {
+        MESSAGE CONCAT '\n', 'Ошибка отправки статуса в glovo', messageCaughtException();
+    }
+}
+
+EXTEND FORM internetOrder
+    PROPERTIES (o) updateStatusOrder;
+
+DESIGN internetOrder{
+    headerRow1{
+        MOVE PROPERTY (updateStatusOrder(o));
+    }
+}

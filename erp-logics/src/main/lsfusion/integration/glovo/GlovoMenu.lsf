@@ -1,0 +1,174 @@
+MODULE GlovoMenu;
+
+REQUIRE DeliveryOption, ItemInternet;
+
+NAMESPACE Glovo;
+
+//Параметры Glovo
+glovoFtpFolderName 'Директория на FTP для Glovo' = DATA STRING[60] ();
+token 'Токен отправки Glovo' = DATA STRING ();
+idExt (Item i) = '"' + id(i) +'"';
+internetGroupType = ABSTRACT GroupType ();
+
+EXTEND FORM integrationData
+    PROPERTIES glovoFtpFolderName(), token();
+
+DESIGN integrationData{
+    delivery{
+        NEW glovo{
+            caption = 'Glovo';
+            MOVE PROPERTY (glovoFtpFolderName());
+            MOVE PROPERTY (token());
+        }
+    }
+} 
+
+CLASS AttributeGlovo 'Аттрибут Glovo';
+id (AttributeGlovo a)= LONG(a);
+name(AttributeGlovo a) = IF a IS AttributeGlovo THEN 'Стандарт';
+priceImpact(AttributeGlovo a) = IF a IS AttributeGlovo THEN 0;
+selectedByDefault(AttributeGlovo a) = IF a IS AttributeGlovo THEN TRUE;
+
+CLASS AttributeGroupGlovo 'Группы аттрибутов Glovo';
+id (AttributeGroupGlovo a)= LONG(a);
+name(AttributeGroupGlovo a) = IF a IS AttributeGlovo THEN 'Стандарт';
+attributeGroup = DATA AttributeGroupGlovo (AttributeGlovo);
+attributes(AttributeGroupGlovo ag) = CONCAT '','[', (GROUP CONCAT STRING(id(AttributeGlovo i)) IF 
+    attributeGroup(i) == ag, ',' ORDER id(i)), ']';
+
+//свойства для экспорта
+nameGlovo (Item i) = name(i);  // наименование для выгрузки глово, весовой товар
+productsByGroup (Group g, DepartmentStore s)= CONCAT '','[', (GROUP CONCAT STRING(idExt(Item i)) IF 
+    customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), i) = g AND inOnline(i,s), ',' ORDER id(i)), ']';
+productsInGroup (Group g, DepartmentStore s) = GROUP SUM 1 IF customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), Item i) = g AND inOnline(i,s); 
+productsInGroupChild (Group g, DepartmentStore s) = GROUP SUM 1 IF (productsInGroup(Group c, s) AND level(c,g));
+    
+groupByGroup (Group g)= CONCAT '','[', (GROUP CONCAT STRING(name(Group i)) IF 
+    parent(i) == g AND groupType(g) = internetGroupType(), ',' ORDER id(i)), ']';
+imageUrl (Group g) = IF g IS ItemGroup THEN 'https://i.imgur.com/Qj5MlEH.png';
+
+available(Item i, DepartmentStore s) = ABSTRACT BOOLEAN;
+
+isParentGroup (Group g) = GROUP LAST Group ig WHERE parent(ig) == g;
+attributesGroup (Item i) = IF i IS Item THEN '[]';
+
+description (Item i) = ABSTRACT STRING;
+
+FORM glovoMenu
+    OBJECTS store = DepartmentStore PANEL 
+    
+    OBJECTS ag = AttributeGroupGlovo EXTID 'attribute_groups'
+    PROPERTIES (ag) id, name, attributes
+    
+    OBJECTS a = AttributeGlovo EXTID 'attributes'
+    PROPERTIES (a) id, name, priceImpact, selectedByDefault
+   
+    OBJECTS collection = Group EXTID 'collections'
+    PROPERTIES (collection) name EXTID 'name', positionOver EXTID 'position', imageUrl EXTID 'image_url'
+    FILTERS onlineCategory(collection) AND NOT parent(collection) AND productsInGroupChild(collection, store)
+    
+    OBJECTS section = Group EXTID 'sections'
+    PROPERTIES (section) name EXTID 'name', positionOver EXTID 'position'
+    PROPERTIES productsByGroup(section, store) EXTID 'products' 
+    FILTERS parent(section) = collection AND productsInGroup(section, store)
+    FILTERS onlineCategory(section)
+    
+    OBJECTS i = Item EXTID 'products'
+    PROPERTIES (i) nameGlovo EXTID 'name', id EXTID 'id'
+    PROPERTIES = OVERRIDE urlHttpAccess(i), 'https://i.imgur.com/Qj5MlEH.png' EXTID 'image_url'
+    PROPERTIES available(i,store), currentPrice(i,store) EXTID 'price'
+    PROPERTIES = OVERRIDE description(i), CONCAT ' ','Описание продукта', name(i) EXTID 'description', attributesGroup(i) EXTID 'attributes_groups'
+    FILTERS inOnline(i, store) 
+;
+
+CLASS MenuGlovo 'Загрузка меню glovo';
+store = DATA DepartmentStore (MenuGlovo);
+nameStore (MenuGlovo g) = name(store(g));
+dateTimeFrom 'Сформированно'  = DATA DATETIME (MenuGlovo);
+transactionId 'ID' = DATA STRING (MenuGlovo);
+status 'Статус' = DATA STRING (MenuGlovo);
+fileMenu 'Файл' = DATA JSONFILE (MenuGlovo);
+url 'Url' = DATA STRING (MenuGlovo);
+
+sendMenuToFtp(MenuGlovo m){
+    WRITE fileMenu(m) TO CONCAT '', ftpConnectionString(), glovoFtpFolderName(), 'menu', LONG(store(m));
+    url(m) <- CONCAT '', pathHttpAccess(), glovoFtpFolderName(),'menu', LONG(store(m)), '.json';   
+}
+
+fillMenu 'Заполнить меню glovo'(DepartmentStore s){
+    LOCAL f = JSONFILE();
+    NEW menu = MenuGlovo{
+        store(menu) <- s;
+        dateTimeFrom(menu) <- currentDateTime();
+        EXPORT glovoMenu OBJECTS store = s JSON TO f;
+        fileMenu(menu) <- f();
+        sendMenuToFtp(menu);
+    }
+    APPLY;
+}
+transaction_id = DATA LOCAL STRING();
+
+FORM menuUpdate FORMEXTID 'null'
+    PROPERTIES() transaction_id;
+
+updateMenu 'Загрузить меню' (MenuGlovo menu){
+    LOCAL headers = TEXT(STRING[100]);
+    headers('Authorization') <- token(); //'b847ed0c-0071-4f27-b752-58f9d379b426';
+    headers('content-type') <- 'application/json';
+    LOCAL f = JSONFILE ();
+    LOCAL answer = FILE();
+    EXPORT JSON FROM menuUrl = url(menu) TO f;
+    EXTERNAL HTTP POST 'https://stageapi.glovoapp.com/webhook/stores/201077/menu' HEADERS headers
+        PARAMS f() TO answer;
+    IMPORT menuUpdate JSON FROM answer(); 
+    dateTimeFrom(menu) <- currentDateTime();
+    transactionId(menu) <- transaction_id();
+    APPLY;
+}
+
+last_updated_at = DATA LOCAL STRING();
+details = DATA LOCAL STRING(INTEGER);
+status = DATA LOCAL STRING();
+
+FORM statusMenu FORMEXTID 'null'
+    PROPERTIES() transaction_id, last_updated_at, status
+
+    OBJECTS details = INTEGER
+    PROPERTIES(details) details EXTID 'value'
+    FILTERS imported(details)
+;
+
+details 'Подробности' = DATA STRING (MenuGlovo);
+
+updateStatusMenu 'Обновить статус' (MenuGlovo g){
+    LOCAL headers = TEXT(STRING[100]);
+    headers('Authorization') <- token(); //'b847ed0c-0071-4f27-b752-58f9d379b426';
+    headers('content-type') <- 'application/json';
+    LOCAL f = JSONFILE ();
+    LOCAL answer = FILE();
+    EXTERNAL HTTP GET 'https://stageapi.glovoapp.com/webhook/stores/201077/menu/' + transactionId(g) HEADERS headers
+        TO answer;
+    IMPORT statusMenu JSON FROM answer();
+    status(g) <- status();
+    details(g) <- GROUP CONCAT details(INTEGER d), ',';
+    APPLY ;
+}
+
+FORM integrationTest 'Тест Glovo'
+    OBJECTS d = DepartmentStore
+    PROPERTIES (d) READONLY name
+    PROPERTIES (d) fillMenu
+    FILTERS isOnline(d)
+    
+    OBJECTS m = MenuGlovo
+    PROPERTIES (m) READONLY nameStore, transactionId, dateTimeFrom, status, fileMenu, url, details
+    PROPERTIES (m) updateMenu, updateStatusMenu
+;
+        
+NAVIGATOR {
+    administration{
+        NEW integrationTest;
+    }
+}
+
+

@@ -1,0 +1,144 @@
+MODULE YandexEda;
+
+REQUIRE SaleInternetOrder, DeliveryOption, ItemInternet, ItemNutrition, ItemStorage, ItemArticle;
+
+NAMESPACE YandexEda;
+
+//-------------------- АУТЕНТИФИКАЦИЯ ------------------------//
+CLASS YandexEdaAuth 'Аутентификация ЯндексЕда';
+
+id 'Код' = DATA STRING (YandexEdaAuth);
+clientId 'Client ID' = DATA STRING[100] (YandexEdaAuth);
+clientSecret 'Client Secret'= DATA STRING[100] (YandexEdaAuth);
+grantType = DATA STRING[100] (YandexEdaAuth);
+scope = DATA STRING[20] (YandexEdaAuth);
+activeToken = DATA STRING (YandexEdaAuth);
+
+EXTEND FORM integrationData
+    OBJECTS yandex = YandexEdaAuth
+    PROPERTIES (yandex) id, clientId, clientSecret, activeToken
+    PROPERTIES (yandex) NEW, EDIT, DELETE;
+
+DESIGN integrationData{
+    pane{
+        delivery{
+            NEW yandexEda{
+                caption = 'YandexEda';
+                MOVE BOX (yandex);
+            }
+        }
+    }
+}
+
+
+//-------------------- /security/oauth/token------------------------//
+security_oauth_token (STRING clieint_id, STRING client_secret, STRING grant_type, STRING scope) {
+    IF NOT (GROUP MAX YandexEdaAuth u IF clieint_id == clientId(u) AND clientSecret(u) == client_secret) THEN {
+        EXPORT JSON FROM code = 100,
+            description = 'Не найден пользователь';
+    }
+    ELSE {
+        generateUUID();
+        LOCAL tokenYandex = STRING ();
+        tokenYandex() <- generatedUUID();
+        activeToken(GROUP MAX YandexEdaAuth u IF clieint_id == clientId(u) AND clientSecret(u) == client_secret) 
+            <-  tokenYandex();
+        APPLY;
+        EXPORT JSON FROM access_token = activeToken(GROUP MAX YandexEdaAuth u IF clieint_id == clientId(u) AND clientSecret(u) == client_secret);
+    }
+}
+
+//-------------------- НОМЕНКЛАТУРА------------------------//
+
+yandexName (Item i) = ABSTRACT ISTRING;
+
+GROUP description;
+
+parentId (Group g) = id(parent(g));
+categoryId (Item i) = ABSTRACT STRING[100];
+modiffersGroup (Item i) = ABSTRACT STRING;
+
+//description
+general (Item i) = ABSTRACT STRING;
+composition (Item i) = ABSTRACT STRING;
+nutritionalValue (Item i) = ABSTRACT STRING;
+purpose (Item i) = ABSTRACT STRING; 
+packageInfo (Item i) = ABSTRACT STRING;
+vendorName (Item i) = ABSTRACT STRING;
+isCatchWeight (Sku i) = IF (id(UOM(i)) = 'кг.') THEN TRUE ELSE NULL;
+quantum (Item i) = ABSTRACT NUMERIC[16,5];
+oldPrice (Item i) = ABSTRACT NUMERIC[16,4];
+available(Item i, DepartmentStore s) = ABSTRACT NUMERIC[16,5];
+
+stock (YandexEdaAuth client, STRING id) = ABSTRACT DepartmentStore;
+
+CLASS ModiffersGroup 'Группы модификаторов';
+
+GROUP barcode;
+
+//измерения
+GROUP measure;
+GROUP volume;
+
+FORM nomenclature 'Номенклатура ЯндексЕда'
+    OBJECTS s = DepartmentStore PANEL
+    
+    OBJECTS g = Group EXTID 'categories'
+    PROPERTIES id(g), name(g), parentId(g), positionOver(g) EXTID 'sortOrder'
+    FILTERS onlineCategory(g)
+    
+    OBJECTS i = Item EXTID 'items'
+    PROPERTIES id(i), yandexName(i) EXTID 'name', categoryId(i), = OVERRIDE nameUOM(i), '' EXTID 'measureUnit',
+         valueVAT(i) EXTID 'vat', modiffersGroup(i), idArticle(i) EXTID 'vendorCode',
+         isCatchWeight(i), currentPrice(i,s) EXTID 'price', oldPrice(i)
+    PROPERTIES IN measure = grossWeight(i) * 1000 EXTID 'value', = IF grossWeight(i) THEN 'GRM' EXTID 'unit', quantum(i)
+    PROPERTIES IN volume = volume(i) EXTID 'value', = IF volume(i) THEN 'DMQ' EXTID 'unit'
+    PROPERTIES IN barcode idBarcode(i) EXTID 'value', = IF isCatchWeight(i) THEN 'ean13-tail-gram-5' ELSE 'none' EXTID 'weightEncoding'
+    PROPERTIES IN description general(i), composition(i), nutritionalValue(i), purpose(i), conditionsText(i) EXTID 'storageRequirements',
+        = OVERRIDE expiryDays(i) EXTID 'expiresIn', = OVERRIDE nameCountry(i), '' EXTID 'vendorCountry', packageInfo(i), 
+        vendorName(i)
+    
+    OBJECTS images = Item EXTID 'images'
+    PROPERTIES urlHttpAccess(images) EXTID 'url', hashImage(images) EXTID 'hash'
+    FILTERS images = i
+        
+    FILTERS inOnline(i,s)
+;  
+
+    
+FORM availability 'Наличие Яндекс.Еда'
+    OBJECTS s = DepartmentStore PANEL
+    
+    OBJECTS i = Item EXTID 'items'
+    PROPERTIES id(i), available(i, s) EXTID 'stock', currentPrice(i, s) EXTID 'price'
+    FILTERS inOnline(i, s); 
+
+
+//-------------------- /v1/nomenclature/{placeId}/composition(availability)------------------------//
+v1_nomenclature(FILE f){
+    LOCAL tokenClient = STRING ();
+    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    LOCAL aggr = YandexEdaAuth();
+    aggr() <- GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
+    IF NOT (aggr()) THEN {
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
+    }
+    ELSE {
+        LOCAL method = STRING ();
+        method() <- replace(servletPath(), TEXT('/exec/v1/nomenclature/'), TEXT (''));
+        LOCAL store = STRING ();
+        LOCAL param = STRING ();
+        store() <- getWord(method(), '/', 1);
+        param() <- getWord(method(), '/', 2);
+        LOCAL s = DepartmentStore ();
+        s() <- stock(aggr(), store());
+        IF NOT s() THEN EXPORT FROM error = 'Не найден магазин', storeId = store();
+        IF param() == 'availability' THEN {
+            EXPORT availability OBJECTS s = s() JSON;
+        }
+        IF param() == 'composition' THEN{
+            EXPORT nomenclature OBJECTS s = s() JSON;    
+        }
+    }
+}
+
