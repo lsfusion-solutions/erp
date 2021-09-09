@@ -1685,6 +1685,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
                         String nameEmployee = rs.getString("CASHIERNAME");
 
+                        List<String> paymentCardNumbers = new ArrayList<>();
+
                         Map<String, Object> receiptDetailExtraFields = new HashMap<>();
                         receiptDetailExtraFields.put("priceLevelId", rs.getInt("PRCLEVELID"));
                         receiptDetailExtraFields.put("salesAttri", rs.getInt("SALESATTRI"));
@@ -1712,6 +1714,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
                                 totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
                                 sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
+
+                                receiptDetailExtraFields.put("salesBarc", StringUtils.join(paymentCardNumbers, ";"));
+
                                 curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                                         idEmployee, nameEmployee, null, sumCard, sumCash, sumGiftCardMap, customPaymentsMap, idBarcode, idItem, null,
                                         idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, null, discountSumReceiptDetail,
@@ -1727,12 +1732,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(type));
                                     customPaymentsMap.put(String.valueOf(type), safeAdd(customPaymentSum, sum));
                                 } else {
+                                    String[] salesBarc = trimToEmpty(rs.getString("SALESBARC")).split(":");
                                     switch (type) {
                                         case 1:
+                                            if(salesBarc.length > 0) {
+                                                paymentCardNumbers.add(salesBarc[0]);
+                                            }
                                             sumCard = safeAdd(sumCard, sum);
                                             break;
                                         case 2:
-                                            String[] salesBarc = trimToEmpty(rs.getString("SALESBARC")).split(":");
                                             String numberGiftCard = salesBarc.length > 0 ? salesBarc[0] : null;
                                             sumGiftCardMap.put(numberGiftCard, new GiftCard(sum));
                                             break;
