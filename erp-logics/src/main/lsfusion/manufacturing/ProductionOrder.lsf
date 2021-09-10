@@ -44,6 +44,9 @@ VAT (Order o) = VATProduct(o) OR VATComponent(o);
 @defineDocumentHeaderStock (order, stock, 'Склад компонент', components);
 @defineDocumentHeaderStock (order, stock, 'Склад изделий', products);
 
+INDEX componentsStock(Order o);
+INDEX productsStock(Order o);
+
 @defineDocumentHeaderDatePrefix (Order, from, ' действия с');
 @defineDocumentHeaderDatePrefix (Order, to, ' действия по');
 description 'Название документа' (Order o) =
@@ -135,7 +138,8 @@ DESIGN operation {
     }
 }
 
-CONSTRAINT BOM(ProductDetail d) AND componentsStock(d) AND countStocks(BOM(d)) AND NOT in(BOM(d), componentsStock(d))
+CONSTRAINT (SETCHANGED(product(ProductDetail d)) OR SETCHANGED(componentsStock(d))) AND 
+           BOM(d) AND componentsStock(d) AND countStocks(BOM(d)) AND NOT in(BOM(d), componentsStock(d))
     CHECKED BY product[ProductDetail]
     MESSAGE 'Для строки изделия в производственном заказе выбрана спецификация, которая не действует для склада компонента.';
 
@@ -431,11 +435,13 @@ INDEX order(ComponentDetail d), BOM(d);
 nameBOM 'Спецификация' = name(BOM(ComponentDetail d));    
 fullNameBOM 'Спецификация (полное название)' = fullName(BOM(ComponentDetail d));    
 
-CONSTRAINT BOM(ComponentDetail d) AND componentsStock(d) AND countStocks(BOM(d)) AND NOT in(BOM(d), componentsStock(d))
+CONSTRAINT (SETCHANGED(BOM(ComponentDetail d)) OR SETCHANGED(componentsStock(d))) AND 
+           BOM(d) AND componentsStock(d) AND countStocks(BOM(d)) AND NOT in(BOM(d), componentsStock(d))
     CHECKED BY BOM[ComponentDetail]
     MESSAGE 'Для строки компонента в производственном заказе выбрана спецификация, которая не действует для склада компонента.';
 
-CONSTRAINT component(ComponentDetail d) AND componentsStock(d) AND countStocks(BOM(component(d))) AND NOT in(BOM(component(d)), componentsStock(d))
+CONSTRAINT (SETCHANGED(component(ComponentDetail d)) OR SETCHANGED(componentsStock(d))) AND
+           component(ComponentDetail d) AND componentsStock(d) AND countStocks(BOM(component(d))) AND NOT in(BOM(component(d)), componentsStock(d))
     CHECKED BY BOM[ComponentDetail]
     MESSAGE 'Для строки компонента в производственном заказе выбрана компонента, которая не действует для склада компонента.';
 
