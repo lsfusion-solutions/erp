@@ -9,9 +9,10 @@ glovoFtpFolderName 'Директория на FTP для Glovo' = DATA STRING[60
 token 'Токен отправки Glovo' = DATA STRING ();
 idExt (Item i) = '"' + id(i) +'"';
 internetGroupType = ABSTRACT GroupType ();
+loggingGlovo 'Включить логирование Glovo' = DATA BOOLEAN ();
 
 EXTEND FORM integrationData
-    PROPERTIES glovoFtpFolderName(), token();
+    PROPERTIES glovoFtpFolderName(), token(), loggingGlovo();
 
 DESIGN integrationData{
     delivery{
@@ -19,6 +20,7 @@ DESIGN integrationData{
             caption = 'Glovo';
             MOVE PROPERTY (glovoFtpFolderName());
             MOVE PROPERTY (token());
+            MOVE PROPERTY (loggingGlovo());
         }
     }
 } 
@@ -37,7 +39,7 @@ attributes(AttributeGroupGlovo ag) = CONCAT '','[', (GROUP CONCAT STRING(id(Attr
     attributeGroup(i) == ag, ',' ORDER id(i)), ']';
 
 //свойства для экспорта
-nameGlovo (Item i) = name(i);  // наименование для выгрузки глово, весовой товар
+nameGlovo (Item i) = ABSTRACT ISTRING;  // наименование для выгрузки глово, весовой товар
 productsByGroup (Group g, DepartmentStore s)= CONCAT '','[', (GROUP CONCAT STRING(idExt(Item i)) IF 
     customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), i) = g AND inOnline(i,s), ',' ORDER id(i)), ']';
 productsInGroup (Group g, DepartmentStore s) = GROUP SUM 1 IF customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), Item i) = g AND inOnline(i,s); 
@@ -48,7 +50,7 @@ groupByGroup (Group g)= CONCAT '','[', (GROUP CONCAT STRING(name(Group i)) IF
 imageUrl (Group g) = IF g IS ItemGroup THEN 'https://i.imgur.com/Qj5MlEH.png';
 
 available(Item i, DepartmentStore s) = ABSTRACT BOOLEAN;
-
+currentPriceGlovo 'Цена' (Item i, DepartmentStore s) = ABSTRACT NUMERIC[16,4];
 isParentGroup (Group g) = GROUP LAST Group ig WHERE parent(ig) == g;
 attributesGroup (Item i) = IF i IS Item THEN '[]';
 
@@ -76,7 +78,7 @@ FORM glovoMenu
     OBJECTS i = Item EXTID 'products'
     PROPERTIES (i) nameGlovo EXTID 'name', id EXTID 'id'
     PROPERTIES = OVERRIDE urlHttpAccess(i), 'https://i.imgur.com/Qj5MlEH.png' EXTID 'image_url'
-    PROPERTIES available(i,store), currentPrice(i,store) EXTID 'price'
+    PROPERTIES available(i,store), currentPriceGlovo(i,store) EXTID 'price'
     PROPERTIES = OVERRIDE description(i), CONCAT ' ','Описание продукта', name(i) EXTID 'description', attributesGroup(i) EXTID 'attributes_groups'
     FILTERS inOnline(i, store) 
 ;
@@ -89,6 +91,9 @@ transactionId 'ID' = DATA STRING (MenuGlovo);
 status 'Статус' = DATA STRING (MenuGlovo);
 fileMenu 'Файл' = DATA JSONFILE (MenuGlovo);
 url 'Url' = DATA STRING (MenuGlovo);
+
+afterFillMenu ABSTRACT LIST (DepartmentStore);
+
 
 sendMenuToFtp(MenuGlovo m){
     WRITE fileMenu(m) TO CONCAT '', ftpConnectionString(), glovoFtpFolderName(), 'menu', LONG(store(m));
@@ -103,6 +108,7 @@ fillMenu 'Заполнить меню glovo'(DepartmentStore s){
         EXPORT glovoMenu OBJECTS store = s JSON TO f;
         fileMenu(menu) <- f();
         sendMenuToFtp(menu);
+        afterFillMenu(s);
     }
     APPLY;
 }

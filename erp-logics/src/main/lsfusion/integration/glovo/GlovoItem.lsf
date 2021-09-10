@@ -1,0 +1,63 @@
+MODULE GlovoItem;
+
+REQUIRE GlovoMenu, GlovoOrder;
+
+NAMESPACE Glovo;
+
+CLASS WeightUnit 'Весовой юнит';
+TABLE scaleStep(WeightUnit);
+
+name 'Наименование(выгружаемое)' = DATA STRING[50] (WeightUnit);
+value 'Значение' = DATA INTEGER (WeightUnit);
+coeff 'Коэффициет пересчёта' = DATA NUMERIC[5,3] (WeightUnit);
+
+FORM weightUnit 'Весовой юнит'
+    OBJECTS unit = WeightUnit
+    PROPERTIES (unit) name, value, coeff
+    
+    EDIT WeightUnit OBJECT unit
+;
+
+FORM weightUnits 'Весовые юниты'
+    OBJECTS unit = WeightUnit
+    PROPERTIES (unit) READONLY name, value, coeff
+    PROPERTIES (unit) NEWSESSION NEW, EDIT, DELETE
+    ORDERS value(unit)
+    
+    LIST WeightUnit OBJECT unit
+;
+
+DESIGN weightUnits { BOX { size = (600, 400); } }
+
+weightUnit = DATA WeightUnit (Item);
+nameWeightUnit 'Весовой юнит (Glovo) ' (Item i) = name(weightUnit(i));
+
+EXTEND FORM item
+    PROPERTIES (i) nameWeightUnit;
+ 
+DESIGN item{
+    itemDetail{
+        NEW glovo{
+            caption = 'glovo';
+            MOVE PROPERTY (nameWeightUnit(i));
+        }
+    }
+}
+
+//-------------------- Выгрузка меню ------------------------//
+
+isWeight 'Весовой' (Item i) = TRUE IF(id(UOM(i)) = 'кг.');
+priceGlovo 'Цена глово' (Item i, DepartmentStore d) = ABSTRACT NUMERIC[16,4]; //при подключении модуля переопределить
+nameItem (Item i)= ABSTRACT ISTRING;
+nameUnit (Item i) = ISTRING (replace((OVERRIDE nameItem(i), name(i)), '1КГ', name(weightUnit(i))));
+priceUnit 'Цена юнита' (Item i, DepartmentStore d) = NUMERIC[16,4](round(priceGlovo(i, d) * coeff(weightUnit(i)), 2));
+nameGlovo (Item i) += IF isWeight(i) AND weightUnit(i) THEN nameUnit(i) ELSE (OVERRIDE nameItem(i), name(i));
+
+currentPriceGlovo (Item i, DepartmentStore d) += IF isWeight(i) AND weightUnit(i) THEN priceUnit(i,d)
+    ELSE priceGlovo(i,d);
+    
+//-------------------- Обработка заказов ------------------------//
+quantityGlovoOrder(Item i, INTEGER qty) += IF isWeight(i) AND weightUnit(i) THEN NUMERIC[16,5](round(qty*coeff(weightUnit(i)),2))
+    ELSE NUMERIC[16,5](qty);
+priceGlovoOrder(Item i, NUMERIC[16,4] price) += IF isWeight(i) AND weightUnit(i) THEN NUMERIC[16,4](price/coeff(weightUnit(i)))
+    ELSE price;

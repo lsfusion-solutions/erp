@@ -93,8 +93,25 @@ DESIGN integrationData{
 glovoCarrier = GROUP MAX Carrier r IF id(r) = 'glovo';
 itemById (STRING id) = GROUP MAX Item i IF id(i) == id;
 stockOrder (STRING id) = ABSTRACT DepartmentStore;
- 
+
+//строки заказа
+quantityGlovoOrder(Item i, INTEGER qty) = ABSTRACT NUMERIC[16,5];
+priceGlovoOrder(Item i, NUMERIC[16,4] price) = ABSTRACT NUMERIC[16,4];
+
+//исключительно в рамках тестирования
+qtyGlovo 'К-во glovo' = DATA STRING (InternetOrderDetail);
+priceGlovo 'Цена glovo(копеек)' = DATA STRING (InternetOrderDetail);
+
+EXTEND FORM internetOrder
+    PROPERTIES (d) READONLY qtyGlovo, priceGlovo SHOWIF loggingGlovo();
+
+
+//создание заказа
 createOrder(FILE f){
+    IF loggingGlovo() THEN {
+        fileToString(f);
+        logToFile('glovo', CONCAT ' : ', 'IN query', resultString());
+    }
     IMPORT importOrderGlovo FROM f;
     NEW order = InternetOrder{
         date(order) <- currentDate();
@@ -116,8 +133,11 @@ createOrder(FILE f){
         FOR id1(INTEGER products) NEW detail = InternetOrderDetail DO{
             internetOrder(detail) <- order;
             sku(detail) <- itemById(id1(products));
-            quantity(detail) <-NUMERIC[16,5](quantity(products));
-            price(detail) <- NUMERIC[16,4](NUMERIC[16,4](price(products))/100);
+            qtyGlovo(detail) <- quantity(products);
+            priceGlovo(detail) <- price(products);
+            quantity(detail) <-quantityGlovoOrder(sku(detail), INTEGER (quantity(products))) WHERE sku(detail) IS Item;
+            price(detail) <- priceGlovoOrder(sku(detail), NUMERIC[16,4](price(products))/100) WHERE sku(detail) IS Item; //цена в центах/копейках
+            
         }
     }
     APPLY;
@@ -134,6 +154,10 @@ FORM updateOrder FORMEXTID 'null'
     PROPERTIES() store_id, cancel_reason, payment_strategy, order_id;
 
 updateOrder(FILE f){
+    IF loggingGlovo() THEN {
+        fileToString(f);
+        logToFile('glovo', CONCAT ' : ', 'IN update query', resultString());
+    }
     IMPORT updateOrder FROM f;
     IF (GROUP MAX InternetOrder order IF idAggregator(order) = order_id()) THEN {
         status(GROUP MAX InternetOrder order IF idAggregator(order) = order_id()) <- StatusInternetOrder.closed;
