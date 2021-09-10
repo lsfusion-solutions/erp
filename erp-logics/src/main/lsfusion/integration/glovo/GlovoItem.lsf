@@ -8,21 +8,20 @@ CLASS WeightUnit 'Весовой юнит';
 TABLE scaleStep(WeightUnit);
 
 name 'Наименование(выгружаемое)' = DATA STRING[50] (WeightUnit);
-value 'Значение' = DATA INTEGER (WeightUnit);
 coeff 'Коэффициет пересчёта' = DATA NUMERIC[5,3] (WeightUnit);
 
 FORM weightUnit 'Весовой юнит'
     OBJECTS unit = WeightUnit
-    PROPERTIES (unit) name, value, coeff
+    PROPERTIES (unit) name, coeff
     
     EDIT WeightUnit OBJECT unit
 ;
 
 FORM weightUnits 'Весовые юниты'
     OBJECTS unit = WeightUnit
-    PROPERTIES (unit) READONLY name, value, coeff
+    PROPERTIES (unit) READONLY name, coeff
     PROPERTIES (unit) NEWSESSION NEW, EDIT, DELETE
-    ORDERS value(unit)
+    ORDERS coeff(unit)
     
     LIST WeightUnit OBJECT unit
 ;
@@ -44,6 +43,9 @@ DESIGN item{
     }
 }
 
+EXTEND FORM items
+    PROPERTIES (i) READONLYIF isReadonly() nameWeightUnit;
+    
 //-------------------- Выгрузка меню ------------------------//
 
 isWeight 'Весовой' (Item i) = TRUE IF(id(UOM(i)) = 'кг.');
