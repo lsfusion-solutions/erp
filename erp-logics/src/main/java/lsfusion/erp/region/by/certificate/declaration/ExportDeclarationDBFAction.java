@@ -246,7 +246,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         String[] complianceNames = new String[]{"seriesCompliance", "seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
                 "toDateCompliance", "numberDeclarationCompliance", "dateDeclarationCompliance"};
-        LP<?>[] complianceProperties = findProperties("series[Compliance]", "seriesNumber[Compliance]", "date[Compliance]", "fromDate[Compliance]",
+        LP<?>[] complianceProperties = findProperties("series[Compliance]", "seriesNumberCompliance[Compliance]", "date[Compliance]", "fromDate[Compliance]",
                 "toDate[Compliance]", "numberDeclaration[Compliance]", "dateDeclaration[Compliance]");
 
         KeyExpr declarationDetail2Expr = new KeyExpr("declarationDetail");
