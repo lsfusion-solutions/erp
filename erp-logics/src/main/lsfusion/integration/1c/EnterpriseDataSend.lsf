@@ -18,13 +18,12 @@ META defPaymentDetail(nm, class, extid)
 END
 
 // all references
-CLASS ABSTRACT Reference : EnterpriseData;
 @defProp(name, 'Наименование', STRING, Reference);
 @defProp(id, 'Код', STRING, Reference);
 
 //UOM
 CLASS ABSTRACT UOM 'Справочник.ЕдиницыИзмерения' : Reference;
-@defProp(fullName, 'НаименованиеПолое', STRING, UOM);
+@defProp(fullName, 'НаименованиеПолное', STRING, UOM);
 META defUOM (nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = UOM EXTID extid
@@ -33,8 +32,11 @@ META defUOM (nm, class, table, extid)
     ;
 END
 
+//barcode
+@extReference (barcode, 'ШтрихкодыНоменклатуры');
+
 // item
-CLASS ABSTRACT Item 'Справочник.Номенклатура' : Reference;
+@extReference (item, 'Номенклатура');
 @defProp(article, 'Артикул', STRING, Item);
 @defProp(fullName, 'НаименованиеПолное', STRING, Item);
 META defItem(nm, class, table, extid)
@@ -204,7 +206,6 @@ META defBankAccount(nm, class)
 END
 
 // all documents
-CLASS ABSTRACT Document 'Документ' : EnterpriseData;
 @defProp(dateTime, 'Дата', DATETIME, Document);
 dateTimeString 'Дата' (Document d) = dateTimeToString(dateTime(d));
 @defProp(id, 'Номер', ISTRING, Document);
@@ -309,14 +310,8 @@ EXTEND FORM sendMessage
     PROPERTIES(companyOutcomeVatInvoice) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
     FILTERS companyOutcomeVatInvoice = company(outcomeVatInvoice)
     
-    FILTERS NOT DATE(dateTime(outcomeVatInvoice)) < dateStartExchange(), NOT packet(outcomeVatInvoice) <= idTicket()
+    FILTERS inSending(configuration, outcomeVatInvoice)
 ;
-
-overSend () + { 
-    FOR OutcomeVatInvoice outcomeVatInvoice IS OutcomeVatInvoice AND NOT packet(outcomeVatInvoice) AND NOT DATE(dateTime(outcomeVatInvoice)) < dateStartExchange() DO {
-        packet(outcomeVatInvoice) <- messageNo();
-    }
-}
 
 @extDeleteObject(outcomeVatInvoice, 'СчетФактураВыданныйСсылка');
 @defPropObject(currency, 'Валюта', Currency, outcomeVatInvoice);
