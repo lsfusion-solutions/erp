@@ -37,7 +37,7 @@ public class FiscalAbsolut {
     
     public interface absolutDLL extends Library {
 
-        absolutDLL absolut = (absolutDLL) Native.loadLibrary("absolut", absolutDLL.class);
+        absolutDLL absolut = Native.load("absolut", absolutDLL.class);
 
         Boolean Open(String port, int baud, int oper, int pwd);
 
