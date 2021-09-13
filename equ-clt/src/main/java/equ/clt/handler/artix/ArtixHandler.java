@@ -341,14 +341,24 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 }
             }
 
+            JSONObject itemOptions = new JSONObject();
+
             JSONObject inventItemOptions = new JSONObject();
             inventItemOptions.put("disableinventback", disableInventBack ? 1 : 0);
             inventItemOptions.put("disableinventsale", disableInventSale ? 1 : 0);
             inventItemOptions.put("ageverify", ageVerify ? 1 : 0);
             if(requireSaleRestrict != null) {
                 inventItemOptions.put("requiresalerestrict", requireSaleRestrict);
+
+                JSONObject quantityoptions = new JSONObject();
+                quantityoptions.put("quantitylimit", 1.000); //лимит количества товара в позиции
+                quantityoptions.put("documentquantlimit", 1.000); //лимит количества товара в чеке
+                quantityoptions.put("enablequantitylimit", true); //включить ограничение количества товара
+                quantityoptions.put("enabledocumentquantitylimit", 2); //включить ограничение количества товара в чеке
+
+                itemOptions.put("quantityoptions", quantityoptions);
             }
-            JSONObject itemOptions = new JSONObject();
+
             itemOptions.put("inventitemoptions", inventItemOptions);
 
             inventObject.put("options", itemOptions);
