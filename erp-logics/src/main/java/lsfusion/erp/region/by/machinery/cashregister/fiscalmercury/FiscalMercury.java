@@ -13,7 +13,7 @@ public class FiscalMercury {
 
     public interface mercuryDLL extends Library {
 
-        mercuryDLL mercury = (mercuryDLL) Native.loadLibrary("megawdriver", mercuryDLL.class);
+        mercuryDLL mercury = Native.load("megawdriver", mercuryDLL.class);
 
         //подключение
         int FrWConnect();
@@ -85,7 +85,7 @@ public class FiscalMercury {
         try {
             System.loadLibrary("megawdriver");
         } catch (Exception e) {
-            System.out.println(e.toString());
+            System.out.println(e);
         }
 
         connect();
