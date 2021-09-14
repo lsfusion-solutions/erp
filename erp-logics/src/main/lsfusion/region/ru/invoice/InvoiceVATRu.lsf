@@ -53,13 +53,13 @@ META defineWithVATInvoice (part)
     withVATPrice (UserInvoice i) <- isVATPayer(##part(i))
         WHEN CHANGED(##part(i));
     
-    invoiceSum (UserInvoiceDetail userInvoiceDetail) <- NUMERIC[18,4](round(quantity(userInvoiceDetail) * invoicePrice(userInvoiceDetail), currency(userInvoiceDetail)))
-        WHEN (CHANGED(quantity(userInvoiceDetail)) OR CHANGED(invoicePrice(userInvoiceDetail)) OR CHANGED (currency (userInvoiceDetail)));
+    WHEN LOCAL (CHANGED(quantity(UserInvoiceDetail userInvoiceDetail)) OR CHANGED(invoicePrice(userInvoiceDetail)) OR CHANGED(currency (userInvoiceDetail))) AND withVATPrice(userInvoiceDetail) DO
+        invoiceSum (userInvoiceDetail) <- NUMERIC[18,4](round(quantity(userInvoiceDetail) * invoicePrice(userInvoiceDetail), currency(userInvoiceDetail)));
+
+    WHEN LOCAL (CHANGED(invoiceSum(UserInvoiceDetail userInvoiceDetail)) OR CHANGED(valueVAT (userInvoiceDetail)) OR CHANGED(currency (userInvoiceDetail))) AND withVATPrice(userInvoiceDetail) DO 
+        VATSum (userInvoiceDetail)  <- NUMERIC[18,4](round(invoiceSum(userInvoiceDetail) * valueVAT(userInvoiceDetail) / (100 (+) valueVAT (userInvoiceDetail)), currency(userInvoiceDetail)));
     
-    VATSum (UserInvoiceDetail userInvoiceDetail)  <- NUMERIC[18,4](round(invoiceSum(userInvoiceDetail) * valueVAT(userInvoiceDetail) / (100 (+) valueVAT (userInvoiceDetail)), currency(userInvoiceDetail)))
-        WHEN (CHANGED(invoiceSum(userInvoiceDetail)) OR CHANGED (valueVAT (userInvoiceDetail)) OR CHANGED (currency (userInvoiceDetail))) AND withVATPrice(userInvoiceDetail);
-    
-    sum (UserInvoiceDetail userInvoiceDetail) <- NUMERIC[18,4](invoiceSum(userInvoiceDetail) (-) VATSum(userInvoiceDetail))
-        WHEN (CHANGED(invoiceSum(userInvoiceDetail)) OR CHANGED (VATSum(userInvoiceDetail))) AND withVATPrice(userInvoiceDetail);
+    WHEN LOCAL (CHANGED(invoiceSum(UserInvoiceDetail userInvoiceDetail)) OR CHANGED (VATSum(userInvoiceDetail))) AND withVATPrice(userInvoiceDetail) DO
+        sum (userInvoiceDetail) <- NUMERIC[18,4](invoiceSum(userInvoiceDetail) (-) VATSum(userInvoiceDetail));
 
 END
