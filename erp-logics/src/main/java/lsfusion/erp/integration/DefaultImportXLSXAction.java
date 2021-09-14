@@ -10,11 +10,8 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.text.ParseException;
-import java.time.LocalDate;
 
 public class DefaultImportXLSXAction extends DefaultImportAction {
 
@@ -25,10 +22,6 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
 
     public DefaultImportXLSXAction(ScriptingLogicsModule LM) {
         super(LM);
-    }
-
-    public DefaultImportXLSXAction(ScriptingLogicsModule LM, ValueClass valueClass) {
-        super(LM, valueClass);
     }
 
     public DefaultImportXLSXAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -50,7 +43,7 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
         XSSFCell xssfCell = xssfRow.getCell(cell);
         if (xssfCell == null) return defaultValue;
         String result;
-        switch (xssfCell.getCellTypeEnum()) {
+        switch (xssfCell.getCellType()) {
             case ERROR:
                 result = null;
                 break;
@@ -79,7 +72,7 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
         if (xssfRow == null) return defaultValue;
         XSSFCell xssfCell = xssfRow.getCell(cell);
         if (xssfCell == null) return defaultValue;
-        switch (xssfCell.getCellTypeEnum()) {
+        switch (xssfCell.getCellType()) {
             case ERROR:
                 return null;
             case NUMERIC:
@@ -94,25 +87,5 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
                     return null;
                 }
         }
-    }
-
-    protected LocalDate getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {
-        if (cell != null) {
-            XSSFRow xssfRow = sheet.getRow(row);
-            if (xssfRow != null) {
-                XSSFCell xssfCell = xssfRow.getCell(cell);
-                if (xssfCell != null) {
-                    switch (xssfCell.getCellTypeEnum()) {
-                        case ERROR:
-                            return null;
-                        case NUMERIC:
-                            return sqlDateToLocalDate(new Date(xssfCell.getDateCellValue().getTime()));
-                        default:
-                            return sqlDateToLocalDate(parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue))));
-                    }
-                }
-            }
-        }
-        return null;
     }
 }

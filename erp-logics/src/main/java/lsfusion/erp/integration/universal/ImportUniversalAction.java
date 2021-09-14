@@ -509,7 +509,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
             if (hssfCell == null) return defaultValue;
 
             String result;
-            switch (hssfCell.getCellTypeEnum()) {
+            switch (hssfCell.getCellType()) {
                 case NUMERIC:
                     if(importColumnDetail.isBoolean) {
                         result = parseBoolean(hssfCell.getNumericCellValue());
@@ -520,7 +520,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                     break;
                 case FORMULA:
                     formulaEvaluator.evaluate(hssfCell);
-                    switch (hssfCell.getCachedFormulaResultTypeEnum()) {
+                    switch (hssfCell.getCachedFormulaResultType()) {
                         case NUMERIC:
                             result = dataFormatter.getDefaultFormat(hssfCell).format(hssfCell.getNumericCellValue());
                             break;
@@ -727,7 +727,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
             XSSFCell xssfCell = xssfRow.getCell(cell);
             if (xssfCell == null) return defaultValue;
             String result;
-            switch (xssfCell.getCellTypeEnum()) {
+            switch (xssfCell.getCellType()) {
                 case NUMERIC:
                 case FORMULA:
                     if (isDate)
@@ -1129,7 +1129,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
             if (toSymbol == null || toSymbol instanceof Integer) {
                 return getSubstring(value, from, (Integer) toSymbol);
             } else {
-                String fromSubstring = (from == null || from < 0 || from > value.length()) ? value : trim(value.substring(Math.min(value.length(), from)));
+                String fromSubstring = (from == null || from < 0 || from > value.length()) ? value : trim(value.substring(from));
                 Integer indexTo = fromSubstring == null ? -1 : fromSubstring.indexOf((String) toSymbol);
                 return (fromSubstring != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, indexTo == -1 ? fromSubstring.length() : indexTo) : fromSubstring;
             }

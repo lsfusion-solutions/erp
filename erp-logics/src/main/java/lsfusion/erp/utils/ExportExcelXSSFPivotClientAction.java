@@ -250,7 +250,7 @@ public class ExportExcelXSSFPivotClientAction implements ClientAction {
                             myCell = myRow.createCell(iCell);
                             if (cell != null) {
                                 myCell.setCellType(cell.getCellType());
-                                switch (cell.getCellTypeEnum()) {
+                                switch (cell.getCellType()) {
                                     case BLANK:
                                         myCell.setCellValue("");
                                         break;
@@ -306,7 +306,7 @@ public class ExportExcelXSSFPivotClientAction implements ClientAction {
         for (int i = 1; i < columnsCount; i++) {
             XSSFCell cell = getCellVariant(sheet, i, firstRow);
             String result;
-            switch (cell.getCellTypeEnum()) {
+            switch (cell.getCellType()) {
                 case NUMERIC:
                 case FORMULA:
                     try {

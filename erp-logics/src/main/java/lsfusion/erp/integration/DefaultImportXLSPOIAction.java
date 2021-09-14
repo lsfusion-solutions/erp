@@ -25,10 +25,6 @@ public class DefaultImportXLSPOIAction extends DefaultImportAction {
         super(LM);
     }
 
-    public DefaultImportXLSPOIAction(ScriptingLogicsModule LM, ValueClass valueClass) {
-        super(LM, valueClass);
-    }
-
     public DefaultImportXLSPOIAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
@@ -46,7 +42,7 @@ public class DefaultImportXLSPOIAction extends DefaultImportAction {
         if (hssfRow == null) return defaultValue;
         HSSFCell hssfCell = hssfRow.getCell(cell);
         if (hssfCell == null) return defaultValue;
-        switch (hssfCell.getCellTypeEnum()) {
+        switch (hssfCell.getCellType()) {
             case NUMERIC:
             case FORMULA:
                 String result;
@@ -72,6 +68,6 @@ public class DefaultImportXLSPOIAction extends DefaultImportAction {
         HSSFRow hssfRow = sheet.getRow(row);
         if (hssfRow == null) return defaultValue;
         HSSFCell hssfCell = hssfRow.getCell(cell);
-        return (hssfCell == null || hssfCell.getCellTypeEnum() != CellType.NUMERIC) ? defaultValue : BigDecimal.valueOf(hssfCell.getNumericCellValue());
+        return (hssfCell == null || hssfCell.getCellType() != CellType.NUMERIC) ? defaultValue : BigDecimal.valueOf(hssfCell.getNumericCellValue());
     }
 }
