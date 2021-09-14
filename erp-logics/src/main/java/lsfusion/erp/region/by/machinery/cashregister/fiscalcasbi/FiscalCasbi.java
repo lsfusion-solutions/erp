@@ -14,7 +14,7 @@ public class FiscalCasbi {
 
     public interface casbiDLL extends Library {
 
-        casbiDLL casbi = (casbiDLL) Native.loadLibrary("ksb", casbiDLL.class);
+        casbiDLL casbi = Native.load("ksb", casbiDLL.class);
 
         int ksb_errcode();
 
@@ -52,7 +52,7 @@ public class FiscalCasbi {
         try {
             System.loadLibrary("ksb");
         } catch (Exception e) {
-            System.out.println(e.toString());
+            System.out.println(e);
         }
     }
 
@@ -82,7 +82,7 @@ public class FiscalCasbi {
         if (!casbiDLL.casbi.ksb_display(16, getBytes("ИТОГ " + backLine)))
             checkErrors(true);
 
-        String frontLine = String.valueOf(item.quantity) + "x" + String.valueOf(item.price);
+        String frontLine = item.quantity + "x" + item.price;
         while (frontLine.length() < 16)
             frontLine = " " + frontLine;
         if (!casbiDLL.casbi.ksb_display(0, getBytes(frontLine)))
