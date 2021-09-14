@@ -11,18 +11,23 @@ EXTEND FORM integrationData
     PROPERTIES DRAW dates exportBalanceBBatch()
 ;
 
+overIngestBatchFile = DATA LOCAL STRING[50]();
+
 overExportTurnoverBatch  ABSTRACT (DATE);
 overExportTurnoverBatch = DATA LOCAL BOOLEAN ();
 
 balanceBatch = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
 balanceBBatch = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
+accountPrice = DATA LOCAL NUMERIC[16,4] (Batch, Stock);
 
 exportTurnoverBatch 'Выгрузить Оборачиваемость (по партиям)' (DATE dFrom, DATE dTo)  { 
     balanceBatch(Batch b, Stock st) <- balanceA(b, st, dTo);
-    IF exportBalanceBBatch() THEN
+    IF exportBalanceBBatch() THEN {
+        overIngestBatchFile() <- 'turnoverBBatch';
         balanceBBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantity(b, st, dTo);
+    }
     
-    LOCAL accountPrice = NUMERIC[16,4] (Batch, Stock);
+    accountPrice(Batch b, Stock st) <- NULL;
     accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(sum(dTo, 1))) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, dTo) OR quantitySold(b, st, dTo);
 
     LOCAL date = DATE ();
@@ -59,9 +64,7 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
         }
         logToFile('druid', 'Ended EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balanceBatch(Batch b, Stock st)));
 
-        IF exportBalanceBBatch() THEN 
-            ingestBatch('turnoverBatch', 'turnoverBBatch', date());
-        ELSE ingestBatch('turnoverBatch', date());
+        ingestBatch('turnoverBatch', (OVERRIDE overIngestBatchFile(), 'turnoverBatch'), date());
 
         balanceBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date());
         accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(date())) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, subtract(date(), 1)) OR quantitySold(b, st, subtract(date(), 1));
