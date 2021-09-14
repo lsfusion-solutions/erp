@@ -59,7 +59,7 @@ public class ImportSaleOrdersAction extends ImportDocumentAction {
 
                 String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());           
                 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, importTypeObject);
                 ObjectValue supplierObject = entryValue.get("autoImportSupplierImportType");
                 ObjectValue supplierStockObject = entryValue.get("autoImportSupplierStockImportType");
                 ObjectValue customerObject = entryValue.get("autoImportCustomerImportType");

@@ -64,7 +64,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(context, importTypeObject);

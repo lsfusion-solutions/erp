@@ -7,7 +7,6 @@ import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -37,7 +36,7 @@ public class ImportProductionOrdersFileAction extends ImportDocumentAction {
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(context, importTypeObject);

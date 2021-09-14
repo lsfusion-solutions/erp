@@ -58,7 +58,7 @@ public class ImportProductionOrdersAction extends ImportDocumentAction {
 
                 String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());
                 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(context, importTypeObject);
@@ -68,19 +68,21 @@ public class ImportProductionOrdersAction extends ImportDocumentAction {
                     File dir = new File(directory);
 
                     if (dir.exists()) {
+                        File[] files = dir.listFiles();
+                        if(files != null) {
+                            for (File f : files) {
+                                if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
+                                    try(ExecutionContext.NewSession newContext = context.newSession()) {
+                                        try {
+                                            boolean importResult = new ImportProductionOrderAction(LM).makeImport(newContext, null,
+                                                    importColumns, new RawFileData(f), settings, fileExtension, operationObject);
 
-                        for (File f : dir.listFiles()) {
-                            if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
-                                try(ExecutionContext.NewSession newContext = context.newSession()) {
-                                    try {
-                                        boolean importResult = new ImportProductionOrderAction(LM).makeImport(newContext, null,
-                                                importColumns, new RawFileData(f), settings, fileExtension, operationObject);
+                                            if (importResult)
+                                                renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
-                                        if (importResult)
-                                            renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
-
-                                    } catch (Exception e) {
-                                        ERPLoggers.importLogger.error("ImportProductionOrders Error: ", e);
+                                        } catch (Exception e) {
+                                            ERPLoggers.importLogger.error("ImportProductionOrders Error: ", e);
+                                        }
                                     }
                                 }
                             }

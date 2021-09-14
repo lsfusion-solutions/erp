@@ -70,11 +70,11 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
-                ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, (DataObject) importTypeObject);
-                ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
-                ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(context, (DataObject) importTypeObject);
-                ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, importTypeObject);
+                ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, importTypeObject);
+                ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(context, importTypeObject);
+                ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(context, importTypeObject);
+                ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(context, importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(context, importTypeObject);
@@ -656,7 +656,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
     private String readIdCustomer(ExecutionContext<ClassPropertyInterface> context, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[STRING[100]]").readClasses(context, new DataObject(idCustomerStock));
-        ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(context, (DataObject) customerStockObject));
+        ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(context, customerStockObject));
         return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(context, customerObject));
     }
 
