@@ -10,10 +10,17 @@ token 'Токен отправки Glovo' = DATA STRING ();
 idExt (Item i) = '"' + id(i) +'"';
 internetGroupType = ABSTRACT GroupType ();
 loggingGlovo 'Включить логирование Glovo' = DATA BOOLEAN ();
+testUrlServer 'Url тестового сервера' = DATA STRING[255] ();
+prodUrlServer 'Url сервера' = DATA STRING[255] ();
+testMode 'Тестовый режим' = DATA BOOLEAN ();
+inToken 'Токен получения Glovo' = DATA STRING ();
+
+urlServer = IF testMode() THEN testUrlServer() ELSE prodUrlServer();
 
 EXTEND FORM integrationData
-    PROPERTIES glovoFtpFolderName(), token(), loggingGlovo();
-
+    PROPERTIES() inToken, testUrlServer, prodUrlServer, testMode, glovoFtpFolderName, token, loggingGlovo
+;
+    
 DESIGN integrationData{
     delivery{
         NEW glovo{
@@ -21,6 +28,10 @@ DESIGN integrationData{
             MOVE PROPERTY (glovoFtpFolderName());
             MOVE PROPERTY (token());
             MOVE PROPERTY (loggingGlovo());
+            MOVE PROPERTY (inToken());
+            MOVE PROPERTY (testUrlServer());
+            MOVE PROPERTY (prodUrlServer());
+            MOVE PROPERTY (testMode());
         }
     }
 } 
@@ -84,14 +95,17 @@ FORM glovoMenu
 ;
 
 CLASS MenuGlovo 'Загрузка меню glovo';
+
 store = DATA DepartmentStore (MenuGlovo);
 nameStore (MenuGlovo g) = name(store(g));
-dateTimeFrom 'Сформированно'  = DATA DATETIME (MenuGlovo);
+dateTimeFrom 'Сформированно' = DATA DATETIME (MenuGlovo);
+storeId 'ID магазина' = DATA STRING (MenuGlovo); 
 transactionId 'ID' = DATA STRING (MenuGlovo);
 status 'Статус' = DATA STRING (MenuGlovo);
 fileMenu 'Файл' = DATA JSONFILE (MenuGlovo);
 url 'Url' = DATA STRING (MenuGlovo);
 
+storeIdGlovo = ABSTRACT STRING (DepartmentStore); // id магазина в системе glovo. Переопределить
 afterFillMenu ABSTRACT LIST (DepartmentStore);
 
 
@@ -104,6 +118,7 @@ fillMenu 'Заполнить меню glovo'(DepartmentStore s){
     LOCAL f = JSONFILE();
     NEW menu = MenuGlovo{
         store(menu) <- s;
+        storeId(menu) <- storeIdGlovo(s);
         dateTimeFrom(menu) <- currentDateTime();
         EXPORT glovoMenu OBJECTS store = s JSON TO f;
         fileMenu(menu) <- f();
@@ -124,7 +139,7 @@ updateMenu 'Загрузить меню' (MenuGlovo menu){
     LOCAL f = JSONFILE ();
     LOCAL answer = FILE();
     EXPORT JSON FROM menuUrl = url(menu) TO f;
-    EXTERNAL HTTP POST 'https://stageapi.glovoapp.com/webhook/stores/201077/menu' HEADERS headers
+    EXTERNAL HTTP POST CONCAT '', urlServer(), 'webhook/stores/', storeId(menu), '/menu' HEADERS headers
         PARAMS f() TO answer;
     IMPORT menuUpdate JSON FROM answer(); 
     dateTimeFrom(menu) <- currentDateTime();

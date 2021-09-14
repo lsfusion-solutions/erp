@@ -1,6 +1,6 @@
 MODULE GlovoOrder;
 
-REQUIRE System, SaleInternetOrder, DeliveryOption, GlovoMenu, SaleInternetOrderIntegration;
+REQUIRE System, SaleInternetOrder, DeliveryOption, GlovoMenu, SaleInternetOrderIntegration, SaleInternetPicking;
 
 NAMESPACE Glovo;
 
@@ -71,24 +71,6 @@ FORM importOrderGlovo FORMEXTID 'null'
     PROPERTIES() IN customer name3 EXTID 'name', phone_number1 EXTID 'phone_number', hash
     PROPERTIES() IN invoicing_details company_name, company_address, tax_id;
 
-
-inToken 'Токен получения Glovo' = DATA STRING ();
-testUrlServer 'Url тестового сервера' = DATA STRING[255] ();
-prodUrlServer 'Url сервера' = DATA STRING[255] ();
-testMode 'Тестовый режим' = DATA BOOLEAN ();
-
-
-EXTEND FORM integrationData
-    PROPERTIES() inToken, testUrlServer, prodUrlServer, testMode;
-    
-DESIGN integrationData{
-    glovo{
-        MOVE PROPERTY (inToken());
-        MOVE PROPERTY (testUrlServer());
-        MOVE PROPERTY (prodUrlServer());
-        MOVE PROPERTY (testMode());
-    }
-}
     
 glovoCarrier = GROUP MAX Carrier r IF id(r) = 'glovo';
 itemById (STRING id) = GROUP MAX Item i IF id(i) == id;
@@ -128,7 +110,7 @@ createOrder(FILE f){
         phoneInternetCustomer(order) <- STRING[100](phone_number1());
         addressInternetCustomer(order) <- STRING[400](label());
         customerComment(order) <- allergy_info();
-        supplierStock(order) <- stockOrder(store_id());//GROUP MAX DepartmentStore d IF idStock(glovoCarrier(),d) = store_id();
+        supplierStock(order) <- stockOrder(store_id());
         isPosted(order) <- TRUE;
         FOR id1(INTEGER products) NEW detail = InternetOrderDetail DO{
             internetOrder(detail) <- order;
@@ -184,12 +166,12 @@ updateStatusOrder 'Обновление статуса заказа' (InternetOr
     TRY {
         LOCAL f = FILE ();
         LOCAL answer = FILE ();
-        LOCAL headers = TEXT(STRING[100]);
-        headers('Authorization') <- token();
-        headers('content-type') <- 'application/json';
+        LOCAL headersGlovo = TEXT(STRING[100]);
+        headersGlovo('Authorization') <- token();
+        headersGlovo('content-type') <- 'application/json';
         EXPORT JSON FROM status = statusGlovo(order) TO f;
         EXTERNAL HTTP CONCAT '', 'https://stageapi.glovoapp.com/webhook/stores/201077/orders/', idAggregator(order),
-            '/status' HEADERS headers PARAMS f() TO answer;
+            '/status' HEADERS headersGlovo PARAMS f() TO answer;
     }
     CATCH {
         MESSAGE CONCAT '\n', 'Ошибка отправки статуса в glovo', messageCaughtException();
@@ -204,3 +186,33 @@ DESIGN internetOrder{
         MOVE PROPERTY (updateStatusOrder(o));
     }
 }
+
+// --------------------------------------- Модификация заказа -------------------------------- //
+
+removed_purchases (InternetOrder o) = CONCAT '', '[', (GROUP CONCAT idExt(sku(InternetOrderDetail d)) IF sku(d) IS Item 
+    AND internetOrder(d) = o AND pickingQuantity(d) != quantity(d), ',' ), ']';
+ 
+FORM modifyOrder FORMEXTID 'null'
+    OBJECTS o = InternetOrder PANEL EXTID 'null'
+    PROPERTIES removed_purchases(o)
+    
+    OBJECTS d = InternetOrderDetail EXTID 'added_products'
+    PROPERTIES = idSku(d) EXTID 'id', pickingQuantity(d) EXTID 'quantity',
+        = attributesGroup(sku(d)) IF sku(d) IS Item EXTID 'attributes'
+    
+    FILTERS internetOrder(d) = o AND pickingQuantity(d) != quantity(d) AND pickingQuantity(d) > 0
+;
+
+modifyOrder 'Обновление заказа'(InternetOrder o){
+    LOCAL f = FILE();
+    EXPORT modifyOrder OBJECTS o = o JSON TO f;
+    LOCAL answer = FILE ();
+    LOCAL headersGlovo = TEXT(STRING[100]);
+    headersGlovo('Authorization') <- token();
+    headersGlovo('content-type') <- 'application/json';
+    EXTERNAL HTTP POST 'https://stageapi.glovoapp.com/webhook/stores/201077/orders/' + idAggregator(o) +'/replace_products'
+        HEADERS headersGlovo PARAMS f() TO answer;
+} 
+ 
+EXTEND FORM internetOrders
+    PROPERTIES (o) modifyOrder TOOLBAR DRAW o;
