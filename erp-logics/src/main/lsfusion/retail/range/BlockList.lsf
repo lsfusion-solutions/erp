@@ -110,15 +110,19 @@ changeValue(Sku sku, BlockList blockList)  {
 
 active(Stock stock, BlockListDetail detail) = in(blockList(detail), stock) AND isPosted(detail) MATERIALIZED;
 sku(Stock stock, BlockListDetail detail) = sku(detail) IF active(stock, detail) MATERIALIZED INDEXED; 
+supplier(Stock stock, BlockListDetail detail) = supplier(detail) IF active(stock, detail) MATERIALIZED INDEXED; 
 fromDateTime(Stock stock, BlockListDetail detail) = fromDateTime(detail) IF active(stock, detail) MATERIALIZED; 
-toDateTime(Stock stock, BlockListDetail detail) = toDateTime(detail) IF active(stock, detail) MATERIALIZED; 
+toDateTime(Stock stock, BlockListDetail detail) = toDateTime(detail) IF active(stock, detail) MATERIALIZED;
+
+INDEX sku(Stock stock, BlockListDetail detail), stock, fromDateTime(stock, detail), detail;
+INDEX sku(Stock stock, BlockListDetail detail), stock, supplier(stock, detail), fromDateTime(stock, detail), detail;
    
 inBlockList (sku, Stock stock, supplier, DATETIME dateTime) =
     GROUP LAST active(stock, BlockListDetail detail)
           ORDER fromDateTime(stock, detail) , detail 
           WHERE dateTime >= fromDateTime(stock, detail) 
                 AND NOT dateTime >  toDateTime(stock, detail)
-          BY   sku(stock, detail), supplier(detail) COMPLEX;        
+          BY   sku(stock, detail), supplier(stock, detail) COMPLEX;        
 inBlockList (sku, Stock stock, DATETIME dateTime) =
     GROUP LAST active(stock, BlockListDetail detail)
           ORDER fromDateTime(stock, detail) , detail 
@@ -131,7 +135,7 @@ lastBlockListDetail (sku, Stock stock, supplier, DATETIME dateTime) =
           ORDER fromDateTime(stock, detail) , detail 
           WHERE dateTime >= fromDateTime(stock, detail) 
                 AND NOT dateTime >  toDateTime(stock, detail)
-          BY   sku(stock, detail), supplier(detail) COMPLEX;        
+          BY   sku(stock, detail), supplier(stock, detail) COMPLEX;        
 inBlockListCurrent 'Временная блокировка товара' (LegalEntity sup, Sku sku, Stock stock) = inBlockList(sku,stock,sup,currentDateTime());
 
 FORM blockList 'Временная блокировка товара'
