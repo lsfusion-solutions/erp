@@ -32,7 +32,7 @@ public class FiscalBoardPostPrintAction extends FiscalBoardAction {
             Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
             boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
 
-            BigDecimal sum = (BigDecimal) findProperty("sumPayment[Receipt]").read(context, (DataObject) receiptObject);
+            BigDecimal sum = (BigDecimal) findProperty("sumPayment[Receipt]").read(context, receiptObject);
             BigDecimal change = (BigDecimal) findProperty("changePayment[Receipt]").read(context, receiptObject);
 
             String[] lines = generateText(sum, change);

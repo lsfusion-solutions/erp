@@ -49,7 +49,7 @@ public class FiscalDatecsPrintReceiptAction extends InternalAction {
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
                 Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
                 ObjectValue userObject = findProperty("employee[Receipt]").readClasses(context, receiptObject);
-                Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister[CustomUser]").read(context, (DataObject) userObject);
+                Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister[CustomUser]").read(context, userObject);
                 Double sumTotal = (Double) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 Double sumDisc = (Double) findProperty("discountSumReceiptDetail[Receipt]").read(context, receiptObject);
                 Double sumCard = null;

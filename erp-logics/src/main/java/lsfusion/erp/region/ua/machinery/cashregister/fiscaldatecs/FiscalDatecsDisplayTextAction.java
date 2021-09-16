@@ -39,7 +39,7 @@ public class FiscalDatecsDisplayTextAction extends InternalAction {
                 String barcode = (String) findProperty("idBarcode[ReceiptDetail]").read(context, receiptDetailObject);
                 Double quantity = (Double) findProperty("quantity[ReceiptDetail]").read(context, receiptDetailObject);
                 Double price = (Double) findProperty("price[ReceiptDetail]").read(context, receiptDetailObject);
-                Double sum = (Double) findProperty("sumReceiptDetail[Receipt]").read(context, (DataObject) receiptObject);
+                Double sum = (Double) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 Double articleDisc = (Double) findProperty("discountPercent[ReceiptSaleDetail]").read(context, receiptDetailObject);
                 Double articleDiscSum = (Double) findProperty("discountSum[ReceiptDetail]").read(context, receiptDetailObject);
 

@@ -39,7 +39,7 @@ public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
             String name = trimToEmpty((String) findProperty("overNameSku[ReceiptDetail]").read(context, receiptDetailObject));
             BigDecimal quantity = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(context, receiptDetailObject);
             BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(context, receiptDetailObject);
-            BigDecimal sum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, (DataObject) receiptObject);
+            BigDecimal sum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
 
             String[] lines = generateText(price, quantity == null ? BigDecimal.ZERO : quantity, sum, name);
             context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, null));
