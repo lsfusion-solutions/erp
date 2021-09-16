@@ -1715,6 +1715,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
                                 sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
 
+                                //todo: temp log
+                                astronSalesLogger.info("PaymentCard='" + StringUtils.join(paymentCardNumbers, ";") + "'");
                                 receiptDetailExtraFields.put("paymentCard", StringUtils.join(paymentCardNumbers, ";"));
 
                                 curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
@@ -1738,6 +1740,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                             //todo: temp log
                                             astronSalesLogger.info("PaymentCardNumbers SALESBARC='" + rs.getString("SALESBARC") + "'");
                                             if(salesBarc.length > 0) {
+                                                astronSalesLogger.info("PaymentCardNumbers value='" + salesBarc[0] + "'");
                                                 paymentCardNumbers.add(salesBarc[0]);
                                             }
                                             sumCard = safeAdd(sumCard, sum);
