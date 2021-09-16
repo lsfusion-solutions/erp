@@ -546,7 +546,7 @@ public class FiscalAbsolut {
         OutputStreamWriter sw = null;
         try {
 
-            sw = new OutputStreamWriter(new FileOutputStream(new File("logs/absolut.txt"), true), StandardCharsets.UTF_8);
+            sw = new OutputStreamWriter(new FileOutputStream("logs/absolut.txt", true), StandardCharsets.UTF_8);
             String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
             for(ReceiptItem item : receipt.receiptSaleList) {
                 sw.write(String.format("%s|%s|1|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\r\n", dateTime, numberReceipt,

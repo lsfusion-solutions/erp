@@ -10,7 +10,7 @@ public class TerminalJadeEKO {
 
     public interface jadeEKODLL extends Library {
 
-        jadeEKODLL jadeEKO = (jadeEKODLL) Native.loadLibrary("jadeEKO", jadeEKODLL.class);
+        jadeEKODLL jadeEKO = Native.load("jadeEKO", jadeEKODLL.class);
 
         boolean operation(byte[] port, byte[] un, byte[] req, byte[] resp);
 
@@ -28,7 +28,7 @@ public class TerminalJadeEKO {
         try {
             System.loadLibrary("jadeEKO");
         } catch (Exception e) {
-            System.out.println(e.toString());
+            System.out.println(e);
         }
     }
 
@@ -37,7 +37,7 @@ public class TerminalJadeEKO {
         byte[] un = new byte[255];
         jadeEKODLL.jadeEKO.generateun(un);
         byte[] response = new byte[255];
-        jadeEKODLL.jadeEKO.operation(getBytes("COM" + String.valueOf(comPort)), un, getBytes(query), response);
+        jadeEKODLL.jadeEKO.operation(getBytes("COM" + comPort), un, getBytes(query), response);
         String error = checkErrors();
         if (error != null)
             return error;
