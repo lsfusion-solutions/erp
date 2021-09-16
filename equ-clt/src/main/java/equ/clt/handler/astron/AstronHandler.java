@@ -1637,6 +1637,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             Integer prevNppCashRegister = null;
             Integer prevNumberReceipt = null;
 
+            List<String> paymentCardNumbers = new ArrayList<>();
+
             while (rs.next()) {
 
                 Integer sAreaId = rs.getInt("SAREAID");
@@ -1684,8 +1686,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
                         String nameEmployee = rs.getString("CASHIERNAME");
-
-                        List<String> paymentCardNumbers = new ArrayList<>();
 
                         Map<String, Object> receiptDetailExtraFields = new HashMap<>();
                         receiptDetailExtraFields.put("priceLevelId", rs.getInt("PRCLEVELID"));
@@ -1772,6 +1772,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 sumCard = null;
                                 sumGiftCardMap = new HashMap<>();
                                 customPaymentsMap = new HashMap<>();
+                                paymentCardNumbers = new ArrayList<>();
                                 if (prologSum.compareTo(BigDecimal.ZERO) == 0) {
                                     salesInfoList.addAll(curSalesInfoList);
                                     recordList.addAll(curRecordList);
