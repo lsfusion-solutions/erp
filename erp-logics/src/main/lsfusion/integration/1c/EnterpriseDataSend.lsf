@@ -48,8 +48,7 @@ META defItem(nm, class, table, extid)
 END
 
 // patner
-CLASS ABSTRACT Partner 'Справочник.Контрагенты' : Reference;
-EXTEND CLASS ObjectExchange { partner 'Справочник.Контрагенты' }
+@extReference(partner, 'Контрагенты');
 @defProp(inn, 'ИНН', STRING[12], Partner);
 @defProp(kpp, 'КПП', STRING[9], Partner);
 @defProp(fullName, 'НаименованиеПолное', STRING, Partner);
@@ -295,6 +294,13 @@ EXTEND FORM sendMessage
 //outcome vat invoice
 CLASS ABSTRACT OutcomeVatInvoice 'Документ.СчетФактураВыданный' : Document;
 
+EXTEND CLASS ObjectExchange { outcomeVatInvoice 'Документ.СчетФактураВыданный' }
+
+date (OutcomeVatInvoice outcomeVatInvoice) += DATE(dateTime(outcomeVatInvoice));
+desc (OutcomeVatInvoice outcomeVatInvoice) += STRING (CONCAT ' ', 'Счет фактура', 'от ' + date (outcomeVatInvoice), '№ ' + id(outcomeVatInvoice));
+
+inSending (Configuration configuration, OutcomeVatInvoice outcomeVatInvoice) += inSending(ObjectExchange.outcomeVatInvoice, configuration) IF outcomeVatInvoice IS OutcomeVatInvoice;
+
 CLASS ABSTRACT OutcomeVatInvoiceDetail 'Строка';
 
 outcomeVatInvoice = ABSTRACT OutcomeVatInvoice (OutcomeVatInvoiceDetail);
@@ -311,7 +317,7 @@ EXTEND FORM sendMessage
     PROPERTIES(companyOutcomeVatInvoice) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
     FILTERS companyOutcomeVatInvoice = company(outcomeVatInvoice)
     
-    FILTERS inSending(configuration, outcomeVatInvoice)
+    FILTERS in(configuration, outcomeVatInvoice)
 ;
 
 @extDeleteObject(outcomeVatInvoice, 'СчетФактураВыданныйСсылка');
