@@ -1735,6 +1735,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     String[] salesBarc = trimToEmpty(rs.getString("SALESBARC")).split(":");
                                     switch (type) {
                                         case 1:
+                                            //todo: temp log
+                                            astronSalesLogger.info("PaymentCardNumbers SALESBARC='" + rs.getString("SALESBARC") + "'");
                                             if(salesBarc.length > 0) {
                                                 paymentCardNumbers.add(salesBarc[0]);
                                             }
