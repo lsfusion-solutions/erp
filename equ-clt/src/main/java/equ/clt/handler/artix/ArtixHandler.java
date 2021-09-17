@@ -73,6 +73,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, Exception> failedTransactionMap = new HashMap<>();
         Set<Long> emptyTransactionSet = new HashSet<>();
+        usedCountries = new HashSet<>();
 
         boolean failed = false;
         for (TransactionCashRegisterInfo transaction : transactionList) {
