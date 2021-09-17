@@ -69,8 +69,10 @@ yandexEdaOrderStatus (InternetOrder o) = CASE
     WHEN status(o) = StatusInternetOrder.picked THEN 'READY'
     WHEN status(o) = StatusInternetOrder.delivery THEN 'TAKEN_BY_COURIER'
     WHEN status(o) = StatusInternetOrder.delivered THEN 'DELIVERED'
-    WHEN status(o) = StatusInternetOrder.closed THEN 'CANCELLED '
+    WHEN status(o) = StatusInternetOrder.closed THEN 'CANCELLED'
 ;
+httpHeadersYandex(TEXT name) = CASE
+    WHEN name == 'Content-type' THEN 'application/vnd.eats.order.v2+json';
 
 createOrder(FILE f){
     LOCAL tokenClient = STRING ();
@@ -240,7 +242,11 @@ getOrder (FILE f) {
         {
             EXPORT statusYandex OBJECTS o = order() JSON;
         }
-        ELSE EXPORT getOrder OBJECTS o = order() JSON;
+        ELSE 
+        {
+            headersTo(TEXT h) <- httpHeadersYandex(h);
+            EXPORT getOrder OBJECTS o = order() JSON;
+        }
     }
 }
 
