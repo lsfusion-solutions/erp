@@ -1,0 +1,679 @@
+MODULE VATInvoiceDocument;
+
+REQUIRE MasterData, Utils, Numerator, Contract, Certificate;
+
+NAMESPACE VATInvoice;
+
+CLASS VATStatus {
+    vat0 '0%',
+    vat10 '10%',
+    vat18 '18%',
+    vat20 '20%',
+    vat10110 '10/110',
+    vat18118 '18/118',
+    vat20120 '20/120',
+    vatNot 'без НДС',  
+    vatAgent 'НДС исчисляется налоговым агентом'         
+}
+
+CLASS Credential 'Область полномочий подписанта (продавец)' {
+    c0 '0',
+    c1 '1',
+    c2 '2', 
+    c3 '3',
+    c4 '4',
+    c5 '5', 
+    c6 '6'    
+}
+
+CLASS CStatus 'Статус подписанта (продавец)' {
+    c1 '1',
+    c2 '2', 
+    c3 '3',
+    c4 '4'  
+}
+
+META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
+    CLASS ###docType##Document sign;
+    TABLE ##docType##Document(###docType##Document);
+    
+    number 'Номер' = DATA STRING[48] (###docType##Document) IN numbered CHARWIDTH 7;
+    
+    operatorEdi 'Оператор ЭДО' = DATA LegalEntity (###docType##Document);
+    nameOperatorEdi 'Оператор ЭДО' (###docType##Document d) = name(operatorEdi(d));
+    
+    //Титул продавца
+    //-------СвУчДокОбор---------
+    
+    idConsignor 'ИД отправителя' = DATA STRING[46] (###docType##Document); //ИдОтпр
+    idConsignee 'ИД получателя' = DATA STRING[46] (###docType##Document); //ИдПол
+    
+    
+    //СвОЭДОтпр
+    nameOperatorConsignor 'Оператор ЭДО' = DATA STRING[1000] (###docType##Document); //ИдОтпр
+    innOperatorConsignor 'ИНН оператора ЭДО' = DATA STRING[10] (###docType##Document); //ИННЮЛ
+    codeOperatorConsignor 'ИД оператора ЭДО' = DATA STRING[3] (###docType##Document); //ИдЭДО
+    
+    //-------Документ---------
+    status 'Функция' = DATA ###docType##DocumentStatus (###docType##Document);
+    nameStatus 'Функция' (###docType##Document upd) = staticCaption(status(upd)) CHARWIDTH 8; //Функция
+    
+    businessNameDocument 'Наименование документа (по факту хоз.жизни)' = DATA STRING[255] (###docType##Document);//ПоФактХЖ
+    supplierNameDocument 'Наименование документа' = DATA STRING[255] (###docType##Document); //НаимДокОпр
+    dateSupplier 'Дата формирования' = DATA DATE (###docType##Document); //ДатаИнфПр - заполнять при формировании XML-файла
+    timeSupplier 'Время формирования' = DATA TIME (###docType##Document); //ВремИнфПр - заполнять при формировании XML-файла
+    dateTimeSupplier 'Дата/время формирования' (###docType##Document u) = dateTimeToDateTime(dateSupplier(u), timeSupplier(u)) MATERIALIZED; 
+    nameOriginatorSupplier 'Составитель' = DATA STRING[1000] (###docType##Document) CHARWIDTH 45; //НаимЭконСубСост
+    
+    //СвСчФакт
+    invoiceNumerator 'Нумератор '###signSchf = DATA Numerator (###docType##Document);
+    nameInvoiceNumerator 'Нумератор '###signSchf (###docType##Document document) = name(invoiceNumerator(document));
+     
+    numberInvoice 'Номер '###signSchf = DATA STRING[1000] (###docType##Document) CHARWIDTH 15; //НомерСчФ
+    dateInvoice 'Дата '###signSchf = DATA DATE (###docType##Document); //ДатаСчФ
+    codeCurrency 'Код валюты' = DATA STRING[3] (###docType##Document); //КодОКВ
+    
+    //-СвПрод
+    supplier 'Продавец' = DATA LegalEntity(###docType##Document);
+    
+    okpoSupplier 'ОКПО продавца' = DATA STRING[10] (###docType##Document); //ОКПО
+    
+    //--ИдСв
+    //---СвЮЛУч
+    nameSupplier 'Продавец' = DATA STRING[1000] (###docType##Document) CHARWIDTH 20; //НаимОрг
+    innSupplier 'ИНН продавца' = DATA STRING[10] (###docType##Document); //ИННЮЛ
+    kppSupplier 'КПП продавца' = DATA STRING[9] (###docType##Document); //КПП
+    
+    //---Адрес
+    //----АдрРФ
+    regionCodeSupplier 'Код региона продавца' = DATA STRING[2](###docType##Document); //КодРегион
+    
+    //----АдрИнф
+    countryCodeAddressSupplier 'Код страны продавца' = DATA STRING[3] (###docType##Document); //КодСтр
+    adrressSupplier 'Адрес продавца' = DATA STRING[150] (###docType##Document); //АдрТекст
+    
+    //----КодГАР
+    codeAdrressSupplier 'Код адреса продавца' = DATA STRING[36] (###docType##Document); //КодГАР
+    
+    //-БанкРекв
+    numberAccountSupplier 'Номер банковского счета' = DATA STRING[20](###docType##Document);//НомерСчета
+    
+    //--СвБанк
+    nameBankSupplier 'Наименование банка' = DATA STRING[1000](###docType##Document) CHARWIDTH 25;//НаимБанк
+    MFOBankSupplier 'БИК' = DATA STRING[9](###docType##Document)  CHARWIDTH 9;//БИК
+    corrAccountBankSupplier 'Корреспондентский счет банка' = DATA STRING[20](###docType##Document);//КорСчет
+    
+    //-СвПокуп
+    customer 'Покупатель' = DATA LegalEntity(###docType##Document);
+    
+    okpoCustomer 'ОКПО покупателя' = DATA STRING[10] (###docType##Document); //ОКПО
+    
+    //--ИдСв
+    //---СвЮЛУч
+    nameCustomer 'Покупатель' = DATA STRING[1000] (###docType##Document) CHARWIDTH 20; //НаимОрг
+    innCustomer 'ИНН покупателя' = DATA STRING[10] (###docType##Document); //ИННЮЛ
+    kppCustomer 'КПП покупателя' = DATA STRING[9] (###docType##Document); //КПП
+    
+    //---Адрес
+    //----АдрРФ
+    regionCodeCustomer 'Код региона покупателя' = DATA STRING[3](###docType##Document); //КодРегион
+    
+    //----АдрИнф
+    countryCodeAddressCustomer 'Код страны покупателя' = DATA STRING[3] (###docType##Document); //КодСтр
+    adrressCustomer 'Адрес покупателя' = DATA STRING[150] (###docType##Document); //АдрТекст
+    
+    //----КодГАР
+    codeAdrressCustomer 'Код адреса покупателя' = DATA STRING[36] (###docType##Document); //КодГАР
+    
+    //-ИнфПолФХЖ1
+    //--ТекстИнф
+    codeBusinessEvent 'Идентификатор факта хоз.жизни' = DATA STRING[50] (###docType##Document); //Идентиф
+    descriptionBusinessEvent 'Описание факта хоз.жизни' = DATA STRING[50] (###docType##Document); //Значен
+    
+    //details
+    CLASS ###docType##DocumentDetail 'Строка '##sign;
+    TABLE ##docType##DocumentDetail(###docType##DocumentDetail);
+    
+    ##docType##Document = DATA ###docType##Document(###docType##DocumentDetail) NONULL DELETE INDEXED;
+    defaultIndex '{document.default.index.detail.class}' (###docType##DocumentDetail d) =
+        PARTITION SUM 1
+        ORDER d BY ##docType##Document(d) CHARWIDTH 4;
+    
+    //ТаблСчФакт
+    //-СведТов
+    number 'Номер строки' = DATA NUMERIC[6,0] (###docType##DocumentDetail); //НомСтр
+    nameSku 'Наименование товара' = DATA STRING[1000] (###docType##DocumentDetail) CHARWIDTH 45; //НаимТов
+    
+    //Подписант
+    supplierSignerCredentials = DATA Credential(###docType##Document);
+    nameSupplierSignerCredentials 'Область полномочий подписанта (продавец)' = staticCaption(supplierSignerCredentials(###docType##Document d)); //ОблПолн
+    
+    supplierSignerStatus = DATA CStatus(###docType##Document);
+    nameSupplierSignerStatus 'Статус подписанта (продавец)' = staticCaption(supplierSignerStatus(###docType##Document d)); //Статус
+    supplierSignerCredentialsBase 'Основание полномочий подписанта (продавец)' = DATA STRING[255] (###docType##Document) CHARWIDTH 50; //ОснПолн
+    
+    //-ФЛ
+    //--ФИО
+    supplierSignerLastName 'Фамилия подписанта (продавец)' = DATA STRING[60] (###docType##Document);//Фамилия
+    supplierSignerFirstName 'Имя подписанта (продавец)' = DATA STRING[60] (###docType##Document);//Имя
+    supplierSignerMiddleName 'Отчество (продавец)' = DATA STRING[60](###docType##Document); //Отчество
+    isSupplierSigner (###docType##Document d) = supplierSignerLastName(d) AND supplierSignerFirstName(d);
+    
+    //-ЮЛ
+    supplierSignerInn 'ИНН организации-подписанта (продавец)' = DATA STRING[10] (###docType##Document);//ИННЮЛ
+    supplierSignerPosition 'Должность подписанта (продавец)' = DATA STRING[128] (###docType##Document);//Должн
+    
+    //--ФИО
+    supplierSignerAgentLastName 'Фамилия' = DATA STRING[60] (###docType##Document);//Фамилия
+    supplierSignerAgentFirstName 'Имя' = DATA STRING[60] (###docType##Document);//Имя
+    supplierSignerAgentMiddleName 'Отчество' = DATA STRING[60](###docType##Document); //Отчество
+
+    //Титул покупателя
+    //-------ИнфПок---------
+    dateCustomer 'Дата формирования (покупатель)' = DATA DATE (###docType##Document); //ДатаИнфПок
+    timeCustomer 'Время формирования (покупатель)' = DATA TIME (###docType##Document); //ВремИнфПок
+    nameOriginatorCustomer 'Наименование составителя (покупатель)' = DATA STRING[1000] (###docType##Document) CHARWIDTH 45; //НаимЭконСубСост
+       
+    //Подписант
+    customerSignerCredentials 'Область полномочий подписанта' = DATA INTEGER (###docType##Document); //ОблПолн
+    customerSignerStatus 'Статус подписанта' = DATA INTEGER (###docType##Document); //Статус
+    customerSignerCredentialsBase 'Основание полномочий подписанта' = DATA STRING[255] (###docType##Document) CHARWIDTH 50; //ОснПолн
+    
+    //-ФЛ
+    //--ФИО
+    customerSignerLastName 'Фамилия подписанта' = DATA STRING[60] (###docType##Document);//Фамилия
+    customerSignerFirstName 'Имя подписанта' = DATA STRING[60] (###docType##Document);//Имя
+    customerSignerMiddleName 'Отчество' = DATA STRING[60](###docType##Document); //Отчество
+    
+    //-ЮЛ
+    customerSignerInn 'ИНН организации-подписанта' = DATA STRING[10] (###docType##Document);//ИННЮЛ
+    customerSignerPosition 'Должность представителя подписанта' = DATA STRING[128] (###docType##Document);//Должн
+    
+    //--ФИО
+    customerSignerAgentLastName 'Фамилия представителя подписанта' = DATA STRING[60] (###docType##Document);//Фамилия
+    customerSignerAgentFirstName 'Имя представителя подписанта' = DATA STRING[60] (###docType##Document);//Имя
+    customerSignerAgentMiddleName 'Отчество представителя' = DATA STRING[60](###docType##Document); //Отчество
+    
+    //sending
+    dataDateTimeTransfer 'Дата/время отправки' = DATA DATETIME (###docType##Document);
+    overDateTimeTransfer 'Дата/время отправки' = ABSTRACT DATETIME (###docType##Document);
+    dateTimeTransfer 'Дата/время отправки' (###docType##Document upd) = OVERRIDE overDateTimeTransfer(upd), dataDateTimeTransfer(upd);
+    isTransferred 'Отправлен' (###docType##Document u) = u IS ###docType##Document AND dateTimeTransfer(u);
+    
+    uuid 'UUID' = DATA ISTRING[36] (###docType##Document);    
+    generateIdFile (###docType##Document d) {
+        IF NOT uuid(d) THEN NEWSESSION {
+            generateUUID();
+            uuid(d) <- ISTRING[36](generatedUUID());
+            APPLY;
+        }
+    }
+    
+    FORM ##docType##Document fullSign
+        OBJECTS u = ###docType##Document PANEL
+    
+        PROPERTIES (u) uuid, idConsignor, idConsignee, nameStatus, businessNameDocument, supplierNameDocument
+        PROPERTIES (u) nameOperatorConsignor, innOperatorConsignor, codeOperatorConsignor
+                    
+        PROPERTIES (u) nameSupplier, innSupplier, kppSupplier, okpoSupplier, nameOriginatorSupplier
+        PROPERTIES (u) dateSupplier, timeSupplier
+        PROPERTIES (u) nameInvoiceNumerator, numberInvoice, dateInvoice, codeCurrency
+        PROPERTIES (u) regionCodeSupplier, countryCodeAddressSupplier, adrressSupplier, codeAdrressSupplier
+        PROPERTIES (u) numberAccountSupplier, nameBankSupplier, MFOBankSupplier, corrAccountBankSupplier
+        
+        PROPERTIES (u) nameCustomer, innCustomer, kppCustomer, okpoCustomer
+        PROPERTIES (u) regionCodeCustomer, countryCodeAddressCustomer, codeAdrressCustomer
+        PROPERTIES (u) codeBusinessEvent, descriptionBusinessEvent
+        PROPERTIES (u) nameSupplierSignerCredentials, nameSupplierSignerStatus, supplierSignerCredentialsBase
+        PROPERTIES (u) supplierSignerLastName, supplierSignerFirstName, supplierSignerMiddleName
+        PROPERTIES (u) supplierSignerInn, supplierSignerPosition
+        PROPERTIES (u) supplierSignerAgentLastName, supplierSignerAgentFirstName, supplierSignerAgentMiddleName
+        
+        PROPERTIES (u) dateCustomer, timeCustomer, nameOriginatorCustomer
+        PROPERTIES (u) customerSignerCredentials, customerSignerStatus, customerSignerCredentialsBase
+        PROPERTIES (u) customerSignerLastName, customerSignerFirstName, customerSignerMiddleName
+        PROPERTIES (u) customerSignerInn, customerSignerPosition, customerSignerAgentLastName, customerSignerAgentFirstName, customerSignerAgentMiddleName
+        
+        PROPERTIES (u) dateTimeTransfer READONLY
+        
+        OBJECTS d = ###docType##DocumentDetail
+        
+        PROPERTIES(d) number, nameSku
+                      
+        PROPERTIES (d) NEW, DELETE
+            
+        FILTERS ##docType##Document(d) == u
+        
+        EDIT ###docType##Document OBJECT u           
+    ;
+    
+    DESIGN ##docType##Document {
+        BOX {
+            size = (1024, 768);
+            NEW mainContainer {
+                type = SCROLL;
+                fill = 1;
+                NEW documentContainer {
+                    fill = 1;
+                    type = CONTAINERV;
+                    NEW mainDocumentAttributes {
+                        alignment = STRETCH;
+                        type = CONTAINERH;
+                        
+                        NEW supplierInvoice {
+                            caption = signSchf;
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(nameInvoiceNumerator(u));
+                            MOVE PROPERTY(numberInvoice(u));
+                            MOVE PROPERTY(dateInvoice(u));
+                            MOVE PROPERTY(nameStatus(u));                       
+                        }
+                        NEW partsInfo0{
+                            fill = 1;
+                            NEW partsInfo {
+                                caption = 'Стороны';
+                                fill = 1;
+                                type = CONTAINERV;
+                                MOVE PROPERTY(nameSupplier(u));
+                                MOVE PROPERTY(nameCustomer(u));                       
+                            }
+                        }
+                        NEW sums {
+                            caption = 'Итоговые суммы';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(codeCurrency(u));                     
+                        }
+                    }
+                    NEW titlesContainer {
+                        fill = 1;
+                        type = TABBED;
+                        NEW supplierTitle {
+                            caption = 'Титул поставщика';
+                            fill = 1;
+                            type = SPLITV;
+                            
+                            NEW supplierInfo {
+                                caption = 'Поставщик';
+                                fill = 1;
+                                type = TABBED;
+                                
+                                NEW supplierMainInfo {
+                                    caption = 'Реквизиты поставщика';
+                                    fill = 1;
+                                    type = CONTAINERH;
+                                    NEW innSupplier {
+                                        caption = 'Основные';
+                                        fill = 1;
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(innSupplier(u));
+                                        MOVE PROPERTY(kppSupplier(u));
+                                        MOVE PROPERTY(okpoSupplier(u));
+                                        MOVE PROPERTY(nameOriginatorSupplier(u));
+                                    }
+                                    NEW supplierAddress {
+                                        caption = 'Адрес';
+                                        fill = 1;
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(regionCodeSupplier(u));
+                                        MOVE PROPERTY(countryCodeAddressSupplier(u));
+                                        MOVE PROPERTY(adrressSupplier(u));
+                                        MOVE PROPERTY(codeAdrressSupplier(u));
+                                    }
+                                    NEW supplierBank {
+                                        caption = 'Банк';
+                                        fill = 1;
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(numberAccountSupplier(u));
+                                        MOVE PROPERTY(nameBankSupplier(u));
+                                        MOVE PROPERTY(MFOBankSupplier(u));
+                                        MOVE PROPERTY(corrAccountBankSupplier(u));
+                                    }
+                                }
+                                NEW documentInfo {
+                                    caption = 'Реквизиты документа';
+                                    fill = 1;
+                                    type = TABBED; 
+                                    NEW documentDescription {
+                                        caption = 'Описание';
+                                        fill = 1;
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(codeBusinessEvent(u));
+                                        MOVE PROPERTY(descriptionBusinessEvent(u));
+                                    }
+                                    NEW supplierDateTime {
+                                        caption = 'Время формирования';
+                                        fill = 1;
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(dateSupplier(u));
+                                        MOVE PROPERTY(timeSupplier(u));
+                                    }                                                       
+                                }
+                                
+                                NEW signerInfo {
+                                    caption = 'Подписи';
+                                    fill = 1;
+                                    type = TABBED;
+                                    NEW signerCredentials {
+                                        caption = 'Полномочия подписанта';
+                                        fill = 1;
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(nameSupplierSignerCredentials(u));
+                                        MOVE PROPERTY(nameSupplierSignerStatus(u));
+                                        MOVE PROPERTY(supplierSignerCredentialsBase(u));                                                        
+                                    }
+                                    NEW signer {
+                                        caption = 'Подписант (физлицо)';
+                                        fill = 1;
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(supplierSignerLastName(u));
+                                        MOVE PROPERTY(supplierSignerFirstName(u));
+                                        MOVE PROPERTY(supplierSignerMiddleName(u));                            
+                                    }
+                                    NEW signerLegalEntity {
+                                        caption = 'Подписант (юрлицо)';
+                                        fill = 1;
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(supplierSignerInn(u));
+                                        MOVE PROPERTY(supplierSignerPosition(u));
+                                        NEW signerLegalEntityAgent {
+                                            caption = 'Представитель';
+                                            MOVE PROPERTY(supplierSignerAgentLastName(u));
+                                            MOVE PROPERTY(supplierSignerAgentFirstName(u));
+                                            MOVE PROPERTY(supplierSignerAgentMiddleName(u));                                
+                                        }                            
+                                    }
+                                }                            
+                            }
+                            
+                            NEW customerInfo {
+                                caption = 'Покупатель';
+                                fill = 1;
+                                type = TABBED;
+                                NEW customerMainInfo {
+                                    caption = 'Реквизиты покупателя';
+                                    fill = 1;
+                                    type = CONTAINERH;
+                                    NEW innCustomer {
+                                        fill = 1;
+                                        caption = 'Основные';
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(innCustomer(u));
+                                        MOVE PROPERTY(kppCustomer(u));
+                                        MOVE PROPERTY(okpoCustomer(u));
+                                    }    
+                                    NEW customerAddress {
+                                        caption = 'Адрес';
+                                        fill = 1;
+                                        type = CONTAINERV;
+                                        MOVE PROPERTY(regionCodeCustomer(u));
+                                        MOVE PROPERTY(countryCodeAddressCustomer(u));
+                                        MOVE PROPERTY(codeAdrressCustomer(u));
+                                    }
+                                }    
+                            }                                                                     
+                        }
+                        NEW customerTitle {
+                            caption = 'Титул покупателя';
+                            fill = 1;
+                            type = TABBED;
+                            
+                            NEW customerInfoCT {
+                                caption = 'Покупатель';
+                                fill = 1;
+                                type = CONTAINERV;
+                                MOVE PROPERTY(nameOriginatorCustomer(u));  
+                                MOVE PROPERTY(dateCustomer(u));
+                                MOVE PROPERTY(timeCustomer(u));                          
+                            }
+                            NEW customerSignerContainer {
+                                caption = 'Подписи';
+                                fill = 1;
+                                type = COLUMNS;
+                                columns = 2;      
+                                NEW customerSignerCredentials {
+                                    caption = 'Полномочия подписанта';
+                                    fill = 1;
+                                    type = CONTAINERV;                            
+                                    MOVE PROPERTY(customerSignerCredentials(u));
+                                    MOVE PROPERTY(customerSignerStatus(u));
+                                    MOVE PROPERTY(customerSignerCredentialsBase(u));                           
+                                }
+                                NEW customerSigner {
+                                    caption = 'Подписант (физлицо)';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(customerSignerLastName(u));
+                                    MOVE PROPERTY(customerSignerFirstName(u));
+                                    MOVE PROPERTY(customerSignerMiddleName(u));                    
+                                }
+                                NEW signerCustomerLegalEntity {
+                                    caption = 'Подписант (юрлицо)';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(customerSignerInn(u));
+                                    MOVE PROPERTY(customerSignerPosition(u));
+                                    NEW signerCustomerLegalEntityAgent {
+                                        caption = 'Представитель';
+                                        MOVE PROPERTY(customerSignerAgentLastName(u));
+                                        MOVE PROPERTY(customerSignerAgentFirstName(u));
+                                        MOVE PROPERTY(customerSignerAgentMiddleName(u));                          
+                                    }                            
+                                }
+                            }
+                            
+                        }
+                        NEW idsContainer {
+                            caption = 'ИД';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(uuid(u));
+                            MOVE PROPERTY(idConsignor(u));
+                            MOVE PROPERTY(idConsignee(u));
+                            MOVE PROPERTY(businessNameDocument(u));
+                            MOVE PROPERTY(supplierNameDocument(u));                        
+                        }
+                        NEW detailsContainer {
+                            caption = 'Строки УПД';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE BOX(d) {
+                                fill = 1;
+                            }
+                        }                   
+                        NEW edo {
+                            caption = 'Оператор ЭДО';
+                            type = CONTAINERV;
+                            MOVE PROPERTY(nameOperatorConsignor(u));
+                            MOVE PROPERTY(innOperatorConsignor(u));
+                            MOVE PROPERTY(codeOperatorConsignor(u));                               
+                        }
+                        NEW transfer {
+                            caption = 'Отправка';
+                            MOVE PROPERTY (dateTimeTransfer(u));
+                        }
+                    }
+                }
+            }
+            MOVE TOOLBARBOX;
+        } 
+    }
+
+    filterDateFrom 'Дата с' = DATA LOCAL DATE ();
+    filterDateFrom (###docType##Document u) = dateInvoice(u) >= filterDateFrom() OR (u IS ###docType##Document AND NOT filterDateFrom());      
+    
+    filterDateTo 'Дата по' = DATA LOCAL DATE ();
+    filterDateTo (###docType##Document u) = dateInvoice(u) <= filterDateTo() OR (u IS ###docType##Document AND NOT filterDateTo());      
+    
+    filterSupplier  = DATA LOCAL LegalEntity ();
+    nameFilterSupplier 'Продавец' = name(filterSupplier()) CHARWIDTH 15;          
+    filterSupplier (###docType##Document u) = supplier(u) == filterSupplier() OR (u IS ###docType##Document AND NOT filterSupplier());
+    
+    filterCustomer  = DATA LOCAL LegalEntity ();
+    nameFilterCustomer 'Покупатель' = name(filterCustomer()) CHARWIDTH 15;          
+    filterCustomer (###docType##Document u) = customer(u) == filterCustomer() OR (u IS ###docType##Document AND NOT filterCustomer());
+    
+    select 'Отм.' = DATA LOCAL NESTED BOOLEAN (###docType##Document);
+    countSelectUpd = GROUP SUM 1 IF select(###docType##Document u);
+    
+    FORM ##docType##Documents sign
+    
+        PROPERTIES filterDateFrom(), filterDateTo(), nameFilterSupplier(), nameFilterCustomer()
+        
+        OBJECTS u = ###docType##Document
+        PROPERTIES (u) select
+        PROPERTIES (u) READONLY nameStatus, isTransferred, dateTimeTransfer, numberInvoice, dateInvoice, 
+                                nameSupplier, nameCustomer,
+                                dateTimeSupplier, codeCurrency,
+                                idConsignor, idConsignee
+                                
+        FILTERGROUP transfered
+            FILTER 'Отправленные' dateTimeTransfer(u)
+            FILTER 'Неотправленные' NOT dateTimeTransfer(u)
+    
+        FILTERS filterDateFrom(u), filterDateTo(u), filterSupplier(u), filterCustomer(u)
+        
+        OBJECTS d = ###docType##DocumentDetail
+        
+        PROPERTIES(d) READONLY number, nameSku
+                      
+        PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE            
+            
+        FILTERS ##docType##Document(d) == u
+    ;
+    
+    DESIGN ##docType##Documents {
+        NEW documentContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            type = SPLITV;
+            NEW body {
+                fill = 1;
+                NEW topFilters {  
+                    caption = 'Фильтры';
+                    alignment = STRETCH;
+                    type = CONTAINERH; 
+                    MOVE PROPERTY(filterDateFrom());
+                    MOVE PROPERTY(filterDateTo());                                                    
+                    MOVE PROPERTY(nameFilterSupplier()) { fill = 1; }
+                    MOVE PROPERTY(nameFilterCustomer()) { fill = 1; }                                            
+                }
+                MOVE BOX(u);
+            }    
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+    
+                MOVE BOX(d) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+    
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERV;    
+                }
+            }
+        }
+    }
+
+    NAVIGATOR {
+        customsNavigator {
+            NEW FOLDER ##docType sign {
+                NEW ##docType##Documents;
+            }
+        }
+    }
+    
+    inReport = DATA LOCAL BOOLEAN (###docType##Document);
+    min###docType##Document = GROUP MIN ###docType##Document d IF inReport(d);
+END
+
+META defineInvoiceDocumentXMLExport (docType, docName, fileType, fileName, form)
+    file##fileType 'Файл схема '##fileName = DATA FILE ();
+    
+    saveFile##fileType 'Загрузить файл оригинала' ()  { INPUT = file##fileType() CHANGE; }
+    openFile##fileType  'Просмотреть файл' ()  { open(file##fileType()); }
+    deleteFile##fileType  'Удалить файл' ()  { file##fileType() <- NULL; } CONFIRM; 
+    
+    EXTEND FORM options
+    
+        PROPERTIES() saveFile##fileType
+        PROPERTIES() SHOWIF file##fileType() openFile##fileType, deleteFile##fileType
+    ;
+    
+    DESIGN options{
+        pane{
+            NEW docType{
+                fill = 1;
+                caption = docName;
+                NEW docType##Scroll{
+                    fill = 1;
+                    NEW docType##docType {
+                        type = CONTAINERH;
+                        caption = fileName;
+                        MOVE PROPERTY (saveFile##fileType());
+                        MOVE PROPERTY (openFile##fileType());
+                        MOVE PROPERTY (deleteFile##fileType());                          
+                    }          
+                }
+            }
+        }       
+    }
+    
+    export###docType##Document 'Экспорт (xml)' (###docType##Document d){    
+        generateIdFile(d);
+        inReport(###docType##Document g) <- TRUE IF g==d;    
+        EXPORT form XML CHARSET 'windows-1251' TO xmlFile;
+        //open(xmlFile());    
+    } TOOLBAR;
+    checkExport###docType##Document 'Проверка по схеме (xml)' (###docType##Document d){
+        IF file##fileType() THEN {
+            generateIdFile(d);
+            inReport(###docType##Document g)<- TRUE IF g==d;
+            EXPORT form XML CHARSET 'WINDOWS-1251' TO System.exportFile;
+            validateXML(file##fileType(),System.exportFile());
+            IF validateError() THEN {
+                MESSAGE validateError() NOWAIT;
+            } ELSE {
+                MESSAGE 'Файл соответствует схеме' NOWAIT;
+            }
+        } ELSE {
+            MESSAGE 'Не задан Файл схема '##fileName NOWAIT;
+        } 
+    } TOOLBAR;
+    
+    checkAndExport###docType##Document 'Проверка и экспорт (xml)' (###docType##Document d) {
+        IF file##fileType() THEN {
+            generateIdFile(d);
+            inReport(###docType##Document g)<- TRUE IF g==d;
+            EXPORT form XML CHARSET 'windows-1251' TO System.exportFile;
+            validateXML(file##fileType(),System.exportFile());
+            IF validateError() THEN {
+                MESSAGE validateError() NOWAIT;
+            } ELSE {
+                open(System.exportFile());    
+            }
+        } ELSE {
+            MESSAGE 'Не задан Файл схема '##fileName NOWAIT;
+        } 
+    } TOOLBAR;
+    
+    EXTEND FORM ##docType##Documents
+        PROPERTIES (u) checkExport###docType##Document, checkAndExport###docType##Document
+    ;
+    DESIGN ##docType##Documents {
+        actionContainer {
+            NEW export {
+                caption = 'Экспорт';
+                type = CONTAINERH;
+                NEW baseExport {
+                    caption = 'Выгрузка';
+                    type = CONTAINERV;
+                    MOVE PROPERTY(checkExport###docType##Document(u));           
+                    MOVE PROPERTY(checkAndExport###docType##Document(u));   
+                }                                  
+            }
+        }
+    }
+END

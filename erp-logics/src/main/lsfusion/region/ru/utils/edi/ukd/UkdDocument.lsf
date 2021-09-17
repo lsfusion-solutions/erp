@@ -1,0 +1,249 @@
+MODULE UkdDocument;
+
+REQUIRE UpdDocument;
+
+NAMESPACE Ukd;
+
+@defineStaticObject(ukdDocumentStatus, 'Статус УКД');
+
+EXTEND CLASS UkdDocumentStatus {
+    KSHCF 'КСЧФ',
+    DIS 'ДИС',
+    KSHCFDIS 'КСЧФДИС'
+}
+
+@defineStaticObject(ukdDocumentPaperStatus, 'Статус УКД');
+
+EXTEND CLASS UkdDocumentPaperStatus {
+    first '1',
+    second '2'
+}
+
+//есть блок СЧФ
+@defineVATInvoiceDocument('УКД', ukd, ' КСЧФ', 'УКД');
+
+//-СведТов
+VATStatusB = DATA VATStatus (UkdDocumentDetail);
+nameVATStatusB 'Ставка НДС (до)' = staticCaption(VATStatusB(UkdDocumentDetail d)) CHARWIDTH 7; //НалСтДо
+
+VATStatusA = DATA VATStatus (UkdDocumentDetail);
+nameVATStatusA 'Ставка НДС (после)' = staticCaption(VATStatusA(UkdDocumentDetail d)) CHARWIDTH 7; //НалСтПосле
+
+//ТаблКСчФ
+//--АкцизДо
+dutySumB 'Сумма акциза (до)' = DATA NUMERIC[19,2](UkdDocumentDetail); //СумАкциз
+withoutDutyB 'Без акциза (после)' = DATA BOOLEAN (UkdDocumentDetail); //БезАкциз
+
+//--АкцизПосле
+dutySumA 'Сумма акциза (до)' = DATA NUMERIC[19,2](UkdDocumentDetail); //СумАкциз
+withoutDutyA 'Без акциза (после)' = DATA BOOLEAN (UkdDocumentDetail); //БезАкциз
+
+//--АкцизРазн
+increaseDutySum 'Увеличение суммы акциза' (UkdDocumentDetail d) = dutySumA(d) (-) dutySumB(d) IF dutySumA(d)>dutySumB(d); //СумУвел
+decreaseDutySum 'Уменьшение суммы акциза' (UkdDocumentDetail d) = dutySumB(d) (-) dutySumA(d) IF dutySumB(d)>dutySumA(d); //СумУм
+
+//--СумНалДо
+VATSumB 'Сумма НДС (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СумНДС
+
+//--СумНалПосле
+VATSumA 'Сумма НДС (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СумНДС
+
+//--СумНалРазн
+increaseVATSum 'Увеличение суммы НДС' (UkdDocumentDetail d) = VATSumA(d) (-) VATSumB(d) IF VATSumA(d)>VATSumB(d); //СумУвел
+decreaseVATSum 'Уменьшение суммы НДС' (UkdDocumentDetail d) = VATSumB(d) (-) VATSumA(d) IF VATSumB(d)>VATSumA(d); //СумУм
+
+//--СтТовУчНал
+invoiceSumB 'Сумма с НДС (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимДоИзм
+invoiceSumA 'Сумма с НДС (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимПослеИзм
+
+//СодФХЖ3
+transferDocuments 'Передаточные документы' = DATA STRING (UkdDocument); //ПередатДокум
+description 'Содержание операции' = DATA STRING[255] (UkdDocument); //СодОпер
+
+//-ОснКор
+baseDocument 'Документ основания' = DATA STRING[255] (UkdDocument); //НаимОсн
+
+updDocument 'УПД' = DATA UpdDocument (UkdDocument);
+
+EXTEND FORM ukdDocument
+    PROPERTIES(u) transferDocuments, description
+    PROPERTIES(u) baseDocument
+    
+    PROPERTIES (d) nameVATStatusB, nameVATStatusA, VATSumB, VATSumA, increaseVATSum, decreaseVATSum
+    PROPERTIES (d) dutySumB, withoutDutyB, dutySumA, withoutDutyA, increaseDutySum, decreaseDutySum
+    PROPERTIES (d) invoiceSumB, invoiceSumA
+;
+
+DESIGN ukdDocument {
+    documentInfo {
+        NEW baseDocumentInfo {
+            caption = 'Основание';
+            fill = 1;
+            type = CONTAINERV;
+            MOVE PROPERTY(baseDocument(u));
+            MOVE PROPERTY(transferDocuments(u));
+            MOVE PROPERTY(description(u));
+        }
+    }    
+}
+
+EXTEND FORM ukdDocuments
+    PROPERTIES(u) READONLY transferDocuments, description
+    PROPERTIES(u) READONLY baseDocument
+    
+    PROPERTIES (d) READONLY nameVATStatusB, nameVATStatusA, VATSumB, VATSumA, increaseVATSum, decreaseVATSum
+    PROPERTIES (d) READONLY dutySumB, withoutDutyB, dutySumA, withoutDutyA, increaseDutySum, decreaseDutySum
+    PROPERTIES (d) READONLY invoiceSumB, invoiceSumA
+;
+
+GROUP UKDExportA0 EXTID  'СвОЭДОтпр';
+
+GROUP UKDExportA EXTID  'СвКСчФ';
+    GROUP UKDExportA2 EXTID  'СвПрод' :UKDExportA;   
+        GROUP UKDExportA2_1 EXTID  'ИдСв' :UKDExportA2;        
+            GROUP UKDExportA2_1_1 EXTID  'СвЮЛУч' :UKDExportA2_1;            
+        GROUP UKDExportA2_2 EXTID  'Адрес' :UKDExportA2;
+            GROUP UKDExportA2_2_1 EXTID  'АдрРФ' :UKDExportA2_2;
+            GROUP UKDExportA2_2_2 EXTID  'АдрИнф' :UKDExportA2_2;
+        GROUP UKDExportA2_4 EXTID  'БанкРекв' :UKDExportA2;            
+            GROUP UKDExportA2_4_1 EXTID  'СвБанк' :UKDExportA2_4;     
+    GROUP UKDExportA6 EXTID  'СвПокуп' :UKDExportA;
+        GROUP UKDExportA6_1 EXTID  'ИдСв' :UKDExportA6;
+            GROUP UKDExportA6_1_1 EXTID  'СвЮЛУч' :UKDExportA6_1;
+        GROUP UKDExportA6_2 EXTID  'Адрес' :UKDExportA6;
+            GROUP UKDExportA6_2_1 EXTID  'АдрРФ' :UKDExportA6_2;
+            GROUP UKDExportA6_2_2 EXTID  'АдрИнф' :UKDExportA6_2;
+    GROUP UKDExportA9 EXTID  'ИнфПолФХЖ1' :UKDExportA;
+        GROUP UKDExportA9_1 EXTID  'ТекстИнф' :UKDExportA9;
+        
+GROUP UKDExportB EXTID  'ТаблКСчФ';      
+    GROUP UKDExportB1 EXTID  'АкцизДо';
+    GROUP UKDExportB2 EXTID  'АкцизПосле';
+    GROUP UKDExportB3 EXTID  'АкцизРазн';
+    GROUP UKDExportB4 EXTID  'СумНалДо';
+    GROUP UKDExportB5 EXTID  'СумНалПосле';     
+    GROUP UKDExportB6 EXTID  'СумНалРазн';    
+    GROUP UKDExportB7 EXTID  'СтТовУчНал';               
+
+GROUP UKDExportC EXTID  'СодФХЖ3';
+    GROUP UKDExportC1 EXTID  'ОснКор' :UKDExportC;
+                
+GROUP UKDExportD EXTID  'Подписант';
+    GROUP UKDExportD_1 EXTID  'ФЛ':UKDExportD;   
+        GROUP UKDExportD_1_1 EXTID  'ФИО':UKDExportD_1;             
+    GROUP UKDExportD_2 EXTID  'ИП':UKDExportD; 
+        GROUP UKDExportD_2_1 EXTID  'ФИО':UKDExportD_2;  
+    GROUP UKDExportD_3 EXTID  'ЮЛ':UKDExportD;          
+        GROUP UKDExportD_3_1 EXTID  'ФИО':UKDExportD_3;
+
+idFile 'ИдФайл' (UkdDocument d) = 
+    STRING[255](CONCAT '_', 'KORSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
+            
+FORM UKDPR FORMEXTID '=:Файл'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xsd', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES   = (OVERRIDE idFile(minUkdDocument()), '') EXTID 'ИдФайл' ATTR, 
+                 = '3.19.710' EXTID 'ВерсПрог' ATTR, 
+                 = '5.01'  EXTID 'ВерсФорм' ATTR
+    OBJECTS g = UkdDocument EXTID 'СвУчДокОбор'
+    FILTERS inReport(g)
+
+    PROPERTIES = (OVERRIDE idConsignor(g),'') EXTID 'ИдОтпр' ATTR ,
+               = (OVERRIDE idConsignee(g),'') EXTID 'ИдПол' ATTR                 
+               
+    PROPERTIES = nameOperatorConsignor(g) EXTID 'НаимОрг' ATTR IN UKDExportA0,
+               = innOperatorConsignor(g) EXTID 'ИННЮЛ' ATTR IN UKDExportA0,
+               = codeOperatorConsignor(g) EXTID 'ИдЭДО' ATTR IN UKDExportA0                 
+               
+    OBJECTS d = UkdDocument EXTID 'Документ'
+    FILTERS inReport(d)    
+    PROPERTIES = '1115127' IF d IS UkdDocument EXTID 'КНД' ATTR,
+               = (OVERRIDE nameStatus(d),'') EXTID 'Функция' ATTR,
+               = businessNameDocument(d) EXTID 'ПоФактХЖ' ATTR,
+               = supplierNameDocument(d) EXTID 'НаимДокОпр' ATTR,
+               = toDateDDMMYYYY(OVERRIDE dateSupplier(d), currentDate()) EXTID 'ДатаИнфПр' ATTR,                     
+               = [FORMULA STRING[20] 'to_char(($1),\'HH24.MI.SS\')'](OVERRIDE timeSupplier(d), currentTime()) EXTID 'ВремИнфПр' ATTR,
+               = (OVERRIDE nameOriginatorSupplier(d),'')  EXTID 'НаимЭконСубСост' ATTR
+               
+    PROPERTIES = (OVERRIDE numberInvoice(d),' ') EXTID 'НомерСчФ' ATTR IN UKDExportA,
+               = toDateDDMMYYYY(OVERRIDE dateInvoice(d), currentDate()) EXTID 'ДатаСчФ' ATTR IN UKDExportA,
+               = (OVERRIDE codeCurrency(d),'') EXTID 'КодОКВ' ATTR IN UKDExportA
+               
+    PROPERTIES = okpoSupplier(d) EXTID 'ОКПО' ATTR IN UKDExportA2    
+    
+    PROPERTIES = (OVERRIDE nameSupplier(d),' ') EXTID 'НаимОрг' ATTR IN UKDExportA2_1_1,
+               = innSupplier(d) EXTID 'ИННЮЛ' ATTR IN UKDExportA2_1_1,
+               = kppSupplier(d) EXTID 'КПП' ATTR IN UKDExportA2_1_1    
+                        
+    PROPERTIES = countryCodeAddressSupplier(d) EXTID 'КодСтр' ATTR IN UKDExportA2_2_2,
+               = adrressSupplier(d) EXTID 'АдрТекст' ATTR IN UKDExportA2_2_2    
+    PROPERTIES = codeAdrressSupplier(d) EXTID 'КодГАР' IN UKDExportA2_2  
+        
+    PROPERTIES = numberAccountSupplier(d) EXTID 'НомерСчета' ATTR IN UKDExportA2_4            
+    PROPERTIES = nameBankSupplier(d) EXTID 'НаимБанк' ATTR IN UKDExportA2_4_1,   
+               = MFOBankSupplier(d) EXTID 'БИК' ATTR IN UKDExportA2_4_1,
+               = corrAccountBankSupplier(d) EXTID 'КорСчет' ATTR IN UKDExportA2_4_1                               
+                   
+    PROPERTIES = okpoCustomer(d) EXTID 'ОКПО' ATTR IN UKDExportA6   
+    
+    PROPERTIES = (OVERRIDE nameCustomer(d),'') EXTID 'НаимОрг' ATTR IN UKDExportA6_1_1,
+               = innCustomer(d) EXTID 'ИННЮЛ' ATTR IN UKDExportA6_1_1,
+               = kppCustomer(d) EXTID 'КПП' ATTR IN UKDExportA6_1_1    
+                           
+    PROPERTIES = countryCodeAddressCustomer(d) EXTID 'КодСтр' ATTR IN UKDExportA6_2_2,
+               = adrressCustomer(d) EXTID 'АдрТекст' ATTR IN UKDExportA6_2_2   
+    PROPERTIES = codeAdrressCustomer(d) EXTID 'КодГАР' IN UKDExportA6_2
+    
+    PROPERTIES = (OVERRIDE codeBusinessEvent(d),'') EXTID 'Идентиф' ATTR IN UKDExportA9_1,
+               = (OVERRIDE descriptionBusinessEvent(d),'') EXTID 'Значен' ATTR IN UKDExportA9_1    
+    
+    //--           
+    OBJECTS detail = UkdDocumentDetail EXTID 'СведТов' IN UKDExportB
+    FILTERS ukdDocument(detail)==d   
+    
+    PROPERTIES = (OVERRIDE INTEGER(number(detail)), defaultIndex(detail)) EXTID 'НомСтр' ATTR,
+               = nameSku(detail) EXTID 'НаимТов' ATTR,
+               = nameVATStatusB(detail) EXTID 'НалСтДо' ATTR,
+               = nameVATStatusA(detail)  EXTID 'НалСтПосле' ATTR              
+    
+    PROPERTIES = dutySumB(detail) EXTID 'СумАкциз' IN UKDExportB1           
+    PROPERTIES = 'без акциза' IF withoutDutyB(detail)  EXTID 'БезАкциз' IN UKDExportB1
+    
+    PROPERTIES = dutySumA(detail) EXTID 'СумАкциз' IN UKDExportB2           
+    PROPERTIES = 'без акциза' IF withoutDutyA(detail)  EXTID 'БезАкциз' IN UKDExportB2      
+    
+    PROPERTIES = increaseDutySum(detail) EXTID 'СумУвел' IN UKDExportB3           
+    PROPERTIES = decreaseDutySum(detail) EXTID 'СумУм' IN UKDExportB3
+    
+    PROPERTIES = VATSumB(detail) EXTID 'СумНДС' IN UKDExportB4
+    PROPERTIES = VATSumA(detail) EXTID 'СумНДС' IN UKDExportB5        
+    
+    PROPERTIES = increaseVATSum(detail) EXTID 'СумУвел' IN UKDExportB6           
+    PROPERTIES = decreaseVATSum(detail) EXTID 'СумУм' IN UKDExportB6
+    
+    PROPERTIES = invoiceSumB(detail) EXTID 'СтоимДоИзм' IN UKDExportB7
+    PROPERTIES = invoiceSumA(detail) EXTID 'СтоимПослеИзм' IN UKDExportB7
+    
+    //--
+    PROPERTIES = (OVERRIDE transferDocuments(d),'') EXTID 'ПередатДокум' ATTR IN UKDExportC        
+    PROPERTIES = (OVERRIDE description(d),'') EXTID 'СодОпер' ATTR IN UKDExportC
+    
+    PROPERTIES = baseDocument(d) EXTID 'НаимОсн' IN UKDExportC1
+
+    //-- Подписант
+    PROPERTIES = nameSupplierSignerCredentials(d) EXTID 'ОблПолн' ATTR IN UKDExportD,
+               = nameSupplierSignerStatus(d) EXTID 'Статус' ATTR IN UKDExportD,
+               = supplierSignerCredentialsBase(d) EXTID 'ОснПолн' ATTR IN UKDExportD   
+               
+    PROPERTIES = supplierSignerLastName(d) IF isSupplierSigner(d)  EXTID 'Фамилия' ATTR IN UKDExportD_1_1,
+               = supplierSignerFirstName(d) IF isSupplierSigner(d) EXTID 'Имя' ATTR IN UKDExportD_1_1,
+               = supplierSignerMiddleName(d) IF isSupplierSigner(d) EXTID 'Отчество' ATTR IN UKDExportD_1_1   
+               
+    PROPERTIES = supplierSignerInn(d) IF NOT isSupplierSigner(d)  EXTID 'ИННЮЛ' ATTR IN UKDExportD_3,
+               = supplierSignerPosition(d) IF NOT isSupplierSigner(d) EXTID 'Должн' ATTR IN UKDExportD_3            
+    PROPERTIES = supplierSignerAgentLastName(d) IF NOT isSupplierSigner(d)  EXTID 'Фамилия' ATTR IN UKDExportD_3_1,
+               = supplierSignerAgentFirstName(d) IF NOT isSupplierSigner(d) EXTID 'Имя' ATTR IN UKDExportD_3_1,
+               = supplierSignerAgentMiddleName(d) IF NOT isSupplierSigner(d) EXTID 'Отчество' ATTR IN UKDExportD_3_1                                           
+;        
+
+@defineInvoiceDocumentXMLExport (ukd, 'УКД', KPPR, 'KORSCHFDOPPR', UPDPR);
+        
