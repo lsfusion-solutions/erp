@@ -29,6 +29,10 @@ showUpd 'Просмотреть УПД' (Invoice i) {
     show(updDocument(i));
 }
 
+editUpd 'Редактировать УПД' (Invoice i) {
+    edit(updDocument(i));
+} IMAGE 'edit.png';
+
 createUpdDocuments 'Создать УПД (отм.)' () {
     IF countIncl() THEN {
         NEWSESSION NESTED(incl[Invoice]) {
@@ -64,6 +68,7 @@ EXTEND FORM invoices
     PROPERTIES //createUpd(i) SHOWIF NOT updDocument(i),
                createUpdDocuments(i) HEADER captionCreateUpd(i),
                updNumber = updInvoiceNumber(i) SHOWIF updDocument(i) PANEL READONLY,
+               editUpd(i) SHOWIF updDocument(i),
                showUpd(i) SHOWIF updDocument(i)
 ;
 
@@ -72,10 +77,15 @@ DESIGN invoices {
         NEW updDocument {
             type = CONTAINERV;
             caption = 'УПД';
-            //MOVE PROPERTY(createUpd(i));
-            MOVE PROPERTY(createUpdDocuments(i));
-            MOVE PROPERTY(updNumber);
-            MOVE PROPERTY(showUpd(i));            
+            NEW updNumber {
+                type = CONTAINERH;
+                MOVE PROPERTY(updNumber) {
+                    charWidth = 20;
+                };
+                MOVE PROPERTY(editUpd(i));
+                MOVE PROPERTY(showUpd(i));                
+            }
+            MOVE PROPERTY(createUpdDocuments(i));        
         }
     }
 }
