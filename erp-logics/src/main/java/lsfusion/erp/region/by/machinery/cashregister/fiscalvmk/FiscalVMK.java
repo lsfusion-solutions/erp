@@ -36,7 +36,7 @@ public class FiscalVMK {
     
     public interface vmkDLL extends Library {
 
-        vmkDLL vmk = (vmkDLL) Native.loadLibrary("vmkd", vmkDLL.class);
+        vmkDLL vmk = Native.load("vmkd", vmkDLL.class);
 
         Integer vmk_lasterror();
 
@@ -506,7 +506,7 @@ public class FiscalVMK {
         OutputStreamWriter sw = null;
         try {
 
-            sw = new OutputStreamWriter(new FileOutputStream(new File("logs/vmk.txt"), true), StandardCharsets.UTF_8);
+            sw = new OutputStreamWriter(new FileOutputStream("logs/vmk.txt", true), StandardCharsets.UTF_8);
             String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
             for(ReceiptItem item : receipt.receiptSaleList) {
                 sw.write(String.format("%s|%s|1|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\r\n", dateTime, numberReceipt,
