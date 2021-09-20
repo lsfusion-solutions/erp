@@ -431,7 +431,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
     Set<String> usedCountries = new HashSet<>();
     private String getAddCountryJSON(CashRegisterItemBatch batch) throws JSONException {
-        if(!usedCountries.contains(batch.countryCode)) {
+        if(batch.countryCode != null && !usedCountries.contains(batch.countryCode)) {
             usedCountries.add(batch.countryCode);
             JSONObject rootObject = new JSONObject();
             JSONObject medicineObject = new JSONObject();
