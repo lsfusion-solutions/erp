@@ -73,6 +73,8 @@ yandexEdaOrderStatus (InternetOrder o) = CASE
 ;
 httpHeadersYandex(TEXT name) = CASE
     WHEN name == 'Content-Type' THEN 'application/vnd.eats.order.v2+json';
+courierArrivementDateText = DATA STRING (InternetOrder);
+courierArrivementDate (InternetOrder o) += WHEN carrier(o) == yandexCarrier() THEN DATETIME (courierArrivementDateText(o));
 
 createOrder(FILE f){
     LOCAL tokenClient = STRING ();
@@ -84,6 +86,12 @@ createOrder(FILE f){
     }
     ELSE {
         IMPORT yandexorder FROM JSONFILE (f);//f;
+        LOCAL yandexOrder = InternetOrder ();
+        yandexOrder() <- GROUP MAX InternetOrder o IF idAggregator(o) = eatsId();
+        IF yandexOrder() THEN {
+            EXPORT JSON FROM result = 'OK', orderId = uuid(yandexOrder());
+            RETURN;
+        }
         NEW order = InternetOrder {
             carrier(order) <- yandexCarrier();
             idAggregator(order) <- eatsId();
@@ -91,8 +99,7 @@ createOrder(FILE f){
             customerComment(order) <- comment();
             nameInternetCustomer(order) <- STRING[255](clientName());
             phoneInternetCustomer(order) <- STRING[100](phoneNumber());
-            deliveryDate(order) <- DATE(courierArrivementDate());
-            deliveryTimeToInternetOrder(order) <- TIME(DATETIME (courierArrivementDate()));
+            courierArrivementDateText(order) <- courierArrivementDate();
             isPosted(order) <- TRUE;
             uuid(order) <- STRING(LONG(order));
             FOR id(INTEGER items) NEW detail = InternetOrderDetail DO{
@@ -141,8 +148,7 @@ updateOrder(FILE f){
             customerComment(io) <- comment();
             nameInternetCustomer(io) <- STRING[255](clientName());
             phoneInternetCustomer(io) <- STRING[100](phoneNumber());
-            deliveryDate(io) <- DATE(courierArrivementDate());
-            deliveryTimeToInternetOrder(io) <- TIME(DATETIME (courierArrivementDate()));
+            courierArrivementDateText(io) <- courierArrivementDate();
             isPosted(io) <- TRUE;
             //заказ присылается полностью, поэтому удаляем и перезаполняем(вопрос по пикеру, но пока так)
             DELETE InternetOrderDetail detail WHERE internetOrder(detail) == internetOrderByUuid(order());
@@ -209,8 +215,7 @@ FORM getOrder FORMEXTID 'null'
        = IF supplierStock(o) IS DepartmentStore THEN restarauntId(supplierStock(o)) EXTID 'restaurantId', 
        = 'yandex' EXTID 'discriminator', = '[]' EXTID 'promos'
     PROPERTIES IN deliveryInfo phoneInternetCustomer(o) EXTID 'phoneNumber', 
-        nameInternetCustomer(o) EXTID 'clientName', = ZDATETIME(dateTimeToDateTime(deliveryDate(o), deliveryTimeToInternetOrder(o)))
-        EXTID 'courierArrivementDate'
+        nameInternetCustomer(o) EXTID 'clientName', courierArrivementDateText(o) EXTID 'courierArrivementDate'
     PROPERTIES IN paymentInfo = OVERRIDE paymentCashSumInternetOrder(o), paymentCardSumInternetOrder(o) EXTID 'itemsCost',
         = IF paymentTypeInternetOrder(o) = PaymentTypeInternetOrder.inFact THEN 'CASH' ELSE 'CARD' EXTID 'paymentType'
  
