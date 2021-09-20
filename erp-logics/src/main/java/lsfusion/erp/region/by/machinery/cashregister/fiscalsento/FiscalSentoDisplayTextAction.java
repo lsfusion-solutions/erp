@@ -50,7 +50,7 @@ public class FiscalSentoDisplayTextAction extends InternalAction {
                 String barcode = (String) findProperty("idBarcode[ReceiptDetail]").read(context, receiptDetailObject);
                 double quantity = getDouble((BigDecimal) findProperty("quantity[ReceiptDetail]").read(context, receiptDetailObject));
                 BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(context, receiptDetailObject);
-                double sum = getDouble((BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, (DataObject) receiptObject));
+                double sum = getDouble((BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject));
                 double articleDiscSum = getDouble((BigDecimal) findProperty("discountSum[ReceiptDetail]").read(context, receiptDetailObject));
 
                 String result = (String) context.requestUserInteraction(new FiscalSentoDisplayTextClientAction(false, logPath, comPort, baudRate,

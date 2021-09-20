@@ -2,17 +2,16 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut;
 
 import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -51,7 +50,7 @@ public class FiscalAbsolutDisplayTextAction extends InternalAction {
                 BigDecimal quantityValue = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(context, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
                 BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(context, receiptDetailObject);
-                BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, (DataObject) receiptObject);
+                BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 double sum = sumValue == null ? 0 : sumValue.doubleValue();
                 BigDecimal articleDiscSumValue = (BigDecimal) findProperty("discountSum[ReceiptDetail]").read(context, receiptDetailObject);
                 double articleDiscSum = articleDiscSumValue == null ? 0 : articleDiscSumValue.doubleValue();
