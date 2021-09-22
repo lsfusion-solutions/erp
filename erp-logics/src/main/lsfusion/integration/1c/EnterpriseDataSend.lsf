@@ -32,9 +32,6 @@ META defUOM (nm, class, table, extid)
     ;
 END
 
-//barcode
-@extReference (barcode, 'ШтрихкодыНоменклатуры');
-
 // item
 @extReference (item, 'Номенклатура');
 @defProp(article, 'Артикул', STRING, Item);
@@ -45,7 +42,20 @@ META defItem(nm, class, table, extid)
         PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', article EXTID 'Артикул', id EXTID 'КодВПрограмме', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное'
         FILTERS nm###class###table = nm(class###table)
     ;
+    
+    uid###nm###class###table = DATA LOCAL ISTRING[36] (INTEGER);
+    
+    EXTEND FORM receiveMessage
+        PROPERTIES (class###table) IN nm uid###nm###class###table EXTID 'Ссылка'
+    ;
 END
+
+//barcode
+@extReference (barcode, 'ШтрихкодыНоменклатуры');
+@defPropSimple(barcodeSelect, 'ШтрихкодОтбор', STRING, barcode);
+@extTable(barcode, records);
+@defPropSimpleDetail(barcodeItem, 'Штрихкод', STRING, barcode, records);
+@defPropObjectDetail(item, 'Номенлатура', Item, barcode, records);
 
 // patner
 @extReference(partner, 'Контрагенты');
@@ -319,6 +329,10 @@ EXTEND FORM sendMessage
     
     FILTERS in(configuration, outcomeVatInvoice)
 ;
+
+    EXTEND FORM receiveMessage
+        OBJECTS outcomeVatInvoice = INTEGER EXTID 'Документ.СчетФактураВыданный' IN body
+    ;
 
 @extDeleteObject(outcomeVatInvoice, 'СчетФактураВыданныйСсылка');
 @defPropObject(currency, 'Валюта', Currency, outcomeVatInvoice);

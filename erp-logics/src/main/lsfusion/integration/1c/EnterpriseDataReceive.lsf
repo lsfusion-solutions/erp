@@ -1,33 +1,12 @@
 MODULE EnterpriseDataReceive;
 
-REQUIRE EnterpriseData;
+REQUIRE EnterpriseDataSend;
 
 NAMESPACE EnterpriseData;
 
-META extReceiveReference(class, capt)
-    GROUP class EXTID 'Справочник.'##capt;
-    uid###class = DATA LOCAL ISTRING[36](INTEGER);
-    name###class = DATA LOCAL ISTRING(INTEGER);
-    
-    EXTEND FORM receiveMessage
-        OBJECTS class = INTEGER EXTID 'Справочник.'##capt IN body
-    
-        OBJECTS keyProperties###class = INTEGER EXTID 'КлючевыеСвойства' IN class
-        PROPERTIES (class) IN keyProperties
-                uid###class EXTID 'Ссылка',
-                name###class EXTID 'Наименование'
-    ;
-END
-
-fullNamePartner = DATA LOCAL ISTRING(INTEGER);
-innPartner = DATA LOCAL ISTRING(INTEGER);
-kppPartner = DATA LOCAL ISTRING(INTEGER);
-typePartner = DATA LOCAL ISTRING(INTEGER);
 nonResidentNumber = DATA LOCAL ISTRING(INTEGER);
 
 // partner
-@extReceiveReference(partner, 'Контрагенты');
-
 EXTEND FORM receiveMessage
     PROPERTIES (partner) IN keyProperties
             fullNamePartner EXTID 'НаименованиеПолное',
@@ -38,15 +17,11 @@ EXTEND FORM receiveMessage
 ;
 
 // item
-@extReceiveReference(item, 'Номенклатура');
-
 idItem = DATA LOCAL ISTRING (INTEGER);
-articleItem = DATA LOCAL ISTRING (INTEGER);
-
 typeItem = DATA LOCAL ISTRING (INTEGER);
 
 EXTEND FORM receiveMessage
     PROPERTIES (item) IN keyProperties
         idItem EXTID 'КодВПрограмме', articleItem EXTID 'Артикул'
     PROPERTIES (item) typeItem EXTID 'ТипНоменклатуры'
-;      
+;

@@ -105,6 +105,9 @@ GROUP service EXTID 'Услуги';
 GROUP paymentCard EXTID 'ОплатаПлатежнымиКартами';
 GROUP reason EXTID 'ДокументыОснования';
 GROUP reasonDocument EXTID 'ДокументОснование';
+GROUP records EXTID 'Записи';
+
+GROUP item EXTID 'Номенклатура';
 
 FORM sendMessage FORMEXTID 'Message'
     PROPERTIES ATTR = 'http://www.1c.ru/SSL/Exchange/Message' EXTID 'xmlns:msg'
@@ -299,11 +302,15 @@ GROUP linkInLink EXTID 'СсылкаНаОбъект' : link;
 META defProp(name, caption, type, class)
     name caption = ABSTRACT type (###class);
     WHEN CHANGED(name(###class d)) DO packet(Configuration c, d) <- NULL WHERE c IS Configuration;
+    
+    name###class caption = DATA LOCAL STRING (INTEGER);
 END
 
 META defPropDetail(name, caption, type, class, table)
     name caption = ABSTRACT type (###class###table);
     WHEN CHANGED(name(###class###table d)) DO packet(Configuration c, class(d)) <- NULL WHERE c IS Configuration;
+    
+    name###class###table caption = DATA LOCAL STRING (INTEGER);
 END
 
 META defPropDetail(name, caption, type, class)
@@ -341,6 +348,10 @@ META defPropSimple(name, caption, type, class)
     EXTEND FORM sendMessage
         PROPERTIES (class) name EXTID caption
     ;
+    
+    EXTEND FORM receiveMessage
+        PROPERTIES (class) name###class EXTID caption
+    ; 
 END
 
 META defPropSimpleDetail(name, caption, type, class, table)
@@ -348,6 +359,10 @@ META defPropSimpleDetail(name, caption, type, class, table)
     EXTEND FORM sendMessage
         PROPERTIES (class###table) name EXTID caption
     ;
+
+    EXTEND FORM receiveMessage
+        PROPERTIES (class###table) name###class###table EXTID caption
+    ; 
 END
 
 META defPropBoolean(name, caption, class);
@@ -393,6 +408,13 @@ META extTable(class, group)
         OBJECTS class###group = ###class###group EXTID 'Строка' IN group
         FILTERS in(class, class###group), is###group(class###group)
     ;
+
+    class###group = DATA LOCAL INTEGER (INTEGER);
+    
+    EXTEND FORM receiveMessage
+        OBJECTS class###group = INTEGER EXTID 'Строка' IN group
+        FILTERS class###group(class###group) = class
+    ;
 END
 
 META extDocument(doctype, caption)
@@ -425,6 +447,10 @@ META extDocument(doctype, caption)
         FILTERS in(configuration, doctype)
     ;
 
+    EXTEND FORM receiveMessage
+        OBJECTS doctype = INTEGER EXTID 'Документ.'##caption IN body
+    ;
+
     @extDeleteObject(doctype, caption##'Ссылка');
 END
 
@@ -435,12 +461,30 @@ META extReference(reftype, capt)
     CLASS ABSTRACT ###reftype 'Справочник.'##capt : Reference;
     
     desc (###reftype reftype) += STRING (CONCAT ' ', capt, name(reftype), 'Код ' + id(reftype));
+    
+    CLASS ABSTRACT ###reftype##Detail 'Строка';
+    ##reftype = ABSTRACT ###reftype (###reftype##Detail);
+    in (###reftype ##reftype, ###reftype##Detail ##reftype##Detail) = ##reftype(##reftype##Detail) = ##reftype; 
+
+    // send
     inSending (Configuration configuration, ###reftype reftype) += inSending(ObjectExchange.reftype, configuration) IF reftype IS ###reftype;
 
     EXTEND FORM sendMessage
         OBJECTS reftype = ###reftype EXTID 'Справочник.'##capt IN body
         PROPERTIES(reftype) IN keyProperties sendUid EXTID 'Ссылка'
         FILTERS in(configuration, reftype), NOT EnterpriseData.isDeleted(reftype)
+    ;
+
+    // receive
+    uid###reftype = DATA LOCAL ISTRING[36](INTEGER);
+    name###reftype = DATA LOCAL ISTRING(INTEGER);
+    
+    EXTEND FORM receiveMessage
+        OBJECTS reftype = INTEGER EXTID 'Справочник.'##capt IN body
+    
+        PROPERTIES (reftype) IN keyProperties
+                uid###reftype EXTID 'Ссылка',
+                name###reftype EXTID 'Наименование'
     ;
 
     @extDeleteObject(reftype, capt##'Ссылка');
