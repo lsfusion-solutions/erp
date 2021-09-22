@@ -318,6 +318,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
 
             Integer requireSaleRestrict = null;
+            boolean hasQuantityOptions = false;
             if(item.info != null) {
                 JSONObject infoJSON = new JSONObject(item.info).optJSONObject("artix");
                 if (infoJSON != null) {
@@ -339,6 +340,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         }
                         inventObject.put("additionalprices", additionalPrices);
                     }
+
+                    hasQuantityOptions = infoJSON.optBoolean("hasquantityoptions");
                 }
             }
 
@@ -351,13 +354,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             if(requireSaleRestrict != null) {
                 inventItemOptions.put("requiresalerestrict", requireSaleRestrict);
 
-                JSONObject quantityoptions = new JSONObject();
-                quantityoptions.put("quantitylimit", 1.000); //лимит количества товара в позиции
-                quantityoptions.put("documentquantlimit", 1.000); //лимит количества товара в чеке
-                quantityoptions.put("enablequantitylimit", true); //включить ограничение количества товара
-                quantityoptions.put("enabledocumentquantitylimit", 2); //включить ограничение количества товара в чеке
+                if(hasQuantityOptions) {
+                    JSONObject quantityoptions = new JSONObject();
+                    quantityoptions.put("quantitylimit", 1.000); //лимит количества товара в позиции
+                    quantityoptions.put("documentquantlimit", 1.000); //лимит количества товара в чеке
+                    quantityoptions.put("enablequantitylimit", true); //включить ограничение количества товара
+                    quantityoptions.put("enabledocumentquantitylimit", 2); //включить ограничение количества товара в чеке
 
-                itemOptions.put("quantityoptions", quantityoptions);
+                    itemOptions.put("quantityoptions", quantityoptions);
+                }
             }
 
             itemOptions.put("inventitemoptions", inventItemOptions);
