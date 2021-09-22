@@ -200,6 +200,14 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
     }
 }
 
+GROUP extraField00 EXTID 'ExtraField';
+
+EXTEND FORM exportBlrwbl
+    PROPERTIES DRAW ein IN extraField00 fieldName00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'Возвратная накладная' EXTID 'FieldName',
+                                        fieldCode00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'RETANN' EXTID 'FieldCode',
+                                        fieldValue00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'Истина' EXTID 'FieldValue'
+;
+
 signAndSendSupplierEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
@@ -273,6 +281,12 @@ signAndSendSupplierEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
         MESSAGE  provider + ' error: ' + 'SendEInvoice disabled, change serverComputer() to enable' NOWAIT;
     }
 }
+
+EXTEND FORM exportBlrdln
+    PROPERTIES DRAW ein IN extraField00 fieldName00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'Возвратная накладная' EXTID 'FieldName',
+                                        fieldCode00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'RETANN' EXTID 'FieldCode',
+                                        fieldValue00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'Истина' EXTID 'FieldValue'
+;
 
 signAndSendSupplierEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
     checkIsServer();
