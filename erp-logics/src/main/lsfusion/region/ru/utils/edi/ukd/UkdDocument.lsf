@@ -20,7 +20,18 @@ EXTEND CLASS UkdDocumentPaperStatus {
 }
 
 //есть блок СЧФ
-@defineVATInvoiceDocument('УКД', ukd, ' КСЧФ', 'УКД');
+@defineVATInvoiceDocument('УКД', ukd, ' КСЧФ', 'Универсальный корректирующий документ');
+
+NAVIGATOR {
+    customsNavigator {
+        upd {
+            NEW ukdDocuments;
+        }
+    }
+}
+
+baseInvoiceNumber 'Номер УПД' = DATA STRING[1000] (UkdDocument) CHARWIDTH 15; //НомерСчФ
+baseDateInvoice 'Дата УПД' = DATA DATE (UkdDocument); //ДатаСчФ
 
 //-СведТов
 VATStatusB = DATA VATStatus (UkdDocumentDetail);
@@ -64,17 +75,29 @@ description 'Содержание операции' = DATA STRING[255] (UkdDocum
 baseDocument 'Документ основания' = DATA STRING[255] (UkdDocument); //НаимОсн
 
 updDocument 'УПД' = DATA UpdDocument (UkdDocument);
+numberUpdDocument 'УПД' (UkdDocument ukd) = numberInvoice(updDocument(ukd));
 
 EXTEND FORM ukdDocument
+    PROPERTIES (u) baseInvoiceNumber, baseDateInvoice
     PROPERTIES(u) transferDocuments, description
     PROPERTIES(u) baseDocument
     
-    PROPERTIES (d) nameVATStatusB, nameVATStatusA, VATSumB, VATSumA, increaseVATSum, decreaseVATSum
-    PROPERTIES (d) dutySumB, withoutDutyB, dutySumA, withoutDutyA, increaseDutySum, decreaseDutySum
-    PROPERTIES (d) invoiceSumB, invoiceSumA
+    PROPERTIES (d) nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
+    PROPERTIES (d) BACKGROUND RGB(213,249,185) nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
+    PROPERTIES (d) BACKGROUND RGB(255, 224, 255) increaseVATSum, decreaseVATSum, 
+                    increaseDutySum SHOWIF NOT withoutDutyA(d), 
+                    decreaseDutySum SHOWIF NOT withoutDutyB(d)
 ;
 
 DESIGN ukdDocument {
+    mainDocumentAttributes {
+        NEW updDocument AFTER supplierInvoice {
+            type = CONTAINERV;
+            caption = 'СЧФ';
+            MOVE PROPERTY(baseInvoiceNumber(u));
+            MOVE PROPERTY(baseDateInvoice(u));
+        }
+    }
     documentInfo {
         NEW baseDocumentInfo {
             caption = 'Основание';
@@ -84,21 +107,28 @@ DESIGN ukdDocument {
             MOVE PROPERTY(transferDocuments(u));
             MOVE PROPERTY(description(u));
         }
-    }    
+    }
+    supplierBank {
+        MOVE PROPERTY(codeCurrency(u));
+    }
 }
 
 EXTEND FORM ukdDocuments
+    PROPERTIES(u) READONLY AFTER dateInvoice(u) baseInvoiceNumber, baseDateInvoice
     PROPERTIES(u) READONLY transferDocuments, description
     PROPERTIES(u) READONLY baseDocument
     
-    PROPERTIES (d) READONLY nameVATStatusB, nameVATStatusA, VATSumB, VATSumA, increaseVATSum, decreaseVATSum
-    PROPERTIES (d) READONLY dutySumB, withoutDutyB, dutySumA, withoutDutyA, increaseDutySum, decreaseDutySum
-    PROPERTIES (d) READONLY invoiceSumB, invoiceSumA
+    PROPERTIES (d) READONLY nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
+    PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
+    PROPERTIES (d) READONLY BACKGROUND RGB(255, 224, 255) increaseVATSum, decreaseVATSum,                     
+                                                          increaseDutySum SHOWIF NOT withoutDutyA(d), 
+                                                          decreaseDutySum SHOWIF NOT withoutDutyB(d)
 ;
 
 GROUP UKDExportA0 EXTID  'СвОЭДОтпр';
 
 GROUP UKDExportA EXTID  'СвКСчФ';
+    GROUP UKDExportA1 EXTID 'СчФ' :UKDExportA;
     GROUP UKDExportA2 EXTID  'СвПрод' :UKDExportA;   
         GROUP UKDExportA2_1 EXTID  'ИдСв' :UKDExportA2;        
             GROUP UKDExportA2_1_1 EXTID  'СвЮЛУч' :UKDExportA2_1;            
@@ -138,6 +168,11 @@ GROUP UKDExportD EXTID  'Подписант';
 
 idFile 'ИдФайл' (UkdDocument d) = 
     STRING[255](CONCAT '_', 'KORSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
+
+showIncreaseVATSum (UkdDocumentDetail detail)= IF increaseVATSum(detail) AND NOT decreaseVATSum(detail)
+    THEN increaseVATSum(detail)
+    ELSE IF (detail IS UkdDocumentDetail AND NOT increaseVATSum(detail) AND NOT decreaseVATSum(detail))
+        THEN 0.0;
             
 FORM UKDPR FORMEXTID '=:Файл'
     PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xsd', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
@@ -164,9 +199,12 @@ FORM UKDPR FORMEXTID '=:Файл'
                = [FORMULA STRING[20] 'to_char(($1),\'HH24.MI.SS\')'](OVERRIDE timeSupplier(d), currentTime()) EXTID 'ВремИнфПр' ATTR,
                = (OVERRIDE nameOriginatorSupplier(d),'')  EXTID 'НаимЭконСубСост' ATTR
                
-    PROPERTIES = (OVERRIDE numberInvoice(d),' ') EXTID 'НомерСчФ' ATTR IN UKDExportA,
-               = toDateDDMMYYYY(OVERRIDE dateInvoice(d), currentDate()) EXTID 'ДатаСчФ' ATTR IN UKDExportA,
+    PROPERTIES = (OVERRIDE numberInvoice(d),' ') EXTID 'НомерКСчФ' ATTR IN UKDExportA,
+               = toDateDDMMYYYY(OVERRIDE dateInvoice(d), currentDate()) EXTID 'ДатаКСчФ' ATTR IN UKDExportA,
                = (OVERRIDE codeCurrency(d),'') EXTID 'КодОКВ' ATTR IN UKDExportA
+               
+    PROPERTIES = baseInvoiceNumber(d) EXTID 'НомерСчФ' ATTR IN UKDExportA1,              
+               = toDateDDMMYYYY(baseDateInvoice(d)) EXTID 'ДатаСчФ' ATTR IN UKDExportA1
                
     PROPERTIES = okpoSupplier(d) EXTID 'ОКПО' ATTR IN UKDExportA2    
     
@@ -211,23 +249,23 @@ FORM UKDPR FORMEXTID '=:Файл'
     PROPERTIES = dutySumA(detail) EXTID 'СумАкциз' IN UKDExportB2           
     PROPERTIES = 'без акциза' IF withoutDutyA(detail)  EXTID 'БезАкциз' IN UKDExportB2      
     
-    PROPERTIES = increaseDutySum(detail) EXTID 'СумУвел' IN UKDExportB3           
-    PROPERTIES = decreaseDutySum(detail) EXTID 'СумУм' IN UKDExportB3
+    PROPERTIES = (OVERRIDE increaseDutySum(detail), 0.0) EXTID 'СумУвел' IN UKDExportB3           
+//    PROPERTIES = (OVERRIDE decreaseDutySum(detail), 0.0) EXTID 'СумУм' IN UKDExportB3
     
-    PROPERTIES = VATSumB(detail) EXTID 'СумНДС' IN UKDExportB4
-    PROPERTIES = VATSumA(detail) EXTID 'СумНДС' IN UKDExportB5        
+    PROPERTIES = (OVERRIDE VATSumB(detail), 0.0) EXTID 'СумНДС' IN UKDExportB4
+    PROPERTIES = (OVERRIDE VATSumA(detail),0.0) EXTID 'СумНДС' IN UKDExportB5        
     
-    PROPERTIES = increaseVATSum(detail) EXTID 'СумУвел' IN UKDExportB6           
-    PROPERTIES = decreaseVATSum(detail) EXTID 'СумУм' IN UKDExportB6
+    PROPERTIES = showIncreaseVATSum(detail) EXTID 'СумУвел' IN UKDExportB6           
+    PROPERTIES = decreaseVATSum(detail) SHOWIF NOT increaseVATSum(detail) EXTID 'СумУм' IN UKDExportB6
     
-    PROPERTIES = invoiceSumB(detail) EXTID 'СтоимДоИзм' IN UKDExportB7
-    PROPERTIES = invoiceSumA(detail) EXTID 'СтоимПослеИзм' IN UKDExportB7
+    PROPERTIES = (OVERRIDE invoiceSumB(detail), 0.0) EXTID 'СтоимДоИзм' ATTR IN UKDExportB7
+    PROPERTIES = (OVERRIDE invoiceSumA(detail), 0.0) EXTID 'СтоимПослеИзм' ATTR IN UKDExportB7
     
     //--
     PROPERTIES = (OVERRIDE transferDocuments(d),'') EXTID 'ПередатДокум' ATTR IN UKDExportC        
     PROPERTIES = (OVERRIDE description(d),'') EXTID 'СодОпер' ATTR IN UKDExportC
     
-    PROPERTIES = baseDocument(d) EXTID 'НаимОсн' IN UKDExportC1
+    PROPERTIES = baseDocument(d) EXTID 'НаимОсн' ATTR IN UKDExportC1
 
     //-- Подписант
     PROPERTIES = nameSupplierSignerCredentials(d) EXTID 'ОблПолн' ATTR IN UKDExportD,
@@ -245,5 +283,10 @@ FORM UKDPR FORMEXTID '=:Файл'
                = supplierSignerAgentMiddleName(d) IF NOT isSupplierSigner(d) EXTID 'Отчество' ATTR IN UKDExportD_3_1                                           
 ;        
 
-@defineInvoiceDocumentXMLExport (ukd, 'УКД', KPPR, 'KORSCHFDOPPR', UPDPR);
-        
+@defineInvoiceDocumentXMLExport (ukd, 'УКД', KPPR, 'KORSCHFDOPPR', UKDPR);
+
+show 'Просмотреть' (UkdDocument d)  { 
+    NEWSESSION {
+        SHOW ukdDocument OBJECTS u = d DOCKED READONLY;
+    }
+}
