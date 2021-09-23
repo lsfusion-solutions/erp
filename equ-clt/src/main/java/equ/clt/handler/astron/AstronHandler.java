@@ -89,6 +89,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             if((transactionsAtATime > 1 || itemsAtATime > 0) && !isVersionalScheme) {
 
                 for(Map.Entry<String, List<TransactionCashRegisterInfo>> directoryTransactionEntry : directoryTransactionMap.entrySet()) {
+
+                    astronLogger.info("PACK LOG: sendTransaction started"); //todo: временный лог для отслеживания packid
+
                     int transactionCount = 1;
                     int itemCount = 0;
                     int totalCount = directoryTransactionEntry.getValue().size();
@@ -98,6 +101,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         itemCount += transaction.itemsList.size();
                         boolean firstTransaction = transactionCount == 1;
                         boolean lastTransaction = transactionCount == transactionsAtATime || transactionCount == totalCount || (itemsAtATime > 0 && itemCount >= itemsAtATime);
+
+                        astronLogger.info(String.format("PACK LOG: transaction %s (%s of %s)", transaction.id, transactionCount, totalCount)); //todo: временный лог для отслеживания packid
 
                         SendTransactionBatch batch = exportTransaction(transaction, exception, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(),
                                 exportExtraTables, groupMachineryMap, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, transactionCount, itemCount);
@@ -209,11 +214,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             exportUnit(conn, params, transaction.itemsList, false, maxBatchSize, unitUpdateNum);
                             outputUpdateNums.put("UNIT", unitUpdateNum);
 
+
+                            int countBefore = getPackRecordsCount(conn, params);
+
                             Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
-                            exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum, transaction.id);
+                            int countPack = exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum, transaction.id);
                             astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
-                            exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, packUpdateNum);
+                            int countPackDelete = exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, packUpdateNum);
                             outputUpdateNums.put("PACK", packUpdateNum);
+
+                            int countAfter = getPackRecordsCount(conn, params);
+
+                            if (countAfter >= 0) { //todo: временный лог для отслеживания packid
+                                astronLogger.info(String.format("PACK LOG: transaction %s: before %s, exported %s, after %s. Diff = %s",
+                                        transaction.id, countBefore, countPack + countPackDelete, countAfter, countAfter - countPackDelete - countPack - countBefore));
+                            }
 
                             Integer exBarcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
                             exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize, exBarcUpdateNum);
@@ -520,7 +535,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return null;
     }
 
-    private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum, Long transactionId) throws SQLException {
+    private int exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum, Long transactionId) throws SQLException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG", "BARCID"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACK", columns, keys)) {
@@ -595,24 +610,25 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps.executeBatch();
             conn.commit();
 
-            //todo: temp, only to count exported rows
-            if(params.pgsql) {
-                astronLogger.info("counting records in PACK");
-                try (Statement statement = conn.createStatement()) {
-                    ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM PACK");
-                    if(result.next()) {
-                        int count = result.getInt(1);
-                        astronLogger.info(String.format("Write: %s records, read: %s records", totalCount, count));
-                    }
-                } catch (Exception e) {
-                    throw Throwables.propagate(e);
-                }
-            }
-
+            return totalCount;
         }
     }
 
-    private void exportPackDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItem> usedDeleteBarcodeList, Integer maxBatchSize, Integer updateNum) throws SQLException {
+    private int getPackRecordsCount(Connection conn, AstronConnectionString params) {
+        if(params.pgsql) {
+            try (Statement statement = conn.createStatement()) {
+                ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM PACK");
+                if (result.next()) {
+                    return result.getInt(1);
+                }
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return -1;
+    }
+
+    private int exportPackDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItem> usedDeleteBarcodeList, Integer maxBatchSize, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACK", columns, keys)) {
@@ -677,20 +693,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps.executeBatch();
             conn.commit();
 
-            //todo: temp, only to count exported rows
-            if(params.pgsql) {
-                astronLogger.info("counting records in PACK after writing deleteBarcode records");
-                try (Statement statement = conn.createStatement()) {
-                    ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM PACK");
-                    if(result.next()) {
-                        int count = result.getInt(1);
-                        astronLogger.info(String.format("Extra write: %s records, total read: %s records", totalCount, count));
-                    }
-                } catch (Exception e) {
-                    throw Throwables.propagate(e);
-                }
-            }
-
+            return totalCount;
         }
     }
 
