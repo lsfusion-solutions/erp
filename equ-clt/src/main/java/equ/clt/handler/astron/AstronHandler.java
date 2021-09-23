@@ -126,24 +126,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             transactionCount++;
                         }
                     }
-
-                    //todo: временный лог для отслеживания packid
-                    AstronConnectionString params = new AstronConnectionString(directoryTransactionEntry.getKey());
-                    exception = waitConnectionSemaphore(params, timeout, false);
-                    if (exception == null) {
-                        try (Connection conn = getConnection(params)) {
-                            connectionSemaphore.add(params.connectionString);
-                            astronPackLogger.info("All PACKID in table PACK: " + getPackIds(conn, params));
-                        } catch (Exception e) {
-                            astronLogger.error("exportTransaction error", e);
-                            exception = e;
-                        } finally {
-                            connectionSemaphore.remove(params.connectionString);
-                        }
-                    } else {
-                        astronLogger.error("semaphore transaction timeout", exception);
-                    }
-
                 }
 
             } else {
@@ -281,6 +263,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 astronLogger.info(String.format("transaction %s, table DATAPUMP", transaction.id));
                                 exportUpdateNums(conn, params, outputUpdateNums);
                             } else if (lastTransaction) {
+
+                                //todo: временный лог для отслеживания packid
+                                astronPackLogger.info("All PACKID in table PACK: " + getPackIds(conn, params));
+
                                 astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
 
                                 exportFlags(conn, params, tables);
