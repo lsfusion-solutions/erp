@@ -528,6 +528,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             Set<Integer> idItems = new HashSet<>();
             int batchCount = 0;
+            int totalCount = 0; //todo: temporary, to count pack records
             for (ItemInfo item : itemsList) {
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer idUOM = parseUOM(item.idUOM);
@@ -581,6 +582,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         ps.addBatch();
                         batchCount++;
+                        totalCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
                             ps.executeBatch();
                             conn.commit();
@@ -592,6 +594,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             ps.executeBatch();
             conn.commit();
+
+            //todo: temp, only to count exported rows
+            if(params.pgsql) {
+                astronLogger.info("counting records in PACK");
+                try (Statement statement = conn.createStatement()) {
+                    ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM PACK");
+                    if(result.first()) {
+                        int count = result.getInt("count");
+                        astronLogger.info(String.format("Write: %s records, read: %s records", totalCount, count));
+                    }
+                } catch (Exception e) {
+                    throw Throwables.propagate(e);
+                }
+            }
+
         }
     }
 
@@ -603,6 +620,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             Set<Integer> idItems = new HashSet<>();
             int batchCount = 0;
+            int totalCount = 0; //todo: temporary, to count pack records
             for (CashRegisterItem item : usedDeleteBarcodeList) {
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer idItem = parseIdItem(item);
@@ -647,6 +665,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                     ps.addBatch();
                     batchCount++;
+                    totalCount++;
                     if(maxBatchSize != null && batchCount == maxBatchSize) {
                         ps.executeBatch();
                         conn.commit();
@@ -657,6 +676,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             ps.executeBatch();
             conn.commit();
+
+            //todo: temp, only to count exported rows
+            if(params.pgsql) {
+                astronLogger.info("counting records in PACK after writing deleteBarcode records");
+                try (Statement statement = conn.createStatement()) {
+                    ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM PACK");
+                    if(result.first()) {
+                        int count = result.getInt("count");
+                        astronLogger.info(String.format("Extra write: %s records, total read: %s records", totalCount, count));
+                    }
+                } catch (Exception e) {
+                    throw Throwables.propagate(e);
+                }
+            }
+
         }
     }
 
