@@ -600,8 +600,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 astronLogger.info("counting records in PACK");
                 try (Statement statement = conn.createStatement()) {
                     ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM PACK");
-                    if(result.first()) {
-                        int count = result.getInt("count");
+                    if(result.next()) {
+                        int count = result.getInt(1);
                         astronLogger.info(String.format("Write: %s records, read: %s records", totalCount, count));
                     }
                 } catch (Exception e) {
@@ -682,8 +682,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 astronLogger.info("counting records in PACK after writing deleteBarcode records");
                 try (Statement statement = conn.createStatement()) {
                     ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM PACK");
-                    if(result.first()) {
-                        int count = result.getInt("count");
+                    if(result.next()) {
+                        int count = result.getInt(1);
                         astronLogger.info(String.format("Extra write: %s records, total read: %s records", totalCount, count));
                     }
                 } catch (Exception e) {
