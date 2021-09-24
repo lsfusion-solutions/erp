@@ -782,6 +782,7 @@ META defineAddToDetailDialogTerminalInner (object, class, skuProp, stockProp, NS
     }
     
     inAdd = ABSTRACT BOOLEAN (TerminalDocumentType, class);
+    overAddDialogTerminalTo##class  ABSTRACT LIST ( class, TerminalDocument);
 
     addDetailDialogTerminalTo##class##Detail 'Импорт из ТСД' (class object)  { 
         in(TerminalDocumentType t) <- inAdd(t, object);
@@ -790,7 +791,8 @@ META defineAddToDetailDialogTerminalInner (object, class, skuProp, stockProp, NS
                 include(td) <- TRUE;
             }
             used(TerminalDocument t) <- TRUE WHERE include(t);
-                
+            overAddDialogTerminalTo##class(userInvoice, td);
+    
             LOCAL quantity = NUMERIC[16,5] (Sku, class);
             quantity(Sku sku, object) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](sku);
             FOR invoice(class##Detail o) == object DO {
