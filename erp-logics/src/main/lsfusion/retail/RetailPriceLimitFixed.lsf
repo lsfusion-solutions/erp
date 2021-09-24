@@ -15,7 +15,7 @@ checkRetailPrice 'Контроль розничных цен' = DATA BOOLEAN ();
 maxLimitRetailPriceCustom 'МРЦ' = DATA NUMERIC[16,4] (Sku, Stock) TABLE retailPrice; // Для разовых поднятий
 useCustomRetailPrice 'Использовать пользовательскую МРЦ' = DATA BOOLEAN ();
 
-maxLimitRetailPricePerc 'Максимальная розничная цена (шаг)' (Sku s, Stock st) = MAX maxLimitRetailPriceCustom(s,st), NUMERIC[16,4](floor(maxLimitRetailPrice(s,st)* (100.0+stepPercLimitRetailPrice()))/100.0);
+maxLimitRetailPricePerc 'Максимальная розничная цена (шаг)' (Sku s, Stock st) = OVERRIDE maxLimitRetailPriceCustom(s,st) IF useCustomRetailPrice(), NUMERIC[16,4](floor(maxLimitRetailPrice(s,st)* (100.0+stepPercLimitRetailPrice()))/100.0);
 
 EXTEND FORM options
     PROPERTIES () checkRetailPrice, stepPercLimitRetailPrice,  useCustomRetailPrice
