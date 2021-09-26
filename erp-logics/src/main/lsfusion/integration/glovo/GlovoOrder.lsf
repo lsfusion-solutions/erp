@@ -112,6 +112,7 @@ createOrder(FILE f){
         customerComment(order) <- allergy_info();
         supplierStock(order) <- stockOrder(store_id());
         isPosted(order) <- TRUE;
+        uuid(order) <- STRING(LONG(order));
         FOR id1(INTEGER products) NEW detail = InternetOrderDetail DO{
             internetOrder(detail) <- order;
             sku(detail) <- itemById(id1(products));
@@ -128,6 +129,7 @@ createOrder(FILE f){
     }
     ELSE EXPORT JSON FROM status = 'ok';      
 }
+@@noauth;
 
 cancel_reason = DATA LOCAL STRING();
 payment_strategy = DATA LOCAL STRING();
@@ -146,7 +148,8 @@ updateOrder(FILE f){
     }    
     APPLY ;
     EXPORT JSON FROM status = 'ok';  
-}
+}@@noauth;
+
 
 importOrder(FILE f){
     IMPORT importOrderGlovo FROM f;
