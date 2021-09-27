@@ -121,7 +121,7 @@ createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
         overEVATDetailSaleInvoiceDetail(ed,id);
     } 
 }
-createEVATSaleRenurnInvoiceHeader(EVAT e, SaleReturn.Invoice i) {
+createEVATSaleReturnInvoiceHeader(EVAT e, SaleReturn.Invoice i) {
     EVATDocument(e) <- i;        
     type(e) <- EVATType.saleReturn;
     status(e) <- EVATStatus.additionalNoRef;
@@ -160,8 +160,8 @@ createEVATSaleRenurnInvoiceHeader(EVAT e, SaleReturn.Invoice i) {
     
     overCreateEVATSaleReturnInvoice(e,i);
 }
-createEVATSaleRenurnInvoice(EVAT e, SaleReturn.Invoice i) {
-    createEVATSaleRenurnInvoiceHeader(e,i);
+createEVATSaleReturnInvoice(EVAT e, SaleReturn.Invoice i) {
+    createEVATSaleReturnInvoiceHeader(e,i);
     
     FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
         evat(ed) <- e;
@@ -200,7 +200,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
     FOR eVAT(operation(SaleReturn.Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
         NOT [ GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo 
         NEW e = EVAT DO {
-        createEVATSaleRenurnInvoice(e, i);
+        createEVATSaleReturnInvoice(e, i);
     }
     APPLY;
 } CONFIRM;
