@@ -245,26 +245,28 @@ DESIGN confirmReplaceLegalEntity {
 replace  ABSTRACT LIST ( LegalEntity, LegalEntity);
 preReplace  ABSTRACT LIST ( LegalEntity, LegalEntity);
 
-replace 'Объединить'(LegalEntity legalEntity)  { 
-    setNoEventsInTransaction();
-    
-    DIALOG confirmReplaceLegalEntity OBJECTS l=legalEntity DO {
-        FOR in(LegalEntity l) AND legalEntity IS LegalEntity AND NOT isCompany(l) AND NOT isCompany(legalEntity)DO {
-            IF l != legalEntity THEN {
-                preReplace(l, legalEntity);            
-                replace(l, legalEntity);
-                in(l) <- NULL;
-                DELETE l;            
-            } ELSE {
-                MESSAGE 'Выделенная организации не может совпадать с объединяемой и не должна являться собственной компанией';
+replace 'Объединить'(LegalEntity legalEntity)  {
+    NEWSESSION NESTED (in[LegalEntity]) { 
+        setNoEventsInTransaction();
+        
+        DIALOG confirmReplaceLegalEntity OBJECTS l=legalEntity DO {
+            FOR in(LegalEntity l) AND legalEntity IS LegalEntity AND NOT isCompany(l) AND NOT isCompany(legalEntity)DO {
+                IF l != legalEntity THEN {
+                    preReplace(l, legalEntity);            
+                    replace(l, legalEntity);
+                    in(l) <- NULL;
+                    DELETE l;            
+                } ELSE {
+                    MESSAGE 'Выделенная организации не может совпадать с объединяемой и не должна являться собственной компанией';
+                }
             }
+            APPLY;
         }
-        apply();
+        
+        in(LegalEntity l) <- NULL;           
+        
+        dropNoEventsInTransaction();
     }
-    
-    in(LegalEntity l) <- NULL;           
-    
-    dropNoEventsInTransaction();
 } CONFIRM;
 
 // ---------------------------------------- Формы для ввода компаний ------------------------------------- //
@@ -483,7 +485,8 @@ FORM legalEntities 'Организации'
                                           nameLegalEntityGroup
     PROPERTIES(l) READONLYIF isReadonly() address, phone, email
     PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
-    PROPERTIES(l) NEWSESSION TOOLBAR NEW, EDIT, deletel=DELETE , replace , copy  
+    PROPERTIES(l) NEWSESSION TOOLBAR NEW, EDIT, deletel=DELETE
+    PROPERTIES(l)                    replace, copy  
     ORDERS nameL
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT    
     FILTERS isParent(legalEntityGroup(l), lg) OR
