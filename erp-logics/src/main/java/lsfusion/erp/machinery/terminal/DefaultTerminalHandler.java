@@ -1087,7 +1087,8 @@ public class DefaultTerminalHandler {
                         orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session, MapFact.singletonOrder("sortTerminal", false));
-                for (ImMap<Object, Object> entry : orderResult.values()) {
+                for (int i = 0, size = orderResult.size(); i < size; i++) {
+                    ImMap<Object, Object> entry = orderResult.getValue(i);
                     LocalDate dateOrder = (LocalDate) entry.get("dateOrder");
                     LocalDate dateShipment = (LocalDate) entry.get("dateShipment");
                     String numberOrder = StringUtils.trim((String) entry.get("numberOrder"));
