@@ -1,23 +1,9 @@
 MODULE SaleInvoiceCorrectionUkdDocument;
 
-REQUIRE SaleInvoiceCorrection, UkdDocument, ConsignmentUpdDocument;
+REQUIRE SaleInvoiceCorrection, SaleInvoiceUkdDocument;
 
 NAMESPACE Ukd;
-
-invoiceNumerator(UkdDocument o) <- defaultNumeratorInvoiceUpd() WHEN SET(o IS UkdDocument); //возможно нужно будет сделать параметризацию нумератора для организации
-
-generateInvoiceNumber 'Сгенерировать номер' (UkdDocument o)  { 
-    numberInvoice(o) <- curStringValue(invoiceNumerator(o));
-    incrementValueSession(invoiceNumerator(o));
-}
-    
-WHEN SETCHANGED(invoiceNumerator(UkdDocument o)) AND
-     NOT CHANGED(numberInvoice(o)) 
-     DO generateInvoiceNumber(o);
      
-invoice = DATA Sale.Invoice(UkdDocument);
-invoiceDetail = DATA Sale.InvoiceDetail(UkdDocumentDetail);
-
 invoiceCorrection = DATA InvoiceCorrection(UkdDocument);
 invoiceCorrectionDetail = DATA InvoiceCorrectionDetail(UkdDocumentDetail);
 
@@ -58,8 +44,6 @@ createDetails (InvoiceCorrection c, UkdDocument ukd) {
         fill(c, d, ed);
     }
 }
-
-showMessage = DATA BOOLEAN (UkdDocument);
 
 overFill ABSTRACT LIST (InvoiceCorrection, UkdDocument);
 

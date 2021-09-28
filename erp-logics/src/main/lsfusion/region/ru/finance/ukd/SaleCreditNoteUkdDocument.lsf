@@ -1,0 +1,239 @@
+MODULE SaleCreditNoteUkdDocument;
+
+REQUIRE SaleInvoiceCreditNote, SaleInvoiceUkdDocument;
+
+NAMESPACE Ukd;
+
+creditNote = DATA Sale.CreditNote(UkdDocument);
+creditNoteDetail = DATA Sale.CreditNoteDetail(UkdDocumentDetail);
+
+ukdDocument = GROUP AGGR UkdDocument ei BY creditNote(ei);
+
+fill(CreditNote c, Sale.InvoiceDetail d, UkdDocumentDetail ed) {
+    invoiceDetail(ed) <- d;
+    creditNoteDetail(ed) <- creditNoteDetail(d, c);
+    number(ed) <- index(d);
+    nameSku(ed) <- nameSku(d);
+
+    VATStatusB(ed)<- CASE 
+                   WHEN isNotVATPayer(supplier(ukdDocument(ed)))  THEN VATStatus.vatNot
+                   WHEN vat(d)==0.0  THEN VATStatus.vat0
+                   WHEN vat(d)==10.0  THEN VATStatus.vat10
+                   WHEN vat(d)==18.0  THEN VATStatus.vat18
+                   WHEN vat(d)==20.0  THEN VATStatus.vat20
+                   ;
+                   
+    VATStatusA(ed) <- VATStatusB(ed);                   
+                                     
+    invoiceSumB(ed) <- invoiceSum(d);
+    invoiceSumA(ed) <- OVERRIDE invoiceSumA(d, c), invoiceSum(d);
+    
+    VATSumB(ed) <- VATSum(d);
+    VATSumA(ed) <- OVERRIDE VATSumA(d, c), VATSum(d);
+    
+    withoutDutyB(ed) <- TRUE;
+    withoutDutyA(ed) <- TRUE;
+}
+
+createDetails (CreditNote c, UkdDocument ukd) {
+    FOR invoice(Sale.InvoiceDetail d) == invoice(c) NEW ed = UkdDocumentDetail  DO {
+        ukdDocument(ed) <- ukd;
+        fill(c, d, ed);
+    }
+}
+
+overFill ABSTRACT LIST (CreditNote, UkdDocument);
+
+fill(CreditNote creditNote, UkdDocument ei) {
+    creditNote(ei) <- creditNote;
+    invoice(ei) <- invoice(creditNote(ei));
+    updDocument(ei) <- updDocument(invoice(creditNote));
+    
+    baseInvoiceNumber(ei) <- numberInvoice(updDocument(ei));
+    baseDateInvoice(ei) <- dateInvoice(updDocument(ei));
+    
+    idConsignor(ei) <- idEdi(supplier(creditNote));
+    idConsignee(ei) <- idEdi(customer(creditNote));
+    
+    operatorEdi(ei) <- supplier(creditNote);
+    nameOperatorConsignor(ei) <- fullName(operatorEdi(supplier(creditNote)));
+    innOperatorConsignor(ei) <- STRING[10](inn(operatorEdi(supplier(creditNote))));
+    codeOperatorConsignor(ei) <- codeOperatorEdi(operatorEdi(supplier(creditNote)));
+    
+    status(ei) <- CASE 
+                        WHEN status(updDocument(ei))=UpdDocumentStatus.SHCF THEN UkdDocumentStatus.KSHCF
+                        WHEN status(updDocument(ei))=UpdDocumentStatus.DOP THEN UkdDocumentStatus.DIS
+                        WHEN status(updDocument(ei))=UpdDocumentStatus.SHCFDOP THEN UkdDocumentStatus.KSHCFDIS;
+    
+    businessNameDocument(ei) <- 'Документ, подтверждающий согласие (факт уведомления) покупателя на изменение стоимости отгруженных товаров (выполненных работ, оказанных услуг), переданных имущественных прав' 
+                                    IF status(ei)=UkdDocumentStatus.KSHCF OR status(ei)=UkdDocumentStatus.KSHCFDIS;
+                                    
+    supplierNameDocument(ei) <- 'Документ, подтверждающий согласие (факт уведомления) покупателя на изменение стоимости отгруженных товаров (выполненных работ, оказанных услуг), переданных имущественных прав'
+                                    WHERE status(ei)=UkdDocumentStatus.KSHCFDIS;
+                                    
+    supplierNameDocument(ei) <- 'Документ, подтверждающий согласие (факт уведомления) покупателя на изменение стоимости отгруженных товаров (выполненных работ, оказанных услуг), переданных имущественных прав'
+                                    WHERE status(ei)=UkdDocumentStatus.KSHCFDIS;
+                                    
+    baseDocument(ei) <- 'Отсутствует';                                                                            
+    
+    dateSupplier(ei) <- date(creditNote);
+    timeSupplier(ei) <- time(creditNote);
+    nameOriginatorSupplier(ei) <- fullNameSupplier(creditNote);
+    
+    showMessage(ei) <- TRUE;
+    
+    //invoiceNumerator(ei) <- defaultNumeratorConsignmentUpd(); //возможно нужно будет сделать параметризацию нумератора для организации
+    dateInvoice(ei) <- date(creditNote);
+    codeCurrency(ei) <- sid(currency(creditNote));
+    
+    supplier(ei) <- supplier(creditNote);
+    numberAccountSupplier(ei) <-  STRING[20](numberAccount(supplier(creditNote)));            
+    nameBankSupplier(ei) <- nameBank(account(supplier(creditNote)));
+    MFOBankSupplier(ei) <- STRING[9](MFOBank(account(supplier(creditNote))));
+    corrAccountBankSupplier(ei) <- corrAccount(bank(account(supplier(creditNote))));
+    
+    nameSupplier(ei) <- fullNameSupplier(creditNote);
+    innSupplier(ei) <- inn(supplier(creditNote));
+    kppSupplier(ei) <- kpp(supplier(creditNote));
+    regionCodeSupplier(ei) <- STRING[2](id(region(supplierStock(creditNote))));
+    
+    countryCodeAddressSupplier(ei) <- sid(country(supplier(creditNote)));
+    adrressSupplier(ei) <- address(supplier(creditNote), date(creditNote));
+    
+    customer(ei) <- customer(creditNote);
+    nameCustomer(ei) <- fullName(customer(creditNote));
+    innCustomer(ei) <- inn(customer(creditNote));
+    kppCustomer(ei) <- kpp(customer(creditNote));
+    regionCodeCustomer(ei) <- STRING[2](id(region(customerStock(creditNote))));
+    
+    countryCodeAddressCustomer(ei) <- sid(country(customer(creditNote)));
+    adrressCustomer(ei) <- address(customer(creditNote), date(creditNote));
+    
+    description(ei) <- 'Товары переданы, результаты работ сдал, услуги оказаны в полном объеме' IF creditNote IS CreditNote;
+    
+    supplierSignerCredentials(ei) <- Credential.c0 IF creditNote IS CreditNote; 
+    supplierSignerStatus(ei) <- CStatus.c1 IF creditNote IS CreditNote; 
+    supplierSignerCredentialsBase(ei) <- 'Должностные обязанности' IF creditNote IS CreditNote; //todo: переделать на проверку
+    
+    supplierSignerInn(ei) <- inn(supplier(creditNote));
+    supplierSignerPosition(ei) <- name(position(chief(supplier(creditNote), date(creditNote))));
+    
+    supplierSignerAgentLastName(ei) <- lastName(chief(supplier(creditNote), date(creditNote)));
+    supplierSignerAgentFirstName(ei) <- firstName(chief(supplier(creditNote), date(creditNote)));
+    supplierSignerAgentMiddleName(ei) <- middleName(chief(supplier(creditNote), date(creditNote)));
+    
+    codeBusinessEvent(ei) <- 'Отсутствует'; //todo: to be written down something meaningful
+    descriptionBusinessEvent(ei) <- 'Отсутствует';
+    
+        
+    overFill(creditNote, ei);
+    
+    createDetails(creditNote, ei);
+}
+
+createUkd 'Создать УКД' (CreditNote creditNote)  {
+    IF NOT ukdDocument(creditNote) THEN NEWSESSION {
+        NEW ei = UkdDocument {
+            fill(creditNote, ei);
+        }
+        APPLY;
+        IF NOT canceled() THEN {
+            MESSAGE 'УКД создан';    
+        }
+    }
+}
+
+recreateUkdDocument (CreditNote creditNote) {
+    DELETE UkdDocumentDetail d WHERE ukdDocument(d)=ukdDocument(creditNote);
+    fill(creditNote, ukdDocument(creditNote));
+}
+
+recreateUkd 'Перезаполнить УКД' (CreditNote creditNote) {
+    IF ukdDocument(creditNote) THEN {
+        IF isTransferred(ukdDocument(creditNote)) THEN {
+            MESSAGE 'Документ УКД не может быть пересоздан, т.к. уже отправлен' NOWAIT;
+        } ELSE {
+            recreateUkdDocument(creditNote);
+            APPLY;
+            IF NOT canceled() THEN {
+                MESSAGE 'УКД перезаполнен';    
+            }                
+        }
+    } ELSE {
+        createUkd(creditNote);
+    }
+}
+
+captionCreateUkd (CreditNote creditNote) = 
+    IF Sale.countIncl() 
+        THEN 'Создать УКД (отм.)'
+        ELSE IF ukdDocument(creditNote) 
+            THEN 'Перезаполнить УКД' ELSE 'Создать УКД';
+
+showUkd 'Просмотреть УКД' (CreditNote i) {
+    show(ukdDocument(i));
+}
+
+editUkd 'Редактировать УКД' (CreditNote i) {
+    edit(ukdDocument(i));
+} IMAGE 'edit.png';
+
+createCreditNoteUkdDocuments 'Создать УКД (отм.)' () {
+    IF Sale.countIncl() THEN {
+        NEWSESSION NESTED(incl[CreditNote]) {
+            LOCAL count = INTEGER ();
+            count() <- Sale.countIncl();
+            FOR incl(CreditNote i) DO {
+                IF ukdDocument(i) THEN {
+                    recreateUkdDocument(i);
+                } ELSE {
+                    NEW ei = UkdDocument {
+                        fill(i, ei);
+                    }
+                }
+            }
+            APPLY NESTED(count);
+            IF NOT canceled() THEN MESSAGE CONCAT ' ', 'Обработано', count(), 'документов(-а).';
+        }    
+    } ELSE {
+        MESSAGE 'Проставьте признак "Отм." для обрабатываемых документов.';
+    }
+}
+
+createUkdDocuments (CreditNote creditNote) {
+     IF Sale.countIncl() THEN {
+        createCreditNoteUkdDocuments();   
+     } ELSE {
+        recreateUkd(creditNote);
+     }
+}
+
+ukdInvoiceNumber 'Номер КСЧФ' (CreditNote i) = numberInvoice(ukdDocument(i));
+
+EXTEND FORM creditNotes
+    PROPERTIES (c) incl FIRST
+    PROPERTIES (c) READONLY ukdInvoiceNumber AFTER series(c)
+    PROPERTIES //createUpd(i) SHOWIF NOT updDocument(i),
+               createUkdDocuments(c) HEADER captionCreateUkd(c),
+               ukdNumber = ukdInvoiceNumber(c) SHOWIF ukdDocument(c) PANEL READONLY,
+               editUkd(c) SHOWIF ukdDocument(c),
+               showUkd(c) SHOWIF ukdDocument(c)
+;
+
+DESIGN creditNotes {
+    actionContainer {
+        NEW ukdDocument {
+            type = CONTAINERV;
+            caption = 'УКД';
+            NEW ukdNumber {
+                type = CONTAINERH;
+                MOVE PROPERTY(ukdNumber) {
+                    charWidth = 20;
+                };
+                MOVE PROPERTY(editUkd(c));
+                MOVE PROPERTY(showUkd(c));
+                MOVE PROPERTY(createUkdDocuments(c));            
+            }       
+        }
+    }
+}

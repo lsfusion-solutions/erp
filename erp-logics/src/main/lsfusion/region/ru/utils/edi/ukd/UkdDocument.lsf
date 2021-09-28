@@ -1,6 +1,6 @@
 MODULE UkdDocument;
 
-REQUIRE UpdDocument;
+REQUIRE ConsignmentUpdDocument;
 
 NAMESPACE Ukd;
 
@@ -290,3 +290,16 @@ show 'Просмотреть' (UkdDocument d)  {
         SHOW ukdDocument OBJECTS u = d DOCKED READONLY;
     }
 }
+
+invoiceNumerator(UkdDocument o) <- defaultNumeratorInvoiceUpd() WHEN SET(o IS UkdDocument); //возможно нужно будет сделать параметризацию нумератора для организации
+
+generateInvoiceNumber 'Сгенерировать номер' (UkdDocument o)  { 
+    numberInvoice(o) <- curStringValue(invoiceNumerator(o));
+    incrementValueSession(invoiceNumerator(o));
+}
+    
+WHEN SETCHANGED(invoiceNumerator(UkdDocument o)) AND
+     NOT CHANGED(numberInvoice(o)) 
+     DO generateInvoiceNumber(o);
+     
+showMessage = DATA BOOLEAN (UkdDocument);       

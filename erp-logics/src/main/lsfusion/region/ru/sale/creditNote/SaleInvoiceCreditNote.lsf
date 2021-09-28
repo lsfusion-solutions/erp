@@ -1,0 +1,117 @@
+MODULE SaleInvoiceCreditNote;
+
+REQUIRE SaleInvoice, SaleCreditNote;
+
+NAMESPACE Sale;
+
+invoice 'Накладная' = DATA Invoice (UserCreditNote);
+descriptionInvoice 'Накладная' (UserCreditNote c) = description(invoice(c));
+
+invoice (CreditNote creditNote) = MULTI invoice[UserCreditNote](creditNote), invoice[InvoiceCreditNote](creditNote);
+numberInvoice 'Накладная' (CreditNote creditNote) = number(invoice(creditNote));
+
+CONSTRAINT invoice(userCreditNote(UserCreditNoteDetail detail)) AND invoiceDetail(detail) 
+    AND NOT invoice(userCreditNote(detail))=invoice(invoiceDetail(detail))
+    CHECKED BY invoiceDetail[UserCreditNoteDetail]
+    MESSAGE 'Накладная строки акта расхождения отличается от накладной акта расхождения';
+
+CONSTRAINT invoice(UserCreditNote i) AND NOT operation(i)=operation(invoice(i))
+    CHECKED BY invoice[UserCreditNote]
+    MESSAGE 'Операция акта расхождения отличается от операции накладной';
+    
+EXTEND FORM userCreditNote
+    PROPERTIES (c) descriptionInvoice AFTER nameOperation(c)
+;
+
+EXTEND FORM creditNotes
+    PROPERTIES (c) READONLY numberInvoice AFTER series(c)
+;
+
+WHEN LOCAL CHANGED(invoice(UserCreditNote creditNote)) DO {
+    supplier(creditNote) <- supplier(invoice(creditNote));
+    supplierStock(creditNote) <- supplierStock(invoice(creditNote));
+    customer(creditNote) <- customer(invoice(creditNote));
+    customerStock(creditNote) <- customerStock(invoice(creditNote));
+    contractSku(creditNote) <- contractSku(invoice(creditNote));
+    currency(creditNote) <- currency(invoice(creditNote));
+}
+
+//аля Подбор
+creditNoteDetail = GROUP AGGR CreditNoteDetail detail BY invoiceDetail(detail), creditNote(detail); 
+in = GROUP SUM 1 IF invoiceDetail(CreditNoteDetail detail) BY invoiceDetail(detail), creditNote(detail);
+
+quantityA 'Кол-во (после)' (InvoiceDetail detail, CreditNote creditNote) = quantity(detail) (-) quantity(creditNoteDetail(detail, creditNote));
+sumA 'Сумма (после)' (InvoiceDetail detail, CreditNote creditNote) = sum(detail) (-) sum(creditNoteDetail(detail, creditNote));
+invoiceSumA 'Сумма с НДС (после)' (InvoiceDetail detail, CreditNote creditNote) = invoiceSum(detail) (-) invoiceSum(creditNoteDetail(detail, creditNote));
+VATSumA 'Сумма НДС (после)' (InvoiceDetail detail, CreditNote creditNote) = VATSum(detail) (-) VATSum(creditNoteDetail(detail, creditNote));
+
+changeQuantutyValue(InvoiceDetail invoiceDetail, CreditNote creditNote, NUMERIC[16,5] n)  { 
+    IF creditNoteDetail(invoiceDetail, creditNote) THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            quantity(UserCreditNoteDetail detail) <- quantity(invoiceDetail) (-) n WHERE detail == creditNoteDetail(invoiceDetail, creditNote);
+        } ELSE {
+            FOR creditNoteDetail(invoiceDetail, creditNote) == UserCreditNoteDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            NEW d = UserCreditNoteDetail {
+                creditNote(d) <- creditNote;
+                invoiceDetail(d) <- invoiceDetail;
+                sku(d) <- sku(invoiceDetail);
+                quantity(d) <- quantity(invoiceDetail) (-) n;
+            }
+        }
+    }
+}
+
+changeQuantity(InvoiceDetail invoiceDetail, CreditNote creditNote)  { 
+    INPUT n = NUMERIC[16,5] DO
+        changeQuantutyValue(invoiceDetail, creditNote, n);
+}
+
+backgroundQuantity (InvoiceDetail detail, UserCreditNote creditNote) = IF creditNoteDetail(detail, creditNote) 
+                THEN RGB(255,224,255)
+                ELSE RGB(213,249,185); 
+
+EXTEND FORM userCreditNote
+    OBJECTS id = InvoiceDetail
+    PROPERTIES (id) READONLY index
+    PROPERTIES (id) READONLY BACKGROUND backgroundBarcode(id) idBarcodeSku 
+    PROPERTIES (id) READONLY BACKGROUND backgroundSku(id) idSku SHOWIF showIDs(), nameSku READONLY, shortNameUOMSku READONLY
+    PROPERTIES (id) READONLY quantity, valueVAT
+    PROPERTIES BACKGROUND RGB(255,238,165) price(id) SHOWIF NOT hideWithoutVAT(invoice(id)) READONLY,
+               sum(id) SHOWIF NOT hideWithoutVAT(invoice(id)) READONLY,           
+               invoicePrice(id) SHOWIF NOT hideWithVAT(invoice(id)) READONLY,
+               VATSum(id) READONLY,  
+               invoiceSum(id) SHOWIF NOT hideWithVAT(invoice(id)) READONLY
+    PROPERTIES quantityA(id, c) BACKGROUND backgroundQuantity(id, c) ON CHANGE changeQuantity(id, c)              
+    PROPERTIES BACKGROUND RGB(213,249,185) sumA(id, c) SHOWIF NOT hideWithoutVAT(invoice(id)),
+                    VATSumA(id, c), invoiceSumA(id, c) SHOWIF NOT hideWithVAT(invoice(id))
+               
+    ORDERS index(id)                
+    FILTERS invoice(id)=invoice(c)
+    
+    FILTERGROUP corrected
+        FILTER 'С расхождением' creditNoteDetail(id, c)
+;
+
+DESIGN userCreditNote {
+    headerRow1 {
+        NEW invoiceContainer BEFORE GROUP(documentHeader,c) {
+            type = CONTAINERH;
+            caption = 'Продажа';
+            MOVE PROPERTY(nameOperation(c));
+            MOVE PROPERTY (descriptionInvoice(c));  
+        }
+    }
+    specificationBox {
+        MOVE BOX(id) {
+            caption = 'Строки накладной';
+            showIf = invoice(c);
+        }
+    }
+    GROUP(invoice,c) {
+        showIf = (TRUE IF NOT invoice(c));
+    }
+}
