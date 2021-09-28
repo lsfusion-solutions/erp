@@ -1053,7 +1053,7 @@ public class DefaultTerminalHandler {
     }
 
     public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
-        Map<String, TerminalOrder> terminalOrderMap = new HashMap<>();
+        Map<String, TerminalOrder> terminalOrderMap = new LinkedHashMap<>();
 
         if (terminalOrderLM != null) {
             try {
