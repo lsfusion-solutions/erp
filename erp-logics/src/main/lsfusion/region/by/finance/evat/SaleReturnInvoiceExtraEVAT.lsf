@@ -1,0 +1,91 @@
+MODULE SaleReturnInvoiceExtraEVAT;
+
+REQUIRE SaleInvoiceEvat;
+
+NAMESPACE Sale;
+
+
+// Ссылка на строку накладной, нужна только для SaleReturn
+EVATInvoiceDetail 'Строка основания' = DATA SaleReturn.InvoiceDetail (EVATDetail) INDEXED;
+EVATDetail 'Строка ЭСЧФ' = GROUP MAX EVATDetail d BY EVATInvoiceDetail(d) MATERIALIZED;
+
+// Для возратных накладных нужно создавать столько ЭСЧФ, сколько есть накладных-оснований в строках
+createExtraEVATSaleReturnInvoice (EVAT ee, SaleReturn.Invoice i) + {
+    extraEVAT() <- TRUE;
+    DELETE ee;
+    
+    // для строк, у которых есть основание
+    FOR invoice(SaleReturn.InvoiceDetail rd) == i AND (NOT EVATDetail(rd) OR statusServerStatus(evat(EVATDetail(rd))) == EVATServerStatus.cancelled OR statusServerStatus(evat(EVATDetail(rd))) == EVATServerStatus.onAgreementCancel) 
+    AND invoiceDetail(rd) DO {
+        FOR Invoice si IS Sale.Invoice AND invoice(invoiceDetail(rd)) == si NEW e = EVAT DO {
+            createEVATSaleReturnInvoiceHeader(e, i);
+            
+            IF EVAT(si) THEN {
+                status(e) <- EVATStatus.additional;
+                invoice(e) <- exportNumber(EVAT(si));        // ссылка на ЭСЧФ накладной-основания   
+            } ELSE
+                status(e) <- EVATStatus.additionalNoRef;
+            
+            FOR invoice(SaleReturn.InvoiceDetail id) == i AND invoice(invoiceDetail(id)) == si 
+            AND (NOT EVATDetail(id) OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.cancelled OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.onAgreementCancel)
+            AND quantity(id) > 0 AND sum(id) AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
+                evat(ed) <- e;
+                EVATInvoiceDetail(ed) <- id;
+    
+                name(ed) <- nameSku(id);
+                sku(ed) <- sku(id);
+                code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
+                UOM(ed) <- UOM(sku(id));
+                quantity(ed) <- -quantity(id); 
+                price(ed) <- price(id);
+                sum(ed) <- -sum(id);
+                exciseSum(ed) <- 0;
+                vatRate(ed) <- valueVAT(id);
+                vatSum(ed) <- -VATSum(id);
+                sumWithVAT(ed) <- -invoiceSum(id);
+        
+                IF valueVAT(id) == 0 THEN
+                    in(ed, DescriptionType.vatExcemption) <- TRUE;
+                ELSE
+                    in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
+        
+                overEVATDetailSaleReturnInvoiceDetail(ed, id);
+            } 
+
+            DELETE e WHERE NOT countEVATDetail(e);
+        }
+    }
+    
+    // для осташихся строк (у которых нет основания)
+    NEW e = EVAT {
+        createEVATSaleReturnInvoiceHeader(e, i);
+
+        FOR invoice(SaleReturn.InvoiceDetail id) == i AND (NOT EVATDetail(id) OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.cancelled OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.onAgreementCancel)
+        AND quantity(id) > 0 AND sum(id) AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
+            evat(ed) <- e;
+            EVATInvoiceDetail(ed) <- id;
+
+            name(ed) <- nameSku(id);
+            sku(ed) <- sku(id);
+            code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
+            UOM(ed) <- UOM(sku(id));
+            quantity(ed) <- -quantity(id); 
+            price(ed) <- price(id);
+            sum(ed) <- -sum(id);
+            exciseSum(ed) <- 0;
+            vatRate(ed) <- valueVAT(id);
+            vatSum(ed) <- -VATSum(id);
+            sumWithVAT(ed) <- -invoiceSum(id);
+
+            IF valueVAT(id) == 0 THEN
+                in(ed, DescriptionType.vatExcemption) <- TRUE;
+            ELSE
+                in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
+    
+            overEVATDetailSaleReturnInvoiceDetail(ed, id);
+        } 
+
+        DELETE e WHERE NOT countEVATDetail(e);
+    }
+}
+

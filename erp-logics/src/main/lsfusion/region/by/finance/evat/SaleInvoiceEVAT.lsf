@@ -187,6 +187,10 @@ createEVATSaleReturnInvoice(EVAT e, SaleReturn.Invoice i) {
     } 
 }
 
+extraEVAT = DATA LOCAL BOOLEAN(); 
+
+createExtraEVATSaleReturnInvoice ABSTRACT (EVAT, SaleReturn.Invoice);
+
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo)  { 
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
         NOT [ GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND
@@ -200,7 +204,10 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
     FOR eVAT(operation(SaleReturn.Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
         NOT [ GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo 
         NEW e = EVAT DO {
-        createEVATSaleReturnInvoice(e, i);
+        createExtraEVATSaleReturnInvoice(e, i);
+        IF NOT extraEVAT() THEN {
+            createEVATSaleReturnInvoice(e, i);
+        }
     }
     APPLY;
 } CONFIRM;
