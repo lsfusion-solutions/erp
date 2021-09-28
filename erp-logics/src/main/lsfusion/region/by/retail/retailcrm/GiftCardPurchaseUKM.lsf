@@ -6,17 +6,18 @@ NAMESPACE GiftCard;
 
 
 exportGiftCards 'Экспорт в УКМ' (GiftCardPurchase i)  { 
-
-    inExportGiftCards(GiftCard c) <- TRUE WHERE giftCardPurchase(c) == i AND NOT exportedActive(c) AND NOT isSold(c);
-
-    exportGiftCardsUKMCustom();
+    NEWSESSION NESTED (inExportGiftCards[GiftCard]) {
+        inExportGiftCards(GiftCard c) <- TRUE WHERE giftCardPurchase(c) == i AND NOT exportedActive(c) AND NOT isSold(c);
+    
+        exportGiftCardsUKMCustom();
+    }
 }
 
 EXTEND FORM giftCardsDashboard
     PROPERTIES(g) inExportGiftCards BEFORE number(g)
     PROPERTIES () exportGiftCards DRAW g TOOLBAR
     
-    PROPERTIES(p) TOOLBAR NEWSESSION exportGiftCards
+    PROPERTIES(p) TOOLBAR exportGiftCards
 ;
 
 ukmCode 'Код УКМ' = GROUP MIN STRING[10](departmentNumber(GroupCashRegister c)) BY stock(c);
