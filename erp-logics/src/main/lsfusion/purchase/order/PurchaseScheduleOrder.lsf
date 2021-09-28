@@ -123,7 +123,10 @@ EXTEND FORM scheduleOrderDashboard FILTERS countAccessCompanyEmployeeStock(ss) O
 
 autoCloseScheduleOrderInterval 'За сколько дней аннулировать точки заказов по графику' = DATA INTEGER ();
 autoCloseScheduleOrderDetails 'Аннулировать точки заказов'()  { 
-    isClosed(ScheduleOrderDetail o) <- TRUE WHERE dateOrder(o) <= subtract(currentDate(), autoCloseScheduleOrderInterval());
+    NEWSESSION {
+        isClosed(ScheduleOrderDetail o) <- TRUE WHERE dateOrder(o) <= subtract(currentDate(), autoCloseScheduleOrderInterval());    
+        APPLY;
+    }
 }
 autoCreatedDayMonth 'Создавать точки заказов в момент создания графика (Генерация по дням недели и месяца)' = DATA BOOLEAN ();
 EXTEND FORM options
