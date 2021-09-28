@@ -31,25 +31,8 @@ createExtraEVATSaleReturnInvoice (EVAT ee, SaleReturn.Invoice i) + {
             AND quantity(id) > 0 AND sum(id) AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
                 evat(ed) <- e;
                 EVATInvoiceDetail(ed) <- id;
-    
-                name(ed) <- nameSku(id);
-                sku(ed) <- sku(id);
-                code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
-                UOM(ed) <- UOM(sku(id));
-                quantity(ed) <- -quantity(id); 
-                price(ed) <- price(id);
-                sum(ed) <- -sum(id);
-                exciseSum(ed) <- 0;
-                vatRate(ed) <- valueVAT(id);
-                vatSum(ed) <- -VATSum(id);
-                sumWithVAT(ed) <- -invoiceSum(id);
-        
-                IF valueVAT(id) == 0 THEN
-                    in(ed, DescriptionType.vatExcemption) <- TRUE;
-                ELSE
-                    in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
-        
-                overEVATDetailSaleReturnInvoiceDetail(ed, id);
+                
+                fillEVATDetailSaleReturn(id, ed);
             } 
 
             DELETE e WHERE NOT countEVATDetail(e);
@@ -64,25 +47,8 @@ createExtraEVATSaleReturnInvoice (EVAT ee, SaleReturn.Invoice i) + {
         AND quantity(id) > 0 AND sum(id) AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
             evat(ed) <- e;
             EVATInvoiceDetail(ed) <- id;
-
-            name(ed) <- nameSku(id);
-            sku(ed) <- sku(id);
-            code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
-            UOM(ed) <- UOM(sku(id));
-            quantity(ed) <- -quantity(id); 
-            price(ed) <- price(id);
-            sum(ed) <- -sum(id);
-            exciseSum(ed) <- 0;
-            vatRate(ed) <- valueVAT(id);
-            vatSum(ed) <- -VATSum(id);
-            sumWithVAT(ed) <- -invoiceSum(id);
-
-            IF valueVAT(id) == 0 THEN
-                in(ed, DescriptionType.vatExcemption) <- TRUE;
-            ELSE
-                in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
-    
-            overEVATDetailSaleReturnInvoiceDetail(ed, id);
+                        
+            fillEVATDetailSaleReturn(id, ed);
         } 
 
         DELETE e WHERE NOT countEVATDetail(e);

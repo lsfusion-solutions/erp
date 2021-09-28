@@ -54,7 +54,7 @@ customer[EVATDocument](SaleReturn.Invoice i) += customer(i);
 
 extraCode 'Код ТНВЭД' = ABSTRACT STRING[10] (InvoiceDetail);
 extraCode 'Код ТНВЭД' = ABSTRACT STRING[10] (SaleReturn.InvoiceDetail);
-// в Виталюре своё действие, создающее для возвратной накладной столько ЭСЧФ, сколько есть накладных-оснований в строках.
+
 createEVATSaleInvoiceHeader(EVAT e, Sale.Invoice i) {
     EVATDocument(e) <- i;        
     type(e) <- EVATType.sale;
@@ -160,30 +160,34 @@ createEVATSaleReturnInvoiceHeader(EVAT e, SaleReturn.Invoice i) {
     
     overCreateEVATSaleReturnInvoice(e,i);
 }
+
+fillEVATDetailSaleReturn (SaleReturn.InvoiceDetail id, EVATDetail ed) {
+    name(ed) <- nameSku(id);
+    sku(ed) <- sku(id);
+    code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
+    UOM(ed) <- UOM(sku(id));
+    quantity(ed) <- -quantity(id); 
+    price(ed) <- price(id);
+    sum(ed) <- -sum(id);
+    exciseSum(ed) <- 0;
+    vatRate(ed) <- valueVAT(id);
+    vatSum(ed) <- -VATSum(id);
+    sumWithVAT(ed) <- -invoiceSum(id);
+    
+    IF valueVAT(id) == 0 THEN
+        in(ed, DescriptionType.vatExcemption) <- TRUE;
+    ELSE
+        in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
+
+    overEVATDetailSaleReturnInvoiceDetail(ed, id);
+}
+
 createEVATSaleReturnInvoice(EVAT e, SaleReturn.Invoice i) {
     createEVATSaleReturnInvoiceHeader(e,i);
     
     FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
         evat(ed) <- e;
-
-        name(ed) <- nameSku(id);
-        sku(ed) <- sku(id);
-        code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
-        UOM(ed) <- UOM(sku(id));
-        quantity(ed) <- -quantity(id); 
-        price(ed) <- price(id);
-        sum(ed) <- -sum(id);
-        exciseSum(ed) <- 0;
-        vatRate(ed) <- valueVAT(id);
-        vatSum(ed) <- -VATSum(id);
-        sumWithVAT(ed) <- -invoiceSum(id);
-        
-        IF valueVAT(id) == 0 THEN
-            in(ed, DescriptionType.vatExcemption) <- TRUE;
-        ELSE
-            in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
-
-        overEVATDetailSaleReturnInvoiceDetail(ed, id);
+        fillEVATDetailSaleReturn(id, ed);
     } 
 }
 
