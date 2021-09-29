@@ -71,11 +71,15 @@ sumB 'Сумма (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail);
 sumA 'Сумма (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail);
 
 //СодФХЖ3
-transferDocuments 'Передаточные документы' = DATA STRING (UkdDocument); //ПередатДокум
 description 'Содержание операции' = DATA STRING[255] (UkdDocument); //СодОпер
 
-//-ОснКор
-baseDocument 'Документ основания' = DATA STRING[255] (UkdDocument); //НаимОсн
+//-ПередатДокум
+nameBaseDocument 'Документ основания' = DATA STRING[255] (UkdDocument); //НаимОсн
+numberBaseDocument 'Номер документа основания' = DATA STRING[255] (UkdDocument); //НомОсн
+dateBaseDocument 'Дата документа основания' = DATA DATE (UkdDocument); //ДатаОсн
+
+//-ДокумОснКор
+nameCorrectionDocument 'Основание корректировки' = DATA STRING[255] (UkdDocument); //НаимОсн
 
 withoutVAT 'БезНДС' = DATA BOOLEAN (UkdDocument);
 
@@ -104,8 +108,9 @@ numberUpdDocument 'УПД' (UkdDocument ukd) = numberInvoice(updDocument(ukd));
 
 EXTEND FORM ukdDocument
     PROPERTIES (u) baseInvoiceNumber, baseDateInvoice
-    PROPERTIES(u) transferDocuments, description
-    PROPERTIES(u) baseDocument
+    PROPERTIES(u) description
+    PROPERTIES(u) nameBaseDocument, numberBaseDocument, dateBaseDocument
+    PROPERTIES(u) nameCorrectionDocument
     PROPERTIES(u) increaseSum, increaseInvoiceSum, decreaseSum, decreaseInvoiceSum
     
     PROPERTIES (d) nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
@@ -128,7 +133,7 @@ DESIGN ukdDocument {
         MOVE PROPERTY(increaseSum(u));
         MOVE PROPERTY(increaseInvoiceSum(u));
         MOVE PROPERTY(decreaseSum(u));
-        MOVE PROPERTY(increaseInvoiceSum(u));
+        MOVE PROPERTY(decreaseInvoiceSum(u));
         MOVE PROPERTY(codeCurrency(u));
     }
     documentInfo {
@@ -136,9 +141,11 @@ DESIGN ukdDocument {
             caption = 'Основание';
             fill = 1;
             type = CONTAINERV;
-            MOVE PROPERTY(baseDocument(u));
-            MOVE PROPERTY(transferDocuments(u));
             MOVE PROPERTY(description(u));
+            MOVE PROPERTY(nameBaseDocument(u));
+            MOVE PROPERTY(numberBaseDocument(u));
+            MOVE PROPERTY(dateBaseDocument(u));
+            MOVE PROPERTY(nameCorrectionDocument(u));
         }
     }
 //    supplierBank {
@@ -148,8 +155,8 @@ DESIGN ukdDocument {
 
 EXTEND FORM ukdDocuments
     PROPERTIES(u) READONLY AFTER dateInvoice(u) baseInvoiceNumber, baseDateInvoice
-    PROPERTIES(u) READONLY transferDocuments, description
-    PROPERTIES(u) READONLY baseDocument
+    PROPERTIES(u) READONLY description
+    PROPERTIES(u) READONLY nameBaseDocument, numberBaseDocument, dateBaseDocument
     
     PROPERTIES (d) READONLY nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
     PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
@@ -194,7 +201,8 @@ GROUP UKDExportB EXTID  'ТаблКСчФ';
         GROUP UKDExportB031 EXTID 'СумНал' : UKDExportB03;
 
 GROUP UKDExportC EXTID  'СодФХЖ3';
-    GROUP UKDExportC1 EXTID  'ОснКор' :UKDExportC;
+    GROUP UKDExportC1 EXTID  'ПередатДокум' :UKDExportC;
+    GROUP UKDExportC2 EXTID  'ДокумОснКор' :UKDExportC;
                 
 GROUP UKDExportD EXTID  'Подписант';
     GROUP UKDExportD_1 EXTID  'ФЛ':UKDExportD;   
@@ -239,7 +247,7 @@ FORM UKDPR FORMEXTID '=:Файл'
                
     OBJECTS d = UkdDocument EXTID 'Документ'
     FILTERS inReport(d)    
-    PROPERTIES = '1115127' IF d IS UkdDocument EXTID 'КНД' ATTR,
+    PROPERTIES = '1115133' IF d IS UkdDocument EXTID 'КНД' ATTR,
                = (OVERRIDE nameStatus(d),'') EXTID 'Функция' ATTR,
                = businessNameDocument(d) EXTID 'ПоФактХЖ' ATTR,
                = supplierNameDocument(d) EXTID 'НаимДокОпр' ATTR,
@@ -320,12 +328,15 @@ FORM UKDPR FORMEXTID '=:Файл'
     PROPERTIES = (OVERRIDE decreaseVATSum(d), 0.0) EXTID 'СумНДС' IN UKDExportB031
     PROPERTIES = ('Без НДС' IF withoutVAT(d)) EXTID 'БезНДС' IN UKDExportB031
     
-    //--
-    PROPERTIES = (OVERRIDE transferDocuments(d),'') EXTID 'ПередатДокум' ATTR IN UKDExportC        
+    //--      
     PROPERTIES = (OVERRIDE description(d),'') EXTID 'СодОпер' ATTR IN UKDExportC
     
-    PROPERTIES = baseDocument(d) EXTID 'НаимОсн' ATTR IN UKDExportC1
-
+    PROPERTIES = nameBaseDocument(d) EXTID 'НаимОсн' ATTR IN UKDExportC1,
+               = numberBaseDocument(d) EXTID 'НомОсн' ATTR IN UKDExportC1,
+               = toDateDDMMYYYY(dateBaseDocument(d)) EXTID 'ДатаОсн' ATTR IN UKDExportC1 
+               
+    PROPERTIES = nameCorrectionDocument(d) EXTID 'НаимОсн' ATTR IN UKDExportC2
+             
     //-- Подписант
     PROPERTIES = nameSupplierSignerCredentials(d) EXTID 'ОблПолн' ATTR IN UKDExportD,
                = nameSupplierSignerStatus(d) EXTID 'Статус' ATTR IN UKDExportD,
@@ -428,8 +439,7 @@ META fillUkdDocument(docType)
                                         
         supplierNameDocument(ei) <- 'Документ, подтверждающий согласие (факт уведомления) покупателя на изменение стоимости отгруженных товаров (выполненных работ, оказанных услуг), переданных имущественных прав'
                                         WHERE status(ei)=UkdDocumentStatus.KSHCFDIS OR status(ei)=UkdDocumentStatus.DIS;
-                                        
-        baseDocument(ei) <- 'Отсутствует';                                                                            
+                                                                                                                 
         
         dateSupplier(ei) <- date(c);
         timeSupplier(ei) <- time(c);
@@ -464,7 +474,13 @@ META fillUkdDocument(docType)
         countryCodeAddressCustomer(ei) <- sid(country(customer(c)));
         adrressCustomer(ei) <- address(customer(c), date(c));
         
-        description(ei) <- 'Товары переданы, результаты работ сдал, услуги оказаны в полном объеме' IF c IS ###docType;
+        description(ei) <- 'Изменение стоимости товаров и услуг' IF c IS ###docType;
+        
+        nameBaseDocument (ei) <- 'УПД' IF updDocument(ei);
+        numberBaseDocument (ei) <- numberInvoice(updDocument(ei));
+        dateBaseDocument (ei) <- dateInvoice(updDocument(ei));
+        
+        nameCorrectionDocument(ei) <- 'Без документа-основания' IF c IS ###docType;
         
         supplierSignerCredentials(ei) <- Credential.c0 IF c IS ###docType; 
         supplierSignerStatus(ei) <- CStatus.c1 IF c IS ###docType; 
@@ -486,14 +502,3 @@ META fillUkdDocument(docType)
     }
 
 END
-
-exportUkdDocument1 'экспорт (xml)' (UkdDocument d) {
-    generateIdFile(d);
-    inReport(UkdDocument g)<- TRUE IF g==d;
-    EXPORT UKDPR XML CHARSET 'windows-1251' TO System.exportFile;
-    open(System.exportFile());    
-}
-
-EXTEND FORM ukdDocuments
-    PROPERTIES (u) exportUkdDocument1
-;
