@@ -67,12 +67,37 @@ decreaseVATSum 'Уменьшение суммы НДС' (UkdDocumentDetail d) = 
 invoiceSumB 'Сумма с НДС (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимДоИзм
 invoiceSumA 'Сумма с НДС (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимПослеИзм
 
+sumB 'Сумма (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail);
+sumA 'Сумма (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail);
+
 //СодФХЖ3
 transferDocuments 'Передаточные документы' = DATA STRING (UkdDocument); //ПередатДокум
 description 'Содержание операции' = DATA STRING[255] (UkdDocument); //СодОпер
 
 //-ОснКор
 baseDocument 'Документ основания' = DATA STRING[255] (UkdDocument); //НаимОсн
+
+withoutVAT 'БезНДС' = DATA BOOLEAN (UkdDocument);
+
+//-ВсегоУвел
+increaseSum 'Сумма (увеличение)' (UkdDocumentDetail detail) = (sumA(detail) (-) sumB(detail)) IF sumA(detail)>sumB(detail);
+increaseSum 'Сумма (увеличение)' = GROUP SUM increaseSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовБезНДСВсего
+
+increaseInvoiceSum 'Сумма с НДС (увеличение)' (UkdDocumentDetail detail) = (invoiceSumA(detail) (-) invoiceSumB(detail)) IF invoiceSumA(detail)>invoiceSumB(detail);
+increaseInvoiceSum 'Сумма с НДС (увеличение)' = GROUP SUM increaseInvoiceSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовУчНалВсего
+
+//--СумНал
+increaseVATSum 'Сумма НДС (увеличение)' = GROUP SUM increaseVATSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СумНДС
+
+//-ВсегоУм
+decreaseSum 'Сумма (уменьшение)' (UkdDocumentDetail detail) = (sumB(detail) (-) sumA(detail)) IF sumB(detail)>sumA(detail);
+decreaseSum 'Сумма (уменьшение)' = GROUP SUM decreaseSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовБезНДСВсего
+
+//--СумНал
+decreaseVATSum 'Сумма НДС (уменьшение)' = GROUP SUM decreaseVATSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СумНДС
+
+decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (UkdDocumentDetail detail) = (invoiceSumB(detail) (-) invoiceSumA(detail)) IF invoiceSumB(detail)>invoiceSumA(detail);
+decreaseInvoiceSum 'Сумма с НДС (уменьшение)' = GROUP SUM decreaseInvoiceSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовУчНалВсего
 
 updDocument 'УПД' = DATA UpdDocument (UkdDocument);
 numberUpdDocument 'УПД' (UkdDocument ukd) = numberInvoice(updDocument(ukd));
@@ -81,6 +106,7 @@ EXTEND FORM ukdDocument
     PROPERTIES (u) baseInvoiceNumber, baseDateInvoice
     PROPERTIES(u) transferDocuments, description
     PROPERTIES(u) baseDocument
+    PROPERTIES(u) increaseSum, increaseInvoiceSum, decreaseSum, decreaseInvoiceSum
     
     PROPERTIES (d) nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
     PROPERTIES (d) BACKGROUND RGB(213,249,185) nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
@@ -98,6 +124,13 @@ DESIGN ukdDocument {
             MOVE PROPERTY(baseDateInvoice(u));
         }
     }
+    sums {
+        MOVE PROPERTY(increaseSum(u));
+        MOVE PROPERTY(increaseInvoiceSum(u));
+        MOVE PROPERTY(decreaseSum(u));
+        MOVE PROPERTY(increaseInvoiceSum(u));
+        MOVE PROPERTY(codeCurrency(u));
+    }
     documentInfo {
         NEW baseDocumentInfo {
             caption = 'Основание';
@@ -108,9 +141,9 @@ DESIGN ukdDocument {
             MOVE PROPERTY(description(u));
         }
     }
-    supplierBank {
-        MOVE PROPERTY(codeCurrency(u));
-    }
+//    supplierBank {
+//        MOVE PROPERTY(codeCurrency(u));
+//    }
 }
 
 EXTEND FORM ukdDocuments
@@ -146,14 +179,19 @@ GROUP UKDExportA EXTID  'СвКСчФ';
     GROUP UKDExportA9 EXTID  'ИнфПолФХЖ1' :UKDExportA;
         GROUP UKDExportA9_1 EXTID  'ТекстИнф' :UKDExportA9;
         
-GROUP UKDExportB EXTID  'ТаблКСчФ';      
-    GROUP UKDExportB1 EXTID  'АкцизДо';
-    GROUP UKDExportB2 EXTID  'АкцизПосле';
-    GROUP UKDExportB3 EXTID  'АкцизРазн';
-    GROUP UKDExportB4 EXTID  'СумНалДо';
-    GROUP UKDExportB5 EXTID  'СумНалПосле';     
-    GROUP UKDExportB6 EXTID  'СумНалРазн';    
-    GROUP UKDExportB7 EXTID  'СтТовУчНал';               
+GROUP UKDExportB EXTID  'ТаблКСчФ';
+    GROUP UKDExportB01 EXTID 'СведТов';
+        GROUP UKDExportB1 EXTID  'АкцизДо';
+        GROUP UKDExportB2 EXTID  'АкцизПосле';
+        GROUP UKDExportB3 EXTID  'АкцизРазн';
+        GROUP UKDExportB4 EXTID  'СумНалДо';
+        GROUP UKDExportB5 EXTID  'СумНалПосле';
+        GROUP UKDExportB6 EXTID  'СумНалРазн';
+        GROUP UKDExportB7 EXTID  'СтТовУчНал';
+    GROUP UKDExportB02 EXTID 'ВсегоУвел': UKDExportB;
+        GROUP UKDExportB021 EXTID 'СумНал' : UKDExportB02;
+    GROUP UKDExportB03 EXTID 'ВсегоУм': UKDExportB;
+        GROUP UKDExportB031 EXTID 'СумНал' : UKDExportB03;
 
 GROUP UKDExportC EXTID  'СодФХЖ3';
     GROUP UKDExportC1 EXTID  'ОснКор' :UKDExportC;
@@ -167,12 +205,22 @@ GROUP UKDExportD EXTID  'Подписант';
         GROUP UKDExportD_3_1 EXTID  'ФИО':UKDExportD_3;
 
 idFile 'ИдФайл' (UkdDocument d) = 
-    STRING[255](CONCAT '_', 'KORSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
+    STRING[255](CONCAT '_', 'ON_NKORSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
 
 showIncreaseVATSum (UkdDocumentDetail detail)= IF increaseVATSum(detail) AND NOT decreaseVATSum(detail)
     THEN increaseVATSum(detail)
     ELSE IF (detail IS UkdDocumentDetail AND NOT increaseVATSum(detail) AND NOT decreaseVATSum(detail))
         THEN 0.0;
+        
+showIncreaseSum (UkdDocument ukd)= IF increaseSum(ukd) AND NOT decreaseSum(ukd)
+    THEN increaseSum(ukd)
+    ELSE IF (ukd IS UkdDocument AND NOT increaseSum(ukd) AND NOT decreaseSum(ukd))
+        THEN 0.0;
+        
+showIncreaseInvoiceSum (UkdDocument ukd)= IF increaseInvoiceSum(ukd) AND NOT decreaseInvoiceSum(ukd)
+    THEN increaseInvoiceSum(ukd)
+    ELSE IF (ukd IS UkdDocument AND NOT increaseInvoiceSum(ukd) AND NOT decreaseInvoiceSum(ukd))
+        THEN 0.0;                 
             
 FORM UKDPR FORMEXTID '=:Файл'
     PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xsd', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
@@ -241,7 +289,7 @@ FORM UKDPR FORMEXTID '=:Файл'
     PROPERTIES = (OVERRIDE INTEGER(number(detail)), defaultIndex(detail)) EXTID 'НомСтр' ATTR,
                = nameSku(detail) EXTID 'НаимТов' ATTR,
                = nameVATStatusB(detail) EXTID 'НалСтДо' ATTR,
-               = nameVATStatusA(detail)  EXTID 'НалСтПосле' ATTR              
+               = nameVATStatusA(detail)  EXTID 'НалСтПосле' ATTR
     
     PROPERTIES = dutySumB(detail) EXTID 'СумАкциз' IN UKDExportB1           
     PROPERTIES = 'без акциза' IF withoutDutyB(detail)  EXTID 'БезАкциз' IN UKDExportB1
@@ -260,6 +308,17 @@ FORM UKDPR FORMEXTID '=:Файл'
     
     PROPERTIES = (OVERRIDE invoiceSumB(detail), 0.0) EXTID 'СтоимДоИзм' ATTR IN UKDExportB7
     PROPERTIES = (OVERRIDE invoiceSumA(detail), 0.0) EXTID 'СтоимПослеИзм' ATTR IN UKDExportB7
+    
+    PROPERTIES = (OVERRIDE increaseSum(d), 0.0) EXTID 'СтТовБезНДСВсего' ATTR IN UKDExportB02
+    PROPERTIES = (OVERRIDE decreaseSum(d), 0.0) EXTID 'СтТовБезНДСВсего' ATTR IN UKDExportB03
+    PROPERTIES = (OVERRIDE increaseInvoiceSum(d), 0.0) EXTID 'СтТовУчНалВсего' ATTR IN UKDExportB02
+    PROPERTIES = (OVERRIDE decreaseInvoiceSum(d), 0.0) EXTID 'СтТовУчНалВсего' ATTR IN UKDExportB03
+    
+    PROPERTIES = (OVERRIDE increaseVATSum(d), 0.0) EXTID 'СумНДС' IN UKDExportB021
+    PROPERTIES = ('Без НДС' IF withoutVAT(d)) EXTID 'БезНДС' IN UKDExportB021
+    
+    PROPERTIES = (OVERRIDE decreaseVATSum(d), 0.0) EXTID 'СумНДС' IN UKDExportB031
+    PROPERTIES = ('Без НДС' IF withoutVAT(d)) EXTID 'БезНДС' IN UKDExportB031
     
     //--
     PROPERTIES = (OVERRIDE transferDocuments(d),'') EXTID 'ПередатДокум' ATTR IN UKDExportC        
@@ -302,4 +361,139 @@ WHEN SETCHANGED(invoiceNumerator(UkdDocument o)) AND
      NOT CHANGED(numberInvoice(o)) 
      DO generateInvoiceNumber(o);
      
-showMessage = DATA BOOLEAN (UkdDocument);       
+showMessage = DATA BOOLEAN (UkdDocument);
+
+META fillUkdDocument(docType)
+    fill(###docType c, Sale.InvoiceDetail d, UkdDocumentDetail ed) {
+        invoiceDetail(ed) <- d;
+        docType##Detail(ed) <- docType##Detail(d, c);
+        number(ed) <- index(d);
+        nameSku(ed) <- nameSku(d);
+    
+        VATStatusB(ed)<- CASE 
+                       WHEN isNotVATPayer(supplier(ukdDocument(ed)))  THEN VATStatus.vatNot
+                       WHEN vat(d)==0.0  THEN VATStatus.vat0
+                       WHEN vat(d)==10.0  THEN VATStatus.vat10
+                       WHEN vat(d)==18.0  THEN VATStatus.vat18
+                       WHEN vat(d)==20.0  THEN VATStatus.vat20
+                       ;
+                       
+        VATStatusA(ed) <- VATStatusB(ed);                   
+                                         
+        invoiceSumB(ed) <- invoiceSum(d);
+        invoiceSumA(ed) <- OVERRIDE invoiceSumA(d, c), invoiceSum(d);
+        
+        sumB(ed) <- sum(d);
+        sumA(ed) <- OVERRIDE sumA(d, c), sum(d);
+        
+        VATSumB(ed) <- VATSum(d);
+        VATSumA(ed) <- OVERRIDE VATSumA(d, c), VATSum(d);
+        
+        withoutDutyB(ed) <- TRUE;
+        withoutDutyA(ed) <- TRUE;
+    }
+    
+    createDetails (###docType c, UkdDocument ukd) {
+        FOR invoice(Sale.InvoiceDetail d) == invoice(c) NEW ed = UkdDocumentDetail  DO {
+            ukdDocument(ed) <- ukd;
+            fill(c, d, ed);
+        }
+    }
+    
+    overFill ABSTRACT LIST (###docType, UkdDocument);
+    
+    fill(###docType c, UkdDocument ei) {
+        docType(ei) <- c;
+        invoice(ei) <- invoice(docType(ei));
+        updDocument(ei) <- updDocument(invoice(c));
+        
+        baseInvoiceNumber(ei) <- numberInvoice(updDocument(ei));
+        baseDateInvoice(ei) <- dateInvoice(updDocument(ei));
+        
+        idConsignor(ei) <- idEdi(supplier(c));
+        idConsignee(ei) <- idEdi(customer(c));
+        
+        operatorEdi(ei) <- supplier(c);
+        nameOperatorConsignor(ei) <- fullName(operatorEdi(supplier(c)));
+        innOperatorConsignor(ei) <- STRING[10](inn(operatorEdi(supplier(c))));
+        codeOperatorConsignor(ei) <- codeOperatorEdi(operatorEdi(supplier(c)));
+        
+        status(ei) <- CASE 
+                            WHEN status(updDocument(ei))=UpdDocumentStatus.SHCF THEN UkdDocumentStatus.KSHCF
+                            WHEN status(updDocument(ei))=UpdDocumentStatus.DOP THEN UkdDocumentStatus.DIS
+                            WHEN status(updDocument(ei))=UpdDocumentStatus.SHCFDOP THEN UkdDocumentStatus.KSHCFDIS;
+        
+        businessNameDocument(ei) <- 'Документ, подтверждающий  согласие (факт уведомления) покупателя на изменение стоимости отгруженных товаров (выполненных работ, оказанных услуг), переданных имущественных прав' 
+                                        IF status(ei)=UkdDocumentStatus.KSHCF OR status(ei)=UkdDocumentStatus.KSHCFDIS;
+                                        
+        supplierNameDocument(ei) <- 'Документ, подтверждающий согласие (факт уведомления) покупателя на изменение стоимости отгруженных товаров (выполненных работ, оказанных услуг), переданных имущественных прав'
+                                        WHERE status(ei)=UkdDocumentStatus.KSHCFDIS OR status(ei)=UkdDocumentStatus.DIS;
+                                        
+        baseDocument(ei) <- 'Отсутствует';                                                                            
+        
+        dateSupplier(ei) <- date(c);
+        timeSupplier(ei) <- time(c);
+        nameOriginatorSupplier(ei) <- fullNameSupplier(c);
+        
+        showMessage(ei) <- TRUE;
+        
+        //invoiceNumerator(ei) <- defaultNumeratorConsignmentUpd(); //возможно нужно будет сделать параметризацию нумератора для организации
+        dateInvoice(ei) <- date(c);
+        codeCurrency(ei) <- sid(currency(c));
+        
+        supplier(ei) <- supplier(c);
+        numberAccountSupplier(ei) <-  STRING[20](numberAccount(supplier(c)));            
+        nameBankSupplier(ei) <- nameBank(account(supplier(c)));
+        MFOBankSupplier(ei) <- STRING[9](MFOBank(account(supplier(c))));
+        corrAccountBankSupplier(ei) <- corrAccount(bank(account(supplier(c))));
+        
+        nameSupplier(ei) <- fullNameSupplier(c);
+        innSupplier(ei) <- inn(supplier(c));
+        kppSupplier(ei) <- kpp(supplier(c));
+        regionCodeSupplier(ei) <- STRING[2](id(region(supplierStock(c))));
+        
+        countryCodeAddressSupplier(ei) <- sid(country(supplier(c)));
+        adrressSupplier(ei) <- address(supplier(c), date(c));
+        
+        customer(ei) <- customer(c);
+        nameCustomer(ei) <- fullName(customer(c));
+        innCustomer(ei) <- inn(customer(c));
+        kppCustomer(ei) <- kpp(customer(c));
+        regionCodeCustomer(ei) <- STRING[2](id(region(customerStock(c))));
+        
+        countryCodeAddressCustomer(ei) <- sid(country(customer(c)));
+        adrressCustomer(ei) <- address(customer(c), date(c));
+        
+        description(ei) <- 'Товары переданы, результаты работ сдал, услуги оказаны в полном объеме' IF c IS ###docType;
+        
+        supplierSignerCredentials(ei) <- Credential.c0 IF c IS ###docType; 
+        supplierSignerStatus(ei) <- CStatus.c1 IF c IS ###docType; 
+        supplierSignerCredentialsBase(ei) <- 'Должностные обязанности' IF c IS ###docType; //todo: переделать на проверку
+        
+        supplierSignerInn(ei) <- inn(supplier(c));
+        supplierSignerPosition(ei) <- name(position(chief(supplier(c), date(c))));
+        
+        supplierSignerAgentLastName(ei) <- lastName(chief(supplier(c), date(c)));
+        supplierSignerAgentFirstName(ei) <- firstName(chief(supplier(c), date(c)));
+        supplierSignerAgentMiddleName(ei) <- middleName(chief(supplier(c), date(c)));
+        
+        codeBusinessEvent(ei) <- 'Отсутствует'; //todo: to be written down something meaningful
+        descriptionBusinessEvent(ei) <- 'Отсутствует';
+            
+        overFill(c, ei);
+        
+        createDetails(c, ei);
+    }
+
+END
+
+exportUkdDocument1 'экспорт (xml)' (UkdDocument d) {
+    generateIdFile(d);
+    inReport(UkdDocument g)<- TRUE IF g==d;
+    EXPORT UKDPR XML CHARSET 'windows-1251' TO System.exportFile;
+    open(System.exportFile());    
+}
+
+EXTEND FORM ukdDocuments
+    PROPERTIES (u) exportUkdDocument1
+;
