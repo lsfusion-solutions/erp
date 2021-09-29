@@ -1424,6 +1424,7 @@ filterMove (Sku s, Stock st, Snapshot r) = balanceB(s,st,r) OR balanceA(s,st,r) 
                                         inQuantity(s,st,r) OR outQuantity(s,st,r) OR
                                         sumB(s,st,r) OR sumA(s,st,r) OR 
                                         inSum(s,st,r) OR outSum(s,st,r)
+                                        OR costB(s,st,r) OR costA(s,st,r)
                                         OR extraFilterMove(s,st,r) MATERIALIZED;
 
 extraFilterMove = ABSTRACT CASE BOOLEAN (Sku, Stock, Snapshot, DATE);
@@ -1431,6 +1432,7 @@ filterMove (Sku s, Stock st, Snapshot r, DATE d) = balanceB(s,st,r,d) OR balance
                                         inQuantity(s,st,r,d) OR outQuantity(s,st,r,d) OR
                                         sumB(s,st,r,d) OR sumA(s,st,r,d) OR 
                                         inSum(s,st,r,d) OR outSum(s,st,r,d)
+                                        OR costB(s,st,r,d) OR costA(s,st,r,d)
                                         OR extraFilterMove(s,st,r,d) MATERIALIZED;  
                                         
 filterMove (Snapshot r, DATE d) = GROUP SUM 1 IF filterMove (Sku s, Stock st, r, d) MATERIALIZED;                                        
@@ -1705,7 +1707,8 @@ FORM snapshot 'Аналитический отчет'
     PROPERTIES include(r,le)
     PROPERTIES(le) READONLY id, name, fullName
     ORDERS name(le)
-    FILTERS isSupplier(le)
+    FILTERGROUP isSupplier 
+        FILTER 'Поставщики' isSupplier(le) DEFAULT
     FILTERGROUP inLegalEntity FILTER 'Отмеченные' include(r,le)
     PROPERTIES deleteIncludeLegalEntities(r) TOOLBAR
             
