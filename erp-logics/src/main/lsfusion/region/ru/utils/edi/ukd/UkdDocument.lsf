@@ -104,6 +104,7 @@ decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (UkdDocumentDet
 decreaseInvoiceSum 'Сумма с НДС (уменьшение)' = GROUP SUM decreaseInvoiceSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовУчНалВсего
 
 updDocument 'УПД' = DATA UpdDocument (UkdDocument);
+updDocumentDetail = DATA UpdDocumentDetail(UkdDocumentDetail);
 numberUpdDocument 'УПД' (UkdDocument ukd) = numberInvoice(updDocument(ukd));
 
 EXTEND FORM ukdDocument
@@ -376,7 +377,7 @@ showMessage = DATA BOOLEAN (UkdDocument);
 
 META fillUkdDocument(docType)
     fill(###docType c, Sale.InvoiceDetail d, UkdDocumentDetail ed) {
-        invoiceDetail(ed) <- d;
+        updDocumentDetail(ed) <- updDocumentDetail(d);
         docType##Detail(ed) <- docType##Detail(d, c);
         number(ed) <- index(d);
         nameSku(ed) <- nameSku(d);
@@ -405,9 +406,9 @@ META fillUkdDocument(docType)
     }
     
     createDetails (###docType c, UkdDocument ukd) {
-        FOR invoice(Sale.InvoiceDetail d) == invoice(c) NEW ed = UkdDocumentDetail  DO {
+        FOR updDocument(UpdDocumentDetail d) == updDocument(invoice(c)) NEW ed = UkdDocumentDetail  DO {
             ukdDocument(ed) <- ukd;
-            fill(c, d, ed);
+            fill(c, invoiceDetail(d), ed);
         }
     }
     
@@ -415,7 +416,6 @@ META fillUkdDocument(docType)
     
     fill(###docType c, UkdDocument ei) {
         docType(ei) <- c;
-        invoice(ei) <- invoice(docType(ei));
         updDocument(ei) <- updDocument(invoice(c));
         
         baseInvoiceNumber(ei) <- numberInvoice(updDocument(ei));
