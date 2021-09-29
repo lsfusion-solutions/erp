@@ -572,6 +572,14 @@ priceListLedgerA 'Цена' (LedgerPriceListType type, sku, Stock stock, company
 prevPriceListLedgerA (LedgerPriceListType type, Sku sku, Stock stock, Stock companyStock, DATETIME dateTime) =
     PREV(priceListLedgerA(type, sku, stock, companyStock, dateTime)) COMPLEX;
 
+priceListLedgerA 'Цена' (LedgerPriceListType type, sku, Stock stock, LegalEntity company, Stock companyStock, DATETIME dateTime) =
+    GROUP LAST PriceListLedger ledger
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime AND companyStock(ledger) = companyStock
+          BY sku(ledger, type, stock), company(ledger, type, stock) COMPLEX;
+prevPriceListLedgerA (LedgerPriceListType type, Sku sku, Stock stock, LegalEntity company, Stock companyStock, DATETIME dateTime) =
+    PREV(priceListLedgerA(type, sku, stock, company, companyStock, dateTime)) COMPLEX;
+
 
 countStockB 'Кол-во складов' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) =
     GROUP
