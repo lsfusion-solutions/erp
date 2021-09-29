@@ -230,6 +230,7 @@ UNPfullNameSupplier (Invoice i) = CONCAT ', ', UNPSupplier(i), fullNameSupplier[
 addressSupplierAddressSupplierStock (Invoice i) = CONCAT ', ', addressSupplier[Consignment](i), addressSupplierStock[Consignment](i);
 infoCustomerBase (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consignment](i), addressCustomer[Consignment](i), shipmentBase(i);
 numberDate (Invoice i) = CONCAT ', ', number(i), toDateDDMMYY(date(i));
+nameProvider (Invoice i) = name(EDIProviderInvoice(customer(eInvoice(i))));
 
 //-- old
 FORM consignmentEInvoice 'РЕЕСТР'
@@ -237,7 +238,7 @@ FORM consignmentEInvoice 'РЕЕСТР'
     PROPERTIES(i) READONLY UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock,
                            date, nameTruck, overWaybill, nameDriver, trailer, number, numberDate, infoCustomerBase,
                            grossWeightConsignmentDetail, overPackQuantityConsignmentDetail, sumVATConsignmentDetail,
-                           sumInvoiceConsignmentDetail, forwarder, overGoodsAccepted, numberEInvoice
+                           sumInvoiceConsignmentDetail, forwarder, overGoodsAccepted, numberEInvoice, nameProvider
 ;
 
 FORM attachmentEInvoice 'Приложение'
@@ -261,10 +262,12 @@ infoCustomerBase (EInvoice i) = CONCAT ', ', unpCustomer(i), nameCustomer(i), ad
 include 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
 multy  = DATA LOCAL BOOLEAN ();
 
+nameProvider (EInvoice e) = name(EDIProviderInvoice(customer(e)));
+
 FORM EInvoiceConsignment 'РЕЕСТР'
     OBJECTS e = EInvoice  
     PROPERTIES(e)  UNPfullNamePayer, addressFreightPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock, deliveryNoteDateTime,deliveryNoteNumber,
-                   transportContact, waybillId, deliveryContact, transportID, trailerID, numberDate, infoCustomerBase, contactCustomerStock    
+                   transportContact, waybillId, deliveryContact, transportID, trailerID, numberDate, infoCustomerBase, contactCustomerStock, nameProvider
     PROPERTIES(e) totalAmountWithoutCharges,totalAmountCharges, totalAmount,totalLineItem, totalLineItemQuantity, totalGrossWeight, 
                 totalDespatchUnitQuantity, totalAmountExcise, sealIDReceiver
     PROPERTIES multy()
@@ -352,7 +355,7 @@ infoCustomer (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consign
 FORM consignmentEInvoices 'РЕЕСТР'
     PROPERTIES() UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplier, date, nameTruck, overWaybill, nameDriver, forwarder
     OBJECTS i = Invoice SUBREPORT
-    PROPERTIES(i) READONLY numberDate, infoCustomer, overGoodsAccepted
+    PROPERTIES(i) READONLY numberDate, infoCustomer, overGoodsAccepted, nameProvider
     FILTERS include(i)
 ;
 
