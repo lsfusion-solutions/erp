@@ -1,0 +1,49 @@
+MODULE UkdExportLog;
+
+REQUIRE UkdDocument, EDM;
+
+NAMESPACE Ukd;
+
+CLASS UkdExportLog 'Выгрузка УКД';
+TABLE ukdExportLog(UkdExportLog);
+
+disableUkdExportLog 'Отключить запись лога УКД' = DATA BOOLEAN ();
+enableUkdExportLog = TRUE AND NOT disableUkdExportLog();
+
+EXTEND FORM options
+    PROPERTIES() disableUkdExportLog
+;
+
+DESIGN options { 
+    log { 
+        MOVE PROPERTY(disableUkdExportLog()) FIRST;   
+    } 
+}
+
+EDMProvider = DATA EDMProvider(UkdExportLog);
+nameEDMProvider 'Провайдер' (UkdExportLog d) = staticCaption(EDMProvider(d));
+isError 'Ошибка' = DATA BOOLEAN (UkdExportLog); 
+message 'Сообщение' = DATA STRING (UkdExportLog); 
+ukdDocument  = DATA UkdDocument (UkdExportLog) INDEXED NONULL DELETE;
+
+hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (UkdExportLog); 
+userLogin 'Логин пользователя' = DATA STRING[100] (UkdExportLog); 
+nameContact 'Имя пользователя' =  DATA STRING[100] (UkdExportLog) IN id;
+dateTimeSession 'Время' = DATA DATETIME (UkdExportLog) IN id;
+dateSession 'Дата' (UkdExportLog d) = DATE(dateTimeSession(d));
+
+@defineLog (UkdExportLog, 'выгрузки УКД', log, dateSession);
+
+EXTEND FORM ukdDocuments
+    OBJECTS e = UkdExportLog
+    PROPERTIES(e) SHOWIF enableUkdExportLog() READONLY hostnameComputer, userLogin, dateTimeSession, nameEDMProvider, isError, message
+    FILTERS ukdDocument(e)=u
+;
+
+DESIGN ukdDocuments{
+    documentDetail {
+        MOVE BOX(e) {
+            caption = 'Лог выгрузки';
+        }
+    }
+}

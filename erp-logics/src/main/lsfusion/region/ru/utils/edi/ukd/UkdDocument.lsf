@@ -375,6 +375,13 @@ WHEN SETCHANGED(invoiceNumerator(UkdDocument o)) AND
      
 showMessage = DATA BOOLEAN (UkdDocument);
 
+CLASS ABSTRACT UkdBaseDocument 'Документ-основание УКД';
+TABLE ukdBaseDocument (UkdBaseDocument);
+
+supplier 'Поставщик' = ABSTRACT LegalEntity (UkdBaseDocument) MATERIALIZED;
+
+overFill ABSTRACT LIST (UkdBaseDocument, UkdDocument);
+
 META fillUkdDocument(docType)
     fill(###docType##Detail cd, Sale.InvoiceDetail d, UkdDocumentDetail ed) {
         updDocumentDetail(ed) <- updDocumentDetail(d);
@@ -411,9 +418,7 @@ META fillUkdDocument(docType)
             fill(cd, invoiceDetail(cd), ed);
         }
     }
-    
-    overFill ABSTRACT LIST (###docType, UkdDocument);
-    
+       
     fill(###docType c, UkdDocument ei) {
         docType(ei) <- c;
         updDocument(ei) <- updDocument(invoice(c));
