@@ -136,6 +136,7 @@ text (LabelTransactionDetail labelTransDet) = replace(textTemplate(labelType(lab
 
 formattedText = DATA LOCAL TEXT ();
 fullFormattedText = DATA LOCAL TEXT ();
+extraFullFormattedText = DATA LOCAL TEXT ();
 tempName = DATA  LOCAL TEXT ();
 charset = DATA  LOCAL STRING[10]();
 
@@ -227,6 +228,9 @@ currentPrinter = GROUP MIN NetworkPrinter p IF in(p, currentUser()) BY stock(p);
 
 printer = DATA LOCAL NetworkPrinter ();
 
+extraPrinter 'Дополнительный принтер этикеток' = DATA NetworkPrinter (DepartmentStore);
+nameExtraPrinter 'Дополнительный принтер этикеток' (DepartmentStore s) = name(extraPrinter(s)) CHARWIDTH 15;
+
 sendToNetworkPrinter (Stock st) { 
     printed() <- NULL;
     
@@ -265,8 +269,11 @@ sendToNetworkPrinter (Stock st) {
     }
 }
 
+isExtraPrinter 'Дополнительный принтер этикеток' = ABSTRACT BOOLEAN (LabelTransactionDetail);
+
 customPrint(LabelTransaction labelTrans) + { 
     fullFormattedText() <- NULL;
+    extraFullFormattedText() <- NULL;
     
     beforeDirectPrint(labelTrans);
     
@@ -389,6 +396,11 @@ customPrint(LabelTransaction labelTrans) + {
         
         overDirectPrint(ld); 
         
+        IF isExtraPrinter(ld) AND extraPrinter(departmentStore(labelTrans)) THEN {
+            extraFullFormattedText() <- CONCAT '', extraFullFormattedText() , formattedText();
+            formattedText() <- NULL;
+        }
+        
         fullFormattedText() <- CONCAT '', fullFormattedText() , formattedText();
         
     }
@@ -398,6 +410,12 @@ customPrint(LabelTransaction labelTrans) + {
         IF printMessage(labelType(labelTrans)) THEN MESSAGE printMessage(labelType(labelTrans));
         
         sendToNetworkPrinter(departmentStore(labelTrans));
+        
+        IF extraPrinter(departmentStore(labelTrans)) AND extraFullFormattedText() THEN {
+            fullFormattedText() <- extraFullFormattedText();
+            printer() <- extraPrinter(departmentStore(labelTrans));
+            sendToNetworkPrinter(departmentStore(labelTrans));
+        }
         
         IF NOT printed() THEN {
             DELETE labelTrans;
