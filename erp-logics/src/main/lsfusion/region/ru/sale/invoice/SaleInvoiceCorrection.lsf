@@ -636,3 +636,32 @@ NAVIGATOR {
         NEW invoiceCorrections;
     }
 }
+
+addInvoiceCorrection 'Корректировка накладной' (Invoice invoice) {
+    NEWSESSION {
+            NEW c = InvoiceCorrection {
+                operation(c) <- operation(invoice);
+                invoice(c) <- invoice;
+                supplier(c) <- supplier(invoice);
+                supplierStock(c) <- supplierStock(invoice);
+                customer(c) <- customer(invoice);
+                customerStock(c) <- customerStock(invoice);
+                contractSku(c) <- contractSku(invoice);
+                isCommission(c) <- isCommission(invoice);
+                currency(c) <- currency(invoice);
+                note(c) <- note(invoice);
+                   
+                SHOW invoiceCorrection OBJECTS i = c DOCKED NOCANCEL;
+            }
+        }
+} TOOLBAR;
+
+EXTEND FORM invoices
+    PROPERTIES (i) addInvoiceCorrection
+;    
+
+DESIGN invoices {
+    createdContainer {
+        MOVE PROPERTY(addInvoiceCorrection(i));
+    }
+}
