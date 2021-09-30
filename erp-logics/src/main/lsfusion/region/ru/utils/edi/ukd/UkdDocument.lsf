@@ -376,9 +376,8 @@ WHEN SETCHANGED(invoiceNumerator(UkdDocument o)) AND
 showMessage = DATA BOOLEAN (UkdDocument);
 
 META fillUkdDocument(docType)
-    fill(###docType c, Sale.InvoiceDetail d, UkdDocumentDetail ed) {
+    fill(###docType##Detail cd, Sale.InvoiceDetail d, UkdDocumentDetail ed) {
         updDocumentDetail(ed) <- updDocumentDetail(d);
-        docType##Detail(ed) <- docType##Detail(d, c);
         number(ed) <- index(d);
         nameSku(ed) <- nameSku(d);
     
@@ -393,22 +392,23 @@ META fillUkdDocument(docType)
         VATStatusA(ed) <- VATStatusB(ed);                   
                                          
         invoiceSumB(ed) <- invoiceSum(d);
-        invoiceSumA(ed) <- OVERRIDE invoiceSumA(d, c), invoiceSum(d);
+        invoiceSumA(ed) <- invoiceSum(d) (-) invoiceSum(cd);
         
         sumB(ed) <- sum(d);
-        sumA(ed) <- OVERRIDE sumA(d, c), sum(d);
+        sumA(ed) <- sum(d) (-) sum(cd);
         
         VATSumB(ed) <- VATSum(d);
-        VATSumA(ed) <- OVERRIDE VATSumA(d, c), VATSum(d);
+        VATSumA(ed) <- VATSum(d) (-) VATSum(cd);
         
         withoutDutyB(ed) <- TRUE;
         withoutDutyA(ed) <- TRUE;
     }
     
     createDetails (###docType c, UkdDocument ukd) {
-        FOR updDocument(UpdDocumentDetail d) == updDocument(invoice(c)) NEW ed = UkdDocumentDetail  DO {
+        FOR ##docType(###docType##Detail cd) = c  NEW ed = UkdDocumentDetail  DO {
             ukdDocument(ed) <- ukd;
-            fill(c, invoiceDetail(d), ed);
+            ##docType##Detail(ed) <- cd;
+            fill(cd, invoiceDetail(cd), ed);
         }
     }
     
