@@ -47,6 +47,8 @@ invoice 'Накладная' = DATA Invoice (InvoiceCorrection) INDEXED;
 numberInvoice 'Накладная' (InvoiceCorrection i) = number(invoice(i));
 descriptionInvoice 'Накладная' (InvoiceCorrection i) = description(invoice(i));
 
+countInvoiceCorrection = GROUP SUM 1 BY invoice(InvoiceCorrection ic);
+
 CONSTRAINT invoice(InvoiceCorrection i) AND NOT operation(i)=operation(invoice(i))
     CHECKED BY invoice[InvoiceCorrection]
     MESSAGE 'Операция корректировки отличается от операции накладной';
@@ -507,6 +509,12 @@ background(InvoiceCorrection i) += WHEN isDraft(i) THEN RGB(212,255,212);
 
 backgroundSkuDetail 'Цвет' (d) = ABSTRACT CASE COLOR (InvoiceCorrectionDetail);
 
+show 'Просмотреть' (InvoiceCorrection i)  { 
+    NEWSESSION {
+        SHOW invoiceCorrection OBJECTS i = i DOCKED READONLY;
+    }
+} TOOLBAR;
+
 FORM invoiceCorrections 'Корректировки накладных' 
 
     PROPERTIES() filterInvoiceCorrectionDateFrom, filterInvoiceCorrectionDateTo, nameFilterInvoiceCorrectionSupplier, nameFilterInvoiceCorrectionSupplierStock, 
@@ -525,7 +533,7 @@ FORM invoiceCorrections 'Корректировки накладных'
     PROPERTIES (i) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer 
 
-    PROPERTIES (i) NEWSESSION NEW, editI = EDIT //SHOWIF overShowEdit(i)//,//isOpenedInvoice(i), 
+    PROPERTIES (i) NEWSESSION NEW, editI = EDIT, show //SHOWIF overShowEdit(i)//,//isOpenedInvoice(i), 
                    //copy
     PROPERTIES (i) close SHOWIF showClose(i), open SHOWIF showOpen(i)
     PROPERTIES (i) NEWSESSION deletei=DELETE SHOWIF overShowDelete(i)//isUserOpenedInvoice(i)
@@ -637,6 +645,7 @@ NAVIGATOR {
     }
 }
 
+//создание корректировки на основании накладной
 addInvoiceCorrection 'Корректировка накладной' (Invoice invoice) {
     NEWSESSION {
             NEW c = InvoiceCorrection {
@@ -663,5 +672,30 @@ EXTEND FORM invoices
 DESIGN invoices {
     createdContainer {
         MOVE PROPERTY(addInvoiceCorrection(i));
+    }
+}
+
+//отображение списка корректировок
+diffSumInvoiceCorrectionDetail 'Сумма (корректировка)' = GROUP SUM diffSumInvoiceCorrectionDetail(InvoiceCorrection ic) BY invoice(ic);
+diffVATSumInvoiceCorrectionDetail 'Сумма НДС (корректировка)' = GROUP SUM diffVATSumInvoiceCorrectionDetail(InvoiceCorrection ic) BY invoice(ic);
+diffInvoiceSumInvoiceCorrectionDetail 'Сумма с НДС (корректировка)' = GROUP SUM diffInvoiceSumInvoiceCorrectionDetail(InvoiceCorrection ic) BY invoice(ic);
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY BACKGROUND RGB(224, 255, 255) AFTER invoiceSumInvoiceDetail(i) diffVATSumInvoiceCorrectionDetail,
+                                                             diffInvoiceSumInvoiceCorrectionDetail
+    
+    OBJECTS ic = InvoiceCorrection
+    PROPERTIES (ic) READONLY number, date, countInvoiceCorrectionDetail, 
+                    diffSumInvoiceCorrectionDetail, diffVATSumInvoiceCorrectionDetail, diffInvoiceSumInvoiceCorrectionDetail
+    PROPERTIES (ic) EDIT, show
+    FILTERS invoice(ic)=i
+;
+
+DESIGN invoices {
+    documentDetail {
+        MOVE BOX(ic) {
+            caption = 'Корректировки';
+            showIf = (TRUE IF countInvoiceCorrection(i));
+        }
     }
 }
