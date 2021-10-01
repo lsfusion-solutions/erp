@@ -1,0 +1,44 @@
+MODULE SaleCreditNoteVATRu;
+
+REQUIRE SaleInvoiceCreditNote, SaleInvoiceVATRu;
+
+NAMESPACE Sale;
+
+invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (CreditNoteDetail) MATERIALIZED;
+invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserCreditNoteDetail);
+invoicePrice (UserCreditNoteDetail creditNoteDetail) += invoicePrice(creditNoteDetail);
+
+@defineDocumentInterfaceProperty (creditNote, withVATPrice, 'Цена с НДС');
+
+withVATPrice (UserCreditNote c) <- isVATPayer(supplier(c))
+    WHEN CHANGED(supplier(c));
+
+invoicePrice (UserCreditNoteDetail detail)  <- invoicePrice(invoiceDetail(detail))
+    WHEN CHANGED(invoiceDetail(detail));
+    
+EXTEND FORM userCreditNote
+    PROPERTIES (c) withVATPrice 
+    PROPERTIES (d) invoicePrice AFTER valueVAT(d)
+;
+
+DESIGN userCreditNote {
+    GROUP(documentPrm,c) {
+        MOVE PROPERTY (withVATPrice(c));            
+    }
+    PROPERTY (invoicePrice(d)){
+        background = RGB(212,255,212);
+    }
+}
+
+EXTEND FORM creditNotes
+    PROPERTIES (d) READONLY invoicePrice AFTER valueVAT(d)
+;
+
+WHEN LOCAL (CHANGED(quantity(UserCreditNoteDetail detail)) OR CHANGED(invoicePrice(detail)) OR CHANGED(currency(detail))) AND withVATPrice(invoice(userCreditNote(detail))) DO
+    invoiceSum (detail) <- NUMERIC[18,4](round(quantity(detail) * invoicePrice(detail), currency(detail)));
+
+WHEN LOCAL (CHANGED(invoiceSum(CreditNoteDetail detail)) OR CHANGED(valueVAT(detail)) OR CHANGED(currency(detail))) AND withVATPrice(invoice(userCreditNote(detail)))  DO 
+    VATSum (detail)  <- NUMERIC[18,4](round(invoiceSum(detail) * valueVAT(detail) / (100 (+) valueVAT (detail)), currency(detail)));
+
+WHEN LOCAL (CHANGED(invoiceSum(CreditNoteDetail detail)) OR CHANGED (VATSum(detail))) AND withVATPrice(invoice(userCreditNote(detail)))  DO
+    sum (detail) <- NUMERIC[18,4](invoiceSum(detail) (-) VATSum(detail));
