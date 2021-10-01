@@ -1555,13 +1555,10 @@ netWeight(Item i) <- netWeight(UOM(i)) WHEN CHANGED(UOM(i)) AND netWeight(UOM(i)
 @defineItemAttributeBatchClass (grossWeight, 'Вес брутто, кг', sku);
 grossWeight(Item sku) += grossWeight(sku);
 
-skipChangeWeight = ABSTRACT BOOLEAN (Item);
+skipChangeGrossWeight = ABSTRACT BOOLEAN (Item);
 
-WHEN LOCAL (CHANGED(netWeight(Item sku)) OR (CHANGED(UOM(sku) AND grossWeight(UOM(sku))))) AND NOT CHANGED(grossWeight(sku)) AND NOT skipChangeWeight(sku) DO
+WHEN LOCAL (CHANGED(netWeight(Item sku)) OR (CHANGED(UOM(sku) AND grossWeight(UOM(sku))))) AND NOT CHANGED(grossWeight(sku)) AND NOT skipChangeGrossWeight(sku) DO
     grossWeight(sku) <- OVERRIDE grossWeight(UOM(sku)), netWeight(sku);
-
-WHEN LOCAL CHANGED(netWeight(Item sku)) AND skipChangeWeight(sku) DO
-    netWeight(sku) <- PREV(netWeight(sku));
 
 // Кол-во в грузовом месте
 // todo : здесь скорее всего надо будет рефакторить на более сложную логику
