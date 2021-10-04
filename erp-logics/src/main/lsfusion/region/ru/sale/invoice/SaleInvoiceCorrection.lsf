@@ -42,6 +42,7 @@ CLASS InvoiceCorrectionDetail 'Строка корректировки накл�
 
 operation = DATA Operation (InvoiceCorrection);
 nameOperation 'Операция' (InvoiceCorrection correction) = name(operation(correction));
+operation (InvoiceCorrectionDetail detail) = operation(invoiceCorrection(detail));
 
 invoice 'Накладная' = DATA Invoice (InvoiceCorrection) INDEXED;
 numberInvoice 'Накладная' (InvoiceCorrection i) = number(invoice(i));
@@ -116,15 +117,15 @@ VATSumA 'Сумма НДС (после)' = DATA NUMERIC[18,4] (InvoiceCorrection
 invoiceSumB 'Сумма с НДС (до)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
 invoiceSumA 'Сумма с НДС (после)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
 
-sum 'Сумма (изменение)' (InvoiceCorrectionDetail detail) = sumB(detail) (-) sumA(detail);
+sum 'Сумма (изменение)' (InvoiceCorrectionDetail detail) = sumA(detail) (-) sumB(detail);
 increaseSum 'Сумма (увеличение)' (InvoiceCorrectionDetail detail) = sum(detail) IF sum(detail)>0.0;
 decreaseSum 'Сумма (уменьшение)' (InvoiceCorrectionDetail detail) = - sum(detail) IF sum(detail)<0.0;
 
-VATSum 'Сумма НДС (изменение)' (InvoiceCorrectionDetail detail) = VATSumB(detail) (-) VATSumA(detail);
+VATSum 'Сумма НДС (изменение)' (InvoiceCorrectionDetail detail) = VATSumA(detail) (-) VATSumB(detail);
 increaseVATSum 'Сумма НДС (увеличение)' (InvoiceCorrectionDetail detail) = VATSum(detail) IF VATSum(detail)>0.0;
 decreaseVATSum 'Сумма НДС (уменьшение)' (InvoiceCorrectionDetail detail) = - VATSum(detail) IF VATSum(detail)<0.0;
 
-invoiceSum 'Сумма с НДС (изменение)' (InvoiceCorrectionDetail detail) = invoiceSumB(detail) (-) invoiceSumA(detail);
+invoiceSum 'Сумма с НДС (изменение)' (InvoiceCorrectionDetail detail) = invoiceSumA(detail) (-) invoiceSumB(detail);
 increaseInvoiceSum 'Сумма с НДС (увеличение)' (InvoiceCorrectionDetail detail) = invoiceSum(detail) IF invoiceSum(detail)>0.0;
 decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (InvoiceCorrectionDetail detail) = - invoiceSum(detail) IF invoiceSum(detail)<0.0;
 
@@ -466,6 +467,8 @@ WHEN LOCAL FORMS invoiceCorrection
     CHANGED(sku(InvoiceCorrectionDetail detail)) AND NOT invoiceDetail(detail)       
         DO EXEC connectInvoice(detail);
 
+isUserOpened(InvoiceCorrection i)=  isOpened[InvoiceCorrection](i) AND is(i);
+
 filterInvoiceCorrectionDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
 filterDateFrom (InvoiceCorrection i) = date(i) >= filterInvoiceCorrectionDateFrom() OR (i IS InvoiceCorrection AND NOT filterInvoiceCorrectionDateFrom());      
 
@@ -509,12 +512,23 @@ background(InvoiceCorrection i) += WHEN isDraft(i) THEN RGB(212,255,212);
 
 backgroundSkuDetail 'Цвет' (d) = ABSTRACT CASE COLOR (InvoiceCorrectionDetail);
 
-show 'Просмотреть' (InvoiceCorrection i)  { 
+edit(InvoiceCorrectionDetail d) + {  DIALOG invoiceCorrection OBJECTS i = invoiceCorrection(d), d = d; }
+
+show(InvoiceCorrectionDetail d)  { 
     NEWSESSION {
+        SHOW invoiceCorrection OBJECTS i = invoiceCorrection(d), d = d DOCKED READONLY;
+    }
+}
+
+show 'Просмотреть' (InvoiceCorrection i)   { 
+    NEWSESSION{
         SHOW invoiceCorrection OBJECTS i = i DOCKED READONLY;
     }
-} TOOLBAR;
-
+    
+}TOOLBAR;
+    
+showToShow (InvoiceCorrection i) = is(i) AND NOT overShowEdit(i);
+    
 FORM invoiceCorrections 'Корректировки накладных' 
 
     PROPERTIES() filterInvoiceCorrectionDateFrom, filterInvoiceCorrectionDateTo, nameFilterInvoiceCorrectionSupplier, nameFilterInvoiceCorrectionSupplierStock, 
@@ -533,7 +547,7 @@ FORM invoiceCorrections 'Корректировки накладных'
     PROPERTIES (i) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer 
 
-    PROPERTIES (i) NEWSESSION NEW, editI = EDIT, show //SHOWIF overShowEdit(i)//,//isOpenedInvoice(i), 
+    PROPERTIES (i) NEWSESSION NEW, editI = EDIT, show SHOWIF showToShow(i)//isOpenedInvoice(i), 
                    //copy
     PROPERTIES (i) close SHOWIF showClose(i), open SHOWIF showOpen(i)
     PROPERTIES (i) NEWSESSION deletei=DELETE SHOWIF overShowDelete(i)//isUserOpenedInvoice(i)
@@ -674,6 +688,29 @@ DESIGN invoices {
         MOVE PROPERTY(addInvoiceCorrection(i));
     }
 }
+
+// --------------------------- Проведение по регистру продаж ------------------------------------ //
+@implementSaleLedger(InvoiceCorrection, sku, supplierStock);
+
+overQuantity = ABSTRACT NUMERIC[16,5] (InvoiceCorrectionDetail);
+overInvoiceSum = ABSTRACT NUMERIC[18,4] (InvoiceCorrectionDetail);
+
+operation (InvoiceCorrectionDetail ledger) += operation(ledger);
+VAT[SaleLedger] (InvoiceCorrectionDetail ledger) += VAT(ledger);
+sum[SaleLedger] (InvoiceCorrectionDetail ledger) += OVERRIDE overInvoiceSum(ledger), invoiceSum(ledger);
+price[SaleLedger] (InvoiceCorrectionDetail ledger) += invoicePriceA(ledger);
+customer (InvoiceCorrectionDetail ledger) += customer(ledger);
+customerStock (InvoiceCorrectionDetail ledger) += customerStock(ledger);
+skip (InvoiceCorrectionDetail ledger) += WHEN ledger IS InvoiceCorrectionDetail THEN skipSaleLedger(operation(ledger));
+numberDocument (InvoiceCorrectionDetail ledger) += number(ledger);
+
+//-- Запрет на изменение документа другим пользователем
+@defineOperationChangesDocument(invoiceCorrection, InvoiceCorrection, preventChangesDocument, created);
+
+overShowEdit (InvoiceCorrection i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
+overShowDelete (InvoiceCorrection i) += showEditDeleteUser(i) AND isUserOpened(i)AND NOT skipShowDelete(i); 
+
+skipClose(InvoiceCorrection i) += WHEN preventCloseDocument(currentUser(), operation(i)) THEN TRUE;
 
 //отображение списка корректировок
 diffSumInvoiceCorrectionDetail 'Сумма (корректировка)' = GROUP SUM diffSumInvoiceCorrectionDetail(InvoiceCorrection ic) BY invoice(ic);
