@@ -10,6 +10,8 @@ descriptionInvoice 'Накладная' (UserCreditNote c) = description(invoice
 invoice (CreditNote creditNote) = MULTI invoice[UserCreditNote](creditNote), invoice[InvoiceCreditNote](creditNote);
 numberInvoice 'Накладная' (CreditNote creditNote) = number(invoice(creditNote));
 
+countUserCreditNote = GROUP SUM 1 BY invoice(UserCreditNote ic);
+
 CONSTRAINT invoice(userCreditNote(UserCreditNoteDetail detail)) AND invoiceDetail(detail) 
     AND NOT invoice(userCreditNote(detail))=invoice(invoiceDetail(detail))
     CHECKED BY invoiceDetail[UserCreditNoteDetail]
@@ -113,5 +115,52 @@ DESIGN userCreditNote {
     }
     GROUP(invoice,c) {
         showIf = (TRUE IF NOT invoice(c));
+    }
+}
+
+//создание на основании
+addCreditNote 'Акт расхождения' (Invoice invoice) {
+    NEWSESSION {
+            NEW c = UserCreditNote {
+                operation(c) <- operation(invoice);
+                invoice(c) <- invoice;
+                supplier(c) <- supplier(invoice);
+                supplierStock(c) <- supplierStock(invoice);
+                customer(c) <- customer(invoice);
+                customerStock(c) <- customerStock(invoice);
+                contractSku(c) <- contractSku(invoice);
+                isCommission(c) <- isCommission(invoice);
+                currency(c) <- currency(invoice);
+                note(c) <- note(invoice);
+                   
+                SHOW userCreditNote OBJECTS c = c DOCKED NOCANCEL;
+            }
+        }
+} TOOLBAR;
+
+EXTEND FORM invoices
+    PROPERTIES (i) addCreditNote
+;    
+
+DESIGN invoices {
+    createdContainer {
+        MOVE PROPERTY(addCreditNote(i));
+    }
+}
+
+EXTEND FORM invoices   
+    OBJECTS cn = UserCreditNote
+    PROPERTIES (cn) READONLY number, date, countCreditNoteDetail, 
+                    sumCreditNoteDetail, VATSumCreditNoteDetail, invoiceSumCreditNoteDetail
+    PROPERTIES (cn) EDIT, show
+    FILTERS invoice(cn)=i
+;
+
+DESIGN invoices {
+    documentDetail {
+        MOVE BOX(cn) {
+            caption = 'Акты расхождений';
+            showIf = (TRUE IF countUserCreditNote(i));
+        }
     }
 }
