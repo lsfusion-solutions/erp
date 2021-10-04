@@ -1,0 +1,61 @@
+MODULE SaleInvoiceCorrectionContract;
+
+REQUIRE SaleInvoiceCorrection, ContractPayment;
+
+NAMESPACE Sale;
+
+contractSum 'Сумма по договору' = DATA NUMERIC[18,4] (InvoiceCorrection);
+
+WHEN (CHANGED(currency(InvoiceCorrection i)) OR CHANGED(contractSku(i))) AND currency(i) != currency(contractSku(i)) AND typeExchange(contractSku(i)) DO
+    contractSum(i) <- NUMERIC[18,4](diffInvoiceSumInvoiceCorrectionDetail(i) * 
+                                        rateOn(typeExchange(contractSku(i)), 
+                                                     currency(i),
+                                                     date(i)));     
+
+WHEN (CHANGED(currency(InvoiceCorrection i)) OR CHANGED(currency(contractSku(i)))) AND currency(i) == currency(contractSku(i)) AND NOT CHANGED(contractSum(i)) DO
+    contractSum(i) <- NULL; 
+
+// --------------------------- Проведение по регистру задолженностей ------------------------------------ //
+overContractLedgerDateTime = ABSTRACT DATETIME (InvoiceCorrection);
+contractLedgerDateTime (InvoiceCorrection i) = OVERRIDE overContractLedgerDateTime(i), dateTime(i);
+@implementContractLedger(, InvoiceCorrection, contractSku, contractLedgerDateTime);
+sum[ContractLedger](InvoiceCorrection contractLedger) += OVERRIDE contractSum(contractLedger), diffInvoiceSumInvoiceCorrectionDetail(contractLedger);
+
+@implementContractLedger(a, InvoiceCorrection, contractSku);
+sum[ContractALedger](InvoiceCorrection contractALedger) += OVERRIDE contractSum(contractALedger), diffInvoiceSumInvoiceCorrectionDetail(contractALedger);
+
+//закрытие долгов
+CLASS InvoiceCorrectionInContractLedger: InContractLedger;
+
+needInContractLedger (InvoiceCorrection ic) = isPosted(ic) AND diffSumInvoiceCorrectionDetail(ic) > 0.0;
+
+invoiceCorrectionInContractLedger (InvoiceCorrection invoiceCorrection) = 
+    AGGR InvoiceCorrectionInContractLedger 
+    WHERE needInContractLedger(invoiceCorrection) MATERIALIZED INDEXED;
+
+isPosted[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += isPosted(invoiceCorrection(inContractLedger));
+dateTime[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += dateTime(invoiceCorrection(inContractLedger));
+contract[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += contractSku(invoiceCorrection(inContractLedger));
+description[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += description(invoiceCorrection(inContractLedger));
+number[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += number(invoiceCorrection(inContractLedger));
+series[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += series(invoiceCorrection(inContractLedger));    
+customerStock[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += customerStock(invoiceCorrection(inContractLedger));
+supplierStock[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += supplierStock(invoiceCorrection(inContractLedger));
+paymentCondition[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += paymentCondition(invoice(invoiceCorrection(inContractLedger)));
+    
+sum[InContractLedger](InvoiceCorrectionInContractLedger inContractLedger) += OVERRIDE contractSum(invoiceCorrection(inContractLedger)), 
+                                                                                      diffInvoiceSumInvoiceCorrectionDetail(invoiceCorrection(inContractLedger)); 
+
+CLASS InvoiceCorrectionOutContractLedger: OutContractLedger;
+
+needOutContractLedger (InvoiceCorrection invoiceCorrection) = diffSumInvoiceCorrectionDetail(invoiceCorrection) < 0.0;
+
+invoiceCorrectionOutContractLedger = AGGR InvoiceCorrectionOutContractLedger WHERE needOutContractLedger(InvoiceCorrection invoiceCorrection) MATERIALIZED INDEXED;
+
+isPosted[OutContractLedger](InvoiceCorrectionOutContractLedger outContractLedger) += isPosted(invoiceCorrection(outContractLedger));
+dateTime[OutContractLedger](InvoiceCorrectionOutContractLedger outContractLedger) += dateTime(invoiceCorrection(outContractLedger));
+contract[OutContractLedger](InvoiceCorrectionOutContractLedger outContractLedger) += contractSku(invoiceCorrection(outContractLedger));
+description[OutContractLedger](InvoiceCorrectionOutContractLedger outContractLedger) += description(invoiceCorrection(outContractLedger));
+    
+sum[OutContractLedger](InvoiceCorrectionOutContractLedger outContractLedger) += OVERRIDE -contractSum(invoiceCorrection(outContractLedger)), 
+                                                                                      -diffInvoiceSumInvoiceCorrectionDetail(invoiceCorrection(outContractLedger)); 
