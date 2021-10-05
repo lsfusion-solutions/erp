@@ -1,0 +1,19 @@
+MODULE SaleCreditNoteStockDocumentPricing;
+
+REQUIRE SaleCreditNoteStockDocument, PricingSum;
+
+NAMESPACE Sale;
+
+retailSum(CreditNoteDetail idetail) = NUMERIC[18,4](round(quantity(idetail) * shipmentPrice(invoiceDetail(idetail)), currency(idetail))); 
+            
+retailSumItemCreditNoteDetail 'Сумма, товар' (creditNote) =
+    GROUP
+        SUM retailSum(CreditNoteDetail idetail) IF isItem(sku(idetail)) BY creditNote(idetail) IN documentSum;
+retailSumContainerCreditNoteDetail 'Сумма, тара' (creditNote) =
+    GROUP 
+        SUM retailSum(CreditNoteDetail idetail) IF isContainer(sku(idetail)) BY creditNote(idetail)IN documentSum;
+        
+overSumItem(UserCreditNote ledger) += retailSumItemCreditNoteDetail(ledger) IF stock(ledger) IS DepartmentStore AND NOT costLedger(stock(ledger));
+overSumContainer(UserCreditNote ledger) += retailSumContainerCreditNoteDetail(ledger) IF stock(ledger) IS DepartmentStore AND NOT costLedger(stock(ledger));
+
+overAccountSum(UserCreditNoteDetail ledger) += retailSum(ledger);

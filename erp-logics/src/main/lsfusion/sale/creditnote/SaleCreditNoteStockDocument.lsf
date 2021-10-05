@@ -1,6 +1,6 @@
 MODULE SaleCreditNoteStockDocument;
 
-REQUIRE PurchaseSaleCreditNote, SalePurchaseInvoice, PricingSum;
+REQUIRE SaleCreditNote;
 
 NAMESPACE Sale;
 
@@ -8,8 +8,13 @@ accountPrice 'Цена (учетная)' = DATA NUMERIC[16,4] (UserCreditNoteDet
 @deriveDocumentDetailPriceAccountBatchDisable (userCreditNote, account, sku, supplierStock);
 
 EXTEND FORM userCreditNote
-    PROPERTIES(d) accountPrice
+    PROPERTIES(d) accountPrice, shipmentSum
 ;
+
+calcShipmentSum = ABSTRACT VALUE NUMERIC[18,4] (UserCreditNoteDetail);
+calcShipmentSum(UserCreditNoteDetail userCreditNoteDetail) += NUMERIC[18,4](Utils.round(quantity(userCreditNoteDetail) * accountPrice(userCreditNoteDetail), defaultRound(currency(userCreditNoteDetail)))); 
+shipmentSum (UserCreditNoteDetail userCreditNoteDetail) <- calcShipmentSum(userCreditNoteDetail)
+                WHEN DO CHANGED(quantity(userCreditNoteDetail)) OR CHANGED (accountPrice(userCreditNoteDetail)) OR CHANGED(currency(userCreditNoteDetail));
 
 // ------------------------------- Проведение по товарному отчету ------------------------ //
 EXTEND CLASS UserCreditNote : IncStockDocumentLedger;
@@ -24,19 +29,11 @@ description[StockDocumentLedger] (UserCreditNote ledger) += STRING[200](descript
 
 type(UserCreditNote l) += STRING[50]('Акт расхождения') IF l IS UserCreditNote;
 
-retailSum(CreditNoteDetail idetail) = NUMERIC[18,4](round(quantity(idetail) * shipmentPrice(invoiceDetail(idetail)), currency(idetail))); 
-            
-retailSumItemCreditNoteDetail 'Сумма, товар' (creditNote) =
-    GROUP
-        SUM retailSum(CreditNoteDetail idetail) IF isItem(sku(idetail)) BY creditNote(idetail) IN documentSum;
-retailSumContainerCreditNoteDetail 'Сумма, тара' (creditNote) =
-    GROUP 
-        SUM retailSum(CreditNoteDetail idetail) IF isContainer(sku(idetail)) BY creditNote(idetail)IN documentSum;
+overSumItem = ABSTRACT NUMERIC[18,4](IncStockDocumentLedger);
+sumItem (UserCreditNote ledger) += OVERRIDE overSumItem(ledger), sumItemCreditNoteDetail(ledger);
 
-sumItem (UserCreditNote ledger) += OVERRIDE retailSumItemCreditNoteDetail(ledger) IF stock(ledger) IS DepartmentStore AND NOT costLedger(stock(ledger)), 
-                                            sumItemCreditNoteDetail(ledger);
-sumContainer (UserCreditNote ledger) += OVERRIDE retailSumContainerCreditNoteDetail(ledger) IF stock(ledger) IS DepartmentStore AND NOT costLedger(stock(ledger)), 
-                                                 sumContainerCreditNoteDetail(ledger);
+overSumContainer = ABSTRACT NUMERIC[18,4](IncStockDocumentLedger);
+sumContainer (UserCreditNote ledger) += OVERRIDE overSumContainer(ledger), sumContainerCreditNoteDetail(ledger);
 
 legalEntity(UserCreditNote ledger) += customer(ledger);
 legalEntityStock(UserCreditNote ledger) += customerStock(ledger); 
@@ -45,29 +42,23 @@ operation[StockDocumentLedger](UserCreditNote ledger) += operation[UserCreditNot
 isReturn(UserCreditNote ledger) += ledger IS UserCreditNote;
 close[StockDocumentLedger](UserCreditNote l) + {  close[Sale.CreditNote](l); }
 
-
-overFillCreditNote(Sale.UserCreditNoteDetail sd, Purchase.CreditNoteDetail pd) + {
-    invoiceDetail(sd) <- invoiceDetail(invoiceDetail[Purchase.InvoiceCreditNoteDetail](pd));
-}
-overFillCreditNoteDetail(Sale.UserCreditNoteDetail sd, Purchase.CreditNoteDetail pd) + {
-    invoiceDetail(sd) <- invoiceDetail(invoiceDetail[Purchase.InvoiceCreditNoteDetail](pd));
-}
-
 // ------------------------------- Проведение по регистру остатков ------------------------ //
-EXTEND CLASS Sale.UserCreditNoteDetail : InLIFOSkuLedger;
-dateTime[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += dateTime(ledger);
-isPosted[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += isPosted(ledger);
-isClosed[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += isClosed(ledger);
-sku[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += sku(ledger);
-stock[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += supplierStock(ledger);
-description[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += description(userCreditNote(ledger));
+EXTEND CLASS UserCreditNoteDetail : InLIFOSkuLedger;
+dateTime[DataSkuLedger] (UserCreditNoteDetail ledger) += dateTime(ledger);
+isPosted[DataSkuLedger] (UserCreditNoteDetail ledger) += isPosted(ledger);
+isClosed[DataSkuLedger] (UserCreditNoteDetail ledger) += isClosed(ledger);
+sku[DataSkuLedger] (UserCreditNoteDetail ledger) += sku(ledger);
+stock[DataSkuLedger] (UserCreditNoteDetail ledger) += supplierStock(ledger);
+description[DataSkuLedger] (UserCreditNoteDetail ledger) += description(userCreditNote(ledger));
     
-quantity[InLIFOSkuLedger] (Sale.UserCreditNoteDetail ledger) += quantity(ledger);
-batch[SkuLedger](Sale.UserCreditNoteDetail ledger) += batch(ledger);
-changed(Sale.UserCreditNoteDetail ledger) += CHANGED(batch(ledger));
+quantity[InLIFOSkuLedger] (UserCreditNoteDetail ledger) += quantity(ledger);
+batch[SkuLedger](UserCreditNoteDetail ledger) += batch(ledger);
+changed(UserCreditNoteDetail ledger) += CHANGED(batch(ledger));
 
 accountSum (Sale.UserCreditNoteDetail detail) = 
     NUMERIC[18,4](round(quantity(detail)*accountPrice(detail), defaultRound(currency(supplier(detail)))));
-sum[InSkuLedger](Sale.UserCreditNoteDetail ledger) += OVERRIDE retailSum(ledger), accountSum(ledger);
-stockDocumentLedger[SkuLedger](Sale.UserCreditNoteDetail ledger) += userCreditNote(ledger);
-show[SkuLedger](Sale.UserCreditNoteDetail d) + {  show(d); }
+    
+overAccountSum = ABSTRACT NUMERIC[18,4] (UserCreditNoteDetail);
+sum[InSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overAccountSum(ledger), accountSum(ledger);
+stockDocumentLedger[SkuLedger](UserCreditNoteDetail ledger) += userCreditNote(ledger);
+show[SkuLedger](UserCreditNoteDetail d) + {  show(d); }

@@ -1,0 +1,30 @@
+MODULE SaleCreditNoteSaleLedger;
+
+REQUIRE SaleCreditNote, SaleLedger;
+
+NAMESPACE Sale;
+
+// --------------------------- Проведение по регистру продаж ------------------------------------ //
+EXTEND CLASS UserCreditNoteDetail : SaleLedger;
+dateTime[SaleLedger] (UserCreditNoteDetail ledger) += dateTime(ledger);
+isPosted[SaleLedger] (UserCreditNoteDetail ledger) += isPosted(ledger);
+isClosed[SaleLedger] (UserCreditNoteDetail ledger) += isClosed(ledger);
+sku[SaleLedger] (UserCreditNoteDetail ledger) += sku(ledger);
+stock[SaleLedger] (UserCreditNoteDetail ledger) += supplierStock(ledger);
+description[SaleLedger] (UserCreditNoteDetail ledger) += description(ledger);
+show[SaleLedger] (UserCreditNoteDetail ledger) + { show(ledger);};
+
+operation (UserCreditNoteDetail ledger) += operation(ledger);
+quantity[SaleLedger] (UserCreditNoteDetail ledger) += -quantity(ledger);
+VAT[SaleLedger] (UserCreditNoteDetail ledger) += VAT(ledger);
+sum[SaleLedger] (UserCreditNoteDetail ledger) += -invoiceSum(ledger);
+price[SaleLedger] (UserCreditNoteDetail ledger) += NUMERIC[16,4](round2(invoiceSum(ledger)/quantity(ledger)));
+customer (UserCreditNoteDetail ledger) += customer(ledger);
+customerStock (UserCreditNoteDetail ledger) += customerStock(ledger);
+skip[SaleLedger] (UserCreditNoteDetail ledger) += WHEN ledger IS UserCreditNoteDetail THEN skipSaleLedger(operation(ledger));
+numberDocument (UserCreditNoteDetail ledger) += number(ledger);
+
+// ------------------------------- Себестоимость продажи ------------------------ //
+
+costSum[SaleLedger](UserCreditNoteDetail ledger) += WHEN ledger IS UserCreditNoteDetail THEN -costSum[SkuLedger](ledger);
+cost[SaleLedger,Batch](UserCreditNoteDetail ledger, Batch batch) += -cost[SkuLedger,Batch] (ledger, batch) ;
