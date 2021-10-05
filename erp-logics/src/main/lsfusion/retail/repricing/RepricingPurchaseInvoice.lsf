@@ -296,11 +296,13 @@ createExtraValuation 'Создать дооценку'()  {
 	}
 } TOOLBAR ;
 
+skipExtraValuation = ABSTRACT BOOLEAN(DepartmentStore);
+
 recreateExtraValuation(DATE dateFrom, DATE dateTo)  { 
     FOR iterate(DATE d, dateFrom, dateTo) DO {
         DELETE UserRepricing u WHERE operation(u) == toRepricingOperation() AND date(u) == d;
         apply();
-        FOR DepartmentStore department IS DepartmentStore AND isCompany(department) DO {
+        FOR DepartmentStore department IS DepartmentStore AND isCompany(department) AND NOT skipExtraValuation(department)  DO {
             createExtraValuationNotForm(department, DATETIME(subtract(d,1)), DATETIME(d), toRepricingOperation());
             date(UserRepricing r) <- d WHERE SET(r IS UserRepricing);
             apply();
@@ -329,7 +331,7 @@ createExtraValuationAllStocks 'Создать автоматическую до�
 	    IF isOverExtraValuationAllStocks() THEN {
 	        createOverExtraValuationAllStocks();
 	    } ELSE {   
-	        FOR DepartmentStore department IS DepartmentStore AND active(department) AND isCompany(department) DO {
+	        FOR DepartmentStore department IS DepartmentStore AND active(department) AND isCompany(department) AND NOT skipExtraValuation(department) DO {
 	            createExtraValuationNotForm(department, toRepricingDateTime(), toRepricingDateTimeTo(), toRepricingOperation());                                     
 	        } 
 	    }
@@ -348,6 +350,7 @@ EXTEND FORM options
 
 DESIGN options {
     repricings {
+        type = SCROLL;
         rBody {
             NEW repricing {
                 caption = 'Автоматическая дооценка';
@@ -361,7 +364,12 @@ DESIGN options {
                 MOVE PROPERTY(createExtraValuationAllStocks());
             }
         }
-        MOVE BOX(TREE skuTree);
+        NEW repricingTreeTab {
+            type = TABBED;
+            height = 200;
+            fill = 1;
+            MOVE BOX(TREE skuTree) {caption ='Группы товаров';}
+        }
     }
 }
 
