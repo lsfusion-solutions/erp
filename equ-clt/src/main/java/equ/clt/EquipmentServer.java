@@ -1,5 +1,6 @@
 package equ.clt;
 
+import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.CashRegisterHandler;
 import equ.api.scales.ScalesHandler;
@@ -222,7 +223,12 @@ public class EquipmentServer {
             void runTask() throws Exception {
                 if(isTimeToRun()) {
                     processTransactionLogger.info("ReadTransactionInfo started");
-                    taskPool.addTasks(remote.readTransactionInfo(sidEquipmentServer));
+                    try {
+                        taskPool.addTasks(remote.readTransactionInfo(sidEquipmentServer));
+                    } catch (Exception e) {
+                        processTransactionLogger.error("ReadTransactionInfo error: ", e);
+                        throw Throwables.propagate(e);
+                    }
                     processTransactionLogger.info("ReadTransactionInfo finished");
                 }
             }
