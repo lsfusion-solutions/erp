@@ -7,7 +7,7 @@ REQUIRE PurchaseLedger, Item;
 inPurchaseReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
 inPurchaseReportStocks 'Склады' () =
-    GROUP CONCAT name(Stock st) IF inPurchaseReport(st) ,', ' CHARWIDTH 30;
+    GROUP CONCAT name(Stock st) IF inPurchaseReport(st) ,', ' ORDER st CHARWIDTH 30;
 defaultStockPurchaseReport = GROUP MIN Stock st IF inPurchaseReport(st);
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
@@ -22,7 +22,7 @@ inSession 'Отм.' (Group group) = OVERRIDE
     inParent(group);
 
 sessionConcatGroups 'Группы' (groupType) =
-    GROUP CONCAT name(Group group) IF inSession(group) AND NOT inSession(parent(group)),','
+    GROUP CONCAT name(Group group) IF inSession(group) AND NOT inSession(parent(group)),',' ORDER group
     BY groupType(group);
     
 // --------------------------------- Оптимизация с хранимыми свойствами ------------------------------------- //

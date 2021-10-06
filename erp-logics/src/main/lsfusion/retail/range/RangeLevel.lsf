@@ -672,8 +672,8 @@ DESIGN rangeRev {
     }
 }
 
-ranges 'Ассортиментные матрицы' (Sku s, DATE d) = GROUP CONCAT name(Range r) IF level(r, s, d) ,', ' CHARWIDTH 30; 
-ranges 'Ассортиментные матрицы' (Sku s, DepartmentStore ds, DATE d) = GROUP CONCAT name(Range r) IF in(s, r, store(ds), d) ,', ' CHARWIDTH 30; 
+ranges 'Ассортиментные матрицы' (Sku s, DATE d) = GROUP CONCAT name(Range r) IF level(r, s, d) ,', ' ORDER r CHARWIDTH 30;
+ranges 'Ассортиментные матрицы' (Sku s, DepartmentStore ds, DATE d) = GROUP CONCAT name(Range r) IF in(s, r, store(ds), d) ,', ' ORDER r CHARWIDTH 30;
 
 EXTEND FORM ranges 
     PROPERTIES READONLY nameLevel(r, s, d), ranges(s, d)
@@ -737,12 +737,12 @@ importXls 'Импорт' (RangeRev v)  {
             }            
         }
         IF (GROUP SUM 1 IF imported(INTEGER i) AND (barcode(i) OR name(i)) AND NOT barcode(barcode(i), currentDate())) THEN {
-             message() <- 'Не найдены следующие штрих-коды:\n' + (GROUP CONCAT (CONCAT ' : ', barcode(INTEGER i), name(i)) IF imported(i) AND (barcode(i) OR name(i)) AND NOT barcode(barcode(i), currentDate()), '\n');        
+             message() <- 'Не найдены следующие штрих-коды:\n' + (GROUP CONCAT (CONCAT ' : ', barcode(INTEGER i), name(i)) IF imported(i) AND (barcode(i) OR name(i)) AND NOT barcode(barcode(i), currentDate()), '\n' ORDER i);        
         }
         LOCAL inImport = BOOLEAN (SkuGroup);
         inImport(SkuGroup g) <- TRUE WHERE [GROUP SUM 1 IF imported(INTEGER i) BY  skuGroup(sku(barcode(barcode(i), currentDate()))) ](g) AND NOT inChild(range(v),g);
         IF (GROUP SUM 1 IF inImport(SkuGroup g)) THEN {
-            message() <- CONCAT '\n', message(), 'Товары из следующих групп не были импортированы, т.к. они не включены в матрицу:', (GROUP CONCAT name(SkuGroup g) IF inImport(g),'\n') ;
+            message() <- CONCAT '\n', message(), 'Товары из следующих групп не были импортированы, т.к. они не включены в матрицу:', (GROUP CONCAT name(SkuGroup g) IF inImport(g),'\n' ORDER g);
         }
         IF message() THEN {
             MESSAGE message();
