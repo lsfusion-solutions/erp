@@ -185,11 +185,9 @@ PROPERTIES(transactions) IN purchasesBack reversal, summ
 FILTERS imported(transactions) ;
 
 
-zreportUuid (STRING uuid) = GROUP LAST ZReport z WHERE id(z) == uuid;
+zreportUuid (STRING uuid) = GROUP LAST ZReport z ORDER z WHERE id(z) == uuid;
 receiptUuid (ISTRING[36] s) = GROUP AGGR Receipt r BY OVERRIDE id(r);
-receiptDetailUuid (INTEGER id, Receipt r) = GROUP LAST ReceiptDetail rd WHERE number(rd) == id AND receipt(rd) == r; 
-
-
+receiptDetailUuid (INTEGER id, Receipt r) = GROUP LAST ReceiptDetail rd ORDER rd WHERE number(rd) == id AND receipt(rd) == r;
 paymentEvotor (STRING z) = CASE WHEN z == 'CASH' THEN PaymentMeans.paymentMeansCash
     WHEN z == 'CARD' THEN  PaymentMeans.paymentMeansCard;
 lastReceipt (CashRegister c) = GROUP LAST Receipt r ORDER date(r) WHERE cashRegister(r) == c;       
@@ -244,13 +242,13 @@ importReceiptsEvotor(GroupCashRegister gc){
             //оплата наличными
             IF(paymentSumCash()) THEN NEW payment = Payment{
                 receipt(payment) <- rec;
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
                 sum(payment) <- paymentSumCash();
             }
             //оплата картой
             IF paymentSumCard() THEN NEW payment = Payment{
                 receipt(payment) <- rec;
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
                 sum(payment) <- paymentSumCard();
             }
 
@@ -279,13 +277,13 @@ importReceiptsEvotor(GroupCashRegister gc){
             //возврат наличными
             IF(paymentSumCash()) THEN NEW payment = Payment{
                 receipt(payment) <- rec;
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
                 sum(payment) <- paymentSumCash();
             }
             //возврат картой
             IF paymentSumCard() THEN NEW payment = Payment{
                 receipt(payment) <- rec;
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
                 sum(payment) <- paymentSumCard();
             }
         }
@@ -299,9 +297,9 @@ receiveGroupMachinery(GroupCashRegister g) + {
 }
 
 
-paymentCashReceipt (Receipt r) = GROUP LAST Payment p WHERE 
+paymentCashReceipt (Receipt r) = GROUP LAST Payment p ORDER p WHERE 
     receipt(p) == r AND paymentMeans(paymentType(p)) == PaymentMeans.paymentMeansCash;
-paymentCardReceipt (Receipt r) = GROUP LAST Payment p WHERE 
+paymentCardReceipt (Receipt r) = GROUP LAST Payment p ORDER p WHERE 
     receipt(p) == r AND paymentMeans(paymentType(p)) == PaymentMeans.paymentMeansCard;
 
 
@@ -356,27 +354,27 @@ reImportReceiptsEvotor(CashRegister c, DATE from, DATE to, RequestExchange reque
             //обновление наличной оплаты
             IF(paymentSumCash() AND paymentCashReceipt(receiptUuid(uuid1(b)))) THEN {
                 receipt(paymentCashReceipt(receiptUuid(uuid1(b)))) <- receiptUuid(uuid1(b));
-                paymentType(paymentCashReceipt(receiptUuid(uuid1(b)))) <- GROUP LAST PaymentType p 
+                paymentType(paymentCashReceipt(receiptUuid(uuid1(b)))) <- GROUP LAST PaymentType p ORDER p 
                     WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
                 sum(paymentCashReceipt(receiptUuid(uuid1(b)))) <- paymentSumCash();
             }
             //добавление наличной оплаты
             IF(paymentSumCash() AND NOT paymentCashReceipt(receiptUuid(uuid1(b)))) THEN NEW payment = Payment{
                 receipt(payment) <- receiptUuid(uuid1(b));
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
                 sum(payment) <- paymentSumCash();
             }
             //обновление оплаты картой
             IF(paymentSumCard() AND paymentCardReceipt(receiptUuid(uuid1(b)))) THEN {
                 receipt(paymentCardReceipt(receiptUuid(uuid1(b)))) <- receiptUuid(uuid1(b));
-                paymentType(paymentCardReceipt(receiptUuid(uuid1(b)))) <- GROUP LAST PaymentType p 
+                paymentType(paymentCardReceipt(receiptUuid(uuid1(b)))) <- GROUP LAST PaymentType p ORDER p 
                     WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
                 sum(paymentCardReceipt(receiptUuid(uuid1(b)))) <- paymentSumCard();
             }
             //добавление оплаты картой
             IF(paymentSumCard() AND NOT paymentCardReceipt(receiptUuid(uuid1(b)))) THEN NEW payment = Payment{
                 receipt(payment) <- receiptUuid(uuid1(b));
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
                 sum(payment) <- paymentSumCard();
             }
         }
@@ -404,13 +402,13 @@ reImportReceiptsEvotor(CashRegister c, DATE from, DATE to, RequestExchange reque
             //оплата наличными
             IF(paymentSumCash()) THEN NEW payment = Payment{
                 receipt(payment) <- rec;
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
                 sum(payment) <- paymentSumCash();
             }
             //оплата картой
             IF paymentSumCard() THEN NEW payment = Payment{
                 receipt(payment) <- rec;
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
                 sum(payment) <- paymentSumCard();
             }
     
@@ -448,27 +446,27 @@ reImportReceiptsEvotor(CashRegister c, DATE from, DATE to, RequestExchange reque
             //обновление наличной оплаты
             IF(paymentSumCash() AND paymentCashReceipt(receiptUuid(uuid1(b)))) THEN {
                 receipt(paymentCashReceipt(receiptUuid(uuid1(b)))) <- receiptUuid(uuid1(b));
-                paymentType(paymentCashReceipt(receiptUuid(uuid1(b)))) <- GROUP LAST PaymentType p 
+                paymentType(paymentCashReceipt(receiptUuid(uuid1(b)))) <- GROUP LAST PaymentType p ORDER p 
                     WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
                 sum(paymentCashReceipt(receiptUuid(uuid1(b)))) <- paymentSumCash();
             }
             //добавление наличной оплаты
             IF(paymentSumCash() AND NOT paymentCashReceipt(receiptUuid(uuid1(b)))) THEN NEW payment = Payment{
                 receipt(payment) <- receiptUuid(uuid1(b));
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
                 sum(payment) <- paymentSumCash();
             }
             //обновление оплаты картой
             IF(paymentSumCard() AND paymentCardReceipt(receiptUuid(uuid1(b)))) THEN {
                 receipt(paymentCardReceipt(receiptUuid(uuid1(b)))) <- receiptUuid(uuid1(b));
-                paymentType(paymentCardReceipt(receiptUuid(uuid1(b)))) <- GROUP LAST PaymentType p 
+                paymentType(paymentCardReceipt(receiptUuid(uuid1(b)))) <- GROUP LAST PaymentType p ORDER p 
                     WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
                 sum(paymentCardReceipt(receiptUuid(uuid1(b)))) <- paymentSumCard();
             }
             //добавление оплаты картой
             IF(paymentSumCard() AND NOT paymentCardReceipt(receiptUuid(uuid1(b)))) THEN NEW payment = Payment{
                 receipt(payment) <- receiptUuid(uuid1(b));
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
                 sum(payment) <- paymentSumCard();
             }
         }
@@ -494,13 +492,13 @@ reImportReceiptsEvotor(CashRegister c, DATE from, DATE to, RequestExchange reque
             //возврат наличными
             IF(paymentSumCash()) THEN NEW payment = Payment{
                 receipt(payment) <- rec;
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCash;
                 sum(payment) <- paymentSumCash();
             }
             //возврат картой
             IF paymentSumCard() THEN NEW payment = Payment{
                 receipt(payment) <- rec;
-                paymentType(payment) <- GROUP LAST PaymentType p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
+                paymentType(payment) <- GROUP LAST PaymentType p ORDER p WHERE paymentMeans(p) == PaymentMeans.paymentMeansCard;
                 sum(payment) <- paymentSumCard();
             }
         }    
