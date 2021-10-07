@@ -570,13 +570,13 @@ filterGroupsBatch() = CONCAT ' OR', ' LOOKUP(sku,\'sku_group1\') IN (' + nameInc
                                        ' LOOKUP(sku,\'sku_group3\') IN (' + nameIncludeSkuGroups3Batch() + ')',
                                        ' LOOKUP(sku,\'sku_group4\') IN (' + nameIncludeSkuGroups4Batch() + ')',
                                        ' LOOKUP(sku,\'sku_group5\') IN (' + nameIncludeSkuGroups5Batch() + ')';
-filterBatch() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF (includeBatch(s) OR (NOT (GROUP SUM 1 IF includeBatch(Stock stock)) AND limitAccess(currentUser()))) AND accessCompany(currentUser(),s),',') + ')','')
-                    + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF includeBatch(le),',') + ')','')
-                    + (OVERRIDE ' AND LOOKUP(sku,\'sku_brand\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF includeBatch(b),',') + ')','')
-                    + (OVERRIDE ' AND manufacturer IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Manufacturer b) +'\'') IF includeBatch(b),',') + ')','')
-                    + (OVERRIDE ' AND LOOKUP(sku,\'sku_country\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Country c) +'\'') IF includeBatch(c),',') + ')','')
+filterBatch() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF (includeBatch(s) OR (NOT (GROUP SUM 1 IF includeBatch(Stock stock)) AND limitAccess(currentUser()))) AND accessCompany(currentUser(),s),',' ORDER s) + ')','')
+                    + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF includeBatch(le),',' ORDER le) + ')','')
+                    + (OVERRIDE ' AND LOOKUP(sku,\'sku_brand\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF includeBatch(b),','ORDER b) + ')','')
+                    + (OVERRIDE ' AND manufacturer IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Manufacturer b) +'\'') IF includeBatch(b),',' ORDER b) + ')','')
+                    + (OVERRIDE ' AND LOOKUP(sku,\'sku_country\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Country c) +'\'') IF includeBatch(c),',' ORDER c) + ')','')
                     + (OVERRIDE ' AND (' + filterGroupsBatch() + ')','')
-                    + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataIncludeBatch(sku),',') + ')','');
+                    + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataIncludeBatch(sku),',' ORDER sku) + ')','');
 valuesBatch() = (IF overIsOutBatch() AND overIsQuantityBatch() THEN 'SUM(quantitySold) AS quantitySold, ' ELSE '')
                             + (IF overIsOutBatch() AND overIsCostBatch() THEN 'SUM(costSumSold) AS costSumSold, ' ELSE '')
                             + (IF overIsOutBatch() AND isCostVATBatch() THEN 'SUM(costSumVATSold) AS costSumVATSold, ' ELSE '')

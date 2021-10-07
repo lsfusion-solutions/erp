@@ -20,7 +20,7 @@ taxString (GroupCashRegister g) += WHEN isChameleon26(g) THEN 'SELECT system.imp
 
 employeeString (Employee e) =
     'SELECT system.import_front_employees(' + STRING(e) + ',\'' + escape(login(e)) + '\',\'' + escape(shortName(e)) + '\',\'password\',\'' + STRING(e) + '\',\'1111111111111111111\',true, null::integer,' + trueFalse(active(e)) +')';
-employeesString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT employeeString(Employee e), ';' IF in(DepartmentStore d, e) AND d = stock(t);
+employeesString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT employeeString(Employee e), ';' IF in(DepartmentStore d, e) AND d = stock(t) ORDER e;
 
 priceLevelString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN 'SELECT system.import_front_price_level(' + STRING(stock(t)) + ',\'' + (CONCAT ' ', 'Розничная', '(' + nameStock(t) + ')') + '\',true)';
 
@@ -31,7 +31,7 @@ storeString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t
 
 cashRegisterString (CashRegister cr) =
     'SELECT system.import_front_workplace(' + STRING(id(cr)) + ',' + STRING(stock(cr)) + ',\'' + escape(OVERRIDE shortDescription(cr), 'Касса №' + npp(cr)) + '\',false,false,false,false,false,false,false,true)';
-cashRegistersString (GroupCashRegister g) = GROUP CONCAT cashRegisterString(CashRegister cr), ';' IF groupCashRegister(cr) = g;
+cashRegistersString (GroupCashRegister g) = GROUP CONCAT cashRegisterString(CashRegister cr), ';' IF groupCashRegister(cr) = g ORDER cr;
 cashRegistersString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN cashRegistersString(groupMachinery(t));
 
 groupSkuString (Group g) = 'SELECT system.import_front_group_goods(' + STRING(g) + ', \'' + escape(name(g)) + '\',' + (OVERRIDE STRING(parent(g)), 'null') + ', true)';

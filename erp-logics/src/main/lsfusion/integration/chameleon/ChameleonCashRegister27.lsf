@@ -24,7 +24,7 @@ typeExchange (Currency c) = GROUP AGGR TypeExchange t WHERE t IS TypeExchange BY
 curRate (Currency f, Currency t) = NUMERIC[16,4](curRate(typeExchange(f), t));
 
 currencyExchangeString (Currency c) = 'SELECT system.import_front_currencies_exchange(' + sid(c) + ',' + centsString(curRate(c, defaultCurrency())) + ',100,current_timestamp,true)' IF NOT c = defaultCurrency();
-currenciesExchangeString (GroupCashRegister g) += WHEN isChameleon27(g) THEN CONCAT ';', (GROUP CONCAT currencyExchangeString(Currency c), ';' IF c IS Currency); //, 'SELECT system.import_front_currencies_exchange(' + sid(defaultCurrency()) + ',100,100,current_timestamp,true)';
+currenciesExchangeString (GroupCashRegister g) += WHEN isChameleon27(g) THEN CONCAT ';', (GROUP CONCAT currencyExchangeString(Currency c), ';' IF c IS Currency ORDER c); //, 'SELECT system.import_front_currencies_exchange(' + sid(defaultCurrency()) + ',100,100,current_timestamp,true)';
 
 // UA only
 taxString (GroupCashRegister g) += WHEN isChameleon27(g) THEN 'SELECT system.import_front_group_tax(1,\'А\',true);' +
@@ -59,7 +59,7 @@ storeString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t
 
 cashRegisterString (CashRegister cr) =
     'SELECT system.import_front_workplace(' + STRING(id(cr)) + ',' + STRING(stock(cr)) + ',\'' + escape(OVERRIDE shortDescription(cr), 'Касса №' + npp(cr)) + '\',false,false,false,false,false,false,false,true)';
-cashRegistersString (GroupCashRegister g) = GROUP CONCAT cashRegisterString(CashRegister cr), ';' IF groupCashRegister(cr) = g;
+cashRegistersString (GroupCashRegister g) = GROUP CONCAT cashRegisterString(CashRegister cr), ';' IF groupCashRegister(cr) = g ORDER cr;
 cashRegistersString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN cashRegistersString(groupMachinery(t));
 
 groupSkuString (Group g) = 'SELECT system.import_front_group_goods(' + STRING(g) + ', \'' + escape(name(g)) + '\',' + (OVERRIDE STRING(parent(g)), 'null') + ', true)';

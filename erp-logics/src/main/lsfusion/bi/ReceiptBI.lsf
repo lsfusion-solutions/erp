@@ -5,7 +5,7 @@ REQUIRE BI, ZReport, GiftCard, Druid, ReportBI;
 NAMESPACE BI;
 
 loadLookups () + { 
-    loadLookup('cashregister_npp', [ GROUP CONCAT TEXT('"' + TEXT(CashRegister r) + '":"' + escapeJSONValue(overNpp(r)) + '"'), ',']());
+    loadLookup('cashregister_npp', [ GROUP CONCAT TEXT('"' + TEXT(CashRegister r) + '":"' + escapeJSONValue(overNpp(r)) + '"'), ',' ORDER r]());
 }
 
 overExportReceipt  ABSTRACT (DATE);
@@ -139,7 +139,7 @@ fillReceiptReport (DATE dateFrom, DATE dateTo)  {
         + 'SUM(sumCardPayment) AS sumCardPayment, SUM(sumGiftCardPayment) AS sumGiftCardPayment, SUM(sumReceiptDetailGiftCard) AS sumReceiptDetailGiftCard, '
         + nameGroupsReceipt() + ' FROM receipt'
         + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + ' 00:00:00' + '\',\'yyyy-MM-dd HH:mm:ss\') AND TIME_PARSE(\'' + dateTo + ' 23:59:59' + '\',\'yyyy-MM-dd HH:mm:ss\')'
-        + (OVERRIDE ' AND departmentStore IN (' + (GROUP CONCAT TEXT('\''+ TEXT(DepartmentStore s) +'\'') IF include(s),',') + ')','')
+        + (OVERRIDE ' AND departmentStore IN (' + (GROUP CONCAT TEXT('\''+ TEXT(DepartmentStore s) +'\'') IF include(s),',' ORDER s) + ')','')
         + ' GROUP BY ' + (CONCAT ', ', nameGroup1Receipt(), nameGroup2Receipt(), nameGroup3Receipt())
         + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
         
@@ -356,9 +356,9 @@ fillReceiptDetailReport (DATE dateFrom, DATE dateTo)  {
         + 'SUM("sum") AS "sum", SUM(discountSum) AS discountSum, SUM(sumVAT) AS sumVAT, SUM(quantity) AS quantity, '
         + nameGroupsReceiptDetail() + ' FROM receiptdetail'
         + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + ' 00:00:00' + '\',\'yyyy-MM-dd HH:mm:ss\') AND TIME_PARSE(\'' + dateTo + ' 23:59:59' + '\',\'yyyy-MM-dd HH:mm:ss\')'
-        + (OVERRIDE ' AND departmentStore IN (' + (GROUP CONCAT TEXT('\''+ TEXT(DepartmentStore s) +'\'') IF include(s),',') + ')','')
+        + (OVERRIDE ' AND departmentStore IN (' + (GROUP CONCAT TEXT('\''+ TEXT(DepartmentStore s) +'\'') IF include(s),',' ORDER s) + ')','')
         + (OVERRIDE ' AND (' + filterGroupsReceiptDetail() + ')','')
-        + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataIncludeReceiptDetail(sku),',') + ')','')
+        + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataIncludeReceiptDetail(sku),',' ORDER sku) + ')','')
         + ' GROUP BY ' + (CONCAT ', ', nameGroup1ReceiptDetail(), nameGroup2ReceiptDetail(), nameGroup3ReceiptDetail())
         + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
         

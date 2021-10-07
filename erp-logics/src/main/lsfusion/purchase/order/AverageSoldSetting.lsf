@@ -39,8 +39,8 @@ backgroundShowExclude (AverageSoldSetting setting, ItemGroup itemGroup) =
     IF dataExclude(setting, itemGroup) THEN RGB(0,0,0) IF itemGroup IS ItemGroup
     ELSE RGB(203,203,206) IF quantityChildWithExclude(setting, itemGroup) != descendantNumber(itemGroup) AND NOT quantityParentWithExclude(setting, itemGroup);
 
-nameIncludeItemGroups 'Включенные товарные группы' (AverageSoldSetting setting) = GROUP CONCAT name(ItemGroup group) IF dataInclude(setting, group), ';' CHARWIDTH 50 MATERIALIZED;
-nameExcludeItemGroups 'Исключенные товарные группы' (AverageSoldSetting setting) = GROUP CONCAT name(ItemGroup group) IF dataExclude(setting, group), ';' CHARWIDTH 50 MATERIALIZED;
+nameIncludeItemGroups 'Включенные товарные группы' (AverageSoldSetting setting) = GROUP CONCAT name(ItemGroup group) IF dataInclude(setting, group), ';' ORDER group CHARWIDTH 50 MATERIALIZED;
+nameExcludeItemGroups 'Исключенные товарные группы' (AverageSoldSetting setting) = GROUP CONCAT name(ItemGroup group) IF dataExclude(setting, group), ';' ORDER group CHARWIDTH 50 MATERIALIZED;
 countIncludeItemGroups 'Включенные товарные группы' (AverageSoldSetting setting) = GROUP SUM 1 IF dataInclude(setting, ItemGroup group) MATERIALIZED;
 countExcludeItemGroups 'Исключенные товарные группы' (AverageSoldSetting setting) = GROUP SUM 1 IF dataExclude(setting, ItemGroup group) MATERIALIZED;
 
@@ -48,7 +48,7 @@ include (AverageSoldSetting setting, Sku sku) = (OVERRIDE include(setting, itemG
 
 TABLE averageSoldSettingDOW (AverageSoldSetting,DOW);
 include 'Вкл.' = DATA BOOLEAN (AverageSoldSetting, DOW);
-nameIncludeDOW 'Включенные дни' (AverageSoldSetting setting) = GROUP CONCAT staticCaption(DOW dow) IF include(setting, dow), ';' CHARWIDTH 50 MATERIALIZED;
+nameIncludeDOW 'Включенные дни' (AverageSoldSetting setting) = GROUP CONCAT staticCaption(DOW dow) IF include(setting, dow), ';' ORDER dow CHARWIDTH 50 MATERIALIZED;
 countIncludeDOW 'Включенные дни' (AverageSoldSetting setting) = GROUP SUM 1 IF include(setting, DOW dow) MATERIALIZED;
 
 countDays 'Кол-во дней для расчета' = DATA INTEGER (AverageSoldSetting);
