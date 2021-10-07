@@ -22,7 +22,18 @@ CLASS BlockListDetail 'Строка временной блокировки то
 @deriveDocumentHeaderTimePrefix(BlockList, );
 
 @defineDocumentTimePrefix (blockList, from, ' с');
-@deriveDocumentHeaderTimePrefix(BlockList, from);
+
+@defineOption(addMinutesCreate, 'Кол-во минут, прибавляемое к началу периода действия документа блокировки при создании', INTEGER, range);
+
+overAddMinutesCreate() = OVERRIDE addMinutesCreate(), 0;
+
+WHEN LOCAL SET(BlockList o IS BlockList) DO {
+    IF o IS BlockList AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
+    IF o IS BlockList AND NOT fromTime(o) THEN fromTime(o) <- sumMinutes(currentTime(), overAddMinutesCreate());
+};
+WHEN LOCAL CHANGED(fromDate(BlockList o)) AND NOT CHANGED(fromTime(o)) DO {
+    fromTime(o) <- IF fromDate(o) > currentDate() THEN 00:00 ELSE sumMinutes(currentTime(), overAddMinutesCreate());
+} 
 
 @defineDocumentTimePrefix (blockList, to, ' по');
 
