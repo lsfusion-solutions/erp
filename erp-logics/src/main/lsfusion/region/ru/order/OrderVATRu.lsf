@@ -59,13 +59,13 @@ META defineWithVATOrder (part)
     withVATPrice (UserOrder o) <- isVATPayer(##part(o))
         WHEN CHANGED(##part(o));
     
-    WHEN LOCAL (CHANGED(quantity(UserOrderDetail userOrderDetail)) OR CHANGED(invoicePrice(userOrderDetail)) OR CHANGED(currency (userOrderDetail))) AND withVATPrice(userOrderDetail) DO
-        invoiceSum (userOrderDetail) <- NUMERIC[18,4](round(quantity(userOrderDetail) * invoicePrice(userOrderDetail), currency(userOrderDetail)));
-
-    WHEN LOCAL (CHANGED(invoiceSum(UserOrderDetail userOrderDetail)) OR CHANGED(valueVAT (userOrderDetail)) OR CHANGED(currency (userOrderDetail))) AND withVATPrice(userOrderDetail) DO 
-        VATSum (userOrderDetail)  <- NUMERIC[18,4](round(invoiceSum(userOrderDetail) * valueVAT(userOrderDetail) / (100 (+) valueVAT (userOrderDetail)), currency(userOrderDetail)));
-    
-    WHEN LOCAL (CHANGED(invoiceSum(UserOrderDetail userOrderDetail)) OR CHANGED (VATSum(userOrderDetail))) AND withVATPrice(userOrderDetail) DO
-        sum (userOrderDetail) <- NUMERIC[18,4](invoiceSum(userOrderDetail) (-) VATSum(userOrderDetail));
+    ON LOCAL {
+        FOR (CHANGED(quantity(UserOrderDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(currency (d))) AND withVATPrice(d) DO
+            invoiceSum(d) <- NUMERIC[18,4](round(quantity(d) * invoicePrice(d), currency(d))); 
+        FOR (CHANGED(invoiceSum(UserOrderDetail d)) OR CHANGED(valueVAT (d)) OR CHANGED(currency (d))) AND withVATPrice(d) DO 
+            VATSum(d) <- NUMERIC[18,4](round(invoiceSum(d) * valueVAT(d) / (100 (+) valueVAT (d)), currency(d)));
+        FOR (CHANGED(invoiceSum(UserOrderDetail d)) OR CHANGED (VATSum(d))) AND withVATPrice(d) DO
+            sum(d) <- NUMERIC[18,4](invoiceSum(d) (-) VATSum(d));
+    }
 
 END
