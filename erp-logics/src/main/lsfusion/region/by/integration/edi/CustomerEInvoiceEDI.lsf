@@ -93,6 +93,29 @@ signAndSendNoticeCustomerEDI 'Подписать и отправить увед�
     ELSE
         MESSAGE 'Не выбрано ни одной накладной';
 }
+signAndSendNoticeCustomerEDIWithoutDialog 'Подписать и отправить уведомление об изменении (покупатель)'() {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EInvoice i) DO {
+        IF isEDI(i) THEN {
+            IF EDIProviderInvoice(supplier(i)) THEN {
+                noticeMessage() <- NULL;
+                fillNoticeMessage(i);
+                IF noticeMessage() THEN {
+                    signAndSendNoticeCustomer(i,STRING[1000](replace(replace(noticeMessage(), '\n', ' '), '\r', ' ')));
+                } 
+                ELSE MESSAGE 'Не задан текст сообщения. Уведомление не отправлено!';
+            }
+            ELSE
+                MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
+        } ELSE
+            MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
+        in(i) <- NULL;
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одной накладной';
+}
 
 EXTEND FORM eInvoices
     PROPERTIES(e) BEFORE isCancel(e) READONLYIF isReadonly() importedCustomer, exportedBlrapnCustomer, exportedCustomer, exportedNoticeCustomer
