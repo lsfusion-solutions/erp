@@ -1144,14 +1144,21 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
         }
     } 
     
+    
+    use##nsdir##InvoiceDetailCustom = ABSTRACT BOOLEAN (InvoiceDetail);
+    change##nsdir##InvoiceDetailCustom  ABSTRACT (InvoiceDetail);
     change##nsdir##InvoiceDetail(InvoiceDetail detail)  { 
-        DIALOG baseInvoiceDetail OBJECTS 
-                                    sk = sku(detail), 
-                                    st = stockProp(detail), 
-                                    cst = contactStockProp(detail), 
-                                    dt = dateTime(detail), 
-                                    d = invoiceDetail[UserInvoiceDetail](detail) INPUT NULL NEWSESSION DO {
-            invoiceDetail[UserInvoiceDetail](detail) <- d;
+        IF use##nsdir##InvoiceDetailCustom(detail) THEN {
+            change##nsdir##InvoiceDetailCustom(detail);
+        } ELSE {
+            DIALOG baseInvoiceDetail OBJECTS 
+                                        sk = sku(detail), 
+                                        st = stockProp(detail), 
+                                        cst = contactStockProp(detail), 
+                                        dt = dateTime(detail), 
+                                        d = invoiceDetail[UserInvoiceDetail](detail) INPUT NULL NEWSESSION DO {
+                invoiceDetail[UserInvoiceDetail](detail) <- d;
+            }
         }
     }    
     
