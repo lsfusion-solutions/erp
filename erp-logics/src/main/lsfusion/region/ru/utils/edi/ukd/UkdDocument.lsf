@@ -50,6 +50,13 @@ priceB 'Цена (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //ЦенаТ
 priceA 'Цена (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //ЦенаТовПосле
 
 //ТаблКСчФ
+//--СтТовБезНДС
+sumB 'Сумма (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимДоИзм
+sumA 'Сумма (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимПослеИзм
+
+decreaseSum 'Сумма (уменьшение)' (UkdDocumentDetail detail) = (sumB(detail) (-) sumA(detail)) IF sumB(detail)>sumA(detail);//СтоимУм
+increaseSum 'Сумма (увеличение)' (UkdDocumentDetail detail) = (sumA(detail) (-) sumB(detail)) IF sumA(detail)>sumB(detail);//СтоимУвел
+
 //--АкцизДо
 dutySumB 'Сумма акциза (до)' = DATA NUMERIC[19,2](UkdDocumentDetail); //СумАкциз
 withoutDutyB 'Без акциза (после)' = DATA BOOLEAN (UkdDocumentDetail); //БезАкциз
@@ -76,8 +83,8 @@ decreaseVATSum 'Уменьшение суммы НДС' (UkdDocumentDetail d) = 
 invoiceSumB 'Сумма с НДС (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимДоИзм
 invoiceSumA 'Сумма с НДС (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимПослеИзм
 
-sumB 'Сумма (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail);
-sumA 'Сумма (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail);
+increaseInvoiceSum 'Сумма с НДС (увеличение)' (UkdDocumentDetail detail) = (invoiceSumA(detail) (-) invoiceSumB(detail)) IF invoiceSumA(detail)>invoiceSumB(detail);//СтоимУвел
+decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (UkdDocumentDetail detail) = (invoiceSumB(detail) (-) invoiceSumA(detail)) IF invoiceSumB(detail)>invoiceSumA(detail);//СтоимУм
 
 //СодФХЖ3
 description 'Содержание операции' = DATA STRING[255] (UkdDocument); //СодОпер
@@ -93,23 +100,19 @@ nameCorrectionDocument 'Основание корректировки' = DATA ST
 withoutVAT 'БезНДС' = DATA BOOLEAN (UkdDocument);
 
 //-ВсегоУвел
-increaseSum 'Сумма (увеличение)' (UkdDocumentDetail detail) = (sumA(detail) (-) sumB(detail)) IF sumA(detail)>sumB(detail);
 increaseSum 'Сумма (увеличение)' = GROUP SUM increaseSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовБезНДСВсего
 
-increaseInvoiceSum 'Сумма с НДС (увеличение)' (UkdDocumentDetail detail) = (invoiceSumA(detail) (-) invoiceSumB(detail)) IF invoiceSumA(detail)>invoiceSumB(detail);
 increaseInvoiceSum 'Сумма с НДС (увеличение)' = GROUP SUM increaseInvoiceSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовУчНалВсего
 
 //--СумНал
 increaseVATSum 'Сумма НДС (увеличение)' = GROUP SUM increaseVATSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СумНДС
 
 //-ВсегоУм
-decreaseSum 'Сумма (уменьшение)' (UkdDocumentDetail detail) = (sumB(detail) (-) sumA(detail)) IF sumB(detail)>sumA(detail);
 decreaseSum 'Сумма (уменьшение)' = GROUP SUM decreaseSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовБезНДСВсего
 
 //--СумНал
 decreaseVATSum 'Сумма НДС (уменьшение)' = GROUP SUM decreaseVATSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СумНДС
 
-decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (UkdDocumentDetail detail) = (invoiceSumB(detail) (-) invoiceSumA(detail)) IF invoiceSumB(detail)>invoiceSumA(detail);
 decreaseInvoiceSum 'Сумма с НДС (уменьшение)' = GROUP SUM decreaseInvoiceSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовУчНалВсего
 
 updDocument 'УПД' = DATA UpdDocument (UkdDocument);
@@ -200,6 +203,7 @@ GROUP UKDExportA EXTID  'СвКСчФ';
         
 GROUP UKDExportB EXTID  'ТаблКСчФ';
     GROUP UKDExportB01 EXTID 'СведТов';
+        GROUP UKDExportB8 EXTID 'СтТовБезНДС';
         GROUP UKDExportB1 EXTID  'АкцизДо';
         GROUP UKDExportB2 EXTID  'АкцизПосле';
         GROUP UKDExportB3 EXTID  'АкцизРазн';
@@ -317,6 +321,12 @@ FORM UKDPR FORMEXTID '=:Файл'
                = priceB(detail) EXTID 'ЦенаТовПосле' ATTR,
                = nameVATStatusB(detail) EXTID 'НалСтДо' ATTR,
                = nameVATStatusA(detail)  EXTID 'НалСтПосле' ATTR
+
+    PROPERTIES = sumB(detail) EXTID 'СтоимДоИзм' ATTR IN UKDExportB8
+    PROPERTIES = sumA(detail) EXTID 'СтоимПослеИзм' ATTR IN UKDExportB8
+        
+    PROPERTIES = increaseSum(detail) EXTID 'СтоимУвел' ATTR IN UKDExportB8
+    PROPERTIES = decreaseSum(detail) EXTID 'СтоимУм' ATTR IN UKDExportB8
     
     PROPERTIES = dutySumB(detail) EXTID 'СумАкциз' IN UKDExportB1           
     PROPERTIES = 'без акциза' IF withoutDutyB(detail)  EXTID 'БезАкциз' IN UKDExportB1
@@ -335,6 +345,8 @@ FORM UKDPR FORMEXTID '=:Файл'
     
     PROPERTIES = (OVERRIDE invoiceSumB(detail), 0.0) EXTID 'СтоимДоИзм' ATTR IN UKDExportB7
     PROPERTIES = (OVERRIDE invoiceSumA(detail), 0.0) EXTID 'СтоимПослеИзм' ATTR IN UKDExportB7
+    PROPERTIES = OVERRIDE increaseInvoiceSum(detail) EXTID 'СтоимУвел' ATTR IN UKDExportB7
+    PROPERTIES = OVERRIDE decreaseInvoiceSum(detail) EXTID 'СтоимУм' ATTR IN UKDExportB7
     
     PROPERTIES = (OVERRIDE increaseSum(d), 0.0) EXTID 'СтТовБезНДСВсего' ATTR IN UKDExportB02
     PROPERTIES = (OVERRIDE decreaseSum(d), 0.0) EXTID 'СтТовБезНДСВсего' ATTR IN UKDExportB03
