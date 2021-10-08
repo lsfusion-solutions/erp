@@ -40,6 +40,15 @@ nameVATStatusB 'Ставка НДС (до)' = staticCaption(VATStatusB(UkdDocume
 VATStatusA = DATA VATStatus (UkdDocumentDetail);
 nameVATStatusA 'Ставка НДС (после)' = staticCaption(VATStatusA(UkdDocumentDetail d)) CHARWIDTH 7; //НалСтПосле
 
+idUOMB 'ОКЕИ (до)' = DATA STRING[4] (UkdDocumentDetail) CHARWIDTH 10; //ОКЕИ_ТовДо
+idUOMA 'ОКЕИ (после)' = DATA STRING[4] (UkdDocumentDetail) CHARWIDTH 10; //ОКЕИ_ТовПосле
+
+quantityB 'Кол-во товара (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //КолТовДо
+quantityA 'Кол-во товара (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //КолТовПосле
+
+priceB 'Цена (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //ЦенаТовДо
+priceA 'Цена (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //ЦенаТовПосле
+
 //ТаблКСчФ
 //--АкцизДо
 dutySumB 'Сумма акциза (до)' = DATA NUMERIC[19,2](UkdDocumentDetail); //СумАкциз
@@ -107,6 +116,8 @@ updDocument 'УПД' = DATA UpdDocument (UkdDocument);
 updDocumentDetail = DATA UpdDocumentDetail(UkdDocumentDetail);
 numberUpdDocument 'УПД' (UkdDocument ukd) = numberInvoice(updDocument(ukd));
 
+numberUpdDocumentDetail 'Номер строки (УПД)' (UkdDocumentDetail detail) = number(updDocumentDetail(detail));
+
 EXTEND FORM ukdDocument
     PROPERTIES (u) baseInvoiceNumber, baseDateInvoice
     PROPERTIES(u) description
@@ -114,8 +125,8 @@ EXTEND FORM ukdDocument
     PROPERTIES(u) nameCorrectionDocument
     PROPERTIES(u) increaseSum, increaseInvoiceSum, decreaseSum, decreaseInvoiceSum
     
-    PROPERTIES (d) nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
-    PROPERTIES (d) BACKGROUND RGB(213,249,185) nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
+    PROPERTIES (d) numberUpdDocumentDetail AFTER number(d), idUOMB, quantityB, priceB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
+    PROPERTIES (d) BACKGROUND RGB(213,249,185) idUOMA, quantityA, priceA, nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
     PROPERTIES (d) BACKGROUND RGB(255, 224, 255) increaseVATSum, decreaseVATSum, 
                     increaseDutySum SHOWIF NOT withoutDutyA(d), 
                     decreaseDutySum SHOWIF NOT withoutDutyB(d)
@@ -159,8 +170,8 @@ EXTEND FORM ukdDocuments
     PROPERTIES(u) READONLY description
     PROPERTIES(u) READONLY nameBaseDocument, numberBaseDocument, dateBaseDocument
     
-    PROPERTIES (d) READONLY nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
-    PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
+    PROPERTIES (d) READONLY numberUpdDocumentDetail AFTER number(d), idUOMB, quantityB, priceB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
+    PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) idUOMA, quantityA, priceA, nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
     PROPERTIES (d) READONLY BACKGROUND RGB(255, 224, 255) increaseVATSum, decreaseVATSum,                     
                                                           increaseDutySum SHOWIF NOT withoutDutyA(d), 
                                                           decreaseDutySum SHOWIF NOT withoutDutyB(d)
@@ -296,7 +307,14 @@ FORM UKDPR FORMEXTID '=:Файл'
     FILTERS ukdDocument(detail)==d   
     
     PROPERTIES = (OVERRIDE INTEGER(number(detail)), defaultIndex(detail)) EXTID 'НомСтр' ATTR,
+               = numberUpdDocumentDetail(detail) EXTID 'ПорНомТовВСЧФ' ATTR, 
                = nameSku(detail) EXTID 'НаимТов' ATTR,
+               = idUOMB(detail) EXTID 'ОКЕИ_ТовДо' ATTR,
+               = idUOMA(detail) EXTID 'ОКЕИ_ТовПосле' ATTR,
+               = quantityB(detail) EXTID 'КолТовДо' ATTR,
+               = quantityA(detail) EXTID 'КолТовПосле' ATTR,
+               = priceA(detail) EXTID 'ЦенаТовДо' ATTR,
+               = priceB(detail) EXTID 'ЦенаТовПосле' ATTR,
                = nameVATStatusB(detail) EXTID 'НалСтДо' ATTR,
                = nameVATStatusA(detail)  EXTID 'НалСтПосле' ATTR
     
@@ -385,7 +403,7 @@ overFill ABSTRACT LIST (UkdBaseDocument, UkdDocument);
 META fillUkdDocument(docType)
     fill(###docType##Detail cd, Sale.InvoiceDetail d, UkdDocumentDetail ed) {
         updDocumentDetail(ed) <- updDocumentDetail(d);
-        number(ed) <- index(d);
+        number(ed) <- index(cd);
         nameSku(ed) <- nameSku(d);
     
         VATStatusB(ed)<- CASE 
@@ -396,7 +414,16 @@ META fillUkdDocument(docType)
                        WHEN vat(d)==20.0  THEN VATStatus.vat20
                        ;
                        
-        VATStatusA(ed) <- VATStatusB(ed);                   
+        VATStatusA(ed) <- VATStatusB(ed);
+        
+        idUOMB(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
+        idUOMA(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
+        
+        quantityB(ed) <- quantity(d);
+        quantityA(ed) <- quantity(d) (-) quantity(cd);
+                
+        priceB(ed) <- price(d);
+        priceA(ed) <- price(cd);
                                          
         invoiceSumB(ed) <- invoiceSum(d);
         invoiceSumA(ed) <- invoiceSum(d) (-) invoiceSum(cd);
