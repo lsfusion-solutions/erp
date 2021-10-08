@@ -368,8 +368,10 @@ public class TerminalServer extends MonitorServer {
                                     Object loginResult = terminalHandler.login(createSession(), getStack(), params[0], params[1], params[2]);
                                     if (loginResult instanceof DataObject) {
                                         result = getSessionId((DataObject) loginResult, params[0], params[1], params[2]);
-                                        if (params.length > 3)
+                                        if (params.length > 3) {
                                             userMap.get(result).idApplication = params[3];
+                                            logger.info(String.format("successfull login, idTerminal %s, idApplication '%s'", userMap.get(result).idApplication, params[3]));
+                                        }
                                     } else if (loginResult instanceof String) {
                                         errorCode = LOGIN_ERROR;
                                         errorText = (String) loginResult;
@@ -405,6 +407,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
+                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                     Object readItemResult = readItem(userInfo.user, barcode, bin);
                                     if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
@@ -443,7 +446,7 @@ public class TerminalServer extends MonitorServer {
                                         errorCode = AUTHORISATION_REQUIRED;
                                         errorText = AUTHORISATION_REQUIRED_TEXT;
                                     } else {
-                                        logger.info("receiving document number " + document[2]);
+                                        logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                         String dateDocument = document[1];
                                         String numberDocument = document[2];
                                         String idDocument = numberDocument + " " + dateDocument + " " + userInfo.user.object;
@@ -538,6 +541,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
+                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                     boolean readBatch = (params.length > 1 && params[1].equalsIgnoreCase("1"));
                                     if(readBatch)
                                         logger.info("requested readBatch");
@@ -570,6 +574,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
+                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                     result = savePallet(userInfo.user, numberPallet, nameBin);
                                     if (result != null) {
                                         errorCode = SAVE_PALLET_ERROR;
@@ -598,6 +603,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
+                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                     result = checkOrder(numberOrder);
                                     if (result == null) {
                                         errorCode = UNKNOWN_ERROR;
@@ -628,6 +634,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
+                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                     changeStatusOrder(vop, status, numberOrder);
                                 }
                             } else {
