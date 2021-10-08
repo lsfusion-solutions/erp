@@ -336,6 +336,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         if (!Thread.currentThread().isInterrupted()) {
                             String idGroup = parseGroup(itemGroup.extIdItemGroup);
                             if (idGroup != null && !idGroup.isEmpty() && !usedGrp.contains(idGroup)) {
+                                //todo: временный лог по таблице GRP
+                                astronPackLogger.info(String.format("GRP: transaction %s, group id %s, group name %s", transaction.id, idGroup, trim(itemGroup.nameItemGroup, "", 50)));
                                 if(params.pgsql) {
                                     String parentId = parseGroup(itemGroup.idParentItemGroup, true);
                                     setObject(ps, Integer.parseInt(idGroup), 1); //GRPID
