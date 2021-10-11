@@ -44,18 +44,18 @@ idUOMB 'ОКЕИ (до)' = DATA STRING[4] (UkdDocumentDetail) CHARWIDTH 10; //О
 idUOMA 'ОКЕИ (после)' = DATA STRING[4] (UkdDocumentDetail) CHARWIDTH 10; //ОКЕИ_ТовПосле
 
 quantityB 'Кол-во товара (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //КолТовДо
-quantityA 'Кол-во товара (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //КолТовПосле
+quantityA 'Кол-во товара (после)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //КолТовПосле
 
 priceB 'Цена (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //ЦенаТовДо
-priceA 'Цена (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //ЦенаТовПосле
+priceA 'Цена (после)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //ЦенаТовПосле
 
 //ТаблКСчФ
 //--СтТовБезНДС
 sumB 'Сумма (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимДоИзм
 sumA 'Сумма (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимПослеИзм
 
-decreaseSum 'Сумма (уменьшение)' (UkdDocumentDetail detail) = (sumB(detail) (-) sumA(detail)) IF sumB(detail)>sumA(detail);//СтоимУм
-increaseSum 'Сумма (увеличение)' (UkdDocumentDetail detail) = (sumA(detail) (-) sumB(detail)) IF sumA(detail)>sumB(detail);//СтоимУвел
+decreaseSum 'Сумма (уменьшение)' (UkdDocumentDetail detail) = (sumB(detail) (-) (OVERRIDE sumA(detail), 0.0)) IF sumB(detail)> (OVERRIDE sumA(detail), 0.0);//СтоимУм
+increaseSum 'Сумма (увеличение)' (UkdDocumentDetail detail) = (sumA(detail) (-) (OVERRIDE sumB(detail), 0.0)) IF sumA(detail)> (OVERRIDE sumB(detail), 0.0);//СтоимУвел
 
 //--АкцизДо
 dutySumB 'Сумма акциза (до)' = DATA NUMERIC[19,2](UkdDocumentDetail); //СумАкциз
@@ -76,15 +76,17 @@ VATSumB 'Сумма НДС (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //�
 VATSumA 'Сумма НДС (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СумНДС
 
 //--СумНалРазн
-increaseVATSum 'Увеличение суммы НДС' (UkdDocumentDetail d) = VATSumA(d) (-) VATSumB(d) IF VATSumA(d)>VATSumB(d); //СумУвел
-decreaseVATSum 'Уменьшение суммы НДС' (UkdDocumentDetail d) = VATSumB(d) (-) VATSumA(d) IF VATSumB(d)>VATSumA(d); //СумУм
+increaseVATSum 'Увеличение суммы НДС' (UkdDocumentDetail d) = VATSumA(d) (-) (OVERRIDE VATSumB(d), 0.0) IF VATSumA(d)> (OVERRIDE VATSumB (d), 0.0); //СумУвел
+decreaseVATSum 'Уменьшение суммы НДС' (UkdDocumentDetail d) = VATSumB(d) (-) (OVERRIDE VATSumA(d), 0.0) IF VATSumB(d)> (OVERRIDE VATSumA(d), 0.0); //СумУм
 
 //--СтТовУчНал
 invoiceSumB 'Сумма с НДС (до)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимДоИзм
 invoiceSumA 'Сумма с НДС (после)' = DATA NUMERIC[19,2] (UkdDocumentDetail); //СтоимПослеИзм
 
-increaseInvoiceSum 'Сумма с НДС (увеличение)' (UkdDocumentDetail detail) = (invoiceSumA(detail) (-) invoiceSumB(detail)) IF invoiceSumA(detail)>invoiceSumB(detail);//СтоимУвел
-decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (UkdDocumentDetail detail) = (invoiceSumB(detail) (-) invoiceSumA(detail)) IF invoiceSumB(detail)>invoiceSumA(detail);//СтоимУм
+increaseInvoiceSum 'Сумма с НДС (увеличение)' (UkdDocumentDetail detail) = (invoiceSumA(detail) (-) (OVERRIDE invoiceSumB(detail), 0.0)) 
+                                                                IF invoiceSumA(detail)> (OVERRIDE invoiceSumB(detail), 0.0);//СтоимУвел
+decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (UkdDocumentDetail detail) = (invoiceSumB(detail) (-) (OVERRIDE invoiceSumA(detail), 0.0)) 
+                                                                IF invoiceSumB(detail)> (OVERRIDE invoiceSumA(detail), 0.0);//СтоимУм
 
 //СодФХЖ3
 description 'Содержание операции' = DATA STRING[255] (UkdDocument); //СодОпер
@@ -315,15 +317,17 @@ FORM UKDPR FORMEXTID '=:Файл'
                = nameSku(detail) EXTID 'НаимТов' ATTR,
                = idUOMB(detail) EXTID 'ОКЕИ_ТовДо' ATTR,
                = idUOMA(detail) EXTID 'ОКЕИ_ТовПосле' ATTR,
+               = 0.00 IF detail IS UkdDocumentDetail EXTID 'КолТовДо' ATTR,
                = quantityB(detail) EXTID 'КолТовДо' ATTR,
+               = 0.00 IF detail IS UkdDocumentDetail EXTID 'КолТовПосле' ATTR,
                = quantityA(detail) EXTID 'КолТовПосле' ATTR,
                = priceA(detail) EXTID 'ЦенаТовДо' ATTR,
                = priceB(detail) EXTID 'ЦенаТовПосле' ATTR,
                = nameVATStatusB(detail) EXTID 'НалСтДо' ATTR,
                = nameVATStatusA(detail)  EXTID 'НалСтПосле' ATTR
 
-    PROPERTIES = sumB(detail) EXTID 'СтоимДоИзм' ATTR IN UKDExportB8
-    PROPERTIES = sumA(detail) EXTID 'СтоимПослеИзм' ATTR IN UKDExportB8
+    PROPERTIES = (OVERRIDE sumB(detail), 0.0) EXTID 'СтоимДоИзм' ATTR IN UKDExportB8
+    PROPERTIES = (OVERRIDE sumA(detail), 0.0) EXTID 'СтоимПослеИзм' ATTR IN UKDExportB8
         
     PROPERTIES = increaseSum(detail) EXTID 'СтоимУвел' ATTR IN UKDExportB8
     PROPERTIES = decreaseSum(detail) EXTID 'СтоимУм' ATTR IN UKDExportB8
@@ -338,7 +342,7 @@ FORM UKDPR FORMEXTID '=:Файл'
 //    PROPERTIES = (OVERRIDE decreaseDutySum(detail), 0.0) EXTID 'СумУм' IN UKDExportB3
     
     PROPERTIES = (OVERRIDE VATSumB(detail), 0.0) EXTID 'СумНДС' IN UKDExportB4
-    PROPERTIES = (OVERRIDE VATSumA(detail),0.0) EXTID 'СумНДС' IN UKDExportB5        
+    PROPERTIES = (OVERRIDE VATSumA(detail), 0.0) EXTID 'СумНДС' IN UKDExportB5        
     
     PROPERTIES = showIncreaseVATSum(detail) EXTID 'СумУвел' IN UKDExportB6           
     PROPERTIES = decreaseVATSum(detail) SHOWIF NOT increaseVATSum(detail) EXTID 'СумУм' IN UKDExportB6
@@ -546,3 +550,14 @@ META fillUkdDocument(docType)
     }
 
 END
+//
+//exportUkdDocument1 'Экспорт (xml)' (UkdDocument d) {
+//        generateIdFile(d);
+//        inReport(UkdDocument g)<- TRUE IF g==d;
+//        EXPORT UKDPR XML CHARSET 'windows-1251' TO System.exportFile;
+//        open(System.exportFile());    
+//} TOOLBAR;
+//
+//EXTEND FORM ukdDocuments
+//    PROPERTIES (u) exportUkdDocument1
+//;
