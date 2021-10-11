@@ -35,11 +35,17 @@ parent (ItemGroup itemGroup) += parent(itemGroup);
 
 in 'Отм.' = DATA LOCAL BOOLEAN (ItemGroup);
 
+skipMoveItemGroupOver = DATA BOOLEAN ();
+moveItemGroupOver ABSTRACT LIST(ItemGroup);// если что-то пойдет не так
+
 moveItemGroup 'Перенести отмеченные группы в текущую'(itemGroup)  { 
 
     FOR in(ItemGroup i) DO{
         IF i != itemGroup THEN {
             parent(i) <- itemGroup;
+            IF NOT skipMoveItemGroupOver()THEN {
+                moveItemGroupOver(itemGroup);
+            }
             in(i) <- NULL;
         } ELSE {
             MESSAGE 'Выделенная товарная группа не может совпадать с объединяемой';
@@ -986,7 +992,7 @@ META defineObjectItemAttribute(attribute, attributeClass, identity, caption, gro
 END
 
 @addRoleApplicationSetting(autoSetGroupAttribute, 'Автоматически проставлять привязки атрибутов к группам', BOOLEAN);
- 
+
 META defineItemFilterValue(object, captionProp, o)
     TABLE object##ItemGroup (###object, ItemGroup);
       
@@ -1019,6 +1025,11 @@ META defineItemFilterValue(object, captionProp, o)
 
     WHEN autoSetGroupAttribute(mainRole[CustomUser](currentUser())) AND (CHANGED(object(Item item)) OR CHANGED(itemGroup(item))) AND countDataItemGroup(object(item)) AND NOT countRec(object(item), itemGroup(item)) DO {
         dataIn(###object o, ItemGroup g) <- TRUE WHERE o == object(item) AND g == itemGroup(item);
+    }
+    moveItemGroupOver(ItemGroup g) +{
+        IF autoSetGroupAttribute(mainRole[CustomUser](currentUser())) THEN {
+            dataIn(###object o, g)<- TRUE WHERE countDataItemGroup(o) AND (GROUP SUM 1 IF object(Item it)==o AND isParent(g, it)) AND NOT countRec(o,g);
+        }
     }
 
     CONSTRAINT object(Item item) AND itemGroup(item) AND countDataItemGroup(object(item)) AND NOT countRec(object(item), itemGroup(item))

@@ -688,6 +688,11 @@ EXTEND FORM ranges
 WHEN autoSetGroupAttribute(mainRole(currentUser())) AND CHANGED(itemGroup(Sku s)) AND level(RangeRev v, s) AND NOT inChild(range(v), s) DO {
     inData(Range r, SkuGroup g) <- TRUE WHERE r == range(v) AND g == skuGroup(s);
 }
+moveItemGroupOver(ItemGroup g) + {
+    IF autoSetGroupAttribute(mainRole[CustomUser](currentUser())) THEN {
+        inData(Range r, g) <- TRUE WHERE (GROUP SUM 1 IF level(RangeRev v, Sku s) AND range(v)==r AND isParent(g,s)) AND NOT inChild(r,g);    
+    }
+}
 
 CONSTRAINT level(RangeRev v, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
 
