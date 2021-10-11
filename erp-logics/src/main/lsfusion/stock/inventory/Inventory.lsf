@@ -173,8 +173,10 @@ nearestInclude (Inventory inventory, SkuGroup skuGroup) = dataInclude(inventory,
 include 'Вкл' (Inventory inventory, SkuGroup skuGroup) =
     OVERRIDE dataInclude(inventory, skuGroup), 
              nearestInclude (inventory, skuGroup) MATERIALIZED;    
+      
+overInclude = ABSTRACT BOOLEAN (Inventory, Sku);    
                       
-include 'Вкл' (Inventory inventory, Sku sku) = include(inventory, skuGroup(sku));  
+include 'Вкл' (Inventory inventory, Sku sku) = OVERRIDE overInclude(inventory, sku), include(inventory, skuGroup(sku));  
 countIncludeSkuGroup 'Вкл' (Inventory inventory) = GROUP SUM 1 IF include(inventory, SkuGroup sku);     
                     
 countIncludeSku 'Вкл' (Inventory inventory) = GROUP SUM 1 IF include(inventory, Sku sku);                    
