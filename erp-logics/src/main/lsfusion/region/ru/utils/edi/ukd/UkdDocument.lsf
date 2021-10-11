@@ -43,6 +43,9 @@ nameVATStatusA 'Ставка НДС (после)' = staticCaption(VATStatusA(Ukd
 idUOMB 'ОКЕИ (до)' = DATA STRING[4] (UkdDocumentDetail) CHARWIDTH 10; //ОКЕИ_ТовДо
 idUOMA 'ОКЕИ (после)' = DATA STRING[4] (UkdDocumentDetail) CHARWIDTH 10; //ОКЕИ_ТовПосле
 
+nameUOMB 'ЕИ (до)' = DATA STRING[255] (UkdDocumentDetail) CHARWIDTH 10; //НаимЕдИзмДо
+nameUOMA 'ЕИ (после)' = DATA STRING[255] (UkdDocumentDetail) CHARWIDTH 10; //НаимЕдИзмПосле
+
 quantityB 'Кол-во товара (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //КолТовДо
 quantityA 'Кол-во товара (после)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //КолТовПосле
 
@@ -130,8 +133,8 @@ EXTEND FORM ukdDocument
     PROPERTIES(u) nameCorrectionDocument
     PROPERTIES(u) increaseSum, increaseInvoiceSum, decreaseSum, decreaseInvoiceSum
     
-    PROPERTIES (d) numberUpdDocumentDetail AFTER number(d), idUOMB, quantityB, priceB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
-    PROPERTIES (d) BACKGROUND RGB(213,249,185) idUOMA, quantityA, priceA, nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
+    PROPERTIES (d) numberUpdDocumentDetail AFTER number(d), idUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
+    PROPERTIES (d) BACKGROUND RGB(213,249,185) idUOMA, quantityA, priceA, sumA, nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
     PROPERTIES (d) BACKGROUND RGB(255, 224, 255) increaseVATSum, decreaseVATSum, 
                     increaseDutySum SHOWIF NOT withoutDutyA(d), 
                     decreaseDutySum SHOWIF NOT withoutDutyB(d)
@@ -175,8 +178,10 @@ EXTEND FORM ukdDocuments
     PROPERTIES(u) READONLY description
     PROPERTIES(u) READONLY nameBaseDocument, numberBaseDocument, dateBaseDocument
     
-    PROPERTIES (d) READONLY numberUpdDocumentDetail AFTER number(d), idUOMB, quantityB, priceB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
-    PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) idUOMA, quantityA, priceA, nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
+    PROPERTIES (d) READONLY numberUpdDocumentDetail AFTER number(d), idUOMB, nameUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, 
+                                                    dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
+    PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) idUOMA, nameUOMA, quantityA, priceA, sumA, nameVATStatusA, VATSumA,  
+                                                    dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
     PROPERTIES (d) READONLY BACKGROUND RGB(255, 224, 255) increaseVATSum, decreaseVATSum,                     
                                                           increaseDutySum SHOWIF NOT withoutDutyA(d), 
                                                           decreaseDutySum SHOWIF NOT withoutDutyB(d)
@@ -213,6 +218,7 @@ GROUP UKDExportB EXTID  'ТаблКСчФ';
         GROUP UKDExportB5 EXTID  'СумНалПосле';
         GROUP UKDExportB6 EXTID  'СумНалРазн';
         GROUP UKDExportB7 EXTID  'СтТовУчНал';
+        GROUP UKDExportB9 EXTID  'ДопСведТов';
     GROUP UKDExportB02 EXTID 'ВсегоУвел': UKDExportB;
         GROUP UKDExportB021 EXTID 'СумНал' : UKDExportB02;
     GROUP UKDExportB03 EXTID 'ВсегоУм': UKDExportB;
@@ -352,6 +358,10 @@ FORM UKDPR FORMEXTID '=:Файл'
     PROPERTIES = OVERRIDE increaseInvoiceSum(detail) EXTID 'СтоимУвел' ATTR IN UKDExportB7
     PROPERTIES = OVERRIDE decreaseInvoiceSum(detail) EXTID 'СтоимУм' ATTR IN UKDExportB7
     
+    PROPERTIES = nameUOMB(detail) EXTID 'НаимЕдИзмДо' ATTR IN UKDExportB9
+    PROPERTIES = nameUOMA(detail) EXTID 'НаимЕдИзмПосле' ATTR IN UKDExportB9
+    
+    
     PROPERTIES = (OVERRIDE increaseSum(d), 0.0) EXTID 'СтТовБезНДСВсего' ATTR IN UKDExportB02
     PROPERTIES = (OVERRIDE decreaseSum(d), 0.0) EXTID 'СтТовБезНДСВсего' ATTR IN UKDExportB03
     PROPERTIES = (OVERRIDE increaseInvoiceSum(d), 0.0) EXTID 'СтТовУчНалВсего' ATTR IN UKDExportB02
@@ -434,6 +444,9 @@ META fillUkdDocument(docType)
         
         idUOMB(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
         idUOMA(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
+        
+        nameUOMB(ed) <- nameUOM(sku(d));
+        nameUOMA(ed) <- nameUOM(sku(d));
         
         quantityB(ed) <- quantity(d);
         quantityA(ed) <- quantity(d) (-) quantity(cd);
