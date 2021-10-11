@@ -25,6 +25,12 @@ component 'Сырье' (SkuGroup skuGroup) =
              nearestComponent (skuGroup) MATERIALIZED;    
 component 'Сырье' (Sku s) = OVERRIDE dataComponent(s), component(skuGroup(s)) MATERIALIZED;      
 countComponentSku () = GROUP SUM 1 IF component(Sku g); 
+
+moveItemGroupOver(ItemGroup parent, ItemGroup gg) + {
+    IF autoSetGroupAttribute(mainRole[CustomUser](currentUser())) THEN {
+        dataComponent(parent) <- TRUE WHERE component(gg) AND NOT component(parent);         
+    }
+}
     
 filterComponent (SkuGroup parent) = GROUP SUM 1 IF component(SkuGroup group) AND isParent(group, parent);
                
@@ -51,6 +57,13 @@ product 'Готовые изделия' (SkuGroup skuGroup) =
              nearestProduct (skuGroup) MATERIALIZED; 
 product 'Готовые изделия' (Sku s) = OVERRIDE dataProduct(s), product(skuGroup(s)) MATERIALIZED;      
 countProductSku () = GROUP SUM 1 IF product(Sku g); 
+
+moveItemGroupOver(ItemGroup parent, ItemGroup gg) + {
+    IF autoSetGroupAttribute(mainRole[CustomUser](currentUser())) THEN {
+        dataProduct(parent) <- TRUE WHERE product(gg) AND NOT product(parent);         
+    }
+}
+
 filterProduct (SkuGroup parent) = GROUP SUM 1 IF product(SkuGroup group) AND isParent(group, parent);
 
 quantityChildWithProduct (SkuGroup group) = GROUP SUM 1 IF dataProduct(SkuGroup childGroup) AND isParent(childGroup, group) MATERIALIZED;

@@ -97,9 +97,10 @@ WHEN autoSetGroupAttribute(mainRole(currentUser())) AND [ GROUP SUM 1 IF CHANGED
 
 CONSTRAINT include(RangeRev v, Store store, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
 
-moveItemGroupOver(ItemGroup g) + {
+moveItemGroupOver(ItemGroup parent, ItemGroup gg) + {
     IF autoSetGroupAttribute(mainRole[CustomUser](currentUser())) THEN {
-        inData(Range r, g) <- TRUE WHERE (GROUP SUM 1 IF include(RangeRev v, Store store, Sku s) AND range(v)==r AND isParent(g,s)) AND NOT inChild(r,g);    
+        inData(Range r, parent) <- TRUE WHERE inChild(r,gg) AND NOT inChild(r,parent);        
+        //inData(Range r, g) <- TRUE WHERE (GROUP SUM 1 IF include(RangeRev v, Store store, Sku s) AND range(v)==r AND isParent(g,s)) AND NOT inChild(r,g);    
     }
 }
 
