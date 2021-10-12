@@ -258,3 +258,34 @@ showFlags 'Показать расшифровку' (TerminalDocumentType t)  {
         APPLY;
     }
 } ASON CONTEXTMENU flag[TerminalDocumentType];
+
+// log connections
+
+CLASS TerminalConnection 'Подключение терминала';
+terminal = DATA Terminal (TerminalConnection) INDEXED;
+idTerminal 'Код терминала' (TerminalConnection c) = id(terminal(c));
+
+dateTime 'Время' = DATA DATETIME (TerminalConnection);
+dateTime(TerminalConnection t) <- currentDateTime() WHEN SET(t IS TerminalConnection);
+
+date 'Дата' (TerminalConnection c) = DATE(dateTime(c));
+
+user = DATA CustomUser (TerminalConnection);
+shortNameUser 'Пользователь' (TerminalConnection c) = shortName(user(c));
+nameStockUser 'Склад пользователя' (TerminalConnection c) = nameStock(user(c));
+
+ip 'IP' = DATA STRING[50] (TerminalConnection);
+
+EXTEND FORM groupsTerminal
+    OBJECTS tc = TerminalConnection
+    PROPERTIES(tc) READONLY idTerminal, dateTime, date, shortNameUser, nameStockUser, ip
+    FILTERS groupTerminal(terminal(tc)) = grt 
+;
+
+DESIGN groupsTerminal {
+    pane {
+        MOVE BOX(tc) {
+            caption = 'Подключения';
+        }
+    }
+}
