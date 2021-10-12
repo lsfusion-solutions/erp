@@ -1,0 +1,210 @@
+MODULE ExportCSOCustomAdd;
+
+REQUIRE Item, LogTools, ExportCSOCustom, Store;
+
+NAMESPACE ExportCSO;
+
+////Пиклист для CSI K 
+dataExchangeCSIAddress 'Полный адрес отправки данных CSI K' = DATA STRING[255] (Store) CHARWIDTH 30;
+dataExchangeCSIAddress 'Полный адрес отправки данных CSI K' (DepartmentStore ds)= dataExchangeCSIAddress(store(ds)) IF id(store(ds))==id(ds) CHARWIDTH 30;
+
+dataCustomGroupTypeCSI = DATA CustomGroupType(Store);
+overCustomGroupTypeCSI = ABSTRACT CustomGroupType(Store);
+customGroupTypeCSI (Store s) = OVERRIDE dataCustomGroupTypeCSI(s), customGroupType(s), overCustomGroupTypeCSI(s);
+customGroupTypeCSI(DepartmentStore ds) = customGroupTypeCSI(store(ds)) IF id(store(ds))==id(ds);
+nameCustomGroupTypeCSI 'Пиклист CSI K' (Store s) = name(customGroupTypeCSI(s)) CHARWIDTH 30;
+
+isCSI 'CSI K' = DATA BOOLEAN (CustomGroupType);
+
+CONSTRAINT dataCustomGroupTypeCSI(Store st) AND NOT isCSI(customGroupTypeCSI(st))
+    CHECKED BY customGroupTypeCSI[Store] 
+    MESSAGE 'Для магазина должен быть задан пиклист CSI K'; 
+
+changeCustomGroupTypeCSI(Store st)  { 
+    DIALOG dialogCustomGroupType OBJECTS t = dataCustomGroupTypeCSI(st) INPUT FILTERS isCSI(t) DO { 
+        dataCustomGroupTypeCSI(st) <- t;    
+    }
+}
+
+EXTEND FORM store
+    PROPERTIES (s) dataExchangeCSIAddress, nameCustomGroupTypeCSI ON CHANGE changeCustomGroupTypeCSI(s)
+;
+DESIGN store{
+    header{
+        NEW addressExport AFTER headerExtraParams{
+            type = CONTAINERV;
+            caption = 'Параметры КСО';
+            
+            MOVE PROPERTY (dataExchangeCSIAddress(s)){caption = 'Адрес CSI K';}    
+        
+            NEW certainCustomGroupType {                
+                type = COLUMNS;
+                columns = 2;
+                
+                MOVE PROPERTY (nameCustomGroupTypeCSI(s));                                
+            }
+        }
+    }
+}
+EXTEND FORM stores
+    PROPERTIES (s) READONLYIF isReadonly() dataExchangeCSIAddress
+;
+
+@lockedObjects(CSI, departmentStore);
+
+propertyGroup = DATA LOCAL INTEGER(CustomGroup);
+schemaLocation = DATA LOCAL STRING();
+settingsGroup = DATA LOCAL STRING();
+visible = DATA LOCAL STRING();
+description = DATA LOCAL STRING();
+
+FORM moduleConfig FORMEXTID '=http://crystals.ru/cash/settings:moduleConfig'
+    OBJECTS type = CustomGroupType PANEL 
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES() schemaLocation ATTR, settingsGroup ATTR, visible ATTR, description ATTR
+    
+    OBJECTS property = INTEGER EXTID '=http://crystals.ru/cash/settings:property'
+    PROPERTIES(property) key ATTR, value ATTR
+    FILTERS key(property)
+    
+    OBJECTS group = CustomGroup EXTID '=http://crystals.ru/cash/settings:group'
+    PROPERTIES(group) name ATTR
+    FILTERS propertyGroup(group) == property, groupType(group) == type
+    
+    //товары к 1 уровню
+    OBJECTS good = Item EXTID '=http://crystals.ru/cash/settings:good'
+    PROPERTIES (good) id EXTID 'item' ATTR , nameAttribute EXTID name ATTR 
+    FILTERS export(good), customGroup(type,good) == group
+    
+    OBJECTS group1 = CustomGroup EXTID '=http://crystals.ru/cash/settings:group'
+    PROPERTIES(group1) name ATTR
+    FILTERS parent(group1) == group
+    
+    //товары к 2 уровню
+    OBJECTS good1 = Item EXTID '=http://crystals.ru/cash/settings:good'
+    PROPERTIES (good1) id EXTID 'item' ATTR , nameAttribute EXTID name ATTR 
+    FILTERS export(good1), customGroup(type,good1) == group1
+    
+    OBJECTS group2 = CustomGroup EXTID '=http://crystals.ru/cash/settings:group'
+    PROPERTIES(group2) name ATTR
+    FILTERS parent(group2) == group1
+    
+    //товары к 3 уровню
+    OBJECTS good2 = Item EXTID '=http://crystals.ru/cash/settings:good'
+    PROPERTIES (good2) id EXTID 'item' ATTR , nameAttribute EXTID name ATTR 
+    FILTERS export(good2), customGroup(type,good2) == group2
+;
+
+exportedImage 'Экспортируемое изображение' = ABSTRACT IMAGEFILE (Sku);
+hasExportedImage = ABSTRACT BOOLEAN (Sku);
+
+needFilterExport = ABSTRACT BOOLEAN (Sku);
+filterExport = ABSTRACT BOOLEAN (Sku);
+
+exportCSICustom 'Выгрузить CSI K' (DepartmentStore ds) {
+    IF customGroupTypeCSI(ds) THEN {
+        NEWSESSION { 
+            lockCSI(ds);   
+            IF lockResultCSI() THEN {
+                TRY {
+                    schemaLocation() <- 'http://crystals.ru/cash/settings ../../module-config.xsd';
+                    settingsGroup() <- 'weightCatalog';
+                    visible() <- 'true';
+                    description() <- 'Catalog';
+                    key(1) <- 'provider';       value(1) <- 'xml';
+                    key(2) <- 'serviceClass';   value(2) <- 'ru.crystals.sco.catalog.WeightCatalogXML';
+                    key(3) <- 'sort';           value(3) <- 'true';
+                    key(4) <- 'catalog';
+                    
+                    propertyGroup (CustomGroup cg) <- 4 WHERE group1(cg) == cg AND groupType(cg) == customGroupTypeCSI(ds);
+                        
+                    export(Sku s) <- (currentBalance(s,ds) OR zeroBalance(customGroupTypeCSI(ds),s)) AND customGroup(customGroupTypeCSI(ds),s) AND active(s) AND 
+                                     (NOT needFilterExport(s) OR filterExport(s));     
+                          
+                    EXPORT moduleConfig OBJECTS type = customGroupTypeCSI(ds) XML;
+                    
+                    WRITE exportFile() TO 'file://' +dataExchangeCSIAddress(ds) + '/config/plugins/weightCatalog-xml-config';
+
+                    FOR export(Sku s) AND hasExportedImage(s) DO TRY {
+                        resizeImage(exportedImage(s),200,144);              
+                        convertImage(resizedImage(), 'png');
+                        WRITE convertedImage() TO 'file://' +dataExchangeCSIAddress(ds) + '/images/' + id(s) + '.png';             
+                    }
+  
+                } FINALLY {
+                    unlockCSI(ds);             
+                }
+            } ELSE {
+                MESSAGE 'Уже выполняется выгрузка CSI K для магазина '+name(ds)+'. Подождите...' NOWAIT;    
+            }                                                                                                                        
+        }
+    } ELSE {
+        MESSAGE 'Не задан справочник КСО' NOWAIT;
+    }
+}
+
+exportCSI 'Выгрузить CSI K' (DepartmentStore ds) {
+    IF dataExchangeCSIAddress(ds) THEN {
+        exportCSICustom(ds);
+    } ELSE {
+        MESSAGE 'Не задан путь для выгрузки CSI K' NOWAIT;
+    }
+}
+
+//-- в планировщик
+exportCSI 'Выгрузить CSI K (все магазины)' () {
+    FOR active(DepartmentStore ds) AND dataExchangeCSIAddress(ds) AND customGroupType(ds) DO {
+        exportCSI(ds);
+    }
+
+}
+exportCSI 'Выгрузить CSI K' (CustomGroupType type) {
+    FOR active(DepartmentStore ds) AND dataExchangeCSIAddress(ds) AND customGroupType(ds)==type  DO {
+        exportCSI(ds);
+    }
+}
+
+showCSI(CustomGroupType type) = isCSI(type);
+
+EXTEND FORM customGroupType
+    PROPERTIES (t) isCSI
+;
+EXTEND FORM dialogCustomGroupType
+    PROPERTIES (t) READONLY isCSI
+;
+
+DESIGN dialogCustomGroupType {
+    BOX {
+        size = (600, 400);
+    }
+}
+
+EXTEND FORM customGroupTypes
+    PROPERTIES (t) READONLY isCSI
+;
+
+DESIGN customGroupType { 
+    NEW main {
+        type = CONTAINERV; 
+        fill=1;
+        NEW header {
+            type = CONTAINERH;
+            MOVE PROPERTY (id(t));
+            MOVE PROPERTY(name(t));
+        }
+        NEW type {
+            caption = 'Тип оборудования'; 
+            MOVE PROPERTY (isCSO(t));
+            MOVE PROPERTY (isCSI(t));
+        } 
+    }  
+    
+    MOVE TOOLBARBOX;
+}
+
+EXTEND FORM customGroups
+    PROPERTIES (t) exportCSI SHOWIF showCSI(t)
+;
+EXTEND FORM items
+    PROPERTIES (gt) exportCSI SHOWIF showCSI(gt)
+;

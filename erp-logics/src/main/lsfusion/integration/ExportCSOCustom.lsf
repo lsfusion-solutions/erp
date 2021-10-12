@@ -1,10 +1,12 @@
 MODULE ExportCSOCustom;
 
-REQUIRE Item, LogTools;
+REQUIRE Item, LogTools, Store;
 
 NAMESPACE ExportCSO;
 
 @defineLogRotate(CSO, 5, weekly);
+
+
 isCSO 'КСО' = DATA BOOLEAN (CustomGroupType);
 EXTEND FORM customGroupType
     PROPERTIES (t) isCSO
@@ -34,6 +36,10 @@ nullImage 'Сбросить'(CustomGroup g)  {
     image(g) <- NULL;
 }
 
+customGroupType = DATA CustomGroupType(Store);
+nameCustomGroupType 'Пиклист' (Store s) = name(customGroupType(s)) CHARWIDTH 30;
+customGroupType(DepartmentStore ds) = customGroupType(store(ds)) IF id(store(ds))==id(ds);
+
 EXTEND FORM customGroup
     PROPERTIES (g) image, loadImage, nullImage
 ;
@@ -54,4 +60,123 @@ DESIGN customGroup {
     }
 
 }
+
+key = DATA LOCAL STRING(INTEGER);
+value = DATA LOCAL STRING(INTEGER);
+
+//--
+GROUP hierarchy;
+iconId  = DATA LOCAL STRING (Sku);
+iconId  = DATA LOCAL STRING (CustomGroup);
+icon  = DATA LOCAL IMAGEFILE (Sku);
+icon  = DATA LOCAL IMAGEFILE (CustomGroup);
+
+FORM texts 
+    OBJECTS text = INTEGER
+    PROPERTIES(text) key ATTR, value ATTR 
+    FILTERS key(text)
+;
+
+export = DATA LOCAL NESTED BOOLEAN (Sku);
+
+zeroBalance 'Грузить с нулевыми остатками (КСО)' = DATA BOOLEAN (CustomGroupType,Sku);
+
+EXTEND FORM items
+    PROPERTIES GRID zeroBalance(gt,i) SHOWIF isCSO(gt)
+;
+
+migrateZeroBalance = DATA BOOLEAN ();
+onStarted() +{ 
+    IF NOT migrateZeroBalance() THEN {
+        zeroBalance(CustomGroupType t,Sku s) <-TRUE WHERE isParent(customGroup ('9', t),s) AND active(s) AND isCSO(t);
+        migrateZeroBalance() <- TRUE;
+        APPLY;
+    }
+}
+
+FORM itemcatalog
+
+    OBJECTS type = CustomGroupType PANEL 
+    PROPERTIES = 'SUBCAT_ITEM' IF type IS CustomGroupType  ATTR EXTID 'viewType'
+//--    
+    OBJECTS g1 = CustomGroup EXTID 'category' 
+    PROPERTIES =(id(g1)+'_category') EXTID 'textId' ATTR,
+                = 'true' IF g1 IS CustomGroup  EXTID 'quantityEntryRequired' ATTR,  
+                = 'false' IF g1 IS CustomGroup  EXTID 'mixedItem' ATTR,
+                iconId(g1) ATTR, 
+                = 'false' IF g1 IS CustomGroup  EXTID 'isDefault' ATTR 
+
+    FILTERS customGroupType(g1)==type,
+            group1(g1) == g1
+    
+    OBJECTS i1 = Item EXTID 'item'
+    PROPERTIES 
+                = 'false' IF i1 IS Item  EXTID 'quantityEntryRequired' ATTR,
+                = 'false' IF i1 IS Item  EXTID 'mixedItem' ATTR,
+                = (id(i1)) EXTID 'itemId' ATTR,
+                hh1 = (id(i1)) EXTID 'textId' ATTR,
+                iconId(i1) ATTR // путь для картинки товара
+    FILTERS customGroup(type,i1) == g1
+//--    
+    OBJECTS g2 = CustomGroup EXTID 'category'
+    PROPERTIES =(id(g2)+'_category') EXTID 'textId' ATTR, 
+                = 'true' IF g2 IS CustomGroup  EXTID 'quantityEntryRequired' ATTR,      
+                = 'false' IF g2 IS CustomGroup  EXTID 'mixedItem' ATTR,
+                iconId(g2) ATTR,
+                = 'false' IF g2 IS CustomGroup  EXTID 'isDefault' ATTR 
+
+    FILTERS parent(g2)== g1,
+            group2(g2) == g2   
+            
+    OBJECTS i2 = Item EXTID 'item'
+    PROPERTIES 
+                = 'false' IF i2 IS Item  EXTID 'quantityEntryRequired' ATTR,
+                = 'false' IF i2 IS Item  EXTID 'mixedItem' ATTR,
+                = (id(i2)) EXTID 'itemId' ATTR,
+                hh2 = (id(i2)) EXTID 'textId' ATTR,
+                iconId(i2) ATTR // путь для картинки товара
+    FILTERS customGroup(type,i2) == g2            
+//--
+    OBJECTS g3 = CustomGroup EXTID 'category'
+    PROPERTIES =(id(g3)+'_category') EXTID 'textId' ATTR, 
+                = 'true' IF g3 IS CustomGroup  EXTID 'quantityEntryRequired' ATTR,          
+                = 'false' IF g3 IS CustomGroup  EXTID 'mixedItem' ATTR,
+                iconId(g3) ATTR,
+                = 'false' IF g3 IS CustomGroup  EXTID 'isDefault' ATTR 
+                
+    FILTERS parent(g3)== g2,
+            group2(g3) == g3   
+            
+    OBJECTS i3 = Item EXTID 'item'
+    PROPERTIES 
+                = 'false' IF i3 IS Item  EXTID 'quantityEntryRequired' ATTR,
+                = 'false' IF i3 IS Item  EXTID 'mixedItem' ATTR,
+                = (id(i3)) EXTID 'itemId' ATTR,
+                hh3 = (id(i3)) EXTID 'textId' ATTR,
+                iconId(i3) ATTR // путь для картинки товара
+    FILTERS customGroup(type,i3) == g3  
+//--
+    OBJECTS g4 = CustomGroup EXTID 'category'
+    PROPERTIES =(id(g4)+'_category') EXTID 'textId' ATTR, 
+                = 'true' IF g4 IS CustomGroup  EXTID 'quantityEntryRequired' ATTR,          
+                = 'false' IF g4 IS CustomGroup  EXTID 'mixedItem' ATTR,
+                iconId(g4) ATTR,
+                = 'false' IF g4 IS CustomGroup  EXTID 'isDefault' ATTR 
+                
+    FILTERS parent(g4)== g2,
+            group2(g4) == g4   
+            
+    OBJECTS i4 = Item EXTID 'item'
+    PROPERTIES 
+                = 'false' IF i4 IS Item  EXTID 'quantityEntryRequired' ATTR,
+                = 'false' IF i4 IS Item  EXTID 'mixedItem' ATTR,
+                = (id(i4)) EXTID 'itemId' ATTR,
+                hh4 = (id(i4)) EXTID 'textId' ATTR,
+                iconId(i4) ATTR // путь для картинки товара
+    FILTERS customGroup(type,i4) == g4  
+    FILTERS export(i1),
+            export(i2),
+            export(i3),
+            export(i4)      
+;
 

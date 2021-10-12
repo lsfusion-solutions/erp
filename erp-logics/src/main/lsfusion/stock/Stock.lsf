@@ -1091,3 +1091,30 @@ META defineBackgroundNearestBoolean(allProp, property, object1, object2, nearest
 
     @defineBackgroundNearestBoolean(allProp, property, object1, object2, ###object2, nearestProp, filterProp); 
 END
+
+META lockedObjects(prop,class)
+    locked###prop = DATA User (###class);
+    lockResult###prop = DATA LOCAL NESTED BOOLEAN ();
+    
+    lock###prop(###class object)  { 
+        NEWSESSION {    
+            lockResult###prop() <- NULL;
+            APPLY SERIALIZABLE {
+                IF NOT object THEN
+                    RETURN;
+                IF locked###prop(object) THEN {
+                    cancel();
+                } ELSE {
+                    locked###prop(object) <- currentUser();
+                    lockResult###prop() <- TRUE;
+                }
+            }
+        }
+    }
+    
+    unlock###prop(###class object)  { 
+        NEWSESSION { 
+            APPLY locked###prop(object) <- NULL;
+        }
+    }
+END
