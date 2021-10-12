@@ -33,6 +33,9 @@ NAVIGATOR {
 baseInvoiceNumber 'Номер УПД' = DATA STRING[1000] (UkdDocument) CHARWIDTH 15; //НомерСчФ
 baseDateInvoice 'Дата УПД' = DATA DATE (UkdDocument); //ДатаСчФ
 
+//-ДопСвФХЖ1
+nameCurrency 'Валюта' = DATA STRING[100] (UkdDocument); //НаимОКВ
+
 //-СведТов
 VATStatusB = DATA VATStatus (UkdDocumentDetail);
 nameVATStatusB 'Ставка НДС (до)' = staticCaption(VATStatusB(UkdDocumentDetail d)) CHARWIDTH 7; //НалСтДо
@@ -43,6 +46,7 @@ nameVATStatusA 'Ставка НДС (после)' = staticCaption(VATStatusA(Ukd
 idUOMB 'ОКЕИ (до)' = DATA STRING[4] (UkdDocumentDetail) CHARWIDTH 10; //ОКЕИ_ТовДо
 idUOMA 'ОКЕИ (после)' = DATA STRING[4] (UkdDocumentDetail) CHARWIDTH 10; //ОКЕИ_ТовПосле
 
+idSku 'Код товара' = DATA STRING[100] (UkdDocumentDetail) CHARWIDTH 15; //КодТов
 nameUOMB 'ЕИ (до)' = DATA STRING[255] (UkdDocumentDetail) CHARWIDTH 10; //НаимЕдИзмДо
 nameUOMA 'ЕИ (после)' = DATA STRING[255] (UkdDocumentDetail) CHARWIDTH 10; //НаимЕдИзмПосле
 
@@ -93,6 +97,7 @@ decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (UkdDocumentDet
 
 //СодФХЖ3
 description 'Содержание операции' = DATA STRING[255] (UkdDocument); //СодОпер
+sendDate 'Дата направления' = DATA DATE (UkdDocument);//ДатаНапр
 
 //-ПередатДокум
 nameBaseDocument 'Документ основания' = DATA STRING[255] (UkdDocument); //НаимОсн
@@ -101,6 +106,9 @@ dateBaseDocument 'Дата документа основания' = DATA DATE (U
 
 //-ДокумОснКор
 nameCorrectionDocument 'Основание корректировки' = DATA STRING[255] (UkdDocument); //НаимОсн
+
+//-ЮЛ
+supplierSignerCompany 'Организация' = DATA STRING[1000] (UkdDocument); //НаимОрг
 
 withoutVAT 'БезНДС' = DATA BOOLEAN (UkdDocument);
 
@@ -128,12 +136,13 @@ numberUpdDocumentDetail 'Номер строки (УПД)' (UkdDocumentDetail de
 
 EXTEND FORM ukdDocument
     PROPERTIES (u) baseInvoiceNumber, baseDateInvoice
-    PROPERTIES(u) description
+    PROPERTIES(u) description, sendDate, nameCurrency
     PROPERTIES(u) nameBaseDocument, numberBaseDocument, dateBaseDocument
     PROPERTIES(u) nameCorrectionDocument
     PROPERTIES(u) increaseSum, increaseInvoiceSum, decreaseSum, decreaseInvoiceSum
+    PROPERTIES(u) supplierSignerCompany
     
-    PROPERTIES (d) numberUpdDocumentDetail AFTER number(d), idUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
+    PROPERTIES (d) numberUpdDocumentDetail AFTER number(d), idSku, idUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
     PROPERTIES (d) BACKGROUND RGB(213,249,185) idUOMA, quantityA, priceA, sumA, nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
     PROPERTIES (d) BACKGROUND RGB(255, 224, 255) increaseVATSum, decreaseVATSum, 
                     increaseDutySum SHOWIF NOT withoutDutyA(d), 
@@ -162,23 +171,27 @@ DESIGN ukdDocument {
             fill = 1;
             type = CONTAINERV;
             MOVE PROPERTY(description(u));
+            MOVE PROPERTY(sendDate(u));
             MOVE PROPERTY(nameBaseDocument(u));
             MOVE PROPERTY(numberBaseDocument(u));
             MOVE PROPERTY(dateBaseDocument(u));
             MOVE PROPERTY(nameCorrectionDocument(u));
         }
     }
-//    supplierBank {
-//        MOVE PROPERTY(codeCurrency(u));
-//    }
+    supplierBank {
+        MOVE PROPERTY(nameCurrency(u));
+    }
+    signerLegalEntity {
+        MOVE PROPERTY(supplierSignerCompany(u)) BEFORE PROPERTY(supplierSignerInn(u)) ;
+    }
 }
 
 EXTEND FORM ukdDocuments
     PROPERTIES(u) READONLY AFTER dateInvoice(u) baseInvoiceNumber, baseDateInvoice
-    PROPERTIES(u) READONLY description
+    PROPERTIES(u) READONLY description, sendDate
     PROPERTIES(u) READONLY nameBaseDocument, numberBaseDocument, dateBaseDocument
     
-    PROPERTIES (d) READONLY numberUpdDocumentDetail AFTER number(d), idUOMB, nameUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, 
+    PROPERTIES (d) READONLY numberUpdDocumentDetail AFTER number(d), idSku, idUOMB, nameUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, 
                                                     dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
     PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) idUOMA, nameUOMA, quantityA, priceA, sumA, nameVATStatusA, VATSumA,  
                                                     dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
@@ -205,6 +218,7 @@ GROUP UKDExportA EXTID  'СвКСчФ';
         GROUP UKDExportA6_2 EXTID  'Адрес' :UKDExportA6;
             GROUP UKDExportA6_2_1 EXTID  'АдрРФ' :UKDExportA6_2;
             GROUP UKDExportA6_2_2 EXTID  'АдрИнф' :UKDExportA6_2;
+    GROUP UKDExportA10 EXTID 'ДопСвФХЖ1' :UKDExportA;        
     GROUP UKDExportA9 EXTID  'ИнфПолФХЖ1' :UKDExportA;
         GROUP UKDExportA9_1 EXTID  'ТекстИнф' :UKDExportA9;
         
@@ -311,6 +325,8 @@ FORM UKDPR FORMEXTID '=:Файл'
                = adrressCustomer(d) EXTID 'АдрТекст' ATTR IN UKDExportA6_2_2   
     PROPERTIES = codeAdrressCustomer(d) EXTID 'КодГАР' IN UKDExportA6_2
     
+    PROPERTIES = nameCurrency(d) EXTID 'НаимОКВ' ATTR IN UKDExportA10
+    
     PROPERTIES = (OVERRIDE codeBusinessEvent(d),'') EXTID 'Идентиф' ATTR IN UKDExportA9_1,
                = (OVERRIDE descriptionBusinessEvent(d),'') EXTID 'Значен' ATTR IN UKDExportA9_1    
     
@@ -344,7 +360,7 @@ FORM UKDPR FORMEXTID '=:Файл'
     PROPERTIES = dutySumA(detail) EXTID 'СумАкциз' IN UKDExportB2           
     PROPERTIES = 'без акциза' IF withoutDutyA(detail)  EXTID 'БезАкциз' IN UKDExportB2      
     
-    PROPERTIES = (OVERRIDE increaseDutySum(detail), 0.0) EXTID 'СумУвел' IN UKDExportB3           
+//    PROPERTIES = (OVERRIDE increaseDutySum(detail), 0.0) EXTID 'СумУвел' IN UKDExportB3           
 //    PROPERTIES = (OVERRIDE decreaseDutySum(detail), 0.0) EXTID 'СумУм' IN UKDExportB3
     
     PROPERTIES = (OVERRIDE VATSumB(detail), 0.0) EXTID 'СумНДС' IN UKDExportB4
@@ -358,6 +374,7 @@ FORM UKDPR FORMEXTID '=:Файл'
     PROPERTIES = OVERRIDE increaseInvoiceSum(detail) EXTID 'СтоимУвел' ATTR IN UKDExportB7
     PROPERTIES = OVERRIDE decreaseInvoiceSum(detail) EXTID 'СтоимУм' ATTR IN UKDExportB7
     
+    PROPERTIES = idSku(detail) EXTID 'КодТов' ATTR IN UKDExportB9
     PROPERTIES = nameUOMB(detail) EXTID 'НаимЕдИзмДо' ATTR IN UKDExportB9
     PROPERTIES = nameUOMA(detail) EXTID 'НаимЕдИзмПосле' ATTR IN UKDExportB9
     
@@ -375,6 +392,7 @@ FORM UKDPR FORMEXTID '=:Файл'
     
     //--      
     PROPERTIES = (OVERRIDE description(d),'') EXTID 'СодОпер' ATTR IN UKDExportC
+    PROPERTIES = toDateDDMMYYYY(sendDate(d)) EXTID 'ДатаНапр' ATTR IN UKDExportC
     
     PROPERTIES = nameBaseDocument(d) EXTID 'НаимОсн' ATTR IN UKDExportC1,
                = numberBaseDocument(d) EXTID 'НомОсн' ATTR IN UKDExportC1,
@@ -392,7 +410,10 @@ FORM UKDPR FORMEXTID '=:Файл'
                = supplierSignerMiddleName(d) IF isSupplierSigner(d) EXTID 'Отчество' ATTR IN UKDExportD_1_1   
                
     PROPERTIES = supplierSignerInn(d) IF NOT isSupplierSigner(d)  EXTID 'ИННЮЛ' ATTR IN UKDExportD_3,
-               = supplierSignerPosition(d) IF NOT isSupplierSigner(d) EXTID 'Должн' ATTR IN UKDExportD_3            
+               = supplierSignerPosition(d) IF NOT isSupplierSigner(d) EXTID 'Должн' ATTR IN UKDExportD_3,
+               = supplierSignerCompany(d) IF NOT isSupplierSigner(d) EXTID 'НаимОрг' ATTR IN UKDExportD_3 
+               
+                         
     PROPERTIES = supplierSignerAgentLastName(d) IF NOT isSupplierSigner(d)  EXTID 'Фамилия' ATTR IN UKDExportD_3_1,
                = supplierSignerAgentFirstName(d) IF NOT isSupplierSigner(d) EXTID 'Имя' ATTR IN UKDExportD_3_1,
                = supplierSignerAgentMiddleName(d) IF NOT isSupplierSigner(d) EXTID 'Отчество' ATTR IN UKDExportD_3_1                                           
@@ -445,6 +466,7 @@ META fillUkdDocument(docType)
         idUOMB(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
         idUOMA(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
         
+        idSku(ed) <- OVERRIDE id(sku(d)), idBarcode(sku(d));
         nameUOMB(ed) <- nameUOM(sku(d));
         nameUOMA(ed) <- nameUOM(sku(d));
         
@@ -495,7 +517,7 @@ META fillUkdDocument(docType)
                             WHEN status(updDocument(ei))=UpdDocumentStatus.DOP THEN UkdDocumentStatus.DIS
                             WHEN status(updDocument(ei))=UpdDocumentStatus.SHCFDOP THEN UkdDocumentStatus.KSHCFDIS;
         
-        businessNameDocument(ei) <- 'Документ, подтверждающий  согласие (факт уведомления) покупателя на изменение стоимости отгруженных товаров (выполненных работ, оказанных услуг), переданных имущественных прав' 
+        businessNameDocument(ei) <- 'Документ, подтверждающий согласие (факт уведомления) покупателя на изменение стоимости отгруженных товаров (выполненных работ, оказанных услуг), переданных имущественных прав' 
                                         IF status(ei)=UkdDocumentStatus.KSHCF OR status(ei)=UkdDocumentStatus.KSHCFDIS;
                                         
         supplierNameDocument(ei) <- 'Документ, подтверждающий согласие (факт уведомления) покупателя на изменение стоимости отгруженных товаров (выполненных работ, оказанных услуг), переданных имущественных прав'
@@ -511,6 +533,7 @@ META fillUkdDocument(docType)
         //invoiceNumerator(ei) <- defaultNumeratorConsignmentUpd(); //возможно нужно будет сделать параметризацию нумератора для организации
         dateInvoice(ei) <- date(c);
         codeCurrency(ei) <- sid(currency(c));
+        nameCurrency(ei) <- name(currency(c));
         
         supplier(ei) <- supplier(c);
         numberAccountSupplier(ei) <-  STRING[20](numberAccount(supplier(c)));            
@@ -536,6 +559,7 @@ META fillUkdDocument(docType)
         adrressCustomer(ei) <- address(customer(c), date(c));
         
         description(ei) <- 'Изменение стоимости товаров и услуг' IF c IS ###docType;
+        sendDate(ei) <- dateInvoice(ei);
         
         nameBaseDocument (ei) <- 'УПД' IF updDocument(ei);
         numberBaseDocument (ei) <- numberInvoice(updDocument(ei));
@@ -549,6 +573,7 @@ META fillUkdDocument(docType)
         
         supplierSignerInn(ei) <- inn(supplier(c));
         supplierSignerPosition(ei) <- name(position(chief(supplier(c), date(c))));
+        supplierSignerCompany(ei) <- fullName(supplier(c));
         
         supplierSignerAgentLastName(ei) <- lastName(chief(supplier(c), date(c)));
         supplierSignerAgentFirstName(ei) <- firstName(chief(supplier(c), date(c)));
