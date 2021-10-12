@@ -36,7 +36,12 @@ WHEN SETCHANGED(invoiceNumerator(UpdDocument o)) AND
 
 invoice = DATA Invoice(UpdDocument);
 invoiceDetail = DATA InvoiceDetail(UpdDocumentDetail);
-updDocument = GROUP LAST UpdDocument ei AS UpdDocument IF ei IS UpdDocument ORDER dateInvoice(ei), ei BY invoice(ei);
+updDocument = 
+    GROUP LAST UpdDocument ei
+        IF ei IS UpdDocument AND NOT correctionNumber(ei)
+        ORDER dateInvoice(ei), ei 
+        BY invoice(ei);
+
 updDocumentDetail = GROUP LAST UpdDocumentDetail detail AS UpdDocumentDetail IF detail IS UpdDocumentDetail 
                 ORDER dateInvoice(updDocument(detail)), detail BY invoiceDetail(detail);
 
@@ -57,11 +62,10 @@ fill(ConsignmentDetail d, UpdDocumentDetail ed) {
     //updDocument(ed) <- ei;
     invoiceDetail(ed) <- d;
     number(ed) <- index(d);
-    idUOM(ed) <- codeOKEI(UOM(sku(d)));
+    idUOM(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
     nameUOM(ed) <- nameUOM(sku(d));
     idSku(ed) <- barCode(d); 
     nameSku(ed) <- nameSku(d);
-    idUOM(ed) <- idUOM(d);
     quantity(ed) <- quantity(d);
     price(ed) <- price(d);
     sum(ed) <- sum(d);
@@ -220,6 +224,9 @@ show 'Просмотреть' (UpdDocument d)  {
 overNumberAttrUpd (Consignment c) += numberInvoice(updDocument(c));
 overDateAttrUpd (Consignment c) += dateInvoice(updDocument(c));
 
+overNumberCorrectionUpd  (Consignment c) += numberCorrection(updDocument(c)) IF NOT numberCorrection(updDocument(c))=0.0;
+overDateCorrectionUpd (Consignment c) += correctionDate(updDocument(c));
+
 selectUpdDocument(Consignment c) = select(updDocument(c));
 
 printConsignmentUpd 'Печать УПД'(UpdDocument u) {
@@ -307,5 +314,37 @@ DESIGN updDocuments {
 DESIGN options{
     updScroll {
         MOVE PROPERTY (numberCopiesConsignment());
+    }
+}
+
+//создание иУПД
+createCorrection 'Создать иУПД' (UpdDocument upd) {
+    NEWSESSION {
+        NEW iupd = UpdDocument {
+            invoice(iupd) <- invoice(upd);
+            numberInvoice(iupd) <- numberInvoice(upd);
+            correction(iupd) <- TRUE;
+            correctedUpdDocument(iupd) <- upd;
+            correctionDateTime(iupd) <- currentDateTime();
+            fill(invoice(upd), iupd);
+            SHOW updDocument OBJECTS u = iupd DOCKED NOCANCEL; 
+        }
+    }
+}
+
+EXTEND FORM updDocuments
+    PROPERTIES (u) createCorrection
+;
+
+DESIGN updDocuments {
+    documentDetail{
+        NEW correctionContainer AFTER actionContainer {
+            caption = 'иУПД';
+            type = CONTAINERH;
+            NEW correctionActions {
+                caption = 'Действия';
+                MOVE PROPERTY(createCorrection(u));
+            }
+        }
     }
 }

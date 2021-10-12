@@ -329,9 +329,52 @@ EXTEND FORM updDocuments
     PROPERTIES (u) READONLY idFile AFTER codeCurrency(u)
 ;
 
+//иУПД
+correction 'иУПД' = DATA BOOLEAN (UpdDocument);
+correctionDateTime 'Дата/время иУПД' = DATA DATETIME (UpdDocument);
+correctionDate 'Дата иУПД' (UpdDocument upd) = toDate(correctionDateTime(upd));
+
+TABLE updDocumentUpdDocument(UpdDocument, UpdDocument);
+
+correctedUpdDocument 'иУПД' = DATA UpdDocument (UpdDocument);
+correctionLevel (UpdDocument child, UpdDocument parent) = RECURSION 1l IF child IS UpdDocument AND parent == child
+                                                              STEP 2l IF parent == correctedUpdDocument($parent) MATERIALIZED;
+updDocument(UpdDocument child, LONG level)  = GROUP
+                                               MAX UpdDocument parent IF level == correctionLevel(child, parent);
+levelCorrection 'Номер иУПД' (UpdDocument child)  = GROUP SUM 1 IF correctionLevel(child, UpdDocument parent) MATERIALIZED;
+
+isCorrection (UpdDocument child, UpdDocument parent) = TRUE IF correctionLevel(child, parent);
+correctionNumber (updDocument) = GROUP SUM 1 BY correctedUpdDocument(UpdDocument child) MATERIALIZED;
+totalCorrectionNumber 'Кол-во иУПД' (UpdDocument parent)  = GROUP SUM 1 IF isCorrection(UpdDocument child, parent) MATERIALIZED;
+
+numberCorrection 'Номер иУПД' (UpdDocument upd) = levelCorrection(upd) - 1;
+
+EXTEND FORM updDocuments
+    PROPERTIES (u) READONLY AFTER nameStatus(u) correction
+    FILTERGROUP notCorrected
+        FILTER 'Без измененных' NOT correctionNumber(u) DEFAULT
+;
+
+EXTEND FORM updDocument
+    PROPERTIES (u) READONLY SHOWIF correction(u) correction, numberCorrection, correctionDateTime 
+;
+
+DESIGN updDocument {
+    documentContainer {
+        NEW correction FIRST {
+            caption = 'иУПД';
+            type = CONTAINERH;
+            MOVE PROPERTY(correction(u));
+            MOVE PROPERTY(numberCorrection(u));
+            MOVE PROPERTY(correctionDateTime(u));
+        }
+    }    
+}
+
 GROUP UPDExportA0 EXTID  'СвОЭДОтпр';
 
 GROUP UPDExportA EXTID  'СвСчФакт';
+    GROUP UPDExportA01 EXTID 'ИспрСчФ': UPDExportA;
     GROUP UPDExportA2 EXTID  'СвПрод' :UPDExportA;   
         GROUP UPDExportA2_1 EXTID  'ИдСв' :UPDExportA2;        
             GROUP UPDExportA2_1_1 EXTID  'СвЮЛУч' :UPDExportA2_1;            
@@ -413,6 +456,9 @@ FORM UPDPR FORMEXTID '=:Файл'
     PROPERTIES = (OVERRIDE numberInvoice(d),' ') EXTID 'НомерСчФ' ATTR IN UPDExportA,
                = toDateDDMMYYYY(OVERRIDE dateInvoice(d), currentDate()) EXTID 'ДатаСчФ' ATTR IN UPDExportA,
                = (OVERRIDE codeCurrency(d),'') EXTID 'КодОКВ' ATTR IN UPDExportA
+    
+    PROPERTIES = numberCorrection(d) IF numberCorrection(d)>0.0 EXTID 'НомИспрСчФ' ATTR IN UPDExportA01,
+               = toDateDDMMYYYY(correctionDate(d)) IF numberCorrection(d)>0.0 EXTID 'ДатаИспрСчФ' ATTR IN UPDExportA01
                
     PROPERTIES = okpoSupplier(d) EXTID 'ОКПО' ATTR IN UPDExportA2    
     
