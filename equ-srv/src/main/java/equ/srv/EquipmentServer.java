@@ -949,7 +949,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
 
             if (result == null) {
-                logCompleteMessage(stack, sidEquipmentServer, formatCompleteMessageMultiThread(session, salesInfoList, start, finish, rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, taskIndex, taskSize, timeStart, directory));
+                logCompleteMessage(stack, sidEquipmentServer, formatCompleteMessageMultiThread(session, salesInfoList, start, finish,
+                        rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, rowsData.ignoredReceiptDetailCount, taskIndex, taskSize, timeStart, directory));
             } else
                 return result;
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | CloneNotSupportedException e) {
@@ -1363,7 +1364,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
 
                 if (result == null) {
-                    logCompleteMessage(stack, sidEquipmentServer, formatCompleteMessageSingleThread(session, data, rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, timeStart, directory));
+                    logCompleteMessage(stack, sidEquipmentServer, formatCompleteMessageSingleThread(session, data,
+                            rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, rowsData.ignoredReceiptDetailCount, timeStart, directory));
                 } else
                     return result;
             } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | CloneNotSupportedException e) {
@@ -1476,7 +1478,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    private String formatCompleteMessageMultiThread(DataSession session, List<SalesInfo> salesInfoList, int start, int finish, int dataSize, int left, int taskIndex, int taskSize, LocalDateTime timeStart, String directory) {
+    private String formatCompleteMessageMultiThread(DataSession session, List<SalesInfo> salesInfoList, int start, int finish, int dataSize, int left, int ignoredReceiptDetailCount, int taskIndex, int taskSize, LocalDateTime timeStart, String directory) {
         Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<>();
         List<String> fileNames = new ArrayList<>();
         Set<String> dates = new HashSet<>();
@@ -1492,10 +1494,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 dates.add(formatDate(salesInfo.dateZReport));
         }
 
-        return formatCompleteMessage(session, nppCashRegisterMap, dates, fileNames, dataSize, left, timeStart, directory, String.format("Задание %s из %s. ", taskIndex + 1, taskSize));
+        return formatCompleteMessage(session, nppCashRegisterMap, dates, fileNames, dataSize, left, ignoredReceiptDetailCount, timeStart, directory, String.format("Задание %s из %s. ", taskIndex + 1, taskSize));
     }
 
-    private String formatCompleteMessageSingleThread(DataSession session, List<SalesInfo> data, int dataSize, int left, LocalDateTime timeStart, String directory) {
+    private String formatCompleteMessageSingleThread(DataSession session, List<SalesInfo> data, int dataSize, int left, int ignoredReceiptDetailCount, LocalDateTime timeStart, String directory) {
         Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<>();
         List<String> fileNames = new ArrayList<>();
         Set<String> dates = new HashSet<>();
@@ -1510,14 +1512,18 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 dates.add(formatDate(salesInfo.dateZReport));
         }
 
-        return formatCompleteMessage(session, nppCashRegisterMap, dates, fileNames, dataSize, left, timeStart, directory, "");
+        return formatCompleteMessage(session, nppCashRegisterMap, dates, fileNames, dataSize, left, ignoredReceiptDetailCount, timeStart, directory, "");
     }
 
     private String formatCompleteMessage(DataSession session, Map<Integer, Set<Integer>> nppCashRegisterMap, Set<String> dates, List<String> fileNames,
-                                         int dataSize, int left, LocalDateTime timeStart, String directory, String prefix) {
+                                         int dataSize, int left, int ignoredReceiptDetailCount, LocalDateTime timeStart, String directory, String prefix) {
         LocalDateTime timeFinish = LocalDateTime.now();
         String message = String.format("%sЗатрачено времени: %s с (%s - %s)\nЗагружено записей: %s, Осталось записей: %s",
                 prefix, Duration.between(timeStart, timeFinish).getSeconds(), formatDateTime(timeStart), formatDateTime(timeFinish), dataSize, left);
+
+        if(ignoredReceiptDetailCount > 0) {
+            message += "\nПроигнорировано записей из-за даты закрытия документов: " + ignoredReceiptDetailCount;
+        }
 
         String conflicts = session.getLastAttemptCountMap();
         if(conflicts != null)
@@ -1820,6 +1826,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
         }
 
+        int ignoredReceiptDetailCount = 0;
         for (int i = start; i < finish; i++) {
             SalesInfo sale = data.get(i);
             if (!overDocumentsClosedDate(sale, options.ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
@@ -1863,9 +1870,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
 
 
+            } else {
+                ignoredReceiptDetailCount++;
             }
         }
-        return new RowsData(dataSale, dataReturn, dataGiftCard, receiptDetailExtraFields);
+        return new RowsData(dataSale, dataReturn, dataGiftCard, receiptDetailExtraFields, ignoredReceiptDetailCount);
     }
 
     private class RowsData {
@@ -1873,12 +1882,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         List<List<Object>> dataReturn;
         List<List<Object>> dataGiftCard;
         JSONObject receiptDetailExtraFields;
+        int ignoredReceiptDetailCount;
 
-        public RowsData(List<List<Object>> dataSale, List<List<Object>> dataReturn, List<List<Object>> dataGiftCard, JSONObject receiptDetailExtraFields) {
+        public RowsData(List<List<Object>> dataSale, List<List<Object>> dataReturn, List<List<Object>> dataGiftCard, JSONObject receiptDetailExtraFields, int ignoredReceiptDetailCount) {
             this.dataSale = dataSale;
             this.dataReturn = dataReturn;
             this.dataGiftCard = dataGiftCard;
             this.receiptDetailExtraFields = receiptDetailExtraFields;
+            this.ignoredReceiptDetailCount = ignoredReceiptDetailCount;
         }
     }
 
