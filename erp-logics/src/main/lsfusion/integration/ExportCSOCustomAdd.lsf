@@ -98,7 +98,7 @@ exportedImage 'Экспортируемое изображение' = ABSTRACT I
 hasExportedImage = ABSTRACT BOOLEAN (Sku);
 
 needFilterExport = ABSTRACT BOOLEAN (Sku);
-filterExport = ABSTRACT BOOLEAN (Sku);
+filterExport = ABSTRACT BOOLEAN (CustomGroupType, Sku);
 
 exportCSICustom 'Выгрузить CSI K' (DepartmentStore ds) {
     IF customGroupTypeCSI(ds) THEN {
@@ -118,7 +118,7 @@ exportCSICustom 'Выгрузить CSI K' (DepartmentStore ds) {
                     propertyGroup (CustomGroup cg) <- 4 WHERE group1(cg) == cg AND groupType(cg) == customGroupTypeCSI(ds);
                         
                     export(Sku s) <- (currentBalance(s,ds) OR zeroBalance(customGroupTypeCSI(ds),s)) AND customGroup(customGroupTypeCSI(ds),s) AND active(s) AND 
-                                     (NOT needFilterExport(s) OR filterExport(s));     
+                                     (NOT needFilterExport(s) OR filterExport(customGroupTypeCSI(ds), s));     
                           
                     EXPORT moduleConfig OBJECTS type = customGroupTypeCSI(ds) XML;
                     
