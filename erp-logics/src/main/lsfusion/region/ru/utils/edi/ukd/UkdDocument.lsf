@@ -22,6 +22,46 @@ EXTEND CLASS UkdDocumentPaperStatus {
 //есть блок СЧФ
 @defineVATInvoiceDocument('УКД', ukd, ' КСЧФ', 'Универсальный корректирующий документ');
 
+//details
+CLASS UkdDocumentValueDetail 'Строка ТекстИнф';
+TABLE ukdDocumentValueDetail(UkdDocumentValueDetail);
+
+ukdDocument = DATA UkdDocument(UkdDocumentValueDetail) NONULL DELETE INDEXED;
+defaultIndex '{document.default.index.detail.class}' (UkdDocumentValueDetail d) =
+    PARTITION SUM 1
+    ORDER d BY ukdDocument(d) CHARWIDTH 4;
+    
+
+value 'Значение' = DATA STRING (UkdDocumentValueDetail);
+valueStatus = DATA ValueStatus(UkdDocumentValueDetail) ;
+nameValueStatus 'Идентификатор' (UkdDocumentValueDetail d) = emptyName(valueStatus(d));
+
+CONSTRAINT (SET(UkdDocumentValueDetail d IS UkdDocumentValueDetail) OR CHANGED(value(d)) OR CHANGED(valueStatus(d))) AND d IS UkdDocumentValueDetail AND NOT (value(d) AND valueStatus(d))
+    MESSAGE 'Для строки ТекстИнф должнен быть задан "Идентификатор" и "Значение"';
+
+EXTEND FORM ukdDocument
+    OBJECTS v = UkdDocumentValueDetail
+    PROPERTIES (v) value, nameValueStatus
+    PROPERTIES (v) NEW, DELETE
+                
+    FILTERS ukdDocument(v) == u
+;
+DESIGN ukdDocument {
+    titlesContainer {
+        MOVE BOX (v);
+    }
+}
+EXTEND FORM ukdDocuments
+    OBJECTS v = UkdDocumentValueDetail
+    PROPERTIES (v) READONLY value, nameValueStatus                
+    FILTERS ukdDocument(v) == u
+;
+DESIGN ukdDocuments{
+    documentDetail{
+         MOVE BOX (v);
+    }
+}
+
 NAVIGATOR {
     customsNavigator {
         upd {
@@ -329,6 +369,11 @@ FORM UKDPR FORMEXTID '=:Файл'
     
     PROPERTIES = (OVERRIDE codeBusinessEvent(d),'') EXTID 'Идентиф' ATTR IN UKDExportA9_1,
                = (OVERRIDE descriptionBusinessEvent(d),'') EXTID 'Значен' ATTR IN UKDExportA9_1    
+               
+    OBJECTS v = UkdDocumentValueDetail EXTID 'ТекстИнф' IN UKDExportA9
+    PROPERTIES = (OVERRIDE nameValueStatus(v),'') EXTID 'Идентиф' ATTR,
+               = (OVERRIDE value(v),'') EXTID 'Значен' ATTR 
+    FILTERS ukdDocument(v)==d                
     
     //--           
     OBJECTS detail = UkdDocumentDetail EXTID 'СведТов' IN UKDExportB
