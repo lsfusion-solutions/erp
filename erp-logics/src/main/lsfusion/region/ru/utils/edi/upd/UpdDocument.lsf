@@ -24,50 +24,50 @@ EXTEND CLASS UpdDocumentPaperStatus {
 @defineVATInvoiceDocument('УПД', upd, 'СЧФ', 'Универсальный передаточный документ');
 
 //details
-CLASS UpdDocumentValueDetail 'Строка ТекстИнф';
-TABLE updDocumentValueDetail(UpdDocumentValueDetail);
+CLASS UpdDocumentInfoDetail 'Строка ТекстИнф';
+TABLE updDocumentInfoDetail(UpdDocumentInfoDetail);
 
-updDocument = DATA UpdDocument(UpdDocumentValueDetail) NONULL DELETE INDEXED;
-defaultIndex '{document.default.index.detail.class}' (UpdDocumentValueDetail d) =
+updDocument = DATA UpdDocument(UpdDocumentInfoDetail) NONULL DELETE INDEXED;
+defaultIndex '{document.default.index.detail.class}' (UpdDocumentInfoDetail d) =
     PARTITION SUM 1
     ORDER d BY updDocument(d) CHARWIDTH 4;
     
-CLASS ValueStatus 'Идентификатор' {
+CLASS InfoType 'Идентификатор' {
     numberOrder 'номер_заказа',
     dateOrder 'дата_заказа',
     numberContract 'номер_договора',
     dateContract 'дата_договора' 
 }
 
-name 'Наименование' = DATA STRING(ValueStatus) IN id CHARWIDTH 20;
-valueStatusName = GROUP NAGGR ValueStatus v BY name(v);
-emptyName 'Наименование' (ValueStatus b) = OVERRIDE name(b), staticCaption(b);
+name 'Наименование' = DATA STRING(InfoType) IN id CHARWIDTH 20;
+infoStatusName = GROUP NAGGR InfoType v BY name(v);
+emptyName 'Наименование' (InfoType b) = OVERRIDE name(b), staticCaption(b);
 
-FORM valueStatus 'Идентификатор'
-    OBJECTS t=ValueStatus PANEL
+FORM infoStatus 'Идентификатор'
+    OBJECTS t=InfoType PANEL
     PROPERTIES(t) name, emptyName READONLY
-    EDIT ValueStatus OBJECT t
+    EDIT InfoType OBJECT t
 ;
 
-FORM valueStatuses 'Идентификаторы'
-    OBJECTS t=ValueStatus
+FORM infoStatuses 'Идентификаторы'
+    OBJECTS t=InfoType
     PROPERTIES(t) READONLY name, emptyName
     PROPERTIES(t) NEWSESSION NEW, EDIT, deleteb=DELETE
     ORDERS name(t)
-    LIST ValueStatus OBJECT t
+    LIST InfoType OBJECT t
 ;
-DESIGN valueStatuses { BOX { size = (600, 400); } }
+DESIGN infoStatuses { BOX { size = (600, 400); } }
 
-value 'Значение' = DATA STRING (UpdDocumentValueDetail);
-valueStatus = DATA ValueStatus(UpdDocumentValueDetail) ;
-nameValueStatus 'Идентификатор' (UpdDocumentValueDetail d) = emptyName(valueStatus(d));
+info 'Значение' = DATA STRING (UpdDocumentInfoDetail);
+infoType = DATA InfoType(UpdDocumentInfoDetail) ;
+nameInfoStatus 'Идентификатор' (UpdDocumentInfoDetail d) = emptyName(infoType(d));
 
-CONSTRAINT (SET(UpdDocumentValueDetail d IS UpdDocumentValueDetail) OR CHANGED(value(d)) OR CHANGED(valueStatus(d))) AND d IS UpdDocumentValueDetail AND NOT (value(d) AND valueStatus(d))
+CONSTRAINT (SET(UpdDocumentInfoDetail d IS UpdDocumentInfoDetail) OR CHANGED(info(d)) OR CHANGED(infoType(d))) AND d IS UpdDocumentInfoDetail AND NOT (info(d) AND infoType(d))
     MESSAGE 'Для строки ТекстИнф должнен быть задан "Идентификатор" и "Значение"';
 
 EXTEND FORM updDocument
-    OBJECTS v = UpdDocumentValueDetail
-    PROPERTIES (v) value, nameValueStatus
+    OBJECTS v = UpdDocumentInfoDetail
+    PROPERTIES (v) info, nameInfoStatus
     PROPERTIES (v) NEW, DELETE
                 
     FILTERS updDocument(v) == u
@@ -78,8 +78,8 @@ DESIGN updDocument {
     }
 }
 EXTEND FORM updDocuments
-    OBJECTS v = UpdDocumentValueDetail
-    PROPERTIES (v) READONLY value, nameValueStatus                
+    OBJECTS v = UpdDocumentInfoDetail
+    PROPERTIES (v) READONLY info, nameInfoStatus                
     FILTERS updDocument(v) == u
 ;
 DESIGN updDocuments{
@@ -568,9 +568,9 @@ FORM UPDPR FORMEXTID '=:Файл'
     PROPERTIES = (OVERRIDE codeBusinessEvent(d),'') EXTID 'Идентиф' ATTR IN UPDExportA9_1,
                = (OVERRIDE descriptionBusinessEvent(d),'') EXTID 'Значен' ATTR IN UPDExportA9_1    
         
-    OBJECTS v = UpdDocumentValueDetail EXTID 'ТекстИнф' IN UPDExportA9
-    PROPERTIES = (OVERRIDE nameValueStatus(v),'') EXTID 'Идентиф' ATTR,
-               = (OVERRIDE value(v),'') EXTID 'Значен' ATTR 
+    OBJECTS v = UpdDocumentInfoDetail EXTID 'ТекстИнф' IN UPDExportA9
+    PROPERTIES = (OVERRIDE nameInfoStatus(v),'') EXTID 'Идентиф' ATTR,
+               = (OVERRIDE info(v),'') EXTID 'Значен' ATTR 
     FILTERS updDocument(v)==d 
     //--           
     OBJECTS detail = UpdDocumentDetail EXTID 'СведТов' IN UPDExportB
