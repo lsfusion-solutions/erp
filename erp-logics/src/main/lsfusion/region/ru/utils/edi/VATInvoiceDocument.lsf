@@ -200,6 +200,48 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     dateTimeTransfer 'Дата/время отправки' (###docType##Document upd) = OVERRIDE overDateTimeTransfer(upd), dataDateTimeTransfer(upd);
     isTransferred 'Отправлен' (###docType##Document u) = u IS ###docType##Document AND dateTimeTransfer(u);
     
+    CLASS ###docType##DocumentInfoDetail 'Строка ТекстИнф';
+    TABLE ##docType##DocumentInfoDetail(###docType##DocumentInfoDetail);
+    
+    ##docType##Document = DATA ###docType##Document(###docType##DocumentInfoDetail) NONULL DELETE INDEXED;
+    defaultIndex '{document.default.index.detail.class}' (###docType##DocumentInfoDetail d) =
+        PARTITION SUM 1
+        ORDER d BY ##docType##Document(d) CHARWIDTH 4;
+        
+    CLASS InfoType 'Идентификатор' {
+        numberOrder 'номер_заказа',
+        dateOrder 'дата_заказа',
+        numberContract 'номер_договора',
+        dateContract 'дата_договора' 
+    }
+    
+    name 'Наименование' = DATA STRING(InfoType) IN id CHARWIDTH 20;
+    infoStatusName = GROUP NAGGR InfoType v BY name(v);
+    emptyName 'Наименование' (InfoType b) = OVERRIDE name(b), staticCaption(b);
+    
+    FORM infoStatus 'Идентификатор'
+        OBJECTS t=InfoType PANEL
+        PROPERTIES(t) name, emptyName READONLY
+        EDIT InfoType OBJECT t
+    ;
+    
+    FORM infoStatuses 'Идентификаторы'
+        OBJECTS t=InfoType
+        PROPERTIES(t) READONLY name, emptyName
+        PROPERTIES(t) NEWSESSION NEW, EDIT, deleteb=DELETE
+        ORDERS name(t)
+        LIST InfoType OBJECT t
+    ;
+    DESIGN infoStatuses { BOX { size = (600, 400); } }
+    
+    info 'Значение' = DATA STRING (###docType##DocumentInfoDetail);
+    infoType = DATA InfoType(###docType##DocumentInfoDetail) ;
+    nameInfoStatus 'Идентификатор' (###docType##DocumentInfoDetail d) = emptyName(infoType(d));
+    
+    CONSTRAINT (SET(###docType##DocumentInfoDetail d IS ###docType##DocumentInfoDetail) OR CHANGED(info(d)) OR CHANGED(infoType(d))) 
+        AND d IS ###docType##DocumentInfoDetail AND NOT (info(d) AND infoType(d))
+        MESSAGE 'Для строки ТекстИнф должнен быть задан "Идентификатор" и "Значение"';
+    
     uuid 'UUID' = DATA ISTRING[36] (###docType##Document);    
     generateIdFile (###docType##Document d) {
         IF NOT uuid(d) THEN NEWSESSION {
@@ -243,6 +285,12 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
         PROPERTIES (d) NEW, DELETE
             
         FILTERS ##docType##Document(d) == u
+        
+        OBJECTS v = ###docType##DocumentInfoDetail
+        PROPERTIES (v) info, nameInfoStatus
+        PROPERTIES (v) NEW, DELETE
+                    
+        FILTERS ##docType##Document(v) == u
         
         EDIT ###docType##Document OBJECT u           
     ;
@@ -348,7 +396,11 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
                                         type = CONTAINERV;
                                         MOVE PROPERTY(dateSupplier(u));
                                         MOVE PROPERTY(timeSupplier(u));
-                                    }                                                       
+                                    }
+                                    NEW textInfo {
+                                        caption = 'Текстовая информация';
+                                        MOVE BOX (v);
+                                    }                                                      
                                 }
                                 
                                 NEW signerInfo {
