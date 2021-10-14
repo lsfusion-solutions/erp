@@ -241,9 +241,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         File flagFile = new File(directory + "/pos" + currentTime + ".flz");
                         if (!flagFile.createNewFile())
                             processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s (Transaction %s)", flagFile.getAbsolutePath(), transaction.id));
-                        processTransactionLogger.info(String.format(logPrefix + "created pos file (Transaction %s)", transaction.id));
 
+                        processTransactionLogger.info(String.format(logPrefix + "created pos file %s (Transaction %s)", file.getAbsolutePath(), transaction.id));
                         waitForDeletion(file, flagFile, timeout);
+                        processTransactionLogger.info(String.format(logPrefix + "processed pos file %s (Transaction %s)", file.getAbsolutePath(), transaction.id));
+
                         result.put(transaction.id, new SendTransactionBatch(null));
                     }
                 } catch (Exception e) {
