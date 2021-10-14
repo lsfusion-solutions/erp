@@ -98,7 +98,11 @@ exportedImage 'Экспортируемое изображение' = ABSTRACT I
 hasExportedImage = ABSTRACT BOOLEAN (Sku);
 
 needFilterExport = ABSTRACT BOOLEAN (Sku);
-filterExport = ABSTRACT BOOLEAN (CustomGroupType, Sku);
+filterExport = ABSTRACT BOOLEAN (DepartmentStore, Sku);
+
+export (CustomGroup g) = TRUE IF GROUP SUM 1 IF export(Sku s) AND customGroup(customGroupType(g), s);
+exportedImage 'Экспортируемое изображение' = ABSTRACT IMAGEFILE (CustomGroup);
+hasExportedImage = ABSTRACT BOOLEAN (CustomGroup);
 
 exportCSICustom 'Выгрузить CSI K' (DepartmentStore ds) {
     IF customGroupTypeCSI(ds) THEN {
@@ -118,7 +122,7 @@ exportCSICustom 'Выгрузить CSI K' (DepartmentStore ds) {
                     propertyGroup (CustomGroup cg) <- 4 WHERE group1(cg) == cg AND groupType(cg) == customGroupTypeCSI(ds);
                         
                     export(Sku s) <- (currentBalance(s,ds) OR zeroBalance(customGroupTypeCSI(ds),s)) AND customGroup(customGroupTypeCSI(ds),s) AND active(s) AND 
-                                     (NOT needFilterExport(s) OR filterExport(customGroupTypeCSI(ds), s));     
+                                     (NOT needFilterExport(s) OR filterExport(ds, s)); 
                           
                     EXPORT moduleConfig OBJECTS type = customGroupTypeCSI(ds) XML;
                     
@@ -127,7 +131,13 @@ exportCSICustom 'Выгрузить CSI K' (DepartmentStore ds) {
                     FOR export(Sku s) AND hasExportedImage(s) DO TRY {
                         resizeImage(exportedImage(s),200,144);              
                         convertImage(resizedImage(), 'png');
-                        WRITE convertedImage() TO 'file://' +dataExchangeCSIAddress(ds) + '/images/' + id(s) + '.png';             
+                        WRITE convertedImage() TO 'file://' +dataExchangeCSIAddress(ds) + '/images/' + id(s);             
+                    }
+                    
+                    FOR export(CustomGroup g) AND hasExportedImage(g) DO TRY {
+                        resizeImage(exportedImage(g),200,144);              
+                        convertImage(resizedImage(), 'png');
+                        WRITE convertedImage() TO 'file://' +dataExchangeCSIAddress(ds) + '/images/' + name(g);             
                     }
   
                 } FINALLY {
