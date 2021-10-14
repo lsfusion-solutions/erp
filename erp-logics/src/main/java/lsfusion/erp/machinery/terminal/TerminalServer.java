@@ -365,7 +365,7 @@ public class TerminalServer extends MonitorServer {
                             if (params.length >= 3) {
                                 logger.info("logging user " + params[0]);
                                 if (terminalHandler.isActiveTerminal(createSession(), getStack(), params[2])) {
-                                    Object loginResult = terminalHandler.login(createSession(), getStack(), params[0], params[1], params[2]);
+                                    Object loginResult = terminalHandler.login(createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2]);
                                     if (loginResult instanceof DataObject) {
                                         result = getSessionId((DataObject) loginResult, params[0], params[1], params[2]);
                                         if (params.length > 3) {

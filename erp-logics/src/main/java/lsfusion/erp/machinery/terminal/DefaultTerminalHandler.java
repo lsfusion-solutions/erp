@@ -1022,7 +1022,7 @@ public class DefaultTerminalHandler {
         }
     }
 
-    public Object login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal) {
+    public Object login(DataSession session, ExecutionStack stack, String ip, String login, String password, String idTerminal) {
         try {
 
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
@@ -1035,8 +1035,7 @@ public class DefaultTerminalHandler {
                     else {
                         ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
                         if (terminalObject instanceof DataObject) {
-                            terminalHandlerLM.findProperty("lastConnectionTime[Terminal]").change(LocalDateTime.now(), session, (DataObject) terminalObject);
-                            terminalHandlerLM.findProperty("lastUser[Terminal]").change(customUser, session, (DataObject) terminalObject);
+                            terminalHandlerLM.findAction("processTerminalConnection[Terminal,CustomUser,STRING[50]]").execute(session, stack, terminalObject, customUser, new DataObject(ip));
                             String applyMessage = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
                             if (applyMessage != null)
                                 ServerLoggers.systemLogger.error(String.format("Terminal Login error: %s, login %s, terminal %s", applyMessage, login, idTerminal));
