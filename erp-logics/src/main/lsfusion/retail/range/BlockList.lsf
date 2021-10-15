@@ -291,26 +291,26 @@ DESIGN blockList {
 
 @addEventGenerateNumberOnForm(blockList, b, blockList);
 
-isActive(BlockList b) = (fromDateTime(b) <= currentDateTime() AND toDateTime(b) >= currentDateTime()) OR
-                                                 (fromDateTime(b) <= currentDateTime() AND NOT toDateTime(b));
+isActive(BlockList b) = fromDateTime(b) <= currentDateTime() AND (toDateTime(b) >= currentDateTime() OR NOT toDateTime(b));
+
+background 'Цвет' (BlockList blockList) = CASE WHEN fromDateTime(blockList) > currentDateTime() OR NOT isPosted(blockList) THEN RGB(224,255,224)
+                                                        WHEN toDateTime(blockList) < currentDateTime() THEN RGB(255,224,224);      
 
 FORM blockLists 'Временная блокировка товара'
 
-    OBJECTS b=BlockList
-    PROPERTIES (b) READONLYIF isReadonly() isPosted, number, series, date, time, nameSupplier
-    PROPERTIES(b)  READONLY fromDate, fromTime, toDate, toTime, countBlockListDetail
-    PROPERTIES (b) READONLYIF isReadonly() note
-    PROPERTIES (b) READONLY stocks
-    PROPERTIES  READONLY createdNameUser '{historizable.created.name.user}' = createdNameUser(b), 
+    OBJECTS b = BlockList
+    PROPERTIES (b) READONLYIF isReadonly() BACKGROUND background(b) isPosted, number, series, date, time, nameSupplier
+    PROPERTIES (b) READONLY BACKGROUND background(b) fromDate, fromTime, toDate, toTime, countBlockListDetail
+    PROPERTIES (b) READONLYIF isReadonly() BACKGROUND background(b) note
+    PROPERTIES (b) READONLY BACKGROUND background(b) stocks
+    PROPERTIES READONLY BACKGROUND background(b) createdNameUser '{historizable.created.name.user}' = createdNameUser(b), 
                          createdTime '{historizable.created.time}' = createdTime(b),
                          createdHostnameComputer '{historizable.created.host.name.computer}' = createdHostnameComputer(b)
 
     PROPERTIES(b)  READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                           postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (b) NEWSESSION NEW, EDIT
-    
-    PROPERTIES (b) NEWSESSION deleted=DELETE
+    PROPERTIES (b) NEWSESSION NEW, EDIT, deleted=DELETE
 
     FILTERGROUP inactivePriceList
         FILTER 'Текущие' isActive(b)             
@@ -405,7 +405,7 @@ EXTEND FORM blockList
     PROPERTIES (b)  nameReason   
 ;
 EXTEND FORM blockLists
-    PROPERTIES (b) READONLYIF isReadonly()  nameReason BEFORE createdNameUser
+    PROPERTIES (b) READONLYIF isReadonly() BACKGROUND background(b) nameReason BEFORE createdNameUser
 ;
 
 show 'Просмотреть' (BlockList i)   { 
