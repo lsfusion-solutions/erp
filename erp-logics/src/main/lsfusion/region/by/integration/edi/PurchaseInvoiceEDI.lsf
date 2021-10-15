@@ -31,13 +31,15 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a)  
             
             fillIndexSku(eOrder(a));
             
+            include(Order order, i) <- TRUE WHERE order == eOrder(a);
+            
             FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND quantityDespatch(ad) > 0.0 AND NOT skipCreateUserInvoice(orderDetail(ad))
                 ORDER ad 
                 NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- i;
                     EOrderDespatchAdviceDetail(d) <- ad;
                     
-                    orderDetail(d) <- orderDetail(ad); //если в ответе несколько строк к одной строке заказа то подставится событием, потому что indexSku не равны
+                    orderDetail(d) <- OVERRIDE orderDetail(ad), defaultOrderDetail(d); //если в ответе несколько строк к одной строке заказа то подставляем, потому что indexSku не равны
                     sku(d) <- sku(ad);
                     quantity(d) <- quantityDespatch(ad);
                     VAT(d) <- VAT(orderDetail(ad));
@@ -46,8 +48,6 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a)  
                     price(d) <- MIN lineItemPrice(ad), price(orderDetail(ad));
                     overFill(d, orderDetail(ad));
             }
-            
-            include(Order order, i) <- TRUE WHERE order == eOrder(a);
             
             executeLocalEvents('Purchase.userInvoice');
             
