@@ -13,15 +13,15 @@ NAMESPACE BlockList;
 
 //----------------------------------- Временная блокировка товара -------------------------------------------------------
 
-CLASS BlockList 'Временная блокировка товара';
-CLASS BlockListDetail 'Строка временной блокировки товара';
+CLASS BlockList 'Временная блокировка товара' : Document;
+CLASS BlockListDetail 'Строка временной блокировки товара' : DocumentDetail;
 
 @defineDocument(blockList);
 @defineCreatedAbstract(BlockListDetail);
 
 @deriveDocumentHeaderTimePrefix(BlockList, );
 
-@defineDocumentTimePrefix (blockList, from, ' с');
+@defineDocumentDataTimePrefix (blockList, from, ' с');
 
 @defineOption(addMinutesCreate, 'Кол-во минут, прибавляемое к началу периода действия документа блокировки при создании', INTEGER, range);
 
@@ -35,7 +35,7 @@ WHEN LOCAL CHANGED(fromDate(BlockList o)) AND NOT CHANGED(fromTime(o)) DO {
     fromTime(o) <- IF fromDate(o) > currentDate() THEN 00:00 ELSE sumMinutes(currentTime(), overAddMinutesCreate());
 } 
 
-@defineDocumentTimePrefix (blockList, to, ' по');
+@defineDocumentDataTimePrefix (blockList, to, ' по');
 
 WHEN LOCAL SETCHANGED(toDate(BlockList o)) AND NOT toTime(o) DO {
     toTime(o) <- 23:59;
@@ -89,7 +89,6 @@ stocks 'Склады' (BlockList b) = GROUP
 stocks 'Склады' (BlockListDetail d) = stocks(blockList(d)) CHARWIDTH 20;                                       
 
 @defineDocumentPosted(blockList);
-@defineDocumentClosed(blockList);
 @defineDocumentDescription (blockList, 'Временная блокировка товара');
 
 @defineDocumentDetailSkuPrefix (blockList, sku, , '');
@@ -180,7 +179,7 @@ FORM blockList 'Временная блокировка товара'
 
     OBJECTS d = BlockListDetail
     PROPERTIES(d)   index,
-                    idBarcodeSku, nameSku, shortNameUOMSku
+                    idBarcodeSku, nameSku, shortNameUOMSku, fromDate, fromTime, toDate, toTime
 
     PROPERTIES(d)   NEW, deletedd=DELETE GRID
 
@@ -292,11 +291,13 @@ DESIGN blockList {
 
 @addEventGenerateNumberOnForm(blockList, b, blockList);
 
+isActive(BlockList b) = (fromDateTime(b) <= currentDateTime() AND toDateTime(b) >= currentDateTime()) OR
+                                                 (fromDateTime(b) <= currentDateTime() AND NOT toDateTime(b));
 
 FORM blockLists 'Временная блокировка товара'
 
     OBJECTS b=BlockList
-    PROPERTIES (b) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, nameSupplier
+    PROPERTIES (b) READONLYIF isReadonly() isPosted, number, series, date, time, nameSupplier
     PROPERTIES(b)  READONLY fromDate, fromTime, toDate, toTime, countBlockListDetail
     PROPERTIES (b) READONLYIF isReadonly() note
     PROPERTIES (b) READONLY stocks
@@ -307,14 +308,17 @@ FORM blockLists 'Временная блокировка товара'
     PROPERTIES(b)  READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                           postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (b) NEWSESSION NEW, EDIT SHOWIF isOpened(b)
-    PROPERTIES(b)  close SHOWIF isOpened(b), open SHOWIF isClosed(b)     
+    PROPERTIES (b) NEWSESSION NEW, EDIT
     
-    PROPERTIES (b) NEWSESSION deleted=DELETE SHOWIF isOpened(b)
+    PROPERTIES (b) NEWSESSION deleted=DELETE
+
+    FILTERGROUP inactivePriceList
+        FILTER 'Текущие' isActive(b)             
+        FILTER 'Активные' isActive(b) OR (fromDateTime(b) > currentDateTime() AND NOT toDateTime(b) < currentDateTime()) 'F10' DEFAULT
 
     OBJECTS d=BlockListDetail
     PROPERTIES(d)   READONLY index,
-                    idBarcodeSku, nameSku, shortNameUOMSku
+                    idBarcodeSku, nameSku, shortNameUOMSku, fromDate, fromTime, toDate, toTime
     FILTERS         blockList(d) == b
     
     OBJECTS st = Stock GRID
@@ -359,7 +363,6 @@ DESIGN blockLists {
     }
 }
 @extendFormEditable(blockLists);
-@defineFilterIsOpened (blockList, blockLists, b);
 
 NAVIGATOR {
     retailRangeNavigator {
@@ -415,3 +418,16 @@ show 'Просмотреть' (BlockListDetail d)  {
 	    SHOW blockList OBJECTS b = blockList(d), d = d DOCKED READONLY ;
 	}
 }TOOLBAR;
+
+isPosted[Document](BlockList blockList) += isPosted(blockList);
+number[Document](BlockList blockList) += number(blockList);
+series[Document](BlockList blockList) += series(blockList);
+date[Document](BlockList blockList) += date(blockList);
+supplier(BlockList blockList) += supplier(blockList);
+
+index[DocumentDetail](BlockListDetail blockList) += index(blockList);
+sku[DocumentDetail](BlockListDetail blockList) += sku(blockList);
+
+document(BlockListDetail detail) += blockList(detail);
+
+@defineDocumentLogForm(blockLists, b);
