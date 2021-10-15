@@ -1,6 +1,6 @@
 MODULE FitCashRegister;
 
-REQUIRE NativeMachinery, CashRegister, Store, ZReport;
+REQUIRE NativeMachinery, CashRegister, Store, ZReport, SkuRu;
 
 NAMESPACE Fit;
 
@@ -34,18 +34,18 @@ pathGet 'Путь загрузки' (CashRegister cr) = CONCAT '', rtrim((OVERRI
 
 fitErrorMessage (CashRegister cr, STRING message) = OVERRIDE System.messageCaughtException(), CONCAT ' ', 'fit', '(' + shortDescription(cr) + ')', ': ' + message;
 
-put (CashRegister cr, TEXT t) {
+put (CashRegister cr, STRING[8] name, TEXT t) {
     returnExchange(cr) <- TRUE;
     TRY {
-        fileExists(pathPut(cr) + 'plu.adr');
+        fileExists(pathPut(cr) + name +'.adr');
         IF NOT fileExists() THEN { 
-            fileExists(pathPut(cr) + 'plu.log');
+            fileExists(pathPut(cr) + name + '.log');
             IF fileExists() THEN
-                delete(pathPut(cr) + 'plu.log');
+                delete(pathPut(cr) + name + '.log');
             stringToFile(t, 'cp866', '');
-            WRITE resultFile() TO CONCAT '', pathPut(cr), 'plu.dat';
+            WRITE resultFile() TO CONCAT '', pathPut(cr), name + '.dat';
             stringToFile('Ok\n', 'cp866', '');
-            WRITE resultFile() TO CONCAT '', pathPut(cr), 'plu.adr';
+            WRITE resultFile() TO CONCAT '', pathPut(cr), name + '.adr';
             returnExchange(cr) <- NULL;
         } ELSE {
             System.messageCaughtException() <- fitErrorMessage(cr, 'One of previous transactions failed');
@@ -58,7 +58,7 @@ put (CashRegister cr, TEXT t) {
 alpha 'Тип alpha' (STRING s, INTEGER i) = rpad(s, i, ' ');
 char 'Тип char' (STRING s, INTEGER i) = lpad(s, i, '0');
 charSpace 'Тип char (с пробелами)' (STRING s, INTEGER i) = lpad(s, i, ' ');
-numeric 'Тип numeric' (INTEGER n, INTEGER i) = lpad(STRING (n), i, '0');  
+numeric 'Тип numeric' (INTEGER n, INTEGER i) = lpad(STRING (n), i, '0');      
 
 pluString (MachineryPriceTransaction t, Barcode b) =
     charSpace(id(b), 16) +                      // 1. Код товара
@@ -121,19 +121,21 @@ pluString (MachineryPriceTransaction t, Barcode b) =
     '  ' +                                      // 54. Признак способа расчета
     charSpace(trim(id(sku(b))), 16) +           // 55. Локальный код товара
     alpha('', 32) +                             // 56. Имя графического файла с изображением товара
-    alpha('', 32)                               // 57. Имя звукового файла с изображением товара
+    alpha('', 32) +                             // 57. Имя звукового файла с изображением товара
+    alpha(STRING(measureQOC(sku(b))), 3) +      // 58. Мера количества предмета расчета
+    numeric(0, 6)                               // 59. Код уровня альтернативого классификатора
 ;
 
-pluString (MachineryPriceTransaction t) = GROUP CONCAT pluString(t, Barcode b), '\n' IF in(t, b) ORDER b;
+pluString (MachineryPriceTransaction t) = GROUP CONCAT pluString(t, Barcode b), '\r\n' IF in(t, b) ORDER b;
 
-checkPut 'Проверить передачу' (CashRegister cr) {
+checkPut 'Проверить передачу' (CashRegister cr, STRING[8] name) {
     returnExchange(cr) <- TRUE;
     LOCAL firstLine = STRING ();
     LOCAL logExist = BOOLEAN ();
     TRY {
-        fileExists(pathPut(cr) + 'plu.log');
+        fileExists(pathPut(cr) + name + '.log');
         IF fileExists() THEN { 
-            READ pathPut(cr) + 'plu.log' TO importFile;
+            READ pathPut(cr) + name + '.log' TO importFile;
             fileToString(importFile(), 'cp866');
             firstLine() <- getWord(resultString(), '\n', 1);
             returnExchange(cr) <- NOT getWord(firstLine(), ',', 1) = 'OK';
@@ -147,7 +149,7 @@ checkPut 'Проверить передачу' (CashRegister cr) {
 sendToFit (MachineryPriceTransaction t) {
     NEWSESSION {
         FOR isFit(CashRegister cr) AND NOT inactive(cr) AND NOT in(t, cr) DO {
-            put(cr, pluString(t));
+            put(cr, 'plu', pluString(t));
             IF returnExchange(cr) THEN {
                 addMachineryError(t);
             } ELSE {
@@ -159,7 +161,7 @@ sendToFit (MachineryPriceTransaction t) {
     }
     NEWSESSION {
         FOR in(t, CashRegister cr) AND NOT succeeded(cr, t) DO {
-            checkPut(cr);
+            checkPut(cr, 'plu');
             succeeded(cr, t) <- NOT returnExchange(cr);
             dateTimeSucceeded(cr, t) <- currentDateTime() IF NOT returnExchange(cr);
             IF returnExchange(cr) THEN
@@ -263,7 +265,6 @@ receiveFromFit (CashRegister cr) {
 
 receiveGroupMachinery(GroupMachinery g) + {
     IF isFit(g) THEN {
-//        checkPut(g);
         FOR groupCashRegister(CashRegister cr) = g AND NOT inactive(cr) AND NOT disableSales(cr) DO {
             receiveFromFit(cr);
         } 

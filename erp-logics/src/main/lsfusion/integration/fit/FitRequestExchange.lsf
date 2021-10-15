@@ -1,0 +1,55 @@
+MODULE FitRequestExchange;
+
+REQUIRE MachineryPriceTransaction, FitCashRegister;
+
+NAMESPACE Fit;
+
+succeeded 'Выгружен' = DATA BOOLEAN (Machinery, RequestExchange);
+notSucceeded 'Не выгружен' (Machinery machinery, RequestExchange requestExchange) = requestExchange IS RequestExchange AND machinery IS Machinery AND NOT succeeded(requestExchange);
+dateTimeSucceeded 'Время выгрузки' = DATA DATETIME (Machinery, RequestExchange);
+
+countMachinery (RequestExchange re) = GROUP SUM 1 IF Machinery m IS Machinery AND in(m, re) AND active(m) AND isFit(m);
+countSucceded (RequestExchange re) = GROUP SUM 1 IF succeeded(Machinery m, re) AND in(m, re) AND active(m) AND isFit(m);   
+
+WHEN SET(countMachinery(RequestExchange re) = countSucceded(re) AND requestExchangeType(re) = RequestExchangeType.cashierInfo) DO succeeded(re) <- TRUE;
+
+EXTEND FORM requestExchange
+    PROPERTIES (m,r) SHOWIF isFit(m) AND ignoreCashRegisterServerCashRegisterModel(groupMachinery(m)) succeeded, dateTimeSucceeded 
+;
+
+cashierString (Employee e) = 
+    numeric(INTEGER(right(id(e), 4)), 4) +  // 1. Код кассира
+    alpha('', 4) +                          // 2. Заполнитель
+    charSpace(shortName(e), 20) +           // 3. ФИО
+    alpha('', 20) +                         // 4. Заполнитель
+    char(right(id(e), 4), 4) +              // 5. Личный пароль кассира 
+    '0' +                                   // 6. Флаг блокировки
+    alpha('', 45)                           // 7. Заполнитель
+;
+
+cashierString (RequestExchange re) = GROUP CONCAT cashierString(Employee e), '/r/n' IF in(stock(re), e) ORDER active(e), e;
+
+sendToFit (CashRegister cr, RequestExchange re) {
+    IF cashierString(re) THEN {
+        NEWSESSION {
+            put(cr, 'cassir', cashierString(re));
+            IF returnExchange(cr) THEN {
+                addMachineryError(cr);
+            } ELSE {
+                succeeded(cr, re) <- TRUE;
+                dateTimeSucceeded(cr, re) <- currentDateTime();
+            }
+            APPLY;
+        }
+    }
+}
+
+sendRequestExchange (CashRegister cr, RequestExchange re) + WHEN requestExchangeType(re) = RequestExchangeType.cashierInfo AND cr IS CashRegister THEN {
+    IF isFit(cr) AND active(cr) AND NOT succeeded(cr, re) THEN {
+        sendToFit(cr, re);        
+    }
+}
+
+EXTEND FORM requestExchange
+    PROPERTIES sendRequestExchange(m, r)
+;

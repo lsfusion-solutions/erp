@@ -4,6 +4,10 @@ REQUIRE MachineryPriceTransaction;
 
 NAMESPACE Machinery;
 
+isNative (GroupMachinery g) = left(handlerModel(g), 4) = 'lsf.';
+isNative (MachineryPriceTransaction t) = isNative(groupMachinery(t));
+isNative (Machinery m) = isNative(groupMachinery(m));
+
 sendDeltaRests ABSTRACT LIST (MachineryPriceTransaction);
 
 sendMachineryPriceTransaction ABSTRACT LIST (MachineryPriceTransaction);
@@ -11,12 +15,12 @@ sendMachineryPriceTransaction ABSTRACT LIST (MachineryPriceTransaction);
 receiveGroupMachinery ABSTRACT LIST (GroupMachinery);
 
 sendMachineryPriceTransactions 'Загрузка прайса в оборудование (native)' () {
-    FOR process(MachineryPriceTransaction t) AND left(handlerModel(groupMachinery(t)), 4) = 'lsf.' DO
+    FOR process(MachineryPriceTransaction t) AND isNative(t) DO
         sendMachineryPriceTransaction(t);
 }
 
 receiveGroupsMachinery 'Получение данных из оборудования (native)' () {
-    FOR GroupMachinery g IS GroupMachinery AND left(handlerModel(g), 4) = 'lsf.' AND active(g) DO
+    FOR GroupMachinery g IS GroupMachinery AND isNative(g) AND active(g) DO
         receiveGroupMachinery(g);
 }
 
@@ -35,6 +39,23 @@ addMachineryError (MachineryPriceTransaction t, STRING data, TEXT errorTrace) + 
         machineryPriceTransaction(e) <- t;
         data(e) <- data;
         errorTrace(e) <- errorTrace;
+        date(e) <- currentDateTime();
+    }
+}
+
+sendRequestExchange 'Передать запрос' ABSTRACT CASE (Machinery, RequestExchange); 
+
+sendRequestExchange 'Запрос обмена данными (native)' () {
+    FOR isNative(Machinery m) AND in(m, RequestExchange re) AND NOT succeeded(re) DO {
+        sendRequestExchange(m, re);
+    }
+}
+
+addMachineryError (RequestExchange t, STRING data, TEXT errorTrace) + {
+    NEW e = RequestExchangeError {
+        requestExchange(e) <- t;
+        note[RequestExchange](e) <- STRING[100](data);
+        erTrace(e) <- errorTrace;
         date(e) <- currentDateTime();
     }
 }
