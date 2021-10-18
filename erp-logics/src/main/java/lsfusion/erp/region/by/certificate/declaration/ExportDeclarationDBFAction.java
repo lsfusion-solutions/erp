@@ -32,6 +32,7 @@ import org.xBaseJ.xBaseJException;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
@@ -685,9 +686,9 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
     private BigDecimal roundWeight(BigDecimal weight, boolean g315) {
         if(g315)
-            //return weight.setScale(weight.compareTo(new BigDecimal(0.1)) > 0 ? 2 : 4, BigDecimal.ROUND_HALF_UP);
-            return weight.setScale(2, BigDecimal.ROUND_HALF_UP);
+            //return weight.setScale(weight.compareTo(new BigDecimal(0.1)) > 0 ? 2 : 4, RoundingMode.HALF_UP);
+            return weight.setScale(2, RoundingMode.HALF_UP);
         else
-            return weight.setScale(3, BigDecimal.ROUND_HALF_UP);
+            return weight.setScale(3, RoundingMode.HALF_UP);
     }
 }

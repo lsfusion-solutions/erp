@@ -26,7 +26,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.TreeMap;
 
 public class FiscalSentoPrintReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;

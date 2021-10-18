@@ -100,7 +100,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                             sumCash = sumCash == null ? sumPayment : sumCash.add(sumPayment);
                         } else if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                             sumCard = sumCard == null ? sumPayment : sumCard.add(sumPayment);
-                        } else if (paymentMeansPrepaymentObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
+                        } else if (paymentMeansPrepaymentObject != null && paymentMeansPrepaymentObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                             sumPrepayment = sumPrepayment == null ? sumPayment : sumPrepayment.add(sumPayment);
                         } else if (giftCardLM != null) {
                             sumGiftCard = sumGiftCard == null ? sumPayment : sumGiftCard.add(sumPayment);

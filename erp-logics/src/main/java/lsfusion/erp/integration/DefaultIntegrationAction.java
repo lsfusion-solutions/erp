@@ -122,14 +122,6 @@ public class DefaultIntegrationAction extends InternalAction {
         else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 
-    protected BigDecimal safeSubtract(int operand1, BigDecimal operand2) {
-        return safeSubtract(BigDecimal.valueOf(operand1), operand2);
-    }
-    
-    protected BigDecimal safeSubtract(BigDecimal operand1, int operand2) {
-        return safeSubtract(operand1, BigDecimal.valueOf(operand2));
-    }
-
     protected BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
         if (operand1 == null && operand2 == null)
             return null;

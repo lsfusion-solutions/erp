@@ -28,6 +28,6 @@ public class StringToGzip extends InternalAction {
             gzipOS.write(inputValue.getBytes());
             gzipOS.close();
             this.findProperty("resultFile").change(new FileData(new RawFileData(fos.toByteArray()), ""), context);
-        } catch (IOException | ScriptingErrorLog.SemanticErrorException e) { }
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException ignored) { }
     }
 }

@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.awt.*;
 import java.io.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.*;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
@@ -120,7 +121,7 @@ public class DefaultTerminalHandler {
     private String bigDecimalToString(BigDecimal bd, int fractDigits) {
         String value = null;
         if(bd != null) {
-            bd = bd.setScale(fractDigits, BigDecimal.ROUND_HALF_UP);
+            bd = bd.setScale(fractDigits, RoundingMode.HALF_UP);
             DecimalFormat df = new DecimalFormat();
             df.setMaximumFractionDigits(fractDigits);
             df.setMinimumFractionDigits(0);

@@ -20,7 +20,6 @@ import java.util.UUID;
 import static equ.clt.EquipmentServer.sqlDateToLocalDate;
 import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.getJSONObject;
-import static java.math.BigDecimal.ROUND_DOWN;
 
 public class DreamkasServer {
 
@@ -475,7 +474,7 @@ public class DreamkasServer {
         if (vat == null) {
             return "NDS_0";
         } else {
-            return ("NDS_" + vat.setScale(2, ROUND_DOWN)).replace(".", "_");
+            return ("NDS_" + vat.setScale(2, RoundingMode.DOWN)).replace(".", "_");
         }
     }
 

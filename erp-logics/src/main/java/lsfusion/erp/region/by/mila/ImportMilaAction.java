@@ -24,7 +24,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.Iterator;
 
 public class ImportMilaAction extends InternalAction {
 
@@ -97,7 +96,7 @@ public class ImportMilaAction extends InternalAction {
             }
             case 2: {
                 Double nResult = (double) (new Timestamp(System.currentTimeMillis()).getTime() - nTimeStamp) / 1000;
-                cText += ", " + nResult.toString();
+                cText += ", " + nResult;
                 break;
             }
         }

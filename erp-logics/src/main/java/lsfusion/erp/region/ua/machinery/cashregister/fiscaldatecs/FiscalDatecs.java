@@ -4,9 +4,6 @@ import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
 
 public class FiscalDatecs {
 
@@ -22,7 +19,7 @@ public class FiscalDatecs {
 
         try {
             Thread.sleep(100);
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
     }
 
@@ -118,9 +115,9 @@ public class FiscalDatecs {
     public static Double getCurrentSums(int type) throws RuntimeException {
         Dispatch.call(cashDispatch, "getCurrentSums", type);
         checkErrors(true);
-        return (Double.valueOf(cashRegister.getProperty("s1").getString()) + Double.valueOf(cashRegister.getProperty("s2").getString()) +
-                Double.valueOf(cashRegister.getProperty("s3").getString()) + Double.valueOf(cashRegister.getProperty("s4").getString()) +
-                Double.valueOf(cashRegister.getProperty("s5").getString())) / 100;
+        return (Double.parseDouble(cashRegister.getProperty("s1").getString()) + Double.parseDouble(cashRegister.getProperty("s2").getString()) +
+                Double.parseDouble(cashRegister.getProperty("s3").getString()) + Double.parseDouble(cashRegister.getProperty("s4").getString()) +
+                Double.parseDouble(cashRegister.getProperty("s5").getString())) / 100;
     }
 
     public static void setOperatorName(UpdateDataOperator operator) throws RuntimeException {
@@ -153,7 +150,7 @@ public class FiscalDatecs {
         if (sum != null && sum < 0) {
             Dispatch.call(cashDispatch, "InOut", -1000000000);
             String s1 = cashRegister.getProperty("s1").getString();
-            Double inCash = Double.valueOf(s1.substring(1, s1.length())) / 100;
+            Double inCash = Double.parseDouble(s1.substring(1)) / 100;
             if ((-sum) > inCash) {
                 closePort();
                 return false;

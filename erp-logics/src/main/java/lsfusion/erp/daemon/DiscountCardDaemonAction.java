@@ -1,12 +1,9 @@
 package lsfusion.erp.daemon;
 
-import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingLogicsModule;
-
-import java.sql.SQLException;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 public class DiscountCardDaemonAction extends InternalAction {
 

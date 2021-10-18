@@ -24,6 +24,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -295,7 +296,7 @@ public class ExportDeclarationAction extends DefaultExportAction {
             if (!isNumeric)
                 row += cell.toString().trim();
             else {
-                String bigDecimal = new BigDecimal(cell.toString()).setScale(precision, BigDecimal.ROUND_HALF_DOWN).toString().replace('.', ',');
+                String bigDecimal = new BigDecimal(cell.toString()).setScale(precision, RoundingMode.HALF_DOWN).toString().replace('.', ',');
                 while (bigDecimal.endsWith("0") && bigDecimal.length() > 1)
                     bigDecimal = bigDecimal.substring(0, bigDecimal.length() - 1);
                 row += bigDecimal;

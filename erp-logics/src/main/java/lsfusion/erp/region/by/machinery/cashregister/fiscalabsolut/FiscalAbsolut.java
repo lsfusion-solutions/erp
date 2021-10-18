@@ -9,6 +9,7 @@ import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
@@ -417,7 +418,7 @@ public class FiscalAbsolut {
     public static String toStr(BigDecimal value) {
         String result = null;
         if (value != null) {
-            value = value.setScale(2, BigDecimal.ROUND_HALF_UP);
+            value = value.setScale(2, RoundingMode.HALF_UP);
             DecimalFormat df = new DecimalFormat();
             df.setMaximumFractionDigits(2);
             df.setMinimumFractionDigits(2);
