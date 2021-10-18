@@ -5,13 +5,14 @@ REQUIRE StockContract, Invoice;
 META defineInvoicePaymentCondition (sign)
 
     paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (Invoice) MATERIALIZED;
+    overPaymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (Invoice);
     paymentCondition 'Условия оплаты' = DATA PaymentCondition (UserInvoice);
     paymentCondition(UserInvoice prop) += paymentCondition(prop);
     paymentCondition[Invoice.Invoice](Invoice prop) += paymentCondition(prop);
     descriptionPaymentCondition 'Условия оплаты' (Invoice i) = description(paymentCondition(i)) IN base CHARWIDTH 10;
     descriptionPaymentCondition 'Условия оплаты' (UserInvoice i) = description(paymentCondition(i)) CHARWIDTH 10;
 
-    paymentCondition(UserInvoice prop) <- OVERRIDE paymentCondition(contractSku(prop)), paymentCondition(agreement(prop))
+    paymentCondition(UserInvoice prop) <- OVERRIDE overPaymentCondition(prop), paymentCondition(contractSku(prop)), paymentCondition(agreement(prop))
         WHEN CHANGED(agreement(prop)) OR
              CHANGED(contractSku(prop));
 

@@ -5,13 +5,14 @@ REQUIRE StockContract, Order;
 META defineOrderPaymentCondition (sign)
 
     paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (Order) MATERIALIZED;
+    overPaymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (Order);
     paymentCondition 'Условия оплаты' = DATA PaymentCondition (UserOrder);
     paymentCondition(UserOrder prop) += paymentCondition(prop);
     paymentCondition[Order.Order](Order prop) += paymentCondition(prop);
     descriptionPaymentCondition 'Условия оплаты' (Order i) = description(paymentCondition(i)) IN base CHARWIDTH 10;
     descriptionPaymentCondition 'Условия оплаты' (UserOrder i) = description(paymentCondition(i)) CHARWIDTH 10;
 
-    paymentCondition(UserOrder prop) <- OVERRIDE paymentCondition(contractSku(prop)), paymentCondition(agreement(prop))
+    paymentCondition(UserOrder prop) <- OVERRIDE overPaymentCondition(prop), paymentCondition(contractSku(prop)), paymentCondition(agreement(prop))
         WHEN CHANGED(agreement(prop)) OR
              CHANGED(contractSku(prop));
 
