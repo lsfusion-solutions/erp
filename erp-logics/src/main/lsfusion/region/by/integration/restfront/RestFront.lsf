@@ -83,7 +83,7 @@ dataNamePrintGroup 'Группа печати' (CustomGroup g) = name(dataPrintG
 levelParentPrintGroup (CustomGroup g) = GROUP MIN level(g, CustomGroup p) IF dataPrintGroup(p) MATERIALIZED;
 nearestParentPrintGroup (CustomGroup g) = customGroup(g, levelParentPrintGroup(g));
 nearestPrintGroup (CustomGroup g) = dataPrintGroup(nearestParentPrintGroup(g));
-printGroup 'Группа печати' (CustomGroup g) = OVERRIDE dataPrintGroup(g), nearestPrintGroup(g) MATERIALIZED;
+printGroup 'Группа печати' (CustomGroup g) = OVERRIDE dataPrintGroup(g), nearestPrintGroup(g) MATERIALIZED INDEXED;
 namePrintGroup 'Группа печати' (CustomGroup g) = name(printGroup(g));
 
 dataCookingTime 'Время приготовления, сек' = DATA INTEGER (CustomGroup);
@@ -123,7 +123,7 @@ DESIGN customGroup {
 }
 
 TABLE restFrontItem(Item);
-groupRestFront(Item i) = customGroup(groupTypeRestFront(),i) MATERIALIZED TABLE restFrontItem;
+groupRestFront(Item i) = customGroup(groupTypeRestFront(),i) MATERIALIZED INDEXED TABLE restFrontItem;
 
 dataCookingTime 'Время приготовления, сек' = DATA INTEGER (Item) TABLE restFrontItem;
 cookingTime 'Время приготовления, сек' (Item i) = OVERRIDE dataCookingTime(i), cookingTime(groupRestFront(i)) IN itemBase;
@@ -262,7 +262,7 @@ dataNameAdditionGroup 'Группа добавок' (CustomGroup g) = name(dataA
 levelParentAdditionGroup (CustomGroup g) = GROUP MIN level(g, CustomGroup p) IF dataAdditionGroup(p) MATERIALIZED;
 nearestParentAdditionGroup (CustomGroup g) = customGroup(g, levelParentAdditionGroup(g));
 nearestAdditionGroup (CustomGroup g) = dataAdditionGroup(nearestParentAdditionGroup(g));
-additionGroup 'Группа добавок' (CustomGroup g) = OVERRIDE dataAdditionGroup(g), nearestAdditionGroup(g) MATERIALIZED;
+additionGroup 'Группа добавок' (CustomGroup g) = OVERRIDE dataAdditionGroup(g), nearestAdditionGroup(g) MATERIALIZED INDEXED;
 nameAdditionGroup 'Группа добавок' (CustomGroup g) = name(additionGroup(g));
 
 EXTEND FORM customGroups
@@ -379,7 +379,7 @@ exportGood 'Выгрузить товары' (DepartmentStore ds) {
         EXTERNAL HTTP GET urlAPI(ds) + '/api/front/good' HEADERS httpHeaders TO result;
         IMPORT importGood JSON FROM result();
         
-        FOR groupRestFront(Item i) AND active(i) AND NOT (GROUP SUM 1 IF aliasGood(INTEGER j) == id(i)) DO {
+        FOR groupRestFront(Item i) AND active(i) AND NOT (GROUP SUM 1 IF aliasGood(INTEGER j) == id(i)) AND nameRestFront(i) DO {
             putGood(ds,i);
         }
         FOR Item i == item(aliasGood(INTEGER j)) AND NOT (barcodeGood(j) == idBarcode(i) AND nameGood(j) == replace(nameRestFront(i),'"','\\"') AND
@@ -387,7 +387,7 @@ exportGood 'Выгрузить товары' (DepartmentStore ds) {
             cookingTimeGood(j) == (OVERRIDE cookingTime(i), 0) AND
             nameGroupGood(j) == (OVERRIDE replace(name(groupRestFront(i)),'"','\\"'),'')
             AND namePrintGroupGood(j) == (OVERRIDE replace(name(printGroup(groupRestFront(i))),'"','\\"'),'')
-            AND nameAdditionGroupGood(j) == (OVERRIDE replace(name(additionGroup(groupRestFront(i))),'"','\\"'),'')) DO {
+            AND nameAdditionGroupGood(j) == (OVERRIDE replace(name(additionGroup(groupRestFront(i))),'"','\\"'),'')) AND nameRestFront(i) DO {
             putGood(ds,i);
         }
     }
@@ -552,6 +552,8 @@ exportMenuLine 'Выгрузить цены' (DepartmentStore ds) {
     }
 }
 
+lastExportedAll 'Выгружено все' = DATA DATETIME (DepartmentStore);
+
 exportAll 'Выгрузить все' (DepartmentStore ds) {
     exportPrintGroup(ds);
     exportGoodGroup(ds);
@@ -560,9 +562,11 @@ exportAll 'Выгрузить все' (DepartmentStore ds) {
     exportImage(ds);
     exportAddition(ds);
     exportMenuLine(ds);
+    NEWSESSION { lastExportedAll(ds) <- currentDateTime(); APPLY; }
 } 
 
 EXTEND FORM integrationData
+    PROPERTIES(ds) READONLY lastExportedAll
     PROPERTIES TOOLBAR SHOWIF urlAPI(ds) exportPrintGroup(ds), exportGoodGroup(ds), exportAdditionGroup(ds), exportGood(ds), exportImage(ds), exportAddition(ds), exportMenuLine(ds), exportAll(ds)
 ;
 
