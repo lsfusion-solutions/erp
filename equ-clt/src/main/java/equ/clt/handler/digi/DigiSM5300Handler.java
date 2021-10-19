@@ -202,9 +202,6 @@ public class DigiSM5300Handler extends DigiHandler {
                 String pluCode = fillLeadingZeroes(getPluNumberForPluRecord(item), 8);
                 bytes.put(getHexBytes(pluCode));
 
-                //todo: temp log
-                processTransactionLogger.info(getLogPrefix() + String.format("makeDFRecord item %s, container %s, pluCode %s", item.name, containerNumber, pluCode));
-
                 return bytes.array();
             }
         };

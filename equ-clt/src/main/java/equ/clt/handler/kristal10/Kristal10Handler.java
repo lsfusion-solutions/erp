@@ -730,10 +730,6 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         }
                         noPriceEntry = departNumberSet.isEmpty();
 
-                        //todo: temp log
-                        processStopListLogger.info(String.format("tempLog: stopList %s, machineryInfoSet size = %s, departNumberSet size = %s",
-                                stopListInfo.number, machineryInfoSet.size(), departNumberSet.size()));
-
                         for (Integer departNumber : departNumberSet) {
 
                             //parent: good
