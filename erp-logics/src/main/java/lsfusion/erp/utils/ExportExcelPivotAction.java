@@ -49,24 +49,12 @@ public abstract class ExportExcelPivotAction extends InternalAction {
         this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, null, null, idGroupObject, classes);
     }
 
-    public ExportExcelPivotAction(ScriptingLogicsModule LM, String idForm, Integer titleRowHeight, String idGroupObject,
-                                  List<String> rows, List<String> columns, List<String> filters, List<String> cells,
-                                  ValueClass... classes) {
-        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, null, titleRowHeight, idGroupObject, classes);
-    }
-    
     public ExportExcelPivotAction(ScriptingLogicsModule LM, String idForm, String titleProperty, Integer titleRowHeight, String idGroupObject,
                                   List<String> rows, List<String> columns, List<String> filters, List<String> cells,
                                   ValueClass... classes) {
         this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, titleProperty, titleRowHeight, idGroupObject, classes);
     }
 
-    public ExportExcelPivotAction(ScriptingLogicsModule LM, String idForm, String titleProperty, String idGroupObject,
-                                  List<String> rows, List<String> columns, List<String> filters, List<String> cells,
-                                  ValueClass... classes) {
-        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, titleProperty, null, idGroupObject, classes);
-    }
-    
     public ExportExcelPivotAction(ScriptingLogicsModule LM,
                                   List<List<String>> rows, List<List<String>> columns, List<List<String>> filters, List<List<String>> cells,
                                   String idForm, String titleProperty, Integer titleRowHeight, String idGroupObject, ValueClass... classes) {
@@ -189,7 +177,7 @@ public abstract class ExportExcelPivotAction extends InternalAction {
             if(objects.isEmpty())
                 result = (String) findProperty(property).read(context);
             else
-                result = (String) findProperty(property).read(context, objects.toArray(new DataObject[objects.size()]));
+                result = (String) findProperty(property).read(context, objects.toArray(new DataObject[0]));
             
         }
         return result;
