@@ -322,16 +322,25 @@ DESIGN options{
 }
 
 //создание иУПД
+
 createCorrection 'Создать иУПД' (UpdDocument upd) {
-    NEWSESSION {
-        NEW iupd = UpdDocument {
-            invoice(iupd) <- invoice(upd);
-            numberInvoice(iupd) <- numberInvoice(upd);
-            correctedUpdDocument(iupd) <- upd;
-            correctionDateTime(iupd) <- currentDateTime();
-            fill(invoice(upd), iupd);
-            SHOW updDocument OBJECTS u = iupd DOCKED NOCANCEL; 
-        }
+    IF countUpdDocument(upd) = countInvoiceDetail(invoice(upd)) 
+        AND invoiceSum(upd) = invoiceSumInvoiceDetail(invoice(upd)) 
+        AND sum(upd) = sumInvoiceDetail(invoice(upd))
+        AND VATSum(upd) = VATSumInvoiceDetail(invoice(upd)) THEN {
+        NEWSESSION {
+            NEW iupd = UpdDocument {
+                invoice(iupd) <- invoice(upd);
+                numberInvoice(iupd) <- numberInvoice(upd);
+                correctedUpdDocument(iupd) <- upd;
+                correctionDateTime(iupd) <- currentDateTime();
+                fill(invoice(upd), iupd);
+                SHOW updDocument OBJECTS u = iupd DOCKED NOCANCEL; 
+            }
+        }    
+    }
+    ELSE {
+        MESSAGE 'Создать иУПД невозможно - в накладную внесены финансово значимые изменения.';
     }
 }
 
