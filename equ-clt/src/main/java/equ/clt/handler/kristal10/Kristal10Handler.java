@@ -208,7 +208,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             //parent: good
                             Element barcode = new Element("bar-code");
                             setAttribute(barcode, "code", barcodeItem);
-                            addStringElement(barcode, "default-code", "true");
+                            addStringElement(barcode, "default-code", (item.mainBarcode != null && !item.mainBarcode.equals(barcodeItem)) ? "false" : "true");
                             good.addContent(barcode);
 
                             for(String deleteBarcode : deleteBarcodeList) {
