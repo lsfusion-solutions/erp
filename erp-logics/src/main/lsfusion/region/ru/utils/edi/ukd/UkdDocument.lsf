@@ -62,6 +62,8 @@ idUOMA 'ОКЕИ (после)' = DATA STRING[4] (UkdDocumentDetail) CHARWIDTH 10
 idSku 'Код товара' = DATA STRING[100] (UkdDocumentDetail) CHARWIDTH 15; //КодТов
 nameUOMB 'ЕИ (до)' = DATA STRING[255] (UkdDocumentDetail) CHARWIDTH 10; //НаимЕдИзмДо
 nameUOMA 'ЕИ (после)' = DATA STRING[255] (UkdDocumentDetail) CHARWIDTH 10; //НаимЕдИзмПосле
+shortNameUOMB 'ЕИ (до)' = DATA ISTRING[100] (UkdDocumentDetail);
+shortNameUOMA 'ЕИ (после)' = DATA ISTRING[100] (UkdDocumentDetail);
 
 quantityB 'Кол-во товара (до)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //КолТовДо
 quantityA 'Кол-во товара (после)' = DATA NUMERIC[26,11] (UkdDocumentDetail); //КолТовПосле
@@ -79,10 +81,10 @@ increaseSum 'Сумма (увеличение)' (UkdDocumentDetail detail) = (su
 
 //--АкцизДо
 dutySumB 'Сумма акциза (до)' = DATA NUMERIC[19,2](UkdDocumentDetail); //СумАкциз
-withoutDutyB 'Без акциза (после)' = DATA BOOLEAN (UkdDocumentDetail); //БезАкциз
+withoutDutyB 'Без акциза (до)' = DATA BOOLEAN (UkdDocumentDetail); //БезАкциз
 
 //--АкцизПосле
-dutySumA 'Сумма акциза (до)' = DATA NUMERIC[19,2](UkdDocumentDetail); //СумАкциз
+dutySumA 'Сумма акциза (после)' = DATA NUMERIC[19,2](UkdDocumentDetail); //СумАкциз
 withoutDutyA 'Без акциза (после)' = DATA BOOLEAN (UkdDocumentDetail); //БезАкциз
 
 //--АкцизРазн
@@ -107,6 +109,12 @@ increaseInvoiceSum 'Сумма с НДС (увеличение)' (UkdDocumentDet
                                                                 IF invoiceSumA(detail)> (OVERRIDE invoiceSumB(detail), 0.0);//СтоимУвел
 decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (UkdDocumentDetail detail) = (invoiceSumB(detail) (-) (OVERRIDE invoiceSumA(detail), 0.0)) 
                                                                 IF invoiceSumB(detail)> (OVERRIDE invoiceSumA(detail), 0.0);//СтоимУм
+
+sidCountryA 'Код страны' (UkdDocumentDetail detail) = DATA BPSTRING[3] (UkdDocumentDetail);
+sidCountryB 'Код страны' (UkdDocumentDetail detail) = DATA BPSTRING[3] (UkdDocumentDetail);
+
+shortNameCountryA 'Краткое наименование страны' (UkdDocumentDetail detail) = DATA ISTRING[50] (UkdDocumentDetail);
+shortNameCountryB 'Краткое наименование страны' (UkdDocumentDetail detail) = DATA ISTRING[50] (UkdDocumentDetail);
 
 //СодФХЖ3
 description 'Содержание операции' = DATA STRING[255] (UkdDocument); //СодОпер
@@ -487,6 +495,8 @@ META fillUkdDocument(docType)
         idSku(ed) <- OVERRIDE id(sku(d)), idBarcode(sku(d));
         nameUOMB(ed) <- nameUOM(sku(d));
         nameUOMA(ed) <- nameUOM(sku(d));
+        shortNameUOMB(ed) <- shortNameUOM(sku(d));
+        shortNameUOMA(ed) <- shortNameUOM(sku(d));
         
         quantityB(ed) <- quantity(d);
         quantityA(ed) <- quantity(d) (-) quantity(cd);
@@ -505,6 +515,12 @@ META fillUkdDocument(docType)
         
         withoutDutyB(ed) <- TRUE;
         withoutDutyA(ed) <- TRUE;
+        
+        sidCountryB(ed) <- sid(country(sku(d)));
+        sidCountryA(ed) <- sid(country(sku(d)));
+        
+        shortNameCountryB(ed) <- name(country(sku(d)));
+        shortNameCountryA(ed) <- name(country(sku(d)));
     }
     
     createDetails (###docType c, UkdDocument ukd) {
@@ -617,3 +633,49 @@ END
 //EXTEND FORM ukdDocuments
 //    PROPERTIES (u) exportUkdDocument1
 //;
+
+FORM printUkd 'Универсальный корректирующий документ'
+    //OBJECTS dd = (c=Consignment,i=INTEGER ) 
+    OBJECTS u = UkdDocument
+    PROPERTIES (u) nameSupplier, adrressSupplier, innSupplier, kppSupplier,
+                   nameCustomer, adrressCustomer, innCustomer, kppCustomer,
+                   dateInvoice, numberInvoice, 
+                   baseDateInvoice, baseInvoiceNumber,
+                   nameCurrency, codeCurrency,
+                   supplierSignerAgentLastName, supplierSignerAgentFirstName, supplierSignerAgentMiddleName,
+                   supplierSignerPosition
+                         
+    OBJECTS d = UkdDocumentDetail SUBREPORT         
+    PROPERTIES(d) numberUpdDocumentDetail, nameSku, 
+                  idUOMB, nameUOMB, shortNameUOMB, quantityB, priceB, sumA, dutySumB, withoutDutyB, nameVATStatusB, VATSumB, invoiceSumB, sidCountryB, shortNameCountryB,                                    
+                  idUOMA, nameUOMA, shortNameUOMA, quantityA, priceA, sumB, dutySumA, withoutDutyA, nameVATStatusA, VATSumA, invoiceSumA, sidCountryA, shortNameCountryA,
+                  increaseSum, increaseDutySum, increaseVATSum, increaseInvoiceSum,                                                                   
+                  decreaseSum, decreaseDutySum, decreaseVATSum, decreaseInvoiceSum
+                                                                         
+    FILTERS select(u),
+            ukdDocument(d) == u
+;
+
+printUkd 'Печать УКД'(UkdDocument u) {
+    IF NOT countSelectUkd() THEN {
+        select(UkdDocument ukdDocument) <- TRUE IF ukdDocument==u;
+    }  
+        
+    PRINT printUkd;
+         
+    select(UkdDocument ukdDocument) <- NULL;
+}
+
+EXTEND FORM ukdDocuments
+    PROPERTIES (u) printUkd
+;
+
+DESIGN ukdDocuments {
+    documentDetail {            
+        NEW printContainer {
+            caption = 'Печать';
+            type = CONTAINERV;
+            MOVE PROPERTY(printUkd(u));
+        }        
+    }
+}
