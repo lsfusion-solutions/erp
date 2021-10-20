@@ -569,6 +569,11 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     select 'Отм.' = DATA LOCAL NESTED BOOLEAN (###docType##Document);
     countSelect###docType = GROUP SUM 1 IF select(###docType##Document u);
     
+    overShowEdit = ABSTRACT BOOLEAN (###docType##Document);
+    overShowDelete = ABSTRACT BOOLEAN (###docType##Document);
+    skipShowEdit = ABSTRACT BOOLEAN (###docType##Document);
+    skipShowDelete = ABSTRACT BOOLEAN (###docType##Document);
+
     FORM ##docType##Documents sign
     
         PROPERTIES filterDateFrom(), filterDateTo(), nameFilterSupplier(), nameFilterCustomer()
@@ -590,7 +595,7 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
         
         PROPERTIES(d) READONLY number, nameSku
                       
-        PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE            
+        PROPERTIES(u) NEWSESSION NEW, EDIT SHOWIF overShowEdit(u), DELETE SHOWIF overShowDelete(u)
             
         FILTERS ##docType##Document(d) == u
     ;

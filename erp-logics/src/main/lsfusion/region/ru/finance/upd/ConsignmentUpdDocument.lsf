@@ -45,6 +45,9 @@ updDocument =
 updDocumentDetail = GROUP LAST UpdDocumentDetail detail AS UpdDocumentDetail IF detail IS UpdDocumentDetail 
                 ORDER dateInvoice(updDocument(detail)), detail BY invoiceDetail(detail);
 
+overShowEdit (UpdDocument upd) += isOpened(invoice(upd)) AND NOT correctionNumber(upd) AND NOT skipShowEdit(upd);
+overShowDelete (UpdDocument upd) += isOpened(invoice(upd)) AND NOT correctionNumber(upd) AND NOT skipShowDelete(upd);
+
 updStatus = ABSTRACT UpdDocumentStatus (Operation.Operation);
 
 overFill ABSTRACT LIST (UpdDocument, Consignment);
@@ -324,7 +327,6 @@ createCorrection 'Создать иУПД' (UpdDocument upd) {
         NEW iupd = UpdDocument {
             invoice(iupd) <- invoice(upd);
             numberInvoice(iupd) <- numberInvoice(upd);
-            correction(iupd) <- TRUE;
             correctedUpdDocument(iupd) <- upd;
             correctionDateTime(iupd) <- currentDateTime();
             fill(invoice(upd), iupd);
@@ -334,17 +336,29 @@ createCorrection 'Создать иУПД' (UpdDocument upd) {
 }
 
 EXTEND FORM updDocuments
-    PROPERTIES (u) createCorrection
+    PROPERTIES (u) createCorrection SHOWIF NOT correctionNumber(u)
+    
+    OBJECTS cu = UpdDocument
+    PROPERTIES (cu) READONLY updType, numberCorrection, numberInvoice, dateInvoice, dateTimeSupplier, dateTimeTransfer
+    FILTERS (isCorrection(cu, u) AND correctionNumber(u)) OR isUpCorrection(cu, u) OR correctedUpdDocument(u)=cu
 ;
 
 DESIGN updDocuments {
     documentDetail{
         NEW correctionContainer AFTER actionContainer {
             caption = 'иУПД';
-            type = CONTAINERH;
+            type = CONTAINERV;
             NEW correctionActions {
                 caption = 'Действия';
                 MOVE PROPERTY(createCorrection(u));
+            }
+            NEW correctionDocuments {
+                fill = 1;
+                type = CONTAINERH;
+                caption = 'История УПД';
+                MOVE BOX(cu) {
+                    caption = '';
+                }
             }
         }
     }

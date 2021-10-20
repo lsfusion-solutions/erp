@@ -340,13 +340,13 @@ EXTEND FORM updDocuments
 ;
 
 //иУПД
-correction 'иУПД' = DATA BOOLEAN (UpdDocument);
+correctedUpdDocument 'иУПД' = DATA UpdDocument (UpdDocument);
+correction 'иУПД' (UpdDocument upd) = TRUE IF correctedUpdDocument(upd);
 correctionDateTime 'Дата/время иУПД' = DATA DATETIME (UpdDocument);
 correctionDate 'Дата иУПД' (UpdDocument upd) = toDate(correctionDateTime(upd));
 
 TABLE updDocumentUpdDocument(UpdDocument, UpdDocument);
 
-correctedUpdDocument 'иУПД' = DATA UpdDocument (UpdDocument);
 correctionLevel (UpdDocument child, UpdDocument parent) = RECURSION 1l IF child IS UpdDocument AND parent == child
                                                               STEP 2l IF parent == correctedUpdDocument($parent) MATERIALIZED;
 updDocument(UpdDocument child, LONG level)  = GROUP
@@ -357,10 +357,23 @@ isCorrection (UpdDocument child, UpdDocument parent) = TRUE IF correctionLevel(c
 correctionNumber (updDocument) = GROUP SUM 1 BY correctedUpdDocument(UpdDocument child) MATERIALIZED;
 totalCorrectionNumber 'Кол-во иУПД' (UpdDocument parent)  = GROUP SUM 1 IF isCorrection(UpdDocument child, parent) MATERIALIZED;
 
-numberCorrection 'Номер иУПД' (UpdDocument upd) = levelCorrection(upd) - 1;
+numberCorrection 'Номер иУПД' (UpdDocument upd) = (levelCorrection(upd) - 1) IF (levelCorrection(upd) - 1) > 0.0;
+
+correctionUpLevel (UpdDocument child, UpdDocument parent) = RECURSION 1l IF parent IS UpdDocument AND parent == child
+                                                              STEP 2l IF child == correctedUpdDocument($child) MATERIALIZED;
+isUpCorrection (UpdDocument child, UpdDocument parent) = TRUE IF correctionUpLevel(child, parent);
+
+updType 'Тип' (UpdDocument upd) = CASE 
+    WHEN correctedUpdDocument(upd) THEN 'иУПД'
+    WHEN upd IS UpdDocument THEN 'УПД' CHARWIDTH 5;
+
+backgroundUpdType (UpdDocument upd) = CASE
+    WHEN correctionNumber(upd) THEN RGB(255, 224, 255)
+    WHEN correctedUpdDocument(upd) AND NOT correctionNumber(upd) THEN RGB(255,238,165)
+    WHEN upd IS UpdDocument THEN RGB(212,255,212);
 
 EXTEND FORM updDocuments
-    PROPERTIES (u) READONLY AFTER nameStatus(u) correction
+    PROPERTIES (u) READONLY BEFORE nameStatus(u) updType BACKGROUND backgroundUpdType(u)
     FILTERGROUP notCorrected
         FILTER 'Без измененных' NOT correctionNumber(u) DEFAULT
 ;

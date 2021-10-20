@@ -470,6 +470,10 @@ CLASS ABSTRACT UkdBaseDocument 'Документ-основание УКД';
 TABLE ukdBaseDocument (UkdBaseDocument);
 
 supplier 'Поставщик' = ABSTRACT LegalEntity (UkdBaseDocument) MATERIALIZED;
+isClosed '{documents.is.closed}' = ABSTRACT BOOLEAN(UkdBaseDocument) MATERIALIZED;
+isOpened '{documents.is.opened}' (UkdBaseDocument d) = d IS UkdBaseDocument AND NOT isClosed(d) MATERIALIZED;
+
+ukdBaseDocument = ABSTRACT VALUE UkdBaseDocument (UkdDocument);
 
 overFill ABSTRACT LIST (UkdBaseDocument, UkdDocument);
 
@@ -679,3 +683,6 @@ DESIGN ukdDocuments {
         }        
     }
 }
+
+overShowEdit (UkdDocument ukd) += isOpened(ukdBaseDocument(ukd)) AND NOT skipShowEdit(ukd);
+overShowDelete (UkdDocument ukd) += isOpened(ukdBaseDocument(ukd)) AND NOT skipShowDelete(ukd);
