@@ -14,6 +14,7 @@ public class CashRegisterItemBatch implements Serializable {
     public BigDecimal price;
     public String nameSubstance;
     public BigDecimal balance;
+    public BigDecimal balanceBlister;
     public LocalDateTime balanceDate;
     public String countryCode;
     public String countryName;
@@ -21,7 +22,7 @@ public class CashRegisterItemBatch implements Serializable {
     public Integer flag;
 
     public CashRegisterItemBatch(String idBatch, LocalDate dateBatch, LocalDate expiryDate, String seriesPharmacy, String nameManufacturer,
-                                 BigDecimal price, String nameSubstance, BigDecimal balance, LocalDateTime balanceDate,
+                                 BigDecimal price, String nameSubstance, BigDecimal balance, BigDecimal balanceBlister, LocalDateTime balanceDate,
                                  String countryCode, String countryName, Integer blisterAmount, Integer flag) {
         this.idBatch = idBatch;
         this.dateBatch = dateBatch;
@@ -31,6 +32,7 @@ public class CashRegisterItemBatch implements Serializable {
         this.price = price;
         this.nameSubstance = nameSubstance;
         this.balance = balance;
+        this.balanceBlister = balanceBlister;
         this.balanceDate = balanceDate;
         this.countryCode = countryCode;
         this.countryName = countryName;

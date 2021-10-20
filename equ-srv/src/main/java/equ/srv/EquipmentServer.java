@@ -1431,8 +1431,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 } else if (barcode.length() == 7) {  //EAN-8
                     int checkSum = 0;
                     for (int i = 0; i <= 6; i = i + 2) {
-                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i))) * 3;
-                        checkSum += i == 6 ? 0 : Integer.valueOf(String.valueOf(barcode.charAt(i + 1)));
+                        checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i))) * 3;
+                        checkSum += i == 6 ? 0 : Integer.parseInt(String.valueOf(barcode.charAt(i + 1)));
                     }
                     checkSum %= 10;
                     if (checkSum != 0)
@@ -1450,8 +1450,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private String appendEAN13(String barcode) {
         int checkSum = 0;
         for (int i = 0; i <= 10; i = i + 2) {
-            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
-            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+            checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i)));
+            checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i + 1))) * 3;
         }
         checkSum %= 10;
         if (checkSum != 0)
@@ -2529,11 +2529,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             query.addProperty("idBarcode", machineryPriceTransactionBatchLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
 
             String[] names = new String[]{"idBatch", "dateBatch", "expiryDate", "seriesPharmacy", "nameManufacturer", "price",
-                    "nameATCGroup", "balanceBlister", "balanceDate", "sidCountry", "nameCountry", "blisterAmount", "flag"};
+                    "nameATCGroup", "balance", "balanceBlister", "balanceDate", "sidCountry", "nameCountry", "blisterAmount", "flag"};
             LP[] properties = machineryPriceTransactionBatchLM.findProperties("id[MachineryPriceTransaction,Barcode,Batch]", "date[MachineryPriceTransaction,Barcode,Batch]",
                     "expiryDate[MachineryPriceTransaction,Barcode,Batch]", "seriesPharmacy[MachineryPriceTransaction,Barcode,Batch]",
                     "nameManufacturer[MachineryPriceTransaction,Barcode,Batch]", "price[MachineryPriceTransaction,Barcode,Batch]",
-                    "nameATCGroup[MachineryPriceTransaction,Barcode,Batch]", "balanceBlister[MachineryPriceTransaction,Barcode,Batch]",
+                    "nameATCGroup[MachineryPriceTransaction,Barcode,Batch]", "balance[MachineryPriceTransaction,Barcode,Batch]", "balanceBlister[MachineryPriceTransaction,Barcode,Batch]",
                     "balanceDate[MachineryPriceTransaction,Barcode,Batch]", "sidCountry[MachineryPriceTransaction,Barcode,Batch]",
                     "nameCountry[MachineryPriceTransaction,Barcode,Batch]", "blisterAmount[MachineryPriceTransaction,Barcode,Batch]",
                     "flag[MachineryPriceTransaction,Barcode,Batch]");
@@ -2557,7 +2557,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 String nameManufacturer = getRowValue(row, "nameManufacturer");
                 BigDecimal price = (BigDecimal) row.get("price");
                 String nameSubstance = getRowValue(row, "nameATCGroup");
-                BigDecimal balance = (BigDecimal) row.get("balanceBlister");
+                BigDecimal balance = (BigDecimal) row.get("balance");
+                BigDecimal balanceBlister = (BigDecimal) row.get("balanceBlister");
                 LocalDateTime balanceDate = (LocalDateTime) row.get("balanceDate");
                 String countryCode = getRowValue(row, "sidCountry");
                 String countryName = getRowValue(row, "nameCountry");
@@ -2566,7 +2567,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 List<CashRegisterItemBatch> batchList = result.getOrDefault(barcode, new ArrayList<>());
                 batchList.add(new CashRegisterItemBatch(idBatch, dateBatch, expiryDate, seriesPharmacy, nameManufacturer,
-                        price, nameSubstance, balance, balanceDate, countryCode, countryName, blisterAmount, flag));
+                        price, nameSubstance, balance, balanceBlister, balanceDate, countryCode, countryName, blisterAmount, flag));
                 result.put(barcode, batchList);
             }
         }
