@@ -52,6 +52,9 @@ public class DefaultTerminalHandler {
     static ScriptingLogicsModule terminalOrderLM;
     static ScriptingLogicsModule terminalHandlerLM;
 
+    static String ID_APPLICATION_TSD = "1";
+    static String ID_APPLICATION_ORDER = "2";
+
     private LogicsInstance logicsInstance;
 
     public void setLogicsInstance(LogicsInstance logicsInstance) {
@@ -83,18 +86,18 @@ public class DefaultTerminalHandler {
         }
     }
 
-    public Object readItem(DataSession session, DataObject user, String barcode, String bin) {
+    public Object readItem(DataSession session, UserInfo userInfo, String barcode, String bin) {
         try {
             if(terminalHandlerLM != null) {
                 ObjectValue barcodeObject = terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
-                ObjectValue stockObject = user == null ? NullValue.instance : terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, user);
+                ObjectValue stockObject = userInfo.user == null ? NullValue.instance : terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
                 String overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock]").read(session, barcodeObject, stockObject);
                 if(overNameSku == null)
                     return null;
                 String isWeight = terminalHandlerLM.findProperty("passScales[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
                 ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
                 BigDecimal price = (BigDecimal) terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").read(session, barcodeObject, stockObject);
-                BigDecimal quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Barcode,CustomUser]").read(session, barcodeObject, user);
+                BigDecimal quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Barcode,CustomUser]").read(session, barcodeObject, userInfo.user);
                 String priceValue = bigDecimalToString(price, 2);
                 String quantityValue = bigDecimalToString(quantity, 3);
 
@@ -184,7 +187,7 @@ public class DefaultTerminalHandler {
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase, userInfo.user);
 
                 List<TerminalBatch> batchList = null;
-                if (readBatch)
+                if (userInfo.idApplication == ID_APPLICATION_TSD && readBatch)
                     batchList = readBatchList(session, stockObject);
 
                 List<TerminalOrder> orderList = readTerminalOrderList(session, stockObject, userInfo);
@@ -192,8 +195,8 @@ public class DefaultTerminalHandler {
 
                 List<TerminalAssortment> assortmentList = readTerminalAssortmentList(session, stockObject);
                 List<TerminalHandbookType> handbookTypeList = readTerminalHandbookTypeList(session);
-                List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, userInfo.user);
-                List<TerminalLegalEntity> customANAList = readCustomANAList(session, BL, userInfo.user);
+                List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, userInfo);
+                List<TerminalLegalEntity> customANAList = readCustomANAList(session, BL, userInfo);
                 file = File.createTempFile("terminalHandler", ".db");
 
                 Class.forName("org.sqlite.JDBC");
@@ -279,7 +282,7 @@ public class DefaultTerminalHandler {
         }
     }
 
-    public String savePallet(DataSession session, ExecutionStack stack, DataObject userObject, String numberPallet, String nameBin) {
+    public String savePallet(DataSession session, ExecutionStack stack, UserInfo userInfo, String numberPallet, String nameBin) {
         return null;
     }
 
@@ -836,7 +839,7 @@ public class DefaultTerminalHandler {
         return value == null ? "" : value instanceof LocalDate ? ((LocalDate) value).format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : value;
     }
 
-    public String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminal,
+    public String importTerminalDocument(DataSession session, ExecutionStack stack, UserInfo userInfo,
                                          String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) {
         try {
 
@@ -957,9 +960,9 @@ public class DefaultTerminalHandler {
                 service.synchronize(true, false);
 
                 ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[STRING[1000]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
-                terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userObject, session, (DataObject) terminalDocumentObject);
-                if(idTerminal != null) {
-                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
+                terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userInfo.user, session, (DataObject) terminalDocumentObject);
+                if (userInfo.idTerminal != null) {
+                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(userInfo.idTerminal));
                     if (terminalObject instanceof DataObject)
                         terminalHandlerLM.findProperty("createdTerminal[TerminalDocument]").change(terminalObject, session, (DataObject) terminalDocumentObject);
                 }
@@ -1023,7 +1026,7 @@ public class DefaultTerminalHandler {
         }
     }
 
-    public Object login(DataSession session, ExecutionStack stack, String ip, String login, String password, String idTerminal) {
+    public Object login(DataSession session, ExecutionStack stack, String ip, String login, String password, String idTerminal, String idApplication) {
         try {
 
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
@@ -1036,10 +1039,10 @@ public class DefaultTerminalHandler {
                     else {
                         ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
                         if (terminalObject instanceof DataObject) {
-                            terminalHandlerLM.findAction("processTerminalConnection[Terminal,CustomUser,STRING[50]]").execute(session, stack, terminalObject, customUser, new DataObject(ip));
+                            terminalHandlerLM.findAction("processTerminalConnection[Terminal,CustomUser,STRING[50],STRING[50]]").execute(session, stack, terminalObject, customUser, new DataObject(ip), new DataObject(idApplication));
                             String applyMessage = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
                             if (applyMessage != null)
-                                ServerLoggers.systemLogger.error(String.format("Terminal Login error: %s, login %s, terminal %s", applyMessage, login, idTerminal));
+                                ServerLoggers.systemLogger.error(String.format("Terminal Login error: %s, login %s, terminal %s, app %s", applyMessage, login, idTerminal, idApplication));
                         }
                         return customUser; //DataObject
                     }
@@ -1234,7 +1237,7 @@ public class DefaultTerminalHandler {
         return terminalHandbookTypeList;
     }
 
-    public static List<TerminalDocumentType> readTerminalDocumentTypeListServer(DataSession session,DataObject userObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalDocumentType> readTerminalDocumentTypeListServer(DataSession session, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
         if(terminalHandlerLM != null) {
             KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
@@ -1248,7 +1251,7 @@ public class DefaultTerminalHandler {
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
             }
             query.and(terminalHandlerLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
-            query.and(terminalHandlerLM.findProperty("notSkip[TerminalDocumentType, CustomUser]").getExpr(terminalDocumentTypeExpr, userObject.getExpr()).getWhere());
+            query.and(terminalHandlerLM.findProperty("notSkip[TerminalDocumentType, CustomUser]").getExpr(terminalDocumentTypeExpr, userInfo.user.getExpr()).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
@@ -1263,7 +1266,7 @@ public class DefaultTerminalHandler {
         return terminalDocumentTypeList;
     }
 
-    public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL, DataObject userObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalLegalEntity> customANAList = new ArrayList<>();
         if (terminalHandlerLM != null) {
 
@@ -1307,10 +1310,10 @@ public class DefaultTerminalHandler {
                         customANAQuery.addProperty("id", propertyID.getExpr(customANAExpr));
                         customANAQuery.addProperty("name", propertyName.getExpr(customANAExpr));
 
-                        addCustomField(userObject, customANAExpr, customANAQuery, extInfoProperty, "extInfo");
-                        addCustomField(userObject, customANAExpr, customANAQuery, field1Property, "field1");
-                        addCustomField(userObject, customANAExpr, customANAQuery, field2Property, "field2");
-                        addCustomField(userObject, customANAExpr, customANAQuery, field3Property, "field3");
+                        addCustomField(userInfo.user, customANAExpr, customANAQuery, extInfoProperty, "extInfo");
+                        addCustomField(userInfo.user, customANAExpr, customANAQuery, field1Property, "field1");
+                        addCustomField(userInfo.user, customANAExpr, customANAQuery, field2Property, "field2");
+                        addCustomField(userInfo.user, customANAExpr, customANAQuery, field3Property, "field3");
 
                         if (filterProperty != null) {
                             switch (filterProperty.listInterfaces.size()) {
@@ -1321,10 +1324,10 @@ public class DefaultTerminalHandler {
                                     //небольшой хак, для случая, когда второй параметр в фильтре - пользователь
                                     Object interfaceObject = filterProperty.listInterfaces.get(1);
                                     if (interfaceObject instanceof ClassPropertyInterface) {
-                                        if (IsClassProperty.fitClass(userObject.objectClass, ((ClassPropertyInterface) interfaceObject).interfaceClass))
-                                            customANAQuery.and(filterProperty.getExpr(customANAExpr, userObject.getExpr()).getWhere());
+                                        if (IsClassProperty.fitClass(userInfo.user.objectClass, ((ClassPropertyInterface) interfaceObject).interfaceClass))
+                                            customANAQuery.and(filterProperty.getExpr(customANAExpr, userInfo.user.getExpr()).getWhere());
                                     } else { //если не data property и второй параметр не пользователь, то фильтр отсечёт всё
-                                        customANAQuery.and(filterProperty.getExpr(customANAExpr, userObject.getExpr()).getWhere());
+                                        customANAQuery.and(filterProperty.getExpr(customANAExpr, userInfo.user.getExpr()).getWhere());
                                     }
                                     break;
                             }

@@ -275,8 +275,9 @@ shortNameUser 'Пользователь' (TerminalConnection c) = shortName(user
 nameStockUser 'Склад пользователя' (TerminalConnection c) = nameStock(user(c));
 
 ip 'IP' = DATA STRING[50] (TerminalConnection);
+application 'ID приложения' = DATA STRING[50] (TerminalConnection);
 
-processTerminalConnection(Terminal terminal, CustomUser user, STRING[50] ip) {
+processTerminalConnection(Terminal terminal, CustomUser user, STRING[50] ip, STRING[50] application) {
     lastConnectionTime(terminal) <- currentDateTime();
     lastUser(terminal) <- user;
     NEW tc = TerminalConnection {
@@ -284,12 +285,13 @@ processTerminalConnection(Terminal terminal, CustomUser user, STRING[50] ip) {
         dateTime(tc) <- currentDateTime();
         user(tc) <- user;
         ip(tc) <- ip;
+        application(tc) <- application;
     }
 }
 
 EXTEND FORM groupsTerminal
     OBJECTS tc = TerminalConnection
-    PROPERTIES(tc) READONLY idTerminal, dateTime, date, shortNameUser, nameStockUser, ip
+    PROPERTIES(tc) READONLY idTerminal, dateTime, date, shortNameUser, nameStockUser, ip, application
     FILTERS groupTerminal(terminal(tc)) = grt 
 ;
 

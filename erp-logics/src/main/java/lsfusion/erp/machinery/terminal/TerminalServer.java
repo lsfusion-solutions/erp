@@ -297,8 +297,8 @@ public class TerminalServer extends MonitorServer {
         return sessionId;
     }
 
-    protected Object readItem(DataObject user, String barcode, String bin) throws SQLException {
-        return terminalHandler.readItem(createSession(), user, barcode, bin);
+    protected Object readItem(UserInfo userInfo, String barcode, String bin) throws SQLException {
+        return terminalHandler.readItem(createSession(), userInfo, barcode, bin);
     }
 
     protected String readItemHtml(String barcode, String idStock) throws SQLException {
@@ -309,9 +309,9 @@ public class TerminalServer extends MonitorServer {
         return terminalHandler.readBase(createSession(), userInfo, readBatch);
     }
 
-    protected String savePallet(DataObject user, String numberPallet, String nameBin) throws SQLException {
+    protected String savePallet(UserInfo userInfo, String numberPallet, String nameBin) throws SQLException {
         try (DataSession session = createSession()) {
-            return terminalHandler.savePallet(session, getStack(), user, numberPallet, nameBin);
+            return terminalHandler.savePallet(session, getStack(), userInfo, numberPallet, nameBin);
         }
     }
 
@@ -364,14 +364,17 @@ public class TerminalServer extends MonitorServer {
                             String[] params = readParams(inFromClient);
                             if (params.length >= 3) {
                                 logger.info("logging user " + params[0]);
+
+                                String idApplication = "";
+                                if (params.length > 3)
+                                    idApplication = params[3];
+
                                 if (terminalHandler.isActiveTerminal(createSession(), getStack(), params[2])) {
-                                    Object loginResult = terminalHandler.login(createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2]);
+                                    Object loginResult = terminalHandler.login(createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2], idApplication);
                                     if (loginResult instanceof DataObject) {
                                         result = getSessionId((DataObject) loginResult, params[0], params[1], params[2]);
-                                        if (params.length > 3) {
-                                            userMap.get(result).idApplication = params[3];
-                                            logger.info(String.format("successfull login, idTerminal %s, idApplication '%s'", userMap.get(result).idApplication, params[3]));
-                                        }
+                                        userMap.get(result).idApplication = idApplication;
+                                        logger.info(String.format("successfull login, idTerminal %s, idApplication '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication));
                                     } else if (loginResult instanceof String) {
                                         errorCode = LOGIN_ERROR;
                                         errorText = (String) loginResult;
@@ -408,7 +411,7 @@ public class TerminalServer extends MonitorServer {
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
                                     logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
-                                    Object readItemResult = readItem(userInfo.user, barcode, bin);
+                                    Object readItemResult = readItem(userInfo, barcode, bin);
                                     if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
                                         errorText = ITEM_NOT_FOUND_TEXT;
@@ -490,7 +493,7 @@ public class TerminalServer extends MonitorServer {
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
                                         if (emptyDocument)
                                             terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
-                                        result = importTerminalDocumentDetail(idDocument, userInfo.user, userInfo.idTerminal, terminalDocumentDetailList, emptyDocument);
+                                        result = importTerminalDocumentDetail(idDocument, userInfo, terminalDocumentDetailList, emptyDocument);
                                         if (result != null) {
                                             errorCode = PROCESS_DOCUMENT_ERROR;
                                             errorText = PROCESS_DOCUMENT_ERROR_TEXT + ": " + result;
@@ -575,7 +578,7 @@ public class TerminalServer extends MonitorServer {
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
                                     logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
-                                    result = savePallet(userInfo.user, numberPallet, nameBin);
+                                    result = savePallet(userInfo, numberPallet, nameBin);
                                     if (result != null) {
                                         errorCode = SAVE_PALLET_ERROR;
                                         errorText = result;
@@ -781,9 +784,9 @@ public class TerminalServer extends MonitorServer {
 
     }
 
-    protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, String idTerminal, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws SQLException {
+    protected String importTerminalDocumentDetail(String idTerminalDocument, UserInfo userInfo, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws SQLException {
         try (DataSession session = createSession()) {
-            return terminalHandler.importTerminalDocument(session, getStack(), userObject, idTerminal, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
+            return terminalHandler.importTerminalDocument(session, getStack(), userInfo, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
         }
     }
 
