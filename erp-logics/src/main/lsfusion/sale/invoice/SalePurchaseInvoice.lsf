@@ -194,11 +194,12 @@ CONSTRAINT equalsSkuSale(operation(Purchase.UserInvoiceDetail d)) AND invoiceDet
 CONSTRAINT equalsPriceSale(operation(Purchase.UserInvoiceDetail d)) AND invoiceDetail(d) AND NOT Purchase.price(d) == price(invoiceDetail(d))
     MESSAGE 'Цена в строке накладной закупки и продажи должна совпадать'; 
 
-
-CONSTRAINT supplier(Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
-           supplierStock(detail) != supplierStock(invoiceDetail(detail)) OR
-           customer(detail) != customer(invoiceDetail(detail)) OR
-           customerStock(detail) != customerStock(invoiceDetail(detail))
+skipConstraintInvoiceDetailDetail = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
+CONSTRAINT (supplier(Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
+            supplierStock(detail) != supplierStock(invoiceDetail(detail)) OR
+            customer(detail) != customer(invoiceDetail(detail)) OR
+            customerStock(detail) != customerStock(invoiceDetail(detail))) 
+           AND NOT skipConstraintInvoiceDetailDetail(detail)
 //           Purchase.skuInvoiceDetail(detail) != skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
     CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
         MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на основе накладной должны соответствовать друг другу';
