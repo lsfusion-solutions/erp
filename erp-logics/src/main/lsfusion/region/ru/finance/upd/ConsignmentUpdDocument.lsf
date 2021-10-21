@@ -328,27 +328,37 @@ createCorrection 'Создать иУПД' (UpdDocument upd) {
         AND invoiceSum(upd) = invoiceSumInvoiceDetail(invoice(upd)) 
         AND sum(upd) = sumInvoiceDetail(invoice(upd))
         AND VATSum(upd) = VATSumInvoiceDetail(invoice(upd)) THEN {
-        NEWSESSION {
-            NEW iupd = UpdDocument {
-                invoice(iupd) <- invoice(upd);
-                numberInvoice(iupd) <- numberInvoice(upd);
-                correctedUpdDocument(iupd) <- upd;
-                correctionDateTime(iupd) <- currentDateTime();
-                fill(invoice(upd), iupd);
-                SHOW updDocument OBJECTS u = iupd DOCKED NOCANCEL; 
+            LOCAL changed = BOOLEAN (UpdDocumentDetail);
+            changed (UpdDocumentDetail d) <- TRUE WHERE updDocument(d)=upd AND (NOT price(d)=price(invoiceDetail(d)) OR NOT sum(d)=sum(invoiceDetail(d)) OR NOT quantity(d)=quantity(invoiceDetail(d)));
+            changed (UpdDocumentDetail d) <- TRUE WHERE updDocument(d)=upd AND NOT VATSum(d)=VATSum(invoiceDetail(d));
+            changed (UpdDocumentDetail d) <- TRUE WHERE updDocument(d)=upd AND NOT invoiceSum(d)=invoiceSum(invoiceDetail(d));
+            IF NOT [GROUP SUM 1 IF changed(UpdDocumentDetail detail) BY updDocument(detail)](upd) THEN {
+            NEWSESSION {
+                    NEW iupd = UpdDocument {
+                        invoice(iupd) <- invoice(upd);
+                        numberInvoice(iupd) <- numberInvoice(upd);
+                        correctedUpdDocument(iupd) <- upd;
+                        correctionDateTime(iupd) <- currentDateTime();
+                        fill(invoice(upd), iupd);
+                        SHOW updDocument OBJECTS u = iupd DOCKED NOCANCEL; 
+                    }
+                }
             }
-        }    
-    }
-    ELSE {
-        MESSAGE 'Создать иУПД невозможно - в накладную внесены финансово значимые изменения.';
-    }
+            ELSE {
+                changed (UpdDocumentDetail d) <- NULL;
+                MESSAGE 'Создать иУПД невозможно - в накладную внесены финансово значимые изменения.';    
+            }    
+        }
+        ELSE {
+            MESSAGE 'Создать иУПД невозможно - в накладную внесены финансово значимые изменения.';
+        }
 }
 
 EXTEND FORM updDocuments
     PROPERTIES (u) createCorrection SHOWIF NOT correctionNumber(u)
     
-    OBJECTS cu = UpdDocument
-    PROPERTIES (cu) READONLY updType, numberCorrection, numberInvoice, dateInvoice, dateTimeSupplier, dateTimeTransfer
+    OBJECTS cu = UpdDocument 
+    PROPERTIES (cu) READONLY SHOWIF (correctedUpdDocument(cu) OR correctionNumber(cu)) updType, numberCorrection, numberInvoice, dateInvoice, dateTimeSupplier, dateTimeTransfer
     FILTERS (isCorrection(cu, u) AND correctionNumber(u)) OR isUpCorrection(cu, u) OR correctedUpdDocument(u)=cu
 ;
 
