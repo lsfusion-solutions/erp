@@ -1,0 +1,14 @@
+MODULE RepricingSaleInvoiceOrderAggregation;
+
+REQUIRE RepricingSaleInvoice, SaleShipmentInvoiceOrderAggregation;
+PRIORITY Sale;
+
+NAMESPACE Repricing;
+
+WHEN LOCAL FORMS userOrder GOAFTER shipmentPrice[UserOrderDetail] (CHANGED(sku(UserOrderDetail d)) OR CHANGED(operation(d)) OR CHANGED(invoicePrice(d)))  AND createRepricing(operation(d)) DO {    
+    IF NOT CHANGED(shipmentPrice(d)) THEN {
+        shipmentPrice(d) <- invoicePrice(d);    
+    }
+}    
+
+pricingQuantityRepricingCalc(Sale.InvoiceDetail d)+= shipmentQuantity(d) IF d IS OrderInvoiceDetail;

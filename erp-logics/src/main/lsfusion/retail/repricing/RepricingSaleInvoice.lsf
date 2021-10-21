@@ -51,8 +51,12 @@ needToRepricingSaleStore 'Фильтр' (Invoice i)=
 
 overNeedToRepricingSaleStore 'Фильтр' (Invoice i) =  OVERRIDE needToRepricingSaleStoreEx(i), needToRepricingSaleStore(i);    
 
+pricingQuantityRepricingCalc = ABSTRACT NUMERIC[16,5](InvoiceDetail);
+
+pricingQuantityRepricing (InvoiceDetail d) = OVERRIDE pricingQuantityRepricingCalc(d), pricingQuantity(d);
+
 needToRepricingSaleStore 'Фильтр' (InvoiceDetail d)= 
-    needToRepricingSaleStore(invoice(d)) AND pricingQuantity(d) AND isStockSku(d) AND 
+    needToRepricingSaleStore(invoice(d)) AND pricingQuantityRepricing(d) AND isStockSku(d) AND 
     prevRetailPricingPriceB(d) != shipmentPrice(d)
 ; 
 
@@ -99,7 +103,7 @@ createRepricingSaleStoreOver 'Создать переоценку'(Invoice i)  {
         FOR inSaleStore(InvoiceDetail detail) AND invoice (detail)== i NEW rd = UserRepricingDetail DO {
             userRepricing(rd) <- r;
             sku(rd) <- sku(detail);
-            quantity(rd) <- pricingQuantity(detail);
+            quantity(rd) <- pricingQuantityRepricing(detail);
 
             //curPrice(rd) <- price(detail);
             curRetailPrice(rd) <- prevRetailPricingPriceB(detail);
