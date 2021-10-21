@@ -1,6 +1,6 @@
 MODULE WriteOffRu;
 
-REQUIRE WriteOff, LegalEntityRu, PurchaseShipment;
+REQUIRE WriteOff, LegalEntityRu, PurchaseShipment, Bank;
 
 NAMESPACE WriteOff;
 
@@ -39,9 +39,20 @@ invoice(WriteOffDetail d) = invoice(invoiceDetail(batch(d)));
 numberInvoice 'Номер накладной' (WriteOffDetail d) = number(invoice(d));
 dateInvoice 'Дата накладной' (WriteOffDetail d) = date(invoice(d));
 
+shortNameChief 'Фамилия И.О. '  (WriteOff w) = shortName(chief(legalEntityStock(w),date(w)));
+namePositionChief 'Должность'  (WriteOff w) = namePosition(chief(legalEntityStock(w),date(w)));
+
+innLegalEntityStock 'ИНН' (WriteOff writeOff) = inn(legalEntityStock(writeOff));
+phoneLegalEntityStock 'Телефон' (WriteOff writeOff) = phone(legalEntityStock(writeOff));
+numberAccountLegalEntityStock 'Основной р/сч.' (WriteOff writeOff) = numberAccount(legalEntityStock(writeOff));
+nameBankLegalEntityStock 'Банк' (WriteOff writeOff) = nameBank(legalEntityStock(writeOff));
+MFOBankLegalEntityStock 'BIC' (WriteOff writeOff) = MFOBank(legalEntityStock(writeOff));
+corrAccountLegalEntityStock 'к/сч.' (WriteOff writeOff) = corrAccount(legalEntityStock(writeOff));
+
 FORM writeOffTorg16A 'ТОРГ-16'
     OBJECTS w=WriteOff PANEL 
-    PROPERTIES (w) fullNameLegalEntityStock, fullNameStock,
+    PROPERTIES (w) fullNameLegalEntityStock,
+                   fullNameStock,
                    number, series, date, 
                    okpo, okdp,
                    nameReason                   
@@ -67,9 +78,37 @@ FORM writeOffTorg16B 'ТОРГ-16 (оборотная сторона)'
             inWriteOffCommittee(w, e)
 ;
 
-printWriteOffTorg16 'ТОРГ-16' (WriteOff writeOff)  { 
-    PRINT writeOffTorg16A OBJECTS w = writeOff; 
-    PRINT writeOffTorg16B OBJECTS w = writeOff;
+FORM writeOffTorg16AB 'ТОРГ-16'
+    OBJECTS wA=WriteOff PANEL 
+    PROPERTIES (wA) fullNameLegalEntityStock, innLegalEntityStock, addressLegalEntityStock, phoneLegalEntityStock,
+                    numberAccountLegalEntityStock, nameBankLegalEntityStock, MFOBankLegalEntityStock, corrAccountLegalEntityStock,
+                    fullNameStock,
+                    number, series, date, 
+                    okpo, okdp,
+                    nameReason, 
+                    shortNameChief, namePositionChief                   
+    
+    OBJECTS wdA=WriteOffDetail SUBREPORT
+    PROPERTIES (wdA) date, number, idReason, nameReason, dateInvoice, numberInvoice
+    FILTERS (wdA = GROUP LAST WriteOffDetail d IF invoice(wdA) == invoice(d) AND batch(wdA) IS Batch AND invoice(wdA) AND reason(wdA) == reason(d) ORDER d),
+            in(wA, wdA)  
+          
+    OBJECTS wB=WriteOff PANEL            
+    PROPERTIES (wB)  namePositionChairmanWriteOffCommittee, shortNameChairmanWriteOffCommittee,
+                    sumWriteOffDetail, positionResponsiblePerson, shortNameResponsiblePerson
+
+    OBJECTS wdB=WriteOffDetail SUBREPORT 
+        PROPERTIES (wdB) READONLY nameSku, code, shortNameUOMSku, idUOM,
+                       quantity, netWeight, price, sum 
+
+    OBJECTS e=Employee SUBREPORT 
+    PROPERTIES(e) shortName, namePosition
+    FILTERS in(wB, wdB),
+            inWriteOffCommittee(wB, e)
+;
+
+printWriteOffTorg16 'ТОРГ-16' (WriteOff writeOff)  {
+    PRINT writeOffTorg16AB OBJECTS wA = writeOff, wB = writeOff;
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM writeOffs
