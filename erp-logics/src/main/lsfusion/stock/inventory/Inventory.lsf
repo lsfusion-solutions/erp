@@ -466,6 +466,7 @@ sumPageInventoryDetail 'Сумма по описям' (stock, inventory) =
     GROUP SUM sumPageInventoryDetail(ListInventory listInventory) BY stock(listInventory), inventory(listInventory) IN documentSum;
 
 overChangeQuantityPageInventoryDetail  ABSTRACT LIST ( CollationSheet, Sku);
+overChangeQuantityPageInventoryDetail  ABSTRACT LIST ( CollationSheet, Batch);
 
 quantityPageInventoryDetail 'Кол-во по описям' (collationSheet, sku) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
     BY collationSheet(pageInventoryDetail), sku(pageInventoryDetail) MATERIALIZED;
@@ -1800,7 +1801,7 @@ FORM inventory 'Инвентаризация'
 
     OBJECTS         b=Batch GRID
     PROPERTIES(b) READONLY SHOWIF isBatch(cs) idBarcodeSku, nameSku, name, cost
-    PROPERTIES(cs,b) SHOWIF isBatch(cs)       quantityPageInventoryDetail, quantityBalance,
+    PROPERTIES(cs,b) SHOWIF isBatch(cs)       quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,b), quantityBalance,
                                                             quantityShortage
     PROPERTIES(cs,b) SHOWIF isBatch(cs)       pricePageInventoryDetail BACKGROUND differentPrice(cs, b),
                                                             priceBalance BACKGROUND differentPrice(cs, b)
