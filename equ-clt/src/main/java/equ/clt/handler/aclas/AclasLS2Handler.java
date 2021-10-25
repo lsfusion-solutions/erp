@@ -9,6 +9,7 @@ import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.springframework.util.FileCopyUtils;
 
@@ -22,6 +23,8 @@ import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class AclasLS2Handler extends MultithreadScalesHandler {
+
+    protected final static Logger aclasls2Logger = Logger.getLogger("AclasLS2Logger");
 
     private static int pluFile = 0x0000;
     private static int note1File = 0x000c;
@@ -114,38 +117,36 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
-            bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price",
-                    "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"))) {
+                bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
 
-            String barcodePrefix = scales.weightCodeGroupScales != null ? scales.weightCodeGroupScales : "22";
-            for (ScalesItem item : transaction.itemsList) {
-                bw.write(0x0d);
-                bw.write(0x0a);
-                boolean isWeight = isWeight(item, 1);
-                String name = escape(trimToEmpty(item.name));
-                String name1 = name.substring(0, Math.min(name.length(), 40));
-                String name2 = name.length() > 40 ? name.substring(40, Math.min(name.length(), 80)) : "";
-                if(item.price == null || item.price.compareTo(BigDecimal.ZERO) == 0) {
-                    throw new RuntimeException("Zero price is not allowed");
+                String barcodePrefix = scales.weightCodeGroupScales != null ? scales.weightCodeGroupScales : "22";
+                for (ScalesItem item : transaction.itemsList) {
+                    bw.write(0x0d);
+                    bw.write(0x0a);
+                    boolean isWeight = isWeight(item, 1);
+                    String name = escape(trimToEmpty(item.name));
+                    String name1 = name.substring(0, Math.min(name.length(), 40));
+                    String name2 = name.length() > 40 ? name.substring(40, Math.min(name.length(), 80)) : "";
+                    if (item.price == null || item.price.compareTo(BigDecimal.ZERO) == 0) {
+                        throw new RuntimeException("Zero price is not allowed");
+                    }
+                    String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100);
+                    price = commaDecimalSeparator ? price.replace(".", ",") : price.replace(",", ".");
+                    String unitID = isWeight ? "4" : "10";
+                    String freshnessDate = item.hoursExpiry != null ? String.valueOf(item.hoursExpiry) : "0";
+                    String packageType = isWeight ? "0" : "2";
+                    String iceValue = item.extraPercent != null ? String.valueOf(safeMultiply(item.extraPercent, 10).intValue()) : "0";
+
+                    Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
+                    bw.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, name2, price, unitID, "7", freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
                 }
-                String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100);
-                price = commaDecimalSeparator ? price.replace(".", ",") : price.replace(",", ".");
-                String unitID = isWeight ? "4" : "10";
-                String freshnessDate = item.hoursExpiry != null ? String.valueOf(item.hoursExpiry) : "0";
-                String packageType = isWeight ? "0" : "2";
-                String iceValue = item.extraPercent != null ? String.valueOf(safeMultiply(item.extraPercent, 10).intValue()) : "0";
-
-                Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
-                bw.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, name2, price,
-                        unitID, "7", freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
             }
 
-            bw.close();
+            logFile(logDir, file, transaction, "plu");
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
         } finally {
-            logFile(logDir, file, "plu");
             safeDelete(file);
         }
     }
@@ -155,41 +156,41 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         int result = 0;
         if(!data.get(0).isEmpty()) {
-            result = loadNote(scales, data.get(0), logDir, sleep, note1File);
+            result = loadNote(scales, data.get(0), transaction, logDir, sleep, note1File);
         }
 
         if(result == 0 && !data.get(1).isEmpty()) {
-            result = loadNote(scales, data.get(1), logDir, sleep, note2File);
+            result = loadNote(scales, data.get(1), transaction, logDir, sleep, note2File);
         }
 
         if(result == 0 && !data.get(2).isEmpty()) {
-            result = loadNote(scales, data.get(2), logDir, sleep, note3File);
+            result = loadNote(scales, data.get(2), transaction, logDir, sleep, note3File);
         }
 
         if(result == 0 && !data.get(3).isEmpty()) {
-            result = loadNote(scales, data.get(3), logDir, sleep, note4File);
+            result = loadNote(scales, data.get(3), transaction, logDir, sleep, note4File);
         }
 
         return result;
     }
 
-    private int loadNote(ScalesInfo scales, List<List<Object>> noteData, String logDir, long sleep, int noteFile) throws IOException, InterruptedException {
+    private int loadNote(ScalesInfo scales, List<List<Object>> noteData, TransactionScalesInfo transaction, String logDir, long sleep, int noteFile) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
-            bw.write(StringUtils.join(Arrays.asList("PLUID", "Value").iterator(), "\t"));
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"))) {
+                bw.write(StringUtils.join(Arrays.asList("PLUID", "Value").iterator(), "\t"));
 
-            for (List<Object> noteEntry : noteData) {
-                bw.write(0x0d);
-                bw.write(0x0a);
-                bw.write(StringUtils.join(Arrays.asList(noteEntry.get(0), noteEntry.get(1)).iterator(), "\t"));
+                for (List<Object> noteEntry : noteData) {
+                    bw.write(0x0d);
+                    bw.write(0x0a);
+                    bw.write(StringUtils.join(Arrays.asList(noteEntry.get(0), noteEntry.get(1)).iterator(), "\t"));
+                }
             }
 
-            bw.close();
+            logFile(logDir, file, transaction, "note");
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), noteFile, sleep);
         } finally {
-            logFile(logDir, file, "note");
             safeDelete(file);
         }
     }
@@ -225,30 +226,30 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
-            bw.write(StringUtils.join(Arrays.asList("ButtonIndex", "ButtonValue").iterator(), "\t"));
+            try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"))) {
+                bw.write(StringUtils.join(Arrays.asList("ButtonIndex", "ButtonValue").iterator(), "\t"));
 
-            for (ScalesItem item : transaction.itemsList) {
-                if(item.pluNumber != null) {
-                    bw.write(0x0d);
-                    bw.write(0x0a);
-                    bw.write(StringUtils.join(Arrays.asList(item.pluNumber, item.idBarcode).iterator(), "\t"));
+                for (ScalesItem item : transaction.itemsList) {
+                    if (item.pluNumber != null) {
+                        bw.write(0x0d);
+                        bw.write(0x0a);
+                        bw.write(StringUtils.join(Arrays.asList(item.pluNumber, item.idBarcode).iterator(), "\t"));
+                    }
                 }
             }
 
-            bw.close();
+            logFile(logDir, file, transaction, "hotkey");
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), hotKeyFile, sleep);
         } finally {
-            logFile(logDir, file, "hotkey");
             safeDelete(file);
         }
     }
 
-    private void logFile(String logDir, File file, String prefix) throws IOException {
+    private void logFile(String logDir, File file, TransactionScalesInfo transaction, String prefix) throws IOException {
         if (logDir != null) {
             if (new File(logDir).exists() || new File(logDir).mkdirs()) {
-                FileCopyUtils.copy(file, new File(logDir + "/" + prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + ".txt"));
+                FileCopyUtils.copy(file, new File(logDir + "/" + transaction.id + "-" + prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + ".txt"));
             }
         }
     }
@@ -297,7 +298,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
     @Override
     protected void beforeStartTransactionExecutor() {
-        processTransactionLogger.info(getLogPrefix() + "Connecting to library...");
+        aclasls2Logger.info(getLogPrefix() + "Connecting to library...");
         AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
         String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();
         init(libraryDir);
@@ -305,7 +306,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
     @Override
     protected void afterFinishTransactionExecutor() {
-        processTransactionLogger.info(getLogPrefix() + "Disconnecting from library...");
+        aclasls2Logger.info(getLogPrefix() + "Disconnecting from library...");
         release();
     }
 
@@ -340,18 +341,18 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 }
 
                 if (result == 0) {
-                    processTransactionLogger.info(getLogPrefix() + "Sending " + transaction.itemsList.size() + " items..." + scales.port);
+                    aclasls2Logger.info(getLogPrefix() + String.format("transaction %s, sending %s items...", transaction.itemsList.size(), scales.port));
                     result = loadData(scales, transaction);
                 }
                 error = getErrorDescription(result);
                 if(error != null) {
-                    processTransactionLogger.error(getLogPrefix() + error);
+                    aclasls2Logger.error(getLogPrefix() + error);
                 }
             } catch (Throwable t) {
                 error = String.format(getLogPrefix() + "IP %s error, transaction %s: %s", scales.port, transaction.id, ExceptionUtils.getStackTraceString(t));
-                processTransactionLogger.error(error, t);
+                aclasls2Logger.error(error, t);
             }
-            processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
+            aclasls2Logger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return Pair.create(error != null ? Collections.singletonList(error) : new ArrayList<>(), cleared);
         }
     }
