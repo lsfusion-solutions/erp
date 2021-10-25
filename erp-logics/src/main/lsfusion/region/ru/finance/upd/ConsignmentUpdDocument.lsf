@@ -330,6 +330,8 @@ caption 'Атрибут' = DATA STRING (UpdDocument, INTEGER);
 oldValue 'Старое значение' = DATA STRING (UpdDocument, INTEGER);
 newValue 'Новое значение' = DATA STRING (UpdDocument, INTEGER);
 
+countChanges = GROUP SUM 1 IF id(UpdDocument updDoc, INTEGER i) BY updDoc;
+
 META checkDiferrenceProp (prop, idS, captionS)
     check###prop (UpdDocument upd) {
         IF (prop(upd) OR prop(correctedUpdDocument(upd))) AND NOT prop(upd)=prop(correctedUpdDocument(upd)) THEN {
@@ -475,6 +477,8 @@ newValue 'Новое значение' = DATA STRING (UpdDocumentDetail, INTEGER
 
 correctedUpdDocumentDetail = GROUP LAST UpdDocumentDetail detail ORDER detail
         WHERE updDocument(detail)=correctedUpdDocument(updDocument(UpdDocumentDetail detail1)) AND invoiceDetail(detail)=invoiceDetail(detail1) BY detail1;
+        
+countDetailChanges = GROUP SUM 1 IF id(UpdDocumentDetail updDetail, INTEGER i) BY updDocument(updDetail);     
 
 META checkDiferrenceDetailProp (prop, idS, captionS)
     check###prop (UpdDocumentDetail detail) {
@@ -510,12 +514,12 @@ checkDiferrenceDetails (UpdDocument upd) {
 
 EXTEND FORM updDocument
     OBJECTS i = INTEGER
-    PROPERTIES (u, i) READONLY SHOWIF correction(u) id, caption, oldValue, newValue
+    PROPERTIES (u, i) READONLY SHOWIF countChanges(u) id, caption, oldValue, newValue
     FILTERS id(u, i) OR caption(u, i) OR oldValue(u, i) OR newValue(u, i)
     
     OBJECTS cd = (id = INTEGER, di = UpdDocumentDetail)
-    PROPERTIES READONLY number(di)
-    PROPERTIES (di, id) READONLY SHOWIF correction(u) id, caption, oldValue, newValue
+    PROPERTIES READONLY SHOWIF countDetailChanges(u) number(di)
+    PROPERTIES (di, id) READONLY SHOWIF countDetailChanges(u) id, caption, oldValue, newValue
     FILTERS id(di, id) OR caption(di, id) OR oldValue(di, id) OR newValue(di, id), updDocument(di)=u
 ;
 
