@@ -93,7 +93,7 @@ createDetails (Consignment c, UpdDocument upd) {
     }
 }
 
-fill(Consignment invoice, UpdDocument ei) {
+fillHeader(Consignment invoice, UpdDocument ei) {
     invoice(ei) <- invoice;
     idConsignor(ei) <- idEdi(supplier(invoice));
     idConsignee(ei) <- idEdi(customer(invoice));
@@ -173,7 +173,10 @@ fill(Consignment invoice, UpdDocument ei) {
     sum(ei) <- [GROUP SUM sum(ConsignmentDetail d) BY consignment(d)](invoice);
     invoiceSum(ei) <- [GROUP SUM sumConsignment(ConsignmentDetail d) BY consignment(d)](invoice);
     VATSum(ei) <- [GROUP SUM sumVAT(ConsignmentDetail d) BY consignment(d)](invoice); 
-    
+}
+
+fill(Consignment invoice, UpdDocument ei) {
+    fillHeader(invoice, ei);    
     overFill(ei, invoice);
     
     createDetails(invoice, ei);
@@ -465,16 +468,68 @@ checkDiferrence (UpdDocument upd) {
     checkAddressReceiverCompany(upd);
 }
 
+id 'Код' = DATA STRING (UpdDocumentDetail, INTEGER);
+caption 'Атрибут' = DATA STRING (UpdDocumentDetail, INTEGER);
+oldValue 'Старое значение' = DATA STRING (UpdDocumentDetail, INTEGER);
+newValue 'Новое значение' = DATA STRING (UpdDocumentDetail, INTEGER);
+
+correctedUpdDocumentDetail = GROUP LAST UpdDocumentDetail detail ORDER detail
+        WHERE updDocument(detail)=correctedUpdDocument(updDocument(UpdDocumentDetail detail1)) AND invoiceDetail(detail)=invoiceDetail(detail1) BY detail1;
+
+META checkDiferrenceDetailProp (prop, idS, captionS)
+    check###prop (UpdDocumentDetail detail) {
+        IF (prop(detail) OR prop(correctedUpdDocumentDetail(detail))) AND NOT prop(detail)=prop(correctedUpdDocumentDetail(detail)) THEN {
+            FOR INTEGER i = OVERRIDE [GROUP SUM 1 IF id(UpdDocumentDetail d, INTEGER int) BY d](detail), 0 DO {
+                id(detail, i) <- idS;
+                caption(detail, i) <- captionS;
+                oldValue(detail, i) <- prop(correctedUpdDocumentDetail(detail));
+                newValue(detail, i) <- prop(detail);
+            }
+        }    
+    }
+END
+
+@checkDiferrenceDetailProp (idSku, 'idSku', 'Код товара');
+@checkDiferrenceDetailProp (nameSku, 'nameSku', 'Наименование товара');
+@checkDiferrenceDetailProp (idUOM, 'idUOM', 'ОКЕИ');
+@checkDiferrenceDetailProp (nameUOM, 'nameUOM', 'ЕИ');
+@checkDiferrenceDetailProp (idCountry, 'idCountry', 'Код страны');
+@checkDiferrenceDetailProp (nameCountry, 'nameCountry', 'Страна');
+@checkDiferrenceDetailProp (numberDeclaration, 'numberDeclaration', 'Декларация');
+checkDiferrenceDetails (UpdDocument upd) {
+    FOR updDocument(UpdDocumentDetail detail)=upd DO {
+        checkIdSku(detail);
+        checkNameSku(detail);
+        checkIdUOM(detail);
+        checkNameUOM(detail);
+        checkIdCountry(detail);
+        checkNameCountry(detail);
+        checkNumberDeclaration(detail);
+    }
+}
+
 EXTEND FORM updDocument
     OBJECTS i = INTEGER
     PROPERTIES (u, i) READONLY SHOWIF correction(u) id, caption, oldValue, newValue
     FILTERS id(u, i) OR caption(u, i) OR oldValue(u, i) OR newValue(u, i)
+    
+    OBJECTS cd = (id = INTEGER, di = UpdDocumentDetail)
+    PROPERTIES READONLY number(di)
+    PROPERTIES (di, id) READONLY SHOWIF correction(u) id, caption, oldValue, newValue
+    FILTERS id(di, id) OR caption(di, id) OR oldValue(di, id) OR newValue(di, id), updDocument(di)=u
 ;
 
 DESIGN updDocument {
     titlesContainer {
-        MOVE BOX(i) {
+        NEW corrections {
             caption = 'Изменения';
+            type = TABBED;
+            MOVE BOX(i) {
+                caption = 'Шапка';
+            }
+            MOVE BOX(cd) {
+                caption = 'Строки';
+            }
         }
     }
 }
@@ -498,9 +553,11 @@ createCorrection 'Создать иУПД' (UpdDocument upd) {
                         correctionDateTime(iupd) <- currentDateTime();
                         fill(invoice(upd), iupd);
                         checkDiferrence(iupd);
-                        IF NOT [GROUP SUM 1 IF id(UpdDocument updDoc, INTEGER i) BY updDoc](iupd) THEN {
-                            MESSAGE 'Изменения не обнаружены - создавать иУПД нет необходимости';
-                            CANCEL;
+                        checkDiferrenceDetails(iupd);
+                        IF NOT [GROUP SUM 1 IF id(UpdDocument updDoc, INTEGER i) BY updDoc](iupd) 
+                            AND NOT [GROUP SUM 1 IF id(UpdDocumentDetail updDetail, INTEGER i) BY updDocument(updDetail)](iupd) THEN {
+                                MESSAGE 'Изменения не обнаружены - создавать иУПД нет необходимости';
+                                CANCEL;
                         } ELSE {
                             SHOW updDocument OBJECTS u = iupd DOCKED NOCANCEL; 
                         }
