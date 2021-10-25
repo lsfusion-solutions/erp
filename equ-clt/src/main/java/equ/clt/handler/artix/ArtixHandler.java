@@ -565,7 +565,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
     }
 
-    private String getAddMCashUserJSON(CashierInfo cashier) throws JSONException {
+    private String getAddMCashUserJSON(CashierInfo cashier, boolean useNamePositionInRankCashier) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject inventGroupObject = new JSONObject();
@@ -575,7 +575,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         inventGroupObject.put("login", cashier.nameCashier); //имя пользователя для входа в систему
         inventGroupObject.put("password", cashier.numberCashier); //пароль для входа в систему
         //inventGroupObject.put("keyposition", 1); //номер положения клавиатурного ключа для подтверждения прав у пользователя
-        inventGroupObject.put("rank", cashier.idPosition); //должность пользователя
+        inventGroupObject.put("rank", useNamePositionInRankCashier ? cashier.namePosition : cashier.idPosition); //должность пользователя
 
         JSONArray roleUsersArray = new JSONArray();
         JSONObject roleUsersObject = new JSONObject();
@@ -591,7 +591,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
     private int getRoleCode(String idPosition) {
         try {
-            return Integer.parseInt(idPosition.substring(0, 1));
+            return Integer.parseInt(idPosition.replaceFirst("0*", "").substring(0, 1));
         } catch (Exception e) {
             return 1;
         }
@@ -1050,9 +1050,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         machineryExchangeLogger.info(logPrefix + "Send CashierInfoList");
 
-        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
-        Integer timeout = artixSettings == null || artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
-        String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+        Integer timeout = artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
+        String globalExchangeDirectory = artixSettings.getGlobalExchangeDirectory();
+        boolean useNamePositionInRankCashier = artixSettings.isUseNamePositionInRankCashier();
         if (globalExchangeDirectory != null) {
             File directory = new File(globalExchangeDirectory);
             if (directory.exists() || directory.mkdirs()) {
@@ -1066,7 +1067,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     machineryExchangeLogger.info(logPrefix + "creating cashiers file " + file.getAbsolutePath());
 
                     for (CashierInfo cashier : cashierInfoList) {
-                        writeStringToFile(tmpFile, getAddMCashUserJSON(cashier) + "\n---\n");
+                        writeStringToFile(tmpFile, getAddMCashUserJSON(cashier, useNamePositionInRankCashier) + "\n---\n");
                     }
 
                     FileCopyUtils.copy(tmpFile, file);

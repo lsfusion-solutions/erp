@@ -63,6 +63,9 @@ public class ArtixSettings implements Serializable{
     //Если true, записываем identifier для чека продажи и sourceIdentifier для чека возврата в externalNumber
     private boolean receiptIdentifiersToExternalNumber;
 
+    //Если true, при выгрузке кассиров в поле rank пишем namePosition вместо idPosition
+    private boolean useNamePositionInRankCashier;
+
     public ArtixSettings() {
     }
 
@@ -224,5 +227,13 @@ public class ArtixSettings implements Serializable{
 
     public void setReceiptIdentifiersToExternalNumber(boolean receiptIdentifiersToExternalNumber) {
         this.receiptIdentifiersToExternalNumber = receiptIdentifiersToExternalNumber;
+    }
+
+    public boolean isUseNamePositionInRankCashier() {
+        return useNamePositionInRankCashier;
+    }
+
+    public void setUseNamePositionInRankCashier(boolean useNamePositionInRankCashier) {
+        this.useNamePositionInRankCashier = useNamePositionInRankCashier;
     }
 }

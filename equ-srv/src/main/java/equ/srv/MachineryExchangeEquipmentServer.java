@@ -337,8 +337,8 @@ public class MachineryExchangeEquipmentServer {
                 ImRevMap<Object, KeyExpr> employeeKeys = MapFact.singletonRev("employee", employeeExpr);
 
                 QueryBuilder<Object, Object> employeeQuery = new QueryBuilder<>(employeeKeys);
-                String[] employeeNames = new String[]{"idEmployee", "shortNameContact", "idPositionEmployee", "idStockEmployee"};
-                LP[] employeeProperties = equLM.findProperties("id[Employee]", "shortName[Contact]", "idPosition[Employee]", "idStock[Employee]");
+                String[] employeeNames = new String[]{"idEmployee", "shortNameContact", "idPositionEmployee", "namePositionEmployee", "idStockEmployee"};
+                LP[] employeeProperties = equLM.findProperties("id[Employee]", "shortName[Contact]", "idPosition[Employee]", "namePosition[Employee]", "idStock[Employee]");
                 for (int i = 0; i < employeeProperties.length; i++) {
                     employeeQuery.addProperty(employeeNames[i], employeeProperties[i].getExpr(employeeExpr));
                 }
@@ -355,8 +355,9 @@ public class MachineryExchangeEquipmentServer {
                     String numberCashier = getRowValue(row, "idEmployee");
                     String nameCashier = getRowValue(row, "shortNameContact");
                     String idPosition = getRowValue(row, "idPositionEmployee");
+                    String namePosition = getRowValue(row, "namePositionEmployee");
                     String idStock = getRowValue(row, "idStockEmployee");
-                    cashierInfoList.add(new CashierInfo(numberCashier, nameCashier, idPosition, idStock));
+                    cashierInfoList.add(new CashierInfo(numberCashier, nameCashier, idPosition, namePosition, idStock));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
