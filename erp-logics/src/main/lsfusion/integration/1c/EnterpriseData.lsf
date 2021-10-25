@@ -291,7 +291,7 @@ onStarted() + {
         isReceived(conf) <- isReceived();
         
         toBase(conf) <- toBase();
-        packet (conf, EnterpriseData ed) <- packet(ed);
+        packet(conf, EnterpriseData ed) <- packet(ed);
         idTicket(conf) <- idTicket();
         APPLY;
     } 
@@ -302,14 +302,20 @@ GROUP linkInLink EXTID 'СсылкаНаОбъект' : link;
 
 META defProp(name, caption, type, class)
     name caption = ABSTRACT type (###class);
-    WHEN CHANGED(name(###class d)) DO packet(Configuration c, d) <- NULL WHERE c IS Configuration;
+    WHEN CHANGED(name(###class d)) DO {
+        packet(Configuration c, d) <- NULL WHERE c IS Configuration;
+        in(Configuration c, d) <- TRUE WHERE inSending(c, d) AND NOT date(d) < dateStartExchange(c);  
+    }
     
     name###class caption = DATA LOCAL STRING (INTEGER);
 END
 
 META defPropDetail(name, caption, type, class, table)
     name caption = ABSTRACT type (###class###table);
-    WHEN CHANGED(name(###class###table d)) DO packet(Configuration c, class(d)) <- NULL WHERE c IS Configuration;
+    WHEN CHANGED(name(###class###table d)) DO {
+        packet(Configuration c, class(d)) <- NULL WHERE c IS Configuration;
+        in(Configuration c, class(d)) <- TRUE WHERE inSending(c, class(d)) AND NOT date(class(d)) < dateStartExchange(c);
+    }
     
     name###class###table caption = DATA LOCAL STRING (INTEGER);
 END
@@ -449,11 +455,13 @@ META extDocument(doctype, caption)
     ;
 
     uid###doctype = DATA LOCAL ISTRING[36](INTEGER);
+    id###doctype = DATA LOCAL ISTRING (INTEGER);
+    date###doctype = DATA LOCAL STRING (INTEGER);
 
     EXTEND FORM receiveMessage
         OBJECTS doctype = INTEGER EXTID 'Документ.'##caption IN body
         PROPERTIES (doctype) IN keyProperties
-                uid###doctype EXTID 'Ссылка'
+                uid###doctype EXTID 'Ссылка', id###doctype EXTID 'Номер', date###doctype EXTID 'Дата'
     ;
 
     @extDeleteObject(doctype, caption##'Ссылка');
