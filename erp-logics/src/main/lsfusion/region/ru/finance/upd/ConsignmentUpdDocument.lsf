@@ -136,14 +136,14 @@ fill(Consignment invoice, UpdDocument ei) {
     regionCodeSupplier(ei) <- STRING[2](id(region(supplierStock(invoice))));
     
     countryCodeAddressSupplier(ei) <- sid(country(supplier(invoice)));
-    adrressSupplier(ei) <- address(supplier(invoice), date(invoice));
+    addressSupplier(ei) <- address(supplier(invoice), date(invoice));
     
     isConsignerSupplier(ei) <- TRUE IF invoice IS Consignment;
     
     nameReceiverCompany(ei) <- nameCustomerStock(invoice);
     innReceiverCompany(ei) <- inn(customer(invoice));
     countryCodeAddressReceiverCompany(ei) <- sid(country(customer(invoice)));
-    adrressReceiverCompany(ei) <- address(customerStock(invoice));
+    addressReceiverCompany(ei) <- address(customerStock(invoice));
     
     customer(ei) <- customer(invoice);
     nameCustomer(ei) <- fullName(customer(invoice));
@@ -322,25 +322,188 @@ DESIGN options{
 }
 
 //создание иУПД
+id 'Код' = DATA STRING (UpdDocument, INTEGER);
+caption 'Атрибут' = DATA STRING (UpdDocument, INTEGER);
+oldValue 'Старое значение' = DATA STRING (UpdDocument, INTEGER);
+newValue 'Новое значение' = DATA STRING (UpdDocument, INTEGER);
+
+META checkDiferrenceProp (prop, idS, captionS)
+    check###prop (UpdDocument upd) {
+        IF (prop(upd) OR prop(correctedUpdDocument(upd))) AND NOT prop(upd)=prop(correctedUpdDocument(upd)) THEN {
+            FOR INTEGER i = OVERRIDE [GROUP SUM 1 IF id(UpdDocument d, INTEGER int) BY d](upd), 0 DO {
+                id(upd, i) <- idS;
+                caption(upd, i) <- captionS;
+                oldValue(upd, i) <- prop(correctedUpdDocument(upd));
+                newValue(upd, i) <- prop(upd);
+            }
+        }    
+    }
+END
+
+@checkDiferrenceProp(innSupplier, 'innSupplier', 'ИНН поставщика');
+@checkDiferrenceProp(kppSupplier, 'kppSupplier', 'КПП поставщика');
+@checkDiferrenceProp(okpoSupplier, 'okpoSupplier', 'ОКПО продавца');
+@checkDiferrenceProp(nameOriginatorSupplier, 'nameOriginatorSupplier', 'Составитель');
+@checkDiferrenceProp(regionCodeSupplier, 'regionCodeSupplier', 'Код региона продавца');
+@checkDiferrenceProp(countryCodeAddressSupplier, 'countryCodeAddressSupplier', 'Код страны продавца');
+@checkDiferrenceProp(addressSupplier, 'addressSupplier', 'Адрес продавца');
+@checkDiferrenceProp(codeAddressSupplier, 'codeAddressSupplier', 'Код адреса продавца');
+
+@checkDiferrenceProp(numberAccountSupplier, 'numberAccountSupplier', 'Номер банковского счета (поставщик)');
+@checkDiferrenceProp(nameBankSupplier, 'nameBankSupplier', 'Наименование банка (поставщик)');
+@checkDiferrenceProp(MFOBankSupplier, 'MFOBankSupplier', 'БИК (поставщик)');
+@checkDiferrenceProp(corrAccountBankSupplier, 'MFOBankSupplier', 'Корр.счет банка (поставщик)');
+@checkDiferrenceProp(innCustomer, 'innCustomer', 'ИНН покупателя');
+@checkDiferrenceProp(kppCustomer, 'kppCustomer', 'КПП покупателя');
+@checkDiferrenceProp(okpoCustomer, 'okpoCustomer', 'ОКПО покупателя');
+@checkDiferrenceProp(regionCodeCustomer, 'regionCodeCustomer', 'Код региона покупателя');
+@checkDiferrenceProp(countryCodeAddressCustomer, 'countryCodeAddressCustomer', 'Код страны покупателя');
+@checkDiferrenceProp(codeBusinessEvent, 'codeBusinessEvent', 'Идентификатор факта хоз.жизни');
+@checkDiferrenceProp(descriptionBusinessEvent, 'descriptionBusinessEvent', 'Описание факта хоз.жизни');
+@checkDiferrenceProp(descriptionContract, 'descriptionContract', 'Основание передачи');
+@checkDiferrenceProp(numberContract, 'numberContract', 'Номер документа основания');
+checkDateContract (UpdDocument upd) {
+    IF (dateContract(upd) OR dateContract(correctedUpdDocument(upd))) AND NOT dateContract(upd)=dateContract(correctedUpdDocument(upd)) THEN {
+        FOR INTEGER i = OVERRIDE [GROUP SUM 1 IF id(UpdDocument d, INTEGER int) BY d](upd), 0 DO {
+            id(upd, i) <- 'dateContract';
+            caption(upd, i) <- 'Дата документа основания';
+            oldValue(upd, i) <- STRING(toDateDDMMYYYY(dateContract(correctedUpdDocument(upd))));
+            newValue(upd, i) <- STRING(toDateDDMMYYYY(dateContract(upd)));
+        }
+    }    
+}
+
+@checkDiferrenceProp(nameSupplierSignerCredentials, 'supplierSignerCredentials', 'Область полномочий подписанта');
+@checkDiferrenceProp(nameSupplierSignerStatus, 'supplierSignerStatus', 'Статус подписанта');
+@checkDiferrenceProp(supplierSignerCredentialsBase, 'supplierSignerCredentialsBase', 'Основание полномочий подписанта');
+@checkDiferrenceProp(supplierSignerLastName, 'supplierSignerLastName', 'Фамилия подписанта');
+@checkDiferrenceProp(supplierSignerFirstName, 'supplierSignerFirstName', 'Имя подписанта');
+@checkDiferrenceProp(supplierSignerMiddleName, 'supplierSignerMiddleName', 'Отчество подписанта');
+@checkDiferrenceProp(supplierSignerInn, 'supplierSignerInn', 'ИНН организации подписанта');
+@checkDiferrenceProp(supplierSignerPosition, 'supplierSignerPosition', 'Должность подписанта');
+@checkDiferrenceProp(supplierSignerAgentLastName, 'supplierSignerAgentLastName', 'Фамилия представителя подписанта');
+@checkDiferrenceProp(supplierSignerAgentFirstName, 'supplierSignerAgentFirstName', 'Имя представителя подписанта');
+@checkDiferrenceProp(supplierSignerAgentMiddleName, 'supplierSignerAgentMiddleName', 'Отчество представителя подписанта');
+checkIsConsignerSupplier (UpdDocument upd) {
+    IF (isConsignerSupplier(upd) OR isConsignerSupplier(correctedUpdDocument(upd))) AND NOT isConsignerSupplier(upd)=isConsignerSupplier(correctedUpdDocument(upd)) THEN {
+        FOR INTEGER i = OVERRIDE [GROUP SUM 1 IF id(UpdDocument d, INTEGER int) BY d](upd), 0 DO {
+            id(upd, i) <- 'isConsignerSupplier';
+            caption(upd, i) <- 'Продавец является отправителем';
+            oldValue(upd, i) <-  IF isConsignerSupplier(correctedUpdDocument(upd)) THEN 'Да' ELSE 'Нет';
+            newValue(upd, i) <-  IF isConsignerSupplier(upd) THEN 'Да' ELSE 'Нет';
+        }
+    }    
+}
+@checkDiferrenceProp(positionAgentSupplier, 'positionAgentSupplier', 'Должность (работник продавца)');
+@checkDiferrenceProp(lastNameAgentSupplier, 'lastNameAgentSupplier', 'Фамилия (работник продавца)');
+@checkDiferrenceProp(firstNameAgentSupplier, 'firstNameAgentSupplier', 'Имя (работник продавца)');
+@checkDiferrenceProp(middleNameAgentSupplier, 'middleNameAgentSupplier', 'Отчество (работник продавца)');
+@checkDiferrenceProp(positionAgentExecuter, 'positionAgentExecuter', 'Должность (представитель передающей орг.)');
+@checkDiferrenceProp(nameCompanyAgentExecuter, 'nameCompanyAgentExecuter', 'Наименование организации (представитель передающей орг.)');
+@checkDiferrenceProp(lastNameAgentExecuter, 'lastNameAgentExecuter', 'Фамилия (представитель передающей орг.)');
+@checkDiferrenceProp(firstNameAgentExecuter, 'firstNameAgentExecuter', 'Имя (представитель передающей орг.)');
+@checkDiferrenceProp(middleNameAgentExecuter, 'middleNameAgentExecuter', 'Отчество (представитель передающей орг.)');
+@checkDiferrenceProp(positionExecuter, 'positionExecuter', 'Должность (предающее ФЛ)');
+@checkDiferrenceProp(lastNameExecuter, 'lastNameExecuter', 'Фамилия (предающее ФЛ)');
+@checkDiferrenceProp(firstNameExecuter, 'firstNameExecuter', 'Имя (предающее ФЛ)');
+@checkDiferrenceProp(middleNameExecuter, 'middleNameExecuter', 'Отчество (предающее ФЛ)');
+@checkDiferrenceProp(nameReceiverCompany, 'nameReceiverCompany', 'Грузополучатель');
+@checkDiferrenceProp(innReceiverCompany, 'innReceiverCompany', 'ИНН грузополучателя');
+@checkDiferrenceProp(countryCodeAddressReceiverCompany, 'countryCodeAddressReceiverCompany', 'Код страны грузополучателя');
+@checkDiferrenceProp(addressReceiverCompany, 'addressReceiverCompany', 'Адрес грузополучателя');
+
+checkDiferrence (UpdDocument upd) {   
+    checkInnSupplier(upd);
+    checkKppSupplier(upd);
+    checkNameOriginatorSupplier(upd);
+    checkOkpoSupplier(upd);
+    checkRegionCodeSupplier(upd);
+    checkCountryCodeAddressSupplier(upd);
+    checkCodeAddressSupplier(upd);
+    checkNumberAccountSupplier(upd);
+    checkNameBankSupplier(upd);
+    checkMFOBankSupplier(upd);
+    checkCorrAccountBankSupplier(upd);
+    checkInnCustomer(upd);
+    checkKppCustomer(upd);
+    checkOkpoCustomer(upd);
+    checkRegionCodeCustomer(upd);
+    checkCountryCodeAddressCustomer(upd);
+    checkCodeBusinessEvent(upd);
+    checkDescriptionBusinessEvent(upd);
+    checkDescriptionContract(upd);
+    checkNumberContract(upd);
+    checkDateContract(upd);
+    checkNameSupplierSignerCredentials(upd);
+    checkNameSupplierSignerStatus(upd);
+    checkSupplierSignerCredentialsBase(upd);
+    checkSupplierSignerLastName(upd);
+    checkSupplierSignerFirstName(upd);
+    checkSupplierSignerMiddleName(upd);
+    checkSupplierSignerInn(upd);
+    checkSupplierSignerPosition(upd);
+    checkSupplierSignerAgentLastName(upd);
+    checkSupplierSignerAgentFirstName(upd);
+    checkSupplierSignerAgentMiddleName(upd);
+    checkIsConsignerSupplier(upd);
+    checkPositionAgentSupplier(upd);
+    checkLastNameAgentSupplier(upd);
+    checkFirstNameAgentSupplier(upd);
+    checkMiddleNameAgentSupplier(upd);
+    checkPositionAgentExecuter(upd);
+    checkNameCompanyAgentExecuter(upd);
+    checkLastNameAgentExecuter(upd);
+    checkFirstNameAgentExecuter(upd);
+    checkMiddleNameAgentExecuter(upd);
+    checkPositionExecuter(upd);
+    checkLastNameExecuter(upd);
+    checkFirstNameExecuter(upd);
+    checkMiddleNameExecuter(upd);
+    checkNameReceiverCompany(upd);
+    checkInnReceiverCompany(upd);
+    checkCountryCodeAddressReceiverCompany(upd);
+    checkAddressReceiverCompany(upd);
+}
+
+EXTEND FORM updDocument
+    OBJECTS i = INTEGER
+    PROPERTIES (u, i) READONLY SHOWIF correction(u) id, caption, oldValue, newValue
+    FILTERS id(u, i) OR caption(u, i) OR oldValue(u, i) OR newValue(u, i)
+;
+
+DESIGN updDocument {
+    titlesContainer {
+        MOVE BOX(i) {
+            caption = 'Изменения';
+        }
+    }
+}
 
 createCorrection 'Создать иУПД' (UpdDocument upd) {
     IF countUpdDocument(upd) = countInvoiceDetail(invoice(upd)) 
         AND invoiceSum(upd) = invoiceSumInvoiceDetail(invoice(upd)) 
         AND sum(upd) = sumInvoiceDetail(invoice(upd))
-        AND VATSum(upd) = VATSumInvoiceDetail(invoice(upd)) THEN {
+        AND VATSum(upd) = VATSumInvoiceDetail(invoice(upd)) 
+        AND supplier(upd) = supplier(invoice(upd)) AND customer(upd) = customer(invoice(upd)) THEN {
             LOCAL changed = BOOLEAN (UpdDocumentDetail);
             changed (UpdDocumentDetail d) <- TRUE WHERE updDocument(d)=upd AND (NOT price(d)=price(invoiceDetail(d)) OR NOT sum(d)=sum(invoiceDetail(d)) OR NOT quantity(d)=quantity(invoiceDetail(d)));
             changed (UpdDocumentDetail d) <- TRUE WHERE updDocument(d)=upd AND NOT VATSum(d)=VATSum(invoiceDetail(d));
             changed (UpdDocumentDetail d) <- TRUE WHERE updDocument(d)=upd AND NOT invoiceSum(d)=invoiceSum(invoiceDetail(d));
             IF NOT [GROUP SUM 1 IF changed(UpdDocumentDetail detail) BY updDocument(detail)](upd) THEN {
-            NEWSESSION {
+                NEWSESSION {
                     NEW iupd = UpdDocument {
                         invoice(iupd) <- invoice(upd);
                         numberInvoice(iupd) <- numberInvoice(upd);
                         correctedUpdDocument(iupd) <- upd;
                         correctionDateTime(iupd) <- currentDateTime();
                         fill(invoice(upd), iupd);
-                        SHOW updDocument OBJECTS u = iupd DOCKED NOCANCEL; 
+                        checkDiferrence(iupd);
+                        IF NOT [GROUP SUM 1 IF id(UpdDocument updDoc, INTEGER i) BY updDoc](iupd) THEN {
+                            MESSAGE 'Изменения не обнаружены - создавать иУПД нет необходимости';
+                            CANCEL;
+                        } ELSE {
+                            SHOW updDocument OBJECTS u = iupd DOCKED NOCANCEL; 
+                        }
                     }
                 }
             }
@@ -351,7 +514,7 @@ createCorrection 'Создать иУПД' (UpdDocument upd) {
         }
         ELSE {
             MESSAGE 'Создать иУПД невозможно - в накладную внесены финансово значимые изменения.';
-        }
+    }
 }
 
 EXTEND FORM updDocuments
