@@ -14,20 +14,12 @@ CLASS ServiceStatus 'Статус качества сервиса' {
     stopping 'Стоп лист'    
 } 
 TABLE serviceStatus (ServiceStatus);
-order 'Порядок' = DATA INTEGER (ServiceStatus) CHARWIDTH 2;
-fillOrderServiceStatusNew = DATA BOOLEAN ();
+order 'Порядок' (ServiceStatus s) = CASE 
+        WHEN  ServiceStatus.good==s THEN 1
+        WHEN  ServiceStatus.warning==s THEN 2
+        WHEN  ServiceStatus.fine==s THEN 3                                                                           
+        WHEN  ServiceStatus.stopping==s THEN 4 MATERIALIZED CHARWIDTH 2;  
 
-onStarted() + {
-    IF NOT fillOrderServiceStatusNew() THEN {
-        order(ServiceStatus s) <- CASE 
-                                    WHEN  ServiceStatus.good==s THEN 1
-                                    WHEN  ServiceStatus.warning==s THEN 2
-                                    WHEN  ServiceStatus.fine==s THEN 3                                    
-                                    //WHEN  ServiceStatus.finePay==s THEN 4                                                                        
-                                    WHEN  ServiceStatus.stopping==s THEN 4;  
-        fillOrderServiceStatusNew() <- TRUE;
-    }
-}
 
 FORM serviceStatus 'Статус качества сервиса' 
     OBJECTS t = ServiceStatus
