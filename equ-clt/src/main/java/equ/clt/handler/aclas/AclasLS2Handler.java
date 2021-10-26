@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.Callable;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static lsfusion.base.BaseUtils.trimToEmpty;
@@ -46,6 +47,11 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
     protected String getLogPrefix() {
         return "Aclas LS-2: ";
+    }
+
+    @Override
+    protected int getThreadPoolSize(Collection<Callable<SendTransactionResult>> taskList) {
+        return 1; //отключаем распараллеливание
     }
 
     private boolean init(String libraryDir) {
@@ -341,7 +347,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 }
 
                 if (result == 0) {
-                    aclasls2Logger.info(getLogPrefix() + String.format("transaction %s, sending %s items...", transaction.itemsList.size(), scales.port));
+                    aclasls2Logger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, transaction.itemsList.size(), scales.port));
                     result = loadData(scales, transaction);
                 }
                 error = getErrorDescription(result);

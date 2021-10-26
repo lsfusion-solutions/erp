@@ -65,7 +65,7 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
                     if(!taskList.isEmpty()) {
                         beforeStartTransactionExecutor();
                         try {
-                            ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "SendTransaction");
+                            ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(getThreadPoolSize(taskList), "SendTransaction");
                             List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
                             for (Future<SendTransactionResult> threadResult : threadResults) {
                                 if(threadResult.get().localErrors.isEmpty())
@@ -101,6 +101,10 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
     }
 
     protected void afterFinishTransactionExecutor() {
+    }
+
+    protected int getThreadPoolSize(Collection<Callable<SendTransactionResult>> taskList) {
+        return taskList.size();
     }
 
     protected abstract SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales);
