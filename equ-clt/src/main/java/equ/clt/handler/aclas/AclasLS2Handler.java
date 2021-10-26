@@ -347,7 +347,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 }
 
                 if (result == 0) {
-                    aclasls2Logger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, transaction.itemsList.size(), scales.port));
+                    aclasls2Logger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
                     result = loadData(scales, transaction);
                 }
                 error = getErrorDescription(result);
