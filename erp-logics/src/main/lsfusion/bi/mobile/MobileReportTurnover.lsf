@@ -1,0 +1,249 @@
+MODULE MobileReportTurnover;
+
+REQUIRE TurnoverAPI, MobileReport;
+
+NAMESPACE MobileReport;
+
+fillGroup 'Выбрать все' (){
+    in(ItemGroup g) <- active(g);
+}
+
+clearGroup 'Очистить' (){
+    in(ItemGroup g) <- NULL;
+}
+
+FORM mobileGroup 'Товарные группы'
+    OBJECTS sds = ItemGroup
+    PROPERTIES (sds) canonicalName BACKGROUND #A0A0FE IF in(sds) ON CHANGE { in(sds) <- NOT in(sds); }
+    PROPERTIES fillGroup(), clearGroup()
+    
+    FILTERS active(sds)
+;
+
+DESIGN mobileGroup {
+    GRID(sds) {
+        headerHeight = 1;
+        REMOVE TOOLBARBOX (sds);
+        PROPERTY (canonicalName(sds)) { changeOnSingleClick = TRUE; }
+        PROPERTY (fillGroup()) {alignment = STRETCH ;};
+        PROPERTY (clearGroup()) {alignment = STRETCH ;};
+    }
+}
+
+mobileGroups '' ()  {
+    SHOW mobileGroup WAIT NOMANAGESESSION NOCANCEL;
+} IMAGE 'wms.png';
+
+
+FORM typeMeasureSelect 'Выбор значения'
+    PROPERTIES () close 'Закрыть' = formClose
+;
+
+DESIGN typeMeasureSelect {
+    REMOVE TOOLBARBOX;
+    BOX {
+        type = CONTAINERV;
+        width = 300;
+        MOVE PROPERTY (close) {
+            align = STRETCH;
+            fontSize = 14;
+            fontStyle = 'bold';
+            charHeight = 2;
+        }
+    }
+}
+
+
+selectType '' ()  {
+    SHOW typeMeasureSelect WAIT NOMANAGESESSION NOCANCEL;
+} IMAGE 'retail.png';
+
+filterLevel 'Уровень' = DATA LOCAL INTEGER ();
+
+levelMax = GROUP MAX level(ItemGroup g) IF active(g);
+
+WHEN LOCAL CHANGED (filterLevel()) AND filterLevel() > levelMax() DO {
+    MESSAGE CONCAT ' ', 'Максимальный уровень класссификатора =', levelMax();
+    filterLevel() <- levelMax();
+}
+
+WHEN LOCAL CHANGED (filterLevel()) DO{
+   in(ItemGroup g) <- NULL IF NOT level(g) = filterLevel();
+}
+
+FORM mobileTurnover 'Оборачиваемость'
+    OBJECTS intervalDate = INTERVAL[DATE] PANEL
+    PROPERTIES interval = VALUE (intervalDate) HEADER 'Период'
+        
+    PROPERTIES selectType()
+    
+    EVENTS
+        ON INIT {
+            SEEK mobileTurnover.intervalDate = interval(DATE('01.03.2020'), DATE('03-03-2020'));
+            filterLevel() <- 1;
+                
+        },
+        ON QUERYCLOSE {}
+;
+
+DESIGN mobileTurnover {
+    REMOVE TOOLBARBOX;
+    BOX (intervalDate) {
+        type = CONTAINERH;
+        caption = '';
+        alignment = CENTER ;
+        MOVE PROPERTY (selectType());
+        PROPERTY (interval) {
+            fontSize = 22;
+        }
+    }
+}
+
+showMobileForms() + {
+    IF permit(currentUser(), navigatorElementCanonicalName('MobileReport.MobileTurnover')) THEN {
+        SHOW mobileTurnover NOWAIT;
+    }
+}
+
+
+CLASS TypeMeasure{
+    sumSold 'Выручка',
+    markup 'Надбавка',
+    turnover 'Оборачиваемость',
+    cost 'Себестоимость'
+}
+
+//измерение
+measure '' (ItemGroup g, INTERVAL[DATE] iq, TurnoverRow r) = ABSTRACT CASE NUMERIC[18,4];
+
+
+typeMeasure = DATA LOCAL TypeMeasure();
+
+@defineStaticObject(turnoverRow, 'Оборачиваемость');
+
+EXTEND CLASS TurnoverRow{
+    turnover 'Оборачиваемость'
+}
+
+colorTypeMeasure (STRING caption) = IF staticCaption(typeMeasure()) = caption THEN RGB(153,255,153);
+
+META addTypeMeasure(name, caption, unitMeasure)
+    name caption (){
+        typeMeasure() <- TypeMeasure.##name;
+        formClose();
+    }
+    EXTEND FORM typeMeasureSelect
+        PROPERTIES name() BACKGROUND colorTypeMeasure(caption);
+    DESIGN typeMeasureSelect {
+        BOX {
+            MOVE PROPERTY (name()) BEFORE PROPERTY (close) {
+                align = STRETCH;
+                fontSize = 14;
+                fontStyle = 'bold';
+                charHeight = 2; 
+            }
+        }
+    }
+    
+    measure(ItemGroup g, INTERVAL[DATE] iq, TurnoverRow r) += WHEN r IS TurnoverRow AND iq IS INTERVAL[DATE] AND g IS ItemGroup
+        AND typeMeasure() = TypeMeasure.##name THEN unitMeasure(g, from(iq), to(iq));
+END;
+
+costSumBalanceAMobile (ItemGroup g, DATE df, DATE dt) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, g, DATE d) IF d >= df AND d <= dt AND in(g); 
+@addTypeMeasure(turnover, 'Оборачиваемость', costSumBalanceAMobile);
+
+
+markupSumSoldMobile (ItemGroup g, DATE df, DATE dt) = GROUP SUM markupSumSold(Stock s, LegalEntity le, g, DATE d) IF d >= df AND d <= dt AND in(g);
+@addTypeMeasure(markup, 'Надбавка', markupSumSoldMobile);
+
+costSumSoldMobile (SkuGroup g, DATE df, DATE dt) = GROUP SUM costSumSold(Stock s, LegalEntity le, g, DATE d) IF d >= df AND d <= dt AND in(g);
+@addTypeMeasure(cost, 'Себестоимость', costSumSoldMobile);
+//@addTypeMeasure(sumSold, 'Выручка');
+//
+
+order (TurnoverRow r) = CASE
+    WHEN r = TurnoverRow.turnover THEN '1'
+;
+
+isMeasure(INTERVAL[DATE] id, TurnoverRow cr) = GROUP MAX in(ItemGroup ds) IF measure(ds, id, cr);
+colorIndex (INTERVAL[DATE] id, TurnoverRow cr) = PARTITION SUM 1 IF isMeasure(id, cr) BY id;
+color (INTERVAL[DATE] id, TurnoverRow cr) = pivotColor(colorIndex(id, cr) - 1);
+
+colorGroup (ItemGroup g, TurnoverRow r, INTERVAL[DATE] iq) = IF in(g) AND r IS TurnoverRow 
+    THEN color(iq, r);
+
+switchRow ABSTRACT LIST (ItemGroup);
+
+switchRow(ItemGroup g) +{
+    in(g) <- IF in(g) THEN NULL ELSE TRUE; 
+}
+
+nameMobile 'Группы' (ItemGroup g) = replace(name(g), ' ', '<br>');
+
+EXTEND FORM mobileGroup
+    FILTERS level(sds) = filterLevel();
+    
+EXTEND FORM mobileTurnover
+    PROPERTIES mobileGroups()
+    PROPERTIES filterLevel()
+        
+    OBJECTS turnoverBar = (igt = ItemGroup, tr = TurnoverRow) PIVOT 'Bar Chart' NOSETTINGS 
+    PROPERTIES READONLY turnoverBarMobileName = nameMobile(igt), order(tr), measure(igt, intervalDate, tr)
+    PIVOT turnoverBar CONFIG 'turnoverByGroup' COLUMNS turnoverBarMobileName ROWS order(tr) MEASURES measure(igt, intervalDate, tr)
+    //фильтр
+    FILTERS level(igt) = filterLevel() AND measure(igt, intervalDate, tr)//costSumBalanceAMobile(igt, from(intervalDate), to(intervalDate));
+    
+    OBJECTS legendGroup = ItemGroup
+    PROPERTIES switchRow(legendGroup)  BACKGROUND colorGroup(legendGroup, tr, intervalDate) HEADER name(legendGroup) COLUMNS (legendGroup)
+    FILTERS  level(legendGroup) = filterLevel()
+;
+
+DESIGN mobileTurnover {
+    OBJECTS {
+        NEW mobileTabbedPane {
+            type = TABBED;
+            fill = 1; 
+            NEW turnoverGroup{
+                caption = 'По группам';
+                MOVE BOX (legendGroup) {caption = '';};
+                NEW settingsGroup{
+                    alignment = CENTER;
+                    type = CONTAINERH;
+                    MOVE PROPERTY (mobileGroups());
+                    MOVE PROPERTY (filterLevel()){fontSize = 22;};
+                }
+                MOVE BOX (turnoverBar) {
+                    autoSize = TRUE ;
+                    REMOVE TOOLBARBOX(turnoverBar); caption = ''; } ;
+            }
+        }
+    }
+}
+
+//по поставщикам
+
+fillSupplier 'Выбрать все' (){
+    in(ItemGroup g) <- active(g);
+}
+
+clearSupplier 'Очистить' (){
+    in(ItemGroup g) <- NULL;
+}
+
+
+FORM mobileSupplier 'Поставщики'
+    OBJECTS le = LegalEntity
+    PROPERTIES (le) canonicalName BACKGROUND #A0A0FE IF in(le) ON CHANGE { in(le) <- NOT in(le); }
+    PROPERTIES fillGroup(), clearGroup()
+    
+    FILTERS active(le)
+;
+
+
+
+NAVIGATOR {
+    BI{
+        NEW mobileTurnover;
+    }
+}
+

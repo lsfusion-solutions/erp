@@ -1,0 +1,155 @@
+MODULE MobileReport;
+
+REQUIRE BI, Mobile;
+
+NAMESPACE MobileReport;
+
+pivotColor (INTEGER index) = CASE
+    WHEN mod(index, 10) = 0 THEN #3378B6
+    WHEN mod(index, 10) = 1 THEN #F67E00
+    WHEN mod(index, 10) = 2 THEN #41A021
+    WHEN mod(index, 10) = 3 THEN #CD2321
+    WHEN mod(index, 10) = 4 THEN #9267BF
+    WHEN mod(index, 10) = 5 THEN #88564A
+    WHEN mod(index, 10) = 6 THEN #DC77C3
+    WHEN mod(index, 10) = 7 THEN #7F7F7F
+    WHEN mod(index, 10) = 8 THEN #BBBD00
+    WHEN mod(index, 10) = 9 THEN #44BFD0
+;
+
+FORM menu ''
+    PROPERTIES () close 'Закрыть' = formClose
+;
+
+DESIGN menu {
+    REMOVE TOOLBARBOX;
+    BOX {
+        type = CONTAINERV;
+        width = 300;
+        MOVE PROPERTY (close) {
+            align = STRETCH;
+            fontSize = 14;
+            fontStyle = 'bold';
+            charHeight = 2;
+        }
+    }
+}
+
+menu '' () {
+    SHOW menu NOMANAGESESSION NOCANCEL WAIT;
+} IMAGE 'bi.png';
+
+FORM mobileReport 'Аналитические отчеты'
+    OBJECTS intervalDate = INTERVAL[DATE] PANEL
+    PROPERTIES interval = VALUE (intervalDate) HEADER 'Период'
+    
+    PROPERTIES menu()
+
+    EVENTS
+        ON INIT {
+            SEEK mobileReport.intervalDate = interval(firstDayOfMonth(currentDate()), currentDate());      
+        },
+        ON QUERYCLOSE {}
+;
+
+DESIGN mobileReport {
+    REMOVE TOOLBARBOX;
+    BOX (intervalDate) {
+        type = CONTAINERH;
+        caption = '';
+        MOVE PROPERTY (menu()) FIRST;
+        PROPERTY (interval) {
+            fontSize = 22;
+        }
+    }
+}
+
+showMobileForms() + {
+    IF permit(currentUser(), navigatorElementCanonicalName('MobileReport.MobileReport')) THEN {
+        SHOW mobileReport NOWAIT;
+    }
+}
+
+NAVIGATOR {
+    BI {
+        NEW mobileReport;
+    }
+}
+
+META addMenuReport1 (report, box, capt, image)
+    show###report = DATA LOCAL BOOLEAN ();
+
+    hideMenuReport###report = ABSTRACT BOOLEAN ();
+    doMenuReport###report capt ABSTRACT LIST FIRST () IMAGE image;
+
+    DESIGN mobileReport {
+        BOX (report##Bar) {
+            showIf = show###report();
+            REMOVE TOOLBARBOX (report##Bar);
+        }
+    }
+
+    doMenuReport###report() + {
+        CANCEL;
+        formClose();
+        show###report() <- TRUE;
+    }
+    
+    EXTEND FORM menu PROPERTIES () doMenuReport###report SHOWIF NOT hideMenuReport###report();
+    DESIGN menu {
+        BOX {
+            MOVE PROPERTY (doMenuReport###report()) BEFORE PROPERTY (close) {
+                align = STRETCH;
+                fontSize = 14;
+                fontStyle = 'bold';
+                charHeight = 2; 
+            }
+        }
+    }
+
+    EXTEND FORM mobileReport EVENTS ON INIT doMenuReport###report();
+END
+
+showReport = DATA LOCAL STRING[50] ();
+
+META addMenuReport (report, box, capt, image)
+    show###report =  TRUE IF showReport() = capt;
+
+    DESIGN mobileReport {
+        BOX (report##Bar) {
+            //showIf = show###report();
+            //REMOVE TOOLBARBOX (report##Bar);
+        }
+    }
+    doMenuReport###report capt ABSTRACT LIST FIRST () IMAGE image;
+    
+    report capt (){
+        showReport() <- capt;
+        ACTIVATE TAB mobileReport.report##Bar;     
+    }
+    
+    doMenuReport###report() + {
+        CANCEL;
+        formClose();
+        
+        ACTIVATE TAB mobileReport.report##Bar;     
+    }
+        
+        EXTEND FORM menu PROPERTIES () doMenuReport###report;
+        DESIGN menu {
+            BOX {
+                MOVE PROPERTY (doMenuReport###report()) BEFORE PROPERTY (close) {
+                    align = STRETCH;
+                    fontSize = 14;
+                    fontStyle = 'bold';
+                    charHeight = 2; 
+                }
+            }
+        }
+    
+   // EXTEND FORM mobileReport
+     //   PROPERTIES () report;
+END
+
+
+EXTEND FORM mobileReport EVENTS ON INIT {showReport() <- 'Реализация';};

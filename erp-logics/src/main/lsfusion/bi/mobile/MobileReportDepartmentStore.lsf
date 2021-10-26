@@ -1,0 +1,66 @@
+MODULE MobileReportDepartmentStore;
+
+REQUIRE MobileReport, Store;
+
+NAMESPACE MobileReport;
+
+in = DATA LOCAL NESTED BOOLEAN (DepartmentStore);
+mobileName 'Реализация' (DepartmentStore ds) = regexpReplace(id(ds), '[а-я,a-z]*', '', 'g');
+
+switchOff (DepartmentStore ds) {
+    in(ds) <- NULL;
+} // IMAGE 'close.png';
+
+fill 'Выбрать все' (){
+    in(DepartmentStore ds) <- accessCompany(ds) AND active(ds);
+}
+
+clear 'Очистить' (){
+    in(DepartmentStore ds) <- NULL;
+}
+
+FORM departmentStores 'Отделы магазинов'
+    OBJECTS sds = DepartmentStore
+    PROPERTIES (sds) name BACKGROUND #A0A0FE IF in(sds) ON CHANGE { in(sds) <- NOT in(sds); }
+    PROPERTIES fill(), clear()
+    
+    FILTERS active(sds), accessCompany(sds)
+;
+
+DESIGN departmentStores {
+    GRID(sds) {
+        headerHeight = 1;
+        REMOVE TOOLBARBOX (sds);
+        PROPERTY (name(sds)) { changeOnSingleClick = TRUE; }
+        PROPERTY (fill()) {alignment = STRETCH ;};
+        PROPERTY (clear()) {alignment = STRETCH ;};
+    }
+}
+
+departmentStores '' ()  {
+    SHOW departmentStores WAIT NOMANAGESESSION NOCANCEL;
+} IMAGE 'retail.png';
+
+
+
+EXTEND FORM mobileReport
+    OBJECTS sds = DepartmentStore
+    FILTERS in(sds)
+    EVENTS ON INIT {
+        in(DepartmentStore ds) <- accessCompany(ds) AND active(ds);
+    }
+    
+    PROPERTIES departmentStores() FIRST GRID  
+;
+
+DESIGN mobileReport {
+    PANEL {
+        NEW mobileDepartmentStore {
+            type = CONTAINERH;
+            MOVE GROUP ();
+        }
+    }
+    BOX (intervalDate) {
+        MOVE PROPERTY (departmentStores());
+    }
+}
