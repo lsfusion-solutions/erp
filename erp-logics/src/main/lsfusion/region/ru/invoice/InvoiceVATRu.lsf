@@ -50,7 +50,10 @@ META defineWithVATInvoice (part)
                    
     ;
     
-    withVATPrice (UserInvoice i) <- isVATPayer(##part(i))
+    setWithVAT (UserInvoice i) = IF priceListType(i) 
+        THEN includeVAT(priceListType(i)) AND isVATPayer(##part(i))
+        ELSE isVATPayer(##part(i)); 
+    withVATPrice (UserInvoice i) <- setWithVAT(i) 
         WHEN CHANGED(##part(i));
     
     ON LOCAL {
