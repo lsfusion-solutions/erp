@@ -548,14 +548,15 @@ META defineOrderInvoice(sign, stockProp)
     
     defaultOrderDetail(UserInvoiceDetail detail) = OVERRIDE defaultOrderDetail(batch(detail), userInvoice(detail)), defaultOrderDetail(sku(detail), userInvoice(detail));
 
-    dialogIncludeOrdersUser 'Включить заказы в накладную' (Invoice userInvoice)  { 
+    dialogIncludeOrdersUser 'Включить заказы в накладную' (UserInvoice userInvoice)  { 
         DIALOG includeOrdersUserInvoice OBJECTS i = userInvoice DO {
             IF countInvoiceDetail(userInvoice) THEN {
-                orderDetail(InvoiceDetail d) <- defaultOrderDetail(d)  WHERE invoice(d) == userInvoice AND NOT include[Order,UserInvoice](order(orderDetail(d)), invoice(d));// AND defaultOrderDetail(d);
+                orderDetail(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == userInvoice AND orderDetail(d) AND NOT include(order(orderDetail(d)), userInvoice);
+                orderDetail(UserInvoiceDetail d) <- defaultOrderDetail(d) WHERE userInvoice(d) == userInvoice AND NOT orderDetail(d);
             }
             IF notRelationInvoiceDetailOrder(userInvoice) THEN {
                 ASK 'Создать по выбранным заказам строки накладной?' DO {  
-                    FOR include[Order,UserInvoice](Order order, userInvoice) AND NOT  relationInvoiceDetail(order, userInvoice) DO {
+                    FOR include[Order,UserInvoice](Order order, userInvoice) AND NOT relationInvoiceDetail(order, userInvoice) DO {
                         
                         createDetail(userInvoice, order);
                         fillPrice(userInvoice, order);
