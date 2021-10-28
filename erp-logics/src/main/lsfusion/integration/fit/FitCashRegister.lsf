@@ -1,8 +1,13 @@
 MODULE FitCashRegister;
 
-REQUIRE NativeMachinery, CashRegister, Store, ZReport, SkuRu;
+REQUIRE NativeMachinery, CashRegister, Store, ZReport, SkuRu, MachineryPriceTransactionStockTax;
 
 NAMESPACE Fit;
+
+idVat 'Код ставки' (NUMERIC[10,5] v) = CASE
+    WHEN v = 20.0 THEN '01'
+    WHEN v = 10.0 THEN '02'
+;
 
 loadDefaultCashRegisterModels() + {  EXEC loadDefaultCashRegisterModel('SPAR FIT', 'fit', 'lsf.Fit.Beta', NULL, TRUE, NULL, NULL ); };
 
@@ -63,7 +68,7 @@ numeric 'Тип numeric' (INTEGER n, INTEGER i) = lpad(STRING (n), i, '0');
 pluString (MachineryPriceTransaction t, Barcode b) =
     charSpace(id(b), 16) +                      // 1. Код товара
     '001' +                                     // 2. Код группы
-    '00' +                                      // 3. Код налоговой ставки    
+    (OVERRIDE idVat(VAT(t, b)), '03') +         // 3. Код налоговой ставки    
     alpha(name(t, b), 20) +                     // 4. Наименование товара
     numeric(INTEGER(price(t, b) * 100), 12) +   // 5. Цена товара
     '00' +                                      // 6.1 Время начала "Счастливого часа"
@@ -119,14 +124,15 @@ pluString (MachineryPriceTransaction t, Barcode b) =
     numeric(0, 32) +                            // 52. Номер таможенной декларации
     '  ' +                                      // 53. Признак предмета расчета
     '  ' +                                      // 54. Признак способа расчета
-    charSpace(trim(id(sku(b))), 16) +           // 55. Локальный код товара
+    charSpace(trim(OVERRIDE id[Item](sku(b)), id(b)), 16) + // 55. Локальный код товара
     alpha('', 32) +                             // 56. Имя графического файла с изображением товара
     alpha('', 32) +                             // 57. Имя звукового файла с изображением товара
     alpha(STRING(measureQOC(sku(b))), 3) +      // 58. Мера количества предмета расчета
-    numeric(0, 6)                               // 59. Код уровня альтернативого классификатора
+    numeric(0, 6) +                             // 59. Код уровня альтернативого классификатора
+    '\r\n'
 ;
 
-pluString (MachineryPriceTransaction t) = GROUP CONCAT pluString(t, Barcode b), '\r\n' IF in(t, b) ORDER b;
+pluString (MachineryPriceTransaction t) = GROUP CONCAT pluString(t, Barcode b), '' IF in(t, b) ORDER b;
 
 checkPut 'Проверить передачу' (CashRegister cr, STRING[8] name) {
     returnExchange(cr) <- TRUE;
