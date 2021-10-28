@@ -45,6 +45,7 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
 	            labelType(t) <- labelType;
 	            
 	            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND 
+	                quantity(dd) > 0 AND
 	                in(Sku sku) AND sku == sku(dd) AND 
 	                inPrint(labelType, sku, stock(terminalDocument)) AND 
 	                PriceListType pt == overPriceListType(t) NOINLINE (pt)
@@ -181,12 +182,18 @@ DESIGN options{
 
 backgroundTerminalDocumentDetail = ABSTRACT COLOR (TerminalDocumentDetail);
 
+countSkuTerminalDocumentDetail 'Кол-во SKU к печати' (TerminalDocument td) = 
+        GROUP SUM 1 IF quantity(TerminalDocumentDetail d) > 0 BY terminalDocument(d);
+                      		
 FORM labelTerminalDashboard 'Печать ценников ТСД'
     OBJECTS d=DATE PANEL 
     PROPERTIES val = VALUE (d)
     OBJECTS td=TerminalDocument
     PROPERTIES(td)  READONLY id, date, time, nameStock, nameGroupTerminal, nameTerminalDocumentType, idTerminalHandbookType1, 
-                    idTerminalHandbookType2, title, quantity, countTerminalDocumentDetail, quantityTerminalDocumentDetail
+                    idTerminalHandbookType2, title, quantity,
+                    countSkuTerminalDocumentDetail,
+                    countScanned 'Кол-во отсканированных ценников' = countTerminalDocumentDetail,
+                    countToPrint 'Ценников к печати (всего)' = quantityTerminalDocumentDetail
 
     PROPERTIES(td)  NEWSESSION NEW, EDIT, DELETE 
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
@@ -217,6 +224,10 @@ FORM labelTerminalDashboard 'Печать ценников ТСД'
 
 ;
 DESIGN labelTerminalDashboard {
+	PROPERTY (countSkuTerminalDocumentDetail(td)) { charWidth = 8; }
+    PROPERTY (countScanned) { charWidth = 15; }
+    PROPERTY (countToPrint) { charWidth = 10; }
+
     MOVE BOX(d);
     MOVE BOX(td);
     NEW tabContainer {
