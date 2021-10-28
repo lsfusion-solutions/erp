@@ -36,7 +36,7 @@ public class MettlerToledoBPlusHandler extends MultithreadScalesHandler {
         }
 
         @Override
-        protected Pair<List<String>, Boolean> run() {
+        protected SendTransactionResult run() {
             String error = null;
             try {
                 processTransactionLogger.info(getLogPrefix() + "Sending " + transaction.itemsList.size() + " items..." + scales.port);
@@ -50,7 +50,7 @@ public class MettlerToledoBPlusHandler extends MultithreadScalesHandler {
                 processTransactionLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return Pair.create(error != null ? Collections.singletonList(error) : new ArrayList<>(), transaction.snapshot && error == null);
+            return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), transaction.snapshot && error == null);
         }
     }
 

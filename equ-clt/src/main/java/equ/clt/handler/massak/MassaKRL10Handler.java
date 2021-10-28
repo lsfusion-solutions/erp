@@ -517,7 +517,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
         }
 
         @Override
-        protected Pair<List<String>, Boolean> run() {
+        protected SendTransactionResult run() {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
             TCPPort port = new TCPPort(scales.port, 5001);
@@ -609,7 +609,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
                 }
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return Pair.create(localErrors, cleared);
+            return new SendTransactionResult(scales, localErrors, cleared);
         }
     }
 

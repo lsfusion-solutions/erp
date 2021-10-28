@@ -335,7 +335,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
 
         @Override
-        protected Pair<List<String>, Boolean> run() {
+        protected SendTransactionResult run() {
             String error;
             boolean cleared = false;
             try {
@@ -355,13 +355,16 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     aclasls2Logger.error(getLogPrefix() + error);
                 }
             } catch (Throwable t) {
+                interrupted = t instanceof InterruptedException;
                 error = String.format(getLogPrefix() + "IP %s error, transaction %s: %s", scales.port, transaction.id, ExceptionUtils.getStackTraceString(t));
                 aclasls2Logger.error(error, t);
             }
             aclasls2Logger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return Pair.create(error != null ? Collections.singletonList(error) : new ArrayList<>(), cleared);
+            return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), interrupted, cleared);
         }
     }
+
+    private static boolean interrupted = false; //прерываем загрузку в рамках одной транзакции. Устанавливается при interrupt exception и сбрасывается при release
 
     public static class AclasSDK {
 
@@ -388,23 +391,35 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
 
         public static void release() {
-            AclasSDKLibrary.aclasSDK.AclasSDK_Finalize();
+            if (!interrupted) {
+                AclasSDKLibrary.aclasSDK.AclasSDK_Finalize();
+            }
+            interrupted = false;
         }
 
         public static int clearData(String ip, String filePath, Integer dataType, long sleep) throws UnsupportedEncodingException, InterruptedException {
-            int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 3, dataType, getBytes(filePath));
-            if(sleep > 0) {
-                Thread.sleep(sleep);
+            if (!interrupted) {
+                int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 3, dataType, getBytes(filePath));
+                if (sleep > 0) {
+                    Thread.sleep(sleep);
+                }
+                return result;
+            } else {
+                return -1;
             }
-            return result;
         }
 
         public static int loadData(String ip, String filePath, Integer dataType, long sleep) throws UnsupportedEncodingException, InterruptedException {
-            int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 0, dataType, getBytes(filePath));
-            if(sleep > 0) {
-                Thread.sleep(sleep);
+            if (!interrupted) {
+                int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 0, dataType, getBytes(filePath));
+                if (sleep > 0) {
+                    Thread.sleep(sleep);
+                }
+                return result;
+
+            } else {
+                return -1;
             }
-            return result;
         }
 
         private static byte[] getBytes(String value) throws UnsupportedEncodingException {

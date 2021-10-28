@@ -287,7 +287,7 @@ public class AclasHandler extends MultithreadScalesHandler {
         }
 
         @Override
-        protected Pair<List<String>, Boolean> run() throws Exception {
+        protected SendTransactionResult run() throws Exception {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
             UDPPort udpPort = new UDPPort(scales.port, 5001, 2000);
@@ -339,7 +339,7 @@ public class AclasHandler extends MultithreadScalesHandler {
                 udpPort.close();
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return Pair.create(localErrors, cleared);
+            return new SendTransactionResult(scales, localErrors, cleared);
         }
 
     }

@@ -250,7 +250,7 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
         }
 
         @Override
-        protected Pair<List<String>, Boolean> run() {
+        protected SendTransactionResult run() {
             String error = null;
 
             TCPSocket socket = new TCPSocket(scales.port, 3001);
@@ -275,7 +275,7 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
                 processTransactionLogger.error(error, t);
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return Pair.create(error != null ? Collections.singletonList(error) : new ArrayList<>(), transaction.snapshot && error == null);
+            return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), transaction.snapshot && error == null);
         }
     }
 }

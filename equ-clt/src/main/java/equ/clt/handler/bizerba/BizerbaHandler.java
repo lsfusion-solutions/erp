@@ -103,7 +103,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         }
 
         @Override
-        protected Pair<List<String>, Boolean> run() {
+        protected SendTransactionResult run() {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
             TCPPort port = new TCPPort(scales.port, 1025);
@@ -160,7 +160,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                 }
             }
             processTransactionLogger.info("Bizerba: Completed ip: " + scales.port);
-            return Pair.create(localErrors, cleared);
+            return new SendTransactionResult(scales, localErrors, cleared);
         }
     }
 

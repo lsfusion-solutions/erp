@@ -347,7 +347,7 @@ public class DibalD900Handler extends MultithreadScalesHandler {
         }
 
         @Override
-        protected Pair<List<String>, Boolean> run() {
+        protected SendTransactionResult run() {
             boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
             List<String> localErrors = new ArrayList<>();
             TCPPort port = new TCPPort(scales.port, 3000);
@@ -394,7 +394,7 @@ public class DibalD900Handler extends MultithreadScalesHandler {
                 }
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return Pair.create(localErrors, cleared);
+            return new SendTransactionResult(scales, localErrors, cleared);
         }
     }
 

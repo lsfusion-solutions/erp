@@ -5,7 +5,6 @@ import equ.api.SendTransactionBatch;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
-import lsfusion.base.Pair;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
@@ -34,6 +33,7 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
         if(transactionInfoList.isEmpty()) {
             processTransactionLogger.error(getLogPrefix() + "Empty transaction list!");
         }
+        boolean interrupted = false; //если на одной из транзакций случился InterruptedException, то следующие транзакции не выполняем
         for(TransactionScalesInfo transaction : transactionInfoList) {
             processTransactionLogger.info(getLogPrefix() + "Send Transaction # " + transaction.id);
 
@@ -41,6 +41,10 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
             List<MachineryInfo> clearedScalesList = new ArrayList<>();
             Exception exception = null;
             try {
+
+                if(interrupted) {
+                    throw new RuntimeException("Previous transaction has been interrupted");
+                }
 
                 if (!transaction.machineryInfoList.isEmpty()) {
 
@@ -68,16 +72,22 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
                             ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(getThreadPoolSize(taskList), "SendTransaction");
                             List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
                             for (Future<SendTransactionResult> threadResult : threadResults) {
-                                if(threadResult.get().localErrors.isEmpty())
-                                    succeededScalesList.add(threadResult.get().scalesInfo);
+                                SendTransactionResult result = threadResult.get();
+                                if (result.localErrors.isEmpty())
+                                    succeededScalesList.add(result.scales);
                                 else {
-                                    String error = threadResult.get().localErrors.get(0);
+                                    String error = result.localErrors.get(0);
                                     int secondOccurrence = StringUtils.ordinalIndexOf(error, "\n", 2);
-                                    brokenPortsMap.put(threadResult.get().scalesInfo.port, error.substring(0, secondOccurrence > 0 ? secondOccurrence : error.length()));
-                                    errors.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors);
+                                    brokenPortsMap.put(result.scales.port, error.substring(0, secondOccurrence > 0 ? secondOccurrence : error.length()));
+                                    errors.put(result.scales.port, result.localErrors);
                                 }
-                                if(threadResult.get().cleared)
-                                    clearedScalesList.add(threadResult.get().scalesInfo);
+                                if(result.cleared)
+                                    clearedScalesList.add(result.scales);
+                                if(result.interrupted) {
+                                    interrupted = true;
+                                    singleTransactionExecutor.shutdownNow();
+                                    break;
+                                }
                             }
                             singleTransactionExecutor.shutdown();
                         } finally {
@@ -118,24 +128,30 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
             this.scales = scales;
         }
 
-        protected abstract Pair<List<String>, Boolean> run() throws Exception;
+        protected abstract SendTransactionResult run() throws Exception;
 
         @Override
         public SendTransactionResult call() throws Exception {
-            Pair<List<String>, Boolean> result = run();
-            return new SendTransactionResult(scales, result.first, result.second);
+            SendTransactionResult result = run();
+            return result;
         }
 
     }
 
     protected class SendTransactionResult {
-        public ScalesInfo scalesInfo;
+        public ScalesInfo scales;
         public List<String> localErrors;
+        public boolean interrupted;
         public boolean cleared;
 
-        public SendTransactionResult(ScalesInfo scalesInfo, List<String> localErrors, boolean cleared) {
-            this.scalesInfo = scalesInfo;
+        public SendTransactionResult(ScalesInfo scales, List<String> localErrors, boolean cleared) {
+            this(scales, localErrors, false, cleared);
+        }
+
+        public SendTransactionResult(ScalesInfo scales, List<String> localErrors, boolean interrupted, boolean cleared) {
+            this.scales = scales;
             this.localErrors = localErrors;
+            this.interrupted = interrupted;
             this.cleared = cleared;
         }
     }

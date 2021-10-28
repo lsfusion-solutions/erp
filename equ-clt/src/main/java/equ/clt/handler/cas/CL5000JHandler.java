@@ -62,7 +62,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
         }
 
         @Override
-        protected Pair<List<String>, Boolean> run() throws Exception {
+        protected SendTransactionResult run() throws Exception {
             List<String> localErrors = new ArrayList<>();
 
             boolean cleared = false;
@@ -130,7 +130,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             }
 
             casLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return Pair.create(localErrors, cleared);
+            return new SendTransactionResult(scales, localErrors, cleared);
         }
 
         protected void initSettings() {
