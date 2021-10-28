@@ -887,14 +887,15 @@ createSelectMachineryPriceTransaction 'Все товары'(Stock stock)  {
 
 GROUP documentMachineryPrice 'Из документа' : public;
 createDocumentMachineryPriceTransaction 'Из документа'(Stock stock)  { 
-	NEWSESSION {
-	    DIALOG documents DO {
+	NEWSESSION NESTED(inSession[Document]){
+	    DIALOG documents NOMANAGESESSION DO {
 	        createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, (GROUP MAX Document d IF inSession(d)));
 	        createMachineryPriceTransactionDocument() <- (GROUP MAX Document d IF inSession(d));
 	        createMachineryPriceTransactionSnapshot() <- TRUE ;
 	        createMachineryPriceTransaction(stock);
 	    }
-	}
+	    APPLY;
+	}    
 } IN documentMachineryPrice;
 
 EXTEND FORM machineryPriceTransactions
