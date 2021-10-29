@@ -346,7 +346,7 @@ public class DefaultTerminalHandler {
                 }
                 barcodeQuery.addProperty("amountPack", terminalHandlerLM.findProperty("amountPack[Barcode]").getExpr(barcodeExpr));
 
-                barcodeQuery.and(terminalHandlerLM.findProperty("filterGoods[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
+                barcodeQuery.and(terminalHandlerLM.findProperty("filterGoods[Barcode,Stock,User]").getExpr(barcodeExpr, stockObject.getExpr(), user.getExpr()).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("active[Barcode]").getExpr(barcodeExpr).getWhere());
 
