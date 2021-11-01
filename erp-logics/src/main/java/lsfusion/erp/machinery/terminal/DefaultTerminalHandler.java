@@ -187,7 +187,7 @@ public class DefaultTerminalHandler {
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase, userInfo.user);
 
                 List<TerminalBatch> batchList = null;
-                if (userInfo.idApplication == ID_APPLICATION_TSD && readBatch)
+                if (userInfo.idApplication.equalsIgnoreCase(ID_APPLICATION_TSD) && readBatch)
                     batchList = readBatchList(session, stockObject);
 
                 List<TerminalOrder> orderList = readTerminalOrderList(session, stockObject, userInfo);
