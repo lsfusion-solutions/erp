@@ -1,6 +1,6 @@
 MODULE WriteOffRu;
 
-REQUIRE WriteOff, LegalEntityRu, PurchaseShipment, Bank;
+REQUIRE WriteOff, LegalEntityRu, PurchaseShipment, BankRu;
 
 NAMESPACE WriteOff;
 
@@ -47,7 +47,10 @@ phoneLegalEntityStock 'Телефон' (WriteOff writeOff) = phone(legalEntitySt
 numberAccountLegalEntityStock 'Основной р/сч.' (WriteOff writeOff) = numberAccount(legalEntityStock(writeOff));
 nameBankLegalEntityStock 'Банк' (WriteOff writeOff) = nameBank(legalEntityStock(writeOff));
 MFOBankLegalEntityStock 'BIC' (WriteOff writeOff) = MFOBank(legalEntityStock(writeOff));
-corrAccountLegalEntityStock 'к/сч.' (WriteOff writeOff) = corrAccount(legalEntityStock(writeOff));
+corrAccountLegalEntityStock 'к/сч.' (WriteOff writeOff) = corrAccount(bank(account(legalEntityStock(writeOff))));
+
+dataNumberBaseDoc 'Номер основания' = DATA STRING[50] (WriteOff) CHARWIDTH 7;
+dataDateBaseDoc 'Дата основания' = DATA DATE (WriteOff);
 
 FORM writeOffTorg16A 'ТОРГ-16'
     OBJECTS w=WriteOff PANEL 
@@ -78,6 +81,10 @@ FORM writeOffTorg16B 'ТОРГ-16 (оборотная сторона)'
             inWriteOffCommittee(w, e)
 ;
 
+countDetailA(WriteOff w) = 
+    GROUP SUM 1 IF in(w, WriteOffDetail wdA) AND 
+                   (wdA = GROUP LAST WriteOffDetail d IF invoice(wdA) == invoice(d) AND batch(wdA) IS Batch AND invoice(wdA) AND reason(wdA) == reason(d) ORDER d);
+                   
 FORM writeOffTorg16AB 'ТОРГ-16'
     OBJECTS wA=WriteOff PANEL 
     PROPERTIES (wA) fullNameLegalEntityStock, innLegalEntityStock, addressLegalEntityStock, phoneLegalEntityStock,
@@ -86,7 +93,8 @@ FORM writeOffTorg16AB 'ТОРГ-16'
                     number, series, date, 
                     okpo, okdp,
                     nameReason, 
-                    shortNameChief, namePositionChief                   
+                    shortNameChief, namePositionChief,
+                    dataNumberBaseDoc, dataDateBaseDoc, countDetailA                  
     
     OBJECTS wdA=WriteOffDetail SUBREPORT
     PROPERTIES (wdA) date, number, idReason, nameReason, dateInvoice, numberInvoice
@@ -118,5 +126,15 @@ EXTEND FORM writeOffs
 DESIGN writeOffs{
     printContainer{
         MOVE PROPERTY(printWriteOffTorg16(w));
+    }
+}
+
+EXTEND FORM userWriteOff
+    PROPERTIES(w) dataNumberBaseDoc , dataDateBaseDoc
+;
+DESIGN userWriteOff{
+    first{
+        MOVE PROPERTY (dataNumberBaseDoc(w));
+        MOVE PROPERTY (dataDateBaseDoc(w));
     }
 }
