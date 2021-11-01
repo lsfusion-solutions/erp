@@ -41,7 +41,9 @@ END
 @uniqueProp(okpo, 'ОКПО', STRING[10]);
 @uniqueProp(ogrn, 'ОГРН', STRING[13]);
 
-kpp 'КПП' = DATA STRING[9] (LegalEntity) IN doc;
+//kpp 'КПП' = DATA STRING[9] (LegalEntity) IN doc;
+
+@defineHistorizable(kpp, , 'КПП', STRING[9], legalEntity, nameLegalEntity, doc);
 
 okdp 'ОКДП' = DATA STRING[7] (LegalEntity) IN doc;
 
@@ -62,4 +64,11 @@ DESIGN legalEntity {
             MOVE PROPERTY (isNotVATPayer(l));
         }    
     }
+}
+
+//for migration kpp
+kppOld 'КПП (старый)' = DATA STRING[9] (LegalEntity);
+
+onStarted() + {
+    dataKpp(LegalEntity le, DATE dt) <- kppOld(le) WHERE le IS LegalEntity AND dt = DATE('2021_01_01');
 }
