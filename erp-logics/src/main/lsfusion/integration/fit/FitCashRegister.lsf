@@ -189,12 +189,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
 }
 
 receiveFromFit (CashRegister cr) {
-    LOCAL countLines = INTEGER ();
-    LOCAL receiptString = STRING ();
-    LOCAL idReceipt = STRING[100] ();
-    LOCAL idZReport = STRING[100] ();
-    LOCAL zReport = ZReport ();
-    LOCAL receipt = Receipt ();
+    LOCAL receiptString = STRING (INTEGER);
     TRY {
         fileExists(CONCAT '', pathPut(cr), 'spool.adr');
         IF NOT fileExists() THEN {
@@ -202,53 +197,56 @@ receiveFromFit (CashRegister cr) {
                 listFiles(pathGet(cr));
                 FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) DO {
                     READ pathGet(cr) + fn TO importFile;
-                    fileToString(importFile(), 'cp866');
-                    countLines() <- wordCount(resultString(), '\n');
-                    FOR iterate(INTEGER j, 1, countLines()) AND NOT zReport(substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0')) AND left(getWord(resultString(), '\n', j), 2) = '01' DO NEW z = ZReport {
-                        id(z) <- STRING[100](substr(getWord(resultString(), '\n', j), 92, 4)  + lpad(STRING(cr), 18, '0'));
-                        number(z) <- STRING[48](substr(getWord(resultString(), '\n', j), 92, 4));
+                    IMPORT CSV NOHEADER CHARSET 'cp866' FROM importFile() TO receiptString;
+                    
+                    FOR INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 92, 4)](STRING str) DO NEW z = ZReport {
+                        id(z) <- STRING[100](str  + lpad(STRING(cr), 18, '0'));
+                        number(z) <- STRING[48](str);
                         cashRegister(z) <- cr;
-                        date(z) <- toDateFormat(substr(getWord(resultString(), '\n', j), 96, 8), 'DDMMYYYY');
-                        time(z) <- TIME (toDateTimeFormat(substr(getWord(resultString(), '\n', j), 48, 5), 'HH24:MI'));
+                        date(z) <- toDateFormat(substr(receiptString(line), 96, 8), 'DDMMYYYY');
+                        time(z) <- TIME (toDateTimeFormat(substr(receiptString(line), 48, 5), 'HH24:MI'));
                         isPosted(z) <- TRUE;
                     }
-                    FOR iterate(INTEGER j, 1, countLines()) AND left(getWord(resultString(), '\n', j), 2) = '01' AND NOT receipt(substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\n', j), 3, 12)) DO NEW r = Receipt {
-                        id(r) <- substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0') + substr(getWord(resultString(), '\n', j), 3, 12);
-                        zReport(r) <- zReport(substr(getWord(resultString(), '\n', j), 92, 4) + lpad(STRING(cr), 18, '0'));
+                    FOR STRING str = receiptString(INTEGER j) AND left(str, 2) = '01' AND NOT receipt(substr(str, 92, 4) + lpad(STRING(cr), 18, '0') + substr(str, 3, 12)) DO NEW r = Receipt {
+                        id(r) <- STRING[100](substr(str, 92, 4) + lpad(STRING(cr), 18, '0') + substr(str, 3, 12));
+                        zReport(r) <- zReport(substr(str, 92, 4) + lpad(STRING(cr), 18, '0'));
                     }
-                
-                    FOR iterate(INTEGER j, 1, countLines()) DO {
-                        receiptString() <- getWord(resultString(), '\n', j);
-                        CASE
-                            WHEN left(receiptString(), 2) = '01' THEN {
-                                zReport() <- zReport(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0'));
-                                receipt() <- receipt(substr(receiptString(), 92, 4) + lpad(STRING(cr), 18, '0') + substr(receiptString(), 3, 12));
-                                date(receipt()) <- toDateFormat(substr(receiptString(), 96, 8), 'DDMMYYYY');
-                                time(receipt()) <- TIME (toDateTimeFormat(substr(receiptString(), 48, 5), 'HH24:MI'));
-                            
-                                DELETE ReceiptDetail d WHERE receipt(d) = receipt();
-                                DELETE Payment p WHERE receipt(p) = receipt();
-                            }
-                            WHEN left(receiptString(), 2) = '12' AND substr(receiptString(), 77, 1) = '+' THEN NEW d = ReceiptSaleDetail {
-                                receipt(d) <- receipt();
-                                sku(d) <- sku(barcode(ltrim(substr(receiptString(), 5, 16))));
-                                price(d) <- NUMERIC[16,4](NUMERIC(substr(receiptString(), 85, 14)) / 100);
-                                quantity(d) <- NUMERIC[16,5](NUMERIC(substr(receiptString(), 78, 7)) / 1000);
-                                discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(receiptString(), 40, 11)) / 100);
-                            }
-                            WHEN left(receiptString(), 2) = '12' AND substr(receiptString(), 77, 1) = '-' THEN NEW d = ReceiptReturnDetail {
-                                receipt(d) <- receipt();
-                                sku(d) <- sku(barcode(ltrim(substr(receiptString(), 5, 16))));
-                                price(d) <- NUMERIC[16,4](NUMERIC(substr(receiptString(), 85, 14)) / 100);
-                                quantity(d) <- NUMERIC[16,5](NUMERIC(substr(receiptString(), 78, 7)) / 1000);
-                                discountSum(d) <- NUMERIC[18,4](NUMERIC(substr(receiptString(), 40, 11)) / 100);
-                            }
-                            WHEN left(receiptString(), 2) = '04' THEN NEW p = Payment {
-                                receipt(p) <- receipt();
-                                sum(p) <- NUMERIC[18,4](NUMERIC(substr(receiptString(), 85, 14)) / 100);
-                                paymentType(p) <- IF substr(receiptString(), 3, 2) = '13' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
-                            }
-                        ;
+                    FOR STRING str = receiptString(INTEGER j) AND left(str, 2) = '01' AND Receipt r = receipt(substr(str, 92, 4) + lpad(STRING(cr), 18, '0') + substr(str, 3, 12)) DO {
+                        date(r) <- toDateFormat(substr(str, 96, 8), 'DDMMYYYY');
+                        time(r) <- TIME (toDateTimeFormat(substr(str, 48, 5), 'HH24:MI'));
+                    
+                        receipt(ReceiptSaleDetail d) <- NULL WHERE receipt(d) = r;
+                        receipt(ReceiptReturnDetail d) <- NULL WHERE receipt(d) = r;
+                        receipt(Payment p) <- NULL WHERE receipt(p) = r;
+                    }
+                    
+                    FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '+' AND
+                        STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+                        Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12)))
+                            DO NEW d = ReceiptSaleDetail {
+                                receipt(d) <- r;
+                                sku(d) <- sku(barcode(ltrim(substr(srl, 5, 16))));
+                                price(d) <- NUMERIC[16,4](NUMERIC(substr(srl, 85, 14)) / 100);
+                                quantity(d) <- NUMERIC[16,5](NUMERIC(substr(srl, 78, 7)) / 1000);
+                                discountSum(d) <- NUMERIC[18,4](NUMERIC(substr(srl, 40, 11)) / 100);
+                    }   
+                    FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '-' AND
+                        STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+                        Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12)))
+                            DO NEW d = ReceiptReturnDetail {
+                                receipt(d) <- r;
+                                sku(d) <- sku(barcode(ltrim(substr(srl, 5, 16))));
+                                price(d) <- NUMERIC[16,4](NUMERIC(substr(srl, 85, 14)) / 100);
+                                quantity(d) <- NUMERIC[16,5](NUMERIC(substr(srl, 78, 7)) / 1000);
+                                discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
+                    }   
+                    FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '04' AND
+                        STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+                        Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12)))
+                            DO NEW p = Payment {
+                                receipt(p) <- r;
+                                sum(p) <- NUMERIC[18,4](NUMERIC(substr(srl, 85, 14)) / 100);
+                                paymentType(p) <- IF substr(srl, 3, 2) = '13' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
                     }
                 }
                 APPLY NESTED LOCAL;
@@ -262,8 +260,10 @@ receiveFromFit (CashRegister cr) {
                 }
             }
         }
-        stringToFile('Ok\n', 'cp866', '');
-        WRITE resultFile() TO CONCAT '', pathPut(cr), 'spool.adr';
+        IF NOT System.canceled() THEN {
+            stringToFile('Ok\n', 'cp866', '');
+            WRITE resultFile() TO CONCAT '', pathPut(cr), 'spool.adr';
+        }
     } CATCH {
         MESSAGE fitErrorMessage(cr, System.messageCaughtException());
     }
