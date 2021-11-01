@@ -13,7 +13,22 @@ TABLE trip(Trip);
 @defineDocumentHeaderNumber(Trip, BPSTRING[2]);
 @defineNumeratedDefault(Trip, 'Рейсы', 'РЕ');
 
-trip (number) = GROUP AGGR Trip trip BY number(trip);
+trip (number) = GROUP MAX Trip trip BY number(trip);
+skipAggrTrip 'Номер рейса может быть неуникальным' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () skipAggrTrip
+;
+DESIGN options{
+    commons{
+        MOVE PROPERTY (skipAggrTrip());
+    }
+}
+
+//CONSTRAINT SETCHANGED(number(Trip trip)) AND [GROUP SUM 1 BY number(Trip p)](number(trip))>1 AND NOT skipAggrTrip()
+//    MESSAGE 'Нарушена уникальность свойства "Номер рейса"' ;
+
+CONSTRAINT SETCHANGED([GROUP SUM 1 BY number(Trip p)](number(Trip trip))>1) AND NOT skipAggrTrip()
+    MESSAGE 'Нарушена уникальность свойства "Номер рейса"' ;
 
 driver = DATA Driver (Trip) INDEXED;
 nameDriver 'Водитель' (Trip trip) = name[Contact](driver(trip));
