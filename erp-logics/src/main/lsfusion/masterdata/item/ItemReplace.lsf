@@ -18,22 +18,22 @@ newSkuBarcode 'Штрихкод' (ItemReplace rep) = idBarcode(newSku(rep));
 
 isActive 'Акт' = DATA BOOLEAN (ItemReplace);
 
+INDEX oldSku(ItemReplace r), newSku(r);
+INDEX newSku(ItemReplace r), oldSku(r);
+
 //oldSkuBalance 'Остаток' = DATA NUMERIC[16,5] (ItemReplace);
 //newSkuBalance 'Остаток' = DATA NUMERIC[16,5] (ItemReplace);
 oldSkuBalance 'Остаток' (ItemReplace rep) = GROUP SUM balanceB(oldSku(rep), Stock st, currentDate()) IF isActive(rep);
 newSkuBalance 'Остаток' (ItemReplace rep) = GROUP SUM balanceB(newSku(rep), Stock st, currentDate()) IF isActive(rep);
 
-replacedOld 'Заменен' (Item i) = GROUP SUM 1 IF oldSku(ItemReplace rep) = i AND isActive(rep) MATERIALIZED;
-replacedNew 'Заменен' (Item i) = GROUP SUM 1 IF newSku(ItemReplace rep) = i AND isActive(rep) MATERIALIZED;
-
-replaceItem (Sku oldSku) = GROUP LAST ItemReplace rep ORDER rep WHERE isActive(rep) BY oldSku(rep);
-replacedItem (Sku newSku) = GROUP LAST ItemReplace rep ORDER rep WHERE isActive(rep) BY newSku(rep);
-
-oldSkuItem (Item item) = oldSku(replacedItem(item));
-newSkuItem (Item item) = newSku(replaceItem(item));            
+newSku (Item oldSku) = GROUP LAST newSku(ItemReplace rep) ORDER rep WHERE isActive(rep) BY oldSku(rep) MATERIALIZED INDEXED;
+oldSku (Item newSku) = GROUP LAST oldSku(ItemReplace rep) ORDER rep WHERE isActive(rep) BY newSku(rep) MATERIALIZED INDEXED;
 
 oldSkuInRange 'В матрицах' = DATA INTEGER (ItemReplace);
 newSkuInRange 'В матрицах' = DATA INTEGER (ItemReplace);
+
+replacedOld 'Заменен' (Item i) = GROUP SUM 1 IF oldSku(ItemReplace rep) = i AND isActive(rep);
+replacedNew 'Заменен' (Item i) = GROUP SUM 1 IF newSku(ItemReplace rep) = i AND isActive(rep);
 
 CONSTRAINT replacedOld(Item item) > 1 AND item IS Item MESSAGE 'Нельзя создавать две активные замены товара';
 CONSTRAINT replacedNew(Item item) > 1 AND item IS Item MESSAGE 'Нельзя один товар использовать в нескольких заменах';
@@ -190,8 +190,8 @@ EXTEND FORM items
     FILTERS oldSku(rep) = i OR newSku(rep) = i
     
     FILTERGROUP replaced       
-        FILTER 'Заменяемые' replacedOld(i)
-        FILTER 'Заменяющие' replacedNew(i)   
+        FILTER 'Заменяемые' newSku(i)
+        FILTER 'Заменяющие' oldSku(i)   
 ;
 
 replaceItem 'Заменить товар' (Item item, GroupType gt)  {
@@ -253,7 +253,7 @@ recalcItemReplace 'Обновить данные' () {
 //;
 
 // добавляем на форму Ассортиментной матрицы
-countSkuReplaced 'Кол-во замененных товаров в ассортиментных матрицах' (RangeRev v) = GROUP SUM 1 IF level(v, Sku sku) AND replacedOld(sku);
+countSkuReplaced 'Кол-во замененных товаров в ассортиментных матрицах' (RangeRev v) = GROUP SUM 1 IF level(v, Sku sku) AND newSku(sku);
 calcCountSkuReplaced 'Кол-во замененных товаров в ассортиментных матрицах' (Range.Range r, DATE dt) = countSkuReplaced(rangeRev(r, dt));
 
 countSkuReplaced 'Кол-во замененных товаров в ассортиментных матрицах' = DATA LOCAL INTEGER (Range.Range, DATE);
@@ -270,8 +270,8 @@ createRangeRevReplacedItem 'Создать версию c заменой тов�
 	    NEW newRev = RangeRev {
 	        range(newRev) <- range;
 	        FOR level(oldRev(), Sku sku) DO {    
-	            IF newSku(replaceItem(sku)) THEN {
-	                level(newRev, newSku(replaceItem(sku))) <- level(oldRev(), sku);                  	                
+	            IF newSku(sku) THEN {
+	                level(newRev, newSku(sku)) <- level(oldRev(), sku);                  	                
 	            }
 	            ELSE
 	            {            
