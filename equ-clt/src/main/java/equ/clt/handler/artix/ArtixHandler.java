@@ -344,6 +344,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     }
 
                     hasQuantityOptions = infoJSON.optBoolean("hasquantityoptions");
+
+                    String ntin = trimToNull(infoJSON.optString("ntin"));
+                    if(ntin != null) {
+                        inventObject.put("ntin", ntin);
+                    }
                 }
             }
 
