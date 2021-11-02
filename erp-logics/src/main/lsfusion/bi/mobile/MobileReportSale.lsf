@@ -16,40 +16,50 @@ order (SaleRow sr) = CASE
     WHEN sr = SaleRow.discount THEN '2'
 ;
 
+showSum = DATA LOCAL BOOLEAN ();
+showDiscount = DATA LOCAL BOOLEAN ();
+
 sumReceiptDetailZReport '' (DepartmentStore d, INTERVAL[DATE] iq) = sumReceiptDetailZReport(d, from(iq), to(iq));
 discountSumZReport '' (stock, INTERVAL[DATE] iq)= discountSumZReport(stock, from(iq), to(iq));
 
 measure '' (DepartmentStore ds, INTERVAL[DATE] iq, SaleRow r) = CASE
-    WHEN r = SaleRow.sum THEN sumReceiptDetailZReport(ds, iq)
-    WHEN r = SaleRow.discount THEN discountSumZReport (ds, iq)
+    WHEN r = SaleRow.sum AND showSum() THEN sumReceiptDetailZReport(ds, iq)
+    WHEN r = SaleRow.discount AND showDiscount() THEN discountSumZReport (ds, iq)
 ;
 
 totalSumReceipt 'Сумма' (INTERVAL[DATE] int) = GROUP SUM sumReceiptDetailZReport(DepartmentStore ds, int) IF in(ds);
 totalSumDiscount 'Скидка' (INTERVAL[DATE] int) = GROUP SUM discountSumZReport (DepartmentStore ds, int) IF in(ds);
-
 
 isMeasure(INTERVAL[DATE] id, SaleRow sr) = GROUP MAX in(DepartmentStore ds) IF measure(ds, id, sr);
 colorIndex (INTERVAL[DATE] id, SaleRow sr) = PARTITION SUM 1 IF isMeasure(id, sr) ORDER order(sr), id, sr BY id;
 color (INTERVAL[DATE] id, SaleRow sr) = pivotColor(colorIndex(id, sr) - 1);
 switchRow ABSTRACT LIST (SaleRow);
 
+switchRow(SaleRow r) +{
+    IF r = SaleRow.sum THEN {
+        IF showSum() THEN showSum() <- NULL;
+        ELSE showSum() <- TRUE;
+    }
+}
+
+switchRow(SaleRow r) +{
+    IF r = SaleRow.discount THEN {
+        IF showDiscount() THEN showDiscount() <- NULL;
+        ELSE showDiscount() <- TRUE;
+    }
+}
+
 EXTEND FORM mobileReport
     PROPERTIES (intervalDate) totalSumReceipt, totalSumDiscount
     
     OBJECTS saleBar = (ds = DepartmentStore, r = SaleRow) PIVOT 'Horizontal Stacked Bar Chart' NOSETTINGS 
     PROPERTIES READONLY saleBarMobileName = id(ds), order(r), measure(ds, intervalDate, r)
-    PIVOT saleBar CONFIG 'hideLegend' COLUMNS saleBarMobileName ROWS order(r) MEASURES measure(ds, intervalDate, r)
+    PIVOT saleBar CONFIG 'saleBar' COLUMNS saleBarMobileName ROWS order(r) MEASURES measure(ds, intervalDate, r)
     FILTERS measure(ds, intervalDate, r), in(ds)
     
     OBJECTS legend = SaleRow
-    PROPERTIES switchRow(legend) SHOWIF isMeasure(intervalDate, legend) BACKGROUND color(intervalDate, legend) DRAW saleBar HEADER name(legend) COLUMNS (legend)
-
-//    OBJECTS saleChartBar = (d = DepartmentStore, date = DATE) PIVOT 'Line Chart' NOSETTINGS
-//    PROPERTIES READONLY saleChartBarMobileName = mobileName(d) COLUMN, date = VALUE(date), sumReceiptDetailZReport(d, date)
-//    PIVOT saleChartBar CONFIG 'chartMobileMode' COLUMNS saleChartBarMobileName ROWS date MEASURES sumReceiptDetailZReport(d, date)
-//    FILTERS iterate(date, from(intervalDate), to(intervalDate)), in(d), sumReceiptDetailZReport(d, date)
-;
-
+    PROPERTIES switchRow(legend) BACKGROUND color(intervalDate, legend) DRAW saleBar HEADER name(legend) COLUMNS (legend)
+    EVENTS ON INIT { showSum() <- TRUE; showDiscount() <- TRUE; }
 ;
 
 DESIGN mobileReport {
@@ -67,10 +77,6 @@ DESIGN mobileReport {
                 }
                 MOVE BOX (saleBar) {REMOVE TOOLBARBOX (saleBar); caption = ''; };
             }
-//            MOVE BOX (saleChartBar) {
-//                caption = 'График';
-//                PROPERTY (sumReceiptDetailZReport(d, date)) { caption = ' '; }
-//            }
         }
     }
 }

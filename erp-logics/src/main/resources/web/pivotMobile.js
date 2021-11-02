@@ -37,7 +37,7 @@ function testConfig() {
             hoverlabel: { bgcolor: "#FFF" },
             showlegend: false,
             xaxis: {
-              title: "Количество",
+              title: "Количество чеков",
               zeroline: false
             },
             yaxis: {
@@ -78,7 +78,7 @@ function paymentType() {
             hoverlabel: { bgcolor: "#FFF" },
             showlegend: false,
             xaxis: {
-              title: "Сумма",
+              title: "Сумма в руб.",
               zeroline: false
             },
             yaxis: {
@@ -96,7 +96,7 @@ function averageReceipt() {
             hoverlabel: { bgcolor: "#FFF" },
             showlegend: false,
             xaxis: {
-              title: "Сумма",
+              title: "Сумма в руб.",
               zeroline: false
             },
             yaxis: {
