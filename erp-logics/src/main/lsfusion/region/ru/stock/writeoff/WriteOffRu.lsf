@@ -49,8 +49,21 @@ nameBankLegalEntityStock 'Банк' (WriteOff writeOff) = nameBank(legalEntitySt
 MFOBankLegalEntityStock 'BIC' (WriteOff writeOff) = MFOBank(legalEntityStock(writeOff));
 corrAccountLegalEntityStock 'к/сч.' (WriteOff writeOff) = corrAccount(bank(account(legalEntityStock(writeOff))));
 
-dataNumberBaseDoc 'Номер основания' = DATA STRING[50] (WriteOff) CHARWIDTH 7;
-dataDateBaseDoc 'Дата основания' = DATA DATE (WriteOff);
+dataCaptionBaseDoc 'Основание' = DATA STRING[50] (UserWriteOff) CHARWIDTH 20;
+defaultCaptionBaseDoc 'Основание  ТОРГ-16 (по умолчанию)' = DATA STRING[50] () CHARWIDTH 20;
+captionBaseDoc 'Основание' (UserWriteOff w) = OVERRIDE dataCaptionBaseDoc(w), defaultCaptionBaseDoc() IF w IS UserWriteOff;
+dataNumberBaseDoc 'Номер основания' = DATA STRING[50] (UserWriteOff) CHARWIDTH 7;
+dataDateBaseDoc 'Дата основания' = DATA DATE (UserWriteOff);
+
+EXTEND FORM options
+    PROPERTIES () defaultCaptionBaseDoc
+;
+
+DESIGN options {
+    writeOff {
+        MOVE PROPERTY(defaultCaptionBaseDoc());
+    }
+}
 
 FORM writeOffTorg16A 'ТОРГ-16'
     OBJECTS w=WriteOff PANEL 
@@ -94,7 +107,7 @@ FORM writeOffTorg16AB 'ТОРГ-16'
                     okpo, okdp,
                     nameReason, 
                     shortNameChief, namePositionChief,
-                    dataNumberBaseDoc, dataDateBaseDoc, countDetailA                  
+                    captionBaseDoc, dataNumberBaseDoc, dataDateBaseDoc, countDetailA                  
     
     OBJECTS wdA=WriteOffDetail SUBREPORT
     PROPERTIES (wdA) date, number, idReason, nameReason, dateInvoice, numberInvoice
@@ -130,11 +143,15 @@ DESIGN writeOffs{
 }
 
 EXTEND FORM userWriteOff
-    PROPERTIES(w) dataNumberBaseDoc , dataDateBaseDoc
+    PROPERTIES(w) captionBaseDoc, dataNumberBaseDoc , dataDateBaseDoc
 ;
 DESIGN userWriteOff{
-    first{
-        MOVE PROPERTY (dataNumberBaseDoc(w));
-        MOVE PROPERTY (dataDateBaseDoc(w));
+    headerTabbedPane {
+        NEW torg AFTER headerMainParams {
+            caption = 'ТОРГ-16';
+            MOVE PROPERTY (captionBaseDoc(w));
+            MOVE PROPERTY (dataNumberBaseDoc(w));
+            MOVE PROPERTY (dataDateBaseDoc(w));
+        }
     }
 }
