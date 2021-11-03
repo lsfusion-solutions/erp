@@ -280,6 +280,8 @@ volumeSoldStatistic 'Объем проданного товара, л' (Sku sku,
 
 isInternet 'Интернет-магазин' = DATA BOOLEAN (Store);
 isCorporate 'Фирменный магазин' = DATA BOOLEAN (Store);
+skipInternet = ABSTRACT BOOLEAN (DepartmentStore);
+isInternet 'Интернет-магазин' (DepartmentStore ds) = isInternet(store(ds)) AND NOT skipInternet(ds);
 
 EXTEND FORM store PROPERTIES(s) isCorporate, isInternet;
  
@@ -759,7 +761,7 @@ totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (Sta
     BY legalEntity(stock), region(stock);
 
 totalSumInternetSoldBy 'В интернет-магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isInternet (store(stock)) AND isParent(group, sku) AND NOT skipSale(stock)
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isInternet (stock) AND isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
 totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
@@ -827,7 +829,7 @@ totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (Sta
 
 totalSumInternetSoldBy 'В интернет-магазинах' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     GROUP
-    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isInternet(store(stock)) AND isParent(group, sku);
+    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isInternet(stock) AND isParent(group, sku);
 
 // суммовые показатели
 sumBalanceBBy 'Сумма остатка на начало, руб.' (StatisticGroup group, Stock stock, DATE dateFrom) =
