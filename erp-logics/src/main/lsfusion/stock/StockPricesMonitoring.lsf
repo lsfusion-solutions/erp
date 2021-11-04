@@ -1,0 +1,133 @@
+MODULE StockPricesMonitoring;
+
+REQUIRE StockReports, Pricing, Promotion, EDI, IntegrationGoogle;
+
+NAMESPACE StockReports;
+
+dataInPriceMonitoring 'Вкл.' = DATA BOOLEAN (SkuGroup);
+levelParentInPriceMonitoring (SkuGroup skuGroup) = GROUP MIN level(skuGroup, SkuGroup parent) IF dataInPriceMonitoring(parent) MATERIALIZED;    
+nearestParentInPriceMonitoring (SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInPriceMonitoring(skuGroup));
+nearestInPriceMonitoring (SkuGroup skuGroup) = dataInPriceMonitoring(nearestParentInPriceMonitoring(skuGroup));
+
+inPriceMonitoring 'Вкл.' (SkuGroup skuGroup) =
+    OVERRIDE dataInPriceMonitoring(skuGroup), nearestInPriceMonitoring (skuGroup) MATERIALIZED;
+inPriceMonitoring 'Вкл.' (Sku sku) =
+    inPriceMonitoring(skuGroup(sku)); 
+
+dataInPriceMonitoring 'Вкл.' = DATA BOOLEAN (Stock);              
+dataInPriceMonitoring 'Вкл.' = DATA BOOLEAN (StockGroup);
+levelParentInPriceMonitoring (StockGroup stockGroup) = GROUP MIN level(stockGroup, StockGroup parent) IF dataInPriceMonitoring(parent) MATERIALIZED;    
+nearestParentInPriceMonitoring (StockGroup stockGroup) = stockGroup(stockGroup, levelParentInPriceMonitoring(stockGroup));
+nearestInPriceMonitoring (StockGroup stockGroup) = dataInPriceMonitoring(nearestParentInPriceMonitoring(stockGroup));
+inPriceMonitoring 'Вкл.' (StockGroup stockGroup) =
+    OVERRIDE dataInPriceMonitoring(stockGroup), nearestInPriceMonitoring (stockGroup) MATERIALIZED; 
+inPriceMonitoring 'Вкл.' (Stock st) = OVERRIDE dataInPriceMonitoring(st), inPriceMonitoring(stockGroup(st));
+
+dataPriceMonitoringGoogleAccount = DATA GoogleAccount();
+namePriceMonitoringGoogleAccount 'Аккаунт Google' = nameAuth(dataPriceMonitoringGoogleAccount());
+
+changePriceMonitoringGoogleAccount(){
+    DIALOG dialogGoogleAccountNames OBJECTS ig INPUT DO {
+        dataPriceMonitoringGoogleAccount() <- ig;
+    }
+}
+
+FORM priceMonitoring 'Отчет по мониторингу цен'                
+    PROPERTIES namePriceMonitoringGoogleAccount() ON CHANGE changePriceMonitoringGoogleAccount()
+
+    TREE stockTree a=BPSTRING[3], stg = StockGroup PARENT parent(stg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(stg)
+    PROPERTIES(stg) inPriceMonitoring
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a), countCompanyStock(stg), (stg IS ChainStores OR stg IS StoreType OR stg IS StoreGroup)
+
+    OBJECTS ts = Store
+    PROPERTIES(ts) inPriceMonitoring
+    PROPERTIES READONLY active(ts), name(ts), id(ts), nameLegalEntity(ts), nameRegion(ts), nameStoreType(ts)
+    FILTERS (ts IS Store AND NOT stg) OR isParent(ts, stg),
+            isCompany(ts)
+    FILTERGROUP filters2
+            FILTER 'Выбранные склады' inPriceMonitoring(ts) 'F10'
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT   
+
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    PROPERTIES(sg) inPriceMonitoring
+
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+    ORDERS order(sg), skuGroupName
+;
+
+DESIGN priceMonitoring {
+    OBJECTS {
+        NEW headetCapt{
+            MOVE PROPERTY(namePriceMonitoringGoogleAccount());
+        }
+        //MOVE BOX(dt);
+        NEW stockContainer {
+            caption = 'Склады';
+            type = SPLITH;
+            fill = 1;
+            NEW stockGroups {
+                fill = 1;
+                MOVE BOX(TREE stockTree) {
+                    caption = 'Группы складов';
+                }
+            }
+            MOVE BOX(ts) {
+                fill = 2;
+            }
+        }
+        NEW skuGroups {
+            fill = 1;
+            MOVE BOX(TREE skuTree) {
+                caption = 'Группы товаров';
+            }
+        }                         
+    }    
+
+}
+
+NAVIGATOR {
+    stockReports{
+        NEW priceMonitoring;  
+    }
+}
+
+FORM formMonitoringPricePrint 'Отчет по ценам'
+    OBJECTS dt = DATETIME PANEL 
+    PROPERTIES VALUE(dt)
+
+    OBJECTS st = Stock PANEL
+    PROPERTIES (st) id, name
+
+    OBJECTS sku = Sku
+    PROPERTIES nameSkuGroup4(sku) HEADER 'Категория', nameSkuGroup5(sku) HEADER 'Подкатегория', nameSupplierLastOrderBatch(sku, st),
+        nameBrand(sku), name(sku), GTIN(sku), idBarcode(sku), retailPricingPriceA(sku, st), inPromotionPriceListDetailA(sku, st) //retailPriceA(sku, st, dt)
+    FILTERS currentBalance(sku, st)
+;    
+
+fillPriceListMonAuto 'Мониторинг цен (Google диск)'(){
+    LOCAL curDt = DATETIME ();
+    curDt() <- currentDateTime();
+
+    getAccessByRefreshToken(dataPriceMonitoringGoogleAccount());
+    createGoogleDriveFolder(access_token(), token_type(), 'Мониторинг цена за ' +  (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt()))));   
+    FOR Stock st IF inPriceMonitoring(st) DO {         
+        PRINT formMonitoringPricePrint OBJECTS dt = curDt(), st = st XLSX SHEET CONCAT ' ', name(st), (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt()))) TO excelFile;
+        sendFileToGoogleDrive(access_token(), token_type(), idGoogleDriveFolder(), excelFile(), name(st));               
+    }       
+} TOOLBAR;
+
+fillPriceListMon 'Мониторинг цен'(){   
+    LOCAL curDt = DATETIME ();
+    curDt() <- currentDateTime();
+    FOR Stock st IF inPriceMonitoring(st) DO {         
+        PRINT formMonitoringPricePrint OBJECTS dt = curDt(), st = st XLSX SHEET CONCAT ' ', name(st), (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt())))  TO excelFile;
+        open(excelFile());               
+    }       
+} TOOLBAR;
+
+EXTEND FORM priceMonitoring
+    PROPERTIES  DRAW sg fillPriceListMonAuto(), fillPriceListMon()
+;

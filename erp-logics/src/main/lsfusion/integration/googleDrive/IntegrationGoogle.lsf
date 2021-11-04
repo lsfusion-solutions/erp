@@ -1,0 +1,264 @@
+MODULE IntegrationGoogle;
+
+NAMESPACE Integration;
+
+authCredentialGoogle = DATA JSONFILE();
+openCredentialJSON 'Просмотреть файл учетных данных' ()  { open(authCredentialGoogle()); }
+deleteCredentialJSON 'Удалить файл учетных данных' ()  { authCredentialGoogle() <- NULL;} IMAGE 'delete.png';
+
+GROUP installed;
+
+token_uri = DATA LOCAL STRING();
+project_id = DATA LOCAL STRING();
+auth_uri = DATA LOCAL STRING();
+auth_provider_x509_cert_url = DATA LOCAL STRING();
+client_secret = DATA LOCAL STRING();
+redirect_uris = DATA LOCAL STRING(INTEGER);
+installedRedirect_uris = DATA LOCAL INTEGER(INTEGER);
+client_id = DATA LOCAL STRING();
+
+FORM generatedCredentialGoogle
+PROPERTIES() IN installed token_uri, project_id, auth_uri, auth_provider_x509_cert_url, client_secret, client_id
+
+OBJECTS redirect_uris = INTEGER IN installed
+PROPERTIES(redirect_uris) redirect_uris EXTID 'value';
+
+cleanCredentialLocals() {
+    token_uri() <- NULL;
+    project_id() <- NULL;
+    auth_uri() <- NULL;
+    auth_provider_x509_cert_url() <- NULL;
+    client_secret() <- NULL;
+    redirect_uris(INTEGER i) <- NULL;
+    installedRedirect_uris(INTEGER i) <- NULL;
+    client_id() <- NULL;
+}
+
+fillCredentialLocals(JSONFILE f){
+    cleanCredentialLocals();
+    IF f IS JSONFILE THEN {
+        IMPORT generatedCredentialGoogle JSON FROM f;
+    }
+    ELSE MESSAGE 'Недоступен файл учетных данных';
+}
+
+inputCredentialGoogle 'Загрузить файл учетных данных' () {
+    INPUT f = JSONFILE DO {
+        authCredentialGoogle() <- f;    
+    }
+}
+///////////////
+
+CLASS GoogleAccount;
+
+idAuth 'Код аутентификации' = DATA STRING[200](GoogleAccount);
+nameAuth 'Наименование аккаунта' = DATA STRING[100](GoogleAccount);
+refreshToken 'Токен обновления' = DATA STRING[200](GoogleAccount);
+
+//Token JSON
+access_token = DATA LOCAL STRING();
+//refresh_token = DATA LOCAL STRING();
+scope = DATA LOCAL STRING();
+token_type = DATA LOCAL STRING();
+expires_in = DATA LOCAL NUMERIC();
+
+FORM generatedGoogleToken
+PROPERTIES() access_token, scope, token_type, expires_in;//access_token, refresh_token, scope, token_type, expires_in;
+
+cleanTokenLocals() {
+    access_token() <- NULL;
+    scope() <- NULL;
+    token_type() <- NULL;
+    expires_in() <- NULL;
+}
+
+fillTokenLocals(JSONFILE g){
+    cleanTokenLocals();
+    IMPORT generatedGoogleToken JSON FROM g;
+}
+
+getRefreshToken 'Получить токен обновления' (GoogleAccount g){
+    LOCAL refreshToken = STRING[200]();
+    refreshToken() <- NULL;
+    LOCAL headers = TEXT(STRING[200]);
+    LOCAL result = JSONFILE();
+    headers('Content-Type') <- 'application/x-www-form-urlencoded';
+    headers('Content-Charset') <- 'utf-8';
+    IF g IS  GoogleAccount AND NOT idAuth(g) THEN {
+        MESSAGE 'Нет кода аутенфикации';
+        RETURN;
+    }
+    
+    fillCredentialLocals(authCredentialGoogle());    
+    IF client_id() AND client_secret() AND redirect_uris(0) THEN {        
+        EXTERNAL HTTP POST token_uri() HEADERS headers
+            PARAMS CONCAT '&',
+                'client_id=' + client_id(),
+                'client_secret=' + client_secret(),
+                'redirect_uri=' + redirect_uris(0),//replace(redirect_uris(0),':','%3A'),
+                'grant_type=authorization_code',
+                'code='+ idAuth(g) TO result;
+    } ELSE {
+        MESSAGE 'Ошибка учетных данных, проверьте файл учетных данных';
+        RETURN;
+    }
+    
+    IMPORT JSON FROM result() TO() refreshToken = refresh_token;
+    refreshToken(g) <- refreshToken();
+} TOOLBAR;
+
+dialogGoogleAccountGetRefreshToken 'Получить токен обновления' (GoogleAccount g){
+    IF idAuth(g) THEN {
+        getRefreshToken(g);
+        formOk();
+    }ELSE MESSAGE 'Введите код аутенфикации';
+};
+////////
+
+FORM dialogGoogleAccountAuth
+    OBJECTS g = GoogleAccount PANEL 
+    PROPERTIES idAuth(g)
+    PROPERTIES dialogGoogleAccountGetRefreshToken(g);
+;
+
+DESIGN dialogGoogleAccountAuth{
+    OBJECTS {
+        NEW headCont{
+            //fill = 1;
+            //type = CONTAINERH;
+            MOVE PROPERTY(idAuth(g)) {fill = 1;}//; width = 300;};
+            MOVE PROPERTY(dialogGoogleAccountGetRefreshToken(g));
+        }
+    }
+    TOOLBARRIGHT {
+        PROPERTY (formOk()) { hide = TRUE; }
+        PROPERTY (formApply()) { hide = TRUE; }
+    }
+}
+    
+addGoogleAccount 'Добавить аккаунт Google' (JSONFILE f) {  
+    LOCAL result = HTMLFILE();
+    result() <- NULL;
+    
+    LOCAL headersLoc = TEXT(STRING[100]);
+    headersLoc(TEXT t) <- NULL ;
+    
+    headersLoc('Content-Type') <- 'application/x-www-form-urlencoded';
+        
+    fillCredentialLocals(f);
+    
+    IF client_id() AND redirect_uris(0) THEN {    
+        EXTERNAL HTTP auth_uri() HEADERS headersLoc 
+            PARAMS CONCAT '&',
+                   'format=json',
+                   'response_type=code',
+                   'client_id=' + client_id(),
+                   'redirect_uri=' + redirect_uris(0),//replace(redirect_uris(0),':','%3A'),
+                   'scope=https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata',
+    //             'scope=https%3A%2F%2Fwww.googleapis.com%2Fauth/drive%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.file%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive.appdata',
+                   'access_type=offline',
+                   'flowName=GeneralOAuthFlow' TO result;
+    } ELSE {
+        MESSAGE 'Ошибка учетных данных, проверьте файл учетных данных';
+        RETURN;
+    } 
+    
+    IF result() THEN {
+        open(result()); 
+        NEW g = GoogleAccount {
+            DIALOG dialogGoogleAccountAuth OBJECTS g = g;             
+        }
+    }
+} TOOLBAR;
+
+addGoogleAccount 'Добавить аккаунт Google' () {
+    IF authCredentialGoogle() THEN addGoogleAccount(authCredentialGoogle());
+} TOOLBAR;
+
+FORM dialogGoogleAccountNames 'Выбор аккаунта'
+    OBJECTS ig = GoogleAccount
+    PROPERTIES READONLY nameAuth(ig)
+;
+
+DESIGN dialogGoogleAccountNames{
+    size = (400, 300);
+}
+
+getAccessByRefreshToken (GoogleAccount g){
+    LOCAL headers = TEXT(STRING[100]);
+    LOCAL result = JSONFILE ();
+
+    headers('Content-Type') <- 'application/x-www-form-urlencoded';
+    IF g IS  GoogleAccount AND NOT idAuth(g) THEN RETURN;    
+    fillCredentialLocals(authCredentialGoogle());
+    
+    EXTERNAL HTTP POST token_uri() HEADERS headers
+        PARAMS CONCAT '&',
+            'client_id=' + client_id(),
+            'client_secret=' + client_secret(),
+            'redirect_uri=' + redirect_uris(0),//replace(redirect_uris(0),':','%3A'),
+            'grant_type=refresh_token',
+            'refresh_token='+ refreshToken(g) TO result;
+    fillTokenLocals(result());
+}
+
+idGoogleDriveFolder = DATA LOCAL STRING[100]();
+
+createGoogleDriveFolder 'Создать папку на Google диске' (STRING[200] token, STRING[200] token_type, STRING[100] nameFolder){
+    idGoogleDriveFolder() <- NULL;
+    LOCAL headers = TEXT(STRING[100]);
+    LOCAL result = JSONFILE ();
+
+    headers('Authorization') <- CONCAT ' ', token_type, token;
+    headers('Host') <- 'www.googleapis.com';
+    headers('Content-Type') <- 'multipart/form-data; boundary=foo_bar_baz';   
+    EXPORT JSON CHARSET 'UTF-8' FROM name = nameFolder, mimeType = 'application/vnd.google-apps.folder';//, uploadType = 'multipart';
+    EXTERNAL HTTP POST 'https://www.googleapis.com/upload/drive/v3/files' HEADERS headers
+        PARAMS JSONFILE(exportFile()), ''
+            TO result;
+    IMPORT JSON FROM result() TO() idGoogleDriveFolder = id
+}
+
+
+sendFileToGoogleDrive(STRING[200] token, STRING[200] token_type, STRING[100] idParent, EXCELFILE f, STRING[100] nameFile){
+    LOCAL headers = TEXT(STRING[100]);
+    LOCAL result = FILE();   
+    headers('Authorization') <- CONCAT ' ', token_type, token;
+    headers('Host') <- 'www.googleapis.com';
+    headers('Content-Type') <- 'multipart/form-data';
+   
+    IF idParent THEN 
+        EXPORT JSON FROM name = nameFile, parents = '['+idParent+']', mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', uploadType = 'resumable';
+    ELSE 
+        EXPORT JSON FROM name = nameFile, mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', uploadType = 'resumable';
+    
+    EXTERNAL HTTP POST 'https://www.googleapis.com/upload/drive/v3/files' HEADERS headers PARAMS JSONFILE(exportFile()), f TO result;
+}
+
+EXTEND FORM integrationData
+    PROPERTIES inputCredentialGoogle()
+    PROPERTIES SHOWIF authCredentialGoogle() openCredentialJSON(), deleteCredentialJSON()
+    
+    OBJECTS ig = GoogleAccount
+    PROPERTIES(ig) idAuth READONLY, nameAuth, refreshToken, DELETE GRID
+    PROPERTIES DRAW ig addGoogleAccount()
+;
+
+DESIGN integrationData{
+    pane{
+        NEW googleDrive{
+            caption = 'Google drive';
+            NEW authCredentialGoogleCont {
+                type = CONTAINERH;
+                MOVE PROPERTY(inputCredentialGoogle());
+                MOVE PROPERTY(openCredentialJSON()); 
+                MOVE PROPERTY(deleteCredentialJSON());            
+            }
+            NEW googleAccountsCont {
+                fill = 1;
+                MOVE BOX(ig);
+            }
+        } 
+    }       
+}
+
