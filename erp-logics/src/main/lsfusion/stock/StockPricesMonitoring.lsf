@@ -114,7 +114,7 @@ fillPriceListMonAuto 'Мониторинг цен (Google диск)'(){
     getAccessByRefreshToken(dataPriceMonitoringGoogleAccount());
     createGoogleDriveFolder(access_token(), token_type(), 'Мониторинг цена за ' +  (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt()))));   
     FOR Stock st IF inPriceMonitoring(st) DO {         
-        PRINT formMonitoringPricePrint OBJECTS dt = curDt(), st = st XLSX SHEET CONCAT ' ', name(st), (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt()))) TO excelFile;
+        PRINT formMonitoringPricePrint OBJECTS dt = curDt(), st = st XLSX SHEET CONCAT ' ', name(st), toDateDDMMYYYY(curDt()) TO excelFile;
         sendFileToGoogleDrive(access_token(), token_type(), idGoogleDriveFolder(), excelFile(), name(st));               
     }       
 } TOOLBAR;
@@ -123,11 +123,11 @@ fillPriceListMon 'Мониторинг цен'(){
     LOCAL curDt = DATETIME ();
     curDt() <- currentDateTime();
     FOR Stock st IF inPriceMonitoring(st) DO {         
-        PRINT formMonitoringPricePrint OBJECTS dt = curDt(), st = st XLSX SHEET CONCAT ' ', name(st), (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt())))  TO excelFile;
+        PRINT formMonitoringPricePrint OBJECTS dt = curDt(), st = st XLSX SHEET CONCAT ' ', name(st), toDateDDMMYYYY(curDt())  TO excelFile;
         open(excelFile());               
     }       
 } TOOLBAR;
 
 EXTEND FORM priceMonitoring
-    PROPERTIES  DRAW sg fillPriceListMonAuto(), fillPriceListMon()
+    PROPERTIES  DRAW sg fillPriceListMonAuto() SHOWIF dataPriceMonitoringGoogleAccount(), fillPriceListMon()
 ;
