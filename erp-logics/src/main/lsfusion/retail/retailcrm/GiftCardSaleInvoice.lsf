@@ -367,13 +367,23 @@ FORM saleGiftCardDashboard 'Выписка подарочных сертифик
     PROPERTIES (i) READONLY nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, nameCurrency
     PROPERTIES (i) READONLY countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail
     PROPERTIES (i) READONLY note
+    PROPERTIES (i) READONLY isOpened, showTTN1, showTN2
 
     PROPERTIES ()  addGiftCardInvoice DRAW i
     PROPERTIES (i) close[UserInvoice] SHOWIF showClose(i), open SHOWIF showOpen(i)
     PROPERTIES (i) NEWSESSION EDIT SHOWIF overShowEdit(i), DELETE
     PROPERTIES (i)            copy, shiped SHOWIF showShiped(i)   
 
-    PROPERTIES (i) print  
+    PROPERTIES (i) print
+    PROPERTIES (i) editAttributes SHOWIF isOpened(i)
+    PROPERTIES (i) SHOWIF showTTN1(i) READONLYIF banPrint(i)
+                   printVerticalA, printVerticalAB, printHorizontalA,
+                   printVerticalB, printHorizontalB, printAttach, printVerticalABAttach,
+                   printVertical, printHorizontal, printHorizontalAB, printAttachXLS, 
+                   printVerticalAttach, printHorizontalAttach 
+    PROPERTIES (i) SHOWIF showTN2(i) READONLYIF banPrint(i)
+                   printSimpleHorizontal, printSimpleVertical, printSimpleAttach, printSimpleVerticalAttach, printSimpleHorizontalAttach,
+                   printSimpleAttachXLS
 
     OBJECTS d = Sale.InvoiceDetail
     PROPERTIES (d) READONLY index
@@ -429,6 +439,57 @@ DESIGN saleGiftCardDashboard {
                     type = CONTAINERV;
                     MOVE GROUP(print,i);
                 }
+                NEW consignmentRow1 {
+                    align = START;
+                    type = CONTAINERH;
+    
+                    NEW contOne {
+                        alignment = STRETCH;
+                        type = CONTAINERH;
+                        caption = 'Накладная';
+                        MOVE PROPERTY(editAttributes(i)) {
+                            alignment = STRETCH;
+                        }
+                    }
+                    NEW tn2 {
+                        alignment = STRETCH;
+                        type = COLUMNS;
+                        columns = 3;
+                        caption = 'ТН-2';
+                        MOVE PROPERTY(printSimpleVertical(i)) { alignment = STRETCH; }
+                        MOVE PROPERTY(printSimpleHorizontal(i)) { alignment = STRETCH; }
+                        MOVE PROPERTY(printSimpleAttach(i)) { alignment = STRETCH; }
+                        MOVE PROPERTY(printSimpleVerticalAttach(i)) { alignment = STRETCH; }
+                        MOVE PROPERTY(printSimpleHorizontalAttach(i)) { alignment = STRETCH; }
+                    }
+                }
+                NEW consignmentRow2 {
+                    align = START;
+                    type = COLUMNS;
+                    columns = 3;
+                    caption = 'ТТН-1';
+                    MOVE PROPERTY(printVerticalA(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printVerticalAB(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printHorizontalA(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printVerticalB(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printHorizontalB(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printAttach(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printVertical(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printHorizontal(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printHorizontalAB(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printVerticalAttach(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printVerticalABAttach(i)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printHorizontalAttach(i)) { alignment = STRETCH; }
+                }
+                NEW consignmentRow3 {
+                    type = CONTAINERH;            
+                    NEW export {
+                        type = CONTAINERH;
+                        caption = 'Экспорт';  
+                        MOVE PROPERTY(printAttachXLS(i)) { alignment = STRETCH; }  
+                        MOVE PROPERTY(printSimpleAttachXLS(i)) { alignment = STRETCH; }                                                 
+                    }
+                }
             }            
             NEW actionContainer {
                 caption = 'Действия';
@@ -440,41 +501,5 @@ DESIGN saleGiftCardDashboard {
 NAVIGATOR {
     retailDashboardNavigator{
         NEW saleGiftCardDashboard;
-    }
-}
-
-//выписка накладных
-EXTEND FORM  saleGiftCardDashboard
-    PROPERTIES(i)  editAttributes
-    PROPERTIES(i) SHOWIF showTN2(i) READONLYIF banPrint(i)
-                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach, printSimpleVerticalAttach, printSimpleHorizontalAttach
-;
-
-DESIGN saleGiftCardDashboard {
-    printTab {
-        NEW consignmentRow1 {
-            align = START;
-            type = CONTAINERH;
-
-            NEW contOne {
-                alignment = STRETCH;
-                type = CONTAINERH;
-                caption = 'Накладная';
-                MOVE PROPERTY(editAttributes(i)) {
-                    alignment = STRETCH;
-                }
-            }
-            NEW tn2 {
-                alignment = STRETCH;
-                type = COLUMNS;
-                columns = 3;
-                caption = 'ТН-2';
-                MOVE PROPERTY(printSimpleVertical(i));
-                MOVE PROPERTY(printSimpleHorizontal(i));
-                MOVE PROPERTY(printSimpleAttach(i));
-                MOVE PROPERTY(printSimpleVerticalAttach(i));
-                MOVE PROPERTY(printSimpleHorizontalAttach(i));
-            }
-        } 
     }
 }
