@@ -56,6 +56,8 @@ dispersionSold 'Дисперсия однодневных продаж' = DATA N
 
 zScore 'Z-оценка' (Sku sk) = safetyCoeff(skuGroup(sk));
 
+@defineGroupDefaultValue(countAfterPromotion, 'Минимальное количество дней после акции', INTEGER, skuGroup);
+
 
 //расчет значений
 lastYearCurrent = DATE(sumYear(currentDate(),-1));
@@ -111,10 +113,10 @@ calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневны�
     regularPromotionDetail(Sku s, Stock st) <- lastRegularPromotionDetail(s, st) WHERE dateFromPromotion(s, st) AND toDate(lastPromotionPriceListDetail(s, st), st) >= subtract(currentDate(), countSoldDays(skuGroup(s))) AND in(st);
 
     dateToRegular(Sku s, Stock st) <- NULL WHERE in(st);
-    dateToRegular(Sku s, Stock st) <- IF dateToPromotion(s, st) < subtract(currentDate(), 1) THEN subtract(currentDate(), 1) ELSE (MIN subtract(currentDate(), 1), subtract(fromDate(regularPromotionDetail(s, st), st), 1)) WHERE regularPromotionDetail(s, st) AND in(st);
+    dateToRegular(Sku s, Stock st) <- IF dateToPromotion(s, st) < subtract(currentDate(),(OVERRIDE countAfterPromotion(skuGroup(s)),1)) THEN subtract(currentDate(), 1) ELSE (MIN subtract(currentDate(), 1), subtract(fromDate(regularPromotionDetail(s, st), st), 1)) WHERE regularPromotionDetail(s, st) AND in(st);
     
     dateFromRegular(Sku s, Stock st) <- NULL WHERE in(st);
-    dateFromRegular(Sku s, Stock st) <- IF dateToPromotion(s, st) < subtract(currentDate(), 1) THEN sum(dateToPromotion(s, st), 1) ELSE (MAX sum(prevToDatePromotion(regularPromotionDetail(s, st), st), 1), subtract(dateToRegular(s, st), countSoldDays(skuGroup(s)))) WHERE regularPromotionDetail(s, st) AND in(st);
+    dateFromRegular(Sku s, Stock st) <- IF dateToPromotion(s, st) < subtract(currentDate(), (OVERRIDE countAfterPromotion(skuGroup(s)),1)) THEN sum(dateToPromotion(s, st), 1) ELSE (MAX sum(prevToDatePromotion(regularPromotionDetail(s, st), st), 1), subtract(dateToRegular(s, st), countSoldDays(skuGroup(s)))) WHERE regularPromotionDetail(s, st) AND in(st);
     
     APPLY;
     
@@ -139,7 +141,7 @@ FORM soldParams 'Параметры автозаказа'
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
     ORDERS order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT    
-    PROPERTIES(sk) countSoldDays, countSeason, overSeasonalityCoeff, safetyCoeff, coeffPromotion   
+    PROPERTIES(sk) countSoldDays, countSeason, overSeasonalityCoeff, safetyCoeff, coeffPromotion, countAfterPromotion
 ;
 
 DESIGN soldParams {
