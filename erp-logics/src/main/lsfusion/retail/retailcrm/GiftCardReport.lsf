@@ -21,20 +21,20 @@ relationBalance = GROUP SUM 1 IF date(GiftCard g) <= DATE dTo AND (( NOT dateSol
 relationDefect = GROUP SUM 1 IF dateDefect(GiftCard g) >= DATE dFrom AND dateDefect(g) <= DATE dTo 
     BY numberReport(g), departmentStoreDefect(g), sku(giftCardPurchaseDetail(g)), dFrom, dTo;
 
-from 'С' = DATA LOCAL INTEGER (INTEGER, Item);
-to 'По' = DATA LOCAL INTEGER (INTEGER, Item);
+from 'С' = DATA LOCAL LONG (INTEGER, Item);
+to 'По' = DATA LOCAL LONG (INTEGER, Item);
 count 'Кол-во' (INTEGER i, Item item) = to(i,item) - from(i,item) +1;
 numberFrom 'С' (INTEGER in, Item i)  = numberGiftCardString(from(in,i));
 numberTo 'По' (INTEGER in, Item i)  = numberGiftCardString(to(in,i));
 
 
-fromBalance 'С' = DATA LOCAL INTEGER (INTEGER, Item);
-toBalance 'По' = DATA LOCAL INTEGER (INTEGER, Item);
+fromBalance 'С' = DATA LOCAL LONG (INTEGER, Item);
+toBalance 'По' = DATA LOCAL LONG (INTEGER, Item);
 countBalance 'Кол-во' (INTEGER i, Item item) = toBalance(i,item) - fromBalance(i,item) + 1;
 numberFromBalance 'С' (INTEGER in, Item i)  = numberGiftCardString(fromBalance(in,i));
 numberToBalance 'По' (INTEGER in, Item i)  = numberGiftCardString(toBalance(in,i));
-fromDefect 'С' = DATA LOCAL INTEGER (INTEGER, Item);
-toDefect 'По' = DATA LOCAL INTEGER (INTEGER, Item);
+fromDefect 'С' = DATA LOCAL LONG (INTEGER, Item);
+toDefect 'По' = DATA LOCAL LONG (INTEGER, Item);
 countDefect 'Кол-во' (INTEGER i, Item item) = toDefect(i,item) - fromDefect(i,item) + 1;
 numberFromDefect 'С' (INTEGER in, Item i)  = numberGiftCardString(fromDefect(in,i));
 numberToDefect 'По' (INTEGER in, Item i)  = numberGiftCardString(toDefect(in,i));
@@ -52,12 +52,12 @@ fill 'Заполнить данные'  (DATE df, DATE dt, Stock ds)  {
          
     FOR Item i  AND skuType(i) == SkuType.skuTypeGiftCard DO {
         LOCAL int =  INTEGER ();       
-        LOCAL include =  BOOLEAN (INTEGER);
+        LOCAL include =  BOOLEAN (LONG);
         int() <- 1;
         
         //-- продажа
-        include(INTEGER number) <- TRUE WHERE relation(number, ds, i, df, dt);        
-        FOR include(INTEGER number)  ORDER  number DO {
+        include(LONG number) <- TRUE WHERE relation(number, ds, i, df, dt);        
+        FOR include(LONG number)  ORDER  number DO {
             IF to(int(),i) THEN {
                 int() <- int()+1 ;  
             }
@@ -66,10 +66,10 @@ fill 'Заполнить данные'  (DATE df, DATE dt, Stock ds)  {
             to(INTEGER in,i) <- number WHERE in == int() AND NOT include(number+1);
         }
         //-- остатки
-        include(INTEGER number) <- NULL;
+        include(LONG number) <- NULL;
         int() <- 1;           
-        include(INTEGER number) <- TRUE WHERE relationBalance(number, ds, i, dt);
-        FOR include(INTEGER number)  ORDER  number DO {
+        include(LONG number) <- TRUE WHERE relationBalance(number, ds, i, dt);
+        FOR include(LONG number)  ORDER  number DO {
             IF toBalance(int(),i) THEN {
                 int() <- int()+1 ;  
             }
@@ -78,10 +78,10 @@ fill 'Заполнить данные'  (DATE df, DATE dt, Stock ds)  {
             toBalance(INTEGER in,i) <- number WHERE in == int() AND NOT include(number+1);
         }
         //-- испорчены
-        include(INTEGER number) <- NULL;
+        include(LONG number) <- NULL;
         int() <- 1;           
-        include(INTEGER number) <- TRUE WHERE relationDefect(number, ds, i, df, dt);
-        FOR include(INTEGER number)  ORDER  number DO {
+        include(LONG number) <- TRUE WHERE relationDefect(number, ds, i, df, dt);
+        FOR include(LONG number)  ORDER  number DO {
             IF toDefect(int(),i) THEN {
                 int() <- int()+1 ;  
             }
