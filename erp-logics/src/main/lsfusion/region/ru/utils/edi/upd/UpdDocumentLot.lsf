@@ -1,0 +1,47 @@
+MODULE UpdDocumentLot;
+
+REQUIRE UpdDocument;
+
+NAMESPACE Upd;
+
+EXTEND FORM updDocument
+    OBJECTS utd = UpdTransportPackDetail
+    PROPERTIES (utd) numberDetail, id, NEW, DELETE GRID
+    FILTERS updDocument(utd)=u
+    FILTERGROUP detailTransportPackDetail
+        FILTER 'По строке' updDocumentDetail(utd)=d DEFAULT
+    
+    OBJECTS upd = UpdPackDetail
+    PROPERTIES (upd) numberDetail, id, NEW, DELETE GRID
+    FILTERS updDocument(upd)=u
+    FILTERGROUP detailUpdPackDetail
+        FILTER 'По строке' updDocumentDetail(upd)=d DEFAULT
+    
+    OBJECTS uld = UpdLotDetail
+    PROPERTIES (uld) numberDetail, id, NEW, DELETE GRID
+    FILTERS updDocument(uld)=u
+    FILTERGROUP detailUpdLotDetail
+        FILTER 'По строке' updDocumentDetail(uld)=d DEFAULT
+;
+
+
+
+DESIGN updDocument {
+    detailsContainer {
+        type = CONTAINERV;
+        NEW updDetails {
+            fill = 2;
+            MOVE BOX(d);
+        }
+        NEW lot {
+            caption = 'Маркировка';
+            fill = 1;
+            type = TABBED;
+            MOVE BOX(uld);
+            MOVE BOX(upd);
+            MOVE BOX(utd);
+        }
+    }
+}
+
+
