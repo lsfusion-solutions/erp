@@ -1,0 +1,304 @@
+MODULE SigmaReceive;
+
+REQUIRE SigmaPriceTransaction, ZReport, SigmaCashRegister;
+
+NAMESPACE Sigma;
+
+//фильтрация
+CLASS FilterType 'Тип фильтра'{
+    contains 'Contains',    //содержит
+    doesNotContain 'DoesNotContain', //не содержит
+    doesNotEqual 'DoesNotEqual', //не равно
+    equals 'Equals',   //равно
+    greaterThan 'GreaterThan',  //больше
+    lessThan 'LessThan' //меньше
+}
+
+CLASS Filter 'Фильтр sigma';
+propertyName = DATA LOCAL STRING[50] (Filter);
+value = DATA LOCAL STRING[50] (Filter);
+operator = DATA FilterType (Filter);
+operatorType (Filter f) = staticCaption(operator(f));
+ignore (Filter f) = DATA LOCAL TBOOLEAN (Filter);
+
+GROUP filters EXTID 'Filters' : dataExchangeRequest;
+
+propertyName = DATA LOCAL STRING(INTEGER);
+value = DATA LOCAL DATE(INTEGER);
+operatorType = DATA LOCAL STRING(INTEGER);
+ignore = DATA LOCAL STRING(INTEGER);
+
+FORM requestWithFilters FORMEXTID 'WebApiExchangeRequestDto'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' 
+        EXTID 'xmlns:xsd', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES() token EXTID 'Token'
+    PROPERTIES() IN dataExchangeRequest exchangeName EXTID 'ExchangeName', exchangeFormat EXTID 'ExchangeFormat'
+
+    OBJECTS filterCriterionDto = Filter EXTID 'FilterCriterionDto' IN filters
+    PROPERTIES(filterCriterionDto) propertyName EXTID 'PropertyName', value EXTID 'Value',
+        operatorType EXTID 'OperatorType', ignore EXTID 'Ignore';
+
+
+//чеки
+GROUP recordsRecieve EXTID 'Records';
+GROUP recordReceive EXTID 'Record' : recordsRecieve;
+
+code = DATA LOCAL STRING(INTEGER);
+sumTotalVat7 = DATA LOCAL STRING(INTEGER);
+sumTotalVat6 = DATA LOCAL STRING(INTEGER);
+sumTotalVat5 = DATA LOCAL STRING(INTEGER);
+sumTotalVat4 = DATA LOCAL STRING(INTEGER);
+sumTotalVat3 = DATA LOCAL STRING(INTEGER);
+sumTotalVat2 = DATA LOCAL STRING(INTEGER);
+sumTotalVat1 = DATA LOCAL STRING(INTEGER);
+sumTotalAmount = DATA LOCAL STRING(INTEGER);
+sumTotalDiscount = DATA LOCAL STRING(INTEGER);
+sumTotalDiscountAmount = DATA LOCAL STRING(INTEGER);
+sumTotal = DATA LOCAL STRING(INTEGER);
+quantityTotal = DATA LOCAL STRING(INTEGER);
+sumChange = DATA LOCAL STRING(INTEGER);
+discCardId = DATA LOCAL STRING(INTEGER);
+clientId = DATA LOCAL STRING(INTEGER);
+consultantId = DATA LOCAL STRING(INTEGER);
+userId = DATA LOCAL STRING(INTEGER);
+cashboxSettingsId = DATA LOCAL STRING(INTEGER);
+docBankNumber = DATA LOCAL STRING(INTEGER);
+docKindNumber = DATA LOCAL STRING(INTEGER);
+docNumber = DATA LOCAL STRING(INTEGER);
+docDate = DATA LOCAL DATETIME(INTEGER);
+refunded = DATA LOCAL STRING(INTEGER);
+codeForExchange = DATA LOCAL STRING(INTEGER);
+paySumTotal = DATA LOCAL STRING(INTEGER);
+comment = DATA LOCAL STRING(INTEGER);
+
+FORM receiptsSigma FORMEXTID 'DataExchangeRoot'
+    OBJECTS record = INTEGER EXTID 'Record' IN recordsRecieve
+    PROPERTIES(record) code EXTID 'Code', sumTotalVat7 EXTID 'SumTotalVat7', 
+        sumTotalVat6 EXTID 'SumTotalVat6', sumTotalVat5 EXTID 'SumTotalVat5', 
+        sumTotalVat4 EXTID 'SumTotalVat4', sumTotalVat3 EXTID 'SumTotalVat3', 
+        sumTotalVat2 EXTID 'SumTotalVat2', sumTotalVat1 EXTID 'SumTotalVat1', 
+        sumTotalAmount EXTID 'SumTotalAmount', sumTotalDiscount EXTID 'SumTotalDiscount', 
+        sumTotalDiscountAmount EXTID 'SumTotalDiscountAmount', sumTotal EXTID 'SumTotal',
+        quantityTotal EXTID 'QuantityTotal', sumChange EXTID 'SumChange', 
+        discCardId EXTID 'DiscCardId', clientId EXTID 'ClientId', 
+        consultantId EXTID 'ConsultantId', userId EXTID 'UserId', 
+        cashboxSettingsId EXTID 'CashboxSettingsId', docBankNumber EXTID 'DocBankNumber', 
+        docKindNumber EXTID 'DocKindNumber', docNumber EXTID 'DocNumber', docDate EXTID 'DocDate', 
+        refunded EXTID 'Refunded', codeForExchange EXTID 'CodeForExchange', paySumTotal EXTID 'PaySumTotal', 
+        comment EXTID 'Comment'
+    
+    FILTERS imported(record)
+;
+
+//позиции
+receiptId = DATA LOCAL STRING(INTEGER);
+productId = DATA LOCAL STRING(INTEGER);
+quantity = DATA LOCAL STRING(INTEGER);
+price = DATA LOCAL STRING(INTEGER);
+sum = DATA LOCAL STRING(INTEGER);
+percentDiscount = DATA LOCAL STRING(INTEGER);
+sumDiscount = DATA LOCAL STRING(INTEGER);
+percentAmount = DATA LOCAL STRING(INTEGER);
+sumAmount = DATA LOCAL STRING(INTEGER);
+sumWithDiscount = DATA LOCAL STRING(INTEGER);
+percentVAT = DATA LOCAL STRING(INTEGER);
+paymentTypeId = DATA LOCAL STRING(INTEGER);
+storageId = DATA LOCAL STRING(INTEGER);
+
+FORM receiptDetailsSigma FORMEXTID 'DataExchangeRoot'
+    OBJECTS record = INTEGER EXTID 'Record' IN recordsRecieve
+    PROPERTIES(record) receiptId EXTID 'ReceiptId', productId EXTID 'ProductId', 
+        quantity EXTID 'Quantity', price EXTID 'Price', sum EXTID 'Sum', 
+        percentDiscount EXTID 'PercentDiscount', sumDiscount EXTID 'SumDiscount', 
+        percentAmount EXTID 'PercentAmount', sumAmount EXTID 'SumAmount', 
+        sumWithDiscount EXTID 'SumWithDiscount', percentVAT EXTID 'PercentVAT', 
+        paymentTypeId EXTID 'PaymentTypeId', storageId EXTID 'StorageId', comment EXTID 'Comment'
+        
+        FILTERS imported(record)
+;
+
+//платежи по чекам
+paySum = DATA LOCAL STRING(INTEGER);
+certificateId = DATA LOCAL STRING(INTEGER);
+
+FORM paymentsSigma FORMEXTID 'DataExchangeRoot'
+    OBJECTS record = INTEGER EXTID 'Record' IN recordsRecieve
+    PROPERTIES(record) comment EXTID 'Comment', paySum EXTID 'PaySum', 
+        certificateId EXTID 'CertificateId', paymentTypeId EXTID 'PaymentTypeId', receiptId EXTID 'ReceiptId'
+        
+    FILTERS imported(record)
+;
+
+//аннуляция документов
+FORM skipSigma FORMEXTID 'DataExchangeRoot'
+    OBJECTS record = INTEGER EXTID 'Record' IN records
+    PROPERTIES(record) code EXTID 'Code', docDate EXTID 'DocDate', 
+        docNumber EXTID 'DocNumber', docKindNumber EXTID 'DocKindNumber', 
+        cashboxSettingsId EXTID 'CashboxSettingsId', userId EXTID 'UserId', 
+        receiptId EXTID 'ReceiptId', comment EXTID 'Comment'
+        
+        FILTERS imported(record)
+;
+        
+//свойства для чека
+TABLE receiptsSigma(Receipt);
+idExchange 'ID для обмена' = DATA INTEGER (Receipt) TABLE receiptsSigma;
+isRefunded 'Возврат' = DATA BOOLEAN (Receipt) TABLE receiptsSigma;
+
+sendMessageSigma(CashRegister c, STRING stringData){
+    LOCAL messageToReceive = RAWFILE ();
+    LOCAL zip = STRING ();
+    zip() <- '16000000504B0506000000000000000000000000000000000000';
+    messageToReceive() <- formMessage('', reverseByteA(lpad(toHex(length(exchangeName())),8 ,'0')), exchangeName(), 
+        reverseByteA(lpad(toHex(length(convertToByteA(stringData))),8 ,'0')), stringData, zip());
+    EXTERNAL TCP ip(c) + ':11000' PARAMS messageToReceive();
+}
+
+
+receiveFromSigma(CashRegister c){
+    TRY{
+        LOCAL filter1 = Filter();
+        LOCAL filter2 = Filter();
+        filter1() <- GROUP MAX Filter f IF operator(f) = FilterType.greaterThan; 
+        filter2() <- GROUP MAX Filter f IF operator(f) = FilterType.lessThan;
+        LOCAL maxIdReceipt = INTEGER ();
+        maxIdReceipt() <- OVERRIDE(GROUP MAX idExchange(Receipt r) IF cashRegister(r) = c), 0;
+        IF filter1() THEN {
+            value(filter1()) <- STRING[50](maxIdReceipt());
+            propertyName(filter1()) <- 'CodeForExchange';
+            ignore(filter1()) <- TFALSE;
+        } 
+        ELSE NEW f = Filter{
+            operator(f) <- FilterType.greaterThan;
+            value(f) <- STRING[50](maxIdReceipt());
+            propertyName(f) <- 'CodeForExchange';
+            ignore(f) <- TFALSE;
+            filter1() <- f;
+        }
+        IF filter2() THEN {
+            value(filter2()) <- STRING[50](maxIdReceipt() + 100);
+            propertyName(filter2()) <- 'CodeForExchange';
+            ignore(filter2()) <- TFALSE;
+        }
+        ELSE NEW f = Filter{
+            operator(f) <- FilterType.lessThan;
+            value(f) <- STRING[50](maxIdReceipt() + 100);
+            propertyName(f) <- 'CodeForExchange';
+            ignore(f) <- TFALSE;
+            filter2() <- f;
+        }
+        token() <- tokenUpload(c);
+        LOCAL messageToReceive = RAWFILE ();
+        exchangeFormat() <- 'Xml';
+        exchangeName() <- nameReceipts();
+        LOCAL stringData = STRING ();
+        LOCAL f = FILE();
+        EXPORT requestWithFilters XML TO f;
+        fileToString(f());
+        stringData() <- resultString();
+        sendMessageSigma(c, stringData()); ;
+        fileToString(FILE(responseTcp()));
+        stringToFile(substrFrom(resultString(), positionSub(resultString(), '<WebApiResponse')));
+        IMPORT webApiResponse XML FROM resultFile();
+        stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
+        IMPORT receiptsSigma XML FROM resultFile();
+        FOR imported(INTEGER i) AND NOT (GROUP MAX Receipt r IF cashRegister(r) = c AND 
+            STRING(idExchange(r)) = codeForExchange(i)) NEW r = Receipt DO {
+            number(r) <- INTEGER(docNumber(i));
+            date(r) <- DATE(docDate(i));
+            time(r) <- TIME(docDate(i));
+            IF (GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE (docDate(i))) THEN 
+                zReport(r) <- GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE (docDate(i));
+            ELSE {
+                NEW zr = ZReport{
+                    cashRegister(zr) <- c;
+                    date(zr) <- DATE(docDate(i));
+                    isPosted(zr) <- TRUE;
+                    zReport(r) <- zr;
+                }
+            }
+            idExchange(r) <- INTEGER(codeForExchange(i));
+            isRefunded(r) <- TRUE IF refunded(i) = 'true';
+        }
+        //товары и услуги
+        propertyName(filter1()) <- 'Receipt.CodeForExchange';
+        propertyName(filter2()) <- 'Receipt.CodeForExchange';
+        exchangeName() <- nameDetails();
+        EXPORT requestWithFilters XML TO f;
+        fileToString(f());
+        stringData() <- resultString();
+        sendMessageSigma(c,stringData());
+        fileToString(FILE(responseTcp()));
+        stringToFile(substrFrom(resultString(), positionSub(resultString(), '<WebApiResponse')));
+        IMPORT webApiResponse XML FROM resultFile();
+        stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
+        IMPORT receiptDetailsSigma XML FROM resultFile();
+        FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c 
+            AND NOT isRefunded(r)) 
+            NEW s = ReceiptSaleDetail DO{
+            receipt(s) <- GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c AND NOT isRefunded(r);
+            sku(s) <- GROUP MAX Sku sku IF STRING(INTEGER(id(sku))) = productId(i);
+            quantity(s) <- NUMERIC[16,5] (quantity(i));
+            price(s) <- NUMERIC[16,4] (price(i));
+            discountSum(s) <- NUMERIC[18,4] (sumDiscount(i));
+            sum(s) <- NUMERIC[18,4] (sum(i)); 
+        }
+        FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c
+            AND isRefunded(r)) 
+            NEW s = ReceiptReturnDetail DO{
+            receipt(s) <- GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c AND isRefunded(r);
+            sku(s) <- GROUP MAX Sku sku IF STRING(INTEGER(id(sku))) = productId(i);
+            quantity(s) <- NUMERIC[16,5] (quantity(i));
+            price(s) <- NUMERIC[16,4] (price(i));
+            discountSum(s) <- NUMERIC[18,4] (sumDiscount(i));
+            sum(s) <- NUMERIC[18,4] (sum(i)); 
+        }
+        //оплаты
+        exchangeName() <- namePayments();
+        EXPORT requestWithFilters XML TO f;
+        fileToString(f());
+        stringData() <- resultString();
+        sendMessageSigma(c,stringData());
+        fileToString(FILE(responseTcp()));
+        stringToFile(substrFrom(resultString(), positionSub(resultString(), '<WebApiResponse')));
+        IMPORT webApiResponse XML FROM resultFile();
+        stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
+        IMPORT paymentsSigma XML FROM resultFile();
+        FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c) NEW p = Payment DO{
+            receipt(p) <- GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c;
+            paymentType(p) <- IF paymentTypeId(i) = '1' THEN (GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansCash)
+                ELSE (GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansCard);
+            sum(p) <- NUMERIC[18,4](paySum(i));            
+        }
+        //ануляция
+        exchangeName() <- nameSkip();
+        EXPORT dataRequest XML TO f;
+        fileToString(f());
+        stringData() <- resultString();
+        sendMessageSigma(c,stringData());
+        fileToString(FILE(responseTcp()));
+        stringToFile(substrFrom(resultString(), positionSub(resultString(), '<WebApiResponse')));
+        IMPORT webApiResponse XML FROM resultFile();
+        stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
+        IMPORT skipSigma XML FROM resultFile();
+        FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c AND NOT dataSkip(r)) 
+            DO{
+            dataSkip(GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c) <- TRUE;
+        }
+        APPLY;
+    }
+    CATCH {
+        MESSAGE messageCaughtException();
+    }
+}    
+    
+receiveGroupMachinery(GroupMachinery g) + {
+    IF isSigma(g) THEN {
+        FOR groupCashRegister(CashRegister cr) = g AND NOT inactive(cr) AND NOT disableSales(cr) DO NEWSESSION {
+            receiveFromSigma(cr);
+        } 
+    }
+}
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (c) receiveFromSigma 'Прочитать продажи';

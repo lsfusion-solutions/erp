@@ -1,0 +1,156 @@
+MODULE SigmaPriceTransaction;
+
+REQUIRE NativeMachinery, Sku, Utils, SigmaCashRegister, CashRegisterPriceTransaction, MachineryPriceTransactionPromotion;
+
+NAMESPACE Sigma;
+
+GROUP records EXTID ':Records';
+GROUP record EXTID ':Record' : records;
+
+code = DATA LOCAL STRING();
+pricePerUnit = DATA LOCAL STRING();
+netPrice = DATA LOCAL STRING();
+minPrice = DATA LOCAL STRING();
+maxPrice = DATA LOCAL STRING();
+quantityInReserve = DATA LOCAL STRING();
+quantityFull = DATA LOCAL STRING();
+quantityMinimum = DATA LOCAL STRING();
+additionalBarCode = DATA LOCAL STRING();
+supplier = DATA LOCAL STRING();
+labelBarCode = DATA LOCAL STRING();
+noDiscount = DATA LOCAL STRING();
+noAllowance = DATA LOCAL STRING();
+notForSale = DATA LOCAL STRING();
+vatGroupId = DATA LOCAL STRING();
+storageId = DATA LOCAL STRING();
+productsGroupId = DATA LOCAL STRING();
+productsSectionId = DATA LOCAL STRING();
+displayAsImage = DATA LOCAL STRING();
+freePrice = DATA LOCAL STRING();
+countryId = DATA LOCAL STRING();
+expiryDate = DATA LOCAL STRING();
+fractionalUnit = DATA LOCAL STRING();
+name = DATA LOCAL STRING();
+barCode = DATA LOCAL STRING();
+price = DATA LOCAL STRING();
+unitOfMeasure = DATA LOCAL STRING();
+nameShort = DATA LOCAL STRING();
+nameFull = DATA LOCAL STRING();
+nameForDisplay = DATA LOCAL STRING();
+nameForPriceList = DATA LOCAL STRING();
+productsCode = DATA LOCAL STRING();
+productsCodeForSync = DATA LOCAL STRING();
+stockKeepingUnit = DATA LOCAL STRING();
+model = DATA LOCAL STRING();
+variety = DATA LOCAL STRING();
+color = DATA LOCAL STRING();
+size = DATA LOCAL STRING();
+contents = DATA LOCAL STRING();
+weight = DATA LOCAL STRING();
+productType = DATA LOCAL STRING();
+weightUnit = DATA LOCAL STRING();
+lastModifiedDate = DATA LOCAL STRING();
+
+filterBarcode(STRING idSku, STRING barcode) = GROUP MAX Sku s IF idSku = id(s) AND idBarcode(s) = barcode;
+
+replaceDot (NUMERIC a) = replace(STRING(a), '.', ',');  //пока замена, обещали пофиксить со стороны фронта
+//запрет скидки
+forbidPromotion (MachineryPriceTransaction m, Barcode b) = IF resultForbidPromotion(sku(b), stock(m)) THEN TTRUE ELSE TFALSE;
+
+FORM uploadSigmaPriceTransaction FORMEXTID '=:DataExchangeRoot'
+    OBJECTS m = MachineryPriceTransaction PANEL 
+    
+    OBJECTS b = Barcode EXTID ':Record' IN records
+    PROPERTIES = OVERRIDE replaceDot(round(price(m,b), 2)) EXTID ':PricePerUnit',  = replaceDot(round(minPrice(m,b), 2)) EXTID ':MinPrice', 
+        = OVERRIDE replaceDot(round(price(m,b), 2)) EXTID ':MaxPrice', = IF b IS Barcode THEN 1000 EXTID ':QuantityFull', = forbidPromotion(m,b) EXTID ':NoDiscount',
+        = IF b IS Barcode THEN TFALSE EXTID ':NotForSale',  = IF b IS Barcode THEN 1 EXTID ':VatGroupId', = IF b IS Barcode THEN 1  EXTID ':StorageId',
+        = IF b IS Barcode THEN 1 EXTID ':ProductsGroupId',
+        =  IF b IS Barcode THEN 1 EXTID ':ProductsSectionId',  = IF b IS Barcode THEN TFALSE EXTID ':FreePrice', 
+        =  IF b IS Barcode THEN 375 EXTID ':CountryId', = IF b IS Barcode THEN TFALSE EXTID ':DisplayAsImage', expiryDate(m,b) EXTID ':ExpiryDate', = IF split(m,b) THEN TTRUE ELSE TFALSE EXTID ':FractionalUnit',
+        = name(m,b) EXTID 'Name', id(b) EXTID ':BarCode', = OVERRIDE replaceDot(round2(price(m,b))) EXTID ':Price', = shortNameUOM(m,b) EXTID ':UnitOfMeasure',
+        = idSku(b) EXTID ':ProductsCode', =  IF b IS Barcode THEN 'Product' EXTID ':ProductType', = OVERRIDE idSku(b) EXTID ':Code',
+        = OVERRIDE idSku(b) EXTID ':ProductsCodeForSync',
+        = IF passScales(m,b) THEN TTRUE ELSE TFALSE EXTID ':WeightUnit', = IF b IS Barcode THEN currentDate() EXTID ':LastModifiedDate'
+    FILTERS in(m,b) AND filterBarcode(idSku(b), id(b))
+;
+        
+GROUP dataExchangeRequest EXTID 'DataExchangeRequest';
+
+token = DATA LOCAL STRING();
+exchangeName = DATA LOCAL STRING();
+filters = DATA LOCAL STRING();
+data = DATA LOCAL STRING();
+exchangeFormat = DATA LOCAL STRING();
+
+FORM dataRequest FORMEXTID 'WebApiExchangeRequestDto'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi', ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xsd'
+    PROPERTIES() token EXTID 'Token'
+    PROPERTIES() IN dataExchangeRequest exchangeName EXTID 'ExchangeName', filters EXTID 'Filters', data EXTID 'Data', exchangeFormat EXTID 'ExchangeFormat'
+;
+
+//обработка ответа
+archiveSizeBytes = DATA LOCAL STRING();
+dataExchangeStatus = DATA LOCAL STRING();
+message = DATA LOCAL STRING();
+
+FORM webApiResponse FORMEXTID 'WebApiResponse'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xsd', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES() archiveSizeBytes EXTID 'ArchiveSizeBytes', data EXTID 'Data', dataExchangeStatus EXTID 'DataExchangeStatus', message EXTID 'Message'
+;
+
+sendSkuSigma (MachineryPriceTransaction m, CashRegister c){
+    NEWSESSION {
+        TRY {
+            LOCAL f = FILE ();
+            LOCAL messageToSend = RAWFILE ();
+            exchangeFormat() <- 'Xml';
+            token() <- tokenDownload(c);
+            exchangeName() <- nameItems();
+            EXPORT uploadSigmaPriceTransaction OBJECTS m = m XML TO f;
+            fileToString(f());
+            LOCAL stringData = STRING ();
+            data() <- resultString();
+            EXPORT dataRequest XML TO f;
+            fileToString(f());
+            stringData() <- resultString();
+            LOCAL zip = STRING ();
+            zip() <- '16000000504B0506000000000000000000000000000000000000'; //нулевой архив, отпраляем в любом случае
+            messageToSend() <- formMessage('', reverseByteA(lpad(toHex(length(nameItems())),8 ,'0')), nameItems(), 
+                reverseByteA(lpad(toHex(length(convertToByteA(stringData()))),8 ,'0')), stringData(), zip());
+            EXTERNAL TCP ip(c) + ':11000' PARAMS messageToSend();
+            fileToString(FILE(responseTcp()));
+            stringToFile(substrFrom(resultString(), positionSub(resultString(), '<WebApiResponse')));
+            IMPORT webApiResponse XML FROM resultFile();
+            IF message() = 'OK' AND dataExchangeStatus() = 'Succeeded' THEN {
+                succeeded(c,m) <- TRUE;
+                dateTimeSucceeded(c, m) <- currentDateTime();
+            }
+            ELSE addMachineryError(m, (CONCAT ' : ', 'ip ' + ip(c), description(c), message()), dataExchangeStatus());
+        }
+        CATCH {
+            fileToString(FILE(responseTcp()));
+            addMachineryError(m, CONCAT ' : ', 'ip ' + ip(c), description(c), (getWord(System.messageCaughtException(), ':', 1)), 
+                (CONCAT '\n', resultString(), getWord(System.messageCaughtException(), 'Sigma', 1)));
+        }
+        FINALLY {
+            APPLY;
+        }
+    }
+}
+         
+sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
+    IF handlerModel(groupMachinery(t)) = 'lsf.sigma' AND t IS CashRegisterPriceTransaction AND notSucceeded(t) THEN NEWSESSION {
+        NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
+        FOR in(t, CashRegister c) IF NOT succeeded(c,t) AND isSigma(c) AND NOT canceled(t) DO {
+            TRY sendSkuSigma(t, c);
+        }
+        IF (countSucceededMachineries(t) = countMachineries(groupMachinery(t))) THEN {
+            succeeded(t) <- TRUE;
+            dateTimeSucceeded(t) <- currentDateTime();
+        }
+        APPLY ;
+    }
+}
+
+EXTEND FORM machineryPriceTransactions
+    PROPERTIES (t) sendMachineryPriceTransaction;

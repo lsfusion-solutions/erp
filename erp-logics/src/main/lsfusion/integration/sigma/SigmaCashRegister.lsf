@@ -1,0 +1,55 @@
+MODULE SigmaCashRegister;
+
+REQUIRE CashRegister;
+
+NAMESPACE Sigma;
+
+isSigma (GroupCashRegister c) = IF handlerModel(c) = 'lsf.sigma' THEN TRUE;
+isSigma (CashRegister c) = isSigma(groupMachinery(c));
+
+tokenUpload 'Токен выгрузки' = DATA STRING (CashRegister) CHARWIDTH 20;
+tokenDownload 'Токен загрузки' = DATA STRING (CashRegister) CHARWIDTH 20;
+
+EXTEND FORM groupCashRegister
+    PROPERTIES SHOWIF isSigma(grc) tokenUpload(c), tokenDownload(c); 
+
+nameItems 'Товары' = DATA STRING ();
+nameReceipts 'Кассовые чеки' = DATA STRING ();
+nameDetails 'Товары и услуги' = DATA STRING ();
+namePayments 'Виды и суммы оплат' = DATA STRING ();
+nameSkip 'Аннуляция чеков' = DATA STRING ();
+
+EXTEND FORM integrationData
+    PROPERTIES () nameItems, nameReceipts, nameDetails, namePayments, nameSkip
+;
+ 
+DESIGN integrationData{
+    pane{
+        NEW sigma{
+            caption = 'Sigma';
+            NEW exchangeSigma{
+                caption = 'Наименование настроек обмена';
+                horizontal = FALSE ;
+                MOVE PROPERTY (nameItems());
+                MOVE PROPERTY (nameReceipts());
+                MOVE PROPERTY (nameDetails());
+                MOVE PROPERTY (namePayments());
+                MOVE PROPERTY (nameSkip());
+            }
+        }
+    }
+    
+} 
+
+//формулы
+positionSub (TEXT p1, TEXT p2) = FORMULA INTEGER 'position($2 in $1)';
+convertToByteA = FORMULA STRING 'convert_to($1,\'UTF8\')';
+lenghtByteA = FORMULA INTEGER 'octet_length($1)';
+toHex = FORMULA STRING 'to_hex($1)';
+decodeToHex = FORMULA RAWFILE 'decode($1,\'hex\')';
+lengthData (STRING data) = decodeToHex(lpad(toHex(length(data)),8 ,'0'));
+reverseByteA = FORMULA STRING 'regexp_replace( $1, \'(\\w\\w)(\\w\\w)(\\w\\w)(\\w\\w)\', \'\\4\\3\\2\\1\')';
+formMessage (STRING start, STRING lengthName, STRING name, STRING lengthData, STRING data, STRING zip) = FORMULA 
+    RAWFILE 'convert_to($1,\'UTF8\') || decode($2,\'hex\') || convert_to($3,\'UTF8\') || decode($4,\'hex\') || convert_to($5,\'UTF8\') || decode($6,\'hex\')' ;
+
+    
