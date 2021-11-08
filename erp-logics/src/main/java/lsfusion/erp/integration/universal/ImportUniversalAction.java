@@ -44,7 +44,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
 
     // syntax : 
     // ":xxx_yyy" - value from cell (xxx - column, yyy - row) (for xls, xlsx, csv)
-    // "=xxx" - constant value  
+    // "=xxx" - constant value, parenthesised if need higher priority - "=(xxx)"
     // "=CDT" - currentDateTime
     // "xxx^(i,j) - substring(i,j), i & j inclusive 
     // "xxx^(i,'a') - substring from i to index of first 'a' symbol, i inclusive, symbol 'a' - exclusive. 'a' also may be in 'from' index 
@@ -71,6 +71,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
+    String constantParenthesisPattern = "=\\((.*)\\)";
     String substringPattern = "(.*)\\^\\(((?:'.*')|(?:(?:-|\\d)+)),((?:'.*')|(?:(?:-|\\d)+))?\\)";
     String patternedDateTimePattern = "(.*)(~(.*))+";
     String roundedPattern = "(.*)\\[(\\-?)\\d+\\]";
@@ -1200,20 +1201,33 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
     }
 
     private String parseConstantFieldPattern(String value) {
-        return (value.toLowerCase().contains("cdt") && currentTimestamp != null) ? value.replaceAll("(\\=CDT)|(\\=cdt)", currentTimestamp) : value.substring(1);
+        Pattern p = Pattern.compile(constantParenthesisPattern);
+        Matcher m = p.matcher(value);
+        if(m.matches()) {
+            value = m.group(1);
+        } else {
+            value = value.substring(1); //remove "="
+        }
+        return value.toLowerCase().startsWith("cdt") && currentTimestamp != null ? value.replaceAll("CDT|cdt", currentTimestamp) : value;
     }
 
     private boolean isParenthesisedValue(String input) {
-        int openingParentheses = StringUtils.countMatches(input, "(");
-        int closingParentheses = StringUtils.countMatches(input, ")");
-        int substrSign = StringUtils.countMatches(input, "^");
-        return (openingParentheses - substrSign) > 0 && openingParentheses == closingParentheses;
+        if(!isConstantParenthesisValue(input)) {
+            int openingParentheses = StringUtils.countMatches(input, "(");
+            int closingParentheses = StringUtils.countMatches(input, ")");
+            int substrSign = StringUtils.countMatches(input, "^");
+            return (openingParentheses - substrSign) > 0 && openingParentheses == closingParentheses;
+        } else return false;
+    }
+
+    private boolean isConstantParenthesisValue(String input) {
+        return input != null && input.matches(constantParenthesisPattern);
     }
 
     private boolean isConstantValue(String input) {
-        return input != null && input.startsWith("=") && !isColumnRowValue(input) && !isRoundedValue(input)
+        return input != null && (isConstantParenthesisValue(input) || (input.startsWith("=") && !isColumnRowValue(input) && !isRoundedValue(input)
                 && !isDivisionValue(input) && !isMultiplyValue(input) && !(isSumValue(input)) && !(isSubtractValue(input))
-                && !isOrValue(input) && !isSubstringValue(input) && !isPatternedDateTimeValue(input) && !isParenthesisedValue(input);
+                && !isOrValue(input) && !isSubstringValue(input) && !isPatternedDateTimeValue(input) && !isParenthesisedValue(input)));
     }
 
     private boolean isColumnRowValue(String input) {
