@@ -27,6 +27,7 @@ function chartMobileMode() {
         }
     }
 }
+
 function saleBar() {
     return{
         plotly: {
@@ -49,7 +50,7 @@ function saleBar() {
 }
 
 
-function testConfig() {
+function customeBar() {
     return{
         plotly: {
             title: "Покупатели",
