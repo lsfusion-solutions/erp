@@ -325,7 +325,18 @@ META defPropDetail(name, caption, type, class)
 END
 
 META defPropObject(name, caption, type, class)
-    @defProp(name, caption, type, ###class);
+    name caption = ABSTRACT type (###class);
+    WHEN CHANGED(name(###class d)) DO {
+        packet(Configuration c, d) <- NULL WHERE c IS Configuration;
+        in(Configuration c, d) <- TRUE WHERE inSending(c, d) AND NOT date(d) < dateStartExchange(c);  
+    }
+    
+    name###class caption = DATA LOCAL INTEGER (INTEGER);
+    
+    EXTEND FORM receiveMessage
+        OBJECTS name###class = INTEGER EXTID caption
+        FILTERS name###class(name###class) = class
+    ;
     @def###type(name, class, caption);
 END
 
@@ -590,7 +601,7 @@ END
 @defStaticTypeValue(typeVatInvoice, sale, 'НаРеализацию');
 @defStaticTypeValue(typeVatInvoice, adjustment, 'Корректировочный');
 @defStaticTypeValue(typeVatInvoice, advance, 'НаАванс');
-@defStaticTypeValue(typeVatInvoice, advanceComission, 'НаАвансКомитента');
+@defStaticTypeValue(typeVatInvoice, advanceCommission, 'НаАвансКомитента');
 @defStaticTypeValue(typeVatInvoice, amountDifference, 'СуммовыеРазницы');
 @defStaticTypeValue(typeVatInvoice, taxOfficial, 'НалоговыйАгент');
 @defStaticTypeValue(typeVatInvoice, purchase, 'НаПоступление');

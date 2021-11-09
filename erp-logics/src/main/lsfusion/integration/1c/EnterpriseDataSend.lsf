@@ -84,7 +84,6 @@ META defPartner(nm, class, extid)
     kppPartner###class = DATA LOCAL STRING[9] (INTEGER);
     
     EXTEND FORM receiveMessage
-        OBJECTS nm###class = INTEGER EXTID 'Контрагент'
         PROPERTIES (nm###class) uidPartner###class EXTID 'Ссылка', namePartner###class EXTID 'Наименование', fullNamePartner###class EXTID 'НаименованиеПолное', innPartner###class EXTID 'ИНН', kppPartner###class EXTID 'КПП'
     ;
 END
@@ -161,6 +160,12 @@ META defContract(nm, class, extid)
         PROPERTIES(nm###class) sendUid EXTID 'Ссылка', idType EXTID 'ВидДоговора' 
     ;
     @defCompany(company, nm###class);
+    partner###nm###class = DATA LOCAL INTEGER (INTEGER);
+    
+    EXTEND FORM receiveMessage
+        OBJECTS partner###nm###class = INTEGER EXTID 'Контрагент'
+        FILTERS partner###nm###class(partner###nm###class) = nm###class 
+    ;
     @defPartner(partner, nm###class);
     @defCurrency(currency, nm###class, 'ВалютаВзаиморасчетов');
     EXTEND FORM sendMessage
@@ -177,6 +182,9 @@ META defSettlement(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Settlement EXTID extid
         FILTERS nm###class = nm(class)
+    ;
+    EXTEND FORM receiveMessage
+        OBJECTS contract###nm###class = INTEGER EXTID 'Договор'
     ;
     @defContract(contract, nm###class, 'Договор');
 END
@@ -204,6 +212,19 @@ META defBank (nm, class, extid)
         OBJECTS nm###class = Bank EXTID extid 
         PROPERTIES(nm###class) uid EXTID 'Ссылка', bic EXTID 'БИК', name EXTID 'Наименование', swiftBic EXTID 'СВИФТБИК'
         FILTERS nm###class = nm(class)
+    ;
+    
+    uidBank###class = DATA LOCAL ISTRING[36] (INTEGER);
+    nameBank###class = DATA LOCAL STRING (INTEGER);
+    bicBank###class = DATA LOCAL STRING[9] (INTEGER);
+    swiftBicBank###class = DATA LOCAL STRING[11] (INTEGER);
+    correspondentAccountBank###class = DATA LOCAL STRING[20] (INTEGER); 
+    
+    EXTEND FORM receiveMessage
+        OBJECTS nm###class = INTEGER EXTID 'Банк'
+        //FILTERS class(nm###class) = class
+        PROPERTIES (nm###class) uidBank###class EXTID 'Ссылка', bicBank###class EXTID 'БИК', correspondentAccountBank###class EXTID 'КоррСчет',
+                                nameBank###class EXTID 'Наименование', swiftBicBank###class EXTID 'СВИФТБИК'
     ;
 END
 META defBank(nm, class)
