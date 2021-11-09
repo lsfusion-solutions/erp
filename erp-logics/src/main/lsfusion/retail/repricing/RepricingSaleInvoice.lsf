@@ -55,9 +55,11 @@ pricingQuantityRepricingCalc = ABSTRACT NUMERIC[16,5](InvoiceDetail);
 
 pricingQuantityRepricing (InvoiceDetail d) = OVERRIDE pricingQuantityRepricingCalc(d), pricingQuantity(d);
 
+needToRepricingSaleStoreCustom = ABSTRACT BOOLEAN (InvoiceDetail); 
+
 needToRepricingSaleStore 'Фильтр' (InvoiceDetail d)= 
     needToRepricingSaleStore(invoice(d)) AND pricingQuantityRepricing(d) AND isStockSku(d) AND 
-    prevRetailPricingPriceB(d) != shipmentPrice(d)
+    ((prevRetailPricingPriceB(d) != shipmentPrice(d)) OR needToRepricingSaleStoreCustom(d))
 ; 
 
 statusRepricingSaleStore 'Статус переоценки' (Invoice i) = CASE     
