@@ -27,6 +27,26 @@ function chartMobileMode() {
         }
     }
 }
+function saleBar() {
+    return{
+        plotly: {
+            title: "Продажи",
+            hovermode: "closest",
+            hoverlabel: { bgcolor: "#FFF" },
+            showlegend: false,
+            xaxis: {
+              title: "Сумма в руб.",
+              zeroline: false
+            },
+            yaxis: {
+              title: "",
+            },
+            modebar: {
+                orientation: "v"
+            }
+        }
+    }
+}
 
 
 function testConfig() {
