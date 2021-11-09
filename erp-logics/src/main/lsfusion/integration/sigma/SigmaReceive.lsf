@@ -154,7 +154,6 @@ sendMessageSigma(CashRegister c, STRING stringData){
     EXTERNAL TCP ip(c) + ':11000' PARAMS messageToReceive();
 }
 
-
 receiveFromSigma(CashRegister c){
     TRY{
         LOCAL filter1 = Filter();
@@ -203,16 +202,16 @@ receiveFromSigma(CashRegister c){
         stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
         IMPORT receiptsSigma XML FROM resultFile();
         FOR imported(INTEGER i) AND NOT (GROUP MAX Receipt r IF cashRegister(r) = c AND 
-            STRING(idExchange(r)) = codeForExchange(i)) NEW r = Receipt DO {
+            STRING(idExchange(r)) = codeForExchange(i) AND NOT docNumber(i) = '0' ) NEW r = Receipt DO {
             number(r) <- INTEGER(docNumber(i));
-            date(r) <- DATE(docDate(i));
-            time(r) <- TIME(docDate(i));
-            IF (GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE (docDate(i))) THEN 
-                zReport(r) <- GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE (docDate(i));
+            date(r) <- DATE(sumMinutes(docDate(i), 180));
+            time(r) <- TIME(sumMinutes(docDate(i), 180));
+            IF (GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE(sumMinutes(docDate(i), 180))) THEN 
+                zReport(r) <- GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE (sumMinutes(docDate(i), 180));
             ELSE {
                 NEW zr = ZReport{
                     cashRegister(zr) <- c;
-                    date(zr) <- DATE(docDate(i));
+                    date(zr) <- DATE(sumMinutes(docDate(i), 180));
                     isPosted(zr) <- TRUE;
                     zReport(r) <- zr;
                 }
@@ -299,3 +298,166 @@ receiveGroupMachinery(GroupMachinery g) + {
         } 
     }
 }
+
+//переприём продаж за период
+succeeded 'Выгружен' = DATA BOOLEAN (Machinery, RequestExchange);
+notSucceeded 'Не выгружен' (Machinery machinery, RequestExchange requestExchange) = requestExchange IS RequestExchange AND machinery IS Machinery AND NOT succeeded(requestExchange);
+dateTimeSucceeded 'Время выгрузки' = DATA DATETIME (Machinery, RequestExchange);
+
+countMachinery (RequestExchange re) = GROUP SUM 1 IF Machinery m IS Machinery AND in(m, re) AND active(m) AND isSigma(m);
+countSucceded (RequestExchange re) = GROUP SUM 1 IF succeeded(Machinery m, re) AND in(m, re) AND active(m) AND isSigma(m);   
+
+WHEN SET(countMachinery(RequestExchange re) = countSucceded(re) AND requestExchangeType(re) = RequestExchangeType.cashierInfo) DO succeeded(re) <- TRUE;
+
+EXTEND FORM requestExchange
+    PROPERTIES (m,r) SHOWIF isSigma(m) AND ignoreCashRegisterServerCashRegisterModel(groupMachinery(m)) succeeded, dateTimeSucceeded 
+;
+
+reReceiveFromSigma(CashRegister c, RequestExchange req) {
+    TRY{
+        LOCAL filter1 = Filter();
+        LOCAL filter2 = Filter();
+        filter1() <- GROUP MAX Filter f IF operator(f) = FilterType.greaterThan; 
+        filter2() <- GROUP MAX Filter f IF operator(f) = FilterType.lessThan;
+        LOCAL dateFrom = DATETIME ();
+        LOCAL dateTo = DATETIME ();
+        dateFrom() <- DATETIME(dateFrom(req));
+        dateTo() <- sumDay(DATETIME(dateTo(req)), 1);
+        DELETE Receipt r WHERE cashRegister(r) = c AND (date(r) >= dateFrom(req) AND date(r) <= dateTo(req));
+        IF filter1() THEN {
+            value(filter1()) <- STRING[50](dateFrom());
+            propertyName(filter1()) <- 'DocDate';
+            ignore(filter1()) <- TFALSE;
+        } 
+        ELSE NEW f = Filter{
+            operator(f) <- FilterType.greaterThan;
+            value(f) <- STRING[50](dateFrom());
+            propertyName(f) <- 'DocDate';
+            ignore(f) <- TFALSE;
+            filter1() <- f;
+        }
+        IF filter2() THEN {
+            value(filter2()) <- STRING[50](dateTo());
+            propertyName(filter2()) <- 'DocDate';
+            ignore(filter2()) <- TFALSE;
+        }
+        ELSE NEW f = Filter{
+            operator(f) <- FilterType.lessThan;
+            value(f) <- STRING[50](dateTo());
+            propertyName(f) <- 'DocDate';
+            ignore(f) <- TFALSE;
+            filter2() <- f;
+        }
+        token() <- tokenUpload(c);
+        LOCAL messageToReceive = RAWFILE ();
+        exchangeFormat() <- 'Xml';
+        exchangeName() <- nameReceipts();
+        LOCAL stringData = STRING ();
+        LOCAL f = FILE();
+        EXPORT requestWithFilters XML TO f;
+        fileToString(f());
+        stringData() <- resultString();
+        sendMessageSigma(c, stringData()); ;
+        fileToString(FILE(responseTcp()));
+        stringToFile(substrFrom(resultString(), positionSub(resultString(), '<WebApiResponse')));
+        IMPORT webApiResponse XML FROM resultFile();
+        stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
+        IMPORT receiptsSigma XML FROM resultFile();
+        FOR imported(INTEGER i) AND NOT (GROUP MAX Receipt r IF cashRegister(r) = c AND 
+            STRING(idExchange(r)) = codeForExchange(i) AND NOT docNumber(i) = '0' ) NEW r = Receipt DO {
+            number(r) <- INTEGER(docNumber(i));
+            date(r) <- DATE(sumMinutes(docDate(i), 180));
+            time(r) <- TIME(sumMinutes(docDate(i), 180));
+            IF (GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE (sumMinutes(docDate(i), 180))) THEN 
+                zReport(r) <- GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE (sumMinutes(docDate(i), 180));
+            ELSE {
+                NEW zr = ZReport{
+                    cashRegister(zr) <- c;
+                    date(zr) <- DATE(sumMinutes(docDate(i), 180));
+                    isPosted(zr) <- TRUE;
+                    zReport(r) <- zr;
+                }
+            }
+            idExchange(r) <- INTEGER(codeForExchange(i));
+            isRefunded(r) <- TRUE IF refunded(i) = 'true';
+        }
+        //товары и услуги
+        propertyName(filter1()) <- 'Receipt.DocDate';
+        propertyName(filter2()) <- 'Receipt.DocDate';
+        exchangeName() <- nameDetails();
+        EXPORT requestWithFilters XML TO f;
+        fileToString(f());
+        stringData() <- resultString();
+        sendMessageSigma(c,stringData());
+        fileToString(FILE(responseTcp()));
+        stringToFile(substrFrom(resultString(), positionSub(resultString(), '<WebApiResponse')));
+        IMPORT webApiResponse XML FROM resultFile();
+        stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
+        IMPORT receiptDetailsSigma XML FROM resultFile();
+        FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c 
+            AND NOT isRefunded(r)) 
+            NEW s = ReceiptSaleDetail DO{
+            receipt(s) <- GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c AND NOT isRefunded(r);
+            sku(s) <- GROUP MAX Sku sku IF STRING(INTEGER(id(sku))) = productId(i);
+            quantity(s) <- NUMERIC[16,5] (quantity(i));
+            price(s) <- NUMERIC[16,4] (price(i));
+            discountSum(s) <- NUMERIC[18,4] (sumDiscount(i));
+            sum(s) <- NUMERIC[18,4] (sum(i)); 
+        }
+        FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c
+            AND isRefunded(r)) 
+            NEW s = ReceiptReturnDetail DO{
+            receipt(s) <- GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c AND isRefunded(r);
+            sku(s) <- GROUP MAX Sku sku IF STRING(INTEGER(id(sku))) = productId(i);
+            quantity(s) <- NUMERIC[16,5] (quantity(i));
+            price(s) <- NUMERIC[16,4] (price(i));
+            discountSum(s) <- NUMERIC[18,4] (sumDiscount(i));
+            sum(s) <- NUMERIC[18,4] (sum(i)); 
+        }
+        //оплаты
+        exchangeName() <- namePayments();
+        EXPORT requestWithFilters XML TO f;
+        fileToString(f());
+        stringData() <- resultString();
+        sendMessageSigma(c,stringData());
+        fileToString(FILE(responseTcp()));
+        stringToFile(substrFrom(resultString(), positionSub(resultString(), '<WebApiResponse')));
+        IMPORT webApiResponse XML FROM resultFile();
+        stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
+        IMPORT paymentsSigma XML FROM resultFile();
+        FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c) NEW p = Payment DO{
+            receipt(p) <- GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c;
+            paymentType(p) <- IF paymentTypeId(i) = '1' THEN (GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansCash)
+                ELSE (GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansCard);
+            sum(p) <- NUMERIC[18,4](paySum(i));            
+        }
+        //ануляция
+        exchangeName() <- nameSkip();
+        EXPORT dataRequest XML TO f;
+        fileToString(f());
+        stringData() <- resultString();
+        sendMessageSigma(c,stringData());
+        fileToString(FILE(responseTcp()));
+        stringToFile(substrFrom(resultString(), positionSub(resultString(), '<WebApiResponse')));
+        IMPORT webApiResponse XML FROM resultFile();
+        stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
+        IMPORT skipSigma XML FROM resultFile();
+        FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c AND NOT dataSkip(r)) 
+            DO{
+            dataSkip(GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c) <- TRUE;
+        }
+        APPLY;
+    }
+    CATCH {
+        MESSAGE messageCaughtException();
+    }
+}
+
+//EXTEND FORM requestExchange
+//    PROPERTIES reReceiveFromSigma(m,r);
+//
+//sendRequestExchange (CashRegister cr, RequestExchange re) + WHEN cr IS CashRegister AND requestExchangeType(re) = RequestExchangeType.salesInfo THEN {
+//    IF isSigma(cr) AND active(cr) AND NOT succeeded(cr, re) THEN {
+//        reReceiveFromSigma(cr, re);        
+//    }
+//}
