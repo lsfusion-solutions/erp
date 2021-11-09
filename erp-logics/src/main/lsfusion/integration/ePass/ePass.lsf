@@ -305,8 +305,24 @@ getFunctionalnameByGTIN 'Проверить ePass' (Item i) {
                     }  
                 }          
             
-            } ELSE {            
-                MESSAGE (CONCAT ': ', 'Штрихкод или GTIN должны состоять из 13 цифр','ш/к - '+idBarcode(i), 'GTIN - '+GTIN(i)) NOWAIT ;
+            } ELSE {  
+                IF (idBarcode(i) OR GTIN(i)) THEN {
+                    NEWSESSION NESTED LOCAL {
+                        IF GTIN(i) THEN {
+                            registeredGTIN(i)<- NULL;
+                            registeredTimeGTIN(i)<- currentDateTime();
+                            nameGTIN(i)<- NULL; 
+                            errorGTIN(i)<- 'GTIN должны состоять из 13 цифр';
+                        }
+                        IF idBarcode(i) THEN {
+                            registeredBarcode(i)<- NULL;
+                            registeredTimeBarcode(i)<- currentDateTime();
+                            nameBarcode(i)<- NULL;
+                            errorBarcode(i)<- 'Штрихкод должны состоять из 13 цифр';    
+                        }            
+                        APPLY NESTED LOCAL ;
+                    }
+                }                      
             }
         } ELSE {
             MESSAGE 'Нет товаров для отправки' NOWAIT;
