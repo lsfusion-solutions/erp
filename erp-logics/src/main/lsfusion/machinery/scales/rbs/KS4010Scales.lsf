@@ -5,8 +5,10 @@ REQUIRE NativeMachinery, ScalesItem;
 NAMESPACE RBS;
 
 loadDefaultScalesModels () + { 
-    loadDefaultScalesModel('Весы РБС KS4010', 'KS4010', 'lsf.integration.rbs.KS4010');
+    loadDefaultScalesModel('Весы РБС KS4010', 'KS4010', 'lsf.machinery.scales.rbs.KS4010');
 }
+
+onStarted() +{handler(ScalesModel m) <- 'lsf.machinery.scales.rbs.KS4010' WHERE handler(m) == 'lsf.integration.rbs.KS4010';}
 
 dataCustomGroupTypeRBS = DATA CustomGroupType(GroupScales);
 nameCustomGroupTypeRBS 'Тип классификатора'(GroupScales gs) = name(dataCustomGroupTypeRBS(gs));
@@ -35,7 +37,7 @@ FORM result
     PROPERTIES(message) message EXTID 'value';
 
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
-    IF handlerModel(groupMachinery(t)) = 'lsf.integration.rbs.KS4010' THEN NEWSESSION {
+    IF handlerModel(groupMachinery(t)) = 'lsf.machinery.scales.rbs.KS4010' THEN NEWSESSION {
         NEWSESSION {
             dateTimeProcessing(t) <- currentDateTime();
             APPLY;
