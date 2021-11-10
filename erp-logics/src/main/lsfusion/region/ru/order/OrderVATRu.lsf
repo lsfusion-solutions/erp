@@ -56,8 +56,11 @@ META defineWithVATOrder (part)
                    
     ;
     
-    withVATPrice (UserOrder o) <- isVATPayer(##part(o))
-        WHEN CHANGED(##part(o));
+    setWithVAT (UserOrder o) = IF priceListType(o) 
+        THEN includeVAT(priceListType(o)) AND isVATPayer(##part(o))
+        ELSE isVATPayer(##part(o)); 
+    withVATPrice (UserOrder o) <- setWithVAT(o) 
+        WHEN CHANGED(##part(o)) OR CHANGED(priceListType(o));
     
     ON LOCAL {
         FOR (CHANGED(quantity(UserOrderDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(currency (d))) AND withVATPrice(d) DO
