@@ -295,7 +295,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             boolean noMinPrice = item.flags == null || (item.flags & 16) == 0;
             boolean disableInventBack = item.flags != null && (item.flags & 32) != 0;
-            boolean ageVerify = item.flags != null && (item.flags & 64) != 0;
+            int ageVerify = item.flags != null && (item.flags & 64) != 0 ? 1 : 0;
             boolean disableInventSale = item.flags != null && (item.flags & 128) != 0;
 
             //основной штрих-код
@@ -321,6 +321,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             Integer requireSaleRestrict = null;
             boolean hasQuantityOptions = false;
+            Integer visualVerify = null;
+            Integer lowWeight = null;
+            Integer weightControlBypass = null;
+            Integer requireQuantityManual = null;
+            Integer requireQuantityScales = null;
             if(item.info != null) {
                 JSONObject infoJSON = new JSONObject(item.info).optJSONObject("artix");
                 if (infoJSON != null) {
@@ -349,6 +354,30 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     if(ntin != null) {
                         inventObject.put("ntin", ntin);
                     }
+
+                    String age = trimToNull(infoJSON.optString("age"));
+                    if(age != null) {
+                        inventObject.put("age", age);
+                    }
+
+                    if(infoJSON.has("ageverify")) {
+                        ageVerify = infoJSON.optInt("ageverify");
+                    }
+                    if(infoJSON.has("visualverify")) {
+                        visualVerify = infoJSON.optInt("visualverify");
+                    }
+                    if(infoJSON.has("lowweight")) {
+                        lowWeight = infoJSON.optInt("lowweight");
+                    }
+                    if(infoJSON.has("weightcontrolbypass")) {
+                        weightControlBypass = infoJSON.optInt("weightcontrolbypass");
+                    }
+                    if(infoJSON.has("requirequantitymanual")) {
+                        requireQuantityManual = infoJSON.optInt("requirequantitymanual");
+                    }
+                    if(infoJSON.has("requirequantityscales")) {
+                        requireQuantityScales = infoJSON.optInt("requirequantityscales");
+                    }
                 }
             }
 
@@ -357,17 +386,25 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             JSONObject inventItemOptions = new JSONObject();
             inventItemOptions.put("disableinventback", disableInventBack ? 1 : 0);
             inventItemOptions.put("disableinventsale", disableInventSale ? 1 : 0);
-            inventItemOptions.put("ageverify", ageVerify ? 1 : 0);
+            inventItemOptions.put("ageverify", ageVerify);
+            inventItemOptions.put("visualverify", visualVerify);
+            inventItemOptions.put("lowweight", lowWeight);
+            inventItemOptions.put("weightcontrolbypass", weightControlBypass);
             if(requireSaleRestrict != null) {
                 inventItemOptions.put("requiresalerestrict", requireSaleRestrict);
 
+                //важно, чтобы эти опции не пересекались
                 if(hasQuantityOptions) {
                     JSONObject quantityoptions = new JSONObject();
                     quantityoptions.put("quantitylimit", 1.000); //лимит количества товара в позиции
                     quantityoptions.put("documentquantlimit", 1.000); //лимит количества товара в чеке
                     quantityoptions.put("enablequantitylimit", true); //включить ограничение количества товара
                     quantityoptions.put("enabledocumentquantitylimit", 2); //включить ограничение количества товара в чеке
-
+                    itemOptions.put("quantityoptions", quantityoptions);
+                } else if(requireQuantityManual != null || requireQuantityScales != null) {
+                    JSONObject quantityoptions = new JSONObject();
+                    quantityoptions.put("requirequantitymanual", requireQuantityManual);
+                    quantityoptions.put("requirequantityscales", requireQuantityScales);
                     itemOptions.put("quantityoptions", quantityoptions);
                 }
             }
