@@ -50,11 +50,12 @@ META defineWithVATInvoice (part)
                    
     ;
     
-    setWithVAT (UserInvoice i) = IF priceListType(i) 
-        THEN includeVAT(priceListType(i)) AND isVATPayer(##part(i))
-        ELSE isVATPayer(##part(i)); 
+    setWithVAT (UserInvoice i) = IF priceListType(i) OR agreement(i)
+        THEN includeVAT(OVERRIDE priceListType(agreement(i)), priceListType(i)) AND isVATPayer(##part(i))
+        ELSE isVATPayer(##part(i));
+
     withVATPrice (UserInvoice i) <- setWithVAT(i) 
-        WHEN CHANGED(##part(i)) OR CHANGED(priceListType(i));
+        WHEN CHANGED(##part(i)) OR CHANGED(priceListType(i)) OR CHANGED(agreement(i));
     
     ON LOCAL {
         FOR (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(currency (d))) AND withVATPrice(d) DO
