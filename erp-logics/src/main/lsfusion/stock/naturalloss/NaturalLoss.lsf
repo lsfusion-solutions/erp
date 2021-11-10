@@ -476,12 +476,23 @@ DESIGN naturalLoss {
 
 @defineDocumentBatchStockPriceListTypeSystemLedger(naturalLoss, );
 @extendFormDocumentBatchStock(naturalLoss, naturalLoss, s, legalEntityStock, );
-skipEdit = ABSTRACT BOOLEAN (NaturalLoss);
-skipDelete = ABSTRACT BOOLEAN (NaturalLoss);
+skipEdit = ABSTRACT VALUE BOOLEAN (NaturalLoss);
+skipDelete = ABSTRACT VALUE BOOLEAN (NaturalLoss);
+
+skipEdit(NaturalLoss n) += isClosed(n);
+skipDelete(NaturalLoss n) += isClosed(n);
 
 showEdit (NaturalLoss n) = n IS NaturalLoss AND NOT skipEdit(n);
 showDelete (NaturalLoss n) = n IS NaturalLoss AND NOT skipDelete(n);
+showToShow (NaturalLoss n) =  n IS NaturalLoss AND NOT showEdit(n);
 
+show 'Просмотреть' (NaturalLoss i)   { 
+    NEWSESSION{
+        SHOW naturalLoss OBJECTS s = i DOCKED READONLY;
+    }
+    
+}TOOLBAR;
+        
 filterNaturalLossDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (NaturalLoss n) = date(n) >= filterNaturalLossDateFrom() OR (n IS NaturalLoss AND NOT filterNaturalLossDateFrom());      
 
@@ -503,7 +514,7 @@ FORM naturalLosses 'Ведомости естественной убыли'
                            idStock SHOWIF showIDs(), nameStock, dateFrom, dateTo,
                            quantityNaturalLossDetail, sum, note
     PROPERTIES (s) close SHOWIF showClose(s), open SHOWIF showOpen(s)
-    PROPERTIES(s) NEWSESSION NEW, EDIT SHOWIF showEdit(s), deletes=DELETE SHOWIF showDelete(s)
+    PROPERTIES(s) NEWSESSION NEW, EDIT SHOWIF showEdit(s), show SHOWIF showToShow(s),  deletes=DELETE SHOWIF showDelete(s)
     PROPERTIES(s) READONLYIF isReadonly() PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                  postedNameUser, postedTime, postedHostnameComputer
     FILTERS filterDateFrom(s), filterDateTo(s), filterDateFromPeriod(s), filterDateToPeriod(s)
