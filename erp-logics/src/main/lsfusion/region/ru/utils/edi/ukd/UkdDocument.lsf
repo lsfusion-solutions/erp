@@ -20,7 +20,7 @@ EXTEND CLASS UkdDocumentPaperStatus {
 }
 
 //есть блок СЧФ
-@defineVATInvoiceDocument('УКД', ukd, ' КСЧФ', 'Универсальный корректирующий документ');
+@defineVATInvoiceDocument('УКД', ukd, ' КСЧФ', 'Универсальный корректировочный документ');
 
 //details
 
@@ -638,7 +638,30 @@ END
 //    PROPERTIES (u) exportUkdDocument1
 //;
 
-FORM printUkd 'Универсальный корректирующий документ'
+
+CLASS StatusPrintUkd 'Статус'{
+    first '1',
+    second '2'       
+}
+
+name 'Наименование' (StatusPrintUkd s) = staticCaption(s) IF s IS StatusPrintUkd CHARWIDTH 15; 
+
+FORM statusPrintUkd 'Статус УПД'
+    OBJECTS s = StatusPrintUkd
+    PROPERTIES(s) READONLY name
+    ORDERS name(s)
+    LIST StatusPrintUkd OBJECT s
+;
+DESIGN statusPrintUkd{
+    BOX {
+        size = (400, 400);
+    }
+}
+
+statusPrintUkd (UkdDocument u) = IF status(u) == UkdDocumentStatus.DIS THEN StatusPrintUkd.second ELSE StatusPrintUkd.first;
+nameStatusPrintUkd 'Статус УКД' (UkdDocument u) = name(statusPrintUkd(u));
+
+FORM printKSF 'Корректировочный счет-фактура'
     //OBJECTS dd = (c=Consignment,i=INTEGER ) 
     OBJECTS u = UkdDocument
     PROPERTIES (u) nameSupplier, addressSupplier, innSupplier, kppSupplier,
@@ -660,6 +683,41 @@ FORM printUkd 'Универсальный корректирующий доку�
             ukdDocument(d) == u
 ;
 
+printKSF 'Корректировочный счет-фактура'(UkdDocument u) {
+    IF NOT countSelectUkd() THEN {
+        select(UkdDocument ukdDocument) <- TRUE IF ukdDocument==u;
+    }  
+        
+    PRINT printKSF;
+         
+    select(UkdDocument ukdDocument) <- NULL;
+} IMAGE 'print.png';
+
+numberInvoice (UkdDocumentDetail d) = numberInvoice(ukdDocument(d));
+dateInvoice (UkdDocumentDetail d) = dateInvoice(ukdDocument(d));
+
+FORM printUkd 'Универсальный корректировочный документ'
+    //OBJECTS dd = (c=Consignment,i=INTEGER ) 
+    OBJECTS u = UkdDocument
+    PROPERTIES (u) nameStatusPrintUkd, nameSupplier, addressSupplier, innSupplier, kppSupplier,
+                   nameCustomer, addressCustomer, innCustomer, kppCustomer,
+                   dateInvoice, numberInvoice, 
+                   baseDateInvoice, baseInvoiceNumber,
+                   nameCurrency, codeCurrency,
+                   supplierSignerAgentLastName, supplierSignerAgentFirstName, supplierSignerAgentMiddleName,
+                   supplierSignerPosition
+                         
+    OBJECTS d = UkdDocumentDetail SUBREPORT         
+    PROPERTIES(d) dateInvoice, numberInvoice, number, idSku, numberUpdDocumentDetail, nameSku, 
+                  idUOMB, nameUOMB, shortNameUOMB, quantityB, priceB, sumA, dutySumB, withoutDutyB, nameVATStatusB, VATSumB, invoiceSumB, sidCountryB, shortNameCountryB,                                    
+                  idUOMA, nameUOMA, shortNameUOMA, quantityA, priceA, sumB, dutySumA, withoutDutyA, nameVATStatusA, VATSumA, invoiceSumA, sidCountryA, shortNameCountryA,
+                  increaseSum, increaseDutySum, increaseVATSum, increaseInvoiceSum,                                                                   
+                  decreaseSum, decreaseDutySum, decreaseVATSum, decreaseInvoiceSum
+                                                                         
+    FILTERS select(u),
+            ukdDocument(d) == u
+;
+
 printUkd 'УКД'(UkdDocument u) {
     IF NOT countSelectUkd() THEN {
         select(UkdDocument ukdDocument) <- TRUE IF ukdDocument==u;
@@ -671,7 +729,7 @@ printUkd 'УКД'(UkdDocument u) {
 } IMAGE 'print.png';
 
 EXTEND FORM ukdDocuments
-    PROPERTIES (u) printUkd
+    PROPERTIES (u) printUkd, printKSF
 ;
 
 DESIGN ukdDocuments {
@@ -680,6 +738,7 @@ DESIGN ukdDocuments {
             caption = 'Печать';
             type = CONTAINERV;
             MOVE PROPERTY(printUkd(u));
+            MOVE PROPERTY(printKSF(u));
         }        
     }
 }
