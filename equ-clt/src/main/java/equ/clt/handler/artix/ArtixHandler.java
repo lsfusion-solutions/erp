@@ -401,12 +401,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     quantityoptions.put("enablequantitylimit", true); //включить ограничение количества товара
                     quantityoptions.put("enabledocumentquantitylimit", 2); //включить ограничение количества товара в чеке
                     itemOptions.put("quantityoptions", quantityoptions);
-                } else if(requireQuantityManual != null || requireQuantityScales != null) {
-                    JSONObject quantityoptions = new JSONObject();
-                    quantityoptions.put("requirequantitymanual", requireQuantityManual);
-                    quantityoptions.put("requirequantityscales", requireQuantityScales);
-                    itemOptions.put("quantityoptions", quantityoptions);
                 }
+            } else if(requireQuantityManual != null || requireQuantityScales != null) {
+                JSONObject quantityoptions = new JSONObject();
+                quantityoptions.put("requirequantitymanual", requireQuantityManual);
+                quantityoptions.put("requirequantityscales", requireQuantityScales);
+                itemOptions.put("quantityoptions", quantityoptions);
             }
 
             itemOptions.put("inventitemoptions", inventItemOptions);

@@ -1,0 +1,40 @@
+MODULE Artix;
+
+REQUIRE CashRegisterPriceTransaction, ItemSSC;
+
+dataCustomGroupTypeArtix = DATA CustomGroupType(GroupCashRegister);
+nameCustomGroupTypeArtix 'Тип классификатора'(GroupCashRegister gs) = name(dataCustomGroupTypeArtix(gs));
+EXTEND FORM groupCashRegister 
+    PROPERTIES (grc) SHOWIF sidModel(grc) == 'Artix' nameCustomGroupTypeArtix;
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY (nameCustomGroupTypeArtix(grc));
+    }
+}
+
+imageArtix = DATA IMAGEFILE (Item);
+
+WHEN CHANGED (image(Item i)) DO { 
+    imageArtix(i) <- NULL;
+}
+
+overArtixInfo = ABSTRACT TEXT (MachineryPriceTransaction, Barcode);
+
+//стараемся выполнять последним
+createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
+    IF sidModel(gm) == 'Artix' THEN {
+      
+        info(mpt, Barcode b) <- ('\{"artix":\{'+
+                (CONCAT ',',
+                    '"age": "' + age(sku(b)) + '"',
+                    '"ageverify":1' IF ageVerify(sku(b)),
+                    '"visualverify":1' IF visualVerify(sku(b)),
+                    '"lowweight":1' IF lowWeight(sku(b)),
+                    '"weightcontrolbypass":1' IF weightControlBypass(sku(b)),
+                    '"requirequantitymanual":1' IF requireQuantityManual(sku(b)),
+                    '"requirequantityscales":1' IF requireQuantityScales(sku(b)),
+                    overArtixInfo(mpt,b)
+                )
+                +'\}\}') WHERE in(mpt, b);
+    }
+}

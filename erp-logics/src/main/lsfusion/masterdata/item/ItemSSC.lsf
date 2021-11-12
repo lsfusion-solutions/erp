@@ -1,0 +1,41 @@
+MODULE ItemSSC;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+GROUP itemSSC 'Самообслуживание' : base;
+
+@defineItemAttribute(itemSSC, 'Самообслуживание, отображение', itemSSC);
+EXTEND FORM itemGroup PROPERTIES(g) userShowItemSSC;
+EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() showItemSSC BACKGROUND backgroundShowItemSSC(g);
+DESIGN itemGroup {
+    params {
+        MOVE GROUP(itemSSC,g);
+    }
+}
+
+META difineSSCAttribute (class, param, title)
+    data###param title = DATA class (Item) CHARWIDTH 20 IN itemSSC;
+    @defineItemGroupValue(param, title, class, itemSSC);
+    param title (Item i) = OVERRIDE data###param(i), param(itemGroup(i)) IN itemSSC;
+
+    EXTEND FORM item PROPERTIES(i) param SHOWIF showItemSSC(i);
+    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei param SHOWIF showAnyItemSSC(g);
+END;
+
+@difineSSCAttribute(INTEGER, age, 'Возраст');
+@difineSSCAttribute(BOOLEAN , ageVerify, 'Необходимо подтверждение возраста');
+@difineSSCAttribute(BOOLEAN , visualVerify, 'Необходима визуальная проверка товара');
+@difineSSCAttribute(BOOLEAN , lowWeight, 'Легкий товар');
+@difineSSCAttribute(BOOLEAN , weightControlBypass, 'Пропускать товар при контроле веса');
+@difineSSCAttribute(BOOLEAN , requireQuantityManual, 'Обязательный ввод количества');
+@difineSSCAttribute(BOOLEAN , requireQuantityScales, 'Обязательное взвешивание товара');
+
+DESIGN item{
+    itemPrimaryColumn2{
+        MOVE GROUP (itemSSC, i){
+            columns = 2;
+        };
+    }
+}
