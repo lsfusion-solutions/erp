@@ -8,7 +8,6 @@ import equ.api.stoplist.StopListInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -74,8 +73,8 @@ public class DibalD900Handler extends MultithreadScalesHandler {
 
     private void loadItem(TCPPort port, ScalesItem item) throws IOException {
         JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("Dibal") : null;
-        String idItemGroup = infoJSON != null ? infoJSON.getString("numberGroup") : "2";
-        String nameItemGroup = infoJSON != null ? infoJSON.getString("nameGroup") : "Овощи";
+        String idItemGroup = infoJSON != null ? infoJSON.getString("numberGroup") : "1";
+        String nameItemGroup = infoJSON != null ? infoJSON.getString("nameGroup") : "Все";
 
         sendCommand(port, getItemL2Bytes(item));
         sendCommand(port, getItemH3Bytes(item, idItemGroup));
