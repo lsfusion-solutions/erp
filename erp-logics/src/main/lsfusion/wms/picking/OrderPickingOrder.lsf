@@ -152,17 +152,21 @@ picked (Order order) = calcPart(order) OR calcFull(order);
 startDateTime 'Начало комплектации' (order) = GROUP MIN startDateTime(PickingOrder o) BY order(o);
 finishDateTime 'Завершение комплектации' (order) = GROUP MAX finishDateTime(PickingOrder o) BY order(o);
 
+extCalcFull = ABSTRACT BOOLEAN (Order);
+extCalcPart = ABSTRACT BOOLEAN (Order);
+extAccepted = ABSTRACT BOOLEAN (Order);
+
 statusPicking 'Статус комплектации' (Order order) = CASE
-    WHEN calcFull(order) THEN 'Полностью собран'
-    WHEN calcPart(order) THEN 'Частично собран'
-    WHEN accepted(order) THEN 'В комплектации'
+    WHEN calcFull(order) OR extCalcFull(order) THEN 'Полностью собран'
+    WHEN calcPart(order) OR extCalcPart(order) THEN 'Частично собран'
+    WHEN accepted(order) OR extAccepted(order) THEN 'В комплектации'
     WHEN countPickingOrder(order) THEN 'Ожидает комплектацию' 
     WHEN order IS Order THEN 'Без комплектации';
 
 backgroundStatusPicking 'Цвет' (Order order) = CASE
-    WHEN calcFull(order) THEN RGB(212,255,212)
-    WHEN calcPart(order) THEN RGB(255,238,165)
-    WHEN accepted(order) THEN RGB(255,238,165)
+    WHEN calcFull(order) OR extCalcFull(order) THEN RGB(212,255,212)
+    WHEN calcPart(order) OR extCalcPart(order) THEN RGB(255,238,165)
+    WHEN accepted(order) OR extAccepted(order) THEN RGB(255,238,165)
     WHEN countPickingOrder(order) THEN RGB(212,212,255) 
     WHEN order IS Order THEN RGB(255,200,216);
     
