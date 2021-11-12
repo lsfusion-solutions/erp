@@ -61,6 +61,9 @@ FORM yandexorder FORMEXTID 'null'
 itemById (STRING id) = GROUP LAST Item i ORDER id(i) WHERE id(i) == id;
 stockYandexOrder (STRING id) = ABSTRACT DepartmentStore;
 restarauntId (DepartmentStore s) = ABSTRACT STRING;
+carrierOrder (YandexEdaAuth a) = ABSTRACT Carrier;
+
+
 yandexCarrier = GROUP MAX Carrier r IF id(r) = 'yandex';
 paymentTypeOrder (STRING type) = IF type = 'CASH' THEN PaymentTypeInternetOrder.inFact ELSE PaymentTypeInternetOrder.prepayment;
 yandexEdaOrderStatus (InternetOrder o) = CASE 
@@ -71,18 +74,23 @@ yandexEdaOrderStatus (InternetOrder o) = CASE
     WHEN status(o) = StatusInternetOrder.delivered THEN 'DELIVERED'
     WHEN status(o) = StatusInternetOrder.closed THEN 'CANCELLED'
 ;
+
 httpHeadersYandex(TEXT name) = CASE
     WHEN name == 'Content-Type' THEN 'application/vnd.eats.order.v2+json';
 courierArrivementDateText = DATA STRING (InternetOrder);
 courierArrivementDate (InternetOrder o) += WHEN carrier(o) == yandexCarrier() THEN DATETIME (courierArrivementDateText(o));
 
+afterCreateOrder ABSTRACT LIST (InternetOrder);
+
 createOrder(FILE f){
     LOCAL tokenClient = STRING ();
     tokenClient() <- getWord(headers('Authorization'), ' ', 2);
     logToFile('yandex', CONCAT ' : ', 'Create order');
-    IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
+    LOCAL aggr = YandexEdaAuth();
+    aggr() <- GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
+    IF NOT (aggr()) THEN {
         statusHttpTo() <- 401;
-        EXPORT JSON FROM reason = 'Не найден токен авторизации';
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
     }
     ELSE {
         IMPORT yandexorder FROM JSONFILE (f);//f;
@@ -93,10 +101,10 @@ createOrder(FILE f){
             RETURN;
         }
         NEW order = InternetOrder {
-            carrier(order) <- yandexCarrier();
+            carrier(order) <- carrierOrder(aggr());
             number(order) <- eatsId();
             idAggregator(order) <- eatsId();
-            supplierStock(order) <- stockYandexOrder(restaurantId());
+            supplierStock(order) <- stock(aggr(), restaurantId());
             customerComment(order) <- comment();
             nameInternetCustomer(order) <- STRING[255](clientName());
             phoneInternetCustomer(order) <- STRING[100](phoneNumber());
@@ -112,6 +120,7 @@ createOrder(FILE f){
             paymentTypeInternetOrder(order) <- paymentTypeOrder(paymentType());
             paymentCardSumInternetOrder(order) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CARD';
             paymentCashSumInternetOrder(order) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CASH';
+            afterCreateOrder(order);
             APPLY ;
             IF canceled() THEN {
                 statusHttpTo() <- 500;
@@ -136,16 +145,18 @@ updateOrder(FILE f){
     logToFile('yandex', CONCAT ' : ', 'Update order', order());
     LOCAL tokenClient = STRING ();
     tokenClient() <- getWord(headers('Authorization'), ' ', 2);
-    IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
+    LOCAL aggr = YandexEdaAuth();
+    aggr() <- GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
+    IF NOT (aggr()) THEN {
         statusHttpTo() <- 401;
-        EXPORT JSON FROM reason = 'Не найден токен авторизации';
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
     }
     ELSE {
         IMPORT yandexorder FROM JSONFILE(f);
          FOR InternetOrder io =  internetOrderByUuid(order()) DO{
-            carrier(io) <- yandexCarrier();
+            carrier(io) <- carrierOrder(aggr());
             idAggregator(io) <- eatsId();
-            supplierStock(io) <- stockYandexOrder(restaurantId());
+            supplierStock(io) <- stock(aggr(), restaurantId());
             customerComment(io) <- comment();
             nameInternetCustomer(io) <- STRING[255](clientName());
             phoneInternetCustomer(io) <- STRING[100](phoneNumber());
@@ -162,6 +173,7 @@ updateOrder(FILE f){
             paymentTypeInternetOrder(io) <- paymentTypeOrder(paymentType());
             paymentCardSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CARD';
             paymentCashSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CASH';
+            afterCreateOrder(io);
             APPLY ;
             IF canceled() THEN {
                 statusHttpTo() <- 500;
