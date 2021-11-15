@@ -9,12 +9,12 @@ import jxl.write.WriteException;
 import lsfusion.base.Pair;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
-import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 
@@ -23,13 +23,10 @@ public abstract class CreateExcelTemplateAction extends InternalAction {
     public abstract Pair<String, RawFileData> createFile() throws IOException, WriteException;
 
     public static Pair<String, RawFileData> createFile(String fileName, List<String> columns, List<List<String>> defaultRows) throws IOException, WriteException {
-        File file = null;
-        try {
-            file = File.createTempFile(fileName, ".xls");
-
+        try(ByteArrayOutputStream os = new ByteArrayOutputStream()) {
             WorkbookSettings ws = new WorkbookSettings();
             ws.setGCDisabled(true);
-            WritableWorkbook workbook = Workbook.createWorkbook(file, ws);
+            WritableWorkbook workbook = Workbook.createWorkbook(os, ws);
             WritableSheet sheet = workbook.createSheet("List 1", 0);
             CellView cv = new CellView();
             cv.setAutosize(true);
@@ -46,11 +43,7 @@ public abstract class CreateExcelTemplateAction extends InternalAction {
 
             workbook.write();
             workbook.close();
-            return Pair.create(fileName, new RawFileData(file));
-        } finally {
-            if (file != null && !file.delete()) {
-                file.deleteOnExit();
-            }
+            return Pair.create(fileName, new RawFileData(os));
         }
     }
 

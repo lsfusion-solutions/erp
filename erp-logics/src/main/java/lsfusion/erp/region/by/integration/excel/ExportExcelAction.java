@@ -10,12 +10,12 @@ import lsfusion.base.Pair;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultIntegrationAction;
+import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.language.ScriptingLogicsModule;
 
-import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 
@@ -24,10 +24,10 @@ public abstract class ExportExcelAction extends DefaultIntegrationAction {
     public abstract Pair<String, RawFileData> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException;
 
     public static RawFileData createFile(List<String> columns, List<List<String>> rows) throws IOException, WriteException {
-        File file = File.createTempFile("export", ".xls");
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
         WorkbookSettings ws = new WorkbookSettings();
         ws.setGCDisabled(true);
-        WritableWorkbook workbook = Workbook.createWorkbook(file, ws);
+        WritableWorkbook workbook = Workbook.createWorkbook(os, ws);
         WritableSheet sheet = workbook.createSheet("List 1", 0);
         CellView cv = new CellView();
         cv.setAutosize(true);
@@ -45,10 +45,7 @@ public abstract class ExportExcelAction extends DefaultIntegrationAction {
         workbook.write();
         workbook.close();
 
-        RawFileData result = new RawFileData(file);
-        if(!file.delete())
-            file.deleteOnExit();
-        return result;
+        return new RawFileData(os);
     }
 
     public ExportExcelAction(ScriptingLogicsModule LM, ValueClass... classes) {
