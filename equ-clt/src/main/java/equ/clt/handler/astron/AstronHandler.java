@@ -91,11 +91,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 for(Map.Entry<String, List<TransactionCashRegisterInfo>> directoryTransactionEntry : directoryTransactionMap.entrySet()) {
 
-                    astronPackLogger.info("sendTransaction started"); //todo: временный лог для отслеживания packid
-
                     int transactionCount = 1;
                     int itemCount = 0;
                     int totalCount = directoryTransactionEntry.getValue().size();
+
+                    astronPackLogger.info(String.format("sendTransaction started: directory %s, totalCount %s", directoryTransactionEntry.getKey(), totalCount)); //todo: временный лог для отслеживания packid
+
                     Throwable exception = null;
                     Map<Long, SendTransactionBatch> currentSendTransactionBatchMap = new HashMap<>();
                     for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
@@ -119,9 +120,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             }
                             sendTransactionBatchMap.putAll(currentSendTransactionBatchMap);
                             currentSendTransactionBatchMap = new HashMap<>();
+                            totalCount -= transactionCount;
                             transactionCount = 1;
                             itemCount = 0;
-                            totalCount -= transactionsAtATime;
                         } else {
                             transactionCount++;
                         }
@@ -594,16 +595,24 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         ps.addBatch();
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
-                            ps.executeBatch();
+                            astronPackLogger.info("Pack: executeBatch started");
+                            int[] result = ps.executeBatch();
+                            List<Integer> resultList = Arrays.stream(result).boxed().collect(Collectors.toList());
+                            astronPackLogger.info("Pack: executeBatch result: " + resultList.stream().map(Object::toString).collect(Collectors.joining(", ")));
                             conn.commit();
+                            astronPackLogger.info("Pack: commit finished");
                             batchCount = 0;
                             astronLogger.info("execute and commit batch");
                         }
                     }
                 } else break;
             }
-            ps.executeBatch();
+            astronPackLogger.info("Pack: final executeBatch started");
+            int[] result = ps.executeBatch();
+            List<Integer> resultList = Arrays.stream(result).boxed().collect(Collectors.toList());
+            astronPackLogger.info("Pack: executeBatch result: " + resultList.stream().map(Object::toString).collect(Collectors.joining(", ")));
             conn.commit();
+            astronPackLogger.info("Pack: commit finished");
         }
     }
 
@@ -1639,7 +1648,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, " +
-                    "sales." + getSalesNumField() + ", sales.SAREAID, sales." + getSalesRefundField() + ", sales.PRCLEVELID, sales.SALESATTRI, " +
+                    "sales.SALESNUM, sales.SAREAID, sales.SALESREFUND, sales.PRCLEVELID, sales.SALESATTRI, " +
                     "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
@@ -1674,7 +1683,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 CashRegisterInfo cashRegister = machineryMap.get(nppCashRegister);
                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                Integer salesNum = rs.getInt(getSalesNumField());
+                Integer salesNum = rs.getInt("SALESNUM");
 
                 Integer sessionId = rs.getInt("SESSID");
                 String numberZReport = String.valueOf(sessionId);
@@ -1728,7 +1737,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         }
 
 
-                        boolean isReturn = rs.getInt(getSalesRefundField()) != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
+                        boolean isReturn = rs.getInt("SALESREFUND") != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
 
                         switch (recordType) {
                             case 0: {//товарная позиция
@@ -1912,8 +1921,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 try (Connection conn = getConnection(params);
                      PreparedStatement ps = conn.prepareStatement(params.pgsql ?
-                             "UPDATE sales SET fusion_processed = 1 WHERE " + getSalesNumField() + " = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?" :
-                             "UPDATE [SALES] SET FUSION_PROCESSED = 1 WHERE " + getSalesNumField() + " = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?" )) {
+                             "UPDATE sales SET fusion_processed = 1 WHERE SALESNUM = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?" :
+                             "UPDATE [SALES] SET FUSION_PROCESSED = 1 WHERE SALESNUM = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?" )) {
                     int count = 0;
                     for (AstronRecord record : salesBatch.recordList) {
                         ps.setInt(1, record.salesNum);
@@ -1973,8 +1982,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     protected void createSalesIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
             String query = params.pgsql ?
-                    String.format("CREATE INDEX IF NOT EXISTS sale ON sales(%s, SESSID, SYSTEMID, SAREAID)", getSalesNumField()) :
-                    "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (" + getSalesNumField() + ", SESSID, SYSTEMID, SAREAID) END";
+                    "CREATE INDEX IF NOT EXISTS sale ON sales(SALESNUM, SESSID, SYSTEMID, SAREAID)" :
+                    "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (SALESNUM, SESSID, SYSTEMID, SAREAID) END";
             statement.execute(query);
             conn.commit();
         } catch (SQLException e) {
@@ -2059,13 +2068,4 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private Integer getPriceLevelId(Integer nppGroupMachinery, boolean exportExtraTables, int priceNumber) {
         return exportExtraTables ? (nppGroupMachinery * 1000 + priceNumber) : nppGroupMachinery;
     }
-
-    protected String getSalesNumField() {
-        return "SALESNUM";
-    }
-
-    protected String getSalesRefundField() {
-        return "SALESREFUND";
-    }
-
 }
