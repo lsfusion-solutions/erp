@@ -2,21 +2,6 @@ MODULE Artix;
 
 REQUIRE CashRegisterPriceTransaction, ItemSSC;
 
-dataCustomGroupTypeArtix = DATA CustomGroupType(GroupCashRegister);
-nameCustomGroupTypeArtix 'Тип классификатора'(GroupCashRegister gs) = name(dataCustomGroupTypeArtix(gs));
-EXTEND FORM groupCashRegister 
-    PROPERTIES (grc) SHOWIF sidModel(grc) == 'Artix' nameCustomGroupTypeArtix;
-DESIGN groupCashRegister{
-    topContainer{
-        MOVE PROPERTY (nameCustomGroupTypeArtix(grc));
-    }
-}
-
-imageArtix = DATA IMAGEFILE (Item);
-
-WHEN CHANGED (image(Item i)) DO { 
-    imageArtix(i) <- NULL;
-}
 
 overArtixInfo = ABSTRACT TEXT (MachineryPriceTransaction, Barcode);
 
@@ -36,5 +21,130 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
                     overArtixInfo(mpt,b)
                 )
                 +'\}\}') WHERE in(mpt, b);
+    }
+}
+
+dataCustomGroupTypeArtix = DATA CustomGroupType(GroupCashRegister);
+nameCustomGroupTypeArtix 'Тип классификатора КСО'(GroupCashRegister gs) = name(dataCustomGroupTypeArtix(gs));
+
+imageArtix = DATA IMAGEFILE (Item);
+
+WHEN CHANGED (image(Item i)) DO { 
+    imageArtix(i) <- NULL;
+}
+
+imageArtix 'Изображение для Artix' = DATA IMAGEFILE (CustomGroup);
+
+EXTEND FORM customGroups
+    PROPERTIES imageArtix(g) READONLY;
+    
+EXTEND FORM customGroup
+    PROPERTIES imageArtix(g) ;
+    
+encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\r]+\', \' \', \'g\' )';
+
+skipFilterBalance 'Не фильтровать по остаткам' = DATA LOCAL NESTED BOOLEAN ();
+doClear 'С очисткой' = DATA LOCAL NESTED BOOLEAN ();
+
+exportPickList 'Выгрузить' (GroupCashRegister gm) {
+    NEWSESSION {
+        LOCAL export = BOOLEAN (Sku);
+        export(Sku s) <- ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR  skipFilterBalance()) 
+                        AND id(customGroup(dataCustomGroupTypeArtix(gm), s)) AND active(s); 
+      
+        FOR export(Sku s) AND hasImage(s) AND NOT imageArtix(s) DO {
+            TRY {
+                convertedImage() <- NULL;
+                convertImage((OVERRIDE smallImage(s), image(s)), 'png');
+                imageArtix(s) <- convertedImage();
+                getFileSize(FILE(convertedImage()));
+                IF fileSize() > 40000 THEN {
+                    resizeImage(convertedImage(), sqrt(DOUBLE(fileSize())/30000));
+                    imageArtix(s) <- resizedImage();
+                }
+            }
+        }
+        LOCAL rezult = TEXT ();
+        
+        IF doClear() THEN {
+            rezult() <-'\{"command": "clearPicklist"\}\n---\n';
+        }
+        
+        rezult() <- CONCAT '', rezult(),
+                        (GROUP CONCAT ('\{"command": "addPicklist","picklist": \{' + 
+                            (CONCAT ',', 
+                                '"code": "' + id(CustomGroup cg) + '"',
+                                '"name": "' + name(cg) + '"',
+                                '"image": "' + encodeBase64(imageArtix(cg)) + '"',
+                                '"parent": ' + (OVERRIDE '"'+id(parent(cg))+'"', 'null')
+                            ) 
+                        + '\}\}') IF customGroupType(cg) == dataCustomGroupTypeArtix(gm), '\n---\n' ORDER level(cg), cg)
+                    +'\n---\n';
+        rezult() <- CONCAT '', rezult(),
+                        (GROUP CONCAT ('\{"command": "addPicklist","picklist": \{' + 
+                            (CONCAT ',', 
+                                '"code": "' + id(Sku s) + '"',
+                                '"name": "' + name(s) + '"',
+                                '"image": "' + encodeBase64(imageArtix(s)) + '"',
+                                '"parent": "' + id(customGroup(dataCustomGroupTypeArtix(gm), s)) + '"',
+                                '"tmccode": "' + overId(s) + '"'
+                            ) 
+                        + '\}\}') IF export(s), '\n---\n' ORDER s)
+                    +'\n---\n';
+        
+        LOCAL aif = FILE ();
+        stringToFile(rezult(),'UTF-8','aif');
+        aif() <- resultFile();
+        
+        LOCAL flz = FILE ();
+        stringToFile('','UTF-8','flz');
+        flz() <- resultFile();
+        
+        LOCAL name = STRING[50]();
+        name() <- 'pos' + toChar(currentDateTime(), 'YYYYMMDDHH24MISS');
+    
+        WRITE aif() TO 'file://' + directory(gm) + '/'+ name();
+        WRITE flz() TO 'file://' + directory(gm) + '/'+ name();
+        
+        APPLY;
+        
+        MESSAGE name(gm) +':пик-лист выгружен' NOWAIT;
+    }
+}
+
+exportPickListAndClose 'Выгрузить' (GroupMachinery gm) {
+    exportPickList(gm);
+    formClose();
+}
+
+FORM exportParams 'Пик-лист'
+    OBJECTS gm = GroupCashRegister PANEL
+    PROPERTIES () skipFilterBalance, doClear
+    PROPERTIES (gm) exportPickListAndClose
+;
+DESIGN exportParams {
+    NEW a{
+        MOVE PROPERTY (skipFilterBalance());
+        MOVE PROPERTY (doClear());
+        NEW b{
+            type = CONTAINERH;
+            MOVE PROPERTY (exportPickListAndClose(gm));
+            MOVE PROPERTY (formClose());
+        }
+    }
+    REMOVE TOOLBARBOX ;
+}
+
+exportPickListForm 'Выгрузить пик-лист' (GroupCashRegister gm) {
+    SHOW exportParams OBJECTS gm = gm;
+}
+
+EXTEND FORM groupCashRegister 
+    PROPERTIES (grc) SHOWIF sidModel(grc) == 'Artix' nameCustomGroupTypeArtix, exportPickListForm;
+    
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY (nameCustomGroupTypeArtix(grc));
+        MOVE PROPERTY (exportPickListForm(grc));
     }
 }
