@@ -45,13 +45,19 @@ encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\
 
 skipFilterBalance 'Не фильтровать по остаткам' = DATA LOCAL NESTED BOOLEAN ();
 doClear 'С очисткой' = DATA LOCAL NESTED BOOLEAN ();
+export = DATA LOCAL BOOLEAN (CustomGroup);
+export = DATA LOCAL BOOLEAN (Sku);
+beforeExport  ABSTRACT LIST (GroupCashRegister);
 
 exportPickList 'Выгрузить' (GroupCashRegister gm) {
     NEWSESSION {
-        LOCAL export = BOOLEAN (Sku);
+        export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm); 
+        
         export(Sku s) <- ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR  skipFilterBalance()) 
                         AND id(customGroup(dataCustomGroupTypeArtix(gm), s)) AND active(s); 
-      
+        
+        beforeExport(gm);
+        
         FOR export(Sku s) AND hasImage(s) AND NOT imageArtix(s) DO {
             TRY {
                 convertedImage() <- NULL;
@@ -78,7 +84,7 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
                                 '"image": "' + encodeBase64(imageArtix(cg)) + '"',
                                 '"parent": ' + (OVERRIDE '"'+id(parent(cg))+'"', 'null')
                             ) 
-                        + '\}\}') IF customGroupType(cg) == dataCustomGroupTypeArtix(gm), '\n---\n' ORDER level(cg), cg)
+                        + '\}\}') IF export(cg), '\n---\n' ORDER level(cg), cg)
                     +'\n---\n';
         rezult() <- CONCAT '', rezult(),
                         (GROUP CONCAT ('\{"command": "addPicklist","picklist": \{' + 
@@ -108,7 +114,7 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
         
         APPLY;
         
-        MESSAGE name(gm) +':пик-лист выгружен' NOWAIT;
+        MESSAGE name(gm) +': Пиклист выгружен' NOWAIT;
     }
 }
 
@@ -117,7 +123,7 @@ exportPickListAndClose 'Выгрузить' (GroupMachinery gm) {
     formClose();
 }
 
-FORM exportParams 'Пик-лист'
+FORM exportParams 'Пиклист'
     OBJECTS gm = GroupCashRegister PANEL
     PROPERTIES () skipFilterBalance, doClear
     PROPERTIES (gm) exportPickListAndClose
@@ -135,7 +141,7 @@ DESIGN exportParams {
     REMOVE TOOLBARBOX ;
 }
 
-exportPickListForm 'Выгрузить пик-лист' (GroupCashRegister gm) {
+exportPickListForm 'Выгрузить Пиклист' (GroupCashRegister gm) {
     SHOW exportParams OBJECTS gm = gm;
 }
 
