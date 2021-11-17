@@ -140,10 +140,12 @@ changeValue(Sku sku, StopList stopList)  {
 
 
 active(Stock stock, StopListDetail detail) = in(stock, stopList(detail)) AND isPosted(detail) MATERIALIZED;
-sku(Stock stock, StopListDetail detail) = sku(detail) IF active(stock, detail) MATERIALIZED INDEXED; 
+sku(Stock stock, StopListDetail detail) = sku(detail) IF active(stock, detail) MATERIALIZED; 
 include(Stock stock, StopListDetail detail) = active(stock, detail) AND NOT exclude(detail) MATERIALIZED;
 fromDateTime(Stock stock, StopListDetail detail) = fromDateTime(detail) IF active(stock, detail) MATERIALIZED; 
 toDateTime(Stock stock, StopListDetail detail) = toDateTime(detail) IF active(stock, detail) MATERIALIZED; 
+
+INDEX sku(Stock stock, StopListDetail detail), stock, fromDateTime(stock, detail), detail;
    
 inStopList (sku, Stock stock, DATETIME dateTime) =
     GROUP LAST include(stock, StopListDetail detail)
