@@ -152,6 +152,8 @@ sendMessageSigma(CashRegister c, STRING stringData){
     messageToReceive() <- formMessage('', reverseByteA(lpad(toHex(length(exchangeName())),8 ,'0')), exchangeName(), 
         reverseByteA(lpad(toHex(length(convertToByteA(stringData))),8 ,'0')), stringData, zip());
     EXTERNAL TCP ip(c) + ':11000' PARAMS messageToReceive();
+    fileToString(FILE(responseTcp()));
+    IF loggingSigmaAnswer() THEN logToFile('sigma', CONCAT ' : ', exchangeName(), ip(c), 'answer', resultString());
 }
 
 receiveFromSigma(CashRegister c){
@@ -202,7 +204,7 @@ receiveFromSigma(CashRegister c){
         stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
         IMPORT receiptsSigma XML FROM resultFile();
         FOR imported(INTEGER i) AND NOT (GROUP MAX Receipt r IF cashRegister(r) = c AND 
-            STRING(idExchange(r)) = codeForExchange(i) AND NOT docNumber(i) = '0' ) NEW r = Receipt DO {
+            STRING(idExchange(r)) = codeForExchange(i)) AND INTEGER(docNumber(i)) > 0 NEW r = Receipt DO {
             number(r) <- INTEGER(docNumber(i));
             date(r) <- DATE(sumMinutes(docDate(i), 180));
             time(r) <- TIME(sumMinutes(docDate(i), 180));
@@ -313,6 +315,8 @@ EXTEND FORM requestExchange
     PROPERTIES (m,r) SHOWIF isSigma(m) AND ignoreCashRegisterServerCashRegisterModel(groupMachinery(m)) succeeded, dateTimeSucceeded 
 ;
 
+dateTimeFormat(DATETIME dt) = STRING[50](toChar(dt, 'dd.MM.yyyy hh24:mi'));
+
 reReceiveFromSigma(CashRegister c, RequestExchange req) {
     TRY{
         LOCAL filter1 = Filter();
@@ -322,28 +326,29 @@ reReceiveFromSigma(CashRegister c, RequestExchange req) {
         LOCAL dateFrom = DATETIME ();
         LOCAL dateTo = DATETIME ();
         dateFrom() <- DATETIME(dateFrom(req));
-        dateTo() <- sumDay(DATETIME(dateTo(req)), 1);
+        dateTo() <- DATETIME(sumDay(DATETIME(dateTo(req)), 1));
+        MESSAGE dateFrom() + '\n' + dateTo();
         DELETE Receipt r WHERE cashRegister(r) = c AND (date(r) >= dateFrom(req) AND date(r) <= dateTo(req));
         IF filter1() THEN {
-            value(filter1()) <- STRING[50](dateFrom());
+            value(filter1()) <- dateTimeFormat(dateFrom());
             propertyName(filter1()) <- 'DocDate';
             ignore(filter1()) <- TFALSE;
         } 
         ELSE NEW f = Filter{
             operator(f) <- FilterType.greaterThan;
-            value(f) <- STRING[50](dateFrom());
+            value(f) <- dateTimeFormat(dateFrom());
             propertyName(f) <- 'DocDate';
             ignore(f) <- TFALSE;
             filter1() <- f;
         }
         IF filter2() THEN {
-            value(filter2()) <- STRING[50](dateTo());
+            value(filter2()) <- dateTimeFormat(dateTo());
             propertyName(filter2()) <- 'DocDate';
             ignore(filter2()) <- TFALSE;
         }
         ELSE NEW f = Filter{
             operator(f) <- FilterType.lessThan;
-            value(f) <- STRING[50](dateTo());
+            value(f) <- dateTimeFormat(dateTo());
             propertyName(f) <- 'DocDate';
             ignore(f) <- TFALSE;
             filter2() <- f;
@@ -364,12 +369,13 @@ reReceiveFromSigma(CashRegister c, RequestExchange req) {
         stringToFile(substrFrom(data(), positionSub(data(), '<DataEx')));
         IMPORT receiptsSigma XML FROM resultFile();
         FOR imported(INTEGER i) AND NOT (GROUP MAX Receipt r IF cashRegister(r) = c AND 
-            STRING(idExchange(r)) = codeForExchange(i) AND NOT docNumber(i) = '0' ) NEW r = Receipt DO {
+            STRING(idExchange(r)) = codeForExchange(i)) AND INTEGER(docNumber(i)) > 0 NEW r = Receipt DO {
             number(r) <- INTEGER(docNumber(i));
             date(r) <- DATE(sumMinutes(docDate(i), 180));
             time(r) <- TIME(sumMinutes(docDate(i), 180));
             IF (GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE (sumMinutes(docDate(i), 180))) THEN 
                 zReport(r) <- GROUP MAX ZReport z IF cashRegister(z) = c AND date(z) = DATE (sumMinutes(docDate(i), 180));
+                IF NOT isPosted(zReport(r)) THEN isPosted(zReport(r)) <- TRUE;
             ELSE {
                 NEW zr = ZReport{
                     cashRegister(zr) <- c;
@@ -452,12 +458,3 @@ reReceiveFromSigma(CashRegister c, RequestExchange req) {
         MESSAGE messageCaughtException();
     }
 }
-
-//EXTEND FORM requestExchange
-//    PROPERTIES reReceiveFromSigma(m,r);
-//
-//sendRequestExchange (CashRegister cr, RequestExchange re) + WHEN cr IS CashRegister AND requestExchangeType(re) = RequestExchangeType.salesInfo THEN {
-//    IF isSigma(cr) AND active(cr) AND NOT succeeded(cr, re) THEN {
-//        reReceiveFromSigma(cr, re);        
-//    }
-//}
