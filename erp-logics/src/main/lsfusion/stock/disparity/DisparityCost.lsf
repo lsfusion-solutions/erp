@@ -1,0 +1,16 @@
+MODULE DisparityCost;
+
+REQUIRE Disparity, SkuLedgerCost;
+
+NAMESPACE Disparity;
+
+recalculateCostOperation(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в изменениях сортности');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        price(DisparityDetail d) <- calculatedCost(sku(d), stock(d)) WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(stock(d)) 
+                                    AND calculatedCost(sku(d), stock(d)) AND NOT calculatedCost(sku(d), stock(d)) = price(d);
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в изменениях сортности');
+}
+

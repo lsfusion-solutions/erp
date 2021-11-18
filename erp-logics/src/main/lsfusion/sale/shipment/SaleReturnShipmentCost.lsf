@@ -1,0 +1,24 @@
+MODULE SaleReturnShipmentCost;
+
+REQUIRE SaleReturnShipment, SkuLedgerCost;
+
+NAMESPACE SaleReturn;
+
+recalculateCostOperation(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в поставках (продажа-возврат)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {            
+        price(UserShipmentDetail d) <- calculatedCost(sku(d), supplierStock(d)) 
+                WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND  
+                      calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = price(d);
+    }
+    IF canceled() THEN CANCEL;
+    
+    logToFile('cost', 'Начат пересчет цен в накладных (продажа-возврат)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {            
+        shipmentPrice(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d)) 
+                WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+                      calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = shipmentPrice(d);
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа-возврат)');
+}

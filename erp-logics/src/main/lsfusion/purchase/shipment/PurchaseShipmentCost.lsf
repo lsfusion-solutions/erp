@@ -1,0 +1,15 @@
+MODULE PurchaseShipmentCost;
+
+REQUIRE PurchaseShipment, SalePurchaseInvoice, SalePurchaseShipment, SkuLedgerCost;
+
+NAMESPACE Purchase;
+
+fixedCost(ShipmentBatch l) += l IS ShipmentBatch;
+fixedCost(ShipmentSkuLedger l) += l IS ShipmentSkuLedger;
+
+// пока считаем внутренним перемещением только поставки, у которых есть ссылки на расход (то есть фактически только UserShipment)
+//fromLedgerStock (ShipmentDetail d) = supplierStock(invoiceDetail(invoiceDetail(d))); 
+fromLedgerStock (ShipmentDetail d) = supplierStock(shipmentDetail(d));
+ 
+fromStock(ShipmentBatch l) += fromLedgerStock(shipmentDetail(l));
+fromStock(ShipmentSkuLedger l) += fromLedgerStock(shipmentDetail(l));

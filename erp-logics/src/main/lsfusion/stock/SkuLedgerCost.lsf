@@ -1,0 +1,108 @@
+MODULE SkuLedgerCost;
+
+REQUIRE SkuLedger, PriceListAccount;
+
+NAMESPACE Stock;
+
+fixedCost 'Фиксированная себестоимость' = ABSTRACT BOOLEAN (SkuLedger) MATERIALIZED;
+
+fromStock = ABSTRACT Stock (SkuLedger) MATERIALIZED;
+nameFromStock 'Склад внутреннего перемещения' (SkuLedger l) = name(fromStock(l));
+
+EXTEND FORM costSkuLedger
+    PROPERTIES(bil) READONLY fixedCost, nameFromStock
+;
+
+calculatedCost = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+calculatedErrors = DATA LOCAL STRING ();
+recalculateCostOperation ABSTRACT LIST (DATE, DATE);
+
+fixedCostQuantity (Sku sku, Stock stock, DATE dFrom, DATE dTo) = 
+    GROUP SUM signedQuantity(SkuLedger l) IF fixedCost(l) AND NOT fromStock(l) AND 
+              sku(l) = sku AND stock(l) = stock AND 
+              date(l) >= dFrom AND date(l) <= dTo;
+fixedCostSum (Sku sku, Stock stock, DATE dFrom, DATE dTo) = 
+    GROUP SUM signedSum(SkuLedger l) IF fixedCost(l) AND NOT fromStock(l) AND
+              sku(l) = sku AND stock(l) = stock AND 
+              date(l) >= dFrom AND date(l) <= dTo;
+
+intraCostQuantity (Sku sku, Stock from, Stock to, DATE dFrom, DATE dTo) = 
+    GROUP SUM signedQuantity(SkuLedger l) IF sku(l) = sku AND
+              fromStock(l) = from AND stock(l) = to AND fromStock(l) != stock(l) AND
+              date(l) >= dFrom AND date(l) <= dTo;
+
+calcCostQuantity = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+calcCostSum = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
+
+calcCostIntra = DATA LOCAL NUMERIC[16,5] (Sku, Stock, Stock);
+calcCostIntraTo = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
+calculateCostGauss INTERNAL 'lsfusion.erp.stock.CalculateCostGaussAction' ();
+
+recalculateCost = DATA LOCAL BOOLEAN (Sku);
+recalculateAllSkus = DATA LOCAL BOOLEAN () PREREAD;
+calcRecalculateCost (Sku sku) = recalculateAllSkus() OR recalculateCost(sku); 
+
+recalculateCost (DATE dFrom, DATE dTo) {
+    NEWSESSION NESTED(recalculateCost[Sku]) {
+        recalculateAllSkus() <- TRUE IF NOT (GROUP SUM 1 IF recalculateCost(Sku sku)); 
+    
+        calcCostQuantity (Sku sku, Stock stock) <- balanceB(sku, stock, dFrom) IF calcRecalculateCost(sku);
+        
+        logToFile('cost', CONCAT '; ', 'Посчитаны начальные остатки по товарам', GROUP SUM 1 IF calcCostQuantity(Sku sku, Stock stock));
+       
+        calcCostSum (Sku sku, Stock stock) <- sumB(sku, stock, dFrom) IF calcRecalculateCost(sku);
+    
+        logToFile('cost', 'Посчитаны начальные суммы по товарам');
+        
+        calcCostQuantity (Sku sku, Stock stock) <- calcCostQuantity(sku, stock) (+) fixedCostQuantity(sku, stock, dFrom, dTo) WHERE fixedCostQuantity(sku, stock, dFrom, dTo) AND calcRecalculateCost(sku);  
+    
+        logToFile('cost', 'Посчитаны приходы количеств по товарам');
+    
+        calcCostSum (Sku sku, Stock stock) <- calcCostSum(sku, stock) (+) fixedCostSum(sku, stock, dFrom, dTo) WHERE fixedCostSum(sku, stock, dFrom, dTo) AND calcRecalculateCost(sku);
+    
+        logToFile('cost', 'Посчитаны приходы сумм по товарам');
+    
+        calcCostIntra (Sku sku, Stock from, Stock to) <- NULL;
+        calcCostIntra (Sku sku, Stock from, Stock to) <- intraCostQuantity(sku, from, to, dFrom, dTo) WHERE intraCostQuantity(sku, from, to, dFrom, dTo) AND calcRecalculateCost(sku);
+        calcCostIntra (Sku sku, Stock from, Stock to) <- NULL WHERE calcCostIntra(sku, from, to) <= 0;
+        
+        WHILE TRUE DO {
+            calcCostIntraTo(Sku sku, Stock to) <- GROUP SUM calcCostIntra(sku, Stock from, to);
+    
+            logToFile('cost', CONCAT '; ', 'Найдены склады/sku, на которые есть внутренние перемещения', GROUP SUM 1 IF calcCostIntraTo(Sku sku, Stock to));
+            
+            IF NOT (GROUP SUM 1 IF calcCostIntra(Sku sku, Stock from, Stock to) AND NOT calcCostIntraTo(sku, from)) THEN
+                BREAK;
+    
+            calcCostSum (Sku sku, Stock to) <- (OVERRIDE calcCostSum(sku, to), 0.0) + NUMERIC[16,4](GROUP SUM (calcCostIntra (sku, Stock from, to) * calcCostSum(sku, from) / calcCostQuantity(sku, from)) IF NOT calcCostIntraTo(sku, from)) WHERE
+                                                                                                    GROUP SUM (calcCostIntra (sku, Stock from, to) * calcCostSum(sku, from) / calcCostQuantity(sku, from)) IF NOT calcCostIntraTo(sku, from);   
+            calcCostQuantity (Sku sku, Stock to) <- (OVERRIDE calcCostQuantity(sku, to), 0.0) + (GROUP SUM calcCostIntra (sku, Stock from, to) IF NOT calcCostIntraTo(sku, from)) WHERE 
+                                                                                                (GROUP SUM calcCostIntra (sku, Stock from, to) IF NOT calcCostIntraTo(sku, from));
+            
+            calcCostIntra(Sku sku, Stock from, Stock to) <- NULL WHERE calcCostIntra(sku, from, to) AND NOT calcCostIntraTo(sku, from);   
+        }
+        
+        
+        calculatedCost(Sku sku, Stock stock) <- NUMERIC[16,4](calcCostSum(sku, stock) / calcCostQuantity(sku, stock)) WHERE calcCostQuantity(sku, stock) != 0.0; 
+    
+        logToFile('cost', CONCAT '; ', 'Рассчитана себестоимость по товарам без циклов', GROUP SUM 1 IF calculatedCost(Sku sku, Stock stock));
+        
+    //    calcCostQuantity(Sku sku, Stock to) <- (OVERRIDE calcCostQuantity(sku, to), 0.0) + calcCostIntraTo(sku, to) WHERE calcCostIntraTo(sku, to);    
+        
+        logToFile('cost', CONCAT '; ', 'Запуск алгоритма Гаусса', GROUP SUM 1 IF calcCostIntra(Sku sku, Stock from, Stock to));
+        
+        calculateCostGauss();
+        
+        IF calculatedErrors() != '' THEN {
+            logToFile('cost', 'Не удалось посчитать себестоимость для sku (внутренний id) : \n' + calculatedErrors());
+            MESSAGE 'Не удалось посчитать себестоимость для sku (внутренний id) : \n' + calculatedErrors();
+        } 
+    
+        logToFile('cost', 'Закончен подсчет по методу Гаусса');
+    
+        recalculateCostOperation(dFrom, dTo);
+    
+        logToFile('cost', 'Записаны себестоимости в расходы');
+    }
+}

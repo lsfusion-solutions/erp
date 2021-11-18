@@ -1,0 +1,21 @@
+MODULE ReceiptSkuLedgerAccountCost;
+
+REQUIRE ReceiptSkuLedgerAccountSum, SkuLedgerCost;
+
+NAMESPACE ZReport;
+
+recalculateCostOperation(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в реализации через кассы');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {            
+        accountPrice(ReceiptSaleSkuLedger d) <- calculatedCost(sku(d), departmentStore(d)) WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(departmentStore(d)) 
+                                                AND calculatedCost(sku(d), departmentStore(d)) AND NOT calculatedCost(sku(d), departmentStore(d)) = accountPrice(d);
+    }
+    IF canceled() THEN CANCEL;
+    
+    APPLY NESTED (calculatedCost[Sku, Stock]) {            
+        accountPrice(ReceiptReturnSkuLedger d) <- calculatedCost(sku(d), departmentStore(d)) WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(departmentStore(d))
+                                                  AND calculatedCost(sku(d), departmentStore(d)) AND NOT calculatedCost(sku(d), departmentStore(d)) = accountPrice(d);
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в реализации через кассы');
+}
