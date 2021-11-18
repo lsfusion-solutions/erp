@@ -219,7 +219,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     dateSupply 'Дата поставки' = DATA DATE (ScheduleOrderDetail) IN id;
     
     isClosed  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
-    isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) MATERIALIZED INDEXED;
+    isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) MATERIALIZED;
+    INDEX isOpened(ScheduleOrderDetail o), dateOrder(o);
 
     close  'Аннулировать' (ScheduleOrderDetail o)  { 
 	NEWSESSION { isClosed (o) <- TRUE; apply(); }
@@ -260,7 +261,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     nameCustomer 'Покупатель' (ScheduleOrderDetail scheduleOrderDetail) = name(customer(scheduleOrderDetail));
 
     INDEX dateSupply(ScheduleOrderDetail d), customerStock(d);
-    INDEX scheduleOrder(ScheduleOrderDetail d), customerStock(d), dateSupply(d);
+    INDEX scheduleOrder(ScheduleOrderDetail d), customerStock(d), dateSupply(d), d;
     
     countDetails (scheduleOrder, dateSupply, dateOrder, customerStock)= GROUP SUM 1
         BY  scheduleOrder(ScheduleOrderDetail d), dateSupply(d), dateOrder(d), customerStock(d);   
@@ -407,7 +408,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     monthInDate 'Месяц'(ScheduleOrderDetail scheduleOrderDetail) = extractMonthName(dateSupply(scheduleOrderDetail));
     DOWInDate 'День недели'(ScheduleOrderDetail scheduleOrderDetail) = extractDOWName(dateSupply(scheduleOrderDetail));
 
-    next(ScheduleOrderDetail d) = PARTITION PREV d IF isOpened(d) ORDER DESC dateSupply(d) BY scheduleOrder(d), stockFilter##Stock(d);
+    next(ScheduleOrderDetail d) = PARTITION PREV d IF isOpened(d) ORDER DESC dateSupply(d), d BY scheduleOrder(d), stockFilter##Stock(d) MATERIALIZED;
     dateSupplyNext(ScheduleOrderDetail scheduleOrderDetail) = dateSupply(next(scheduleOrderDetail));
 
     scheduleOrderDetail = DATA ScheduleOrderDetail(UserOrder) INDEXED;
@@ -421,19 +422,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                        isOpened(scheduleOrderDetail) AND NOT 
                        skip(scheduleOrderDetail, order) MATERIALIZED;
                
-    lastScheduleOrderDetailSupplierCustomer (DATE d,s,ss,c,cs) = 
-        GROUP LAST ScheduleOrderDetail sd
-               ORDER dateOrder(sd), sd 
-               WHERE dateOrder(sd) <= (d AS DATE) AND isOpened(sd)
-               BY supplier(sd), supplierStock(sd), customer(sd), customerStock(sd);             
-    isLast (ScheduleOrderDetail sd,DATE d)= lastScheduleOrderDetailSupplierCustomer(d,supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)) == sd;           
-
-    lastScheduleOrderDetailSupplierCustomer (s,ss,c,cs) = 
-        GROUP LAST ScheduleOrderDetail sd
-               ORDER dateOrder(sd), sd 
-               WHERE isOpened(sd)
-               BY supplier(sd), supplierStock(sd), customer(sd), customerStock(sd);             
-    isLast (ScheduleOrderDetail sd)= lastScheduleOrderDetailSupplierCustomer(supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)) == sd;   
+    isLast (ScheduleOrderDetail sd, DATE d)= dateOrder(sd) <= d AND NOT dateOrder(next(sd)) <= d;           
 
     isCycled 'Циклический' = DATA BOOLEAN (ScheduleOrder);
     
@@ -772,7 +761,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 //        FILTERGROUP openFilter
 //            FILTER 'Не аннулированные' 'F6' isOpenedScheduleOrderDetail(sd)  
                     
-        ORDERS dateSupply(sd)
+        ORDERS dateOrder(sd)
 
         FILTERS supplier(sd) == supplier() OR (sd IS ScheduleOrderDetail AND NOT supplier()),
                 supplierStock(sd) == supplierStock() OR (sd IS ScheduleOrderDetail AND NOT supplierStock()),
@@ -783,7 +772,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             FILTER 'Без заказов' sd IS ScheduleOrderDetail  AND NOT quantityOrders(sd) 'F11' DEFAULT
         FILTERGROUP countFilter
             FILTER 'Последний на дату' isLast(sd,d) 'F10' DEFAULT      
-            FILTER 'На дату' dateOrder(sd) <= d 'F9'                                                  
+            FILTER 'На дату' dateOrder(sd) <= d 'F9'
+        FILTERGROUP openedSchedule
+            FILTER 'Открыт' isOpened(sd) DEFAULT
              
         OBJECTS o = Order
         PROPERTIES (o) READONLY isPosted, number, series, date, time,
