@@ -149,6 +149,7 @@ sendMessageSigma(CashRegister c, STRING stringData){
     LOCAL messageToReceive = RAWFILE ();
     LOCAL zip = STRING ();
     zip() <- '16000000504B0506000000000000000000000000000000000000';
+    timeoutTcp() <- OVERRIDE timeoutReceive(), 10000;
     messageToReceive() <- formMessage('', reverseByteA(lpad(toHex(length(exchangeName())),8 ,'0')), exchangeName(), 
         reverseByteA(lpad(toHex(length(convertToByteA(stringData))),8 ,'0')), stringData, zip());
     EXTERNAL TCP ip(c) + ':11000' PARAMS messageToReceive();
@@ -267,8 +268,8 @@ receiveFromSigma(CashRegister c){
         IMPORT paymentsSigma XML FROM resultFile();
         FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c) NEW p = Payment DO{
             receipt(p) <- GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c;
-            paymentType(p) <- IF paymentTypeId(i) = '1' THEN (GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansCash)
-                ELSE (GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansCard);
+            paymentType(p) <- IF paymentTypeId(i) = '1' THEN (GROUP MAX PaymentType t IF sid(t) = 'cash')
+                ELSE (GROUP MAX PaymentType t IF sid(t) = 'card');
             sum(p) <- NUMERIC[18,4](paySum(i));            
         }
         //ануляция
@@ -433,8 +434,8 @@ reReceiveFromSigma(CashRegister c, RequestExchange req) {
         IMPORT paymentsSigma XML FROM resultFile();
         FOR imported(INTEGER i) AND (GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c) NEW p = Payment DO{
             receipt(p) <- GROUP MAX Receipt r IF STRING(idExchange(r)) = receiptId(i) AND cashRegister(r) = c;
-            paymentType(p) <- IF paymentTypeId(i) = '1' THEN (GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansCash)
-                ELSE (GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansCard);
+            paymentType(p) <- IF paymentTypeId(i) = '1' THEN (GROUP MAX PaymentType t IF sid(t) = 'cash')
+                            ELSE (GROUP MAX PaymentType t IF sid(t) = 'card');
             sum(p) <- NUMERIC[18,4](paySum(i));            
         }
         //ануляция
