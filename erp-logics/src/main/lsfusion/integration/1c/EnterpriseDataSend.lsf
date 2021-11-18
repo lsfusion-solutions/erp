@@ -309,6 +309,19 @@ EXTEND FORM sendMessage
 META defSaleInvoice(nm, class, table, extid)
     @extKeyProperties(nm, extid, reasonDocument, class, table);
 END
+
+META defSaleCreditNote(nm, class, table, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class###table = ###nm EXTID extid IN reasonDocument
+        PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+        FILTERS nm###class###table = nm(class###table)
+    
+        OBJECTS companyNote###class###table = Company EXTID 'Организация'
+        PROPERTIES(companyNote###class###table) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS companyNote###class###table = company(nm###class###table)
+    ;   
+END
+
 @extDocument(saleInvoice, 'РеализацияТоваровУслуг');
 @defPropId(operation, 'ВидОперации', TypeSaleInvoice, saleInvoice);
 @defPropObject(currency, 'Валюта', Currency, saleInvoice);
@@ -385,6 +398,83 @@ EXTEND FORM sendMessage
 
 @extTable(outcomeVatInvoice, reason);
 @defPropObjectDetail(saleInvoice, 'РеализацияТоваровУслугСсылка', SaleInvoice, outcomeVatInvoice, reason);
+
+//sale credit note
+@extDocument(saleCreditNote, 'КорректировкаРеализацииТоваров');
+@defPropObject(department, 'Подразделение', Department, saleCreditNote);
+@defPropObject(currency, 'Валюта', Currency, saleCreditNote);
+@defPropObject(partner, 'Контрагент', Partner, saleCreditNote);
+
+@defPropObjectDetail(saleCreditNote, 'КорректировкаРеализацииСсылка', SaleCreditNote, outcomeVatInvoice, reason);
+        
+//ссылка на продажу
+saleInvoice 'ДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote);
+WHEN CHANGED(saleInvoice(SaleCreditNote d)) DO {
+    packet(Configuration c, saleInvoice(d)) <- NULL WHERE c IS Configuration;
+    in(Configuration c, saleInvoice(d)) <- TRUE WHERE inSending(c, saleInvoice(d)) AND NOT date(saleInvoice(d)) < dateStartExchange(c);
+}
+
+saleInvoiceSaleCreditNote 'ДокументРеализации' = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM sendMessage
+    OBJECTS saleInvoiceSaleCreditNote = SaleInvoice EXTID 'РеализацияТоваровУслугСсылка' IN saleDocument
+    PROPERTIES(saleInvoiceSaleCreditNote) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+    FILTERS saleInvoiceSaleCreditNote = saleInvoice(saleCreditNote)
+
+    OBJECTS companySaleInvoiceSaleCreditNote = Company EXTID 'Организация'
+    PROPERTIES(companySaleInvoiceSaleCreditNote) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS companySaleInvoiceSaleCreditNote = company(saleInvoiceSaleCreditNote)
+;   
+
+//еще одна ссылка на продажу
+correctedSaleInvoice 'ИсправляемыйДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote);
+WHEN CHANGED(correctedSaleInvoice(SaleCreditNote d)) DO {
+    packet(Configuration c, saleInvoice(d)) <- NULL WHERE c IS Configuration;
+    in(Configuration c, saleInvoice(d)) <- TRUE WHERE inSending(c, saleInvoice(d)) AND NOT date(saleInvoice(d)) < dateStartExchange(c);
+}
+
+correctedSaleInvoiceSaleCreditNote 'ИсправляемыйДокументРеализации' = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM sendMessage
+    OBJECTS correctedSaleInvoiceSaleCreditNote = SaleInvoice EXTID 'РеализацияТоваровУслугСсылка' IN correctedSaleDocument
+    PROPERTIES(correctedSaleInvoiceSaleCreditNote) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+    FILTERS correctedSaleInvoiceSaleCreditNote = correctedSaleInvoice(saleCreditNote)
+
+    OBJECTS companyCorrectedSaleInvoiceSaleCreditNote = Company EXTID 'Организация'
+    PROPERTIES(companyCorrectedSaleInvoiceSaleCreditNote) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS companyCorrectedSaleInvoiceSaleCreditNote = company(correctedSaleInvoiceSaleCreditNote)
+;
+@defPropId(operation, 'ВидОперации', TypeSaleCreditNote, saleCreditNote);
+@defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, saleCreditNote);
+@defPropSimple(note, 'Комментарий', STRING, saleCreditNote);
+
+@extTable(saleCreditNote, product);
+@defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, saleCreditNote, product);
+@defPropDetail(item, 'Номенклатура', Item, saleCreditNote);
+GROUP itemDataSaleCreditNoteProduct EXTID 'ДанныеНоменклатуры';
+EXTEND FORM sendMessage
+    OBJECTS itemSaleCreditNoteProduct = Item EXTID 'Номенклатура' IN itemDataSaleCreditNoteProduct
+    PROPERTIES(itemSaleCreditNoteProduct) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
+    FILTERS itemSaleCreditNoteProduct = item(saleCreditNoteProduct)
+;
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, saleCreditNote, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleCreditNote, product);
+@defPropSimpleDetail(quantityChanged, 'КоличествоДоИзменения', NUMERIC[15,3], saleCreditNote, product);
+@defPropSimpleDetail(quantityCorrected, 'КоличествоДоКорректировки', NUMERIC[15,3], saleCreditNote, product);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], saleCreditNote, product);
+@defPropSimpleDetail(sumChanged, 'СуммаДоИзменения', NUMERIC[15,2], saleCreditNote, product);
+@defPropSimpleDetail(sumCorrected, 'СуммаДоКорректировки', NUMERIC[15,2], saleCreditNote, product);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], saleCreditNote, product);
+@defPropSimpleDetail(priceChanged, 'ЦенаДоИзменения', NUMERIC[15,2], saleCreditNote, product);
+@defPropSimpleDetail(priceCorrected, 'ЦенаДоКорректировки', NUMERIC[15,2], saleCreditNote, product);
+@defPropIdDetail(rateVat, 'СтавкаНДС', TypeVat, saleCreditNote, product);
+@defPropIdDetail(rateVatChanged, 'СтавкаНДСДоИзменения', TypeVat, saleCreditNote, product);
+@defPropIdDetail(rateVatCorrected, 'СтавкаНДСДоКорректировки', TypeVat, saleCreditNote, product);
+@defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], saleCreditNote, product);
+@defPropSimpleDetail(sumVatChanged, 'СуммаНДСНДСДоИзменения', NUMERIC[15,2], saleCreditNote, product);
+@defPropSimpleDetail(sumVatCorrected, 'СуммаНДСНДСДоКорректировки', NUMERIC[15,2], saleCreditNote, product);
+@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], saleCreditNote, product);
+@defPropSimpleDetail(declarationChanged, 'НомерГТДДоИзменения', STRING[30], saleCreditNote, product);
 
 // shipment
 @extDocument(shipment, 'ПеремещениеТоваров');
