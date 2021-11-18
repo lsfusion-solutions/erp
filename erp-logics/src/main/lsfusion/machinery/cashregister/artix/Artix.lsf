@@ -49,6 +49,8 @@ export = DATA LOCAL BOOLEAN (CustomGroup);
 export = DATA LOCAL BOOLEAN (Sku);
 beforeExport  ABSTRACT LIST (GroupCashRegister);
 
+directoryPickList 'Директория для пиклиста' = DATA STRING[250](GroupCashRegister);
+
 exportPickList 'Выгрузить' (GroupCashRegister gm) {
     NEWSESSION {
         export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm); 
@@ -109,8 +111,8 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
         LOCAL name = STRING[50]();
         name() <- 'pos' + toChar(currentDateTime(), 'YYYYMMDDHH24MISS');
     
-        WRITE aif() TO 'file://' + directory(gm) + '/'+ name();
-        WRITE flz() TO 'file://' + directory(gm) + '/'+ name();
+        WRITE aif() TO 'file://' + directoryPickList(gm) + '/'+ name();
+        WRITE flz() TO 'file://' + directoryPickList(gm) + '/'+ name();
         
         APPLY;
         
@@ -146,11 +148,12 @@ exportPickListForm 'Выгрузить Пиклист' (GroupCashRegister gm) {
 }
 
 EXTEND FORM groupCashRegister 
-    PROPERTIES (grc) SHOWIF sidModel(grc) == 'Artix' nameCustomGroupTypeArtix, exportPickListForm;
+    PROPERTIES (grc) SHOWIF sidModel(grc) == 'Artix' nameCustomGroupTypeArtix, directoryPickList, exportPickListForm;
     
 DESIGN groupCashRegister{
     topContainer{
         MOVE PROPERTY (nameCustomGroupTypeArtix(grc));
+        MOVE PROPERTY (directoryPickList(grc));
         MOVE PROPERTY (exportPickListForm(grc));
     }
 }
