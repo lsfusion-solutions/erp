@@ -502,6 +502,8 @@ forwarder 'Товар к перевозке принял (экспедитор),
 
 customSelectForwarder = ABSTRACT BOOLEAN (Consignment);
 overSelectForwarder ABSTRACT (Consignment);
+customSelectEmploees = ABSTRACT BOOLEAN (Consignment);
+overSelectEmploees ABSTRACT (Consignment);
 
 changeForwarder(Consignment consignment)  {     
     IF notUseDriverTruck(consignment) THEN {
@@ -509,9 +511,12 @@ changeForwarder(Consignment consignment)  {
             dataNameForwarder(consignment) <- s;
         }         
     } ELSE {
-        DIALOG dialogEmployees OBJECTS e = dataForwarder(consignment) INPUT NULL DO {
-            dataForwarder(consignment) <- e;
-        }
+        IF customSelectEmploees(consignment) THEN
+            overSelectEmploees(consignment);
+        ELSE
+            DIALOG dialogEmployees OBJECTS e = dataForwarder(consignment) INPUT NULL DO {
+                dataForwarder(consignment) <- e;
+            }
     }        
 }
 
