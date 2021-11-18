@@ -1147,6 +1147,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Set<Integer> cardPayments = parsePayments(artixSettings.getCardPayments());
         Set<Integer> giftCardPayments = parsePayments(artixSettings.getGiftCardPayments());
         Set<Integer> customPayments = parsePayments(artixSettings.getCustomPayments());
+        Set<Integer> oplatiPayments = parsePayments(artixSettings.getOplatiPayments());
         int externalSumType = artixSettings.getExternalSumType();
         boolean medicineMode = artixSettings.isMedicineMode();
         boolean receiptIdentifiersToExternalNumber = artixSettings.isReceiptIdentifiersToExternalNumber();
@@ -1315,6 +1316,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 if(customPayments.contains(paymentType)) {
                                                     BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(paymentType));
                                                     customPaymentsMap.put(String.valueOf(paymentType), safeAdd(customPaymentSum, sum));
+                                                } else if (oplatiPayments.contains(paymentType)) {
+                                                    BigDecimal customPaymentSum = customPaymentsMap.get("oplati");
+                                                    customPaymentsMap.put("oplati", safeAdd(customPaymentSum, sum));
                                                 } else {
                                                     if (cashPayments.contains(paymentType)) //нал
                                                         paymentType = 1;
