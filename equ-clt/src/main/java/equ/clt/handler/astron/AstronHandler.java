@@ -591,9 +591,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             if(params.pgsql) {
                 Set<Integer> failedPackIds = new HashSet<>();
                 Set<Integer> readPackIds = readPackIds(conn, params);
+                astronPackLogger.info("readPackIds: " + readPackIds);
                 for (ItemInfo item : itemsList) {
                     List<Integer> packIds = getPackIds(item);
                     for (Integer packId : packIds) {
+                        astronPackLogger.info("readPackIds: test " + packId + "=" + readPackIds.contains(packId));
                         if(!readPackIds.contains(packId)) {
                             failedPackIds.add(packId);
                         }
