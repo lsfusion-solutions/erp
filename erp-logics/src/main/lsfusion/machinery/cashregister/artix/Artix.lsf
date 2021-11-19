@@ -46,7 +46,7 @@ encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\
 skipFilterBalance 'Не фильтровать по остаткам' = DATA LOCAL NESTED BOOLEAN ();
 doClear 'С очисткой' = DATA LOCAL NESTED BOOLEAN ();
 export = DATA LOCAL BOOLEAN (CustomGroup);
-export = DATA LOCAL BOOLEAN (Sku);
+idParent = DATA LOCAL STRING (Sku);
 beforeExport  ABSTRACT LIST (GroupCashRegister);
 
 directoryPickList 'Директория для пиклиста' = DATA STRING[250](GroupCashRegister);
@@ -61,12 +61,12 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
         
         export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm); 
         
-        export(Sku s) <- ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR  skipFilterBalance()) 
-                        AND id(customGroup(dataCustomGroupTypeArtix(gm), s)) AND active(s); 
+        idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR skipFilterBalance()) 
+                        AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s); 
         
         beforeExport(gm);
         
-        FOR export(Sku s) AND hasImage(s) AND NOT imageArtix(s) DO {
+        FOR idParent(Sku s) AND hasImage(s) AND NOT imageArtix(s) DO {
             TRY {
                 convertedImage() <- NULL;
                 convertImage((OVERRIDE smallImage(s), image(s)), 'png');
@@ -100,10 +100,10 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
                                 '"code": "' + id(Sku s) + '"',
                                 '"name": "' + name(s) + '"',
                                 '"image": "' + encodeBase64(imageArtix(s)) + '"',
-                                '"parent": "' + id(customGroup(dataCustomGroupTypeArtix(gm), s)) + '"',
+                                '"parent": "' + idParent(s) + '"',
                                 '"tmccode": "' + overId(s) + '"'
                             ) 
-                        + '\}\}') IF export(s), '\n---\n' ORDER s)
+                        + '\}\}') IF idParent(s), '\n---\n' ORDER s)
                     +'\n---\n';
         
         LOCAL aif = FILE ();
