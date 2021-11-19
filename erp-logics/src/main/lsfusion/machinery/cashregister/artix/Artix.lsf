@@ -53,6 +53,12 @@ directoryPickList 'Директория для пиклиста' = DATA STRING[2
 
 exportPickList 'Выгрузить' (GroupCashRegister gm) {
     NEWSESSION {
+        
+        IF NOT directoryPickList(gm) THEN {
+            MESSAGE name(gm) +': Не задан путь выгрузки пиклиста' NOWAIT;
+            RETURN;
+        }
+        
         export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm); 
         
         export(Sku s) <- ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR  skipFilterBalance()) 
