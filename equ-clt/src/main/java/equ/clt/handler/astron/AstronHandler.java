@@ -264,19 +264,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 astronLogger.info(String.format("transaction %s, table DATAPUMP", transaction.id));
                                 exportUpdateNums(conn, params, outputUpdateNums);
                             } else if (lastTransaction) {
-
-                                //todo: временный лог для отслеживания packid
-                                astronPackLogger.info("All PACKID in table PACK: " + getPackIds(conn, params));
-
                                 astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
-
                                 exportFlags(conn, params, tables);
                                 Exception e = waitFlags(conn, params, tables, timeout);
                                 if (e != null) {
                                     throw e;
                                 }
                             }
-
 
                             for (CashRegisterItem usedDeleteBarcode : usedDeleteBarcodeList) {
                                 deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
@@ -357,10 +351,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 ps.addBatch();
                                 batchCount++;
                                 if(maxBatchSize != null && batchCount == maxBatchSize) {
-                                    ps.executeBatch();
-                                    conn.commit();
+                                    executeAndCommitBatch(ps, conn);
                                     batchCount = 0;
-                                    astronLogger.info("execute and commit batch");
                                 }
                                 usedGrp.add(idGroup);
                             }
@@ -368,8 +360,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     }
                 }
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -412,15 +403,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     ps.addBatch();
                     batchCount++;
                     if(maxBatchSize != null && batchCount == maxBatchSize) {
-                        ps.executeBatch();
-                        conn.commit();
+                        executeAndCommitBatch(ps, conn);
                         batchCount = 0;
-                        astronLogger.info("execute and commit batch");
                     }
                 } else break;
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -464,15 +452,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     ps.addBatch();
                     batchCount++;
                     if(maxBatchSize != null && batchCount == maxBatchSize) {
-                        ps.executeBatch();
-                        conn.commit();
+                        executeAndCommitBatch(ps, conn);
                         batchCount = 0;
-                        astronLogger.info("execute and commit batch");
                     }
                 } else break;
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -508,17 +493,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         ps.addBatch();
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
-                            ps.executeBatch();
-                            conn.commit();
+                            executeAndCommitBatch(ps, conn);
                             batchCount = 0;
-                            astronLogger.info("execute and commit batch");
                         }
                     }
 
                 } else break;
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -596,40 +578,50 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
                             astronPackLogger.info("Pack: executeBatch started");
-                            int[] result = ps.executeBatch();
-                            List<Integer> resultList = Arrays.stream(result).boxed().collect(Collectors.toList());
-                            astronPackLogger.info("Pack: executeBatch result: " + resultList.stream().map(Object::toString).collect(Collectors.joining(", ")));
-                            conn.commit();
-                            astronPackLogger.info("Pack: commit finished");
+                            executeAndCommitBatch(ps, conn);
                             batchCount = 0;
-                            astronLogger.info("execute and commit batch");
                         }
                     }
                 } else break;
             }
-            astronPackLogger.info("Pack: final executeBatch started");
-            int[] result = ps.executeBatch();
-            List<Integer> resultList = Arrays.stream(result).boxed().collect(Collectors.toList());
-            astronPackLogger.info("Pack: executeBatch result: " + resultList.stream().map(Object::toString).collect(Collectors.joining(", ")));
-            conn.commit();
-            astronPackLogger.info("Pack: commit finished");
+
+            executeAndCommitBatch(ps, conn);
+
+            //по какой-то причине packId может не записаться в таблицу pack. В таком случае, кидаем ошибку
+            if(params.pgsql) {
+                Set<Integer> failedPackIds = new HashSet<>();
+                Set<Integer> readPackIds = readPackIds(conn, params);
+                for (ItemInfo item : itemsList) {
+                    List<Integer> packIds = getPackIds(item);
+                    for (Integer packId : packIds) {
+                        if(!readPackIds.contains(packId)) {
+                            failedPackIds.add(packId);
+                        }
+                    }
+                }
+                if(!failedPackIds.isEmpty()) {
+                    String error = "Failed to write packIds: " + failedPackIds;
+                    astronPackLogger.error(error);
+                    throw new RuntimeException(error);
+                }
+            }
         }
     }
 
-    private String getPackIds(Connection conn, AstronConnectionString params) {
+    private Set<Integer> readPackIds(Connection conn, AstronConnectionString params) {
+        Set<Integer> packIds = new HashSet<>();
         if(params.pgsql) {
             try (Statement statement = conn.createStatement()) {
                 ResultSet result = statement.executeQuery("SELECT PACKID FROM PACK");
-                String packIds = "";
                 while (result.next()) {
-                    packIds += result.getInt(1) + "; ";
+                    packIds.add(result.getInt(1));
                 }
-                return packIds;
+
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
         }
-        return null;
+        return packIds;
     }
 
     private void exportPackDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItem> usedDeleteBarcodeList, Integer maxBatchSize, Integer updateNum) throws SQLException {
@@ -685,15 +677,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     ps.addBatch();
                     batchCount++;
                     if(maxBatchSize != null && batchCount == maxBatchSize) {
-                        ps.executeBatch();
-                        conn.commit();
+                        executeAndCommitBatch(ps, conn);
                         batchCount = 0;
-                        astronLogger.info("execute and commit batch");
                     }
                 } else break;
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -762,17 +751,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             ps.addBatch();
                             batchCount++;
                             if(maxBatchSize != null && batchCount == maxBatchSize) {
-                                ps.executeBatch();
-                                conn.commit();
+                                executeAndCommitBatch(ps, conn);
                                 batchCount = 0;
-                                astronLogger.info("execute and commit batch");
                             }
                         }
                     }
                 } else break;
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -812,16 +798,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         ps.addBatch();
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
-                            ps.executeBatch();
-                            conn.commit();
+                            executeAndCommitBatch(ps, conn);
                             batchCount = 0;
-                            astronLogger.info("execute and commit batch");
                         }
                     }
                 } else break;
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -844,10 +827,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, 1, false, keys.length, updateNum, transaction.id);
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
-                            ps.executeBatch();
-                            conn.commit();
+                            executeAndCommitBatch(ps, conn);
                             batchCount = 0;
-                            astronLogger.info("execute and commit batch");
                         }
 
                         if(exportExtraTables) {
@@ -864,10 +845,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         }
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
-                            ps.executeBatch();
-                            conn.commit();
+                            executeAndCommitBatch(ps, conn);
                             batchCount = 0;
-                            astronLogger.info("execute and commit batch");
                         }
 
                     } else {
@@ -875,8 +854,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     }
                 } else break;
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -968,15 +946,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     ps.addBatch();
                     batchCount++;
                     if(maxBatchSize != null && batchCount == maxBatchSize) {
-                        ps.executeBatch();
-                        conn.commit();
+                        executeAndCommitBatch(ps, conn);
                         batchCount = 0;
-                        astronLogger.info("execute and commit batch");
                     }
                 } else break;
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -1014,12 +989,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             if(maxBatchSize != null && recordCount == maxBatchSize) {
                                 astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
                                         recordCount, itemCount, groupMachinerySet.size(), packIdCount));
-                                ps.executeBatch();
-                                conn.commit();
+                                executeAndCommitBatch(ps, conn);
                                 recordCount = 0;
                                 packIdCount = 0;
                                 itemCount = 0;
-                                astronLogger.info("execute and commit batch");
                             }
                         }
                     }
@@ -1027,8 +1000,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
                     recordCount, itemCount, groupMachinerySet.size(), packIdCount));
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -1046,8 +1018,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 addPrcLevelRow(ps, params, transaction, offset, 3, keys.length, updateNum);
             }
 
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -1103,8 +1074,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             ps.addBatch();
 
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -1122,8 +1092,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 addSAreaPrcRow(ps, params, transaction, offset, 3, keys.length, updateNum);
             }
 
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -1179,8 +1148,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     ps.addBatch();
                 } else break;
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -1236,8 +1204,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, entry.getKey(), 2); //dirname
                 ps.addBatch();
             }
-            ps.executeBatch();
-            conn.commit();
+            executeAndCommitBatch(ps, conn);
         }
     }
 
@@ -1932,13 +1899,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         ps.addBatch();
                         count++;
                         if(count > 20000) {
-                            ps.executeBatch();
-                            conn.commit();
+                            executeAndCommitBatch(ps, conn);
                             count = 0;
                         }
                     }
-                    ps.executeBatch();
-                    conn.commit();
+                    executeAndCommitBatch(ps, conn);
 
                 } catch (SQLException | ClassNotFoundException e) {
                     throw Throwables.propagate(e);
@@ -2001,6 +1966,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    public void executeAndCommitBatch(PreparedStatement ps, Connection conn) throws SQLException {
+        ps.executeBatch();
+        conn.commit();
+        astronLogger.info("execute and commit batch finished");
     }
 
     public class AstronRecord {
