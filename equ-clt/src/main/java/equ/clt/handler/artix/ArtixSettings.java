@@ -208,7 +208,7 @@ public class ArtixSettings implements Serializable{
     }
 
     public Integer getTimeout() {
-        return timeout;
+        return timeout != null ? timeout : 180;
     }
 
     public void setTimeout(Integer timeout) {

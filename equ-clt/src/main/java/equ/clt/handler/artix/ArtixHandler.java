@@ -3,12 +3,15 @@ package equ.clt.handler.artix;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.api.stoplist.StopListInfo;
+import equ.api.stoplist.StopListItem;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.Pair;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -20,8 +23,9 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.sql.*;
 import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -67,7 +71,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
         boolean appendBarcode = artixSettings.isAppendBarcode();
         boolean isExportSoftCheckItem = artixSettings.isExportSoftCheckItem();
-        Integer timeout = artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
+        Integer timeout = artixSettings.getTimeout();
         boolean medicineMode = artixSettings.isMedicineMode();
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
@@ -227,24 +231,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                         }
 
-                        String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-                        File file = new File(directory + "/pos" + currentTime + ".aif");
-                        try {
-                            FileCopyUtils.copy(tmpFile, file);
-                        } finally {
-                            if (!tmpFile.delete()) {
-                                processTransactionLogger.info(String.format(logPrefix + "unable to delete pos file %s", tmpFile.getAbsolutePath()));
-                                tmpFile.deleteOnExit();
-                            }
-                        }
-
-                        File flagFile = new File(directory + "/pos" + currentTime + ".flz");
-                        if (!flagFile.createNewFile())
-                            processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s (Transaction %s)", flagFile.getAbsolutePath(), transaction.id));
-
-                        processTransactionLogger.info(String.format(logPrefix + "created pos file %s (Transaction %s)", file.getAbsolutePath(), transaction.id));
-                        waitForDeletion(file, flagFile, timeout);
-                        processTransactionLogger.info(String.format(logPrefix + "processed pos file %s (Transaction %s)", file.getAbsolutePath(), transaction.id));
+                        writeFileAndWait(directory, tmpFile, timeout, processTransactionLogger);
 
                         result.put(transaction.id, new SendTransactionBatch(null));
                     }
@@ -264,6 +251,54 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
         return result;
     }
+
+    @Override
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+        processStopListLogger.info(logPrefix + "Send StopList # " + stopListInfo.number + " to " + directorySet.size() + " directories.");
+        if (!stopListInfo.exclude) {
+
+            ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+            Integer timeout = artixSettings.getTimeout();
+
+            for (String directory : directorySet) {
+                processStopListLogger.info(logPrefix + String.format("start sending %s items to %s", stopListInfo.stopListItemMap.size(), directory));
+                File tmpFile = File.createTempFile("pos", ".aif");
+
+                for (Map.Entry<String, StopListItem> entry : stopListInfo.stopListItemMap.entrySet()) {
+                    ItemInfo item = entry.getValue();
+                    if (!Thread.currentThread().isInterrupted()) {
+                        String inventItem = getDeleteInventItemJSON(item);
+                        writeStringToFile(tmpFile, inventItem + "\n---\n");
+                    }
+                }
+
+                writeFileAndWait(directory, tmpFile, timeout, processStopListLogger);
+            }
+        }
+    }
+
+    public void writeFileAndWait(String directory, File tmpFile, Integer timeout, Logger logger) throws IOException {
+        String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        File file = new File(directory + "/pos" + currentTime + ".aif");
+
+        try {
+            FileCopyUtils.copy(tmpFile, file);
+        } finally {
+            if (!tmpFile.delete()) {
+                logger.info(String.format(logPrefix + "unable to delete pos file %s", tmpFile.getAbsolutePath()));
+                tmpFile.deleteOnExit();
+            }
+        }
+
+        File flagFile = new File(directory + "/pos" + currentTime + ".flz");
+        if (!flagFile.createNewFile())
+            logger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
+
+        logger.info(String.format(logPrefix + "created pos file %s", file.getAbsolutePath()));
+        waitForDeletion(file, flagFile, timeout);
+        logger.info(String.format(logPrefix + "processed pos file %s", file.getAbsolutePath()));
+    }
+
 
     private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode) throws JSONException {
         Set<CashRegisterItem> barcodes = new HashSet<>();
@@ -432,6 +467,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
         } else return null;
+    }
+
+    private String getDeleteInventItemJSON(ItemInfo item) throws JSONException {
+        JSONObject rootObject = new JSONObject();
+        rootObject.put("inventcode", trim(item.idItem != null ? item.idItem : item.idBarcode, 20)); //код товара
+        rootObject.put("command", "deleteInventItem");
+        return rootObject.toString();
     }
 
     private JSONObject getAdditionalPriceJSON(int priceCode, Double price, String name) {
@@ -1003,10 +1045,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             if (!discountCardList.isEmpty()) {
 
-                ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
-                String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
-                boolean exportClients = artixSettings != null && artixSettings.isExportClients();
-                Integer timeout = artixSettings == null || artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
+                ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+                String globalExchangeDirectory = artixSettings.getGlobalExchangeDirectory();
+                boolean exportClients = artixSettings.isExportClients();
+                Integer timeout = artixSettings.getTimeout();
                 if(globalExchangeDirectory != null) {
                     if (new File(globalExchangeDirectory).exists() || new File(globalExchangeDirectory).mkdirs()) {
                         machineryExchangeLogger.info(String.format(logPrefix + "Send DiscountCards to %s", globalExchangeDirectory));
@@ -1093,7 +1135,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         machineryExchangeLogger.info(logPrefix + "Send CashierInfoList");
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
-        Integer timeout = artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
+        Integer timeout = artixSettings.getTimeout();
         String globalExchangeDirectory = artixSettings.getGlobalExchangeDirectory();
         boolean useNamePositionInRankCashier = artixSettings.isUseNamePositionInRankCashier();
         if (globalExchangeDirectory != null) {
