@@ -656,10 +656,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         JSONObject inventGroupObject = new JSONObject();
         rootObject.put("mcashuser", inventGroupObject);
-        inventGroupObject.put("code", cashier.numberCashier); //код пользователя
+        inventGroupObject.put("code", cashier.idCashier); //код пользователя
         inventGroupObject.put("name", cashier.nameCashier); //полное имя пользователя
         inventGroupObject.put("login", cashier.nameCashier); //имя пользователя для входа в систему
-        inventGroupObject.put("password", cashier.numberCashier); //пароль для входа в систему
+        inventGroupObject.put("password", cashier.passwordCashier); //пароль для входа в систему
         //inventGroupObject.put("keyposition", 1); //номер положения клавиатурного ключа для подтверждения прав у пользователя
         inventGroupObject.put("rank", useNamePositionInRankCashier ? cashier.namePosition : cashier.idPosition); //должность пользователя
 

@@ -862,7 +862,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                 for (CashierInfo cashier : cashierInfoList) {
                     if((idPositionCashier == null || idPositionCashier.equals(cashier.idPosition)) && stockSet.contains(cashier.idStock)) {
-                        String record = String.format("+|%s|%s|%s|0|:::::::::::::::::::::::::", cashier.numberCashier, cashier.nameCashier, cashier.numberCashier);
+                        String record = String.format("+|%s|%s|%s|0|:::::::::::::::::::::::::", cashier.idCashier, cashier.nameCashier, cashier.idCashier);
                         writer.println(record);
                     }
                 }
