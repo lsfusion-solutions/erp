@@ -361,60 +361,58 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             Integer weightControlBypass = null;
             Integer requireQuantityManual = null;
             Integer requireQuantityScales = null;
-            if(item.info != null) {
-                JSONObject infoJSON = new JSONObject(item.info).optJSONObject("artix");
-                if (infoJSON != null) {
-                    Double alcoholPercent = infoJSON.optDouble("alcoholpercent");
-                    if(!alcoholPercent.isNaN()) {
-                        requireSaleRestrict = infoJSON.getInt("requiresalerestrict");
-                        inventObject.put("alcoholpercent", alcoholPercent);
-                    }
+            JSONObject infoJSON = getExtInfo(item.info);
+            if (infoJSON != null) {
+                Double alcoholPercent = infoJSON.optDouble("alcoholpercent");
+                if(!alcoholPercent.isNaN()) {
+                    requireSaleRestrict = infoJSON.getInt("requiresalerestrict");
+                    inventObject.put("alcoholpercent", alcoholPercent);
+                }
 
-                    Double secondPrice = infoJSON.optDouble("secondPrice");
-                    String secondPriceName = infoJSON.optString("secondPriceName", "VIP");
-                    Double thirdPrice = infoJSON.optDouble("thirdPrice");
-                    String thirdPriceName = infoJSON.optString("thirdPriceName", "Опт");
-                    if(!secondPrice.isNaN() || !thirdPrice.isNaN()) {
-                        JSONArray additionalPrices = new JSONArray();
-                        if(!secondPrice.isNaN()) {
-                            additionalPrices.put(getAdditionalPriceJSON(2, secondPrice, secondPriceName));
-                        }
-                        if(!thirdPrice.isNaN()) {
-                            additionalPrices.put(getAdditionalPriceJSON(3, thirdPrice, thirdPriceName));
-                        }
-                        inventObject.put("additionalprices", additionalPrices);
+                Double secondPrice = infoJSON.optDouble("secondPrice");
+                String secondPriceName = infoJSON.optString("secondPriceName", "VIP");
+                Double thirdPrice = infoJSON.optDouble("thirdPrice");
+                String thirdPriceName = infoJSON.optString("thirdPriceName", "Опт");
+                if(!secondPrice.isNaN() || !thirdPrice.isNaN()) {
+                    JSONArray additionalPrices = new JSONArray();
+                    if(!secondPrice.isNaN()) {
+                        additionalPrices.put(getAdditionalPriceJSON(2, secondPrice, secondPriceName));
                     }
+                    if(!thirdPrice.isNaN()) {
+                        additionalPrices.put(getAdditionalPriceJSON(3, thirdPrice, thirdPriceName));
+                    }
+                    inventObject.put("additionalprices", additionalPrices);
+                }
 
-                    hasQuantityOptions = infoJSON.optBoolean("hasquantityoptions");
+                hasQuantityOptions = infoJSON.optBoolean("hasquantityoptions");
 
-                    String ntin = trimToNull(infoJSON.optString("ntin"));
-                    if(ntin != null) {
-                        inventObject.put("ntin", ntin);
-                    }
+                String ntin = trimToNull(infoJSON.optString("ntin"));
+                if(ntin != null) {
+                    inventObject.put("ntin", ntin);
+                }
 
-                    String age = trimToNull(infoJSON.optString("age"));
-                    if(age != null) {
-                        inventObject.put("age", age);
-                    }
+                String age = trimToNull(infoJSON.optString("age"));
+                if(age != null) {
+                    inventObject.put("age", age);
+                }
 
-                    if(infoJSON.has("ageverify")) {
-                        ageVerify = infoJSON.optInt("ageverify");
-                    }
-                    if(infoJSON.has("visualverify")) {
-                        visualVerify = infoJSON.optInt("visualverify");
-                    }
-                    if(infoJSON.has("lowweight")) {
-                        lowWeight = infoJSON.optInt("lowweight");
-                    }
-                    if(infoJSON.has("weightcontrolbypass")) {
-                        weightControlBypass = infoJSON.optInt("weightcontrolbypass");
-                    }
-                    if(infoJSON.has("requirequantitymanual")) {
-                        requireQuantityManual = infoJSON.optInt("requirequantitymanual");
-                    }
-                    if(infoJSON.has("requirequantityscales")) {
-                        requireQuantityScales = infoJSON.optInt("requirequantityscales");
-                    }
+                if(infoJSON.has("ageverify")) {
+                    ageVerify = infoJSON.optInt("ageverify");
+                }
+                if(infoJSON.has("visualverify")) {
+                    visualVerify = infoJSON.optInt("visualverify");
+                }
+                if(infoJSON.has("lowweight")) {
+                    lowWeight = infoJSON.optInt("lowweight");
+                }
+                if(infoJSON.has("weightcontrolbypass")) {
+                    weightControlBypass = infoJSON.optInt("weightcontrolbypass");
+                }
+                if(infoJSON.has("requirequantitymanual")) {
+                    requireQuantityManual = infoJSON.optInt("requirequantitymanual");
+                }
+                if(infoJSON.has("requirequantityscales")) {
+                    requireQuantityScales = infoJSON.optInt("requirequantityscales");
                 }
             }
 
@@ -710,13 +708,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         cardGroupObject.put("name", d.nameDiscountCardType != null ? d.nameDiscountCardType : d.idDiscountCardType); //имя группы карт
         cardGroupObject.put("text", d.idDiscountCardType); //текст
 
-        if(d.extInfo != null) {
-            JSONObject infoJSON = new JSONObject(d.extInfo).optJSONObject("artix");
-            if (infoJSON != null) {
-                try {
-                    cardGroupObject.put("cardmode", infoJSON.getInt("cardmode"));
-                } catch (Exception ignored) {
-                }
+        JSONObject infoJSON = getExtInfo(d.extInfo);
+        if (infoJSON != null) {
+            try {
+                cardGroupObject.put("cardmode", infoJSON.getInt("cardmode"));
+            } catch (Exception ignored) {
             }
         }
 
@@ -754,6 +750,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         clientObject.put("sex", card.sexContact); //пол клиента
         if(card.birthdayContact != null && card.birthdayContact.compareTo(LocalDate.of(1900, 1, 1)) > 0 )
             clientObject.put("birthday", card.birthdayContact.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))); //день рождения, год рождения должен быть больше 1900
+
+        JSONObject infoJSON = getExtInfo(card.extInfo);
+        if (infoJSON != null) {
+            String extendedOptions = infoJSON.optString("extendedoptions");
+            if (!extendedOptions.isEmpty()) {
+                clientObject.put("extendedoptions", extendedOptions);
+            }
+        }
+
         rootObject.put("command", "addClient");
         return rootObject.toString();
     }
@@ -1073,12 +1078,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 usedGroups.add(d.idDiscountCardType);
                                 writeStringToFile(tmpFile, getAddCardGroupJSON(d) + "\n---\n");
                             }
-                            if(d.extInfo != null) {
-                                JSONObject infoJSON = new JSONObject(d.extInfo).optJSONObject("artix");
-                                if (infoJSON != null) {
-                                    if(infoJSON.optBoolean("ChangeCardAccount")) {
-                                        writeStringToFile(tmpFile, getAddChangeCardAccountJSON(d) + "\n---\n");
-                                    }
+                            JSONObject infoJSON = getExtInfo(d.extInfo);
+                            if (infoJSON != null) {
+                                if(infoJSON.optBoolean("ChangeCardAccount")) {
+                                    writeStringToFile(tmpFile, getAddChangeCardAccountJSON(d) + "\n---\n");
                                 }
                             }
                         }
@@ -1125,6 +1128,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
         return result;
+    }
+
+    private JSONObject getExtInfo(String extInfo) {
+        return extInfo != null ? new JSONObject(extInfo).optJSONObject("artix") : null;
     }
 
     private Timestamp parseTimestamp(String value) throws ParseException {
