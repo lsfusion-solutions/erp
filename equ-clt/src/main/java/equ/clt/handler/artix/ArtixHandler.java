@@ -371,14 +371,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     }
 
                     Double secondPrice = infoJSON.optDouble("secondPrice");
+                    String secondPriceName = infoJSON.optString("secondPriceName", "VIP");
                     Double thirdPrice = infoJSON.optDouble("thirdPrice");
+                    String thirdPriceName = infoJSON.optString("thirdPriceName", "Опт");
                     if(!secondPrice.isNaN() || !thirdPrice.isNaN()) {
                         JSONArray additionalPrices = new JSONArray();
                         if(!secondPrice.isNaN()) {
-                            additionalPrices.put(getAdditionalPriceJSON(2, secondPrice, "VIP"));
+                            additionalPrices.put(getAdditionalPriceJSON(2, secondPrice, secondPriceName));
                         }
                         if(!thirdPrice.isNaN()) {
-                            additionalPrices.put(getAdditionalPriceJSON(3, thirdPrice, "Опт"));
+                            additionalPrices.put(getAdditionalPriceJSON(3, thirdPrice, thirdPriceName));
                         }
                         inventObject.put("additionalprices", additionalPrices);
                     }
