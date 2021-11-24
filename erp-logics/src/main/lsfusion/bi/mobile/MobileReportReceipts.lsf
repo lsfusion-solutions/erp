@@ -137,11 +137,13 @@ EXTEND CLASS PaymentRow{
     card 'Карта' 
 }
 
-order (PaymentRow r) = CASE
-    WHEN r = PaymentRow.cash THEN '1'
-    WHEN r = PaymentRow.card THEN '2'
-;
+order = ABSTRACT CASE STRING (PaymentRow); 
 
+order (PaymentRow r) += WHEN r = PaymentRow.cash THEN 'Наличные';
+order (PaymentRow r) += WHEN r = PaymentRow.card THEN 'Карта';
+
+showCashPayment = DATA LOCAL BOOLEAN ();
+showCardPayment = DATA LOCAL BOOLEAN ();
 
 sumPositiveCardPaymentReport 'Сумма продажа (карточка)' (DepartmentStore s, DATE dateFrom, DATE dateTo)= GROUP SUM sumPositiveCardPayment(ZReport zReport) IF 
     date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
@@ -153,10 +155,11 @@ sumPositiveCashPaymentReport 'Сумма продажа (наличные)' (Dep
 sumCashPayment (DepartmentStore ds, INTERVAL[DATE] iq) = sumPositiveCashPaymentReport(ds, from(iq), to(iq));
 sumCardPayment (DepartmentStore ds, INTERVAL[DATE] iq) = sumPositiveCardPaymentReport(ds, from(iq), to(iq));
 
-measure '' (DepartmentStore ds, INTERVAL[DATE] iq, PaymentRow r) = CASE
-    WHEN r = PaymentRow.cash THEN sumCashPayment(ds, iq)
-    WHEN r = PaymentRow.card THEN sumCardPayment(ds, iq)
-;
+measure '' = ABSTRACT CASE NUMERIC[18,4] (DepartmentStore, INTERVAL[DATE], PaymentRow);
+measure (DepartmentStore ds, INTERVAL[DATE] iq, PaymentRow r) += WHEN r = PaymentRow.cash AND iq IS INTERVAL[DATE] AND ds IS DepartmentStore 
+    AND showCashPayment() THEN sumCashPayment(ds, iq);
+measure (DepartmentStore ds, INTERVAL[DATE] iq, PaymentRow r) += WHEN r = PaymentRow.card AND iq IS INTERVAL[DATE] AND ds IS DepartmentStore 
+    AND showCardPayment() THEN sumCardPayment(ds, iq);
 
 isMeasure(INTERVAL[DATE] id,  PaymentRow r) = GROUP MAX in(DepartmentStore ds) IF measure(ds, id, r);
 colorIndex (INTERVAL[DATE] id, PaymentRow r) = PARTITION SUM 1 IF isMeasure(id, r) ORDER order(r), id, r BY id;
@@ -164,12 +167,35 @@ color (INTERVAL[DATE] id, PaymentRow r) = pivotColor(colorIndex(id, r) - 1);
 
 switchRow ABSTRACT LIST (PaymentRow);
 
+switchRow(PaymentRow r) +{
+    IF r = PaymentRow.cash THEN {
+        IF showCashPayment() THEN showCashPayment() <- NULL;
+        ELSE showCashPayment() <- TRUE;
+    }
+}
+
+switchRow(PaymentRow r) +{
+    IF r = PaymentRow.card THEN {
+        IF showCardPayment() THEN showCardPayment() <- NULL;
+        ELSE showCardPayment() <- TRUE;
+    }
+}
+totalCashPayment 'Наличные' (INTERVAL[DATE] int) = GROUP SUM sumCashPayment(DepartmentStore ds, int) 
+    IF in(ds);
+totalCardPayment 'Карта' (INTERVAL[DATE] int) = GROUP SUM sumCardPayment(DepartmentStore ds, int) 
+    IF in(ds);
+
 
 EXTEND FORM mobileReport
+    PROPERTIES totalCashPayment(intervalDate) PANEL, totalCardPayment(intervalDate) PANEL 
+    
     OBJECTS paymentBar = (dspay = DepartmentStore, pr = PaymentRow) PIVOT 'Horizontal Stacked Bar Chart' NOSETTINGS 
     PROPERTIES READONLY paymentBarMobileName = mobileName(dspay), order(pr), measure(dspay, intervalDate, pr)
     PIVOT paymentBar CONFIG 'paymentType' COLUMNS paymentBarMobileName ROWS order(pr) MEASURES measure(dspay, intervalDate, pr)
     FILTERS measure(dspay, intervalDate, pr), in(dspay)
+    OBJECTS legendPr = PaymentRow
+    PROPERTIES switchRow(legendPr) BACKGROUND color(intervalDate, legendPr) DRAW paymentBar HEADER name(legendPr) COLUMNS (legendPr)
+    EVENTS ON INIT { showCashPayment() <- TRUE; showCardPayment() <- TRUE; }
 ;
 
 
@@ -178,9 +204,16 @@ DESIGN mobileReport {
         mobileTabbedPane {
             NEW paymentBar{
                 caption = 'Оплата';
+                NEW totalPayment{
+                    alignment = CENTER;
+                    type = CONTAINERH;
+                    MOVE PROPERTY (totalCashPayment(intervalDate)) FIRST { fontSize = 22;}
+                    MOVE PROPERTY (totalCardPayment(intervalDate)) {fontSize = 22;}
+                }
                 MOVE BOX (paymentBar) {REMOVE TOOLBARBOX(paymentBar); caption = ''; };
             }
         }
     }
 }
+
 

@@ -1,0 +1,38 @@
+MODULE MobileReportReceiptsGiftCard;
+
+REQUIRE MobileReportReceipts, GiftCard;
+
+EXTEND CLASS PaymentRow{
+    gift 'Сертфикат'
+}
+
+sumGiftPaymentReport 'Сумма продажа (cертификат)' (DepartmentStore s, DATE dateFrom, DATE dateTo)= GROUP SUM sumGiftCardPayment(ZReport zReport) IF 
+    date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
+        AND departmentStore(zReport) = s;
+
+sumGifPayment (DepartmentStore ds, INTERVAL[DATE] iq) = sumGiftPaymentReport(ds, from(iq), to(iq));
+
+order (PaymentRow r) += WHEN r = PaymentRow.gift THEN 'Сертификат';
+showGiftPayment = DATA LOCAL BOOLEAN ();
+measure (DepartmentStore ds, INTERVAL[DATE] iq, PaymentRow r) += WHEN r = PaymentRow.gift AND iq IS INTERVAL[DATE] 
+    AND ds IS DepartmentStore AND showGiftPayment() THEN sumGifPayment(ds, iq);
+
+switchRow(PaymentRow r) +{
+    IF r = PaymentRow.gift THEN {
+        IF showGiftPayment() THEN showGiftPayment() <- NULL;
+        ELSE showGiftPayment() <- TRUE;
+    }
+}
+totalGiftPayment 'Сертификат' (INTERVAL[DATE] int) = GROUP SUM sumGifPayment(DepartmentStore ds, int) IF in(ds);
+
+EXTEND FORM mobileReport
+    PROPERTIES totalGiftPayment(intervalDate) PANEL
+    
+    EVENTS ON INIT { showGiftPayment() <- TRUE; }
+;
+
+DESIGN mobileReport{
+    totalPayment{
+        MOVE PROPERTY (totalGiftPayment(intervalDate)) AFTER PROPERTY (totalCardPayment(intervalDate)) {fontSize = 22;}
+    }
+}

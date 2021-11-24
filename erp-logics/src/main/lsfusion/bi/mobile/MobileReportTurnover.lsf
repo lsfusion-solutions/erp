@@ -167,10 +167,10 @@ order (TurnoverRow r) = CASE
 
 isMeasure(INTERVAL[DATE] id, TurnoverRow cr) = GROUP MAX in(ItemGroup ds) IF measure(ds, id, cr);
 colorIndex (INTERVAL[DATE] id, TurnoverRow cr) = PARTITION SUM 1 IF isMeasure(id, cr) BY id;
-color (INTERVAL[DATE] id, TurnoverRow cr) = pivotColor(colorIndex(id, cr) - 1);
+color (INTERVAL[DATE] id, TurnoverRow cr) = IF id IS INTERVAL[DATE] AND cr IS TurnoverRow THEN RGB(153,255,153);//pivotColor(colorIndex(id, cr) - 1);
 
-colorGroup (ItemGroup g, TurnoverRow r, INTERVAL[DATE] iq) = IF in(g) AND r IS TurnoverRow 
-    THEN color(iq, r);
+colorGroup (ItemGroup g) = IF in(g) 
+    THEN RGB(153,255,153);
 
 switchRow ABSTRACT LIST (ItemGroup);
 
@@ -194,7 +194,8 @@ EXTEND FORM mobileTurnover
     FILTERS level(igt) = filterLevel() AND measure(igt, intervalDate, tr)
     
     OBJECTS legendGroup = ItemGroup
-    PROPERTIES switchRow(legendGroup)  BACKGROUND colorGroup(legendGroup, tr, intervalDate) HEADER name(legendGroup) COLUMNS (legendGroup)
+    //PROPERTIES switchRow(legendGroup) BACKGROUND colorGroup(legendGroup, tr, intervalDate) HEADER name(legendGroup) COLUMNS (legendGroup)
+    PROPERTIES switchRow(legendGroup) BACKGROUND colorGroup(legendGroup) HEADER name(legendGroup) COLUMNS (legendGroup) DRAW turnoverBar
     FILTERS  level(legendGroup) = filterLevel()
 ;
 
@@ -245,4 +246,3 @@ NAVIGATOR {
         NEW mobileTurnover;
     }
 }
-
