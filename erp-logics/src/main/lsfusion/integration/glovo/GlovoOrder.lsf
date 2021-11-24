@@ -119,8 +119,7 @@ createOrder(FILE f){
             qtyGlovo(detail) <- quantity(products);
             priceGlovo(detail) <- price(products);
             quantity(detail) <-quantityGlovoOrder(sku(detail), INTEGER (quantity(products))) WHERE sku(detail) IS Item;
-            price(detail) <- priceGlovoOrder(sku(detail), NUMERIC[16,4](price(products))/100) WHERE sku(detail) IS Item; //цена в центах/копейках
-            
+            price(detail) <- priceGlovoOrder(sku(detail), NUMERIC[16,4](price(products))/100) WHERE sku(detail) IS Item; //цена в центах/копейках    
         }
     }
     APPLY;
@@ -173,7 +172,7 @@ updateStatusOrder 'Обновление статуса заказа' (InternetOr
         headersGlovo('Authorization') <- token();
         headersGlovo('content-type') <- 'application/json';
         EXPORT JSON FROM status = statusGlovo(order) TO f;
-        EXTERNAL HTTP CONCAT '', 'https://stageapi.glovoapp.com/webhook/stores/201077/orders/', idAggregator(order),
+        EXTERNAL HTTP CONCAT '', urlServer(), 'webhook/stores/', storeIdGlovo(supplierStock(order)) ,'/orders/', idAggregator(order),
             '/status' HEADERS headersGlovo PARAMS f() TO answer;
     }
     CATCH {
@@ -213,7 +212,7 @@ modifyOrder 'Обновление заказа'(InternetOrder o){
     LOCAL headersGlovo = TEXT(STRING[100]);
     headersGlovo('Authorization') <- token();
     headersGlovo('content-type') <- 'application/json';
-    EXTERNAL HTTP POST 'https://stageapi.glovoapp.com/webhook/stores/201077/orders/' + idAggregator(o) +'/replace_products'
+    EXTERNAL HTTP POST CONCAT '', urlServer() , '/webhook/stores/', storeIdGlovo(supplierStock(o)), '/orders/' + idAggregator(o) +'/replace_products'
         HEADERS headersGlovo PARAMS f() TO answer;
 } 
  
