@@ -1,0 +1,227 @@
+MODULE PickList1;
+
+REQUIRE ExportCSOCustom;
+
+NAMESPACE PickList;
+
+exportPickListPath 'Каталог экспорта КСО (Пик лист)' = DATA STRING[255] (Store) CHARWIDTH 30;
+exportPickListPath 'Каталог экспорта КСО (Пик лист)' (DepartmentStore ds)= exportPickListPath(store(ds)) IF id(store(ds))==id(ds) CHARWIDTH 30;
+
+EXTEND FORM store
+    PROPERTIES (s) exportPickListPath
+;
+DESIGN store{
+    headerExtraParams{
+        MOVE PROPERTY (exportPickListPath(s));     
+    }
+}
+EXTEND FORM stores
+    PROPERTIES (s) READONLYIF isReadonly() exportPickListPath
+;
+
+GROUP Parameters;
+GROUP Categories;
+GROUP Pictures;
+GROUP Sounds;
+GROUP Languages;
+GROUP Items;
+
+extraId (CustomGroup g) = IF isLeaf(g) THEN 9 (+) (PARTITION SUM 1 IF isLeaf(g) ORDER id(g), g BY customGroupType(g));
+
+customGroupExtraId (INTEGER i, DepartmentStore ds) = GROUP LAST CustomGroup g IF extraId(g) == i AND customGroupType(g) == customGroupType(ds) ORDER g;
+
+extraNameEng = ABSTRACT ISTRING[250] (CustomGroup);
+extraNameBlr = ABSTRACT ISTRING[250] (CustomGroup);
+
+extraNameEng = ABSTRACT ISTRING[250] (Item);
+extraNameBlr = ABSTRACT ISTRING[250] (Item);
+
+pictureId(INTEGER g, INTEGER i) = CASE
+    WHEN i == 1 AND g IS INTEGER THEN 1
+    WHEN i == 2 AND g IS INTEGER THEN 2
+    WHEN i == 3 AND g IS INTEGER THEN 1
+    WHEN i == 4 AND g IS INTEGER THEN 2;
+resolution(INTEGER g, INTEGER i) = CASE
+    WHEN i == 1 AND g IS INTEGER THEN 800
+    WHEN i == 2 AND g IS INTEGER THEN 800
+    WHEN i == 3 AND g IS INTEGER THEN 1024
+    WHEN i == 4 AND g IS INTEGER THEN 1024;
+soundId(INTEGER g, INTEGER i) = CASE
+    WHEN i == 1 AND g IS INTEGER THEN 1
+    WHEN i == 2 AND g IS INTEGER THEN 2;
+extraId (INTEGER g, DepartmentStore ds) = CASE
+    WHEN g > 9 AND customGroupExtraId(g,ds) THEN STRING[10](g)
+    WHEN g == 9 AND ds IS DepartmentStore THEN 'Favorites'
+    WHEN g < 9 AND g > 1 AND ds IS DepartmentStore THEN STRING[10](g)
+    WHEN g == 1 AND ds IS DepartmentStore THEN '1';
+active (INTEGER g, DepartmentStore ds) = CASE
+    WHEN g > 9 AND customGroupExtraId(g,ds) THEN (IF active(customGroupExtraId(g,ds)) THEN 'True' ELSE 'False')
+    WHEN g == 9 AND ds IS DepartmentStore THEN 'True'
+    WHEN g < 9 AND g > 1 AND ds IS DepartmentStore THEN 'False'
+    WHEN g == 1 AND ds IS DepartmentStore THEN 'True';
+LCID (INTEGER g, INTEGER i) = CASE
+    WHEN i == 1 AND g IS INTEGER THEN '0419'
+    WHEN i == 2 AND g IS INTEGER THEN '0409'
+    WHEN i == 3 AND g IS INTEGER THEN '0422';
+Description (CustomGroup g, INTEGER i) = CASE
+    WHEN i == 1 AND g IS CustomGroup THEN name(g)
+    WHEN i == 2 AND g IS CustomGroup THEN  extraNameEng(g)//nameEng(g)
+    WHEN i == 3 AND g IS CustomGroup THEN extraNameBlr(g)//nameBlr(g)
+;
+DescriptionFavorites (INTEGER i) = CASE
+    WHEN i == 1 THEN 'Популярные'
+    WHEN i == 2 THEN 'Favorites'
+    WHEN i == 3 THEN 'Папулярныя';
+DescriptionAll (INTEGER i) = CASE
+    WHEN i == 1 THEN 'ВСЕ'
+    WHEN i == 2 THEN 'ALL'
+    WHEN i == 3 THEN 'УСЕ';
+Description (INTEGER g, INTEGER i, DepartmentStore ds) = CASE
+    WHEN g > 9 AND i IS INTEGER AND customGroupExtraId(g,ds) THEN Description(customGroupExtraId(g,ds),i)
+    WHEN g == 9 AND i IS INTEGER AND ds IS DepartmentStore THEN DescriptionFavorites(i)
+    WHEN g < 9 AND g > 1 AND i IS INTEGER AND ds IS DepartmentStore THEN STRING[10](g)
+    WHEN g == 1 AND i IS INTEGER AND ds IS DepartmentStore THEN DescriptionAll(i);
+InCategories (INTEGER g, INTEGER i) = IF i IS INTEGER AND g > 9 THEN '1';
+
+LCID (Item s, INTEGER i) = CASE
+    WHEN i == 1 AND s IS Item THEN '0419'
+    WHEN i == 2 AND s IS Item THEN '0409'
+    WHEN i == 3 AND s IS Item THEN '0422';
+Description (Item s, INTEGER i) = CASE
+    WHEN i == 1 AND s IS Item THEN nameAttribute(s)
+    WHEN i == 2 AND s IS Item THEN extraNameEng(s)//nameEng(s)
+    WHEN i == 3 AND s IS Item THEN extraNameBlr(s)//nameBlr(s);
+;
+SubCategories (DepartmentStore ds, Item s, INTEGER i) = extraId(customGroup(customGroupType(ds),s)) IF i IS INTEGER;
+
+departmentItem (DepartmentStore ds) = right(id(ds),3);
+isQuantityItem (Item i) = IF (passScales(i) AND (shortNameUOM(i) == 'кг.' OR id(UOM(i)) == '166' OR id(UOM(i)) == 'Г')) OR split(i) THEN 'False' ELSE 'True';
+activeItem (Item i) = IF active(i) THEN 'True' ELSE 'False';
+
+filterCSOCustom = ABSTRACT BOOLEAN (DepartmentStore,Item);
+
+FORM exportPickList FORMEXTID 'PickList'
+    PROPERTIES IN Parameters PickListSize = '20', DefaultLanguage = '0419', Languages = '0409,0419,0422', Resolution = '800,1024', Group = '', NumberOfPickListItems = '-1'
+    OBJECTS ds = DepartmentStore PANEL
+    OBJECTS g = INTEGER EXTID 'Category' IN Categories
+    PROPERTIES DRAW g extraId(g,ds) EXTID 'Id' ATTR, active(g,ds) EXTID 'IsVisible', isQuickPickItemGroup = 'False' EXTID 'IsQuickPickItem',
+                      alphabetic = '' EXTID 'Alphabetic', isTaxableGroup = 'False' EXTID 'IsTaxable', isCustomizable = 'False' EXTID 'IsCustomizable',
+                      min = '0' EXTID 'Min', max = '0' EXTID 'Max'
+    FILTERS iterate(g,1,(GROUP MAX extraId(CustomGroup gr) IF customGroupType(gr) == customGroupType(ds)))
+    
+    OBJECTS gp = INTEGER EXTID 'Picture' IN Pictures
+    PROPERTIES pictureId(g,gp) EXTID 'ID' ATTR, resolution(g,gp) EXTID 'Resolution' ATTR
+    FILTERS iterate(gp,1,4)
+    
+    OBJECTS gs = INTEGER EXTID 'Sound' IN Sounds
+    PROPERTIES soundId(g,gs) EXTID 'ID' ATTR
+    FILTERS iterate(gs,1,2)
+    
+    OBJECTS gl = INTEGER EXTID 'Language' IN Languages
+    PROPERTIES DRAW gl LCID(g,gl) ATTR, Description(g,gl,ds), gScreenTitle = '' EXTID 'ScreenTitle', gInstructions = '' EXTID 'Instructions', InCategories(g,gl)
+    FILTERS Description(g,gl,ds) AND LCID(g,gl)
+    
+    OBJECTS i = Item EXTID 'Item' IN Items
+    PROPERTIES DRAW i idBarcode(i) EXTID 'UPC' ATTR, pictures = '' EXTID 'Pictures', departmentItem(ds) EXTID 'Department',
+                      isQuantityItem(i) EXTID 'IsQuantity', isQuickPickItem = 'False' EXTID 'IsQuickPickItem', isPopularItem = 'False' EXTID 'IsPopular',
+                      activeItem(i) EXTID 'IsVisible', deleteThisItem = 'False' EXTID 'DeleteThisItem', isZeroWeightItem = 'False' EXTID 'IsZeroWeightItem',
+                      isTaxable = 'False' EXTID 'IsTaxable', isExtra = 'False' EXTID 'IsExtra', sounds = '' EXTID 'Sounds'
+    FILTERS filterCSOCustom(ds,i) AND customGroup(customGroupType(ds),i)
+    OBJECTS il = INTEGER EXTID 'Language' IN Languages
+    PROPERTIES DRAW il LCID(i,il) ATTR, categories = '' EXTID 'Categories', Description(i,il), SubCategories(ds,i,il), sortingString = '' EXTID 'SortingString'
+    FILTERS Description(i,il) AND LCID(i,il)
+;
+
+exportDataPickList(DepartmentStore ds) {
+    TRY {
+        EXPORT exportPickList OBJECTS ds = ds XML CHARSET 'UTF-16';
+        mkdir(exportPickListPath(ds) + '/report/data');
+        WRITE exportFile() TO 'file://' + exportPickListPath(ds) + '/report/data/' + 'PickList';
+        MESSAGE (CONCAT  '', 'Категории и товары выгружены: ', name(ds)) NOWAIT;
+    } CATCH {
+        MESSAGE CONCAT '\n', (CONCAT  '', 'Ошибка выгрузки категорий и товаров: ', name(ds)), messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException() NOWAIT;
+    }
+}
+
+image146x88 = DATA IMAGEFILE (CustomGroup);
+image91x102 = DATA IMAGEFILE (CustomGroup);
+image240x240 = DATA IMAGEFILE (CustomGroup);
+image146x88 = DATA IMAGEFILE (Item);
+image91x102 = DATA IMAGEFILE (Item);
+image240x240 = DATA IMAGEFILE (Item);
+
+WHEN SETCHANGED (image(CustomGroup g)) DO { 
+    TRY {
+        resizeImage(image(g), 146, 88);
+        image146x88(g) <- resizedImage();
+        resizeImage(image(g), 91, 102);
+        image91x102(g) <- resizedImage();
+        resizeImage(image(g), 240, 240);
+        image240x240(g) <- resizedImage();
+    }
+}
+
+WHEN SETCHANGED (image(Item i)) DO { 
+    TRY {
+        resizeImage(image(i), 146, 88);
+        image146x88(i) <- resizedImage();
+        resizeImage(image(i), 91, 102);
+        image91x102(i) <- resizedImage();
+        resizeImage(image(i), 240, 240);
+        image240x240(i) <- resizedImage();
+    }
+}
+exportImagePickListExtra ABSTRACT LIST(DepartmentStore);
+
+exportImagePickList(DepartmentStore ds) {
+    TRY {
+        mkdir(exportPickListPath(ds) + '/image/Items/PickList');
+        mkdir(exportPickListPath(ds) + '/image/Items/QuickPick');
+        mkdir(exportPickListPath(ds) + '/image/Items');
+        exportImagePickListExtra(ds);
+        
+        FOR customGroupType(CustomGroup g) == customGroupType(ds) AND extraId(g) AND hasImage(g) AND (isLeaf(g) OR level(g) == 1) DO {
+            WRITE image146x88(g) TO 'file://' + exportPickListPath(ds) + '/image/Items/PickList/' + extraId(g) + '_cat';
+            WRITE image91x102(g) TO 'file://' + exportPickListPath(ds) + '/image/Items/QuickPick/' + extraId(g) + '_cat';
+            WRITE image240x240(g) TO 'file://' + exportPickListPath(ds) + '/image/Items/' + extraId(g) + '_cat';
+        }
+        FOR filterCSOCustom(ds, Item i) AND idBarcode(i) AND hasImage(i) AND customGroup(customGroupType(ds),i) DO {
+            WRITE image146x88(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/PickList/' + idBarcode(i);
+            WRITE image91x102(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/QuickPick/' + idBarcode(i);
+            WRITE image240x240(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/' + idBarcode(i);
+        }
+        MESSAGE (CONCAT  '', 'Изображения выгружены: ', name(ds)) NOWAIT;
+    } CATCH {
+        MESSAGE CONCAT '\n', (CONCAT  '', 'Ошибка выгрузки изображений: ', name(ds)), messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException() NOWAIT;
+    }
+}
+
+exportCSOPickList 'Выгрузить пик лист (магазин)' (DepartmentStore ds)  {
+    IF exportPickListPath(ds) AND customGroupType(ds) THEN {
+        NEWSESSION {
+            exportDataPickList(ds);
+            exportImagePickList(ds);                                                                                                            
+        }
+    } ELSE {
+        MESSAGE 'Не задан каталог экспорта КСО (Пик лист)' NOWAIT;
+    }
+}
+exportCSOPickList 'Выгрузить пик лист' (CustomGroupType type)  {
+    FOR active(DepartmentStore ds) AND  customGroupType(ds) == type DO {
+        exportCSOPickList(ds);
+    }
+}
+//-- в планировщик
+exportCSOPickList 'Выгрузить пик лист (планировщик)' ()  {
+    FOR isCSO(CustomGroupType type) DO {
+        exportCSOPickList(type);
+    }
+}
+
+// Добавление кнопки на форму надо в каждой логике самому прописать
+
+//EXTEND FORM integrationData 
+//    PROPERTIES (type) TOOLBAR exportCSOPickList
+//    PROPERTIES (cs) exportPickListPath READONLY, exportCSOPickList TOOLBAR
+//    PROPERTIES exportCSOPickList() PANEL DRAW cs
+//;
