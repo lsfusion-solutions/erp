@@ -225,7 +225,7 @@ receiveFromFit (CashRegister cr) {
                     }
                     
                     FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '+' AND
-                        STRING rs = receiptString(GROUP MAX INTEGER l IF isReceipt(receiptString(l)) AND l < j) AND
+                        STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
                         Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12)))
                             DO NEW d = ReceiptSaleDetail {
                                 receipt(d) <- r;
@@ -235,7 +235,7 @@ receiveFromFit (CashRegister cr) {
                                 discountSum(d) <- NUMERIC[18,4](NUMERIC(substr(srl, 40, 11)) / 100);
                     }   
                     FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '-' AND
-                        STRING rs = receiptString(GROUP MAX INTEGER l IF isReceipt(receiptString(l)) AND l < j) AND
+                        STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
                         Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12)))
                             DO NEW d = ReceiptReturnDetail {
                                 receipt(d) <- r;
@@ -245,7 +245,7 @@ receiveFromFit (CashRegister cr) {
                                 discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
                     }   
                     FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '04' AND
-                        STRING rs = receiptString(GROUP MAX INTEGER l IF isReceipt(receiptString(l)) AND l < j) AND
+                        STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
                         Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12)))
                             DO NEW p = Payment {
                                 receipt(p) <- r;
