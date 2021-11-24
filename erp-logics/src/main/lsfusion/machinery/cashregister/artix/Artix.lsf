@@ -59,10 +59,10 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
             RETURN;
         }
         
-        export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm); 
-        
         idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR skipFilterBalance()) 
                         AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s); 
+        
+        export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm) AND (GROUP SUM 1 IF id(cg) == idParent(Sku s)); 
         
         beforeExport(gm);
         
@@ -74,12 +74,19 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
         FOR idParent(Sku s) AND hasImage(s) AND NOT imageArtix(s) DO {
             TRY {
                 convertedImage() <- NULL;
-                convertImage((OVERRIDE smallImage(s), image(s)), 'png');
+                convertImage((OVERRIDE smallImage(s), image(s)), 'jpg');
                 imageArtix(s) <- convertedImage();
-                getFileSize(FILE(convertedImage()));
-                IF fileSize() > 40000 THEN {
-                    resizeImage(convertedImage(), sqrt(DOUBLE(fileSize())/30000));
+                
+                getFileSize(FILE(imageArtix(s)));
+                LOCAL count = INTEGER ();
+                count() <- 0;
+                
+                WHILE fileSize() > 45000 AND count() < 5 DO {
+                    resizeImage(imageArtix(s), sqrt(DOUBLE(fileSize())/40000));
                     imageArtix(s) <- resizedImage();
+                    
+                    getFileSize(FILE(imageArtix(s)));
+                    count() <- count() + 1;
                 }
             }
         }
