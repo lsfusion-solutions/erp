@@ -514,8 +514,13 @@ createProducts 'Заполнить изделия из спецификации 
         product(d) <- product;
         quantity(d) <- round3(quantity(product) * q);
         BOMQuantity(d) <- quantity(product);
-        supplier(d) <- OVERRIDE (GROUP LAST supplier(batch(ComponentDetail cd)) ORDER cd WHERE order(cd) == order AND keepSupplier(order)),
-                                (GROUP LAST lastSupplier(componentsStock(order), sku(ComponentDetail ccd)) ORDER ccd WHERE order(ccd) == order AND keepSupplier(order));
+    }
+    IF keepSupplier(order) THEN {
+        supplier(ProductDetail d) <- 
+              OVERRIDE
+                (GROUP MAX prevSupplier(batch(ComponentDetail cd)) IF order(cd) == order),
+                (GROUP MAX prevSupplierLastOrderBatch(sku(ComponentDetail cd), componentsStock(order)) IF order(cd) == order)
+        WHERE order(d) = order;
     }
     overCreateProducts(order);
 } TOOLBAR;
