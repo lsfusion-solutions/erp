@@ -159,12 +159,23 @@ META defineDocumentIncoming(doc, prop, container, legal, partner)
                 id(lot) <- uit_code(j);
                 sku(lot) <- sku(j);
             }
-    
-            FOR doc(###doc##Detail d) = i AND sku(INTEGER j) = sku(d) AND Lot l = lot(uit_code(j)) ORDER d, j DO {
+            
+            
+            LOCAL index = INTEGER (INTEGER);
+            index (INTEGER j) <- PARTITION SUM 1 ORDER j BY sku(j);
+            
+            LOCAL cumQuantity = NUMERIC[16,3] (###doc##Detail);
+            cumQuantity(###doc##Detail d) <- PARTITION SUM quantity(d) IF doc(d) = i ORDER d BY sku(d), doc(d);
+            
+            FOR Lot l = lot(uit_code(INTEGER j)) AND ###doc##Detail d = (GROUP MIN ###doc##Detail dd IF sku(j) = sku(dd) AND index(j) <= cumQuantity(dd)) ORDER j DO {
+                quantity(d, l) <- 1;
+            }
+
+            FOR doc(###doc##Detail d) = i AND sku(INTEGER j) = sku(d) AND Lot l = lot(uit_code(j)) AND NOT quantity(d) ORDER d, j DO {
                 quantity(d, l) <- 1;
             }
             
-            quantity(###doc##Detail d) <- quantityLot(d) WHERE doc(d) = i AND (GROUP SUM 1 IF sku(d) = sku(INTEGER j));
+            quantity(###doc##Detail d) <- quantityLot(d) WHERE doc(d) = i AND (GROUP SUM 1 IF sku(d) = sku(INTEGER j)) AND NOT quantity(d);
         }
     }
 
