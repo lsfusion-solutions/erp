@@ -7,6 +7,17 @@ NAMESPACE PickList;
 exportPickListPath 'Каталог экспорта КСО (Пик лист)' = DATA STRING[255] (Store) CHARWIDTH 30;
 exportPickListPath 'Каталог экспорта КСО (Пик лист)' (DepartmentStore ds)= exportPickListPath(store(ds)) IF id(store(ds))==id(ds) CHARWIDTH 30;
 
+useIdPickList 'Использовать Код товара для выгрузки в КСО (Пик лист)' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES useIdPickList() 
+;
+DESIGN integrationData {
+    kso {
+        MOVE PROPERTY (useIdPickList());
+    }
+}
+
 EXTEND FORM store
     PROPERTIES (s) exportPickListPath
 ;
@@ -100,6 +111,8 @@ activeItem (Item i) = IF active(i) THEN 'True' ELSE 'False';
 
 filterCSOCustom = ABSTRACT BOOLEAN (DepartmentStore,Item);
 
+idPickList (Item i) = IF useIdPickList() THEN id(i) ELSE idBarcode(i);
+
 FORM exportPickList FORMEXTID 'PickList'
     PROPERTIES IN Parameters PickListSize = '20', DefaultLanguage = '0419', Languages = '0409,0419,0422', Resolution = '800,1024', Group = '', NumberOfPickListItems = '-1'
     OBJECTS ds = DepartmentStore PANEL
@@ -122,7 +135,7 @@ FORM exportPickList FORMEXTID 'PickList'
     FILTERS Description(g,gl,ds) AND LCID(g,gl)
     
     OBJECTS i = Item EXTID 'Item' IN Items
-    PROPERTIES DRAW i idBarcode(i) EXTID 'UPC' ATTR, pictures = '' EXTID 'Pictures', departmentItem(ds) EXTID 'Department',
+    PROPERTIES DRAW i idPickList(i) EXTID 'UPC' ATTR, pictures = '' EXTID 'Pictures', departmentItem(ds) EXTID 'Department',
                       isQuantityItem(i) EXTID 'IsQuantity', isQuickPickItem = 'False' EXTID 'IsQuickPickItem', isPopularItem = 'False' EXTID 'IsPopular',
                       activeItem(i) EXTID 'IsVisible', deleteThisItem = 'False' EXTID 'DeleteThisItem', isZeroWeightItem = 'False' EXTID 'IsZeroWeightItem',
                       isTaxable = 'False' EXTID 'IsTaxable', isExtra = 'False' EXTID 'IsExtra', sounds = '' EXTID 'Sounds'
@@ -185,10 +198,10 @@ exportImagePickList(DepartmentStore ds) {
             WRITE image91x102(g) TO 'file://' + exportPickListPath(ds) + '/image/Items/QuickPick/' + extraId(g) + '_cat';
             WRITE image240x240(g) TO 'file://' + exportPickListPath(ds) + '/image/Items/' + extraId(g) + '_cat';
         }
-        FOR filterCSOCustom(ds, Item i) AND idBarcode(i) AND hasImage(i) AND customGroup(customGroupType(ds),i) DO {
-            WRITE image146x88(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/PickList/' + idBarcode(i);
-            WRITE image91x102(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/QuickPick/' + idBarcode(i);
-            WRITE image240x240(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/' + idBarcode(i);
+        FOR filterCSOCustom(ds, Item i) AND idPickList(i) AND hasImage(i) AND customGroup(customGroupType(ds),i) DO {
+            WRITE image146x88(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/PickList/' + idPickList(i);
+            WRITE image91x102(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/QuickPick/' + idPickList(i);
+            WRITE image240x240(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/' + idPickList(i);
         }
         MESSAGE (CONCAT  '', 'Изображения выгружены: ', name(ds)) NOWAIT;
     } CATCH {
