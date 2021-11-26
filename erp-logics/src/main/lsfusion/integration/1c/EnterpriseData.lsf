@@ -109,6 +109,7 @@ GROUP records EXTID 'Записи';
 GROUP saleDocument EXTID 'ДокументРеализации';
 GROUP correctedSaleDocument EXTID 'ИсправляемыйДокументРеализации';
 GROUP specification EXTID 'Характеристика';
+GROUP commonData EXTID 'ОбщиеДанные';
 
 GROUP item EXTID 'Номенклатура';
 
@@ -402,6 +403,17 @@ META defKeyPropSimple (nm, caption, class)
     @defKeyPropSimple(nm, caption, ISTRING, keyProperties, class);
 END
 
+META defKeyPropObject (nm, caption, type, group, class)
+    @defProp(nm, caption, type, class);
+    nm###class caption = DATA LOCAL INTEGER (INTEGER);
+    
+    EXTEND FORM receiveMessage
+        OBJECTS nm###class = INTEGER IN group EXTID caption
+        FILTERS nm###class(nm###class) = class
+    ;
+    @def###type(nm, class, group, caption);
+END
+
 META extKeyPropertiesDetail (nm, type, caption, group, obj, detail)
     EXTEND FORM sendMessage
         OBJECTS nm###obj###detail = ###type EXTID caption IN group
@@ -638,3 +650,8 @@ valueTypeVat (TypeVat t) += WHEN t = TypeVat.vat10d110 THEN 2000.0 / 120.0;
 @defStaticTypeValue(typeItem, revolvingPackage, 'МногооборотнаяТара');
 @defStaticTypeValue(typeItem, service, 'Услуга');
 @defStaticTypeValue(typeItem, work, 'Работа');
+@defStaticType(typeSettlement, 'ВидыРасчетовСКонтрагентами');
+@defStaticTypeValue(typeSettlement, supplier, 'СПоставщиком');
+@defStaticTypeValue(typeSettlement, customer, 'СПокупателем');
+@defStaticTypeValue(typeSettlement, loan, 'КредитыИЗаймы');
+@defStaticTypeValue(typeSettlement, other, 'Прочие');
