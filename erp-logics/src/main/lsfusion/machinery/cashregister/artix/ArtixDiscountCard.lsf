@@ -1,0 +1,105 @@
+MODULE ArtixDiscountCard;
+
+REQUIRE DiscountCard, CashRegister;
+
+NAMESPACE Artix;
+
+
+directoryArtix 'Путь к каталогу All' = DATA STRING[250](CashRegisterModel);
+stepArtix 'Шаг выгрузки дисконтных карт' = DATA INTEGER (CashRegisterModel);
+EXTEND FORM cashRegisterModel 
+    PROPERTIES (c) SHOWIF sid(c) == 'Artix' directoryArtix, stepArtix;
+
+inExportStep = DATA LOCAL BOOLEAN (DiscountCard);
+
+regexpMatch = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
+getQuotedAttribute(STRING string, STRING attr) = getWord(regexpMatch(string, '"'+attr+'":".*?["]'), ':', 2); 
+
+exportDiscountCardsStep 'Выгрузить дисконтные карты' () {
+        
+    IF NOT directoryArtix(cashRegisterSID('Artix')) THEN {
+        MESSAGE 'Не задан путь к каталогу для выгрузки' NOWAIT;
+        RETURN;
+    }
+    
+    IF NOT (GROUP SUM 1 IF inExportStep(DiscountCard s)) THEN {
+        MESSAGE 'Нет карт к выгрузке' NOWAIT;
+        RETURN;
+    }
+    LOCAL rezult = TEXT ();
+    
+    rezult() <- CONCAT '', rezult(),
+                    (GROUP CONCAT ('\{"command":"addCardGroup","cardGroup":\{' + 
+                        (CONCAT ',', 
+                            '"idcardgroup":"' + id(DiscountCardType t) + '"',
+                            '"name":"' + escapeJSONValue(name(t)) + '"',
+                            '"text":"' + id(t) + '"',
+                            '"notaddemptycard":true',
+                            '"pattern":"[0-9]"',
+                            '"inputmask":7'
+                        )
+                    + '\}\}') IF (GROUP SUM 1 IF discountCardType(DiscountCard dc) == t AND inExportStep(dc)), '\n---\n' ORDER t)
+                +'\n---\n';
+                
+    rezult() <- CONCAT '', rezult(),
+                    (GROUP CONCAT ('\{"command":"addClient","client":\{' + 
+                        (CONCAT ',', 
+                            '"idclient":"' + seriesNumber(DiscountCard d) + '"',
+                            '"name":"' + trim(escapeJSONValue(CONCAT ' ', lastNameContact(d), firstNameContact(d), middleNameHttpServerContact(d))) + '"',
+                            '"sex":' + numberSexHttpServerContact(d),
+                            '"birthday":"' + (birthdayContact(d) IF birthdayContact(d) > 1900_01_01) + '"',
+                            '"extendedoptions":' + getQuotedAttribute(extInfo(d), 'extendedoptions')
+                        )
+                    + '\}\}') IF inExportStep(d), '\n---\n' ORDER d)
+                +'\n---\n';
+
+    rezult() <- CONCAT '', rezult(),
+                    (GROUP CONCAT ('\{"command":"addCard","card":\{' + 
+                        (CONCAT ',', 
+                            '"idcard":"' + seriesNumber(DiscountCard d) + '"',
+                            '"idcardgroup":"' + idDiscountCardType(d) + '"',
+                            '"idclient":"' + seriesNumber(d) + '"',
+                            '"number":"' + seriesNumber(d) + '"',
+                            '"validitydatebeg":"' + date(d) + '"',
+                            '"validitydateend":"' + dateTo(d) + '"',
+                            '"cardSum":' + initialSum(d),
+                            '"blocked":' + (IF dateTo(d) < currentDate() THEN 'true' ELSE 'false'),
+                            '"discountpercent":' + percent(d)
+                        )
+                    + '\}\}') IF inExportStep(d), '\n---\n' ORDER d)
+                +'\n---\n';
+    
+    
+    LOCAL aif = FILE ();
+    stringToFile(rezult(),'UTF-8','aif');
+    aif() <- resultFile();
+    
+    LOCAL flz = FILE ();
+    stringToFile('','UTF-8','flz');
+    flz() <- resultFile();
+    
+    LOCAL name = STRING[50]();
+    name() <- 'pos' + toChar(currentDateTime(), 'YYYYMMDDHH24MISS');
+
+    WRITE aif() TO directoryArtix(cashRegisterSID('Artix')) + '/'+ name();
+    WRITE flz() TO directoryArtix(cashRegisterSID('Artix')) + '/'+ name();
+    
+    inExportStep(DiscountCard d) <- NULL;
+}
+
+inExport = DATA LOCAL BOOLEAN (DiscountCard);
+
+exportDiscountCards 'Выгрузить дисконтные карты в Artix' () {
+    inExport(DiscountCard d) <- NULL WHERE inExport(d) AND (skipLoad(d) OR NOT seriesNumber(d));
+    
+    WHILE GROUP SUM 1 IF inExport(DiscountCard d) DO {
+        IF NOT stepArtix(cashRegisterSID('Artix')) THEN {
+            inExportStep(DiscountCard d) <- inExport(d);
+        } ELSE {
+            inExportStep(DiscountCard d) <- (PARTITION SUM 1 IF inExport(d) ORDER d) <= stepArtix(cashRegisterSID('Artix'));
+        }
+        
+        inExport(DiscountCard d) <- NULL WHERE inExportStep(d);
+        exportDiscountCardsStep();
+    }
+}
