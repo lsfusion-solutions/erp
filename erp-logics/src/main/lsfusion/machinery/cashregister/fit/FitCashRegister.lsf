@@ -200,7 +200,9 @@ receiveFromFit (CashRegister cr) {
                 FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) DO {
                     READ pathGet(cr) + fn TO importFile;
                     IMPORT CSV NOHEADER CHARSET 'cp866' FROM importFile() TO receiptString;
-                    
+                    FOR INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 15, 12)](STRING card) AND NOT card = '000000000000' AND NOT discountNumber(STRING[48](card)) DO NEW c = DiscountCard {
+                        number(c) <- STRING[48](card);
+                    }
                     FOR INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 92, 4)](STRING str) AND NOT zReport(STRING[100](str  + lpad(STRING(cr), 18, '0'))) DO NEW z = ZReport {
                         id(z) <- STRING[100](str  + lpad(STRING(cr), 18, '0'));
                         number(z) <- STRING[48](lpad(STRING(INTEGER(str) (+) 1), 4, '0'));
@@ -214,6 +216,7 @@ receiveFromFit (CashRegister cr) {
                         number(r) <- INTEGER(substr(str, 56, 12));
                         id(r) <- STRING[100](substr(str, 92, 4) + lpad(STRING(cr), 18, '0') + substr(str, 3, 12));
                         zReport(r) <- zReport(substr(str, 92, 4) + lpad(STRING(cr), 18, '0'));
+                        discountCard(r) <- discountNumber(STRING[48](substr(str, 15, 12)));
                     }
                     FOR STRING str = receiptString(INTEGER j) AND isReceipt(str) AND Receipt r = receipt(substr(str, 92, 4) + lpad(STRING(cr), 18, '0') + substr(str, 3, 12)) DO {
                         date(r) <- toDateFormat(substr(str, 96, 8), 'DDMMYYYY');
