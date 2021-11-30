@@ -53,91 +53,98 @@ beforeExport  ABSTRACT LIST (GroupCashRegister);
 
 directoryPickList 'Директория для пиклиста' = DATA STRING[250](GroupCashRegister);
 
-exportPickList 'Выгрузить' (GroupCashRegister gm) {
-    NEWSESSION {
+convertImageArtix(Sku s, IMAGEFILE f){
+    TRY {
+        convertedImage() <- NULL;
+        convertImage(f, 'jpg');
+        imageArtix(s) <- convertedImage();
         
-        IF NOT directoryPickList(gm) THEN {
-            MESSAGE name(gm) +': Не задан путь выгрузки пиклиста' NOWAIT;
-            RETURN;
+        getFileSize(FILE(imageArtix(s)));
+        LOCAL count = INTEGER ();
+        count() <- 0;
+        
+        WHILE fileSize() > 45000 AND count() < 5 DO {
+            resizeImage(imageArtix(s), sqrt(DOUBLE(fileSize())/40000));
+            imageArtix(s) <- resizedImage();
+            
+            getFileSize(FILE(imageArtix(s)));
+            count() <- count() + 1;
         }
-        
-        idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR skipFilterBalance()) 
-                        AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s); 
-        
-        export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm) AND (GROUP SUM 1 IF id(cg) == idParent(Sku s)); 
-        
-        beforeExport(gm);
-        
-        IF NOT (GROUP SUM 1 IF idParent(Sku s)) THEN {
-            MESSAGE name(gm) +': Нет товаров к выгрузке' NOWAIT;
-            RETURN;
-        }
-        
-        FOR idParent(Sku s) AND hasImage(s) AND NOT imageArtix(s) DO {
-            TRY {
-                convertedImage() <- NULL;
-                convertImage((OVERRIDE smallImage(s), image(s)), 'jpg');
-                imageArtix(s) <- convertedImage();
-                
-                getFileSize(FILE(imageArtix(s)));
-                LOCAL count = INTEGER ();
-                count() <- 0;
-                
-                WHILE fileSize() > 45000 AND count() < 5 DO {
-                    resizeImage(imageArtix(s), sqrt(DOUBLE(fileSize())/40000));
-                    imageArtix(s) <- resizedImage();
-                    
-                    getFileSize(FILE(imageArtix(s)));
-                    count() <- count() + 1;
-                }
-            }
-        }
-        LOCAL rezult = TEXT ();
-        
-        IF doClear() THEN {
-            rezult() <-'\{"command": "clearPicklist"\}\n---\n';
-        }
-        
-        rezult() <- CONCAT '', rezult(),
-                        (GROUP CONCAT ('\{"command": "addPicklist","picklist": \{' + 
-                            (CONCAT ',', 
-                                '"code": "' + id(CustomGroup cg) + '"',
-                                '"name": "' + escapeJSONValue(name(cg)) + '"',
-                                '"image": "' + encodeBase64(imageArtix(cg)) + '"',
-                                '"parent": ' + (OVERRIDE '"'+id(parent(cg))+'"', 'null')
-                            ) 
-                        + '\}\}') IF export(cg), '\n---\n' ORDER level(cg), cg)
-                    +'\n---\n';
-        rezult() <- CONCAT '', rezult(),
-                        (GROUP CONCAT ('\{"command": "addPicklist","picklist": \{' + 
-                            (CONCAT ',', 
-                                '"code": "' + id(Sku s) + '"',
-                                '"name": "' + escapeJSONValue(name(s)) + '"',
-                                '"image": "' + encodeBase64(imageArtix(s)) + '"',
-                                '"parent": "' + idParent(s) + '"',
-                                '"tmccode": "' + overId(s) + '"'
-                            ) 
-                        + '\}\}') IF idParent(s), '\n---\n' ORDER s)
-                    +'\n---\n';
-        
-        LOCAL aif = FILE ();
-        stringToFile(rezult(),'UTF-8','aif');
-        aif() <- resultFile();
-        
-        LOCAL flz = FILE ();
-        stringToFile('','UTF-8','flz');
-        flz() <- resultFile();
-        
-        LOCAL name = STRING[50]();
-        name() <- 'pos' + toChar(currentDateTime(), 'YYYYMMDDHH24MISS');
-    
-        WRITE aif() TO 'file://' + directoryPickList(gm) + '/'+ name();
-        WRITE flz() TO 'file://' + directoryPickList(gm) + '/'+ name();
-        
-        APPLY;
-        
-        MESSAGE name(gm) +': Пиклист выгружен' NOWAIT;
     }
+}
+
+createFilePickList (GroupCashRegister gm) {
+    LOCAL rezult = TEXT ();
+    
+    IF doClear() THEN {
+        rezult() <-'\{"command": "clearPicklist"\}\n---\n';
+    }
+    
+    rezult() <- CONCAT '', rezult(),
+                    (GROUP CONCAT ('\{"command": "addPicklist","picklist": \{' + 
+                        (CONCAT ',', 
+                            '"code": "' + id(CustomGroup cg) + '"',
+                            '"name": "' + escapeJSONValue(name(cg)) + '"',
+                            '"image": "' + encodeBase64(imageArtix(cg)) + '"',
+                            '"parent": ' + (OVERRIDE '"'+id(parent(cg))+'"', 'null')
+                        ) 
+                    + '\}\}') IF export(cg), '\n---\n' ORDER level(cg), cg)
+                +'\n---\n';
+    rezult() <- CONCAT '', rezult(),
+                    (GROUP CONCAT ('\{"command": "addPicklist","picklist": \{' + 
+                        (CONCAT ',', 
+                            '"code": "' + id(Sku s) + '"',
+                            '"name": "' + escapeJSONValue(name(s)) + '"',
+                            '"image": "' + encodeBase64(imageArtix(s)) + '"',
+                            '"parent": "' + idParent(s) + '"',
+                            '"tmccode": "' + overId(s) + '"'
+                        ) 
+                    + '\}\}') IF idParent(s), '\n---\n' ORDER s)
+                +'\n---\n';
+    
+    LOCAL aif = FILE ();
+    stringToFile(rezult(),'UTF-8','aif');
+    aif() <- resultFile();
+    
+    LOCAL flz = FILE ();
+    stringToFile('','UTF-8','flz');
+    flz() <- resultFile();
+    
+    LOCAL name = STRING[50]();
+    name() <- 'pos' + toChar(currentDateTime(), 'YYYYMMDDHH24MISS');
+
+    WRITE aif() TO 'file://' + directoryPickList(gm) + '/'+ name();
+    WRITE flz() TO 'file://' + directoryPickList(gm) + '/'+ name();
+}
+
+exportPickList 'Выгрузить' (GroupCashRegister gm) {       
+    IF NOT directoryPickList(gm) THEN {
+        MESSAGE name(gm) +': Не задан путь выгрузки пиклиста' NOWAIT;
+        RETURN;
+    }
+    
+    idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR skipFilterBalance()) 
+                    AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s); 
+    
+    export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm) AND (GROUP SUM 1 IF id(cg) == idParent(Sku s)); 
+    
+    beforeExport(gm);
+    
+    IF NOT (GROUP SUM 1 IF idParent(Sku s)) THEN {
+        MESSAGE name(gm) +': Нет товаров к выгрузке' NOWAIT;
+        RETURN;
+    }
+    
+    NEWSESSION NESTED LOCAL {
+        FOR idParent(Sku s) AND hasImage(s) AND NOT imageArtix(s) DO {
+            convertImageArtix(s, (OVERRIDE smallImage(s), image(s)));
+        }
+        APPLY NESTED LOCAL;
+    }
+    
+    createFilePickList(gm);
+    
+    MESSAGE name(gm) +': Пиклист выгружен' NOWAIT;
 }
 
 exportPickListAndClose 'Выгрузить' (GroupMachinery gm) {
