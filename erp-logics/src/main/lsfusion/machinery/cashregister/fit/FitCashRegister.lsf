@@ -1,6 +1,6 @@
 MODULE FitCashRegister;
 
-REQUIRE NativeMachinery, CashRegister, Store, ZReport, SkuRu, MachineryPriceTransactionStockTax;
+REQUIRE NativeMachinery, CashRegister, Store, ZReportDiscountCard, SkuRu, MachineryPriceTransactionStockTax;
 
 NAMESPACE Fit;
 
@@ -201,7 +201,7 @@ receiveFromFit (CashRegister cr) {
                     READ pathGet(cr) + fn TO importFile;
                     IMPORT CSV NOHEADER CHARSET 'cp866' FROM importFile() TO receiptString;
                     
-                    FOR INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 92, 4)](STRING str) DO NEW z = ZReport {
+                    FOR INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 92, 4)](STRING str) AND NOT zReport(STRING[100](str  + lpad(STRING(cr), 18, '0'))) DO NEW z = ZReport {
                         id(z) <- STRING[100](str  + lpad(STRING(cr), 18, '0'));
                         number(z) <- STRING[48](lpad(STRING(INTEGER(str) (+) 1), 4, '0'));
                         cashRegister(z) <- cr;
@@ -232,7 +232,7 @@ receiveFromFit (CashRegister cr) {
                                 sku(d) <- sku(barcode(ltrim(substr(srl, 5, 16))));
                                 price(d) <- NUMERIC[16,4](NUMERIC(substr(srl, 85, 14)) / 100);
                                 quantity(d) <- NUMERIC[16,5](NUMERIC(substr(srl, 78, 7)) / 1000);
-                                discountSum(d) <- NUMERIC[18,4](NUMERIC(substr(srl, 40, 11)) / 100);
+                                discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
                     }   
                     FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '-' AND
                         STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
