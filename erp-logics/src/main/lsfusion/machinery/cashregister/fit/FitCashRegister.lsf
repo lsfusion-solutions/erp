@@ -216,44 +216,64 @@ receiveFromFit (CashRegister cr) {
                         number(r) <- INTEGER(substr(str, 56, 12));
                         id(r) <- STRING[100](substr(str, 92, 4) + lpad(STRING(cr), 18, '0') + substr(str, 3, 12));
                         zReport(r) <- zReport(substr(str, 92, 4) + lpad(STRING(cr), 18, '0'));
-                        discountCard(r) <- discountNumber(STRING[48](substr(str, 15, 12)));
                     }
                     FOR STRING str = receiptString(INTEGER j) AND isReceipt(str) AND Receipt r = receipt(substr(str, 92, 4) + lpad(STRING(cr), 18, '0') + substr(str, 3, 12)) DO {
                         date(r) <- toDateFormat(substr(str, 96, 8), 'DDMMYYYY');
                         time(r) <- TIME (toDateTimeFormat(substr(str, 48, 5), 'HH24:MI'));
-                    
-                        receipt(ReceiptSaleDetail d) <- NULL WHERE receipt(d) = r;
-                        receipt(ReceiptReturnDetail d) <- NULL WHERE receipt(d) = r;
-                        receipt(Payment p) <- NULL WHERE receipt(p) = r;
+                        discountCard(r) <- discountNumber(STRING[48](substr(str, 15, 12)));
                     }
                     
                     FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '+' AND
-                        STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
-                        Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12)))
-                            DO NEW d = ReceiptSaleDetail {
+                        INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+                        STRING rs = receiptString(sl) AND
+                        Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12))) AND
+                        NOT receiptDetail(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12) + lpad(STRING(j (-) sl), 10, '0'))) AS ReceiptSaleDetail
+                            ORDER j DO NEW d = ReceiptSaleDetail {
+                                id(d) <- STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12) + lpad(STRING(j (-) sl), 10, '0'));
                                 receipt(d) <- r;
-                                sku(d) <- sku(barcode(ltrim(substr(srl, 5, 16))));
-                                price(d) <- NUMERIC[16,4](NUMERIC(substr(srl, 85, 14)) / 100);
-                                quantity(d) <- NUMERIC[16,5](NUMERIC(substr(srl, 78, 7)) / 1000);
-                                discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
-                    }   
+                    }
+                    FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '+' AND
+                        INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+                        STRING rs = receiptString(sl) AND
+                        ReceiptSaleDetail d = receiptDetail(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12) + lpad(STRING(j (-) sl), 10, '0'))) AS ReceiptSaleDetail DO {
+                            sku(d) <- sku(barcode(ltrim(substr(srl, 5, 16))));
+                            price(d) <- NUMERIC[16,4](NUMERIC(substr(srl, 85, 14)) / 100);
+                            quantity(d) <- NUMERIC[16,5](NUMERIC(substr(srl, 78, 7)) / 1000);
+                            discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
+                    }
                     FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '-' AND
-                        STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
-                        Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12)))
-                            DO NEW d = ReceiptReturnDetail {
+                        INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+                        STRING rs = receiptString(sl) AND
+                        Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12))) AND
+                        NOT receiptDetail(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12) + lpad(STRING(j (-) sl), 10, '0'))) AS ReceiptReturnDetail
+                            ORDER j DO NEW d = ReceiptReturnDetail {
+                                id(d) <- STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12) + lpad(STRING(j (-) sl), 10, '0'));
                                 receipt(d) <- r;
-                                sku(d) <- sku(barcode(ltrim(substr(srl, 5, 16))));
-                                price(d) <- NUMERIC[16,4](NUMERIC(substr(srl, 85, 14)) / 100);
-                                quantity(d) <- NUMERIC[16,5](NUMERIC(substr(srl, 78, 7)) / 1000);
-                                discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
-                    }   
+                    }
+                    FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '-' AND
+                        INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+                        STRING rs = receiptString(sl) AND
+                        ReceiptReturnDetail d = receiptDetail(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12) + lpad(STRING(j (-) sl), 10, '0'))) AS ReceiptReturnDetail DO {
+                            sku(d) <- sku(barcode(ltrim(substr(srl, 5, 16))));
+                            price(d) <- NUMERIC[16,4](NUMERIC(substr(srl, 85, 14)) / 100);
+                            quantity(d) <- NUMERIC[16,5](NUMERIC(substr(srl, 78, 7)) / 1000);
+                            discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
+                    }
                     FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '04' AND
-                        STRING rs = receiptString(GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
-                        Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12)))
-                            DO NEW p = Payment {
+                        INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+                        STRING rs = receiptString(sl) AND
+                        Receipt r = receipt(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12))) AND
+                        NOT payment(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12) + lpad(STRING(j (-) sl), 10, '0')))
+                            ORDER j DO NEW p = Payment {
+                                id(p) <- STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12) + lpad(STRING(j (-) sl), 10, '0'));
                                 receipt(p) <- r;
-                                sum(p) <- NUMERIC[18,4](NUMERIC(substr(srl, 85, 14)) / 100);
-                                paymentType(p) <- IF substr(srl, 3, 2) = '13' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
+                    }
+                    FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '04' AND
+                        INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
+                        STRING rs = receiptString(sl) AND
+                        Payment p =  payment(STRING[100](substr(rs, 92, 4) + lpad(STRING(cr), 18, '0') + substr(rs, 3, 12) + lpad(STRING(j (-) sl), 10, '0'))) DO {
+                            sum(p) <- NUMERIC[18,4](NUMERIC(substr(srl, 85, 14)) / 100);
+                            paymentType(p) <- IF substr(srl, 3, 2) = '13' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
                     }
                 }
                 APPLY NESTED LOCAL;
