@@ -1,0 +1,64 @@
+MODULE ItemImporter;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+
+CLASS Importer 'Импортер товара';
+TABLE importer(Importer);
+
+@defineExternalizable(importer, STRING[100]);
+
+name 'Наименование' = DATA ISTRING[100](Importer) CHARWIDTH 15;
+importerName = GROUP AGGR Importer m BY name(m); 
+address 'Адрес импортера' = DATA STRING[255] (Importer) CHARWIDTH 20;
+
+//originalNameImporter 'Наименование (ориг.)' = DATA ISTRING[100](Importer) CHARWIDTH 15;
+//originalAddressImporter 'Адрес импортера (ориг.)' = DATA STRING[255] (Importer) CHARWIDTH 20;
+
+//countryImporter = DATA Country (Importer);
+//nameCountryImporter 'Страна' = nameCountry(countryImporter(m)) CHARWIDTH 20;
+
+FORM importer 'Импортер товара'
+    OBJECTS m=Importer PANEL
+    PROPERTIES(m) name, address, id SHOWIF showIDs()
+//    , originalNameImporter, originalAddressImporter,nameCountryImporter
+    EDIT Importer OBJECT m
+;
+
+DESIGN importer {
+    BOX {
+        PROPERTY(name(m)){
+            charWidth = 50;    
+        }
+    }       
+}
+
+FORM importerDialog 'Импортеры товара'
+    OBJECTS m=Importer
+    PROPERTIES(m) READONLY name, id SHOWIF showIDs() 
+    PROPERTIES(m) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(m)
+    LIST Importer OBJECT m
+;
+DESIGN importerDialog { BOX { size = (600, 400); } }
+
+@defineObjectItemAttribute(importer, Importer, name, 'Импортер', itemBase);
+@defineObjectItemAttributeBatch (importer, nameImporter, 'Импортер');
+@implementItemAttribute(nameImporter, 'Импортер', String, itemImporter);
+
+@defineItemFilterValue(importer, 'Импортер', m);
+
+@defineUniteFilterAttributeItem(importer, name, 'импортер', 'импортеры', item);
+
+EXTEND FORM attributesItem
+    PROPERTIES READONLY AFTER name(importer) id(importer) SHOWIF showIDs()
+//                        originalNameImporter(importer), originalAddressImporter(importer), nameCountryImporter(importer)
+;
+
+addressImporter 'Адрес Импортера' (Item item) = address(importer(item)); 
+
+overCopy(Item item, Item i) + { 
+    importer(i) <- importer(item);
+}
