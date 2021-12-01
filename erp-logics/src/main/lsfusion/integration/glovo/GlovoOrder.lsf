@@ -51,6 +51,7 @@ tax_id = DATA LOCAL STRING();
 phone_number1 = DATA LOCAL STRING();
 hash = DATA LOCAL STRING();
 
+
 FORM importOrderGlovo FORMEXTID 'null'
     PROPERTIES() store_id, partner_discounted_products_total, minimum_basket_surcharge, pick_up_code, partner_discounts_products, is_picked_up_by_customer, cutlery_requested, order_time, estimated_total_price, estimated_pickup_time, utc_offset_minutes, order_code, delivery_fee, total_customer_to_pay, allergy_info, currency, customer_cash_payment_amount, order_id, payment_method
     PROPERTIES() IN delivery_address latitude, label, longitude
@@ -79,6 +80,7 @@ stockOrder (STRING id) = ABSTRACT DepartmentStore;
 //строки заказа
 quantityGlovoOrder(Item i, INTEGER qty) = ABSTRACT NUMERIC[16,5];
 priceGlovoOrder(Item i, NUMERIC[16,4] price) = ABSTRACT NUMERIC[16,4];
+purchasedProductId = DATA STRING (InternetOrderDetail);
 
 //исключительно в рамках тестирования
 qtyGlovo 'К-во glovo' = DATA STRING (InternetOrderDetail);
@@ -87,6 +89,10 @@ priceGlovo 'Цена glovo(копеек)' = DATA STRING (InternetOrderDetail);
 EXTEND FORM internetOrder
     PROPERTIES (d) READONLY SHOWIF loggingGlovo() AND carrier(o) = glovoCarrier() qtyGlovo, priceGlovo ;
 
+loggingGlovo(FILE f, STRING operation){
+    fileToString(f);
+    logToFile('glovo', (CONCAT ' : ', operation, resultString()));
+}
 
 //создание заказа
 createOrder(FILE f){
@@ -117,6 +123,7 @@ createOrder(FILE f){
             internetOrder(detail) <- order;
             sku(detail) <- itemById(id1(products));
             qtyGlovo(detail) <- quantity(products);
+            purchasedProductId(detail) <- purchased_product_id(products);
             priceGlovo(detail) <- price(products);
             quantity(detail) <-quantityGlovoOrder(sku(detail), INTEGER (quantity(products))) WHERE sku(detail) IS Item;
             price(detail) <- priceGlovoOrder(sku(detail), NUMERIC[16,4](price(products))/100) WHERE sku(detail) IS Item; //цена в центах/копейках    
@@ -139,7 +146,7 @@ FORM updateOrder FORMEXTID 'null'
 updateOrder(FILE f){
     IF loggingGlovo() THEN {
         fileToString(f);
-        logToFile('glovo', CONCAT ' : ', 'IN update query', resultString());
+        logToFile('glovo', CONCAT ' : ', 'IN cancel query', resultString());
     }
     IMPORT updateOrder FROM f;
     IF (GROUP MAX InternetOrder order IF idAggregator(order) = order_id()) THEN {
@@ -172,7 +179,8 @@ updateStatusOrder 'Обновление статуса заказа' (InternetOr
         headersGlovo('Authorization') <- token();
         headersGlovo('content-type') <- 'application/json';
         EXPORT JSON FROM status = statusGlovo(order) TO f;
-        EXTERNAL HTTP CONCAT '', urlServer(), 'webhook/stores/', storeIdGlovo(supplierStock(order)) ,'/orders/', idAggregator(order),
+        loggingGlovo(f(), 'updateStatus order ' + idAggregator(order));
+        EXTERNAL HTTP PUT CONCAT '', urlServer(), 'webhook/stores/', storeIdGlovo(supplierStock(order)) ,'/orders/', idAggregator(order),
             '/status' HEADERS headersGlovo PARAMS f() TO answer;
     }
     CATCH {
@@ -191,9 +199,18 @@ DESIGN internetOrder{
 
 // --------------------------------------- Модификация заказа -------------------------------- //
 
-removed_purchases (InternetOrder o) = CONCAT '', '[', (GROUP CONCAT idExt(sku(InternetOrderDetail d)) IF sku(d) IS Item 
+filterOrderDetail(InternetOrderDetail d) = ABSTRACT BOOLEAN;
+
+removed_purchases (InternetOrder o) = CONCAT '', '[', (GROUP CONCAT purchasedProductId(InternetOrderDetail d)IF sku(d) IS Item 
     AND internetOrder(d) = o AND pickingQuantity(d) != quantity(d), ',' ORDER d), ']';
- 
+
+modifyOrder 'Обновление заказа' ABSTRACT LIST (InternetOrder);
+
+customModifyOrder = ABSTRACT BOOLEAN (InternetOrder);
+
+diffQuantity (InternetOrderDetail d) = TRUE IF (quantity(d) != pickingQuantity(d));
+diffQuantity (InternetOrder o) = GROUP SUM 1 IF diffQuantity(InternetOrderDetail d) AND internetOrder(d) = o;
+
 FORM modifyOrder FORMEXTID 'null'
     OBJECTS o = InternetOrder PANEL EXTID 'null'
     PROPERTIES removed_purchases(o)
@@ -205,16 +222,33 @@ FORM modifyOrder FORMEXTID 'null'
     FILTERS internetOrder(d) = o AND pickingQuantity(d) != quantity(d) AND pickingQuantity(d) > 0
 ;
 
-modifyOrder 'Обновление заказа'(InternetOrder o){
-    LOCAL f = FILE();
-    EXPORT modifyOrder OBJECTS o = o JSON TO f;
-    LOCAL answer = FILE ();
-    LOCAL headersGlovo = TEXT(STRING[100]);
-    headersGlovo('Authorization') <- token();
-    headersGlovo('content-type') <- 'application/json';
-    EXTERNAL HTTP POST CONCAT '', urlServer() , '/webhook/stores/', storeIdGlovo(supplierStock(o)), '/orders/' + idAggregator(o) +'/replace_products'
-        HEADERS headersGlovo PARAMS f() TO answer;
+modifyOrder (InternetOrder o) +{
+    IF NOT customModifyOrder(o) THEN{
+        LOCAL f = FILE();
+        EXPORT modifyOrder OBJECTS o = o JSON TO f;
+        LOCAL answer = FILE ();
+        LOCAL headersGlovo = TEXT(STRING[100]);
+        headersGlovo('Authorization') <- token();
+        headersGlovo('content-type') <- 'application/json';
+        loggingGlovo(f(), 'modifyOrder ' + idAggregator(o));
+        EXTERNAL HTTP POST CONCAT '', urlServer() , '/webhook/stores/', storeIdGlovo(supplierStock(o)), '/orders/' + idAggregator(o) +'/replace_products'
+            HEADERS headersGlovo PARAMS f() TO answer;
+        loggingGlovo(answer(), 'answer modifyOrder ' + idAggregator(o));
+    }
 } 
  
 EXTEND FORM internetOrders
-    PROPERTIES (o) modifyOrder TOOLBAR DRAW o;
+    PROPERTIES (o) modifyOrder SHOWIF carrier(o) = glovoCarrier() TOOLBAR DRAW o;
+    
+//события отправки статуса и замены продуктов
+WHEN SETCHANGED (status(InternetOrder o)) AND statusGlovo(o) AND carrier(o) = glovoCarrier() DO updateStatusOrder(o);
+
+WHEN SETCHANGED (status(InternetOrder o)) AND status(o) = StatusInternetOrder.picked AND carrier(o) = glovoCarrier()
+    AND NOT customModifyOrder(o) AND diffQuantity(o) DO{
+    TRY {
+        modifyOrder(o);
+    }
+    CATCH {
+        MESSAGE CONCAT '\n', 'Ошибка обновления заказа в glovo', messageCaughtException();
+    }
+}

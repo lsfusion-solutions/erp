@@ -64,3 +64,50 @@ quantityGlovoOrder(Item i, INTEGER qty) += IF isWeight(i) AND weightUnit(i) THEN
     ELSE NUMERIC[16,5](qty);
 priceGlovoOrder(Item i, NUMERIC[16,4] price) += IF isWeight(i) AND weightUnit(i) THEN NUMERIC[16,4](price/coeff(weightUnit(i)))
     ELSE price;
+
+customModifyOrder (InternetOrder o) += TRUE IF (GROUP SUM 1 IF weightUnit(sku(InternetOrderDetail d)) AND internetOrder(d) = o);
+pickingQuantityUnit(InternetOrderDetail d) = IF isWeight((sku(d))) AND weightUnit(sku(d)) THEN 1;
+
+diffQuantityUnit (InternetOrderDetail d) = TRUE 
+    IF (round0(pickingQuantity(d) / OVERRIDE coeff(weightUnit(sku(d))), 1) != 
+    round0(quantity(d) / OVERRIDE coeff(weightUnit(sku(d))), 1));
+diffQuantityUnit (InternetOrder o) = GROUP SUM 1 IF diffQuantityUnit(InternetOrderDetail d) AND internetOrder(d) = o;
+    
+removed_purchasesUnit (InternetOrder o) =  CONCAT '', '[', (GROUP CONCAT purchasedProductId(InternetOrderDetail d) 
+    IF sku(d) IS Item AND internetOrder(d) = o AND diffQuantityUnit(d), ',' ORDER d), ']';
+
+FORM modifyOrderUnit FORMEXTID 'null'
+    OBJECTS o = InternetOrder PANEL EXTID 'null'
+    PROPERTIES removed_purchasesUnit(o) EXTID 'removed_purchases'
+    
+    OBJECTS d = InternetOrderDetail EXTID 'added_products'
+    PROPERTIES = idSku(d) EXTID 'id',  = round0(pickingQuantity(d) / (OVERRIDE coeff(weightUnit(sku(d))), 1)) EXTID 'quantity',
+        = attributesGroup(sku(d)) IF sku(d) IS Item EXTID 'attributes'
+    
+    FILTERS internetOrder(d) = o AND diffQuantityUnit(d) AND pickingQuantity(d) > 0
+;
+
+modifyOrder(InternetOrder o) +{
+    IF customModifyOrder(o) THEN{
+        LOCAL f = FILE();
+        EXPORT modifyOrderUnit OBJECTS o = o JSON TO f;
+        LOCAL answer = FILE ();
+        LOCAL headersGlovo = TEXT(STRING[100]);
+        headersGlovo('Authorization') <- token();
+        headersGlovo('content-type') <- 'application/json';
+        loggingGlovo(f(), 'unitModifyOrder ' + idAggregator(o));
+        EXTERNAL HTTP POST CONCAT '', urlServer() , '/webhook/stores/', storeIdGlovo(supplierStock(o)), '/orders/' + idAggregator(o) +'/replace_products'
+            HEADERS headersGlovo PARAMS f() TO answer;
+        loggingGlovo(answer(), 'answer unitModifyOrder ' + idAggregator(o));
+    }
+} 
+
+WHEN SETCHANGED (status(InternetOrder o)) AND status(o) = StatusInternetOrder.picked AND carrier(o) = glovoCarrier()
+    AND customModifyOrder(o) AND diffQuantityUnit(o) DO{
+    TRY {
+        modifyOrder(o);
+    }
+    CATCH {
+        MESSAGE CONCAT '\n', 'Ошибка обновления заказа c юнитами в glovo', messageCaughtException();
+    }
+}
