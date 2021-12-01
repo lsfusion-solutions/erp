@@ -8,6 +8,9 @@ public class ArtixSettings implements Serializable{
     //Если не задана, указанные методы не работают
     private String globalExchangeDirectory;
 
+    //Если true, то дополнительно копируем файлы pos.aif в globalExchangeDirectory (sendTransaction, sendStopList)
+    private boolean copyPosToGlobalExchangeDirectory;
+
     //Если true, то при отправке обрезаем контрольный символ штрихкода, при получении добавляем
     private boolean appendBarcode;
 
@@ -77,6 +80,14 @@ public class ArtixSettings implements Serializable{
 
     public void setGlobalExchangeDirectory(String globalExchangeDirectory) {
         this.globalExchangeDirectory = globalExchangeDirectory;
+    }
+
+    public boolean isCopyPosToGlobalExchangeDirectory() {
+        return copyPosToGlobalExchangeDirectory;
+    }
+
+    public void setCopyPosToGlobalExchangeDirectory(boolean copyPosToGlobalExchangeDirectory) {
+        this.copyPosToGlobalExchangeDirectory = copyPosToGlobalExchangeDirectory;
     }
 
     public boolean isAppendBarcode() {

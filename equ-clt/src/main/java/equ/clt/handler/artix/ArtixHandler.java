@@ -69,6 +69,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+        String globalExchangeDirectory = artixSettings.getGlobalExchangeDirectory();
+        boolean copyTransactionsToGlobalExchangeDirectory = artixSettings.isCopyPosToGlobalExchangeDirectory();
         boolean appendBarcode = artixSettings.isAppendBarcode();
         boolean isExportSoftCheckItem = artixSettings.isExportSoftCheckItem();
         Integer timeout = artixSettings.getTimeout();
@@ -231,7 +233,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                         }
 
-                        writeFileAndWait(directory, tmpFile, timeout, processTransactionLogger);
+                        writeFileAndWait(directory, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, timeout, processTransactionLogger);
 
                         result.put(transaction.id, new SendTransactionBatch(null));
                     }
@@ -258,6 +260,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         if (!stopListInfo.exclude) {
 
             ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+            String globalExchangeDirectory = artixSettings.getGlobalExchangeDirectory();
+            boolean copyTransactionsToGlobalExchangeDirectory = artixSettings.isCopyPosToGlobalExchangeDirectory();
             Integer timeout = artixSettings.getTimeout();
 
             for (String directory : directorySet) {
@@ -272,17 +276,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     }
                 }
 
-                writeFileAndWait(directory, tmpFile, timeout, processStopListLogger);
+                writeFileAndWait(directory, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, timeout, processStopListLogger);
             }
         }
     }
 
-    public void writeFileAndWait(String directory, File tmpFile, Integer timeout, Logger logger) throws IOException {
+    public void writeFileAndWait(String directory, String copyDirectory, File tmpFile, Integer timeout, Logger logger) throws IOException {
         String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         File file = new File(directory + "/pos" + currentTime + ".aif");
 
         try {
             FileCopyUtils.copy(tmpFile, file);
+            if(copyDirectory != null) {
+                FileCopyUtils.copy(tmpFile, new File(copyDirectory + "/pos" + currentTime + ".aif"));
+            }
         } finally {
             if (!tmpFile.delete()) {
                 logger.info(String.format(logPrefix + "unable to delete pos file %s", tmpFile.getAbsolutePath()));
