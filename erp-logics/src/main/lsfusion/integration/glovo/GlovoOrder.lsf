@@ -241,12 +241,14 @@ EXTEND FORM internetOrders
     PROPERTIES (o) modifyOrder SHOWIF carrier(o) = glovoCarrier() TOOLBAR DRAW o;
     
 //события отправки статуса и замены продуктов
-WHEN SETCHANGED (status(InternetOrder o)) AND statusGlovo(o) AND carrier(o) = glovoCarrier() DO updateStatusOrder(o);
+WHEN SETCHANGED (status(InternetOrder o)) AND statusGlovo(o) AND NOT status(o) = StatusInternetOrder.picked 
+    AND carrier(o) = glovoCarrier() DO updateStatusOrder(o);
 
 WHEN SETCHANGED (status(InternetOrder o)) AND status(o) = StatusInternetOrder.picked AND carrier(o) = glovoCarrier()
-    AND NOT customModifyOrder(o) AND diffQuantity(o) DO{
+    AND NOT customModifyOrder(o) DO{
     TRY {
-        modifyOrder(o);
+        IF diffQuantity(o) THEN modifyOrder(o);
+        updateStatusOrder(o);
     }
     CATCH {
         MESSAGE CONCAT '\n', 'Ошибка обновления заказа в glovo', messageCaughtException();

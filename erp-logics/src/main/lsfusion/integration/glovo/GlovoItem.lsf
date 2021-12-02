@@ -103,9 +103,10 @@ modifyOrder(InternetOrder o) +{
 } 
 
 WHEN SETCHANGED (status(InternetOrder o)) AND status(o) = StatusInternetOrder.picked AND carrier(o) = glovoCarrier()
-    AND customModifyOrder(o) AND diffQuantityUnit(o) DO{
+    AND customModifyOrder(o) DO{
     TRY {
-        modifyOrder(o);
+        IF diffQuantityUnit(o) THEN modifyOrder(o);
+        updateStatusOrder(o);
     }
     CATCH {
         MESSAGE CONCAT '\n', 'Ошибка обновления заказа c юнитами в glovo', messageCaughtException();
