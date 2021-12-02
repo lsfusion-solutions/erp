@@ -762,11 +762,9 @@ META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, pri
     @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, , , skuProp, stockProp);
 END
 
-dialogPriceListType = DATA LOCAL LedgerPriceListType (Sku, Stock);
-nameDialogPriceListType 'Вид цены' = name[PriceListType](dialogPriceListType(Sku sku, Stock stock));
+dialogPriceListType = DATA LOCAL LedgerPriceListType () PREREAD;
+nameDialogPriceListType 'Вид цены' = name(dialogPriceListType());
 
-relation(Sku s,Stock st,LedgerPriceListType t) = GROUP SUM 1 IF sku(PriceListLedger pl) == s AND isPosted(pl) AND active(pl, t)
-    AND in(pl,st) AND price(pl,t);
 //CONSTRAINT dialogPriceListType(Sku s,Stock st) AND NOT relation(s,st,dialogPriceListType(s,st))
 //    CHECKED BY dialogPriceListType[Sku,Stock] MESSAGE 'Выбран вид цены, по которому нет истории изменения по данному товару';
 
@@ -783,7 +781,7 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
 
     OBJECTS st = Stock PANEL
     PROPERTIES(st) SELECTOR name
-    PROPERTIES(s,st) nameDialogPriceListType
+    PROPERTIES()   nameDialogPriceListType
 
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger)
     PROPERTIES READONLY name[PriceListType](t) BACKGROUND background(s, st, t,pl),
@@ -797,7 +795,7 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
     ORDERS name(t), fromDateTime(pl, t, st) DESC
 
     FILTERS sku(pl, t, st) == s,
-            (t IS PriceListType AND NOT dialogPriceListType(s,st)) OR dialogPriceListType(s,st) == t
+            dialogPriceListType() == t OR NOT dialogPriceListType()
 
 ;
 DESIGN movementPriceSkuStock {
@@ -811,7 +809,7 @@ DESIGN movementPriceSkuStock {
         }
         NEW dialog {
             caption = 'Вид цен';
-            MOVE PROPERTY(nameDialogPriceListType(s,st));
+            MOVE PROPERTY(nameDialogPriceListType());
         }
         MOVE BOX(pp);
         PROPERTY(name(s)) { focusable = FALSE;}
@@ -821,16 +819,11 @@ DESIGN movementPriceSkuStock {
 }
 
 // --
-dialogSupplier = DATA LOCAL LegalEntity (Sku, Stock);
-nameDialogSupplier 'Поставщик' = name(dialogSupplier(Sku sku, Stock stock));
+dialogSupplier = DATA LOCAL LegalEntity ();
+nameDialogSupplier 'Поставщик' = name(dialogSupplier());
 
-relationCompany(Sku s,Stock st,c) = GROUP SUM 1 IF sku(PriceListLedger pl) == s AND isPosted(pl) AND active(pl)
-    AND in(pl,st) BY company(pl);
-
-CONSTRAINT dialogSupplier(Sku s,Stock st) AND NOT isSupplier(dialogSupplier(s,st))
-    CHECKED BY dialogSupplier[Sku,Stock] MESSAGE 'Выбран организация, которая не является поставщиком';
-CONSTRAINT dialogSupplier(Sku s,Stock st) AND NOT relationCompany(s,st,dialogSupplier(s,st))
-    CHECKED BY dialogSupplier[Sku,Stock] MESSAGE 'Выбран организация, по которой нет истории изменения по данному товару';
+CONSTRAINT dialogSupplier() AND NOT isSupplier(dialogSupplier())
+    CHECKED BY dialogSupplier[] MESSAGE 'Выбран организация, которая не является поставщиком';
 
 FORM movementPriceSkuStockSupplier 'Изменение цены товара по складу и поставщику'
     OBJECTS s = Sku PANEL
@@ -838,7 +831,7 @@ FORM movementPriceSkuStockSupplier 'Изменение цены товара п�
 
     OBJECTS st = Stock PANEL
     PROPERTIES(st) SELECTOR name
-    PROPERTIES(s,st) nameDialogPriceListType, nameDialogSupplier
+    PROPERTIES()   nameDialogPriceListType, nameDialogSupplier
 
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger)
     PROPERTIES READONLY  name[PriceListType](t),  description(pl), nameCompany(pl), fromDateTime(pl, t, st), toDateTime(pl, t, st),
@@ -847,8 +840,8 @@ FORM movementPriceSkuStockSupplier 'Изменение цены товара п�
     ORDERS name(t), fromDateTime(pl, t, st) DESC
 
     FILTERS sku(pl, t, st) == s,
-            (t IS PriceListType AND NOT dialogPriceListType(s,st)) OR dialogPriceListType(s,st) == t,
-            (pl IS PriceListLedger AND NOT dialogSupplier(s,st)) OR dialogSupplier(s,st) == company(pl)
+            dialogPriceListType() == t OR NOT dialogPriceListType(),
+            dialogSupplier() == company(pl) OR NOT dialogSupplier()
 
 ;
 DESIGN movementPriceSkuStockSupplier {
@@ -861,7 +854,7 @@ DESIGN movementPriceSkuStockSupplier {
                 MOVE BOX(s);
                 NEW dialog1 {
                     caption = 'Вид цен';
-                    MOVE PROPERTY(nameDialogPriceListType(s,st));
+                    MOVE PROPERTY(nameDialogPriceListType());
                 }
             }
             NEW reight {
@@ -869,7 +862,7 @@ DESIGN movementPriceSkuStockSupplier {
                 MOVE BOX(st);
                 NEW dialog2 {
                     caption = 'Поставщик';
-                    MOVE PROPERTY(nameDialogSupplier(s,st));
+                    MOVE PROPERTY(nameDialogSupplier());
                 }
             }
             
@@ -883,12 +876,11 @@ DESIGN movementPriceSkuStockSupplier {
 }
 
 //--
-dialogPriceListType = DATA LOCAL LedgerPriceListType (Sku);
-nameDialogPriceListType 'Вид цены' = name[PriceListType](dialogPriceListType(Sku sku));
 
 FORM movementPriceSkuStocks 'Изменение цены товара'
     OBJECTS s = Sku PANEL
-    PROPERTIES(s) READONLY name, nameDialogPriceListType CHANGEABLE 
+    PROPERTIES(s) READONLY name
+    PROPERTIES() nameDialogPriceListType 
 
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger, st = Stock)
     PROPERTIES READONLY  name(t), name(st), description(pl),  fromDateTime(pl, t, st), toDateTime(pl, t, st),
@@ -898,7 +890,7 @@ FORM movementPriceSkuStocks 'Изменение цены товара'
     ORDERS name(st), name(t), fromDateTime(pl, t, st) DESC
 
     FILTERS sku(pl, t, st) == s,
-            (t IS PriceListType AND NOT dialogPriceListType(s)) OR dialogPriceListType(s) == t
+            (t IS PriceListType AND NOT dialogPriceListType()) OR dialogPriceListType() == t
 ;
 DESIGN movementPriceSkuStocks {
     BOX {
@@ -907,11 +899,11 @@ DESIGN movementPriceSkuStocks {
         NEW filter {
             type = CONTAINERH;
             caption = 'Фильтры';
-            MOVE PROPERTY (nameDialogPriceListType(s)){caption = 'Вид цены'; focusable = FALSE;}
+            MOVE PROPERTY (nameDialogPriceListType()){caption = 'Вид цены'; focusable = FALSE;}
         }
         MOVE BOX(pp);
         PROPERTY(name(s)) { focusable = FALSE;}
-        PROPERTY(nameDialogPriceListType(s)) { }
+        PROPERTY(nameDialogPriceListType()) { }
         PROPERTY(name(st)) { caption = 'Склад';}
         PROPERTY(name(t)) { caption = 'Вид цен';}
     }

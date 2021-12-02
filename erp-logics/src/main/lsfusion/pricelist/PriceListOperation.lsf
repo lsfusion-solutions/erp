@@ -448,9 +448,6 @@ DESIGN options {
 }
 
 nameOperation 'Операция' (PriceListDetail priceListDetail) = name(operation(priceListDetail));
-priceListType 'Вид цены' (PriceListDetail priceListDetail) = OVERRIDE dialogPriceListType(sku(priceListDetail)), defaultChangePriceListType(priceListDetail);
-namePriceListType 'Вид цены' (PriceListDetail priceListDetail) = name(priceListType(priceListDetail));
-price 'Цена' (PriceListDetail priceListDetail) = price(priceListDetail, priceListType(priceListDetail));
 
 EXTEND FORM movementPriceSkuStocks
     OBJECTS d = (d = PriceListDetail, sd = Stock)
@@ -496,7 +493,7 @@ EXTEND FORM movementPriceSkuStockSupplier
     ORDERS fromDateTime(d) DESC
     FILTERS sku(d) == s,
             in(d,st),
-            (d IS PriceListDetail AND NOT dialogSupplier(sku(d),st)) OR dialogSupplier(sku(d),st) == company(d)
+            dialogSupplier() == company(d) OR NOT dialogSupplier() 
 ;
 
 DESIGN movementPriceSkuStockSupplier {
