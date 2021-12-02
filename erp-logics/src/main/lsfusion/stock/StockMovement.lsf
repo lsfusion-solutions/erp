@@ -6,15 +6,17 @@ NAMESPACE Stock;
 
 // -------------------------------- Движение товара -------------------------- //
 
+@defineOption(filterSkuLedgerInterval, 'Показывать движения за последние N дней', INTEGER, stock1);
+
 currentAccountPriceA 'Цена учетная' (Sku sku, Stock stock) = prevAccountPriceA(sku, stock, currentDateTime());
 accountPriceA 'Цена учетная' (Sku sku, Stock stock, SkuLedger ledger) = prevAccountPriceA(sku, stock, dateTime(ledger));
 accountPriceA 'Цена учетная' (Sku sku, SkuLedger ledger)= prevAccountPriceA(sku, stock(ledger), dateTime(ledger));
 
 filterSkuLedgerDateFrom 'Дата с' = DATA LOCAL DATE ();
-filterDateFrom (SkuLedger i) = date(i) >= filterSkuLedgerDateFrom() OR (i IS SkuLedger AND NOT filterSkuLedgerDateFrom());      
+filterDateFrom (SkuLedger i) = dateTime(i) >= DATETIME(filterSkuLedgerDateFrom()) OR (i IS SkuLedger AND NOT filterSkuLedgerDateFrom());      
 
 filterSkuLedgerDateTo 'Дата по' = DATA LOCAL DATE ();
-filterDateTo (SkuLedger i) = date(i) <= filterSkuLedgerDateTo() OR (i IS SkuLedger AND NOT filterSkuLedgerDateTo());   
+filterDateTo (SkuLedger i) = dateTime(i) < DATETIME(sum(filterSkuLedgerDateTo(),1)) OR (i IS SkuLedger AND NOT filterSkuLedgerDateTo());   
 backgroundPosted (SkuLedger bil) = RGB(255,204,204) IF bil IS SkuLedger AND NOT isPosted(bil);
 
 FORM movementSku 'Движение товара'
@@ -34,7 +36,12 @@ FORM movementSku 'Движение товара'
             filterDateFrom(bil),
             filterDateTo(bil)
             
-    FILTERGROUP posted FILTER 'Проведенные' isPosted(bil) 'F9' DEFAULT 
+    FILTERGROUP posted FILTER 'Проведенные' isPosted(bil) 'F9' DEFAULT
+    
+    EVENTS ON INIT {
+        IF filterSkuLedgerInterval() THEN
+            filterSkuLedgerDateFrom() <- subtract(currentDate(), filterSkuLedgerInterval()); 
+    } 
 ;
 DESIGN movementSku {
     BOX {
@@ -78,6 +85,11 @@ FORM movementSkuStock 'Движение товара по складу'
             filterDateFrom(bil),
             filterDateTo(bil)         
     FILTERGROUP posted FILTER 'Проведенные' isPosted(bil) 'F9' DEFAULT                
+
+    EVENTS ON INIT {
+        IF filterSkuLedgerInterval() THEN
+            filterSkuLedgerDateFrom() <- subtract(currentDate(), filterSkuLedgerInterval()); 
+    } 
 ;
 DESIGN movementSkuStock {
     NEW topContainer{
