@@ -274,6 +274,27 @@ FORM attachmentTypes 'Типы вложения'
     LIST AttachmentType OBJECT t
 ;
 
+CLASS OuterStatusType 'Тип статуса внешнего документооборота' {
+    unknownType 'Неизвестный',
+    normal 'Нормальный',
+    success 'Успешный',
+    warning 'Предупреждение',
+    error 'Ошибка'
+}
+name 'Наименование' (OuterStatusType t) = staticCaption(t);
+id 'Код' (OuterStatusType t) = CASE
+    WHEN t == OuterStatusType.unknownType THEN 'UnknownType'
+    WHEN t == OuterStatusType.normal THEN 'Normal'
+    WHEN t == OuterStatusType.success THEN 'Success'
+    WHEN t == OuterStatusType.error THEN 'Error';
+outerStatusType (outerStatusTypeId) = GROUP MAX OuterStatusType outerStatusType BY id(outerStatusType);
+
+FORM outerStatusTypes 'Типы статуса внешнего документооборота'
+    OBJECTS t = OuterStatusType
+    PROPERTIES(t) READONLY name, id
+
+    LIST OuterStatusType OBJECT t
+;
 
 CLASS Entity 'Сущность Диадока';
 TABLE entity (Entity);
@@ -331,7 +352,18 @@ version 'Версия документа' = DATA STRING[50] (Entity) CHARWIDTH 1
 
 //TemplateTransformationInfos
 //TemplateRefusalInfo
-//OuterDocflow
+
+docflowNamedId 'Идентификатор внешнего документооборота' = DATA STRING[50] (Entity) CHARWIDTH 10;
+docflowFriendlyName 'Наименование внешнего документооборота' = DATA STRING[50] (Entity) CHARWIDTH 10;
+statusNamedId 'Идентификатор статуса' = DATA STRING[50] (Entity) CHARWIDTH 10;
+statusFriendlyName 'Наименование статуса' = DATA STRING[50] (Entity) CHARWIDTH 20;
+outerStatusType 'Тип статуса внешнего документооборота' = DATA OuterStatusType (Entity);
+outerStatusTypeName 'Тип статуса внешнего документооборота' (Entity e) = staticCaption(outerStatusType(e)) CHARWIDTH 15;
+
+TABLE entityString (Entity,STRING);
+statusDetail 'Детализация по статусу' = DATA STRING (Entity,STRING) CHARWIDTH 20;
+statusDetails 'Детализация по статусу' (Entity e) = GROUP CONCAT statusDetail(e, STRING code), ', ' ORDER code CHARWIDTH 20;
+
 //RevocationRequestInfo
 
 message = DATA Message (Entity);
@@ -607,6 +639,18 @@ senderReceiptStatus 'Cтатус извещения о получении тит
 senderReceiptStatusName 'Cтатус извещения о получении титула получателя' (Document d) = staticCaption(senderReceiptStatus(d)) CHARWIDTH 10;
 
 version 'Версия документа' = DATA STRING[50] (Document) CHARWIDTH 10;
+
+//LastOuterDocflow
+docflowFriendlyName 'Наименование внешнего документооборота' = DATA STRING[50] (Document,STRING) CHARWIDTH 10;
+statusNamedId 'Идентификатор статуса' = DATA STRING[50] (Document,STRING) CHARWIDTH 10;
+statusFriendlyName 'Наименование статуса' = DATA STRING[50] (Document,STRING) CHARWIDTH 20;
+outerStatusType 'Тип статуса внешнего документооборота' = DATA OuterStatusType (Document,STRING);
+outerStatusTypeName 'Тип статуса внешнего документооборота' (Document d, STRING id) = staticCaption(outerStatusType(d,id)) CHARWIDTH 15;
+
+TABLE documentStringString (Document,STRING,STRING);
+statusDetail 'Детализация по статусу' = DATA STRING (Document,STRING,STRING) CHARWIDTH 20;
+statusDetails 'Детализация по статусу' (Document d, STRING id) = GROUP CONCAT statusDetail(d, id, STRING code), ', ' ORDER code CHARWIDTH 20;
+
 proxyBox 'Ящик промежуточного получателя' = DATA Box (Document);
 proxyBoxId 'Идентификатор ящика промежуточного получателя' (Document d) = boxId(proxyBox(d)) CHARWIDTH 10;
 proxyTitle 'Наименование ящика промежуточного получателя' (Document d) = title(proxyBox(d)) CHARWIDTH 20;
@@ -651,7 +695,7 @@ FORM message 'Cообщение Диадока'
     OBJECTS e = Entity
     PROPERTIES(e) entityId, parentEntityId, entityTypeName, size, attachmentTypeName, fileName, needRecipientSignature, signerBoxTitle, notDeliveredEventId,
                   rawCreationDate, signerDepartmentName, needReceipt, packetId, isApprovementSignature, isEncryptedContent, attachmentVersion,
-                  labels, version
+                  labels, version, docflowFriendlyName, statusFriendlyName, outerStatusTypeName, statusDetails
     PROPERTIES(e) openData
     FILTERS message(e) == m
     
@@ -713,7 +757,7 @@ FORM messagePatch 'Дополнение к сообщению Диадока'
     OBJECTS e = Entity
     PROPERTIES(e) entityId, parentEntityId, entityTypeName, size, attachmentTypeName, fileName, needRecipientSignature, signerBoxTitle, notDeliveredEventId,
                   rawCreationDate, signerDepartmentName, needReceipt, packetId, isApprovementSignature, isEncryptedContent, attachmentVersion,
-                  labels, version
+                  labels, version, docflowFriendlyName, statusFriendlyName, outerStatusTypeName, statusDetails
     PROPERTIES(e) openData
     FILTERS patch(e) == p
     
@@ -809,88 +853,100 @@ FORM document 'Документ Диадока'
     PROPERTIES key = VALUE(k) HEADER 'Ключ', value = metadata(d,k) HEADER 'Значение'
     FILTERS metadata(d,k)
     
+    OBJECTS dd = STRING
+    PROPERTIES(d,dd) docflowFriendlyName, statusFriendlyName, outerStatusTypeName, statusDetails
+    FILTERS docflowFriendlyName(d,dd)
+    
     EDIT Document OBJECT d
 ;
 DESIGN document {
     OBJECTS {
-        NEW data {
-            type = SPLITH;
-            alignment = STRETCH;
-            NEW params {
-                type = CONTAINERV;
+        NEW document {
+            type = CONTAINERV;
+            fill = 1;
+            NEW data {
+                type = SPLITH;
                 alignment = STRETCH;
-                fill = 3;
-                NEW line1 {
-                    type = COLUMNS;
+                NEW params {
+                    type = CONTAINERV;
                     alignment = STRETCH;
-                    columns = 2;
-                    MOVE PROPERTY(messageId(d));
-                    MOVE PROPERTY(entityId(d));
-                    MOVE PROPERTY(counteragentBoxTitle(d));
-                    MOVE PROPERTY(departmentName(d));
-                    MOVE PROPERTY(fromDepartmentName(d));
-                    MOVE PROPERTY(toDepartmentName(d));
-                    MOVE PROPERTY(proxyTitle(d));
-                    MOVE PROPERTY(proxyDepartmentName(d));
-                    MOVE PROPERTY(primaryStatusSeverityName(d));
-                    MOVE PROPERTY(primaryStatusText(d));
-                    MOVE PROPERTY(secondaryStatusSeverityName(d));
-                    MOVE PROPERTY(secondaryStatusText(d));
+                    fill = 3;
+                    NEW line1 {
+                        type = COLUMNS;
+                        alignment = STRETCH;
+                        columns = 2;
+                        MOVE PROPERTY(messageId(d));
+                        MOVE PROPERTY(entityId(d));
+                        MOVE PROPERTY(counteragentBoxTitle(d));
+                        MOVE PROPERTY(departmentName(d));
+                        MOVE PROPERTY(fromDepartmentName(d));
+                        MOVE PROPERTY(toDepartmentName(d));
+                        MOVE PROPERTY(proxyTitle(d));
+                        MOVE PROPERTY(proxyDepartmentName(d));
+                        MOVE PROPERTY(primaryStatusSeverityName(d));
+                        MOVE PROPERTY(primaryStatusText(d));
+                        MOVE PROPERTY(secondaryStatusSeverityName(d));
+                        MOVE PROPERTY(secondaryStatusText(d));
+                    }
+                    NEW line2 {
+                        type = COLUMNS;
+                        alignment = STRETCH;
+                        columns = 2;
+                        MOVE PROPERTY(size(d));
+                        MOVE PROPERTY(fileName(d));
+                        MOVE PROPERTY(customDocumentId(d));
+                        MOVE PROPERTY(resolutionRouteId(d));
+                        MOVE PROPERTY(typeNamedId(d));
+                        MOVE PROPERTY(function(d));
+                        MOVE PROPERTY(workflowId(d));
+                        MOVE PROPERTY(title(d));
+                        MOVE PROPERTY(lockModeName(d));
+                        MOVE PROPERTY(version(d));
+                    }
+                    NEW line3 {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(isDeleted(d));
+                        MOVE PROPERTY(isTest(d));
+                        MOVE PROPERTY(isEncryptedContent(d));
+                        MOVE PROPERTY(isRead(d));
+                    }
+                    NEW line4 {
+                        type = COLUMNS;
+                        columns = 2;
+                        MOVE PROPERTY(creationTimestamp(d));
+                        MOVE PROPERTY(recipientReceiptConfirmationDateTime(d));
+                        MOVE PROPERTY(sendTimestamp(d));
+                        MOVE PROPERTY(confirmationDateTime(d));
+                        MOVE PROPERTY(deliveryTimestamp(d));
+                    }
+                    NEW line5 {
+                        type = COLUMNS;
+                        alignment = STRETCH;
+                        columns = 2;
+                        MOVE PROPERTY(senderSignatureStatusName(d));
+                        MOVE PROPERTY(revocationStatusName(d));
+                        MOVE PROPERTY(roamingNotificationStatusName(d));
+                        MOVE PROPERTY(roamingNotificationStatusDescription(d));
+                        MOVE PROPERTY(proxySignatureStatusName(d));
+                        MOVE PROPERTY(recipientReceiptReceiptStatusName(d));
+                        MOVE PROPERTY(recipientReceiptConfirmationReceiptStatusName(d));
+                        MOVE PROPERTY(confirmationReceiptStatusName(d));
+                        MOVE PROPERTY(recipientResponseStatusName(d));
+                        MOVE PROPERTY(amendmentFlags(d));
+                        MOVE PROPERTY(amendmentRequestReceiptStatusName(d));
+                        MOVE PROPERTY(senderReceiptStatusName(d));
+                    }
                 }
-                NEW line2 {
-                    type = COLUMNS;
-                    alignment = STRETCH;
-                    columns = 2;
-                    MOVE PROPERTY(size(d));
-                    MOVE PROPERTY(fileName(d));
-                    MOVE PROPERTY(customDocumentId(d));
-                    MOVE PROPERTY(resolutionRouteId(d));
-                    MOVE PROPERTY(typeNamedId(d));
-                    MOVE PROPERTY(function(d));
-                    MOVE PROPERTY(workflowId(d));
-                    MOVE PROPERTY(title(d));
-                    MOVE PROPERTY(lockModeName(d));
-                    MOVE PROPERTY(version(d));
-                }
-                NEW line3 {
-                    type = CONTAINERH;
-                    MOVE PROPERTY(isDeleted(d));
-                    MOVE PROPERTY(isTest(d));
-                    MOVE PROPERTY(isEncryptedContent(d));
-                    MOVE PROPERTY(isRead(d));
-                }
-                NEW line4 {
-                    type = COLUMNS;
-                    columns = 2;
-                    MOVE PROPERTY(creationTimestamp(d));
-                    MOVE PROPERTY(recipientReceiptConfirmationDateTime(d));
-                    MOVE PROPERTY(sendTimestamp(d));
-                    MOVE PROPERTY(confirmationDateTime(d));
-                    MOVE PROPERTY(deliveryTimestamp(d));
-                }
-                NEW line5 {
-                    type = COLUMNS;
-                    alignment = STRETCH;
-                    columns = 2;
-                    MOVE PROPERTY(senderSignatureStatusName(d));
-                    MOVE PROPERTY(revocationStatusName(d));
-                    MOVE PROPERTY(roamingNotificationStatusName(d));
-                    MOVE PROPERTY(roamingNotificationStatusDescription(d));
-                    MOVE PROPERTY(proxySignatureStatusName(d));
-                    MOVE PROPERTY(recipientReceiptReceiptStatusName(d));
-                    MOVE PROPERTY(recipientReceiptConfirmationReceiptStatusName(d));
-                    MOVE PROPERTY(confirmationReceiptStatusName(d));
-                    MOVE PROPERTY(recipientResponseStatusName(d));
-                    MOVE PROPERTY(amendmentFlags(d));
-                    MOVE PROPERTY(amendmentRequestReceiptStatusName(d));
-                    MOVE PROPERTY(senderReceiptStatusName(d));
+                MOVE BOX(k) {
+                    caption = 'Mетаданные';
+                    fill = 1;
+                    PROPERTY(key) { charWidth = 20; }
+                    PROPERTY(value) { charWidth = 20; }
                 }
             }
-            MOVE BOX(k) {
-                caption = 'Mетаданные';
+            MOVE BOX(dd) {
+                caption = 'Внешний документооборот';
                 fill = 1;
-                PROPERTY(key) { charWidth = 20; }
-                PROPERTY(value) { charWidth = 20; }
             }
         }
     }
@@ -971,6 +1027,17 @@ labelsM 'Метки' = DATA LOCAL STRING (INTEGER);
 versionM 'Версия документа' = DATA LOCAL STRING (INTEGER);
 GROUP content EXTID 'Content';
 sizeM 'Количество байтов в файле документа' = DATA LOCAL LONG (INTEGER);
+GROUP outerDocflow EXTID 'OuterDocflow';
+docflowNamedIdM 'Идентификатор внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+docflowFriendlyNameM 'Наименование внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+GROUP status EXTID 'Status': outerDocflow;
+statusNamedIdM 'Идентификатор статуса' = DATA LOCAL STRING[50] (INTEGER);
+statusFriendlyNameM 'Наименование статуса' = DATA LOCAL STRING[50] (INTEGER);
+outerStatusTypeM 'Тип статуса внешнего документооборота' = DATA LOCAL STRING (INTEGER);
+//Details для Message
+messageDetails = DATA LOCAL INTEGER (INTEGER);
+codeM 'Код' = DATA LOCAL STRING (INTEGER);
+textM 'Текст' = DATA LOCAL STRING (INTEGER);
 //Document для Message
 GROUP documentInfo EXTID 'DocumentInfo';
 messageIdDM 'Идентификатор сообщения' = DATA LOCAL STRING (INTEGER);
@@ -1005,6 +1072,17 @@ proxyBoxIdDM 'Идентификатор ящика промежуточного
 proxyDepartmentIdDM 'Идентификатор подразделения промежуточного получателя' = DATA LOCAL STRING (INTEGER);
 GROUP contentD EXTID 'Content': documentInfo;
 sizeDM 'Количество байтов в файле документа' = DATA LOCAL LONG (INTEGER);
+//LastOuterDocflows для Message
+messageLastOuterDocflows = DATA LOCAL INTEGER (INTEGER);
+docflowNamedIdDM 'Идентификатор внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+docflowFriendlyNameDM 'Наименование внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+statusNamedIdDM 'Идентификатор статуса' = DATA LOCAL STRING[50] (INTEGER);
+statusFriendlyNameDM 'Наименование статуса' = DATA LOCAL STRING[50] (INTEGER);
+outerStatusTypeDM 'Тип статуса внешнего документооборота' = DATA LOCAL STRING (INTEGER);
+//Details для LastOuterDocflows Message
+lastOuterDocflowsMessageDetails = DATA LOCAL INTEGER (INTEGER);
+codeDM 'Код' = DATA LOCAL STRING (INTEGER);
+textDM 'Текст' = DATA LOCAL STRING (INTEGER);
 GROUP recipientReceiptMetadataD EXTID 'RecipientReceiptMetadata': documentInfo;
 recipientReceiptReceiptStatusDM 'Обобщенный статус извещения о получении' = DATA LOCAL STRING (INTEGER);
 GROUP confirmationMetadataDR EXTID 'ConfirmationMetadata': recipientReceiptMetadataD;
@@ -1060,6 +1138,15 @@ attachmentVersionP 'Версия XSD схемы' = DATA LOCAL STRING[50] (INTEGE
 labelsP 'Метки' = DATA LOCAL STRING (INTEGER);
 versionP 'Версия документа' = DATA LOCAL STRING (INTEGER);
 sizeP 'Количество байтов в файле документа' = DATA LOCAL LONG (INTEGER);
+docflowNamedIdP 'Идентификатор внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+docflowFriendlyNameP 'Наименование внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+statusNamedIdP 'Идентификатор статуса' = DATA LOCAL STRING[50] (INTEGER);
+statusFriendlyNameP 'Наименование статуса' = DATA LOCAL STRING[50] (INTEGER);
+outerStatusTypeP 'Тип статуса внешнего документооборота' = DATA LOCAL STRING (INTEGER);
+//Details для MessagePatch
+patchDetails = DATA LOCAL INTEGER (INTEGER);
+codeP 'Код' = DATA LOCAL STRING (INTEGER);
+textP 'Текст' = DATA LOCAL STRING (INTEGER);
 //Document для MessagePatch
 messageIdDP 'Идентификатор сообщения' = DATA LOCAL STRING (INTEGER);
 entityIdDP 'Идентификатор сущности' = DATA LOCAL STRING (INTEGER);
@@ -1092,6 +1179,17 @@ versionDP 'Версия документа' = DATA LOCAL STRING[50] (INTEGER);
 proxyBoxIdDP 'Идентификатор ящика промежуточного получателя' = DATA LOCAL STRING (INTEGER);
 proxyDepartmentIdDP 'Идентификатор подразделения промежуточного получателя' = DATA LOCAL STRING (INTEGER);
 sizeDP 'Количество байтов в файле документа' = DATA LOCAL LONG (INTEGER);
+//LastOuterDocflows для MessagePatch
+patchLastOuterDocflows = DATA LOCAL INTEGER (INTEGER);
+docflowNamedIdDP 'Идентификатор внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+docflowFriendlyNameDP 'Наименование внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+statusNamedIdDP 'Идентификатор статуса' = DATA LOCAL STRING[50] (INTEGER);
+statusFriendlyNameDP 'Наименование статуса' = DATA LOCAL STRING[50] (INTEGER);
+outerStatusTypeDP 'Тип статуса внешнего документооборота' = DATA LOCAL STRING (INTEGER);
+//Details для LastOuterDocflows MessagePatch
+lastOuterDocflowsPatchDetails = DATA LOCAL INTEGER (INTEGER);
+codeDP 'Код' = DATA LOCAL STRING (INTEGER);
+textDP 'Текст' = DATA LOCAL STRING (INTEGER);
 recipientReceiptReceiptStatusDP 'Обобщенный статус извещения о получении' = DATA LOCAL STRING (INTEGER);
 recipientReceiptConfirmationReceiptStatusDP 'Cтатус подтверждении оператором даты отправки ИОПа' = DATA LOCAL STRING (INTEGER);
 recipientReceiptConfirmationDateTimeTicksDP 'Время статуса подтверждении оператором даты отправки ИОПа' = DATA LOCAL LONG (INTEGER);
@@ -1161,6 +1259,17 @@ FORM importEvents
                    versionM EXTID 'Version'
     PROPERTIES(em) IN content
                    sizeM EXTID 'Size'
+    PROPERTIES(em) IN outerDocflow
+                   docflowNamedIdM EXTID 'DocflowNamedId',
+                   docflowFriendlyNameM EXTID 'DocflowFriendlyName'
+    PROPERTIES(em) IN status
+                   statusNamedIdM EXTID 'NamedId',
+                   statusFriendlyNameM EXTID 'FriendlyName',
+                   outerStatusTypeM EXTID 'Type'
+    OBJECTS emd = INTEGER IN status EXTID 'Details'
+    FILTERS messageDetails(emd) == em
+    PROPERTIES(emd) codeM EXTID 'Code',
+                    textM EXTID 'Text'
     PROPERTIES(em) IN documentInfo // Document
                    messageIdDM EXTID 'MessageId',
                    entityIdDM EXTID 'EntityId',
@@ -1194,6 +1303,19 @@ FORM importEvents
                    proxyDepartmentIdDM EXTID 'ProxyDepartmentId'
     PROPERTIES(em) IN contentD
                    sizeDM EXTID 'Size'
+    OBJECTS mod = INTEGER IN documentInfo EXTID 'LastOuterDocflows'
+    FILTERS messageLastOuterDocflows(mod) == em
+    PROPERTIES(mod) IN outerDocflow
+                    docflowNamedIdDM EXTID 'DocflowNamedId',
+                    docflowFriendlyNameDM EXTID 'DocflowFriendlyName'
+    PROPERTIES(mod) IN status
+                    statusNamedIdDM EXTID 'NamedId',
+                    statusFriendlyNameDM EXTID 'FriendlyName',
+                    outerStatusTypeDM EXTID 'Type'
+    OBJECTS modd = INTEGER IN status EXTID 'Details'
+    FILTERS lastOuterDocflowsMessageDetails(modd) == mod
+    PROPERTIES(modd) codeDM EXTID 'Code',
+                     textDM EXTID 'Text'
     PROPERTIES(em) IN recipientReceiptMetadataD
                    recipientReceiptReceiptStatusDM EXTID 'ReceiptStatus'
     PROPERTIES(em) IN confirmationMetadataDR
@@ -1247,6 +1369,17 @@ FORM importEvents
                    versionP EXTID 'Version'
     PROPERTIES(ep) IN content
                    sizeP EXTID 'Size'
+    PROPERTIES(ep) IN outerDocflow
+                   docflowNamedIdP EXTID 'DocflowNamedId',
+                   docflowFriendlyNameP EXTID 'DocflowFriendlyName'
+    PROPERTIES(ep) IN status
+                   statusNamedIdP EXTID 'NamedId',
+                   statusFriendlyNameP EXTID 'FriendlyName',
+                   outerStatusTypeP EXTID 'Type'
+    OBJECTS epd = INTEGER IN status EXTID 'Details'
+    FILTERS patchDetails(epd) == em
+    PROPERTIES(epd) codeP EXTID 'Code',
+                    textP EXTID 'Text'
     PROPERTIES(ep) IN documentInfo // Document
                    messageIdDP EXTID 'MessageId',
                    entityIdDP EXTID 'EntityId',
@@ -1280,6 +1413,19 @@ FORM importEvents
                    proxyDepartmentIdDP EXTID 'ProxyDepartmentId'
     PROPERTIES(ep) IN contentD
                    sizeDP EXTID 'Size'
+    OBJECTS pod = INTEGER IN documentInfo EXTID 'LastOuterDocflows'
+    FILTERS patchLastOuterDocflows(pod) == ep
+    PROPERTIES(pod) IN outerDocflow
+                    docflowNamedIdDP EXTID 'DocflowNamedId',
+                    docflowFriendlyNameDP EXTID 'DocflowFriendlyName'
+    PROPERTIES(pod) IN status
+                    statusNamedIdDP EXTID 'NamedId',
+                    statusFriendlyNameDP EXTID 'FriendlyName',
+                    outerStatusTypeDP EXTID 'Type'
+    OBJECTS podd = INTEGER IN status EXTID 'Details'
+    FILTERS lastOuterDocflowsPatchDetails(podd) == pod
+    PROPERTIES(podd) codeDP EXTID 'Code',
+                     textDP EXTID 'Text'
     PROPERTIES(ep) IN recipientReceiptMetadataD
                    recipientReceiptReceiptStatusDP EXTID 'ReceiptStatus'
     PROPERTIES(ep) IN confirmationMetadataDR
@@ -1355,6 +1501,8 @@ getNewEvents 'Получить новые сообщения' (Box box) {
                 isReusable(m) <- isReusable(i);
                 message(boxEvent(eventId(i))) <- m;
             }
+            //todo : бывает ситуации когда один и тот же entity содержится в разных message (например черновики), тогда падает ошибка на дублирующие объекты
+            //или переделать ссылки между entity и message (сейчас 1 к 1), или создавать только 1 объект entity и привязывать к 1 message, остальные будут без документов
             FOR entityIdM(INTEGER i) AND NOT entity(entityIdM(i)) NEW e = Entity DO {
                 entityId(e) <- entityIdM(i);
             }
@@ -1376,6 +1524,14 @@ getNewEvents 'Получить новые сообщения' (Box box) {
                 labels(e) <- labelsM(i);
                 version(e) <- versionM(i);
                 size(e) <- sizeM(i);
+                docflowNamedId(e) <- docflowNamedIdM(i);
+                docflowFriendlyName(e) <- docflowFriendlyNameM(i);
+                statusNamedId(e) <- statusNamedIdM(i);
+                statusFriendlyName(e) <- statusFriendlyNameM(i);
+                outerStatusType(e) <- outerStatusType(outerStatusTypeM(i));
+                FOR messageDetails(INTEGER d) == i DO {
+                    statusDetail(e,codeM(d)) <- textM(d);
+                }
                 message(e) <- message(messageId(messageEntity(i)));
                 IF size(e) > 0 THEN {
                     LOCAL data = RAWFILE ();
@@ -1421,6 +1577,15 @@ getNewEvents 'Получить новые сообщения' (Box box) {
                 proxyBox(d) <- box(proxyBoxIdDM(i));
                 proxyDepartment(d) <- department(proxyDepartmentIdDM(i));
                 size(d) <- sizeDM(i);
+                FOR messageLastOuterDocflows(INTEGER o) == i DO {
+                    docflowFriendlyName(d,docflowNamedIdDM(o)) <- docflowFriendlyNameDM(o);
+                    statusNamedId(d,docflowNamedIdDM(o)) <- statusNamedIdDM(o);
+                    statusFriendlyName(d,docflowNamedIdDM(o)) <- statusFriendlyNameDM(o);
+                    outerStatusType(d,docflowNamedIdDM(o)) <- outerStatusType(outerStatusTypeDM(o));
+                    FOR lastOuterDocflowsMessageDetails(INTEGER dd) == o DO {
+                        statusDetail(d,docflowNamedIdDM(o),codeDM(dd)) <- textDM(dd);
+                    }
+                }
                 recipientReceiptReceiptStatus(d) <- generalReceiptStatus(recipientReceiptReceiptStatusDM(i));
                 recipientReceiptConfirmationReceiptStatus(d) <- generalReceiptStatus(recipientReceiptConfirmationReceiptStatusDM(i));
                 recipientReceiptConfirmationDateTimeTicks(d) <- recipientReceiptConfirmationDateTimeTicksDM(i);
@@ -1473,6 +1638,14 @@ getNewEvents 'Получить новые сообщения' (Box box) {
                 labels(e) <- labelsP(i);
                 version(e) <- versionP(i);
                 size(e) <- sizeP(i);
+                docflowNamedId(e) <- docflowNamedIdP(i);
+                docflowFriendlyName(e) <- docflowFriendlyNameP(i);
+                statusNamedId(e) <- statusNamedIdP(i);
+                statusFriendlyName(e) <- statusFriendlyNameP(i);
+                outerStatusType(e) <- outerStatusType(outerStatusTypeP(i));
+                FOR patchDetails(INTEGER d) == i DO {
+                    statusDetail(e,codeP(d)) <- textP(d);
+                }
                 patch(e) <- messagePatch(patchId(patchEntity(i)));
                 IF size(e) > 0 THEN {
                     LOCAL data = RAWFILE ();
@@ -1518,6 +1691,15 @@ getNewEvents 'Получить новые сообщения' (Box box) {
                 proxyBox(d) <- box(proxyBoxIdDP(i));
                 proxyDepartment(d) <- department(proxyDepartmentIdDP(i));
                 size(d) <- sizeDP(i);
+                FOR patchLastOuterDocflows(INTEGER o) == i DO {
+                    docflowFriendlyName(d,docflowNamedIdDP(o)) <- docflowFriendlyNameDP(o);
+                    statusNamedId(d,docflowNamedIdDP(o)) <- statusNamedIdDP(o);
+                    statusFriendlyName(d,docflowNamedIdDP(o)) <- statusFriendlyNameDP(o);
+                    outerStatusType(d,docflowNamedIdDP(o)) <- outerStatusType(outerStatusTypeDP(o));
+                    FOR lastOuterDocflowsPatchDetails(INTEGER dd) == o DO {
+                        statusDetail(d,docflowNamedIdDP(o),codeDP(dd)) <- textDP(dd);
+                    }
+                }
                 recipientReceiptReceiptStatus(d) <- generalReceiptStatus(recipientReceiptReceiptStatusDP(i));
                 recipientReceiptConfirmationReceiptStatus(d) <- generalReceiptStatus(recipientReceiptConfirmationReceiptStatusDP(i));
                 recipientReceiptConfirmationDateTimeTicks(d) <- recipientReceiptConfirmationDateTimeTicksDP(i);
@@ -1573,6 +1755,16 @@ versionD 'Версия документа' = DATA LOCAL STRING[50] ();
 proxyBoxIdD 'Идентификатор ящика промежуточного получателя' = DATA LOCAL STRING ();
 proxyDepartmentIdD 'Идентификатор подразделения промежуточного получателя' = DATA LOCAL STRING ();
 sizeD 'Количество байтов в файле документа' = DATA LOCAL LONG ();
+//LastOuterDocflows
+docflowNamedIdD 'Идентификатор внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+docflowFriendlyNameD 'Наименование внешнего документооборота' = DATA LOCAL STRING[50] (INTEGER);
+statusNamedIdD 'Идентификатор статуса' = DATA LOCAL STRING[50] (INTEGER);
+statusFriendlyNameD 'Наименование статуса' = DATA LOCAL STRING[50] (INTEGER);
+outerStatusTypeD 'Тип статуса внешнего документооборота' = DATA LOCAL STRING (INTEGER);
+//Details
+lastOuterDocflowsDetails = DATA LOCAL INTEGER (INTEGER);
+codeD 'Код' = DATA LOCAL STRING (INTEGER);
+textD 'Текст' = DATA LOCAL STRING (INTEGER);
 GROUP recipientReceiptMetadata EXTID 'RecipientReceiptMetadata';
 recipientReceiptReceiptStatusD 'Обобщенный статус извещения о получении' = DATA LOCAL STRING ();
 GROUP confirmationMetadataR EXTID 'ConfirmationMetadata': recipientReceiptMetadata;
@@ -1627,6 +1819,18 @@ FORM importDocument
                  proxyDepartmentIdD EXTID 'ProxyDepartmentId'
  PROPERTIES() IN content
               sizeD EXTID 'Size'
+ OBJECTS o = INTEGER EXTID 'LastOuterDocflows'
+ PROPERTIES(o) IN outerDocflow
+               docflowNamedIdD EXTID 'DocflowNamedId',
+               docflowFriendlyNameD EXTID 'DocflowFriendlyName'
+ PROPERTIES(o) IN status
+               statusNamedIdD EXTID 'NamedId',
+               statusFriendlyNameD EXTID 'FriendlyName',
+               outerStatusTypeD EXTID 'Type'
+ OBJECTS d = INTEGER IN status EXTID 'Details'
+ FILTERS lastOuterDocflowsDetails(d) == o
+ PROPERTIES(d) codeD EXTID 'Code',
+               textD EXTID 'Text'
  PROPERTIES() IN recipientReceiptMetadata
               recipientReceiptReceiptStatusD EXTID 'ReceiptStatus'
  PROPERTIES() IN confirmationMetadataR
@@ -1691,6 +1895,15 @@ getDocument 'Обновить информацию по документу' (Box
             proxyBox(d) <- box(proxyBoxIdD());
             proxyDepartment(d) <- department(proxyDepartmentIdD());
             size(d) <- sizeD();
+            FOR docflowNamedIdD(INTEGER o) DO {
+                docflowFriendlyName(d,docflowNamedIdD(o)) <- docflowFriendlyNameD(o);
+                statusNamedId(d,docflowNamedIdD(o)) <- statusNamedIdD(o);
+                statusFriendlyName(d,docflowNamedIdD(o)) <- statusFriendlyNameD(o);
+                outerStatusType(d,docflowNamedIdD(o)) <- outerStatusType(outerStatusTypeD(o));
+                FOR lastOuterDocflowsDetails(INTEGER dd) == o DO {
+                    statusDetail(d,docflowNamedIdD(o),codeD(dd)) <- textD(dd);
+                }
+            }
             recipientReceiptReceiptStatus(d) <- generalReceiptStatus(recipientReceiptReceiptStatusD());
             recipientReceiptConfirmationReceiptStatus(d) <- generalReceiptStatus(recipientReceiptConfirmationReceiptStatusD());
             recipientReceiptConfirmationDateTimeTicks(d) <- recipientReceiptConfirmationDateTimeTicksD();
@@ -1933,6 +2146,17 @@ FORM importMessage
                    versionM EXTID 'Version'
     PROPERTIES(em) IN content
                    sizeM EXTID 'Size'
+    PROPERTIES(em) IN outerDocflow
+                   docflowNamedIdM EXTID 'DocflowNamedId',
+                   docflowFriendlyNameM EXTID 'DocflowFriendlyName'
+    PROPERTIES(em) IN status
+                   statusNamedIdM EXTID 'NamedId',
+                   statusFriendlyNameM EXTID 'FriendlyName',
+                   outerStatusTypeM EXTID 'Type'
+    OBJECTS emd = INTEGER IN status EXTID 'Details'
+    FILTERS messageDetails(emd) == em
+    PROPERTIES(emd) codeM EXTID 'Code',
+                    textM EXTID 'Text'
     PROPERTIES(em) IN documentInfo // Document
                    messageIdDM EXTID 'MessageId',
                    entityIdDM EXTID 'EntityId',
@@ -1966,6 +2190,19 @@ FORM importMessage
                    proxyDepartmentIdDM EXTID 'ProxyDepartmentId'
     PROPERTIES(em) IN contentD
                    sizeDM EXTID 'Size'
+    OBJECTS mod = INTEGER IN documentInfo EXTID 'LastOuterDocflows'
+    FILTERS messageLastOuterDocflows(mod) == em
+    PROPERTIES(mod) IN outerDocflow
+                    docflowNamedIdDM EXTID 'DocflowNamedId',
+                    docflowFriendlyNameDM EXTID 'DocflowFriendlyName'
+    PROPERTIES(mod) IN status
+                    statusNamedIdDM EXTID 'NamedId',
+                    statusFriendlyNameDM EXTID 'FriendlyName',
+                    outerStatusTypeDM EXTID 'Type'
+    OBJECTS modd = INTEGER IN status EXTID 'Details'
+    FILTERS lastOuterDocflowsMessageDetails(modd) == mod
+    PROPERTIES(modd) codeDM EXTID 'Code',
+                     textDM EXTID 'Text'               
     PROPERTIES(em) IN recipientReceiptMetadataD
                    recipientReceiptReceiptStatusDM EXTID 'ReceiptStatus'
     PROPERTIES(em) IN confirmationMetadataDR
@@ -2053,6 +2290,14 @@ postMessage 'Отправить сообщение' (User u) {
         labels(e) <- labelsM(i);
         version(e) <- versionM(i);
         size(e) <- sizeM(i);
+        docflowNamedId(e) <- docflowNamedIdM(i);
+        docflowFriendlyName(e) <- docflowFriendlyNameM(i);
+        statusNamedId(e) <- statusNamedIdM(i);
+        statusFriendlyName(e) <- statusFriendlyNameM(i);
+        outerStatusType(e) <- outerStatusType(outerStatusTypeM(i));
+        FOR messageDetails(INTEGER d) == i DO {
+            statusDetail(e,codeM(d)) <- textM(d);
+        }
         message(e) <- message(messageIdM());
         IF size(e) > 0 THEN {
             LOCAL data = RAWFILE ();
@@ -2098,6 +2343,15 @@ postMessage 'Отправить сообщение' (User u) {
         proxyBox(d) <- box(proxyBoxIdDM(i));
         proxyDepartment(d) <- department(proxyDepartmentIdDM(i));
         size(d) <- sizeDM(i);
+        FOR messageLastOuterDocflows(INTEGER o) == i DO {
+            docflowFriendlyName(d,docflowNamedIdDM(o)) <- docflowFriendlyNameDM(o);
+            statusNamedId(d,docflowNamedIdDM(o)) <- statusNamedIdDM(o);
+            statusFriendlyName(d,docflowNamedIdDM(o)) <- statusFriendlyNameDM(o);
+            outerStatusType(d,docflowNamedIdDM(o)) <- outerStatusType(outerStatusTypeDM(o));
+            FOR lastOuterDocflowsMessageDetails(INTEGER dd) == o DO {
+                statusDetail(d,docflowNamedIdDM(o),codeDM(dd)) <- textDM(dd);
+            }
+        }
         recipientReceiptReceiptStatus(d) <- generalReceiptStatus(recipientReceiptReceiptStatusDM(i));
         recipientReceiptConfirmationReceiptStatus(d) <- generalReceiptStatus(recipientReceiptConfirmationReceiptStatusDM(i));
         recipientReceiptConfirmationDateTimeTicks(d) <- recipientReceiptConfirmationDateTimeTicksDM(i);
