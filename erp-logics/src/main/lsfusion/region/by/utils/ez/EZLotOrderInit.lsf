@@ -1,0 +1,218 @@
+MODULE EZLotOrderInit;
+
+REQUIRE LotOrderInitBy, EZLotOrder, EZLotInit, EZPurchaseInvoice;
+
+NAMESPACE EZ;
+
+//'Отчёт о маркировке'
+lotInit  = DATA LOCAL LotInit ();
+gtin  = DATA LOCAL STRING[14] ();
+filterLot (Lot l) = (GROUP SUM quantity(LotInitDetail d, l) IF lotInit() == lotInit(d)) > 0 AND gtin() == gtin(l); 
+isSend 'Отправлен' = DATA BOOLEAN (LotInit);
+    
+exception 'Сообщение' = DATA TEXT (LotInit);
+handleException (LotInit i, FILE exception) {
+    logToFile('ez', messageCaughtException());
+    
+    logToFile('ez', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException();
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(i) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
+EXTEND FORM lotInits
+    PROPERTIES(i) READONLY exception PANEL SHOWIF exception(i)
+;
+DESIGN lotInits {
+    tabbedPane {
+        NEW ez {
+            caption = 'Электронный знак';
+            MOVE PROPERTY(exception(i)) { panelCaptionVertical = TRUE; fill = 1; };
+        }
+    }
+}
+
+getStatusReport 'Получить статус' (ReportEZ r) {
+    EXPORT JSON FROM report_id  = id(r);         
+              
+    LOCAL result = FILE();   
+    
+    exception(lotInit(r)) <- NULL;    
+    
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/v2/reports' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        handleException(lotInit(r), result());
+        RETURN;
+    }       
+    fileToString(result());
+    //MESSAGE resultString();
+    
+    LOCAL statusCode = INTEGER ();
+    
+    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'status' == jsonAttributeKey(resultString(),i) DO {
+        LOCAL subJson1 = STRING (); 
+        subJson1() <- STRING(jsonAttributeValue(resultString(),i));        
+                
+        FOR iterate(INTEGER k, 1, jsonAttributeCount1(subJson1())) AND 'code' == jsonAttributeKey1(subJson1(),k) DO {
+            statusCode() <- INTEGER(STRING(jsonAttributeValue1(subJson1(),k))); 
+        }
+    };   
+    status(r) <- statusReport(statusCode());
+    
+    APPLY;
+}    
+    
+FORM addMark 'Отчет о маркировке'
+
+    PROPERTIES group = 'shoes'
+
+    OBJECTS labels = Lot
+    PROPERTIES (labels) code 
+    FILTERS filterLot(labels)
+;    
+
+nameSku(LotInit i) = nameSku(GROUP MAX LotInitDetail d IF lotInit(d) == i);
+
+getParameters 'Получить параметры' (LotInit i) {
+          
+    LOCAL result = FILE();   
+    
+    exception(i) <- NULL;    
+    
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        handleException(i, result());
+        RETURN;
+    }       
+    fileToString(result());
+//    MESSAGE resultString();
+        
+}    
+
+overGtin = ABSTRACT STRING[14] (LotInitDetail);
+gtin 'GTIN' (LotInitDetail d) = OVERRIDE overGtin(d), gtin(sku(d));
+
+lastLotInitDetail(LotInit i, STRING[14] gtin) = GROUP LAST LotInitDetail d IF i == lotInit(d) AND gtin == gtin(d) ORDER d;
+
+seriesNumberDeclaration(LotInit i, STRING[14] gtin) = seriesNumberDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
+dateDeclaration(LotInit i, STRING[14] gtin) = dateDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
+sidOrigin2CountryDeclaration(LotInit i, STRING[14] gtin)= sidOrigin2CountryDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
+
+// разрешено формировать отчтет только по одному GTIN
+addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
+    lotInit() <- i;
+    gtin() <- gtin;
+    
+    EXPORT addMark JSON;
+    // Дополнительная обработка JSON к виду { "labels": ["01048113090167242128v8LZVn936rXO", "001048113090167242128v8LZVn936rXO"]}   
+    LOCAL strResult = STRING ();
+    fileToString(exportFile());   
+//    strResult() <- replace(STRING(resultString()),'"code":[{"code":','"labels":[');
+    strResult() <- replace(STRING(resultString()),'"code":','');    
+    strResult() <- replace(strResult(),'\{','');
+    strResult() <- replace(strResult(),'\}','');
+    
+    // add "params"
+    LOCAL listParams = STRING ();
+    
+    listParams() <- '';
+    
+    // !!!смотреть список параметров и коды к ним по действию getParameters
+    CASE
+        WHEN mode(i) == LotInitMode.PRODUCTION THEN {            
+            listParams() <- listParams() + ' \{ "code": 137, "value": "' + codeMode(i) + '"\}';              
+            IF codeProductionType(i) THEN listParams() <- listParams() + ', \{ "code": 123, "value": "' + codeProductionType(i) + '"\}'; 
+            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 124, "value": "' + codeMethod(i) + '"\}';            
+        }
+        WHEN mode(i) == LotInitMode.IMPORT_ THEN {            
+            listParams() <- listParams() + '  \{ "code": 137, "value": "' + codeMode(i) + '"\}'; 
+            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 124, "value": "' + codeMethod(i) + '"\}'; 
+            IF sidOrigin2CountryDeclaration(i, gtin) THEN listParams() <- listParams() + ', \{ "code": 130, "value": "' + sidOrigin2CountryDeclaration(i, gtin) + '"\}'; 
+            IF seriesNumberDeclaration(i, gtin) THEN listParams() <- listParams() + ', \{ "code": 126, "value": "' + seriesNumberDeclaration(i, gtin) + '"\}'; 
+            IF toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN listParams() <- listParams() + ', \{ "code": 127, "value": "' + toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') + '"\}';             
+        }
+        WHEN mode(i) == LotInitMode.COMMISSION THEN {
+            listParams() <- listParams() + ' \{ "code": 137, "value": "' + codeMode(i) + '"\}';  
+        }
+        WHEN mode(i) == LotInitMode.REMARK THEN {
+            listParams() <- listParams() + ' \{ "code": 137, "value": "' + codeMode(i) + '"\}';     
+        };
+        
+    strResult() <- '\{' + strResult() + ', "params": [' + listParams() + ']' + '\}';
+     
+    stringToFile(strResult());
+      
+    LOCAL result = FILE();      
+
+    exception(i) <- NULL;   
+    
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/v2/reports/addMark' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
+        isSend(i) <- TRUE;
+    } CATCH {
+        handleException(i, result());
+        RETURN;
+    }       
+    fileToString(result());       
+//    MESSAGE resultString();
+    
+    // Получение id отчета    
+    FOR iterate(INTEGER k, 1, jsonAttributeCount(resultString())) AND 'report_id' == jsonAttributeKey(resultString(),k) DO {
+         NEW r = ReportEZ {
+            lotInit(r) <- i;
+            id(r) <- replace(STRING(jsonAttributeValue(resultString(),k)),'"','');
+            getStatusReport(r);
+         }  
+    }
+        
+    APPLY;    
+    
+    // получение статусов для марок
+    FOR lotInit(LotInitDetail d) == i DO {
+        FOR quantity(d, Lot l) DO {
+           getStatus(l); 
+        }
+    }     
+}
+
+addMark 'Отправить отчет'(LotInit i) {
+    FOR (STRING[14] gtin) AND ((GROUP SUM 1 IF gtin == gtin(LotInitDetail d) AND i == lotInit(d)) > 0) DO {
+        addMark(i, gtin);
+    }
+}
+
+EXTEND FORM lotInits 
+    PROPERTIES (i) addMark SHOWIF isPosted(i) AND NOT isSend(i), getParameters
+;
+
+DESIGN lotInits {
+    tabbedPane {        
+        ez {
+            MOVE PROPERTY(addMark(i));
+            MOVE PROPERTY(getParameters(i));            
+        }
+    }
+}
+
+EXTEND FORM lotInit 
+    PROPERTIES(i) isSend
+;
+
+DESIGN lotInit {
+    headerRow1 {
+        MOVE PROPERTY(isSend(i));
+    }
+}
+
+
+EXTEND FORM lotInit   
+    PROPERTIES(r) getStatusReport TOOLBAR
+;
+
+

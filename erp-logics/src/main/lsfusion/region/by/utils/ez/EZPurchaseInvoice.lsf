@@ -1,0 +1,39 @@
+MODULE EZPurchaseInvoice;
+
+REQUIRE PurchaseInvoice, EZLotOrder, PurchaseDeclarationDetail;
+
+NAMESPACE EZ;
+
+//invoice = DATA Purchase.Invoice (LotOrder);
+invoiceDetail = DATA Purchase.InvoiceDetail (LotOrderDetail );
+
+declaration (LotOrderDetail d) = declaration(invoiceDetail(d));
+
+seriesNumberDeclaration(LotOrderDetail d) = seriesNumber(declaration(d));
+dateDeclaration(LotOrderDetail d) = date(declaration(d));
+
+sidOrigin2CountryDeclaration(LotOrderDetail d) = sidOrigin2(country(legalEntity(declaration(d))));
+
+fillFromInvoice 'Заполнить из накладной' (LotOrder o) {
+    DIALOG Purchase.invoices OBJECTS i INPUT DO {
+        FOR (invoice(Purchase.InvoiceDetail d) == i) DO NEW id = LotOrderDetail{
+            lotOrder(id) <- o;
+            sku(id) <- sku(d);
+            quantity(id) <- quantity(d);
+            invoiceDetail(id) <- d;
+        }
+    }
+}
+
+EXTEND FORM lotOrder
+    PROPERTIES (o) fillFromInvoice DRAW d TOOLBAR
+;
+
+
+
+
+
+
+
+
+

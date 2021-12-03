@@ -1,0 +1,27 @@
+MODULE EZLegalEntity;
+
+REQUIRE EZAuthentication, LegalEntity;
+
+NAMESPACE EZ;
+
+dataUsernameEZ 'Пользователь' = DATA STRING(LegalEntity);
+dataPasswordEZ 'Пароль для API' = DATA STRING(LegalEntity) ECHO;
+
+dataToken 'Токен' = DATA STRING (LegalEntity);
+
+EXTEND FORM integrationData
+    OBJECTS lez = LegalEntity
+    PROPERTIES(lez) READONLY dataUsernameEZ, dataPasswordEZ
+    PROPERTIES(lez) dataToken
+    FILTERS isCompany(lez)
+;
+
+DESIGN integrationData {
+    EZ {
+        MOVE BOX(lez);
+    }
+}
+
+usernameEZ(LegalEntity l) = OVERRIDE dataUsernameEZ(l), (usernameEZ() IF l IS LegalEntity);
+passwordEZ(LegalEntity l) = OVERRIDE dataPasswordEZ(l), (passwordEZ() IF l IS LegalEntity);
+token(LegalEntity l) = OVERRIDE dataToken(l), (token() IF l IS LegalEntity);

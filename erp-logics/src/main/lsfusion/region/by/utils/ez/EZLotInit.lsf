@@ -1,0 +1,144 @@
+MODULE EZLotInit;
+
+REQUIRE LotInitBy;
+
+NAMESPACE EZ;
+
+CLASS LotInitMode 'Режим маркировки' {
+    PRODUCTION 'Производство',
+    IMPORT_ 'Импорт',
+    COMMISSION 'Комиссионная торговля',
+    REMARK 'Перемаркировка (возврат товара)'
+}
+
+code 'Код' (LotInitMode m) = CASE 
+    WHEN m == LotInitMode.PRODUCTION THEN 1
+    WHEN m == LotInitMode.IMPORT_ THEN 2
+    WHEN m == LotInitMode.COMMISSION THEN 3
+    WHEN m == LotInitMode.REMARK THEN 4 CHARWIDTH 2;
+    
+name '{master.data.name}' (LotInitMode m) = staticCaption(m) IF m IS LotInitMode CHARWIDTH 15;
+
+FORM dialogLotInitModes 'Режим маркировки'
+    OBJECTS m = LotInitMode
+    PROPERTIES(m) READONLY name
+    
+    LIST LotInitMode OBJECT m
+;
+
+mode = DATA LotInitMode (LotInit) NONULL;
+codeMode (LotInit i) = code(mode(i));
+nameMode 'Режим' (LotInit i) = name(mode(i));
+
+CLASS LotInitProductionType 'Тип производственного заказа' {
+    OWN 'Собственное производство',
+    CONTRACT 'Контрактное производство'
+}
+
+code 'Код' (LotInitProductionType m) = CASE 
+    WHEN m == LotInitProductionType.OWN THEN 1
+    WHEN m == LotInitProductionType.CONTRACT THEN 2 CHARWIDTH 1;
+    
+name '{master.data.name}' (LotInitProductionType t) = staticCaption(t) IF t IS LotInitProductionType CHARWIDTH 15;
+
+FORM dialogLotInitProductionTypes 'Тип производственного заказа'
+    OBJECTS m = LotInitProductionType
+    PROPERTIES(m) READONLY name
+    
+    LIST LotInitProductionType OBJECT m
+;
+
+productionType = DATA LotInitProductionType (LotInit);
+codeProductionType (LotInit i) = code(productionType(i));
+nameProductionType 'Тип заказа' (LotInit i) = name(productionType(i));
+
+CLASS LotInitMarkingMethod 'Способ маркировки (полиграфическая защита)' {
+    PROTECTED 'Использование защищенного материального носителя',
+    PROTECTION_MARK 'Использование знака защиты',
+    NO_PROTECT 'Без защиты'
+}
+
+code 'Код' (LotInitMarkingMethod m) = CASE 
+    WHEN m == LotInitMarkingMethod.PROTECTED THEN 1
+    WHEN m == LotInitMarkingMethod.PROTECTION_MARK THEN 2
+    WHEN m == LotInitMarkingMethod.NO_PROTECT THEN 3;
+    
+name '{master.data.name}' (LotInitMarkingMethod m) = staticCaption(m) IF m IS LotInitMarkingMethod CHARWIDTH 15;
+
+FORM dialogLotInitMarkingMethods 'Способ маркировки'
+    OBJECTS m = LotInitMarkingMethod
+    PROPERTIES(m) READONLY name
+    
+    LIST LotInitMarkingMethod OBJECT m
+;
+
+method = DATA LotInitMarkingMethod (LotInit) NONULL;
+codeMethod (LotInit i) = code(method(i));
+nameMethod 'Способ маркировки' (LotInit i) = name(method(i));
+
+EXTEND FORM lotInit
+    PROPERTIES(i) nameMode, nameProductionType SHOWIF LotInitMode.PRODUCTION == mode(i), nameMethod
+;
+DESIGN lotInit {
+    header {
+        NEW headerRow3 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(nameMode(i)) { notNull = TRUE; }
+            MOVE PROPERTY(nameProductionType(i)) { notNull = TRUE; }
+            MOVE PROPERTY(nameMethod(i)) { notNull = TRUE; }
+        }
+    } 
+}
+
+EXTEND FORM lotInits
+    PROPERTIES(i) READONLY nameMode, nameProductionType SHOWIF LotInitMode.PRODUCTION == mode(i), nameMethod
+;
+
+CLASS ReportEZ 'Отчет ЭЗ';
+lotInit = DATA LotInit(ReportEZ) NONULL;
+id '{integration.id}' = DATA STRING[100](ReportEZ);
+
+CLASS LotInitReportStatus 'Статус Отчета' {
+    CREATED    'Создан',
+    PROCESSING 'В обработке',
+    CONFIRMED  'Подтвержден',
+    COMPLETED  'Выполнен',
+    ERROR      'Ошибка'
+}
+
+code 'Код' (LotInitReportStatus s) = CASE 
+    WHEN s == LotInitReportStatus.CREATED THEN 0
+    WHEN s == LotInitReportStatus.PROCESSING THEN 10
+    WHEN s == LotInitReportStatus.CONFIRMED THEN 20
+    WHEN s == LotInitReportStatus.COMPLETED THEN 30
+    WHEN s == LotInitReportStatus.ERROR THEN 40
+    CHARWIDTH 20;
+  
+statusReport (INTEGER code) = CASE 
+    WHEN code == 0  THEN LotInitReportStatus.CREATED
+    WHEN code == 10 THEN LotInitReportStatus.PROCESSING 
+    WHEN code == 20 THEN LotInitReportStatus.CONFIRMED
+    WHEN code == 30 THEN LotInitReportStatus.COMPLETED
+    WHEN code == 40 THEN LotInitReportStatus.ERROR;
+    
+name 'Наименование' (LotInitReportStatus s) = staticCaption(s) IF s IS LotInitReportStatus CHARWIDTH 20;    
+  
+status 'Статус' = DATA LotInitReportStatus (ReportEZ);
+codeStatus 'Код статуса' (ReportEZ r) = code(status(r));
+nameStatus 'Статус' (ReportEZ r) = name(status(r));
+
+EXTEND FORM lotInit
+    OBJECTS r = ReportEZ
+    PROPERTIES(r) READONLY id, nameStatus
+    FILTERS lotInit(r) == i;
+;
+
+DESIGN lotInit {
+    tabbedPane {
+        NEW reports {
+            caption = 'Отчеты'; 
+            MOVE BOX(r);
+        }
+    }
+}

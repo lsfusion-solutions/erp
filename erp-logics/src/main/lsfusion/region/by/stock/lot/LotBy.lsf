@@ -1,0 +1,84 @@
+MODULE LotBy;
+
+REQUIRE Lot, LotTypeBy;
+
+NAMESPACE Stock;
+
+CLASS LotStatus 'Статус заказа' {
+    GENERATED      'Сгенерирован',
+    ORDERING_CODES  'Заказ кодов',
+    CODE_ISSUED     'Выдан код',
+    MANUFACTURED   'Изготовлен',
+    VALIDATED      'Валидирован',
+    SIGNED_RF       'Подписан РФ',
+    MARKED         'Промаркирован товар',
+    CIRCULATION_RB  'Введен в оборот в РБ',
+    ARRIVED_ABROAD  'Прибыл из-за границы',
+    SOLD_RETAIL     'Реализован в розничной сети',
+    DEPARTED_ABROAD 'Выбыл за границу'
+}
+
+code 'Код' (LotStatus s) = CASE 
+    WHEN s == LotStatus.GENERATED THEN 0
+    WHEN s == LotStatus.ORDERING_CODES THEN 10
+    WHEN s == LotStatus.CODE_ISSUED THEN 15
+    WHEN s == LotStatus.MANUFACTURED THEN 20
+    WHEN s == LotStatus.VALIDATED THEN 30
+    WHEN s == LotStatus.SIGNED_RF THEN 40 
+    WHEN s == LotStatus.MARKED THEN 50
+    WHEN s == LotStatus.CIRCULATION_RB THEN 55
+    WHEN s == LotStatus.ARRIVED_ABROAD THEN 60 
+    WHEN s == LotStatus.SOLD_RETAIL THEN 80 
+    WHEN s == LotStatus.DEPARTED_ABROAD THEN 90 
+    CHARWIDTH 20;
+  
+statusLot (INTEGER code) = CASE 
+    WHEN code == 0  THEN LotStatus.GENERATED
+    WHEN code == 10 THEN LotStatus.ORDERING_CODES 
+    WHEN code == 15 THEN LotStatus.CODE_ISSUED
+    WHEN code == 20 THEN LotStatus.MANUFACTURED
+    WHEN code == 30 THEN LotStatus.VALIDATED
+    WHEN code == 40 THEN LotStatus.SIGNED_RF 
+    WHEN code == 50 THEN LotStatus.MARKED
+    WHEN code == 55 THEN LotStatus.CIRCULATION_RB 
+    WHEN code == 60 THEN LotStatus.ARRIVED_ABROAD 
+    WHEN code == 80 THEN LotStatus.SOLD_RETAIL
+    WHEN code == 90 THEN LotStatus.DEPARTED_ABROAD;
+    
+name 'Наименование' (LotStatus s) = staticCaption(s) IF s IS LotStatus CHARWIDTH 20;    
+  
+status 'Статус' = DATA LotStatus (Lot);
+codeStatus 'Код статуса' (Lot l) = code(status(l));
+nameStatus 'Статус' (Lot l) = name(status(l));
+
+EXTEND FORM lots 
+    PROPERTIES (l) nameStatus
+;
+
+exception 'Сообщение' = DATA TEXT (Lot);
+handleException (Lot l, FILE exception) {
+    logToFile('ez', messageCaughtException());
+    
+    logToFile('ez', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException();
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(l) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
+EXTEND FORM lots
+    PROPERTIES(l) READONLY exception PANEL SHOWIF exception(l)
+;
+DESIGN lots {
+    tabbedPane {
+        NEW ez {
+            caption = 'Электронный знак';
+            MOVE PROPERTY(exception(l)) { panelCaptionVertical = TRUE; fill = 1; };
+        }
+    }
+}
+
+
