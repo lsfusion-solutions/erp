@@ -247,8 +247,11 @@ WHEN SETCHANGED (status(InternetOrder o)) AND statusGlovo(o) AND NOT status(o) =
 WHEN SETCHANGED (status(InternetOrder o)) AND status(o) = StatusInternetOrder.picked AND carrier(o) = glovoCarrier()
     AND NOT customModifyOrder(o) DO{
     TRY {
-        IF diffQuantity(o) THEN modifyOrder(o);
-        updateStatusOrder(o);
+        IF diffQuantity(o) THEN {
+            modifyOrder(o);
+            updateStatusOrder(o);  
+        }
+        ELSE updateStatusOrder(o);
     }
     CATCH {
         MESSAGE CONCAT '\n', 'Ошибка обновления заказа в glovo', messageCaughtException();
