@@ -49,7 +49,9 @@ skipFilterBalance 'Не фильтровать по остаткам' = DATA LOC
 doClear 'С очисткой' = DATA LOCAL NESTED BOOLEAN ();
 export = DATA LOCAL BOOLEAN (CustomGroup);
 idParent = DATA LOCAL STRING (Sku);
-beforeExport  ABSTRACT LIST (GroupCashRegister);
+
+skipFilterBalance = ABSTRACT BOOLEAN (GroupCashRegister, Sku);
+beforeExport ABSTRACT LIST (GroupCashRegister);
 
 directoryPickList 'Директория для пиклиста' = DATA STRING[250](GroupCashRegister);
 
@@ -123,7 +125,7 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
         RETURN;
     }
     
-    idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR skipFilterBalance()) 
+    idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF (currentBalance(s, stock(gm)) OR skipFilterBalance(gm, s) OR skipFilterBalance()) 
                     AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s); 
     
     export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm) AND (GROUP SUM 1 IF level(customGroup(dataCustomGroupTypeArtix(gcr), Sku s)) AND idParent(s)); 
@@ -189,7 +191,7 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
     IF sidModel(gm) == 'Artix' AND dataCustomGroupTypeArtix(gm) THEN {
         
         //выгрузка в пиклист
-        idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF ((currentBalance(s, stock(gm)) OR sum(DATE(dateTimeLastMoved(s, stock(gm))), countSendAllMovedDays()) > currentDate()) OR skipFilterBalance()) 
+        idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF (currentBalance(s, stock(gm)) OR skipFilterBalance(gm, s) OR skipFilterBalance()) 
                         AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s) AND (GROUP SUM 1 IF in(mpt, Barcode b) AND s == sku(b)); 
         
         beforeExport(gm);
