@@ -57,6 +57,19 @@ settingsGroup = DATA LOCAL STRING();
 visible = DATA LOCAL STRING();
 description = DATA LOCAL STRING();
 
+useBarcodeModuleConfig 'Использовать штрихкод товара для выгрузки в CSI K' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES ()  useBarcodeModuleConfig 
+;
+DESIGN integrationData {
+    kso{
+        MOVE PROPERTY (useBarcodeModuleConfig());
+    }
+}
+
+idModuleConfig (Item i) = IF useBarcodeModuleConfig() THEN idBarcode(i) ELSE id(i);
+ 
 FORM moduleConfig FORMEXTID '=http://crystals.ru/cash/settings:moduleConfig'
     OBJECTS type = CustomGroupType PANEL 
     PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
@@ -72,7 +85,7 @@ FORM moduleConfig FORMEXTID '=http://crystals.ru/cash/settings:moduleConfig'
     
     //товары к 1 уровню
     OBJECTS good = Item EXTID '=http://crystals.ru/cash/settings:good'
-    PROPERTIES (good) id EXTID 'item' ATTR , nameAttribute EXTID 'name' ATTR 
+    PROPERTIES (good) idModuleConfig EXTID 'item' ATTR , nameAttribute EXTID 'name' ATTR 
     FILTERS export(good), customGroup(type,good) == group
     
     OBJECTS group1 = CustomGroup EXTID '=http://crystals.ru/cash/settings:group'
@@ -81,7 +94,7 @@ FORM moduleConfig FORMEXTID '=http://crystals.ru/cash/settings:moduleConfig'
     
     //товары к 2 уровню
     OBJECTS good1 = Item EXTID '=http://crystals.ru/cash/settings:good'
-    PROPERTIES (good1) id EXTID 'item' ATTR , nameAttribute EXTID 'name' ATTR 
+    PROPERTIES (good1) idModuleConfig EXTID 'item' ATTR , nameAttribute EXTID 'name' ATTR 
     FILTERS export(good1), customGroup(type,good1) == group1
     
     OBJECTS group2 = CustomGroup EXTID '=http://crystals.ru/cash/settings:group'
@@ -90,7 +103,7 @@ FORM moduleConfig FORMEXTID '=http://crystals.ru/cash/settings:moduleConfig'
     
     //товары к 3 уровню
     OBJECTS good2 = Item EXTID '=http://crystals.ru/cash/settings:good'
-    PROPERTIES (good2) id EXTID 'item' ATTR , nameAttribute EXTID 'name' ATTR 
+    PROPERTIES (good2) idModuleConfig EXTID 'item' ATTR , nameAttribute EXTID 'name' ATTR 
     FILTERS export(good2), customGroup(type,good2) == group2
 ;
 
@@ -131,7 +144,7 @@ exportCSICustom 'Выгрузить CSI K' (DepartmentStore ds) {
                     FOR export(Sku s) AND hasExportedImage(s) DO TRY {
                         resizeImage(exportedImage(s),200,144);              
                         convertImage(resizedImage(), 'png');
-                        WRITE convertedImage() TO 'file://' +dataExchangeCSIAddress(ds) + '/images/' + id(s);             
+                        WRITE convertedImage() TO 'file://' +dataExchangeCSIAddress(ds) + '/images/' + idModuleConfig(s);             
                     }
                     
                     FOR export(CustomGroup g) AND hasExportedImage(g) DO TRY {
