@@ -807,11 +807,13 @@ type(InUserStockDocumentDetail l) += STRING[50]('Учетный документ
 //-------------------- Групповое закрытие периода по магазинам --------------------
 isSelect 'Вкл.'= DATA LOCAL BOOLEAN (Stock);
 
+overCloseDocumentsStocks ABSTRACT LIST ();
 closeDocumentsStocks 'Закрыть документы'()  { 
     IF NOT GROUP SUM 1 IF isSelect(Stock s) THEN MESSAGE 'Не отмечены склады';
     FOR StockDocumentLedger ledger AND isSelect(stock(ledger)) AND date(ledger) < documentsClosedDate(stock(ledger)) AND isOpened(ledger) DO {
         close(ledger);
     }
+    overCloseDocumentsStocks();
     apply();   
 } CONFIRM TOOLBAR;
 

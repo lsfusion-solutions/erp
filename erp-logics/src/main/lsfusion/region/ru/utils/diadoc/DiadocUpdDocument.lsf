@@ -30,7 +30,7 @@ FORM universalTransferDocument FORMEXTID 'UniversalTransferDocument'
                     documentDate = toDateDDMMYYYY(OVERRIDE dateInvoice(exportUpdDocument()), currentDate()) EXTID 'DocumentDate',//ДатаСчФ - дата УПД
                     documentNumber = (OVERRIDE numberInvoice(exportUpdDocument()),'') EXTID 'DocumentNumber',//НомерСчФ - номер УПД
                     currency = (OVERRIDE codeCurrency(exportUpdDocument()),'') EXTID 'Currency',//КодОКВ - валюта (код)
-                    documentCreator = (OVERRIDE nameOriginatorCustomer(exportUpdDocument()),'') EXTID 'DocumentCreator'//НаимЭконСубСост - Составитель файла обмена счета-фактуры (информации продавца)
+                    documentCreator = (OVERRIDE nameOriginatorSupplier(exportUpdDocument()),'') EXTID 'DocumentCreator'//НаимЭконСубСост - Составитель файла обмена счета-фактуры (информации продавца)
     
     PROPERTIES ATTR IN organizationReferenceSellerUTD
                     orgTypeS = id(organizationType(organization(fromBox()))) EXTID 'OrgType',//СвИП - СвЮЛУч - СвИнНеУч
@@ -113,11 +113,13 @@ messageUniversalTransferDocument 'Подписать и отправить че�
             
             LOCAL result = FILE ();
             TRY {
+                fileToString(exportFile());
                 EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + fromBoxId() + '&documentTypeNamedId=UniversalTransferDocument&documentFunction=' + nameStatus(d) + '&documentVersion=utd820_05_01_01&titleIndex=0' HEADERS httpHeadersToken PARAMS exportFile() TO result;
                 typeNamedIdDocument(0) <- 'UniversalTransferDocument';
                 functionDocument(0) <- nameStatus(d);
                 versionDocument(0) <- 'utd820_05_01_01';
                 contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+                
                 IF useTestSignature() THEN {
                     signWithTestSignature(0) <- TRUE;
                 } ELSE {
