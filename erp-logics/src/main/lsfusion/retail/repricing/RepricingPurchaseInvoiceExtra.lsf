@@ -60,6 +60,11 @@ createExtraValuationNotFormExtra 'Создать дооценку'(Stock departm
                 overNegative(detail);
             }
         }
+        
+        FOR positive(InvoiceDetail d) OR negative(d) DO {
+            logToFile('repricing', CONCAT ' / ' , negative(d), number(d), dateTime(d), shipmentDateTime(d), idSku(d), nameSku(d), quantity(d), prevRetailPricingPriceB(d), retailExtraPrice(d), 
+                                                  repricingQuantity(d), prevBalanceB(d), calcSkuLedgerAhead(d, timeTo), calcRepricingAhead(d, timeTo));        
+        }
                 
         IF (GROUP SUM 1 IF positive(InvoiceDetail detail) OR negative(detail)) THEN {
             FOR [GROUP SUM 1 IF (positive(InvoiceDetail detail) OR negative(detail) ) BY invoice(detail)](Invoice i) DO  NEW r = UserRepricing {

@@ -83,11 +83,20 @@ calcRepricingAhead 'Кол-во движения по старой цене' (sk
     GROUP SUM quantity(RepricingDetail d) IF dateTime(d) >= fromDateTime AND dateTime(d) <= toDateTime AND isPosted(d) 
           BY sku(d), departmentStore(d), curRetailPrice(d); 
 
-        
 toRepricingQuantityDateTime 'Кол-во к дооценке' (Sku sku, Stock stock, NUMERIC[16,4] price, DATETIME fromDateTime, DATETIME toDateTime) = 
     prevBalanceB (sku, stock, fromDateTime) (+) calcSkuLedgerAhead(sku, stock, price, fromDateTime, toDateTime) (-) calcRepricingAhead(sku, stock, price, fromDateTime, toDateTime);
+
+prevBalanceB (InvoiceDetail detail) = 
+    prevBalanceB(sku(detail), customerStock(detail), shipmentDateTime(detail)); 
+
+calcSkuLedgerAhead (InvoiceDetail detail, DATETIME toDateTime) = 
+    calcSkuLedgerAhead(sku(detail), customerStock(detail), prevRetailPricingPriceB(detail), shipmentDateTime(detail), toDateTime); 
+
+calcRepricingAhead (InvoiceDetail detail, DATETIME toDateTime) = 
+    calcRepricingAhead(sku(detail), customerStock(detail), prevRetailPricingPriceB(detail), shipmentDateTime(detail), toDateTime); 
              
-toRepricingQuantityTo 'Кол-во к дооценке' (InvoiceDetail detail, DATETIME toDateTime) = toRepricingQuantityDateTime(sku(detail), customerStock(detail), prevRetailPricingPriceB(detail), shipmentDateTime(detail), toDateTime); 
+toRepricingQuantityTo 'Кол-во к дооценке' (InvoiceDetail detail, DATETIME toDateTime) = 
+    toRepricingQuantityDateTime(sku(detail), customerStock(detail), prevRetailPricingPriceB(detail), shipmentDateTime(detail), toDateTime); 
 
 skipRepricing 'Не дооценивать на приходе' = DATA BOOLEAN (Purchase.Operation);
 skipRepricing 'Не дооценивать на приходе'(Invoice i) = skipRepricing(operation(i));
@@ -231,6 +240,12 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
             FOR negative(InvoiceDetail detail) DO {
                 overNegative(detail);
             }
+        }
+
+        
+        FOR positive(InvoiceDetail d) OR negative(d) DO {
+            logToFile('repricing', CONCAT ' / ' , negative(d), number(d), dateTime(d), shipmentDateTime(d), idSku(d), nameSku(d), quantity(d), prevRetailPricingPriceB(d), retailExtraPrice(d), 
+                                                  repricingQuantity(d), prevBalanceB(d), calcSkuLedgerAhead(d, timeTo), calcRepricingAhead(d, timeTo));        
         }
                 
         IF (GROUP SUM 1 IF positive(InvoiceDetail detail) OR negative(detail)) THEN {
