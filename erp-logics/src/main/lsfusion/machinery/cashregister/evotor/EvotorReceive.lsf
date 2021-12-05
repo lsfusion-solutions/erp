@@ -7,13 +7,11 @@ NAMESPACE Evotor;
 deviceUuid = DATA STRING (ZReport);
 sessionUuid = DATA STRING (ZReport);
 
-
 CLASS EvotorReceipt 'Чек Эвотор' : Receipt;
 
 uuid = DATA STRING (EvotorReceipt);
 deviceUuid (EvotorReceipt r) = deviceUuid(zReport(r));
 sessionUuid (EvotorReceipt r) = sessionUuid(zReport(r));
-
 
 
 //форма импорта чеков
@@ -153,6 +151,10 @@ sessionUUID = DATA LOCAL STRING(INTEGER);
 openDate = DATA LOCAL STRING(INTEGER);
 completeInventory = DATA LOCAL STRING(INTEGER);
 openUserUuid = DATA LOCAL STRING(INTEGER);
+discountType = DATA LOCAL STRING(INTEGER);
+discountPositionPrice = DATA LOCAL NUMERIC(INTEGER);
+discountSum = DATA LOCAL NUMERIC(INTEGER);
+percent = DATA LOCAL NUMERIC(INTEGER);
 
 FORM importRec FORMEXTID 'null'
 
@@ -165,7 +167,7 @@ FILTERS imported(value)
 
 OBJECTS transactions = INTEGER
 FILTERS valueTransactions(transactions) == value
-PROPERTIES (transactions) alcoholByVolume, balanceQuantity, alcoholProductKindCode, 
+PROPERTIES (transactions) alcoholByVolume, balanceQuantity, alcoholProductKindCode, discountType, discountPositionPrice, discountSum, percent,
     price, fprintSection, costPrice, commodityType, measureName, positionId, tareVolume, mark, commodityName, taxSum, 
     commodityUuid, resultPrice, resultSum, tax, resultTaxSum, commodityCode, taxPercent, barcode, taxRateCode, 
     paymentType, baseDocumentNumber, couponNumber, clientName, baseDocumentUUID, clientPhone, quantity, denomination, 
@@ -192,8 +194,7 @@ paymentEvotor (STRING z) = CASE WHEN z == 'CASH' THEN PaymentMeans.paymentMeansC
     WHEN z == 'CARD' THEN  PaymentMeans.paymentMeansCard;
 lastReceipt (CashRegister c) = GROUP LAST Receipt r ORDER date(r) WHERE cashRegister(r) == c;       
 
-
-
+afterCreateReceipts ABSTRACT LIST (CashRegister);
 
 importReceiptsEvotor(GroupCashRegister gc){
     FOR groupCashRegister(CashRegister c) == gc DO NEWSESSION {
@@ -208,7 +209,6 @@ importReceiptsEvotor(GroupCashRegister gc){
             '/documents?deviceUuid=' + uuidEvotor(c), dateLastReceipt() 
             HEADERS headers TO f;
         IMPORT importRec FROM f();
-
         //z-отчеты
         FOR imported(INTEGER a) IF (type1(a) == 'OPEN_SESSION' AND sessionUUID(a))  AND NOT zreportUuid(sessionUUID(a))  NEW z = ZReport DO {
             date(z) <- DATE(closeDate(a));
@@ -231,7 +231,8 @@ importReceiptsEvotor(GroupCashRegister gc){
                 idBarcode(detail) <- IF NOT (sku(commodityCode(s))) THEN commodityCode(s);
                 quantity(detail) <- NUMERIC[16,5] (quantity(s));
                 price(detail) <- NUMERIC[16,2] (price(s));
-                sum(detail) <- NUMERIC[16,2] (sum(s));
+                sum(detail) <- NUMERIC[16,2] (resultSum(s));
+                discountSum(detail) <- NUMERIC[18,4](sum(s)) - NUMERIC[18,4](resultSum(s));
                 number(detail) <- INTEGER(id(s));
             }
             LOCAL paymentSumCash = NUMERIC[16,2] ();
@@ -266,7 +267,8 @@ importReceiptsEvotor(GroupCashRegister gc){
                 idBarcode(detail) <- IF NOT (sku(commodityCode(s))) THEN STRING[15] (commodityCode(s));
                 quantity(detail) <- abs(NUMERIC[16,5] (quantity(s)));
                 price(detail) <- abs(NUMERIC[16,2] (price(s)));
-                sum(detail) <- abs(NUMERIC[16,2] (sum(s)));
+                sum(detail) <- abs(NUMERIC[16,2] (resultSum(s)));
+                discountSum(detail) <- abs(NUMERIC[18,4](sum(s)) - NUMERIC[18,4](resultSum(s)));
                 number(detail) <- INTEGER(id(s));
             }
             LOCAL paymentSumCash = NUMERIC[16,2] ();
@@ -287,15 +289,14 @@ importReceiptsEvotor(GroupCashRegister gc){
                 sum(payment) <- paymentSumCard();
             }
         }
-    APPLY;
+        afterCreateReceipts(c);
+        APPLY;afterCreateReceipts(c)
     }
 }
-
 
 receiveGroupMachinery(GroupCashRegister g) + {
     IF isEvotor(g) THEN importReceiptsEvotor(g);
 }
-
 
 paymentCashReceipt (Receipt r) = GROUP LAST Payment p ORDER p WHERE 
     receipt(p) == r AND paymentMeans(paymentType(p)) == PaymentMeans.paymentMeansCash;
@@ -332,7 +333,8 @@ reImportReceiptsEvotor(CashRegister c, DATE from, DATE to, RequestExchange reque
                 idBarcode(detail) <- IF NOT (sku(commodityCode(s))) THEN commodityCode(s);
                 quantity(detail) <- NUMERIC[16,5] (quantity(s));
                 price(detail) <- NUMERIC[16,2] (price(s));
-                sum(detail) <- NUMERIC[16,2] (sum(s));
+                sum(detail) <- NUMERIC[16,2] (resultSum(s));
+                discountSum(detail) <- NUMERIC[18,4](sum(s)) - NUMERIC[18,4](resultSum(s));
                 number(detail) <- INTEGER (id(s));
             }
             
@@ -392,7 +394,8 @@ reImportReceiptsEvotor(CashRegister c, DATE from, DATE to, RequestExchange reque
                 idBarcode(detail) <- IF NOT (sku(commodityCode(s))) THEN commodityCode(s);
                 quantity(detail) <- NUMERIC[16,5] (quantity(s));
                 price(detail) <- NUMERIC[16,2] (price(s));
-                sum(detail) <- NUMERIC[16,2] (sum(s));
+                sum(detail) <- NUMERIC[16,2] (resultSum(s));
+                discountSum(detail) <- NUMERIC[18,4](sum(s)) - NUMERIC[18,4](resultSum(s));
             }
             LOCAL paymentSumCash = NUMERIC[16,2] ();
             paymentSumCash() <- GROUP SUM NUMERIC[16,2](sum(INTEGER s)) IF valueTransactions(s) == b AND paymentType(s) == 'CASH';
@@ -426,7 +429,8 @@ reImportReceiptsEvotor(CashRegister c, DATE from, DATE to, RequestExchange reque
                 idBarcode(detail) <- IF NOT (sku(commodityCode(s))) THEN commodityCode(s);
                 quantity(detail) <- abs(NUMERIC[16,5] (quantity(s)));
                 price(detail) <- abs(NUMERIC[16,2] (price(s)));
-                sum(detail) <- abs(NUMERIC[16,2] (sum(s)));
+                sum(detail) <- NUMERIC[16,2] (resultSum(s));
+                discountSum(detail) <- NUMERIC[18,4](sum(s)) - NUMERIC[18,4](resultSum(s));
             }
             //обновление позиций
             FOR valueTransactions(INTEGER s) == b AND type(s) == 'REGISTER_POSITION' AND receiptDetailUuid(INTEGER (id(s)), receiptUuid(uuid1(b))) DO{
@@ -483,7 +487,8 @@ reImportReceiptsEvotor(CashRegister c, DATE from, DATE to, RequestExchange reque
                 idBarcode(detail) <- IF NOT (sku(commodityCode(s))) THEN STRING[15] (commodityCode(s));
                 quantity(detail) <- abs(NUMERIC[16,5] (quantity(s)));
                 price(detail) <- abs(NUMERIC[16,2] (price(s)));
-                sum(detail) <- abs(NUMERIC[16,2] (sum(s)));
+                sum(detail) <- abs(NUMERIC[16,2] (resultSum(s)));
+                discountSum(detail) <- abs(NUMERIC[18,4](sum(s)) - NUMERIC[18,4](resultSum(s)));
             }
             LOCAL paymentSumCash = NUMERIC[16,2] ();
             paymentSumCash() <- GROUP SUM NUMERIC[16,2](sum(INTEGER s)) IF valueTransactions(s) == r AND paymentType(s) == 'CASH';        
@@ -508,6 +513,7 @@ reImportReceiptsEvotor(CashRegister c, DATE from, DATE to, RequestExchange reque
             machinery(log) <- c;
             message(log) <- 'Загрузка данных успешна';
         }
+        afterCreateReceipts(c);
         APPLY;
     }
 }
