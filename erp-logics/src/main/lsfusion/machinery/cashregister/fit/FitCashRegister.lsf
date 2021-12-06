@@ -190,8 +190,11 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
 
 isReceipt(STRING s) = left(s, 2) = '01' AND substr(s, 46, 2) < '03';
 
+receiptString = DATA LOCAL STRING (INTEGER);
+fitOverImport ABSTRACT LIST (CashRegister);
+fitOverParse ABSTRACT LIST (CashRegister);
+
 receiveFromFit (CashRegister cr) {
-    LOCAL receiptString = STRING (INTEGER);
     TRY {
         fileExists(CONCAT '', pathPut(cr), 'spool.adr');
         IF NOT fileExists() THEN {
@@ -200,6 +203,7 @@ receiveFromFit (CashRegister cr) {
                 FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) DO {
                     READ pathGet(cr) + fn TO importFile;
                     IMPORT CSV NOHEADER CHARSET 'cp866' FROM importFile() TO receiptString;
+                    fitOverImport(cr);
                     FOR INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 15, 12)](STRING card) AND NOT card = '000000000000' AND NOT discountNumber(STRING[48](card)) DO NEW c = DiscountCard {
                         number(c) <- STRING[48](card);
                     }
@@ -275,6 +279,7 @@ receiveFromFit (CashRegister cr) {
                             sum(p) <- NUMERIC[18,4](NUMERIC(substr(srl, 85, 14)) / 100);
                             paymentType(p) <- IF substr(srl, 3, 2) = '13' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
                     }
+                    fitOverParse(cr);
                 }
                 APPLY NESTED LOCAL;
                 LOCAL succeessDir = STRING ();

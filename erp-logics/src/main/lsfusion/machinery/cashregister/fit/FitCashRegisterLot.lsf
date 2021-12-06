@@ -1,0 +1,30 @@
+MODULE FitCashRegisterLot;
+
+REQUIRE FitCashRegister, ZReportLot;
+
+NAMESPACE Fit;
+
+indexReceipt(INTEGER i) = GROUP MAX INTEGER j IF left(receiptString(j), 2) = '01' AND j < i;
+isLot (STRING s) = left(s, 2) = '13' OR left(s, 2) = '17';
+
+fitOverParse(CashRegister cr) + {
+    FOR STRING line = receiptString(INTEGER i) AND
+        STRING[200] id = rtrim(substr(line, 19, 200)) AND
+        Sku sku = sku(barcode(trim(substr(line, 3, 16)))) AND
+        isLot(line) AND NOT lot(id)
+            DO NEW l = Lot {
+                sku(l) <- sku;
+                id(l) <- id;
+            }
+
+    FOR STRING lotString = receiptString(INTEGER iLot) AND isLot(lotString) AND
+        INTEGER iReceiptLot = indexReceipt(iLot) AND
+
+        STRING saleString = receiptString(INTEGER iSale) AND left(saleString, 2) = '12' AND
+        ReceiptSaleDetail d = receiptDetail(STRING[100](substr(receiptString(iReceiptLot), 92, 4) + lpad(STRING(cr), 18, '0') + substr(receiptString(iReceiptLot), 3, 12) + lpad(STRING(iSale (-) iReceiptLot), 10, '0'))) AS ReceiptSaleDetail AND
+        
+        sku(barcode(trim(substr(lotString, 3, 16)))) = sku(barcode(trim(substr(saleString, 5, 16)))) AND iReceiptLot = indexReceipt(iSale) AND
+        [PARTITION SUM 1 IF isLot(receiptString(INTEGER k)) ORDER k BY indexReceipt(k), substr(receiptString(k), 3, 16)](iLot) = [PARTITION SUM 1 IF left(receiptString(INTEGER k), 2) = '12' ORDER k BY indexReceipt(k), substr(receiptString(k), 5, 16)](iSale) DO {
+            lot(d) <- lot(rtrim(substr(lotString, 19, 200)));     
+    }
+}
