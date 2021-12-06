@@ -1,0 +1,69 @@
+MODULE DiadocDashboard;
+
+REQUIRE DiadocMessage;
+
+NAMESPACE Diadoc;
+
+in (BPSTRING[20] s, Document d, Box b) = 
+    IF s = BPSTRING[20]('Входящие') THEN toBox(message(d)) == b ELSE
+        IF s = BPSTRING[20]('Исходящие') THEN fromBox(message(d)) == b;
+
+FORM diadocDashboard 'Ящик Диадок'
+    OBJECTS b = Box PANEL
+    PROPERTIES(b) title IN base SELECTOR
+    FILTERS isEmployee(organization(b), userDiadoc(currentUser()))
+
+    OBJECTS s = STRING[20]
+    PROPERTIES(s) VALUE
+    FILTERS s = BPSTRING[20]('Входящие') OR  s = BPSTRING[20]('Исходящие')
+    
+    OBJECTS d = Document
+    PROPERTIES(d) READONLY counteragentBoxTitle, title, creationTimestamp, primaryStatusText, primaryStatusSeverityName
+    PROPERTIES(d) openData, show
+    FILTERS fromBox(message(d)) == b OR toBox(message(d)) == b OR proxyBox(message(d)) == b,
+            in(s, d, b)
+    ORDERS creationTimestamp(d)
+    
+    OBJECTS m = Message
+    PROPERTIES (m) READONLY messageId, timestamp
+    PROPERTIES (m) show
+    FILTERS message(d)=m
+    
+    OBJECTS mp = MessagePatch
+    PROPERTIES (mp) READONLY patchId, timestamp
+    PROPERTIES (mp) show
+    ORDERS timestamp(mp)
+    FILTERS message(mp)=m
+;
+
+DESIGN diadocDashboard {
+    NEW main BEFORE TOOLBARBOX {
+        type = SPLITH;
+        fill = 1;
+        NEW inout {
+            fill = 1;
+            MOVE BOX(s);
+        }
+        NEW documents {
+            fill = 4;
+            NEW doc {
+                type = SPLITV;
+                fill = 1;
+                MOVE BOX(d);
+                NEW messages {
+                    type = TABBED;
+                    fill = 1;
+                    MOVE BOX(m);
+                    MOVE BOX(mp);
+                }
+            }
+        }
+    }
+    MOVE BOX(b) BEFORE main;
+}
+
+NAVIGATOR {
+    diadocNavigator {
+        NEW diadocDashboard;
+    }
+}
