@@ -1,0 +1,762 @@
+MODULE PurchaseInvoiceCorrection;
+
+REQUIRE PurchaseInvoiceVATRu, PurchaseLedger;
+
+NAMESPACE Purchase;
+
+
+CLASS InvoiceCorrection 'Корректировка накладной';
+CLASS InvoiceCorrectionDetail 'Строка корректировки накладной';
+
+@defineDocument(invoiceCorrection);
+@deriveDocumentHeaderTimePrefix(InvoiceCorrection, );
+
+@defineDocumentHeaderNumber(InvoiceCorrection, BPSTRING[2]);
+@defineNumeratedDefault(InvoiceCorrection, 'Корректировка накладной (закупка)', 'КЗ',Purchase);
+
+@defineExternalizable(invoiceCorrection, STRING[100]);
+@defineExternalizable(invoiceCorrectionDetail, STRING[100]);
+
+@defineDocumentDetailNumber(invoiceCorrection, InvoiceCorrectionDetail);
+@defineDocumentLegalEntity(invoiceCorrection, supplier, 'Поставщик');
+@defineDocumentDataStock(invoiceCorrection, stock, 'Склад поставщика', supplier);
+
+@defineDocumentLegalEntity(invoiceCorrection, customer, 'Поставщик');
+
+@defineDocumentDataStock(invoiceCorrection, stock, 'Склад покупателя', customer);
+
+@defineDocumentContract(InvoiceCorrection, contractSku, supplier, customer, 
+            'Организация (поставщик) договора корректировки не соответствует организации (поставщик) корректировки', 
+            'Организация (покупатель) договора корректировки не соответствует организации (покупатель) корректировки', 'корректировка (закупка)', Purchase);
+@defineDocumentPosted(invoiceCorrection);
+@defineDocumentClosed(invoiceCorrection);
+@defineDocumentDescription (invoiceCorrection, 'Корректировка накладной (закупка)');
+
+@defineDocumentHeaderCurrency(invoiceCorrection);
+@defineDocumentDetailCurrency(invoiceCorrection, invoiceCorrectionDetail);
+
+@defineDocumentDialogSupplierCustomerStock(invoiceCorrection, supplier, company);
+@defineDocumentDialogSupplierCustomerLegalEntity(invoiceCorrection, supplier, company);
+
+operation = DATA Operation (InvoiceCorrection);
+nameOperation 'Операция' (InvoiceCorrection correction) = name(operation(correction));
+operation (InvoiceCorrectionDetail detail) = operation(invoiceCorrection(detail));
+
+invoice 'Накладная' = DATA Invoice (InvoiceCorrection) INDEXED;
+numberInvoice 'Накладная' (InvoiceCorrection i) = number(invoice(i));
+descriptionInvoice 'Накладная' (InvoiceCorrection i) = description(invoice(i));
+
+countInvoiceCorrection = GROUP SUM 1 BY invoice(InvoiceCorrection ic);
+
+CONSTRAINT invoice(InvoiceCorrection i) AND NOT operation(i)=operation(invoice(i))
+    CHECKED BY invoice[InvoiceCorrection]
+    MESSAGE 'Операция корректировки отличается от операции накладной';
+    
+WHEN LOCAL CHANGED(invoice(InvoiceCorrection invoiceCorrection)) DO {
+    supplier(invoiceCorrection) <- supplier(invoice(invoiceCorrection));
+    supplierStock(invoiceCorrection) <- supplierStock(invoice(invoiceCorrection));
+    customer(invoiceCorrection) <- customer(invoice(invoiceCorrection));
+    customerStock(invoiceCorrection) <- customerStock(invoice(invoiceCorrection));
+    contractSku(invoiceCorrection) <- contractSku(invoice(invoiceCorrection));
+    currency(invoiceCorrection) <- currency(invoice(invoiceCorrection));
+}    
+
+sku = DATA Sku (InvoiceCorrectionDetail) INDEXED;
+idSku 'Код' (InvoiceCorrectionDetail d) = id(sku(d)) IN id;
+nameSku 'Наименование' (InvoiceCorrectionDetail d) = name(sku(d)) IN id  CHARWIDTH 40;
+shortNameUOMSku 'Ед. изм.' (InvoiceCorrectionDetail d) = shortNameUOM(sku(d)) IN id;
+idBarcodeSku 'Штрихкод' (InvoiceCorrectionDetail d) = idBarcode(sku(d)) IN id;
+
+invoiceDetail 'Строка накладной' = DATA InvoiceDetail (InvoiceCorrectionDetail) INDEXED;
+numberInvoice 'Накладная' (InvoiceCorrectionDetail d) = number(invoiceDetail(d));
+descriptionInvoice 'Накладная' (InvoiceCorrectionDetail d) = description(invoiceDetail(d));
+
+invoiceCorrectionDetail = GROUP AGGR InvoiceCorrectionDetail detail BY invoiceDetail(detail), invoiceCorrection(detail); 
+in = GROUP SUM 1 IF invoiceDetail(InvoiceCorrectionDetail detail) BY invoiceDetail(detail), invoiceCorrection(detail);
+
+CONSTRAINT invoiceDetail(InvoiceCorrectionDetail d) AND NOT invoice(invoiceCorrection(d))=invoice(invoiceDetail(d))
+    CHECKED BY invoiceDetail[InvoiceCorrectionDetail]
+    MESSAGE 'Накладная строки корректировки отличается от накладной корректировки';    
+
+CONSTRAINT invoiceDetail(InvoiceCorrectionDetail d) AND NOT sku(d)=sku(invoiceDetail(d))
+    CHECKED BY invoiceDetail[InvoiceCorrectionDetail]
+    MESSAGE 'Товар строки корректировки отличается от товара строки накладной';   
+
+defaultInvoiceDetail (sku, InvoiceCorrection invoiceCorrection) = GROUP MAX InvoiceDetail detail IF invoice(detail)=invoice(invoiceCorrection) 
+    BY sku(detail);
+
+defaultInvoiceDetail (InvoiceCorrectionDetail detail) = defaultInvoiceDetail(sku(detail), invoiceCorrection(detail));
+     
+connectInvoice 'Привязать строку накладной к заказу'(InvoiceCorrectionDetail detail)  { 
+    invoiceDetail(detail) <- defaultInvoiceDetail(detail) 
+                                                WHERE defaultInvoiceDetail(detail);
+} ASON CONTEXTMENU descriptionInvoice[InvoiceCorrectionDetail];
+           
+editSku 'Редактировать SKU' (InvoiceCorrectionDetail d)  { NEWSESSION { edit(sku(d)); } }
+
+priceB 'Цена (до)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
+priceA 'Цена (после)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
+
+invoicePriceB 'Цена с НДС (до)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
+invoicePriceA 'Цена с НДС (после)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
+
+quantity 'Кол-во' = DATA NUMERIC[16,5] (InvoiceCorrectionDetail);
+
+sumB 'Сумма (до)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
+sumA 'Сумма (после)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
+
+VAT = DATA Range (InvoiceCorrectionDetail);
+numberVAT 'НДС, номер' (InvoiceCorrectionDetail d) = number(VAT(d));
+valueVAT 'НДС, %' = DATA NUMERIC[10,5] (InvoiceCorrectionDetail);
+
+VATSumB 'Сумма НДС (до)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
+VATSumA 'Сумма НДС (после)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
+
+invoiceSumB 'Сумма с НДС (до)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
+invoiceSumA 'Сумма с НДС (после)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
+
+sum 'Сумма (изменение)' (InvoiceCorrectionDetail detail) = sumA(detail) (-) sumB(detail);
+increaseSum 'Сумма (увеличение)' (InvoiceCorrectionDetail detail) = sum(detail) IF sum(detail)>0.0;
+decreaseSum 'Сумма (уменьшение)' (InvoiceCorrectionDetail detail) = - sum(detail) IF sum(detail)<0.0;
+
+VATSum 'Сумма НДС (изменение)' (InvoiceCorrectionDetail detail) = VATSumA(detail) (-) VATSumB(detail);
+increaseVATSum 'Сумма НДС (увеличение)' (InvoiceCorrectionDetail detail) = VATSum(detail) IF VATSum(detail)>0.0;
+decreaseVATSum 'Сумма НДС (уменьшение)' (InvoiceCorrectionDetail detail) = - VATSum(detail) IF VATSum(detail)<0.0;
+
+invoiceSum 'Сумма с НДС (изменение)' (InvoiceCorrectionDetail detail) = invoiceSumA(detail) (-) invoiceSumB(detail);
+increaseInvoiceSum 'Сумма с НДС (увеличение)' (InvoiceCorrectionDetail detail) = invoiceSum(detail) IF invoiceSum(detail)>0.0;
+decreaseInvoiceSum 'Сумма с НДС (уменьшение)' (InvoiceCorrectionDetail detail) = - invoiceSum(detail) IF invoiceSum(detail)<0.0;
+
+diffSumInvoiceCorrectionDetail 'Сумма (изменение)' = GROUP SUM sum(InvoiceCorrectionDetail idetail) 
+    BY invoiceCorrection(idetail) IN documentSum;
+diffVATSumInvoiceCorrectionDetail 'Сумма НДС (изменение)'  = GROUP SUM VATSum(InvoiceCorrectionDetail idetail) 
+    BY invoiceCorrection(idetail) IN documentSum;
+diffInvoiceSumInvoiceCorrectionDetail 'Сумма с НДС (изменение)' = GROUP SUM invoiceSum(InvoiceCorrectionDetail idetail) 
+    BY invoiceCorrection(idetail) IN documentSum;
+    
+increaseSumInvoiceCorrectionDetail 'Сумма (увеличение)' = GROUP SUM increaseSum(InvoiceCorrectionDetail idetail) 
+    BY invoiceCorrection(idetail) IN documentSum;
+increaseVATSumInvoiceCorrectionDetail 'Сумма НДС (увеличение)' = GROUP SUM increaseVATSum(InvoiceCorrectionDetail idetail) 
+    BY invoiceCorrection(idetail) IN documentSum;
+increaseInvoiceSumInvoiceCorrectionDetail 'Сумма с НДС (увеличение)' = GROUP SUM increaseInvoiceSum(InvoiceCorrectionDetail idetail) 
+    BY invoiceCorrection(idetail) IN documentSum;
+    
+decreaseSumInvoiceCorrectionDetail 'Сумма (уменьшение)' = GROUP SUM decreaseSum(InvoiceCorrectionDetail idetail) 
+    BY invoiceCorrection(idetail) IN documentSum;
+decreaseVATSumInvoiceCorrectionDetail 'Сумма НДС (уменьшение)' = GROUP SUM decreaseVATSum(InvoiceCorrectionDetail idetail) 
+    BY invoiceCorrection(idetail) IN documentSum;
+decreaseInvoiceSumInvoiceCorrectionDetail 'Сумма с НДС (уменьшение)' = GROUP SUM decreaseInvoiceSum(InvoiceCorrectionDetail idetail) 
+    BY invoiceCorrection(idetail) IN documentSum;
+
+WHEN LOCAL (CHANGED(quantity(InvoiceCorrectionDetail detail)) OR CHANGED(invoicePriceA(detail)) OR CHANGED(currency (detail))) AND withVATPrice(invoiceDetail(detail)) DO
+    invoiceSumA (detail) <- NUMERIC[18,4](round(quantity(detail) * invoicePriceA(detail), currency(detail))); 
+    
+WHEN LOCAL (CHANGED(invoiceSumA(InvoiceCorrectionDetail detail)) OR CHANGED(valueVAT (detail)) OR CHANGED(currency (detail))) AND withVATPrice(invoiceDetail(detail)) DO 
+    VATSumA (detail)  <- NUMERIC[18,4](round(invoiceSumA(detail) * valueVAT(detail) / (100 (+) valueVAT (detail)), currency(detail)));
+    
+WHEN LOCAL (CHANGED(invoiceSumA(InvoiceCorrectionDetail detail)) OR CHANGED (VATSumA(detail))) AND withVATPrice(invoiceDetail(detail)) DO
+    sumA(detail) <- NUMERIC[18,4](invoiceSumA(detail) (-) VATSumA(detail));
+
+WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail)) DO {
+    sku(invoiceCorrectionDetail) <- sku(invoiceDetail(invoiceCorrectionDetail));
+    priceB(invoiceCorrectionDetail) <- price(invoiceDetail(invoiceCorrectionDetail));
+    sumB(invoiceCorrectionDetail) <- sum(invoiceDetail(invoiceCorrectionDetail));
+    invoicePriceB(invoiceCorrectionDetail) <- invoicePrice(invoiceDetail(invoiceCorrectionDetail));
+    invoiceSumB(invoiceCorrectionDetail) <- invoiceSum(invoiceDetail(invoiceCorrectionDetail));
+    VATSumB(invoiceCorrectionDetail) <- VATSum(invoiceDetail(invoiceCorrectionDetail));
+    quantity(invoiceCorrectionDetail) <- quantity(invoiceDetail(invoiceCorrectionDetail));
+    VAT(invoiceCorrectionDetail) <- VAT(invoiceDetail(invoiceCorrectionDetail));
+    valueVAT(invoiceCorrectionDetail) <- valueVAT(invoiceDetail(invoiceCorrectionDetail));
+}
+
+WHEN LOCAL CHANGED(invoicePriceA(InvoiceCorrectionDetail detail)) AND withVATPrice(invoiceDetail(detail)) DO {
+    priceA (detail) <- round(invoicePriceA(detail) * 100.0 /(100.0 (+) valueVAT(detail)), defaultRound(currency(detail)));
+}
+
+WHEN LOCAL CHANGED(priceA(InvoiceCorrectionDetail detail)) AND NOT withVATPrice(invoiceDetail(detail)) DO {
+    invoicePriceA (detail) <- round(priceA(detail) * (100.0 (+) valueVAT(detail)) /100.0, defaultRound(currency(detail)));
+}  
+
+priceA 'Цена (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = priceA(invoiceCorrectionDetail(detail, invoiceCorrection));
+invoicePriceA 'Цена с НДС (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = invoicePriceA(invoiceCorrectionDetail(detail, invoiceCorrection));
+
+sumA 'Сумма (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = sumA(invoiceCorrectionDetail(detail, invoiceCorrection));
+invoiceSumA 'Сумма с НДС (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = invoiceSumA(invoiceCorrectionDetail(detail, invoiceCorrection));
+VATSumA 'Сумма НДС (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = VATSumA(invoiceCorrectionDetail(detail, invoiceCorrection));
+
+changePriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection, NUMERIC[16,4] n)  { 
+    IF invoiceCorrectionDetail(invoiceDetail, invoiceCorrection) THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            priceA(InvoiceCorrectionDetail detail) <- n WHERE detail == invoiceCorrectionDetail(invoiceDetail, invoiceCorrection);
+        } ELSE {
+            FOR invoiceCorrectionDetail(invoiceDetail, invoiceCorrection) == InvoiceCorrectionDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            NEW d = InvoiceCorrectionDetail {
+                invoiceCorrection(d) <- invoiceCorrection;
+                invoiceDetail(d) <- invoiceDetail;
+                sku(d) <- sku(invoiceDetail);
+                priceB (d) <- price(invoiceDetail);
+                priceA (d) <- n;
+            }
+        }
+    }
+}
+
+changePrice(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection)  { 
+    INPUT n = NUMERIC[16,5] DO
+        changePriceValue(invoiceDetail, invoiceCorrection, n);
+}
+
+changeInvoicePriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection, NUMERIC[16,4] n)  { 
+    IF invoiceCorrectionDetail(invoiceDetail, invoiceCorrection) THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            invoicePriceA(InvoiceCorrectionDetail detail) <- n WHERE detail == invoiceCorrectionDetail(invoiceDetail, invoiceCorrection);
+        } ELSE {
+            FOR invoiceCorrectionDetail(invoiceDetail, invoiceCorrection) == InvoiceCorrectionDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            NEW d = InvoiceCorrectionDetail {
+                invoiceCorrection(d) <- invoiceCorrection;
+                invoiceDetail(d) <- invoiceDetail;
+                sku(d) <- sku(invoiceDetail);
+                invoicePriceB (d) <- invoicePrice(invoiceDetail);
+                invoicePriceA (d) <- n;
+            }
+        }
+    }
+}
+
+changeInvoicePrice(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection)  { 
+    INPUT n = NUMERIC[16,5] DO
+        changeInvoicePriceValue(invoiceDetail, invoiceCorrection, n);
+}
+
+hideDelete = ABSTRACT BOOLEAN (InvoiceCorrection);
+       
+FORM invoiceCorrection 'Корректировка накладной (закупка)'
+    OBJECTS i = InvoiceCorrection PANEL
+    PROPERTIES (i) isPosted, nameSupplier ON CHANGE changeSupplierSupplier(i),
+                   nameSupplierStock ON CHANGE changeSupplierStockSupplier(i),
+                   nameCustomer ON CHANGE changeCustomerCompany(i),
+                   nameCustomerStock ON CHANGE changeCustomerStockCompany(i),
+                   nameOperation,
+                   nameNumerator, number, series, date, time,
+                   nameCurrency, note,
+                   seriesNumberContractSku, isCommission,
+                   descriptionInvoice
+//    PROPERTIES (i) diffSumInvoiceCorrectionDetail SHOWIF NOT hideWithoutVAT(invoice(i)),
+//                   diffVATSumInvoiceCorrectionDetail, diffInvoiceSumInvoiceCorrectionDetail
+
+    PROPERTIES (i) READONLY increaseSumInvoiceCorrectionDetail, 
+                            increaseVATSumInvoiceCorrectionDetail,
+                            increaseInvoiceSumInvoiceCorrectionDetail
+                            
+    PROPERTIES (i) READONLY decreaseSumInvoiceCorrectionDetail, 
+                            decreaseVATSumInvoiceCorrectionDetail,
+                            decreaseInvoiceSumInvoiceCorrectionDetail                            
+
+    OBJECTS id = InvoiceDetail
+    PROPERTIES (id) READONLY index
+    PROPERTIES (id) READONLY BACKGROUND backgroundBarcode(id) idBarcodeSku 
+    PROPERTIES (id) READONLY BACKGROUND backgroundSku(id) idSku SHOWIF showIDs(), nameSku READONLY, shortNameUOMSku READONLY
+    PROPERTIES (id) READONLY quantity, valueVAT
+    PROPERTIES BACKGROUND RGB(255,238,165) priceB 'Цена (до)' = price(id) SHOWIF NOT hideWithoutVAT(invoice(id)) READONLY,
+               sumB 'Сумма (до)' = sum(id) SHOWIF NOT hideWithoutVAT(invoice(id)) READONLY,           
+               invoicePriceB 'Цена с НДС (до)' = invoicePrice(id) SHOWIF NOT hideWithVAT(invoice(id)) READONLY,
+               VATSumB 'Сумма НДС (до)' = VATSum(id) READONLY,  
+               invoiceSumB 'Сумма с НДС (до)' = invoiceSum(id) SHOWIF NOT hideWithVAT(invoice(id)) READONLY
+    PROPERTIES BACKGROUND RGB(213,249,185) priceA(id, i) ON CHANGE changePrice(id, i) SHOWIF NOT hideWithoutVAT(invoice(id)),
+               sumA(id, i) SHOWIF NOT hideWithoutVAT(invoice(id)),
+               invoicePriceA(id, i) ON CHANGE changeInvoicePrice(id, i) SHOWIF NOT hideWithVAT(invoice(id)),
+               VATSumA(id, i),
+               invoiceSumA(id, i) SHOWIF NOT hideWithVAT(invoice(id))
+               
+    ORDERS index(id)                
+    FILTERS invoice(id)=invoice(i)
+    
+    FILTERGROUP corrected
+        FILTER 'С корректировкой' invoiceCorrectionDetail(id, i)
+    
+    OBJECTS d = InvoiceCorrectionDetail GRID
+    PROPERTIES (d) index
+    PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku 
+    PROPERTIES (d) idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, quantity, valueVAT
+    PROPERTIES (d) READONLY BACKGROUND RGB(255,238,165) priceB, sumB, VATSumB, invoicePriceB, invoiceSumB
+    PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) priceA, sumA, VATSumA, invoicePriceA, invoiceSumA
+    PROPERTIES (d) deleteid=DELETE SHOWIF NOT hideDelete(i) GRID
+    ORDERS index(d)
+    PROPERTIES deleteInvoiceCorrectionDetail(i) DRAW d
+
+    FILTERS invoiceCorrection(d) == i
+
+    EVENTS
+        ON OK prePost(i)
+
+    EDIT InvoiceCorrection OBJECT i
+;
+
+DESIGN invoiceCorrection {
+    BOX {
+        size = (1024, 768);
+        NEW mainTabbed {
+            fill = 1;
+            type = TABBED;
+            NEW documentBox {
+                fill = 1;
+                type = CONTAINERV;
+                caption = 'Корректировка (закупка)';
+                MOVE BOX(i);
+                NEW headerBox {
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+    
+                    NEW headerParams {
+                        fill = 1;
+    
+                        MOVE GROUP(documentHeader,i) {
+                            columns = 1;
+                            alignment = STRETCH;
+                            type = CONTAINERV;
+                            NEW first {
+                                alignment = STRETCH;
+                                type = CONTAINERH;
+                                MOVE PROPERTY(isPosted(i));
+                            }
+                            NEW second {
+                                alignment = STRETCH;
+                                type = CONTAINERH;
+                                MOVE PROPERTY(nameNumerator(i));
+                                MOVE PROPERTY(number(i)) { flex = 200; };
+                                MOVE PROPERTY(series(i));
+                                MOVE PROPERTY(date(i));
+                                MOVE PROPERTY(time(i));
+                            }    
+                        }
+                        NEW headerLegalEntity {
+                            type = CONTAINERH;
+                            alignment = STRETCH;
+                            
+                            NEW headerSupplier {
+                                caption = 'Поставщик';
+                                type = CONTAINERH;
+                                fill = 1;
+                                MOVE PROPERTY(nameSupplier(i)) { caption = ''; };
+                                MOVE PROPERTY(nameSupplierStock(i)) { caption = 'Склад'; };
+                            }
+                            NEW headerCustomer {
+                                caption = 'Покупатель';
+                                type = CONTAINERH;
+                                fill = 1;
+                                MOVE PROPERTY(nameCustomer(i)) { caption = ''; };
+                                MOVE PROPERTY(nameCustomerStock(i)) { caption = 'Склад'; };
+                            }
+                        }
+                        NEW headerTabbedPane {
+                            fill = 1;
+                            type = TABBED;
+                            NEW headerMainParams {
+                                caption = 'Основные параметры';
+                                fill = 1;
+                                NEW headerContract {
+                                    type = CONTAINERH;
+                                    caption = 'Договор';
+                                    MOVE PROPERTY(seriesNumberContractSku(i));
+                                    MOVE PROPERTY(isCommission(i));
+                                }
+                                MOVE GROUP(documentPrm,i) {
+                                    columns = 3;
+                                    alignment = STRETCH;
+                                }
+                                MOVE PROPERTY(note(i)) {
+                                    alignment = STRETCH;
+                                }
+                            }
+                            NEW headerExtraParams {
+                                caption = 'Дополнительные параметры';
+                                type = COLUMNS;
+                                columns = 4;
+    //                            size = (500, -1);
+                            }
+                            NEW headerCreateDetail {
+                                caption = 'Основание';
+                                fill = 1;
+                                type = CONTAINERH;
+                                columns = 2;
+                            }
+                            NEW headerCreateDocuments {
+                                caption = 'Производные документы';
+                                type = COLUMNS;
+                                columns = 2;
+    //                            size = (500, -1);
+                            }
+                            NEW import {
+                                caption = 'Импорт';
+                                fill = 1;
+                                type = CONTAINERH;
+                            }
+                        }
+                    }
+                    MOVE GROUP(documentSum,i) {
+                        columns = 2;
+                        caption = 'Изменение';
+                        NEW increaseSum {
+                            type = CONTAINERV;
+                            caption = 'Увеличение';
+                            MOVE PROPERTY(increaseSumInvoiceCorrectionDetail(i)){
+                                caption = 'Сумма';
+                            }
+                            MOVE PROPERTY(increaseVATSumInvoiceCorrectionDetail(i)){
+                                caption = 'НДС';
+                            }
+                            MOVE PROPERTY(increaseInvoiceSumInvoiceCorrectionDetail(i)){
+                                caption = 'Сумма с НДС';
+                            }
+                        }
+                        NEW dencreaseSum {
+                            type = CONTAINERV;
+                            caption = 'Уменьшение';
+                            MOVE PROPERTY(decreaseSumInvoiceCorrectionDetail(i)){
+                                caption = 'Сумма';
+                            }
+                            MOVE PROPERTY(decreaseVATSumInvoiceCorrectionDetail(i)){
+                                caption = 'НДС';
+                            }
+                            MOVE PROPERTY(decreaseInvoiceSumInvoiceCorrectionDetail(i)){
+                                caption = 'Сумма с НДС';
+                            }
+                        }                                                                                                                                                                                                             
+                    }
+                }
+                NEW specificationBox {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE BOX(id) {
+                        caption = 'Строки накладной';
+                    }
+                    MOVE BOX(d) {
+                        caption = 'Строки корректировки';
+                    }
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+//        PROPERTY(diffSumInvoiceCorrectionDetail(i)) { charWidth = 13;}
+//        PROPERTY(diffVATSumInvoiceCorrectionDetail(i)) { charWidth = 13;}  
+//        PROPERTY(diffInvoiceSumInvoiceCorrectionDetail(i)) { charWidth = 13;}
+//        PROPERTY(deleteUserInvoiceDetail(i)){focusable = FALSE;}
+    }
+}
+
+WHEN LOCAL FORMS invoiceCorrection
+    CHANGED(sku(InvoiceCorrectionDetail detail)) AND NOT invoiceDetail(detail)       
+        DO EXEC connectInvoice(detail);
+
+isUserOpened(InvoiceCorrection i)=  isOpened[InvoiceCorrection](i) AND is(i);
+
+filterInvoiceCorrectionDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
+filterDateFrom (InvoiceCorrection i) = date(i) >= filterInvoiceCorrectionDateFrom() OR (i IS InvoiceCorrection AND NOT filterInvoiceCorrectionDateFrom());      
+
+filterInvoiceCorrectionDateTo 'Дата по' = DATA LOCAL NESTED DATE ();
+filterDateTo (InvoiceCorrection i) = date(i) <= filterInvoiceCorrectionDateTo() OR (i IS InvoiceCorrection AND NOT filterInvoiceCorrectionDateTo());      
+
+filterInvoiceCorrectionCustomer  = DATA LOCAL NESTED LegalEntity ();
+nameFilterInvoiceCorrectionCustomer 'Покупатель' = name(filterInvoiceCorrectionCustomer()) CHARWIDTH 15;          
+filterCustomer (InvoiceCorrection i) = customer(i) == filterInvoiceCorrectionCustomer() OR (i IS InvoiceCorrection AND NOT filterInvoiceCorrectionCustomer());    
+
+filterInvoiceCorrectionCustomerStock  = DATA LOCAL NESTED Stock ();
+nameFilterInvoiceCorrectionCustomerStock 'Склад покупателя' = name(filterInvoiceCorrectionCustomerStock()) CHARWIDTH 15;          
+filterCustomerStock (InvoiceCorrection i) = customerStock(i) == filterInvoiceCorrectionCustomerStock() OR (i IS InvoiceCorrection AND NOT filterInvoiceCorrectionCustomerStock());  
+
+filterInvoiceCorrectionSupplier = DATA LOCAL NESTED LegalEntity ();
+nameFilterInvoiceCorrectionSupplier 'Поставщик' = name(filterInvoiceCorrectionSupplier()) CHARWIDTH 15;          
+filterSupplier (InvoiceCorrection i) = supplier(i) == filterInvoiceCorrectionSupplier() OR (i IS InvoiceCorrection AND NOT filterInvoiceCorrectionSupplier());      
+
+filterInvoiceCorrectionSupplierStock  = DATA LOCAL NESTED Stock ();
+nameFilterInvoiceCorrectionSupplierStock 'Склад поставщика' = name(filterInvoiceCorrectionSupplierStock()) CHARWIDTH 15;          
+filterSupplierStock (InvoiceCorrection i) = supplierStock(i) == filterInvoiceCorrectionSupplierStock() OR (i IS InvoiceCorrection AND NOT filterInvoiceCorrectionSupplierStock());      
+
+filterInvoiceCorrectionCustomUser  = DATA LOCAL NESTED CustomUser ();
+nameFilterInvoiceCorrectionCustomUser 'Создан пользователем' = name[Contact](filterInvoiceCorrectionCustomUser()) CHARWIDTH 15;          
+filterCustomUser (InvoiceCorrection i) = createdUser(i) == filterInvoiceCorrectionCustomUser() OR (i IS InvoiceCorrection AND NOT filterInvoiceCorrectionCustomUser());  
+
+filterInvoiceCorrectionComputer = DATA LOCAL NESTED Computer ();
+nameFilterInvoiceCorrectionComputer 'Создан на компьютере' = hostname(filterInvoiceCorrectionComputer()) CHARWIDTH 15;          
+filterComputer (InvoiceCorrection i) = createdComputer(i) == filterInvoiceCorrectionComputer() OR (i IS InvoiceCorrection AND NOT filterInvoiceCorrectionComputer());
+
+overShowEdit = ABSTRACT BOOLEAN (InvoiceCorrection);
+overShowDelete = ABSTRACT BOOLEAN (InvoiceCorrection);
+skipShowEdit = ABSTRACT BOOLEAN (InvoiceCorrection);
+skipShowDelete = ABSTRACT BOOLEAN (InvoiceCorrection);
+
+skipOpen = ABSTRACT BOOLEAN (InvoiceCorrection);
+showClose (InvoiceCorrection i) = isOpened(i) AND NOT skipClose(i);   
+showOpen (InvoiceCorrection i) = isClosed(i) AND NOT skipOpen(i);   
+background 'Цвет' (InvoiceCorrection i)= ABSTRACT CASE COLOR (InvoiceCorrection);
+background(InvoiceCorrection i) += WHEN isDraft(i) THEN RGB(212,255,212); 
+
+backgroundSkuDetail 'Цвет' (d) = ABSTRACT CASE COLOR (InvoiceCorrectionDetail);
+
+edit(InvoiceCorrectionDetail d) + {  DIALOG invoiceCorrection OBJECTS i = invoiceCorrection(d), d = d; }
+
+show(InvoiceCorrectionDetail d)  { 
+    NEWSESSION {
+        SHOW invoiceCorrection OBJECTS i = invoiceCorrection(d), d = d DOCKED READONLY;
+    }
+}
+
+show 'Просмотреть' (InvoiceCorrection i)   { 
+    NEWSESSION{
+        SHOW invoiceCorrection OBJECTS i = i DOCKED READONLY;
+    }
+    
+}TOOLBAR;
+    
+showToShow (InvoiceCorrection i) = is(i) AND NOT overShowEdit(i);
+    
+FORM invoiceCorrections 'Корректировки накладных' 
+
+    PROPERTIES() filterInvoiceCorrectionDateFrom, filterInvoiceCorrectionDateTo, nameFilterInvoiceCorrectionSupplier, nameFilterInvoiceCorrectionSupplierStock, 
+                 nameFilterInvoiceCorrectionCustomer, nameFilterInvoiceCorrectionCustomerStock, nameFilterInvoiceCorrectionCustomUser, nameFilterInvoiceCorrectionComputer
+    
+    OBJECTS i = InvoiceCorrection LAST
+    PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) isClosed 
+                            
+    PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) isPosted,
+                            number, series, date, time                                
+    PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
+                            nameCurrency, seriesNumberContractSku, isCommission
+    PROPERTIES (i) READONLY BACKGROUND background(i) countInvoiceCorrectionDetail, diffSumInvoiceCorrectionDetail,
+                            diffVATSumInvoiceCorrectionDetail, diffInvoiceSumInvoiceCorrectionDetail
+    PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) note, numberInvoice
+    PROPERTIES (i) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                        postedNameUser, postedTime, postedHostnameComputer 
+
+    PROPERTIES (i) NEWSESSION NEW, editI = EDIT, show SHOWIF showToShow(i)//isOpenedInvoice(i), 
+                   //copy
+    PROPERTIES (i) close SHOWIF showClose(i), open SHOWIF showOpen(i)
+    PROPERTIES (i) NEWSESSION deletei=DELETE SHOWIF overShowDelete(i)//isUserOpenedInvoice(i)
+
+    OBJECTS d = InvoiceCorrectionDetail
+    PROPERTIES (d) READONLY index
+    PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY quantity, priceB SHOWIF NOT hideWithoutVAT(invoice(i)), sumB SHOWIF NOT hideWithoutVAT(invoice(i)),
+                   numberVAT SHOWIF NOT hideWithoutVAT(invoice(i)), valueVAT SHOWIF NOT hideWithoutVAT(invoice(i)), 
+                   invoicePriceB SHOWIF NOT hideWithVAT(invoice(i)),
+                   VATSumB, invoiceSumB 
+    PROPERTIES(d) BACKGROUND RGB(213,249,185)  priceA SHOWIF NOT hideWithoutVAT(invoice(i)), sumA SHOWIF NOT hideWithoutVAT(invoice(i)),
+                   invoicePriceA SHOWIF NOT hideWithVAT(invoice(i)),
+                   VATSumA, invoiceSumA
+                   
+    ORDERS index(d)
+
+    FILTERS invoiceCorrection(d) == i
+    FILTERS filterDateFrom(i), 
+            filterDateTo(i),
+            filterSupplier(i),
+            filterSupplierStock(i),
+            filterCustomer(i),
+            filterCustomerStock(i),
+            filterCustomUser(i),
+            filterComputer(i)
+            
+    LIST InvoiceCorrection OBJECT i
+;
+
+DESIGN invoiceCorrections {
+    BOX {
+        size = (1024, 768);
+
+        NEW documentContainer BEFORE TOOLBARBOX {
+            fill = 1;
+
+            type = SPLITV;
+            NEW filtersBox {                       
+                fill = 1;
+                NEW topFilters {
+                    caption = 'Фильтры';
+                    alignment = STRETCH; 
+                    NEW topFilters1 {
+                        type = CONTAINERH; 
+                        alignment = STRETCH; 
+                        MOVE PROPERTY(filterInvoiceCorrectionDateFrom());
+                        MOVE PROPERTY(filterInvoiceCorrectionDateTo());                            
+                        MOVE PROPERTY(nameFilterInvoiceCorrectionCustomUser()) { fill = 1; }
+                        MOVE PROPERTY(nameFilterInvoiceCorrectionComputer()) { fill = 1; }                            
+                    }
+                    NEW topFilters2 {
+                        type = CONTAINERH; 
+                        alignment = STRETCH; 
+                        MOVE PROPERTY(nameFilterInvoiceCorrectionSupplier()) { fill = 1; }
+                        MOVE PROPERTY(nameFilterInvoiceCorrectionSupplierStock()) { fill = 1; }    
+                        MOVE PROPERTY(nameFilterInvoiceCorrectionCustomer()) { fill = 1; }
+                        MOVE PROPERTY(nameFilterInvoiceCorrectionCustomerStock()) { fill = 1; }                                                    
+                    }                                                                                         
+                }
+                MOVE BOX(i) {
+                    fill = 1;
+                }
+            }    
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE BOX(d) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE GROUP(created,i) { alignment = STRETCH; }
+                    MOVE GROUP(posted,i) { alignment = STRETCH; }
+                }
+//                NEW printTabContainer {
+//                    caption = 'Печатные формы';
+//                    NEW printTabScroll {
+//                        fill = 1;
+//                        height = 1;
+//                        type = SCROLL;
+//                        NEW printTab {
+//                            NEW printContainer {
+//                                caption = 'Печать';
+//                                type = CONTAINERV;
+//                            }
+//                        }
+//                    }
+//                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                }
+            }
+        }
+    }
+}    
+
+@extendFormFilterAccessStock(InvoiceCorrection, i, invoiceCorrections, customerStock, company);
+
+NAVIGATOR {
+    purchasePurchaseNavigator {
+        NEW invoiceCorrections;
+    }
+}
+
+//создание корректировки на основании накладной
+addInvoiceCorrection 'Корректировка накладной' (Invoice invoice) {
+    NEWSESSION {
+            NEW c = InvoiceCorrection {
+                operation(c) <- operation(invoice);
+                invoice(c) <- invoice;
+                supplier(c) <- supplier(invoice);
+                supplierStock(c) <- supplierStock(invoice);
+                customer(c) <- customer(invoice);
+                customerStock(c) <- customerStock(invoice);
+                contractSku(c) <- contractSku(invoice);
+                isCommission(c) <- isCommission(invoice);
+                currency(c) <- currency(invoice);
+                note(c) <- note(invoice);
+                   
+                SHOW invoiceCorrection OBJECTS i = c DOCKED NOCANCEL;
+            }
+        }
+} TOOLBAR;
+
+EXTEND FORM invoices
+    PROPERTIES (i) addInvoiceCorrection
+;    
+
+DESIGN invoices {
+    createdContainer {
+        MOVE PROPERTY(addInvoiceCorrection(i));
+    }
+}
+
+// --------------------------- Проведение по регистру закупка ------------------------------------ //
+@implementPurchaseLedger(InvoiceCorrection, sku, customerStock);
+
+overQuantity = ABSTRACT NUMERIC[16,5] (InvoiceCorrectionDetail);
+overInvoiceSum = ABSTRACT NUMERIC[18,4] (InvoiceCorrectionDetail);
+
+//operation[PurchaseLedger] (InvoiceCorrectionDetail ledger) += operation(ledger);
+VAT[PurchaseLedger] (InvoiceCorrectionDetail ledger) += VAT(ledger);
+sum[PurchaseLedger] (InvoiceCorrectionDetail ledger) += OVERRIDE overInvoiceSum(ledger), invoiceSum(ledger);
+price[PurchaseLedger] (InvoiceCorrectionDetail ledger) += invoicePriceA(ledger);
+supplier[PurchaseLedger] (InvoiceCorrectionDetail ledger) += supplier(ledger);
+supplierStock[PurchaseLedger] (InvoiceCorrectionDetail ledger) += supplierStock(ledger);
+skip[PurchaseLedger] (InvoiceCorrectionDetail ledger) += skipPurchaseLedger(operation(ledger));
+//numberDocument[PurchaseLedger] (InvoiceCorrectionDetail ledger) += number(ledger);
+
+//-- Запрет на изменение документа другим пользователем
+@defineOperationChangesDocument(invoiceCorrection, InvoiceCorrection, preventChangesDocument, created);
+
+overShowEdit (InvoiceCorrection i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
+overShowDelete (InvoiceCorrection i) += showEditDeleteUser(i) AND isUserOpened(i)AND NOT skipShowDelete(i); 
+
+skipClose(InvoiceCorrection i) += WHEN preventCloseDocument(currentUser(), operation(i)) THEN TRUE;
+
+//отображение списка корректировок
+diffSumInvoiceCorrectionDetail 'Сумма (корректировка)' = GROUP SUM diffSumInvoiceCorrectionDetail(InvoiceCorrection ic) BY invoice(ic);
+diffVATSumInvoiceCorrectionDetail 'Сумма НДС (корректировка)' = GROUP SUM diffVATSumInvoiceCorrectionDetail(InvoiceCorrection ic) BY invoice(ic);
+diffInvoiceSumInvoiceCorrectionDetail 'Сумма с НДС (корректировка)' = GROUP SUM diffInvoiceSumInvoiceCorrectionDetail(InvoiceCorrection ic) BY invoice(ic);
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY BACKGROUND RGB(224, 255, 255) AFTER invoiceSumInvoiceDetail(i) diffVATSumInvoiceCorrectionDetail,
+                                                             diffInvoiceSumInvoiceCorrectionDetail
+    
+    OBJECTS ic = InvoiceCorrection
+    PROPERTIES (ic) READONLY number, date, countInvoiceCorrectionDetail, 
+                    diffSumInvoiceCorrectionDetail, diffVATSumInvoiceCorrectionDetail, diffInvoiceSumInvoiceCorrectionDetail
+    PROPERTIES (ic) EDIT, show
+    FILTERS invoice(ic)=i
+;
+
+DESIGN invoices {
+    documentDetail {
+        MOVE BOX(ic) {
+            caption = 'Корректировки';
+            showIf = (TRUE IF countInvoiceCorrection(i));
+        }
+    }
+}
+
+// --------------- Проведение по регистру цен ------------- //
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(InvoiceCorrectionDetail);
+dataSkipChangeLedger 'Не изменять текущие цены' = DATA BOOLEAN(InvoiceCorrectionDetail);
+//skipChangeLedger(InvoiceCorrectionDetail d) +=d IS InvoiceCorrectionDetail AND NOT ;
+
+EXTEND CLASS InvoiceCorrectionDetail : PriceListLedger;
+
+fromDateTime (InvoiceCorrectionDetail ledger) += dateTime(ledger);
+
+isPosted[PriceListLedger](InvoiceCorrectionDetail ledger) += isPosted(ledger);
+skip[PriceListLedger](InvoiceCorrectionDetail ledger) += skipChangeLedger(ledger);
+
+sku[PriceListLedger] (InvoiceCorrectionDetail ledger) += sku(ledger);
+
+operation[PriceListLedger] (InvoiceCorrectionDetail ledger) += operation(ledger);
+
+description[PriceListLedger] (InvoiceCorrectionDetail ledger) += description(ledger);
+
+company (InvoiceCorrectionDetail ledger) += supplier(ledger);
+
+in (InvoiceCorrectionDetail ledger, Stock stock) += customerStock(ledger) == stock;
+
+show[PriceListLedger] (InvoiceCorrectionDetail ledger) + { show(ledger);};
+
+in (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType type) += WHEN priceA(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN TRUE;
+price (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType type) += WHEN priceA(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN priceA(ledger);
+
+in (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType type) += WHEN invoicePriceA(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceInvoicePriceStockPriceListType THEN TRUE;
+price (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType type) += WHEN invoicePriceA(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceInvoicePriceStockPriceListType THEN invoicePriceA(ledger);
