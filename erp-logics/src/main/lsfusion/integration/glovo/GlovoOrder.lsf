@@ -105,6 +105,7 @@ createOrder(FILE f){
         date(order) <- currentDate();
         time(order) <- currentTime();
         idAggregator(order) <- order_id();
+        number(order) <- STRING[48](order_id());
         carrier(order) <- glovoCarrier();
         courierName(order) <- name2();
         courierPhone(order) <- STRING[30](phone_number());
@@ -201,8 +202,8 @@ DESIGN internetOrder{
 
 filterOrderDetail(InternetOrderDetail d) = ABSTRACT BOOLEAN;
 
-removed_purchases (InternetOrder o) = CONCAT '', '[', (GROUP CONCAT purchasedProductId(InternetOrderDetail d)IF sku(d) IS Item 
-    AND internetOrder(d) = o AND pickingQuantity(d) != quantity(d), ',' ORDER d), ']';
+removed_purchases (InternetOrder o) = CONCAT '', '[', (GROUP CONCAT purchasedProductId(InternetOrderDetail d) 
+    IF sku(d) IS Item AND internetOrder(d) = o AND pickingQuantity(d) != quantity(d), ',' ORDER d), ']';
 
 modifyOrder 'Обновление заказа' ABSTRACT LIST (InternetOrder);
 
