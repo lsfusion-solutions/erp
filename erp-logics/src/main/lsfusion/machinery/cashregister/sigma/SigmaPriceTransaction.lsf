@@ -66,7 +66,8 @@ FORM uploadSigmaPriceTransaction FORMEXTID '=:DataExchangeRoot'
         = IF b IS Barcode THEN TFALSE EXTID ':NotForSale',  = IF b IS Barcode THEN 1 EXTID ':VatGroupId', = IF b IS Barcode THEN 1  EXTID ':StorageId',
         = IF b IS Barcode THEN 1 EXTID ':ProductsGroupId',
         =  IF b IS Barcode THEN 1 EXTID ':ProductsSectionId',  = IF b IS Barcode THEN TFALSE EXTID ':FreePrice', 
-        =  IF b IS Barcode THEN 375 EXTID ':CountryId', = IF b IS Barcode THEN TFALSE EXTID ':DisplayAsImage', expiryDate(m,b) EXTID ':ExpiryDate', = IF split(m,b) THEN TTRUE ELSE TFALSE EXTID ':FractionalUnit',
+        =  IF b IS Barcode THEN 375 EXTID ':CountryId', = IF b IS Barcode THEN TFALSE EXTID ':DisplayAsImage', expiryDate(m,b) EXTID ':ExpiryDate', 
+        = IF split(m,b) THEN TTRUE ELSE TFALSE EXTID ':FractionalUnit',
         = name(m,b) EXTID 'Name', id(b) EXTID ':BarCode', = OVERRIDE replaceDot(round2(price(m,b))) EXTID ':Price', = shortNameUOM(m,b) EXTID ':UnitOfMeasure',
         = idSku(b) EXTID ':ProductsCode', =  IF b IS Barcode THEN 'Product' EXTID ':ProductType', = OVERRIDE idSku(b) EXTID ':Code',
         = OVERRIDE idSku(b) EXTID ':ProductsCodeForSync',
@@ -99,7 +100,7 @@ FORM webApiResponse FORMEXTID 'WebApiResponse'
 ;
 
 sendSkuSigma (MachineryPriceTransaction m, CashRegister c){
-    NEWSESSION {
+    IF active(c) THEN NEWSESSION {
         TRY {
             LOCAL f = FILE ();
             LOCAL messageToSend = RAWFILE ();
@@ -114,6 +115,9 @@ sendSkuSigma (MachineryPriceTransaction m, CashRegister c){
             fileToString(f());
             stringData() <- resultString();
             LOCAL zip = STRING ();
+            //непонятно как считать timeOut соединения(при обновлении товаров касса очень долго думает)
+            //принимаем за расчёт 1 товар 0.4 секунды
+            timeoutTcp() <- IF countBarcodes(m) >= 100 THEN countBarcodes(m) * 400 ELSE 60000;   
             zip() <- '16000000504B0506000000000000000000000000000000000000'; //нулевой архив, отпраляем в любом случае
             messageToSend() <- formMessage('', reverseByteA(lpad(toHex(length(nameItems())),8 ,'0')), nameItems(), 
                 reverseByteA(lpad(toHex(length(convertToByteA(stringData()))),8 ,'0')), stringData(), zip());
@@ -144,7 +148,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
         FOR in(t, CashRegister c) IF NOT succeeded(c,t) AND isSigma(c) AND NOT canceled(t) DO {
             TRY sendSkuSigma(t, c);
         }
-        IF (countSucceededMachineries(t) = countMachineries(groupMachinery(t))) THEN {
+        IF (countSucceededMachineries(t) = GROUP SUM 1 IF in(t, CashRegister c)) THEN {
             succeeded(t) <- TRUE;
             dateTimeSucceeded(t) <- currentDateTime();
         }
