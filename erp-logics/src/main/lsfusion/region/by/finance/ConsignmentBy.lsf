@@ -151,7 +151,7 @@ extraDescriptionCustomer = ABSTRACT ISTRING[255] (Consignment);
 
 extraUNPPayer 'УНП получателя' = ABSTRACT STRING[50] (Consignment);
 dataPayer = ABSTRACT LegalEntity (Consignment);
-overPayer = ABSTRACT LegalEntity (Consignment);
+overPayer = ABSTRACT CASE LegalEntity (Consignment);
 payer(Consignment c) = OVERRIDE dataPayer(c), overPayer(c);
 dataUNPPayer = DATA STRING[9] (Consignment);
 UNPPayer 'УНП заказчика' (Consignment consignment) = OVERRIDE dataUNPPayer(consignment), extraUNPPayer(consignment), UNP(payer(consignment));
@@ -343,7 +343,7 @@ ownerTruckLegalEntity 'Владелец автомобиля' (Consignment consi
         IF ownerTrackType(consignment) == OwnerTrackType.customer THEN customer(consignment) ELSE
             legalEntity(truck(consignment));
 
-overPayer(Consignment consignment) += ownerTruckLegalEntity(consignment);
+overPayer(Consignment consignment) += WHEN ownerTruckLegalEntity(consignment) THEN ownerTruckLegalEntity(consignment);
 
 dataWaybill 'Путевой лист' (consignment) = ABSTRACT STRING[50] (Consignment) IN carConsignment;
 
