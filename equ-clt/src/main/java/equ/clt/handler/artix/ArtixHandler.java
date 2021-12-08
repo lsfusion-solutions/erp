@@ -38,6 +38,7 @@ import java.util.regex.Pattern;
 
 import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
+import static lsfusion.base.BaseUtils.isEmpty;
 import static lsfusion.base.BaseUtils.nvl;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -1367,9 +1368,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                         JSONArray moneyPositionsArray = documentObject.getJSONArray("moneyPositions");
 
+                                        List<String> cardNums = new ArrayList<>();
                                         for (int i = 0; i < moneyPositionsArray.length(); i++) {
                                             JSONObject moneyPosition = moneyPositionsArray.getJSONObject(i);
 
+                                            String cardNum = moneyPosition.optString("cardnum");
+                                            if(!isEmpty(cardNum))
+                                                cardNums.add(cardNum);
                                             Integer paymentType = moneyPosition.getInt("valCode");
                                             Integer operationCode = moneyPosition.getInt("opCode");
                                             BigDecimal sum = BigDecimal.valueOf(moneyPosition.getDouble("sumB"));
@@ -1539,6 +1544,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 if(extendedOptions != null) {
                                                     receiptDetailExtraFields.put("extendedOptions", extendedOptions);
                                                 }
+                                                if (!cardNums.isEmpty()) {
+                                                    receiptDetailExtraFields.put("cardNums", StringUtils.join(cardNums, ';'));
+                                                }
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, null,
@@ -1551,6 +1559,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     salesInfo.detailExtraFields.put("bonusPaid", bonusPaid);
                                                 }
                                                 salesInfo.detailExtraFields.put("idBatch", idBatch);
+                                                salesInfo.detailExtraFields.put("externalNumber", externalNumber);
                                                 salesInfo.detailExtraFields.put("externalNumber", externalNumber);
                                                 currentSalesInfoList.add(salesInfo);
                                             }
