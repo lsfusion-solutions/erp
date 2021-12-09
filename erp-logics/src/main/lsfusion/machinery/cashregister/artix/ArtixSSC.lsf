@@ -28,37 +28,42 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
     }
 }
 
-dataCustomGroupTypeArtix = DATA CustomGroupType(GroupCashRegister);
-nameCustomGroupTypeArtix 'Тип классификатора КСО'(GroupCashRegister gs) = name(dataCustomGroupTypeArtix(gs));
-
-overName = ABSTRACT ISTRING[255](Item);
-
+//товар
 imageArtix = DATA IMAGEFILE (Item);
 
 WHEN CHANGED (image(Item i)) DO { 
     imageArtix(i) <- NULL;
 }
 
+overName = ABSTRACT ISTRING[255](Item);
+
+orderArtix 'Порядок отображения для Artix' = DATA LOCAL INTEGER (Item);
+idParent = DATA LOCAL STRING (Item);
+
+//группа
 imageArtix 'Изображение для Artix' = DATA IMAGEFILE (CustomGroup);
 orderArtix 'Порядок отображения для Artix' = DATA INTEGER (CustomGroup);
+export = DATA LOCAL BOOLEAN (CustomGroup);
 
 EXTEND FORM customGroups
     PROPERTIES (g) READONLY imageArtix,orderArtix;
     
 EXTEND FORM customGroup
     PROPERTIES (g) imageArtix, orderArtix;
-    
-encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\r]+\', \' \', \'g\' )';
 
-skipFilterBalance 'Не фильтровать по остаткам' = DATA LOCAL NESTED BOOLEAN ();
-doClear 'С очисткой' = DATA LOCAL NESTED BOOLEAN ();
-export = DATA LOCAL BOOLEAN (CustomGroup);
-idParent = DATA LOCAL STRING (Sku);
+//группа
+dataCustomGroupTypeArtix = DATA CustomGroupType(GroupCashRegister);
+nameCustomGroupTypeArtix 'Тип классификатора КСО'(GroupCashRegister gs) = name(dataCustomGroupTypeArtix(gs));
+directoryPickList 'Директория для пиклиста' = DATA STRING[250](GroupCashRegister);
 
 skipFilterBalance = ABSTRACT BOOLEAN (GroupCashRegister, Sku);
 beforeExport ABSTRACT LIST (GroupCashRegister);
 
-directoryPickList 'Директория для пиклиста' = DATA STRING[250](GroupCashRegister);
+//выгрузка
+skipFilterBalance 'Не фильтровать по остаткам' = DATA LOCAL NESTED BOOLEAN ();
+doClear 'С очисткой' = DATA LOCAL NESTED BOOLEAN ();
+
+encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\r]+\', \' \', \'g\' )';
 
 convertImageArtix(Sku s, IMAGEFILE f){
     TRY {
@@ -94,7 +99,7 @@ createFilePickList (GroupCashRegister gm) {
                             '"name": "' + escapeJSONValue(name(cg)) + '"',
                             '"image": "' + encodeBase64(imageArtix(cg)) + '"',
                             '"parent": ' + (OVERRIDE '"'+id(parent(cg))+'"', 'null'),
-                            '"itemorder": ' + INTEGER(orderArtix(cg))
+                            '"itemorder": ' + orderArtix(cg)
                         ) 
                     + '\}\}') IF export(cg), '\n---\n' ORDER level(cg), cg)
                 +'\n---\n';
@@ -105,7 +110,8 @@ createFilePickList (GroupCashRegister gm) {
                             '"name": "' + escapeJSONValue(OVERRIDE overName(s), name(s)) + '"',
                             '"image": "' + encodeBase64(imageArtix(s)) + '"',
                             '"parent": "' + idParent(s) + '"',
-                            '"tmccode": "' + idBarcode(s) + '"'
+                            '"tmccode": "' + idBarcode(s) + '"',
+                            '"itemorder": ' + orderArtix(s)
                         ) 
                     + '\}\}') IF idParent(s), '\n---\n' ORDER s)
                 +'\n---\n';
