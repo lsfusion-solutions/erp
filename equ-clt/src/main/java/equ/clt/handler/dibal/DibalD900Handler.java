@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -403,6 +404,6 @@ public class DibalD900Handler extends MultithreadScalesHandler {
     }
 
     private byte[] getBytes(String value) {
-        return value.getBytes();
+        return value.getBytes(StandardCharsets.UTF_8);
     }
 }
