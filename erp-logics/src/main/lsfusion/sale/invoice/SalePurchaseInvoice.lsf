@@ -187,22 +187,41 @@ DESIGN Purchase.operation {
 CONSTRAINT notNullSaleReference(operation(Purchase.UserInvoiceDetail d)) AND NOT invoiceDetail(d)
     MESSAGE 'Для строки накладной (закупка) должна быть задана ссылка на строку накладной (продажа)'; 
 
-CONSTRAINT equalsSkuSale(operation(Purchase.UserInvoiceDetail d)) AND invoiceDetail(d) AND NOT Purchase.sku(d) == sku(invoiceDetail(d))
+CONSTRAINT SET(invoiceDetail(Purchase.UserInvoiceDetail d)) AND NOT Purchase.sku(d) = sku(invoiceDetail(d)) AND equalsSkuSale(operation(d))
     CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail] 
         MESSAGE 'Sku в строке накладной закупки и продажи должны совпадать'; 
 
 CONSTRAINT equalsPriceSale(operation(Purchase.UserInvoiceDetail d)) AND invoiceDetail(d) AND NOT Purchase.price(d) == price(invoiceDetail(d))
     MESSAGE 'Цена в строке накладной закупки и продажи должна совпадать'; 
 
-skipConstraintInvoiceDetailDetail = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
-CONSTRAINT (supplier(Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
-            supplierStock(detail) != supplierStock(invoiceDetail(detail)) OR
-            customer(detail) != customer(invoiceDetail(detail)) OR
-            customerStock(detail) != customerStock(invoiceDetail(detail))) 
-           AND NOT skipConstraintInvoiceDetailDetail(detail)
-//           Purchase.skuInvoiceDetail(detail) != skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
+skipStockConstraint = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
+
+CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT supplier(invoiceDetail(d)) = supplier(d) 
     CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
-        MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на основе накладной должны соответствовать друг другу';
+    MESSAGE 'Поставщик строки накладной закупки должен соответствовать поставщику строки накладной продажи';
+
+CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT supplierStock(invoiceDetail(d)) = supplierStock(d) 
+           AND NOT skipStockConstraint(d) 
+    CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
+    MESSAGE 'Склад поставщика строки накладной закупки должен соответствовать складу поставщика строки накладной продажи';
+
+CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT customer(invoiceDetail(d)) = customer(d) 
+    CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
+    MESSAGE 'Покупатель строки накладной закупки должен соответствовать покупателю строки накладной продажи';
+
+CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT customerStock(invoiceDetail(d)) = customerStock(d)
+           AND NOT skipStockConstraint(d) 
+    CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
+    MESSAGE 'Склад покупателя строки накладной закупки должен соответствовать складу покупателя строки накладной продажи';
+
+//CONSTRAINT (supplier(Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
+//            supplierStock(detail) != supplierStock(invoiceDetail(detail)) OR
+//            customer(detail) != customer(invoiceDetail(detail)) OR
+//            customerStock(detail) != customerStock(invoiceDetail(detail))) 
+//           AND NOT skipStockConstraint(detail)
+////           Purchase.skuInvoiceDetail(detail) != skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
+//    CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
+//        MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на основе накладной должны соответствовать друг другу';
 
 
 descriptionIndexInvoiceDetail 'Строка накладной (продажа)' (Purchase.InvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
