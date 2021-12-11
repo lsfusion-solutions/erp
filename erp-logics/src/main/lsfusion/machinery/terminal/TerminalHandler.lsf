@@ -18,6 +18,7 @@ lastConnectionTime 'Последнее подключение' = DATA DATETIME (
 lastUser 'Пользователь' = DATA CustomUser (Terminal);
 shortNameLastUser 'Пользователь' (Terminal terminal) = shortName(lastUser(terminal));
 nameStockLastUser 'Склад пользователя' (Terminal terminal) = nameStock(lastUser(terminal));
+applicationVersion 'Версия приложения' = DATA STRING[50] (Terminal);
 
 maxNpp () = GROUP MAX npp(Terminal t) IF t IS Terminal;
 defaultGroupTerminal() = GROUP MIN GroupTerminal gt IF gt IS GroupTerminal AND NOT stock(gt);
@@ -40,10 +41,10 @@ fld5 = ABSTRACT TEXT (Barcode, Stock);
 
 image(Barcode b) = smallImage(sku(b)) IF hasImage(sku(b));
 
-EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser;
+EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser, applicationVersion;
 EXTEND FORM groupsTerminal
     PROPERTIES () checkIdTerminal
-    PROPERTIES(t) AFTER npp(t) READONLY id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser;
+    PROPERTIES(t) AFTER npp(t) READONLY id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser, applicationVersion;
 
 
 hostTerminalServer 'Хост' = DATA STRING[30] ();
@@ -195,7 +196,8 @@ CLASS TerminalFlags {
     FLG_VOP_DISABLE_EDIT_DOCNUM 'Запрет редактирования номера документа',   // 30       
     FLG_VOP_ENABLE_BATCH 'Включить партионный учет',   // 31 
     FLG_VOP_ENABLE_EXPORT 'Разрешить экспорт документа',   // 33
-    FLG_VOP_PRICE_CONTROL 'Проверка ценников' // 34
+    FLG_VOP_PRICE_CONTROL 'Проверка ценников', // 34
+    FLG_VOP_DATA1_FOR_WEIGHT 'Запрос даты 1 только для весового товара' // 35
 
 }
 TABLE terminalFlags (TerminalFlags);
@@ -233,8 +235,9 @@ order(TerminalFlags f) = CASE
     WHEN f = TerminalFlags.FLG_VOP_DISABLE_EDIT_QUANT THEN 29l
     WHEN f = TerminalFlags.FLG_VOP_DISABLE_EDIT_DOCNUM THEN 30l
     WHEN f = TerminalFlags.FLG_VOP_ENABLE_BATCH THEN 31l // Включить партионный учет 
-    WHEN f = TerminalFlags.FLG_VOP_ENABLE_EXPORT THEN 33l // Включить партионный учет 
-    WHEN f = TerminalFlags.FLG_VOP_PRICE_CONTROL THEN 34l MATERIALIZED;
+    WHEN f = TerminalFlags.FLG_VOP_ENABLE_EXPORT THEN 33l 
+    WHEN f = TerminalFlags.FLG_VOP_PRICE_CONTROL THEN 34l
+    WHEN f = TerminalFlags.FLG_VOP_DATA1_FOR_WEIGHT THEN 35l MATERIALIZED;
     
 flag 'Число'(TerminalFlags f) = LONG (power(2l, order(f)));
 
@@ -276,29 +279,32 @@ nameStockUser 'Склад пользователя' (TerminalConnection c) = nam
 
 ip 'IP' = DATA STRING[50] (TerminalConnection);
 application 'ID приложения' = DATA STRING[50] (TerminalConnection);
+applicationVersion 'Версия приложения' = DATA STRING[50] (TerminalConnection);
 
-processTerminalConnection(Terminal terminal, CustomUser user, STRING[50] ip, STRING[50] application) {
+processTerminalConnection(Terminal terminal, CustomUser user, STRING[50] ip, STRING[50] application, STRING[50] applicationVersion) {
     lastConnectionTime(terminal) <- currentDateTime();
     lastUser(terminal) <- user;
+    applicationVersion(terminal) <- applicationVersion;
     NEW tc = TerminalConnection {
         terminal(tc) <- terminal;
         dateTime(tc) <- currentDateTime();
         user(tc) <- user;
         ip(tc) <- ip;
         application(tc) <- application;
+        applicationVersion(tc) <- applicationVersion;
     }
 }
 
 EXTEND FORM groupsTerminal
     OBJECTS tc = TerminalConnection
-    PROPERTIES(tc) READONLY idTerminal, dateTime, date, shortNameUser, nameStockUser, ip, application
+    PROPERTIES(tc) READONLY idTerminal, dateTime, date, shortNameUser, nameStockUser, ip, application, applicationVersion
     FILTERS groupTerminal(terminal(tc)) = grt 
 ;
 
 DESIGN groupsTerminal {
-    pane {
-        MOVE BOX(tc) {
-            caption = 'Подключения';
-        }
-    }
+     pane {
+         MOVE BOX(tc) {
+             caption = 'Подключения';
+         }
+     }
 }
