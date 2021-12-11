@@ -366,15 +366,20 @@ public class TerminalServer extends MonitorServer {
                                 logger.info("logging user " + params[0]);
 
                                 String idApplication = "";
+                                String applicationVersion = "";
+
                                 if (params.length > 3)
                                     idApplication = params[3];
+                                if (params.length > 5)
+                                    applicationVersion = params[5];
 
                                 if (terminalHandler.isActiveTerminal(createSession(), getStack(), params[2])) {
-                                    Object loginResult = terminalHandler.login(createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2], idApplication);
+                                    Object loginResult = terminalHandler.login(
+                                            createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2], idApplication, applicationVersion);
                                     if (loginResult instanceof DataObject) {
                                         result = getSessionId((DataObject) loginResult, params[0], params[1], params[2]);
                                         userMap.get(result).idApplication = idApplication;
-                                        logger.info(String.format("successfull login, idTerminal %s, idApplication '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication));
+                                        logger.info(String.format("successfull login, idTerminal %s, idApplication '%s', applicationVersion '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication, applicationVersion));
                                     } else if (loginResult instanceof String) {
                                         errorCode = LOGIN_ERROR;
                                         errorText = (String) loginResult;

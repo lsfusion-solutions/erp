@@ -1026,7 +1026,7 @@ public class DefaultTerminalHandler {
         }
     }
 
-    public Object login(DataSession session, ExecutionStack stack, String ip, String login, String password, String idTerminal, String idApplication) {
+    public Object login(DataSession session, ExecutionStack stack, String ip, String login, String password, String idTerminal, String idApplication, String applicationVersion) {
         try {
 
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
@@ -1039,10 +1039,11 @@ public class DefaultTerminalHandler {
                     else {
                         ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
                         if (terminalObject instanceof DataObject) {
-                            terminalHandlerLM.findAction("processTerminalConnection[Terminal,CustomUser,STRING[50],STRING[50]]").execute(session, stack, terminalObject, customUser, new DataObject(ip), new DataObject(idApplication));
+                            terminalHandlerLM.findAction("processTerminalConnection[Terminal,CustomUser,STRING[50],STRING[50],STRING[50]]")
+                                    .execute(session, stack, terminalObject, customUser, new DataObject(ip), new DataObject(idApplication), new DataObject(applicationVersion));
                             String applyMessage = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
                             if (applyMessage != null)
-                                ServerLoggers.systemLogger.error(String.format("Terminal Login error: %s, login %s, terminal %s, app %s", applyMessage, login, idTerminal, idApplication));
+                                ServerLoggers.systemLogger.error(String.format("Terminal Login error: %s, login %s, terminal %s, app %s, ver %s", applyMessage, login, idTerminal, idApplication, applicationVersion));
                         }
                         return customUser; //DataObject
                     }
