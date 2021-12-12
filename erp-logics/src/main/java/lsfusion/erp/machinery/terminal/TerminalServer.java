@@ -662,7 +662,7 @@ public class TerminalServer extends MonitorServer {
                             if (params.length >= 1) {
                                 sessionId = params[0];
                                 UserInfo userInfo = userMap.get(sessionId);
-                                if (userInfo == null || userInfo.idTerminal == null) {
+                                if (userInfo == null || userInfo.user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
