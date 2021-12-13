@@ -99,6 +99,7 @@ FORM universalTransferDocument FORMEXTID 'UniversalTransferDocument'
 ;
 
 document = DATA Document (UpdDocument);
+updDocument = GROUP LAST UpdDocument d ORDER d BY document(d) MATERIALIZED INDEXED;
 titleDocument 'Документ Диадока' (UpdDocument d) = title(document(d)) CHARWIDTH 20;
 primaryStatusTextDocument 'Статус' (UpdDocument d) = primaryStatusText(document(d)) CHARWIDTH 20;
 
@@ -131,9 +132,198 @@ messageUniversalTransferDocument 'Подписать и отправить че�
                 document(d) <- createdDocument();
             } CATCH {
                 fileToString(result(), 'UTF-8');
-                MESSAGE 'Ошибка отправки УПД ' + statusHttp() + ' ' + resultString();
+                MESSAGE 'Ошибка отправки УПД ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
             APPLY;
+        }
+    }
+}
+
+CLASS SignerPowers 'Область полномочий' {
+    sp1 '1 - лицо, совершившее сделку, операцию',
+    sp2 '2 - лицо, совершившее сделку, операцию и ответственное за ее оформление',
+    sp3 '3 - лицо, ответственное за оформление свершившегося события'
+}
+name 'Наименование' (SignerPowers sp) = staticCaption(sp);
+id 'Код' (SignerPowers sp) = CASE
+    WHEN sp == SignerPowers.sp1 THEN 1
+    WHEN sp == SignerPowers.sp2 THEN 2
+    WHEN sp == SignerPowers.sp3 THEN 3;
+signerPowers (signerPowersId) = GROUP MAX SignerPowers signerPowers BY id(signerPowers);
+
+FORM signerPowers 'Область полномочий'
+    OBJECTS sp = SignerPowers
+    PROPERTIES(sp) READONLY name, id
+
+    LIST SignerPowers OBJECT sp
+;
+
+CLASS SignerStatus 'Статус' {
+    ss3 '3 - работник иной уполномоченной организации',
+    ss4 '4 - уполномоченное физическое лицо, в том числе индивидуальный предприниматель',
+    ss5 '5 - работник организации – покупателя', 
+    ss6 '6 - работник организации – составителя файла обмена информации покупателя, если составитель файла обмена информации покупателя не является покупателем'
+}
+name 'Наименование' (SignerStatus ss) = staticCaption(ss);
+id 'Код' (SignerStatus ss) = CASE
+    WHEN ss == SignerStatus.ss3 THEN 3
+    WHEN ss == SignerStatus.ss4 THEN 4
+    WHEN ss == SignerStatus.ss5 THEN 5
+    WHEN ss == SignerStatus.ss6 THEN 6;
+signerStatus (signerStatusId) = GROUP MAX SignerStatus signerStatus BY id(signerStatus);
+
+FORM signerStatus 'Статус'
+    OBJECTS ss = SignerStatus
+    PROPERTIES(ss) READONLY name, id
+
+    LIST SignerStatus OBJECT ss
+;
+
+CLASS SignerType 'Тип' {
+    st1 '1 - Представитель юридического лица (ЮЛ)',
+    st2 '2 - Индивидуальный предприниматель (ИП)',
+    st3 '3 - Физическое лицо (ФЛ)'
+}
+name 'Наименование' (SignerType st) = staticCaption(st);
+id 'Код' (SignerType st) = CASE
+    WHEN st == SignerType.st1 THEN 1
+    WHEN st == SignerType.st2 THEN 2
+    WHEN st == SignerType.st3 THEN 3;
+signerType (signerTypeId) = GROUP MAX SignerType signerType BY id(signerType);
+
+FORM signerType 'Тип'
+    OBJECTS st = SignerType
+    PROPERTIES(st) READONLY name, id
+
+    LIST SignerType OBJECT st
+;
+
+documentCreator 'Наименование экономического субъекта' = DATA LOCAL STRING[1000]();
+operationContent 'Содержание операции' = DATA LOCAL STRING[255]();
+signerPowers 'Область полномочий' = DATA LOCAL SignerPowers();
+nameSingerPowers 'Область полномочий' = name(signerPowers());
+idSingerPowers 'Область полномочий' = id(signerPowers());
+signerStatus 'Статус' = DATA LOCAL SignerStatus();
+nameSignerStatus 'Статус' = name(signerStatus());
+idSignerStatus 'Статус' = id(signerStatus());
+signerType 'Тип' = DATA LOCAL SignerType();
+nameSignerType 'Тип' = name(signerType());
+idSignerType 'Тип' = id(signerType());
+signerPowersBase 'Основание полномочий (доверия)' = DATA LOCAL STRING[255]();
+
+FORM universalTransferDocumentBuyerTitle FORMEXTID 'UniversalTransferDocumentBuyerTitle'
+    PROPERTIES ATTR documentCreator = documentCreator() EXTID 'DocumentCreator',//НаимЭконСубСост - Составитель файла обмена счета-фактуры (информации продавца)
+                    operationContent = operationContent() EXTID 'OperationContent'//СодОпер - Содержание операции
+    
+    PROPERTIES ATTR IN signerDetailsUTD
+                    innSG = inn() EXTID 'Inn',//ИННЮЛ
+                    lastNameSG = surname() EXTID 'LastName',//Фамилия
+                    firstNameSG = firstName() EXTID 'FirstName',//Имя
+                    middleNameSG = patronymic() EXTID 'MiddleName',//Отчество
+                    positionSG = jobTitle() EXTID 'Position',//Должн
+                    signerPowersSG = idSingerPowers() EXTID 'SignerPowers',//ОблПолн - Область полномочий
+                    signerTypeSG = idSignerType() EXTID 'SignerType',
+                    signerStatusSG = idSignerStatus() EXTID 'SignerStatus',//Статус
+                    signerPowersBaseSG = signerPowersBase() EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
+;
+
+FORM dialogBuyerTitle 'Титул покупателя'
+    PROPERTIES() documentCreator, operationContent, nameSingerPowers, nameSignerStatus, nameSignerType, signerPowersBase
+    PROPERTIES() surname, firstName, patronymic, jobTitle, inn
+    
+    EVENTS ON OK BEFORE {
+        IF NOT documentCreator() THEN {
+            MESSAGE 'Не задано наименование экономического субъекта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT operationContent() THEN {
+            MESSAGE 'Не задано содержание операции' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT signerPowers() THEN {
+            MESSAGE 'Не задана область полномочий подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT signerStatus() THEN {
+            MESSAGE 'Не задан статус подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT signerType() THEN {
+            MESSAGE 'Не задан тип подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT surname() THEN {
+            MESSAGE 'Не задана фамилия подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT firstName() THEN {
+            MESSAGE 'Не задано имя подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT jobTitle() THEN {
+            MESSAGE 'Не задана должность подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT inn() THEN {
+            MESSAGE 'Не задан ИНН юридического лица подписанта или индивидуального предпринимателя' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+    }
+;
+
+DESIGN dialogBuyerTitle {
+    GROUP() {
+        columns = 1;
+        type = CONTAINERV;
+        MOVE PROPERTY(documentCreator());
+        MOVE PROPERTY(operationContent());
+        MOVE PROPERTY(nameSingerPowers());
+        MOVE PROPERTY(nameSignerStatus());
+        MOVE PROPERTY(nameSignerType());
+        MOVE PROPERTY(signerPowersBase());
+        MOVE PROPERTY(surname());
+        MOVE PROPERTY(firstName());
+        MOVE PROPERTY(patronymic());
+        MOVE PROPERTY(jobTitle());
+        MOVE PROPERTY(inn());
+    }
+}
+
+overMessageSignature (Box b, Document d) + {
+    FOR User u == userDiadoc(currentUser()) AND typeNamedId(d) == 'UniversalTransferDocument' DO NEWSESSION {
+        box() <- b;
+        message() <- message(d);
+        parentEntity(0) <- entity(d);
+        isRecipientTitles(0) <- TRUE;
+        surname() <- STRING[60](lastName(currentUser()));
+        firstName() <- STRING[60](firstName(currentUser()));
+        //patronymic() <- STRING[60](middleName(currentUser())); подключить модуль EmployeeRu
+        jobTitle() <- STRING[128](namePosition(currentUser()));
+        inn() <- STRING[10](inn(organization(toDepartment(d))));
+        
+        DIALOG dialogBuyerTitle NOMANAGESESSION DO {
+            getToken(u);
+            EXPORT universalTransferDocumentBuyerTitle XML;
+
+            LOCAL result = FILE ();
+            TRY {
+                EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + boxId() + '&documentTypeNamedId=UniversalTransferDocument&documentFunction=' + function(d) + '&documentVersion=' + version(d) + '&titleIndex=1&letterId=' + messageId() + '&documentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+                IF useTestSignature() THEN {
+                    signWithTestSignature(0) <- TRUE;
+                } ELSE {
+                    sign(RAWFILE(result()), TRUE);
+                    signatureDocument(0) <- encodedSignature();
+                }
+
+                postMessagePatch(u);
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка подписи ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            }
+            APPLY;
+            getDocument(b,d);
         }
     }
 }
@@ -170,18 +360,424 @@ DESIGN updDocuments {
     }
 }
 
-
+//создание документа на основе
 GROUP vsvUchDokObor EXTID 'СвУчДокОбор';
-GROUP vsvOEDOtpr1 EXTID 'СвОЭДОтпр' : vsvUchDokObor;
+GROUP vsvOEDOtpr EXTID 'СвОЭДОтпр' : vsvUchDokObor;
+GROUP vdokumient EXTID 'Документ';
+GROUP vsvSchFakt EXTID 'СвСчФакт' : vdokumient;
+GROUP visprSchF EXTID 'ИспрСчФ' : vsvSchFakt;
+GROUP vsvProd EXTID 'СвПрод' : vsvSchFakt;
+GROUP vidSv EXTID 'ИдСв' : vsvProd;
+GROUP vsvIuLUch1 EXTID 'СвЮЛУч' : vidSv;
+GROUP vadries EXTID 'Адрес' : vsvProd;
+GROUP vadrRF1 EXTID 'АдрРФ' : vadries;
+GROUP vadrInf1 EXTID 'АдрИнф' : vadries;
+GROUP vbankRiekv EXTID 'БанкРекв' : vsvProd;
+GROUP vsvBank1 EXTID 'СвБанк' : vbankRiekv;
+GROUP vghruzOt EXTID 'ГрузОт' : vsvSchFakt;
+GROUP vghruzOtpr EXTID 'ГрузОтпр' : vghruzOt;
+GROUP vidSv1 EXTID 'ИдСв' : vghruzOtpr;
+GROUP vsvIuLUch2 EXTID 'СвЮЛУч' : vidSv1;
+GROUP vadries1 EXTID 'Адрес' : vghruzOtpr;
+GROUP vadrRF2 EXTID 'АдрРФ' : vadries1;
+GROUP vadrInf2 EXTID 'АдрИнф' : vadries1;
+GROUP vbankRiekv1 EXTID 'БанкРекв' : vghruzOtpr;
+GROUP vsvBank2 EXTID 'СвБанк' : vbankRiekv1;
+GROUP vghruzPoluch EXTID 'ГрузПолуч' : vsvSchFakt;
+GROUP vidSv2 EXTID 'ИдСв' : vghruzPoluch;
+GROUP vsvIuLUch3 EXTID 'СвЮЛУч' : vidSv2;
+GROUP vadries2 EXTID 'Адрес' : vghruzPoluch;
+GROUP vadrRF3 EXTID 'АдрРФ' : vadries2;
+GROUP vadrInf3 EXTID 'АдрИнф' : vadries2;
+GROUP vsvPokup EXTID 'СвПокуп' : vsvSchFakt;
+GROUP vidSv3 EXTID 'ИдСв' : vsvPokup;
+GROUP vsvIuLUch7 EXTID 'СвЮЛУч' : vidSv3;
+GROUP vadries3 EXTID 'Адрес' : vsvPokup;
+GROUP vadrRF4 EXTID 'АдрРФ' : vadries3;
+GROUP vadrInf4 EXTID 'АдрИнф' : vadries3;
+GROUP vbankRiekv2 EXTID 'БанкРекв' : vsvPokup;
+GROUP vsvBank3 EXTID 'СвБанк' : vbankRiekv2;
+GROUP vinfPolFKhZh1 EXTID 'ИнфПолФХЖ1' : vsvSchFakt;
+GROUP vtablSchFakt EXTID 'ТаблСчФакт' : vdokumient;
+
+GROUP vaktsiz EXTID 'Акциз';
+GROUP vsumNal EXTID 'СумНал';
+GROUP vsviedTov EXTID 'СведТов';
+GROUP vsvTD EXTID 'СвТД';
+GROUP vdopSviedTov EXTID 'ДопСведТов';
+GROUP vnomSriedIdientTov EXTID 'НомСредИдентТов' : vdopSviedTov;
+GROUP vvsieghoOpl EXTID 'ВсегоОпл' : vtablSchFakt;
+GROUP vsumNalVsiegho EXTID 'СумНалВсего' : vvsieghoOpl;
+GROUP vsvProdPier EXTID 'СвПродПер' : vdokumient;
+GROUP vsvPier EXTID 'СвПер' : vsvProdPier;
+GROUP vosnPier1 EXTID 'ОснПер' : vsvPier;
+GROUP vsvLicPier EXTID 'СвЛицПер' : vsvPier;
+GROUP vrabOrgProd EXTID 'РабОргПрод' : vsvLicPier;
+GROUP vFIO EXTID 'ФИО' : vrabOrgProd;
+GROUP vinLic EXTID 'ИнЛицо' : vsvLicPier;
+GROUP vFIO1 EXTID 'ФИО' : vinLic;
+GROUP vFLPer EXTID 'ФЛПер' : vsvLicPier;
+GROUP vFIO2 EXTID 'ФИО' : vFLPer;
+GROUP vpodpisant EXTID 'Подписант' : vdokumient;
+GROUP vFL EXTID 'ФЛ' : vpodpisant;
+GROUP vFIO3 EXTID 'ФИО' : vFL;
+GROUP vIP EXTID 'ИП' : vpodpisant;
+GROUP vFIO4 EXTID 'ФИО' : vIP;
+GROUP vIuL EXTID 'ЮЛ' : vpodpisant;
+GROUP vFIO5 EXTID 'ФИО' : vIuL;
+
+vnaimOrgh = DATA LOCAL STRING();
+vINNIuL = DATA LOCAL STRING();
+vidEDO = DATA LOCAL STRING();
+vidOtpr = DATA LOCAL STRING();
+vidPol = DATA LOCAL STRING();
+vdiefNomIsprSchF = DATA LOCAL STRING();
+vdiefDataIsprSchF = DATA LOCAL STRING();
+vnaimOrgh1 = DATA LOCAL STRING();
+vINNIuL1 = DATA LOCAL STRING();
+vKPP1 = DATA LOCAL STRING();
+vkodGAR = DATA LOCAL STRING();
+vindieks = DATA LOCAL STRING();
+vkodRieghion = DATA LOCAL STRING();
+vraion = DATA LOCAL STRING();
+vghorod = DATA LOCAL STRING();
+vulitsa = DATA LOCAL STRING();
+vdom = DATA LOCAL STRING();
+vkorpus = DATA LOCAL STRING();
+vkodStr1 = DATA LOCAL STRING();
+vadrTiekst1 = DATA LOCAL STRING();
+vnaimBank = DATA LOCAL STRING();
+vBIK = DATA LOCAL STRING();
+vkorSchiet = DATA LOCAL STRING();
+vnomierSchieta = DATA LOCAL STRING();
+vOKPO = DATA LOCAL STRING();
+vnaimOrgh2 = DATA LOCAL STRING();
+vINNIuL2 = DATA LOCAL STRING();
+vKPP2 = DATA LOCAL STRING();
+vindieks1 = DATA LOCAL STRING();
+vkodRieghion1 = DATA LOCAL STRING();
+vghorod1 = DATA LOCAL STRING();
+vulitsa1 = DATA LOCAL STRING();
+vdom1 = DATA LOCAL STRING();
+vkodStr2 = DATA LOCAL STRING();
+vadrTiekst2 = DATA LOCAL STRING();
+vnaimBank1 = DATA LOCAL STRING();
+vBIK1 = DATA LOCAL STRING();
+vnomierSchieta1 = DATA LOCAL STRING();
+vOKPO1 = DATA LOCAL STRING();
+vnaimOrgh3 = DATA LOCAL STRING();
+vINNIuL3 = DATA LOCAL STRING();
+vKPP3 = DATA LOCAL STRING();
+vindieks2 = DATA LOCAL STRING();
+vkodRieghion2 = DATA LOCAL STRING();
+vraion1 = DATA LOCAL STRING();
+vghorod2 = DATA LOCAL STRING();
+vulitsa2 = DATA LOCAL STRING();
+vdom2 = DATA LOCAL STRING();
+vkodStr3 = DATA LOCAL STRING();
+vadrTiekst3 = DATA LOCAL STRING();
+vOKPO2 = DATA LOCAL STRING();
+vnaimOrgh4 = DATA LOCAL STRING();
+vINNIuL4 = DATA LOCAL STRING();
+vKPP4 = DATA LOCAL STRING();
+vkodGAR1 = DATA LOCAL STRING();
+vindieks3 = DATA LOCAL STRING();
+vkodRieghion3 = DATA LOCAL STRING();
+vghorod3 = DATA LOCAL STRING();
+vulitsa3 = DATA LOCAL STRING();
+vdom3 = DATA LOCAL STRING();
+vkodStr4 = DATA LOCAL STRING();
+vadrTiekst4 = DATA LOCAL STRING();
+vnaimBank2 = DATA LOCAL STRING();
+vBIK2 = DATA LOCAL STRING();
+vnomierSchieta2 = DATA LOCAL STRING();
+vtiekstInf = DATA LOCAL STRING(INTEGER);
+vnomierSchF = DATA LOCAL STRING();
+vdataSchF = DATA LOCAL STRING();
+vkodOKV = DATA LOCAL STRING();
+vsumAktsiz = DATA LOCAL STRING(INTEGER);
+vbiezAktsiz = DATA LOCAL STRING(INTEGER);
+vsumNal1 = DATA LOCAL STRING(INTEGER);
+videntTransUpak = DATA LOCAL STRING(INTEGER);
+vnomSriedIdientTovVidentTransUpak = DATA LOCAL INTEGER(INTEGER);
+vKIZ = DATA LOCAL STRING(INTEGER);
+vnomSriedIdientTovVKIZ = DATA LOCAL INTEGER(INTEGER);
+vnomUpak = DATA LOCAL STRING(INTEGER);
+vnomSriedIdientTovVnomUpak = DATA LOCAL INTEGER(INTEGER);
+vkodProish = DATA LOCAL STRING(INTEGER);
+vnomerTD = DATA LOCAL STRING(INTEGER);
+vnaimIedIzm = DATA LOCAL STRING(INTEGER);
+vkrNaimStrPr = DATA LOCAL STRING(INTEGER);
+vkodTov = DATA LOCAL STRING(INTEGER);
+vsviedTovVinfPolFKhZh2 = DATA LOCAL INTEGER(INTEGER);
+vinfPolFKhZh2 = DATA LOCAL STRING(INTEGER);
+vnomStr = DATA LOCAL STRING(INTEGER);
+vnaimTov = DATA LOCAL STRING(INTEGER);
+vOKIeI_Tov = DATA LOCAL STRING(INTEGER);
+vkolTov = DATA LOCAL STRING(INTEGER);
+vtsienaTov = DATA LOCAL STRING(INTEGER);
+vstTovBiezNDS = DATA LOCAL STRING(INTEGER);
+vnalSt = DATA LOCAL STRING(INTEGER);
+vstTovUchNal = DATA LOCAL STRING(INTEGER);
+vsumNal2 = DATA LOCAL STRING();
+vbiezNDS = DATA LOCAL STRING();
+vkolNiettoVs = DATA LOCAL STRING();
+identif = DATA LOCAL STRING(INTEGER);
+vinfPolFKhZh3 = DATA LOCAL STRING(INTEGER);
+vstTovBiezNDSVsiegho = DATA LOCAL STRING();
+vstTovUchNalVsiegho = DATA LOCAL STRING();
+vosnPier = DATA LOCAL STRING();
+vnaimOsn = DATA LOCAL STRING();
+vnomOsn = DATA LOCAL STRING();
+vdataOsn = DATA LOCAL STRING();
+vsodOpier = DATA LOCAL STRING();
+vdataPier = DATA LOCAL STRING();
+vdolzhnost = DATA LOCAL STRING();
+vfamiliia = DATA LOCAL STRING();
+vimia = DATA LOCAL STRING();
+votchiestvo = DATA LOCAL STRING();
+vdolzhnost1 = DATA LOCAL STRING();
+vnaimOrgPer = DATA LOCAL STRING();
+vfamiliia1 = DATA LOCAL STRING();
+vimia1 = DATA LOCAL STRING();
+votchiestvo1 = DATA LOCAL STRING();
+vfamiliia2 = DATA LOCAL STRING();
+vimia2 = DATA LOCAL STRING();
+votchiestvo2 = DATA LOCAL STRING();
+voblPoln = DATA LOCAL STRING();
+vstatus = DATA LOCAL STRING();
+vosnPoln = DATA LOCAL STRING();
+vfamiliia3 = DATA LOCAL STRING();
+vimia3 = DATA LOCAL STRING();
+votchiestvo3 = DATA LOCAL STRING();
+vINNIuL5 = DATA LOCAL STRING();
+vnaimOrgh5 = DATA LOCAL STRING();
+vdolzhn = DATA LOCAL STRING();
+vfamiliia4 = DATA LOCAL STRING();
+vimia4 = DATA LOCAL STRING();
+votchiestvo4 = DATA LOCAL STRING();
+vKND = DATA LOCAL STRING();
+vfunktsiia = DATA LOCAL STRING();
+vpoFaktKhZh = DATA LOCAL STRING();
+vnaimDokOpr = DATA LOCAL STRING();
+vdataInfPr = DATA LOCAL STRING();
+vvriemInfPr = DATA LOCAL STRING();
+vnaimEkonSubSost = DATA LOCAL STRING();
+vidFail = DATA LOCAL STRING();
+vviersForm = DATA LOCAL STRING();
+vviersProgh = DATA LOCAL STRING();
+
+FORM importUPD FORMEXTID 'Файл'
+    PROPERTIES() vidFail EXTID 'ИдФайл' ATTR, vviersForm EXTID 'ВерсФорм' ATTR, vviersProgh EXTID 'ВерсПрог' ATTR
+    PROPERTIES() IN vsvUchDokObor vidOtpr EXTID 'ИдОтпр' ATTR, vidPol EXTID 'ИдПол' ATTR
+    PROPERTIES() IN vsvOEDOtpr vnaimOrgh EXTID 'НаимОрг' ATTR, vINNIuL EXTID 'ИННЮЛ' ATTR, vidEDO EXTID 'ИдЭДО' ATTR
+    PROPERTIES() IN vdokumient vKND EXTID 'КНД' ATTR, vfunktsiia EXTID 'Функция' ATTR, vpoFaktKhZh EXTID 'ПоФактХЖ' ATTR, vnaimDokOpr EXTID 'НаимДокОпр' ATTR, vdataInfPr EXTID 'ДатаИнфПр' ATTR, vvriemInfPr EXTID 'ВремИнфПр' ATTR, vnaimEkonSubSost EXTID 'НаимЭконСубСост' ATTR
+    PROPERTIES() IN vsvSchFakt vnomierSchF EXTID 'НомерСчФ' ATTR, vdataSchF EXTID 'ДатаСчФ' ATTR, vkodOKV EXTID 'КодОКВ' ATTR
+    PROPERTIES() IN visprSchF vdiefNomIsprSchF EXTID 'ДефНомИспрСчФ' ATTR, vdiefDataIsprSchF EXTID 'ДефДатаИспрСчФ' ATTR
+    PROPERTIES() IN vsvProd vOKPO EXTID 'ОКПО' ATTR
+    PROPERTIES() IN vsvIuLUch1 vnaimOrgh1 EXTID 'НаимОрг' ATTR, vINNIuL1 EXTID 'ИННЮЛ' ATTR, vKPP1 EXTID 'КПП' ATTR
+    PROPERTIES() IN vadries vkodGAR EXTID 'КодГАР' ATTR
+    PROPERTIES() IN vadrRF1 vindieks EXTID 'Индекс' ATTR, vkodRieghion EXTID 'КодРегион' ATTR, vraion EXTID 'Район' ATTR, vghorod EXTID 'Город' ATTR, vulitsa EXTID 'Улица' ATTR, vdom EXTID 'Дом' ATTR, vkorpus EXTID 'Корпус' ATTR
+    PROPERTIES() IN vadrInf1 vkodStr1 EXTID 'КодСтр' ATTR, vadrTiekst1 EXTID 'АдрТекст' ATTR
+    PROPERTIES() IN vbankRiekv vnomierSchieta EXTID 'НомерСчета' ATTR
+    PROPERTIES() IN vsvBank1 vnaimBank EXTID 'НаимБанк' ATTR, vBIK EXTID 'БИК' ATTR, vkorSchiet EXTID 'КорСчет' ATTR
+    PROPERTIES() IN vghruzOtpr vOKPO1 EXTID 'ОКПО' ATTR
+    PROPERTIES() IN vsvIuLUch2 vnaimOrgh2 EXTID 'НаимОрг' ATTR, vINNIuL2 EXTID 'ИННЮЛ' ATTR, vKPP2 EXTID 'КПП' ATTR
+    PROPERTIES() IN vadrRF2 vindieks1 EXTID 'Индекс' ATTR, vkodRieghion1 EXTID 'КодРегион' ATTR, vghorod1 EXTID 'Город' ATTR, vulitsa1 EXTID 'Улица' ATTR, vdom1 EXTID 'Дом' ATTR
+    PROPERTIES() IN vadrInf2 vkodStr2 EXTID 'КодСтр' ATTR, vadrTiekst2 EXTID 'АдрТекст' ATTR
+    PROPERTIES() IN vbankRiekv1 vnomierSchieta1 EXTID 'НомерСчета' ATTR
+    PROPERTIES() IN vsvBank2 vnaimBank1 EXTID 'НаимБанк' ATTR, vBIK1 EXTID 'БИК' ATTR
+    PROPERTIES() IN vsvIuLUch3 vnaimOrgh3 EXTID 'НаимОрг' ATTR, vINNIuL3 EXTID 'ИННЮЛ' ATTR, vKPP3 EXTID 'КПП' ATTR
+    PROPERTIES() IN vadrRF3 vindieks2 EXTID 'Индекс' ATTR, vkodRieghion2 EXTID 'КодРегион' ATTR, vraion1 EXTID 'Район' ATTR, vghorod2 EXTID 'Город' ATTR, vulitsa2 EXTID 'Улица' ATTR, vdom2 EXTID 'Дом' ATTR
+    PROPERTIES() IN vadrInf3 vkodStr3 EXTID 'КодСтр' ATTR, vadrTiekst3 EXTID 'АдрТекст' ATTR
+    PROPERTIES() IN vsvPokup vOKPO2 EXTID 'ОКПО' ATTR
+    PROPERTIES() IN vsvIuLUch7 vnaimOrgh4 EXTID 'НаимОрг' ATTR, vINNIuL4 EXTID 'ИННЮЛ' ATTR, vKPP4 EXTID 'КПП' ATTR
+    PROPERTIES() IN vadries3 vkodGAR1 EXTID 'КодГАР' ATTR
+    PROPERTIES() IN vadrRF4 vindieks3 EXTID 'Индекс' ATTR, vkodRieghion3 EXTID 'КодРегион' ATTR, vghorod3 EXTID 'Город' ATTR, vulitsa3 EXTID 'Улица' ATTR, vdom3 EXTID 'Дом' ATTR
+    PROPERTIES() IN vadrInf4 vkodStr4 EXTID 'КодСтр' ATTR, vadrTiekst4 EXTID 'АдрТекст' ATTR
+    PROPERTIES() IN vbankRiekv2 vnomierSchieta2 EXTID 'НомерСчета' ATTR
+    PROPERTIES() IN vsvBank3 vnaimBank2 EXTID 'НаимБанк' ATTR, vBIK2 EXTID 'БИК' ATTR
+    
+    OBJECTS vtiekstInf = INTEGER EXTID 'ТекстИнф' IN vinfPolFKhZh1
+    
+    OBJECTS vsviedTov = INTEGER EXTID 'СведТов' IN vtablSchFakt
+    PROPERTIES(vsviedTov) vnomStr EXTID 'НомСтр' ATTR, vnaimTov EXTID 'НаимТов' ATTR, vOKIeI_Tov EXTID 'ОКЕИ_Тов' ATTR, vkolTov EXTID 'КолТов' ATTR, vtsienaTov EXTID 'ЦенаТов' ATTR, vstTovBiezNDS EXTID 'СтТовБезНДС' ATTR, vnalSt EXTID 'НалСт' ATTR, vstTovUchNal EXTID 'СтТовУчНал' ATTR
+    FILTERS vkolTov(vsviedTov)
+    PROPERTIES(vsviedTov) IN vaktsiz vsumAktsiz EXTID 'СумАкциз'
+    //FILTERS vsumAktsiz(vsviedTov)
+    PROPERTIES(vsviedTov) IN vaktsiz vbiezAktsiz EXTID 'БезАкциз'
+    //FILTERS vbiezAktsiz(vsviedTov)
+    PROPERTIES(vsviedTov) IN vsumNal vsumNal1 EXTID 'СумНал'
+    //FILTERS vsumNal1(vsviedTov)
+    PROPERTIES(vsviedTov) IN vsvTD vkodProish EXTID 'КодПроисх' ATTR, vnomerTD EXTID 'НомерТД' ATTR
+    PROPERTIES(vsviedTov) IN vdopSviedTov vnaimIedIzm EXTID 'НаимЕдИзм' ATTR, vkrNaimStrPr EXTID 'КрНаимСтрПр' ATTR, vkodTov EXTID 'КодТов' ATTR
+    //FILTERS vprTovRab(vsviedTov)
+    
+    OBJECTS videntTransUpak = INTEGER EXTID 'ИдентТрансУпак' IN vnomSriedIdientTov
+    PROPERTIES(videntTransUpak) videntTransUpak EXTID 'value'
+    FILTERS vnomSriedIdientTovVidentTransUpak(videntTransUpak) == vsviedTov
+    
+    OBJECTS vKIZ = INTEGER EXTID 'КИЗ' IN vnomSriedIdientTov
+    PROPERTIES(vKIZ) vKIZ EXTID 'value'
+    FILTERS vnomSriedIdientTovVKIZ(vKIZ) == vsviedTov
+    
+    OBJECTS vnomUpak = INTEGER EXTID 'НомУпак' IN vnomSriedIdientTov
+    PROPERTIES(vnomUpak) vnomUpak EXTID 'value'
+    //FILTERS vnomUpak(vnomUpak)
+    FILTERS vnomSriedIdientTovVnomUpak(vnomUpak) == vsviedTov
+    
+    OBJECTS vinfPolFKhZh2 = INTEGER EXTID 'ИнфПолФХЖ2'
+    FILTERS vsviedTovVinfPolFKhZh2(vinfPolFKhZh2) == vsviedTov
+    PROPERTIES(vinfPolFKhZh2) identif EXTID 'Идентиф' ATTR , vinfPolFKhZh3 EXTID 'Значен' ATTR
+    
+    PROPERTIES() IN vvsieghoOpl vkolNiettoVs EXTID 'КолНеттоВс', vstTovBiezNDSVsiegho EXTID 'СтТовБезНДСВсего' ATTR, vstTovUchNalVsiegho EXTID 'СтТовУчНалВсего' ATTR
+    PROPERTIES() IN vsumNalVsiegho vsumNal2 EXTID 'СумНал', vbiezNDS EXTID 'БезНДС'
+    PROPERTIES() IN vsvPier vosnPier EXTID 'ОснПер', vsodOpier EXTID 'СодОпер' ATTR, vdataPier EXTID 'ДатаПер' ATTR
+    PROPERTIES() IN vosnPier1 vnaimOsn EXTID 'НаимОсн' ATTR, vnomOsn EXTID 'НомОсн' ATTR, vdataOsn EXTID 'ДатаОсн' ATTR
+    PROPERTIES() IN vrabOrgProd vdolzhnost EXTID 'Должность' ATTR
+    PROPERTIES() IN vFIO vfamiliia EXTID 'Фамилия' ATTR, vimia EXTID 'Имя' ATTR, votchiestvo EXTID 'Отчество' ATTR
+    PROPERTIES() IN vinLic vdolzhnost1 EXTID 'Должность' ATTR, vnaimOrgPer EXTID 'НаимОргПер' ATTR
+    PROPERTIES() IN vFIO1 vfamiliia1 EXTID 'Фамилия' ATTR, vimia1 EXTID 'Имя' ATTR, votchiestvo1 EXTID 'Отчество' ATTR
+    PROPERTIES() IN vFIO2 vfamiliia2 EXTID 'Фамилия' ATTR, vimia2 EXTID 'Имя' ATTR, votchiestvo2 EXTID 'Отчество' ATTR
+    PROPERTIES() IN vpodpisant voblPoln EXTID 'ОблПолн' ATTR, vstatus EXTID 'Статус' ATTR, vosnPoln EXTID 'ОснПолн' ATTR
+    PROPERTIES() IN vFIO3 vfamiliia3 EXTID 'Фамилия' ATTR, vimia3 EXTID 'Имя' ATTR, votchiestvo3 EXTID 'Отчество' ATTR
+    PROPERTIES() IN vIuL vINNIuL5 EXTID 'ИННЮЛ' ATTR, vnaimOrgh5 EXTID 'НаимОрг' ATTR, vdolzhn EXTID 'Должн' ATTR
+    PROPERTIES() IN vFIO5 vfamiliia4 EXTID 'Фамилия' ATTR, vimia4 EXTID 'Имя' ATTR, votchiestvo4 EXTID 'Отчество' ATTR
+;
+
+
+showCreateDocument(Document d) += WHEN typeNamedId(d) == 'UniversalTransferDocument' AND NOT updDocument(d) THEN TRUE;
+
+createDocument(Document d) + {
+    IF typeNamedId(d) == 'UniversalTransferDocument' AND NOT updDocument(d) THEN NEWSESSION {
+        IMPORT importUPD FROM data(entity(d));
+
+        NEW upd = UpdDocument {
+            uuid(upd) <- ISTRING[36](getWord(vidFail(), '_', wordCount(vidFail(), '_')));
+            idConsignor(upd) <- STRING[46](vidOtpr());
+            idConsignee(upd) <- STRING[46](vidPol());
+            nameOperatorConsignor(upd) <- STRING[1000](vnaimOrgh());
+            innOperatorConsignor(upd) <- STRING[10](vINNIuL());
+            codeOperatorConsignor(upd) <- STRING[3](vidEDO());
+            status(upd) <- GROUP MAX UpdDocumentStatus s IF staticCaption(s) == vfunktsiia();
+            businessNameDocument(upd) <- STRING[255](vpoFaktKhZh());
+            supplierNameDocument(upd) <- STRING[255](vnaimDokOpr());
+            dateSupplier(upd) <- DATE(toDateFormat(vdataInfPr(), 'DD.MM.YYYY'));
+            timeSupplier(upd) <- TIME(toDateTimeFormat(vvriemInfPr(), 'HH24.MI.SS'));
+            nameOriginatorSupplier(upd) <- STRING[1000](vnaimEkonSubSost());
+            numberInvoice(upd) <- STRING[1000](vnomierSchF());
+            dateInvoice(upd) <- DATE(toDateFormat(vdataSchF(), 'DD.MM.YYYY'));
+            codeCurrency(upd) <- STRING[3](vkodOKV());
+            okpoSupplier(upd) <- STRING[10](vOKPO());
+            nameSupplier(upd) <- STRING[1000](vnaimOrgh1());
+            innSupplier(upd) <- STRING[10](vINNIuL1());
+            kppSupplier(upd) <- STRING[9](vKPP1());
+            codeAddressSupplier(upd) <- STRING[36](vkodGAR());
+            regionCodeSupplier(upd) <- STRING[2](vkodRieghion());
+            countryCodeAddressSupplier(upd) <- STRING[3](vkodStr1());
+            addressSupplier(upd) <- STRING[150](vadrTiekst1());
+            numberAccountSupplier(upd) <- STRING[20](vnomierSchieta());
+            nameBankSupplier(upd) <- STRING[1000](vnaimBank());
+            MFOBankSupplier(upd) <- STRING[9](vBIK());
+            corrAccountBankSupplier(upd) <- STRING[20](vkorSchiet());
+            nameReceiverCompany(upd) <- STRING[1000](vnaimOrgh3());
+            innReceiverCompany(upd) <- STRING[10](vINNIuL3());
+            countryCodeAddressReceiverCompany(upd) <- STRING[3](vkodStr3());
+            addressReceiverCompany(upd) <- STRING[150](vadrTiekst3());
+            okpoCustomer(upd) <- STRING[10](vOKPO2());
+            nameCustomer(upd) <- STRING[1000](vnaimOrgh4());
+            innCustomer(upd) <- STRING[10](vINNIuL4());
+            kppCustomer(upd) <- STRING[9](vKPP4());
+            regionCodeCustomer(upd) <- STRING[2](vkodRieghion3());
+            countryCodeAddressCustomer(upd) <- STRING[3](vkodStr4());
+            addressCustomer(upd) <- STRING[150](vadrTiekst4());
+            codeAddressCustomer(upd) <- STRING[36](vkodGAR1());
+            
+            FOR vkolTov(INTEGER i) NEW dd = UpdDocumentDetail DO {
+                updDocument(dd) <- upd;
+                number(dd) <- NUMERIC[6,0](vnomStr(i));
+                nameSku(dd) <- STRING[1000](vnaimTov(i));
+                idUOM(dd) <- STRING[4](vOKIeI_Tov(i));
+                quantity(dd) <- NUMERIC[26,11](vkolTov(i));
+                price(dd) <- NUMERIC[26,11](vtsienaTov(i));
+                sum(dd) <- NUMERIC[19,2](vstTovBiezNDS(i));
+                VATStatus(dd) <- GROUP MAX VATStatus s IF staticCaption(s) == vnalSt(i);
+                invoiceSum(dd) <- NUMERIC[19,2](vstTovUchNal(i));
+                dutySum(dd) <- NUMERIC[19,2](vsumAktsiz(i));
+                withoutDuty(dd) <- TRUE IF vbiezAktsiz(i);
+                VATSum(dd) <- NUMERIC[19,2](vsumNal1(i));
+                idCountry(dd) <- STRING[3](vkodProish(i));
+                numberDeclaration(dd) <- STRING[29](vnomerTD(i));
+                nameUOM(dd) <- STRING[255](vnaimIedIzm(i));
+                nameCountry(dd) <- STRING[255](vkrNaimStrPr(i));
+                idSku(dd) <- STRING[100](vkodTov(i));
+                
+                FOR vnomSriedIdientTovVidentTransUpak(INTEGER j) == i NEW pd = UpdTransportPackDetail DO {
+                    updDocumentDetail(pd) <- dd;
+                    id(pd) <- STRING[255](videntTransUpak(j));
+                }
+                
+                FOR vnomSriedIdientTovVKIZ(INTEGER j) == i NEW pd = UpdPackDetail DO {
+                    updDocumentDetail(pd) <- dd;
+                    id(pd) <- STRING[255](vKIZ(j));
+                }
+                
+                FOR vnomSriedIdientTovVnomUpak(INTEGER j) == i NEW ld = UpdLotDetail DO {
+                    updDocumentDetail(ld) <- dd;
+                    id(ld) <- STRING[255](vnomUpak(j));
+                }
+            }
+            sum(upd) <- NUMERIC[19,2](vstTovBiezNDSVsiegho());
+            invoiceSum(upd) <- NUMERIC[19,2](vstTovUchNalVsiegho());
+            VATSum(upd) <- NUMERIC[19,2](vsumNal2());
+            withoutVAT(upd) <- TRUE IF vbiezNDS();
+            description(upd) <- STRING[255](vsodOpier());
+            descriptionContract(upd) <- STRING[255](vnaimOsn());
+            numberContract(upd) <- STRING[255](vnomOsn());
+            dateContract(upd) <- DATE(toDateFormat(vdataOsn(), 'DD.MM.YYYY'));
+            positionAgentSupplier(upd) <- STRING[128](vdolzhnost());
+            lastNameAgentSupplier(upd) <- STRING[60](vfamiliia());
+            firstNameAgentSupplier(upd) <- STRING[60](vimia());
+            middleNameAgentSupplier(upd) <- STRING[60](votchiestvo());
+            positionAgentExecuter(upd) <- STRING[128](vdolzhnost1());
+            nameCompanyAgentExecuter(upd) <- STRING[128](vnaimOrgPer());
+            lastNameAgentExecuter(upd) <- STRING[60](vfamiliia1());
+            firstNameAgentExecuter(upd) <- STRING[60](vimia1());
+            middleNameAgentExecuter(upd) <- STRING[60](votchiestvo1());
+            lastNameExecuter(upd) <- STRING[60](vfamiliia2());
+            firstNameExecuter(upd) <- STRING[60](vimia2());
+            middleNameExecuter(upd) <- STRING[60](votchiestvo2());
+            supplierSignerCredentials(upd) <- GROUP MAX Credential c IF staticCaption(c) == voblPoln();
+            supplierSignerStatus(upd) <- GROUP MAX CStatus c IF staticCaption(c) == vstatus();
+            supplierSignerCredentialsBase(upd) <- STRING[255](vosnPoln());
+            supplierSignerLastName(upd) <- STRING[60](vfamiliia3());
+            supplierSignerFirstName(upd) <- STRING[60](vimia3());
+            supplierSignerMiddleName(upd) <- STRING[60](votchiestvo3());
+            supplierSignerInn(upd) <- STRING[10](vINNIuL5());
+            supplierSignerPosition(upd) <- STRING[128](vdolzhn());
+            supplierSignerAgentLastName(upd) <- STRING[60](vfamiliia4());
+            supplierSignerAgentFirstName(upd) <- STRING[60](vimia4());
+            supplierSignerAgentMiddleName(upd) <- STRING[60](votchiestvo4());
+            
+            document(upd) <- d;
+        }
+        APPLY;
+        MESSAGE 'УПД создан' NOWAIT;
+    }
+}
+
+
+//GROUP vsvUchDokObor EXTID 'СвУчДокОбор';
+//GROUP vsvOEDOtpr EXTID 'СвОЭДОтпр' : vsvUchDokObor;
 GROUP vinfPok EXTID 'ИнфПок';
 GROUP vidInfProd EXTID 'ИдИнфПрод' : vinfPok;
 GROUP vsodFKhZh4 EXTID 'СодФХЖ4' : vinfPok;
 GROUP vsvPrin EXTID 'СвПрин' : vsodFKhZh4;
-GROUP vkodSodOpier1 EXTID 'КодСодОпер' : vsvPrin;
+GROUP vkodSodOpier EXTID 'КодСодОпер' : vsvPrin;
 GROUP vinfPolFKhZh4 EXTID 'ИнфПолФХЖ4' : vsodFKhZh4;
-GROUP vtiekstInf1 EXTID 'ТекстИнф' : vinfPolFKhZh4;
+GROUP vtiekstInf EXTID 'ТекстИнф' : vinfPolFKhZh4;
 GROUP vinfPokGosZakKazn EXTID 'ИнфПокГосЗакКазн' : vinfPok;
-GROUP vinfSviedDienObiaz1 EXTID 'ИнфСведДенОбяз' : vinfPokGosZakKazn;
+GROUP vinfSviedDienObiaz EXTID 'ИнфСведДенОбяз' : vinfPokGosZakKazn;
 GROUP vpodpisant1 EXTID 'Подписант' : vinfPok;
 GROUP fl EXTID 'ФЛ' : vpodpisant1;
 GROUP fiofl EXTID 'ФИО' : fl;
@@ -190,17 +786,15 @@ GROUP fioip EXTID 'ФИО' : ip;
 GROUP yl EXTID 'ЮЛ' : vpodpisant1;
 GROUP fioyl EXTID 'ФИО' : yl;
 
-vsvOEDOtpr = DATA LOCAL STRING();
-vnaimOrgh = DATA LOCAL STRING();
-vINNIuL = DATA LOCAL STRING();
-vidEDO = DATA LOCAL STRING();
-vidOtpr = DATA LOCAL STRING();
-vidPol = DATA LOCAL STRING();
+//vnaimOrgh = DATA LOCAL STRING();
+//vINNIuL = DATA LOCAL STRING();
+//vidEDO = DATA LOCAL STRING();
+//vidOtpr = DATA LOCAL STRING();
+//vidPol = DATA LOCAL STRING();
 vEP = DATA LOCAL STRING();
 vidFailInfPr = DATA LOCAL STRING();
 vdataFailInfPr = DATA LOCAL STRING();
 vvriemFailInfPr = DATA LOCAL STRING();
-vkodSodOpier = DATA LOCAL STRING();
 vkodItogha = DATA LOCAL STRING();
 vnaimDokRaskh = DATA LOCAL STRING();
 vvidDokRaskh = DATA LOCAL STRING();
@@ -208,14 +802,13 @@ vnomDokRaskh = DATA LOCAL STRING();
 vdataDokRaskh = DATA LOCAL STRING();
 vidFailDokRaskh = DATA LOCAL STRING();
 vsvLitsPrin = DATA LOCAL STRING();
-vsodOpier = DATA LOCAL STRING();
+//vsodOpier = DATA LOCAL STRING();
 vdataPrin = DATA LOCAL STRING();
-vtiekstInf = DATA LOCAL STRING();
 vidientif = DATA LOCAL STRING();
 vznachien = DATA LOCAL STRING();
 vidFailInfPol = DATA LOCAL STRING();
 vnaimDokOprPr = DATA LOCAL STRING();
-vfunktsiia = DATA LOCAL STRING();
+//vfunktsiia = DATA LOCAL STRING();
 vnomSchFInfPr = DATA LOCAL STRING();
 vdataSchFInfPr = DATA LOCAL STRING();
 vvidOpieratsii = DATA LOCAL STRING();
@@ -239,19 +832,18 @@ vdataOplPried = DATA LOCAL STRING();
 vuchNomDienObiaz = DATA LOCAL STRING();
 vochierPlat = DATA LOCAL STRING();
 vvidPlat = DATA LOCAL STRING();
-vpodpisant = DATA LOCAL STRING();
-voblPoln = DATA LOCAL STRING();
-vstatus = DATA LOCAL STRING();
-vosnPoln = DATA LOCAL STRING();
+//voblPoln = DATA LOCAL STRING();
+//vstatus = DATA LOCAL STRING();
+//vosnPoln = DATA LOCAL STRING();
 vosnPolnOrgh = DATA LOCAL STRING();
-vKND = DATA LOCAL STRING();
+//vKND = DATA LOCAL STRING();
 vdataInfPok = DATA LOCAL STRING();
 vvriemInfPok = DATA LOCAL STRING();
-vnaimEkonSubSost = DATA LOCAL STRING();
+//vnaimEkonSubSost = DATA LOCAL STRING();
 vosnDovierOrghSost = DATA LOCAL STRING();
-vidFail = DATA LOCAL STRING();
-vviersForm = DATA LOCAL STRING();
-vviersProgh = DATA LOCAL STRING();
+//vidFail = DATA LOCAL STRING();
+//vviersForm = DATA LOCAL STRING();
+//vviersProgh = DATA LOCAL STRING();
 
 lastNameFl = DATA LOCAL STRING();
 firstNameFl = DATA LOCAL STRING();
@@ -270,17 +862,17 @@ middleNameYl = DATA LOCAL STRING();
 
 FORM updBuyer FORMEXTID 'Файл'
     PROPERTIES() vidFail EXTID 'ИдФайл' ATTR, vviersForm EXTID 'ВерсФорм' ATTR, vviersProgh EXTID 'ВерсПрог' ATTR
-    PROPERTIES() IN vsvUchDokObor vsvOEDOtpr EXTID 'СвОЭДОтпр', vidOtpr EXTID 'ИдОтпр' ATTR, vidPol EXTID 'ИдПол' ATTR
-    PROPERTIES() IN vsvOEDOtpr1 vnaimOrgh EXTID 'НаимОрг' ATTR, vINNIuL EXTID 'ИННЮЛ' ATTR, vidEDO EXTID 'ИдЭДО' ATTR
-    PROPERTIES() IN vinfPok vpodpisant EXTID 'Подписант', vKND EXTID 'КНД' ATTR, vdataInfPok EXTID 'ДатаИнфПок' ATTR, vvriemInfPok EXTID 'ВремИнфПок' ATTR, vnaimEkonSubSost EXTID 'НаимЭконСубСост' ATTR, vosnDovierOrghSost EXTID 'ОснДоверОргСост' ATTR
+    PROPERTIES() IN vsvUchDokObor vidOtpr EXTID 'ИдОтпр' ATTR, vidPol EXTID 'ИдПол' ATTR
+    PROPERTIES() IN vsvOEDOtpr vnaimOrgh EXTID 'НаимОрг' ATTR, vINNIuL EXTID 'ИННЮЛ' ATTR, vidEDO EXTID 'ИдЭДО' ATTR
+    PROPERTIES() IN vinfPok vKND EXTID 'КНД' ATTR, vdataInfPok EXTID 'ДатаИнфПок' ATTR, vvriemInfPok EXTID 'ВремИнфПок' ATTR, vnaimEkonSubSost EXTID 'НаимЭконСубСост' ATTR, vosnDovierOrghSost EXTID 'ОснДоверОргСост' ATTR
     PROPERTIES() IN vidInfProd vEP EXTID 'ЭП', vidFailInfPr EXTID 'ИдФайлИнфПр' ATTR, vdataFailInfPr EXTID 'ДатаФайлИнфПр' ATTR, vvriemFailInfPr EXTID 'ВремФайлИнфПр' ATTR
     PROPERTIES() IN vsodFKhZh4 vnaimDokOprPr EXTID 'НаимДокОпрПр' ATTR, vfunktsiia EXTID 'Функция' ATTR, vnomSchFInfPr EXTID 'НомСчФИнфПр' ATTR, vdataSchFInfPr EXTID 'ДатаСчФИнфПр' ATTR, vvidOpieratsii EXTID 'ВидОперации' ATTR
-    PROPERTIES() IN vsvPrin vkodSodOpier EXTID 'КодСодОпер', vsvLitsPrin EXTID 'СвЛицПрин', vsodOpier EXTID 'СодОпер' ATTR, vdataPrin EXTID 'ДатаПрин' ATTR
-    PROPERTIES() IN vkodSodOpier1 vkodItogha EXTID 'КодИтога' ATTR, vnaimDokRaskh EXTID 'НаимДокРасх' ATTR, vvidDokRaskh EXTID 'ВидДокРасх' ATTR, vnomDokRaskh EXTID 'НомДокРасх' ATTR, vdataDokRaskh EXTID 'ДатаДокРасх' ATTR, vidFailDokRaskh EXTID 'ИдФайлДокРасх' ATTR
-    PROPERTIES() IN vinfPolFKhZh4 vtiekstInf EXTID 'ТекстИнф', vidFailInfPol EXTID 'ИдФайлИнфПол' ATTR
-    PROPERTIES() IN vtiekstInf1 vidientif EXTID 'Идентиф' ATTR, vznachien EXTID 'Значен' ATTR
-    PROPERTIES() IN vinfPokGosZakKazn vinfSviedDienObiaz EXTID 'ИнфСведДенОбяз', vidKodZak EXTID 'ИдКодЗак' ATTR, vlitsSchietPok EXTID 'ЛицСчетПок' ATTR, vnaimFinOrghPok EXTID 'НаимФинОргПок' ATTR, vnomRieiestrZapPok EXTID 'НомРеестрЗапПок' ATTR, vuchNomBiudObiazPok EXTID 'УчНомБюдОбязПок' ATTR, vkodKaznachPok EXTID 'КодКазначПок' ATTR, vnaimKaznachPok EXTID 'НаимКазначПок' ATTR, vOKTMOPok EXTID 'ОКТМОПок' ATTR, vOKTMOMiesPost EXTID 'ОКТМОМесПост' ATTR, vdataOplPried EXTID 'ДатаОплПред' ATTR, vuchNomDienObiaz EXTID 'УчНомДенОбяз' ATTR, vochierPlat EXTID 'ОчерПлат' ATTR, vvidPlat EXTID 'ВидПлат' ATTR
-    PROPERTIES() IN vinfSviedDienObiaz1 vnomStr EXTID 'НомСтр' ATTR, vkodObiektFAIP EXTID 'КодОбъектФАИП' ATTR, vvidSriedstv EXTID 'ВидСредств' ATTR, vkodPokBiudzhKlass EXTID 'КодПокБюджКласс' ATTR, vkodTsieliPokup EXTID 'КодЦелиПокуп' ATTR, vsumAvans EXTID 'СумАванс' ATTR
+    PROPERTIES() IN vsvPrin vsvLitsPrin EXTID 'СвЛицПрин', vsodOpier EXTID 'СодОпер' ATTR, vdataPrin EXTID 'ДатаПрин' ATTR
+    PROPERTIES() IN vkodSodOpier vkodItogha EXTID 'КодИтога' ATTR, vnaimDokRaskh EXTID 'НаимДокРасх' ATTR, vvidDokRaskh EXTID 'ВидДокРасх' ATTR, vnomDokRaskh EXTID 'НомДокРасх' ATTR, vdataDokRaskh EXTID 'ДатаДокРасх' ATTR, vidFailDokRaskh EXTID 'ИдФайлДокРасх' ATTR
+    PROPERTIES() IN vinfPolFKhZh4 vidFailInfPol EXTID 'ИдФайлИнфПол' ATTR
+    PROPERTIES() IN vtiekstInf vidientif EXTID 'Идентиф' ATTR, vznachien EXTID 'Значен' ATTR
+    PROPERTIES() IN vinfPokGosZakKazn vidKodZak EXTID 'ИдКодЗак' ATTR, vlitsSchietPok EXTID 'ЛицСчетПок' ATTR, vnaimFinOrghPok EXTID 'НаимФинОргПок' ATTR, vnomRieiestrZapPok EXTID 'НомРеестрЗапПок' ATTR, vuchNomBiudObiazPok EXTID 'УчНомБюдОбязПок' ATTR, vkodKaznachPok EXTID 'КодКазначПок' ATTR, vnaimKaznachPok EXTID 'НаимКазначПок' ATTR, vOKTMOPok EXTID 'ОКТМОПок' ATTR, vOKTMOMiesPost EXTID 'ОКТМОМесПост' ATTR, vdataOplPried EXTID 'ДатаОплПред' ATTR, vuchNomDienObiaz EXTID 'УчНомДенОбяз' ATTR, vochierPlat EXTID 'ОчерПлат' ATTR, vvidPlat EXTID 'ВидПлат' ATTR
+    PROPERTIES() IN vinfSviedDienObiaz vnomStr EXTID 'НомСтр' ATTR, vkodObiektFAIP EXTID 'КодОбъектФАИП' ATTR, vvidSriedstv EXTID 'ВидСредств' ATTR, vkodPokBiudzhKlass EXTID 'КодПокБюджКласс' ATTR, vkodTsieliPokup EXTID 'КодЦелиПокуп' ATTR, vsumAvans EXTID 'СумАванс' ATTR
     PROPERTIES() IN vpodpisant1 voblPoln EXTID 'ОблПолн' ATTR, vstatus EXTID 'Статус' ATTR, vosnPoln EXTID 'ОснПолн' ATTR, vosnPolnOrgh EXTID 'ОснПолнОрг' ATTR
   
     PROPERTIES() IN fiofl lastNameFl EXTID 'Фамилия' ATTR, firstNameFl EXTID 'Имя' ATTR, middleNameFl EXTID 'Отчество' ATTR 
@@ -293,7 +885,6 @@ FORM updBuyer FORMEXTID 'Файл'
     
 ;
 
-
 fillBuyerTitle 'Заполнения титула покупателя в УПД' (UpdDocument u, XMLFILE f){
     NEWSESSION {
         IMPORT updBuyer XML FROM f;
@@ -304,7 +895,7 @@ fillBuyerTitle 'Заполнения титула покупателя в УПД
         
         customerSignerCredentials(u)<- INTEGER(voblPoln());
         customerSignerStatus(u)<- INTEGER(vstatus());
-        customerSignerCredentialsBase(u)<- STRING[255](vosnPolnOrgh());
+        customerSignerCredentialsBase(u)<- STRING[255](OVERRIDE vosnPoln(), vosnPolnOrgh());
         
         customerSignerLastName(u)<- lastNameFl();
         customerSignerFirstName(u)<- firstNameFl();
@@ -330,4 +921,8 @@ fillBuyerTitle 'Заполнения титула покупателя в УПД
     INPUT f = XMLFILE DO {
         fillBuyerTitle(u,f);    
     }
+}
+
+WHEN SET(Entity e IS Entity) AND attachmentType(e) == AttachmentType.universalTransferDocumentBuyerTitle AND updDocument(Document d) AND message(d) == message(patch(e)) DO {
+    fillBuyerTitle(updDocument(d), XMLFILE(data(e)));
 }

@@ -1,6 +1,6 @@
 MODULE DiadocMessage;
 
-REQUIRE DiadocOrganization;
+REQUIRE DiadocOrganization, CryptoPro;
 
 NAMESPACE Diadoc;
 
@@ -1472,7 +1472,7 @@ getNewEvents 'Получить новые сообщения' (Box box) {
                 IMPORT importEvents JSON FROM result();
             } CATCH {
                 fileToString(result(), 'UTF-8');
-                MESSAGE 'Ошибка получения сообщений ' + statusHttp() + ' ' + resultString();
+                MESSAGE 'Ошибка получения сообщений ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
 
             FOR eventId(INTEGER i) AND NOT boxEvent(eventId(i)) NEW e = BoxEvent DO {
@@ -1539,7 +1539,7 @@ getNewEvents 'Получить новые сообщения' (Box box) {
                         EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + boxId(box) + '&messageId=' + messageId(message(e)) + '&entityId=' + entityId(e)  HEADERS httpHeadersToken TO data; 
                     } CATCH {
                         fileToString(FILE(data()), 'UTF-8');
-                        MESSAGE 'Ошибка получения контента ' + statusHttp() + ' ' + resultString();
+                        MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                     }
                     data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
                 }
@@ -1653,7 +1653,7 @@ getNewEvents 'Получить новые сообщения' (Box box) {
                         EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + boxId(box) + '&messageId=' + messageId(patch(e)) + '&entityId=' + entityId(e)  HEADERS httpHeadersToken TO data;
                     } CATCH {
                         fileToString(FILE(data()), 'UTF-8');
-                        MESSAGE 'Ошибка получения контента ' + statusHttp() + ' ' + resultString();
+                        MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                     }
                     data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
                 }
@@ -1852,6 +1852,11 @@ FORM importDocument
                valueD EXTID 'Value'
 ;
 
+needCheckStatus = DATA BOOLEAN (Document);
+WHEN SETCHANGED(lastPatchTimestampTicks(message(Document d))) DO {
+    needCheckStatus(d) <- TRUE;
+}
+
 getDocument 'Обновить информацию по документу' (Box b, Document d) {
     FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
         getToken(u);
@@ -1862,7 +1867,7 @@ getDocument 'Обновить информацию по документу' (Box
             IMPORT importDocument JSON FROM result();
         } CATCH {
             fileToString(result(), 'UTF-8');
-            MESSAGE 'Ошибка получения документа ' + statusHttp() + ' ' + resultString();
+            MESSAGE 'Ошибка получения документа ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
         }
         
         IF d == document(messageIdD(),entityIdD()) THEN {
@@ -2243,7 +2248,7 @@ postMessage 'Отправить сообщение' (User u) {
         IMPORT importMessage JSON FROM result();
     } CATCH {
         fileToString(result(), 'UTF-8');
-        MESSAGE 'Ошибка отправки сообщения ' + statusHttp() + ' ' + resultString();
+        MESSAGE 'Ошибка отправки сообщения ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
     }
         
     IF messageIdM() AND NOT message(messageIdM()) THEN NEW m = Message {
@@ -2305,7 +2310,7 @@ postMessage 'Отправить сообщение' (User u) {
                 EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + fromBoxId() + '&messageId=' + messageId(message(e)) + '&entityId=' + entityId(e)  HEADERS httpHeadersToken TO data;
             } CATCH {
                 fileToString(FILE(data()), 'UTF-8');
-                MESSAGE 'Ошибка получения контента ' + statusHttp() + ' ' + resultString();
+                MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
             data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
         }
@@ -2376,3 +2381,709 @@ boxTitle 'Ящик исходного сообщения' () = title(box());
 
 message = DATA LOCAL Message ();
 messageId 'Идентификатор сообщения' () = messageId(message());
+
+parentEntity = DATA LOCAL Entity (INTEGER);
+parentEntityId 'Идентификатор документа' (INTEGER i) = entityId(parentEntity(i));
+
+
+isReceipts 'Извещение о получении' = DATA LOCAL BOOLEAN (INTEGER);
+isCorrectionRequests 'Уведомление об уточнении' = DATA LOCAL BOOLEAN (INTEGER);
+isSignatures 'Подпись' = DATA LOCAL BOOLEAN (INTEGER);
+isRevocationRequests 'Предложение об аннулировании' = DATA LOCAL BOOLEAN (INTEGER);
+isXmlSignatureRejections 'Отказ от подписи/аннулировании' = DATA LOCAL BOOLEAN (INTEGER);
+isRecipientTitles 'Титул получателя' = DATA LOCAL BOOLEAN (INTEGER);
+
+FORM exportMessagePatchToPost
+    PROPERTIES boxId() EXTID 'BoxId',
+               messageId() EXTID 'MessageId'
+    
+    OBJECTS r = INTEGER EXTID 'Receipts'
+    PROPERTIES(r) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(r) IN signedContent
+                  contentDocument EXTID 'Content',
+                  signatureDocument EXTID 'Signature',
+                  signWithTestSignature EXTID 'SignWithTestSignature'
+    FILTERS contentDocument(r) AND parentEntityId(r) AND isReceipts(r)
+    
+    OBJECTS cr = INTEGER EXTID 'CorrectionRequests'
+    PROPERTIES(cr) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(cr) IN signedContent
+                  contentDocument EXTID 'Content',
+                  signatureDocument EXTID 'Signature',
+                  signWithTestSignature EXTID 'SignWithTestSignature'
+    FILTERS contentDocument(cr) AND parentEntityId(cr) AND isCorrectionRequests(cr)
+    
+    OBJECTS s = INTEGER EXTID 'Signatures'
+    PROPERTIES(s) parentEntityId EXTID 'ParentEntityId',
+                  signatureDocument EXTID 'Signature',
+                  signWithTestSignature EXTID 'SignWithTestSignature'
+    FILTERS parentEntityId(s) AND isSignatures(s)
+    
+    OBJECTS rv = INTEGER EXTID 'RevocationRequests'
+    PROPERTIES(rv) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(rv) IN signedContent
+                   contentDocument EXTID 'Content',
+                   signatureDocument EXTID 'Signature',
+                   signWithTestSignature EXTID 'SignWithTestSignature'
+    FILTERS contentDocument(rv) AND parentEntityId(rv) AND isRevocationRequests(rv)
+    
+    OBJECTS sr = INTEGER EXTID 'XmlSignatureRejections'
+    PROPERTIES(sr) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(sr) IN signedContent
+                   contentDocument EXTID 'Content',
+                   signatureDocument EXTID 'Signature',
+                   signWithTestSignature EXTID 'SignWithTestSignature'
+    FILTERS contentDocument(sr) AND parentEntityId(sr) AND isXmlSignatureRejections(sr)
+    
+    OBJECTS rt = INTEGER EXTID 'RecipientTitles'
+    PROPERTIES(rt) parentEntityId EXTID 'ParentEntityId'
+    PROPERTIES(rt) IN signedContent
+                   contentDocument EXTID 'Content',
+                   signatureDocument EXTID 'Signature',
+                   signWithTestSignature EXTID 'SignWithTestSignature'
+    FILTERS contentDocument(rt) AND parentEntityId(rt) AND isRecipientTitles(rt)
+;
+
+//MessagePatch
+patchId 'Идентификатор' = DATA LOCAL STRING ();
+messageIdP 'Идентификатор сообщения' = DATA LOCAL STRING ();
+timestampTicksP 'Время создания' = DATA LOCAL LONG ();
+forDraft 'К черновику' = DATA LOCAL BOOLEAN ();
+draftIsRecycledP 'Черновик утилизирован' = DATA LOCAL BOOLEAN ();
+draftIsLockedP 'Черновик заблокирован' = DATA LOCAL BOOLEAN ();
+messageIsDeleted 'Сообщение удалено' = DATA LOCAL BOOLEAN ();
+messageIsRestored 'Сообщение восстановлено' = DATA LOCAL BOOLEAN ();
+messageIsDelivered 'Сообщение доставлено' = DATA LOCAL BOOLEAN ();
+deliveredEventId 'Идентификатор доставленного получателю события' = DATA LOCAL STRING ();
+messageTypeP 'Тип сообщения' = DATA LOCAL STRING ();
+
+FORM importMessagePatch
+    PROPERTIES() messageIdP EXTID 'MessageId',
+                 timestampTicksP EXTID 'TimestampTicks',
+                 forDraft EXTID 'ForDraft',
+                 draftIsRecycledP EXTID 'DraftIsRecycled',
+                 draftIsLockedP EXTID 'DraftIsLocked',
+                 messageIsDeleted EXTID 'MessageIsDeleted',
+                 messageIsRestored EXTID 'MessageIsRestored',
+                 messageIsDelivered EXTID 'MessageIsDelivered',
+                 deliveredEventId EXTID 'DeliveredEventId',
+                 patchId EXTID 'PatchId',
+                 messageTypeP EXTID 'MessageType'
+    OBJECTS ep = INTEGER EXTID 'Entities'
+    PROPERTIES(ep) entityTypeP EXTID 'EntityType',
+                   entityIdP EXTID 'EntityId',
+                   parentEntityIdP EXTID 'ParentEntityId',
+                   attachmentTypeP EXTID 'AttachmentType',
+                   fileNameP EXTID 'FileName',
+                   needRecipientSignatureP EXTID 'NeedRecipientSignature',
+                   signerBoxIdP EXTID 'SignerBoxId',
+                   notDeliveredEventIdP EXTID 'NotDeliveredEventId',
+                   rawCreationDateP EXTID 'RawCreationDate',
+                   signerDepartmentIdP EXTID 'SignerDepartmentId',
+                   needReceiptP EXTID 'NeedReceipt',
+                   packetIdP EXTID 'PacketId',
+                   isApprovementSignatureP EXTID 'IsApprovementSignature',
+                   isEncryptedContentP EXTID 'IsEncryptedContent',
+                   attachmentVersionP EXTID 'AttachmentVersion',
+                   labelsP EXTID 'Labels',
+                   versionP EXTID 'Version'
+    PROPERTIES(ep) IN content
+                   sizeP EXTID 'Size'
+    PROPERTIES(ep) IN outerDocflow
+                   docflowNamedIdP EXTID 'DocflowNamedId',
+                   docflowFriendlyNameP EXTID 'DocflowFriendlyName'
+    PROPERTIES(ep) IN status
+                   statusNamedIdP EXTID 'NamedId',
+                   statusFriendlyNameP EXTID 'FriendlyName',
+                   outerStatusTypeP EXTID 'Type'
+    OBJECTS epd = INTEGER IN status EXTID 'Details'
+    FILTERS patchDetails(epd) == ep
+    PROPERTIES(epd) codeP EXTID 'Code',
+                    textP EXTID 'Text'
+    PROPERTIES(ep) IN documentInfo // Document
+                   messageIdDP EXTID 'MessageId',
+                   entityIdDP EXTID 'EntityId',
+                   creationTimestampTicksDP EXTID 'CreationTimestampTicks',
+                   counteragentBoxIdDP EXTID 'CounteragentBoxId',
+                   fileNameDP EXTID 'FileName',
+                   isDeletedDP EXTID 'IsDeleted',
+                   departmentIdDP EXTID 'DepartmentId',
+                   isTestDP EXTID 'IsTest',
+                   fromDepartmentIdDP EXTID 'FromDepartmentId',
+                   toDepartmentIdDP EXTID 'ToDepartmentId',
+                   customDocumentIdDP EXTID 'CustomDocumentId',
+                   isEncryptedContentDP EXTID 'IsEncryptedContent',
+                   senderSignatureStatusDP EXTID 'SenderSignatureStatus',
+                   revocationStatusDP EXTID 'RevocationStatus',
+                   sendTimestampTicksDP EXTID 'SendTimestampTicks',
+                   deliveryTimestampTicksDP EXTID 'DeliveryTimestampTicks',
+                   roamingNotificationStatusDP EXTID 'RoamingNotificationStatus',
+                   isReadDP EXTID 'IsRead',
+                   roamingNotificationStatusDescriptionDP EXTID 'RoamingNotificationStatusDescription',
+                   resolutionRouteIdDP EXTID 'ResolutionRouteId',
+                   proxySignatureStatusDP EXTID 'ProxySignatureStatus',
+                   typeNamedIdDP EXTID 'TypeNamedId',
+                   functionDP EXTID 'Function',
+                   workflowIdDP EXTID 'WorkflowId',
+                   titleDP EXTID 'Title',
+                   recipientResponseStatusDP EXTID 'RecipientResponseStatus',
+                   lockModeDP EXTID 'LockMode',
+                   versionDP EXTID 'Version',
+                   proxyBoxIdDP EXTID 'ProxyBoxId',
+                   proxyDepartmentIdDP EXTID 'ProxyDepartmentId'
+    PROPERTIES(ep) IN contentD
+                   sizeDP EXTID 'Size'
+    OBJECTS pod = INTEGER IN documentInfo EXTID 'LastOuterDocflows'
+    FILTERS patchLastOuterDocflows(pod) == ep
+    PROPERTIES(pod) IN outerDocflow
+                    docflowNamedIdDP EXTID 'DocflowNamedId',
+                    docflowFriendlyNameDP EXTID 'DocflowFriendlyName'
+    PROPERTIES(pod) IN status
+                    statusNamedIdDP EXTID 'NamedId',
+                    statusFriendlyNameDP EXTID 'FriendlyName',
+                    outerStatusTypeDP EXTID 'Type'
+    OBJECTS podd = INTEGER IN status EXTID 'Details'
+    FILTERS lastOuterDocflowsPatchDetails(podd) == pod
+    PROPERTIES(podd) codeDP EXTID 'Code',
+                     textDP EXTID 'Text'
+    PROPERTIES(ep) IN recipientReceiptMetadataD
+                   recipientReceiptReceiptStatusDP EXTID 'ReceiptStatus'
+    PROPERTIES(ep) IN confirmationMetadataDR
+                   recipientReceiptConfirmationReceiptStatusDP EXTID 'ReceiptStatus',
+                   recipientReceiptConfirmationDateTimeTicksDP EXTID 'DateTimeTicks'
+    PROPERTIES(ep) IN amendmentRequestMetadataD
+                   amendmentFlagsDP EXTID 'AmendmentFlags',
+                   amendmentRequestReceiptStatusDP EXTID 'ReceiptStatus'
+    PROPERTIES(ep) IN senderReceiptMetadataD
+                   senderReceiptStatusDP EXTID 'ReceiptStatus'
+    PROPERTIES(ep) IN primaryStatusD
+                   primaryStatusSeverityDP EXTID 'Severity',
+                   primaryStatusTextDP EXTID 'StatusText'
+    PROPERTIES(ep) IN secondaryStatusD
+                   secondaryStatusSeverityDP EXTID 'Severity',
+                   secondaryStatusTextDP EXTID 'StatusText'
+    OBJECTS pd = INTEGER IN documentInfo EXTID 'Metadata'
+    FILTERS patchMetadata(pd) == ep
+    PROPERTIES(pd) keyDP EXTID 'Key',
+                   valueDP EXTID 'Value'
+;
+
+//созданное дополнение к сообщению
+createdMessagePatch = DATA LOCAL MessagePatch();
+
+postMessagePatch 'Отправить дополнение к сообщению' (User u) {
+    getToken(u);
+    
+    createdMessagePatch() <- NULL;
+    createdDocument() <- NULL;
+    
+    LOCAL result = FILE ();
+    EXPORT exportMessagePatchToPost JSON;
+    TRY {
+        EXTERNAL HTTP POST url() + '/V3/PostMessagePatch' HEADERS httpHeadersToken PARAMS exportFile() TO result;
+        IMPORT importMessagePatch JSON FROM result();
+    } CATCH {
+        fileToString(result(), 'UTF-8');
+        MESSAGE 'Ошибка отправки дополнения к сообщению ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+    }
+    
+    FOR patchId() AND NOT messagePatch(patchId()) NEW p = MessagePatch DO {
+        patchId(p) <- patchId();
+    }
+    FOR MessagePatch p == messagePatch(patchId()) DO {
+        message(p) <- message(messageIdP());
+        timestampTicks(p) <- timestampTicksP();
+        forDraft(p) <- forDraft();
+        draftIsRecycled(p) <- draftIsRecycledP();
+        draftIsLocked(p) <- draftIsLockedP();
+        messageIsDeleted(p) <- messageIsDeleted();
+        messageIsRestored(p) <- messageIsRestored();
+        messageIsDelivered(p) <- messageIsDelivered();
+        deliveredEventId(p) <- deliveredEventId();
+        messageType(p) <- messageType(messageTypeP());
+        lastPatchTimestampTicks(message(p)) <- timestampTicks(p) WHERE timestampTicks(p) > lastPatchTimestampTicks(message(p));
+        createdMessagePatch() <- p;
+    }
+    FOR entityIdP(INTEGER i) AND NOT entity(entityIdP(i)) NEW e = Entity DO {
+        entityId(e) <- entityIdP(i);
+    }
+    FOR Entity e == entity(entityIdP(INTEGER i)) DO {
+        entityType(e) <- entityType(entityTypeP(i));
+        parentEntityId(e) <- parentEntityIdP(i);
+        attachmentType(e) <- attachmentType(attachmentTypeP(i));
+        fileName(e) <- fileNameP(i);
+        needRecipientSignature(e) <- needRecipientSignatureP(i);
+        signerBox(e) <- box(signerBoxIdP(i));
+        notDeliveredEventId(e) <- notDeliveredEventIdP(i);
+        rawCreationDateTicks(e) <- rawCreationDateP(i);
+        signerDepartment(e) <- department(signerDepartmentIdP(i));
+        needReceipt(e) <- needReceiptP(i);
+        packetId(e) <- packetIdP(i);
+        isApprovementSignature(e) <- isApprovementSignatureP(i);
+        isEncryptedContent(e) <- isEncryptedContentP(i);
+        attachmentVersion(e) <- attachmentVersionP(i);
+        labels(e) <- labelsP(i);
+        version(e) <- versionP(i);
+        size(e) <- sizeP(i);
+        docflowNamedId(e) <- docflowNamedIdP(i);
+        docflowFriendlyName(e) <- docflowFriendlyNameP(i);
+        statusNamedId(e) <- statusNamedIdP(i);
+        statusFriendlyName(e) <- statusFriendlyNameP(i);
+        outerStatusType(e) <- outerStatusType(outerStatusTypeP(i));
+        FOR patchDetails(INTEGER d) == i DO {
+            statusDetail(e,codeP(d)) <- textP(d);
+        }
+        patch(e) <- messagePatch(patchId());
+        IF size(e) > 0 THEN {
+            LOCAL data = RAWFILE ();
+            TRY {
+                EXTERNAL HTTP GET url() + '/GetEntityContent?boxId=' + boxId() + '&messageId=' + messageId(patch(e)) + '&entityId=' + entityId(e)  HEADERS httpHeadersToken TO data;
+            } CATCH {
+                fileToString(FILE(data()), 'UTF-8');
+                MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            }
+            data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+        }
+    }
+    // Документы только создаем, т.к. тут информация только о первом состоянии, обновление по отдельному событию
+    FOR messageIdDP(INTEGER i) AND entityIdDP(i) AND NOT document(messageIdDP(i),entityIdDP(i)) NEW d = Document DO {
+        message(d) <- message(messageIdDP(i));
+        entity(d) <- entity(entityIdDP(i));
+        creationTimestampTicks(d) <- creationTimestampTicksDP(i);
+        counteragentBox(d) <- box(counteragentBoxIdDP(i));
+        fileName(d) <- fileNameDP(i);
+        isDeleted(d) <- isDeletedDP(i);
+        department(d) <- department(departmentIdDP(i));
+        isTest(d) <- isTestDP(i);
+        fromDepartment(d) <- department(fromDepartmentIdDP(i));
+        toDepartment(d) <- department(toDepartmentIdDP(i));
+        customDocumentId(d) <- customDocumentIdDP(i);
+        isEncryptedContent(d) <- isEncryptedContentDP(i);
+        senderSignatureStatus(d) <- senderSignatureStatus(senderSignatureStatusDP(i));
+        revocationStatus(d) <- revocationStatus(revocationStatusDP(i));
+        sendTimestampTicks(d) <- sendTimestampTicksDP(i);
+        deliveryTimestampTicks(d) <- deliveryTimestampTicksDP(i);
+        roamingNotificationStatus(d) <- roamingNotificationStatus(roamingNotificationStatusDP(i));
+        isRead(d) <- isReadDP(i);
+        roamingNotificationStatusDescription(d) <- roamingNotificationStatusDescriptionDP(i);
+        resolutionRouteId(d) <- resolutionRouteIdDP(i);
+        proxySignatureStatus(d) <- proxySignatureStatus(proxySignatureStatusDP(i));
+        typeNamedId(d) <- typeNamedIdDP(i);
+        function(d) <- functionDP(i);
+        workflowId(d) <- workflowIdDP(i);
+        title(d) <- titleDP(i);
+        recipientResponseStatus(d) <- recipientResponseStatus(recipientResponseStatusDP(i));
+        lockMode(d) <- lockMode(lockModeDP(i));
+        version(d) <- versionDP(i);
+        proxyBox(d) <- box(proxyBoxIdDP(i));
+        proxyDepartment(d) <- department(proxyDepartmentIdDP(i));
+        size(d) <- sizeDP(i);
+        FOR patchLastOuterDocflows(INTEGER o) == i DO {
+            docflowFriendlyName(d,docflowNamedIdDP(o)) <- docflowFriendlyNameDP(o);
+            statusNamedId(d,docflowNamedIdDP(o)) <- statusNamedIdDP(o);
+            statusFriendlyName(d,docflowNamedIdDP(o)) <- statusFriendlyNameDP(o);
+            outerStatusType(d,docflowNamedIdDP(o)) <- outerStatusType(outerStatusTypeDP(o));
+            FOR lastOuterDocflowsPatchDetails(INTEGER dd) == o DO {
+                statusDetail(d,docflowNamedIdDP(o),codeDP(dd)) <- textDP(dd);
+            }
+        }
+        recipientReceiptReceiptStatus(d) <- generalReceiptStatus(recipientReceiptReceiptStatusDP(i));
+        recipientReceiptConfirmationReceiptStatus(d) <- generalReceiptStatus(recipientReceiptConfirmationReceiptStatusDP(i));
+        recipientReceiptConfirmationDateTimeTicks(d) <- recipientReceiptConfirmationDateTimeTicksDP(i);
+        amendmentFlags(d) <- amendmentFlagsDP(i);
+        amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusDP(i));
+        senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusDP(i));
+        primaryStatusSeverity(d) <- severity(primaryStatusSeverityDP(i));
+        primaryStatusText(d) <- primaryStatusTextDP(i);
+        secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityDP(i));
+        secondaryStatusText(d) <- secondaryStatusTextDP(i);
+        FOR patchMetadata(INTEGER m) == i DO {
+            metadata(d,keyDP(m)) <- valueDP(m);
+        }
+        createdDocument() <- d;
+    }
+}
+
+//----------------------- Receipt Извещение о получении -----------------------//
+surname 'Фамилия подписанта' = DATA LOCAL STRING[60]();
+firstName 'Имя подписанта' = DATA LOCAL STRING[60]();
+patronymic 'Отчество подписанта' = DATA LOCAL STRING[60]();
+jobTitle 'Должность подписанта' = DATA LOCAL STRING[128]();
+inn 'ИНН юридического лица подписанта или индивидуального предпринимателя' = DATA LOCAL STRING[10]();
+soleProprietorRegistrationCertificate 'Реквизиты свидетельства о регистрации индивидуального предпринимателя' = DATA LOCAL STRING();
+
+GROUP signerDetails EXTID 'SignerDetails';
+
+FORM exportSigner
+    PROPERTIES IN signerDetails
+               surname() EXTID 'Surname',
+               firstName() EXTID 'FirstName',
+               patronymic() EXTID 'Patronymic',
+               jobTitle() EXTID 'JobTitle',
+               inn() EXTID 'Inn',
+               soleProprietorRegistrationCertificate() EXTID 'SoleProprietorRegistrationCertificate'
+;
+
+FORM dialogSinger 'Подписант'
+    PROPERTIES() surname, firstName, patronymic, jobTitle, inn, soleProprietorRegistrationCertificate
+    
+    EVENTS ON OK BEFORE {
+        IF NOT surname() THEN {
+            MESSAGE 'Не задана фамилия подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT firstName() THEN {
+            MESSAGE 'Не задано имя подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT jobTitle() THEN {
+            MESSAGE 'Не задана должность подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT inn() THEN {
+            MESSAGE 'Не задан ИНН юридического лица подписанта или индивидуального предпринимателя' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+    }
+;
+
+DESIGN dialogSinger {
+    GROUP() {
+        columns = 1;
+        type = CONTAINERV;
+        MOVE PROPERTY(surname());
+        MOVE PROPERTY(firstName());
+        MOVE PROPERTY(patronymic());
+        MOVE PROPERTY(jobTitle());
+        MOVE PROPERTY(inn());
+        MOVE PROPERTY(soleProprietorRegistrationCertificate());
+    }
+}
+
+showMessageReceipt (Document d) = CASE
+    WHEN primaryStatusText(d) == 'Требуется подписать извещение' THEN TRUE
+    WHEN primaryStatusText(d) == 'Требуется уточнение. Требуется подписать извещение' THEN TRUE
+    WHEN primaryStatusText(d) == 'Требуется подпись. Требуется подписать извещение' THEN TRUE;
+messageReceipt 'Подписать и отправить извещение о получении' (Box b, Document d) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        LOCAL localEntity = Entity ();
+        localEntity() <- GROUP LAST Entity e IF attachmentType(e) == AttachmentType.invoiceCorrectionRequest AND message(patch(e)) == message(d) ORDER rawCreationDateTicks(e), e;
+        box() <- b;
+        message() <- message(d);
+        parentEntity(0) <- CASE
+            WHEN primaryStatusText(d) == 'Требуется подписать извещение' OR primaryStatusText(d) == 'Требуется подпись. Требуется подписать извещение' THEN entity(d)
+            WHEN primaryStatusText(d) == 'Требуется уточнение. Требуется подписать извещение' THEN localEntity();
+        isReceipts(0) <- TRUE;
+        surname() <- STRING[60](lastName(currentUser()));
+        firstName() <- STRING[60](firstName(currentUser()));
+        //patronymic() <- STRING[60](middleName(currentUser())); подключить модуль EmployeeRu
+        jobTitle() <- STRING[128](namePosition(currentUser()));
+        inn() <- STRING[10](inn(organization(toDepartment(d))));
+        DIALOG dialogSinger DO {
+            getToken(u);
+            EXPORT exportSigner JSON;
+
+            LOCAL result = FILE ();
+            TRY {
+                EXTERNAL HTTP POST url() + '/GenerateReceiptXml?boxId=' + boxId() + '&messageId=' + messageId() + '&attachmentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+                IF useTestSignature() THEN {
+                    signWithTestSignature(0) <- TRUE;
+                } ELSE {
+                    sign(RAWFILE(result()), TRUE);
+                    signatureDocument(0) <- encodedSignature();
+                }
+
+                postMessagePatch(u);
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка отправки извещения о получении ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            }
+            APPLY;
+            getDocument(b,d);
+        }
+    }
+}
+
+EXTEND FORM documents
+    PROPERTIES(b,d) TOOLBAR messageReceipt SHOWIF showMessageReceipt(d)
+;
+
+//----------------------- InvoiceCorrectionRequest Уведомление об уточнении -----------------------//
+GROUP signer EXTID 'Signer';
+GROUP signerDetailsS EXTID 'SignerDetails': signer;
+
+errorMessage 'Текст' = DATA LOCAL TEXT();
+
+FORM exportInvoiceCorrectionRequestInfo
+    PROPERTIES errorMessage() EXTID 'ErrorMessage'
+    PROPERTIES IN signerDetailsS
+               surname() EXTID 'Surname',
+               firstName() EXTID 'FirstName',
+               patronymic() EXTID 'Patronymic',
+               jobTitle() EXTID 'JobTitle',
+               inn() EXTID 'Inn',
+               soleProprietorRegistrationCertificate() EXTID 'SoleProprietorRegistrationCertificate'
+;
+
+FORM dialogErrorMessage 'Уведомление'
+    PROPERTIES() errorMessage
+    
+    EVENTS ON OK BEFORE {
+        IF NOT errorMessage() OR errorMessage() == '' THEN {
+            MESSAGE 'Не задан текст' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+    }
+;
+
+DESIGN dialogErrorMessage {
+    GROUP() {
+        fill = 1;
+        columns = 1;
+    }
+}
+
+showMessageInvoiceCorrectionRequest (Box b, Document d) = CASE
+    WHEN NOT (primaryStatusText(d) == 'Исправлен' OR primaryStatusText(d) == 'Ожидается уточнение' OR primaryStatusText(d) == 'Отказано в подписи контрагенту') AND toBox(message(d)) == b AND d IS Document THEN TRUE;
+messageInvoiceCorrectionRequest 'Подписать и отправить уведомление об уточнении' (Box b, Document d) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        box() <- b;
+        message() <- message(d);
+        parentEntity(0) <- entity(d);
+        isCorrectionRequests(0) <- TRUE;
+        surname() <- STRING[60](lastName(currentUser()));
+        firstName() <- STRING[60](firstName(currentUser()));
+        //patronymic() <- STRING[60](middleName(currentUser())); подключить модуль EmployeeRu
+        jobTitle() <- STRING[128](namePosition(currentUser()));
+        inn() <- STRING[10](inn(organization(toDepartment(d))));
+        DIALOG dialogErrorMessage DO {
+            DIALOG dialogSinger DO {
+                getToken(u);
+                EXPORT exportInvoiceCorrectionRequestInfo JSON;
+                
+                LOCAL result = FILE ();
+                TRY {
+                    EXTERNAL HTTP POST url() + '/GenerateInvoiceCorrectionRequestXml?boxId=' + boxId() + '&messageId=' + messageId() + '&attachmentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                    contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+    
+                    IF useTestSignature() THEN {
+                        signWithTestSignature(0) <- TRUE;
+                    } ELSE {
+                        sign(RAWFILE(result()), TRUE);
+                        signatureDocument(0) <- encodedSignature();
+                    }
+    
+                    postMessagePatch(u);
+                } CATCH {
+                    fileToString(result(), 'UTF-8');
+                    MESSAGE 'Ошибка отправки уведомления об уточнении ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+                }
+                APPLY;
+                getDocument(b,d);
+            }
+        }
+    }
+}
+
+EXTEND FORM documents
+    PROPERTIES(b,d) TOOLBAR messageInvoiceCorrectionRequest SHOWIF showMessageInvoiceCorrectionRequest(b,d)
+;
+
+//----------------------- RevocationRequest Предложение об аннулировании -----------------------//
+//комментарий и Signer не обязательны
+showMessageRevocationRequest (Document d) = CASE
+    WHEN NOT (primaryStatusText(d) == 'Требуется подпись' OR primaryStatusText(d) == 'Требуется подпись. Требуется подписать извещение' OR primaryStatusText(d) == 'Ожидается аннулирование' OR primaryStatusText(d) == 'Требуется аннулирование' OR primaryStatusText(d) == 'Аннулирован' OR primaryStatusText(d) == 'Контрагент отказал в подписи' OR primaryStatusText(d) == 'Отказано в подписи контрагенту') AND d IS Document THEN TRUE;
+messageRevocationRequest 'Подписать и отправить предложение об аннулировании' (Box b, Document d) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        box() <- b;
+        message() <- message(d);
+        parentEntity(0) <- entity(d);
+        isRevocationRequests(0) <- TRUE;
+        getToken(u);
+        
+        //EXPORT exportSigner JSON;
+        stringToFile('\{ "RevocationRequestInfo": \{\}\}','UTF-8','json');
+        
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP POST url() + '/GenerateRevocationRequestXml?boxId=' + boxId() + '&messageId=' + messageId() + '&attachmentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS resultFile() TO result;
+            contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+            IF useTestSignature() THEN {
+                signWithTestSignature(0) <- TRUE;
+            } ELSE {
+                sign(RAWFILE(result()), TRUE);
+                signatureDocument(0) <- encodedSignature();
+            }
+
+            postMessagePatch(u);
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка отправки предложения об аннулировании ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+        }
+        APPLY;
+        getDocument(b,d);
+    }
+}
+
+EXTEND FORM documents
+    PROPERTIES(b,d) TOOLBAR messageRevocationRequest SHOWIF showMessageRevocationRequest(d)
+;
+
+//----------------------- Signature Аннулирование -----------------------//
+showMessageRevocationSignature (Document d) = CASE
+    WHEN primaryStatusText(d) == 'Требуется аннулирование' AND d IS Document THEN TRUE;
+messageRevocationSignature 'Аннулировать' (Box b, Document d) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        box() <- b;
+        message() <- message(d);
+        parentEntity(0) <- GROUP LAST Entity e IF attachmentType(e) == AttachmentType.revocationRequest AND message(patch(e)) == message(d) ORDER rawCreationDateTicks(e), e;
+        isSignatures(0) <- TRUE;
+        getToken(u);
+        
+        LOCAL result = FILE ();
+        TRY {
+            result() <- data(parentEntity(0));
+            contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+            IF useTestSignature() THEN {
+                signWithTestSignature(0) <- TRUE;
+            } ELSE {
+                sign(RAWFILE(result()), TRUE);
+                signatureDocument(0) <- encodedSignature();
+            }
+
+            postMessagePatch(u);
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка аннулирования ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+        }
+        APPLY;
+        getDocument(b,d);
+    }
+}
+
+EXTEND FORM documents
+    PROPERTIES(b,d) TOOLBAR messageRevocationSignature SHOWIF showMessageRevocationSignature(d)
+;
+
+//----------------------- XmlSignatureRejection Отказ от аннулирования -----------------------//
+FORM exportSignatureRejectionInfo
+    PROPERTIES IN signerDetailsS
+               surname() EXTID 'Surname',
+               firstName() EXTID 'FirstName',
+               patronymic() EXTID 'Patronymic',
+               jobTitle() EXTID 'JobTitle',
+               inn() EXTID 'Inn',
+               soleProprietorRegistrationCertificate() EXTID 'SoleProprietorRegistrationCertificate'
+;
+
+showMessageRevocationRejection (Document d) = CASE
+    WHEN primaryStatusText(d) == 'Требуется аннулирование' AND d IS Document THEN TRUE;
+messageRevocationRejection 'Отказ от аннулирования' (Box b, Document d) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        box() <- b;
+        message() <- message(d);
+        parentEntity(0) <- GROUP LAST Entity e IF attachmentType(e) == AttachmentType.revocationRequest AND message(patch(e)) == message(d) ORDER rawCreationDateTicks(e), e;
+        isXmlSignatureRejections(0) <- TRUE;
+        surname() <- STRING[60](lastName(currentUser()));
+        firstName() <- STRING[60](firstName(currentUser()));
+        //patronymic() <- STRING[60](middleName(currentUser())); подключить модуль EmployeeRu
+        jobTitle() <- STRING[128](namePosition(currentUser()));
+        inn() <- STRING[10](inn(organization(toDepartment(d))));
+        DIALOG dialogSinger DO {
+            getToken(u);
+            EXPORT exportSignatureRejectionInfo JSON;
+
+            LOCAL result = FILE ();
+            TRY {
+                EXTERNAL HTTP POST url() + '/GenerateSignatureRejectionXml?boxId=' + boxId() + '&messageId=' + messageId() + '&attachmentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+                IF useTestSignature() THEN {
+                    signWithTestSignature(0) <- TRUE;
+                } ELSE {
+                    sign(RAWFILE(result()), TRUE);
+                    signatureDocument(0) <- encodedSignature();
+                }
+
+                postMessagePatch(u);
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка отказа от аннулирования ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            }
+            APPLY;
+            getDocument(b,d);
+        }
+    }
+}
+
+EXTEND FORM documents
+    PROPERTIES(b,d) TOOLBAR messageRevocationRejection SHOWIF showMessageRevocationRejection(d)
+;
+
+//----------------------- Signature Подпись -----------------------//
+showMessageSignature (Document d) = CASE
+    WHEN primaryStatusText(d) == 'Требуется подпись' AND d IS Document THEN TRUE;
+overMessageSignature ABSTRACT LIST (Box,Document);
+messageSignature 'Подписать' (Box b, Document d) {
+    overMessageSignature(b,d);
+}
+
+EXTEND FORM documents
+    PROPERTIES(b,d) TOOLBAR messageSignature SHOWIF showMessageSignature(d)
+;
+
+//----------------------- XmlSignatureRejection Отказ в подписи -----------------------//
+showMessageRejection (Document d) = CASE
+    WHEN primaryStatusText(d) == 'Требуется подпись' AND d IS Document THEN TRUE;
+messageRejection 'Отказ в подписи' (Box b, Document d) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        box() <- b;
+        message() <- message(d);
+        parentEntity(0) <- entity(d);
+        isXmlSignatureRejections(0) <- TRUE;
+        surname() <- STRING[60](lastName(currentUser()));
+        firstName() <- STRING[60](firstName(currentUser()));
+        //patronymic() <- STRING[60](middleName(currentUser())); подключить модуль EmployeeRu
+        jobTitle() <- STRING[128](namePosition(currentUser()));
+        inn() <- STRING[10](inn(organization(toDepartment(d))));
+        DIALOG dialogSinger DO {
+            getToken(u);
+            EXPORT exportSignatureRejectionInfo JSON;
+
+            LOCAL result = FILE ();
+            TRY {
+                EXTERNAL HTTP POST url() + '/GenerateSignatureRejectionXml?boxId=' + boxId() + '&messageId=' + messageId() + '&attachmentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+                IF useTestSignature() THEN {
+                    signWithTestSignature(0) <- TRUE;
+                } ELSE {
+                    sign(RAWFILE(result()), TRUE);
+                    signatureDocument(0) <- encodedSignature();
+                }
+
+                postMessagePatch(u);
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка отказа в подписи ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            }
+            APPLY;
+            getDocument(b,d);
+        }
+    }
+}
+
+EXTEND FORM documents
+    PROPERTIES(b,d) TOOLBAR messageRejection SHOWIF showMessageRejection(d)
+;
+
+//------------ Создание документа на основе -------------//
+createDocument 'Создать документ на основе' ABSTRACT LIST (Document);
+showCreateDocument = ABSTRACT CASE BOOLEAN (Document);
+EXTEND FORM documents 
+    PROPERTIES(d) TOOLBAR createDocument SHOWIF showCreateDocument(d)
+;
