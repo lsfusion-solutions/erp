@@ -554,7 +554,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         rootObject.put("medicine", medicineObject);
         medicineObject.put("code", batch.idBatch);
         medicineObject.put("party", batch.dateBatch);
-        //medicineObject.put("supplydate", batch.dateBatch); //todo: раскомментить, когда будет готов их сервер
+        medicineObject.put("supplydate", batch.dateBatch);
         medicineObject.put("barcode", removeCheckDigitFromBarcode(item.mainBarcode, appendBarcode));
         medicineObject.put("shelflife", batch.expiryDate);
         medicineObject.put("series", batch.seriesPharmacy);
@@ -562,7 +562,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         medicineObject.put("price", batch.price);
         medicineObject.put("inn", batch.nameSubstance);
         medicineObject.put("cquant", nvl(batch.blisterAmount, 1));
-        //medicineObject.put("packquant", batch.balance);  //todo: раскомментить, когда будет готов их сервер
+        medicineObject.put("packquant", batch.balance);
         medicineObject.put("remainquant", batch.balanceBlister);
         medicineObject.put("remaindatetime", batch.balanceDate);
         medicineObject.put("countrycode", batch.countryCode);
