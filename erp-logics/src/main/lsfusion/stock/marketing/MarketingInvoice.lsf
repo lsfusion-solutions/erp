@@ -257,6 +257,9 @@ invoiceSumMarketing(Purchase.UserInvoiceDetail d) = OVERRIDE overInvoiceSumMarke
 
 createDetailSale ABSTRACT (MarketingInvoice, ContractMarketing, DATE, DATE);
 
+customCreateMarketingInvoice 'Создать акт на оплату' ABSTRACT LIST (ContractMarketing, DATE,  DATE);
+useCustomCreateMarketingInvoice = ABSTRACT BOOLEAN ();
+
 createMarketingInvoice 'Создать акт на оплату' (ContractMarketing c, DATE df, DATE dt)  { 
     NEWSESSION NEW i = MarketingInvoice {
     
@@ -450,10 +453,11 @@ FORM marketingInvoicesCreate 'Договоры маркетинга'
     
     PROPERTIES DRAW c TOOLBAR resetAllSelected(), createMarketingInvoiceMonth(df, dt), createMarketingInvoiceQuarter(df, dt)
     
-    EVENTS ON OK {
+    EVENTS ON OK {        
         FOR selected(ContractMarketing cm) DO { 
             IF (NOT isCreated(cm, df, dt)) THEN {
-                createMarketingInvoice(cm, df, dt);
+                IF useCustomCreateMarketingInvoice() THEN customCreateMarketingInvoice(cm, df, dt); 
+                ELSE  createMarketingInvoice(cm, df, dt);                
             }
             selected(cm) <- NULL;
         }
