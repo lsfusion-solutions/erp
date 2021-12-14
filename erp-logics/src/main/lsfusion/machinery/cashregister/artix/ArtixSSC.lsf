@@ -7,6 +7,7 @@ NAMESPACE Artix;
 overArtixInfo = ABSTRACT TEXT (MachineryPriceTransaction, Barcode);
 
 //стараемся выполнять последним
+skipLoadSSC = ABSTRACT BOOLEAN (GroupMachinery);
 createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
     IF sidModel(gm) == 'Artix' THEN {
         
@@ -16,12 +17,12 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
                 (CONCAT ',',
                     '"age":"' + age(sku(b)) + '"',
                     '"ageverify":1' IF ageVerify(sku(b)),
-                    '"visualverify":1' IF visualVerify(sku(b)),
-                    '"lowweight":1' IF lowWeight(sku(b)),
-                    '"weightcontrolbypass":1' IF weightControlBypass(sku(b)),
-                    '"requirequantitymanual":1' IF requireQuantityManual(sku(b)),
-                    '"requirequantityscales":1' IF requireQuantityScales(sku(b)),
-                    '"taracapacity":"' + taraCapacity(sku(b)) + '"',
+                    '"visualverify":1' IF visualVerify(sku(b)) AND NOT skipLoadSSC(gm),
+                    '"lowweight":1' IF lowWeight(sku(b)) AND NOT skipLoadSSC(gm),
+                    '"weightcontrolbypass":1' IF weightControlBypass(sku(b)) AND NOT skipLoadSSC(gm),
+                    '"requirequantitymanual":1' IF requireQuantityManual(sku(b)) AND NOT skipLoadSSC(gm),
+                    '"requirequantityscales":1' IF requireQuantityScales(sku(b)) AND NOT skipLoadSSC(gm),
+                    ('"taracapacity":"' + taraCapacity(sku(b)) + '"') IF NOT skipLoadSSC(gm) ,
                     overArtixInfo(mpt,b)
                 )
                 +'\}\}') WHERE in(mpt, b);
