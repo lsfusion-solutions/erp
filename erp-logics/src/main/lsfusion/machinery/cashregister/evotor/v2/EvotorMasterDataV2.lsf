@@ -1,0 +1,181 @@
+MODULE EvotorMasterDataV2;
+
+REQUIRE EvotorSettings, EmployeeRu;
+
+NAMESPACE EvotorV2;
+
+//магазины
+GROUP paging;
+
+next_cursor = DATA LOCAL STRING();
+address = DATA LOCAL STRING(INTEGER);
+updated_at = DATA LOCAL STRING(INTEGER);
+user_id = DATA LOCAL STRING(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+created_at = DATA LOCAL STRING(INTEGER);
+id = DATA LOCAL STRING(INTEGER);
+
+FORM importStores
+    PROPERTIES() IN paging next_cursor
+
+    OBJECTS items = INTEGER
+    PROPERTIES(items) address, updated_at, user_id, name, created_at, id
+    FILTERS imported(items)
+;
+
+CLASS EvotorStore 'Магазин Эвотор';
+TABLE evotorStore(EvotorStore);
+
+@defineExternalizable(evotorStore, STRING[100]);
+
+address 'Адрес' = DATA STRING (EvotorStore);
+name 'Название' = DATA STRING (EvotorStore);
+token = DATA AuthEvotor (EvotorStore);
+isEvotor (GroupCashRegister group) = IF handlerModel(group) = 'lsf.evotor' THEN TRUE;
+evotorStore = DATA EvotorStore (GroupCashRegister);
+uidEvotorStore 'ID магазина Evotor' (GroupCashRegister gcr) = id(evotorStore(gcr));
+
+getStoresList 'Получить список магазинов' (AuthEvotor auth) {
+    LOCAL f = FILE ();
+    LOCAL headers = TEXT(STRING[100]);
+    headers('X-Authorization') <- tokenXAuth(auth);
+    EXTERNAL HTTP GET 'https://api.evotor.ru/stores' HEADERS headers TO f;
+    IMPORT importStores JSON FROM f();
+    FOR (id(INTEGER i)) AND NOT evotorStore(id(i)) NEW es = EvotorStore DO{
+        id(es) <- STRING[100](id(i));
+        address(es) <- address(i);
+        name(es) <- name(i);
+        token(es) <- auth;
+    }   
+    FOR (id(INTEGER i)) AND EvotorStore es = evotorStore(id(i)) DO {
+        address(es) <- address(i);
+        name(es) <- name(i);
+        token(es) <- auth;
+    }
+    APPLY;
+}
+
+FORM evotorStores 'Магазины Эвотор'
+    OBJECTS auth = AuthEvotor
+    PROPERTIES (auth) READONLY phoneReg, tokenXAuth 
+    PROPERTIES (auth) getStoresList TOOLBAR
+    
+    OBJECTS es = EvotorStore
+    PROPERTIES (es) READONLY id, address, name
+    PROPERTIES (es) NEW, EDIT, DELETE
+    
+    FILTERS token(es) == auth
+    
+    LIST EvotorStore OBJECT es
+    
+    OBJECTS l = LegalEntity
+
+    FILTERS legalEntity(auth) == l
+;
+
+//смарт-терминалы
+GROUP location;
+
+store_id = DATA LOCAL STRING(INTEGER);
+timezone_offset = DATA LOCAL NUMERIC(INTEGER);
+imei = DATA LOCAL STRING(INTEGER);
+lng = DATA LOCAL NUMERIC(INTEGER);
+lat = DATA LOCAL NUMERIC(INTEGER);
+serial_number = DATA LOCAL STRING(INTEGER);
+firmware_version = DATA LOCAL STRING(INTEGER);
+
+FORM terminalsEvotor
+    PROPERTIES() IN paging next_cursor
+
+    OBJECTS items = INTEGER
+
+    PROPERTIES(items) store_id, updated_at, user_id, timezone_offset, name, imei, created_at, serial_number, id, firmware_version
+    PROPERTIES(items) IN location lng, lat
+    FILTERS imported(items)
+;
+
+uuidEvotor 'Uid Evotor' = DATA STRING (CashRegister) CHARWIDTH 30;
+storeUidEvotor (CashRegister cr) = uidEvotorStore(groupCashRegister(cr));
+
+cashRegisterByUidInStore(STRING uid, GroupCashRegister gcr) = 
+    GROUP LAST CashRegister cr ORDER cr WHERE (uuidEvotor(cr) == uid AND groupCashRegister(cr) == gcr);
+    
+fillDevices 'Заполнить из кабинета' (GroupCashRegister g){
+    LOCAL f = FILE ();
+    LOCAL headers = TEXT(STRING[100]);
+    headers('X-Authorization') <- tokenXAuth(token(evotorStore(g)));
+    EXTERNAL HTTP GET 'https://api.evotor.ru/devices' HEADERS headers TO f;
+    IF f() THEN {
+        IMPORT terminalsEvotor JSON FROM f();
+        FOR id(INTEGER i) AND store_id(i) = uidEvotorStore(g) AND NOT cashRegisterByUidInStore(id(i), g) 
+            NEW c = CashRegister DO {
+            groupCashRegister(c) <- g;
+            uuidEvotor(c) <- id(i);
+            description(c) <- STRING[200](name(i));
+            npp(c) <- INTEGER (CONCAT '', npp(g), (PARTITION SUM 1 IF groupCashRegister(c) = g));           
+        }
+    }
+}
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) SHOWIF isEvotor(grc) uidEvotorStore, fillDevices
+    PROPERTIES (c) SHOWIF isEvotor(grc) uuidEvotor; 
+;
+
+DESIGN groupCashRegister{
+    topContainer{
+        NEW evotor{
+            caption = 'Эвотор';
+            MOVE PROPERTY (uidEvotorStore(grc));
+            MOVE PROPERTY (fillDevices(grc));
+        }
+    }
+}
+    
+EXTEND FORM integrationData
+    PROPERTIES (auth) getStoresList;
+
+//Пользователи
+patronymic_name = DATA LOCAL STRING(INTEGER);
+role = DATA LOCAL STRING(INTEGER);
+phone = DATA LOCAL NUMERIC(INTEGER);
+stores = DATA LOCAL STRING(INTEGER);
+itemsStores = DATA LOCAL INTEGER(INTEGER);
+last_name = DATA LOCAL STRING(INTEGER);
+
+FORM importUsers
+    PROPERTIES() IN paging next_cursor
+
+    OBJECTS items = INTEGER
+    PROPERTIES(items) patronymic_name, role, updated_at, phone, user_id, name, last_name, created_at, id
+
+    OBJECTS stores = INTEGER
+    PROPERTIES(stores) stores EXTID 'value'
+    FILTERS imported(stores)
+    FILTERS itemsStores(stores) == items
+;
+
+importUsers 'Импорт пользоватлей' (AuthEvotor a){
+    LOCAL f = FILE ();
+    LOCAL headers = TEXT (STRING[100]);
+    headers('X-Authorization') <- tokenXAuth(a);
+    EXTERNAL HTTP GET 'https://api.evotor.ru/employees' HEADERS headers TO f;
+    IMPORT importUsers JSON FROM f();
+    FOR id(INTEGER i) AND NOT employee(id(i)) NEW e = Employee DO{
+        id(e) <- id(i);
+        firstName(e) <- name(i);
+        lastName(e) <- last_name(i);
+        middleName(e) <- patronymic_name(i);
+        legalEntity(e) <- legalEntity(a);
+    }
+    FOR id(INTEGER i) AND Employee e = employee(id(i)) AND legalEntity(e) = legalEntity(a) DO{
+        firstName(e) <- name(i);
+        lastName(e) <- last_name(i);
+        middleName(e) <- patronymic_name(i);
+        legalEntity(e) <- legalEntity(a);
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData
+    PROPERTIES (auth) importUsers;

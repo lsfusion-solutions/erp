@@ -1,25 +1,17 @@
 MODULE EvotorDiscClub;
 
-REQUIRE EvotorReceive, ZReportDiscountCard;
+REQUIRE EvotorReceiveV2, ZReportDiscountCard;
 
-NAMESPACE Evotor;
+NAMESPACE EvotorV2;
 
 //муодуль интеграции с приложением ДисконтКлуб Карты
-isDiscClub 'Вкл. ДисконтКлуб Карты' = DATA BOOLEAN ();
-tokenDiscClub 'Токен ДисконтКлуб Карты' = DATA STRING[100];
+isDiscClub 'Вкл. ДисконтКлуб Карты' = DATA BOOLEAN (AuthEvotor);
+tokenDiscClub 'Токен ДисконтКлуб Карты' = DATA STRING[100] (AuthEvotor);
 
 EXTEND FORM integrationData
-    PROPERTIES () isDiscClub, tokenDiscClub;
+    PROPERTIES (auth) isDiscClub, tokenDiscClub;
 
-DESIGN integrationData{
-    evotor{
-        NEW discClub{
-            caption  = 'ДисконтКлуб Карты';
-            MOVE PROPERTY (isDiscClub());
-            MOVE PROPERTY (tokenDiscClub());
-        }
-    }
-}
+
 //импорт карт
 period = DATA LOCAL STRING(INTEGER);
 account_id = DATA LOCAL STRING(INTEGER);
@@ -29,6 +21,7 @@ store_uuid = DATA LOCAL STRING(INTEGER);
 device_uuid = DATA LOCAL STRING(INTEGER);
 user_uid = DATA LOCAL STRING(INTEGER);
 card_uuid = DATA LOCAL STRING(INTEGER);
+total = DATA LOCAL STRING(INTEGER);
 
 FORM receiptsCards 'Продажи по дисконтным картам'
     OBJECTS value = INTEGER
@@ -53,7 +46,6 @@ phone = DATA LOCAL STRING();
 created_store_uuid = DATA LOCAL STRING();
 created_device_uuid = DATA LOCAL STRING();
 created_date = DATA LOCAL STRING();
-status = DATA LOCAL STRING();
 
 
 FORM infoCard 'Информация по карте'
@@ -62,10 +54,10 @@ FORM infoCard 'Информация по карте'
         created_device_uuid, created_date, status
 ;
 
-getInfoByUuid (STRING uuid, DiscountCard d) {
+getInfoByUuid (STRING uuid, DiscountCard d, AuthEvotor a) {
     LOCAL card = FILE();
     LOCAL headersDisc = TEXT(STRING[100]);
-    headersDisc('Authorization') <- tokenDiscClub();
+    headersDisc('Authorization') <- tokenDiscClub(a);
     EXTERNAL HTTP GET 'https://dclubs.ru/evotor/cards/api/3rdparty/card/' + uuid
         HEADERS headersDisc TO card;
     IMPORT infoCard JSON FROM card();
@@ -77,21 +69,23 @@ getInfoByUuid (STRING uuid, DiscountCard d) {
     inactive(d) <- IF NOT status() = 'active' THEN TRUE ELSE NULL;     
 }
 
-importInfoCards(CashRegister c){
+importInfoCards(CashRegister c, DATETIME since){
     LOCAL f = FILE();
     LOCAL headersDisc = TEXT(STRING[100]);
-    headersDisc('Authorization') <- tokenDiscClub();
+    headersDisc('Authorization') <- tokenDiscClub(token(evotorStore(groupCashRegister(c))));
     EXTERNAL HTTP GET 'https://dclubs.ru/evotor/cards/api/3rdparty/card/receipts/' 
-        BODYURL 'from=$1' HEADERS headersDisc PARAMS getSeconds(ZDATETIME(date(lastReceipt(c)))) TO f;
+        BODYURL 'from=$1' HEADERS headersDisc PARAMS getSeconds(ZDATETIME(since)) TO f;
     IMPORT receiptsCards JSON FROM f();
-    FOR imported(INTEGER i) AND card_uuid(i) AND NOT discountCard(card_uuid(i)) NEW d = DiscountCard DO{
-        getInfoByUuid(card_uuid(i), d);
+    FOR imported(INTEGER i) AND card_uuid(i) DO{
+        IF NOT discountCard(card_uuid(i)) THEN NEW d = DiscountCard{
+            getInfoByUuid(card_uuid(i), d, token(evotorStore(groupCashRegister(c))));
+        } 
     }
     FOR imported(INTEGER r) AND Receipt rec = receipt(uuid(r)) DO{
           discountCard(receipt(uuid(r))) <- discountCard(card_uuid(r)); 
     }
 }
 
-afterCreateReceipts(CashRegister c)+{
-    IF isDiscClub() THEN importInfoCards(c);
+afterCreateReceipts(CashRegister c, DATETIME since)+{
+    IF isDiscClub(token(evotorStore(groupCashRegister(c)))) THEN importInfoCards(c, since);
 }

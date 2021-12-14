@@ -1,0 +1,268 @@
+MODULE EvotorReceiveV2;
+
+REQUIRE EvotorPriceTransactionV2, ZReportDiscountCard, ZReportLot, EvotorMasterDataV2;
+
+NAMESPACE EvotorV2;
+
+//форма импорта документа
+GROUP extras;
+GROUP body;
+
+session_number = DATA LOCAL NUMERIC(INTEGER);
+close_date = DATA LOCAL STRING(INTEGER);
+device_id = DATA LOCAL STRING(INTEGER);
+close_user_id = DATA LOCAL STRING(INTEGER);
+session_id = DATA LOCAL STRING(INTEGER);
+time_zone_offset = DATA LOCAL NUMERIC(INTEGER);
+typeDoc = DATA LOCAL STRING(INTEGER);
+version = DATA LOCAL STRING(INTEGER);
+number = DATA LOCAL STRING(INTEGER);
+body = DATA LOCAL STRING(INTEGER);
+idDoc = DATA LOCAL STRING(INTEGER);
+
+FORM listDocsEvotor 'Список документов Эвотор'
+    PROPERTIES() IN paging next_cursor
+
+    OBJECTS items = INTEGER
+    PROPERTIES(items) session_number, store_id, close_date, device_id, close_user_id, 
+        session_id, time_zone_offset, typeDoc EXTID 'type', version, number, user_id, idDoc EXTID 'id', body
+    FILTERS imported(items)
+;
+
+//документ продажи
+GROUP app_info;
+GROUP tax;
+GROUP position_discount;
+GROUP settlement_method;
+
+doc_discounts = DATA LOCAL STRING(INTEGER);
+result_sum = DATA LOCAL NUMERIC();
+paymentsParts = DATA LOCAL INTEGER(INTEGER);
+print_group_id = DATA LOCAL STRING(INTEGER);
+part_sum = DATA LOCAL NUMERIC[18,4](INTEGER);
+change = DATA LOCAL NUMERIC[18,4](INTEGER);
+sum = DATA LOCAL NUMERIC(INTEGER);
+quantity = DATA LOCAL NUMERIC[16,5](INTEGER);
+code = DATA LOCAL STRING(INTEGER);
+initial_quantity = DATA LOCAL NUMERIC(INTEGER);
+tare_volume = DATA LOCAL NUMERIC(INTEGER);
+result_sum1 = DATA LOCAL NUMERIC[18,4](INTEGER);
+measure_precision = DATA LOCAL NUMERIC(INTEGER);
+sum1 = DATA LOCAL NUMERIC(INTEGER);
+result_sum2 = DATA LOCAL NUMERIC(INTEGER);
+sum2 = DATA LOCAL NUMERIC(INTEGER);
+type = DATA LOCAL STRING(INTEGER);
+type1 = DATA LOCAL STRING(INTEGER);
+measure_name = DATA LOCAL STRING(INTEGER);
+positionsExtra_keys = DATA LOCAL INTEGER(INTEGER);
+identity = DATA LOCAL STRING(INTEGER);
+appId = DATA LOCAL STRING(INTEGER);
+product_name = DATA LOCAL STRING(INTEGER);
+uuid = DATA LOCAL STRING(INTEGER);
+markCode = DATA LOCAL STRING(INTEGER );
+discount_price = DATA LOCAL NUMERIC(INTEGER);
+discount_sum = DATA LOCAL NUMERIC[18,4](INTEGER);
+discount_percent = DATA LOCAL NUMERIC[6,2](INTEGER);
+discount_type = DATA LOCAL STRING(INTEGER);
+result_price = DATA LOCAL NUMERIC(INTEGER);
+alcohol_product_kind_code = DATA LOCAL NUMERIC(INTEGER);
+print_group_id1 = DATA LOCAL STRING(INTEGER);
+sub_positions = DATA LOCAL STRING(INTEGER);
+positionsSub_positions = DATA LOCAL INTEGER(INTEGER);
+product_type = DATA LOCAL STRING(INTEGER);
+type2 = DATA LOCAL STRING(INTEGER);
+alcohol_by_volume = DATA LOCAL NUMERIC(INTEGER);
+price = DATA LOCAL NUMERIC[16,4](INTEGER);
+product_id = DATA LOCAL STRING(INTEGER);
+id1 = DATA LOCAL NUMERIC(INTEGER);
+cost_price = DATA LOCAL NUMERIC(INTEGER);
+sum3 = DATA LOCAL NUMERIC();
+id2 = DATA LOCAL STRING(INTEGER);
+type3 = DATA LOCAL STRING(INTEGER);
+fiscal_document_number = DATA LOCAL NUMERIC(INTEGER);
+print_group_id2 = DATA LOCAL STRING(INTEGER);
+receipt_time = DATA LOCAL STRING(INTEGER);
+receipt_number = DATA LOCAL NUMERIC(INTEGER);
+document_number = DATA LOCAL NUMERIC(INTEGER);
+check_sum = DATA LOCAL NUMERIC(INTEGER);
+kkt_reg_number = DATA LOCAL STRING(INTEGER);
+receipt_date = DATA LOCAL STRING(INTEGER);
+kkt_serial_number = DATA LOCAL STRING(INTEGER);
+fiscal_sign_doc_number = DATA LOCAL STRING(INTEGER);
+fn_serial_number = DATA LOCAL STRING(INTEGER);
+
+FORM saleDoc
+    PROPERTIES() result_sum, sum3 EXTID 'sum'
+
+    OBJECTS doc_discounts = INTEGER
+    PROPERTIES(doc_discounts) doc_discounts EXTID 'value'
+
+    OBJECTS payments = INTEGER
+
+    PROPERTIES(payments) sum, id , type
+
+    OBJECTS parts = INTEGER
+    FILTERS paymentsParts(parts) == payments
+    PROPERTIES(parts) print_group_id, part_sum, change
+    PROPERTIES(payments) IN app_info name
+
+    OBJECTS positions = INTEGER
+    PROPERTIES(positions) quantity, code, initial_quantity, tare_volume, result_sum1 EXTID 'result_sum', 
+        measure_precision, sum1 EXTID 'sum', measure_name, product_name, uuid, result_price, 
+        alcohol_product_kind_code, print_group_id1 EXTID 'print_group_id', product_type, 
+        alcohol_by_volume, price, product_id, id1 EXTID 'id', cost_price, markCode EXTID 'mark'
+    PROPERTIES(positions) IN tax result_sum2 EXTID 'result_sum', sum2 EXTID 'sum', type1 EXTID 'type'
+
+    OBJECTS extra_keys = INTEGER
+    FILTERS positionsExtra_keys(extra_keys) == positions
+    PROPERTIES(extra_keys) identity, appId
+    PROPERTIES(positions) IN position_discount discount_price, discount_sum, discount_percent, discount_type
+
+    OBJECTS sub_positions = INTEGER
+    PROPERTIES(sub_positions) sub_positions EXTID 'value'
+    FILTERS positionsSub_positions(sub_positions) == positions
+    PROPERTIES(positions) IN settlement_method type2 EXTID 'type'
+
+    OBJECTS print_groups = INTEGER
+    PROPERTIES(print_groups) id2 EXTID 'id', type3 EXTID 'type'
+
+    OBJECTS pos_print_results = INTEGER
+    PROPERTIES(pos_print_results) session_number, fiscal_document_number, print_group_id2 EXTID 'print_group_id', 
+        receipt_time, receipt_number, document_number, check_sum, kkt_reg_number, receipt_date, kkt_serial_number, 
+        fiscal_sign_doc_number, fn_serial_number
+;        
+
+///запрос документов
+getLocalDateTime (STRING closeDateTime, NUMERIC timezone) = sumSeconds(DATETIME(closeDateTime), timezone/1000);
+afterCreateReceipts ABSTRACT LIST (CashRegister, DATETIME);
+
+getDocuments(CashRegister c, DATETIME since, DATETIME until){
+    LOCAL f = FILE();
+    LOCAL headers = TEXT(STRING[100]);
+    LOCAL sinceP = STRING ();
+    LOCAL untilP = STRING ();
+    NEWSESSION { 
+        sinceP() <- '&since=' + getMilliSeconds(ZDATETIME(since));
+        untilP() <- '&until=' + getMilliSeconds(ZDATETIME(since));
+        headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(c))));
+        EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
+            '/devices/' + uuidEvotor(c) + '/documents?type=OPEN_SESSION,CLOSE_SESSION', sinceP(), untilP() HEADERS headers  TO f;
+        fileToString(f());
+        logToFile('evotor', CONCAT ' : ', 'documents', resultString());
+        IMPORT listDocsEvotor JSON FROM f();
+        FOR typeDoc(INTEGER i) = 'OPEN_SESSION' AND NOT zReport(session_id(i)) NEW z = ZReport DO{
+            cashRegister(z) <- c;
+            date(z) <- DATE(getLocalDateTime(close_date(i), time_zone_offset(i)));
+            id(z) <- session_id(i);
+            number(z) <- number(i);
+            isPosted(z) <- TRUE;
+        }
+        FOR typeDoc(INTEGER i) = 'CLOSE_SESSION' AND ZReport z = zReport(session_id(i)) DO {
+            date(z) <- DATE(getLocalDateTime(close_date(i), time_zone_offset(i)));
+            time(z) <- toTime(getLocalDateTime(close_date(i), time_zone_offset(i)));
+        }
+        APPLY;
+    }
+    NEWSESSION {
+        sinceP() <- '&since=' + getMilliSeconds(ZDATETIME(since));
+        untilP() <- '&until=' + getMilliSeconds(ZDATETIME(since));
+        headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(c))));
+        EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
+            '/devices/' + uuidEvotor(c) + '/documents?type=SELL,PAYBACK', sinceP(), untilP() HEADERS headers TO f;
+        fileToString(f());
+        logToFile('evotor', CONCAT ' : ', 'documents', resultString());
+        IMPORT listDocsEvotor JSON FROM f();
+        FOR typeDoc(INTEGER i) AND NOT receipt(idDoc(i)) NEW r = Receipt DO{
+            logToFile('evotor', CONCAT ' : ', typeDoc(i), number(i), body(i));
+            date(r) <- DATE(getLocalDateTime(close_date(i), time_zone_offset(i)));
+            time(r) <- toTime(getLocalDateTime(close_date(i), time_zone_offset(i)));
+            zReport(r) <- zReport(session_id(i));
+            number(r) <- INTEGER(number(i));
+            employee(r) <- employee(close_user_id(i));
+            id(r) <- idDoc(i);
+            stringToFile(body(i));
+            IMPORT saleDoc JSON FROM resultFile();
+            FOR id1(INTEGER j) AND typeDoc(i) = 'SELL' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j))) 
+                NEW detail = ReceiptSaleDetail DO {
+                id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j));
+                sku(detail) <- sku(code(j));
+                quantity(detail) <- quantity(j);
+                price(detail) <- price(j);
+                discountSum(detail) <- discount_sum(j);
+                discountPercent(detail) <- discount_percent(j);
+                sum(detail) <- result_sum1(j);
+                receipt(detail) <- r;
+                lot(detail) <- lot(markCode(j));
+            }
+            FOR id1(INTEGER j) AND typeDoc(i) = 'PAYBACK' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j))) 
+                NEW detail = ReceiptReturnDetail DO{
+                id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j));
+                sku(detail) <- sku(code(j));
+                quantity(detail) <- quantity(j);
+                price(detail) <- price(j);
+                discountSum(detail) <- discount_sum(j);
+                sum(detail) <- result_sum1(j);
+                receipt(detail) <- r;
+            }
+            FOR id(INTEGER k) NEW p = Payment DO {
+                receipt(p) <- r;
+                sum(p) <- IF typeDoc(i) = 'SELL' THEN 
+                    (GROUP SUM part_sum(INTEGER l) (-) change(l) IF paymentsParts(l) = k) 
+                    ELSE -(GROUP SUM part_sum(INTEGER l) (-) change(l) IF paymentsParts(l) = k);
+                paymentType(p) <- typePaymentSID(lower(type(k)));
+            }
+        }
+        afterCreateReceipts(c, since);
+        APPLY;
+    }
+}
+
+getDocumentsWithoutDate (CashRegister c){
+    getDocuments(c, NULL, NULL );
+}
+getDocumentsFromLastReceipt(CashRegister c){
+    getDocuments(c, dateTime(GROUP LAST Receipt r ORDER dateTime(r) WHERE cashRegister(r) = c), NULL);
+}
+
+receiveGroupMachinery(GroupCashRegister g) + {
+    IF isEvotor(g) THEN{
+        importUsers(token(evotorStore(g)));   
+        FOR groupCashRegister(CashRegister c) = g AND NOT inactive(c) AND NOT disableSales(c) 
+            DO getDocumentsFromLastReceipt(c)
+    ; 
+    }   
+}
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (c) getDocumentsWithoutDate;
+
+
+//Запрос
+EXTEND CLASS RequestExchangeType{
+    salesInfoEvotor 'Перезагрузить продажи Эвотор'
+}
+
+salesInfoEvotor 'Перезагрузить продажи Эвотор' (RequestExchange r){
+    TRY {
+        FOR (in(CashRegister c, r) AND isEvotor(groupCashRegister(c))
+            AND requestExchangeType(r) == RequestExchangeType.salesInfoEvotor) DO NEWSESSION {
+            DELETE ZReport z WHERE cashRegister(z) = c AND date(z) >= dateFrom(r) AND date(z) <= dateTo(r);
+            getDocuments(c, DATETIME (dateFrom(r)), dateTimeToDateTime(dateTo(r), TIME('23:59:59')));
+        }
+        succeeded(r) <- TRUE;
+        dateTimeSucceeded(r) <- currentDateTime();
+    }
+    CATCH {
+        NEW er = RequestExchangeError{
+            requestExchange(er) <- r;
+            date(er) <- currentDateTime();
+            erTrace(er) <- messageCaughtException();
+        }
+    }
+    FINALLY {
+        APPLY;
+    }
+}
+
+EXTEND FORM requestExchanges
+    PROPERTIES (r) salesInfoEvotor SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoEvotor;    

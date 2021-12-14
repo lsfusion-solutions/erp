@@ -1,0 +1,168 @@
+MODULE EvotorPriceTransactionV2;
+
+REQUIRE EvotorMasterDataV2, NativeMachinery, CashRegisterPriceTransaction, Item, LotTypeRu;
+
+NAMESPACE EvotorV2;
+
+modifiedAt = DATA LOCAL NUMERIC();
+details = DATA LOCAL STRING();
+id = DATA LOCAL STRING();
+type = DATA LOCAL STRING();
+status = DATA LOCAL STRING();
+
+FORM asyncTransaction
+    PROPERTIES() modifiedAt, details, id, type, status
+;
+
+idGroupTransaction = DATA STRING[100] (CashRegisterPriceTransaction);
+statusGroupTransaction = DATA STRING[50] (CashRegisterPriceTransaction);
+
+idItemTransaction = DATA STRING[100] (CashRegisterPriceTransaction);
+statusItemTransaction = DATA STRING[50] (CashRegisterPriceTransaction);
+filterBarcode(STRING idSku, STRING barcode) = GROUP MAX Sku s IF idSku = id(s) AND idBarcode(s) = barcode;
+skuGroupTransaction(SkuGroup sc, MachineryPriceTransaction t) = GROUP LAST Barcode b ORDER b
+    WHERE (in(t,b) AND skuGroup(t,b) == sc) OR (level(skuGroup(t,b), sc));
+
+//создание/обновление товарных групп в облаке Эвотор 
+asyncUploadItemGroup(CashRegisterPriceTransaction t) {
+    NEWSESSION {
+        EXPORT JSON FROM id = 'a12aad7d-d6a8-413b-acd8-' + LONG(ItemGroup g),
+            name = name(g), parent_id = 'a12aad7d-d6a8-413b-acd8-' + LONG(parent(g))
+            WHERE skuGroupTransaction(g,t) ;
+        LOCAL headersX = TEXT (TEXT);
+        headersX('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(t))));
+        headersX('Accept') <- 'application/vnd.evotor.v2+bulk+json';
+        headersX('Content-Type') <- 'application/vnd.evotor.v2+bulk+json';
+        LOCAL f = FILE();
+        EXTERNAL HTTP PUT 'https://api.evotor.ru/stores/' + uidEvotorStore(groupCashRegister(t)) + '/product-groups'
+            HEADERS headersX PARAMS exportFile() TO f;
+        IF f() THEN {
+            IMPORT asyncTransaction JSON FROM f();
+            IF status() = 'ACCEPTED' AND id() AND t IS CashRegisterPriceTransaction THEN {
+                idGroupTransaction(t) <- STRING[100](id());
+                statusGroupTransaction(t) <- STRING[50](status()); 
+            }
+            ELSE{
+                fileToString(f());
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Ошибка создания транзакции(товарные группы)', resultString()));
+            }
+        }
+        APPLY;
+    }
+}
+
+//свойства товаров
+typeEvotor = ABSTRACT STRING (Item);
+typeEvotor (Item i) += CASE 
+    WHEN lotType(i) = LotType.dairy THEN 'DAIRY_MARKED'
+    WHEN lotType(i) = LotType.lp THEN 'LIGHT_INDUSTRY_MARKED'
+    WHEN lotType(i) = LotType.medicine THEN 'MEDICINE_MARKED'
+    WHEN lotType(i) = LotType.perfumery THEN 'PERFUME_MARKED'
+    WHEN lotType(i) = LotType.photos THEN 'PHOTOS_MARKED'
+    WHEN lotType(i) = LotType.shoes THEN 'SHOES_MARKED'
+    WHEN lotType(i) = LotType.tyres THEN 'TYRES_MARKED'
+    WHEN lotType(i) = LotType.tobaccoProduct THEN 'TOBACCO_PRODUCTS_MARKED'
+    WHEN lotType(i) = LotType.tobacco THEN 'TOBACCO_MARKED'
+    WHEN NOT lotType(i) THEN 'NORMAL'
+;
+
+//создание/обновление товаров в облаке Эвотор 
+asyncUploadItem(CashRegisterPriceTransaction t){
+    LOCAL f = FILE();
+    EXPORT JSON FROM parent_id = 'a12aad7d-d6a8-413b-acd8-' + LONG(itemGroup(Item i)),
+        name = name(i), measure_name = shortNameUOM(i), tax = 'VAT_18', id = '42110e1b-d9c4-45c4-8952-' +  LONG(i), 
+        allow_to_sell = TRUE, price = price(t, barcode(i)), //description = (description(i)),
+        code = id(i), barCodes = (CONCAT '','[', (GROUP CONCAT '"' + id(Barcode b) + '"', ',' IF sku(b) = i AND in(t, b) ORDER b),']'),
+        type = typeEvotor(i), cost_price = price(t, barcode(i)), quantity = currentBalance(i, stock(t))
+    WHERE in(t, Barcode barcode) AND sku(barcode) = i AND filterBarcode(id(i), id(barcode));
+    LOCAL headersX = TEXT (TEXT);
+    headersX('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(t))));
+    headersX('Accept') <- 'application/vnd.evotor.v2+bulk+json';
+    headersX('Content-Type') <- 'application/vnd.evotor.v2+bulk+json';
+    EXTERNAL HTTP PUT 'https://api.evotor.ru/stores/' + uidEvotorStore(groupCashRegister(t)) + '/products'
+        HEADERS headersX PARAMS exportFile() TO f;
+    IF f() THEN {
+        IMPORT asyncTransaction JSON FROM f();
+        IF status() = 'ACCEPTED' AND id() AND t IS CashRegisterPriceTransaction THEN {
+            idItemTransaction(t) <- STRING[100](id());
+            statusItemTransaction(t) <- STRING[50](status()); 
+        }
+        ELSE{
+            fileToString(f());
+            addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Ошибка создания транзакции(товары)', resultString()));
+        }
+    }
+    APPLY;
+}
+
+//получение информации о транзакции
+getInfoBulks(CashRegisterPriceTransaction t) {
+    IF idGroupTransaction(t) AND statusGroupTransaction(t) == 'ACCEPTED' THEN NEWSESSION {
+        LOCAL f = FILE();
+        LOCAL headersX = TEXT (TEXT);
+        headersX('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(t))));
+        headersX('Accept') <- 'application/vnd.evotor.v2+bulk+json';
+        headersX('Content-Type') <- 'application/vnd.evotor.v2+bulk+json';
+        EXTERNAL HTTP GET 'https://api.evotor.ru/bulks/' + idGroupTransaction(t) HEADERS headersX TO f;
+        IF f() THEN{
+            IMPORT asyncTransaction JSON FROM f();
+            IF id() = idGroupTransaction(t) AND status() = 'COMPLETED' THEN {
+                statusGroupTransaction(t) <- 'COMPLETED';
+                idGroupTransaction(t) <- NULL;
+            }
+            IF id() = idGroupTransaction(t) AND status() = 'FAILED' THEN {
+                statusGroupTransaction(t) <- 'FAILED';
+                idGroupTransaction(t) <- NULL;
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Ошибка обработки транзакции(товарные группы)'), details());
+            }
+        }
+        APPLY;
+    }
+    IF idItemTransaction(t) AND statusItemTransaction(t) == 'ACCEPTED' THEN {
+        LOCAL f = FILE();
+        LOCAL headersX = TEXT (TEXT);
+        headersX('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(t))));
+        headersX('Accept') <- 'application/vnd.evotor.v2+bulk+json';
+        headersX('Content-Type') <- 'application/vnd.evotor.v2+bulk+json';
+        EXTERNAL HTTP GET 'https://api.evotor.ru/bulks/' + idItemTransaction(t) HEADERS headersX TO f;
+        IF f() THEN{
+            IMPORT asyncTransaction JSON FROM f();
+            IF id() = idItemTransaction(t) AND status() = 'COMPLETED' THEN {
+                statusItemTransaction(t) <- 'COMPLETED';
+                idItemTransaction(t) <- NULL;
+            }
+            IF id() = idItemTransaction(t) AND status() = 'FAILED' THEN {
+                statusItemTransaction(t) <- 'FAILED';
+                idItemTransaction(t) <- NULL;
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Ошибка обработки транзакции(товары)'), details());
+            }
+        }
+        APPLY;
+    }
+}
+
+sendEvotorPriceTransaction (CashRegisterPriceTransaction t){
+    TRY{
+        getInfoBulks(t);
+        IF statusGroupTransaction(t) = 'COMPLETED' AND statusItemTransaction(t) = 'COMPLETED' THEN {
+            succeeded(t) <- TRUE;
+            dateTimeSucceeded(t) <- currentDateTime();
+            APPLY;
+        }
+        ELSE {
+            NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
+            asyncUploadItemGroup(t);
+            asyncUploadItem(t);
+        }
+    }
+    CATCH {
+        addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Ошибка при выполнении операции ', 
+            messageCaughtException()), messageCaughtException());
+    }
+}
+
+sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
+    IF handlerModel(groupMachinery(t)) = 'lsf.evotor' AND t IS CashRegisterPriceTransaction THEN NEWSESSION {
+        sendEvotorPriceTransaction(t);
+    }
+}
