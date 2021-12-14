@@ -167,8 +167,47 @@ middleNameReceiver 'Отчество (принимающее ФЛ)' = DATA STRIN
 //-СвПрин
 dateExceptance 'Дата принятия' = DATA DATE (UpdDocument); //ДатаПрин
 
+//маркировка
+CLASS UpdTransportPackDetail 'Транспортная упаковка';
+TABLE updTransportPackDetail(UpdTransportPackDetail);
+
+updDocumentDetail = DATA UpdDocumentDetail(UpdTransportPackDetail) NONULL DELETE AGGR;
+numberDetail 'Номер строки' (UpdTransportPackDetail detail) = number(updDocumentDetail(detail));
+countUpdTransportPackDetail 'Кол-во трансп.упаковок' = GROUP SUM 1 BY updDocumentDetail(UpdTransportPackDetail detail);
+countUpdTransportPackDetail 'Кол-во трансп.упаковок' = GROUP SUM 1 BY updDocument(updDocumentDetail(UpdTransportPackDetail detail));
+updDocument (UpdTransportPackDetail detail) = updDocument(updDocumentDetail(detail));
+
+CLASS UpdPackDetail 'Потребительская упаковка';
+TABLE updPackDetail(UpdPackDetail);
+
+updDocumentDetail = DATA UpdDocumentDetail(UpdPackDetail) NONULL DELETE AGGR;
+numberDetail 'Номер строки' (UpdPackDetail detail) = number(updDocumentDetail(detail));
+countUpdPackDetail 'Кол-во упаковок' = GROUP SUM 1 BY updDocumentDetail(UpdPackDetail detail);
+countUpdPackDetail 'Кол-во упаковок' = GROUP SUM 1 BY updDocument(updDocumentDetail(UpdPackDetail detail));
+updDocument (UpdPackDetail detail) = updDocument(updDocumentDetail(detail));
+
+CLASS UpdLotDetail 'Марка';
+TABLE updLotDetail(UpdLotDetail);
+
+updDocumentDetail = DATA UpdDocumentDetail(UpdLotDetail) NONULL DELETE AGGR;
+numberDetail 'Номер строки' (UpdLotDetail detail) = number(updDocumentDetail(detail));
+countUpdLotDetail 'Кол-во марок' = GROUP SUM 1 BY updDocumentDetail(UpdLotDetail detail);
+countUpdLotDetail 'Кол-во марок' = GROUP SUM 1 BY updDocument(updDocumentDetail(UpdLotDetail detail));
+updDocument (UpdLotDetail detail) = updDocument(updDocumentDetail(detail));
+
+//--ДопСведТов
+//---НомСредИдентТов
+id 'Код' = DATA STRING[255] (UpdTransportPackDetail);//ИдентТрансУпак
+id 'Код' = DATA STRING[255] (UpdPackDetail);//КИЗ
+id 'Код' = DATA STRING[255] (UpdLotDetail);//НомУпак
+
+fileSupplierPrefix (UpdDocument d) = 
+    IF countUpdTransportPackDetail(d) OR countUpdPackDetail(d) OR countUpdLotDetail(d) 
+        THEN 'ON_NSCHFDOPPRMARK'
+        ELSE 'ON_NSCHFDOPPR';
+
 idFile 'ИдФайл' (UpdDocument d) = 
-    STRING[255](CONCAT '_', 'ON_NSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
+    STRING[255](CONCAT '_', fileSupplierPrefix(d),  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
 
 EXTEND FORM updDocument
     PROPERTIES (u) idFile
@@ -453,36 +492,6 @@ GROUP UPDExportD EXTID  'Подписант';
 
 
 smartToChar(NUMERIC[26,11] nu) = rtrim(rtrim(TEXT(nu),'0'),'.');
-
-CLASS UpdTransportPackDetail 'Транспортная упаковка';
-TABLE updTransportPackDetail(UpdTransportPackDetail);
-
-updDocumentDetail = DATA UpdDocumentDetail(UpdTransportPackDetail) NONULL DELETE AGGR;
-numberDetail 'Номер строки' (UpdTransportPackDetail detail) = number(updDocumentDetail(detail));
-countUpdTransportPackDetail 'Кол-во трансп.упаковок' = GROUP SUM 1 BY updDocumentDetail(UpdTransportPackDetail detail);
-updDocument (UpdTransportPackDetail detail) = updDocument(updDocumentDetail(detail));
-
-CLASS UpdPackDetail 'Потребительская упаковка';
-TABLE updPackDetail(UpdPackDetail);
-
-updDocumentDetail = DATA UpdDocumentDetail(UpdPackDetail) NONULL DELETE AGGR;
-numberDetail 'Номер строки' (UpdPackDetail detail) = number(updDocumentDetail(detail));
-countUpdPackDetail 'Кол-во упаковок' = GROUP SUM 1 BY updDocumentDetail(UpdPackDetail detail);
-updDocument (UpdPackDetail detail) = updDocument(updDocumentDetail(detail));
-
-CLASS UpdLotDetail 'Марка';
-TABLE updLotDetail(UpdLotDetail);
-
-updDocumentDetail = DATA UpdDocumentDetail(UpdLotDetail) NONULL DELETE AGGR;
-numberDetail 'Номер строки' (UpdLotDetail detail) = number(updDocumentDetail(detail));
-countUpdLotDetail 'Кол-во марок' = GROUP SUM 1 BY updDocumentDetail(UpdLotDetail detail);
-updDocument (UpdLotDetail detail) = updDocument(updDocumentDetail(detail));
-
-//--ДопСведТов
-//---НомСредИдентТов
-id 'Код' = DATA STRING[255] (UpdTransportPackDetail);//ИдентТрансУпак
-id 'Код' = DATA STRING[255] (UpdPackDetail);//КИЗ
-id 'Код' = DATA STRING[255] (UpdLotDetail);//НомУпак
                     
 FORM UPDPR FORMEXTID '=:Файл'
     PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xsd', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
