@@ -1,0 +1,527 @@
+MODULE VladProdNew;
+
+REQUIRE SaleShipment, Warehouse, EDI, WMSIntegrationCustom, SaleOrderRetailPrintBy, CustomsGroupItem, PurchaseOrder, 
+        PurchaseInvoiceCustody, PurchaseShipment;
+
+NAMESPACE Integration;
+
+isVPI 'Склад логистического оператора (ВладПродИмпорт)' = DATA BOOLEAN (Warehouse);
+
+EXTEND FORM warehouse 
+    PROPERTIES (w) isVPI
+;
+    
+connectionStringVPI 'Строка подключения' = DATA STRING[255] ();
+EXTEND FORM integrationData 
+    PROPERTIES () connectionStringVPI
+;
+DESIGN  integrationData {
+    wms {
+        NEW VPI {
+            caption = 'ВладПродИмпорт';
+            fill = 1;
+            MOVE PROPERTY (connectionStringVPI());
+            NEW folders {
+                fill = 1;
+                caption = 'Каталоги';
+            }
+        }
+    }
+}
+
+//заказ на поставку со склада
+orderPathVPI 'Каталог выгрузки заказов' = DATA STRING[255]();
+
+EXTEND FORM integrationData 
+    PROPERTIES () orderPathVPI
+;
+
+DESIGN  integrationData {
+    folders {
+        MOVE PROPERTY (orderPathVPI());
+    }
+}
+
+toDateVPI = FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')';
+
+
+quantity = GROUP SUM quantity(Sale.UserOrderDetail d) BY userOrder(d), sku(d);
+countGroup = GROUP SUM 1 IF quantity(Sale.UserOrder o, Sku s) BY o;
+
+//--
+exportOrderText = ABSTRACT VALUE TEXT (Sale.UserOrder);
+//-- по умолчанию сделаю одну из двух существующих реализаций
+
+idExportOrder = ABSTRACT STRING (UOM);
+
+exportOrderText(Sale.UserOrder p) += 
+    TEXT (CONCAT '\n', 
+        '<DOC>',
+        '\t<ORDER>',
+        '\t\t<GUID>'+STRING[50](p)+'</GUID>',
+        '\t\t<documentNumber>'+number(p)+'</documentNumber>',
+        '\t\t<documentDate>'+toDateVPI(dateTime(p))+'</documentDate>',
+        '\t\t<buyerUNN>'+UNPCustomer(p)+'</buyerUNN>',
+        '\t\t<destinationGLN>'+GLN(customerStock(p))+'</destinationGLN>',
+        '\t\t<destinationName>'+nameCustomerStock(p)+'</destinationName>',
+        '\t\t<contractNumber>'+seriesNumberContractSku(p)+'</contractNumber>',
+        '\t\t<deliveryDateTimeFirst>'+toDateVPI(shipmentDateTime(p))+'</deliveryDateTimeFirst>',
+        '\t\t<lineQuantity>'+countGroup(p)+'</lineQuantity>',
+        '\t\t<TABLE>',
+            [GROUP CONCAT 
+                TEXT (CONCAT '\n', 
+                '\t\t\t<line>',
+                '\t\t\t\t<IDBuyer>'+idSku(Sale.UserOrderDetail d)+'</IDBuyer>',
+                '\t\t\t\t<fullName>'+replace(replace(replace(nameSku(d),'&','&amp;'),'<','&lt;'),'>','&gt;')+'</fullName>',
+                '\t\t\t\t<quantityOrdered>'+quantity(d)+'</quantityOrdered>',
+                '\t\t\t\t<measurement>'+(OVERRIDE idExportOrder(UOM(sku(d))), id(UOM(sku(d))))+'</measurement>',
+                '\t\t\t\t<quantityTransport>1.00</quantityTransport>',
+                '\t\t\t\t<package>8751</package>',
+                '\t\t\t\t<quantity_package>'+quantity(d)+'</quantity_package>',
+                '\t\t\t\t<vat>'+''+'</vat>',
+                '\t\t\t\t<tnved>'+codeCustomsGroupDefaultCountry(sku(d))+'</tnved>',
+                '\t\t\t\t<N_PART>'+(OVERRIDE id(batch(d)),'')+'</N_PART>',
+                '\t\t\t</line>'
+                ) IF quantity(d)
+            ,'\n' ORDER index(d) BY order(d)](p),
+        '\t\t</TABLE>',
+        '\t</ORDER>',
+        '</DOC>'
+        )
+;
+
+fileNameExportVPI (Sale.Order o) = 'order_' + number(o);
+
+exportWMS(Sale.Order order) + { 
+	IF isVPI(supplierStock(order)) THEN NEWSESSION {
+	    LOCAL importFile = FILE ();
+	   
+	    stringToFile(exportOrderText(order),'utf-8','xml');
+	    
+	    WRITE resultFile() TO connectionStringVPI() + '/' +orderPathVPI() + '/' + fileNameExportVPI(order);
+	    
+	    //fileExists(connectionStringVPI() + '/' +orderPathVPI() + '/' + fileNameExportVPI(order) + '.xml');
+	    //IF fileExists() THEN {
+	        MESSAGE 'Файл ' + fileNameExportVPI(order) + '.xml выгружен в каталог обмена' NOWAIT ;
+	        exportedWMS(order) <- TRUE;
+	        APPLY;         
+	    //} ELSE MESSAGE 'Не удалось выгрузить файл '+fileNameExportVPI(order)+'.xml' NOWAIT;
+	    
+	}
+}
+
+//импорт корректировки из wms 
+answerPathVPI 'Каталог загрузки скорректированных заказов' = DATA STRING[255]();
+
+EXTEND FORM integrationData 
+    PROPERTIES () answerPathVPI
+;
+
+DESIGN  integrationData {
+    folders {
+        MOVE PROPERTY (answerPathVPI());
+    }
+}
+
+ids = DATA LOCAL STRING[100](INTEGER );
+qty = DATA LOCAL NUMERIC[16,5](INTEGER );
+dateTime = DATA LOCAL DATETIME (INTEGER );
+guid = DATA LOCAL LONG(INTEGER );
+batch = DATA LOCAL STRING[48](INTEGER );	   
+
+
+overCreateDistribution ABSTRACT LIST ( Sale.Order, Sale.UserInvoice);
+
+useBatchSaleInvoiceCustom 'Используются партии в накладных (продажа)' =  ABSTRACT BOOLEAN ();
+notUpdatePriceCustom 'Не подставлять цены при импорте' = ABSTRACT BOOLEAN ();
+
+overCreate (Sale.Order order, Sale.UserInvoice invoice) + { 
+	IF isVPI(supplierStock(order)) THEN {
+	    
+	    LOCAL importFile = FILE ();
+	    	    
+	    TRY {
+	        listFiles(connectionStringVPI() + '/' +answerPathVPI());
+	        LOCAL file = STRING[255]();
+	        file() <- GROUP MAX fileName(INTEGER r) IF isSubstring(fileName(r), number(order)) AND NOT fileIsDirectory(r);
+	    
+	        READ  connectionStringVPI() + '/' + answerPathVPI() + '/' + file() TO importFile;  
+	        
+	        IMPORT XML ROOT 'ANSWER' FROM importFile() TO dateTime = deliveryDateTimeFirst, guid = GUID;
+	        IMPORT XML ROOT 'TABLE' FROM importFile() TO ids = IDBuyer, qty = quantityDespatch, batch = N_PART;
+	    }
+	    IF NOT dateTime(0) AND NOT useBatchSaleInvoiceCustom() THEN {
+	        MESSAGE 'Не найден файл в каталоге обмена. В документ включены все позиции заказа.';
+	        RETURN;
+	    }
+	    IF NOT guid(0) AND useBatchSaleInvoiceCustom()THEN {
+	        MESSAGE 'Не найден файл в каталоге обмена. В документ включены все позиции заказа.';
+	        RETURN;
+	    }	    
+	    
+	    date(invoice) <- DATE(dateTime(0));
+	    time(invoice) <- TIME(dateTime(0));	
+	       
+	    IF useBatchSaleInvoiceCustom() THEN {
+	        DELETE Sale.UserInvoiceDetail d WHERE invoice == userInvoice(d);
+	        
+            FOR Sku sk == sku(ids(INTEGER i)) NEW d = Sale.UserInvoiceDetail DO {
+                userInvoice(d) <- invoice;
+                orderDetail(d) <- GROUP MAX Sale.OrderDetail od IF order(od) == order AND sku(od) == sk;
+                sku(d) <- sk;                    
+                //batch(d) <- batch(sku(d), STRING[48](batch(i)));
+                batch(d) <- batch(batch(i));                                    
+                quantity(d) <- qty(i);
+                
+                VAT(d) <- VAT(orderDetail(d));
+                valueVAT(d) <- valueVAT(orderDetail(d));
+                priceListType(d) <- OVERRIDE priceListTypeCustom(d),
+                                             priceListType(agreement(userInvoice(d)), sku(d)),
+                                             priceListType(userInvoice(d));
+                
+                price(d) <- prevListMVAT(priceListType(d), d) IF NOT notUpdatePriceCustom();
+                invoicePrice(d) <- prevListPVAT(priceListType(d), d) IF NOT notUpdatePriceCustom();
+                
+                barcodePack(d) <- barcodePack(orderDetail(d));
+                amountPack(d) <- amountPack(orderDetail(d));
+                packQuantity(d) <- IF quantity(d) == quantity(orderDetail(d)) THEN packQuantity(orderDetail(d)) ELSE NUMERIC[16,5](quantity(d) / (amountPack(d) IF amountPack(d) != 0));
+            }
+            IF (GROUP SUM 1 IF quantityUserInvoiceDetail(Sku sku, invoice) AND NOT quantityOrderDetail(sku, order)) THEN {
+                MESSAGE 'Внимание !!! В подтверждении заказа обнаружены позиции, которых нет в заказе : \n' + 
+                    (GROUP CONCAT id(Sku sku) + ' ' + name(sku) IF quantityUserInvoiceDetail(sku, invoice) AND NOT quantityOrderDetail(sku, order), '\n' ORDER sku);
+            }
+	        
+	    } ELSE {
+            LOCAL sumQty = NUMERIC[16,5](Sku);
+            LOCAL oldQty = NUMERIC[16,5](Sale.UserInvoiceDetail);
+            
+            sumQty(Sku sku) <- [GROUP SUM qty(i) BY sku(ids(i))](sku);
+            
+            oldQty(Sale.UserInvoiceDetail d) <- NULL;
+            oldQty(Sale.UserInvoiceDetail d) <- quantity(d) WHERE invoice == userInvoice(d);
+            
+            quantity(Sale.UserInvoiceDetail d ) <- (PARTITION UNGROUP sumQty
+                                                        LIMIT STRICT oldQty(d)
+                                                        ORDER d
+                                                        BY sku(d))
+                                                    WHERE invoice == userInvoice(d);
+        
+            DELETE Sale.UserInvoiceDetail d WHERE invoice == userInvoice(d) AND NOT quantity(d);
+            
+            IF (GROUP SUM 1 IF sumQty(Sku sku) AND NOT sumQty(sku) == quantityUserInvoiceDetail(sku, invoice)) THEN {
+                MESSAGE 'Внимание !!! В подтверждении заказа обнаружены позиции, которых нет в заказе : \n' + (GROUP CONCAT id(Sku sku) + ' ' + name(sku) IF sumQty(sku) AND NOT sumQty(sku) == quantityUserInvoiceDetail(sku, invoice), '\n' ORDER sku);
+            }	    
+	    }
+        overCreateDistribution(order,invoice);                                                               
+	}
+}
+saleOrderWMS (Sale.UserInvoice invoice) = GROUP MAX Sale.Order order IF include(order, invoice);
+moveFilePurchaseVPI (Sale.UserInvoice invoice)  { 
+    TRY {
+        listFiles(connectionStringVPI() + '/' +answerPathVPI());
+        LOCAL file = STRING[255]();
+        file() <- GROUP MAX fileName(INTEGER r) IF isSubstring(fileName(r), number(saleOrderWMS(invoice))) AND NOT fileIsDirectory(r);
+        delete(connectionStringVPI() + '/' + answerPathVPI() + '/' + file());
+    }
+}
+
+
+WHEN FORMS Sale.userInvoice SET (isPosted(Sale.UserInvoice i)) AND isVPI(supplierStock(i)) 
+    DO moveFilePurchaseVPI(i);
+
+checkReplyVPI ()  { 
+	NEWSESSION {
+	    
+	    fileName(INTEGER j)<-NULL;
+	    listFiles(connectionStringVPI() + '/' + answerPathVPI());
+
+        isReplyWMS(Sale.Order order) <- TRUE WHERE GROUP SUM 1 IF isSubstring(fileName(INTEGER i), number(order)) AND date(order) >= subtract(currentDate(), 7) AND NOT fileIsDirectory(i);
+
+	    APPLY;
+	}
+}
+
+
+//заказ на поставку на склад
+quantity = GROUP SUM quantity(Purchase.UserOrderDetail d) BY userOrder(d), sku(d), price(d);
+sum = GROUP SUM sum(Purchase.UserOrderDetail d) BY userOrder(d), sku(d), price(d);
+invoiceSum = GROUP SUM invoiceSum(Purchase.UserOrderDetail d) BY userOrder(d), sku(d), price(d);
+countGroup = GROUP SUM 1 IF quantity(Purchase.UserOrder o, Sku s, NUMERIC[16,4] n) BY o;
+
+// можно перегрузить
+exportDocInText = ABSTRACT VALUE TEXT (Purchase.UserOrder);
+
+exportDocInText(Purchase.UserOrder p)+= 
+    TEXT (CONCAT '\n', 
+        '<DOC>',
+        '\t<DOC_IN>',
+        '\t\t<GUID>'+STRING[50](p)+'</GUID>',
+        '\t\t<documentNumber>'+number(p)+'</documentNumber>',
+        '\t\t<documentDate>'+toDateVPI(dateTime(p))+'</documentDate>',
+        '\t\t<buyerUNN>'+UNP(legalEntity(custodyWarehouse(customerStock(p))))+(IF id(customerStock(p)) == 'РПКП003895' THEN 'A' ELSE '')+'</buyerUNN>',
+        '\t\t<keeperUNN>'+UNP(supplier(p))+'</keeperUNN>',
+        '\t\t<destinationGLN>'+GLN(customerStock(p))+'</destinationGLN>',
+        '\t\t<destinationName>'+nameCustomerStock(p)+'</destinationName>',
+        '\t\t<contractNumber>'+seriesNumberContractSku(p)+'</contractNumber>',
+        '\t\t<deliveryDateTimeFirst>'+toDateVPI(shipmentDateTime(p))+'</deliveryDateTimeFirst>',
+        '\t\t<comment>'+(OVERRIDE note(p),'')+'</comment>',
+        '\t\t<lineQuantity>'+countGroup(p)+'</lineQuantity>',
+        '\t\t<TABLE>',
+            [GROUP CONCAT 
+                TEXT (CONCAT '\n', 
+                '\t\t\t<line>',
+                '\t\t\t\t<IDBuyer>'+id(Sku s)+'</IDBuyer>',
+                '\t\t\t\t<fullName>'+replace(replace(replace(name(s),'&','&amp;'),'<','&lt;'),'>','&gt;')+'</fullName>',
+                '\t\t\t\t<quantityPlan>'+quantity(Purchase.UserOrder o, s, NUMERIC[16,4] n)+'</quantityPlan>',
+                '\t\t\t\t<measurement>'+ (OVERRIDE idExportOrder(UOM(s)), id(UOM(s))) +'</measurement>',
+                '\t\t\t\t<price>'+n+'</price>',
+                '\t\t\t\t<amount>'+sum(o, s, n)+'</amount>',
+                '\t\t\t\t<vat>'+''+'</vat>',
+                '\t\t\t\t<amountWithVAT>'+sum(o, s, n)+'</amountWithVAT>',
+                '\t\t\t</line>'
+                ) IF quantity(o, s, n)
+            ,'\n' ORDER s BY o](p),
+        '\t\t</TABLE>',
+        '\t</DOC_IN>',
+        '</DOC>'
+        )
+;
+
+fileNameExportVPI (Purchase.Order o) = 'in_' + toChar(dateTime(o),'YYYYMMDDHH24MISS') + '_' + number(o);
+
+exportWMSPurchaseOrder(Purchase.Order order) + { 
+	IF isVPI(customerStock(order)) THEN NEWSESSION {
+	    LOCAL importFile = FILE ();
+	   
+	    stringToFile(exportDocInText(order),'utf-8','xml');
+	    
+	    WRITE resultFile() TO connectionStringVPI() + '/' +orderPathVPI() + '/' + fileNameExportVPI(order);
+	    
+	    //fileExists(connectionStringVPI() + '/' +orderPathVPI() + '/' + fileNameExportVPI(order) + '.xml');
+	    //IF fileExists() THEN {
+	        MESSAGE 'Файл ' + fileNameExportVPI(order) + '.xml выгружен в каталог обмена' NOWAIT ;
+	        //exportedWMS(order) <- TRUE;
+	        APPLY;         
+	    //} ELSE MESSAGE 'Не удалось выгрузить файл '+fileNameExportVPI(order)+'.xml' NOWAIT;
+	    
+	}
+}
+
+//импорт корректировки из wms 
+isCheckStatusQuantityCustom = ABSTRACT BOOLEAN ();
+checkStatusQuantityCustom ABSTRACT ();
+
+checkStatusQuantity 'Импортировать кол-во по приходам'()  { 
+    IF NOT isCheckStatusQuantityCustom() THEN {
+        LOCAL file = FILE ();
+        LOCAL ids = STRING[100](INTEGER );
+        LOCAL qty = NUMERIC[16,5](INTEGER );
+        LOCAL dateTime = DATETIME (INTEGER );
+    
+        TRY {
+            listFiles(connectionStringVPI() + '/' +answerPathVPI());
+            FOR isSubstring(lower(fileName(INTEGER r)), 'answer_in_') AND NOT fileIsDirectory(r) AND 
+                Purchase.UserInvoice i == (GROUP MAX Purchase.UserInvoice ii IF isVPI(customerStock(ii)) AND include(Purchase.Order o, ii) AND isSubstring(lower(fileName(r)), '_' + number(o))) DO {
+                    READ  connectionStringVPI() + '/' + answerPathVPI() + '/' + fileName(r) TO file;
+                    IMPORT XML ROOT 'ANSWER' FROM file() TO dateTime = deliveryDateTimeFirst;
+                    IMPORT XML ROOT 'TABLE' FROM file() TO ids = IDBuyer, qty = quantityFact;
+    
+                    shipmentDate(i) <- DATE(dateTime(0));
+                    shipmentTime(i) <- TIME(dateTime(0));
+    
+                    LOCAL sumQty = NUMERIC[16,5](Sku);
+                    sumQty(Sku sku) <- [GROUP SUM qty(INTEGER n) BY (OVERRIDE skuBarcode(ids(n)), sku(ids(n)))](sku);
+    
+                    shipmentQuantity(Purchase.UserInvoiceDetail d ) <- (PARTITION UNGROUP sumQty
+                                                                LIMIT STRICT quantity(d)
+                                                                ORDER d
+                                                                BY sku(d))
+                                                            WHERE i == userInvoice(d);
+    
+                    IF (GROUP SUM 1 IF sumQty(Sku sku) AND NOT sumQty(sku) == quantityUserInvoiceDetail(sku, i)) THEN {
+                        MESSAGE 'Внимание !!! В подтверждении заказа обнаружены позиции, которых нет в заказе : \n' + (GROUP CONCAT id(Sku sku) + ' ' + name(sku) IF sumQty(sku) AND NOT sumQty(sku) == quantityUserInvoiceDetail(sku, i), '\n' ORDER sku);
+                    }
+                }
+            APPLY;
+        }   
+    } ELSE {
+        checkStatusQuantityCustom();
+    }
+}
+
+//статусы
+statusPathVPI 'Каталог загрузки статусов' = DATA STRING[255]();
+
+EXTEND FORM integrationData 
+    PROPERTIES () statusPathVPI
+;
+
+DESIGN  integrationData {
+    folders {
+        MOVE PROPERTY (statusPathVPI());
+    }
+}
+
+
+statusVPI 'Статус выгрузки ВладПродИмпорт' = DATA INTEGER (Sale.Order) IN wms;
+dateStatusVPI 'Время статуса выгрузки ВладПродИмпорт' = DATA DATETIME  (Sale.Order) IN wms;
+nameStatusVPI 'Статус выгрузки ВладПродИмпорт' = DATA STRING[100] (Sale.Order) IN wms;
+
+WHEN SETCHANGED (number(Sale.Order o)) DO {
+    statusVPI(o) <- NULL;
+    dateStatusVPI(o) <- NULL;
+    nameStatusVPI(o) <- NULL;
+}
+
+showStatusVPI(Sale.Order order) = isVPI(supplierStock(order));
+
+EXTEND FORM Sale.orders
+    PROPERTIES (o) SHOWIF showStatusVPI(o) READONLY PANEL statusVPI, nameStatusVPI, dateStatusVPI;
+    
+DESIGN Sale.orders {
+    exportContainer {
+        MOVE PROPERTY (statusVPI(o));
+        MOVE PROPERTY (nameStatusVPI(o));
+        MOVE PROPERTY (dateStatusVPI(o));
+    }
+}
+
+statusVPI 'Статус выгрузки ВладПродИмпорт' = DATA INTEGER (Purchase.Order) IN wms;
+dateStatusVPI 'Время статуса выгрузки ВладПродИмпорт' = DATA DATETIME  (Purchase.Order) IN wms;
+nameStatusVPI 'Статус выгрузки ВладПродИмпорт' = DATA STRING[100] (Purchase.Order) IN wms;
+
+WHEN SETCHANGED (number(Purchase.Order o)) DO {
+    statusVPI(o) <- NULL;
+    dateStatusVPI(o) <- NULL;
+    nameStatusVPI(o) <- NULL;
+}
+
+showStatusVPI(Purchase.Order order) = isVPI(customerStock(order));
+
+EXTEND FORM Purchase.orders
+    PROPERTIES (o) SHOWIF showStatusVPI(o) READONLY PANEL statusVPI, nameStatusVPI, dateStatusVPI;
+    
+DESIGN Purchase.orders {
+    WMS {
+        MOVE PROPERTY (statusVPI(o));
+        MOVE PROPERTY (nameStatusVPI(o));
+        MOVE PROPERTY (dateStatusVPI(o));
+    }
+}
+
+statusVPI 'Статус выгрузки ВладПродИмпорт' = DATA INTEGER (Purchase.Invoice) IN wms;
+dateStatusVPI 'Время статуса выгрузки ВладПродИмпорт' = DATA DATETIME  (Purchase.Invoice) IN wms;
+nameStatusVPI 'Статус выгрузки ВладПродИмпорт' = DATA STRING[100] (Purchase.Invoice) IN wms;
+
+WHEN SETCHANGED (number(Purchase.Invoice i)) DO {
+    statusVPI(i) <- NULL;
+    dateStatusVPI(i) <- NULL;
+    nameStatusVPI(i) <- NULL;
+}
+
+showStatusVPI(Purchase.Invoice invoice) = isVPI(customerStock(invoice));
+
+EXTEND FORM Purchase.invoices
+    PROPERTIES (i) SHOWIF showStatusVPI(i) READONLY PANEL statusVPI, nameStatusVPI, dateStatusVPI;
+    
+DESIGN Purchase.invoices {
+    exportContainer {
+        MOVE PROPERTY (statusVPI(i));
+        MOVE PROPERTY (nameStatusVPI(i));
+        MOVE PROPERTY (dateStatusVPI(i));
+    }
+}
+
+lastOrder (Purchase.Invoice i) = GROUP LAST Purchase.Order o IF include(o,i) ORDER o; //накладная должна быть по одному заказу
+numberLastOrder (Purchase.Invoice i) = number(lastOrder(i));
+dateTimeLastOrder (Purchase.Invoice i) = dateTime(lastOrder(i));
+
+quantity = GROUP SUM quantity(Purchase.UserInvoiceDetail d) BY userInvoice(d), sku(d), shipmentPrice(d);
+sum = GROUP SUM round2(shipmentPrice(Purchase.UserInvoiceDetail d)*quantity(d)) BY userInvoice(d), sku(d), shipmentPrice(d);
+countGroup = GROUP SUM 1 IF quantity(Purchase.UserInvoice o, Sku s, NUMERIC[16,4] n) BY o;
+
+fileNameExportVPI (Purchase.UserInvoice p) = 'in_r_' + toChar(dateTime(lastOrder(p)),'YYYYMMDDHH24MISS') + '_' + number(lastOrder(p));
+
+exportDocInText(Purchase.UserInvoice p) = 
+    TEXT (CONCAT '\n', 
+        '<DOC>',
+        '\t<DOC_IN>',
+        '\t\t<GUID>'+STRING[50](lastOrder(p))+'</GUID>',
+        '\t\t<reload>'+'price'+'</reload>',
+        '\t\t<documentNumber>'+numberLastOrder(p)+'</documentNumber>',
+        '\t\t<documentDate>'+toDateVPI(dateTimeLastOrder(p))+'</documentDate>',
+        '\t\t<buyerUNN>'+UNP(legalEntity(custodyWarehouse(customerStock(p))))+(IF id(customerStock(p)) == 'РПКП003895' THEN 'A' ELSE '')+'</buyerUNN>',
+        '\t\t<keeperUNN>'+UNP(supplier(p))+'</keeperUNN>',
+        '\t\t<destinationGLN>'+GLN(customerStock(p))+'</destinationGLN>',
+        '\t\t<destinationName>'+nameCustomerStock(p)+'</destinationName>',
+        '\t\t<contractNumber>'+seriesNumberContractSku(p)+'</contractNumber>',
+        '\t\t<deliveryDateTimeFirst>'+toDateVPI(shipmentDateTime(p))+'</deliveryDateTimeFirst>',
+        '\t\t<comment>'+(OVERRIDE note(p),'')+'</comment>',
+        '\t\t<lineQuantity>'+countGroup(p)+'</lineQuantity>',
+        '\t\t<TABLE>',
+            [GROUP CONCAT 
+                TEXT (CONCAT '\n', 
+                '\t\t\t<line>',
+                '\t\t\t\t<IDBuyer>'+id(Sku s)+'</IDBuyer>',
+                '\t\t\t\t<fullName>'+replace(replace(replace(name(s),'&','&amp;'),'<','&lt;'),'>','&gt;')+'</fullName>',
+                '\t\t\t\t<quantityPlan>'+quantity(Purchase.UserInvoice o, s, NUMERIC[16,4] n)+'</quantityPlan>',
+                '\t\t\t\t<measurement>'+ (OVERRIDE idExportOrder(UOM(s)), id(UOM(s))) +'</measurement>',
+                '\t\t\t\t<price>'+n+'</price>',
+                '\t\t\t\t<amount>'+sum(o, s, n)+'</amount>',
+                '\t\t\t\t<vat>'+''+'</vat>',
+                '\t\t\t\t<amountWithVAT>'+sum(o, s, n)+'</amountWithVAT>',
+                '\t\t\t</line>'
+                ) IF quantity(o, s, n)
+            ,'\n' ORDER s BY o](p),
+        '\t\t</TABLE>',
+        '\t</DOC_IN>',
+        '</DOC>'
+        )
+;
+
+exportWMSPurchaseInvoice(Purchase.Invoice invoice) + {
+	IF isVPI(customerStock(invoice)) THEN NEWSESSION {
+	    LOCAL importFile = FILE ();
+	   
+        idBatch(Purchase.InvoiceDetail d) <- (CONCAT '_', seriesNumber(d), idSku(d), index(d)) WHERE invoice(d) == invoice;
+       	APPLY NESTED LOCAL;
+	    stringToFile(exportDocInText(invoice),'utf-8','xml');
+	    
+	    WRITE resultFile() TO connectionStringVPI() + '/' +orderPathVPI() + '/' + fileNameExportVPI(invoice);
+	    
+        MESSAGE 'Файл ' + fileNameExportVPI(lastOrder(invoice)) + '.xml выгружен в каталог обмена' NOWAIT;
+	}
+}
+
+///////////////////////---------------- Статусы --------------//////////////////////
+checkStatusOrder 'Проверить статусы ВладПродИмпорт' () { 
+    LOCAL file = FILE ();
+    LOCAL order = STRING[48] (INTEGER );
+    LOCAL status = INTEGER (INTEGER );
+    LOCAL statusName = STRING[100](INTEGER );
+    LOCAL statusDate = DATETIME (INTEGER );
+        
+    TRY {
+        listFiles(connectionStringVPI() + '/' +statusPathVPI());
+        FOR isSubstring(lower(fileName(INTEGER r)), 'answer_statusses_') AND NOT fileIsDirectory(r) DO {
+            READ  connectionStringVPI() + '/' + statusPathVPI() + '/' + fileName(r) TO file;
+            IMPORT XML ROOT 'STATUSSES' ATTR FROM file() TO order = DOCUMENTNUMBER, statusDate = 'DATE', status = STAT, statusName = STATS;
+            
+            FOR imported(INTEGER n) AND Sale.Order o = (GROUP MAX Sale.Order oo IF isVPI(supplierStock(oo)) AND number(oo) == order(n)) DO {
+                statusVPI(o) <- status(n);
+                nameStatusVPI(o) <- statusName(n);
+                dateStatusVPI(o) <- statusDate(n);
+            }
+            FOR imported(INTEGER n) AND Purchase.Order o = (GROUP MAX Purchase.Order oo IF isVPI(customerStock(oo)) AND number(oo) == order(n)) DO {
+                statusVPI(o) <- status(n);
+                nameStatusVPI(o) <- statusName(n);
+                dateStatusVPI(o) <- statusDate(n);
+                
+                statusVPI(Purchase.Invoice i) <- status(n) WHERE include(o,i);
+                nameStatusVPI(Purchase.Invoice i) <- statusName(n) WHERE include(o,i);
+                dateStatusVPI(Purchase.Invoice i) <- statusDate(n) WHERE include(o,i);
+            } 
+        }
+        APPLY;
+    }
+}
