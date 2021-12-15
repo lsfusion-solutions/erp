@@ -2,11 +2,13 @@ package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
+import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.SetFact;
 import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
+import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -64,6 +66,7 @@ public class ImportPurchaseInvoicesAction extends ImportDocumentAction {
                             makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, allowIncorrectBarcode);
 
                             if (invoiceObject != null) {
+                                findProperty("original[Purchase.Invoice]").change(new DataObject(new FileData(file, fileExtension), DynamicFormatFileClass.get()), newContext, invoiceObject);
                                 findProperty("currentInvoice[]").change(invoiceObject, newContext);
                             }
                             boolean cancelSession = false;
