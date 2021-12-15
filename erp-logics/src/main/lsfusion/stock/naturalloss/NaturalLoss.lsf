@@ -6,6 +6,13 @@ GROUP rate 'Нормы' : public;
 
 // ----------------------------------- Справочник норм естественной убыли -------------------------------------------- //
 
+CLASS NaturalLossStockType 'Тип склада естественной убыли';
+TABLE naturalLossStockType(NaturalLossStockType);
+
+name 'Наименование' = DATA ISTRING[110](NaturalLossStockType) IN id;
+
+naturalLossStockType 'Тип склада естественной убыли' = ABSTRACT NaturalLossStockType (Stock);
+
 CLASS NaturalLossGroup 'Группа естественной убыли';
 TABLE naturalLossGroup(NaturalLossGroup);
 
@@ -35,6 +42,11 @@ dayTo 'День' = DATA INTEGER (SubNaturalLossGroupDetail);
 monthTo = DATA Month (SubNaturalLossGroupDetail);
 nameMonthTo 'Месяц' = staticCaption(monthTo(SubNaturalLossGroupDetail subNaturalLossGroupDetail));
 percent '% естественной убыли' = DATA NUMERIC[10,5] (SubNaturalLossGroupDetail);
+
+TABLE subNaturalLossGroupDetailNaturalLossStockType(SubNaturalLossGroupDetail,NaturalLossStockType);
+percent '% естественной убыли' = DATA NUMERIC[10,5] (SubNaturalLossGroupDetail,NaturalLossStockType);
+
+overPercent '% естественной убыли' (SubNaturalLossGroupDetail d, Stock st) = OVERRIDE percent(d, naturalLossStockType(st)), percent(d);
 
 dateToNumber(prm1, prm2) = prm2*32 + prm1;
 dateToNumberIntersect(prm1, prm2) = prm2*32 + (prm1*12);
@@ -157,14 +169,16 @@ FORM naturalLossGroups 'Справочник норм естественной �
     OBJECTS sg=SubNaturalLossGroup, d=SubNaturalLossGroupDetail
     PROPERTIES(sg) READONLY name, nameCountry, nameParent,
                    code
-    PROPERTIES(sg) NEWSESSION EDIT, NEW DRAW sg, deletesg=DELETE 
+    PROPERTIES(sg) NEWSESSION EDIT, NEW DRAW sg, deletesg=DELETE
+    OBJECTS st = NaturalLossStockType
     PROPERTIES(d)  dayFrom, nameMonthFrom,
                    dayTo, nameMonthTo,
                    percent
+    PROPERTIES percent(d,st) COLUMNS (st) HEADER name(st)
     PROPERTIES(d)  NEW, DELETE GRID 
     FILTERS stringEqualsAll(a), inParentNull(n, sg),  in(sg, d)
     ORDERS name(sg)
-
+    
     FILTERS country(n) == c OR n IS NaturalLossGroup AND (NOT c OR showAllContries()), 
             country(sg) == c OR sg IS SubNaturalLossGroup AND (NOT c OR showAllContries())
 ;
@@ -279,8 +293,9 @@ nameSubNaturalDetail 'Период' (NaturalLossDetail naturalLossDetail) =
     castInterval(subNaturalDetail(naturalLossDetail));
 
 percent 'Норма естественной убыли, %' = DATA NUMERIC[10,3] (NaturalLossDetail);
-percent(NaturalLossDetail naturalLossDetail) <- percent(subNaturalDetail(naturalLossDetail))
-    WHEN CHANGED(subNaturalDetail(naturalLossDetail));
+percent(NaturalLossDetail naturalLossDetail) <- overPercent(subNaturalDetail(naturalLossDetail), stock(naturalLossDetail))
+    WHEN CHANGED(subNaturalDetail(naturalLossDetail)) OR
+         CHANGED(stock(naturalLossDetail));
 
 castNameSubGroup 'Группа естественной убыли' (NaturalLossDetail naturalLossDetail) =
     nameSubNaturalLossGroup(naturalLossDetail) + ' ' + nameSubNaturalDetail(naturalLossDetail);
@@ -338,7 +353,7 @@ toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss
                                                                       subNaturalLossGroupDetail,
                                                                       price);
               subNaturalDetail(d) <- subNaturalLossGroupDetail;
-              percent(d) <- percent(subNaturalLossGroupDetail);
+              percent(d) <- overPercent(subNaturalLossGroupDetail, stock(naturalLoss));
               quantity (d) <- percent(d) * quantityLoss(d) /100;
               price(d) <- NUMERIC[16,4](price);
           }
@@ -379,7 +394,7 @@ toPurchaseFillDetail 'Заполнить на основе поступлени�
                                                                     dateTo(naturalLoss),
                                                                     subNaturalLossGroupDetail);
             subNaturalDetail(d) <- subNaturalLossGroupDetail;
-            percent(d) <- percent(subNaturalLossGroupDetail);
+            percent(d) <- overPercent(subNaturalLossGroupDetail, stock(naturalLoss));
             quantity (d) <- percent(d) * quantityLoss(d) /100;
         }
     }
