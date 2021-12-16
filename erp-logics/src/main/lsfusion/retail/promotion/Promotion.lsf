@@ -400,24 +400,26 @@ lastPromotionPrice 'Время последней акции' (PromotionDetail d
 
 backgroundDetail = ABSTRACT CASE COLOR (PromotionDetail);
 
+isReadOnly = ABSTRACT CASE BOOLEAN (PromotionDetail);
+
 FORM promotion 'Акция'
     OBJECTS p = Promotion PANEL 
     PROPERTIES(p) nameNumerator, series, number, name, fromDate, toDate, namePromotionType, nameExtraPromotionType, 
                   namePromoType, nameFlyer, proposeDate, approveDate
     
     OBJECTS d = PromotionDetail
-    PROPERTIES(d) BACKGROUND backgroundDetail(d) idBarcodeSku, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, 
+    PROPERTIES(d) READONLYIF isReadOnly(d) BACKGROUND backgroundDetail(d) idBarcodeSku, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, 
                   nameBrand, nameSku, valueVAT, nameSuppliers, paymentForFlyer, supplierPromotionDiscount
-    PROPERTIES(d) BACKGROUND backgroundCur(d) price, markup, retailPrice
-    PROPERTIES(d) BACKGROUND backgroundAfter(d) promotionPrice BACKGROUND backgroundPromo(d), promotionVATPrice, promotionMarkup,
+    PROPERTIES(d) READONLYIF isReadOnly(d) BACKGROUND backgroundCur(d) price, markup, retailPrice
+    PROPERTIES(d) READONLYIF isReadOnly(d) BACKGROUND backgroundAfter(d) promotionPrice BACKGROUND backgroundPromo(d), promotionVATPrice, promotionMarkup,
                   proposedPromotionPrice BACKGROUND backgroundPromo(d), promotionMarkupSum, discount
     PROPERTIES(d) READONLY lastPromotionPrice
-    PROPERTIES(d) nameOverPromotionType, nameOverFlyer, comment, approved SHOWIF showApproved(d), NEW, deleted = DELETE GRID
+    PROPERTIES(d) READONLYIF isReadOnly(d) nameOverPromotionType, nameOverFlyer, comment, approved SHOWIF showApproved(d), NEW, deleted = DELETE GRID
     FILTERS promotion(d) == p,
             accessManager(currentUser(), sku(d)) OR NOT sku(d)
             
     OBJECTS dd = PromotionDetail
-    PROPERTIES(dd) idBarcodeSku, nameSku, nameOverExtraPromotionType, nameOverPromoType, nameDiscountType, nameDiscountingType, 
+    PROPERTIES(dd) READONLYIF isReadOnly(d) idBarcodeSku, nameSku, nameOverExtraPromotionType, nameOverPromoType, nameDiscountType, nameDiscountingType, 
                    subway, radio, billboard, TVcommercial, stockTVcommercial, elevator, sms, email, 
                    changedTime, changedNameUser, changedHostnameComputer
     ORDERS nameSku(dd)
