@@ -37,7 +37,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class MachineryExchangeEquipmentServer {
@@ -427,37 +426,25 @@ public class MachineryExchangeEquipmentServer {
 
     public static List<MachineryInfo> readMachineryInfo(EquipmentServer server, String sidEquipmentServer) throws SQLException {
         List<MachineryInfo> machineryInfoList = new ArrayList<>();
-        if (machineryLM != null) {
+        if (equLM != null) {
             try (DataSession session = server.createSession()) {
 
-                KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
                 KeyExpr machineryExpr = new KeyExpr("machinery");
+                QueryBuilder<Object, Object> query = new QueryBuilder<>(MapFact.singletonRev("machinery", machineryExpr));
 
-                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
-                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-
-                String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
-                LP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
+                String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery", "nppGroupMachinery", "handlerModelMachinery"};
+                LP[] machineryProperties = equLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]", "nppGroupMachinery[Machinery]", "handlerModel[Machinery]");
                 for (int i = 0; i < machineryProperties.length; i++) {
                     query.addProperty(machineryNames[i], machineryProperties[i].getExpr(machineryExpr));
                 }
 
-                String[] groupMachineryNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery"};
-                LP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]");
-                for (int i = 0; i < groupMachineryProperties.length; i++) {
-                    query.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
-                }
-
-                query.and(machineryLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
-                query.and(machineryLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr).getWhere());
-                query.and(machineryLM.findProperty("groupMachinery[Machinery]").getExpr(machineryExpr).compare(groupMachineryExpr, Compare.EQUALS));
-                query.and(equLM.findProperty("sidEquipmentServer[GroupMachinery]").getExpr(groupMachineryExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
+                query.and(equLM.findProperty("filter[STRING, Machinery]").getExpr(new DataObject(sidEquipmentServer).getExpr(), machineryExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
                     machineryInfoList.add(new MachineryInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
-                            null, (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
+                            null, (String) row.get("handlerModelMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery"))));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
