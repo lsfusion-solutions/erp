@@ -1,0 +1,41 @@
+MODULE ArtixEmployee;
+
+REQUIRE ArtixSettings, Employee;
+
+NAMESPACE Artix;
+
+
+overNamePosition = ABSTRACT ISTRING[200](Employee);
+overIdPosition = ABSTRACT INTEGER(Employee);
+
+cashierText(Employee e) = 
+    TEXT(CONCAT '', 
+        '\{',
+        '"command":"addMCashUser",',
+        '"mcashuser":\{',
+        (CONCAT '', '"code": "', id(e), '",'),
+        (CONCAT '', '"name": "', shortName(e), '",'),
+        (CONCAT '', '"login": "', shortName(e), '",'),
+        (CONCAT '', '"password": "', externalPassword(e), '",'),
+        (CONCAT '', '"rank": "', (OVERRIDE overNamePosition(e), namePosition(e)), '",'),
+        '"roleusers":[\{"rolecode":"' + (OVERRIDE overIdPosition(e), INTEGER(idPosition(e)), 1) + '","rule":"1"\}]',
+        '\}\}\n---')
+;
+export = DATA LOCAL BOOLEAN (Employee);
+cashiersText() = GROUP CONCAT cashierText(Employee e), '\n' IF export(e) ORDER e;
+
+exportCashiersArtixAll 'Экспортировать кассиров в Artix' () {
+    IF (GROUP SUM 1 IF export(Employee e)) THEN {
+        createFilesArtix(cashiersText(), globalDirectoryArtix());        
+    } ELSE {
+        MESSAGE 'Не выбрано ни одного кассира' NOWAIT;
+    }
+}
+
+exportCashiersArtix 'Экспортировать кассиров в Artix' (GroupCashRegister gcr) {
+    IF (GROUP SUM 1 IF export(Employee e)) THEN {
+        createFilesArtix(cashiersText(), directory(gcr));        
+    } ELSE {
+        MESSAGE 'Не выбрано ни одного кассира' NOWAIT;
+    }
+}

@@ -1,0 +1,45 @@
+MODULE ArtixSettings;
+
+REQUIRE CashRegister;
+
+NAMESPACE Artix;
+
+directoryArtix 'Путь к каталогу All' = DATA STRING[250](CashRegisterModel);
+globalDirectoryArtix = directoryArtix(cashRegisterSID('Artix'));
+
+EXTEND FORM cashRegisterModel 
+    PROPERTIES (c) SHOWIF sid(c) == 'Artix' directoryArtix;
+    
+DESIGN cashRegisterModel{
+    BOX (c){
+        NEW artix  {
+            MOVE PROPERTY (directoryArtix(c));
+        } 
+    }
+}
+
+createFilesArtix(STRING data, STRING directory) {
+    
+    IF NOT directory THEN {
+        MESSAGE 'Каталог не задан.';
+        RETURN;
+    }
+    
+    LOCAL aif = FILE ();
+    stringToFile(data,'UTF-8','aif');
+    aif() <- resultFile();
+    
+    LOCAL flz = FILE ();
+    stringToFile('','UTF-8','flz');
+    flz() <- resultFile();
+    
+    LOCAL name = STRING[50]();
+    name() <- 'pos' + toChar(currentDateTime(), 'YYYYMMDDHH24MISS');
+    
+   TRY {
+        WRITE aif() TO directory + '/'+ name();
+        WRITE flz() TO directory + '/'+ name();
+   } CATCH {
+        MESSAGE 'Ошибка при записи файла.';
+   }
+}

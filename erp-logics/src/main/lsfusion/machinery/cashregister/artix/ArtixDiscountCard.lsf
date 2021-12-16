@@ -1,14 +1,21 @@
 MODULE ArtixDiscountCard;
 
-REQUIRE DiscountCard, CashRegister;
+REQUIRE DiscountCard, ArtixSettings;
 
 NAMESPACE Artix;
 
 
-directoryArtix 'Путь к каталогу All' = DATA STRING[250](CashRegisterModel);
 stepArtix 'Шаг выгрузки дисконтных карт' = DATA INTEGER (CashRegisterModel);
 EXTEND FORM cashRegisterModel 
-    PROPERTIES (c) SHOWIF sid(c) == 'Artix' directoryArtix, stepArtix;
+    PROPERTIES (c) SHOWIF sid(c) == 'Artix' stepArtix;
+
+DESIGN cashRegisterModel {
+    artix{
+        NEW artixDiscountCard{
+            MOVE PROPERTY (stepArtix(c));
+        }
+    }
+}    
 
 inExportStep = DATA LOCAL BOOLEAN (DiscountCard);
 
@@ -16,11 +23,6 @@ regexpMatch = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
 getQuotedAttribute(STRING string, STRING attr) = getWord(regexpMatch(string, '"'+attr+'":".*?["]'), ':', 2); 
 
 exportDiscountCardsStep 'Выгрузить дисконтные карты' () {
-        
-    IF NOT directoryArtix(cashRegisterSID('Artix')) THEN {
-        MESSAGE 'Не задан путь к каталогу для выгрузки' NOWAIT;
-        RETURN;
-    }
     
     IF NOT (GROUP SUM 1 IF inExportStep(DiscountCard s)) THEN {
         MESSAGE 'Нет карт к выгрузке' NOWAIT;
@@ -69,20 +71,7 @@ exportDiscountCardsStep 'Выгрузить дисконтные карты' () 
                     + '\}\}') IF inExportStep(d), '\n---\n' ORDER d)
                 +'\n---\n';
     
-    
-    LOCAL aif = FILE ();
-    stringToFile(rezult(),'UTF-8','aif');
-    aif() <- resultFile();
-    
-    LOCAL flz = FILE ();
-    stringToFile('','UTF-8','flz');
-    flz() <- resultFile();
-    
-    LOCAL name = STRING[50]();
-    name() <- 'pos' + toChar(currentDateTime(), 'YYYYMMDDHH24MISS');
-
-    WRITE aif() TO directoryArtix(cashRegisterSID('Artix')) + '/'+ name();
-    WRITE flz() TO directoryArtix(cashRegisterSID('Artix')) + '/'+ name();
+    createFilesArtix(rezult(), globalDirectoryArtix());
     
     inExportStep(DiscountCard d) <- NULL;
 }
