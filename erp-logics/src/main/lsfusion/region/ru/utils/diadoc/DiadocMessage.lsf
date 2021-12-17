@@ -368,6 +368,7 @@ statusDetails 'Детализация по статусу' (Entity e) = GROUP CO
 
 message = DATA Message (Entity);
 patch = DATA MessagePatch (Entity);
+overMessageId 'Идентификатор сообщения' (Entity e) = OVERRIDE messageId(patch(e)), messageId(message(e));
 
 WHEN DROPPED(Entity e IS Entity) DO {
     DELETE Message m WHERE PREV(message(e)) == m;
@@ -3113,3 +3114,11 @@ showCreateDocument = ABSTRACT CASE BOOLEAN (Document);
 EXTEND FORM documents 
     PROPERTIES(d) TOOLBAR createDocument SHOWIF showCreateDocument(d)
 ;
+
+//--------------- лог статусов документа ---------------//
+showStatusLog (Entity e) = entityType(e) == EntityType.attachment AND NOT attachmentType(e) == AttachmentType.attachmentComment;
+
+dateTime 'Время' (Entity e) = rawCreationDate(e);
+organization 'Организация' (Entity e) = (GROUP MAX organization(signerBox(Entity ee)) IF entityType(ee) == EntityType.signature AND parentEntityId(ee) == entityId(e));
+nameOrganization 'Организация' (Entity e) = shortName(organization(e)) CHARWIDTH 20;
+status 'Статус' (Entity e) = attachmentTypeName(e) CHARWIDTH 30;
