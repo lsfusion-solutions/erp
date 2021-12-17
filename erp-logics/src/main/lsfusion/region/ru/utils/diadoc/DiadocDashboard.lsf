@@ -9,9 +9,13 @@ in (BPSTRING[20] s, Document d, Box b) =
         IF s = BPSTRING[20]('Исходящие') THEN fromBox(message(d)) == b;
 
 FORM diadocDashboard 'Ящик Диадок'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) READONLY login
+    FILTERS u == userDiadoc(currentUser())
+    
     OBJECTS b = Box PANEL
     PROPERTIES(b) title IN base SELECTOR
-    FILTERS isEmployee(organization(b), userDiadoc(currentUser()))
+    FILTERS isEmployee(organization(b), u)
 
     OBJECTS s = STRING[20]
     PROPERTIES(s) VALUE
@@ -21,13 +25,13 @@ FORM diadocDashboard 'Ящик Диадок'
     PROPERTIES(d) READONLY counteragentBoxTitle, title, creationTimestamp, primaryStatusText, primaryStatusSeverityName
     PROPERTIES(d) openData, show
     PROPERTIES(d) createDocument SHOWIF showCreateDocument(d)
-    PROPERTIES(b,d) TOOLBAR messageReceipt SHOWIF showMessageReceipt(d)
-    PROPERTIES(b,d) TOOLBAR messageInvoiceCorrectionRequest SHOWIF showMessageInvoiceCorrectionRequest(b,d)
-    PROPERTIES(b,d) TOOLBAR messageRevocationRequest SHOWIF showMessageRevocationRequest(d)
-    PROPERTIES(b,d) TOOLBAR messageRevocationSignature SHOWIF showMessageRevocationSignature(d)
-    PROPERTIES(b,d) TOOLBAR messageRevocationRejection SHOWIF showMessageRevocationRejection(d)
-    PROPERTIES(b,d) TOOLBAR messageSignature SHOWIF showMessageSignature(d)
-    PROPERTIES(b,d) TOOLBAR messageRejection SHOWIF showMessageRejection(d)
+    PROPERTIES(u,b,d) TOOLBAR messageReceipt SHOWIF showMessageReceipt(d)
+    PROPERTIES(u,b,d) TOOLBAR messageInvoiceCorrectionRequest SHOWIF showMessageInvoiceCorrectionRequest(b,d)
+    PROPERTIES(u,b,d) TOOLBAR messageRevocationRequest SHOWIF showMessageRevocationRequest(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRevocationSignature SHOWIF showMessageRevocationSignature(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRevocationRejection SHOWIF showMessageRevocationRejection(d)
+    PROPERTIES(u,b,d) TOOLBAR messageSignature SHOWIF showMessageSignature(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRejection SHOWIF showMessageRejection(d)
     FILTERS fromBox(message(d)) == b OR toBox(message(d)) == b OR proxyBox(message(d)) == b,
             in(s, d, b)
     ORDERS creationTimestamp(d)
@@ -45,41 +49,47 @@ FORM diadocDashboard 'Ящик Диадок'
 ;
 
 DESIGN diadocDashboard {
-    NEW main BEFORE TOOLBARBOX {
-        type = SPLITH;
-        fill = 1;
-        NEW inout {
-            fill = 1;
-            MOVE BOX(s);
+    OBJECTS {
+        NEW filters BEFORE BOX(d) {
+            type = CONTAINERH;
+            MOVE BOX(u);
+            MOVE BOX(b);
         }
-        NEW documents {
-            fill = 4;
-            NEW doc {
-                type = SPLITV;
+        NEW main {
+            type = SPLITH;
+            fill = 1;
+            NEW inout {
                 fill = 1;
-                MOVE BOX(d);
-                NEW messages {
-                    type = TABBED;
+                MOVE BOX(s);
+            }
+            NEW documents {
+                fill = 4;
+                NEW doc {
+                    type = SPLITV;
                     fill = 1;
-                    MOVE BOX(m);
-                    MOVE BOX(mp);
-                    NEW actionContainer {
-                        caption = 'Действия';
-                        type = CONTAINERV;
-                        MOVE PROPERTY(createDocument(d));
-                        MOVE PROPERTY(messageReceipt(b,d)) {alignment = START;}
-                        MOVE PROPERTY(messageInvoiceCorrectionRequest(b,d)) {alignment = START;}
-                        MOVE PROPERTY(messageRevocationRequest(b,d)) {alignment = START;}
-                        MOVE PROPERTY(messageRevocationSignature(b,d)) {alignment = START;}
-                        MOVE PROPERTY(messageRevocationRejection(b,d)) {alignment = START;}
-                        MOVE PROPERTY(messageSignature(b,d)) {alignment = START;}
-                        MOVE PROPERTY(messageRejection(b,d)) {alignment = START;}
+                    MOVE BOX(d);
+                    NEW messages {
+                        type = TABBED;
+                        fill = 1;
+                        MOVE BOX(m);
+                        MOVE BOX(mp);
+                        NEW actionContainer {
+                            caption = 'Действия';
+                            type = CONTAINERV;
+                            MOVE PROPERTY(createDocument(d));
+                            MOVE PROPERTY(messageReceipt(u,b,d)) {alignment = START;}
+                            MOVE PROPERTY(messageInvoiceCorrectionRequest(u,b,d)) {alignment = START;}
+                            MOVE PROPERTY(messageRevocationRequest(u,b,d)) {alignment = START;}
+                            MOVE PROPERTY(messageRevocationSignature(u,b,d)) {alignment = START;}
+                            MOVE PROPERTY(messageRevocationRejection(u,b,d)) {alignment = START;}
+                            MOVE PROPERTY(messageSignature(u,b,d)) {alignment = START;}
+                            MOVE PROPERTY(messageRejection(u,b,d)) {alignment = START;}
+                        }
                     }
                 }
             }
         }
     }
-    MOVE BOX(b) BEFORE main;
 }
 
 NAVIGATOR {

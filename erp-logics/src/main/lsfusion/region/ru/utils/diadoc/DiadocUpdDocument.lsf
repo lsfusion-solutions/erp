@@ -17,6 +17,7 @@ GROUP additionalInfoUTD EXTID 'AdditionalInfo': additionalInfoIdUTD;
 GROUP tableUTD EXTID 'Table';
 GROUP customsDeclarationsUTD EXTID 'CustomsDeclarations';
 GROUP customsDeclarationUTD EXTID 'CustomsDeclaration': customsDeclarationsUTD;
+GROUP itemIdentificationNumbersUTD EXTID 'ItemIdentificationNumbers';
 GROUP transferInfoUTD EXTID 'TransferInfo';
 GROUP transferBasesUTD EXTID 'TransferBases': transferInfoUTD;
 GROUP transferBaseUTD EXTID 'TransferBase': transferBasesUTD;
@@ -79,6 +80,18 @@ FORM universalTransferDocument FORMEXTID 'UniversalTransferDocument'
                     countryI = idCountry(i) EXTID 'Country',//КодПроисх - Код страны происхождения товара по Общероссийскому классификатору стран мира (ОКСМ) или 980 - Евросоюз, 981 - ЕАЭС
                     declarationNumberI = numberDeclaration(i) EXTID 'DeclarationNumber'//НомерТД - Номер таможенной декларации
     
+    OBJECTS utd = UpdTransportPackDetail EXTID 'ItemIdentificationNumber' IN itemIdentificationNumbersUTD
+    PROPERTIES ATTR transPackageIdIIN = (OVERRIDE id(utd),'') EXTID 'TransPackageId'//ИдентТрансУпак - Уникальный идентификатор транспортной упаковки
+    FILTERS updDocumentDetail(utd) == i
+    
+    OBJECTS upd = UpdPackDetail EXTID 'ItemIdentificationNumber' IN itemIdentificationNumbersUTD
+    PROPERTIES unitIIN = (OVERRIDE id(upd),'') EXTID 'Unit'//КИЗ - Контрольный идентификационный знак
+    FILTERS updDocumentDetail(upd) == i
+        
+    OBJECTS uld = UpdLotDetail EXTID 'ItemIdentificationNumber' IN itemIdentificationNumbersUTD
+    PROPERTIES packageIdIIN = (OVERRIDE id(uld),'') EXTID 'PackageId'//НомУпак - Уникальный идентификатор вторичной (потребительской)/третичной (заводской, транспортной) упаковки
+    FILTERS updDocumentDetail(uld) == i
+    
     PROPERTIES ATTR IN transferInfoUTD
                     operationInfoTI = (OVERRIDE description(exportUpdDocument()),'') EXTID 'OperationInfo'//СодОпер - Содержание операции
     PROPERTIES ATTR IN transferBaseUTD
@@ -114,7 +127,6 @@ messageUniversalTransferDocument 'Подписать и отправить че�
             
             LOCAL result = FILE ();
             TRY {
-                fileToString(exportFile());
                 EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + fromBoxId() + '&documentTypeNamedId=UniversalTransferDocument&documentFunction=' + nameStatus(d) + '&documentVersion=utd820_05_01_01&titleIndex=0' HEADERS httpHeadersToken PARAMS exportFile() TO result;
                 typeNamedIdDocument(0) <- 'UniversalTransferDocument';
                 functionDocument(0) <- nameStatus(d);
@@ -289,8 +301,8 @@ DESIGN dialogBuyerTitle {
     }
 }
 
-overMessageSignature (Box b, Document d) + {
-    FOR User u == userDiadoc(currentUser()) AND typeNamedId(d) == 'UniversalTransferDocument' DO NEWSESSION {
+overMessageSignature (User u, Box b, Document d) + {
+    IF typeNamedId(d) == 'UniversalTransferDocument' THEN NEWSESSION {
         box() <- b;
         message() <- message(d);
         parentEntity(0) <- entity(d);
@@ -323,7 +335,7 @@ overMessageSignature (Box b, Document d) + {
                 MESSAGE 'Ошибка подписи ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
             APPLY;
-            getDocument(b,d);
+            getDocument(u,b,d);
         }
     }
 }

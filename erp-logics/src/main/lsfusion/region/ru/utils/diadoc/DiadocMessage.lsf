@@ -805,9 +805,13 @@ show 'Просмотреть' (MessagePatch p) {
 } TOOLBAR;
 
 FORM messages 'Cообщения Диадока'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) READONLY login
+    FILTERS u == userDiadoc(currentUser())
+        
     OBJECTS b = Box PANEL
     PROPERTIES(b) title IN base SELECTOR
-    FILTERS isEmployee(organization(b),userDiadoc(currentUser()))
+    FILTERS isEmployee(organization(b),u)
 
     OBJECTS m = Message LAST
     PROPERTIES(m) READONLY messageId, timestamp, lastPatchTimestamp, fromBoxTitle, toBoxTitle, isDraft, draftIsLocked, draftIsRecycled,
@@ -826,6 +830,15 @@ FORM messages 'Cообщения Диадока'
     FILTERS message(p) == m
     ORDERS timestamp(p), patchId(p)
 ;
+DESIGN messages {
+    OBJECTS {
+        NEW filters BEFORE BOX(m) {
+            type = CONTAINERH;
+            MOVE BOX(u);
+            MOVE BOX(b);
+        }
+    }
+}
 
 NAVIGATOR {
     diadocNavigator {
@@ -959,9 +972,13 @@ show 'Просмотреть' (Document d) {
 } TOOLBAR;
 
 FORM documents 'Документы Диадока'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) READONLY login
+    FILTERS u == userDiadoc(currentUser())
+    
     OBJECTS b = Box PANEL
     PROPERTIES(b) title IN base SELECTOR
-    FILTERS isEmployee(organization(b),userDiadoc(currentUser()))
+    FILTERS isEmployee(organization(b),u)
     
     OBJECTS d = Document LAST
     PROPERTIES(d) READONLY isDeleted, isTest, messageId, entityId, title, counteragentBoxTitle, creationTimestamp,
@@ -971,6 +988,15 @@ FORM documents 'Документы Диадока'
     FILTERS fromBox(message(d)) == b OR toBox(message(d)) == b OR proxyBox(message(d)) == b
     ORDERS creationTimestamp(d)
 ;
+DESIGN documents {
+    OBJECTS {
+        NEW filters BEFORE BOX(d) {
+            type = CONTAINERH;
+            MOVE BOX(u);
+            MOVE BOX(b);
+        }
+    }
+}
 
 NAVIGATOR {
     diadocNavigator {
@@ -1456,8 +1482,8 @@ FORM importEvents
 //                   forwardedToBoxId EXTID 'ForwardedToBoxId'
 ;
 
-getNewEvents 'Получить новые сообщения' (Box box) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+getNewEvents 'Получить новые сообщения' (User u, Box box) {
+    NEWSESSION {
         getToken(u);
 
         WHILE NOT totalCountType() == 'Equal' DO {
@@ -1720,7 +1746,7 @@ getNewEvents 'Получить новые сообщения' (Box box) {
 }
 
 EXTEND FORM messages
-    PROPERTIES(b) getNewEvents
+    PROPERTIES(u,b) getNewEvents
 ;
 
 //Document
@@ -1857,8 +1883,8 @@ WHEN SETCHANGED(lastPatchTimestampTicks(message(Document d))) DO {
     needCheckStatus(d) <- TRUE;
 }
 
-getDocument 'Обновить информацию по документу' (Box b, Document d) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+getDocument 'Обновить информацию по документу' (User u, Box b, Document d) {
+    NEWSESSION {
         getToken(u);
         
         LOCAL result = FILE ();
@@ -1928,7 +1954,7 @@ getDocument 'Обновить информацию по документу' (Box
 }
 
 EXTEND FORM documents
-    PROPERTIES(b,d) getDocument TOOLBAR
+    PROPERTIES(u,b,d) getDocument TOOLBAR
 ;
 
 
@@ -2764,8 +2790,8 @@ showMessageReceipt (Document d) = CASE
     WHEN primaryStatusText(d) == 'Требуется подписать извещение' THEN TRUE
     WHEN primaryStatusText(d) == 'Требуется уточнение. Требуется подписать извещение' THEN TRUE
     WHEN primaryStatusText(d) == 'Требуется подпись. Требуется подписать извещение' THEN TRUE;
-messageReceipt 'Подписать и отправить извещение о получении' (Box b, Document d) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+messageReceipt 'Подписать и отправить извещение о получении' (User u, Box b, Document d) {
+    NEWSESSION {
         LOCAL localEntity = Entity ();
         localEntity() <- GROUP LAST Entity e IF attachmentType(e) == AttachmentType.invoiceCorrectionRequest AND message(patch(e)) == message(d) ORDER rawCreationDateTicks(e), e;
         box() <- b;
@@ -2801,13 +2827,13 @@ messageReceipt 'Подписать и отправить извещение о �
                 MESSAGE 'Ошибка отправки извещения о получении ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
             APPLY;
-            getDocument(b,d);
+            getDocument(u,b,d);
         }
     }
 }
 
 EXTEND FORM documents
-    PROPERTIES(b,d) TOOLBAR messageReceipt SHOWIF showMessageReceipt(d)
+    PROPERTIES(u,b,d) TOOLBAR messageReceipt SHOWIF showMessageReceipt(d)
 ;
 
 //----------------------- InvoiceCorrectionRequest Уведомление об уточнении -----------------------//
@@ -2847,8 +2873,8 @@ DESIGN dialogErrorMessage {
 
 showMessageInvoiceCorrectionRequest (Box b, Document d) = CASE
     WHEN NOT (primaryStatusText(d) == 'Исправлен' OR primaryStatusText(d) == 'Ожидается уточнение' OR primaryStatusText(d) == 'Отказано в подписи контрагенту') AND toBox(message(d)) == b AND d IS Document THEN TRUE;
-messageInvoiceCorrectionRequest 'Подписать и отправить уведомление об уточнении' (Box b, Document d) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+messageInvoiceCorrectionRequest 'Подписать и отправить уведомление об уточнении' (User u, Box b, Document d) {
+    NEWSESSION {
         box() <- b;
         message() <- message(d);
         parentEntity(0) <- entity(d);
@@ -2881,22 +2907,22 @@ messageInvoiceCorrectionRequest 'Подписать и отправить уве
                     MESSAGE 'Ошибка отправки уведомления об уточнении ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                 }
                 APPLY;
-                getDocument(b,d);
+                getDocument(u,b,d);
             }
         }
     }
 }
 
 EXTEND FORM documents
-    PROPERTIES(b,d) TOOLBAR messageInvoiceCorrectionRequest SHOWIF showMessageInvoiceCorrectionRequest(b,d)
+    PROPERTIES(u,b,d) TOOLBAR messageInvoiceCorrectionRequest SHOWIF showMessageInvoiceCorrectionRequest(b,d)
 ;
 
 //----------------------- RevocationRequest Предложение об аннулировании -----------------------//
 //комментарий и Signer не обязательны
 showMessageRevocationRequest (Document d) = CASE
     WHEN NOT (primaryStatusText(d) == 'Требуется подпись' OR primaryStatusText(d) == 'Требуется подпись. Требуется подписать извещение' OR primaryStatusText(d) == 'Ожидается аннулирование' OR primaryStatusText(d) == 'Требуется аннулирование' OR primaryStatusText(d) == 'Аннулирован' OR primaryStatusText(d) == 'Контрагент отказал в подписи' OR primaryStatusText(d) == 'Отказано в подписи контрагенту') AND d IS Document THEN TRUE;
-messageRevocationRequest 'Подписать и отправить предложение об аннулировании' (Box b, Document d) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+messageRevocationRequest 'Подписать и отправить предложение об аннулировании' (User u, Box b, Document d) {
+     NEWSESSION {
         box() <- b;
         message() <- message(d);
         parentEntity(0) <- entity(d);
@@ -2924,19 +2950,19 @@ messageRevocationRequest 'Подписать и отправить предло�
             MESSAGE 'Ошибка отправки предложения об аннулировании ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
         }
         APPLY;
-        getDocument(b,d);
+        getDocument(u,b,d);
     }
 }
 
 EXTEND FORM documents
-    PROPERTIES(b,d) TOOLBAR messageRevocationRequest SHOWIF showMessageRevocationRequest(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRevocationRequest SHOWIF showMessageRevocationRequest(d)
 ;
 
 //----------------------- Signature Аннулирование -----------------------//
 showMessageRevocationSignature (Document d) = CASE
     WHEN primaryStatusText(d) == 'Требуется аннулирование' AND d IS Document THEN TRUE;
-messageRevocationSignature 'Аннулировать' (Box b, Document d) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+messageRevocationSignature 'Аннулировать' (User u, Box b, Document d) {
+    NEWSESSION {
         box() <- b;
         message() <- message(d);
         parentEntity(0) <- GROUP LAST Entity e IF attachmentType(e) == AttachmentType.revocationRequest AND message(patch(e)) == message(d) ORDER rawCreationDateTicks(e), e;
@@ -2961,12 +2987,12 @@ messageRevocationSignature 'Аннулировать' (Box b, Document d) {
             MESSAGE 'Ошибка аннулирования ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
         }
         APPLY;
-        getDocument(b,d);
+        getDocument(u,b,d);
     }
 }
 
 EXTEND FORM documents
-    PROPERTIES(b,d) TOOLBAR messageRevocationSignature SHOWIF showMessageRevocationSignature(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRevocationSignature SHOWIF showMessageRevocationSignature(d)
 ;
 
 //----------------------- XmlSignatureRejection Отказ от аннулирования -----------------------//
@@ -2982,8 +3008,8 @@ FORM exportSignatureRejectionInfo
 
 showMessageRevocationRejection (Document d) = CASE
     WHEN primaryStatusText(d) == 'Требуется аннулирование' AND d IS Document THEN TRUE;
-messageRevocationRejection 'Отказ от аннулирования' (Box b, Document d) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+messageRevocationRejection 'Отказ от аннулирования' (User u, Box b, Document d) {
+    NEWSESSION {
         box() <- b;
         message() <- message(d);
         parentEntity(0) <- GROUP LAST Entity e IF attachmentType(e) == AttachmentType.revocationRequest AND message(patch(e)) == message(d) ORDER rawCreationDateTicks(e), e;
@@ -3015,32 +3041,32 @@ messageRevocationRejection 'Отказ от аннулирования' (Box b, 
                 MESSAGE 'Ошибка отказа от аннулирования ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
             APPLY;
-            getDocument(b,d);
+            getDocument(u,b,d);
         }
     }
 }
 
 EXTEND FORM documents
-    PROPERTIES(b,d) TOOLBAR messageRevocationRejection SHOWIF showMessageRevocationRejection(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRevocationRejection SHOWIF showMessageRevocationRejection(d)
 ;
 
 //----------------------- Signature Подпись -----------------------//
 showMessageSignature (Document d) = CASE
     WHEN primaryStatusText(d) == 'Требуется подпись' AND d IS Document THEN TRUE;
-overMessageSignature ABSTRACT LIST (Box,Document);
-messageSignature 'Подписать' (Box b, Document d) {
-    overMessageSignature(b,d);
+overMessageSignature ABSTRACT LIST (User,Box,Document);
+messageSignature 'Подписать' (User u, Box b, Document d) {
+    overMessageSignature(u,b,d);
 }
 
 EXTEND FORM documents
-    PROPERTIES(b,d) TOOLBAR messageSignature SHOWIF showMessageSignature(d)
+    PROPERTIES(u,b,d) TOOLBAR messageSignature SHOWIF showMessageSignature(d)
 ;
 
 //----------------------- XmlSignatureRejection Отказ в подписи -----------------------//
 showMessageRejection (Document d) = CASE
     WHEN primaryStatusText(d) == 'Требуется подпись' AND d IS Document THEN TRUE;
-messageRejection 'Отказ в подписи' (Box b, Document d) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+messageRejection 'Отказ в подписи' (User u, Box b, Document d) {
+    NEWSESSION {
         box() <- b;
         message() <- message(d);
         parentEntity(0) <- entity(d);
@@ -3072,13 +3098,13 @@ messageRejection 'Отказ в подписи' (Box b, Document d) {
                 MESSAGE 'Ошибка отказа в подписи ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
             APPLY;
-            getDocument(b,d);
+            getDocument(u,b,d);
         }
     }
 }
 
 EXTEND FORM documents
-    PROPERTIES(b,d) TOOLBAR messageRejection SHOWIF showMessageRejection(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRejection SHOWIF showMessageRejection(d)
 ;
 
 //------------ Создание документа на основе -------------//
