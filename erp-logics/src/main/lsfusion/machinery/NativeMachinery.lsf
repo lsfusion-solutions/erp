@@ -14,16 +14,6 @@ sendMachineryPriceTransaction ABSTRACT LIST (MachineryPriceTransaction);
 
 receiveGroupMachinery ABSTRACT LIST (GroupMachinery);
 
-sendMachineryPriceTransactions 'Загрузка прайса в оборудование (native)' () {
-    FOR process(MachineryPriceTransaction t) AND isNative(t) DO
-        sendMachineryPriceTransaction(t);
-}
-
-receiveGroupsMachinery 'Получение данных из оборудования (native)' () {
-    FOR GroupMachinery g IS GroupMachinery AND isNative(g) AND active(g) DO
-        receiveGroupMachinery(g);
-}
-
 addMachineryError ABSTRACT (Object, STRING, TEXT);
 
 addMachineryError (Object t, STRING data) {
@@ -32,6 +22,24 @@ addMachineryError (Object t, STRING data) {
 
 addMachineryError (Object t) {
     addMachineryError (t, System.messageCaughtException());
+}
+
+sendMachineryPriceTransactions 'Загрузка прайса в оборудование (native)' () {
+    FOR process(MachineryPriceTransaction t) AND isNative(t) NOINLINE DO
+        TRY {
+            sendMachineryPriceTransaction(t);
+        } CATCH {
+            addMachineryError(t);        
+        }
+}
+
+receiveGroupsMachinery 'Получение данных из оборудования (native)' () {
+    FOR GroupMachinery g IS GroupMachinery AND isNative(g) AND active(g) NOINLINE DO
+        TRY {
+            receiveGroupMachinery(g);
+        } CATCH {
+            MESSAGE CONCAT '/n', 'error: ' + System.messageCaughtException(), 'on: ' + name(g);
+        }
 }
 
 addMachineryError (MachineryPriceTransaction t, STRING data, TEXT errorTrace) + {
