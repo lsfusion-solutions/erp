@@ -224,14 +224,6 @@ overMaxDeviationPrice 'Макс. цена' (InvoiceDetail d) = IF orderDetail(d)
 overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF orderDetail(d) AND NOT useAgreementsPrice() THEN minDeviationPriceOrder(d) ELSE minDeviationPrice(d);
                                                                                                                       
 skipMaxDeviationPrice = ABSTRACT BOOLEAN (InvoiceDetail);                                                                                                                     
-
-CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
-           isPosted(d) AND price(d) > overMaxDeviationPrice(d) AND NOT skipMaxDeviationPrice(d)   
-           MESSAGE 'Для строки накладной превышен максимальный допустимый процент отклонения по цене';    
-
-CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
-           isPosted(d) AND price(d) < overMinDeviationPrice(d) AND NOT skipMaxDeviationPrice(d)      
-           MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';    
            
 banNotAgreementsPrice'Запретить оприходование накладных без прайса' = DATA BOOLEAN (Agreement);
 EXTEND FORM agreement
@@ -254,6 +246,14 @@ CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED
 CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
     isPosted(d) AND banNotAgreementsPrice(agreement(d)) AND NOT agreementsPrice(d)
         MESSAGE 'Запрещен ввод заказа без прайса';                       
+
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
+    isPosted(d) AND price(d) > overMaxDeviationPrice(d) AND NOT skipMaxDeviationPrice(d)   
+        MESSAGE 'Для строки накладной превышен максимальный допустимый процент отклонения по цене';    
+
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
+    isPosted(d) AND price(d) < overMinDeviationPrice(d) AND NOT skipMaxDeviationPrice(d)      
+        MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';    
                            
 //--------------------------- Запрет на оприходование без заявки --------------------------------------//
 
