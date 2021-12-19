@@ -77,6 +77,8 @@ quantum (Item i) = ABSTRACT NUMERIC[16,5];
 oldPrice (Item i, DepartmentStore d) = ABSTRACT NUMERIC[16,4];
 available(Item i, DepartmentStore s) = ABSTRACT NUMERIC[16,5];
 
+inOnlineYandex (Item i, DepartmentStore d) = ABSTRACT BOOLEAN;
+
 stock (YandexEdaAuth client, STRING id) = ABSTRACT DepartmentStore;
 
 CLASS ModiffersGroup 'Группы модификаторов';
@@ -100,7 +102,8 @@ FORM nomenclature 'Номенклатура ЯндексЕда'
          isCatchWeight(i), currentPrice(i,s) EXTID 'price', oldPrice(i,s)
     PROPERTIES IN measure = grossWeight(i) * 1000 EXTID 'value', = IF grossWeight(i) THEN 'GRM' EXTID 'unit', quantum(i)
     PROPERTIES IN volume = round0(volume(i)) EXTID 'value', = IF volume(i) THEN 'DMQ' EXTID 'unit'
-    PROPERTIES IN barcode idBarcode(i) EXTID 'value', = IF isCatchWeight(i) == TTRUE THEN 'ean13-tail-gram-5' ELSE 'none' EXTID 'weightEncoding'
+    PROPERTIES IN barcode idBarcode(i) EXTID 'value', = IF idBarcode(i) THEN 'ean13' EXTID 'type', 
+        = IF isCatchWeight(i) == TTRUE THEN 'ean13-tail-gram-5' ELSE 'none' EXTID 'weightEncoding'
     PROPERTIES IN description general(i), composition(i), nutritionalValue(i), purpose(i), conditionsText(i) EXTID 'storageRequirements',
         = OVERRIDE STRING(expiryDays(i)) EXTID 'expiresIn', = OVERRIDE nameCountry(i), '' EXTID 'vendorCountry', packageInfo(i), 
         vendorName(i)
@@ -109,7 +112,7 @@ FORM nomenclature 'Номенклатура ЯндексЕда'
     PROPERTIES urlHttpAccess(images) EXTID 'url', hashImage(images) EXTID 'hash'
     FILTERS images = i
         
-    FILTERS inOnline(i,s)
+    FILTERS inOnlineYandex(i,s)
 ;  
 
     
@@ -118,7 +121,8 @@ FORM availability 'Наличие Яндекс.Еда'
     
     OBJECTS i = Item EXTID 'items'
     PROPERTIES id(i), available(i, s) EXTID 'stock', currentPrice(i, s) EXTID 'price'
-    FILTERS inOnline(i, s); 
+    FILTERS inOnlineYandex(i, s)
+; 
 
 
 //-------------------- /v1/nomenclature/{placeId}/composition(availability)------------------------//
