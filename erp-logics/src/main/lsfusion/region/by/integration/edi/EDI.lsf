@@ -29,6 +29,7 @@ exportedCanceled 'Экспортирован (отмена)' = DATA BOOLEAN (EOr
 isClosed 'Закрыт' = ABSTRACT BOOLEAN (EOrder);
 isOpened = ABSTRACT BOOLEAN (EOrder);
 isCancel 'Отмена заказа' = ABSTRACT BOOLEAN (EOrder);
+isReturn 'Возврат' = ABSTRACT BOOLEAN (EOrder);
 
 @defineOption(sendCurrentDateTime, 'Использовать текущую дату при отправке заказа поставщику', EDI);
 dateTime 'Дата/время документа' = ABSTRACT DATETIME (EOrder);
@@ -223,7 +224,7 @@ showCancel (EOrder o) = IF NOT banCancel(supplier(o)) THEN TRUE ELSE IF currentD
 
 FORM eOrders 'Заказы EDI'
     OBJECTS o = EOrder
-    PROPERTIES(o) READONLY exported CHANGEABLE, isCancel, exportedCanceled CHANGEABLE, isClosed, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, 
+    PROPERTIES(o) READONLY exported CHANGEABLE, isCancel, exportedCanceled CHANGEABLE, isClosed, isReturn, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, 
                   nameEDIProvider, GLNSupplierStock, nameCustomer, nameCustomerStock, note
     PROPERTIES(o) sendApply TOOLBAR
     FILTERGROUP isEdi 
@@ -262,6 +263,9 @@ dateTime 'Дата/время сообщения' = DATA DATETIME (EOrderMessage
 code 'Код сообщения' = DATA STRING[10] (EOrderMessage);
 description 'Текст сообщения' = DATA STRING[1000] (EOrderMessage);
 good = ABSTRACT CASE BOOLEAN (EOrderMessage);
+priority(EOrderMessage m) = IF good(m) THEN 0 ELSE 1;
+currentOrderMessage = GROUP LAST EOrderMessage m ORDER priority(m), dateTime(m), m BY eOrder(m);
+statusDescription 'Статус отправки EDI'(EOrder o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
 
 EXTEND FORM eOrders
 OBJECTS m = EOrderMessage

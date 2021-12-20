@@ -1,0 +1,106 @@
+MODULE PurchaseReturnOrderEDI;
+
+REQUIRE PurchaseReturnOrder, EDI, PurchaseOrderEDI;
+
+NAMESPACE EDI;
+
+EXTEND CLASS PurchaseReturn.UserOrder : EOrder;
+
+isClosed(PurchaseReturn.UserOrder o) += PurchaseReturn.isClosed(o);
+isOpened(PurchaseReturn.UserOrder o) += PurchaseReturn.isOpened(o);
+isReturn(PurchaseReturn.UserOrder o) += TRUE IF o IS PurchaseReturn.UserOrder;
+dateTime(PurchaseReturn.UserOrder o) += PurchaseReturn.dateTime[PurchaseReturn.UserOrder](o);
+shipmentDateTime(PurchaseReturn.UserOrder o) += PurchaseReturn.shipmentDateTime[PurchaseReturn.UserOrder](o);
+number(PurchaseReturn.UserOrder o) += PurchaseReturn.number(o);
+supplier(PurchaseReturn.UserOrder o) += PurchaseReturn.customer(o);
+supplierStock(PurchaseReturn.UserOrder o) += PurchaseReturn.customerStock(o);
+customer(PurchaseReturn.UserOrder o) += PurchaseReturn.supplier(o);
+customerStock(PurchaseReturn.UserOrder o) += PurchaseReturn.supplierStock(o);
+note(PurchaseReturn.UserOrder o) += PurchaseReturn.note(o);
+
+EXTEND CLASS PurchaseReturn.UserOrderDetail : EOrderDetail;
+
+order(PurchaseReturn.UserOrderDetail o) += PurchaseReturn.userOrder(o);
+sku(PurchaseReturn.UserOrderDetail o) += PurchaseReturn.sku(o);
+quantity(PurchaseReturn.UserOrderDetail o) += PurchaseReturn.quantity(o);
+price(PurchaseReturn.UserOrderDetail o) += PurchaseReturn.price(o);
+valueVAT(PurchaseReturn.UserOrderDetail o) += PurchaseReturn.valueVAT(o);
+
+isEOrder(PurchaseReturn.Order o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o)) AND NOT isCompany(supplier(o));
+isEOrder(PurchaseReturn.UserOrder o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o)) AND NOT isCompany(supplier(o));
+isEOrder(PurchaseReturn.OrderDetail d) = isEOrder(order(d));
+isEOrder(PurchaseReturn.UserOrderDetail d) = isEOrder(userOrder(d));
+
+responseNote 'Примечание поставщика' (PurchaseReturn.Order o) = note(response(o)) IN documentPrm;
+
+quantityResponseEDI 'Подтвержденное количество (EDI)'(PurchaseReturn.OrderDetail d) = quantityAccepted(responseDetail(d));
+quantityResponseEDI = GROUP SUM quantityResponseEDI(PurchaseReturn.OrderDetail d) BY order(d) MATERIALIZED;
+backgroundQuantityResponseEDI(PurchaseReturn.OrderDetail d) = RGB(255,0,0) IF quantityResponseEDI(d) != quantity(d);
+
+priceResponseEDI 'Подтвержденная цена (EDI)'(PurchaseReturn.OrderDetail d) = price(responseDetail(d));
+backgroundPriceResponseEDI(PurchaseReturn.OrderDetail d) = RGB(255,0,0) IF priceResponseEDI(d) != price(d);
+
+EXTEND FORM PurchaseReturn.userOrder
+    PROPERTIES (o) READONLY SHOWIF isEOrder(o) responseNote
+    PROPERTIES (d) READONLY SHOWIF isEOrder(d) quantityResponseEDI BEFORE quantity(d) BACKGROUND backgroundQuantityResponseEDI(d),
+                                               priceResponseEDI BEFORE price(d) BACKGROUND backgroundPriceResponseEDI(d);
+
+EXTEND FORM PurchaseReturn.orders
+    PROPERTIES (o) READONLY responseNote
+    PROPERTIES (d) READONLY SHOWIF isEOrder(d) quantityResponseEDI BEFORE quantity(d) BACKGROUND backgroundQuantityResponseEDI(d),
+                                               priceResponseEDI BEFORE price(d) BACKGROUND backgroundPriceResponseEDI(d);
+
+skipSetShipmentDateEDI = ABSTRACT BOOLEAN (PurchaseReturn.UserOrder);
+
+WHEN SET (PurchaseReturn.UserOrder o == eOrder(EOrderResponse od)) AND deliveryDateTime(od) AND NOT skipSetShipmentDateEDI(o) DO {
+    shipmentDate(o) <- DATE(deliveryDateTime(od));
+    shipmentTime(o) <- TIME(deliveryDateTime(od)) WHERE NOT shipmentTime(o);
+}
+
+despatchAdviceDetail (PurchaseReturn.UserOrderDetail d) = GROUP MAX EOrderDespatchAdviceDetail ed IF eOrder(orderDespatchAdvice(ed)) == order(d) AND sku(ed) == sku(d);
+
+skuWithoutPrice 'Товары без цены' (PurchaseReturn.Order o) = GROUP CONCAT idSku(PurchaseReturn.OrderDetail d) + ' ' + nameSku(d), '\n' IF NOT price(d) ORDER d BY order(d);
+
+sendEOrder 'Подписать и отправить электронный заказ' (PurchaseReturn.Order order) { 
+    IF isEOrder[PurchaseReturn.UserOrder](order) THEN {
+        IF NOT skipSend(order) THEN {
+            
+            IF NOT countOrderDetail(order) THEN {
+                MESSAGE 'В заказе нет строк. Отправка отменена.';
+                RETURN;
+            }
+            
+            IF shipmentDateTime(order) < sumMinutes(currentDateTime(), 60) THEN { //конкретно у СТТ текущего + час, поэтому пока для всех такое
+                MESSAGE 'Дата/время поставки не может быть меньше текущего. Отправка отменена.';
+                RETURN;
+            }
+            
+            IF (skuWithoutPrice(order)) THEN {
+                MESSAGE 'Заказ не может быть отправлен, так как есть товары без цены: \n' + skuWithoutPrice(order) + '\nОтправка отменена';
+                RETURN;
+            }
+            
+            send[EOrder](order);
+        } ELSE {
+            overSend(order);
+        }
+    }
+}
+
+EXTEND FORM PurchaseReturn.orders
+    PROPERTIES(o) PANEL sendEOrder SHOWIF isEOrder(o) AND NOT exported[EOrder](o)
+; 
+
+DESIGN PurchaseReturn.orders {
+    actionContainer {
+        NEW EDI {
+            caption = 'EDI';
+                MOVE PROPERTY (sendEOrder(o));
+        }
+    }
+}
+
+backgroundStatusEDI(PurchaseReturn.Order o) = IF currentOrderMessage(o) THEN IF good(currentOrderMessage(o)) THEN RGB(212,255,212) ELSE RGB (255,128,128);
+
+EXTEND FORM PurchaseReturn.orders 
+    PROPERTIES (o) statusDescription BACKGROUND backgroundStatusEDI(o);
