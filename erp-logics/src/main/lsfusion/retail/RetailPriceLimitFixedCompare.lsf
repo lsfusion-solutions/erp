@@ -5,16 +5,16 @@ REQUIRE RetailPriceLimitFixed;
 PRIORITY Purchase;
 NAMESPACE RetailPriceLimitFixed;
 
-@defineDocumentInterfaceProperty (invoice, showMaxLimitRetailPrice, 'Предельная розничная цена');
-maxLimitRetailPrice 'Предельная розничная цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
-maxLimitRetailPrice 'Предельная розничная цена' = DATA NUMERIC[16,4] (UserInvoiceDetail) CHARWIDTH 7;
+@defineDocumentInterfaceProperty (invoice, showMaxLimitRetailPrice, 'Предельная розничная цена (МРЦ)');
+maxLimitRetailPrice 'Предельная розничная цена (МРЦ)' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+maxLimitRetailPrice 'Предельная розничная цена (МРЦ)' = DATA NUMERIC[16,4] (UserInvoiceDetail) CHARWIDTH 7;
 maxLimitRetailPrice (UserInvoiceDetail invoiceDetail) += maxLimitRetailPrice(invoiceDetail);       
 
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
 // Вид цены для расценки для операции
-showMaxLimitRetailPrice 'Предельная розничная цена' (operation) = DATA BOOLEAN(Pricing.Operation);
+showMaxLimitRetailPrice 'Предельная розничная цена (МРЦ)' (operation) = DATA BOOLEAN(Pricing.Operation);
 
 EXTEND FORM Pricing.operation
     PROPERTIES(o) showMaxLimitRetailPrice
@@ -46,8 +46,11 @@ DESIGN userInvoice{
 EXTEND FORM invoices
     PROPERTIES(d) READONLY SHOWIF showIfMaxLimitRetailPrice(i) BEFORE retailPrice(d) maxLimitRetailPrice BACKGROUND backgroundRetail(i)
 ;
-//-- Скипаем стандартное событие
-skipMaxLimitRetailPricePerc(UserInvoiceDetail d) += TRUE;
+
+// Одновременная работа и событие и ограничение
+allowMaxLimitRetailPricePerc = ABSTRACT BOOLEAN ();
+//-- Скипаем стандартное событие. 
+skipMaxLimitRetailPricePerc(UserInvoiceDetail d) += TRUE IF NOT allowMaxLimitRetailPricePerc();
 
 showIfMaxLimitRetailPrice(UserInvoiceDetail d) = showIfMaxLimitRetailPrice(userInvoice(d));
 
@@ -62,8 +65,11 @@ allowMaxRetailPrice(UserInvoice o) += allowMaxRetailPrice(o);
 allowMaxRetailPrice (UserInvoiceDetail d) = allowMaxRetailPrice(userInvoice(d));
 allowMaxRetailPrice (InvoiceDetail d) = allowMaxRetailPrice(invoice(d));
 
+showIfMaxLimitRetailPriceSkip = ABSTRACT BOOLEAN();
+showIfMaxLimitRetailPriceOver(UserInvoice i) =  showIfMaxLimitRetailPrice(i) AND NOT showIfMaxLimitRetailPriceSkip();
+
 EXTEND FORM userInvoice
-    PROPERTIES(i) SHOWIF  showIfMaxLimitRetailPrice(i) BACKGROUND backgroundRetail(i)
+    PROPERTIES(i) SHOWIF  showIfMaxLimitRetailPriceOver(i) BACKGROUND backgroundRetail(i)
                   allowMaxRetailPrice
 ;
 DESIGN userInvoice {
@@ -72,7 +78,10 @@ DESIGN userInvoice {
     }
 }
 
+allowMaxRetailPriceOver = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+allowMaxRetailPriceOver(UserInvoiceDetail d)+= allowMaxRetailPrice(d);
+
 CONSTRAINT (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR SETCHANGED(maxLimitRetailPrice(d)) OR CHANGED(showIfMaxLimitRetailPrice(d)) OR CHANGED(allowMaxRetailPrice(d)) OR SET(isPosted(d))) 
-    AND isPosted(d) AND calcCheckLimitRetailPrice(sku(d)) AND showIfMaxLimitRetailPrice(d)  AND maxLimitRetailPrice(d) < retailPrice(d) AND NOT allowMaxRetailPrice(d)
+    AND isPosted(d) AND calcCheckLimitRetailPrice(sku(d)) AND showIfMaxLimitRetailPrice(d)  AND maxLimitRetailPrice(d) < retailPrice(d) AND NOT allowMaxRetailPriceOver(d)
         MESSAGE 'Внимание!!! Превышена предельная розничная цена';
 
