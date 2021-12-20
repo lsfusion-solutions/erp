@@ -11,6 +11,7 @@ import equ.api.stoplist.StopListItem;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.DaemonThreadFactory;
+import lsfusion.base.Pair;
 import lsfusion.base.file.IOUtils;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpResponse;
@@ -53,6 +54,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     private static final Namespace ns1WithdrawalsNamespace = Namespace.getNamespace("ns1", "http://withdrawals.erpi.crystals.ru");
     private static final Namespace ns1ZReportsNamespace = Namespace.getNamespace("ns1", "http://zreports.erpi.crystals.ru");
     private static final Namespace ns2ProductsNamespace = Namespace.getNamespace("ns2", "http://plugins.products.ERPIntegration.crystals.ru/");
+    private static final Namespace feedbackNamespace = Namespace.getNamespace("feed", "http://feedback.ERPIntegration.crystals.ru/");
+
+    private static final String goodsUrl = "/SET/WSGoodsCatalogImport";
+    private static final String cardsUrl = "/SET/WSCardsCatalogImport";
+    private static final String feedbackUrl = "/SET/FeedbackWS";
 
     private final Map<String, List<String>> requestSalesInfoMap = new HashMap<>();
     // ----------------- http server ----------------- //
@@ -629,7 +635,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                             processStopListLogger.error(getLogPrefix() + response);
                             throw new RuntimeException(getLogPrefix() + response);
                         }
-                    } catch (JDOMException e) {
+                    } catch (JDOMException | InterruptedException e) {
                         processStopListLogger.error(getLogPrefix(), e);
                         throw Throwables.propagate(e);
                     }
@@ -794,7 +800,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         processStopListLogger.error(getLogPrefix() + response);
                         throw new RuntimeException(getLogPrefix() + response);
                     }
-                } catch (JDOMException e) {
+                } catch (JDOMException | InterruptedException e) {
                     processStopListLogger.error(getLogPrefix(), e);
                     throw Throwables.propagate(e);
                 }
@@ -1021,10 +1027,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             String discountCard = null;
             List<Element> discountCardsList = purchaseNode.getChildren("discountCards");
-            for (Object discountCardNode : discountCardsList) {
-                List<Element> discountCardList = ((Element) discountCardNode).getChildren("discountCard");
-                for (Object discountCardEntry : discountCardList) {
-                    discountCard = ((Element) discountCardEntry).getValue();
+            for (Element discountCardNode : discountCardsList) {
+                List<Element> discountCardList = discountCardNode.getChildren("discountCard");
+                for (Element discountCardEntry : discountCardList) {
+                    discountCard = discountCardEntry.getValue();
                     if (discountCard != null && !couponsList.contains(discountCard)) {
                         discountCard = discountCard.trim();
                         if(discountCard.length() > 18)
@@ -1039,9 +1045,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             BigDecimal currentPaymentSum = BigDecimal.ZERO;
 
 
-            for (Object positionNode : positionsList) {
+            for (Element positionNode : positionsList) {
 
-                List positionEntryList = ((Element) positionNode).getChildren("position");
+                List positionEntryList = positionNode.getChildren("position");
 
                 int count = 1;
                 String departNumber = null;
@@ -1100,7 +1106,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
 
                         // временно для касс самообслуживания в виталюре
-                        if (ignoreSalesWeightPrefix && barcode.length() == 13 && barcode.startsWith("22") && !barcode.substring(8, 13).equals("00000") &&
+                        if (ignoreSalesWeightPrefix && barcode.length() == 13 && barcode.startsWith("22") && !barcode.startsWith("00000", 8) &&
                                 quantity != null && (quantity.intValue() != quantity.doubleValue() || parseWeight(barcode.substring(7, 12)) == quantity.doubleValue()))
                             barcode = barcode.substring(2, 7);
                     }
@@ -1215,15 +1221,18 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         os.close();
     }
 
-    private String sendRequestGoods(String url, String xml) throws IOException, JDOMException {
-        return sendRequest(url + "/SET/WSGoodsCatalogImport", xml, plugProductsNamespace, "getGoodsCatalogWithTi", "goodsCatalogXML", "getGoodsCatalogWithTiResponse", ns2ProductsNamespace);
+    private String sendRequestGoods(String url, String xml) throws IOException, JDOMException, InterruptedException {
+        return sendRequest(url, goodsUrl, xml, plugProductsNamespace, "getGoodsCatalogWithTi", "goodsCatalogXML", "getGoodsCatalogWithTiResponse", ns2ProductsNamespace);
     }
 
-    private String sendRequestCards(String url, String xml) throws IOException, JDOMException {
-        return sendRequest(url + "/SET/WSCardsCatalogImport", xml, webNamespace, "getCardsCatalogWithTi", "cardsCatalogXML", "getCardsCatalogWithTiResponse", webNamespace);
+    private String sendRequestCards(String url, String xml) throws IOException, JDOMException, InterruptedException {
+        return sendRequest(url, cardsUrl, xml, webNamespace, "getCardsCatalogWithTi", "cardsCatalogXML", "getCardsCatalogWithTiResponse", webNamespace);
     }
 
-    private String sendRequest(String url, String xml, Namespace namespace, String getCatalogTagWithTi, String catalogXMLTag, String getCatalogWithTiResponseTag, Namespace responseNamespace) throws IOException, JDOMException { //http://192.168.42.211:8090/SET-ERPIntegration
+    private String sendRequest(String baseUrl, String url, String xml, Namespace namespace, String getCatalogTagWithTi, String catalogXMLTag, String getCatalogWithTiResponseTag, Namespace responseNamespace) throws IOException, JDOMException, InterruptedException { //http://192.168.42.211:8090/SET-ERPIntegration
+
+        String ti = String.valueOf(Instant.now().toEpochMilli());
+
         Element envelopeElement = new Element("Envelope", soapenvNamespace);
         envelopeElement.addNamespaceDeclaration(namespace);
 
@@ -1237,13 +1246,14 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Element catalogXML = new Element(catalogXMLTag);
         catalogXML.setContent(new CDATA(new String(Base64.encodeBase64(xml.getBytes(encoding)), encoding)));
         getCatalogWithTiElement.addContent(catalogXML);
-        addStringElement(getCatalogWithTiElement, "TI", String.valueOf(Instant.now().toEpochMilli()));
+        addStringElement(getCatalogWithTiElement, "TI", ti);
         bodyElement.addContent(getCatalogWithTiElement);
 
         Document doc = new Document(envelopeElement);
 
-        Document responseDoc = sendRequest(url, docToXMLString(doc));
-        return parseResponse(responseDoc, getCatalogWithTiResponseTag, responseNamespace);
+        Document responseDoc = sendRequest(baseUrl + url, docToXMLString(doc));
+        String responseResult = parseResponse(responseDoc, getCatalogWithTiResponseTag, responseNamespace);
+        return responseResult != null ? responseResult : getStatusMessage(baseUrl, ti);
     }
 
     private Document sendRequest(String url, String xml) throws IOException, JDOMException {
@@ -1252,6 +1262,60 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         httpPost.setEntity(new StringEntity(xml, encoding));
         HttpResponse response = HttpClientBuilder.create().build().execute(httpPost);
         return inputStreamToDoc(response.getEntity().getContent());
+    }
+
+    private String getStatusMessage(String url, String ti) throws IOException, JDOMException, InterruptedException {
+        String getStatusXML = getStatusXML(ti);
+        Pair<Integer, String> response = null;
+        while (response == null || response.first == 2) { //2 = пакет в обработке
+            Thread.sleep(1000);
+            Document responseDoc = sendRequest(url + feedbackUrl, getStatusXML);
+            response = parseStatusResponse(responseDoc);
+        }
+        return response.first == 3 ? null : response.second; // 3 = пакет обработан успешно
+    }
+
+    private String getStatusXML(String ti) {
+        Element envelopeElement = new Element("Envelope", soapenvNamespace);
+        envelopeElement.addNamespaceDeclaration(feedbackNamespace);
+
+        Element headerElement = new Element("Header", soapenvNamespace);
+        envelopeElement.addContent(headerElement);
+
+        Element bodyElement = new Element("Body", soapenvNamespace);
+        envelopeElement.addContent(bodyElement);
+
+        Element getPackageStatusElement = new Element("getPackageStatus", feedbackNamespace);
+        Element xmlGetstatusElement = new Element("xmlGetstatus");
+        Element importElement = new Element("import");
+        importElement.setAttribute("ti", ti);
+        xmlGetstatusElement.addContent(importElement);
+        getPackageStatusElement.addContent(xmlGetstatusElement);
+        bodyElement.addContent(getPackageStatusElement);
+
+        Document doc = new Document(envelopeElement);
+
+        return docToXMLString(doc);
+    }
+
+    private Pair<Integer, String> parseStatusResponse(Document responseDoc) {
+        Element rootNode = responseDoc.getRootElement();
+        Element bodyElement = rootNode.getChild("Body", soapenvNamespace);
+        if(bodyElement != null) {
+            Element getPackageStatusResponseElement = bodyElement.getChild("getPackageStatusResponse", feedbackNamespace);
+            if(getPackageStatusResponseElement != null) {
+                Element xmlGetstatusElement = getPackageStatusResponseElement.getChild("xmlGetstatus");
+                if(xmlGetstatusElement != null) {
+                    Element importElement = xmlGetstatusElement.getChild("import");
+                    if(importElement != null) {
+                        Integer status = Integer.parseInt(importElement.getAttributeValue("status"));
+                        return Pair.create(status, new XMLOutputter().outputString(importElement));
+                    }
+
+                }
+            }
+        }
+        return Pair.create(-2, "Unknown error");
     }
 
     private String parseResponse(Document responseDoc, String getCatalogWithTiResponseTag, Namespace responseNamespace) {
