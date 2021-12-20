@@ -65,20 +65,20 @@ calcSaleArticleParamsInterval 'Рассчитать продажи в день �
     
     WHILE dateCur() <= dateTo DO {
         daysOnStock(Article a, Stock stock) <- daysOnStock(a, stock) (+)
-                   (1 IF ((balance(a, stock) > 0) OR (quantity(a, stock, dateCur()) > 0)));
-        cumBalance(Article a, Stock stock) <- cumBalance(a, stock) (+) balance(a, stock);  
+                   (1 IF ((balance(a, stock) > 0) OR (quantity(a, stock, dateCur()) > 0))) WHERE inArticleReport(stock);
+        cumBalance(Article a, Stock stock) <- cumBalance(a, stock) (+) balance(a, stock) WHERE inArticleReport(stock);  
         balance(Article a, Stock stock) <- balance(a, stock) (+)
-                   signedQuantity(a, stock, dateCur());
+                   signedQuantity(a, stock, dateCur()) WHERE inArticleReport(stock);
         daysOnStock(Article a) <- daysOnStock(a) (+) (1 IF (GROUP SUM 1 IF ((balance(a, Stock stock) > 0) OR (quantity(a, stock, dateCur()) > 0)) AND inArticleReport(stock)));                                                
 
         dateCur() <- sum(dateCur(), 1);
     }
 
-    averageReportSold(Article a, Stock stock) <- quantitySold (a, stock, dateFrom, dateTo) / daysOnStock(a, stock);
-    turnover(Article a, Stock stock) <- IF quantitySold (a, stock, dateFrom, dateTo) != 0 THEN
+    averageReportSold(Article a, Stock stock) <- quantitySold (a, stock, dateFrom, dateTo) / daysOnStock(a, stock) WHERE inArticleReport(stock);
+    turnover(Article a, Stock stock) <- (IF quantitySold (a, stock, dateFrom, dateTo) != 0 THEN
                                          cumBalance(a, stock) / quantitySold (a, stock, dateFrom, dateTo)
                                       ELSE
-                                        9999.99;
+                                        9999.99) WHERE inArticleReport(stock);
                                         
     averageReportSold(Article a) <- quantitySoldIn (a, dateFrom, dateTo) / daysOnStock(a);
     turnover(Article a) <- IF quantitySoldIn (a, dateFrom, dateTo) != 0 THEN
