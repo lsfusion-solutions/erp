@@ -85,6 +85,7 @@ receipt_time = DATA LOCAL STRING(INTEGER);
 receipt_number = DATA LOCAL NUMERIC(INTEGER);
 document_number = DATA LOCAL NUMERIC(INTEGER);
 check_sum = DATA LOCAL NUMERIC(INTEGER);
+bar_code = DATA LOCAL STRING (INTEGER);
 kkt_reg_number = DATA LOCAL STRING(INTEGER);
 receipt_date = DATA LOCAL STRING(INTEGER);
 kkt_serial_number = DATA LOCAL STRING(INTEGER);
@@ -108,7 +109,7 @@ FORM saleDoc
 
     OBJECTS positions = INTEGER
     PROPERTIES(positions) quantity, code, initial_quantity, tare_volume, result_sum1 EXTID 'result_sum', 
-        measure_precision, sum1 EXTID 'sum', measure_name, product_name, uuid, result_price, 
+        measure_precision, sum1 EXTID 'sum', measure_name, product_name, uuid, result_price, bar_code EXTID 'bar_code',
         alcohol_product_kind_code, print_group_id1 EXTID 'print_group_id', product_type, 
         alcohol_by_volume, price, product_id, id1 EXTID 'id', cost_price, markCode EXTID 'mark'
     PROPERTIES(positions) IN tax result_sum2 EXTID 'result_sum', sum2 EXTID 'sum', type1 EXTID 'type'
@@ -186,6 +187,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
                 NEW detail = ReceiptSaleDetail DO {
                 id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j));
                 sku(detail) <- sku(code(j));
+                idBarcode(detail) <- STRING[15](bar_code(j));
                 quantity(detail) <- quantity(j);
                 price(detail) <- price(j);
                 discountSum(detail) <- discount_sum(j);
@@ -200,6 +202,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
                 sku(detail) <- sku(code(j));
                 quantity(detail) <- quantity(j);
                 price(detail) <- price(j);
+                idBarcode(detail) <- STRING[15](bar_code(j));
                 discountSum(detail) <- discount_sum(j);
                 sum(detail) <- result_sum1(j);
                 receipt(detail) <- r;
