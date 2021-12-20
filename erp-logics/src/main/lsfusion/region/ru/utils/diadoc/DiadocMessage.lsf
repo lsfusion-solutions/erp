@@ -1949,12 +1949,22 @@ getDocument 'Обновить информацию по документу' (Use
             FOR keyD(INTEGER m) DO {
                 metadata(d,keyD(m)) <- valueD(m);
             }
+            needCheckStatus(d) <- NULL;
         }
         APPLY;
     }
 }
 
+getMessagesAndDocuments 'Получить сообщения и обновить документы' (User u, Box b) {
+    getCounteragents(u, organization(b));
+    getNewEvents(u,b);
+    FOR needCheckStatus(Document d) AND (fromBox(message(d)) == b OR toBox(message(d)) == b OR proxyBox(message(d)) == b) DO {
+        getDocument(u,b,d);
+    }
+}
+
 EXTEND FORM documents
+    PROPERTIES(u,b) getMessagesAndDocuments
     PROPERTIES(u,b,d) getDocument TOOLBAR
 ;
 

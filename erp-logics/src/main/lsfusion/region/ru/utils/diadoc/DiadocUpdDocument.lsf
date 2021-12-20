@@ -418,7 +418,7 @@ GROUP vsumNal EXTID 'СумНал';
 GROUP vsviedTov EXTID 'СведТов';
 GROUP vsvTD EXTID 'СвТД';
 GROUP vdopSviedTov EXTID 'ДопСведТов';
-GROUP vnomSriedIdientTov EXTID 'НомСредИдентТов' : vdopSviedTov;
+//GROUP vnomSriedIdientTov EXTID 'НомСредИдентТов' : vdopSviedTov;
 GROUP vvsieghoOpl EXTID 'ВсегоОпл' : vtablSchFakt;
 GROUP vsumNalVsiegho EXTID 'СумНалВсего' : vvsieghoOpl;
 GROUP vsvProdPier EXTID 'СвПродПер' : vdokumient;
@@ -512,11 +512,9 @@ vsumAktsiz = DATA LOCAL STRING(INTEGER);
 vbiezAktsiz = DATA LOCAL STRING(INTEGER);
 vsumNal1 = DATA LOCAL STRING(INTEGER);
 videntTransUpak = DATA LOCAL STRING(INTEGER);
-vnomSriedIdientTovVidentTransUpak = DATA LOCAL INTEGER(INTEGER);
+vnomSriedIdientTovVsviedTov = DATA LOCAL INTEGER(INTEGER);
 vKIZ = DATA LOCAL STRING(INTEGER);
-vnomSriedIdientTovVKIZ = DATA LOCAL INTEGER(INTEGER);
 vnomUpak = DATA LOCAL STRING(INTEGER);
-vnomSriedIdientTovVnomUpak = DATA LOCAL INTEGER(INTEGER);
 vkodProish = DATA LOCAL STRING(INTEGER);
 vnomerTD = DATA LOCAL STRING(INTEGER);
 vnaimIedIzm = DATA LOCAL STRING(INTEGER);
@@ -617,27 +615,14 @@ FORM importUPD FORMEXTID 'Файл'
     PROPERTIES(vsviedTov) vnomStr EXTID 'НомСтр' ATTR, vnaimTov EXTID 'НаимТов' ATTR, vOKIeI_Tov EXTID 'ОКЕИ_Тов' ATTR, vkolTov EXTID 'КолТов' ATTR, vtsienaTov EXTID 'ЦенаТов' ATTR, vstTovBiezNDS EXTID 'СтТовБезНДС' ATTR, vnalSt EXTID 'НалСт' ATTR, vstTovUchNal EXTID 'СтТовУчНал' ATTR
     FILTERS vkolTov(vsviedTov)
     PROPERTIES(vsviedTov) IN vaktsiz vsumAktsiz EXTID 'СумАкциз'
-    //FILTERS vsumAktsiz(vsviedTov)
     PROPERTIES(vsviedTov) IN vaktsiz vbiezAktsiz EXTID 'БезАкциз'
-    //FILTERS vbiezAktsiz(vsviedTov)
     PROPERTIES(vsviedTov) IN vsumNal vsumNal1 EXTID 'СумНал'
-    //FILTERS vsumNal1(vsviedTov)
     PROPERTIES(vsviedTov) IN vsvTD vkodProish EXTID 'КодПроисх' ATTR, vnomerTD EXTID 'НомерТД' ATTR
     PROPERTIES(vsviedTov) IN vdopSviedTov vnaimIedIzm EXTID 'НаимЕдИзм' ATTR, vkrNaimStrPr EXTID 'КрНаимСтрПр' ATTR, vkodTov EXTID 'КодТов' ATTR
-    //FILTERS vprTovRab(vsviedTov)
     
-    OBJECTS videntTransUpak = INTEGER EXTID 'ИдентТрансУпак' IN vnomSriedIdientTov
-    PROPERTIES(videntTransUpak) videntTransUpak EXTID 'value'
-    FILTERS vnomSriedIdientTovVidentTransUpak(videntTransUpak) == vsviedTov
-    
-    OBJECTS vKIZ = INTEGER EXTID 'КИЗ' IN vnomSriedIdientTov
-    PROPERTIES(vKIZ) vKIZ EXTID 'value'
-    FILTERS vnomSriedIdientTovVKIZ(vKIZ) == vsviedTov
-    
-    OBJECTS vnomUpak = INTEGER EXTID 'НомУпак' IN vnomSriedIdientTov
-    PROPERTIES(vnomUpak) vnomUpak EXTID 'value'
-    //FILTERS vnomUpak(vnomUpak)
-    FILTERS vnomSriedIdientTovVnomUpak(vnomUpak) == vsviedTov
+    OBJECTS vnomSriedIdientTov = INTEGER EXTID 'НомСредИдентТов' IN vdopSviedTov
+    PROPERTIES(vnomSriedIdientTov) videntTransUpak EXTID 'ИдентТрансУпак' ATTR, vKIZ EXTID 'КИЗ', vnomUpak EXTID 'НомУпак'
+    FILTERS vnomSriedIdientTovVsviedTov(vnomSriedIdientTov) == vsviedTov
     
     OBJECTS vinfPolFKhZh2 = INTEGER EXTID 'ИнфПолФХЖ2'
     FILTERS vsviedTovVinfPolFKhZh2(vinfPolFKhZh2) == vsviedTov
@@ -725,17 +710,17 @@ createDocument(Document d) + {
                 nameCountry(dd) <- STRING[255](vkrNaimStrPr(i));
                 idSku(dd) <- STRING[100](vkodTov(i));
                 
-                FOR vnomSriedIdientTovVidentTransUpak(INTEGER j) == i NEW pd = UpdTransportPackDetail DO {
+                FOR vnomSriedIdientTovVsviedTov(INTEGER j) == i AND videntTransUpak(j) NEW pd = UpdTransportPackDetail DO {
                     updDocumentDetail(pd) <- dd;
                     id(pd) <- STRING[255](videntTransUpak(j));
                 }
                 
-                FOR vnomSriedIdientTovVKIZ(INTEGER j) == i NEW pd = UpdPackDetail DO {
+                FOR vnomSriedIdientTovVsviedTov(INTEGER j) == i AND vKIZ(j) NEW pd = UpdPackDetail DO {
                     updDocumentDetail(pd) <- dd;
                     id(pd) <- STRING[255](vKIZ(j));
                 }
                 
-                FOR vnomSriedIdientTovVnomUpak(INTEGER j) == i NEW ld = UpdLotDetail DO {
+                FOR vnomSriedIdientTovVsviedTov(INTEGER j) == i AND vnomUpak(j) NEW ld = UpdLotDetail DO {
                     updDocumentDetail(ld) <- dd;
                     id(ld) <- STRING[255](vnomUpak(j));
                 }

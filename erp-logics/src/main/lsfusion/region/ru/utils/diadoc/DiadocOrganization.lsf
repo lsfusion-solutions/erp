@@ -245,11 +245,15 @@ show 'Просмотреть' (Organization o) {
 } TOOLBAR;
 
 FORM organizations 'Организации Диадока'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) READONLY login
+    FILTERS u == userDiadoc(currentUser())
+    
     OBJECTS o = Organization
     PROPERTIES(o) READONLY orgId, shortName, fullName, inn, kpp
     PROPERTIES(o) organizationTypeName
     PROPERTIES(o) show
-    FILTERS isEmployee(o,userDiadoc(currentUser()))
+    FILTERS isEmployee(o,u)
 ;
 
 FORM dialogOrganizations 'Организации Диадока'
@@ -398,8 +402,8 @@ FORM importOrganizations
                   addressCodeD EXTID 'AddressCode'
 ;
 
-getMyOrganizations 'Получить мои организации' () {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+getMyOrganizations 'Получить мои организации' (User u) {
+    NEWSESSION {
         getToken(u);
         
         LOCAL result = FILE ();
@@ -483,7 +487,7 @@ getMyOrganizations 'Получить мои организации' () {
 }
 
 EXTEND FORM organizations
-    PROPERTIES DRAW o TOOLBAR getMyOrganizations()
+    PROPERTIES DRAW o TOOLBAR getMyOrganizations(u)
 ;
 
 //--------- Контрагенты ----------//
@@ -594,8 +598,8 @@ FORM importCounteragents
                   addressCodeD EXTID 'AddressCode'
 ;
 
-getCounteragents 'Получить список контрагентов организации' (Organization organization) {
-    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+getCounteragents 'Получить список контрагентов организации' (User u, Organization organization) {
+    NEWSESSION {
         getToken(u);
         
         LOCAL result = FILE ();
@@ -688,7 +692,7 @@ EXTEND FORM organizations
     
     FILTERGROUP isMyCounteragent FILTER 'Действует отношение партнерства' counteragentStatus(o,c) == CounteragentStatus.isMyCounteragent DEFAULT
     
-    PROPERTIES DRAW c TOOLBAR getCounteragents(o)
+    PROPERTIES DRAW c TOOLBAR getCounteragents(u,o)
 ;
 DESIGN organizations {
     BOX(c) {caption='Организация Диадока (Контрагент)';}
