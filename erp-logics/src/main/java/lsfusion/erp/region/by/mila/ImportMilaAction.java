@@ -292,7 +292,7 @@ public class ImportMilaAction extends InternalAction {
         //  Производит чтение страницы, по выбранному URL
         boolean loadUrl(String url) {
             try {
-                Connection connection = Jsoup.connect(url);
+                Connection connection = Jsoup.connect(url).maxBodySize(Integer.MAX_VALUE);
                 connection.timeout(timeout);
                 connection.userAgent(cAgent);
                 doc = connection.get();
