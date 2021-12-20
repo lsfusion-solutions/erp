@@ -71,6 +71,9 @@ public class ArtixSettings implements Serializable{
     //Если true, при выгрузке кассиров в поле rank пишем namePosition вместо idPosition
     private boolean useNamePositionInRankCashier;
 
+    //Если true, не выполняем запросы "Загрузить данные о кассирах" (рассчитываем, что выполнится аналогичный код в lsf)
+    private boolean ignoreCashierInfoRequests;
+
     public ArtixSettings() {
     }
 
@@ -256,5 +259,13 @@ public class ArtixSettings implements Serializable{
 
     public void setUseNamePositionInRankCashier(boolean useNamePositionInRankCashier) {
         this.useNamePositionInRankCashier = useNamePositionInRankCashier;
+    }
+
+    public boolean isIgnoreCashierInfoRequests() {
+        return ignoreCashierInfoRequests;
+    }
+
+    public void setIgnoreCashierInfoRequests(boolean ignoreCashierInfoRequests) {
+        this.ignoreCashierInfoRequests = ignoreCashierInfoRequests;
     }
 }

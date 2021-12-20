@@ -1166,7 +1166,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Integer timeout = artixSettings.getTimeout();
         String globalExchangeDirectory = artixSettings.getGlobalExchangeDirectory();
         boolean useNamePositionInRankCashier = artixSettings.isUseNamePositionInRankCashier();
-        if (globalExchangeDirectory != null) {
+        boolean ignoreCashierInfoRequests = artixSettings.isIgnoreCashierInfoRequests();
+        if (globalExchangeDirectory != null && !ignoreCashierInfoRequests) {
             File directory = new File(globalExchangeDirectory);
             if (directory.exists() || directory.mkdirs()) {
                 try {
