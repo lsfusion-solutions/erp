@@ -107,6 +107,7 @@ GROUP reason EXTID 'ДокументыОснования';
 GROUP reasonDocument EXTID 'ДокументОснование';
 GROUP records EXTID 'Записи';
 GROUP saleDocument EXTID 'ДокументРеализации';
+GROUP saleInvoice EXTID 'РеализацияТоваровУслугСсылка' : saleDocument;
 GROUP correctedSaleDocument EXTID 'ИсправляемыйДокументРеализации';
 GROUP specification EXTID 'Характеристика';
 GROUP commonData EXTID 'ОбщиеДанные';
@@ -344,7 +345,7 @@ END
 
 META defPropObjectDetail(name, caption, type, class, table)
     @defPropDetail(name, caption, type, class);
-    @def###type(name, class, table, caption);
+    @def###type##Detail(name, class, table, caption);
 END
 
 META defPropId(name, caption, type, class)
@@ -390,6 +391,16 @@ META defPropBoolean(name, caption, class);
         PROPERTIES (class) ##name##BooleanString EXTID caption
     ;
 END
+
+META defKeyPropDate (nm, caption, group, class)
+    @defProp(nm, caption, DATE, class);
+    nm###class caption = DATA LOCAL DATE (INTEGER);
+    string###nm caption (###class class) = dateToString(nm(class));
+    
+    EXTEND FORM sendMessage PROPERTIES string###nm(class) IN group EXTID caption;
+    EXTEND FORM receiveMessage PROPERTIES nm###class(class) IN group EXTID caption;
+END
+
 
 META defKeyPropSimple (nm, caption, type, group, class)
     @defProp(nm, caption, type, class);

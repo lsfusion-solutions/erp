@@ -32,7 +32,7 @@ END
 CLASS ABSTRACT UOM 'Справочник.ЕдиницыИзмерения' : Reference;
 @defProp(name, 'Наименование', STRING, UOM);
 @defProp(fullName, 'НаименованиеПолное', STRING, UOM);
-META defUOM (nm, class, table, extid)
+META defUOMDetail (nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = UOM EXTID extid
         PROPERTIES(nm###class###table) id EXTID 'Код', name EXTID 'Наименование'
@@ -63,7 +63,7 @@ END
 @defPropId(type, 'ТипНоменклатуры', typeItem, item);
 @defPropObject(uom, 'ЕдиницаИзмерения', UOM, item);
 @defPropId(vat, 'СтавкаНДС', typeVat, item);
-META defItem(nm, class, table, extid)
+META defItemDetail(nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Item EXTID extid
         PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', article EXTID 'Артикул', id EXTID 'КодВПрограмме', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное'
@@ -81,7 +81,7 @@ END
 @extReference(specification, 'ХарактеристикиНоменклатуры');
 @defKeyPropSimple(fullName, 'НаименованиеПолное', specification);
 @defPropSimple(name, 'Наименование', STRING[10], specification);
-META defSpecification(nm, class, table, extid)
+META defSpecificationDetail(nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Specification EXTID extid
         PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное'
@@ -135,6 +135,14 @@ END
 
 // company
 CLASS ABSTRACT Company 'Справочник.Организации' : Partner;
+META defCompany(nm, class, group, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Partner EXTID extid IN group
+        PROPERTIES(nm###class) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS nm###class = nm(class)
+    ;
+END
+
 META defCompany(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Partner EXTID extid
@@ -238,7 +246,7 @@ CLASS ABSTRACT Country 'Справочник.СтраныМира' : Reference;
 @defProp(alha2, 'КодАльфа2', STRING[2], Country);
 @defProp(alha3, 'КодАльфа3', STRING[3], Country);
 @defProp(fullName, 'НаименованиеПолное', STRING, Country);
-META defCountry (nm, class, table, extid)
+META defCountryDetail (nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Country EXTID extid 
         PROPERTIES(nm###class###table) id EXTID 'Код', name EXTID 'Наименование'
@@ -351,11 +359,22 @@ EXTEND FORM sendMessage
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseInvoice);
 
 // Sale invoice
-META defSaleInvoice(nm, class, table, extid)
+META defSaleInvoice(nm, class, extid)
+    @defKeyPropSimple(uidSaleInvoice, 'Ссылка', ISTRING[36], saleInvoice, class);
+    uidSaleInvoice(###class nm) += uid(nm(nm));
+    @defKeyPropDate(dateSaleInvoice, 'Дата', saleInvoice, class);
+    dateSaleInvoice(###class nm) += date(nm(nm));
+    @defKeyPropSimple(idSaleInvoice, 'Номер', STRING[256], saleInvoice, class);
+    idSaleInvoice(###class nm) += STRING[256](id(nm(nm)));
+    @defKeyPropObject(companySaleInvoice, 'Организация', Company, saleInvoice, class);
+    companySaleInvoice(###class nm) += company(nm(nm));
+END
+
+META defSaleInvoiceDetail(nm, class, table, extid)
     @extKeyPropertiesDetail(nm, extid, reasonDocument, class, table);
 END
 
-META defSaleCreditNote(nm, class, table, extid)
+META defSaleCreditNoteDetail(nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = ###nm EXTID extid IN reasonDocument
         PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
@@ -568,6 +587,7 @@ EXTEND FORM sendMessage
 @defPropObject(stock, 'Склад', Stock, saleReturnInvoice);
 @defPropObject(partner, 'Контрагент', Partner, saleReturnInvoice);
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, saleReturnInvoice);
+@defPropObject(invoice, 'ДокументРеализации', SaleInvoice, saleReturnInvoice);
 @defPropSimple(note, 'Комментарий', STRING, saleReturnInvoice);
 
 @extTable(saleReturnInvoice, product);
