@@ -926,6 +926,10 @@ filterRepricingStore = DATA LOCAL NESTED Store ();
 nameFilterRepricingStore 'Магазин' = name(filterRepricingStore()) CHARWIDTH 15;          
 filterStore (Repricing i) = store(departmentStore(i)) == filterRepricingStore() OR (i IS Repricing AND NOT filterRepricingStore());      
 
+filterRepricingOperation  = DATA LOCAL NESTED Operation ();
+nameFilterRepricingOperation 'Операция' = name(filterRepricingOperation()) CHARWIDTH 25;          
+filterOperation (Repricing p) = operation(p) == filterRepricingOperation() OR (p IS Repricing AND NOT filterRepricingOperation());   
+
 overCopy  ABSTRACT LIST ( Repricing, UserRepricing);
 overCopy  ABSTRACT LIST ( UserRepricingDetail, RepricingDetail);
 
@@ -985,7 +989,7 @@ printPeriodAuto 'Акт переоценки (авто) за период' ()  {
 } IMAGE 'print.png' IN print;
 
 FORM repricings 'Акты переоценки' 
-    PROPERTIES() filterRepricingDateFrom, filterRepricingDateTo, nameFilterRepricingStore
+    PROPERTIES() filterRepricingDateFrom, filterRepricingDateTo, nameFilterRepricingStore, nameFilterRepricingOperation
 
     OBJECTS p = Repricing LAST
     PROPERTIES (p) READONLYIF isReadonly() isClosed
@@ -1023,6 +1027,7 @@ FORM repricings 'Акты переоценки'
     FILTERS filterDateFrom(p), 
             filterDateTo(p),
             filterStore(p),
+            filterOperation(p),
             accessCompany(currentUser(), legalEntity(departmentStore(p))) OR NOT countAccessCompany(currentUser())
 
     LIST Repricing OBJECT p
@@ -1041,7 +1046,7 @@ DESIGN repricings {
                 MOVE PROPERTY(filterRepricingDateFrom());
                 MOVE PROPERTY(filterRepricingDateTo());
                 MOVE PROPERTY(nameFilterRepricingStore());
-                
+                MOVE PROPERTY(nameFilterRepricingOperation());
             }
             MOVE BOX(p) {
                 fill = 1;
