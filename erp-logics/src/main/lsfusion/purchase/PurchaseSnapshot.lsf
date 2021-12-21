@@ -15,21 +15,11 @@ purchaseVATSupplier 'НДС поставщика закупка' = DATA NUMERIC[
 purchaseCostVATSupplier 'С/С с НДС закупка' = purchaseVATSupplier(Sku sku, Stock stock, Snapshot snapshot) (+)
                                                                     purchaseCost(sku, stock, snapshot);
 //-- группа/склад       
-purchaseQuantity 'Кол-во закупка' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM purchaseQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-purchaseNetWeight 'Вес закупка' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM purchaseNetWeight (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;        
-purchaseSum 'Сумма закупка' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM purchaseSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED; 
-purchaseCost 'Себестоимость закупка' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM purchaseCost (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;         
-purchaseVATSupplier 'НДС поставщика закупка' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM purchaseVATSupplier (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;                 
+purchaseQuantity 'Кол-во закупка' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+purchaseNetWeight 'Вес закупка' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+purchaseSum 'Сумма закупка' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
+purchaseCost 'Себестоимость закупка' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
+purchaseVATSupplier 'НДС поставщика закупка' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
 purchaseCostVATSupplier 'С/С с НДС закупка' = purchaseVATSupplier(SkuGroup group, Stock stock, Snapshot snapshot) (+)
                                                                          purchaseCost(group, stock, snapshot);               
         
@@ -162,32 +152,49 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
         }
         IF isQuantity(snapshot) THEN {        
             purchaseQuantity(Sku sku, Stock stock, snapshot) <- NULL;
+            purchaseQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
+            
             purchaseQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantityPurchase(sku, stock, dateFrom, dateTo);
+            purchaseQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM purchaseQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                WHERE (GROUP SUM purchaseQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku)); 
         }
         
         IF isNetWeight(snapshot) THEN {        
             purchaseNetWeight(Sku sku, Stock stock, snapshot) <- NULL;    
+            purchaseNetWeight(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;    
             purchaseNetWeight(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantityPurchase(sku, stock, dateFrom, dateTo)*overNetWeight(sku)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantityPurchase(sku, stock, dateFrom, dateTo);
+            purchaseNetWeight(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM purchaseNetWeight(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                WHERE (GROUP SUM purchaseNetWeight(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));    
         }
 
         IF isSum(snapshot) THEN {        
             purchaseSum(Sku sku, Stock stock, snapshot) <- NULL;                
+            purchaseSum(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;                
             purchaseSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumPurchase(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumPurchase(sku, stock, dateFrom, dateTo);
+            purchaseSum(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM purchaseSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                WHERE (GROUP SUM purchaseSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));                
         }   
         
         IF isCost(snapshot) THEN {
             purchaseCost(Sku sku, Stock stock, snapshot) <- NULL;    
+            purchaseCost(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;    
             purchaseCost(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumPurchase(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumPurchase(sku, stock, dateFrom, dateTo);
+            purchaseCost(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM purchaseCost(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                WHERE (GROUP SUM purchaseCost(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));    
         }  
         
         IF isVATSupplier(snapshot) THEN {
             purchaseVATSupplier(Sku sku, Stock stock, snapshot) <- NULL;                  
+            purchaseVATSupplier(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;                  
             purchaseVATSupplier(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumVATPurchase(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumVATPurchase(sku, stock, dateFrom, dateTo);
+            purchaseVATSupplier(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM purchaseVATSupplier(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                WHERE (GROUP SUM purchaseVATSupplier(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));                  
+
         }   
                          
         //batch

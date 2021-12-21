@@ -15,12 +15,8 @@ writeOffSum 'Сумма списание' = DATA NUMERIC[16,2] (Batch, Stock, Sn
 
 
 //-- группа/склад       
-writeOffQuantity 'Кол-во списание' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM writeOffQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-writeOffSum 'Сумма списание' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM writeOffSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
+writeOffQuantity 'Кол-во списание' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+writeOffSum 'Сумма списание' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);        
         
 //-- группа          
 writeOffQuantity 'Кол-во списание' (SkuGroup group, Snapshot snapshot) =
@@ -100,14 +96,21 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
         
         IF isQuantity(snapshot) THEN {
             writeOffQuantity(Sku sku, Stock stock, snapshot) <- NULL;
+            writeOffQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
+
             writeOffQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](writeOffQuantity(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND writeOffQuantity(sku, stock, dateFrom, dateTo);
+            writeOffQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM writeOffQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                WHERE (GROUP SUM writeOffQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
+
         }    
         IF isSum(snapshot) THEN { 
             writeOffSum(Sku sku, Stock stock, snapshot) <- NULL;
+            writeOffSum(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;            
             writeOffSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](writeOffSum(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND writeOffSum(sku, stock, dateFrom, dateTo);    
- 
+            writeOffSum(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM writeOffSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                WHERE (GROUP SUM writeOffSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));           
         }              
     }            
 };                                                                                                

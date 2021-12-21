@@ -321,59 +321,27 @@ costVATSupplierA 'С/С с НДС конец' = VATSupplierA(Sku sku, Stock stoc
 TABLE skuGroupStockSnapshot (SkuGroup, Stock, Snapshot);   
   
 //-- группа/склад       
-balanceB 'Кол-во начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM balanceB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-netWeightB 'Вес начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM netWeightB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;               
-sumB 'Сумма начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM sumB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;    
-costB 'Себестоимость начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM costB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;   
-VATSupplierB 'НДС поставщика начало' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM VATSupplierB (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;   
+balanceB 'Кол-во начало' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+netWeightB 'Вес начало' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+sumB 'Сумма начало' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
+costB 'Себестоимость начало' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
+VATSupplierB 'НДС поставщика начало' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
 costVATSupplierB 'С/С с НДС начало' = VATSupplierB(SkuGroup group, Stock stock, Snapshot snapshot) (+) 
                                                                  costB(group, stock, snapshot);                                           
     
-inQuantity 'Кол-во приход' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM inQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-inNetWeight 'Вес приход' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM inNetWeight (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;        
-inSum 'Сумма приход' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM inSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
-           
-outQuantity 'Кол-во расход' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM outQuantity (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-outNetWeight 'Вес расход' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM outNetWeight (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;        
-outSum 'Сумма расход' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM outSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;             
-    
-balanceA 'Кол-во конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM balanceA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;
-netWeightA 'Вес конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM netWeightA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;              
-sumA 'Сумма конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM sumA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
-costA 'Себестоимость конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM costA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;   
-VATSupplierA 'НДС поставщика конец' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM VATSupplierA (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;    
+inQuantity 'Кол-во приход' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);       
+inNetWeight 'Вес приход' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+inSum 'Сумма приход' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
+
+outQuantity 'Кол-во расход' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+outNetWeight 'Вес расход' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+outSum 'Сумма расход' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
+
+balanceA 'Кол-во конец' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+netWeightA 'Вес конец' = DATA NUMERIC[14,3] (SkuGroup, Stock, Snapshot);
+sumA 'Сумма конец' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
+costA 'Себестоимость конец' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
+VATSupplierA 'НДС поставщика конец' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);
 costVATSupplierA 'С/С с НДС конец' = VATSupplierA(SkuGroup group, Stock stock, Snapshot snapshot) (+) 
                                                                 costA(group, stock, snapshot);                   
                    
@@ -823,6 +791,7 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                         
                     IF isBalanceA(snapshot) THEN {
                         balanceA(Sku sku, Stock stock, snapshot) <- NULL;
+                        balanceA(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF singleStock() THEN {
                             balanceA(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceA(sku, stock, dateTo)) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND balanceA(sku, stock, dateTo);
@@ -830,10 +799,13 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                             balanceA(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceA(sku, stock, dateTo)) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceA(sku, stock, dateTo);
                         }
+                        balanceA(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM balanceA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM balanceA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
                             
                     IF isIn(snapshot) THEN {            
                         inQuantity(Sku sku, Stock stock, snapshot) <- NULL;
+                        inQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF singleStock() THEN {
                             inQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumIn(sku, stock, dateFrom, dateTo)) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND quantitySumIn(sku, stock, dateFrom, dateTo);
@@ -841,10 +813,13 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                             inQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumIn(sku, stock, dateFrom, dateTo)) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySumIn(sku, stock, dateFrom, dateTo);
                         }
+                        inQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM inQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM inQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));                        
                     }
         
                     IF isOut(snapshot) THEN { 
                         outQuantity(Sku sku, Stock stock, snapshot) <- NULL;
+                        outQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;                        
                         IF singleStock() THEN {
                             outQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumOut(sku, stock, dateFrom, dateTo)) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND quantitySumOut(sku, stock, dateFrom, dateTo);
@@ -852,10 +827,13 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                             outQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumOut(sku, stock, dateFrom, dateTo)) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySumOut(sku, stock, dateFrom, dateTo);
                         }
+                        outQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM outQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM outQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));  
                     }
                     
                     IF isBalanceB(snapshot) THEN {
                         balanceB(Sku sku, Stock stock, snapshot) <- NULL;
+                        balanceB(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN {
                             IF singleStock() THEN {
                                 balanceB(Sku sku, Stock stock, snapshot) <- (balanceA(sku, stock, snapshot) (-) inQuantity(sku, stock, snapshot) (+) outQuantity(sku, stock, snapshot))
@@ -872,13 +850,16 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                                 balanceB(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(sku, stock, dateFrom)) 
                                     WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceB(sku, stock, dateFrom);
                             }
-                        } 
+                        }
+                        balanceB(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM balanceB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM balanceB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
                 }
                 IF isSum(snapshot) THEN {         
         
                     IF isBalanceA(snapshot) THEN {
                         sumA(Sku sku, Stock stock, snapshot) <- NULL;
+                        sumA(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF singleStock() THEN {
                             sumA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumA(sku, stock, dateTo)) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND sumA(sku, stock, dateTo);
@@ -886,10 +867,13 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                             sumA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumA(sku, stock, dateTo)) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumA(sku, stock, dateTo);
                         }
+                        sumA(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM sumA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM sumA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
         
                     IF isIn(snapshot) THEN { 
                         inSum(Sku sku, Stock stock, snapshot) <- NULL;
+                        inSum(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF singleStock() THEN {
                             inSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumIn(sku, stock, dateFrom, dateTo)) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND sumIn(sku, stock, dateFrom, dateTo);
@@ -897,10 +881,13 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                             inSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumIn(sku, stock, dateFrom, dateTo)) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumIn(sku, stock, dateFrom, dateTo);
                         }
+                        inSum(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM inSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM inSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
         
                     IF isOut(snapshot) THEN {
                         outSum(Sku sku, Stock stock, snapshot) <- NULL;
+                        outSum(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF singleStock() THEN {
                             outSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumOut(sku, stock, dateFrom, dateTo)) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND sumOut(sku, stock, dateFrom, dateTo);
@@ -908,10 +895,13 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                             outSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumOut(sku, stock, dateFrom, dateTo)) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumOut(sku, stock, dateFrom, dateTo);
                         }
+                        outSum(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM outSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM outSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
                     
                     IF isBalanceB(snapshot) THEN {
                         sumB(Sku sku, Stock stock, snapshot) <- NULL;
+                        sumB(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF isBalanceA(snapshot) AND isIn(snapshot) AND isOut(snapshot) THEN {
                             IF singleStock() THEN {
                                 sumB(Sku sku, Stock stock, snapshot) <- (sumA(sku, stock, snapshot) (-) inSum(sku, stock, snapshot) (+) outSum(sku, stock, snapshot))
@@ -928,13 +918,16 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                                 sumB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumB(sku, stock, dateFrom)) 
                                     WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumB(sku, stock, dateFrom);
                             }
-                        }   
+                        }
+                        sumB(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM sumB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM sumB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));  
                     }
                                 
                 }   
                 IF isCost(snapshot) THEN {
                     IF isBalanceA(snapshot) THEN {
                         costA(Sku sku, Stock stock, snapshot) <- NULL;
+                        costA(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF singleStock() THEN {
                             costA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
@@ -942,10 +935,13 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                             costA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
                         }
+                        costA(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM costA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM costA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
                                        
                     IF isBalanceB(snapshot) THEN {
                         costB(Sku sku, Stock stock, snapshot) <- NULL;
+                        costB(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF singleStock() THEN {
                             costB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
@@ -953,21 +949,28 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                             costB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
                         }
+                        costB(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM costB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM costB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
+
                     }        
                 }      
                 IF isVATSupplier(snapshot) THEN {
                     IF isBalanceA(snapshot) THEN {
                         VATSupplierA(Sku sku, Stock stock, snapshot) <- NULL;
+                        VATSupplierA(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF singleStock() THEN {
                             VATSupplierA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
                         } ELSE {
                             VATSupplierA(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumA(sku, stock, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumA(sku, stock, dateTo);
-                        }               
+                        }
+                        VATSupplierA(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM VATSupplierA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM VATSupplierA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
                     IF isBalanceB(snapshot) THEN {
                         VATSupplierB(Sku sku, Stock stock, snapshot) <- NULL;
+                        VATSupplierB(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         IF singleStock() THEN {
                             VATSupplierB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)*valueVAT(sku,country(stock),dateTo)/100) 
                                 WHERE stock == singleStock() AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
@@ -975,32 +978,49 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)   {
                             VATSupplierB(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumB(sku, stock, dateFrom)*valueVAT(sku,country(stock),dateTo)/100) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumB(sku, stock, dateFrom);
                         }
+                        VATSupplierB(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM VATSupplierB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM VATSupplierB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }        
                 } 
                 IF isNetWeight(snapshot) THEN {         
                     
                     IF isBalanceA(snapshot) THEN {
                         netWeightA(Sku sku, Stock stock, snapshot) <- NULL;
+                        netWeightA(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
                         netWeightA(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceA(sku, stock, dateTo)*overNetWeight(sku)) 
                             WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceA(sku, stock, dateTo);
+                        netWeightA(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM netWeightA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM netWeightA(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
                             
                     IF isIn(snapshot) THEN {            
                         inNetWeight(Sku sku, Stock stock, snapshot) <- NULL;
+                        inNetWeight(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
+
                         inNetWeight(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumIn(sku, stock, dateFrom, dateTo)*overNetWeight(sku)) 
                             WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySumIn(sku, stock, dateFrom, dateTo);
+                        inNetWeight(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM inNetWeight(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM inNetWeight(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
         
                     IF isOut(snapshot) THEN {
                         outNetWeight(Sku sku, Stock stock, snapshot) <- NULL;
+                        outNetWeight(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
+
                         outNetWeight(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySumOut(sku, stock, dateFrom, dateTo)*overNetWeight(sku)) 
                             WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySumOut(sku, stock, dateFrom, dateTo);
+                        outNetWeight(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM outNetWeight(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM outNetWeight(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
                     }
                     
                     IF isBalanceB(snapshot) THEN {
                         netWeightB(Sku sku, Stock stock, snapshot) <- NULL;
+                        netWeightB(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
+                        
                         netWeightB(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](balanceB(sku, stock, dateFrom)*overNetWeight(sku)) 
                             WHERE include(snapshot, stock) AND include(snapshot, sku) AND balanceB(sku, stock, dateFrom);
+                        netWeightB(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM netWeightB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                            WHERE (GROUP SUM netWeightB(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));    
                     }
                 }                     
                              

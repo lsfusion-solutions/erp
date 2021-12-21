@@ -21,9 +21,7 @@ discountSumBatchSupplier 'Сумма скидки' (supplier, Snapshot snapshot)
     GROUP SUM discountSum (Batch batch, Stock stock, snapshot) BY supplierStock(batch);
 
 //-- группа/склад       
-discountSum 'Сумма скидки' (SkuGroup group, Stock stock, Snapshot snapshot) =
-    GROUP
-        SUM discountSum (Sku sku, stock, snapshot) IF isParent(group, sku) MATERIALIZED;  
+discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (SkuGroup, Stock, Snapshot);  
         
 //-- группа         
 discountSum 'Сумма скидки' (SkuGroup group, Snapshot snapshot) =
@@ -82,9 +80,11 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
         }  
         IF isSum(snapshot) THEN {  
             discountSum(Sku sku, Stock stock, snapshot) <- NULL;
+            discountSum(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
             discountSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](discountSum(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND discountSum(sku, stock, dateFrom, dateTo);    
- 
+            discountSum(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM discountSum (Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
+                WHERE (GROUP SUM discountSum (Sku sku, stock, snapshot) IF isParent(skuGroup, sku)); 
         }              
     }            
 };                                                                                                
