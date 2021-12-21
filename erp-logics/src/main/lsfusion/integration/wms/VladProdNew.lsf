@@ -53,6 +53,7 @@ exportOrderText = ABSTRACT VALUE TEXT (Sale.UserOrder);
 //-- по умолчанию сделаю одну из двух существующих реализаций
 
 idExportOrder = ABSTRACT STRING (UOM);
+toTripOrder = ABSTRACT BOOLEAN (Sale.UserOrder);
 
 exportOrderText(Sale.UserOrder p) += 
     TEXT (CONCAT '\n', 
@@ -67,12 +68,13 @@ exportOrderText(Sale.UserOrder p) +=
         '\t\t<contractNumber>'+seriesNumberContractSku(p)+'</contractNumber>',
         '\t\t<deliveryDateTimeFirst>'+toDateVPI(shipmentDateTime(p))+'</deliveryDateTimeFirst>',
         '\t\t<lineQuantity>'+countGroup(p)+'</lineQuantity>',
+        '\t\t<ne_tle/>' IF toTripOrder(p), //кода надо создавать(выгружать) маршруты самим 
         '\t\t<TABLE>',
             [GROUP CONCAT 
                 TEXT (CONCAT '\n', 
                 '\t\t\t<line>',
                 '\t\t\t\t<IDBuyer>'+idSku(Sale.UserOrderDetail d)+'</IDBuyer>',
-                '\t\t\t\t<fullName>'+replace(replace(replace(nameSku(d),'&','&amp;'),'<','&lt;'),'>','&gt;')+'</fullName>',
+                '\t\t\t\t<fullName>'+escapeXMLValue(nameSku(d))+'</fullName>',
                 '\t\t\t\t<quantityOrdered>'+quantity(d)+'</quantityOrdered>',
                 '\t\t\t\t<measurement>'+(OVERRIDE idExportOrder(UOM(sku(d))), id(UOM(sku(d))))+'</measurement>',
                 '\t\t\t\t<quantityTransport>1.00</quantityTransport>',
@@ -271,7 +273,7 @@ exportDocInText(Purchase.UserOrder p)+=
                 TEXT (CONCAT '\n', 
                 '\t\t\t<line>',
                 '\t\t\t\t<IDBuyer>'+id(Sku s)+'</IDBuyer>',
-                '\t\t\t\t<fullName>'+replace(replace(replace(name(s),'&','&amp;'),'<','&lt;'),'>','&gt;')+'</fullName>',
+                '\t\t\t\t<fullName>'+escapeXMLValue(name(s))+'</fullName>',
                 '\t\t\t\t<quantityPlan>'+quantity(Purchase.UserOrder o, s, NUMERIC[16,4] n)+'</quantityPlan>',
                 '\t\t\t\t<measurement>'+ (OVERRIDE idExportOrder(UOM(s)), id(UOM(s))) +'</measurement>',
                 '\t\t\t\t<price>'+n+'</price>',
@@ -463,7 +465,7 @@ exportDocInText(Purchase.UserInvoice p) =
                 TEXT (CONCAT '\n', 
                 '\t\t\t<line>',
                 '\t\t\t\t<IDBuyer>'+id(Sku s)+'</IDBuyer>',
-                '\t\t\t\t<fullName>'+replace(replace(replace(name(s),'&','&amp;'),'<','&lt;'),'>','&gt;')+'</fullName>',
+                '\t\t\t\t<fullName>'+escapeXMLValue(name(s))+'</fullName>',
                 '\t\t\t\t<quantityPlan>'+quantity(Purchase.UserInvoice o, s, NUMERIC[16,4] n)+'</quantityPlan>',
                 '\t\t\t\t<measurement>'+ (OVERRIDE idExportOrder(UOM(s)), id(UOM(s))) +'</measurement>',
                 '\t\t\t\t<price>'+n+'</price>',
@@ -494,12 +496,19 @@ exportWMSPurchaseInvoice(Purchase.Invoice invoice) + {
 }
 
 ///////////////////////---------------- Статусы --------------//////////////////////
+
+order = DATA LOCAL STRING[48] (INTEGER );
+status =  DATA LOCAL INTEGER (INTEGER );
+statusName =  DATA LOCAL STRING[100](INTEGER );
+statusDate =  DATA LOCAL DATETIME (INTEGER );
+
+checkStatusOrderExtra  ABSTRACT LIST();
 checkStatusOrder 'Проверить статусы ВладПродИмпорт' () { 
     LOCAL file = FILE ();
-    LOCAL order = STRING[48] (INTEGER );
-    LOCAL status = INTEGER (INTEGER );
-    LOCAL statusName = STRING[100](INTEGER );
-    LOCAL statusDate = DATETIME (INTEGER );
+    order (INTEGER i)<-NULL;
+    status (INTEGER i)<-NULL;
+    statusName (INTEGER i)<-NULL;
+    statusDate (INTEGER i)<-NULL;
         
     TRY {
         listFiles(connectionStringVPI() + '/' +statusPathVPI());
@@ -521,6 +530,7 @@ checkStatusOrder 'Проверить статусы ВладПродИмпорт
                 nameStatusVPI(Purchase.Invoice i) <- statusName(n) WHERE include(o,i);
                 dateStatusVPI(Purchase.Invoice i) <- statusDate(n) WHERE include(o,i);
             } 
+            checkStatusOrderExtra();
         }
         APPLY;
     }
