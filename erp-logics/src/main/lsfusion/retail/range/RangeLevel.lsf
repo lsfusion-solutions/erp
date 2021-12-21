@@ -133,7 +133,9 @@ countRecSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countR
 
 countSkus 'Кол-во наименований' = GROUP SUM 1 BY RangeRev v, level(v,Sku sku);
 
-CONSTRAINT (CHANGED(countSku(RangeRev v, RangeLevel l)) OR CHANGED(countRecSku(v,l))) AND depth(range(v), l) < (OVERRIDE countRecSku(v,l) IF useCountRecSku(), countSku(v,l)) AND NOT (notCheckDepth() OR notCheckDepthLoc())
+CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l) AND NOT countSku(v,l) < PREV(countSku(v,l)) AND NOT useCountRecSku() AND NOT (notCheckDepth() OR notCheckDepthLoc())
+    MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
+CONSTRAINT CHANGED(countRecSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countRecSku(v,l) AND NOT countRecSku(v,l) < PREV(countRecSku(v,l)) AND useCountRecSku() AND NOT (notCheckDepth() OR notCheckDepthLoc())
     MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
 //CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l) AND NOT (PREV(countSku(v,l)) >= countSku(v,l) )
 //    MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
