@@ -498,37 +498,37 @@ exportWMSPurchaseInvoice(Purchase.Invoice invoice) + {
 ///////////////////////---------------- Статусы --------------//////////////////////
 
 order = DATA LOCAL STRING[48] (INTEGER );
-status =  DATA LOCAL INTEGER (INTEGER );
-statusName =  DATA LOCAL STRING[100](INTEGER );
-statusDate =  DATA LOCAL DATETIME (INTEGER );
+statusVPN =  DATA LOCAL INTEGER (INTEGER );
+statusNameVPN =  DATA LOCAL STRING[100](INTEGER );
+statusDateVPN =  DATA LOCAL DATETIME (INTEGER );
 
 checkStatusOrderExtra  ABSTRACT LIST();
 checkStatusOrder 'Проверить статусы ВладПродИмпорт' () { 
     LOCAL file = FILE ();
     order (INTEGER i)<-NULL;
-    status (INTEGER i)<-NULL;
-    statusName (INTEGER i)<-NULL;
-    statusDate (INTEGER i)<-NULL;
+    statusVPN (INTEGER i)<-NULL;
+    statusNameVPN (INTEGER i)<-NULL;
+    statusDateVPN (INTEGER i)<-NULL;
         
     TRY {
         listFiles(connectionStringVPI() + '/' +statusPathVPI());
         FOR isSubstring(lower(fileName(INTEGER r)), 'answer_statusses_') AND NOT fileIsDirectory(r) DO {
             READ  connectionStringVPI() + '/' + statusPathVPI() + '/' + fileName(r) TO file;
-            IMPORT XML ROOT 'STATUSSES' ATTR FROM file() TO order = DOCUMENTNUMBER, statusDate = 'DATE', status = STAT, statusName = STATS;
+            IMPORT XML ROOT 'STATUSSES' ATTR FROM file() TO order = DOCUMENTNUMBER, statusDateVPN = 'DATE', statusVPN = STAT, statusNameVPN = STATS;
             
             FOR imported(INTEGER n) AND Sale.Order o = (GROUP MAX Sale.Order oo IF isVPI(supplierStock(oo)) AND number(oo) == order(n)) DO {
-                statusVPI(o) <- status(n);
-                nameStatusVPI(o) <- statusName(n);
-                dateStatusVPI(o) <- statusDate(n);
+                statusVPI(o) <- statusVPN(n);
+                nameStatusVPI(o) <- statusNameVPN(n);
+                dateStatusVPI(o) <- statusDateVPN(n);
             }
             FOR imported(INTEGER n) AND Purchase.Order o = (GROUP MAX Purchase.Order oo IF isVPI(customerStock(oo)) AND number(oo) == order(n)) DO {
-                statusVPI(o) <- status(n);
-                nameStatusVPI(o) <- statusName(n);
-                dateStatusVPI(o) <- statusDate(n);
+                statusVPI(o) <- statusVPN(n);
+                nameStatusVPI(o) <- statusNameVPN(n);
+                dateStatusVPI(o) <- statusDateVPN(n);
                 
-                statusVPI(Purchase.Invoice i) <- status(n) WHERE include(o,i);
-                nameStatusVPI(Purchase.Invoice i) <- statusName(n) WHERE include(o,i);
-                dateStatusVPI(Purchase.Invoice i) <- statusDate(n) WHERE include(o,i);
+                statusVPI(Purchase.Invoice i) <- statusVPN(n) WHERE include(o,i);
+                nameStatusVPI(Purchase.Invoice i) <- statusNameVPN(n) WHERE include(o,i);
+                dateStatusVPI(Purchase.Invoice i) <- statusDateVPN(n) WHERE include(o,i);
             } 
             checkStatusOrderExtra();
         }
