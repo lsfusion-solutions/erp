@@ -95,10 +95,11 @@ FORM glovoMenu
 ;
 
 CLASS MenuGlovo 'Загрузка меню glovo';
+TABLE menuGlovo(MenuGlovo);
 
 store = DATA DepartmentStore (MenuGlovo);
-nameStore (MenuGlovo g) = name(store(g));
-dateTimeFrom 'Сформировано' = DATA DATETIME (MenuGlovo);
+nameStore 'Магазин' (MenuGlovo g) = name(store(g));
+dateTimeForm 'Сформировано' = DATA DATETIME (MenuGlovo);
 storeId 'ID магазина' = DATA STRING (MenuGlovo); 
 transactionId 'ID' = DATA STRING (MenuGlovo);
 status 'Статус' = DATA STRING (MenuGlovo);
@@ -114,18 +115,36 @@ sendMenuToFtp(MenuGlovo m){
     url(m) <- CONCAT '', pathHttpAccess(), glovoFtpFolderName(),'menu', LONG(store(m)), '.json';   
 }
 
-fillMenu 'Заполнить меню glovo'(DepartmentStore s){
+fillMenu 'Заполнить меню glovo ' (DepartmentStore s){
     LOCAL f = JSONFILE();
     NEW menu = MenuGlovo{
         store(menu) <- s;
         storeId(menu) <- storeIdGlovo(s);
-        dateTimeFrom(menu) <- currentDateTime();
+        dateTimeForm(menu) <- currentDateTime();
         EXPORT glovoMenu OBJECTS store = s JSON TO f;
         fileMenu(menu) <- f();
         sendMenuToFtp(menu);
         afterFillMenu(s);
     }
     APPLY;
+}
+
+
+customMenuFill = ABSTRACT BOOLEAN ();
+
+fillMenu 'Заполнить меню glovo' ABSTRACT LIST (DepartmentStore, MenuGlovo);
+
+fillMenu (DepartmentStore s, MenuGlovo menu)+{
+    IF NOT customMenuFill() THEN{
+        LOCAL f = JSONFILE();
+        store(menu) <- s;
+        storeId(menu) <- storeIdGlovo(s);
+        dateTimeForm(menu) <- currentDateTime();
+        EXPORT glovoMenu OBJECTS store = s JSON TO f;
+        fileMenu(menu) <- f();
+        sendMenuToFtp(menu);
+        afterFillMenu(s);
+    }
 }
 
 transaction_id = DATA LOCAL STRING();
@@ -143,9 +162,8 @@ updateMenu 'Загрузить меню' (MenuGlovo menu){
     EXTERNAL HTTP POST CONCAT '', urlServer(), 'webhook/stores/', storeId(menu), '/menu' HEADERS headers
         PARAMS f() TO answer;
     IMPORT menuUpdate JSON FROM answer(); 
-    dateTimeFrom(menu) <- currentDateTime();
+    dateTimeForm(menu) <- currentDateTime();
     transactionId(menu) <- transaction_id();
-    APPLY;
 }
 
 last_updated_at = DATA LOCAL STRING();
@@ -173,22 +191,59 @@ updateStatusMenu 'Обновить статус' (MenuGlovo g){
     IMPORT statusMenu JSON FROM answer();
     status(g) <- status();
     details(g) <- GROUP CONCAT details(INTEGER d), ',' ORDER d;
-    APPLY ;
+    APPLY;
 }
 
-FORM integrationTest 'Тест Glovo'
+FORM glovoMenuFill 'Glovo'
     OBJECTS d = DepartmentStore
     PROPERTIES (d) READONLY name
-    PROPERTIES (d) fillMenu
+    
     FILTERS isOnline(d)
     
     OBJECTS m = MenuGlovo
-    PROPERTIES (m) READONLY nameStore, transactionId, dateTimeFrom, status, fileMenu, url, details
+    PROPERTIES fillMenu(d) TOOLBAR DRAW d
+    PROPERTIES (m) READONLY nameStore, transactionId, dateTimeForm, status, fileMenu, url, details
     PROPERTIES (m) updateMenu, updateStatusMenu
+    FILTERS store(m) = d
 ;
         
-NAVIGATOR {
-    administration{
-        NEW integrationTest;
+
+//выгрузка меню по временным интерваллам
+CLASS TimeUpdateGlovo 'Время обновления';
+TABLE timeUpdateGlovo (TimeUpdateGlovo);
+
+timeStart 'Начало'= DATA TIME (TimeUpdateGlovo) IN id;
+timeFinish 'Окончание' = DATA TIME (TimeUpdateGlovo) IN id;
+
+menuGlovo = DATA MenuGlovo(DepartmentStore, DATE, TimeUpdateGlovo);
+EXTEND FORM integrationData
+    OBJECTS tug = TimeUpdateGlovo
+    PROPERTIES (tug) timeStart, timeFinish
+    PROPERTIES (tug) NEW, EDIT, DELETE
+;
+DESIGN integrationData{
+    glovo{
+        MOVE BOX (tug);
     }
 }
+
+updateGlovoMenu 'Обновление меню glovo'(){
+    LOCAL NESTED actualTimeUpdate = TimeUpdateGlovo();
+    actualTimeUpdate() <- GROUP MAX TimeUpdateGlovo t IF timeStart(t) <= currentTime() AND timeFinish(t) >= currentTime();
+    FOR isOnline(DepartmentStore d) AND storeIdGlovo(d) AND actualTimeUpdate() 
+        AND NOT menuGlovo(d, currentDate(), actualTimeUpdate()) NEW menu = MenuGlovo DO {{
+        fillMenu(d, menu);
+        menuGlovo(d, currentDate(), actualTimeUpdate()) <- menu;
+        updateMenu(menu);
+        APPLY;
+        }
+    }
+    FOR isOnline(DepartmentStore d) AND storeIdGlovo(d) AND actualTimeUpdate() 
+        AND MenuGlovo menu = menuGlovo(d, currentDate(), actualTimeUpdate()) DO{
+            IF NOT status(menu) = 'SUCCESS' THEN updateStatusMenu(menu);
+    }
+}
+
+EXTEND FORM glovoMenuFill
+    PROPERTIES updateGlovoMenu() TOOLBAR
+;
