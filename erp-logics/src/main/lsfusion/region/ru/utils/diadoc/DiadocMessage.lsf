@@ -366,6 +366,8 @@ statusDetails 'Детализация по статусу' (Entity e) = GROUP CO
 
 //RevocationRequestInfo
 
+comment 'Комментарий' = DATA STRING (Entity) CHARWIDTH 20;
+
 message = DATA Message (Entity);
 patch = DATA MessagePatch (Entity);
 overMessageId 'Идентификатор сообщения' (Entity e) = OVERRIDE messageId(patch(e)), messageId(message(e));
@@ -696,7 +698,7 @@ FORM message 'Cообщение Диадока'
     OBJECTS e = Entity
     PROPERTIES(e) entityId, parentEntityId, entityTypeName, size, attachmentTypeName, fileName, needRecipientSignature, signerBoxTitle, notDeliveredEventId,
                   rawCreationDate, signerDepartmentName, needReceipt, packetId, isApprovementSignature, isEncryptedContent, attachmentVersion,
-                  labels, version, docflowFriendlyName, statusFriendlyName, outerStatusTypeName, statusDetails
+                  labels, version, docflowFriendlyName, statusFriendlyName, outerStatusTypeName, statusDetails, comment
     PROPERTIES(e) openData
     FILTERS message(e) == m
     
@@ -758,7 +760,7 @@ FORM messagePatch 'Дополнение к сообщению Диадока'
     OBJECTS e = Entity
     PROPERTIES(e) entityId, parentEntityId, entityTypeName, size, attachmentTypeName, fileName, needRecipientSignature, signerBoxTitle, notDeliveredEventId,
                   rawCreationDate, signerDepartmentName, needReceipt, packetId, isApprovementSignature, isEncryptedContent, attachmentVersion,
-                  labels, version, docflowFriendlyName, statusFriendlyName, outerStatusTypeName, statusDetails
+                  labels, version, docflowFriendlyName, statusFriendlyName, outerStatusTypeName, statusDetails, comment
     PROPERTIES(e) openData
     FILTERS patch(e) == p
     
@@ -1483,6 +1485,8 @@ FORM importEvents
 //                   forwardedToBoxId EXTID 'ForwardedToBoxId'
 ;
 
+importComment ABSTRACT LIST (Entity);
+
 getNewEvents 'Получить новые сообщения' (User u, Box box) {
     NEWSESSION {
         getToken(u);
@@ -1569,6 +1573,7 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                         MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                     }
                     data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+                    importComment(e);
                 }
             }
             // Документы только создаем, т.к. тут информация только о первом состоянии, обновление по отдельному событию
@@ -1683,6 +1688,7 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                         MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                     }
                     data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+                    importComment(e);
                 }
             }
             // Документы только создаем, т.к. тут информация только о первом состоянии, обновление по отдельному событию
@@ -2350,6 +2356,7 @@ postMessage 'Отправить сообщение' (User u) {
                 MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
             data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+            importComment(e);
         }
     }
     // Документы только создаем, т.к. тут информация только о первом состоянии, обновление по отдельному событию
@@ -2680,6 +2687,7 @@ postMessagePatch 'Отправить дополнение к сообщению'
                 MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
             data(e) <- setExtension(data(),(OVERRIDE getWord(fileName(e),'.',wordCount(fileName(e),'.')),'txt'));
+            importComment(e);
         }
     }
     // Документы только создаем, т.к. тут информация только о первом состоянии, обновление по отдельному событию
@@ -3126,9 +3134,32 @@ EXTEND FORM documents
 ;
 
 //--------------- лог статусов документа ---------------//
-showStatusLog (Entity e) = entityType(e) == EntityType.attachment AND NOT attachmentType(e) == AttachmentType.attachmentComment;
+showStatusLog (Entity e) = entityType(e) == EntityType.attachment;// AND NOT attachmentType(e) == AttachmentType.attachmentComment;
 
 dateTime 'Время' (Entity e) = rawCreationDate(e);
 organization 'Организация' (Entity e) = (GROUP MAX organization(signerBox(Entity ee)) IF entityType(ee) == EntityType.signature AND parentEntityId(ee) == entityId(e));
 nameOrganization 'Организация' (Entity e) = shortName(organization(e)) CHARWIDTH 20;
 status 'Статус' (Entity e) = attachmentTypeName(e) CHARWIDTH 30;
+
+//--------------- комментарии из разных вложений ---------------//
+importComment(Entity e) + {
+    IF attachmentType(e) == AttachmentType.attachmentComment THEN {
+        fileToString(data(e));
+        comment(e) <- resultString();
+    }
+}
+
+GROUP vdokumient EXTID 'Документ';
+GROUP vsvUvedUtoch EXTID 'СвУведУточ': vdokumient;
+comment = DATA LOCAL STRING ();
+
+FORM importICR
+    PROPERTIES IN vsvUvedUtoch comment() EXTID 'ТекстУведУточ'
+;
+
+importComment(Entity e) + {
+    IF attachmentType(e) == AttachmentType.invoiceCorrectionRequest THEN {
+        IMPORT importICR FROM data(e);
+        comment(e) <- comment();
+    }
+}
