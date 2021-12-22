@@ -128,7 +128,7 @@ DESIGN  integrationData {
 ids = DATA LOCAL STRING[100](INTEGER );
 qty = DATA LOCAL NUMERIC[16,5](INTEGER );
 dateTime = DATA LOCAL DATETIME (INTEGER );
-guid = DATA LOCAL LONG(INTEGER );
+guid = DATA LOCAL STRING(INTEGER );
 batch = DATA LOCAL STRING[48](INTEGER );	   
 
 
@@ -150,16 +150,12 @@ overCreate (Sale.Order order, Sale.UserInvoice invoice) + {
 	        READ  connectionStringVPI() + '/' + answerPathVPI() + '/' + file() TO importFile;  
 	        
 	        IMPORT XML ROOT 'ANSWER' FROM importFile() TO dateTime = deliveryDateTimeFirst, guid = GUID;
-	        IMPORT XML ROOT 'TABLE' FROM importFile() TO ids = IDBuyer, qty = quantityDespatch, batch = N_PART;
+	        IMPORT XML ROOT 'TABLE' FROM importFile() TO ids = IDBuyer, qty = quantityDespatch, batch = N_PART;       
 	    }
-	    IF NOT dateTime(0) AND NOT useBatchSaleInvoiceCustom() THEN {
+	    IF NOT (dateTime(0) OR guid(0)) THEN {
 	        MESSAGE 'Не найден файл в каталоге обмена. В документ включены все позиции заказа.';
 	        RETURN;
-	    }
-	    IF NOT guid(0) AND useBatchSaleInvoiceCustom()THEN {
-	        MESSAGE 'Не найден файл в каталоге обмена. В документ включены все позиции заказа.';
-	        RETURN;
-	    }	    
+	    }    
 	    
 	    date(invoice) <- DATE(dateTime(0));
 	    time(invoice) <- TIME(dateTime(0));	
@@ -194,10 +190,10 @@ overCreate (Sale.Order order, Sale.UserInvoice invoice) + {
             }
 	        
 	    } ELSE {
-            LOCAL sumQty = NUMERIC[16,5](Sku);
+            LOCAL sumQty = NUMERIC[16,5](Sku,Sale.UserInvoice);
             LOCAL oldQty = NUMERIC[16,5](Sale.UserInvoiceDetail);
             
-            sumQty(Sku sku) <- [GROUP SUM qty(i) BY (OVERRIDE skuBarcode(ids(i)), sku(ids(i)))](sku);
+            sumQty(Sku sku, invoice) <- [GROUP SUM qty(INTEGER i) BY (OVERRIDE skuBarcode(ids(i)), sku(ids(i)))](sku);
             
             oldQty(Sale.UserInvoiceDetail d) <- NULL;
             oldQty(Sale.UserInvoiceDetail d) <- quantity(d) WHERE invoice == userInvoice(d);
@@ -205,13 +201,14 @@ overCreate (Sale.Order order, Sale.UserInvoice invoice) + {
             quantity(Sale.UserInvoiceDetail d ) <- (PARTITION UNGROUP sumQty
                                                         LIMIT STRICT oldQty(d)
                                                         ORDER d
-                                                        BY sku(d))
+                                                        BY sku(d), userInvoice(d))
                                                     WHERE invoice == userInvoice(d);
         
             DELETE Sale.UserInvoiceDetail d WHERE invoice == userInvoice(d) AND NOT quantity(d);
             
-            IF (GROUP SUM 1 IF sumQty(Sku sku) AND NOT sumQty(sku) == quantityUserInvoiceDetail(sku, invoice)) THEN {
-                MESSAGE 'Внимание !!! В подтверждении заказа обнаружены позиции, которых нет в заказе : \n' + (GROUP CONCAT id(Sku sku) + ' ' + name(sku) IF sumQty(sku) AND NOT sumQty(sku) == quantityUserInvoiceDetail(sku, invoice), '\n' ORDER sku);
+            IF (GROUP SUM 1 IF sumQty(Sku sku, invoice) AND NOT sumQty(sku, invoice) == quantityUserInvoiceDetail(sku, invoice)) THEN {
+                MESSAGE 'Внимание !!! В подтверждении заказа обнаружены позиции, которых нет в заказе : \n' + 
+                    (GROUP CONCAT id(Sku sku) + ' ' + name(sku) IF sumQty(sku, invoice) AND NOT sumQty(sku, invoice) == quantityUserInvoiceDetail(sku, invoice), '\n' ORDER sku);
             }	    
 	    }
         overCreateDistribution(order,invoice);                                                               
