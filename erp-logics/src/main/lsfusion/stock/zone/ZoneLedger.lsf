@@ -116,6 +116,11 @@ EXTEND FORM currentBalanceSkuStock
                                 currentBalanceDiffZone
 ;
 
+show 'Просмотреть'  ABSTRACT (ZoneLedger) TOOLBAR;
+skipEdit = ABSTRACT BOOLEAN (ZoneLedger);
+allowedEdit (ZoneLedger z) = (allowedEditClosedDocuments(currentUser())) AND NOT skipEdit(z);
+allowedShow  (ZoneLedger z) = z IS ZoneLedger AND NOT allowedEdit(z);
+
 FORM zoneLedger 'Регистр движения по зонам'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES valFrom 'Дата с' = VALUE(dFrom), valTo 'Дата по' = VALUE(dTo)
@@ -125,7 +130,7 @@ FORM zoneLedger 'Регистр движения по зонам'
     PROPERTIES(s) READONLY dateTime, nameStock, nameFromZone, nameToZone,                          
                            canonicalNameSkuGroup, nameSku, idSku, idBarcodeSku, description, number,
                            quantity
-    PROPERTIES(s) NEWSESSION EDIT
+    PROPERTIES(s) EDIT SHOWIF allowedEdit(s) NEWSESSION, show SHOWIF allowedShow(s)
     ORDERS dateTime(s)
     
     FILTERS active(s),
@@ -261,6 +266,15 @@ META defineZoneLedger(objectClass)
     sku(###objectClass##ZoneLedger ledger) += sku(##objectClass(ledger));
     description(###objectClass##ZoneLedger ledger) += description(##objectClass(ledger));
     quantity(###objectClass##ZoneLedger ledger) += quantity(##objectClass(ledger));
+    
+    show(###objectClass##ZoneLedger ledger)  { 
+        NEWSESSION {
+            show(##objectClass(ledger));
+        }
+    }
+    show(###objectClass##ZoneLedger ledger) + {  show(ledger); }
+    skipEdit(###objectClass##ZoneLedger ledger) += TRUE;
+    
 END
 
 META defineZoneLedgerIn(objectClass, house)
