@@ -1187,7 +1187,7 @@ public class DefaultTerminalHandler {
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("Sku", skuExpr, "Stock", supplierExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-            query.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
+            query.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("overIdBarcode[Sku]").getExpr(skuExpr));
             query.addProperty("idSupplier", terminalHandlerLM.findProperty("id[Stock]").getExpr(supplierExpr));
             query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
             query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
@@ -1196,7 +1196,7 @@ public class DefaultTerminalHandler {
             query.addProperty("idOriginalSupplier", terminalHandlerLM.findProperty("idSupplier[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
 
             query.and(terminalHandlerLM.findProperty("id[Stock]").getExpr(supplierExpr).getWhere());
-            query.and(terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("overIdBarcode[Sku]").getExpr(skuExpr).getWhere());
             query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr).getWhere());
 
 
