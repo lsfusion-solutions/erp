@@ -327,21 +327,22 @@ checkStatusQuantity 'Импортировать кол-во по прихода�
                     READ  connectionStringVPI() + '/' + answerPathVPI() + '/' + fileName(r) TO file;
                     IMPORT XML ROOT 'ANSWER' FROM file() TO dateTime = deliveryDateTimeFirst;
                     IMPORT XML ROOT 'TABLE' FROM file() TO ids = IDBuyer, qty = quantityFact;
-    
+                
                     shipmentDate(i) <- DATE(dateTime(0));
                     shipmentTime(i) <- TIME(dateTime(0));
     
-                    LOCAL sumQty = NUMERIC[16,5](Sku);
-                    sumQty(Sku sku) <- [GROUP SUM qty(INTEGER n) BY (OVERRIDE skuBarcode(ids(n)), sku(ids(n)))](sku);
+                    LOCAL sumQty = NUMERIC[16,5](Sku,Purchase.UserInvoice);
+                    sumQty(Sku sku,i) <- [GROUP SUM qty(INTEGER n) BY (OVERRIDE skuBarcode(ids(n)), sku(ids(n)))](sku);
     
                     shipmentQuantity(Purchase.UserInvoiceDetail d ) <- (PARTITION UNGROUP sumQty
-                                                                LIMIT STRICT quantity(d)
-                                                                ORDER d
-                                                                BY sku(d))
+                                                                LIMIT STRICT quantity(d) 
+                                                                ORDER d                                                                
+                                                                BY sku(d), userInvoice(d)
+                                                                )
                                                             WHERE i == userInvoice(d);
     
-                    IF (GROUP SUM 1 IF sumQty(Sku sku) AND NOT sumQty(sku) == quantityUserInvoiceDetail(sku, i)) THEN {
-                        MESSAGE 'Внимание !!! В подтверждении заказа обнаружены позиции, которых нет в заказе : \n' + (GROUP CONCAT id(Sku sku) + ' ' + name(sku) IF sumQty(sku) AND NOT sumQty(sku) == quantityUserInvoiceDetail(sku, i), '\n' ORDER sku);
+                    IF (GROUP SUM 1 IF sumQty(Sku sku,i) AND NOT sumQty(sku,i) == quantityUserInvoiceDetail(sku, i)) THEN {
+                        MESSAGE 'Внимание !!! В подтверждении заказа обнаружены позиции, которых нет в заказе : \n' + (GROUP CONCAT id(Sku sku) + ' ' + name(sku) IF sumQty(sku,i) AND NOT sumQty(sku,i) == quantityUserInvoiceDetail(sku, i), '\n' ORDER sku);
                     }
                 }
             APPLY;
