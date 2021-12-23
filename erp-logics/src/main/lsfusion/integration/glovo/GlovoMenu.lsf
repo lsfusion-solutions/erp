@@ -36,6 +36,8 @@ DESIGN integrationData{
     }
 } 
 
+onlineGlovo = ABSTRACT BOOLEAN (Item, DepartmentStore);
+
 CLASS AttributeGlovo 'Аттрибут Glovo';
 id (AttributeGlovo a)= LONG(a);
 name(AttributeGlovo a) = IF a IS AttributeGlovo THEN 'Стандарт';
@@ -52,8 +54,8 @@ attributes(AttributeGroupGlovo ag) = CONCAT '','[', (GROUP CONCAT STRING(id(Attr
 //свойства для экспорта
 nameGlovo (Item i) = ABSTRACT ISTRING;  // наименование для выгрузки глово, весовой товар
 productsByGroup (Group g, DepartmentStore s)= CONCAT '','[', (GROUP CONCAT STRING(idExt(Item i)) IF 
-    customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), i) = g AND inOnline(i,s), ',' ORDER id(i)), ']';
-productsInGroup (Group g, DepartmentStore s) = GROUP SUM 1 IF customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), Item i) = g AND inOnline(i,s); 
+    customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), i) = g AND onlineGlovo(i,s), ',' ORDER id(i)), ']';
+productsInGroup (Group g, DepartmentStore s) = GROUP SUM 1 IF customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), Item i) = g AND onlineGlovo(i,s); 
 productsInGroupChild (Group g, DepartmentStore s) = GROUP SUM 1 IF (productsInGroup(Group c, s) AND level(c,g));
     
 groupByGroup (Group g)= CONCAT '','[', (GROUP CONCAT STRING(name(Group i)) IF 
@@ -66,6 +68,7 @@ isParentGroup (Group g) = GROUP LAST Group ig ORDER ig WHERE parent(ig) == g;
 attributesGroup (Item i) = IF i IS Item THEN '[]';
 
 description (Item i) = ABSTRACT STRING;
+
 
 FORM glovoMenu
     OBJECTS store = DepartmentStore PANEL 
@@ -91,7 +94,7 @@ FORM glovoMenu
     PROPERTIES = OVERRIDE urlHttpAccess(i), 'https://i.imgur.com/Qj5MlEH.png' EXTID 'image_url'
     PROPERTIES available(i,store), currentPriceGlovo(i,store) EXTID 'price'
     PROPERTIES = OVERRIDE description(i), CONCAT ' ','Описание продукта', name(i) EXTID 'description', attributesGroup(i) EXTID 'attributes_groups'
-    FILTERS inOnline(i, store) 
+    FILTERS onlineGlovo(i, store) 
 ;
 
 CLASS MenuGlovo 'Загрузка меню glovo';
@@ -221,11 +224,60 @@ EXTEND FORM integrationData
     PROPERTIES (tug) timeStart, timeFinish
     PROPERTIES (tug) NEW, EDIT, DELETE
 ;
+
 DESIGN integrationData{
     glovo{
         MOVE BOX (tug);
     }
 }
+
+//обновление доступности
+
+FORM bulkUpdateItems FORMEXTID 'null'
+    OBJECTS store = DepartmentStore PANEL 
+    
+    OBJECTS products = Item
+    PROPERTIES id(products), currentPriceGlovo(products,store), 
+        = IF available(products, store) THEN TTRUE ELSE TFALSE EXTID 'available'
+    FILTERS onlineGlovo(products, store)
+    
+    PROPERTIES = IF store IS DepartmentStore THEN '[]' EXTID 'attributes'
+;
+
+idTranscactionBulkUpdateItems = DATA STRING[255] (DepartmentStore);
+statusTranscactionBulkUpdateItems = DATA STRING[255] (DepartmentStore);
+
+bulkUpdateItems(DepartmentStore d) {
+    IF storeIdGlovo(d) AND NOT idTranscactionBulkUpdateItems(d) THEN {
+        EXPORT bulkUpdateItems OBJECTS store = d JSON;
+        LOCAL headers = TEXT(STRING[100]);
+        LOCAL answer = FILE();
+        headers('Authorization') <- token();
+        headers('content-type') <- 'application/json';
+        EXTERNAL HTTP POST CONCAT '', urlServer(),  'webhook/stores/' + storeIdGlovo(d) + '/menu/updates' HEADERS headers
+            PARAMS exportFile() TO answer;
+        IMPORT statusMenu JSON FROM answer();
+        idTranscactionBulkUpdateItems(d) <- STRING[255](transaction_id());
+        statusTranscactionBulkUpdateItems(d) <- NULL;
+    }
+    IF storeIdGlovo(d) AND idTranscactionBulkUpdateItems(d) THEN{
+        headers('Authorization') <- token();
+        headers('content-type') <- 'application/json';
+        LOCAL answer = FILE();
+        EXTERNAL HTTP GET CONCAT '', urlServer(),  'webhook/stores/' + storeIdGlovo(d) + '/menu/updates/', 
+            idTranscactionBulkUpdateItems(d) HEADERS headers TO answer;
+        IMPORT statusMenu JSON FROM answer();
+        fileToString(answer());
+        logToFile('glovo', CONCAT ' : ', id(d), nameStore(d), resultString());
+        IF transaction_id() = idTranscactionBulkUpdateItems(d) AND status() THEN {
+            statusTranscactionBulkUpdateItems(d) <- status();
+            idTranscactionBulkUpdateItems(d) <- NULL IF status() = 'SUCCESS';
+            statusTranscactionBulkUpdateItems(d) <- NULL IF status() = 'SUCCESS';
+        }
+    }
+    APPLY;
+}
+
 
 updateGlovoMenu 'Обновление меню glovo'(){
     LOCAL NESTED actualTimeUpdate = TimeUpdateGlovo();
@@ -242,8 +294,11 @@ updateGlovoMenu 'Обновление меню glovo'(){
         AND MenuGlovo menu = menuGlovo(d, currentDate(), actualTimeUpdate()) DO{
             IF NOT status(menu) = 'SUCCESS' THEN updateStatusMenu(menu);
     }
+    //обновление доступности товаров
+    FOR isOnline(DepartmentStore d) AND storeIdGlovo(d) DO NEWSESSION bulkUpdateItems(d);
 }
 
 EXTEND FORM glovoMenuFill
     PROPERTIES updateGlovoMenu() TOOLBAR
+    PROPERTIES (d) bulkUpdateItems
 ;
