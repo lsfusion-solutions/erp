@@ -49,9 +49,7 @@ META defineOrderShipment(sign, stockProp)
                                                                                                                     BY orderDetail(shipmentDetail) CHARWIDTH 7 MATERIALIZED;
                                                               
     shipped(OrderDetail d) += shipped(d);
-    toShip 'Не поставлено' (OrderDetail orderDetail) = IF (quantity (orderDetail) (-) shipped(orderDetail)) > 0.0 
-                                                        THEN quantity (orderDetail) (-) shipped(orderDetail)
-                                                        ELSE 0.0; 
+    toShip 'Не поставлено' (OrderDetail d) = MAX (quantity (d) - OVERRIDE shipped(d), 0.0), 0.0;
     prevToShip 'Не поставлено' (OrderDetail orderDetail) = PREV(toShip(orderDetail));
     toShipOrderDetail 'Не поставлено по складу' (stock, order) = GROUP SUM toShip(OrderDetail orderDetail) IF toShip(orderDetail) > 0
                                                                                      BY stockProp(orderDetail), order(orderDetail);
