@@ -144,7 +144,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
     LOCAL untilP = STRING ();
     NEWSESSION { 
         sinceP() <- '&since=' + getMilliSeconds(ZDATETIME(since));
-        untilP() <- '&until=' + getMilliSeconds(ZDATETIME(since));
+        untilP() <- '&until=' + getMilliSeconds(ZDATETIME(until));
         headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(c))));
         EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
             '/devices/' + uuidEvotor(c) + '/documents?type=OPEN_SESSION,CLOSE_SESSION', sinceP(), untilP() HEADERS headers  TO f;
@@ -166,7 +166,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
     }
     NEWSESSION {
         sinceP() <- '&since=' + getMilliSeconds(ZDATETIME(since));
-        untilP() <- '&until=' + getMilliSeconds(ZDATETIME(since));
+        untilP() <- '&until=' + getMilliSeconds(ZDATETIME(until));
         headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(c))));
         EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
             '/devices/' + uuidEvotor(c) + '/documents?type=SELL,PAYBACK', sinceP(), untilP() HEADERS headers TO f;
@@ -186,8 +186,8 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
             FOR id1(INTEGER j) AND typeDoc(i) = 'SELL' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j))) 
                 NEW detail = ReceiptSaleDetail DO {
                 id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j));
-                sku(detail) <- sku(code(j));
-                idBarcode(detail) <- STRING[15](bar_code(j));
+                sku(detail) <- OVERRIDE skuBarcode(bar_code(j)), sku(code(j));
+                idBarcode(detail) <- STRING[15](OVERRIDE bar_code(j), code(j));
                 quantity(detail) <- quantity(j);
                 price(detail) <- price(j);
                 discountSum(detail) <- discount_sum(j);
@@ -199,7 +199,8 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
             FOR id1(INTEGER j) AND typeDoc(i) = 'PAYBACK' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j))) 
                 NEW detail = ReceiptReturnDetail DO{
                 id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j));
-                sku(detail) <- sku(code(j));
+                sku(detail) <- OVERRIDE skuBarcode(bar_code(j)), sku(code(j));
+                idBarcode(detail) <- STRING[15](OVERRIDE bar_code(j), code(j));
                 quantity(detail) <- quantity(j);
                 price(detail) <- price(j);
                 idBarcode(detail) <- STRING[15](bar_code(j));
@@ -212,7 +213,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
                 sum(p) <- IF typeDoc(i) = 'SELL' THEN 
                     (GROUP SUM part_sum(INTEGER l) (-) change(l) IF paymentsParts(l) = k) 
                     ELSE -(GROUP SUM part_sum(INTEGER l) (-) change(l) IF paymentsParts(l) = k);
-                paymentType(p) <- typePaymentSID(lower(type(k)));
+                paymentType(p) <- IF type(k) == 'CASH' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
             }
         }
         afterCreateReceipts(c, since);
