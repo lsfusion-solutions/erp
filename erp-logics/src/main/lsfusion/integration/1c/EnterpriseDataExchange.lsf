@@ -63,6 +63,14 @@ END
 @defPropId(type, 'ТипНоменклатуры', typeItem, item);
 @defPropObject(uom, 'ЕдиницаИзмерения', UOM, item);
 @defPropId(vat, 'СтавкаНДС', typeVat, item);
+META defItem(nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Item EXTID extid
+        PROPERTIES (nm###class) sendUid EXTID 'Ссылка', article EXTID 'Артикул', id EXTID 'КодВПрограмме', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное'
+        FILTERS nm###class = nm(class)
+    ;
+END
+
 META defItemDetail(nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Item EXTID extid
@@ -81,6 +89,14 @@ END
 @extReference(specification, 'ХарактеристикиНоменклатуры');
 @defKeyPropSimple(fullName, 'НаименованиеПолное', specification);
 @defPropSimple(name, 'Наименование', STRING[10], specification);
+META defSpecification(nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Specification EXTID extid
+        PROPERTIES (nm###class) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное'
+        FILTERS nm###class = nm(class)
+    ;
+END
+
 META defSpecificationDetail(nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Specification EXTID extid
@@ -92,6 +108,18 @@ META defSpecificationDetail(nm, class, table, extid)
     EXTEND FORM receiveMessage
         PROPERTIES (class###table) IN nm uid###nm###class###table EXTID 'Ссылка'
     ;
+END
+
+CLASS ABSTRACT ItemData 'ДанныеНоменклатуры';
+item 'Номенклатура' = ABSTRACT Item (ItemData);
+META defItemDataDetail(nm, class, table, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class###table = ItemData EXTID extid
+        FILTERS nm###class###table = nm(class###table) 
+    ;
+    @defItem(item, itemData###class###table, 'Номенклатура');
+    specification 'Характеристика' = ABSTRACT Specification (ItemData);
+    @defSpecification(specification, itemData###class###table, 'Характеристика');
 END
 
 //barcode
@@ -313,10 +341,14 @@ dateTimeString 'Дата' (Document d) = dateTimeToString(dateTime(d));
 // sale order
 @extDocument(saleOrder, 'ЗаказКлиента');
 @defPropObject(currency, 'Валюта', Currency, saleOrder);
+@defPropObject(stock, 'Склад', Stock, saleOrder);
 @defPropObject(customer, 'Контрагент', Partner, saleOrder);
 @defPropSimple(settlements, 'ДанныеВзаиморасчетов', STRING[0], saleOrder);
 @defPropSimple(note, 'Комментарий', STRING, saleOrder);
-
+@extTable(saleOrder, product);
+@defPropObjectDetail(itemData, 'ДанныеНоменклатуры', ItemData, saleOrder, product);
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, saleOrder, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleOrder, product);
 @extTable(saleOrder, service);
 @defPropObjectDetail(item, 'Номенклатура', Item, saleOrder, service);
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleOrder, service);

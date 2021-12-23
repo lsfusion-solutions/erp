@@ -64,8 +64,9 @@ TABLE configurationEnterpriseData (Configuration, EnterpriseData);
 uid 'Ссылка' = DATA STRING[36] (EnterpriseData) INDEXED;
 object 'Объект ЕД' (STRING[36] id) = GROUP AGGR EnterpriseData ed BY uid(ed);
 
+overUid = ABSTRACT STRING[36] (EnterpriseData);
 skipUid = ABSTRACT BOOLEAN (EnterpriseData);
-sendUid (EnterpriseData ed) = uid(ed) IF NOT skipUid(ed);
+sendUid (EnterpriseData ed) = (OVERRIDE overUid(ed), uid(ed)) IF NOT skipUid(ed);
 
 WHEN SET (EnterpriseData ed IS EnterpriseData) AND NOT uid(ed) DO {
     generateUUID();
@@ -344,7 +345,7 @@ META defPropObject(name, caption, type, class)
 END
 
 META defPropObjectDetail(name, caption, type, class, table)
-    @defPropDetail(name, caption, type, class);
+    @defPropDetail(name, caption, type, class, table);
     @def###type##Detail(name, class, table, caption);
 END
 
