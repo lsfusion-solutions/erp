@@ -33,9 +33,13 @@ in 'Вкл.' (LabelType lt, Employee e) = in(lt, stock(e)) MATERIALIZED;
 process(TerminalDocument td) + { 
     
     IF terminalDocumentType(td) = labelDirectPrintTerminalDocumentType() AND activePrintTerminat(td) THEN {
-        printer() <- networkPrinter(replace(idTerminalHandbookType2(td),idTerminalHandbookType2(labelDirectPrintTerminalDocumentType()),''));
-        in(Sku sku) <- TRUE IF countTerminalDocumentDetail(sku, td);
-        createSnapshotTerminalDocumentLabel(td, labelType(replace(idTerminalHandbookType1(td),idTerminalHandbookType1(labelDirectPrintTerminalDocumentType()),'')));
+    
+        FOR LabelType labelType == labelType(replace(idTerminalHandbookType1(td),idTerminalHandbookType1(labelDirectPrintTerminalDocumentType()),''))
+            AND textTemplate(labelType) DO {
+            printer() <- networkPrinter(replace(idTerminalHandbookType2(td),idTerminalHandbookType2(labelDirectPrintTerminalDocumentType()),''));
+            in(Sku sku) <- TRUE IF countTerminalDocumentDetail(sku, td);
+            createSnapshotTerminalDocumentLabel(td, labelType);
+        }
     }
 
 }
