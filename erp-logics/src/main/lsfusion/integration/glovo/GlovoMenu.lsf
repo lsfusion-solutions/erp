@@ -54,23 +54,26 @@ attributes(AttributeGroupGlovo ag) = CONCAT '','[', (GROUP CONCAT STRING(id(Attr
     attributeGroup(i) == ag, ',' ORDER id(i)), ']';
 
 //свойства для экспорта
+imageUrl  = ABSTRACT STRING (Group);
+
+available(Item i, DepartmentStore s) = ABSTRACT TBOOLEAN;
+currentPriceGlovo 'Цена' (Item i, DepartmentStore s) = ABSTRACT NUMERIC[16,4];
+isParentGroup (Group g) = GROUP LAST Group ig ORDER ig WHERE parent(ig) == g;
+attributesGroup (Item i) = IF i IS Item THEN '[]';
+urlImageDefault = ABSTRACT STRING ();
+
+description (Item i) = ABSTRACT STRING;
 nameGlovo (Item i) = ABSTRACT ISTRING;  // наименование для выгрузки глово, весовой товар
 productsByGroup (Group g, DepartmentStore s)= CONCAT '','[', (GROUP CONCAT STRING(idExt(Item i)) IF 
-    customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), i) = g AND onlineGlovo(i,s), ',' ORDER id(i)), ']';
-productsInGroup (Group g, DepartmentStore s) = GROUP SUM 1 IF customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), Item i) = g AND onlineGlovo(i,s); 
+    customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), i) = g AND onlineGlovo(i,s) AND currentPriceGlovo(i,s),
+    ',' ORDER id(i)), ']';
+productsInGroup (Group g, DepartmentStore s) = 
+    GROUP SUM 1 IF customGroup[Stock.CustomGroupType,Item.Item](internetGroupType(), Item i) = g 
+    AND onlineGlovo(i,s) AND currentPriceGlovo(i,s); 
 productsInGroupChild (Group g, DepartmentStore s) = GROUP SUM 1 IF (productsInGroup(Group c, s) AND level(c,g));
     
 groupByGroup (Group g)= CONCAT '','[', (GROUP CONCAT STRING(name(Group i)) IF 
     parent(i) == g AND groupType(g) = internetGroupType(), ',' ORDER id(i)), ']';
-imageUrl  = ABSTRACT STRING (Group);
-
-available(Item i, DepartmentStore s) = ABSTRACT BOOLEAN;
-currentPriceGlovo 'Цена' (Item i, DepartmentStore s) = ABSTRACT NUMERIC[16,4];
-isParentGroup (Group g) = GROUP LAST Group ig ORDER ig WHERE parent(ig) == g;
-attributesGroup (Item i) = IF i IS Item THEN '[]';
-
-description (Item i) = ABSTRACT STRING;
-
 
 FORM glovoMenu
     OBJECTS store = DepartmentStore PANEL 
@@ -93,10 +96,10 @@ FORM glovoMenu
     
     OBJECTS i = Item EXTID 'products'
     PROPERTIES (i) nameGlovo EXTID 'name', id EXTID 'id'
-    PROPERTIES = OVERRIDE urlHttpAccess(i), 'https://i.imgur.com/Qj5MlEH.png' EXTID 'image_url'
+    PROPERTIES = OVERRIDE urlHttpAccess(i), urlImageDefault() EXTID 'image_url'
     PROPERTIES available(i,store), currentPriceGlovo(i,store) EXTID 'price'
     PROPERTIES = OVERRIDE description(i), CONCAT ' ','Описание продукта', name(i) EXTID 'description', attributesGroup(i) EXTID 'attributes_groups'
-    FILTERS onlineGlovo(i, store) 
+    FILTERS onlineGlovo(i, store) AND currentPriceGlovo(i, store)
 ;
 
 CLASS MenuGlovo 'Загрузка меню glovo';
