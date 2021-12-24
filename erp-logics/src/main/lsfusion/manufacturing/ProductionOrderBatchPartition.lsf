@@ -132,8 +132,11 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
             batch(d) <- bt;
         }
         
+        LOCAL bruttoQuantity = NUMERIC[16,5] (Sku, BOM, Batch);
+        bruttoQuantity (Sku s, BOM bom, Batch b) <- NUMERIC[16,5](toConsume(s, bom, b) / (OVERRIDE multiplier(s, bom, sku(b)), 1.0)); 
+        
         // Исходное количество
-        bruttoQuantity(ComponentDetail d) <- NUMERIC[16,5](toConsume(bruttoSku(d), BOM(d), batch(d)) / (OVERRIDE multiplier(bruttoSku(d), BOM(d), sku(batch(d))), 1.0)) WHERE order(d) = o;
+        bruttoQuantity(ComponentDetail d) <- bruttoQuantity(bruttoSku(d), BOM(d), batch(d)) WHERE order(d) = o;
         
         // Кол-во с учетом замены
         substituteQuantity(ComponentDetail d) <- toConsume(bruttoSku(d), BOM(d), batch(d)) WHERE order(d) = o AND bruttoSku(d) != sku(batch(d));
