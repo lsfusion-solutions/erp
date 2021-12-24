@@ -89,18 +89,20 @@ GROUP barcode;
 GROUP measure;
 GROUP volume;
 
+initcap (TEXT p1) = FORMULA 'initcap($1)';
+
 FORM nomenclature 'Номенклатура ЯндексЕда'
     OBJECTS s = DepartmentStore PANEL
     
     OBJECTS g = Group EXTID 'categories'
-    PROPERTIES id(g), name(g), parentId(g), positionOver(g) EXTID 'sortOrder'
+    PROPERTIES id(g), = initcap(name(g)) EXTID 'name', parentId(g), positionOver(g) EXTID 'sortOrder'
     FILTERS onlineCategory(g)
     
     OBJECTS i = Item EXTID 'items'
     PROPERTIES id(i), yandexName(i) EXTID 'name', categoryId(i),
          valueVAT(i) EXTID 'vat', = OVERRIDE id(i), '' EXTID 'vendorCode',
          isCatchWeight(i), currentPrice(i,s) EXTID 'price', oldPrice(i,s)
-    PROPERTIES IN measure = grossWeight(i) * 1000 EXTID 'value', = IF grossWeight(i) THEN 'GRM' EXTID 'unit', quantum(i)
+    PROPERTIES IN measure = netWeight(i) * 1000 EXTID 'value', = IF netWeight(i) THEN 'GRM' EXTID 'unit', quantum(i)
     PROPERTIES IN volume = round0(volume(i)) EXTID 'value', = IF volume(i) THEN 'DMQ' EXTID 'unit'
     PROPERTIES IN barcode idBarcode(i) EXTID 'value', = IF idBarcode(i) THEN 'ean13' EXTID 'type', 
         = IF isCatchWeight(i) == TTRUE THEN 'ean13-tail-gram-5' ELSE 'none' EXTID 'weightEncoding'
