@@ -149,6 +149,8 @@ indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i)
 
 @openXML(EOrderResponse,o,eOrderResponses);
 
+overImportOrdrsp ABSTRACT (EOrderResponse);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'ordrsp' AND NOT invoices THEN {
         TRY {
@@ -212,6 +214,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         FOR ordrspGTIN(INTEGER l) INLINE DO {
                             responseDetail(EOrderDetail od) <- eOrderResponseDetail(idDetail(l)) WHERE eOrder(ordrspOrderNumber()) == order(od) AND sku(l) == sku(od) AND indexSku(l) == localIndexSku(od);
                         }
+                        overImportOrdrsp(r);
                         
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
