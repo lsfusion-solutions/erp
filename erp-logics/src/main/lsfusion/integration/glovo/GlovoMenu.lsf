@@ -1,6 +1,6 @@
 MODULE GlovoMenu;
 
-REQUIRE DeliveryOption, ItemInternet;
+REQUIRE DeliveryOption, ItemInternet, LogTools;
 
 NAMESPACE Glovo;
 
@@ -14,6 +14,8 @@ testUrlServer 'Url тестового сервера' = DATA STRING[255] ();
 prodUrlServer 'Url сервера' = DATA STRING[255] ();
 testMode 'Тестовый режим' = DATA BOOLEAN ();
 inToken 'Токен получения Glovo' = DATA STRING ();
+
+@defineLogRotate(glovo, 5, weekly);
 
 urlServer = IF testMode() THEN testUrlServer() ELSE prodUrlServer();
 
@@ -109,7 +111,7 @@ status 'Статус' = DATA STRING (MenuGlovo);
 fileMenu 'Файл' = DATA JSONFILE (MenuGlovo);
 url 'Url' = DATA STRING (MenuGlovo);
 
-storeIdGlovo = ABSTRACT STRING (DepartmentStore); // id магазина в системе glovo. Переопределить
+storeIdGlovo 'ID магазина в системе Glovo'= ABSTRACT STRING (DepartmentStore); // id магазина в системе glovo. Переопределить
 afterFillMenu ABSTRACT LIST (DepartmentStore);
 
 
@@ -199,7 +201,7 @@ updateStatusMenu 'Обновить статус' (MenuGlovo g){
 
 FORM glovoMenuFill 'Glovo'
     OBJECTS d = DepartmentStore
-    PROPERTIES (d) READONLY name
+    PROPERTIES (d) READONLY name, storeIdGlovo
     
     FILTERS isOnline(d)
     
@@ -237,7 +239,7 @@ FORM bulkUpdateItems FORMEXTID 'null'
     OBJECTS store = DepartmentStore PANEL 
     
     OBJECTS products = Item
-    PROPERTIES id(products), currentPriceGlovo(products,store), 
+    PROPERTIES id(products), currentPriceGlovo(products,store) EXTID 'price', 
         = IF available(products, store) THEN TTRUE ELSE TFALSE EXTID 'available'
     FILTERS onlineGlovo(products, store)
     
@@ -246,21 +248,10 @@ FORM bulkUpdateItems FORMEXTID 'null'
 
 idTranscactionBulkUpdateItems = DATA STRING[255] (DepartmentStore);
 statusTranscactionBulkUpdateItems = DATA STRING[255] (DepartmentStore);
+messageErrorTransactions = DATA LOCAL NESTED STRING ();
 
 bulkUpdateItems(DepartmentStore d) {
-    IF storeIdGlovo(d) AND NOT idTranscactionBulkUpdateItems(d) THEN {
-        EXPORT bulkUpdateItems OBJECTS store = d JSON;
-        LOCAL headers = TEXT(STRING[100]);
-        LOCAL answer = FILE();
-        headers('Authorization') <- token();
-        headers('content-type') <- 'application/json';
-        EXTERNAL HTTP POST CONCAT '', urlServer(),  'webhook/stores/' + storeIdGlovo(d) + '/menu/updates' HEADERS headers
-            PARAMS exportFile() TO answer;
-        IMPORT statusMenu JSON FROM answer();
-        idTranscactionBulkUpdateItems(d) <- STRING[255](transaction_id());
-        statusTranscactionBulkUpdateItems(d) <- NULL;
-    }
-    IF storeIdGlovo(d) AND idTranscactionBulkUpdateItems(d) THEN{
+    IF idTranscactionBulkUpdateItems(d) THEN{
         headers('Authorization') <- token();
         headers('content-type') <- 'application/json';
         LOCAL answer = FILE();
@@ -268,14 +259,38 @@ bulkUpdateItems(DepartmentStore d) {
             idTranscactionBulkUpdateItems(d) HEADERS headers TO answer;
         IMPORT statusMenu JSON FROM answer();
         fileToString(answer());
-        logToFile('glovo', CONCAT ' : ', id(d), nameStore(d), resultString());
-        IF transaction_id() = idTranscactionBulkUpdateItems(d) AND status() THEN {
-            statusTranscactionBulkUpdateItems(d) <- status();
-            idTranscactionBulkUpdateItems(d) <- NULL IF status() = 'SUCCESS';
-            statusTranscactionBulkUpdateItems(d) <- NULL IF status() = 'SUCCESS';
+        logToFile('glovo', CONCAT ' : ', 'VERIFY', id(d), nameStore(d), resultString());
+        statusTranscactionBulkUpdateItems(d) <- status();
+        IF transaction_id() = idTranscactionBulkUpdateItems(d) AND status() = 'SUCCESS' THEN {
+        
+            idTranscactionBulkUpdateItems(d) <- NULL;
+            statusTranscactionBulkUpdateItems(d) <- NULL;
+            logToFile('glovo', CONCAT ' : ', status(), id(d), nameStore(d), resultString());
+            
         }
+        IF transaction_id() = idTranscactionBulkUpdateItems(d) AND 
+            (status() = 'PARTIALLY_PROCESSED' OR status() = 'NOT_PROCESSED' OR status() = 'GLOVO_ERROR') THEN {
+            
+            messageErrorTransactions() <- CONCAT '\n', messageErrorTransactions(), 
+                (CONCAT ' : ', status(), last_updated_at(), id(d), nameStore(d), (GROUP CONCAT details(INTEGER i), ',' ORDER i));
+            idTranscactionBulkUpdateItems(d) <- NULL;
+            
+        }      
     }
-    APPLY;
+    IF NOT idTranscactionBulkUpdateItems(d) THEN {
+        EXPORT bulkUpdateItems OBJECTS store = d JSON;
+        LOCAL headers = TEXT(STRING[100]);
+        LOCAL answer = FILE();
+        headers('Authorization') <- token();
+        headers('content-type') <- 'application/json';
+        EXTERNAL HTTP POST CONCAT '', urlServer(),  'webhook/stores/' + storeIdGlovo(d) + '/menu/updates' HEADERS headers
+            PARAMS exportFile() TO answer;
+        IMPORT menuUpdate JSON FROM answer();
+        fileToString(answer());
+        logToFile('glovo', CONCAT ' : ', 'SEND', id(d), nameStore(d), resultString());
+        idTranscactionBulkUpdateItems(d) <- STRING[255](transaction_id());
+        statusTranscactionBulkUpdateItems(d) <- NULL;
+    }
 }
 
 
@@ -295,10 +310,14 @@ updateGlovoMenu 'Обновление меню glovo'(){
             IF NOT status(menu) = 'SUCCESS' THEN updateStatusMenu(menu);
     }
     //обновление доступности товаров
-    FOR isOnline(DepartmentStore d) AND storeIdGlovo(d) DO NEWSESSION bulkUpdateItems(d);
+    NEWSESSION {
+        messageErrorTransactions() <- NULL;
+        FOR isOnline(DepartmentStore d) AND storeIdGlovo(d) DO bulkUpdateItems(d);
+        APPLY;
+        IF messageErrorTransactions() THEN throwException(messageErrorTransactions());
+    }
 }
 
 EXTEND FORM glovoMenuFill
     PROPERTIES updateGlovoMenu() TOOLBAR
-    PROPERTIES (d) bulkUpdateItems
 ;
