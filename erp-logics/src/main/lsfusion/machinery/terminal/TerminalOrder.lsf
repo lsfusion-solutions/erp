@@ -29,7 +29,9 @@ terminalBarcode = ABSTRACT STRING[100](TerminalOrderDetail);
 idBarcodeSku 'Штрихкод' (TerminalOrderDetail d) = OVERRIDE terminalBarcode(d), idBarcode(sku(d));
 idSku 'Код' (TerminalOrderDetail d) = id(sku(d));
 nameSku 'Наименование' (TerminalOrderDetail d) = name(sku(d));
-extraBarcodes = GROUP CONCAT STRING(id(Barcode b)) IF sku(b) == sku(TerminalOrderDetail td) AND active(b), ',' ORDER b BY td;
+
+overExtraBarcodes = ABSTRACT STRING (TerminalOrderDetail);
+extraBarcodes (TerminalOrderDetail d) = OVERRIDE overExtraBarcodes(d), [GROUP CONCAT STRING(id(Barcode b)) IF sku(b) == sku(TerminalOrderDetail td) AND active(b), ',' ORDER b BY td](d);
 image(TerminalOrderDetail d) = smallImage(sku(d));
 skipImage = ABSTRACT BOOLEAN (TerminalOrderDetail);
 hasImage(TerminalOrderDetail d) = hasImage(sku(d)) AND NOT skipImage(d);
