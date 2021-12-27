@@ -291,8 +291,7 @@ writeOffs 'Списания' (PreOrderDetail d) = GROUP
 extraOrdered = ABSTRACT NUMERIC[16,5] (PreOrderDetail);
 ordered 'Израсходовано' (PreOrderDetail pd) = orderedOrderDetail(pd) (+) orderedWriteOffDetail(pd) (+) extraOrdered(pd);
 inventory 'Списано инвентаризацией' = DATA NUMERIC[16,5] (PreOrderDetail);
-calcQuantity 'Доступно' (PreOrderDetail pd) = IF  (quantity(pd) (-) ordered(pd) (-) inventory(pd)) >0 
-    THEN (quantity(pd) (-) ordered(pd) (-) inventory(pd)) ELSE 0.0;
+calcQuantity 'Доступно' (PreOrderDetail pd) = MAX quantity(pd) - (OVERRIDE ordered(pd), 0.0) - (OVERRIDE inventory(pd), 0.0), 0.0; 
 
 FORM dialogPreOrderDetail 'Резерв'
     OBJECTS s = UserOrderDetail PANEL 
