@@ -31,11 +31,16 @@ deleteIndexes 'Удалять индексы при упаковке' = DATA BOO
 
 CLASS Index 'Индекс';
 
-table 'Таблица' = DATA Table (Index);
+table 'Таблица' = DATA Table (Index) NONULL DELETE INDEXED;
+sidTable 'Таблица' (Index i) = sid(table(i)) CHARWIDTH 10;
+
 name 'Наименование' = DATA STRING (Index);
 tablespace 'Tablespace' = DATA STRING (Index);
 definition 'Скрипт' = DATA STRING (Index);
 isConstraint 'Constraint' = DATA BOOLEAN (Index);
+indexSize 'Размер' = DATA LONG (Index);
+indexScans 'Сканирований' = DATA LONG (Index);
+indexReads 'Считано' = DATA LONG (Index);
 
 index = GROUP AGGR Index x BY name(x);
 
@@ -44,19 +49,22 @@ getIndexes 'Получить список индексов'(Table t) {
         LOCAL is = BOOLEAN (Index);
         
         EXTERNAL SQL 'LOCAL'
-            EXEC 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid) from pg_indexes i left join pg_constraint c ON i.indexname = c.conname where tablename = $1' 
+            EXEC 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid), pg_relation_size(psai.indexrelid), psai.idx_scan, psai.idx_tup_read from pg_indexes i left join pg_constraint c ON i.indexname = c.conname left join pg_stat_all_indexes psai ON i.indexname = psai.indexrelname where tablename = $1' 
             PARAMS lower(sid(t))
             TO file;
             
-        IMPORT TABLE FROM file() FIELDS STRING indexname, STRING tablespace NULL , STRING definition, STRING constraint NULL DO {
-            IF NOT index(indexname) THEN NEW i = Index {
-                name(i) <- indexname;
+        IMPORT TABLE FROM file() FIELDS STRING indexName, STRING tablespace NULL , STRING definition, STRING constraint, LONG indexSize, LONG indexScans, LONG indexReads NULL DO {
+            IF NOT index(indexName) THEN NEW i = Index {
+                name(i) <- indexName;
             }
-            FOR name(Index i ) == indexname DO {
+            FOR name(Index i) == indexName DO {
                 table(i) <- t;
                 tablespace(i) <- tablespace;
                 definition(i) <- definition;
-                isConstraint(i) <- TRUE IF constraint;
+                isConstraint(i) <- TRUE IF constraint != '';
+                indexSize(i) <- indexSize;
+                indexScans(i) <- indexScans;
+                indexReads(i) <- indexReads;
                 is(i) <- TRUE;
             }
         }
@@ -66,7 +74,7 @@ getIndexes 'Получить список индексов'(Table t) {
         APPLY;
         
     }
-} ASON CONTEXTMENU sid[DatabaseTable];
+}
 
 dropIndexes 'Удалить индексы' (Table t) {
     logToFile('database-tools', 'start - DROP INDEXES');
@@ -415,6 +423,7 @@ EXTEND FORM tools
     PROPERTIES (t) READONLY BACKGROUND backgroundData(t) dataSize, curDataSize
     PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE 
     PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, targetStatistic CHANGEABLE
+    PROPERTIES (t) getIndexes TOOLBAR
     FILTERGROUP grow
         FILTER 'VACUUM' needVacuum(t)
         FILTER 'REINDEX' needReindex(t)
@@ -433,8 +442,9 @@ EXTEND FORM tools
     FILTERS table(tc)==t
     
     OBJECTS i=Index
-    PROPERTIES(i)  READONLY name, definition, isConstraint
-    FILTERS table(i)==t
+    PROPERTIES(i)  READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, sidTable
+    FILTERGROUP index
+        FILTER 'По таблице' table(i) = t DEFAULT
     
     PROPERTIES () loadCurSize, loadSystemCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, countTreads,
                   loadCurRows, setSkipStatistic,  reindexConcurrently, skipExceptions, stopAfter
