@@ -511,6 +511,19 @@ addressCustomerStock 'Адрес склада покупателя' (EInvoice i)
 contactCustomerStock 'ФИО и должность лица, которое отвечает за получение груза со стороны грузополучателя' = DATA STRING[150] (EInvoice);
 userIDCustomerStock 'Идентификатор пользователя' (EInvoice i) = userID(customerStock(i));
 
+customSelectContactCustomerStock = ABSTRACT BOOLEAN (EInvoice);
+overSelectContactCustomerStock ABSTRACT (EInvoice);
+
+changeContactCustomerStock (EInvoice consignment)  {  
+    IF customSelectContactCustomerStock(consignment) THEN {
+        overSelectContactCustomerStock(consignment);
+    } ELSE {
+        INPUT s = contactCustomerStock(consignment) DO {
+            contactCustomerStock(consignment) <- s;
+        }
+    }  
+}
+
 transportContact 'ФИО водителя' = DATA STRING[150] (EInvoice);
 deliveryContact 'Товар к перевозке принял (должность и ФИО)' = DATA STRING[150] (EInvoice);
 proxyID 'Номер доверенности' = DATA STRING[70] (EInvoice);
@@ -707,7 +720,7 @@ FORM eInvoice 'Электронная накладная EDI'
                    deliveryNoteNumber, deliveryNoteDateTime, dateTimeCreated,
                    contractName, contractId, contractDate, waybillId SHOWIF NOT isTN2(e),
                    nameSupplier, addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, contactSupplierStock,
-                   nameCustomer, addressCustomer, unpCustomer, nameCustomerStock, contactCustomerStock,
+                   nameCustomer, addressCustomer, unpCustomer, nameCustomerStock, contactCustomerStock ON CHANGE changeContactCustomerStock(e),
                    nameFreightPayer SHOWIF NOT isTN2(e), addressFreightPayer SHOWIF NOT isTN2(e), unpFreightPayer SHOWIF NOT isTN2(e),
                    transportContact SHOWIF NOT isTN2(e), deliveryContact, proxyID, proxyDate, partyIssuingProxyName, 
                    quantityTrip SHOWIF NOT isTN2(e), transportOwnerName SHOWIF NOT isTN2(e), transportID SHOWIF NOT isTN2(e), trailerID SHOWIF NOT isTN2(e),
