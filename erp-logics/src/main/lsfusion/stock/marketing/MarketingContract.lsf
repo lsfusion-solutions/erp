@@ -275,8 +275,11 @@ conditionList 'Сопроводительный лист' = DATA ConditionList (
 
 contractMarketing (MarketingCondition c) = contractMarketing(conditionList(c)) MATERIALIZED INDEXED;
 
-dateFrom (MarketingCondition c) = dateFrom(conditionList(c)) MATERIALIZED;
-dateTo (MarketingCondition c) = dateTo(conditionList(c)) MATERIALIZED;
+dataDateFrom 'Дата с' = DATA DATE (MarketingCondition);
+dataDateTo   'Дата по' = DATA DATE (MarketingCondition);
+
+dateFrom (MarketingCondition c) = OVERRIDE dataDateFrom(c), dateFrom(conditionList(c)) MATERIALIZED;
+dateTo (MarketingCondition c) = OVERRIDE dataDateTo(c), dateTo(conditionList(c)) MATERIALIZED;
 
 supplier (MarketingCondition c) = supplier(conditionList(c)) MATERIALIZED INDEXED;
 customer (MarketingCondition c) = customer(contractMarketing(c)) MATERIALIZED;
@@ -311,6 +314,8 @@ overCalcBase = ABSTRACT CalcBase (MarketingCondition);
 calcBase (MarketingCondition mc) = OVERRIDE overCalcBase(mc), calcBase(conditionList(mc), conditionType(mc)) MATERIALIZED;
 
 marketingPercent 'Процент маркетинга, %' = DATA NUMERIC[5,2]  (MarketingCondition);
+
+price 'Цена' = DATA NUMERIC[16,5](MarketingCondition);
 
 itemGroup = DATA ItemGroup (MarketingCondition);
 nameItemGroup 'Категория' (MarketingCondition c) = name(itemGroup(c));
@@ -477,7 +482,7 @@ META defineConditionTypeMarketing(nameType, captionType)
         
         OBJECTS nameType = MarketingCondition
         PROPERTIES (##nameType) READONLY nameItemGroup, nameBrand, nameCountry, nameWeighted , nameRegion, legalEntities, stockGroups,
-                       stocks, items, marketingPercent, isException
+                       stocks, items, marketingPercent, price, isException
         FILTERS conditionList(##nameType) = l, conditionType(##nameType) = ConditionType.nameType
     ;
     
@@ -501,7 +506,7 @@ META defineConditionTypeMarketing(nameType, captionType)
         
         OBJECTS nameType = MarketingCondition
         PROPERTIES (##nameType) READONLY nameItemGroup, nameBrand, nameCountry, nameWeighted , nameRegion, legalEntities, stockGroups,
-                       stocks, items, marketingPercent, isException
+                       stocks, items, marketingPercent, price, isException
         FILTERS conditionList(##nameType) = l, conditionType(##nameType) = ConditionType.##nameType
     ;
     
@@ -530,7 +535,7 @@ META defineConditionTypeMarketing(nameType, captionType)
         OBJECTS nameType = MarketingCondition
         PROPERTIES (##nameType) nameItemGroup ON CHANGE dialogTreeItemGroups(##nameType), nameBrand, nameCountry, nameWeighted , nameRegion,  
                         legalEntities ON CHANGE showSelectLegalEntities(##nameType), stockGroups ON CHANGE dialogStockGroupsMarketingCondition(##nameType),
-                        stocks ON CHANGE showSelectStocks(##nameType), items ON CHANGE selectItems(nameType), marketingPercent, isException, NEW, DELETE 
+                        stocks ON CHANGE showSelectStocks(##nameType), items ON CHANGE selectItems(nameType), marketingPercent, price, isException, NEW, DELETE 
         FILTERS conditionList(##nameType) = l, conditionType(##nameType) = ConditionType.##nameType
     ;
     
@@ -671,6 +676,7 @@ copyConditionList 'Копировать' (ConditionList l)  {
             inStock(nc, Stock st) <- inStock(mc, st);
             inLegalEntityStock(nc, LegalEntity le) <- inLegalEntityStock(mc, le);
             item(nc) <- item(mc);
+            price(nc) <- price(mc);
             marketingPercent(nc) <- marketingPercent(mc);            
         }
         FOR conditionList(FixedMarketingCondition mc) == l NEW nc = FixedMarketingCondition DO {
@@ -719,6 +725,7 @@ copyContractMarketing 'Копировать' (ContractMarketing c)  {
                 inStock(nmc, Stock st) <- inStock(mc, st);
                 inLegalEntityStock(nmc, LegalEntity le) <- inLegalEntityStock(mc, le);
                 item(nmc) <- item(mc);
+                price(nmc) <- price(mc);
                 marketingPercent(nmc) <- marketingPercent(mc);
             }
             FOR conditionList(FixedMarketingCondition fc) == cl NEW nfc = FixedMarketingCondition DO {

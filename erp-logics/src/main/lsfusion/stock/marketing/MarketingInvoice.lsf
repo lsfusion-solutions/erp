@@ -138,12 +138,6 @@ numberCT (STRING[100] c) = CASE
                                     WHEN isSubstring(upper(c), upper('Рекламные услуги')) THEN 'Р'
                                     WHEN isSubstring(upper(c), upper('Аудио-реклама')) THEN 'А';
 
-price 'Цена' = DATA NUMERIC[16,5](MarketingCondition);
-
-EXTEND FORM conditionList PROPERTIES price(retail), price(logistic), price(merch), price(defects);
-EXTEND FORM contractMarketing PROPERTIES READONLY price(retail), price(logistic), price(merch), price(defects);
-EXTEND FORM contractMarketings PROPERTIES READONLY price(retail), price(logistic), price(merch), price(defects);
-
 skipMarketingCondition = ABSTRACT BOOLEAN (MarketingCondition, Stock, Sku, NUMERIC[16,5]);
 
 marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DATE d, NUMERIC[16,5] p) = 
@@ -158,7 +152,6 @@ marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DAT
     AND (price(c) == p OR NOT price(c))
     AND NOT skipMarketingCondition(c, st, sk, p)
     BY contractMarketing(c), conditionType(c);
-
 
 overCalcSumMarketing = ABSTRACT NUMERIC[18,2] (MarketingInvoiceDetail);
 WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d)) OR CHANGED (marketingPercent(d)) OR CHANGED (overCalcSumMarketing(d))) AND NOT CHANGED (sumMarketing(d)) DO {
