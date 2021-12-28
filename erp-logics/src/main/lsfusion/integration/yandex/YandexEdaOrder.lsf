@@ -81,6 +81,9 @@ courierArrivementDateText = DATA STRING (InternetOrder);
 courierArrivementDate (InternetOrder o) += WHEN carrier(o) == yandexCarrier() THEN DATETIME (courierArrivementDateText(o));
 
 afterCreateOrder ABSTRACT LIST (InternetOrder);
+priceAggrRound(NUMERIC[18,4] price, Item s)  = IF mod(price*quantum(s)*1000, 10) > 0 AND isCatchWeight(s) 
+    THEN price + 0.01 ELSE price;
+
 
 createOrder(FILE f){
     LOCAL tokenClient = STRING ();
@@ -114,7 +117,7 @@ createOrder(FILE f){
             FOR id(INTEGER items) NEW detail = InternetOrderDetail DO{
                 sku(detail) <- itemById(id(items));
                 quantity(detail) <- NUMERIC[16,5](quantity(items));
-                price(detail) <- NUMERIC[15,2](price(items));
+                price(detail) <- priceAggrRound(NUMERIC[15,2](price(items)), sku(detail));
                 internetOrder(detail) <- order;
             }
             paymentTypeInternetOrder(order) <- paymentTypeOrder(paymentType());
@@ -138,6 +141,7 @@ orderNotFound(){
     statusHttpTo() <- 404;
     EXPORT JSON FROM code = 100, description = 'Не найден заказ';
 }
+
 
 updateOrder(FILE f){
     LOCAL order = STRING ();
