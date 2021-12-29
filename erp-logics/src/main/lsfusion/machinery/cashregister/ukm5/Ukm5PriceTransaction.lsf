@@ -1,0 +1,173 @@
+MODULE Ukm5PriceTransaction;
+
+REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery;
+
+NAMESPACE Ukm5;
+
+//кассы
+
+isUkm5 (GroupCashRegister g) = TRUE IF handlerModel(g) = 'lsf.ukm5';
+idStore 'ID магазина UKM5' = DATA STRING[10] (GroupCashRegister);
+
+accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';
+
+EXTEND FORM groupCashRegister 
+    PROPERTIES (grc) idStore SHOWIF isUkm5(grc);
+
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY (idStore(grc));
+    }
+}
+
+//атрибуты
+@defineStaticObject(Attribut, ){
+    CLASS Attribut ;
+    TABLE Attribut (Attribut);
+    
+    name '{master.data.name}' (Attribut o) = staticCaption(o) IF o IS Attribut CHARWIDTH 15;
+    
+    FORM dialogAttributs 
+        OBJECTS o = Attribut
+        PROPERTIES(o) READONLY name
+        
+        LIST Attribut OBJECT o
+    ;
+
+};
+
+EXTEND CLASS Attribut{
+    alcohol 'alcohol', 
+    tobacco 'tobacco', 
+    egais 'egais', 
+    markedTobacco 'markedTobacco', 
+    markedGoods 'markedGoods', 
+    advance 'advance', 
+    noSellerRequired 'noSellerRequired', 
+    service 'service'
+}
+
+skuTransaction(Sku s, MachineryPriceTransaction t) = GROUP LAST Barcode b ORDER b
+    WHERE (in(t,b) AND sku(b) == s);
+
+attributes = ABSTRACT STRING (Sku);
+
+filterAttribut = ABSTRACT CASE BOOLEAN (Item, Attribut);
+
+FORM importItems 'Импорт товаров'
+    OBJECTS t = MachineryPriceTransaction
+    
+    OBJECTS elements = Item
+    PROPERTIES = IF elements IS Item THEN 1 EXTID 'taxgroupId', = id(itemGroup(elements)) EXTID 'itemGroup',
+         = OVERRIDE shortNameUOM(elements), '' EXTID 'measure', = OVERRIDE name(elements), '' EXTID 'name',
+         = OVERRIDE id(elements), '' EXTID 'id', = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete', 
+         = IF split(elements) THEN 3 ELSE 0 EXTID 'measprec', //attributes(elements), 
+         = IF elements IS Item THEN ' ' EXTID 'descr'
+    
+    FILTERS skuTransaction(elements, t)
+    
+    OBJECTS barcodes = Barcode
+    PROPERTIES id(barcodes) EXTID 'id', amount(barcodes) EXTID 'quantity'
+    FILTERS in(t,barcodes) AND sku(barcodes) = elements
+    
+    OBJECTS a = Attribut EXTID 'attributes'
+    PROPERTIES = name(a) EXTID 'id'
+    FILTERS filterAttribut(elements, a);
+;
+            
+owner = DATA LOCAL STRING(INTEGER);
+
+attributes (ItemGroup g) = IF g IS ItemGroup THEN '[]';
+
+skuGroupTransaction(SkuGroup sc, MachineryPriceTransaction t) = GROUP LAST Barcode b ORDER b
+    WHERE (in(t,b) AND skuGroup(t,b) == sc) OR (level(skuGroup(t,b), sc));
+
+FORM groupItems
+    OBJECTS t = MachineryPriceTransaction EXTID ''
+    
+    OBJECTS elements = ItemGroup
+    PROPERTIES = OVERRIDE id(parent(elements)), '0' EXTID 'owner', = OVERRIDE name(elements) EXTID 'name',
+        = OVERRIDE id(elements) EXTID 'id', = IF NOT active(elements) THEN TTRUE ELSE TFALSE EXTID 'delete', 
+        = attributes(elements) 
+    
+    FILTERS skuGroupTransaction(elements, t)
+;
+
+FORM barcodePrices 'Импорт цен, назначенных на штрихкоды товара'
+    OBJECTS t = MachineryPriceTransaction
+    
+    OBJECTS elements = Barcode
+    PROPERTIES dataMinPrice(t, elements) EXTID 'minprice', price(t, elements), 
+        = IF t IS CashRegisterPriceTransaction AND elements IS Barcode THEN TFALSE EXTID 'isPromoPrice', 
+        = IF NOT active(elements) THEN TTRUE ELSE TFALSE EXTID 'delete', 
+        = IF elements IS Barcode THEN toChar(DATETIME('2020-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateFrom',
+        = IF elements IS Barcode THEN toChar(DATETIME('2025-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateTo',
+        = IF t IS CashRegisterPriceTransaction AND elements IS Barcode THEN '3' EXTID 'storeId',
+        = OVERRIDE id(elements), '' EXTID 'barcodeId'
+        
+    FILTERS in(t,elements) AND skuTransaction(sku(elements), t)
+;
+
+isPromo = ABSTRACT TBOOLEAN (MachineryPriceTransaction, Item);
+
+FORM itemPrices 'Импорт цен на товары'
+    OBJECTS t = MachineryPriceTransaction
+    
+    OBJECTS elements = Item
+    PROPERTIES = OVERRIDE id(elements), '' EXTID 'itemId',
+        = isPromo(t, elements) EXTID 'isPromoPrice',
+        = IF isPromo(t, elements) THEN price(t, barcode(elements)) ELSE 
+            (OVERRIDE dataMinPrice(t, barcode(elements)), 0.1) EXTID 'minprice', = price(t, barcode(elements)) EXTID 'price',
+        = IF NOT active(elements) THEN TTRUE ELSE TFALSE EXTID 'delete', 
+        = IF elements IS Item THEN toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateFrom',
+        = IF elements IS Item THEN toChar(DATETIME('2025-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateTo'
+    
+    FILTERS skuTransaction(elements, t)
+;
+
+sendPriceTransactionAPI(CashRegisterPriceTransaction t){
+    LOCAL answer = FILE ();
+    EXPORT groupItems OBJECTS t = t JSON ;
+    EXTERNAL HTTP POST directory(groupCashRegister(t)) + '/api/v1/import/groupItems' PARAMS exportFile() TO answer;
+    fileToString(answer());
+    IF accepted(resultString()) THEN {
+        //товары
+        EXPORT importItems OBJECTS t = t JSON;
+        EXTERNAL HTTP POST directory(groupCashRegister(t)) + '/api/v1/import/items' PARAMS exportFile() TO answer;
+        fileToString(answer());
+        IF accepted(resultString()) THEN {
+            EXPORT itemPrices OBJECTS t = t JSON;
+            EXTERNAL HTTP POST CONCAT '' , directory(groupCashRegister(t)) + '/api/v1/import/store/',
+                idStore(groupCashRegister(t)), '/itemPrices' PARAMS exportFile() TO answer;
+            fileToString(answer());
+            IF accepted(resultString()) THEN {
+                succeeded(t) <- TRUE;
+                dateTimeSucceeded(t) <- currentDateTime();
+                APPLY;
+            }
+            ELSE {
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
+                    'Ошибка при иморте цен на товары:', resultString()));
+                APPLY;
+            }      
+        }
+    }
+}
+    
+DESIGN integrationData{
+    pane{
+        NEW ukm5{
+            caption = 'УКМ5';
+        }
+    }
+}
+
+sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
+    IF handlerModel(groupMachinery(t)) = 'lsf.ukm5' AND t IS CashRegisterPriceTransaction AND notSucceeded(t) 
+        THEN NEWSESSION {
+        NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
+        TRY sendPriceTransactionAPI(t);
+        CATCH addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Ошибка при отправке прайса', 
+              messageCaughtException()), messageCaughtException());
+    }
+}
