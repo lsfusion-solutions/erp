@@ -142,6 +142,7 @@ nameSkuEvotor 'Название товара (Эвотор)' = DATA STRING[100] 
 EXTEND FORM zReport
     PROPERTIES (d) READONLY nameSkuEvotor AFTER nameSku(d)
 ;
+skuCustom = ABSTRACT Sku (STRING); 
 
 getDocuments(CashRegister c, DATETIME since, DATETIME until){
     LOCAL f = FILE();
@@ -149,8 +150,8 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
     LOCAL sinceP = STRING ();
     LOCAL untilP = STRING ();
     NEWSESSION { 
-        sinceP() <- '&since=' + getMilliSeconds(ZDATETIME(since));
-        untilP() <- '&until=' + getMilliSeconds(ZDATETIME(until));
+        sinceP() <- '&since=' + round0(getMilliSeconds(ZDATETIME(since)));
+        untilP() <- '&until=' + round0(getMilliSeconds(ZDATETIME(until)));
         headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(c))));
         EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
             '/devices/' + uuidEvotor(c) + '/documents?type=OPEN_SESSION,CLOSE_SESSION', sinceP(), untilP() HEADERS headers  TO f;
@@ -171,8 +172,8 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
         APPLY;
     }
     NEWSESSION {
-        sinceP() <- '&since=' + getMilliSeconds(ZDATETIME(since));
-        untilP() <- '&until=' + getMilliSeconds(ZDATETIME(until));
+        sinceP() <- '&since=' + round0(getMilliSeconds(ZDATETIME(since)));
+        untilP() <- '&until=' + round0(getMilliSeconds(ZDATETIME(until)));
         headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(c))));
         EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
             '/devices/' + uuidEvotor(c) + '/documents?type=SELL,PAYBACK', sinceP(), untilP() HEADERS headers TO f;
@@ -192,7 +193,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
             FOR id1(INTEGER j) AND typeDoc(i) = 'SELL' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j))) 
                 NEW detail = ReceiptSaleDetail DO {
                 id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j));
-                sku(detail) <- OVERRIDE skuBarcode(bar_code(j)), sku(code(j));
+                sku(detail) <- OVERRIDE skuCustom(code(j)), skuBarcode(bar_code(j)), sku(code(j));
                 idBarcode(detail) <- STRING[15](OVERRIDE bar_code(j), code(j));
                 quantity(detail) <- quantity(j);
                 price(detail) <- price(j);
@@ -206,7 +207,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
             FOR id1(INTEGER j) AND typeDoc(i) = 'PAYBACK' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j))) 
                 NEW detail = ReceiptReturnDetail DO{
                 id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j));
-                sku(detail) <- OVERRIDE skuBarcode(bar_code(j)), sku(code(j));
+                sku(detail) <- OVERRIDE skuCustom(code(j)), skuBarcode(bar_code(j)), sku(code(j));
                 idBarcode(detail) <- STRING[15](OVERRIDE bar_code(j), code(j));
                 quantity(detail) <- quantity(j);
                 price(detail) <- price(j);
@@ -232,7 +233,8 @@ getDocumentsWithoutDate (CashRegister c){
     getDocuments(c, NULL, NULL );
 }
 getDocumentsFromLastReceipt(CashRegister c){
-    getDocuments(c, dateTime(GROUP LAST Receipt r ORDER dateTime(r) WHERE cashRegister(r) = c), NULL);
+    getDocuments(c, (OVERRIDE dateTime(GROUP LAST Receipt r ORDER dateTime(r) WHERE cashRegister(r) = c), 
+        DATETIME(startDate(c))), NULL);
 }
 
 receiveGroupMachinery(GroupCashRegister g) + {
