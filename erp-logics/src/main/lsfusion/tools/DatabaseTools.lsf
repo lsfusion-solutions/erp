@@ -35,6 +35,8 @@ table 'Таблица' = DATA Table (Index) NONULL DELETE INDEXED;
 sidTable 'Таблица' (Index i) = sid(table(i)) CHARWIDTH 10;
 
 name 'Наименование' = DATA STRING (Index);
+index = GROUP AGGR Index x BY name(x);
+
 tablespace 'Tablespace' = DATA STRING (Index);
 definition 'Скрипт' = DATA STRING (Index);
 isConstraint 'Constraint' = DATA BOOLEAN (Index);
@@ -42,7 +44,7 @@ indexSize 'Размер' = DATA LONG (Index);
 indexScans 'Сканирований' = DATA LONG (Index);
 indexReads 'Считано' = DATA LONG (Index);
 
-index = GROUP AGGR Index x BY name(x);
+efficiency 'Эффективность' (Index i) = 100.0 * indexReads(i) / indexScans(i) / curRows(table(i);
 
 getIndexes 'Получить список индексов'(Table t) {
     NEWSESSION {
@@ -442,7 +444,7 @@ EXTEND FORM tools
     FILTERS table(tc)==t
     
     OBJECTS i=Index
-    PROPERTIES(i)  READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, sidTable
+    PROPERTIES(i)  READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, efficiency, sidTable
     FILTERGROUP index
         FILTER 'По таблице' table(i) = t DEFAULT
     
