@@ -44,6 +44,9 @@ indexSize 'Размер' = DATA LONG (Index);
 indexScans 'Сканирований' = DATA LONG (Index);
 indexReads 'Считано' = DATA LONG (Index);
 
+relid 'OID индекса' = DATA LONG (Index);
+indisvalid 'Активный' = DATA BOOLEAN (Index);
+
 efficiency 'Эффективность' (Index i) = 100.0 * indexReads(i) / indexScans(i) / curRows(table(i));
 
 getIndexes 'Получить список индексов'(Table t) {
@@ -51,11 +54,11 @@ getIndexes 'Получить список индексов'(Table t) {
         LOCAL is = BOOLEAN (Index);
         
         EXTERNAL SQL 'LOCAL'
-            EXEC 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid), pg_relation_size(psai.indexrelid), psai.idx_scan, psai.idx_tup_read from pg_indexes i left join pg_constraint c ON i.indexname = c.conname left join pg_stat_all_indexes psai ON i.indexname = psai.indexrelname where tablename = $1' 
+            EXEC 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid), pg_relation_size(psai.indexrelid), psai.idx_scan, psai.idx_tup_read, ind.indexrelid, ind.indisvalid from pg_indexes i left join pg_constraint c ON i.indexname = c.conname left join pg_stat_all_indexes psai on i.indexname = psai.indexrelname left join pg_index ind on ind.indexrelid = psai.indexrelid WHERE tablename = $1' 
             PARAMS lower(sid(t))
             TO file;
             
-        IMPORT TABLE FROM file() FIELDS STRING indexName, STRING tablespace NULL , STRING definition, STRING constraint, LONG indexSize, LONG indexScans, LONG indexReads NULL DO {
+        IMPORT TABLE FROM file() FIELDS STRING indexName, STRING tablespace NULL, STRING definition, STRING constraint, LONG indexSize, LONG indexScans, LONG indexReads, LONG relid, BOOLEAN indisvalid NULL DO {
             IF NOT index(indexName) THEN NEW i = Index {
                 name(i) <- indexName;
             }
@@ -67,6 +70,8 @@ getIndexes 'Получить список индексов'(Table t) {
                 indexSize(i) <- indexSize;
                 indexScans(i) <- indexScans;
                 indexReads(i) <- indexReads;
+                relid(i) <- relid;
+                indisvalid(i) <- indisvalid;
                 is(i) <- TRUE;
             }
         }
@@ -75,6 +80,24 @@ getIndexes 'Получить список индексов'(Table t) {
         
         APPLY;
         
+    }
+}
+
+invalidate 'Отключить' (Index i) {
+    IF relid(i) > 0 THEN {
+        EXTERNAL SQL 'LOCAL'
+            EXEC 'UPDATE pg_index SET indisvalid = false WHERE indexrelid = $1' 
+            PARAMS relid(i);
+        getIndexes(table(i));
+    }
+}
+
+validate 'Включить' (Index i) {
+    IF relid(i) > 0 THEN {
+        EXTERNAL SQL 'LOCAL'
+            EXEC 'UPDATE pg_index SET indisvalid = true WHERE indexrelid = $1' 
+            PARAMS relid(i);
+        getIndexes(table(i));
     }
 }
 
@@ -444,7 +467,8 @@ EXTEND FORM tools
     FILTERS table(tc)==t
     
     OBJECTS i=Index
-    PROPERTIES(i)  READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, efficiency, sidTable
+    PROPERTIES(i)  READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, efficiency, relid, indisvalid, sidTable
+    PROPERTIES(i)  TOOLBAR invalidate SHOWIF indisvalid(i), validate SHOWIF NOT indisvalid(i) 
     FILTERGROUP index
         FILTER 'По таблице' table(i) = t DEFAULT
     
