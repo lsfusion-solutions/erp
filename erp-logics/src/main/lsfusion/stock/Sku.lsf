@@ -56,7 +56,7 @@ FORM UOMs 'Единицы измерений'
 CLASS ABSTRACT Group 'Классификатор SKU';
 TABLE group(Group);
 
-name 'Наименование' = ABSTRACT ISTRING[250](Group) MATERIALIZED INDEXED CHARWIDTH 20;
+name 'Наименование' = ABSTRACT ISTRING[250](Group) MATERIALIZED INDEXED MATCH CHARWIDTH 20;
 order 'Порядок' = ABSTRACT INTEGER (Group) MATERIALIZED CHARWIDTH 2;
 id 'Код' = ABSTRACT STRING[100] (Group) IN id CHARWIDTH 5;
 
@@ -119,7 +119,7 @@ TABLE customGroup (CustomGroup);
 id '{integration.id}' = DATA STRING[100] (CustomGroup) IN id INDEXED CHARWIDTH 10;
 id(CustomGroup group) += id(group) IF group IS CustomGroup;
 
-name 'Наименование' = DATA ISTRING[250](CustomGroup) MATERIALIZED INDEXED CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[250](CustomGroup) MATERIALIZED INDEXED MATCH CHARWIDTH 20;
 
 name(CustomGroup group) += name(group) IF group IS CustomGroup;
 
@@ -221,7 +221,7 @@ DESIGN customGroups {
 CLASS ABSTRACT SkuGroup 'Группа SKU' : Group;
 TABLE skuGroup (SkuGroup);
 
-name 'Наименование' = ABSTRACT ISTRING[250](SkuGroup) MATERIALIZED INDEXED CHARWIDTH 20;
+name 'Наименование' = ABSTRACT ISTRING[250](SkuGroup) MATERIALIZED INDEXED MATCH CHARWIDTH 20;
 order 'Порядок' = ABSTRACT INTEGER (SkuGroup) CHARWIDTH 2;
 id 'Код' = ABSTRACT STRING[100] (SkuGroup) IN id CHARWIDTH 10;
 
@@ -320,7 +320,7 @@ idSkuGroup6 'Вид (код)' (Sku sku) = id(skuGroup6(sku));
 groupType(SkuGroup group) += SystemGroupType.skuGroupType IF group IS SkuGroup;
 group(SystemGroupType type, Sku sku) += WHEN CLASS(skuGroup(sku)) AND type == SystemGroupType.skuGroupType THEN skuGroup(sku);
 
-name 'Наименование' (sku) = ABSTRACT ISTRING[255] (Sku) MATERIALIZED CHARWIDTH 30 INDEXED IN base;
+name 'Наименование' (sku) = ABSTRACT ISTRING[255] (Sku) MATERIALIZED CHARWIDTH 30 INDEXED MATCH IN base;
 
 UOM (sku) = ABSTRACT UOM (Sku) MATERIALIZED;
 nameUOM 'Ед. изм.' (Sku sku) = name(UOM(sku)) IN base;
