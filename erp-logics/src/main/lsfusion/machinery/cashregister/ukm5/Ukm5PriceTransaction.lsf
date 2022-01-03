@@ -8,15 +8,18 @@ NAMESPACE Ukm5;
 
 isUkm5 (GroupCashRegister g) = TRUE IF handlerModel(g) = 'lsf.ukm5';
 idStore 'ID магазина UKM5' = DATA STRING[10] (GroupCashRegister);
-
+urlServerUkm5 'URL сервера УКМ5' = DATA STRING[300] (GroupCashRegister);
+directoryExchange 'Директория обмена УКМ5' = DATA STRING[300] (GroupCashRegister);
 accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';
 
 EXTEND FORM groupCashRegister 
-    PROPERTIES (grc) idStore SHOWIF isUkm5(grc);
+    PROPERTIES (grc) SHOWIF isUkm5(grc) idStore, urlServerUkm5, directoryExchange;
 
 DESIGN groupCashRegister{
     topContainer{
         MOVE PROPERTY (idStore(grc));
+        MOVE PROPERTY (urlServerUkm5(grc));
+        MOVE PROPERTY (directoryExchange(grc));
     }
 }
 
@@ -40,6 +43,7 @@ skuTransaction(Sku s, MachineryPriceTransaction t) = GROUP LAST Barcode b ORDER 
 attributes = ABSTRACT STRING (Sku);
 
 filterAttribut = ABSTRACT CASE BOOLEAN (Item, Attribut);
+isCatchWeight (Sku i) = IF (id(UOM(i)) = 'кг.') THEN TRUE;
 
 FORM importItems 'Импорт товаров'
     OBJECTS t = MachineryPriceTransaction
@@ -48,7 +52,7 @@ FORM importItems 'Импорт товаров'
     PROPERTIES = IF elements IS Item THEN 1 EXTID 'taxgroupId', = id(itemGroup(elements)) EXTID 'itemGroup',
          = OVERRIDE shortNameUOM(elements), '' EXTID 'measure', = OVERRIDE name(elements), '' EXTID 'name',
          = OVERRIDE id(elements), '' EXTID 'id', = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete', 
-         = IF split(elements) THEN 3 ELSE 0 EXTID 'measprec', //attributes(elements), 
+         = IF split(elements) OR isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec', //attributes(elements), 
          = IF elements IS Item THEN ' ' EXTID 'descr'
     
     FILTERS skuTransaction(elements, t)
@@ -115,16 +119,16 @@ FORM itemPrices 'Импорт цен на товары'
 sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     LOCAL answer = FILE ();
     EXPORT groupItems OBJECTS t = t JSON ;
-    EXTERNAL HTTP POST directory(groupCashRegister(t)) + '/api/v1/import/groupItems' PARAMS exportFile() TO answer;
+    EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/groupItems' PARAMS exportFile() TO answer;
     fileToString(answer());
     IF accepted(resultString()) THEN {
         //товары
         EXPORT importItems OBJECTS t = t JSON;
-        EXTERNAL HTTP POST directory(groupCashRegister(t)) + '/api/v1/import/items' PARAMS exportFile() TO answer;
+        EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/items' PARAMS exportFile() TO answer;
         fileToString(answer());
         IF accepted(resultString()) THEN {
             EXPORT itemPrices OBJECTS t = t JSON;
-            EXTERNAL HTTP POST CONCAT '' , directory(groupCashRegister(t)) + '/api/v1/import/store/',
+            EXTERNAL HTTP POST CONCAT '' , urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/store/',
                 idStore(groupCashRegister(t)), '/itemPrices' PARAMS exportFile() TO answer;
             fileToString(answer());
             IF accepted(resultString()) THEN {
