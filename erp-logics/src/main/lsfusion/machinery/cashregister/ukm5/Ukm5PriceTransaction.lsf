@@ -1,6 +1,6 @@
 MODULE Ukm5PriceTransaction;
 
-REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery;
+REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery, LogTools;
 
 NAMESPACE Ukm5;
 
@@ -121,27 +121,37 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     EXPORT groupItems OBJECTS t = t JSON ;
     EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/groupItems' PARAMS exportFile() TO answer;
     fileToString(answer());
-    IF accepted(resultString()) THEN {
+    IF statusHttp() = 200 THEN {
         //товары
         EXPORT importItems OBJECTS t = t JSON;
         EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/items' PARAMS exportFile() TO answer;
         fileToString(answer());
-        IF accepted(resultString()) THEN {
+        IF statusHttp() = 200 THEN {
             EXPORT itemPrices OBJECTS t = t JSON;
             EXTERNAL HTTP POST CONCAT '' , urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/store/',
                 idStore(groupCashRegister(t)), '/itemPrices' PARAMS exportFile() TO answer;
             fileToString(answer());
-            IF accepted(resultString()) THEN {
+            IF statusHttp() = 200 THEN {
                 succeeded(t) <- TRUE;
                 dateTimeSucceeded(t) <- currentDateTime();
                 APPLY;
             }
             ELSE {
                 addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
-                    'Ошибка при иморте цен на товары:', resultString()));
+                    'Ошибка при импорте цен на товары', resultString()));
                 APPLY;
             }      
         }
+        ELSE {
+            addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
+                'Ошибка при импорте товаров', resultString()));
+            APPLY;
+        }
+    }
+    ELSE {
+        addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
+            'Ошибка при импорте групп товаров', resultString()));
+        APPLY;
     }
 }
     
