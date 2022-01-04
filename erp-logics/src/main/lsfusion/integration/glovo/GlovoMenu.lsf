@@ -314,10 +314,18 @@ updateGlovoMenu 'Обновление меню glovo'(){
     }
     //обновление доступности товаров
     NEWSESSION {
-        messageErrorTransactions() <- NULL;
-        FOR isOnline(DepartmentStore d) AND storeIdGlovo(d) DO bulkUpdateItems(d);
-        APPLY;
-        IF messageErrorTransactions() THEN throwException(messageErrorTransactions());
+        TRY {
+            messageErrorTransactions() <- NULL;
+            FOR isOnline(DepartmentStore d) AND storeIdGlovo(d) DO bulkUpdateItems(d);
+            APPLY;
+            IF messageErrorTransactions() THEN throwException(messageErrorTransactions());
+        }
+        CATCH {
+            idTranscactionBulkUpdateItems(DepartmentStore d) <- NULL;
+            MESSAGE 
+                (CONCAT ' : ', 'Произошла ошибка при обновлении доступности, id транзакций сброшены', 
+                    messageCaughtException());
+        }
     }
 }
 
