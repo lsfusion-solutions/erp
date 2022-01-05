@@ -144,10 +144,16 @@ increaseVATSum 'Сумма НДС (увеличение)' = GROUP SUM increaseVA
 //-ВсегоУм
 decreaseSum 'Сумма (уменьшение)' = GROUP SUM decreaseSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовБезНДСВсего
 
+diffSum 'Сумма (разница)' (UkdDocument ukd) = increaseSum(ukd) (-) decreaseSum(ukd);
+
 //--СумНал
 decreaseVATSum 'Сумма НДС (уменьшение)' = GROUP SUM decreaseVATSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СумНДС
 
+diffVATSum 'Сумма НДС (разница)' (UkdDocument ukd) = increaseVATSum(ukd) (-) decreaseVATSum(ukd);
+
 decreaseInvoiceSum 'Сумма с НДС (уменьшение)' = GROUP SUM decreaseInvoiceSum(UkdDocumentDetail detail) BY ukdDocument(detail);//СтТовУчНалВсего
+
+diffInvoiceSum 'Сумма с НДС (разница)' (UkdDocument ukd) = increaseInvoiceSum(ukd) (-) decreaseInvoiceSum(ukd);
 
 updDocument 'УПД' = DATA UpdDocument (UkdDocument);
 updDocumentDetail = DATA UpdDocumentDetail(UkdDocumentDetail);
@@ -160,7 +166,9 @@ EXTEND FORM ukdDocument
     PROPERTIES(u) description, sendDate, nameCurrency
     PROPERTIES(u) nameBaseDocument, numberBaseDocument, dateBaseDocument
     PROPERTIES(u) nameCorrectionDocument
-    PROPERTIES(u) increaseSum, increaseInvoiceSum, decreaseSum, decreaseInvoiceSum
+    PROPERTIES(u) increaseSum, increaseVATSum, increaseInvoiceSum
+    PROPERTIES(u) decreaseSum, decreaseVATSum, decreaseInvoiceSum
+    PROPERTIES(u) diffSum, diffVATSum, diffInvoiceSum
     PROPERTIES(u) supplierSignerCompany
     
     PROPERTIES (d) numberUpdDocumentDetail AFTER number(d), idSku, idUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
@@ -171,6 +179,9 @@ EXTEND FORM ukdDocument
 ;
 
 DESIGN ukdDocument {
+    detailsContainer {
+        caption = 'Строки УКД';
+    }
     mainDocumentAttributes {
         NEW updDocument AFTER supplierInvoice {
             type = CONTAINERV;
@@ -180,10 +191,29 @@ DESIGN ukdDocument {
         }
     }
     sums {
-        MOVE PROPERTY(increaseSum(u));
-        MOVE PROPERTY(increaseInvoiceSum(u));
-        MOVE PROPERTY(decreaseSum(u));
-        MOVE PROPERTY(decreaseInvoiceSum(u));
+        type = COLUMNS;
+        columns = 2;
+        NEW increaseSum {
+            type = CONTAINERV;
+            caption = 'Увеличение';
+            MOVE PROPERTY(increaseSum(u));
+            MOVE PROPERTY(increaseVATSum(u));
+            MOVE PROPERTY(increaseInvoiceSum(u));
+        }
+        NEW decreaseSum {
+            type = CONTAINERV;
+            caption = 'Уменьшение';
+            MOVE PROPERTY(decreaseSum(u));
+            MOVE PROPERTY(decreaseVATSum(u));
+            MOVE PROPERTY(decreaseInvoiceSum(u));
+        }
+        NEW diiSum {
+            type = CONTAINERV;
+            caption = 'Разница';
+            MOVE PROPERTY(diffSum(u));
+            MOVE PROPERTY(diffVATSum(u));
+            MOVE PROPERTY(diffInvoiceSum(u));
+        }
         MOVE PROPERTY(codeCurrency(u));
     }
     documentInfo {
@@ -211,6 +241,10 @@ EXTEND FORM ukdDocuments
     PROPERTIES(u) READONLY AFTER dateInvoice(u) baseInvoiceNumber, baseDateInvoice
     PROPERTIES(u) READONLY description, sendDate
     PROPERTIES(u) READONLY nameBaseDocument, numberBaseDocument, dateBaseDocument
+    
+    PROPERTIES (u) READONLY BACKGROUND RGB(213,249,185) increaseSum, increaseVATSum, increaseInvoiceSum
+    PROPERTIES (u) READONLY BACKGROUND RGB(249,255,212) decreaseSum, decreaseVATSum, decreaseInvoiceSum
+    PROPERTIES (u) READONLY BACKGROUND RGB(255,224,255)  diffSum, diffVATSum, diffInvoiceSum
     
     PROPERTIES (d) READONLY numberUpdDocumentDetail AFTER number(d), idSku, idUOMB, nameUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, 
                                                     dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
