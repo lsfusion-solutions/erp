@@ -12,8 +12,10 @@ giftCard = DATA GiftCard (InvoiceGiftCardSaleDetail) INDEXED;
 
 invoice = DATA Sale.Invoice (InvoiceGiftCardSaleDetail) NONULL DELETE INDEXED;
 
+skipCheckCreateShipmentInSold 'Не проверять поставку для накладной продажи сертификата' = DATA BOOLEAN ();
+
 //имплемент в GiftCardLedger
-isSold(InvoiceGiftCardSaleDetail detail) +=  isPosted(invoice(detail)) AND createShipment(invoice(detail));
+isSold(InvoiceGiftCardSaleDetail detail) +=  isPosted(invoice(detail)) AND (createShipment(invoice(detail)) OR skipCheckCreateShipmentInSold());
 giftCard(InvoiceGiftCardSaleDetail detail) += giftCard(detail); 
 dateTime(InvoiceGiftCardSaleDetail detail) += OVERRIDE shipmentDateTime(invoice(detail)), dateTime(invoice(detail));
 date(InvoiceGiftCardSaleDetail detail) += OVERRIDE shipmentDate(invoice(detail)), date(invoice(detail));
