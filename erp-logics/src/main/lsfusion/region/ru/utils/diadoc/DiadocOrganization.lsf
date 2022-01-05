@@ -46,6 +46,8 @@ CLASS Organization 'Организация Диадока';
 TABLE organization (Organization);
 
 orgId 'Идентификатор' = DATA STRING (Organization) IN id INDEXED CHARWIDTH 10 NONULL;
+legalEntity = DATA LegalEntity(Organization) IN id;
+nameLegalEntity 'Наименование организации' (Organization o)= name(legalEntity(o));
 organization (orgId) = GROUP AGGR Organization organization BY orgId(organization);
 inn 'ИНН' = DATA STRING[12] (Organization) IN id NONULL;
 kpp 'КПП' = DATA STRING[9] (Organization);
@@ -251,7 +253,7 @@ FORM organizations 'Организации Диадока'
     
     OBJECTS o = Organization
     PROPERTIES(o) READONLY orgId, shortName, fullName, inn, kpp
-    PROPERTIES(o) organizationTypeName
+    PROPERTIES(o) organizationTypeName, nameLegalEntity
     PROPERTIES(o) show
     FILTERS isEmployee(o,u)
 ;
@@ -686,7 +688,7 @@ EXTEND FORM organizations
     OBJECTS c = Organization
     PROPERTIES(o,c) READONLY counteragentStatusName
     PROPERTIES(c) READONLY orgId, shortName, fullName, inn, kpp
-    PROPERTIES(c) organizationTypeName
+    PROPERTIES(c) organizationTypeName, nameLegalEntity
     PROPERTIES(c) show
     FILTERS counteragentStatus(o,c)
     
