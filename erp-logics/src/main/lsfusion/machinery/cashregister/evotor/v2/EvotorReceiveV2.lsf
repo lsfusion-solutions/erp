@@ -111,7 +111,7 @@ FORM saleDoc
     PROPERTIES(positions) quantity, code, initial_quantity, tare_volume, result_sum1 EXTID 'result_sum', 
         measure_precision, sum1 EXTID 'sum', measure_name, product_name EXTID 'product_name', uuid, result_price, bar_code EXTID 'bar_code',
         alcohol_product_kind_code, print_group_id1 EXTID 'print_group_id', product_type, 
-        alcohol_by_volume, price, product_id, id1 EXTID 'id', cost_price, markCode EXTID 'mark'
+        alcohol_by_volume, price, product_id EXTID 'product_id', id1 EXTID 'id', cost_price, markCode EXTID 'mark'
     PROPERTIES(positions) IN tax result_sum2 EXTID 'result_sum', sum2 EXTID 'sum', type1 EXTID 'type'
 
     OBJECTS extra_keys = INTEGER
@@ -137,12 +137,7 @@ FORM saleDoc
 getLocalDateTime (STRING closeDateTime, NUMERIC timezone) = sumSeconds(DATETIME(closeDateTime), timezone/1000);
 afterCreateReceipts ABSTRACT LIST (CashRegister, DATETIME);
 
-nameSkuEvotor 'Название товара (Эвотор)' = DATA STRING[100] (ReceiptSaleDetail);
-
-EXTEND FORM zReport
-    PROPERTIES (d) READONLY nameSkuEvotor AFTER nameSku(d)
-;
-skuCustom = ABSTRACT Sku (STRING); 
+skuCustom = ABSTRACT Sku (INTEGER); 
 
 getDocuments(CashRegister c, DATETIME since, DATETIME until){
     LOCAL f = FILE();
@@ -193,7 +188,8 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
             FOR id1(INTEGER j) AND typeDoc(i) = 'SELL' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j))) 
                 NEW detail = ReceiptSaleDetail DO {
                 id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j));
-                sku(detail) <- OVERRIDE skuCustom(code(j)), skuBarcode(bar_code(j)), sku(code(j));
+                sku(detail) <- OVERRIDE skuBarcode(bar_code(j)), sku(code(j));
+                sku(detail) <- skuCustom(j) WHERE skuCustom(j) AND NOT sku(detail);
                 idBarcode(detail) <- STRING[15](OVERRIDE bar_code(j), code(j));
                 quantity(detail) <- quantity(j);
                 price(detail) <- price(j);
@@ -202,12 +198,12 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
                 sum(detail) <- result_sum1(j);
                 receipt(detail) <- r;
                 lot(detail) <- lot(markCode(j));
-                nameSkuEvotor(detail) <- product_name(j);
             }
             FOR id1(INTEGER j) AND typeDoc(i) = 'PAYBACK' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j))) 
                 NEW detail = ReceiptReturnDetail DO{
                 id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j));
-                sku(detail) <- OVERRIDE skuCustom(code(j)), skuBarcode(bar_code(j)), sku(code(j));
+                sku(detail) <- OVERRIDE skuBarcode(bar_code(j)), sku(code(j));
+                sku(detail) <- skuCustom(j) WHERE skuCustom(j) AND NOT sku(detail);
                 idBarcode(detail) <- STRING[15](OVERRIDE bar_code(j), code(j));
                 quantity(detail) <- quantity(j);
                 price(detail) <- price(j);
