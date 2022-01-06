@@ -1,0 +1,100 @@
+MODULE ZReportRetailBonusBurn;
+
+REQUIRE ZReportRetailBonus;
+
+NAMESPACE ZReport;
+
+CLASS ABSTRACT BonusIncome 'Начисленные бонусы';
+
+discountCard = ABSTRACT DiscountCard (BonusIncome);
+burnDate = ABSTRACT DATE (BonusIncome);
+sum = ABSTRACT NUMERIC[18,4] (BonusIncome);
+leftSum = ABSTRACT NUMERIC[18,4] (BonusIncome);
+skip = ABSTRACT BOOLEAN (BonusIncome);
+
+EXTEND CLASS ReceiptSaleDetail: BonusIncome;
+burnDate 'Дата сгорания бонусов' = DATA DATE (ReceiptSaleDetail);
+leftSum 'Оставшиеся бонусы' = DATA NUMERIC[18,4] (ReceiptSaleDetail);
+
+EXTEND FORM zReport
+    PROPERTIES(d) SHOWIF NOT sipShowBonus() burnDate[ReceiptSaleDetail], leftSum[ReceiptSaleDetail] READONLY 
+;
+EXTEND FORM zReports
+    PROPERTIES(d) READONLY SHOWIF NOT sipShowBonus() burnDate[ReceiptSaleDetail], leftSum[ReceiptSaleDetail]
+;
+
+discountCard[BonusIncome](ReceiptSaleDetail d) += discountCard(d);
+burnDate[BonusIncome](ReceiptSaleDetail d) += burnDate(d);
+sum[BonusIncome](ReceiptSaleDetail d) += bonusSum(d) (-) returnBonusSum(d);
+leftSum[BonusIncome](ReceiptSaleDetail d) += leftSum(d);
+skip[BonusIncome](ReceiptSaleDetail d) += TRUE IF date(d) > subtract(currentDate(), blockDaysBonus());
+
+EXTEND CLASS BonusLedger: BonusIncome;
+burnDate 'Дата сгорания бонусов' = DATA DATE (BonusLedger);
+leftSum 'Оставшиеся бонусы' = DATA NUMERIC[18,4] (BonusLedger);
+
+EXTEND FORM discountCard
+    PROPERTIES(l) burnDate, leftSum READONLY
+;
+
+discountCard[BonusIncome](BonusLedger l) += RetailBonus.discountCard(l);
+burnDate[BonusIncome](BonusLedger l) += burnDate(l);
+sum[BonusIncome](BonusLedger l) += RetailBonus.sum(l);
+leftSum[BonusIncome](BonusLedger l) += leftSum(l);
+skip[BonusIncome](BonusLedger l) += TRUE IF RetailBonus.sum(l) < 0;
+
+overFillLeftBonuses ABSTRACT ();
+
+fillLeftBonuses 'Заполнить оставшиеся бонусы' () {
+    leftSum(BonusIncome i) <- PARTITION UNGROUP availableBonuses LIMIT sum(i) IF NOT skip(i) ORDER DESC burnDate(i), i BY discountCard(i);
+    
+    overFillLeftBonuses();
+    APPLY;
+}
+
+//---------------------- Срок жизни бонусов ----------------------//
+
+databBurnDaysBonus 'Срок жизни бонусов' = DATA INTEGER (DATE);
+burnDaysBonus 'Срок жизни бонусов' (DATE date) = GROUP LAST databBurnDaysBonus(DATE dateIn) ORDER dateIn
+                                                                  WHERE databBurnDaysBonus(dateIn) AND dateIn <= (date AS DATE) IN public;
+overBurnDaysBonus 'Срок жизни бонусов' = OVERRIDE databBurnDaysBonus(DATE date), burnDaysBonus(date);
+burnDaysBonus 'Срок жизни бонусов' () = burnDaysBonus(currentDate());
+
+FORM addBurnDaysBonus 'Срок жизни бонусов'
+    OBJECTS d = DATE PANEL
+    PROPERTIES VALUE(d), databBurnDaysBonus(d)
+;
+
+addBurnDaysBonus '{historizable.add}' () { SHOW addBurnDaysBonus; } TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
+
+FORM dialogBurnDaysBonus 'Срок жизни бонусов'
+    OBJECTS d = DATE
+    PROPERTIES addBurnDaysBonus() DRAW d, VALUE(d) READONLY, databBurnDaysBonus(d)
+    FILTERS databBurnDaysBonus(d)
+;
+
+dialogBurnDaysBonus 'Срок жизни бонусов' () { SHOW dialogBurnDaysBonus; } ASON CONTEXTMENU burnDaysBonus[] ASON CHANGE burnDaysBonus[];
+    
+EXTEND FORM options PROPERTIES() burnDaysBonus;
+DESIGN options { discountCards { MOVE PROPERTY(burnDaysBonus()); } }
+
+burnDaysBonus 'Срок жизни бонусов' = DATA INTEGER (Promotion);
+burnDaysBonus 'Срок жизни бонусов' (PromotionCondition c) = burnDaysBonus(promotion(c)) MATERIALIZED;
+
+EXTEND FORM promotion
+    PROPERTIES(sh) SHOWIF useBonus() burnDaysBonus
+;
+
+DESIGN promotion {
+    row01 {
+        MOVE PROPERTY(burnDaysBonus(sh));
+    }
+}
+
+EXTEND FORM promotions
+    PROPERTIES(sh) READONLY SHOWIF useBonus() burnDaysBonus
+;
+
+WHEN (SETCHANGED(sum(BonusLedger l))) AND sum(l) > 0 AND NOT burnDate(l) AND burnDaysBonus() DO {
+    burnDate(l) <- sum(date(l), burnDaysBonus(date(l)));
+}

@@ -6,9 +6,31 @@ NAMESPACE ZReport;
 
 sipShowBonus() += NOT useBonus();
 
+//blockDate 'Заблокированы бонусы до' = DATA DATE (ReceiptSaleDetail);
+//
+//EXTEND FORM zReport
+//    PROPERTIES(d) SHOWIF NOT sipShowBonus() blockDate
+//;
+//EXTEND FORM zReports
+//    PROPERTIES(d) READONLY SHOWIF NOT sipShowBonus() blockDate
+//;
+//
+//migrateBlockDates = DATA BOOLEAN ();
+//onStarted()+{
+//    IF NOT migrateBlockDates() THEN {
+//        blockDate(ReceiptSaleDetail d) <- sum(date(d), blockDaysBonus()) WHERE bonusSum(d);
+//        migrateBlockDates() <- TRUE;
+//    }
+//}
+//
+//WHEN SET(bonusSum(ReceiptSaleDetail d)) DO {
+//    blockDate(d) <- sum(date(d), blockDaysBonus());
+//}
+
 returnBonusSum = GROUP SUM bonusSum(ReceiptReturnDetail rrd) BY receiptSaleDetail(rrd) MATERIALIZED;
 blockedBonuses 'Заблокировано бонусов' (DiscountCard dc) = 
     GROUP SUM (bonusSum(ReceiptSaleDetail rsd) (-) returnBonusSum(rsd)) IF date(rsd) > subtract(currentDate(), blockDaysBonus()) BY discountCard(rsd);
+//    GROUP SUM (bonusSum(ReceiptSaleDetail rsd) (-) returnBonusSum(rsd)) IF blockDate(rsd) >  currentDate() BY discountCard(rsd);
 externalBlockedBonuses 'Дополнительные заблокированные бонусы' = ABSTRACT NUMERIC[18,4] (DiscountCard);  
 totalBlockedBonuses 'Всего заблокировано бонусов' (DiscountCard dc)= blockedBonuses(dc) (+) externalBlockedBonuses(dc);
 
