@@ -151,6 +151,12 @@ DESIGN acquisitionTargets { BOX { size = (600, 400); } }
 acquisitionTarget = ABSTRACT AcquisitionTarget(Order);
 nameAcquisitionTarget 'Цель приобретения' = name(acquisitionTarget(Order o));
 
+filterOrderInterval 'Показывать заказы за последние N дней' = DATA INTEGER () COMPLEX;
+
+EXTEND FORM options PROPERTIES() filterOrderInterval;
+DESIGN options { orders { MOVE PROPERTY(filterOrderInterval()); } }
+
+
 //----------------------------------------------- Заказ ---------------------------------------------------//
 
 META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, filter, priceListTypePrefix, NS, char)
@@ -756,6 +762,11 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                 filterCustomerStock(o),
                 filterCustomUser(o),
                 filterComputer(o)                            
+        
+        EVENTS ON INIT {
+            IF filterOrderInterval() THEN
+                filterOrderDateFrom() <- subtract(currentDate(), filterOrderInterval()); 
+        }
         
         LIST Order OBJECT o
     ;

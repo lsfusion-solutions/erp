@@ -62,6 +62,11 @@ DESIGN options {
         }
     }
 }
+    
+filterShipmentInterval 'Показывать поставки за последние N дней' = DATA INTEGER () COMPLEX; 
+
+EXTEND FORM options PROPERTIES() filterShipmentInterval;
+DESIGN options { shipments { MOVE PROPERTY(filterShipmentInterval()); } }
 
 // ----------------------------------- Создавать поставку по умолчанию для склада ------------------------------------------ //
 
@@ -552,6 +557,11 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                 filterCustomerStock(s),
                 filterCustomUser(s),
                 filterComputer(s)                
+                
+        EVENTS ON INIT {
+            IF filterShipmentInterval() THEN
+                filterShipmentDateFrom() <- subtract(currentDate(), filterShipmentInterval()); 
+        }         
                 
         LIST Shipment OBJECT s
     ;

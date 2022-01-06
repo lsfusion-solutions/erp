@@ -166,6 +166,12 @@ DESIGN options {
         }
     }
 }
+
+filterInvoiceInterval 'Показывать накладные за последние N дней' = DATA INTEGER () COMPLEX;
+
+EXTEND FORM options PROPERTIES() filterInvoiceInterval;
+DESIGN options { invoices { MOVE PROPERTY(filterInvoiceInterval()); } }
+
 //----------------------------------------------- Накладная ---------------------------------------------------//
 
 META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTypePrefix, NS, char)
@@ -838,6 +844,11 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                 filterCustomerStock(i),
                 filterCustomUser(i),
                 filterComputer(i)
+                
+        EVENTS ON INIT {
+            IF filterInvoiceInterval() THEN
+                filterInvoiceDateFrom() <- subtract(currentDate(), filterInvoiceInterval()); 
+        }        
                 
         LIST Invoice OBJECT i
     ;

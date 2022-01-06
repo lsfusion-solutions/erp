@@ -56,7 +56,11 @@ skipDefaultOpened = ABSTRACT BOOLEAN (Invoice.Invoice);
 
 printConsignmentReadonly = ABSTRACT CASE BOOLEAN (Order);
 skipConsignmentDashboard = ABSTRACT VALUE BOOLEAN (Order);
+
+filterConsignmentDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
+
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
+    PROPERTIES () filterConsignmentDateFrom
 
     OBJECTS dt = DATE PANEL
     PROPERTIES(dt) date = VALUE
@@ -77,7 +81,8 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
     
     OBJECTS d = OrderDetail GRID
     PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, nameBatch, quantity, invoiced    
-    FILTERS order(d) == o
+    FILTERS order(d) == o,
+            date(o) >= filterConsignmentDateFrom() OR (o IS Order AND NOT filterConsignmentDateFrom())
     FILTERGROUP toInvoiceDetail FILTER 'Не выписаны' toInvoiced(d) 'ctrl F6' DEFAULT 
     
     OBJECTS i = Invoice.Invoice GRID LAST
@@ -89,11 +94,17 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
                    sumGrossWeightInvoiceDetail, seriesNumberOrder, note, noteOrder
     PROPERTIES (i) NEWSESSION EDIT SHOWIF overShowEdit(i), deletei = DELETE SHOWIF overShowDelete(i)
 
-    FILTERS out (i)                            
+    FILTERS out (i),
+            date(i) >= filterConsignmentDateFrom() OR (i IS Invoice AND NOT filterConsignmentDateFrom())                           
     FILTERGROUP openedI  FILTER 'Открыт' isOpened(i) OR skipDefaultOpened(i) DEFAULT
     FILTERGROUP filters1 FILTER 'Предыдущие накладные' date(i)<dt 'F7'
                          FILTER 'Накладные на дату' date(i)==dt 'F8' DEFAULT
                          FILTER 'Будущие накладные' date(i)>dt 'F9'
+  
+    EVENTS ON INIT {
+        IF filterInvoiceInterval() THEN
+            filterConsignmentDateFrom() <- subtract(currentDate(), filterInvoiceInterval()); 
+    }                      
 ;
 
 DESIGN consignmentDashboard {
@@ -162,6 +173,7 @@ DESIGN consignmentDashboard {
                     type = CONTAINERH;
                     caption = 'Шапка';
                     MOVE PROPERTY(date);
+                    MOVE PROPERTY(filterConsignmentDateFrom());
                 }
         MOVE TOOLBARBOX;
     }
