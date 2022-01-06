@@ -85,8 +85,8 @@ averagePriceSold 'Цена продажи (валюта)' (TypeExchange typeExch
 VAT (ledger) = ABSTRACT Range (SaleLedger) MATERIALIZED;
 valueVAT 'НДС, %' (SaleLedger ledger) = valueRate(VAT(ledger), date(ledger)) MATERIALIZED;
 
-sumVAT 'Сумма НДС' (SaleLedger ledger) = NUMERIC[18,4]([ X*Y/(100+Y)](
-        sum(ledger), valueVAT(ledger)));
+sumVAT 'Сумма НДС' (SaleLedger ledger) = ABSTRACT VALUE NUMERIC[18,4] (SaleLedger);
+sumVAT (SaleLedger ledger) += NUMERIC[18,4]([ X*Y/(100+Y)](sum(ledger), valueVAT(ledger)));
 
 markupSum 'Надбавка' (SaleLedger ledger) = sum(ledger) (-) sumVAT(ledger) (-) costSum(ledger);
 
