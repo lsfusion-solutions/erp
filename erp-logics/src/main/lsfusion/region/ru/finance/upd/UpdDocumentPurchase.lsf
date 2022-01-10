@@ -1,0 +1,76 @@
+MODULE UpdDocumentPurchase;
+
+REQUIRE PurchaseInvoice, ConsignmentUpdDocument, ConsignmentUpdDocumentLot, UkdDocument, PurchaseShipmentLot, DiadocUpdDocument;
+
+NAMESPACE Purchase;
+
+operation 'Операция прихода' () = DATA Operation();
+nameOperation'Операция прихода' () = name(operation());
+stockSupplier 'Склад поставщика' () = DATA Stock();
+nameStockSupplier'Склад поставщика' () = name(stockSupplier());
+stockCustomer 'Склад покупателя' () = DATA Stock();
+nameStockCustomer 'Склад покупателя' () = name(stockCustomer());
+
+
+FORM dialogPurchase 'Параметры Документа закупки'
+    PROPERTIES() nameOperation, nameStockSupplier, nameStockCustomer
+;
+
+updDocument = DATA UpdDocument(UserInvoice);
+updDocumentDetail = DATA UpdDocumentDetail(UserInvoiceDetail);
+
+invoice = 
+    GROUP LAST UserInvoice ui
+        IF ei IS UserInvoice
+        ORDER updDocument(ui), ui 
+        BY updDocument(ui);
+
+
+createInvoice 'Создать приходную накладную'(UpdDocument d){
+    operation () <- NULL;
+    stockSupplier () <- NULL;
+    stockCustomer () <- NULL;
+    
+    IF NOT invoice(d) THEN NEWSESSION {
+        DIALOG dialogPurchase DO{
+            NEW invoice = UserInvoice {
+                updDocument(invoice) <- d;
+                date(invoice) <- currentDate();
+                supplier(invoice) <- legalEntityEdi(idConsignor(d));
+                customer(invoice) <- legalEntityEdi(idConsignee(d));
+                operation(invoice) <- operation();
+                supplierStock(invoice) <- stockSupplier();
+                customerStock(invoice) <- stockCustomer();
+                FOR updDocument(UpdDocumentDetail ed) == d NEW id = UserInvoiceDetail  DO {
+                    updDocumentDetail(id) <- ed;
+                    userInvoice(id) <- invoice;
+                    sku(id) <- skuBarcode(idSku(ed));
+                    valueVAT(id) <- NUMERIC[10,5](replace(nameVATStatus(ed), '%',''));
+                    quantity(id) <- quantity(ed);
+                    price(id) <- price(ed);
+                    FOR updDocumentDetail(UpdLotDetail ud) == ed AND NOT lot(id(ud))  NEW l = Lot DO {
+                        id(l) <- id(ud);
+                        sku(l) <- skuBarcode(idSku(ed));
+                    }
+                    FOR updDocumentDetail(UpdLotDetail ud) == ed AND l = lot(id(ud))  DO {
+                        quantity(id, l) <- quantity(ed);
+                    }
+                }
+            SHOW userInvoice OBJECTS i = invoice;
+            }
+        }
+    }
+}
+
+//showCreateInvoice (UpdDocument d) = NOT invoice(d) AND primaryStatusTextDocument(d) = 'Подписан';
+showCreateInvoice (UpdDocument d) = NOT invoice(d) AND primaryStatusTextDocument(d) = 'Требуется подпись';
+
+EXTEND FORM updDocuments
+    PROPERTIES(u) createInvoice SHOWIF showCreateInvoice(u)
+;
+
+DESIGN updDocuments{
+    actionContainer{
+        MOVE PROPERTY (createInvoice(u));
+    }
+}
