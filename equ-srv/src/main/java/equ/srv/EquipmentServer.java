@@ -13,6 +13,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.RawFileData;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
 import lsfusion.server.base.controller.remote.RmiManager;
@@ -2152,9 +2153,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 if (scalesItemLM != null) {
                     String[] scalesSkuNames = new String[]{"hoursExpiryMachineryPriceTransactionBarcode",
-                            "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode"};
+                            "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode",
+                            "groupImageMPTBarcode", "itemImageMPTBarcode"};
                     LP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiry[MachineryPriceTransaction,Barcode]",
-                            "description[MachineryPriceTransaction,Barcode]", "descriptionNumber[MachineryPriceTransaction,Barcode]");
+                            "description[MachineryPriceTransaction,Barcode]", "descriptionNumber[MachineryPriceTransaction,Barcode]",
+                            "groupImage[MachineryPriceTransaction,Barcode]", "itemImage[MachineryPriceTransaction,Barcode]");
                     for (int i = 0; i < scalesSkuProperties.length; i++) {
                         skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
@@ -2378,10 +2381,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal retailPrice = (BigDecimal) row.get("retailPrice");
                         Integer imagesCount = (Integer) row.get("imagesCount");
 
+                        RawFileData groupImage = (RawFileData) row.get("groupImageMPTBarcode");
+                        RawFileData itemImage = (RawFileData) row.get("itemImageMPTBarcode");
+
                         scalesItemList.add(new ScalesItem(idItem, barcode, name, price, split, daysExpiry, hoursExpiry,
                                 expiryDate, passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup,
                                 null, description, descriptionNumberCellScales, idUOM, shortNameUOM, info, extraPercent,
-                                retailPrice, imagesCount));
+                                retailPrice, imagesCount, groupImage, itemImage));
                     }
 
                     transactionList.add(new TransactionScalesInfo((Long) transactionObject.getValue(), dateTimeCode,
