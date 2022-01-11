@@ -87,7 +87,7 @@ public class SendSalesEquipmentServer {
                 for (int i = 0, size = result.size(); i < size; i++) {
                     ImMap<Object, Object> row = result.getValue(i);
                     CashRegisterInfo c = new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
-                            null, (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
+                            (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery")), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
                             (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
                             (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), (LocalDate) row.get("documentsClosedDate"));

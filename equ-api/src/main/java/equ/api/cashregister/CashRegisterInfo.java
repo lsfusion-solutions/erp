@@ -17,28 +17,28 @@ public class CashRegisterInfo extends MachineryInfo {
 
     public CashRegisterInfo(Integer numberGroup, Integer number, String handlerModel, String port, String directory,
                             String section, Integer overDepartNumber) {
-        this(numberGroup, number, null, handlerModel, port, directory, overDepartNumber, null, false, null, null, section, null);
+        this(numberGroup, number, handlerModel, port, directory, overDepartNumber, null, false, null, null, section, null);
     }
 
-    public CashRegisterInfo(Integer numberGroup, Integer number, String nameModel, String handlerModel, String port, String directory,
+    public CashRegisterInfo(Integer numberGroup, Integer number, String handlerModel, String port, String directory,
                             Integer overDepartNumber, String idDepartmentStore, boolean disableSales,
                             String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister, String section) {
-        this(true, false, false, numberGroup, number, nameModel, handlerModel, port, directory, null, overDepartNumber, idDepartmentStore,
+        this(true, false, false, numberGroup, number, handlerModel, port, directory, null, overDepartNumber, idDepartmentStore,
                 false,  disableSales,  pieceCodeGroupCashRegister, weightCodeGroupCashRegister, section, null);
     }
 
-    public CashRegisterInfo(Integer numberGroup, Integer number, String nameModel, String handlerModel, String port, String directory,
+    public CashRegisterInfo(Integer numberGroup, Integer number, String handlerModel, String port, String directory,
                             Integer overDepartNumber, String idDepartmentStore, boolean disableSales,
                             String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister, String section, LocalDate documentsClosedDate) {
-        this(true, false, false, numberGroup, number, nameModel, handlerModel, port, directory, null, overDepartNumber, idDepartmentStore,
+        this(true, false, false, numberGroup, number, handlerModel, port, directory, null, overDepartNumber, idDepartmentStore,
                  false,  disableSales,  pieceCodeGroupCashRegister, weightCodeGroupCashRegister, section, documentsClosedDate);
     }
 
-    public CashRegisterInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number, String nameModel,
+    public CashRegisterInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number,
                             String handlerModel, String port, String directory, LocalDate startDate,
                             Integer overDepartNumber, String idDepartmentStore, Boolean notDetailed, boolean disableSales,
                             String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister, String section, LocalDate documentsClosedDate) {
-        super(enabled, cleared, succeeded, numberGroup, number, nameModel, handlerModel, port, directory);
+        super(enabled, cleared, succeeded, numberGroup, number, handlerModel, port, directory);
         this.startDate = startDate;
         this.overDepartNumber = overDepartNumber;
         this.idDepartmentStore = idDepartmentStore;

@@ -197,7 +197,7 @@ public class MachineryExchangeEquipmentServer {
             String handlerModel = trim((String) entry.get("handlerModel"));
             String directory = trim((String) entry.get("overDirectory"));
             String idStock = trim((String) entry.get("idStock"));
-            extraCashRegisterSet.add(new CashRegisterInfo(numberGroup, number, null, handlerModel, null, directory, null, idStock, false, null, null, null));
+            extraCashRegisterSet.add(new CashRegisterInfo(numberGroup, number, handlerModel, null, directory, null, idStock, false, null, null, null));
         }
         return extraCashRegisterSet;
     }
@@ -444,7 +444,7 @@ public class MachineryExchangeEquipmentServer {
 
                 for (ImMap<Object, Object> row : result.values()) {
                     machineryInfoList.add(new MachineryInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
-                            null, (String) row.get("handlerModelMachinery"), trim((String) row.get("portMachinery")),
+                            (String) row.get("handlerModelMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery"))));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {

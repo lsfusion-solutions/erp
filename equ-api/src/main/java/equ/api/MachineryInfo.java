@@ -8,19 +8,17 @@ public class MachineryInfo implements Serializable {
     public boolean succeeded;
     public Integer numberGroup;
     public Integer number;
-    public String nameModel;
     public String handlerModel;
     public String port;
     public String directory;
 
-    public MachineryInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number, String nameModel,
+    public MachineryInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number,
                          String handlerModel, String port, String directory) {
         this.enabled = enabled;
         this.cleared = cleared;
         this.succeeded = succeeded;
         this.numberGroup = numberGroup;
         this.number = number;
-        this.nameModel = nameModel;
         this.handlerModel = handlerModel;
         this.port = port;
         this.directory = directory;

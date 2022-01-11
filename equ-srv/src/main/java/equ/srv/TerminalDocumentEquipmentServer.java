@@ -72,7 +72,7 @@ public class TerminalDocumentEquipmentServer {
 
                 for (ImMap<Object, Object> row : result.values()) {
                     terminalInfoList.add(new TerminalInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
-                            null, (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
+                            (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
                             trim((String) row.get("directoryGroupTerminal")), (String) row.get("idPriceListTypeGroupMachinery")));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException e) {
