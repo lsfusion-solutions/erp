@@ -88,10 +88,11 @@ public class SendSalesEquipmentServer {
                     ImMap<Object, Object> row = result.getValue(i);
                     CashRegisterInfo c = new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
-                            trim((String) row.get("overDirectoryMachinery")), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
-                            (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
-                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), (LocalDate) row.get("documentsClosedDate"));
-                    c.startDate = (LocalDate) row.get("startDate");
+                            trim((String) row.get("overDirectoryMachinery")), (LocalDate) row.get("startDate"),
+                            (Integer) row.get("overDepartmentNumberGroupCashRegister"), (String) row.get("idStockGroupMachinery"),
+                            row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
+                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"),
+                            (LocalDate) row.get("documentsClosedDate"), (Integer) row.get("priority"));
                     cashRegisterInfoList.add(c);
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {

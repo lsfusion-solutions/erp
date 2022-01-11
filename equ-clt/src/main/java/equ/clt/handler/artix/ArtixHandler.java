@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
@@ -798,6 +799,39 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
+    public void prereadFiles(List<CashRegisterInfo> cashRegisterList) {
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+        Integer maxFilesCount = artixSettings.getMaxFilesCount();
+
+        List<Pair<File, Integer>> files = new ArrayList<>();
+        for (Pair<File, Integer> dirEntry : getDirectories(cashRegisterList)) {
+            File[] filesList = dirEntry.first.listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
+            if (filesList != null) {
+                for (File file : filesList) {
+                    files.add(Pair.create(file, dirEntry.second));
+                }
+            }
+        }
+
+        files.sort((f1, f2) -> {
+            int priorityDif = f2.second - f1.second;
+            if (priorityDif != 0) return priorityDif;
+            else return compareDates(f1.first, f2.first);
+        });
+
+        int totalFilesCount = files.size();
+
+        if(maxFilesCount == null || maxFilesCount > totalFilesCount)
+            maxFilesCount = totalFilesCount;
+        List<File> subFiles = new ArrayList<>();
+        for(int i = 0; i < maxFilesCount; i++) {
+            subFiles.add(files.get(i).first);
+        }
+
+        readFiles = new HashSet<>(subFiles);
+    }
+
+    @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests,
                                  Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         for (RequestExchange entry : requestExchangeList) {
@@ -858,58 +892,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
-    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo(List<String> directoryList) {
-
-        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
-        Integer maxFilesCount = artixSettings == null ? null : artixSettings.getMaxFilesCount();
-        int priorityDirectoriesCount = artixSettings == null ? 0 : artixSettings.getPriorityDirectoriesCount();
-        boolean disableSoftCheck = artixSettings != null && artixSettings.isDisableSoftCheck();
+    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo() {
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+        boolean disableSoftCheck = artixSettings.isDisableSoftCheck();
 
         Map<String, LocalDateTime> result = new HashMap<>();
-        softCheckLogger.info(logPrefix + "reading SoftCheckInfo");
-
-        //ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
-        //boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
-
-        List<Pair<File, Boolean>> files = new ArrayList<>();
-        //правильнее брать только только нужные подпапки, как в readSales, но для этого пришлось бы менять equ-api.
-        //так что пока ищем во всех подпапках + в подпапках в папке online.
-        //потенциальная проблема - левые файлы, а также файлы из папок выключенных касс
-        for (Pair<File, Boolean> dirEntry : getSoftCheckDirectories(directoryList, priorityDirectoriesCount)) {
-            File dir = dirEntry.first;
-            boolean priority = dirEntry.second;
-            File[] filesList = dir.listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
-            if (filesList != null) {
-                for (File file : filesList) {
-                        files.add(Pair.create(file, priority));
-                }
-            }
-        }
-
-        files.sort((f1, f2) -> {
-            if (f1.second) return f2.second ? compareDates(f1.first, f2.first) : -1; //f2 is not priority
-            if (f2.second) return 1; //f1 is not priority
-            return compareDates(f1.first, f2.first);
-        });
-
-        int totalFilesCount = files.size();
-
-        if(maxFilesCount == null || maxFilesCount > totalFilesCount)
-            maxFilesCount = totalFilesCount;
-        List<File> subFiles = new ArrayList<>();
-        for(int i = 0; i < maxFilesCount; i++) {
-            subFiles.add(files.get(i).first);
-        }
-
-        readFiles = new HashSet<>(subFiles);
-
         if(!disableSoftCheck) {
-
-            if (subFiles.isEmpty()) softCheckLogger.info(logPrefix + "No sale files found");
+            softCheckLogger.info(logPrefix + "reading SoftCheckInfo");
+            if (readFiles.isEmpty()) softCheckLogger.info(logPrefix + "No sale files found");
             else {
-                softCheckLogger.info(String.format(logPrefix + "found %s sale file(s), read %s sale file(s)", totalFilesCount, subFiles.size()));
+                softCheckLogger.info(String.format(logPrefix + "read %s sale file(s)", readFiles.size()));
 
-                for (File file : subFiles) {
+                for (File file : readFiles) {
                     if (!Thread.currentThread().isInterrupted()) {
                         try {
 
@@ -960,14 +954,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return Long.compare(f1.lastModified(), f2.lastModified());
     }
 
-    private List<Pair<File, Boolean>> getSoftCheckDirectories(List<String> directories, int priorityDirectoriesCount) {
-
-        List<Pair<File, Boolean>> result = new ArrayList<>();
-        for(int i = 0; i < directories.size(); i++) {
-            String directory = directories.get(i);
-            boolean priority = i < priorityDirectoriesCount;
-            if(directory != null) {
-                File[] subDirectoryList = new File(directory).listFiles(File::isDirectory);
+    private List<Pair<File, Integer>> getDirectories(List<CashRegisterInfo> cashRegisterList) {
+        List<Pair<File, Integer>> result = new ArrayList<>();
+        for(CashRegisterInfo cashRegister : cashRegisterList) {
+            if(cashRegister.directory != null) {
+                int priority = nvl(cashRegister.priority, -1);
+                File[] subDirectoryList = new File(cashRegister.directory).listFiles(File::isDirectory);
                 if (subDirectoryList != null) {
                     for (File subDirectory : subDirectoryList) {
                         result.add(Pair.create(subDirectory, priority));
@@ -978,7 +970,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 }
             }
         }
-        return result;
+        return result.stream().distinct().collect(Collectors.toList());
     }
 
     @Override

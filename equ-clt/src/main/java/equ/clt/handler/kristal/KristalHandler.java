@@ -404,7 +404,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo(List<String> directoryList) throws ClassNotFoundException, SQLException {
+    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException {
 
         softCheckLogger.info("Kristal: requesting succeeded SoftCheckInfo");
 

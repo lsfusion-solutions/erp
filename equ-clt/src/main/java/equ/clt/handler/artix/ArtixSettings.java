@@ -38,6 +38,7 @@ public class ArtixSettings implements Serializable{
     //Если true, прочитанные непустые файлы без реализации и cashierTime не удаляются
     private boolean notDeleteEmptyFiles;
 
+    //todo: deprecated
     //Если задано, считаем указанное количество первых папок, пришедших с сервера, приоритетными, файлы из них берём
     //в первую очередь. На сервере папки сортируются по priority 'Приоритет' = DATA INTEGER (GroupCashRegister); )
     private int priorityDirectoriesCount;

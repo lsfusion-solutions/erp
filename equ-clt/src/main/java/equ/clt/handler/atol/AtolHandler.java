@@ -215,7 +215,8 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
         }
     }
 
-    @Override
+    //если будет нужно, реализовать передачу directoryList через prereadFiles
+    /*@Override
     public Map<String, LocalDateTime> requestSucceededSoftCheckInfo(List<String> directoryList) {
 
         softCheckLogger.info("Atol: requesting succeeded SoftCheckInfo");
@@ -270,7 +271,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
             }
         }
         return result;
-    }
+    }*/
 
     @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {

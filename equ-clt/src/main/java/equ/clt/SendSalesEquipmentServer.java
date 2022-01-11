@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class SendSalesEquipmentServer {
     private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
@@ -25,21 +26,20 @@ public class SendSalesEquipmentServer {
 
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
 
-        Map<String, List<String>> handlerModelDirectoryMap = new HashMap<>();
+        Map<String, List<CashRegisterInfo>> handlerModelCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if(!cashRegister.disableSales) {
-                List<String> directoryList = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new ArrayList<>();
-                if(!directoryList.contains(cashRegister.directory)) {
-                    directoryList.add(cashRegister.directory);
-                }
-                handlerModelDirectoryMap.put(cashRegister.handlerModel, directoryList);
+                List<CashRegisterInfo> cashRegisterList = handlerModelCashRegisterMap.getOrDefault(cashRegister.handlerModel, new ArrayList<>());
+                cashRegisterList.add(cashRegister);
+                handlerModelCashRegisterMap.put(cashRegister.handlerModel, cashRegisterList);
             }
         }
 
         try {
-            for (Map.Entry<String, List<String>> entry : handlerModelDirectoryMap.entrySet()) {
+            for (Map.Entry<String, List<CashRegisterInfo>> entry : handlerModelCashRegisterMap.entrySet()) {
                 String handlerModel = entry.getKey();
-                List<String> directoryList = entry.getValue();
+                List<CashRegisterInfo> cashRegisterList = entry.getValue();
+                List<String> directoryList = cashRegisterList.stream().map(c -> c.directory).distinct().collect(Collectors.toList());
 
                 if (handlerModel != null && !handlerModel.isEmpty()) {
 
@@ -48,9 +48,11 @@ public class SendSalesEquipmentServer {
                     if(clsHandler instanceof CashRegisterHandler) {
                         CashRegisterHandler handler = (CashRegisterHandler) clsHandler;
 
+                        handler.prereadFiles(cashRegisterList);
+
                         requestSalesInfo(remote, sidEquipmentServer, getSalesInfoExchangeList(requestExchangeList), handler);
 
-                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directoryList);
+                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler);
 
                         sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 

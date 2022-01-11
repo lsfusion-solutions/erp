@@ -213,7 +213,11 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo(List<String> directoryList) throws ClassNotFoundException, SQLException {
+    public void prereadFiles(List<CashRegisterInfo> cashRegisterList) {
+    }
+
+    @Override
+    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException {
         return null;
     }
 }
