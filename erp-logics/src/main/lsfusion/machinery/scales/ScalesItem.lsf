@@ -66,8 +66,15 @@ description 'Описание' = OVERRIDE overMachineryDescription(Barcode barco
 @defineMachineryPriceTransactionAttribute(description, 'Описание', TEXT);
 
 // Изображение группы товаров и товара
-@defineMachineryPriceTransactionAttribute(groupImage, 'Изображение группы товаров', IMAGEFILE);
-@defineMachineryPriceTransactionAttribute(itemImage, 'Изображение товара', IMAGEFILE);
+itemImage 'Изображение товара' = DATA IMAGEFILE (MachineryPriceTransaction, Barcode);
+itemImage(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
+
+groupImage 'Изображение группы товаров' = DATA IMAGEFILE (MachineryPriceTransaction, Barcode);
+groupImage(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) itemImage, groupImage;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY itemImage, groupImage;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb) READONLY  itemImage, groupImage;
 
 descriptionNumber(MachineryPriceTransaction t, Barcode b) = number(cellScales(groupMachinery(t), description(t, b)));
 
