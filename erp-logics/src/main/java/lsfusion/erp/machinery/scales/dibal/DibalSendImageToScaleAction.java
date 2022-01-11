@@ -2,20 +2,18 @@ package lsfusion.erp.machinery.scales.dibal;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.Pair;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
-import net.coobird.thumbnailator.Thumbnails;
 import org.apache.commons.lang.StringUtils;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -27,7 +25,7 @@ import java.util.List;
 public class DibalSendImageToScaleAction extends InternalAction {
     public final ClassPropertyInterface ipInterface;
     public final ClassPropertyInterface indexImageInterface;
-    public final ClassPropertyInterface imagePathInterface;
+    public final ClassPropertyInterface imageFileInterface;
 
     public DibalSendImageToScaleAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
@@ -35,16 +33,30 @@ public class DibalSendImageToScaleAction extends InternalAction {
         Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         ipInterface = i.next();
         indexImageInterface = i.next();
-        imagePathInterface = i.next();
+        imageFileInterface = i.next();
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         String ip = (String) context.getDataKeyValue(ipInterface).getValue();
         Integer indexImage = (Integer) context.getDataKeyValue(indexImageInterface).getValue();
-        String imagePath = (String) context.getDataKeyValue(imagePathInterface).getValue();
+        RawFileData imageFile = (RawFileData) context.getDataKeyValue(imageFileInterface).getValue();
 
         try {
-            List<byte[]> imageCommands = create8bitImage(getImageBytes(imagePath), indexImage);
+
+            BufferedImage image = ImageIO.read(imageFile.getInputStream());
+            int imageWidth = image.getWidth();
+            int imageHeight = image.getHeight();
+
+            if (Math.max(imageWidth, imageHeight) > 210) {
+                throw new RuntimeException(String.format("Max image width x height is 210 x 210, provided %s x %s", imageWidth, imageHeight));
+            }
+
+            String format = getFormat(imageFile);
+            if (!format.equals("bmp")) {
+                throw new RuntimeException(String.format("Image format should be bmp, provided %s", format));
+            }
+
+            List<byte[]> imageCommands = create8bitImage(imageFile.getBytes(), indexImage);
             try (Socket socket = new Socket(ip, 3000)) {
                 for (byte[] imageCommand : imageCommands) {
                     socket.getOutputStream().write(imageCommand);
@@ -55,21 +67,13 @@ public class DibalSendImageToScaleAction extends InternalAction {
         }
     }
 
-    //resize and convert to bmp
-    private byte[] getImageBytes(String imagePath) throws IOException {
-        File file = new File(imagePath);
-        BufferedImage image = ImageIO.read(file);
-        int imageWidth = image.getWidth();
-        int imageHeight = image.getHeight();
-        double scale = (double) 210 / Math.max(imageWidth, imageHeight); //max width / height is 210
-        try (ByteArrayOutputStream resizedOS = new ByteArrayOutputStream()) {
-            Thumbnails.of(file).scale(scale, scale).toOutputStream(resizedOS);
-            BufferedImage resizedImage = ImageIO.read(new ByteArrayInputStream(resizedOS.toByteArray()));
-            try (ByteArrayOutputStream convertedOS = new ByteArrayOutputStream()) {
-                ImageIO.write(resizedImage, "bmp", convertedOS);
-                return convertedOS.toByteArray();
-            }
+    private String getFormat(RawFileData imageFile) throws IOException {
+        Iterator<ImageReader> readers = ImageIO.getImageReaders(ImageIO.createImageInputStream(imageFile.getInputStream()));
+        if (readers.hasNext()) {
+            ImageReader reader = readers.next();
+            return reader.getFormatName();
         }
+        return "unknown";
     }
 
     public final List<byte[]> create8bitImage(byte[] imageBytes, int article) {
