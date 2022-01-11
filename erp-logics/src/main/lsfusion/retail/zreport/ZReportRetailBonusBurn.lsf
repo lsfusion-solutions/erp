@@ -7,6 +7,7 @@ NAMESPACE ZReport;
 CLASS ABSTRACT BonusIncome 'Начисленные бонусы';
 
 discountCard = ABSTRACT DiscountCard (BonusIncome);
+date = ABSTRACT DATE (BonusIncome);
 burnDate = ABSTRACT DATE (BonusIncome);
 sum = ABSTRACT NUMERIC[18,4] (BonusIncome);
 leftSum = ABSTRACT NUMERIC[18,4] (BonusIncome);
@@ -24,6 +25,7 @@ EXTEND FORM zReports
 ;
 
 discountCard[BonusIncome](ReceiptSaleDetail d) += discountCard(d);
+date[BonusIncome](ReceiptSaleDetail d) += date(d);
 burnDate[BonusIncome](ReceiptSaleDetail d) += burnDate(d);
 sum[BonusIncome](ReceiptSaleDetail d) += bonusSum(d) (-) returnBonusSum(d);
 leftSum[BonusIncome](ReceiptSaleDetail d) += leftSum(d);
@@ -38,6 +40,7 @@ EXTEND FORM discountCard
 ;
 
 discountCard[BonusIncome](BonusLedger l) += RetailBonus.discountCard(l);
+date[BonusIncome](BonusLedger l) += RetailBonus.date(l);
 burnDate[BonusIncome](BonusLedger l) += burnDate(l);
 sum[BonusIncome](BonusLedger l) += RetailBonus.sum(l);
 leftSum[BonusIncome](BonusLedger l) += leftSum(l);
@@ -46,7 +49,19 @@ skip[BonusIncome](BonusLedger l) += TRUE IF RetailBonus.sum(l) < 0;
 overFillLeftBonuses ABSTRACT ();
 
 fillLeftBonuses 'Заполнить оставшиеся бонусы' () {
-    leftSum(BonusIncome i) <- PARTITION UNGROUP availableBonuses LIMIT sum(i) IF NOT skip(i) ORDER DESC burnDate(i), i BY discountCard(i);
+    LOCAL leftSum = NUMERIC[18,4] (DiscountCard);
+    LOCAL extraSum = NUMERIC[18,4] (DiscountCard);
+    LOCAL extraSum = NUMERIC[18,4] (BonusIncome);
+    
+    leftSum(DiscountCard d) <- GROUP SUM leftSum(BonusIncome i) IF discountCard(i) == d;
+    extraSum(DiscountCard d) <- leftSum(d) (-) availableBonuses(d);
+    
+    extraSum(BonusIncome i) <- (PARTITION UNGROUP extraSum LIMIT leftSum(i) IF leftSum(i) AND NOT skip(i) ORDER burnDate(i), i BY discountCard(i)) WHERE extraSum(discountCard(i)) > 0;
+    leftSum(BonusIncome i) <- (leftSum(i) (-) extraSum(i)) WHERE extraSum(discountCard(i)) > 0;
+    
+    extraSum(DiscountCard d) <- - extraSum(d);
+    extraSum(BonusIncome i) <- (PARTITION UNGROUP extraSum LIMIT sum(i) (-) leftSum(i) IF NOT skip(i) ORDER DESC date(i), i BY discountCard(i)) WHERE extraSum(discountCard(i)) > 0;
+    leftSum(BonusIncome i) <- (leftSum(i) (+) extraSum(i)) WHERE extraSum(discountCard(i)) > 0;
     
     overFillLeftBonuses();
     APPLY;
