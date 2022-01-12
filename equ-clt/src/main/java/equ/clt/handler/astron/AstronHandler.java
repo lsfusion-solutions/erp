@@ -13,6 +13,8 @@ import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.math.BigDecimal;
@@ -36,8 +38,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     protected final static Logger astronLogger = Logger.getLogger("AstronLogger");
     protected final static Logger astronSalesLogger = Logger.getLogger("AstronSalesLogger");
     protected final static Logger astronPackLogger = Logger.getLogger("AstronPackLogger");
-
-    private static Map<String, Map<String, CashRegisterItem>> deleteBarcodeConnectionStringMap = new HashMap<>();
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -228,13 +228,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, exBarcUpdateNum);
                             outputUpdateNums.put("EXBARC", exBarcUpdateNum);
 
-                            boolean hasSecondPrice = hasExtraPrice(transaction, exportExtraTables, "secondPrice");
-                            boolean hasThirdPrice = hasExtraPrice(transaction, exportExtraTables, "thirdPrice");
+                            Set<Integer> hasExtraPrices = getHasExtraPrices(transaction);
 
                             //таблицы PRCLEVEL, SAREA, SAREAPRC должны выгружаться раньше, чем PACKPRC
                             if (exportExtraTables) {
                                 Integer prcLevelUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PRCLEVEL");
-                                exportPrcLevel(conn, params, transaction, hasSecondPrice, hasThirdPrice, prcLevelUpdateNum);
+                                exportPrcLevel(conn, params, transaction, hasExtraPrices, prcLevelUpdateNum);
                                 outputUpdateNums.put("PRCLEVEL", prcLevelUpdateNum);
 
                                 Integer sareaUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "SAREA");
@@ -242,7 +241,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 outputUpdateNums.put("SAREA", sareaUpdateNum);
 
                                 Integer sareaPrcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "SAREAPRC");
-                                exportSAreaPrc(conn, params, transaction, hasSecondPrice, hasThirdPrice, sareaPrcUpdateNum);
+                                exportSAreaPrc(conn, params, transaction, hasExtraPrices, sareaPrcUpdateNum);
                                 outputUpdateNums.put("SAREAPRC", sareaPrcUpdateNum);
                             }
 
@@ -834,15 +833,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         }
 
                         if(exportExtraTables) {
-                            //{"astron": {"secondPrice":"1.23"}}
-                            BigDecimal secondPrice = getJSONBigDecimal(item.info, "astron", "secondPrice");
-                            if (secondPrice != null) {
-                                addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, secondPrice, 2, false, keys.length, updateNum, transaction.id);
-                            }
-                            //{"astron": {"thirdPrice":"1.23"}}
-                            BigDecimal thirdPrice = getJSONBigDecimal(item.info, "astron", "thirdPrice");
-                            if (thirdPrice != null) {
-                                addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, thirdPrice, 3, false, keys.length, updateNum, transaction.id);
+                            //{"extraPrices": [{"id": 2, "name": "VIP", "price": 12.34}, {"id": 3, "name": "OPT", "price": 2.34}]}
+                            JSONObject infoJSON = getExtInfo(item.info);
+                            if(infoJSON != null) {
+                                JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
+                                if(extraPrices != null) {
+                                    for (int j = 0; j < extraPrices.length(); j++) {
+                                        JSONObject extraPrice = extraPrices.getJSONObject(j);
+                                        Integer id = extraPrice.getInt("id");
+                                        BigDecimal price = BigDecimal.valueOf(extraPrice.getDouble("price"));
+                                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, price, id, false, keys.length, updateNum, transaction.id);
+                                    }
+                                }
                             }
                         }
                         batchCount++;
@@ -860,22 +862,26 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private boolean hasExtraPrice(TransactionCashRegisterInfo transaction, boolean exportExtraTables, String tag) {
-        boolean hasExtraPrice = false;
-
-        for (int i = 0; i < transaction.itemsList.size(); i++) {
-            if (!Thread.currentThread().isInterrupted()) {
-                CashRegisterItem item = transaction.itemsList.get(i);
-                if (item.price != null) {
-                    BigDecimal extraPrice = getJSONBigDecimal(item.info, "astron", tag);
-                    if (exportExtraTables && extraPrice != null) {
-                        hasExtraPrice = true;
+    private Set<Integer> getHasExtraPrices(TransactionCashRegisterInfo transaction) {
+        Set<Integer> hasExtraPrices = new HashSet<>();
+        for (CashRegisterItem item : transaction.itemsList) {
+            JSONObject infoJSON = getExtInfo(item.info);
+            if (item.price != null && infoJSON != null) {
+                JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
+                if (extraPrices != null) {
+                    for (int i = 0; i < extraPrices.length(); i++) {
+                        JSONObject extraPrice = extraPrices.getJSONObject(i);
+                        Integer id = extraPrice.getInt("id");
+                        hasExtraPrices.add(id);
                     }
                 }
-            } else break;
+            }
         }
+        return hasExtraPrices;
+    }
 
-        return hasExtraPrice;
+    private JSONObject getExtInfo(String extInfo) {
+        return extInfo != null ? new JSONObject(extInfo).optJSONObject("astron") : null;
     }
 
     private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
@@ -1006,20 +1012,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPrcLevel(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean hasSecondPrice, boolean hasThirdPrice, Integer updateNum) throws SQLException {
+    private void exportPrcLevel(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Set<Integer> hasExtraPrices, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"PRCLEVELID"};
         String[] columns = getColumns(new String[]{"PRCLEVELID", "PRCLEVELNAME", "PRCLEVELKEY", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PRCLEVEL", columns, keys)) {
             int offset = columns.length + keys.length;
 
             addPrcLevelRow(ps, params, transaction, offset, 1, keys.length, updateNum);
-            if(hasSecondPrice) {
-                addPrcLevelRow(ps, params, transaction, offset, 2, keys.length, updateNum);
-            }
-            if(hasThirdPrice) {
-                addPrcLevelRow(ps, params, transaction, offset, 3, keys.length, updateNum);
-            }
 
+            for(Integer priceNumber : hasExtraPrices) {
+                addPrcLevelRow(ps, params, transaction, offset, priceNumber, keys.length, updateNum);
+            }
             executeAndCommitBatch(ps, conn);
         }
     }
@@ -1080,18 +1083,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportSAreaPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean hasSecondPrice, boolean hasThirdPrice, Integer updateNum) throws SQLException {
+    private void exportSAreaPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Set<Integer> hasExtraPrices, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"SAREAID", "PRCLEVELID"};
         String[] columns = getColumns(new String[]{"SAREAID", "PRCLEVELID", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "SAREAPRC", columns, keys)) {
             int offset = columns.length + keys.length;
 
             addSAreaPrcRow(ps, params, transaction, offset, 1, keys.length, updateNum);
-            if(hasSecondPrice) {
-                addSAreaPrcRow(ps, params, transaction, offset, 2, keys.length, updateNum);
-            }
-            if(hasThirdPrice) {
-                addSAreaPrcRow(ps, params, transaction, offset, 3, keys.length, updateNum);
+
+            for(Integer priceNumber : hasExtraPrices) {
+                addSAreaPrcRow(ps, params, transaction, offset, priceNumber, keys.length, updateNum);
             }
 
             executeAndCommitBatch(ps, conn);

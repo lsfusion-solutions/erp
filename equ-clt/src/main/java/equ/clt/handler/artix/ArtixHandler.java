@@ -378,17 +378,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     inventObject.put("alcoholpercent", alcoholPercent);
                 }
 
-                Double secondPrice = infoJSON.optDouble("secondPrice");
-                String secondPriceName = infoJSON.optString("secondPriceName", "VIP");
-                Double thirdPrice = infoJSON.optDouble("thirdPrice");
-                String thirdPriceName = infoJSON.optString("thirdPriceName", "Опт");
-                if(!secondPrice.isNaN() || !thirdPrice.isNaN()) {
+                //{"extraPrices": [{"id": 2, "name": "VIP", "price": 12.34}, {"id": 3, "name": "OPT", "price": 2.34}]}
+                JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
+                if(extraPrices != null && !extraPrices.isEmpty()) {
                     JSONArray additionalPrices = new JSONArray();
-                    if(!secondPrice.isNaN()) {
-                        additionalPrices.put(getAdditionalPriceJSON(2, secondPrice, secondPriceName));
-                    }
-                    if(!thirdPrice.isNaN()) {
-                        additionalPrices.put(getAdditionalPriceJSON(3, thirdPrice, thirdPriceName));
+                    for (int i = 0; i < extraPrices.length(); i++) {
+                        JSONObject extraPrice = extraPrices.getJSONObject(i);
+                        Integer id = extraPrice.getInt("id");
+                        Double price = extraPrice.getDouble("price");
+                        String name = extraPrice.getString("name");
+                        additionalPrices.put(getAdditionalPriceJSON(id, price, name));
                     }
                     inventObject.put("additionalprices", additionalPrices);
                 }
