@@ -1444,6 +1444,12 @@ addSkuLists 'Создать страницу описи по спискам SKU'
 
 isParentSkuGroup = (isParent(SkuGroup g, sku(PageInventoryDetail detail))) OR (g IS SkuGroup AND NOT sku(detail));
 
+changeWYSNameBatch(PageInventoryDetail d)  {
+        INPUT s = STRING DO {
+            batch(d) <- GROUP LAST Batch b ORDER b WHERE sku(b) = sku(d) AND name(b) = s; 
+        } 
+}
+
 FORM listInventory 'Опись'
     OBJECTS         li=ListInventory PANEL
     PROPERTIES (li) nameStock, nameInventory, name, note,
@@ -1461,7 +1467,7 @@ FORM listInventory 'Опись'
     FILTERS         listInventory(pl) == li
 
     OBJECTS         dp=PageInventoryDetail
-    PROPERTIES (dp) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch SHOWIF isBatch(li), 
+    PROPERTIES (dp) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch SHOWIF isBatch(li) ON CHANGEWYS changeWYSNameBatch(dp), 
                     quantityGrid = quantity, price,
                     sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li), NEW SHOWIF countPageInventory(li), DELETE GRID
     FILTERS         listInventory(pageInventory(dp)) == li, isParentSkuGroup(g, dp)
