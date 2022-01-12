@@ -773,6 +773,7 @@ GROUP blrapnReferenceDocument EXTID 'ReferenceDocument': acknowledgement;
 GROUP blrapnShipper EXTID 'Shipper': acknowledgement;
 GROUP blrapnReceiver EXTID 'Receiver': acknowledgement;
 GROUP blrapnErrorOrAcknowledgement EXTID 'ErrorOrAcknowledgement': acknowledgement;
+blrapnTestIndicator = DATA LOCAL NESTED STRING[1]();
 blrapnUserID = DATA LOCAL NESTED STRING[35]();
 blrapnDocumentNumber = DATA LOCAL NESTED STRING[24]();
 blrapnDateTime = DATA LOCAL NESTED DATETIME();
@@ -789,7 +790,7 @@ blrapnCode = DATA LOCAL NESTED STRING[8]();
 blrapnDescription = DATA LOCAL NESTED STRING[1000]();
 
 FORM importBlrapn
-    PROPERTIES() IN messageHeader blrapnUserID EXTID 'UserID'
+    PROPERTIES() IN messageHeader blrapnTestIndicator EXTID 'TestIndicator', blrapnUserID EXTID 'UserID'
     PROPERTIES() IN acknowledgement blrapnDocumentNumber EXTID 'DocumentID', blrapnDateTime EXTID 'CreationDateTime',
                     blrapnDeliveryNoteId EXTID 'DeliveryNoteID', blrapnDeliveryNoteDate EXTID 'DeliveryNoteDate'
     PROPERTIES() IN blrapnReferenceDocument blrapnReferenceDocumentType EXTID 'Type'
@@ -823,6 +824,7 @@ FORM exportBlrapn FORMEXTID 'BLRAPN'
 ;
 
 overImportBlrapn ABSTRACT ();
+overImportBlrapn ABSTRACT (INTEGER, STRING[100], STRING[100], STRING[100], INTEGER, TEXT, STRING[100], BOOLEAN, STRING[100]);
 skipBlrapn = DATA LOCAL NESTED BOOLEAN();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
@@ -831,6 +833,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
             IMPORT importBlrapn XML FROM data(i);
             skipBlrapn() <- NULL;
             overImportBlrapn();
+            overImportBlrapn(i, login, password, host, port, url, archiveDir, disableConfirmation, provider);
             IF NOT skipBlrapn() THEN {
                 IF blrapnDeliveryNoteId() AND blrapnCode() THEN {
                     IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND DATE(deliveryNoteDateTime(eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId()))) == blrapnDeliveryNoteDate()) OR lower(blrapnReferenceDocumentType()) == 'blrwbr' OR lower(blrapnReferenceDocumentType()) == 'blrwbl'
