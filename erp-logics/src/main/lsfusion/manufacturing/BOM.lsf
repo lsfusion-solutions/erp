@@ -216,7 +216,7 @@ description 'Название спецификации' (BOM BOM) = STRING[200](
                                                                           '№'+seriesNumber(BOM)) CHARWIDTH 30; 
     
 
-fromDate 'Дата с' = DATA DATE (BOM) IN documentPrm;
+fromDate 'Дата с' = DATA DATE (BOM) IN documentPrm INDEXED;
 toDate 'Дата по' = DATA DATE (BOM) IN documentPrm;
 
 inactive 'Неактивная' = DATA BOOLEAN (BOM) IN documentPrm;
@@ -788,6 +788,10 @@ isActiveCurrent (Material m) = active(m) AND (IF m IS Product THEN isActiveCurre
 EXTEND FORM materials
     FILTERGROUP inactiveM FILTER 'Активные' isActiveCurrent(m) 'F5' DEFAULT
 ;
+useCustomFilterBOMs = ABSTRACT BOOLEAN ();
+relationComponentsCustom (sku,BOM)= GROUP SUM 1 BY sku(material(Component c)), BOM(c);
+
+backgroundCustom 'Цвет'  = ABSTRACT CASE COLOR (Sku,BOM);
 
 FORM BOMs 'Спецификации'
 
@@ -840,10 +844,15 @@ FORM BOMs 'Спецификации'
     PROPERTIES     DRAW c2 NEWSESSION EDIT(c2), DELETE(c2)   
     FILTERS        isComponentGroup(c2)                   
     OBJECTS b2=BOM    
-    PROPERTIES(b2) READONLY inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 
+    PROPERTIES(b2) READONLY BACKGROUND backgroundCustom(c2,b2) 
+                   inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 
                    overBruttoNetWeightyComponent, pricePercent, note, stocks
-    PROPERTIES(b2) NEWSESSION EDIT                
-    FILTERS        relationComponents(c2,b2)           
+    PROPERTIES(b2) NEWSESSION EDIT        
+    //FILTERS relationComponents(c2,b2)           
+    FILTERS        IF useCustomFilterBOMs() 
+                    THEN relationComponentsCustom(c2,b2)
+                    ELSE relationComponents(c2,b2)
+                             
     ORDERS name(c2)
     
     OBJECTS p2 = Product
