@@ -825,7 +825,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     CashRegisterItem item = transaction.itemsList.get(i);
                     if (item.price != null) {
                         Integer packId = getPackId(item);
-                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, 1, false, keys.length, updateNum, transaction.id);
+                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, 1, null, false, keys.length, updateNum, transaction.id);
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
                             executeAndCommitBatch(ps, conn);
@@ -842,7 +842,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                         JSONObject extraPrice = extraPrices.getJSONObject(j);
                                         Integer id = extraPrice.getInt("id");
                                         BigDecimal price = BigDecimal.valueOf(extraPrice.getDouble("price"));
-                                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, price, id, false, keys.length, updateNum, transaction.id);
+                                        BigDecimal overPackMinPrice = BigDecimal.valueOf(extraPrice.getDouble("overPackMinPrice"));
+                                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, price, id, overPackMinPrice, false, keys.length, updateNum, transaction.id);
                                     }
                                 }
                             }
@@ -886,12 +887,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
                                ItemInfo item, Integer packId, int offset, boolean exportExtraTables,
-                               BigDecimal price, int priceNumber, boolean delFlag, int keysOffset, Integer updateNum, Long transactionId) throws SQLException {
+                               BigDecimal price, int priceNumber, BigDecimal overPackMinPrice, boolean delFlag, int keysOffset, Integer updateNum, Long transactionId) throws SQLException {
 
         Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables, priceNumber);
         BigDecimal packPrice = price == null || price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(price, 100);
         BigDecimal minPrice = item instanceof CashRegisterItem ? HandlerUtils.safeMultiply(((CashRegisterItem) item).minPrice, 100) : null;
-        BigDecimal packMinPrice = (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(price, 100) != null ? HandlerUtils.safeMultiply(price, 100) : minPrice != null ? minPrice : BigDecimal.ZERO;
+        BigDecimal packMinPrice = overPackMinPrice != null ? overPackMinPrice :
+                (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(price, 100) != null ? HandlerUtils.safeMultiply(price, 100) : minPrice != null ? minPrice : BigDecimal.ZERO;
 
         if(params.pgsql) {
             //todo: временный лог для отслеживания, какие packid мы пишем в pack и в packprc
@@ -993,7 +995,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         packIdCount++;
                         for (Integer nppGroupMachinery : groupMachinerySet) {
                             recordCount++;
-                            addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, 1, delFlag, keys.length, updateNum, transactionId);
+                            addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, 1, null, delFlag, keys.length, updateNum, transactionId);
                             if(maxBatchSize != null && recordCount == maxBatchSize) {
                                 astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
                                         recordCount, itemCount, groupMachinerySet.size(), packIdCount));
