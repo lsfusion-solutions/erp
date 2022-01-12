@@ -1,30 +1,6 @@
 MODULE Dibal;
 
-REQUIRE ScalesPriceTransaction, Image, Item;
-
-dataCustomGroupType = DATA CustomGroupType(GroupScales);
-customGroupType = ABSTRACT CustomGroupType(GroupScales);
-customGroupTypeDibal(GroupScales gs) = OVERRIDE dataCustomGroupType(gs), customGroupType(gs);
-nameCustomGroupTypeDibal 'Тип классификатора'(GroupScales gs) = name(customGroupTypeDibal(gs));
-EXTEND FORM groupScales 
-    PROPERTIES (grs) nameCustomGroupTypeDibal SHOWIF sidModel(grs) == 'Dibal';
-
-overId = ABSTRACT STRING[100] (CustomGroup);
-idDibal(CustomGroup cg) = OVERRIDE overId(cg), id(cg);
-
-createAttribute(MachineryPriceTransaction mpt) + {
-    IF sidModel(groupScales(mpt)) == 'Dibal' THEN {
-        LOCAL custGroup = CustomGroup (Barcode);
-        custGroup(Barcode b) <- customGroup(customGroupTypeDibal(groupMachinery(mpt)), sku(b)) WHERE in(mpt, b);
-        
-        info(mpt, Barcode b) <- ('\{"Dibal":\{'+
-                (CONCAT ',',
-                    (' "numberGroup": "' + (OVERRIDE idDibal(custGroup(b)), '1') +
-                    '", nameGroup: "' + (OVERRIDE name(custGroup(b)),'Все') + '"')
-                    )
-                +'\}\}') WHERE in(mpt, b);
-    }
-}
+REQUIRE ScalesSelfService, Image;
 
 
 sendImageToScale 'Send image to single scale' (STRING ip, INTEGER indexImage, IMAGEFILE image)  INTERNAL  'lsfusion.erp.machinery.scales.dibal.DibalSendImageToScaleAction';
@@ -32,3 +8,100 @@ sendImageToScale 'Send image to single scale' (STRING ip, INTEGER indexImage, IM
 //indexImage: 1-99 = группы, 100 и выше = товары (plu + 100)
 sendGroupImageToScale(STRING ip, INTEGER indexImage, IMAGEFILE image) { sendImageToScale(ip, indexImage, image); }
 sendItemImageToScale(STRING ip, INTEGER indexImage, IMAGEFILE image) { sendImageToScale(ip, indexImage + 100, image); }
+
+imageDibal = DATA IMAGEFILE (Item);
+WHEN CHANGED (image(Item i)) DO { 
+    imageDibal(i) <- NULL;
+}
+
+//эти весы грузятся только с одного адреса который прописан у них в настройках
+//поэтому изображения грузим через equ
+toLoadImages = DATA LOCAL BOOLEAN ();
+
+createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
+    IF sidModel(gm) == 'dibald900' AND toLoadImages()  THEN {
+        
+        LOCAL needResize = BOOLEAN(Item);
+        needResize(Item i) <- TRUE IF GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b) AND NOT imageDibal(i);
+    
+        IF (GROUP SUM 1 IF needResize(Item i)) THEN NEWSESSION NESTED LOCAL {
+            FOR needResize(Item s) DO {
+                TRY {
+                    resizeImage(image(s),210,210);              
+                    convertImage(resizedImage(), 'bmp');
+                    imageDibal(s) <- convertedImage();
+                }
+            }
+            APPLY NESTED LOCAL;
+        }
+                        
+        itemImage (mpt, Barcode b) <- imageDibal(sku(b)) WHERE in(mpt, b);
+        groupImage (mpt, Barcode b) <- image(customGroup(customGroupType(groupMachinery(mpt)), sku(b))) WHERE in(mpt, b) AND (PARTITION SUM 1 IF in(mpt, b) ORDER b BY mpt, customGroup(customGroupType(groupMachinery(mpt)), sku(b))) == 1;
+        FOR groupImage (mpt, Barcode b) DO {
+            resizeImage(groupImage (mpt, b),210,210);              
+            convertImage(resizedImage(), 'bmp');
+            groupImage(mpt, b) <- convertedImage();
+        }
+    }
+}
+
+loadImages() + {
+    NEWSESSION NESTED (select[Sku,Stock]) {
+    
+        select(Sku s, Stock st) <- NULL WHERE select(s, st) AND NOT hasImage(s);
+        
+        IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+
+            FOR [GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) AND 
+                (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'dibald900' AND stock(grsk) == stock AND active(grsk)) DO {
+                          
+                createMachineryPriceTransactionSnapshot() <- TRUE;
+                createMachineryPriceTransactionComment() <- 'Загрузка изображений';
+                toLoadImages() <- TRUE;
+                
+                createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku, stock);
+                exclude(GroupMachinery group) <- stock(group) == stock AND NOT sidModel(group) == 'dibald900';
+                createMachineryPriceTransaction(stock);
+            }
+            APPLY NESTED LOCAL;
+            IF canceled() THEN {
+                cancel();
+            }
+        }
+    }
+} 
+showLoadImage(Stock ss) += (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'dibald900' AND stock(grsk) == ss AND active(grsk)) > 0;
+
+isSelfService(GroupScales s) += sidModel(s) == 'dibald900';
+
+overId = ABSTRACT STRING[100] (CustomGroup);
+idDibal(CustomGroup cg) = OVERRIDE overId(cg), id(cg);
+
+createAttribute(MachineryPriceTransaction mpt) + {
+    IF sidModel(groupScales(mpt)) == 'dibald900' THEN {
+        LOCAL custGroup = CustomGroup (Barcode);
+        custGroup(Barcode b) <- customGroup(customGroupType(groupMachinery(mpt)), sku(b)) WHERE in(mpt, b);
+        
+        info(mpt, Barcode b) <- ('\{"Dibal":\{'+
+                (CONCAT ',',
+                    (' "numberGroup": "' + (OVERRIDE idDibal(custGroup(b)), '1') +
+                    '", nameGroup: "' + (OVERRIDE name(custGroup(b)),'Все') + '"'),
+                    '"tareWeight":' + tareWeight(b)
+                    )
+                +'\}\}') WHERE in(mpt, b);
+    }
+}
+
+
+//
+dataCustomGroupType = DATA CustomGroupType(GroupScales);
+migrateDibal = DATA BOOLEAN ();
+onStarted() +{ 
+    IF NOT migrateDibal() THEN {
+        NEWSESSION {
+            migrateDibal() <- TRUE;
+            Scales.dataCustomGroupType(GroupScales s) <- dataCustomGroupType(s);
+            APPLY;   
+        }
+    }
+}

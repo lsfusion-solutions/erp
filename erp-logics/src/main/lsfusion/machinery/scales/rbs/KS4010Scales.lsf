@@ -1,6 +1,6 @@
 MODULE KS4010Scales;
 
-REQUIRE NativeMachinery, ScalesItem;
+REQUIRE NativeMachinery, ScalesSelfService;
 
 NAMESPACE RBS;
 
@@ -8,23 +8,14 @@ loadDefaultScalesModels () + {
     loadDefaultScalesModel('Весы РБС KS4010', 'KS4010', 'lsf.machinery.scales.rbs.KS4010');
 }
 
-onStarted() +{handler(ScalesModel m) <- 'lsf.machinery.scales.rbs.KS4010' WHERE handler(m) == 'lsf.integration.rbs.KS4010';}
+onStarted() + {handler(ScalesModel m) <- 'lsf.machinery.scales.rbs.KS4010' WHERE handler(m) == 'lsf.integration.rbs.KS4010';}
 
-dataCustomGroupTypeRBS = DATA CustomGroupType(GroupScales);
-nameCustomGroupTypeRBS 'Тип классификатора'(GroupScales gs) = name(dataCustomGroupTypeRBS(gs));
-skipSkuWioutGroupRBS 'Не выгружать товары без классификатора' = DATA BOOLEAN (GroupScales);
-EXTEND FORM groupScales 
-    PROPERTIES (grs) SHOWIF sidModel(grs) == 'KS4010' nameCustomGroupTypeRBS, skipSkuWioutGroupRBS;
-
-skip(GroupMachinery gm, Barcode b) += WHEN sidModel(gm) == 'KS4010' AND skipSkuWioutGroupRBS(gm) AND NOT customGroup(dataCustomGroupTypeRBS(gm), sku(b)) THEN TRUE;
-
-scalesGroup (MachineryPriceTransaction t, Barcode b) += group(dataCustomGroupTypeRBS(groupScales(t)), sku(b)) IF t IS MachineryPriceTransaction ;
+isSelfService(GroupScales s) += sidModel(s) == 'KS4010';
+scalesGroup (MachineryPriceTransaction t, Barcode b) += group(dataCustomGroupType(groupScales(t)), sku(b)) IF t IS MachineryPriceTransaction AND sidModel(groupScales(t)) == 'KS4010';
 
 skilLoadImages 'Не выгружать изображения в весы' = ABSTRACT BOOLEAN (GroupScales) PREREAD;
-tareWeight = ABSTRACT NUMERIC[12,3] (Barcode); 
 
 imageRBS = DATA IMAGEFILE (Item);
-
 WHEN CHANGED (image(Item i)) DO { 
     imageRBS(i) <- NULL;
 }
@@ -155,5 +146,20 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             }
             
         APPLY;
+    }
+}
+
+//
+dataCustomGroupTypeRBS = DATA CustomGroupType(GroupScales);
+skipSkuWioutGroupRBS 'Не выгружать товары без классификатора' = DATA BOOLEAN (GroupScales);
+migrateRbs = DATA BOOLEAN ();
+onStarted() +{ 
+    IF NOT migrateRbs() THEN {
+        NEWSESSION {
+            migrateRbs() <- TRUE;
+            dataCustomGroupType(GroupScales s) <- dataCustomGroupTypeRBS(s);
+            skipSkuWioutGroup(GroupScales s) <- skipSkuWioutGroupRBS(s);
+            APPLY;   
+        }
     }
 }

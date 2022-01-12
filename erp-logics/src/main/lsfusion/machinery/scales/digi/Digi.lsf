@@ -1,6 +1,6 @@
 MODULE Digi;
 
-REQUIRE ScalesPriceTransaction, Image, Item;
+REQUIRE ScalesSelfService, Image;
 
 writeFileToSocketResult = DATA LOCAL BOOLEAN ();
 //Для Digi необходимо прогрузить 2 файла: 0x34 = 52, 0x38 = 56
@@ -8,11 +8,7 @@ writeFileToSocket (file, type, ip)  INTERNAL  'lsfusion.erp.machinery.scales.Wri
 
 
 //DigiSM5300
-image = OVERRIDE smallImage(sku(Barcode b)), image(sku(b));
-
-pluNumber(GroupMachinery g, Barcode b) = OVERRIDE plu(g, b), plu(b, stock(g));
-
-loadImages 'Загрузить картинки в весы' () {
+loadImages() + {
     NEWSESSION NESTED (select[Sku,Stock]) {
         IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
             FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
@@ -25,21 +21,18 @@ loadImages 'Загрузить картинки в весы' () {
                             convertImage(image(barcode), 'bmp');
                             WRITE convertedImage() TO 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' +pluNumber(groupScales(scales), barcode) + '?binarytransfermode=false';
                         } CATCH {
-                            //logToFile('scales','ERROR WRITE TO ' + 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + (OVERRIDE STRING (pluNumber(barcode, stock)),'NULL'));
                             MESSAGE 'Ошибка загрузки изображений в весы' NOWAIT;
                             BREAK;
                         }
                     }
                 }
             }
-            IF NOT notResetMachinerySelectSku() THEN {
-                select(Sku sku, Stock stock) <- NULL;
-            }
         }
     }
-} TOOLBAR;
+} 
+showLoadImage(Stock ss) += (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'DigiSM5300' AND stock(grsk) == ss AND active(grsk)) > 0;
 
-deleteImages 'Удалить картинки из весов' () {
+deleteImages() + {
     NEWSESSION NESTED (select[Sku,Stock]) {
         IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
             FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
@@ -56,29 +49,10 @@ deleteImages 'Удалить картинки из весов' () {
             }
         }
     }
-} TOOLBAR;
-
-EXTEND  FORM currentBalanceSkuStock
-    PROPERTIES() SHOWIF (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'DigiSM5300' AND stock(grsk) == ss) loadImages DRAW sts, deleteImages DRAW sts
-;
-DESIGN currentBalanceSkuStock {
-    machineryContainer {
-        MOVE PROPERTY (loadImages());
-        MOVE PROPERTY (deleteImages());
-    }
 }
+showDeleteImage(Stock ss) += (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'DigiSM5300' AND stock(grsk) == ss AND active(grsk)) > 0;
 
-dataCustomGroupType = DATA CustomGroupType(GroupScales);
-customGroupType = ABSTRACT CustomGroupType(GroupScales);
-customGroupTypeDigi(GroupScales gs) = OVERRIDE dataCustomGroupType(gs), customGroupType(gs);
-nameCustomGroupTypeDigi 'Тип классификатора'(GroupScales gs) = name(customGroupTypeDigi(gs));
-skipSkuWioutGroup 'Не выгружать товары без классификатора' = DATA BOOLEAN (GroupScales);
-EXTEND FORM groupScales 
-    PROPERTIES (grs) SHOWIF sidModel(grs) == 'DigiSM5300'nameCustomGroupTypeDigi, skipSkuWioutGroup;
-
-skip(GroupMachinery gm, Barcode b) += WHEN sidModel(gm) == 'DigiSM5300' AND skipSkuWioutGroup(gm) AND NOT customGroup(customGroupTypeDigi(gm), sku(b)) THEN TRUE;
-
-tareWeight = ABSTRACT NUMERIC[12,3] (Barcode);
+isSelfService(GroupScales s) += sidModel(s) == 'DigiSM5300';
 
 overId = ABSTRACT STRING[100] (CustomGroup);
 idDigi(CustomGroup cg) = OVERRIDE overId(cg), id(cg);
@@ -86,7 +60,7 @@ idDigi(CustomGroup cg) = OVERRIDE overId(cg), id(cg);
 createAttribute(MachineryPriceTransaction mpt) + {
     IF sidModel(groupScales(mpt)) == 'DigiSM5300' THEN {
         LOCAL custGroup = CustomGroup (Barcode);
-        custGroup(Barcode b) <- customGroup(customGroupTypeDigi(groupMachinery(mpt)), sku(b)) WHERE in(mpt, b);
+        custGroup(Barcode b) <- customGroup(customGroupType(groupMachinery(mpt)), sku(b)) WHERE in(mpt, b);
         LOCAL newPluNumber = INTEGER (Barcode);
         newPluNumber(Barcode b) <- PARTITION SUM 1 IF id(b) AND active(b) ORDER b BY custGroup(b) WHERE in(mpt, b);
         
@@ -95,24 +69,22 @@ createAttribute(MachineryPriceTransaction mpt) + {
                     (' "numberGroup": "' + (OVERRIDE idDigi(custGroup(b)), '1') +
                     '", nameGroup: "' + (OVERRIDE name(custGroup(b)),'Все')+ 
                     '", overPluNumber: "' + newPluNumber(b) + '"'),
-                    '"tareWeight":'+tareWeight(b))
+                    '"tareWeight":' + tareWeight(b))
                 +'\}\}') WHERE in(mpt, b);
     }
 }
 
-imageDigi 'Изображение для Digi' = DATA IMAGEFILE (CustomGroup);
 loadImagesGroup 'Загрузить картинки в весы' (GroupScales gm) {
     NEWSESSION {
         FOR gm == groupScales(Scales scales) AND active(scales) DO {
             TRY {
                 mkdir('ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/common/');
             }
-            FOR idDigi(CustomGroup cg) AND customGroupType(cg) == customGroupTypeDigi(gm) DO {
+            FOR idDigi(CustomGroup cg) AND customGroupType(cg) == customGroupType(gm) DO {
                 TRY {
-                    convertImage(imageDigi(cg), 'bmp');
+                    convertImage(image(cg), 'bmp');
                     WRITE convertedImage() TO 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/common/' + idDigi(cg) + '?binarytransfermode=false';
                 } CATCH {
-                    //logToFile('scales','ERROR WRITE TO ' + 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + (OVERRIDE STRING (pluNumber(barcode, stock)),'NULL'));
                     MESSAGE 'Ошибка загрузки изображений в весы' NOWAIT;
                     BREAK;
                 }
@@ -120,13 +92,22 @@ loadImagesGroup 'Загрузить картинки в весы' (GroupScales g
         }
     }
 } TOOLBAR;
-
-EXTEND FORM customGroups
-    PROPERTIES imageDigi(g) READONLY;
-    
-EXTEND FORM customGroup
-    PROPERTIES imageDigi(g) ;
     
 EXTEND FORM groupScales 
     PROPERTIES loadImagesGroup(grs) SHOWIF sidModel(grs) == 'DigiSM5300';
     
+
+//
+dataCustomGroupType = DATA CustomGroupType(GroupScales);
+skipSkuWioutGroup 'Не выгружать товары без классификатора' = DATA BOOLEAN (GroupScales);
+migrateDigi = DATA BOOLEAN ();
+onStarted() +{ 
+    IF NOT migrateDigi() THEN {
+        NEWSESSION {
+            migrateDigi() <- TRUE;
+            Scales.dataCustomGroupType(GroupScales s) <- dataCustomGroupType(s);
+            Scales.skipSkuWioutGroup(GroupScales s) <- skipSkuWioutGroup(s);
+            APPLY;   
+        }
+    }
+}

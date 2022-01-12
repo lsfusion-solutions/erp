@@ -1,0 +1,53 @@
+MODULE ScalesSelfService;
+
+REQUIRE ScalesItem;
+
+NAMESPACE Scales;
+
+
+image = OVERRIDE smallImage(sku(Barcode b)), image(sku(b));
+
+loadImages 'Загрузить картинки в весы' ABSTRACT LIST FIRST () TOOLBAR;
+loadImages() + {
+    IF NOT notResetMachinerySelectSku() THEN {
+        select(Sku sku, Stock stock) <- NULL;
+    }
+}
+showLoadImage = ABSTRACT VALUE BOOLEAN (Stock);
+
+deleteImages 'Удалить картинки из весов' ABSTRACT LIST () TOOLBAR;
+showDeleteImage = ABSTRACT VALUE BOOLEAN (Stock);
+
+EXTEND  FORM currentBalanceSkuStock
+    PROPERTIES()  loadImages DRAW sts SHOWIF showLoadImage(ss), deleteImages DRAW sts SHOWIF showDeleteImage(ss)
+;
+DESIGN currentBalanceSkuStock {
+    machineryContainer {
+        MOVE PROPERTY (loadImages());
+        MOVE PROPERTY (deleteImages());
+    }
+}
+
+tareWeight = ABSTRACT NUMERIC[12,3] (Barcode);
+
+//картинка для группы
+image 'Изображение для ВСО' = DATA IMAGEFILE (CustomGroup);
+
+EXTEND FORM customGroups
+    PROPERTIES scalesImage = image(g) READONLY;
+    
+EXTEND FORM customGroup
+    PROPERTIES scalesImage = image(g) ;
+
+//классификатор
+dataCustomGroupType = DATA CustomGroupType(GroupScales);
+overCustomGroupType = ABSTRACT CustomGroupType(GroupScales);
+customGroupType(GroupScales gs) = OVERRIDE dataCustomGroupType(gs), overCustomGroupType(gs);
+nameCustomGroupType 'Тип классификатора'(GroupScales gs) = name(customGroupType(gs));
+
+isSelfService = ABSTRACT VALUE BOOLEAN (GroupScales);
+skipSkuWioutGroup 'Не выгружать товары без классификатора' = DATA BOOLEAN (GroupScales);
+skip(GroupMachinery gm, Barcode b) += WHEN isSelfService(gm) AND skipSkuWioutGroup(gm) AND NOT customGroup(customGroupType(gm), sku(b)) THEN TRUE;
+
+EXTEND FORM groupScales 
+    PROPERTIES (grs) SHOWIF isSelfService(grs) nameCustomGroupType, skipSkuWioutGroup;
