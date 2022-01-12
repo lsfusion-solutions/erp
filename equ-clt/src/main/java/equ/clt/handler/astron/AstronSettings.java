@@ -49,7 +49,7 @@ public class AstronSettings implements Serializable {
     //Выгружать deleteBarcode не вместе с со следующей выгрузкой, а отдельно
     private boolean deleteBarcodeInSeparateProcess;
 
-    //если true, то для 4-ой цены выгружать в поле PROPERTYGRPID таблицы pack значение 2, а для остальных null
+    //если true, то выгружаем поле PROPERTYGRPID таблицы pack
     private boolean usePropertyGridFieldInPackTable;
 
     public AstronSettings() {

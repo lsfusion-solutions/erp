@@ -556,7 +556,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, delFlag ? 1 : 0, 10); //DELFLAG
                             setObject(ps, item.passScalesItem ? 2 : null, 11); //BARCID
                             if(usePropertyGridFieldInPackTable) {
-                                setObject(ps, hasFourthPrice(item) ? 2 : null, 12); //PROPERTYGRPID
+                                setObject(ps, getPropertyGrpId(item), 12); //PROPERTYGRPID
                             }
                         } else {
                             setObject(ps, idItem, 1, offset); //ARTID
@@ -577,7 +577,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                             int delta = 0;
                             if(usePropertyGridFieldInPackTable) {
-                                setObject(ps, hasFourthPrice(item) ? 2 : null, 10 + ++delta, offset); //PROPERTYGRPID
+                                setObject(ps, getPropertyGrpId(item), 10 + ++delta, offset); //PROPERTYGRPID
                             }
 
                             if(updateNum != null) {
@@ -895,21 +895,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return hasExtraPrices;
     }
 
-    private boolean hasFourthPrice(ItemInfo item) {
+    private Integer getPropertyGrpId(ItemInfo item) {
         JSONObject infoJSON = getExtInfo(item.info);
         if (item.price != null && infoJSON != null) {
-            JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
-            if (extraPrices != null) {
-                for (int i = 0; i < extraPrices.length(); i++) {
-                    JSONObject extraPrice = extraPrices.getJSONObject(i);
-                    Integer id = extraPrice.getInt("id");
-                    if (id == 4) {
-                        return true;
-                    }
-                }
-            }
+            int propertyGrpId = infoJSON.optInt("propertyGrpId");
+            return propertyGrpId != 0 ? propertyGrpId : null;
         }
-        return false;
+        return null;
     }
 
     private JSONObject getExtInfo(String extInfo) {
@@ -1997,7 +1989,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     protected void createSalestimeIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
             String query = params.pgsql ?
-                    String.format("CREATE INDEX IF NOT EXISTS salestime ON sales(SALESTIME, SYSTEMID)") :
+                    "CREATE INDEX IF NOT EXISTS salestime ON sales(SALESTIME, SYSTEMID)" :
                     "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'salestime', 'IndexId') > 0) BEGIN CREATE INDEX salestime ON SALES (SALESTIME, SYSTEMID) END";
             statement.execute(query);
             conn.commit();
