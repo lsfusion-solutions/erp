@@ -77,12 +77,13 @@ public class DibalD900Handler extends MultithreadScalesHandler {
     }
 
     private void loadItem(TCPPort port, ScalesItem item) throws IOException {
-        JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("Dibal") : null;
+        JSONObject infoJSON = getExtInfo(item.info);
         String idItemGroup = infoJSON != null ? infoJSON.getString("numberGroup") : "1";
         String nameItemGroup = infoJSON != null ? infoJSON.getString("nameGroup") : "Все";
+        Integer tareWeight = infoJSON != null ? infoJSON.optInt("tareWeight") : 0;
 
         sendCommand(port, getItemL2Bytes(item));
-        sendCommand(port, getItemH3Bytes(item, idItemGroup));
+        sendCommand(port, getItemH3Bytes(item, idItemGroup, tareWeight));
 
         if(nameItemGroup != null) {
             sendCommand(port, getItemGroupZSBytes(idItemGroup, nameItemGroup));
@@ -99,6 +100,10 @@ public class DibalD900Handler extends MultithreadScalesHandler {
                 sendCommand(port, command);
             }
         }
+    }
+
+    private JSONObject getExtInfo(String extInfo) {
+        return extInfo != null ? new JSONObject(extInfo).optJSONObject("Dibal") : null;
     }
 
     private byte[] getClearPBBytes() {
@@ -166,7 +171,7 @@ public class DibalD900Handler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
-    private byte[] getItemH3Bytes(ScalesItem item, String idItemGroup) {
+    private byte[] getItemH3Bytes(ScalesItem item, String idItemGroup, int tareWeight) {
         ByteBuffer bytes = ByteBuffer.allocate(130);
 
         //6 bytes
@@ -191,7 +196,7 @@ public class DibalD900Handler extends MultithreadScalesHandler {
         bytes.put(getBytes(fillZeroes(6)));
 
         //tare, 5 bytes
-        bytes.put(getBytes(fillZeroes(5)));
+        bytes.put(getBytes(prependZeroes(tareWeight, 5)));
 
         //percentage tare, 2 bytes (0-99)
         bytes.put(getBytes("00"));
