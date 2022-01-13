@@ -1,0 +1,23 @@
+MODULE SaleCreditNoteDiffSum;
+
+REQUIRE SaleCreditNoteVATRu;
+
+NAMESPACE Sale;
+
+ON LOCAL {
+    FOR (CHANGED(quantity(UserCreditNoteDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(currency (d))) AND withVATPrice(d) DO
+        invoiceSum(d) <- invoiceSum(invoiceDetail(d)) (-) NUMERIC[18,4](round((quantity(invoiceDetail(d))(-)quantity(d)) * invoicePrice(d), currency(d))); 
+    FOR (CHANGED(invoiceSum(UserCreditNoteDetail d)) OR CHANGED(valueVAT (d)) OR CHANGED(currency (d))) AND withVATPrice(d) DO 
+        VATSum(d) <- VATSum(invoiceDetail(d)) (-) NUMERIC[18,4](round((quantity(invoiceDetail(d))(-)quantity(d)) * invoicePrice(d) * valueVAT(d) / (100 (+) valueVAT (d)), currency(d))) ;
+    FOR (CHANGED(invoiceSum(UserCreditNoteDetail d)) OR CHANGED (VATSum(d))) AND withVATPrice(d) DO
+        sum(d) <- NUMERIC[18,4](invoiceSum(d) (-) VATSum(d));
+}
+
+ON LOCAL {
+    FOR (CHANGED(quantity(UserCreditNoteDetail d)) OR CHANGED(price(d)) OR CHANGED(currency (d))) AND NOT withVATPrice(d) DO
+        sum(d) <- sum(invoiceDetail(d)) (-) NUMERIC[18,4](round((quantity(invoiceDetail(d))(-)quantity(d)) * price(d), currency(d))); 
+    FOR (CHANGED(sum(UserCreditNoteDetail d)) OR CHANGED(valueVAT (d)) OR CHANGED(currency (d))) AND NOT withVATPrice(d) DO 
+        VATSum(d) <- VATSum(invoiceDetail(d)) (-) NUMERIC[18,4](round((round((quantity(invoiceDetail(d))(-)quantity(d)) * price(d), currency(d))) * valueVAT(d) / (100), currency(d)));
+    FOR (CHANGED(sum(UserCreditNoteDetail d)) OR CHANGED (VATSum(d))) AND NOT withVATPrice(d) DO
+        invoiceSum(d) <- NUMERIC[18,4](sum(d) (+) VATSum(d));
+}
