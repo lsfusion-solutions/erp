@@ -11,7 +11,7 @@ inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Batch);
 repricingLastOrderBatch 'Всегда переоценивать последнюю партию' = DATA BOOLEAN (); 
 EXTEND FORM options PROPERTIES() repricingLastOrderBatch;
 DESIGN options { rPanel { MOVE PROPERTY(repricingLastOrderBatch()); } }
-
+overSetManagementRetailPriceBatch  ABSTRACT LIST ( DepartmentStore, DATETIME); 
 calculateDashboardManagementRepricingBatch 'По прайсам'(DepartmentStore d, PriceListType p, DATETIME dt)  { 
     managementRetailPrice(Batch batch) <- NULL;
     managementRetailPrice(Batch batch) <- prevPriceA(p, batch, d, dt) 
@@ -21,6 +21,7 @@ calculateDashboardManagementRepricingBatch 'По прайсам'(DepartmentStore
         managementRetailPrice(Batch batch) <- prevPriceA(p, batch, d, dt) 
             WHERE batch = lastOrderBatch(sku(batch), d) AND skipRepricing(sku(batch), d);
     }
+    overSetManagementRetailPriceBatch(d,dt);   
     
     inDashboardRepricing(Batch batch) <- managementRetailPrice(batch) != prevPriceABatch(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt); 
     formRefresh();
