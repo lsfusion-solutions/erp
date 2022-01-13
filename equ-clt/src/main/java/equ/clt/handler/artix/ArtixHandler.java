@@ -428,6 +428,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     inventObject.put("taramode", 7);
                     inventObject.put("taracapacity", taracapacity);
                 }
+
+                if (infoJSON.has("extendedoptions")) {
+                    String extendedOptions = infoJSON.optString("extendedoptions");
+                    if (!extendedOptions.isEmpty()) {
+                        inventObject.put("extendedoptions", extendedOptions);
+                    }
+                }
             }
 
             JSONObject itemOptions = new JSONObject();
