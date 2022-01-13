@@ -435,6 +435,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         inventObject.put("extendedoptions", extendedOptions);
                     }
                 }
+
+                Double minRetailPrice = infoJSON.optDouble("minretailprice");
+                if (!minRetailPrice.isNaN()) {
+                    inventObject.put("minretailprice", minRetailPrice);
+                }
             }
 
             JSONObject itemOptions = new JSONObject();
