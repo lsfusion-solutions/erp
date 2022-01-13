@@ -824,7 +824,7 @@ FORM exportBlrapn FORMEXTID 'BLRAPN'
 ;
 
 overImportBlrapn ABSTRACT ();
-overImportBlrapn ABSTRACT (INTEGER, STRING[100], STRING[100], STRING[100], INTEGER, TEXT, STRING[100], BOOLEAN, STRING[100]);
+overImportBlrapn ABSTRACT (INTEGER, STRING[100], STRING[100], STRING[100], INTEGER, TEXT, STRING[100], INTEGER, STRING[100]);
 skipBlrapn = DATA LOCAL NESTED BOOLEAN();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
@@ -833,7 +833,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
             IMPORT importBlrapn XML FROM data(i);
             skipBlrapn() <- NULL;
             overImportBlrapn();
-            overImportBlrapn(i, login, password, host, port, url, archiveDir, disableConfirmation, provider);
+            overImportBlrapn(i, login, password, host, port, url, archiveDir, IF disableConfirmation THEN 1 ELSE 0, provider);
             IF NOT skipBlrapn() THEN {
                 IF blrapnDeliveryNoteId() AND blrapnCode() THEN {
                     IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND DATE(deliveryNoteDateTime(eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId()))) == blrapnDeliveryNoteDate()) OR lower(blrapnReferenceDocumentType()) == 'blrwbr' OR lower(blrapnReferenceDocumentType()) == 'blrwbl'
