@@ -856,8 +856,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                         JSONObject extraPrice = extraPrices.getJSONObject(j);
                                         Integer id = extraPrice.getInt("id");
                                         BigDecimal price = BigDecimal.valueOf(extraPrice.getDouble("price"));
-                                        BigDecimal overPackMinPrice = BigDecimal.valueOf(extraPrice.getDouble("overPackMinPrice"));
-                                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, price, id, overPackMinPrice, false, keys.length, updateNum, transaction.id);
+                                        Double overPackMinPrice = extraPrice.optDouble("overPackMinPrice");
+                                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, price, id, overPackMinPrice.isNaN() ? null : BigDecimal.valueOf(overPackMinPrice), false, keys.length, updateNum, transaction.id);
                                     }
                                 }
                             }
