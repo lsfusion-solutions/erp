@@ -122,7 +122,7 @@ FORM dialogOutLots 'Список марок'
 // meta
 @defineOption(skipCheckDocumentLot, 'Не проверять КМ в документе', stock1);
 
-META defineDocumentLot (doc, quantityProp)
+META defineDocumentLot (doc, quantityProp, postedProp)
     quantity 'Кол-во' = DATA NUMERIC[16,5] (###doc##Detail, Lot);
     
     CONSTRAINT quantity(###doc##Detail d, Lot l) AND NOT sku(l) = sku(d)
@@ -132,7 +132,7 @@ META defineDocumentLot (doc, quantityProp)
     quantityLot 'Кол-во марок' (###doc i) = GROUP SUM quantityLot(###doc##Detail d) IF doc(d) = i MATERIALIZED;
     quantity 'Кол-во марок' (###doc i, Lot l) = GROUP SUM quantity(###doc##Detail d, l) IF doc(d) = i;
     
-    CONSTRAINT SET((quantityProp(###doc##Detail d) OR quantityLot(d)) AND isPosted(d) AND NOT quantityProp(d) = quantityLot(d)) 
+    CONSTRAINT SET((quantityProp(###doc##Detail d) OR quantityLot(d)) AND postedProp(d) AND NOT quantityProp(d) = quantityLot(d)) 
                IF explicitLot(sku(d)) AND NOT skipCheckDocumentLot()
         MESSAGE 'Для строки документа неправильно заданы марки';
     
@@ -201,8 +201,8 @@ META defineDocumentLotBarcodeIn (doc, quantityProp)
     }
 END
 
-META defineDocumentLotIn(doc, quantityProp, obj, formList)
-    @defineDocumentLot(doc, quantityProp);
+META defineDocumentLotIn(doc, quantityProp, obj, formList, postedProp)
+    @defineDocumentLot(doc, quantityProp, postedProp);
 
     changeQuantityLot (###doc##Detail d) {
         quantity(Lot l) <- quantity(d, l);
@@ -279,8 +279,8 @@ META defineDocumentLotBarcodeOut (doc, stock)
     }
 END
 
-META defineDocumentLotOut(doc, stock, quantityProp, obj)
-    @defineDocumentLot(doc, quantityProp);
+META defineDocumentLotOut(doc, stock, quantityProp, obj, postedProp)
+    @defineDocumentLot(doc, quantityProp, postedProp);
 
     changeQuantityLot (###doc##Detail d) {
         quantity(Lot l) <- quantity(d, l);
