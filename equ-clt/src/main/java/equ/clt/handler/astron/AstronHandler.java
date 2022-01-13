@@ -915,7 +915,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables, priceNumber);
         BigDecimal packPrice = price == null || price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(price, 100);
         BigDecimal minPrice = item instanceof CashRegisterItem ? HandlerUtils.safeMultiply(((CashRegisterItem) item).minPrice, 100) : null;
-        BigDecimal packMinPrice = overPackMinPrice != null ? overPackMinPrice :
+        BigDecimal packMinPrice = HandlerUtils.safeMultiply(overPackMinPrice, 100) != null ? HandlerUtils.safeMultiply(overPackMinPrice, 100) :
                 (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(price, 100) != null ? HandlerUtils.safeMultiply(price, 100) : minPrice != null ? minPrice : BigDecimal.ZERO;
 
         if(params.pgsql) {
