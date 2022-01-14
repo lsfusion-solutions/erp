@@ -1098,6 +1098,8 @@ public class DefaultTerminalHandler {
                     String numberOrder = StringUtils.trim((String) entry.get("numberOrder"));
                     String idSupplier = StringUtils.trim((String) entry.get("idSupplierOrder"));
                     String barcode = StringUtils.trim((String) entry.get("idBarcodeSkuOrderDetail"));
+                    if (numberOrder == null || barcode == null) continue;
+
                     String idItem = StringUtils.trim((String) entry.get("idSkuOrderDetail"));
                     String name = StringUtils.trim((String) entry.get("nameSkuOrderDetail"));
                     BigDecimal price = (BigDecimal) entry.get("priceOrderDetail");
