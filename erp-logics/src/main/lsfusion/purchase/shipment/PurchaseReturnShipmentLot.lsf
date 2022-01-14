@@ -5,7 +5,8 @@ REQUIRE PurchaseReturnShipment,
 
 NAMESPACE PurchaseReturn;
 
-@defineDocumentLotOut(userInvoice, customerStock, shipmentQuantity, i);
+isPostedShipment (UserInvoiceDetail d) = isPosted(d) AND createShipment(d);
+@defineDocumentLotOut(userInvoice, customerStock, shipmentQuantity, i, isPostedShipment);
 
 // пока упрощенная схема без поддержки UserShipmentDetail
 quantity = ABSTRACT NUMERIC[16,5] (InvoiceDetail, Lot);
@@ -14,6 +15,11 @@ quantity(UserInvoiceDetail d, Lot l) += quantity(d, l);
 quantityLot 'Кол-во марок' (InvoiceDetail d) = GROUP SUM quantity(d, Lot l) MATERIALIZED;
 
 @defineDocumentLotType(invoice);
+
+// User Shipment
+@defineDocumentLotOut(userShipment, customerStock, quantity, s, isPosted);
+
+@defineDocumentLotType(shipment);
 
 quantity = ABSTRACT NUMERIC[16,5] (ShipmentDetail, Lot);
 quantity(InvoiceShipmentDetail d, Lot l) += quantity(invoiceDetail(d), l);
