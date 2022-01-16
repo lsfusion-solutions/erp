@@ -83,7 +83,15 @@ courierArrivementDate (InternetOrder o) += WHEN carrier(o) == yandexCarrier() TH
 afterCreateOrder ABSTRACT LIST (InternetOrder);
 priceAggrRound(NUMERIC[18,4] price, Item s)  = IF mod(price*quantum(s)*1000, 10) > 0 AND isCatchWeight(s) 
     THEN price + 0.01 ELSE price;
+priceQuantum(NUMERIC[18,4] price, Item i) = IF quantum(i) THEN (price/quantum(i)) ELSE price;
+qtyQuantum(NUMERIC[18,4] qty, Item i) = IF quantum(i) THEN qty*quantum(i) ELSE qty;
 
+priceYandex 'Цена Яндекс' = DATA NUMERIC[18,4] (InternetOrderDetail);
+qtyYandex 'Кол-во Яндекс' = DATA NUMERIC[18,4] (InternetOrderDetail);
+
+EXTEND FORM internetOrder
+    PROPERTIES (d) priceYandex, qtyYandex SHOWIF carrier(o) = yandexCarrier()
+;
 
 createOrder(FILE f){
     LOCAL tokenClient = STRING ();
@@ -115,9 +123,11 @@ createOrder(FILE f){
             isPosted(order) <- TRUE;
             uuid(order) <- STRING(LONG(order));
             FOR id(INTEGER items) NEW detail = InternetOrderDetail DO{
+                priceYandex(detail) <- NUMERIC[18,4](price(items));
+                qtyYandex(detail) <- NUMERIC[18,4](quantity(items));
                 sku(detail) <- itemById(id(items));
-                quantity(detail) <- NUMERIC[16,5](quantity(items));
-                price(detail) <- priceAggrRound(NUMERIC[15,2](price(items)), sku(detail));
+                quantity(detail) <- qtyQuantum(NUMERIC[18,4](quantity(items)), sku(detail));
+                price(detail) <- priceQuantum(NUMERIC[15,2](price(items)), sku(detail));
                 internetOrder(detail) <- order;
             }
             paymentTypeInternetOrder(order) <- paymentTypeOrder(paymentType());
@@ -223,7 +233,8 @@ FORM statusYandex FORMEXTID 'null'
 ; 
 
 quantityOrderDetail (InternetOrderDetail d) = IF status(internetOrder(d)) = StatusInternetOrder.new 
-    OR status(internetOrder(d)) = StatusInternetOrder.isPicking THEN quantity(d) ELSE pickingQuantity(d);
+    OR status(internetOrder(d)) = StatusInternetOrder.isPicking THEN qtyYandex(d) 
+        ELSE round2(pickingQuantity(d) / OVERRIDE quantum(sku(d)), 1);
     
 // форма информации о заказе
 FORM getOrder FORMEXTID 'null'
@@ -237,7 +248,7 @@ FORM getOrder FORMEXTID 'null'
         = IF paymentTypeInternetOrder(o) = PaymentTypeInternetOrder.inFact THEN 'CASH' ELSE 'CARD' EXTID 'paymentType'
  
     OBJECTS items = InternetOrderDetail
-    PROPERTIES quantityOrderDetail(items) EXTID 'quantity', price(items), nameSku(items) EXTID 'name', idSku(items) EXTID 'id',
+    PROPERTIES quantityOrderDetail(items) EXTID 'quantity', priceYandex(items) EXTID 'price', nameSku(items) EXTID 'name', idSku(items) EXTID 'id',
         = OVERRIDE '[]', idSku(items) EXTID 'modifications', = OVERRIDE '[]', idSku(items) EXTID 'promos'
     FILTERS internetOrder(items) = o AND quantityOrderDetail(items)
 ;
