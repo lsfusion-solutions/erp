@@ -71,6 +71,8 @@ returnSum 'Сумма возврата' = DATA NUMERIC[18,2] (MarketingInvoiceDe
 sumMarketing 'Сумма маркетинга' = DATA NUMERIC[18,5] (MarketingInvoiceDetail);
 
 condition = DATA MarketingCondition (MarketingInvoiceDetail) INDEXED;
+conditionList(MarketingInvoiceDetail md) = conditionList(condition(md));
+
 fixedCondition = DATA FixedMarketingCondition (MarketingInvoiceDetail);
 
 INDEX marketingInvoice(MarketingInvoiceDetail d), condition(d);
@@ -229,8 +231,7 @@ in (MarketingInvoiceDetail d, ConditionRange r) = conditionList(condition(d)) ==
     NOT sumSku(d) < sumFrom(r) AND NOT sumSku(d) > sumTo(r) AND 
     NOT weightSku(d) < weightFrom(r) AND NOT weightSku(d) > weightTo(r) AND NOT marketingPercent(d);
 
-overLastConditionRange = ABSTRACT ConditionRange (MarketingInvoiceDetail);
-lastConditionRange (MarketingInvoiceDetail d) = OVERRIDE overLastConditionRange(d), GROUP LAST ConditionRange r ORDER r IF in(d, r);
+lastConditionRange (MarketingInvoiceDetail d) = GROUP LAST ConditionRange r ORDER r IF in(d, r);
 conditionRange = DATA ConditionRange(MarketingInvoiceDetail);
 
 in = DATA BOOLEAN (MarketingInvoiceDetail, Invoice.InvoiceDetail);
