@@ -660,13 +660,22 @@ EXTEND FORM sendMessage
 // write off
 @extDocument(writeOff, 'СписаниеЗапасов');
 @defPropSimple(note, 'Комментарий', STRING, writeOff);
-@defPropSimple(reason, 'Основание', STRING, writeOff);
 @defPropObject(stock, 'Склад', Stock, writeOff);
+@defPropSimple(reason, 'Основание', STRING, writeOff);
 
 @extTable(writeOff, product);
+
+@defPropDetail(item, 'Номенклатура', Item, writeOff, product);
+
+GROUP itemDataWriteOffProduct EXTID 'ДанныеНоменклатуры';
+EXTEND FORM sendMessage
+    OBJECTS itemDataWriteOffProduct = Item EXTID 'Номенклатура' IN itemDataWriteOffProduct
+    PROPERTIES(itemDataWriteOffProduct) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
+    FILTERS itemDataWriteOffProduct = item(writeOffProduct)
+;    
 @defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, writeOff, product);
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], writeOff, product);
-@defPropObjectDetail(item, 'Номенклатура', Item, writeOff, product);
+
 @defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], writeOff, product);
 @defPropObjectDetail(country, 'СтранаПроисхождения', Country, writeOff, product);
 @defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], writeOff, product);
