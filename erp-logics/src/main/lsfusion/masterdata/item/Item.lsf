@@ -216,6 +216,25 @@ nullImage 'Сбросить'(Item item)  {
     image(item) <- NULL;
 }
 
+showItemImage 'Показывать изображение товара на форме "Товары"' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () showItemImage
+;
+DESIGN options {
+    items{
+        MOVE PROPERTY (showItemImage());
+    }
+}
+
+migrateShowItemImage = DATA BOOLEAN ();
+onStarted() + {
+    IF NOT migrateShowItemImage() THEN NEWSESSION {
+        showItemImage() <- TRUE IF(GROUP SUM 1 IF image(Item i)) ;
+        migrateShowItemImage() <- TRUE;
+        APPLY;
+    }
+}
+
 image 'Изображение' (Batch batch) = image(sku(batch)); 
 
 smallImage = DATA IMAGEFILE (Item);
@@ -391,7 +410,7 @@ FORM items 'Товары'
     FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT
     
     OBJECTS i=Item  
-    PROPERTIES(i) READONLYIF isReadonly() idBarcode ON CHANGE changeBarcode(i) BACKGROUND background(i), image PANEL SHOWIF hasImage(i), id SHOWIF showIDs() BACKGROUND background(i)
+    PROPERTIES(i) READONLYIF isReadonly() idBarcode ON CHANGE changeBarcode(i) BACKGROUND background(i), image PANEL SHOWIF showItemImage(), id SHOWIF showIDs() BACKGROUND background(i)
     PROPERTIES(i) NEWSESSION NEW, edit = EDIT SHOWIF enableEditing(i), deletei=DELETE 
     PROPERTIES seekBarcode() ON CHANGE seekSkuBarcode() EVENTID 'SCANNER'
     
@@ -414,7 +433,7 @@ DESIGN items {
             NEW itemImage {               
                 fill = 1;
                 type = SPLITV;
-                MOVE BOX(TREE groupTree) { caption = 'Группы';}               
+                MOVE BOX(TREE groupTree) { fill = 2;caption = 'Группы';}               
                 MOVE PROPERTY (image(i)) {
                     fill = 1;
                     caption = '';
