@@ -25,6 +25,8 @@ inPriceMonitoring 'Вкл.' (Stock st) = OVERRIDE dataInPriceMonitoring(st), inP
 
 dataPriceMonitoringGoogleAccount = DATA GoogleAccount();
 namePriceMonitoringGoogleAccount 'Аккаунт Google' = nameAuth(dataPriceMonitoringGoogleAccount());
+namePublicPriceMonitoringFolder 'Имя общей папки для отчетов' = DATA STRING ();
+createPriceMonitoringFolder 'Создавать папку на время отчетов' = DATA BOOLEAN ();
 
 changePriceMonitoringGoogleAccount(){
     DIALOG dialogGoogleAccountNames OBJECTS ig INPUT DO {
@@ -33,7 +35,8 @@ changePriceMonitoringGoogleAccount(){
 }
 
 FORM priceMonitoring 'Отчет по мониторингу цен'                
-    PROPERTIES namePriceMonitoringGoogleAccount() ON CHANGE changePriceMonitoringGoogleAccount()
+    PROPERTIES namePriceMonitoringGoogleAccount() ON CHANGE changePriceMonitoringGoogleAccount(),
+        namePublicPriceMonitoringFolder(), createPriceMonitoringFolder()
 
     TREE stockTree a=BPSTRING[3], stg = StockGroup PARENT parent(stg)
     PROPERTIES READONLY VALUE(a), sgTreeName = name(stg)
@@ -61,7 +64,10 @@ FORM priceMonitoring 'Отчет по мониторингу цен'
 DESIGN priceMonitoring {
     OBJECTS {
         NEW headetCapt{
+            type = CONTAINERH;
             MOVE PROPERTY(namePriceMonitoringGoogleAccount());
+            MOVE PROPERTY(namePublicPriceMonitoringFolder());
+            MOVE PROPERTY(createPriceMonitoringFolder());
         }
         //MOVE BOX(dt);
         NEW stockContainer {
@@ -110,12 +116,14 @@ FORM formMonitoringPricePrint 'Отчет по ценам'
 fillPriceListMonAuto 'Мониторинг цен (Google диск)'(){
     LOCAL curDt = DATETIME ();
     curDt() <- currentDateTime();
-
+    idGoogleDriveFileFolder() <- NULL;
     getAccessByRefreshToken(dataPriceMonitoringGoogleAccount());
-    createGoogleDriveFolder(access_token(), token_type(), 'Мониторинг цена за ' +  (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt()))));   
+    IF namePublicPriceMonitoringFolder() THEN findOrCreateGoogleDriveOldFileFolder(access_token(), token_type(), NULL, namePublicPriceMonitoringFolder());
+    IF createPriceMonitoringFolder() THEN findOrCreateGoogleDriveOldFileFolder(access_token(), token_type(), idGoogleDriveFileFolder(), 'Мониторинг цена за ' +   (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt()))));
+    
     FOR Stock st IF inPriceMonitoring(st) DO {         
         PRINT formMonitoringPricePrint OBJECTS dt = curDt(), st = st XLSX SHEET CONCAT ' ', name(st), toDateDDMMYYYY(curDt()) TO excelFile;
-        sendFileToGoogleDrive(access_token(), token_type(), idGoogleDriveFolder(), excelFile(), name(st));               
+        sendFileToGoogleDrive(access_token(), token_type(), idGoogleDriveFileFolder(), excelFile(), name(st));               
     }       
 } TOOLBAR;
 
