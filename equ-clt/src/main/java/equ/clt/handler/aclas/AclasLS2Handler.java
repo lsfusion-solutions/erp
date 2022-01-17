@@ -105,16 +105,17 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     }
 
     private int loadData(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException, InterruptedException {
-        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
-        String logDir = aclasLS2Settings != null ? aclasLS2Settings.getLogDir() : null;
-        boolean commaDecimalSeparator = aclasLS2Settings != null && aclasLS2Settings.isCommaDecimalSeparator();
-        boolean pluNumberAsPluId = aclasLS2Settings != null && aclasLS2Settings.isPluNumberAsPluId();
-        long sleep = aclasLS2Settings == null ? 0 : aclasLS2Settings.getSleepBetweenLibraryCalls();
+        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : new AclasLS2Settings();
+        String logDir = aclasLS2Settings.getLogDir();
+        boolean commaDecimalSeparator = aclasLS2Settings.isCommaDecimalSeparator();
+        boolean pluNumberAsPluId = aclasLS2Settings.isPluNumberAsPluId();
+        boolean skipLoadHotKey = aclasLS2Settings.isSkipLoadHotKey();
+        long sleep = aclasLS2Settings.getSleepBetweenLibraryCalls();
         int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, sleep);
-        if(result == 0) {
+        if (result == 0) {
             result = loadNotes(scales, transaction, logDir, pluNumberAsPluId, sleep);
         }
-        if(result == 0) {
+        if (result == 0 && !skipLoadHotKey) {
             result = loadHotKey(scales, transaction, logDir, sleep);
         }
         return result;

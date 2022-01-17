@@ -6,6 +6,7 @@ public class AclasLS2Settings {
     private boolean pluNumberAsPluId;
     private boolean commaDecimalSeparator;
     private long sleepBetweenLibraryCalls;
+    private boolean skipLoadHotKey;
 
     public String getLibraryDir() {
         return libraryDir;
@@ -45,5 +46,13 @@ public class AclasLS2Settings {
 
     public void setSleepBetweenLibraryCalls(long sleepBetweenLibraryCalls) {
         this.sleepBetweenLibraryCalls = sleepBetweenLibraryCalls;
+    }
+
+    public boolean isSkipLoadHotKey() {
+        return skipLoadHotKey;
+    }
+
+    public void setSkipLoadHotKey(boolean skipLoadHotKey) {
+        this.skipLoadHotKey = skipLoadHotKey;
     }
 }
