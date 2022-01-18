@@ -126,8 +126,8 @@ createOrder(FILE f){
                 priceYandex(detail) <- NUMERIC[18,4](price(items));
                 qtyYandex(detail) <- NUMERIC[18,4](quantity(items));
                 sku(detail) <- itemById(id(items));
-                quantity(detail) <- qtyQuantum(NUMERIC[18,4](quantity(items)), sku(detail));
-                price(detail) <- priceQuantum(NUMERIC[15,2](price(items)), sku(detail));
+                quantity(detail) <- NUMERIC[16,5](quantity(items));
+                price(detail) <- priceAggrRound(NUMERIC[15,2](price(items)), sku(detail));
                 internetOrder(detail) <- order;
             }
             paymentTypeInternetOrder(order) <- paymentTypeOrder(paymentType());
@@ -233,8 +233,8 @@ FORM statusYandex FORMEXTID 'null'
 ; 
 
 quantityOrderDetail (InternetOrderDetail d) = IF status(internetOrder(d)) = StatusInternetOrder.new 
-    OR status(internetOrder(d)) = StatusInternetOrder.isPicking THEN qtyYandex(d) 
-        ELSE round2(pickingQuantity(d) / OVERRIDE quantum(sku(d)), 1);
+    OR status(internetOrder(d)) = StatusInternetOrder.isPicking THEN quantity(d) 
+        ELSE pickingQuantity(d);
     
 // форма информации о заказе
 FORM getOrder FORMEXTID 'null'
@@ -248,7 +248,7 @@ FORM getOrder FORMEXTID 'null'
         = IF paymentTypeInternetOrder(o) = PaymentTypeInternetOrder.inFact THEN 'CASH' ELSE 'CARD' EXTID 'paymentType'
  
     OBJECTS items = InternetOrderDetail
-    PROPERTIES quantityOrderDetail(items) EXTID 'quantity', priceYandex(items) EXTID 'price', nameSku(items) EXTID 'name', idSku(items) EXTID 'id',
+    PROPERTIES quantityOrderDetail(items) EXTID 'quantity', price(items) EXTID 'price', nameSku(items) EXTID 'name', idSku(items) EXTID 'id',
         = OVERRIDE '[]', idSku(items) EXTID 'modifications', = OVERRIDE '[]', idSku(items) EXTID 'promos'
     FILTERS internetOrder(items) = o AND quantityOrderDetail(items)
 ;
