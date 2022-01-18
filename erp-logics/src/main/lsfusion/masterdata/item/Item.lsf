@@ -217,12 +217,18 @@ nullImage 'Сбросить'(Item item)  {
 }
 
 showItemImage 'Показывать изображение товара на форме "Товары"' = DATA BOOLEAN ();
+defaultItemImage 'Показывать изображение товара на форме "Товары"' = DATA IMAGEFILE ();
+loadDefaultItemImage 'Загрузить изображение по умолчанию на форме "Товары"' ()  { INPUT =defaultItemImage() CHANGE; }
+openDefaultItemImage 'Открыть изображение по умолчанию на форме "Товары"' ()  { open(defaultItemImage()); }
+
 EXTEND FORM options
-    PROPERTIES () showItemImage
+    PROPERTIES () showItemImage, loadDefaultItemImage, openDefaultItemImage
 ;
 DESIGN options {
     items{
         MOVE PROPERTY (showItemImage());
+        MOVE PROPERTY (loadDefaultItemImage());
+        MOVE PROPERTY (openDefaultItemImage());
     }
 }
 
@@ -413,7 +419,7 @@ FORM items 'Товары'
     PROPERTIES(i) READONLYIF isReadonly() idBarcode ON CHANGE changeBarcode(i) BACKGROUND background(i), image PANEL SHOWIF showItemImage(), id SHOWIF showIDs() BACKGROUND background(i)
     PROPERTIES(i) NEWSESSION NEW, edit = EDIT SHOWIF enableEditing(i), deletei=DELETE 
     PROPERTIES seekBarcode() ON CHANGE seekSkuBarcode() EVENTID 'SCANNER'
-    
+    PROPERTIES READONLY PANEL  defaultItemImage() SHOWIF (showItemImage() AND NOT i IS Item)
     LIST Item OBJECT i  
 ;
 
@@ -433,11 +439,19 @@ DESIGN items {
             NEW itemImage {               
                 fill = 1;
                 type = SPLITV;
-                MOVE BOX(TREE groupTree) { fill = 2;caption = 'Группы';}               
-                MOVE PROPERTY (image(i)) {
-                    fill = 1;
-                    caption = '';
-                }
+                MOVE BOX(TREE groupTree) { fill = 2; caption = 'Группы';}         
+                NEW   itemImageCustom { 
+                    fill = 1; 
+                    type = SPLITV;  
+                    MOVE PROPERTY (image(i)) {
+                        fill = 1;
+                        caption = '';
+                    }
+                    MOVE PROPERTY (defaultItemImage()) {
+                        fill = 1;
+                        caption = '';
+                    }  
+                }                              
             }  
         }
         NEW pane {
