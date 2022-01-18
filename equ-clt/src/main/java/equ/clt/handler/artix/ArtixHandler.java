@@ -1482,12 +1482,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             }
 
                                             BigDecimal bonusPaid = null;
+                                            boolean fourthPrice = false;
                                             JSONArray discountPositionsArray = inventPosition.getJSONArray("discountPositions");
                                             for (int j = 0; j < discountPositionsArray.length(); j++) {
                                                 JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
                                                 String discType = discountPosition.getString("discType");
                                                 if(discType != null && discType.equals("bonus"))
                                                     bonusPaid = safeAdd(bonusPaid, discountPosition.getBigDecimal("discSum"));
+                                                String discName = discountPosition.optString("discName");
+                                                if(discName.startsWith("СЗТ")) {
+                                                    fourthPrice = true;
+                                                }
                                             }
 
                                             String externalNumber;
@@ -1555,6 +1560,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 }
                                                 if (!paymentCard.isEmpty()) {
                                                     receiptDetailExtraFields.put("paymentCard", StringUtils.join(paymentCard, ';'));
+                                                }
+
+                                                if(fourthPrice) {
+                                                    receiptDetailExtraFields.put("priceLevelId", 4);
                                                 }
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
