@@ -1451,9 +1451,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                             //обнаруживаем продажу сертификатов
                                             boolean isGiftCard = false;
+                                            boolean isReturnGiftCard = false;
                                             if (opCode == 63) {
                                                 barcode = inventPosition.getString("bcode_main");
                                                 isGiftCard = true;
+                                            } else if (opCode == 64) {
+                                                barcode = inventPosition.getString("bcode_main");
+                                                isGiftCard = true;
+                                                isReturnGiftCard = true;
                                             }
 
                                             Integer numberReceiptDetail = inventPosition.getInt("posNum");
@@ -1561,7 +1566,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     receiptDetailExtraFields.put("priceLevelId", 4);
                                                 }
 
-                                                SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
+                                                SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, null,
                                                         sumCard, sumCash, sumGiftCardMap, customPaymentsMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
@@ -1572,7 +1577,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     salesInfo.detailExtraFields.put("bonusPaid", bonusPaid);
                                                 }
                                                 salesInfo.detailExtraFields.put("idBatch", idBatch);
-                                                salesInfo.detailExtraFields.put("externalNumber", externalNumber);
                                                 salesInfo.detailExtraFields.put("externalNumber", externalNumber);
                                                 currentSalesInfoList.add(salesInfo);
                                             }
