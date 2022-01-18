@@ -2809,6 +2809,8 @@ showMessageReceipt (Document d) = CASE
     WHEN primaryStatusText(d) == 'Требуется подписать извещение' THEN TRUE
     WHEN primaryStatusText(d) == 'Требуется уточнение. Требуется подписать извещение' THEN TRUE
     WHEN primaryStatusText(d) == 'Требуется подпись. Требуется подписать извещение' THEN TRUE;
+
+overMessageReceipt ABSTRACT (User, Box, Document);
 messageReceipt 'Подписать и отправить извещение о получении' (User u, Box b, Document d) {
     NEWSESSION {
         LOCAL localEntity = Entity ();
@@ -2824,6 +2826,7 @@ messageReceipt 'Подписать и отправить извещение о �
         //patronymic() <- STRING[60](middleName(currentUser())); подключить модуль EmployeeRu
         jobTitle() <- STRING[128](namePosition(currentUser()));
         inn() <- STRING[10](inn(organization(b)));
+        overMessageReceipt(u, b, d);
         DIALOG dialogSinger DO {
             getToken(u);
             EXPORT exportSigner JSON;
