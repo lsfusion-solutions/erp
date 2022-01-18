@@ -1,6 +1,6 @@
 MODULE DiadocUpdDocument;
 
-REQUIRE UpdDocument, DiadocMessage, CryptoPro;
+REQUIRE UpdDocument, DiadocMessage, CryptoPro, ConsignmentUpdDocument;
 
 NAMESPACE Diadoc;
 
@@ -116,10 +116,13 @@ updDocument = GROUP LAST UpdDocument d ORDER d BY document(d) MATERIALIZED INDEX
 titleDocument 'Документ Диадока' (UpdDocument d) = title(document(d)) CHARWIDTH 20;
 primaryStatusTextDocument 'Статус' (UpdDocument d) = primaryStatusText(document(d)) CHARWIDTH 20;
 
+overMessageUniversalTransferDocument ABSTRACT (UpdDocument);
+    
 messageUniversalTransferDocument 'Подписать и отправить через Диадок' (UpdDocument d) {
     FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
-        fromBox() <- GROUP LAST Box b IF organization(b) == (OVERRIDE organizationInn(innSupplier(d)), organizationKpp(kppSupplier(d))) ORDER b;
-        toBox() <- GROUP LAST Box b IF organization(b) == (OVERRIDE organizationInn(innCustomer(d)), organizationKpp(kppCustomer(d))) ORDER b;
+        fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == supplier(invoice(d)) ORDER b;
+        toBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(invoice(d)) ORDER b;
+        overMessageUniversalTransferDocument(d);
         DIALOG dialogMessageToPost DO {
             getToken(u);
             exportUpdDocument() <- d;
