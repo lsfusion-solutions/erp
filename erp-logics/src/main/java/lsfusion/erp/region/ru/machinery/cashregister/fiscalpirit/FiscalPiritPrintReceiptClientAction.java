@@ -9,14 +9,16 @@ public class FiscalPiritPrintReceiptClientAction extends FiscalPiritClientAction
     Integer giftCardDepartment;
     Integer giftCardPaymentType;
     Integer saleGiftCardPaymentType;
+    String prefixFFD12;
 
     public FiscalPiritPrintReceiptClientAction(boolean isUnix, String comPort, Integer baudRate, String cashier, ReceiptInstance receipt,
-                                               Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType) {
+                                               Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType, String prefixFFD12) {
         super(isUnix, comPort, baudRate, cashier);
         this.receipt = receipt;
         this.giftCardDepartment = giftCardDepartment;
         this.giftCardPaymentType = giftCardPaymentType;
         this.saleGiftCardPaymentType = saleGiftCardPaymentType;
+        this.prefixFFD12 = prefixFFD12;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) {
@@ -39,11 +41,11 @@ public class FiscalPiritPrintReceiptClientAction extends FiscalPiritClientAction
                 Integer numberReceipt = null;
 
                 if (receipt.receiptSaleList.size() != 0) {
-                    numberReceipt = FiscalPirit.printReceipt(serialPort, cashier, receipt, receipt.receiptSaleList, giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType, true);
+                    numberReceipt = FiscalPirit.printReceipt(serialPort, cashier, receipt, receipt.receiptSaleList, giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType, prefixFFD12, true);
                 }
 
                 if (receipt.receiptReturnList.size() != 0) {
-                    numberReceipt = FiscalPirit.printReceipt(serialPort, cashier, receipt, receipt.receiptReturnList, giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType, false);
+                    numberReceipt = FiscalPirit.printReceipt(serialPort, cashier, receipt, receipt.receiptReturnList, giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType, prefixFFD12, false);
                 }
                 return numberReceipt;
             } catch (RuntimeException e) {

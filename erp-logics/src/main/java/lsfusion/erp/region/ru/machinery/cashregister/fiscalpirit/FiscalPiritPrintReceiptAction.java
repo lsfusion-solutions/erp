@@ -70,6 +70,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 Integer giftCardPaymentType = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardPaymentTypeCurrentCashRegister[]").read(context): null;
                 Integer saleGiftCardPaymentType = (Integer) findProperty("saleGiftCardPaymentTypeCurrentCashRegister[]").read(context);
                 boolean use1162Tag = findProperty("use1162TagCurrentCashRegister[]").read(context) != null;
+                String prefixFFD12 = (String) findProperty("prefixFFD12CurrentCashRegister[]").read(context);
 
                 ScriptingLogicsModule zReportLotLM = context.getBL().getModule("ZReportLot");
 
@@ -165,7 +166,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalPiritPrintReceiptClientAction(isUnix, comPort, baudRate, cashier, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumPrepayment, sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType));
+                            giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType, prefixFFD12));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())

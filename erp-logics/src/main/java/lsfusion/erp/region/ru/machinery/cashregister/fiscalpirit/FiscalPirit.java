@@ -71,12 +71,12 @@ public class FiscalPirit {
     }
 
     public static Integer printReceipt(SerialPort serialPort, String cashier, ReceiptInstance receipt, List<ReceiptItem> receiptList,
-                                       Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType, boolean sale) {
+                                       Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType, String prefixFFD12, boolean sale) {
         openZReportIfClosed(serialPort, cashier);
         openDocumentCommand(serialPort, cashier, sale ? "2" : "3");
 
         for (ReceiptItem item : receiptList) {
-            setAdditionalPositionDetailsCommand(serialPort, item);
+            setAdditionalPositionDetailsCommand(serialPort, item, prefixFFD12);
             registerItemCommand(serialPort, item, giftCardDepartment);
         }
 
@@ -224,9 +224,9 @@ public class FiscalPirit {
         sendCommand(serialPort, "32", "Аннулировать документ", false);
     }
 
-    private static void setAdditionalPositionDetailsCommand(SerialPort serialPort, ReceiptItem item) {
+    private static void setAdditionalPositionDetailsCommand(SerialPort serialPort, ReceiptItem item, String prefixFFD12) {
         if(item.gtinLot != null && item.seriesLot != null) {
-            String hexGTIN = "$44$4D"; //стандартный префикс системы ЧЗ
+            String hexGTIN = (prefixFFD12 != null ? prefixFFD12 : "") + "$44$4D"; //стандартный префикс системы ЧЗ
             for (byte b : new BigInteger(item.gtinLot).toByteArray()) {
                 hexGTIN += String.format("$%02X", b); //$ + hex byte
             }
