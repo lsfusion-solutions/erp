@@ -7,6 +7,7 @@ import com.jacob.com.Variant;
 import equ.api.*;
 import equ.api.scales.*;
 import equ.clt.handler.DefaultScalesHandler;
+import equ.clt.handler.HandlerUtils;
 import equ.clt.handler.ScalesSettings;
 import lsfusion.base.ExceptionUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -101,11 +102,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                             if (ip != null) {
                                 ips.add(scales.port);
 
-                                for (ScalesItem item : transaction.itemsList) {
-                                    if (item.pluNumber == null) {
-                                        logError(localErrors, String.format("Обнаружен товар без номера PLU: id %s (%s)", item.idItem, item.name));
-                                    }
-                                }
+                                Map<String, Integer> pluNumbers = getPluNumbersMap(transaction, localErrors);
                                 if (localErrors.isEmpty()) {
                                     processTransactionLogger.info("Shtrih: Processing ip: " + ip);
                                     try {
@@ -125,6 +122,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
 
                                                 if (!Thread.currentThread().isInterrupted()) {
 
+                                                    Integer pluNumber = pluNumbers.get(item.idItem);
+
                                                     int error;
                                                     int attempt = 0;
                                                     List<String> itemErrors;
@@ -132,7 +131,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         error = 0;
                                                         attempt++;
                                                         itemErrors = new ArrayList<>();
-                                                        Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
+                                                        Integer barcode = getBarcode(item);
+
                                                         Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
                                                         String nameItem = item.name != null && capitalLetters ? item.name.toUpperCase() : item.name;
@@ -142,7 +142,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         LocalDate expiryDate = item.expiryDate == null ? defaultDate : item.expiryDate;
                                                         Integer groupCode = 0; //item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
                                                         String description = item.description == null ? "" : item.description;
-                                                        int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
+                                                        int messageNumber = usePLUNumberInMessage ? pluNumber : item.descriptionNumber;
                                                         int start = 0;
                                                         int total = description.length();
                                                         int i = 0;
@@ -158,8 +158,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         }
 
                                                         if (error == 0) {
-                                                            processTransactionLogger.info("Shtrih: sending item " + item.pluNumber);
-                                                            int result = setPLUDataEx(itemErrors, port, item.pluNumber, barcode, firstName, secondName,
+                                                            processTransactionLogger.info("Shtrih: sending item " + pluNumber);
+                                                            int result = setPLUDataEx(itemErrors, port, pluNumber, barcode, firstName, secondName,
                                                                     item.price, shelfLife, groupCode, messageNumber, expiryDate/*, item.splitItem ? 0 : 1*/);
                                                             if (result != 0)
                                                                 error = result;
@@ -175,7 +175,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         if(globalError >= 3)
                                                             break;
                                                     }
-                                                    usedPLUNumberSet.add(item.pluNumber);
+                                                    usedPLUNumberSet.add(pluNumber);
                                                 }
                                             }
 
@@ -265,11 +265,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                 if (ip != null) {
                                     ips.add(scales.port);
 
-                                    for (ScalesItem item : transaction.itemsList) {
-                                        if (item.pluNumber == null) {
-                                            logError(localErrors, String.format("Обнаружен товар без номера PLU: id %s (%s)", item.idItem, item.name));
-                                        }
-                                    }
+                                    Map<String, Integer> pluNumbers = getPluNumbersMap(transaction, localErrors);
                                     if (localErrors.isEmpty()) {
                                         processTransactionLogger.info("Shtrih: Processing ip: " + ip);
                                         try {
@@ -294,7 +290,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                 processTransactionLogger.info("Shtrih: Sending items..." + ip);
                                                 if (localErrors.isEmpty()) {
                                                     for (ScalesItem item : transaction.itemsList) {
-                                                        Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
+                                                        Integer barcode = getBarcode(item);
+                                                        Integer pluNumber = pluNumbers.get(item.idItem);
                                                         Integer shelfLife = item.expiryDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
                                                         String nameItem = item.name != null && capitalLetters ? item.name.toUpperCase() : item.name;
@@ -302,7 +299,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         String firstName = nameItem.substring(0, Math.min(len, 28));
                                                         String secondName = len < 28 ? "" : nameItem.substring(28, Math.min(len, 56));
 
-                                                        shtrihActiveXComponent.setProperty("PLUNumber", new Variant(item.pluNumber));
+                                                        shtrihActiveXComponent.setProperty("PLUNumber", new Variant(pluNumber));
                                                         shtrihActiveXComponent.setProperty("Price", new Variant(item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(100)).intValue()));
                                                         shtrihActiveXComponent.setProperty("Tare", new Variant(0));
                                                         shtrihActiveXComponent.setProperty("ItemCode", new Variant(barcode));
@@ -321,7 +318,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         int total = description.length();
                                                         int i = 0;
                                                         while (i < 8) {
-                                                            shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
+                                                            shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? pluNumber : item.descriptionNumber));
                                                             shtrihActiveXComponent.setProperty("StringNumber", new Variant(i + 1));
                                                             String message = getMessage(description, start, total, newLineNoSubstring);
                                                             shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
@@ -389,6 +386,24 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
             sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(succeededScalesList, exception));
         }
         return sendTransactionBatchMap;
+    }
+
+    public Integer getBarcode(ScalesItem item) {
+        return Integer.parseInt(item.idBarcode.substring(0, 5));
+    }
+
+    public Map<String, Integer> getPluNumbersMap(TransactionScalesInfo transaction, List<String> localErrors) {
+        Map<String, Integer> pluNumbers = new HashMap<>();
+        for (ScalesItem item : transaction.itemsList) {
+            Integer barcode = getBarcode(item);
+            Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode <= Short.MAX_VALUE ? barcode : null;
+            if (pluNumber != null) {
+                pluNumbers.put(item.idItem, pluNumber);
+            } else {
+                logError(localErrors, String.format("Обнаружен товар без номера PLU и с неподходящим ШК: id %s, ШК %s (%s)", item.idItem, barcode, item.name));
+            }
+        }
+        return pluNumbers;
     }
 
     private String getErrorText(int index) {
@@ -827,21 +842,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     }
 
     private String getPassword() {
-        return rightString(password, '0', 4);
-    }
-
-    private String rightString(String var1, char var2, int var3) {
-        String var4 = var1;
-        if(var4.length() > var3) {
-            return var4.substring(0, var3);
-        } else if(var4.length() == var3) {
-            return var4;
-        } else {
-            while(var4.length() < var3) {
-                var4 = var2 + var4;
-            }
-            return var4;
-        }
+        return HandlerUtils.prependZeroes(password, 4);
     }
 
     private void logError(List<String> errors, String errorText) {
