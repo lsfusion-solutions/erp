@@ -50,6 +50,7 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     void errorRequestExchange(Long requestExchange, Throwable t) throws RemoteException, SQLException;
 
     String sendCashierTimeList(List<CashierTime> cashierTimeList) throws RemoteException, SQLException;
+    String sendExtraData(String extraData) throws RemoteException, SQLException;
     List<CashierInfo> readCashierInfoList() throws RemoteException, SQLException;
     List<DiscountCard> readDiscountCardList(RequestExchange requestExchange) throws RemoteException, SQLException;
     List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws RemoteException, SQLException;

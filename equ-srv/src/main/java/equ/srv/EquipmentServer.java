@@ -231,6 +231,20 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return softCheck == null ? null : softCheck.sendCashierTimeList(cashierTimeList);
     }
 
+    @Override
+    public String sendExtraData(String extraData) throws RemoteException, SQLException {
+        if(cashRegisterLM != null) {
+            try (DataSession session = createSession()) {
+                ExecutionStack stack = getStack();
+                cashRegisterLM.findAction("processExtraData[STRING]").execute(session, stack, new DataObject(extraData));
+                return session.applyMessage(getBusinessLogics(), stack);
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return null;
+    }
+
     private List<Integer> readTroubleMachineryGroups(DataSession session, Integer minutes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<Integer> result = new ArrayList<>();
         if(minutes != null) {

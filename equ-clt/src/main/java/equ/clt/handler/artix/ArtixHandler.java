@@ -1236,6 +1236,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         List<CashierTime> cashierTimeList = new ArrayList<>();
         List<SalesInfo> salesInfoList = new ArrayList<>();
+        JSONArray canceledReceipts = new JSONArray();
 
         List<File> files = new ArrayList<>();
         for(String dir : directorySet) {
@@ -1328,6 +1329,28 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             for (String document : documents) {
                                 if (!document.isEmpty()) {
                                     JSONObject documentObject = new JSONObject(document + "}");
+
+                                    boolean isCanceled = false;
+                                    //чек полностью отменён - в секции failedMoneyPositions поле opCode = 70 (аннулирование продажи)
+                                    JSONArray failedMoneyPositionsArray = documentObject.getJSONArray("failedMoneyPositions");
+                                    for (int i = 0; i < failedMoneyPositionsArray.length(); i++) {
+                                        JSONObject failedMoneyPosition = failedMoneyPositionsArray.getJSONObject(i);
+                                        Integer operationCode = failedMoneyPosition.getInt("opCode");
+                                        if (operationCode.equals(70)) {
+                                            isCanceled = true;
+                                            break;
+                                        }
+                                    }
+                                    if(!isCanceled) {
+                                        //отменённые позиции в чеке - в секции stornoPositions
+                                        JSONArray stornoPositionsArray = documentObject.getJSONArray("stornoPositions");
+                                        if(!stornoPositionsArray.isEmpty()) {
+                                            isCanceled = true;
+                                        }
+                                    }
+                                    if(isCanceled) {
+                                        canceledReceipts.put(documentObject);
+                                    }
 
                                     Integer docType = documentObject.getInt("docType");
                                     boolean isSaleInvoice = docType == 18; //Импортируем как продажу, записываем json в receiptDetailExtraFields
@@ -1609,8 +1632,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
 
-        return (cashierTimeList.isEmpty() && salesInfoList.isEmpty() && filePathSet.isEmpty()) ? null :
-                new ArtixSalesBatch(salesInfoList, cashierTimeList, filePathSet);
+        return (cashierTimeList.isEmpty() && salesInfoList.isEmpty() && canceledReceipts.isEmpty() && filePathSet.isEmpty()) ? null :
+                new ArtixSalesBatch(salesInfoList, cashierTimeList, canceledReceipts.toString(), filePathSet);
     }
 
     private BigDecimal getBigDecimal(JSONObject obj, String key) throws JSONException {

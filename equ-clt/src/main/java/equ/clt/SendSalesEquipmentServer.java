@@ -162,7 +162,8 @@ public class SendSalesEquipmentServer {
     static void sendSalesInfo(EquipmentServerInterface remote, SalesBatch salesBatch, String sidEquipmentServer, String directory, CashRegisterHandler handler) throws RemoteException, SQLException {
         boolean noSalesInfo = salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.isEmpty();
         boolean noCashierTime = salesBatch == null || salesBatch.cashierTimeList == null || salesBatch.cashierTimeList.isEmpty();
-        if (noSalesInfo && noCashierTime) {
+        boolean noExtraData = salesBatch == null || salesBatch.extraData == null || salesBatch.extraData.isEmpty();
+        if (noSalesInfo && noCashierTime && noExtraData) {
             sendSalesLogger.info("SalesBatch is empty");
         } else {
             String result = null;
@@ -177,6 +178,13 @@ public class SendSalesEquipmentServer {
                 if (result == null && !noCashierTime) {
                     sendSalesLogger.info("Sending CashierTime: " + salesBatch.cashierTimeList.size());
                     result = remote.sendCashierTimeList(salesBatch.cashierTimeList);
+                    if (result != null) {
+                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
+                    }
+                }
+                if (result == null && !noExtraData) {
+                    sendSalesLogger.info("Sending ExtraData");
+                    result = remote.sendExtraData(salesBatch.extraData);
                     if (result != null) {
                         EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
                     }

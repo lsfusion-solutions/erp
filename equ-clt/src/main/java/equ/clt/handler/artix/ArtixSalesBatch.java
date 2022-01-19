@@ -10,9 +10,10 @@ import java.util.Set;
 public class ArtixSalesBatch extends SalesBatch<ArtixSalesBatch> {
     public Set<String> readFiles;
 
-    public ArtixSalesBatch(List<SalesInfo> salesInfoList, List<CashierTime> cashierTimeList, Set<String> readFiles) {
+    public ArtixSalesBatch(List<SalesInfo> salesInfoList, List<CashierTime> cashierTimeList, String extraData, Set<String> readFiles) {
         this.salesInfoList = salesInfoList;
         this.cashierTimeList = cashierTimeList;
+        this.extraData = extraData;
         this.readFiles = readFiles;
     }
 
