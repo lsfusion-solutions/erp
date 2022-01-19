@@ -227,8 +227,12 @@ public class FiscalPirit {
     private static void setAdditionalPositionDetailsCommand(SerialPort serialPort, ReceiptItem item, String prefixFFD12) {
         if(item.gtinLot != null && item.seriesLot != null) {
             String hexGTIN = (prefixFFD12 != null ? prefixFFD12 : "") + "$44$4D"; //стандартный префикс системы ЧЗ
-            for (byte b : new BigInteger(item.gtinLot).toByteArray()) {
-                hexGTIN += String.format("$%02X", b); //$ + hex byte
+            if(prefixFFD12 != null) {
+                hexGTIN += item.gtinLot;
+            } else {
+                for (byte b : new BigInteger(item.gtinLot).toByteArray()) {
+                    hexGTIN += String.format("$%02X", b); //$ + hex byte
+                }
             }
             sendCommand(serialPort, "24", "Установить дополнительные реквизиты позиции", joinData(hexGTIN + item.seriesLot), true);
         }
