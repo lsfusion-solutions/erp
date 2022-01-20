@@ -20,15 +20,16 @@ CLASS Lot 'Марка';
 id 'Код' = DATA STRING[200] (Lot) INDEXED IN id;
 lot = GROUP AGGR Lot l BY id(l); 
 
-translateBarcode = FORMULA STRING[200] 'SELECT CASE WHEN ($1) ~* \'[а-яА-Я]\' THEN translate(left(($1), 31), \'ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,йцукенгшщзхъфывапролджэячсмитьбю.\', \'QWERTYUIOP{}ASDFGHJKL:"|ZXCVBNM<>?qwertyuiop[]asdfghjkl;\'\'zxcvbnm,./\') ELSE left(($1), 31) END';
+extractGS1 = FORMULA STRING[200] 'split_part(($1),\'\',1)';
+translateBarcode = FORMULA STRING[200] 'SELECT CASE WHEN ($1) ~* \'[а-яА-Я]\' THEN translate(($1), \'ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,йцукенгшщзхъфывапролджэячсмитьбю.\', \'QWERTYUIOP{}ASDFGHJKL:"|ZXCVBNM<>?qwertyuiop[]asdfghjkl;\'\'zxcvbnm,./\') ELSE ($1) END';
 
 barcodeToId = ABSTRACT CASE STRING[200] (STRING[200]);
-barcodeToId (STRING[200] s) += WHEN s IS STRING[200] THEN translateBarcode(s);
+barcodeToId (STRING[200] s) += WHEN s IS STRING[200] THEN translateBarcode(extractGS1(s));
 
 tail 'Хвост' = DATA STRING[200] (Lot);
 
 barcodeToTail = ABSTRACT CASE STRING[200] (STRING[200]);
-barcodeToTail (STRING[200] s) += WHEN s IS STRING[200] THEN STRING[200](substrFrom(s, 32)); 
+barcodeToTail (STRING[200] s) += WHEN s IS STRING[200] THEN STRING[200](substrFrom(s, length(extractGS1(s)) + 1)); 
 
 code 'КИ' (Lot l) = CONCAT '', id(l), tail(l);
 
