@@ -49,6 +49,7 @@ FORM purchaseOrder FORMEXTID 'ORDERS'
 //;
 
 sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] outputDir, STRING[100] provider) {
+    sendingCancelled() <- NULL;
     TRY {
         IF login AND password AND host AND port THEN {
             LOCAL error = TEXT();
@@ -102,6 +103,9 @@ sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, STRING[100
     } CATCH {
         logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
         MESSAGE 'Заказ не выгружен. Обратитесь к администратору' NOWAIT;
+        
+        CANCEL;
+        sendingCancelled() <- TRUE; 
     }
 }
 

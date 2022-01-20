@@ -31,11 +31,13 @@ overEmailCustomer(Order.Order order) + {
             }
             
             send[EOrder](order);
-            IF NOT sentDateTime[UserOrder](order) THEN {
-                notEmailSend(order) <- 'edi';
-                logSendDocumentOrder(order);
+            IF NOT sendingCancelled() THEN {
+                IF NOT sentDateTime[UserOrder](order) THEN {
+                    notEmailSend(order) <- 'edi';
+                    logSendDocumentOrder(order);
+                }
+                sentDateTime[UserOrder](order) <- currentDateTime() WHERE NOT sentDateTime[UserOrder](order);
             }
-            sentDateTime[UserOrder](order) <- currentDateTime() WHERE NOT sentDateTime[UserOrder](order);
         } ELSE {
             overSend(order);
         }

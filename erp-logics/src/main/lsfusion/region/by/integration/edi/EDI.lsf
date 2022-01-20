@@ -207,11 +207,13 @@ send 'Отправить'  ABSTRACT LIST ( EOrder);
 overSend  ABSTRACT LIST ( EOrder);
 
 skipSend = ABSTRACT CASE BOOLEAN (EOrder);
+sendingCancelled = DATA LOCAL BOOLEAN();
 
 sendApply 'Отправить' (EOrder o)  { 
     IF NOT skipSend(o) THEN NEWSESSION {
         send(o);
-        APPLY;
+        IF NOT sendingCancelled() THEN
+            APPLY;
     } ELSE {
         overSend(o);    
     }    
