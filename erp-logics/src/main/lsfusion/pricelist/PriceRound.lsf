@@ -50,11 +50,8 @@ priceInterval (NUMERIC[22,10] price, RoundCondition roundCondition) =
           BY roundCondition(interval);
 
 round (NUMERIC[16,4] price, RoundCondition roundCondition) = NUMERIC[16,4](
-    IF (price AS NUMERIC[22,10]) > minPrice(roundCondition)
-        THEN
-            priceInterval(price, roundCondition)
-        ELSE
-            Utils.round(price AS NUMERIC[22,10], priceRound(roundCondition))
+    OVERRIDE priceInterval(price, roundCondition) IF (price AS NUMERIC[22,10]) > minPrice(roundCondition), 
+             Utils.round(price AS NUMERIC[22,10], priceRound(roundCondition))
     ) COMPLEX; // для COMPLEX
 
 round(price, Currency currency) = Utils.round(price, defaultRound(currency));
