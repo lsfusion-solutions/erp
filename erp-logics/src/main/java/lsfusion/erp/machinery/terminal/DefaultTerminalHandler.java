@@ -51,6 +51,7 @@ public class DefaultTerminalHandler {
 
     static ScriptingLogicsModule terminalOrderLM;
     static ScriptingLogicsModule terminalHandlerLM;
+    static ScriptingLogicsModule terminalOrderLotLM;
 
     static String ID_APPLICATION_TSD = "1";
     static String ID_APPLICATION_ORDER = "2";
@@ -72,6 +73,8 @@ public class DefaultTerminalHandler {
     public void init() {
         terminalOrderLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrder");
         terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+
+        terminalOrderLotLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrderLot");
     }
 
     public List<Object> readHostPort(DataSession session) {
@@ -214,8 +217,10 @@ public class DefaultTerminalHandler {
                     createAssortTable(connection);
                     updateAssortTable(connection, assortmentList, prefix);
 
-                    createVANTable(connection);
-                    updateVANTable(connection, handbookTypeList);
+                    if (terminalOrderLotLM != null) {
+                        createLotsTable(connection);
+                        updateLotsTable(connection, readLotList(session, stockObject, userInfo));
+                    }
 
                     createANATable(connection);
                     updateANATable(connection, customANAList);
@@ -418,6 +423,43 @@ public class DefaultTerminalHandler {
                 result.add(new TerminalBatch(String.valueOf(idBatch), idBarcode, idSupplier, date, number, cost, extraField));
             }
         }
+        return result;
+    }
+
+    private List<TerminalLot> readLotList(DataSession session, ObjectValue stockObject, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<TerminalLot> result = new ArrayList<>();
+
+        KeyExpr lotExpr = new KeyExpr("lot");
+        ImRevMap<Object, KeyExpr> lotKeys = MapFact.singletonRev("lot", lotExpr);
+
+        QueryBuilder<Object, Object> lotQuery = new QueryBuilder<>(lotKeys);
+        lotQuery.addProperty("idLot", terminalOrderLotLM.findProperty("id[Lot]").getExpr(lotExpr));
+        lotQuery.addProperty("barcode", terminalOrderLotLM.findProperty("idBarcodeSku[Lot]").getExpr(lotExpr));
+        lotQuery.addProperty("idSku", terminalOrderLotLM.findProperty("idSku[Lot]").getExpr(lotExpr));
+        lotQuery.addProperty("idParent", terminalOrderLotLM.findProperty("idParent[Lot]").getExpr(lotExpr));
+        lotQuery.addProperty("numberOrder", terminalOrderLotLM.findProperty("numberTerminalOrder[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
+        lotQuery.addProperty("quantity", terminalOrderLotLM.findProperty("quantityTerminalOrder[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
+        lotQuery.addProperty("count", terminalOrderLotLM.findProperty("count[Lot]").getExpr(lotExpr));
+
+        lotQuery.and(terminalOrderLotLM.findProperty("numberTerminalOrder[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()).getWhere());
+
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> lotResult = lotQuery.executeClasses(session);
+        for (int i = 0; i < lotResult.size(); i++) {
+
+            ImMap<Object, ObjectValue> entry = lotResult.getValue(i);
+
+            String idLot = trim((String) entry.get("idLot").getValue());
+            if (idLot == null) continue;
+            String barcode = trim((String) entry.get("barcode").getValue());
+            String idSku = trim((String) entry.get("idSku").getValue());
+            String idParent = trim((String) entry.get("idParent").getValue());
+            String numberOrder = trim((String) entry.get("numberOrder").getValue());
+            BigDecimal quantity = (BigDecimal) entry.get("quantity").getValue();
+            Integer count = (Integer) entry.get("count").getValue();
+
+            result.add(new TerminalLot(idLot, barcode, idSku, idParent, numberOrder, quantity, count));
+        }
+
         return result;
     }
 
@@ -822,6 +864,51 @@ public class DefaultTerminalHandler {
                         statement.setObject(5, formatValue(idSupplier));
                         statement.setObject(6, formatValue(batch.price));
                         statement.setObject(7, formatValue(batch.extraField));
+                        statement.addBatch();
+                    }
+                }
+                statement.executeBatch();
+                connection.commit();
+            } finally {
+                if (statement != null)
+                    statement.close();
+                connection.setAutoCommit(true);
+            }
+        }
+    }
+
+    private void createLotsTable(Connection connection) throws SQLException {
+        Statement statement = connection.createStatement();
+        String sql = "CREATE TABLE lot " +
+                "(idLot TEXT PRIMARY KEY," +
+                " barcode TEXT DEFAULT('')," +
+                " idSku TEXT DEFAULT('')," +
+                " idParent TEXT DEFAULT('')," +
+                " numberOrder TEXT DEFAULT('')," +
+                " quantity REAL DEFAULT(0)," +
+                " count INTEGER DEFAULT(0)" +
+                ")";
+
+        statement.executeUpdate(sql);
+        statement.close();
+    }
+
+    private void updateLotsTable(Connection connection, List<TerminalLot> terminalLotList) throws SQLException {
+        if (terminalLotList != null && !terminalLotList.isEmpty()) {
+            PreparedStatement statement = null;
+            try {
+                connection.setAutoCommit(false);
+                String sql = "INSERT OR REPLACE INTO lot VALUES(?,?,?,?,?,?,?);";
+                statement = connection.prepareStatement(sql);
+                for (TerminalLot lot : terminalLotList) {
+                    if (lot.idLot != null) {
+                        statement.setObject(1, formatValue(lot.idLot));
+                        statement.setObject(2, formatValue(lot.idBarcode));
+                        statement.setObject(3, formatValue(lot.idSku));
+                        statement.setObject(4, formatValue(lot.idParent));
+                        statement.setObject(5, formatValue(lot.numberOrder));
+                        statement.setObject(6, formatValue(lot.quantity));
+                        statement.setObject(7, formatValue(lot.count));
                         statement.addBatch();
                     }
                 }
@@ -1460,6 +1547,26 @@ public class DefaultTerminalHandler {
             this.number = number;
             this.price = price;
             this.extraField = extraField;
+        }
+    }
+
+    private class TerminalLot implements Serializable {
+        public String idLot;
+        public String idBarcode;
+        public String idSku;
+        public String idParent;
+        public String numberOrder;
+        public BigDecimal quantity;
+        public Integer count;
+
+        public TerminalLot(String idLot, String idBarcode, String idSku, String idParent, String numberOrder, BigDecimal quantity, Integer count) {
+            this.idLot = idLot;
+            this.idBarcode = idBarcode;
+            this.idSku = idSku;
+            this.idParent = idParent;
+            this.numberOrder = numberOrder;
+            this.quantity = quantity;
+            this.count = count;
         }
     }
 

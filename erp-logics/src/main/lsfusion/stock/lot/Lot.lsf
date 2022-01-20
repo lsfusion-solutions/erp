@@ -41,6 +41,7 @@ series 'Серия' (Lot l) = idToSeries(id(l));
 sku 'Товар' = DATA Sku (Lot) NONULL DELETE INDEXED;
 idSku 'Код товара' (Lot l) = id(sku(l)) IN id;
 nameSku 'Наименование товара' (Lot l) = name(sku(l)) IN id;
+idBarcodeSku 'Штрихкод' (Lot l) = idBarcode(sku(l)) IN id;
 
 overPreprocessedBarcode(STRING[200] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
 
@@ -132,7 +133,7 @@ META defineDocumentLot (doc, quantityProp, postedProp)
     quantityLot 'Кол-во марок' (###doc i) = GROUP SUM quantityLot(###doc##Detail d) IF doc(d) = i MATERIALIZED;
     quantity 'Кол-во марок' (###doc i, Lot l) = GROUP SUM quantity(###doc##Detail d, l) IF doc(d) = i;
     
-    CONSTRAINT SET((quantityProp(###doc##Detail d) OR quantityLot(d)) AND postedProp(d) AND NOT quantityProp(d) = quantityLot(d)) 
+    CONSTRAINT SET((quantityProp(###doc##Detail d) OR quantityLot(d)) AND postedProp(d) AND NOT quantityProp(d) = OVERRIDE quantityLot(d), 0.0) 
                IF explicitLot(sku(d)) AND NOT skipCheckDocumentLot()
         MESSAGE 'Для строки документа неправильно заданы марки';
     
