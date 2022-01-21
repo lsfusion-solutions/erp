@@ -222,6 +222,10 @@ public class DefaultTerminalHandler {
                         updateLotsTable(connection, readLotList(session, stockObject, userInfo));
                     }
 
+
+                    createVANTable(connection);
+                    updateVANTable(connection, handbookTypeList);
+
                     createANATable(connection);
                     updateANATable(connection, customANAList);
 
