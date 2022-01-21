@@ -33,16 +33,21 @@ dateStartExchange 'Дата начала обмена' = DATA DATE (Configuratio
 toBase 'Префикс внешней базы' = DATA STRING[2] (Configuration) CHARWIDTH 4;
 
 inSending 'Передавать' = DATA BOOLEAN (ObjectExchange, Configuration);
-inSendingTag (ObjectExchange e, Configuration c) = IF inSending(e, c) THEN '*' ELSE '';
+inSendingTag (ObjectExchange e, Configuration c) = IF inSending(e, c) THEN '1.5' ELSE '';
 
 inReceiving 'Принимать' = DATA BOOLEAN (ObjectExchange, Configuration);
-inReceivingTag (ObjectExchange e, Configuration c) = IF inReceiving(e, c) THEN '*' ELSE '';
+inReceivingTag (ObjectExchange e, Configuration c) = IF inReceiving(e, c) THEN '1.6' ELSE '';
 
 fromBase 'Префикс этой базы' = DATA STRING[2] () CHARWIDTH 4;
 fromBase 'Префикс этой базы' (Configuration c) = fromBase() IF c IS Configuration;
 
 currentDateTimeString(Configuration c) = dateTimeToString(currentDateTime()) IF c IS Configuration;
-availableVersion (Configuration c) = '1.5' IF c IS Configuration;
+//availableVersion (Configuration c) = '1.5' IF c IS Configuration;
+availableVersion (Configuration c, INTEGER i) = CASE
+    WHEN c IS Configuration AND i = 1 THEN '1.5'
+    WHEN c IS Configuration AND i = 2 THEN '1.6'
+;
+
 format (Configuration c) = 'http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5' IF c IS Configuration;
 exchangePlan (Configuration c) = 'СинхронизацияДанныхЧерезУниверсальныйФормат' IF c IS Configuration;
 messageNo (Configuration c) = OVERRIDE idSended(c), 0 IF c IS Configuration;
@@ -92,12 +97,13 @@ WHEN SET(inSending(Configuration c, EnterpriseData e) AND NOT packet(c, e) <= id
 
 in (Configuration c) = GROUP MAX EnterpriseData e IF in(c,e);
 empty (Configuration c) = c IS Configuration AND NOT in(c); 
-empyBody (Configuration c) = '' IF empty(c); 
+emptyBody (Configuration c) = '' IF empty(c); 
 
 GROUP header EXTID 'msg:Header';
 GROUP confirmation EXTID 'msg:Confirmation' : header;
 GROUP availableObjectTypes EXTID 'msg:AvailableObjectTypes' : header;
-GROUP body EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5:Body';
+GROUP bodySend EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5:Body';
+GROUP bodyReceive EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.6:Body';
 
 GROUP keyProperties EXTID 'КлючевыеСвойства';
 
@@ -110,10 +116,12 @@ GROUP records EXTID 'Записи';
 GROUP saleDocument EXTID 'ДокументРеализации';
 GROUP saleInvoice EXTID 'РеализацияТоваровУслугСсылка' : saleDocument;
 GROUP correctedSaleDocument EXTID 'ИсправляемыйДокументРеализации';
-GROUP specification EXTID 'Характеристика';
+GROUP specificationRecords EXTID 'Характеристика';
 GROUP commonData EXTID 'ОбщиеДанные';
-
-GROUP item EXTID 'Номенклатура';
+GROUP itemData EXTID 'ДанныеНоменклатуры';
+GROUP item EXTID 'Номенклатура' : itemData;
+GROUP specification EXTID 'Характеристика' : itemData;
+GROUP itemRecords EXTID 'Номенклатура';
 
 FORM sendMessage FORMEXTID 'Message'
     PROPERTIES ATTR = 'http://www.1c.ru/SSL/Exchange/Message' EXTID 'xmlns:msg'
@@ -123,7 +131,10 @@ FORM sendMessage FORMEXTID 'Message'
     OBJECTS configuration = Configuration
     PROPERTIES (configuration) IN header format EXTID 'msg:Format', currentDateTimeString EXTID 'msg:CreationDate'
     PROPERTIES (configuration) IN confirmation exchangePlan EXTID 'msg:ExchangePlan', toBase EXTID 'msg:To', fromBase EXTID 'msg:From', messageNo EXTID 'msg:MessageNo', receivedNo EXTID 'msg:ReceivedNo'
-    PROPERTIES (configuration) IN header availableVersion EXTID 'msg:AvailableVersion'
+    
+    OBJECTS availableVersion = INTEGER EXTID 'msg:AvailableVersion' IN header
+    PROPERTIES (configuration, availableVersion) availableVersion EXTID 'value'
+    FILTERS availableVersion(configuration, availableVersion)
 
     OBJECTS objectExchange = ObjectExchange EXTID 'msg:ObjectType' IN availableObjectTypes
     PROPERTIES  name(objectExchange) EXTID 'msg:Name', inSendingTag(objectExchange, configuration) EXTID 'msg:Sending', inReceivingTag(objectExchange, configuration) EXTID 'msg:Receiving'
@@ -131,7 +142,7 @@ FORM sendMessage FORMEXTID 'Message'
     
     PROPERTIES (configuration) IN header prefix EXTID 'msg:Prefix'
     
-    PROPERTIES empyBody(configuration) EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5:Body'
+    PROPERTIES emptyBody(configuration) EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5:Body'
 ;
 
 idReceivedTicket = DATA LOCAL INTEGER ();
@@ -344,9 +355,13 @@ META defPropObject(name, caption, type, class)
     @def###type(name, class, caption);
 END
 
-META defPropObjectDetail(name, caption, type, class, table)
+META defPropObjectDetail(name, caption, type, class, table, group)
     @defPropDetail(name, caption, type, class, table);
-    @def###type##Detail(name, class, table, caption);
+    @def###type##Detail(name, class, table, caption, group);
+END
+
+META defPropObjectDetail(name, caption, type, class, table)
+    @defPropObjectDetail(name, caption, type, class, table, name###table);
 END
 
 META defPropId(name, caption, type, class)
@@ -444,7 +459,7 @@ END
 
 META extDeleteObject(objtype, caption)
     EXTEND FORM sendMessage
-        OBJECTS objtype##Deleted = ###objtype EXTID 'УдалениеОбъекта' IN body
+        OBJECTS objtype##Deleted = ###objtype EXTID 'УдалениеОбъекта' IN bodySend
         PROPERTIES(objtype##Deleted) IN link IN linkInLink sendUid EXTID caption
         FILTERS sendUid(objtype##Deleted), EnterpriseData.isDeleted(objtype##Deleted)
         
@@ -463,6 +478,7 @@ META extTable(class, group)
     ;
 
     class###group = DATA LOCAL INTEGER (INTEGER);
+    calcIndex###class###group (INTEGER detailIndex, INTEGER docIndex) = PARTITION SUM 1 IF class###group(detailIndex) = docIndex ORDER detailIndex BY class###group(detailIndex);
     
     EXTEND FORM receiveMessage
         OBJECTS class###group = INTEGER EXTID 'Строка' IN group
@@ -489,7 +505,7 @@ META extDocument(doctype, caption)
     @defProp(company, 'Организация', Company, ###doctype);
     
     EXTEND FORM sendMessage
-        OBJECTS doctype = ###doctype EXTID 'Документ.'##caption IN body
+        OBJECTS doctype = ###doctype EXTID 'Документ.'##caption IN bodySend
         PROPERTIES(doctype) IN keyProperties sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
         FILTERS dateTimeString(doctype), id(doctype), NOT EnterpriseData.isDeleted(doctype)
        
@@ -505,7 +521,7 @@ META extDocument(doctype, caption)
     date###doctype = DATA LOCAL STRING (INTEGER);
 
     EXTEND FORM receiveMessage
-        OBJECTS doctype = INTEGER EXTID 'Документ.'##caption IN body
+        OBJECTS doctype = INTEGER EXTID 'Документ.'##caption IN bodyReceive
         PROPERTIES (doctype) IN keyProperties
                 uid###doctype EXTID 'Ссылка', id###doctype EXTID 'Номер', date###doctype EXTID 'Дата'
     ;
@@ -529,7 +545,7 @@ META extReference(reftype, capt)
     inSending (Configuration configuration, ###reftype reftype) += inSending(ObjectExchange.reftype, configuration) IF reftype IS ###reftype;
 
     EXTEND FORM sendMessage
-        OBJECTS reftype = ###reftype EXTID 'Справочник.'##capt IN body
+        OBJECTS reftype = ###reftype EXTID 'Справочник.'##capt IN bodySend
         PROPERTIES(reftype) IN keyProperties sendUid EXTID 'Ссылка'
         FILTERS in(configuration, reftype), NOT EnterpriseData.isDeleted(reftype)
     ;
@@ -538,7 +554,7 @@ META extReference(reftype, capt)
     uid###reftype = DATA LOCAL ISTRING[36](INTEGER);
     
     EXTEND FORM receiveMessage
-        OBJECTS reftype = INTEGER EXTID 'Справочник.'##capt IN body
+        OBJECTS reftype = INTEGER EXTID 'Справочник.'##capt IN bodyReceive
     
         PROPERTIES (reftype) IN keyProperties uid###reftype EXTID 'Ссылка'
     ;

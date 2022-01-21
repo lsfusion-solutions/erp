@@ -32,7 +32,7 @@ END
 CLASS ABSTRACT UOM 'Справочник.ЕдиницыИзмерения' : Reference;
 @defProp(name, 'Наименование', STRING, UOM);
 @defProp(fullName, 'НаименованиеПолное', STRING, UOM);
-META defUOMDetail (nm, class, table, extid)
+META defUOMDetail (nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = UOM EXTID extid
         PROPERTIES(nm###class###table) id EXTID 'Код', name EXTID 'Наименование'
@@ -71,17 +71,21 @@ META defItem(nm, class, extid)
     ;
 END
 
-META defItemDetail(nm, class, table, extid)
+META defItemDetail(nm, class, table, extid, group)
     EXTEND FORM sendMessage
-        OBJECTS nm###class###table = Item EXTID extid
-        PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', article EXTID 'Артикул', id EXTID 'КодВПрограмме', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное'
+        OBJECTS nm###class###table = Item IN group EXTID extid
+        PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
         FILTERS nm###class###table = nm(class###table)
     ;
     
-    uid###nm###class###table = DATA LOCAL ISTRING[36] (INTEGER);
+    uid###nm###class###table 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+    fullName###nm###class###table 'НаименованиеПолное' = DATA LOCAL STRING (INTEGER);
+    id###nm###class###table 'КодВПрограмме' = DATA LOCAL ISTRING[36] (INTEGER);
+    article###nm###class###table 'Артикул' = DATA LOCAL STRING (INTEGER);
+    name###nm###class###table 'Наименование' = DATA LOCAL STRING (INTEGER);
     
     EXTEND FORM receiveMessage
-        PROPERTIES (class###table) IN nm uid###nm###class###table EXTID 'Ссылка'
+        PROPERTIES (class###table) IN nm uid###nm###class###table EXTID 'Ссылка', fullName###nm###class###table  EXTID 'НаименованиеПолное', id###nm###class###table EXTID 'КодВПрограмме', article###nm###class###table EXTID 'Артикул', name###nm###class###table EXTID 'Наименование'  
     ;
 END
 
@@ -97,28 +101,33 @@ META defSpecification(nm, class, extid)
     ;
 END
 
-META defSpecificationDetail(nm, class, table, extid)
+META defSpecificationDetail(nm, class, table, extid, group)
     EXTEND FORM sendMessage
-        OBJECTS nm###class###table = Specification EXTID extid
+        OBJECTS nm###class###table = Specification IN group EXTID extid
         PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное'
         FILTERS nm###class###table = nm(class###table)
     ;
-    uid###nm###class###table = DATA LOCAL ISTRING[36] (INTEGER);
+    uid###nm###class###table 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+    fullName###nm###class###table 'НаименованиеПолное' = DATA LOCAL STRING (INTEGER);
     
     EXTEND FORM receiveMessage
-        PROPERTIES (class###table) IN nm uid###nm###class###table EXTID 'Ссылка'
+        PROPERTIES (class###table) IN nm uid###nm###class###table EXTID 'Ссылка', fullName###nm###class###table EXTID 'НаименованиеПолное'
     ;
+END
+
+META defSpecificationDetail(nm, class, table, extid)
+    @defSpecificationDetail(nm, class, table, extid, nm###table);
 END
 
 CLASS ABSTRACT ItemData 'ДанныеНоменклатуры';
 item 'Номенклатура' = ABSTRACT Item (ItemData);
+specification 'Характеристика' = ABSTRACT Specification (ItemData);
 META defItemDataDetail(nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = ItemData EXTID extid
         FILTERS nm###class###table = nm(class###table) 
     ;
-    @defItem(item, itemData###class###table, 'Номенклатура');
-    specification 'Характеристика' = ABSTRACT Specification (ItemData);
+    @defItemDetail(item, itemData###class, table, 'Номенклатура');
     @defSpecification(specification, itemData###class###table, 'Характеристика');
 END
 
@@ -192,6 +201,13 @@ META defStock(nm, class, extid)
         OBJECTS nm###class = Stock EXTID extid 
         PROPERTIES(nm###class) sendUid EXTID 'Ссылка', name EXTID 'Наименование', idType EXTID 'ТипСклада'
         FILTERS nm###class = nm(class)
+    ;
+    
+    uid###nm###class 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+    name###nm###class 'Наименование' = DATA LOCAL STRING (INTEGER);
+    
+    EXTEND FORM receiveMessage
+        PROPERTIES (nm###class) uid###nm###class EXTID 'Ссылка', name###nm###class EXTID 'Наименование' 
     ;
 END
 
@@ -274,7 +290,7 @@ CLASS ABSTRACT Country 'Справочник.СтраныМира' : Reference;
 @defProp(alha2, 'КодАльфа2', STRING[2], Country);
 @defProp(alha3, 'КодАльфа3', STRING[3], Country);
 @defProp(fullName, 'НаименованиеПолное', STRING, Country);
-META defCountryDetail (nm, class, table, extid)
+META defCountryDetail (nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Country EXTID extid 
         PROPERTIES(nm###class###table) id EXTID 'Код', name EXTID 'Наименование'
@@ -346,11 +362,12 @@ dateTimeString 'Дата' (Document d) = dateTimeToString(dateTime(d));
 @defPropSimple(settlements, 'ДанныеВзаиморасчетов', STRING[0], saleOrder);
 @defPropSimple(note, 'Комментарий', STRING, saleOrder);
 @extTable(saleOrder, product);
-@defPropObjectDetail(itemData, 'ДанныеНоменклатуры', ItemData, saleOrder, product);
+@defPropObjectDetail(item, 'Номенклатура', Item, saleOrder, product, itemData);
+@defPropObjectDetail(specification, 'Характеристика', Specification, saleOrder, product, itemData);
 @defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, saleOrder, product);
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleOrder, product);
 @extTable(saleOrder, service);
-@defPropObjectDetail(item, 'Номенклатура', Item, saleOrder, service);
+@defPropObjectDetail(item, 'Номенклатура', Item, saleOrder, service, itemData);
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleOrder, service);
 @defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], saleOrder, service);
 @defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], saleOrder, service);
@@ -402,11 +419,11 @@ META defSaleInvoice(nm, class, extid)
     companySaleInvoice(###class nm) += company(nm(nm));
 END
 
-META defSaleInvoiceDetail(nm, class, table, extid)
+META defSaleInvoiceDetail(nm, class, table, extid, group)
     @extKeyPropertiesDetail(nm, extid, reasonDocument, class, table);
 END
 
-META defSaleCreditNoteDetail(nm, class, table, extid)
+META defSaleCreditNoteDetail(nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = ###nm EXTID extid IN reasonDocument
         PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
@@ -465,7 +482,7 @@ in (OutcomeVatInvoice outcomeVatInvoice, OutcomeVatInvoiceDetail outcomeVatInvoi
 @defProp(company, 'Организация', Company, OutcomeVatInvoice);
 
 EXTEND FORM sendMessage
-    OBJECTS outcomeVatInvoice = OutcomeVatInvoice EXTID 'Документ.СчетФактураВыданный' IN body
+    OBJECTS outcomeVatInvoice = OutcomeVatInvoice EXTID 'Документ.СчетФактураВыданный' IN bodySend
     PROPERTIES(outcomeVatInvoice) IN keyProperties sendUid EXTID 'Ссылка', id EXTID 'Номер', dateTimeString EXTID 'Дата'
     FILTERS dateTimeString(outcomeVatInvoice), id(outcomeVatInvoice), NOT EnterpriseData.isDeleted(outcomeVatInvoice)
    
@@ -477,7 +494,7 @@ EXTEND FORM sendMessage
 ;
 
     EXTEND FORM receiveMessage
-        OBJECTS outcomeVatInvoice = INTEGER EXTID 'Документ.СчетФактураВыданный' IN body
+        OBJECTS outcomeVatInvoice = INTEGER EXTID 'Документ.СчетФактураВыданный' IN bodyReceive
     ;
 
 @extDeleteObject(outcomeVatInvoice, 'СчетФактураВыданныйСсылка');
@@ -597,7 +614,8 @@ EXTEND FORM sendMessage
 
 @extTable(shipment, product); 
 @defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, shipment, product);
-@defPropObjectDetail(item, 'Номенклатура', Item, shipment, product);
+@defPropObjectDetail(item, 'Номенклатура', Item, shipment, product, itemData);
+@defPropObjectDetail(specification, 'Характеристика', Specification, shipment, product, itemData);
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], shipment, product);
 @defPropSimpleDetail(retailSum, 'СуммаВРознице', NUMERIC[15,2], shipment, product);
 @defPropIdDetail(typeInventory, 'ТипЗапасов', TypeInventory, shipment, product);
