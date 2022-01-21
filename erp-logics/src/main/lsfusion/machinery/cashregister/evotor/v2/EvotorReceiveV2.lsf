@@ -133,6 +133,8 @@ FORM saleDoc
         fiscal_sign_doc_number, fn_serial_number
 ;        
 
+extractGS1Evotor = FORMULA STRING[200] 'split_part(($1),\'E#1D E\',1)';
+
 ///запрос документов
 getLocalDateTime (STRING closeDateTime, NUMERIC timezone) = sumSeconds(DATETIME(closeDateTime), timezone/1000);
 afterCreateReceipts ABSTRACT LIST (CashRegister, DATETIME);
@@ -197,7 +199,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
                 discountPercent(detail) <- discount_percent(j);
                 sum(detail) <- result_sum1(j);
                 receipt(detail) <- r;
-                lot(detail) <- lot(extractGS1(markCode(j)));
+                lot(detail) <- lot(extractGS1Evotor(markCode(j)));
             }
             FOR id1(INTEGER j) AND typeDoc(i) = 'PAYBACK' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j))) 
                 NEW detail = ReceiptReturnDetail DO{
