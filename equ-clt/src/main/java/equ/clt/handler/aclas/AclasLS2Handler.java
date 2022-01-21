@@ -21,6 +21,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
+import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class AclasLS2Handler extends MultithreadScalesHandler {
@@ -127,11 +128,11 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"))) {
                 bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
 
-                String barcodePrefix = scales.weightCodeGroupScales != null ? scales.weightCodeGroupScales : "22";
                 for (ScalesItem item : transaction.itemsList) {
                     bw.write(0x0d);
                     bw.write(0x0a);
                     boolean isWeight = isWeight(item, 1);
+                    String barcodePrefix = isWeight ? nvl(scales.weightCodeGroupScales, "22") : nvl(scales.pieceCodeGroupScales, "21");
                     String name = escape(trimToEmpty(item.name));
                     String name1 = name.substring(0, Math.min(name.length(), 40));
                     String name2 = name.length() > 40 ? name.substring(40, Math.min(name.length(), 80)) : "";
@@ -146,7 +147,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     String iceValue = item.extraPercent != null ? String.valueOf(safeMultiply(item.extraPercent, 10).intValue()) : "0";
 
                     Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
-                    bw.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, name2, price, unitID, "7", freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
+                    String barcodeType = item.idBarcode.length() == 6 ? "6" : "7"; //7 - для 5-значных, 6 - для 6-значных
+                    bw.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, name2, price, unitID, barcodeType, freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
                 }
             }
 
