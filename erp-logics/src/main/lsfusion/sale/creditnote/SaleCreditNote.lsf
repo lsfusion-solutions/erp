@@ -74,3 +74,20 @@ NAVIGATOR {
 
 incl 'Отм.' = DATA LOCAL BOOLEAN (CreditNote);
 countIncl = GROUP SUM 1 IF incl(CreditNote c);
+
+//запрет строк без количеств
+banEmptyCreditNoteDetail 'Запрет строк без кол-ва (акт расхождения продажа)' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () banEmptyCreditNoteDetail
+;
+
+DESIGN options {
+    sale {
+        MOVE PROPERTY(banEmptyCreditNoteDetail());
+    }
+}
+
+CONSTRAINT (OVERRIDE quantity(UserCreditNoteDetail detail), 0.0 IF detail IS UserCreditNoteDetail)=0.0 AND banEmptyCreditNoteDetail()
+    AND CHANGED(quantity(detail))
+    MESSAGE 'Для строки акта расхождения должно быть задано количество';
