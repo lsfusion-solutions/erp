@@ -1,0 +1,53 @@
+MODULE ImportAxaptaUOM;
+
+REQUIRE ImportAxapta, Item, ScalesItem;
+
+NAMESPACE ImportAxapta;
+
+sqlImportUOM 'Импорт из SQL' = DATA BOOLEAN ();
+
+importUOM 'Импорт единиц измерения' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL name = ISTRING[50] (INTEGER);
+        LOCAL unitDecimals = INTEGER (INTEGER);
+        LOCAL weightUnit = INTEGER (INTEGER);
+                
+        IF sqlImportUOM() THEN {
+            EXTERNAL SQL connectionString()
+                EXEC 'SELECT UNITID, TXT, UNITDECIMALS, WEIGHTUNIT FROM UNIT WHERE DATAAREAID = $1' 
+                PARAMS areaID() TO file;     
+        } ELSE {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' FROM f TO id, name, unitDecimals, weightUnit;
+            }
+        }
+
+        FOR (id(INTEGER i) AND NOT UOM(TEXT(id(i)))) DO NEW u = UOM {
+            id(u) <- id(i);
+        }             
+        
+        FOR id(INTEGER i) AND UOM u == UOM(id(i)) DO {
+            name(u) <- ISTRING[100] (name(i));
+            split(u) <- unitDecimals(i) > 0;
+            passScales(u) <- weightUnit(i) == 1;
+        }
+        
+        DELETE UOM u WHERE u IS UOM AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(u));       
+        
+        APPLY;        
+    }
+}
+
+EXTEND FORM integrationData
+PROPERTIES() importUOM, sqlImportUOM;
+DESIGN integrationData{
+    axaptaButtons{
+        NEW importUOMCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importUOM());
+            MOVE PROPERTY (sqlImportUOM());
+        }
+    }
+}
