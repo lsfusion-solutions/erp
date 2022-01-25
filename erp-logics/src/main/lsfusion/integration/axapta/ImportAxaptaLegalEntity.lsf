@@ -1,0 +1,48 @@
+MODULE ImportAxaptaLegalEntity;
+
+REQUIRE ImportAxapta, LegalEntity;
+
+NAMESPACE ImportAxapta;
+
+//Группы поставщиков
+sqlImportSuppliersLegalEntityGroup 'Импорт из SQL' = DATA BOOLEAN ();
+
+importSuppliersLegalEntityGroup 'Импорт групп поставщиков' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL name = STRING (INTEGER);
+        
+        IF sqlImportSuppliersLegalEntityGroup() THEN {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT VENDGROUP, NAME FROM VENDGROUP WHERE DATAAREAID = $1' 
+                PARAMS areaID() TO file; 
+        } ELSE {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' FROM f TO id, name;
+            }
+        }
+              
+        FOR id(INTEGER i) AND NOT legalEntityGroup(TEXT (id(i))) DO NEW g = LegalEntityGroup {
+            id(g) <- ISTRING[100] (id(i));
+        }
+        
+        FOR id(INTEGER i) AND LegalEntityGroup g == legalEntityGroup(id(i)) DO {
+            name(g) <- name(i);
+            parent(g) <- legalEntityGroup('suppliers');
+        }       
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+PROPERTIES() importSuppliersLegalEntityGroup, sqlImportSuppliersLegalEntityGroup;
+DESIGN integrationData{
+    axaptaButtons{
+        NEW importLegalEntityGroupCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importSuppliersLegalEntityGroup());
+            MOVE PROPERTY (sqlImportSuppliersLegalEntityGroup());
+        }
+    }
+}

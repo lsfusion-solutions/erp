@@ -1,0 +1,104 @@
+MODULE ImportAxaptaItem;
+
+REQUIRE ImportAxapta, Item, ScalesItem;
+
+NAMESPACE ImportAxapta;
+
+//Товарные группы
+sqlImportItemGroup 'Импорт из SQL' = DATA BOOLEAN ();
+
+importItemGroup 'Импорт товарных групп' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100](INTEGER);
+        LOCAL idParent = STRING[100](INTEGER);
+        LOCAL prefix = ISTRING[250] (INTEGER);
+        LOCAL name = ISTRING[250] (INTEGER);
+        
+        IF sqlImportItemGroup() THEN {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT RANGEID, RANGEIDPARENT, PREFIX, NAME FROM INVENTITEMRANGE WHERE DATAAREAID = $1' 
+                PARAMS areaID() TO file; 
+        } ELSE {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' FROM f TO id, idParent, prefix, name;
+            }
+        }
+               
+        FOR id(INTEGER i) AND NOT itemGroup(id(i)) DO NEW g = ItemGroup {
+            id(g) <- id(i);
+        }
+        
+        FOR id(INTEGER i) AND ItemGroup g == itemGroup(id(i)) DO {
+            name(g) <- CONCAT ' ', prefix(i), name(i);
+            parent(g) <- itemGroup(idParent(i));
+        }     
+        DELETE ItemGroup g WHERE g IS ItemGroup AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));                   
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importItemGroup, sqlImportItemGroup
+;
+    
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importItemGroupCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importItemGroup());
+            MOVE PROPERTY (sqlImportItemGroup());
+        }
+    }
+}
+
+//Единицы измерения
+sqlImportUOM 'Импорт из SQL' = DATA BOOLEAN ();
+
+importUOM 'Импорт единиц измерения' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL name = ISTRING[50] (INTEGER);
+        LOCAL unitDecimals = INTEGER (INTEGER);
+        LOCAL weightUnit = INTEGER (INTEGER);
+                
+        IF sqlImportUOM() THEN {
+            EXTERNAL SQL connectionString()
+                EXEC 'SELECT UNITID, TXT, UNITDECIMALS, WEIGHTUNIT FROM UNIT WHERE DATAAREAID = $1' 
+                PARAMS areaID() TO file;     
+        } ELSE {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' FROM f TO id, name, unitDecimals, weightUnit;
+            }
+        }
+
+        FOR id(INTEGER i) AND NOT UOM(id(i)) DO NEW u = UOM {
+            id(u) <- id(i);
+        }             
+        
+        FOR id(INTEGER i) AND UOM u == UOM(id(i)) DO {
+            name(u) <- ISTRING[100] (name(i));
+            split(u) <- unitDecimals(i) > 0;
+            passScales(u) <- weightUnit(i) == 1;
+        }
+        
+        DELETE UOM u WHERE u IS UOM AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(u));       
+        
+        APPLY;        
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importUOM, sqlImportUOM
+;
+
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importUOMCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importUOM());
+            MOVE PROPERTY (sqlImportUOM());
+        }
+    }
+}
