@@ -141,6 +141,9 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                 if (cashRegisterTaxLM != null) {
                     receiptDetailQuery.addProperty("numberSection", cashRegisterTaxLM.findProperty("numberSection[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
                 }
+                if(posGiftCardLM != null) {
+                    receiptDetailQuery.addProperty("isReturn", posGiftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                }
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
                 List<ReceiptItem> receiptSaleItemList = new ArrayList<>();
@@ -169,15 +172,26 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                     BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
                     Integer numberSection = (Integer) receiptDetailValues.get("numberSection");
-                    if (quantitySale > 0 && !isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, isCharge, price, quantitySale, barcode, name, sumReceiptDetail,
-                                discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail, numberSection));
-                    if (quantity > 0 && isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, isCharge, price, quantity, barcode, "Подарочный сертификат",
-                                sumReceiptDetail, discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail, numberSection));
-                    if (quantityReturn > 0)
-                        receiptReturnItemList.add(new ReceiptItem(isGiftCard, isCharge, price, quantityReturn, barcode, name, sumReceiptDetail,
-                                discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail, numberSection));
+                    boolean isReturn = receiptDetailValues.get("isReturn") != null;
+                    if(isGiftCard) {
+                        if (quantity > 0) {
+                            if (isReturn) {
+                                receiptReturnItemList.add(new ReceiptItem(true, isCharge, price, quantity, barcode, "Подарочный сертификат", sumReceiptDetail,
+                                        discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail, numberSection));
+                            } else {
+                                receiptSaleItemList.add(new ReceiptItem(true, isCharge, price, quantity, barcode, "Подарочный сертификат", sumReceiptDetail,
+                                        discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail, numberSection));
+                            }
+                        }
+                    } else {
+                        if (quantitySale > 0)
+                            receiptSaleItemList.add(new ReceiptItem(false, isCharge, price, quantitySale, barcode, name, sumReceiptDetail,
+                                    discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail, numberSection));
+                        if (quantityReturn > 0)
+                            receiptReturnItemList.add(new ReceiptItem(false, isCharge, price, quantityReturn, barcode, name, sumReceiptDetail,
+                                    discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail, numberSection));
+                    }
+
                 }
 
                 if (context.checkApply()) {
