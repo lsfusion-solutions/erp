@@ -396,10 +396,13 @@ nameCurrency 'Валюта' (LabelTransactionDetail d) = name(currency(d));
 
 fullNameLegalEntity 'Компания (полное наименование)' (LabelTransactionDetail d) = fullNameLegalEntity(labelTransaction(d));
 
-priceLabelTransactionDetail 'Текущая цена на ценниках' (sku, stock) =
-    GROUP LAST (price(LabelTransactionDetail ledger) / OVERRIDE amount(dataBarcode(ledger)), 1.0)
+lastLabelTransactionDetail 'Текущая цена на ценниках' (sku, stock) =
+    GROUP LAST LabelTransactionDetail ledger
           ORDER createdTime(ledger), ledger
           BY sku(ledger), departmentStore(ledger) MATERIALIZED TABLE extraSkuStock;
+                    
+priceLabelTransactionDetail 'Текущая цена на ценниках' (Sku s, Stock st) = (price(lastLabelTransactionDetail(s,st)) / OVERRIDE amount(dataBarcode(lastLabelTransactionDetail(s,st))), 1.0);
+          
 prevPriceLabelTransactionDetail'Текущая цена на ценниках'(Sku sk, Stock st) = PREV(priceLabelTransactionDetail(sk, st));
 
 firstSort = ABSTRACT VALUE STRING[100] (LabelTransactionDetail);
