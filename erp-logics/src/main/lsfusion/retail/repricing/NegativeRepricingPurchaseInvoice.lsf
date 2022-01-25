@@ -43,6 +43,12 @@ repricingOperation (UserInvoice invoice) <- repricingOperation()
 // Комиссия
 @defineDocumentHeaderRepricingCommittee (invoice, customerStock) ; 
 
+numberDisposal '№ распоряжения на переоценку' (Invoice invoice) = OVERRIDE dataNumberDisposal(invoice), numberDisposal(customerStock(invoice)) IN documentPrm;
+changeNumberDisposal(Invoice invoice)  { 
+    INPUT s = STRING[50] DO
+        dataNumberDisposal(invoice) <- s;        
+}
+
 afterRetailPrice = GROUP SUM 1 IF afterRetailPrice(InvoiceDetail d)
     BY invoice(d) MATERIALIZED;
 
@@ -99,7 +105,7 @@ note(InvoiceRepricingN repricing) += noteDisparity(repricing);
 currency  (InvoiceRepricingN repricing) = currency(invoice(repricing));
 currency (InvoiceRepricingN repricing) += currency(repricing);
 repricingCommittee(InvoiceRepricingN repricing) += repricingCommittee(invoice(repricing));
-numberDisposal(InvoiceRepricingN repricing) += dataNumberDisposal(invoice(repricing));
+numberDisposal(InvoiceRepricingN repricing) += numberDisposal(invoice(repricing));
 
 @defineDocumentHeaderDescription(InvoiceRepricingN, 'Акт переоценки (отрицательные ТН)');
 @defineDocumentDetailDescription(invoiceRepricingN, InvoiceRepricingNDetail);
@@ -224,7 +230,7 @@ showCreateAfterRetailPrice(UserInvoice i) =
 EXTEND FORM userInvoice
 
     PROPERTIES(i)   BACKGROUND backgroundAfter(i) SHOWIF showRepricingN(i) nameOperation = nameRepricingOperation,
-                    nameCommittee = nameRepricingCommittee, numberDisposal = dataNumberDisposal
+                    nameCommittee = nameRepricingCommittee, numberDisposal = numberDisposal ON CHANGE changeNumberDisposal(i)
 
     PROPERTIES(pd) BACKGROUND backgroundAfter(i) SHOWIF showRepricingN(i) 
                     pricingQuantityN READONLY, afterPrice, afterSum,
