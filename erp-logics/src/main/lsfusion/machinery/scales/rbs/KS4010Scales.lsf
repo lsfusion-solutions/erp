@@ -20,7 +20,7 @@ WHEN CHANGED (image(Item i)) DO {
     imageRBS(i) <- NULL;
 }
 
-code = DATA LOCAL STRING();
+code = DATA LOCAL INTEGER ();
 message = DATA LOCAL STRING(INTEGER);
 FORM result
     PROPERTIES () code
@@ -146,20 +146,5 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             }
             
         APPLY;
-    }
-}
-
-//
-dataCustomGroupTypeRBS = DATA CustomGroupType(GroupScales);
-skipSkuWioutGroupRBS 'Не выгружать товары без классификатора' = DATA BOOLEAN (GroupScales);
-migrateRbs = DATA BOOLEAN ();
-onStarted() +{ 
-    IF NOT migrateRbs() THEN {
-        NEWSESSION {
-            migrateRbs() <- TRUE;
-            dataCustomGroupType(GroupScales s) <- dataCustomGroupTypeRBS(s);
-            skipSkuWioutGroup(GroupScales s) <- skipSkuWioutGroupRBS(s);
-            APPLY;   
-        }
     }
 }
