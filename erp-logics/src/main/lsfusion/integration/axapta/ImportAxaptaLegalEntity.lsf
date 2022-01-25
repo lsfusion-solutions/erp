@@ -1,19 +1,19 @@
 MODULE ImportAxaptaLegalEntity;
 
-REQUIRE ImportAxapta, LegalEntity;
+REQUIRE ImportAxapta, LegalEntityRu, Warehouse;
 
 NAMESPACE ImportAxapta;
 
 //Группы поставщиков
-sqlImportSuppliersLegalEntityGroup 'Импорт из SQL' = DATA BOOLEAN ();
+sqlImportSupplierLegalEntityGroup 'Импорт из SQL' = DATA BOOLEAN ();
 
-importSuppliersLegalEntityGroup 'Импорт групп поставщиков' () {
+importSupplierLegalEntityGroup 'Импорт групп поставщиков' () {
     NEWSESSION {
         LOCAL file = FILE ();    
         LOCAL id = STRING[100] (INTEGER);
-        LOCAL name = STRING (INTEGER);
+        LOCAL name = ISTRING[100] (INTEGER);
         
-        IF sqlImportSuppliersLegalEntityGroup() THEN {
+        IF sqlImportSupplierLegalEntityGroup() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT VENDGROUP, NAME FROM VENDGROUP WHERE DATAAREAID = $1' 
                 PARAMS areaID() TO file; 
@@ -23,7 +23,7 @@ importSuppliersLegalEntityGroup 'Импорт групп поставщиков'
             }
         }
               
-        FOR id(INTEGER i) AND NOT legalEntityGroup(TEXT (id(i))) DO NEW g = LegalEntityGroup {
+        FOR id(INTEGER i) AND NOT legalEntityGroup(id(i)) DO NEW g = LegalEntityGroup {
             id(g) <- ISTRING[100] (id(i));
         }
         
@@ -36,13 +36,75 @@ importSuppliersLegalEntityGroup 'Импорт групп поставщиков'
 }
 
 EXTEND FORM integrationData
-PROPERTIES() importSuppliersLegalEntityGroup, sqlImportSuppliersLegalEntityGroup;
+PROPERTIES() importSupplierLegalEntityGroup, sqlImportSupplierLegalEntityGroup;
 DESIGN integrationData{
     axaptaButtons{
         NEW importLegalEntityGroupCont {
             type = CONTAINERH;
-            MOVE PROPERTY (importSuppliersLegalEntityGroup());
-            MOVE PROPERTY (sqlImportSuppliersLegalEntityGroup());
+            MOVE PROPERTY (importSupplierLegalEntityGroup());
+            MOVE PROPERTY (sqlImportSupplierLegalEntityGroup());
+        }
+    }
+}
+
+//Поставщики
+sqlImportSupplierLegalEntity 'Импорт из SQL' = DATA BOOLEAN ();
+
+importSupplierLegalEntity 'Импорт поставщиков' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL idGroup = STRING[100] (INTEGER);
+        LOCAL name = STRING[150] (INTEGER);
+        LOCAL address = STRING[150] (INTEGER);
+        LOCAL phone = STRING[100] (INTEGER);
+        LOCAL email = STRING[400] (INTEGER);
+        LOCAL inn = STRING[12] (INTEGER);
+        LOCAL kpp = STRING[9] (INTEGER);
+        
+        IF sqlImportSupplierLegalEntity() THEN {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT ACCOUNTNUM, NAME, ADDRESS, PHONE, VENDGROUP, EMAIL, INN_RU, KPP_RU FROM VENDTABLE WHERE DATAAREAID = $1' 
+                PARAMS areaID() TO file; 
+        } ELSE {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOESCAPE FROM f TO id, name, address, phone, idGroup, email, inn, kpp;
+            }
+        }
+              
+        FOR id(INTEGER i) AND NOT legalEntity(id(i)) DO NEW g = LegalEntity {
+            id(g) <- (id(i));
+            NEW st = Warehouse {
+                id(st) <- CONCAT '', 'Склад', (id(i));
+                legalEntity(st) <- g;
+                warehouseGroup(st) <- warehouseGroup('external');
+            }
+        }
+        
+        FOR id(INTEGER i) AND LegalEntity l == legalEntity(id(i)) DO {
+            name(l) <- name(i);
+            dataAddress(l, currentDate()) <- address(i) WHERE NOT address(l) = address(i);
+            dataPhone(l, currentDate()) <- phone(i) WHERE NOT phone(l) = phone(i);
+            legalEntityGroup(l) <- legalEntityGroup(idGroup(i));
+            email(l) <- email(i);
+            inn(l) <- inn(i);
+            dataKpp(l, currentDate()) <- kpp(i) WHERE NOT kpp(l) = kpp(i);
+        }      
+
+        //DELETE LegalEntity l WHERE l IS LegalEntity AND isParent(legalEntityGroup(l), legalEntityGroup('supplier')) AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(l));
+                       
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+PROPERTIES() importSupplierLegalEntity, sqlImportSupplierLegalEntity;
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importLegalEntityCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importSupplierLegalEntity());
+            MOVE PROPERTY (sqlImportSupplierLegalEntity());
         }
     }
 }
