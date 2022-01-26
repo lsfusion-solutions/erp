@@ -1,6 +1,6 @@
 MODULE ImportAxaptaItem;
 
-REQUIRE ImportAxapta, Item, ScalesItem;
+REQUIRE ImportAxapta, Item, ScalesItem, ItemBrandGroup;
 
 NAMESPACE ImportAxapta;
 
@@ -99,6 +99,102 @@ DESIGN integrationData {
             type = CONTAINERH;
             MOVE PROPERTY (importUOM());
             MOVE PROPERTY (sqlImportUOM());
+        }
+    }
+}
+
+//Группы брендов
+sqlImportBrandGroup 'Импорт из SQL' = DATA BOOLEAN ();
+
+importBrandGroup 'Импорт групп брендов' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100](INTEGER);
+        LOCAL name = STRING[200] (INTEGER);
+        LOCAL idParent = STRING[100](INTEGER);
+        
+        IF sqlImportBrandGroup() THEN {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT GROUPID, NAME FROM OWNERTMGROUP WHERE DATAAREAID = $1' 
+                PARAMS areaID() TO file; 
+        } ELSE {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' FROM f TO id, name, idParent;
+            }
+        }
+               
+        FOR id(INTEGER i) AND NOT brandGroup(id(i)) DO NEW g = BrandGroup {
+            id(g) <- id(i);
+        }
+        
+        FOR id(INTEGER i) AND BrandGroup g == brandGroup(id(i)) DO {
+            name(g) <- name(i);
+            parent(g) <- brandGroup(idParent(i));
+        }     
+        
+        //DELETE BrandGroup g WHERE g IS BrandGroup AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));                   
+        
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importBrandGroup, sqlImportBrandGroup
+;
+    
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importBrandGroupCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importBrandGroup());
+            MOVE PROPERTY (sqlImportBrandGroup());
+        }
+    }
+}
+
+//Бренды
+sqlImportBrand 'Импорт из SQL' = DATA BOOLEAN ();
+
+importBrand 'Импорт брендов' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL name = ISTRING[50] (INTEGER);
+        LOCAL idGroup = STRING[100] (INTEGER);
+                
+        IF sqlImportBrand() THEN {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT OWNERTMID, NAME, OWNERTMGROUPID FROM OWNERTM WHERE DATAAREAID = $1' 
+                PARAMS areaID() TO file; 
+        } ELSE {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOESCAPE FROM f TO id, name, idGroup;
+            }
+        }
+              
+        FOR id(INTEGER i) AND NOT brand(id(i)) DO NEW g = Brand {
+            id(g) <- (id(i));
+        }
+        
+        FOR id(INTEGER i) AND Brand l == brand(id(i)) DO {
+            name(l) <- name(i);
+            brandGroup(l) <- brandGroup(idGroup(i));
+        }      
+
+        //DELETE Brand b WHERE b IS Brand AND NOT staticName(b) AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(b));
+                       
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+PROPERTIES() importBrand, sqlImportBrand;
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importBrandCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importBrand());
+            MOVE PROPERTY (sqlImportBrand());
         }
     }
 }
