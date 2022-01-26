@@ -101,6 +101,13 @@ createOrder(FILE f){
         logToFile('glovo', CONCAT ' : ', 'IN query', resultString());
     }
     IMPORT importOrderGlovo FROM f;
+    LOCAL glovoOrder = InternetOrder ();
+    glovoOrder() <- GROUP MAX InternetOrder o IF idAggregator(o) = order_id();
+    IF glovoOrder() THEN {
+        logToFile('glovo', CONCAT ' : ', 'IN DOUBLE query', resultString());
+        EXPORT JSON FROM status = 'ok';
+        RETURN;
+    }
     NEW order = InternetOrder{
         date(order) <- currentDate();
         time(order) <- currentTime();
