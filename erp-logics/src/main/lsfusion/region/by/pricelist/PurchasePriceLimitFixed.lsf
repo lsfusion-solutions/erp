@@ -22,9 +22,11 @@ DESIGN options {
 }
 
 maxLimitPrice 'Максимальная цена' (UserInvoiceDetail d) = prevPriceA(maxLimitPriceListType(), sku(d), customerStock(d), pricingDateTime(d));
+
+skipMaxMinLimitPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             SETCHANGED(retailPrice(UserInvoiceDetail d))
-            AND maxLimitPrice(d) < retailPrice(d) DO {
+            AND maxLimitPrice(d) < retailPrice(d) AND NOT skipMaxMinLimitPrice(d)  DO {
     retailPrice(d) <- maxLimitPrice(d);
     retailMarkup(d) <- calcRetailMarkup(d);
 }
@@ -32,7 +34,7 @@ WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
 minLimitPrice 'Минимальная цена' (UserInvoiceDetail d) = prevPriceA(minLimitPriceListType(), sku(d), customerStock(d), pricingDateTime(d));
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             SETCHANGED(retailPrice(UserInvoiceDetail d))
-            AND minLimitPrice(d) > retailPrice(d) DO {
+            AND minLimitPrice(d) > retailPrice(d) AND NOT skipMaxMinLimitPrice(d) DO {
     retailPrice(d) <- minLimitPrice(d);
     retailMarkup(d) <- calcRetailMarkup(d);
 }
