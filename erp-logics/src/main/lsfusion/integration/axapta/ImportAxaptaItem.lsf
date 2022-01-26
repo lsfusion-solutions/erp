@@ -1,12 +1,10 @@
 MODULE ImportAxaptaItem;
 
-REQUIRE ImportAxapta, Item, ScalesItem, ItemBrandGroup;
+REQUIRE ImportAxapta, Item, ScalesItem, ItemBrandGroup, TaxItem, PurchasePack, ItemSize;
 
 NAMESPACE ImportAxapta;
 
 //Товарные группы
-sqlImportItemGroup 'Импорт из SQL' = DATA BOOLEAN ();
-
 importItemGroup 'Импорт товарных групп' () {
     NEWSESSION {
         LOCAL file = FILE ();    
@@ -15,13 +13,14 @@ importItemGroup 'Импорт товарных групп' () {
         LOCAL prefix = ISTRING[250] (INTEGER);
         LOCAL name = ISTRING[250] (INTEGER);
         
-        IF sqlImportItemGroup() THEN {
+        IF sqlImport() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT RANGEID, RANGEIDPARENT, PREFIX, NAME FROM INVENTITEMRANGE WHERE DATAAREAID = $1' 
-                PARAMS areaID() TO file; 
+                PARAMS areaId() TO file;
+                IMPORT TABLE FROM file() TO id, idParent, prefix, name;
         } ELSE {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER FROM f TO id, idParent, prefix, name;
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, idParent, prefix, name;
             }
         }
                
@@ -39,7 +38,7 @@ importItemGroup 'Импорт товарных групп' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importItemGroup, sqlImportItemGroup
+    PROPERTIES() importItemGroup
 ;
     
 DESIGN integrationData {
@@ -47,13 +46,13 @@ DESIGN integrationData {
         NEW importItemGroupCont {
             type = CONTAINERH;
             MOVE PROPERTY (importItemGroup());
-            MOVE PROPERTY (sqlImportItemGroup());
         }
     }
 }
 
 //Единицы измерения
-sqlImportUOM 'Импорт из SQL' = DATA BOOLEAN ();
+dataAreaIdUOM 'Area ID' = DATA ISTRING[100]();
+areaIdUOM 'Area ID' () = OVERRIDE dataAreaIdUOM(), areaId();
 
 importUOM 'Импорт единиц измерения' () {
     NEWSESSION {
@@ -63,16 +62,17 @@ importUOM 'Импорт единиц измерения' () {
         LOCAL unitDecimals = INTEGER (INTEGER);
         LOCAL weightUnit = INTEGER (INTEGER);
                 
-        IF sqlImportUOM() THEN {
+        IF sqlImport() THEN {
             EXTERNAL SQL connectionString()
                 EXEC 'SELECT UNITID, TXT, UNITDECIMALS, WEIGHTUNIT FROM UNIT WHERE DATAAREAID = $1' 
-                PARAMS areaID() TO file;     
+                PARAMS areaIdUOM() TO file;    
+                IMPORT TABLE FROM file() TO id, name, unitDecimals, weightUnit;
         } ELSE {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER FROM f TO id, name, unitDecimals, weightUnit;
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, unitDecimals, weightUnit;
             }
         }
-
+                
         FOR id(INTEGER i) AND NOT UOM(id(i)) DO NEW u = UOM {
             id(u) <- id(i);
         }             
@@ -90,7 +90,7 @@ importUOM 'Импорт единиц измерения' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importUOM, sqlImportUOM
+    PROPERTIES() importUOM
 ;
 
 DESIGN integrationData {
@@ -98,29 +98,31 @@ DESIGN integrationData {
         NEW importUOMCont {
             type = CONTAINERH;
             MOVE PROPERTY (importUOM());
-            MOVE PROPERTY (sqlImportUOM());
         }
     }
 }
 
 //Группы брендов
-sqlImportBrandGroup 'Импорт из SQL' = DATA BOOLEAN ();
-
 importBrandGroup 'Импорт групп брендов' () {
     NEWSESSION {
         LOCAL file = FILE ();    
         LOCAL id = STRING[100](INTEGER);
         LOCAL name = STRING[200] (INTEGER);
-        LOCAL idParent = STRING[100](INTEGER);
         
-        IF sqlImportBrandGroup() THEN {
+        IF sqlImport() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT GROUPID, NAME FROM OWNERTMGROUP WHERE DATAAREAID = $1' 
-                PARAMS areaID() TO file; 
+                PARAMS areaId() TO file; 
+                IMPORT TABLE FROM file() TO id, name;
         } ELSE {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER FROM f TO id, name, idParent;
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
             }
+        }
+        
+        IF NOT brandGroup('all') THEN NEW g = BrandGroup {
+            id(g) <- 'all';
+            name(g) <- 'Все';
         }
                
         FOR id(INTEGER i) AND NOT brandGroup(id(i)) DO NEW g = BrandGroup {
@@ -129,7 +131,7 @@ importBrandGroup 'Импорт групп брендов' () {
         
         FOR id(INTEGER i) AND BrandGroup g == brandGroup(id(i)) DO {
             name(g) <- name(i);
-            parent(g) <- brandGroup(idParent(i));
+            parent(g) <- brandGroup('all');
         }     
         
         //DELETE BrandGroup g WHERE g IS BrandGroup AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));                   
@@ -139,7 +141,7 @@ importBrandGroup 'Импорт групп брендов' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importBrandGroup, sqlImportBrandGroup
+    PROPERTIES() importBrandGroup
 ;
     
 DESIGN integrationData {
@@ -147,14 +149,11 @@ DESIGN integrationData {
         NEW importBrandGroupCont {
             type = CONTAINERH;
             MOVE PROPERTY (importBrandGroup());
-            MOVE PROPERTY (sqlImportBrandGroup());
         }
     }
 }
 
 //Бренды
-sqlImportBrand 'Импорт из SQL' = DATA BOOLEAN ();
-
 importBrand 'Импорт брендов' () {
     NEWSESSION {
         LOCAL file = FILE ();    
@@ -162,10 +161,11 @@ importBrand 'Импорт брендов' () {
         LOCAL name = ISTRING[50] (INTEGER);
         LOCAL idGroup = STRING[100] (INTEGER);
                 
-        IF sqlImportBrand() THEN {
+        IF sqlImport() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT OWNERTMID, NAME, OWNERTMGROUPID FROM OWNERTM WHERE DATAAREAID = $1' 
-                PARAMS areaID() TO file; 
+                PARAMS areaId() TO file;
+                IMPORT TABLE FROM file() TO id, name, idGroup;
         } ELSE {
             INPUT f = CSVFILE DO {
                 IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, idGroup;
@@ -188,13 +188,122 @@ importBrand 'Импорт брендов' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importBrand, sqlImportBrand;
+    PROPERTIES() importBrand
+;
+
 DESIGN integrationData {
     axaptaButtons {
         NEW importBrandCont {
             type = CONTAINERH;
             MOVE PROPERTY (importBrand());
-            MOVE PROPERTY (sqlImportBrand());
         }
+    }
+}
+
+//Товары
+extID 'Код' = DATA STRING[200] (Range);
+rangeExtID (extID) = GROUP AGGR Range range BY extID (range);
+
+EXTEND FORM integrationData
+    OBJECTS r=Range
+    PROPERTIES(r) extID
+    PROPERTIES(r) READONLY number, nameTax, nameCountry, nameRangeType, note, valueCurrentRate, dateFromCurrentRate
+    FILTERS country(r) == defaultCountry()
+;
+DESIGN integrationData {
+    importAxaptaCont {
+        MOVE BOX (r) {width = 1300;}
+    }
+}
+
+importItem 'Импорт товаров' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL name = ISTRING[255] (INTEGER);
+        LOCAL idGroup = STRING[100] (INTEGER);
+        LOCAL idUOM = STRING[100] (INTEGER);
+        LOCAL idEx = STRING (INTEGER);
+        LOCAL idBrand = STRING[100] (INTEGER);
+        LOCAL netWeight = NUMERIC[11,5] (INTEGER);
+        LOCAL volume = NUMERIC[9,3] (INTEGER);
+        LOCAL idManufacturer = STRING[200] (INTEGER);
+        LOCAL amountPack = NUMERIC[14,3] (INTEGER);
+                   
+        IF sqlImport() THEN {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT i.ITEMID, ' +
+                             'i.ITEMNAME, ' +
+                             'i.ITEMRANGEID, ' +
+                             'im0.UNITID, ' +
+                             'im2.TAXITEMGROUPID, ' +
+                             'OWNERTMID, ' +
+                             'NETWEIGHT, ' +
+                             'UNITVOLUME, ' +
+                             'PROVIDERFORPRICE, ' +
+                             'im0.QUANTITY ' +                    
+                      'FROM INVENTTABLE i ' +
+                          'JOIN INVENTTABLEMODULE im0 ON im0.ITEMID = i.ITEMID ' +
+                          'AND im0.MODULETYPE = 0 ' +
+                          'JOIN INVENTTABLEMODULE im1 ON im1.ITEMID = i.ITEMID ' +
+                          'AND im1.MODULETYPE = 1 ' +
+                          'JOIN INVENTTABLEMODULE im2 ON im2.ITEMID = i.ITEMID ' +
+                          'AND im2.MODULETYPE = 2 ' +
+                      'WHERE DATAAREAID = $1' 
+                PARAMS areaId() TO file; 
+                IMPORT TABLE FROM file() TO id, name, idGroup, idUOM, idEx, idBrand, netWeight, volume, idManufacturer, amountPack;      
+        } ELSE {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, idGroup, idUOM, idEx, idBrand, netWeight, volume, idManufacturer, amountPack;      
+            }
+        }
+                            
+        FOR id(INTEGER i) AND NOT item(id(i)) DO NEW g = Item {
+            id(g) <- (id(i));
+        }
+
+        FOR INTEGER i1 = [GROUP MAX INTEGER i BY idManufacturer(i)](STRING idManufacturer) AND NOT manufacturer(idManufacturer)  DO {
+            NEW m = Manufacturer {
+               id(m) <- idManufacturer;
+               name(m) <- idManufacturer;
+            }
+        }
+          
+        FOR id(INTEGER i) AND Item item == item(id(i)) DO {
+            caption(item) <- name(i);
+            itemGroup(item) <- itemGroup(idGroup(i));
+            UOM(item) <- UOM(idUOM(i));
+            VAT(item, defaultCountry()) <- rangeExtID(idEx(i));
+            brand(item) <- brand(idBrand(i));
+            netWeight(item) <- netWeight(i);
+            volume(item) <- volume(i);
+            manufacturer(item) <- manufacturer(idManufacturer(i));
+        }
+        
+        FOR id(INTEGER i) AND Item item == item(id(i)) AND NOT Purchase.packBarcode(item) DO NEW b = Barcode {
+            sku(b) <- item;
+            Purchase.packBarcode(Item s) <- b WHERE s = item;
+            dataAmount(b) <- (amountPack(i));
+        }        
+        
+        DELETE Item b WHERE b IS Item AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(b));
+                       
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importItem
+;
+DESIGN integrationData {
+    axaptaButtons {
+        fill = 0.1;
+        NEW importItemCont {               
+            type = CONTAINERH;
+            MOVE PROPERTY (importItem());
+        }
+    }
+    importAxaptaCont {
+        MOVE BOX (r) {fill = 1;}
     }
 }

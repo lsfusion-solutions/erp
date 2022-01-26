@@ -7,13 +7,15 @@ base 'База' = DATA ISTRING[100]();
 login 'Логин' = DATA ISTRING[100]();
 password 'Пароль' = DATA ISTRING[100]() ECHO;
 
-areaID 'Area ID' = DATA ISTRING[100]();
+areaId 'Area ID' = DATA ISTRING[100]();
  
 connectionString = 'jdbc:sqlserver://' + host() + ';databaseName=' + base() + 
                     ';User=' + login() + ';Password=' + password();
 
+sqlImport 'Импорт из SQL' = DATA BOOLEAN ();
+
 EXTEND FORM integrationData 
-    PROPERTIES () hostAX = host, base, login, password
+    PROPERTIES () sqlImport, hostAX = host, base, login, password, areaId;
 ;
 
 DESIGN integrationData {
@@ -24,13 +26,19 @@ DESIGN integrationData {
             NEW axaptaSQLParams {
                 type = CONTAINERH;
                 caption = 'Параметры';
+                MOVE PROPERTY (sqlImport());
                 MOVE PROPERTY (hostAX);
                 MOVE PROPERTY (base());
                 MOVE PROPERTY (login());
                 MOVE PROPERTY (password());
+                MOVE PROPERTY (areaId());
             }
-            NEW axaptaButtons { 
-                caption = 'Импорт';
+            NEW importAxaptaCont {
+                type = CONTAINERH ;
+                NEW axaptaButtons { 
+                    caption = 'Импорт';
+                    fill = 1;
+                }
             }
         }
     }

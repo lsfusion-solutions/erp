@@ -5,21 +5,20 @@ REQUIRE ImportAxapta, LegalEntityRu, Warehouse;
 NAMESPACE ImportAxapta;
 
 //Группы поставщиков
-sqlImportSupplierLegalEntityGroup 'Импорт из SQL' = DATA BOOLEAN ();
-
 importSupplierLegalEntityGroup 'Импорт групп поставщиков' () {
     NEWSESSION {
         LOCAL file = FILE ();    
         LOCAL id = STRING[100] (INTEGER);
         LOCAL name = ISTRING[100] (INTEGER);
         
-        IF sqlImportSupplierLegalEntityGroup() THEN {
+        IF sqlImport() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT VENDGROUP, NAME FROM VENDGROUP WHERE DATAAREAID = $1' 
-                PARAMS areaID() TO file; 
+                PARAMS areaId() TO file;
+                IMPORT TABLE FROM file() TO id, name;
         } ELSE {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER FROM f TO id, name;
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
             }
         }
               
@@ -36,7 +35,7 @@ importSupplierLegalEntityGroup 'Импорт групп поставщиков' 
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importSupplierLegalEntityGroup, sqlImportSupplierLegalEntityGroup
+    PROPERTIES() importSupplierLegalEntityGroup
 ;
 
 DESIGN integrationData{
@@ -44,14 +43,11 @@ DESIGN integrationData{
         NEW importSupplierLegalEntityGroupCont {
             type = CONTAINERH;
             MOVE PROPERTY (importSupplierLegalEntityGroup());
-            MOVE PROPERTY (sqlImportSupplierLegalEntityGroup());
         }
     }
 }
 
 //Поставщики
-sqlImportSupplierLegalEntity 'Импорт из SQL' = DATA BOOLEAN ();
-
 importSupplierLegalEntity 'Импорт поставщиков' () {
     NEWSESSION {
         LOCAL file = FILE ();    
@@ -64,16 +60,17 @@ importSupplierLegalEntity 'Импорт поставщиков' () {
         LOCAL inn = STRING[12] (INTEGER);
         LOCAL kpp = STRING[9] (INTEGER);
         
-        IF sqlImportSupplierLegalEntity() THEN {
+        IF sqlImport() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT ACCOUNTNUM, NAME, ADDRESS, PHONE, VENDGROUP, EMAIL, INN_RU, KPP_RU FROM VENDTABLE WHERE DATAAREAID = $1' 
-                PARAMS areaID() TO file; 
+                PARAMS areaId() TO file;
+                IMPORT TABLE FROM file() TO id, name, address, phone, idGroup, email, inn, kpp;
         } ELSE {
             INPUT f = CSVFILE DO {
                 IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, address, phone, idGroup, email, inn, kpp;
             }
         }
-              
+                      
         FOR id(INTEGER i) AND NOT legalEntity(id(i)) DO NEW g = LegalEntity {
             id(g) <- (id(i));
             NEW st = Warehouse {
@@ -100,7 +97,7 @@ importSupplierLegalEntity 'Импорт поставщиков' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importSupplierLegalEntity, sqlImportSupplierLegalEntity
+    PROPERTIES() importSupplierLegalEntity
 ;
 
 DESIGN integrationData {
@@ -108,27 +105,25 @@ DESIGN integrationData {
         NEW importSupplierLegalEntityCont {
             type = CONTAINERH;
             MOVE PROPERTY (importSupplierLegalEntity());
-            MOVE PROPERTY (sqlImportSupplierLegalEntity());
         }
     }
 }
 
 //Группы покупателей
-sqlImportCustomerLegalEntityGroup 'Импорт из SQL' = DATA BOOLEAN ();
-
 importCustomerLegalEntityGroup 'Импорт групп покупателей' () {
     NEWSESSION {
         LOCAL file = FILE ();    
         LOCAL id = STRING[100] (INTEGER);
         LOCAL name = ISTRING[100] (INTEGER);
         
-        IF sqlImportCustomerLegalEntityGroup() THEN {
+        IF sqlImport() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT CUSTGROUP, NAME FROM CUSTGROUP WHERE DATAAREAID = $1' 
-                PARAMS areaID() TO file; 
+                PARAMS areaId() TO file;
+                IMPORT TABLE FROM file() TO id, name;
         } ELSE {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER FROM f TO id, name;
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
             }
         }
               
@@ -145,7 +140,7 @@ importCustomerLegalEntityGroup 'Импорт групп покупателей' 
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importCustomerLegalEntityGroup, sqlImportCustomerLegalEntityGroup
+    PROPERTIES() importCustomerLegalEntityGroup
 ;
 
 DESIGN integrationData{
@@ -153,14 +148,11 @@ DESIGN integrationData{
         NEW importCustomerLegalEntityGroupCont {
             type = CONTAINERH;
             MOVE PROPERTY (importCustomerLegalEntityGroup());
-            MOVE PROPERTY (sqlImportCustomerLegalEntityGroup());
         }
     }
 }
 
 //Покупатели
-sqlImportCustomerLegalEntity 'Импорт из SQL' = DATA BOOLEAN ();
-
 importCustomerLegalEntity 'Импорт покупателей' () {
     NEWSESSION {
         LOCAL file = FILE ();    
@@ -173,13 +165,15 @@ importCustomerLegalEntity 'Импорт покупателей' () {
         LOCAL inn = STRING[12] (INTEGER);
         LOCAL kpp = STRING[9] (INTEGER);
         
-        IF sqlImportCustomerLegalEntity() THEN {
+        IF sqlImport() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT ACCOUNTNUM, NAME, ADDRESS, PHONE, CUSTGROUP, EMAIL, INN_RU, KPP_RU FROM CUSTTABLE WHERE DATAAREAID = $1' 
-                PARAMS areaID() TO file; 
+                PARAMS areaId() TO file;
+                IMPORT TABLE FROM file() TO id, name, address, phone, idGroup, email, inn, kpp;
+
         } ELSE {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOESCAPE FROM f TO id, name, address, phone, idGroup, email, inn, kpp;
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, address, phone, idGroup, email, inn, kpp;
             }
         }
               
@@ -209,7 +203,7 @@ importCustomerLegalEntity 'Импорт покупателей' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importCustomerLegalEntity, sqlImportCustomerLegalEntity
+    PROPERTIES() importCustomerLegalEntity
 ;
 
 DESIGN integrationData {
@@ -217,7 +211,6 @@ DESIGN integrationData {
         NEW importCustomerLegalEntityCont {
             type = CONTAINERH;
             MOVE PROPERTY (importCustomerLegalEntity());
-            MOVE PROPERTY (sqlImportCustomerLegalEntity());
         }
     }
 }
