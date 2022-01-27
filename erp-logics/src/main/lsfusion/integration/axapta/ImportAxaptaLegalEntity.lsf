@@ -76,13 +76,8 @@ importSupplierLegalEntity 'Импорт поставщиков' () {
                       
         FOR id(INTEGER i) AND NOT legalEntity(id(i)) DO NEW g = LegalEntity {
             id(g) <- (id(i));
-            NEW st = Warehouse {
-                id(st) <- CONCAT '', 'Склад', (id(i));
-                legalEntity(st) <- g;
-                warehouseGroup(st) <- warehouseGroup('external');
-            }
         }
-        
+
         FOR id(INTEGER i) AND LegalEntity l == legalEntity(id(i)) DO {
             name(l) <- name(i);
             dataAddress(l, currentDate()) <- address(i) WHERE NOT address(l) = address(i);
@@ -91,7 +86,19 @@ importSupplierLegalEntity 'Импорт поставщиков' () {
             email(l) <- email(i);
             inn(l) <- inn(i);
             dataKpp(l, currentDate()) <- kpp(i) WHERE NOT kpp(l) = kpp(i);
+            isSupplier(l) <- TRUE;
         }      
+
+
+        FOR id(INTEGER i) AND NOT warehouse(id(i)) DO NEW w = Warehouse {
+            id(w) <- id(i);
+            legalEntity(w) <- legalEntity(id(i));
+            warehouseGroup(w) <- warehouseGroup('external');
+        }
+
+        FOR id(INTEGER i) AND Warehouse w == warehouse(id(i)) DO {
+            name(w) <- CONCAT ' ', 'Склад', name(i);
+        }
 
         //DELETE LegalEntity l WHERE l IS LegalEntity AND isParent(legalEntityGroup(l), legalEntityGroup('suppliers')) AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(l));
                        
@@ -185,11 +192,6 @@ importCustomerLegalEntity 'Импорт покупателей' () {
               
         FOR id(INTEGER i) AND NOT legalEntity(id(i)) DO NEW g = LegalEntity {
             id(g) <- (id(i));
-            NEW st = Warehouse {
-                id(st) <- CONCAT '', 'Склад', (id(i));
-                legalEntity(st) <- g;
-                warehouseGroup(st) <- warehouseGroup('external');
-            }
         }
         
         FOR id(INTEGER i) AND LegalEntity l == legalEntity(id(i)) DO {
@@ -200,7 +202,18 @@ importCustomerLegalEntity 'Импорт покупателей' () {
             email(l) <- email(i);
             inn(l) <- inn(i);
             dataKpp(l, currentDate()) <- kpp(i) WHERE NOT kpp(l) = kpp(i);
+            isCustomer(l) <- TRUE;
         }      
+
+        FOR id(INTEGER i) AND NOT warehouse(id(i)) DO NEW w = Warehouse {
+            id(w) <- id(i);
+            legalEntity(w) <- legalEntity(id(i));
+            warehouseGroup(w) <- warehouseGroup('external');
+        }
+
+        FOR id(INTEGER i) AND Warehouse w == warehouse(id(i)) DO {
+            name(w) <- CONCAT ' ', 'Склад', name(i);
+        }
 
         //DELETE LegalEntity l WHERE l IS LegalEntity AND isParent(legalEntityGroup(l), legalEntityGroup('customers')) AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(l));
                        
