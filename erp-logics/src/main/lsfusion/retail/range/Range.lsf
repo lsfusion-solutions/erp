@@ -80,6 +80,8 @@ DESIGN range {
 showShow = ABSTRACT BOOLEAN (Range);
 showEdit (Range r) = r IS Range AND NOT showShow(r);
 
+backgroundRange = ABSTRACT COLOR (Range);
+
 FORM ranges 'Ассортиментные матрицы'
     OBJECTS d = DATE PANEL
     PROPERTIES(d) date = VALUE
@@ -90,8 +92,8 @@ FORM ranges 'Ассортиментные матрицы'
     ORDERS order(sg), skuGroupName
     
     OBJECTS r = Range
-    PROPERTIES(r) READONLY name
-    PROPERTIES READONLYIF isReadonly() inactive(r)
+    PROPERTIES(r) READONLY name BACKGROUND backgroundRange(r)
+    PROPERTIES READONLYIF isReadonly() inactive(r) BACKGROUND backgroundRange(r)
     PROPERTIES(r) NEWSESSION NEW, editR = EDIT SHOWIF showEdit(r) 
     FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
     ORDERS name(r)
@@ -215,7 +217,7 @@ dateRangeRev 'Дата последней версии' (Range r) = date(rangeRe
 dateRevision 'Дата пересмотра' (Range r) = sum(dateRangeRev(r), daysToRevision(r));
 
 EXTEND FORM ranges 
-    PROPERTIES READONLY dateRevision(r)
+    PROPERTIES READONLY dateRevision(r) BACKGROUND backgroundRange(r)
     FILTERGROUP revision FILTER 'Требуется пересмотр' dateRevision(r) <= currentDate()
 ;
 
@@ -467,7 +469,7 @@ in 'В ассортименте' (Sku sku, Range range, Store store) = in(sku, r
 
 nameGroup 'Включенные группы'(Range r) = GROUP CONCAT name(SkuGroup g) IF inData(r,g), ',' ORDER name(g) CHARWIDTH 50 ;
 
-EXTEND FORM ranges PROPERTIES nameGroup(r);
+EXTEND FORM ranges PROPERTIES nameGroup(r) BACKGROUND backgroundRange(r);
 
 EXTEND FORM ranges 
     OBJECTS s = Sku
