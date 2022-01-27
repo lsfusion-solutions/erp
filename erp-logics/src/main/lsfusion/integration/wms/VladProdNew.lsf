@@ -292,8 +292,11 @@ exportDocInText(Purchase.UserOrder p)+=
 
 fileNameExportVPI (Purchase.Order o) = 'in_' + toChar(dateTime(o),'YYYYMMDDHH24MISS') + '_' + number(o);
 
+isVPIOrder = ABSTRACT VALUE BOOLEAN (Purchase.Order);
+isVPIOrder(Purchase.Order o) += isVPI(customerStock(o));
+
 exportWMSPurchaseOrder(Purchase.Order order) + { 
-	IF isVPI(customerStock(order)) THEN NEWSESSION {
+	IF isVPIOrder(order) THEN NEWSESSION {
 	    LOCAL importFile = FILE ();
 	   
 	    stringToFile(exportDocInText(order),'utf-8','xml');
@@ -400,7 +403,7 @@ WHEN SETCHANGED (number(Purchase.Order o)) DO {
     nameStatusVPI(o) <- NULL;
 }
 
-showStatusVPI(Purchase.Order order) = isVPI(customerStock(order));
+showStatusVPI(Purchase.Order order) = isVPIOrder(order);
 
 EXTEND FORM Purchase.orders
     PROPERTIES (o) SHOWIF showStatusVPI(o) READONLY PANEL statusVPI, nameStatusVPI, dateStatusVPI;
@@ -483,8 +486,11 @@ exportDocInText(Purchase.UserInvoice p) =
         )
 ;
 
+isVPIOrder = ABSTRACT VALUE BOOLEAN (Purchase.Invoice);
+isVPIOrder(Purchase.Invoice i) += isVPI(customerStock(i));
+
 exportWMSPurchaseInvoice(Purchase.Invoice invoice) + {
-	IF isVPI(customerStock(invoice)) THEN NEWSESSION {
+	IF isVPIOrder(invoice) THEN NEWSESSION {
 	    LOCAL importFile = FILE ();
 	   
         idBatch(Purchase.InvoiceDetail d) <- (CONCAT '_', seriesNumber(d), idSku(d), index(d)) WHERE invoice(d) == invoice;
@@ -523,7 +529,7 @@ checkStatusOrder 'Проверить статусы ВладПродИмпорт
                 nameStatusVPI(o) <- statusNameVPN(n);
                 dateStatusVPI(o) <- statusDateVPN(n);
             }
-            FOR imported(INTEGER n) AND Purchase.Order o = (GROUP MAX Purchase.Order oo IF isVPI(customerStock(oo)) AND number(oo) == order(n)) DO {
+            FOR imported(INTEGER n) AND Purchase.Order o = (GROUP MAX Purchase.Order oo IF isVPIOrder(oo) AND number(oo) == order(n)) DO {
                 statusVPI(o) <- statusVPN(n);
                 nameStatusVPI(o) <- statusNameVPN(n);
                 dateStatusVPI(o) <- statusDateVPN(n);
