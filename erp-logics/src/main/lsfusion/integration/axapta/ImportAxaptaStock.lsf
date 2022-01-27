@@ -1,0 +1,51 @@
+MODULE ImportAxaptaStock;
+
+REQUIRE ImportAxapta, Warehouse, Store;
+
+NAMESPACE ImportAxapta;
+
+//Форматы магазинов
+importStoreType 'Импорт форматов магазинов' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL name = ISTRING[100] (INTEGER);
+                
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT SHOPGROUPID, NAME FROM RETAILSHOPGROUP WHERE DATAAREAID = $1' 
+                PARAMS areaId() TO file;
+                IMPORT TABLE FROM file() TO id, name;
+        }
+                      
+        FOR id(INTEGER i) AND NOT storeType(TEXT (id(i))) DO NEW g = StoreType {
+            id(g) <- id(i);
+            chainStores(g) <- chainStores('chainStores');
+        }
+        
+        FOR StoreType g = storeType(id(INTEGER i)) DO {
+            name(g) <- name(i);
+        }  
+
+        //DELETE StoreType g WHERE g IS StoreType AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));
+                       
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importStoreType
+;
+
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importBarcodeCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importStoreType());
+        }
+    }
+}
