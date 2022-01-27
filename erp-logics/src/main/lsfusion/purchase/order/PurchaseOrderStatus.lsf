@@ -166,6 +166,7 @@ FORM messageOrders 'Сообщение'
 ;
 
 overEmailList = ABSTRACT STRING[800](Order);
+overEmailFrom = ABSTRACT STRING[800](Order);
 
 calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order)  { 
     
@@ -176,7 +177,7 @@ calcEmailCustomer 'Отправить заказ поставщику' (Order.Or
     PRINT messageOrders OBJECTS o=order HTML TO bodyFile;
     
     EMAIL
-    FROM OVERRIDE email(createdUser(order)) IF NOT notUseUserEmail(), fromEmailOrders()
+    FROM OVERRIDE email(createdUser(order)) IF NOT notUseUserEmail(), overEmailFrom(order),fromEmailOrders()
     SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
     TO (OVERRIDE overEmailList(order), email(supplierStock(order)), email(supplier(order)))
     BODY bodyFile()
