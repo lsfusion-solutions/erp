@@ -1,0 +1,59 @@
+MODULE InventoryRu;
+
+REQUIRE Inventory, LegalEntityRu;
+
+NAMESPACE Inventory;
+
+okpo 'ОКПО' (CollationSheet cs) = okpo(legalEntityStock(cs));
+okdp 'ОКДП' (CollationSheet cs) = okdp(legalEntityStock(cs));
+dateFromInventory 'Дата с инвентаризации' (CollationSheet cs) = toDate(timeFrom(inventory(cs)));
+dateToInventory 'Дата по инвентаризации' (CollationSheet cs) = toDate(timeTo(inventory(cs)));
+headMan  'Зав. складом' (CollationSheet cs) = headMan(inventory(cs));
+shortNameHeadMan 'Зав. складом, ФИО' (CollationSheet cs) = shortName[Contact](headMan(cs)) IN documentPrm;
+namePositionHeadMan 'Зав. складом, должность' (CollationSheet cs) = shortName[Contact](headMan(cs)) IN documentPrm;
+shortNameChairmanCommittee 'Председатель комиссии (ФИО)' (CollationSheet cs) = OVERRIDE shortName(chairman(committee(cs))), shortName(chairman(committee(inventory(cs))));
+namePositionBooker 'Главный бухгалтер (должность)' (CollationSheet cs) = namePosition(booker(legalEntityStock(cs)));
+shortNameBooker 'Главный бухгалтер (ФИО)' (CollationSheet cs) = shortName(booker(legalEntityStock(cs)));
+
+code 'Код' (Sku sku)  = OVERRIDE id(sku), idBarcode(sku);
+countSku (CollationSheet cs) = GROUP SUM 1 IF include(cs, Sku i);
+
+FORM printINV3 'ИНВ-3'
+    OBJECTS cs=CollationSheet PANEL SUBREPORT
+    PROPERTIES (cs) fullNameLegalEntityStock, fullNameStock, okpo, okdp, name, date, dateFromInventory, dateToInventory, 
+        shortNameHeadMan, namePositionHeadMan, shortNameChairmanCommittee, namePositionChairman,
+        quantityPageInventoryDetail, quantityBalance,
+        sumPageInventoryDetail, sumBalance, countSku,
+        namePositionBooker, shortNameBooker
+         
+    OBJECTS i=Sku    
+    PROPERTIES(i) name, code, idUOM, shortNameUOM
+     
+    PROPERTIES(cs, i) priceBalance, quantityPageInventoryDetail, quantityBalance,
+        sumPageInventoryDetail, sumBalance
+    FILTERS  include(cs, i)//, quantityPageInventoryDetail(cs, i)  
+
+    OBJECTS e=Employee
+    PROPERTIES(e) shortName, namePosition
+    FILTERS in(cs, e)
+;
+
+printINV3 'Сличительная ведомость' (CollationSheet cs){ 
+    PRINT printINV3 OBJECTS cs = cs; 
+} IMAGE 'print.png' IN print;
+    
+EXTEND FORM inventories
+    PROPERTIES(cs) printINV3
+;
+
+DESIGN inventories {
+    GROUP (print, cs) {
+        columns = 1;
+        type = CONTAINERH;
+        
+        NEW collation {
+            MOVE PROPERTY (printINV3(cs)) {caption = 'ИНВ-3'; }
+        }
+    }
+}
+    
