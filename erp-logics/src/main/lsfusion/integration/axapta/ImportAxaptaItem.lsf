@@ -90,7 +90,7 @@ importUOM 'Импорт единиц измерения' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importUOM
+    PROPERTIES() importUOM, dataAreaIdUOM
 ;
 
 DESIGN integrationData {
@@ -98,6 +98,7 @@ DESIGN integrationData {
         NEW importUOMCont {
             type = CONTAINERH;
             MOVE PROPERTY (importUOM());
+            MOVE PROPERTY (dataAreaIdUOM());
         }
     }
 }
@@ -283,8 +284,11 @@ importItem 'Импорт товаров' () {
         FOR id(INTEGER i) AND Item item == item(id(i)) AND NOT Purchase.packBarcode(item) DO NEW b = Barcode {
             sku(b) <- item;
             Purchase.packBarcode(Item s) <- b WHERE s = item;
-            dataAmount(b) <- (amountPack(i));
         }        
+
+        FOR id(INTEGER i) AND Item item == item(id(i)) AND Barcode b = Purchase.packBarcode(item) DO {
+            amount(b) <- NUMERIC[14,3](amountPack(i));
+        }
         
         DELETE Item b WHERE b IS Item AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(b));
                        
