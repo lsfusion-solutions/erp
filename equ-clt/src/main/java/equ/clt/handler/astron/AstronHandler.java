@@ -837,9 +837,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
                     CashRegisterItem item = transaction.itemsList.get(i);
+                    JSONObject infoJSON = getExtInfo(item.info);
                     if (item.price != null) {
                         Integer packId = getPackId(item);
-                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, 1, null, false, keys.length, updateNum, transaction.id);
+                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, infoJSON, packId, offset, exportExtraTables, item.price, 1, null, false, keys.length, updateNum, transaction.id);
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
                             executeAndCommitBatch(ps, conn);
@@ -848,17 +849,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         if(exportExtraTables) {
                             //{"extraPrices": [{"id": 2, "name": "VIP", "price": 12.34}, {"id": 3, "name": "OPT", "price": 2.34}]}
-                            JSONObject infoJSON = getExtInfo(item.info);
-                            if(infoJSON != null) {
-                                JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
-                                if(extraPrices != null) {
-                                    for (int j = 0; j < extraPrices.length(); j++) {
-                                        JSONObject extraPrice = extraPrices.getJSONObject(j);
-                                        Integer id = extraPrice.getInt("id");
-                                        BigDecimal price = BigDecimal.valueOf(extraPrice.getDouble("price"));
-                                        Double overPackMinPrice = extraPrice.optDouble("overPackMinPrice");
-                                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, packId, offset, true, price, id, overPackMinPrice.isNaN() ? null : BigDecimal.valueOf(overPackMinPrice), false, keys.length, updateNum, transaction.id);
-                                    }
+                            JSONArray extraPrices = infoJSON != null ? infoJSON.optJSONArray("extraPrices") : null;
+                            if(extraPrices != null) {
+                                for (int j = 0; j < extraPrices.length(); j++) {
+                                    JSONObject extraPrice = extraPrices.getJSONObject(j);
+                                    Integer id = extraPrice.getInt("id");
+                                    BigDecimal price = BigDecimal.valueOf(extraPrice.getDouble("price"));
+                                    addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, infoJSON, packId, offset, true, price, id, getBigDecimalValue(extraPrice, "overPackMinPrice"), false, keys.length, updateNum, transaction.id);
                                 }
                             }
                         }
@@ -875,6 +872,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             executeAndCommitBatch(ps, conn);
         }
+    }
+
+    private BigDecimal getBigDecimalValue(JSONObject json, String key) {
+        return getBigDecimalValue(json, key, null);
+    }
+
+    private BigDecimal getBigDecimalValue(JSONObject json, String key, BigDecimal defaultValue) {
+        if(json != null) {
+            Double value = json.optDouble(key);
+            if(!value.isNaN()) {
+                return BigDecimal.valueOf(value);
+            }
+        }
+        return defaultValue;
     }
 
     private Set<Integer> getHasExtraPrices(TransactionCashRegisterInfo transaction) {
@@ -909,7 +920,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
-                               ItemInfo item, Integer packId, int offset, boolean exportExtraTables,
+                               ItemInfo item, JSONObject infoJSON, Integer packId, int offset, boolean exportExtraTables,
                                BigDecimal price, int priceNumber, BigDecimal overPackMinPrice, boolean delFlag, int keysOffset, Integer updateNum, Long transactionId) throws SQLException {
 
         Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables, priceNumber);
@@ -917,6 +928,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         BigDecimal minPrice = item instanceof CashRegisterItem ? HandlerUtils.safeMultiply(((CashRegisterItem) item).minPrice, 100) : null;
         BigDecimal packMinPrice = HandlerUtils.safeMultiply(overPackMinPrice, 100) != null ? HandlerUtils.safeMultiply(overPackMinPrice, 100) :
                 (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(price, 100) != null ? HandlerUtils.safeMultiply(price, 100) : minPrice != null ? minPrice : BigDecimal.ZERO;
+        BigDecimal packBonusMinPrice = safeMultiply(getBigDecimalValue(infoJSON, "packBonusMinPrice", BigDecimal.ZERO), 100);
 
         if(params.pgsql) {
             //todo: временный лог для отслеживания, какие packid мы пишем в pack и в packprc
@@ -926,12 +938,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             setObject(ps, priceLevelId, 2); //PRCLEVELID
             setObject(ps, packPrice, 3); //PACKPRICE
             setObject(ps, packMinPrice, 4); //PACKMINPRICE
-            setObject(ps, 0, 5); //PACKBONUSMINPRICE
+            setObject(ps, packBonusMinPrice, 5); //PACKBONUSMINPRICE
             setObject(ps, delFlag ? 1 : 0, 6); //DELFLAG
         } else {
             setObject(ps, packPrice, 1, offset); //PACKPRICE
             setObject(ps, packMinPrice, 2, offset); //PACKMINPRICE
-            setObject(ps, 0, 3, offset); //PACKBONUSMINPRICE
+            setObject(ps, packBonusMinPrice, 3, offset); //PACKBONUSMINPRICE
             setObject(ps, delFlag ? "1" : "0", 4, offset); //DELFLAG
 
             if(updateNum != null)
@@ -1018,7 +1030,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         packIdCount++;
                         for (Integer nppGroupMachinery : groupMachinerySet) {
                             recordCount++;
-                            addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, 1, null, delFlag, keys.length, updateNum, transactionId);
+                            addPackPrcRow(ps, params, nppGroupMachinery, item, null, packId, offset, exportExtraTables, item.price, 1, null, delFlag, keys.length, updateNum, transactionId);
                             if(maxBatchSize != null && recordCount == maxBatchSize) {
                                 astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
                                         recordCount, itemCount, groupMachinerySet.size(), packIdCount));
