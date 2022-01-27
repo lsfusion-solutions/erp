@@ -1,0 +1,43 @@
+MODULE ItemKristal;
+
+REQUIRE Item, MachineryPriceTransactionPromotion;
+
+NAMESPACE Item;
+
+// Запреты на применение скидок
+GROUP forbidPromotion 'Запреты на применение скидок' : public;
+
+saleRestrictions 'Ограничения по продаже (алкоголь)' = DATA BOOLEAN (SkuGroup) IN forbidPromotion;
+
+quantityChildWithSaleRestrictions(SkuGroup g)  = GROUP SUM 1 IF saleRestrictions(SkuGroup cg) AND isParent(cg, g) MATERIALIZED;
+quantityParentWithSaleRestrictions(SkuGroup g)  = GROUP SUM 1 IF saleRestrictions(SkuGroup pg) AND isParent(g, pg) MATERIALIZED;
+overSaleRestrictions 'Ограничения по продаже (алкоголь)' (SkuGroup g) = TRUE IF (quantityChildWithSaleRestrictions (g) (+) quantityParentWithSaleRestrictions (g)) > 0 MATERIALIZED;
+
+backgroundSaleRestrictions (ItemGroup itemGroup) =
+    IF saleRestrictions(itemGroup) THEN
+        RGB(0,0,0) IF itemGroup IS ItemGroup
+    ELSE
+        RGB(203,203,206) IF quantityChildWithSaleRestrictions (itemGroup) != descendantNumber(itemGroup)
+                         AND NOT quantityParentWithSaleRestrictions (itemGroup);
+
+setNullSaleRestrictions 'Снять признак для всех потомков'(ItemGroup itemGroup)  { 
+    FOR isParent (ItemGroup childGroup, itemGroup) DO {
+        saleRestrictions(childGroup) <- NULL;
+    }
+} ASON CONTEXTMENU saleRestrictions[ItemGroup] CONFIRM;
+
+EXTEND FORM itemGroup PROPERTIES(g) saleRestrictions;
+EXTEND FORM itemOptions PROPERTIES(g) READONLYIF isReadonly() overSaleRestrictions BACKGROUND backgroundSaleRestrictions(g);
+
+saleRestrictions(Barcode barcode) = overSaleRestrictions(skuGroup(sku(barcode)));
+
+DESIGN itemGroup {
+    attributes {
+        MOVE GROUP(forbidPromotion,g) {
+            columns = 2;
+        }
+    }
+}
+
+extraFlags(Barcode b,Stock s) += (IF saleRestrictions(b) THEN 256 ELSE 0)  IF s IS Stock;
+flags(Barcode b) += IF saleRestrictions(b) THEN 256 ELSE 0;
