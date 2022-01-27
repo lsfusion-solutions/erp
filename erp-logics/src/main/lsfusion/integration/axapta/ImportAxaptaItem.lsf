@@ -250,7 +250,7 @@ importItem 'Импорт товаров' () {
                           'AND im1.MODULETYPE = 1 ' +
                           'JOIN INVENTTABLEMODULE im2 ON im2.ITEMID = i.ITEMID ' +
                           'AND im2.MODULETYPE = 2 ' +
-                      'WHERE DATAAREAID = $1' 
+                      'WHERE i.DATAAREAID = $1' 
                 PARAMS areaId() TO file; 
                 IMPORT TABLE FROM file() TO id, name, idGroup, idUOM, idEx, idBrand, netWeight, volume, idManufacturer, amountPack;      
         } ELSE {
@@ -263,11 +263,9 @@ importItem 'Импорт товаров' () {
             id(g) <- (id(i));
         }
 
-        FOR INTEGER i1 = [GROUP MAX INTEGER i BY idManufacturer(i)](STRING idManufacturer) AND NOT manufacturer(idManufacturer)  DO {
-            NEW m = Manufacturer {
-               id(m) <- idManufacturer;
-               name(m) <- idManufacturer;
-            }
+        FOR INTEGER i1 = [GROUP MAX INTEGER i BY idManufacturer(i)](STRING idManufacturer) AND NOT manufacturer(idManufacturer) NEW m = Manufacturer DO {
+           id(m) <- idManufacturer;
+           name(m) <- idManufacturer;
         }
           
         FOR id(INTEGER i) AND Item item == item(id(i)) DO {
@@ -281,12 +279,12 @@ importItem 'Импорт товаров' () {
             manufacturer(item) <- manufacturer(idManufacturer(i));
         }
         
-        FOR id(INTEGER i) AND Item item == item(id(i)) AND NOT Purchase.packBarcode(item) DO NEW b = Barcode {
+        FOR id(INTEGER i) AND Item item == item(id(i)) AND NOT Purchase.packBarcode(item) AND amountPack(i) > 0 DO NEW b = Barcode {
             sku(b) <- item;
             Purchase.packBarcode(Item s) <- b WHERE s = item;
         }        
 
-        FOR id(INTEGER i) AND Item item == item(id(i)) AND Barcode b = Purchase.packBarcode(item) DO {
+        FOR id(INTEGER i) AND Item item == item(id(i)) AND Barcode b = Purchase.packBarcode(item) AND amountPack(i) > 0 DO {
             amount(b) <- NUMERIC[14,3](amountPack(i));
         }
         
