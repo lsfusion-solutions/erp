@@ -95,6 +95,7 @@ exportOrderText(Sale.UserOrder p) +=
 fileNameExportVPI (Sale.Order o) = 'order_' + number(o);
 isVPIOrder = ABSTRACT VALUE BOOLEAN (Sale.Order);
 isVPIOrder(Sale.Order o) += isVPI(supplierStock(o));
+exportWMSSaleOrderOver ABSTRACT LIST(Sale.Order);
 
 exportWMS(Sale.Order order) + { 
 	IF isVPIOrder(order)  THEN NEWSESSION {
@@ -108,6 +109,7 @@ exportWMS(Sale.Order order) + {
 	    //IF fileExists() THEN {
 	        MESSAGE 'Файл ' + fileNameExportVPI(order) + '.xml выгружен в каталог обмена' NOWAIT ;
 	        exportedWMS(order) <- TRUE;
+	        exportWMSSaleOrderOver(order);
 	        APPLY;         
 	    //} ELSE MESSAGE 'Не удалось выгрузить файл '+fileNameExportVPI(order)+'.xml' NOWAIT;
 	    
@@ -294,6 +296,7 @@ fileNameExportVPI (Purchase.Order o) = 'in_' + toChar(dateTime(o),'YYYYMMDDHH24M
 
 isVPIOrder = ABSTRACT VALUE BOOLEAN (Purchase.Order);
 isVPIOrder(Purchase.Order o) += isVPI(customerStock(o));
+exportWMSPurchaseOrderOver ABSTRACT LIST (Purchase.Order);
 
 exportWMSPurchaseOrder(Purchase.Order order) + { 
 	IF isVPIOrder(order) THEN NEWSESSION {
@@ -307,6 +310,7 @@ exportWMSPurchaseOrder(Purchase.Order order) + {
 	    //IF fileExists() THEN {
 	        MESSAGE 'Файл ' + fileNameExportVPI(order) + '.xml выгружен в каталог обмена' NOWAIT ;
 	        //exportedWMS(order) <- TRUE;
+	        exportWMSPurchaseOrderOver(order);
 	        APPLY;         
 	    //} ELSE MESSAGE 'Не удалось выгрузить файл '+fileNameExportVPI(order)+'.xml' NOWAIT;
 	    
