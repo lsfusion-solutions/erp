@@ -1,0 +1,134 @@
+MODULE Solvo;
+
+REQUIRE WMSIntegration, Warehouse, PurchaseOrder;
+
+
+isSolvo 'Склад c WMS Solvo' = DATA BOOLEAN (Warehouse);
+
+EXTEND FORM warehouse 
+    PROPERTIES (w) isSolvo;
+    
+host 'Хост' = DATA ISTRING[30]();
+base 'База' = DATA ISTRING[30]();
+login 'Логин' = DATA ISTRING[30]();
+password 'Пароль' = DATA ISTRING[30]() ECHO;
+
+connectionString 'строка подключения' () = 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base();
+
+
+//dataTmpDir = DATA STRING[250]();
+//tmpDir 'Каталог для временных файлов' () = OVERRIDE dataTmpDir(), '/tmp/';
+
+EXTEND FORM integrationData 
+    PROPERTIES() shost = host, base, login, password
+;
+DESIGN  integrationData {
+    wms {
+        NEW solvo {
+            caption = 'Solvo';
+            fill = 1;
+            NEW WMSPanel {
+                MOVE PROPERTY (shost);
+                MOVE PROPERTY (base());
+                MOVE PROPERTY (login());
+                MOVE PROPERTY (password());
+            }
+            NEW importWMS {
+                type = CONTAINERH;
+                caption = 'Импорт';
+            }
+        }
+    }
+}
+toString(BOOLEAN b) = IF b THEN 'T' ELSE 'N';
+nowText() =  [FORMULA TEXT 'to_char(now(),($1))']('DD-MM-YYYY HH24:MI:SS'); 
+
+
+defaultNumeratorSyncid = DATA Numerator ();
+nameDefaultNumeratorSyncid 'Пакеты выгрузки в wms' = name(defaultNumeratorSyncid()) IN defaultNumerator;
+
+EXTEND FORM defaultNumerators
+    PROPERTIES() nameDefaultNumeratorSyncid = nameDefaultNumeratorSyncid
+;
+
+incrementedIntValue = DATA LOCAL NESTED LONG();    
+numerateIds(LONG i) {
+    NEWSESSION APPLY {
+        incrementedIntValue() <- curValue(defaultNumeratorSyncid());
+        curValue(Numerator n) <- curValue(n) + i WHERE n == defaultNumeratorSyncid();
+    }
+}
+
+insertString (LONG syncId, STRING action, STRING meaasage) = 'INSERT INTO from_host_header_message(ID,SRC_HOST_ID,DST_HOST_ID,TYPE,ACTION,MESSAGE) '+
+        'VALUES (' + syncId + ',\'host\',\'wms\',\'update\',\'' + action + '\',\''+meaasage+'\');';
+        
+format(STRING s) = OVERRIDE escapeXMLValue(s), '';
+//товары
+
+changed 'Время изменения' = DATA DATETIME (Sku) IN wms;
+loaded 'Время выгрузки' = DATA DATETIME (Sku) IN wms;
+
+WHEN CHANGED (name(Item i))  DO 
+    changed(i) <- currentDateTime();
+
+EXTEND FORM item 
+    PROPERTIES (i) READONLY changed, loaded;
+
+itemString (LONG syncId, Item s) = '<sku syncid=\'\''+syncId+'\'\' action=\'\'update\'\' syncdate=\'\''+nowText()+
+    '\'\' sdid=\'\''+id(s)+'\'\' sku_code=\'\''+id(s)+'\'\' name=\'\''+format(nameAttribute(s))+'\'\' upc=\'\''+format(idBarcode(s))+
+    '\'\' measure=\'\''+format(shortNameUOM(s))+'\'\' store_cond=\'\'1\'\' producer_sdid=\'\''+format(nameManufacturer(s))+
+    '\'\' country=\'\''+format(nameCountry(s))+'\'\' abc=\'\'C\'\' minosg=\'\'45\'\' sku_spec_id=\'\'MB1\'\' description=\'\'\'\' divisibility=\'\'1\'\'></sku>';
+
+exportItems 'Выгрузить товары в wms Solvo' ()  { 
+    
+    FOR LONG  n = (GROUP SUM 1l IF in(Item i)) DO {
+        
+        numerateIds(n);
+        
+        LOCAL syncId = LONG (Item);
+        syncId(Item i) <- incrementedIntValue() - 1 + PARTITION SUM 1 IF in(i) ORDER i; 
+        
+        EXTERNAL 
+            SQL connectionString()
+            EXEC (GROUP CONCAT insertString(syncId(Item s), 'sku', itemString(syncId(s), s)), '\n' ORDER syncId(s));
+            
+        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedIntValue(), 'Write items:', (GROUP CONCAT id(Item i) IF in(i), ',' ORDER i));
+        MESSAGE 'Товары выгружены\n' NOWAIT;
+    }
+    
+    NEWSESSION NESTED LOCAL {
+        loaded(Item i) <- currentDateTime() WHERE in(i) AND expiryDays(i);
+        APPLY NESTED LOCAL;
+    }
+}
+
+exportItems 'Выгрузить отмеченные товары в wms Solvo' (Item i)  { 
+	NEWSESSION NESTED LOCAL {
+	    in(i) <- TRUE;
+	    exportItems();
+	    in(Item it) <- NULL;
+	}
+}
+
+exportChangedItems 'Выгрузить изменившиеся товары в wms Solvo' ()  { 
+	NEWSESSION NESTED LOCAL {
+	    in(Item i) <- TRUE WHERE changed(i) AND NOT changed(i) < loaded(i);
+	    exportItems();
+	    in(Item it) <- NULL;
+	}
+}
+
+
+EXTEND FORM items
+    PROPERTIES  exportItems(i), exportChangedItems() ;
+    
+DESIGN items{
+    actionsRow2 {
+        NEW qguar {
+            caption = 'Обмен с Solvo';
+            type = CONTAINERH;
+            MOVE PROPERTY (exportItems(i));
+            MOVE PROPERTY (exportChangedItems());
+        }
+    }
+}
