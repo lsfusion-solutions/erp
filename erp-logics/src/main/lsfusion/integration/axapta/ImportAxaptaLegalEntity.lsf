@@ -48,6 +48,9 @@ DESIGN integrationData{
 }
 
 //Поставщики
+dataAreaIdSupplierLegalEntity 'Area ID' = DATA ISTRING[100]();
+areaIdSupplierLegalEntity 'Area ID' () = OVERRIDE dataAreaIdSupplierLegalEntity(), areaId();
+
 importSupplierLegalEntity 'Импорт поставщиков' () {
     NEWSESSION {
         LOCAL file = FILE ();    
@@ -63,7 +66,7 @@ importSupplierLegalEntity 'Импорт поставщиков' () {
         IF sqlImport() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT ACCOUNTNUM, NAME, ADDRESS, PHONE, VENDGROUP, EMAIL, INN_RU, KPP_RU FROM VENDTABLE WHERE DATAAREAID = $1' 
-                PARAMS areaId() TO file;
+                PARAMS areaIdSupplierLegalEntity() TO file;
                 IMPORT TABLE FROM file() TO id, name, address, phone, idGroup, email, inn, kpp;
         } ELSE {
             INPUT f = CSVFILE DO {
@@ -97,7 +100,7 @@ importSupplierLegalEntity 'Импорт поставщиков' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importSupplierLegalEntity
+    PROPERTIES() importSupplierLegalEntity, dataAreaIdSupplierLegalEntity
 ;
 
 DESIGN integrationData {
@@ -105,6 +108,7 @@ DESIGN integrationData {
         NEW importSupplierLegalEntityCont {
             type = CONTAINERH;
             MOVE PROPERTY (importSupplierLegalEntity());
+            MOVE PROPERTY (dataAreaIdSupplierLegalEntity());
         }
     }
 }
@@ -153,6 +157,9 @@ DESIGN integrationData{
 }
 
 //Покупатели
+dataAreaIdCustomerLegalEntity 'Area ID' = DATA ISTRING[100]();
+areaIdCustomerLegalEntity 'Area ID' () = OVERRIDE dataAreaIdCustomerLegalEntity(), areaId();
+
 importCustomerLegalEntity 'Импорт покупателей' () {
     NEWSESSION {
         LOCAL file = FILE ();    
@@ -168,7 +175,7 @@ importCustomerLegalEntity 'Импорт покупателей' () {
         IF sqlImport() THEN {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT ACCOUNTNUM, NAME, ADDRESS, PHONE, CUSTGROUP, EMAIL, INN_RU, KPP_RU FROM CUSTTABLE WHERE DATAAREAID = $1' 
-                PARAMS areaId() TO file;
+                PARAMS areaIdCustomerLegalEntity() TO file;
                 IMPORT TABLE FROM file() TO id, name, address, phone, idGroup, email, inn, kpp;
 
         } ELSE {
@@ -203,7 +210,7 @@ importCustomerLegalEntity 'Импорт покупателей' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importCustomerLegalEntity
+    PROPERTIES() importCustomerLegalEntity, dataAreaIdCustomerLegalEntity
 ;
 
 DESIGN integrationData {
@@ -211,6 +218,7 @@ DESIGN integrationData {
         NEW importCustomerLegalEntityCont {
             type = CONTAINERH;
             MOVE PROPERTY (importCustomerLegalEntity());
+            MOVE PROPERTY (dataAreaIdCustomerLegalEntity());
         }
     }
 }
