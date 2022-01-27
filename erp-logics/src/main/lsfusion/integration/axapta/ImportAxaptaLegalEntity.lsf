@@ -11,15 +11,15 @@ importSupplierLegalEntityGroup 'Импорт групп поставщиков' 
         LOCAL id = STRING[100] (INTEGER);
         LOCAL name = ISTRING[100] (INTEGER);
         
-        IF sqlImport() THEN {
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
+            }
+        } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT VENDGROUP, NAME FROM VENDGROUP WHERE DATAAREAID = $1' 
                 PARAMS areaId() TO file;
                 IMPORT TABLE FROM file() TO id, name;
-        } ELSE {
-            INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
-            }
         }
               
         FOR id(INTEGER i) AND NOT legalEntityGroup(id(i)) DO NEW g = LegalEntityGroup {
@@ -63,15 +63,15 @@ importSupplierLegalEntity 'Импорт поставщиков' () {
         LOCAL inn = STRING[12] (INTEGER);
         LOCAL kpp = STRING[9] (INTEGER);
         
-        IF sqlImport() THEN {
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, address, phone, idGroup, email, inn, kpp;
+            }
+        } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT ACCOUNTNUM, NAME, ADDRESS, PHONE, VENDGROUP, EMAIL, INN_RU, KPP_RU FROM VENDTABLE WHERE DATAAREAID = $1' 
                 PARAMS areaIdSupplierLegalEntity() TO file;
                 IMPORT TABLE FROM file() TO id, name, address, phone, idGroup, email, inn, kpp;
-        } ELSE {
-            INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, address, phone, idGroup, email, inn, kpp;
-            }
         }
                       
         FOR id(INTEGER i) AND NOT legalEntity(id(i)) DO NEW g = LegalEntity {
@@ -120,15 +120,15 @@ importCustomerLegalEntityGroup 'Импорт групп покупателей' 
         LOCAL id = STRING[100] (INTEGER);
         LOCAL name = ISTRING[100] (INTEGER);
         
-        IF sqlImport() THEN {
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
+            }
+        } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT CUSTGROUP, NAME FROM CUSTGROUP WHERE DATAAREAID = $1' 
                 PARAMS areaId() TO file;
                 IMPORT TABLE FROM file() TO id, name;
-        } ELSE {
-            INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
-            }
         }
               
         FOR id(INTEGER i) AND NOT legalEntityGroup(id(i)) DO NEW g = LegalEntityGroup {
@@ -172,16 +172,15 @@ importCustomerLegalEntity 'Импорт покупателей' () {
         LOCAL inn = STRING[12] (INTEGER);
         LOCAL kpp = STRING[9] (INTEGER);
         
-        IF sqlImport() THEN {
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, address, phone, idGroup, email, inn, kpp;
+            }
+        } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT ACCOUNTNUM, NAME, ADDRESS, PHONE, CUSTGROUP, EMAIL, INN_RU, KPP_RU FROM CUSTTABLE WHERE DATAAREAID = $1' 
                 PARAMS areaIdCustomerLegalEntity() TO file;
                 IMPORT TABLE FROM file() TO id, name, address, phone, idGroup, email, inn, kpp;
-
-        } ELSE {
-            INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, address, phone, idGroup, email, inn, kpp;
-            }
         }
               
         FOR id(INTEGER i) AND NOT legalEntity(id(i)) DO NEW g = LegalEntity {

@@ -13,15 +13,15 @@ importItemGroup 'Импорт товарных групп' () {
         LOCAL prefix = ISTRING[250] (INTEGER);
         LOCAL name = ISTRING[250] (INTEGER);
         
-        IF sqlImport() THEN {
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, idParent, prefix, name;
+            }
+        } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT RANGEID, RANGEIDPARENT, PREFIX, NAME FROM INVENTITEMRANGE WHERE DATAAREAID = $1' 
                 PARAMS areaId() TO file;
                 IMPORT TABLE FROM file() TO id, idParent, prefix, name;
-        } ELSE {
-            INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, idParent, prefix, name;
-            }
         }
                
         FOR id(INTEGER i) AND NOT itemGroup(id(i)) DO NEW g = ItemGroup {
@@ -62,15 +62,15 @@ importUOM 'Импорт единиц измерения' () {
         LOCAL unitDecimals = INTEGER (INTEGER);
         LOCAL weightUnit = INTEGER (INTEGER);
                 
-        IF sqlImport() THEN {
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, unitDecimals, weightUnit;
+            }
+        } ELSE {
             EXTERNAL SQL connectionString()
                 EXEC 'SELECT UNITID, TXT, UNITDECIMALS, WEIGHTUNIT FROM UNIT WHERE DATAAREAID = $1' 
                 PARAMS areaIdUOM() TO file;    
                 IMPORT TABLE FROM file() TO id, name, unitDecimals, weightUnit;
-        } ELSE {
-            INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, unitDecimals, weightUnit;
-            }
         }
                 
         FOR id(INTEGER i) AND NOT UOM(id(i)) DO NEW u = UOM {
@@ -90,7 +90,7 @@ importUOM 'Импорт единиц измерения' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importUOM, dataAreaIdUOM
+    PROPERTIES() importUOM, dataAreaIdUOM SHOWIF NOT csvImport()
 ;
 
 DESIGN integrationData {
@@ -110,15 +110,15 @@ importBrandGroup 'Импорт групп брендов' () {
         LOCAL id = STRING[100](INTEGER);
         LOCAL name = STRING[200] (INTEGER);
         
-        IF sqlImport() THEN {
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
+            }
+        } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT GROUPID, NAME FROM OWNERTMGROUP WHERE DATAAREAID = $1' 
                 PARAMS areaId() TO file; 
                 IMPORT TABLE FROM file() TO id, name;
-        } ELSE {
-            INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name;
-            }
         }
         
         IF NOT brandGroup('all') THEN NEW g = BrandGroup {
@@ -162,15 +162,15 @@ importBrand 'Импорт брендов' () {
         LOCAL name = ISTRING[50] (INTEGER);
         LOCAL idGroup = STRING[100] (INTEGER);
                 
-        IF sqlImport() THEN {
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, idGroup;
+            }
+        } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT OWNERTMID, NAME, OWNERTMGROUPID FROM OWNERTM WHERE DATAAREAID = $1' 
                 PARAMS areaId() TO file;
                 IMPORT TABLE FROM file() TO id, name, idGroup;
-        } ELSE {
-            INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, idGroup;
-            }
         }
               
         FOR id(INTEGER i) AND NOT brand(id(i)) DO NEW g = Brand {
@@ -213,7 +213,7 @@ EXTEND FORM integrationData
 ;
 DESIGN integrationData {
     importAxaptaCont {
-        MOVE BOX (r) {width = 1300;}
+        MOVE BOX (r) {width = 1000;}
     }
 }
 
@@ -231,7 +231,11 @@ importItem 'Импорт товаров' () {
         LOCAL idManufacturer = STRING[200] (INTEGER);
         LOCAL amountPack = NUMERIC[14,3] (INTEGER);
                    
-        IF sqlImport() THEN {
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, idGroup, idUOM, idEx, idBrand, netWeight, volume, idManufacturer, amountPack;      
+            }  
+        } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT i.ITEMID, ' +
                              'i.ITEMNAME, ' +
@@ -253,10 +257,6 @@ importItem 'Импорт товаров' () {
                       'WHERE i.DATAAREAID = $1' 
                 PARAMS areaId() TO file; 
                 IMPORT TABLE FROM file() TO id, name, idGroup, idUOM, idEx, idBrand, netWeight, volume, idManufacturer, amountPack;      
-        } ELSE {
-            INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, idGroup, idUOM, idEx, idBrand, netWeight, volume, idManufacturer, amountPack;      
-            }
         }
                             
         FOR id(INTEGER i) AND NOT item(id(i)) DO NEW g = Item {
@@ -307,5 +307,50 @@ DESIGN integrationData {
     }
     importAxaptaCont {
         MOVE BOX (r) {fill = 1;}
+    }
+}
+
+//Штрихкоды
+importBarcode 'Импорт штрихкодов' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL idSku = STRING[100] (INTEGER);
+                
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, idSku;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT ITEMBARCODE, ITEMID FROM INVENTITEMBARCODE WHERE DATAAREAID = $1' 
+                PARAMS areaId() TO file;
+                IMPORT TABLE FROM file() TO id, idSku;
+        }
+              
+        FOR id(INTEGER i) AND NOT barcode(id(i)) DO NEW g = Barcode {
+            id(g) <- (id(i));
+        }
+        
+        FOR id(INTEGER i) AND Barcode l == barcode(id(i)) DO {
+            sku(l) <- sku(idSku(i));
+        }      
+
+        DELETE Barcode b WHERE b IS Barcode AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(b)) AND NOT pack(b);
+                       
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importBarcode
+;
+
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importBarcodeCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importBarcode());
+        }
     }
 }
