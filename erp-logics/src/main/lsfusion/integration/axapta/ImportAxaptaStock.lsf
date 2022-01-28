@@ -61,16 +61,19 @@ importStock 'Импорт складов' () {
         LOCAL locationType = INTEGER (INTEGER);
         LOCAL idGroup = STRING[100] (INTEGER);
         LOCAL locationDirect = STRING[100] (INTEGER);        
+        LOCAL address = STRING[150] (INTEGER);        
+        LOCAL email = STRING[100] (INTEGER);        
+        LOCAL number = INTEGER (INTEGER);        
                 
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, locationType, idGroup, locationDirect;
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, locationType, idGroup, locationDirect, address, email, number;
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
-                EXEC 'SELECT INVENTLOCATIONID, NAME, INVENTLOCATIONTYPE, SHOPGROUPID, INVENTLOCATIONIDREJECT FROM INVENTLOCATION WHERE DATAAREAID = $1' 
+                EXEC 'SELECT INVENTLOCATIONID, i.NAME, INVENTLOCATIONTYPE, SHOPGROUPID, INVENTLOCATIONIDREJECT, a.ADDRESS, SHOPMAIL, INVENTLOCATIONIDSHOP FROM INVENTLOCATION i LEFT JOIN ADDRESS a ON i.RECID = a.ADDRRECID AND i.DATAAREAID = a.DATAAREAID WHERE i.DATAAREAID = $1' 
                 PARAMS areaId() TO file;
-                IMPORT TABLE FROM file() TO id, name;
+                IMPORT TABLE FROM file() TO id, name, locationType, idGroup, locationDirect, address, email, number;
         }       
 
         idGroup(INTEGER i) <- 'F' + idGroup(i) WHERE idGroup(i);
@@ -84,6 +87,9 @@ importStock 'Импорт складов' () {
             name(s) <- name(i);
             storeType(s) <- storeType(idGroup(i));
             legalEntity(s) <- defaultCompany();
+            address(s) <- address(i);
+            email(s) <- email(i);
+            orderNumber(s) <- number(i);
         }
         
         //отделы
@@ -139,6 +145,8 @@ importStock 'Импорт складов' () {
         FOR Warehouse w = warehouse(id(INTEGER i)) DO {
             name(w) <- name(i);
             legalEntity(w) <- defaultCompany();
+            address(w) <- address(i);
+            email(w) <- email(i);
             warehouseGroup(w) <- CASE WHEN locationType(i) = 0 THEN warehouseGroup('default')
                                       WHEN locationType(i) = 2 THEN warehouseGroup('defect')
                                       WHEN locationType(i) = 4 THEN warehouseGroup('delivery')
