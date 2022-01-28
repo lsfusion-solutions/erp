@@ -16,8 +16,8 @@ purposePaymentDetail 'НазначениеПлатежа' = DATA LOCAL STRING (I
 META defPaymentDetail(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = PaymentDetail EXTID extid
-        PROPERTIES (nm###class) paymentType EXTID 'ВидПлатежа', priority EXTID 'Очередность', purpose EXTID 'НазначениеПлатежа'
-        FILTERS nm###class = nm(class)
+        PROPERTIES (nm###class, configuration) paymentType EXTID 'ВидПлатежа', priority EXTID 'Очередность', purpose EXTID 'НазначениеПлатежа'
+        FILTERS nm###class = nm(class, configuration)
     ;
 
     EXTEND FORM receiveMessage
@@ -35,16 +35,16 @@ CLASS ABSTRACT UOM 'Справочник.ЕдиницыИзмерения' : Ref
 META defUOMDetail (nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = UOM EXTID extid
-        PROPERTIES(nm###class###table) id EXTID 'Код', name EXTID 'Наименование'
-        FILTERS nm###class###table = nm(class###table)
+        PROPERTIES(nm###class###table, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        FILTERS nm###class###table = nm(class###table, configuration)
     ;
 END
 
 META defUOM(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = UOM EXTID extid
-        PROPERTIES(nm###class) id EXTID 'Код', name EXTID 'Наименование'
-        FILTERS nm###class = nm(class)
+        PROPERTIES(nm###class, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
     ;
     
     id###nm###class = DATA STRING (INTEGER);
@@ -66,16 +66,16 @@ END
 META defItem(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Item EXTID extid
-        PROPERTIES (nm###class) sendUid EXTID 'Ссылка', article EXTID 'Артикул', id EXTID 'КодВПрограмме', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное'
-        FILTERS nm###class = nm(class)
+        PROPERTIES (nm###class, configuration) sendUid EXTID 'Ссылка', article EXTID 'Артикул', id EXTID 'КодВПрограмме', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное'
+        FILTERS nm###class = nm(class, configuration)
     ;
 END
 
 META defItemDetail(nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Item IN group EXTID extid
-        PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
-        FILTERS nm###class###table = nm(class###table)
+        PROPERTIES(nm###class###table, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
+        FILTERS nm###class###table = nm(class###table, configuration)
     ;
     
     uid###nm###class###table 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
@@ -96,16 +96,16 @@ END
 META defSpecification(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Specification EXTID extid
-        PROPERTIES (nm###class) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное'
-        FILTERS nm###class = nm(class)
+        PROPERTIES (nm###class, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное'
+        FILTERS nm###class = nm(class, configuration)
     ;
 END
 
 META defSpecificationDetail(nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Specification IN group EXTID extid
-        PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное'
-        FILTERS nm###class###table = nm(class###table)
+        PROPERTIES(nm###class###table, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное'
+        FILTERS nm###class###table = nm(class###table, configuration)
     ;
     uid###nm###class###table 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
     fullName###nm###class###table 'НаименованиеПолное' = DATA LOCAL STRING (INTEGER);
@@ -125,7 +125,7 @@ specification 'Характеристика' = ABSTRACT Specification (ItemData)
 META defItemDataDetail(nm, class, table, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = ItemData EXTID extid
-        FILTERS nm###class###table = nm(class###table) 
+        FILTERS nm###class###table = nm(class###table, configuration) 
     ;
     @defItemDetail(item, itemData###class, table, 'Номенклатура');
     @defSpecification(specification, itemData###class###table, 'Характеристика');
@@ -146,13 +146,13 @@ END
 @defKeyPropSimple(kpp, 'КПП', STRING[9], keyProperties, partner);
 @defKeyPropSimple(fullName, 'НаименованиеПолное', STRING, keyProperties, partner);
 @defKeyPropSimple(type, 'ЮридическоеФизическоеЛицо', TypePartner, keyProperties, partner);
-idType 'ЮридическоеФизическоеЛицо' (Partner p) = staticCaption(type(p));
+idType 'ЮридическоеФизическоеЛицо' (Partner p, Configuration c) = staticCaption(type(p, c));
 
 META defPartner(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Partner EXTID extid
-        PROPERTIES(nm###class) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-        FILTERS nm###class = nm(class)
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS nm###class = nm(class, configuration)
     ;
     
     uidPartner###class = DATA LOCAL ISTRING[36] (INTEGER);
@@ -175,16 +175,16 @@ CLASS ABSTRACT Company 'Справочник.Организации' : Partner;
 META defCompany(nm, class, group, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Partner EXTID extid IN group
-        PROPERTIES(nm###class) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-        FILTERS nm###class = nm(class)
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS nm###class = nm(class, configuration)
     ;
 END
 
 META defCompany(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Partner EXTID extid
-        PROPERTIES(nm###class) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-        FILTERS nm###class = nm(class)
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS nm###class = nm(class, configuration)
     ;
 END
 META defCompany(nm, class)
@@ -195,12 +195,12 @@ END
 CLASS ABSTRACT Stock 'Справочник.Склады' : Reference;
 @defProp(name, 'Наименование', STRING, Stock);
 @defProp(type, 'ТипСклада', TypeStock, Stock);
-idType 'ТипСклада' (Stock s) = staticCaption(type(s));
+idType 'ТипСклада' (Stock s, Configuration c) = staticCaption(type(s, c));
 META defStock(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Stock EXTID extid 
-        PROPERTIES(nm###class) sendUid EXTID 'Ссылка', name EXTID 'Наименование', idType EXTID 'ТипСклада'
-        FILTERS nm###class = nm(class)
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', idType EXTID 'ТипСклада'
+        FILTERS nm###class = nm(class, configuration)
     ;
     
     uid###nm###class 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
@@ -217,8 +217,8 @@ CLASS ABSTRACT Department 'Справочник.Подразделения' : Re
 META defDepartment(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Department EXTID extid 
-        PROPERTIES(nm###class) nameDepartment EXTID 'Наименование'
-        FILTERS nm###class = nm(class)
+        PROPERTIES(nm###class, configuration) nameDepartment EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
     ;
 END
 
@@ -228,8 +228,8 @@ CLASS ABSTRACT Currency 'Справочник.Валюты' : Reference;
 META defCurrency(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Currency EXTID extid 
-        PROPERTIES(nm###class) id EXTID 'Код', name EXTID 'Наименование'
-        FILTERS nm###class = nm(class)
+        PROPERTIES(nm###class, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
     ;
 END
 META defCurrency(nm, class)
@@ -240,19 +240,19 @@ END
 CLASS Contract 'Справочник.Договоры' : Reference;
 @defProp(currency, 'ВалютаВзаиморасчетов', Currency, Contract);
 @defProp(type, 'ВидДоговора', TypeContract, Contract);
-idType 'ВидДоговора' (Contract c) = staticCaption(type(c));
+idType 'ВидДоговора' (Contract cc, Configuration c) = staticCaption(type(cc, c));
 @defProp(company, 'Организация', Company, Contract);
 @defProp(partner, 'Контрагент', Partner, Contract);
 @defProp(name, 'Наименование', STRING, Contract);
 @defProp(date, 'Дата', DATE, Contract);
-dateString 'Дата' (Contract c) = dateToString(date(c));
+dateString 'Дата' (Contract cc, Configuration c) = dateToString(date(cc, c));
 @defProp(number, 'Номер', STRING, Contract);
 META defContract(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Contract EXTID extid
-        FILTERS nm###class = nm(class)
+        FILTERS nm###class = nm(class, configuration)
         
-        PROPERTIES(nm###class) sendUid EXTID 'Ссылка', idType EXTID 'ВидДоговора' 
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', idType EXTID 'ВидДоговора' 
     ;
     @defCompany(company, nm###class);
     partner###nm###class = DATA LOCAL INTEGER (INTEGER);
@@ -264,7 +264,7 @@ META defContract(nm, class, extid)
     @defPartner(partner, nm###class);
     @defCurrency(currency, nm###class, 'ВалютаВзаиморасчетов');
     EXTEND FORM sendMessage
-        PROPERTIES(nm###class) name EXTID 'Наименование',  dateString EXTID 'Дата', number EXTID 'Номер' 
+        PROPERTIES(nm###class, configuration) name EXTID 'Наименование',  dateString EXTID 'Дата', number EXTID 'Номер' 
     ;
 END
 
@@ -276,7 +276,7 @@ CLASS Settlement 'ДанныеВзаиморасчетов' : EnterpriseData;
 META defSettlement(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Settlement EXTID extid
-        FILTERS nm###class = nm(class)
+        FILTERS nm###class = nm(class, configuration)
     ;
     EXTEND FORM receiveMessage
         OBJECTS contract###nm###class = INTEGER EXTID 'Договор'
@@ -293,8 +293,8 @@ CLASS ABSTRACT Country 'Справочник.СтраныМира' : Reference;
 META defCountryDetail (nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Country EXTID extid 
-        PROPERTIES(nm###class###table) id EXTID 'Код', name EXTID 'Наименование'
-        FILTERS nm###class###table = nm(class###table)
+        PROPERTIES(nm###class###table, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        FILTERS nm###class###table = nm(class###table, configuration)
     ;
 END
 
@@ -307,8 +307,8 @@ CLASS ABSTRACT Bank 'Справочник.Банки' : Reference;
 META defBank (nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Bank EXTID extid 
-        PROPERTIES(nm###class) uid EXTID 'Ссылка', bic EXTID 'БИК', name EXTID 'Наименование', swiftBic EXTID 'СВИФТБИК'
-        FILTERS nm###class = nm(class)
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', bic EXTID 'БИК', name EXTID 'Наименование', swiftBic EXTID 'СВИФТБИК'
+        FILTERS nm###class = nm(class, configuration)
     ;
     
     uidBank###class = DATA LOCAL ISTRING[36] (INTEGER);
@@ -337,8 +337,8 @@ CLASS ABSTRACT BankAccount 'Справочник.БанковскиеСчета'
 META defBankAccount(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = BankAccount EXTID extid
-        PROPERTIES (nm###class) sendUid EXTID 'Ссылка', number EXTID 'НомерСчета'
-        FILTERS nm###class = nm(class)
+        PROPERTIES (nm###class, configuration) sendUid EXTID 'Ссылка', number EXTID 'НомерСчета'
+        FILTERS nm###class = nm(class, configuration)
     ;
     @defBank(bank, nm###class)
     ;
@@ -351,7 +351,7 @@ END
 
 // all documents
 @defProp(dateTime, 'Дата', DATETIME, Document);
-dateTimeString 'Дата' (Document d) = dateTimeToString(dateTime(d));
+dateTimeString 'Дата' (Document d, Configuration c) = dateTimeToString(dateTime(d, c));
 @defProp(id, 'Номер', ISTRING, Document);
 
 // sale order
@@ -371,7 +371,7 @@ dateTimeString 'Дата' (Document d) = dateTimeToString(dateTime(d));
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleOrder, service);
 @defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], saleOrder, service);
 @defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], saleOrder, service);
-settlements (SaleOrder s) += '' IF s IS SaleOrder; //todo
+settlements (SaleOrder s, Configuration c) += '' IF s IS SaleOrder AND c IS Configuration; //todo
 
 // Purchase invoice
 @extDocument(purchaseInvoice, 'ПоступлениеТоваровУслуг');
@@ -381,12 +381,12 @@ settlements (SaleOrder s) += '' IF s IS SaleOrder; //todo
 GROUP itemDataPurchaseInvoiceProduct EXTID 'ДанныеНоменклатуры';
 EXTEND FORM sendMessage
     OBJECTS itemPurchaseInvoiceProduct = Item EXTID 'Номенклатура' IN itemDataPurchaseInvoiceProduct
-    PROPERTIES(itemPurchaseInvoiceProduct) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
-    FILTERS itemPurchaseInvoiceProduct = item(purchaseInvoiceProduct)
+    PROPERTIES(itemPurchaseInvoiceProduct, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
+    FILTERS itemPurchaseInvoiceProduct = item(purchaseInvoiceProduct, configuration)
 ;
 @defPropDetail(idBarcodePurchaseInvoiceProduct, 'Штрихкод', STRING[200], purchaseInvoice);
 EXTEND FORM sendMessage
-    PROPERTIES (purchaseInvoiceProduct) idBarcodePurchaseInvoiceProduct EXTID 'Штрихкод' IN itemDataPurchaseInvoiceProduct
+    PROPERTIES (purchaseInvoiceProduct, configuration) idBarcodePurchaseInvoiceProduct EXTID 'Штрихкод' IN itemDataPurchaseInvoiceProduct
 ;
 @defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, purchaseInvoice, product);
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], purchaseInvoice, product);
@@ -410,13 +410,13 @@ EXTEND FORM sendMessage
 // Sale invoice
 META defSaleInvoice(nm, class, extid)
     @defKeyPropSimple(uidSaleInvoice, 'Ссылка', ISTRING[36], saleInvoice, class);
-    uidSaleInvoice(###class nm) += uid(nm(nm));
+    uidSaleInvoice(###class nm, Configuration configuration) += sendUid(nm(nm, configuration), configuration);
     @defKeyPropDate(dateSaleInvoice, 'Дата', saleInvoice, class);
-    dateSaleInvoice(###class nm) += date(nm(nm));
+    dateSaleInvoice(###class nm, Configuration configuration) += date(nm(nm, configuration), configuration);
     @defKeyPropSimple(idSaleInvoice, 'Номер', STRING[256], saleInvoice, class);
-    idSaleInvoice(###class nm) += STRING[256](id(nm(nm)));
+    idSaleInvoice(###class nm, Configuration configuration) += STRING[256](id(nm(nm, configuration), configuration));
     @defKeyPropObject(companySaleInvoice, 'Организация', Company, saleInvoice, class);
-    companySaleInvoice(###class nm) += company(nm(nm));
+    companySaleInvoice(###class nm, Configuration configuration) += company(nm(nm, configuration), configuration);
 END
 
 META defSaleInvoiceDetail(nm, class, table, extid, group)
@@ -426,12 +426,12 @@ END
 META defSaleCreditNoteDetail(nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = ###nm EXTID extid IN reasonDocument
-        PROPERTIES(nm###class###table) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
-        FILTERS nm###class###table = nm(class###table)
+        PROPERTIES(nm###class###table, configuration) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+        FILTERS nm###class###table = nm(class###table, configuration)
     
         OBJECTS companyNote###class###table = Company EXTID 'Организация'
-        PROPERTIES(companyNote###class###table) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-        FILTERS companyNote###class###table = company(nm###class###table)
+        PROPERTIES(companyNote###class###table, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS companyNote###class###table = company(nm###class###table, configuration)
     ;   
 END
 
@@ -463,26 +463,26 @@ CLASS ABSTRACT OutcomeVatInvoice 'Документ.СчетФактураВыд�
 
 EXTEND CLASS ObjectExchange { outcomeVatInvoice 'Документ.СчетФактураВыданный' }
 
-date (OutcomeVatInvoice outcomeVatInvoice) += DATE(dateTime(outcomeVatInvoice));
-desc (OutcomeVatInvoice outcomeVatInvoice) += STRING (CONCAT ' ', 'Счет фактура', 'от ' + date (outcomeVatInvoice), '№ ' + id(outcomeVatInvoice));
+date (OutcomeVatInvoice outcomeVatInvoice, Configuration configuration) += DATE(dateTime(outcomeVatInvoice, configuration));
+desc (OutcomeVatInvoice outcomeVatInvoice, Configuration configuration) += STRING (CONCAT ' ', 'Счет фактура', 'от ' + date(outcomeVatInvoice, configuration), '№ ' + id(outcomeVatInvoice, configuration));
 
 inSending (Configuration configuration, OutcomeVatInvoice outcomeVatInvoice) += inSending(ObjectExchange.outcomeVatInvoice, configuration) IF outcomeVatInvoice IS OutcomeVatInvoice;
 
 CLASS ABSTRACT OutcomeVatInvoiceDetail 'Строка';
 
-outcomeVatInvoice = ABSTRACT OutcomeVatInvoice (OutcomeVatInvoiceDetail);
-in (OutcomeVatInvoice outcomeVatInvoice, OutcomeVatInvoiceDetail outcomeVatInvoiceDetail) = outcomeVatInvoice(outcomeVatInvoiceDetail) == outcomeVatInvoice; 
+outcomeVatInvoice = ABSTRACT OutcomeVatInvoice (OutcomeVatInvoiceDetail, Configuration);
+in (OutcomeVatInvoice outcomeVatInvoice, OutcomeVatInvoiceDetail outcomeVatInvoiceDetail, Configuration configuration) = outcomeVatInvoice(outcomeVatInvoiceDetail, configuration) == outcomeVatInvoice; 
 
 @defProp(company, 'Организация', Company, OutcomeVatInvoice);
 
 EXTEND FORM sendMessage
     OBJECTS outcomeVatInvoice = OutcomeVatInvoice EXTID 'Документ.СчетФактураВыданный' IN bodySend
-    PROPERTIES(outcomeVatInvoice) IN keyProperties sendUid EXTID 'Ссылка', id EXTID 'Номер', dateTimeString EXTID 'Дата'
-    FILTERS dateTimeString(outcomeVatInvoice), id(outcomeVatInvoice), NOT EnterpriseData.isDeleted(outcomeVatInvoice)
+    PROPERTIES(outcomeVatInvoice, configuration) IN keyProperties sendUid EXTID 'Ссылка', id EXTID 'Номер', dateTimeString EXTID 'Дата'
+    FILTERS dateTimeString(outcomeVatInvoice, configuration), id(outcomeVatInvoice, configuration), NOT EnterpriseData.isDeleted(outcomeVatInvoice)
    
     OBJECTS companyOutcomeVatInvoice = Company EXTID 'Организация' IN keyProperties
-    PROPERTIES(companyOutcomeVatInvoice) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-    FILTERS companyOutcomeVatInvoice = company(outcomeVatInvoice)
+    PROPERTIES(companyOutcomeVatInvoice, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS companyOutcomeVatInvoice = company(outcomeVatInvoice, configuration)
     
     FILTERS in(configuration, outcomeVatInvoice)
 ;
@@ -515,41 +515,41 @@ EXTEND FORM sendMessage
 @defPropObjectDetail(saleCreditNote, 'КорректировкаРеализацииСсылка', SaleCreditNote, outcomeVatInvoice, reason);
         
 //ссылка на продажу
-saleInvoice 'ДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote);
-WHEN CHANGED(saleInvoice(SaleCreditNote d)) DO {
-    packet(Configuration c, saleInvoice(d)) <- NULL WHERE c IS Configuration;
-    in(Configuration c, saleInvoice(d)) <- TRUE WHERE inSending(c, saleInvoice(d)) AND NOT date(saleInvoice(d)) < dateStartExchange(c);
+saleInvoice 'ДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote, Configuration);
+WHEN CHANGED(saleInvoice(SaleCreditNote d, Configuration c)) DO {
+    packet(c, saleInvoice(d, c)) <- NULL;
+    in(c, saleInvoice(d, c)) <- TRUE WHERE inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 
 saleInvoiceSaleCreditNote 'ДокументРеализации' = DATA LOCAL STRING (INTEGER);
 
 EXTEND FORM sendMessage
     OBJECTS saleInvoiceSaleCreditNote = SaleInvoice EXTID 'РеализацияТоваровУслугСсылка' IN saleDocument
-    PROPERTIES(saleInvoiceSaleCreditNote) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
-    FILTERS saleInvoiceSaleCreditNote = saleInvoice(saleCreditNote)
+    PROPERTIES(saleInvoiceSaleCreditNote, configuration) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+    FILTERS saleInvoiceSaleCreditNote = saleInvoice(saleCreditNote, configuration)
 
     OBJECTS companySaleInvoiceSaleCreditNote = Company EXTID 'Организация'
-    PROPERTIES(companySaleInvoiceSaleCreditNote) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-    FILTERS companySaleInvoiceSaleCreditNote = company(saleInvoiceSaleCreditNote)
+    PROPERTIES(companySaleInvoiceSaleCreditNote, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS companySaleInvoiceSaleCreditNote = company(saleInvoiceSaleCreditNote, configuration)
 ;   
 
 //еще одна ссылка на продажу
-correctedSaleInvoice 'ИсправляемыйДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote);
-WHEN CHANGED(correctedSaleInvoice(SaleCreditNote d)) DO {
-    packet(Configuration c, saleInvoice(d)) <- NULL WHERE c IS Configuration;
-    in(Configuration c, saleInvoice(d)) <- TRUE WHERE inSending(c, saleInvoice(d)) AND NOT date(saleInvoice(d)) < dateStartExchange(c);
+correctedSaleInvoice 'ИсправляемыйДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote, Configuration);
+WHEN CHANGED(correctedSaleInvoice(SaleCreditNote d, Configuration c)) DO {
+    packet(c, saleInvoice(d, c)) <- NULL;
+    in(c, saleInvoice(d, c)) <- TRUE WHERE inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 
 correctedSaleInvoiceSaleCreditNote 'ИсправляемыйДокументРеализации' = DATA LOCAL STRING (INTEGER);
 
 EXTEND FORM sendMessage
     OBJECTS correctedSaleInvoiceSaleCreditNote = SaleInvoice EXTID 'РеализацияТоваровУслугСсылка' IN correctedSaleDocument
-    PROPERTIES(correctedSaleInvoiceSaleCreditNote) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
-    FILTERS correctedSaleInvoiceSaleCreditNote = correctedSaleInvoice(saleCreditNote)
+    PROPERTIES(correctedSaleInvoiceSaleCreditNote, configuration) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+    FILTERS correctedSaleInvoiceSaleCreditNote = correctedSaleInvoice(saleCreditNote, configuration)
 
     OBJECTS companyCorrectedSaleInvoiceSaleCreditNote = Company EXTID 'Организация'
-    PROPERTIES(companyCorrectedSaleInvoiceSaleCreditNote) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-    FILTERS companyCorrectedSaleInvoiceSaleCreditNote = company(correctedSaleInvoiceSaleCreditNote)
+    PROPERTIES(companyCorrectedSaleInvoiceSaleCreditNote, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS companyCorrectedSaleInvoiceSaleCreditNote = company(correctedSaleInvoiceSaleCreditNote, configuration)
 ;
 @defPropId(operation, 'ВидОперации', typeSaleCreditNote, saleCreditNote);
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, saleCreditNote);
@@ -726,8 +726,22 @@ EXTEND FORM sendMessage
 // retail report
 @extDocument(retailReport, 'ОтчетОРозничныхПродажах');
 @defPropObject(currency, 'Валюта', Currency, retailReport);
-@defPropSimple(note, 'Комментарий', STRING, retailReport);
+@defPropSimple(sum, 'Сумма', NUMERIC[15,2], retailReport);
+@defPropBoolean(includeVat, 'СуммаВключаетНДС', retailReport);
 @defPropObject(stock, 'Склад', Stock, retailReport);
+@defPropSimple(note, 'Комментарий', STRING, retailReport);
+
+@extTable(retailReport, product);
+@defPropObjectDetail(item, 'Номенклатура', Item, retailReport, product, itemData);
+@defPropObjectDetail(specification, 'Характеристика', Specification, retailReport, product, itemData);
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, retailReport, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], retailReport, product);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], retailReport, product);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], retailReport, product);
+@defPropSimpleDetail(pricePack, 'ЦенаЗаУпаковку', NUMERIC[15,2], retailReport, product);
+@defPropSimpleDetail(quantityPack, 'КоличествоУпаковок', NUMERIC[15,3], retailReport, product);
+@defPropIdDetail(vat, 'СтавкаНДС', TypeVat, retailReport, product);
+@defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], retailReport, product);
 
 @extTable(retailReport, paymentCard);
 @defPropSimpleDetail(sum, 'СуммаОплаты', NUMERIC[15,2], retailReport, paymentCard);
@@ -863,16 +877,16 @@ EXTEND FORM sendMessage
 @defProp(companyBankAccount, 'БанковскийСчетОрганизации', BankAccount, PaymentOrder);
 EXTEND FORM sendMessage
     OBJECTS companyBankAccountPaymentOrder = BankAccount EXTID 'БанковскийСчетОрганизации'
-    PROPERTIES (companyBankAccountPaymentOrder) uid EXTID 'Ссылка', number EXTID 'НомерСчета'
-    FILTERS companyBankAccountPaymentOrder = companyBankAccount(paymentOrder)
+    PROPERTIES (companyBankAccountPaymentOrder, configuration) sendUid EXTID 'Ссылка', number EXTID 'НомерСчета'
+    FILTERS companyBankAccountPaymentOrder = companyBankAccount(paymentOrder, configuration)
 ;
 @defBank(bank, companyBankAccountPaymentOrder)
 ;
 GROUP companyLink  EXTID 'ОрганизацииСсылка';
 EXTEND FORM sendMessage
     OBJECTS ownerCompanyBankAccountPaymentOrder = Partner EXTID 'Владелец'
-    PROPERTIES(ownerCompanyBankAccountPaymentOrder) IN companyLink sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-    FILTERS ownerCompanyBankAccountPaymentOrder = owner(companyBankAccountPaymentOrder)
+    PROPERTIES(ownerCompanyBankAccountPaymentOrder, configuration) IN companyLink sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS ownerCompanyBankAccountPaymentOrder = owner(companyBankAccountPaymentOrder, configuration)
 ;
 @defPropObject(partner, 'Контрагент', Partner, paymentOrder);
 EXTEND FORM receiveMessage
