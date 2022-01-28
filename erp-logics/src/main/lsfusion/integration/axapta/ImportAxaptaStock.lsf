@@ -22,9 +22,7 @@ importStoreType 'Импорт форматов магазинов' () {
                 IMPORT TABLE FROM file() TO id, name;
         }
                
-        FOR id(INTEGER i) DO {
-            id(i) <- 'F' + id(i);
-        } 
+        id(INTEGER i) <- 'F' + id(i) WHERE id(i);
                       
         FOR id(INTEGER i) AND NOT storeType(id(i)) DO NEW g = StoreType {
             id(g) <- id(i);
@@ -75,16 +73,14 @@ importStock 'Импорт складов' () {
                 IMPORT TABLE FROM file() TO id, name;
         }       
 
-        FOR idGroup(INTEGER i) DO {
-            idGroup(i) <- 'F' + idGroup(i);
-        }
+        idGroup(INTEGER i) <- 'F' + idGroup(i) WHERE idGroup(i);
                 
         //магазины            
         FOR id(INTEGER i) AND locationType(i) = 3 AND storeType(idGroup(i)) AND NOT store(id(i)) DO NEW g = Store {
             id(g) <- id(i);
         }
         
-        FOR Store s = store(id(INTEGER i)) AND locationType(i) = 3 AND storeType(idGroup(i)) DO {
+        FOR Store s = store(id(INTEGER i)) DO {
             name(s) <- name(i);
             storeType(s) <- storeType(idGroup(i));
             legalEntity(s) <- defaultCompany();
@@ -140,9 +136,7 @@ importStock 'Импорт складов' () {
             id(w) <- id(i1);
         }       
         
-        FOR Warehouse w = warehouse(id(INTEGER i)) 
-            AND NOT locationType(i) = 3 
-            AND NOT [GROUP MAX INTEGER i1 BY locationDirect(i1) IF locationType(i1) = 3](id(i)) DO {
+        FOR Warehouse w = warehouse(id(INTEGER i)) DO {
             name(w) <- name(i);
             legalEntity(w) <- defaultCompany();
             warehouseGroup(w) <- CASE WHEN locationType(i) = 0 THEN warehouseGroup('default')
