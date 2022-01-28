@@ -21,8 +21,12 @@ importStoreType 'Импорт форматов магазинов' () {
                 PARAMS areaId() TO file;
                 IMPORT TABLE FROM file() TO id, name;
         }
+               
+        FOR id(INTEGER i) DO {
+            id(i) <- 'F' + id(i);
+        } 
                       
-        FOR id(INTEGER i) AND NOT storeType(TEXT (id(i))) DO NEW g = StoreType {
+        FOR id(INTEGER i) AND NOT storeType(id(i)) DO NEW g = StoreType {
             id(g) <- id(i);
             chainStores(g) <- chainStores('chainStores');
         }
@@ -46,6 +50,121 @@ DESIGN integrationData {
         NEW importBarcodeCont {
             type = CONTAINERH;
             MOVE PROPERTY (importStoreType());
+        }
+    }
+}
+
+//Склады
+importStock 'Импорт складов' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL name = ISTRING[100] (INTEGER);
+        LOCAL locationType = INTEGER (INTEGER);
+        LOCAL idGroup = STRING[100] (INTEGER);
+        LOCAL locationDirect = STRING[100] (INTEGER);        
+                
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, name, locationType, idGroup, locationDirect;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT INVENTLOCATIONID, NAME, INVENTLOCATIONTYPE, SHOPGROUPID, INVENTLOCATIONIDREJECT FROM INVENTLOCATION WHERE DATAAREAID = $1' 
+                PARAMS areaId() TO file;
+                IMPORT TABLE FROM file() TO id, name;
+        }       
+
+        FOR idGroup(INTEGER i) DO {
+            idGroup(i) <- 'F' + idGroup(i);
+        }
+                
+        //магазины            
+        FOR id(INTEGER i) AND locationType(i) = 3 AND storeType(idGroup(i)) AND NOT store(id(i)) DO NEW g = Store {
+            id(g) <- id(i);
+        }
+        
+        FOR Store s = store(id(INTEGER i)) AND locationType(i) = 3 AND storeType(idGroup(i)) DO {
+            name(s) <- name(i);
+            storeType(s) <- storeType(idGroup(i));
+            legalEntity(s) <- defaultCompany();
+        }
+        
+        //отделы
+        FOR id(INTEGER i) AND locationType(i) = 3 AND store(id(i)) AND NOT departmentStore(id(i)) DO NEW dep = DepartmentStore {
+            id(dep) <- id(i);
+        }        
+
+        FOR DepartmentStore dep = departmentStore(id(INTEGER i)) AND locationType(i) = 3 AND store(id(i))  DO {
+            name(dep) <- name(i);
+            store(dep) <- store(id(i));
+        }
+
+        FOR INTEGER i1 = [GROUP MAX INTEGER i BY id(i) IF id(i) IS STRING[100] AND NOT locationType(i) = 3](STRING[100] id)
+            AND INTEGER i2 = [GROUP MAX INTEGER i BY locationDirect(i) IF locationType(i) = 3](id)
+            AND NOT departmentStore(id(i1)) DO NEW dep = DepartmentStore {
+            id(dep) <- id;
+        }          
+        
+        FOR DepartmentStore dep = departmentStore(id(INTEGER i)) AND NOT locationType(i) = 3
+            AND Store store = [GROUP MAX store(id(INTEGER i1)) IF locationType(i1) = 3 BY locationDirect(i1)](id(i)) DO {
+            name(dep) <- name(i);
+            store(dep) <- store;
+        }  
+        
+        //группы складов
+        IF NOT warehouseGroup('default') THEN NEW g = WarehouseGroup {
+            id(g) <- 'default';
+            name(g) <- 'По умолчанию';
+            parent(g) <- warehouseGroup('company');
+        }
+
+        IF NOT warehouseGroup('defect') THEN NEW g = WarehouseGroup {
+            id(g) <- 'defect';
+            name(g) <- 'Брак';
+            parent(g) <- warehouseGroup('company');
+            
+        }
+        
+        IF NOT warehouseGroup('delivery') THEN NEW g = WarehouseGroup {
+            id(g) <- 'delivery';
+            name(g) <- 'Доставка';
+            parent(g) <- warehouseGroup('company');
+        } 
+        
+        //склады
+        FOR INTEGER i1 = [GROUP MAX INTEGER i BY id(i), locationType(i)](STRING[100] id, INTEGER type) 
+            AND NOT type = 3
+            AND NOT [GROUP MAX INTEGER i BY locationDirect(i) IF locationType(i) = 3](id)
+            AND NOT warehouse(id(i1)) NEW w = Warehouse DO {
+            id(w) <- id(i1);
+        }       
+        
+        FOR Warehouse w = warehouse(id(INTEGER i)) 
+            AND NOT locationType(i) = 3 
+            AND NOT [GROUP MAX INTEGER i1 BY locationDirect(i1) IF locationType(i1) = 3](id(i)) DO {
+            name(w) <- name(i);
+            legalEntity(w) <- defaultCompany();
+            warehouseGroup(w) <- CASE WHEN locationType(i) = 0 THEN warehouseGroup('default')
+                                      WHEN locationType(i) = 2 THEN warehouseGroup('defect')
+                                      WHEN locationType(i) = 4 THEN warehouseGroup('delivery')
+            ;
+                                      
+        }        
+                                
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importStock
+;
+
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importStock {
+            type = CONTAINERH;
+            MOVE PROPERTY (importStock());
         }
     }
 }
