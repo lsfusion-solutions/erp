@@ -1506,12 +1506,23 @@ createDeclarationDetailUser 'Рассчитать платежи' (Invoice userI
     }    
 } TOOLBAR; 
 
+useCustomDeclarationForm = ABSTRACT BOOLEAN ();
+customDeclarationForm ABSTRACT (UserInvoice);
+
+changeDeclaration(UserInvoice i) {
+    IF NOT useCustomDeclarationForm() THEN {
+        DIALOG declarations OBJECTS d = declaration(i) CHANGE;   
+    } ELSE {
+        customDeclarationForm(i);
+    }
+}
+
 EXTEND FORM userInvoice
     OBJECTS d3 = UserInvoiceDetail GRID
     PROPERTIES(d3) SHOWIF showDeclaration(i) READONLY index, idBarcodeSku, nameSku, descriptionDeclaration, 
                    codeCustomsGroup ON CHANGE changeCustomsGroup(d) CHANGEABLE, nameVATCustomsException, price
     PROPERTIES(d3) SHOWIF showDeclaration(i) dutyPrice, registrationPrice, VATPrice                
-    PROPERTIES(i) createDeclarationDetailUser DRAW d3 SHOWIF showDeclaration(i), descriptionDeclarationTabUserInvoice = descriptionDeclaration SHOWIF showDeclaration(i)                      
+    PROPERTIES(i) createDeclarationDetailUser DRAW d3 SHOWIF showDeclaration(i), descriptionDeclarationTabUserInvoice = descriptionDeclaration SHOWIF showDeclaration(i) ON CHANGE changeDeclaration(i)                     
     FILTERS userInvoice(d3) == i                   
                    
 ;
