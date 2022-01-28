@@ -93,7 +93,8 @@ public class FiscalVMKPrintInvoicePaymentAction extends InternalAction {
             if(result != null)
                 ServerLoggers.systemLogger.error("FiscalVMKPrintInvoicePayment Error: " + result);
             findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : NullValue.instance, context);
-            
+            findProperty("printReceiptError[]").change(result, context);
+
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }

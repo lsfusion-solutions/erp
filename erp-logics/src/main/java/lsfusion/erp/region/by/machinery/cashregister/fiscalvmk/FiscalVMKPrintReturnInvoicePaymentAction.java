@@ -96,6 +96,7 @@ public class FiscalVMKPrintReturnInvoicePaymentAction extends InternalAction {
                 ServerLoggers.systemLogger.error("FiscalVMKPrintReturnInvoicePayment Error: " + result);
                 findProperty("printReceiptResult[]").change((Boolean) null, context);
             }
+            findProperty("printReceiptError[]").change(result, context);
             
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
