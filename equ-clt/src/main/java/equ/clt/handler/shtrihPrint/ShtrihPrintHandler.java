@@ -149,6 +149,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         while (i < 8) {
                                                             String message = getMessage(description, start, total, newLineNoSubstring);
                                                             start += message.length() + 1;
+                                                            processTransactionLogger.info("Shtrih: sending message " + messageNumber + " (" + (i+1) + ")");
                                                             int result = setMessageData(itemErrors, port, messageNumber, i + 1, message);
                                                             if (result != 0) {
                                                                 error = result;
@@ -158,7 +159,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         }
 
                                                         if (error == 0) {
-                                                            processTransactionLogger.info("Shtrih: sending item " + pluNumber);
+                                                            processTransactionLogger.info("Shtrih: sending item " + pluNumber + " message - " + messageNumber);
                                                             int result = setPLUDataEx(itemErrors, port, pluNumber, barcode, firstName, secondName,
                                                                     item.price, shelfLife, groupCode, messageNumber, expiryDate/*, item.splitItem ? 0 : 1*/);
                                                             if (result != 0)
