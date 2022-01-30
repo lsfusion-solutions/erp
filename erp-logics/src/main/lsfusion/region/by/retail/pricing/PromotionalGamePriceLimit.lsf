@@ -1,0 +1,112 @@
+MODULE PromotionalGamePriceLimit;
+
+REQUIRE PriceListLedger, PromotionalGame, PricingPriceList, RepricingPriceListPriceLimit, PricingPurchase;
+
+fixPrices 'Фиксировать цену игровых товаров' = DATA BOOLEAN (PromotionalGame);
+EXTEND FORM promotionalGame
+PROPERTIES fixPrices(g)
+;
+
+DESIGN promotionalGame {
+    col1 {
+        MOVE PROPERTY (fixPrices(g));
+    }
+}
+
+dataFixPriceFromDate = DATA DATE (PromotionalGame, Item);
+dataFixPriceToDate = DATA DATE (PromotionalGame, Item);
+
+fixPriceFromDate 'Фиксировать цену с' (PromotionalGame g, Item item) = (OVERRIDE dataFixPriceFromDate(g, item), fromDate(g)) IF in(g, item) AND fixPrices(g) ;
+fixPriceToDate 'Фиксировать цену по' (PromotionalGame g, Item item) = (OVERRIDE dataFixPriceToDate(g, item), toDate(g)) IF in(g, item) AND fixPrices(g);
+
+fixPriceFromDateTime (PromotionalGame g, Item item)= DATETIME (fixPriceFromDate(g, item)) MATERIALIZED; 
+fixPriceToDateTime (PromotionalGame g, Item item) = DATETIME (sum(fixPriceToDate(g, item),1)) MATERIALIZED;
+
+minPrice (LedgerPriceListType type, Stock stock, Sku sku, DATETIME fromDateTime, DATETIME toDateTime) = 
+                                                    GROUP MIN price(PriceListLedger led, type, stock) 
+                                                    IF fromDateTime(led) <= toDateTime AND fromDateTime(led) >= fromDateTime BY sku(led, type, stock);
+
+EXTEND FORM promotionalGame
+  PROPERTIES (g,i) fixPriceFromDate, fixPriceToDate  
+;
+
+minPrice 'Минимальная цена' (PromotionalGame g, Stock stock, Sku sku) =  (MIN priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, fixPriceFromDateTime(g, sku)), minPrice(SystemLedgerPriceListType.retailPricingPriceListType, stock, sku, fixPriceFromDateTime(g, sku), fixPriceToDateTime(g, sku))) IF in(g, sku) AND fixPrices(g);
+
+minPrice 'Минимальная цена' (DepartmentStore d, Sku sku, DATETIME dt) = GROUP MIN minPrice(PromotionalGame g, d, sku) IF fixPriceFromDateTime(g, sku)<=dt AND fixPriceToDateTime(g, sku)>=dt AND minPrice(g, d, sku); 
+
+curPrice 'Текущая цена' (DepartmentStore d, Sku sku, DATETIME dt) = priceB(SystemLedgerPriceListType.retailPricingPriceListType, sku, d, dt);
+
+deltaPrice 'Разница цен' (DepartmentStore d, Sku sku, DATETIME dt) = minPrice(d, sku, dt) - curPrice(d, sku, dt); 
+
+isFixedPrice 'Зафиксирована цена' (Sku s, DATETIME dt) = TRUE IF GROUP SUM 1 IF fixPriceFromDateTime(PromotionalGame g, s) <= dt AND fixPriceToDateTime(g,s) >= dt;
+
+FORM pricePromotionalGameItems 'Фиксированные цены в период проведения игр'
+OBJECTS g = PromotionalGame PANEL
+PROPERTIES name(g) SELECTOR 
+
+OBJECTS st = DepartmentStore PANEL
+PROPERTIES name(st) SELECTOR
+
+OBJECTS it = Item
+PROPERTIES minPrice(g, st, it)
+PROPERTIES in(g, it)
+PROPERTIES fixPriceFromDateTime(g, it), fixPriceToDateTime(g, it)
+PROPERTIES name(it)
+FILTERS in(g, it)
+;
+
+showMovementRetailPriceSku 'Показать изменение розничной цены по складу' (Sku sku, Stock st) {
+    NEWSESSION {
+        dialogPriceListType() <- SystemLedgerPriceListType.retailPricingPriceListType;
+        SHOW movementPriceSkuStock OBJECTS s = sku, st = st;    
+    }
+}
+
+FORM pricePromotionalGameItemsDate 'Фикс. цены для игровых товаров'
+OBJECTS d 'На дату/время' = DATETIME PANEL 
+PROPERTIES VALUE(d)
+OBJECTS st = DepartmentStore PANEL 
+PROPERTIES name(st) SELECTOR 
+
+OBJECTS i = Item
+PROPERTIES minPrice(st, i, d)  ON CONTEXTMENU showMovementRetailPriceSku(i, st)
+PROPERTIES curPrice(st, i, d)
+PROPERTIES deltaPrice(st, i, d)
+PROPERTIES isFixedPrice(i, d)
+PROPERTIES READONLY name(i), id(i), barcode(i)
+FILTERS isFixedPrice(i, d)
+;
+
+DESIGN pricePromotionalGameItemsDate {
+    OBJECTS {
+        NEW head {
+            type = CONTAINERH;
+            MOVE PANEL(d);
+            MOVE PROPERTY(name(st));
+        }
+        MOVE BOX(i);
+    }
+}
+
+NAVIGATOR {
+    retailNavigator {
+        NEW FOLDER retailPromotionalGames 'Рекламные игры' AFTER retailMasterData {
+            MOVE promotionalGames;
+            MOVE prizeRaffleDashboard;
+            NEW pricePromotionalGameItemsDate;
+        }                             
+    }
+}
+
+WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            SETCHANGED(retailPrice(UserInvoiceDetail d)) AND isFixedPrice(sku(d),dateTime(d))
+            AND minPrice(customerStock(d), sku(d), dateTime(d)) < retailPrice(d) DO {
+    retailPrice(d) <- minPrice(customerStock(d), sku(d), dateTime(d)) ;
+    retailMarkup(d) <- calcRetailMarkup(d);
+}
+
+overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + { 
+    LOCAL limitPrice = NUMERIC[16,4] (Sku);
+    limitPrice(Sku sku) <- minPrice(d, sku, dt) WHERE isFixedPrice(sku, dt);
+    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE (limitPrice(sku) < managementRetailPrice (sku) OR limitPrice(sku) < prevRetailPricingPriceA(sku, d, dt)) AND (inSession(skuGroup(sku)) OR calculateAllGroups()) AND NOT skipRepricingPriceLimit(sku); 
+}
