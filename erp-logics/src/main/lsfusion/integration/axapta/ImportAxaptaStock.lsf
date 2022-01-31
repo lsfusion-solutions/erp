@@ -203,18 +203,19 @@ importPurchaseContract 'Импорт договоров закупки' () {
 
         FOR INTEGER i1 = [GROUP MAX INTEGER i BY idPaymentCondition(i)](STRING id) AND NOT paymentCondition(id) NEW p = PaymentCondition DO {
             id(p) <- id;
-            IF isSubstring(id, 'кд') OR isSubstring(id, 'бд') THEN NEW per = PaymentPeriod {
-                id(per) <- id;
-                countDays(per) <- OVERRIDE INTEGER (left(id, strpos(id, 'кд') - 1)), INTEGER (left(id, strpos(id, 'бд') - 1)) ;
-                percent(per) <- 100;
-                paymentCondition(per) <- p;
-            }           
-            
             type(p) <- CASE WHEN isSubstring(id, 'предоплата') THEN AgreementPaymentType.advancePayment
                             WHEN isSubstring(id, 'по факту') THEN AgreementPaymentType.implement
                             ELSE AgreementPaymentType.prepayment;
             bankingDays(p) <- TRUE WHERE isSubstring(id, 'бд');
         }
+        
+        FOR INTEGER i1 = [GROUP MAX INTEGER i BY idPaymentCondition(i)](STRING id) AND PaymentCondition p = paymentCondition(id) 
+            AND (isSubstring(id, 'кд') OR isSubstring(id, 'бд')) AND NOT paymentCondition(paymentPeriod(id)) = p NEW per = PaymentPeriod DO {
+            id(per) <- id;
+            countDays(per) <- OVERRIDE INTEGER (left(id, strpos(id, 'кд') - 1)), INTEGER (left(id, strpos(id, 'бд') - 1)) ;
+            percent(per) <- 100;
+            paymentCondition(per) <- p;
+        }      
           
         FOR id(INTEGER i) AND UserContractSku c == userContractSku(id(i)) DO {
             number(c) <- number(i);
