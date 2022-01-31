@@ -7,13 +7,12 @@ import com.jacob.com.Variant;
 import equ.api.*;
 import equ.api.scales.*;
 import equ.clt.handler.DefaultScalesHandler;
-import equ.clt.handler.HandlerUtils;
-import equ.clt.handler.ScalesSettings;
 import lsfusion.base.ExceptionUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
@@ -24,7 +23,6 @@ import static lsfusion.base.BaseUtils.nvl;
 
 public class ShtrihPrintHandler extends DefaultScalesHandler {
 
-    private static String password = "0030";
     private LocalDate defaultDate = LocalDate.of(2001, 1, 1);
 
     private FileSystemXmlApplicationContext springContext;
@@ -39,8 +37,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     }
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
-        
-        ScalesSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ScalesSettings) springContext.getBean("shtrihSettings") : new ScalesSettings();
+
+        ShtrihPrintSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ShtrihPrintSettings) springContext.getBean("shtrihSettings") : new ShtrihPrintSettings();
         boolean allowParallel = shtrihSettings.isAllowParallel();
         // нельзя делать параллельно, так как на большом количестве одновременных подключений через ADSL на весы идут Connection Error   
         if (allowParallel) {
@@ -67,12 +65,13 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
             try {
 
                 processTransactionLogger.info("Shtrih: Reading settings...");
-                ScalesSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ScalesSettings) springContext.getBean("shtrihSettings") : new ScalesSettings();
+                ShtrihPrintSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ShtrihPrintSettings) springContext.getBean("shtrihSettings") : new ShtrihPrintSettings();
                 boolean usePLUNumberInMessage = shtrihSettings.isUsePLUNumberInMessage();
                 boolean newLineNoSubstring = shtrihSettings.isNewLineNoSubstring();
                 boolean useSockets = shtrihSettings.isUseSockets();
                 boolean capitalLetters = shtrihSettings.isCapitalLetters();
                 int advancedClearMaxPLU = nvl(shtrihSettings.getAdvancedClearMaxPLU(), 0);
+                boolean skipDescription = shtrihSettings.isSkipDescription();
 
                 List<ScalesInfo> enabledScalesList = new ArrayList<>();
                 for (ScalesInfo scales : transaction.machineryInfoList) {
@@ -144,19 +143,22 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         Integer groupCode = 0; //item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
                                                         String description = item.description == null ? "" : item.description;
                                                         int messageNumber = usePLUNumberInMessage ? pluNumber : item.descriptionNumber;
-                                                        int start = 0;
-                                                        int total = description.length();
-                                                        int i = 0;
-                                                        while (i < 8) {
-                                                            String message = getMessage(description, start, total, newLineNoSubstring);
-                                                            start += message.length() + 1;
-                                                            processTransactionLogger.info("Shtrih: sending message " + messageNumber + " (" + (i+1) + ")");
-                                                            int result = setMessageData(itemErrors, port, messageNumber, i + 1, message);
-                                                            if (result != 0) {
-                                                                error = result;
-                                                                break;
+
+                                                        if (!skipDescription) {
+                                                            int start = 0;
+                                                            int total = description.length();
+                                                            int i = 0;
+                                                            while (i < 8) {
+                                                                String message = getMessage(description, start, total, newLineNoSubstring);
+                                                                start += message.length() + 1;
+                                                                processTransactionLogger.info("Shtrih: sending message " + messageNumber + " (" + (i + 1) + ")");
+                                                                int result = setMessageData(itemErrors, port, messageNumber, i + 1, message);
+                                                                if (result != 0) {
+                                                                    error = result;
+                                                                    break;
+                                                                }
+                                                                i++;
                                                             }
-                                                            i++;
                                                         }
 
                                                         if (error == 0) {
@@ -315,21 +317,23 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(localDateToSqlDate(item.expiryDate == null ? defaultDate : item.expiryDate)));
                                                         shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
-                                                        String description = item.description == null ? "" : item.description;
-                                                        int start = 0;
-                                                        int total = description.length();
-                                                        int i = 0;
-                                                        while (i < 8) {
-                                                            shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? pluNumber : item.descriptionNumber));
-                                                            shtrihActiveXComponent.setProperty("StringNumber", new Variant(i + 1));
-                                                            String message = getMessage(description, start, total, newLineNoSubstring);
-                                                            shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
-                                                            start += message.length() + 1;
-                                                            i++;
+                                                        if (!skipDescription) {
+                                                            String description = item.description == null ? "" : item.description;
+                                                            int start = 0;
+                                                            int total = description.length();
+                                                            int i = 0;
+                                                            while (i < 8) {
+                                                                shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? pluNumber : item.descriptionNumber));
+                                                                shtrihActiveXComponent.setProperty("StringNumber", new Variant(i + 1));
+                                                                String message = getMessage(description, start, total, newLineNoSubstring);
+                                                                shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
+                                                                start += message.length() + 1;
+                                                                i++;
 
-                                                            result = Dispatch.call(shtrihDispatch, "SetMessageData");
-                                                            if (isError(result))
-                                                                logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result.getInt())));
+                                                                result = Dispatch.call(shtrihDispatch, "SetMessageData");
+                                                                if (isError(result))
+                                                                    logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, result.getInt(), getErrorText(result.getInt())));
+                                                            }
                                                         }
 
                                                         result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
@@ -713,7 +717,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     private int clearGoodsDB(List<String> errors, UDPPort port) throws IOException, InterruptedException {
         ByteBuffer bytes = ByteBuffer.allocate(5);
         bytes.put((byte) 24); //18H
-        bytes.put(getPassword().getBytes("cp1251"), 0, 4);
+        bytes.put(getPasswordBytes(), 0, 4);
         int result = sendCommand(errors, port, bytes.array());
         if(result == 0) {
             boolean finished = false;
@@ -732,10 +736,10 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     private int setMessageData(List<String> errors, UDPPort port, int messageNumber, int stringNumber, String messageString) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(58);
         bytes.put((byte) 82); //52H
-        bytes.put(getPassword().getBytes("cp1251"), 0, 4); //4 байта
+        bytes.put(getPasswordBytes(), 0, 4); //4 байта
         bytes.putShort(Short.reverseBytes((short) messageNumber)); //2 байта
         bytes.put((byte) stringNumber); //1 байт
-        bytes.put(leftString(messageString, 50).getBytes("cp1251"), 0, 50); //50 байт
+        bytes.put(getStringBytes(messageString, 50), 0, 50); //50 байт
         return sendCommand(errors, port, bytes.array());
     }
 
@@ -743,11 +747,11 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                              int shelfLife, int groupCode, int messageNumber, LocalDate expiryDate/*, int goodsType*/) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(87);
         bytes.put((byte) 87); //57H
-        bytes.put(getPassword().getBytes("cp1251"), 0, 4); //4 байта
+        bytes.put(getPasswordBytes(), 0, 4); //4 байта
         bytes.putShort(Short.reverseBytes((short) pluNumber)); //2 байта
         bytes.putInt(Integer.reverseBytes(barcode)); //4 байта
-        bytes.put(leftString(firstName, 28).getBytes("cp1251"), 0, 28); //28 байт
-        bytes.put(leftString(secondName, 28).getBytes("cp1251"), 0, 28); //28 байт
+        bytes.put(getStringBytes(firstName, 28), 0, 28); //28 байт
+        bytes.put(getStringBytes(secondName, 28), 0, 28); //28 байт
         bytes.putInt(Integer.reverseBytes(price == null ? 0 : price.multiply(BigDecimal.valueOf(100)).intValue())); //4 байта
         bytes.putShort(Short.reverseBytes((short)shelfLife)); //2 байта
         bytes.putShort(Short.reverseBytes((short)0)); //тара, 2 байта
@@ -755,11 +759,9 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
         bytes.putShort(Short.reverseBytes((short)messageNumber)); //2 байта
         bytes.put((byte) 0); //pictureNumber, 1 байта
         bytes.putInt(Integer.reverseBytes(0)); //ROSTEST, 4 байта
-        Date sqlExpiryDate = localDateToSqlDate(expiryDate);
-        bytes.put((byte) sqlExpiryDate.getDate()); //1 байт
-        bytes.put((byte) (sqlExpiryDate.getMonth() + 1)); //1 байт
-        int year = sqlExpiryDate.getYear();
-        bytes.put((byte) (year > 100 ? (year - 100) : year)); //1 байт
+        bytes.put((byte) expiryDate.getDayOfMonth()); //1 байт
+        bytes.put((byte) expiryDate.getMonthValue()); //1 байт
+        bytes.put((byte) (expiryDate.getYear() - 2000)); //1 байт
         //bytes.put((byte) goodsType); //1 байт
         return sendCommand(errors, port, bytes.array());
     }
@@ -828,23 +830,18 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
         }
     }*/
 
-    private String leftString(String var1, int var3) {
-        String var4 = var1;
-        if(var4.length() > var3) {
-            return var4.substring(0, var3);
-        } else if(var4.length() == var3) {
-            return var4;
-        } else {
-            while(var4.length() < var3) {
-                var4 = var4 + '\u0000';
-            }
-
-            return var4;
+    private byte[] getStringBytes(String value, int length) throws UnsupportedEncodingException {
+        if(value.length() > length) {
+            value = value.substring(0, length);
         }
+        while(value.length() < length) {
+            value = value + '\u0000';
+        }
+        return value.getBytes("cp1251");
     }
 
-    private String getPassword() {
-        return HandlerUtils.prependZeroes(password, 4);
+    private byte[] getPasswordBytes() throws UnsupportedEncodingException {
+        return getStringBytes("0030", 4);
     }
 
     private void logError(List<String> errors, String errorText) {
