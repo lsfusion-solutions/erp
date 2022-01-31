@@ -2,6 +2,8 @@ MODULE PromotionalGamePriceLimit;
 
 REQUIRE PriceListLedger, PromotionalGame, PricingPriceList, RepricingPriceListPriceLimit, PricingPurchase;
 
+NAMESPACE PromotionalGame;
+
 fixPrices 'Фиксировать цену игровых товаров' = DATA BOOLEAN (PromotionalGame);
 EXTEND FORM promotionalGame
 PROPERTIES fixPrices(g)
@@ -32,11 +34,15 @@ EXTEND FORM promotionalGame
 
 minPrice 'Минимальная цена' (PromotionalGame g, Stock stock, Sku sku) =  (MIN priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, fixPriceFromDateTime(g, sku)), minPrice(SystemLedgerPriceListType.retailPricingPriceListType, stock, sku, fixPriceFromDateTime(g, sku), fixPriceToDateTime(g, sku))) IF in(g, sku) AND fixPrices(g);
 
-minPrice 'Минимальная цена' (DepartmentStore d, Sku sku, DATETIME dt) = GROUP MIN minPrice(PromotionalGame g, d, sku) IF fixPriceFromDateTime(g, sku)<=dt AND fixPriceToDateTime(g, sku)>=dt AND minPrice(g, d, sku); 
+//prevMinPrice 'Минимальная цена' (PromotionalGame g, Stock stock, Sku sku) = PREV(minPrice(g,stock,sku)); 
+
+minPrice 'Минимальная цена' (DepartmentStore d, Sku sku, DATETIME dt) = GROUP MIN minPrice(PromotionalGame g, d, sku) IF fixPriceFromDateTime(g, sku)<=dt AND fixPriceToDateTime(g, sku)>=dt; 
+
+prevMinPrice 'Минимальная цена' (DepartmentStore d, Sku sku, DATETIME dt) = PREV(minPrice(d, sku, dt)); 
 
 curPrice 'Текущая цена' (DepartmentStore d, Sku sku, DATETIME dt) = priceB(SystemLedgerPriceListType.retailPricingPriceListType, sku, d, dt);
 
-deltaPrice 'Разница цен' (DepartmentStore d, Sku sku, DATETIME dt) = minPrice(d, sku, dt) - curPrice(d, sku, dt); 
+deltaPrice 'Разница цен' (DepartmentStore d, Sku sku, DATETIME dt) = prevMinPrice(d, sku, dt) - curPrice(d, sku, dt); 
 
 isFixedPrice 'Зафиксирована цена' (Sku s, DATETIME dt) = TRUE IF GROUP SUM 1 IF fixPriceFromDateTime(PromotionalGame g, s) <= dt AND fixPriceToDateTime(g,s) >= dt;
 
@@ -69,7 +75,7 @@ OBJECTS st = DepartmentStore PANEL
 PROPERTIES name(st) SELECTOR 
 
 OBJECTS i = Item
-PROPERTIES minPrice(st, i, d)  ON CONTEXTMENU showMovementRetailPriceSku(i, st)
+PROPERTIES prevMinPrice(st, i, d)  ON CONTEXTMENU showMovementRetailPriceSku(i, st)
 PROPERTIES curPrice(st, i, d)
 PROPERTIES deltaPrice(st, i, d)
 PROPERTIES isFixedPrice(i, d)
@@ -99,14 +105,15 @@ NAVIGATOR {
 }
 
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
-            SETCHANGED(retailPrice(UserInvoiceDetail d)) AND isFixedPrice(sku(d),dateTime(d))
-            AND minPrice(customerStock(d), sku(d), dateTime(d)) < retailPrice(d) DO {
-    retailPrice(d) <- minPrice(customerStock(d), sku(d), dateTime(d)) ;
-    retailMarkup(d) <- calcRetailMarkup(d);
+            SETCHANGED(retailPrice(UserInvoiceDetail d)) AND isFixedPrice(sku(d),dateTime(d)) DO {
+    IF prevMinPrice(customerStock(d), sku(d), dateTime(d)) < retailPrice(d) THEN { 
+        retailPrice(d) <- prevMinPrice(customerStock(d), sku(d), dateTime(d)) ;
+        retailMarkup(d) <- calcRetailMarkup(d);
+    }
 }
 
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + { 
     LOCAL limitPrice = NUMERIC[16,4] (Sku);
-    limitPrice(Sku sku) <- minPrice(d, sku, dt) WHERE isFixedPrice(sku, dt);
+    limitPrice(Sku sku) <- prevMinPrice(d, sku, dt) WHERE isFixedPrice(sku, dt);
     managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE (limitPrice(sku) < managementRetailPrice (sku) OR limitPrice(sku) < prevRetailPricingPriceA(sku, d, dt)) AND (inSession(skuGroup(sku)) OR calculateAllGroups()) AND NOT skipRepricingPriceLimit(sku); 
 }
