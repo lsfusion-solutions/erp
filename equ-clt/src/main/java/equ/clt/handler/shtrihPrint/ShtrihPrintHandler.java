@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 import static equ.clt.EquipmentServer.localDateToSqlDate;
+import static lsfusion.base.BaseUtils.nvl;
 
 public class ShtrihPrintHandler extends DefaultScalesHandler {
 
@@ -39,8 +40,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
 
     public String getGroupId(TransactionScalesInfo transactionInfo) {
         
-        ScalesSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ScalesSettings) springContext.getBean("shtrihSettings") : null;
-        boolean allowParallel = shtrihSettings == null || shtrihSettings.isAllowParallel();
+        ScalesSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ScalesSettings) springContext.getBean("shtrihSettings") : new ScalesSettings();
+        boolean allowParallel = shtrihSettings.isAllowParallel();
         // нельзя делать параллельно, так как на большом количестве одновременных подключений через ADSL на весы идут Connection Error   
         if (allowParallel) {
             String groupId = "";
@@ -66,12 +67,12 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
             try {
 
                 processTransactionLogger.info("Shtrih: Reading settings...");
-                ScalesSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ScalesSettings) springContext.getBean("shtrihSettings") : null;
-                boolean usePLUNumberInMessage = shtrihSettings == null || shtrihSettings.isUsePLUNumberInMessage();
-                boolean newLineNoSubstring = shtrihSettings == null || shtrihSettings.isNewLineNoSubstring();
-                boolean useSockets = shtrihSettings == null || shtrihSettings.isUseSockets();
-                boolean capitalLetters = shtrihSettings != null && shtrihSettings.isCapitalLetters();
-                int advancedClearMaxPLU = shtrihSettings == null || shtrihSettings.getAdvancedClearMaxPLU() == null ? 0 : shtrihSettings.getAdvancedClearMaxPLU();
+                ScalesSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ScalesSettings) springContext.getBean("shtrihSettings") : new ScalesSettings();
+                boolean usePLUNumberInMessage = shtrihSettings.isUsePLUNumberInMessage();
+                boolean newLineNoSubstring = shtrihSettings.isNewLineNoSubstring();
+                boolean useSockets = shtrihSettings.isUseSockets();
+                boolean capitalLetters = shtrihSettings.isCapitalLetters();
+                int advancedClearMaxPLU = nvl(shtrihSettings.getAdvancedClearMaxPLU(), 0);
 
                 List<ScalesInfo> enabledScalesList = new ArrayList<>();
                 for (ScalesInfo scales : transaction.machineryInfoList) {
