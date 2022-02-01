@@ -19,10 +19,11 @@ stepPercLimitRetailPriceCurrent '% Доступного отклонения (т
 
 lastDatePurchase 'Дата последнего прихода' = DATA DATE (Sku, Stock) TABLE retailPrice;
 //--С 1 января 2022 г. каждое последующее изменение цены может осуществляться с учетом ее допустимого повышения за предыдущий период календарного года. 
-dateFromPerc 'Дата отсчета' = DATA DATE(); //1 января 2022 зафиксируем
+dateFromPerc 'Дата отсчета' = DATA DATE(); //C 1 января 2022 новая схема. Зафиксируем дату 31 декабря 2021 года
+usePercMonth 'Использовать накопленный процент' = DATA BOOLEAN ();
 
 cumStepPercLimit 'Накопленный процент'(Sku s, Stock st, DATE date) = OVERRIDE 
-    (GROUP SUM dataStepPercLimitRetailPrice(DATE dt) IF dt>(MAX sum(dateFromPerc(),-1), lastDatePurchase(s, st)) AND dt<=date),     
+    (GROUP SUM dataStepPercLimitRetailPrice(DATE dt) IF dt>(MAX dateFromPerc(), lastDatePurchase(s, st)) AND dt<=date) IF usePercMonth(),     
     dataStepPercLimitRetailPrice(firstDayOfMonth(date));
         
 cumStepPercLimit 'Накопленный процент (текущий)'(Sku s, Stock st) = cumStepPercLimit(s,st,currentDate());
@@ -31,7 +32,7 @@ cumStepPercLimit 'Накопленный процент (текущий)'(Sku s,
 migrateStepPerc= DATA BOOLEAN ();
 onStarted() + {
     IF NOT migrateStepPerc() THEN NEWSESSION {
-        dateFromPerc() <- 2022_01_01; 
+        dateFromPerc() <- 2021_12_31; 
         dataStepPercLimitRetailPrice(2021_12_01)<- 0.9; 
         dataStepPercLimitRetailPrice(2022_01_01)<- 0.9; 
         dataStepPercLimitRetailPrice(2022_02_01)<- 0.9;   
@@ -61,13 +62,14 @@ maxLimitRetailPricePerc 'Максимальная розничная цена (�
     NUMERIC[16,4](floor(maxLimitRetailPrice(s,st)* (100.0+cumStepPercLimit(s,st,dt)))/100.0);
 
 EXTEND FORM options
-    PROPERTIES () checkRetailPrice, stepPercLimitRetailPrice,  useCustomRetailPrice
+    PROPERTIES () checkRetailPrice, stepPercLimitRetailPrice,  useCustomRetailPrice, usePercMonth
 ;
 DESIGN options {
     pricings {
         MOVE PROPERTY (checkRetailPrice());
         MOVE PROPERTY (stepPercLimitRetailPrice());
         MOVE PROPERTY (useCustomRetailPrice());
+        MOVE PROPERTY (usePercMonth());
     }
 }
 
