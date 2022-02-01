@@ -928,7 +928,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         BigDecimal minPrice = item instanceof CashRegisterItem ? HandlerUtils.safeMultiply(((CashRegisterItem) item).minPrice, 100) : null;
         BigDecimal packMinPrice = HandlerUtils.safeMultiply(overPackMinPrice, 100) != null ? HandlerUtils.safeMultiply(overPackMinPrice, 100) :
                 (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(price, 100) != null ? HandlerUtils.safeMultiply(price, 100) : minPrice != null ? minPrice : BigDecimal.ZERO;
-        BigDecimal packBonusMinPrice = safeMultiply(getBigDecimalValue(infoJSON, "packBonusMinPrice", BigDecimal.ZERO), 100);
+        BigDecimal packBonusMinPrice = nvl(safeMultiply(getBigDecimalValue(infoJSON, "packBonusMinPrice", BigDecimal.ZERO), 100), BigDecimal.ZERO);
 
         if(params.pgsql) {
             //todo: временный лог для отслеживания, какие packid мы пишем в pack и в packprc
