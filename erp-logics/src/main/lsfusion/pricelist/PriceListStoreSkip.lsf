@@ -1,0 +1,28 @@
+MODULE PriceListStoreSkip;
+
+REQUIRE PriceListStore, PriceListOperation;
+
+NAMESPACE PriceList;
+
+// unused stock
+skipUnusedStock 'Не проводить по регистру, если не используется для склада' = DATA BOOLEAN (DataPriceListType);
+
+EXTEND FORM dataPriceListType
+    PROPERTIES (d) skipUnusedStock;
+
+skip(LedgerPriceListType t, Stock s) += skipUnusedStock(t) AND NOT ledgerPriceListType(retailPriceListType(s)) == t ;
+
+// empty price
+skipEmptyPrice 'Не проводить по регистру, если не задана цена' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES (o) skipEmptyPrice
+;
+
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(skipEmptyPrice(o));
+    }
+}    
+    
+skip(PriceListDetail d, DataPriceListType t) += skipEmptyPrice(operation(d)) AND NOT price(d, t);
