@@ -12,10 +12,53 @@ dataStepPercLimitRetailPrice '% Доступного отклонения' = DAT
 stepPercLimitRetailPrice '% Доступного отклонения' = OVERRIDE dataStepPercLimitRetailPrice(), 0.0;
 checkRetailPrice 'Контроль розничных цен' = DATA BOOLEAN () PREREAD;
 
+//-- Процент за месяц будем задавать на первое число месяца. Для удобства расчета
+dataStepPercLimitRetailPrice = DATA NUMERIC[8,3] (DATE) PREREAD;
+stepPercLimitRetailPrice '% Доступного отклонения' (DATE dt) = OVERRIDE dataStepPercLimitRetailPrice(dt), 0.0;
+stepPercLimitRetailPriceCurrent '% Доступного отклонения (текущий)' () = stepPercLimitRetailPrice(firstDayOfMonth(currentDate()));
+
+lastDatePurchase 'Дата последнего прихода' = DATA DATE (Sku, Stock) TABLE retailPrice;
+//--С 1 января 2022 г. каждое последующее изменение цены может осуществляться с учетом ее допустимого повышения за предыдущий период календарного года. 
+dateFromPerc 'Дата отсчета' = DATA DATE(); //1 января 2022 зафиксируем
+
+cumStepPercLimit 'Накопленный процент'(Sku s, Stock st, DATE date) = OVERRIDE 
+    (GROUP SUM dataStepPercLimitRetailPrice(DATE dt) IF dt>(MAX sum(dateFromPerc(),-1), lastDatePurchase(s, st)) AND dt<=date),     
+    dataStepPercLimitRetailPrice(firstDayOfMonth(date));
+        
+cumStepPercLimit 'Накопленный процент (текущий)'(Sku s, Stock st) = cumStepPercLimit(s,st,currentDate());
+
+
+migrateStepPerc= DATA BOOLEAN ();
+onStarted() + {
+    IF NOT migrateStepPerc() THEN NEWSESSION {
+        dateFromPerc() <- 2022_01_01; 
+        dataStepPercLimitRetailPrice(2021_12_01)<- 0.9; 
+        dataStepPercLimitRetailPrice(2022_01_01)<- 0.9; 
+        dataStepPercLimitRetailPrice(2022_02_01)<- 0.9;   
+        dataStepPercLimitRetailPrice(2022_03_01)<- 0.3;     
+        dataStepPercLimitRetailPrice(2022_04_01)<- 0.3; 
+        dataStepPercLimitRetailPrice(2022_05_01)<- 0.3;         
+        dataStepPercLimitRetailPrice(2022_06_01)<- 0.3;                 
+        dataStepPercLimitRetailPrice(2022_07_01)<- 0.3; 
+        dataStepPercLimitRetailPrice(2022_08_01)<- 0.3;         
+        dataStepPercLimitRetailPrice(2022_09_01)<- 0.3;    
+        dataStepPercLimitRetailPrice(2022_10_01)<- 0.3; 
+        dataStepPercLimitRetailPrice(2022_11_01)<- 0.3; 
+        dataStepPercLimitRetailPrice(2022_12_01)<- 0.3;                                
+        migrateStepPerc() <- TRUE;
+        APPLY;
+    }
+}
+
+
 maxLimitRetailPriceCustom 'МРЦ' = DATA NUMERIC[16,4] (Sku, Stock) TABLE retailPrice; // Для разовых поднятий
 useCustomRetailPrice 'Использовать пользовательскую МРЦ' = DATA BOOLEAN () PREREAD;
 
-maxLimitRetailPricePerc 'Максимальная розничная цена (шаг)' (Sku s, Stock st) = OVERRIDE maxLimitRetailPriceCustom(s,st) IF useCustomRetailPrice(), NUMERIC[16,4](floor(maxLimitRetailPrice(s,st)* (100.0+stepPercLimitRetailPrice()))/100.0);
+maxLimitRetailPricePerc 'Максимальная розничная цена (шаг) текущая' (Sku s, Stock st) = OVERRIDE maxLimitRetailPriceCustom(s,st) IF useCustomRetailPrice(), 
+    NUMERIC[16,4](floor(maxLimitRetailPrice(s,st)* (100.0+cumStepPercLimit(s,st, currentDate())))/100.0);
+
+maxLimitRetailPricePerc 'Максимальная розничная цена (шаг)' (Sku s, Stock st, DATE dt) = OVERRIDE maxLimitRetailPriceCustom(s,st) IF useCustomRetailPrice(), 
+    NUMERIC[16,4](floor(maxLimitRetailPrice(s,st)* (100.0+cumStepPercLimit(s,st,dt)))/100.0);
 
 EXTEND FORM options
     PROPERTIES () checkRetailPrice, stepPercLimitRetailPrice,  useCustomRetailPrice
@@ -92,7 +135,7 @@ fillMaxLimitRetailPriceOver ABSTRACT LIST (DATETIME);
 movedLimit (Sku item, Stock departmentStore, DATETIME dateTime, LONG period) =
     dateTimeLastMoved(item, departmentStore,dateTime) >= toDateTime(subtract(toDate(dateTime), period));
 
-fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену' (DATETIME dt) {
+fillMaxLimitRetailPriceOld 'Заполнить максимальную розничную цену' (DATETIME dt) {
     IF useMaxLimitRetailPriceCustom() THEN {
         fillMaxLimitRetailPriceCustom(dt);
     } ELSE {
@@ -123,6 +166,53 @@ fillMaxLimitRetailPrice 'Заполнить максимальную розни�
         }
     }
 }
+
+lastDatePurchaseCalc (stock, sku, DATETIME dateTime) = 
+    GROUP LAST date(PurchaseLedger ledger)
+        ORDER dateTime(ledger), ledger
+        WHERE active(ledger) AND dateTime(ledger) <= dateTime
+        BY stock(ledger), sku(ledger);
+
+fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену' (DATETIME dt) {
+    IF stepPercLimitRetailPrice(firstDayOfMonth(sumMonth(DATE(dt),1))) THEN {
+        IF useMaxLimitRetailPriceCustom() THEN {
+            fillMaxLimitRetailPriceCustom(dt);
+        } ELSE {
+            LOCAL NESTED incl = BOOLEAN (DepartmentStore);
+            incl(DepartmentStore ds)<- ds IS DepartmentStore AND stockGroup(ds) IS Store;
+        
+            FOR incl(DepartmentStore stock) DO NEWSESSION {
+                dateTimeLimitRetailPrice() <- dt;    
+                LOCAL inn = BOOLEAN (Sku);
+                inn(Sku sku) <- calcCheckLimitRetailForm(sku);           
+                                   
+                IF (countDaysMovedLimitRetail() OR positiveBalanceLimitRetail()) THEN {
+                    inn(Sku sku)<- NULL WHERE inn(sku) AND 
+                                        ((positiveBalanceLimitRetail() AND NOT balanceB(sku,stock,dt)>0) OR( sku IS Sku AND NOT positiveBalanceLimitRetail())) AND
+                                        ((countDaysMovedLimitRetail() AND NOT movedLimit (sku, stock, dt, countDaysMovedLimitRetail())) OR (sku IS Sku AND NOT countDaysMovedLimitRetail())); 
+                }   
+                         
+                lastDatePurchase(Sku sku,stock) <-  NULL;
+                lastDatePurchase(Sku sku,stock) <- lastDatePurchaseCalc(stock,sku,dt)   WHERE inn(sku);      
+                                        
+                maxLimitRetailPrice(Sku sku, stock)<- NULL WHERE sku IS Sku AND NOT inn(sku);
+                
+                maxLimitRetailPrice(Sku sku, stock) <- priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
+                                                                WHERE inn(sku) AND priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt);     
+                                                                  
+                
+                APPLY;
+            }
+            NEWSESSION {
+                fillMaxLimitRetailPriceOver(dt);      
+                APPLY;
+            }
+        }
+    } ELSE {
+        MESSAGE 'Не задан "% Доступного отклонения" на следующий месяц. Вначале надо заполнить это поле.';
+    }
+}
+
 FORM dialogDateT 'Выбор даты/время'
     OBJECTS d = DATETIME PANEL
     PROPERTIES(d) objValue = VALUE
@@ -172,14 +262,14 @@ WHEN SET(currentRetailPricingPrice(Sku sku, Stock stock)) AND NOT maxLimitRetail
 skipMaxLimitRetailPricePerc = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             SETCHANGED(retailPrice(UserInvoiceDetail d)) AND calcCheckLimitRetailPrice(sku(d))
-            AND maxLimitRetailPricePerc(sku(d), customerStock(d)) < retailPrice(d) AND NOT skipMaxLimitRetailPricePerc(d) DO {
-    retailPrice(d) <- maxLimitRetailPricePerc(sku(d), customerStock(d));
+            AND maxLimitRetailPricePerc(sku(d), customerStock(d),DATE(pricingDateTime(d))) < retailPrice(d) AND NOT skipMaxLimitRetailPricePerc(d) DO {
+    retailPrice(d) <- maxLimitRetailPricePerc(sku(d), customerStock(d),DATE(pricingDateTime(d)));
     retailMarkup(d) <- calcRetailMarkup(d);
 }
 
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
     LOCAL limitPrice = NUMERIC[16,4] (Sku);
-    limitPrice(Sku sku) <- maxLimitRetailPricePerc(sku,d) WHERE managementRetailPrice(sku) AND calcCheckLimitRetailPrice(sku);
+    limitPrice(Sku sku) <- maxLimitRetailPricePerc(sku,d,DATE(dt)) WHERE managementRetailPrice(sku) AND calcCheckLimitRetailPrice(sku);
     managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND calcCheckLimitRetailPrice(sku);
 }
 
@@ -220,6 +310,9 @@ prevPrice 'Максимальная РЦ, до' = DATA NUMERIC[16,4] (LimitRetai
 priceCustom 'МРЦ' = DATA NUMERIC[16,4] (LimitRetailPriceLog) ;
 prevPriceCustom 'МРЦ, до' = DATA NUMERIC[16,4] (LimitRetailPriceLog) ;
 
+lastDate'Дата последнего прихода' = DATA DATE (LimitRetailPriceLog) ;
+prevLastDate 'Дата последнего прихода, до' = DATA DATE (LimitRetailPriceLog) ;
+
 hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (LimitRetailPriceLog); 
 userLogin 'Логин пользователя' = DATA STRING[100] (LimitRetailPriceLog); 
 nameContact 'Имя пользователя' =  DATA STRING[100] (LimitRetailPriceLog) IN id;
@@ -238,14 +331,14 @@ CLASS TypeChange 'Тип изменения' {
     changeC 'Изменение МРЦ',
     change 'Изменение',    
     flagAdd 'Признак добавлен',
-    flagDelete 'Признак удален'
+    flagDelete 'Признак удален',
+    changeExtra 'Прочее (%, приход)'
 }
 
 typeChange= DATA TypeChange (LimitRetailPriceLog);
 nameTypeChange 'Тип изменения' (LimitRetailPriceLog l) = staticCaption(typeChange(l)) IN id;
 
-
-WHEN (SETCHANGED(maxLimitRetailPrice(Sku s,Stock st)) OR (SETCHANGED(maxLimitRetailPriceCustom(s,st)) IF useCustomRetailPrice())) IF NOT disableLimitRetailPriceLog() DO {
+WHEN (SETCHANGED(maxLimitRetailPrice(Sku s,Stock st)) OR (SETCHANGED(maxLimitRetailPriceCustom(s,st)) IF useCustomRetailPrice()) OR CHANGED(lastDatePurchase(s,st))) IF NOT disableLimitRetailPriceLog() DO {
     NEW d = LimitRetailPriceLog {        
         sku(d) <- s ;
         stock(d) <- st;
@@ -256,13 +349,16 @@ WHEN (SETCHANGED(maxLimitRetailPrice(Sku s,Stock st)) OR (SETCHANGED(maxLimitRet
         prevPrice(d)<-PREV(maxLimitRetailPrice(s,st));
         price(d)<-maxLimitRetailPrice(s,st);        
         prevPriceCustom(d)<-PREV(maxLimitRetailPriceCustom(s,st));
-        priceCustom(d)<-maxLimitRetailPriceCustom(s,st);        
-                
+        priceCustom(d)<-maxLimitRetailPriceCustom(s,st);           
+        prevLastDate(d)<-PREV(lastDatePurchase(s,st));
+        lastDate(d)<-lastDatePurchase(s,st);        
+                        
         typeChange(d) <- CASE
                         WHEN SET(maxLimitRetailPrice(s,st)) THEN TypeChange.add
                         WHEN CHANGED(maxLimitRetailPrice(s,st)) THEN TypeChange.change
                         WHEN SET(maxLimitRetailPriceCustom(s,st)) THEN TypeChange.addC
-                        WHEN CHANGED(maxLimitRetailPriceCustom(s,st)) THEN TypeChange.changeC;
+                        WHEN CHANGED(maxLimitRetailPriceCustom(s,st)) THEN TypeChange.changeC
+                        ELSE TypeChange.changeExtra;
 
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
@@ -281,8 +377,10 @@ WHEN (DROPPED(maxLimitRetailPrice(Sku s,Stock st)) OR (DROPPED(maxLimitRetailPri
         prevPrice(d)<-PREV(maxLimitRetailPrice(s,st));
         price(d)<-maxLimitRetailPrice(s,st);
         prevPriceCustom(d)<-PREV(maxLimitRetailPriceCustom(s,st));
-        priceCustom(d)<-maxLimitRetailPriceCustom(s,st);   
-                
+        priceCustom(d)<-maxLimitRetailPriceCustom(s,st);      
+        prevLastDate(d)<-PREV(lastDatePurchase(s,st));
+        lastDate(d)<-lastDatePurchase(s,st);        
+                        
         typeChange(d) <- IF DROPPED(maxLimitRetailPrice(s, st)) THEN TypeChange.delete ELSE TypeChange.deleteC;
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
@@ -405,8 +503,15 @@ extraFilter = ABSTRACT BOOLEAN(LimitRetailPriceLog);
 changeStep = ABSTRACT BOOLEAN ();
 skipChangeStep () = TRUE IF NOT changeStep();
 
+
+changeStepPercLimit(){
+    INPUT n = stepPercLimitRetailPriceCurrent() DO {
+        dataStepPercLimitRetailPrice(DATE dt) <- n WHERE dt==firstDayOfMonth(currentDate());   
+    }
+}
+
 FORM maxLimitRetailPrice 'Максимальные розничные цены'
-    PROPERTIES ()  dateTimeLimitRetailPrice READONLY, dataStepPercLimitRetailPrice READONLYIF skipChangeStep()
+    PROPERTIES ()  dateTimeLimitRetailPrice READONLY, stepPercLimitRetailPriceCurrent READONLYIF skipChangeStep() ON CHANGE changeStepPercLimit()
     PROPERTIES () stocksInLimit ON CHANGE changeStocksReport()
     
     TREE skuTree sk = SkuGroup PARENT parent(sk)
@@ -416,16 +521,22 @@ FORM maxLimitRetailPrice 'Максимальные розничные цены'
 
     OBJECTS   sts=(st=Stock, s=Sku)
     PROPERTIES (s) BACKGROUND backgroundRetailPrice(s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode, nameUOM
-    PROPERTIES  BACKGROUND backgroundRetailPrice(s) READONLY name(st)
+    PROPERTIES  BACKGROUND backgroundRetailPrice(s) READONLY name(st) 
+    PROPERTIES  lastDatePurchase(s,st) READONLYIF isReadonly()
     PROPERTIES BACKGROUND RGB(214,234,248) maxLimitRetailPriceCustom (s,st) SHOWIF useCustomRetailPrice() READONLYIF isReadonly() ON CONTEXTMENU fillAllStocksCustom(s,st) ON CONTEXTMENU useAllStocksCustom(s,st)
-    PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
+    PROPERTIES cumStepPercLimit(s,st) READONLY,
+               maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), 
+               maxLimitRetailPricePerc(s,st) READONLY, 
+               currentRetailPricingPrice(s,st)  READONLY
     ORDERS name(s)
     FILTERGROUP max
         FILTER 'С максимальной РЦ' maxLimitRetailPrice(s,st) OR maxLimitRetailPriceCustom(s,st) 'F9' DEFAULT
+    
     OBJECTS d = LimitRetailPriceLog
-    PROPERTIES(d) READONLY  dateTimeLimitRetailPrice, stepPercLimitRetailPrice, checkLimitRetailPrice, nameStock, nameSku, idSku, idBarcodeSku
+    PROPERTIES(d) READONLY  dateTimeLimitRetailPrice, checkLimitRetailPrice, nameStock, nameSku, idSku, idBarcodeSku
     PROPERTIES(d) READONLY SHOWIF useCustomRetailPrice() BACKGROUND RGB(214,234,248) prevPriceCustom, priceCustom
-    PROPERTIES(d) READONLY  prevPrice, price, nameTypeChange, hostnameComputer, userLogin, nameContact, dateTimeSession, dateSession
+    PROPERTIES(d) READONLY prevPrice, price, prevLastDate, lastDate, nameTypeChange, 
+                  hostnameComputer, userLogin, nameContact, dateTimeSession, dateSession, stepPercLimitRetailPrice
     FILTERS sku(d)==s,
             stock(d)==st OR extraFilter(d) OR (typeChange(d)==TypeChange.flagAdd OR typeChange(d)==TypeChange.flagDelete) 
     PROPERTIES fillMaxLimitRetailPrice() DRAW sts TOOLBAR 
@@ -448,7 +559,7 @@ DESIGN maxLimitRetailPrice {
             type = CONTAINERH;
             MOVE PROPERTY (stocksInLimit());
             MOVE PROPERTY (dateTimeLimitRetailPrice());
-            MOVE PROPERTY (dataStepPercLimitRetailPrice());            
+            MOVE PROPERTY (stepPercLimitRetailPriceCurrent());            
         }    
         NEW topContainer {
             fill = 1;
@@ -469,58 +580,23 @@ DESIGN maxLimitRetailPrice {
     }
 }
 
-//FORM maxLimitRetailPrice 'Максимальные розничные цены'
-//    OBJECTS st = DepartmentStore PANEL 
-//    PROPERTIES SELECTOR name(st)
-//    PROPERTIES () READONLY  dateTimeLimitRetailPrice, dataStepPercLimitRetailPrice
-//
-//    TREE skuTree sg = SkuGroup PARENT parent(sg)
-//    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
-//    FILTERGROUP inactive1 FILTER 'Активные' active(sg) 'F5' DEFAULT
-//    ORDERS order(sg), skuGroupName
-//
-//    OBJECTS s = Sku
-//    PROPERTIES (s) BACKGROUND backgroundRetailPrice(s) READONLY ON CONTEXTMENU showMovementSku(s,st) ON CONTEXTMENU showBalancePriceSku(s,st) name, id, idBarcode
-//    PROPERTIES maxLimitRetailPrice(s,st) READONLYIF isReadonly() ON CONTEXTMENU fillAllStocks(s,st) ON CONTEXTMENU useAllStocks(s,st), maxLimitRetailPricePerc(s,st) READONLY, currentRetailPricingPrice(s,st)  READONLY
-//    ORDERS name(s)
-//    FILTERS active(s),
-//            isParent(sg,s)
-//    FILTERGROUP max
-//        FILTER 'С максимальной РЦ' maxLimitRetailPrice(s,st) 'F9' DEFAULT
-//    OBJECTS d = LimitRetailPriceLog
-//    PROPERTIES(d) READONLY  dateTimeLimitRetailPrice, stepPercLimitRetailPrice, checkLimitRetailPrice, nameStock, nameSku, idSku, idBarcodeSku, price, nameTypeChange, hostnameComputer, userLogin, nameContact, dateTimeSession, dateSession
-//    FILTERS sku(d)==s,
-//            stock(d)==st OR (typeChange(d)==TypeChange.flagAdd OR typeChange(d)==TypeChange.flagDelete) 
-//    PROPERTIES fillMaxLimitRetailPrice() DRAW s TOOLBAR 
-//;
-//    
-//DESIGN maxLimitRetailPrice {
-//    OBJECTS {        
-//        MOVE BOX(st) {
-//            type = CONTAINERH;
-//            MOVE PROPERTY (name(st));
-//            MOVE PROPERTY (dateTimeLimitRetailPrice());
-//            MOVE PROPERTY (dataStepPercLimitRetailPrice());
-//        }
-//        NEW body{
-//            fill = 1;
-//            type = SPLITV;
-//            NEW group{
-//                fill = 2;
-//                caption = '';
-//                type = SPLITH;
-//                MOVE BOX(TREE skuTree) { caption = 'Группы'; }
-//                MOVE BOX(s){fill = 3;}    
-//            }
-//            
-//            MOVE BOX(d); 
-//        }        
-//    }
-//}
+
 @extendFormFilterStockAccess(st, maxLimitRetailPrice, company);
 @extendFormEditable(maxLimitRetailPrice);
 
+firstDayOfYear(DATE date) = [FORMULA DATE PG 'date_trunc(\'year\', $1)'](date AS DATE);
+lastDayOfYear(DATE date) = [FORMULA DATE PG '(date_trunc(\'year\', $1) + INTERVAL \'1 year - 1 day\')::date'](date AS DATE);
+
 FORM maxLimitRetailPriceParams 'Максимальные розничные цены (параметры)'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL 
+    PROPERTIES 'Дата с' = VALUE (df), 'Дата по' = VALUE (dt)
+    
+    OBJECTS date = DATE 
+    PROPERTIES READONLY extractMonthName(date), extractYear 'Год' = extractYear(date)
+    PROPERTIES (date) stepPercLimitRetailPrice
+    FILTERS firstDayOfMonth(date)==date, 
+            iterate(date, df,dt)
+
     TREE skuTree g = ItemGroup PARENT parent(g)
     PROPERTIES(g) READONLY order, name, id
     PROPERTIES checkLimitRetailPrice(g), skipCheckRetailPrice(g)
@@ -536,15 +612,31 @@ FORM maxLimitRetailPriceParams 'Максимальные розничные це
     FILTERGROUP inactive1 FILTER 'Активные' active(i) 'F5' DEFAULT    
     FILTERGROUP check FILTER 'Контроль' calcCheckLimitRetailForm(i) 'F9' DEFAULT    
     FILTERS isParent(g,i)
+    
+    EVENTS ON INIT {
+        SEEK maxLimitRetailPriceParams.dates OBJECTS df=firstDayOfYear(currentDate()), dt = lastDayOfYear(currentDate());
+    }
 ;
 DESIGN maxLimitRetailPriceParams{
     OBJECTS {
-        NEW top{
+        NEW tab{
             fill = 1;
-            type = SPLITH;
-            MOVE BOX(TREE skuTree);
-            MOVE BOX(i){fill = 2;}
+            type = TABBED;
+            NEW top{
+                caption = 'Праметры';
+                fill = 1;
+                type = SPLITH;
+                MOVE BOX(TREE skuTree);
+                MOVE BOX(i){fill = 2;}
+            }
+            NEW dd{
+                caption = 'Проценты';
+                fill = 1;
+                MOVE BOX(dates);
+                MOVE BOX(date);
+            }            
         }
+
     }
 }
 
