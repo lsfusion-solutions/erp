@@ -65,10 +65,11 @@ DESIGN operation {
 }
 
 @defineDocumentInterfaceHeaderTimePrefix(PriceList, fromPriceBefore, ' с (Цена до)');
-WHEN LOCAL SET(UserPriceList o IS UserPriceList) DO {
-    IF o IS UserPriceList AND NOT fromPriceBeforeDate(o) THEN fromPriceBeforeDate(o) <- currentDate();
-    IF o IS UserPriceList AND NOT fromPriceBeforeTime(o) THEN fromPriceBeforeTime(o) <- currentTime();
-};
+WHEN LOCAL SET(showPriceBefore(UserPriceList o)) AND NOT fromPriceBeforeDate(o) DO
+    fromPriceBeforeDate(o) <- currentDate();
+WHEN LOCAL SET(showPriceBefore(UserPriceList o)) AND NOT fromPriceBeforeTime(o) DO
+    fromPriceBeforeTime(o) <- currentTime();
+    
 skipChangeFromPriceBeforeTime = ABSTRACT BOOLEAN (PriceList);
 WHEN LOCAL CHANGED(fromPriceBeforeDate(UserPriceList o)) AND NOT CHANGED(fromPriceBeforeTime(o)) AND NOT skipChangeFromPriceBeforeTime(o) DO {
     fromPriceBeforeTime(o) <- IF fromPriceBeforeDate(o) > currentDate() THEN 00:00 ELSE currentTime();
