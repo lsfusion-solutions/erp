@@ -712,6 +712,8 @@ overCreateMachineryPriceTransaction ABSTRACT LIST (GroupMachinery);
 send = DATA LOCAL BOOLEAN (Barcode);
 price = DATA LOCAL NUMERIC[16,4] (Barcode);
 
+overChanged = ABSTRACT BOOLEAN (Barcode);
+
 createMachineryPriceTransaction 'Создать транзакцию'(Stock stock)  { 
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
@@ -737,7 +739,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
         overCreateMachineryPriceTransaction(groupMachinery);
 
         IF NOT createMachineryPriceTransactionAll() AND NOT createMachineryPriceTransactionSnapshot() AND NOT explicitBatchLedger(stock(groupMachinery)) THEN
-            send(Barcode barcode) <- TRUE IF NOT (price(barcode) == OVERRIDE transactionPrice(barcode, groupMachinery), transactionPrice(barcode, stock(groupMachinery)) IF skipLastTransaction(groupMachinery)) 
+            send(Barcode barcode) <- TRUE IF NOT (price(barcode) == OVERRIDE transactionPrice(barcode, groupMachinery), transactionPrice(barcode, stock(groupMachinery)) IF skipLastTransaction(groupMachinery)) OR overChanged(barcode) 
                 WHERE send(barcode) AND NOT skipChangePrice(barcode);
             
         send(Barcode barcode) <- NULL WHERE send(barcode) AND (skipMachineryPriceTransaction(sku(barcode), stock, currentDateTime()) OR inactive(sku(barcode))); // если есть запрет на загрузку
