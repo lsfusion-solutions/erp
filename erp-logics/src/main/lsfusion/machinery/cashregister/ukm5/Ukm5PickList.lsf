@@ -22,31 +22,42 @@ DESIGN integrationData{
 idExt (Item i) = '"' + id(i) +'"';
 productsByGroup = ABSTRACT STRING (Group, DepartmentStore);
 
-idPickList = ABSTRACT INTEGER (CustomGroup);
+idPickList = ABSTRACT INTEGER (CustomGroup, DepartmentStore);
+idPickList = ABSTRACT STRING (CustomGroup);
+
+GROUP stores;
 
 FORM pickList FORMEXTID 'null'
+    OBJECTS elements = CustomGroup
+    
     OBJECTS d = DepartmentStore PANEL EXTID ''
     
-    OBJECTS elements = CustomGroup
-    PROPERTIES idPickList(elements) EXTID 'id', name(elements) EXTID 'name', = TTRUE IF elements IS CustomGroup EXTID 'isGlobal',
-        = TFALSE IF elements IS CustomGroup EXTID 'delete', productsByGroup(elements, d) EXTID 'items', 
-        = '[]' IF elements IS CustomGroup EXTID 'stores'
-    FILTERS pickListGroup(elements)  AND level(elements) > 1
+    PROPERTIES idPickList(elements, d) EXTID 'id', name(elements) EXTID 'name', = TFALSE IF elements IS CustomGroup EXTID 'isGlobal',
+        = TFALSE IF elements IS CustomGroup EXTID 'delete', productsByGroup(elements, d) EXTID 'items'
+    FILTERS pickListGroup(elements) AND level(elements) > 1
+    
+    OBJECTS stores = DepartmentStore
+    
+    PROPERTIES = idStore(stores) IF elements IS CustomGroup AND stores IS DepartmentStore EXTID 'id'
+    FILTERS Stock.in(stores)
 ; 
 
 exportPickList 'Экспорт пик-лсиста УКМ5'(DepartmentStore d){
-    LOCAL answer = FILE ();
-    EXPORT pickList OBJECTS d = d JSON;
-    LOCAL group = GroupMachinery();
-    fileToString(exportFile());
-    logToFile('ukm5', resultString());
-    group() <- GROUP MAX GroupCashRegister g IF stock(g) = d AND isUkm5(g);
-    TRY{
-        EXTERNAL HTTP POST urlServerUkm5(group()) + '/api/v1/import/picklists' PARAMS exportFile() TO answer;
-        fileToString(answer());
-        IF statusHttp() = 200 THEN MESSAGE 'Загрузка пик-листа успешно завершена\nСклад: ' + name(d);
+    NEWSESSION {
+        LOCAL answer = FILE ();
+        Stock.in(d) <- TRUE;
+        EXPORT pickList OBJECTS d = d JSON;
+        LOCAL group = GroupMachinery();
+        fileToString(exportFile());
+        logToFile('ukm5', resultString());
+        group() <- GROUP MAX GroupCashRegister g IF stock(g) = d AND isUkm5(g);
+        TRY{
+            EXTERNAL HTTP POST urlServerUkm5(group()) + '/api/v1/import/picklists' PARAMS exportFile() TO answer;
+            fileToString(answer());
+            IF statusHttp() = 200 THEN MESSAGE 'Загрузка пик-листа успешно завершена\nСклад: ' + name(d);
+        }
+        CATCH MESSAGE messageCaughtException();
     }
-    CATCH MESSAGE messageCaughtException();
 }
 
 EXTEND FORM integrationData

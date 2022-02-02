@@ -7,10 +7,11 @@ NAMESPACE Ukm5;
 //кассы
 
 isUkm5 (GroupCashRegister g) = TRUE IF handlerModel(g) = 'lsf.ukm5';
-idStore 'ID магазина UKM5' = DATA STRING[10] (GroupCashRegister);
+idStore 'ID магазина UKM5' = ABSTRACT STRING (DepartmentStore);
+idStore 'ID магазина UKM5' (GroupCashRegister g) = idStore(stock(g));
 urlServerUkm5 'URL сервера УКМ5' = DATA STRING[300] (GroupCashRegister);
 directoryExchange 'Директория обмена УКМ5' = DATA STRING[300] (GroupCashRegister);
-accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';
+accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';   
 
 EXTEND FORM groupCashRegister 
     PROPERTIES (grc) SHOWIF isUkm5(grc) idStore, urlServerUkm5, directoryExchange;
@@ -108,7 +109,7 @@ FORM itemPrices 'Импорт цен на товары'
     PROPERTIES = OVERRIDE id(elements), '' EXTID 'itemId',
         = isPromo(t, elements) EXTID 'isPromoPrice',
         = IF isPromo(t, elements) = TTRUE THEN price(t, barcode(elements)) ELSE 
-            (OVERRIDE dataMinPrice(t, barcode(elements)), 0.1) EXTID 'minprice', = price(t, barcode(elements)) EXTID 'price',
+            0.1 EXTID 'minprice', = price(t, barcode(elements)) EXTID 'price',
         = IF NOT active(elements) THEN TTRUE ELSE TFALSE EXTID 'delete', 
         = IF elements IS Item THEN toChar(DATETIME('2020-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateFrom',
         = IF elements IS Item THEN toChar(DATETIME('2099-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateTo'
