@@ -1788,7 +1788,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                             break;
                                         case 2:
                                             String numberGiftCard = salesBarc.length > 0 ? salesBarc[0] : null;
-                                            sumGiftCardMap.put(numberGiftCard, new GiftCard(sum));
+                                            GiftCard giftCard = sumGiftCardMap.getOrDefault(numberGiftCard, new GiftCard(BigDecimal.ZERO));
+                                            giftCard.sum = safeAdd(giftCard.sum, sum);
+                                            sumGiftCardMap.put(numberGiftCard, giftCard);
                                             break;
                                         case 0:
                                         default:
