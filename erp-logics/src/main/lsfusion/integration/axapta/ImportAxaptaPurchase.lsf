@@ -33,7 +33,7 @@ importPurchaseContract 'Импорт договоров закупки' () {
         
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, number, date, dateFrom, dateTo, idPaymentCondition, supplierId, status, subject;
+                IMPORT CSV ';' NOESCAPE FROM f TO id, number, date, dateFrom, dateTo, idPaymentCondition, supplierId, status, subject;
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
@@ -42,7 +42,7 @@ importPurchaseContract 'Импорт договоров закупки' () {
                 IMPORT TABLE FROM file() TO id, number, date, dateFrom, dateTo, idPaymentCondition, supplierId, status, subject;
         }
                
-        FOR id(INTEGER i) AND NOT userContractSku(id(i)) DO NEW g = UserContractSku{
+        FOR id(INTEGER i) AND NOT userContractSku(id(i)) DO NEW g = UserContractSku {
             id(g) <- (id(i));
         }
 
@@ -74,7 +74,7 @@ importPurchaseContract 'Импорт договоров закупки' () {
             note(c) <- subject(i) WHERE NOT subject(i) = 'NULL';
         }
      
-        //DELETE UserContractSku g WHERE g IS UserContractSku AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));                   
+        DELETE UserContractSku g WHERE g IS UserContractSku AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));                   
         APPLY;
     }
 }
@@ -110,7 +110,7 @@ importPurchasePrice 'Импорт прайс листов' () {
         
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOHEADER NOESCAPE FROM f TO id, supplierId, contractId, itemId, fromDate, toDate, price;
+                IMPORT CSV ';' NOESCAPE FROM f TO id, supplierId, contractId, itemId, fromDate, toDate, price;
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
