@@ -14,7 +14,7 @@ import ru.CryptoPro.CAdES.exception.CAdESException;
 import ru.CryptoPro.Crypto.CryptoProvider;
 import ru.CryptoPro.JCP.JCP;
 import ru.CryptoPro.reprov.RevCheck;
-//import sun.security.jca.Providers;
+import sun.security.jca.Providers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
@@ -23,13 +23,12 @@ import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.util.*;
 
 public class CryptoPro {
 
     static {
-        int bcindex = 1; //Providers.getFullProviderList().getIndex("BC");
+        int bcindex = Providers.getFullProviderList().getIndex("BC");
         if (bcindex == -1) {
             Security.addProvider(new JCP()); // провайдер JCP
             Security.addProvider(new RevCheck());
