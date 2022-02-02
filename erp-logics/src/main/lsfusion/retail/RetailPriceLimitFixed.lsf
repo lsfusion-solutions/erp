@@ -22,9 +22,10 @@ lastDatePurchase 'Дата последнего прихода' = DATA DATE (Sku
 dateFromPerc 'Дата отсчета' = DATA DATE(); //C 1 января 2022 новая схема. Зафиксируем дату 31 декабря 2021 года
 usePercMonth 'Использовать накопленный процент' = DATA BOOLEAN ();
 
-cumStepPercLimit 'Накопленный процент'(Sku s, Stock st, DATE date) = OVERRIDE 
-    (GROUP SUM dataStepPercLimitRetailPrice(DATE dt) IF dt>(MAX dateFromPerc(), lastDatePurchase(s, st)) AND dt<=date) IF usePercMonth(),     
-    dataStepPercLimitRetailPrice(firstDayOfMonth(date));
+cumStepPercLimit 'Накопленный процент'(Sku s, Stock st, DATE date) = (OVERRIDE 
+                (GROUP SUM dataStepPercLimitRetailPrice(DATE dt) IF dt>(MAX dateFromPerc(), lastDatePurchase(s, st)) AND dt<=(date AS DATE)) IF usePercMonth(),     
+                dataStepPercLimitRetailPrice(firstDayOfMonth(date)),
+                0.0) IF s IS Sku AND st IS Stock AND date IS DATE ;
         
 cumStepPercLimit 'Накопленный процент (текущий)'(Sku s, Stock st) = cumStepPercLimit(s,st,currentDate());
 
