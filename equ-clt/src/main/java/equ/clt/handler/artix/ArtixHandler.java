@@ -1670,6 +1670,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             logOnCashier = parseTimestamp(documentObject.getString("optime"));
                             numberCashier = documentObject.getString("cashiercard");
                             break;
+                        case 4:
                         case 13:
                             if (logOnCashier != null) {
                                 Timestamp logOffCashier = parseTimestamp(documentObject.getString("optime"));
