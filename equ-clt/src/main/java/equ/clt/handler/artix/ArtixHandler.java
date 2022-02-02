@@ -174,7 +174,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode);
+                                String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode, medicineMode);
                                 if(inventItem != null) {
                                     writeStringToFile(tmpFile, inventItem + "\n---\n");
                                 } else {
@@ -309,7 +309,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
 
-    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode) throws JSONException {
+    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode, boolean medicineMode) throws JSONException {
         Set<CashRegisterItem> barcodes = new HashSet<>();
         for(CashRegisterItem item : items) {
             //если есть addMedicine, дополнительные ШК не выгружаем
@@ -474,9 +474,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             inventObject.put("options", itemOptions);
 
-            Integer blisterAmount = getMaxBlisterAmount(item);
-            if(blisterAmount != null) {
-                inventObject.put("cquant", blisterAmount);
+            if(!medicineMode) {
+                Integer blisterAmount = getMaxBlisterAmount(item);
+                if (blisterAmount != null) {
+                    inventObject.put("cquant", blisterAmount);
+                }
             }
 
 
@@ -566,16 +568,19 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         rootObject.put("medicine", medicineObject);
         medicineObject.put("code", batch.idBatch);
         medicineObject.put("party", batch.dateBatch);
-        //medicineObject.put("supplydate", batch.dateBatch); //todo: раскомментить, когда будет готов их сервер
+        medicineObject.put("supplydate", batch.dateBatch);
         medicineObject.put("barcode", removeCheckDigitFromBarcode(item.mainBarcode, appendBarcode));
         medicineObject.put("shelflife", batch.expiryDate);
         medicineObject.put("series", batch.seriesPharmacy);
         medicineObject.put("producer", batch.nameManufacturer);
         medicineObject.put("price", batch.price);
         medicineObject.put("inn", batch.nameSubstance);
-        medicineObject.put("cquant", nvl(batch.blisterAmount, 1));
-        //medicineObject.put("packquant", batch.balance);  //todo: раскомментить, когда будет готов их сервер
-        medicineObject.put("remainquant", batch.balanceBlister);
+        if(batch.balanceBlister != null) {
+            medicineObject.put("cquant", nvl(batch.blisterAmount, 1));
+            medicineObject.put("remainquant", batch.balanceBlister);
+        } else {
+            medicineObject.put("packquant", batch.balance);
+        }
         medicineObject.put("remaindatetime", batch.balanceDate);
         medicineObject.put("countrycode", batch.countryCode);
         medicineObject.put("options", batch.flag);
