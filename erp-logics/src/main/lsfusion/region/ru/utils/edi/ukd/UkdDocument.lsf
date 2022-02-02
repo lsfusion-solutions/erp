@@ -127,6 +127,8 @@ dateBaseDocument 'Дата документа основания' = DATA DATE (U
 
 //-ДокумОснКор
 nameCorrectionDocument 'Основание корректировки' = DATA STRING[255] (UkdDocument); //НаимОсн
+numberCorrectionDocument 'Номер основания корректировки' = DATA STRING[255] (UkdDocument); //НомОсн
+dateCorrectionDocument 'Дата основания корректировки' = DATA DATE (UkdDocument); //ДатаОсн
 
 //-ЮЛ
 supplierSignerCompany 'Организация' = DATA STRING[1000] (UkdDocument); //НаимОрг
@@ -165,14 +167,14 @@ EXTEND FORM ukdDocument
     PROPERTIES (u) baseInvoiceNumber, baseDateInvoice
     PROPERTIES(u) description, sendDate, nameCurrency
     PROPERTIES(u) nameBaseDocument, numberBaseDocument, dateBaseDocument
-    PROPERTIES(u) nameCorrectionDocument
+    PROPERTIES(u) nameCorrectionDocument, numberCorrectionDocument, dateCorrectionDocument
     PROPERTIES(u) increaseSum, increaseVATSum, increaseInvoiceSum
     PROPERTIES(u) decreaseSum, decreaseVATSum, decreaseInvoiceSum
-    PROPERTIES(u) diffSum, diffVATSum, diffInvoiceSum
+    PROPERTIES(u) diffSum, diffVATSum, diffInvoiceSum, withoutVAT
     PROPERTIES(u) supplierSignerCompany
     
-    PROPERTIES (d) numberUpdDocumentDetail AFTER number(d), idSku, idUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
-    PROPERTIES (d) BACKGROUND RGB(213,249,185) idUOMA, quantityA, priceA, sumA, nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
+    PROPERTIES (d) numberUpdDocumentDetail AFTER number(d), idSku, idUOMB, nameUOMB, quantityB, priceB, sumB, nameVATStatusB, VATSumB, dutySumB SHOWIF NOT withoutDutyB(d), withoutDutyB, invoiceSumB
+    PROPERTIES (d) BACKGROUND RGB(213,249,185) idUOMA, nameUOMA, quantityA, priceA, sumA, nameVATStatusA, VATSumA,  dutySumA SHOWIF NOT withoutDutyA(d), withoutDutyA, invoiceSumA
     PROPERTIES (d) BACKGROUND RGB(255, 224, 255) increaseSum, decreaseSum, increaseVATSum, decreaseVATSum, increaseInvoiceSum, decreaseInvoiceSum, 
                     increaseDutySum SHOWIF NOT withoutDutyA(d), 
                     decreaseDutySum SHOWIF NOT withoutDutyB(d)
@@ -214,7 +216,11 @@ DESIGN ukdDocument {
             MOVE PROPERTY(diffVATSum(u));
             MOVE PROPERTY(diffInvoiceSum(u));
         }
-        MOVE PROPERTY(codeCurrency(u));
+        NEW sum {
+            type = CONTAINERV;
+            MOVE PROPERTY(codeCurrency(u));
+            MOVE PROPERTY(withoutVAT(u));
+        }
     }
     documentInfo {
         NEW baseDocumentInfo {
@@ -227,6 +233,8 @@ DESIGN ukdDocument {
             MOVE PROPERTY(numberBaseDocument(u));
             MOVE PROPERTY(dateBaseDocument(u));
             MOVE PROPERTY(nameCorrectionDocument(u));
+            MOVE PROPERTY(numberCorrectionDocument(u));
+            MOVE PROPERTY(dateCorrectionDocument(u));
         }
     }
     supplierBank {
@@ -777,5 +785,5 @@ DESIGN ukdDocuments {
     }
 }
 
-overShowEdit (UkdDocument ukd) += isOpened(ukdBaseDocument(ukd)) AND NOT skipShowEdit(ukd);
-overShowDelete (UkdDocument ukd) += isOpened(ukdBaseDocument(ukd)) AND NOT skipShowDelete(ukd);
+overShowEdit (UkdDocument ukd) += (isOpened(ukdBaseDocument(ukd)) OR NOT ukdBaseDocument(ukd)) AND NOT skipShowEdit(ukd);
+overShowDelete (UkdDocument ukd) += (isOpened(ukdBaseDocument(ukd)) OR NOT ukdBaseDocument(ukd)) AND NOT skipShowDelete(ukd);

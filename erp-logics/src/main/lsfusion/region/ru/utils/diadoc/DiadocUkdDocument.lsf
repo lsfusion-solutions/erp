@@ -1,0 +1,217 @@
+MODULE DiadocUkdDocument;
+
+REQUIRE UkdDocument, DiadocMessage, CryptoPro;
+
+NAMESPACE Diadoc;
+
+GROUP invoicesUCD EXTID 'Invoices';
+GROUP invoiceUCD EXTID 'Invoice': invoicesUCD;
+GROUP sellerUCD EXTID 'Seller';
+GROUP organizationReferenceSellerUCD EXTID 'OrganizationReference': sellerUCD;
+GROUP buyerUCD EXTID 'Buyer';
+GROUP organizationReferenceBuyerUCD EXTID 'OrganizationReference': buyerUCD;
+GROUP signersUCD EXTID 'Signers';
+GROUP signerDetailsUCD EXTID 'SignerDetails': signersUCD;
+GROUP additionalInfoIdUCD EXTID 'AdditionalInfoId';
+GROUP additionalInfoUCD EXTID 'AdditionalInfo': additionalInfoIdUCD;
+GROUP eventContentUCD EXTID 'EventContent';
+GROUP transferDocDetailsUCD EXTID 'TransferDocDetails': eventContentUCD;
+GROUP correctionBaseUCD EXTID 'CorrectionBase': eventContentUCD;
+GROUP tableUCD EXTID 'Table';
+GROUP itemsUCD EXTID 'Items': tableUCD;
+GROUP totalsIncUCD EXTID 'TotalsInc': tableUCD;
+GROUP totalsDecUCD EXTID 'TotalsDec': tableUCD;
+GROUP taxRateUCD EXTID 'TaxRate';
+GROUP unitNameUCD EXTID 'UnitName';
+GROUP unitUCD EXTID 'Unit';
+GROUP quantityUCD EXTID 'Quantity';
+GROUP priceUCD EXTID 'Price';
+GROUP exciseUCD EXTID 'Excise';
+GROUP subtotalWithVatExcludedUCD EXTID 'SubtotalWithVatExcluded';
+GROUP vatUCD EXTID 'Vat';
+GROUP withoutVatUCD EXTID 'WithoutVat';
+GROUP subtotalUCD EXTID 'Subtotal';
+
+exportUkdDocument = DATA LOCAL UkdDocument ();
+
+FORM universalCorrectionDocument FORMEXTID 'UniversalCorrectionDocument'
+    PROPERTIES ATTR function = (OVERRIDE nameStatus(exportUkdDocument()),'') EXTID 'Function',//Функция - Функция документа
+                    documentDate = toDateDDMMYYYY(OVERRIDE dateInvoice(exportUkdDocument()), currentDate()) EXTID 'DocumentDate',//ДатаКСчФ - дата УКД
+                    documentNumber = (OVERRIDE numberInvoice(exportUkdDocument()),'') EXTID 'DocumentNumber',//НомерКСчФ - номер УКД
+                    currency = (OVERRIDE codeCurrency(exportUkdDocument()),'') EXTID 'Currency',//КодОКВ - валюта (код)
+                    currencyName = '1' EXTID 'CurrencyName',//НАимОКВ - наименование валюты
+                    documentCreator = (OVERRIDE nameOriginatorSupplier(exportUkdDocument()),'') EXTID 'DocumentCreator'//НаимЭконСубСост - Составитель файла обмена счета-фактуры (информации продавца)
+
+    PROPERTIES ATTR IN invoiceUCD
+                    dateI = toDateDDMMYYYY(baseDateInvoice(exportUkdDocument())) EXTID 'Date',//ДатаСчФ
+                    numberI = baseInvoiceNumber(exportUkdDocument()) EXTID 'Number'//НомерСчФ
+    
+    PROPERTIES ATTR IN organizationReferenceSellerUCD
+                    orgTypeS = id(organizationType(organization(fromBox()))) EXTID 'OrgType',//СвИП - СвЮЛУч - СвИнНеУч
+                    boxIdS = fromBoxId() EXTID 'BoxId'
+
+    PROPERTIES ATTR IN organizationReferenceBuyerUCD
+                    orgTypeB = id(organizationType(organization(toBox()))) EXTID 'OrgType',//СвИП - СвЮЛУч - СвИнНеУч
+                    boxIdB = toBoxId() EXTID 'BoxId'
+
+    PROPERTIES ATTR IN signerDetailsUCD
+                    innSG = supplierSignerInn(exportUkdDocument()) EXTID 'Inn',//ИННЮЛ
+                    lastNameSG = (OVERRIDE supplierSignerLastName(exportUkdDocument()), supplierSignerAgentLastName(exportUkdDocument())) EXTID 'LastName',//Фамилия
+                    firstNameSG = (OVERRIDE supplierSignerFirstName(exportUkdDocument()), supplierSignerAgentFirstName(exportUkdDocument())) EXTID 'FirstName',//Имя
+                    middleNameSG = (OVERRIDE supplierSignerMiddleName(exportUkdDocument()), supplierSignerAgentMiddleName(exportUkdDocument())) EXTID 'MiddleName',//Отчество
+                    positionSG = supplierSignerPosition(exportUkdDocument()) EXTID 'Position',//Должн
+                    signerPowersSG = nameSupplierSignerCredentials(exportUkdDocument()) EXTID 'SignerPowers',//ОблПолн - Область полномочий
+                    signerTypeSG = (IF isSupplierSigner(exportUkdDocument()) THEN '3' ELSE '1') EXTID 'SignerType',
+                    signerStatusSG = nameSupplierSignerStatus(exportUkdDocument()) EXTID 'SignerStatus',//Статус
+                    signerPowersBaseSG = supplierSignerCredentialsBase(exportUkdDocument()) EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
+
+    PROPERTIES ATTR IN additionalInfoUCD
+                    idAI = codeBusinessEvent(exportUkdDocument()) EXTID 'Id',//Идентиф - идентификатор (наименование)
+                    valueAI = descriptionBusinessEvent(exportUkdDocument()) EXTID 'Value'//Значен - значение
+
+    PROPERTIES ATTR IN eventContentUCD
+                    operationContentEC = (OVERRIDE description(exportUkdDocument()),'') EXTID 'OperationContent',//СодОпер - Содержание операции
+                    notificationDateEC = toDateDDMMYYYY(sendDate(exportUkdDocument())) EXTID 'NotificationDate'//ДатаНапр - Дата направления на согласование
+
+    PROPERTIES ATTR IN transferDocDetailsUCD
+                    baseDocumentNameTDD = nameBaseDocument(exportUkdDocument()) EXTID 'BaseDocumentName',//НаимОсн - Наименование документа - основания
+                    baseDocumentNumberTDD = numberBaseDocument(exportUkdDocument()) EXTID 'BaseDocumentNumber',//НомОсн - Номер документа - основания
+                    baseDocumentDateTDD = toDateDDMMYYYY(dateBaseDocument(exportUkdDocument())) EXTID 'BaseDocumentDate'//ДатаОсн - Дата документа - основания, обязателен при НаимОсн отличном от значения "Отсутствует"
+
+    PROPERTIES ATTR IN correctionBaseUCD
+                    baseDocumentNameCB = nameCorrectionDocument(exportUkdDocument()) EXTID 'BaseDocumentName',//НаимОсн - Наименование документа - основания
+                    baseDocumentNumberCB = numberCorrectionDocument(exportUkdDocument()) EXTID 'BaseDocumentNumber',//НомОсн - Номер документа - основания
+                    baseDocumentDateCB = toDateDDMMYYYY(dateCorrectionDocument(exportUkdDocument())) EXTID 'BaseDocumentDate'
+
+    PROPERTIES ATTR IN totalsIncUCD
+                    totalWithVatExcludedTI = (OVERRIDE increaseSum(exportUkdDocument()), 0) EXTID 'TotalWithVatExcluded',//СтТовБезНДСВсего - Сумма без учета налога
+                    vatTI = (OVERRIDE increaseVATSum(exportUkdDocument()), 0) EXTID 'Vat',//СумНалВсего - Сумма налога всего
+                    withoutVatTI = withoutVAT(exportUkdDocument()) EXTID 'WithoutVat',//БезНДС - Указывается, если для суммы налога всего не требуется НДС
+                    totalTI = (OVERRIDE increaseInvoiceSum(exportUkdDocument()), 0) EXTID 'Total'//СтТовУчНалВсего - Сумма всего
+
+    PROPERTIES ATTR IN totalsDecUCD
+                    totalWithVatExcludedTD = (OVERRIDE decreaseSum(exportUkdDocument()), 0) EXTID 'TotalWithVatExcluded',//СтТовБезНДСВсего - Сумма без учета налога
+                    vatTD = (OVERRIDE decreaseVATSum(exportUkdDocument()), 0) EXTID 'Vat',//СумНалВсего - Сумма налога всего
+                    withoutVatTD = withoutVAT(exportUkdDocument()) EXTID 'WithoutVat',//БезНДС - Указывается, если для суммы налога всего не требуется НДС
+                    totalTD = (OVERRIDE decreaseInvoiceSum(exportUkdDocument()), 0) EXTID 'Total'//СтТовУчНалВсего - Сумма всего
+
+    OBJECTS i = UkdDocumentDetail EXTID 'Item' IN itemsUCD
+    FILTERS ukdDocument(i) == exportUkdDocument()
+    PROPERTIES ATTR productI = nameSku(i) EXTID 'Product',//НаимТов - наименование товара
+                    itemVendorCodeI = idSku(i) EXTID 'ItemVendorCode'//КодТов - Характеристика/код/артикул/сорт товара
+    PROPERTIES ATTR IN taxRateUCD
+                    originalValueTR = nameVATStatusB(i) EXTID 'OriginalValue',//НалСтДо
+                    correctedValueTR = nameVATStatusA(i) EXTID 'CorrectedValue'//НалСтПосле
+    PROPERTIES ATTR IN unitNameUCD
+                    originalValueUN = nameUOMB(i) EXTID 'OriginalValue',//НаимЕдИзмДо
+                    correctedValueUN = nameUOMA(i) EXTID 'CorrectedValue'//НаимЕдИзмПосле
+    PROPERTIES ATTR IN unitUCD
+                    originalValueU = idUOMB(i) EXTID 'OriginalValue',//ОКЕИ_ТовДо
+                    correctedValueU = idUOMA(i) EXTID 'CorrectedValue'//ОКЕИ_ТовПосле
+    PROPERTIES ATTR IN quantityUCD
+                    originalValueQ = quantityB(i) EXTID 'OriginalValue',//КолТовДо
+                    correctedValueQ = quantityA(i) EXTID 'CorrectedValue'//КолТовПосле
+    PROPERTIES ATTR IN priceUCD
+                    originalValueP = priceB(i) EXTID 'OriginalValue',//ЦенаТовДо
+                    correctedValueP = priceA(i) EXTID 'CorrectedValue'//ЦенаТовПосле
+    PROPERTIES ATTR IN exciseUCD
+                    originalValueE = dutySumB(i) EXTID 'OriginalValue',//АкцизДо
+                    correctedValueE = dutySumA(i) EXTID 'CorrectedValue'//АкцизПосле
+    PROPERTIES ATTR IN subtotalWithVatExcludedUCD
+                    originalValueSWVE = (OVERRIDE invoiceSumB(i), 0) EXTID 'OriginalValue',//СтоимДоИзм
+                    correctedValueSWVE = (OVERRIDE invoiceSumA(i), 0) EXTID 'CorrectedValue'//СтоимПослеИзм
+    PROPERTIES IN subtotalWithVatExcludedUCD
+                  amountsIncSWVE = increaseInvoiceSum(i) EXTID 'AmountsInc',//СтоимУвел
+                  amountsDecSWVE = decreaseInvoiceSum(i) EXTID 'AmountsDec'//СтоимУм
+    PROPERTIES ATTR IN vatUCD
+                    originalValueV = VATSumB(i) EXTID 'OriginalValue',//СумНалДо
+                    correctedValueV = VATSumA(i) EXTID 'CorrectedValue'//СумНалПосле
+    PROPERTIES IN vatUCD
+               amountsIncV = showIncreaseVATSum(i) EXTID 'AmountsInc',//СтоимУвел
+               amountsDecV = decreaseVATSum(i) EXTID 'AmountsDec'//СтоимУм
+    PROPERTIES ATTR IN withoutVatUCD
+                    originalValueWV = withoutVAT(ukdDocument(i)) EXTID 'OriginalValue',//БезНДСДо
+                    correctedValueWV = withoutVAT(ukdDocument(i)) EXTID 'CorrectedValue'//БезНДСПосле
+    PROPERTIES ATTR IN subtotalUCD
+                    originalValueS = (OVERRIDE sumB(i), 0) EXTID 'OriginalValue',//СтоимДоИзм
+                    correctedValueS = (OVERRIDE sumA(i), 0) EXTID 'CorrectedValue'//СтоимПослеИзм
+    PROPERTIES IN subtotalUCD
+               amountsIncS = increaseSum(i) EXTID 'AmountsInc',//СтоимУвел
+               amountsDecS = decreaseSum(i) EXTID 'AmountsDec'//СтоимУм
+;
+
+document = DATA Document (UkdDocument);
+ukdDocument = GROUP LAST UkdDocument d ORDER d BY document(d) MATERIALIZED INDEXED;
+titleDocument 'Документ Диадока' (UkdDocument d) = title(document(d)) CHARWIDTH 20;
+primaryStatusTextDocument 'Статус' (UkdDocument d) = primaryStatusText(document(d)) CHARWIDTH 20;
+
+overMessageUniversalCorrectionDocument ABSTRACT (UkdDocument);
+    
+messageUniversalCorrectionDocument 'Подписать и отправить через Диадок' (UkdDocument d) {
+    FOR User u == userDiadoc(currentUser()) DO NEWSESSION {
+        fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == supplier(invoice(updDocument(d))) ORDER b;
+        toBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(invoice(updDocument(d))) ORDER b;
+        overMessageUniversalCorrectionDocument(d);
+        DIALOG dialogMessageToPost NOMANAGESESSION DO {
+            getToken(u);
+            exportUkdDocument() <- d;
+            EXPORT universalCorrectionDocument XML;
+            
+            LOCAL result = FILE ();
+            TRY {
+                EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + fromBoxId() + '&documentTypeNamedId=UniversalCorrectionDocument&documentFunction=' + nameStatus(d) + '&documentVersion=ucd736_05_01_02&titleIndex=0' HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                typeNamedIdDocument(0) <- 'UniversalCorrectionDocument';
+                functionDocument(0) <- nameStatus(d);
+                versionDocument(0) <- 'ucd736_05_01_02';
+                contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+                
+                IF useTestSignature() THEN {
+                    signWithTestSignature(0) <- TRUE;
+                } ELSE {
+                    sign(FILE(result()), TRUE, legalEntity(organization(fromBox())));
+                    signatureDocument(0) <- encodedSignature();
+                }
+                
+                postMessage(u);
+                document(d) <- createdDocument();
+                dateTimeTransfer(d) <- currentDateTime();
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка отправки УКД ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            }
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM ukdDocument
+    PROPERTIES(u) SHOWIF document(u) READONLY titleDocument, primaryStatusTextDocument
+    PROPERTIES(u) SHOWIF NOT document(u) messageUniversalCorrectionDocument
+;
+DESIGN ukdDocument {
+    transfer {
+        NEW diadoc {
+            caption = 'Диадок API';
+            MOVE PROPERTY (titleDocument(u));
+            MOVE PROPERTY (primaryStatusTextDocument(u));
+            MOVE PROPERTY (messageUniversalCorrectionDocument(u));
+        }
+    }
+}
+
+EXTEND FORM ukdDocuments
+    PROPERTIES(u) READONLY titleDocument = titleDocument //AFTER isTransferred(u)
+    PROPERTIES(u) PANEL SHOWIF document(u) READONLY titleDocument, primaryStatusTextDocument 
+    PROPERTIES(u) PANEL SHOWIF NOT document(u) messageUniversalCorrectionDocument
+;
+
+DESIGN ukdDocuments {
+    export {
+        NEW diadoc {
+            caption = 'Диадок API';
+            MOVE PROPERTY (titleDocument(u));
+            MOVE PROPERTY (primaryStatusTextDocument(u));
+            MOVE PROPERTY (messageUniversalCorrectionDocument(u));
+        }
+    }
+}
