@@ -68,7 +68,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             price_unit_index = 0, //-1:/pc, 0:/kg, 1:/100g, 2:/g
             ingredients = left(description(t, b), 1500),
             used_by_days = STRING (expiryDays(t, b)),
-            image_filename = ('item_' + id(b) + '.png') IF hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)),
+            image_filename = IF hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) THEN 'item_' + id(b) + '.png' ELSE '',
             disabled = '0',
             barcode = 0,
             exp_date = STRING(expiryDate(t, b)),
@@ -90,7 +90,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             zipping(STRING[1000] f) <- FILE(imageRBS(sku(b))) WHERE f == 'item_' + id(b) + '.png';
         IF GROUP SUM 1 IF zipping(STRING[1000] f) THEN {
             makeZipFile();
-            itemsImages()<- zipped();
+            itemsImages() <- zipped();
         }
         
         FOR groupMachinery(Machinery m) == groupMachinery(t) AND (in(t, m) OR NOT npps(t)) AND NOT succeeded(m,t) AND NOT inactive(m) NOINLINE DO {
