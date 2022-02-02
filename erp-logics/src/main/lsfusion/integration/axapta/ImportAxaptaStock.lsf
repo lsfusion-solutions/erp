@@ -13,7 +13,7 @@ importStoreType 'Импорт форматов магазинов' () {
                 
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOESCAPE FROM f TO id, name;
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO id, name;
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
@@ -67,7 +67,7 @@ importStock 'Импорт складов' () {
                 
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOESCAPE FROM f TO id, name, locationType, idGroup, locationDirect, address, email, number;
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO id, name, locationType, idGroup, locationDirect, address, email, number;
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
@@ -77,6 +77,25 @@ importStock 'Импорт складов' () {
         }       
 
         idGroup(INTEGER i) <- 'F' + idGroup(i) WHERE idGroup(i);
+
+        //группы складов
+        IF NOT warehouseGroup('default') THEN NEW g = WarehouseGroup {
+            id(g) <- 'default';
+            name(g) <- 'По умолчанию';
+            parent(g) <- warehouseGroup('company');
+        }
+
+        IF NOT warehouseGroup('defect') THEN NEW g = WarehouseGroup {
+            id(g) <- 'defect';
+            name(g) <- 'Брак';
+            parent(g) <- warehouseGroup('company');
+        }
+        
+        IF NOT warehouseGroup('delivery') THEN NEW g = WarehouseGroup {
+            id(g) <- 'delivery';
+            name(g) <- 'Доставка';
+            parent(g) <- warehouseGroup('company');
+        } 
                 
         //магазины            
         FOR id(INTEGER i) AND locationType(i) = 3 AND storeType(idGroup(i)) AND NOT store(id(i)) DO NEW g = Store {
@@ -112,27 +131,8 @@ importStock 'Импорт складов' () {
             AND Store store = [GROUP MAX store(id(INTEGER i1)) IF locationType(i1) = 3 BY locationDirect(i1)](id(i)) DO {
             name(dep) <- name(i);
             store(dep) <- store;
+            dataStockGroup(dep) <- warehouseGroup('defect') IF locationType(i) != 3;
         }  
-        
-        //группы складов
-        IF NOT warehouseGroup('default') THEN NEW g = WarehouseGroup {
-            id(g) <- 'default';
-            name(g) <- 'По умолчанию';
-            parent(g) <- warehouseGroup('company');
-        }
-
-        IF NOT warehouseGroup('defect') THEN NEW g = WarehouseGroup {
-            id(g) <- 'defect';
-            name(g) <- 'Брак';
-            parent(g) <- warehouseGroup('company');
-            
-        }
-        
-        IF NOT warehouseGroup('delivery') THEN NEW g = WarehouseGroup {
-            id(g) <- 'delivery';
-            name(g) <- 'Доставка';
-            parent(g) <- warehouseGroup('company');
-        } 
         
         //склады
         FOR INTEGER i1 = [GROUP MAX INTEGER i BY id(i), locationType(i)](STRING[100] id, INTEGER type) 

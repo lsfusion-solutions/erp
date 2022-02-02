@@ -1,19 +1,6 @@
 MODULE ImportAxaptaPurchase;
 
 REQUIRE ImportAxapta, StockContract, Utils, ImportUserPriceList, PriceListContract;
-//////////////////
-//id у строки прайса объявлен в модуле ImportUserPriceList, не уверен что он нужен 
-
-//проблемы при попытке сохранить договор в прайсе при импрорте прайсов
-//в большинстве договоров дата начала 1900-01-01 00:00:00.000, из-за этого срабытывал CONSTRAINT  'Договор прайс-листа просрочен или еще не действует';
-//  поэтому дату по подменяю пустой датой как и в прайсах
- 
-//при импорте Организаций не проставлял isSupplier, isCustomer, isCompany из-за этого при попытке сохранить договор в прайс 
-//спрабатывает этот CONSTRAINT  Организация (поставщик) договора прайса не является поставщиком или компанией, тут пока ничего не делал
-
-//т.к. в договоре отсутствует покупатель, срабатывает и следующий CONSTRAINT Организация (покупатель) договора прайса не является покупателем или компанией';
-//////////////////
-
 
 NAMESPACE ImportAxapta;
 
@@ -24,8 +11,8 @@ importPurchaseContract 'Импорт договоров закупки' () {
         LOCAL id = STRING[100](INTEGER);
         LOCAL number = STRING[48](INTEGER);
         LOCAL date = STRING (INTEGER);        
-        LOCAL dateFrom = STRING (INTEGER);
-        LOCAL dateTo = STRING (INTEGER);
+        LOCAL dateFrom = DATETIME (INTEGER);
+        LOCAL dateTo = DATETIME (INTEGER);
         LOCAL idPaymentCondition = STRING (INTEGER);        
         LOCAL supplierId = STRING[100] (INTEGER); 
         LOCAL status = INTEGER (INTEGER);
@@ -33,17 +20,18 @@ importPurchaseContract 'Импорт договоров закупки' () {
         
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOESCAPE FROM f TO id, number, date, dateFrom, dateTo, idPaymentCondition, supplierId, status, subject;
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO id, number, date, dateFrom, dateTo, idPaymentCondition, supplierId, status, subject;
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
-                EXEC 'RCONTRACTACCOUNT, RCONTRACTNUMBER, CONTRACTDATE, CONTRACTSTARTDATE, CONTRACTENDDATE, CONTRACTPAYMCODE, RCONTRACTPARTNERCODE, RCONTRACTSTATUS, RCONTRACTSUBJECT FROM RCONTRACTTABLE WHERE DATAAREAID = $1' 
+                EXEC 'SELECT RCONTRACTACCOUNT, RCONTRACTNUMBER, CONTRACTDATE, CONTRACTSTARTDATE, CONTRACTENDDATE, CONTRACTPAYMCODE, UPPER(RCONTRACTPARTNERCODE), RCONTRACTSTATUS, RCONTRACTSUBJECT FROM RCONTRACTTABLE WHERE DATAAREAID = $1' 
                 PARAMS areaId() TO file;
                 IMPORT TABLE FROM file() TO id, number, date, dateFrom, dateTo, idPaymentCondition, supplierId, status, subject;
         }
                
         FOR id(INTEGER i) AND NOT userContractSku(id(i)) DO NEW g = UserContractSku {
             id(g) <- (id(i));
+            customer(g) <- defaultCompany();           
         }
 
         FOR INTEGER i1 = [GROUP MAX INTEGER i BY idPaymentCondition(i)](STRING id) AND NOT paymentCondition(id) NEW p = PaymentCondition DO {
@@ -65,16 +53,15 @@ importPurchaseContract 'Импорт договоров закупки' () {
         FOR id(INTEGER i) AND UserContractSku c == userContractSku(id(i)) DO {
             number(c) <- number(i);
             //date(c) <- DATE (date(i)) // даты нету;
-            dateFrom(c) <- DATE (dateFrom(i));
-            dateTo(c) <- IF left(dateTo(i), 10) = '1900-01-01' THEN NULL
-                         ELSE DATE (dateTo(i));
+            dateFrom(c) <- DATE(dateFrom(i));
+            dateTo(c) <- DATE(dateTo(i)) IF DATE(dateTo(i)) != 1900_01_01;
             paymentCondition(c) <- paymentCondition(idPaymentCondition(i));
-            supplier(c) <- legalEntity(supplierId(i));           
+            supplier(c) <- legalEntity(supplierId(i));
             //stat(c) <- status(i);
             note(c) <- subject(i) WHERE NOT subject(i) = 'NULL';
         }
      
-        DELETE UserContractSku g WHERE g IS UserContractSku AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));                   
+        DELETE UserContractSku g WHERE g IS UserContractSku AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));
         APPLY;
     }
 }
@@ -93,9 +80,6 @@ DESIGN integrationData {
 }
 
 //импорт прайслистов
-priceListOperation = DATA PriceList.Operation();
-namePriceListOperation 'Операция' () = name(priceListOperation());
-
 importPurchasePrice 'Импорт прайс листов' () {
     NEWSESSION {
         LOCAL file = FILE ();    
@@ -103,19 +87,19 @@ importPurchasePrice 'Импорт прайс листов' () {
         LOCAL supplierId = STRING[100] (INTEGER); 
         LOCAL contractId = STRING[100] (INTEGER); 
         LOCAL itemId = STRING[100] (INTEGER);         
-        LOCAL fromDate = STRING (INTEGER);
-        LOCAL toDate = STRING (INTEGER);
+        LOCAL fromDate = DATETIME (INTEGER);
+        LOCAL toDate = DATETIME (INTEGER);
         LOCAL price = NUMERIC[16,4] (INTEGER);
         LOCAL priceId = STRING (INTEGER);
         
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' NOESCAPE FROM f TO id, supplierId, contractId, itemId, fromDate, toDate, price;
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO id, supplierId, contractId, itemId, fromDate, toDate, price;
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT vip.RECID, ' +
-                             'vip.VENDACCOUNT, ' +
+                             'UPPER(vip.VENDACCOUNT), ' +
                              'vip.RCONTRACTACCOUNT, ' +
                              'vci.ITEMID, ' +
                              'vip.STARTDATE, ' +
@@ -123,7 +107,8 @@ importPurchasePrice 'Импорт прайс листов' () {
                              'vip.VALUE ' +
                       'FROM VENDITEMPRICE vip ' +
                       'JOIN VENDCONTRACTITEM vci ON vci.PRICELINEID = vip.PRICELINEID ' +
-                      'WHERE vip.ISPRIMARY = 1 AND (ENDDATE = \'1900-01-01 00:00:00.000\' OR ENDDATE >= GETDATE()) ' +
+                      'LEFT JOIN RCONTRACTTABLE rc ON rc.RCONTRACTACCOUNT = vip.RCONTRACTACCOUNT' +
+                      'WHERE (vip.RCONTRACTACCOUNT = \'\' OR rc.RCONTRACTPARTNERCODE = vip.VENDACCOUNT) vip.ISPRIMARY = 1 AND (ENDDATE = \'1900-01-01 00:00:00.000\' OR ENDDATE >= GETDATE()) ' +
                       'AND DATAAREAID = $1 ' +
                       'ORDER BY vip.PRICELINEID, vip.ENDDATE '
                 PARAMS areaId() TO file;
@@ -135,10 +120,16 @@ importPurchasePrice 'Импорт прайс листов' () {
 
         FOR INTEGER i1 = [GROUP MAX INTEGER i BY priceId(i)](STRING id) AND NOT userPriceList(id) NEW p = UserPriceList DO {
             id(p) <- id;            
+            number(p) <- STRING[48](priceId(i1));
+            PriceList.operation(p) <- operation('supplier');
+            date(p) <- currentDate();
+            time(p) <- currentTime();
+            fromDate(p) <- currentDate();
+            fromTime(p) <- 00:00;
+            isPosted(p) <- TRUE;
         }
         
         FOR INTEGER i1 = [GROUP MAX INTEGER i BY priceId(i)](STRING id) AND UserPriceList p = userPriceList(id) DO {
-            PriceList.operation(p) <- priceListOperation();
             contractSku(p) <- userContractSku(contractId(i1));
             company(p) <- legalEntity(supplierId(i1));
         }
@@ -148,19 +139,12 @@ importPurchasePrice 'Импорт прайс листов' () {
             userPriceList(d) <- p;
         }
         
-        LOCAL importPriceListType = DataPriceListType ();
-        
-        /////////////
-        //вроде это первый вид цены операции, но не был уверен
-        //////////////
-        importPriceListType() <- GROUP LAST PriceListType t ORDER DESC t IF change(t, priceListOperation());
-
         FOR id(INTEGER i) AND UserPriceList p = userPriceList(priceId(i)) AND UserPriceListDetail d = userPriceListDetail(id(i), p) DO {
             sku(d) <- item(itemId(i));
-            fromDate(d) <- DATE (fromDate(i));
-            toDate(d) <- IF left(toDate(i), 10) = '1900-01-01' THEN NULL
-                         ELSE DATE (toDate(i));;
-            price(d, importPriceListType()) <- price(i);
+            fromDataDate(d) <- DATE (fromDate(i));
+            toDataDate(d) <- DATE(toDate(i)) IF DATE(toDate(i)) != 1900_01_01;
+            toDataTime(d) <- 23:59 IF DATE(toDate(i)) != 1900_01_01;
+            price(d, dataPriceListType('supplier')) <- price(i);
         }
              
         DELETE UserPriceListDetail g WHERE g IS UserPriceListDetail AND NOT [GROUP SUM 1 BY priceId(INTEGER i), itemId(i)](id(userPriceList(g)), idSku(g));
@@ -171,7 +155,7 @@ importPurchasePrice 'Импорт прайс листов' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importPurchasePrice, namePriceListOperation
+    PROPERTIES() importPurchasePrice
 ;
 
 DESIGN integrationData {
@@ -179,7 +163,6 @@ DESIGN integrationData {
         NEW importPurchasePriceCont {
             type = CONTAINERH;
             MOVE PROPERTY (importPurchasePrice());
-            MOVE PROPERTY (namePriceListOperation());
         }
     }
 }
