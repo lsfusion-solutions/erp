@@ -8,6 +8,35 @@ isNative (GroupMachinery g) = left(handlerModel(g), 4) = 'lsf.';
 isNative (MachineryPriceTransaction t) = isNative(groupMachinery(t));
 isNative (Machinery m) = isNative(groupMachinery(m));
 
+hasNativeMachinery(Stock s) = GROUP SUM 1 IF isNative(Machinery m) AND active(groupMachinery(m)) AND stock(m) == s;
+hasNativeMachinery(RequestExchange r) = GROUP SUM 1 IF hasNativeMachinery(Stock s) AND (stock(r) == s OR in(s, r));
+
+succeededNative 'Выгружен (Native)' = DATA BOOLEAN (RequestExchange);
+dateTimeSucceededNative 'Время выгрузки (Native)' = DATA DATETIME (RequestExchange);
+
+migratedNativeSucceeded = DATA BOOLEAN();
+onStarted() + {
+    IF NOT migratedNativeSucceeded() THEN {
+        NEWSESSION {
+            migratedNativeSucceeded() <- TRUE;
+            succeededNative(RequestExchange r) <- succeeded(r);
+            APPLY; 
+        }
+    }
+}
+
+EXTEND FORM requestExchanges
+PROPERTIES AFTER dateTimeSucceeded(r) SHOWIF hasNativeMachinery(r) succeededNative(r), dateTimeSucceededNative(r), hasNativeMachinery(r);
+
+EXTEND FORM requestExchange
+PROPERTIES AFTER succeeded(r) SHOWIF hasNativeMachinery(r) succeededNative(r);
+
+DESIGN requestExchange {
+    secondRow {
+        MOVE PROPERTY(succeededNative(r));              
+    }            
+}
+
 sendDeltaRests ABSTRACT LIST (MachineryPriceTransaction);
 
 sendMachineryPriceTransaction ABSTRACT LIST (MachineryPriceTransaction);
@@ -54,7 +83,7 @@ addMachineryError (MachineryPriceTransaction t, STRING data, TEXT errorTrace) + 
 sendRequestExchange 'Передать запрос' ABSTRACT CASE (Machinery, RequestExchange); 
 
 sendRequestExchange 'Запрос обмена данными (native)' () {
-    FOR isNative(Machinery m) AND in(m, RequestExchange re) AND NOT succeeded(re) DO {
+    FOR isNative(Machinery m) AND in(m, RequestExchange re) AND NOT succeededNative(re) DO {
         sendRequestExchange(m, re);
     }
 }

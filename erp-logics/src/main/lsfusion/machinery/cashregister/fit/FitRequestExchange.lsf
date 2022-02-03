@@ -5,13 +5,13 @@ REQUIRE MachineryPriceTransaction, FitCashRegister;
 NAMESPACE Fit;
 
 succeeded 'Выгружен' = DATA BOOLEAN (Machinery, RequestExchange);
-notSucceeded 'Не выгружен' (Machinery machinery, RequestExchange requestExchange) = requestExchange IS RequestExchange AND machinery IS Machinery AND NOT succeeded(requestExchange);
+notSucceeded 'Не выгружен' (Machinery machinery, RequestExchange requestExchange) = requestExchange IS RequestExchange AND machinery IS Machinery AND NOT succeededNative(requestExchange);
 dateTimeSucceeded 'Время выгрузки' = DATA DATETIME (Machinery, RequestExchange);
 
 countMachinery (RequestExchange re) = GROUP SUM 1 IF Machinery m IS Machinery AND in(m, re) AND active(m) AND isFit(m);
 countSucceded (RequestExchange re) = GROUP SUM 1 IF succeeded(Machinery m, re) AND in(m, re) AND active(m) AND isFit(m);   
 
-WHEN SET(countMachinery(RequestExchange re) = countSucceded(re) AND requestExchangeType(re) = RequestExchangeType.cashierInfo) DO succeeded(re) <- TRUE;
+WHEN SET(countMachinery(RequestExchange re) = countSucceded(re) AND requestExchangeType(re) = RequestExchangeType.cashierInfo) DO succeededNative(re) <- TRUE;
 
 EXTEND FORM requestExchange
     PROPERTIES (m,r) SHOWIF isFit(m) AND ignoreCashRegisterServerCashRegisterModel(groupMachinery(m)) succeeded, dateTimeSucceeded 
