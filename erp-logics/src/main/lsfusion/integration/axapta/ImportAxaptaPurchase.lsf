@@ -101,14 +101,13 @@ importPurchasePrice 'Импорт прайс листов' () {
                 EXEC 'SELECT vip.RECID, ' +
                              'UPPER(vip.VENDACCOUNT), ' +
                              'vip.RCONTRACTACCOUNT, ' +
-                             'vci.ITEMID, ' +
-//                             'vi.ITEMID, ' + сейчас игнорируются все строки, которые без договора, но там такие есть
+                             'vi.ITEMID, ' +
                              'vip.STARTDATE, ' +
                              'vip.ENDDATE, ' +
                              'vip.VALUE ' +
                       'FROM VENDITEMPRICE vip ' +
-//                      'LEFT JOIN VENDITEM vi ON vi.PRICELINEID = vip.PRICELINEID ' +
-                      'JOIN VENDCONTRACTITEM vci ON vci.PRICELINEID = vip.PRICELINEID ' +
+                      'JOIN VENDITEM vi ON vi.PRICELINEID = vip.PRICELINEID ' +
+                      'LEFT JOIN VENDCONTRACTITEM vci ON vci.PRICELINEID = vip.PRICELINEID ' +
                       'LEFT JOIN RCONTRACTTABLE rc ON rc.RCONTRACTACCOUNT = vip.RCONTRACTACCOUNT ' +
                       'WHERE (vip.RCONTRACTACCOUNT = \'\' OR rc.RCONTRACTPARTNERCODE = vip.VENDACCOUNT) AND vip.ISPRIMARY = 1 AND (ENDDATE = \'1900-01-01 00:00:00.000\' OR ENDDATE >= GETDATE()) ' +
                       'AND vip.DATAAREAID = $1 ' +
@@ -118,7 +117,7 @@ importPurchasePrice 'Импорт прайс листов' () {
             IMPORT TABLE FROM file() TO id, supplierId, contractId, itemId, fromDate, toDate, price;
         }
         
-        priceId(INTEGER i) <- OVERRIDE contractId(i), supplierId(i) WHERE id(i);
+        priceId(INTEGER i) <- OVERRIDE contractId(i) IF contractId(i) != '', supplierId(i) WHERE id(i);
 
         FOR INTEGER i1 = [GROUP MAX INTEGER i BY priceId(i)](STRING id) AND NOT userPriceList(id) NEW p = UserPriceList DO {
             id(p) <- id;            
@@ -132,16 +131,16 @@ importPurchasePrice 'Импорт прайс листов' () {
         }
         
         FOR INTEGER i1 = [GROUP MAX INTEGER i BY priceId(i)](STRING id) AND UserPriceList p = userPriceList(id) DO {
-            contractSku(p) <- userContractSku(contractId(i1));
+            contractSku(p) <- userContractSku(contractId(i1) IF contractId(i1) != '');
             company(p) <- legalEntity(supplierId(i1));
         }
         
         FOR id(INTEGER i) AND UserPriceList p = userPriceList(priceId(i)) AND NOT userPriceListDetail(STRING(id(i)), p) DO NEW d = UserPriceListDetail {
             id(d) <- STRING(id(i));
-            userPriceList(d) <- p;
         }
         
         FOR id(INTEGER i) AND UserPriceList p = userPriceList(priceId(i)) AND UserPriceListDetail d = userPriceListDetail(STRING(id(i)), p) DO {
+            userPriceList(d) <- p;
             sku(d) <- item(itemId(i));
             fromDataDate(d) <- DATE (fromDate(i));
             toDataDate(d) <- DATE(toDate(i)) IF DATE(toDate(i)) != 1900_01_01;
@@ -149,8 +148,8 @@ importPurchasePrice 'Импорт прайс листов' () {
             price(d, dataPriceListType('supplier')) <- price(i);
         }
              
-        DELETE UserPriceListDetail g WHERE g IS UserPriceListDetail AND NOT [GROUP SUM 1 BY priceId(INTEGER i), itemId(i)](id(userPriceList(g)), idSku(g));
-        DELETE UserPriceList g WHERE g IS UserPriceList AND NOT [GROUP SUM 1 BY priceId(INTEGER i)](id(g));               
+        DELETE UserPriceListDetail g WHERE operation(g) = operation('supplier') AND NOT [GROUP SUM 1 BY STRING(id(INTEGER i))](id(g));
+        DELETE UserPriceList g WHERE operation(g) = operation('supplier') AND NOT [GROUP SUM 1 BY priceId(INTEGER i)](id(g));               
 
         APPLY;
     }
