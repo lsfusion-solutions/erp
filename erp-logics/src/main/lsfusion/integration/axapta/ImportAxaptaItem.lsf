@@ -311,6 +311,9 @@ DESIGN integrationData {
 }
 
 //Штрихкоды
+dataAreaIdBarcode 'Area ID' = DATA ISTRING[100]();
+areaIdBarcode 'Area ID' () = OVERRIDE dataAreaIdBarcode(), areaId();
+
 importBarcode 'Импорт штрихкодов' () {
     NEWSESSION {
         LOCAL file = FILE ();    
@@ -324,7 +327,7 @@ importBarcode 'Импорт штрихкодов' () {
         } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT ITEMBARCODE, ITEMID FROM INVENTITEMBARCODE WHERE DATAAREAID = $1' 
-                PARAMS areaId() TO file;
+                PARAMS areaIdBarcode() TO file;
                 IMPORT TABLE FROM file() TO id, idSku;
         }
               
@@ -343,7 +346,7 @@ importBarcode 'Импорт штрихкодов' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importBarcode
+    PROPERTIES() importBarcode, dataAreaIdBarcode
 ;
 
 DESIGN integrationData {
@@ -351,6 +354,7 @@ DESIGN integrationData {
         NEW importBarcodeCont {
             type = CONTAINERH;
             MOVE PROPERTY (importBarcode());
+            MOVE PROPERTY (dataAreaIdBarcode());
         }
     }
 }
