@@ -80,6 +80,8 @@ DESIGN integrationData {
 }
 
 //импорт прайслистов
+userPriceListDetail (STRING[100] s) = GROUP MAX UserPriceListDetail d BY id(d);
+
 importPurchasePrice 'Импорт прайс листов' () {
     NEWSESSION {
         LOCAL file = FILE ();    
@@ -135,11 +137,11 @@ importPurchasePrice 'Импорт прайс листов' () {
             company(p) <- legalEntity(supplierId(i1));
         }
         
-        FOR id(INTEGER i) AND UserPriceList p = userPriceList(priceId(i)) AND NOT userPriceListDetail(STRING(id(i)), p) DO NEW d = UserPriceListDetail {
+        FOR id(INTEGER i) AND UserPriceList p = userPriceList(priceId(i)) AND NOT userPriceListDetail(STRING(id(i))) DO NEW d = UserPriceListDetail {
             id(d) <- STRING(id(i));
         }
         
-        FOR id(INTEGER i) AND UserPriceList p = userPriceList(priceId(i)) AND UserPriceListDetail d = userPriceListDetail(STRING(id(i)), p) DO {
+        FOR id(INTEGER i) AND UserPriceList p = userPriceList(priceId(i)) AND UserPriceListDetail d = userPriceListDetail(STRING(id(i))) DO {
             userPriceList(d) <- p;
             sku(d) <- item(itemId(i));
             fromDataDate(d) <- DATE (fromDate(i));
