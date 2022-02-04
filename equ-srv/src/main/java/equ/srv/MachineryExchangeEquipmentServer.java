@@ -80,7 +80,9 @@ public class MachineryExchangeEquipmentServer {
                 if(machineryPriceTransactionDiscountCardLM != null) {
                     requestExchangeQuery.addProperty("startDateRequestExchange", machineryPriceTransactionDiscountCardLM.findProperty("startDate[RequestExchange]").getExpr(requestExchangeExpr));
                 }
-                requestExchangeQuery.and(equLM.findProperty("overSucceeded[RequestExchange, EquipmentServer]").getExpr(requestExchangeExpr, new DataObject(sidEquipmentServer).getExpr()).getWhere().not());
+                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+                requestExchangeQuery.and(equLM.findProperty("overSucceeded[RequestExchange, EquipmentServer]").getExpr(requestExchangeExpr, equipmentServerObject.getExpr()).getWhere().not());
+                requestExchangeQuery.and(equLM.findProperty("hasMachinery[STRING, RequestExchange]").getExpr(new DataObject(sidEquipmentServer).getExpr(), requestExchangeExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> requestExchangeResult = requestExchangeQuery.executeClasses(session);
                 for (int i = 0; i < requestExchangeResult.size(); i++) {
 
