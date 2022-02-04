@@ -52,6 +52,9 @@ public class AstronSettings implements Serializable {
     //если true, то выгружаем поле PROPERTYGRPID таблицы pack
     private boolean usePropertyGridFieldInPackTable;
 
+    //если true, то в дополнение к таблице DCARD выгружаем таблицы CLNTGRP, CLNT, CLNTFORM, CLNTFORMITEMS, CLNTFORMPROPERTY
+    private boolean exportDiscountCardExtraTables;
+
     public AstronSettings() {
     }
 
@@ -186,5 +189,13 @@ public class AstronSettings implements Serializable {
 
     public void setUsePropertyGridFieldInPackTable(boolean usePropertyGridFieldInPackTable) {
         this.usePropertyGridFieldInPackTable = usePropertyGridFieldInPackTable;
+    }
+
+    public boolean isExportDiscountCardExtraTables() {
+        return exportDiscountCardExtraTables;
+    }
+
+    public void setExportDiscountCardExtraTables(boolean exportDiscountCardExtraTables) {
+        this.exportDiscountCardExtraTables = exportDiscountCardExtraTables;
     }
 }

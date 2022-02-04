@@ -1165,7 +1165,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (!Thread.currentThread().isInterrupted()) {
                     if(params.pgsql) {
                         setObject(ps, discountCard.idDiscountCard, 1); //DCARDID
-                        setObject(ps, Integer.parseInt(discountCard.idDiscountCard), 2); //CLNTID
+                        setObject(ps, getClientId(discountCard), 2); //CLNTID
                         setObject(ps, discountCard.idDiscountCard, 3); //DCARDCODE
                         setObject(ps, discountCard.nameDiscountCard, 4); //DCARDNAME
                         setObject(ps, 0, 5); //ISPAYMENT
@@ -1190,6 +1190,222 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             executeAndCommitBatch(ps, conn);
         }
+    }
+
+    private void exportClntGrp(Connection conn, AstronConnectionString params, String tbl, List<DiscountCard> discountCardList, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"CLNTGRPID"};
+        String[] columns = getColumns(new String[]{"CLNTGRPID", "DISCID", "BONUSID", "CLNTGRPNAME", "CLNTGRPMANUAL", "CLNTGRPTYPE", "DELFLAG"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, params, tbl, columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            Set<Integer> usedGroups = new HashSet<>();
+            for (DiscountCard discountCard : discountCardList) {
+                if (!Thread.currentThread().isInterrupted()) {
+                    Integer idClientGroup = getClientGroupId(discountCard);
+                    String nameClientGroup = nvl(discountCard.nameDiscountCardType, "");
+                    if(usedGroups.add(idClientGroup)) {
+                        if (params.pgsql) {
+                            setObject(ps, idClientGroup, 1); //CLNTGRPID
+                            setObject(ps, null, 2); //DISCID
+                            setObject(ps, null, 3); //BONUSID
+                            setObject(ps, nameClientGroup, 4); //CLNTGRPNAME
+                            setObject(ps, 0, 5); //CLNTGRPMANUAL
+                            setObject(ps, 0, 6); //CLNTGRPTYPE
+                            setObject(ps, 0, 7); //DELFLAG
+                        } else {
+                            setObject(ps, null, 1, offset); //DISCID
+                            setObject(ps, null, 2, offset); //BONUSID
+                            setObject(ps, nameClientGroup, 3, offset); //CLNTGRPNAME
+                            setObject(ps, 0, 4, offset); //CLNTGRPMANUAL
+                            setObject(ps, 0, 5, offset); //CLNTGRPTYPE
+                            setObject(ps, 0, 6, offset); //DELFLAG
+
+                            if (updateNum != null) {
+                                setObject(ps, updateNum, 7, offset);
+                            }
+
+                            setObject(ps, idClientGroup, updateNum != null ? 8 : 7, keys.length); //CLNTGRPID
+                        }
+
+                        ps.addBatch();
+                    }
+                } else break;
+            }
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private void exportClnt(Connection conn, AstronConnectionString params, String tbl, List<DiscountCard> discountCardList, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"CLNTID"};
+        String[] columns = getColumns(new String[]{"CLNTID", "CLNTGRPID", "COMPANYID", "PROPERTYGRPID", "CLNTNAME", "CLNTBIRTHDAY", "LOCKED", "DELFLAG", "PRIMARYEMAIL", "PRIMARYPHONE"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, params, tbl, columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            for (DiscountCard d : discountCardList) {
+                if (!Thread.currentThread().isInterrupted()) {
+                    Integer clientId = getClientId(d);
+                    Integer clientGroupId = getClientGroupId(d);
+                    String clientName = StringUtils.join(Arrays.stream(new String[] {d.lastNameContact, d.firstNameContact, d.middleNameContact}).filter(Objects::nonNull), " ");
+                    String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null;
+                    if(params.pgsql) {
+                        setObject(ps, clientId, 1); //CLNTID
+                        setObject(ps, clientGroupId, 2); //CLNTGRPID
+                        setObject(ps, null, 3); //COMPANYID
+                        setObject(ps, null, 4); //PROPERTYGRPID
+                        setObject(ps, clientName, 5); //CLNTNAME
+                        setObject(ps, clientBirthday, 6); //CLNTBIRTHDAY
+                        setObject(ps, 0, 7); //LOCKED
+                        setObject(ps, 0, 8); //DELFLAG
+                        setObject(ps, null, 9); //PRIMARYEMAIL
+                        setObject(ps, null, 10); //PRIMARYPHONE
+                    } else {
+                        setObject(ps, clientGroupId, 1, offset); //CLNTGRPID
+                        setObject(ps, null, 2, offset); //COMPANYID
+                        setObject(ps, null, 3, offset); //PROPERTYGRPID
+                        setObject(ps, clientName, 4, offset); //CLNTNAME
+                        setObject(ps, clientBirthday, 5, offset); //CLNTBIRTHDAY
+                        setObject(ps, 0, 6, offset); //LOCKED
+                        setObject(ps, 0, 7, offset); //DELFLAG
+                        setObject(ps, null, 8, offset); //PRIMARYEMAIL
+                        setObject(ps, null, 9, offset); //PRIMARYPHONE
+
+                        if(updateNum != null)
+                            setObject(ps, updateNum, 10, offset);
+
+                        setObject(ps, clientId, updateNum != null ? 11 : 10, keys.length); //CLNTID
+                    }
+
+                    ps.addBatch();
+                } else break;
+            }
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private void exportClntForm(Connection conn, AstronConnectionString params, String tbl, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"CLNTFORMID"};
+        String[] columns = getColumns(new String[]{"CLNTFORMID", "CLNTFORMNAME", "ORDERNUM", "USESAREA", "ACTIVEFROM", "ACTIVETO", "DELFLAG"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, params, tbl, columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            Integer clientFormId = 1;
+            String clientFormName = "Социальная";
+            if(params.pgsql) {
+                setObject(ps, clientFormId, 1); //CLNTFORMID
+                setObject(ps, clientFormName, 2); //CLNTFORMNAME
+                setObject(ps, 0, 3); //ORDERNUM
+                setObject(ps, 0, 4); //USESAREA
+                setObject(ps, null, 5); //ACTIVEFROM
+                setObject(ps, null, 6); //ACTIVETO
+                setObject(ps, 0, 7); //DELFLAG
+            } else {
+                setObject(ps, clientFormName, 1, offset); //CLNTFORMNAME
+                setObject(ps, 0, 2, offset); //ORDERNUM
+                setObject(ps, 0, 3, offset); //USESAREA
+                setObject(ps, null, 4, offset); //ACTIVEFROM
+                setObject(ps, null, 5, offset); //ACTIVETO
+                setObject(ps, 0, 6, offset); //DELFLAG
+
+                if(updateNum != null)
+                    setObject(ps, updateNum, 7, offset);
+
+                setObject(ps, clientFormId, updateNum != null ? 8 : 7, keys.length); //CLNTFORMID
+            }
+
+            ps.addBatch();
+
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private void exportClntFormItems(Connection conn, AstronConnectionString params, String tbl, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"CLNTFORMID", "CLNTFORMITEMID"};
+        String[] columns = getColumns(new String[]{"CLNTFORMID", "CLNTFORMITEMID", "CLNTFORMITEM", "ORDERNUM", "ISREQUIRED", "DELFLAG"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, params, tbl, columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            Integer clientFormId = 1;
+            int questionId = 0;
+            for (String question : new String[] {"Тип удостоверения", "Номер удостоверения", "Срок действия удостоверения", "Признак социальная карта"}) {
+                if (!Thread.currentThread().isInterrupted()) {
+                    questionId++;
+                    if(params.pgsql) {
+                        setObject(ps, clientFormId, 1); //CLNTFORMID
+                        setObject(ps, questionId, 2); //CLNTFORMITEMID
+                        setObject(ps, question, 3); //CLNTFORMITEM
+                        setObject(ps, 0, 4); //ORDERNUM
+                        setObject(ps, 0, 5); //ISREQUIRED
+                        setObject(ps, 0, 6); //DELFLAG
+                    } else {
+                        setObject(ps, question, 1, offset); //CLNTFORMITEM
+                        setObject(ps, 0, 2, offset); //ORDERNUM
+                        setObject(ps, 0, 3, offset); //ISREQUIRED
+                        setObject(ps, 0, 4, offset); //DELFLAG
+
+                        if(updateNum != null)
+                            setObject(ps, updateNum, 5, offset);
+
+                        setObject(ps, clientFormId, updateNum != null ? 6 : 5, keys.length); //CLNTFORMID
+                        setObject(ps, questionId, updateNum != null ? 7 : 6, keys.length); //CLNTFORMITEMID
+                    }
+
+                    ps.addBatch();
+                } else break;
+            }
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private void exportClntFormProperty(Connection conn, AstronConnectionString params, String tbl, List<DiscountCard> discountCardList, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"CLNTID", "CLNTFORMID", "CLNTFORMITEMID"};
+        String[] columns = getColumns(new String[]{"CLNTID", "CLNTFORMID", "CLNTFORMITEMID", "CLNTPROPERTYVAL", "DELFLAG"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, params, tbl, columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            for (DiscountCard d : discountCardList) {
+                if (!Thread.currentThread().isInterrupted()) {
+                    JSONObject infoJSON = getExtInfo(d.extInfo);
+                    if(infoJSON != null) {
+                        JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
+                        if (clientAnswers != null) {
+                            for(int i = 0; i < clientAnswers.length(); i++) {
+                                String clientAnswer = clientAnswers.getString(i);
+                                Integer clientId = getClientId(d);
+                                Integer clientFormId = 1;
+                                Integer clientFormItemId = i + 1;
+                                if (params.pgsql) {
+                                    setObject(ps, clientId, 1); //CLNTID
+                                    setObject(ps, clientFormId, 2); //CLNTFORMID
+                                    setObject(ps, clientFormItemId, 3); //CLNTFORMITEMID
+                                    setObject(ps, clientAnswer, 4); //CLNTPROPERTYVAL
+                                    setObject(ps, 0, 5); //DELFLAG
+                                } else {
+                                    setObject(ps, clientAnswer, 1, offset); //CLNTPROPERTYVAL
+                                    setObject(ps, 0, 2, offset); //DELFLAG
+
+                                    if (updateNum != null)
+                                        setObject(ps, updateNum, 3, offset);
+
+                                    setObject(ps, clientId, updateNum != null ? 4 : 3, keys.length); //CLNTID
+                                    setObject(ps, clientFormId, updateNum != null ? 5 : 4, keys.length); //CLNTFORMID
+                                    setObject(ps, clientFormItemId, updateNum != null ? 6 : 5, keys.length); //CLNTFORMITEMID
+                                }
+                                ps.addBatch();
+                            }
+                        }
+                    }
+                } else break;
+            }
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private Integer getClientId(DiscountCard discountCard) {
+        return Integer.parseInt(discountCard.idDiscountCard);
+    }
+
+    private Integer getClientGroupId(DiscountCard discountCard) {
+        return Integer.parseInt(discountCard.idDiscountCardType);
     }
 
     private boolean isValidItem(TransactionCashRegisterInfo transaction, Map<String, CashRegisterItem> deleteBarcodeMap, List<CashRegisterItem> usedDeleteBarcodeList, CashRegisterItem item) {
@@ -1329,6 +1545,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void truncateTablesDeleteBarcode(Connection conn) throws SQLException {
         for (String table : new String[]{"ART", "UNIT", "PACK", "EXBARC"}) {
+            try (Statement s = conn.createStatement()) {
+                s.execute("TRUNCATE TABLE " + table);
+            }
+        }
+        conn.commit();
+    }
+
+    private void truncateTablesDiscountCard(Connection conn, boolean exportDiscountCardExtraTables) throws SQLException {
+        for (String table : exportDiscountCardExtraTables ? new String[]{"DCARD", "CLNTGRP", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY"} : new String[] {"DCARD"}) {
             try (Statement s = conn.createStatement()) {
                 s.execute("TRUNCATE TABLE " + table);
             }
@@ -1553,6 +1778,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
         Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
         boolean isVersionalScheme = astronSettings.isVersionalScheme();
+        boolean exportDiscountCardExtraTables = astronSettings.isExportDiscountCardExtraTables();
 
         for (String directory : getDirectorySet(requestExchange)) {
 
@@ -1565,7 +1791,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             } else {
 
                 try (Connection conn = getConnection(params)) {
-                    String tables = "'DCARD'";
+                    String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNTGRP', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
 
                     boolean versionalScheme = params.versionalScheme(isVersionalScheme);
                     Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
@@ -1576,11 +1802,39 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     if (flags > 0) {
                         exception = new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags));
                     } else {
-                        truncateTable(conn, "DCARD");
+                        truncateTablesDiscountCard(conn, exportDiscountCardExtraTables);
 
                         Integer dcardUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, "DCARD");
                         exportDCard(conn, params, discountCardList, dcardUpdateNum);
                         outputUpdateNums.put("DCARD", dcardUpdateNum);
+
+                        if(exportDiscountCardExtraTables) {
+
+                            String clntGrpTbl = "CLNTGRP";
+                            Integer clntgrpUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntGrpTbl);
+                            exportClntGrp(conn, params, clntGrpTbl, discountCardList, clntgrpUpdateNum);
+                            outputUpdateNums.put(clntGrpTbl, clntgrpUpdateNum);
+
+                            String clntTbl = "CLNT";
+                            Integer clntUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntTbl);
+                            exportClnt(conn, params, clntTbl, discountCardList, clntUpdateNum);
+                            outputUpdateNums.put(clntTbl, clntUpdateNum);
+
+                            String clntFormTbl = "CLNTFORM";
+                            Integer clntFormUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntFormTbl);
+                            exportClntForm(conn, params, clntFormTbl, clntUpdateNum);
+                            outputUpdateNums.put(clntFormTbl, clntFormUpdateNum);
+
+                            String clntFormItemsTbl = "CLNTFORMITEMS";
+                            Integer clntFormItemsUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntFormItemsTbl);
+                            exportClntFormItems(conn, params, clntFormItemsTbl, clntFormItemsUpdateNum);
+                            outputUpdateNums.put(clntFormItemsTbl, clntFormItemsUpdateNum);
+
+                            String clntFormPropertyTbl = "CLNTFORMPROPERTY";
+                            Integer clntFormPropertyUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntFormPropertyTbl);
+                            exportClntFormProperty(conn, params, clntFormPropertyTbl, discountCardList, clntUpdateNum);
+                            outputUpdateNums.put(clntFormPropertyTbl, clntFormPropertyUpdateNum);
+                        }
 
                         if(versionalScheme) {
                             exportUpdateNums(conn, params, outputUpdateNums);
