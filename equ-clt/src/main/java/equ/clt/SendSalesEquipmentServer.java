@@ -60,7 +60,7 @@ public class SendSalesEquipmentServer {
 
                         extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
-                        checkZReportSum(remote, handler, requestExchangeList);
+                        checkZReportSum(remote, sidEquipmentServer, handler, requestExchangeList);
 
                     }
                 }
@@ -92,11 +92,11 @@ public class SendSalesEquipmentServer {
 
                 handler.requestSalesInfo(requestExchangeList, succeededRequests, failedRequests, ignoredRequests);
                 if (!succeededRequests.isEmpty())
-                    remote.finishRequestExchange(succeededRequests);
+                    remote.finishRequestExchange(sidEquipmentServer, succeededRequests);
                 if (!failedRequests.isEmpty())
                     remote.errorRequestExchange(failedRequests);
                 if (!ignoredRequests.isEmpty()) {
-                    remote.finishRequestExchange(new HashSet<>(ignoredRequests.keySet()));
+                    remote.finishRequestExchange(sidEquipmentServer, new HashSet<>(ignoredRequests.keySet()));
                     remote.errorRequestExchange(ignoredRequests);
                 }
             }
@@ -213,7 +213,7 @@ public class SendSalesEquipmentServer {
         }
     }
 
-    static void checkZReportSum(EquipmentServerInterface remote, CashRegisterHandler handler, List<RequestExchange> requestExchangeList)
+    static void checkZReportSum(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<RequestExchange> requestExchangeList)
             throws RemoteException, SQLException, ClassNotFoundException {
         if (!requestExchangeList.isEmpty()) {
             Set<Long> succeededRequestsSet = new HashSet<>();
@@ -243,7 +243,7 @@ public class SendSalesEquipmentServer {
                 }
             }
             if (!succeededRequestsSet.isEmpty()) {
-                remote.finishRequestExchange(succeededRequestsSet);
+                remote.finishRequestExchange(sidEquipmentServer, succeededRequestsSet);
             }
         }
     }

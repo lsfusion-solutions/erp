@@ -52,7 +52,7 @@ public class MachineryExchangeEquipmentServer {
                                             ((CashRegisterHandler) clsHandler).sendCashierInfoList(cashierInfoList, requestExchange);
                                         }
                                         sendCashierTime(remote, sidEquipmentServer, (CashRegisterHandler) clsHandler, requestExchange, machineryInfoList);
-                                        remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
+                                        remote.finishRequestExchange(sidEquipmentServer, new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                     }
 
                                     //DiscountCard
@@ -65,7 +65,7 @@ public class MachineryExchangeEquipmentServer {
                                             List<DiscountCard> discountCardList = remote.readDiscountCardList(requestExchange);
                                             if (discountCardList != null && !discountCardList.isEmpty())
                                                 ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange);
-                                            remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
+                                            remote.finishRequestExchange(sidEquipmentServer, new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                         }
                                     }
 
@@ -74,7 +74,7 @@ public class MachineryExchangeEquipmentServer {
                                         PromotionInfo promotionInfo = remote.readPromotionInfo();
                                         if (promotionInfo != null)
                                             ((CashRegisterHandler) clsHandler).sendPromotionInfo(promotionInfo, requestExchange);
-                                        remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
+                                        remote.finishRequestExchange(sidEquipmentServer, new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                     }
                                 }
 
@@ -85,7 +85,7 @@ public class MachineryExchangeEquipmentServer {
                                         List<TerminalOrder> terminalOrderList = remote.readTerminalOrderList(requestExchange);
                                         if (terminalOrderList != null && !terminalOrderList.isEmpty())
                                             ((TerminalHandler) clsHandler).sendTerminalOrderList(terminalOrderList, machinery);
-                                        remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
+                                        remote.finishRequestExchange(sidEquipmentServer, new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                     }
                                 }
                             } catch (Exception e) {

@@ -9,6 +9,7 @@ NAMESPACE Machinery;
 CLASS EquipmentServer 'Сервер оборудования';
 TABLE equipmentServer (EquipmentServer);
 
+inactive 'Неактивный' = DATA BOOLEAN (EquipmentServer);
 name 'Наименование' = DATA ISTRING[50](EquipmentServer) IN id;
 timeId 'Включать в код чека время' = DATA BOOLEAN(EquipmentServer);
 
@@ -74,7 +75,7 @@ FORM equipmentServer 'Сервер оборудования'
     OBJECTS es = EquipmentServer PANEL, s = Setting
     PROPERTIES(es) name, timeId, sid, timeFrom, timeTo, delay, numberAtATime, maxThreads,
                    sendSalesDelay, skipTroublesDelay, minutesTroubleMachineryGroup, selectTop,
-                   ignoreReceiptsAfterDocumentsClosedDate, logStackTrace, overrideCashiers, useNewIds
+                   ignoreReceiptsAfterDocumentsClosedDate, logStackTrace, overrideCashiers, useNewIds, inactive
     PROPERTIES(s) READONLY name, defaultValue, baseValue
     PROPERTIES(es, s) overValue               
     
@@ -85,7 +86,7 @@ FORM dialogEquipmentServer 'Серверы оборудования'
     OBJECTS es = EquipmentServer
     PROPERTIES(es) READONLY name, timeId, sid, timeFrom, timeTo, delay, numberAtATime, maxThreads,
                             sendSalesDelay, skipTroublesDelay, minutesTroubleMachineryGroup, selectTop,
-                            ignoreReceiptsAfterDocumentsClosedDate, logStackTrace, overrideCashiers, useNewIds
+                            ignoreReceiptsAfterDocumentsClosedDate, logStackTrace, overrideCashiers, useNewIds, inactive
     
     LIST EquipmentServer OBJECT es
 ;
@@ -94,7 +95,7 @@ FORM equipmentServers 'Серверы оборудования'
     OBJECTS es = EquipmentServer
     PROPERTIES(es)  READONLY name, timeId, sid, timeFrom, timeTo, delay, numberAtATime, maxThreads,
                              sendSalesDelay, skipTroublesDelay, minutesTroubleMachineryGroup, selectTop,
-                             ignoreReceiptsAfterDocumentsClosedDate, logStackTrace, overrideCashiers, useNewIds
+                             ignoreReceiptsAfterDocumentsClosedDate, logStackTrace, overrideCashiers, useNewIds, inactive
     PROPERTIES(es)  NEWSESSION NEW, EDIT, DELETE 
 
     OBJECTS e = EquipmentServerError LAST 
@@ -152,8 +153,8 @@ NAVIGATOR {
 equipmentServer = DATA EquipmentServer (GroupMachinery);
 nameEquipmentServer 'Сервер оборудования' (GroupMachinery groupMachinery) = name(equipmentServer(groupMachinery));
 sidEquipmentServer 'ИД сервера оборудования' (GroupMachinery groupMachinery) = sid(equipmentServer(groupMachinery));
-hasMachinery (STRING sidEquipmentServer, RequestExchange r) = 
-    GROUP SUM 1 IF sidEquipmentServer(groupMachinery(Machinery m)) == sidEquipmentServer AND (stock(m) == stock(r) OR in(stock(m), r));
+hasMachinery (RequestExchange r, EquipmentServer e) = 
+    GROUP SUM 1 IF equipmentServer(groupMachinery(Machinery m)) == e AND active(groupMachinery(m)) AND (stock(m) == stock(r) OR in(stock(m), r));
 
 //пока здесь чтобы не делать лишние зависимости
 CONSTRAINT handlerModel(GroupMachinery g) = 'lsf.machinery.scales.rbs.KS4010' AND equipmentServer(g)
@@ -168,3 +169,81 @@ sidEquipmentServer (MachineryPriceTransaction transaction) = sid(equipmentServer
 
 cashRegister (npp, equipmentServer) = GROUP NAGGR Machinery cashRegister BY npp (cashRegister), sid(equipmentServer(groupMachinery(cashRegister))); 
 logStackTrace(MachineryPriceTransaction mpt) = logStackTrace(equipmentServer(mpt));
+
+// ------------------ Запросы обмена данными и сервер оборудования ------------------- //
+
+succeeded 'Выгружен' = DATA BOOLEAN (RequestExchange, EquipmentServer);
+dateTimeSucceeded 'Время выгрузки' = DATA DATETIME (RequestExchange, EquipmentServer);
+overSucceeded(RequestExchange r, EquipmentServer e) = succeeded(r) AND succeeded(r, e);
+overSucceeded(RequestExchange r, STRING sidEquipmentServer) = overSucceeded(r, sidTo(sidEquipmentServer));
+
+equipmentServerCount() = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND e IS EquipmentServer;
+succededEquipmentServerCount(RequestExchange r) = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND overSucceeded(r, e);
+
+statusSucceeded 'Статус загрузки' (RequestExchange r) = CASE 
+    WHEN succeeded(r) AND succededEquipmentServerCount(r) = equipmentServerCount() THEN 'Успешно загружен'
+    WHEN succededEquipmentServerCount(r) AND succededEquipmentServerCount(r) < equipmentServerCount() THEN 'Частично загружен'
+    ELSE 'Не загружался' CHARWIDTH 10;
+
+migratedSucceeded = DATA BOOLEAN();
+onStarted() + {
+    IF NOT migratedSucceeded() THEN {
+        NEWSESSION {
+            migratedSucceeded() <- TRUE;
+            succeeded(RequestExchange r, EquipmentServer e) <- succeeded(r);
+            dateTimeSucceeded(RequestExchange r, EquipmentServer e) <- dateTimeSucceeded(r);
+            APPLY; 
+        }
+    }
+}
+
+EXTEND FORM requestExchanges
+    PROPERTIES (r) AFTER dateTimeSucceeded(r) statusSucceeded
+    
+    OBJECTS es = EquipmentServer 
+    PROPERTIES(es) name, sid
+    PROPERTIES(r, es) succeeded, dateTimeSucceeded, hasMachinery
+    FILTERS hasMachinery(r, es)  
+    
+    OBJECTS m = Machinery 
+    PROPERTIES(m, r) READONLY dataIn
+    PROPERTIES(m) READONLY npp, nameModel, shortDescription, description, objectClassName
+    FILTERS stock(m) == stock(r), NOT inactive(m) 
+    FILTERS equipmentServer(groupMachinery(m)) == es
+; 
+
+DESIGN requestExchanges {
+    tabbedContainer {
+        NEW machineryTab {
+            fill = 1;
+            caption = 'Оборудование';
+            MOVE BOX(es);
+            MOVE BOX(m);
+        }
+    }
+}
+
+EXTEND FORM requestExchange
+    PROPERTIES(r) AFTER succeeded(r) statusSucceeded
+    OBJECTS es = EquipmentServer BEFORE m
+    PROPERTIES(es) name, sid
+    PROPERTIES(r, es) succeeded, dateTimeSucceeded, hasMachinery
+    FILTERS hasMachinery(r, es)
+    
+    PROPERTIES(m) nameModel AFTER npp(m)
+    FILTERS equipmentServer(groupMachinery(m)) == es
+; 
+
+DESIGN requestExchange {
+    secondRow {
+        MOVE PROPERTY(statusSucceeded(r)) AFTER PROPERTY(succeeded(r));
+    }
+    tabbedPanel {
+        NEW machineryTab {
+            fill = 1;
+            caption = 'Оборудование';
+            MOVE BOX(es);
+            MOVE BOX(m);
+        }
+    }
+}

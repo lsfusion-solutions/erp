@@ -377,8 +377,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void finishRequestExchange(Set<Long> succeededRequestsSet) throws SQLException {
-        MachineryExchangeEquipmentServer.finishRequestExchange(this, getBusinessLogics(), getStack(), succeededRequestsSet);
+    public void finishRequestExchange(String sidEquipmentServer, Set<Long> succeededRequestsSet) throws SQLException {
+        MachineryExchangeEquipmentServer.finishRequestExchange(this, sidEquipmentServer, getBusinessLogics(), getStack(), succeededRequestsSet);
     }
 
     @Override

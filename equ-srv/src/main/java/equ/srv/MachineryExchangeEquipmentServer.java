@@ -64,7 +64,7 @@ public class MachineryExchangeEquipmentServer {
     public static List<RequestExchange> readRequestExchange(EquipmentServer server, String sidEquipmentServer, BusinessLogics BL, ExecutionStack stack) throws SQLException {
 
         List<RequestExchange> requestExchangeList = new ArrayList();
-        if(machineryLM != null && machineryPriceTransactionLM != null) {
+        if(equLM != null) {
 
             try (DataSession session = server.createSession()) {
 
@@ -73,16 +73,14 @@ public class MachineryExchangeEquipmentServer {
                 QueryBuilder<Object, Object> requestExchangeQuery = new QueryBuilder<>(requestExchangeKeys);
 
                 String[] requestExchangeNames = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "nameRequestExchangeTypeRequestExchange"};
-                LP[] requestExchangeProperties = machineryPriceTransactionLM.findProperties("dateFrom[RequestExchange]", "dateTo[RequestExchange]", "nameRequestExchangeType[RequestExchange]");
+                LP[] requestExchangeProperties = equLM.findProperties("dateFrom[RequestExchange]", "dateTo[RequestExchange]", "nameRequestExchangeType[RequestExchange]");
                 for (int i = 0; i < requestExchangeProperties.length; i++) {
                     requestExchangeQuery.addProperty(requestExchangeNames[i], requestExchangeProperties[i].getExpr(requestExchangeExpr));
                 }
                 if(machineryPriceTransactionDiscountCardLM != null) {
                     requestExchangeQuery.addProperty("startDateRequestExchange", machineryPriceTransactionDiscountCardLM.findProperty("startDate[RequestExchange]").getExpr(requestExchangeExpr));
                 }
-                requestExchangeQuery.and(machineryPriceTransactionLM.findProperty("notSucceeded[RequestExchange]").getExpr(requestExchangeExpr).getWhere());
-                //equ берёт только те запросы, у которых есть хотя бы один Machinery, относящийся к этому equ (возникнут проблемы, если запрос будет относиться к двум параллельно работающим equ)
-                requestExchangeQuery.and(equLM.findProperty("hasMachinery[STRING, RequestExchange]").getExpr(new DataObject(sidEquipmentServer).getExpr(), requestExchangeExpr).getWhere());
+                requestExchangeQuery.and(equLM.findProperty("overSucceeded[RequestExchange, EquipmentServer]").getExpr(requestExchangeExpr, new DataObject(sidEquipmentServer).getExpr()).getWhere().not());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> requestExchangeResult = requestExchangeQuery.executeClasses(session);
                 for (int i = 0; i < requestExchangeResult.size(); i++) {
 
@@ -235,13 +233,18 @@ public class MachineryExchangeEquipmentServer {
         machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeError]").change(requestExchange, session, errorObject);
     }
 
-    public static void finishRequestExchange(EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Set<Long> succeededRequestsSet) throws SQLException {
-        if (machineryPriceTransactionLM != null) {
+    public static void finishRequestExchange(EquipmentServer server, String sidEquipmentServer, BusinessLogics BL, ExecutionStack stack, Set<Long> succeededRequestsSet) throws SQLException {
+        if (equLM != null) {
             try (DataSession session = server.createSession()) {
-                for (Long request : succeededRequestsSet) {
-                    DataObject requestExchangeObject = new DataObject(request, (ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchange"));
-                    machineryPriceTransactionLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
-                    machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(LocalDateTime.now(), session, requestExchangeObject);
+                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+                if (equipmentServerObject instanceof DataObject) {
+                    for (Long request : succeededRequestsSet) {
+                        DataObject requestExchangeObject = new DataObject(request, (ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchange"));
+                        equLM.findProperty("succeeded[RequestExchange, EquipmentServer]").change(true, session, requestExchangeObject, (DataObject) equipmentServerObject);
+                        equLM.findProperty("dateTimeSucceeded[RequestExchange, EquipmentServer]").change(LocalDateTime.now(), session, requestExchangeObject, (DataObject) equipmentServerObject);
+                        equLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
+                        equLM.findProperty("dateTimeSucceeded[RequestExchange]").change(LocalDateTime.now(), session, requestExchangeObject);
+                    }
                 }
                 session.applyException(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
