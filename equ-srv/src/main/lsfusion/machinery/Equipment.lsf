@@ -174,7 +174,7 @@ logStackTrace(MachineryPriceTransaction mpt) = logStackTrace(equipmentServer(mpt
 
 succeeded 'Выгружен' = DATA BOOLEAN (RequestExchange, EquipmentServer);
 dateTimeSucceeded 'Время выгрузки' = DATA DATETIME (RequestExchange, EquipmentServer);
-overSucceeded(RequestExchange r, EquipmentServer e) = succeeded(r) AND succeeded(r, e);
+overSucceeded(RequestExchange r, EquipmentServer e) = succeeded(r) AND succeeded(r, e) AND r IS RequestExchange;
 overSucceeded(RequestExchange r, STRING sidEquipmentServer) = overSucceeded(r, sidTo(sidEquipmentServer));
 
 equipmentServerCount() = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND e IS EquipmentServer;
@@ -203,7 +203,7 @@ EXTEND FORM requestExchanges
     
     OBJECTS es = EquipmentServer 
     PROPERTIES(es) name, sid
-    PROPERTIES(r, es) succeeded, dateTimeSucceeded, hasMachinery
+    PROPERTIES(r, es) succeeded, dateTimeSucceeded
     FILTERS hasMachinery(r, es)  
     
     OBJECTS m = Machinery 
@@ -228,7 +228,7 @@ EXTEND FORM requestExchange
     PROPERTIES(r) AFTER succeeded(r) statusSucceeded
     OBJECTS es = EquipmentServer BEFORE m
     PROPERTIES(es) name, sid
-    PROPERTIES(r, es) succeeded, dateTimeSucceeded, hasMachinery
+    PROPERTIES(r, es) succeeded, dateTimeSucceeded
     FILTERS hasMachinery(r, es)
     
     PROPERTIES(m) nameModel AFTER npp(m)
