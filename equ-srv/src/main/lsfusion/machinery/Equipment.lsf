@@ -155,8 +155,6 @@ nameEquipmentServer 'Сервер оборудования' (GroupMachinery grou
 sidEquipmentServer 'ИД сервера оборудования' (GroupMachinery groupMachinery) = sid(equipmentServer(groupMachinery));
 hasMachinery (RequestExchange r, EquipmentServer e) = 
     GROUP SUM 1 IF equipmentServer(groupMachinery(Machinery m)) == e AND active(groupMachinery(m)) AND (stock(m) == stock(r) OR in(stock(m), r));
-hasMachinery (STRING sidEquipmentServer, RequestExchange r) = 
-    GROUP SUM 1 IF sidEquipmentServer(groupMachinery(Machinery m)) == sidEquipmentServer AND (stock(m) == stock(r) OR in(stock(m), r));
     
 //пока здесь чтобы не делать лишние зависимости
 CONSTRAINT handlerModel(GroupMachinery g) = 'lsf.machinery.scales.rbs.KS4010' AND equipmentServer(g)
@@ -177,6 +175,7 @@ logStackTrace(MachineryPriceTransaction mpt) = logStackTrace(equipmentServer(mpt
 succeeded 'Выгружен' = DATA BOOLEAN (RequestExchange, EquipmentServer);
 dateTimeSucceeded 'Время выгрузки' = DATA DATETIME (RequestExchange, EquipmentServer);
 overSucceeded(RequestExchange r, EquipmentServer e) = succeeded(r) AND succeeded(r, e);
+notOverSucceeded(RequestExchange r, EquipmentServer e) = NOT overSucceeded(r, e) AND r IS RequestExchange;
 overSucceeded(RequestExchange r, STRING sidEquipmentServer) = overSucceeded(r, sidTo(sidEquipmentServer));
 
 equipmentServerCount() = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND e IS EquipmentServer;
