@@ -180,8 +180,9 @@ overSucceeded(RequestExchange r, STRING sidEquipmentServer) = overSucceeded(r, s
 equipmentServerCount() = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND e IS EquipmentServer;
 succededEquipmentServerCount(RequestExchange r) = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND overSucceeded(r, e);
 
+allSucceeded(RequestExchange r) = succeeded(r) AND succededEquipmentServerCount(r) = equipmentServerCount();
 statusSucceeded 'Статус загрузки' (RequestExchange r) = CASE 
-    WHEN succeeded(r) AND succededEquipmentServerCount(r) = equipmentServerCount() THEN 'Успешно загружен'
+    WHEN allSucceeded(r) THEN 'Успешно загружен'
     WHEN succededEquipmentServerCount(r) AND succededEquipmentServerCount(r) < equipmentServerCount() THEN 'Частично загружен'
     ELSE 'Не загружался' CHARWIDTH 10;
 
