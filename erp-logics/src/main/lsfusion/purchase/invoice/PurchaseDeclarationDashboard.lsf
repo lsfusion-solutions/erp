@@ -10,6 +10,17 @@ countSelectedUserInvoice 'Кол-во отм.' = GROUP SUM 1 IF selected(UserInv
 
 countSelectedCustomerUserInvoices 'Кол-во получателей' = GROUP SUM 1 IF [ GROUP SUM 1 IF selected(UserInvoice invoice) BY customer(invoice)](LegalEntity invoice);
 countSelectedCurrencyUserInvoices 'Кол-во валют' = GROUP SUM 1 IF [ GROUP SUM 1 IF selected(UserInvoice invoice) BY currency(invoice)](Currency invoice);
+createMultiDeclaration ABSTRACT LIST (UserInvoice,Declaration);
+
+createMultiDeclarationCustom (UserInvoice invoice){
+    NEW d = Declaration {
+        legalEntity(d) <- customer(invoice);
+        currency(d) <- currency(invoice);                
+        declaration(invoice) <- d;  
+        createMultiDeclaration(invoice,d);    
+        SHOW declaration OBJECTS d = d DOCKED NOCANCEL;  
+    } 
+}
 
 createMultiDeclaration 'Создать декларацию'(UserInvoice invoice)  { 
 	NEWSESSION {
@@ -17,23 +28,12 @@ createMultiDeclaration 'Создать декларацию'(UserInvoice invoice
 	        IF countSelectedCustomerUserInvoices()!=1 OR countSelectedCurrencyUserInvoices() != 1 THEN {
 	            MESSAGE 'Выбраны накладные с разными покупателями или валютами';               
 	        } ELSE {
-	            NEW d = Declaration {
-	                legalEntity(d) <- customer(minSelectedUserInvoice());
-	                currency(d) <- currency(minSelectedUserInvoice());
-	                FOR selected(UserInvoice i) DO {
-	                    declaration(i) <- d;
-	                }
-	                SHOW declaration OBJECTS d = d DOCKED NOCANCEL;
-	            }         
+	            FOR UserInvoice i ==minSelectedUserInvoice() DO {
+	                createMultiDeclarationCustom(i);
+	            }        
 	        }
 	    } ELSE {
-	        NEW d = Declaration {
-	            legalEntity(d) <- customer(invoice);
-	            currency(d) <- currency(invoice);                
-	            declaration(invoice) <- d;
-	          
-	            SHOW declaration OBJECTS d = d DOCKED NOCANCEL;  
-	        }          
+	        createMultiDeclarationCustom(invoice);          
 	    }    
 	}
 } TOOLBAR;
