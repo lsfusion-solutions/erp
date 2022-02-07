@@ -95,6 +95,8 @@ copyData(EInvoice ei, Invoice i)  {
     }
 }
 
+
+overImportFromEInvoice  ABSTRACT LIST (UserInvoice);
 importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  { 
     IF isPosted(i) THEN {
         MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
@@ -107,8 +109,10 @@ importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  {
     filterStock() <- customerStock(i);
     
     DIALOG selectEInvoice OBJECTS ei INPUT DO {
-        IF ei THEN
+        IF ei THEN {
             copyData(ei,i);
+            overImportFromEInvoice(i);
+        }  
     }
 }
 
