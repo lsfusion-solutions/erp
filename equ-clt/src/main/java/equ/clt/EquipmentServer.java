@@ -251,7 +251,7 @@ public class EquipmentServer {
                             equipmentLogger.info("task group done: " + task.groupId);
                         }
                     } catch (Exception e) {
-                        equipmentLogger.error("Unhandled exception in singleTransactionExecutor: "+ e.getStackTrace(), e);
+                        equipmentLogger.error("Unhandled exception in singleTransactionExecutor: ", e);
                     }
                 }
             }));
