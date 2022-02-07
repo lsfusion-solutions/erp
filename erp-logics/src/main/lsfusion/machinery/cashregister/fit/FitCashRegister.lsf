@@ -154,7 +154,7 @@ checkPut 'Проверить передачу' (CashRegister cr, STRING[8] name)
 
 sendToFit (MachineryPriceTransaction t) {
     NEWSESSION {
-        FOR isFit(CashRegister cr) AND NOT inactive(cr) AND NOT in(t, cr) DO {
+        FOR isFit(CashRegister cr) AND groupCashRegister(cr)=groupMachinery(t) AND NOT inactive(cr) AND NOT in(t, cr) DO {
             put(cr, 'plu', pluString(t));
             IF returnExchange(cr) THEN {
                 addMachineryError(t);
@@ -166,7 +166,7 @@ sendToFit (MachineryPriceTransaction t) {
         APPLY;
     }
     NEWSESSION {
-        FOR in(t, CashRegister cr) AND NOT succeeded(cr, t) DO {
+        FOR in(t, CashRegister cr) AND groupCashRegister(cr)=groupMachinery(t)  AND NOT succeeded(cr, t) DO {
             checkPut(cr, 'plu');
             succeeded(cr, t) <- NOT returnExchange(cr);
             dateTimeSucceeded(cr, t) <- currentDateTime() IF NOT returnExchange(cr);
