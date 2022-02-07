@@ -1,0 +1,41 @@
+MODULE RangePurchaseOrderStoreDefault;
+
+REQUIRE RangePurchaseOrderStore, PurchaseShipment;
+
+NAMESPACE Range;
+
+disableRangeControl 'Не контролировать по матрице' = DATA BOOLEAN (Sku) IN itemBase;
+
+EXTEND FORM item 
+    PROPERTIES disableRangeControl(i)
+;
+
+EXTEND FORM items
+    PROPERTIES READONLYIF isEditable() disableRangeControl(i)
+;
+
+EXTEND FORM userOrder
+    FILTERGROUP filterRange
+        FILTER 'В ассортименте' countRange(ks, st, date(o)) OR NOT st IS DepartmentStore 'F4' DEFAULT
+;
+
+DESIGN userOrder { REMOVE FILTERGROUP (filter2); };
+
+CONSTRAINT (SET (isPosted(Purchase.InvoiceDetail d))
+    OR (SETCHANGED(sku(d)) OR SETCHANGED(customerStock(d)) OR SET(shipmentQuantity(d) > 0.0)) AND isPosted(d))
+    AND useRange(customerStock(d))
+    AND isItem(sku(d))
+    AND NOT disableRangeControl(sku(d))
+    AND shipmentQuantity(d) > 0.0
+    AND NOT countRange(sku(d), customerStock(d), date(d))
+    MESSAGE 'Запрещено проводить накладную с товаром, не включенным в ассортимент магазина'
+;             
+
+CONSTRAINT (SET (isPosted(Purchase.OrderDetail d))
+    OR (CHANGED(sku(d)) OR CHANGED(customerStock(d))) AND isPosted(d))
+    AND useRange(customerStock(d))
+    AND isItem(sku(d))
+    AND NOT disableRangeControl(sku(d))
+    AND NOT countRange(sku(d), customerStock(d), date(d))
+    MESSAGE 'Запрещено проводить заказ с товаром, не включенным в ассортимент магазина'
+;
