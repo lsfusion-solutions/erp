@@ -1,0 +1,21 @@
+MODULE PurchaseOrderPriceListContract;
+
+REQUIRE PurchaseOrderPriceList, PriceListContract;
+
+NAMESPACE Purchase;
+
+EXTEND FORM userOrder
+    FILTERGROUP filterContract
+        FILTER 'В договоре' (contractSku[PriceListDetail](prevPriceListLedgerA(ledgerPriceListType(priceListType(o, ks)), ks, st, supplier(o), dateTime(o))) = contractSku(o)) OR 
+                            NOT contractSku(o) DEFAULT
+;
+
+CONSTRAINT (SET(isPosted(UserOrderDetail detail)) OR 
+            SETCHANGED(sku(detail)) OR 
+            SETCHANGED(dateTime(detail)) OR 
+            SETCHANGED(customerStock(detail)) OR 
+            SETCHANGED(contractSku(detail)) OR 
+            SETCHANGED(priceListType(detail)))
+        AND isPosted(detail) AND contractSku(detail) AND
+        NOT contractSku[PriceListDetail](prevPriceListLedgerB(priceListType(detail), sku(detail), customerStock(detail), supplier(detail), dateTime(detail))) = contractSku(detail)
+            MESSAGE 'Заказ должен включать товар только из выбранного договора';
