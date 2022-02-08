@@ -19,11 +19,22 @@ importRange 'Импорт ассортиментных матриц' () {
                 EXEC 'SELECT SHOPGROUPID, ITEMID FROM RETAILSHOPGROUPITEM' TO file;
                 IMPORT TABLE FROM file() TO shopGroupId, itemId;
         }
-        FOR Range.name(Range.range(RangeRev rr)) = shopGroupId(INTEGER i) DO level(rr, Item item) <- NULL;
-        FOR Range.name(Range.range(RangeRev rr)) = shopGroupId(INTEGER i) AND Item item = item(itemId(i)) DO {
-            level(rr, item) <- rangeLevel('1');
+        FOR name(StoreType st) AND NOT range(substr(id(st),2,50)) DO NEW range = Range.Range {
+            name(range)<- substr(id(st),2,50);
+            id(range)<- substr(id(st),2,50);
+            in(range, rangeLevel('1')) <- TRUE;
+            inData(range, SkuGroup sg) <- TRUE IF sg = itemGroup('07Отд00000001');
+            dataLevel(range, st, DATE date) <- rangeLevel('1') IF date = currentDate();
+            NEW rr = RangeRev {
+                range(rr)<- range;
+                dateTime(rr) <- DATETIME (2020_01_01);
+            }
         }
-    APPLY;
+        FOR id(Range.range(RangeRev rr)) DO {
+            level (rr, Item item) <- NULL;
+            level (rr, Item item) <- rangeLevel('1') WHERE [GROUP SUM 1 BY shopGroupId(INTEGER i), itemId(i)](id(range(rr)), id(item));
+        }
+        APPLY;
     }
 }
 
@@ -38,19 +49,4 @@ DESIGN integrationData {
             MOVE PROPERTY (importRange());
         }
     }
-}
-
-createRangeStoreType(){
-    FOR name(StoreType st) DO NEW range = Range.Range {
-        name(range)<- substr(id(st),2,50);
-        in(range, rangeLevel('1')) <- TRUE;
-        inData(range, SkuGroup sg) <- TRUE IF sg = itemGroup('07Отд00000001');
-    
-        dataLevel(range, st, DATE date) <- rangeLevel('1');
-               NEW rr = RangeRev {
-        range(rr)<- range;
-        dateTime(rr) <- DATETIME (2020_01_01);
-                }
-            }
-    APPLY;
 }
