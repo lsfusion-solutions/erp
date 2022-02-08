@@ -1,0 +1,18 @@
+MODULE EvotorReceiveV2Lot;
+
+REQUIRE EvotorReceiveV2;
+
+NAMESPACE EvotorV2;
+
+afterCreateReceiptDetail (ReceiptDetail detail, INTEGER j) +{
+    IF markCode(j) THEN {
+        IF lot(extractGS1Evotor(markCode(j))) THEN lot(detail) <- lot(extractGS1Evotor(markCode(j)));
+        ELSE {
+            IF sku(detail) THEN NEW l = Lot{
+                id(l) <- extractGS1Evotor(markCode(j));
+                sku(l) <- sku(detail);
+                lot(detail) <- l;
+            }
+        }
+    }
+}

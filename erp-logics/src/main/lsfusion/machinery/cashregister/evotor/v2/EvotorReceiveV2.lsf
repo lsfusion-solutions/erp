@@ -134,6 +134,7 @@ FORM saleDoc
 ;        
 
 extractGS1Evotor = FORMULA STRING[200] 'split_part(($1),\'E#1D E\',1)';
+afterCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
 
 ///запрос документов
 getLocalDateTime (STRING closeDateTime, NUMERIC timezone) = sumSeconds(DATETIME(closeDateTime), timezone/1000);
@@ -199,7 +200,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
                 discountPercent(detail) <- discount_percent(j);
                 sum(detail) <- result_sum1(j);
                 receipt(detail) <- r;
-                lot(detail) <- lot(extractGS1Evotor(markCode(j)));
+                afterCreateReceiptDetail(detail, j);
             }
             FOR id1(INTEGER j) AND typeDoc(i) = 'PAYBACK' AND NOT receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j))) 
                 NEW detail = ReceiptReturnDetail DO{
@@ -209,10 +210,10 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
                 idBarcode(detail) <- STRING[15](OVERRIDE bar_code(j), code(j));
                 quantity(detail) <- quantity(j);
                 price(detail) <- price(j);
-                idBarcode(detail) <- STRING[15](bar_code(j));
                 discountSum(detail) <- discount_sum(j);
                 sum(detail) <- result_sum1(j);
                 receipt(detail) <- r;
+                afterCreateReceiptDetail(detail, j);
             }
             FOR id(INTEGER k) NEW p = Payment DO {
                 receipt(p) <- r;
@@ -239,8 +240,7 @@ receiveGroupMachinery(GroupCashRegister g) + {
     IF isEvotor(g) THEN{
         importUsers(token(evotorStore(g)));   
         FOR groupCashRegister(CashRegister c) = g AND NOT inactive(c) AND NOT disableSales(c) 
-            DO getDocumentsFromLastReceipt(c)
-    ; 
+            DO getDocumentsFromLastReceipt(c); 
     }   
 }
 
