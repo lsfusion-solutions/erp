@@ -13,6 +13,9 @@ urlServerUkm5 'URL сервера УКМ5' = DATA STRING[300] (GroupCashRegister
 directoryExchange 'Директория обмена УКМ5' = DATA STRING[300] (GroupCashRegister);
 accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';   
 
+uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
+uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Group);
+
 EXTEND FORM groupCashRegister 
     PROPERTIES (grc) SHOWIF isUkm5(grc) idStore, urlServerUkm5, directoryExchange;
 
@@ -52,11 +55,11 @@ FORM importItems 'Импорт товаров'
     OBJECTS elements = Item
     PROPERTIES = IF elements IS Item THEN 1 EXTID 'taxgroupId', = id(itemGroup(elements)) EXTID 'itemGroup',
          = OVERRIDE shortNameUOM(elements), '' EXTID 'measure', = OVERRIDE name(elements), '' EXTID 'name',
-         = OVERRIDE id(elements), '' EXTID 'id', = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete', 
-         = IF split(elements) OR isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec', //attributes(elements), 
+         = OVERRIDE idBarcode(elements), '' EXTID 'id', = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete', 
+         = IF split(elements) OR isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec', 
          = IF elements IS Item THEN ' ' EXTID 'descr'
     
-    FILTERS skuTransaction(elements, t)
+    FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5(elements)
     
     OBJECTS barcodes = Barcode
     PROPERTIES id(barcodes) EXTID 'id', = IF isCatchWeight(sku(barcodes)) THEN 0.000 ELSE amount(barcodes) EXTID 'quantity'
@@ -82,7 +85,7 @@ FORM groupItems
         = OVERRIDE id(elements) EXTID 'id', = IF NOT active(elements) THEN TTRUE ELSE TFALSE EXTID 'delete', 
         = attributes(elements) 
     
-    FILTERS skuGroupTransaction(elements, t)
+    FILTERS skuGroupTransaction(elements, t) AND NOT uploadedUkm5(elements)
 ;
 
 FORM barcodePrices 'Импорт цен, назначенных на штрихкоды товара'
@@ -94,22 +97,22 @@ FORM barcodePrices 'Импорт цен, назначенных на штрих�
         = IF NOT active(elements) THEN TTRUE ELSE TFALSE EXTID 'delete', 
         = IF elements IS Barcode THEN toChar(DATETIME('2020-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateFrom',
         = IF elements IS Barcode THEN toChar(DATETIME('2099-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateTo',
-        = IF t IS CashRegisterPriceTransaction AND elements IS Barcode THEN '3' EXTID 'storeId',
+        = IF t IS CashRegisterPriceTransaction AND elements IS Barcode THEN idStore(groupMachinery(t)) EXTID 'storeId',
         = OVERRIDE id(elements), '' EXTID 'barcodeId'
         
     FILTERS in(t,elements) AND skuTransaction(sku(elements), t)
 ;
 
 isPromo = ABSTRACT TBOOLEAN (MachineryPriceTransaction, Item);
+minPrice = ABSTRACT NUMERIC[18,4] (MachineryPriceTransaction, Item);
 
 FORM itemPrices 'Импорт цен на товары'
     OBJECTS t = MachineryPriceTransaction
     
     OBJECTS elements = Item
-    PROPERTIES = OVERRIDE id(elements), '' EXTID 'itemId',
+    PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'itemId',
         = isPromo(t, elements) EXTID 'isPromoPrice',
-        = IF isPromo(t, elements) = TTRUE THEN price(t, barcode(elements)) ELSE 
-            0.1 EXTID 'minprice', = price(t, barcode(elements)) EXTID 'price',
+        minPrice(t, elements) EXTID 'minprice', = price(t, barcode(elements)) EXTID 'price',
         = IF NOT active(elements) THEN TTRUE ELSE TFALSE EXTID 'delete', 
         = IF elements IS Item THEN toChar(DATETIME('2020-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateFrom',
         = IF elements IS Item THEN toChar(DATETIME('2099-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateTo'
@@ -119,39 +122,35 @@ FORM itemPrices 'Импорт цен на товары'
 
 sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     LOCAL answer = FILE ();
-    EXPORT groupItems OBJECTS t = t JSON ;
-    EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/groupItems' PARAMS exportFile() TO answer;
-    fileToString(answer());
-    IF statusHttp() = 200 THEN {
-        //товары
+    IF (GROUP SUM 1 IF NOT uploadedUkm5(Group g) AND skuGroupTransaction(g, t)) THEN {
+        EXPORT groupItems OBJECTS t = t JSON ;
+        EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/groupItems' PARAMS exportFile() TO answer;
+        fileToString(answer());
+        IF statusHttp() = 200 THEN uploadedUkm5(Group g) <- TRUE IF skuGroupTransaction(g, t) AND NOT uploadedUkm5(g);
+        ELSE {
+             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
+             'Ошибка при импорте товаров', resultString()));
+             RETURN;
+        }
+    }
+    IF (GROUP SUM 1 IF NOT uploadedUkm5(Item i) AND skuTransaction(i, t)) THEN {
         EXPORT importItems OBJECTS t = t JSON;
         EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/items' PARAMS exportFile() TO answer;
         fileToString(answer());
-        IF statusHttp() = 200 THEN {
-            EXPORT itemPrices OBJECTS t = t JSON;
-            EXTERNAL HTTP POST CONCAT '' , urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/store/',
-                idStore(groupCashRegister(t)), '/itemPrices' PARAMS exportFile() TO answer;
-            fileToString(answer());
-            IF statusHttp() = 200 THEN {
-                succeeded(t) <- TRUE;
-                dateTimeSucceeded(t) <- currentDateTime();
-                APPLY;
-            }
-            ELSE {
-                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
-                    'Ошибка при импорте цен на товары', resultString()));
-                APPLY;
-            }      
-        }
+        IF statusHttp() = 200 THEN uploadedUkm5(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5(i);
         ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
                 'Ошибка при импорте товаров', resultString()));
-            APPLY;
+            RETURN;
         }
     }
-    ELSE {
-        addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
-            'Ошибка при импорте групп товаров', resultString()));
+    EXPORT itemPrices OBJECTS t = t JSON;
+    EXTERNAL HTTP POST CONCAT '' , urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/store/',
+        idStore(groupCashRegister(t)), '/itemPrices' PARAMS exportFile() TO answer;
+    fileToString(answer());
+    IF statusHttp() = 200 THEN {
+        succeeded(t) <- TRUE;
+        dateTimeSucceeded(t) <- currentDateTime();
         APPLY;
     }
 }
@@ -173,3 +172,10 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
               messageCaughtException()), messageCaughtException());
     }
 }
+
+exportUKM5(MachineryPriceTransaction t){
+    EXPORT itemPrices OBJECTS t = t JSON;
+    open(exportFile());
+}
+EXTEND FORM machineryPriceTransactions
+    PROPERTIES (t) exportUKM5;

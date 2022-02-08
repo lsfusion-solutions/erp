@@ -1,0 +1,363 @@
+MODULE Ukm5Receive;
+
+REQUIRE Ukm5PriceTransaction, ZReport;
+
+NAMESPACE Ukm5;
+
+GROUP elements;
+GROUP additional;
+GROUP supervisor : additional;
+
+GROUP usedBonuses;
+GROUP discountAmount;
+GROUP awardBonuses;
+GROUP client : additional;
+GROUP amount3 EXTID 'amount';
+GROUP amountWithChange;
+GROUP dates;
+GROUP calculated;
+GROUP amount6 EXTID 'amount' : calculated;
+GROUP totalDiscountAmount : calculated;
+GROUP quantityByCashier;
+GROUP discountAmount1 EXTID 'discountAmount';
+GROUP totalWithDiscounts;
+GROUP items;
+GROUP productInfo;
+GROUP barcodeQuantity : productInfo;
+GROUP totalAmount;
+GROUP totalQuantity;
+GROUP price;
+GROUP minPrice;
+
+posNumber = DATA LOCAL NUMERIC(INTEGER);
+shiftId = DATA LOCAL STRING(INTEGER);
+posName = DATA LOCAL STRING(INTEGER);
+receiptType = DATA LOCAL STRING(INTEGER);
+shiftNumber = DATA LOCAL STRING (INTEGER);
+roleId = DATA LOCAL NUMERIC(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+id = DATA LOCAL STRING (INTEGER);
+elementsMarketingResults = DATA LOCAL INTEGER(INTEGER);
+operationMode = DATA LOCAL STRING(INTEGER);
+cardNum = DATA LOCAL STRING(INTEGER);
+awardCoupons = DATA LOCAL STRING(INTEGER);
+marketingResultsAwardCoupons = DATA LOCAL INTEGER(INTEGER);
+amount = DATA LOCAL NUMERIC(INTEGER);
+code = DATA LOCAL STRING(INTEGER);
+amount1 = DATA LOCAL NUMERIC(INTEGER);
+code1 = DATA LOCAL STRING(INTEGER);
+usedCoupons = DATA LOCAL STRING(INTEGER);
+marketingResultsUsedCoupons = DATA LOCAL INTEGER(INTEGER);
+operationType = DATA LOCAL STRING(INTEGER);
+amount2 = DATA LOCAL NUMERIC(INTEGER);
+code2 = DATA LOCAL STRING(INTEGER);
+transactionTime = DATA LOCAL DATETIME(INTEGER);
+transactionID = DATA LOCAL STRING(INTEGER);
+efts = DATA LOCAL NUMERIC(INTEGER);
+gifts = DATA LOCAL STRING(INTEGER);
+marketingResultsGifts = DATA LOCAL INTEGER(INTEGER);
+discountCards = DATA LOCAL STRING(INTEGER);
+additionalDiscountCards = DATA LOCAL INTEGER(INTEGER);
+couponsCodes = DATA LOCAL STRING(INTEGER);
+additionalCouponsCodes = DATA LOCAL INTEGER(INTEGER);
+patronymic = DATA LOCAL STRING(INTEGER);
+surname = DATA LOCAL STRING(INTEGER);
+name1 = DATA LOCAL STRING(INTEGER);
+loyalitySysUID = DATA LOCAL STRING(INTEGER);
+category = DATA LOCAL STRING(INTEGER);
+cardNumber = DATA LOCAL STRING(INTEGER);
+properties = DATA LOCAL STRING(INTEGER);
+additionalProperties = DATA LOCAL INTEGER(INTEGER);
+removedItems = DATA LOCAL STRING(INTEGER);
+elementsRemovedItems = DATA LOCAL INTEGER(INTEGER);
+elementsPayments = DATA LOCAL INTEGER(INTEGER);
+deviceType = DATA LOCAL STRING(INTEGER);
+amount4 = DATA LOCAL NUMERIC(INTEGER);
+code3 = DATA LOCAL STRING(INTEGER);
+paymentId = DATA LOCAL NUMERIC(INTEGER);
+name2 = DATA LOCAL STRING(INTEGER);
+pType = DATA LOCAL STRING(INTEGER);
+amount5 = DATA LOCAL NUMERIC(INTEGER);
+code4 = DATA LOCAL STRING(INTEGER);
+currencyId = DATA LOCAL NUMERIC(INTEGER);
+dateOpen = DATA LOCAL DATETIME(INTEGER);
+dateClose = DATA LOCAL DATETIME(INTEGER);
+storeId = DATA LOCAL STRING(INTEGER);
+result = DATA LOCAL STRING(INTEGER);
+posId = DATA LOCAL STRING (INTEGER);
+number = DATA LOCAL NUMERIC(INTEGER);
+cashierId = DATA LOCAL NUMERIC(INTEGER);
+globalDocNumber = DATA LOCAL NUMERIC(INTEGER);
+id1 = DATA LOCAL NUMERIC(INTEGER);
+amount7 = DATA LOCAL NUMERIC(INTEGER);
+code5 = DATA LOCAL STRING(INTEGER);
+discounts = DATA LOCAL STRING(INTEGER);
+calculatedDiscounts = DATA LOCAL INTEGER(INTEGER);
+amount8 = DATA LOCAL NUMERIC(INTEGER);
+code6 = DATA LOCAL STRING(INTEGER);
+receiptCurrencyCode = DATA LOCAL STRING(INTEGER);
+taxes = DATA LOCAL STRING(INTEGER);
+calculatedTaxes = DATA LOCAL INTEGER(INTEGER);
+itemsCount = DATA LOCAL NUMERIC(INTEGER);
+elementsItems = DATA LOCAL INTEGER(INTEGER);
+amount9 = DATA LOCAL NUMERIC(INTEGER);
+decimals = DATA LOCAL NUMERIC(INTEGER);
+taxes1 = DATA LOCAL STRING(INTEGER);
+itemsTaxes1 = DATA LOCAL INTEGER(INTEGER);
+amount10 = DATA LOCAL NUMERIC(INTEGER);
+code7 = DATA LOCAL STRING(INTEGER);
+amount11 = DATA LOCAL NUMERIC(INTEGER);
+code8 = DATA LOCAL STRING(INTEGER);
+itemGroup = DATA LOCAL STRING(INTEGER);
+measure = DATA LOCAL STRING(INTEGER);
+scu = DATA LOCAL STRING(INTEGER);
+name3 = DATA LOCAL STRING(INTEGER);
+description = DATA LOCAL STRING(INTEGER);
+attributes = DATA LOCAL STRING(INTEGER);
+productInfoAttributes = DATA LOCAL INTEGER(INTEGER);
+alternativePrices = DATA LOCAL STRING(INTEGER);
+productInfoAlternativePrices = DATA LOCAL INTEGER(INTEGER);
+amount12 = DATA LOCAL NUMERIC(INTEGER);
+decimals1 = DATA LOCAL NUMERIC(INTEGER);
+measurePrec = DATA LOCAL NUMERIC(INTEGER);
+taxGroup = DATA LOCAL NUMERIC(INTEGER);
+barcode = DATA LOCAL STRING(INTEGER);
+properties1 = DATA LOCAL STRING(INTEGER);
+productInfoProperties1 = DATA LOCAL INTEGER(INTEGER);
+amount13 = DATA LOCAL NUMERIC(INTEGER);
+code9 = DATA LOCAL STRING(INTEGER);
+amount14 = DATA LOCAL NUMERIC(INTEGER);
+decimals2 = DATA LOCAL INTEGER (INTEGER);
+discounts1 = DATA LOCAL STRING(INTEGER);
+itemsDiscounts1 = DATA LOCAL INTEGER(INTEGER);
+amount15 = DATA LOCAL NUMERIC(INTEGER);
+code10 = DATA LOCAL STRING(INTEGER);
+enableEditPos = DATA LOCAL STRING(INTEGER);
+couponsCodes1 = DATA LOCAL STRING(INTEGER);
+itemsCouponsCodes1 = DATA LOCAL INTEGER(INTEGER);
+amount16 = DATA LOCAL NUMERIC(INTEGER);
+code11 = DATA LOCAL STRING(INTEGER);
+itemSource = DATA LOCAL STRING(INTEGER);
+cashierName = DATA LOCAL STRING(INTEGER);
+
+FORM receiveDocs
+    OBJECTS elements = INTEGER
+
+    PROPERTIES(elements) posNumber, shiftId, posName, receiptType, shiftNumber, storeId, result, posId, number, 
+        cashierId, globalDocNumber, id1 EXTID 'id', cashierName
+
+    OBJECTS additional = INTEGER
+    PROPERTIES(elements) IN supervisor roleId, name, id
+    FILTERS imported(elements)
+
+    OBJECTS marketingResults = INTEGER IN additional
+    FILTERS elementsMarketingResults(marketingResults) == elements
+    PROPERTIES(marketingResults) operationMode, cardNum, operationType, transactionTime, transactionID, efts
+
+    OBJECTS awardCoupons = INTEGER
+    PROPERTIES(awardCoupons) awardCoupons EXTID 'value'
+    FILTERS imported(awardCoupons)
+    FILTERS marketingResultsAwardCoupons(awardCoupons) == marketingResults
+    PROPERTIES(marketingResults) IN usedBonuses amount, code
+    FILTERS imported(marketingResults)
+    PROPERTIES(marketingResults) IN discountAmount amount1 EXTID 'amount', code1 EXTID 'code'
+
+    OBJECTS usedCoupons = INTEGER
+    PROPERTIES(usedCoupons) usedCoupons EXTID 'value'
+    FILTERS imported(usedCoupons)
+    FILTERS marketingResultsUsedCoupons(usedCoupons) == marketingResults
+    PROPERTIES(marketingResults) IN awardBonuses amount2 EXTID 'amount', code2 EXTID 'code'
+
+    OBJECTS gifts = INTEGER
+    PROPERTIES(gifts) gifts EXTID 'value'
+    FILTERS imported(gifts)
+    FILTERS marketingResultsGifts(gifts) == marketingResults
+
+    OBJECTS discountCards = INTEGER IN additional
+    PROPERTIES(discountCards) discountCards EXTID 'value'
+    FILTERS imported(discountCards)
+    FILTERS additionalDiscountCards(discountCards) == elements
+
+    OBJECTS couponsCodes = INTEGER IN additional
+    PROPERTIES(couponsCodes) couponsCodes EXTID 'value'
+    FILTERS imported(couponsCodes)
+    FILTERS additionalCouponsCodes(couponsCodes) == elements
+    PROPERTIES(elements) IN client patronymic, surname, name1 EXTID 'name', loyalitySysUID, category, cardNumber
+
+    OBJECTS properties = INTEGER IN additional
+    PROPERTIES(properties) properties EXTID 'value'
+    FILTERS imported(properties)
+    FILTERS additionalProperties(properties) == elements
+
+    OBJECTS removedItems = INTEGER
+    PROPERTIES(removedItems) removedItems EXTID 'value'
+    FILTERS imported(removedItems)
+    FILTERS elementsRemovedItems(removedItems) == elements
+
+    OBJECTS payments = INTEGER
+    FILTERS elementsPayments(payments) == elements
+    PROPERTIES(payments) deviceType, paymentId, name2 EXTID 'name', pType, currencyId
+    PROPERTIES(payments) IN amount3 amount4 EXTID 'amount', code3 EXTID 'code'
+    FILTERS imported(payments)
+    PROPERTIES(payments) IN amountWithChange amount5 EXTID 'amount', code4 EXTID 'code'
+    PROPERTIES(elements) IN dates dateOpen, dateClose
+
+    OBJECTS calculated = INTEGER
+    PROPERTIES(elements) IN calculated receiptCurrencyCode, itemsCount
+    PROPERTIES(elements) IN amount6 amount7 EXTID 'amount', code5 EXTID 'code'
+
+    OBJECTS discounts = INTEGER IN calculated
+    PROPERTIES(discounts) discounts EXTID 'value'
+    FILTERS imported(discounts)
+    FILTERS calculatedDiscounts(discounts) == elements
+    PROPERTIES(elements) IN totalDiscountAmount amount8 EXTID 'amount', code6 EXTID 'code'
+
+    OBJECTS taxes = INTEGER IN calculated
+    PROPERTIES(taxes) taxes EXTID 'value'
+    FILTERS imported(taxes)
+    FILTERS calculatedTaxes(taxes) == elements
+
+    OBJECTS items = INTEGER
+    FILTERS elementsItems(items) == elements
+    PROPERTIES(items) enableEditPos, itemSource
+    PROPERTIES(items) IN quantityByCashier amount9 EXTID 'amount', decimals
+    FILTERS imported(items)
+
+    OBJECTS taxes1 = INTEGER EXTID 'taxes'
+    PROPERTIES(taxes1) taxes1 EXTID 'value'
+    FILTERS imported(taxes1)
+    FILTERS itemsTaxes1(taxes1) == items
+    PROPERTIES(items) IN discountAmount1 amount10 EXTID 'amount', code7 EXTID 'code'
+    PROPERTIES(items) IN totalWithDiscounts amount11 EXTID 'amount', code8 EXTID 'code'
+
+    OBJECTS productInfo = INTEGER
+    PROPERTIES(items) IN productInfo itemGroup, measure, scu, name3 EXTID 'name', description, measurePrec, taxGroup, barcode
+
+    OBJECTS attributes = INTEGER IN productInfo
+    PROPERTIES(attributes) attributes EXTID 'value'
+    FILTERS imported(attributes)
+    FILTERS productInfoAttributes(attributes) == items
+
+    OBJECTS alternativePrices = INTEGER IN productInfo
+    PROPERTIES(alternativePrices) alternativePrices EXTID 'value'
+    FILTERS imported(alternativePrices)
+    FILTERS productInfoAlternativePrices(alternativePrices) == items
+    PROPERTIES(items) IN barcodeQuantity amount12 EXTID 'amount', decimals1 EXTID 'decimals'
+
+    OBJECTS properties1 = INTEGER EXTID 'properties' IN productInfo
+    PROPERTIES(properties1) properties1 EXTID 'value'
+    FILTERS imported(properties1)
+    FILTERS productInfoProperties1(properties1) == items
+    PROPERTIES(items) IN totalAmount amount13 EXTID 'amount', code9 EXTID 'code'
+    PROPERTIES(items) IN totalQuantity amount14 EXTID 'amount', decimals2 EXTID 'decimals'
+
+    OBJECTS discounts1 = INTEGER EXTID 'discounts'
+    PROPERTIES(discounts1) discounts1 EXTID 'value'
+    FILTERS imported(discounts1)
+    FILTERS itemsDiscounts1(discounts1) == items
+    PROPERTIES(items) IN price amount15 EXTID 'amount', code10 EXTID 'code'
+
+    OBJECTS couponsCodes1 = INTEGER EXTID 'couponsCodes'
+    PROPERTIES(couponsCodes1) couponsCodes1 EXTID 'value'
+    FILTERS imported(couponsCodes1)
+    FILTERS itemsCouponsCodes1(couponsCodes1) == items
+    PROPERTIES(items) IN minPrice amount16 EXTID 'amount', code11 EXTID 'code'
+;
+
+idZReport (INTEGER i) =  storeId(i) + '_' + shiftId(i) + '_' + posId(i);
+idReceipt (INTEGER i) =  storeId(i) + '_' + shiftId(i) + '_' + posId(i) + '_' + id1(i);
+idUkm5 '{integration.id}' = DATA STRING[100] (CashRegister) IN id INDEXED CHARWIDTH 10;
+cashRegisterUkm5 (id) = GROUP AGGR CashRegister cashRegister BY idUkm5 (cashRegister);
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (c) idUkm5 SHOWIF isUkm5(grc);
+urlUkm5Server 'Url сервера' = DATA STRING ();
+
+EXTEND FORM integrationData
+    PROPERTIES urlUkm5Server();
+
+DESIGN integrationData{
+    ukm5{
+        MOVE PROPERTY (urlUkm5Server());
+    }
+}
+
+skipBlockPackage(){
+    TRY {
+        EXTERNAL HTTP DELETE urlUkm5Server() + '/api/v1/export/receiptPackage';
+        MESSAGE 'Сброс блокировки';
+    }
+    CATCH {
+        MESSAGE 'Ошибка при сбросе блокировки пакета чеков : ' + messageCaughtException();
+    }
+}
+
+confirmAcceptedPackage(){
+    TRY {
+        EXTERNAL HTTP PUT urlUkm5Server() + '/api/v1/export/receiptPackage';
+    }
+    CATCH {
+        MESSAGE 'Ошибка при подтверждении приёма чеков : ' + messageCaughtException();
+    }
+}
+
+receiptPackage(STRING id, STRING date){
+    LOCAL f = FILE();
+    IF id AND date THEN{
+        EXTERNAL HTTP GET CONCAT '', urlUkm5Server() + '/api/v1/export/receipt/', id, '/', date TO f;
+    }
+    ELSE {
+        EXTERNAL HTTP GET urlUkm5Server() + '/api/v1/export/receiptPackage' TO f;
+    }
+    IMPORT receiveDocs FROM f();
+    FOR shiftId(INTEGER i) DO{
+        IF NOT zReport(idZReport(i)) THEN NEW z = ZReport{
+            id(z) <- STRING[100](idZReport(i)); 
+            cashRegister(z) <- cashRegisterUkm5(posId(i));
+            date(z) <- DATE(dateClose(i));
+            number(z) <- STRING[48](shiftNumber(i));
+            isPosted(z) <- TRUE;
+        }
+    }
+    FOR id1(INTEGER i) AND NOT receipt(idReceipt(i)) AND result(i) = 'Completed' 
+        AND ZReport z = zReport(idZReport(i)) DO NEW r = Receipt{
+        id(r) <- STRING[100](idReceipt(i));
+        zReport(r) <- z;
+        date(r) <- DATE(dateClose(i));
+        time(r) <- toTime(dateClose(i));
+        number(r) <- number(i);
+        FOR scu(INTEGER j) AND receiptType(i) = 'Sale' AND elementsItems(j) = i 
+            NEW detail = ReceiptSaleDetail DO{
+            receipt(detail) <- r;
+            idBarcode(detail) <- STRING[15](OVERRIDE barcode(j), scu(j));
+            sku(detail) <- OVERRIDE skuBarcode(barcode(j)), sku(scu(j));
+            quantity(detail) <- round(amount14(j), decimals2(j));
+            price(detail) <- NUMERIC[16,4](amount15(j));
+            discountSum(detail) <- NUMERIC[18,4](amount10(j));
+        }
+        FOR amount4(INTEGER j) AND pType(j) AND elementsPayments(j) = i NEW p = Payment DO{
+            receipt(p) <- r;
+            sum(p) <- NUMERIC[18,4](amount4(j));
+            paymentType(p) <- CASE 
+                WHEN pType(j) = 'Card' THEN typePaymentSID('card')
+                WHEN pType(j) = 'Cash' THEN typePaymentSID('cash')      
+                WHEN pType(j) = 'Certificate' THEN typePaymentSID('giftcard')
+            ;
+        }
+    }  
+    APPLY;
+    IF NOT canceled() THEN {
+        confirmAcceptedPackage();
+    }
+}
+
+
+receiveReceipts 'Приём реализации УКМ5 (Native)'(){
+    TRY{
+        receiptPackage(NULL, NULL);
+    }
+    CATCH {
+        MESSAGE messageCaughtException();
+        skipBlockPackage();
+    }
+}
