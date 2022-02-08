@@ -139,9 +139,11 @@ calcDefaultAgreement(LegalEntity supplier, LegalEntity customer, DATETIME dateTi
     IF inCustomer(agreement, customer) AND inSupplier(agreement, supplier)
     AND fromDateTime(agreement) <= dateTime AND NOT (toDateTime(agreement) < dateTime);
 
+overDefaultAgreement = ABSTRACT Agreement (LegalEntity, LegalEntity, DATETIME);
 defaultAgreement(LegalEntity supplier, LegalEntity customer, DATETIME dateTime) =  OVERRIDE 
     userDefaultAgreementSupplierCustomer(supplier, customer) IF dateTime IS DATETIME,
-    calcDefaultAgreement(supplier, customer, dateTime) IF countDefaultAgreement(supplier, customer, dateTime) == 1;
+    calcDefaultAgreement(supplier, customer, dateTime) IF countDefaultAgreement(supplier, customer, dateTime) == 1,
+    overDefaultAgreement(supplier, customer, dateTime);
 nameDefaultAgreement 'Соглашение по умолчанию' (LegalEntity supplier, LegalEntity customer, DATETIME dateTime) = name(defaultAgreement(supplier, customer, dateTime));
 
 isDefault 'Соглашение по умолчанию' (Agreement agreement, LegalEntity supplier, LegalEntity customer) = defaultAgreement(supplier, customer, currentDateTime()) == agreement;
