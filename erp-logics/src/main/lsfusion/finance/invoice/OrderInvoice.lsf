@@ -32,6 +32,8 @@ noteOrder 'Примечание (заказ)' (Invoice invoice) = GROUP
 
 GROUP orders 'Приемка по заказам' : base;
 
+forbidInvoice = ABSTRACT BOOLEAN (Order);
+
 // -------------- Создание накладной на основе заказа (для абстрактного заказа) ------------------------ // 
 
 minSelectedOrder = GROUP MIN Order o IF selected(o); 
@@ -49,10 +51,10 @@ addUserInvoice  ABSTRACT LIST ( Order);
 
 createMultiUserInvoice 'Создать накладную'(Order order)  { 
     IF countSelectedOrder() THEN {
-        IF countSelectedFromClass()!=1 OR countSelectedToClass() != 1 OR countSelectedFromStockClass()!=1 OR countSelectedToStockClass()!=1 THEN {
+        IF countSelectedFromClass() != 1 OR countSelectedToClass() != 1 OR countSelectedFromStockClass() != 1 OR countSelectedToStockClass() != 1 THEN {
             MESSAGE 'Выбраны заказы с разными покупателями, поставщиками или их складами';               
         } ELSE {
-            IF countSelectedClass()==1 THEN {
+            IF countSelectedClass() = 1 THEN {
                 overCreateMultiUserInvoice(minSelectedOrder());
             } ELSE {
                 MESSAGE 'Выбраны заказы с разными классами';
@@ -651,6 +653,8 @@ META defineOrderInvoice(sign, stockProp)
     
     WHEN SET(order(orderDetail(InvoiceDetail d)) AND isPosted(d)) AND (OVERRIDE dataAutoCloseOrders(stockProp###stock(d)), autoCloseOrders(stockProp###stock(d))) AND NOT isClosed(order(orderDetail(d))) DO
         isClosed(UserOrder o) <- TRUE WHERE o == order(orderDetail(d));
+
+    forbidInvoice(Order o) += forbidInvoice(operation(o)); 
 
 END
 

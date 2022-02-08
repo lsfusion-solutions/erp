@@ -6,9 +6,18 @@ NAMESPACE Shipment;
 
 quantityShipmentDetail = ABSTRACT NUMERIC[16,5] (Order, Shipment);
 
-shipped 'Кол-во (поставлено)' (orderDetail) = ABSTRACT NUMERIC[16,5] (OrderDetail);
+shipped 'Кол-во (поставлено)' = ABSTRACT NUMERIC[16,5] (OrderDetail);
+toShip 'Не поставлено' (OrderDetail d) = quantity (d) - OVERRIDE shipped(d), 0.0;
+
+shippedOrderDetail 'Кол-во (поставлено)' = ABSTRACT NUMERIC[16,5] (Order);
 
 backgroundShipped 'Цвет' (Order order) = RGB(255, 224, 255) IF order IS Order;
+
+createShipment = ABSTRACT BOOLEAN (Order);
+
+overCreateMultiUserShipment  ABSTRACT LIST (Order);
+
+addUserShipment ABSTRACT LIST (Order);
 
 META defineOrderShipment(sign, stockProp)
 
@@ -55,6 +64,7 @@ META defineOrderShipment(sign, stockProp)
                                                                                      BY stockProp(orderDetail), order(orderDetail);
 
     shippedOrderDetail 'Кол-во (поставлено)' (order) = GROUP SUM shipped(OrderDetail orderDetail) BY order(orderDetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+    shippedOrderDetail(Order o) += shippedOrderDetail(o);
 
     // Создание поставки на основе заказа //
     FORM shipmentOrders 'Заказы'###sign
@@ -111,25 +121,71 @@ META defineOrderShipment(sign, stockProp)
         THEN orderDetail IS OrderDetail AND userShipment IS UserShipment
         ELSE supplierStock(orderDetail) == supplierStock(userShipment);
 
-    overFillOrder  ABSTRACT LIST ( UserShipmentDetail, OrderDetail);
+    overFillOrder ABSTRACT LIST (UserShipmentDetail, OrderDetail);
+    overFillOrder ABSTRACT LIST (UserShipment, Order);
 
-    fillOrder 'Заполнить на основе заказа'(UserShipment userShipment)   { 
-        DIALOG shipmentOrders OBJECTS s = supplier(userShipment), ss = supplierStock(userShipment),
-                                    c = customer(userShipment), cs = customerStock(userShipment), o INPUT DO {
-            FOR order(OrderDetail orderDetail) == o AND
-//                stockProp###OrderDetail(orderDetail) == stockProp###UserShipment(userShipment) AND
-                toShip(orderDetail) > 0
-                AND in(orderDetail, userShipment)
-                NEW d = UserShipmentDetail DO {
-                    userShipment(d) <- userShipment;
-                    orderDetail(d) <- orderDetail;
-                    sku(d) <- sku(orderDetail);
-                    quantity (d) <- toShip(orderDetail);
+    fillHeader (UserShipment s, Order o) {
+        date(s) <- currentDate();
+        time(s) <- currentTime();
+        
+        supplier(s) <- supplier(o) WHERE supplier(o);
+        supplierStock(s) <- supplierStock(o) WHERE supplierStock(o);
 
-                    overFillOrder(d, orderDetail);
-            }
+        customer(s) <- customer(o) WHERE customer(o);
+        customerStock(s) <- customerStock(o) WHERE customerStock(o);
+
+        date(s) <- shipmentDate(o) WHERE isShipmentDate(operation(o)) AND shipmentDate(o); 
+        
+        note(s) <- note(o) WHERE note(o);
+        
+        overFillOrder(s, o);
+    }
+    
+    fillDetail (UserShipment s, Order o) {
+        FOR order(OrderDetail od) == o AND
+            toShip(od) > 0
+            NEW sd = UserShipmentDetail DO {
+                userShipment(sd) <- s;
+                orderDetail(sd) <- od;
+                sku(sd) <- sku(od);
+                quantity(sd) <- toShip(od);
+
+                overFillOrder(sd, od);
+        }
+    }
+    fillOrder 'Заполнить на основе заказа'(UserShipment s)   { 
+        DIALOG shipmentOrders OBJECTS s = supplier(s), ss = supplierStock(s),
+                                    c = customer(s), cs = customerStock(s), o INPUT DO {
+            fillDetail(s, o);
         }
     } IN order;
+
+    createMultiUserShipment(Order order)  { 
+        NEWSESSION NESTED (selected[Order.Order]) {
+            NEW s = UserShipment {
+                fillHeader(s, order);
+                
+                FOR selected(Order.Order o) DO {
+                    fillDetail(s, o);   
+                }     
+                              
+                SHOW userShipment OBJECTS s = s DOCKED NOCANCEL;
+            }
+        }
+    }
+    overCreateMultiUserShipment(Order o) + { IF o IS Order THEN createMultiUserShipment(o); }
+    
+    addUserShipment 'Поставка (продажа)' (Order o)   { 
+	    NEWSESSION {
+	        NEW s = UserShipment {
+	            fillHeader(s, o);
+	            fillDetail(s, o);
+                SHOW userShipment OBJECTS s = s DOCKED NOCANCEL;
+            }
+	    }
+    } TOOLBAR;
+    addUserShipment (Order o) + { IF o IS Order THEN addUserShipment(o); }
+    
     notShowShipped = ABSTRACT BOOLEAN (Order);
     toShowShipped = Order o IS Order AND NOT notShowShipped(o);
     EXTEND FORM userOrder

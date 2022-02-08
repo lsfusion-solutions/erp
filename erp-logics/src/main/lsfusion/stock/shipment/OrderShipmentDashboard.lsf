@@ -1,0 +1,105 @@
+MODULE OrderShipmentDashboard;
+
+REQUIRE OrderInvoice, OrderShipment;
+
+NAMESPACE Shipment;
+
+createMultiUserShipment 'Отгрузить' (Order order)  { 
+    IF countSelectedOrder() THEN {
+        IF countSelectedFromClass() != 1 OR countSelectedToClass() != 1 OR countSelectedFromStockClass() != 1 OR countSelectedToStockClass() != 1 THEN {
+            MESSAGE 'Выбраны заказы с разными покупателями, поставщиками или их складами';               
+        } ELSE {
+            IF countSelectedClass() = 1 THEN {
+                overCreateMultiUserShipment(minSelectedOrder());
+            } ELSE {
+                MESSAGE 'Выбраны заказы с разными классами';
+            }        
+        }
+    } ELSE {
+        addUserShipment(order);            
+    }    
+} TOOLBAR;
+
+excludeFilterShipment = ABSTRACT BOOLEAN (Order);
+filterShipment (Order o) = o IS Order AND NOT shippedOrderDetail(o) AND NOT excludeFilterShipment(o);  
+background = ABSTRACT CASE COLOR (Order);
+
+FORM orderShipmentDashboard 'Отгрузка по заказам' AUTOREFRESH 60
+
+    OBJECTS d = DATE PANEL
+    PROPERTIES(d) date = VALUE
+    
+    OBJECTS o = Order GRID
+    PROPERTIES (o) selected
+    PROPERTIES (o) READONLY BACKGROUND background(o) isPosted, number, series, date, nameFrom, nameFromStock, nameTo, nameToStock, 
+                   nameOperation, quantityOrderDetail, sumOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail, note,
+                   shipmentDate, shipmentTime, objectClassName    
+    FILTERS out(o), 
+            isPosted(o),
+            NOT createShipment(o)
+    FILTERGROUP filters FILTER 'На дату' shipmentDate(o) <= d 'F5' DEFAULT
+    FILTERGROUP filterShipment
+        FILTER 'Не отгружены' filterShipment(o) 'F7' DEFAULT
+        FILTER 'Отгружены' NOT filterShipment(o) 'F6'
+    
+    OBJECTS od = OrderDetail GRID
+    PROPERTIES (od) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                    packQuantity
+    PROPERTIES (od) READONLY quantity, price, sum,
+                   valueVAT, VATSum, invoiceSum,
+                   nameSupplierStock, shipmentDate, shipmentTime, toShip  
+    FILTERS order(od) = o
+    ORDERS index(od)
+    
+    OBJECTS s = Shipment GRID
+    PROPERTIES (s) READONLY isPosted, number, series, date, time,                                 
+                   nameSupplier, nameFromStock, nameCustomer, nameToStock,
+                   countShipmentDetail, quantityShipmentDetail, sumShipmentDetail
+
+    PROPERTIES (s) NEWSESSION EDIT SHOWIF overShowEdit(s), deletei = DELETE SHOWIF overShowDelete(s)  
+    FILTERS out(s)
+    FILTERGROUP filters1 FILTER 'На дату' date(s) = d 'F5' DEFAULT
+    
+    PROPERTIES(o) createMultiUserShipment  
+;
+
+DESIGN orderShipmentDashboard {
+    OBJECTS {
+        NEW header {
+            MOVE PROPERTY(date);
+        }
+        NEW pane {
+            fill = 1;
+            type = SPLITV;
+            MOVE BOX(o);
+            NEW tabbedPane {
+                fill = 1;
+                type = TABBED;
+                MOVE BOX(s) {
+                    PANEL(s) {
+                        type = CONTAINERH;
+                    }
+                }
+                MOVE BOX(od) {
+                    caption = 'Детализация заказа';
+                    PROPERTY(packQuantity(od)) { background = #D4FFD4; }
+                    PROPERTY(quantity(od)) { background = #D4FFD4; }
+                    PROPERTY(price(od)) { background = #D4FFD4; }
+                }
+            }
+        }
+    }
+}
+ 
+@defineFilterIsOpened (order, orderShipmentDashboard, o);
+@defineFilterIsOpened (shipment, orderShipmentDashboard, s);
+@extendFormFilterAccessStockNoNull(Order, o, orderShipmentDashboard, toStock, company);
+@extendFormFilterAccessStockNoNull(Shipment, s, orderShipmentDashboard, toStock, company);
+@extendFormFilterRoleAccessNS(order, o, orderShipmentDashboard, Operation); 
+@extendFormFilterRoleAccessNS(shipment, s, orderShipmentDashboard, Operation);
+ 
+NAVIGATOR {
+    saleDashboardNavigator {
+        NEW orderShipmentDashboard;
+    }
+}

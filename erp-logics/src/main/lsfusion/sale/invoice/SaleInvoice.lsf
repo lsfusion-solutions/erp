@@ -37,6 +37,10 @@ batch[Invoice.InvoiceDetail](InvoiceDetail d) += batch(d);
 CONSTRAINT isPosted(InvoiceDetail d) AND banNegativeQuantityInvoice(operation(d)) AND (quantity(d) < 0.0) //AND isPosted(d)
     MESSAGE 'Запрещено вводить отрицательное количество в накладную';            
 
+CONSTRAINT CHANGED(operation(UserInvoice i)) AND forbidInvoice(operation(i))
+    CHECKED BY operation[UserInvoice]
+    MESSAGE 'Запрещено вводить накладные по выбранной операции';            
+
 @extendFormFilterRoleAccess(invoice, i, invoices);
 @defineDocumentOperationConstraint(invoice, 'накладная (продажа)', Sale);
 @defineDocumentOperationPriceListType(userInvoice, 'накладной (продажа)', userInvoice);
