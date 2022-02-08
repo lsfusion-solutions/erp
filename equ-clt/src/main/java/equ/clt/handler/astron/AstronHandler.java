@@ -1163,17 +1163,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             for (DiscountCard discountCard : discountCardList) {
                 if (!Thread.currentThread().isInterrupted()) {
+                    Integer clientId = getClientId(discountCard);
                     if(params.pgsql) {
-                        setObject(ps, discountCard.idDiscountCard, 1); //DCARDID
-                        setObject(ps, getClientId(discountCard), 2); //CLNTID
-                        setObject(ps, discountCard.idDiscountCard, 3); //DCARDCODE
+                        setObject(ps, discountCard.numberDiscountCard, 1); //DCARDID
+                        setObject(ps, clientId, 2); //CLNTID
+                        setObject(ps, discountCard.numberDiscountCard, 3); //DCARDCODE
                         setObject(ps, discountCard.nameDiscountCard, 4); //DCARDNAME
                         setObject(ps, 0, 5); //ISPAYMENT
                         setObject(ps, 0, 6); //DELFLAG
                         setObject(ps, 0, 7); //LOCKED
                     } else {
-                        setObject(ps, discountCard.idDiscountCard, 1, offset); //CLNTID
-                        setObject(ps, discountCard.idDiscountCard, 2, offset); //DCARDCODE
+                        setObject(ps, discountCard.numberDiscountCard, 1, offset); //CLNTID
+                        setObject(ps, discountCard.numberDiscountCard, 2, offset); //DCARDCODE
                         setObject(ps, discountCard.nameDiscountCard, 3, offset); //DCARDNAME
                         setObject(ps, false, 4, offset); //ISPAYMENT
                         setObject(ps, "0", 5, offset); //DELFLAG
@@ -1182,7 +1183,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         if(updateNum != null)
                             setObject(ps, updateNum, 7, offset);
 
-                        setObject(ps, discountCard.idDiscountCard, updateNum != null ? 8 : 7, keys.length); //DCARDID
+                        setObject(ps, clientId, updateNum != null ? 8 : 7, keys.length); //DCARDID
                     }
 
                     ps.addBatch();
