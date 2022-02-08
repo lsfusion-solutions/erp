@@ -58,9 +58,18 @@ numerateIds(LONG i) {
         curValue(Numerator n) <- curValue(n) + i WHERE n == defaultNumeratorSyncid();
     }
 }
+headerId = DATA LOCAL INTEGER (LONG);
+action = DATA LOCAL STRING (LONG);
+meaasage = DATA LOCAL STRING (LONG);
 
-insertString (LONG syncId, STRING action, STRING meaasage) = 'INSERT INTO from_host_header_message(ID,SRC_HOST_ID,DST_HOST_ID,TYPE,ACTION,MESSAGE) '+
-        'VALUES (' + syncId + ',\'host\',\'wms\',\'update\',\'' + action + '\',\''+meaasage+'\');';
+insertString  = 
+    'INSERT ALL'+
+        ' WHEN header=0 THEN INTO from_host_header_message(ID,SRC_HOST_ID,DST_HOST_ID,TYPE,ACTION,MESSAGE) VALUES (sync_id,\'host\',\'wms\',\'update\',action ,meaasage)' +
+        ' WHEN header>0 THEN INTO from_host_detail_message(ID,HEADER_ID,TYPE,ACTION,MESSAGE) VALUES (sync_id, header, \'update\',action ,meaasage)' +
+        ' WITH data AS ('+
+        (GROUP CONCAT ' SELECT ' + headerId(LONG id) + ' header, ' + id + ' sync_id, \'' + action(id) + '\' action, \''+ meaasage(id) + '\' meaasage FROM dual', ' UNION ALL' ORDER id)+
+        ' ) SELECT * FROM data';
+
         
 format(STRING s) = OVERRIDE escapeXMLValue(s), '';
 //товары
@@ -85,7 +94,7 @@ DESIGN item{
 itemString (LONG syncId, Item s) = '<sku syncid=\'\''+syncId+'\'\' action=\'\'update\'\' syncdate=\'\''+nowText()+
     '\'\' sdid=\'\''+id(s)+'\'\' sku_code=\'\''+id(s)+'\'\' name=\'\''+format(nameAttribute(s))+'\'\' upc=\'\''+format(idBarcode(s))+
     '\'\' measure=\'\''+format(shortNameUOM(s))+'\'\' store_cond=\'\'1\'\' producer_sdid=\'\''+format(nameManufacturer(s))+
-    '\'\' country=\'\''+format(nameCountry(s))+'\'\' abc=\'\'C\'\' minosg=\'\'45\'\' sku_spec_id=\'\'MB1\'\' description=\'\'\'\' divisibility=\'\'1\'\'></sku>';
+    '\'\' country=\'\''+format(nameCountry(s))+'\'\' abc=\'\'\'\' minosg=\'\'\'\' sku_spec_id=\'\'0\'\' description=\'\'\'\' divisibility=\'\'\'\'></sku>';
 
 exportItems 'Выгрузить товары в wms Solvo' ()  { 
     
@@ -96,9 +105,15 @@ exportItems 'Выгрузить товары в wms Solvo' ()  {
         LOCAL syncId = LONG (Item);
         syncId(Item i) <- incrementedIntValue() - 1 + PARTITION SUM 1 IF in(i) ORDER i; 
         
+        FOR syncId(Item i) DO {
+            headerId(syncId(i)) <- 0;
+            action(syncId(i)) <- 'sku';
+            meaasage(syncId(i)) <- itemString(syncId(i), i);
+        }
+        
         EXTERNAL 
             SQL connectionString()
-            EXEC (GROUP CONCAT insertString(syncId(Item s), 'sku', itemString(syncId(s), s)), '\n' ORDER syncId(s));
+            EXEC insertString();
             
         logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedIntValue(), 'Write items:', (GROUP CONCAT id(Item i) IF in(i), ',' ORDER i));
         MESSAGE 'Товары выгружены\n' NOWAIT;
