@@ -39,11 +39,12 @@ nameCompany 'Компания' (SaleReport o) = name(company(o)) IN documentPrm;
 currency (SaleReport saleReport) <- OVERRIDE currency(companyStock(saleReport)), currency(company(saleReport)) 
     WHEN CHANGED(companyStock(saleReport)) OR CHANGED (company(saleReport));
 
+skipCheck = ABSTRACT BOOLEAN (SaleReport);
 
-CONSTRAINT  company(SaleReport o) AND NOT isCompany(company(o))
+CONSTRAINT  company(SaleReport o) AND NOT isCompany(company(o)) AND NOT skipCheck(o)
     CHECKED BY company[SaleReport] MESSAGE 'В качестве компании в "Акте реализации" выбрана организация, которая не является компанией.';
 
-CONSTRAINT companyStock(SaleReport o) AND company(o) AND NOT in(company(o),companyStock(o))
+CONSTRAINT companyStock(SaleReport o) AND company(o) AND NOT in(company(o),companyStock(o)) AND NOT skipCheck(o)
     CHECKED BY companyStock[SaleReport] MESSAGE 'Выбранный склад не принадлежит компании в "Акте реализации".';   
 
 contractSku = DATA ContractSku (SaleReport);
@@ -54,10 +55,10 @@ INDEX contractSku(SaleReport s), companyStock(s), s;
 
 replace(ContractSku c, ContractSku o) + { contractSku(SaleReport object) <- o WHERE contractSku(object) == c;}
 
-CONSTRAINT contractSku(SaleReport o) AND NOT company(o) == partyB(contractSku(o))
+CONSTRAINT contractSku(SaleReport o) AND NOT company(o) == partyB(contractSku(o)) AND NOT skipCheck(o)
     CHECKED BY contractSku[SaleReport] MESSAGE 'Организация (покупатель) договора не соответствует компании в акте реализации';    
 
-CONSTRAINT contractSku(SaleReport o) AND NOT supplier(o) == partyA(contractSku(o))
+CONSTRAINT contractSku(SaleReport o) AND NOT supplier(o) == partyA(contractSku(o)) AND NOT skipCheck(o)
     CHECKED BY contractSku[SaleReport] MESSAGE 'Организация (поставщик) договора не соответствует поставщику в акте реализации'; 
 
 fromDate 'Дата с' = DATA DATE (SaleReport) IN documentHeader;
@@ -542,7 +543,6 @@ createAutoSaleReport 'Создать акты реализации'(LegalEntity 
                 }            
             }
         }
-
     }
 }
 firstSaleDate = firstDayOfMonth(sumMonth(currentDate(), -1));
@@ -651,13 +651,15 @@ DESIGN options {
     }
 }
 
-maxToDatePostedSaleSupplier = GROUP MAX toDate(SaleReport r) IF isPosted(r) AND NOT r == SaleReport report BY report, companyStock(r), contractSku(r);
+maxToDatePostedSaleSupplier = GROUP MAX toDate(SaleReport r) IF isPosted(r) AND NOT skipCheck(r)
+    AND SaleReport report AS SaleReport AND NOT skipCheck(report) AND NOT r == report 
+        BY report, companyStock(r), contractSku(r);
 
-CONSTRAINT (SETCHANGED (fromDate(SaleReport r) ) OR SET(isPosted(r) OR SETCHANGED (companyStock(r)) OR SETCHANGED (contractSku(r)))) 
+CONSTRAINT (SETCHANGED (fromDate(SaleReport r) ) OR SET(isPosted(r) OR SETCHANGED (companyStock(r)) OR SETCHANGED (contractSku(r))) OR CHANGED (skipCheck(r))) AND NOT skipCheck(r)
     AND fromDate(r) <= maxToDatePostedSaleSupplier(r, companyStock(r), contractSku(r)) 
     MESSAGE 'Есть акты реализации с периодом позже данного. Необходимо распровести более поздние акты';
     
-WHEN LOCAL FORMS saleReport SET (SaleReport r IS SaleReport) OR SETCHANGED (companyStock(r)) OR SETCHANGED (contractSku(r)) DO {
+WHEN LOCAL FORMS saleReport (SET(SaleReport r IS SaleReport) OR SETCHANGED (companyStock(r)) OR SETCHANGED (contractSku(r)) OR CHANGED (skipCheck(r))) AND NOT skipCheck(r) DO {
     fromDate(r) <- OVERRIDE sum(maxToDatePostedSaleSupplier(r, companyStock(r), contractSku(r)), 1), firstDayOfMonth(currentDate());
 }
 WHEN LOCAL FORMS saleReport SET (SaleReport r IS SaleReport) DO {
