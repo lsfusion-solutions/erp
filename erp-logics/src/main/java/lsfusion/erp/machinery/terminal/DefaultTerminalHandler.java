@@ -44,8 +44,7 @@ import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static lsfusion.base.BaseUtils.trim;
-import static lsfusion.base.BaseUtils.trimToEmpty;
+import static lsfusion.base.BaseUtils.*;
 
 public class DefaultTerminalHandler {
 
@@ -194,6 +193,7 @@ public class DefaultTerminalHandler {
                     batchList = readBatchList(session, stockObject);
 
                 List<TerminalOrder> orderList = readTerminalOrderList(session, stockObject, userInfo);
+                List<SkuExtraBarcode> skuExtraBarcodeList = readSkuExtraBarcodeList(session, stockObject);
                 Map<String, RawFileData> orderImages = imagesInReadBase ? readTerminalOrderImages(session, stockObject, userInfo) : new HashMap<>();
 
                 List<TerminalAssortment> assortmentList = readTerminalAssortmentList(session, stockObject);
@@ -206,7 +206,7 @@ public class DefaultTerminalHandler {
                 try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
 
                     createGoodsTable(connection);
-                    updateGoodsTable(connection, barcodeList, orderList, orderImages, imagesInReadBase);
+                    updateGoodsTable(connection, barcodeList, orderList, skuExtraBarcodeList, orderImages, imagesInReadBase);
 
                     createBatchesTable(connection);
                     updateBatchesTable(connection, batchList, prefix);
@@ -567,7 +567,7 @@ public class DefaultTerminalHandler {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, Map<String, RawFileData> orderImages, boolean imagesInReadBase) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, List<SkuExtraBarcode> skuExtraBarcodeList, Map<String, RawFileData> orderImages, boolean imagesInReadBase) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -577,80 +577,40 @@ public class DefaultTerminalHandler {
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
                     if (barcode.idBarcode != null) {
-                        statement.setObject(1, formatValue(barcode.idBarcode)); //idBarcode
-                        statement.setObject(2, formatValue(barcode.nameSku)); //name
-                        statement.setObject(3, formatValue(barcode.price)); //price
-                        statement.setObject(4, formatValue(barcode.quantityBarcodeStock)); //quantity
-                        statement.setObject(5, formatValue(barcode.idSkuBarcode)); //idItem, fld1
-                        statement.setObject(6, formatValue(barcode.nameManufacturer)); //manufacturer, fld2
-                        statement.setObject(7, formatValue(barcode.fld3)); //fld3
-                        statement.setObject(8, formatValue(barcode.fld4)); //fld4
-                        statement.setObject(9, formatValue(barcode.fld5)); //fld5
-                        statement.setObject(10, imagesInReadBase && barcode.image != null ? (barcode.idBarcode + ".jpg") : ""); //image
-                        statement.setObject(11, formatValue(barcode.isWeight)); //weight
-                        statement.setObject(12, formatValue(barcode.mainBarcode)); //main_barcode
-                        statement.setObject(13, formatValue(barcode.color)); //color
-                        statement.setObject(14, formatValue(barcode.extInfo)); //ticket_data
-                        statement.setObject(15, formatValue(barcode.unit)); //unit
-                        statement.setObject(16, barcode.needManufacturingDate ? 1 : 0); //flags
-                        statement.setObject(17, formatValue(barcode.nameCountry)); //nameCountry
-                        statement.setObject(18, formatValue(barcode.amountPack)); //amountPack
-                        statement.addBatch();
+                        String image = imagesInReadBase && barcode.image != null ? (barcode.idBarcode + ".jpg") : null;
+                        addGoodsRow(statement, barcode.idBarcode, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
+                                barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
+                                image, barcode.isWeight, barcode.mainBarcode, barcode.color, barcode.extInfo, barcode.unit,
+                                barcode.needManufacturingDate ? 1 : 0, barcode.nameCountry, barcode.amountPack);
                         usedBarcodes.add(barcode.idBarcode);
                     }
                 }
                 for (TerminalOrder order : orderList) {
                     if (order.barcode != null) {
-                        List<String> extraBarcodeList = order.extraBarcodeList;
-                        if (extraBarcodeList != null) {
-                            for (String extraBarcode : extraBarcodeList) {
+                        List<String> orderExtraBarcodeList = order.extraBarcodeList;
+                        if (orderExtraBarcodeList != null) {
+                            for (String extraBarcode : orderExtraBarcodeList) {
                                 if(!usedBarcodes.contains(extraBarcode)) {
-                                    statement.setObject(1, formatValue(extraBarcode)); //idBarcode
-                                    statement.setObject(2, formatValue(order.name)); //name
-                                    statement.setObject(3, formatValue(order.price)); //price
-                                    statement.setObject(4, ""); //quantity
-                                    statement.setObject(5, formatValue(order.idItem)); //idItem, fld1
-                                    statement.setObject(6, formatValue(order.manufacturer)); //manufacturer, fld2
-                                    statement.setObject(7, ""); //fld3
-                                    statement.setObject(8, ""); //fld4
-                                    statement.setObject(9, ""); //fld5
-                                    statement.setObject(10, imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : ""); //image
-                                    statement.setObject(11, formatValue(order.weight)); //weight
-                                    statement.setObject(12, formatValue(order.barcode)); //main_barcode
-                                    statement.setObject(13, ""); //color
-                                    statement.setObject(14, ""); //ticket_data
-                                    statement.setObject(15, ""); //unit
-                                    statement.setObject(16, 0); //flags
-                                    statement.setObject(17, ""); //nameCountry
-                                    statement.setObject(18, 0); //amountPack
+                                    String image = imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : null;
+                                    addGoodsRow(statement, extraBarcode, order.name, order.price, null, order.idItem, order.manufacturer, null, null, null,
+                                            image, order.weight, order.barcode, null, null, null, 0, null, BigDecimal.ZERO);
                                     statement.addBatch();
                                 }
                             }
                         } else {
                             if(!usedBarcodes.contains(order.barcode)) {
-                                statement.setObject(1, formatValue(order.barcode)); //idBarcode
-                                statement.setObject(2, formatValue(order.name)); //name
-                                statement.setObject(3, formatValue(order.price)); //price
-                                statement.setObject(4, ""); //quantity
-                                statement.setObject(5, formatValue(order.idItem)); //idItem, fld1
-                                statement.setObject(6, formatValue(order.manufacturer)); //manufacturer, fld2
-                                statement.setObject(7, ""); //fld3
-                                statement.setObject(8, ""); //fld4
-                                statement.setObject(9, ""); //fld5
-                                statement.setObject(10, imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : ""); //image
-                                statement.setObject(11, formatValue(order.weight)); //weight
-                                statement.setObject(12, formatValue(order.barcode)); //main_barcode
-                                statement.setObject(13, ""); //color
-                                statement.setObject(14, ""); //ticket_data
-                                statement.setObject(15, ""); //unit
-                                statement.setObject(16, 0); //flags
-                                statement.setObject(17, ""); //nameCountry
-                                statement.setObject(18, 0); //amountPack
-                                statement.addBatch();
+                                String image = imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : null;
+                                addGoodsRow(statement, order.barcode, order.name, order.price, null, order.idItem, order.manufacturer, null, null, null,
+                                        image, order.weight, order.barcode, null, null, null, 0, null, BigDecimal.ZERO);
                             }
                         }
                     }
                 }
+
+                for (SkuExtraBarcode b : skuExtraBarcodeList) {
+                    addGoodsRow(statement, b.idBarcode, b.nameSku, null, null, null, null, null, null, null, null, null, b.mainBarcode, null, null, null, 0, null, BigDecimal.ZERO);
+                }
+
                 statement.executeBatch();
                 connection.commit();
                 connection.createStatement().execute("CREATE INDEX goods_naim ON goods (naim ASC);");
@@ -662,6 +622,30 @@ public class DefaultTerminalHandler {
                 connection.setAutoCommit(true);
             }
         }
+    }
+
+    private void addGoodsRow(PreparedStatement statement, String idBarcode, String name, BigDecimal price, BigDecimal quantity, String idItem, String manufacturer,
+                             String fld3, String fld4, String fld5, String image, String weight, String mainBarcode, String color, String ticketData, String unit,
+                             int flags, String nameCountry, BigDecimal amountPack) throws SQLException {
+        statement.setObject(1, format(idBarcode)); //idBarcode
+        statement.setObject(2, format(name)); //name
+        statement.setObject(3, format(price)); //price
+        statement.setObject(4, format(quantity)); //quantity
+        statement.setObject(5, format(idItem)); //idItem, fld1
+        statement.setObject(6, format(manufacturer)); //manufacturer, fld2
+        statement.setObject(7, format(fld3)); //fld3
+        statement.setObject(8, format(fld4)); //fld4
+        statement.setObject(9, format(fld5)); //fld5
+        statement.setObject(10, format(image)); //image
+        statement.setObject(11, format(weight)); //weight
+        statement.setObject(12, format(mainBarcode)); //main_barcode
+        statement.setObject(13, format(color)); //color
+        statement.setObject(14, format(ticketData)); //ticket_data
+        statement.setObject(15, format(unit)); //unit
+        statement.setObject(16, flags); //flags
+        statement.setObject(17, format(nameCountry)); //nameCountry
+        statement.setObject(18, amountPack); //amountPack
+        statement.addBatch();
     }
 
     private void createAssortTable(Connection connection) throws SQLException {
@@ -926,6 +910,10 @@ public class DefaultTerminalHandler {
         }
     }
 
+    private Object format(Object value) {
+        return nvl(value, "");
+    }
+
     private Object formatValue(Object value) {
         return value == null ? "" : value instanceof LocalDate ? ((LocalDate) value).format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : value;
     }
@@ -1145,6 +1133,35 @@ public class DefaultTerminalHandler {
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    public static List<SkuExtraBarcode> readSkuExtraBarcodeList(DataSession session, ObjectValue customerStockObject) throws SQLException {
+        List<SkuExtraBarcode> skuExtraBarcodeList = new ArrayList<>();
+        if (terminalHandlerLM != null) {
+            try {
+                KeyExpr skuExpr = new KeyExpr("sku");
+                ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev("Sku", skuExpr);
+                QueryBuilder<Object, Object> skuQuery = new QueryBuilder<>(skuKeys);
+                skuQuery.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
+                skuQuery.addProperty("nameSku", terminalHandlerLM.findProperty("name[Sku]").getExpr(skuExpr));
+                skuQuery.addProperty("extraBarcodes", terminalHandlerLM.findProperty("extraBarcodes[Sku,Stock]").getExpr(skuExpr, customerStockObject.getExpr()));
+                skuQuery.and(terminalHandlerLM.findProperty("extraBarcodes[Sku,Stock]").getExpr(skuExpr, customerStockObject.getExpr()).getWhere());
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
+                for (int i = 0, size = skuResult.size(); i < size; i++) {
+                    ImMap<Object, Object> entry = skuResult.getValue(i);
+                    String idBarcodeSku = (String) entry.get("idBarcodeSku");
+                    String nameSku = (String) entry.get("nameSku");
+                    String[] extraBarcodes = trimToEmpty((String) entry.get("extraBarcodes")).split(",");
+                    for(String extraBarcode : extraBarcodes) {
+                        skuExtraBarcodeList.add(new SkuExtraBarcode(extraBarcode, nameSku, idBarcodeSku));
+                    }
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return skuExtraBarcodeList;
     }
 
     public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
@@ -1680,6 +1697,18 @@ public class DefaultTerminalHandler {
             this.maxDate1 = maxDate1;
             this.vop = vop;
             this.extraBarcodeList = extraBarcodeList;
+        }
+    }
+
+    private static class SkuExtraBarcode {
+        String idBarcode;
+        String nameSku;
+        String mainBarcode;
+
+        public SkuExtraBarcode(String idBarcode, String nameSku, String mainBarcode) {
+            this.idBarcode = idBarcode;
+            this.nameSku = nameSku;
+            this.mainBarcode = mainBarcode;
         }
     }
 
