@@ -1192,49 +1192,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportClntGrp(Connection conn, AstronConnectionString params, String tbl, List<DiscountCard> discountCardList, Integer updateNum) throws SQLException {
-        String[] keys = new String[]{"CLNTGRPID"};
-        String[] columns = getColumns(new String[]{"CLNTGRPID", "DISCID", "BONUSID", "CLNTGRPNAME", "CLNTGRPMANUAL", "CLNTGRPTYPE", "DELFLAG"}, updateNum);
-        try (PreparedStatement ps = getPreparedStatement(conn, params, tbl, columns, keys)) {
-            int offset = columns.length + keys.length;
-
-            Set<Integer> usedGroups = new HashSet<>();
-            for (DiscountCard discountCard : discountCardList) {
-                if (!Thread.currentThread().isInterrupted()) {
-                    Integer idClientGroup = getClientGroupId(discountCard);
-                    String nameClientGroup = nvl(discountCard.nameDiscountCardType, "");
-                    if(usedGroups.add(idClientGroup)) {
-                        if (params.pgsql) {
-                            setObject(ps, idClientGroup, 1); //CLNTGRPID
-                            setObject(ps, null, 2); //DISCID
-                            setObject(ps, null, 3); //BONUSID
-                            setObject(ps, nameClientGroup, 4); //CLNTGRPNAME
-                            setObject(ps, 0, 5); //CLNTGRPMANUAL
-                            setObject(ps, 0, 6); //CLNTGRPTYPE
-                            setObject(ps, 0, 7); //DELFLAG
-                        } else {
-                            setObject(ps, null, 1, offset); //DISCID
-                            setObject(ps, null, 2, offset); //BONUSID
-                            setObject(ps, nameClientGroup, 3, offset); //CLNTGRPNAME
-                            setObject(ps, 0, 4, offset); //CLNTGRPMANUAL
-                            setObject(ps, 0, 5, offset); //CLNTGRPTYPE
-                            setObject(ps, 0, 6, offset); //DELFLAG
-
-                            if (updateNum != null) {
-                                setObject(ps, updateNum, 7, offset);
-                            }
-
-                            setObject(ps, idClientGroup, updateNum != null ? 8 : 7, keys.length); //CLNTGRPID
-                        }
-
-                        ps.addBatch();
-                    }
-                } else break;
-            }
-            executeAndCommitBatch(ps, conn);
-        }
-    }
-
     private void exportClnt(Connection conn, AstronConnectionString params, String tbl, List<DiscountCard> discountCardList, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"CLNTID"};
         String[] columns = getColumns(new String[]{"CLNTID", "CLNTGRPID", "COMPANYID", "PROPERTYGRPID", "CLNTNAME", "CLNTBIRTHDAY", "LOCKED", "DELFLAG", "PRIMARYEMAIL", "PRIMARYPHONE"}, updateNum);
@@ -1244,7 +1201,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (DiscountCard d : discountCardList) {
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer clientId = getClientId(d);
-                    Integer clientGroupId = getClientGroupId(d);
+                    Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
                     String clientName = StringUtils.join(Arrays.stream(new String[] {d.lastNameContact, d.firstNameContact, d.middleNameContact}).filter(Objects::nonNull), " ");
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null;
                     if(params.pgsql) {
@@ -1282,6 +1239,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
+    private boolean isSocial(DiscountCard d) {
+        JSONObject infoJSON = getExtInfo(d.extInfo);
+        return infoJSON != null && infoJSON.optJSONArray("clientAnswers") != null;
+    }
     private void exportClntForm(Connection conn, AstronConnectionString params, String tbl, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"CLNTFORMID"};
         String[] columns = getColumns(new String[]{"CLNTFORMID", "CLNTFORMNAME", "ORDERNUM", "USESAREA", "ACTIVEFROM", "ACTIVETO", "DELFLAG"}, updateNum);
@@ -1402,10 +1363,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private Integer getClientId(DiscountCard discountCard) {
         return Integer.parseInt(discountCard.idDiscountCard);
-    }
-
-    private Integer getClientGroupId(DiscountCard discountCard) {
-        return Integer.parseInt(discountCard.idDiscountCardType);
     }
 
     private boolean isValidItem(TransactionCashRegisterInfo transaction, Map<String, CashRegisterItem> deleteBarcodeMap, List<CashRegisterItem> usedDeleteBarcodeList, CashRegisterItem item) {
@@ -1553,7 +1510,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void truncateTablesDiscountCard(Connection conn, boolean exportDiscountCardExtraTables) throws SQLException {
-        for (String table : exportDiscountCardExtraTables ? new String[]{"DCARD", "CLNTGRP", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY"} : new String[] {"DCARD"}) {
+        for (String table : exportDiscountCardExtraTables ? new String[]{"DCARD", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY"} : new String[] {"DCARD"}) {
             try (Statement s = conn.createStatement()) {
                 s.execute("TRUNCATE TABLE " + table);
             }
@@ -1791,7 +1748,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             } else {
 
                 try (Connection conn = getConnection(params)) {
-                    String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNTGRP', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
+                    String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
 
                     boolean versionalScheme = params.versionalScheme(isVersionalScheme);
                     Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
@@ -1809,11 +1766,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         outputUpdateNums.put("DCARD", dcardUpdateNum);
 
                         if(exportDiscountCardExtraTables) {
-
-                            String clntGrpTbl = "CLNTGRP";
-                            Integer clntgrpUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntGrpTbl);
-                            exportClntGrp(conn, params, clntGrpTbl, discountCardList, clntgrpUpdateNum);
-                            outputUpdateNums.put(clntGrpTbl, clntgrpUpdateNum);
 
                             String clntTbl = "CLNT";
                             Integer clntUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntTbl);
