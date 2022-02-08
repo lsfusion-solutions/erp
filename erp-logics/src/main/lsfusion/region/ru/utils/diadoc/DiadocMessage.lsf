@@ -1010,10 +1010,32 @@ NAVIGATOR {
 
 //------------ Получение сообщений -------------//
 
+lastEventId 'Идентификатор последнего события' = DATA STRING (Box);
+
+fillLastEvent = DATA BOOLEAN ();
+onStarted () + {
+    IF NOT fillLastEvent() THEN {
+        lastEventId(Box b) <- eventId(GROUP LAST BoxEvent e IF e IS BoxEvent ORDER timestampTicks(e), e);
+        fillLastEvent() <- TRUE;
+    }
+}
+
+EXTEND FORM integrationData
+    OBJECTS db = Box
+    PROPERTIES(db) READONLY boxId, title
+    PROPERTIES(db) lastEventId
+;
+DESIGN integrationData {
+    diadocAPI {
+        MOVE BOX(db);
+    }
+}
+
 totalCount = DATA LOCAL INTEGER ();
 totalCountType = DATA LOCAL STRING ();
 
 eventId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+eventTimestampTicks = DATA LOCAL LONG (INTEGER);
 
 GROUP message EXTID 'Message';
 messageId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
@@ -1493,12 +1515,14 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
 
         WHILE NOT totalCountType() == 'Equal' DO {
             LOCAL result = FILE ();
-            LOCAL lastEvent = BoxEvent ();
+            //LOCAL lastEvent = BoxEvent ();
 
-            lastEvent() <- GROUP LAST BoxEvent e IF e IS BoxEvent ORDER timestampTicks(e), e;
+            //lastEvent() <- GROUP LAST BoxEvent e IF e IS BoxEvent ORDER timestampTicks(e), e;
+            
+            eventTimestampTicks(INTEGER i) <- NULL;
             
             TRY {
-                EXTERNAL HTTP GET url() + '/GetNewEvents?boxId=' + boxId(box) + (OVERRIDE '&afterEventId=' + eventId(lastEvent()),'') HEADERS httpHeadersToken TO result;
+                EXTERNAL HTTP GET url() + '/GetNewEvents?boxId=' + boxId(box) + (OVERRIDE '&afterEventId=' + lastEventId(box),'') HEADERS httpHeadersToken TO result;
                 //fileToString(result(), 'UTF-8');                
                 IMPORT importEvents JSON FROM result();
             } CATCH {
@@ -1531,6 +1555,7 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                 messageType(m) <- messageType(messageType(i));
                 isReusable(m) <- isReusable(i);
                 message(boxEvent(eventId(i))) <- m;
+                eventTimestampTicks(i) <- timestampTicks(i);
             }
             //todo : бывает ситуации когда один и тот же entity содержится в разных message (например черновики), тогда падает ошибка на дублирующие объекты
             //или переделать ссылки между entity и message (сейчас 1 к 1), или создавать только 1 объект entity и привязывать к 1 message, остальные будут без документов
@@ -1647,6 +1672,7 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                 deliveredEventId(p) <- deliveredEventId(i);
                 messageType(p) <- messageType(messageTypeP(i));
                 patch(boxEvent(eventId(i))) <- p;
+                eventTimestampTicks(i) <- timestampTicksP(i);
                 lastPatchTimestampTicks(message(p)) <- timestampTicks(p) WHERE timestampTicks(p) > lastPatchTimestampTicks(message(p));
             }
             FOR entityIdP(INTEGER i) AND NOT entity(entityIdP(i)) NEW e = Entity DO {
@@ -1747,6 +1773,8 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                     metadata(d,keyDP(m)) <- valueDP(m);
                 }
             }
+            
+            lastEventId(box) <- OVERRIDE (GROUP LAST eventId(INTEGER i) ORDER eventTimestampTicks(i)), lastEventId(box);
         }
         APPLY;
     }
