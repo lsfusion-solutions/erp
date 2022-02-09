@@ -1204,7 +1204,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Integer clientId = getClientId(d);
                     Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
                     String clientName = d.numberDiscountCard;;
-                    String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null;
+                    String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "000000" : null;
                     if(params.pgsql) {
                         setObject(ps, clientId, 1); //CLNTID
                         setObject(ps, clientGroupId, 2); //CLNTGRPID
