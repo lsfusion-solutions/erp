@@ -178,14 +178,22 @@ overSucceeded(RequestExchange r, EquipmentServer e) = succeeded(r) AND succeeded
 notOverSucceeded(RequestExchange r, EquipmentServer e) = NOT overSucceeded(r, e) AND r IS RequestExchange;
 overSucceeded(RequestExchange r, STRING sidEquipmentServer) = overSucceeded(r, sidTo(sidEquipmentServer));
 
-equipmentServerCount() = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND e IS EquipmentServer;
-succededEquipmentServerCount(RequestExchange r) = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND overSucceeded(r, e);
+equipmentServerCount(RequestExchange r) = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND hasMachinery(r, e);
+succededEquipmentServerCount(RequestExchange r) = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND hasMachinery(r, e) AND overSucceeded(r, e);
 
-allSucceeded(RequestExchange r) = succeeded(r) AND succededEquipmentServerCount(r) = equipmentServerCount();
+allSucceeded(RequestExchange r) = succeeded(r) AND succededEquipmentServerCount(r) = equipmentServerCount(r);
+partiallySucceeded(RequestExchange r) = succededEquipmentServerCount(r) AND succededEquipmentServerCount(r) < equipmentServerCount(r);
 statusSucceeded 'Статус загрузки' (RequestExchange r) = CASE 
     WHEN allSucceeded(r) THEN 'Успешно загружен'
-    WHEN succededEquipmentServerCount(r) AND succededEquipmentServerCount(r) < equipmentServerCount() THEN 'Частично загружен'
-    ELSE 'Не загружался' CHARWIDTH 10;
+    WHEN partiallySucceeded(r) THEN 'Частично загружен'
+    ELSE 'Не загружен' CHARWIDTH 10;
+
+backgroundStatusSucceeded(RequestExchange r) = CASE 
+    WHEN allSucceeded(r) THEN RGB(212,255,212)
+    WHEN partiallySucceeded(r) THEN RGB(255,238,165)    
+    ELSE RGB(255,255,255);
+
+quantityRequestExchangeError 'Количество ошибок' (RequestExchange r) = GROUP SUM 1 IF requestExchange(RequestExchangeError e) == r;
 
 migratedSucceeded = DATA BOOLEAN();
 onStarted() + {
@@ -200,7 +208,7 @@ onStarted() + {
 }
 
 EXTEND FORM requestExchanges
-    PROPERTIES (r) AFTER dateTimeSucceeded(r) statusSucceeded
+    PROPERTIES (r) AFTER dateTimeSucceeded(r) statusSucceeded BACKGROUND backgroundStatusSucceeded(r), quantityRequestExchangeError BACKGROUND quantityRequestExchangeError(r)
     
     OBJECTS es = EquipmentServer 
     PROPERTIES(es) name, sid
