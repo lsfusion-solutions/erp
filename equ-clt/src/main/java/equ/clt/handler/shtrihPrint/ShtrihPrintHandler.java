@@ -36,6 +36,10 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
         return "Shtrih: ";
     }
 
+    protected String getPassword() {
+        return "0030";
+    }
+
     public String getGroupId(TransactionScalesInfo transactionInfo) {
 
         ShtrihPrintSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ShtrihPrintSettings) springContext.getBean("shtrihSettings") : new ShtrihPrintSettings();
@@ -841,7 +845,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     }
 
     private byte[] getPasswordBytes() throws UnsupportedEncodingException {
-        return getStringBytes("0030", 4);
+        return getStringBytes(getPassword(), 4);
     }
 
     private void logError(List<String> errors, String errorText) {
