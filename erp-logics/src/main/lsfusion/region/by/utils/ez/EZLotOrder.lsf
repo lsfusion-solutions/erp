@@ -1,6 +1,6 @@
 MODULE EZLotOrder;
 
-REQUIRE EZAuthentication, LotOrder, CryptoProLegalEntity, LotBy;
+REQUIRE EZAuthentication, LotOrder, CryptoProLegalEntity, LotBy, CustomsGroupItem;
 
 NAMESPACE EZ;
 
@@ -19,8 +19,6 @@ DESIGN integrationData {
         MOVE PROPERTY(quantityLotLimit());
     }
 }
-
-idExtType 'Код типа' (LotOrder o) = idExt(type(o)); 
 
 DESIGN lotOrders {
     tabbedPane {
@@ -229,11 +227,13 @@ DESIGN lotOrders {
 
 //
 idOrderExt (LotOrder o, STRING[14] gtin) = idOrderEZ (GROUP MIN LotOrderDetail d IF o == lotOrder(d) AND gtin(d) == gtin);
+identificationMeansType 'Вид средства идентификации' = DATA IdentificationMeansType (LotOrder) NONULL;
+
 listGTINJSON (LotOrder o) = 
 GROUP CONCAT ('"' + (STRING[14] gtin) + '": \{ "count": ' + INTEGER(quantity(o, gtin)) + ', ' +
-                                              '"label_type": ' + idExtType(o) + ' \}'), ', ' IF quantity(o, gtin) AND NOT idOrderExt(o, gtin) ORDER gtin; 
+                                              '"label_type": ' + id(identificationMeansType(o)) + ' \}'), ', ' IF quantity(o, gtin) AND NOT idOrderExt(o, gtin) ORDER gtin; 
 
-addGroupOrdersJSON (LotOrder o) = '\{ "group": "shoes", ' + 
+addGroupOrdersJSON (LotOrder o) = '\{ "group": "' + codeGroup(type(o)) + '", ' + 
                                                     '"orders": \{ ' + listGTINJSON(o) + ' \} \}';
 
 listidOrderEZ (LotOrder o)= GROUP CONCAT idOrderExt (o, STRING[14] gtin), ', ' ORDER gtin;
@@ -568,4 +568,37 @@ existDifferentGtin (LotOrderDetail d) = (GROUP SUM 1 IF lotOrder(LotOrderDetail 
 EXTEND FORM lots 
     PROPERTIES (l) getStatusApply TOOLBAR
 ;
- 
+
+isSuitableTNVEDClothes (Sku sku) = 
+    GROUP SUM 1 IF isParent(customsGroup(defaultCountry(), sku), CustomsGroup g) AND 
+                   (code(g) == '6201' OR code(g) == '6202' OR code(g) == '6302');
+
+CONSTRAINT (SETCHANGED(sku(LotOrderDetail d)) OR SETCHANGED(type(lotOrder(d)))) AND type(lotOrder(d)) == LotType.clothes AND NOT isSuitableTNVEDClothes(sku(d))
+    CHECKED BY sku[LotOrderDetail] 
+    MESSAGE 'Товар с типом маркировки "Легкая промышленность" не соответствует кодам ТН ВЭД 6201, 6202 или 6302';
+
+nameIdentificationMeansType 'Вид средства идентификации' (LotOrder o) = name(identificationMeansType(o));
+
+EXTEND FORM lotOrder
+    PROPERTIES(o) READONLY nameIdentificationMeansType
+;
+
+DESIGN lotOrder { 
+    headerRow3 {
+        MOVE PROPERTY(nameIdentificationMeansType(o)) { notNull = TRUE; };
+        MOVE PROPERTY(nameType(o)) { notNull = TRUE; };
+        MOVE PROPERTY(nameStock(o)) { notNull = TRUE; };
+    }
+}
+
+identificationMeansType (LotOrder o) <- IdentificationMeansType.shoesTiresClothes WHEN SET(o IS LotOrder);
+
+migrateSetIdentificationMeansType = DATA BOOLEAN ();
+
+onStarted() + { 
+    IF NOT migrateSetIdentificationMeansType() THEN NEWSESSION {
+        identificationMeansType(LotOrder o) <- IdentificationMeansType.shoesTiresClothes WHERE NOT identificationMeansType(o);
+        migrateSetIdentificationMeansType() <- TRUE;
+        APPLY;
+    }  
+}

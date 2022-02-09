@@ -69,7 +69,7 @@ getStatusReport 'Получить статус' (ReportEZ r) {
     
 FORM addMark 'Отчет о маркировке'
 
-    PROPERTIES group = 'shoes'
+    PROPERTIES group = codeGroup(type(lotInit()))
 
     OBJECTS labels = Lot
     PROPERTIES (labels) code 
@@ -78,6 +78,22 @@ FORM addMark 'Отчет о маркировке'
 
 nameSku(LotInit i) = nameSku(GROUP MAX LotInitDetail d IF lotInit(d) == i);
 
+getLabesTypes 'Типы кодов' (LotInit i) {          
+    LOCAL result = FILE();       
+    exception(i) <- NULL;    
+    
+    TRY { 
+        EXTERNAL HTTP GET urlEZ() + '/labels/types' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        handleException(i, result());
+        RETURN;
+    }       
+    fileToString(result());
+    MESSAGE resultString();
+}
+
+code 'Код раздела товаров' = DATA LOCAL STRING ();
+
 getParameters 'Получить параметры' (LotInit i) {
           
     LOCAL result = FILE();   
@@ -85,15 +101,32 @@ getParameters 'Получить параметры' (LotInit i) {
     exception(i) <- NULL;    
     
     TRY {
-        EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result;
+  //      EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result; // Обувь
+         EXTERNAL HTTP POST urlEZ() + '/catalogs/' + code()  HEADERS ezHeadersLotOrder TO result; // 
     } CATCH {
         handleException(i, result());
         RETURN;
     }       
     fileToString(result());
-//    MESSAGE resultString();
-        
+    MESSAGE resultString();
 }    
+
+getCatalogs 'Разделы каталога товаров' (LotInit i) {
+          
+    LOCAL result = FILE();
+    
+    exception(i) <- NULL;    
+    
+    TRY {
+  //      EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result; // Обувь
+         EXTERNAL HTTP POST urlEZ() + '/catalogs/'  HEADERS ezHeadersLotOrder TO result; // 
+    } CATCH {
+        handleException(i, result());
+        RETURN;
+    }       
+    fileToString(result());
+    MESSAGE resultString();        
+} 
 
 overGtin = ABSTRACT STRING[14] (LotInitDetail);
 gtin 'GTIN' (LotInitDetail d) = OVERRIDE overGtin(d), gtin(sku(d));
@@ -190,13 +223,18 @@ addMark 'Отправить отчет'(LotInit i) {
 }
 
 EXTEND FORM lotInits 
-    PROPERTIES (i) addMark SHOWIF isPosted(i) AND NOT isSend(i)
+    PROPERTIES (i) addMark SHOWIF isPosted(i) AND NOT isSend(i)//, getParameters, getLabesTypes, getCatalogs
+    //PROPERTIES() code
 ;
 
 DESIGN lotInits {
     tabbedPane {        
         ez {
-            MOVE PROPERTY(addMark(i));           
+            MOVE PROPERTY(addMark(i));
+//            MOVE PROPERTY(code());
+//            MOVE PROPERTY(getParameters(i));
+//            MOVE PROPERTY(getLabesTypes(i));
+//            MOVE PROPERTY(getCatalogs(i));
         }
     }
 }
@@ -210,7 +248,6 @@ DESIGN lotInit {
         MOVE PROPERTY(isSend(i));
     }
 }
-
 
 EXTEND FORM lotInit   
     PROPERTIES(r) getStatusReport TOOLBAR

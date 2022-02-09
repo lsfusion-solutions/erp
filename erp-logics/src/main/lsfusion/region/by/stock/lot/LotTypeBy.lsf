@@ -4,15 +4,38 @@ REQUIRE LotType;
 
 NAMESPACE Stock;
 
-EXTEND CLASS LotType  {
-    shoes 'Код РБ идентификации товара (обувь, шины)'
+EXTEND CLASS LotType {
+    shoes 'Обувь',
+    clothes 'Легкая промышленность'
 }
 
-filterEZLotType (LotType t) = t == LotType.shoes;
-idExt (LotType t) = IF t == LotType.shoes THEN '20';
+codeGroup 'Код группы' (LotType g) = CASE
+                            WHEN g == LotType.shoes THEN 'shoes'
+                            WHEN g == LotType.clothes THEN 'clothes';  
+                            
+DESIGN dialogLotTypes {
+    caption = 'Категория';
+}
+
+filterEZLotType (LotType t) = t == LotType.shoes OR t == LotType.clothes;
+
+CLASS IdentificationMeansType 'Вид средства идентификации' {
+    shoesTiresClothes 'Код РБ идентификации товара (обувь, шины, легкая промышленность)'
+}   
+
+name 'Наименование' (IdentificationMeansType t) = staticCaption(t) IF t IS IdentificationMeansType CHARWIDTH 20;
+
+FORM dialogIdentificationMeansType 'Выбор вида средства идентификации'
+    OBJECTS t = IdentificationMeansType
+    PROPERTIES(t) READONLY name
+    
+    LIST IdentificationMeansType OBJECT t
+;                                        
+                                         
+id (IdentificationMeansType t) = CASE
+    WHEN t == IdentificationMeansType.shoesTiresClothes THEN '20';
 
 EXTEND FORM dialogLotTypes
-    PROPERTIES(t) READONLY idExt BEFORE name(t)
+    PROPERTIES(t) READONLY id BEFORE name(t)
     FILTERS filterEZLotType(t)
 ;
-
