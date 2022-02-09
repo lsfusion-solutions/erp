@@ -77,6 +77,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         boolean isExportSoftCheckItem = artixSettings.isExportSoftCheckItem();
         Integer timeout = artixSettings.getTimeout();
         boolean medicineMode = artixSettings.isMedicineMode();
+        boolean medicineModeNewScheme = artixSettings.isMedicineModeNewScheme();
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, Exception> failedTransactionMap = new HashMap<>();
@@ -151,7 +152,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             if (country != null) {
                                                 writeStringToFile(tmpFile, country + "\n---\n");
                                             }
-                                            String medicine = getAddMedicineJSON(item, batch, appendBarcode);
+                                            String medicine = getAddMedicineJSON(item, batch, appendBarcode, medicineModeNewScheme);
                                             if (medicine != null) {
                                                 batchItems.add(item.mainBarcode);
                                                 writeStringToFile(tmpFile, medicine + "\n---\n");
@@ -174,7 +175,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode, medicineMode);
+                                String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode, medicineMode, medicineModeNewScheme);
                                 if(inventItem != null) {
                                     writeStringToFile(tmpFile, inventItem + "\n---\n");
                                 } else {
@@ -309,7 +310,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
 
-    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode, boolean medicineMode) throws JSONException {
+    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode, boolean medicineMode, boolean medicineModeNewScheme) throws JSONException {
         Set<CashRegisterItem> barcodes = new HashSet<>();
         for(CashRegisterItem item : items) {
             //если есть addMedicine, дополнительные ШК не выгружаем
@@ -474,9 +475,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
             inventObject.put("options", itemOptions);
 
-            if(!medicineMode) {
+            if(medicineModeNewScheme) {
+                if (!medicineMode) {
+                    Integer blisterAmount = getMaxBlisterAmount(item);
+                    if (blisterAmount != null) {
+                        inventObject.put("cquant", blisterAmount);
+                    }
+                }
+            } else {
                 Integer blisterAmount = getMaxBlisterAmount(item);
-                if (blisterAmount != null) {
+                if(blisterAmount != null) {
                     inventObject.put("cquant", blisterAmount);
                 }
             }
@@ -562,24 +570,31 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         } else return null;
     }
 
-    private String getAddMedicineJSON(CashRegisterItem item, CashRegisterItemBatch batch, boolean appendBarcode) throws JSONException {
+    private String getAddMedicineJSON(CashRegisterItem item, CashRegisterItemBatch batch, boolean appendBarcode, boolean medicineModeNewScheme) throws JSONException {
         JSONObject rootObject = new JSONObject();
         JSONObject medicineObject = new JSONObject();
         rootObject.put("medicine", medicineObject);
         medicineObject.put("code", batch.idBatch);
         medicineObject.put("party", batch.dateBatch);
-        medicineObject.put("supplydate", batch.dateBatch);
+        if(medicineModeNewScheme) {
+            medicineObject.put("supplydate", batch.dateBatch);
+        }
         medicineObject.put("barcode", removeCheckDigitFromBarcode(item.mainBarcode, appendBarcode));
         medicineObject.put("shelflife", batch.expiryDate);
         medicineObject.put("series", batch.seriesPharmacy);
         medicineObject.put("producer", batch.nameManufacturer);
         medicineObject.put("price", batch.price);
         medicineObject.put("inn", batch.nameSubstance);
-        if(batch.balanceBlister != null) {
+        if (medicineModeNewScheme) {
+            if (batch.balanceBlister != null) {
+                medicineObject.put("cquant", nvl(batch.blisterAmount, 1));
+                medicineObject.put("remainquant", batch.balanceBlister);
+            } else {
+                medicineObject.put("packquant", batch.balance);
+            }
+        } else {
             medicineObject.put("cquant", nvl(batch.blisterAmount, 1));
             medicineObject.put("remainquant", batch.balanceBlister);
-        } else {
-            medicineObject.put("packquant", batch.balance);
         }
         medicineObject.put("remaindatetime", batch.balanceDate);
         medicineObject.put("countrycode", batch.countryCode);

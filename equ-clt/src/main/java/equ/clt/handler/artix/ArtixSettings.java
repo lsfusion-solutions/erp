@@ -75,6 +75,9 @@ public class ArtixSettings implements Serializable{
     //Если true, не выполняем запросы "Загрузить данные о кассирах" (рассчитываем, что выполнится аналогичный код в lsf)
     private boolean ignoreCashierInfoRequests;
 
+    //временная опция для включения новой схемы medicineMode
+    private boolean medicineModeNewScheme;
+
     public ArtixSettings() {
     }
 
@@ -268,5 +271,13 @@ public class ArtixSettings implements Serializable{
 
     public void setIgnoreCashierInfoRequests(boolean ignoreCashierInfoRequests) {
         this.ignoreCashierInfoRequests = ignoreCashierInfoRequests;
+    }
+
+    public boolean isMedicineModeNewScheme() {
+        return medicineModeNewScheme;
+    }
+
+    public void setMedicineModeNewScheme(boolean medicineModeNewScheme) {
+        this.medicineModeNewScheme = medicineModeNewScheme;
     }
 }
