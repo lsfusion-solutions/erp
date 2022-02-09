@@ -1203,7 +1203,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer clientId = getClientId(d);
                     Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
-                    String clientName = StringUtils.join(Arrays.stream(new String[] {d.lastNameContact, d.firstNameContact, d.middleNameContact}).filter(Objects::nonNull).toArray(), " ");
+                    String clientName = d.numberDiscountCard;;
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null;
                     if(params.pgsql) {
                         setObject(ps, clientId, 1); //CLNTID
