@@ -110,9 +110,10 @@ CONSTRAINT contract(Payment payment) IS Contract AND isReturn(payment) AND NOT p
         
 @implementContractLedger( , Payment, contract);
 
+customSumContract = ABSTRACT NUMERIC[18,4] (Payment);
 overSumContract(Payment payment) = IF isReturn(payment) 
-                                    THEN sumContract(payment)
-                                    ELSE -sumContract(payment);
+                                    THEN OVERRIDE customSumContract(payment), sumContract(payment)
+                                    ELSE OVERRIDE -customSumContract(payment), -sumContract(payment);
                                     
 sum[ContractLedger](Payment contractLedger) += overSumContract(contractLedger);
 
