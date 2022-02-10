@@ -1242,7 +1242,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private boolean isSocial(DiscountCard d) {
         JSONObject infoJSON = getExtInfo(d.extInfo);
-        return infoJSON != null && infoJSON.optJSONArray("clientAnswers") != null;
+        if(infoJSON != null) {
+            JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
+            if(clientAnswers != null && clientAnswers.length() >= 4) {
+                return clientAnswers.getString(3).equals("Да");
+            }
+        }
+        return false;
     }
     private void exportClntForm(Connection conn, AstronConnectionString params, String tbl, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"CLNTFORMID"};
