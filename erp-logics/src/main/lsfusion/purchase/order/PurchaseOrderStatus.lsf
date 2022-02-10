@@ -55,6 +55,9 @@ isRejected 'Отменен' (o) = ABSTRACT BOOLEAN(Order);
 isRejected 'Отменен' (o) = DATA BOOLEAN (UserOrder);
 isRejected(UserOrder o) += isRejected(o);  
 
+isRejected 'Отменен' (OrderDetail d) = isRejected(order(d));
+isRejected 'Отменен' (UserOrderDetail d) = isRejected(userOrder(d));
+
 CLASS StatusOrder 'Статус'{
     create 'Создан',
     sent 'Отправлен',    
@@ -301,3 +304,8 @@ postConfirmedOrders 'Провести подтвержденные заказы'
         APPLY;
     }
 }
+
+// проводим отправленные заказы
+@defineOption(sentOrderLedger, 'Резервировать отправленные заказы', BOOLEAN, orders);
+
+overIsPosted(OrderDetail d) += isSent(d) AND NOT isRejected(d) AND isOpened(order(d)) AND sentOrderLedger();
