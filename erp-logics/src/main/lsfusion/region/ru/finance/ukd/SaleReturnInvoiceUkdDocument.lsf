@@ -1,0 +1,133 @@
+MODULE SaleReturnInvoiceUkdDocument;
+
+REQUIRE SaleReturnInvoice, UkdDocument;
+PRIORITY SaleReturn;
+
+NAMESPACE Ukd;
+
+EXTEND CLASS Invoice: UkdBaseDocument;
+supplier(Invoice c) += SaleReturn.supplier(c);
+isClosed(Invoice c) += SaleReturn.isClosed(c);
+
+invoice = DATA Invoice(UkdDocument);
+invoiceDetail = DATA InvoiceDetail(UkdDocumentDetail);
+
+ukdDocument = GROUP AGGR UkdDocument ei BY invoice(ei);
+
+ukdBaseDocument (UkdDocument ukd) += invoice(ukd);
+
+
+invoice = GROUP MAX Sale.Invoice i IF [GROUP SUM 1 BY invoice(SaleReturn.InvoiceDetail d),  invoice(invoiceDetail(d))](SaleReturn.Invoice ri,i) BY ri;
+
+@fillUkdDocument(invoice, Sale, SaleReturn);
+
+createUkd 'Создать УКД' (Invoice invoice)  {
+    IF NOT ukdDocument(invoice) THEN NEWSESSION {
+        NEW ei = UkdDocument {
+            fill(invoice, ei);
+        }
+        APPLY;
+        IF NOT canceled() THEN {
+            MESSAGE 'УКД создан';    
+        }
+    }
+}
+
+recreateUkdDocument (Invoice invoice) {
+    DELETE UkdDocumentDetail d WHERE ukdDocument(d)=ukdDocument(invoice);
+    DELETE UkdDocumentInfoDetail d WHERE ukdDocument(d)=ukdDocument(invoice);
+    fill(invoice, ukdDocument(invoice));
+}
+
+recreateUkd 'Перезаполнить УКД' (Invoice invoice) {
+    IF ukdDocument(invoice) THEN {
+        IF isTransferred(ukdDocument(invoice)) THEN {
+            MESSAGE 'Документ УКД не может быть пересоздан, т.к. уже отправлен' NOWAIT;
+        } ELSE {
+            recreateUkdDocument(invoice);
+            APPLY;
+            IF NOT canceled() THEN {
+                MESSAGE 'УКД перезаполнен';    
+            }                
+        }
+    } ELSE {
+        createUkd(invoice);
+    }
+}
+
+selectRI 'Отм.' = DATA LOCAL BOOLEAN (Invoice);
+countSelectRI = GROUP SUM 1 IF selectRI(Invoice c);
+
+captionCreateUkd (Invoice invoice) = 
+    IF countSelectRI() 
+        THEN 'Создать УКД (отм.)'
+        ELSE IF ukdDocument(invoice) 
+            THEN 'Перезаполнить УКД' ELSE 'Создать УКД';
+
+showUkd 'Просмотреть УКД' (Invoice i) {
+    show(ukdDocument(i));
+}
+
+editUkd 'Редактировать УКД' (Invoice i) {
+    edit(ukdDocument(i));
+} IMAGE 'edit.png';
+
+createInvoiceUkdDocuments 'Создать УКД (отм.)' () {
+    IF countSelectRI() THEN {
+        NEWSESSION NESTED(selectRI[Invoice]) {
+            LOCAL count = INTEGER ();
+            count() <- countSelectRI();
+            FOR selectRI(Invoice i) DO {
+                IF ukdDocument(i) THEN {
+                    recreateUkdDocument(i);
+                } ELSE {
+                    NEW ei = UkdDocument {
+                        fill(i, ei);
+                    }
+                }
+            }
+            APPLY NESTED(count);
+            IF NOT canceled() THEN MESSAGE CONCAT ' ', 'Обработано', count(), 'документов(-а).';
+        }    
+    } ELSE {
+        MESSAGE 'Проставьте признак "Отм." для обрабатываемых документов.';
+    }
+}
+
+createUkdDocuments (Invoice invoice) {
+     IF countSelectRI() THEN {
+        createInvoiceUkdDocuments();   
+     } ELSE {
+        recreateUkd(invoice);
+     }
+}
+
+ukdInvoiceNumber 'Номер КСЧФ' (Invoice i) = numberInvoice(ukdDocument(i));
+
+EXTEND FORM invoices
+    PROPERTIES (i) selectRI FIRST
+    PROPERTIES (i) READONLY ukdInvoiceNumber AFTER series(i)
+    PROPERTIES //createUpd(i) SHOWIF NOT updDocument(i),
+               createUkdDocuments(i) HEADER captionCreateUkd(i),
+               ukdNumber = ukdInvoiceNumber(i) SHOWIF ukdDocument(i) PANEL READONLY,
+               editUkd(i) SHOWIF ukdDocument(i),
+               showUkd(i) SHOWIF ukdDocument(i)
+;
+
+DESIGN invoices {
+    actionContainer {
+        NEW ukdDocument {
+            type = CONTAINERV;
+            caption = 'УКД';
+            NEW ukdNumber {
+                type = CONTAINERH;
+                MOVE PROPERTY(ukdNumber) {
+                    charWidth = 20;
+                };
+                MOVE PROPERTY(editUkd(i));
+                MOVE PROPERTY(showUkd(i));
+                MOVE PROPERTY(createUkdDocuments(i));            
+            }       
+        }
+    }
+}

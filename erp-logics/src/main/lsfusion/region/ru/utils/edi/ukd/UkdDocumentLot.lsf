@@ -1,0 +1,48 @@
+MODULE UkdDocumentLot;
+
+REQUIRE UkdDocument;
+
+NAMESPACE Ukd;
+
+EXTEND FORM ukdDocument
+    OBJECTS utd = UkdTransportPackDetail
+    PROPERTIES (utd) numberDetail, id, NEW, DELETE GRID
+    FILTERS ukdDocument(utd)=u
+    FILTERGROUP detailTransportPackDetail
+        FILTER 'По строке' ukdDocumentDetail(utd)=d DEFAULT
+    
+    OBJECTS ukd = UkdPackDetail
+    PROPERTIES (ukd) numberDetail, id, NEW, DELETE GRID
+    FILTERS ukdDocument(ukd)=u
+    FILTERGROUP detailUkdPackDetail
+        FILTER 'По строке' ukdDocumentDetail(ukd)=d DEFAULT
+    
+    OBJECTS uld = UkdLotDetail
+    PROPERTIES (uld) numberDetail, id, NEW, DELETE GRID
+    FILTERS ukdDocument(uld)=u
+    FILTERGROUP detailUkdLotDetail
+        FILTER 'По строке' ukdDocumentDetail(uld)=d DEFAULT
+;
+
+
+
+DESIGN ukdDocument {
+    detailsContainer {
+        type = CONTAINERV;
+        NEW ukdDetails {
+            fill = 2;
+            MOVE BOX(d);
+        }
+        NEW lot {
+            caption = 'Маркировка';
+            fill = 1;
+            type = TABBED;
+            MOVE BOX(uld);
+            MOVE BOX(ukd);
+            MOVE BOX(utd);
+        }
+    }
+}
+
+
+

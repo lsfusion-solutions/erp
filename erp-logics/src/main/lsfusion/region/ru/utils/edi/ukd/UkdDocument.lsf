@@ -163,6 +163,51 @@ numberUpdDocument 'УПД' (UkdDocument ukd) = numberInvoice(updDocument(ukd));
 
 numberUpdDocumentDetail 'Номер строки (УПД)' (UkdDocumentDetail detail) = number(updDocumentDetail(detail));
 
+//маркировка
+CLASS UkdTransportPackDetail 'Транспортная упаковка';
+TABLE ukdTransportPackDetail(UkdTransportPackDetail);
+
+ukdDocumentDetail = DATA UkdDocumentDetail(UkdTransportPackDetail) NONULL DELETE AGGR;
+return = DATA BOOLEAN (UkdTransportPackDetail);
+numberDetail 'Номер строки' (UkdTransportPackDetail detail) = number(ukdDocumentDetail(detail));
+countUkdTransportPackDetail 'Кол-во трансп.упаковок' = GROUP SUM 1 BY ukdDocumentDetail(UkdTransportPackDetail detail);
+countUkdTransportPackDetail 'Кол-во трансп.упаковок' = GROUP SUM 1 BY ukdDocument(ukdDocumentDetail(UkdTransportPackDetail detail));
+ukdDocument (UkdTransportPackDetail detail) = ukdDocument(ukdDocumentDetail(detail));
+
+CLASS UkdPackDetail 'Потребительская упаковка';
+TABLE ukdPackDetail(UkdPackDetail);
+
+ukdDocumentDetail = DATA UkdDocumentDetail(UkdPackDetail) NONULL DELETE AGGR;
+return = DATA BOOLEAN (UkdPackDetail);
+numberDetail 'Номер строки' (UkdPackDetail detail) = number(ukdDocumentDetail(detail));
+countUkdPackDetail 'Кол-во упаковок' = GROUP SUM 1 BY ukdDocumentDetail(UkdPackDetail detail);
+countUkdPackDetail 'Кол-во упаковок' = GROUP SUM 1 BY ukdDocument(ukdDocumentDetail(UkdPackDetail detail));
+ukdDocument (UkdPackDetail detail) = ukdDocument(ukdDocumentDetail(detail));
+
+CLASS UkdLotDetail 'Марка';
+TABLE ukdLotDetail(UkdLotDetail);
+
+ukdDocumentDetail = DATA UkdDocumentDetail(UkdLotDetail) NONULL DELETE AGGR;
+return = DATA BOOLEAN (UkdLotDetail);
+numberDetail 'Номер строки' (UkdLotDetail detail) = number(ukdDocumentDetail(detail));
+countUkdLotDetail 'Кол-во марок' = GROUP SUM 1 BY ukdDocumentDetail(UkdLotDetail detail);
+countUkdLotDetail 'Кол-во марок' = GROUP SUM 1 BY ukdDocument(ukdDocumentDetail(UkdLotDetail detail));
+ukdDocument (UkdLotDetail detail) = ukdDocument(ukdDocumentDetail(detail));
+
+//--ДопСведТов
+//---НомСредИдентТов
+id 'Код' = DATA STRING[255] (UkdTransportPackDetail);//ИдентТрансУпак
+id 'Код' = DATA STRING[255] (UkdPackDetail);//КИЗ
+id 'Код' = DATA STRING[255] (UkdLotDetail);//НомУпак
+
+fileSupplierPrefix (UkdDocument d) = 
+    IF countUkdLotDetail(d) 
+        THEN 'ON_NKORSCHFDOPPRMARK'
+        ELSE 'ON_NKORSCHFDOPPR';
+
+idFile 'ИдФайл' (UkdDocument d) = 
+    STRING[255](CONCAT '_', fileSupplierPrefix(d),  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
+
 EXTEND FORM ukdDocument
     PROPERTIES (u) baseInvoiceNumber, baseDateInvoice
     PROPERTIES(u) description, sendDate, nameCurrency
@@ -295,7 +340,10 @@ GROUP UKDExportB EXTID  'ТаблКСчФ';
         GROUP UKDExportB5 EXTID  'СумНалПосле';
         GROUP UKDExportB6 EXTID  'СумНалРазн';
         GROUP UKDExportB7 EXTID  'СтТовУчНал';
-        GROUP UKDExportB9 EXTID  'ДопСведТов';
+        GROUP UKDExportB9 EXTID  'ДопСведТов';        
+//        GROUP UKDExportB10 EXTID  'НомСредИдентТовДо';    
+//        GROUP UKDExportB11 EXTID  'НомСредИдентТовПосле';        
+        
     GROUP UKDExportB02 EXTID 'ВсегоУвел': UKDExportB;
         GROUP UKDExportB021 EXTID 'СумНал' : UKDExportB02;
     GROUP UKDExportB03 EXTID 'ВсегоУм': UKDExportB;
@@ -313,8 +361,8 @@ GROUP UKDExportD EXTID  'Подписант';
     GROUP UKDExportD_3 EXTID  'ЮЛ':UKDExportD;          
         GROUP UKDExportD_3_1 EXTID  'ФИО':UKDExportD_3;
 
-idFile 'ИдФайл' (UkdDocument d) = 
-    STRING[255](CONCAT '_', 'ON_NKORSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
+//idFile 'ИдФайл' (UkdDocument d) = 
+//    STRING[255](CONCAT '_', 'ON_NKORSCHFDOPPR',  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
 
 showIncreaseVATSum (UkdDocumentDetail detail)= IF increaseVATSum(detail) AND NOT decreaseVATSum(detail)
     THEN increaseVATSum(detail)
@@ -447,6 +495,31 @@ FORM UKDPR FORMEXTID '=:Файл'
     PROPERTIES = nameUOMA(detail) EXTID 'НаимЕдИзмПосле' ATTR IN UKDExportB9
     
     
+    OBJECTS utd = UkdTransportPackDetail EXTID 'НомСредИдентТовДо' //IN UPDExportB4
+    PROPERTIES = (OVERRIDE id(utd),'') EXTID 'ИдентТрансУпак' ATTR
+    FILTERS ukdDocumentDetail(utd)==detail
+    
+    OBJECTS ukd = UkdPackDetail EXTID 'НомСредИдентТовДо' //IN UPDExportB4
+    PROPERTIES = (OVERRIDE id(ukd),'') EXTID 'КИЗ'
+    FILTERS ukdDocumentDetail(ukd)==detail
+        
+    OBJECTS uld = UkdLotDetail EXTID 'НомСредИдентТовДо' //IN UPDExportB4
+    PROPERTIES = (OVERRIDE id(uld),'') EXTID 'НомУпак'
+    FILTERS ukdDocumentDetail(uld)==detail
+    
+    
+    OBJECTS utd1 = UkdTransportPackDetail EXTID 'НомСредИдентТовПосле' //IN UPDExportB4
+    PROPERTIES = (OVERRIDE id(utd1),'') EXTID 'ИдентТрансУпак' ATTR
+    FILTERS ukdDocumentDetail(utd1)==detail, NOT return(utd1)
+    
+    OBJECTS ukd1 = UkdPackDetail EXTID 'НомСредИдентТовПосле' //IN UPDExportB4
+    PROPERTIES = (OVERRIDE id(ukd1),'') EXTID 'КИЗ'
+    FILTERS ukdDocumentDetail(ukd1)==detail, NOT return(ukd1)
+        
+    OBJECTS uld1 = UkdLotDetail EXTID 'НомСредИдентТовПосле' //IN UPDExportB4
+    PROPERTIES = (OVERRIDE id(uld1),'') EXTID 'НомУпак'
+    FILTERS ukdDocumentDetail(uld1)==detail, NOT return(uld1)   
+        
     PROPERTIES = (OVERRIDE increaseSum(d), 0) EXTID 'СтТовБезНДСВсего' ATTR IN UKDExportB02
     PROPERTIES = (OVERRIDE decreaseSum(d), 0) EXTID 'СтТовБезНДСВсего' ATTR IN UKDExportB03
     PROPERTIES = (OVERRIDE increaseInvoiceSum(d), 0) EXTID 'СтТовУчНалВсего' ATTR IN UKDExportB02
@@ -519,8 +592,9 @@ ukdBaseDocument = ABSTRACT VALUE UkdBaseDocument (UkdDocument);
 
 overFill ABSTRACT LIST (UkdBaseDocument, UkdDocument);
 
-META fillUkdDocument(docType)
-    fill(###docType##Detail cd, Sale.InvoiceDetail d, UkdDocumentDetail ed) {
+META fillUkdDocument(docType, NS, NS1)
+    fillOver ABSTRACT LIST (NS1.###docType##Detail, NS.InvoiceDetail , UkdDocumentDetail);
+    fill(NS1.###docType##Detail cd, NS.InvoiceDetail d, UkdDocumentDetail ed) {
         updDocumentDetail(ed) <- updDocumentDetail(d);
         number(ed) <- index(cd);
         nameSku(ed) <- nameSku(d);
@@ -574,6 +648,7 @@ META fillUkdDocument(docType)
             ukdDocument(ed) <- ukd;
             ##docType##Detail(ed) <- cd;
             fill(cd, invoiceDetail(cd), ed);
+            fillOver(cd, invoiceDetail(cd), ed);
         }
     }
        
@@ -668,6 +743,9 @@ META fillUkdDocument(docType)
     }
 
 END
+META fillUkdDocument(docType)
+    @fillUkdDocument(docType, Sale, Sale);
+END 
 //
 //exportUkdDocument1 'Экспорт (xml)' (UkdDocument d) {
 //        generateIdFile(d);
