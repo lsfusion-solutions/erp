@@ -1749,6 +1749,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             } else {
 
                 try (Connection conn = getConnection(params)) {
+                    astronLogger.info("export discount сards to " + directory);
                     String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
 
                     boolean versionalScheme = params.versionalScheme(isVersionalScheme);
@@ -1792,7 +1793,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         if(versionalScheme) {
                             exportUpdateNums(conn, params, outputUpdateNums);
                         } else {
-                            astronLogger.info("waiting for processing transactions");
+                            astronLogger.info("waiting for processing discount cards");
                             exportFlags(conn, params, tables);
                             exception = waitFlags(conn, params, tables, timeout);
                         }

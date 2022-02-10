@@ -313,7 +313,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<DiscountCard> readDiscountCardList(RequestExchange requestExchange) {
-        return MachineryExchangeEquipmentServer.readDiscountCardList(this, requestExchange);
+        return MachineryExchangeEquipmentServer.readDiscountCardList(this, getBusinessLogics(), getStack(), requestExchange);
     }
 
     @Override

@@ -254,7 +254,7 @@ public class MachineryExchangeEquipmentServer {
         }
     }
 
-    public static List<DiscountCard> readDiscountCardList(EquipmentServer server, RequestExchange requestExchange) {
+    public static List<DiscountCard> readDiscountCardList(EquipmentServer server, BusinessLogics BL, ExecutionStack stack, RequestExchange requestExchange) {
         List<DiscountCard> discountCardList = new ArrayList<>();
         if(machineryPriceTransactionDiscountCardLM != null) {
             try (DataSession session = server.createSession()) {
@@ -324,6 +324,13 @@ public class MachineryExchangeEquipmentServer {
                             idDiscountCardType, nameDiscountCardType, firstNameContact, lastNameContact, middleNameContact, birthdayContact,
                             sexContact, true, extInfo));
                 }
+
+                DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
+                machineryPriceTransactionLM.findProperty("date[RequestExchangeLog]").change(LocalDateTime.now(), session, logObject);
+                machineryPriceTransactionLM.findProperty("message[RequestExchangeLog]").change("Найдено дисконтных карт: " + discountCardList.size(), session, logObject);
+                machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeLog]").change(requestExchange.requestExchange, session, logObject);
+                session.applyException(BL, stack);
+
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
