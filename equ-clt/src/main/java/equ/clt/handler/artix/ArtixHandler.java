@@ -590,6 +590,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 medicineObject.put("cquant", nvl(batch.blisterAmount, 1));
                 medicineObject.put("remainquant", batch.balanceBlister);
             } else {
+                medicineObject.put("cquant", batch.blisterAmount);
                 medicineObject.put("packquant", batch.balance);
             }
         } else {
