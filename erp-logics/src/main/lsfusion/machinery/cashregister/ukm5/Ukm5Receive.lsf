@@ -335,9 +335,19 @@ receiptPackage(STRING id, STRING date){
             price(detail) <- NUMERIC[16,4](amount15(j));
             discountSum(detail) <- NUMERIC[18,4](amount10(j));
         }
+        FOR scu(INTEGER j) AND receiptType(i) = 'RefundOnReceipt' AND elementsItems(j) = i 
+            NEW detail = ReceiptReturnDetail DO{
+            receipt(detail) <- r;
+            idBarcode(detail) <- STRING[15](OVERRIDE barcode(j), scu(j));
+            sku(detail) <- OVERRIDE skuBarcode(barcode(j)), sku(scu(j));
+            quantity(detail) <- round(amount14(j), decimals2(j));
+            price(detail) <- NUMERIC[16,4](amount15(j));
+            discountSum(detail) <- NUMERIC[18,4](amount10(j));
+        }
         FOR amount4(INTEGER j) AND pType(j) AND elementsPayments(j) = i NEW p = Payment DO{
             receipt(p) <- r;
-            sum(p) <- NUMERIC[18,4](amount4(j));
+            sum(p) <- IF receiptType(i) = 'Sale' THEN NUMERIC[18,4](amount4(j)) 
+                ELSE -NUMERIC[18,4](amount4(j));
             paymentType(p) <- CASE 
                 WHEN pType(j) = 'Card' THEN typePaymentSID('card')
                 WHEN pType(j) = 'Cash' THEN typePaymentSID('cash')      
@@ -358,6 +368,6 @@ receiveReceipts 'Приём реализации УКМ5 (Native)'(){
     }
     CATCH {
         MESSAGE messageCaughtException();
-        skipBlockPackage();
+        IF statusHttp() = 423 THEN skipBlockPackage();
     }
 }
