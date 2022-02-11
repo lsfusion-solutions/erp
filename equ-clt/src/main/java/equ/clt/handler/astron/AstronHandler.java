@@ -1164,19 +1164,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (DiscountCard discountCard : discountCardList) {
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer clientId = getClientId(discountCard);
+                    boolean isPayment = isSocial(discountCard);
                     if(params.pgsql) {
                         setObject(ps, discountCard.numberDiscountCard, 1); //DCARDID
                         setObject(ps, clientId, 2); //CLNTID
                         setObject(ps, discountCard.numberDiscountCard, 3); //DCARDCODE
                         setObject(ps, discountCard.nameDiscountCard, 4); //DCARDNAME
-                        setObject(ps, 0, 5); //ISPAYMENT
+                        setObject(ps, isPayment ? 1 : 0, 5); //ISPAYMENT
                         setObject(ps, 0, 6); //DELFLAG
                         setObject(ps, 0, 7); //LOCKED
                     } else {
                         setObject(ps, discountCard.numberDiscountCard, 1, offset); //CLNTID
                         setObject(ps, discountCard.numberDiscountCard, 2, offset); //DCARDCODE
                         setObject(ps, discountCard.nameDiscountCard, 3, offset); //DCARDNAME
-                        setObject(ps, false, 4, offset); //ISPAYMENT
+                        setObject(ps, isPayment, 4, offset); //ISPAYMENT
                         setObject(ps, "0", 5, offset); //DELFLAG
                         setObject(ps, 0, 6, offset); //LOCKED
 
