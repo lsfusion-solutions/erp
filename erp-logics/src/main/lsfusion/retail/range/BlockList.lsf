@@ -137,6 +137,13 @@ inBlockList (sku, Stock stock, supplier, DATETIME dateTime) =
           WHERE dateTime >= fromDateTime(stock, detail) 
                 AND NOT dateTime >  toDateTime(stock, detail)
           BY   sku(stock, detail), supplier(stock, detail) COMPLEX;        
+inBlockListDayAfter (sku, Stock stock, supplier, DATETIME dateTime) =
+    GROUP LAST active(stock, BlockListDetail detail)
+          ORDER fromDateTime(stock, detail) , detail 
+          WHERE dateTime >= sumDay(fromDateTime(stock, detail), 1) 
+                AND NOT dateTime >  toDateTime(stock, detail)
+          BY   sku(stock, detail), supplier(stock, detail) COMPLEX; 
+                 
 inBlockList (sku, Stock stock, DATETIME dateTime) =
     GROUP LAST active(stock, BlockListDetail detail)
           ORDER fromDateTime(stock, detail) , detail 
