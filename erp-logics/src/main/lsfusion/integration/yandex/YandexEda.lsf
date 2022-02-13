@@ -62,7 +62,7 @@ yandexName (Item i) = ABSTRACT ISTRING;
 GROUP description;
 
 parentId (Group g) = id(parent(g));
-categoryId (Item i) = ABSTRACT STRING[100];
+categoryId (Item i) = ABSTRACT CASE STRING[100];
 modiffersGroup (Item i) = ABSTRACT STRING;
 
 //description
@@ -77,7 +77,7 @@ quantum (Item i) = ABSTRACT NUMERIC[16,5];
 oldPrice (Item i, DepartmentStore d) = ABSTRACT NUMERIC[16,4];
 available(Item i, DepartmentStore s) = ABSTRACT NUMERIC[16,5];
 
-inOnlineYandex (Item i, DepartmentStore d) = ABSTRACT BOOLEAN;
+inOnlineYandex (Item i, DepartmentStore d) = ABSTRACT CASE BOOLEAN;
 
 stock (YandexEdaAuth client, STRING id) = ABSTRACT DepartmentStore;
 
@@ -127,6 +127,7 @@ FORM availability 'Наличие Яндекс.Еда'
     FILTERS inOnlineYandex(i, s)
 ; 
 
+carrierSelect ABSTRACT LIST(YandexEdaAuth);
 
 //-------------------- /v1/nomenclature/{placeId}/composition(availability)------------------------//
 v1_nomenclature(FILE f){
@@ -139,13 +140,14 @@ v1_nomenclature(FILE f){
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
     }
     ELSE {
+        carrierSelect(aggr());
         LOCAL method = STRING ();
         method() <- replace(servletPath(), TEXT('/exec/v1/nomenclature/'), TEXT (''));
         LOCAL store = STRING ();
         LOCAL param = STRING ();
         store() <- getWord(method(), '/', 1);
         param() <- getWord(method(), '/', 2);
-        LOCAL s = DepartmentStore ();
+        LOCAL s = DepartmentStore();
         s() <- stock(aggr(), store());
         IF NOT s() THEN {
             statusHttpTo() <- 404;
