@@ -52,15 +52,16 @@ importPriceType 'Импорт видов цен' () {
         FOR id(INTEGER i) AND NOT dataPriceListType(id(i)) DO NEW g = DataPriceListType {
             id(g) <- id(i);    
         }
+        
+        skipEmptyPrice(PriceList.Operation p) <- TRUE WHERE id(p) = 'retail';
 
         FOR id(INTEGER i) AND DataPriceListType g == dataPriceListType(id(i))  DO {
             name(g) <- name(i);
             skipUnusedStock(g) <- TRUE;
             includeVAT(g) <- TRUE;
             
-            //не уверен что нужно здесь
-            change(g, PriceList.Operation o) <- TRUE WHERE o = operation('retail') OR o = operation('individual') ;
-            show(g, PriceList.Operation o) <- TRUE WHERE o = operation('retail') OR o = operation('individual') ;                        
+            change(g, PriceList.Operation o) <- TRUE WHERE o = operation('retail');
+            show(g, PriceList.Operation o) <- TRUE WHERE o = operation('retail');                        
         }
 
         //перегруженные виды цен
@@ -92,7 +93,10 @@ importPriceType 'Импорт видов цен' () {
             includeVAT(g) <- TRUE;
             basePriceListType(g) <- dataPriceListType('supplier'); 
             
-            //возможно не нужно, groupType для надбавки
+            currency(g) <- defaultCurrency();
+            roundCondition(g) <- defaultRoundCondition(currency(g));
+            country(g) <- defaultCountry();
+
             groupType(g) <- SystemGroupType.skuGroupType;
             //country(g) <- defaultCountry();
             //currency(t) <- defaultCurrency();
@@ -119,18 +123,18 @@ DESIGN integrationData {
 importStoreTypePriceType 'Импорт привязок видов цен к форматам магазинов' () {
     NEWSESSION {
         LOCAL file = FILE ();    
-        LOCAL idStoreType = STRING[100](INTEGER);
         LOCAL idPriceType = STRING[100](INTEGER);
+        LOCAL idStoreType = STRING[100](INTEGER);
                 
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' HEADER NOESCAPE FROM f TO idStoreType, idPriceType;
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO idPriceType, idStoreType;
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
-                EXEC 'SELECT SHOPGROUPID, PRICELISTID FROM RETAILSHOPGROUP WHERE DATAAREAID = $1' 
+                EXEC 'SELECT PRICELISTID, SHOPGROUPID FROM RETAILSHOPGROUP WHERE DATAAREAID = $1' 
                 PARAMS areaId() TO file;
-                IMPORT TABLE FROM file() TO idStoreType, idPriceType;
+                IMPORT TABLE FROM file() TO idPriceType, idStoreType;
         }
         
         FOR idPriceType(INTEGER i) AND StoreType st = storeType('F' + idStoreType(i))  DO {
@@ -276,6 +280,8 @@ importRetailPrice 'Импорт базовых прайс листов' () {
             PriceList.operation(p) <- IF type(i1) = 1 THEN operation('retail') ELSE operation('individual');
             date(p) <- DATE(date(i1));
             time(p) <- TIME(date(i1));
+            fromDate(p) <- DATE(date(i1));
+            fromTime(p) <- 00:00;
             isPosted(p) <- TRUE WHERE isPosted(i1) = 1;
             note(p) <- description(i1);
         }
@@ -329,8 +335,8 @@ importRetailPriceDetail 'Импорт строк базовых прайс ли�
             sku(d) <- item(idItem(i));
         }
         
-//        DELETE UserPriceListDetail g WHERE operation(g) = operation('retail') AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));
-//        DELETE UserPriceListDetail g WHERE operation(g) = operation('individual') AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));
+        DELETE UserPriceListDetail g WHERE operation(g) = operation('retail') AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));
+        DELETE UserPriceListDetail g WHERE operation(g) = operation('individual') AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));
 
         APPLY;
     }
