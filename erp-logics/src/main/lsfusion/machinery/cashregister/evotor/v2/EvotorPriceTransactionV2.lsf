@@ -1,6 +1,6 @@
 MODULE EvotorPriceTransactionV2;
 
-REQUIRE EvotorMasterDataV2, NativeMachinery, CashRegisterPriceTransaction, Item, LotTypeRu, MachineryPriceTransactionStockTax;
+REQUIRE EvotorMasterDataV2, NativeMachinery, CashRegisterPriceTransaction, Item, LotTypeRu, ItemArticle, MachineryPriceTransactionStockTax;
 
 NAMESPACE EvotorV2;
 
@@ -79,6 +79,7 @@ asyncUploadItem(CashRegisterPriceTransaction t){
     EXPORT JSON FROM parent_id = 'a12aad7d-d6a8-413b-acd8-' + LONG(itemGroup(Item i)),
         name = name(i), measure_name = shortNameUOM(i), tax = vatEvotor(t,barcode(i)), id = '42110e1b-d9c4-45c4-8952-' +  LONG(i), 
         allow_to_sell = TRUE, price = price(t, barcode(i)), //description = (description(i)),
+        article_number = idArticle(i),
         code = id(i), barcodes = (CONCAT '','[', (GROUP CONCAT '"' + id(Barcode b) + '"', ',' IF sku(b) = i AND in(t, b) ORDER b),']'),
         type = typeEvotor(i), cost_price = price(t, barcode(i)), quantity = currentBalance(i, stock(t))
     WHERE in(t, Barcode barcode) AND sku(barcode) = i AND filterBarcode(id(i), id(barcode));
