@@ -1,6 +1,6 @@
 MODULE EvotorPriceTransactionV2;
 
-REQUIRE EvotorMasterDataV2, NativeMachinery, CashRegisterPriceTransaction, Item, LotTypeRu;
+REQUIRE EvotorMasterDataV2, NativeMachinery, CashRegisterPriceTransaction, Item, LotTypeRu, MachineryPriceTransactionStockTax;
 
 NAMESPACE EvotorV2;
 
@@ -66,11 +66,18 @@ typeEvotor (Item i) += CASE
     WHEN NOT lotType(i) THEN 'NORMAL'
 ;
 
+vatEvotor (MachineryPriceTransaction t, Barcode b) = CASE 
+    WHEN VAT(t, b) = 10 THEN 'VAT_10'
+    WHEN VAT(t, b) = 20 OR VAT(t,b) = 18 THEN 'VAT_18'
+    WHEN VAT(t, b) = 0 THEN 'VAT_0'
+    ELSE 'NO_VAT'
+;
+
 //создание/обновление товаров в облаке Эвотор 
 asyncUploadItem(CashRegisterPriceTransaction t){
     LOCAL f = FILE();
     EXPORT JSON FROM parent_id = 'a12aad7d-d6a8-413b-acd8-' + LONG(itemGroup(Item i)),
-        name = name(i), measure_name = shortNameUOM(i), tax = 'VAT_18', id = '42110e1b-d9c4-45c4-8952-' +  LONG(i), 
+        name = name(i), measure_name = shortNameUOM(i), tax = vatEvotor(t,barcode(i)), id = '42110e1b-d9c4-45c4-8952-' +  LONG(i), 
         allow_to_sell = TRUE, price = price(t, barcode(i)), //description = (description(i)),
         code = id(i), barcodes = (CONCAT '','[', (GROUP CONCAT '"' + id(Barcode b) + '"', ',' IF sku(b) = i AND in(t, b) ORDER b),']'),
         type = typeEvotor(i), cost_price = price(t, barcode(i)), quantity = currentBalance(i, stock(t))
