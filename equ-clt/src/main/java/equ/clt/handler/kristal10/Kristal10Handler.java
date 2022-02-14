@@ -1071,7 +1071,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                         if(discountCard.length() > 18)
                                             discountCard = discountCard.substring(0, 18);
                                         break;
-                                    }
+                                    } else discountCard = null;
                                 }
                             }
 
