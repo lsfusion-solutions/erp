@@ -7,6 +7,8 @@ NAMESPACE PriceList;
 CLASS  OverPriceListType 'Перегруженный вид цены' : PriceList.PriceListType;
 TABLE overPriceListType(OverPriceListType);
 
+@defineExternalizable(overPriceListType, STRING[100]);
+
 name 'Наименование' = DATA ISTRING[100](OverPriceListType) IN id;
 
 baseAPriceListLedger = DATA LedgerPriceListType (OverPriceListType);
@@ -46,7 +48,8 @@ countIncludeVATTypes(OverPriceListType type) = (1 IF includeVAT(baseAPriceListLe
 
 CONSTRAINT countTypes(OverPriceListType type) != countIncludeVATTypes(type)
    MESSAGE 'Виды цен 1, 2, 3 должны быть одновременно или с НДС или без НДС' ;  
-        
+
+id(OverPriceListType type) += id(type);
 name(OverPriceListType type) += name(type);
 includeVAT (OverPriceListType type) += countIncludeVATTypes(type) ==countTypes(type);
 
@@ -58,7 +61,7 @@ priceA(OverPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += p
     
 FORM overPriceListType 'Перегруженный вид цены'
     OBJECTS p = OverPriceListType PANEL
-    PROPERTIES(p) name, nameBaseAPriceListLedger, nameBaseBPriceListLedger, nameBaseCPriceListLedger 
+    PROPERTIES(p) id, name, nameBaseAPriceListLedger, nameBaseBPriceListLedger, nameBaseCPriceListLedger 
 
     EDIT OverPriceListType OBJECT p
 ;
