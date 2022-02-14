@@ -1,0 +1,69 @@
+MODULE ImportAxaptaCost;
+
+REQUIRE ImportAxaptaStock, PurchaseShipment, PurchaseOperation;
+
+NAMESPACE ImportAxapta;
+
+importCost 'Импорт остатков' (Stock st) {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL inventDimId = STRING (INTEGER);
+        LOCAL inventLocationId = STRING (INTEGER);
+        LOCAL itemId = STRING (INTEGER);
+        LOCAL quantity = NUMERIC[16,3] (INTEGER);
+        LOCAL sum = NUMERIC[16,3] (INTEGER);
+        LOCAL supplierId = STRING (INTEGER);
+        LOCAL gtdId = STRING (INTEGER);
+        
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO inventDimId, inventLocationId, itemId, quantity, sum, supplierId, gtdId;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT id.INVENTDIMID, id.INVENTLOCATIONID, ism.ITEMID, ism.POSTEDQTY, ism.POSTEDVALUE, it.PRIMARYVENDORID, id.INVENTGTDID_RU FROM INVENTDIM id ' + 
+                     'JOIN INVENTSUM ism ON ism.INVENTDIMID = id.INVENTDIMID JOIN INVENTTABLE it ON it.ITEMID = ism.ITEMID ' + 
+                     'WHERE POSTEDQTY != 0 OR POSTEDVALUE != 0 ' +
+                     'AND id.INVENTLOCATIONID = $1' 
+                     PARAMS id(st) TO file;
+                IMPORT TABLE FROM file() TO inventDimId, inventLocationId, itemId, quantity, sum, supplierId, gtdId;
+        }
+        
+        LOCAL userShipmentId = STRING[100] (INTEGER);
+        userShipmentId(INTEGER i) <- CONCAT '/', inventLocationId(i), supplierId(i);
+         
+        LOCAL userShipmentDetailId = STRING[100] (INTEGER);
+        userShipmentDetailId(INTEGER i) <- CONCAT '/', userShipmentId(i), itemId(i), inventDimId(i);
+
+        FOR INTEGER i1 = [GROUP MAX INTEGER i BY userShipmentId(i)](STRING id) AND NOT userShipment(id) NEW s = UserShipment DO {
+            id(s) <- userShipmentId(i1);
+            supplier(s) <- legalEntity(supplierId(i1));
+            customerStock(s) <- stock(inventLocationId(i1));
+            operation(s) <- operation('initial');
+            isPosted(s) <- TRUE;
+        }
+        
+        FOR STRING[100] detailId = userShipmentDetailId(INTEGER i) AND NOT userShipmentDetail(detailId) NEW d = UserShipmentDetail DO {
+            userShipment(d) <- userShipment(userShipmentId(i));
+            id(d) <- detailId;
+            sku(d) <- item(itemId(i));
+        }
+
+        FOR id(UserShipmentDetail d) = userShipmentDetailId(INTEGER i) DO {
+            quantity(d) <- quantity(i);
+            price(d) <- NUMERIC[16,4](sum(i) / quantity(i));
+            sum(d) <- sum(i);
+        }
+        
+        FOR operation(UserShipmentDetail d) = operation('initial') AND customerStock(d) = st AND NOT [GROUP SUM 1 BY userShipmentDetailId(INTEGER i)](id(d)) DO {
+            quantity(d) <- 0.0;
+            sum(d) <- 0.0;
+        }
+        
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES(st) importCost
+;
