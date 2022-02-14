@@ -1,0 +1,28 @@
+MODULE SaleQualityCertificate;
+
+REQUIRE QualityCertificate, SaleCertificate;
+
+NAMESPACE Sale;
+
+@defineDocumentCertificate(qualityCertificate, invoice, i, 'Сертификат качества');
+@defineDocumentCertificateConstraint(qualityCertificate, invoice, 'сертификат качества');
+@deriveDocumentSaleCertificate(qualityCertificate, invoice, supplierStock, data);
+
+@defineDocumentCertificate(qualityCertificate, shipment, s, 'Сертификат качества');
+qualityCertificate(InvoiceShipmentDetail detail) += qualityCertificate(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) + { 
+    dataQualityCertificate(s) <- qualityCertificate(i);
+}
+@defineDocumentCertificateConstraint(qualityCertificate, shipment, 'сертификат качества');
+@deriveDocumentSaleCertificate(qualityCertificate, shipment, supplierStock, data);
+
+CONSTRAINT dataQualityCertificate(UserInvoiceDetail d) AND batch(d) AND NOT dataQualityCertificate(d)==qualityCertificate(batch(d)) AND NOT own(dataQualityCertificate(d))
+    CHECKED BY dataQualityCertificate[UserInvoiceDetail]
+        MESSAGE 'Сертификат качества в накладной должен совпадать с сертификатом партии';
+
+in(QualityCertificate q, Sku s) = GROUP SUM 1 IF qualityCertificate(Batch b)==q AND sku(b)==s; 
+
+CONSTRAINT dataQualityCertificate(UserInvoiceDetail d) AND NOT batch(d) AND NOT in(dataQualityCertificate(d),sku(d)) AND NOT own(dataQualityCertificate(d))
+    CHECKED BY dataQualityCertificate[UserInvoiceDetail]
+        MESSAGE 'Сертификат качества в накладной должен совпадать с сертификатом товара';

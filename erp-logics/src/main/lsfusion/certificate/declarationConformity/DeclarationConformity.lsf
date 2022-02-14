@@ -1,0 +1,199 @@
+MODULE DeclarationConformity;
+
+REQUIRE Certificate;
+
+NAMESPACE DeclarationConformity;
+
+CLASS DeclarationConformity 'Декларация о соответствии' : Certificate;
+TABLE declarationConformity(DeclarationConformity);
+
+// ----------------- Даты / время ------------------ //
+
+@defineDocumentHeaderTimePrefix(DeclarationConformity, ,' документа');
+@deriveDocumentHeaderTimePrefix(DeclarationConformity, );
+date(DeclarationConformity certificate) += date(certificate);
+time(DeclarationConformity certificate) += time(certificate);
+
+fromDate 'Дата с' = DATA DATE (DeclarationConformity) IN documentHeader;
+fromDate(DeclarationConformity certificate) += fromDate(certificate);
+
+toDate 'Дата по' = DATA DATE (DeclarationConformity) IN documentHeader;
+toDate(DeclarationConformity certificate) += toDate(certificate);
+
+legalEntity = DATA LegalEntity (DeclarationConformity);
+nameLegalEntity 'Организация' (DeclarationConformity certificate) = name(legalEntity(certificate)) IN documentHeader;
+
+// Файл
+image 'Файл сертификата'  = DATA IMAGEFILE (DeclarationConformity);
+saveImage 'Загрузить сертификат' (DeclarationConformity certificate)  { INPUT =image(certificate) CHANGE; }
+openImage 'Просмотреть сертификат' (DeclarationConformity certificate)  { open(image(certificate)); }
+
+CLASS ExtraPageDeclarationConformityDetail 'Дополнительная страница сертификата';
+TABLE extraPageDeclarationConformityDetail (ExtraPageDeclarationConformityDetail);
+
+declarationConformity = DATA DeclarationConformity (ExtraPageDeclarationConformityDetail);
+
+image 'Файл сертификата'  = DATA IMAGEFILE (ExtraPageDeclarationConformityDetail);
+saveImage 'Загрузить сертификат' (ExtraPageDeclarationConformityDetail detail)  { INPUT =image(detail) CHANGE; }
+openImage 'Просмотреть сертификат' (ExtraPageDeclarationConformityDetail detail)  { open(image(detail)); }
+
+@defineDocumentDetailIndex(declarationConformity, ExtraPageDeclarationConformityDetail);
+
+extraPageDeclarationConformityDetail (index, certificate) = GROUP AGGR ExtraPageDeclarationConformityDetail extraPageDeclarationConformityDetail WHERE extraPageDeclarationConformityDetail IS ExtraPageDeclarationConformityDetail BY index (extraPageDeclarationConformityDetail), declarationConformity(extraPageDeclarationConformityDetail);
+
+@defineDocumentDetailNote(ExtraPageDeclarationConformityDetail);
+
+addExtraPageDetail 'Добавить'(DeclarationConformity certificate)  { 
+    NEW d = ExtraPageDeclarationConformityDetail {
+        declarationConformity(d) <- certificate;
+        saveImage(d);
+        apply();
+    }    
+} IMAGE 'add.png';
+
+// ------ Номер ----------- //
+
+number 'Номер' = DATA ISTRING[100] (DeclarationConformity) NONULL IN numbered CHARWIDTH 10;
+series 'Серия' = DATA BPSTRING[2] (DeclarationConformity) IN numbered CHARWIDTH 3 NOFLEX; 
+
+seriesNumber 'Серия/Номер' (DeclarationConformity o) = 
+    CONCAT '', series(o), number(o) 
+    CHARWIDTH 7 MATERIALIZED;
+
+series(DeclarationConformity certificate) += series(certificate);
+number(DeclarationConformity certificate) += number(certificate);
+
+declarationConformity = GROUP AGGR DeclarationConformity s BY number(s), date(s);
+
+// Описание
+description 'Декларация о соответствии' (DeclarationConformity certificate) = CONCAT ' ', seriesNumber(certificate),
+                                                 'от ' + fromDate(certificate), 'по ' + toDate(certificate) CHARWIDTH 20;
+// История                                                 
+@defineDocumentHeaderCreated(DeclarationConformity);                                                 
+
+
+@defineBatchCertificate(declarationConformity, DeclarationConformity, 'Декларация о соответствии');
+fromDateDeclarationConformity 'Дата с' (Batch batch) = fromDate(declarationConformity(batch));
+toDateDeclarationConformity 'Дата по' (Batch batch) = toDate(declarationConformity(batch));
+
+FORM declarationConformity 'Декларация о соответствии'
+    OBJECTS c = DeclarationConformity PANEL
+    PROPERTIES(c) number, series, date, time, nameLegalEntity,
+                  fromDate, toDate, saveImage, openImage       
+                  
+    OBJECTS d = ExtraPageDeclarationConformityDetail
+    PROPERTIES(d) index, note
+    PROPERTIES(c) addExtraPageDetail DRAW d TOOLBAR
+    PROPERTIES(d) NEWSESSION TOOLBAR openImage, saveImage, DELETE 
+    FILTERS declarationConformity(d) == c
+    
+    EDIT DeclarationConformity OBJECT c
+;
+
+DESIGN declarationConformity {
+    BOX {
+        NEW pane {
+            fill = 1;
+            NEW header {
+                caption = 'Шапка документа';
+                type = CONTAINERH;
+                MOVE PROPERTY (number(c)) { charWidth = 70;};
+                MOVE PROPERTY (series(c));
+                MOVE PROPERTY (date(c));
+                MOVE PROPERTY (time(c));
+            }
+            MOVE PROPERTY (nameLegalEntity(c));
+            NEW params {
+                NEW timeContainer{
+                    type = CONTAINERH;
+                    caption = 'Период действия';
+                    MOVE PROPERTY (fromDate(c));
+                    MOVE PROPERTY (toDate(c));
+                }
+                NEW documentParams {
+                    type = COLUMNS;
+                    columns = 3;
+                    caption = 'Параметры документа';
+                }
+            }
+            NEW fileContainer{
+                type = CONTAINERH;
+                caption = 'Файл декларации';
+                MOVE PROPERTY(openImage(c));
+                MOVE PROPERTY(saveImage(c));
+            }    
+            NEW tabContainer{
+                fill = 1;
+                type = TABBED;
+                NEW firstTab{
+                    caption = 'Дополнительная информация';
+                    fill = 1;
+                }
+                MOVE BOX(d){
+                    caption = 'Дополнительные страницы декларации';
+                    PROPERTY(index(d)){
+                        caption = 'Номер файла';
+                    }
+                }
+            }                    
+        }    
+        MOVE TOOLBARBOX;
+    }
+}
+
+overCopy  ABSTRACT LIST ( DeclarationConformity, DeclarationConformity);
+    
+copy 'Копировать'(DeclarationConformity certificate)  { 
+	NEWSESSION {
+	    NEW c = DeclarationConformity {
+	        fromDate(c) <- fromDate(certificate);
+	        toDate(c) <- toDate(certificate);
+	
+	        overCopy(c, certificate);
+	        
+	        SHOW declarationConformity OBJECTS c = c DOCKED;
+	    }
+	}
+} TOOLBAR;
+
+skipShowEdit = ABSTRACT BOOLEAN (DeclarationConformity);
+showEdit = DeclarationConformity c IS DeclarationConformity AND NOT skipShowEdit(c);
+
+FORM declarationConformitys 'Декларации о соответствии'
+    OBJECTS c = DeclarationConformity LAST
+    PROPERTIES(c) READONLY number, series, date, time, nameLegalEntity, fromDate, toDate
+    PROPERTIES(c) copy
+    PROPERTIES (c) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
+    PROPERTIES(c) NEWSESSION NEW, EDIT SHOWIF showEdit(c), DELETE SHOWIF showEdit(c) 
+    
+    LIST DeclarationConformity OBJECT c
+;
+
+DESIGN declarationConformitys {
+    BOX {
+        size = (1024, 768);
+        NEW header {
+            fill = 1;
+            type = SPLITV;
+            MOVE BOX(c) { fill = 2; }
+            NEW documentDetail {
+                fill = 1; 
+                type = TABBED;
+                NEW documentHistory {
+                    caption = 'История';
+                    fill = 1; 
+                    type = CONTAINERV;
+        
+                    MOVE GROUP(created,c);
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    customsDocuments {
+        NEW declarationConformitys;
+    }
+}

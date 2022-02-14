@@ -1,0 +1,18 @@
+MODULE SaleDeclarationConformity;
+
+REQUIRE DeclarationConformity, SaleCertificate;
+
+NAMESPACE Sale;
+
+@defineDocumentCertificate(declarationConformity, invoice, i, 'Декларация о соответствии');
+@defineDocumentCertificateConstraint(declarationConformity, invoice, 'Декларация о соответствии');
+@deriveDocumentSaleCertificate(declarationConformity, invoice, supplierStock, data);
+
+@defineDocumentCertificate(declarationConformity, shipment, s, 'Декларация о соответствии');
+declarationConformity(InvoiceShipmentDetail detail) += declarationConformity(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) + { 
+    dataDeclarationConformity(s) <- declarationConformity(i);
+}
+@defineDocumentCertificateConstraint(declarationConformity, shipment, 'Декларация о соответствии');
+@deriveDocumentSaleCertificate(declarationConformity, shipment, supplierStock, data);

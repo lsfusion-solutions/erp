@@ -1,0 +1,274 @@
+MODULE QualityCertificate;
+
+REQUIRE Certificate, Printer;
+
+NAMESPACE QualityCertificate;
+
+CLASS QualityCertificate 'Сертификат качества' : Certificate;
+TABLE qualityCertificate(QualityCertificate);
+
+// ----------------- Даты / время ------------------ //
+
+@defineDocumentHeaderTimePrefix(QualityCertificate, ,' документа');
+@deriveDocumentHeaderTimePrefix(QualityCertificate, );
+date(QualityCertificate certificate) += date(certificate);
+time(QualityCertificate certificate) += time(certificate);
+
+fromDate 'Дата с' = DATA DATE (QualityCertificate) IN documentHeader;
+fromDate(QualityCertificate certificate) += fromDate(certificate);
+
+toDate 'Дата по' = DATA DATE (QualityCertificate) IN documentHeader;
+toDate(QualityCertificate certificate) += toDate(certificate);
+
+legalEntity = DATA LegalEntity (QualityCertificate);
+nameLegalEntity 'Организация' (QualityCertificate certificate) = name(legalEntity(certificate)) IN documentHeader;
+
+own 'Собственный' = DATA BOOLEAN (QualityCertificate);
+
+// Файл
+file 'Файл сертификата'  = DATA FILE (QualityCertificate);
+saveFile 'Загрузить сертификат' (QualityCertificate qualityCertificate) { 
+    INPUT = file(qualityCertificate) CHANGE; 
+    IF NOT (lower(getFileExtension(file(qualityCertificate))) = 'pdf' OR lower(getFileExtension(file(qualityCertificate))) = 'jpg' OR 
+        lower(getFileExtension(file(qualityCertificate))) = 'jpeg') THEN {
+            MESSAGE 'Некорректный формат файла';
+            file(qualityCertificate) <- NULL;
+        }
+}
+openFile 'Просмотреть сертификат' (QualityCertificate qualityCertificate)  { open(file(qualityCertificate)); }
+
+constraintDateQualityCertificate 'Дата обязательного наличия файла сертификата качества' = DATA DATE ();
+
+EXTEND FORM options
+    PROPERTIES constraintDateQualityCertificate()
+;
+
+DESIGN options{
+    commons{
+        MOVE PROPERTY(constraintDateQualityCertificate());
+    }
+}
+
+CONSTRAINT SET(QualityCertificate q IS QualityCertificate) AND constraintDateQualityCertificate() AND constraintDateQualityCertificate() <=date(q) AND NOT file(q)
+    MESSAGE 'Наличие файла обязательно. Загрузите файл сертификата качества';
+
+CLASS ExtraPageQualityCertificateDetail 'Дополнительная страница сертификата';
+TABLE extraPageQualityCertificateDetail (ExtraPageQualityCertificateDetail);
+
+qualityCertificate = DATA QualityCertificate (ExtraPageQualityCertificateDetail);
+
+file 'Файл сертификата'  = DATA FILE (ExtraPageQualityCertificateDetail);
+saveFile 'Загрузить сертификат' (ExtraPageQualityCertificateDetail extraPageQualityCertificateDetail) { 
+    INPUT = file(extraPageQualityCertificateDetail) CHANGE; 
+    IF NOT (lower(getFileExtension(file(extraPageQualityCertificateDetail))) = 'pdf' OR 
+        lower(getFileExtension(file(extraPageQualityCertificateDetail))) = 'jpg' OR 
+        lower(getFileExtension(file(extraPageQualityCertificateDetail))) = 'jpeg') THEN {
+            MESSAGE 'Некорректный формат файла';
+            file(extraPageQualityCertificateDetail) <- NULL;
+        }
+}
+openFile 'Просмотреть сертификат' (ExtraPageQualityCertificateDetail extraPageQualityCertificateDetail)  { open(file(extraPageQualityCertificateDetail)); }
+
+FORM imageCertificate 'Сертификат качества'
+    OBJECTS o = QualityCertificate PANEL 
+    PROPERTIES file(o)
+;
+
+FORM imageCertificateExtra 'Сертификат качества'
+    OBJECTS o = ExtraPageQualityCertificateDetail PANEL 
+    PROPERTIES file(o)
+;
+
+printCertificate 'Печать сертификата' (QualityCertificate q) {
+    IF file(q) THEN {
+        IF lower(getFileExtension(file(q))) == 'pdf' THEN 
+            printFile(PDFFILE(file(q)));
+            ELSE PRINT imageCertificate OBJECTS o = q; 
+        MESSAGE 'Cертификат №'+number(q) +' отправлен на принтер' NOWAIT;
+    }
+    FOR file(ExtraPageQualityCertificateDetail dd) AND qualityCertificate(dd) == q DO {
+        IF lower(getFileExtension(file(dd))) == 'pdf' THEN printFile(PDFFILE(file(dd)));
+        ELSE PRINT imageCertificateExtra OBJECTS o = dd;
+    }
+} IMAGE 'print.png';
+
+printCertificateDuplex 'Печать сертификата (двухсторонняя)' (QualityCertificate q) {
+    IF file(q) THEN {
+        IF lower(getFileExtension(file(q))) == 'pdf' THEN 
+            printFile(PDFFILE(file(q)), NULL, NULL, TRUE);
+            ELSE PRINT imageCertificate OBJECTS o = q; 
+        MESSAGE 'Cертификат №'+number(q) +' отправлен на принтер' NOWAIT;
+    }
+    FOR file(ExtraPageQualityCertificateDetail dd) AND qualityCertificate(dd) == q DO {
+        IF lower(getFileExtension(file(dd))) == 'pdf' THEN printFile(PDFFILE(file(dd)), NULL, NULL, TRUE);
+        ELSE PRINT imageCertificateExtra OBJECTS o = dd;
+    }
+} IMAGE 'print.png';
+
+@defineDocumentDetailIndex(qualityCertificate, ExtraPageQualityCertificateDetail);
+
+extraPageQualityCertificateDetail (index, qualityCertificate) = GROUP AGGR ExtraPageQualityCertificateDetail extraPageQualityCertificateDetail WHERE extraPageQualityCertificateDetail IS ExtraPageQualityCertificateDetail BY index (extraPageQualityCertificateDetail), qualityCertificate(extraPageQualityCertificateDetail);
+
+@defineDocumentDetailNote(ExtraPageQualityCertificateDetail);
+
+addExtraPageDetail 'Добавить'(QualityCertificate qualityCertificate) { 
+    NEW d = ExtraPageQualityCertificateDetail {
+        qualityCertificate(d) <- qualityCertificate;
+        saveFile(d);
+        apply();
+    }
+} IMAGE 'add.png';
+
+// ------ Номер ----------- //
+
+number 'Номер' = DATA ISTRING[100] (QualityCertificate) NONULL IN numbered CHARWIDTH 10;
+series 'Серия' = DATA BPSTRING[2] (QualityCertificate) IN numbered CHARWIDTH 3 NOFLEX; 
+
+seriesNumber 'Серия/Номер' (QualityCertificate o) = 
+    CONCAT '', series(o), number(o) 
+    CHARWIDTH 7 MATERIALIZED;
+
+series(QualityCertificate certificate) += series(certificate);
+number(QualityCertificate certificate) += number(certificate);
+
+qualityCertificate = GROUP AGGR QualityCertificate s BY number(s),date(s),legalEntity(s);
+
+// Описание
+description 'Сертификат качества' (QualityCertificate qualityCertificate) = CONCAT ' ', seriesNumber(qualityCertificate),
+                                                 'от ' + toDateDDMMYYYY(fromDate(qualityCertificate)), 'по ' + toDateDDMMYYYY(toDate(qualityCertificate)) CHARWIDTH 20;
+// История                                                 
+@defineDocumentHeaderCreated(QualityCertificate);                                                 
+
+
+@defineBatchCertificate(qualityCertificate, QualityCertificate, 'Сертификат качества');
+fromDateQualityCertificate 'Дата с' (Batch batch) = fromDate(qualityCertificate(batch));
+toDateQualityCertificate 'Дата по' (Batch batch) = toDate(qualityCertificate(batch));
+
+FORM qualityCertificate 'Сертификат качества'
+    OBJECTS c = QualityCertificate PANEL
+    PROPERTIES(c) number, series, date, time, nameLegalEntity, own, 
+                  fromDate, toDate, saveFile, openFile SHOWIF file(c)     
+                  
+    OBJECTS d = ExtraPageQualityCertificateDetail
+    PROPERTIES(d) index, note
+    PROPERTIES(c) addExtraPageDetail DRAW d TOOLBAR
+    PROPERTIES(d) NEWSESSION TOOLBAR openFile SHOWIF file(d), saveFile, DELETE 
+    FILTERS qualityCertificate(d) == c
+    
+    EDIT QualityCertificate OBJECT c
+;
+
+DESIGN qualityCertificate {
+    BOX {
+        NEW pane {
+            fill = 1;
+            NEW header {
+                caption = 'Шапка документа';
+                type = CONTAINERH;
+                MOVE PROPERTY (number(c)) { charWidth = 70;};
+                MOVE PROPERTY (series(c));
+                MOVE PROPERTY (date(c));
+                MOVE PROPERTY (time(c));
+            }
+            MOVE PROPERTY (nameLegalEntity(c));
+            MOVE PROPERTY (own(c));
+            NEW params {
+                NEW timeContainer{
+                    type = CONTAINERH;
+                    caption = 'Период действия';
+                    MOVE PROPERTY (fromDate(c));
+                    MOVE PROPERTY (toDate(c));
+                }
+                NEW documentParams {
+                    type = COLUMNS;
+                    columns = 3;
+                    caption = 'Параметры документа';
+                }
+            }
+            NEW fileContainer{
+                type = CONTAINERH;
+                caption = 'Файл свидетельства';
+                MOVE PROPERTY(openFile(c));
+                MOVE PROPERTY(saveFile(c));
+            }    
+            NEW tabContainer{
+                fill = 1;
+                type = TABBED;
+                NEW firstTab{
+                    caption = 'Дополнительная информация';
+                    fill = 1;
+                }
+                MOVE BOX(d){
+                    caption = 'Дополнительные страницы свидетельства';
+                    PROPERTY(index(d)){
+                        caption = 'Номер файла';
+                    }
+                }
+            }                    
+        }    
+        MOVE TOOLBARBOX;
+    }
+}
+
+overCopy  ABSTRACT LIST ( QualityCertificate, QualityCertificate);
+    
+copy 'Копировать'(QualityCertificate qualityCertificate)  { 
+	NEWSESSION {
+	    NEW c = QualityCertificate {
+	        fromDate(c) <- fromDate(qualityCertificate);
+	        toDate(c) <- toDate(qualityCertificate);
+	
+	        overCopy(c, qualityCertificate);
+	        
+	        SHOW qualityCertificate OBJECTS c = c DOCKED;
+	    }
+	}
+} TOOLBAR;
+
+skipShowEdit = ABSTRACT BOOLEAN (QualityCertificate);
+showEdit = QualityCertificate c IS QualityCertificate AND NOT skipShowEdit(c);
+
+FORM qualityCertificates 'Сертификаты качества'
+    OBJECTS c = QualityCertificate LAST
+    PROPERTIES(c) READONLY number, series, date, time, nameLegalEntity, own, fromDate, toDate
+    PROPERTIES(c) copy
+    PROPERTIES (c) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
+    PROPERTIES(c) NEWSESSION NEW, EDIT SHOWIF showEdit(c), DELETE SHOWIF showEdit(c) 
+    
+    LIST QualityCertificate OBJECT c
+;
+
+DESIGN qualityCertificates {
+    BOX {
+        size = (1024, 768);
+        NEW header {
+            fill = 1;
+            type = SPLITV;
+            MOVE BOX(c) { fill = 2; }
+            NEW documentDetail {
+                fill = 1; 
+                type = TABBED;
+                NEW documentHistory {
+                    caption = 'История';
+                    fill = 1; 
+                    type = CONTAINERV;
+        
+                    MOVE GROUP(created,c);
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    customsDocuments {
+        NEW qualityCertificates;
+    }
+}
+
+EXTEND FORM qualityCertificates
+    PROPERTIES openFile(c) TOOLBAR SHOWIF file(c)
+    PROPERTIES printCertificate(c) TOOLBAR SHOWIF file(c), printCertificateDuplex(c) TOOLBAR SHOWIF file(c)
+;
+

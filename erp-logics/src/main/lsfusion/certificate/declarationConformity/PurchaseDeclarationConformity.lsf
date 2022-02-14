@@ -1,0 +1,82 @@
+MODULE PurchaseDeclarationConformity;
+
+REQUIRE DeclarationConformity, PurchaseCertificate;
+
+NAMESPACE Purchase;
+
+@defineDocumentCertificate(declarationConformity, invoice, i, 'Декларация о соответствии');
+@deriveDocumentPurchaseCertificate(declarationConformity, invoice, customerStock, data);
+
+@defineDocumentCertificate(declarationConformity, shipment, s, 'Декларация о соответствии');
+
+// Проставляем автоматически декларацию от строки инвойса
+WHEN CHANGED(declarationConformity(invoiceDetail(UserShipmentDetail d))) AND 
+     NOT CHANGED(declarationConformity(d)) DO
+     dataDeclarationConformity(d) <- declarationConformity(invoiceDetail(d)); 
+
+@deriveDocumentPurchaseCertificate(declarationConformity, shipment, customerStock, data);
+
+declarationConformity(InvoiceShipmentDetail detail) += declarationConformity(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) + { 
+    dataDeclarationConformity(s) <- declarationConformity(i);
+}
+
+declarationConformity (ShipmentBatch batch) += declarationConformity(shipmentDetail(batch));
+
+//---------------------------------- накладные для декларации --------------------------------------------------------//
+
+in 'Вкл.' (DeclarationConformity certificate, UserInvoice invoice) = declarationConformity(invoice)==certificate;
+
+in 'Вкл.' (DeclarationConformity certificate, UserInvoiceDetail invoiceDetail) = dataDeclarationConformity(invoiceDetail)==certificate;
+
+invoices 'Накладные' (DeclarationConformity certificate) =
+    GROUP
+              CONCAT shortDescription(UserInvoice invoice) IF in (certificate, invoice), ',' ORDER invoice MATERIALIZED CHARWIDTH 40;
+
+// ------------------------- Расширение формы декларации данными из инвойсов ----------------------------- //
+
+EXTEND FORM declarationConformity
+    PROPERTIES(c) READONLY invoices
+
+    OBJECTS id=UserInvoiceDetail
+    PROPERTIES(id) READONLY seriesNumber, dateTime, idBarcodeSku, nameSku, quantity, price, homePrice, homeSum
+
+    FILTERS declarationConformity(id) == c
+;
+
+DESIGN declarationConformity {
+    documentParams{
+        MOVE PROPERTY(invoices(c));
+    }
+    tabContainer {
+        MOVE BOX(id) {
+            fill = 1;
+        }
+    }
+}
+
+// ------------------------------------------ Выбор накладных непосредственно в форме с декларации-------------------------------------- //
+
+FORM declarationConformityInvoices 'Накладные декларации'
+    OBJECTS c=DeclarationConformity PANEL
+    PROPERTIES(c) READONLY seriesNumber, dateTime, fromDate, toDate
+
+    OBJECTS i=UserInvoice
+    PROPERTIES(c, i)       in
+    PROPERTIES(i) READONLY number, series, date, time, nameSupplier, nameCustomer
+    FILTERS in(c, i) OR c IS DeclarationConformity AND NOT declarationConformity(i)
+
+    OBJECTS id=UserInvoiceDetail
+    PROPERTIES(c, id) in
+    PROPERTIES(id) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, quantity, price
+    FILTERS userInvoice(id)==i
+;
+
+selectInvoices 'Выбрать накладные'(DeclarationConformity certificate)  { 
+    SHOW declarationConformityInvoices OBJECTS c=certificate ;
+} TOOLBAR;
+
+EXTEND FORM declarationConformity
+    PROPERTIES (c) selectInvoices DRAW id 
+;
