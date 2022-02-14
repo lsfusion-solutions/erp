@@ -1204,13 +1204,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer clientId = getClientId(d);
                     Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
+                    String clientName = nvl(d.nameDiscountCard, "");
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "000000" : null;
                     if(params.pgsql) {
                         setObject(ps, clientId, 1); //CLNTID
                         setObject(ps, clientGroupId, 2); //CLNTGRPID
                         setObject(ps, null, 3); //COMPANYID
                         setObject(ps, null, 4); //PROPERTYGRPID
-                        setObject(ps, d.nameDiscountCard, 5); //CLNTNAME
+                        setObject(ps, clientName, 5); //CLNTNAME
                         setObject(ps, clientBirthday, 6); //CLNTBIRTHDAY
                         setObject(ps, 0, 7); //LOCKED
                         setObject(ps, 0, 8); //DELFLAG
@@ -1220,7 +1221,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         setObject(ps, clientGroupId, 1, offset); //CLNTGRPID
                         setObject(ps, null, 2, offset); //COMPANYID
                         setObject(ps, null, 3, offset); //PROPERTYGRPID
-                        setObject(ps, d.nameDiscountCard, 4, offset); //CLNTNAME
+                        setObject(ps, clientName, 4, offset); //CLNTNAME
                         setObject(ps, clientBirthday, 5, offset); //CLNTBIRTHDAY
                         setObject(ps, 0, 6, offset); //LOCKED
                         setObject(ps, 0, 7, offset); //DELFLAG
