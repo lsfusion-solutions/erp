@@ -59,12 +59,18 @@ WHEN LOCAL CHANGED(isTestEInvoice(Invoice i)) AND isEInvoice(i) DO {
 }
 
 sendConsignmentEInvoiceAbstract ABSTRACT (Invoice);
+beforeSignAndSendSupplierEDI ABSTRACT (Invoice);
+skipSignAndSendSupplierEDI = DATA LOCAL BOOLEAN () ;
+
 signAndSendSupplierEDI 'Подписать и отправить (поставщик)'(Invoice i)  { 
     NEWSESSION {
-        in(EInvoice e) <- e = eInvoice(i);
-        signAndSendSupplierEDI();
-        in(EInvoice e) <- NULL;
-        IF  exportedSupplier(eInvoice(i)) THEN sendConsignmentEInvoiceAbstract(i);
+        beforeSignAndSendSupplierEDI(i);
+        IF NOT skipSignAndSendSupplierEDI() THEN{
+            in(EInvoice e) <- e = eInvoice(i);
+            signAndSendSupplierEDI();
+            in(EInvoice e) <- NULL;
+            IF  exportedSupplier(eInvoice(i)) THEN sendConsignmentEInvoiceAbstract(i);
+        }
     }
 }
 
