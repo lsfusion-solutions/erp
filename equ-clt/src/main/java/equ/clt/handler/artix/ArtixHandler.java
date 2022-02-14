@@ -586,6 +586,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         medicineObject.put("price", batch.price);
         medicineObject.put("inn", batch.nameSubstance);
         if (medicineModeNewScheme) {
+            //todo: remove temp log
+            processTransactionLogger.info(String.format("export batch: %s, blisterAmount %s, balanceBlister %s, balance %s", batch.idBatch, batch.blisterAmount, batch.balanceBlister, batch.balance));
             if (batch.balanceBlister != null) {
                 medicineObject.put("cquant", nvl(batch.blisterAmount, 1));
                 medicineObject.put("remainquant", batch.balanceBlister);
