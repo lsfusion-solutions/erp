@@ -1,6 +1,6 @@
 MODULE ImportAxaptaRetail;
 
-REQUIRE ImportAxaptaPriceList, PriceListOver3, PriceListStoreSkip, PriceListOperationDefault;
+REQUIRE ImportAxaptaPriceList, PriceListOver3, PriceListStoreSkip, PriceListOperationDefault, PriceListBefore;
 
 NAMESPACE ImportAxapta;
 
@@ -22,23 +22,43 @@ importPriceType 'Импорт видов цен' () {
                 IMPORT TABLE FROM file() TO id, name;
         }
 
+        //настройка операций для импорта
         ////добавление операции
-        //не уверен что нужно здесь (проверял в добавлении прайсов)
-        IF NOT operation('individual') THEN NEW g = PriceList.Operation {
+        //не уверен что нужно здесь, можно вынести отдельно
+        IF NOT operation('individual') THEN {
             createDefaultOperation('Розничная (магазин)', 'individual');
             FOR id(PriceList.Operation o) == 'individual' DO {
                 groupType(o) <- SystemGroupType.skuGroupType;
                 
                 allRoles(o) <- TRUE;
         
-                needStock(o) <- TRUE;
-                dataIn(StockGroup g1, o) <- TRUE WHERE id(g1) == 'chainStores';
+                needStock(o) <- TRUE;                           
+                                
+                //из-за из-за привязки к магазинам индивид. прайсов для операции         
+                doNotSetStocksUserPriceList(o) <- TRUE;
                 
+                //chainStores не  проходит при создании связок с прайсами пример ГУРМАН2                
+                //dataIn(StockGroup g1, o) <- TRUE WHERE id(g1) == 'chainStores';
+                allStocks(o) <- TRUE;
+                                
                 show(DataPriceListType pt, o) <- TRUE WHERE id(pt) == 'supplier';    
 
                 in(Currency c, o) <- TRUE WHERE c == defaultCurrency();
             }  
         }
+        
+        FOR id(PriceList.Operation o) = 'promotion' DO {
+            change(DataPriceListType t, o) <- TRUE WHERE id(t) = 'promotion' AND NOT change(t, o);
+            show(DataPriceListType t, o) <- TRUE WHERE id(t) = 'promotion' AND NOT show(t, o);         
+            skipConstraintPriceBefore(o) <- TRUE WHERE  NOT skipConstraintPriceBefore(o);         
+            doNotSetStocksUserPriceList(o) <- TRUE WHERE NOT doNotSetStocksUserPriceList(o);
+            //chainStores не  проходит при создании связок с прайсами пример ГУРМАН2
+            dataIn(StockGroup g1, o) <- NULL;
+            allStocks(o) <- TRUE WHERE NOT allStocks(o);                  
+        }
+        
+        allowRepeatSku(PriceList.Operation o) <- TRUE WHERE id(o) = 'retail' AND NOT allowRepeatSku(o);       
+        ////////////
 
         IF NOT dataPriceListType('individual') THEN NEW g = DataPriceListType {
             id(g) <- 'individual';
@@ -53,8 +73,6 @@ importPriceType 'Импорт видов цен' () {
             id(g) <- id(i);    
         }
         
-        skipEmptyPrice(PriceList.Operation p) <- TRUE WHERE id(p) = 'retail';
-
         FOR id(INTEGER i) AND DataPriceListType g == dataPriceListType(id(i))  DO {
             name(g) <- name(i);
             skipUnusedStock(g) <- TRUE;
@@ -275,7 +293,6 @@ importRetailPrice 'Импорт базовых прайс листов' () {
             number(p) <- STRING[48](id(i1));
         }
 
-        //пробовал operation('retail') ELSE operation('individual'); на два for раскидывать выходило толи медленней, толи также
         FOR INTEGER i1 = [GROUP MAX INTEGER i BY id(i)](STRING id) AND UserPriceList p = userPriceList(id) DO {
             PriceList.operation(p) <- IF type(i1) = 1 THEN operation('retail') ELSE operation('individual');
             date(p) <- DATE(date(i1));
@@ -355,13 +372,13 @@ DESIGN integrationData {
     }
 }
 
-//Импорт строк базовых прайс листов
+//Импорт цен базовых прайс листов (называл как в задаче, но по факту есть несколько десятков ненулевых строк с операцией individual)
 importSumRetailPriceDetail 'Импорт цен базовых прайс листов' () {
     NEWSESSION {
         LOCAL file = FILE ();    
         LOCAL idPriceDetail = STRING[100] (INTEGER);
         LOCAL idPriceListType = STRING[100] (INTEGER);
-        LOCAL sum = NUMERIC (INTEGER);
+        LOCAL sum = NUMERIC[16,4] (INTEGER);
 
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
@@ -381,9 +398,11 @@ importSumRetailPriceDetail 'Импорт цен базовых прайс лис
         }
         
 //        price(UserPriceListDetail d, DataPriceListType t) <- NULL WHERE price(d, t) AND operation(d) = operation('retail')
+//            AND NOT t = dataPriceListType('retail')
 //            AND NOT (GROUP MAX INTEGER i IF userPriceListDetail(idPriceDetail(i)) = d AND dataPriceListType(idPriceListType(i)) = t);
 // 
 //        price(UserPriceListDetail d, DataPriceListType t) <- NULL WHERE price(d, t) AND operation(d) = operation('individual')
+//            AND NOT t = dataPriceListType('individual')
 //            AND NOT (GROUP MAX INTEGER i IF userPriceListDetail(idPriceDetail(i)) = d AND dataPriceListType(idPriceListType(i)) = t);
         
         APPLY;
@@ -399,6 +418,247 @@ DESIGN integrationData {
         NEW importSumRetailPriceDetailCont {
             type = CONTAINERH;
             MOVE PROPERTY (importSumRetailPriceDetail());
+        }
+    }
+}
+
+//Импорт строк индивидуальных прайсов
+importSumIndividualPriceDetail 'Импорт цен индивидуальных прайсов и привязок к складам' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL idPriceDetail = STRING[100] (INTEGER);
+        LOCAL idStock = STRING[100] (INTEGER);
+        LOCAL sum = NUMERIC[16,4] (INTEGER);
+
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO idPriceDetail, idStock, sum;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT TRANSID, INVENTLOCATIONID_SHOP, PRICE FROM RETAILESTIMATIONTRANSPRICE WHERE INVENTLOCATIONID_SHOP != \'\' AND DATAAREAID = $1' 
+                    PARAMS areaId() TO file;
+
+            IMPORT TABLE FROM file() TO idPriceDetail, idStock, sum;
+        }
+           
+        FOR [GROUP MAX idPriceDetail(INTEGER i) BY userPriceList(userPriceListDetail(idPriceDetail(i))),  stock(idStock(i))](UserPriceList p, Stock s) DO {
+            dataIn(p, s) <- TRUE;
+        }
+        
+        FOR NUMERIC[16,4] s = [GROUP MAX sum(INTEGER i) BY idPriceDetail(i)](STRING[100] id) 
+            AND UserPriceListDetail d = userPriceListDetail(idPriceDetail(INTEGER i))  DO {
+            price(d, dataPriceListType('individual')) <- s IF s > 0;
+        }
+
+//удаление не проверил, очень долго отрабатывает вторая часть - price(UserPriceListDetail d, dataPriceListType('individual')) <- NULL
+//        dataIn(UserPriceList p, Stock s) <- NULL WHERE dataIn(p, s) AND operation(p) = operation('individual')
+//            AND NOT (GROUP MAX INTEGER i IF userPriceList(userPriceListDetail(idPriceDetail(i))) = p AND stock(idStock(i)) = s);
+//
+//        price(UserPriceListDetail d, dataPriceListType('individual')) <- NULL WHERE price(d, dataPriceListType('individual')) AND operation(d) = operation('individual')
+//            AND NOT (GROUP MAX INTEGER i IF userPriceListDetail(idPriceDetail(i)) = d AND sum(i) > 0);
+        
+        APPLY;
+        
+        }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importSumIndividualPriceDetail
+;
+
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importSumIndividualPriceDetailCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importSumIndividualPriceDetail());
+        }
+    }
+}
+
+//Импорт акционных прайс листов
+importPromotionPrice 'Импорт акционных прайс листов' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL NESTED id = STRING[100] (INTEGER);
+        LOCAL number = STRING[100] (INTEGER); 
+        LOCAL NESTED isPosted = INTEGER (INTEGER); 
+        LOCAL name = STRING[100] (INTEGER); 
+        LOCAL fromDate = DATETIME (INTEGER);
+        LOCAL toDate = DATETIME (INTEGER);
+
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO id, number, isPosted, name, fromDate, toDate;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT acg.ADVERTCAMPAIGNID + \'/\' + ADVERTLOCATIONLISTID, ' + 
+                            'acg.ADVERTCAMPAIGNID, ac.HASTRANS, ac.ADVERTCAMPAIGNNAME, ' + 
+                            'ac.DATEBEGIN, ac.DATEEND' + 
+                      'FROM (SELECT ADVERTCAMPAIGNID, ADVERTLOCATIONLISTID FROM ADVERTCAMPAIGNLINES ' + 
+                            'WHERE RETAILPRICEADVERT > 0 GROUP BY ADVERTCAMPAIGNID, ADVERTLOCATIONLISTID) acg' +
+                      'JOIN ADVERTCAMPAIGN ac ON ac.ADVERTCAMPAIGNID = acg.ADVERTCAMPAIGNID '+ 
+                      'WHERE DATAAREAID = $1' 
+                    PARAMS areaId() TO file;
+
+            IMPORT TABLE FROM file() TO id, number, isPosted, name, fromDate, toDate;
+        }
+
+        FOR INTEGER i1 = [GROUP MAX INTEGER i BY id(i)](STRING id) AND NOT userPriceList(id) NEW p = UserPriceList DO {
+            id(p) <- id;            
+            number(p) <- (number(i1));
+            PriceList.operation(p) <- operation('promotion');            
+        }
+
+        FOR INTEGER i1 = [GROUP MAX INTEGER i BY id(i)](STRING id) AND UserPriceList p = userPriceList(id) DO {
+            isPosted(p) <- TRUE IF isPosted(i1) = 1;
+            note(p) <- name(i1);
+            fromDate(p) <- DATE(fromDate(i1));
+            fromTime(p) <- 00:00;
+            toDate(p) <- DATE(toDate(i1));
+            toTime(p) <- 00:00; 
+            //из-за constraint-а Дата с (Цена до) и Дата по (Цена до)не могут быть в интервале самого прайса
+            fromPriceBeforeDate(p) <- sum(fromDate(p), -1);
+            fromPriceBeforeTime(p) <- 23:59; 
+        }
+
+//        DELETE UserPriceList g WHERE PriceList.operation(g) = PriceList.operation('promotion') AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));                      
+
+        APPLY;
+        
+        //альтернатива sum(fromDate(p), -1);
+        // проставляется вторым APPLY  из-за constraint-а Дата с (Цена до) и Дата по (Цена до)не могут быть в интервале самого прайса
+        ///можно проставлять в импорте строк (но выходит медленно)
+//        FOR INTEGER i1 = [GROUP MAX INTEGER i BY id(i)](STRING id) AND UserPriceList p = userPriceList(id) DO {
+//            isPosted(p) <- TRUE IF isPosted(i1) = 1;
+//            toPriceBeforeDate(p) <- NULL;
+//            toPriceBeforeTime(p) <- NULL;            
+//            fromPriceBeforeDate(p) <- NULL;
+//            fromPriceBeforeTime(p) <- NULL;        
+//        }
+//        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importPromotionPrice
+;
+
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importPromotionPriceCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importPromotionPrice());
+        }
+    }
+}
+
+//Импорт строк акционных прайс листов
+importPromotionPriceDetail 'Импорт строк акционных прайс листов' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL idPrice = STRING[100] (INTEGER);
+        LOCAL idItem = STRING[100] (INTEGER);
+        
+        LOCAL sum = NUMERIC[16,4] (INTEGER);
+        LOCAL sumBefore = NUMERIC[16,4] (INTEGER);
+
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO id, idPrice, idItem, sum, sumBefore;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT ADVERTLINEID, acl.ADVERTCAMPAIGNID + \'/\' + ADVERTLOCATIONLISTID,' + 
+                             'ITEMID, CASE WHEN ac.ADVERTCLNSTATUS = 3 THEN 0.0 ELSE RETAILPRICEADVERT END, RETAILPRICEREGULAR ' + 
+                      'FROM ADVERTCAMPAIGNLINES acl JOIN ADVERTCAMPAIGN ac ON ac.ADVERTCAMPAIGNID = acl.ADVERTCAMPAIGNID WHERE RETAILPRICEADVERT > 0 AND '+ 
+                      'WHERE DATAAREAID = $1'
+                    PARAMS areaId() TO file;
+
+            IMPORT TABLE FROM file() TO id, idPrice, idItem, sum, sumBefore;
+        }
+
+        //слишком медленно, и скорее всего при создании строки все равно проставится тек. датой
+//        FOR NUMERIC[16,4] sumBefore = [GROUP MAX sumBefore(INTEGER i) BY idPrice(i)](STRING idPrice) AND sumBefore > 0 AND UserPriceList p = userPriceList(idPrice)
+//            AND NOT showPriceBefore(p) DO {
+//            showPriceBefore(p) <- TRUE;
+//            toPriceBeforeDate(p) <- NULL;
+//            toPriceBeforeTime(p) <- NULL;            
+//            fromPriceBeforeDate(p) <- NULL;
+//            fromPriceBeforeTime(p) <- NULL;              
+//        }
+
+        FOR id(INTEGER i) AND UserPriceList p = userPriceList(idPrice(i)) AND NOT userPriceListDetail(STRING(id(i))) DO NEW d = UserPriceListDetail {
+            id(d) <- STRING(id(i));            
+        }
+        
+        FOR id(INTEGER i) AND UserPriceList p = userPriceList(idPrice(i)) AND UserPriceListDetail d = userPriceListDetail(id(i)) DO {
+            userPriceList(d) <- p;
+            sku(d) <- item(idItem(i));
+            price(d, dataPriceListType('promotion')) <- sum(i) IF sum(i) > 0;
+            priceBefore(d) <- sumBefore(i);
+        }
+        
+        //DELETE UserPriceListDetail g WHERE PriceList.operation(g) = PriceList.operation('promotion') AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));
+
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importPromotionPriceDetail
+;
+
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importPromotionPriceDetailCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importPromotionPriceDetail());
+        }
+    }
+}
+
+//Импорт привязки акций к складам
+importPromotionPriceStock 'Импорт привязки акций к складам' () {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL idPrice = STRING[100] (INTEGER);
+        LOCAL idStock = STRING[100] (INTEGER);
+
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO idPrice, idStock;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT ADVERTCAMPAIGNID + \'/\' + ADVERTLOCATIONLISTID, INVENTLOCATIONID FROM ADVERTLOCATIONLISTLINES WHERE DATAAREAID = $1' 
+                    PARAMS areaId() TO file;
+
+            IMPORT TABLE FROM file() TO idPrice, idStock;
+        }
+           
+        FOR [GROUP MAX idPrice(INTEGER i) BY userPriceList(idPrice(i)),  stock(idStock(i))](UserPriceList p, Stock s) DO {
+            dataIn(p, s) <- TRUE;
+        }
+
+//        dataIn(UserPriceList p, Stock s) <- NULL WHERE dataIn(p, s) AND operation(p) = operation('promotion')
+//            AND NOT (GROUP MAX INTEGER i IF userPriceList(userPriceListDetail(idPriceDetail(i))) = p AND stock(idStock(i)) = s);
+        
+        APPLY;        
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() importPromotionPriceStock
+;
+
+DESIGN integrationData {
+    axaptaButtons {
+        NEW importPromotionPriceStockCont {
+            type = CONTAINERH;
+            MOVE PROPERTY (importPromotionPriceStock());
         }
     }
 }
