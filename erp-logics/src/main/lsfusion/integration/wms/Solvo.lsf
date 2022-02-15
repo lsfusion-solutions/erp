@@ -1,6 +1,6 @@
 MODULE Solvo;
 
-REQUIRE WMSIntegration, Warehouse, PurchaseOrder;
+REQUIRE WMSIntegration, Warehouse, PurchaseShipment;
 
 
 isSolvo 'Склад c WMS Solvo' = DATA BOOLEAN (Warehouse);
@@ -40,6 +40,7 @@ DESIGN  integrationData {
 nowText() =  [FORMULA TEXT 'to_char(now(),($1))']('DD-MM-YYYY HH24:MI:SS'); 
 format(STRING s) = OVERRIDE escapeXMLValue(s), '';
 format(BOOLEAN b) = IF b THEN 't' ELSE 'f';
+format(DATETIME d) = OVERRIDE toChar(d, 'YYYY-MM-DD HH24:MI'), '';
 
 defaultNumeratorSyncid = DATA Numerator ();
 nameDefaultNumeratorSyncid 'Пакеты выгрузки в wms' = name(defaultNumeratorSyncid()) IN defaultNumerator;
@@ -48,25 +49,28 @@ EXTEND FORM defaultNumerators
     PROPERTIES() nameDefaultNumeratorSyncid = nameDefaultNumeratorSyncid
 ;
 
-incrementedIntValue = DATA LOCAL NESTED LONG();    
-numerateIds(LONG i) {
-    NEWSESSION APPLY {
-        incrementedIntValue() <- curValue(defaultNumeratorSyncid());
-        curValue(Numerator n) <- curValue(n) + i WHERE n == defaultNumeratorSyncid();
-    }
-}
-
 headerId = DATA LOCAL INTEGER (LONG);
 action = DATA LOCAL STRING (LONG);
 meaasage = DATA LOCAL STRING (LONG);
 
 insertString  = 
     'INSERT ALL'+
-        ' WHEN header=0 THEN INTO from_host_header_message(ID,SRC_HOST_ID,DST_HOST_ID,TYPE,ACTION,MESSAGE) VALUES (sync_id,\'host\',\'wms\',\'update\',action ,meaasage)' +
-        ' WHEN header>0 THEN INTO from_host_detail_message(ID,HEADER_ID,TYPE,ACTION,MESSAGE) VALUES (sync_id, header, \'update\',action ,meaasage)' +
+        ' WHEN header=0 THEN INTO from_host_header_message(ID,SRC_HOST_ID,DST_HOST_ID,TYPE,ACTION,STATUS,MESSAGE) VALUES (sync_id,\'host\',\'wms\',\'update\',action,\'ready\',meaasage)' +
+        ' WHEN header>0 THEN INTO from_host_detail_message(ID,HEADER_ID,TYPE,ACTION,STATUS,MESSAGE) VALUES (sync_id,header,\'update\',action,\'ready\',meaasage)' +
         ' WITH data AS ('+
         (GROUP CONCAT ' SELECT ' + headerId(LONG id) + ' header, ' + id + ' sync_id, \'' + action(id) + '\' action, \''+ meaasage(id) + '\' meaasage FROM dual', ' UNION ALL' ORDER id)+
         ' ) SELECT * FROM data';
+
+incrementedValue = DATA LOCAL NESTED LONG();    
+numerateIds(LONG i) {
+    NEWSESSION APPLY {
+        incrementedValue() <- curValue(defaultNumeratorSyncid());
+        curValue(Numerator n) <- curValue(n) + i WHERE n == defaultNumeratorSyncid();
+    }
+    headerId (LONG l) <- NULL;
+    action (LONG l) <- NULL;
+    meaasage (LONG l) <- NULL;
+}
 
 //товары
 changed 'Время изменения' = DATA DATETIME (Item) IN wms;
@@ -86,8 +90,10 @@ exportItems 'Выгрузить товары в wms Solvo' ()  {
         
         numerateIds(countInItem());
         
+        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write items:', (GROUP CONCAT id(Item i) IF in(i), ',' ORDER i));
+        
         LOCAL syncId = LONG (Item);
-        syncId(Item i) <- incrementedIntValue() - 1 + PARTITION SUM 1 IF in(i) ORDER i; 
+        syncId(Item i) <- incrementedValue() - 1 + PARTITION SUM 1 IF in(i) ORDER i; 
         
         FOR syncId(Item i) DO {
             headerId(syncId(i)) <- 0;
@@ -97,15 +103,16 @@ exportItems 'Выгрузить товары в wms Solvo' ()  {
         
         EXTERNAL 
             SQL connectionString()
-            EXEC insertString();
-            
-        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedIntValue(), 'Write items:', (GROUP CONCAT id(Item i) IF in(i), ',' ORDER i));
-        MESSAGE 'Товары выгружены\n' NOWAIT;
-    }
-    
-    NEWSESSION NESTED LOCAL {
-        loaded(Item i) <- currentDateTime() WHERE in(i);
-        APPLY NESTED LOCAL;
+            EXEC insertString(); 
+        
+        NEWSESSION NESTED LOCAL {
+            loaded(Item i) <- currentDateTime() WHERE in(i);
+            APPLY NESTED LOCAL;
+        }
+        
+        MESSAGE 'Товары выгружены' NOWAIT;
+	    
+	    in(Item it) <- NULL;
     }
 }
 
@@ -113,7 +120,6 @@ exportItems 'Выгрузить отмеченные товары в wms Solvo' 
 	NEWSESSION NESTED LOCAL {
 	    in(i) <- TRUE;
 	    exportItems();
-	    in(Item it) <- NULL;
 	}
 } TOOLBAR;
 
@@ -121,7 +127,6 @@ exportChangedItems 'Выгрузить изменившиеся товары в 
 	NEWSESSION NESTED LOCAL {
 	    in(Item i) <- TRUE WHERE changed(i) AND NOT changed(i) < loaded(i);
 	    exportItems();
-	    in(Item it) <- NULL;
 	}
 } TOOLBAR;
 
@@ -154,8 +159,10 @@ exportStocks 'Выгрузить склады в wms Solvo' ()  {
         
         numerateIds(countInStock());
         
+        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write stocks:', (GROUP CONCAT id(Stock i) IF in(i), ',' ORDER i));
+        
         LOCAL syncId = LONG (Stock);
-        syncId(Stock i) <- incrementedIntValue() - 1 + PARTITION SUM 1 IF in(i) ORDER i; 
+        syncId(Stock i) <- incrementedValue() - 1 + PARTITION SUM 1 IF in(i) ORDER i; 
         
         FOR syncId(Stock i) DO {
             headerId(syncId(i)) <- 0;
@@ -167,13 +174,14 @@ exportStocks 'Выгрузить склады в wms Solvo' ()  {
             SQL connectionString()
             EXEC insertString();
             
-        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedIntValue(), 'Write stocks:', (GROUP CONCAT id(Stock i) IF in(i), ',' ORDER i));
-        MESSAGE 'Склады выгружены\n' NOWAIT;
-    }
-    
-    NEWSESSION NESTED LOCAL {
-        loaded(Stock i) <- currentDateTime() WHERE in(i);
-        APPLY NESTED LOCAL;
+        NEWSESSION NESTED LOCAL {
+            loaded(Stock i) <- currentDateTime() WHERE in(i);
+            APPLY NESTED LOCAL;
+        }
+        
+        MESSAGE 'Склады выгружены' NOWAIT;
+	    
+	    in(Stock st) <- NULL;
     }
 }
 
@@ -181,7 +189,6 @@ exportStocks 'Выгрузить отмеченные склады в wms Solvo'
 	NEWSESSION NESTED LOCAL {
 	    in(s) <- TRUE;
 	    exportStocks();
-	    in(Stock st) <- NULL;
 	}
 } TOOLBAR;
 
@@ -189,7 +196,6 @@ exportChangedStocks 'Выгрузить изменившиеся склады в
 	NEWSESSION NESTED LOCAL {
 	    in(Stock s) <- TRUE WHERE changed(s) AND NOT changed(s) < loaded(s);
 	    exportStocks();
-	    in(Stock it) <- NULL;
 	}
 } TOOLBAR;
 
@@ -201,5 +207,74 @@ EXTEND FORM integrationData
 DESIGN  integrationData {
     paneS {
         MOVE BOX (sSt);
+    }
+}
+
+//приход
+beforeExportSolvo ABSTRACT (Purchase.Invoice);
+
+incomingHeaderString (LONG syncId, Purchase.Invoice s) = '<incoming syncid=\'\''+syncId+'\'\' action=\'\'update\'\' syncdate=\'\''+nowText()+
+    '\'\' inc_id=\'\''+id(s)+'\'\' display_name=\'\''+format(seriesNumber(s))+'\'\' priority=\'\'99\'\' supplier_id=\'\''+format(idSupplierStock(s))+
+    '\'\' carrier_id=\'\'\'\' type=\'\'A\'\' date_to_ship=\'\''+format(shipmentDateTime(s))+'\'\' responsible=\'\'\'\' comments=\'\''+format(note(s))+'\'\'>';
+
+extraIncomingDetailString = ABSTRACT CASE STRING (Purchase.InvoiceDetail);
+incomingDetailString (LONG syncId, Purchase.InvoiceDetail s) = '<incoming_detail syncid=\'\''+syncId+'\'\' action=\'\'update\'\' syncdate=\'\''+nowText()+
+    '\'\' inc_id=\'\''+id(invoice(s))+'\'\' line=\'\''+STRING(index(s))+'\'\' sku_id=\'\''+idSku(s)+'\'\' category=\'\'1\'\' ' + extraIncomingDetailString(s) +
+    ' marker=\'\'-\'\' marker2=\'\'-\'\' qty=\'\''+format(STRING(quantity(s)))+'\'\' uom=\'\''+format(shortNameUOMSku(s))+'\'\' comments=\'\'\'\'/>';
+
+exportSolvo 'Выгрузить приход в wms Solvo' (Purchase.Invoice i) { 
+    NEWSESSION {
+    
+        in(Item it) <- TRUE WHERE quantityInvoiceDetail(it, i) AND changed(it) AND NOT changed(it) < loaded(it);
+        exportItems();
+        
+        in(Stock s) <- TRUE WHERE s == supplierStock(i) AND changed(s) AND NOT changed(s) < loaded(s);
+        exportStocks();
+    
+        beforeExportSolvo(i);
+        
+        numerateIds(countInvoiceDetail(i) + 2);
+        
+        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Purchase Invoice:', seriesNumber(i));
+        
+        IF NOT id(i) THEN {
+            id(i) <- CONCAT '_', seriesNumber(i), date(i);
+        }
+        
+        headerId(incrementedValue()) <- 0;
+        action(incrementedValue()) <- 'incoming';
+        meaasage(incrementedValue()) <- incomingHeaderString(incrementedValue(), i);
+        
+        FOR i == invoice(Purchase.InvoiceDetail d) DO {
+            headerId(incrementedValue() + index(d)) <- incrementedValue();
+            action(incrementedValue() + index(d)) <- 'incoming_detail';
+            meaasage(incrementedValue() + index(d)) <- incomingDetailString(incrementedValue() + index(d), d);
+        }
+        
+        headerId(incrementedValue() + countInvoiceDetail(i) + 1) <- incrementedValue();
+        action(incrementedValue() + countInvoiceDetail(i) + 1) <- '/incoming';
+        meaasage(incrementedValue() + countInvoiceDetail(i) + 1) <- '</incoming>';
+    
+        EXTERNAL 
+            SQL connectionString()
+            EXEC insertString();
+            
+        MESSAGE 'Накладная выгружена' NOWAIT;
+    }
+
+}
+
+EXTEND FORM Purchase.invoices 
+    PROPERTIES (i) PANEL SHOWIF isSolvo(customerStock(i)) 
+        exportSolvo
+;
+
+DESIGN Purchase.invoices {
+    actionContainer {
+        NEW exportWMS {
+            caption = 'Экспорт в WMS';
+            type = CONTAINERV;
+            MOVE PROPERTY(exportSolvo(i));
+        }
     }
 }
