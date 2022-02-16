@@ -48,9 +48,7 @@ importPriceType 'Импорт видов цен' () {
         }
         
         FOR id(PriceList.Operation o) = 'promotion' DO {
-            change(DataPriceListType t, o) <- TRUE WHERE id(t) = 'promotion' AND NOT change(t, o);
-            show(DataPriceListType t, o) <- TRUE WHERE id(t) = 'promotion' AND NOT show(t, o);         
-            skipConstraintPriceBefore(o) <- TRUE WHERE  NOT skipConstraintPriceBefore(o);         
+            skipConstraintPriceBefore(o) <- TRUE WHERE NOT skipConstraintPriceBefore(o);         
             doNotSetStocksUserPriceList(o) <- TRUE WHERE NOT doNotSetStocksUserPriceList(o);
             //chainStores не  проходит при создании связок с прайсами пример ГУРМАН2
             dataIn(StockGroup g1, o) <- NULL;
@@ -86,7 +84,9 @@ importPriceType 'Импорт видов цен' () {
         IF NOT dataPriceListType('promotion') THEN NEW g = DataPriceListType {
             id(g) <- 'promotion';
             name(g) <- 'Розничная (акционная)'; 
-            includeVAT(g) <- TRUE;          
+            includeVAT(g) <- TRUE;   
+            change(g, PriceList.Operation o) <- TRUE WHERE o = operation('promotion');
+            show(g, PriceList.Operation o) <- TRUE WHERE o = operation('promotion');        
         }
         
         FOR id(INTEGER i) AND DataPriceListType d = dataPriceListType(id(i)) AND NOT overPriceListType('O' + id(i)) DO NEW g = OverPriceListType {
@@ -451,11 +451,11 @@ importSumIndividualPriceDetail 'Импорт цен индивидуальных
             price(d, dataPriceListType('individual')) <- s IF s > 0;
         }
 
-//        dataIn(UserPriceList p, Stock s) <- NULL WHERE dataIn(p, s) AND operation(p) = operation('individual')
-//            AND NOT (GROUP MAX INTEGER i IF userPriceList(userPriceListDetail(idPriceDetail(i))) = p AND stock(idStock(i)) = s);
-//
-//        price(UserPriceListDetail d, dataPriceListType('individual')) <- NULL WHERE price(d, dataPriceListType('individual')) AND operation(d) = operation('individual')
-//            AND NOT (GROUP MAX INTEGER i IF userPriceListDetail(idPriceDetail(i)) = d AND sum(i) > 0);
+        dataIn(UserPriceList p, Stock s) <- NULL WHERE dataIn(p, s) AND operation(p) = operation('individual')
+            AND NOT (GROUP MAX INTEGER i IF userPriceList(userPriceListDetail(idPriceDetail(i))) = p AND stock(idStock(i)) = s);
+
+        price(UserPriceListDetail d, dataPriceListType('individual')) <- NULL WHERE price(d, dataPriceListType('individual')) AND operation(d) = operation('individual')
+            AND NOT (GROUP MAX INTEGER i IF userPriceListDetail(idPriceDetail(i)) = d AND sum(i) > 0);
         
         APPLY;
         
