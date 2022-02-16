@@ -18,6 +18,8 @@ discountSumReceiptSaleDetail 'Сумма скидки' = GROUP SUM discountSum(R
 countReceiptSaleDetail = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
     BY zReport(d), sku(d), price(d) MATERIALIZED;
 
+extraDiscountSum = ABSTRACT NUMERIC[18,4](ZReportSaleSkuLedger); 
+
 VATReceiptSaleDetail = DATA Range (ZReport, Sku, NUMERIC[16,4]);
 WHEN SET(quantityReceiptSaleDetail(ZReport zr, Sku sku, NUMERIC[16,4] price)) DO {
     VATReceiptSaleDetail (zr, sku, price) <- VAT (sku, country(zr));
@@ -53,8 +55,8 @@ skip[SkuLedger] (ZReportSaleSkuLedger ledger) += date(zReport(ledger)) < startDa
                            skuType(sku(ledger)) == SkuType.skuTypeCharge;
 
 quantity[OutFIFOSkuLedger] (ZReportSaleSkuLedger ledger) += quantityReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger));
-sum[OutSkuLedger] (ZReportSaleSkuLedger ledger) += sumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger))
-    (+) discountSumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger));
+//sum[OutSkuLedger] (ZReportSaleSkuLedger ledger) += sumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger))
+//    (+) discountSumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger));
     
 edit(ZReportSaleSkuLedger d) + {  edit(zReport(d)); }
 show[SkuLedger](ZReportSaleSkuLedger d) + {  show(zReport(d)); }
@@ -96,6 +98,8 @@ discountSumReceiptReturnDetail 'Сумма скидки' = GROUP SUM discountSum
 countReceiptReturnDetail = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d)
     BY zReport(d), sku(d), price(d) MATERIALIZED;
 
+extraDiscountSum = ABSTRACT NUMERIC[18,4](ZReportReturnSkuLedger); 
+
 VATReceiptReturnDetail = DATA Range (ZReport, Sku, NUMERIC[16,4]);
 WHEN SET(quantityReceiptReturnDetail(ZReport zr, Sku sku, NUMERIC[16,4] price)) DO {
     VATReceiptReturnDetail (zr, sku, price) <- VAT(sku, country(zr));
@@ -118,8 +122,8 @@ skip[SkuLedger] (ZReportReturnSkuLedger ledger) += date(zReport(ledger)) < start
                                                   skuType(sku(ledger)) == SkuType.skuTypeCharge;
 
 quantity[InLIFOSkuLedger] (ZReportReturnSkuLedger ledger) += quantityReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger));
-sum[InSkuLedger] (ZReportReturnSkuLedger ledger) += sumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger))
-    (+) discountSumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger));
+//sum[InSkuLedger] (ZReportReturnSkuLedger ledger) += sumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger))
+//    (+) discountSumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger));
     
 edit(ZReportReturnSkuLedger d) + {  edit(zReport(d)); }
 show[SkuLedger](ZReportReturnSkuLedger d) + {  show(zReport(d)); }
