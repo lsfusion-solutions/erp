@@ -1,0 +1,22 @@
+MODULE RetailPriceDashboardSkip;
+
+REQUIRE RetailPriceDashboard, PriceListStoreSkip;
+
+NAMESPACE PriceList;
+
+currentMarkupM 'Надбавка, упр., % (по виду цен)' (LedgerPriceListType rt, LedgerPriceListType st, Sku sku, DATETIME dt) = currentMarkupM(rt, st, sku, minDepartmentStore(rt), dt); 
+currentCalcM 'РЦ, упр. (по виду цен)'(LedgerPriceListType rt, Sku sku, DATETIME dt) = currentCalcM(rt, sku, minDepartmentStore(rt), dt); 
+
+changeRetailPriceM (LedgerPriceListType type, Sku sk, DATETIME dt)  {
+    changeRetailPriceM(type, sk, minDepartmentStore(type), dt);
+}
+
+EXTEND FORM retailPriceDashboard
+    PROPERTIES currentMarkupM(pt2,pt0,sk,dt) COLUMNS 'f'  (pt2) HEADER ('Надбавка, упр., % '+name(pt2)) BACKGROUND backgroundRetail(pt2,d)
+    PROPERTIES currentCalcM(pt2,sk,dt) COLUMNS 'f'  (pt2) HEADER ('РЦ, упр. '+name(pt2)) ON CHANGE changeRetailPriceM(pt2,sk,dt) BACKGROUND backgroundRetailPrice(pt2,d)
+;
+
+DESIGN retailPriceDashboard {
+    PROPERTY(currentMarkupM(pt2,pt0,sk,d,dt)) { hide = TRUE; }
+    PROPERTY(currentCalcM(pt2,sk,d,dt)) { hide = TRUE; }
+}

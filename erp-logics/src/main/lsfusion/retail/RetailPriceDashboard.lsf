@@ -8,14 +8,14 @@ filterRetailCalc = GROUP SUM 1 BY retailCalcPriceListType (DepartmentStore d);
 filterRetail (LedgerPriceListType lt) = GROUP SUM 1 IF overIn(retailPriceListType (DepartmentStore d), lt); 
 filterBase = GROUP SUM 1 BY basePriceListType(retailCalcPriceListType (DepartmentStore d)); 
    
-currentCalc (CalcPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
+currentCalc 'РЦ, над.' (CalcPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
 
-currentMarkupM 'Надбавка, %' (LedgerPriceListType rt, LedgerPriceListType st, Sku sku, Stock stock, DATETIME dt) = 
+currentMarkupM 'Надбавка, упр., %' (LedgerPriceListType rt, LedgerPriceListType st, Sku sku, Stock stock, DATETIME dt) = 
     [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                priceA(rt, sku, stock, dt),
                                priceA(st, sku, stock, dt),
                                valueVAT(sku, stock));
-currentCalcM (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
+currentCalcM 'РЦ, упр.' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceA(type, sku, stock, dt);
 companyCalcM (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dt) = companyA(type, sku, stock, dt);
 nameCompanyCalcM (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dt) = name(companyA(type, sku, stock, dt));
 
@@ -32,20 +32,25 @@ backgroundCalc (LedgerPriceListType type, Stock stock) = CASE
     
 backgroundRetail (LedgerPriceListType type, Stock stock) = CASE
     WHEN ledgerPriceListType(retailPriceListType (stock))== type THEN RGB(186, 248, 255)
-    WHEN type IS  LedgerPriceListType AND stock IS Stock THEN RGB(237, 253, 255);
+    WHEN type IS LedgerPriceListType AND stock IS Stock THEN RGB(237, 253, 255);
+
+backgroundRetailPrice (LedgerPriceListType type, Stock stock) = CASE
+    WHEN ledgerPriceListType(retailPriceListType(stock)) == type THEN RGB(186, 248, 255)
+    WHEN type IS LedgerPriceListType AND stock IS Stock THEN RGB(227, 243, 255);
 
 backgroundMarkupSku (CalcPriceListType type, Sku sku, Stock stock) = CASE 
     WHEN CHANGED(dataMarkup(type,sku)) AND stock IS Stock THEN RGB(204,255,204)
     WHEN retailCalcPriceListType (stock) == type AND sku IS Sku THEN RGB(255, 250, 205);
 
-markupGroup (CalcPriceListType type, Sku sku) = markup(type, skuGroup(sku));   
+markupGroup '% ТН, группа' (CalcPriceListType type, Sku sku) = markup(type, skuGroup(sku));   
 backgroundMarkupSkuGroup (CalcPriceListType type, Sku sku, Stock stock) = CASE 
     //WHEN CHANGED(markupGroup(type,sku)) AND stock IS Stock THEN RGB(204,255,204)
     WHEN retailCalcPriceListType (stock) == type AND sku IS Sku THEN RGB(255, 250, 205);
     
 backgroundMarkupSkuGroupOver (CalcPriceListType type, Sku sku, Stock stock) = CASE 
     WHEN CHANGED(markup(type,sku)) AND stock IS Stock THEN RGB(204,255,204)
-    WHEN retailCalcPriceListType (stock) == type AND sku IS Sku THEN RGB(255, 250, 205);
+    WHEN retailCalcPriceListType (stock) == type AND sku IS Sku THEN RGB(255, 250, 195)
+    ELSE RGB(255,255,245);
 
 defaultRetailOperation  = DATA PriceList.Operation();
 nameDefaultRetailOperation 'Операция для создания розничного прайса на форме "Розничные цены"' () = name(defaultRetailOperation());
@@ -143,7 +148,7 @@ FORM retailPriceDashboard 'Розничные цены'
     PROPERTIES READONLY currentCalc(pt1,sk,d,dt) COLUMNS 'f'  (pt1) HEADER ('РЦ, над. '+name(pt1)) BACKGROUND backgroundMarkupSkuGroupOver(pt1,sk,d)        
     //-- розничная (упр.)
     PROPERTIES currentMarkupM(pt2,pt0,sk,d,dt) COLUMNS 'f'  (pt2) HEADER ('Надбавка, упр., % '+name(pt2)) BACKGROUND backgroundRetail(pt2,d)
-    PROPERTIES currentCalcM(pt2,sk,d,dt) COLUMNS 'f'  (pt2) HEADER ('РЦ, упр. '+name(pt2)) ON CHANGE changeRetailPriceM(pt2,sk,d,dt) BACKGROUND backgroundRetail(pt2,d)
+    PROPERTIES currentCalcM(pt2,sk,d,dt) COLUMNS 'f'  (pt2) HEADER ('РЦ, упр. '+name(pt2)) ON CHANGE changeRetailPriceM(pt2,sk,d,dt) BACKGROUND backgroundRetailPrice(pt2,d)
     
     PROPERTIES (sk)  editSk = EDIT NEWSESSION
     PROPERTIES createPriceList(dt) TOOLBAR DRAW sk
