@@ -28,15 +28,15 @@ minPrice (LedgerPriceListType type, Stock stock, Sku sku, DATETIME fromDateTime,
                                                     GROUP MIN price(PriceListLedger led, type, stock) 
                                                     IF fromDateTime(led) <= toDateTime AND fromDateTime(led) >= fromDateTime BY sku(led, type, stock);
 
+
+
 EXTEND FORM promotionalGame
   PROPERTIES (g,i) fixPriceFromDate, fixPriceToDate  
 ;
 
-minPrice 'Минимальная цена' (PromotionalGame g, Stock stock, Sku sku) =  (MIN priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, fixPriceFromDateTime(g, sku)), minPrice(SystemLedgerPriceListType.retailPricingPriceListType, stock, sku, fixPriceFromDateTime(g, sku), fixPriceToDateTime(g, sku))) IF in(g, sku) AND fixPrices(g);
+minPrice 'Минимальная цена' (PromotionalGame g, Stock stock, Sku sku) =  (MIN priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, fixPriceFromDateTime(g, sku)) IF balanceA(sku, stock, fixPriceFromDateTime(g, sku)) > 0.0 , minPrice(SystemLedgerPriceListType.retailPricingPriceListType, stock, sku, fixPriceFromDateTime(g, sku), fixPriceToDateTime(g, sku)));
 
-//prevMinPrice 'Минимальная цена' (PromotionalGame g, Stock stock, Sku sku) = PREV(minPrice(g,stock,sku)); 
-
-minPrice 'Минимальная цена' (DepartmentStore d, Sku sku, DATETIME dt) = GROUP MIN minPrice(PromotionalGame g, d, sku) IF fixPriceFromDateTime(g, sku)<=dt AND fixPriceToDateTime(g, sku)>=dt; 
+minPrice 'Минимальная цена' (DepartmentStore d, Sku sku, DATETIME dt) = GROUP MIN minPrice(PromotionalGame g, d, sku) IF fixPriceFromDateTime(g, sku)<=dt AND fixPriceToDateTime(g, sku)>=dt;
 
 prevMinPrice 'Минимальная цена' (DepartmentStore d, Sku sku, DATETIME dt) = PREV(minPrice(d, sku, dt)); 
 
@@ -79,7 +79,7 @@ PROPERTIES prevMinPrice(st, i, d)  ON CONTEXTMENU showMovementRetailPriceSku(i, 
 PROPERTIES curPrice(st, i, d)
 PROPERTIES deltaPrice(st, i, d)
 PROPERTIES isFixedPrice(i, d)
-PROPERTIES READONLY name(i), id(i), barcode(i)
+PROPERTIES READONLY name(i), id(i), idBarcode(i)
 FILTERS isFixedPrice(i, d)
 ;
 
