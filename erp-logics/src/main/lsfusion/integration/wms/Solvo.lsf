@@ -1,6 +1,6 @@
 MODULE Solvo;
 
-REQUIRE WMSIntegration, Warehouse, PurchaseShipment;
+REQUIRE WMSIntegration, Warehouse, PurchaseShipment, SaleShipment, TripOrder;
 
 
 isSolvo 'Склад c WMS Solvo' = DATA BOOLEAN (Warehouse);
@@ -38,9 +38,9 @@ DESIGN  integrationData {
 }
 
 nowText() =  [FORMULA TEXT 'to_char(now(),($1))']('DD-MM-YYYY HH24:MI:SS'); 
-format(STRING s) = OVERRIDE escapeXMLValue(s), '';
+format(STRING s) = escapeXMLValue(s);
 format(BOOLEAN b) = IF b THEN 't' ELSE 'f';
-format(DATETIME d) = OVERRIDE toChar(d, 'YYYY-MM-DD HH24:MI'), '';
+format(DATETIME d) = toChar(d, 'YYYY-MM-DD HH24:MI');
 
 defaultNumeratorSyncid = DATA Numerator ();
 nameDefaultNumeratorSyncid 'Пакеты выгрузки в wms' = name(defaultNumeratorSyncid()) IN defaultNumerator;
@@ -49,16 +49,26 @@ EXTEND FORM defaultNumerators
     PROPERTIES() nameDefaultNumeratorSyncid = nameDefaultNumeratorSyncid
 ;
 
+CLASS SlovoMessage 'Статус выгрузки Slovo';
+TABLE slovoStatus(SlovoMessage);
+
+id = DATA LONG (SlovoMessage) INDEXED;
+type = DATA STRING[64](SlovoMessage);
+status = DATA STRING[16](SlovoMessage) INDEXED;
+errCode = DATA INTEGER (SlovoMessage);
+errDescr = DATA STRING (SlovoMessage);
+loaded = DATA DATETIME (SlovoMessage);
+
 headerId = DATA LOCAL INTEGER (LONG);
-action = DATA LOCAL STRING (LONG);
+type = DATA LOCAL STRING (LONG);
 meaasage = DATA LOCAL STRING (LONG);
 
 insertString  = 
     'INSERT ALL'+
-        ' WHEN header=0 THEN INTO from_host_header_message(ID,SRC_HOST_ID,DST_HOST_ID,TYPE,ACTION,STATUS,MESSAGE) VALUES (sync_id,\'host\',\'wms\',\'update\',action,\'ready\',meaasage)' +
-        ' WHEN header>0 THEN INTO from_host_detail_message(ID,HEADER_ID,TYPE,ACTION,STATUS,MESSAGE) VALUES (sync_id,header,\'update\',action,\'ready\',meaasage)' +
+        ' WHEN header=0 THEN INTO from_host_header_message(ID,SRC_HOST_ID,DST_HOST_ID,TYPE,ACTION,STATUS,MESSAGE) VALUES (sync_id,\'host\',\'wms\',type,\'update\',\'ready\',meaasage)' +
+        ' WHEN header>0 THEN INTO from_host_detail_message(ID,HEADER_ID,TYPE,ACTION,STATUS,MESSAGE) VALUES (sync_id,header,type,\'update\',\'ready\',meaasage)' +
         ' WITH data AS ('+
-        (GROUP CONCAT ' SELECT ' + headerId(LONG id) + ' header, ' + id + ' sync_id, \'' + action(id) + '\' action, \''+ meaasage(id) + '\' meaasage FROM dual', ' UNION ALL' ORDER id)+
+        (GROUP CONCAT ' SELECT ' + headerId(LONG id) + ' header, ' + id + ' sync_id, \'' + type(id) + '\' type, \''+ meaasage(id) + '\' meaasage FROM dual', ' UNION ALL' ORDER id)+
         ' ) SELECT * FROM data';
 
 incrementedValue = DATA LOCAL NESTED LONG();    
@@ -68,21 +78,24 @@ numerateIds(LONG i) {
         curValue(Numerator n) <- curValue(n) + i WHERE n == defaultNumeratorSyncid();
     }
     headerId (LONG l) <- NULL;
-    action (LONG l) <- NULL;
+    type (LONG l) <- NULL;
     meaasage (LONG l) <- NULL;
 }
 
 //товары
 changed 'Время изменения' = DATA DATETIME (Item) IN wms;
-loaded 'Время выгрузки' = DATA DATETIME (Item) IN wms;
+slovoMessage = DATA SlovoMessage (Item);
+statusSlovo 'Статус' (Item o) = status(slovoMessage(o)) IN wms;
+errorSlovo 'Сообщение' (Item o) = errDescr(slovoMessage(o)) IN wms;
+loaded 'Время выгрузки' (Item o) = loaded(slovoMessage(o)) IN wms;
 
 WHEN CHANGED (id(Item o)) OR CHANGED (nameAttribute(o)) OR CHANGED (idBarcode(o)) OR CHANGED (shortNameUOM(o)) OR CHANGED (nameManufacturer(o)) OR CHANGED (nameCountry(o)) DO 
     changed(o) <- currentDateTime();
 
-itemString (LONG syncId, Item s) = '<sku syncid=\'\''+syncId+'\'\' action=\'\'update\'\' syncdate=\'\''+nowText()+
-    '\'\' sdid=\'\''+id(s)+'\'\' sku_code=\'\''+id(s)+'\'\' name=\'\''+format(nameAttribute(s))+'\'\' upc=\'\''+format(idBarcode(s))+
-    '\'\' measure=\'\''+format(shortNameUOM(s))+'\'\' store_cond=\'\'1\'\' producer_sdid=\'\''+format(nameManufacturer(s))+
-    '\'\' country=\'\''+format(nameCountry(s))+'\'\' abc=\'\'\'\' minosg=\'\'\'\' sku_spec_id=\'\'0\'\' description=\'\'\'\' divisibility=\'\'\'\'></sku>';
+itemString (LONG syncId, Item s) = CONCAT'','<sku syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' sdid=\'\'',id(s),'\'\' sku_code=\'\'',id(s),'\'\' name=\'\'',format(nameAttribute(s)),'\'\' upc=\'\'',format(idBarcode(s)),
+    '\'\' measure=\'\'',format(shortNameUOM(s)),'\'\' store_cond=\'\'1\'\' producer_sdid=\'\'',format(nameManufacturer(s)),
+    '\'\' country=\'\'',format(nameCountry(s)),'\'\' abc=\'\'\'\' minosg=\'\'\'\' sku_spec_id=\'\'0\'\' description=\'\'\'\' divisibility=\'\'\'\'></sku>';
 
 exportItems 'Выгрузить товары в wms Solvo' ()  { 
     
@@ -97,7 +110,7 @@ exportItems 'Выгрузить товары в wms Solvo' ()  {
         
         FOR syncId(Item i) DO {
             headerId(syncId(i)) <- 0;
-            action(syncId(i)) <- 'sku';
+            type(syncId(i)) <- 'sku';
             meaasage(syncId(i)) <- itemString(syncId(i), i);
         }
         
@@ -106,7 +119,15 @@ exportItems 'Выгрузить товары в wms Solvo' ()  {
             EXEC insertString(); 
         
         NEWSESSION NESTED LOCAL {
-            loaded(Item i) <- currentDateTime() WHERE in(i);
+            FOR in(Item i) AND NOT slovoMessage(i) NEW s = SlovoMessage DO{
+                slovoMessage(i) <- s;
+            }
+            FOR in(Item i) DO {
+                id(slovoMessage(i)) <- syncId(i);
+                type(slovoMessage(i)) <- 'sku';
+                status(slovoMessage(i)) <- 'ready';
+                loaded(slovoMessage(i)) <- currentDateTime();
+            }
             APPLY NESTED LOCAL;
         }
         
@@ -132,7 +153,7 @@ exportChangedItems 'Выгрузить изменившиеся товары в 
 
 EXTEND FORM integrationData 
     OBJECTS sIt = Item
-    PROPERTIES(sIt) READONLY in CHANGEABLE, id, idBarcode, nameAttribute, shortNameUOM, nameCountry, changed, loaded
+    PROPERTIES(sIt) READONLY in CHANGEABLE, id, idBarcode, nameAttribute, shortNameUOM, nameCountry, changed, loaded, statusSlovo, errorSlovo
     PROPERTIES exportItems(sIt), exportChangedItems() DRAW sIt
 ;
 DESIGN  integrationData {
@@ -143,15 +164,18 @@ DESIGN  integrationData {
 
 //склады
 changed 'Время изменения' = DATA DATETIME (Stock) IN wms;
-loaded 'Время выгрузки' = DATA DATETIME (Stock) IN wms;
+slovoMessage = DATA SlovoMessage (Stock);
+statusSlovo 'Статус' (Stock o) = status(slovoMessage(o)) IN wms;
+errorSlovo 'Сообщение' (Stock o) = errDescr(slovoMessage(o)) IN wms;
+loaded 'Время выгрузки' (Stock o) = loaded(slovoMessage(o)) IN wms;
 
 WHEN CHANGED (id(Stock o)) OR CHANGED (name(o)) OR CHANGED (address(o)) OR CHANGED (phone(o)) OR CHANGED (email(o)) 
     OR CHANGED (isCustomer(o)) OR CHANGED (isSupplier(o)) DO 
     changed(o) <- currentDateTime();
 
-stockString (LONG syncId, Stock s) = '<client syncid=\'\''+syncId+'\'\' action=\'\'update\'\' syncdate=\'\''+nowText()+
-    '\'\' client_id=\'\''+id(s)+'\'\' name=\'\''+format(name(s))+'\'\' is_customer=\'\''+format(isCustomer(s))+'\'\' is_supplier=\'\''+format(isSupplier(s))+
-    '\'\' is_carrier=\'\'f\'\' is_producer=\'\'f\'\' measure=\'\''+format(phone(s))+'\'\' address=\'\''+format(address(s))+'\'\' email=\'\''+format(email(s))+'\'\' fax=\'\'\'\' comments=\'\'\'\'></client>';
+stockString (LONG syncId, Stock s) = CONCAT'','<client syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' client_id=\'\'',id(s),'\'\' name=\'\'',format(name(s)),'\'\' is_customer=\'\'',format(isCustomer(s)),'\'\' is_supplier=\'\'',format(isSupplier(s)),
+    '\'\' is_carrier=\'\'f\'\' is_producer=\'\'f\'\' measure=\'\'',format(phone(s)),'\'\' address=\'\'',format(address(s)),'\'\' email=\'\'',format(email(s)),'\'\' fax=\'\'\'\' comments=\'\'\'\'></client>';
 
 exportStocks 'Выгрузить склады в wms Solvo' ()  { 
     
@@ -166,7 +190,7 @@ exportStocks 'Выгрузить склады в wms Solvo' ()  {
         
         FOR syncId(Stock i) DO {
             headerId(syncId(i)) <- 0;
-            action(syncId(i)) <- 'client';
+            type(syncId(i)) <- 'client';
             meaasage(syncId(i)) <- stockString(syncId(i), i);
         }
         
@@ -175,7 +199,15 @@ exportStocks 'Выгрузить склады в wms Solvo' ()  {
             EXEC insertString();
             
         NEWSESSION NESTED LOCAL {
-            loaded(Stock i) <- currentDateTime() WHERE in(i);
+            FOR in(Stock i) AND NOT slovoMessage(i) NEW s = SlovoMessage DO{
+                slovoMessage(i) <- s;
+            }
+            FOR in(Stock i) DO {
+                id(slovoMessage(i)) <- syncId(i);
+                type(slovoMessage(i)) <- 'client';
+                status(slovoMessage(i)) <- 'ready';
+                loaded(slovoMessage(i)) <- currentDateTime();
+            }
             APPLY NESTED LOCAL;
         }
         
@@ -201,7 +233,7 @@ exportChangedStocks 'Выгрузить изменившиеся склады в
 
 EXTEND FORM integrationData 
     OBJECTS sSt = Stock
-    PROPERTIES(sSt) READONLY in CHANGEABLE, id, name, nameStockGroup, address, phone, email, changed, loaded
+    PROPERTIES(sSt) READONLY in CHANGEABLE, id, name, nameStockGroup, address, phone, email, changed, loaded, statusSlovo, errorSlovo
     PROPERTIES exportStocks(sSt), exportChangedStocks() DRAW sSt
 ;
 DESIGN  integrationData {
@@ -211,24 +243,29 @@ DESIGN  integrationData {
 }
 
 //приход
+slovoMessage = DATA SlovoMessage (Purchase.Invoice);
+statusSlovo 'Статус' (Purchase.Invoice o) = status(slovoMessage(o)) IN wms;
+errorSlovo 'Сообщение' (Purchase.Invoice o) = errDescr(slovoMessage(o)) IN wms;
+loaded 'Время выгрузки' (Purchase.Invoice o) = loaded(slovoMessage(o)) IN wms;
+
 beforeExportSolvo ABSTRACT (Purchase.Invoice);
 
-incomingHeaderString (LONG syncId, Purchase.Invoice s) = '<incoming syncid=\'\''+syncId+'\'\' action=\'\'update\'\' syncdate=\'\''+nowText()+
-    '\'\' inc_id=\'\''+id(s)+'\'\' display_name=\'\''+format(seriesNumber(s))+'\'\' priority=\'\'99\'\' supplier_id=\'\''+format(idSupplierStock(s))+
-    '\'\' carrier_id=\'\'\'\' type=\'\'A\'\' date_to_ship=\'\''+format(shipmentDateTime(s))+'\'\' responsible=\'\'\'\' comments=\'\''+format(note(s))+'\'\'>';
+incomingHeaderString (LONG syncId, Purchase.Invoice s) = CONCAT'','<incoming syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' inc_id=\'\'',id(s),'\'\' display_name=\'\'',format(seriesNumber(s)),'\'\' priority=\'\'99\'\' supplier_id=\'\'',format(idSupplierStock(s)),
+    '\'\' carrier_id=\'\'\'\' type=\'\'A\'\' date_to_ship=\'\'',format(shipmentDateTime(s)),'\'\' responsible=\'\'\'\' comments=\'\'',format(note(s)),'\'\'>';
 
 extraIncomingDetailString = ABSTRACT CASE STRING (Purchase.InvoiceDetail);
-incomingDetailString (LONG syncId, Purchase.InvoiceDetail s) = '<incoming_detail syncid=\'\''+syncId+'\'\' action=\'\'update\'\' syncdate=\'\''+nowText()+
-    '\'\' inc_id=\'\''+id(invoice(s))+'\'\' line=\'\''+STRING(index(s))+'\'\' sku_id=\'\''+idSku(s)+'\'\' category=\'\'1\'\' ' + extraIncomingDetailString(s) +
-    ' marker=\'\'-\'\' marker2=\'\'-\'\' qty=\'\''+format(STRING(quantity(s)))+'\'\' uom=\'\''+format(shortNameUOMSku(s))+'\'\' comments=\'\'\'\'/>';
+incomingDetailString (LONG syncId, Purchase.InvoiceDetail s) = CONCAT'','<incoming_detail syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' inc_id=\'\'',id(invoice(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' category=\'\'1\'\' ',extraIncomingDetailString(s),
+    ' marker=\'\'-\'\' marker2=\'\'-\'\' qty=\'\'',format(STRING(quantity(s))),'\'\' uom=\'\'',format(shortNameUOMSku(s)),'\'\' comments=\'\'\'\'/>';
 
 exportSolvo 'Выгрузить приход в wms Solvo' (Purchase.Invoice i) { 
     NEWSESSION {
     
-        in(Item it) <- TRUE WHERE quantityInvoiceDetail(it, i) AND changed(it) AND NOT changed(it) < loaded(it);
+        in(Item it) <- TRUE WHERE quantityInvoiceDetail(it, i) AND ((changed(it) AND NOT changed(it) < loaded(it)) OR NOT loaded(it));
         exportItems();
         
-        in(Stock s) <- TRUE WHERE s == supplierStock(i) AND changed(s) AND NOT changed(s) < loaded(s);
+        in(Stock s) <- TRUE WHERE s == supplierStock(i) AND ((changed(s) AND NOT changed(s) < loaded(s)) OR NOT loaded(s));
         exportStocks();
     
         beforeExportSolvo(i);
@@ -242,22 +279,32 @@ exportSolvo 'Выгрузить приход в wms Solvo' (Purchase.Invoice i) 
         }
         
         headerId(incrementedValue()) <- 0;
-        action(incrementedValue()) <- 'incoming';
+        type(incrementedValue()) <- 'incoming';
         meaasage(incrementedValue()) <- incomingHeaderString(incrementedValue(), i);
         
         FOR i == invoice(Purchase.InvoiceDetail d) DO {
             headerId(incrementedValue() + index(d)) <- incrementedValue();
-            action(incrementedValue() + index(d)) <- 'incoming_detail';
+            type(incrementedValue() + index(d)) <- 'incoming_detail';
             meaasage(incrementedValue() + index(d)) <- incomingDetailString(incrementedValue() + index(d), d);
         }
         
         headerId(incrementedValue() + countInvoiceDetail(i) + 1) <- incrementedValue();
-        action(incrementedValue() + countInvoiceDetail(i) + 1) <- '/incoming';
+        type(incrementedValue() + countInvoiceDetail(i) + 1) <- '/incoming';
         meaasage(incrementedValue() + countInvoiceDetail(i) + 1) <- '</incoming>';
     
         EXTERNAL 
             SQL connectionString()
             EXEC insertString();
+            
+        IF NOT slovoMessage(i) THEN NEW s = SlovoMessage {
+            slovoMessage(i) <- s;
+        }
+        id(slovoMessage(i)) <- incrementedValue();
+        type(slovoMessage(i)) <- 'incoming';
+        status(slovoMessage(i)) <- 'ready';
+        loaded(slovoMessage(i)) <- currentDateTime();
+        
+        APPLY NESTED LOCAL;
             
         MESSAGE 'Накладная выгружена' NOWAIT;
     }
@@ -266,7 +313,7 @@ exportSolvo 'Выгрузить приход в wms Solvo' (Purchase.Invoice i) 
 
 EXTEND FORM Purchase.invoices 
     PROPERTIES (i) PANEL SHOWIF isSolvo(customerStock(i)) 
-        exportSolvo
+        exportSolvo, statusSlovo, errorSlovo
 ;
 
 DESIGN Purchase.invoices {
@@ -275,6 +322,149 @@ DESIGN Purchase.invoices {
             caption = 'Экспорт в WMS';
             type = CONTAINERV;
             MOVE PROPERTY(exportSolvo(i));
+            MOVE PROPERTY(statusSlovo(i));
+            MOVE PROPERTY(errorSlovo(i));
         }
+    }
+}
+
+//Ррасход
+slovoMessage = DATA SlovoMessage (Sale.Order);
+statusSlovo 'Статус' (Sale.Order o) = status(slovoMessage(o)) IN wms;
+errorSlovo 'Сообщение' (Sale.Order o) = errDescr(slovoMessage(o)) IN wms;
+loaded 'Время выгрузки' (Sale.Order o) = loaded(slovoMessage(o)) IN wms;
+
+beforeExportSolvo ABSTRACT (Sale.Order);
+
+orderHeaderString (LONG syncId, Sale.Order s) = CONCAT'','<order syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' order_id=\'\'',id(s),'\'\' display_name=\'\'',format(seriesNumber(s)),'\'\' shipment_id=\'\'',number(trip(s)),'\'\' priority=\'\'99\'\' client_id=\'\'',format(id(customerStock(s))),
+    '\'\' carrier_id=\'\'\'\' type=\'\'A\'\' proc_method=\'\'U\'\' date_to_ship=\'\'',format(shipmentDateTime(s)),'\'\' responsible=\'\'\'\' comments=\'\'',format(note(s)),'\'\'>';
+
+extraOrderDetailString = ABSTRACT CASE STRING (Sale.OrderDetail);
+orderDetailString (LONG syncId, Sale.OrderDetail s) = CONCAT'','<order_detail syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' order_id=\'\'',id(order(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' category=\'\'1\'\' ',extraOrderDetailString(s),
+    ' rcn_id=\'\'-1\'\' marker=\'\'-\'\' marker2=\'\'-\'\' qty=\'\'',format(STRING(quantity(s))),'\'\' uom=\'\'',format(shortNameUOMSku(s)),'\'\' comments=\'\'\'\'/>';
+
+exportSolvo 'Выгрузить заказ в wms Solvo' (Sale.Order i) { 
+    NEWSESSION {
+    
+        in(Item it) <- TRUE WHERE quantityOrderDetail(it, i) AND ((changed(it) AND NOT changed(it) < loaded(it)) OR NOT loaded(it));
+        exportItems();
+        
+        in(Stock s) <- TRUE WHERE s == customerStock(i) AND ((changed(s) AND NOT changed(s) < loaded(s)) OR NOT loaded(s));
+        exportStocks();
+    
+        beforeExportSolvo(i);
+        
+        numerateIds(countOrderDetail(i) + 2);
+        
+        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Sale Order:', seriesNumber(i));
+        
+        IF NOT id(i) THEN {
+            id(i) <- CONCAT '_', seriesNumber(i), date(i);
+        }
+        
+        headerId(incrementedValue()) <- 0;
+        type(incrementedValue()) <- 'order';
+        meaasage(incrementedValue()) <- orderHeaderString(incrementedValue(), i);
+        
+        FOR i == order(Sale.OrderDetail d) DO {
+            headerId(incrementedValue() + index(d)) <- incrementedValue();
+            type(incrementedValue() + index(d)) <- 'order_detail';
+            meaasage(incrementedValue() + index(d)) <- orderDetailString(incrementedValue() + index(d), d);
+        }
+        
+        headerId(incrementedValue() + countOrderDetail(i) + 1) <- incrementedValue();
+        type(incrementedValue() + countOrderDetail(i) + 1) <- '/order';
+        meaasage(incrementedValue() + countOrderDetail(i) + 1) <- '</order>';
+    
+        EXTERNAL 
+            SQL connectionString()
+            EXEC insertString();
+            
+        IF NOT slovoMessage(i) THEN NEW s = SlovoMessage {
+            slovoMessage(i) <- s;
+        }
+        id(slovoMessage(i)) <- incrementedValue();
+        type(slovoMessage(i)) <- 'order';
+        status(slovoMessage(i)) <- 'ready';
+        loaded(slovoMessage(i)) <- currentDateTime();
+            
+        MESSAGE 'Накладная выгружена' NOWAIT;
+    }
+
+}
+
+EXTEND FORM Sale.orders
+    PROPERTIES (o) PANEL SHOWIF isSolvo(supplierStock(o)) 
+        exportSolvo, statusSlovo, errorSlovo
+;
+
+DESIGN Sale.orders {
+    actionContainer {
+        NEW exportWMS {
+            caption = 'Экспорт в WMS';
+            type = CONTAINERV;
+            MOVE PROPERTY(exportSolvo(o));
+            MOVE PROPERTY(statusSlovo(o));
+            MOVE PROPERTY(errorSlovo(o));
+        }
+    }
+}
+
+
+//Отгрузка
+shipmentHeaderString (LONG syncId, Trip s) = CONCAT'','<shipment syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' shipment_id=\'\'',number(s),'\'\' display_name=\'\'',format(seriesNumber(s)),'\'\' start_date=\'\'',format(dateTime(s)),
+    '\'\' car_num=\'\'',sidTruck(s), ' driver=\'\'',nameDriver(s),'\'\' start_date=\'\'',format(dateTime(s)),'\'\' priority=\'\'99\'\' comments=\'\'\'\'></shipment>';
+
+
+exportSolvo 'Выгрузить рейс в wms Solvo' (Trip i) { 
+    NEWSESSION {
+        
+        numerateIds(1);
+        
+        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Trip:', seriesNumber(i));
+
+        
+        headerId(incrementedValue()) <- 0;
+        type(incrementedValue()) <- 'shipment';
+        meaasage(incrementedValue()) <- shipmentHeaderString(incrementedValue(), i);
+    
+        EXTERNAL 
+            SQL connectionString()
+            EXEC insertString();
+            
+        MESSAGE 'Рейс выгружен' NOWAIT;
+    }
+
+} TOOLBAR;
+
+EXTEND FORM trips
+    PROPERTIES (t) exportSolvo
+;
+
+checkStatus 'Проверить статус выгрузки в Solvo' () {
+    
+    IF (GROUP SUM 1 IF status(SlovoMessage s) == 'ready' ) THEN NEWSESSION {
+        LOCAL result = FILE ();
+        
+        EXTERNAL 
+            SQL connectionString()
+            EXEC 'SELECT ID, STATUS, ERR_CODE, ERR_DESCR FROM from_host_header_message WHERE id IN('+(GROUP CONCAT STRING(id(SlovoMessage s)) IF status(s) == 'ready', ',' ORDER s)+')' TO result;
+        
+        LOCAL id = LONG (INTEGER );
+        LOCAL status = STRING[16](INTEGER );
+        LOCAL errCode = INTEGER (INTEGER );
+        LOCAL errDescr = STRING (INTEGER);
+                
+        IMPORT TABLE FROM result() TO id, status, errCode, errDescr;
+        
+        FOR id(INTEGER i) == id(SlovoMessage s) DO {
+            status(s) <- status(i);
+            errCode(s) <- errCode(i);
+            errDescr(s) <- errDescr(i);
+        }
+        APPLY;
     }
 }
