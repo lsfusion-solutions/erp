@@ -119,6 +119,9 @@ changeIncludeDepartmentStores()  {
     DIALOG dialogDepartmentStores;
 }
 
+overFillReceiptReport ABSTRACT LIST ( DATE, DATE);
+overFillReceiptReport = DATA LOCAL BOOLEAN ();
+
 fillReceiptReport (DATE dateFrom, DATE dateTo)  { 
     nameGroup1Receipt(INTEGER i) <- NULL;
     nameGroup2Receipt(INTEGER i) <- NULL;
@@ -133,20 +136,23 @@ fillReceiptReport (DATE dateFrom, DATE dateTo)  {
     sumGiftCardPayment(INTEGER i) <- NULL;
     sumReceiptDetailGiftCard(INTEGER i) <- NULL;
     
-    query(replace('SELECT ' 
-        + 'SUM(sumReceiptDetail) AS sumReceiptDetail, SUM(discountSumReceiptDetail) AS discountSumReceiptDetail, SUM(sumVATReceiptDetail) AS sumVATReceiptDetail, '
-        + 'SUM(countReceiptDetail) AS countReceiptDetail, SUM(quantityReceiptDetail) AS quantityReceiptDetail, SUM(sumCashPayment) AS sumCashPayment, '
-        + 'SUM(sumCardPayment) AS sumCardPayment, SUM(sumGiftCardPayment) AS sumGiftCardPayment, SUM(sumReceiptDetailGiftCard) AS sumReceiptDetailGiftCard, '
-        + nameGroupsReceipt() + ' FROM receipt'
-        + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + ' 00:00:00' + '\',\'yyyy-MM-dd HH:mm:ss\') AND TIME_PARSE(\'' + dateTo + ' 23:59:59' + '\',\'yyyy-MM-dd HH:mm:ss\')'
-        + (OVERRIDE ' AND departmentStore IN (' + (GROUP CONCAT TEXT('\''+ TEXT(DepartmentStore s) +'\'') IF include(s),',' ORDER s) + ')','')
-        + ' GROUP BY ' + (CONCAT ', ', nameGroup1Receipt(), nameGroup2Receipt(), nameGroup3Receipt())
-        + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+    overFillReceiptReport(dateFrom,dateTo);
+    IF NOT overFillReceiptReport() THEN {
+        query(replace('SELECT ' 
+            + 'SUM(sumReceiptDetail) AS sumReceiptDetail, SUM(discountSumReceiptDetail) AS discountSumReceiptDetail, SUM(sumVATReceiptDetail) AS sumVATReceiptDetail, '
+            + 'SUM(countReceiptDetail) AS countReceiptDetail, SUM(quantityReceiptDetail) AS quantityReceiptDetail, SUM(sumCashPayment) AS sumCashPayment, '
+            + 'SUM(sumCardPayment) AS sumCardPayment, SUM(sumGiftCardPayment) AS sumGiftCardPayment, SUM(sumReceiptDetailGiftCard) AS sumReceiptDetailGiftCard, '
+            + nameGroupsReceipt() + ' FROM receipt'
+            + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + ' 00:00:00' + '\',\'yyyy-MM-dd HH:mm:ss\') AND TIME_PARSE(\'' + dateTo + ' 23:59:59' + '\',\'yyyy-MM-dd HH:mm:ss\')'
+            + (OVERRIDE ' AND departmentStore IN (' + (GROUP CONCAT TEXT('\''+ TEXT(DepartmentStore s) +'\'') IF include(s),',' ORDER s) + ')','')
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Receipt(), nameGroup2Receipt(), nameGroup3Receipt())
+            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
         
         IMPORT JSON FROM queryResult() TO nameGroup1Receipt = nameGroup1, nameGroup2Receipt = nameGroup2, nameGroup3Receipt = nameGroup3, 
                                           sumReceiptDetail = sumReceiptDetail, discountSumReceiptDetail = discountSumReceiptDetail, sumVATReceiptDetail = sumVATReceiptDetail,
                                           countReceiptDetail = countReceiptDetail, quantityReceiptDetail = quantityReceiptDetail, sumCashPayment = sumCashPayment,
                                           sumCardPayment = sumCardPayment, sumGiftCardPayment = sumGiftCardPayment, sumReceiptDetailGiftCard = sumReceiptDetailGiftCard;
+    }
 }
 
 FORM printReceiptReport 'Продажа (по чекам)'
@@ -343,6 +349,10 @@ filterGroupsReceiptDetail() = CONCAT ' OR', ' LOOKUP(sku,\'sku_group1\') IN (' +
                                        ' LOOKUP(sku,\'sku_group2\') IN (' + nameIncludeSkuGroups2ReceiptDetail() + ')',
                                        ' LOOKUP(sku,\'sku_group3\') IN (' + nameIncludeSkuGroups3ReceiptDetail() + ')',
                                        ' LOOKUP(sku,\'sku_group4\') IN (' + nameIncludeSkuGroups4ReceiptDetail() + ')';
+
+overFillReceiptDetailReport ABSTRACT LIST ( DATE, DATE);
+overFillReceiptDetailReport = DATA LOCAL BOOLEAN ();
+
 fillReceiptDetailReport (DATE dateFrom, DATE dateTo)  { 
     nameGroup1ReceiptDetail(INTEGER i) <- NULL;
     nameGroup2ReceiptDetail(INTEGER i) <- NULL;
@@ -352,18 +362,21 @@ fillReceiptDetailReport (DATE dateFrom, DATE dateTo)  {
     sumVAT(INTEGER i) <- NULL;
     quantity(INTEGER i) <- NULL;
     
-    query(replace('SELECT ' 
-        + 'SUM("sum") AS "sum", SUM(discountSum) AS discountSum, SUM(sumVAT) AS sumVAT, SUM(quantity) AS quantity, '
-        + nameGroupsReceiptDetail() + ' FROM receiptdetail'
-        + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + ' 00:00:00' + '\',\'yyyy-MM-dd HH:mm:ss\') AND TIME_PARSE(\'' + dateTo + ' 23:59:59' + '\',\'yyyy-MM-dd HH:mm:ss\')'
-        + (OVERRIDE ' AND departmentStore IN (' + (GROUP CONCAT TEXT('\''+ TEXT(DepartmentStore s) +'\'') IF include(s),',' ORDER s) + ')','')
-        + (OVERRIDE ' AND (' + filterGroupsReceiptDetail() + ')','')
-        + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataIncludeReceiptDetail(sku),',' ORDER sku) + ')','')
-        + ' GROUP BY ' + (CONCAT ', ', nameGroup1ReceiptDetail(), nameGroup2ReceiptDetail(), nameGroup3ReceiptDetail())
-        + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+    overFillReceiptDetailReport(dateFrom,dateTo);
+    IF NOT overFillReceiptDetailReport() THEN {
+        query(replace('SELECT ' 
+            + 'SUM("sum") AS "sum", SUM(discountSum) AS discountSum, SUM(sumVAT) AS sumVAT, SUM(quantity) AS quantity, '
+            + nameGroupsReceiptDetail() + ' FROM receiptdetail'
+            + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + ' 00:00:00' + '\',\'yyyy-MM-dd HH:mm:ss\') AND TIME_PARSE(\'' + dateTo + ' 23:59:59' + '\',\'yyyy-MM-dd HH:mm:ss\')'
+            + (OVERRIDE ' AND departmentStore IN (' + (GROUP CONCAT TEXT('\''+ TEXT(DepartmentStore s) +'\'') IF include(s),',' ORDER s) + ')','')
+            + (OVERRIDE ' AND (' + filterGroupsReceiptDetail() + ')','')
+            + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataIncludeReceiptDetail(sku),',' ORDER sku) + ')','')
+            + ' GROUP BY ' + (CONCAT ', ', nameGroup1ReceiptDetail(), nameGroup2ReceiptDetail(), nameGroup3ReceiptDetail())
+            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
         
         IMPORT JSON FROM queryResult() TO nameGroup1ReceiptDetail = nameGroup1, nameGroup2ReceiptDetail = nameGroup2, nameGroup3ReceiptDetail = nameGroup3, 
                                           sum = sum, discountSum = discountSum, sumVAT = sumVAT, quantity = quantity;
+    }
 }
 
 FORM printReceiptDetailReport 'Продажа (по строкам чеков)'

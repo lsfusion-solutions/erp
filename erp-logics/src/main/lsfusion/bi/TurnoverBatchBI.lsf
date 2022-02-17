@@ -154,12 +154,15 @@ isTimeGroupBatch(INTEGER i) += WHEN i == 13 THEN TRUE;
 isTimeGroupBatch(INTEGER i) += WHEN i == 14 THEN TRUE;
 isTimeGroupBatch(INTEGER i) += WHEN i == 15 THEN TRUE;
 
+isTimeGroup1Batch() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 1 AND isTimeGroupBatch(i));
 isTimeGroup2Batch() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 2 AND isTimeGroupBatch(i));
 isTimeGroup3Batch() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 3 AND isTimeGroupBatch(i));
 isTimeGroup4Batch() = TRUE IF (GROUP MAX INTEGER i IF order(i) == 4 AND isTimeGroupBatch(i));
+printSumGroupBatch() = TRUE IF NOT isTimeGroupBatch() OR NOT (isTimeGroup1Batch() OR isTimeGroup2Batch() OR isTimeGroup3Batch() OR isTimeGroup4Batch());
 printSumGroup1Batch() = TRUE IF NOT isTimeGroupBatch() OR NOT (isTimeGroup2Batch() OR isTimeGroup3Batch() OR isTimeGroup4Batch());
 printSumGroup2Batch() = TRUE IF NOT isTimeGroupBatch() OR NOT (isTimeGroup3Batch() OR isTimeGroup4Batch());
 printSumGroup3Batch() = TRUE IF NOT isTimeGroupBatch() OR NOT isTimeGroup4Batch();
+printSumSummaryBatch() = TRUE IF NOT isTimeGroupBatch();
 
 isSupplierGroupBatch = ABSTRACT CASE BOOLEAN ();
 isSupplierGroupBatch() += WHEN gSupplierTurnoverBatch() THEN TRUE;
@@ -848,7 +851,7 @@ FORM printTurnoverBatchReport 'Оборачиваемость'
     PROPERTIES dateTo = VALUE(dt)
        
     PROPERTIES() countGroup, countRowsTurnoverBatch, maxRowCount, nameIncludeStockGroupsStockReportBatch, nameIncludeLegalEntitiesBatch, nameIncludeBrandsBatch, nameIncludeManufacturersBatch, nameIncludeSkuGroupsBatch, nameIncludeSkusReportBatch, 
-                 printSumGroup1Batch, printSumGroup2Batch, printSumGroup3Batch
+                 printSumGroupBatch, printSumGroup1Batch, printSumGroup2Batch, printSumGroup3Batch, printSumSummaryBatch
     
     OBJECTS i = INTEGER
     PROPERTIES(i) READONLY nameGroup1TurnoverBatch, nameGroup2TurnoverBatch, nameGroup3TurnoverBatch, nameGroup4TurnoverBatch, group1TurnoverBatch, group2TurnoverBatch, group3TurnoverBatch, group4TurnoverBatch, barcodeSkuBatch SHOWIF gSkuTurnoverBatch()
