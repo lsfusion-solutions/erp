@@ -428,21 +428,21 @@ importSumIndividualPriceDetail 'Импорт цен индивидуальных
         LOCAL file = FILE ();    
         LOCAL idPriceDetail = STRING[100] (INTEGER);
         LOCAL idStock = STRING[100] (INTEGER);
-        LOCAL sum = NUMERIC[16,4] (INTEGER);
+        LOCAL price = NUMERIC[16,4] (INTEGER);
 
         IF csvImport() THEN {
             INPUT f = CSVFILE DO {
-                IMPORT CSV ';' HEADER NOESCAPE FROM f TO idPriceDetail, idStock, sum;
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO idPriceDetail, idStock, price;
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT TRANSID, INVENTLOCATIONID_SHOP, PRICE FROM RETAILESTIMATIONTRANSPRICE WHERE INVENTLOCATIONID_SHOP != \'\' AND DATAAREAID = $1' 
                     PARAMS areaId() TO file;
 
-            IMPORT TABLE FROM file() TO idPriceDetail, idStock, sum;
+            IMPORT TABLE FROM file() TO idPriceDetail, idStock, price;
         }
            
-        FOR [GROUP MAX idPriceDetail(INTEGER i) BY userPriceList(userPriceListDetail(idPriceDetail(i))),  stock(idStock(i))](UserPriceList p, Stock s) DO {
+        FOR [GROUP SUM 1 IF price(INTEGER i) > 0 BY userPriceList(userPriceListDetail(idPriceDetail(i))),  stock(idStock(i))](UserPriceList p, Stock s) AND in(s, operation(p)) DO {
             dataIn(p, s) <- TRUE;
         }
         
@@ -459,7 +459,7 @@ importSumIndividualPriceDetail 'Импорт цен индивидуальных
         
         APPLY;
         
-        }
+    }
 }
 
 EXTEND FORM integrationData
@@ -474,6 +474,9 @@ DESIGN integrationData {
         }
     }
 }
+
+dataAreaIdPromotion 'Area ID' = DATA ISTRING[100]();
+areaIdPromotion 'Area ID' () = OVERRIDE dataAreaIdPromotion(), areaId();
 
 //Импорт акционных прайс листов
 importPromotionPrice 'Импорт акционных прайс листов' () {
@@ -494,12 +497,12 @@ importPromotionPrice 'Импорт акционных прайс листов' (
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT acg.ADVERTCAMPAIGNID + \'/\' + ADVERTLOCATIONLISTID, ' + 
                             'acg.ADVERTCAMPAIGNID, ac.HASTRANS, ac.ADVERTCAMPAIGNNAME, ' + 
-                            'ac.DATEBEGIN, ac.DATEEND' + 
+                            'ac.DATEBEGIN, ac.DATEEND ' + 
                       'FROM (SELECT ADVERTCAMPAIGNID, ADVERTLOCATIONLISTID FROM ADVERTCAMPAIGNLINES ' + 
-                            'WHERE RETAILPRICEADVERT > 0 GROUP BY ADVERTCAMPAIGNID, ADVERTLOCATIONLISTID) acg' +
+                            'WHERE RETAILPRICEADVERT > 0 GROUP BY ADVERTCAMPAIGNID, ADVERTLOCATIONLISTID) acg ' +
                       'JOIN ADVERTCAMPAIGN ac ON ac.ADVERTCAMPAIGNID = acg.ADVERTCAMPAIGNID '+ 
                       'WHERE DATAAREAID = $1' 
-                    PARAMS areaId() TO file;
+                    PARAMS areaIdPromotion() TO file;
 
             IMPORT TABLE FROM file() TO id, number, isPosted, name, fromDate, toDate;
         }
@@ -513,13 +516,17 @@ importPromotionPrice 'Импорт акционных прайс листов' (
         FOR INTEGER i1 = [GROUP MAX INTEGER i BY id(i)](STRING id) AND UserPriceList p = userPriceList(id) DO {
             isPosted(p) <- TRUE IF isPosted(i1) = 1;
             note(p) <- name(i1);
+            date(p) <- DATE(fromDate(i1));
+            time(p) <- currentTime();
             fromDate(p) <- DATE(fromDate(i1));
             fromTime(p) <- 00:00;
             toDate(p) <- DATE(toDate(i1));
-            toTime(p) <- 00:00; 
+            toTime(p) <- 23:59; 
             //из-за constraint-а Дата с (Цена до) и Дата по (Цена до)не могут быть в интервале самого прайса
             fromPriceBeforeDate(p) <- sum(fromDate(p), -1);
             fromPriceBeforeTime(p) <- 23:59; 
+            toPriceBeforeDate(p) <- sum(toDate(p), 1);
+            toPriceBeforeTime(p) <- 00:00; 
         }
 
 //        DELETE UserPriceList g WHERE PriceList.operation(g) = PriceList.operation('promotion') AND NOT [GROUP SUM 1 BY id(INTEGER i)](id(g));                      
@@ -541,7 +548,7 @@ importPromotionPrice 'Импорт акционных прайс листов' (
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() importPromotionPrice
+    PROPERTIES() importPromotionPrice, dataAreaIdPromotion
 ;
 
 DESIGN integrationData {
@@ -549,6 +556,7 @@ DESIGN integrationData {
         NEW importPromotionPriceCont {
             type = CONTAINERH;
             MOVE PROPERTY (importPromotionPrice());
+            MOVE PROPERTY (dataAreaIdPromotion());
         }
     }
 }
@@ -570,11 +578,11 @@ importPromotionPriceDetail 'Импорт строк акционных прай�
             }
         } ELSE {
             EXTERNAL SQL connectionString() 
-                EXEC 'SELECT ADVERTLINEID, acl.ADVERTCAMPAIGNID + \'/\' + ADVERTLOCATIONLISTID,' + 
+                EXEC 'SELECT ADVERTLINEID, acl.ADVERTCAMPAIGNID + \'/\' + ADVERTLOCATIONLISTID, ' + 
                              'ITEMID, CASE WHEN ac.ADVERTCLNSTATUS = 3 THEN 0.0 ELSE RETAILPRICEADVERT END, RETAILPRICEREGULAR ' + 
-                      'FROM ADVERTCAMPAIGNLINES acl JOIN ADVERTCAMPAIGN ac ON ac.ADVERTCAMPAIGNID = acl.ADVERTCAMPAIGNID WHERE RETAILPRICEADVERT > 0 AND '+ 
-                      'WHERE DATAAREAID = $1'
-                    PARAMS areaId() TO file;
+                      'FROM ADVERTCAMPAIGNLINES acl JOIN ADVERTCAMPAIGN ac ON ac.ADVERTCAMPAIGNID = acl.ADVERTCAMPAIGNID WHERE RETAILPRICEADVERT > 0 ' + 
+                      'AND acl.DATAAREAID = $1'
+                    PARAMS areaIdPromotion() TO file;
 
             IMPORT TABLE FROM file() TO id, idPrice, idItem, sum, sumBefore;
         }
@@ -623,12 +631,12 @@ importPromotionPriceStock 'Импорт привязки акций к скла�
         } ELSE {
             EXTERNAL SQL connectionString() 
                 EXEC 'SELECT ADVERTCAMPAIGNID + \'/\' + ADVERTLOCATIONLISTID, INVENTLOCATIONID FROM ADVERTLOCATIONLISTLINES WHERE DATAAREAID = $1' 
-                    PARAMS areaId() TO file;
+                    PARAMS areaIdPromotion() TO file;
 
             IMPORT TABLE FROM file() TO idPrice, idStock;
         }
            
-        FOR [GROUP MAX idPrice(INTEGER i) BY userPriceList(idPrice(i)),  stock(idStock(i))](UserPriceList p, Stock s) DO {
+        FOR [GROUP MAX idPrice(INTEGER i) BY userPriceList(idPrice(i)),  stock(idStock(i))](UserPriceList p, Stock s) AND in(s, operation(p)) DO {
             dataIn(p, s) <- TRUE;
         }
 
