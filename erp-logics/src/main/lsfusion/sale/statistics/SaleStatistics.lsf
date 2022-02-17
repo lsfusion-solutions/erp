@@ -279,7 +279,9 @@ volumeSoldStatistic 'Объем проданного товара, л' (Sku sku,
 //---------------------------------------------- Магазин 1 торг стат. отчетов -------------------------------------//
 
 isInternet 'Интернет-магазин' = DATA BOOLEAN (Store);
+skipCorporate = ABSTRACT BOOLEAN (DepartmentStore);
 isCorporate 'Фирменный магазин' = DATA BOOLEAN (Store);
+isCorporate 'Фирменный магазин' (DepartmentStore ds) = isCorporate(store(ds)) AND NOT skipCorporate(ds);
 skipInternet = ABSTRACT BOOLEAN (DepartmentStore);
 isInternet 'Интернет-магазин' (DepartmentStore ds) = isInternet(store(ds)) AND NOT skipInternet(ds);
 
@@ -757,7 +759,7 @@ totalSumSoldBy 'Продано, руб.' (StatisticGroup group, legalEntity, reg
     BY legalEntity(stock), region(stock);
 
 totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCorporate (store(stock)) AND isParent(group, sku) AND NOT skipSale(stock)
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCorporate(stock) AND isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
 totalSumInternetSoldBy 'В интернет-магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
@@ -825,7 +827,7 @@ totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, Stoc
 
 totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     GROUP
-    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isCorporate(store(stock)) AND isParent(group, sku);
+    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isCorporate(stock) AND isParent(group, sku);
 
 totalSumInternetSoldBy 'В интернет-магазинах' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     GROUP
