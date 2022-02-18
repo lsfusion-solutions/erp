@@ -211,10 +211,9 @@ mimeTypeGoogleDriveFile = DATA LOCAL STRING(INTEGER);
 incompleteSearchGoogleDrive = DATA LOCAL STRING();
 
 FORM generatedGoogleDriveFiles
-PROPERTIES() kindGoogleDriveFile, incompleteSearchGoogleDrive
-
+PROPERTIES() kindGoogleDriveFile EXTID 'kind', incompleteSearchGoogleDrive EXTID 'incompleteSearch'
 OBJECTS files = INTEGER
-PROPERTIES(files) resourceKeyGoogleDrive, kind1GoogleDriveFile EXTID 'kind', nameGoogleDriveFile, idGoogleDriveFile, mimeTypeGoogleDriveFile
+PROPERTIES(files) resourceKeyGoogleDrive EXTID 'resourceKey', kind1GoogleDriveFile EXTID 'kind', nameGoogleDriveFile EXTID 'name', idGoogleDriveFile EXTID 'id', mimeTypeGoogleDriveFile EXTID 'mimeType'
 FILTERS imported(files);
 
 cleanGoogleDriveFiles() {
@@ -234,17 +233,27 @@ getGoogleDriveFiles 'Получить файлы и папки на Google ди�
     headers('Authorization') <- CONCAT ' ', token_type, token;
     headers('Host') <- 'www.googleapis.com';
     EXTERNAL HTTP GET 'https://www.googleapis.com/drive/v3/files' HEADERS headers
-        PARAMS JSONFILE(exportFile()), ''
-            TO result;
+        TO result;
     IMPORT generatedGoogleDriveFiles FROM result();
 }
 
 idGoogleDriveFileFolder = DATA LOCAL STRING[100]();
+nameGoogleDriveFileFolder = DATA LOCAL STRING[100]();
 
 findIdGoogleDriveFileFolder 'Получить файл или папку на Google диске' (STRING[200] token,  STRING[200] token_type, STRING[200] nameFile,  STRING[200] mimeType){
     cleanGoogleDriveFiles();
     getGoogleDriveFiles(token, token_type);
     idGoogleDriveFileFolder() <- GROUP MAX idGoogleDriveFile(INTEGER i) IF mimeTypeGoogleDriveFile(i) = mimeType AND nameGoogleDriveFile(i) = nameFile;                
+}
+
+findNameGoogleDriveFolder (STRING[200] token, STRING[200] token_type, STRING[100] idFolder){
+    cleanGoogleDriveFiles();
+    getGoogleDriveFiles(token, token_type);
+    IF NOT [GROUP MAX INTEGER i BY idGoogleDriveFile(i)](idFolder) THEN {
+        MESSAGE 'Не найдена папка по коду';        
+    } ELSE {
+        nameGoogleDriveFileFolder() <- GROUP MAX nameGoogleDriveFile(INTEGER i) IF idGoogleDriveFile(i) = idFolder;
+    }
 }
 
 createGoogleDriveFolder 'Создать папку на Google диске' (STRING[200] token, STRING[200] token_type, STRING[100] idParent, STRING[100] nameFolder){

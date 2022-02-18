@@ -36,7 +36,7 @@ changePriceMonitoringGoogleAccount(){
 
 FORM priceMonitoring 'Отчет по мониторингу цен'                
     PROPERTIES namePriceMonitoringGoogleAccount() ON CHANGE changePriceMonitoringGoogleAccount(),
-        namePublicPriceMonitoringFolder(), createPriceMonitoringFolder()
+        namePublicPriceMonitoringFolder(), createPriceMonitoringFolder() SHOWIF createPriceMonitoringFolder()
 
     TREE stockTree a=BPSTRING[3], stg = StockGroup PARENT parent(stg)
     PROPERTIES READONLY VALUE(a), sgTreeName = name(stg)
@@ -113,17 +113,25 @@ FORM formMonitoringPricePrint 'Отчет по ценам'
     FILTERS currentBalance(sku, st), inPriceMonitoring(sku)
 ;    
 
+fillNamePublicPriceMonitoringFolder 'Заполнить имя общей папки' (STRING[100] idFolder) {
+    nameGoogleDriveFileFolder() <- NULL;
+    findNameGoogleDriveFolder(access_token(), token_type(), idFolder);
+    IF nameGoogleDriveFileFolder() AND NOT namePublicPriceMonitoringFolder() = nameGoogleDriveFileFolder() THEN {
+        namePublicPriceMonitoringFolder() <- nameGoogleDriveFileFolder();
+    }
+}
+
 fillPriceListMonAuto 'Мониторинг цен (Google диск)'(){
     LOCAL curDt = DATETIME ();
     curDt() <- currentDateTime();
     idGoogleDriveFileFolder() <- NULL;
-    getAccessByRefreshToken(dataPriceMonitoringGoogleAccount());
+    getAccessByRefreshToken(dataPriceMonitoringGoogleAccount());    
     IF namePublicPriceMonitoringFolder() THEN findOrCreateGoogleDriveOldFileFolder(access_token(), token_type(), NULL, namePublicPriceMonitoringFolder());
     IF createPriceMonitoringFolder() THEN findOrCreateGoogleDriveOldFileFolder(access_token(), token_type(), idGoogleDriveFileFolder(), 'Мониторинг цена за ' +   (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt()))));
     
     FOR Stock st IF inPriceMonitoring(st) DO {         
         PRINT formMonitoringPricePrint OBJECTS dt = curDt(), st = st XLSX SHEET CONCAT ' ', name(st), toDateDDMMYYYY(curDt()) TO excelFile;
-        sendFileToGoogleDrive(access_token(), token_type(), idGoogleDriveFileFolder(), excelFile(), name(st));               
+        sendFileToGoogleDrive(access_token(), token_type(), idGoogleDriveFileFolder(), excelFile(), CONCAT ' ', toDateDDMMYYYY(curDt()), STRING(toTime(curDt())), name(st));
     }       
 } TOOLBAR;
 
