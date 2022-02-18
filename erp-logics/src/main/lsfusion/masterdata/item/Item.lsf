@@ -935,6 +935,28 @@ META defineItemGroupValue(property, caption, type)
     @defineItemGroupValue(property, caption, type, paramsItemGroup);
 END  
 
+META defineItemGroupValueGrid(property, caption, type)
+    @defineItemGroupValue(property, caption, type, paramsItemGroup);
+
+    quantityChildWith###property(ItemGroup itemGroup) = GROUP SUM 1 IF data###property(ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
+    quantityParentWith###property(ItemGroup itemGroup) = GROUP SUM 1 IF data###property(ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
+
+    backgroundShow###property (ItemGroup itemGroup) =
+        IF data###property(itemGroup) THEN
+            RGB(0,0,0) IF itemGroup IS ItemGroup
+        ELSE
+            RGB(203,203,206) IF quantityChildWith###property (itemGroup) != descendantNumber(itemGroup)
+                             AND NOT quantityParentWith###property (itemGroup);
+
+    setNull###property 'Снять признак для всех потомков'(ItemGroup itemGroup)  { 
+        FOR isParent (ItemGroup childGroup, itemGroup) DO {
+            data###property(childGroup) <- NULL;
+        }
+    } ASON CONTEXTMENU prev###property[ItemGroup] CONFIRM;
+    
+    EXTEND FORM itemGroups PROPERTIES(g) READONLYIF isReadonly() property BACKGROUND backgroundShow###property(g);
+END
+
 META defineItemGroupDefaultValue(property, caption, type)
     @defineItemGroupValue(property, caption, type, defaultItemGroup);
 
