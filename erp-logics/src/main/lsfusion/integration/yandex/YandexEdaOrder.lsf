@@ -95,7 +95,7 @@ EXTEND FORM internetOrder
 
 createOrder(FILE f){
     LOCAL tokenClient = STRING ();
-    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);;
     logToFile('yandex', CONCAT ' : ', 'Create order');
     LOCAL aggr = YandexEdaAuth();
     aggr() <- GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
@@ -155,10 +155,10 @@ orderNotFound(){
 
 updateOrder(FILE f){
     LOCAL order = STRING ();
-    order() <- replace(servletPath(), TEXT('/exec/order/'), TEXT (''));
+    order() <- replace(servletPath() + pathInfo(), TEXT('/exec/order/'), TEXT (''));
     logToFile('yandex', CONCAT ' : ', 'Update order', order());
     LOCAL tokenClient = STRING ();
-    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);;
     LOCAL aggr = YandexEdaAuth();
     aggr() <- GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
     IF NOT (aggr()) THEN {
@@ -199,18 +199,23 @@ updateOrder(FILE f){
     }  
 }
 
+FORM closeOrder
+PROPERTIES() eatsId, comment;
+
 deleteOrder(FILE f){
     LOCAL tokenClient = STRING ();
-    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);
     IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
         statusHttpTo() <- 401;
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
     }
     ELSE {
         LOCAL order = STRING ();
-        order() <- replace(servletPath(), TEXT('/exec/order/'), TEXT (''));
+        order() <- replace(servletPath() + pathInfo(), TEXT('/exec/order/'), TEXT (''));
         IF NOT order() THEN { orderNotFound(); RETURN; }
         IF internetOrderByUuid(order()) THEN{
+            IMPORT closeOrder FROM f;
+            customerComment(internetOrderByUuid(order())) <- comment();
             status(internetOrderByUuid(order())) <- StatusInternetOrder.closed;
             APPLY ;
             IF canceled() THEN {
@@ -255,14 +260,14 @@ FORM getOrder FORMEXTID 'null'
 
 getOrder (FILE f) {
     LOCAL tokenClient = STRING ();
-    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);;
     IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
         statusHttpTo() <- 401;
         EXPORT JSON FROM reason = 'Не найден токен авторизации';
     }
     ELSE{
         LOCAL path = STRING ();
-        path() <- replace(servletPath(), TEXT('/exec/order/'), TEXT (''));
+        path() <- replace(servletPath() + pathInfo(), TEXT('/exec/order/'), TEXT (''));
         LOCAL orderNumber = STRING ();
         LOCAL param = STRING ();
         orderNumber() <- getWord(path(), '/', 1);

@@ -132,7 +132,7 @@ carrierSelect ABSTRACT LIST(YandexEdaAuth);
 //-------------------- /v1/nomenclature/{placeId}/composition(availability)------------------------//
 v1_nomenclature(FILE f){
     LOCAL tokenClient = STRING ();
-    tokenClient() <- getWord(headers('Authorization'), ' ', 2);
+    tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);
     LOCAL aggr = YandexEdaAuth();
     aggr() <- GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
     IF NOT (aggr()) THEN {
@@ -142,7 +142,7 @@ v1_nomenclature(FILE f){
     ELSE {
         carrierSelect(aggr());
         LOCAL method = STRING ();
-        method() <- replace(servletPath(), TEXT('/exec/v1/nomenclature/'), TEXT (''));
+        method() <- replace(servletPath() + pathInfo(), TEXT('/exec/v1/nomenclature/'), TEXT (''));
         LOCAL store = STRING ();
         LOCAL param = STRING ();
         store() <- getWord(method(), '/', 1);
