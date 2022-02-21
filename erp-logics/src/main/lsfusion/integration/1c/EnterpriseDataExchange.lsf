@@ -352,6 +352,10 @@ META defBankAccount(nm, class)
     @defBankAccount(nm, class, 'БанковскийСчет');
 END
 
+//cash flow type
+CLASS ABSTRACT CashflowType 'Справочник.СтатьиДДС' : Reference;
+@defProp(name, 'Наименование', STRING, CashflowType);
+
 // all documents
 @defProp(dateTime, 'Дата', DATETIME, Document);
 dateTimeString 'Дата' (Document d, Configuration c) = dateTimeToString(dateTime(d, c));
@@ -738,6 +742,14 @@ EXTEND FORM sendMessage
 @defPropBoolean(includeVat, 'СуммаВключаетНДС', retailReport);
 @defPropObject(department, 'Подразделение', Department, retailReport);
 @defPropObject(stock, 'Склад', Stock, retailReport);
+META defCashflowType(nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = CashflowType EXTID extid 
+        PROPERTIES(nm###class, configuration) name EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
+    ;
+END
+@defPropObject(cashflowType, 'СтатьяДДС', CashflowType, retailReport);
 @defPropSimple(note, 'Комментарий', STRING, retailReport);
 
 @extTable(retailReport, product);
