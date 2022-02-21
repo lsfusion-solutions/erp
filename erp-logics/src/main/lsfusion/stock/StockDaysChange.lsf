@@ -48,21 +48,7 @@ EXTEND FORM UOMs
     PROPERTIES(u) READONLYIF isReadonly() checkChange
 ;
 
-@defineItemGroupValue (checkChange, 'Учитывать продажи в наличии товара', BOOLEAN);
-
-quantityChildWithCheckChange (ItemGroup itemGroup) = GROUP SUM 1 IF dataCheckChange(ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
-quantityParentWithCheckChange (ItemGroup itemGroup) = GROUP SUM 1 IF dataCheckChange(ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
-
-backgroundShowCheckChange (ItemGroup itemGroup) =
-    IF dataCheckChange(itemGroup) THEN
-        RGB(0,0,0) IF itemGroup IS ItemGroup
-    ELSE
-        RGB(203,203,206) IF quantityChildWithCheckChange (itemGroup) != descendantNumber(itemGroup)
-                         AND NOT quantityParentWithCheckChange (itemGroup);
-
-EXTEND FORM itemGroups
-    PROPERTIES (g) READONLYIF isReadonly() checkChange BACKGROUND backgroundShowCheckChange(g)
-;
+@defineItemGroupValueGrid (checkChange, 'Учитывать продажи в наличии товара', BOOLEAN);
 
 checkChange (Sku sku) = OVERRIDE checkChange(skuGroup(sku)), checkChange(UOM(sku)) MATERIALIZED;
 
