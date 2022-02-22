@@ -415,6 +415,41 @@ EXTEND FORM sendMessage
 @defPropObject(partner, 'Контрагент', Partner, purchaseInvoice);
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseInvoice);
 
+// Purchase order
+@extDocument(purchaseOrder, 'ЗаказПоставщику');
+@extTable(purchaseOrder, product);
+@defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, purchaseOrder, product);
+@defPropDetail(item, 'Номенклатура', Item, purchaseOrder);
+GROUP itemDataPurchaseOrderProduct EXTID 'ДанныеНоменклатуры';
+EXTEND FORM sendMessage
+    OBJECTS itemPurchaseOrderProduct = Item EXTID 'Номенклатура' IN itemDataPurchaseOrderProduct
+    PROPERTIES(itemPurchaseOrderProduct, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
+    FILTERS itemPurchaseOrderProduct = item(purchaseOrderProduct, configuration)
+;
+@defPropObjectDetail(specification, 'Характеристика', Specification, purchaseOrder, product, itemDataPurchaseOrderProduct);
+@defPropDetail(idBarcodePurchaseOrderProduct, 'Штрихкод', STRING[200], purchaseOrder);
+EXTEND FORM sendMessage
+    PROPERTIES (purchaseOrderProduct, configuration) idBarcodePurchaseOrderProduct EXTID 'Штрихкод' IN itemDataPurchaseOrderProduct
+;
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, purchaseOrder, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], purchaseOrder, product);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], purchaseOrder, product);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], purchaseOrder, product);
+@defPropIdDetail(rateVat, 'СтавкаНДС', TypeVat, purchaseOrder, product);
+@defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], purchaseOrder, product);
+@defPropSimpleDetail(retailSum, 'СуммаРозничная', NUMERIC[15,2], purchaseOrder, product);
+@defPropSimpleDetail(retailPrice, 'ЦенаРозничная', NUMERIC[15,2], purchaseOrder, product);
+//@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], purchaseOrder, product);
+
+@defPropObject(currency, 'Валюта', Currency, purchaseOrder);
+@defPropId(operation, 'ВидОперации', typePurchaseInvoice, purchaseOrder);
+@defPropObject(department, 'Подразделение', Department, purchaseOrder);
+@defPropObject(stock, 'Склад', Stock, purchaseOrder);
+@defPropObject(contract, 'Договор', Contract, purchaseOrder);
+@defPropSimple(note, 'Комментарий', STRING, purchaseOrder);
+@defPropObject(partner, 'Контрагент', Partner, purchaseOrder);
+@defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseOrder);
+
 // Sale invoice
 META defSaleInvoice(nm, class, extid)
     @defKeyPropSimple(uidSaleInvoice, 'Ссылка', ISTRING[36], saleInvoice, class);
