@@ -248,9 +248,8 @@ DESIGN  integrationData {
 
 //приход
 slovoMessage = DATA SlovoMessage (Purchase.Invoice);
-statusSlovo 'Статус' (Purchase.Invoice o) = status(slovoMessage(o)) IN wms;
-errorSlovo 'Сообщение' (Purchase.Invoice o) = errDescr(slovoMessage(o)) IN wms;
-loaded 'Время выгрузки' (Purchase.Invoice o) = loaded(slovoMessage(o)) IN wms;
+statusSlovo 'Статус выгрузки' (Purchase.Invoice o) = CONCAT ' - ', status(slovoMessage(o)), errDescr(slovoMessage(o)) IN wms;
+processingStatusSlovo 'Статус обработки'  = DATA STRING[50](Purchase.Invoice) IN wms;
 
 beforeExportSolvo ABSTRACT (Purchase.Invoice);
 
@@ -317,7 +316,7 @@ exportSolvo 'Выгрузить приход в wms Solvo' (Purchase.Invoice i) 
 
 EXTEND FORM Purchase.invoices 
     PROPERTIES (i) PANEL SHOWIF isSolvo(customerStock(i)) 
-        exportSolvo, statusSlovo, errorSlovo
+        exportSolvo, statusSlovo, processingStatusSlovo
 ;
 
 DESIGN Purchase.invoices {
@@ -327,17 +326,15 @@ DESIGN Purchase.invoices {
             type = CONTAINERV;
             MOVE PROPERTY(exportSolvo(i));
             MOVE PROPERTY(statusSlovo(i));
-            MOVE PROPERTY(errorSlovo(i));
+            MOVE PROPERTY(processingStatusSlovo(i));
         }
     }
 }
 
 //Ррасход
 slovoMessage = DATA SlovoMessage (Sale.Order);
-statusSlovo 'Статус' (Sale.Order o) = status(slovoMessage(o)) IN wms;
-errorSlovo 'Сообщение' (Sale.Order o) = errDescr(slovoMessage(o)) IN wms;
-loaded 'Время выгрузки' (Sale.Order o) = loaded(slovoMessage(o)) IN wms;
-
+statusSlovo 'Статус выгрузки' (Sale.Order o) = CONCAT ' - ', status(slovoMessage(o)), errDescr(slovoMessage(o)) IN wms;
+processingStatusSlovo 'Статус обработки'  = DATA STRING[50](Sale.Order) IN wms;
 beforeExportSolvo ABSTRACT (Sale.Order);
 
 orderHeaderString (LONG syncId, Sale.Order s) = CONCAT'','<order syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
@@ -401,7 +398,7 @@ exportSolvo 'Выгрузить заказ в wms Solvo' (Sale.Order i) {
 
 EXTEND FORM Sale.orders
     PROPERTIES (o) PANEL SHOWIF isSolvo(supplierStock(o)) 
-        exportSolvo, statusSlovo, errorSlovo
+        exportSolvo, statusSlovo, processingStatusSlovo
 ;
 
 DESIGN Sale.orders {
@@ -411,7 +408,7 @@ DESIGN Sale.orders {
             type = CONTAINERV;
             MOVE PROPERTY(exportSolvo(o));
             MOVE PROPERTY(statusSlovo(o));
-            MOVE PROPERTY(errorSlovo(o));
+            MOVE PROPERTY(processingStatusSlovo(o));
         }
     }
 }
@@ -430,7 +427,6 @@ exportSolvo 'Выгрузить рейс в wms Solvo' (Trip i) {
         
         logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Trip:', seriesNumber(i));
 
-        
         headerId(incrementedValue()) <- 0;
         type(incrementedValue()) <- 'shipment';
         meaasage(incrementedValue()) <- shipmentHeaderString(incrementedValue(), i);
@@ -471,4 +467,118 @@ checkStatus 'Проверить статус выгрузки в Solvo' () {
         }
         APPLY;
     }
+}
+
+status = DATA LOCAL STRING(INTEGER);
+sku_id = DATA LOCAL STRING(INTEGER);
+s_serial_id = DATA LOCAL STRING(INTEGER);
+qty = DATA LOCAL NUMERIC[16,3](INTEGER);
+p_serial_id = DATA LOCAL STRING(INTEGER);
+marker2 = DATA LOCAL STRING(INTEGER);
+marker = DATA LOCAL STRING(INTEGER);
+line = DATA LOCAL STRING(INTEGER);
+category = DATA LOCAL STRING(INTEGER);
+inc_id = DATA LOCAL STRING();
+rcv_date = DATA LOCAL DATETIME();
+new_status = DATA LOCAL STRING ();
+
+FORM receive_complete
+PROPERTIES() rcv_date ATTR, inc_id ATTR
+
+OBJECTS receive_complete_detail = INTEGER
+PROPERTIES(receive_complete_detail) status ATTR, sku_id ATTR, s_serial_id ATTR, qty ATTR, p_serial_id ATTR, marker2 ATTR, marker ATTR, line ATTR, category ATTR
+FILTERS imported(receive_complete_detail);
+
+overIdBatch = ABSTRACT STRING[100](Purchase.InvoiceDetail);
+series (Purchase.InvoiceDetail d) = OVERRIDE overIdBatch(d), idBatch(d);
+
+importReplies 'Импортировать подтверждения' ()  {
+    
+    logToFile('WMS', 'import replies started' );
+    
+    EXTERNAL 
+        SQL connectionString()
+        EXEC 'SELECT ID, TYPE, MESSAGE FROM to_host_header_message WHERE STATUS = \'ready\' AND CREATED >= \''+toChar(sum(2020_01_01,-7),'DD.MM.YY')+'\'' TO file;
+        
+    LOCAL NESTED hId = LONG (INTEGER );
+    LOCAL hType = STRING[64] (INTEGER );
+    LOCAL NESTED hMessage = STRING (INTEGER );
+    IMPORT TABLE FROM file() TO hId, hType, hMessage;
+    
+    LOCAL NESTED error = STRING ();
+    LOCAL NESTED done = BOOLEAN ();
+    
+    FOR hId(INTEGER j) DO {
+        //-- Поступление        
+        IF hType(j) == 'receive_complete' THEN NEWSESSION {
+            logToFile('WMS', 'starting receive_complete: ' + hId(j));
+            
+            EXTERNAL 
+                SQL connectionString()
+                EXEC 'SELECT ID, MESSAGE FROM to_host_detail_message WHERE HEADER_ID = '+hId(j) TO file;
+            
+            LOCAL dId = LONG (INTEGER );
+            LOCAL dMessage = STRING (INTEGER );
+            IMPORT TABLE FROM file() TO dId, dMessage;
+            
+            stringToFile(hMessage(j) + (GROUP CONCAT dMessage(INTEGER i), '' ORDER  dId(i)),'UTF-8','xml');
+
+            IMPORT receive_complete XML FROM resultFile();
+            
+            IF NOT Purchase.userInvoice(inc_id()) THEN {
+                logToFile('WMS', 'Not found purchase invoice: ' + inc_id());
+                error() <- 'Накладная не найдена';
+            } ELSE {
+                FOR id(Purchase.Invoice i) == inc_id() DO {
+                    shipmentDate(i) <- DATE (rcv_date());
+                    shipmentTime(i) <- TIME (rcv_date());
+                    
+                    FOR i == invoice(Purchase.InvoiceDetail d) DO {
+                        shipmentQuantity(d) <- GROUP SUM qty(INTEGER r) IF idSku(d) == sku_id( r) AND series(d) == s_serial_id(r);
+                    }
+                }
+                
+                APPLY NESTED LOCAL ;
+                IF canceled() THEN {
+                    logToFile('WMS', 'APPLY purchase head faild: ' + applyMessage());
+                    error() <- applyMessage();
+                } 
+            }
+            
+        }
+        
+        IF hType(j) == 'incoming_status_changed' THEN NEWSESSION {
+            logToFile('WMS', 'starting incoming_status_changed: ' + hId(j));
+
+            stringToFile(hMessage(j),'UTF-8','xml');
+
+            IMPORT XML ATTR FROM resultFile() TO() inc_id, new_status;
+            
+            IF NOT Purchase.userInvoice(inc_id()) THEN {
+                logToFile('WMS', 'Not found purchase invoice: ' + inc_id());
+                error() <- 'Накладная не найдена';
+            } ELSE {
+                FOR id(Purchase.Invoice i) == inc_id() DO {
+                    processingStatusSlovo(i) <- CASE 
+                        WHEN new_status() = 'R' THEN 'Готов'
+                        WHEN new_status() = 'G' THEN 'Подготовлен'
+                        WHEN new_status() = 'P' THEN 'В работе'
+                        WHEN new_status() = 'D' THEN 'Выполнен';
+                }
+                
+                APPLY NESTED LOCAL;
+            }
+        }
+        
+        IF error() THEN {
+            EXTERNAL 
+                SQL connectionString()
+                EXEC 'UPDATE to_host_header_message SET STATUS = \'error\', ERR_CODE = 1, ERR_DESCR = \''+error()+'\' WHERE ID = '+hId(j);
+        } ELSE IF done() THEN {
+            EXTERNAL 
+                SQL connectionString()
+                EXEC 'UPDATE to_host_header_message SET STATUS = \'done\', ERR_CODE = 0 WHERE ID = '+hId(j);
+        }
+    }
+ 
 }
