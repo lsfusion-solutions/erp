@@ -808,63 +808,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private Document generateDiscountCardXML(List<DiscountCard> discountCardList, RequestExchange requestExchange) {
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        Map<Double, String> discountCardPercentTypeMap = kristalSettings != null ? kristalSettings.getDiscountCardPercentTypeMap() : new HashMap<>();
-
-        Element rootElement = new Element("cards-catalog");
-        Document doc = new Document(rootElement);
-
-        LocalDate currentDate = LocalDate.now();
-
-        for (Map.Entry<Double, String> discountCardType : discountCardPercentTypeMap.entrySet()) {
-            //parent: rootElement
-            Element internalCard = new Element("internal-card-type");
-            setAttribute(internalCard, "guid", discountCardType.getValue());
-            setAttribute(internalCard, "name", discountCardType.getKey() + "%");
-            setAttribute(internalCard, "personalized", "false");
-            setAttribute(internalCard, "percentage-discount", discountCardType.getKey());
-            setAttribute(internalCard, "deleted", "false");
-
-            rootElement.addContent(internalCard);
-        }
-
-        for (DiscountCard d : discountCardList) {
-            boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
-            if(active) {
-                //parent: rootElement
-                Element internalCard = new Element("internal-card");
-                Double percent = d.percentDiscountCard == null ? 0 : d.percentDiscountCard.doubleValue();
-                String guid = discountCardPercentTypeMap.get(percent);
-                if (d.numberDiscountCard != null) {
-                    setAttribute(internalCard, "number", d.numberDiscountCard);
-                    if(d.initialSumDiscountCard != null)
-                        setAttribute(internalCard, "amount", d.initialSumDiscountCard);
-                    if(d.dateToDiscountCard != null)
-                        setAttribute(internalCard, "expiration-date", d.dateToDiscountCard);
-                    setAttribute(internalCard, "status",
-                            d.dateFromDiscountCard == null || currentDate.compareTo(d.dateFromDiscountCard) >= 0 ? "ACTIVE" : "BLOCKED");
-                    setAttribute(internalCard, "deleted", "false");
-                    setAttribute(internalCard, "card-type-guid", d.idDiscountCardType != null ? d.idDiscountCardType : (guid != null ? guid : "0"));
-
-                    Element client = new Element("client");
-                    setAttribute(client, "guid", d.numberDiscountCard);
-                    setAttribute(client, "last-name", d.lastNameContact);
-                    setAttribute(client, "first-name", d.firstNameContact);
-                    setAttribute(client, "middle-name", d.middleNameContact);
-                    setAttribute(client, "birth-date", formatDate(d.birthdayContact, "yyyy-MM-dd"));
-                    if(d.sexContact != null)
-                        setAttribute(client, "sex", d.sexContact == 0 ? "MALE" : "FEMALE");
-                    setAttribute(client, "isCompleted", d.isCompleted);
-                    internalCard.addContent(client);
-
-                    rootElement.addContent(internalCard);
-                }
-            }
-        }
-        return doc;
-    }
-
     @Override
     public Kristal10SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
         List<SalesInfo> salesInfoList = new ArrayList<>();

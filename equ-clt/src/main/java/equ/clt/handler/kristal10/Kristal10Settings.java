@@ -109,6 +109,9 @@ public class Kristal10Settings implements Serializable{
     //sid equipmentServer, только для Kristal10Web
     private String sidEquipmentServer;
 
+    //если true, при экспорте дисконтных карт выгружать тег TargetCustomersGroups
+    private boolean exportSegments;
+
     public Kristal10Settings() {
     }
 
@@ -340,5 +343,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setSidEquipmentServer(String sidEquipmentServer) {
         this.sidEquipmentServer = sidEquipmentServer;
+    }
+
+    public boolean isExportSegments() {
+        return exportSegments;
+    }
+
+    public void setExportSegments(boolean exportSegments) {
+        this.exportSegments = exportSegments;
     }
 }

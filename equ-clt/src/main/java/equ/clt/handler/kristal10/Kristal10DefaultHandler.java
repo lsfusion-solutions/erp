@@ -2,12 +2,11 @@ package equ.clt.handler.kristal10;
 
 import equ.api.ItemGroup;
 import equ.api.ItemInfo;
-import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItem;
-import equ.api.cashregister.ExtraCheckZReportBatch;
-import equ.api.cashregister.TransactionCashRegisterInfo;
+import equ.api.RequestExchange;
+import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import org.jdom.Attribute;
+import org.jdom.Document;
 import org.jdom.Element;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -105,6 +104,85 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
     protected static String formatDateTime(LocalDateTime dateTime, String format, String defaultValue) {
         return dateTime == null ? defaultValue : dateTime.format(DateTimeFormatter.ofPattern(format));
+    }
+
+    protected Document generateDiscountCardXML(List<DiscountCard> discountCardList, RequestExchange requestExchange) {
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        Map<Double, String> discountCardPercentTypeMap = kristalSettings.getDiscountCardPercentTypeMap();
+        boolean exportSegments = kristalSettings.isExportSegments();
+
+        Element rootElement = new Element("cards-catalog");
+        Document doc = new Document(rootElement);
+
+        LocalDate currentDate = LocalDate.now();
+
+        for (Map.Entry<Double, String> discountCardType : discountCardPercentTypeMap.entrySet()) {
+            //parent: rootElement
+            Element internalCard = new Element("internal-card-type");
+            setAttribute(internalCard, "guid", discountCardType.getValue());
+            setAttribute(internalCard, "name", discountCardType.getKey() + "%");
+            setAttribute(internalCard, "personalized", "false");
+            setAttribute(internalCard, "percentage-discount", discountCardType.getKey());
+            setAttribute(internalCard, "deleted", "false");
+
+            rootElement.addContent(internalCard);
+        }
+
+        for (DiscountCard d : discountCardList) {
+            if (isActiveDiscountCard(requestExchange, d)) {
+                //parent: rootElement
+                Element internalCard = new Element("internal-card");
+                Double percent = d.percentDiscountCard == null ? 0 : d.percentDiscountCard.doubleValue();
+                String guid = discountCardPercentTypeMap.get(percent);
+                if (d.numberDiscountCard != null) {
+                    setAttribute(internalCard, "number", d.numberDiscountCard);
+                    if (d.initialSumDiscountCard != null) setAttribute(internalCard, "amount", d.initialSumDiscountCard);
+                    if (d.dateToDiscountCard != null) setAttribute(internalCard, "expiration-date", d.dateToDiscountCard);
+                    setAttribute(internalCard, "status", d.dateFromDiscountCard == null || currentDate.compareTo(d.dateFromDiscountCard) >= 0 ? "ACTIVE" : "BLOCKED");
+                    setAttribute(internalCard, "deleted", "false");
+                    setAttribute(internalCard, "card-type-guid", d.idDiscountCardType != null ? d.idDiscountCardType : (guid != null ? guid : "0"));
+
+                    Element client = new Element("client");
+                    setAttribute(client, "guid", d.numberDiscountCard);
+                    setAttribute(client, "last-name", d.lastNameContact);
+                    setAttribute(client, "first-name", d.firstNameContact);
+                    setAttribute(client, "middle-name", d.middleNameContact);
+                    setAttribute(client, "birth-date", formatDate(d.birthdayContact, "yyyy-MM-dd"));
+                    if (d.sexContact != null) {
+                        setAttribute(client, "sex", d.sexContact == 0 ? "MALE" : "FEMALE");
+                    }
+                    setAttribute(client, "isCompleted", d.isCompleted);
+                    internalCard.addContent(client);
+
+                    rootElement.addContent(internalCard);
+                }
+            }
+        }
+
+        if (exportSegments) {
+            //parent: rootElement
+            Element targetCustomerGroups = new Element("TargetCustomersGroups");
+            //parent: targetCustomerGroups
+            Element targetCustomerGroup = new Element("TargetCustomersGroup");
+            setAttribute(targetCustomerGroup, "code", "SET1644931927302");
+            setAttribute(targetCustomerGroup, "name", "Социальные");
+            for (DiscountCard d : discountCardList) {
+                if (isActiveDiscountCard(requestExchange, d)) {
+                    //parent: targetCustomerGroup
+                    Element cust = new Element("cust");
+                    cust.setAttribute("guid", d.numberDiscountCard);
+                    targetCustomerGroup.addContent(cust);
+                }
+            }
+            targetCustomerGroups.addContent(targetCustomerGroup);
+            rootElement.addContent(targetCustomerGroups);
+        }
+
+        return doc;
+    }
+
+    private boolean isActiveDiscountCard(RequestExchange r, DiscountCard d) {
+        return r.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(r.startDate) >= 0);
     }
 
     protected static String currentDate() {
