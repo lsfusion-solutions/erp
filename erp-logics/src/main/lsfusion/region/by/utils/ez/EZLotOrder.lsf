@@ -90,7 +90,7 @@ DESIGN integrationData {
 
 ezHeadersLotOrder (TEXT name) = CASE
     WHEN name = 'Content-Type' THEN 'application/json; charset=utf-8' 
-    WHEN name = 'Host' THEN 'v2-sandbox-api.datamark.by'
+    WHEN name = 'Host' THEN hostEZ()
     WHEN name = 'Token' THEN token(); 
 
 urlFileCodesMarkers 'Url к файлу' = DATA STRING (LotOrder);
@@ -106,14 +106,19 @@ idLot = DATA LOCAL STRING[100] (INTEGER);
 
 // поиск товара
 foundGtin = DATA LOCAL STRING[14] (INTEGER);
+addedGtin = DATA LOCAL STRING[14] (INTEGER);
 
 //isFindItemsEZ(STRING[14] gtin) = (GROUP SUM 1 IF gtin == foundGtin(INTEGER i)) > 0;
 isFindItemsEZ = DATA LOCAL BOOLEAN (STRING[14]);
 
-
 FORM findItemsEZ 'Проверка статусов регистрации GTIN'
     OBJECTS items = INTEGER 
         PROPERTIES(items) foundGtin EXTID 'gtin'
+;
+
+FORM addItemsEZ 'Добавление товара по GTIN'
+    OBJECTS items = INTEGER 
+        PROPERTIES(items) addedGtin EXTID 'gtin'
 ;
 
 exception 'Сообщение' = DATA TEXT (LotOrder);
@@ -122,7 +127,7 @@ handleException (LotOrder o, FILE exception) {
     
     logToFile('ez', exception);
     fileToString(exception);
-    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException();
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
 
     NEWSESSION NESTED (messageCaughtException, resultString) {
         exception(o) <- CONCAT ', ', messageCaughtException(), resultString();
@@ -135,7 +140,8 @@ findItemsEZ 'Поиск товара по GTIN' (STRING[14] gtin, LotOrder o) {
     foundGtin(INTEGER i) <- NULL;
 
     EXPORT JSON FROM search = gtin;         
-          
+    fileToString(exportFile());   
+    
     LOCAL result = FILE();   
     
     exception(o) <- NULL;    
@@ -154,22 +160,54 @@ findItemsEZ 'Поиск товара по GTIN' (STRING[14] gtin, LotOrder o) {
     
 }
 
+addItemsEZ 'Добавление товара по GTIN' (STRING[14] gtin, LotOrder o) {
+
+    addedGtin(INTEGER i) <- NULL;
+
+    EXPORT JSON FROM gtin = gtin;         
+    fileToString(exportFile());   
+    
+    LOCAL result = FILE();   
+    
+    exception(o) <- NULL;    
+    
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/items/addByGtin' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        handleException(o, result());
+        RETURN;
+    }       
+    fileToString(result());
+    //MESSAGE resultString();
+    
+    IMPORT addItemsEZ JSON FROM result();
+        
+    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'gtin' == jsonAttributeKey(resultString(),i) DO {
+        isFindItemsEZ(gtin) <- isSubstring(STRING(jsonAttributeValue(resultString(),i)), gtin);        
+    }
+    
+    IF isFindItemsEZ(gtin) THEN MESSAGE 'Добавлен товар с GTIN ' + gtin NOWAIT;      
+}
+
 // Проверка статусов регистрации GTIN
 checkGtin = DATA LOCAL STRING[14] (INTEGER);
 isCheckGTINEZ = DATA BOOLEAN (STRING[14]);
-isNotCheckGTINEZ = DATA BOOLEAN (STRING[14]);
 
 checkGTINEZ 'Проверка GTIN' (LotOrder o) { 
     isFindItemsEZ(STRING[14] str) <- NULL;
+    isCheckGTINEZ(STRING[14] str) <- NULL; 
     LOCAL notFound = BOOLEAN (STRING[14]);
     
     FOR (STRING[14] gtin) AND ((GROUP SUM 1 IF gtin == gtin(LotOrderDetail d) AND o == lotOrder(d)) > 0)  DO {
         findItemsEZ(gtin, o);
+        
+        IF NOT isFindItemsEZ(gtin) THEN addItemsEZ(gtin, o);
+        
         notFound(gtin) <- NOT isFindItemsEZ(gtin);
     }
     
     IF (GROUP SUM 1 IF notFound(STRING[14] gtin)) THEN {
-        MESSAGE ('Не найдены товары с следующими GTIN: ' + GROUP CONCAT STRING[14] gtin IF notFound(gtin), ', ' ORDER gtin);
+        MESSAGE ('Не найдены товары со следующими GTIN: ' + GROUP CONCAT STRING[14] gtin IF notFound(gtin), ', ' ORDER gtin) NOWAIT;
         RETURN;
     }
     
@@ -192,21 +230,18 @@ checkGTINEZ 'Проверка GTIN' (LotOrder o) {
     fileToString(result());       
 //    MESSAGE resultString();
       
-    isCheckGTINEZ(STRING[14] str) <- NULL;  
-    isNotCheckGTINEZ(STRING[14] str) <- NULL;  
     LOCAL notCheck = BOOLEAN (STRING[14]);
           
     // ответ {"04813612846760":{"gtin_check":true}} проверка на наличие true
     FOR (STRING[14] gtin) AND ((GROUP SUM 1 IF gtin == gtin(LotOrderDetail d) AND o == lotOrder(d)) > 0)  DO {
         FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND gtin == jsonAttributeKey(resultString(),i) DO {
             isCheckGTINEZ(gtin) <- isSubstring(STRING(jsonAttributeValue(resultString(),i)), 'true');
+            notCheck(gtin) <- NOT isCheckGTINEZ(gtin);
         }
-        
-        isNotCheckGTINEZ(gtin) <- NOT isCheckGTINEZ(gtin);
     }
     
     IF (GROUP SUM 1 IF notCheck(STRING[14] gtin)) THEN {
-        MESSAGE ('Отсутствует признак регистрации для следующих GTIN: ' + GROUP CONCAT STRING[14] gtin IF notCheck(gtin), ', ' ORDER gtin);
+        MESSAGE ('Отсутствует признак регистрации для следующих GTIN: ' + GROUP CONCAT STRING[14] gtin IF notCheck(gtin), ', ' ORDER gtin) NOWAIT;
         RETURN;
     }
 }
@@ -242,10 +277,10 @@ addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {
     checkGTINEZ(o);
     
     IF NOT (GROUP SUM 1 IF isCheckGTINEZ(STRING[14] gtin) AND o == lotOrder(LotOrderDetail d) AND gtin == gtin(d)) THEN RETURN;    
-    IF (GROUP SUM 1 IF isNotCheckGTINEZ(STRING[14] gtin) AND o == lotOrder(LotOrderDetail d) AND gtin == gtin(d)) THEN RETURN;    
+    IF (GROUP SUM 1 IF NOT isCheckGTINEZ(STRING[14] gtin) AND o == lotOrder(LotOrderDetail d) AND gtin == gtin(d)) THEN RETURN;   
 
     IF (GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT quantity(d) > 0) THEN {
-        MESSAGE 'В документе есть строки с неправильным количеством'; 
+        MESSAGE 'В документе есть строки с неправильным количеством' NOWAIT; 
         RETURN;
     }
     
@@ -283,9 +318,9 @@ addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {
                 }       
             }
         }
-        APPLY;
-        
         MESSAGE 'Документ успешно отослан. Присвоены коды: ' + listidOrderEZ(o);
+        
+        APPLY;
     }    
 }
 
