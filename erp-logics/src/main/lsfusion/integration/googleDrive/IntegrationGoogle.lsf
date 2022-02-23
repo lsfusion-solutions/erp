@@ -216,7 +216,12 @@ OBJECTS files = INTEGER
 PROPERTIES(files) resourceKeyGoogleDrive EXTID 'resourceKey', kind1GoogleDriveFile EXTID 'kind', nameGoogleDriveFile EXTID 'name', idGoogleDriveFile EXTID 'id', mimeTypeGoogleDriveFile EXTID 'mimeType'
 FILTERS imported(files);
 
+idGoogleDriveFileFolder = DATA LOCAL STRING[100]();
+nameGoogleDriveFileFolder = DATA LOCAL STRING[100]();
+
 cleanGoogleDriveFiles() {
+    idGoogleDriveFileFolder() <- NULL;
+    nameGoogleDriveFileFolder() <- NULL;
     kindGoogleDriveFile() <- NULL;
     resourceKeyGoogleDrive(INTEGER i) <- NULL;
     kind1GoogleDriveFile(INTEGER i) <- NULL;
@@ -237,9 +242,6 @@ getGoogleDriveFiles 'Получить файлы и папки на Google ди�
     IMPORT generatedGoogleDriveFiles FROM result();
 }
 
-idGoogleDriveFileFolder = DATA LOCAL STRING[100]();
-nameGoogleDriveFileFolder = DATA LOCAL STRING[100]();
-
 findIdGoogleDriveFileFolder 'Получить файл или папку на Google диске' (STRING[200] token,  STRING[200] token_type, STRING[200] nameFile,  STRING[200] mimeType){
     cleanGoogleDriveFiles();
     getGoogleDriveFiles(token, token_type);
@@ -247,17 +249,25 @@ findIdGoogleDriveFileFolder 'Получить файл или папку на Go
 }
 
 findNameGoogleDriveFolder (STRING[200] token, STRING[200] token_type, STRING[100] idFolder){
-    cleanGoogleDriveFiles();
+    cleanGoogleDriveFiles();    
+    LOCAL iFolder = INTEGER ();
+    iFolder() <- NULL;
+    
     getGoogleDriveFiles(token, token_type);
-    IF NOT [GROUP MAX INTEGER i BY idGoogleDriveFile(i)](idFolder) THEN {
-        MESSAGE 'Не найдена папка по коду';        
+    
+    iFolder() <- [GROUP MAX INTEGER i BY idGoogleDriveFile(i)](idFolder);
+    IF NOT iFolder() THEN {
+        MESSAGE CONCAT ' ', 'Не найдена папка с кодом', idFolder;
     } ELSE {
-        nameGoogleDriveFileFolder() <- GROUP MAX nameGoogleDriveFile(INTEGER i) IF idGoogleDriveFile(i) = idFolder;
+        idGoogleDriveFileFolder() <- idGoogleDriveFile(iFolder());
+        nameGoogleDriveFileFolder() <- nameGoogleDriveFile(iFolder());
     }
 }
 
 createGoogleDriveFolder 'Создать папку на Google диске' (STRING[200] token, STRING[200] token_type, STRING[100] idParent, STRING[100] nameFolder){
+    
     idGoogleDriveFileFolder() <- NULL;
+    
     LOCAL headers = TEXT(STRING[100]);
     LOCAL result = JSONFILE ();
 
@@ -271,11 +281,10 @@ createGoogleDriveFolder 'Создать папку на Google диске' (STRI
     EXTERNAL HTTP POST 'https://www.googleapis.com/upload/drive/v3/files' HEADERS headers
         PARAMS JSONFILE(exportFile()), ''
             TO result;
-    IMPORT JSON FROM result() TO() idGoogleDriveFileFolder = id
+    IMPORT JSON FROM result() TO() idGoogleDriveFileFolder = id, nameGoogleDriveFileFolder = name
 }
 
 findOrCreateGoogleDriveOldFileFolder (STRING[200] token, STRING[200] token_type, STRING[100] idParent, STRING[100] nameFolder){
-    idGoogleDriveFileFolder() <- NULL;
     findIdGoogleDriveFileFolder(token,  token_type, nameFolder,  'application/vnd.google-apps.folder');
     IF NOT idGoogleDriveFileFolder() THEN {
         createGoogleDriveFolder(token,  token_type, idParent, nameFolder);

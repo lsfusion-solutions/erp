@@ -25,8 +25,10 @@ inPriceMonitoring 'Вкл.' (Stock st) = OVERRIDE dataInPriceMonitoring(st), inP
 
 dataPriceMonitoringGoogleAccount = DATA GoogleAccount();
 namePriceMonitoringGoogleAccount 'Аккаунт Google' = nameAuth(dataPriceMonitoringGoogleAccount());
+
+idPublicPriceMonitoringFolder 'Код общей папки для отчетов' = DATA STRING ();
 namePublicPriceMonitoringFolder 'Имя общей папки для отчетов' = DATA STRING ();
-createPriceMonitoringFolder 'Создавать папку на время отчетов' = DATA BOOLEAN ();
+createPriceMonitoringTimeFolder 'Создавать папку на время отчетов' = DATA BOOLEAN ();
 
 changePriceMonitoringGoogleAccount(){
     DIALOG dialogGoogleAccountNames OBJECTS ig INPUT DO {
@@ -36,7 +38,7 @@ changePriceMonitoringGoogleAccount(){
 
 FORM priceMonitoring 'Отчет по мониторингу цен'                
     PROPERTIES namePriceMonitoringGoogleAccount() ON CHANGE changePriceMonitoringGoogleAccount(),
-        namePublicPriceMonitoringFolder(), createPriceMonitoringFolder() SHOWIF createPriceMonitoringFolder()
+        idPublicPriceMonitoringFolder(), createPriceMonitoringTimeFolder() SHOWIF createPriceMonitoringTimeFolder()
 
     TREE stockTree a=BPSTRING[3], stg = StockGroup PARENT parent(stg)
     PROPERTIES READONLY VALUE(a), sgTreeName = name(stg)
@@ -66,8 +68,9 @@ DESIGN priceMonitoring {
         NEW headetCapt{
             type = CONTAINERH;
             MOVE PROPERTY(namePriceMonitoringGoogleAccount());
-            MOVE PROPERTY(namePublicPriceMonitoringFolder());
-            MOVE PROPERTY(createPriceMonitoringFolder());
+            MOVE PROPERTY(idPublicPriceMonitoringFolder());            
+            //MOVE PROPERTY(namePublicPriceMonitoringFolder());
+            MOVE PROPERTY(createPriceMonitoringTimeFolder());
         }
         //MOVE BOX(dt);
         NEW stockContainer {
@@ -91,7 +94,6 @@ DESIGN priceMonitoring {
             }
         }                         
     }    
-
 }
 
 NAVIGATOR {
@@ -121,17 +123,32 @@ fillNamePublicPriceMonitoringFolder 'Заполнить имя общей пап
     }
 }
 
-fillPriceListMonAuto 'Мониторинг цен (Google диск)'(){
+fillPriceListMonAuto 'Мониторинг цен (Google диск)'(){  
     LOCAL curDt = DATETIME ();
     curDt() <- currentDateTime();
-    idGoogleDriveFileFolder() <- NULL;
-    getAccessByRefreshToken(dataPriceMonitoringGoogleAccount());    
-    IF namePublicPriceMonitoringFolder() THEN findOrCreateGoogleDriveOldFileFolder(access_token(), token_type(), NULL, namePublicPriceMonitoringFolder());
-    IF createPriceMonitoringFolder() THEN findOrCreateGoogleDriveOldFileFolder(access_token(), token_type(), idGoogleDriveFileFolder(), 'Мониторинг цена за ' +   (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt()))));
+
+    LOCAL idToFolder = STRING ();
+    idToFolder() <- NULL;
+    
+    getAccessByRefreshToken(dataPriceMonitoringGoogleAccount());
+    
+    IF idPublicPriceMonitoringFolder() THEN {
+        findNameGoogleDriveFolder(access_token(), token_type(), idPublicPriceMonitoringFolder());
+        idToFolder() <- idGoogleDriveFileFolder() IF idPublicPriceMonitoringFolder() = idGoogleDriveFileFolder();
+        IF NOT idToFolder() THEN RETURN;     
+    } ELSE IF namePublicPriceMonitoringFolder() THEN {
+        findOrCreateGoogleDriveOldFileFolder(access_token(), token_type(), NULL, namePublicPriceMonitoringFolder());
+        idToFolder() <- idGoogleDriveFileFolder();
+    }
+      
+    IF createPriceMonitoringTimeFolder() THEN {
+        findOrCreateGoogleDriveOldFileFolder(access_token(), token_type(), idToFolder(), 'Мониторинг цена за ' +   (toDateDDMMYYYY(curDt()) + ' ' + TEXT(toTime(curDt()))));
+        idToFolder() <- idGoogleDriveFileFolder();
+    }
     
     FOR Stock st IF inPriceMonitoring(st) DO {         
         PRINT formMonitoringPricePrint OBJECTS dt = curDt(), st = st XLSX SHEET CONCAT ' ', name(st), toDateDDMMYYYY(curDt()) TO excelFile;
-        sendFileToGoogleDrive(access_token(), token_type(), idGoogleDriveFileFolder(), excelFile(), CONCAT ' ', toDateDDMMYYYY(curDt()), STRING(toTime(curDt())), name(st));
+        sendFileToGoogleDrive(access_token(), token_type(), idToFolder(), excelFile(), CONCAT ' ', toDateDDMMYYYY(curDt()), STRING(toTime(curDt())), name(st));        
     }       
 } TOOLBAR;
 
@@ -145,5 +162,5 @@ fillPriceListMon 'Мониторинг цен'(){
 } TOOLBAR;
 
 EXTEND FORM priceMonitoring
-    PROPERTIES  DRAW sg fillPriceListMonAuto() SHOWIF dataPriceMonitoringGoogleAccount(), fillPriceListMon()
+    PROPERTIES  DRAW sg fillPriceListMonAuto() SHOWIF dataPriceMonitoringGoogleAccount(), fillPriceListMon()    
 ;
