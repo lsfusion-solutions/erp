@@ -1,0 +1,104 @@
+MODULE ImportAxaptaSaleInvoice;
+
+REQUIRE ImportAxaptaStock, ImportAxaptaItem, SaleShipment;
+
+NAMESPACE ImportAxapta;
+
+importSaleInvoice 'Импорт реализации' (Stock st, DATE dt) {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL salesId = STRING[100] (INTEGER);
+        LOCAL customerId = STRING (INTEGER);
+        LOCAL date = DATETIME (INTEGER);
+        LOCAL inventLocationId = STRING (INTEGER);
+        
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO salesId, customerId, date, inventLocationId;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT SALESID, CUSTACCOUNT, DELIVERYDATE, INVENTLOCATIONID FROM SALESTABLE WHERE SALESSTATUS = 3 AND SALESTYPE = 3 AND INVENTLOCATIONID = $1 AND DELIVERYDATE >= $2'
+                     PARAMS id(st), dt TO file;
+                IMPORT TABLE FROM file() TO salesId, customerId, date, inventLocationId;
+        }
+         
+        FOR salesId(INTEGER i) AND NOT userInvoice(salesId(i)) NEW s = UserInvoice DO {
+            id(s) <- salesId(i);
+            number(s) <- salesId(i);
+            operation(s) <- Sale.operation('saleStoreCustomer');
+            isPosted(s) <- TRUE;
+            createShipment(s) <- NULL;
+        }
+
+        FOR id(UserInvoice s) = salesId(INTEGER i) DO {
+            date(s) <- DATE(date(i));
+            time(s) <- TIME(date(i));
+            customer(s) <- legalEntity(customerId(i));
+            customerStock(s) <- stock(customerId(i));
+            supplier(s) <- legalEntity(stock(inventLocationId(i)));
+            supplierStock(s) <- stock(inventLocationId(i));
+        }
+        
+        APPLY;
+    }
+}
+
+importSaleInvoiceLine 'Импорт строк реализации' (Stock st, DATE dt) {
+    NEWSESSION {
+        LOCAL file = FILE ();    
+        LOCAL salesId = STRING[100] (INTEGER);
+        LOCAL lineNum = INTEGER (INTEGER);
+        LOCAL itemId = STRING[100] (INTEGER);
+        LOCAL quantity = NUMERIC[16,5] (INTEGER);
+        LOCAL invoicePrice = NUMERIC[16,4] (INTEGER);
+        LOCAL invoiceSum = NUMERIC[16,4] (INTEGER);
+        LOCAL idEx = STRING (INTEGER);
+        
+        IF csvImport() THEN {
+            INPUT f = CSVFILE DO {
+                IMPORT CSV ';' HEADER NOESCAPE FROM f TO salesId, lineNum, itemId, quantity, invoicePrice, invoiceSum, idEx;
+            }
+        } ELSE {
+            EXTERNAL SQL connectionString() 
+                EXEC 'SELECT sl.SALESID, LINENUM, ITEMID, sl.SALESQTY, SALESPRICE, LINEAMOUNT, TAXITEMGROUP FROM SALESLINE sl LEFT JOIN SALESTABLE st ON st.SALESID = sl.SALESID WHERE sl.SALESSTATUS = 3 AND sl.SALESTYPE = 3 ' + 
+                     ' AND st.INVENTLOCATIONID = $1 AND DELIVERYDATE >= $2'
+                     PARAMS id(st), dt TO file;
+                IMPORT TABLE FROM file() TO salesId, lineNum, itemId, quantity, invoicePrice, invoiceSum, idEx;
+        }
+
+        LOCAL userInvoiceDetailId = STRING[100] (INTEGER);
+        userInvoiceDetailId(INTEGER i) <- CONCAT '/', salesId(i), lineNum(i);
+         
+        FOR userInvoiceDetailId(INTEGER i) AND NOT userInvoiceDetail(userInvoiceDetailId(i)) NEW d = UserInvoiceDetail DO {
+            id(d) <- userInvoiceDetailId(i);
+            userInvoice(d) <- userInvoice(salesId(i));
+        }
+
+        FOR id(UserInvoiceDetail d) = userInvoiceDetailId(INTEGER i) DO {
+            sku(d) <- sku(itemId(i));
+            quantity(d) <- quantity(i);
+            invoicePrice(d) <- invoicePrice(i);
+            invoiceSum(d) <- invoiceSum(i);
+            VAT(d) <- rangeExtID(idEx(i));
+            price(d) <- NUMERIC[16,4](invoicePrice(i) * 100 / (100 + valueRate(rangeExtID(idEx(i)))));
+            sum(d) <- NUMERIC[18,4](invoiceSum(i) * 100 / (100 + valueRate(rangeExtID(idEx(i)))));
+            VATSum(d) <- NUMERIC[18,4](invoiceSum(i) * valueRate(rangeExtID(idEx(i))) / (100 (+) valueRate(rangeExtID(idEx(i)))));
+        }
+        
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    OBJECTS d = DATE
+    PROPERTIES 'Импортировать от даты' = VALUE(d)
+
+    PROPERTIES(st, d) importSaleInvoice, importSaleInvoiceLine
+;
+
+DESIGN integrationData {
+    axaptaButtons {
+        MOVE BOX(d);
+    }
+}
