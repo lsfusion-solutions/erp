@@ -23,6 +23,8 @@ public class MachineryExchangeEquipmentServer {
 
         if (!requestExchangeList.isEmpty()) {
 
+            machineryExchangeLogger.info("Has MachineryExchanges: " + requestExchangeList.size()); //todo: remove temp log
+
             Map<String, Set<MachineryInfo>> handlerModelMachineryMap = new HashMap<>();
             for (MachineryInfo machinery : machineryInfoList) {
                 if (!handlerModelMachineryMap.containsKey(machinery.handlerModel))
@@ -30,9 +32,11 @@ public class MachineryExchangeEquipmentServer {
                 handlerModelMachineryMap.get(machinery.handlerModel).add(machinery);
             }
 
+            machineryExchangeLogger.info("Has handlerModelMachineryMap: " + handlerModelMachineryMap.size()); //todo: remove temp log
             for (Map.Entry<String, Set<MachineryInfo>> entry : handlerModelMachineryMap.entrySet()) {
                 String handlerModel = entry.getKey();
                 Set<MachineryInfo> machineryMap = entry.getValue();
+                machineryExchangeLogger.info("executing for handlerModel: " + handlerModel); //todo: remove temp log
                 if (handlerModel != null) {
                     try {
 
@@ -41,10 +45,11 @@ public class MachineryExchangeEquipmentServer {
                         boolean isTerminalHandler = clsHandler instanceof TerminalHandler;
 
                         for (RequestExchange requestExchange : requestExchangeList) {
+                            machineryExchangeLogger.info("started requestExchange: " + requestExchange.requestExchange); //todo: remove temp log
                             try {
 
                                 if(isCashRegisterHandler) {
-
+                                    machineryExchangeLogger.info("started cashRegister requestExchange: " + requestExchange.requestExchange); //todo: remove temp log
                                     //Cashier
                                     if (requestExchange.isCashier()) {
                                         List<CashierInfo> cashierInfoList = remote.readCashierInfoList();
@@ -57,12 +62,15 @@ public class MachineryExchangeEquipmentServer {
 
                                     //DiscountCard
                                     else if (requestExchange.isDiscountCard()) {
+                                        machineryExchangeLogger.info("started cashRegister discountCard requestExchange: " + requestExchange.requestExchange); //todo: remove temp log
                                         Set<String> handlerSet = new HashSet<>();
                                         for(CashRegisterInfo cashRegisterInfo : requestExchange.cashRegisterSet) {
                                             handlerSet.add(cashRegisterInfo.handlerModel);
                                         }
+                                        machineryExchangeLogger.info("discountcard handlerModel check: " + handlerSet.contains(handlerModel) + " / " + handlerSet); //todo: remove temp log
                                         if(handlerSet.contains(handlerModel)) {
                                             List<DiscountCard> discountCardList = remote.readDiscountCardList(requestExchange);
+                                            machineryExchangeLogger.info("readDiscountCardList:" + (discountCardList != null ? discountCardList.size() : -1)); //todo: remove temp log
                                             if (discountCardList != null && !discountCardList.isEmpty())
                                                 ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange);
                                             remote.finishRequestExchange(sidEquipmentServer, new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));

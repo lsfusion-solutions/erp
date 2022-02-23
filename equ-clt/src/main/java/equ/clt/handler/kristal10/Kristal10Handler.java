@@ -809,6 +809,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
     @Override
     public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
+        machineryExchangeLogger.info(getLogPrefix() + "sendDiscountCardList started"); //todo: remove temp log
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         String discountCardDirectory = kristalSettings != null ? kristalSettings.getDiscountCardDirectory() : null;
         if (!discountCardList.isEmpty()) {
