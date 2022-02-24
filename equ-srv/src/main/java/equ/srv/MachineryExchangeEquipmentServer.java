@@ -142,7 +142,7 @@ public class MachineryExchangeEquipmentServer {
                             }
                             //нужно хотя бы 1 свойство от CashRegister, чтобы отсечь в запросе остальные типы оборудования
                             cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegister[CashRegister]").getExpr(cashRegisterExpr).getWhere());
-                            cashRegisterQuery.and(cashRegisterLM.findProperty("in[CashRegister,RequestExchange]").getExpr(cashRegisterExpr, requestExchangeObject.getExpr()).getWhere());
+                            cashRegisterQuery.and(cashRegisterLM.findProperty("in[EquipmentServer,CashRegister,RequestExchange]").getExpr(equipmentServerObject.getExpr(), cashRegisterExpr, requestExchangeObject.getExpr()).getWhere());
                             cashRegisterQuery.and(cashRegisterLM.findProperty("stock[CashRegister]").getExpr(cashRegisterExpr).compare(
                                     cashRegisterLM.findProperty("stock[RequestExchange]").getExpr(requestExchangeObject.getExpr()), Compare.EQUALS));
                             cashRegisterQuery.and(cashRegisterLM.findProperty("inactive[CashRegister]").getExpr(cashRegisterExpr).getWhere().not());
