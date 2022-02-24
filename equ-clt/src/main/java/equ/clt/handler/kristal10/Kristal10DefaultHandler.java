@@ -8,6 +8,7 @@ import equ.clt.handler.DefaultCashRegisterHandler;
 import org.jdom.Attribute;
 import org.jdom.Document;
 import org.jdom.Element;
+import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.math.BigDecimal;
@@ -167,7 +168,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             setAttribute(targetCustomerGroup, "code", "SET1644931927302");
             setAttribute(targetCustomerGroup, "name", "Социальные");
             for (DiscountCard d : discountCardList) {
-                if (isActiveDiscountCard(requestExchange, d)) {
+                if (isActiveDiscountCard(requestExchange, d) && isSocial(d)) {
                     //parent: targetCustomerGroup
                     Element cust = new Element("cust");
                     cust.setAttribute("guid", d.numberDiscountCard);
@@ -179,6 +180,18 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         }
 
         return doc;
+    }
+
+    private boolean isSocial(DiscountCard d) {
+        JSONObject infoJSON = getExtInfo(d.extInfo);
+        if(infoJSON != null) {
+            return infoJSON.optBoolean("isSocial");
+        }
+        return false;
+    }
+
+    private JSONObject getExtInfo(String extInfo) {
+        return extInfo != null ? new JSONObject(extInfo).optJSONObject("kristal10") : null;
     }
 
     private boolean isActiveDiscountCard(RequestExchange r, DiscountCard d) {
