@@ -133,9 +133,9 @@ gtin 'GTIN' (LotInitDetail d) = OVERRIDE overGtin(d), gtin(sku(d));
 
 lastLotInitDetail(LotInit i, STRING[14] gtin) = GROUP LAST LotInitDetail d IF i == lotInit(d) AND gtin == gtin(d) ORDER d;
 
-seriesNumberDeclaration(LotInit i, STRING[14] gtin) = seriesNumberDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
-dateDeclaration(LotInit i, STRING[14] gtin) = dateDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
-sidOrigin2CountryDeclaration(LotInit i, STRING[14] gtin)= sidOrigin2CountryDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
+seriesNumberDeclaration(LotInit i, STRING[14] gtin) = OVERRIDE seriesNumberDeclaration(i), seriesNumberDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
+dateDeclaration(LotInit i, STRING[14] gtin) = OVERRIDE dateDeclaration(i), dateDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
+sidOrigin2CountryDeclaration(LotInit i, STRING[14] gtin)= OVERRIDE sidOrigin2CountryDeclaration(i), sidOrigin2CountryDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
 
 // разрешено формировать отчтет только по одному GTIN
 addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
@@ -166,9 +166,27 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
         WHEN mode(i) == LotInitMode.IMPORT_ THEN {            
             listParams() <- listParams() + '  \{ "code": 137, "value": "' + codeMode(i) + '"\}'; 
             IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 124, "value": "' + codeMethod(i) + '"\}'; 
-            IF sidOrigin2CountryDeclaration(i, gtin) THEN listParams() <- listParams() + ', \{ "code": 130, "value": "' + sidOrigin2CountryDeclaration(i, gtin) + '"\}'; 
-            IF seriesNumberDeclaration(i, gtin) THEN listParams() <- listParams() + ', \{ "code": 126, "value": "' + seriesNumberDeclaration(i, gtin) + '"\}'; 
-            IF toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN listParams() <- listParams() + ', \{ "code": 127, "value": "' + toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') + '"\}';             
+            
+            IF sidOrigin2CountryDeclaration(i, gtin) THEN {
+                listParams() <- listParams() + ', \{ "code": 130, "value": "' + sidOrigin2CountryDeclaration(i, gtin) + '"\}';
+            } ELSE {
+                MESSAGE 'Не задана страна экспорта'NOWAIT;
+            }
+            
+            IF seriesNumberDeclaration(i, gtin) THEN {
+                listParams() <- listParams() + ', \{ "code": 126, "value": "' + seriesNumberDeclaration(i, gtin) + '"\}';
+            } ELSE {
+                MESSAGE 'Не задан номер декларации' NOWAIT;
+            }
+            
+            IF toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN {
+                listParams() <- listParams() + ', \{ "code": 127, "value": "' + toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') + '"\}';      
+            } ELSE {
+                MESSAGE 'Не задана дата декларации' NOWAIT;
+            }       
+
+            IF NOT sidOrigin2CountryDeclaration(i, gtin) OR NOT seriesNumberDeclaration(i, gtin) OR NOT toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN
+                RETURN;
         }
         WHEN mode(i) == LotInitMode.COMMISSION THEN {
             listParams() <- listParams() + ' \{ "code": 137, "value": "' + codeMode(i) + '"\}';  
@@ -223,8 +241,8 @@ addMark 'Отправить отчет'(LotInit i) {
 }
 
 EXTEND FORM lotInits 
-    PROPERTIES (i) addMark SHOWIF isPosted(i) AND NOT isSend(i)//, getParameters, getLabesTypes, getCatalogs
-    //PROPERTIES() code
+    PROPERTIES (i) addMark SHOWIF isPosted(i) AND NOT isSend(i)//, getParameters//, getLabesTypes, getCatalogs
+    PROPERTIES() code
 ;
 
 DESIGN lotInits {

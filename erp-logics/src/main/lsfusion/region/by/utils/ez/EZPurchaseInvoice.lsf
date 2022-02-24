@@ -9,14 +9,38 @@ invoiceDetail = DATA Purchase.InvoiceDetail (LotOrderDetail );
 
 declaration (LotOrderDetail d) = declaration(invoiceDetail(d));
 
-seriesNumberDeclaration(LotOrderDetail d) = seriesNumber(declaration(d));
-dateDeclaration(LotOrderDetail d) = date(declaration(d));
+seriesNumberDeclaration 'Серия/Номер декларации' (LotOrderDetail d) = seriesNumber(declaration(d));
+dateDeclaration 'Дата декларации' (LotOrderDetail d) = date(declaration(d));
 
-sidOrigin2CountryDeclaration(LotOrderDetail d) = sidOrigin2(country(legalEntity(declaration(d))));
+sidOrigin2CountryDeclaration 'Код страны' (LotOrderDetail d) = sidOrigin2(country(legalEntity(declaration(d))));
+
+select 'Вкл.' = DATA LOCAL BOOLEAN (Purchase.InvoiceDetail);
+
+isFilledDeclaration 'Активный' (Purchase.InvoiceDetail d) = 
+    TRUE IF declaration(d) AND seriesNumber(declaration(d)) AND date(declaration(d)) AND sidOrigin2(country(legalEntity(declaration(d))));
+
+FORM selectPurchaseInvoiceDetail 'Выбор позиций накладных (закупка)'
+    OBJECTS i = Purchase.Invoice PANEL
+    PROPERTIES (i) SELECTOR number
+    PROPERTIES (i) READONLY series, date, time 
+    
+    OBJECTS d = Purchase.InvoiceDetail
+    PROPERTIES (d) select
+    PROPERTIES (d) READONLY index
+    PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY quantity, namePriceListType, price SHOWIF NOT hideWithoutVAT(i), sum SHOWIF NOT hideWithoutVAT(i),
+                   numberVAT SHOWIF NOT hideWithoutVAT(i), valueVAT SHOWIF NOT hideWithoutVAT(i), 
+                   invoicePrice SHOWIF NOT hideWithVAT(i),
+                   VATSum, invoiceSum
+    ORDERS index(d)
+    
+    FILTERS invoice(d) == i
+    FILTERGROUP isFilledDeclaration FILTER 'Позиции с заданной декларацией' isFilledDeclaration(d) 'F10' DEFAULT
+;
 
 fillFromInvoice 'Заполнить из накладной' (LotOrder o) {
-    DIALOG Purchase.invoices OBJECTS i INPUT DO {
-        FOR (invoice(Purchase.InvoiceDetail d) == i) DO NEW id = LotOrderDetail{
+    DIALOG selectPurchaseInvoiceDetail OBJECTS i INPUT DO {
+        FOR (invoice(Purchase.InvoiceDetail d) == i) AND select(d) DO NEW id = LotOrderDetail{
             lotOrder(id) <- o;
             sku(id) <- sku(d);
             quantity(id) <- quantity(d);
@@ -25,14 +49,17 @@ fillFromInvoice 'Заполнить из накладной' (LotOrder o) {
     }
 }
 
+CONSTRAINT SETCHANGED(invoiceDetail(LotOrderDetail d)) AND (NOT number(declaration(invoiceDetail(d))) OR NOT date(declaration(invoiceDetail(d))))
+    MESSAGE 'В выбранных позициях накладной не заданы номер и/или дата декларации';
+
 EXTEND FORM lotOrder
-    PROPERTIES (o) fillFromInvoice DRAW d TOOLBAR
+    PROPERTIES (o) fillFromInvoice DRAW d TOOLBAR    
+    PROPERTIES(d) READONLY seriesNumberDeclaration, dateDeclaration, sidOrigin2CountryDeclaration
 ;
 
-
-
-
-
+EXTEND FORM lotOrders
+    PROPERTIES(d) READONLY seriesNumberDeclaration, dateDeclaration, sidOrigin2CountryDeclaration
+;
 
 
 
