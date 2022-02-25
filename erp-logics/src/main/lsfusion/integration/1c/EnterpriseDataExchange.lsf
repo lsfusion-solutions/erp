@@ -170,6 +170,14 @@ META defPartner(nm, class)
     @defPartner(nm, class, 'Контрагент');
 END
 
+META defPartnerDetail(nm, class, table, extid, group)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class###table = Partner EXTID extid
+        PROPERTIES(nm###class###table, configuration)  sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS nm###class###table = nm(class###table, configuration)
+    ;
+END
+
 // company
 CLASS ABSTRACT Company 'Справочник.Организации' : Partner;
 META defCompany(nm, class, group, extid)
@@ -807,8 +815,10 @@ END
 @defPropSimpleDetail(cost, 'Себестоимость', NUMERIC[15,2], retailReport, product);
 
 @extTable(retailReport, paymentCard);
-@defPropSimpleDetail(bic, 'БИК', STRING[9], retailReport, paymentCard, bank);
+//@defPropSimpleDetail(bic, 'БИК', STRING[9], retailReport, paymentCard, bank);
 @defPropSimpleDetail(sum, 'СуммаОплаты', NUMERIC[15,2], retailReport, paymentCard);
+@defPropSimpleDetail(cardNum, 'НомерКарты', STRING, retailReport, paymentCard);
+@defPropObjectDetail (acquirer, 'Эквайер', Partner, retailReport, paymentCard);
 
 // income exchange payment
 @extDocument(incomePaymentExchange, 'ПБДСКонвертацияВалюты');
