@@ -1862,12 +1862,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<AstronRecord> recordList = new ArrayList<>();
 
-        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
-        Set<Integer> cashPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCashPayments());
-        Set<Integer> cardPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCardPayments());
-        Set<Integer> giftCardPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getGiftCardPayments());
-        Set<Integer> customPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCustomPayments());
-        boolean ignoreSalesInfoWithoutCashRegister = astronSettings != null && astronSettings.isIgnoreSalesInfoWithoutCashRegister();
+        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
+        Set<Integer> cashPayments = parsePayments(astronSettings.getCashPayments());
+        Set<Integer> cardPayments = parsePayments(astronSettings.getCardPayments());
+        Set<Integer> giftCardPayments = parsePayments(astronSettings.getGiftCardPayments());
+        Set<Integer> customPayments = parsePayments(astronSettings.getCustomPayments());
+        boolean ignoreSalesInfoWithoutCashRegister = astronSettings.isIgnoreSalesInfoWithoutCashRegister();
+        boolean bonusPaymentAsDiscount = astronSettings.isBonusPaymentAsDiscount();
 
         checkExtraColumns(conn, params);
         createFusionProcessedIndex(conn, params);
@@ -1897,7 +1898,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
             Map<String, BigDecimal> customPaymentsMap = new HashMap<>();
             String idSaleReceiptReceiptReturnDetail = null;
-            BigDecimal salesBonusReceipt = null;
 
             Integer prevSAreaId = null;
             Integer prevNppCashRegister = null;
@@ -1958,6 +1958,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         receiptDetailExtraFields.put("salesAttri", rs.getInt("SALESATTRI"));
 
                         Integer type = rs.getInt("SALESTYPE");
+                        boolean isBonusPayment = bonusPaymentAsDiscount && type == 2;
                         boolean customPaymentType = customPayments.contains(type);
                         if (!customPaymentType) {
                             if (cashPayments.contains(type)) type = 0;
@@ -1982,7 +1983,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
 
                                 receiptDetailExtraFields.put("paymentCard", StringUtils.join(paymentCardNumbers, ";"));
-                                receiptDetailExtraFields.put("salesBonus", salesBonusReceipt);
+                                if(bonusPaymentAsDiscount) {
+                                    BigDecimal salesBonus = safeDivide(rs.getBigDecimal("SALESBONUS"), 100); //сумма социальной скидки для позиции
+                                    discountSumReceiptDetail = safeAdd(discountSumReceiptDetail, salesBonus);
+                                    receiptDetailExtraFields.put("salesBonus", salesBonus);
+                                }
 
                                 curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                                         idEmployee, nameEmployee, null, sumCard, sumCash, sumGiftCardMap, customPaymentsMap, idBarcode, idItem, null,
@@ -1993,30 +1998,32 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 break;
                             }
                             case 1: {//оплата
-                                BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
-                                if (isReturn) sum = safeNegate(sum);
-                                if (customPaymentType) {
-                                    BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(type));
-                                    customPaymentsMap.put(String.valueOf(type), safeAdd(customPaymentSum, sum));
-                                } else {
-                                    String[] salesBarc = trimToEmpty(rs.getString("SALESBARC")).split(":");
-                                    switch (type) {
-                                        case 1:
-                                            if(salesBarc.length > 0) {
-                                                paymentCardNumbers.add(salesBarc[0]);
-                                            }
-                                            sumCard = safeAdd(sumCard, sum);
-                                            break;
-                                        case 2:
-                                            String numberGiftCard = salesBarc.length > 0 ? salesBarc[0] : null;
-                                            GiftCard giftCard = sumGiftCardMap.getOrDefault(numberGiftCard, new GiftCard(BigDecimal.ZERO));
-                                            giftCard.sum = safeAdd(giftCard.sum, sum);
-                                            sumGiftCardMap.put(numberGiftCard, giftCard);
-                                            break;
-                                        case 0:
-                                        default:
-                                            sumCash = safeAdd(sumCash, sum);
-                                            break;
+                                if (!isBonusPayment) { //оплату бонусами игнорируем, она пойдёт как скидку на сумму SALESBONUS
+                                    BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
+                                    if (isReturn) sum = safeNegate(sum);
+                                    if (customPaymentType) {
+                                        BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(type));
+                                        customPaymentsMap.put(String.valueOf(type), safeAdd(customPaymentSum, sum));
+                                    } else {
+                                        String[] salesBarc = trimToEmpty(rs.getString("SALESBARC")).split(":");
+                                        switch (type) {
+                                            case 1:
+                                                if (salesBarc.length > 0) {
+                                                    paymentCardNumbers.add(salesBarc[0]);
+                                                }
+                                                sumCard = safeAdd(sumCard, sum);
+                                                break;
+                                            case 2:
+                                                String numberGiftCard = salesBarc.length > 0 ? salesBarc[0] : null;
+                                                GiftCard giftCard = sumGiftCardMap.getOrDefault(numberGiftCard, new GiftCard(BigDecimal.ZERO));
+                                                giftCard.sum = safeAdd(giftCard.sum, sum);
+                                                sumGiftCardMap.put(numberGiftCard, giftCard);
+                                                break;
+                                            case 0:
+                                            default:
+                                                sumCash = safeAdd(sumCash, sum);
+                                                break;
+                                        }
                                     }
                                 }
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
@@ -2049,7 +2056,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 curRecordList = new ArrayList<>();
                                 prologSum = rs.getBigDecimal("SALESSUM");
                                 idDiscountCard = trimToNull(rs.getString("SALESBARC"));
-                                salesBonusReceipt = safeDivide(rs.getBigDecimal("SALESBONUS"), 100);
 
                                 if (isReturn) { //чек возврата
                                     String salesAttrs = rs.getString("SALESATTRS");

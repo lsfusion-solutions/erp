@@ -55,6 +55,9 @@ public class AstronSettings implements Serializable {
     //если true, то в дополнение к таблице DCARD выгружаем таблицы CLNTGRP, CLNT, CLNTFORM, CLNTFORMITEMS, CLNTFORMPROPERTY
     private boolean exportDiscountCardExtraTables;
 
+    //если true, то оплата "бонусами" (salesType = 2) считается как социальная скидка
+    private boolean bonusPaymentAsDiscount;
+
     public AstronSettings() {
     }
 
@@ -197,5 +200,13 @@ public class AstronSettings implements Serializable {
 
     public void setExportDiscountCardExtraTables(boolean exportDiscountCardExtraTables) {
         this.exportDiscountCardExtraTables = exportDiscountCardExtraTables;
+    }
+
+    public boolean isBonusPaymentAsDiscount() {
+        return bonusPaymentAsDiscount;
+    }
+
+    public void setBonusPaymentAsDiscount(boolean bonusPaymentAsDiscount) {
+        this.bonusPaymentAsDiscount = bonusPaymentAsDiscount;
     }
 }
