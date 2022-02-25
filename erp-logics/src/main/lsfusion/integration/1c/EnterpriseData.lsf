@@ -122,6 +122,7 @@ GROUP itemData EXTID 'ДанныеНоменклатуры';
 GROUP item EXTID 'Номенклатура' : itemData;
 GROUP specification EXTID 'Характеристика' : itemData;
 GROUP itemRecords EXTID 'Номенклатура';
+GROUP bank EXTID 'Банк';
 
 FORM sendMessage FORMEXTID 'Message'
     PROPERTIES ATTR = 'http://www.1c.ru/SSL/Exchange/Message' EXTID 'xmlns:msg'
@@ -394,6 +395,17 @@ META defPropSimple(name, caption, type, class)
     name###class caption = DATA LOCAL STRING (INTEGER);
     EXTEND FORM sendMessage PROPERTIES name(class, configuration) EXTID caption;
     EXTEND FORM receiveMessage PROPERTIES name###class(class) EXTID caption; 
+END
+
+META defPropSimpleDetail(name, caption, type, class, table, group)
+    @defPropDetail(name, caption, type, class, table);
+    EXTEND FORM sendMessage
+        PROPERTIES (class###table, configuration) name EXTID caption IN group
+    ;
+
+    EXTEND FORM receiveMessage
+        PROPERTIES (class###table) name###class###table EXTID caption IN group
+    ; 
 END
 
 META defPropSimpleDetail(name, caption, type, class, table)
