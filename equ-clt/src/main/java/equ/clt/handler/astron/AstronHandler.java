@@ -916,7 +916,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private JSONObject getExtInfo(String extInfo) {
-        return extInfo != null ? new JSONObject(extInfo).optJSONObject("astron") : null;
+        try {
+            return extInfo != null ? new JSONObject(extInfo).optJSONObject("astron") : null;
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to parse extInfo: " + extInfo, t);
+        }
     }
 
     private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
