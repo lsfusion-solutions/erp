@@ -394,19 +394,17 @@ settlements (SaleOrder s, Configuration c) += '' IF s IS SaleOrder AND c IS Conf
 
 // Purchase invoice
 @extDocument(purchaseInvoice, 'ПоступлениеТоваровУслуг');
+@defKeyPropSimple(numberInnerDocument, 'НомерВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice);
+@defKeyPropDate(dateInnerDocument, 'ДатаВходящегоДокумента', innerDocumentData, purchaseInvoice);
+@defKeyPropSimple(nameInnerDocument, 'НаименованиеВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice);
 @extTable(purchaseInvoice, product);
 @defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, purchaseInvoice, product);
 @defPropDetail(item, 'Номенклатура', Item, purchaseInvoice);
-GROUP itemDataPurchaseInvoiceProduct EXTID 'ДанныеНоменклатуры';
-EXTEND FORM sendMessage
-    OBJECTS itemPurchaseInvoiceProduct = Item EXTID 'Номенклатура' IN itemDataPurchaseInvoiceProduct
-    PROPERTIES(itemPurchaseInvoiceProduct, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
-    FILTERS itemPurchaseInvoiceProduct = item(purchaseInvoiceProduct, configuration)
-;
-@defPropObjectDetail(specification, 'Характеристика', Specification, purchaseInvoice, product, itemDataPurchaseInvoiceProduct);
+@defPropObjectDetail(item, 'Номенклатура', Item, purchaseInvoice, product, itemData);
+@defPropObjectDetail(specification, 'Характеристика', Specification, purchaseInvoice, product, itemData);
 @defPropDetail(idBarcodePurchaseInvoiceProduct, 'Штрихкод', STRING[200], purchaseInvoice);
 EXTEND FORM sendMessage
-    PROPERTIES (purchaseInvoiceProduct, configuration) idBarcodePurchaseInvoiceProduct EXTID 'Штрихкод' IN itemDataPurchaseInvoiceProduct
+    PROPERTIES (purchaseInvoiceProduct, configuration) idBarcodePurchaseInvoiceProduct EXTID 'Штрихкод' IN itemData
 ;
 @defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, purchaseInvoice, product);
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], purchaseInvoice, product);
@@ -422,12 +420,13 @@ EXTEND FORM sendMessage
 @defPropId(operation, 'ВидОперации', typePurchaseInvoice, purchaseInvoice);
 @defPropObject(department, 'Подразделение', Department, purchaseInvoice);
 @defPropObject(stock, 'Склад', Stock, purchaseInvoice);
-@defPropSimple(dateInnerDocument, 'ДатаВходящегоДокумента', DATE, purchaseInvoice);
+//@defPropSimple(dateInnerDocument, 'ДатаВходящегоДокумента', DATE, purchaseInvoice);
 @defPropObject(contract, 'Договор', Contract, purchaseInvoice);
 @defPropObject(partner, 'Контрагент', Partner, purchaseInvoice);
-@defPropSimple(note, 'Комментарий', STRING, purchaseInvoice);
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseInvoice);
-@defPropSimple(numberInnerDocument, 'НомерВходящегоДокумента', STRING[256], purchaseInvoice);
+@defPropSimple(note, 'Комментарий', STRING, purchaseInvoice);
+
+//@defPropSimple(numberInnerDocument, 'НомерВходящегоДокумента', STRING[256], purchaseInvoice);
 
 // Purchase order
 @extDocument(purchaseOrder, 'ЗаказПоставщику');
