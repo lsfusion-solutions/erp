@@ -138,11 +138,11 @@ afterCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
 
 ///запрос документов
 getLocalDateTime (STRING closeDateTime, NUMERIC timezone) = sumSeconds(DATETIME(closeDateTime), timezone/1000);
-afterCreateReceipts ABSTRACT LIST (CashRegister, DATETIME);
+afterCreateReceipts ABSTRACT LIST (CashRegister, DATETIME, FILE, BOOLEAN );
 
 skuCustom = ABSTRACT Sku (INTEGER); 
 
-getDocuments(CashRegister c, DATETIME since, DATETIME until){
+getDocuments(CashRegister c, DATETIME since, DATETIME until, BOOLEAN update){
     LOCAL f = FILE();
     LOCAL headers = TEXT(STRING[100]);
     LOCAL sinceP = STRING ();
@@ -216,6 +216,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
                 afterCreateReceiptDetail(detail, j);
             }
             FOR id(INTEGER k) NEW p = Payment DO {
+                id(p) <- id(k);
                 receipt(p) <- r;
                 sum(p) <- IF typeDoc(i) = 'SELL' THEN 
                     (GROUP SUM part_sum(INTEGER l) (-) change(l) IF paymentsParts(l) = k) 
@@ -223,17 +224,17 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until){
                 paymentType(p) <- IF type(k) == 'CASH' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
             }
         }
-        afterCreateReceipts(c, since);
+        afterCreateReceipts(c, since, f(), update);
         APPLY;
     }
 }
 
 getDocumentsWithoutDate (CashRegister c){
-    getDocuments(c, NULL, NULL );
+    getDocuments(c, NULL, NULL, NULL );
 }
 getDocumentsFromLastReceipt(CashRegister c){
     getDocuments(c, (OVERRIDE dateTime(GROUP LAST Receipt r ORDER dateTime(r), r WHERE cashRegister(r) = c), 
-        DATETIME(startDate(c))), NULL);
+        DATETIME(startDate(c))), NULL, NULL);
 }
 
 receiveGroupMachinery(GroupCashRegister g) + {
@@ -253,12 +254,13 @@ EXTEND CLASS RequestExchangeType{
     salesInfoEvotor 'Перезагрузить продажи Эвотор'
 }
 
+fillAttributes = DATA LOCAL BOOLEAN ();
+
 salesInfoEvotor 'Перезагрузить продажи Эвотор' (RequestExchange r){
     TRY {
         FOR (in(CashRegister c, r) AND isEvotor(groupCashRegister(c))
             AND requestExchangeType(r) == RequestExchangeType.salesInfoEvotor) DO NEWSESSION {
-            DELETE ZReport z WHERE cashRegister(z) = c AND date(z) >= dateFrom(r) AND date(z) <= dateTo(r);
-            getDocuments(c, DATETIME (dateFrom(r)), dateTimeToDateTime(dateTo(r), TIME('23:59:59')));
+            getDocuments(c, DATETIME (dateFrom(r)), dateTimeToDateTime(dateTo(r), TIME('23:59:59')), TRUE);
         }
         succeededNative(r) <- TRUE;
         dateTimeSucceededNative(r) <- currentDateTime();
@@ -276,4 +278,55 @@ salesInfoEvotor 'Перезагрузить продажи Эвотор' (Reques
 }
 
 EXTEND FORM requestExchanges
-    PROPERTIES (r) salesInfoEvotor SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoEvotor;    
+    PROPERTIES (r) salesInfoEvotor SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoEvotor;  
+    
+afterCreateReceipts(CashRegister c, DATETIME since, FILE f, BOOLEAN update) +{
+    IF update THEN{
+        IMPORT listDocsEvotor JSON FROM f;
+        FOR typeDoc(INTEGER i) AND Receipt r = receipt(idDoc(i)) DO{
+            logToFile('evotor', CONCAT ' : ', 'REPEAT', typeDoc(i), number(i), body(i));
+            date(r) <- DATE(getLocalDateTime(close_date(i), time_zone_offset(i)));
+            time(r) <- toTime(getLocalDateTime(close_date(i), time_zone_offset(i)));
+            zReport(r) <- zReport(session_id(i));
+            number(r) <- INTEGER(number(i));
+            employee(r) <- employee(close_user_id(i));
+            //id(r) <- idDoc(i);
+            stringToFile(body(i));
+            IMPORT saleDoc JSON FROM resultFile();
+            FOR id1(INTEGER j) AND typeDoc(i) = 'SELL' AND ReceiptDetail detail = receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j))) 
+                DO {
+                id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j));
+                sku(detail) <- OVERRIDE skuBarcode(bar_code(j)), sku(code(j));
+                sku(detail) <- skuCustom(j) WHERE skuCustom(j) AND NOT sku(detail);
+                idBarcode(detail) <- STRING[15](OVERRIDE bar_code(j), code(j));
+                quantity(detail) <- quantity(j);
+                price(detail) <- price(j);
+                discountSum(detail) <- discount_sum(j);
+                discountPercent(detail) <- discount_percent(j);
+                sum(detail) <- result_sum1(j);
+                receipt(detail) <- r;
+                afterCreateReceiptDetail(detail, j);
+            }
+            FOR id1(INTEGER j) AND typeDoc(i) = 'PAYBACK' AND ReceiptDetail detail = receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j))) 
+                DO{
+                id(detail) <- STRING[100](CONCAT '-', uuidEvotor(c), 'p', id1(j));
+                sku(detail) <- OVERRIDE skuBarcode(bar_code(j)), sku(code(j));
+                sku(detail) <- skuCustom(j) WHERE skuCustom(j) AND NOT sku(detail);
+                idBarcode(detail) <- STRING[15](OVERRIDE bar_code(j), code(j));
+                quantity(detail) <- quantity(j);
+                price(detail) <- price(j);
+                discountSum (detail) <- discount_sum(j);
+                sum(detail) <- result_sum1(j);
+                receipt(detail) <- r;
+                afterCreateReceiptDetail(detail, j);
+            }
+            FOR id(INTEGER k) AND Payment p = payment(id(k)) DO {
+                receipt(p) <- r;
+                sum(p) <- IF typeDoc(i) = 'SELL' THEN 
+                    (GROUP SUM part_sum(INTEGER l) (-) change(l) IF paymentsParts(l) = k) 
+                    ELSE -(GROUP SUM part_sum(INTEGER l) (-) change(l) IF paymentsParts(l) = k);
+                paymentType(p) <- IF type(k) == 'CASH' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
+            }
+        }
+    }
+}     
