@@ -8,8 +8,8 @@ overBalance = ABSTRACT NUMERIC[16,5](Batch, Barcode, Stock);
 
 TABLE machineryPriceTransactionBarcodeBatch (MachineryPriceTransaction, Barcode, Batch);
 
-in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode, Batch) INDEXED;
-in 'Вкл' (MachineryPriceTransaction t, Sku s, Batch btch) = GROUP MAX in(t, Barcode b, btch) BY sku(b);
+in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode, Batch);
+in 'Вкл' (MachineryPriceTransaction t, Sku s, Batch bt) = GROUP MAX in(t, Barcode b, bt) BY sku(b);
 
 balance 'Баланс' (Batch bt, Barcode b, Stock st) = OVERRIDE overBalance(bt, b, st), currentBalance(bt, st) IF sku(bt)==sku(b);
 price 'Цена' (Batch bt, Barcode b, GroupMachinery g) = priceA(priceListType(g),bt,stock(g),currentDateTime()) IF sku(bt)==sku(b);
@@ -272,3 +272,8 @@ EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY flag;
 EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  flag;
 overFlag = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode, Batch);
 createAttribute(MachineryPriceTransaction t) + {flag(t, Barcode barcode, Batch batch) <- overFlag(t, barcode, batch) WHERE in(t, barcode, batch);}
+
+overClearMachineryPriceTransaction() + {
+    in(MachineryPriceTransaction t, Barcode b, Batch bt) <- NULL WHERE in(t,b,bt) AND NOT in(t,b) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
+    apply();
+}	    

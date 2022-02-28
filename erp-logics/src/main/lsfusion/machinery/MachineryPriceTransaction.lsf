@@ -240,11 +240,14 @@ countDaysClearMachineryPriceTransaction 'За сколько дней храни
 EXTEND FORM options PROPERTIES countDaysClearMachineryPriceTransaction();
 DESIGN options { log { MOVE PROPERTY(countDaysClearMachineryPriceTransaction());} }    
 
+overClearMachineryPriceTransaction  ABSTRACT LIST();
 clearApplicationLog () + { 
 	NEWSESSION {
 	    IF countDaysClearMachineryPriceTransaction() THEN {
-	    in(MachineryPriceTransaction t, Barcode b) <- NULL WHERE NOT t == lastTransaction(b, groupMachinery(t)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
+	    in(MachineryPriceTransaction t, Barcode b) <- NULL WHERE in(t,b) AND NOT t == lastTransaction(b, groupMachinery(t)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
 	    apply();
+
+        overClearMachineryPriceTransaction();
 	    
 	    DELETE MachineryPriceTransaction t WHERE  t IS MachineryPriceTransaction AND NOT (GROUP SUM 1 IF in(t, Barcode b));
 	    apply();
