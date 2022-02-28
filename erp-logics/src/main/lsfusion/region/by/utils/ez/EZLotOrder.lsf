@@ -193,27 +193,32 @@ addItemsEZ 'Добавление товара по GTIN' (STRING[14] gtin, LotOr
 checkGtin = DATA LOCAL STRING[14] (INTEGER);
 isCheckGTINEZ = DATA BOOLEAN (STRING[14]);
 
+count(LotOrder o, STRING[14] gtin) = GROUP SUM 1 IF gtin == gtin(LotOrderDetail d) AND o == lotOrder(d);
+
 checkGTINEZ 'Проверка GTIN' (LotOrder o) { 
     isFindItemsEZ(STRING[14] str) <- NULL;
     isCheckGTINEZ(STRING[14] str) <- NULL; 
+    LOCAL strResult = STRING ();
     LOCAL notFound = BOOLEAN (STRING[14]);
     
-    FOR (STRING[14] gtin) AND ((GROUP SUM 1 IF gtin == gtin(LotOrderDetail d) AND o == lotOrder(d)) > 0)  DO {
+    FOR (STRING[14] gtin) AND (count(o, gtin) > 0)  DO {
         findItemsEZ(gtin, o);
         
         IF NOT isFindItemsEZ(gtin) THEN addItemsEZ(gtin, o);
         
         notFound(gtin) <- NOT isFindItemsEZ(gtin);
+        
+        IF isFindItemsEZ(gtin) THEN strResult() <- CONCAT ', ', strResult(), '"' + gtin + '"';
     }
     
     IF (GROUP SUM 1 IF notFound(STRING[14] gtin)) THEN {
         MESSAGE ('Не найдены товары со следующими GTIN: ' + GROUP CONCAT STRING[14] gtin IF notFound(gtin), ', ' ORDER gtin) NOWAIT;
         RETURN;
     }
-    
-    LOCAL strResult = STRING ();
+        
     fileToString(exportFile());   
-    strResult() <- '\{"gtin_list": [ ' + (GROUP CONCAT '"' + STRING[14] gtin + '"' IF ((GROUP SUM 1 IF gtin == gtin(LotOrderDetail d) AND o == lotOrder(d)) > 0), ', ' ORDER gtin) + '] \}';
+//    strResult() <- '\{"gtin_list": [ ' + (GROUP CONCAT '"' + STRING[14] gtin + '"' IF (count(o, gtin) > 0), ', ' ORDER gtin) + '] \}';
+    strResult() <- '\{"gtin_list": [ ' + strResult()  + '] \}';
     
     stringToFile(strResult());
            
