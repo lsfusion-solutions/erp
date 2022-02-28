@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import static equ.clt.EquipmentServer.sqlDateToLocalDate;
 import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.*;
+import static lsfusion.base.BaseUtils.nvl;
 
 public class Kristal10Handler extends Kristal10DefaultHandler {
 
@@ -812,13 +813,14 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         machineryExchangeLogger.info(getLogPrefix() + "sendDiscountCardList started");
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         String discountCardDirectory = kristalSettings != null ? kristalSettings.getDiscountCardDirectory() : null;
+        String discountCardFileName = kristalSettings != null ? kristalSettings.getDiscountCardFileName() : null;
         if (!discountCardList.isEmpty()) {
             Document doc = generateDiscountCardXML(discountCardList, requestExchange);
             for (String directory : getDirectorySet(requestExchange)) {
-                String exchangeDirectory = directory + (discountCardDirectory != null ? discountCardDirectory : "/products/source/");
+                String exchangeDirectory = directory + nvl(discountCardDirectory, "/products/source/");
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                     machineryExchangeLogger.info(String.format(getLogPrefix() + "Send DiscountCards to %s", exchangeDirectory));
-                    exportXML(doc, makeExportFile(exchangeDirectory, "catalog-goods"));
+                    exportXML(doc, makeExportFile(exchangeDirectory, nvl(discountCardFileName, "catalog-goods")));
                 }
             }
         }

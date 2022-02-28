@@ -73,8 +73,11 @@ public class Kristal10Settings implements Serializable{
     private String discountCardPercentType;
     private Map<Double, String> discountCardPercentTypeMap = new HashMap<>();
 
-    //директория выгрузки файла catalog-cards, по умолчанию выгружается в /products/source/
+    //директория выгрузки файла дисконтных карт, по умолчанию выгружается в /products/source/
     private String discountCardDirectory;
+
+    //имя файла выгрузки дисконтных карт, по умолчанию выгружается catalog-goods
+    private String discountCardFileName;
 
     //в sendTransaction, список префиксов штрихкодов
     //если длина ШК > 7 и ШК не начинается ни с одного из указанных префиксов,
@@ -277,6 +280,14 @@ public class Kristal10Settings implements Serializable{
 
     public void setDiscountCardDirectory(String discountCardDirectory) {
         this.discountCardDirectory = discountCardDirectory;
+    }
+
+    public String getDiscountCardFileName() {
+        return discountCardFileName;
+    }
+
+    public void setDiscountCardFileName(String discountCardFileName) {
+        this.discountCardFileName = discountCardFileName;
     }
 
     public List<String> getNotGTINPrefixesList() {
