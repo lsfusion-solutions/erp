@@ -46,6 +46,7 @@ getStatusReport 'Получить статус' (ReportEZ r) {
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/v2/reports' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
     } CATCH {
+        
         handleException(lotInit(r), result());
         RETURN;
     }       
@@ -157,30 +158,37 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     listParams() <- '';
     
     // !!!смотреть список параметров и коды к ним по действию getParameters
+    // !!! getParameters брать только на проде api
+    // 101 Цель маркировки
+    // 100 Страна экспорта
+    // 97 Дата выпуска товаров по декларации
+    // 96 Регистрационный номер декларации на товары
+    // 95 Способ маркировки (полиграфическая защита)   
+    // 93 Тип производственного заказа 
     CASE
         WHEN mode(i) == LotInitMode.PRODUCTION THEN {            
-            listParams() <- listParams() + ' \{ "code": 137, "value": "' + codeMode(i) + '"\}';              
-            IF codeProductionType(i) THEN listParams() <- listParams() + ', \{ "code": 123, "value": "' + codeProductionType(i) + '"\}'; 
-            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 124, "value": "' + codeMethod(i) + '"\}';            
+            listParams() <- listParams() + ' \{ "code": 101, "value": "' + codeMode(i) + '"\}';              
+            IF codeProductionType(i) THEN listParams() <- listParams() + ', \{ "code": 93, "value": "' + codeProductionType(i) + '"\}'; 
+            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 95, "value": "' + codeMethod(i) + '"\}';            
         }
         WHEN mode(i) == LotInitMode.IMPORT_ THEN {            
-            listParams() <- listParams() + '  \{ "code": 137, "value": "' + codeMode(i) + '"\}'; 
-            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 124, "value": "' + codeMethod(i) + '"\}'; 
+            listParams() <- listParams() + '  \{ "code": 101, "value": "' + codeMode(i) + '"\}'; 
+            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 95, "value": "' + codeMethod(i) + '"\}'; 
             
             IF sidOrigin2CountryDeclaration(i, gtin) THEN {
-                listParams() <- listParams() + ', \{ "code": 130, "value": "' + sidOrigin2CountryDeclaration(i, gtin) + '"\}';
+                listParams() <- listParams() + ', \{ "code": 100, "value": "' + sidOrigin2CountryDeclaration(i, gtin) + '"\}';
             } ELSE {
                 MESSAGE 'Не задана страна экспорта'NOWAIT;
             }
             
             IF seriesNumberDeclaration(i, gtin) THEN {
-                listParams() <- listParams() + ', \{ "code": 126, "value": "' + seriesNumberDeclaration(i, gtin) + '"\}';
+                listParams() <- listParams() + ', \{ "code": 96, "value": "' + seriesNumberDeclaration(i, gtin) + '"\}';
             } ELSE {
                 MESSAGE 'Не задан номер декларации' NOWAIT;
             }
             
             IF toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN {
-                listParams() <- listParams() + ', \{ "code": 127, "value": "' + toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') + '"\}';      
+                listParams() <- listParams() + ', \{ "code": 97, "value": "' + toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') + '"\}';      
             } ELSE {
                 MESSAGE 'Не задана дата декларации' NOWAIT;
             }       
@@ -189,10 +197,10 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
                 RETURN;
         }
         WHEN mode(i) == LotInitMode.COMMISSION THEN {
-            listParams() <- listParams() + ' \{ "code": 137, "value": "' + codeMode(i) + '"\}';  
+            listParams() <- listParams() + ' \{ "code": 101, "value": "' + codeMode(i) + '"\}';  
         }
         WHEN mode(i) == LotInitMode.REMARK THEN {
-            listParams() <- listParams() + ' \{ "code": 137, "value": "' + codeMode(i) + '"\}';     
+            listParams() <- listParams() + ' \{ "code": 101, "value": "' + codeMode(i) + '"\}';     
         };
         
     strResult() <- '\{' + strResult() + ', "params": [' + listParams() + ']' + '\}';
@@ -242,7 +250,7 @@ addMark 'Отправить отчет'(LotInit i) {
 
 EXTEND FORM lotInits 
     PROPERTIES (i) addMark SHOWIF isPosted(i) AND NOT isSend(i)//, getParameters//, getLabesTypes, getCatalogs
-    PROPERTIES() code
+  //  PROPERTIES() code
 ;
 
 DESIGN lotInits {
