@@ -85,7 +85,7 @@ META defItemDetail(nm, class, table, extid, group)
     name###nm###class###table 'Наименование' = DATA LOCAL STRING (INTEGER);
     
     EXTEND FORM receiveMessage
-        PROPERTIES (class###table) IN group uid###nm###class###table EXTID 'Ссылка', fullName###nm###class###table  EXTID 'НаименованиеПолное', id###nm###class###table EXTID 'КодВПрограмме', article###nm###class###table EXTID 'Артикул', name###nm###class###table EXTID 'Наименование'  
+        PROPERTIES (class###table) IN item uid###nm###class###table EXTID 'Ссылка', fullName###nm###class###table  EXTID 'НаименованиеПолное', id###nm###class###table EXTID 'КодВПрограмме', article###nm###class###table EXTID 'Артикул', name###nm###class###table EXTID 'Наименование'  
     ;
 END
 
@@ -111,7 +111,7 @@ META defSpecificationDetail(nm, class, table, extid, group)
     fullName###nm###class###table 'НаименованиеПолное' = DATA LOCAL STRING (INTEGER);
     
     EXTEND FORM receiveMessage
-        PROPERTIES (class###table) IN group uid###nm###class###table EXTID 'Ссылка', fullName###nm###class###table EXTID 'НаименованиеПолное'
+        PROPERTIES (class###table) IN specification uid###nm###class###table EXTID 'Ссылка', fullName###nm###class###table EXTID 'НаименованиеПолное'
     ;
 END
 
@@ -162,7 +162,7 @@ META defPartner(nm, class, extid)
     kppPartner###class = DATA LOCAL STRING[9] (INTEGER);
     
     EXTEND FORM receiveMessage
-        PROPERTIES (nm###class) uidPartner###class EXTID 'Ссылка', namePartner###class EXTID 'Наименование', fullNamePartner###class EXTID 'НаименованиеПолное', innPartner###class EXTID 'ИНН', kppPartner###class EXTID 'КПП'
+        PROPERTIES (nm###class) uidPartner###class IN partner EXTID 'Ссылка', namePartner###class EXTID 'Наименование', fullNamePartner###class EXTID 'НаименованиеПолное', innPartner###class EXTID 'ИНН', kppPartner###class EXTID 'КПП'
     ;
 END
 
@@ -693,6 +693,29 @@ EXTEND FORM sendMessage
 @defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], saleReturnInvoice, product);
 @defPropSimpleDetail(sumCost, 'Себестоимость', NUMERIC[15,2], saleReturnInvoice, product);
 @defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], saleReturnInvoice, product);
+//@defPropObjectDetail(specification, 'Характеристика', Specification, saleReturnInvoice, product, itemData);
+
+// sale return order
+@extDocument(saleReturnOrder, 'ВозвратТоваровОтПокупателя');
+@defPropId(operation, 'ВидОперации', typeSaleReturnInvoice, saleReturnOrder);
+@defPropObject(currency, 'Валюта', Currency, saleReturnOrder);
+@defPropObject(stock, 'Склад', Stock, saleReturnOrder);
+@defPropObject(partner, 'Контрагент', Partner, saleReturnOrder);
+@defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, saleReturnOrder);
+@defPropSimple(note, 'Комментарий', STRING, saleReturnOrder);
+
+@extTable(saleReturnOrder, product);
+@defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, saleReturnOrder, product);
+@defPropObjectDetail(item, 'Номенклатура', Item, saleReturnOrder, product, itemData);
+@defPropObjectDetail(specification, 'Характеристика', Specification, saleReturnOrder, product, itemData);
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, saleReturnOrder, product);
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleReturnOrder, product);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], saleReturnOrder, product);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], saleReturnOrder, product);
+@defPropIdDetail(rateVat, 'СтавкаНДС', TypeVat, saleReturnOrder, product);
+@defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], saleReturnOrder, product);
+@defPropSimpleDetail(sumCost, 'Себестоимость', NUMERIC[15,2], saleReturnOrder, product);
+@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], saleReturnOrder, product);
 
 // write off
 @extDocument(writeOff, 'СписаниеЗапасов');
