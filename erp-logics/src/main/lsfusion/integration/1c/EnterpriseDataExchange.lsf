@@ -436,26 +436,17 @@ EXTEND FORM sendMessage
 @defPropId(operation, 'ВидОперации', typePurchaseInvoice, purchaseInvoice);
 @defPropObject(department, 'Подразделение', Department, purchaseInvoice);
 @defPropObject(stock, 'Склад', Stock, purchaseInvoice);
-//@defPropSimple(dateInnerDocument, 'ДатаВходящегоДокумента', DATE, purchaseInvoice);
 @defPropObject(contract, 'Договор', Contract, purchaseInvoice);
 @defPropObject(partner, 'Контрагент', Partner, purchaseInvoice);
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseInvoice);
 @defPropSimple(note, 'Комментарий', STRING, purchaseInvoice);
 
-//@defPropSimple(numberInnerDocument, 'НомерВходящегоДокумента', STRING[256], purchaseInvoice);
-
 // Purchase order
 @extDocument(purchaseOrder, 'ЗаказПоставщику');
 @extTable(purchaseOrder, product);
 @defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, purchaseOrder, product);
-@defPropDetail(item, 'Номенклатура', Item, purchaseOrder);
-GROUP itemDataPurchaseOrderProduct EXTID 'ДанныеНоменклатуры';
-EXTEND FORM sendMessage
-    OBJECTS itemPurchaseOrderProduct = Item EXTID 'Номенклатура' IN itemDataPurchaseOrderProduct
-    PROPERTIES(itemPurchaseOrderProduct, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
-    FILTERS itemPurchaseOrderProduct = item(purchaseOrderProduct, configuration)
-;
-@defPropObjectDetail(specification, 'Характеристика', Specification, purchaseOrder, product, itemDataPurchaseOrderProduct);
+@defPropObjectDetail(item, 'Номенклатура', Item, purchaseOrder, product, itemData);
+@defPropObjectDetail(specification, 'Характеристика', Specification, purchaseOrder, product, itemData);
 @defPropDetail(idBarcodePurchaseOrderProduct, 'Штрихкод', STRING[200], purchaseOrder);
 EXTEND FORM sendMessage
     PROPERTIES (purchaseOrderProduct, configuration) idBarcodePurchaseOrderProduct EXTID 'Штрихкод' IN itemDataPurchaseOrderProduct
@@ -468,7 +459,6 @@ EXTEND FORM sendMessage
 @defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], purchaseOrder, product);
 @defPropSimpleDetail(retailSum, 'СуммаРозничная', NUMERIC[15,2], purchaseOrder, product);
 @defPropSimpleDetail(retailPrice, 'ЦенаРозничная', NUMERIC[15,2], purchaseOrder, product);
-//@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], purchaseOrder, product);
 
 @defPropObject(currency, 'Валюта', Currency, purchaseOrder);
 @defPropId(operation, 'ВидОперации', typePurchaseInvoice, purchaseOrder);
@@ -855,7 +845,6 @@ END
 @defPropSimpleDetail(cost, 'Себестоимость', NUMERIC[15,2], retailReport, product);
 
 @extTable(retailReport, paymentCard);
-//@defPropSimpleDetail(bic, 'БИК', STRING[9], retailReport, paymentCard, bank);
 @defPropSimpleDetail(sum, 'СуммаОплаты', NUMERIC[15,2], retailReport, paymentCard);
 @defPropSimpleDetail(cardNum, 'НомерКарты', STRING, retailReport, paymentCard);
 @defPropObjectDetail (acquirer, 'Эквайер', Partner, retailReport, paymentCard);
