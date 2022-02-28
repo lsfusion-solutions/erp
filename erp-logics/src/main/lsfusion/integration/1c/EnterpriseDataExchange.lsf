@@ -148,6 +148,20 @@ END
 @defKeyPropSimple(type, 'ЮридическоеФизическоеЛицо', TypePartner, keyProperties, partner);
 idType 'ЮридическоеФизическоеЛицо' (Partner p, Configuration c) = staticCaption(type(p, c));
 
+// workaround для совместимости 1.6 -> 1.5
+META defPartner(nm, class, group, extid)
+    uid###nm###class = DATA LOCAL ISTRING[36] (INTEGER);
+    name###nm###class = DATA LOCAL STRING (INTEGER);
+    fullName###nm###class = DATA LOCAL STRING (INTEGER);
+    inn###nm###class = DATA LOCAL STRING[12] (INTEGER);
+    kpp###nm###class = DATA LOCAL STRING[9] (INTEGER);
+    
+    EXTEND FORM receiveMessage
+        PROPERTIES (nm###class) uid###nm###class IN partnerKey EXTID 'Ссылка', name###nm###class EXTID 'Наименование', fullName###nm###class EXTID 'НаименованиеПолное', inn###nm###class EXTID 'ИНН', kpp###nm###class EXTID 'КПП'
+    ;
+
+END
+
 META defPartner(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Partner EXTID extid
@@ -394,6 +408,8 @@ settlements (SaleOrder s, Configuration c) += '' IF s IS SaleOrder AND c IS Conf
 
 // Purchase invoice
 @extDocument(purchaseInvoice, 'ПоступлениеТоваровУслуг');
+// Для обратной совместимости 1.6 -> 1.5
+@defKeyPropObject(partnerKey, 'Контрагент', Partner, keyProperties, purchaseInvoice);
 @defKeyPropSimple(numberInnerDocument, 'НомерВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice);
 @defKeyPropDate(dateInnerDocument, 'ДатаВходящегоДокумента', innerDocumentData, purchaseInvoice);
 @defKeyPropSimple(nameInnerDocument, 'НаименованиеВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice);
