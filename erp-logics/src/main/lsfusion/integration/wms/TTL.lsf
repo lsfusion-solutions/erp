@@ -1,0 +1,977 @@
+MODULE TTL;
+
+REQUIRE Warehouse, WMSIntegrationCustom, PurchaseShipment, PurchaseSaleReturnInvoice, SaleBlankCodeEVAT, Ware, Store, ConsignmentDashboard;
+
+NAMESPACE Integration;
+
+isTTL 'Склад логистического оператора (TTL)' = DATA BOOLEAN (Warehouse);
+idTTL 'Код склада логистического оператора' = DATA INTEGER (Warehouse);
+
+EXTEND FORM warehouse 
+    PROPERTIES (w) isTTL, idTTL SHOWIF isTTL(w);
+    
+
+CLASS TTLWarehouse 'Код склада ТТЛ';
+TABLE TTLWarehouse(TTLWarehouse);
+
+id 'Код' = DATA INTEGER (TTLWarehouse) IN base;
+comment 'Примечание' = DATA STRING[150](TTLWarehouse) IN base;
+
+META defineTTLWarehouse(NS, stock, class, obj, cont)
+    TTLWarehouse = DATA TTLWarehouse(NS.###class);
+    idTTLWarehouse##NS 'Код склада'(NS.###class i) = OVERRIDE id(TTLWarehouse(i)), idTTL(stock##Stock(i)) CHARWIDTH 10 IN documentHeader;
+    isTTL###NS (NS.###class invoice) = isTTL(stock##Stock(invoice));
+    
+    EXTEND FORM NS.class
+        PROPERTIES (obj) idTTLWarehouse##NS SHOWIF isTTL##NS(obj);
+        
+    DESIGN NS.class {
+        header###cont {
+            MOVE PROPERTY (idTTLWarehouse##NS(obj));
+        }
+    }
+END
+    
+sqlHostTTL 'Хост:Порт' = DATA STRING[100]();
+sqlDbNameTTL 'БД' = DATA STRING[100]();
+sqlUsernameTTL 'Имя пользователя' = DATA STRING[100]();
+sqlPasswordTTL 'Пароль' = DATA STRING[100]() ECHO;
+
+customerCodeTTL 'Код заказчика' = DATA INTEGER ();
+
+EXTEND FORM integrationData 
+    PROPERTIES() sqlHostTTL, sqlDbNameTTL, sqlUsernameTTL, sqlPasswordTTL, customerCodeTTL
+;
+DESIGN  integrationData {
+    wms {
+        NEW TTL {
+            caption = 'TTL';
+            fill = 1;
+            MOVE PROPERTY (sqlHostTTL());
+            MOVE PROPERTY (sqlDbNameTTL());
+            MOVE PROPERTY (sqlUsernameTTL());
+            MOVE PROPERTY (sqlPasswordTTL());
+            MOVE PROPERTY (customerCodeTTL());
+        }
+    }
+}
+
+connectionStringTTL = 'jdbc:sqlserver://' + sqlHostTTL() + ';databaseName=' + sqlDbNameTTL() + 
+                    ';User=' + sqlUsernameTTL() + ';Password=' + sqlPasswordTTL();
+                    
+nameStatus (INTEGER i) = CASE WHEN i == 20 THEN '20 – Экспортировано'
+                                   WHEN i == 30 THEN '30 – Импортировано'
+                                   WHEN i == 40 THEN '40 – Ошибка анализа'
+                                   WHEN i == 50 THEN '50 – В обработке'
+                                   WHEN i == 90 THEN '90 – Обработано'
+                                   WHEN i == -90 THEN '-90 – Отклонено ЛП'
+                                   WHEN i == -91 THEN '-91 – Отозвано заказчиком'
+                                   ELSE STRING[10](i);
+                                   
+//товары
+customerCode(Sku i) = customerCodeTTL() IF i IS Sku;
+overFullNameTTL = ABSTRACT STRING[255](Sku);
+overName(Sku i) = OVERRIDE overFullNameTTL(i), name(i);
+overShortNameTTL = ABSTRACT STRING[255](Sku);
+shortName(Sku i) = left((OVERRIDE overShortNameTTL(i), name(i)), 50);
+
+netto(Sku i) = OVERRIDE 1000.0 IF i IS Ware, INTEGER (netWeight(i) * 1000.0), 0;
+brutto(Sku i) = OVERRIDE 1000.0 IF i IS Ware, INTEGER (grossWeight(i) * 1000.0), 0;
+
+uomTTL(Sku i) = CASE WHEN shortNameUOM(i) == 'ШТ' THEN 1
+                                WHEN split(UOM(i)) THEN 4
+                                ELSE 1;
+
+CLASS PalletHeight 'Высота паллет' {
+    low 'Низкий (до 100 см)',
+    medium 'Средний (100-145 см)',
+    mediumPlus 'Средний + (145-180 см)',
+    high 'Высокий (свыше 180 см)'
+}
+
+FORM palletHeights 'Высоты паллет'
+    OBJECTS t = PalletHeight
+    PROPERTIES(t) READONLY staticCaption
+    LIST PalletHeight OBJECT t
+;
+
+DESIGN palletHeights {
+    PROPERTY(staticCaption(t)) { caption = 'Высота паллет'; } 
+}
+
+palletHeight = DATA PalletHeight (Item);
+namePalletHeight 'Высота паллеты' (Item i) = staticCaption(palletHeight(i)) IN wms;
+
+CLASS PalletWeight 'Весовая группа паллет' {
+    light 'Легкая до 600кг',
+    medium 'Средняя от 600кг до 1000кг',
+    heavy 'Тяжелая более 1000кг'
+}
+
+FORM palletWeights 'Весовые группы паллет'
+    OBJECTS t = PalletWeight
+    PROPERTIES(t) READONLY staticCaption
+    LIST PalletWeight OBJECT t
+;
+
+DESIGN palletWeights {
+    PROPERTY(staticCaption(t)) { caption = 'Весовая группа паллет'; } 
+}
+
+palletWeight = DATA PalletWeight (Item);
+namePalletWeight 'Весовая группа паллеты' (Item i) = staticCaption(palletWeight(i)) IN wms;
+
+namePalletTypeTTL 'Тип паллеты' (Item i) = staticCaption(palletType(i)) IN wms;
+                                 
+dataInBlock 'Штук в блоке' = DATA NUMERIC[15,3] (Item ) IN wms;
+inBlock 'Штук в блоке' (Sku i) = OVERRIDE dataInBlock(i), amount(barcode(i, TransportPack.inpack)), 1 IN wms;
+
+dataInBox 'Блоков в коробе' = DATA INTEGER (Item ) IN wms;
+inBox 'Блоков в коробе' (Sku i) = OVERRIDE dataInBox(i), 1 IN wms;
+
+dataInPallet 'Коробов на паллете' = DATA INTEGER (Item ) IN wms;
+inPallet 'Коробов на паллете' (Sku i) = OVERRIDE dataInPallet(i), amount(barcode(i, TransportPack.oppl)) / amount(barcode(i, TransportPack.inpack)), 1 IN wms;
+
+lengthBox 'Длина короба, мм' = DATA INTEGER (Item) IN wms;
+widthBox 'Ширина короба, мм' = DATA INTEGER (Item) IN wms;
+heightBox 'Высота короба, мм' = DATA INTEGER (Item) IN wms;
+
+overLengthBox 'Длина короба, мм' (Sku i) = OVERRIDE lengthBox(i), INTEGER (length(barcode(i, TransportPack.inpack))), 100 IN wms;
+overWidthBox 'Ширина короба, мм' (Sku i) = OVERRIDE widthBox(i), INTEGER (width(barcode(i, TransportPack.inpack))), 100 IN wms;
+overHeightBox 'Высота короба, мм' (Sku i) = OVERRIDE heightBox(i), INTEGER (height(barcode(i, TransportPack.inpack))), 100 IN wms;
+
+EXTEND FORM item
+    PROPERTIES (i) inBlock, inBox, inPallet, namePalletTypeTTL, namePalletHeight, namePalletWeight,
+                   overLengthBox, overWidthBox, overHeightBox;
+                   
+EXTEND FORM items
+    PROPERTIES (i) READONLYIF isReadonly() dataInBlock, dataInBox, dataInPallet, namePalletTypeTTL, namePalletHeight, 
+                   namePalletWeight, overLengthBox, overWidthBox, overHeightBox;
+    
+DESIGN item {
+    itemDetail{
+        wms {
+            caption = 'WMS';
+            type = COLUMNS;
+            columns = 4;
+            MOVE GROUP(wms,i);
+        }
+    }
+
+}
+
+typePallet(Sku i) = CASE WHEN palletType(i) == PalletType.american OR i IS Ware THEN 1
+                                    WHEN palletType(i) == PalletType.euro THEN 2
+                                    WHEN palletType(i) == PalletType.fin THEN 3
+                                    WHEN palletType(i) == PalletType.unusual THEN 4
+                                    ELSE 2;
+                                    
+heightPallet(Sku i) = CASE WHEN palletHeight(i) == PalletHeight.low OR i IS Ware THEN 1
+                                    WHEN palletHeight(i) == PalletHeight.medium THEN 2
+                                    WHEN palletHeight(i) == PalletHeight.mediumPlus THEN 4
+                                    WHEN palletHeight(i) == PalletHeight.high THEN 3
+                                    ELSE 4;
+                                    
+weightPallet(Sku i) = CASE WHEN palletWeight(i) == PalletWeight.light THEN 1
+                                    WHEN palletWeight(i) == PalletWeight.medium THEN 2
+                                    WHEN palletWeight(i) == PalletWeight.heavy THEN 3
+                                    ELSE 1;
+
+expirationDate 'Срок годности в днях'(Sku i) = OVERRIDE expiryDays(i), 60750 IF i IS Item IN wms;
+barcodeBlock(Sku i) = '' IF i IS Sku;
+barcodeBox(Sku i) = '' IF i IS Sku;
+
+overCustodyPriceTTL 'Цена ОХ' = ABSTRACT NUMERIC[16,4] (Purchase.InvoiceDetail);
+custodyPrice(Purchase.InvoiceDetail d) = OVERRIDE overCustodyPriceTTL(d), shipmentPrice(d);
+lastCustodyPrice (Sku i)= (OVERRIDE (GROUP MIN custodyPrice(invoiceDetail(lastOrderBatch(i, Warehouse w))) IF isTTL(w)), 1.0) IF i IS Sku;
+extValueVAT(Sku i) = OVERRIDE INTEGER (valueVAT[Item](i)), 0;
+isActive(Sku i) = IF active(i) THEN 1 ELSE 0;
+
+statusTTL 'Статус выгрузки ТТЛ' = DATA INTEGER (Sku);
+dateStatusTTL 'Время статуса выгрузки ТТЛ' = DATA DATETIME (Sku) IN wms;
+nameStatusTTL 'Статус выгрузки ТТЛ' (Item i) = nameStatus(statusTTL(i)) IN wms;
+statusNoteTTL 'Причина отклонения' = DATA STRING[500](Sku) IN wms CHARWIDTH 30;
+showStatusNote (Item i) = statusTTL(i) == -90;
+
+changedTTL 'Время изменения' = DATA DATETIME (Sku) IN wms;
+loadedTTL 'Время выгрузки' = DATA DATETIME (Sku) IN wms;
+
+WHEN CHANGED (dataInBlock(Item i)) OR CHANGED (dataInBox(i)) OR CHANGED(dataInPallet(i)) OR CHANGED (palletType(i))
+    OR CHANGED(palletHeight(i)) OR CHANGED(palletWeight(i)) OR CHANGED(lengthBox(i)) OR CHANGED(widthBox(i)) OR CHANGED (heightBox(i)) DO 
+    changedTTL(i) <- currentDateTime();
+    
+WHEN SET (Ware w IS Ware) DO
+    changedTTL(w) <- currentDateTime();
+
+EXTEND FORM item 
+    PROPERTIES (i) expirationDate
+    PROPERTIES (i) READONLY changedTTL, loadedTTL, nameStatusTTL, dateStatusTTL, statusNoteTTL SHOWIF showStatusNote(i);
+
+in 'Вкл.' = DATA LOCAL BOOLEAN (Sku);
+
+FORM Goods
+    OBJECTS i = Sku  
+    PROPERTIES  CustomerCode = customerCode(i),
+                Code = id(i),
+                Name = overName(i),
+                ShortName = shortName(i),
+                ItemsInBlock = inBlock(i),
+                BlockInBox = inBox(i),
+                BoxesInPallet = inPallet(i),
+                Netto = netto(i),
+                Brutto = brutto(i),
+                Measure = uomTTL(i),
+                TypePallet = typePallet(i),
+                HeightPallet = heightPallet(i),
+                WeightPallet = weightPallet(i),
+                ExpirationDate = expirationDate(i),
+                BarcodeGoods = idBarcode(i),
+                BarcodeBlock = barcodeBlock(i),
+                BarcodeBox = barcodeBox(i),
+                Mortgage = lastCustodyPrice(i),
+                NDS_Out = extValueVAT(i),
+                Active = isActive(i),
+                LengthBox = overLengthBox(i),
+                WidthBox = overWidthBox(i),
+                HeightBox = overHeightBox(i)
+    FILTERS in(i)
+;
+
+exportItemsTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportItemsTTLAction'();
+
+exportItemsTTL 'Выгрузить товары в wms TTL' ()  { 
+    
+    LOCAL NESTED count = INTEGER ();
+    count() <- (GROUP SUM 1 IF Item.in(Item i));
+
+    IF count() THEN {
+        in(Sku i) <- Item.in[Item](i);
+        
+        exportItemsTTLCustom();
+        statusTTL(Sku i) <- 20 WHERE in(i);
+        loadedTTL(Sku i) <- currentDateTime() WHERE in(i);
+        
+        APPLY;
+         
+        MESSAGE 'Товары успешно выгружены. Количество: ' + count();
+    } ELSE 
+        MESSAGE 'Нет товаров для которых требуется выгрузка';
+}
+
+exportItemsTTL 'Выгрузить отмеченные товары в wms TTL' (Item i)  { 
+	NEWSESSION NESTED LOCAL {
+	    Item.in(i) <- TRUE;
+	    exportItemsTTL();
+	}
+}
+
+exportChangedItemsTTL 'Выгрузить изменившиеся товары в wms TTL' ()  { 
+	NEWSESSION NESTED LOCAL {
+	    in(Sku i) <- TRUE WHERE changedTTL(i) AND NOT changedTTL(i) < loadedTTL(i);
+	    exportItemsTTL();
+	}
+}
+
+
+EXTEND FORM items
+    PROPERTIES  exportItemsTTL(i), exportChangedItemsTTL() ;
+    
+DESIGN items{
+    actionsRow2 {
+        NEW ttl {
+            caption = 'Обмен с ТТЛ';
+            type = CONTAINERH;
+            MOVE PROPERTY (exportItemsTTL(i));
+            MOVE PROPERTY (exportChangedItemsTTL());
+        }
+    }
+}
+
+exportWareTTL 'Выгрузить товары в wms TTL' ()  { 
+
+    LOCAL NESTED count = INTEGER ();
+    count() <- (GROUP SUM 1 IF in(Sku i));
+
+    IF count() THEN {
+        exportItemsTTLCustom();
+        statusTTL(Sku i) <- 20 WHERE in(i);
+        loadedTTL(Sku i) <- currentDateTime() WHERE in(i);
+        
+        APPLY;
+         
+        MESSAGE 'Товары успешно выгружены. Количество: ' + count();
+    } ELSE 
+        MESSAGE 'Нет товаров для которых требуется выгрузка';
+} TOOLBAR;
+
+exportWareTTL 'Выгрузить отмеченные товары в wms TTL' (Ware i)  { 
+	NEWSESSION NESTED LOCAL {
+	    in(i) <- TRUE;
+	    exportWareTTL();
+	}
+}
+
+EXTEND FORM wares
+    PROPERTIES in(w)
+    PROPERTIES  exportWareTTL(w);
+    
+
+
+customerCode(LegalEntity l) = customerCodeTTL() IF l IS LegalEntity;
+isActive(LegalEntity i) = IF active(i) THEN 1 ELSE 0;
+isOne(LegalEntity l) = 1 IF l IS LegalEntity;
+
+FORM Client
+    OBJECTS l = LegalEntity 
+    PROPERTIES  CustomerCode = customerCode(l),
+                Code = id(l),
+                Name = fullName(l),
+                ShortName = name(l),
+                Address = address(l),
+                YNP = UNP(l),
+                OKPO = OKPO(l),
+                OKULP = OKYLP(l),
+                Active = isActive(l),
+                IsResidentRB = isOne(l)
+    FILTERS isCompany(l)
+;
+
+exportCompanyTTLCustom 'Выгрузить компании в wms TTL'  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportCompanyTTLAction'();
+
+EXTEND FORM integrationData
+    PROPERTIES exportCompanyTTLCustom();
+    
+DESIGN integrationData {
+    TTL{
+        MOVE PROPERTY (exportCompanyTTLCustom());
+    }
+}
+
+
+customerCode(Stock s) = customerCodeTTL() IF s IS Stock;
+isActive(Stock s) = IF active(s) THEN 1 ELSE 0;
+idLegalEntity(Stock s) = id(legalEntity(s));
+isStock(Stock s) = 1 IF s IS Stock;
+contactPerson(Stock s) = OVERRIDE nameChairman(store(s)), '';
+contactPhone(Stock s) = OVERRIDE phone(s), '';
+maxTransportSize(Stock s) = 4 IF s IS Stock;
+parkingDropOffDist(Stock s) = 0 IF s IS Stock;
+floors(Stock s) = 1 IF s IS Stock;
+limesHeight(Stock s) = 0 IF s IS Stock;
+
+FORM Outlet
+    OBJECTS s = Stock 
+    PROPERTIES  CustomerCode = customerCode(s),
+                ClientCode = idLegalEntity(s),
+                Code = id(s),
+                Type = isStock(s),
+                Name = name(s),
+                ShortName = name(s),
+                Address = address(s),
+                ContactPerson = contactPerson(s),
+                ContactPhone = contactPhone(s),
+                MaxTransportSize = maxTransportSize(s),
+                ParkingDropOffDist = parkingDropOffDist(s),
+                Floors = floors(s),
+                LimesHeight = limesHeight(s),
+                Active = isActive(s)
+    FILTERS Stock.in(s)
+;
+
+exportStoresTTLCustom 'Выгрузить отмеченные склады в wms TTL'  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportStoresTTLAction'();
+
+EXTEND FORM integrationData
+    OBJECTS tts = Stock
+    PROPERTIES (tts) READONLY Stock.in CHANGEABLE, id, name, nameStockGroup, nameLegalEntity
+    PROPERTIES exportStoresTTLCustom() DRAW tts TOOLBAR ;
+    
+DESIGN integrationData {
+    TTL{
+        MOVE BOX (tts);
+    }
+}
+
+
+//приход на склад
+statusTTL 'Статус выгрузки ТТЛ' = DATA INTEGER (Purchase.Invoice) IN wms;
+dateStatusTTL 'Время статуса выгрузки ТТЛ' = DATA DATETIME  (Purchase.Invoice) IN wms;
+nameStatusTTL 'Статус выгрузки ТТЛ' (Purchase.Invoice i) = nameStatus(statusTTL(i)) IN wms;
+statusNoteTTL 'Причина отклонения' = DATA STRING[500](Purchase.Invoice) IN wms;
+
+WHEN SETCHANGED (number(Purchase.Invoice i)) DO {
+    statusTTL(i) <- NULL;
+    statusNoteTTL(i) <- NULL;
+}
+
+@defineTTLWarehouse(Purchase, customer, userInvoice, i, customer);
+
+showStatusTTL(Purchase.Invoice invoice) = isTTLPurchase(invoice) AND statusTTL(invoice) == 40;
+
+EXTEND FORM Purchase.invoices 
+    PROPERTIES (i) SHOWIF isTTLPurchase(i)READONLY PANEL nameStatusTTL, dateStatusTTL , statusNoteTTL SHOWIF showStatusTTL(i);
+    
+DESIGN Purchase.invoices {
+    exportContainer {
+        MOVE PROPERTY (nameStatusTTL(i));
+        MOVE PROPERTY (dateStatusTTL(i));
+        MOVE PROPERTY (statusNoteTTL(i));
+    }
+}
+
+@defineTTLWarehouse(SaleReturn, supplier, userInvoice, i, supplier);
+
+customerCode(Invoice.Invoice l) = customerCodeTTL() IF l IS Invoice.Invoice;
+code(Invoice.Invoice l) = left(number(l), 24);
+type(Invoice.Invoice l) = MULTI 1 IF l IS Purchase.Invoice, 4 IF l IS SaleReturn.Invoice;
+overNumberTTL = ABSTRACT STRING[48](Invoice.Invoice);
+invoiceNumber(Invoice.Invoice l) = OVERRIDE overNumberTTL(l), number(l);
+overSeriesTTL = ABSTRACT BPSTRING[2](Invoice.Invoice);
+invoiceSeries(Invoice.Invoice l) = OVERRIDE overSeriesTTL(l), series(l);
+stock(Invoice.Invoice l) = IF l IS Purchase.Invoice THEN idTTLWarehousePurchase(l) ELSE idTTLWarehouseSaleReturn(l);
+in = DATA LOCAL BOOLEAN (Invoice.Invoice);
+
+FORM Receipt
+    OBJECTS i = Invoice.Invoice 
+    PROPERTIES  CustomerCode = customerCode(i),
+                Code = code(i),
+                Date = date(i),
+                ArrivalDate = shipmentDate(i),
+                TTNNumber = invoiceNumber(i),
+                TTNSeries = invoiceSeries(i),
+                TTNDate = date[Consignment](i),
+                Id_Warehouse = stock(i),
+                Id_Req_ReceiptType = type(i)
+    FILTERS in(i)
+;
+
+exportInvoiceTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportInvoiceTTLAction'();
+
+dataIn = DATA LOCAL BOOLEAN (Invoice.InvoiceDetail);
+in(Invoice.InvoiceDetail d) = OVERRIDE dataIn(d), in(invoice(d));
+toIntQuantity(Invoice.InvoiceDetail d) = INTEGER (quantity[ConsignmentDetail](d) * (OVERRIDE 1000.0 IF split(UOM(sku(d))), 1.0));
+uomTTL(Invoice.InvoiceDetail d) = uomTTL(sku[ConsignmentDetail](d));
+exIdBatch(SaleReturn.InvoiceDetail d) = replace(id(batch(d)), idSku(d), '');
+idInvoice(Invoice.InvoiceDetail d) = MULTI Purchase.id(invoice(d)), SaleReturn.id(invoice(d));
+idSku(ConsignmentDetail d) = id(sku(d));
+
+FORM ReceiptGoods
+    OBJECTS i = Invoice.InvoiceDetail 
+    PROPERTIES  Id_Receipt = idInvoice(i),
+                npp = index(i),
+                GoodsCode = idSku[ConsignmentDetail](i),
+                Amount = toIntQuantity(i),
+                Measure = uomTTL(i),
+                Part = exIdBatch(i) PANEL
+    FILTERS in(i)
+;
+
+exportInvoiceDetailTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportInvoiceDetailTTLAction'();
+
+customerCode(Invoice.InvoiceDetail d) = customerCode(invoice(d));
+
+useOverIdBatchTTL = ABSTRACT BOOLEAN (Purchase.InvoiceDetail);
+overIdBatchTTL = ABSTRACT STRING[100] (Purchase.InvoiceDetail);
+overIdBatchPurchase(Purchase.InvoiceDetail detail) = replace(IF useOverIdBatchTTL(detail) THEN 
+    overIdBatchTTL(detail) ELSE idBatch(detail)
+    , idSku(detail),'');
+overIdBatch(Invoice.InvoiceDetail d) = (MULTI exIdBatch(d), overIdBatchPurchase(d));
+
+FORM Price2Part
+    OBJECTS i = Invoice.InvoiceDetail 
+    PROPERTIES  CustomerCode = customerCode(i),
+                GoodsCode = idSku[ConsignmentDetail](i),
+                Part = overIdBatch(i),
+                Price = price[ConsignmentDetail](i)
+    FILTERS in(i)
+;
+
+exportBatchPriceTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportBatchPriceTTLAction'();
+
+status 'Статус выгрузки ТТЛ' = DATA INTEGER (Purchase.Order) IN wms;
+
+skipCheckStatus 'Отключить проверку "Обработан логистичесим оператором"' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () skipCheckStatus
+;
+DESIGN options{
+    purchase{
+        MOVE PROPERTY (skipCheckStatus());
+    }
+}
+
+//заказ на расход со склада
+statusTTL 'Статус выгрузки ТТЛ' = DATA INTEGER (Sale.Order) IN wms;
+dateStatusTTL 'Время статуса выгрузки ТТЛ' = DATA DATETIME (Sale.Order) IN wms;
+nameStatusTTL 'Статус выгрузки ТТЛ' (Sale.Order i) = nameStatus(statusTTL(i)) IN wms;
+statusNoteTTL 'Причина отклонения' = DATA STRING[500](Sale.Order) IN wms;
+
+isTTLSale(Sale.Order o) = isTTL(supplierStock(o));
+showStatusTTL(Sale.Order o) = isTTLSale(o) AND statusTTL(o) == 40;
+
+changeNumber 'Сгенерировать новый номер'(Sale.Order o)  { 
+	NEWSESSION {
+	    incrementValue(numerator(o));
+	    number(o) <- incrementedValue();
+	    series(o) <- series(numerator(o));
+	    
+	    statusTTL(o) <- NULL;
+	    APPLY;
+	}
+}
+
+EXTEND FORM Sale.orders
+    PROPERTIES (o) changeNumber SHOWIF isTTLSale(o)
+    PROPERTIES (o) SHOWIF isTTLSale(o) READONLY PANEL nameStatusTTL, dateStatusTTL, statusNoteTTL SHOWIF showStatusTTL(o);
+    
+DESIGN Sale.orders {
+    exportContainer {
+        MOVE PROPERTY (changeNumber(o));
+        MOVE PROPERTY (nameStatusTTL(o));
+        MOVE PROPERTY (dateStatusTTL(o));
+        MOVE PROPERTY (statusNoteTTL(o));
+    }
+}
+    
+@defineTTLWarehouse(Sale, supplier, userOrder, o, row111);
+
+in = DATA LOCAL BOOLEAN (Sale.Order);
+customerCode(Sale.Order o) = customerCodeTTL() IF o IS Sale.Order;
+ttnCount(Sale.Order o) = 1 IF o IS Sale.Order;
+orderType(Sale.Order o) = 1 IF o IS Sale.Order;
+idCustomer(Sale.Order o) = id(customer(o));
+idCustomerStock(Sale.Order o) = id(customerStock(o));
+overShipmentDateTime(Sale.Order o) = dateTimeToDateTime(shipmentDate(o), OVERRIDE shipmentTime(o), 00:00);
+
+FORM Order
+    OBJECTS i = Sale.Order 
+    PROPERTIES  CustomerCode = customerCode(i),
+                Code = number(i),
+                Date = overShipmentDateTime(i),
+                ClientCode = idCustomer(i),
+                OutletCode = idCustomerStock(i),
+                TTNcount = ttnCount(i),
+                OrderType = orderType(i),
+                Id_Warehouse = idTTLWarehouseSale(i)
+    FILTERS in(i)
+;
+
+exportSaleOrderTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportSaleOrderTTLAction'();
+
+in(Sale.OrderDetail d) = in(order(d));
+toIntQuantity(Sale.OrderDetail d) = INTEGER (quantity(d) * (OVERRIDE 1000.0 IF split(UOM(sku(d))), 1.0));
+uomTTL(Sale.OrderDetail d) = uomTTL(sku(d));
+idOrder(Sale.OrderDetail d) = id(order(d));
+
+FORM OrderGoods
+    OBJECTS i = Sale.OrderDetail 
+    PROPERTIES  Id_Order = idOrder(i),
+                npp = index(i),
+                GoodsCode = idSku(i),
+                Amount = toIntQuantity(i),
+                Measure = uomTTL(i)
+    FILTERS in(i)
+;
+
+exportSaleOrderDetailTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportSaleOrderDetailTTLAction'();
+
+
+exportWMS(Sale.Order order) + { 
+	IF isTTL(supplierStock(order)) THEN NEWSESSION {
+	    IF NOT skipCheckStatus() THEN {
+            FOR NOT statusTTL(sku(Sale.OrderDetail d)) == 90 AND order(d) == order DO 
+                MESSAGE 'Товар ' + idSku(d) + ' не обработан логистическим оператором' NOWAIT;
+        }
+	
+	    IF [ GROUP  SUM 1 IF NOT statusTTL(sku(Sale.OrderDetail d)) == 90 BY order(d)](order) AND NOT skipCheckStatus() THEN {
+	        MESSAGE 'Заказ не выгружен' NOWAIT;
+	    } ELSE 
+	        IF statusTTL(order) AND NOT statusTTL(order) == -90 THEN { 
+	            MESSAGE 'Заказ №' + number(order)+' уже в обработке' NOWAIT ;
+	        } ELSE {
+	            LOCAL file = FILE();
+	            LOCAL id = INTEGER (INTEGER );
+	            LOCAL index = INTEGER (INTEGER );
+	            
+	            in(order) <- TRUE;
+	            exportSaleOrderTTLCustom();
+	        
+	            EXTERNAL SQL connectionStringTTL() EXEC 'SELECT MAX(Id_Order) FROM [Order] WHERE Code = $1' PARAMS number(order) TO file;
+	            IMPORT TABLE FROM file() TO id;
+	            id(order) <- STRING[100](id(0));
+	        
+	            exportSaleOrderDetailTTLCustom();
+	            
+	            EXTERNAL SQL connectionStringTTL() EXEC 'SELECT Id_OrderGoods, npp FROM OrderGoods WHERE Id_Order = $1' PARAMS id(order) TO file;
+	            IMPORT TABLE FROM file() TO id, index;
+	            FOR order(Sale.OrderDetail d) == order AND index(d) == index(INTEGER i) DO 
+	                id(d) <- STRING[100](id(i));
+	            
+	            statusTTL(order) <- 20;
+	            exportedWMS(order) <- TRUE;
+	            APPLY;
+	            
+	            MESSAGE 'Заказ № ' + number(order) + ' выгружен' NOWAIT;
+	        } 
+	}
+}
+
+isLogisticsSale(Sale.Order o) +=  isTTL(supplierStock(o));
+
+//корректировка накладной на выписке
+toInvoiceTTL = DATA LOCAL NUMERIC[16,5] (Stock, Sku);
+
+toInvoiceTTL (Batch b, Stock st, Sku s) = PARTITION UNGROUP toInvoiceTTL
+                                                           LIMIT STRICT prevCurrentBalance(b, st) IF prevSkuCurrentBalance(b, st) == s
+                                                           ORDER dateTime(b), b
+                                                           BY st, s;
+
+beforeCreateInvoice(Sale.Order order)+ {
+    IF isTTL(supplierStock(order)) THEN {
+    
+        LOCAL file = FILE();
+        
+        LOCAL id = INTEGER (INTEGER );
+        LOCAL qty = INTEGER (INTEGER );
+        LOCAL code = STRING[24](INTEGER );
+        LOCAL batch = STRING[50](INTEGER );
+        LOCAL partIndex = INTEGER (INTEGER);
+        
+        EXTERNAL SQL connectionStringTTL() EXEC 'SELECT p.Id_OrderGoods, p.CommitAmount, p.GoodsCode, p.Part ' +
+            'FROM OrderGoodsCommitPart p '+
+            'WHERE p.CommitAmount IS NOT NULL AND p.Id_Order = $1' PARAMS id(order)
+            TO file;
+        
+        IF file() THEN {
+            IMPORT TABLE FROM file() TO id, qty, code, batch;
+            partIndex(INTEGER r) <- PARTITION SUM 1 ORDER r BY code(r), batch(r);
+        }
+        
+        IF NOT id(0) THEN {
+            MESSAGE 'Не найдены данные в базе обмена. В документ включены все позиции заказа.';
+            RETURN;
+        }
+            
+        userInvoice(order) <- NULL;
+        NEW invoice = Sale.UserInvoice {
+            fillHeader(invoice, order);
+            userInvoice(order) <- invoice;
+            include(order,invoice) <- TRUE;
+            
+            LOCAL index = INTEGER (Sku);
+            LOCAL index = INTEGER (Batch);
+            FOR id(INTEGER i) AND Sale.OrderDetail od == Sale.userOrderDetail(STRING[100](id(i))) AND partIndex(i) == 1 DO {
+                index(sku(od)) <- index(od);
+                index(batch(od)) <- index(od);
+            }
+            
+            toInvoiceTTL(Stock st, Sku s) <- GROUP SUM NUMERIC[16,5](IF split(UOM(sku(code(INTEGER i)))) THEN qty(i)/1000.0 ELSE qty(i)) 
+                IF s == sku(code(i)) AND st == supplierStock(invoice) AND partIndex(i) == 1; 
+                
+            FOR NUMERIC[16,5] q == toInvoiceTTL (Batch b, supplierStock(order), Sku s) 
+                ORDER OVERRIDE index(b), index(s) NEW d = Sale.UserInvoiceDetail DO {
+                
+                userInvoice(d) <- invoice;
+                sku(d) <- s;
+                batch(d) <- b;
+                connectOrder(d);   
+                quantity (d) <- q;
+                fill(d, orderDetail(d));
+                overFill(d, orderDetail(d));
+            }
+            
+            //не нашлась партия
+            FOR NUMERIC[16,5] q == (toInvoiceTTL(supplierStock(order), Sku s) (-) (GROUP SUM toInvoiceTTL(Batch b, supplierStock(order), s))) 
+                ORDER index(s) NEW d = Sale.UserInvoiceDetail DO {
+                
+                userInvoice(d) <- invoice;
+                sku(d) <- s;
+                connectOrder(d);
+                quantity (d) <- q;
+                fill(d, orderDetail(d));
+                overFill(d, orderDetail(d));
+            }
+            
+            fillPrice(invoice, order);
+            invoiceCreated(order) <- TRUE;
+        }
+    }
+
+}
+
+isTTLSale(Sale.Invoice o) = isTTL(supplierStock(o));
+showBlankCode(Sale.UserInvoice o) += isTTL(supplierStock(o));
+
+CONSTRAINT (SET(isPosted(Sale.UserInvoice i)) OR SETCHANGED (supplierStock(i))) AND isPosted(i) AND isTTLSale(i) AND NOT blankCode(i) 
+    MESSAGE 'Для накладной должен быть задан код типа бланка';
+    
+maxSaleOrder (Sale.Invoice i) = GROUP MAX Sale.Order o IF include(o, i);
+idOrder(Sale.UserInvoice i) = id(maxSaleOrder(i));    
+    
+in = DATA LOCAL BOOLEAN (Sale.Invoice);
+
+FORM OrderTTN
+    OBJECTS i = Sale.Invoice 
+    PROPERTIES  Id_Order = idOrder(i) PANEL,
+                Id_TTN = number(i),
+                Series = series(i),
+                Number = number(i),
+                BSOCode = idBlankCode(i)
+    FILTERS in(i)
+;
+
+exportSaleOrderTTNTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportSaleOrderTTNTTLAction'();
+
+exportTTN 'Выгрузить БСО'(Sale.Invoice i)  { 
+    
+    in(i) <- TRUE ;
+    exportSaleOrderTTNTTLCustom();
+    
+} TOOLBAR;
+
+EXTEND FORM consignmentDashboard
+    PROPERTIES(i) exportTTN SHOWIF isTTLSale(i)
+;
+
+
+dataCountDaysCheckStatus = DATA INTEGER ();
+countDaysCheckStatus 'Количество дней для проверки статуса'() = OVERRIDE dataCountDaysCheckStatus(), 1;
+
+EXTEND FORM integrationData
+    PROPERTIES countDaysCheckStatus();
+    
+DESIGN integrationData{
+    TTL{
+        MOVE PROPERTY (countDaysCheckStatus());
+    }
+}
+
+dateTimeFromStatus() = STRING[19](subtractDay(currentDateTime(), countDaysCheckStatus()));
+
+
+//предзаказ на приход на склад
+dateStatus 'Время статуса выгрузки ТТЛ' = DATA DATETIME (Purchase.Order) IN wms;
+nameStatus 'Статус выгрузки ТТЛ' (Purchase.Order o) = nameStatus(status(o)) IN wms CHARWIDTH 40;
+statusNote 'Причина отклонения' = DATA STRING[500](Purchase.Order) IN wms;
+
+WHEN SETCHANGED (number(Purchase.Order o)) DO {
+    status(o) <- NULL;
+    statusNote(o) <- NULL;
+}
+
+isTTLPurchase(Purchase.Order order) = isTTL(customerStock(order));
+showStatus(Purchase.Order order) = isTTLPurchase(order) AND status(order) == 40;
+
+EXTEND FORM Purchase.orders 
+    PROPERTIES  SHOWIF isTTLPurchase(o) READONLY PANEL nameStatus = Integration.nameStatus(o)
+    PROPERTIES (o) SHOWIF isTTLPurchase(o) READONLY PANEL dateStatus, statusNote SHOWIF showStatus(o)
+    PROPERTIES (o) READONLY statusGrid = nameStatus, dateStatusGrid = dateStatus, noteGrid = statusNote ;
+    
+DESIGN Purchase.orders {
+    WMS {
+        MOVE PROPERTY (nameStatus);
+        MOVE PROPERTY (dateStatus(o));
+        MOVE PROPERTY (statusNote(o));
+    }
+}
+
+@defineTTLWarehouse(Purchase, customer, userOrder, o, row112);
+@defineTTLWarehouse(SaleReturn, supplier, userOrder, o, row111);
+
+customerCode(Order.Order l) = customerCodeTTL() IF l IS Order.Order;
+code(Order.Order l) = left(number(l), 24);
+type(Order.Order l) = MULTI 1 IF l IS Purchase.Order, 4 IF l IS SaleReturn.Order;
+stock(Order.Order l) = IF l IS Purchase.Order THEN idTTLWarehousePurchase(l) ELSE idTTLWarehouseSaleReturn(l);
+in = DATA LOCAL BOOLEAN (Order.Order);
+
+FORM ReceiptOrder
+    OBJECTS o = Order.Order 
+    PROPERTIES  CustomerCode = customerCode(o),
+                Code = code(o),
+                Date = date(o),
+                ArrivalDate = shipmentDate(o),
+                TTNNumber = number(o),
+                TTNSeries = number(o),
+                TTNDate = date(o),
+                Id_Warehouse = stock(o),
+                Id_Req_ReceiptType = type(o)
+    FILTERS in(o)
+;
+
+exportOrderTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportOrderTTLAction'();
+
+dataIn = DATA LOCAL BOOLEAN (Order.OrderDetail);
+in(Order.OrderDetail d) = OVERRIDE dataIn(d), in(order(d));
+toIntQuantity(Order.OrderDetail d) = INTEGER (quantity(d) * (OVERRIDE 1000.0 IF split(UOM(sku(d))), 1.0));
+uomTTL(Order.OrderDetail d) = uomTTL(sku(d));
+idOrder(Order.OrderDetail d) = MULTI Purchase.id(order(d)), SaleReturn.id(order(d));
+
+FORM ReceiptGoodsOrder
+    OBJECTS o = Order.OrderDetail 
+    PROPERTIES  Id_Receipt = idOrder(o),
+                npp = index(o),
+                GoodsCode = idSku(o),
+                Amount = toIntQuantity(o),
+                Measure = uomTTL(o)
+    FILTERS in(o)
+;
+
+exportOrderDetailTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.ExportOrderDetailTTLAction'();
+
+exportWMSPurchaseOrder(Purchase.Order order) + { 
+	IF isTTLPurchase(order) THEN NEWSESSION {
+	    IF NOT skipCheckStatus() THEN {
+            FOR NOT statusTTL(sku(Purchase.OrderDetail d)) == 90 AND order(d) == order DO 
+                MESSAGE 'Товар ' + idSku(d) + ' не обработан логистическим оператором' NOWAIT;
+	    }
+	    IF [ GROUP  SUM 1 IF NOT statusTTL(sku(Purchase.OrderDetail d)) == 90 BY order(d)](order) AND NOT skipCheckStatus() THEN {
+	        MESSAGE 'Заказ не выгружен' NOWAIT;
+	    } ELSE 
+	        IF status(order) THEN { 
+	            MESSAGE 'Заказ уже в обработке';
+	        } ELSE {
+	            LOCAL file = FILE();
+	            LOCAL id = INTEGER (INTEGER );
+	            LOCAL index = INTEGER (INTEGER );
+	            
+	            in(order) <- TRUE;
+	            exportOrderTTLCustom();
+	            
+	            EXTERNAL SQL connectionStringTTL() EXEC 'SELECT MAX(Id_Receipt) FROM Receipt WHERE Code = $1' PARAMS number(order) TO file;
+	            IMPORT TABLE FROM file() TO id;
+	            id(order) <- STRING[100](id(0));
+	            
+	            exportOrderDetailTTLCustom();
+	
+	            EXTERNAL SQL connectionStringTTL() EXEC 'SELECT Id_ReceiptGoods, npp FROM ReceiptGoods WHERE Id_Receipt =$1' PARAMS id(order) TO file;
+	            IMPORT TABLE FROM file() TO id, index;
+	            FOR order(Purchase.OrderDetail d) == order AND index(d) == index(INTEGER o) DO {
+	                id(d) <- STRING[100](id(o));
+	            }
+	            
+	            status(order) <- 20;
+	            APPLY;
+	            
+	            MESSAGE 'Заказ ' + number(order) + ' выгружен';
+	    }
+	        
+	}
+}
+
+
+//товары
+checkStatusItem 'Проверить статусы ТТЛ для товаров'()  { 
+    
+    LOCAL file = FILE ();
+    LOCAL id = STRING[100](INTEGER );
+    LOCAL code = STRING[24](INTEGER );
+    LOCAL date = DATETIME (INTEGER );
+    LOCAL status = INTEGER (INTEGER );
+    LOCAL note = STRING[500](INTEGER );
+    LOCAL statusDate = DATETIME (INTEGER );
+    
+
+    EXTERNAL SQL connectionStringTTL() EXEC 'SELECT Code, CreateDate, Status, RejectionNote, StatusDate FROM Goods WHERE CustomerCode = $1 AND StatusDate >= $2' 
+        PARAMS customerCodeTTL(), dateTimeFromStatus() TO file;
+    
+    IMPORT TABLE 
+        FROM file() 
+        TO code, date, status, note, statusDate;
+    
+    FOR INTEGER i == [ GROUP LAST INTEGER ii ORDER date(ii) WHERE imported(ii) BY code(ii)](id(Sku it)) DO {
+        statusTTL(it) <- status(i);
+        statusNoteTTL(it) <- note(i);
+        dateStatusTTL(it) <- statusDate(i);
+    }
+    APPLY;
+}
+    
+//закупка
+checkStatusPurchase 'Проверить статусы ТТЛ для закупок'()  { 
+    LOCAL file = FILE ();
+    LOCAL id = INTEGER (INTEGER );
+    LOCAL status = INTEGER (INTEGER );
+    LOCAL note = STRING[500](INTEGER );
+    LOCAL statusDate = DATETIME (INTEGER );
+    
+    EXTERNAL SQL connectionStringTTL() EXEC 'SELECT Id_Receipt, Status, AnalyzeError, StatusDate FROM Receipt WHERE CustomerCode = $1 AND StatusDate >= $2'
+        PARAMS customerCodeTTL(), dateTimeFromStatus() TO file;
+    
+    IMPORT TABLE FROM file() TO id, status, note, statusDate;
+    
+    FOR STRING[100](id(INTEGER i)) == id(Purchase.UserInvoice inv) OR (GROUP SUM 1 IF STRING[100](id(i)) == id(Purchase.Order o) AND include(o, inv)) DO {
+        statusTTL(inv) <- status(i) WHERE statusTTL(inv) AND maxPurchaseOrder(inv) OR NOT maxPurchaseOrder(inv);
+        statusNoteTTL(inv) <- note(i);
+        dateStatusTTL(inv) <- statusDate(i) WHERE statusTTL(inv) AND maxPurchaseOrder(inv) OR NOT maxPurchaseOrder(inv);
+    }
+    
+    FOR STRING[100](id(INTEGER i)) == id(Purchase.UserOrder ord) DO {
+        status(ord) <- status(i);
+        statusNote(ord) <- note(i);
+        dateStatus(ord) <- statusDate(i);
+    }
+;
+}
+//партии к приходам
+checkStatusBatchesTTL 'Импортировать партии по приходам'()  { 
+    LOCAL file = FILE ();
+    LOCAL id = INTEGER (INTEGER );
+    LOCAL code = STRING[24](INTEGER );
+    LOCAL qty = NUMERIC[16,3](INTEGER );
+    LOCAL batch = STRING[24](INTEGER );
+    
+    EXTERNAL SQL connectionStringTTL() EXEC 'SELECT p.Id_ReceiptGoods, p.CommitAmount, p.GoodsCode, p.Part ' +
+        'FROM ReceiptGoodsCommitPart p '+
+    	'    JOIN ReceiptGoods rg ON p.Id_ReceiptGoods = rg.Id_ReceiptGoods ' +
+    	'    JOIN Receipt r ON rg.Id_Receipt = r.Id_Receipt ' +
+        'WHERE r.[Status] = 90 AND r.CustomerCode = $1 AND r.StatusDate >= $2'
+        PARAMS customerCodeTTL(), dateTimeFromStatus() TO file;
+    
+    IMPORT TABLE
+        FROM file() 
+        TO id, qty, code, batch;
+        
+    FOR NUMERIC[16,3] q == [ GROUP SUM qty(INTEGER i) BY STRING[100](id(i)), code(i)](STRING[100] id, STRING[24] code) AND (id == id(Purchase.UserInvoiceDetail d) OR id == id(orderDetail(d))) DO {
+        shipmentQuantity(d) <- IF split(UOM(sku(d))) THEN NUMERIC[16,5](q / 1000.0) ELSE NUMERIC[16,5] (q);
+    }
+    
+    FOR [ GROUP SUM 1 BY STRING[100](id(INTEGER i)), code(i), batch(i)](STRING[100] id, STRING[24] code, STRING[24] batch) AND (id == id(Purchase.UserInvoiceDetail d) OR id == id(orderDetail(d))) DO {
+        idBatch(d) <- code + batch;     
+    }
+    
+    FOR SETCHANGED (overIdBatchPurchase(Purchase.UserInvoiceDetail d)) AND isTTLPurchase(userInvoice(d)) DO {
+        in(d) <- TRUE;
+    }
+    exportBatchPriceTTLCustom();
+    
+    APPLY;
+}
+
+//расход на магазин
+checkStatusSaleTTL 'Проверить статусы ТТЛ для продаж'()  { 
+    LOCAL file = FILE ();
+    LOCAL id = INTEGER (INTEGER );
+    LOCAL status = INTEGER (INTEGER );
+    LOCAL note = STRING[500](INTEGER );
+    LOCAL statusDate = DATETIME (INTEGER );
+    
+    EXTERNAL SQL connectionStringTTL() EXEC 'SELECT Id_Order, Status, AnalyzeError, StatusDate FROM [Order] WHERE CustomerCode = $1 AND StatusDate >= $2' 
+        PARAMS customerCodeTTL(), dateTimeFromStatus() TO file;
+    IMPORT TABLE FROM file() TO id, status, note, statusDate;
+    
+    FOR STRING[100](id(INTEGER i)) == id(Sale.Order o) DO {
+        statusTTL(o) <- status(i);
+        statusNoteTTL(o) <- note(i);
+        dateStatusTTL(o) <- statusDate(i);
+    }
+    
+    EXTERNAL SQL connectionStringTTL() EXEC 'SELECT Id_Order, PickingStatus FROM [Order] WHERE CustomerCode = $1 AND PickingStatus >= 90' //PickingStatusDate всегда пустой почемуто
+        PARAMS customerCodeTTL() TO file;
+    IMPORT TABLE FROM file() TO id, status;
+                
+    FOR imported(INTEGER i) AND STRING[100](id(i)) == id(Sale.Order o) DO {
+        isReplyWMS(o) <- TRUE WHERE status(i);
+    }
+    
+    APPLY;
+}

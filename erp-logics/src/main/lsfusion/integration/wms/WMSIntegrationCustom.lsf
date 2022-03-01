@@ -6,6 +6,23 @@ NAMESPACE Integration;
 
 //-- Пришлось выделить в отдельный модуль, чтобы были связующие звенья
 
+CLASS PalletType 'Тип паллет' {
+    american 'Американский',
+    euro 'Евро',
+    fin 'Финский',
+    unusual 'Нестандартная'
+}
+
+name 'Тип паллет' (PalletType t) = staticCaption(t) IF t IS PalletType CHARWIDTH 13;
+
+FORM palletTypes 'Типы паллет'
+    OBJECTS t = PalletType
+    PROPERTIES(t) READONLY name
+    LIST PalletType OBJECT t
+;
+
+palletType = DATA PalletType (Item);
+
 ////////////////////////  Sale.Order
 exportWMS 'Выгрузить файл заказа'  ABSTRACT LIST ( Sale.Order);
 exportedWMS 'Выгружен в WMS' = DATA BOOLEAN (Sale.Order);
@@ -68,3 +85,4 @@ DESIGN Purchase.invoices {
     }
 }
 
+maxPurchaseOrder(Purchase.UserInvoice invoice) = GROUP MAX Purchase.Order order IF include(order, invoice);
