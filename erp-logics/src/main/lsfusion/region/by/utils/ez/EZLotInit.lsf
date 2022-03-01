@@ -1,6 +1,6 @@
 MODULE EZLotInit;
 
-REQUIRE LotInitBy, Declaration, StockContract;
+REQUIRE LotInitBy, Declaration, StockContract, EZPurchaseInvoice;
 
 NAMESPACE EZ;
 
@@ -145,6 +145,7 @@ DESIGN lotInit {
 
 declaration = DATA Declaration (LotInit);
 seriesNumberDeclaration 'Серия/Номер декларации' (LotInit l) = seriesNumber(declaration(l));
+registrationNumberDeclaration 'Регистрационный номер декларации' (LotInit l) = registrationNumber(declaration(l));
 dateDeclaration 'Дата декларации' (LotInit l) = date(declaration(l));
 
 country = DATA Country (LotInit);
@@ -156,14 +157,14 @@ seriesNumberContractSku 'Договор (серия/номер)' (LotInit l) = s
 dateContractSku 'Дата договора' (LotInit l) = dateFrom(contractSku(l));
 
 EXTEND FORM lotInit
-    PROPERTIES(i) SHOWIF (mode(i) == LotInitMode.IMPORT_) seriesNumberDeclaration, dateDeclaration, nameCountry
+    PROPERTIES(i) SHOWIF (mode(i) == LotInitMode.IMPORT_) registrationNumberDeclaration, dateDeclaration, nameCountry
 ;
 DESIGN lotInit {
     header {
         NEW headerRow4 {
             type = CONTAINERH;
             alignment = STRETCH;
-            MOVE PROPERTY(seriesNumberDeclaration(i)) { notNull = TRUE; }
+            MOVE PROPERTY(registrationNumberDeclaration(i)) { notNull = TRUE; }
             MOVE PROPERTY(dateDeclaration(i)) { notNull = TRUE; }
             MOVE PROPERTY(nameCountry(i)) { notNull = TRUE; }
         }
@@ -171,5 +172,5 @@ DESIGN lotInit {
 }
 
 EXTEND FORM lotInits
-    PROPERTIES(i) READONLY seriesNumberDeclaration, dateDeclaration, nameCountry
+    PROPERTIES(i) READONLY registrationNumberDeclaration, dateDeclaration, nameCountry
 ;

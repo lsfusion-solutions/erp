@@ -52,15 +52,28 @@ fillFromInvoice 'Заполнить из накладной' (LotOrder o) {
 //CONSTRAINT SETCHANGED(invoiceDetail(LotOrderDetail d)) AND (NOT number(declaration(invoiceDetail(d))) OR NOT date(declaration(invoiceDetail(d))))
 //    MESSAGE 'В выбранных позициях накладной не заданы номер и/или дата декларации';
 
+registrationNumber 'Регистрационный номер' = DATA ISTRING[100] (Declaration) IN numbered CHARWIDTH 20;
+registrationNumberDeclaration 'Регистрационный номер декларации' (LotOrderDetail d) = registrationNumber(declaration(d));
+
+EXTEND FORM declaration 
+    PROPERTIES(d) registrationNumber
+;
+DESIGN declaration {
+    header {
+        MOVE PROPERTY(registrationNumber(d));
+    }
+}
+
+EXTEND FORM declarations
+    PROPERTIES(d) READONLY registrationNumber
+;
+
 EXTEND FORM lotOrder
     PROPERTIES (o) fillFromInvoice DRAW d TOOLBAR    
-    PROPERTIES(d) READONLY seriesNumberDeclaration, dateDeclaration, sidOrigin2CountryDeclaration
+    PROPERTIES(d) READONLY registrationNumberDeclaration, dateDeclaration, sidOrigin2CountryDeclaration
 ;
 
 EXTEND FORM lotOrders
-    PROPERTIES(d) READONLY seriesNumberDeclaration, dateDeclaration, sidOrigin2CountryDeclaration
+    PROPERTIES(d) READONLY registrationNumberDeclaration, dateDeclaration, sidOrigin2CountryDeclaration
 ;
-
-
-
 

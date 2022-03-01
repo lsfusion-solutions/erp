@@ -134,7 +134,7 @@ gtin 'GTIN' (LotInitDetail d) = OVERRIDE overGtin(d), gtin(sku(d));
 
 lastLotInitDetail(LotInit i, STRING[14] gtin) = GROUP LAST LotInitDetail d IF i == lotInit(d) AND gtin == gtin(d) ORDER d;
 
-seriesNumberDeclaration(LotInit i, STRING[14] gtin) = OVERRIDE seriesNumberDeclaration(i), seriesNumberDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
+registrationNumberDeclaration(LotInit i, STRING[14] gtin) = OVERRIDE registrationNumberDeclaration(i), registrationNumberDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
 dateDeclaration(LotInit i, STRING[14] gtin) = OVERRIDE dateDeclaration(i), dateDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
 sidOrigin2CountryDeclaration(LotInit i, STRING[14] gtin)= OVERRIDE sidOrigin2CountryDeclaration(i), sidOrigin2CountryDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
 
@@ -181,8 +181,8 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
                 MESSAGE 'Не задана страна экспорта'NOWAIT;
             }
             
-            IF seriesNumberDeclaration(i, gtin) THEN {
-                listParams() <- listParams() + ', \{ "code": 96, "value": "' + seriesNumberDeclaration(i, gtin) + '"\}';
+            IF registrationNumberDeclaration(i, gtin) THEN {
+                listParams() <- listParams() + ', \{ "code": 96, "value": "' + registrationNumberDeclaration(i, gtin) + '"\}';
             } ELSE {
                 MESSAGE 'Не задан номер декларации' NOWAIT;
             }
@@ -193,7 +193,7 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
                 MESSAGE 'Не задана дата декларации' NOWAIT;
             }       
 
-            IF NOT sidOrigin2CountryDeclaration(i, gtin) OR NOT seriesNumberDeclaration(i, gtin) OR NOT toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN
+            IF NOT sidOrigin2CountryDeclaration(i, gtin) OR NOT registrationNumberDeclaration(i, gtin) OR NOT toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN
                 RETURN;
         }
         WHEN mode(i) == LotInitMode.COMMISSION THEN {
