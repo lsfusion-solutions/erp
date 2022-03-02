@@ -1985,12 +1985,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 receiptDetailExtraFields.put("paymentCard", StringUtils.join(paymentCardNumbers, ";"));
                                 if(bonusPaymentAsDiscount) {
                                     BigDecimal salesBonus = safeDivide(rs.getBigDecimal("SALESBONUS"), 100); //сумма социальной скидки для позиции
-                                    //todo: remove temp log
-                                    astronSalesLogger.info(String.format("SocialDiscount: nppGroupMachinery = %s, nppCashRegister = %s, numberZReport = %s, numberReceipt = %s, idBarcode = %s," +
-                                                    " SALESBONUS = %s, SALESDISC = %s",
-                                            nppGroupMachinery, nppCashRegister, numberZReport, numberReceipt, idBarcode, salesBonus, discountSumReceiptDetail));
-                                    discountSumReceiptDetail = safeAdd(discountSumReceiptDetail, salesBonus);
-                                    receiptDetailExtraFields.put("salesBonus", salesBonus);
+                                    if(salesBonus.compareTo(BigDecimal.ZERO) > 0) {
+                                        //todo: remove temp log
+                                        astronSalesLogger.info(String.format("SocialDiscount: nppGroupMachinery = %s, nppCashRegister = %s, numberZReport = %s, numberReceipt = %s, idBarcode = %s," +
+                                                        " SALESBONUS = %s, SALESDISC = %s",
+                                                nppGroupMachinery, nppCashRegister, numberZReport, numberReceipt, idBarcode, salesBonus, discountSumReceiptDetail));
+                                        receiptDetailExtraFields.put("salesBonus", salesBonus);
+                                    }
                                 }
 
                                 curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
