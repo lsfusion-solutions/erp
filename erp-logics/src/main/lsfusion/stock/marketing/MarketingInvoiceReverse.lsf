@@ -21,6 +21,14 @@ quantityMarketing(Sale.UserInvoiceDetail d) = OVERRIDE overQuantityMarketing(d),
 sumMarketing(Sale.UserInvoiceDetail d) = OVERRIDE overSumMarketing(d), sum(d);
 invoiceSumMarketing(Sale.UserInvoiceDetail d) = OVERRIDE overInvoiceSumMarketing(d), invoiceSum(d);
 
+overQuantityMarketing = ABSTRACT NUMERIC[16,5] (SaleReturn.UserInvoiceDetail);
+overSumMarketing = ABSTRACT NUMERIC[18,4] (SaleReturn.UserInvoiceDetail);
+overInvoiceSumMarketing = ABSTRACT NUMERIC[18,4] (SaleReturn.UserInvoiceDetail);
+
+quantityMarketing(SaleReturn.UserInvoiceDetail d) = OVERRIDE overQuantityMarketing(d), quantity(d);
+sumMarketing(SaleReturn.UserInvoiceDetail d) = OVERRIDE overSumMarketing(d), sum(d);
+invoiceSumMarketing(SaleReturn.UserInvoiceDetail d) = OVERRIDE overInvoiceSumMarketing(d), invoiceSum(d);
+
 createDetailSale(MarketingInvoice i, ContractMarketing c, DATE df, DATE dt) + {
     LOCAL in = BOOLEAN (Sale.UserInvoiceDetail);
     in(Sale.UserInvoiceDetail d) <- TRUE WHERE customer(d) == customer(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
@@ -38,7 +46,7 @@ createDetailSale(MarketingInvoice i, ContractMarketing c, DATE df, DATE dt) + {
     quantitySale(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantityMarketing(Sale.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st);
 
     LOCAL quantitySaleReturn = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
-    quantitySaleReturn(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(SaleReturn.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st);
+    quantitySaleReturn(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantityMarketing(SaleReturn.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st);
 
     FOR (quantitySale(MarketingCondition mc, Sku sk, Stock st) OR quantitySaleReturn(mc, sk, st))
         AND (calcBase(mc) == CalcBase.customer 
@@ -59,9 +67,9 @@ createDetailSale(MarketingInvoice i, ContractMarketing c, DATE df, DATE dt) + {
                             NUMERIC[18,2]([ GROUP SUM sumMarketing(Sale.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st));
         returnSum(md) <- CASE 
                             WHEN calcBase(mc) == CalcBase.customerVAT THEN 
-                                NUMERIC[18,2]([ GROUP SUM invoiceSum(SaleReturn.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st))
+                                NUMERIC[18,2]([ GROUP SUM invoiceSumMarketing(SaleReturn.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st))
                             WHEN calcBase(mc) == CalcBase.customer THEN
-                                NUMERIC[18,2]([ GROUP SUM sum(SaleReturn.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st));
+                                NUMERIC[18,2]([ GROUP SUM sumMarketing(SaleReturn.InvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st));
 
         in(md, Sale.InvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st);                 
         in(md, SaleReturn.InvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), supplierStock(d)](mc, sk, st);
