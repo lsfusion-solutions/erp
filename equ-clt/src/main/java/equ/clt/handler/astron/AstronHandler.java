@@ -917,7 +917,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private JSONObject getExtInfo(String extInfo) {
         try {
-            return extInfo != null ? new JSONObject(extInfo).optJSONObject("astron") : null;
+            return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("astron") : null;
         } catch (Throwable t) {
             throw new RuntimeException("Failed to parse extInfo: " + extInfo, t);
         }
