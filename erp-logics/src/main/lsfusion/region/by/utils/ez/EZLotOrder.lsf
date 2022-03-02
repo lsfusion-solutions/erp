@@ -270,13 +270,13 @@ idOrderExt (LotOrder o, STRING[14] gtin) = idOrderEZ (GROUP MIN LotOrderDetail d
 identificationMeansType 'Вид средства идентификации' = DATA IdentificationMeansType (LotOrder) NONULL;
 
 listGTINJSON (LotOrder o) = 
-GROUP CONCAT ('"' + (STRING[14] gtin) + '": \{ "count": ' + INTEGER(quantity(o, gtin)) + ', ' +
-                                              '"label_type": ' + id(identificationMeansType(o)) + ' \}'), ', ' IF quantity(o, gtin) AND NOT idOrderExt(o, gtin) ORDER gtin; 
+GROUP CONCAT STRING(CONCAT '','"', (STRING[14] gtin), '": \{ "count": ', INTEGER(quantity(o, gtin)), ', ',
+                                              '"label_type": ', id(identificationMeansType(o)), ' \}'), ', ' IF quantity(o, gtin) AND NOT idOrderExt(o, gtin) ORDER gtin; 
 
-addGroupOrdersJSON (LotOrder o) = '\{ "group": "' + codeGroup(type(o)) + '", ' + 
+addGroupOrdersJSON (LotOrder o) = CONCAT '', '\{ "group": "' + codeGroup(type(o)) + '", ' + 
                                                     '"orders": \{ ' + listGTINJSON(o) + ' \} \}';
 
-listidOrderEZ (LotOrder o)= GROUP CONCAT idOrderExt (o, STRING[14] gtin), ', ' ORDER gtin;
+listidOrderEZ (LotOrder o)= GROUP CONCAT STRING(idOrderExt (o, STRING[14] gtin)), ', ' ORDER gtin;
 
 addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {    
     checkGTINEZ(o);
