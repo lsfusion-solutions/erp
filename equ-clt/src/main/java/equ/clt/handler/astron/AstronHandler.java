@@ -1208,7 +1208,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer clientId = getClientId(d);
                     Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
-                    String clientName = nvl(d.nameDiscountCard, "");
+                    String clientName = nvl(trim(d.nameDiscountCard, 50), "");
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "000000" : null;
                     if(params.pgsql) {
                         setObject(ps, clientId, 1); //CLNTID
@@ -1246,7 +1246,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private boolean isSocial(DiscountCard d) {
-        astronLogger.info("IsSocial check discountCard " + d.numberDiscountCard + ": " + d.extInfo); //todo: remove temp log
         JSONObject infoJSON = getExtInfo(d.extInfo);
         if(infoJSON != null) {
             JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
