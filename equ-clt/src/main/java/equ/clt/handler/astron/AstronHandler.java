@@ -1246,6 +1246,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private boolean isSocial(DiscountCard d) {
+        astronLogger.info("IsSocial check discountCard " + d.numberDiscountCard + ": " + d.extInfo); //todo: remove temp log
         JSONObject infoJSON = getExtInfo(d.extInfo);
         if(infoJSON != null) {
             JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
