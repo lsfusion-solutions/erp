@@ -228,19 +228,11 @@ showListDetail 'Показать список предварительных з�
 
 //----------------- Логирование времени поставок ------------------- //
 
-CLASS ScheduleOrderTimeLog 'Запись лога времени поставок';
-TABLE scheduleOrderTimeLog(ScheduleOrderTimeLog);
 
-scheduleOrder = DATA ScheduleOrder (ScheduleOrderTimeLog) INDEXED;
-//in 'Вкл.' = DATA BOOLEAN (Stock, ScheduleOrderTime, Ramp, Interval);
 in 'Вкл.' = DATA BOOLEAN (ScheduleOrderTimeLog);
 time 'Время' = DATA TIME (ScheduleOrderTimeLog);
-shipmentNameDOW 'День недели поставки' = DATA BPISTRING[100] (ScheduleOrderTimeLog);
 nameRamp 'Рампа' = DATA ISTRING[100](ScheduleOrderTimeLog);
 nameStock 'Склад' = DATA ISTRING[150](ScheduleOrderTimeLog);
-
-nameUser 'Имя пользователя' = DATA STRING[100] (ScheduleOrderTimeLog);
-dateTime 'Время изменения' = DATA DATETIME (ScheduleOrderTimeLog);
 
 WHEN (CHANGED(in(Stock s, ScheduleOrderTime t, Ramp r, Interval i)) AND s IS Stock AND t IS ScheduleOrderTime AND r IS Ramp AND i IS Interval) DO {
     NEW l = ScheduleOrderTimeLog {
@@ -256,15 +248,6 @@ WHEN (CHANGED(in(Stock s, ScheduleOrderTime t, Ramp r, Interval i)) AND s IS Sto
 }
 
 EXTEND FORM scheduleOrder
-    OBJECTS logT = ScheduleOrderTimeLog
-    PROPERTIES(logT) READONLY in, time, shipmentNameDOW, nameRamp, nameStock, nameUser, dateTime
-    FILTERS s == scheduleOrder(logT)
+    PROPERTIES(logT) READONLY BEFORE shipmentNameDOW(logT) in, time 
+    PROPERTIES(logT) READONLY nameRamp, nameStock
 ;
-
-DESIGN scheduleOrder {
-    days {
-        MOVE BOX(logT) {
-            caption = 'История';
-        }
-    }
-}

@@ -191,3 +191,37 @@ DESIGN scheduleOrderDashboard {
         MOVE PROPERTY(isEditableScheduleOrderDashboard()) BEFORE TOOLBARRIGHT;
     }
 }
+
+//----------------- Логирование времени поставок ------------------- //
+
+CLASS ScheduleOrderTimeLog 'Запись лога времени поставок';
+TABLE scheduleOrderTimeLog(ScheduleOrderTimeLog);
+
+scheduleOrder = DATA ScheduleOrder (ScheduleOrderTimeLog) INDEXED;
+shipmentNameDOW 'День недели поставки' = DATA BPISTRING[100] (ScheduleOrderTimeLog);
+
+nameUser 'Имя пользователя' = DATA STRING[100] (ScheduleOrderTimeLog);
+dateTime 'Время изменения' = DATA DATETIME (ScheduleOrderTimeLog);
+
+WHEN [GROUP SUM 1 IF CHANGED(ScheduleOrderTime t IS ScheduleOrderTime) BY OVERRIDE scheduleOrder(t), PREV(scheduleOrder(t))](ScheduleOrder o) DO {
+    NEW l = ScheduleOrderTimeLog {
+        scheduleOrder(l) <- o;
+        shipmentNameDOW(l) <- STRING[100](GROUP CONCAT shipmentNameDOW(ScheduleOrderTime t) IF scheduleOrder(t) == o, ',' ORDER numberM(shipmentDOW(t)));
+        nameUser(l) <- ISTRING[30](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+    }
+}
+
+EXTEND FORM scheduleOrder
+    OBJECTS logT = ScheduleOrderTimeLog
+    PROPERTIES(logT) READONLY shipmentNameDOW, nameUser, dateTime
+    FILTERS s == scheduleOrder(logT)
+;
+
+DESIGN scheduleOrder {
+    days {
+        MOVE BOX(logT) {
+            caption = 'История';
+        }
+    }
+}
