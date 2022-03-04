@@ -1,0 +1,366 @@
+MODULE Assembly;
+
+REQUIRE Stock, Item, Barcode, Document, EmployeeStock, PriceListAccount,
+        StockMovement,
+        AssemblyOperation;
+
+CLASS Assembly 'Сборка';
+CLASS AssemblyDetail 'Строка сборки';
+
+@defineDocument(assembly);
+TABLE sessionAssembly (Session, Assembly);
+
+// header
+@deriveDocumentHeaderTimePrefix(Assembly, );
+
+operation = DATA Operation (Assembly) MATERIALIZED;
+nameOperation 'Операция' = name(operation(Assembly assembly));
+
+operation 'Операция' (AssemblyDetail assemblyDetail) = operation(assembly(assemblyDetail));
+
+@defineDocumentOperationRolePrefix(assembly, );
+@defineDocumentOperationConstraint(assembly, 'сборка', Assembly);
+
+@defineDocumentHeaderNumber(Assembly, BPSTRING[2]);
+@defineNumeratedDefault(Assembly, 'Сборка', 'ИС');
+
+@defineDocumentDataStock (assembly, stock, 'Склад', );
+
+@defineExternalizable(assembly, STRING[100]);
+
+@defineDocumentDialogStocks(assembly, stock, company, , );
+@defineDocumentStockAccess(Assembly, stock, company);
+
+@defineDocumentPosted(assembly);
+@defineDocumentClosed(assembly);
+@defineDocumentClosedConstraint(Assembly);
+@defineDocumentDescription (assembly, 'Сборка товаров');
+
+@defineDocumentCurrency(assembly);
+@deriveDocumentCurrency(assembly, stock);
+
+disassembly 'Разборка' = DATA BOOLEAN (Assembly);
+disassembly 'Разборка' (AssemblyDetail d) = disassembly(assembly(d));
+
+@defineOperationProperty(disassembly, 'Разборка', BOOLEAN, paramsContainer);
+@deriveDocumentOperationProperty(assembly, disassembly);
+
+// header sku 
+@defineDocumentDetailSkuCustomPrefix(assembly, sku, , );
+
+@defineDocumentDetailQuantityCustomPrefix(assembly, ,);
+
+@defineDocumentDetailPriceCustomPrefix (assembly, , );
+
+@defineDocumentDetailDataSumCustomPrefix(assembly, ,);
+@deriveDocumentDetailSumCustomPrefix(assembly, , currency, quantity);
+
+// detail
+@defineDocumentDetailSku(assembly, sku);
+
+@defineDocumentDetailQuantity (assembly);
+
+@defineDocumentDetailPrice (assembly);
+
+@defineDocumentDetailDataSum(assembly);
+@deriveDocumentDetailSum(assembly, quantity);
+
+@defineDocumentHeaderQuantity(assembly);
+@defineDocumentHeaderSum(assembly);
+
+// shortcut
+
+@defineMovementSku(assembly);
+@defineBalancesSku(assembly);
+
+@defineBarcodeSku(assembly);
+@defineMovementPriceSku(assembly);
+@defineInfoSku(assembly);
+
+@defineMovementSku(assemblyDetail);
+@defineBalancesSku(assemblyDetail);
+
+@defineBarcodeSku(assemblyDetail);
+@defineMovementPriceSku(assemblyDetail);
+@defineInfoSku(assemblyDetail);
+
+FORM assembly 'Сборка'
+
+    OBJECTS a = Assembly PANEL
+
+    PROPERTIES(a) isPosted, nameOperation, nameNumerator, number, series, nameStock ON CHANGE changeStockCompany(a),
+                  idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
+                  disassembly, quantity, nameCurrency, price, sum, 
+                  date, time, quantityAssemblyDetail, sumAssemblyDetail, note
+
+    OBJECTS d = AssemblyDetail
+    PROPERTIES(d) index,
+                  idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
+                  quantity, price, sum
+    PROPERTIES(d) NEW, DELETE
+    FILTERS assembly(d) = a
+
+    EVENTS
+        ON OK prePost(a)
+
+    EDIT Assembly OBJECT a
+;
+
+DESIGN assembly {
+    OBJECTS {
+        NEW header FIRST {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            NEW headerLeft {
+                MOVE GROUP(documentHeader, a) {
+                    columns = 1;
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(isPosted(a));
+                    MOVE PROPERTY(nameOperation(a));
+                    MOVE PROPERTY(nameStock(a));
+                    MOVE PROPERTY(nameNumerator(a));
+                    MOVE PROPERTY(number(a));
+                    MOVE PROPERTY(series(a));
+                    MOVE PROPERTY(date(a));
+                    MOVE PROPERTY(time(a));
+                }
+                NEW headerSku {
+                    caption = 'Товар';
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(idBarcodeSku(a));
+                    MOVE PROPERTY(idSku(a));
+                    MOVE PROPERTY(nameSku(a));
+                    MOVE PROPERTY(shortNameUOMSku(a));
+                }
+                NEW headerParams {
+                    caption = 'Параметры';
+                    type = CONTAINERH;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(disassembly(a));
+                    MOVE PROPERTY(quantity(a));
+                    MOVE PROPERTY(nameCurrency(a));
+                    MOVE PROPERTY(price(a));
+                    MOVE PROPERTY(sum(a));
+                }
+                MOVE PROPERTY(note(a)) { alignment = STRETCH; }
+            }
+            NEW headerRight {
+                MOVE GROUP(documentSum, a) {
+                    columns = 1;
+                    type = CONTAINERV;
+                }
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+    PROPERTY(formOk()) {
+        caption = 'Провести';
+    }
+}
+
+edit (AssemblyDetail d) + {  DIALOG assembly OBJECTS a = assembly(d), d = d DOCKED; }
+
+show 'Просмотреть' (Assembly a)  { 
+	NEWSESSION {
+	    SHOW assembly OBJECTS a = a DOCKED READONLY;
+	}
+}
+
+show 'Просмотреть' (AssemblyDetail d)  { 
+	NEWSESSION {
+	    SHOW assembly OBJECTS a = assembly(d), d = d DOCKED READONLY;
+	}
+}
+
+@addEventGenerateNumberOnForm(assembly, a, assembly);
+
+FORM assemblies 'Сборки товаров'
+
+    OBJECTS a = Assembly
+    PROPERTIES(a) READONLY isClosed, isPosted, nameOperation, number, series, date, time, nameStock,
+                           countAssemblyDetail, quantityAssemblyDetail, sumAssemblyDetail
+                             
+    PROPERTIES(a) READONLY note
+
+    PROPERTIES(a) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                 postedNameUser, postedTime, postedHostnameComputer
+
+    PROPERTIES(a) NEWSESSION NEW, EDIT SHOWIF isOpened(a), DELETE SHOWIF isOpened(a) 
+    PROPERTIES(a) close SHOWIF isOpened(a), open SHOWIF isClosed(a)     
+    
+    OBJECTS d = AssemblyDetail
+    PROPERTIES(d) READONLY index,
+                           idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
+                           quantity, price, sum
+    FILTERS assembly(d) = a
+;
+@extendFormFilterAccessStock(Assembly, a, assemblies, stock, company);
+
+DESIGN assemblies {
+    OBJECTS {
+        NEW tabbedPane {
+            fill = 0.5;
+            type = TABBED;
+
+            MOVE BOX(d) {
+                caption = 'Спецификация';
+            }
+            NEW history {
+                caption = 'История';
+
+                MOVE GROUP(created,a);
+                MOVE GROUP(posted,a);
+            }
+            NEW print {
+                caption = 'Печатные формы';
+            }
+            NEW actions {
+                caption = 'Действия';
+            }
+        }
+    }
+}
+@defineFilterIsOpened (assembly, assemblies, a);
+@extendFormFilterRoleAccess(assembly, a, assemblies);
+
+NAVIGATOR {
+    stockNavigator {
+        NEW FOLDER assemblyNavigator 'Сборка' BEFORE balanceSku {
+            NEW assemblies;
+            NEW operations;
+        }
+    }
+}
+
+// -- цены
+
+WHEN LOCAL (CHANGED(sku(AssemblyDetail d)) OR
+            CHANGED(stock(d)) OR
+            (CHANGED(dateTime(d)) AND NOT isPosted(d)) OR
+            DROPPED(disassembly(d))) AND NOT disassembly(d) AND NOT CHANGED(price(d)) DO
+    price(d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d));
+
+WHEN LOCAL (CHANGED(sumAssemblyDetail(Assembly a)) OR DROPPED(disassembly(a))) AND 
+            NOT disassembly(a) AND NOT CHANGED(sum(a)) DO
+    sum(a) <- sumAssemblyDetail(a);
+
+WHEN LOCAL (CHANGED(sum(Assembly a)) OR CHANGED(quantity(a)) OR DROPPED(disassembly(a))) AND 
+            NOT disassembly(a) AND NOT CHANGED(price(a)) DO
+    price(a) <- NUMERIC[16,4](sum(a) / quantity(a));
+
+WHEN LOCAL (CHANGED(sku(Assembly a)) OR
+            CHANGED(stock(a)) OR
+            (CHANGED(dateTime(a)) AND NOT isPosted(a)) OR
+            SET(disassembly(a))) AND disassembly(a) AND NOT CHANGED(price(a)) DO
+    price(a) <- prevAccountPriceB(sku(a), stock(a), dateTime(a));
+
+percent 'Процент цены' = DATA NUMERIC[16,2] (AssemblyDetail);
+
+calculatePrice 'Рассчитать цены' (Assembly a) {
+    sum(AssemblyDetail d) <- (PARTITION UNGROUP sum
+                                        PROPORTION STRICT ROUND(2) percent(d)
+                                        ORDER d
+                                        BY assembly(d)) WHERE assembly(d) = a;
+    price(AssemblyDetail d) <- NUMERIC[16,4](sum(d) / quantity(d)) WHERE assembly(d) = a;
+}
+
+EXTEND FORM assembly
+    PROPERTIES(d) percent AFTER quantity(d) SHOWIF disassembly(a)
+    
+    PROPERTIES(a) calculatePrice SHOWIF disassembly(a) DRAW d TOOLBAR
+;
+
+// -- Сборка
+   
+CLASS AssemblyOutSkuLedger 'Сборка товара (расход)';
+TABLE assemblyOutSkuLedger(AssemblyOutSkuLedger);
+
+assemblyOutSkuLedger = AGGR AssemblyOutSkuLedger WHERE isPosted(AssemblyDetail assemblyDetail) AND NOT disassembly(assemblyDetail) MATERIALIZED INDEXED;
+
+dateTime(AssemblyOutSkuLedger l) = dateTime(assemblyDetail(l));
+isPosted(AssemblyOutSkuLedger l) = isPosted(assemblyDetail(l));
+isClosed(AssemblyOutSkuLedger l) = isClosed(assemblyDetail(l));
+sku(AssemblyOutSkuLedger l) = sku(assemblyDetail(l));
+stock(AssemblyOutSkuLedger l) = stock(assemblyDetail(l));
+description(AssemblyOutSkuLedger l) = description(assemblyDetail(l));
+quantity(AssemblyOutSkuLedger l) = quantity(assemblyDetail(l));
+sum(AssemblyOutSkuLedger l) = sum(assemblyDetail(l));
+
+@implementSkuLedgerOutFIFO(AssemblyOutSkuLedger, sku, stock);
+
+quantity(AssemblyOutSkuLedger l) += quantity(l);
+sum(AssemblyOutSkuLedger l) += sum(l);
+
+show(AssemblyOutSkuLedger l) + { show(assemblyDetail(l)); } 
+
+// Разборка
+CLASS AssemblyInSkuLedger 'Сборка товара (приход)';
+TABLE assemblyInSkuLedger(AssemblyInSkuLedger);
+
+assemblyInSkuLedger = AGGR AssemblyInSkuLedger WHERE isPosted(Assembly assembly) AND NOT disassembly(assembly) MATERIALIZED INDEXED;
+
+dateTime(AssemblyInSkuLedger l) = dateTime(assembly(l));
+isPosted(AssemblyInSkuLedger l) = isPosted(assembly(l));
+isClosed(AssemblyInSkuLedger l) = isClosed(assembly(l));
+sku(AssemblyInSkuLedger l) = sku(assembly(l));
+stock(AssemblyInSkuLedger l) = stock(assembly(l));
+description(AssemblyInSkuLedger l) = description(assembly(l));
+quantity(AssemblyInSkuLedger l) = quantity(assembly(l));
+price(AssemblyInSkuLedger l) = price(assembly(l));
+sum(AssemblyInSkuLedger l) = sum(assembly(l));
+
+@implementBatch(AssemblyInSkuLedger, sku, stock, price);
+
+quantity(AssemblyInSkuLedger l) += quantity(l);
+sum(AssemblyInSkuLedger l) += sum(l);
+
+show(AssemblyInSkuLedger l) + { show(assembly(l)); } 
+
+// -- Разборка
+
+// Разборка
+CLASS DisassemblyOutSkuLedger 'Разборка товара (расход)';
+TABLE disassemblyOutSkuLedger(DisassemblyOutSkuLedger);
+
+disassemblyOutSkuLedger = AGGR DisassemblyOutSkuLedger WHERE disassembly(Assembly assembly) AND isPosted(assembly) MATERIALIZED INDEXED;
+
+dateTime(DisassemblyOutSkuLedger l) = dateTime(assembly(l));
+isPosted(DisassemblyOutSkuLedger l) = isPosted(assembly(l));
+isClosed(DisassemblyOutSkuLedger l) = isClosed(assembly(l));
+sku(DisassemblyOutSkuLedger l) = sku(assembly(l));
+stock(DisassemblyOutSkuLedger l) = stock(assembly(l));
+description(DisassemblyOutSkuLedger l) = description(assembly(l));
+quantity(DisassemblyOutSkuLedger l) = quantity(assembly(l));
+sum(DisassemblyOutSkuLedger l) = sum(assembly(l));
+
+@implementSkuLedgerOutFIFO(DisassemblyOutSkuLedger, sku, stock);
+
+quantity(DisassemblyOutSkuLedger l) += quantity(l);
+sum(DisassemblyOutSkuLedger l) += sum(l);
+
+show(DisassemblyOutSkuLedger l) + { show(assembly(l)); } 
+
+// Разборка
+CLASS DisassemblyInSkuLedger 'Разборка товара (приход)';
+TABLE disassemblyInSkuLedger(DisassemblyInSkuLedger);
+
+disassemblyInSkuLedger = AGGR DisassemblyInSkuLedger WHERE disassembly(AssemblyDetail assemblyDetail) AND isPosted(assemblyDetail) MATERIALIZED INDEXED;
+
+dateTime(DisassemblyInSkuLedger l) = dateTime(assemblyDetail(l));
+isPosted(DisassemblyInSkuLedger l) = isPosted(assemblyDetail(l));
+isClosed(DisassemblyInSkuLedger l) = isClosed(assemblyDetail(l));
+sku(DisassemblyInSkuLedger l) = sku(assemblyDetail(l));
+stock(DisassemblyInSkuLedger l) = stock(assemblyDetail(l));
+description(DisassemblyInSkuLedger l) = description(assemblyDetail(l));
+quantity(DisassemblyInSkuLedger l) = quantity(assemblyDetail(l));
+price(DisassemblyInSkuLedger l) = price(assemblyDetail(l));
+sum(DisassemblyInSkuLedger l) = sum(assemblyDetail(l));
+
+@implementBatch(DisassemblyInSkuLedger, sku, stock, price);
+
+quantity(DisassemblyInSkuLedger l) += quantity(l);
+sum(DisassemblyInSkuLedger l) += sum(l);
+
+show(DisassemblyInSkuLedger l) + { show(assemblyDetail(l)); } 

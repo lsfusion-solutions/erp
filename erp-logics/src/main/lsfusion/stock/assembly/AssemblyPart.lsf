@@ -1,0 +1,20 @@
+MODULE AssemblyPart;
+
+REQUIRE Assembly, ItemPart;
+
+NAMESPACE Assembly;
+
+fillDetail 'Заполнить строки' (Assembly a) {
+    FOR set(Part p) = sku(a) NEW d = AssemblyDetail DO {
+        assembly(d) <- a;
+        sku(d) <- item(p);
+        percent(d) <- percent(p);
+        quantity(d) <- NUMERIC[16,5](quantity(a) * quantity(p));
+    }
+    
+    calculatePrice(a); 
+}
+
+EXTEND FORM assembly
+    PROPERTIES(a) fillDetail SHOWIF countPart(sku(a)) DRAW d TOOLBAR
+;
