@@ -16,14 +16,16 @@ TABLE TTLWarehouse(TTLWarehouse);
 
 id 'Код' = DATA INTEGER (TTLWarehouse) IN base;
 comment 'Примечание' = DATA STRING[150](TTLWarehouse) IN base;
-
+readonlyWarehouse = ABSTRACT BOOLEAN ();
 META defineTTLWarehouse(NS, stock, class, obj, cont)
     TTLWarehouse = DATA TTLWarehouse(NS.###class);
-    idTTLWarehouse##NS 'Код склада'(NS.###class i) = OVERRIDE id(TTLWarehouse(i)), idTTL(stock##Stock(i)) CHARWIDTH 10 IN documentHeader;
-    isTTL###NS (NS.###class invoice) = isTTL(stock##Stock(invoice));
+    idTTLWarehouse##NS 'Код склада' = ABSTRACT VALUE INTEGER (NS.###class) CHARWIDTH 10 IN documentHeader;
+    idTTLWarehouse##NS (NS.###class i) += OVERRIDE id(TTLWarehouse(i)), idTTL(stock##Stock(i));
+    isTTL###NS = ABSTRACT VALUE BOOLEAN  (NS.###class);
+    isTTL###NS(NS.###class i)+=isTTL(stock##Stock(i)) ;
     
     EXTEND FORM NS.class
-        PROPERTIES (obj) idTTLWarehouse##NS SHOWIF isTTL##NS(obj);
+        PROPERTIES (obj) idTTLWarehouse##NS SHOWIF isTTL##NS(obj) READONLYIF readonlyWarehouse();
         
     DESIGN NS.class {
         header###cont {
@@ -506,7 +508,8 @@ dateStatusTTL 'Время статуса выгрузки ТТЛ' = DATA DATETIM
 nameStatusTTL 'Статус выгрузки ТТЛ' (Sale.Order i) = nameStatus(statusTTL(i)) IN wms;
 statusNoteTTL 'Причина отклонения' = DATA STRING[500](Sale.Order) IN wms;
 
-isTTLSale(Sale.Order o) = isTTL(supplierStock(o));
+@defineTTLWarehouse(Sale, supplier, userOrder, o, row111);
+
 showStatusTTL(Sale.Order o) = isTTLSale(o) AND statusTTL(o) == 40;
 
 changeNumber 'Сгенерировать новый номер'(Sale.Order o)  { 
@@ -533,8 +536,6 @@ DESIGN Sale.orders {
     }
 }
     
-@defineTTLWarehouse(Sale, supplier, userOrder, o, row111);
-
 in = DATA LOCAL BOOLEAN (Sale.Order);
 customerCode(Sale.Order o) = customerCodeTTL() IF o IS Sale.Order;
 ttnCount(Sale.Order o) = 1 IF o IS Sale.Order;
@@ -577,7 +578,7 @@ exportSaleOrderDetailTTLCustom  INTERNAL  'lsfusion.erp.integration.wms.ttl.Expo
 
 
 exportWMS(Sale.Order order) + { 
-	IF isTTL(supplierStock(order)) THEN NEWSESSION {
+	IF isTTLSale(order) THEN NEWSESSION {
 	    IF NOT skipCheckStatus() THEN {
             FOR NOT statusTTL(sku(Sale.OrderDetail d)) == 90 AND order(d) == order DO 
                 MESSAGE 'Товар ' + idSku(d) + ' не обработан логистическим оператором' NOWAIT;
@@ -616,7 +617,7 @@ exportWMS(Sale.Order order) + {
 	}
 }
 
-isLogisticsSale(Sale.Order o) +=  isTTL(supplierStock(o));
+isLogisticsSale(Sale.Order o) +=  isTTLSale(o);
 
 //корректировка накладной на выписке
 toInvoiceTTL = DATA LOCAL NUMERIC[16,5] (Stock, Sku);
@@ -701,8 +702,8 @@ beforeCreateInvoice(Sale.Order order)+ {
 
 isTTLSale(Sale.Invoice o) = isTTL(supplierStock(o));
 showBlankCode(Sale.UserInvoice o) += isTTL(supplierStock(o));
-
-CONSTRAINT (SET(isPosted(Sale.UserInvoice i)) OR SETCHANGED (supplierStock(i))) AND isPosted(i) AND isTTLSale(i) AND NOT blankCode(i) 
+skipBlankCode = ABSTRACT BOOLEAN ();
+CONSTRAINT (SET(isPosted(Sale.UserInvoice i)) OR SETCHANGED (supplierStock(i))) AND isPosted(i) AND isTTLSale(i) AND NOT blankCode(i)  AND NOT skipBlankCode()
     MESSAGE 'Для накладной должен быть задан код типа бланка';
     
 maxSaleOrder (Sale.Invoice i) = GROUP MAX Sale.Order o IF include(o, i);
@@ -759,7 +760,8 @@ WHEN SETCHANGED (number(Purchase.Order o)) DO {
     statusNote(o) <- NULL;
 }
 
-isTTLPurchase(Purchase.Order order) = isTTL(customerStock(order));
+@defineTTLWarehouse(Purchase, customer, userOrder, o, row112);
+
 showStatus(Purchase.Order order) = isTTLPurchase(order) AND status(order) == 40;
 
 EXTEND FORM Purchase.orders 
@@ -775,7 +777,7 @@ DESIGN Purchase.orders {
     }
 }
 
-@defineTTLWarehouse(Purchase, customer, userOrder, o, row112);
+
 @defineTTLWarehouse(SaleReturn, supplier, userOrder, o, row111);
 
 customerCode(Order.Order l) = customerCodeTTL() IF l IS Order.Order;
@@ -913,38 +915,45 @@ checkStatusPurchase 'Проверить статусы ТТЛ для закуп�
 ;
 }
 //партии к приходам
-checkStatusBatchesTTL 'Импортировать партии по приходам'()  { 
-    LOCAL file = FILE ();
-    LOCAL id = INTEGER (INTEGER );
-    LOCAL code = STRING[24](INTEGER );
-    LOCAL qty = NUMERIC[16,3](INTEGER );
-    LOCAL batch = STRING[24](INTEGER );
-    
-    EXTERNAL SQL connectionStringTTL() EXEC 'SELECT p.Id_ReceiptGoods, p.CommitAmount, p.GoodsCode, p.Part ' +
-        'FROM ReceiptGoodsCommitPart p '+
-    	'    JOIN ReceiptGoods rg ON p.Id_ReceiptGoods = rg.Id_ReceiptGoods ' +
-    	'    JOIN Receipt r ON rg.Id_Receipt = r.Id_Receipt ' +
-        'WHERE r.[Status] = 90 AND r.CustomerCode = $1 AND r.StatusDate >= $2'
-        PARAMS customerCodeTTL(), dateTimeFromStatus() TO file;
-    
-    IMPORT TABLE
-        FROM file() 
-        TO id, qty, code, batch;
+useCheckStatusBatchesTTLCustom = ABSTRACT BOOLEAN();
+checkStatusBatchesTTLCustom  ABSTRACT ();
+
+checkStatusBatchesTTL 'Импортировать партии по приходам'() {
+    IF NOT useCheckStatusBatchesTTLCustom() THEN NEWSESSION {
+        LOCAL file = FILE ();
+        LOCAL id = INTEGER (INTEGER );
+        LOCAL code = STRING[24](INTEGER );
+        LOCAL qty = NUMERIC[16,3](INTEGER );
+        LOCAL batch = STRING[24](INTEGER );
         
-    FOR NUMERIC[16,3] q == [ GROUP SUM qty(INTEGER i) BY STRING[100](id(i)), code(i)](STRING[100] id, STRING[24] code) AND (id == id(Purchase.UserInvoiceDetail d) OR id == id(orderDetail(d))) DO {
-        shipmentQuantity(d) <- IF split(UOM(sku(d))) THEN NUMERIC[16,5](q / 1000.0) ELSE NUMERIC[16,5] (q);
+        EXTERNAL SQL connectionStringTTL() EXEC 'SELECT p.Id_ReceiptGoods, p.CommitAmount, p.GoodsCode, p.Part ' +
+            'FROM ReceiptGoodsCommitPart p '+
+            '    JOIN ReceiptGoods rg ON p.Id_ReceiptGoods = rg.Id_ReceiptGoods ' +
+            '    JOIN Receipt r ON rg.Id_Receipt = r.Id_Receipt ' +
+            'WHERE r.[Status] = 90 AND r.CustomerCode = $1 AND r.StatusDate >= $2'
+            PARAMS customerCodeTTL(), dateTimeFromStatus() TO file;
+        
+        IMPORT TABLE
+            FROM file() 
+            TO id, qty, code, batch;
+            
+        FOR NUMERIC[16,3] q == [ GROUP SUM qty(INTEGER i) BY STRING[100](id(i)), code(i)](STRING[100] id, STRING[24] code) AND (id == id(Purchase.UserInvoiceDetail d) OR id == id(orderDetail(d))) DO {
+            shipmentQuantity(d) <- IF split(UOM(sku(d))) THEN NUMERIC[16,5](q / 1000.0) ELSE NUMERIC[16,5] (q);
+        }
+        
+        FOR [ GROUP SUM 1 BY STRING[100](id(INTEGER i)), code(i), batch(i)](STRING[100] id, STRING[24] code, STRING[24] batch) AND (id == id(Purchase.UserInvoiceDetail d) OR id == id(orderDetail(d))) DO {
+            idBatch(d) <- code + batch;     
+        }
+        
+        FOR SETCHANGED (overIdBatchPurchase(Purchase.UserInvoiceDetail d)) AND isTTLPurchase(userInvoice(d)) DO {
+            in(d) <- TRUE;
+        }
+        exportBatchPriceTTLCustom();
+        
+        APPLY;
+    } ELSE {
+        checkStatusBatchesTTLCustom();
     }
-    
-    FOR [ GROUP SUM 1 BY STRING[100](id(INTEGER i)), code(i), batch(i)](STRING[100] id, STRING[24] code, STRING[24] batch) AND (id == id(Purchase.UserInvoiceDetail d) OR id == id(orderDetail(d))) DO {
-        idBatch(d) <- code + batch;     
-    }
-    
-    FOR SETCHANGED (overIdBatchPurchase(Purchase.UserInvoiceDetail d)) AND isTTLPurchase(userInvoice(d)) DO {
-        in(d) <- TRUE;
-    }
-    exportBatchPriceTTLCustom();
-    
-    APPLY;
 }
 
 //расход на магазин
