@@ -368,14 +368,14 @@ checkCloseDate = DATA DATE (UserPriceListDetail);
 closePriceLists 'Исключить прайсы с компанией из регистра до даты' () {
     NEWSESSION {
         FOR fromDate(UserPriceListDetail d) < subtract(currentDate(), daysToClosePriceList()) AND in(d, priceListTypeToClosePriceList()) AND company(d)
-            AND NOT exclude(d) AND NOT checkCloseDate(d) >= subtract(currentDate(), checkClosePriceListInterval())  ORDER fromDateTime(d), d DO {
+            AND NOT exclude(d) AND NOT checkCloseDate(d) >= subtract(currentDate(), checkClosePriceListInterval()) ORDER fromDateTime(d), d DO {
             
             LOCAL notSkip = BOOLEAN ();
             IF active(sku(d)) THEN {
                 FOR in(userPriceList(d), Stock s) AND active(s) AND in(d, DataPriceListType t) DO {
                     IF prevPriceListLedgerA(t, sku(d), s, company(d), currentDateTime()) == d OR prevPriceListLedgerA(t, sku(d), s, company(d), 2040_01_01_00:00) == d THEN {
                         notSkip() <- TRUE;
-                        logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), company(d), idBarcodeSku(d), name(s), name(t));
+                        logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), nameCompany(d), idBarcodeSku(d), name(s), name(t));
                         checkCloseDate(d) <- currentDate();
                         BREAK;
                     }
@@ -384,7 +384,7 @@ closePriceLists 'Исключить прайсы с компанией из ре
             
             IF NOT notSkip() THEN {
                 exclude(d) <- TRUE;
-                logToFile('closePriceList', CONCAT '-', 'CLOSE', date(d), number(d), company(d), idBarcodeSku(d));
+                logToFile('closePriceList', CONCAT '-', 'CLOSE', date(d), number(d), nameCompany(d), idBarcodeSku(d));
                 IF (GROUP SUM 1 IF CHANGED (exclude(UserPriceListDetail dd))) > 99 THEN {
                     logToFile('closePriceList',CONCAT '-', 'APPLY');
                     APPLY;
