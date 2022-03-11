@@ -519,10 +519,14 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("requested getItemHtml");
                             String[] params = readParams(inFromClient);
-                            if (params.length == 2) {
-                                priceCheckerLogger.info(String.format("requested barcode '%s', stock '%s'", params[0], params[1]));
+                            String idApplication = "";
+                            if (params.length >= 2) {
                                 String barcode = params[0];
                                 String idStock = params[1];
+                                if (params.length >= 3)
+                                    idApplication = params[2];
+
+                                priceCheckerLogger.info(String.format("requested barcode '%s', stock '%s', application '%s'", params[0], params[1], idApplication));
                                 result = readItemHtml(barcode, idStock);
                                 if (result == null) {
                                     errorCode = ITEM_NOT_FOUND;
