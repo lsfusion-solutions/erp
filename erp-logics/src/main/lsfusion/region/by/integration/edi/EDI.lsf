@@ -100,8 +100,9 @@ DESIGN EDIProviders {
 
 GLN 'GLN' = DATA STRING[13] (LegalEntity);
 legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity llegalEntity BY GLN(llegalEntity);
-GLNSupplier(EOrder e) = GLN(supplier(e));
-GLNCustomer(EOrder e) = GLN(customer(e));
+extraGLN = ABSTRACT STRING[13] (LegalEntity);
+GLNSupplier(EOrder e) = OVERRIDE GLN(supplier(e)), extraGLN(supplier(e));
+GLNCustomer(EOrder e) = OVERRIDE GLN(customer(e)), extraGLN(customer(e));
 
 notUseStockGLN 'Не использовать GLN склада для заказа' = DATA BOOLEAN  (LegalEntity);
 banCancel 'Запретить отмену заказа' = DATA BOOLEAN(LegalEntity);
@@ -174,7 +175,7 @@ legalEntityStockGLN(STRING[13] GLN) = legalEntity(stockGLN(GLN));
 userID 'Идентификатор пользователя' = ABSTRACT STRING[35] (Stock);
 stockGLNUserID (STRING[13] GLN, STRING[35] userID) = GROUP MIN Stock s IF active(s) AND GLN(s) == GLN AND (OVERRIDE userID(s), '') == userID;
 
-GLNSupplierStock 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplier(e)) ELSE GLN(supplierStock(e));
+GLNSupplierStock 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE GLN(supplierStock(e));
 GLNSupplierStock1 'GLN склада поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplierStock(e));
 GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
 
@@ -476,7 +477,7 @@ contractDate 'Дата договора в формате ГГГГММДД (ил
 waybillId 'Номер путевого листа' = DATA STRING[70] (EInvoice);
 
 supplier 'Поставщик' = DATA LegalEntity (EInvoice);
-glnSupplier 'GLN поставщика' (EInvoice i) = GLN(supplier(i));
+glnSupplier 'GLN поставщика' (EInvoice i) = OVERRIDE GLN(supplier(i)), extraGLN(supplier(i));
 nameSupplier 'Поставщик' (EInvoice i) = name(supplier(i));
 addressSupplier 'Адрес поставщика' (EInvoice i) = address(supplier(i));
 unpSupplier 'УНП поставщика' (EInvoice i) = UNP(supplier(i));
@@ -494,14 +495,14 @@ contactSupplierStock 'ФИО и должность лица, которое от
 userIDSupplierStock 'Идентификатор пользователя' (EInvoice i) = userID(supplierStock(i));
 
 freightPayer 'Заказчик автомобильной перевозки (плательщик)' = DATA LegalEntity (EInvoice);
-glnFreightPayer 'GLN заказчика автомобильной перевозки' (EInvoice i) = GLN(freightPayer(i));
+glnFreightPayer 'GLN заказчика автомобильной перевозки' (EInvoice i) = OVERRIDE GLN(freightPayer(i)), extraGLN(freightPayer(i));
 nameFreightPayer 'Заказчик автомобильной перевозки' (EInvoice i) = name(freightPayer(i));
 addressFreightPayer 'Адрес заказчика автомобильной перевозки' (EInvoice i) = address(freightPayer(i));
 unpFreightPayer 'УНП заказчика автомобильной перевозки' (EInvoice i) = UNP(freightPayer(i));
 
 customer 'Покупатель' = DATA LegalEntity (EInvoice);
 nameCustomer 'Покупатель' (EInvoice i) = name(customer(i));
-glnCustomer 'GLN покупателя' (EInvoice i) = GLN(customer(i));
+glnCustomer 'GLN покупателя' (EInvoice i) = OVERRIDE GLN(customer(i)), extraGLN(customer(i));
 addressCustomer 'Адрес покупателя' (EInvoice i) = address(customer(i));
 unpCustomer 'УНП покупателя' (EInvoice i) = UNP(customer(i));
 
