@@ -193,55 +193,64 @@ addItemsEZ 'Добавление товара по GTIN' (STRING[14] gtin, LotOr
 checkGtin = DATA LOCAL STRING[14] (INTEGER);
 isCheckGTINEZ = DATA BOOLEAN (STRING[14]);
 
-count(LotOrder o, STRING[14] gtin) = GROUP SUM 1 IF gtin == gtin(LotOrderDetail d) AND o == lotOrder(d);
+indexGtin (LotOrder o, STRING[14] gtin) = 
+    PARTITION SUM 1 IF quantity(o, gtin) ORDER gtin BY o CHARWIDTH 4;
+    
+// свойство деления на сотни: п/номера GTIN 1-100 имеют значение по сотням 1, 101-200 попадают в 2-й сотню и т.д.
+indexGtin100 (LotOrder o, STRING[14] gtin) = (indexGtin(o, gtin) - 1) / 100 + 1; 
+
+count(LotOrder o, INTEGER i) = GROUP SUM 1 IF quantity(o, STRING[14] gtin) AND indexGtin100(o, gtin) == i;
+count100(LotOrder o, STRING[14] gtin, INTEGER i) = GROUP SUM 1 IF gtin == gtin(LotOrderDetail d) AND o == lotOrder(d) AND indexGtin100(o, gtin) == i;
 
 checkGTINEZ 'Проверка GTIN' (LotOrder o) { 
     isFindItemsEZ(STRING[14] str) <- NULL;
     isCheckGTINEZ(STRING[14] str) <- NULL; 
-    LOCAL strResult = STRING ();
     LOCAL notFound = BOOLEAN (STRING[14]);
-    
-    FOR (STRING[14] gtin) AND (count(o, gtin) > 0)  DO {
-        findItemsEZ(gtin, o);
-        
-        IF NOT isFindItemsEZ(gtin) THEN addItemsEZ(gtin, o);
-        
-        notFound(gtin) <- NOT isFindItemsEZ(gtin);
-        
-        IF isFindItemsEZ(gtin) THEN strResult() <- CONCAT ', ', strResult(), '"' + gtin + '"';
-    }
-    
-    IF (GROUP SUM 1 IF notFound(STRING[14] gtin)) THEN {
-        MESSAGE ('Не найдены товары со следующими GTIN: ' + GROUP CONCAT STRING[14] gtin IF notFound(gtin), ', ' ORDER gtin) NOWAIT;
-        RETURN;
-    }
-        
-    fileToString(exportFile());   
-//    strResult() <- '\{"gtin_list": [ ' + (GROUP CONCAT '"' + STRING[14] gtin + '"' IF (count(o, gtin) > 0), ', ' ORDER gtin) + '] \}';
-    strResult() <- '\{"gtin_list": [ ' + strResult()  + '] \}';
-    
-    stringToFile(strResult());
-           
-    LOCAL result = FILE();    
-      
-    exception(o) <- NULL;  
-    
-    TRY {
-        EXTERNAL HTTP POST urlEZ() + '/items/checkGtin' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
-    } CATCH {
-        handleException(o, result());
-        RETURN;
-    }       
-    fileToString(result());       
-//    MESSAGE resultString();
-      
     LOCAL notCheck = BOOLEAN (STRING[14]);
+    
+    FOR count(o, INTEGER k) DO {  
+    
+        LOCAL strResult = STRING ();
+        
+        FOR (STRING[14] gtin) AND (count100(o, gtin, k) > 0)  DO {
+            findItemsEZ(gtin, o);
+            
+            IF NOT isFindItemsEZ(gtin) THEN addItemsEZ(gtin, o);
+            
+            notFound(gtin) <- NOT isFindItemsEZ(gtin);
+            
+            IF isFindItemsEZ(gtin) THEN strResult() <- CONCAT ', ', strResult(), '"' + gtin + '"';
+        }
+        
+        IF (GROUP SUM 1 IF notFound(STRING[14] gtin)) THEN {
+            MESSAGE ('Не найдены товары со следующими GTIN: ' + GROUP CONCAT STRING[14] gtin IF notFound(gtin), ', ' ORDER gtin) NOWAIT;
+            RETURN;
+        }
+            
+        fileToString(exportFile());   
+//        strResult() <- '\{"gtin_list": [ ' + (GROUP CONCAT '"' + STRING[14] gtin + '"' IF (count(o, gtin) > 0), ', ' ORDER gtin) + '] \}';
+        strResult() <- '\{"gtin_list": [ ' + strResult()  + '] \}';
+        
+        stringToFile(strResult());
+               
+        LOCAL result = FILE();    
           
-    // ответ {"04813612846760":{"gtin_check":true}} проверка на наличие true
-    FOR (STRING[14] gtin) AND ((GROUP SUM 1 IF gtin == gtin(LotOrderDetail d) AND o == lotOrder(d)) > 0)  DO {
-        FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND gtin == jsonAttributeKey(resultString(),i) DO {
-            isCheckGTINEZ(gtin) <- isSubstring(STRING(jsonAttributeValue(resultString(),i)), 'true');
-            notCheck(gtin) <- NOT isCheckGTINEZ(gtin);
+        exception(o) <- NULL;  
+        
+        TRY {
+            EXTERNAL HTTP POST urlEZ() + '/items/checkGtin' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
+        } CATCH {
+            handleException(o, result());
+            RETURN;
+        }       
+        fileToString(result());       
+//        MESSAGE resultString();
+        // ответ {"04813612846760":{"gtin_check":true}} проверка на наличие true
+        FOR (STRING[14] gtin) AND ((GROUP SUM 1 IF gtin == gtin(LotOrderDetail d) AND o == lotOrder(d)) > 0)  DO {
+            FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND gtin == jsonAttributeKey(resultString(),i) DO {
+                isCheckGTINEZ(gtin) <- isSubstring(STRING(jsonAttributeValue(resultString(),i)), 'true');
+                notCheck(gtin) <- NOT isCheckGTINEZ(gtin);
+            }
         }
     }
     
@@ -269,14 +278,18 @@ DESIGN lotOrders {
 idOrderExt (LotOrder o, STRING[14] gtin) = idOrderEZ (GROUP MIN LotOrderDetail d IF o == lotOrder(d) AND gtin(d) == gtin);
 identificationMeansType 'Вид средства идентификации' = DATA IdentificationMeansType (LotOrder) NONULL;
 
-listGTINJSON (LotOrder o) = 
-GROUP CONCAT STRING(CONCAT '','"', (STRING[14] gtin), '": \{ "count": ', INTEGER(quantity(o, gtin)), ', ',
-                                              '"label_type": ', id(identificationMeansType(o)), ' \}'), ', ' IF quantity(o, gtin) AND NOT idOrderExt(o, gtin) ORDER gtin; 
-
-addGroupOrdersJSON (LotOrder o) = CONCAT '', '\{ "group": "' + codeGroup(type(o)) + '", ' + 
-                                                    '"orders": \{ ' + listGTINJSON(o) + ' \} \}';
-
 listidOrderEZ (LotOrder o)= GROUP CONCAT STRING(idOrderExt (o, STRING[14] gtin)), ', ' ORDER gtin;
+
+listGTINJSON100 (LotOrder o, INTEGER i) = 
+    GROUP CONCAT STRING(CONCAT '','"', (STRING[14] gtin), '": \{ "count": ', INTEGER(quantity(o, gtin)), ', ',
+        '"label_type": ', id(identificationMeansType(o)), ' \}'), ', ' 
+        IF quantity(o, gtin) AND indexGtin100(o, gtin) == i AND NOT idOrderExt(o, gtin) ORDER gtin;
+                                              
+addGroupOrdersJSON100 (LotOrder o, INTEGER i) = CONCAT '', '\{ "group": "' + codeGroup(type(o)) + '", ' + 
+                                                    '"orders": \{ ' + listGTINJSON100(o, i) + ' \} \}';     
+
+indexGtin(LotOrderDetail d) = indexGtin(lotOrder(d), gtin(d));
+indexGtin100(LotOrderDetail d) = indexGtin100(lotOrder(d), gtin(d));
 
 addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {    
     checkGTINEZ(o);
@@ -289,44 +302,47 @@ addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {
         RETURN;
     }
     
-    NEWSESSION {
-        stringToFile(addGroupOrdersJSON(o));  
+    FOR listGTINJSON100(o, INTEGER k) DO {    
+        NEWSESSION {
+            stringToFile(addGroupOrdersJSON100(o, k));  
+            
+            LOCAL result = FILE();
+            fileToString(resultFile());
+//            MESSAGE resultString();
+            exception(o) <- NULL;                     
         
-        LOCAL result = FILE();
-        fileToString(resultFile());
-//                MESSAGE resultString();
-        exception(o) <- NULL;                     
-    
-        TRY {
-            EXTERNAL HTTP POST urlEZ() + '/v2/orders/addGroupOrders' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
-        } CATCH {
-            handleException(o, result());
-            RETURN;
-        }
-        
-        LOCAL strResult = STRING ();
-        
-        fileToString(result());
-//        MESSAGE resultString();
-      
-        FOR quantity(o, STRING[14] gtin) DO {
-            FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND gtin == jsonAttributeKey(resultString(),i) DO {
-                LOCAL subJson = STRING (); 
-                subJson() <- STRING(jsonAttributeValue(resultString(),i));
-                        
-                FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson())) DO {
-                    IF 'id' == jsonAttributeKey1(subJson(),j) THEN {
-                        idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue1(subJson(),j)),'"','') WHERE gtin(d) == gtin AND o == lotOrder(d);
-                    } ELSE IF 'created_at' == jsonAttributeKey1(subJson(),j) THEN {
-                        createdTime(o) <- toDateTimeFormat(replace(STRING(jsonAttributeValue1(subJson(),j)),'"',''), 'yyyy-MM-ddThh24:mi:ss');
-                    }
-                }       
+            TRY {
+                EXTERNAL HTTP POST urlEZ() + '/v2/orders/addGroupOrders' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
+            } CATCH {
+                handleException(o, result());
+                RETURN;
             }
-        }
-        MESSAGE 'Документ успешно отослан. Присвоены коды: ' + listidOrderEZ(o);
-        
-        APPLY;
-    }    
+            
+            LOCAL strResult = STRING ();
+            
+            fileToString(result());
+//            MESSAGE resultString();
+          
+            FOR quantity(o, STRING[14] gtin) DO {
+                FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND gtin == jsonAttributeKey(resultString(),i) DO {
+                    LOCAL subJson = STRING (); 
+                    subJson() <- STRING(jsonAttributeValue(resultString(),i));
+
+                    FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson())) DO {
+                        IF 'id' == jsonAttributeKey1(subJson(),j) THEN {
+                            idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue1(subJson(),j)),'"','') WHERE gtin(d) == gtin AND o == lotOrder(d);
+                        } ELSE IF 'created_at' == jsonAttributeKey1(subJson(),j) THEN {
+                            createdTime(o) <- toDateTimeFormat(replace(STRING(jsonAttributeValue1(subJson(),j)),'"',''), 'yyyy-MM-ddThh24:mi:ss');
+                        }
+                    }       
+                }
+            }
+            
+            APPLY;
+        }                   
+    } 
+    
+    MESSAGE 'Документ успешно отослан. Присвоены коды: ' + listidOrderEZ(o);
 }
 
 isAllIdSet(LotOrder o) = (GROUP SUM 1 IF idOrderEZ (LotOrderDetail d) AND o == lotOrder(d)) == (GROUP SUM 1 IF o == lotOrder(LotOrderDetail d));
@@ -609,7 +625,7 @@ EXTEND FORM lots
     PROPERTIES (l) getStatusApply TOOLBAR
 ;
 
-isSuitableTNVEDClothes (Sku sku) = 
+isSuitableTNVEDClothes 'Соответствие по ТНВЭД' (Sku sku) = 
     GROUP SUM 1 IF isParent(customsGroup(defaultCountry(), sku), CustomsGroup g) AND 
                    (code(g) == '6201' OR code(g) == '6202' OR code(g) == '6302');
 
