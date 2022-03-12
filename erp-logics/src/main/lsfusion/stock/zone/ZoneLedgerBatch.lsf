@@ -1,0 +1,125 @@
+MODULE ZoneLedgerBatch;
+
+REQUIRE ZoneLedger;
+
+NAMESPACE Zone;
+
+batch (ledger) = ABSTRACT Batch (ZoneLedger) MATERIALIZED INDEXED;
+idBatch 'Код партии' (ZoneLedger l) = id(batch(l));
+nameBatch 'Партия' (ZoneLedger ledger) = name(batch(ledger));
+
+INDEX fromZone(ZoneLedger l), stock(l), batch(l), dateTime(l);
+
+INDEX toZone(ZoneLedger l), stock(l), batch(l), dateTime(l);
+
+quantityZoneLedgerFrom (st, fz ,bt) = 
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) BY stock(d), fromZone(d), batch(d);
+quantityZoneLedgerTo (st, tz, bt) = 
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) BY stock(d), toZone(d), batch(d);    
+
+TABLE stockZoneBatch(Stock, Zone, Batch);
+currentBalance 'Текущий остаток' (Stock st, Zone z, Batch bt) =  quantityZoneLedgerTo(st,z,bt) (-) quantityZoneLedgerFrom(st,z,bt) MATERIALIZED;
+prevCurrentBalance(Stock st, Zone z, Batch bt)= PREV(currentBalance(st, z, bt));
+
+currentBalanceDefectZone 'Зона брака (текущий остаток)' (Stock st, Batch bt) = currentBalance(st, Zone.defect, bt);    
+currentBalanceReturnZone 'Зона возврата (текущий остаток)' (Stock st, Batch bt) = currentBalance(st, Zone.return, bt);  
+currentBalanceDiffZone 'Зона расхождения (текущий остаток)' (Stock st, Batch bt) = currentBalance(st, Zone.diff, bt);  
+
+currentBalanceZones 'Текущий остаток в зонах' (Stock st, Batch bt) = GROUP SUM currentBalance(st, Zone z, bt);
+
+prevCurrentBalanceDefectZone 'Зона брака (текущий остаток)'(Stock st, Batch bt)= PREV(currentBalanceDefectZone(st, bt));
+prevCurrentBalanceReturnZone 'Зона возврата (текущий остаток)'(Stock st, Batch bt)= PREV(currentBalanceReturnZone(st, bt));
+prevCurrentBalanceDiffZone 'Зона расхождения (текущий остаток)'(Stock st, Batch bt)= PREV(currentBalanceDiffZone(st, bt));
+prevCurrentBalanceZones 'Текущий остаток' (Stock st, Batch bt)= GROUP SUM prevCurrentBalance(st, Zone z, bt);
+
+overCurrentBalance 'Остаток без зон' (Batch bt, Stock st) = currentBalance(bt, st) (-) (currentBalanceZones(st, bt) IF currentBalanceZones(st, bt) > 0);
+overPrevCurrentBalance 'Остаток без зон' (Batch bt, Stock st) = prevCurrentBalance(bt, st) (-) (prevCurrentBalanceZones(st, bt) IF prevCurrentBalanceZones(st, bt) > 0);
+
+//-- расчет на дату
+quantityZoneLedgerFromB (Zone z, Stock st, Batch bt, DATETIME dt) = 
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) AND dateTime(d) >= dt BY fromZone(d), stock(d), batch(d);
+
+quantityZoneLedgerToB (Zone z, Stock st, Batch bt, DATETIME dt) = 
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) AND dateTime(d) >= dt BY toZone(d), stock(d), batch(d);
+    
+signedQuantityB (Zone z, Stock st, Batch bt, DATETIME dt) = 
+    quantityZoneLedgerToB(z, st, bt, dt) (-) quantityZoneLedgerFromB(z, st, bt, dt);  
+
+balanceB 'Остаток на начало дня' (Stock st, Zone z, Batch bt, DATE date) = 
+    currentBalance(st, z, bt) (-) signedQuantityB(z, st, bt, DATETIME(date));
+prevBalanceB 'Остаток на начало дня' (Stock st, Zone z, Batch bt, DATE date) = PREV(balanceB(st, z, bt, date));
+
+balanceBDefectZone 'Зона брака (остаток на начало дня)' (Stock st, Batch bt, DATE date) = balanceB(st, Zone.defect, bt, date);    
+balanceBReturnZone 'Зона возврата (остаток на начало дня)' (Stock st, Batch bt, DATE date) = balanceB(st, Zone.return, bt, date);  
+balanceBDiffZone 'Зона расхождения (остаток на начало дня)' (Stock st, Batch bt, DATE date) = balanceB(st, Zone.diff, bt, date);  
+
+prevBalanceBDefectZone 'Зона брака (остаток на начало дня)' (Stock st, Batch bt, DATE date) = prevBalanceB(st, Zone.defect, bt, date);    
+prevBalanceBReturnZone 'Зона возврата (остаток на начало дня)' (Stock st, Batch bt, DATE date) = prevBalanceB(st, Zone.return, bt, date);  
+prevBalanceBDiffZone 'Зона расхождения (остаток на начало дня)' (Stock st, Batch bt, DATE date) = prevBalanceB(st, Zone.diff, bt, date); 
+
+balanceA 'Остаток на конец дня' (Stock st, Zone z, Batch bt, DATE date) = 
+    currentBalance(st,z,bt) (-) signedQuantityB(z, st, bt, DATETIME(sum(date, 1)));
+prevBalanceA 'Остаток на конец дня' (Stock st, Zone z, Batch bt, DATE date) = PREV(balanceA(st, z, bt, date));
+
+balanceADefectZone 'Зона брака (остаток на конец дня)' (Stock st, Batch bt, DATE date) = balanceA(st, Zone.defect, bt, date);    
+balanceAReturnZone 'Зона возврата (остаток на конец дня)' (Stock st, Batch bt, DATE date) = balanceA(st, Zone.return, bt, date);  
+balanceADiffZone 'Зона расхождения (остаток на конец дня)' (Stock st, Batch bt, DATE date) = balanceA(st, Zone.diff, bt, date);  
+
+prevBalanceADefectZone 'Зона брака (остаток на конец дня)' (Stock st, Batch bt, DATE date) = prevBalanceA(st, Zone.defect, bt, date);    
+prevBalanceAReturnZone 'Зона возврата (остаток на конец дня)' (Stock st, Batch bt, DATE date) = prevBalanceA(st, Zone.return, bt, date);  
+prevBalanceADiffZone 'Зона расхождения (остаток на конец дня)' (Stock st, Batch bt, DATE date) = prevBalanceA(st, Zone.diff, bt, date);  
+
+//-- расчет на дату/время
+balanceB 'Остаток на начало' (Stock st, Zone z, Batch bt, DATETIME dateTime) = 
+    currentBalance(st, z, bt) (-) signedQuantityB(z, st, bt, dateTime);
+prevBalanceB 'Остаток на начало' (Stock st, Zone z, Batch bt, DATETIME dateTime) = PREV(balanceB(st, z, bt, dateTime)); 
+   
+// form
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES (bt, st) READONLY overCurrentBalance
+                                
+    PROPERTIES (st, bt) READONLY currentBalanceDefectZone, 
+                                currentBalanceReturnZone,
+                                currentBalanceDiffZone
+;
+
+EXTEND FORM zoneLedger
+    PROPERTIES(s) READONLY nameBatch, idBatch
+;
+
+CONSTRAINT SET(currentBalance(Stock st, Zone z, Batch bt) < 0) AND inBanNegativeBalance(z, st)
+    MESSAGE 'На зоне склада не может быть отрицательный остаток по партии';
+CONSTRAINT SET(inBanNegativeBalance(Zone z, Stock st)) AND GROUP MAX Batch bt IF currentBalance(st, z, bt) < 0
+    MESSAGE 'На зоне склада не может быть отрицательный остаток по партии';
+    
+EXTEND FORM currentBalanceBatchStock
+    OBJECTS z = Zone
+    PROPERTIES READONLY name(z), currentBalance(st, z, bt)
+    FILTERGROUP zoneBalance
+        FILTER 'С остатком' currentBalance(st, z, bt) DEFAULT
+
+    OBJECTS zl = ZoneLedger
+    PROPERTIES(zl) READONLY dateTime, nameFromZone, nameToZone,                          
+                           description, number, quantity
+    PROPERTIES(zl) NEWSESSION EDIT
+    ORDERS dateTime(zl) DESC
+    
+    FILTERS active(zl),
+            batch(zl) = bt,
+            stock(zl) = st
+
+    FILTERGROUP zoneFilter
+        FILTER 'По зоне' fromZone(zl) = z OR toZone(zl) = z DEFAULT
+;
+                                       
+DESIGN currentBalanceBatchStock {
+    ledgerBox {
+        NEW zoneContainer {
+            caption = 'Зоны';
+            type = SPLITH;
+            MOVE BOX(z);            
+            MOVE BOX(zl) { fill = 2; }
+        }
+    }
+}

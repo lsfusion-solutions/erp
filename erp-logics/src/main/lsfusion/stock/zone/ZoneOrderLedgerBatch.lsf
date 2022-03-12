@@ -1,0 +1,36 @@
+MODULE ZoneOrderLedgerBatch;
+
+REQUIRE ZoneOrderLedger, ZoneLedgerBatch;
+
+NAMESPACE Zone;
+
+EXTEND FORM orderBatchLedger
+    OBJECTS z = Zone
+    PROPERTIES READONLY name(z), currentBalance(st, z, bt)
+    FILTERGROUP zoneBalance
+        FILTER 'С остатком' currentBalance(st, z, bt) DEFAULT
+
+    OBJECTS zl = ZoneLedger
+    PROPERTIES(zl) READONLY dateTime, nameFromZone, nameToZone,                          
+                           description, number, quantity
+    PROPERTIES(zl) NEWSESSION EDIT
+    ORDERS dateTime(zl) DESC
+    
+    FILTERS active(zl),
+            batch(zl) = bt,
+            stock(zl) = st
+
+    FILTERGROUP zoneFilter
+        FILTER 'По зоне' fromZone(zl) = z OR toZone(zl) = z DEFAULT
+;
+                                       
+DESIGN orderBatchLedger {
+    row {
+        NEW zoneContainer {
+            caption = 'Зоны';
+            type = SPLITH;
+            MOVE BOX(z);            
+            MOVE BOX(zl) { fill = 2; }
+        }
+    }
+}
