@@ -91,9 +91,10 @@ receipt_date = DATA LOCAL STRING(INTEGER);
 kkt_serial_number = DATA LOCAL STRING(INTEGER);
 fiscal_sign_doc_number = DATA LOCAL STRING(INTEGER);
 fn_serial_number = DATA LOCAL STRING(INTEGER);
+base_document_id = DATA LOCAL STRING ();
 
 FORM saleDoc
-    PROPERTIES() result_sum, sum3 EXTID 'sum'
+    PROPERTIES() result_sum, sum3 EXTID 'sum', base_document_id
 
     OBJECTS doc_discounts = INTEGER
     PROPERTIES(doc_discounts) doc_discounts EXTID 'value'
@@ -179,7 +180,6 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until, BOOLEAN update){
         logToFile('evotor', CONCAT ' : ', 'documents', resultString());
         IMPORT listDocsEvotor JSON FROM f();
         FOR typeDoc(INTEGER i) AND NOT receipt(idDoc(i)) NEW r = Receipt DO{
-            logToFile('evotor', CONCAT ' : ', typeDoc(i), number(i), body(i));
             date(r) <- DATE(getLocalDateTime(close_date(i), time_zone_offset(i)));
             time(r) <- toTime(getLocalDateTime(close_date(i), time_zone_offset(i)));
             zReport(r) <- zReport(session_id(i));
@@ -213,6 +213,7 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until, BOOLEAN update){
                 discountSum(detail) <- discount_sum(j);
                 sum(detail) <- result_sum1(j);
                 receipt(detail) <- r;
+                saleReceipt(detail) <- receipt(base_document_id());
                 afterCreateReceiptDetail(detail, j);
             }
             FOR id(INTEGER k) NEW p = Payment DO {
@@ -290,7 +291,6 @@ afterCreateReceipts(CashRegister c, DATETIME since, FILE f, BOOLEAN update) +{
             zReport(r) <- zReport(session_id(i));
             number(r) <- INTEGER(number(i));
             employee(r) <- employee(close_user_id(i));
-            //id(r) <- idDoc(i);
             stringToFile(body(i));
             IMPORT saleDoc JSON FROM resultFile();
             FOR id1(INTEGER j) AND typeDoc(i) = 'SELL' AND ReceiptDetail detail = receiptDetail(STRING[100](CONCAT '-', uuidEvotor(c), 's', id1(j))) 
@@ -317,6 +317,7 @@ afterCreateReceipts(CashRegister c, DATETIME since, FILE f, BOOLEAN update) +{
                 price(detail) <- price(j);
                 discountSum (detail) <- discount_sum(j);
                 sum(detail) <- result_sum1(j);
+                saleReceipt(detail) <- receipt(base_document_id());
                 receipt(detail) <- r;
                 afterCreateReceiptDetail(detail, j);
             }
