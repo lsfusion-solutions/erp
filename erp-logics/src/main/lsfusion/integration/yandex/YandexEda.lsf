@@ -15,10 +15,31 @@ grantType = DATA STRING[100] (YandexEdaAuth);
 scope = DATA STRING[20] (YandexEdaAuth);
 activeToken = DATA STRING (YandexEdaAuth);
 
+//сессии
+CLASS YandexEdaSession 'Сессии';
+TABLE YandexEdaSession(YandexEdaSession);
+
+auth = DATA YandexEdaAuth (YandexEdaSession);
+dateTime 'Дата/время' = DATA DATETIME (YandexEdaSession);
+expired 'Истёк'= DATA BOOLEAN (YandexEdaSession);
+id 'Токен' = DATA STRING (YandexEdaSession) IN id CHARWIDTH 10;
+INDEX id(YandexEdaSession ys), expired(ys);
+yandexEdaSession = GROUP AGGR YandexEdaSession yandexEdaSession BY id(yandexEdaSession) 
+    IF NOT expired(yandexEdaSession);
+
+
 EXTEND FORM integrationData
     OBJECTS yandex = YandexEdaAuth
-    PROPERTIES (yandex) id, clientId, clientSecret, activeToken
-    PROPERTIES (yandex) NEW, EDIT, DELETE;
+    PROPERTIES (yandex) id, clientId, clientSecret
+    PROPERTIES (yandex) NEW, EDIT, DELETE
+    
+    OBJECTS yandexSession = YandexEdaSession LAST
+    PROPERTIES (yandexSession) READONLY dateTime, expired, id
+    FILTERS auth(yandexSession) = yandex
+    FILTERGROUP expired
+        FILTER 'Активные' NOT expired(yandexSession) DEFAULT 
+;
+
 
 DESIGN integrationData{
     pane{
@@ -26,6 +47,7 @@ DESIGN integrationData{
             NEW yandexEda{
                 caption = 'YandexEda';
                 MOVE BOX (yandex);
+                MOVE BOX (yandexSession);
             }
         }
     }
@@ -41,12 +63,13 @@ security_oauth_token (STRING clieint_id, STRING client_secret, STRING grant_type
     }
     ELSE {
         generateUUID();
-        LOCAL tokenYandex = STRING ();
-        tokenYandex() <- generatedUUID();
-        activeToken(GROUP MAX YandexEdaAuth u IF clieint_id == clientId(u) AND clientSecret(u) == client_secret) 
-            <-  tokenYandex();
-        APPLY;
-        EXPORT JSON FROM access_token = activeToken(GROUP MAX YandexEdaAuth u IF clieint_id == clientId(u) AND clientSecret(u) == client_secret);
+        NEW y = YandexEdaSession {
+            auth(y) <- GROUP MAX YandexEdaAuth u IF clieint_id == clientId(u) AND clientSecret(u) == client_secret;
+            id(y) <- generatedUUID();
+            dateTime(y) <- currentDateTime();
+        } 
+        APPLY NESTED LOCAL;
+        EXPORT JSON FROM access_token = generatedUUID();
     }
 }@@noauth;
 
@@ -134,7 +157,7 @@ v1_nomenclature(FILE f){
     LOCAL tokenClient = STRING ();
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);
     LOCAL aggr = YandexEdaAuth();
-    aggr() <- GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
+    aggr() <- auth(yandexEdaSession(tokenClient()));//GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
     IF NOT (aggr()) THEN {
         statusHttpTo() <- 401;
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
@@ -162,3 +185,6 @@ v1_nomenclature(FILE f){
     }
 }@@noauth;
 
+closeExpiriedToken(){
+    expired(YandexEdaSession y) <- TRUE IF NOT expired(y) AND DATE(y) < currentDate();
+}

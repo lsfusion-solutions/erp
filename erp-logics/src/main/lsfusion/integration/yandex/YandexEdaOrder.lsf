@@ -98,7 +98,7 @@ createOrder(FILE f){
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);;
     logToFile('yandex', CONCAT ' : ', 'Create order');
     LOCAL aggr = YandexEdaAuth();
-    aggr() <- GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
+    aggr() <- auth(yandexEdaSession(tokenClient()));//GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
     IF NOT (aggr()) THEN {
         statusHttpTo() <- 401;
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
@@ -160,7 +160,7 @@ updateOrder(FILE f){
     LOCAL tokenClient = STRING ();
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);;
     LOCAL aggr = YandexEdaAuth();
-    aggr() <- GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
+    aggr() <- auth(yandexEdaSession(tokenClient()));//GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
     IF NOT (aggr()) THEN {
         statusHttpTo() <- 401;
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
@@ -205,7 +205,9 @@ PROPERTIES() eatsId, comment;
 deleteOrder(FILE f){
     LOCAL tokenClient = STRING ();
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);
-    IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
+    LOCAL aggr = YandexEdaAuth();
+    aggr() <- auth(yandexEdaSession(tokenClient()));//GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
+    IF NOT (aggr()) THEN {
         statusHttpTo() <- 401;
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
     }
@@ -261,9 +263,11 @@ FORM getOrder FORMEXTID 'null'
 getOrder (FILE f) {
     LOCAL tokenClient = STRING ();
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);;
-    IF NOT (GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient()) THEN {
+    LOCAL aggr = YandexEdaAuth();
+    aggr() <- auth(yandexEdaSession(tokenClient()));//GROUP MAX YandexEdaAuth u IF activeToken(u) == tokenClient();
+    IF NOT (aggr()) THEN {
         statusHttpTo() <- 401;
-        EXPORT JSON FROM reason = 'Не найден токен авторизации';
+        EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
     }
     ELSE{
         LOCAL path = STRING ();
