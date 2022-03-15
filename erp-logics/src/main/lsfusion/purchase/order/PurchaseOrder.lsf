@@ -224,7 +224,21 @@ DESIGN userOrder {
 }
 
 //--------------------- Проводим по регистру резерва ------------------//
-@implementPurchaseOrderLedger(Order, sku, shipmentDateTime, customerStock, supplier);
+quantityCustomCalc = ABSTRACT NUMERIC[16,5](OrderDetail);
+EXTEND CLASS OrderDetail : OrderLedger;
+dateTime (OrderDetail ledger) += shipmentDateTime(ledger);
+overIsPosted = ABSTRACT VALUE BOOLEAN (OrderDetail);
+isPosted (OrderDetail ledger) += isPosted(ledger) OR overIsPosted(ledger);
+isClosed (OrderDetail ledger) += isClosed(ledger);
+sku[OrderLedger] (OrderDetail ledger) += sku(ledger);
+batch[OrderLedger] (OrderDetail ledger) += batch(ledger);
+stock (OrderDetail ledger) += customerStock(ledger);
+description (OrderDetail ledger) += description(ledger);
+quantity[OrderLedger] (OrderDetail ledger) += OVERRIDE quantityCustomCalc(ledger), quantity(ledger);
+isPurchase (OrderDetail ledger) += ledger IS OrderDetail;
+contact (OrderDetail ledger) += supplier(ledger);
+contactStock (OrderDetail ledger) += supplierStock(ledger);
+
 operation[OrderLedger](OrderDetail ledger) += operation(ledger);
 show[OrderLedger](OrderDetail ledger) + { show[UserOrderDetail](ledger);};
 
