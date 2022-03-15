@@ -261,7 +261,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     closeDate(UserOrder order) <- OVERRIDE overCloseDate(order), sum(shipmentDate(order), (OVERRIDE dataQuantityDaysCloseOrders(stockProp##Stock(order)),quantityDaysCloseOrders(stockProp##Stock(order))))
             WHEN CHANGED(shipmentDate(order)) OR CHANGED(stockProp##Stock(order)) OR CHANGED(overCloseDate(order));    
 
-    WHEN SET (closeDate(UserOrder order) <= currentDate()) DO isClosed(order) <- TRUE;
+    clearApplicationLog () + { 
+    	NEWSESSION {
+            isClosed(Order order) <- TRUE WHERE isOpened(order) AND closeDate(order) <= currentDate();
+            APPLY;
+        }
+    } 
 
     @defineDocumentInterfaceDescription(order, 'Заказ'###sign);
     description[Order.Order](Order order) += description(order);    

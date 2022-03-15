@@ -61,14 +61,15 @@ DESIGN  integrationData {
 connectionStringTTL = 'jdbc:sqlserver://' + sqlHostTTL() + ';databaseName=' + sqlDbNameTTL() + 
                     ';User=' + sqlUsernameTTL() + ';Password=' + sqlPasswordTTL();
                     
-nameStatus (INTEGER i) = CASE WHEN i == 20 THEN '20 – Экспортировано'
+dataNameStatus(INTEGER i) =
+                              CASE WHEN i == 20 THEN '20 – Экспортировано'
                                    WHEN i == 30 THEN '30 – Импортировано'
                                    WHEN i == 40 THEN '40 – Ошибка анализа'
                                    WHEN i == 50 THEN '50 – В обработке'
                                    WHEN i == 90 THEN '90 – Обработано'
                                    WHEN i == -90 THEN '-90 – Отклонено ЛП'
-                                   WHEN i == -91 THEN '-91 – Отозвано заказчиком'
-                                   ELSE STRING[10](i);
+                                   WHEN i == -91 THEN '-91 – Отозвано заказчиком' MATERIALIZED;
+nameStatus (INTEGER i) = OVERRIDE dataNameStatus(i), STRING[10](i);
                                    
 //товары
 customerCode(Sku i) = customerCodeTTL() IF i IS Sku;
