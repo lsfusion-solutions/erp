@@ -1,6 +1,6 @@
 MODULE DiadocUkdDocument;
 
-REQUIRE UkdDocumentLot, DiadocMessage, CryptoPro;
+REQUIRE UkdDocumentLot, DiadocMessage, CryptoPro, DiadocDocument;
 
 NAMESPACE Diadoc;
 
@@ -194,6 +194,124 @@ messageUniversalCorrectionDocument 'Подписать и отправить ч�
                 MESSAGE 'Ошибка отправки УКД ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
             }
             APPLY;
+        }
+    }
+}
+
+FORM universalCorrectionDocumentBuyerTitle FORMEXTID 'UniversalCorrectionDocumentBuyerTitle'
+    PROPERTIES ATTR documentCreator = documentCreator() EXTID 'DocumentCreator',//НаимЭконСубСост - Составитель файла обмена счета-фактуры (информации продавца)
+                    operationContent = operationContent() EXTID 'OperationContent'//СодОпер - Содержание операции
+    
+    PROPERTIES ATTR IN signerDetailsUCD
+                    innSG = inn() EXTID 'Inn',//ИННЮЛ
+                    lastNameSG = surname() EXTID 'LastName',//Фамилия
+                    firstNameSG = firstName() EXTID 'FirstName',//Имя
+                    middleNameSG = patronymic() EXTID 'MiddleName',//Отчество
+                    positionSG = jobTitle() EXTID 'Position',//Должн
+                    signerPowersSG = idSingerPowers() EXTID 'SignerPowers',//ОблПолн - Область полномочий
+                    signerTypeSG = idSignerType() EXTID 'SignerType',
+                    signerStatusSG = idSignerStatus() EXTID 'SignerStatus',//Статус
+                    signerPowersBaseSG = signerPowersBase() EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
+;
+
+FORM dialogUcdBuyerTitle 'Титул покупателя'
+    PROPERTIES() documentCreator, operationContent, nameSingerPowers, nameSignerStatus, nameSignerType, signerPowersBase
+    PROPERTIES() surname, firstName, patronymic, jobTitle, inn
+    
+    EVENTS ON OK BEFORE {
+        IF NOT documentCreator() THEN {
+            MESSAGE 'Не задано наименование экономического субъекта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT operationContent() THEN {
+            MESSAGE 'Не задано содержание операции' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT signerPowers() THEN {
+            MESSAGE 'Не задана область полномочий подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT signerStatus() THEN {
+            MESSAGE 'Не задан статус подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT signerType() THEN {
+            MESSAGE 'Не задан тип подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT surname() THEN {
+            MESSAGE 'Не задана фамилия подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT firstName() THEN {
+            MESSAGE 'Не задано имя подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT jobTitle() THEN {
+            MESSAGE 'Не задана должность подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT inn() THEN {
+            MESSAGE 'Не задан ИНН юридического лица подписанта или индивидуального предпринимателя' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+    }
+;
+
+DESIGN dialogUcdBuyerTitle {
+    GROUP() {
+        columns = 1;
+        type = CONTAINERV;
+        MOVE PROPERTY(documentCreator());
+        MOVE PROPERTY(operationContent());
+        MOVE PROPERTY(nameSingerPowers());
+        MOVE PROPERTY(nameSignerStatus());
+        MOVE PROPERTY(nameSignerType());
+        MOVE PROPERTY(signerPowersBase());
+        MOVE PROPERTY(surname());
+        MOVE PROPERTY(firstName());
+        MOVE PROPERTY(patronymic());
+        MOVE PROPERTY(jobTitle());
+        MOVE PROPERTY(inn());
+    }
+}
+
+overMessageSignatureUcd ABSTRACT (Box, Document);
+overMessageSignature (User u, Box b, Document d) + {
+    IF typeNamedId(d) == 'UniversalCorrectionDocument' THEN NEWSESSION {
+        box() <- b;
+        message() <- message(d);
+        parentEntity(0) <- entity(d);
+        isRecipientTitles(0) <- TRUE;
+        surname() <- STRING[60](lastName(currentUser()));
+        firstName() <- STRING[60](firstName(currentUser()));
+        //patronymic() <- STRING[60](middleName(currentUser())); подключить модуль EmployeeRu
+        jobTitle() <- STRING[128](namePosition(currentUser()));
+        inn() <- STRING[10](inn(organization(b)));
+        overMessageSignatureUcd(b, d);
+        DIALOG dialogUcdBuyerTitle NOMANAGESESSION DO {
+            getToken(u);
+            EXPORT universalCorrectionDocumentBuyerTitle XML;
+
+            LOCAL result = FILE ();
+            TRY {
+                EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + boxId() + '&documentTypeNamedId=UniversalCorrectionDocument&documentFunction=' + function(d) + '&documentVersion=' + version(d) + '&titleIndex=1&letterId=' + messageId() + '&documentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+                IF useTestSignature() THEN {
+                    signWithTestSignature(0) <- TRUE;
+                } ELSE {
+                    sign(FILE(result()), TRUE, legalEntity(organization(b)));
+                    signatureDocument(0) <- encodedSignature();
+                }
+
+                postMessagePatch(u);
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка подписи ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            }
+            APPLY;
+            getDocument(u,b,d);
         }
     }
 }

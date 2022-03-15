@@ -1,6 +1,6 @@
 MODULE DiadocUpdDocument;
 
-REQUIRE UpdDocument, DiadocMessage, CryptoPro, ConsignmentUpdDocument;
+REQUIRE UpdDocument, DiadocMessage, CryptoPro, ConsignmentUpdDocument, DiadocDocument;
 
 NAMESPACE Diadoc;
 
@@ -10,8 +10,8 @@ GROUP organizationReferenceSellerUTD EXTID 'OrganizationReference': sellerUTD;
 GROUP buyersUTD EXTID 'Buyers';
 GROUP buyerUTD EXTID 'Buyer': buyersUTD;
 GROUP organizationReferenceBuyerUTD EXTID 'OrganizationReference': buyerUTD;
-GROUP signersUTD EXTID 'Signers';
-GROUP signerDetailsUTD EXTID 'SignerDetails': signersUTD;
+GROUP signersUTD EXTID 'Signers';GROUP signerDetailsUTD EXTID 'SignerDetails': signersUTD;
+
 GROUP additionalInfoIdUTD EXTID 'AdditionalInfoId';
 GROUP additionalInfoUTD EXTID 'AdditionalInfo': additionalInfoIdUTD;
 GROUP tableUTD EXTID 'Table';
@@ -155,78 +155,6 @@ messageUniversalTransferDocument 'Подписать и отправить че�
     }
 }
 
-CLASS SignerPowers 'Область полномочий' {
-    sp1 '1 - лицо, совершившее сделку, операцию',
-    sp2 '2 - лицо, совершившее сделку, операцию и ответственное за ее оформление',
-    sp3 '3 - лицо, ответственное за оформление свершившегося события'
-}
-name 'Наименование' (SignerPowers sp) = staticCaption(sp);
-id 'Код' (SignerPowers sp) = CASE
-    WHEN sp == SignerPowers.sp1 THEN 1
-    WHEN sp == SignerPowers.sp2 THEN 2
-    WHEN sp == SignerPowers.sp3 THEN 3;
-signerPowers (signerPowersId) = GROUP MAX SignerPowers signerPowers BY id(signerPowers);
-
-FORM signerPowers 'Область полномочий'
-    OBJECTS sp = SignerPowers
-    PROPERTIES(sp) READONLY name, id
-
-    LIST SignerPowers OBJECT sp
-;
-
-CLASS SignerStatus 'Статус' {
-    ss3 '3 - работник иной уполномоченной организации',
-    ss4 '4 - уполномоченное физическое лицо, в том числе индивидуальный предприниматель',
-    ss5 '5 - работник организации – покупателя', 
-    ss6 '6 - работник организации – составителя файла обмена информации покупателя, если составитель файла обмена информации покупателя не является покупателем'
-}
-name 'Наименование' (SignerStatus ss) = staticCaption(ss);
-id 'Код' (SignerStatus ss) = CASE
-    WHEN ss == SignerStatus.ss3 THEN 3
-    WHEN ss == SignerStatus.ss4 THEN 4
-    WHEN ss == SignerStatus.ss5 THEN 5
-    WHEN ss == SignerStatus.ss6 THEN 6;
-signerStatus (signerStatusId) = GROUP MAX SignerStatus signerStatus BY id(signerStatus);
-
-FORM signerStatus 'Статус'
-    OBJECTS ss = SignerStatus
-    PROPERTIES(ss) READONLY name, id
-
-    LIST SignerStatus OBJECT ss
-;
-
-CLASS SignerType 'Тип' {
-    st1 '1 - Представитель юридического лица (ЮЛ)',
-    st2 '2 - Индивидуальный предприниматель (ИП)',
-    st3 '3 - Физическое лицо (ФЛ)'
-}
-name 'Наименование' (SignerType st) = staticCaption(st);
-id 'Код' (SignerType st) = CASE
-    WHEN st == SignerType.st1 THEN 1
-    WHEN st == SignerType.st2 THEN 2
-    WHEN st == SignerType.st3 THEN 3;
-signerType (signerTypeId) = GROUP MAX SignerType signerType BY id(signerType);
-
-FORM signerType 'Тип'
-    OBJECTS st = SignerType
-    PROPERTIES(st) READONLY name, id
-
-    LIST SignerType OBJECT st
-;
-
-documentCreator 'Наименование экономического субъекта' = DATA LOCAL STRING[1000]();
-operationContent 'Содержание операции' = DATA LOCAL STRING[255]();
-signerPowers 'Область полномочий' = DATA LOCAL SignerPowers();
-nameSingerPowers 'Область полномочий' = name(signerPowers());
-idSingerPowers 'Область полномочий' = id(signerPowers());
-signerStatus 'Статус' = DATA LOCAL SignerStatus();
-nameSignerStatus 'Статус' = name(signerStatus());
-idSignerStatus 'Статус' = id(signerStatus());
-signerType 'Тип' = DATA LOCAL SignerType();
-nameSignerType 'Тип' = name(signerType());
-idSignerType 'Тип' = id(signerType());
-signerPowersBase 'Основание полномочий (доверия)' = DATA LOCAL STRING[255]();
-
 FORM universalTransferDocumentBuyerTitle FORMEXTID 'UniversalTransferDocumentBuyerTitle'
     PROPERTIES ATTR documentCreator = documentCreator() EXTID 'DocumentCreator',//НаимЭконСубСост - Составитель файла обмена счета-фактуры (информации продавца)
                     operationContent = operationContent() EXTID 'OperationContent'//СодОпер - Содержание операции
@@ -243,7 +171,7 @@ FORM universalTransferDocumentBuyerTitle FORMEXTID 'UniversalTransferDocumentBuy
                     signerPowersBaseSG = signerPowersBase() EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
 ;
 
-FORM dialogBuyerTitle 'Титул покупателя'
+FORM dialogUpdBuyerTitle 'Титул покупателя'
     PROPERTIES() documentCreator, operationContent, nameSingerPowers, nameSignerStatus, nameSignerType, signerPowersBase
     PROPERTIES() surname, firstName, patronymic, jobTitle, inn
     
@@ -287,7 +215,7 @@ FORM dialogBuyerTitle 'Титул покупателя'
     }
 ;
 
-DESIGN dialogBuyerTitle {
+DESIGN dialogUpdBuyerTitle {
     GROUP() {
         columns = 1;
         type = CONTAINERV;
@@ -304,7 +232,7 @@ DESIGN dialogBuyerTitle {
         MOVE PROPERTY(inn());
     }
 }
-overMessageSignature ABSTRACT (Box, Document);
+overMessageSignatureUpd ABSTRACT (Box, Document);
 overMessageSignature (User u, Box b, Document d) + {
     IF typeNamedId(d) == 'UniversalTransferDocument' THEN NEWSESSION {
         box() <- b;
@@ -316,8 +244,8 @@ overMessageSignature (User u, Box b, Document d) + {
         //patronymic() <- STRING[60](middleName(currentUser())); подключить модуль EmployeeRu
         jobTitle() <- STRING[128](namePosition(currentUser()));
         inn() <- STRING[10](inn(organization(b)));
-        overMessageSignature(b, d);
-        DIALOG dialogBuyerTitle NOMANAGESESSION DO {
+        overMessageSignatureUpd(b, d);
+        DIALOG dialogUpdBuyerTitle NOMANAGESESSION DO {
             getToken(u);
             EXPORT universalTransferDocumentBuyerTitle XML;
 
