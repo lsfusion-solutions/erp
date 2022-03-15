@@ -1,6 +1,6 @@
 MODULE DiadocUkdDocument;
 
-REQUIRE UkdDocument, DiadocMessage, CryptoPro;
+REQUIRE UkdDocumentLot, DiadocMessage, CryptoPro;
 
 NAMESPACE Diadoc;
 
@@ -31,6 +31,8 @@ GROUP subtotalWithVatExcludedUCD EXTID 'SubtotalWithVatExcluded';
 GROUP vatUCD EXTID 'Vat';
 GROUP withoutVatUCD EXTID 'WithoutVat';
 GROUP subtotalUCD EXTID 'Subtotal';
+GROUP originalItemIdentificationNumbersUCD EXTID 'OriginalItemIdentificationNumbers';
+
 
 exportUkdDocument = DATA LOCAL UkdDocument ();
 
@@ -138,6 +140,18 @@ FORM universalCorrectionDocument FORMEXTID 'UniversalCorrectionDocument'
     PROPERTIES IN subtotalUCD
                amountsIncS = increaseSum(i) EXTID 'AmountsInc',//СтоимУвел
                amountsDecS = decreaseSum(i) EXTID 'AmountsDec'//СтоимУм
+    OBJECTS utd = UkdTransportPackDetail EXTID 'ItemIdentificationNumber' IN originalItemIdentificationNumbersUCD
+    PROPERTIES ATTR transPackageIdIIN = (OVERRIDE id(utd),'') EXTID 'TransPackageId'//ИдентТрансУпак - Уникальный идентификатор транспортной упаковки
+    FILTERS ukdDocumentDetail(utd) == i
+    
+    OBJECTS upd = UkdPackDetail EXTID 'ItemIdentificationNumber' IN originalItemIdentificationNumbersUCD
+    PROPERTIES unitIIN = (OVERRIDE id(upd),'') EXTID 'Unit'//КИЗ - Контрольный идентификационный знак
+    FILTERS ukdDocumentDetail(upd) == i
+        
+    OBJECTS uld = UkdLotDetail EXTID 'ItemIdentificationNumber' IN originalItemIdentificationNumbersUCD
+    PROPERTIES packageIdIIN = (OVERRIDE id(uld),'') EXTID 'PackageId'//НомУпак - Уникальный идентификатор вторичной (потребительской)/третичной (заводской, транспортной) упаковки
+    FILTERS ukdDocumentDetail(uld) == i
+               
 ;
 
 document = DATA Document (UkdDocument);
