@@ -1,0 +1,437 @@
+MODULE SMSTraffic;
+
+REQUIRE DiscountCard, LogTools;
+
+@defineLogRotate(SMSTraffic, 5, weekly);
+
+urlSMSTraffic 'SMSTraffic URL' = DATA STRING[255]();
+//urlSMSTrafficCallback 'URL для отправки статусов' = DATA STRING[255]();
+usernameSMSTraffic 'Пользователь' = DATA STRING[255]();
+passwordAPISMSTraffic 'Пароль для API' = DATA STRING[255]() ECHO;
+alphaNameSMSTraffic 'Альфанумерическое имя' = DATA STRING[11]();
+
+getID = FORMULA LONG '$1';
+
+EXTEND FORM integrationData
+    PROPERTIES() urlSMSTraffic, usernameSMSTraffic, passwordAPISMSTraffic, alphaNameSMSTraffic
+;
+
+DESIGN integrationData {
+    pane {
+        NEW SMSTraffic {
+            caption = 'SMSTraffic';
+            type = CONTAINERV;
+            MOVE PROPERTY(urlSMSTraffic());
+            MOVE PROPERTY(usernameSMSTraffic());
+            MOVE PROPERTY(passwordAPISMSTraffic());
+            MOVE PROPERTY(alphaNameSMSTraffic());
+        }
+    }
+}
+
+CLASS Dispatch 'Рассылка';
+TABLE dispatch (Dispatch);
+
+createdTime 'Время создания' = DATA DATETIME (Dispatch);
+createdTime (Dispatch d) <- currentDateTime() WHEN SET(d IS Dispatch);
+
+name 'Название' = DATA ISTRING[255] (Dispatch) NONULL CHARWIDTH 30;
+
+isViber 'Viber' = DATA BOOLEAN (Dispatch);
+isSMS 'SMS' = DATA BOOLEAN (Dispatch);
+CONSTRAINT (Dispatch d IS Dispatch) AND NOT isViber(d) AND NOT isSMS(d)
+    MESSAGE 'Не выбран канал связи';
+
+messageViber 'Текст сообщения Viber' = DATA TEXT (Dispatch);//DATA STRING[1000] (Dispatch);
+lengthMessageViber 'К-во символов' (Dispatch d) = length (messageViber(d));
+//CONSTRAINT SETCHANGED(messageViber(Dispatch d)) AND length(messageViber(d)) > 1000
+//    MESSAGE (GROUP CONCAT 'Сообщение для Viber не должно превышать 1000 символов (сейчас ' + length(messageViber(Dispatch dd)) + ')' IF SETCHANGED(messageViber(dd)) AND length(messageViber(dd)) > 1000, '\n' ORDER dd);
+CONSTRAINT isViber(Dispatch d) AND NOT messageViber(d)
+    MESSAGE 'Не задан текст сообщения Viber';
+messageSMS 'Текст сообщения SMS' = DATA TEXT (Dispatch);//DATA STRING[335] (Dispatch);
+lengthMessageSMS 'К-во символов' (Dispatch d) = length (messageSMS(d));
+//CONSTRAINT SETCHANGED(messageSMS(Dispatch d)) AND length(messageSMS(d)) > 335
+ //   MESSAGE (GROUP CONCAT 'Сообщение для SMS не должно превышать 335 символа (сейчас ' + length(messageSMS(Dispatch dd)) + ')' IF SETCHANGED(messageSMS(dd)) AND length(messageSMS(dd)) > 335, '\n' ORDER dd);
+CONSTRAINT isSMS(Dispatch d) AND NOT messageSMS(d)
+    MESSAGE 'Не задан текст сообщения SMS';
+
+lifetimeViber 'Срок жизни сообщения Viber (сек)' = DATA INTEGER (Dispatch);
+CONSTRAINT isViber(Dispatch d) AND NOT (lifetimeViber(d) >= 15 AND lifetimeViber(d) <= 86400)
+    MESSAGE 'Срок жизни сообщения Viber должен быть в диапазоне от 15 до 86400';
+lifetimeSMS 'Срок жизни сообщения SMS (сек)' = DATA INTEGER (Dispatch);
+CONSTRAINT isSMS(Dispatch d) AND NOT (lifetimeSMS(d) >= 15 AND lifetimeSMS(d) <= 259200)
+    MESSAGE 'Срок жизни сообщения SMS должен быть в диапазоне от 15 до 259200';
+image 'Изображение (URL)' = DATA STRING[255] (Dispatch);
+
+caption 'Заголовок' = DATA STRING[20] (Dispatch);
+action 'Ссылка (URL)' = DATA STRING[255] (Dispatch);
+CONSTRAINT caption(Dispatch d) AND NOT action(d)
+    MESSAGE 'Не задана ссылка (URL) для кнопки';
+CONSTRAINT action(Dispatch d) AND NOT caption(d)
+    MESSAGE 'Не задан заголовок для кнопки';
+
+date 'Дата' = DATA DATE (Dispatch) NONULL;
+CONSTRAINT SETCHANGED(date(Dispatch d)) AND date(d) < currentDate()
+    MESSAGE 'Дата проведения не должна быть раньше текущей даты';
+timeFrom 'Время с' = DATA TIME (Dispatch) NONULL;
+timeTo 'Время по' = DATA TIME (Dispatch) NONULL;
+CONSTRAINT (SETCHANGED(timeTo(Dispatch d)) OR SETCHANGED (timeFrom(d)))  AND timeTo(d) < timeFrom(d)
+    MESSAGE 'Неверный интервал времени проведения ';
+//CONSTRAINT SETCHANGED(timeFrom(Dispatch d)) AND timeFrom(d) < toTime(toDateTimeFormat('20000101090000','YYYYMMDDHH24MISS'))
+//    MESSAGE 'Можно использовать только диапазон 09:00:00 - 22:00:00';
+//CONSTRAINT SETCHANGED(timeTo(Dispatch d)) AND timeTo(d) > toTime(toDateTimeFormat('20000101220000','YYYYMMDDHH24MISS'))
+//    MESSAGE 'Можно использовать только диапазон 09:00:00 - 22:00:00';
+
+isSend 'Отправлено' = DATA BOOLEAN (Dispatch);
+
+TABLE dispatchDiscountCard (Dispatch, DiscountCard);
+
+in 'Вкл.' = DATA BOOLEAN (Dispatch, DiscountCard);
+
+FORM dispatch 'Рассылка'
+    OBJECTS d = Dispatch PANEL
+    PROPERTIES(d) isSend, name, isViber, isSMS, date, timeFrom, timeTo
+    PROPERTIES(d) SHOWIF isViber(d) messageViber, lengthMessageViber READONLY, lifetimeViber, image, caption, action
+    PROPERTIES(d) SHOWIF isSMS(d) messageSMS, lengthMessageSMS READONLY, lifetimeSMS
+    
+    OBJECTS c = DiscountCard
+    PROPERTIES(d,c) in
+    PROPERTIES(c) READONLY number, phoneLegalEntity, firstNameContact, lastNameContact, nameDiscountCardType, date
+    FILTERGROUP include FILTER 'Включенные' in(d,c)
+    
+    EDIT Dispatch OBJECT d
+;
+
+DESIGN dispatch {
+    GROUP(,d) {
+        columns = 1;
+        type = CONTAINERV;
+        MOVE PROPERTY(isSend(d));
+        MOVE PROPERTY(name(d));
+        NEW date {
+            type = CONTAINERH;
+            caption = 'Дата проведения';
+            MOVE PROPERTY(date(d));
+            MOVE PROPERTY(timeFrom(d));
+            MOVE PROPERTY(timeTo(d));
+        }
+        NEW data {
+            type = CONTAINERV;
+            NEW viber {
+                type = CONTAINERV;
+                caption = 'Viber';
+                MOVE PROPERTY(isViber(d));
+                MOVE PROPERTY(messageViber(d));
+                MOVE PROPERTY(lengthMessageViber(d));
+                MOVE PROPERTY(lifetimeViber(d));
+                MOVE PROPERTY(image(d));
+                MOVE PROPERTY(caption(d));
+                MOVE PROPERTY(action(d));
+            }
+            NEW sms {
+                caption = 'SMS';
+                MOVE PROPERTY(isSMS(d));
+                MOVE PROPERTY(messageSMS(d)) {
+                    charWidth = 55;
+                };
+                MOVE PROPERTY(lengthMessageSMS(d));
+                MOVE PROPERTY(lifetimeSMS(d));
+                fill = 1;
+            }
+        }
+    }
+}
+
+//--------------- Oшибки --------------
+CLASS DispatchError 'Ошибка рассылки';
+TABLE dispatchError (DispatchError);
+
+code 'Код' = DATA STRING[100] (DispatchError);
+message 'Ошибка' = DATA STRING[255] (DispatchError);
+dateTime 'Время' = DATA DATETIME (DispatchError);
+
+TABLE dispatchDispatchError (Dispatch, DispatchError);
+in = DATA BOOLEAN (Dispatch, DispatchError);
+
+//----------------- Статусы ----------------
+state 'Код' = DATA STRING[100] (Dispatch, DiscountCard);
+name 'Статус' = DATA STRING[255] (Dispatch, DiscountCard);
+dateTime 'Время' = DATA DATETIME (Dispatch, DiscountCard);
+
+dateFromFilter 'Дата с' () = DATA LOCAL NESTED DATE ();
+dateToFilter 'Дата по' () = DATA  LOCAL NESTED DATE ();
+phoneFilter 'Телефон' = DATA LOCAL NESTED STRING[100] ();
+
+FORM dispatches 'Рассылки'
+    PROPERTIES() dateFromFilter, dateToFilter, phoneFilter
+
+    OBJECTS d = Dispatch
+    PROPERTIES(d) READONLYIF isReadonly() isSend, name, isViber, isSMS, createdTime, date, timeFrom, timeTo, messageViber, messageSMS
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+    
+    FILTERS date(d) >= dateFromFilter() OR NOT dateFromFilter(),
+            date(d) <= dateToFilter() OR NOT dateToFilter(),
+            (GROUP SUM 1 IF in(d, DiscountCard cc) AND phoneLegalEntity(cc) == phoneFilter()) OR NOT phoneFilter()
+    
+    OBJECTS c = DiscountCard
+    PROPERTIES(c) phoneLegalEntity
+    PROPERTIES(d,c) state, name, dateTime
+    FILTERS in(d,c)
+    
+    OBJECTS e = DispatchError
+    PROPERTIES(e) READONLY code, message, dateTime
+    ORDERS dateTime(e) DESC
+    FILTERS in(d,e)
+    
+    LIST Dispatch OBJECT d
+;
+
+DESIGN dispatches {
+    PROPERTY(messageViber(d)) {valueHeight = 16;}
+    PROPERTY(messageSMS(d)) {valueHeight = 16;}
+    GROUP() {
+        columns = 1;
+        type = CONTAINERH;
+    }
+    OBJECTS {
+        NEW tabs {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(c) {
+                caption = 'Статусы';
+            }
+            MOVE BOX(e) {
+                caption = 'Ошибки';
+            }
+            NEW action {
+                caption = 'Действия';
+            }
+        }
+    }
+}
+EXTEND FORM dispatches
+    PROPERTIES() System.isEditable
+;
+DESIGN dispatches {
+    TOOLBARBOX {
+        MOVE PROPERTY(isEditable()) BEFORE TOOLBARRIGHT;
+    }
+}
+NAVIGATOR {
+    dashboardNavigator {
+        NEW FOLDER SMSTraffic 'СМС (SMSTraffic)' {
+            NEW dispatches;
+        }
+    }
+}
+
+overReplaceKeys = ABSTRACT TEXT (DiscountCard, TEXT);
+replaceKeys (DiscountCard d, TEXT message) = replace(replace(replace((OVERRIDE overReplaceKeys(d,message),message),'[number]',(OVERRIDE seriesNumber(d),'')),'[firstname]',(OVERRIDE firstNameContact(d),'')),'[lastname]',(OVERRIDE lastNameContact(d),''));
+
+code = DATA LOCAL INTEGER();
+description = DATA LOCAL STRING[255]();
+
+FORM importResult
+    PROPERTIES() code, description
+;
+
+nameStatus() = CASE 
+    WHEN urlParsed('channel_id') == 'viber' AND urlParsed('err_code') == '8' THEN 'Абонент заблокировал чат с данным отправителем в Viber'
+    WHEN urlParsed('channel_id') == 'viber' AND urlParsed('err_code') == '9' THEN 'На устройстве не установлено приложение Viber'
+    WHEN urlParsed('channel_id') == 'viber' AND urlParsed('err_code') == '10' THEN 'Viber на данном устройстве недоступен'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '1' THEN 'Абонент недоступен или отключен'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '2' THEN 'У абонента включен запрет на прием сообщений или абонента заблокировал оператор'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '3' THEN 'Номер телефона не существует или не обслуживается'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '4' THEN 'Память телефона абонента переполнена'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '5' THEN 'Аппаратная ошибка телефона абонента'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '6' THEN 'Сервис коротких сообщений не предоставляется'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '7' THEN 'Аппарат абонента не поддерживает прием коротких сообщений'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '8' THEN 'Аппарат абонента занят операцией, препятствующей получению короткого сообщения'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '9' THEN 'Абонент находится в роуминге'
+    WHEN urlParsed('channel_id') == 'sms' AND urlParsed('err_code') == '10' THEN 'Истекло время ожидания доставки';
+
+httpHeaders(TEXT name) = CASE
+    WHEN name == 'Content-Type' THEN 'application/x-www-form-urlencoded';
+
+
+textDispatch (Dispatch d, DiscountCard c, TEXT key) = CASE
+    WHEN key == 'login' THEN usernameSMSTraffic()
+    WHEN key == 'password' THEN passwordAPISMSTraffic()
+    WHEN key == 'phones' THEN replace(replace(replace(replace(replace(phoneLegalEntity(c),'+',''),'(',''),')',''),'-',''),' ','')
+    WHEN key == 'message' THEN (IF isViber(d) THEN replaceKeys(c,messageViber(d)) ELSE IF isSMS(d) THEN replaceKeys(c,messageSMS(d)))
+    WHEN key == 'originator' THEN alphaNameSMSTraffic()
+    WHEN key == 'route' THEN (CONCAT '-', 'viber(' + lifetimeViber(d) + ')' IF isViber(d), 'sms(' + lifetimeSMS(d) + ')' IF isSMS(d))
+    WHEN key == 'image_url' THEN image(d)
+    WHEN key == 'btn_url' THEN action(d)
+    WHEN key == 'btn_name' THEN caption(d)
+    WHEN key == 'tracking_data' THEN TEXT(getID(d)) + '_' + TEXT(getID(c));
+
+sendDispatch 'Отправить рассылку' (Dispatch d) {
+    IF NOT isSend(d) THEN {
+        LOCAL file = TEXT();
+        LOCAL result = FILE();
+        
+        isSend(d) <- TRUE;
+        FOR in(d, DiscountCard c) AND phoneLegalEntity(c) DO {
+            TRY {
+                code() <- NULL;
+                description() <- NULL;
+                
+                urlParsed(TEXT key) <- textDispatch(d,c,key);
+                urlFormat();
+                logToFile('SMSTraffic', 'POST:' + 'https://' + urlSMSTraffic() + '/multi.php' + '\n' + urlFormatted());
+                
+                EXTERNAL HTTP POST 'https://' + urlSMSTraffic() + '/multi.php' HEADERS httpHeaders PARAMS urlFormatted() TO result;
+                logToFile('SMSTraffic', result());
+                IMPORT importResult JSON FROM result();
+                IF code() > 0 THEN NEW e = DispatchError {
+                    state(d,c) <- STRING[100](code());
+                    name(d,c) <- description();
+                    dateTime(d,c) <- currentDateTime();
+                    code(e) <- STRING[100](code());
+                    message(e) <- description();
+                    dateTime(e) <- currentDateTime();
+                    in(d,e) <- TRUE;
+                }
+            } CATCH {
+                logToFile('SMSTraffic', messageCaughtException());
+                logToFile('SMSTraffic', result());
+                IMPORT importResult JSON FROM result();
+                IF code() > 0 THEN NEW e = DispatchError {
+                    state(d,c) <- STRING[100](code());
+                    name(d,c) <- description();
+                    dateTime(d,c) <- currentDateTime();
+                    code(e) <- STRING[100](code());
+                    message(e) <- description();
+                    dateTime(e) <- currentDateTime();
+                    in(d,e) <- TRUE;
+                }
+            }
+        }
+        APPLY;  
+    }
+}
+
+sendDispatch 'Отправить рассылки (по времени)' () {
+    FOR NOT isSend(Dispatch d) AND date(d) == currentDate() AND currentTime() >= timeFrom(d) AND currentTime() <= timeTo(d) DO {
+        sendDispatch(d);
+    }
+}
+
+EXTEND FORM dispatches
+    PROPERTIES(d) sendDispatch TOOLBAR SHOWIF NOT isSend(d)
+    PROPERTIES sendDispatch() TOOLBAR DRAW d
+;
+
+getStatus () {
+    fileToString(FILE(body()));
+    logToFile('SMSTraffic', 'CALLBACK: ' + resultString());
+    urlFormatted() <- resultString();
+    urlParse();
+    
+    FOR Dispatch dd IS Dispatch AND getID(dd) == LONG(getWord(urlParsed('tracking_data'),'_',1)) AND DiscountCard dc IS DiscountCard AND getID(dc) == LONG(getWord(urlParsed('tracking_data'),'_',2)) DO {
+        state(dd,dc) <- STRING[100](urlParsed('status'));
+        name(dd,dc) <- STRING[255](CONCAT ' ', urlParsed('channel_id'), urlParsed('err_code'), nameStatus());
+        dateTime(dd,dc) <- DATETIME(toDateTimeFormat(urlParsed('delivery_date'), 'YYYY-MM-DD HH24:MI:SS'));
+        IF urlParsed('err_code') THEN NEW e = DispatchError {
+            code(e) <- STRING[100](urlParsed('err_code'));
+            message(e) <- nameStatus();
+            dateTime(e) <- DATETIME(toDateTimeFormat(urlParsed('delivery_date'), 'YYYY-MM-DD HH24:MI:SS'));
+            in(dd,e) <- TRUE;
+        }
+    }
+    APPLY NESTED(urlParsed[TEXT]);
+    logToFile('SMSTraffic', 'END: ' + urlParsed('tracking_data'));
+}
+
+CLASS DispatchTemplate 'Шаблон рассылки';
+TABLE dispatchTemplate (DispatchTemplate);
+
+@defineExternalizable(dispatchTemplate, STRING[100]);
+
+messageViber 'Текст сообщения Viber' = DATA TEXT (DispatchTemplate);
+lengthMessageViber 'К-во символов' (DispatchTemplate d) = length (messageViber(d));
+//CONSTRAINT SETCHANGED(messageViber(DispatchTemplate d)) AND length(messageViber(d)) > 1000
+//    MESSAGE (GROUP CONCAT 'Сообщение для Viber не должно превышать 1000 символов (сейчас ' + length(messageViber(DispatchTemplate dd)) + ')' IF SETCHANGED(messageViber(dd)) AND length(messageViber(dd)) > 1000, '\n' ORDER dd);
+messageSMS 'Текст сообщения SMS' = DATA TEXT (DispatchTemplate);
+lengthMessageSMS 'К-во символов' (DispatchTemplate d) = length (messageSMS(d));
+//CONSTRAINT SETCHANGED(messageSMS(DispatchTemplate d)) AND length(messageSMS(d)) > 335
+//    MESSAGE (GROUP CONCAT 'Сообщение для SMS не должно превышать 335 символа (сейчас ' + length(messageSMS(DispatchTemplate dd)) + ')' IF SETCHANGED(messageSMS(dd)) AND length(messageSMS(dd)) > 142, '\n' ORDER dd);
+
+lifetimeViber 'Срок жизни сообщения Viber (сек)' = DATA INTEGER (DispatchTemplate);
+CONSTRAINT SETCHANGED(lifetimeViber(DispatchTemplate d)) AND NOT (lifetimeViber(d) >= 15 AND lifetimeViber(d) <= 86400)
+    MESSAGE 'Срок жизни сообщения должен быть в диапазоне от 15 до 86400';
+lifetimeSMS 'Срок жизни сообщения SMS (сек)' = DATA INTEGER (DispatchTemplate);
+CONSTRAINT SETCHANGED(lifetimeSMS(DispatchTemplate d)) AND NOT (lifetimeSMS(d) >= 15 AND lifetimeSMS(d) <= 259200)
+    MESSAGE 'Срок жизни сообщения SMS должен быть в диапазоне от 15 до 259200';
+image 'Изображение (URL)' = DATA STRING[255] (DispatchTemplate);
+
+caption 'Заголовок' = DATA STRING[20] (DispatchTemplate);
+action 'Ссылка (URL)' = DATA STRING[255] (DispatchTemplate);
+CONSTRAINT caption(DispatchTemplate d) AND NOT action(d)
+    MESSAGE 'Не задана ссылка (URL) для кнопки';
+CONSTRAINT action(DispatchTemplate d) AND NOT caption(d)
+    MESSAGE 'Не задан заголовок для кнопки';
+
+timeFrom 'Время с' = DATA TIME (DispatchTemplate);
+timeTo 'Время по' = DATA TIME (DispatchTemplate);
+
+FORM dispatchTemplate 'Шаблон рассылки'
+    OBJECTS d = DispatchTemplate PANEL
+    PROPERTIES(d) id
+    PROPERTIES(d) messageViber, lengthMessageViber READONLY, lifetimeViber, image, caption, action, timeFrom, timeTo
+    PROPERTIES(d) messageSMS, lengthMessageSMS READONLY, lifetimeSMS
+    
+    EDIT DispatchTemplate OBJECT d
+;
+
+DESIGN dispatchTemplate {
+    GROUP(,d) {
+        columns = 1;
+        type = CONTAINERV;
+        MOVE PROPERTY(id(d));
+        NEW time {
+            type = CONTAINERH;
+            caption = 'Время проведения';
+            MOVE PROPERTY(timeFrom(d));
+            MOVE PROPERTY(timeTo(d));
+        }
+        NEW viber {
+            type = CONTAINERV;
+            caption = 'Viber';
+            MOVE PROPERTY(messageViber(d));
+            MOVE PROPERTY(lengthMessageViber(d));
+            MOVE PROPERTY(lifetimeViber(d));
+            MOVE PROPERTY(image(d));
+            MOVE PROPERTY(caption(d));
+            MOVE PROPERTY(action(d));
+        }
+        NEW sms {
+            caption = 'SMS';
+            MOVE PROPERTY(messageSMS(d)) {
+                charWidth = 55;
+            };
+            MOVE PROPERTY(lengthMessageSMS(d));
+            MOVE PROPERTY(lifetimeSMS(d));
+            fill = 1;
+        }
+    }
+}
+
+FORM dispatchTemplates 'Шаблоны рассылки'
+    OBJECTS d = DispatchTemplate
+    PROPERTIES(d) READONLY id, messageViber, lifetimeViber, image, caption, action, messageSMS, lifetimeSMS, timeFrom, timeTo
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST DispatchTemplate OBJECT d
+;
+DESIGN dispatchTemplates {
+    PROPERTY(messageViber(d)) {valueHeight = 16;}
+    PROPERTY(messageSMS(d)) {valueHeight = 16;}
+}
+
+NAVIGATOR { 
+    SMSTraffic {
+        NEW dispatchTemplates BEFORE dispatches;
+    }
+}
