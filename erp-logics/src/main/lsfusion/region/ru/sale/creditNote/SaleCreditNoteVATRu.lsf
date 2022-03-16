@@ -10,8 +10,8 @@ invoicePrice (UserCreditNoteDetail creditNoteDetail) += invoicePrice(creditNoteD
 
 @defineDocumentInterfaceProperty (creditNote, withVATPrice, 'Цена с НДС');
 
-withVATPrice (UserCreditNote c) <- isVATPayer(supplier(c))
-    WHEN CHANGED(supplier(c));
+withVATPrice (UserCreditNote c) <- IF invoice(c) THEN withVATPrice(invoice(c)) ELSE isVATPayer(supplier(c))
+    WHEN CHANGED(supplier(c)) OR CHANGED(invoice(c));
 
 invoicePrice (UserCreditNoteDetail detail)  <- invoicePrice(invoiceDetail(detail))
     WHEN CHANGED(invoiceDetail(detail));
