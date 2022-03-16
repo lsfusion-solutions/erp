@@ -1,0 +1,74 @@
+MODULE DisassemblyLotSecond;
+
+REQUIRE DisassemblyLot, LotExtra, LotPrice;
+
+NAMESPACE Disassembly;
+
+weight (DisassemblyDetail d) += NUMERIC[11,5](GROUP SUM weight(Lot l) * quantity(d, l));
+
+CLASS DisassemblyLot 'Строка разборки по маркам';
+disassembly = DATA Disassembly (DisassemblyLot) INDEXED NONULL DELETE;
+countDisassemblyLot 'Кол-во марок' (Disassembly a) = GROUP SUM 1 BY disassembly(DisassemblyLot l) IN documentSum MATERIALIZED; 
+
+dateTime 'Время' = DATA DATETIME (DisassemblyLot);
+dateTime(DisassemblyLot r) <- currentDateTime() WHEN SET(r IS DisassemblyLot);
+
+user = DATA CustomUser (DisassemblyLot);
+nameUser 'Пользователь' (DisassemblyLot r) = name(user(r));
+user(DisassemblyLot r) <- currentUser() WHEN SET(r IS DisassemblyLot);
+
+lot 'Марка' = DATA Lot (DisassemblyLot) INDEXED NONULL;
+id 'Код' (DisassemblyLot l) = id(lot(l)); 
+
+sku (DisassemblyLot l) = sku(lot(l)); 
+nameSku 'Наименование товара' (DisassemblyLot l) = name(sku(l)); 
+
+weight 'Вес' (DisassemblyLot l) = weight(lot(l)); 
+weightDisassemblyLot 'Вес марок' (Disassembly a) = GROUP SUM weight(DisassemblyLot l) BY disassembly(l) IN documentSum; 
+
+price 'Цена' (DisassemblyLot l) = price(lot(l)); 
+image 'Изображение' (DisassemblyLot l) = image(lot(l)); 
+
+disassemblyLot (Disassembly a, Lot l) = GROUP MAX DisassemblyLot al BY disassembly(al), lot(al);
+
+EXTEND FORM disassembly
+    PROPERTIES(a) READONLY countDisassemblyLot, weightDisassemblyLot
+
+    OBJECTS dl = DisassemblyLot
+    PROPERTIES(dl) READONLY dateTime, nameUser, id, weight, nameSku, price, image PANEL
+    FILTERS disassembly(dl) = a
+;
+
+DESIGN disassembly {
+    detailsPane {
+        NEW lot {
+            caption = 'Марки';
+            type = CONTAINERH;
+            MOVE BOX(dl);
+            MOVE PROPERTY(image(dl)) { fill = 0.3; panelCaptionVertical = TRUE; }
+        }
+    }
+}
+
+// создать строки
+@defineOperationProperty(calcQuantityWeightLot, 'Рассчитывать вес из марок', paramsContainer);
+
+fillLotDetail 'Заполнить по маркам' (Disassembly a) {
+    FOR [GROUP SUM 1 IF disassembly(DisassemblyLot l) = a BY sku(l)](Sku s) AND NOT disassemblyDetail(a, s) NEW d = DisassemblyDetail DO {
+        disassembly(d) <- a;
+        sku(d) <- s;
+    }
+    
+    quantity(DisassemblyDetail d, Lot l) <- NULL WHERE disassembly(d) = a;
+    quantity(DisassemblyDetail d, Lot l) <- 1 WHERE disassemblyLot(a, l) AND d = disassemblyDetail(a, sku(l));
+    quantity(DisassemblyDetail d) <- NUMERIC[16,5](quantityLot(d)) WHERE disassembly(d) = a; 
+    
+    IF calcQuantityWeightLot(operation(a)) THEN
+        quantity(a) <- NUMERIC[16,5](weightDisassemblyLot(a));
+    
+    calculatePrice(a); 
+}
+
+EXTEND FORM disassembly
+    PROPERTIES(a) fillLotDetail SHOWIF countDisassemblyLot(a) DRAW d TOOLBAR
+;

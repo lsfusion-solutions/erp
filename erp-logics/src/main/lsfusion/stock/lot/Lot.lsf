@@ -16,6 +16,7 @@ EXTEND FORM item
 
 // lot
 CLASS Lot 'Марка';
+TABLE lot (Lot);
 
 id 'Код' = DATA STRING[200] (Lot) INDEXED IN id;
 lot = GROUP AGGR Lot l BY id(l); 
@@ -61,10 +62,41 @@ count (Lot l) += 1 IF l IS Lot;
 
 FORM lot 'Марка'
     OBJECTS l = Lot PANEL
-    PROPERTIES(l) id, idSku, nameSku, tail
+    PROPERTIES(l) id, tail, idSku, idBarcodeSku, nameSku
     
     EDIT Lot OBJECT l 
 ;
+
+DESIGN lot {
+    OBJECTS {
+        NEW header {
+            NEW ids {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                caption = 'Код';
+                MOVE PROPERTY(id(l));
+                MOVE PROPERTY(tail(l));
+            }
+            NEW sku {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                caption = 'Товар';
+                MOVE PROPERTY(idSku(l));
+                MOVE PROPERTY(idBarcodeSku(l));
+                MOVE PROPERTY(nameSku(l));
+            }
+            NEW params {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                caption = 'Параметры';
+            }
+        }
+        NEW tabbedPane {
+            type = TABBED;        
+            fill = 1;
+        }
+    }
+}
 
 FORM dialogLots 'Марки'
     OBJECTS l = Lot

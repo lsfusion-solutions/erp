@@ -62,6 +62,9 @@ operation 'Операция' (DisassemblyDetail disassemblyDetail) = operation(d
 @defineDocumentHeaderQuantity(disassembly);
 @defineDocumentHeaderSum(disassembly);
 
+weight = ABSTRACT VALUE NUMERIC[11,5] (DisassemblyDetail);
+weight (DisassemblyDetail d) += netWeight(sku(d));
+
 // shortcut
 
 @defineMovementSku(disassembly);
@@ -159,7 +162,13 @@ DESIGN disassembly {
                         }
                     }
                 }
-                MOVE BOX(d);
+                NEW detailsPane {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                    }
+                }
             }
         }
     }
@@ -253,7 +262,8 @@ WHEN LOCAL (CHANGED(sku(Disassembly a)) OR
             AND NOT CHANGED(price(a)) DO
     price(a) <- prevAccountPriceB(sku(a), stock(a), dateTime(a));
 
-percent 'Процент цены' = DATA NUMERIC[16,2] (DisassemblyDetail);
+dataPercent 'Процент цены' = DATA NUMERIC[16,2] (DisassemblyDetail);
+percent 'Процент цены' (DisassemblyDetail d) = OVERRIDE dataPercent(d), NUMERIC[18,4](weight(d));
 
 calculatePrice 'Рассчитать цены' (Disassembly a) {
     sum(DisassemblyDetail d) <- (PARTITION UNGROUP sum
@@ -264,7 +274,7 @@ calculatePrice 'Рассчитать цены' (Disassembly a) {
 }
 
 EXTEND FORM disassembly
-    PROPERTIES(d) percent AFTER quantity(d)
+    PROPERTIES(d) percent AFTER quantity(d) BACKGROUND dataPercent(d)
     
     PROPERTIES(a) calculatePrice DRAW d TOOLBAR
 ;

@@ -1,0 +1,324 @@
+MODULE DisassemblyLotDashboardSecond;
+
+REQUIRE DisassemblyLotSecond, LotExtra, LotPriceLabel, 
+        PriceCategory, ItemPart, 
+        SerialPort, 
+        ScalesItem, WeightDaemon, 
+        Video; 
+
+NAMESPACE Disassembly;
+
+disassembly (CustomUser cu, Sku s, Stock st) = 
+    GROUP MAX Disassembly a IF isOpened(a) AND NOT isPosted(a) BY createdUser(a), sku(a), stock(a); 
+
+FORM disassemblyLotDashboard 'Разукомплектация'
+    OBJECTS st = Stock PANEL
+    PROPERTIES(st) name SELECTOR
+    FILTERS accessCompany(currentUser(), st)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY name BACKGROUND disassembly(currentUser(), s, st)
+    FILTERGROUP balance
+        FILTER 'В наличии' currentBalance(s, st) DEFAULT
+    FILTERGROUP part
+        FILTER 'Комплект' countPart(s) DEFAULT
+
+    OBJECTS a = Disassembly PANEL
+    FILTERS a = disassembly(currentUser(), s, st)
+    
+    PROPERTIES(a) countDisassemblyLot, weightDisassemblyLot
+    
+    OBJECTS l = DisassemblyLot
+    PROPERTIES(l) READONLY dateTime, nameUser, id, weight, nameSku, price, image PANEL
+    PROPERTIES(l) NEWSESSION DELETE
+    FILTERS disassembly(l) = a
+;
+
+DESIGN disassemblyLotDashboard {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            type = CONTAINERH;
+            NEW left {
+                fill = 0.5;
+                MOVE PROPERTY(name(st)) { alignment = STRETCH; }
+                MOVE PROPERTY(countDisassemblyLot(a)) { alignment = STRETCH; }
+                MOVE PROPERTY(weightDisassemblyLot(a)) { alignment = STRETCH; }
+                MOVE BOX(s) {
+                    REMOVE TOOLBARLEFT(s);
+                }
+            }
+            NEW tabbedPane {
+                fill = 4;
+                type = TABBED;
+                NEW details {
+                    caption = 'Строки';
+                    type = CONTAINERH;
+                    MOVE BOX(l);
+                    NEW detailsRight {
+                        fill = 0.3;
+                        MOVE PROPERTY(image(l)) { fill = 1; panelCaptionVertical = TRUE; }
+                    } 
+                }
+            }
+        }
+    }
+}
+
+// input
+iweight 'Вес' = DATA LOCAL NUMERIC ();
+
+isku = DATA LOCAL Sku ();
+inameSku 'Товар' () = name(isku()) CHARWIDTH 15;
+
+iprice 'Цена' = DATA LOCAL NUMERIC ();
+
+// image
+iimage 'Изображение' = DATA LOCAL IMAGEFILE ();
+
+istream = DATA LOCAL BOOLEAN ();
+
+changeStream () {
+    INPUT s = TEXT DO {
+        IF s == '' THEN RETURN;
+        
+        istream() <- NULL;
+    
+        stringToFile(s);
+        
+        LOCAL value = TEXT();
+        IMPORT JSON FROM resultFile() TO() value;
+
+        iimage() <- decode(value(), 'base64');
+
+    }
+}
+
+// barcode
+ibarcode 'Штрихкод' = DATA LOCAL STRING[200] () CHARWIDTH 13 CHANGEKEY 'F4' EVENTID 'SCANNER';
+
+fillProperties(Lot l) {
+    iweight() <- weight(l);
+    isku() <- sku(l);
+    iprice() <- price(l);
+    iimage() <- image(l);
+    ibarcode() <- id(l);
+}
+
+@defineNumeratorItemGroup (lot, 'Нумератор штрихкодов (для марок)', paramsItemGroup);
+
+generateLotId() {
+    incrementValue(lotNumerator(itemGroup(isku())));
+    ibarcode() <- incrementedValue();
+}
+
+printLabel 'Печать' (DisassemblyLot l) {
+    printLabel(lot(l));
+}
+
+generateLot () {
+    IF NOT ibarcode() THEN generateLotId(); 
+}
+
+EXTEND FORM disassemblyLotDashboard
+    PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= 50 THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- TRUE; } }, 
+                 inameSku, 
+                 iprice ON CHANGE { INPUT p = iprice() CHANGE DO { generateLot(); } }, 
+                 istream CUSTOM 'videoRender' ON CHANGE changeStream(), 
+                 ibarcode ON CHANGE { INPUT b = ibarcode() DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
+                 iimage
+    
+    PROPERTIES readWeight = jsonScalesComPort(currentComputer()) CUSTOM 'serialPortReceiveRender' ON CHANGE {
+        INPUT t = TEXT DO {
+            IF isSubstring(t, '170,') THEN { 
+                LOCAL bytes = TEXT ();
+                bytes() <- substrFrom(t, strpos(t, '170,') + 4);
+
+                LOCAL weight = INTEGER();
+                weight() <- INTEGER(getWord(bytes(), ',', 1)) + INTEGER(getWord(bytes(), ',', 2)) * 256;
+                IF weight() >= 50 THEN iweight() <- NUMERIC(weight()) / 1000;
+
+                istream() <- TRUE;
+            }
+        }     
+    }
+;
+
+processLot 'Обработать' (Sku s, Stock st) {
+    IF NOT disassembly(currentUser(), s, st) THEN
+        NEW d = Disassembly {
+            sku(d) <- s;
+            stock(d) <- st;
+        }
+        
+    FOR Disassembly a = disassembly(currentUser(), s, st) DO {
+        IF NOT lot(ibarcode()) THEN {
+            NEW l = Lot {
+                id(l) <- ibarcode(); 
+            }
+        }
+        FOR Lot l = lot(ibarcode()) DO { 
+            IF NOT disassemblyLot(a, l) THEN {
+                NEW d = DisassemblyLot {
+                    disassembly(d) <- a;
+                    lot(d) <- l;
+                }
+            }
+            
+            LOCAL NESTED changedPrint = BOOLEAN();
+            changedPrint() <- NOT sku(l) = isku() OR NOT price(l) = iprice();
+    
+            weight(l) <- iweight();
+            sku(l) <- isku();
+            price(l) <- iprice();
+            image(l) <- iimage();
+            
+            APPLY;
+            IF canceled() THEN {
+                CANCEL NESTED LOCAL;
+            } ELSE
+                IF changedPrint() THEN printLabel(l);
+        }
+    
+        ACTIVATE PROPERTY disassemblyLotDashboard.iweight();
+    }
+} CHANGEKEY 'shift SPACE';
+
+//changeLabel (Disassembly a) {
+//    INPUT text = STRING DO
+//        addLot(a);
+//}
+
+EXTEND FORM disassemblyLotDashboard
+    PROPERTIES processLot(s, st) READONLYIF NOT iweight() OR NOT isku() OR NOT iprice() OR NOT iimage() OR NOT ibarcode()
+    
+    PROPERTIES(l) printLabel
+;
+
+DESIGN disassemblyLotDashboard {
+    tabbedPane {
+        NEW input FIRST {
+            caption = 'Ввод';
+            NEW inputPane {
+                fill = 1;
+                type = CONTAINERH;
+                NEW inputLeft {
+                    fill = 3;
+                    MOVE PROPERTY(readWeight) { focusable = FALSE; }
+                    NEW inputLeftHeader {
+                        alignment = STRETCH; 
+                        type = CONTAINERH;
+                        MOVE PROPERTY(iweight()) { panelCaptionVertical = TRUE; charWidth = 6; alignment = STRETCH; notNull = TRUE; fontSize = 24; focusable = FALSE; }
+                        MOVE PROPERTY(inameSku()) { panelCaptionVertical = TRUE; alignment = STRETCH; notNull = TRUE; fontSize = 24; }
+                    }
+                }
+                NEW inputCenter {
+                    fill = 1;
+                    MOVE PROPERTY(iprice()) { panelCaptionVertical = TRUE; fontSize = 24; notNull = TRUE; alignment = STRETCH; }
+                }
+                NEW inputRight {
+                    alignment = STRETCH;
+//                    fill = 1;
+                    NEW inputRightTop {
+                        fill = 1;
+                        type = CONTAINERH;
+                        NEW inputRightTopLeft {
+                            fill = 1;
+                            MOVE PROPERTY(ibarcode()) { panelCaptionVertical = TRUE; alignment = STRETCH; notNull = TRUE; fontSize = 24; }
+                            MOVE PROPERTY(processLot(s, st)) { fill = 1; fontSize = 24; }
+                        }
+                        MOVE PROPERTY(iimage()) { panelCaptionVertical = TRUE; fill = 1; notNull = TRUE; focusable = FALSE; }
+                    }
+                    MOVE PROPERTY(istream()) { caption =''; focusable = FALSE; }
+                }
+            }
+        }
+        detailsRight {
+            MOVE PROPERTY(printLabel(l)) { fill = 0.3; fontSize = 24; }
+        }
+    }
+}    
+
+startEditing 'Редактировать' (DisassemblyLot dl) {
+    FOR Lot l = lot(dl) DO { 
+        iweight() <- weight(l);
+        isku() <- sku(l);
+        iprice() <- price(l);
+        iimage() <- image(l);
+        ibarcode() <- id(l);
+    }
+    
+    ACTIVATE TAB disassemblyLotDashboard.input;
+}
+
+EXTEND FORM disassemblyLotDashboard
+    PROPERTIES(l) startEditing TOOLBAR
+;
+
+// select sku
+choose (Sku c) { isku() <- c; }
+
+index (Sku s, Sku c) = PARTITION SUM 1 IF inSet(s, c) ORDER name(c), c BY s;
+
+EXTEND FORM disassemblyLotDashboard
+    OBJECTS c1 = Sku
+    PROPERTIES choose(c1) COLUMNS (c1) HEADER name(c1)
+    FILTERS mod(index(s,c1),3) = 1
+
+    OBJECTS c2 = Sku
+    PROPERTIES choose(c2) COLUMNS (c2) HEADER name(c2)
+    FILTERS mod(index(s,c2),3) = 2
+
+    OBJECTS c3 = Sku
+    PROPERTIES choose(c3) COLUMNS (c3) HEADER name(c3)
+    FILTERS mod(index(s,c3),3) = 0
+;
+
+DESIGN disassemblyLotDashboard {
+    inputLeft {
+        NEW inputLeftSku {
+            fill = 1;
+            type = CONTAINERH;
+            MOVE PROPERTY(choose(c1)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
+            MOVE PROPERTY(choose(c2)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
+            MOVE PROPERTY(choose(c3)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
+        }
+    }
+}
+
+// select price
+
+// select sku
+select (PriceCategory pc) { 
+    iprice() <- price(pc); 
+    generateLot();
+}
+
+index (PriceCategory c) = PARTITION SUM 1 ORDER price(c), c;
+
+EXTEND FORM disassemblyLotDashboard
+    OBJECTS pc1 = PriceCategory
+    PROPERTIES select(pc1) COLUMNS (pc1) HEADER priceName(pc1)
+    FILTERS mod(index(pc1),2) = 1
+
+    OBJECTS pc2 = PriceCategory
+    PROPERTIES select(pc2) COLUMNS (pc2) HEADER priceName(pc2)
+    FILTERS mod(index(pc2),2) = 0
+;
+
+DESIGN disassemblyLotDashboard {
+    inputCenter {
+        NEW inputCenterPrice AFTER PROPERTY(iprice()) {
+            fill = 1;
+            type = CONTAINERH;
+            MOVE PROPERTY(select(pc1)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
+            MOVE PROPERTY(select(pc2)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
+        }
+    }
+}
+
+NAVIGATOR {
+    stockDashboardNavigator {
+        NEW disassemblyLotDashboard;
+    }
+}

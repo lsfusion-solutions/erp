@@ -1,0 +1,33 @@
+MODULE PriceCategory;
+
+REQUIRE MasterData, Utils;
+
+NAMESPACE PriceList;
+
+CLASS PriceCategory 'Ценовая категория';
+
+price 'Цена' = DATA NUMERIC[14,2] (PriceCategory);
+name '{master.data.name}' = DATA ISTRING[100] (PriceCategory) CHARWIDTH 15;
+
+priceName (PriceCategory c) = ISTRING(CONCAT ' / ', rtrim(rtrim(STRING(price(c)), '0'),'.'), name(c)) CHARWIDTH 8; 
+
+FORM priceCategory 'Ценовая категория'
+    OBJECTS o = PriceCategory PANEL
+    PROPERTIES(o) price, name
+    
+    EDIT PriceCategory OBJECT o
+;
+
+FORM priceCategories 'Ценовые категории'
+    OBJECTS o = PriceCategory
+    PROPERTIES(o) READONLY price, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+
+    LIST PriceCategory OBJECT o
+;
+
+NAVIGATOR {
+    masterData {
+        NEW priceCategories;
+    }
+}

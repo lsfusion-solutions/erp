@@ -1,0 +1,27 @@
+MODULE LotPriceLabel;
+
+REQUIRE LotPrice, ComPrinter;
+
+NAMESPACE Lot;
+
+@defineItemGroupValue(labelTemplate, 'Шаблон ценника', TEXT, paramsItemGroup);
+
+labelText (Lot l) = replace(replace(replace(labelTemplate(itemGroup(sku(l))), '@NAME@', nameSku(l)), '@BARCODE@', id(l)), '@PRICE@', 'Цена ' + INTEGER(price(l)) + ' руб.'); 
+
+printLabel 'Печать' (Lot l) {
+    printComPort(labelText(l));
+}
+
+//^XA
+//^CI28
+//^FO 20,20
+//^FB400,2,10,C,0
+//^AQN,40,40^FD@NAME@^FS
+//^FO 20,60
+//^FB400,2,10,C,0
+//^AQN,40,40^FD@PRICE@^FS
+//^FO 20,180
+//^BY2
+//^BCN,70,Y,N,N 
+//^FD@BARCODE@^FS 
+//^XZ
