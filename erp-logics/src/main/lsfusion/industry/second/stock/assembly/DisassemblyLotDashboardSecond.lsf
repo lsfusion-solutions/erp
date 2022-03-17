@@ -3,7 +3,7 @@ MODULE DisassemblyLotDashboardSecond;
 REQUIRE DisassemblyLotSecond, LotExtra, LotPriceLabel, 
         PriceCategory, ItemPart, 
         SerialPort, 
-        ScalesItem, WeightDaemon, 
+        ScalesItem, ComWeight, 
         Video; 
 
 NAMESPACE Disassembly;
@@ -128,7 +128,9 @@ EXTEND FORM disassemblyLotDashboard
                  ibarcode ON CHANGE { INPUT b = ibarcode() DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
                  iimage
     
-    PROPERTIES readWeight = jsonScalesComPort(currentComputer()) CUSTOM 'serialPortReceiveRender' ON CHANGE {
+    EVENTS ON INIT { openScalesPortReader(currentComputer()); }
+    EVENTS ON CLOSE { closePortReader(); }
+    PROPERTIES readWeight = '' CUSTOM 'serialPortReceiveRender' ON CHANGE {
         INPUT t = TEXT DO {
             IF isSubstring(t, '170,') THEN { 
                 LOCAL bytes = TEXT ();

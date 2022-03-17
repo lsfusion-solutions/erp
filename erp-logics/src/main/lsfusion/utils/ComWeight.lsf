@@ -1,0 +1,19 @@
+MODULE ComWeight;
+
+REQUIRE WeightDaemon;
+
+NAMESPACE Utils;
+
+vidScalesComPort 'VID весов' = DATA STRING[4] (Computer);
+pidScalesComPort 'PID весов' = DATA STRING[4] (Computer);
+
+EXTEND FORM computer PROPERTIES(c) vidScalesComPort, pidScalesComPort; 
+
+// не запустится на версии ниже 5й
+jsonScalesComPort (Computer c) = JSON(FROM vid = vidScalesComPort(c), pid = pidScalesComPort(c)); 
+
+openPortReader INTERNAL CLIENT 'openPortReader(info)' (JSON);
+openScalesPortReader (Computer c) { openPortReader(jsonScalesComPort(c)); }
+openScalesPortReader () { openScalesPortReader(currentComputer()); }
+
+closePortReader INTERNAL CLIENT 'closePortReader(info)' ();

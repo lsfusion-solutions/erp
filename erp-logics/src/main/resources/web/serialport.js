@@ -1,58 +1,65 @@
-let serialPortReader;
-
 async function getPort(info) {
     if (info)  {
         const ports = await navigator.serial.getPorts();
         const devices = ports.filter(port => port.getInfo().usbProductId == parseInt(info.pid, 16) && port.getInfo().usbVendorId == parseInt(info.vid, 16))
         if (devices.length > 0)
             return devices[0];
-        else {
-            alert("Устройство " + info.vid + "/" + info.pid + " не найдено");
-            return;
-        }
+        else
+            throw { code : "", message : "Устройство " + info.vid + "/" + info.pid + " не найдено", name : "" };
     } else {
         return navigator.serial.requestPort();
     }
 }
 
-async function readUntilClosed(info, status) {
-    let port = await getPort(info);
-    if (!port) {
-        status.innerText = "Не удалось получить порт";
-        serialPortReader = undefined;
-        return;
-    } else
-        status.innerText = '';
+let serialPortReader;
+let onSerialPortReceive;
 
+async function openPortReader(info) {
+    if (serialPortReader) return;
+
+    let port;
     try {
+        port = await getPort(info);
+        if (!port) {
+            alert("Не удалось получить порт");
+            return;
+        }
+
         await port.open({ baudRate: 9600 });
     } catch (error) {
-        status.innerText = "Code " + error.code + " : " + error.message + " / " + error.name;
-        serialPortReader = undefined;
+        if (onSerialPortError) onSerialPortError(error);
+        alert("Код " + error.code + " : " + error.message + " / " + error.name);
         return;
     }
 
-    while (port.readable) {
-        reader = port.readable.getReader();
+    keepReading = true;
+    while (port.readable && keepReading) {
+        serialPortReader = port.readable.getReader();
         try {
             while (true) {
-                const { value, done } = await reader.read();
+                const { value, done } = await serialPortReader.read();
                 if (done) {
+                    keepReading = false;
                     break;
                 }
                 console.log(value);
-                if (serialPortReader.onReceive !== undefined)
-                    serialPortReader.onReceive(value);
+                if (onSerialPortReceive)
+                    onSerialPortReceive(value);
             }
         } catch (error) {
-            status.innerText = error;
+            alert("Код " + error.code + " : " + error.message + " / " + error.name);
         } finally {
-            reader.releaseLock();
+            serialPortReader.releaseLock();
         }
     }
 
     await port.close();
     serialPortReader = undefined;
+}
+
+async function closePortReader() {
+    if (serialPortReader)
+        serialPortReader.cancel();
 }
 
 function serialPortReceiveRender() {
@@ -69,13 +76,8 @@ function serialPortReceiveRender() {
             element.parentElement.style.setProperty("border", "none");
             element.parentElement.style.setProperty("margin", "0");
 
-            if (serialPortReader === undefined) {
-                serialPortReader = readUntilClosed(value, element.status)
-            }
-            if (serialPortReader !== undefined) {
-                serialPortReader.onReceive = function (value) {
-                    controller.changeValue(JSON.stringify(Array.from(value)));
-                }
+            onSerialPortReceive = function (value) {
+                controller.changeValue(JSON.stringify(Array.from(value)));
             }
         }
     }
@@ -85,10 +87,16 @@ let serialPortWriter;
 
 async function serialPortSend (port, value) {
     if (!serialPortWriter) {
-        serialPortWriter = await getPort(port);
-        if (!serialPortWriter) return;
+        try {
+            serialPortWriter = await getPort(port);
+            if (!serialPortWriter) return;
 
-        await serialPortWriter.open({ baudRate: 115200 });
+            await serialPortWriter.open({ baudRate: 115200 });
+        } catch (error) {
+            serialPortWriter = undefined;
+            alert("Code " + error.code + " : " + error.message + " / " + error.name);
+            return;
+        }
     }
 
     const encoder = new TextEncoder();
