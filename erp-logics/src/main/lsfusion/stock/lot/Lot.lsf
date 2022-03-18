@@ -192,6 +192,8 @@ END
 
 lotBarcode() = DATA LOCAL STRING[200] ();
 
+@defineOption(lotMinLength, 'Минимальная длина КМ', INTEGER, stock1);
+
 META defineDocumentLotBarcodeIn (doc, quantityProp)
     EXTEND FORM doc
         OBJECTS cd = ###doc##Detail PANEL
@@ -201,7 +203,7 @@ META defineDocumentLotBarcodeIn (doc, quantityProp)
     beforeInputBarcode###doc##Detail(###doc i, STRING[200] s) + {
         lotBarcode() <- NULL;
         consumedBarcode###doc##Detail() <- NULL;
-        IF length(s) > 20 THEN {
+        IF length(s) >= OVERRIDE lotMinLength(), 20 THEN {
             lotBarcode() <- barcodeToId(s);
             FOR [FILTER doc.cd](###doc##Detail d) AND lotType(sku(d)) DO {
                 FOR Lot l = lot(lotBarcode()) DO {
@@ -266,7 +268,7 @@ META defineDocumentLotBarcodeOut (doc, stock)
     beforeInputBarcode###doc##Detail(###doc i, STRING[200] s) + {
         lotBarcode() <- NULL;
         consumedBarcode###doc##Detail() <- NULL;
-        IF length(s) > 20 THEN {
+        IF length(s) >= OVERRIDE lotMinLength(), 20 THEN {
             FOR STRING[200] bc = barcodeToId(s) AND Lot l = lot(bc) DO {
                 lotBarcode() <- bc;
                 IF quantity(i, l) = 1.0 THEN {
