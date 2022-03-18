@@ -662,13 +662,20 @@ proxyDepartmentId 'Идентификатор подразделения про�
 proxyDepartmentName 'Наименование подразделения промежуточного получателя' (Document d) = name(proxyDepartment(d)) CHARWIDTH 20;
 
 //DocflowStatus
-primaryStatusSeverity 'Критичность основного статуса' = DATA Severity (Document);
-primaryStatusSeverityName 'Критичность основного статуса' (Document d) = name(primaryStatusSeverity(d)) CHARWIDTH 10;
-primaryStatusText 'Основной статус' = DATA STRING (Document) CHARWIDTH 20;
-secondaryStatusSeverity 'Критичность второстепенного статуса' = DATA Severity (Document);
-secondaryStatusSeverityName 'Критичность второстепенного статуса' (Document d) = name(secondaryStatusSeverity(d)) CHARWIDTH 10;
-secondaryStatusText 'Второстепенный статус' = DATA STRING (Document) CHARWIDTH 20;
+//primaryStatusSeverity 'Критичность основного статуса' = DATA Severity (Document);
+//primaryStatusSeverityName 'Критичность основного статуса' (Document d) = name(primaryStatusSeverity(d)) CHARWIDTH 10;
+//primaryStatusText 'Основной статус' = DATA STRING (Document) CHARWIDTH 20;
+//secondaryStatusSeverity 'Критичность второстепенного статуса' = DATA Severity (Document);
+//secondaryStatusSeverityName 'Критичность второстепенного статуса' (Document d) = name(secondaryStatusSeverity(d)) CHARWIDTH 10;
+//secondaryStatusText 'Второстепенный статус' = DATA STRING (Document) CHARWIDTH 20;
 
+TABLE boxDocument (Box, Document);
+primaryStatusSeverity 'Критичность основного статуса' = DATA Severity (Box, Document);
+primaryStatusSeverityName 'Критичность основного статуса' (Box b, Document d) = name(primaryStatusSeverity(b,d)) CHARWIDTH 10;
+primaryStatusText 'Основной статус' = DATA STRING (Box, Document) CHARWIDTH 20;
+secondaryStatusSeverity 'Критичность второстепенного статуса' = DATA Severity (Box, Document);
+secondaryStatusSeverityName 'Критичность второстепенного статуса' (Box b, Document d) = name(secondaryStatusSeverity(b,d)) CHARWIDTH 10;
+secondaryStatusText 'Второстепенный статус' = DATA STRING (Box, Document) CHARWIDTH 20;
 
 //----------------------- EntityPatch -----------------------//
 //CLASS EntityPatch 'Дополнение к сущности Диадока';
@@ -863,7 +870,7 @@ FORM document 'Документ Диадока'
                   workflowId, title, recipientReceiptReceiptStatusName, recipientReceiptConfirmationReceiptStatusName,
                   recipientReceiptConfirmationDateTime, confirmationReceiptStatusName, confirmationDateTime, recipientResponseStatusName,
                   amendmentFlags, amendmentRequestReceiptStatusName, lockModeName, senderReceiptStatusName, version, proxyTitle,
-                  proxyDepartmentName, primaryStatusSeverityName, primaryStatusText, secondaryStatusSeverityName, secondaryStatusText
+                  proxyDepartmentName//, primaryStatusSeverityName, primaryStatusText, secondaryStatusSeverityName, secondaryStatusText
     
     OBJECTS k = STRING
     PROPERTIES key = VALUE(k) HEADER 'Ключ', value = metadata(d,k) HEADER 'Значение'
@@ -899,10 +906,10 @@ DESIGN document {
                         MOVE PROPERTY(toDepartmentName(d));
                         MOVE PROPERTY(proxyTitle(d));
                         MOVE PROPERTY(proxyDepartmentName(d));
-                        MOVE PROPERTY(primaryStatusSeverityName(d));
-                        MOVE PROPERTY(primaryStatusText(d));
-                        MOVE PROPERTY(secondaryStatusSeverityName(d));
-                        MOVE PROPERTY(secondaryStatusText(d));
+                        //MOVE PROPERTY(primaryStatusSeverityName(d));
+                        //MOVE PROPERTY(primaryStatusText(d));
+                        //MOVE PROPERTY(secondaryStatusSeverityName(d));
+                        //MOVE PROPERTY(secondaryStatusText(d));
                     }
                     NEW line2 {
                         type = COLUMNS;
@@ -985,7 +992,8 @@ FORM documents 'Документы Диадока'
     
     OBJECTS d = Document LAST
     PROPERTIES(d) READONLY isDeleted, isTest, messageId, entityId, title, counteragentBoxTitle, creationTimestamp,
-                  sendTimestamp, deliveryTimestamp, primaryStatusText, secondaryStatusText
+                  sendTimestamp, deliveryTimestamp
+    PROPERTIES(b,d) READONLY primaryStatusText, primaryStatusSeverityName, secondaryStatusText, secondaryStatusSeverityName
     //PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
     PROPERTIES(d) openData, show
     FILTERS fromBox(message(d)) == b OR toBox(message(d)) == b OR proxyBox(message(d)) == b
@@ -1649,10 +1657,10 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                 amendmentFlags(d) <- amendmentFlagsDM(i);
                 amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusDM(i));
                 senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusDM(i));
-                primaryStatusSeverity(d) <- severity(primaryStatusSeverityDM(i));
-                primaryStatusText(d) <- primaryStatusTextDM(i);
-                secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityDM(i));
-                secondaryStatusText(d) <- secondaryStatusTextDM(i);
+                primaryStatusSeverity(box,d) <- severity(primaryStatusSeverityDM(i));
+                primaryStatusText(box,d) <- primaryStatusTextDM(i);
+                secondaryStatusSeverity(box,d) <- severity(secondaryStatusSeverityDM(i));
+                secondaryStatusText(box,d) <- secondaryStatusTextDM(i);
                 FOR messageMetadata(INTEGER m) == i DO {
                     metadata(d,keyDM(m)) <- valueDM(m);
                 }
@@ -1765,10 +1773,10 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                 amendmentFlags(d) <- amendmentFlagsDP(i);
                 amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusDP(i));
                 senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusDP(i));
-                primaryStatusSeverity(d) <- severity(primaryStatusSeverityDP(i));
-                primaryStatusText(d) <- primaryStatusTextDP(i);
-                secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityDP(i));
-                secondaryStatusText(d) <- secondaryStatusTextDP(i);
+                primaryStatusSeverity(box,d) <- severity(primaryStatusSeverityDP(i));
+                primaryStatusText(box,d) <- primaryStatusTextDP(i);
+                secondaryStatusSeverity(box,d) <- severity(secondaryStatusSeverityDP(i));
+                secondaryStatusText(box,d) <- secondaryStatusTextDP(i);
                 FOR patchMetadata(INTEGER m) == i DO {
                     metadata(d,keyDP(m)) <- valueDP(m);
                 }
@@ -1913,9 +1921,10 @@ FORM importDocument
                valueD EXTID 'Value'
 ;
 
-needCheckStatus = DATA BOOLEAN (Document);
+//needCheckStatus = DATA BOOLEAN (Document);
+needCheckStatus = DATA BOOLEAN (Box,Document);
 WHEN SETCHANGED(lastPatchTimestampTicks(message(Document d))) DO {
-    needCheckStatus(d) <- TRUE;
+    needCheckStatus(Box b, d) <- TRUE WHERE (fromBox(message(d)) == b OR toBox(message(d)) == b OR proxyBox(message(d)) == b);
 }
 
 getDocument 'Обновить информацию по документу' (User u, Box b, Document d) {
@@ -1976,14 +1985,14 @@ getDocument 'Обновить информацию по документу' (Use
             amendmentFlags(d) <- amendmentFlagsD();
             amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusD());
             senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusD());
-            primaryStatusSeverity(d) <- severity(primaryStatusSeverityD());
-            primaryStatusText(d) <- primaryStatusTextD();
-            secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityD());
-            secondaryStatusText(d) <- secondaryStatusTextD();
+            primaryStatusSeverity(b,d) <- severity(primaryStatusSeverityD());
+            primaryStatusText(b,d) <- primaryStatusTextD();
+            secondaryStatusSeverity(b,d) <- severity(secondaryStatusSeverityD());
+            secondaryStatusText(b,d) <- secondaryStatusTextD();
             FOR keyD(INTEGER m) DO {
                 metadata(d,keyD(m)) <- valueD(m);
             }
-            needCheckStatus(d) <- NULL;
+            needCheckStatus(b,d) <- NULL;
         }
         APPLY;
     }
@@ -1992,7 +2001,7 @@ getDocument 'Обновить информацию по документу' (Use
 getMessagesAndDocuments 'Получить сообщения и обновить документы' (User u, Box b) {
     getCounteragents(u, organization(b));
     getNewEvents(u,b);
-    FOR needCheckStatus(Document d) AND (fromBox(message(d)) == b OR toBox(message(d)) == b OR proxyBox(message(d)) == b) DO {
+    FOR needCheckStatus(b,Document d) DO {
         getDocument(u,b,d);
     }
 }
@@ -2435,10 +2444,10 @@ postMessage 'Отправить сообщение' (User u) {
         amendmentFlags(d) <- amendmentFlagsDM(i);
         amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusDM(i));
         senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusDM(i));
-        primaryStatusSeverity(d) <- severity(primaryStatusSeverityDM(i));
-        primaryStatusText(d) <- primaryStatusTextDM(i);
-        secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityDM(i));
-        secondaryStatusText(d) <- secondaryStatusTextDM(i);
+        primaryStatusSeverity(fromBox(),d) <- severity(primaryStatusSeverityDM(i));
+        primaryStatusText(fromBox(),d) <- primaryStatusTextDM(i);
+        secondaryStatusSeverity(fromBox(),d) <- severity(secondaryStatusSeverityDM(i));
+        secondaryStatusText(fromBox(),d) <- secondaryStatusTextDM(i);
         FOR messageMetadata(INTEGER m) == i DO {
             metadata(d,keyDM(m)) <- valueDM(m);
         }
@@ -2766,10 +2775,10 @@ postMessagePatch 'Отправить дополнение к сообщению'
         amendmentFlags(d) <- amendmentFlagsDP(i);
         amendmentRequestReceiptStatus(d) <- generalReceiptStatus(amendmentRequestReceiptStatusDP(i));
         senderReceiptStatus(d) <- generalReceiptStatus(senderReceiptStatusDP(i));
-        primaryStatusSeverity(d) <- severity(primaryStatusSeverityDP(i));
-        primaryStatusText(d) <- primaryStatusTextDP(i);
-        secondaryStatusSeverity(d) <- severity(secondaryStatusSeverityDP(i));
-        secondaryStatusText(d) <- secondaryStatusTextDP(i);
+        primaryStatusSeverity(box(),d) <- severity(primaryStatusSeverityDP(i));
+        primaryStatusText(box(),d) <- primaryStatusTextDP(i);
+        secondaryStatusSeverity(box(),d) <- severity(secondaryStatusSeverityDP(i));
+        secondaryStatusText(box(),d) <- secondaryStatusTextDP(i);
         FOR patchMetadata(INTEGER m) == i DO {
             metadata(d,keyDP(m)) <- valueDP(m);
         }
@@ -2833,10 +2842,10 @@ DESIGN dialogSinger {
     }
 }
 
-showMessageReceipt (Document d) = CASE
-    WHEN primaryStatusText(d) == 'Требуется подписать извещение' THEN TRUE
-    WHEN primaryStatusText(d) == 'Требуется уточнение. Требуется подписать извещение' THEN TRUE
-    WHEN primaryStatusText(d) == 'Требуется подпись. Требуется подписать извещение' THEN TRUE;
+showMessageReceipt (Box b, Document d) = CASE
+    WHEN primaryStatusText(b,d) == 'Требуется подписать извещение' THEN TRUE
+    WHEN primaryStatusText(b,d) == 'Требуется уточнение. Требуется подписать извещение' THEN TRUE
+    WHEN primaryStatusText(b,d) == 'Требуется подпись. Требуется подписать извещение' THEN TRUE;
 
 overMessageReceipt ABSTRACT (User, Box, Document);
 messageReceipt 'Подписать и отправить извещение о получении' (User u, Box b, Document d) {
@@ -2846,8 +2855,8 @@ messageReceipt 'Подписать и отправить извещение о �
         box() <- b;
         message() <- message(d);
         parentEntity(0) <- CASE
-            WHEN primaryStatusText(d) == 'Требуется подписать извещение' OR primaryStatusText(d) == 'Требуется подпись. Требуется подписать извещение' THEN entity(d)
-            WHEN primaryStatusText(d) == 'Требуется уточнение. Требуется подписать извещение' THEN localEntity();
+            WHEN primaryStatusText(b,d) == 'Требуется подписать извещение' OR primaryStatusText(b,d) == 'Требуется подпись. Требуется подписать извещение' THEN entity(d)
+            WHEN primaryStatusText(b,d) == 'Требуется уточнение. Требуется подписать извещение' THEN localEntity();
         isReceipts(0) <- TRUE;
         surname() <- STRING[60](lastName(currentUser()));
         firstName() <- STRING[60](firstName(currentUser()));
@@ -2883,7 +2892,7 @@ messageReceipt 'Подписать и отправить извещение о �
 }
 
 EXTEND FORM documents
-    PROPERTIES(u,b,d) TOOLBAR messageReceipt SHOWIF showMessageReceipt(d)
+    PROPERTIES(u,b,d) TOOLBAR messageReceipt SHOWIF showMessageReceipt(b,d)
 ;
 
 //----------------------- InvoiceCorrectionRequest Уведомление об уточнении -----------------------//
@@ -2922,7 +2931,7 @@ DESIGN dialogErrorMessage {
 }
 
 showMessageInvoiceCorrectionRequest (Box b, Document d) = CASE
-    WHEN NOT (primaryStatusText(d) == 'Исправлен' OR primaryStatusText(d) == 'Ожидается уточнение' OR primaryStatusText(d) == 'Отказано в подписи контрагенту') AND toBox(message(d)) == b AND d IS Document THEN TRUE;
+    WHEN NOT (primaryStatusText(b,d) == 'Исправлен' OR primaryStatusText(b,d) == 'Ожидается уточнение' OR primaryStatusText(b,d) == 'Отказано в подписи контрагенту') AND toBox(message(d)) == b AND d IS Document THEN TRUE;
 messageInvoiceCorrectionRequest 'Подписать и отправить уведомление об уточнении' (User u, Box b, Document d) {
     NEWSESSION {
         box() <- b;
@@ -2969,8 +2978,8 @@ EXTEND FORM documents
 
 //----------------------- RevocationRequest Предложение об аннулировании -----------------------//
 //комментарий и Signer не обязательны
-showMessageRevocationRequest (Document d) = CASE
-    WHEN NOT (primaryStatusText(d) == 'Требуется подпись' OR primaryStatusText(d) == 'Требуется подпись. Требуется подписать извещение' OR primaryStatusText(d) == 'Ожидается аннулирование' OR primaryStatusText(d) == 'Требуется аннулирование' OR primaryStatusText(d) == 'Аннулирован' OR primaryStatusText(d) == 'Контрагент отказал в подписи' OR primaryStatusText(d) == 'Отказано в подписи контрагенту') AND d IS Document THEN TRUE;
+showMessageRevocationRequest (Box b, Document d) = CASE
+    WHEN NOT (primaryStatusText(b,d) == 'Требуется подпись' OR primaryStatusText(b,d) == 'Требуется подпись. Требуется подписать извещение' OR primaryStatusText(b,d) == 'Ожидается аннулирование' OR primaryStatusText(b,d) == 'Требуется аннулирование' OR primaryStatusText(b,d) == 'Аннулирован' OR primaryStatusText(b,d) == 'Контрагент отказал в подписи' OR primaryStatusText(b,d) == 'Отказано в подписи контрагенту') AND b IS Box AND d IS Document THEN TRUE;
 messageRevocationRequest 'Подписать и отправить предложение об аннулировании' (User u, Box b, Document d) {
      NEWSESSION {
         box() <- b;
@@ -3005,12 +3014,12 @@ messageRevocationRequest 'Подписать и отправить предло�
 }
 
 EXTEND FORM documents
-    PROPERTIES(u,b,d) TOOLBAR messageRevocationRequest SHOWIF showMessageRevocationRequest(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRevocationRequest SHOWIF showMessageRevocationRequest(b,d)
 ;
 
 //----------------------- Signature Аннулирование -----------------------//
-showMessageRevocationSignature (Document d) = CASE
-    WHEN primaryStatusText(d) == 'Требуется аннулирование' AND d IS Document THEN TRUE;
+showMessageRevocationSignature (Box b, Document d) = CASE
+    WHEN primaryStatusText(b,d) == 'Требуется аннулирование' THEN TRUE;
 messageRevocationSignature 'Аннулировать' (User u, Box b, Document d) {
     NEWSESSION {
         box() <- b;
@@ -3042,7 +3051,7 @@ messageRevocationSignature 'Аннулировать' (User u, Box b, Document d
 }
 
 EXTEND FORM documents
-    PROPERTIES(u,b,d) TOOLBAR messageRevocationSignature SHOWIF showMessageRevocationSignature(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRevocationSignature SHOWIF showMessageRevocationSignature(b,d)
 ;
 
 //----------------------- XmlSignatureRejection Отказ от аннулирования -----------------------//
@@ -3056,8 +3065,8 @@ FORM exportSignatureRejectionInfo
                soleProprietorRegistrationCertificate() EXTID 'SoleProprietorRegistrationCertificate'
 ;
 
-showMessageRevocationRejection (Document d) = CASE
-    WHEN primaryStatusText(d) == 'Требуется аннулирование' AND d IS Document THEN TRUE;
+showMessageRevocationRejection (Box b, Document d) = CASE
+    WHEN primaryStatusText(b,d) == 'Требуется аннулирование' THEN TRUE;
 messageRevocationRejection 'Отказ от аннулирования' (User u, Box b, Document d) {
     NEWSESSION {
         box() <- b;
@@ -3097,24 +3106,24 @@ messageRevocationRejection 'Отказ от аннулирования' (User u,
 }
 
 EXTEND FORM documents
-    PROPERTIES(u,b,d) TOOLBAR messageRevocationRejection SHOWIF showMessageRevocationRejection(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRevocationRejection SHOWIF showMessageRevocationRejection(b,d)
 ;
 
 //----------------------- Signature Подпись -----------------------//
-showMessageSignature (Document d) = CASE
-    WHEN primaryStatusText(d) == 'Требуется подпись' AND d IS Document THEN TRUE;
+showMessageSignature (Box b, Document d) = CASE
+    WHEN primaryStatusText(b,d) == 'Требуется подпись' THEN TRUE;
 overMessageSignature ABSTRACT LIST (User,Box,Document);
 messageSignature 'Подписать' (User u, Box b, Document d) {
     overMessageSignature(u,b,d);
 }
 
 EXTEND FORM documents
-    PROPERTIES(u,b,d) TOOLBAR messageSignature SHOWIF showMessageSignature(d)
+    PROPERTIES(u,b,d) TOOLBAR messageSignature SHOWIF showMessageSignature(b,d)
 ;
 
 //----------------------- XmlSignatureRejection Отказ в подписи -----------------------//
-showMessageRejection (Document d) = CASE
-    WHEN primaryStatusText(d) == 'Требуется подпись' AND d IS Document THEN TRUE;
+showMessageRejection (Box b, Document d) = CASE
+    WHEN primaryStatusText(b,d) == 'Требуется подпись' THEN TRUE;
 messageRejection 'Отказ в подписи' (User u, Box b, Document d) {
     NEWSESSION {
         box() <- b;
@@ -3154,7 +3163,7 @@ messageRejection 'Отказ в подписи' (User u, Box b, Document d) {
 }
 
 EXTEND FORM documents
-    PROPERTIES(u,b,d) TOOLBAR messageRejection SHOWIF showMessageRejection(d)
+    PROPERTIES(u,b,d) TOOLBAR messageRejection SHOWIF showMessageRejection(b,d)
 ;
 
 //------------ Создание документа на основе -------------//
