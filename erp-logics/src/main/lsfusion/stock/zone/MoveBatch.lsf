@@ -1,0 +1,73 @@
+MODULE MoveBatch;
+
+REQUIRE Move, ZoneLedgerBatch, PriceListLedgerAccount;
+
+NAMESPACE Zone;
+
+@showDocumentDetailBatch(move);
+@defineDocumentDetailBatchCustomPrefixInner(moveDetail, batch, Batch, );
+@defineBalancesBatch(moveDetail);
+@defineMovementBatch(moveDetail, stock);
+
+changeBatch(MoveDetail d)  { 
+    DIALOG dialogBatchStockOut OBJECTS st = stock(d),
+                             t = dateTime(d),
+                             sk = sku(d),
+                             bt = batch(d) CHANGE NOCONSTRAINTFILTER NEWSESSION DO 
+        batch(d) <- bt;
+}
+
+@defineDocumentBatch(move, batch, sku, stock, );
+
+//------ подбор документа - batch ----------//
+
+batch[DocumentDetail](MoveDetail detail) += batch(detail);
+skipFillBatch = ABSTRACT CASE BOOLEAN (MoveDetail);
+overFillDocument (MoveDetail i, DocumentDetail d) + { 
+    IF NOT skipFillBatch(i) THEN {
+        batch(i) <- batch(d);
+    }        
+}
+
+@implementDocumentBatchForm(mv);
+
+inSupplier = GROUP SUM 1 IF supplier(batch(MoveDetail detail))==LegalEntity supplier BY supplier, move(detail);
+nameSuppliers 'Поставщики' (Move move) = GROUP CONCAT name(LegalEntity supplier) IF inSupplier(supplier, move), ', ' ORDER supplier CHARWIDTH 25;
+
+overCopy (MoveDetail to, MoveDetail from) + {
+    batch(to) <- batch(from);
+    price(to) <- price(from);
+}
+
+EXTEND FORM move
+    PROPERTIES(d) nameBatch ON CHANGE changeBatch(d)
+;
+
+EXTEND FORM moves
+    PROPERTIES(d) READONLY nameBatch
+;
+
+price 'Цена' (Batch batch, Move m) =  OVERRIDE prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock(m), dateTime(m)),
+                                                      prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku(batch), stock(m), dateTime(m));
+@extendFormDocumentBatch(move, moveDetail, move, m, batch);
+@defineDocumentBatchStockSupplier(move, move, m);
+
+EXTEND FORM move
+    FILTERGROUP balanceBatch 
+        FILTER 'С остатком' fromZone(m) AND prevCurrentBalance(stock(m), fromZone(m), b) OR
+                            prevCurrentBalance(b, stock(m)) AND NOT fromZone(m) 'F5' DEFAULT 
+;
+
+DESIGN move {
+    REMOVE BOX(TREE stockTree);
+}
+
+EXTEND FORM moves
+    PROPERTIES(m) READONLY nameSuppliers
+;
+
+WHEN LOCAL FORMS move (CHANGED(sku(MoveDetail d)) OR CHANGED (stock(d))) AND NOT CHANGED (batch(d)) DO {
+    batch(d) <- defaultPositiveBatch(sku(d), stock(d)) WHERE  countPositiveBatch(sku(d), stock(d)) == 1;  
+}
+
+batch(MoveDetail l) += batch(l);

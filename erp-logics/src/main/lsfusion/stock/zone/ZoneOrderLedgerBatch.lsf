@@ -4,6 +4,10 @@ REQUIRE ZoneOrderLedger, ZoneLedgerBatch;
 
 NAMESPACE Zone;
 
+extraReserveZones 'Текущий остаток в зонах' (Batch bt, Stock st) = GROUP SUM currentBalance(st, Zone z, bt) IF NOT skipChangeAvailable(z) MATERIALIZED;
+
+extraReserve(Batch bt, Stock st) += extraReserveZones(bt, st);
+
 EXTEND FORM orderBatchLedger
     OBJECTS z = Zone
     PROPERTIES READONLY name(z), currentBalance(st, z, bt)

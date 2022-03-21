@@ -1,12 +1,17 @@
 MODULE Solvo;
 
-REQUIRE WMSIntegration, Warehouse, PurchaseShipment, SaleShipment, TripOrder;
+REQUIRE WMSIntegration, Warehouse, PurchaseShipment, SaleShipment, TripOrder, Move;
 
 
 isSolvo 'Склад c WMS Solvo' = DATA BOOLEAN (Warehouse);
 
 EXTEND FORM warehouse 
-    PROPERTIES (w) isSolvo;
+    PROPERTIES (w) isSolvo SHOWIF isCompany(w);
+DESIGN warehouse {
+    headerMainParams {
+        MOVE PROPERTY(isSolvo(w));
+    }
+}
     
 host 'Хост' = DATA ISTRING[30]();
 base 'База' = DATA ISTRING[30]();
@@ -330,7 +335,96 @@ DESIGN Purchase.invoices {
     }
 }
 
-//Ррасход
+//Смена категории
+idSolvo 'Код Solvo' = DATA STRING (Zone);
+EXTEND FORM zone PROPERTIES(z) idSolvo AFTER name(z);
+EXTEND FORM zones PROPERTIES(z) READONLY idSolvo AFTER name(z);
+
+slovoMessage = DATA SlovoMessage (Move);
+statusSlovo 'Статус выгрузки' (Move o) = CONCAT ' - ', status(slovoMessage(o)), errDescr(slovoMessage(o)) IN wms;
+//processingStatusSlovo 'Статус обработки'  = DATA STRING[50](Move) IN wms;
+
+beforeExportSolvo ABSTRACT (Move);
+
+categoryHeaderString (LONG syncId, Move s) = CONCAT'','<category_change_req syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' doc_id=\'\'',id(s),'\'\' comments=\'\'',format(note(s)),'\'\' old_category_id=\'\'',(OVERRIDE format(idSolvo(fromZone(s))), '1'),
+    '\'\' new_category_id=\'\'',(OVERRIDE format(idSolvo(toZone(s))), '1'),'\'\'>';
+
+extraCategoryDetailString = ABSTRACT CASE STRING (MoveDetail);
+categoryDetailString (LONG syncId, MoveDetail s) = CONCAT'','<category_change_req_detail syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' doc_id=\'\'',id(move(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' ',extraCategoryDetailString(s),
+    '\'\' qty=\'\'',format(STRING(quantity(s))),'\'\' comments=\'\'\'\'/>';
+
+exportSolvo 'Выгрузить категории в wms Solvo' (Move m) { 
+    NEWSESSION {
+    
+        in(Item it) <- TRUE WHERE (GROUP SUM quantity(MoveDetail d) IF sku(d) == it AND move(d) == m) AND ((changed(it) AND NOT changed(it) < loaded(it)) OR NOT loaded(it));
+        exportItems();
+        
+        in(Stock s) <- TRUE WHERE s == stock(m) AND ((changed(s) AND NOT changed(s) < loaded(s)) OR NOT loaded(s));
+        exportStocks();
+    
+        beforeExportSolvo(m);
+        
+        numerateIds(countMoveDetail(m) + 2);
+        
+        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Move:', seriesNumber(m));
+        
+        IF NOT id(m) THEN {
+            id(m) <- CONCAT '_', seriesNumber(m), date(m);
+        }
+        
+        headerId(incrementedValue()) <- 0;
+        type(incrementedValue()) <- 'category_change_req';
+        meaasage(incrementedValue()) <- categoryHeaderString(incrementedValue(), m);
+        
+        FOR m == move(MoveDetail d) DO {
+            headerId(incrementedValue() + index(d)) <- incrementedValue();
+            type(incrementedValue() + index(d)) <- 'category_change_req_detail';
+            meaasage(incrementedValue() + index(d)) <- categoryDetailString(incrementedValue() + index(d), d);
+        }
+        
+        headerId(incrementedValue() + countMoveDetail(m) + 1) <- incrementedValue();
+        type(incrementedValue() + countMoveDetail(m) + 1) <- '/category_change_req';
+        meaasage(incrementedValue() + countMoveDetail(m) + 1) <- '</category_change_req>';
+    
+        EXTERNAL 
+            SQL connectionString()
+            EXEC insertString();
+            
+        IF NOT slovoMessage(m) THEN NEW s = SlovoMessage {
+            slovoMessage(m) <- s;
+        }
+        id(slovoMessage(m)) <- incrementedValue();
+        type(slovoMessage(m)) <- 'category_change_req';
+        status(slovoMessage(m)) <- 'ready';
+        loaded(slovoMessage(m)) <- currentDateTime();
+        
+        APPLY NESTED LOCAL;
+            
+        MESSAGE 'Перемещение выгружено' NOWAIT;
+    }
+
+}
+
+EXTEND FORM moves 
+    PROPERTIES (m) PANEL SHOWIF isSolvo(stock(m)) 
+        exportSolvo, statusSlovo//, processingStatusSlovo
+;
+
+DESIGN moves {
+    actionContainer {
+        NEW exportWMS {
+            caption = 'Экспорт в WMS';
+            type = CONTAINERV;
+            MOVE PROPERTY(exportSolvo(m));
+            MOVE PROPERTY(statusSlovo(m));
+            //MOVE PROPERTY(processingStatusSlovo(m));
+        }
+    }
+}
+
+//Расход
 slovoMessage = DATA SlovoMessage (Sale.Order);
 statusSlovo 'Статус выгрузки' (Sale.Order o) = CONCAT ' - ', status(slovoMessage(o)), errDescr(slovoMessage(o)) IN wms;
 processingStatusSlovo 'Статус обработки'  = DATA STRING[50](Sale.Order) IN wms;
@@ -491,6 +585,8 @@ FILTERS imported(receive_complete_detail);
 overIdBatch = ABSTRACT STRING[100](Purchase.InvoiceDetail);
 series (Purchase.InvoiceDetail d) = OVERRIDE overIdBatch(d), idBatch(d);
 
+overImportReceiveComplete ABSTRACT (Purchase.InvoiceDetail);
+
 importReplies 'Импортировать подтверждения' ()  {
     
     logToFile('WMS', 'import replies started' );
@@ -534,6 +630,7 @@ importReplies 'Импортировать подтверждения' ()  {
                     
                     FOR i == invoice(Purchase.InvoiceDetail d) DO {
                         shipmentQuantity(d) <- GROUP SUM qty(INTEGER r) IF idSku(d) == sku_id( r) AND series(d) == s_serial_id(r);
+                        overImportReceiveComplete(d);
                     }
                 }
                 
