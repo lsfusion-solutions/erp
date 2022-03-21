@@ -2288,6 +2288,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try {
             return idItemGroup == null || idItemGroup.equals("Все") ? null : idItemGroup.replaceAll("[^0-9]", "");
         } catch (Exception e) {
+            astronLogger.error("Failed to parse idItemGroup: " + idItemGroup);
             return null;
         }
     }
