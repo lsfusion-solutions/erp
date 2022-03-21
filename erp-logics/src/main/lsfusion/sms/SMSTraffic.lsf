@@ -82,6 +82,8 @@ CONSTRAINT (SETCHANGED(timeTo(Dispatch d)) OR SETCHANGED (timeFrom(d)))  AND tim
 //CONSTRAINT SETCHANGED(timeTo(Dispatch d)) AND timeTo(d) > toTime(toDateTimeFormat('20000101220000','YYYYMMDDHH24MISS'))
 //    MESSAGE 'Можно использовать только диапазон 09:00:00 - 22:00:00';
 
+rus = DATA STRING[1](Dispatch);
+
 isSend 'Отправлено' = DATA BOOLEAN (Dispatch);
 
 TABLE dispatchDiscountCard (Dispatch, DiscountCard);
@@ -90,7 +92,7 @@ in 'Вкл.' = DATA BOOLEAN (Dispatch, DiscountCard);
 
 FORM dispatch 'Рассылка'
     OBJECTS d = Dispatch PANEL
-    PROPERTIES(d) isSend, name, isViber, isSMS, date, timeFrom, timeTo
+    PROPERTIES(d) isSend, name, isViber, isSMS, date, timeFrom, timeTo, rus
     PROPERTIES(d) SHOWIF isViber(d) messageViber, lengthMessageViber READONLY, lifetimeViber, image, caption, action
     PROPERTIES(d) SHOWIF isSMS(d) messageSMS, lengthMessageSMS READONLY, lifetimeSMS
     
@@ -115,6 +117,7 @@ DESIGN dispatch {
             MOVE PROPERTY(timeFrom(d));
             MOVE PROPERTY(timeTo(d));
         }
+        MOVE PROPERTY(rus(d));
         NEW data {
             type = CONTAINERV;
             NEW viber {
@@ -259,6 +262,7 @@ textDispatch (Dispatch d, DiscountCard c, TEXT key) = CASE
     WHEN key == 'password' THEN passwordAPISMSTraffic()
     WHEN key == 'phones' THEN replace(replace(replace(replace(replace(phoneLegalEntity(c),'+',''),'(',''),')',''),'-',''),' ','')
     WHEN key == 'message' THEN (IF isViber(d) THEN replaceKeys(c,messageViber(d)) ELSE IF isSMS(d) THEN replaceKeys(c,messageSMS(d)))
+    WHEN key == 'rus' THEN rus(d)
     WHEN key == 'originator' THEN alphaNameSMSTraffic()
     WHEN key == 'route' THEN (CONCAT '-', 'viber(' + lifetimeViber(d) + ')' IF isViber(d), 'sms(' + lifetimeSMS(d) + ')' IF isSMS(d))
     WHEN key == 'image_url' THEN image(d)
@@ -376,10 +380,12 @@ CONSTRAINT action(DispatchTemplate d) AND NOT caption(d)
 timeFrom 'Время с' = DATA TIME (DispatchTemplate);
 timeTo 'Время по' = DATA TIME (DispatchTemplate);
 
+rus = DATA STRING[1](DispatchTemplate);
+
 FORM dispatchTemplate 'Шаблон рассылки'
     OBJECTS d = DispatchTemplate PANEL
     PROPERTIES(d) id
-    PROPERTIES(d) messageViber, lengthMessageViber READONLY, lifetimeViber, image, caption, action, timeFrom, timeTo
+    PROPERTIES(d) messageViber, lengthMessageViber READONLY, lifetimeViber, image, caption, action, timeFrom, timeTo, rus
     PROPERTIES(d) messageSMS, lengthMessageSMS READONLY, lifetimeSMS
     
     EDIT DispatchTemplate OBJECT d
@@ -396,6 +402,7 @@ DESIGN dispatchTemplate {
             MOVE PROPERTY(timeFrom(d));
             MOVE PROPERTY(timeTo(d));
         }
+        MOVE PROPERTY(rus(d));
         NEW viber {
             type = CONTAINERV;
             caption = 'Viber';
