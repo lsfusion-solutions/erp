@@ -203,7 +203,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         if (!transaction.itemsList.isEmpty()) {
 
-                            checkItems(params, transaction.itemsList);
+                            checkItems(params, transaction.itemsList, transaction.id);
 
                             Integer grpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "GRP");
                             exportGrp(conn, params, transaction, maxBatchSize, grpUpdateNum);
@@ -302,18 +302,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return updateNum;
     }
 
-    private void checkItems(AstronConnectionString params, List<CashRegisterItem> items) {
-        StringBuilder invalidItems = new StringBuilder();
+    private void checkItems(AstronConnectionString params, List<CashRegisterItem> items, Long transactionId) {
+        List<String> invalidItems = new ArrayList<>();
         if (params.pgsql) {
             for (CashRegisterItem item : items) {
                 String grpId = parseGroup(item.extIdItemGroup);
                 if (grpId == null || grpId.isEmpty()) {
-                    invalidItems.append(invalidItems.length() == 0 ? "" : ", ").append(item.idItem);
+                    invalidItems.add(item.idBarcode + "(" + item.extIdItemGroup + ")");
                 }
             }
         }
-        if (invalidItems.length() > 0)
-            throw new RuntimeException("No GRPID for item " + invalidItems);
+        if (!invalidItems.isEmpty()) {
+            throw new RuntimeException("failed to parse GRPID for barcodes " + StringUtils.join(invalidItems, ",") + (transactionId != null ? (", transaction " + transactionId) : ""));
+        }
     }
 
     private void exportGrp(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Integer maxBatchSize, Integer updateNum) throws SQLException {
@@ -1694,7 +1695,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         if (!deleteBarcode.barcodeList.isEmpty()) {
 
-                            checkItems(params, deleteBarcode.barcodeList);
+                            checkItems(params, deleteBarcode.barcodeList, null);
 
                             Integer artUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "ART");
                             exportArt(conn, params, deleteBarcode.barcodeList, false, true, maxBatchSize, artUpdateNum);
