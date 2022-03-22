@@ -177,8 +177,8 @@ FORM dispatches 'Рассылки'
             (GROUP SUM 1 IF in(d, DiscountCard cc) AND phoneLegalEntity(cc) == phoneFilter()) OR NOT phoneFilter()
     
     OBJECTS c = DiscountCard
-    PROPERTIES(c) phoneLegalEntity
-    PROPERTIES(d,c) state, name, dateTime
+    PROPERTIES(c) READONLY phoneLegalEntity
+    PROPERTIES(d,c) READONLY state, name, dateTime
     FILTERS in(d,c)
     
     OBJECTS e = DispatchError
@@ -270,13 +270,13 @@ textDispatch (Dispatch d, DiscountCard c, TEXT key) = CASE
     WHEN key == 'btn_name' THEN caption(d)
     WHEN key == 'tracking_data' THEN TEXT(getID(d)) + '_' + TEXT(getID(c));
 
+overSendDispatch ABSTRACT LIST (Dispatch);
 sendDispatch 'Отправить рассылку' (Dispatch d) {
     IF NOT isSend(d) THEN {
-        LOCAL file = TEXT();
-        LOCAL result = FILE();
-        
         isSend(d) <- TRUE;
         FOR in(d, DiscountCard c) AND phoneLegalEntity(c) DO {
+            LOCAL file = TEXT();
+            LOCAL result = FILE();
             TRY {
                 code() <- NULL;
                 description() <- NULL;
@@ -312,6 +312,7 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
                 }
             }
         }
+        overSendDispatch(d);
         APPLY;  
     }
 }
@@ -327,6 +328,7 @@ EXTEND FORM dispatches
     PROPERTIES sendDispatch() TOOLBAR DRAW d
 ;
 
+overGetStatus ABSTRACT LIST ();
 getStatus () {
     fileToString(FILE(body()));
     logToFile('SMSTraffic', 'CALLBACK: ' + resultString());
@@ -344,6 +346,7 @@ getStatus () {
             in(dd,e) <- TRUE;
         }
     }
+    overGetStatus();
     APPLY NESTED(urlParsed[TEXT]);
     logToFile('SMSTraffic', 'END: ' + urlParsed('tracking_data'));
 }

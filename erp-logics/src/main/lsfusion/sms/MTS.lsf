@@ -184,8 +184,8 @@ FORM dispatches 'Рассылки'
             (GROUP SUM 1 IF in(d, DiscountCard cc) AND phoneLegalEntity(cc) == phoneFilter()) OR NOT phoneFilter()
     
     OBJECTS c = DiscountCard
-    PROPERTIES(c) phoneLegalEntity
-    PROPERTIES(d,c) state, name, dateTime
+    PROPERTIES(c) READONLY phoneLegalEntity
+    PROPERTIES(d,c) READONLY state, name, dateTime
     FILTERS in(d,c)
     
     OBJECTS e = DispatchError
@@ -297,13 +297,13 @@ httpHeaders(TEXT name) = CASE
     //WHEN name == 'Content-Type' THEN 'application/json'
     WHEN name == 'Authorization' THEN 'Basic ' + basicMTS();
 
+overSendDispatch ABSTRACT LIST (Dispatch);
 sendDispatch 'Отправить рассылку' (Dispatch d) {
     IF NOT isSend(d) THEN {
-        LOCAL file = TEXT();
-        LOCAL result = FILE();
-        
         isSend(d) <- TRUE;
         FOR in(d, DiscountCard c) AND phoneLegalEntity(c) DO {
+            LOCAL file = TEXT();
+            LOCAL result = FILE();
             TRY {
                 error_code() <- NULL;
                 error_text() <- NULL;
@@ -339,6 +339,7 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
                 }
             }
         }
+        overSendDispatch(d);
         APPLY;  
     }
 }
@@ -354,6 +355,7 @@ EXTEND FORM dispatches
     PROPERTIES sendDispatch() TOOLBAR DRAW d
 ;
 
+overGetStatus ABSTRACT LIST ();
 getStatus (FILE file) {
     fileToString(file, 'UTF-8');
     logToFile('MTS', 'CALLBACK: ' + resultString());
@@ -369,6 +371,7 @@ getStatus (FILE file) {
         name(dd,dc) <- STRING[255](CONCAT ' ', sent_via(), nameStatus(), STRING(substatus()), STRING(hyber_status()));
         dateTime(dd,dc) <- fromEpochMSToTimestamp(time()/1000);
     }
+    overGetStatus();
     APPLY NESTED(extra_id[]);
     logToFile('MTS', 'END: ' + extra_id());
 }
