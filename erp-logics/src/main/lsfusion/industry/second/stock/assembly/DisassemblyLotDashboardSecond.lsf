@@ -42,14 +42,15 @@ DESIGN disassemblyLotDashboard {
             NEW left {
                 fill = 0.5;
                 MOVE PROPERTY(name(st)) { alignment = STRETCH; }
-                MOVE PROPERTY(countDisassemblyLot(a)) { alignment = STRETCH; }
-                MOVE PROPERTY(weightDisassemblyLot(a)) { alignment = STRETCH; }
                 MOVE BOX(s) {
                     REMOVE TOOLBARLEFT(s);
                 }
+                MOVE PROPERTY(countDisassemblyLot(a)) { alignment = STRETCH; }
+                MOVE PROPERTY(weightDisassemblyLot(a)) { alignment = STRETCH; }
             }
             NEW tabbedPane {
                 fill = 4;
+                width = 600;
                 type = TABBED;
                 NEW details {
                     caption = 'Строки';
@@ -206,6 +207,7 @@ DESIGN disassemblyLotDashboard {
                 type = CONTAINERH;
                 NEW inputLeft {
                     fill = 3;
+                    width = 400;
                     MOVE PROPERTY(readWeight) { focusable = FALSE; }
                     NEW inputLeftHeader {
                         alignment = STRETCH; 
@@ -216,6 +218,7 @@ DESIGN disassemblyLotDashboard {
                 }
                 NEW inputCenter {
                     fill = 1;
+                    width = 100;
                     MOVE PROPERTY(iprice()) { panelCaptionVertical = TRUE; fontSize = 24; notNull = TRUE; alignment = STRETCH; }
                 }
                 NEW inputRight {
@@ -258,33 +261,22 @@ EXTEND FORM disassemblyLotDashboard
 ;
 
 // select sku
-choose (Sku c) { isku() <- c; }
+choose (Part p) { isku() <- item(p); }
 
-index (Sku s, Sku c) = PARTITION SUM 1 IF inSet(s, c) ORDER name(c), c BY s;
+initDisassemblyLotDashboardSecond INTERNAL CLIENT 'disassemblyLotDashboardSecond.css';
+onWebClientStarted() +{ initDisassemblyLotDashboardSecond(); }
 
 EXTEND FORM disassemblyLotDashboard
-    OBJECTS c1 = Sku
-    PROPERTIES choose(c1) COLUMNS (c1) HEADER name(c1)
-    FILTERS mod(index(s,c1),3) = 1
-
-    OBJECTS c2 = Sku
-    PROPERTIES choose(c2) COLUMNS (c2) HEADER name(c2)
-    FILTERS mod(index(s,c2),3) = 2
-
-    OBJECTS c3 = Sku
-    PROPERTIES choose(c3) COLUMNS (c3) HEADER name(c3)
-    FILTERS mod(index(s,c3),3) = 0
+    OBJECTS p = Part
+    PROPERTIES choose(p) COLUMNS (p) HEADER nameItem(p), nameItem(p)
+    ORDERS nameItem(p)
+    FILTERS set(p) = s
 ;
 
 DESIGN disassemblyLotDashboard {
     inputLeft {
-        NEW inputLeftSku {
-            fill = 1;
-            type = CONTAINERH;
-            MOVE PROPERTY(choose(c1)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
-            MOVE PROPERTY(choose(c2)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
-            MOVE PROPERTY(choose(c3)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
-        }
+        REMOVE BOX(p);
+        MOVE PROPERTY(choose(p)) { fontSize = 18; focusable = FALSE; }
     }
 }
 
@@ -300,11 +292,13 @@ index (PriceCategory c) = PARTITION SUM 1 ORDER price(c), c;
 
 EXTEND FORM disassemblyLotDashboard
     OBJECTS pc1 = PriceCategory
-    PROPERTIES select(pc1) COLUMNS (pc1) HEADER priceName(pc1)
+    PROPERTIES select(pc1) COLUMNS (pc1) HEADER priceName(pc1), price(pc1)
+    ORDERS price(pc1)
     FILTERS mod(index(pc1),2) = 1
 
     OBJECTS pc2 = PriceCategory
-    PROPERTIES select(pc2) COLUMNS (pc2) HEADER priceName(pc2)
+    PROPERTIES select(pc2) COLUMNS (pc2) HEADER priceName(pc2), price(pc2)
+    ORDERS price(pc2)
     FILTERS mod(index(pc2),2) = 0
 ;
 
@@ -313,6 +307,8 @@ DESIGN disassemblyLotDashboard {
         NEW inputCenterPrice AFTER PROPERTY(iprice()) {
             fill = 1;
             type = CONTAINERH;
+            REMOVE BOX(pc1);
+            REMOVE BOX(pc2);
             MOVE PROPERTY(select(pc1)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
             MOVE PROPERTY(select(pc2)) { fill = 1; fontSize = 18; panelColumnVertical = TRUE; panelCaptionVertical = TRUE; focusable = FALSE; }
         }
