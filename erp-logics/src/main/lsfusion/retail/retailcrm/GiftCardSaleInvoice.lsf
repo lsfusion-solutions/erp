@@ -12,10 +12,8 @@ giftCard = DATA GiftCard (InvoiceGiftCardSaleDetail) INDEXED;
 
 invoice = DATA Sale.Invoice (InvoiceGiftCardSaleDetail) NONULL DELETE INDEXED;
 
-skipCheckCreateShipmentInSold 'Не проверять поставку для накладной продажи сертификата' = DATA BOOLEAN ();
-
 //имплемент в GiftCardLedger
-isSold(InvoiceGiftCardSaleDetail detail) +=  isPosted(invoice(detail)) AND (createShipment(invoice(detail)) OR skipCheckCreateShipmentInSold());
+isSold(InvoiceGiftCardSaleDetail detail) +=  isPosted(invoice(detail)) AND createShipment(invoice(detail));
 giftCard(InvoiceGiftCardSaleDetail detail) += giftCard(detail); 
 dateTime(InvoiceGiftCardSaleDetail detail) += OVERRIDE shipmentDateTime(invoice(detail)), dateTime(invoice(detail));
 date(InvoiceGiftCardSaleDetail detail) += OVERRIDE shipmentDate(invoice(detail)), date(invoice(detail));
@@ -96,11 +94,12 @@ fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice
     }   
 } TOOLBAR;
 
+skipGiftCardSaleDetailSku 'Не проверять товары в сертификатах выписки' = DATA BOOLEAN ();
 
-CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND (quantityInvoiceGiftCardSaleDetail(Sku i,o) OR quantityInvoiceDetail(i,o)) AND 
-    createShipment(o) AND NOT (quantityInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o)) 
+CONSTRAINT SET(isPosted(Sale.Invoice o)) AND isGiftCard(o) AND (quantityInvoiceGiftCardSaleDetail(Sku i,o) OR quantityInvoiceDetail(i,o)) AND 
+    createShipment(o) AND NOT (skipGiftCardSaleDetailSku() OR (quantityInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o))) 
         MESSAGE 'Количество товара не соответствует количеству сертификатов';
-        
+
 //CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND quantityInvoiceDetail(Sku i,o) AND createShipment(o) AND NOT 
 //    (quantityInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o)) 
 //        MESSAGE 'Количество товара не соответствует количеству сертификатов';        
