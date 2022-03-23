@@ -25,6 +25,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static equ.clt.handler.HandlerUtils.*;
@@ -38,6 +41,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     protected final static Logger astronLogger = Logger.getLogger("AstronLogger");
     protected final static Logger astronSalesLogger = Logger.getLogger("AstronSalesLogger");
     protected final static Logger astronPackLogger = Logger.getLogger("AstronPackLogger");
+
+    private static String PROPERTYGRP = "PROPERTYGRP";
+    private static String NUMPROPERTY = "NUMPROPERTY";
+    private static String NUMBERS = "NUMBERS";
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -185,6 +192,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         Integer extGrpId = groupMachineryMap.get(transaction.nppGroupMachinery);
                         String tables = "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : "") + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
 
+                        Map<String, List<JSONObject>> jsonTables = getJsonTables(transaction);
+
+                        List<JSONObject> propertyGrpJsonTable = jsonTables.get(PROPERTYGRP);
+                        if (!propertyGrpJsonTable.isEmpty())
+                            tables = tables + "," + singleQuot(PROPERTYGRP);
+                        List<JSONObject> numPropertyJsonTable = jsonTables.get(NUMPROPERTY);
+                        if (!numPropertyJsonTable.isEmpty())
+                            tables = tables + "," + singleQuot(NUMPROPERTY);
+                        List<JSONObject> numbersJsonTable = jsonTables.get(NUMBERS);
+                        if (!numbersJsonTable.isEmpty())
+                            tables = tables + "," + singleQuot(NUMBERS);
+
                         boolean versionalScheme = params.versionalScheme(isVersionalScheme);
                         Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
                         Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
@@ -258,6 +277,24 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 Integer artExtGrpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "ARTEXTGRP");
                                 exportArtExtgrp(conn, params, transaction, extGrpId, maxBatchSize, artExtGrpUpdateNum);
                                 outputUpdateNums.put("ARTEXTGRP", artExtGrpUpdateNum);
+                            }
+
+                            if(!propertyGrpJsonTable.isEmpty()) {
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, PROPERTYGRP);
+                                exportPropertyGrp(conn, propertyGrpJsonTable, updateNum);
+                                outputUpdateNums.put(PROPERTYGRP, updateNum);
+                            }
+
+                            if(!numPropertyJsonTable.isEmpty()) {
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, NUMPROPERTY);
+                                exportNumProperty(conn, numPropertyJsonTable, updateNum);
+                                outputUpdateNums.put(NUMPROPERTY, updateNum);
+                            }
+
+                            if(!numbersJsonTable.isEmpty()) {
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, NUMBERS);
+                                exportNumbers(conn, numbersJsonTable, updateNum);
+                                outputUpdateNums.put(NUMBERS, updateNum);
                             }
 
                             if (versionalScheme) {
@@ -457,6 +494,53 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         batchCount = 0;
                     }
                 } else break;
+            }
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private void exportPropertyGrp(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] columns = getColumns(new String[]{"PROPERTYGRPID", "PROPERTYGRPNAME"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, PROPERTYGRP, columns)) {
+            for (JSONObject jsonObject : jsonTable) {
+                setObject(ps, jsonObject.getInt("propertyGrpId"), 1);
+                setObject(ps, trim(jsonObject.getString("propertyGrpName"), 50), 2);
+                if (updateNum != null) {
+                    setObject(ps, updateNum, 3);
+                }
+                ps.addBatch();
+            }
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private void exportNumProperty(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] columns = getColumns(new String[]{"NUMBERID", "PROPERTYGRPID", "NUMPROPERTYKEY"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, NUMPROPERTY, columns)) {
+            for (JSONObject jsonObject : jsonTable) {
+                setObject(ps, jsonObject.getInt("numberId"), 1);
+                setObject(ps, jsonObject.getInt("propertyGrpId"), 2);
+                setObject(ps, jsonObject.getInt("numPropertyKey"), 3);
+                if (updateNum != null) {
+                    setObject(ps, updateNum, 4);
+                }
+                ps.addBatch();
+            }
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private void exportNumbers(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] columns = getColumns(new String[]{"NUMBERID", "NUMBERVALUE", "NUMBERNAME"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, NUMBERS, columns)) {
+            for (JSONObject jsonObject : jsonTable) {
+                setObject(ps, jsonObject.getInt("numberId"), 1);
+                setObject(ps, jsonObject.getBigDecimal("numberValue"), 2);
+                setObject(ps, trim(jsonObject.getString("numberName"), 50), 3);
+                if (updateNum != null) {
+                    setObject(ps, updateNum, 4);
+                }
+                ps.addBatch();
             }
             executeAndCommitBatch(ps, conn);
         }
@@ -922,6 +1006,46 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         } catch (Throwable t) {
             throw new RuntimeException("Failed to parse extInfo: " + extInfo, t);
         }
+    }
+
+    private Map<String, List<JSONObject>> getJsonTables(TransactionCashRegisterInfo transaction) {
+        Map<String, List<JSONObject>> jsonTables = new HashMap<>();
+        List<JSONObject> propertyGrpList = new ArrayList<>();
+        List<JSONObject> numPropertyList = new ArrayList<>();
+        List<JSONObject> numbersList = new ArrayList<>();
+        for (CashRegisterItem item : transaction.itemsList) {
+            JSONObject infoJSON = getExtInfo(item.info);
+            if (infoJSON != null) {
+                propertyGrpList.addAll(getJSONObjectList(infoJSON, "propertyGrp"));
+                numPropertyList.addAll(getJSONObjectList(infoJSON, "numProperty"));
+                numbersList.addAll(getJSONObjectList(infoJSON, "numbers"));
+            }
+        }
+        jsonTables.put(PROPERTYGRP, getUniqueList(propertyGrpList));
+        jsonTables.put(NUMPROPERTY, getUniqueList(numPropertyList));
+        jsonTables.put(NUMBERS, getUniqueList(numbersList));
+        return jsonTables;
+    }
+
+    private List<JSONObject> getJSONObjectList(JSONObject infoJSON, String key) {
+        List<JSONObject> jsonObjectList = new ArrayList<>();
+        JSONArray jsonArray = infoJSON.optJSONArray(key);
+        if (jsonArray != null) {
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                jsonObjectList.add(jsonObject);
+            }
+        }
+        return jsonObjectList;
+    }
+
+    private List<JSONObject> getUniqueList(List<JSONObject> jsonObjectList) {
+        return jsonObjectList.stream().filter(distinctByKey(JSONObject::toString)).collect(Collectors.toList());
+    }
+
+    public <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
+        Set<Object> seen = ConcurrentHashMap.newKeySet();
+        return t -> seen.add(keyExtractor.apply(t));
     }
 
     private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
@@ -1576,6 +1700,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             return conn.prepareStatement(String.format("UPDATE [%s] SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)", table, set, wheres, table, columns, params));
         }
+    }
+
+    //for tables without keys
+    private PreparedStatement getPreparedStatement(Connection conn, String table, String[] columnNames) throws SQLException {
+        String columns = StringUtils.join(columnNames, ",");
+        String params = StringUtils.repeat("?", ",", columnNames.length);
+        return conn.prepareStatement(String.format("INSERT INTO %s(%s) VALUES (%s)", table, columns, params));
     }
 
     @Override
@@ -2317,5 +2448,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private Integer getPriceLevelId(Integer nppGroupMachinery, boolean exportExtraTables, int priceNumber) {
         return exportExtraTables ? (nppGroupMachinery * 1000 + priceNumber) : nppGroupMachinery;
+    }
+
+    private String singleQuot(String value) {
+        return "'" + value + "'";
     }
 }
