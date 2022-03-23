@@ -1,0 +1,24 @@
+MODULE AstronCashRegisterPriceTransaction;
+
+REQUIRE CashRegisterPriceTransaction;
+
+NAMESPACE Astron;
+
+
+overAstronInfo1 = ABSTRACT TEXT (MachineryPriceTransaction, Barcode);
+overAstronInfo2 = ABSTRACT TEXT (MachineryPriceTransaction, Barcode);
+localAstronInfo = DATA LOCAL TEXT (MachineryPriceTransaction, Barcode);
+
+//стараемся выполнять последним
+skipLoadSSC = ABSTRACT BOOLEAN (GroupMachinery);
+createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
+    IF sidModel(gm) == 'Astron' THEN {
+        info(mpt, Barcode b) <- ('\{"astron":\{'+
+                (CONCAT ',',
+                    overAstronInfo1(mpt, b),
+                    overAstronInfo2(mpt, b),
+                    localAstronInfo(mpt, b)
+                )
+                +'\}\}') WHERE in(mpt, b);
+    }
+} 
