@@ -4,9 +4,70 @@ REQUIRE LotPrice, ComPrinter;
 
 NAMESPACE Lot;
 
-@defineItemGroupValue(labelTemplate, 'Шаблон ценника', TEXT, paramsItemGroup);
+CLASS LotLabelType 'Тип шаблона марки';
+TABLE lotLabelType (LotLabelType);
 
-labelText (Lot l) = replace(replace(replace(labelTemplate(itemGroup(sku(l))), '@NAME@', nameSku(l)), '@BARCODE@', id(l)), '@PRICE@', 'Цена ' + INTEGER(price(l)) + ' руб.'); 
+name '{master.data.name}' = DATA ISTRING[100] (LotLabelType) CHARWIDTH 15;
+
+defaultLotLabelType = GROUP MIN t AS LotLabelType;
+
+@defineItemDefaultValueCustom(template, 'Шаблон', TEXT, lotLabelType);
+
+FORM lotLabelType 'Тип шаблона марки'
+    OBJECTS o = LotLabelType PANEL
+    PROPERTIES(o) name
+
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES order(sk), skuTreeName = name(sk) READONLY
+    ORDERS order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+    
+    PROPERTIES(o,sk) dataTemplate PANEL
+    
+    EDIT LotLabelType OBJECT o
+;
+
+DESIGN lotLabelType {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            type = CONTAINERH;
+            MOVE BOX(TREE skuTree);
+            MOVE PROPERTY(dataTemplate(o,sk)) { fill = 1; panelCaptionVertical = TRUE; }
+        }
+    }
+}
+
+FORM lotLabelTypes 'Типы шаблона марки'
+    OBJECTS o = LotLabelType
+    PROPERTIES(o) READONLY name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogLotLabelTypes 'Тип шаблона марки'
+    OBJECTS o = LotLabelType
+    PROPERTIES(o) READONLY name
+    
+    LIST LotLabelType OBJECT o
+;
+
+NAVIGATOR {
+    lotNavigator {
+        NEW lotLabelTypes;
+    }
+}
+
+// computer
+
+lotLabelType = DATA LotLabelType (Computer);
+nameLotLabelType 'Тип шаблона марки' (Computer c) = name(lotLabelType(c));
+
+EXTEND FORM computer PROPERTIES(c) nameLotLabelType;
+
+lotLabelType () = OVERRIDE lotLabelType(currentComputer()), defaultLotLabelType();
+template (ItemGroup i) = template(lotLabelType(), i);
+
+labelText (Lot l) = replace(replace(replace(template(itemGroup(sku(l))), '@NAME@', nameSku(l)), '@BARCODE@', id(l)), '@PRICE@', 'Цена ' + INTEGER(price(l)) + ' руб.'); 
 
 printLabel 'Печать' (Lot l) {
     printComPort(labelText(l));
