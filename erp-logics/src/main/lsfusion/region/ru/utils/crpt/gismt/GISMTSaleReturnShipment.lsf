@@ -1,79 +1,18 @@
 MODULE GISMTSaleReturnShipment;
 
 REQUIRE GISMTDocument, GISMTLegalEntity, GISMTIncomingDocument, 
-        SaleReturnShipmentLot;
+        SaleReturnShipmentLot, GISMTShipment, GISMTSku;
 
 PRIORITY GISMT, SaleReturn, Sale;
 
 NAMESPACE GISMTSaleReturn;
 
-@defineOperationProperty(returnType, 'Вид возврата', STRING, paramsContainer);
+@defineDocumentGISMTIn(customer, supplier);
 
-needDocument = ABSTRACT VALUE BOOLEAN (Invoice);
-needDocument(Invoice i) += supplier(i) != customer(i);
-createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND needDocument(i);
-gismtType (Invoice i) = OVERRIDE 'LP_RETURN' IF returnType(operation(i)), ('LP_ACCEPT_GOODS' IF i IS Invoice);
-@defineDocumentGISMT(invoice, createDocument, invoices, i, supplier, supplierStock);
-
-participant (InvoiceDocument i) += customer(invoice(i));
-participantStock (InvoiceDocument i) += customerStock(invoice(i));
-
-// release number
-releaseNumber = ABSTRACT STRING[100] (Invoice, LotType);
-
-@defineDocumentIncoming(userInvoice, releaseNumber, headerCreateDetail, supplier, customer);
-
-releaseNumber (UserInvoice i, LotType t) += releaseNumber(i, t);
-
-// export
-
-FORM exportInvoice
-    OBJECTS i = Invoice, t = LotType PANEL
-    
-    PROPERTIES acceptance_date = replace(toChar(shipmentDateTime(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ',''),
-               transfer_date = toDateISO(date(i)), 
-               document_number = seriesNumber(i),
+EXTEND FORM exportInvoiceReturn
+    PROPERTIES document_number = seriesNumber(i),
                document_date = replace(toChar(dateTime(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ',''),
-               request_type = 'ACCEPTANCE', 
-               turnover_type = 'SELLING',
-               trade_sender_inn = inn(customer(i)),
-               trade_recipient_inn = inn(supplier(i)),
-               release_order_number = releaseNumber(i, t)
-    
-    OBJECTS products = (d = InvoiceDetail, l = Lot)
-    PROPERTIES accepted = TRUE IF d IS InvoiceDetail AND l IS Lot, 
-               uit_code = id(l) IF NOT aggregated(l),
-               uitu_code = id(l) IF aggregated(l), 
-               product_description = nameSku(d)
-    FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
-;
-
-FORM exportInvoiceReturn
-    OBJECTS i = Invoice, t = LotType PANEL
-    
-    PROPERTIES return_type = returnType(operation(i)), 
-               trade_participant_inn = inn(supplier(i))
-    
-    OBJECTS products_list = (d = InvoiceDetail, l = Lot)
-    PROPERTIES ki = id(l),
-               document_number = seriesNumber(i),
-               document_date = replace(toChar(dateTime(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ',''),
-               primary_document_date = toDateISO(date(invoiceDetail(d))),
                primary_document_number = seriesNumber(invoiceDetail(d)),
+               primary_document_date = toDateISO(date(invoiceDetail(d))),
                primary_document_type = 'OTHER' IF d IS InvoiceDetail                
-               
-    FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
 ;
-
-export (InvoiceDocument i) + {
-    IF returnType(operation(invoice(i))) THEN
-        EXPORT exportInvoiceReturn OBJECTS i = invoice(i), t = lotType(i) JSON;
-    ELSE {
-        IF NOT releaseNumber(invoice(i), lotType(i)) THEN {
-            MESSAGE 'Не задан документ на отгрузку товара. Отсылка в ГИС МТ не будет завершена.';
-            stopCreate() <- TRUE;
-            RETURN;
-        }
-        EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
-    }
-}

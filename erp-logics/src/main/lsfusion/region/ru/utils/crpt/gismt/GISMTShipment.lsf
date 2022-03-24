@@ -1,0 +1,175 @@
+MODULE GISMTShipment;
+
+META defineDocumentGISMTIn (sender, receiver)
+    needDocument = ABSTRACT VALUE BOOLEAN (Invoice);
+    needDocument(Invoice i) += supplier(i) != customer(i);
+    createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND needDocument(i);
+    
+    gismtType = ABSTRACT CASE STRING[30] (Invoice);
+    gismtType(Invoice i) += WHEN i IS Invoice THEN 'LP_ACCEPT_GOODS';
+    @defineDocumentGISMT(invoice, createDocument, invoices, i, receiver, receiver##Stock);
+    
+    participant (InvoiceDocument i) += sender(invoice(i));
+    participantStock (InvoiceDocument i) += sender##Stock(invoice(i));
+    
+    // release number
+    releaseNumber = ABSTRACT STRING[100] (Invoice, LotType);
+    
+    @defineDocumentIncoming(userInvoice, releaseNumber, headerCreateDetail, receiver, sender);
+    releaseNumber (UserInvoice i, LotType t) += releaseNumber(i, t);
+    
+    // export
+    
+    FORM exportInvoice
+        OBJECTS i = Invoice, t = LotType PANEL
+        
+        PROPERTIES acceptance_date = replace(toChar(shipmentDateTime(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ',''), 
+                   transfer_date = toDateISO(date(i)),
+                   document_number = seriesNumber(i),
+                   document_date = replace(toChar(dateTime(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ',''),
+                   request_type = 'ACCEPTANCE', 
+                   turnover_type = 'SELLING',
+                   trade_sender_inn = (OVERRIDE senderInn(sender(i)), inn(sender(i))),
+                   trade_recipient_inn = inn(receiver(i)),
+                   release_order_number = releaseNumber(i, t),
+                   
+                   exporter_taxpayer_id = inn(sender(i)) IF senderInn(sender(i)),
+                   exporter_name = name(sender(i)) IF senderInn(sender(i)),
+                   release_method = 'CROSSBORDER' IF senderInn(sender(i))
+        
+        OBJECTS products = (d = InvoiceDetail, l = Lot)
+        PROPERTIES accepted = TRUE IF d IS InvoiceDetail AND l IS Lot, 
+                   uit_code = id(l) IF NOT aggregated(l),
+                   uitu_code = id(l) IF aggregated(l), 
+                   product_description = nameSku(d),
+                   
+                   tnved_code = tnved(sku(d)) IF senderInn(sender(i)),
+                   product_cost = sum(d) IF senderInn(sender(i)),
+                   product_tax = (OVERRIDE VATSum(d), 0.0) IF senderInn(sender(i))
+                   
+        FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+    ;
+
+    DESIGN operation {
+        paramsContainer {
+            NEW inGISMTContainer {
+                caption = 'ГИС МТ (приход)';
+            }
+        }
+    }
+    
+    // -- receipt
+    @defineOperationProperty(returnType, 'Вид возврата', STRING, inGISMTContainer);
+
+    gismtType (Invoice i) += WHEN returnType(operation(i)) THEN 'LP_RETURN';
+
+    FORM exportInvoiceReturn
+        OBJECTS i = Invoice, t = LotType PANEL
+        
+        PROPERTIES return_type = returnType(operation(i)), 
+                   trade_participant_inn = inn(sender(i))
+        
+        OBJECTS products_list = (d = InvoiceDetail, l = Lot)
+        PROPERTIES ki = id(l)
+                   
+        FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+    ;
+    
+    export (InvoiceDocument i) + {
+        IF returnType(operation(invoice(i))) THEN
+            EXPORT exportInvoiceReturn OBJECTS i = invoice(i), t = lotType(i) JSON;
+        ELSE {
+            IF NOT releaseNumber(invoice(i), lotType(i)) THEN {
+                MESSAGE 'Не задан номер документа отгрузки ГИС МТ';
+                stopCreate() <- TRUE;
+                RETURN;
+            }
+            
+            EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
+        }
+    }
+END
+
+META defineDocumentGISMTOut (sender, receiver)
+    needDocument = ABSTRACT VALUE BOOLEAN (Invoice);
+    needDocument(Invoice i) += supplier(i) != customer(i);
+    createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND needDocument(i);
+    
+    gismtType = ABSTRACT CASE STRING[30] (Invoice);
+    gismtType(Invoice i) += WHEN i IS Invoice THEN 'LP_SHIP_GOODS';
+    @defineDocumentGISMT(invoice, createDocument, invoices, i, sender, sender##Stock);
+    
+    participant (InvoiceDocument i) += receiver(invoice(i));
+    participantStock (InvoiceDocument i) += receiver##Stock(invoice(i));
+    
+    FORM exportInvoice
+        OBJECTS i = Invoice, t = LotType PANEL
+        
+        PROPERTIES transfer_date = toDateISO(date(i)), 
+                   document_date = toDateISO(date(i)), 
+                   document_num = seriesNumber(i),
+                   turnover_type = 'SELLING',
+                   sender_inn = inn(sender(i)), 
+                   receiver_inn = inn(receiver(i))
+        
+        OBJECTS products = (d = InvoiceDetail, l = Lot)
+        PROPERTIES uit_code = id(l) IF NOT aggregated(l),
+                   uitu_code = id(l) IF aggregated(l),
+                   product_description = nameSku(d)
+        FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+    ;
+    
+    DESIGN operation {
+        paramsContainer {
+            NEW outGISMTContainer {
+                caption = 'ГИС МТ (расход)';
+            }
+        }
+    }
+
+    // -- receipt
+    @defineOperationProperty(actionReceipt, 'Причина вывода из оборота', STRING, outGISMTContainer);
+    
+    @defineOperationProperty(documentType, 'Вид первичного документа', STRING, outGISMTContainer);
+    
+    @defineOperationProperty(primaryDocumentCustomName, 'Наименование первичного документа', STRING, outGISMTContainer);
+    
+    gismtType(Invoice i) += WHEN actionReceipt(operation(i)) THEN 'LK_RECEIPT';
+    FORM exportInvoiceReceipt
+        OBJECTS i = Invoice, t = LotType PANEL
+        
+        PROPERTIES action = actionReceipt(operation(i)), action_date = toDateISO(date(i)), 
+                   document_date = toDateISO(date(i)), document_number = seriesNumber(i),
+                   document_type = documentType(operation(i)), primary_document_custom_name = primaryDocumentCustomName(operation(i)),
+                   inn = inn(sender(i))
+        
+        OBJECTS products = (d = InvoiceDetail, l = Lot)
+        PROPERTIES cis = id(l)
+        FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+    ;
+    
+    // -- crossborderexport
+    @defineOperationProperty(crossBorderExport, 'Отгрузка в ЕАЭС с признанием КИ (экспорт)', BOOLEAN, outGISMTContainer);
+    
+    gismtType(Invoice i) += WHEN crossBorderExport(operation(i)) THEN 'EAS_CROSSBORDER_EXPORT';
+    FORM exportInvoiceCrossBorderExport
+        OBJECTS i = Invoice, t = LotType PANEL
+        
+        PROPERTIES sender_inn = inn(sender(i)),
+                   receiver_inn = inn(receiver(i)), receiver = name(receiver(i)), receiver_country_code = sid(country(receiver(i))),  
+                   document_number = seriesNumber(i), document_date = toDateISO(date(i)), transfer_date = toDateISO(date(i))
+        
+        OBJECTS products = (d = InvoiceDetail, l = Lot)
+        PROPERTIES cis = id(l)
+        FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+    ;
+    
+    export (InvoiceDocument i) + {
+        IF crossBorderExport(operation(invoice(i))) THEN
+            EXPORT exportInvoiceCrossBorderExport OBJECTS i = invoice(i), t = lotType(i) JSON;
+        IF actionReceipt(operation(invoice(i))) THEN
+            EXPORT exportInvoiceReceipt OBJECTS i = invoice(i), t = lotType(i) JSON;
+        ELSE
+            EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
+    }
+END
