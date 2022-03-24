@@ -56,7 +56,7 @@ CONSTRAINT SET(isPosted(Sale.UserOrder o)) AND isCancel(o) MESSAGE 'Нельзя
 
 @openXML(Sale.UserOrder,o,Sale.orders);
 
-overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'orders' AND receiveSupplierMessages AND NOT invoices THEN {
         TRY {
             IMPORT importOrders XML FROM data(i);
@@ -65,7 +65,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                 IF NOT disableConfirmation THEN {
                     LOCAL xml = XMLFILE();
                     EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                    sendRequestEDI(host, port, login, password, url, xml());
+                    sendRequestEDI(login, password, url, xml());
                     logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                     importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                     IF requestError() THEN {
@@ -134,7 +134,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                 envelopeContent() <- encodedBase64();
                                 EXPORT envelope XML TO xml;
                                 //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                                sendRequestEDI(host, port, login, password, url, xml());
+                                sendRequestEDI(login, password, url, xml());
                                 logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
@@ -151,7 +151,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             IF NOT disableConfirmation THEN {
                                 LOCAL xml = XMLFILE();
                                 EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                                sendRequestEDI(host, port, login, password, url, xml());
+                                sendRequestEDI(login, password, url, xml());
                                 logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                 IF requestError() THEN {
@@ -255,9 +255,9 @@ FORM saleOrder FORMEXTID 'ORDRSP'
 //    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 //;
 
-sendSupplierSaleOrder 'Отправить (поставщик)' (Sale.UserOrder o, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] outputDir, STRING[100] provider) {
+sendSupplierSaleOrder 'Отправить (поставщик)' (Sale.UserOrder o, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir, STRING[100] provider) {
     TRY {
-        IF login AND password AND host AND port THEN {
+        IF login AND password THEN {
             LOCAL error = TEXT();
             error() <- '';
             IF NOT GLNSupplier(o) THEN error() <- error() + 'SupplierOrder ' + number(o) + ': Не задан GLN поставщика\n';
@@ -287,7 +287,7 @@ sendSupplierSaleOrder 'Отправить (поставщик)' (Sale.UserOrder 
                 envelopeContent() <- encodedBase64();
                 EXPORT envelope XML TO xml;
                 //EXPORT envelopeSaleOrder OBJECTS o = o, login = login, password = password, innerXML = encodedBase64() XML TO xml;
-                sendRequestEDI(host, port, login, password, url, xml());
+                sendRequestEDI(login, password, url, xml());
                 logToFile('edi', provider + ' SendSupplierOrder ' + number(o) +' request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {

@@ -75,9 +75,9 @@ FORM saleInvoice FORMEXTID 'DESADV'
 //    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 //;
 
-sendSupplierSaleInvoice 'Отправить (поставщик)' (Sale.Invoice i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] outputDir, STRING[100] provider) {
+sendSupplierSaleInvoice 'Отправить (поставщик)' (Sale.Invoice i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir, STRING[100] provider) {
     TRY {
-        IF login AND password AND host AND port THEN {
+        IF login AND password THEN {
             LOCAL error = TEXT();
             error() <- '';
             IF NOT GLNSupplier(i) THEN error() <- error() + 'SupplierInvoice ' + number(i) + ': Не задан GLN поставщика\n';
@@ -107,7 +107,7 @@ sendSupplierSaleInvoice 'Отправить (поставщик)' (Sale.Invoice 
                 envelopeContent() <- encodedBase64();
                 EXPORT envelope XML TO xml;                
                 //EXPORT envelopeSaleInvoice OBJECTS i = i, login = login, password = password, innerXML = encodedBase64() XML TO xml;
-                sendRequestEDI(host, port, login, password, url, xml());
+                sendRequestEDI(login, password, url, xml());
                 logToFile('edi', provider + ' SendSupplierInvoice ' + number(i) +' request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {

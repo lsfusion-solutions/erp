@@ -781,28 +781,20 @@ EXTEND FORM eInvoices
 ;
 
 //-------------------------- Send Request ------------------------------//
-//host, port, login, password, url, xml request, preemptiveAuthentication
 sendRequestEDIResponse = DATA LOCAL FILE();
 sendRequestEDIStatus = DATA LOCAL INTEGER();
-sendRequestEDIInternal 'Отправить'  INTERNAL  'lsfusion.erp.region.by.integration.edi.SendRequestEDIAction' (TEXT, INTEGER, TEXT, TEXT, TEXT, XMLFILE, BOOLEAN);
-
-useNewRequest 'Использовать новый механизм отправки запросов' = DATA BOOLEAN ();
 
 basic = DATA LOCAL TEXT ();
 encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
 httpHeadersEDI(TEXT name) = CASE WHEN basic() AND name = 'Authorization' THEN  'Basic ' + basic(); 
                               
-sendRequestEDI 'Отправить' (TEXT host, INTEGER port, TEXT login, TEXT password, TEXT url, XMLFILE request, BOOLEAN basicAuthorization) {
-    IF useNewRequest() THEN {
-        basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
-        EXTERNAL HTTP url HEADERS httpHeadersEDI PARAMS request TO sendRequestEDIResponse;
-        sendRequestEDIStatus() <- statusHttp();
-    } ELSE {
-        sendRequestEDIInternal(host, port, login, password, url, request, basicAuthorization);
-    }
+sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, XMLFILE request, BOOLEAN basicAuthorization) {
+    basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
+    EXTERNAL HTTP url HEADERS httpHeadersEDI PARAMS request TO sendRequestEDIResponse;
+    sendRequestEDIStatus() <- statusHttp();
 }
-sendRequestEDI 'Отправить' (TEXT host, INTEGER port, TEXT login, TEXT password, TEXT url, XMLFILE request) {
-    sendRequestEDI(host, port, login, password, url, request, NULL);
+sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, XMLFILE request) {
+    sendRequestEDI(login, password, url, request, NULL);
 }
 
 //----------------------- importRequestResult ---------------------------//
