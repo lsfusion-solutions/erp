@@ -58,6 +58,9 @@ public class AstronSettings implements Serializable {
     //если true, то оплата "бонусами" (salesType = 2) считается как социальная скидка
     private boolean bonusPaymentAsDiscount;
 
+    //если true, то в sql.log пишется всё, что читается во время readSales
+    private boolean enableSqlLog;
+
     public AstronSettings() {
     }
 
@@ -208,5 +211,13 @@ public class AstronSettings implements Serializable {
 
     public void setBonusPaymentAsDiscount(boolean bonusPaymentAsDiscount) {
         this.bonusPaymentAsDiscount = bonusPaymentAsDiscount;
+    }
+
+    public boolean isEnableSqlLog() {
+        return enableSqlLog;
+    }
+
+    public void setEnableSqlLog(boolean enableSqlLog) {
+        this.enableSqlLog = enableSqlLog;
     }
 }
