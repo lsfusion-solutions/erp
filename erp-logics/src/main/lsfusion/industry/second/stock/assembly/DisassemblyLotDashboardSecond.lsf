@@ -8,6 +8,8 @@ REQUIRE DisassemblyLotSecond, LotExtra, LotPriceLabel,
 
 NAMESPACE Disassembly;
 
+GROUP itemLotDashboard 'Разукомплектация' : base;
+
 disassembly (CustomUser cu, Sku s, Stock st) = 
     GROUP MAX Disassembly a IF isOpened(a) AND NOT isPosted(a) BY createdUser(a), sku(a), stock(a); 
 
@@ -69,6 +71,15 @@ DESIGN disassemblyLotDashboard {
 }
 
 // input
+skipPriceLotDashboard 'Не заполнять цену' = DATA BOOLEAN (Item) IN itemLotDashboard;
+skipPrintLotDashboard 'Не печатать марку' = DATA BOOLEAN (Item) IN itemLotDashboard;
+EXTEND FORM item PROPERTIES(i) skipPriceLotDashboard, skipPrintLotDashboard;
+DESIGN item {
+    itemPrimaryColumn1 {
+        MOVE GROUP(itemLotDashboard,i) { columns = 3; }
+    }
+}
+
 iweight 'Вес' = DATA LOCAL NUMERIC ();
 
 isku = DATA LOCAL Sku ();
@@ -124,9 +135,9 @@ generateLot () {
 }
 
 EXTEND FORM disassemblyLotDashboard
-    PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= 50 THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- TRUE; } }, 
+    PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= 30 THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- TRUE; } }, 
                  inameSku, 
-                 iprice ON CHANGE { INPUT p = iprice() CHANGE DO { generateLot(); } }, 
+                 iprice READONLYIF skipPriceLotDashboard(isku()), 
                  istream CUSTOM 'videoRender' ON CHANGE changeStream(), 
                  ibarcode ON CHANGE { INPUT b = ibarcode() DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
                  iimage
@@ -141,7 +152,7 @@ EXTEND FORM disassemblyLotDashboard
 
                 LOCAL weight = INTEGER();
                 weight() <- INTEGER(getWord(bytes(), ',', 1)) + INTEGER(getWord(bytes(), ',', 2)) * 256;
-                IF weight() >= 50 THEN iweight() <- NUMERIC(weight()) / 1000;
+                IF weight() >= 30 THEN iweight() <- NUMERIC(weight()) / 1000;
 
                 istream() <- TRUE;
             }
@@ -157,7 +168,8 @@ processLot 'Обработать' (Sku s, Stock st) {
         }
         
     FOR Disassembly a = disassembly(currentUser(), s, st) DO {
-        IF NOT lot(ibarcode()) THEN {
+        generateLot();
+        IF ibarcode() AND NOT lot(ibarcode()) THEN {
             NEW l = Lot {
                 id(l) <- ibarcode(); 
             }
@@ -171,7 +183,7 @@ processLot 'Обработать' (Sku s, Stock st) {
             }
             
             LOCAL NESTED changedPrint = BOOLEAN();
-            changedPrint() <- NOT sku(l) = isku() OR NOT price(l) = iprice();
+            changedPrint() <- (NOT sku(l) = isku() OR NOT price(l) = iprice()) AND NOT skipPrintLotDashboard(isku());
     
             weight(l) <- iweight();
             sku(l) <- isku();
@@ -195,7 +207,9 @@ processLot 'Обработать' (Sku s, Stock st) {
 //}
 
 EXTEND FORM disassemblyLotDashboard
-    PROPERTIES processLot(s, st) READONLYIF NOT iweight() OR NOT isku() OR NOT iprice() OR NOT iimage() OR NOT ibarcode()
+    PROPERTIES processLot(s, st) READONLYIF NOT iweight() OR NOT isku() OR 
+                                                             (NOT iprice() AND NOT skipPriceLotDashboard(isku())) OR 
+                                                             NOT iimage()
     
     PROPERTIES(l) printLabel
 ;
@@ -263,6 +277,10 @@ EXTEND FORM disassemblyLotDashboard
 ;
 
 // select sku
+fixedLotDashboard 'Брак' = DATA BOOLEAN (Item) IN itemLotDashboard;
+EXTEND FORM item PROPERTIES(i) fixedLotDashboard;
+
+choose (Item i) { isku() <- i; }
 choose (Part p) { isku() <- item(p); }
 
 initDisassemblyLotDashboardSecond INTERNAL CLIENT 'disassemblyLotDashboardSecond.css';
@@ -273,33 +291,38 @@ EXTEND FORM disassemblyLotDashboard
     PROPERTIES choose(p) COLUMNS (p) HEADER nameItem(p), nameItem(p)
     ORDERS nameItem(p)
     FILTERS set(p) = s
+    
+    OBJECTS fi = Item
+    PROPERTIES choose(fi) COLUMNS (fi) HEADER name(fi), name(fi)
+    ORDERS name(fi)
+    FILTERS fixedLotDashboard(fi)
 ;
 
 DESIGN disassemblyLotDashboard {
     inputLeft {
         REMOVE BOX(p);
         MOVE PROPERTY(choose(p)) { fontSize = 18; focusable = FALSE; }
+
+        REMOVE BOX(fi);
+        MOVE PROPERTY(choose(fi)) { fill = 1; fontSize = 24; focusable = FALSE; }
     }
 }
 
 // select price
 
 // select sku
-select (PriceCategory pc) { 
-    iprice() <- price(pc); 
-    generateLot();
-}
+select (PriceCategory pc) { iprice() <- price(pc); }
 
 index (PriceCategory c) = PARTITION SUM 1 ORDER price(c), c;
 
 EXTEND FORM disassemblyLotDashboard
     OBJECTS pc1 = PriceCategory
-    PROPERTIES select(pc1) COLUMNS (pc1) HEADER priceName(pc1), price(pc1)
+    PROPERTIES select(pc1) READONLYIF skipPriceLotDashboard(isku()) COLUMNS (pc1) HEADER priceName(pc1), price(pc1)
     ORDERS price(pc1)
     FILTERS mod(index(pc1),2) = 1
 
     OBJECTS pc2 = PriceCategory
-    PROPERTIES select(pc2) COLUMNS (pc2) HEADER priceName(pc2), price(pc2)
+    PROPERTIES select(pc2) READONLYIF skipPriceLotDashboard(isku()) COLUMNS (pc2) HEADER priceName(pc2), price(pc2)
     ORDERS price(pc2)
     FILTERS mod(index(pc2),2) = 0
 ;

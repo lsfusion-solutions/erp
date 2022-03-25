@@ -4,8 +4,6 @@ REQUIRE DisassemblyLot, LotExtra, LotPrice;
 
 NAMESPACE Disassembly;
 
-weight (DisassemblyDetail d) += NUMERIC[11,5](GROUP SUM weight(Lot l) * quantity(d, l));
-
 CLASS DisassemblyLot 'Строка разборки по маркам';
 disassembly = DATA Disassembly (DisassemblyLot) INDEXED NONULL DELETE;
 countDisassemblyLot 'Кол-во марок' (Disassembly a) = GROUP SUM 1 BY disassembly(DisassemblyLot l) IN documentSum MATERIALIZED; 
@@ -26,9 +24,12 @@ nameSku 'Наименование товара' (DisassemblyLot l) = name(sku(l)
 weight 'Вес' (DisassemblyLot l) = weight(lot(l)); 
 weightDisassemblyLot 'Вес марок' (Disassembly a) = GROUP SUM weight(DisassemblyLot l) BY disassembly(l) IN documentSum; 
 
+weight (DisassemblyDetail d) += NUMERIC[11,5](GROUP SUM weight(DisassemblyLot l) IF disassemblyDetail(disassembly(l), sku(l)) = d);
+
 price 'Цена' (DisassemblyLot l) = price(lot(l)); 
 image 'Изображение' (DisassemblyLot l) = image(lot(l)); 
 
+count (Disassembly a, Sku s) = GROUP SUM 1 BY disassembly(DisassemblyLot al), sku(al); 
 disassemblyLot (Disassembly a, Lot l) = GROUP MAX DisassemblyLot al BY disassembly(al), lot(al);
 
 EXTEND FORM disassembly
@@ -54,14 +55,14 @@ DESIGN disassembly {
 @defineOperationProperty(calcQuantityWeightLot, 'Рассчитывать вес из марок', paramsContainer);
 
 fillLotDetail 'Заполнить по маркам' (Disassembly a) {
-    FOR [GROUP SUM 1 IF disassembly(DisassemblyLot l) = a BY sku(l)](Sku s) AND NOT disassemblyDetail(a, s) NEW d = DisassemblyDetail DO {
+    FOR count(a, Sku s) AND NOT disassemblyDetail(a, s) NEW d = DisassemblyDetail DO {
         disassembly(d) <- a;
         sku(d) <- s;
     }
     
     quantity(DisassemblyDetail d, Lot l) <- NULL WHERE disassembly(d) = a;
-    quantity(DisassemblyDetail d, Lot l) <- 1 WHERE disassemblyLot(a, l) AND d = disassemblyDetail(a, sku(l));
-    quantity(DisassemblyDetail d) <- NUMERIC[16,5](quantityLot(d)) WHERE disassembly(d) = a; 
+    quantity(DisassemblyDetail d, Lot l) <- 1 WHERE disassemblyLot(a, l) AND d = disassemblyDetail(a, sku(l)) AND lotType(sku(l));
+    quantity(DisassemblyDetail d) <- NUMERIC[16,5](count(a, sku(d))) WHERE disassembly(d) = a; 
     
     IF calcQuantityWeightLot(operation(a)) THEN
         quantity(a) <- NUMERIC[16,5](weightDisassemblyLot(a));
