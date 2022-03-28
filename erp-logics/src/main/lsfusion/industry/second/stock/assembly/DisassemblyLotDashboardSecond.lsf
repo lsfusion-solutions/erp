@@ -110,12 +110,14 @@ changeStream () {
 
 // options
 ioption = DATA LOCAL BOOLEAN (STRING);
-caption (STRING s) = CASE WHEN s = 'defect' THEN 'С дефектом';
+caption = ABSTRACT CASE STRING (STRING);
+caption (STRING s) += WHEN s = 'defect' THEN 'С дефектом';
 
 // barcode
 ibarcode 'Штрихкод' = DATA LOCAL STRING[200] () CHARWIDTH 13 CHANGEKEY 'F4' EVENTID 'SCANNER';
 
-fillProperties(Lot l) {
+fillProperties ABSTRACT LIST (Lot);
+fillProperties(Lot l) +{
     iweight() <- weight(l);
     isku() <- sku(l);
     iprice() <- price(l);
@@ -170,6 +172,7 @@ EXTEND FORM disassemblyLotDashboard
     FILTERS caption(o)
 ;
 
+overProcessLot ABSTRACT LIST (Lot);
 processLot 'Обработать' (Sku s, Stock st) {
     IF NOT disassembly(currentUser(), s, st) THEN
         NEW d = Disassembly {
@@ -202,6 +205,8 @@ processLot 'Обработать' (Sku s, Stock st) {
             image(l) <- iimage();
             
             defect(l) <- ioption('defect');
+            
+            overProcessLot(l);
             
             APPLY;
             IF canceled() THEN {
