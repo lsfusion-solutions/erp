@@ -14,8 +14,6 @@ loginTopBy 'Имя пользователя TopBy' = DATA STRING[100] ();
 passwordTopBy 'Пароль TopBy' = DATA STRING[100] () ECHO;
 loginTopBy 'Имя пользователя TopBy' = DATA STRING[100] (LegalEntity);
 passwordTopBy 'Пароль TopBy' = DATA STRING[100] (LegalEntity) ECHO;
-hostTopBy 'Хост' = DATA STRING[100] ();
-portTopBy 'Порт' = DATA INTEGER ();
 hostTopBy 'Хост' = DATA STRING[100] (LegalEntity);
 portTopBy 'Порт' = DATA INTEGER (LegalEntity);
 archiveDirTopBy 'Папка принятых сообщений' = DATA STRING[100] ();
@@ -28,6 +26,31 @@ disableAutoBlrapn 'Отключить автоматическую отправ�
 
 overInvoiceOutputDirTopBy 'Путь сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
 overInvoiceOutputFileName 'Имя файла для сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
+
+
+CLASS EDSService 'EDSService';
+TABLE EDSService (EDSService);
+
+name 'Имя' = DATA ISTRING[100] (EDSService) CHARWIDTH 15;
+host 'Хост EDSService' = DATA STRING[100] (EDSService) CHARWIDTH 15 NONULL;
+port 'Порт EDSService' = DATA INTEGER (EDSService) NONULL;
+client 'На клиенте' = DATA BOOLEAN(EDSService);
+description 'EDSService' (EDSService s) = CONCAT ' ', name(s), host(s) + ':' + port(s), '(на клиенте)' IF client(s) CHARWIDTH 30;
+
+FORM EDSService 'EDSService'
+    OBJECTS o = EDSService PANEL
+    PROPERTIES(o) name, host, port, client 
+    
+    EDIT EDSService OBJECT o
+;
+
+FORM EDSServices 'EDSService'
+    OBJECTS o = EDSService
+    PROPERTIES(o) READONLY description
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    LIST EDSService OBJECT o
+;
+
 
 hostEDSServiceTopBy 'Хост EDSService' = DATA STRING[100] (LegalEntity);
 portEDSServiceTopBy 'Порт EDSService' = DATA INTEGER (LegalEntity);
@@ -44,34 +67,66 @@ portEDSServiceTopBy(Warehouse stock) += portEDSServiceTopBy(stock);
 hostEDSServiceTopBy 'Хост EDSService' = DATA STRING[100] (Employee);
 portEDSServiceTopBy 'Порт EDSService' = DATA INTEGER (Employee);
 
+EDSServiceTopBy 'EDSService' = DATA EDSService (LegalEntity);
+descriptionEDSServiceTopBy 'EDSService' (LegalEntity o) = description(EDSServiceTopBy(o));
+EDSServiceTopBy 'EDSService' = DATA EDSService (Stock);
+descriptionEDSServiceTopBy 'EDSService' (Stock o) = description(EDSServiceTopBy(o));
+EDSServiceTopBy 'EDSService' = DATA EDSService (Employee);
+descriptionEDSServiceTopBy 'EDSService' (Employee o) = description(EDSServiceTopBy(o));
+
+migrateEDSServiceTB = DATA BOOLEAN ();
+edsService = GROUP MAX EDSService e BY host(e), port(e);
+onStarted() +{ 
+    IF NOT migrateEDSServiceTB() THEN NEWSESSION {
+        FOR [GROUP SUM 1 BY hostEDSServiceTopBy(LegalEntity l), portEDSServiceTopBy(l)](STRING h, INTEGER p) AND NOT edsService(h, p) NEW e = EDSService DO{
+            host(e) <- h;
+            port(e) <- p;
+        }
+        FOR [GROUP SUM 1 BY hostEDSServiceTopBy(Stock l), portEDSServiceTopBy(l)](STRING h, INTEGER p) AND NOT edsService(h, p) NEW e = EDSService DO{
+            host(e) <- h;
+            port(e) <- p;
+        }
+        FOR [GROUP SUM 1 BY hostEDSServiceTopBy(Employee l), portEDSServiceTopBy(l)](STRING h, INTEGER p) AND NOT edsService(h, p) NEW e = EDSService DO{
+            host(e) <- h;
+            port(e) <- p;
+        }
+        EDSServiceTopBy(LegalEntity l) <- edsService(hostEDSServiceTopBy(l), portEDSServiceTopBy(l)) WHERE hostEDSServiceTopBy(l);
+        EDSServiceTopBy(Stock l) <- edsService(hostEDSServiceTopBy(l), portEDSServiceTopBy(l)) WHERE hostEDSServiceTopBy(l);
+        EDSServiceTopBy(Employee l) <- edsService(hostEDSServiceTopBy(l), portEDSServiceTopBy(l)) WHERE hostEDSServiceTopBy(l);
+        migrateEDSServiceTB() <- TRUE;
+        APPLY;
+    }
+}
+
 EXTEND FORM integrationData
     OBJECTS le = LegalEntity
     FILTERS isCompany(le)
-    PROPERTIES(le) name READONLY, aliasEDSService, passwordEDSService, hostEDSServiceTopBy, portEDSServiceTopBy
+    PROPERTIES(le) name READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceTopBy
     
     OBJECTS seds = Stock
-    PROPERTIES(seds) name READONLY, aliasEDSService, passwordEDSService, hostEDSServiceTopBy, portEDSServiceTopBy
+    PROPERTIES(seds) name READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceTopBy
     FILTERS isCompany(seds)
     
     OBJECTS eeds = Employee
-    PROPERTIES(eeds) lastName READONLY, firstName READONLY, namePosition READONLY, aliasEDSService, passwordEDSService, hostEDSServiceTopBy, portEDSServiceTopBy
+    PROPERTIES(eeds) lastName READONLY, firstName READONLY, namePosition READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceTopBy
     FILTERS active(eeds)
 ;
 
-hostEDSServiceCustomer = ABSTRACT CASE STRING[100] (STRING[100], EInvoice);
-portEDSServiceCustomer = ABSTRACT CASE INTEGER (STRING[100], EInvoice);
-hostEDSServiceSupplier = ABSTRACT CASE STRING[100] (STRING[100], EInvoice);
-portEDSServiceSupplier = ABSTRACT CASE INTEGER (STRING[100], EInvoice);
+EDSServiceCustomer = ABSTRACT CASE EDSService (STRING[100], EInvoice);
+EDSServiceSupplier = ABSTRACT CASE EDSService (STRING[100], EInvoice);
 
-hostEDSServiceCustomerTopBy (EInvoice i) = OVERRIDE hostEDSServiceTopBy(currentUser()), hostEDSServiceTopBy(customerStock(i)), hostEDSServiceTopBy(customer(i));
-portEDSServiceCustomerTopBy (EInvoice i) = OVERRIDE portEDSServiceTopBy(currentUser()), portEDSServiceTopBy(customerStock(i)), portEDSServiceTopBy(customer(i));
-hostEDSServiceSupplierTopBy (EInvoice i) = OVERRIDE hostEDSServiceTopBy(currentUser()), hostEDSServiceTopBy(supplierStock(i)), hostEDSServiceTopBy(supplier(i));
-portEDSServiceSupplierTopBy (EInvoice i) = OVERRIDE portEDSServiceTopBy(currentUser()), portEDSServiceTopBy(supplierStock(i)), portEDSServiceTopBy(supplier(i));
+EDSServiceCustomerTopBy (EInvoice i) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(customerStock(i)), EDSServiceTopBy(customer(i));
+EDSServiceSupplierTopBy (EInvoice i) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(supplierStock(i)), EDSServiceTopBy(supplier(i));
 
-hostEDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN hostEDSServiceCustomerTopBy(i);
-portEDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN portEDSServiceCustomerTopBy(i);
-hostEDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN hostEDSServiceSupplierTopBy(i);
-portEDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN portEDSServiceSupplierTopBy(i);
+EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN EDSServiceCustomerTopBy(i);
+EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN EDSServiceSupplierTopBy(i);
+
+sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, XMLFILE file) {
+    sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceCustomer(provider,ei)) + ':' + port(EDSServiceCustomer(provider,ei)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceCustomer(provider,ei)));
+}
+sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, XMLFILE file) {
+    sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceSupplier(provider,ei)));
+}
 
 GROUP body EXTID 'soapenv:Body';
 GROUP sendDocument EXTID 'top:SendDocument' : body;
@@ -158,7 +213,7 @@ META receiveMessages (namespace)
             IF login AND password THEN {
                 LOCAL xml = XMLFILE();
                 EXPORT receiveMessagesRequest OBJECTS login = login, password = password XML TO xml;
-                sendRequestEDI(login, password, url, xml());
+                sendRequestEDI(url, xml());
                 logToFile('edi', provider + ' ReceiveMessages request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'GetDocumentsResponse');
                 IF requestError() THEN {
@@ -372,7 +427,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     envelopeContent() <- encodedBase64();
                                     EXPORT envelope XML TO xml;
                                     //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                                    sendRequestEDI(login, password, url, xml());
+                                    sendRequestEDI(url, xml());
                                     logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                                     importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                     IF requestError() THEN {
@@ -389,7 +444,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 IF NOT disableConfirmation THEN {
                                     LOCAL xml = XMLFILE();
                                     EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                                    sendRequestEDI(login, password, url, xml());
+                                    sendRequestEDI(url, xml());
                                     logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                     importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                     IF requestError() THEN {
@@ -414,7 +469,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                     IF NOT disableConfirmation THEN {
                         LOCAL xml = XMLFILE();
                         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                        sendRequestEDI(login, password, url, xml());
+                        sendRequestEDI(url, xml());
                         logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                         IF requestError() THEN {
@@ -445,7 +500,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         envelopeContent() <- encodedBase64();
                         EXPORT envelope XML TO xml;
                         //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                        sendRequestEDI(login, password, url, xml());
+                        sendRequestEDI(url, xml());
                         logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                         IF requestError() THEN {
@@ -474,7 +529,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 envelopeContent() <- encodedBase64();
                 EXPORT envelope XML TO xml;
                 //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                sendRequestEDI(login, password, url, xml());
+                sendRequestEDI(url, xml());
                 logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {
@@ -554,7 +609,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         envelopeContent() <- encodedBase64();
                                         EXPORT envelope XML TO xml;
                                         //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                                        sendRequestEDI(login, password, url, xml());
+                                        sendRequestEDI(url, xml());
                                         logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                         IF requestError() THEN {
@@ -571,7 +626,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     IF NOT disableConfirmation THEN {
                                         LOCAL xml = XMLFILE();
                                         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                                        sendRequestEDI(login, password, url, xml());
+                                        sendRequestEDI(url, xml());
                                         logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                         IF requestError() THEN {
@@ -595,7 +650,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             IF NOT disableConfirmation THEN {
                                 LOCAL xml = XMLFILE();
                                 EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                                sendRequestEDI(login, password, url, xml());
+                                sendRequestEDI(url, xml());
                                 logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                 IF requestError() THEN {
@@ -624,7 +679,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 envelopeContent() <- encodedBase64();
                                 EXPORT envelope XML TO xml;
                                 //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                                sendRequestEDI(login, password, url, xml());
+                                sendRequestEDI(url, xml());
                                 logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
@@ -671,7 +726,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     envelopeContent() <- encodedBase64();
                                     EXPORT envelope XML TO xml;
                                     //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                                    sendRequestEDI(login, password, url, xml());
+                                    sendRequestEDI(url, xml());
                                     logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                                     importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                     IF requestError() THEN {
@@ -688,7 +743,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 IF NOT disableConfirmation THEN {
                                     LOCAL xml = XMLFILE();
                                     EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                                    sendRequestEDI(login, password, url, xml());
+                                    sendRequestEDI(url, xml());
                                     logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                     importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                     IF requestError() THEN {
@@ -713,7 +768,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                     IF NOT disableConfirmation THEN {
                         LOCAL xml = XMLFILE();
                         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                        sendRequestEDI(login, password, url, xml());
+                        sendRequestEDI(url, xml());
                         logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                         IF requestError() THEN {
@@ -748,7 +803,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 envelopeContent() <- encodedBase64();
                 EXPORT envelope XML TO xml;
                 //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                sendRequestEDI(login, password, url, xml());
+                sendRequestEDI(url, xml());
                 logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {
@@ -884,7 +939,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         envelopeContent() <- encodedBase64();
                                         EXPORT envelope XML TO xml;
                                         //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                                        sendRequestEDI(login, password, url, xml());
+                                        sendRequestEDI(url, xml());
                                         logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                         IF requestError() THEN {
@@ -921,7 +976,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                 WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                                             }
                                             IF aliasEDSServiceSupplier(eInvoice(m)) AND passwordEDSServiceSupplier(eInvoice(m)) THEN {
-                                                IF hostEDSServiceSupplier(provider,eInvoice(m)) AND portEDSServiceSupplier(provider,eInvoice(m)) THEN {
+                                                IF EDSServiceSupplier(provider, eInvoice(m)) THEN {
                                                     LOCAL xml = FILE();
                                                     fileToString(contentSubXML());
                                                     EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(eInvoice(m)),password = passwordEDSServiceSupplier(eInvoice(m)) XML TO xml;
@@ -929,7 +984,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                     innerXML() <- resultString();
                                                     fileToString(xml());
                                                     stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                                                    sendRequestEDI('eds', 'eds', ('http://' + hostEDSServiceSupplier(provider,eInvoice(m)) + ':' + portEDSServiceSupplier(provider,eInvoice(m)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                                                    sendRequestEDSSupplier(provider, eInvoice(m), XMLFILE(resultFile()));
                                                     IMPORT getEDSResponse FROM sendRequestEDIResponse();
                                                     IF faultstring() THEN {
                                                         logToFile('edi', provider + ' Parse Message ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(eInvoice(m)) + ' не подписан. Ошибка: ' + faultstring());
@@ -948,7 +1003,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                         envelopeDocumentType() <- 'BLRAPN';
                                                         envelopeContent() <- encodedBase64();
                                                         EXPORT envelope XML TO ixml;
-                                                        sendRequestEDI(login, password, url, ixml());
+                                                        sendRequestEDI(url, ixml());
                                                         logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(eInvoice(m)) +' request sent');
                                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                                         IF requestError() THEN {
@@ -959,7 +1014,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                             IF NOT disableConfirmation THEN {
                                                                 LOCAL cxml = XMLFILE();
                                                                 EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
-                                                                sendRequestEDI(login, password, url, cxml());
+                                                                sendRequestEDI(url, cxml());
                                                                 logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                                                 IF requestError() THEN {
@@ -1000,7 +1055,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                             IF NOT disableConfirmation THEN {
                                                 LOCAL cxml = XMLFILE();
                                                 EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
-                                                sendRequestEDI(login, password, url, cxml());
+                                                sendRequestEDI(url, cxml());
                                                 logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                                 IF requestError() THEN {
@@ -1021,7 +1076,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         IF NOT disableConfirmation THEN {
                                             LOCAL xml = XMLFILE();
                                             EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                                            sendRequestEDI(login, password, url, xml());
+                                            sendRequestEDI(url, xml());
                                             logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                             IF requestError() THEN {
@@ -1075,7 +1130,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         envelopeContent() <- encodedBase64();
                                         EXPORT envelope XML TO xml;
                                         //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                                        sendRequestEDI(login, password, url, xml());
+                                        sendRequestEDI(url, xml());
                                         logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                         IF requestError() THEN {
@@ -1092,7 +1147,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     IF NOT disableConfirmation THEN {
                                         LOCAL xml = XMLFILE();
                                         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                                        sendRequestEDI(login, password, url, xml());
+                                        sendRequestEDI(url, xml());
                                         logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                         IF requestError() THEN {
@@ -1127,7 +1182,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         envelopeContent() <- encodedBase64();
                         EXPORT envelope XML TO xml;
                         //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                        sendRequestEDI(login, password, url, xml());
+                        sendRequestEDI(url, xml());
                         logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                         IF requestError() THEN {
@@ -1157,7 +1212,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 envelopeContent() <- encodedBase64();
                 EXPORT envelope XML TO xml;
                 //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                sendRequestEDI(login, password, url, xml());
+                sendRequestEDI(url, xml());
                 logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {
