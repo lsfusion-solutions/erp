@@ -242,6 +242,9 @@ FORM statusYandex FORMEXTID 'null'
 quantityOrderDetail (InternetOrderDetail d) = IF status(internetOrder(d)) = StatusInternetOrder.new 
     OR status(internetOrder(d)) = StatusInternetOrder.isPicking THEN quantity(d) 
         ELSE pickingQuantity(d);
+sumItemCost 'Итоговая стоимость' (InternetOrder o) = IF status(o) = StatusInternetOrder.new 
+    OR status(o) = StatusInternetOrder.isPicking THEN paymentCardSumInternetOrder(o)
+    ELSE pickingSumInternetOrderDetail(o); 
     
 // форма информации о заказе
 FORM getOrder FORMEXTID 'null'
@@ -251,7 +254,7 @@ FORM getOrder FORMEXTID 'null'
        = 'yandex' EXTID 'discriminator', = '[]' EXTID 'promos'
     PROPERTIES IN deliveryInfo phoneInternetCustomer(o) EXTID 'phoneNumber', 
         nameInternetCustomer(o) EXTID 'clientName', courierArrivementDateText(o) EXTID 'courierArrivementDate'
-    PROPERTIES IN paymentInfo = OVERRIDE paymentCashSumInternetOrder(o), paymentCardSumInternetOrder(o) EXTID 'itemsCost',
+    PROPERTIES IN paymentInfo = OVERRIDE sumItemCost(o), paymentCardSumInternetOrder(o)  EXTID 'itemsCost',
         = IF paymentTypeInternetOrder(o) = PaymentTypeInternetOrder.inFact THEN 'CASH' ELSE 'CARD' EXTID 'paymentType'
  
     OBJECTS items = InternetOrderDetail
