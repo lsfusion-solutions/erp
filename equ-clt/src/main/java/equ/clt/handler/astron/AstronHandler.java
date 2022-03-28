@@ -2054,7 +2054,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 String salesTime = rs.getString("SALESTIME");
                 String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
                 String nameEmployee = rs.getString("CASHIERNAME");
-                Integer recordType = rs.getInt("SALESTAG");
+                Integer salesTag = rs.getInt("SALESTAG");
                 String salesBarc = rs.getString("SALESBARC");
                 int salesCode = rs.getInt("SALESCODE");
                 BigDecimal salesCount = rs.getBigDecimal("SALESCOUNT");
@@ -2063,6 +2063,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 BigDecimal salesDisc = rs.getBigDecimal("SALESDISC");
                 BigDecimal salesBonus = rs.getBigDecimal("SALESBONUS");
                 Integer salesType = rs.getInt("SALESTYPE");
+                Integer originalSalesType = rs.getInt("SALESTYPE");
                 Integer salesNum = rs.getInt("SALESNUM");
                 Integer sAreaId = rs.getInt("SAREAID");
                 int salesRefund = rs.getInt("SALESREFUND");
@@ -2088,8 +2089,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 if (numberReceipt == 0) {
                     astronSalesLogger.info(String.format("incorrect record with FRECNUM = 0: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId));
-                } else if ((!sAreaId.equals(prevSAreaId) || !nppCashRegister.equals(prevNppCashRegister) || !numberReceipt.equals(prevNumberReceipt)) && recordType != 2 && recordType != 3 && recordType != 5) {
-                    astronSalesLogger.info(String.format("incorrect record (new receipt started, but salesTag != 2 or 3 or 5) with SAREAID %s, SYSTEMID %s, FRECNUM %s, SALESTAG %s", sAreaId, nppCashRegister, numberReceipt, recordType));
+                } else if ((!sAreaId.equals(prevSAreaId) || !nppCashRegister.equals(prevNppCashRegister) || !numberReceipt.equals(prevNumberReceipt)) && salesTag != 2 && salesTag != 3 && salesTag != 5) {
+                    astronSalesLogger.info(String.format("incorrect record (new receipt started, but salesTag != 2 or 3 or 5) with SAREAID %s, SYSTEMID %s, FRECNUM %s, SALESTAG %s", sAreaId, nppCashRegister, numberReceipt, salesTag));
                 } else {
 
                     prevSAreaId = sAreaId;
@@ -2120,68 +2121,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         boolean isReturn = salesRefund != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
 
-                        switch (recordType) {
-                            case 0: {//товарная позиция
-                                numberReceipt = uniqueReceiptIdNumberReceiptMap.get(currentUniqueReceiptId);
-                                String idBarcode = trimToNull(salesBarc);
-                                String idItem = String.valueOf(salesCode);
-                                boolean isWeight = !customPaymentType && (salesType == 0 || salesType == 2);
-                                BigDecimal totalQuantity = safeDivide(salesCount, isWeight ? 1000 : 1);
-                                BigDecimal price = safeDivide(salesPrice, 100);
-                                BigDecimal sumReceiptDetail = safeDivide(salesSum, 100);
-                                BigDecimal discountSumReceiptDetail = safeDivide(salesDisc, 100);
-                                totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
-                                sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
-
-                                receiptDetailExtraFields.put("paymentCard", StringUtils.join(paymentCardNumbers, ";"));
-                                if(bonusPaymentAsDiscount) {
-                                    BigDecimal salesBonusValue = safeDivide(salesBonus, 100); //сумма социальной скидки для позиции
-                                    if(salesBonusValue.compareTo(BigDecimal.ZERO) > 0) {
-                                        //todo: remove temp log
-                                        astronSalesLogger.info(String.format("SocialDiscount: nppGroupMachinery = %s, nppCashRegister = %s, numberZReport = %s, numberReceipt = %s, idBarcode = %s," +
-                                                        " SALESBONUS = %s, SALESDISC = %s",
-                                                nppGroupMachinery, nppCashRegister, numberZReport, numberReceipt, idBarcode, salesBonusValue, discountSumReceiptDetail));
-                                        receiptDetailExtraFields.put("salesBonus", salesBonusValue);
-                                    }
-                                }
-
-                                curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                                        idEmployee, nameEmployee, null, sumCard, sumCash, sumGiftCardMap, customPaymentsMap, idBarcode, idItem, null,
-                                        idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, null, discountSumReceiptDetail,
-                                        null, idDiscountCard, salesNum, null, null, false, receiptDetailExtraFields, cashRegister));
-                                curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
-                                prologSum = safeSubtract(prologSum, salesSum);
-                                break;
-                            }
-                            case 1: {//оплата
-                                if (!isBonusPayment) { //оплату бонусами игнорируем, она пойдёт как скидку на сумму SALESBONUS
-                                    BigDecimal sum = safeDivide(salesSum, 100);
-                                    if (isReturn) sum = safeNegate(sum);
-                                    if (customPaymentType) {
-                                        BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(salesType));
-                                        customPaymentsMap.put(String.valueOf(salesType), safeAdd(customPaymentSum, sum));
-                                    } else {
-                                        String[] salesBarcs = trimToEmpty(salesBarc).split(":");
-                                        switch (salesType) {
-                                            case 1:
-                                                if (salesBarcs.length > 0) {
-                                                    paymentCardNumbers.add(salesBarcs[0]);
-                                                }
-                                                sumCard = safeAdd(sumCard, sum);
-                                                break;
-                                            case 2:
-                                                String numberGiftCard = salesBarcs.length > 0 ? salesBarcs[0] : null;
-                                                GiftCard giftCard = sumGiftCardMap.getOrDefault(numberGiftCard, new GiftCard(BigDecimal.ZERO));
-                                                giftCard.sum = safeAdd(giftCard.sum, sum);
-                                                sumGiftCardMap.put(numberGiftCard, giftCard);
-                                                break;
-                                            case 0:
-                                            default:
-                                                sumCash = safeAdd(sumCash, sum);
-                                                break;
-                                        }
-                                    }
-                                }
+                        switch (salesTag) {
+                            case 5:  //Аннулированная товарная позиция
+                            case 3: {//Возвращенная товарная позиция
+                                //Игнорируем эти записи. В дополнение к ним создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                                 break;
                             }
@@ -2226,19 +2169,79 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                                 break;
                             }
-                            case 3:  //Возвращенная товарная позиция
-                            case 5: {//Аннулированная товарная позиция
-                                     //Игнорируем эти записи. В дополнение к ним создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
+                            case 1: {//оплата
+                                astronSqlLogger.info("Payment found: isBonusPayment = " + isBonusPayment); //todo: remove temp log
+                                if (!isBonusPayment) { //оплату бонусами игнорируем, она пойдёт как скидку на сумму SALESBONUS
+                                    BigDecimal sum = safeDivide(salesSum, 100);
+                                    if (isReturn) sum = safeNegate(sum);
+                                    if (customPaymentType) {
+                                        BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(salesType));
+                                        customPaymentsMap.put(String.valueOf(salesType), safeAdd(customPaymentSum, sum));
+                                    } else {
+                                        String[] salesBarcs = trimToEmpty(salesBarc).split(":");
+                                        switch (salesType) {
+                                            case 1:
+                                                if (salesBarcs.length > 0) {
+                                                    paymentCardNumbers.add(salesBarcs[0]);
+                                                }
+                                                sumCard = safeAdd(sumCard, sum);
+                                                break;
+                                            case 2:
+                                                astronSqlLogger.info("Adding giftCard payment"); //todo: remove temp log
+                                                String numberGiftCard = salesBarcs.length > 0 ? salesBarcs[0] : null;
+                                                GiftCard giftCard = sumGiftCardMap.getOrDefault(numberGiftCard, new GiftCard(BigDecimal.ZERO));
+                                                giftCard.sum = safeAdd(giftCard.sum, sum);
+                                                sumGiftCardMap.put(numberGiftCard, giftCard);
+                                                break;
+                                            case 0:
+                                            default:
+                                                sumCash = safeAdd(sumCash, sum);
+                                                break;
+                                        }
+                                    }
+                                }
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                                break;
+                            }
+                            case 0: {//товарная позиция
+                                numberReceipt = uniqueReceiptIdNumberReceiptMap.get(currentUniqueReceiptId);
+                                String idBarcode = trimToNull(salesBarc);
+                                String idItem = String.valueOf(salesCode);
+                                boolean isWeight = !customPaymentType && (salesType == 0 || salesType == 2);
+                                BigDecimal totalQuantity = safeDivide(salesCount, isWeight ? 1000 : 1);
+                                BigDecimal price = safeDivide(salesPrice, 100);
+                                BigDecimal sumReceiptDetail = safeDivide(salesSum, 100);
+                                BigDecimal discountSumReceiptDetail = safeDivide(salesDisc, 100);
+                                totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
+                                sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
+
+                                receiptDetailExtraFields.put("paymentCard", StringUtils.join(paymentCardNumbers, ";"));
+                                if(bonusPaymentAsDiscount) {
+                                    BigDecimal salesBonusValue = safeDivide(salesBonus, 100); //сумма социальной скидки для позиции
+                                    if(salesBonusValue.compareTo(BigDecimal.ZERO) > 0) {
+                                        //todo: remove temp log
+                                        astronSalesLogger.info(String.format("SocialDiscount: nppGroupMachinery = %s, nppCashRegister = %s, numberZReport = %s, numberReceipt = %s, idBarcode = %s," +
+                                                        " SALESBONUS = %s, SALESDISC = %s",
+                                                nppGroupMachinery, nppCashRegister, numberZReport, numberReceipt, idBarcode, salesBonusValue, discountSumReceiptDetail));
+                                        receiptDetailExtraFields.put("salesBonus", salesBonusValue);
+                                    }
+                                }
+
+                                curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
+                                        idEmployee, nameEmployee, null, sumCard, sumCash, sumGiftCardMap, customPaymentsMap, idBarcode, idItem, null,
+                                        idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, null, discountSumReceiptDetail,
+                                        null, idDiscountCard, salesNum, null, null, false, receiptDetailExtraFields, cashRegister));
+                                curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                                prologSum = safeSubtract(prologSum, salesSum);
                                 break;
                             }
                         }
 
                         if(enableSqlLog) {
                             astronSqlLogger.info(String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s",
-                                    salesAttrs, nppCashRegister, sessionId, salesTime, numberReceipt, idEmployee, nameEmployee, recordType,
+                                    salesAttrs, nppCashRegister, sessionId, salesTime, numberReceipt, idEmployee, nameEmployee, salesTag,
                                     salesBarc, salesCode, salesCount, salesPrice, salesSum, salesDisc, salesBonus,
-                                    salesType, salesNum, sAreaId, salesRefund, priceLevelId, salesAttri, sessStart));
+                                    originalSalesType, salesNum, sAreaId, salesRefund, priceLevelId, salesAttri, sessStart));
                         }
 
                     }
