@@ -1,6 +1,6 @@
 MODULE DisassemblyLotDashboardSecond;
 
-REQUIRE DisassemblyLotSecond, LotExtra, LotPriceLabel, 
+REQUIRE DisassemblyLotSecond, LotExtra, LotPriceLabelSecond, 
         PriceCategory, ItemPart, 
         SerialPort, 
         ScalesItem, ComWeight, 
@@ -32,7 +32,7 @@ FORM disassemblyLotDashboard 'Разукомплектация'
     PROPERTIES(a) countDisassemblyLot, weightDisassemblyLot
     
     OBJECTS l = DisassemblyLot
-    PROPERTIES(l) READONLY dateTime, nameUser, id, weight, nameSku, price, image PANEL
+    PROPERTIES(l) READONLY dateTime, nameUser, id, weight, nameSku, defect, price, image PANEL
     PROPERTIES(l) NEWSESSION DELETE
     FILTERS disassembly(l) = a
 ;
@@ -108,6 +108,10 @@ changeStream () {
     }
 }
 
+// options
+ioption = DATA LOCAL BOOLEAN (STRING);
+caption (STRING s) = CASE WHEN s = 'defect' THEN 'С дефектом';
+
 // barcode
 ibarcode 'Штрихкод' = DATA LOCAL STRING[200] () CHARWIDTH 13 CHANGEKEY 'F4' EVENTID 'SCANNER';
 
@@ -117,6 +121,8 @@ fillProperties(Lot l) {
     iprice() <- price(l);
     iimage() <- image(l);
     ibarcode() <- id(l);
+    
+    ioption('defect') <- defect(l);
 }
 
 @defineNumeratorItemGroup (lot, 'Нумератор штрихкодов (для марок)', paramsItemGroup);
@@ -158,6 +164,10 @@ EXTEND FORM disassemblyLotDashboard
             }
         }     
     }
+
+    OBJECTS o = STRING CUSTOM 'option'
+    PROPERTIES name = caption(o), selected = ioption(o)
+    FILTERS caption(o)
 ;
 
 processLot 'Обработать' (Sku s, Stock st) {
@@ -183,12 +193,15 @@ processLot 'Обработать' (Sku s, Stock st) {
             }
             
             LOCAL NESTED changedPrint = BOOLEAN();
-            changedPrint() <- (NOT sku(l) = isku() OR NOT price(l) = iprice()) AND NOT skipPrintLotDashboard(isku());
+            changedPrint() <- (NOT sku(l) = isku() OR NOT price(l) = iprice() OR (defect(l) AND NOT ioption('defect')) OR (NOT defect(l) AND ioption('defect'))) 
+                              AND NOT skipPrintLotDashboard(isku());
     
             weight(l) <- iweight();
             sku(l) <- isku();
             price(l) <- iprice();
             image(l) <- iimage();
+            
+            defect(l) <- ioption('defect');
             
             APPLY;
             IF canceled() THEN {
@@ -236,6 +249,8 @@ DESIGN disassemblyLotDashboard {
                     fill = 1;
                     width = 100;
                     MOVE PROPERTY(iprice()) { panelCaptionVertical = TRUE; fontSize = 24; notNull = TRUE; alignment = STRETCH; }
+                    REMOVE BOX(o);
+                    MOVE GRID(o) { boxed = FALSE; flex = 0; }
                 }
                 NEW inputRight {
                     alignment = STRETCH;
@@ -261,13 +276,7 @@ DESIGN disassemblyLotDashboard {
 }    
 
 startEditing 'Редактировать' (DisassemblyLot dl) {
-    FOR Lot l = lot(dl) DO { 
-        iweight() <- weight(l);
-        isku() <- sku(l);
-        iprice() <- price(l);
-        iimage() <- image(l);
-        ibarcode() <- id(l);
-    }
+    fillProperties(lot(dl));
     
     ACTIVATE TAB disassemblyLotDashboard.input;
 }
@@ -329,7 +338,7 @@ EXTEND FORM disassemblyLotDashboard
 
 DESIGN disassemblyLotDashboard {
     inputCenter {
-        NEW inputCenterPrice AFTER PROPERTY(iprice()) {
+        NEW inputCenterPrice {
             fill = 1;
             type = CONTAINERH;
             REMOVE BOX(pc1);

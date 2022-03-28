@@ -67,7 +67,10 @@ EXTEND FORM computer PROPERTIES(c) nameLotLabelType;
 lotLabelType () = OVERRIDE lotLabelType(currentComputer()), defaultLotLabelType();
 template (ItemGroup i) = template(lotLabelType(), i);
 
-labelText (Lot l) = replace(replace(replace(template(itemGroup(sku(l))), '@NAME@', nameSku(l)), '@BARCODE@', id(l)), '@PRICE@', 'Цена ' + INTEGER(price(l)) + ' руб.'); 
+labelNameSku = ABSTRACT VALUE TEXT (Lot);
+labelNameSku (Lot l) += nameSku(l);
+
+labelText (Lot l) = replace(replace(replace(template(itemGroup(sku(l))), '@NAME@', labelNameSku(l)), '@BARCODE@', id(l)), '@PRICE@', 'Цена ' + INTEGER(price(l)) + ' руб.'); 
 
 printLabel 'Печать' (Lot l) {
     printComPort(labelText(l));
