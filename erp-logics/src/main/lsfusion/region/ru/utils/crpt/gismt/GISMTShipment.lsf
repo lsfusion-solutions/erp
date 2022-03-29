@@ -1,21 +1,21 @@
 MODULE GISMTShipment;
 
-META defineDocumentGISMTIn (sender, receiver)
+META defineDocumentGISMTIn (senderProp, receiverProp)
     needDocument = ABSTRACT VALUE BOOLEAN (Invoice);
     needDocument(Invoice i) += supplier(i) != customer(i);
     createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND needDocument(i);
     
     gismtType = ABSTRACT CASE STRING[30] (Invoice);
     gismtType(Invoice i) += WHEN i IS Invoice THEN 'LP_ACCEPT_GOODS';
-    @defineDocumentGISMT(invoice, createDocument, invoices, i, receiver, receiver##Stock);
+    @defineDocumentGISMT(invoice, createDocument, invoices, i, receiverProp, receiverProp##Stock);
     
-    participant (InvoiceDocument i) += sender(invoice(i));
-    participantStock (InvoiceDocument i) += sender##Stock(invoice(i));
+    participant (InvoiceDocument i) += senderProp(invoice(i));
+    participantStock (InvoiceDocument i) += senderProp##Stock(invoice(i));
     
     // release number
     releaseNumber = ABSTRACT STRING[100] (Invoice, LotType);
     
-    @defineDocumentIncoming(userInvoice, releaseNumber, headerCreateDetail, receiver, sender);
+    @defineDocumentIncoming(userInvoice, releaseNumber, headerCreateDetail, receiverProp, senderProp);
     releaseNumber (UserInvoice i, LotType t) += releaseNumber(i, t);
     
     // export
@@ -29,13 +29,13 @@ META defineDocumentGISMTIn (sender, receiver)
                    document_date = replace(toChar(dateTime(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ',''),
                    request_type = 'ACCEPTANCE', 
                    turnover_type = 'SELLING',
-                   trade_sender_inn = (OVERRIDE senderInn(sender(i)), inn(sender(i))),
-                   trade_recipient_inn = inn(receiver(i)),
+                   trade_sender_inn = (OVERRIDE senderInn(senderProp(i)), inn(senderProp(i))),
+                   trade_recipient_inn = inn(receiverProp(i)),
                    release_order_number = releaseNumber(i, t),
                    
-                   exporter_taxpayer_id = inn(sender(i)) IF senderInn(sender(i)),
-                   exporter_name = name(sender(i)) IF senderInn(sender(i)),
-                   release_method = 'CROSSBORDER' IF senderInn(sender(i))
+                   exporter_taxpayer_id = inn(senderProp(i)) IF senderInn(senderProp(i)),
+                   exporter_name = name(senderProp(i)) IF senderInn(senderProp(i)),
+                   release_method = 'CROSSBORDER' IF senderInn(senderProp(i))
         
         OBJECTS products = (d = InvoiceDetail, l = Lot)
         PROPERTIES accepted = TRUE IF d IS InvoiceDetail AND l IS Lot, 
@@ -43,9 +43,9 @@ META defineDocumentGISMTIn (sender, receiver)
                    uitu_code = id(l) IF aggregated(l), 
                    product_description = nameSku(d),
                    
-                   tnved_code = tnved(sku(d)) IF senderInn(sender(i)),
-                   product_cost = sum(d) IF senderInn(sender(i)),
-                   product_tax = (OVERRIDE VATSum(d), 0.0) IF senderInn(sender(i))
+                   tnved_code = tnved(sku(d)) IF senderInn(senderProp(i)),
+                   product_cost = sum(d) IF senderInn(senderProp(i)),
+                   product_tax = (OVERRIDE VATSum(d), 0.0) IF senderInn(senderProp(i))
                    
         FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
     ;
@@ -67,7 +67,7 @@ META defineDocumentGISMTIn (sender, receiver)
         OBJECTS i = Invoice, t = LotType PANEL
         
         PROPERTIES return_type = returnType(operation(i)), 
-                   trade_participant_inn = inn(sender(i))
+                   trade_participant_inn = inn(senderProp(i))
         
         OBJECTS products_list = (d = InvoiceDetail, l = Lot)
         PROPERTIES ki = id(l)
@@ -90,17 +90,17 @@ META defineDocumentGISMTIn (sender, receiver)
     }
 END
 
-META defineDocumentGISMTOut (sender, receiver)
+META defineDocumentGISMTOut (senderProp, receiverProp)
     needDocument = ABSTRACT VALUE BOOLEAN (Invoice);
     needDocument(Invoice i) += supplier(i) != customer(i);
     createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND needDocument(i);
     
     gismtType = ABSTRACT CASE STRING[30] (Invoice);
     gismtType(Invoice i) += WHEN i IS Invoice THEN 'LP_SHIP_GOODS';
-    @defineDocumentGISMT(invoice, createDocument, invoices, i, sender, sender##Stock);
+    @defineDocumentGISMT(invoice, createDocument, invoices, i, senderProp, senderProp##Stock);
     
-    participant (InvoiceDocument i) += receiver(invoice(i));
-    participantStock (InvoiceDocument i) += receiver##Stock(invoice(i));
+    participant (InvoiceDocument i) += receiverProp(invoice(i));
+    participantStock (InvoiceDocument i) += receiverProp##Stock(invoice(i));
     
     FORM exportInvoice
         OBJECTS i = Invoice, t = LotType PANEL
@@ -109,8 +109,8 @@ META defineDocumentGISMTOut (sender, receiver)
                    document_date = toDateISO(date(i)), 
                    document_num = seriesNumber(i),
                    turnover_type = 'SELLING',
-                   sender_inn = inn(sender(i)), 
-                   receiver_inn = inn(receiver(i))
+                   sender_inn = inn(senderProp(i)), 
+                   receiver_inn = inn(receiverProp(i))
         
         OBJECTS products = (d = InvoiceDetail, l = Lot)
         PROPERTIES uit_code = id(l) IF NOT aggregated(l),
@@ -141,7 +141,7 @@ META defineDocumentGISMTOut (sender, receiver)
         PROPERTIES action = actionReceipt(operation(i)), action_date = toDateISO(date(i)), 
                    document_date = toDateISO(date(i)), document_number = seriesNumber(i),
                    document_type = documentType(operation(i)), primary_document_custom_name = primaryDocumentCustomName(operation(i)),
-                   inn = inn(sender(i))
+                   inn = inn(senderProp(i))
         
         OBJECTS products = (d = InvoiceDetail, l = Lot)
         PROPERTIES cis = id(l)
@@ -155,8 +155,8 @@ META defineDocumentGISMTOut (sender, receiver)
     FORM exportInvoiceCrossBorderExport
         OBJECTS i = Invoice, t = LotType PANEL
         
-        PROPERTIES sender_inn = inn(sender(i)),
-                   receiver_inn = inn(receiver(i)), receiver = name(receiver(i)), receiver_country_code = sid(country(receiver(i))),  
+        PROPERTIES sender_inn = inn(senderProp(i)),
+                   receiver_inn = inn(receiverProp(i)), receiver = name(receiverProp(i)), receiver_country_code = sid(country(receiverProp(i))),  
                    document_number = seriesNumber(i), document_date = toDateISO(date(i)), transfer_date = toDateISO(date(i))
         
         OBJECTS products = (d = InvoiceDetail, l = Lot)
@@ -167,7 +167,7 @@ META defineDocumentGISMTOut (sender, receiver)
     export (InvoiceDocument i) + {
         IF crossBorderExport(operation(invoice(i))) THEN
             EXPORT exportInvoiceCrossBorderExport OBJECTS i = invoice(i), t = lotType(i) JSON;
-        IF actionReceipt(operation(invoice(i))) THEN
+        ELSE IF actionReceipt(operation(invoice(i))) THEN
             EXPORT exportInvoiceReceipt OBJECTS i = invoice(i), t = lotType(i) JSON;
         ELSE
             EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
