@@ -91,19 +91,98 @@ numerateIds(LONG i) {
 }
 
 //товары
+GROUP wmsParams 'WMS';
+
+CLASS ConditionStorage 'Условие хранения';
+TABLE conditionStorage (ConditionStorage);
+
+@defineExternalizable(conditionStorage, STRING[100]);
+name 'Наименование' = DATA STRING[100] (ConditionStorage);
+
+FORM conditionStorage 'Условие хранения'
+    OBJECTS c = ConditionStorage PANEL
+    PROPERTIES(c) id, name
+    
+    EDIT ConditionStorage OBJECT c
+;
+
+FORM conditionsStorage 'Условия хранения'
+    OBJECTS c = ConditionStorage
+    PROPERTIES(c) READONLY id, name
+    PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST ConditionStorage OBJECT c
+;
+
+conditionStorage = DATA ConditionStorage (Item);
+nameConditionStorage 'Условие хранения' (Item item) = name(conditionStorage(item)) IN wmsParams;
+
+CONSTRAINT DROPPED(ConditionStorage o IS ConditionStorage) AND [ GROUP SUM 1 IF NOT conditionStorage(Item io) BY PREV(conditionStorage(io))](o)
+    MESSAGE 'Запрещено удалять атрибут (Условие хранения), так как на него есть ссылки в справочнике товаров';
+
+
+CLASS ItemSpecification 'Характеристика товара';
+TABLE itemSpecification (ItemSpecification);
+
+@defineExternalizable(itemSpecification, STRING[100]);
+
+name 'Наименование' = DATA STRING[100] (ItemSpecification);
+
+FORM itemSpecification 'Характеристика товара'
+    OBJECTS s = ItemSpecification PANEL
+    PROPERTIES(s) id, name
+    
+    EDIT ItemSpecification OBJECT s
+;
+
+FORM itemSpecifications 'Характеристики товара'
+    OBJECTS s = ItemSpecification
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST ItemSpecification OBJECT s
+;
+
+itemSpecification = DATA ItemSpecification (Item);
+nameItemSpecification 'Характеристика' (Item item) = name(itemSpecification(item)) IN wmsParams;
+
+CONSTRAINT DROPPED(ItemSpecification o IS ItemSpecification) AND [ GROUP SUM 1 IF NOT itemSpecification(Item io) BY PREV(itemSpecification(io))](o)
+    MESSAGE 'Запрещено удалять атрибут (Характеристика), так как на него есть ссылки в справочнике товаров';
+
+countDaysToSale 'Дней для продажи' = DATA INTEGER (Item) IN wmsParams;
+
+EXTEND FORM item
+    PROPERTIES(i) nameConditionStorage, nameItemSpecification, countDaysToSale
+;
+
+DESIGN item {
+    itemPrimaryColumn2 {
+        MOVE GROUP(wmsParams,i) {
+            alignment = STRETCH;
+            columns = 1;
+        }
+    }
+}
+
+EXTEND FORM items 
+    PROPERTIES(i) READONLYIF isReadonly() nameConditionStorage, nameItemSpecification, countDaysToSale
+;
+
 changed 'Время изменения' = DATA DATETIME (Item) IN wms;
 slovoMessage = DATA SlovoMessage (Item);
 statusSlovo 'Статус' (Item o) = status(slovoMessage(o)) IN wms;
 errorSlovo 'Сообщение' (Item o) = errDescr(slovoMessage(o)) IN wms;
 loaded 'Время выгрузки' (Item o) = loaded(slovoMessage(o)) IN wms;
 
-WHEN CHANGED (id(Item o)) OR CHANGED (nameAttribute(o)) OR CHANGED (idBarcode(o)) OR CHANGED (shortNameUOM(o)) OR CHANGED (nameManufacturer(o)) OR CHANGED (nameCountry(o)) DO 
+WHEN CHANGED (id(Item o)) OR CHANGED (nameAttribute(o)) OR CHANGED (idBarcode(o)) OR CHANGED (shortNameUOM(o)) OR CHANGED (nameManufacturer(o)) OR CHANGED (nameCountry(o)
+             OR CHANGED (conditionStorage(o)) OR CHANGED (itemSpecification(o)) OR CHANGED (countDaysToSale(o))) DO 
     changed(o) <- currentDateTime();
 
 itemString (LONG syncId, Item s) = CONCAT'','<sku syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
     '\'\' sdid=\'\'',id(s),'\'\' sku_code=\'\'',id(s),'\'\' name=\'\'',format(nameAttribute(s)),'\'\' upc=\'\'',format(idBarcode(s)),
-    '\'\' measure=\'\'',format(shortNameUOM(s)),'\'\' store_cond=\'\'1\'\' producer_sdid=\'\'',format(nameManufacturer(s)),
-    '\'\' country=\'\'',format(nameCountry(s)),'\'\' abc=\'\'\'\' minosg=\'\'\'\' sku_spec_id=\'\'0\'\' description=\'\'\'\' divisibility=\'\'\'\'></sku>';
+    '\'\' measure=\'\'',format(shortNameUOM(s)),'\'\' store_cond=\'\'',format(id(conditionStorage(s))),'\'\' producer_sdid=\'\'',format(nameManufacturer(s)),
+    '\'\' country=\'\'',format(nameCountry(s)),'\'\' abc=\'\'\'\' minosg=\'\'',countDaysToSale(s),'\'\' sku_spec_id=\'\'',format(id(itemSpecification(s))),
+    '\'\' description=\'\'\'\' divisibility=\'\'\'\'></sku>';
 
 exportItems 'Выгрузить товары в wms Solvo' ()  { 
     IF defaultNumeratorSyncid() THEN {
