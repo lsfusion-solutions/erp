@@ -195,11 +195,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         Integer extGrpId = groupMachineryMap.get(transaction.nppGroupMachinery);
                         String tables = "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : "") + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
+                        List<String> truncateTables = Arrays.asList("GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC");
+                        if(extGrpId != null) {
+                            truncateTables.add("ARTEXTGRP");
+                        }
 
                         Map<String, List<JSONObject>> jsonTables = getJsonTables(transaction);
                         for(String table : new String [] {PROPERTYGRP, NUMPROPERTY, NUMBERS, BINARYDATA, BINPROPERTY}) {
                             if(!jsonTables.get(table).isEmpty()) {
                                 tables = tables + "," + singleQuot(table);
+                                truncateTables.add(table);
                             }
                         }
 
@@ -213,7 +218,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             if (waitFlagsResult != null) {
                                 throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
                             }
-                            truncateTables(conn, transaction, extGrpId);
+                            truncateTables(conn, transaction, truncateTables);
                         }
 
                         List<CashRegisterItem> usedDeleteBarcodeList = new ArrayList<>();
@@ -1683,9 +1688,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return null;
     }
 
-    private void truncateTables(Connection conn, TransactionCashRegisterInfo transaction, Integer extGrpId) throws SQLException {
+    private void truncateTables(Connection conn, TransactionCashRegisterInfo transaction, List<String> tables) throws SQLException {
         astronLogger.info(String.format("transaction %s, truncate tables", transaction.id));
-        String[] tables = extGrpId != null ? new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC", "ARTEXTGRP"} : new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC"};
         for (String table : tables) {
             try (Statement s = conn.createStatement()) {
                 s.execute("TRUNCATE TABLE " + table);
