@@ -23,6 +23,8 @@ captionMode (STRING s) += WHEN s = 'edit' THEN 'Редактирование';
 disassemblyMode () = selectedMode('disassembly');
 editMode () = selectedMode('edit');
 
+dsku = DATA LOCAL NESTED Sku ();
+
 FORM disassemblyLotDashboard 'Разукомплектация'
     OBJECTS st = Stock PANEL
     PROPERTIES(st) name SELECTOR
@@ -40,6 +42,7 @@ FORM disassemblyLotDashboard 'Разукомплектация'
         FILTER 'В наличии' currentBalance(s, st) DEFAULT
     FILTERGROUP part
         FILTER 'Комплект' countPart(s) DEFAULT
+    EVENTS ON CHANGE s { dsku() <- s; }
 
     OBJECTS a = Disassembly PANEL
     FILTERS a = disassembly(currentUser(), s, st)
@@ -199,7 +202,7 @@ EXTEND FORM disassemblyLotDashboard
 ;
 
 overProcessLot ABSTRACT LIST (Lot);
-processLot 'Обработать' (Sku s, Stock st) {
+processLot 'Обработать' (Stock st) {
     generateLot();
     IF ibarcode() AND NOT lot(ibarcode()) THEN {
         NEW l = Lot {
@@ -208,12 +211,12 @@ processLot 'Обработать' (Sku s, Stock st) {
     }
     FOR Lot l = lot(ibarcode()) DO {
         IF disassemblyMode() THEN { 
-            IF NOT disassembly(currentUser(), s, st) THEN
+            IF NOT disassembly(currentUser(), dsku(), st) THEN
                 NEW d = Disassembly {
-                    sku(d) <- s;
+                    sku(d) <- dsku();
                     stock(d) <- st;
                 }
-            FOR Disassembly a = disassembly(currentUser(), s, st) AND NOT disassemblyLot(a, l) DO {
+            FOR Disassembly a = disassembly(currentUser(), dsku(), st) AND NOT disassemblyLot(a, l) DO {
                 NEW d = DisassemblyLot {
                     disassembly(d) <- a;
                     lot(d) <- l;
@@ -253,9 +256,11 @@ processLot 'Обработать' (Sku s, Stock st) {
 //}
 
 EXTEND FORM disassemblyLotDashboard
-    PROPERTIES processLot(s, st) READONLYIF NOT iweight() OR NOT isku() OR 
-                                                             (NOT iprice() AND NOT skipPriceLotDashboard(isku())) OR 
-                                                             NOT iimage()
+    PROPERTIES processLot(st) READONLYIF NOT iweight() OR NOT isku() OR
+                                                         (NOT dsku() AND disassemblyMode()) OR
+                                                         (NOT iprice() AND NOT skipPriceLotDashboard(isku())) OR 
+                                                          NOT iimage() OR
+                                                         (NOT ibarcode() AND NOT disassemblyMode())
     
     PROPERTIES(l) printLabel
 ;
@@ -294,7 +299,7 @@ DESIGN disassemblyLotDashboard {
                         NEW inputRightTopLeft {
                             fill = 1;
                             MOVE PROPERTY(ibarcode()) { panelCaptionVertical = TRUE; alignment = STRETCH; notNull = TRUE; fontSize = 24; }
-                            MOVE PROPERTY(processLot(s, st)) { fill = 1; fontSize = 24; }
+                            MOVE PROPERTY(processLot(st)) { fill = 1; fontSize = 24; }
                         }
                         MOVE PROPERTY(iimage()) { panelCaptionVertical = TRUE; fill = 1; notNull = TRUE; focusable = FALSE; }
                     }
