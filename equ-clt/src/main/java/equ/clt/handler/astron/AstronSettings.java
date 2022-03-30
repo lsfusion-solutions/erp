@@ -11,9 +11,6 @@ public class AstronSettings implements Serializable {
     //время ожидания в секундах обработки транзакции после выгрузки, по умолчанию - 300 секунд
     private Integer timeout;
 
-    //отображение nppGroupMachiney на extGrpId (x -> y)
-    public String groupMachineries = null;
-
     //номера платежей наличными через запятую, по умолчанию - 0
     private String cashPayments;
 
@@ -71,35 +68,6 @@ public class AstronSettings implements Serializable {
     public void setTimeout(Integer timeout) {
         this.timeout = timeout;
     }
-
-    public Map<Integer, Integer> getGroupMachineryMap() {
-        Map<Integer, Integer> groupMachineryMap = new HashMap<>();
-        if(groupMachineries != null) {
-            for (String groupMachinery : groupMachineries.split(",")) {
-                String[] entry = trim(groupMachinery).split("->");
-                if (entry.length == 2) {
-                    Integer key = parseInt(trim(entry[0]));
-                    Integer value = parseInt(trim(entry[1]));
-                    if (key != null && value != null)
-                        groupMachineryMap.put(key, value);
-                }
-            }
-        }
-        return groupMachineryMap;
-    }
-
-    public void setGroupMachineries(String groupMachineries) {
-        this.groupMachineries = groupMachineries;
-    }
-
-    private Integer parseInt(String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
 
     public boolean isExportExtraTables() {
         return exportExtraTables;
