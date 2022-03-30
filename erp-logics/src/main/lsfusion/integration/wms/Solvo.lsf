@@ -357,6 +357,9 @@ incomingDetailString (LONG syncId, Purchase.InvoiceDetail s) = CONCAT'','<incomi
     '\'\' inc_id=\'\'',id(invoice(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' category=\'\'1\'\' ',extraIncomingDetailString(s),
     ' marker=\'\'-\'\' marker2=\'\'-\'\' qty=\'\'',format(STRING(quantity(s))),'\'\' uom=\'\'',format(shortNameUOMSku(s)),'\'\' comments=\'\'\'\'/>';
 
+overExportSolvo  ABSTRACT (Purchase.Invoice);
+overExportSolvoPurchaseInvoice = DATA LOCAL BOOLEAN ();
+
 exportSolvo 'Выгрузить приход в wms Solvo' (Purchase.Invoice i) { 
     IF defaultNumeratorSyncid() THEN {
         NEWSESSION {
@@ -369,27 +372,31 @@ exportSolvo 'Выгрузить приход в wms Solvo' (Purchase.Invoice i) 
         
             beforeExportSolvo(i);
             
-            numerateIds(countInvoiceDetail(i) + 2);
+            overExportSolvo(i);
             
-            logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Purchase Invoice:', seriesNumber(i));
-            
-            IF NOT id(i) THEN {
-                id(i) <- CONCAT '_', seriesNumber(i), date(i);
+            IF NOT overExportSolvoPurchaseInvoice() THEN {
+                numerateIds(countInvoiceDetail(i) + 2);
+                
+                logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Purchase Invoice:', seriesNumber(i));
+                
+                IF NOT id(i) THEN {
+                    id(i) <- CONCAT '_', seriesNumber(i), date(i);
+                }
+                
+                headerId(incrementedValue()) <- 0;
+                type(incrementedValue()) <- 'incoming';
+                meaasage(incrementedValue()) <- incomingHeaderString(incrementedValue(), i);
+                
+                FOR i == invoice(Purchase.InvoiceDetail d) DO {
+                    headerId(incrementedValue() + index(d)) <- incrementedValue();
+                    type(incrementedValue() + index(d)) <- 'incoming_detail';
+                    meaasage(incrementedValue() + index(d)) <- incomingDetailString(incrementedValue() + index(d), d);
+                }
+                
+                headerId(incrementedValue() + countInvoiceDetail(i) + 1) <- incrementedValue();
+                type(incrementedValue() + countInvoiceDetail(i) + 1) <- '/incoming';
+                meaasage(incrementedValue() + countInvoiceDetail(i) + 1) <- '</incoming>';
             }
-            
-            headerId(incrementedValue()) <- 0;
-            type(incrementedValue()) <- 'incoming';
-            meaasage(incrementedValue()) <- incomingHeaderString(incrementedValue(), i);
-            
-            FOR i == invoice(Purchase.InvoiceDetail d) DO {
-                headerId(incrementedValue() + index(d)) <- incrementedValue();
-                type(incrementedValue() + index(d)) <- 'incoming_detail';
-                meaasage(incrementedValue() + index(d)) <- incomingDetailString(incrementedValue() + index(d), d);
-            }
-            
-            headerId(incrementedValue() + countInvoiceDetail(i) + 1) <- incrementedValue();
-            type(incrementedValue() + countInvoiceDetail(i) + 1) <- '/incoming';
-            meaasage(incrementedValue() + countInvoiceDetail(i) + 1) <- '</incoming>';
             
             logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'connectionString:', connectionString(), 'insertString:', insertString());
             
@@ -739,6 +746,7 @@ importReplies 'Импортировать подтверждения' ()  {
                 error() <- 'Накладная не найдена';
             } ELSE {
                 FOR id(Purchase.Invoice i) == inc_id() DO {
+                    createShipment(i) <- TRUE;
                     shipmentDate(i) <- DATE (rcv_date());
                     shipmentTime(i) <- TIME (rcv_date());
                     
