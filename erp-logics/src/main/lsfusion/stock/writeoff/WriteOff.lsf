@@ -213,12 +213,18 @@ addressLegalEntity 'Адрес' (UserWriteOff userWriteOff) = address(legalEntit
 // Для инвентаризации по партиям
 @showDocumentInterfaceDetailBatch(writeOff);
 @defineDocumentInterfaceDetailBatch(writeOff, batch);
-changeBatch(UserWriteOffDetail detail)  { 
-    DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
+
+useOverChangeBatch = ABSTRACT BOOLEAN (UserWriteOffDetail);
+overChangeBatch ABSTRACT LIST (UserWriteOffDetail);
+
+changeBatch(UserWriteOffDetail detail)  {
+    IF  useOverChangeBatch(detail) THEN overChangeBatch(detail);
+    ELSE
+        DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
                              sk = sku(detail),
                              bt = batch(detail) INPUT NULL NEWSESSION DO
-        batch(detail) <- bt;
+            batch(detail) <- bt;
 }
 replace(Sku s, Batch b) + {  sku(UserWriteOffDetail detail) <- s WHERE batch(detail) == b;}
 
