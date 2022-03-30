@@ -202,7 +202,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 truncateTables.add(table);
                             }
                         }
-                        String tables = truncateTables.stream().collect(Collectors.joining(",", "'", "'")) + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
+                        String tables = truncateTables.stream().collect(Collectors.joining("','", "'", "'")) + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
 
                         boolean versionalScheme = params.versionalScheme(isVersionalScheme);
                         Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
@@ -578,7 +578,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (JSONObject jsonObject : jsonTable) {
                 setObject(ps, jsonObject.getInt("extGrpId"), 1);
                 setObject(ps, jsonObject.getInt("sareaId"), 2);
-                setObject(ps, jsonObject.optInt("parentExtGrpId"), 3);
+                int parentExtGrpId = jsonObject.optInt("parentExtGrpId");
+                setObject(ps, parentExtGrpId > 0 ? parentExtGrpId : null, 3);
                 setObject(ps, trim(jsonObject.getString("extGrpName"), 50), 4);
                 String extGrpPicture = jsonObject.optString("extGrpPicture", null);
                 setObject(ps, extGrpPicture != null ? Base64.decodeBase64(extGrpPicture) : null, 5);
