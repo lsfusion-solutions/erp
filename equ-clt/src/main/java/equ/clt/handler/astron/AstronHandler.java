@@ -578,9 +578,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (JSONObject jsonObject : jsonTable) {
                 setObject(ps, jsonObject.getInt("extGrpId"), 1);
                 setObject(ps, jsonObject.getInt("sareaId"), 2);
-                setObject(ps, jsonObject.getInt("parentExtGrpId"), 3);
+                setObject(ps, jsonObject.optInt("parentExtGrpId"), 3);
                 setObject(ps, trim(jsonObject.getString("extGrpName"), 50), 4);
-                setObject(ps, Base64.decodeBase64(jsonObject.getString("extGrpPicture")), 5);
+                String extGrpPicture = jsonObject.optString("extGrpPicture", null);
+                setObject(ps, extGrpPicture != null ? Base64.decodeBase64(extGrpPicture) : null, 5);
                 setObject(ps, 0, 6);
                 if (updateNum != null) {
                     setObject(ps, updateNum, 7);
