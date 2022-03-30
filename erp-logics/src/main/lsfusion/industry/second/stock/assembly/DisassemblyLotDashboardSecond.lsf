@@ -10,8 +10,27 @@ NAMESPACE Disassembly;
 
 GROUP itemLotDashboard 'Разукомплектация' : base;
 
-disassembly (CustomUser cu, Sku s, Stock st) = 
-    GROUP MAX Disassembly a IF isOpened(a) AND NOT isPosted(a) BY createdUser(a), sku(a), stock(a); 
+inProcess (Disassembly a) = isOpened(a) AND NOT isPosted(a) MATERIALIZED;
+INDEX inProcess(Disassembly a), stock(a), createdUser(a), sku(a);
+
+disassembly (Stock st, CustomUser cu, Sku s) = 
+    GROUP MAX Disassembly a IF inProcess(a) BY stock(a), createdUser(a), sku(a); 
+
+countDisassembly (Stock st, CustomUser cu) = GROUP SUM 1 IF inProcess(Disassembly a) BY stock(a), createdUser(a); 
+
+postDisassembly 'Закрыть смену' (Stock st) {
+    NEWSESSION {
+        FOR Disassembly a = disassembly(st, currentUser(), Sku s) DO {
+            date(a) <- currentDate();
+            time(a) <- currentTime();
+            
+            fillLotDetail(a);
+            calculatePrice(a);
+            isPosted(a) <- TRUE;
+        }
+        APPLY;
+    }
+} CONFIRM;
 
 dashboardMode = DATA LOCAL NESTED STRING ();
 selectedMode (STRING m) = m = dashboardMode();
@@ -36,18 +55,20 @@ FORM disassemblyLotDashboard 'Разукомплектация'
     EVENTS ON INIT { dashboardMode() <- 'disassembly'; }
 
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY SHOWIF disassemblyMode() BACKGROUND disassembly(currentUser(), s, st) id, name
+    PROPERTIES(s) READONLY SHOWIF disassemblyMode() BACKGROUND disassembly(st, currentUser(), s) id, name
     ORDERS id(s)
     FILTERGROUP balance
-        FILTER 'В наличии' currentBalance(s, st) DEFAULT
+        FILTER 'В наличии' currentBalance(s, st) > 0 OR disassembly(st, currentUser(), s) DEFAULT
     FILTERGROUP part
-        FILTER 'Комплект' countPart(s) DEFAULT
+        FILTER 'Комплект' countPart(s) OR disassembly(st, currentUser(), s) DEFAULT
     EVENTS ON CHANGE s { dsku() <- s; }
 
     OBJECTS a = Disassembly PANEL
-    FILTERS a = disassembly(currentUser(), s, st)
+    FILTERS a = disassembly(st, currentUser(), s)
     
     PROPERTIES(a) countDisassemblyLot, weightDisassemblyLot
+    
+    PROPERTIES(st) SHOWIF disassemblyMode() postDisassembly READONLYIF NOT countDisassembly(st, currentUser())
     
     OBJECTS l = DisassemblyLot
     PROPERTIES(l) READONLY dateTime, nameUser, id, weight, nameSku, defect, price, image PANEL
@@ -63,7 +84,7 @@ DESIGN disassemblyLotDashboard {
             NEW left {
                 fill = 0.5;
                 width = 200;
-                MOVE PROPERTY(name(st)) { alignment = STRETCH; }
+                MOVE PROPERTY(name(st)) { caption = 'Склад'; alignment = STRETCH; }
                 
                 REMOVE BOX(m);
                 MOVE GRID(m) { boxed = FALSE; flex = 0; }
@@ -72,6 +93,7 @@ DESIGN disassemblyLotDashboard {
                     PROPERTY(name(s)) { charWidth = 15; }
                 }
                 MOVE FILTERGROUPS(s);
+                MOVE PROPERTY(postDisassembly(st)) { fontSize = 24; alignment = STRETCH; }
                 
                 NEW totalDisassembly {
                     showIf = disassemblyMode();
@@ -211,12 +233,12 @@ processLot 'Обработать' (Stock st) {
     }
     FOR Lot l = lot(ibarcode()) DO {
         IF disassemblyMode() THEN { 
-            IF NOT disassembly(currentUser(), dsku(), st) THEN
+            IF NOT disassembly(st, currentUser(), dsku()) THEN
                 NEW d = Disassembly {
                     sku(d) <- dsku();
                     stock(d) <- st;
                 }
-            FOR Disassembly a = disassembly(currentUser(), dsku(), st) AND NOT disassemblyLot(a, l) DO {
+            FOR Disassembly a = disassembly(st, currentUser(), dsku()) AND NOT disassemblyLot(a, l) DO {
                 NEW d = DisassemblyLot {
                     disassembly(d) <- a;
                     lot(d) <- l;
