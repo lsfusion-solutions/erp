@@ -13,13 +13,28 @@ GROUP itemLotDashboard 'Разукомплектация' : base;
 disassembly (CustomUser cu, Sku s, Stock st) = 
     GROUP MAX Disassembly a IF isOpened(a) AND NOT isPosted(a) BY createdUser(a), sku(a), stock(a); 
 
+dashboardMode = DATA LOCAL NESTED STRING ();
+selectedMode (STRING m) = m = dashboardMode();
+
+captionMode = ABSTRACT CASE STRING (STRING);
+captionMode (STRING s) += WHEN s = 'disassembly' THEN 'Разукомплектация';
+captionMode (STRING s) += WHEN s = 'edit' THEN 'Редактирование';
+
+disassemblyMode () = selectedMode('disassembly');
+editMode () = selectedMode('edit');
+
 FORM disassemblyLotDashboard 'Разукомплектация'
     OBJECTS st = Stock PANEL
     PROPERTIES(st) name SELECTOR
     FILTERS accessCompany(currentUser(), st)
 
+    OBJECTS m = STRING CUSTOM 'option'
+    PROPERTIES captionMode(m) EXTID 'name', selectedMode(m) EXTID 'selected'
+    FILTERS captionMode(m)
+    EVENTS ON INIT { dashboardMode() <- 'disassembly'; }
+
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY BACKGROUND disassembly(currentUser(), s, st) id, name
+    PROPERTIES(s) READONLY SHOWIF disassemblyMode() BACKGROUND disassembly(currentUser(), s, st) id, name
     ORDERS id(s)
     FILTERGROUP balance
         FILTER 'В наличии' currentBalance(s, st) DEFAULT
@@ -44,19 +59,30 @@ DESIGN disassemblyLotDashboard {
             type = CONTAINERH;
             NEW left {
                 fill = 0.5;
+                width = 200;
                 MOVE PROPERTY(name(st)) { alignment = STRETCH; }
+                
+                REMOVE BOX(m);
+                MOVE GRID(m) { boxed = FALSE; flex = 0; }
+                
                 MOVE BOX(s) {
                     PROPERTY(name(s)) { charWidth = 15; }
                 }
                 MOVE FILTERGROUPS(s);
-                MOVE PROPERTY(countDisassemblyLot(a)) { alignment = STRETCH; }
-                MOVE PROPERTY(weightDisassemblyLot(a)) { alignment = STRETCH; }
+                
+                NEW totalDisassembly {
+                    showIf = disassemblyMode();
+                    alignment = STRETCH;
+                    MOVE PROPERTY(countDisassemblyLot(a)) { alignment = STRETCH; }
+                    MOVE PROPERTY(weightDisassemblyLot(a)) { alignment = STRETCH; }
+                }
             }
             NEW tabbedPane {
                 fill = 4;
                 width = 600;
                 type = TABBED;
                 NEW details {
+                    showIf = disassemblyMode();
                     caption = 'Строки';
                     type = CONTAINERH;
                     MOVE BOX(l);
@@ -110,8 +136,8 @@ changeStream () {
 
 // options
 ioption = DATA LOCAL BOOLEAN (STRING);
-caption = ABSTRACT CASE STRING (STRING);
-caption (STRING s) += WHEN s = 'defect' THEN 'С дефектом';
+captionOption = ABSTRACT CASE STRING (STRING);
+captionOption (STRING s) += WHEN s = 'defect' THEN 'С дефектом';
 
 // barcode
 ibarcode 'Штрихкод' = DATA LOCAL STRING[200] () CHARWIDTH 13 CHANGEKEY 'F4' EVENTID 'SCANNER';
@@ -168,55 +194,57 @@ EXTEND FORM disassemblyLotDashboard
     }
 
     OBJECTS o = STRING CUSTOM 'option'
-    PROPERTIES name = caption(o), selected = ioption(o)
-    FILTERS caption(o)
+    PROPERTIES captionOption(o) EXTID 'name', ioption(o) EXTID 'selected'
+    FILTERS captionOption(o)
 ;
 
 overProcessLot ABSTRACT LIST (Lot);
 processLot 'Обработать' (Sku s, Stock st) {
-    IF NOT disassembly(currentUser(), s, st) THEN
-        NEW d = Disassembly {
-            sku(d) <- s;
-            stock(d) <- st;
+    generateLot();
+    IF ibarcode() AND NOT lot(ibarcode()) THEN {
+        NEW l = Lot {
+            id(l) <- ibarcode(); 
         }
-        
-    FOR Disassembly a = disassembly(currentUser(), s, st) DO {
-        generateLot();
-        IF ibarcode() AND NOT lot(ibarcode()) THEN {
-            NEW l = Lot {
-                id(l) <- ibarcode(); 
-            }
-        }
-        FOR Lot l = lot(ibarcode()) DO { 
-            IF NOT disassemblyLot(a, l) THEN {
+    }
+    FOR Lot l = lot(ibarcode()) DO {
+        IF disassemblyMode() THEN { 
+            IF NOT disassembly(currentUser(), s, st) THEN
+                NEW d = Disassembly {
+                    sku(d) <- s;
+                    stock(d) <- st;
+                }
+            FOR Disassembly a = disassembly(currentUser(), s, st) AND NOT disassemblyLot(a, l) DO {
                 NEW d = DisassemblyLot {
                     disassembly(d) <- a;
                     lot(d) <- l;
                 }
             }
-            
-            LOCAL NESTED changedPrint = BOOLEAN();
-            changedPrint() <- (NOT sku(l) = isku() OR NOT price(l) = iprice() OR (defect(l) AND NOT ioption('defect')) OR (NOT defect(l) AND ioption('defect'))) 
-                              AND NOT skipPrintLotDashboard(isku());
-    
-            weight(l) <- iweight();
-            sku(l) <- isku();
-            price(l) <- iprice();
-            image(l) <- iimage();
-            
-            defect(l) <- ioption('defect');
-            
-            overProcessLot(l);
-            
-            APPLY;
-            IF canceled() THEN {
-                CANCEL NESTED LOCAL;
-            } ELSE
-                IF changedPrint() THEN printLabel(l);
         }
-    
-        ACTIVATE PROPERTY disassemblyLotDashboard.iweight();
+        
+        LOCAL NESTED changedPrint = BOOLEAN();
+        changedPrint() <- (NOT sku(l) = isku() OR NOT price(l) = iprice() OR (defect(l) AND NOT ioption('defect')) OR (NOT defect(l) AND ioption('defect'))) 
+                          AND NOT skipPrintLotDashboard(isku());
+
+        weight(l) <- iweight();
+        sku(l) <- isku();
+        price(l) <- iprice();
+        image(l) <- iimage();
+        
+        defect(l) <- ioption('defect');
+        
+        overProcessLot(l);
+        
+        APPLY;
+        IF canceled() THEN {
+            CANCEL NESTED LOCAL;
+        } ELSE {
+            IF changedPrint() THEN printLabel(l);
+            IF editMode() THEN dashboardMode() <- 'disassembly';
+        }
     }
+
+    ACTIVATE PROPERTY disassemblyLotDashboard.iweight();
+    
 } CHANGEKEY 'shift SPACE';
 
 //changeLabel (Disassembly a) {
@@ -281,6 +309,7 @@ DESIGN disassemblyLotDashboard {
 }    
 
 startEditing 'Редактировать' (DisassemblyLot dl) {
+    dashboardMode() <- 'edit';
     fillProperties(lot(dl));
     
     ACTIVATE TAB disassemblyLotDashboard.input;
