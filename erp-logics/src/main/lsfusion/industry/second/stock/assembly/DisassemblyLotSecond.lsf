@@ -26,6 +26,7 @@ defect 'С дефектом' (DisassemblyLot l) = defect(lot(l));
 weight 'Вес' (DisassemblyLot l) = weight(lot(l)); 
 weightDisassemblyLot 'Вес марок' (Disassembly a) = GROUP SUM weight(DisassemblyLot l) BY disassembly(l) IN documentSum; 
 
+weight (Disassembly a, Sku s) = GROUP SUM weight(DisassemblyLot l) BY disassembly(l), sku(l); 
 weight (DisassemblyDetail d) += GROUP SUM weight(DisassemblyLot l) IF disassemblyDetail(disassembly(l), sku(l)) = d;
 
 price 'Цена' (DisassemblyLot l) = price(lot(l)); 
@@ -83,9 +84,12 @@ fillLotDetail 'Заполнить по маркам' (Disassembly a) {
     
     quantity(DisassemblyDetail d, Lot l) <- NULL WHERE disassembly(d) = a;
     quantity(DisassemblyDetail d, Lot l) <- 1 WHERE disassemblyLot(a, l) AND d = disassemblyDetail(a, sku(l)) AND lotType(sku(l));
-    quantity(DisassemblyDetail d) <- NUMERIC[16,5](count(a, sku(d))) WHERE disassembly(d) = a; 
+    quantity(DisassemblyDetail d) <- IF calcQuantityWeightLot(operation(a)) AND split(sku(d)) AND NOT lotType(sku(d)) 
+                                        THEN weight(a, sku(d)) 
+                                        ELSE count(a, sku(d)) 
+                                     WHERE disassembly(d) = a; 
     
-    IF calcQuantityWeightLot(operation(a)) THEN
+    IF calcQuantityWeightLot(operation(a)) AND split(sku(a)) THEN
         quantity(a) <- NUMERIC[16,5](weightDisassemblyLot(a));
     
     calculatePrice(a); 
