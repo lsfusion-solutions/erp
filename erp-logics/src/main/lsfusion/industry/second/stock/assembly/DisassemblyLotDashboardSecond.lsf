@@ -18,16 +18,31 @@ disassembly (Stock st, CustomUser cu, Sku s) =
 
 countDisassembly (Stock st, CustomUser cu) = GROUP SUM 1 IF inProcess(Disassembly a) BY stock(a), createdUser(a); 
 
+dsku = DATA LOCAL NESTED Sku ();
+
+postLotDashboard (Disassembly a) {
+    date(a) <- currentDate();
+    time(a) <- currentTime();
+    
+    fillLotDetail(a);
+    calculatePrice(a);
+    isPosted(a) <- TRUE;
+}
+
 postDisassembly 'Закрыть смену' (Stock st) {
-    NEWSESSION {
-        FOR Disassembly a = disassembly(st, currentUser(), Sku s) DO {
-            date(a) <- currentDate();
-            time(a) <- currentTime();
-            
-            fillLotDetail(a);
-            calculatePrice(a);
-            isPosted(a) <- TRUE;
-        }
+    LOCAL current = BOOLEAN ();
+    IF disassembly(st, currentUser(), dsku()) THEN {
+        ASK 'Закрыть только выбранную позицию ' + (CONCAT ' / ', id(dsku()), name(dsku())) + '?' ask = YESNO DO {
+            current() <- ask;
+        } ELSE
+            RETURN;
+    }
+    NEWSESSION NESTED(current) {
+        IF current() THEN
+            postLotDashboard(disassembly(st, currentUser(), dsku()));
+        ELSE
+            FOR Disassembly a = disassembly(st, currentUser(), Sku s) DO
+                postLotDashboard(a);
         APPLY;
     }
 } CONFIRM;
@@ -41,8 +56,6 @@ captionMode (STRING s) += WHEN s = 'edit' THEN 'Редактирование';
 
 disassemblyMode () = selectedMode('disassembly');
 editMode () = selectedMode('edit');
-
-dsku = DATA LOCAL NESTED Sku ();
 
 readonlyStock = ABSTRACT BOOLEAN(); 
 
