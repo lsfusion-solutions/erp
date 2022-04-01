@@ -103,13 +103,14 @@ CONSTRAINT SET(isPosted(Sale.Invoice o)) AND isGiftCard(o) AND (quantityInvoiceG
 //CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND quantityInvoiceDetail(Sku i,o) AND createShipment(o) AND NOT 
 //    (quantityInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o)) 
 //        MESSAGE 'Количество товара не соответствует количеству сертификатов';        
+overSkipEditGiftCard = ABSTRACT CASE BOOLEAN (Sale.Invoice);
 
 EXTEND FORM Sale.userInvoice
     OBJECTS gd = InvoiceGiftCardSaleDetail GRID 
-    PROPERTIES (gd) SHOWIF isGiftCard(i) READONLY seriesNumber, sum, DELETE CHANGEABLE GRID
+    PROPERTIES (gd) SHOWIF isGiftCard(i) READONLY seriesNumber, sum, DELETE CHANGEABLE GRID SHOWIF NOT overSkipEditGiftCard(i)
     FILTERS invoice(gd) == i
     
-    PROPERTIES (i) SHOWIF isGiftCard(i) fillDetailDialogSkuGiftCard DRAW gd 
+    PROPERTIES (i) SHOWIF isGiftCard(i) AND NOT overSkipEditGiftCard(i) fillDetailDialogSkuGiftCard DRAW gd 
 ;
 
 DESIGN Sale.userInvoice {
