@@ -56,4 +56,49 @@ DESIGN inventories {
         }
     }
 }
+
+quantityOverage 'Кол-во излишка' (CollationSheet cs, Sku sku) = - quantityShortage(cs, sku) IF quantityShortage(cs, sku) < 0;
+quantityDearth 'Кол-во недостачи' (CollationSheet cs, Sku sku) = - quantityShortage(cs, sku) IF quantityShortage(cs, sku) > 0;
+
+sumOverage 'Кол-во излишка' (CollationSheet cs, Sku sku) = - sumShortage(cs, sku) IF sumShortage(cs, sku) < 0;
+sumDearth 'Кол-во недостачи' (CollationSheet cs, Sku sku) = - sumShortage(cs, sku) IF sumShortage(cs, sku) > 0;
+
+FORM printINV19 'ИНВ-19'
+    // 1 страница
+    OBJECTS cs=CollationSheet PANEL SUBREPORT
+    PROPERTIES (cs) fullNameLegalEntityStock, fullNameStock, okpo, okdp, name, date, dateFromInventory, dateToInventory,
+        shortNameHeadMan, namePositionHeadMan, shortNameChairmanCommittee, namePositionChairman,
+        namePositionBooker, shortNameBooker
+         
+    // 2 страница     
+    OBJECTS i=Sku    
+    PROPERTIES(i) name, code, idUOM, shortNameUOM     
+    PROPERTIES(cs, i) quantityOverage, quantityDearth, sumOverage, sumDearth
+       
+    FILTERS  include(cs, i), quantityOverage(cs, i) OR quantityDearth(cs, i)
+
+    // 3 страница
+    OBJECTS i2=Sku         
+    PROPERTIES(cs, i2) quantityOverage, quantityDearth, sumOverage, sumDearth
+       
+    FILTERS  include(cs, i2), quantityOverage(cs, i2) OR quantityDearth(cs, i2)
+
+    OBJECTS e=Employee
+    PROPERTIES(e) shortName, namePosition
+    FILTERS in(cs, e)
+;
+
+printINV19 'Сличительная ведомость' (CollationSheet cs){ 
+    PRINT printINV19 OBJECTS cs = cs; 
+} IMAGE 'print.png' IN print;
+    
+EXTEND FORM inventories
+    PROPERTIES(cs) printINV19
+;
+
+DESIGN inventories {
+    collation {
+        MOVE PROPERTY (printINV19(cs)) {caption = 'ИНВ-19'; }
+    }
+}
     
