@@ -1,6 +1,6 @@
 MODULE Solvo;
 
-REQUIRE WMSIntegration, Warehouse, PurchaseShipment, SaleShipment, TripOrder, Move;
+REQUIRE WMSIntegration, Warehouse, PurchaseShipment, SaleShipment, TripOrder, Move, WriteOff;
 
 
 isSolvo 'Склад c WMS Solvo' = DATA BOOLEAN (Warehouse);
@@ -541,6 +541,98 @@ DESIGN moves {
             MOVE PROPERTY(exportSolvo(m));
             MOVE PROPERTY(statusSlovo(m));
             //MOVE PROPERTY(processingStatusSlovo(m));
+        }
+    }
+}
+
+//Списание
+slovoMessage = DATA SlovoMessage (WriteOff);
+statusSlovo 'Статус выгрузки' (WriteOff o) = CONCAT ' - ', status(slovoMessage(o)), errDescr(slovoMessage(o)) IN wms;
+//processingStatusSlovo 'Статус обработки'  = DATA STRING[50](WriteOff) IN wms;
+
+beforeExportSolvo ABSTRACT (WriteOff);
+
+orderHeaderString (LONG syncId, WriteOff s) = CONCAT'','<order syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' order_id=\'\'',id(s),'\'\' display_name=\'\'',format(seriesNumber(s)),'\'\' shipment_id=\'\'\'\' priority=\'\'99\'\' client_id=\'\'0\'\'',
+    ' carrier_id=\'\'\'\' type=\'\'L\'\' proc_method=\'\'S\'\' date_to_ship=\'\'',format(shipmentDateTime(s)),'\'\' responsible=\'\'\'\' comments=\'\'',format(note(s)),'\'\'>';
+
+extraOrderDetailString = ABSTRACT CASE STRING (WriteOffDetail);
+orderDetailString (LONG syncId, WriteOffDetail s) = CONCAT'','<order_detail syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
+    '\'\' order_id=\'\'',id(writeOff(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' category=\'\'1\'\' ',extraOrderDetailString(s),
+    ' rcn_id=\'\'-1\'\' marker=\'\'-\'\' marker2=\'\'-\'\' qty=\'\'',format(STRING(quantity(s))),'\'\' uom=\'\'',format(shortNameUOMSku(s)),'\'\' comments=\'\'\'\'/>';
+
+exportSolvo 'Выгрузить заказ в wms Solvo' (WriteOff w) {
+    IF defaultNumeratorSyncid() THEN {
+        NEWSESSION {
+            in(Item it) <- TRUE WHERE (GROUP SUM quantity(WriteOffDetail d) IF sku(d) == it AND writeOff(d) == w) AND ((changed(it) AND NOT changed(it) < loaded(it)) OR NOT loaded(it));
+            exportItems();
+            
+            in(Stock s) <- TRUE WHERE s == stock(w) AND ((changed(s) AND NOT changed(s) < loaded(s)) OR NOT loaded(s));
+            exportStocks();
+            
+            IF NOT errorExportItems() THEN {
+                beforeExportSolvo(w);
+                            
+                numerateIds(countWriteOffDetail(w) + 2);
+                
+                logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write WriteOff:', seriesNumber(w));
+                
+                IF NOT id(w) THEN {
+                    id(w) <- CONCAT '_', seriesNumber(w), date(w);
+                }
+                
+                headerId(incrementedValue()) <- 0;
+                type(incrementedValue()) <- 'order';
+                meaasage(incrementedValue()) <- orderHeaderString(incrementedValue(), w);
+                
+                FOR w == writeOff(WriteOffDetail d) DO {
+                    headerId(incrementedValue() + index(d)) <- incrementedValue();
+                    type(incrementedValue() + index(d)) <- 'order_detail';
+                    meaasage(incrementedValue() + index(d)) <- orderDetailString(incrementedValue() + index(d), d);
+                }
+                
+                headerId(incrementedValue() + countWriteOffDetail(w) + 1) <- incrementedValue();
+                type(incrementedValue() + countWriteOffDetail(w) + 1) <- '/order';
+                meaasage(incrementedValue() + countWriteOffDetail(w) + 1) <- '</order>';
+                
+                logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'connectionString:', connectionString(), 'insertString:', insertString());
+                
+                EXTERNAL 
+                    SQL connectionString()
+                    EXEC insertString();
+                    
+                IF NOT slovoMessage(w) THEN NEW s = SlovoMessage {
+                    slovoMessage(w) <- s;
+                }
+                id(slovoMessage(w)) <- incrementedValue();
+                type(slovoMessage(w)) <- 'order';
+                status(slovoMessage(w)) <- 'ready';
+                loaded(slovoMessage(w)) <- currentDateTime();
+                
+                APPLY NESTED LOCAL;
+                    
+                MESSAGE 'Списание выгружено' NOWAIT;
+            }
+        }
+    } ELSE {
+        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'Write WriteOff error: не задан нумератор для пакетов выгрузки в wms');
+        MESSAGE 'Не задан нумератор для пакетов выгрузки в wms';
+    }
+}
+
+EXTEND FORM writeOffs 
+    PROPERTIES (w) PANEL SHOWIF isSolvo(stock(w))
+        exportSolvo, statusSlovo//, processingStatusSlovo
+;
+
+DESIGN writeOffs {
+    actionContainer {
+        NEW exportWMS {
+            caption = 'Экспорт в WMS';
+            type = CONTAINERV;
+            MOVE PROPERTY(exportSolvo(w));
+            MOVE PROPERTY(statusSlovo(w));
+            //MOVE PROPERTY(processingStatusSlovo(w));
         }
     }
 }
