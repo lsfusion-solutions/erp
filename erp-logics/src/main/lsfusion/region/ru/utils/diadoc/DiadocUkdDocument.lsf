@@ -1,6 +1,6 @@
 MODULE DiadocUkdDocument;
 
-REQUIRE UkdDocumentLot, DiadocMessage, CryptoPro, DiadocDocument;
+REQUIRE UkdDocumentLot, DiadocMessage, CryptoPro, DiadocDocument, UkdDocumentConsolidated;
 
 NAMESPACE Diadoc;
 
@@ -47,6 +47,12 @@ FORM universalCorrectionDocument FORMEXTID 'UniversalCorrectionDocument'
     PROPERTIES ATTR IN invoiceUCD
                     dateI = toDateDDMMYYYY(baseDateInvoice(exportUkdDocument())) EXTID 'Date',//ДатаСчФ
                     numberI = baseInvoiceNumber(exportUkdDocument()) EXTID 'Number'//НомерСчФ
+
+    OBJECTS b =  BaseUkd EXTID 'Invoice' IN invoicesUCD
+        FILTERS ukdDocument(b) == exportUkdDocument()
+        PROPERTIES ATTR
+                    dateIERF = toDateDDMMYYYY(date(b)) EXTID 'Date',//ДатаСчФ
+                    numberIERF = number(b) EXTID 'Number'//НомерСчФ
     
     PROPERTIES ATTR IN organizationReferenceSellerUCD
                     orgTypeS = id(organizationType(organization(fromBox()))) EXTID 'OrgType',//СвИП - СвЮЛУч - СвИнНеУч
@@ -79,6 +85,13 @@ FORM universalCorrectionDocument FORMEXTID 'UniversalCorrectionDocument'
                     baseDocumentNameTDD = nameBaseDocument(exportUkdDocument()) EXTID 'BaseDocumentName',//НаимОсн - Наименование документа - основания
                     baseDocumentNumberTDD = numberBaseDocument(exportUkdDocument()) EXTID 'BaseDocumentNumber',//НомОсн - Номер документа - основания
                     baseDocumentDateTDD = toDateDDMMYYYY(dateBaseDocument(exportUkdDocument())) EXTID 'BaseDocumentDate'//ДатаОсн - Дата документа - основания, обязателен при НаимОсн отличном от значения "Отсутствует"
+
+    OBJECTS bb =  BaseUkd EXTID 'TransferDocDetails' IN eventContentUCD
+        FILTERS ukdDocument(bb) == exportUkdDocument()
+        PROPERTIES ATTR
+                    baseDocumentNameTDDERF = description(bb) EXTID 'BaseDocumentName',//НаимОсн - Наименование документа - основания
+                    baseDocumentNumberTDDERF = toDateDDMMYYYY(date(bb)) EXTID 'BaseDocumentDate',//ДатаСчФ
+                    baseDocumentDateTDDERF = number(bb) EXTID 'BaseDocumentNumber'//НомерСчФ
 
     PROPERTIES ATTR IN correctionBaseUCD
                     baseDocumentNameCB = nameCorrectionDocument(exportUkdDocument()) EXTID 'BaseDocumentName',//НаимОсн - Наименование документа - основания
