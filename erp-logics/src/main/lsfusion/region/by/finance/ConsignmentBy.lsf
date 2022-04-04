@@ -795,6 +795,8 @@ checkMandatoryAttribute(Consignment c) + {
 
 // ---------------------------- Формы для накладных --------------------------------- //
 
+useCustomFormSimplePrint = DATA LOCAL NESTED BOOLEAN ();
+
 META defineConsignmentFormSimple(form, caption)
 
     FORM consignmentSimple###form caption
@@ -815,7 +817,8 @@ META defineConsignmentFormSimple(form, caption)
                       sum, vat, useEmptyVAT, sumVAT, sumInvoice,
                       note, extraDescription, printWithoutVAT
         ORDERS order(d), index(d)
-        FILTERS consignment(d) == c,
+        FILTERS //consignment(d) == c,
+                IF NOT useCustomFormSimplePrint() THEN consignment(d) == c ELSE TRUE,
                 quantity(d),
                 NOT skip(d)
     ;
@@ -850,7 +853,8 @@ META defineConsignmentFormSimpleExtra(form, caption)
                       sum, vat, useEmptyVAT, sumVAT, sumInvoice,
                       note, extraDescription, printWithoutVAT
         ORDERS order(d), index(d)
-        FILTERS consignment(d) == c,
+        FILTERS //consignment(d) == c,
+                IF NOT useCustomFormSimplePrint() THEN consignment(d) == c ELSE TRUE,
                 quantity(d),
                 NOT skip(d)
     ;
@@ -1261,7 +1265,7 @@ FORM consignment 'Атрибуты накладной'
                   packQuantity ON CHANGE changePackQuantity(d), grossWeight ON CHANGE changeGrossWeight(d), note, extraDescription READONLY
     ORDERS order(d), index(d)  
 
-    FILTERS consignment(d) == c,
+    FILTERS IF NOT useCustomFormSimplePrint() THEN consignment(d) == c ELSE TRUE,
             NOT skip(d)
 ;
 
