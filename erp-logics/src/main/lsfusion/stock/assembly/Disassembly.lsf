@@ -22,6 +22,9 @@ operation 'Операция' (DisassemblyDetail disassemblyDetail) = operation(d
 @defineDocumentOperationConstraint(disassembly, 'разборка', Disassembly);
 
 @defineDocumentHeaderNumber(Disassembly, BPSTRING[2]);
+
+@defineDocumentDetailNumber (disassembly, DisassemblyDetail);
+
 @defineNumeratedDefault(Disassembly, 'Разборка', 'РБ');
 
 @defineDocumentDataStock (disassembly, stock, 'Склад', );
@@ -311,6 +314,7 @@ TABLE disassemblyInSkuLedger(DisassemblyInSkuLedger);
 disassemblyInSkuLedger = AGGR DisassemblyInSkuLedger WHERE isPosted(DisassemblyDetail disassemblyDetail) MATERIALIZED INDEXED;
 
 dateTime(DisassemblyInSkuLedger l) = dateTime(disassemblyDetail(l));
+number(DisassemblyInSkuLedger l) = number(disassemblyDetail(l));
 isPosted(DisassemblyInSkuLedger l) = isPosted(disassemblyDetail(l));
 isClosed(DisassemblyInSkuLedger l) = isClosed(disassemblyDetail(l));
 sku(DisassemblyInSkuLedger l) = sku(disassemblyDetail(l));
@@ -321,6 +325,7 @@ price(DisassemblyInSkuLedger l) = price(disassemblyDetail(l));
 sum(DisassemblyInSkuLedger l) = sum(disassemblyDetail(l));
 
 @implementBatch(DisassemblyInSkuLedger, sku, stock, price);
+number[Batch](DisassemblyInSkuLedger batch) += number(batch);
 
 quantity(DisassemblyInSkuLedger l) += quantity(l);
 sum(DisassemblyInSkuLedger l) += sum(l);
