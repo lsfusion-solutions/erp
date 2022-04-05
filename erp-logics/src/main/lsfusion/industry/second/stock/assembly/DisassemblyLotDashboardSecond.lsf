@@ -222,14 +222,23 @@ EXTEND FORM disassemblyLotDashboard
     EVENTS ON CLOSE { closePortReader(); }
     PROPERTIES readWeight = '' CUSTOM 'serialPortReceiveRender' ON CHANGE {
         INPUT t = TEXT DO {
-            IF isSubstring(t, '170,') THEN { 
+            LOCAL weight = INTEGER();
+            IF startsWith(t, '32,32,') AND wordCount(t, ',') >= 6 THEN {
                 LOCAL bytes = TEXT ();
-                bytes() <- substrFrom(t, strpos(t, '170,') + 4);
-
-                LOCAL weight = INTEGER();
-                weight() <- INTEGER(getWord(bytes(), ',', 1)) + INTEGER(getWord(bytes(), ',', 2)) * 256;
-                IF weight() >= 30 THEN iweight() <- NUMERIC(weight()) / 1000;
-
+                bytes() <- substrFrom(t, 7);
+                
+                weight() <- max(INTEGER(getWord(bytes(), ',', 1)) - 48, 0) * 10000 + (INTEGER(getWord(bytes(), ',', 2)) - 48) * 1000 +
+                            (INTEGER(getWord(bytes(), ',', 4)) - 48) * 100 + (INTEGER(getWord(bytes(), ',', 5)) - 48) * 10 +
+                            (INTEGER(getWord(bytes(), ',', 6)) - 48);
+            } ELSE
+                IF isSubstring(t, '170,') THEN { 
+                    LOCAL bytes = TEXT ();
+                    bytes() <- substrFrom(t, strpos(t, '170,') + 4);
+    
+                    weight() <- INTEGER(getWord(bytes(), ',', 1)) + INTEGER(getWord(bytes(), ',', 2)) * 256;
+                }
+            IF weight() >= 30 THEN {
+                iweight() <- NUMERIC(weight()) / 1000;
                 istream() <- TRUE;
             }
         }     
