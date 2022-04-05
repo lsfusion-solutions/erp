@@ -21,6 +21,9 @@ DESIGN POS {
     }
 }
 
+price = ABSTRACT VALUE NUMERIC[16,4] (Lot, Receipt);
+price (Lot l, Receipt r) += currentPOSPrice(sku(l), r);
+
 overChangeBarcodeSale(STRING[200] b, Receipt r) + {
     IF length(initialBarcode()) >= OVERRIDE lotMinLength(), 20 THEN {
         FOR Lot l = lot(barcodeToId(initialBarcode())) AND Sku s = sku(l) DO {
@@ -32,7 +35,7 @@ overChangeBarcodeSale(STRING[200] b, Receipt r) + {
                     idBarcode(d) <- idBarcode(s);
                     sku(d) <- s;
                     quantity(d) <- 1.0;
-                    price(d) <- currentPOSPrice(s, r);
+                    price(d) <- price(l, r);
                     lot(d) <- l;
                     IF explicitBatchLedger(r) THEN {
                         IF batch(l) THEN
