@@ -374,9 +374,13 @@ closePriceLists 'Исключить прайсы с компанией из ре
             IF active(sku(d)) THEN {
                 FOR in(userPriceList(d), Stock s) AND active(s) AND in(d, DataPriceListType t) DO {
                     IF prevPriceListLedgerA(t, sku(d), s, company(d), currentDateTime()) == d OR prevPriceListLedgerA(t, sku(d), s, company(d), 2040_01_01_00:00) == d THEN {
+                        checkCloseDate(d) <- currentDate();
+                        IF (GROUP SUM 1 IF CHANGED(checkCloseDate(UserPriceListDetail dd))) > 4999 THEN {
+                            logToFile('closePriceList',CONCAT '-', 'APPLY');
+                            APPLY;
+                        }
                         notSkip() <- TRUE;
                         logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), nameCompany(d), idBarcodeSku(d), name(s), name(t));
-                        checkCloseDate(d) <- currentDate();
                         BREAK;
                     }
                 }
@@ -385,7 +389,7 @@ closePriceLists 'Исключить прайсы с компанией из ре
             IF NOT notSkip() THEN {
                 exclude(d) <- TRUE;
                 logToFile('closePriceList', CONCAT '-', 'CLOSE', date(d), number(d), nameCompany(d), idBarcodeSku(d));
-                IF (GROUP SUM 1 IF CHANGED (exclude(UserPriceListDetail dd)) OR CHANGED(checkCloseDate(dd))) > 149 THEN {
+                IF (GROUP SUM 1 IF CHANGED(exclude(UserPriceListDetail dd))) > 49 THEN {
                     logToFile('closePriceList',CONCAT '-', 'APPLY');
                     APPLY;
                 }
@@ -402,12 +406,17 @@ nameOperationToClosePriceListNotCompany 'Операция для исключе�
 closePriceListsNotCompany 'Исключить прайсы без компании из регистра до даты' () {
     NEWSESSION {
         FOR fromDate(UserPriceListDetail d) < subtract(currentDate(), daysToClosePriceList()) AND operation(d) == operationToClosePriceListNotCompany() AND NOT company(d)
-                AND NOT exclude(d)  ORDER d DO {
+                AND NOT exclude(d) AND NOT checkCloseDate(d) >= subtract(currentDate(), checkClosePriceListInterval()) ORDER d DO {
             
             LOCAL notSkip = BOOLEAN ();
             IF active(sku(d)) THEN {
                 FOR in(userPriceList(d), Stock s) AND active(s) AND in(d, DataPriceListType t) DO {
                     IF prevPriceListLedgerB(t, sku(d), s, currentDateTime()) == d OR prevPriceListLedgerA(t, sku(d), s, 2040_01_01_00:00) == d THEN {
+                        checkCloseDate(d) <- currentDate();
+                        IF (GROUP SUM 1 IF CHANGED(checkCloseDate(UserPriceListDetail dd))) > 4999 THEN {
+                            logToFile('closePriceList',CONCAT '-', 'APPLY');
+                            APPLY;
+                        }
                         notSkip() <- TRUE;
                         logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), idBarcodeSku(d), name(s), name(t));
                         BREAK;
@@ -418,7 +427,7 @@ closePriceListsNotCompany 'Исключить прайсы без компани
             IF NOT notSkip() THEN {
                 exclude(d) <- TRUE;
                 logToFile('closePriceList', CONCAT '-', 'CLOSE', date(d), number(d), idBarcodeSku(d));
-                IF (GROUP SUM 1 IF CHANGED (exclude(UserPriceListDetail dd))) > 39 THEN {
+                IF (GROUP SUM 1 IF CHANGED(exclude(UserPriceListDetail dd))) > 49 THEN {
                     logToFile('closePriceList',CONCAT '-', 'APPLY');
                     APPLY;
                 }
