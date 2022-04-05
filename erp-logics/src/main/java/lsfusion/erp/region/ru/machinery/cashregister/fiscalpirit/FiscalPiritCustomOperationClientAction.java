@@ -31,6 +31,10 @@ public class FiscalPiritCustomOperationClientAction extends FiscalPiritClientAct
                     break;
                 case 5:
                     FiscalPirit.openZReportIfClosed(serialPort, cashier);
+                    break;
+                case 6:
+                    //do nothing, preparePrint is enough
+                    break;
                 default:
                     break;
             }
