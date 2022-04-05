@@ -101,4 +101,61 @@ DESIGN inventories {
         MOVE PROPERTY (printINV19(cs)) {caption = 'ИНВ-19'; }
     }
 }
+
+namePositionCheif 'Руководитель (должность)' (CollationSheet cs) = OVERRIDE namePosition(chief(legalEntityStock(cs))),namePositionHeadMan(cs) ;
+shortNameCheif 'Руководитель (ФИО)' (CollationSheet cs)= OVERRIDE shortName(chief(legalEntityStock(cs))),shortNameHeadMan(cs);
+namePositionChairmanCommittee 'Председатель комиссии (должность)' (CollationSheet cs) = OVERRIDE namePosition(chairman(committee(cs))), namePosition(chairman(committee(inventory(cs))));
+
+fromPeriod 'С' (inventory) = DATA DATE (Inventory) IN documentPrm;
+toPeriod 'По' (inventory) = DATA DATE (Inventory) IN documentPrm;
+dateFromPeriod 'Отчетный период с' (CollationSheet cs) = fromPeriod(inventory(cs));
+dateToPeriod 'Отчетный период по' (CollationSheet cs) = toPeriod(inventory(cs));
+
+overItem 'Излишки'  = GROUP SUM sumShortage(CollationSheet cs, Sku sku) IF include(cs, sku) AND sumShortage(cs, sku)<0 BY cs, skuType(sku);
+deficitItem 'Недостача'  = GROUP SUM sumShortage(CollationSheet cs, Sku sku) IF include(cs, sku) AND sumShortage(cs, sku)>0 BY cs,skuType(sku);
+
+
+FORM printINV26 'ИНВ-26'
+
+    OBJECTS cs=CollationSheet PANEL SUBREPORT
+    PROPERTIES (cs) fullNameLegalEntityStock, fullNameStock, okpo, okdp, number, date, dateFromPeriod, dateToPeriod,
+        namePositionCheif, shortNameCheif, shortNameBooker, shortNameChairmanCommittee, namePositionChairmanCommittee
     
+    OBJECTS st=SkuType
+    PROPERTIES (st) staticCaption
+    
+    PROPERTIES (cs,st) overItem, deficitItem
+    FILTERS overItem(cs,st)!=0 OR deficitItem(cs,st)!=0
+    
+    OBJECTS e=Employee
+    PROPERTIES(e) shortName, namePosition
+    FILTERS in(cs, e)
+;
+
+printINV26 'ИНВ-26' (CollationSheet cs){ 
+    PRINT printINV26 OBJECTS cs = cs; 
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM inventories
+    PROPERTIES(cs) printINV26
+;
+
+DESIGN inventories{
+    collation{
+        MOVE PROPERTY (printINV26(cs));
+    }
+}
+
+EXTEND FORM inventory
+    PROPERTIES (in) fromPeriod, toPeriod
+;
+
+DESIGN inventory {
+    row4 {
+        NEW period {
+            caption = 'Отчетный период';
+               MOVE PROPERTY(fromPeriod(in));
+               MOVE PROPERTY(toPeriod(in));
+        }
+    }
+}
