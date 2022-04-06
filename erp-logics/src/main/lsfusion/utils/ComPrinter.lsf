@@ -7,10 +7,24 @@ NAMESPACE Utils;
 vidPrinterComPort 'VID принтера' = DATA STRING[4] (Computer);
 pidPrinterComPort 'PID принтера' = DATA STRING[4] (Computer);
 
+codePageComPort 'Кодировка' = DATA STRING[10] (Computer);
+
 EXTEND FORM computer PROPERTIES(c) vidPrinterComPort, pidPrinterComPort; 
 
 jsonPrinterComPort (Computer c) = JSON(FROM vid = vidPrinterComPort(c), pid = pidPrinterComPort(c)); 
 
+localFileName 'Печатать в файл' = DATA STRING (Computer) CHARWIDTH 20;
+EXTEND FORM computer PROPERTIES(c) localFileName; 
+
 printComPort (TEXT t) {
-    serialPortSend(jsonPrinterComPort(currentComputer()), t);
+    IF localFileName(currentComputer()) THEN {
+        stringToFile(t, (OVERRIDE codePageComPort(currentComputer()), 'UTF-8'), 'prl');
+        open(resultFile(), localFileName(currentComputer()));
+    } ELSE
+        serialPortSend(jsonPrinterComPort(currentComputer()), t);
 }
+
+// для печати на принтер через файл нужно создать такой bat-файл (или подключить отдельный exe-файл, который будет печатать файл)
+//copy %1 \\localhost\%~n1
+//del %1
+// затем в Chrome ассоциировать расширение prl с этим файлом, и включить автоматический запуск этого скачанного файла  

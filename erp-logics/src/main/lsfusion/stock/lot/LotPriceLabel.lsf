@@ -58,7 +58,6 @@ NAVIGATOR {
 }
 
 // computer
-
 lotLabelType = DATA LotLabelType (Computer);
 nameLotLabelType 'Тип шаблона марки' (Computer c) = name(lotLabelType(c));
 
@@ -70,14 +69,21 @@ template (ItemGroup i) = template(lotLabelType(), i);
 labelNameSku = ABSTRACT VALUE TEXT (Lot);
 labelNameSku (Lot l) += nameSku(l);
 
-labelText (Lot l) = replace(replace(replace(replace(template(itemGroup(sku(l))), 
-                                                    '@NAME@', labelNameSku(l)), 
-                                                    '@BARCODE@', id(l)), 
-                                                    '@PRICE@', 'Цена ' + INTEGER(price(l)) + ' руб.'),
-                                                    '@DATE@', toDateDDMMYY(currentDate())); 
+labelText = DATA LOCAL TEXT();
+processLabelText ABSTRACT LIST (Lot);
+
+processLabelText(Lot l) + {
+    labelText() <- replace(labelText(), '@NAME@', labelNameSku(l));
+    labelText() <- replace(labelText(), '@BARCODE@', id(l));
+    labelText() <- replace(labelText(), '@PRICE@', '' + INTEGER(price(l)));
+    labelText() <- replace(labelText(), '@DATE@', toDateDDMMYY(currentDate()));
+}
 
 printLabel 'Печать' (Lot l) {
-    printComPort(labelText(l));
+    labelText() <- template(itemGroup(sku(l)));
+    processLabelText(l);
+    
+    printComPort(labelText());
 }
 
 //^XA
@@ -87,7 +93,7 @@ printLabel 'Печать' (Lot l) {
 //^AQN,40,40^FD@NAME@^FS
 //^FO 20,60
 //^FB400,2,10,C,0
-//^AQN,40,40^FD@PRICE@^FS
+//^AQN,40,40^FDЦена @PRICE@ руб.^FS
 //^FO 20,180
 //^BY2
 //^BCN,70,Y,N,N 
