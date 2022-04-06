@@ -131,6 +131,9 @@ roundCondition(DisparityDetail disparityDetail) = roundCondition(stock(disparity
 overAfterInputRepricingPrice = ABSTRACT NUMERIC[16,4] (DisparityDetail) MATERIALIZED;
 afterInputRepricingPrice (DisparityDetail detail) = OVERRIDE overAfterInputRepricingPrice(detail), afterInputPrice(detail) MATERIALIZED;
 
+overAfterInputRepricingSum = ABSTRACT NUMERIC[18,4] (DisparityDetail) MATERIALIZED;
+afterInputRepricingSum (DisparityDetail detail) = OVERRIDE overAfterInputRepricingSum(detail), afterInputSum(detail) MATERIALIZED;
+
 @defineDocumentDetailPricePrefix(disparity, afterInputRetail, ' розничная после');
 @defineDocumentDetailDataSumCustomPrefix (disparityDetail, afterInputRetail, ' розничная после');
 @deriveDocumentDetailSumPrefix(disparity, afterInputRetail, currency, inputQuantity);
@@ -148,7 +151,10 @@ afterInputMarkup(DisparityDetail disparityDetail)  <- [ round2((((X - X*Y/(100+Y
     WHEN CHANGED(afterInputPrice(disparityDetail)) OR CHANGED (valueAfterInputVAT(disparityDetail)) OR CHANGED(afterInputRepricingPrice(disparityDetail));
 
 @defineDocumentDetailMarkupSumCustomPrefix (disparityDetail, afterInput, ' после');
-@deriveDocumentDetailMarkupSumPrefix(disparity, afterInput, afterInputRetail, afterInput);
+//@deriveDocumentDetailMarkupSumPrefix(disparity, afterInput, afterInputRetail, afterInput);
+
+afterInputMarkupSum(DisparityDetail disparityDetail) <- afterInputRetailSum(disparityDetail) (-) afterInputVATSum (disparityDetail) (-) afterInputRepricingSum(disparityDetail)
+                    WHEN CHANGED(afterInputRetailSum(disparityDetail)) OR CHANGED (afterInputVATSum (disparityDetail)) OR CHANGED (afterInputRepricingSum(disparityDetail));
 
 afterInputPrice(DisparityDetail detail) <- curInputPrice(detail) WHEN CHANGED (curInputPrice(detail));
 afterInputVAT(DisparityDetail detail) <- curInputVAT(detail) WHEN CHANGED (curInputPrice(detail));
