@@ -548,7 +548,7 @@ DESIGN moves {
 //Списание
 slovoMessage = DATA SlovoMessage (WriteOff);
 statusSlovo 'Статус выгрузки' (WriteOff o) = CONCAT ' - ', status(slovoMessage(o)), errDescr(slovoMessage(o)) IN wms;
-//processingStatusSlovo 'Статус обработки'  = DATA STRING[50](WriteOff) IN wms;
+processingStatusSlovo 'Статус обработки'  = DATA STRING[50](WriteOff) IN wms;
 
 beforeExportSolvo ABSTRACT (WriteOff);
 
@@ -622,7 +622,7 @@ exportSolvo 'Выгрузить заказ в wms Solvo' (WriteOff w) {
 
 EXTEND FORM writeOffs 
     PROPERTIES (w) PANEL SHOWIF isSolvo(stock(w))
-        exportSolvo, statusSlovo//, processingStatusSlovo
+        exportSolvo, statusSlovo, processingStatusSlovo
 ;
 
 DESIGN writeOffs {
@@ -632,7 +632,7 @@ DESIGN writeOffs {
             type = CONTAINERV;
             MOVE PROPERTY(exportSolvo(w));
             MOVE PROPERTY(statusSlovo(w));
-            //MOVE PROPERTY(processingStatusSlovo(w));
+            MOVE PROPERTY(processingStatusSlovo(w));
         }
     }
 }
@@ -643,9 +643,19 @@ statusSlovo 'Статус выгрузки' (Sale.Order o) = CONCAT ' - ', statu
 processingStatusSlovo 'Статус обработки'  = DATA STRING[50](Sale.Order) IN wms;
 beforeExportSolvo ABSTRACT (Sale.Order);
 
+typeSolvo 'Тип для выгрузки Solvo' = DATA STRING (Sale.Operation);
+EXTEND FORM Sale.operation
+    PROPERTIES typeSolvo(o)
+;
+DESIGN Sale.operation {
+    paramsContainer {
+        MOVE PROPERTY(typeSolvo(o));
+    }
+}
+
 orderHeaderString (LONG syncId, Sale.Order s) = CONCAT'','<order syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
     '\'\' order_id=\'\'',id(s),'\'\' display_name=\'\'',format(seriesNumber(s)),'\'\' shipment_id=\'\'',number(trip(s)),'\'\' priority=\'\'99\'\' client_id=\'\'',format(id(customerStock(s))),
-    '\'\' carrier_id=\'\'\'\' type=\'\'A\'\' proc_method=\'\'U\'\' date_to_ship=\'\'',format(shipmentDateTime(s)),'\'\' responsible=\'\'\'\' comments=\'\'',format(note(s)),'\'\'>';
+    '\'\' carrier_id=\'\'\'\' type=\'\'',typeSolvo(operation(s)),'\'\' proc_method=\'\'U\'\' date_to_ship=\'\'',format(shipmentDateTime(s)),'\'\' responsible=\'\'\'\' comments=\'\'',format(note(s)),'\'\'>';
 
 extraOrderDetailString = ABSTRACT CASE STRING (Sale.OrderDetail);
 orderDetailString (LONG syncId, Sale.OrderDetail s) = CONCAT'','<order_detail syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
@@ -654,55 +664,60 @@ orderDetailString (LONG syncId, Sale.OrderDetail s) = CONCAT'','<order_detail sy
 
 exportSolvo 'Выгрузить заказ в wms Solvo' (Sale.Order i) {
     IF defaultNumeratorSyncid() THEN {
-        NEWSESSION {
-        
-            in(Item it) <- TRUE WHERE quantityOrderDetail(it, i) AND ((changed(it) AND NOT changed(it) < loaded(it)) OR NOT loaded(it));
-            exportItems();
-            
-            in(Stock s) <- TRUE WHERE s == customerStock(i) AND ((changed(s) AND NOT changed(s) < loaded(s)) OR NOT loaded(s));
-            exportStocks();
-            
-            IF NOT errorExportItems() THEN {
-                beforeExportSolvo(i);
+        IF typeSolvo(operation(i)) THEN {
+            NEWSESSION {
                 
-                numerateIds(countOrderDetail(i) + 2);
+                in(Item it) <- TRUE WHERE quantityOrderDetail(it, i) AND ((changed(it) AND NOT changed(it) < loaded(it)) OR NOT loaded(it));
+                exportItems();
                 
-                logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Sale Order:', seriesNumber(i));
+                in(Stock s) <- TRUE WHERE s == customerStock(i) AND ((changed(s) AND NOT changed(s) < loaded(s)) OR NOT loaded(s));
+                exportStocks();
                 
-                IF NOT id(i) THEN {
-                    id(i) <- CONCAT '_', seriesNumber(i), date(i);
-                }
-                
-                headerId(incrementedValue()) <- 0;
-                type(incrementedValue()) <- 'order';
-                meaasage(incrementedValue()) <- orderHeaderString(incrementedValue(), i);
-                
-                FOR i == order(Sale.OrderDetail d) DO {
-                    headerId(incrementedValue() + index(d)) <- incrementedValue();
-                    type(incrementedValue() + index(d)) <- 'order_detail';
-                    meaasage(incrementedValue() + index(d)) <- orderDetailString(incrementedValue() + index(d), d);
-                }
-                
-                headerId(incrementedValue() + countOrderDetail(i) + 1) <- incrementedValue();
-                type(incrementedValue() + countOrderDetail(i) + 1) <- '/order';
-                meaasage(incrementedValue() + countOrderDetail(i) + 1) <- '</order>';
-                
-                logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'connectionString:', connectionString(), 'insertString:', insertString());
-                
-                EXTERNAL 
-                    SQL connectionString()
-                    EXEC insertString();
+                IF NOT errorExportItems() THEN {
+                    beforeExportSolvo(i);
                     
-                IF NOT slovoMessage(i) THEN NEW s = SlovoMessage {
-                    slovoMessage(i) <- s;
-                }
-                id(slovoMessage(i)) <- incrementedValue();
-                type(slovoMessage(i)) <- 'order';
-                status(slovoMessage(i)) <- 'ready';
-                loaded(slovoMessage(i)) <- currentDateTime();
+                    numerateIds(countOrderDetail(i) + 2);
                     
-                MESSAGE 'Накладная выгружена' NOWAIT;
+                    logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Sale Order:', seriesNumber(i));
+                    
+                    IF NOT id(i) THEN {
+                        id(i) <- CONCAT '_', seriesNumber(i), date(i);
+                    }
+                    
+                    headerId(incrementedValue()) <- 0;
+                    type(incrementedValue()) <- 'order';
+                    meaasage(incrementedValue()) <- orderHeaderString(incrementedValue(), i);
+                    
+                    FOR i == order(Sale.OrderDetail d) DO {
+                        headerId(incrementedValue() + index(d)) <- incrementedValue();
+                        type(incrementedValue() + index(d)) <- 'order_detail';
+                        meaasage(incrementedValue() + index(d)) <- orderDetailString(incrementedValue() + index(d), d);
+                    }
+                    
+                    headerId(incrementedValue() + countOrderDetail(i) + 1) <- incrementedValue();
+                    type(incrementedValue() + countOrderDetail(i) + 1) <- '/order';
+                    meaasage(incrementedValue() + countOrderDetail(i) + 1) <- '</order>';
+                    
+                    logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'connectionString:', connectionString(), 'insertString:', insertString());
+                    
+                    EXTERNAL 
+                        SQL connectionString()
+                        EXEC insertString();
+                        
+                    IF NOT slovoMessage(i) THEN NEW s = SlovoMessage {
+                        slovoMessage(i) <- s;
+                    }
+                    id(slovoMessage(i)) <- incrementedValue();
+                    type(slovoMessage(i)) <- 'order';
+                    status(slovoMessage(i)) <- 'ready';
+                    loaded(slovoMessage(i)) <- currentDateTime();
+                        
+                    MESSAGE 'Заказ выгружен' NOWAIT;
+                }
             }
+        } ELSE {
+            logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'Write Sale Order error: для операции не задан тип для выгрузки Solvo');
+            MESSAGE 'Для операции не задан тип для выгрузки Solvo';
         }
     } ELSE {
         logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'Write Sale Order error: не задан нумератор для пакетов выгрузки в wms');
@@ -797,11 +812,13 @@ qty = DATA LOCAL NUMERIC[16,3](INTEGER);
 p_serial_id = DATA LOCAL STRING(INTEGER);
 marker2 = DATA LOCAL STRING(INTEGER);
 marker = DATA LOCAL STRING(INTEGER);
-line = DATA LOCAL STRING(INTEGER);
+line = DATA LOCAL INTEGER(INTEGER);
 category = DATA LOCAL STRING(INTEGER);
 inc_id = DATA LOCAL STRING();
 rcv_date = DATA LOCAL DATETIME();
 new_status = DATA LOCAL STRING ();
+order_id = DATA LOCAL STRING();
+type = DATA LOCAL STRING();
 
 FORM receive_complete
 PROPERTIES() rcv_date ATTR, inc_id ATTR
@@ -810,10 +827,18 @@ OBJECTS receive_complete_detail = INTEGER
 PROPERTIES(receive_complete_detail) status ATTR, sku_id ATTR, s_serial_id ATTR, qty ATTR, p_serial_id ATTR, marker2 ATTR, marker ATTR, line ATTR, category ATTR
 FILTERS imported(receive_complete_detail);
 
+FORM order_status_changed
+PROPERTIES() order_id ATTR, type ATTR, new_status ATTR
+
+OBJECTS order_status_changed_detail = INTEGER
+PROPERTIES(order_status_changed_detail) line ATTR, qty ATTR, sku_id ATTR, s_serial_id ATTR, p_serial_id 
+FILTERS imported(order_status_changed_detail);
+
 overIdBatch = ABSTRACT STRING[100](Purchase.InvoiceDetail);
 series (Purchase.InvoiceDetail d) = OVERRIDE overIdBatch(d), idBatch(d);
 
 overImportReceiveComplete ABSTRACT (Purchase.InvoiceDetail);
+overImportOrderStatusChanged ABSTRACT (Sale.Order);
 
 importReplies 'Импортировать подтверждения' ()  {
     
@@ -832,6 +857,8 @@ importReplies 'Импортировать подтверждения' ()  {
     LOCAL NESTED done = BOOLEAN ();
     
     FOR hId(INTEGER j) DO {
+        error() <- NULL;
+        done() <- NULL;
         //-- Поступление        
         IF hType(j) == 'receive_complete' THEN NEWSESSION {
             logToFile('WMS', 'starting receive_complete: ' + hId(j));
@@ -862,12 +889,13 @@ importReplies 'Импортировать подтверждения' ()  {
                         overImportReceiveComplete(d);
                     }
                 }
-                
                 APPLY NESTED LOCAL ;
                 IF canceled() THEN {
-                    logToFile('WMS', 'APPLY purchase head faild: ' + applyMessage());
+                    logToFile('WMS', 'APPLY purchase invoice faild: ' + applyMessage());
                     error() <- applyMessage();
-                } 
+                }  ELSE {
+                    done() <- TRUE;
+                }
             }
             
         }
@@ -890,8 +918,87 @@ importReplies 'Импортировать подтверждения' ()  {
                         WHEN new_status() = 'P' THEN 'В работе'
                         WHEN new_status() = 'D' THEN 'Выполнен';
                 }
-                
                 APPLY NESTED LOCAL;
+                done() <- TRUE;
+            }
+        }
+        
+        IF hType(j) == 'order_status_changed' THEN NEWSESSION {
+            logToFile('WMS', 'starting order_status_changed: ' + hId(j));
+            
+            EXTERNAL 
+                SQL connectionString()
+                EXEC 'SELECT ID, MESSAGE FROM to_host_detail_message WHERE HEADER_ID = '+hId(j) TO file;
+            
+            LOCAL dId = LONG (INTEGER );
+            LOCAL dMessage = STRING (INTEGER );
+            IMPORT TABLE FROM file() TO dId, dMessage;
+            
+            stringToFile(hMessage(j) + (OVERRIDE (GROUP CONCAT dMessage(INTEGER i), '' ORDER  dId(i)), ''),'UTF-8','xml');
+
+            IMPORT order_status_changed XML FROM resultFile();
+            
+            IF type() == 'L' THEN {
+                IF NOT userWriteOff(inc_id()) THEN {
+                    logToFile('WMS', 'Not found writeoff: ' + inc_id());
+                    error() <- 'Списание не найдено';
+                } ELSE {
+                    FOR id(WriteOff w) == inc_id() DO {
+                        processingStatusSlovo(w) <- CASE 
+                            WHEN new_status() = 'R' THEN 'Подготовка к планированию'
+                            WHEN new_status() = 'A' THEN 'Планируется'
+                            WHEN new_status() = 'T' THEN 'Создание ЛО'
+                            WHEN new_status() = 'G' THEN 'Поиск места для сбора заказов'
+                            WHEN new_status() = 'L' THEN 'Спланирован'
+                            WHEN new_status() = 'P' THEN 'В работе'
+                            WHEN new_status() = 'S' THEN 'Приостановлен'
+                            WHEN new_status() = 'D' THEN 'Собран'
+                            WHEN new_status() = 'P' THEN 'Упаковка'
+                            WHEN new_status() = 'Q' THEN 'Упакован'
+                            WHEN new_status() = 'X' THEN 'Готов к отгрузке'
+                            WHEN new_status() = '-' THEN 'Погрузка'
+                            WHEN new_status() = 'Y' THEN 'Погружен'
+                            WHEN new_status() = '+' THEN 'Отгружен'
+                            WHEN new_status() = 'С' THEN 'Отмена';
+                    }
+                    APPLY NESTED LOCAL;
+                    done() <- TRUE;
+                }
+            } IF type() == 'A' OR type() == 'B' THEN {
+                IF NOT Sale.userOrder(inc_id()) THEN {
+                    logToFile('WMS', 'Not found purchase order: ' + inc_id());
+                    error() <- 'Заказ не найден';
+                } ELSE {
+                    FOR id(Sale.Order o) == inc_id() DO {
+                        processingStatusSlovo(o) <- CASE 
+                            WHEN new_status() = 'R' THEN 'Подготовка к планированию'
+                            WHEN new_status() = 'A' THEN 'Планируется'
+                            WHEN new_status() = 'T' THEN 'Создание ЛО'
+                            WHEN new_status() = 'G' THEN 'Поиск места для сбора заказов'
+                            WHEN new_status() = 'L' THEN 'Спланирован'
+                            WHEN new_status() = 'P' THEN 'В работе'
+                            WHEN new_status() = 'S' THEN 'Приостановлен'
+                            WHEN new_status() = 'D' THEN 'Собран'
+                            WHEN new_status() = 'P' THEN 'Упаковка'
+                            WHEN new_status() = 'Q' THEN 'Упакован'
+                            WHEN new_status() = 'X' THEN 'Готов к отгрузке'
+                            WHEN new_status() = '-' THEN 'Погрузка'
+                            WHEN new_status() = 'Y' THEN 'Погружен'
+                            WHEN new_status() = '+' THEN 'Отгружен'
+                            WHEN new_status() = 'С' THEN 'Отмена';
+                        
+                        IF new_status() = 'Q' OR new_status() = 'X' OR new_status() = '+' THEN {
+                            overImportOrderStatusChanged(o);
+                        }
+                    }
+                    APPLY NESTED LOCAL;
+                    IF canceled() THEN {
+                        logToFile('WMS', 'APPLY sale order faild: ' + applyMessage());
+                        error() <- applyMessage();
+                    }  ELSE {
+                        done() <- TRUE;
+                    }
+                }
             }
         }
         
