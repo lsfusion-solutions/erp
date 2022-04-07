@@ -28,6 +28,7 @@ curIndexSize 'Тек. размер индексов (МБ)' = DATA LOCAL NESTED 
 curRows 'Тек. количество записей' = DATA LOCAL NESTED LONG (Table);
 
 deleteIndexes 'Удалять индексы при упаковке' = DATA BOOLEAN (Table);
+large 'Большая таблица' = DATA BOOLEAN (Table);
 
 CLASS Index 'Индекс';
 
@@ -143,22 +144,31 @@ reindexConcurrently 'REINDEX CONCURRENTLY' = DATA BOOLEAN ();
 skipExceptions 'Пропускать ошибки' = DATA BOOLEAN ();
 stopAfter 'Не запускать после' = DATA TIME();
 
+runAndLogSQL(STRING command) {
+    logToFile('database-tools', 'start - ' + command);
+    IF skipExceptions() THEN {
+        TRY {
+            runSQL(command);
+        } CATCH {
+            logToFile('database-tools', (CONCAT '\n', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()));
+        }
+    } ELSE 
+        runSQL(command);
+    logToFile('database-tools', 'end - ' + command);
+}
+
 reindex 'REINDEX' (Table t) {
-    IF deleteIndexes(t) THEN {
+    CASE WHEN deleteIndexes(t) THEN {
         getIndexes(t);
         dropIndexes(t);
         createIndexes(t);
+    } WHEN large(t) THEN {
+        getIndexes(t);
+        FOR table(Index i) == t ORDER indexSize(i) DO {
+            runAndLogSQL('REINDEX INDEX ' + (IF reindexConcurrently() THEN 'CONCURRENTLY ' ELSE '') + name(i));
+        }
     } ELSE {
-        logToFile('database-tools', 'start - REINDEX TABLE ' + sid(t) );
-        IF skipExceptions() THEN {
-            TRY {
-                runSQL('REINDEX TABLE ' + (IF reindexConcurrently() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
-            } CATCH {
-                logToFile('database-tools', (CONCAT '\n', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()));
-            }
-        } ELSE 
-            runSQL('REINDEX TABLE ' + (IF reindexConcurrently() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
-        logToFile('database-tools', 'end - REINDEX TABLE ' + sid(t));
+        runAndLogSQL('REINDEX TABLE ' + (IF reindexConcurrently() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
     }
     NEWSESSION {
         indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
@@ -186,21 +196,13 @@ vacuum 'VACUUM FULL' (DatabaseTable t) {
         getIndexes(t);
         dropIndexes(t);
     }
-    logToFile('database-tools', 'start - VACUUM FULL ' + sid(t) );
-    IF skipExceptions() AND NOT t IS PgTable THEN {
-        TRY {
-            runSQL('VACUUM FULL ' + sid(t));
-        } CATCH {
-            logToFile('database-tools', (CONCAT '\n', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()));
-        }
+    IF t IS PgTable THEN {
+        logToFile('database-tools', 'start - VACUUM SYS FULL ' + sid(t) );
+        vacuumSysTab(0, sid(t));
+        logToFile('database-tools', 'end - VACUUM SYS FULL ' + sid(t));
     } ELSE {
-        IF t IS PgTable THEN {
-            vacuumSysTab(0, sid(t));
-        } ELSE {
-            runSQL('VACUUM FULL ' + sid(t));
-        }
+        runAndLogSQL('VACUUM FULL ' + sid(t));
     }
-    logToFile('database-tools', 'end - VACUUM FULL ' + sid(t));
     IF deleteIndexes(t) THEN {
         createIndexes(t);
     }    
@@ -260,7 +262,7 @@ dataVacuumSize = DATA NUMERIC[5,2]();
 vacuumSize 'Минимальный размер (МБ)' () = OVERRIDE dataVacuumSize(), 1.0;
 
 dataGrow(DatabaseTable t) = grow(curDataSize(t), dataSize(t));
-needVacuum(DatabaseTable t) = dataGrow(t) > vacuumCoeff() AND curDataSize(t) + curIndexSize(t) > vacuumSize();
+needVacuum(DatabaseTable t) = dataGrow(t) > vacuumCoeff() AND curDataSize(t) + curIndexSize(t) > vacuumSize() AND NOT large(t);
 backgroundData(DatabaseTable t) = IF needVacuum(t) THEN RGB (255, 80, 80) ELSE RGB (255, 179, 179);
 
 indexGrow(DatabaseTable t) = grow(curIndexSize(t), indexSize(t));
@@ -446,7 +448,7 @@ EXTEND FORM tools
     PROPERTIES (t) READONLY sid
     PROPERTIES (t) skipVacuum
     PROPERTIES (t) READONLY BACKGROUND backgroundData(t) dataSize, curDataSize
-    PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE 
+    PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE, large CHANGEABLE 
     PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, targetStatistic CHANGEABLE
     PROPERTIES (t) getIndexes TOOLBAR
     FILTERGROUP grow
