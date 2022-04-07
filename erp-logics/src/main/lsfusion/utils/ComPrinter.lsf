@@ -9,12 +9,37 @@ pidPrinterComPort 'PID принтера' = DATA STRING[4] (Computer);
 
 codePageComPort 'Кодировка' = DATA STRING[10] (Computer);
 
-EXTEND FORM computer PROPERTIES(c) vidPrinterComPort, pidPrinterComPort; 
+EXTEND FORM computer PROPERTIES(c) vidPrinterComPort, pidPrinterComPort, codePageComPort;
+
+DESIGN computer {
+    OBJECTS {
+        NEW comPrinter {
+            caption = 'Печать';
+            NEW comPrinterRow1 {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                MOVE PROPERTY(vidPrinterComPort(c));
+                MOVE PROPERTY(pidPrinterComPort(c));
+                MOVE PROPERTY(codePageComPort(c));
+            }
+        }
+    }
+} 
 
 jsonPrinterComPort (Computer c) = JSON(FROM vid = vidPrinterComPort(c), pid = pidPrinterComPort(c)); 
 
 localFileName 'Печатать в файл' = DATA STRING (Computer) CHARWIDTH 20;
 EXTEND FORM computer PROPERTIES(c) localFileName; 
+
+DESIGN computer {
+    comPrinter {
+        NEW comPrinterRow2 {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(localFileName(c));
+        }
+    }
+} 
 
 printComPort (TEXT t) {
     IF localFileName(currentComputer()) THEN {
@@ -34,5 +59,11 @@ downloadPrintFile 'Скачать приложение печати этикет
 }
 
 EXTEND FORM computer
-    PROPERTIES downloadPrintFile() DRAW c
+    PROPERTIES downloadPrintFile()
 ;
+
+DESIGN computer {
+    comPrinterRow2 {
+        MOVE PROPERTY(downloadPrintFile());
+    }
+}
