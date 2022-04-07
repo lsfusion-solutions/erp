@@ -76,6 +76,8 @@ DESIGN disassemblies {
 // создать строки
 @defineOperationProperty(calcQuantityWeightLot, 'Заполнять количество разборки из марок', paramsContainer);
 
+overFillLotDetail ABSTRACT LIST(Disassembly);
+
 fillLotDetail 'Заполнить по маркам' (Disassembly a) {
     FOR count(a, Sku s) AND NOT disassemblyDetail(a, s) NEW d = DisassemblyDetail DO {
         disassembly(d) <- a;
@@ -93,6 +95,7 @@ fillLotDetail 'Заполнить по маркам' (Disassembly a) {
         quantity(a) <- IF split(sku(a)) THEN weightDisassemblyLot(a) ELSE countDisassemblyLot(a);
     
     calculatePrice(a); 
+    overFillLotDetail(a);
 }
 
 EXTEND FORM disassembly
