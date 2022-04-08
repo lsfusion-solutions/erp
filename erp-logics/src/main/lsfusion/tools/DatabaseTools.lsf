@@ -140,7 +140,21 @@ createIndexes 'Создать индексы' (Table t) {
     } 
 }
 
+//REINDEX CONCURRENTLY вешает Lock virtualxid и ждет пока завершатся ВСЕ запросы в базе запущенные раньше этого момента
+//https://www.postgresql.org/message-id/1878.1481823217%40sss.pgh.pa.us
+//что может приводить к большому времени ожидания завершения опраци если есть длинные запросы
+//поэтому на небольших индексах лучше на несколько секунд заблокировать все запросы к таблице чем REINDEX на долгое время
 reindexConcurrently 'REINDEX CONCURRENTLY' = DATA BOOLEAN ();
+reindexConcurrentlySize 'REINDEX CONCURRENTLY свыше (МБ)' = DATA NUMERIC[15,3] ();
+migrateConcurrently = DATA BOOLEAN ();
+onStarted() + {
+    IF NOT migrateConcurrently() THEN {
+        IF reindexConcurrently() THEN {
+            reindexConcurrentlySize() <- 300;
+        }
+        migrateConcurrently() <- TRUE;
+    }
+}
 skipExceptions 'Пропускать ошибки' = DATA BOOLEAN ();
 stopAfter 'Не запускать после' = DATA TIME();
 
@@ -165,10 +179,10 @@ reindex 'REINDEX' (Table t) {
     } WHEN large(t) THEN {
         getIndexes(t);
         FOR table(Index i) == t ORDER indexSize(i) DO {
-            runAndLogSQL('REINDEX INDEX ' + (IF reindexConcurrently() THEN 'CONCURRENTLY ' ELSE '') + name(i));
+            runAndLogSQL('REINDEX INDEX ' + (IF indexSize(i)/1024/1024.0 > reindexConcurrentlySize() THEN 'CONCURRENTLY ' ELSE '') + name(i));
         }
     } ELSE {
-        runAndLogSQL('REINDEX TABLE ' + (IF reindexConcurrently() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
+        runAndLogSQL('REINDEX TABLE ' + (IF indexSize(t) > reindexConcurrentlySize() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
     }
     NEWSESSION {
         indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
@@ -475,7 +489,7 @@ EXTEND FORM tools
         FILTER 'По таблице' table(i) = t DEFAULT
     
     PROPERTIES () loadCurSize, loadSystemCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, countTreads,
-                  loadCurRows, setSkipStatistic,  reindexConcurrently, skipExceptions, stopAfter
+                  loadCurRows, setSkipStatistic,  reindexConcurrentlySize, skipExceptions, stopAfter
 ;
 
 DESIGN tools{
