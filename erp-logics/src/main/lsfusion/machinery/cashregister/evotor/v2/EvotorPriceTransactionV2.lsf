@@ -4,6 +4,23 @@ REQUIRE EvotorMasterDataV2, NativeMachinery, CashRegisterPriceTransaction, Item,
 
 NAMESPACE EvotorV2;
 
+saltUuid 'Соль uuid' = DATA ISTRING[8] ();
+versionUuid 'Версия uuid' = '4000';
+variantUuid 'Вариант uuid' = '8000';
+
+onStarted () + {
+    IF NOT saltUuid() THEN
+        saltUuid() <- [FORMULA ISTRING[8] 'lpad(to_hex(cast(extract(epoch from current_timestamp) as bigint)), 8, \'0\')']();
+}
+
+major (Object o) = FORMULA ISTRING[4] 'left(lpad(to_hex($1), 16, \'0\'), 4)';
+minor (Object o) = FORMULA ISTRING[12] 'right(lpad(to_hex($1), 16, \'0\'), 12)';
+
+uuid (Object o) = ISTRING[36](lower(CONCAT '-', saltUuid(), major(o), versionUuid(), variantUuid(), minor(o)));  
+
+// Для примера Item - остальные объекты аналогично
+item (ISTRING[36] s) = GROUP MAX Item i AS Item BY uuid(i);  
+
 modifiedAt = DATA LOCAL NUMERIC();
 details = DATA LOCAL STRING();
 id = DATA LOCAL STRING();
