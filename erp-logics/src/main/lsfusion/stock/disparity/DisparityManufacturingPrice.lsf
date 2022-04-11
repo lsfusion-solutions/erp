@@ -5,13 +5,15 @@ REQUIRE Disparity, PurchaseManufacturingPrice;
 @defineDocumentDetailPriceCustomPrefix(disparityDetail, curInputManufacturing, ' изготовителя до');
 //@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, manufacturingPriceStockPriceListType, curInputManufacturing, sku, stock);
 
-curInputManufacturingPrice (DisparityDetail detail)  <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                        sku(detail),
-                                                                                        stock(detail),
-                                                                                        dateTime(detail)))
+overCurInputManufacturingPrice = ABSTRACT VALUE NUMERIC[16,4] (DisparityDetail);
+curInputManufacturingPrice (DisparityDetail detail)  <- OVERRIDE overCurInputManufacturingPrice(detail), round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                                         sku(detail),
+                                                                                                         stock(detail),
+                                                                                                         dateTime(detail)))
                                                 WHEN DO CHANGED(sku(detail)) OR
                                                      CHANGED(stock(detail)) OR
-                                                     CHANGED(dateTime(detail));
+                                                     CHANGED(dateTime(detail)) OR
+                                                     CHANGED(batch(detail));
 
 @defineDocumentDetailPriceCustomPrefix(disparityDetail, afterInputManufacturing, ' изготовителя после');
 
