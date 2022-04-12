@@ -840,6 +840,19 @@ series (Purchase.InvoiceDetail d) = OVERRIDE overIdBatch(d), idBatch(d);
 overImportReceiveComplete ABSTRACT (Purchase.InvoiceDetail);
 overImportOrderStatusChanged ABSTRACT (Sale.Order);
 
+importDetails(LONG hId, STRING hMessage) {
+    EXTERNAL 
+        SQL connectionString()
+        EXEC 'SELECT ID, MESSAGE FROM to_host_detail_message WHERE HEADER_ID = '+hId TO file;
+    
+    LOCAL dId = LONG (INTEGER );
+    LOCAL dMessage = STRING (INTEGER );
+    IMPORT TABLE FROM file() TO dId, dMessage;
+    
+    stringToFile(hMessage + (GROUP CONCAT dMessage(INTEGER i), '' ORDER  dId(i)),'UTF-8','xml');
+    logToFile('WMS', resultFile());    
+}
+
 importReplies 'Импортировать подтверждения' ()  {
     
     logToFile('WMS', 'import replies started' );
@@ -863,17 +876,8 @@ importReplies 'Импортировать подтверждения' ()  {
         IF hType(j) == 'receive_complete' THEN NEWSESSION {
             logToFile('WMS', 'starting receive_complete: ' + hId(j));
             
-            EXTERNAL 
-                SQL connectionString()
-                EXEC 'SELECT ID, MESSAGE FROM to_host_detail_message WHERE HEADER_ID = '+hId(j) TO file;
-            
-            LOCAL dId = LONG (INTEGER );
-            LOCAL dMessage = STRING (INTEGER );
-            IMPORT TABLE FROM file() TO dId, dMessage;
-            
-            stringToFile(hMessage(j) + (GROUP CONCAT dMessage(INTEGER i), '' ORDER  dId(i)),'UTF-8','xml');
-            logToFile('WMS', resultFile());    
-
+            importDetails(hId(j), hMessage(j));
+        
             IMPORT receive_complete XML FROM resultFile();
             
             IF NOT Purchase.userInvoice(inc_id()) THEN {
@@ -904,8 +908,7 @@ importReplies 'Импортировать подтверждения' ()  {
         IF hType(j) == 'incoming_status_changed' THEN NEWSESSION {
             logToFile('WMS', 'starting incoming_status_changed: ' + hId(j));
 
-            stringToFile(hMessage(j),'UTF-8','xml');
-            logToFile('WMS', resultFile());
+            importDetails(hId(j), hMessage(j));
 
             IMPORT XML ATTR FROM resultFile() TO() inc_id, new_status;
             
@@ -928,16 +931,7 @@ importReplies 'Импортировать подтверждения' ()  {
         IF hType(j) == 'order_status_changed' THEN NEWSESSION {
             logToFile('WMS', 'starting order_status_changed: ' + hId(j));
             
-            EXTERNAL 
-                SQL connectionString()
-                EXEC 'SELECT ID, MESSAGE FROM to_host_detail_message WHERE HEADER_ID = '+hId(j) TO file;
-            
-            LOCAL dId = LONG (INTEGER );
-            LOCAL dMessage = STRING (INTEGER );
-            IMPORT TABLE FROM file() TO dId, dMessage;
-            
-            stringToFile(hMessage(j) + (OVERRIDE (GROUP CONCAT dMessage(INTEGER i), '' ORDER  dId(i)), ''),'UTF-8','xml');
-            logToFile('WMS', resultFile());
+            importDetails(hId(j), hMessage(j));
 
             IMPORT order_status_changed XML FROM resultFile();
             
