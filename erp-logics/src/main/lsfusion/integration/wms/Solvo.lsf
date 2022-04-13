@@ -1,6 +1,6 @@
 MODULE Solvo;
 
-REQUIRE WMSIntegration, Warehouse, PurchaseShipment, SaleShipment, TripOrder, Move, WriteOff, SaleReturnShipment;
+REQUIRE WMSIntegration, Warehouse, PurchaseShipment, SaleShipment, TripOrder, Move, WriteOff, SaleReturnShipment, WriteOffZoneBatch;
 
 
 isSolvo 'Склад c WMS Solvo' = DATA BOOLEAN (Warehouse);
@@ -654,21 +654,21 @@ beforeExportSolvo ABSTRACT (WriteOff);
 
 orderHeaderString (LONG syncId, WriteOff s) = CONCAT'','<order syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
     '\'\' order_id=\'\'',id(s),'\'\' display_name=\'\'',format(seriesNumber(s)),'\'\' shipment_id=\'\'\'\' priority=\'\'99\'\' client_id=\'\'0\'\'',
-    ' carrier_id=\'\'\'\' type=\'\'L\'\' proc_method=\'\'S\'\' date_to_ship=\'\'',format(shipmentDateTime(s)),'\'\' responsible=\'\'\'\' comments=\'\'',format(note(s)),'\'\'>';
+    ' carrier_id=\'\'\'\' type=\'\'', (IF zone(s) THEN 'X' ELSE 'L'),'\'\' proc_method=\'\'S\'\' date_to_ship=\'\'',format(shipmentDateTime(s)),'\'\' responsible=\'\'\'\' comments=\'\'',format(note(s)),'\'\'>';
 
 extraOrderDetailString = ABSTRACT CASE STRING (WriteOffDetail);
 orderDetailString (LONG syncId, WriteOffDetail s) = CONCAT'','<order_detail syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
-    '\'\' order_id=\'\'',id(writeOff(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' category=\'\'1\'\' ',extraOrderDetailString(s),
+    '\'\' order_id=\'\'',id(writeOff(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' category=\'\'',(OVERRIDE idSolvo(zone(s)),'1'),'\'\' ',extraOrderDetailString(s),
     ' rcn_id=\'\'-1\'\' marker=\'\'-\'\' marker2=\'\'-\'\' qty=\'\'',format(STRING(quantity(s))),'\'\' uom=\'\'',format(shortNameUOMSku(s)),'\'\' comments=\'\'\'\'/>';
 
 exportSolvo 'Выгрузить заказ в wms Solvo' (WriteOff w) {
     IF defaultNumeratorSyncid() THEN {
         NEWSESSION {
             in(Item it) <- TRUE WHERE (GROUP SUM quantity(WriteOffDetail d) IF sku(d) == it AND writeOff(d) == w) AND ((changed(it) AND NOT changed(it) < loaded(it)) OR NOT loaded(it));
-            exportItems();
+            //exportItems();
             
             in(Stock s) <- TRUE WHERE s == stock(w) AND ((changed(s) AND NOT changed(s) < loaded(s)) OR NOT loaded(s));
-            exportStocks();
+            //exportStocks();
             
             IF NOT errorExportItems() THEN {
                 beforeExportSolvo(w);

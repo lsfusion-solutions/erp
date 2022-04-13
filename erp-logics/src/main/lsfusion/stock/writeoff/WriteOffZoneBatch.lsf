@@ -1,0 +1,15 @@
+MODULE WriteOffZoneBatch;
+
+REQUIRE WriteOffZone, ZoneLedgerBatch;
+
+NAMESPACE WriteOff;
+
+batch(WriteOffDetailZoneLedger ledger) += batch(writeOffDetail(ledger));
+
+prevCurrentBalanceZone 'Текущий остаток в зоне' (WriteOff w, Sku s) = prevCurrentBalance(stock(w),zone(w),s);
+prevCurrentBalanceZone 'Текущий остаток в зоне' (WriteOff w, Batch b) = prevCurrentBalance(stock(w),zone(w),b);
+
+EXTEND FORM userWriteOff
+    PROPERTIES prevCurrentBalanceZone(w,ks) READONLY AFTER prevCurrentBalance(ks, st) SHOWIF zone(w)
+    PROPERTIES prevCurrentBalanceZone(w,b) READONLY AFTER prevCurrentBalance(b, sto) SHOWIF zone(w)
+;
