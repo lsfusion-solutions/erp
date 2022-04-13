@@ -59,15 +59,13 @@ captionMode (STRING s) += WHEN s = 'edit' THEN 'Редактирование';
 disassemblyMode () = selectedMode('disassembly');
 editMode () = selectedMode('edit');
 
-readonlyStock = ABSTRACT BOOLEAN(); 
-
 currentComputerSettings 'Настройки' { edit(currentComputer()); }
 
 FORM disassemblyLotDashboard 'Разукомплектация'
     PROPERTIES NEWSESSION currentComputerSettings()
 
     OBJECTS st = Stock PANEL
-    PROPERTIES(st) name SELECTOR READONLYIF readonlyStock()
+    PROPERTIES(st) name SELECTOR
     FILTERS accessCompany(currentUser(), st)
 
     OBJECTS m = STRING CUSTOM 'option'
@@ -223,13 +221,15 @@ generateLot () {
 
 overChangeIweight ABSTRACT (Sku, Stock);
 
+@defineOption(readonlyIimage, 'Изображение на форме Разукомплектация не редактируется', disassembly);
+
 EXTEND FORM disassemblyLotDashboard
     PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= 30 THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- TRUE; overChangeIweight(s, st); } }, 
                  inameSku, 
                  iprice READONLYIF skipPriceLotDashboard(isku()), 
                  istream CUSTOM 'videoRender' ON CHANGE changeStream(), 
                  ibarcode ON CHANGE { INPUT b = ibarcode() DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
-                 iimage
+                 iimage READONLYIF readonlyIimage()
     
     EVENTS ON INIT { openScalesPortReader(currentComputer()); }
     EVENTS ON CLOSE { closePortReader(); }
