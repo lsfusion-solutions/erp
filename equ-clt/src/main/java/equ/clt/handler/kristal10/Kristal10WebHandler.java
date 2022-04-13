@@ -883,6 +883,16 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             LocalDate dateReceipt = dateTimeReceipt.toLocalDate();
             LocalTime timeReceipt = dateTimeReceipt.toLocalTime();
 
+            String uid = null;
+            List<Element> purchasePluginProperties = purchaseNode.getChildren("plugin-property");
+            for(Element pluginProperty : purchasePluginProperties) {
+                String key = pluginProperty.getAttributeValue("key");
+                if(key.equals("FISCAL_DOC_ID")) {
+                    uid = pluginProperty.getAttributeValue("value");
+                    break;
+                }
+            }
+
             BigDecimal sumCard = BigDecimal.ZERO;
             BigDecimal sumCash = BigDecimal.ZERO;
             BigDecimal sumGiftCard = BigDecimal.ZERO;
@@ -1082,13 +1092,18 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                     + dateReceiptOriginal.format(DateTimeFormatter.ofPattern("ddMMyyyy")) + "_" + numberReceiptOriginal;
                         }
 
+                        Map<String, Object> receiptDetailExtraFields = new HashMap<>();
+                        if(uid != null) {
+                            receiptDetailExtraFields.put("uid", uid);
+                        }
+
                         if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                             sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                         currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
                                 customPaymentMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                 discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, null,
-                                useSectionAsDepartNumber ? positionDepartNumber : null, false, null, cashRegisterByKey));
+                                useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptDetailExtraFields, cashRegisterByKey));
                     }
                     count++;
                 }

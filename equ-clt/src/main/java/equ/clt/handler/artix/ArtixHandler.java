@@ -1395,6 +1395,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                         String identifier = documentObject.optString("identifier");
                                         String sourceIdentifier = documentObject.optString("sourceidentifier");
+                                        String uid = documentObject.optString("frDocCopy");
 
                                         Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
                                         LocalDate dateReceipt = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
@@ -1615,6 +1616,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                                 if(fourthPrice) {
                                                     receiptDetailExtraFields.put("priceLevelId", 4);
+                                                }
+                                                if(uid != null) {
+                                                    receiptDetailExtraFields.put("uid", uid);
                                                 }
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
