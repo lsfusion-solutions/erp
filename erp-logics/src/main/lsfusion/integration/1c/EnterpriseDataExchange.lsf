@@ -92,6 +92,7 @@ END
 // specifications
 @extReference(specification, 'ХарактеристикиНоменклатуры');
 @defKeyPropSimple(fullName, 'НаименованиеПолное', specification);
+@defPropObject(item, 'Номенклатура', Item, specification);
 @defPropSimple(name, 'Наименование', STRING[10], specification);
 META defSpecification(nm, class, extid)
     EXTEND FORM sendMessage
@@ -424,6 +425,12 @@ settlements (SaleOrder s, Configuration c) += '' IF s IS SaleOrder AND c IS Conf
 @extTable(shipmentOrder, product);
 @defPropObjectDetail(item, 'Номенклатура', Item, shipmentOrder, product, itemData);
 @defPropObjectDetail(specification, 'Характеристика', Specification, shipmentOrder, product, itemData);
+EXTEND FORM sendMessage
+    OBJECTS itemSpecificationShipmentOrderProduct = Item EXTID 'Номенклатура'
+    PROPERTIES(itemSpecificationShipmentOrderProduct, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
+    FILTERS itemSpecificationShipmentOrderProduct = item(shipmentOrderProduct, configuration)
+;
+
 @defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, shipmentOrder, product);
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], shipmentOrder, product);
 @defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], shipmentOrder, product);
