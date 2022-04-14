@@ -91,7 +91,7 @@ async function serialPortSend (port, value) {
             serialPortWriter = await getPort(port);
             if (!serialPortWriter) return;
 
-            await serialPortWriter.open({ baudRate: 115200 });
+            await serialPortWriter.open({ baudRate: 9600 });
         } catch (error) {
             serialPortWriter = undefined;
             alert("Code " + error.code + " : " + error.message + " / " + error.name);
