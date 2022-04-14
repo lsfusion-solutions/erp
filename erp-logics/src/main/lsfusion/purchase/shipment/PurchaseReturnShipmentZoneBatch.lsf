@@ -1,0 +1,15 @@
+MODULE PurchaseReturnShipmentZoneBatch;
+
+REQUIRE PurchaseReturnShipmentZone, ZoneLedgerBatch;
+
+NAMESPACE PurchaseReturn;
+
+batch(ShipmentDetailZoneLedger ledger) += batch(shipmentDetail(ledger));
+
+prevCurrentBalanceZone 'Текущий остаток в зоне' (UserInvoice i, Sku s) = prevCurrentBalance(customerStock(i),zone(i),s);
+prevCurrentBalanceZone 'Текущий остаток в зоне' (UserInvoice i, Batch b) = prevCurrentBalance(customerStock(i),zone(i),b);
+
+EXTEND FORM userInvoice
+    PROPERTIES prevCurrentBalanceZone(i,ks) READONLY AFTER prevCurrentBalance(ks, i) SHOWIF zone(i)
+    PROPERTIES prevCurrentBalanceZone(i,b) READONLY AFTER prevCurrentBalance(b, i) SHOWIF zone(i)
+;
