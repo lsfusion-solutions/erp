@@ -9,11 +9,19 @@ urlSMSTraffic 'SMSTraffic URL' = DATA STRING[255]();
 usernameSMSTraffic 'Пользователь' = DATA STRING[255]();
 passwordAPISMSTraffic 'Пароль для API' = DATA STRING[255]() ECHO;
 alphaNameSMSTraffic 'Альфанумерическое имя' = DATA STRING[11]();
+useRouteGroupId 'Использовать идентификаторы маршрутов' = DATA BOOLEAN();
+routeGroupId_sms 'Идентификатор маршрута sms' = DATA STRING[255]();
+routeGroupId_viber 'Идентификатор маршрута viber' = DATA STRING[255]();
+routeGroupId_viber_sms 'Идентификатор маршрута viber-sms' = DATA STRING[255]();
+
+CONSTRAINT useRouteGroupId() AND NOT (routeGroupId_sms() AND routeGroupId_viber() AND routeGroupId_viber_sms())
+    MESSAGE 'Не заданы идентификаторы маршрутов';
 
 getID = FORMULA LONG '$1';
 
 EXTEND FORM integrationData
-    PROPERTIES() urlSMSTraffic, usernameSMSTraffic, passwordAPISMSTraffic, alphaNameSMSTraffic
+    PROPERTIES() urlSMSTraffic, usernameSMSTraffic, passwordAPISMSTraffic, alphaNameSMSTraffic, useRouteGroupId,
+                 routeGroupId_sms, routeGroupId_viber, routeGroupId_viber_sms
 ;
 
 DESIGN integrationData {
@@ -25,6 +33,10 @@ DESIGN integrationData {
             MOVE PROPERTY(usernameSMSTraffic());
             MOVE PROPERTY(passwordAPISMSTraffic());
             MOVE PROPERTY(alphaNameSMSTraffic());
+            MOVE PROPERTY(useRouteGroupId());
+            MOVE PROPERTY(routeGroupId_sms());
+            MOVE PROPERTY(routeGroupId_viber());
+            MOVE PROPERTY(routeGroupId_viber_sms());
         }
     }
 }
@@ -85,6 +97,8 @@ CONSTRAINT (SETCHANGED(timeTo(Dispatch d)) OR SETCHANGED (timeFrom(d)))  AND tim
 rus = DATA STRING[1](Dispatch);
 
 isSend 'Отправлено' = DATA BOOLEAN (Dispatch);
+dataUseRouteGroupId 'Использовать идентификаторы маршрутов' = DATA BOOLEAN (Dispatch);
+useRouteGroupId 'Использовать идентификаторы маршрутов' (Dispatch d) = OVERRIDE dataUseRouteGroupId(d), useRouteGroupId();
 
 TABLE dispatchDiscountCard (Dispatch, DiscountCard);
 
@@ -92,7 +106,7 @@ in 'Вкл.' = DATA BOOLEAN (Dispatch, DiscountCard);
 
 FORM dispatch 'Рассылка'
     OBJECTS d = Dispatch PANEL
-    PROPERTIES(d) isSend, name, isViber, isSMS, date, timeFrom, timeTo, rus
+    PROPERTIES(d) isSend, useRouteGroupId, name, isViber, isSMS, date, timeFrom, timeTo, rus
     PROPERTIES(d) SHOWIF isViber(d) messageViber, lengthMessageViber READONLY, lifetimeViber, image, caption, action
     PROPERTIES(d) SHOWIF isSMS(d) messageSMS, lengthMessageSMS READONLY, lifetimeSMS
     
@@ -109,6 +123,7 @@ DESIGN dispatch {
         columns = 1;
         type = CONTAINERV;
         MOVE PROPERTY(isSend(d));
+        MOVE PROPERTY(useRouteGroupId(d));
         MOVE PROPERTY(name(d));
         NEW date {
             type = CONTAINERH;
@@ -169,7 +184,7 @@ FORM dispatches 'Рассылки'
     PROPERTIES() dateFromFilter, dateToFilter, phoneFilter
 
     OBJECTS d = Dispatch
-    PROPERTIES(d) READONLYIF isReadonly() isSend, name, isViber, isSMS, createdTime, date, timeFrom, timeTo, messageViber, messageSMS
+    PROPERTIES(d) READONLYIF isReadonly() isSend, useRouteGroupId, name, isViber, isSMS, createdTime, date, timeFrom, timeTo, messageViber, messageSMS
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
     
     FILTERS date(d) >= dateFromFilter() OR NOT dateFromFilter(),
@@ -264,7 +279,9 @@ textDispatch (Dispatch d, DiscountCard c, TEXT key) = CASE
     WHEN key == 'message' THEN (IF isViber(d) THEN replaceKeys(c,messageViber(d)) ELSE IF isSMS(d) THEN replaceKeys(c,messageSMS(d)))
     WHEN key == 'rus' THEN rus(d)
     WHEN key == 'originator' THEN alphaNameSMSTraffic()
-    WHEN key == 'route' THEN (CONCAT '-', 'viber(' + lifetimeViber(d) + ')' IF isViber(d), 'sms(' + lifetimeSMS(d) + ')' IF isSMS(d))
+    WHEN key == 'routeGroupId' THEN (IF (isViber(d) AND isSMS(d)) THEN routeGroupId_viber_sms() ELSE IF isViber(d) THEN routeGroupId_viber() ELSE IF isSMS(d) THEN routeGroupId_sms()) IF useRouteGroupId(d)
+    WHEN key == 'param_sms' THEN (IF (isViber(d) AND isSMS(d)) THEN replaceKeys(c,messageSMS(d))) IF useRouteGroupId(d)
+    WHEN key == 'route' THEN (CONCAT '-', 'viber(' + lifetimeViber(d) + ')' IF isViber(d), 'sms(' + lifetimeSMS(d) + ')' IF isSMS(d)) IF NOT useRouteGroupId(d)
     WHEN key == 'image_url' THEN image(d)
     WHEN key == 'btn_url' THEN action(d)
     WHEN key == 'btn_name' THEN caption(d)
