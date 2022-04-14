@@ -42,7 +42,13 @@ fromBase 'Префикс этой базы' = DATA STRING[2] () CHARWIDTH 4;
 fromBase 'Префикс этой базы' (Configuration c) = fromBase() IF c IS Configuration;
 
 currentDateTimeString(Configuration c) = dateTimeToString(currentDateTime()) IF c IS Configuration;
-//availableVersion (Configuration c) = '1.5' IF c IS Configuration;
+
+@defineStaticObject(availableVersion, );
+
+EXTEND CLASS AvailableVersion {
+    ver1_5 '1.5',
+    ver1_6 '1.6'
+}
 availableVersion (Configuration c, INTEGER i) = CASE
     WHEN c IS Configuration AND i = 1 THEN '1.5'
     WHEN c IS Configuration AND i = 2 THEN '1.6'
@@ -102,7 +108,11 @@ emptyBody (Configuration c) = '' IF empty(c);
 GROUP header EXTID 'msg:Header';
 GROUP confirmation EXTID 'msg:Confirmation' : header;
 GROUP availableObjectTypes EXTID 'msg:AvailableObjectTypes' : header;
-GROUP bodySend EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5:Body';
+
+// Временный костыль для поддержки ver. 1.6
+GROUP bodySend15 EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5:Body';
+GROUP bodySend16 EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.6:Body';
+
 GROUP bodyReceive EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.6:Body';
 
 GROUP keyProperties EXTID 'КлючевыеСвойства';
@@ -137,9 +147,8 @@ FORM sendMessage FORMEXTID 'Message'
     PROPERTIES (configuration) IN header format EXTID 'msg:Format', currentDateTimeString EXTID 'msg:CreationDate'
     PROPERTIES (configuration) IN confirmation exchangePlan EXTID 'msg:ExchangePlan', toBase EXTID 'msg:To', fromBase EXTID 'msg:From', messageNo EXTID 'msg:MessageNo', receivedNo EXTID 'msg:ReceivedNo'
     
-    OBJECTS availableVersion = INTEGER EXTID 'msg:AvailableVersion' IN header
-    PROPERTIES (configuration, availableVersion) availableVersion EXTID 'value'
-    FILTERS availableVersion(configuration, availableVersion)
+    OBJECTS availableVersion = AvailableVersion EXTID 'msg:AvailableVersion' IN header
+    PROPERTIES (availableVersion) name EXTID 'value'
 
     OBJECTS objectExchange = ObjectExchange EXTID 'msg:ObjectType' IN availableObjectTypes
     PROPERTIES  name(objectExchange) EXTID 'msg:Name', inSendingTag(objectExchange, configuration) EXTID 'msg:Sending', inReceivingTag(objectExchange, configuration) EXTID 'msg:Receiving'
@@ -481,14 +490,18 @@ META extKeyPropertiesDetail (type, caption, group, obj, detail)
     @extKeyPropertiesDetail (type, ###type, caption, group, obj, detail);
 END
 
-META extDeleteObject(objtype, caption)
+META extDeleteObject(objtype, caption, ver)
     EXTEND FORM sendMessage
-        OBJECTS objtype##Deleted = ###objtype EXTID 'УдалениеОбъекта' IN bodySend
+        OBJECTS objtype##Deleted = ###objtype EXTID 'УдалениеОбъекта' IN bodySend###ver
         PROPERTIES(objtype##Deleted, configuration) IN link IN linkInLink sendUid EXTID caption
         FILTERS sendUid(objtype##Deleted, configuration), EnterpriseData.isDeleted(objtype##Deleted)
         
         FILTERS in(configuration, objtype##Deleted)
     ;
+END
+
+META extDeleteObject(objtype, caption)
+    @extDeleteObject(objtype, caption, 15);
 END
 
 META extTable(class, group)
@@ -510,7 +523,7 @@ META extTable(class, group)
     ;
 END
 
-META extDocument(doctype, caption)
+META extDocument(doctype, caption, ver)
     
     EXTEND CLASS ObjectExchange { doctype 'Документ.'##caption }
     
@@ -529,7 +542,7 @@ META extDocument(doctype, caption)
     @defProp(company, 'Организация', Company, ###doctype);
     
     EXTEND FORM sendMessage
-        OBJECTS doctype = ###doctype EXTID 'Документ.'##caption IN bodySend
+        OBJECTS doctype = ###doctype EXTID 'Документ.'##caption IN bodySend###ver
         PROPERTIES(doctype, configuration) IN keyProperties sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
         FILTERS dateTimeString(doctype, configuration), id(doctype, configuration), NOT EnterpriseData.isDeleted(doctype)
        
@@ -550,10 +563,14 @@ META extDocument(doctype, caption)
                 uid###doctype EXTID 'Ссылка', id###doctype EXTID 'Номер', date###doctype EXTID 'Дата'
     ;
 
-    @extDeleteObject(doctype, caption##'Ссылка');
+    @extDeleteObject(doctype, caption##'Ссылка', ver);
     overReceive(Configuration c) + {
         FOR EnterpriseData e = object(uid###doctype(INTEGER i)) AND NOT e IS ###doctype DO logToFile('ed', CONCAT ' ', uid###doctype(i), objectClassName(e), 'Документ.'##capt);
     }
+END
+
+META extDocument(doctype, caption)
+    @extDocument(doctype, caption, 15);
 END
 
 //all reference
@@ -572,7 +589,7 @@ META extReference(reftype, capt)
     inSending (Configuration configuration, ###reftype reftype) += inSending(ObjectExchange.reftype, configuration) IF reftype IS ###reftype;
 
     EXTEND FORM sendMessage
-        OBJECTS reftype = ###reftype EXTID 'Справочник.'##capt IN bodySend
+        OBJECTS reftype = ###reftype EXTID 'Справочник.'##capt IN bodySend15
         PROPERTIES(reftype, configuration) IN keyProperties sendUid EXTID 'Ссылка'
         FILTERS in(configuration, reftype), NOT EnterpriseData.isDeleted(reftype)
     ;
