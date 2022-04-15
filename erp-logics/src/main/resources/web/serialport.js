@@ -1,5 +1,5 @@
 async function getPort(info) {
-    if (info)  {
+    if (info.number || info.vid)  {
         const ports = await navigator.serial.getPorts();
         if (info.number) {
             if (ports.length >= info.number)
@@ -33,7 +33,7 @@ async function openPortReader(info) {
             return;
         }
 
-        await port.open({ baudRate: 9600 });
+        await port.open({ baudRate: info.baudRate });
     } catch (error) {
         if (onSerialPortError) onSerialPortError(error);
         alert("Код " + error.code + " : " + error.message + " / " + error.name);
@@ -99,7 +99,7 @@ async function serialPortSend (port, value) {
             serialPortWriter = await getPort(port);
             if (!serialPortWriter) return;
 
-            await serialPortWriter.open({ baudRate: 9600 });
+            await serialPortWriter.open({ baudRate: port.baudRate });
         } catch (error) {
             serialPortWriter = undefined;
             alert("Code " + error.code + " : " + error.message + " / " + error.name);

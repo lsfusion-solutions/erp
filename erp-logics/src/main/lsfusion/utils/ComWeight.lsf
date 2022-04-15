@@ -2,22 +2,28 @@ MODULE ComWeight;
 
 REQUIRE WeightDaemon;
 
-NAMESPACE Utils;
+NAMESPACE WeightDaemon;
+
+scalesBaudRate 'Baud rate весов' = DATA INTEGER (Computer);
 
 vidScalesComPort 'VID весов' = DATA STRING[4] (Computer);
 pidScalesComPort 'PID весов' = DATA STRING[4] (Computer);
 
-EXTEND FORM computer PROPERTIES(c) vidScalesComPort, pidScalesComPort;
+EXTEND FORM computer PROPERTIES(c) scalesBaudRate, vidScalesComPort, pidScalesComPort;
 
 DESIGN computer {
     weight {
+        MOVE PROPERTY(scalesBaudRate(c)); 
         MOVE PROPERTY(vidScalesComPort(c)); 
         MOVE PROPERTY(pidScalesComPort(c)); 
     }
 } 
 
 // не запустится на версии ниже 5й
-jsonScalesComPort (Computer c) = JSON(FROM number = scalesComPort(c), vid = vidScalesComPort(c), pid = pidScalesComPort(c)); 
+jsonScalesComPort (Computer c) = JSON(FROM number = scalesComPort(c),
+                                           baudRate = (OVERRIDE scalesBaudRate(c), 9600), 
+                                           vid = vidScalesComPort(c), 
+                                           pid = pidScalesComPort(c)); 
 
 openPortReader INTERNAL CLIENT 'openPortReader(info)' (JSON);
 openScalesPortReader (Computer c) { openPortReader(jsonScalesComPort(c)); }
