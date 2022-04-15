@@ -39,7 +39,8 @@ inReceiving 'Принимать' = DATA BOOLEAN (ObjectExchange, Configuration);
 inReceivingTag (ObjectExchange e, Configuration c) = IF inReceiving(e, c) THEN '1.6' ELSE '';
 
 fromBase 'Префикс этой базы' = DATA STRING[2] () CHARWIDTH 4;
-fromBase 'Префикс этой базы' (Configuration c) = fromBase() IF c IS Configuration;
+dataFromBase = DATA STRING[2] (Configuration);
+fromBase 'Префикс этой базы' (Configuration c) = OVERRIDE dataFromBase(c), fromBase() IF c IS Configuration;
 
 currentDateTimeString(Configuration c) = dateTimeToString(currentDateTime()) IF c IS Configuration;
 
@@ -58,7 +59,7 @@ format (Configuration c) = 'http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5' IF 
 exchangePlan (Configuration c) = 'СинхронизацияДанныхЧерезУниверсальныйФормат' IF c IS Configuration;
 messageNo (Configuration c) = OVERRIDE idSended(c), 0 IF c IS Configuration;
 receivedNo (Configuration c) = OVERRIDE idReceived(c), 0 IF c IS Configuration;
-prefix (Configuration c) = fromBase() IF c IS Configuration;
+prefix (Configuration c) = fromBase(c);
 
 path 'Путь обмена' () = DATA STRING ();
 dataPath 'Путь обмена' = DATA STRING (Configuration);
@@ -259,7 +260,7 @@ EXTEND FORM integrationData
                name,
                idSended BACKGROUND (IF isSended(c) THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
                idReceived BACKGROUND (IF isReceived(c) THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
-               dateStartExchange, toBase, path
+               dateStartExchange, fromBase, toBase, path
     PROPERTIES (c) SHOWIF someConfigurations() NEWSESSION NEW, EDIT, DELETE
     
     PROPERTIES sendMessage(c), receiveMessage(c), showOptions(c), generateUid() DRAW c    
