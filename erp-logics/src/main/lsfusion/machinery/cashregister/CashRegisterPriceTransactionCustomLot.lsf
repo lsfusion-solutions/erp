@@ -1,0 +1,76 @@
+MODULE CashRegisterPriceTransactionCustomLot;
+
+REQUIRE CashRegisterPriceTransaction, SkuLedgerLot, TaxItem, LotPrice;
+
+NAMESPACE CashRegister;
+
+CLASS CashRegisterPriceTransactionLot 'Загрузка марок в кассы' : MachineryPriceTransaction;
+groupCashRegister 'Группа касс' = DATA GroupCashRegister (CashRegisterPriceTransactionLot);
+groupMachinery (CashRegisterPriceTransactionLot transaction) += groupCashRegister(transaction);
+
+in 'Вкл.' = DATA BOOLEAN (CashRegisterPriceTransactionLot, Lot);
+VAT 'НДС %' (CashRegisterPriceTransactionLot t, Lot l) = OVERRIDE valueVAT(sku(l)), 0; 
+
+createBalanceMachineryPriceTransactionLot 'Остатки(марк.товары)' (Stock stock)  { 
+    LOCAL message = TEXT();
+    LOCAL sentSomething = BOOLEAN();
+    message() <- TEXT('Принято к загрузке в оборудование : \n');
+	FOR stock(GroupCashRegister g) = stock AND active(g) AND (GROUP SUM 1 IF currentBalance(Lot l, stock)) 
+        NEW t = CashRegisterPriceTransactionLot DO {
+	    
+	    groupCashRegister(t) <- g;
+	    snapshot(t) <- TRUE;
+	    in(t, Lot l) <- TRUE IF currentBalance(l, stock) > 0 AND price(l);
+	    in(t, CashRegister c) <- TRUE IF groupMachinery(c) = g AND active(c);
+	    LOCAL countLots = INTEGER ();
+	    countLots() <- GROUP SUM 1 IF in(t, Lot l);
+	    message() <- message() + (OVERRIDE name(g), 'Без наименования') + ' - ' + (OVERRIDE  countLots() + ' марок.\n', ' ');
+        sentSomething() <- TRUE;
+	    APPLY NESTED LOCAL;
+	    
+	}
+	IF sentSomething() THEN
+        MESSAGE message() NOWAIT;
+    ELSE
+        IF NOT supressNoNeedMessage() THEN
+            MESSAGE 'Загрузка марок в оборудование не требуется: '+name(stock)+'.\n' NOWAIT;
+}CONFIRM IN incrementMachineryPrice;
+
+countLots (MachineryPriceTransaction t) = IF t IS CashRegisterPriceTransactionLot THEN GROUP SUM 1 IF in(t, Lot l);
+countItems 'Кол-во строк' (MachineryPriceTransaction t) = OVERRIDE countBarcodes(t),  countLots(t);
+
+EXTEND FORM machineryPriceTransactions
+    PROPERTIES (s) createBalanceMachineryPriceTransactionLot
+    
+    PROPERTIES (t) countItems AFTER countBarcodes(t)
+    
+    OBJECTS l = Lot
+    PROPERTIES READONLY SHOWIF (t IS CashRegisterPriceTransactionLot) id(l), idSku(l), 
+        nameSku(l), price(l), 'Ед. изм.' = shortNameUOM(sku(l)), VAT(t, l)     
+    FILTERS in(t, l)
+    
+    OBJECTS lt = Lot
+    PROPERTIES READONLY SHOWIF (tt IS CashRegisterPriceTransactionLot) id(lt), idSku(lt), 
+        nameSku(lt), price(lt), 'Ед. изм.' = shortNameUOM(sku(l)), VAT(tt, lt)
+    FILTERS in(tt, lt)
+;
+
+DESIGN machineryPriceTransactions{
+    pane{
+        BOX (t){
+            PROPERTY (countBarcodes(t)) {hide = TRUE;}
+        }
+    }
+    specContainer{
+        NEW lots {
+            caption = 'Марки';
+            MOVE BOX (l);  
+        }
+    }
+    specContainer2{
+        NEW lots2{
+            caption = 'Марки';
+            MOVE BOX (lt);
+        }
+    }
+}

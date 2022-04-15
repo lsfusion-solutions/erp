@@ -1,0 +1,327 @@
+MODULE Set10WebServer;
+
+REQUIRE Set10PriceTransaction, ZReport;
+
+NAMESPACE Set10;
+
+useWebServerSet10 'Использовать Web Server Set10' = DATA BOOLEAN ();
+
+GROUP original_purchase EXTID 'original-purchase';
+GROUP discountCards;
+GROUP card;
+GROUP positions;
+
+GROUP plugin_property EXTID 'plugin-property';
+GROUP payments;
+
+operDay = DATA LOCAL DATE(INTEGER);
+shop = DATA LOCAL STRING(INTEGER);
+cash = DATA LOCAL STRING(INTEGER);
+shift = DATA LOCAL STRING(INTEGER);
+number = DATA LOCAL STRING(INTEGER);
+saletime = DATA LOCAL ZDATETIME(INTEGER);
+returndayinday = DATA LOCAL STRING(INTEGER);
+discountCard = DATA LOCAL STRING(INTEGER);
+type = DATA LOCAL STRING(INTEGER);
+number1 = DATA LOCAL STRING(INTEGER);
+purchasePosition = DATA LOCAL INTEGER(INTEGER);
+key = DATA LOCAL STRING(INTEGER);
+value = DATA LOCAL STRING(INTEGER);
+order = DATA LOCAL STRING(INTEGER);
+departNumber = DATA LOCAL STRING(INTEGER);
+goodsCode = DATA LOCAL STRING(INTEGER);
+barCode = DATA LOCAL STRING(INTEGER);
+count = DATA LOCAL STRING(INTEGER);
+cost = DATA LOCAL STRING(INTEGER);
+nds = DATA LOCAL STRING(INTEGER);
+ndsSum = DATA LOCAL STRING(INTEGER);
+discountValue = DATA LOCAL STRING(INTEGER);
+costWithDiscount = DATA LOCAL STRING(INTEGER);
+amount = DATA LOCAL STRING(INTEGER);
+dateCommit = DATA LOCAL ZDATETIME(INTEGER);
+key1 = DATA LOCAL STRING(INTEGER);
+value1 = DATA LOCAL STRING(INTEGER);
+position = DATA LOCAL STRING(INTEGER);
+purchasePayment = DATA LOCAL INTEGER(INTEGER);
+paymentPayment = DATA LOCAL INTEGER(INTEGER);
+key2 = DATA LOCAL STRING(INTEGER);
+value2 = DATA LOCAL STRING(INTEGER);
+payment = DATA LOCAL STRING(INTEGER);
+typeClass = DATA LOCAL STRING(INTEGER);
+amount1 = DATA LOCAL STRING(INTEGER);
+description = DATA LOCAL STRING(INTEGER);
+tabNumber = DATA LOCAL STRING(INTEGER);
+userName = DATA LOCAL STRING(INTEGER);
+operationType = DATA LOCAL STRING(INTEGER);
+operDay1 = DATA LOCAL DATE(INTEGER);
+shop1 = DATA LOCAL STRING(INTEGER);
+cash1 = DATA LOCAL STRING(INTEGER);
+shift1 = DATA LOCAL STRING(INTEGER);
+number2 = DATA LOCAL STRING(INTEGER);
+saletime1 = DATA LOCAL ZDATETIME(INTEGER);
+begintime = DATA LOCAL ZDATETIME(INTEGER);
+amount2 = DATA LOCAL STRING(INTEGER);
+discountAmount = DATA LOCAL STRING(INTEGER);
+inn = DATA LOCAL STRING(INTEGER);
+count1 = DATA LOCAL STRING();
+
+FORM purchasesImport FORMEXTID 'purchases'
+    PROPERTIES() count1 EXTID 'count' ATTR
+
+    OBJECTS purchase = INTEGER
+
+    PROPERTIES(purchase) returndayinday ATTR, tabNumber ATTR, userName ATTR, operationType ATTR, 
+        operDay1 EXTID 'operDay' ATTR, shop1 EXTID 'shop' ATTR, cash1 EXTID 'cash' ATTR, shift1 EXTID 'shift' ATTR,
+        number2 EXTID 'number' ATTR, saletime1 EXTID 'saletime' ATTR, begintime ATTR, amount2 EXTID 'amount' ATTR,
+        discountAmount ATTR, inn ATTR
+    PROPERTIES(purchase) IN original_purchase operDay ATTR, shop ATTR, cash ATTR, shift ATTR, number ATTR, saletime ATTR
+    FILTERS imported(purchase)
+    PROPERTIES(purchase) IN discountCards discountCard
+    PROPERTIES(purchase) IN card type ATTR, number1 EXTID 'number' ATTR
+
+    OBJECTS position = INTEGER IN positions
+    FILTERS purchasePosition(position) == purchase
+    PROPERTIES(position) order ATTR, departNumber ATTR, goodsCode ATTR, barCode ATTR, count ATTR, cost ATTR, nds ATTR, 
+        ndsSum ATTR, discountValue ATTR, costWithDiscount ATTR, amount ATTR, dateCommit ATTR
+    PROPERTIES(position) IN plugin_property key ATTR, value ATTR
+    FILTERS imported(position)
+    PROPERTIES(position) key1 EXTID 'key' ATTR, value1 EXTID 'value' ATTR
+
+    OBJECTS payment = INTEGER IN payments
+    FILTERS purchasePayment(payment) == purchase
+    FILTERS paymentPayment(payment) == payment
+    PROPERTIES(payment) key2 EXTID 'key' ATTR, value2 EXTID 'value' ATTR
+    FILTERS imported(payment)
+    PROPERTIES(payment) typeClass ATTR, amount1 EXTID 'amount' ATTR, description ATTR
+;
+
+idReceipt(INTEGER i) = operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i);
+idReceiptDetail (INTEGER i) = operationType(i) + '_' + idReceipt(purchasePosition(i)) + '_' + order(i);
+zReportById(INTEGER i) = zReport(operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
+paymenId (INTEGER i) = STRING[100](idReceipt(purchasePayment(i)) + '_' + typeClass(i));
+sumChange(INTEGER i) = NUMERIC[18,4](GROUP MAX amount1(INTEGER j) IF typeClass(j) = 'CashChangePaymentEntity' AND purchasePayment(j) = i);
+
+
+EXTEND FORM zReports
+    PROPERTIES (b) id FIRST;
+
+skuCustom = ABSTRACT Sku (INTEGER);
+overCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
+
+importReceipt(STRING purchases){
+    NEWSESSION {
+        stringToFile(purchases);
+        IMPORT purchasesImport XML FROM resultFile();
+        FOR imported(INTEGER i) AND NOT receipt(idReceipt(i)) AND idReceipt(i) DO NEW r = Receipt{
+            id(r) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i));
+            date(r) <- DATE(saletime(i));
+            time(r) <- TIME(DATETIME(saletime(i)));
+            number(r) <- INTEGER (number2(i));
+            IF zReportById(i) THEN zReport(r) <- zReportById(i);
+            ELSE NEW z = ZReport{
+                id(z) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
+                cashRegister(z) <- GROUP MAX CashRegister c IF idStoreSet(c) = shop1(i) AND idCashRegisterSet(c) = cash1(i);
+                isPosted(z) <- TRUE; 
+                zReport(r) <- z;
+            }
+            FOR purchasePosition(INTEGER j) = i AND operationType(i) = 'true' AND NOT receiptDetail(idReceiptDetail(j))
+                NEW d = ReceiptSaleDetail DO {
+            
+                id(d) <- STRING[100](idReceiptDetail(j));
+                idBarcode(d) <- STRING[15](barCode(j));
+                sku(d) <- OVERRIDE skuCustom(j), skuBarcode(barCode(j));
+                price(d) <- NUMERIC[16,4](cost(j));
+                quantity(d) <- NUMERIC[16,5](count(j));
+                discountSum(d) <- NUMERIC[16,4] (discountValue(j));
+                sum(d) <- NUMERIC[16,4](amount(j));
+                receipt(d) <- r;
+                overCreateReceiptDetail(d, j);
+            
+            }
+            FOR purchasePosition(INTEGER j) = i AND operationType(i) = 'false' AND NOT receiptDetail(idReceiptDetail(j))
+                NEW d = ReceiptReturnDetail DO {
+        
+                id(d) <- STRING[100](idReceiptDetail(j));
+                idBarcode(d) <- STRING[15](barCode(j));
+                sku(d) <- OVERRIDE skuCustom(j), skuBarcode(barCode(j));
+                price(d) <- NUMERIC[16,4](cost(j));
+                quantity(d) <- NUMERIC[16,5](count(j));
+                discountSum(d) <- NUMERIC[16,4] (discountValue(j));
+                sum(d) <- NUMERIC[16,4](amount(j));
+                receipt(d) <- r;
+                saleReceipt(d) <- receipt(operDay(i) + '_' + shop(i) + '_' + cash(i) + '_' + shift(i) + '_' + number(i));
+                overCreateReceiptDetail(d, j);
+            
+            }
+            FOR purchasePayment(INTEGER j) == i AND NOT payment(paymenId(j)) 
+                AND NOT typeClass(j) = 'CashChangePaymentEntity'  NEW p = Payment DO {
+            
+                id(p) <- STRING[100](paymenId(j));
+                receipt(p) <- r;
+                sum(p) <- NUMERIC[18,4]((IF typeClass(j) = 'CashPaymentEntity' THEN 
+                    (NUMERIC[18,4](amount1(j)) (-) sumChange(i))
+                    ELSE  NUMERIC[18,4] (amount1(j))) * (IF operationType(i) = 'true' THEN 1 ELSE -1));
+                paymentType(p) <- IF typeClass(j) = 'CashPaymentEntity' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
+  
+            }
+        }
+        APPLY NESTED LOCAL;
+    }
+}
+
+GROUP processPurchases EXTID 'ns2=http://purchases.erpi.crystals.ru:processPurchases' : bodyAnswer;
+
+purchases = DATA LOCAL STRING();
+version = DATA LOCAL STRING();
+
+FORM purchasesRequest FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR IN processPurchases ='http://purchases.erpi.crystals.ru' EXTID 'xmlns:ns2'
+    PROPERTIES() IN processPurchases purchases, version
+;
+
+set_purchases(FILE f) {
+    TRY{
+        fileToString(f);
+        logToFile('set10', (CONCAT ' ', 'purchases',  resultString()));
+        IMPORT purchasesRequest XML FROM f;
+        IF purchases() THEN {
+            decodeBase64(purchases());
+            importReceipt(decodedBase64());
+            IF canceled() THEN {
+                logToFile('set10', (CONCAT ' : ', 'purchases error', applyMessage()));
+                statusHttpTo() <- 500; 
+            }
+            ELSE 
+                logToFile('set10', (CONCAT ' : ', 'purchases imported', count1() + ' receipts'));
+        }
+        ELSE statusHttpTo() <- 500; 
+    }
+    CATCH {
+        logToFile('set10', (CONCAT ' : ', 'purchases exception', messageCaughtException()));
+        statusHttpTo() <- 500;
+    }
+}
+
+//запросы обмена данными
+reImportReceipt(STRING purchases){
+    importReceipt(purchases);
+    NEWSESSION {
+        stringToFile(purchases);
+        IMPORT purchasesImport XML FROM resultFile();
+        FOR imported(INTEGER i) AND Receipt r = receipt(idReceipt(i)) DO{
+            date(r) <- DATE(saletime(i));
+            time(r) <- TIME(DATETIME(saletime(i)));
+            number(r) <- INTEGER (number2(i));
+            IF zReportById(i) THEN zReport(r) <- zReportById(i);
+            ELSE NEW z = ZReport{
+                id(z) <- (operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
+                cashRegister(z) <- GROUP MAX CashRegister c IF idStoreSet(c) = shop1(i) AND idCashRegisterSet(c) = cash1(i);
+                isPosted(z) <- TRUE; 
+                zReport(r) <- z;
+            }
+            FOR purchasePosition(INTEGER j) = i AND ReceiptDetail d = receiptDetail(idReceiptDetail(j)) DO {
+        
+                idBarcode(d) <- STRING[15](barCode(j));
+                sku(d) <- OVERRIDE skuCustom(j), skuBarcode(barCode(j));
+                price(d) <- NUMERIC[16,4](cost(j));
+                quantity(d) <- NUMERIC[16,5](count(j));
+                discountSum(d) <- NUMERIC[16,4] (discountValue(j));
+                sum(d) <- NUMERIC[16,4](amount(j));
+                receipt(d) <- r;
+                saleReceipt(d) <- receipt(operDay(i) + '_' + shop(i) + '_' + cash(i) + '_' + shift(i) + '_' + number(i));
+                overCreateReceiptDetail(d, j);
+            
+            }
+            FOR purchasePayment(INTEGER j) == i AND Payment p = payment(paymenId(j)) 
+                AND NOT typeClass(j) = 'CashChangePaymentEntity' DO {
+            
+                id(p) <- paymenId(j);
+                receipt(p) <- r;
+                sum(p) <- NUMERIC[18,4]((IF typeClass(j) = 'CashPaymentEntity' THEN 
+                    (NUMERIC[18,4](amount1(j)) (-) sumChange(i))
+                    ELSE  NUMERIC[18,4] (amount1(j))) * (IF operationType(i) = 'true' THEN 1 ELSE -1));
+                paymentType(p) <- IF typeClass(j) = 'CashPaymentEntity' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
+  
+            }
+        }
+        APPLY;
+    }
+}
+
+//запрос обмена данными
+
+monthCaption (INTEGER i) = CASE
+    WHEN i = 1 THEN 'JANUARY'
+    WHEN i = 2 THEN 'FEBRUARY'
+    WHEN i = 3 THEN 'MARCH'
+    WHEN i = 4 THEN 'APRIL'
+    WHEN i = 5 THEN 'MAY'
+    WHEN i = 6 THEN 'JUNE'
+    WHEN i = 7 THEN 'JULY'
+    WHEN i = 8 THEN 'AUGUST'
+    WHEN i = 9 THEN 'SEPTEMBER'
+    WHEN i = 10 THEN 'OCTOBER'
+    WHEN i = 11 THEN 'NOVEMBER'
+    WHEN i = 12 THEN 'DECEMBER'
+;
+                     
+monthCaption (DATE d) = monthCaption(extractMonthNumber(d));                     
+
+GROUP body EXTID 'soapenv:Body';
+GROUP getPurchasesByOperDayData EXTID 'plug:getPurchasesByOperDayData' : bodyRequest;
+
+year = DATA LOCAL STRING();
+mobth = DATA LOCAL STRING();
+day = DATA LOCAL STRING();
+
+FORM requestExchangeReq FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://plugins.operday.ERPIntegration.crystals.ru/' EXTID 'xmlns:plug'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN getPurchasesByOperDayData year EXTID 'Year', mobth EXTID 'Mobth', day EXTID 'Day';
+
+GROUP getPurchasesByOperDayDataResponse EXTID 'ns2=http://plugins.operday.ERPIntegration.crystals.ru/:getPurchasesByOperDayDataResponse' : bodyAnswer;
+
+FORM requestExchangeAnswer FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR IN getPurchasesByOperDayDataResponse ='http://plugins.operday.ERPIntegration.crystals.ru/' EXTID 'xmlns:ns2'
+    PROPERTIES() IN getPurchasesByOperDayDataResponse return;
+
+senRequestExchange(DATE d){
+    year() <- STRING(extractYear(d));
+    mobth() <- monthCaption(d);
+    day() <- STRING(extractDay(d));
+    EXPORT requestExchangeReq XML;
+    LOCAL headersSet = STRING (STRING);
+    headersSet('Content-Type') <- 'application/xml';
+    LOCAL answer = FILE ();
+    EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/FiscalInfoExport' HEADERS headersSet PARAMS exportFile() TO answer;
+    IMPORT requestExchangeAnswer XML FROM answer();
+    IF return() THEN {
+        decodeBase64(return());
+        reImportReceipt(decodedBase64());
+    }
+}
+
+EXTEND CLASS RequestExchangeType{
+    salesInfoSet10 'Перезагрузить продажи Set10'
+}
+
+salesInfoSet10 'Перезагрузить продажи Set10' (RequestExchange r){
+    TRY {
+        FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO senRequestExchange(d);
+        succeededNative(r) <- TRUE;
+        dateTimeSucceededNative(r) <- currentDateTime();
+    }
+    CATCH {
+        NEW er = RequestExchangeError{
+            requestExchange(er) <- r;
+            date(er) <- currentDateTime();
+            erTrace(er) <- messageCaughtException();
+        }
+    }
+    FINALLY {
+        APPLY;
+    }
+}
+
+EXTEND FORM requestExchange
+    PROPERTIES (r) salesInfoSet10 SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoSet10 TOOLBAR;    
