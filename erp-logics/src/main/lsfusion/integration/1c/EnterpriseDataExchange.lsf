@@ -424,13 +424,25 @@ settlements (SaleOrder s, Configuration c) += '' IF s IS SaleOrder AND c IS Conf
 
 @extTable(shipmentOrder, product);
 @defPropObjectDetail(item, 'Номенклатура', Item, shipmentOrder, product, itemData);
-@defPropObjectDetail(specification, 'Характеристика', Specification, shipmentOrder, product, itemData);
+@defPropDetail(specification, 'Характеристика', Specification, shipmentOrder, product);
 EXTEND FORM sendMessage
+    OBJECTS specificationShipmentOrderProduct = Specification IN itemData EXTID 'Характеристика'
+    PROPERTIES(specificationShipmentOrderProduct, configuration) sendUid EXTID 'Ссылка'
+    FILTERS specificationShipmentOrderProduct = specification(shipmentOrderProduct, configuration)
+
     OBJECTS itemSpecificationShipmentOrderProduct = Item EXTID 'Номенклатура'
     PROPERTIES(itemSpecificationShipmentOrderProduct, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
     FILTERS itemSpecificationShipmentOrderProduct = item(shipmentOrderProduct, configuration)
+
+    PROPERTIES(specificationShipmentOrderProduct, configuration) fullName EXTID 'НаименованиеПолное' 
 ;
 
+uidSpecificationShipmentOrderProduct 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+fullNameSpecificationShipmentOrderProduct 'НаименованиеПолное' = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM receiveMessage
+    PROPERTIES (shipmentOrderProduct) IN specification uidSpecificationShipmentOrderProduct EXTID 'Ссылка', fullNameSpecificationShipmentOrderProduct EXTID 'НаименованиеПолное'
+;
 @defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, shipmentOrder, product);
 @defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], shipmentOrder, product);
 @defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], shipmentOrder, product);
