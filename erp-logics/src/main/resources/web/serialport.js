@@ -1,6 +1,13 @@
 async function getPort(info) {
     if (info)  {
         const ports = await navigator.serial.getPorts();
+        if (info.number) {
+            if (ports.length >= info.number)
+                return ports[info.number-1];
+            else {
+                throw { code : "", message : "Устройство с номером " + info.number + " не найдено", name : "" };
+            }
+        }
         const devices = ports.filter(port => port.getInfo().usbProductId == parseInt(info.pid, 16) && port.getInfo().usbVendorId == parseInt(info.vid, 16))
         if (devices.length > 0)
             return devices[0];
@@ -13,6 +20,7 @@ async function getPort(info) {
 
 let serialPortReader;
 let onSerialPortReceive;
+let onSerialPortError;
 
 async function openPortReader(info) {
     if (serialPortReader) return;
