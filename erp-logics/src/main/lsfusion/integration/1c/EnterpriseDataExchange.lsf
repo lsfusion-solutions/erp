@@ -120,25 +120,39 @@ META defSpecificationDetail(nm, class, table, extid)
     @defSpecificationDetail(nm, class, table, extid, nm###table);
 END
 
-CLASS ABSTRACT ItemData 'ДанныеНоменклатуры';
-item 'Номенклатура' = ABSTRACT Item (ItemData);
-specification 'Характеристика' = ABSTRACT Specification (ItemData);
-META defItemDataDetail(nm, class, table, extid)
-    EXTEND FORM sendMessage
-        OBJECTS nm###class###table = ItemData EXTID extid
-        FILTERS nm###class###table = nm(class###table, configuration) 
-    ;
-    @defItemDetail(item, itemData###class, table, 'Номенклатура');
-    @defSpecification(specification, itemData###class###table, 'Характеристика');
-END
-
 //barcode
 @extReference (barcode, 'ШтрихкодыНоменклатуры');
 @defPropSimple(barcodeSelect, 'ШтрихкодОтбор', STRING, barcode);
 @extTable(barcode, records);
 @defPropSimpleDetail(barcodeItem, 'Штрихкод', STRING, barcode, records);
-@defPropObjectDetail(item, 'Номенлатура', Item, barcode, records);
-@defPropObjectDetail(specification, 'Характеристика', Specification, barcode, records);
+@defPropDetail(item, 'Номенклатура', Item, barcode, records);
+EXTEND FORM sendMessage
+    OBJECTS itemBarcodeRecords = Item IN itemRecords EXTID 'Номенклатура'
+    PROPERTIES(itemBarcodeRecords, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
+    FILTERS itemBarcodeRecords = item(barcodeRecords, configuration)
+;
+
+uidItemBarcodeRecords 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+fullNameItemBarcodeRecords 'НаименованиеПолное' = DATA LOCAL STRING (INTEGER);
+idItemBarcodeRecords 'КодВПрограмме' = DATA LOCAL ISTRING[36] (INTEGER);
+articleItemBarcodeRecords 'Артикул' = DATA LOCAL STRING (INTEGER);
+nameItemBarcodeRecords 'Наименование' = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM receiveMessage
+    PROPERTIES (barcodeRecords) IN itemRecords uidItemBarcodeRecords EXTID 'Ссылка', fullNameItemBarcodeRecords  EXTID 'НаименованиеПолное', idItemBarcodeRecords EXTID 'КодВПрограмме', articleItemBarcodeRecords EXTID 'Артикул', nameItemBarcodeRecords EXTID 'Наименование'  
+;
+@defPropDetail(specification, 'Характеристика', Specification, barcode, records);
+EXTEND FORM sendMessage
+    OBJECTS specificationBarcodeRecords = Specification IN specificationRecords EXTID 'Характеристика'
+    PROPERTIES(specificationBarcodeRecords, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное'
+    FILTERS specificationBarcodeRecords = specification(barcodeRecords, configuration)
+;
+uidSpecificationBarcodeRecords 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+fullNameSpecificationBarcodeRecords 'НаименованиеПолное' = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM receiveMessage
+    PROPERTIES (barcodeRecords) IN specificationRecords uidSpecificationBarcodeRecords EXTID 'Ссылка', fullNameSpecificationBarcodeRecords EXTID 'НаименованиеПолное'
+;
 
 // patner
 @extReference(partner, 'Контрагенты');
