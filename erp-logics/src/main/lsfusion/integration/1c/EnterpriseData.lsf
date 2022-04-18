@@ -32,8 +32,17 @@ dateStartExchange 'Дата начала обмена' = DATA DATE (Configuratio
 
 toBase 'Префикс внешней базы' = DATA STRING[2] (Configuration) CHARWIDTH 4;
 
+@defineStaticObject(availableVersion, );
+EXTEND CLASS AvailableVersion {
+    ver1_5 '1.5',
+    ver1_6 '1.6'
+}
+
+version 'Версия'  = DATA AvailableVersion (Configuration);
+nameVersion 'Версия' (Configuration c) = OVERRIDE name(version(c)), '1.5' IF c IS Configuration; 
+
 inSending 'Передавать' = DATA BOOLEAN (ObjectExchange, Configuration);
-inSendingTag (ObjectExchange e, Configuration c) = IF inSending(e, c) THEN '1.5' ELSE '';
+inSendingTag (ObjectExchange e, Configuration c) = IF inSending(e, c) THEN (IF version(c) = AvailableVersion.ver1_6 THEN '*' ELSE nameVersion(c)) ELSE '';
 
 inReceiving 'Принимать' = DATA BOOLEAN (ObjectExchange, Configuration);
 inReceivingTag (ObjectExchange e, Configuration c) = IF inReceiving(e, c) THEN '1.6' ELSE '';
@@ -44,18 +53,7 @@ fromBase 'Префикс этой базы' (Configuration c) = OVERRIDE dataFro
 
 currentDateTimeString(Configuration c) = dateTimeToString(currentDateTime()) IF c IS Configuration;
 
-@defineStaticObject(availableVersion, );
-
-EXTEND CLASS AvailableVersion {
-    ver1_5 '1.5',
-    ver1_6 '1.6'
-}
-availableVersion (Configuration c, INTEGER i) = CASE
-    WHEN c IS Configuration AND i = 1 THEN '1.5'
-    WHEN c IS Configuration AND i = 2 THEN '1.6'
-;
-
-format (Configuration c) = 'http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5' IF c IS Configuration;
+format (Configuration c) = 'http://v8.1c.ru/edi/edi_stnd/EnterpriseData/' + nameVersion(c);
 exchangePlan (Configuration c) = 'СинхронизацияДанныхЧерезУниверсальныйФормат' IF c IS Configuration;
 messageNo (Configuration c) = OVERRIDE idSended(c), 0 IF c IS Configuration;
 receivedNo (Configuration c) = OVERRIDE idReceived(c), 0 IF c IS Configuration;
@@ -260,7 +258,7 @@ EXTEND FORM integrationData
                name,
                idSended BACKGROUND (IF isSended(c) THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
                idReceived BACKGROUND (IF isReceived(c) THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
-               dateStartExchange, fromBase, toBase, path
+               dateStartExchange, fromBase, toBase, path, nameVersion
     PROPERTIES (c) SHOWIF someConfigurations() NEWSESSION NEW, EDIT, DELETE
     
     PROPERTIES sendMessage(c), receiveMessage(c), showOptions(c), generateUid() DRAW c    
