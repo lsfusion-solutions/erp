@@ -7,8 +7,13 @@ NAMESPACE EZ;
 //'Отчёт о маркировке'
 lotInit  = DATA LOCAL LotInit ();
 gtin  = DATA LOCAL STRING[14] ();
-filterLot (Lot l) = (GROUP SUM quantity(LotInitDetail d, l) IF lotInit() == lotInit(d)) > 0 AND gtin() == gtin(l); 
-isSend 'Отправлен' = DATA BOOLEAN (LotInit);
+isSend 'Отправлен' (Lot l) = status(l) == LotStatus.MARKED;
+
+select 'Отм.' = DATA LOCAL NESTED BOOLEAN (LotInitDetail);
+select 'Отм.' (Lot l) = TRUE IF (GROUP SUM 1 IF quantity(LotInitDetail d, l) AND select(d));
+
+filterLot (Lot l) = (GROUP SUM quantity(LotInitDetail d, l) IF lotInit() == lotInit(d)) > 0 AND gtin() == gtin(l) AND NOT isSend(l) AND
+    (NOT (GROUP SUM 1 IF select(LotInitDetail d)) OR select(l));
     
 exception 'Сообщение' = DATA TEXT (LotInit);
 handleException (LotInit i, FILE exception) {
@@ -143,11 +148,24 @@ lastLotInitDetail(LotInit i, STRING[14] gtin) = GROUP LAST LotInitDetail d IF i 
 registrationNumberDeclaration(LotInit i, STRING[14] gtin) = OVERRIDE registrationNumberDeclaration(i), registrationNumberDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
 dateDeclaration(LotInit i, STRING[14] gtin) = OVERRIDE dateDeclaration(i), dateDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
 sidOrigin2CountryDeclaration(LotInit i, STRING[14] gtin)= OVERRIDE sidOrigin2CountryDeclaration(i), sidOrigin2CountryDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
+sidCountryDeclaration(LotInit i, STRING[14] gtin)= OVERRIDE sidCountryDeclaration(i), sidCountryDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
+
+quantitySendLot 'Кол-во отправленных марок' (LotInitDetail d) = GROUP SUM quantity(d, Lot l) * count(l) IF isSend(l);
+isSend 'Отправлен' (LotInitDetail d) = quantitySendLot(d) == quantityLot(d) AND quantitySendLot(d);
+quantitySendLot 'Кол-во марок' (LotInit i) = GROUP SUM quantitySendLot(LotInitDetail d) IF lotInit(d) = i;
+isSend 'Отправлен' (LotInit i) = quantitySendLot(i) == quantityLot(i) AND quantityLot(i);
 
 // разрешено формировать отчтет только по одному GTIN
 addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     lotInit() <- i;
     gtin() <- gtin;
+    
+    // обновление статусов перед отправкой
+    FOR filterLot (Lot l) DO getStatus(l);           
+    
+    IF (NOT GROUP SUM 1 IF filterLot (Lot l)) THEN {
+        RETURN;
+    }
     
     EXPORT addMark JSON;
     // Дополнительная обработка JSON к виду { "labels": ["01048113090167242128v8LZVn936rXO", "001048113090167242128v8LZVn936rXO"]}   
@@ -172,6 +190,11 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     // 95 Способ маркировки (полиграфическая защита)   
     // 93 Тип производственного заказа 
     CASE
+        // тестовые
+//        listParams() <- listParams() + ' \{ "code": 137, "value": "' + codeMode(i) + '"\}';              
+//        IF codeProductionType(i) THEN listParams() <- listParams() + ', \{ "code": 123, "value": "' + codeProductionType(i) + '"\}'; 
+//        IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 124, "value": "' + codeMethod(i) + '"\}';           
+                    
         WHEN mode(i) == LotInitMode.PRODUCTION THEN {            
             listParams() <- listParams() + ' \{ "code": 101, "value": "' + codeMode(i) + '"\}';              
             IF codeProductionType(i) THEN listParams() <- listParams() + ', \{ "code": 93, "value": "' + codeProductionType(i) + '"\}'; 
@@ -181,8 +204,8 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
             listParams() <- listParams() + '  \{ "code": 101, "value": "' + codeMode(i) + '"\}'; 
             IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 95, "value": "' + codeMethod(i) + '"\}'; 
             
-            IF sidOrigin2CountryDeclaration(i, gtin) THEN {
-                listParams() <- listParams() + ', \{ "code": 100, "value": "' + sidOrigin2CountryDeclaration(i, gtin) + '"\}';
+            IF sidCountryDeclaration(i, gtin) THEN {
+                listParams() <- listParams() + ', \{ "code": 100, "value": "' + sidCountryDeclaration(i, gtin) + '"\}';
             } ELSE {
                 MESSAGE 'Не задана страна экспорта'NOWAIT;
             }
@@ -199,7 +222,7 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
                 MESSAGE 'Не задана дата декларации' NOWAIT;
             }       
 
-            IF NOT sidOrigin2CountryDeclaration(i, gtin) OR NOT registrationNumberDeclaration(i, gtin) OR NOT toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN
+            IF NOT sidCountryDeclaration(i, gtin) OR NOT registrationNumberDeclaration(i, gtin) OR NOT toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN
                 RETURN;
         }
         WHEN mode(i) == LotInitMode.COMMISSION THEN {
@@ -219,7 +242,7 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/v2/reports/addMark' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
-        isSend(i) <- TRUE;
+        //isSend(i) <- TRUE;
     } CATCH {
         handleException(i, result());
         RETURN;
@@ -240,8 +263,8 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     
     // получение статусов для марок
     FOR lotInit(LotInitDetail d) == i DO {
-        FOR quantity(d, Lot l) DO {
-           getStatus(l); 
+        FOR quantity(d, Lot l) AND NOT isSend(l) DO {
+           getStatus(l);
         }
     } 
     
@@ -284,6 +307,43 @@ DESIGN lotInit {
 EXTEND FORM lotInit   
     PROPERTIES(r) getStatusReport TOOLBAR
     PROPERTIES(i) getStatusReport DRAW r TOOLBAR
+    PROPERTIES(d) READONLY isSend, quantitySendLot
+    PROPERTIES(l) READONLY nameStatus, isSend
+    PROPERTIES(l) getStatusApply
 ;
 
+EXTEND FORM lotInits   
+    PROPERTIES(i) READONLY isSend
+    PROPERTIES(d) READONLY isSend
+;
 
+EXTEND FORM lots
+    PROPERTIES(l) READONLY isSend
+;
+
+addMark 'Отправить отчет'(LotInitDetail d) {
+    IF (NOT GROUP SUM 1 IF select(LotInitDetail dd) AND lotInit(d) == lotInit(dd)) THEN select(d) <- TRUE;
+    
+    addMark(lotInit(d));
+    
+    select(LotInitDetail dd) <- NULL;    
+}
+
+EXTEND FORM lotInit
+    PROPERTIES (d) select BEFORE index(d), addMark SHOWIF isPosted(i) AND NOT isSend(d)
+;
+
+DESIGN lotInit {
+    spec {
+        NEW tabbedSpec {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(l) { caption = 'Марки'; }
+            
+            NEW ez {        
+                caption = 'Электронный знак';
+                MOVE PROPERTY(addMark(d));
+            }
+        }
+    }   
+}
