@@ -10,14 +10,11 @@ EXTEND CLASS EDIProvider {
 prefix(EDIProvider e) += WHEN e == EDIProvider.edn THEN '002-';
 name(EDIProvider e) += WHEN e == EDIProvider.edn THEN 'ООО "Электронные документы и накладные"';
 
-loginEDN 'Имя пользователя EDN' = DATA STRING[100] ();
-passwordEDN 'Пароль EDN' = DATA STRING[100] () ECHO;
 loginEDN 'Имя пользователя EDN' = DATA STRING[100] (LegalEntity);
 passwordEDN 'Пароль EDN' = DATA STRING[100] (LegalEntity) ECHO;
-hostEDN 'Хост' = DATA STRING[100] ();
-portEDN 'Порт' = DATA INTEGER ();
 hostEDN 'Хост' = DATA STRING[100] (LegalEntity);
 portEDN 'Порт' = DATA INTEGER (LegalEntity);
+extractEDN 'Распаковывать сообщения' = DATA BOOLEAN (LegalEntity);
 archiveDirEDN 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirEDN 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
@@ -93,6 +90,24 @@ EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' A
 EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceSupplierEDN(i);
 
 @receiveMessages(soap);
+
+document = DATA LOCAL RAWFILE();
+FORM edocument
+PROPERTIES() document;
+
+beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) + {
+    IF extractEDN([GROUP MIN LegalEntity l BY loginEDN(l)](login)) THEN {
+        IMPORT edocument FROM data(i);
+        unzipping()<-setExtension(document(), 'zip');
+        makeUnzipFile();
+        FOR unzipped(STRING[100] s) DO {            
+            data(i) <- XMLFILE(unzipped(s));
+        }
+        IF archiveDir THEN {
+            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i) + '_extarcted';
+        }
+    }
+}
 
 receiveMessagesEDN (BOOLEAN invoices) {
     FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO
@@ -365,7 +380,7 @@ EXTEND FORM integrationData
     PROPERTIES() READONLY askPasswordEDSServiceEDN = askPasswordEDSService
     OBJECTS lete = LegalEntity
     FILTERS isCompany(lete)
-    PROPERTIES(lete) name READONLY, loginEDN, passwordEDN, hostEDN, portEDN
+    PROPERTIES(lete) name READONLY, loginEDN, passwordEDN, hostEDN, portEDN, extractEDN
 ;
     
 DESIGN integrationData {

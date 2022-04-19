@@ -10,8 +10,6 @@ EXTEND CLASS EDIProvider {
 prefix(EDIProvider e) += WHEN e == EDIProvider.topBy THEN '001-';
 name(EDIProvider e) += WHEN e == EDIProvider.topBy THEN 'ООО "Современные технологии торговли"';
 
-loginTopBy 'Имя пользователя TopBy' = DATA STRING[100] ();
-passwordTopBy 'Пароль TopBy' = DATA STRING[100] () ECHO;
 loginTopBy 'Имя пользователя TopBy' = DATA STRING[100] (LegalEntity);
 passwordTopBy 'Пароль TopBy' = DATA STRING[100] (LegalEntity) ECHO;
 hostTopBy 'Хост' = DATA STRING[100] (LegalEntity);
@@ -190,6 +188,7 @@ blrwbrCount = DATA LOCAL NESTED INTEGER();
 blrdnrCount = DATA LOCAL NESTED INTEGER();
 blradfCount = DATA LOCAL NESTED INTEGER();
 
+beforeOverReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100]);
 overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, STRING[100]);
 
 META receiveMessages (namespace)
@@ -249,6 +248,7 @@ META receiveMessages (namespace)
                                 WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             }
                             logToFile('edi', provider + ' Check Message type:' + documentType(i) + ' id:' + id(i));
+                            beforeOverReceiveMessages(i, login, archiveDir);
                             overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices, provider);
                         }
                         
