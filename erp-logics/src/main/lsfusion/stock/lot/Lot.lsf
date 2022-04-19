@@ -178,7 +178,7 @@ META defineDocumentLotType(doc)
     in 'Вкл' = DATA BOOLEAN (###doc, LotType);
     
     countSku (###doc w, LotType t) = GROUP SUM 1 IF doc(###doc##Detail d) = w AND lotType(sku(d)) = t AND quantityLot(d);
-    WHEN useLot(operation(###doc w)) AND (GROUP SUM 1 IF (CHANGED(sku(###doc##Detail d)) OR CHANGED(quantityLot(d))) AND doc(d) = w) DO {
+    WHEN useLot(###doc w) AND (GROUP SUM 1 IF (CHANGED(sku(###doc##Detail d)) OR CHANGED(quantityLot(d))) AND doc(d) = w) DO {
         in(w, LotType t) <- TRUE IF countSku(w, t); 
     }
     
@@ -352,7 +352,7 @@ META defineDocumentLotOut(doc, stock, quantityProp, obj, postedProp)
         PROPERTIES(d) quantityLot AFTER quantity(d) ON CHANGE changeQuantityLot(d) 
                       ON CONTEXTMENU fillLotBalance(obj) ON CONTEXTMENU fillLotBatch(obj) ON CONTEXTMENU dropLotBatch(obj)  
                       BACKGROUND backgroundQuantityLot(d) 
-                      SHOWIF useLot(operation(obj))
+                      SHOWIF useLot(obj)
                       READONLYIF NOT lotType(sku(d))
     ;
     
