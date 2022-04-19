@@ -1164,11 +1164,11 @@ importReplies 'Импортировать подтверждения' ()  {
             IMPORT order_status_changed XML FROM resultFile();
             
             IF type() == 'L' OR type() == 'X' THEN {
-                IF NOT userWriteOff(inc_id()) THEN {
-                    logToFile('WMS', 'Not found writeoff: ' + inc_id());
+                IF NOT userWriteOff(order_id()) THEN {
+                    logToFile('WMS', 'Not found writeoff: ' + order_id());
                     error() <- 'Списание не найдено';
                 } ELSE {
-                    FOR id(WriteOff w) == inc_id() DO {
+                    FOR id(WriteOff w) == order_id() DO {
                         processingStatusSlovo(w) <- CASE 
                             WHEN new_status() = 'R' THEN 'Подготовка к планированию'
                             WHEN new_status() = 'A' THEN 'Планируется'
@@ -1191,11 +1191,11 @@ importReplies 'Импортировать подтверждения' ()  {
                 }
             }
             IF type() == 'R' THEN {
-                IF NOT PurchaseReturn.userInvoice(inc_id()) THEN {
-                    logToFile('WMS', 'Not found purchasereturn invoice: ' + inc_id());
+                IF NOT PurchaseReturn.userInvoice(order_id()) THEN {
+                    logToFile('WMS', 'Not found purchasereturn invoice: ' + order_id());
                     error() <- 'Накладная не найдена';
                 } ELSE {
-                    FOR id(PurchaseReturn.Invoice i) == inc_id() DO {
+                    FOR id(PurchaseReturn.Invoice i) == order_id() DO {
                         processingStatusSlovo(i) <- CASE 
                             WHEN new_status() = 'R' THEN 'Подготовка к планированию'
                             WHEN new_status() = 'A' THEN 'Планируется'
@@ -1218,11 +1218,11 @@ importReplies 'Импортировать подтверждения' ()  {
                 }
             }
             IF type() == 'A' OR type() == 'B' THEN {
-                IF NOT Sale.userOrder(inc_id()) THEN {
-                    logToFile('WMS', 'Not found purchase order: ' + inc_id());
+                IF NOT Sale.userOrder(order_id()) THEN {
+                    logToFile('WMS', 'Not found purchase order: ' + order_id());
                     error() <- 'Заказ не найден';
                 } ELSE {
-                    FOR id(Sale.Order o) == inc_id() DO {
+                    FOR id(Sale.Order o) == order_id() DO {
                         processingStatusSlovo(o) <- CASE 
                             WHEN new_status() = 'R' THEN 'Подготовка к планированию'
                             WHEN new_status() = 'A' THEN 'Планируется'
