@@ -897,7 +897,9 @@ exportSolvo 'Выгрузить заказ в wms Solvo' (Sale.Order i) {
                     type(slovoMessage(i)) <- 'order';
                     status(slovoMessage(i)) <- 'ready';
                     loaded(slovoMessage(i)) <- currentDateTime();
-                        
+                    
+                    APPLY NESTED LOCAL;
+                    
                     MESSAGE 'Заказ выгружен' NOWAIT;
                 }
             }
@@ -1219,7 +1221,7 @@ importReplies 'Импортировать подтверждения' ()  {
             }
             IF type() == 'A' OR type() == 'B' THEN {
                 IF NOT Sale.userOrder(order_id()) THEN {
-                    logToFile('WMS', 'Not found purchase order: ' + order_id());
+                    logToFile('WMS', 'Not found sale order: ' + order_id());
                     error() <- 'Заказ не найден';
                 } ELSE {
                     FOR id(Sale.Order o) == order_id() DO {
