@@ -716,6 +716,7 @@ send = DATA LOCAL BOOLEAN (Barcode);
 price = DATA LOCAL NUMERIC[16,4] (Barcode);
 
 overChanged = ABSTRACT BOOLEAN (Barcode);
+hasOverPrice = ABSTRACT BOOLEAN (Barcode, GroupMachinery);
 
 createMachineryPriceTransaction 'Создать транзакцию'(Stock stock)  { 
     LOCAL message = TEXT();
@@ -737,7 +738,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
 
         price(Barcode barcode) <- price(barcode, groupMachinery) WHERE send(barcode);
         
-        send(Barcode barcode) <- NULL WHERE send(barcode) AND NOT price(barcode); // если есть цена
+        send(Barcode barcode) <- NULL WHERE send(barcode) AND NOT price(barcode) AND NOT hasOverPrice(barcode, groupMachinery); // если есть цена
         
         overCreateMachineryPriceTransaction(groupMachinery);
 
