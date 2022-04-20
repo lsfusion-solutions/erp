@@ -60,18 +60,46 @@ legalEntity = DATA LegalEntity(Compliance);
 nameLegalEntity 'Держатель' (Compliance compliance) = name(legalEntity(compliance));
 
 // Файл сертификата
+TABLE fileCompliance (Compliance);
+
 image 'Файл сертификата'  = DATA IMAGEFILE (Compliance);
-saveImage 'Загрузить сертификат' (Compliance compliance)  { INPUT =image(compliance) CHANGE; }
-openImage 'Просмотреть сертификат' (Compliance compliance)  { open(image(compliance)); }
+file 'Файл сертификата'  = DATA FILE (Compliance) TABLE fileCompliance;
+saveFile 'Загрузить сертификат' (Compliance compliance)  {
+    INPUT = file(compliance) CHANGE; 
+    IF NOT (lower(getFileExtension(file(compliance))) = 'pdf' OR 
+        lower(getFileExtension(file(compliance))) = 'jpg' OR 
+        lower(getFileExtension(file(compliance))) = 'jpeg') THEN {
+            MESSAGE 'Некорректный формат файла';
+            file(compliance) <- NULL;
+        }
+}
+openFile 'Просмотреть сертификат' (Compliance compliance)  { open(file(compliance)); }
 
 CLASS ExtraPageComplianceDetail 'Дополнительная страница сертификата';
 TABLE extraPageComplianceDetail (ExtraPageComplianceDetail);
 
 compliance = DATA Compliance (ExtraPageComplianceDetail);
 
+TABLE fileComplianceDetail (ExtraPageComplianceDetail);
 image 'Файл сертификата'  = DATA IMAGEFILE (ExtraPageComplianceDetail);
-saveImage 'Загрузить сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail)  { INPUT =image(extraPageComplianceDetail) CHANGE; }
-openImage 'Просмотреть сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail)  { open(image(extraPageComplianceDetail)); }
+file 'Файл сертификата'  = DATA FILE (ExtraPageComplianceDetail) TABLE fileComplianceDetail;
+saveFile 'Загрузить сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail)  {
+    INPUT = file(extraPageComplianceDetail) CHANGE; 
+    IF NOT (lower(getFileExtension(file(extraPageComplianceDetail))) = 'pdf' OR 
+        lower(getFileExtension(file(extraPageComplianceDetail))) = 'jpg' OR 
+        lower(getFileExtension(file(extraPageComplianceDetail))) = 'jpeg') THEN {
+            MESSAGE 'Некорректный формат файла';
+            file(extraPageComplianceDetail) <- NULL;
+        }
+}
+openFile 'Просмотреть сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail)  { open(file(extraPageComplianceDetail)); }
+
+fileComplianceMigrate = DATA BOOLEAN ();
+onStarted() + {
+    file(Compliance c) <- FILE(image(c)) WHERE image(c) AND NOT file(c) AND NOT fileComplianceMigrate(); 
+    file(ExtraPageComplianceDetail d) <- FILE(image(d)) WHERE image(d) AND NOT file(d) AND NOT fileComplianceMigrate(); 
+    fileComplianceMigrate() <- TRUE;
+}
 
 @defineDocumentDetailIndex(compliance, ExtraPageComplianceDetail);
 
@@ -82,7 +110,7 @@ extraPageComplianceDetail (index, compliance) = GROUP AGGR ExtraPageComplianceDe
 addExtraPageDetail 'Добавить'(Compliance compliance)  { 
     NEW d = ExtraPageComplianceDetail {
         compliance(d) <- compliance;
-        EXEC saveImage(d);
+        EXEC saveFile(d);
         EXEC apply();
     }    
 } IMAGE 'add.png';
@@ -90,12 +118,12 @@ addExtraPageDetail 'Добавить'(Compliance compliance)  {
 FORM compliance 'Сертификат соответствия'
     OBJECTS c = Compliance PANEL
     PROPERTIES(c) number, series, date, time,
-                  fromDate, toDate, nameLegalEntity, saveImage, openImage
+                  fromDate, toDate, nameLegalEntity, saveFile, openFile
                       
     OBJECTS d = ExtraPageComplianceDetail
     PROPERTIES(d) index, note
     PROPERTIES(c) addExtraPageDetail DRAW d TOOLBAR
-    PROPERTIES(d) TOOLBAR openImage, saveImage, DELETE 
+    PROPERTIES(d) TOOLBAR openFile, saveFile, DELETE 
     FILTERS compliance(d) == c                   
 
     EDIT Compliance OBJECT c
@@ -130,8 +158,8 @@ DESIGN compliance {
             NEW fileContainer{
                 type = CONTAINERH;
                 caption = 'Файл сертификата';
-                MOVE PROPERTY(openImage(c));
-                MOVE PROPERTY(saveImage(c));
+                MOVE PROPERTY(openFile(c));
+                MOVE PROPERTY(saveFile(c));
             }
             NEW tabContainer{
                 fill = 1;
@@ -162,14 +190,14 @@ copy 'Копировать'(Compliance compliance)  {
 	        toDate(c) <- toDate(compliance);
 	        legalEntity(c) <- legalEntity(compliance);
 	        text(c) <- text(compliance);
-	        image(c) <- image(compliance);
+	        file(c) <- file(compliance);
 	        
 	        over(compliance, c);
 	
 	        FOR compliance(ExtraPageComplianceDetail detail) == compliance DO {
 	            NEW d=ExtraPageComplianceDetail {
 	                compliance(d) <- c;
-	                image(d) <- image(detail);
+	                file(d) <- file(detail);
 	
 	                
 	                overCopy(d, detail);

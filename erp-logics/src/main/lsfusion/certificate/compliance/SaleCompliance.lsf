@@ -1,20 +1,23 @@
 MODULE SaleCompliance;
 
-REQUIRE Compliance, SaleCertificate;
+REQUIRE Printer, Compliance, SaleCertificate;
 
 NAMESPACE Sale;
 
 CLASS ABSTRACT PrintPageCompliance 'Страница сертификата соответствия';
 compliance = ABSTRACT Compliance (PrintPageCompliance);
 image = ABSTRACT IMAGEFILE (PrintPageCompliance);
+file = ABSTRACT FILE (PrintPageCompliance);
 
 EXTEND CLASS Compliance : PrintPageCompliance;
 compliance(Compliance compliance) += compliance IF compliance IS Compliance;
 image(Compliance compliance) += Compliance.image(compliance);
+file(Compliance compliance) += Compliance.file(compliance);
 
 EXTEND CLASS ExtraPageComplianceDetail : PrintPageCompliance;
 compliance(ExtraPageComplianceDetail detail) += Compliance.compliance(detail);
 image(ExtraPageComplianceDetail detail) += Compliance.image(detail);
+file(ExtraPageComplianceDetail detail) += Compliance.file(detail);
 
 @defineDocumentCertificate(compliance, invoice, i, 'Сертификат соответствия');
 @defineDocumentCertificateConstraint(compliance, invoice, 'Сертификат соответствия');
@@ -27,8 +30,8 @@ count (compliance, invoice) =
 seriesCompliance(UserInvoiceDetail d) = series(compliance(d));
 numberCompliance(UserInvoiceDetail d) = number(compliance(d));
 
-image 'Файл сертификата' (InvoiceDetail invoiceDetail) = Compliance.image(compliance(invoiceDetail));
-openImage 'Просмотреть сертификат' (InvoiceDetail invoiceDetail)  { open(image(invoiceDetail)); }
+file 'Файл сертификата' (InvoiceDetail invoiceDetail) = Compliance.file(compliance(invoiceDetail));
+openFile 'Просмотреть сертификат' (InvoiceDetail invoiceDetail)  { open(file(invoiceDetail)); }
 
 // todo : при попытке распечатать выдет сообщение "Форма не подходит для данных параметров"
 FORM imageComplianceInvoice 'Файл сертификата'
@@ -41,21 +44,46 @@ FORM imageComplianceInvoice 'Файл сертификата'
     PROPERTIES(p) image
     FILTERS compliance(p) == c    
 ;
-printAllImage 'Печать сертификатов'(Invoice invoice)  { 
-    PRINT imageComplianceInvoice OBJECTS i = invoice ;
+//printAllImage 'Печать сертификатов'(Invoice invoice)  { 
+//    PRINT imageComplianceInvoice OBJECTS i = invoice ;
+//}
+//printAllImageAuto 'Печать сертификатов'(Invoice invoice)  { 
+//    PRINT imageComplianceInvoice OBJECTS i = invoice NOPREVIEW;
+//}
+
+FORM fileCompliance 'Сертификат'
+    OBJECTS o = PrintPageCompliance PANEL SUBREPORT 
+    PROPERTIES file = IMAGEFILE(file(o))
+;
+
+printAllFile 'Печать сертификатов'(Invoice invoice)  { 
+    IF (GROUP SUM 1 IF file(PrintPageCompliance p) AND count(compliance(p), invoice)) THEN {
+        FOR lower(getFileExtension(file(PrintPageCompliance p))) == 'pdf' AND count(compliance(p), invoice) DO 
+            open(PDFFILE(file(p)));
+            
+        FOR count(compliance(PrintPageCompliance p), invoice) AND NOT lower(getFileExtension(file(p))) == 'pdf' DO
+            PRINT fileCompliance OBJECTS o = p;
+    } ELSE PRINT imageComplianceInvoice OBJECTS i = invoice;
 }
-printAllImageAuto 'Печать сертификатов'(Invoice invoice)  { 
-    PRINT imageComplianceInvoice OBJECTS i = invoice NOPREVIEW;
+
+printAllFileAuto 'Печать сертификатов'(Invoice invoice)  { 
+    IF (GROUP SUM 1 IF file(PrintPageCompliance p) AND count(compliance(p), invoice)) THEN {
+        FOR lower(getFileExtension(file(PrintPageCompliance p))) == 'pdf' AND count(compliance(p), invoice) AND file(p) DO 
+            printFile(PDFFILE(file(p)));
+            
+        FOR count(compliance(PrintPageCompliance p), invoice) AND NOT lower(getFileExtension(file(p))) == 'pdf' AND file(p) DO
+            PRINT fileCompliance OBJECTS o = p NOPREVIEW;
+    } ELSE PRINT imageComplianceInvoice OBJECTS i = invoice NOPREVIEW;
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) DRAW dc TOOLBAR printAllImage
-    PROPERTIES(dc) TOOLBAR openImage
+    PROPERTIES(i) DRAW dc TOOLBAR printAllFileAuto
+    PROPERTIES(dc) TOOLBAR openFile
 ;
 
 EXTEND FORM invoices
-    PROPERTIES(i) DRAW dc TOOLBAR printAllImage
-    PROPERTIES(dc) TOOLBAR openImage
+    PROPERTIES(i) DRAW dc TOOLBAR printAllFileAuto
+    PROPERTIES(dc) TOOLBAR openFile
 ;
 
 @defineDocumentCertificate(compliance, shipment, s, 'сертификат соответствия');
