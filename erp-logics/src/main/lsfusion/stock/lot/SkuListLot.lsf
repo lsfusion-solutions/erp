@@ -1,0 +1,62 @@
+MODULE SkuListLot;
+
+REQUIRE SkuList, Lot;
+
+NAMESPACE Stock;
+
+quantity 'Кол-во' = DATA NUMERIC[16,5] (ListDetail, Lot);
+
+quantityLot 'Кол-во марок' (ListDetail d) = GROUP SUM quantity(d, Lot l) * count(l);
+quantityLot 'Кол-во марок' (List i) = GROUP SUM quantityLot(ListDetail d) IF list(d) = i;
+quantity 'Кол-во марок' (List i, Lot l) = GROUP SUM quantity(ListDetail d, l) IF list(d) = i;
+
+beforeInputBarcodeListDetail(List i, STRING[200] s) + {
+    lotBarcode() <- NULL;
+    consumedBarcodeListDetail() <- NULL;
+    IF length(s) >= OVERRIDE lotMinLength(), 20 THEN {
+        FOR STRING[200] bc = barcodeToId(s) AND Lot l = lot(bc) DO {
+            lotBarcode() <- bc;
+            IF quantity(i, l) = 1.0 THEN {
+                MESSAGE 'Марка уже была отсканирована в текущем документе';
+                consumedBarcodeListDetail() <- TRUE;
+            } ELSE {
+                    FOR ListDetail d = listDetail(i, sku(l)) DO {
+                        quantity(d, l) <- 1.0;
+                        seek(d);
+                        consumedBarcodeListDetail() <- TRUE;
+                    } ELSE {
+                        NEW d = ListDetail {
+                            list(d) <- i;
+                            sku(d) <- sku(l);
+                            quantity(d, l) <- 1.0;
+                            seek(d);
+                            consumedBarcodeListDetail() <- TRUE;
+                        }
+                  }
+            }
+        }
+    }
+}
+
+afterInputBarcodeListDetail(ListDetail d, STRING[200] barcode) + {
+    IF lotBarcode() THEN
+        quantity(d, Lot l) <- 1.0 WHERE l = lot(lotBarcode());
+}
+
+dropLotBatch 'Сбросить марки' (List o) {
+    quantity(ListDetail d, Lot l) <- NULL 
+        WHERE list(d) = o AND [FILTER list.d](d); 
+}
+
+changeQuantityLot (ListDetail d) {
+    quantity(Lot l) <- quantity(d, l);
+    DIALOG dialogOutLots DO {
+        quantity(d, Lot l) <- quantity(l);
+    }    
+}
+
+EXTEND FORM list
+    PROPERTIES(d) quantityLot ON CHANGE changeQuantityLot(d) 
+                  ON CONTEXTMENU dropLotBatch(l)  
+                  SHOWIF quantityLot(l)
+                  READONLYIF NOT lotType(sku(d));

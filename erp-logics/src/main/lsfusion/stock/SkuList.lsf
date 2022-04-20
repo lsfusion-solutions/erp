@@ -457,3 +457,83 @@ DESIGN currentBalanceSkuStock {
         MOVE PROPERTY (nameFilterSkuList());
     }
 }
+
+
+listDetail(list, sku) = GROUP MAX ListDetail detail BY list(detail), sku(detail);
+
+afterInputBarcodeListDetail ABSTRACT LIST (ListDetail, STRING[200]);
+
+createListDetailNew (List list, STRING[200] barcode, Sku sku)  { 
+    LOCAL dialogBarcodeDetail = ListDetail();
+    dialogBarcodeDetail() <- listDetail(list, sku);
+    IF dialogBarcodeDetail() IS ListDetail THEN {
+        seek(dialogBarcodeDetail());
+        afterInputBarcodeListDetail(dialogBarcodeDetail(), barcode);
+    } ELSE {
+        NEW w = ListDetail {
+            list(w) <- list;
+            sku(w) <- sku;
+            seek(w);
+            afterInputBarcodeListDetail(w, barcode);
+        }
+    }
+    setAddedUser(sku);
+}
+
+addDetailBarcodeListDetail(List list, STRING[200] barcode)  { 
+    LOCAL dialogBarcodeSku = Sku ();
+    dialogBarcodeSku() <- skuBarcode(barcode);
+
+    IF dialogBarcodeSku() IS Sku THEN {
+        createListDetailNew(list, barcode, dialogBarcodeSku());
+    } ELSE {
+        IF NOT notFormSku() THEN {
+            DIALOG emptyBarcodeSkus OBJECTS s INPUT DO {
+                dialogBarcodeSku() <- s;
+                NEW br = Barcode {
+                    id(br) <- barcode;
+                    dataDate(br) <- currentDate();
+                    sku(br) <- s;
+                    NEW w = ListDetail {
+                        list(w) <- list;
+                        sku(w) <- s;
+                        seek(w);
+                    }
+                }
+            } 
+        }
+        IF NOT notCreateItem() THEN {
+            createSkuBarcode(barcode, currentDate());
+            dialogBarcodeSku() <- skuBarcode(barcode);
+        }
+        IF dialogBarcodeSku() THEN {
+            createListDetailNew(list, barcode, dialogBarcodeSku());
+        }
+        IF notFormSku() AND notCreateItem() AND NOT dialogBarcodeSku() AND errorMessageNotFormSku() THEN MESSAGE errorMessageNotFormSku();
+    }
+}
+
+addDetailDialogBarcodeListDetail 'Ввод штрихкода'(List list)  { 
+    DIALOG barcodeInput DO
+        addDetailBarcodeListDetail(list, barcodeInput());
+} TOOLBAR CHANGEKEY 'F4';
+
+consumedBarcodeListDetail = DATA LOCAL BOOLEAN ();
+beforeInputBarcodeListDetail ABSTRACT LIST (List, STRING[200]);
+changeAddDetailInputBarcodeListDetail(List list)  { 
+    INPUT s = STRING[200] DO {
+        weightQuantity() <- NULL;
+        IF length(s) > 11 AND left(s, 2) == weightPrefix() THEN {
+            weightQuantity() <- NUMERIC[7,0](substr(s, 8, 5)) / 1000.0;
+        }
+        beforeInputBarcodeListDetail(list, s);
+        IF NOT consumedBarcodeListDetail() THEN
+            addDetailBarcodeListDetail(list, processedBarcode(s));
+    }
+}
+addDetailInputBarcodeListDetail 'Ввод штрихкода :' (list) = DATA LOCAL STRING[200] (List) TOOLBAR CHARWIDTH 13 CHANGEKEY 'F4' EVENTID 'SCANNER'
+                                                                        ON CHANGE { changeAddDetailInputBarcodeListDetail(list); }
+
+EXTEND FORM list 
+    PROPERTIES DRAW d TOOLBAR addDetailInputBarcodeListDetail(l)
+;
