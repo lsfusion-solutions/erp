@@ -4,8 +4,8 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
+import lsfusion.base.BaseUtils;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -18,7 +18,6 @@ import java.io.StringReader;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 
 public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
 
@@ -31,7 +30,7 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
         return new BPlusSendTransactionTask(transaction, scales);
     }
 
-    protected String clearPLU(TCPSocket socket) throws IOException, JDOMException {
+    protected String clearPLU(TCPSocket socket) {
         String messageId = Instant.now().toString();
 
         Element rootElement = new Element("Message");
@@ -53,7 +52,7 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
         return sendRequest(socket, new XMLOutputter(Format.getPrettyFormat().setEncoding("UTF-8")).outputString(doc), messageId);
     }
 
-    protected String sendPLU(TCPSocket socket, TransactionScalesInfo transaction) throws IOException, JDOMException {
+    protected String sendPLU(TCPSocket socket, TransactionScalesInfo transaction) {
         String messageId = Instant.now().toString();
 
         Element rootElement = new Element("Message");
@@ -143,14 +142,16 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
         if (value != null) parent.addContent(new Element(id).setText(value));
     }
 
-    protected String sendRequest(TCPSocket socket, String request, String messageId) throws IOException, JDOMException {
-        try {
-            socket.open();
-            socket.write(request);
-            return receiveResponse(socket, messageId);
-        } finally {
-            socket.close();
-        }
+    protected String sendRequest(TCPSocket socket, String request, String messageId) {
+        return (String) BaseUtils.executeWithTimeout(() -> {
+            try {
+                socket.open();
+                socket.write(request);
+                return receiveResponse(socket, messageId);
+            } finally {
+                socket.close();
+            }
+        }, 1800000); //timeout = 30 minutes
     }
 
     private String receiveResponse(TCPSocket socket, String messageId) throws IOException, JDOMException {
