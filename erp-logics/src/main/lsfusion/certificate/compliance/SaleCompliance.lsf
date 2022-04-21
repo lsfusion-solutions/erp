@@ -26,6 +26,9 @@ file(ExtraPageComplianceDetail detail) += Compliance.file(detail);
 count (compliance, invoice) =
     GROUP SUM 1
     BY compliance(InvoiceDetail detail), invoice(detail);
+    
+countComplianceFiles 'Кол-во файлов' = 
+    GROUP SUM 1 IF file(PrintPageCompliance pc) AND count(compliance(pc), Invoice i) BY i;     
 
 seriesCompliance(UserInvoiceDetail d) = series(compliance(d));
 numberCompliance(UserInvoiceDetail d) = number(compliance(d));
@@ -57,23 +60,31 @@ FORM fileCompliance 'Сертификат'
 ;
 
 printAllFile 'Печать сертификатов'(Invoice invoice)  { 
-    IF (GROUP SUM 1 IF file(PrintPageCompliance p) AND count(compliance(p), invoice)) THEN {
-        FOR lower(getFileExtension(file(PrintPageCompliance p))) == 'pdf' AND count(compliance(p), invoice) DO 
-            open(PDFFILE(file(p)));
-            
-        FOR count(compliance(PrintPageCompliance p), invoice) AND NOT lower(getFileExtension(file(p))) == 'pdf' DO
-            PRINT fileCompliance OBJECTS o = p;
-    } ELSE PRINT imageComplianceInvoice OBJECTS i = invoice;
+    IF countComplianceFiles(invoice) THEN {
+        IF (GROUP SUM 1 IF file(PrintPageCompliance p) AND count(compliance(p), invoice)) THEN {
+            FOR lower(getFileExtension(file(PrintPageCompliance p))) == 'pdf' AND count(compliance(p), invoice) AND file(p) DO 
+                open(PDFFILE(file(p)));
+                
+            FOR count(compliance(PrintPageCompliance p), invoice) AND NOT lower(getFileExtension(file(p))) == 'pdf' AND file(p) DO
+                PRINT fileCompliance OBJECTS o = p;
+        } ELSE PRINT imageComplianceInvoice OBJECTS i = invoice;
+    } ELSE {
+        MESSAGE 'К сертификатам не прикреплён ни один файл' NOWAIT;
+    }    
 }
 
 printAllFileAuto 'Печать сертификатов'(Invoice invoice)  { 
-    IF (GROUP SUM 1 IF file(PrintPageCompliance p) AND count(compliance(p), invoice)) THEN {
-        FOR lower(getFileExtension(file(PrintPageCompliance p))) == 'pdf' AND count(compliance(p), invoice) AND file(p) DO 
-            printFile(PDFFILE(file(p)));
-            
-        FOR count(compliance(PrintPageCompliance p), invoice) AND NOT lower(getFileExtension(file(p))) == 'pdf' AND file(p) DO
-            PRINT fileCompliance OBJECTS o = p NOPREVIEW;
-    } ELSE PRINT imageComplianceInvoice OBJECTS i = invoice NOPREVIEW;
+    IF countComplianceFiles(invoice) THEN {
+        IF (GROUP SUM 1 IF file(PrintPageCompliance p) AND count(compliance(p), invoice)) THEN {
+            FOR lower(getFileExtension(file(PrintPageCompliance p))) == 'pdf' AND count(compliance(p), invoice) AND file(p) DO 
+                printFile(PDFFILE(file(p)));
+                
+            FOR count(compliance(PrintPageCompliance p), invoice) AND NOT lower(getFileExtension(file(p))) == 'pdf' AND file(p) DO
+                PRINT fileCompliance OBJECTS o = p NOPREVIEW;
+        } ELSE PRINT imageComplianceInvoice OBJECTS i = invoice NOPREVIEW;
+    } ELSE {
+        MESSAGE 'К сертификатам не прикреплён ни один файл' NOWAIT;
+    }          
 }
 
 EXTEND FORM userInvoice
