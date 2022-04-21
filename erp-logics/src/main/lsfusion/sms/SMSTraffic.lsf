@@ -347,25 +347,29 @@ EXTEND FORM dispatches
 
 overGetStatus ABSTRACT LIST ();
 getStatus () {
-    fileToString(FILE(body()));
-    logToFile('SMSTraffic', 'CALLBACK: ' + resultString());
-    urlFormatted() <- resultString();
-    urlParse();
-    
-    FOR Dispatch dd IS Dispatch AND getID(dd) == LONG(getWord(urlParsed('tracking_data'),'_',1)) AND DiscountCard dc IS DiscountCard AND getID(dc) == LONG(getWord(urlParsed('tracking_data'),'_',2)) DO {
-        state(dd,dc) <- STRING[100](urlParsed('status'));
-        name(dd,dc) <- STRING[255](CONCAT ' ', urlParsed('channel_id'), urlParsed('err_code'), nameStatus());
-        dateTime(dd,dc) <- DATETIME(toDateTimeFormat(urlParsed('delivery_date'), 'YYYY-MM-DD HH24:MI:SS'));
-        IF urlParsed('err_code') THEN NEW e = DispatchError {
-            code(e) <- STRING[100](urlParsed('err_code'));
-            message(e) <- nameStatus();
-            dateTime(e) <- DATETIME(toDateTimeFormat(urlParsed('delivery_date'), 'YYYY-MM-DD HH24:MI:SS'));
-            in(dd,e) <- TRUE;
+    TRY {
+        fileToString(FILE(body()));
+        logToFile('SMSTraffic', 'CALLBACK: ' + resultString());
+        urlFormatted() <- resultString();
+        urlParse();
+        
+        FOR Dispatch dd IS Dispatch AND getID(dd) == LONG(getWord(urlParsed('tracking_data'),'_',1)) AND DiscountCard dc IS DiscountCard AND getID(dc) == LONG(getWord(urlParsed('tracking_data'),'_',2)) DO {
+            state(dd,dc) <- STRING[100](urlParsed('status'));
+            name(dd,dc) <- STRING[255](CONCAT ' ', urlParsed('channel_id'), urlParsed('err_code'), nameStatus());
+            dateTime(dd,dc) <- DATETIME(toDateTimeFormat(urlParsed('delivery_date'), 'YYYY-MM-DD HH24:MI:SS'));
+            IF urlParsed('err_code') THEN NEW e = DispatchError {
+                code(e) <- STRING[100](urlParsed('err_code'));
+                message(e) <- nameStatus();
+                dateTime(e) <- DATETIME(toDateTimeFormat(urlParsed('delivery_date'), 'YYYY-MM-DD HH24:MI:SS'));
+                in(dd,e) <- TRUE;
+            }
         }
+        overGetStatus();
+        APPLY NESTED(urlParsed[TEXT]);
+        logToFile('SMSTraffic', 'END: ' + urlParsed('tracking_data'));
+    } CATCH {
+        logToFile('SMSTraffic', CONCAT '\n', 'ERROR:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
     }
-    overGetStatus();
-    APPLY NESTED(urlParsed[TEXT]);
-    logToFile('SMSTraffic', 'END: ' + urlParsed('tracking_data'));
 }
 
 CLASS DispatchTemplate 'Шаблон рассылки';
