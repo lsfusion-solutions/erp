@@ -7,9 +7,7 @@ process (TerminalDocument document) + {
     sku(TerminalDocumentDetail d) <- OVERRIDE skuBarcode(barcode(d)), sku(barcode(d)) WHERE terminalDocument(d) == document;
 }; 
 
-priceBefore 'Старая цена' = ABSTRACT NUMERIC[16,4](Sku, Stock);
-priceBeforeIdBarcodeId(STRING[15] sku, STRING[100] stock) = priceBefore(skuBarcode(sku), stock(stock));
-
+//журнал подключений 
 checkIdTerminal 'Ограничение доступа по коду терминала' = DATA BOOLEAN ();
 
 @defineExternalizable(terminal, STRING[100]);
@@ -23,25 +21,6 @@ applicationVersion 'Версия приложения' = DATA STRING[50] (Termin
 maxNpp () = GROUP MAX npp(Terminal t) IF t IS Terminal;
 defaultGroupTerminal() = GROUP MIN GroupTerminal gt IF gt IS GroupTerminal AND NOT stock(gt);
 
-manufacturer = ABSTRACT LegalEntity (Item);
-nameManufacturer (Barcode barcode) = OVERRIDE name(manufacturer(sku(barcode))), nameManufacturer(sku(barcode));
-
-nameSkuGroup 'Товарная группа' = ABSTRACT ISTRING[250](Barcode);
-terminalName = ABSTRACT ISTRING[255](Barcode, Stock);
-overNameSku (Barcode b, Stock s) = OVERRIDE terminalName(b, s), nameSku(b);
-
-color 'Цвет' = ABSTRACT COLOR (Sku, Stock);
-color(Barcode b, Stock s) = color(sku(b), s);
-
-amountPack (Barcode b) = amountPack(sku(b));
-
-extInfo 'Дополнительная информация' = ABSTRACT TEXT (Barcode, Stock);
-fld3 = ABSTRACT TEXT (Barcode, Stock);
-fld4 = ABSTRACT TEXT (Barcode, Stock);
-fld5 = ABSTRACT TEXT (Barcode, Stock);
-
-image(Barcode b) = smallImage(sku(b)) IF hasImage(sku(b));
-
 EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser, applicationVersion;
 EXTEND FORM groupsTerminal
     PROPERTIES () checkIdTerminal
@@ -54,6 +33,39 @@ restrictLockedUsers 'Запретить доступ заблокированн�
 restricted (CustomUser user) = isLocked(user) AND restrictLockedUsers(); 
 
 //товары
+priceBefore 'Старая цена' = ABSTRACT NUMERIC[16,4](Sku, Stock);
+priceBeforeIdBarcodeId(STRING[15] sku, STRING[100] stock) = priceBefore(skuBarcode(sku), stock(stock));
+
+manufacturer = ABSTRACT LegalEntity (Item);
+nameManufacturer (Barcode barcode) = OVERRIDE name(manufacturer(sku(barcode))), nameManufacturer(sku(barcode));
+
+terminalName = ABSTRACT ISTRING[255](Barcode, Stock);
+overNameSku (Barcode b, Stock s) = OVERRIDE terminalName(b, s), nameSku(b);
+
+color 'Цвет' = ABSTRACT COLOR (Sku, Stock);
+color(Barcode b, Stock s) = color(sku(b), s);
+
+extInfo 'Дополнительная информация' = ABSTRACT TEXT (Barcode, Stock);
+fld3 = ABSTRACT TEXT (Barcode, Stock);
+fld4 = ABSTRACT TEXT (Barcode, Stock);
+fld5 = ABSTRACT TEXT (Barcode, Stock);
+
+CLASS TerminalBarcodeFlags {
+    needManufacturingDate 'Обазательна дата изготовления'
+}
+order(TerminalBarcodeFlags f) = CASE 
+    WHEN f = TerminalBarcodeFlags.needManufacturingDate THEN 0l;
+    
+in = ABSTRACT CASE BOOLEAN (Barcode, TerminalBarcodeFlags);
+flag (TerminalBarcodeFlags f) = LONG(power(2l, order(f)));
+flags(Barcode b) = GROUP SUM flag(TerminalBarcodeFlags f) IF in(b, f);
+
+image(Barcode b) = smallImage(sku(b)) IF hasImage(sku(b));
+
+amountPack (Barcode b) = amountPack(sku(b));
+
+nameSkuGroup 'Товарная группа' = ABSTRACT ISTRING[250](Barcode);
+
 sendAllItems 'Загружать в терминал все товары без цен' = DATA BOOLEAN ();
 sendOnlyActiveItems 'Загружать только активные товары' = DATA BOOLEAN ();
 
@@ -97,11 +109,15 @@ filterBatch(Batch b, Stock st) = b IS Batch AND st IS Stock AND
     dateTime(b, st) > subtractDay(currentDateTime(), countDaysFilterBatches());
     
 extraField = ABSTRACT STRING (Batch, Stock);
-    
+
+//Ассортимент
 dataPriceListTypeTerminal = DATA LedgerPriceListType();
 defaultPriceListTypeTerminal = ABSTRACT LedgerPriceListType();
 priceListTypeTerminal = OVERRIDE dataPriceListTypeTerminal(), defaultPriceListTypeTerminal();
 namePriceListTypeTerminal 'Вид цен (фильтр ассортимента поставщика)' = name(priceListTypeTerminal());
+
+terminalBarcode = ABSTRACT STRING[100](Sku);
+overIdBarcode (Sku sk) = OVERRIDE terminalBarcode(sk), idBarcode(sk);
 
 useOverAssortmentPriceInTerminal = ABSTRACT BOOLEAN (Stock) PREREAD;
 overAssortmentPrice = ABSTRACT NUMERIC[16,4] (Sku, Stock, Stock);
@@ -125,9 +141,6 @@ checkOrder ABSTRACT (STRING);
 checkOrderDetail ABSTRACT (STRING, STRING);
 
 changeStatusTerminalOrder ABSTRACT (STRING, STRING, STRING);
-
-terminalBarcode = ABSTRACT STRING[100](Sku);
-overIdBarcode (Sku sk) = OVERRIDE terminalBarcode(sk), idBarcode(sk);
 
 
 EXTEND FORM options

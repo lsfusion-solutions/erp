@@ -112,10 +112,10 @@ public class DefaultTerminalHandler {
                 String fld4 = (String) terminalHandlerLM.findProperty("fld4[Barcode, Stock]").read(session, barcodeObject, stockObject);
                 String color = formatColor((Color) terminalHandlerLM.findProperty("color[Sku, Stock]").read(session, skuObject, stockObject));
                 String ticket_data = (String) terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").read(session, barcodeObject, stockObject);
-                String flags = terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
+                Long flags = (Long) terminalHandlerLM.findProperty("flags[Barcode]").read(session, barcodeObject);
                 return Arrays.asList(barcode, overNameSku, priceValue == null ? "0" : priceValue,
                         quantityValue == null ? "0" : quantityValue, idSkuBarcode, nameManufacturer, fld3, fld4, "", isWeight,
-                        mainBarcode, color, ticket_data, flags);
+                        mainBarcode, color, ticket_data, flags == null ? "0" : flags.toString());
             } else return null;
 
         } catch (Exception e) {
@@ -349,7 +349,7 @@ public class DefaultTerminalHandler {
                 barcodeQuery.addProperty("fld4", terminalHandlerLM.findProperty("fld4[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("fld5", terminalHandlerLM.findProperty("fld5[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("unit", terminalHandlerLM.findProperty("shortNameUOM[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("needManufacturingDate", terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("flags", terminalHandlerLM.findProperty("flags[Barcode]").getExpr(barcodeExpr));
                 if(imagesInReadBase) {
                     barcodeQuery.addProperty("image", terminalHandlerLM.findProperty("image[Barcode]").getExpr(barcodeExpr));
                 }
@@ -381,13 +381,13 @@ public class DefaultTerminalHandler {
                     String fld4 = trim((String) entry.get("fld4"));
                     String fld5 = trim((String) entry.get("fld5"));
                     String unit = trim((String) entry.get("unit"));
-                    boolean needManufacturingDate = entry.get("needManufacturingDate") != null;
+                    Long flags = (Long) entry.get("flags") ;
                     RawFileData image = (RawFileData) entry.get("image");
                     BigDecimal amountPack = (BigDecimal) entry.get("amountPack");
                     String category = trim((String) entry.get("nameSkuGroup"));
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
-                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, needManufacturingDate, image, nameCountry, amountPack, category));
+                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, flags, image, nameCountry, amountPack, category));
 
                 }
             }
@@ -584,7 +584,7 @@ public class DefaultTerminalHandler {
                         addGoodsRow(statement, barcode.idBarcode, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
                                 barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
                                 image, barcode.isWeight, barcode.mainBarcode, barcode.color, barcode.extInfo, barcode.unit,
-                                barcode.needManufacturingDate ? 1 : 0, barcode.nameCountry, barcode.amountPack, barcode.category);
+                                barcode.flags, barcode.nameCountry, barcode.amountPack, barcode.category);
                         usedBarcodes.add(barcode.idBarcode);
                     }
                 }
@@ -598,7 +598,7 @@ public class DefaultTerminalHandler {
                                     addGoodsRow(statement, extraBarcode, order.name, order.price, null,
                                             order.idItem, order.manufacturer, null, null, null,
                                             image, order.weight, order.barcode, null, null, null,
-                                            0, null, BigDecimal.ZERO, null);
+                                            null, null, BigDecimal.ZERO, null);
                                     statement.addBatch();
                                 }
                             }
@@ -607,7 +607,7 @@ public class DefaultTerminalHandler {
                                 String image = imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : null;
                                 addGoodsRow(statement, order.barcode, order.name, order.price, null, order.idItem,
                                         order.manufacturer, null, null, null, image, order.weight, order.barcode,
-                                        null, null, null, 0, null, BigDecimal.ZERO,
+                                        null, null, null, null, null, BigDecimal.ZERO,
                                         null);
                             }
                         }
@@ -617,7 +617,7 @@ public class DefaultTerminalHandler {
                 for (SkuExtraBarcode b : skuExtraBarcodeList) {
                     addGoodsRow(statement, b.idBarcode, b.nameSku, null, null, null, null,
                             null, null, null, null, null, b.mainBarcode, null, null,
-                            null, 0, null, BigDecimal.ZERO, null);
+                            null, null, null, BigDecimal.ZERO, null);
                 }
 
                 statement.executeBatch();
@@ -635,7 +635,7 @@ public class DefaultTerminalHandler {
 
     private void addGoodsRow(PreparedStatement statement, String idBarcode, String name, BigDecimal price, BigDecimal quantity, String idItem, String manufacturer,
                              String fld3, String fld4, String fld5, String image, String weight, String mainBarcode, String color, String ticketData, String unit,
-                             int flags, String nameCountry, BigDecimal amountPack, String category) throws SQLException {
+                             Long flags, String nameCountry, BigDecimal amountPack, String category) throws SQLException {
         statement.setObject(1, format(idBarcode)); //idBarcode
         statement.setObject(2, format(name)); //name
         statement.setObject(3, format(price)); //price
@@ -651,7 +651,7 @@ public class DefaultTerminalHandler {
         statement.setObject(13, format(color)); //color
         statement.setObject(14, format(ticketData)); //ticket_data
         statement.setObject(15, format(unit)); //unit
-        statement.setObject(16, flags); //flags
+        statement.setObject(16, flags == null ? "0" : flags); //flags
         statement.setObject(17, format(nameCountry)); //nameCountry
         statement.setObject(18, amountPack); //amountPack
         statement.setObject(19, category); //category
@@ -1534,7 +1534,7 @@ public class DefaultTerminalHandler {
         String fld4;
         String fld5;
         String unit;
-        boolean needManufacturingDate;
+        Long flags;
         RawFileData image;
         String nameCountry;
         BigDecimal amountPack;
@@ -1543,7 +1543,7 @@ public class DefaultTerminalHandler {
         public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock,
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode,
                                String color, String extInfo, String fld3, String fld4, String fld5, String unit,
-                               boolean needManufacturingDate, RawFileData image, String nameCountry, BigDecimal amountPack,
+                               Long flags, RawFileData image, String nameCountry, BigDecimal amountPack,
                                String category) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
@@ -1559,7 +1559,7 @@ public class DefaultTerminalHandler {
             this.fld4 = fld4;
             this.fld5 = fld5;
             this.unit = unit;
-            this.needManufacturingDate = needManufacturingDate;
+            this.flags = flags;
             this.image = image;
             this.nameCountry = nameCountry;
             this.amountPack = amountPack;
