@@ -1,0 +1,710 @@
+MODULE SaleInternetAssembly;
+
+REQUIRE SaleInternetPicking, SaleInternetOrderDetail;
+
+NAMESPACE Sale;
+
+CLASS Assembly 'Сборка';
+
+TABLE assembly (Assembly);
+
+assembly = DATA Assembly (InternetOrderDetail) INDEXED;
+in 'Вкл.' (Assembly o, InternetOrderDetail d) = assembly(d) == o;
+@defineDocumentHeaderCount(assembly, InternetOrderDetail) ;
+
+seriesNPicking '№ комплектации' (InternetOrderDetail d) = seriesNumber(picking(d)); 
+
+relation = GROUP SUM 1 IF in(Assembly o, InternetOrderDetail d) BY o, internetOrder(d);
+relation = GROUP SUM 1 IF in(Assembly o, InternetOrderDetail d) BY o, internetOrder(d), picking(d);
+relation = GROUP SUM 1 IF in(Assembly o, InternetOrderDetail d) BY o, picking(d);
+relationAssembly = GROUP SUM 1 IF in(Assembly o, InternetOrderDetail d) BY picking(d);
+
+seriesNumberInternetOrders 'Интернет-заказы' (Assembly assembly) = GROUP
+                                                 CONCAT seriesNumber(InternetOrder order) IF relation(assembly, order) , ', '
+                                                 ORDER order  CHARWIDTH 30 IN documentPrm;   
+seriesNumberPickings 'Комплектации' (Assembly assembly) = GROUP
+                                                 CONCAT seriesNumber(Picking p) IF relation(assembly, p), ', '
+                                                 ORDER p  CHARWIDTH 30 IN documentPrm;                                                                                                     
+
+dataAssemblyIndex 'Номер строки' = DATA INTEGER (InternetOrderDetail) INDEXED; 
+defaultAssemblyIndex 'Номер строки (авт.)' (InternetOrderDetail d) =
+    PARTITION SUM 1
+    ORDER internetOrder(d),d BY assembly(d) CHARWIDTH 4;
+indexAssembly 'Номер строки' (InternetOrderDetail d) = OVERRIDE dataAssemblyIndex(d), defaultAssemblyIndex(d) IN id;  
+
+sortAssembly 'Порядок сортировки' (d) = ABSTRACT STRING[100] (InternetOrderDetail);
+sortAssemblyInternetOrderDetail = GROUP SUM 1 IF sortAssembly(InternetOrderDetail d) BY assembly(d);
+
+updateSortAssembly 'Сортировать'(InternetOrderDetail detail)  { 
+    IF sortAssemblyInternetOrderDetail(assembly(detail)) THEN {    
+        LOCAL int = INTEGER();
+        int() <- NULL;
+        int() <-1;
+
+        FOR assembly(detail) == assembly(InternetOrderDetail d) ORDER sortAssembly(d) DO {
+            dataIndex(d) <- int();
+            int() <-  int()+1;
+        }  
+    } ELSE {
+        MESSAGE 'Не задано условие сортировки';
+    }
+} ASON CONTEXTMENU indexAssembly[InternetOrderDetail];  
+
+@defineDocumentHeaderTimePrefix(Assembly, , ' документа');
+@defineDocumentHeaderNote(Assembly);
+@defineCreated(Assembly);
+@deriveDocumentHeaderTimePrefix(Assembly, );
+
+@defineDocumentHeaderNumber(Assembly, BPSTRING[2]);
+
+@defineNumeratedDefault(Assembly, 'Сборка', 'СБ');
+@defineDocumentHeaderStock (assembly, stock, 'Склад', );
+
+@defineDocumentHeaderDescription(Assembly, 'Сборка');
+
+@defineDocumentHeaderQuantityCustomPrefix(assembly, internetOrderDetail, , );
+@defineDocumentHeaderSumCustom(assembly, internetOrderDetail, );
+
+@defineDocumentHeaderSkuQuantity(assembly, internetOrderDetail, sku, );
+
+CONSTRAINT Sale.supplierStock[InternetOrderDetail](InternetOrderDetail d) AND stock(assembly(d)) AND NOT Sale.supplierStock[InternetOrderDetail](d) == stock(assembly(d))
+    MESSAGE 'Склад поставщика для строки интернет заказа не соответсвует складу в сборке.';
+
+
+CLASS StatusAssembly 'Статус' {
+    new 'Новый',
+    inWork 'В работе',
+    processed 'Обработан'
+}
+
+FORM statusAssembly 'Статус'
+    OBJECTS o = StatusAssembly
+    PROPERTIES(o) READONLY staticCaption
+    
+    LIST StatusAssembly OBJECT o 
+;  
+
+status = DATA StatusAssembly(Assembly);
+nameStatus 'Статус' (Assembly p) = staticCaption(status(p)) IN documentPrm CHARWIDTH 8;
+WHEN LOCAL SET(Assembly o IS Assembly) DO {
+    status (o) <- StatusAssembly.new WHERE NOT CHANGED (status (o));
+}
+
+assemblyQuantity 'Собрано' = DATA NUMERIC[16,5](InternetOrderDetail);
+assemblyQuantityInternetOrderDetail 'Кол-во (всего) собрано'  = GROUP SUM assemblyQuantity(InternetOrderDetail idetail) BY assembly(idetail) IN documentSum MATERIALIZED;
+
+inExecutor = DATA BOOLEAN (Employee, Assembly);
+nameExecutor 'Исполнитель' (Assembly p) = GROUP CONCAT name(Employee e) IF inExecutor(e,p),',' ORDER name(e), e CHARWIDTH 15;
+
+CLASS StatusDetail 'Статус' {
+    expected 'Ожидается',
+    available 'В наличии',
+    notAvailable 'Нет в наличии',
+    picked 'Скомплектовано'
+}
+
+order 'Порядок' = DATA INTEGER (StatusDetail);
+
+FORM statusDetail 'Статус'
+    OBJECTS o = StatusDetail
+    PROPERTIES(o) READONLY staticCaption, order
+    ORDERS order(o)
+    
+    LIST StatusDetail OBJECT o 
+;    
+
+DESIGN statusDetail {
+    PROPERTY(order(o)){
+        hide = TRUE;
+    }
+}
+
+statusDetail = DATA StatusDetail (InternetOrderDetail);
+//status (InternetOrderDetail d) <- StatusInternetOrderDetail.new WHEN SET(d IS InternetOrderDetail);
+nameStatusDetail 'Статус' (InternetOrderDetail d) = staticCaption(statusDetail(d)) CHARWIDTH 15;
+
+CONSTRAINT (SETCHANGED (assembly(InternetOrderDetail d)) OR CHANGED (statusDetail(d))) AND assembly(d) AND NOT statusDetail(d)
+    MESSAGE 'У строки Сборки обязательно должен быть задан статус';
+
+WHEN LOCAL SET(assembly(InternetOrderDetail d)) DO {
+    statusDetail (d) <- StatusDetail.expected;
+    assemblyQuantity (d) <- 0; 
+    status(picking(d))<-  StatusPicking.inWork;
+}
+WHEN DROPPED(assembly(InternetOrderDetail d)) DO {
+    statusDetail (d) <- NULL;
+    assemblyQuantity (d) <- NULL; 
+    status(picking(d))<-  StatusPicking.new;
+    //
+    pickingQuantity(d) <- NULL;
+    status(picking(d))<- StatusPicking.new;
+}
+
+
+countInternetOrderDetailPicked 'К-во строк собрано' (o) =
+    GROUP SUM 1 IF statusDetail(InternetOrderDetail d)==StatusDetail.picked BY assembly(d);
+
+WHEN SET(countInternetOrderDetail(Assembly a)==countInternetOrderDetailPicked(a)) DO {
+    status(a)<- StatusAssembly.processed;
+}
+
+isPrev(Assembly a) = PREV(a IS Assembly);
+isPrev(InternetOrderDetail d) = isPrev(assembly(d));
+changeStatus (Assembly assembly)  {    
+    DIALOG statusAssembly OBJECTS o = status(assembly) INPUT DO {
+        status(assembly) <- o;            
+    } 
+    IF isPrev(assembly) THEN { 
+        APPLY;
+    }   
+}
+
+META changeAttrInternet(objects,prop)
+    change###prop(###objects d) {
+        INPUT b = prop(d) DO {
+            prop(d)<- b;   
+        }
+        IF isPrev(d) THEN{ 
+            APPLY;
+        }
+    }    
+END
+
+
+@changeAttrInternet(assembly,number);
+@changeAttrInternet(assembly,series);
+@changeAttrInternet(assembly,date);
+@changeAttrInternet(assembly,time);
+@changeAttrInternet(assembly,note);
+@changeAttrInternet(internetOrderDetail,indexAssembly);
+@changeAttrInternet(internetOrderDetail,assemblyQuantity);
+changeNumerator(Assembly d) {    
+    DIALOG numerators OBJECTS n= numerator(d) INPUT DO {
+        numerator(d)<- n; 
+        generateSeriesNumber(d); 
+    }
+    IF isPrev(d) THEN  {
+        APPLY;
+    }    
+} 
+changeStatusDetail(InternetOrderDetail d) {
+    DIALOG statusDetail OBJECTS o = statusDetail(d) INPUT DO {
+        statusDetail(d)<- o; 
+    }
+    IF isPrev(d) THEN  {
+        APPLY;
+    }
+} 
+maxBin 'Максимальная ячейка' = DATA INTEGER (Assembly) IN documentPrm;
+@changeAttrInternet(assembly,maxBin);
+
+
+bin 'Ячейка' = DATA INTEGER (InternetOrder) INDEXED;
+bin 'Ячейка' (InternetOrderDetail d) = bin(internetOrder(d));
+prevBin 'Ячейка' = DATA INTEGER (InternetOrder);// пусть будет для истории
+overBin 'Ячейка' (InternetOrder o) = OVERRIDE bin(o), prevBin(o);
+overBin 'Ячейка' (InternetOrderDetail d) = overBin(internetOrder(d));
+
+WHEN SETCHANGED(bin(InternetOrder o)) DO{
+    prevBin(o)<- bin(o);
+}
+
+countBins 'К-во ячеек'  = GROUP SUM 1 IF [GROUP SUM 1 BY bin(InternetOrderDetail d), assembly(d)](INTEGER bin, Assembly a) BY a IN documentSum;
+nameBins 'Ячейки'  = GROUP CONCAT STRING(INTEGER  bin)  IF [GROUP SUM 1 BY bin(InternetOrderDetail d), assembly(d)](bin, Assembly a) , ', ' ORDER bin BY a IN documentSum;
+changeBin(InternetOrderDetail d) {
+    INPUT b = bin(d) DO {
+        bin(internetOrder(d))<- b;   
+    }
+    IF isPrev(d) THEN{
+        APPLY;
+    }
+}
+skipBin = ABSTRACT BOOLEAN (InternetOrderDetail);
+useBin = GROUP SUM 1 IF  bin(InternetOrder d) BY bin(d);
+minBin (Assembly a) = GROUP MIN INTEGER  i IF iterate(i,1,maxBin(a)) AND NOT useBin(i);
+
+barcodeInputMothercareAssembly 'Штрихкод' = DATA LOCAL STRING[15] () EVENTID 'SCANNER';
+
+maxInternetOrderDetailCalc  = GROUP MAX InternetOrderDetail d IF quantity(d) AND statusDetail(d)==StatusDetail.expected BY assembly(d), sku(d);
+
+message = DATA LOCAL NESTED TEXT ();
+toPrint = DATA LOCAL NESTED BOOLEAN ();
+sku = DATA LOCAL NESTED Sku();
+maxInternetOrderDetail = DATA LOCAL NESTED InternetOrderDetail();
+
+resetLocAssembly(){
+    message()<- NULL;
+    toPrint()<- NULL;
+    sku()<- NULL;
+    maxInternetOrderDetail()<- NULL;    
+}
+
+
+
+complete 'Завершить'(Assembly a) {
+    APPLY; 
+    resetLocAssembly();
+    //formClose();   
+}
+
+cancel 'Отмена'(Assembly d) {
+    CANCEL; 
+    resetLocAssembly();
+    formClose();  
+}
+
+backgroundMessage() = (IF toPrint() THEN RGB(255, 250, 205) ELSE RGB(255,150,150)) IF message();
+complete 'Завершить'(InternetOrder a) {
+    APPLY; 
+    resetLocAssembly();
+    //formClose();   
+}
+
+FORM scanAssembly 'Сканирование'
+    OBJECTS a = Assembly PANEL 
+//    PROPERTIES() barcodeInputMothercareAssembly ON CHANGE changeBarcodeInputMothercare(a) 
+    PROPERTIES message() READONLY BACKGROUND backgroundMessage()
+   
+    OBJECTS d =InternetOrderDetail
+    PROPERTIES (d) READONLY seriesNumber, nameSku, overBin
+    FILTERS assembly(d)==a, d==(maxInternetOrderDetail())
+    
+    OBJECTS o = InternetOrder 
+    FILTERS internetOrder(d)==o
+    PROPERTIES (o) SHOWIF toPrint() internetOrderPrint, internetOrderPickingPrint, complete   
+    
+    OBJECTS dd = InternetOrderDetail
+    PROPERTIES (dd) READONLY seriesNumber, nameStatusDetail, nameSku, overBin
+    
+    FILTERS assembly(dd)==a, 
+            internetOrder(dd)==internetOrder(maxInternetOrderDetail()),
+            statusDetail(dd)==StatusDetail.expected,
+            d!=dd
+    PROPERTIES  DRAW dd TOOLBAR complete(a), cancel(a)     
+    EVENTS ON QUERYCLOSE {
+        CANCEL; 
+        resetLocAssembly();
+        formClose();   
+    }
+; 
+DESIGN scanAssembly{
+    size = (800, 600);    
+    OBJECTS {
+        REMOVE BOX(a);
+        NEW top{
+            type = CONTAINERH;
+            MOVE PROPERTY (message()){
+                caption = 'Сообщение';                               
+                panelCaptionVertical = TRUE;
+                valueHeight = 40;
+                valueWidth = 350;
+                focusable = FALSE;
+            }
+        }
+        NEW header{
+            fill = 1;
+            type = CONTAINERH;
+            NEW spec{
+                type = SPLITV;
+                fill = 2;
+                MOVE BOX(d){
+                    fill = 1;
+                    PROPERTY(seriesNumber(d)){
+                        focusable = FALSE;
+                        font = 'bold 14';
+                    }
+                    PROPERTY (overBin(d)){
+                        background = #CCFFCC;
+                        focusable = FALSE;
+                        font = 'bold 14';
+                    }
+                    PROPERTY (nameSku(d)){
+                        focusable = FALSE;
+                        font = 'bold 14';
+                    }                               
+                }
+                MOVE BOX(dd){
+                    fill = 4;
+                    caption ='Оставшиеся позиции в ИЗ';
+                    PROPERTY(seriesNumber(dd)){
+                        focusable = FALSE;
+                    }
+                    PROPERTY (overBin(dd)){
+                        focusable = FALSE;
+                    }
+                    PROPERTY (nameSku(dd)){
+                        focusable = FALSE;
+                    } 
+                    PROPERTY (nameStatusDetail(dd)){
+                        focusable = FALSE;
+                    }                            
+                }                                
+            }
+            MOVE BOX(o){
+                fill = 1;
+                MOVE GROUP(print,o){
+                    caption = 'Печать документов к заказу';
+                    showIf = toPrint();   
+                    //fill = 1;
+                    type = COLUMNS;
+                    columns=1;
+                    PROPERTY (internetOrderPrint(o)){
+                        focusable = FALSE;    
+                    }
+                    PROPERTY (internetOrderPickingPrint(o)){
+                        focusable = FALSE;    
+                    }                                
+                }
+                MOVE PANEL (o){
+                    caption = '';
+                    //fill = 1;
+                    PROPERTY (complete(o)){
+                        focusable = FALSE;    
+                        alignment = STRETCH; 
+                        fill = 1;
+                        font = 'bold 36';
+                    }  
+                }
+            }
+        }
+    }
+    PROPERTY (complete(a)){focusable = FALSE;}
+    PROPERTY (cancel(a)){focusable = FALSE;}
+    
+    REMOVE PROPERTY (formApply());
+    REMOVE PROPERTY (formCancel());
+    REMOVE PROPERTY (formOk());
+    REMOVE PROPERTY (formClose());
+}
+
+// todo: есть событие, по которому персчитываются статусы для строк и самого ИЗ
+//WHEN CHANGED (pickingQuantity(InternetOrderDetail d)) DO {
+//    setPickedStatus(d);
+//}
+
+checkToPrint(Assembly td, InternetOrderDetail d){
+    FOR InternetOrder o == internetOrder(d) DO { 
+        IF NOT (GROUP SUM 1 IF assembly(InternetOrderDetail g)==td AND quantity(g) AND internetOrder(g)==o AND statusDetail(g)==StatusDetail.expected AND internetOrder(g)==o) THEN {
+            message()<- CONCAT'\n','Данный товар последний в интернет заказе!!!','Не забудьте распечатать документы к заказу.';
+            toPrint()<- TRUE;          
+            assemblyQuantity(InternetOrderDetail g)<- 1 WHERE internetOrder(g)==o AND assembly(g)==td AND statusDetail(g)==StatusDetail.available;                 
+            statusDetail(InternetOrderDetail g)<- StatusDetail.picked 
+                                                        WHERE internetOrder(g)==o AND assembly(g)==td AND statusDetail(g)==StatusDetail.available; 
+
+            pickingQuantity(InternetOrderDetail g)<-assemblyQuantity(g) 
+                                                        WHERE internetOrder(g)==o AND assembly(g)==td;        
+            FOR relation(td, o, Picking p) DO {
+                status(picking(d))<- StatusPicking.picked;
+            }                                                                          
+            bin(o)<- NULL;                 
+        }
+    }
+}
+
+changeBarcodeInputMothercare(Assembly td) { 
+    APPLY;    
+    resetLocAssembly();   
+    INPUT s = STRING[15] DO {
+        barcodeInputMothercareAssembly() <- processedBarcode(s);
+        sku()<- skuBarcode(barcodeInputMothercareAssembly());
+        IF  NOT [GROUP SUM 1 IF  quantity(InternetOrderDetail d) AND statusDetail(d)==StatusDetail.expected BY assembly(d)](td) THEN {
+            message()<- 'В сборке все позиции уже были распределены!!!';
+            RETURN;        
+        }         
+        IF NOT sku() THEN {            
+            message()<- 'Товар не найден!!!';
+            RETURN;
+        }             
+        maxInternetOrderDetail()<- maxInternetOrderDetailCalc(td,sku());
+        IF NOT maxInternetOrderDetail() THEN {
+            message()<- 'В сборке не осталось подходящих позиций по данному товару!!!';
+            RETURN;         
+        }
+        FOR InternetOrderDetail dd == maxInternetOrderDetail() AND InternetOrder o == internetOrder(maxInternetOrderDetail()) DO {            
+            IF NOT bin(internetOrder(dd)) THEN NEWSESSION NESTED LOCAL {
+                bin(internetOrder(dd))<-  minBin(td);
+                APPLY NESTED LOCAL;   
+            }
+            IF NOT bin(internetOrder(dd)) THEN {
+                message()<- 'Нет свободной ячейки, попробуйте позже!!!';                
+                RETURN;                        
+            }
+            statusDetail(dd)<-StatusDetail.available;
+            checkToPrint(td,maxInternetOrderDetail());
+        }                
+        formRefresh();    
+    }
+}
+EXTEND FORM scanAssembly
+    PROPERTIES() barcodeInputMothercareAssembly ON CHANGE changeBarcodeInputMothercare(a)
+; 
+DESIGN scanAssembly {
+    top {
+        MOVE PROPERTY (barcodeInputMothercareAssembly()) BEFORE PROPERTY (message()){
+            caption = 'Штрихкод';
+            font = 'bold 32';
+            panelCaptionVertical = TRUE;
+            changeKey = 'F4';
+            focusable = TRUE;
+            valueHeight = 40;
+            valueWidth = 300;                
+        }
+    }
+}
+
+
+
+notAvailable 'Нет в наличии' (Assembly td, InternetOrderDetail d){
+    statusDetail(d)<- StatusDetail.notAvailable;
+    
+    checkToPrint(td,maxInternetOrderDetail());
+    ACTIVATE PROPERTY scanAssembly.barcodeInputMothercareAssembly();
+    formRefresh();
+};
+
+EXTEND FORM scanAssembly
+    PROPERTIES (a,dd)  notAvailable GRID 
+;
+DESIGN scanAssembly{
+    PROPERTY (notAvailable(a,dd)){focusable = FALSE;}
+}
+
+isScan = DATA BOOLEAN (Assembly);
+scan 'Сканировать' (Assembly a) {
+    IF NOT maxBin(a) THEN{
+        MESSAGE 'Не задана максимальная ячейка' NOWAIT;
+    }ELSE {
+        IF NOT isScan(a)THEN {
+            NEWSESSION {                
+                isScan(a)<- TRUE;        
+                status(a)<- StatusAssembly.inWork;                     
+                APPLY; 
+            }                           
+        }
+        inExecutor(currentUser(),a)<- TRUE; 
+        SHOW scanAssembly OBJECTS a =a DOCKED;
+        formRefresh();
+    }
+}
+
+seriesNumberAssembly 'Сборка' (Picking p) = GROUP
+                                                 CONCAT seriesNumber(Assembly a) IF relation(a, p), ', '
+                                                 ORDER a  CHARWIDTH 10 IN documentPrm;  
+                                                 
+seriesNumberAssembly'Сборка' (InternetOrderDetail d) = seriesNumber(assembly(d)) CHARWIDTH 10;
+EXTEND FORM pickings
+    PROPERTIES (p) READONLY seriesNumberAssembly
+    PROPERTIES (d) READONLY seriesNumberAssembly
+;
+EXTEND FORM picking
+    //PROPERTIES (p) READONLY seriesNumberAssemblies
+    PROPERTIES (d) READONLY seriesNumberAssembly
+;
+
+EXTEND FORM Sale.pickingDashboard
+    PROPERTIES (p) READONLY seriesNumberAssembly
+    PROPERTIES (pd) READONLY seriesNumberAssembly
+    PROPERTIES (d) READONLY seriesNumberAssembly
+;
+FORM assembly 'Сброка'
+    OBJECTS p = Assembly PANEL
+    PROPERTIES (p) nameStock READONLY
+    
+    PROPERTIES (p) maxBin ON CHANGE changeMaxBin(p),
+                   nameStatus ON CHANGE changeStatus(p),
+                   nameNumerator ON CHANGE changeNumerator(p), 
+                   number ON CHANGE changeNumber(p), 
+                   series ON CHANGE changeSeries(p), 
+                   date  ON CHANGE changeDate(p), 
+                   time ON CHANGE changeTime(p),  
+                   note ON CHANGE changeNote(p)
+                                     
+    PROPERTIES (p) READONLY nameExecutor,
+                   countInternetOrderDetail, assemblyQuantityInternetOrderDetail,
+                   countBins, nameBins 
+                   
+    PROPERTIES (p) READONLY seriesNumberInternetOrders,  seriesNumberPickings                 
+    
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES (d) indexAssembly  ON CHANGE changeIndexAssembly(d)
+    PROPERTIES (d) nameStatusDetail ON CHANGE changeStatusDetail(d)
+    PROPERTIES (d) READONLY seriesNumber
+    PROPERTIES (d) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY nameBatch, quantity READONLY    
+    PROPERTIES (d) assemblyQuantity ON CHANGE changeAssemblyQuantity(d),                   
+                   bin ON CHANGE changeBin(d)
+    PROPERTIES (p) scan TOOLBAR DRAW d SHOWIF isPrev(p)
+    ORDERS indexAssembly(d)                   
+    FILTERS assembly(d) == p
+    
+    OBJECTS o = InternetOrder
+    PROPERTIES (o) READONLY series, number, nameStatus, overBin
+    PROPERTIES (o) internetOrderPrint, internetOrderPickingPrint
+    FILTERS relation(p,o)
+    OBJECTS dd = InternetOrderDetail
+    PROPERTIES (dd) READONLY index, nameStatusDetail, seriesNumber, seriesNPicking, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (dd) READONLY nameBatch, quantity, assemblyQuantity                   
+    FILTERS internetOrder(dd) == o,
+            assembly(dd)==p
+    EDIT Assembly OBJECT p
+;
+
+DESIGN assembly {
+
+    BOX {
+        size = (1024, 768);
+        OBJECTS {
+            NEW specificationBox{
+                fill = 1;
+                type = TABBED;
+                MOVE BOX(d) {
+                    caption = 'Спецификация';
+                    PANEL(d) {
+                        type = CONTAINERV;
+                    }
+                }
+                NEW internet{
+                    fill = 1;
+                    type = SPLITV;
+                    caption = 'Печать документов';
+                    MOVE BOX (o);
+                    MOVE BOX (dd);
+                }
+            }
+    
+            NEW headerBox BEFORE specificationBox {
+                type = CONTAINERH;
+    
+                NEW headerRow1 {
+                    fill = 1;
+    
+                    MOVE GROUP(documentHeader,p) {
+                        columns = 1;
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameStock(p));
+                        MOVE PROPERTY(nameNumerator(p));
+                        MOVE PROPERTY(number(p));
+                        MOVE PROPERTY(series(p));
+                        MOVE PROPERTY(date(p));
+                        MOVE PROPERTY(time(p));
+                    }
+                    NEW executor {
+                        fill = 1;
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameExecutor(p));  
+                    }
+                    MOVE GROUP(documentPrm,p);
+                }
+                NEW sumContainer {
+                    MOVE GROUP(documentSum,p) {
+                        columns = 1;
+                    }
+                }
+            }
+        }
+    }
+}
+
+FORM assemblies 'Сборка интернет заказов'
+    OBJECTS p = Assembly
+    PROPERTIES (p) READONLY maxBin, nameStatus, number, series, date, time, nameStock, nameExecutor, countInternetOrderDetail, 
+                   assemblyQuantityInternetOrderDetail, seriesNumberInternetOrders, seriesNumberPickings, note
+    PROPERTIES (p) PANEL READONLY createdTime, createdNameUser, createdHostnameComputer  
+    PROPERTIES(p)  NEW NEWSESSION, EDIT NEWSESSION, deletep = DELETE NEWSESSION  
+        
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES (d) READONLY  indexAssembly 
+    PROPERTIES (d) READONLY  nameStatusDetail, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY  nameBatch, quantity, assemblyQuantity, bin
+
+    ORDERS indexAssembly(d) 
+    FILTERS assembly(d)==p          
+
+    LIST Assembly OBJECT p
+;
+DESIGN assemblies {
+    NEW documentContainer BEFORE TOOLBARBOX {
+        type = SPLITV;
+        fill = 1;
+        type = CONTAINERV;
+
+        MOVE BOX(p) { fill = 2; }
+
+        NEW documentDetail {
+            type = TABBED;
+            fill = 2;
+
+            MOVE BOX(d) {
+                caption = 'Спецификация';
+            }
+            NEW documentHistory {
+                fill = 1;
+                caption = 'История';
+                MOVE GROUP(created,p);
+
+            }
+            NEW printTab {
+                fill = 1;
+                caption = 'Печатные формы';
+                NEW printContainer {
+                    fill = 1;
+                    caption = 'Печать';
+                    type = CONTAINERV;
+                }
+            }
+        }
+    }
+}
+
+
+select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Picking);
+countPickings  = GROUP SUM 1 IF select(Picking o);
+
+filterDashboardA = ABSTRACT VALUE BOOLEAN (InternetOrderDetail);  
+filterDashboardA = ABSTRACT VALUE BOOLEAN (Picking);  
+filterDashboardA (Picking p) += select(p) AND status(p) == StatusPicking.new;  
+
+countFilterDashboardA  = GROUP SUM 1 IF filterDashboardA(Picking o);
+filterDashboardA (InternetOrderDetail detail) += filterDashboardA(picking(detail)) AND NOT assembly(detail);
+
+createAssembly 'Создать сборку' (Picking order)  { 
+    IF NOT countPickings() THEN {
+        select(order) <- TRUE;
+    } 
+    ELSE {
+        IF [GROUP SUM 1 IF [GROUP SUM 1 IF filterDashboardA(InternetOrderDetail d) BY stock(picking(d))](Stock stock) ]()>1 THEN {
+            MESSAGE 'Для каждого склада будет создана своя "Сборка"!!!' NOWAIT ;
+            
+        }   
+    } 
+    LOCAL NESTED filterStock = Stock(InternetOrderDetail);
+    filterStock(InternetOrderDetail d)<- stock(picking(d)) WHERE filterDashboardA(d);
+    IF countFilterDashboardA() THEN  {      
+        FOR [GROUP SUM 1 BY filterStock(InternetOrderDetail d) ](Stock stock) DO {
+            NEWSESSION {
+                NEW p = Assembly{
+                    stock(p) <- stock;
+                    FOR filterStock(InternetOrderDetail detail) == stock DO {                       
+                        assembly(detail) <- p;                       
+                    }                   
+                    SHOW assembly OBJECTS p = p  NOCANCEL WAIT;
+                }
+            }                           
+        }                 
+        select(Picking o) <- NULL;
+    } ELSE {
+        MESSAGE 'Вначале необходимо отметить комплектации.';
+    }
+}
+
+EXTEND FORM pickingDashboard
+    PROPERTIES select(p) BEFORE nameStatus(p)
+    PROPERTIES (p) TOOLBAR createAssembly
+;
+
+NAVIGATOR {
+    eShop  {
+        NEW assemblies AFTER pickingDashboard;
+    }
+}
+
