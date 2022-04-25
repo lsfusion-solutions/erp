@@ -122,7 +122,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                         for (CashRegisterItem item : transactionInfo.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                                List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.extIdItemGroup);
                                 String idItemGroup = zeroesInItemGroup ? "1|00|00|00|00"
                                         : importGroupType == null || importGroupType.equals(0) ? "0|0|0|0|0"
                                         : importGroupType.equals(1) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup, false)
@@ -267,7 +267,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             Set<String> numberGroupItems = new HashSet<>();
                             for (CashRegisterItem item : transactionInfo.itemsList) {
                                 if (!Thread.currentThread().isInterrupted()) {
-                                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.extIdItemGroup);
                                     hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<>() : Lists.reverse(hierarchyItemGroup);
                                     for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
                                         String idItemGroup = importGroupType.equals(1) ?

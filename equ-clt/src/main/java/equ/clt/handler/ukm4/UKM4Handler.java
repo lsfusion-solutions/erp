@@ -98,7 +98,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                         Set<Long> idItemGroups = new HashSet<>();
                         for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
+                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
                                 if(hierarchyItemGroup != null) {
                                     int size = hierarchyItemGroup.size();
                                     Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
@@ -169,7 +169,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                             if (!Thread.currentThread().isInterrupted()) {
                                 String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
                                 double mespresisi = item.splitItem ? 0.001 : 1.000;
-                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
+                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
                                 if(hierarchyItemGroup != null) {
                                     int size = hierarchyItemGroup.size();
                                     Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");

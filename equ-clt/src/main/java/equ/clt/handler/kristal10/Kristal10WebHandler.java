@@ -231,15 +231,17 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 }
                 addStringElement(good, "vat", String.valueOf(vat));
 
-                //parent: good
-                Element group = new Element("group");
-                setAttribute(group, "id", item.idItemGroup);
-                addStringElement(group, "name", item.nameItemGroup);
-                good.addContent(group);
+                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
+                if (hierarchyItemGroup != null) {
+                    ItemGroup firstElementInHierarchy = hierarchyItemGroup.get(0);
+                    //parent: good
+                    Element group = new Element("group");
+                    setAttribute(group, "id", firstElementInHierarchy.idItemGroup);
+                    addStringElement(group, "name", firstElementInHierarchy.nameItemGroup);
+                    good.addContent(group);
 
-                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
-                if (hierarchyItemGroup != null)
                     addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
+                }
 
                 //parent: good
                 if (item.idUOM == null || item.shortNameUOM == null) {

@@ -67,7 +67,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                         LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<>();
                         for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
+                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
                                 if(hierarchyItemGroup != null) {
                                     for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
                                         String idItemGroup = hierarchyItemGroup.get(i).idItemGroup;

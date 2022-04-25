@@ -189,7 +189,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         Set<String> usedItemGroups = new HashSet<>();
                         for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
+                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
                                 if (hierarchyItemGroup != null) {
                                     for (ItemGroup itemGroup : hierarchyItemGroup) {
                                         if (!usedItemGroups.contains(itemGroup.extIdItemGroup)) {
