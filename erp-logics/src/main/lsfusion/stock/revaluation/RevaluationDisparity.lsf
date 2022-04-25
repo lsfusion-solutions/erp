@@ -23,12 +23,11 @@ DESIGN operation {
 
 //--
 
-@defineDocumentHeaderProperty(disparity, createRevaluation, 'Создать акт переоценки');
-@defineDocumentDetailProperty(disparity, disparityDetail, createRevaluation, 'Создать акт переоценки');
+@defineDocumentInterfaceProperty(disparity, createRevaluation, 'Создать акт переоценки');
 
 //------------------------------ Создание агрегированных объектов через операции -----------------------------//
 
-createRevaluation (Disparity disparity) <- createRevaluation(operation(disparity))
+createRevaluation (UserDisparity disparity) <- createRevaluation(operation(disparity))
     WHEN CHANGED(operation(disparity));
 
 revaluationOperation  = DATA Revaluation.Operation (Operation);
@@ -45,34 +44,51 @@ DESIGN operation {
 }
 
 // Операция переоценки
-@defineDocumentOperationHeaderPrefix(disparity, revaluation, Revaluation, ' (переоценка)');
-@defineDocumentOperationDetailPrefix(disparity, disparityDetail, revaluation, Revaluation, 'переоценка');
+@defineDocumentInterfaceOperationPrefix(disparity, revaluation, Revaluation, ' (переоценка)');
 
-revaluationOperation(Disparity o) <- revaluationOperation(operation(o))
+revaluationOperation(UserDisparity o) <- revaluationOperation(operation(o))
     WHEN CHANGED(operation(o));
 
 
 //-- агр.объект
 
 // Комиссия
-revaluationNumberDisposal '№ распоряжения на переоценку' (disparity) = DATA STRING[50] (Disparity) IN documentPrm;
+revaluationNumberDisposal '№ распоряжения на переоценку' (disparity) = ABSTRACT STRING[50] (Disparity) IN documentPrm;
 
-revaluationCommittee (disparity) = DATA RepricingCommittee(Disparity);
+revaluationCommittee (disparity) = ABSTRACT RepricingCommittee(Disparity);
 nameRevaluationCommittee 'Комиссия для переоценки' (Disparity disparity) = name(revaluationCommittee(disparity)) IN documentPrm CHARWIDTH 20;
-revaluationCommittee (Disparity disparity) <- repricingCommittee(stock(disparity))
-    WHEN CHANGED(stock(disparity));
-
-CONSTRAINT revaluationCommittee (Disparity disparity) AND NOT in(revaluationCommittee (disparity), stock(disparity))
-    CHECKED BY revaluationCommittee[Disparity] MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
 
 inRevaluationCommittee (Disparity disparity, Employee employee) = in(revaluationCommittee (disparity), employee);
 nameEmployeeRevaluationCommittee 'Члены комиссии' (Disparity disparity) = namePositionEmployee(revaluationCommittee (disparity));
+shortNameEmployeeRevaluationCommittee 'Члены комиссии' (Disparity disparity) = shortNameEmployee(revaluationCommittee (disparity));
 nameChairmanRevaluationCommittee 'Председатель комиссии' (Disparity disparity) = nameChairman(revaluationCommittee(disparity));
+shortNameChairmanRevaluationCommittee 'Председатель комиссии' (Disparity disparity) = shortNameChairman(revaluationCommittee(disparity));
 namePositionChairmanRevaluationCommittee 'Должность' (Disparity disparity) = namePositionChairman(revaluationCommittee(disparity));
-    
-diffInputSum 'Сумма  дооценки (учетная)' (DisparityDetail disparityDetail) =  inputSum(disparityDetail) (-) sum(disparityDetail);
 
-@defineDocumentHeaderSumPrefix(disparity, diffInput, ' дооценки (учетная)');  
+revaluationNumberDisposal '№ распоряжения на переоценку' (disparity) = DATA STRING[50] (UserDisparity) IN documentPrm;
+
+revaluationCommittee (disparity) = DATA RepricingCommittee(UserDisparity);
+nameRevaluationCommittee 'Комиссия для переоценки' (UserDisparity disparity) = name(revaluationCommittee(disparity)) IN documentPrm CHARWIDTH 20;
+revaluationCommittee (UserDisparity disparity) <- repricingCommittee(stock(disparity))
+    WHEN CHANGED(stock(disparity));
+
+CONSTRAINT revaluationCommittee (UserDisparity disparity) AND NOT in(revaluationCommittee (disparity), stock(disparity))
+    CHECKED BY revaluationCommittee[UserDisparity] MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
+
+inRevaluationCommittee (UserDisparity disparity, Employee employee) = in(revaluationCommittee (disparity), employee);
+nameEmployeeRevaluationCommittee 'Члены комиссии' (UserDisparity disparity) = namePositionEmployee(revaluationCommittee (disparity));
+shortNameEmployeeRevaluationCommittee 'Члены комиссии' (UserDisparity disparity) = shortNameEmployee(revaluationCommittee (disparity));
+nameChairmanRevaluationCommittee 'Председатель комиссии' (UserDisparity disparity) = nameChairman(revaluationCommittee(disparity));
+shortNameChairmanRevaluationCommittee 'Председатель комиссии' (UserDisparity disparity) = shortNameChairman(revaluationCommittee(disparity));
+namePositionChairmanRevaluationCommittee 'Должность' (UserDisparity disparity) = namePositionChairman(revaluationCommittee(disparity));
+
+revaluationCommittee (UserDisparity disparity) += revaluationCommittee(disparity);
+revaluationNumberDisposal (UserDisparity disparity) += revaluationNumberDisposal(disparity); 
+
+diffInputSum 'Сумма  дооценки (учетная)' (DisparityDetail disparityDetail) =  inputSum(disparityDetail) (-) sum(disparityDetail);
+diffInputSum 'Сумма  дооценки (учетная)' (UserDisparityDetail disparityDetail) =  inputSum(disparityDetail) (-) sum(disparityDetail);
+
+@defineDocumentInterfaceHeaderSumPrefix(disparity, diffInput, ' дооценки (учетная)');  
 backgroundRevaluation 'Цвет' (Disparity disparity) = RGB(250, 218, 221) IF disparity IS Disparity;
 backgroundRevaluation (DisparityDetail detail) = backgroundRevaluation(disparity(detail));  
    

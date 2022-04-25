@@ -8,15 +8,15 @@ NAMESPACE Disparity;
 
 useLot (Disparity i) = useLot(operation(i));
 
-@defineDocumentLotOut(disparity, stock, quantity, dis, isPosted);
+@defineDocumentLotOut(userDisparity, disparity, stock, quantity, dis, isPosted);
 
-changeSkuLot 'Перенести марки' (Disparity d) {
+changeSkuLot 'Перенести марки' (UserDisparity d) {
     APPLY;
     IF canceled() THEN RETURN;
     
     ASK 'Вы уверены, что хотите перенести марки на новый товар ? Отмена операции будет невозможна.' DO {
         NEWSESSION {
-            FOR disparity(DisparityDetail dd) = d AND inputSku(dd) AND quantity(dd, Lot l) AND sku(dd) = sku(l) DO {
+            FOR disparity(UserDisparityDetail dd) = d AND inputSku(dd) AND quantity(dd, Lot l) AND sku(dd) = sku(l) DO {
                 sku(l) <- inputSku(dd);
             }
             setNoCancelInTransaction();
@@ -25,10 +25,10 @@ changeSkuLot 'Перенести марки' (Disparity d) {
     }
 }
 
-countLot (Disparity d) = GROUP SUM 1 IF quantity(DisparityDetail dd, Lot l) AND sku(dd) = sku(l) AND disparity(dd) = d;
-countInputLot (Disparity d) = GROUP SUM 1 IF quantity(DisparityDetail dd, Lot l) AND inputSku(dd) = sku(l) AND disparity(dd) = d;
+countLot (UserDisparity d) = GROUP SUM 1 IF quantity(UserDisparityDetail dd, Lot l) AND sku(dd) = sku(l) AND disparity(dd) = d;
+countInputLot (UserDisparity d) = GROUP SUM 1 IF quantity(UserDisparityDetail dd, Lot l) AND inputSku(dd) = sku(l) AND disparity(dd) = d;
 
-statusLot 'Статус марок' (Disparity d) = 
+statusLot 'Статус марок' (UserDisparity d) = 
                                        CASE WHEN countInputLot(d) AND NOT countLot(d) THEN 'Перенесены'  
                                              WHEN countLot(d) AND NOT countInputLot(d) THEN 'Не перенесены'
                                              WHEN countLot(d) AND countInputLot(d) THEN 'Частично перенесены'

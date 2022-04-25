@@ -2,11 +2,11 @@ MODULE DisparityManufacturingPrice;
 
 REQUIRE Disparity, PurchaseManufacturingPrice;
 
-@defineDocumentDetailPriceCustomPrefix(disparityDetail, curInputManufacturing, ' изготовителя до');
+@defineDocumentInterfaceDetailPricePrefix(disparity, curInputManufacturing, ' изготовителя до');
 //@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, manufacturingPriceStockPriceListType, curInputManufacturing, sku, stock);
 
-overCurInputManufacturingPrice = ABSTRACT VALUE NUMERIC[16,4] (DisparityDetail);
-curInputManufacturingPrice (DisparityDetail detail)  <- OVERRIDE overCurInputManufacturingPrice(detail), round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+overCurInputManufacturingPrice = ABSTRACT VALUE NUMERIC[16,4] (UserDisparityDetail);
+curInputManufacturingPrice (UserDisparityDetail detail)  <- OVERRIDE overCurInputManufacturingPrice(detail), round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                                                                                                          sku(detail),
                                                                                                          stock(detail),
                                                                                                          dateTime(detail)))
@@ -15,21 +15,21 @@ curInputManufacturingPrice (DisparityDetail detail)  <- OVERRIDE overCurInputMan
                                                      CHANGED(dateTime(detail)) OR
                                                      CHANGED(batch(detail));
 
-@defineDocumentDetailPriceCustomPrefix(disparityDetail, afterInputManufacturing, ' изготовителя после');
+@defineDocumentInterfaceDetailPricePrefix(disparity, afterInputManufacturing, ' изготовителя после');
 
-afterInputManufacturingPrice(DisparityDetail detail) <- curInputManufacturingPrice(detail) WHEN CHANGED (curInputManufacturingPrice(detail));
+afterInputManufacturingPrice(UserDisparityDetail detail) <- curInputManufacturingPrice(detail) WHEN CHANGED (curInputManufacturingPrice(detail));
 
-@defineDocumentDetailDataSumCustomPrefix (disparityDetail, curInputManufacturing, ' изготовителя до');
-@deriveDocumentDetailSumPrefix(disparity, curInputManufacturing, currency, inputQuantity);
+@defineDocumentInterfaceDetailDataSumPrefix(disparity, curInputManufacturing, ' изготовителя до');
+@deriveDocumentDetailSumPrefix(userDisparity, curInputManufacturing, currency, inputQuantity);
 
-@defineDocumentDetailDataSumCustomPrefix (disparityDetail, afterInputManufacturing, ' изготовителя после');
-@deriveDocumentDetailSumPrefix(disparity, afterInputManufacturing, currency, inputQuantity);
+@defineDocumentInterfaceDetailDataSumPrefix(disparity, afterInputManufacturing, ' изготовителя после');
+@deriveDocumentDetailSumPrefix(userDisparity, afterInputManufacturing, currency, inputQuantity);
 
 showIfManufacturingPrice= ABSTRACT CASE BOOLEAN (DisparityDetail);
 
 backgroundCurInputManufacturingPrice= ABSTRACT CASE COLOR (DisparityDetail);
-overCurInputManufacturingPrice  ABSTRACT LIST ( DisparityDetail);
-changeCurInputManufacturingPrice(DisparityDetail disparityDetail)  { 
+overCurInputManufacturingPrice  ABSTRACT LIST (UserDisparityDetail);
+changeCurInputManufacturingPrice(UserDisparityDetail disparityDetail)  { 
     INPUT n = NUMERIC[16,4] DO {
         curInputManufacturingPrice(disparityDetail) <- n;
         overCurInputManufacturingPrice(disparityDetail);
@@ -37,8 +37,8 @@ changeCurInputManufacturingPrice(DisparityDetail disparityDetail)  {
 }
 //--
 backgroundAfterInputManufacturingPrice= ABSTRACT CASE COLOR (DisparityDetail);
-overAfterInputManufacturingPrice  ABSTRACT LIST ( DisparityDetail);
-changeAfterInputManufacturingPrice(DisparityDetail disparityDetail)  { 
+overAfterInputManufacturingPrice  ABSTRACT LIST (UserDisparityDetail);
+changeAfterInputManufacturingPrice(UserDisparityDetail disparityDetail)  { 
     INPUT n = NUMERIC[16,4] DO {
         afterInputManufacturingPrice(disparityDetail) <- n;
         overAfterInputManufacturingPrice(disparityDetail);

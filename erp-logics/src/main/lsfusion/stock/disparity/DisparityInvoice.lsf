@@ -4,14 +4,18 @@ REQUIRE Disparity, PurchaseShipment;
 
 NAMESPACE Disparity;
 
-invoiceDetail = DATA Purchase.InvoiceDetail (DisparityDetail);
-descriptionIndexInvoiceDetail 'Строка приходной накладной' = descriptionIndex(invoiceDetail(DisparityDetail d)) CHARWIDTH 20;
+invoiceDetail = ABSTRACT Purchase.InvoiceDetail (DisparityDetail) MATERIALIZED;
+invoiceDetail = DATA Purchase.InvoiceDetail (UserDisparityDetail);
+invoiceDetail(UserDisparityDetail d) += invoiceDetail(d);
 
-WHEN LOCAL FORMS disparity CHANGED (batch(DisparityDetail d)) DO {
+descriptionIndexInvoiceDetail 'Строка приходной накладной' = descriptionIndex(invoiceDetail(DisparityDetail d)) CHARWIDTH 20;
+descriptionIndexInvoiceDetail 'Строка приходной накладной' = descriptionIndex(invoiceDetail(UserDisparityDetail d)) CHARWIDTH 20;
+
+WHEN LOCAL FORMS disparity CHANGED (batch(UserDisparityDetail d)) DO {
     invoiceDetail(d) <- invoiceDetail(batch(d));        
 }
 
-CONSTRAINT invoiceDetail(batch(DisparityDetail disparityDetail)) != invoiceDetail(disparityDetail) CHECKED BY invoiceDetail[DisparityDetail]
+CONSTRAINT invoiceDetail(batch(UserDisparityDetail disparityDetail)) != invoiceDetail(disparityDetail) CHECKED BY invoiceDetail[UserDisparityDetail]
     MESSAGE 'Строка накладной для строки изменения сортности должна соответствовать строке накладной для партии строки изменения сортности';
 
 EXTEND FORM disparity 

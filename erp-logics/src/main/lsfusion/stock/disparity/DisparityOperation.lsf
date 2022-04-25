@@ -28,13 +28,9 @@ NAVIGATOR {
 }
 
 //------------------------------------------ Опеределение операции для disparity ------------------------------------//
+@defineDocumentInterfaceOperation (disparity, Disparity, );
 
-operation = DATA Operation (Disparity) MATERIALIZED;
-nameOperation 'Операция' = name(operation(Disparity disparity));
-
-operation 'Операция' (DisparityDetail disparityDetail) = operation(disparity(disparityDetail));
-
-@defineDocumentOperationRolePrefix(disparity, );
+@defineDocumentOperationRolePrefix(userDisparity, );
 
 EXTEND FORM disparity
     PROPERTIES(dis) nameOperation
@@ -53,7 +49,7 @@ useDisparityItemDisparity 'Частичная уценка' = DATA BOOLEAN (Oper
 useDisparityItemDisparity (Disparity d) = useDisparityItemDisparity(operation(d));
 useDisparityItemDisparity (DisparityDetail d) = useDisparityItemDisparity(operation(d));
 
-CONSTRAINT useDisparityItemDisparity(operation(DisparityDetail detail))  
+CONSTRAINT useDisparityItemDisparity(operation(UserDisparityDetail detail))  
     AND inputSku(detail) AND sku(detail) 
     AND (countItemDisparity(sku(detail)) AND NOT disparityItem(inputSku(detail))==sku(detail))
     CHECKED BY inputSku[DisparityDetail] MESSAGE 'Выбран не уцененный товар';   
@@ -61,7 +57,7 @@ CONSTRAINT useDisparityItemDisparity(operation(DisparityDetail detail))
 childItem = GROUP MAX Item i IF active(i) BY disparityItem(i);
 countActiveItemDisparity (Item disparityItem) = GROUP SUM 1 IF disparityItem(Item item) == disparityItem AND active(item);
 
-WHEN LOCAL FORMS disparity SETCHANGED (sku(DisparityDetail d)) AND NOT CHANGED(inputSku(d)) AND useDisparityItemDisparity(operation(d))
+WHEN LOCAL FORMS disparity SETCHANGED (sku(UserDisparityDetail d)) AND NOT CHANGED(inputSku(d)) AND useDisparityItemDisparity(operation(d))
     AND childItem(sku(d)) AND countActiveItemDisparity(sku(d)) == 1 DO {
     inputSku(d) <- childItem(sku(d));
 }
@@ -85,13 +81,13 @@ operation[StockDocumentLedger] (Disparity ledger) += operation(ledger);
 //кратность
 @defineOperationProperty(showRate, 'Кратность', BOOLEAN, showContainer);
 
-rate 'Кратность'  = DATA NUMERIC[15,4] (DisparityDetail);
+rate 'Кратность'  = DATA NUMERIC[15,4] (UserDisparityDetail);
 
 EXTEND FORM disparity
     PROPERTIES(d) rate SHOWIF showRate(operation(d)) BEFORE inputIdBarcodeSku(d)
 ;
 
-WHEN LOCAL (CHANGED(rate(DisparityDetail d)) OR CHANGED (quantity(d)) OR CHANGED(price(d))) AND rate(d) DO {
+WHEN LOCAL (CHANGED(rate(UserDisparityDetail d)) OR CHANGED (quantity(d)) OR CHANGED(price(d))) AND rate(d) DO {
     inputQuantity(d) <- quantity(d)*rate(d);
     inputPrice(d) <- round2(price(d)/rate(d));
 }

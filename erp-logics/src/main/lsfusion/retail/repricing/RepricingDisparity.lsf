@@ -15,8 +15,7 @@ NAMESPACE Disparity;
 @defineOperationProperty(createRepricing, 'Создать акт переоценки (розн.)', BOOLEAN, createContainer);
 
 //--
-@defineDocumentHeaderProperty(disparity, createRepricing, 'Создать акт переоценки');
-@defineDocumentDetailProperty(disparity, disparityDetail, createRepricing, 'Создать акт переоценки');
+@defineDocumentInterfaceProperty(disparity, createRepricing, 'Создать акт переоценки');
 
 //------------------------------ Создание агрегированных объектов через операции -----------------------------//
 
@@ -42,16 +41,15 @@ EXTEND FORM disparity
     PROPERTIES(dis) notConduct
 ;
 
-@deriveDocumentOperationProperty(Disparity, createRepricing);
+@deriveDocumentOperationProperty(userDisparity, createRepricing);
 @deriveDocumentOperationProperty(Disparity, notConduct);
 
 skip(Disparity ledger) += ledger IS Disparity AND notConduct(ledger);
 
 // Операция переоценки
-@defineDocumentOperationHeaderPrefix(disparity, repricing, Repricing, ' (переоценка)');
-@defineDocumentOperationDetailPrefix(disparity, disparityDetail, repricing, Repricing, ' переоценка');
+@defineDocumentInterfaceOperationPrefix(disparity, repricing, Repricing, ' (переоценка)');
 
-@deriveDocumentOperationProperty(Disparity, repricingOperation);
+@deriveDocumentOperationProperty(UserDisparity, repricingOperation);
 
 negativeMarkupOnAccount90 'Относить отрицательную надбавку на 90 счет' = DATA BOOLEAN (Disparity) IN documentPrm;
 
@@ -67,44 +65,44 @@ onStarted() +{
 }
 
 // До
-@defineDocumentTimePrefix(disparity, before, ' документа до');
-@deriveDocumentHeaderTimePrefix(Disparity, before);
+@defineDocumentInterfaceTimePrefix(disparity, before, ' документа до');
+@deriveDocumentHeaderTimePrefix(UserDisparity, before);
 
-@defineDocumentDetailPricePrefix(disparity, curInput, ' поставщика до');
-@defineDocumentDetailDataSumCustomPrefix (disparityDetail, curInput, ' поставщика до');
+@defineDocumentInterfaceDetailPricePrefix(disparity, curInput, ' поставщика до');
+@defineDocumentInterfaceDetailDataSumPrefix(disparity, curInput, ' поставщика до');
 
 overCurInputRepricingSum = ABSTRACT NUMERIC[18,4] (DisparityDetail) MATERIALIZED;
 curInputRepricingSum (DisparityDetail detail) = OVERRIDE overCurInputRepricingSum(detail), curInputSum(detail) MATERIALIZED;
 
-@deriveDocumentDetailSumPrefix(disparity, curInput, currency, inputQuantity);
+@deriveDocumentDetailSumPrefix(userDisparity, curInput, currency, inputQuantity);
 
 overCurInputRepricingPrice = ABSTRACT NUMERIC[16,4] (DisparityDetail) MATERIALIZED;
 curInputRepricingPrice (DisparityDetail detail) = OVERRIDE overCurInputRepricingPrice(detail), curInputPrice(detail) MATERIALIZED;
 
-@defineDocumentDetailPricePrefix(disparity, curInputRetail, ' розничная до');
-@defineDocumentDetailDataSumCustomPrefix (disparityDetail, curInputRetail, ' розничная до');
-@deriveDocumentDetailSumPrefix(disparity, curInputRetail, currency, inputQuantity);
+@defineDocumentInterfaceDetailPricePrefix(disparity, curInputRetail, ' розничная до');
+@defineDocumentInterfaceDetailDataSumPrefix(disparity, curInputRetail, ' розничная до');
+@deriveDocumentDetailSumPrefix(userDisparity, curInputRetail, currency, inputQuantity);
 
-@defineDocumentDetailVAT(disparity, countryStock, curInput, ' до');
-@deriveDocumentDetailValueVAT(disparity, curInput);
+@defineDocumentInterfaceDetailVAT(disparity, countryStock, curInput, ' до');
+@deriveDocumentDetailValueVAT(userDisparity, curInput);
 
-@defineDocumentDetailMarkupPrefix (disparity, curInput, ' до');
-curInputMarkup(DisparityDetail disparityDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+@defineDocumentInterfaceDetailMarkupPrefix (disparity, curInput, ' до');
+curInputMarkup(UserDisparityDetail disparityDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
     curInputRetailPrice(disparityDetail),
     valueCurInputVAT(disparityDetail),
     curInputRepricingPrice(disparityDetail))
     WHEN CHANGED(curInputRetailPrice(disparityDetail)) OR CHANGED (valueCurInputVAT(disparityDetail)) OR CHANGED(curInputRepricingPrice(disparityDetail));
 
-@defineDocumentDetailVATDataSumCustomPrefix (disparityDetail, curInput, ' до');
-@deriveDocumentDetailReverseVATSumPrefix(disparity, curInput, curInputRetail);
-@defineDocumentDetailMarkupSumCustomPrefix (disparityDetail, curInput, ' до');
+@defineDocumentInterfaceDetailVATDataSumPrefix (disparity, curInput, ' до');
+@deriveDocumentDetailReverseVATSumPrefix(userDisparity, curInput, curInputRetail);
+@defineDocumentInterfaceDetailMarkupSumPrefix (disparity, curInput, ' до');
 //@deriveDocumentDetailMarkupSumPrefix(disparity, curInput, curInputRetail, curInput);
-curInputMarkupSum(DisparityDetail disparityDetail) <- curInputRetailSum(disparityDetail) (-) curInputVATSum (disparityDetail) (-) curInputRepricingSum(disparityDetail)
+curInputMarkupSum(UserDisparityDetail disparityDetail) <- curInputRetailSum(disparityDetail) (-) curInputVATSum (disparityDetail) (-) curInputRepricingSum(disparityDetail)
                     WHEN CHANGED(curInputRetailSum(disparityDetail)) OR CHANGED (curInputVATSum (disparityDetail)) OR CHANGED (curInputRepricingSum(disparityDetail));
 
 //@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, supplierPricingPriceListType, curInput, sku, stock){
-overCurInputPrice = ABSTRACT NUMERIC[16,4] (DisparityDetail);
-curInputPrice (DisparityDetail detail)  <- round2((OVERRIDE overCurInputPrice(detail), prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
+overCurInputPrice = ABSTRACT NUMERIC[16,4] (UserDisparityDetail);
+curInputPrice (UserDisparityDetail detail)  <- round2((OVERRIDE overCurInputPrice(detail), prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
                                                                                         sku(detail),
                                                                                         stock(detail),
                                                                                         dateTime(detail)))/(OVERRIDE rate(detail), 1))
@@ -114,9 +112,9 @@ curInputPrice (DisparityDetail detail)  <- round2((OVERRIDE overCurInputPrice(de
                                                      CHANGED(rate(detail)) OR
                                                      CHANGED(batch(detail));
 
-@deriveDocumentDetailVAT (disparity, curInput, beforeDate, sku, stock);
+@deriveDocumentDetailVAT (userDisparity, curInput, beforeDate, sku, stock);
 //@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, retailPricingPriceListType, curInputRetail, sku, stock){
-curInputRetailPrice (DisparityDetail detail)  <- round2(prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType,
+curInputRetailPrice (UserDisparityDetail detail)  <- round2(prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType,
                                                                                         sku(detail),
                                                                                         stock(detail),
                                                                                         dateTime(detail))/(OVERRIDE rate(detail), 1))
@@ -125,14 +123,14 @@ curInputRetailPrice (DisparityDetail detail)  <- round2(prevPriceB(SystemLedgerP
                                                      CHANGED(dateTime(detail))OR
                                                      CHANGED(rate(detail));
 
-@changeDocumentDetailMarkupCustomPrefix(disparityDetail, curInputRetail, curInput, curInput, curInput);
+@changeDocumentDetailMarkupCustomPrefix(userDisparityDetail, curInputRetail, curInput, curInput, curInput);
 roundCondition(DisparityDetail disparityDetail) = roundCondition(stock(disparityDetail));
-@changeDocumentDetailPriceCustomPrefix(disparityDetail, curInputRetail, curInputRepricing, curInput, curInput);
+@changeDocumentDetailPriceCustomPrefix(userDisparityDetail, curInputRetail, curInputRepricing, curInput, curInput);
 
 // После
-@defineDocumentDetailPricePrefix (disparity, afterInput, ' поставщика после');
-@defineDocumentDetailDataSumCustomPrefix (disparityDetail, afterInput, ' поставщика после');
-@deriveDocumentDetailSumPrefix(disparity, afterInput, currency, inputQuantity);
+@defineDocumentInterfaceDetailPricePrefix(disparity, afterInput, ' поставщика после');
+@defineDocumentInterfaceDetailDataSumPrefix(disparity, afterInput, ' поставщика после');
+@deriveDocumentDetailSumPrefix(userDisparity, afterInput, currency, inputQuantity);
 
 overAfterInputRepricingPrice = ABSTRACT NUMERIC[16,4] (DisparityDetail) MATERIALIZED;
 afterInputRepricingPrice (DisparityDetail detail) = OVERRIDE overAfterInputRepricingPrice(detail), afterInputPrice(detail) MATERIALIZED;
@@ -140,37 +138,37 @@ afterInputRepricingPrice (DisparityDetail detail) = OVERRIDE overAfterInputRepri
 overAfterInputRepricingSum = ABSTRACT NUMERIC[18,4] (DisparityDetail) MATERIALIZED;
 afterInputRepricingSum (DisparityDetail detail) = OVERRIDE overAfterInputRepricingSum(detail), afterInputSum(detail) MATERIALIZED;
 
-@defineDocumentDetailPricePrefix(disparity, afterInputRetail, ' розничная после');
-@defineDocumentDetailDataSumCustomPrefix (disparityDetail, afterInputRetail, ' розничная после');
-@deriveDocumentDetailSumPrefix(disparity, afterInputRetail, currency, inputQuantity);
+@defineDocumentInterfaceDetailPricePrefix(disparity, afterInputRetail, ' розничная после');
+@defineDocumentInterfaceDetailDataSumPrefix(disparity, afterInputRetail, ' розничная после');
+@deriveDocumentDetailSumPrefix(userDisparity, afterInputRetail, currency, inputQuantity);
 
-@defineDocumentDetailVAT(disparity, countryStock, afterInput, ' после');
-@deriveDocumentDetailValueVAT(disparity, afterInput);
+@defineDocumentInterfaceDetailVAT(disparity, countryStock, afterInput, ' после');
+@deriveDocumentDetailValueVAT(userDisparity, afterInput);
 
-@defineDocumentDetailVATDataSumCustomPrefix (disparityDetail, afterInput, ' после');
-@deriveDocumentDetailReverseVATSumPrefix(disparity, afterInput, afterInputRetail);
-@defineDocumentDetailMarkupPrefix (disparity, afterInput, ' после');
-afterInputMarkup(DisparityDetail disparityDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+@defineDocumentInterfaceDetailVATDataSumPrefix (disparity, afterInput, ' после');
+@deriveDocumentDetailReverseVATSumPrefix(userDisparity, afterInput, afterInputRetail);
+@defineDocumentInterfaceDetailMarkupPrefix (disparity, afterInput, ' после');
+afterInputMarkup(UserDisparityDetail disparityDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
     afterInputRetailPrice(disparityDetail),
     valueAfterInputVAT(disparityDetail),
     afterInputRepricingPrice(disparityDetail))
     WHEN CHANGED(afterInputPrice(disparityDetail)) OR CHANGED (valueAfterInputVAT(disparityDetail)) OR CHANGED(afterInputRepricingPrice(disparityDetail));
 
-@defineDocumentDetailMarkupSumCustomPrefix (disparityDetail, afterInput, ' после');
+@defineDocumentInterfaceDetailMarkupSumPrefix(disparity, afterInput, ' после');
 //@deriveDocumentDetailMarkupSumPrefix(disparity, afterInput, afterInputRetail, afterInput);
 
-afterInputMarkupSum(DisparityDetail disparityDetail) <- afterInputRetailSum(disparityDetail) (-) afterInputVATSum (disparityDetail) (-) afterInputRepricingSum(disparityDetail)
+afterInputMarkupSum(UserDisparityDetail disparityDetail) <- afterInputRetailSum(disparityDetail) (-) afterInputVATSum (disparityDetail) (-) afterInputRepricingSum(disparityDetail)
                     WHEN CHANGED(afterInputRetailSum(disparityDetail)) OR CHANGED (afterInputVATSum (disparityDetail)) OR CHANGED (afterInputRepricingSum(disparityDetail));
 
-afterInputPrice(DisparityDetail detail) <- curInputPrice(detail) WHEN CHANGED (curInputPrice(detail));
-afterInputVAT(DisparityDetail detail) <- curInputVAT(detail) WHEN CHANGED (curInputPrice(detail));
-afterInputRetailPrice(DisparityDetail detail) <- curInputRetailPrice(detail) WHEN CHANGED (curInputPrice(detail));
+afterInputPrice(UserDisparityDetail detail) <- curInputPrice(detail) WHEN CHANGED (curInputPrice(detail));
+afterInputVAT(UserDisparityDetail detail) <- curInputVAT(detail) WHEN CHANGED (curInputPrice(detail));
+afterInputRetailPrice(UserDisparityDetail detail) <- curInputRetailPrice(detail) WHEN CHANGED (curInputPrice(detail));
 
-@changeDocumentDetailMarkupCustomPrefix(disparityDetail, afterInputRetail, afterInput, afterInput, afterInput);
-@changeDocumentDetailPriceCustomPrefix(disparityDetail, afterInputRetail, afterInputRepricing, afterInput, afterInput);
+@changeDocumentDetailMarkupCustomPrefix(userDisparityDetail, afterInputRetail, afterInput, afterInput, afterInput);
+@changeDocumentDetailPriceCustomPrefix(userDisparityDetail, afterInputRetail, afterInputRepricing, afterInput, afterInput);
 
-@defineDocumentDetailDiffSumCustomPrefix (disparityDetail, retailSum, afterInput, curInput, ' переоценки');
-@defineDocumentHeaderSumPrefix(disparity, diffRetail, ' переоценки');
+@defineDocumentInterfaceDetailDiffSumPrefix(disparity, retailSum, afterInput, curInput, ' переоценки');
+@defineDocumentInterfaceHeaderSumPrefix(disparity, diffRetail, ' переоценки');
 
 needToRepricing (DisparityDetail disparityDetail) = curInputRetailPrice(disparityDetail) != afterInputRetailPrice(disparityDetail)
                                                AND inputQuantity(disparityDetail) != 0 AND stock(disparityDetail) IS DepartmentStore
@@ -180,7 +178,7 @@ needToRepricing (DisparityDetail disparityDetail) = curInputRetailPrice(disparit
 needToRepricing (disparity)= GROUP SUM 1 IF needToRepricing(DisparityDetail disparityDetail)
     BY disparity(disparityDetail) MATERIALIZED;
 
-@defineDocumentHeaderRepricingCommittee(disparity, stock);
+@defineDocumentInterfaceHeaderRepricingCommittee(disparity, stock);
 
 CLASS DisparityRepricing 'Акт переоценки (сортность)': Repricing;
 CLASS DisparityRepricingDetail 'Строка акта переоценки (сортность)': RepricingDetail;
