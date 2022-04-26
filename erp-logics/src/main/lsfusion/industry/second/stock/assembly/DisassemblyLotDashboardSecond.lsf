@@ -225,8 +225,10 @@ overChangeIweight ABSTRACT (Sku, Stock);
 
 @defineOption(readonlyIimage, 'Изображение на форме Разукомплектация не редактируется', disassembly);
 
+@defineOption(minimumWeight, 'Минимальный вес взвешивания (грамм)', INTEGER, disassembly);
+
 EXTEND FORM disassemblyLotDashboard
-    PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= 30 THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- TRUE; overChangeIweight(s, st); } }, 
+    PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= (OVERRIDE minimumWeight(), 30) THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- TRUE; overChangeIweight(s, st); } }, 
                  inameSku, 
                  iprice READONLYIF skipPriceLotDashboard(isku()), 
                  istream CUSTOM 'videoRender' ON CHANGE changeStream(), 
@@ -254,9 +256,10 @@ EXTEND FORM disassemblyLotDashboard
     
                     weight() <- INTEGER(getWord(bytes(), ',', 1)) + INTEGER(getWord(bytes(), ',', 2)) * 256;
                 }
-            IF weight() >= 30 THEN {
+            IF weight() >= (OVERRIDE minimumWeight(), 30) THEN {
                 iweight() <- NUMERIC(weight()) / 1000;
                 istream() <- TRUE;
+                overChangeIweight(s, st);
             }
         }     
     }
@@ -353,7 +356,7 @@ DESIGN disassemblyLotDashboard {
                 }
                 NEW inputCenter {
                     fill = 1;
-                    width = 100;
+                    width = 150;
                     MOVE PROPERTY(iprice()) { panelCaptionVertical = TRUE; fontSize = 24; notNull = TRUE; alignment = STRETCH; }
                     REMOVE BOX(o);
                     MOVE GRID(o) { boxed = FALSE; flex = 0; }
