@@ -10,13 +10,15 @@ GROUP images;
 dataImageTimeChanged = DATA DATETIME (Item);
 urlHttpAccess 'Url изображения' = DATA STRING[255] (Item);
 hashImage = DATA STRING[128] (Item);
-
+customImageUpload = ABSTRACT BOOLEAN ();
 calcmd5 (IMAGEFILE f)= FORMULA STRING[100] 'md5($1)';
 
-WHEN SETCHANGED (dataImage(Item i)) DO {
+
+WHEN SETCHANGED (dataImage(Item i)) AND NOT customImageUpload() DO {
     dataImageTimeChanged(i) <- currentDateTime();
     hashImage(i) <- calcmd5(dataImage(i));
 }
+
 
 ftpConnectionString 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
 imageFolderName 'Директория на FTP для изображений' = DATA STRING[60] ();
@@ -24,11 +26,16 @@ pathHttpAccess 'Путь для доступа по http' = DATA STRING[255] ();
 imageHttps 'Работа с изображениями по https' = DATA BOOLEAN ();
 pathHttpsAccess 'Путь для доступа по https' = DATA STRING[255] ();
 pathImageWebAccess = IF imageHttps() THEN pathHttpsAccess() ELSE pathHttpAccess();
+sendImageItemToFtpCustom ABSTRACT LIST (Item);
+
 
 sendImageItemToFtp(Item i){
-    WRITE dataImage(i) TO CONCAT '', ftpConnectionString(), imageFolderName(), id(i);
-    urlHttpAccess(i) <- CONCAT '', pathImageWebAccess(), imageFolderName(), id(i), '.jpg';
-    dataImageTimeChanged(i) <- NULL;
+    IF customImageUpload() THEN sendImageItemToFtpCustom(i);
+    ELSE{
+        WRITE dataImage(i) TO CONCAT '', ftpConnectionString(), imageFolderName(), id(i);
+        urlHttpAccess(i) <- CONCAT '', pathImageWebAccess(), imageFolderName(), id(i), '.jpg';
+        dataImageTimeChanged(i) <- NULL;
+    }
 }
 
 //задание для планировщика
@@ -40,19 +47,28 @@ sendImageToFTP 'Выгрузка изображений на FTP'(){
         APPLY;
     }
 }
+sendAllImageToFTPCustom ABSTRACT LIST (); 
 
 sendAllImageToFTP 'Выгрузка всех изображений на FTP'(){
     NEWSESSION {
-        FOR dataImage(Item i) DO {
-            sendImageItemToFtp(i);
+        IF customImageUpload() THEN sendAllImageToFTPCustom();
+        ELSE {
+            FOR dataImage(Item i) DO {
+                sendImageItemToFtp(i);
+            }
         }
         APPLY;
     }
 }
 
+calcAllImageHashCustom ABSTRACT LIST ();
+
 calcAllImageHash 'Рачитать md5 всех изображений' (){
-    FOR dataImage(Item i) AND NOT hashImage(i)DO {
-        hashImage(i) <- calcmd5(dataImage(i));
+    IF customImageUpload() THEN calcAllImageHashCustom();
+    ELSE{
+        FOR dataImage(Item i) AND NOT hashImage(i)DO {
+            hashImage(i) <- calcmd5(dataImage(i));
+        }
     }
     APPLY;
 }
