@@ -222,6 +222,7 @@ generateLot () {
 }
 
 overChangeIweight ABSTRACT (Sku, Stock);
+overChangeIsku ABSTRACT (Sku, Stock);
 
 @defineOption(readonlyIimage, 'Изображение на форме Разукомплектация не редактируется', disassembly);
 
@@ -229,7 +230,7 @@ overChangeIweight ABSTRACT (Sku, Stock);
 
 EXTEND FORM disassemblyLotDashboard
     PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= (OVERRIDE minimumWeight(), 30) THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- TRUE; overChangeIweight(s, st); } }, 
-                 inameSku, 
+                 inameSku ON CHANGE { INPUT sk = isku() DO { isku() <- sk; overChangeIsku(s, st); } }, 
                  iprice READONLYIF skipPriceLotDashboard(isku()), 
                  istream CUSTOM 'videoRender' ON CHANGE changeStream(), 
                  ibarcode ON CHANGE { INPUT b = ibarcode() DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
@@ -345,7 +346,7 @@ DESIGN disassemblyLotDashboard {
                 type = CONTAINERH;
                 NEW inputLeft {
                     fill = 3;
-                    width = 450;
+                    width = 400;
                     MOVE PROPERTY(readWeight) { focusable = FALSE; }
                     NEW inputLeftHeader {
                         alignment = STRETCH; 
@@ -400,8 +401,10 @@ EXTEND FORM disassemblyLotDashboard
 fixedLotDashboard 'Брак' = DATA BOOLEAN (Item) IN itemLotDashboard;
 EXTEND FORM item PROPERTIES(i) fixedLotDashboard;
 
-choose (Item i) { isku() <- i; }
-choose (Part p) { isku() <- item(p); }
+overChangeIsku ABSTRACT;
+
+choose (Item i) { isku() <- i; overChangeIsku(); }
+choose (Part p) { isku() <- item(p); overChangeIsku(); }
 
 initDisassemblyLotDashboardSecond INTERNAL CLIENT 'disassemblyLotDashboardSecond.css';
 onWebClientLoad() +{ initDisassemblyLotDashboardSecond(); }
