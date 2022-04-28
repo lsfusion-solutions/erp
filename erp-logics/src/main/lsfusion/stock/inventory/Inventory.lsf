@@ -1137,14 +1137,21 @@ TABLE inventorySkuDetail (InventorySkuDetail);
 CLASS OutInventorySkuDetail 'Недостача инвентаризации' : InventorySkuDetail;
 CLASS InInventorySkuDetail 'Излишки инвентаризации' : InventorySkuDetail;
 
+useOnlyOverData = ABSTRACT BOOLEAN (CollationSheet,Sku);
+overQuantity = ABSTRACT NUMERIC[16,5] (CollationSheet,Sku);
+quantitySkuLedger (CollationSheet cs, Sku sk) = OVERRIDE overQuantity(cs,sk), (quantityShortage(cs,sk) IF NOT useOnlyOverData(cs,sk));
+overSum = ABSTRACT NUMERIC[18,4] (CollationSheet,Sku);
+sumSkuLedger (CollationSheet cs, Sku sk) = OVERRIDE overSum(cs,sk), (sumShortage(cs,sk) IF NOT useOnlyOverData(cs,sk));
+
 needToOutLedger (CollationSheet collationSheet, Sku sku) = 
-    (quantityShortage(collationSheet, sku) > 0  OR (sumShortage(collationSheet, sku) > 0 AND NOT quantityShortage(collationSheet, sku)))
+    (quantitySkuLedger(collationSheet, sku) > 0  OR (sumSkuLedger(collationSheet, sku) > 0 AND NOT quantitySkuLedger(collationSheet, sku)))
     AND include(collationSheet, sku)
     AND NOT skipSkuLedger(collationSheet) 
     AND NOT isBatch(collationSheet)
     AND isPosted(collationSheet);
 
-needToInLedger (CollationSheet collationSheet, Sku sku) = (quantityShortage(collationSheet, sku) < 0 OR (sumShortage(collationSheet, sku) < 0 AND NOT quantityShortage(collationSheet, sku)))
+needToInLedger (CollationSheet collationSheet, Sku sku) =
+    (quantitySkuLedger(collationSheet, sku) < 0 OR (sumSkuLedger(collationSheet, sku) < 0 AND NOT quantitySkuLedger(collationSheet, sku)))
     AND include(collationSheet, sku) 
     AND NOT skipSkuLedger(collationSheet) 
     AND NOT isBatch(collationSheet)
@@ -1167,19 +1174,19 @@ inventory(InventorySkuDetail inventorySkuDetail) = inventory(collationSheet(inve
 stock(InInventorySkuDetail detail) = stock[InventorySkuDetail](detail) IF detail IS InInventorySkuDetail;
 stock(OutInventorySkuDetail detail) = stock[InventorySkuDetail](detail) IF detail IS OutInventorySkuDetail;
 
-quantity (OutInventorySkuDetail inventorySkuDetail) = quantityShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail));
-quantity (InInventorySkuDetail inventorySkuDetail) = -quantityShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail));
+quantity (OutInventorySkuDetail inventorySkuDetail) = quantitySkuLedger(collationSheet(inventorySkuDetail), sku(inventorySkuDetail));
+quantity (InInventorySkuDetail inventorySkuDetail) = -quantitySkuLedger(collationSheet(inventorySkuDetail), sku(inventorySkuDetail));
 
-sum (OutInventorySkuDetail inventorySkuDetail) = sumShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail));
-sum (InInventorySkuDetail inventorySkuDetail) = -sumShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail));
+sum (OutInventorySkuDetail inventorySkuDetail) = sumSkuLedger(collationSheet(inventorySkuDetail), sku(inventorySkuDetail));
+sum (InInventorySkuDetail inventorySkuDetail) = -sumSkuLedger(collationSheet(inventorySkuDetail), sku(inventorySkuDetail));
 
 sku(InventorySkuDetail inventorySkuDetail) = MULTI sku[OutInventorySkuDetail](inventorySkuDetail),
                                                   sku[InInventorySkuDetail](inventorySkuDetail) MATERIALIZED;
 nameSku 'Товар' (InventorySkuDetail inventorySkuDetail) = name(sku(inventorySkuDetail)) CHARWIDTH 15;
 idBarcode 'Штрихкод' (InventorySkuDetail inventorySkuDetail) =  idBarcode(sku(inventorySkuDetail));
 
-quantity 'Кол-во недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = quantityShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) MATERIALIZED;
-sum 'Сумма недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = sumShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) MATERIALIZED;
+quantity 'Кол-во недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = quantitySkuLedger(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) MATERIALIZED;
+sum 'Сумма недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = sumSkuLedger(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) MATERIALIZED;
 
 description 'Название документа' (OutInventorySkuDetail inventorySkuDetail) =
     'Недостача по инвентаризации ' + name(collationSheet(inventorySkuDetail)) + ' от ' + date(collationSheet(inventorySkuDetail));
