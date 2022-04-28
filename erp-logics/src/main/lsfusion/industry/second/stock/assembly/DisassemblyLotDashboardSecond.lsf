@@ -270,6 +270,8 @@ EXTEND FORM disassemblyLotDashboard
     FILTERS captionOption(o)
 ;
 
+@defineOption(goToDisassemblyMode, 'После редактирования сразу переходить в режим Разукомплектации', disassembly);
+
 overProcessLot ABSTRACT LIST (Lot);
 processLot 'Обработать' (Stock st) {
     generateLot();
@@ -311,13 +313,23 @@ processLot 'Обработать' (Stock st) {
             CANCEL NESTED LOCAL;
         } ELSE {
             IF changedPrint() THEN printLabel(l);
-            IF editMode() THEN dashboardMode() <- 'disassembly';
+            IF editMode() AND goToDisassemblyMode() THEN 
+                dashboardMode() <- 'disassembly';
         }
     }
 
     ACTIVATE PROPERTY disassemblyLotDashboard.iweight();
     
 } CHANGEKEY 'shift SPACE';
+
+printLot 'Печать без изменений' () {
+    printLabel(lot(ibarcode()));
+    IF goToDisassemblyMode() THEN
+        dashboardMode() <- 'disassembly';
+    
+    CANCEL;
+    ACTIVATE PROPERTY disassemblyLotDashboard.iweight();
+};
 
 //changeLabel (Disassembly a) {
 //    INPUT text = STRING DO
@@ -333,6 +345,10 @@ EXTEND FORM disassemblyLotDashboard
                                                           NOT iimage() OR
                                                          (NOT ibarcode() AND NOT disassemblyMode()) OR 
                                                           readonlyProcessLot()
+
+    PROPERTIES printLot() SHOWIF editMode() READONLYIF NOT lot(ibarcode()) OR skipPrintLotDashboard(isku()) OR 
+                                                           (NOT sku(lot(ibarcode())) = isku() OR NOT price(lot(ibarcode())) = iprice() OR (defect(lot(ibarcode())) AND NOT ioption('defect')) OR (NOT defect(lot(ibarcode())) AND ioption('defect'))) 
+    
     PROPERTIES dropProperties()  
     PROPERTIES(l) printLabel
 ;
@@ -372,6 +388,7 @@ DESIGN disassemblyLotDashboard {
                             fill = 1;
                             MOVE PROPERTY(ibarcode()) { panelCaptionVertical = TRUE; alignment = STRETCH; notNull = TRUE; fontSize = 24; }
                             MOVE PROPERTY(processLot(st)) { fill = 1; fontSize = 24; }
+                            MOVE PROPERTY(printLot()) { fontSize = 18; alignment = STRETCH; }
                             MOVE PROPERTY(dropProperties()) { fontSize = 24; alignment = STRETCH; }
                         }
                         MOVE PROPERTY(iimage()) { panelCaptionVertical = TRUE; fill = 1; notNull = TRUE; focusable = FALSE; }
