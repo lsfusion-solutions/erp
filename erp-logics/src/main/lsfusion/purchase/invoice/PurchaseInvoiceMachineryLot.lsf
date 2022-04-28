@@ -1,0 +1,44 @@
+MODULE PurchaseInvoiceMachineryLot;
+
+REQUIRE PurchaseInvoiceMachinery, PurchaseShipmentLot, CashRegisterPriceTransactionCustomLot;
+
+NAMESPACE Purchase;
+
+createCashRegisterPriceTransactionDocumentLot 'Загрузить в оборудование' (Invoice i){
+    LOCAL message = TEXT();
+    LOCAL sentSomething = BOOLEAN();
+    message() <- TEXT('Принято к загрузке в оборудование : \n');
+    FOR stock(GroupCashRegister g) = customerStock(i) AND active(g) NEW t = CashRegisterPriceTransactionLot DO {
+        
+        groupCashRegister(t) <- g;
+        priceTransactionDocument(t) <- i;
+        in(t, Lot l) <- TRUE IF quantity(i, l);
+        in(t, CashRegister c) <- TRUE IF groupMachinery(c) = g AND active(c);
+        LOCAL countLots = INTEGER ();
+        countLots() <- GROUP SUM 1 IF in(t, Lot l);
+        message() <- message() + (OVERRIDE name(g), 'Без наименования') + ' - ' + (OVERRIDE  countLots() + ' марок.\n', ' ');
+        sentSomething() <- TRUE;
+        APPLY NESTED LOCAL;
+        
+    }
+    IF sentSomething() THEN
+        MESSAGE message() NOWAIT;
+    ELSE
+        IF NOT supressNoNeedMessage() THEN
+            MESSAGE 'Загрузка марок в оборудование не требуется: '+name(customerStock(i))+'.\n' NOWAIT;
+}CONFIRM;
+
+createMachineryPriceTransactionCustom 'Загрузить в оборудование' (Invoice i) {
+    IF useLot(i) THEN createCashRegisterPriceTransactionDocumentLot(i);
+    ELSE createMachineryPriceTransaction(i);
+}
+EXTEND FORM invoices
+    PROPERTIES (i) createMachineryPriceTransactionCustom SHOWIF showCreateMachineryPriceTransaction(i)
+;
+
+DESIGN invoices{
+    machinery{
+        REMOVE PROPERTY (createMachineryPriceTransaction(i));
+        MOVE PROPERTY (createMachineryPriceTransactionCustom(i));
+    }
+}
