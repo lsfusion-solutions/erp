@@ -22,21 +22,6 @@ receiveSupplierMessagesEDN 'Получать сообщения для пост�
 
 overInvoiceOutputDirEDN 'Путь сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
 
-hostEDSServiceEDN 'Хост EDSService' = DATA STRING[100] (LegalEntity);
-portEDSServiceEDN 'Порт EDSService' = DATA INTEGER (LegalEntity);
-hostEDSServiceEDN 'Хост EDSService' (stock) = ABSTRACT STRING[100] (Stock) MATERIALIZED;
-hostEDSServiceEDN 'Хост EDSService' = DATA STRING[100] (DepartmentStore);
-hostEDSServiceEDN 'Хост EDSService' = DATA STRING[100] (Warehouse);
-hostEDSServiceEDN(DepartmentStore stock) += hostEDSServiceEDN(stock);
-hostEDSServiceEDN(Warehouse stock) += hostEDSServiceEDN(stock);
-portEDSServiceEDN 'Порт EDSService' (stock) = ABSTRACT INTEGER (Stock) MATERIALIZED;
-portEDSServiceEDN 'Порт EDSService' = DATA INTEGER (DepartmentStore);
-portEDSServiceEDN 'Порт EDSService' = DATA INTEGER (Warehouse);
-portEDSServiceEDN(DepartmentStore stock) += portEDSServiceEDN(stock);
-portEDSServiceEDN(Warehouse stock) += portEDSServiceEDN(stock);
-hostEDSServiceEDN 'Хост EDSService' = DATA STRING[100] (Employee);
-portEDSServiceEDN 'Порт EDSService' = DATA INTEGER (Employee);
-
 EDSServiceEDN 'EDSService' = DATA EDSService (LegalEntity);
 descriptionEDSServiceEDN 'EDSService' (LegalEntity o) = description(EDSServiceEDN(o));
 EDSServiceEDN 'EDSService' = DATA EDSService (Stock);
@@ -44,42 +29,20 @@ descriptionEDSServiceEDN 'EDSService' (Stock o) = description(EDSServiceEDN(o));
 EDSServiceEDN 'EDSService' = DATA EDSService (Employee);
 descriptionEDSServiceEDN 'EDSService' (Employee o) = description(EDSServiceEDN(o));
 
-migrateEDSServiceEDN = DATA BOOLEAN ();
-onStarted() +{ 
-    IF NOT migrateEDSServiceEDN() THEN NEWSESSION {
-        FOR [GROUP SUM 1 BY hostEDSServiceEDN(LegalEntity l), portEDSServiceEDN(l)](STRING h, INTEGER p) AND NOT edsService(h, p) NEW e = EDSService DO{
-            host(e) <- h;
-            port(e) <- p;
-        }
-        FOR [GROUP SUM 1 BY hostEDSServiceEDN(Stock l), portEDSServiceEDN(l)](STRING h, INTEGER p) AND NOT edsService(h, p) NEW e = EDSService DO{
-            host(e) <- h;
-            port(e) <- p;
-        }
-        FOR [GROUP SUM 1 BY hostEDSServiceEDN(Employee l), portEDSServiceEDN(l)](STRING h, INTEGER p) AND NOT edsService(h, p) NEW e = EDSService DO{
-            host(e) <- h;
-            port(e) <- p;
-        }
-        EDSServiceEDN(LegalEntity l) <- edsService(hostEDSServiceEDN(l), portEDSServiceEDN(l)) WHERE hostEDSServiceEDN(l);
-        EDSServiceEDN(Stock l) <- edsService(hostEDSServiceEDN(l), portEDSServiceEDN(l)) WHERE hostEDSServiceEDN(l);
-        EDSServiceEDN(Employee l) <- edsService(hostEDSServiceEDN(l), portEDSServiceEDN(l)) WHERE hostEDSServiceEDN(l);
-        migrateEDSServiceEDN() <- TRUE;
-        APPLY;
-    }
-}
 
 useDocuDrive 'Использовать DocuDrive' = DATA BOOLEAN();
 
 EXTEND FORM integrationData
     OBJECTS lee = LegalEntity
     FILTERS isCompany(lee)
-    PROPERTIES(lee) SHOWIF NOT useDocuDrive() name READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceEDN
+    PROPERTIES(lee) SHOWIF NOT useDocuDrive() name READONLY, descriptionEDSServiceEDN
     
     OBJECTS sedse = Stock
-    PROPERTIES(sedse) SHOWIF NOT useDocuDrive() name READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceEDN
+    PROPERTIES(sedse) SHOWIF NOT useDocuDrive() name READONLY, descriptionEDSServiceEDN
     FILTERS isCompany(sedse)
     
     OBJECTS eedse = Employee
-    PROPERTIES(eedse) SHOWIF NOT useDocuDrive() lastName READONLY, firstName READONLY, namePosition READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceEDN
+    PROPERTIES(eedse) SHOWIF NOT useDocuDrive() lastName READONLY, firstName READONLY, namePosition READONLY, descriptionEDSServiceEDN
     FILTERS active(eedse)
 ;
 
@@ -130,9 +93,6 @@ send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND NOT isCanc
 cancel(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderEDN(o);} }
 
 good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1252') THEN TRUE;
-
-//signAndSendCustomer(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.edn THEN MESSAGE 'Операция не поддерживается для данного EDI проавайдера'; }
-//signAndSendSupplier(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.edn THEN MESSAGE 'Операция не поддерживается для данного EDI проавайдера'; }
 
 exportDirectoryDocuDrive 'Каталог выгрузки сообщений для DocuDrive (c / в конце)' = DATA STRING[255]();
 importDirectoryDocuDrive 'Каталог загрузки сообщений от DocuDrive (c / в конце)' = DATA STRING[255]();

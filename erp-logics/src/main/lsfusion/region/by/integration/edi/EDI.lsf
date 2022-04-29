@@ -112,36 +112,6 @@ nameEDIProvider 'Провайдер EDI'(LegalEntity l) = staticCaption(EDIProvi
 dataEDIProviderInvoice 'Провайдер EDI для накладных' = DATA EDIProvider(LegalEntity);
 EDIProviderInvoice(LegalEntity l) = OVERRIDE dataEDIProviderInvoice(l), EDIProvider(l);
 nameEDIProviderInvoice 'Провайдер EDI для накладных'(LegalEntity l) = staticCaption(EDIProviderInvoice(l));
-aliasEDSService 'Alias EDSService' = DATA STRING[100] (LegalEntity);
-passwordEDSService 'Пароль EDSService' = DATA STRING[100] (LegalEntity) ECHO;
-aliasEDSService 'Alias EDSService' (stock) = ABSTRACT STRING[100] (Stock) MATERIALIZED;
-aliasEDSService 'Alias EDSService' = DATA STRING[100] (DepartmentStore);
-aliasEDSService 'Alias EDSService' = DATA STRING[100] (Warehouse);
-aliasEDSService(DepartmentStore stock) += aliasEDSService(stock);
-aliasEDSService(Warehouse stock) += aliasEDSService(stock);
-passwordEDSService 'Пароль EDSService' (stock) = ABSTRACT STRING[100] (Stock) ECHO MATERIALIZED;
-passwordEDSService 'Пароль EDSService' = DATA STRING[100] (DepartmentStore) ECHO;
-passwordEDSService 'Пароль EDSService' = DATA STRING[100] (Warehouse) ECHO;
-passwordEDSService(DepartmentStore stock) += passwordEDSService(stock);
-passwordEDSService(Warehouse stock) += passwordEDSService(stock);
-aliasEDSService 'Alias EDSService' = DATA STRING[100] (Employee);
-passwordEDSService 'Пароль EDSService' = DATA STRING[100] (Employee) ECHO;
-
-askPasswordEDSService 'Запрашивать пароль EDSService' = DATA BOOLEAN ();
-passwordEDSService 'Пароль EDSService' = DATA LOCAL NESTED STRING[100] () ECHO;
-FORM passwordEDSService 'Пароль EDSService'
-    PROPERTIES passwordEDSService()
-    EVENTS
-    ON INIT {
-        passwordEDSService() <- NULL;
-    },
-    ON OK BEFORE {
-        IF NOT passwordEDSService() THEN {
-            MESSAGE 'Необходимо задать пароль' NOWAIT;
-            beforeCanceled() <- TRUE;
-        }
-    }
-;
 
 EXTEND FORM legalEntity
  PROPERTIES(l) GLN, nameEDIProvider, nameEDIProviderInvoice

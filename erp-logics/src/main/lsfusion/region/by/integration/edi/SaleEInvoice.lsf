@@ -94,33 +94,3 @@ copyData(ECreditNote ec, CreditNote c)  {
 
 numberECreditNote 'Номер электронного акта приемки'(CreditNote c) = actDifNumber(eCreditNote(c));
 isECreditNote 'Электронный акт приемки' (CreditNote c) = TRUE IF eCreditNote(c);
-signAndSendSupplierCreditNoteEDI 'Подписать и отправить (поставщик)'(CreditNote c)  { 
-    NEWSESSION {
-        in(ECreditNote e) <- e = eCreditNote(c);
-        signAndSendSupplierCreditNoteEDI();
-        in(ECreditNote e) <- NULL;
-    }
-}
-
-EXTEND FORM creditNotes
-        PROPERTIES READONLY PANEL numberECreditNote(c)
-        PROPERTIES(c) signAndSendSupplierCreditNoteEDI SHOWIF (eCreditNote(c) AND NOT exportedSupplier(eCreditNote(c)))
-;
-
-DESIGN creditNotes {
-    documentDetail {
-        NEW tabCreditNote AFTER printTab {
-            caption = 'Печатные формы';
-            type = TABBED;
-            MOVE printTab {caption = 'Акт расхождений';};
-            NEW eCreditNote {
-                caption = 'Электронный акт приемки';
-                NEW createCN {
-                    type = CONTAINERH;
-                    MOVE PROPERTY(numberECreditNote(c));
-                    MOVE PROPERTY(signAndSendSupplierCreditNoteEDI(c));
-                }
-            }
-        }
-    }
-}

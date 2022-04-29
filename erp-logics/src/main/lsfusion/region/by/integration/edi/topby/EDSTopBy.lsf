@@ -1,0 +1,148 @@
+MODULE EDSTopBy;
+
+REQUIRE EDS, TopBy;
+
+NAMESPACE EDI;
+
+aliasEDSService 'Alias EDSService' = DATA STRING[100] (LegalEntity);
+passwordEDSService 'Пароль EDSService' = DATA STRING[100] (LegalEntity) ECHO;
+aliasEDSService 'Alias EDSService' = DATA STRING[100] (Stock);
+passwordEDSService 'Пароль EDSService' = DATA STRING[100] (Stock) ECHO;
+aliasEDSService 'Alias EDSService' = DATA STRING[100] (Employee);
+passwordEDSService 'Пароль EDSService' = DATA STRING[100] (Employee) ECHO;
+
+aliasEDSServiceCustomer (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(customerStock(i)), aliasEDSService(customer(i));
+passwordEDSServiceCustomer (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(customerStock(i)), passwordEDSService(customer(i));
+
+aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
+passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
+
+EDSServiceTopBy 'EDSService' = DATA EDSService (LegalEntity);
+descriptionEDSServiceTopBy 'EDSService' (LegalEntity o) = description(EDSServiceTopBy(o));
+EDSServiceTopBy 'EDSService' = DATA EDSService (Stock);
+descriptionEDSServiceTopBy 'EDSService' (Stock o) = description(EDSServiceTopBy(o));
+EDSServiceTopBy 'EDSService' = DATA EDSService (Employee);
+descriptionEDSServiceTopBy 'EDSService' (Employee o) = description(EDSServiceTopBy(o));
+
+
+EXTEND FORM integrationData
+    PROPERTIES () askPasswordEDSService
+    OBJECTS le = LegalEntity
+    FILTERS isCompany(le)
+    PROPERTIES(le) name READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceTopBy
+    
+    OBJECTS seds = Stock
+    PROPERTIES(seds) name READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceTopBy
+    FILTERS isCompany(seds)
+    
+    OBJECTS eeds = Employee
+    PROPERTIES(eeds) lastName READONLY, firstName READONLY, namePosition READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceTopBy
+    FILTERS active(eeds)
+;
+
+DESIGN integrationData {
+    ivs {
+        MOVE PROPERTY(askPasswordEDSService());
+        NEW EDSServiceTopBy {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(le);
+            MOVE BOX(seds);
+            MOVE BOX(eeds);
+        }
+    }
+}
+
+EDSServiceCustomerTopBy (EInvoice i) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(customerStock(i)), EDSServiceTopBy(customer(i));
+EDSServiceSupplierTopBy (EInvoice i) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(supplierStock(i)), EDSServiceTopBy(supplier(i));
+
+EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN EDSServiceCustomerTopBy(i);
+EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN EDSServiceSupplierTopBy(i);
+
+
+sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, XMLFILE file) {
+    sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceCustomer(provider,ei)) + ':' + port(EDSServiceCustomer(provider,ei)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceCustomer(provider,ei)));
+}
+sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, XMLFILE file) {
+    sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceSupplier(provider,ei)));
+}
+
+GROUP getEDS EXTID 'ws:GetEDS' : body;
+GROUP keyInfo : getEDS;
+
+FORM getEDS
+    PROPERTIES ATTR ='http://ws.services.eds.topby.by/' EXTID 'xmlns:ws'
+    OBJECTS alias = TEXT, password = TEXT
+    PROPERTIES IN getEDS waybill = ('innerXML') EXTID 'waybill'
+    PROPERTIES IN keyInfo VALUE(alias) EXTID 'alias', VALUE(password) EXTID 'password'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+GROUP soapBody EXTID 'soap:Body';
+GROUP soapFault EXTID 'soap:Fault' : soapBody;
+faultstring = DATA LOCAL NESTED TEXT();
+GROUP getEDSResponse EXTID '=http://ws.services.eds.topby.by/:GetEDSResponse' : soapBody;
+waybill = DATA LOCAL NESTED TEXT();
+
+FORM getEDSResponse
+    PROPERTIES() faultstring IN soapFault, waybill IN getEDSResponse
+;
+
+getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
+    IF provider == 'TopBy' THEN {
+        IF aliasEDSServiceCustomer(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)) THEN {
+            signError() <- NULL;
+            signResult() <- NULL;
+            
+            LOCAL xml = FILE();
+            fileToString(contentSubXML);
+            EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(eInvoice),password = (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)) XML TO xml;
+            LOCAL innerXML = TEXT();
+            innerXML() <- resultString();
+            fileToString(xml());
+            stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
+            sendRequestEDSCustomer(provider, eInvoice, XMLFILE(resultFile()));
+            IMPORT getEDSResponse FROM sendRequestEDIResponse();
+            signError() <- faultstring();
+            IF waybill() THEN {
+                encodeBase64(waybill());
+                signResult() <- encodedBase64();
+            }
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
+        }
+    }
+}
+
+getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
+    IF provider == 'TopBy' THEN {
+        IF aliasEDSServiceSupplier(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)) THEN {
+            signError() <- NULL;
+            signResult() <- NULL;
+            
+            LOCAL xml = FILE();
+            fileToString(contentSubXML);
+            EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(eInvoice), password = (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)) XML TO xml;
+            LOCAL innerXML = TEXT();
+            innerXML() <- resultString();
+            fileToString(xml());
+            stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
+            sendRequestEDSSupplier(provider, eInvoice, XMLFILE(resultFile()));
+            IMPORT getEDSResponse FROM sendRequestEDIResponse();
+            signError() <- faultstring();
+            IF waybill() THEN {
+                encodeBase64(waybill());
+                signResult() <- encodedBase64();
+            }
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
+        }
+        RETURN;
+    }
+}

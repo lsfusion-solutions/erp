@@ -1,0 +1,54 @@
+MODULE EDS; //общий модуль работы с электронными подписями
+
+REQUIRE EDI;
+
+NAMESPACE EDI;
+
+CLASS EDSService 'EDS';
+TABLE EDSService (EDSService);
+
+name 'Имя' = DATA ISTRING[100] (EDSService) CHARWIDTH 15;
+host 'Хост EDS' = DATA STRING[100] (EDSService) CHARWIDTH 15 NONULL;
+port 'Порт EDS' = DATA INTEGER (EDSService) NONULL;
+client 'На клиенте' = DATA BOOLEAN(EDSService);
+description 'EDS' (EDSService s) = CONCAT ' ', name(s), host(s) + ':' + port(s), '(на клиенте)' IF client(s) CHARWIDTH 30;
+
+FORM EDSService 'EDS'
+    OBJECTS o = EDSService PANEL
+    PROPERTIES(o) name, host, port, client 
+    
+    EDIT EDSService OBJECT o
+;
+
+FORM EDSServices 'EDSService'
+    OBJECTS o = EDSService
+    PROPERTIES(o) READONLY description
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    LIST EDSService OBJECT o
+;
+
+EDSServiceCustomer = ABSTRACT CASE EDSService (STRING[100], EInvoice);
+EDSServiceSupplier = ABSTRACT CASE EDSService (STRING[100], EInvoice);
+
+signError = DATA LOCAL STRING ();
+signResult = DATA LOCAL STRING ();
+
+getSignedDocumentSupplier ABSTRACT LIST FIRST (STRING[100], EInvoice, FILE, BOOLEAN);
+
+getSignedDocumentCustomer ABSTRACT LIST FIRST (STRING[100], EInvoice, FILE, BOOLEAN);
+
+askPasswordEDSService 'Запрашивать пароль EDSService' = DATA BOOLEAN ();
+passwordEDSService 'Пароль EDSService' = DATA LOCAL NESTED STRING[100] () ECHO;
+FORM passwordEDSService 'Пароль EDSService'
+    PROPERTIES passwordEDSService()
+    EVENTS
+    ON INIT {
+        passwordEDSService() <- NULL;
+    },
+    ON OK BEFORE {
+        IF NOT passwordEDSService() THEN {
+            MESSAGE 'Необходимо задать пароль' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+    }
+;

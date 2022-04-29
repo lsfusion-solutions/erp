@@ -1,6 +1,6 @@
 MODULE SupplierEInvoiceEDI;
 
-REQUIRE EInvoiceEDI;
+REQUIRE EInvoiceEDI, EDS;
 
 NAMESPACE EDI;
 
@@ -12,8 +12,6 @@ dateNoticeSupplier 'Дата уведомления об изменении' = D
 importedSupplierCancel 'Импортирован (поставщик) отмена' = DATA BOOLEAN (EInvoice);
 exportedBlrapnSupplier 'Экспортировано извещение о прочтении (поставщик)' = DATA BOOLEAN (EInvoice);
 
-aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
-passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
 
 signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST ( EInvoice);
 signAndSendSupplierEDI 'Подписать и отправить (поставщик)'() {
@@ -61,45 +59,6 @@ EXTEND FORM eInvoices
         FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
         FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) AND NOT importedNoticeSupplier(e) 'F11'
     PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendBlrapnSupplierEDI
-;
-
-
-
-importedSupplier 'Импортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
-exportedSupplier 'Экспортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
-
-customerADF 'blradf от покупателя' = DATA XMLFILE (ECreditNote);
-//Подпись покупателя
-securityID = DATA STRING[14](ECreditNote);
-certificateID = DATA STRING[256](ECreditNote);
-securityPartyID = DATA STRING[512](ECreditNote);
-creationSignatureDate = DATA STRING[8](ECreditNote);
-creationSignatureTime = DATA STRING[15](ECreditNote);
-signatureValue = DATA TEXT(ECreditNote);
-
-signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST (ECreditNote);
-signAndSendSupplierCreditNoteEDI 'Подписать и отправить (поставщик)'()  { 
-    IF askPasswordEDSService() THEN {
-        DIALOG passwordEDSService DO {} ELSE { BREAK; };
-    }
-    FOR in(ECreditNote c) DO { 
-        IF EDIProviderInvoice(customer(c)) THEN
-            signAndSendSupplier(c);
-        ELSE
-            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
-        in(c) <- NULL;
-    }
-    ELSE
-        MESSAGE 'Не выбрано ни одного акта приемки';
-
-}
-
-EXTEND FORM eCreditNotes
-    PROPERTIES(c) BEFORE isCancel(c) READONLYIF isReadonly() importedSupplier, exportedSupplier
-    EXTEND FILTERGROUP notExported
-        FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(c) 'F8'
-        FILTER 'Не импортированы (поставщик)' NOT importedSupplier(c) 'F11'
-    PROPERTIES() DRAW c TOOLBAR signAndSendSupplierCreditNoteEDI
 ;
 
 DESIGN eInvoices{
