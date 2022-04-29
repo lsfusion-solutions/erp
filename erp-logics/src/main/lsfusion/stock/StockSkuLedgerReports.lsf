@@ -293,18 +293,18 @@ FORM settingOperations 'Настройка операций'
     
 ;
 
-name1 'Наименование' = DATA LOCAL STRING[15] ();
-a'Сохранить операции' (){
+nameListOperation 'Наименование списка операций' = DATA LOCAL STRING[15] ();
+saveListOperation 'Сохранение операции' (){
         NEW so = SettingOperations {
-            name(so)<-name1() WHERE so IS SettingOperations;
+            name(so)<-nameListOperation() WHERE so IS SettingOperations;
             inSession(so, Operation.Operation o)<-inSession(o) WHERE so IS SettingOperations;
             inReturn(so, Operation.Operation o)<-inReturn(o) WHERE so IS SettingOperations;
-            name1()<-NULL  WHERE so IS SettingOperations;
+            nameListOperation()<-NULL  WHERE so IS SettingOperations;
         }
     APPLY;
 }
 
-b'Востановить операции' (){
+recoveryListOperation'Восстановление операции' (){
     DIALOG settingOperations OBJECTS s INPUT DO {
             inSession(Operation.Operation o)<-inSession(s, o) WHERE s IS SettingOperations;
             inReturn(Operation.Operation o)<-inReturn(s, o) WHERE s IS SettingOperations;
@@ -322,7 +322,7 @@ FORM reportGroupOperation 'Отчет по операциям'
     PROPERTIES(gt) SELECTOR name
     
     PROPERTIES inBackSheetStocks() ON CHANGE changeStocksBackSheet(gt, df, dt)
-    PROPERTIES name1(), a(), b()
+    PROPERTIES nameListOperation(), saveListOperation(), recoveryListOperation()
     
     TREE skuTree sk = Group PARENT parent(sk)
     PROPERTIES inSession(sk) BACKGROUND backgroundInSession(sk)
@@ -421,9 +421,9 @@ DESIGN reportGroupOperation {
         }      
     MOVE TOOLBARBOX;
     TOOLBAR (o){
-        MOVE PROPERTY (name1());
-        MOVE PROPERTY (a());
-        MOVE PROPERTY (b());
+        MOVE PROPERTY (nameListOperation());
+        MOVE PROPERTY (saveListOperation());
+        MOVE PROPERTY (recoveryListOperation());
     }
 }
 
