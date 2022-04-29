@@ -257,7 +257,7 @@ backgroundMessage() = (IF toPrint() THEN RGB(255, 250, 205) ELSE RGB(255,150,150
 complete 'Завершить'(InternetOrder a) {
     APPLY; 
     resetLocAssembly();
-    //formClose();   
+    formClose();   
 }
 
 FORM scanAssembly 'Сканирование'
@@ -271,7 +271,7 @@ FORM scanAssembly 'Сканирование'
     
     OBJECTS o = InternetOrder 
     FILTERS internetOrder(d)==o
-    PROPERTIES (o) SHOWIF toPrint() internetOrderPrint, internetOrderPickingPrint, complete   
+    PROPERTIES (o) SHOWIF toPrint()  internetOrderPickingPrint, complete   
     
     OBJECTS dd = InternetOrderDetail
     PROPERTIES (dd) READONLY seriesNumber, nameStatusDetail, nameSku, overBin
@@ -342,15 +342,16 @@ DESIGN scanAssembly{
             }
             MOVE BOX(o){
                 fill = 1;
+                caption = '';
                 MOVE GROUP(print,o){
                     caption = 'Печать документов к заказу';
                     showIf = toPrint();   
                     //fill = 1;
                     type = COLUMNS;
                     columns=1;
-                    PROPERTY (internetOrderPrint(o)){
-                        focusable = FALSE;    
-                    }
+//                    PROPERTY (internetOrderPrint(o)){
+//                        focusable = FALSE;    
+//                    }
                     PROPERTY (internetOrderPickingPrint(o)){
                         focusable = FALSE;    
                     }                                
@@ -482,7 +483,7 @@ scan 'Сканировать' (Assembly a) {
             }                           
         }
         inExecutor(currentUser(),a)<- TRUE; 
-        SHOW scanAssembly OBJECTS a =a DOCKED;
+        SHOW scanAssembly OBJECTS a =a;// DOCKED;
         formRefresh();
     }
 }
@@ -567,7 +568,19 @@ DESIGN assembly {
                     fill = 1;
                     type = SPLITV;
                     caption = 'Печать документов';
-                    MOVE BOX (o);
+                    NEW order{
+                        fill = 1;
+                        caption ='Интернет-заказ'; 
+                        type = CONTAINERH;
+                        MOVE BOX (o){
+                            caption = '';
+                            //fill = 3;
+                        }
+                        MOVE GROUP (print,o){
+                            type = COLUMNS;
+                            columns = 1;
+                        }
+                    }
                     MOVE BOX (dd);
                 }
             }
