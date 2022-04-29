@@ -542,13 +542,12 @@ statusSlovo 'Статус выгрузки' (Move o) = CONCAT ' - ', status(slov
 beforeExportSolvo ABSTRACT (Move);
 
 categoryHeaderString (LONG syncId, Move s) = CONCAT'','<category_change_req syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
-    '\'\' doc_id=\'\'',id(s),'\'\' comments=\'\'',format(note(s)),'\'\' old_category_id=\'\'',(OVERRIDE format(idSolvo(fromZone(s))), '1'),
-    '\'\' new_category_id=\'\'',(OVERRIDE format(idSolvo(toZone(s))), '1'),'\'\'>';
+    '\'\' doc_id=\'\'',id(s),'\'\' comments=\'\'',format(note(s)),'\'\' type=\'\'',(OVERRIDE '2' IF (idSolvo(toZone(s)) == '5' OR idSolvo(toZone(s)) == '6'), '1'),'\'\'>';
 
 extraCategoryDetailString = ABSTRACT CASE STRING (MoveDetail);
 categoryDetailString (LONG syncId, MoveDetail s) = CONCAT'','<category_change_req_detail syncid=\'\'',syncId,'\'\' action=\'\'update\'\' syncdate=\'\'',nowText(),
-    '\'\' doc_id=\'\'',id(move(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' ',extraCategoryDetailString(s),
-    '\'\' qty=\'\'',format(STRING(quantity(s))),'\'\' comments=\'\'\'\'/>';
+    '\'\' doc_id=\'\'',id(move(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' ',extraCategoryDetailString(s),'\'\' qty=\'\'',format(STRING(quantity(s))),
+    '\'\' old_category_id=\'\'',(OVERRIDE format(idSolvo(fromZone(s))), '1'),'\'\' new_category_id=\'\'',(OVERRIDE format(idSolvo(toZone(s))), '1'),'\'\' comments=\'\'\'\'/>';
 
 exportSolvo 'Выгрузить категории в wms Solvo' (Move m) {
     IF defaultNumeratorSyncid() THEN {
