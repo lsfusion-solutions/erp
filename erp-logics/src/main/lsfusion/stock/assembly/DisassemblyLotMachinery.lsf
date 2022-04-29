@@ -39,14 +39,25 @@ createCashRegisterPriceTransactionDocumentLot 'Загрузить в обору�
             MESSAGE 'Загрузка марок в оборудование не требуется: '+ nameStock(d) +'.\n' NOWAIT;
 }CONFIRM;
 
+backgroundCreateMachineryPriceTransaction 'Цвет' (PriceTransactionDocument disassembly) = IF countProcess(disassembly) THEN
+                                                                            RGB(255,255,128)
+                                                                         ELSE
+                                                                            RGB(212,255,212);
+
 EXTEND FORM disassemblies
-    PROPERTIES (a) createCashRegisterPriceTransactionDocumentLot SHOWIF useLot(a)
+    PROPERTIES(a) statusMachinery BACKGROUND backgroundCreateMachineryPriceTransaction(a) READONLY AFTER sumDisassemblyDetail(a),        
+                  createCashRegisterPriceTransactionDocumentLot SHOWIF useLot(a) READONLYIF isDraft(a)
 ;
 
-DESIGN disassemblies{
+DESIGN disassemblies {
     actions{
-        NEW machinery{
-            MOVE PROPERTY (createCashRegisterPriceTransactionDocumentLot(a));
+        NEW machinery {                 
+            caption = 'Загрузки' ;
+            type = CONTAINERV;    
+            MOVE PROPERTY (createCashRegisterPriceTransactionDocumentLot(a)) { alignment = STRETCH; }
         }
     }
+    PROPERTY(statusMachinery(a)) { charWidth = 15; } 
 }
+
+@extendFormDocumentMachineryPriceTransactionError(disassemblies, a, disassembly, tabbedPane);
