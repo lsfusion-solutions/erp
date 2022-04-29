@@ -84,6 +84,7 @@ WHEN LOCAL (CHANGED(batch(UserDisparityDetail detail)) OR CHANGED(sku(detail)) O
 
 expiryDateBatch 'Годен до' = ABSTRACT DATE (DisparityDetail) MATERIALIZED;
 expiryDateBatch 'Годен до' = DATA DATE (UserDisparityDetail);
+expiryDateBatch (UserDisparityDetail detail) += expiryDateBatch(detail);
 expiryDateBatch(UserDisparityDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED(batch(detail));
 
 disallowLineDisparities 'Запретить строки без партий в изменениях сортности' = DATA BOOLEAN ();
@@ -366,7 +367,7 @@ FORM disparities 'Изменения сортности'
                                           postedNameUser, postedTime, postedHostnameComputer
 
     PROPERTIES (dis) NEWSESSION NEW[UserDisparity], EDIT SHOWIF showEdit(dis)
-    PROPERTIES(dis)  close SHOWIF isOpened(dis), open SHOWIF isClosed(dis)     
+    PROPERTIES(dis) DRAW dis TOOLBAR close SHOWIF isOpened(dis), open SHOWIF isClosed(dis)     
     
     PROPERTIES (dis) NEWSESSION deleted=DELETE SHOWIF showDelete(dis)
 
