@@ -1,20 +1,40 @@
-async function getPort(info) {
-    if (info.number || info.vid)  {
-        const ports = await navigator.serial.getPorts();
-        if (info.number) {
-            if (ports.length >= info.number)
-                return ports[info.number-1];
-            else {
-                throw { code : "", message : "Устройство с номером " + info.number + " не найдено", name : "" };
+function serialPortRequestPort() {
+    return {
+        render: function (element) {
+            var request = document.createElement("button")
+            request.classList.add("serial-port-request");
+
+            element.request = request;
+            element.appendChild(request);
+        },
+
+        update: function (element, controller, value) {
+            element.request.innerText = value.caption;
+
+            element.request.onclick = async function() {
+                const port = await navigator.serial.requestPort();
+                if (port) {
+                    const vid = port.getInfo().usbVendorId;
+                    const pid = port.getInfo().usbProductId;
+                    controller.changeValue(JSON.stringify({ vid : (vid ? vid.toString(16) : null),
+                                                            pid : (pid ? pid.toString(16) : null) }));
+                }
             }
         }
-        const devices = ports.filter(port => port.getInfo().usbProductId == parseInt(info.pid, 16) && port.getInfo().usbVendorId == parseInt(info.vid, 16))
-        if (devices.length > 0)
-            return devices[0];
-        else
-            throw { code : "", message : "Устройство " + info.vid + "/" + info.pid + " не найдено", name : "" };
-    } else {
-        return navigator.serial.requestPort();
+    }
+}
+
+async function getPort(info) {
+    const ports = await navigator.serial.getPorts();
+    const devices = ports.filter(port => port.getInfo().usbProductId === (info.pid ? parseInt(info.pid, 16) : undefined)
+                                      && port.getInfo().usbVendorId === (info.vid ? parseInt(info.vid, 16) : undefined));
+
+    const number = info.number ? info.number-1 : 0;
+
+    if (devices.length > number)
+        return ports[number];
+    else {
+        throw { code : "", message : "Устройство с номером " + info.number + "(" + info.vid + "/" + info.pid + ")" + " не найдено", name : "" };
     }
 }
 

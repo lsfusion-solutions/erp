@@ -1,6 +1,6 @@
 MODULE ComWeight;
 
-REQUIRE WeightDaemon;
+REQUIRE WeightDaemon, SerialPort;
 
 NAMESPACE WeightDaemon;
 
@@ -9,13 +9,31 @@ scalesBaudRate 'Baud rate весов' = DATA INTEGER (Computer);
 vidScalesComPort 'VID весов' = DATA STRING[4] (Computer) CHARWIDTH 8;
 pidScalesComPort 'PID весов' = DATA STRING[4] (Computer) CHARWIDTH 8;
 
-EXTEND FORM computer PROPERTIES(c) scalesBaudRate, vidScalesComPort, pidScalesComPort;
+EXTEND FORM computer 
+    PROPERTIES(c) scalesBaudRate, vidScalesComPort, pidScalesComPort
+    
+    PROPERTIES requestScalesPort = JSON(FROM caption = 'Запросить') CUSTOM 'serialPortRequestPort' ON CHANGE {
+        INPUT s = TEXT DO {
+            stringToFile(s);
+            
+            LOCAL vid = STRING[4]();
+            LOCAL pid = STRING[4]();
+            IMPORT JSON FROM resultFile() TO() vid, pid;
+            
+            vidScalesComPort(c) <- vid();
+            pidScalesComPort(c) <- pid();
+            
+            scalesComPort(c) <- 1 IF NOT vid();
+        }
+    }
+;
 
 DESIGN computer {
     weight {
         MOVE PROPERTY(scalesBaudRate(c)); 
         MOVE PROPERTY(vidScalesComPort(c)); 
-        MOVE PROPERTY(pidScalesComPort(c)); 
+        MOVE PROPERTY(pidScalesComPort(c));
+        MOVE PROPERTY(requestScalesPort); 
     }
 } 
 
@@ -25,8 +43,5 @@ jsonScalesComPort (Computer c) = JSON(FROM number = scalesComPort(c),
                                            vid = vidScalesComPort(c), 
                                            pid = pidScalesComPort(c)); 
 
-openPortReader INTERNAL CLIENT 'openPortReader(info)' (JSON);
 openScalesPortReader (Computer c) { openPortReader(jsonScalesComPort(c)); }
-openScalesPortReader () { openScalesPortReader(currentComputer()); }
-
-closePortReader INTERNAL CLIENT 'closePortReader(info)' ();
+openScalesPortReader () { openScalesPortReader(currentComputer()); } 
