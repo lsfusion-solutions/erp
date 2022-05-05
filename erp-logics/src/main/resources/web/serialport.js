@@ -32,7 +32,7 @@ async function getPort(info) {
     const number = info.number ? info.number-1 : 0;
 
     if (devices.length > number)
-        return ports[number];
+        return devices[number];
     else {
         throw { code : "", message : "Устройство с номером " + info.number + "(" + info.vid + "/" + info.pid + ")" + " не найдено", name : "" };
     }
