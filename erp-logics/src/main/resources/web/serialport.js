@@ -42,7 +42,7 @@ let serialPortReader;
 let onSerialPortReceive;
 let onSerialPortError;
 
-async function openPortReader(info) {
+async function openPortReader(info, timeout) {
     if (serialPortReader) return;
 
     let port;
@@ -64,6 +64,7 @@ async function openPortReader(info) {
     while (port.readable && keepReading) {
         serialPortReader = port.readable.getReader();
         try {
+            let buffer;
             while (true) {
                 const { value, done } = await serialPortReader.read();
                 if (done) {
@@ -71,8 +72,18 @@ async function openPortReader(info) {
                     break;
                 }
                 console.log(value);
-                if (onSerialPortReceive)
-                    onSerialPortReceive(value);
+                if (onSerialPortReceive) {
+                    if (buffer) {
+                        buffer = new Uint8Array([...buffer, ...value]);
+                    } else {
+                        buffer = value;
+                        setTimeout(function() {
+                            console.log("send : " + buffer);
+                            onSerialPortReceive(buffer);
+                            buffer = undefined;
+                        }, timeout);
+                    }
+                }
             }
         } catch (error) {
             alert("Код " + error.code + " : " + error.message + " / " + error.name);
