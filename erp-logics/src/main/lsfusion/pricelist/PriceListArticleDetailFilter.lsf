@@ -1,0 +1,42 @@
+MODULE PriceListArticleDetailFilter;
+
+REQUIRE PriceListArticleDetail, PriceListOperation;
+
+NAMESPACE PriceList;
+
+showArticleDetail 'Артикулы' = ABSTRACT BOOLEAN (PriceList);
+showArticleDetail 'Артикулы' = DATA BOOLEAN (UserPriceList) IN documentPrm;
+showArticleDetail(UserPriceList d) += showArticleDetail(d);
+
+EXTEND FORM userPriceList
+    PROPERTIES (p) showArticleDetail
+;
+
+DESIGN userPriceList {
+    firstContainer {
+        showIf = NOT showArticleDetail(p);
+    }
+    fourthContainer {
+        showIf = NOT showArticleDetail(p);
+    }
+    BOX(ad) {
+        showIf = showArticleDetail(p);
+    }
+    param {
+        MOVE PROPERTY (showArticleDetail(p));
+    }
+}
+
+showArticleDetail 'Артикулы' = DATA BOOLEAN (Operation);
+showArticleDetail(UserPriceList priceList) <- showArticleDetail(operation(priceList))
+    WHEN CHANGED(operation(priceList));
+
+EXTEND FORM operation
+    PROPERTIES (o) showArticleDetail
+;
+
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(showArticleDetail(o));
+    }    
+}
