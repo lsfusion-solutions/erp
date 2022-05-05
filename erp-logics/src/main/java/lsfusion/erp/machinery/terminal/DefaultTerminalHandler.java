@@ -534,10 +534,10 @@ public class DefaultTerminalHandler {
                     }
                 }
                 statement.executeBatch();
-                connection.commit();
                 if (userInfo.idApplication.equals("")) {
-                    connection.createStatement().executeUpdate("CREATE INDEX zayavki_post ON zayavki (post);");
-                    connection.commit();
+                    try(Statement s = connection.createStatement()) {
+                        s.executeUpdate("CREATE INDEX zayavki_post ON zayavki (post);");
+                    }
                 }
             } finally {
                 if (statement != null)
@@ -624,10 +624,10 @@ public class DefaultTerminalHandler {
                 }
 
                 statement.executeBatch();
-                connection.commit();
                 if (userInfo.idApplication.equals("")) {
-                    connection.createStatement().executeUpdate("CREATE INDEX goods_naim ON goods (naim ASC);");
-                    connection.commit();
+                    try(Statement s = connection.createStatement()) {
+                        s.executeUpdate("CREATE INDEX goods_naim ON goods (naim ASC);");
+                    }
                 }
 
             } finally {
@@ -701,10 +701,10 @@ public class DefaultTerminalHandler {
                     }
                 }
                 statement.executeBatch();
-                connection.commit();
                 if (userInfo.idApplication.equals("")) {
-                    connection.createStatement().executeUpdate("CREATE INDEX assort_k ON assort (post,barcode);");
-                    connection.commit();
+                    try(Statement s = connection.createStatement()) {
+                        s.executeUpdate("CREATE INDEX assort_k ON assort (post,barcode);");
+                    }
                 }
             } finally {
                 if (statement != null)
@@ -780,10 +780,10 @@ public class DefaultTerminalHandler {
                     }
                 }
                 statement.executeBatch();
-                connection.commit();
                 if (userInfo.idApplication.equals("")) {
-                    connection.createStatement().executeUpdate("CREATE INDEX ana_naim ON ana (naim ASC);");
-                    connection.commit();
+                    try(Statement s = connection.createStatement()) {
+                        s.executeUpdate("CREATE INDEX ana_naim ON ana (naim ASC);");
+                    }
                 }
             } finally {
                 if (statement != null)
@@ -877,8 +877,9 @@ public class DefaultTerminalHandler {
                 statement.executeBatch();
                 connection.commit();
                 if (userInfo.idApplication.equals("")) {
-                    connection.createStatement().executeUpdate("CREATE INDEX batch_k ON batch (idbatch,barcode);");
-                    connection.commit();
+                    try(Statement s = connection.createStatement()) {
+                        s.executeUpdate("CREATE INDEX batch_k ON batch (idbatch,barcode);");
+                    }
                 }
             } finally {
                 if (statement != null)
