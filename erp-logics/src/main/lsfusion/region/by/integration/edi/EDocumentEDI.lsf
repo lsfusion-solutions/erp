@@ -1,0 +1,225 @@
+MODULE EDocumentEDI;
+
+REQUIRE EDI,EDS;
+
+NAMESPACE EDI;
+
+//-----------------------------------------Электронный документ----------------------------------------------//
+CLASS EDocument 'Электронный документ EDI';
+TABLE eDocument(EDocument);
+
+//isTest 'Тестовый документ' = DATA BOOLEAN (EDocument);
+
+dateTimeCreated 'Создан' = DATA DATETIME (EDocument);
+dateTimeCreated(EDocument d) <- currentDateTime() WHEN (d IS EDocument);
+
+@defineExternalizable(eDocument, STRING[70]);
+
+in 'Вкл.' = DATA LOCAL BOOLEAN (EDocument);
+isCancel 'Отменен' = DATA BOOLEAN (EDocument);
+
+documentID 'Номер документа (системный)' = DATA STRING[35] (EDocument);
+creationDateTime 'Дата и время электронного документа' = DATA DATETIME (EDocument);
+number 'Номер электронного документа (юридический)' = DATA STRING[50] (EDocument);
+date 'Дата электронного документа (юридический)' = DATA DATE (EDocument);
+type 'Тип электронного документа' = DATA STRING[255] (EDocument);
+
+sender 'Отправитель' = DATA LegalEntity (EDocument);
+glnSender 'GLN отправителя' (EDocument d) = GLN(sender(d));
+nameSender 'Отправитель' (EDocument d) = name(sender(d));
+addressSender 'Адрес отправителя' (EDocument d) = address(sender(d));
+unpSender 'УНП отправителя' (EDocument d) = UNP(sender(d));
+
+receiver 'Получатель' = DATA Stock (EDocument);
+glnReceiver 'GLN получателя' (EDocument d) = GLN(receiver(d));
+nameReceiver 'Получатель' (EDocument d) = name(receiver(d));
+addressReceiver 'Адрес получателя' (EDocument d) = address(receiver(d));
+unpReceiver 'УНП получателя' (EDocument d) = UNP(legalEntity(receiver(d)));
+
+
+file 'Файл' = DATA RAWFILE (EDocument) NONULL;
+name 'Имя файла' = DATA STRING[255] (EDocument);
+
+CLASS EDocumentRoute {
+    route0 'документ подписывает обе стороны',
+    route1 'документ подписывает только отправитель',
+    route2 'документ подписывает только получатель'
+}
+
+id (EDocumentRoute r) = CASE
+    WHEN r == EDocumentRoute.route0 THEN '0'
+    WHEN r == EDocumentRoute.route1 THEN '1'
+    WHEN r == EDocumentRoute.route2 THEN '2';
+
+route 'Маршрут документа' = DATA EDocumentRoute (EDocument);
+nameRoute 'Маршрут документа' (EDocument d) = staticCaption(route(d)) CHARWIDTH 30;
+idRoute 'Маршрут документа' (EDocument d) = id(route(d));
+
+FORM dialogEDocument 'Выбор электронного документа'
+    OBJECTS d = EDocument
+    PROPERTIES(d) READONLY number, date, type, name, nameSender, nameReceiver
+    
+    LIST EDocument OBJECT d
+;
+
+//-----------------------------------------Сообщение по документу EDI-----------------------------------------//
+CLASS EDocumentMessage 'Сообщение по документу EDI';
+TABLE eDocumentMessage(EDocumentMessage);
+
+number 'Номер' = DATA STRING[24] (EDocumentMessage);
+eDocument 'Документ' = DATA EDocument (EDocumentMessage) NONULL DELETE;
+numberEDocument 'Накладная' (EDocumentMessage m) = number(eDocument(m));
+dateTime 'Дата/время сообщения' = DATA DATETIME (EDocumentMessage);
+code 'Код сообщения' = DATA STRING[10] (EDocumentMessage);
+description 'Текст сообщения' = DATA STRING[1000] (EDocumentMessage);
+good = ABSTRACT CASE BOOLEAN (EDocumentMessage);
+currentOrderMessage = GROUP LAST EDocumentMessage m ORDER dateTime(m), m BY eDocument(m);
+statusDescription 'Статус отправки EDI'(EDocument d) = CONCAT ' ', code(currentOrderMessage(d)), description(currentOrderMessage(d)) CHARWIDTH 15;
+backgroundStatusDescription (EDocument d) = RGB(255,238,238) IF currentOrderMessage(d) AND NOT good(currentOrderMessage(d));
+
+background = ABSTRACT CASE COLOR (EDocument);
+
+kind 'Вид' = DATA EInvoiceMessageKind (EDocumentMessage);
+nameKind 'Вид' (EDocumentMessage m) = staticCaption(kind(m));
+
+INDEX eDocument(EDocumentMessage m), number(m), kind(m);
+eDocumentMessage (eDocument, number, kind) = GROUP AGGR EDocumentMessage m BY eDocument(m), number(m), kind(m);
+
+EXTEND CLASS EInvoiceMessageType {
+    systemmessage_blrdoc 'SYSTEMMESSAGE-BLRDOC',
+    blrapn_blrdoc 'BLRAPN-BLRDOC'
+}
+
+type 'Тип' = DATA EInvoiceMessageType (EDocumentMessage);
+nameType 'Тип' (EDocumentMessage m) = staticCaption(type(m));
+
+good(EDocumentMessage m) += WHEN (code(m) == '1250' OR code(m) == '2550' OR code(m) == '2560' OR code(m) == '2552' OR code(m) == '2562') THEN TRUE ;
+
+FORM eDocuments 'Электронные документы EDI'
+    OBJECTS d = EDocument
+    PROPERTIES(d) in
+    PROPERTIES(d) READONLYIF isReadonly() isCancel//, isTest
+    PROPERTIES(d) BACKGROUND background(d) READONLY number, date, type, name, glnSender, nameSender, glnReceiver, nameReceiver, dateTimeCreated,
+                  documentID, creationDateTime, nameRoute
+    FILTERGROUP notExported
+
+    OBJECTS m = EDocumentMessage
+    PROPERTIES(m) READONLY numberEDocument, dateTime, nameType, nameKind, code, description
+    FILTERS eDocument(m) == d
+    ORDERS dateTime(m);
+;
+@extendFormEditable(eDocuments);
+
+DESIGN eDocuments {
+    BOX {
+        MOVE BOX(d);
+        NEW tab {
+            fill = 1;
+            type = TABBED;
+            MOVE BOX(m);
+            NEW actionContainer {
+                caption = 'Действия';
+                type = CONTAINERH;
+            }
+        }
+        
+        MOVE TOOLBARBOX {
+            TOOLBAR(d) {
+                type = COLUMNS;
+                columns = 3;
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    edi 'EDI' {
+        NEW eDocuments;
+    }
+}
+
+FORM eDocument 'Электронный документ EDI'
+    OBJECTS d = EDocument PANEL 
+    PROPERTIES(d) BACKGROUND background(d) number, date, type, name, dateTimeCreated,
+                  glnSender, nameSender, glnReceiver, nameReceiver, nameRoute
+;
+
+DESIGN eDocument {
+    GROUP (,d) {
+        type = COLUMNS;
+        columns = 2;
+    }
+    PROPERTY (name(d)){notNull = TRUE;}
+    PROPERTY (glnSender(d)){notNull = TRUE;}
+    PROPERTY (nameSender(d)){notNull = TRUE;}
+    PROPERTY (glnReceiver(d)){notNull = TRUE;}
+    PROPERTY (nameReceiver(d)){notNull = TRUE;}
+}
+
+openEDocument 'Открыть документ' (EDocument d) {
+    open(setExtension(file(d),(OVERRIDE getWord(name(d),'.',wordCount(name(d),'.')),'txt')));
+} TOOLBAR;
+
+addEDocument 'Загрузить документ' () {
+    NEWSESSION {
+        INPUT f = FILE DO NEW d = EDocument {
+            file(d) <- RAWFILE(f);
+            name(d) <- STRING[255]('document.' + getExtension(f));
+            SHOW eDocument OBJECTS d = d DOCKED;
+        }
+    }
+} TOOLBAR IMAGE 'add.png';
+
+editEDocument 'Заполнить атрибуты' (EDocument d) { 
+	NEWSESSION {   
+	    SHOW eDocument OBJECTS d = d DOCKED;
+	}
+} TOOLBAR IMAGE 'edit.png';
+
+EXTEND FORM eDocuments
+    PROPERTIES DRAW d openEDocument(d), addEDocument(), editEDocument(d)
+    //PROPERTIES NEWSESSION DELETE(d)
+;
+
+//--------------------- действия ---------------------//
+exportedSender 'Экспортирован (отправитель)' = DATA BOOLEAN (EDocument);
+//importedReceiver 'Импортирован (получатель)' = DATA BOOLEAN (EDocument);
+//exportedReceiver 'Экспортирован (получатель)' = DATA BOOLEAN (EDocument);
+//importedSender 'Импортирован (отправитель)' = DATA BOOLEAN (EDocument);
+
+
+signAndSendSender 'Подписать и отправить (отправитель)'  ABSTRACT LIST (EDocument);
+signAndSendSenderEDI 'Подписать и отправить (отправитель)'() {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EDocument d) DO { 
+        IF EDIProviderInvoice(legalEntity(receiver(d))) THEN
+            signAndSendSender(d);
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для документа: ' + (OVERRIDE documentID(d), number(d), '');
+        in(d) <- NULL;
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одного документа';
+}
+
+EXTEND FORM eDocuments
+    PROPERTIES(d) BEFORE isCancel(d) READONLYIF isReadonly() exportedSender
+    EXTEND FILTERGROUP notExported
+        FILTER 'Не экспортированы (отправитель)' NOT exportedSender(d) 'F8'
+        //FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) AND NOT importedNoticeSupplier(e) 'F11'
+    PROPERTIES() DRAW d TOOLBAR signAndSendSenderEDI
+;
+
+DESIGN eDocuments {
+    actionContainer {
+        caption = 'Действия';
+        type = CONTAINERH;
+        NEW sender {
+            caption = 'Отправитель';
+            type = CONTAINERV;        
+            MOVE PROPERTY (signAndSendSenderEDI()) { alignment = STRETCH; };
+        }
+    }
+}

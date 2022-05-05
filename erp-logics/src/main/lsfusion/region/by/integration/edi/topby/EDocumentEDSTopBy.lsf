@@ -1,0 +1,84 @@
+MODULE EDocumentEDSTopBy;
+
+REQUIRE EDocumentEDS, EDSTopBy;
+
+NAMESPACE EDI;
+
+aliasEDSServiceSender (EDocument d) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(sender(d));
+passwordEDSServiceSender (EDocument d) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(sender(d));
+
+aliasEDSServiceReceiver (EDocument d) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(receiver(d));
+passwordEDSServiceReceiver (EDocument d) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(receiver(d));
+
+EDSServiceSenderTopBy (EDocument d) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(sender(d));
+EDSServiceReceiverTopBy (EDocument d) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(receiver(d));
+
+EDSServiceSender(STRING[100] provider, EDocument d) += WHEN provider == 'TopBy' AND d IS EDocument THEN EDSServiceSenderTopBy(d);
+EDSServiceReceiver(STRING[100] provider, EDocument d) += WHEN provider == 'TopBy' AND d IS EDocument THEN EDSServiceReceiverTopBy(d);
+
+
+sendRequestEDSSender(STRING[100] provider, EDocument d, XMLFILE file) {
+    sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceSender(provider,d)) + ':' + port(EDSServiceSender(provider,d)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceSender(provider,d)));
+}
+sendRequestEDSReceiver(STRING[100] provider, EDocument d, XMLFILE file) {
+    sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceReceiver(provider,d)) + ':' + port(EDSServiceReceiver(provider,d)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceReceiver(provider,d)));
+}
+
+getSignedDocumentSender(STRING[100] provider, EDocument eDocument, FILE contentSubXML, BOOLEAN interactive) + {
+    IF provider == 'TopBy' THEN {
+        IF aliasEDSServiceSender(eDocument) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSender(eDocument)) THEN {
+            signError() <- NULL;
+            signResult() <- NULL;
+            
+            LOCAL xml = FILE();
+            fileToString(contentSubXML);
+            EXPORT getEDS OBJECTS alias = aliasEDSServiceSender(eDocument),password = (OVERRIDE passwordEDSService(), passwordEDSServiceSender(eDocument)) XML TO xml;
+            LOCAL innerXML = TEXT();
+            innerXML() <- resultString();
+            fileToString(xml());
+            stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
+            sendRequestEDSSender(provider, eDocument, XMLFILE(resultFile()));
+            IMPORT getEDSResponse FROM sendRequestEDIResponse();
+            signError() <- faultstring();
+            IF waybill() THEN {
+                encodeBase64(waybill());
+                signResult() <- encodedBase64();
+            }
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + documentID(eDocument) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
+        }
+    }
+}
+
+getSignedDocumentReceiver(STRING[100] provider, EDocument eDocument, FILE contentSubXML, BOOLEAN interactive) + {
+    IF provider == 'TopBy' THEN {
+        IF aliasEDSServiceReceiver(eDocument) AND (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(eDocument)) THEN {
+            signError() <- NULL;
+            signResult() <- NULL;
+            
+            LOCAL xml = FILE();
+            fileToString(contentSubXML);
+            EXPORT getEDS OBJECTS alias = aliasEDSServiceReceiver(eDocument), password = (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(eDocument)) XML TO xml;
+            LOCAL innerXML = TEXT();
+            innerXML() <- resultString();
+            fileToString(xml());
+            stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
+            sendRequestEDSReceiver(provider, eDocument, XMLFILE(resultFile()));
+            IMPORT getEDSResponse FROM sendRequestEDIResponse();
+            signError() <- faultstring();
+            IF waybill() THEN {
+                encodeBase64(waybill());
+                signResult() <- encodedBase64();
+            }
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + documentID(eDocument) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
+        }
+        RETURN;
+    }
+}
