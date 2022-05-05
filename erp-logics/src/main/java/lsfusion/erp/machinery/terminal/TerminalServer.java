@@ -291,9 +291,9 @@ public class TerminalServer extends MonitorServer {
         return result.split(escStr, -1);
     }
 
-    public String getSessionId(DataObject customUser, String login, String password, String idTerminal) {
+    public String getSessionId(DataObject customUser, String login, String password, String idTerminal, String idApplication) {
         String sessionId = String.valueOf((login + password + idTerminal).hashCode());
-        userMap.put(sessionId, new UserInfo(customUser, idTerminal));
+        userMap.put(sessionId, new UserInfo(customUser, idTerminal, idApplication));
         return sessionId;
     }
 
@@ -377,8 +377,7 @@ public class TerminalServer extends MonitorServer {
                                     Object loginResult = terminalHandler.login(
                                             createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2], idApplication, applicationVersion);
                                     if (loginResult instanceof DataObject) {
-                                        result = getSessionId((DataObject) loginResult, params[0], params[1], params[2]);
-                                        userMap.get(result).idApplication = idApplication;
+                                        result = getSessionId((DataObject) loginResult, params[0], params[1], params[2], idApplication);
                                         logger.info(String.format("successfull login, idTerminal %s, idApplication '%s', applicationVersion '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication, applicationVersion));
                                     } else if (loginResult instanceof String) {
                                         errorCode = LOGIN_ERROR;

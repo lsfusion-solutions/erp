@@ -70,7 +70,6 @@ public class InventoryTechHandler extends TerminalHandler {
                             processTransactionLogger.info("Directory " + directory.getAbsolutePath() + " doesn't exist");
 
                         try {
-                            Class.forName("org.sqlite.JDBC");
 
                             createGoodsFile((TransactionTerminalInfo) transaction, path);
                             createBarcodeFile((TransactionTerminalInfo) transaction, path);

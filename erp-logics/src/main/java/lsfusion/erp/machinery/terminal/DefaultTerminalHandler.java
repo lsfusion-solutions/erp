@@ -206,16 +206,16 @@ public class DefaultTerminalHandler {
                 try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
 
                     createGoodsTable(connection);
-                    updateGoodsTable(connection, barcodeList, orderList, skuExtraBarcodeList, orderImages, imagesInReadBase);
+                    updateGoodsTable(connection, barcodeList, orderList, skuExtraBarcodeList, orderImages, imagesInReadBase, userInfo);
 
                     createBatchesTable(connection);
-                    updateBatchesTable(connection, batchList, prefix);
+                    updateBatchesTable(connection, batchList, prefix, userInfo);
 
                     createOrderTable(connection);
-                    updateOrderTable(connection, orderList, prefix);
+                    updateOrderTable(connection, orderList, prefix, userInfo);
 
                     createAssortTable(connection);
-                    updateAssortTable(connection, assortmentList, prefix);
+                    updateAssortTable(connection, assortmentList, prefix, userInfo);
 
                     if (terminalOrderLotLM != null) {
                         createLotsTable(connection);
@@ -227,7 +227,7 @@ public class DefaultTerminalHandler {
                     updateVANTable(connection, handbookTypeList);
 
                     createANATable(connection);
-                    updateANATable(connection, customANAList);
+                    updateANATable(connection, customANAList, userInfo);
 
                     createVOPTable(connection);
                     updateVOPTable(connection, terminalDocumentTypeList);
@@ -496,11 +496,10 @@ public class DefaultTerminalHandler {
                 " vop TEXT," +
                 "PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
-        statement.execute("CREATE INDEX zayavki_post ON zayavki (post);");
         statement.close();
     }
 
-    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList, String prefix) throws SQLException {
+    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList, String prefix, UserInfo userInfo) throws SQLException {
         if (!terminalOrderList.isEmpty() && prefix != null) {
             PreparedStatement statement = null;
             try {
@@ -536,6 +535,10 @@ public class DefaultTerminalHandler {
                 }
                 statement.executeBatch();
                 connection.commit();
+                if (userInfo.idApplication.equals("")) {
+                    connection.createStatement().executeUpdate("CREATE INDEX zayavki_post ON zayavki (post);");
+                    connection.commit();
+                }
             } finally {
                 if (statement != null)
                     statement.close();
@@ -570,7 +573,7 @@ public class DefaultTerminalHandler {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, List<SkuExtraBarcode> skuExtraBarcodeList, Map<String, RawFileData> orderImages, boolean imagesInReadBase) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, List<SkuExtraBarcode> skuExtraBarcodeList, Map<String, RawFileData> orderImages, boolean imagesInReadBase, UserInfo userInfo) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -622,8 +625,10 @@ public class DefaultTerminalHandler {
 
                 statement.executeBatch();
                 connection.commit();
-                connection.createStatement().execute("CREATE INDEX goods_naim ON goods (naim ASC);");
-                connection.commit();
+                if (userInfo.idApplication.equals("")) {
+                    connection.createStatement().executeUpdate("CREATE INDEX goods_naim ON goods (naim ASC);");
+                    connection.commit();
+                }
 
             } finally {
                 if(statement != null)
@@ -670,11 +675,10 @@ public class DefaultTerminalHandler {
                 " mainpost TEXT," +
                 "PRIMARY KEY ( post, barcode))";
         statement.executeUpdate(sql);
-        statement.execute("CREATE INDEX assort_k ON assort (post,barcode);");
         statement.close();
     }
 
-    private void updateAssortTable(Connection connection, List<TerminalAssortment> terminalAssortmentList, String prefix) throws SQLException {
+    private void updateAssortTable(Connection connection, List<TerminalAssortment> terminalAssortmentList, String prefix, UserInfo userInfo) throws SQLException {
         if (!terminalAssortmentList.isEmpty() && prefix != null) {
             PreparedStatement statement = null;
             try {
@@ -698,6 +702,10 @@ public class DefaultTerminalHandler {
                 }
                 statement.executeBatch();
                 connection.commit();
+                if (userInfo.idApplication.equals("")) {
+                    connection.createStatement().executeUpdate("CREATE INDEX assort_k ON assort (post,barcode);");
+                    connection.commit();
+                }
             } finally {
                 if (statement != null)
                     statement.close();
@@ -753,7 +761,7 @@ public class DefaultTerminalHandler {
         statement.close();
     }
 
-    private void updateANATable(Connection connection, List<TerminalLegalEntity> customANAList) throws SQLException {
+    private void updateANATable(Connection connection, List<TerminalLegalEntity> customANAList, UserInfo userInfo) throws SQLException {
         if (!customANAList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -773,8 +781,10 @@ public class DefaultTerminalHandler {
                 }
                 statement.executeBatch();
                 connection.commit();
-                connection.createStatement().execute("CREATE INDEX ana_naim ON ana (naim ASC);");
-                connection.commit();
+                if (userInfo.idApplication.equals("")) {
+                    connection.createStatement().executeUpdate("CREATE INDEX ana_naim ON ana (naim ASC);");
+                    connection.commit();
+                }
             } finally {
                 if (statement != null)
                     statement.close();
@@ -839,11 +849,10 @@ public class DefaultTerminalHandler {
                 ")";
 
         statement.executeUpdate(sql);
-        statement.execute("CREATE INDEX batch_k ON batch (idbatch,barcode);");
         statement.close();
     }
 
-    private void updateBatchesTable(Connection connection, List<TerminalBatch> terminalBatchList, String prefix) throws SQLException {
+    private void updateBatchesTable(Connection connection, List<TerminalBatch> terminalBatchList, String prefix, UserInfo userInfo) throws SQLException {
         if (terminalBatchList != null && !terminalBatchList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -867,6 +876,10 @@ public class DefaultTerminalHandler {
                 }
                 statement.executeBatch();
                 connection.commit();
+                if (userInfo.idApplication.equals("")) {
+                    connection.createStatement().executeUpdate("CREATE INDEX batch_k ON batch (idbatch,barcode);");
+                    connection.commit();
+                }
             } finally {
                 if (statement != null)
                     statement.close();
@@ -1118,7 +1131,6 @@ public class DefaultTerminalHandler {
     public Object login(DataSession session, ExecutionStack stack, String ip, String login, String password, String idTerminal, String idApplication, String applicationVersion) {
         try {
 
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
                 ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcase[?]").readClasses(session, new DataObject(login.toUpperCase()));
                 boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword(session, (DataObject) customUser, password, stack);
