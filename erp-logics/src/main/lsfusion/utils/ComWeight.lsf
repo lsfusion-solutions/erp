@@ -15,15 +15,12 @@ EXTEND FORM computer
     PROPERTIES requestScalesPort = JSON(FROM caption = 'Запросить') CUSTOM 'serialPortRequestPort' ON CHANGE {
         INPUT s = TEXT DO {
             stringToFile(s);
-            
-            LOCAL vid = STRING[4]();
-            LOCAL pid = STRING[4]();
-            IMPORT JSON FROM resultFile() TO() vid, pid;
-            
-            vidScalesComPort(c) <- vid();
-            pidScalesComPort(c) <- pid();
-            
-            scalesComPort(c) <- 1 IF NOT vid();
+            IMPORT JSON FROM resultFile() FIELDS () STRING[4] vid NULL, STRING[4] pid NULL DO {
+                vidScalesComPort(c) <- vid;
+                pidScalesComPort(c) <- pid;
+                
+                scalesComPort(c) <- 1 IF NOT vid;
+            }
         }
     }
 ;
