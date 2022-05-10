@@ -260,6 +260,10 @@ showDeclaration 'Таможенные платежи' = ABSTRACT BOOLEAN(Invoice
 showDeclaration 'Таможенные платежи' = DATA BOOLEAN(UserInvoice) IN documentPrm;
 showDeclaration(UserInvoice invoice) += showDeclaration(invoice);
 
+showCodeCustomsGroup 'Показывать код ТНВЭД' = ABSTRACT BOOLEAN(Invoice);
+showCodeCustomsGroup 'Показывать код ТНВЭД' = DATA BOOLEAN(UserInvoice) IN documentPrm;
+showCodeCustomsGroup(UserInvoice invoice) += showCodeCustomsGroup(invoice);
+
 allowedChangeCustomsGroup 'Разрешено менять ТН ВЭД в карточке товара из формы Накладная (закупка)' = DATA BOOLEAN ();
 EXTEND FORM options
     PROPERTIES () allowedChangeCustomsGroup 
@@ -294,8 +298,9 @@ DESIGN userInvoice {
 }
 
 EXTEND FORM invoices
+    PROPERTIES(d) READONLY BACKGROUND backgroundCustoms() SHOWIF (showDeclaration(i) OR showCodeCustomsGroup(i)) BEFORE numberVAT(d) codeCustomsGroup
     PROPERTIES(d) READONLY BACKGROUND backgroundCustoms() SHOWIF showDeclaration(i) BEFORE numberVAT(d) 
-        codeCustomsGroup, nameVATCustomsException, dutyPrice, dutySum, registrationPrice, registrationSum
+        nameVATCustomsException, dutyPrice, dutySum, registrationPrice, registrationSum
 ;
 
 // ------------------------------ Выбор накладных ---------------------------- //
@@ -1476,6 +1481,9 @@ EXTEND FORM declaration
 //-- Операция
 @defineOperationProperty(showDeclaration, 'Таможенные платежи', commonContainer);
 @deriveDocumentOperationProperty(UserInvoice, showDeclaration);
+
+@defineOperationProperty(showCodeCustomsGroup, 'Показывать код ТНВЭД', commonContainer);
+@deriveDocumentOperationProperty(UserInvoice, showCodeCustomsGroup);
 
 
 //-- Декларирование
