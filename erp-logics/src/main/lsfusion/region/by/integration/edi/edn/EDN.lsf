@@ -22,35 +22,7 @@ receiveSupplierMessagesEDN 'Получать сообщения для пост�
 
 overInvoiceOutputDirEDN 'Путь сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
 
-EDSServiceEDN 'EDSService' = DATA EDSService (LegalEntity);
-descriptionEDSServiceEDN 'EDSService' (LegalEntity o) = description(EDSServiceEDN(o));
-EDSServiceEDN 'EDSService' = DATA EDSService (Stock);
-descriptionEDSServiceEDN 'EDSService' (Stock o) = description(EDSServiceEDN(o));
-EDSServiceEDN 'EDSService' = DATA EDSService (Employee);
-descriptionEDSServiceEDN 'EDSService' (Employee o) = description(EDSServiceEDN(o));
-
-
 useDocuDrive 'Использовать DocuDrive' = DATA BOOLEAN();
-
-EXTEND FORM integrationData
-    OBJECTS lee = LegalEntity
-    FILTERS isCompany(lee)
-    PROPERTIES(lee) SHOWIF NOT useDocuDrive() name READONLY, descriptionEDSServiceEDN
-    
-    OBJECTS sedse = Stock
-    PROPERTIES(sedse) SHOWIF NOT useDocuDrive() name READONLY, descriptionEDSServiceEDN
-    FILTERS isCompany(sedse)
-    
-    OBJECTS eedse = Employee
-    PROPERTIES(eedse) SHOWIF NOT useDocuDrive() lastName READONLY, firstName READONLY, namePosition READONLY, descriptionEDSServiceEDN
-    FILTERS active(eedse)
-;
-
-EDSServiceCustomerEDN (EInvoice i) = OVERRIDE EDSServiceEDN(currentUser()), EDSServiceEDN(customerStock(i)), EDSServiceEDN(customer(i));
-EDSServiceSupplierEDN (EInvoice i) = OVERRIDE EDSServiceEDN(currentUser()), EDSServiceEDN(supplierStock(i)), EDSServiceEDN(supplier(i));
-
-EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceCustomerEDN(i);
-EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceSupplierEDN(i);
 
 @receiveMessages(soap);
 
@@ -73,6 +45,7 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
 }
 
 receiveMessagesEDN (BOOLEAN invoices) {
+    hideMessageHeaderBlrapn() <- TRUE;
     FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO
         receiveMessagesSoap(login, passwordEDN(le), ('https://' +  hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, invoices, 'EDN');
 }
@@ -374,13 +347,6 @@ DESIGN integrationData {
                     MOVE PROPERTY(receiveInvoiceEDN());
                     MOVE PROPERTY(askPasswordEDSServiceEDN);
                     fill = 1;
-                    NEW EDSServiceEDN {
-                        type = TABBED;
-                        fill = 1;
-                        MOVE BOX(lee);
-                        MOVE BOX(sedse);
-                        MOVE BOX(eedse);
-                    }
                 }
             }
         }

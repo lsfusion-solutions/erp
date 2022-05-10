@@ -1,0 +1,133 @@
+MODULE EDSEDN;
+
+REQUIRE EDS, EDN;
+
+
+EDSServiceEDN 'EDSService' = DATA EDSService (LegalEntity);
+descriptionEDSServiceEDN 'EDSService' (LegalEntity o) = description(EDSServiceEDN(o));
+EDSServiceEDN 'EDSService' = DATA EDSService (Stock);
+descriptionEDSServiceEDN 'EDSService' (Stock o) = description(EDSServiceEDN(o));
+EDSServiceEDN 'EDSService' = DATA EDSService (Employee);
+descriptionEDSServiceEDN 'EDSService' (Employee o) = description(EDSServiceEDN(o));
+
+EXTEND FORM integrationData
+    OBJECTS lee = LegalEntity
+    FILTERS isCompany(lee)
+    PROPERTIES(lee) SHOWIF NOT useDocuDrive() name READONLY, descriptionEDSServiceEDN
+    
+    OBJECTS sedse = Stock
+    PROPERTIES(sedse) SHOWIF NOT useDocuDrive() name READONLY, descriptionEDSServiceEDN
+    FILTERS isCompany(sedse)
+    
+    OBJECTS eedse = Employee
+    PROPERTIES(eedse) SHOWIF NOT useDocuDrive() lastName READONLY, firstName READONLY, namePosition READONLY, descriptionEDSServiceEDN
+    FILTERS active(eedse)
+;
+
+DESIGN integrationData {
+    ivsEDN {
+        NEW EDSServiceEDN {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(lee);
+            MOVE BOX(sedse);
+            MOVE BOX(eedse);
+        }
+    }
+}
+
+EDSServiceCustomerEDN (EInvoice i) = OVERRIDE EDSServiceEDN(currentUser()), EDSServiceEDN(customerStock(i)), EDSServiceEDN(customer(i));
+EDSServiceSupplierEDN (EInvoice i) = OVERRIDE EDSServiceEDN(currentUser()), EDSServiceEDN(supplierStock(i)), EDSServiceEDN(supplier(i));
+
+EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceCustomerEDN(i);
+EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceSupplierEDN(i);
+
+sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, XMLFILE file) {
+    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceCustomer(provider,ei)) + ':' + port(EDSServiceCustomer(provider,ei))  + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceCustomer(provider,ei)) );
+}
+    
+sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, XMLFILE file) {
+    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceCustomer(provider,ei)) );
+}
+
+GROUP sign EXTID 'urn:Sign' : body;
+
+header = DATA LOCAL STRING();
+name = DATA LOCAL STRING();
+data = DATA LOCAL XMLFILE();
+cryptoContainerId = DATA LOCAL STRING();
+cryptoContainerPassword = DATA LOCAL STRING();
+attributeCertificate = DATA LOCAL STRING();
+
+FORM envelopeEDN FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+PROPERTIES ATTR ='urn:webservice' EXTID 'xmlns:urn'
+PROPERTIES() header EXTID 'soapenv:Header'
+PROPERTIES() IN sign 
+    name EXTID 'urn:Name',
+    documentType EXTID 'urn:DocumentType',
+    data EXTID 'urn:Data',
+    cryptoContainerId EXTID 'urn:CryptoContainerId',
+    cryptoContainerPassword EXTID 'urn:CryptoContainerPassword',
+    attributeCertificate EXTID 'urn:AttributeCertificate';
+
+GROUP body EXTID 'soap:Body';
+GROUP signResponse EXTID '=urn:webservice:SignResponse' : body;
+GROUP signResult EXTID '=urn:webservice:SignResult' : signResponse;
+
+result = DATA LOCAL STRING();
+fileName = DATA LOCAL STRING();
+fileData = DATA LOCAL XMLFILE ();
+
+FORM envelopeResponseEDN FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+PROPERTIES ATTR IN signResponse ='urn:webservice' EXTID 'xmlns:'
+PROPERTIES() IN signResult 
+    result EXTID '=urn:webservice:Result', 
+    fileName EXTID '=urn:webservice:FileName', 
+    fileData EXTID '=urn:webservice:FileData';
+
+
+getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
+    IF provider == 'EDN' THEN {
+        signError() <- NULL;
+        signResult() <- NULL;
+        
+        LOCAL xml = FILE();
+        name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+        documentType() <- 'BLRAPN';
+        data() <- XMLFILE(contentSubXML);
+        EXPORT envelopeEDN XML TO xml;
+        sendRequestEDSCustomer(provider, eInvoice, XMLFILE(xml()));
+        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
+
+        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
+        IF fileData() THEN {
+            fileToString(FILE(fileData()));
+            encodeBase64(resultString());
+            signResult() <- encodedBase64();
+        }
+        RETURN;
+    }
+}
+
+getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
+    IF provider == 'EDN' THEN {
+        signError() <- NULL;
+        signResult() <- NULL;
+        
+        LOCAL xml = FILE();
+        name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+        documentType() <- 'BLRAPN';
+        data() <- XMLFILE(contentSubXML);
+        EXPORT envelopeEDN XML TO xml;
+        sendRequestEDSSupplier(provider, eInvoice, XMLFILE(xml()));
+        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
+        
+        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
+        IF fileData() THEN {
+            fileToString(FILE(fileData()));
+            encodeBase64(resultString());
+            signResult() <- encodedBase64();
+        }
+        RETURN;
+    }
+}
