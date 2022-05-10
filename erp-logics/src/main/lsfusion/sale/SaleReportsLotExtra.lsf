@@ -1,0 +1,25 @@
+MODULE SaleReportsLotExtra;
+
+REQUIRE SaleReports, SaleLedgerLotExtra;
+
+NAMESPACE SaleReports;
+
+weightStockLot 'Вес по маркам, кг' = DATA LOCAL NUMERIC[16,5] (Sku);
+weightStockLot 'Вес по маркам, кг' = DATA LOCAL NUMERIC[16,5] (Group);
+
+overfillSaleReportFromTo(GroupType gt, DATE df, DATE dt) + {
+    weightStockLot(Sku sk) <- NULL;
+    weightStockLot(Group g) <- NULL;
+    
+    weightStockLot(Sku sk) <- NUMERIC[16,5]((GROUP SUM weightSoldLot(sk, Stock st, df, dt) IF inSaleReport(st) AND NOT skipSaleReport(sk,st)));
+    weightStockLot(Group g) <- [GROUP SUM weightStockLot(Sku sk) BY group(GroupType ggt, sk)](g) IF groupType(g) == gt;
+}
+
+recWeightStockLot 'Вес по маркам, кг' (Group parent) =
+    GROUP
+    SUM weightStockLot(Group child) IF isParent(child, parent);
+
+EXTEND FORM salesReport
+    PROPERTIES(sk) READONLY recWeightStockLot AFTER recQuantityStock(sk)
+    PROPERTIES(sku) READONLY weightStockLot AFTER quantityStock(sku)
+;

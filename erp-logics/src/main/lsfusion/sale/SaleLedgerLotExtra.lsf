@@ -1,0 +1,16 @@
+MODULE SaleLedgerLotExtra;
+
+REQUIRE SaleLedgerLot, LotExtra;
+
+NAMESPACE SaleLedger;
+
+weightSoldLot (SaleLedger ledger, Lot lot) = quantity(ledger, lot) * weight(lot);
+
+weightSoldLot (Sku sku, Stock stock, DATE date) = GROUP SUM weightSoldLot(SaleLedger ledger, Lot lot) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
+
+extraWeightSoldLot  = ABSTRACT NUMERIC[16,5](Sku,Stock,DATE);
+
+weightSoldLot 'Продано за интервал (кол-во)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
+        SUM
+        weightSoldLot(sku, stock, DATE date) (+) extraWeightSoldLot(sku, stock, date) IF date >= dateFrom AND date <= dateTo CHARWIDTH 7;
