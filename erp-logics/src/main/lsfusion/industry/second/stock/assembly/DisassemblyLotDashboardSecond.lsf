@@ -58,10 +58,10 @@ captionMode (STRING s) += WHEN s = 'edit' THEN 'Редактирование';
 disassemblyMode () = selectedMode('disassembly');
 editMode () = selectedMode('edit');
 
-currentComputerSettings 'Настройки' { edit(currentComputer()); }
+userComputerSettings 'Настройки' { edit(userComputer()); }
 
 FORM disassemblyLotDashboard 'Разукомплектация'
-    PROPERTIES NEWSESSION currentComputerSettings()
+    PROPERTIES NEWSESSION userComputerSettings()
 
     OBJECTS st = Stock PANEL
     PROPERTIES(st) name SELECTOR
@@ -104,7 +104,7 @@ DESIGN disassemblyLotDashboard {
             NEW left {
                 fill = 0.5;
                 width = 200;
-                MOVE PROPERTY(currentComputerSettings()) { alignment = STRETCH; }
+                MOVE PROPERTY(userComputerSettings()) { alignment = STRETCH; }
                 MOVE PROPERTY(name(st)) { caption = 'Склад'; alignment = STRETCH; }
                 
                 REMOVE BOX(m);
@@ -235,7 +235,7 @@ EXTEND FORM disassemblyLotDashboard
                  ibarcode ON CHANGE { INPUT b = ibarcode() DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
                  iimage READONLYIF readonlyIimage()
     
-    EVENTS ON INIT { openScalesPortReader(currentComputer()); }
+    EVENTS ON INIT { openScalesPortReader(); }
     EVENTS ON CLOSE { closePortReader(); }
     PROPERTIES readWeight = '' CUSTOM 'serialPortReceiveRender' ON CHANGE {
         INPUT t = TEXT DO {
