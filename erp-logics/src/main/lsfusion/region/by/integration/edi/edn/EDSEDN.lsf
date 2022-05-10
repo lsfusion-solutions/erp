@@ -2,25 +2,46 @@ MODULE EDSEDN;
 
 REQUIRE EDS, EDN;
 
+NAMESPACE EDN;
 
-EDSServiceEDN 'EDSService' = DATA EDSService (LegalEntity);
-descriptionEDSServiceEDN 'EDSService' (LegalEntity o) = description(EDSServiceEDN(o));
-EDSServiceEDN 'EDSService' = DATA EDSService (Stock);
-descriptionEDSServiceEDN 'EDSService' (Stock o) = description(EDSServiceEDN(o));
-EDSServiceEDN 'EDSService' = DATA EDSService (Employee);
-descriptionEDSServiceEDN 'EDSService' (Employee o) = description(EDSServiceEDN(o));
+aliasEDSService 'Токен ЭЦП - имя контейнера' = DATA STRING[100] (LegalEntity);
+passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (LegalEntity) ECHO;
+aliasEDSService 'Токен ЭЦП - имя контейнера' = DATA STRING[100] (Stock);
+passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (Stock) ECHO;
+aliasEDSService 'Токен ЭЦП - имя контейнера' = DATA STRING[100] (Employee);
+passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (Employee) ECHO;
+
+aliasEDSServiceCustomer (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(customerStock(i)), aliasEDSService(customer(i));
+passwordEDSServiceCustomer (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(customerStock(i)), passwordEDSService(customer(i));
+
+aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
+passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
+
+EDSService 'Прокси сервис Docudrive' = DATA EDSService (LegalEntity);
+descriptionEDSService 'Прокси сервис Docudrive' (LegalEntity o) = description(EDSService(o));
+EDSService 'Прокси сервис Docudrive' = DATA EDSService (Stock);
+descriptionEDSService 'Прокси сервис Docudrive' (Stock o) = description(EDSService(o));
+EDSService 'Прокси сервис Docudrive' = DATA EDSService (Employee);
+descriptionEDSService 'Прокси сервис Docudrive' (Employee o) = description(EDSService(o));
+
+EDSServiceCustomer (EInvoice i) = OVERRIDE EDSService(currentUser()), EDSService(customerStock(i)), EDSService(customer(i));
+EDSServiceSupplier (EInvoice i) = OVERRIDE EDSService(currentUser()), EDSService(supplierStock(i)), EDSService(supplier(i));
+
+EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceCustomer(i);
+EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceSupplier(i);
 
 EXTEND FORM integrationData
     OBJECTS lee = LegalEntity
     FILTERS isCompany(lee)
-    PROPERTIES(lee) SHOWIF NOT useDocuDrive() name READONLY, descriptionEDSServiceEDN
+    PROPERTIES(lee) SHOWIF NOT useDocuDrive() name READONLY, aliasEDSService, passwordEDSService, descriptionEDSService
     
     OBJECTS sedse = Stock
-    PROPERTIES(sedse) SHOWIF NOT useDocuDrive() name READONLY, descriptionEDSServiceEDN
+    PROPERTIES(sedse) SHOWIF NOT useDocuDrive() name READONLY, aliasEDSService, passwordEDSService, descriptionEDSService
     FILTERS isCompany(sedse)
     
     OBJECTS eedse = Employee
-    PROPERTIES(eedse) SHOWIF NOT useDocuDrive() lastName READONLY, firstName READONLY, namePosition READONLY, descriptionEDSServiceEDN
+    PROPERTIES(eedse) SHOWIF NOT useDocuDrive() READONLY lastName, firstName, namePosition
+    PROPERTIES(eedse) SHOWIF NOT useDocuDrive() aliasEDSService, passwordEDSService, descriptionEDSService
     FILTERS active(eedse)
 ;
 
@@ -36,18 +57,12 @@ DESIGN integrationData {
     }
 }
 
-EDSServiceCustomerEDN (EInvoice i) = OVERRIDE EDSServiceEDN(currentUser()), EDSServiceEDN(customerStock(i)), EDSServiceEDN(customer(i));
-EDSServiceSupplierEDN (EInvoice i) = OVERRIDE EDSServiceEDN(currentUser()), EDSServiceEDN(supplierStock(i)), EDSServiceEDN(supplier(i));
-
-EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceCustomerEDN(i);
-EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceSupplierEDN(i);
-
 sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, XMLFILE file) {
     sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceCustomer(provider,ei)) + ':' + port(EDSServiceCustomer(provider,ei))  + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceCustomer(provider,ei)) );
 }
     
 sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, XMLFILE file) {
-    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceCustomer(provider,ei)) );
+    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceSupplier(provider,ei)) );
 }
 
 GROUP sign EXTID 'urn:Sign' : body;
@@ -95,6 +110,8 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
         name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
         documentType() <- 'BLRAPN';
         data() <- XMLFILE(contentSubXML);
+        cryptoContainerId() <- aliasEDSServiceCustomer(eInvoice);
+        cryptoContainerPassword() <- passwordEDSServiceCustomer(eInvoice);
         EXPORT envelopeEDN XML TO xml;
         sendRequestEDSCustomer(provider, eInvoice, XMLFILE(xml()));
         IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
@@ -118,6 +135,8 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentS
         name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
         documentType() <- 'BLRAPN';
         data() <- XMLFILE(contentSubXML);
+        cryptoContainerId() <- aliasEDSServiceSupplier(eInvoice);
+        cryptoContainerPassword() <- passwordEDSServiceSupplier(eInvoice);
         EXPORT envelopeEDN XML TO xml;
         sendRequestEDSSupplier(provider, eInvoice, XMLFILE(xml()));
         IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
