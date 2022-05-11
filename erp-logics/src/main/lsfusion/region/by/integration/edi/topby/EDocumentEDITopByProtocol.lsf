@@ -387,9 +387,9 @@ signAndSendSenderEDocument (EDocument ed, STRING[100] login, STRING[100] passwor
                 IF EDSServiceSender(provider,ed) THEN {
                     LOCAL error = TEXT();
                     error() <- '';
-                    IF NOT length(glnSender(ed)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE documentID(ed), number(ed), '') + ': Не заполнено поле \'GLN отправителя\'\n';
-                    IF NOT length(glnReceiver(ed)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE documentID(ed), number(ed), '') + ': Не заполнено поле \'GLN получателя\'\n';
-                    IF NOT length(name(ed)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE documentID(ed), number(ed), '') + ': Не заполнено поле \'Имя файла\'\n';
+                    IF NOT length(glnSender(ed)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE number(ed), documentID(ed), '') + ': Не заполнено поле \'GLN отправителя\'\n';
+                    IF NOT length(glnReceiver(ed)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE number(ed), documentID(ed), '') + ': Не заполнено поле \'GLN получателя\'\n';
+                    IF NOT length(name(ed)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE number(ed), documentID(ed), '') + ': Не заполнено поле \'Имя файла\'\n';
                     
                     IF error() == '' THEN {
                         LOCAL contentSubXML = FILE();
@@ -408,15 +408,15 @@ signAndSendSenderEDocument (EDocument ed, STRING[100] login, STRING[100] passwor
                         } ELSE {
                             getSignedDocumentSender(provider, ed, contentSubXML(), TRUE);
                             IF signError() THEN {
-                                logToFile('edi', provider + ' SendEDocument error: BLRDOC ' + (OVERRIDE documentID(ed), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
-                                MESSAGE provider + ' Документ не выгружен: BLRDOC ' + (OVERRIDE documentID(ed), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                                logToFile('edi', provider + ' SendEDocument error: BLRDOC ' + (OVERRIDE number(ed), documentID(ed), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
+                                MESSAGE provider + ' Документ не выгружен: BLRDOC ' + (OVERRIDE number(ed), documentID(ed), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                             }
                         }
                         IF signResult() THEN {
                             LOCAL ixml = XMLFILE();
                             envelopeLogin() <- login;
                             envelopePassword() <- password;
-                            envelopeFilename() <- CONCAT '', 'document', documentID(ed);
+                            envelopeFilename() <- CONCAT '', 'document', (OVERRIDE documentID(ed), STRING[35](resultMilliseconds()));
                             envelopeDocumentDate() <- (OVERRIDE creationDateTime(ed), exportBlrdocDateTime());
                             envelopeDocumentNumber() <- (OVERRIDE documentID(ed), STRING[35](resultMilliseconds()));
                             envelopeSender() <- glnSender(ed);
@@ -426,14 +426,14 @@ signAndSendSenderEDocument (EDocument ed, STRING[100] login, STRING[100] passwor
                             envelopeContent() <- signResult();
                             EXPORT envelope XML TO ixml;
                             sendRequestEDI(url, ixml());
-                            logToFile('edi', provider + ' SendEDocument ' + documentID(ed) +' request sent');
+                            logToFile('edi', provider + ' SendEDocument ' + (OVERRIDE number(ed), documentID(ed), STRING[35](resultMilliseconds())) +' request sent');
                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                             IF requestError() THEN {
-                                logToFile('edi', provider + ' SendEDocument ' + documentID(ed) + ': ' + requestError());
-                                MESSAGE provider + ' Документ ' + documentID(ed) + ' не выгружен: ' + requestError() NOWAIT;
+                                logToFile('edi', provider + ' SendEDocument ' + (OVERRIDE number(ed), documentID(ed), STRING[35](resultMilliseconds())) + ': ' + requestError());
+                                MESSAGE provider + ' Документ ' + (OVERRIDE number(ed), documentID(ed), STRING[35](resultMilliseconds())) + ' не выгружен: ' + requestError() NOWAIT;
                             } ELSE {
-                                logToFile('edi', provider + ' SendEDocument ' + documentID(ed) + ' request succeeded');
-                                MESSAGE provider + ' Документ ' + documentID(ed) + (IF isCancel(ed) THEN ' (отмена)' ELSE '') + ' выгружен' NOWAIT;
+                                logToFile('edi', provider + ' SendEDocument ' + (OVERRIDE number(ed), documentID(ed), STRING[35](resultMilliseconds())) + ' request succeeded');
+                                MESSAGE provider + ' Документ ' + (OVERRIDE number(ed), documentID(ed), STRING[35](resultMilliseconds())) + (IF isCancel(ed) THEN ' (отмена)' ELSE '') + ' выгружен' NOWAIT;
                                 //NEWSESSION NESTED LOCAL {
                                     exportedSender(ed) <- TRUE;
                                     documentID(ed) <- STRING[35](resultMilliseconds()) IF NOT documentID(ed);
