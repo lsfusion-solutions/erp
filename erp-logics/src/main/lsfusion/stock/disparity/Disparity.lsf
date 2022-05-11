@@ -332,7 +332,15 @@ shipmentDateTime(UserDisparity disparity) = dateTime(disparity);
 
 @extendFormDocumentBatchStockOrderLedger(userDisparity, disparity, dis);
 
-close(Disparity l) + {  isClosed(l) <- TRUE; }
+close[StockDocumentLedger](Disparity l) + {  isClosed(l) <- TRUE; }
+
+migrateCloseUserDisparity = DATA BOOLEAN ();
+onStarted() +{ 
+    IF NOT migrateCloseUserDisparity() THEN {
+        isClosed(UserDisparity d) <- TRUE WHERE isOpened(d) AND date(d) < documentsClosedDate(stock(d));
+        migrateCloseUserDisparity() <- TRUE;
+    }
+}
 
 EXTEND FORM disparity
 
@@ -367,7 +375,7 @@ FORM disparities 'Изменения сортности'
                                           postedNameUser, postedTime, postedHostnameComputer
 
     PROPERTIES (dis) NEWSESSION NEW[UserDisparity], EDIT SHOWIF showEdit(dis)
-    PROPERTIES(dis) DRAW dis TOOLBAR close SHOWIF isOpened(dis), open SHOWIF isClosed(dis)     
+    PROPERTIES(dis) DRAW dis TOOLBAR close SHOWIF isOpened(dis), open[UserDisparity] SHOWIF isClosed(dis)     
     
     PROPERTIES (dis) NEWSESSION deleted=DELETE SHOWIF showDelete(dis)
 
