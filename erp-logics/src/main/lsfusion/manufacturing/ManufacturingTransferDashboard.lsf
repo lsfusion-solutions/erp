@@ -139,6 +139,9 @@ createManufacturingPurchaseSaleOver  ABSTRACT LIST (Sale.Invoice, Purchase.UserI
 substituteToOver = ABSTRACT Substitute(Sku);
 lastSubstituteToOver (Sku s) = OVERRIDE  substituteToOver(s), lastSubstituteTo(s);
 
+wholeCatering = ABSTRACT BOOLEAN (Sale.Invoice);// Без расценки, оптовые склады
+wholeCatering (Sale.InvoiceDetail d) = wholeCatering(invoice(d));
+
 createManufacturingPurchaseSale 'Создать поступление на цех'(Sale.Invoice si)  { 
 	NEWSESSION {
 	    FOR invoice(Sale.InvoiceDetail sd)==si DO {
@@ -168,8 +171,10 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	            series(pi) <- series(si);
 	            note(pi) <- note(si);
 	            currency(pi) <- currency(si);
-	            operation(pi) <- cateringPurchaseOperation();
-	            showCatering(pi) <- TRUE;
+	            IF NOT wholeCatering(si) THEN {
+                    operation(pi) <- cateringPurchaseOperation();
+                    showCatering(pi) <- TRUE;	            
+	            }
 	            createManufacturingPurchaseSaleOver(si,pi);
 	            
 	            FOR invoice(Sale.InvoiceDetail sd) == si NEW pd = UserInvoiceDetail DO {
@@ -181,27 +186,30 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	                quantity (pd) <- NUMERIC[16,5](quantity(sd) * coeffPurchase(sd));
 	                VAT (pd) <- IF valueVAT(sd) == 0 THEN VAT(sku[Sale.UserInvoiceDetail](sd), country(supplierStock[Sale.UserInvoiceDetail](sd))) ELSE VAT(sd);
 	                valueVAT (pd) <- IF valueVAT(sd) == 0 THEN valueRate(VAT (pd), date(pd)) ELSE valueVAT(sd);
-	                retailVAT (pd) <- retailVAT(sd);
-	                valueRetailVAT (pd) <- valueRetailVAT(sd);
+
 	                price (pd) <- NUMERIC[16,4](price(sd) / coeffPurchase(sd));
 	                invoicePrice (pd) <- NUMERIC[16,4](invoicePrice(sd) / coeffPurchase(sd));
-	                cateringMarkup (pd) <- sessionCateringMarkup(sd);
-
-	                IF NOT calcFromSupplierPriceCatering() THEN {
-	                    retailPrice (pd) <- NUMERIC[16,4](retailPrice(sd) / coeffPurchase(sd));
-                        cateringPrice(pd) <- IF useCateringRoundCondition()
-                                THEN NUMERIC[16,4](round( retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0), roundCondition(cateringCalcPriceListType())))
-                                ELSE NUMERIC[16,4](retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0)); // делаем так, чтобы выше точность была	     
-                        retailSum(pd) <- retailSum(sd);     
-                        shipmentSum(pd) <- NUMERIC[18,4](shipmentSum(sd) * (100.0 + cateringMarkup (pd))  / 100.0);  
-                                    
-	                } ELSE {
-	                    retailMarkup(pd) <- cateringMarkup(pd);	  
-	                    retailPrice(pd) <- IF useCateringRoundCondition()
-	                        THEN round([ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd)),roundCondition(cateringCalcPriceListType()))
-	                        ELSE [ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd));
-                        cateringPrice(pd) <- retailPrice(pd);  	                                           
-	                }                    	                	                    	                
+	                IF NOT wholeCatering(si) THEN {
+                        retailVAT (pd) <- retailVAT(sd);
+                        valueRetailVAT (pd) <- valueRetailVAT(sd);	                
+                        cateringMarkup (pd) <- sessionCateringMarkup(sd);
+    
+                        IF NOT calcFromSupplierPriceCatering() THEN {
+                            retailPrice (pd) <- NUMERIC[16,4](retailPrice(sd) / coeffPurchase(sd));
+                            cateringPrice(pd) <- IF useCateringRoundCondition()
+                                    THEN NUMERIC[16,4](round( retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0), roundCondition(cateringCalcPriceListType())))
+                                    ELSE NUMERIC[16,4](retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0)); // делаем так, чтобы выше точность была	     
+                            retailSum(pd) <- retailSum(sd);     
+                            shipmentSum(pd) <- NUMERIC[18,4](shipmentSum(sd) * (100.0 + cateringMarkup (pd))  / 100.0);  
+                                        
+                        } ELSE {
+                            retailMarkup(pd) <- cateringMarkup(pd);	  
+                            retailPrice(pd) <- IF useCateringRoundCondition()
+                                THEN round([ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd)),roundCondition(cateringCalcPriceListType()))
+                                ELSE [ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd));
+                            cateringPrice(pd) <- retailPrice(pd);  	                                           
+                        }  
+	                }                  	                	                    	                
 	                    
 	                productionCoeff (pd) <- productionCoeffPurchase(sd);
 	                createManufacturingPurchaseSaleOver(sd,pd);
