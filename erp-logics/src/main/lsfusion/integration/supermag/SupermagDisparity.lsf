@@ -248,7 +248,7 @@ importDisparity 'Изменение сортности' () {
     currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(operCode(i)), STRING(userOp(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)) ) IF idDoc(i);                 
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
 
-    FOR Disparity doc == disparity(idDoc(INTEGER i)) AND NOT lastVersion[Disparity](doc) = currentVersion(i) DO {
+    FOR Disparity doc == userDisparity(idDoc(INTEGER i)) AND NOT lastVersion[Disparity](doc) = currentVersion(i) DO {
         isPosted(doc) <- TRUE IF docState(i) = 3;
         isClosed(doc) <- TRUE IF docState(i) = 0;      
         lastVersion[Disparity](doc) <- currentVersion(i);        
@@ -271,7 +271,7 @@ importDisparityStatus 'Изменение сортности' (STRING indexDoc, 
        
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docState;
         
-    FOR Disparity doc == disparity(idDoc) DO {  
+    FOR Disparity doc == userDisparity(idDoc) DO {  
         CASE WHEN docState(0) = 0 THEN {
             isPosted(doc) <- NULL;
             isClosed(doc) <- TRUE;                
@@ -300,7 +300,7 @@ importDisparities () + {
     FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation1Supermag(codeOperation(i)) IS Disparity.Operation  AND bornIn(i) = baseIDSupermag()](STRING indexDoc) NOINLINE DO  {
         idDoc() <- CONCAT '', getWord(docTypeSupermag(operation1Supermag(codeOperation(indexDoc))),';',1), getWord(indexDoc,'~',2);         
         indexDoc() <- indexDoc;     
-        IF disparity(idDoc()) THEN
+        IF userDisparity(idDoc()) THEN
         NEWSESSION NESTED (indexDoc, idDoc){            
             importDisparityStatus(indexDoc(), idDoc());
         } 
@@ -309,7 +309,7 @@ importDisparities () + {
     FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation2Supermag(codeOperation(i)) IS Disparity.Operation AND bornIn(i) = baseIDSupermag()](STRING indexDoc) NOINLINE DO  {
         idDoc() <- CONCAT '', getWord(docTypeSupermag(operation2Supermag(codeOperation(indexDoc))),';',1), getWord(indexDoc,'~',2);         
         indexDoc() <- indexDoc;     
-        IF disparity(idDoc()) THEN
+        IF userDisparity(idDoc()) THEN
         NEWSESSION NESTED (indexDoc, idDoc){            
             importDisparityStatus(indexDoc(), idDoc());
         } 
