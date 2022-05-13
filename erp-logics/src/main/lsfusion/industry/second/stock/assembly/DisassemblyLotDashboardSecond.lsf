@@ -162,7 +162,7 @@ iprice 'Цена' = DATA LOCAL NUMERIC[16,4] ();
 // image
 iimage 'Изображение' = DATA LOCAL IMAGEFILE ();
 
-istream = DATA LOCAL BOOLEAN ();
+istream = DATA LOCAL NUMERIC ();
 
 changeStream () {
     INPUT s = TEXT DO {
@@ -176,6 +176,9 @@ changeStream () {
         IMPORT JSON FROM resultFile() TO() value;
 
         iimage() <- decode(value(), 'base64');
+        
+        getFileSize(FILE(iimage()));
+        MESSAGE fileSize();
 
     }
 }
@@ -228,7 +231,7 @@ overChangeIsku ABSTRACT (Sku, Stock);
 @defineOption(minimumWeight, 'Минимальный вес взвешивания (грамм)', INTEGER, disassembly);
 
 EXTEND FORM disassemblyLotDashboard
-    PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= (OVERRIDE minimumWeight(), 30) THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- TRUE; overChangeIweight(s, st); } }, 
+    PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= (OVERRIDE minimumWeight(), 30) THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- videoScale(); overChangeIweight(s, st); } }, 
                  inameSku ON CHANGE { INPUT sk = isku() LIST name(sk) DO { isku() <- sk; overChangeIsku(s, st); } }, 
                  iprice READONLYIF skipPriceLotDashboard(isku()), 
                  istream CUSTOM 'videoRender' ON CHANGE changeStream(), 
@@ -258,7 +261,7 @@ EXTEND FORM disassemblyLotDashboard
                 }
             IF weight() >= (OVERRIDE minimumWeight(), 30) THEN {
                 iweight() <- NUMERIC(weight()) / 1000;
-                istream() <- TRUE;
+                istream() <- videoScale();
                 overChangeIweight(s, st);
             }
         }     

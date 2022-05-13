@@ -46,9 +46,12 @@ function videoRender() {
             takePhoto = function () {
                 var context = element.canvas.getContext('2d');
 
-                element.canvas.width = element.video.videoWidth;
-                element.canvas.height = element.video.videoHeight;
-                context.drawImage(element.video, 0, 0, element.video.videoWidth, element.video.videoHeight);
+                var width = element.video.videoWidth / value;
+                var height = element.video.videoHeight / value;
+
+                element.canvas.width = width;
+                element.canvas.height = height;
+                context.drawImage(element.video, 0, 0, width, height);
 
                 var data = element.canvas.toDataURL('image/png');
                 let encoded = data.toString().replace(/^data:(.*,)?/, '');
@@ -59,7 +62,7 @@ function videoRender() {
                 controller.changeValue(JSON.stringify({ value : encoded }))
             }
 
-            if (value == true) {
+            if (value) {
                 takePhoto();
                 controller.changeValue('');
             }
