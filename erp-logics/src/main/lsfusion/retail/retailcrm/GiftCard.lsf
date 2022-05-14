@@ -35,21 +35,25 @@ price 'Цена' = DATA NUMERIC[16,4] (GiftCard) IN id;
 
 //регистр движений подарочного сертификата
 CLASS ABSTRACT GiftCardLedger 'Движение подарочных сертификатов';
+TABLE giftCardLedger(GiftCardLedger) FULL;
 
-giftCard = ABSTRACT GiftCard (GiftCardLedger);
-dateTime 'Дата/время' = ABSTRACT DATETIME (GiftCardLedger);
-date 'Дата' = ABSTRACT DATE (GiftCardLedger);
+giftCard = ABSTRACT GiftCard (GiftCardLedger) MATERIALIZED INDEXED;
+dateTime 'Дата/время' = ABSTRACT DATETIME (GiftCardLedger) MATERIALIZED;
+date 'Дата' (GiftCardLedger ledger) = DATE(dateTime( ledger)) MATERIALIZED;
+time 'Время' (GiftCardLedger ledger) = TIME(dateTime(ledger));
 seriesNumber 'Серия/Номер' (GiftCardLedger l) = seriesNumber(giftCard(l)) IN id;
-sum 'Сумма' = ABSTRACT NUMERIC[18,4] (GiftCardLedger);
+sum 'Сумма' = ABSTRACT NUMERIC[18,4] (GiftCardLedger) MATERIALIZED;
 signedSum 'Сумма' (GiftCardLedger ledger) = IF ledger IS UseGiftCard THEN -sum(ledger) ELSE sum(ledger);
-description 'Описание' = ABSTRACT STRING[100] (GiftCardLedger);
-numberDocument 'Документ' = ABSTRACT STRING[50](GiftCardLedger);
-departmentStore = ABSTRACT DepartmentStore (GiftCardLedger);
+description 'Описание' = ABSTRACT STRING[100] (GiftCardLedger) MATERIALIZED;
+numberDocument 'Документ' = ABSTRACT STRING[50](GiftCardLedger) MATERIALIZED;
+departmentStore = ABSTRACT DepartmentStore (GiftCardLedger) MATERIALIZED;
 nameDepartmentStore 'Отдел магазина' (GiftCardLedger g) = name(departmentStore(g));
 nameLegalEntity 'Компания' (GiftCardLedger g) = name(legalEntity(departmentStore(g))) CHARWIDTH 10;
 show 'Просмотреть'  ABSTRACT LIST ( GiftCardLedger) TOOLBAR;
 
-namePaymentType 'Тип платежа' = ABSTRACT ISTRING[110] (GiftCardLedger);
+namePaymentType 'Тип платежа' = ABSTRACT ISTRING[110] (GiftCardLedger) MATERIALIZED;
+
+INDEX date(GiftCardLedger l), departmentStore(l), l; 
 
 currentBalance 'Текущий остаток' = GROUP SUM signedSum(GiftCardLedger ledger) BY giftCard(ledger);
 
@@ -162,7 +166,6 @@ namePaymentType 'Тип платежа' (ReceiptGiftCardSaleDetail d) = [ GROUP 
 isSold(ReceiptGiftCardSaleDetail detail) += detail IS ReceiptGiftCardSaleDetail;
 giftCard(ReceiptGiftCardSaleDetail detail) += giftCard(detail);
 dateTime(ReceiptGiftCardSaleDetail detail) += dateTime(receipt(detail));
-date(ReceiptGiftCardSaleDetail detail) += date(receipt(detail));
 sum(ReceiptGiftCardSaleDetail detail) += sum(detail) (+) extraSum(detail);
 description(ReceiptGiftCardSaleDetail detail) += STRING[100](OVERRIDE 'Возврат' IF isReturn(detail), 'Продажа' IF detail IS ReceiptGiftCardSaleDetail);
 numberDocument(ReceiptGiftCardSaleDetail detail) += STRING[50](number(receipt(detail)));
@@ -325,8 +328,6 @@ isUsedTotal 'Погашен полностью' (GiftCard giftCard) = TRUE IF us
 CLASS PaymentGiftCard : Payment, UseGiftCard;
 TABLE paymentGiftCard(PaymentGiftCard);
 
-@defineExternalizable(paymentGiftCard, STRING[100]);
-
 giftCard = DATA GiftCard (PaymentGiftCard) INDEXED;
 seriesNumberGiftCard 'Серия/номер' (PaymentGiftCard payment) = seriesNumber(giftCard(payment));
 
@@ -335,7 +336,6 @@ receiptPayment(PaymentGiftCard pgc) = receipt[Payment](pgc) IF pgc IS PaymentGif
 //имплемент в GiftCardLedger
 giftCard(PaymentGiftCard payment) += giftCard(payment);
 dateTime(PaymentGiftCard payment) += dateTime(receiptPayment(payment)) IF payment IS PaymentGiftCard;
-date(PaymentGiftCard payment) += date(receiptPayment(payment)) IF payment IS PaymentGiftCard;
 sum(PaymentGiftCard payment) += sum[Payment](payment) IF payment IS PaymentGiftCard;
 description(PaymentGiftCard payment) += STRING[100]('Погашение') IF payment IS PaymentGiftCard;
 numberDocument(PaymentGiftCard payment) += STRING[50](number(receiptPayment(payment))) IF payment IS PaymentGiftCard;
@@ -380,7 +380,7 @@ DESIGN options {
 CONSTRAINT giftCard(PaymentGiftCard p) AND p IS PaymentGiftCard AND NOT (price(giftCard(p)) == sum[Payment](p)) AND NOT allowPartiallyPayGiftCard() 
     MESSAGE 'Сумма оплаты сертификатом должна быть равна цене сертификата';
 
-expireDate 'Дата истечения' (GiftCard giftCard) = sum(dateSold(giftCard), expiryDays(giftCard) (+) extraExpiryDays());
+expireDate 'Дата истечения' (GiftCard giftCard) = sum(dateSold(giftCard), expiryDays(giftCard) (+) extraExpiryDays()) MATERIALIZED INDEXED;
 isExpiredDate 'Истек срок' (GiftCard giftCard) = expireDate(giftCard) < currentDate(); 
 
 changeExpireDate (GiftCard giftCard) {
