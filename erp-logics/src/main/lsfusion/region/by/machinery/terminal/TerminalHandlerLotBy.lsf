@@ -1,0 +1,16 @@
+MODULE TerminalHandlerLotBy;
+
+REQUIRE TerminalHandlerLot, LotBy;
+
+
+status 'Статус' = DATA LotStatus (TerminalLotDetail);
+codeStatus 'Код статуса' (TerminalLotDetail l) = code(status(l));
+nameStatus 'Статус' (TerminalLotDetail l) = name(status(l));
+
+EXTEND FORM terminalDocument
+    PROPERTIES(tld) codeStatus, nameStatus
+;
+
+overProcessMarking(TerminalDocumentDetail d, TerminalLotDetail l, INTEGER i) + {
+    status(l) <- statusLot(INTEGER(jsonArrayElement(marking(d), i, 'status')));
+}
