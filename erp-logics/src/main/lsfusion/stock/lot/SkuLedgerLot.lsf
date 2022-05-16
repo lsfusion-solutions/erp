@@ -37,18 +37,16 @@ prevCurrentBalanceLot (Sku sk, Stock st) = PREV(currentBalanceLot(sk, st));
 // constraint
 @defineOption(checkCurrentBalanceLot, 'Проверять на превышение остатка по маркам', stock);
 
-signedQuantity (Lot lot, Stock stock, DATE date) = GROUP SUM signedQuantityActive(SkuLedger ledger, lot) BY stock(ledger), date(ledger);
-
 // без учета текущей даты/времени
 balanceB 'Остаток на начало дня'###caption (Lot lot, Stock stock, DATE date) = currentBalance(lot, stock)
-    (-) (GROUP SUM signedQuantity (lot, stock, DATE dateIn) IF dateIn >= date) 
-    (-) (GROUP SUM quantity(lot, stock, DATE dateIn) IF dateIn >= date) CHARWIDTH 7;
+    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF date(ledger) >= date BY l, stock(ledger)](lot, stock)
+    (-) [GROUP SUM quantity(LotLedger ledger, Lot l) IF active(ledger) AND date(ledger) >= date BY l, stock(ledger)](lot, stock) CHARWIDTH 7;
 prevBalanceB 'Остаток (до)'###caption (Lot lot, Stock stock, DATE date) = PREV(balanceB(lot, stock, date) IF date IS DATE);
 
 // с учетом текущей даты/времени
 balanceA 'Остаток на конец дня'###caption (Lot lot, Stock stock, DATE date) = currentBalance(lot, stock)
-    (-) (GROUP SUM signedQuantity (lot, stock, DATE dateIn) IF dateIn > date) 
-    (-) (GROUP SUM quantity(lot, stock, DATE dateIn) IF dateIn > date)CHARWIDTH 7;
+    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF date(ledger) > date BY l, stock(ledger)](lot, stock)
+    (-) [GROUP SUM quantity(LotLedger ledger, Lot l) IF active(ledger) AND date(ledger) > date BY l, stock(ledger)](lot, stock) CHARWIDTH 7;
 prevBalanceA 'Остаток (после)'###caption (Lot lot, Stock stock, DATE date) = PREV(balanceA(lot, stock, date) IF date IS DATE);
 
 // без учета текущей даты/времени
