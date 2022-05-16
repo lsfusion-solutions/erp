@@ -10,6 +10,7 @@ quantity = ABSTRACT NUMERIC[16,5] (OutFIFOSkuLedger, Lot);
 signedQuantity 'Кол-во' (SkuLedger ledger, Lot lot) = 
     MULTI quantity[InSkuLedger, Lot](ledger, lot),
          -quantity[OutFIFOSkuLedger, Lot](ledger, lot) CHARWIDTH 7 MATERIALIZED;
+signedQuantityActive (SkuLedger ledger, Lot lot) = signedQuantity(ledger, lot) IF active(ledger);
 
 batch (Lot l) = GROUP LAST batch(SkuLedger sl) 
                                ORDER DESC dateTime(sl), sl 
@@ -35,6 +36,51 @@ prevCurrentBalanceLot (Sku sk, Stock st) = PREV(currentBalanceLot(sk, st));
 
 // constraint
 @defineOption(checkCurrentBalanceLot, 'Проверять на превышение остатка по маркам', stock);
+
+quantityInActive(InSkuLedger ledger, Lot lot) = quantity(ledger, lot) IF active(ledger);
+quantityIn (Lot lot, stock, date) =
+    GROUP SUM quantityInActive(InSkuLedger ledger, lot) BY stock(ledger), date(ledger) MATERIALIZED;
+
+quantityOutActive(OutFIFOSkuLedger ledger, Lot lot) = quantity(ledger, lot) IF active(ledger);
+quantityOut (Lot lot, stock, date) =
+    GROUP SUM quantityOutActive(OutFIFOSkuLedger ledger, lot) BY stock[SkuLedger](ledger), date[SkuLedger](ledger) MATERIALIZED;
+
+quantity (Lot lot, Stock stock, DATE date) = quantityIn(lot, stock, date)
+    (+)
+    quantityOut(lot, stock, date) MATERIALIZED;
+
+signedQuantity (Lot lot, Stock stock, DATE date) = quantityIn(lot, stock, date)
+    (-)
+    quantityOut(lot, stock, date) MATERIALIZED;
+
+quantitySumIn 'Кол-во марок пришедших за период'(Lot lot, Stock stock, DATE date1, DATE date2)  =
+    GROUP
+    SUM quantityIn(lot, stock, DATE dateIn) IF dateIn>=date1 IF dateIn<=date2;
+quantitySumOut 'Кол-во марок ушедших за период'(Lot lot, Stock stock, DATE date1, DATE date2)  =
+    GROUP
+    SUM quantityOut(lot, stock, DATE dateIn) IF dateIn>=date1 IF dateIn<=date2;
+
+// без учета текущей даты/времени
+balanceB 'Остаток на начало дня'###caption (Lot lot, Stock stock, DATE date) = currentBalance(lot, stock)
+    (-) (GROUP SUM signedQuantity (lot, stock, DATE dateIn) IF dateIn >= date) 
+    (-) (GROUP SUM onHand(lot, stock, DATE dateIn) IF dateIn >= date) CHARWIDTH 7;
+
+// с учетом текущей даты/времени
+balanceA 'Остаток на конец дня'###caption (Lot lot, Stock stock, DATE date) = currentBalance(lot, stock)
+    (-) (GROUP SUM signedQuantity (lot, stock, DATE dateIn) IF dateIn > date) 
+    (-) (GROUP SUM onHand(lot, stock, DATE dateIn) IF dateIn > date)CHARWIDTH 7;
+
+// без учета текущей даты/времени
+balanceB 'Остаток (до)'###caption (Lot lot, Stock stock, DATETIME dateTime) = currentBalance(lot, stock)
+    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF dateTime(ledger) >= dateTime BY l, stock(ledger)](lot, stock) 
+    (-) [GROUP SUM quantity(LotLedger ledger, Lot l) IF active(ledger) AND dateTime(ledger) >= dateTime BY l, stock(ledger)](lot, stock) CHARWIDTH 7;
+prevBalanceB 'Остаток (до)'###caption (Lot lot, Stock stock, DATETIME dateTime) = PREV(balanceB(lot, stock, dateTime) IF dateTime IS DATETIME);
+
+// с учетом текущей даты/времени
+balanceA 'Остаток (после)'###caption (Lot lot, Stock stock, DATETIME dateTime) = currentBalance(lot, stock)
+    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF dateTime(ledger) > dateTime BY l, stock(ledger)](lot, stock)
+    (-) [GROUP SUM quantity(LotLedger ledger, Lot l) IF active(ledger) AND dateTime(ledger) > dateTime BY l, stock(ledger)](lot, stock) CHARWIDTH 7;
+prevBalanceA 'Остаток (после)'###caption (Lot lot, Stock stock, DATETIME dateTime) = PREV(balanceA(lot, stock, dateTime) IF dateTime IS DATETIME);
 
 skipCheckCurrentBalanceLot 'Не проверять на превышение остатка КМ' = DATA BOOLEAN (Employee);
 EXTEND FORM employee
