@@ -7,10 +7,16 @@ NAMESPACE Stock;
 quantity = ABSTRACT NUMERIC[16,5] (InSkuLedger, Lot);
 quantity = ABSTRACT NUMERIC[16,5] (OutFIFOSkuLedger, Lot);
 
+TABLE lotSkuLedger(Lot, SkuLedger);
 signedQuantity 'Кол-во' (SkuLedger ledger, Lot lot) = 
     MULTI quantity[InSkuLedger, Lot](ledger, lot),
          -quantity[OutFIFOSkuLedger, Lot](ledger, lot) CHARWIDTH 7 MATERIALIZED;
 signedQuantityActive (SkuLedger ledger, Lot lot) = signedQuantity(ledger, lot) IF active(ledger);
+
+stock (SkuLedger ledger, Lot lot) = stock(ledger) IF signedQuantityActive(ledger, lot) MATERIALIZED; 
+dateTime (SkuLedger ledger, Lot lot) = dateTime(ledger) IF signedQuantityActive(ledger, lot) MATERIALIZED; 
+
+INDEX stock(SkuLedger ledger, Lot lot), dateTime(ledger, lot), lot;
 
 batch (Lot l) = GROUP LAST batch(SkuLedger sl) 
                                ORDER DESC dateTime(sl), sl 
@@ -39,25 +45,25 @@ prevCurrentBalanceLot (Sku sk, Stock st) = PREV(currentBalanceLot(sk, st));
 
 // без учета текущей даты/времени
 balanceB 'Остаток на начало дня'###caption (Lot lot, Stock stock, DATE date) = currentBalance(lot, stock)
-    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF date(ledger) >= date BY l, stock(ledger)](lot, stock)
+    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF dateTime(ledger, l) >= DATETIME(date) BY l, stock(ledger, l)](lot, stock)
     (-) [GROUP SUM quantity(LotLedger ledger, Lot l) IF active(ledger) AND date(ledger) >= date BY l, stock(ledger)](lot, stock) CHARWIDTH 7;
 prevBalanceB 'Остаток (до)'###caption (Lot lot, Stock stock, DATE date) = PREV(balanceB(lot, stock, date) IF date IS DATE);
 
 // с учетом текущей даты/времени
 balanceA 'Остаток на конец дня'###caption (Lot lot, Stock stock, DATE date) = currentBalance(lot, stock)
-    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF date(ledger) > date BY l, stock(ledger)](lot, stock)
+    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF dateTime(ledger, l) >= DATETIME(sum(date, 1)) BY l, stock(ledger, l)](lot, stock)
     (-) [GROUP SUM quantity(LotLedger ledger, Lot l) IF active(ledger) AND date(ledger) > date BY l, stock(ledger)](lot, stock) CHARWIDTH 7;
 prevBalanceA 'Остаток (после)'###caption (Lot lot, Stock stock, DATE date) = PREV(balanceA(lot, stock, date) IF date IS DATE);
 
 // без учета текущей даты/времени
 balanceB 'Остаток (до)'###caption (Lot lot, Stock stock, DATETIME dateTime) = currentBalance(lot, stock)
-    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF dateTime(ledger) >= dateTime BY l, stock(ledger)](lot, stock) 
+    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF dateTime(ledger, l) >= dateTime BY l, stock(ledger, l)](lot, stock) 
     (-) [GROUP SUM quantity(LotLedger ledger, Lot l) IF active(ledger) AND dateTime(ledger) >= dateTime BY l, stock(ledger)](lot, stock) CHARWIDTH 7;
 prevBalanceB 'Остаток (до)'###caption (Lot lot, Stock stock, DATETIME dateTime) = PREV(balanceB(lot, stock, dateTime) IF dateTime IS DATETIME);
 
 // с учетом текущей даты/времени
 balanceA 'Остаток (после)'###caption (Lot lot, Stock stock, DATETIME dateTime) = currentBalance(lot, stock)
-    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF dateTime(ledger) > dateTime BY l, stock(ledger)](lot, stock)
+    (-) [GROUP SUM signedQuantityActive(SkuLedger ledger, Lot l) IF dateTime(ledger, l) > dateTime BY l, stock(ledger, l)](lot, stock)
     (-) [GROUP SUM quantity(LotLedger ledger, Lot l) IF active(ledger) AND dateTime(ledger) > dateTime BY l, stock(ledger)](lot, stock) CHARWIDTH 7;
 prevBalanceA 'Остаток (после)'###caption (Lot lot, Stock stock, DATETIME dateTime) = PREV(balanceA(lot, stock, dateTime) IF dateTime IS DATETIME);
 
