@@ -33,6 +33,9 @@ public class UKM4MySQLSettings implements Serializable{
     //если true, то не выгружается таблица priceListVar
     private Boolean skipBarcodes;
 
+    //если true, то не выгружаются таблицы pricelist, pricetype, pricetype_store_pricelist
+    private boolean skipPriceListTables;
+
     //если true, то в качестве идентификатора товара используется idBarcode, а не idItem
     private Boolean useBarcodeAsId;
 
@@ -148,6 +151,14 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setSkipBarcodes(Boolean skipBarcodes) {
         this.skipBarcodes = skipBarcodes;
+    }
+
+    public boolean isSkipPriceListTables() {
+        return skipPriceListTables;
+    }
+
+    public void setSkipPriceListTables(boolean skipPriceListTables) {
+        this.skipPriceListTables = skipPriceListTables;
     }
 
     public Boolean getUseBarcodeAsId() {

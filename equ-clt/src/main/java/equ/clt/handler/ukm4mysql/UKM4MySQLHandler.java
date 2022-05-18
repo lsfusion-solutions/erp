@@ -62,6 +62,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean skipItems = ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
                 boolean skipClassif = ukm4MySQLSettings.getSkipClassif() != null && ukm4MySQLSettings.getSkipClassif();
                 boolean skipBarcodes = ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
+                boolean skipPriceListTables = ukm4MySQLSettings.isSkipPriceListTables();
                 boolean useBarcodeAsId = ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
                 boolean appendBarcode = ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
                 boolean exportTaxes = ukm4MySQLSettings.isExportTaxes();
@@ -159,14 +160,18 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table stocks", transaction.id));
                                         exportStocks(conn, transaction, section/*departmentNumber*/, version);
 
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist", transaction.id));
-                                        exportPriceList(conn, transaction, nppGroupMachinery, version);
+                                        if (!skipPriceListTables) {
 
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype", transaction.id));
-                                        exportPriceType(conn, version);
+                                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist", transaction.id));
+                                            exportPriceList(conn, transaction, nppGroupMachinery, version);
 
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype_store_pricelist", transaction.id));
-                                        exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
+                                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype", transaction.id));
+                                            exportPriceType(conn, version);
+
+                                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype_store_pricelist", transaction.id));
+                                            exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
+
+                                        }
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
                                         exportVar(conn, transaction, useBarcodeAsId, weightCode, pieceCode, usePieceCode, appendBarcode,
