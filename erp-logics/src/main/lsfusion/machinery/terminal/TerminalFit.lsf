@@ -1,0 +1,47 @@
+MODULE TerminalFit;
+
+REQUIRE Terminal;
+
+NAMESPACE Terminal;
+
+addTerminalDocumentFit (GroupTerminal g, FILE f) {
+    LOCAL barcode = ISTRING[15](INTEGER);
+    LOCAL qty = NUMERIC[8,2](INTEGER);
+    IMPORT CSV ';' CHARSET 'CP1251' FROM f AS FILE TO barcode, qty;
+    
+    FOR [GROUP SUM 1 IF imported(INTEGER i)] () NEW t = TerminalDocument DO {
+        date(t) <- currentDate();
+        time(t) <- currentTime();
+        stock(t) <- stock(g);
+        FOR [GROUP SUM 1 IF imported(INTEGER i1) BY i1] (INTEGER i2) NEW d = TerminalDocumentDetail DO {
+            terminalDocument(d) <- t;
+            barcode(d) <- barcode(i2);
+            sku(d) <- skuBarcode(barcode(i2));
+            quantity(d) <- qty(i2);
+        }
+    }
+}
+
+addTerminalDocumentFit(GroupTerminal g) {
+    INPUT f = FILE DO {
+        addTerminalDocumentFit(g, f);
+        APPLY;
+    }
+}
+
+importTerminalDocumentFit 'Импортировать из ФИТ' (GroupTerminal g) {
+    listFiles(directory(g));
+    FOR STRING[255] fileName = fileName(INTEGER j) AND isISubstring(fileName, 'csv') AND NOT fileIsDirectory(j) DO {
+        READ directory(g) + '/' + fileName TO file;
+        addTerminalDocumentFit(g, file());
+        APPLY NESTED LOCAL;
+        LOCAL succeessDir = STRING ();
+        IF NOT System.canceled() THEN {
+            succeessDir() <- directory(g) + 'succeess-' + currentTimeText(); 
+            mkdir(succeessDir());    
+            FOR STRING fn = fileName AND NOT fileIsDirectory(j) AND NOT System.canceled() DO {
+                move(directory(g) + fn, succeessDir() + '/' + fn);
+            }
+        }
+    }
+} 
