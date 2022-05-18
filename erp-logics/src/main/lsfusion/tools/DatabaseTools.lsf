@@ -171,6 +171,10 @@ runAndLogSQL(STRING command) {
     logToFile('database-tools', 'end - ' + command);
 }
 
+reindex 'REINDEX' (Index i) {
+    runAndLogSQL('REINDEX INDEX ' + (IF indexSize(i)/1024/1024.0 > reindexConcurrentlySize() THEN 'CONCURRENTLY ' ELSE '') + name(i));
+}
+
 reindex 'REINDEX' (Table t) {
     CASE WHEN deleteIndexes(t) THEN {
         getIndexes(t);
@@ -179,7 +183,7 @@ reindex 'REINDEX' (Table t) {
     } WHEN large(t) THEN {
         getIndexes(t);
         FOR table(Index i) == t ORDER indexSize(i) DO {
-            runAndLogSQL('REINDEX INDEX ' + (IF indexSize(i)/1024/1024.0 > reindexConcurrentlySize() THEN 'CONCURRENTLY ' ELSE '') + name(i));
+            reindex(i);
         }
     } ELSE {
         runAndLogSQL('REINDEX TABLE ' + (IF indexSize(t) > reindexConcurrentlySize() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
@@ -484,7 +488,7 @@ EXTEND FORM tools
     
     OBJECTS i=Index
     PROPERTIES(i)  READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, efficiency, relid, indisvalid, sidTable
-    PROPERTIES(i)  TOOLBAR invalidate SHOWIF indisvalid(i), validate SHOWIF NOT indisvalid(i) 
+    PROPERTIES(i)  TOOLBAR invalidate SHOWIF indisvalid(i), validate SHOWIF NOT indisvalid(i) , reindex
     FILTERGROUP index
         FILTER 'По таблице' table(i) = t DEFAULT
     
