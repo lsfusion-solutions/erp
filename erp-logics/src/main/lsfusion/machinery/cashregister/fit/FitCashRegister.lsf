@@ -19,6 +19,12 @@ isFit (Receipt r) = isFit(cashRegister(r));
 
 haveFit (DepartmentStore d) = GROUP MAX isFit(GroupCashRegister g) IF stock(g) = d;
 
+hasZReport 'Z-отчет' = DATA BOOLEAN (ZReport);
+
+EXTEND FORM zReports
+    PROPERTIES (z) READONLY hasZReport AFTER isPosted(z)
+;
+
 stringToGzip  INTERNAL 'lsfusion.erp.integration.fit.StringToGzip' (TEXT);
 
 notResponcedTransaction() = GROUP LAST MachineryPriceTransaction t ORDER dateTime(t), t
@@ -216,6 +222,11 @@ receiveFromFit (CashRegister cr) {
                         date(z) <- toDateFormat(substr(receiptString(line), 96, 8), 'DDMMYYYY');
                         time(z) <- TIME (toDateTimeFormat(substr(receiptString(line), 48, 5), 'HH24:MI'));
                         isPosted(z) <- TRUE;
+                    }
+                    FOR INTEGER report = [GROUP MIN INTEGER k IF left(receiptString(k), 4) = '0511' AND trim(substr(receiptString(k), 5, 20))='903' BY substr(receiptString(k), 33, 4)](STRING rep) AND 
+                        INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 92, 4)](rep) AND 
+                        ZReport z = zReport(STRING[100](rep  + lpad(STRING(cr), 18, '0'))) DO {
+                            hasZReport(z) <- TRUE;
                     }
                     FOR STRING str = receiptString(INTEGER j) AND isReceipt(str) AND 
                         NOT receipt(substr(str, 92, 4) + lpad(STRING(cr), 18, '0') + substr(str, 56, 12) + substr(str, 27, 6) + substr(str, 48, 5)) DO NEW r = Receipt {
