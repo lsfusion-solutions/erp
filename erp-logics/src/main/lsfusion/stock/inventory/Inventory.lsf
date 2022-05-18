@@ -1596,7 +1596,7 @@ changeAddDetailInput(PageInventory page)  {
 addDetailInput 'Код товара:' (page) = DATA LOCAL BPSTRING[20] (PageInventory) TOOLBAR CHANGEKEY 'F5' 
                                                                         ON CHANGE { changeAddDetailInput(page); } CHARWIDTH 10;  
                                                                      
-changeAddDetailInputBarcode(STRING[15] barcode, PageInventory page)  { 
+changeAddDetailInputBarcode(STRING[200] barcode, PageInventory page)  { 
     IF skuBarcode(barcode, date(listInventory(page))) THEN {  
         NEW  d = PageInventoryDetail {
             pageInventory(d) <- page;   
@@ -1607,10 +1607,15 @@ changeAddDetailInputBarcode(STRING[15] barcode, PageInventory page)  {
     } ELSE {
         MESSAGE 'Штриход товара не найден.';
     }
-} 
+}
+consumedBarcode = DATA LOCAL BOOLEAN ();
+beforeInputBarcode ABSTRACT LIST (PageInventory, STRING[200]);
 changeAddDetailInputBarcode(PageInventory page)  { 
-    INPUT s = STRING[15] DO 
-        changeAddDetailInputBarcode(s, page);
+    INPUT s = STRING[200] DO {
+        beforeInputBarcode(page, s);
+        IF NOT consumedBarcode() THEN
+            changeAddDetailInputBarcode(s, page);
+    }
 }
 addDetailInputBarcode 'Штрихкод товара:' (page) = DATA LOCAL STRING[15] (PageInventory) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                         ON CHANGE { changeAddDetailInputBarcode(page); } CHARWIDTH 15;

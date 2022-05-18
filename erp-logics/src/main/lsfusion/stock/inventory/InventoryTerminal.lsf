@@ -72,6 +72,8 @@ addInventoryDetails(TerminalDocument td,ListInventory li)  {
 inOneListInventoryDetails =  GROUP SUM 1 IF include(terminalDocument(TerminalDocumentDetail tdd)) BY sku(tdd);
 quantityOneListInventoryDetails (Sku sku) = GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd);
 
+overAddOneListInventoryDetail  ABSTRACT LIST (PageInventoryDetail);
+
 addOneListInventoryDetails(ListInventory li)  { 
     NEW p = PageInventory {
         listInventory(p) <- li;
@@ -81,10 +83,11 @@ addOneListInventoryDetails(ListInventory li)  {
             quantity(Sku s, Batch b) <- GROUP SUM NUMERIC[16,5](getWord(str, ':', 2)) IF getID(b) == LONG(getWord(str, ':', 1)) AND sku(d) == s; 
         }
 
-        FOR inOneListInventoryDetails(Sku sku) AND NUMERIC[16,5] qty == quantityOneListInventoryDetails(sku) (-) (GROUP SUM quantity(sku, Batch b))  NEW pid = PageInventoryDetail DO {
+        FOR inOneListInventoryDetails(Sku sku) AND NUMERIC[16,5] qty == quantityOneListInventoryDetails(sku) (-) (GROUP SUM quantity(sku, Batch b)) INLINE NEW pid = PageInventoryDetail DO {
             pageInventory(pid) <- p;
             sku(pid) <- sku;
             quantity(pid) <- qty;
+            overAddOneListInventoryDetail(pid);
         }
         
         FOR inOneListInventoryDetails(Sku sku) AND NUMERIC[16,5] qty == quantity(sku, Batch b) NEW pid = PageInventoryDetail DO {

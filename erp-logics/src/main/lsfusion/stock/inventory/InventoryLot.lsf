@@ -1,0 +1,151 @@
+MODULE InventoryLot;
+
+REQUIRE Inventory, Lot, SkuLedgerLot;
+
+NAMESPACE Inventory;
+
+@defineOperationProperty(useLot, 'Марки', paramsContainer);
+
+useLot (ListInventory i) = useLot(operation(inventory(i)));
+useLot (PageInventory i) = useLot(operation(inventory(listInventory(i))));
+useLot (PageInventoryDetail d) = useLot(operation(inventory(listInventory(pageInventory(d)))));
+useLot (CollationSheet c) = useLot(operation(inventory(c)));
+
+isPosted '{document.posted}' (PageInventoryDetail d) = isPosted(inventory(listInventory(d)));
+
+@defineDocumentLot(pageInventory, quantity, isPosted);
+
+quantityLot 'Кол-во марок' (ListInventory i) = GROUP SUM quantityLot(PageInventory d) IF listInventory(d) = i MATERIALIZED;
+
+changeQuantityLot (PageInventoryDetail d) {
+    quantity(Lot l) <- quantity(d, l);
+    SHOW dialogInLots;    
+}
+
+EXTEND FORM listInventory
+    PROPERTIES(dp) quantityLot AFTER quantityGrid ON CHANGE changeQuantityLot(dp) 
+                  BACKGROUND backgroundQuantityLot(dp) 
+                  SHOWIF useLot(dp)
+                  READONLYIF NOT lotType(sku(dp))
+;
+
+EXTEND FORM inventory
+    //PROPERTIES(li) READONLY quantityLot SHOWIF useLot(li)
+    //PROPERTIES(pl) READONLY quantityLot SHOWIF useLot(pl)
+
+    PROPERTIES(dp) READONLY quantityLot AFTER quantity(dp) 
+                  BACKGROUND backgroundQuantityLot(dp) 
+                  SHOWIF useLot(dp)
+                  READONLYIF NOT lotType(sku(dp))
+;
+
+EXTEND FORM listInventory
+    OBJECTS cd = PageInventoryDetail PANEL
+    FILTERS cd = dp
+;
+
+beforeInputBarcode(PageInventory i, STRING[200] s) + {
+    lotBarcode() <- NULL;
+    consumedBarcode() <- NULL;
+    IF length(s) >= OVERRIDE lotMinLength(), 20 THEN {
+        lotBarcode() <- barcodeToId(s);
+        FOR [FILTER listInventory.cd](PageInventoryDetail d) AND lotType(sku(d)) DO {
+            FOR Lot l = lot(lotBarcode()) DO {
+                IF quantity(i, l) = 1.0 THEN {
+                    MESSAGE 'Марка уже была отсканирована в текущем документе';
+                    consumedBarcode() <- TRUE;
+                } ELSE
+                    IF sku(l) = sku(d) THEN {
+                        quantity(d, l) <- 1.0;
+                        IF NOT quantity(d) >= quantityLot(d) THEN
+                            quantity(d) <- quantityLot(d);
+                        consumedBarcode() <- TRUE;
+                    }
+            } ELSE {
+                NEW l = Lot {
+                    id(l) <- lotBarcode();
+                    sku(l) <- sku(d);
+                    quantity(d, l) <- 1.0;
+                    IF NOT quantity(d) >= quantityLot(d) THEN
+                        quantity(d) <- quantityLot(d);
+                    consumedBarcode() <- TRUE;
+                }
+            }
+        }
+    }
+}
+
+TABLE collationSheetLot (CollationSheet, Lot);
+
+quantityBalance 'Кол-во по остаткам' (collationSheet, lot) = DATA NUMERIC[16,5] (CollationSheet, Lot);
+
+quantityPageInventoryDetail 'Кол-во по описям' (CollationSheet collationSheet, Lot lot) = GROUP SUM quantity(PageInventory inventory, lot)
+    BY collationSheet(listInventory(inventory)) MATERIALIZED;
+
+quantityShortage 'Кол-во недостачи / излишка' (CollationSheet collationSheet, Lot lot) =
+    quantityBalance(collationSheet, lot) (-) quantityPageInventoryDetail(collationSheet, lot) MATERIALIZED;
+
+countPageInventoryDetail 'Кол-во по описям' (CollationSheet collationSheet, Lot lot) = GROUP SUM 1 IF quantity(PageInventoryDetail pageInventoryDetail, lot)
+    BY collationSheet(pageInventoryDetail);  
+
+include(CollationSheet collationSheet, Lot lot) = MULTI
+    collationSheet IS RegisterCollationSheet IF countPageInventoryDetail(collationSheet, lot),
+    collationSheet IS ManyCollationSheet IF quantityPageInventoryDetail(collationSheet, lot),
+    (collationSheet IS RemainsCollationSheet IF (quantityBalance(collationSheet, lot) != 0 OR quantityPageInventoryDetail(collationSheet, lot)));
+
+
+EXTEND FORM inventory
+    OBJECTS l = Lot GRID
+    PROPERTIES(l) READONLY SHOWIF useLot(cs) idBarcodeSku, nameSku, id
+    PROPERTIES(cs,l) SHOWIF useLot(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
+    FILTERS include(cs,l),
+            isParent(g, sku(l))
+    FILTERGROUP diffLot FILTER 'Только расхождения' quantityShortage(cs,l)
+;
+DESIGN inventory {
+    wor11 {
+        MOVE BOX(l);
+    }
+}
+
+overRecalculateBalance (Inventory inventory) + {
+    quantityBalance(CollationSheet cs, Lot lot) <- NULL WHERE inventory(cs) == inventory;
+    IF useLot(operation(inventory)) THEN {
+        FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) AND NOT skipRecalculateBalance(inventory) DO {        
+            IF isPartly(inventory) AND isRemains(inventory) THEN { 
+                quantityBalance(cs, Lot lot)
+                    <- balanceB(lot, st, dt)
+                    WHERE include(inventory, sku(lot)) AND balanceB(lot, st, dt);      
+            } ELSE {
+                IF isRemains (inventory) THEN {
+                    quantityBalance(cs, Lot lot)
+                        <- balanceB(lot, st, dt)
+                        WHERE balanceB(lot, st, dt);
+                } ELSE {
+                    quantityBalance(cs, Lot lot)
+                        <- balanceB(lot, st, dt)
+                        WHERE balanceB(lot, st, dt) AND include(cs, lot);
+                }
+            }
+        }
+    }
+}
+
+//---------------------------- Изменение остатка инвентаризации lot----------------------------//
+
+CLASS InventoryLotLedger 'Изменение остатка инвентаризации' : LotLedger;
+TABLE inventoryLotLedger (InventoryLotLedger);
+
+inventoryLotLedger = AGGR InventoryLotLedger WHERE quantityShortage(CollationSheet collationSheet, Lot lot) AND include(collationSheet, lot)  AND isPosted(collationSheet) MATERIALIZED INDEXED;
+
+inventory(InventoryLotLedger inventoryLotLedger) = inventory(collationSheet(inventoryLotLedger)) MATERIALIZED;
+
+dateTime[LotLedger] (InventoryLotLedger ledger) += dateTime(inventory(ledger));
+active[LotLedger] (InventoryLotLedger ledger) += isPosted(inventory(ledger));
+stock[LotLedger] (InventoryLotLedger ledger) += stock(collationSheet(ledger));
+description[LotLedger] (InventoryLotLedger ledger) += ISTRING[200](CONCAT ' ',
+    'Недостача' IF quantityShortage(collationSheet(ledger),lot(ledger)) > 0,
+    'Излишек' IF quantityShortage(collationSheet(ledger),lot(ledger)) < 0,
+    'по инвентаризации', name(collationSheet(ledger)),
+    'от ' + date(collationSheet(ledger)));
+quantity(InventoryLotLedger ledger, Lot lot) += - quantityShortage(collationSheet(ledger),lot(ledger)) IF lot == lot(ledger);
