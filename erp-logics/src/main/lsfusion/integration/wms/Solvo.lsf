@@ -843,60 +843,68 @@ orderDetailString (LONG syncId, Sale.OrderDetail s) = CONCAT'','<order_detail sy
     '\'\' order_id=\'\'',id(order(s)),'\'\' line=\'\'',STRING(index(s)),'\'\' sku_id=\'\'',idSku(s),'\'\' category=\'\'1\'\' ',extraOrderDetailString(s),
     ' rcn_id=\'\'-1\'\' marker=\'\'-\'\' marker2=\'\'-\'\' qty=\'\'',format(STRING(quantity(s))),'\'\' uom=\'\'',format(shortNameUOMSku(s)),'\'\' comments=\'\'\'\'/>';
 
+denyExportSolvo = ABSTRACT BOOLEAN (Sale.Order);
+denyExportSolvoMessage = ABSTRACT STRING (Sale.Order);
+
 exportSolvo 'Выгрузить заказ в wms Solvo' (Sale.Order i) {
     IF defaultNumeratorSyncid() THEN {
         IF typeSolvo(operation(i)) THEN {
             NEWSESSION {
                 IF isPosted(i) THEN {
-                    in(Item it) <- TRUE WHERE quantityOrderDetail(it, i) AND ((changed(it) AND NOT changed(it) < loaded(it)) OR NOT loaded(it));
-                    exportItems();
-                    
-                    in(Stock s) <- TRUE WHERE s == customerStock(i) AND ((changed(s) AND NOT changed(s) < loaded(s)) OR NOT loaded(s));
-                    exportStocks();
-                    
-                    IF NOT errorExportItems() THEN {
-                        beforeExportSolvo(i);
+                    IF NOT denyExportSolvo(i) THEN {
+                        in(Item it) <- TRUE WHERE quantityOrderDetail(it, i) AND ((changed(it) AND NOT changed(it) < loaded(it)) OR NOT loaded(it));
+                        exportItems();
                         
-                        numerateIds(countOrderDetail(i) + 2);
+                        in(Stock s) <- TRUE WHERE s == customerStock(i) AND ((changed(s) AND NOT changed(s) < loaded(s)) OR NOT loaded(s));
+                        exportStocks();
                         
-                        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Sale Order:', seriesNumber(i));
-                        
-                        IF NOT id(i) THEN {
-                            id(i) <- CONCAT '_', seriesNumber(i), date(i);
-                        }
-                        
-                        headerId(incrementedValue()) <- 0;
-                        type(incrementedValue()) <- 'order';
-                        meaasage(incrementedValue()) <- orderHeaderString(incrementedValue(), i);
-                        
-                        FOR i == order(Sale.OrderDetail d) DO {
-                            headerId(incrementedValue() + index(d)) <- incrementedValue();
-                            type(incrementedValue() + index(d)) <- 'order_detail';
-                            meaasage(incrementedValue() + index(d)) <- orderDetailString(incrementedValue() + index(d), d);
-                        }
-                        
-                        headerId(incrementedValue() + countOrderDetail(i) + 1) <- incrementedValue();
-                        type(incrementedValue() + countOrderDetail(i) + 1) <- '/order';
-                        meaasage(incrementedValue() + countOrderDetail(i) + 1) <- '</order>';
-                        
-                        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'connectionString:', connectionString(), 'insertString:', insertString());
-                        
-                        EXTERNAL 
-                            SQL connectionString()
-                            EXEC insertString();
+                        IF NOT errorExportItems() THEN {
+                            beforeExportSolvo(i);
                             
-                        IF NOT slovoMessage(i) THEN NEW s = SlovoMessage {
-                            slovoMessage(i) <- s;
+                            numerateIds(countOrderDetail(i) + 2);
+                            
+                            logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'startId:', incrementedValue(), 'Write Sale Order:', seriesNumber(i));
+                            
+                            IF NOT id(i) THEN {
+                                id(i) <- CONCAT '_', seriesNumber(i), date(i);
+                            }
+                            
+                            headerId(incrementedValue()) <- 0;
+                            type(incrementedValue()) <- 'order';
+                            meaasage(incrementedValue()) <- orderHeaderString(incrementedValue(), i);
+                            
+                            FOR i == order(Sale.OrderDetail d) DO {
+                                headerId(incrementedValue() + index(d)) <- incrementedValue();
+                                type(incrementedValue() + index(d)) <- 'order_detail';
+                                meaasage(incrementedValue() + index(d)) <- orderDetailString(incrementedValue() + index(d), d);
+                            }
+                            
+                            headerId(incrementedValue() + countOrderDetail(i) + 1) <- incrementedValue();
+                            type(incrementedValue() + countOrderDetail(i) + 1) <- '/order';
+                            meaasage(incrementedValue() + countOrderDetail(i) + 1) <- '</order>';
+                            
+                            logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'connectionString:', connectionString(), 'insertString:', insertString());
+                            
+                            EXTERNAL 
+                                SQL connectionString()
+                                EXEC insertString();
+                                
+                            IF NOT slovoMessage(i) THEN NEW s = SlovoMessage {
+                                slovoMessage(i) <- s;
+                            }
+                            id(slovoMessage(i)) <- incrementedValue();
+                            type(slovoMessage(i)) <- 'order';
+                            status(slovoMessage(i)) <- 'ready';
+                            loaded(slovoMessage(i)) <- currentDateTime();
+                            
+                            APPLY NESTED LOCAL;
+                            
+                            MESSAGE 'Заказ выгружен' NOWAIT;
                         }
-                        id(slovoMessage(i)) <- incrementedValue();
-                        type(slovoMessage(i)) <- 'order';
-                        status(slovoMessage(i)) <- 'ready';
-                        loaded(slovoMessage(i)) <- currentDateTime();
-                        
-                        APPLY NESTED LOCAL;
-                        
-                        MESSAGE 'Заказ выгружен' NOWAIT;
-                    }
+                    } ELSE {
+                        logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'Write Sale Order error: '+denyExportSolvoMessage(i));
+                        MESSAGE denyExportSolvoMessage(i);
+                    }    
                 } ELSE {
                    logToFile('WMS', CONCAT ' ', 'User:', currentUserName(), 'Write Sale Order error: запрещено выгружать непроведенный документ');
                    MESSAGE 'Запрещено выгружать непроведенный документ'; 
