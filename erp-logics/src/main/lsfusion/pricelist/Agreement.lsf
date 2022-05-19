@@ -75,8 +75,8 @@ backgroundInSupplier'Цвет' (Agreement agreement, LegalEntity legalEntity) = 
 supplier 'Поставщики' (Agreement agreement) = GROUP
                                                  CONCAT name(LegalEntity supplier) IF inSupplier(agreement, supplier) , ', '
                                                  ORDER supplier CHARWIDTH 30 MATERIALIZED;
-
-CONSTRAINT inSupplier(Agreement agreement, LegalEntity supplier) AND NOT isSeller(supplier)
+skip = ABSTRACT BOOLEAN (Agreement, LegalEntity);
+CONSTRAINT inSupplier(Agreement agreement, LegalEntity supplier) AND NOT isSeller(supplier) AND NOT skip(agreement, supplier)
     MESSAGE 'Для соглашения выбрано в качестве поставщика организация, не являющеяся поставщиком или компанией';
 
 defaultSupplier (Agreement agreement)= GROUP MIN LegalEntity legalEntity IF inSupplier(agreement, legalEntity); 
@@ -121,7 +121,7 @@ customer 'Покупатели' (Agreement agreement) = GROUP
                                                  CONCAT name(LegalEntity customer) IF inCustomer(agreement, customer) , ', '
                                                  ORDER customer CHARWIDTH 30 MATERIALIZED;
 
-CONSTRAINT inCustomer(Agreement agreement, LegalEntity customer) AND NOT isBuyer(customer)
+CONSTRAINT inCustomer(Agreement agreement, LegalEntity customer) AND NOT isBuyer(customer) AND NOT skip(agreement, customer)
     MESSAGE 'Для соглашения выбрано в качестве покупателя организация, не являющеяся покупателем или компанией';
 
 // ----------------------------------------------- Соглашение по умолчанию --------------------------- //
