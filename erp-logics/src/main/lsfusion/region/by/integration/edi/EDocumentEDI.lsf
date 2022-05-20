@@ -30,11 +30,11 @@ nameSender 'Отправитель' (EDocument d) = name(sender(d));
 addressSender 'Адрес отправителя' (EDocument d) = address(sender(d));
 unpSender 'УНП отправителя' (EDocument d) = UNP(sender(d));
 
-receiver 'Получатель' = DATA Stock (EDocument);
+receiver 'Получатель' = DATA LegalEntity (EDocument);
 glnReceiver 'GLN получателя' (EDocument d) = GLN(receiver(d));
 nameReceiver 'Получатель' (EDocument d) = name(receiver(d));
 addressReceiver 'Адрес получателя' (EDocument d) = address(receiver(d));
-unpReceiver 'УНП получателя' (EDocument d) = UNP(legalEntity(receiver(d)));
+unpReceiver 'УНП получателя' (EDocument d) = UNP(receiver(d));
 
 
 file 'Файл' = DATA RAWFILE (EDocument) NONULL;
@@ -194,7 +194,7 @@ signAndSendSenderEDI 'Подписать и отправить (отправит
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
     }
     FOR in(EDocument d) DO { 
-        IF EDIProviderInvoice(legalEntity(receiver(d))) THEN
+        IF EDIProviderInvoice(receiver(d)) THEN
             signAndSendSender(d);
         ELSE
             MESSAGE 'Не выбран EDI провайдер для документа: ' + (OVERRIDE documentID(d), number(d), '');
