@@ -50,7 +50,7 @@ public class DefaultTerminalHandler {
 
     static ScriptingLogicsModule terminalOrderLM;
     static ScriptingLogicsModule terminalHandlerLM;
-    static ScriptingLogicsModule terminalOrderLotLM;
+    static ScriptingLogicsModule terminalLotLM;
 
     static String ID_APPLICATION_TSD = "1";
     static String ID_APPLICATION_ORDER = "2";
@@ -73,7 +73,7 @@ public class DefaultTerminalHandler {
         terminalOrderLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrder");
         terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
 
-        terminalOrderLotLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrderLot");
+        terminalLotLM = getLogicsInstance().getBusinessLogics().getModule("TerminalLot");
     }
 
     public List<Object> readHostPort(DataSession session) {
@@ -217,7 +217,7 @@ public class DefaultTerminalHandler {
                     createAssortTable(connection);
                     updateAssortTable(connection, assortmentList, prefix, userInfo);
 
-                    if (terminalOrderLotLM != null) {
+                    if (terminalLotLM != null) {
                         createLotsTable(connection);
                         updateLotsTable(connection, readLotList(session, stockObject, userInfo));
                     }
@@ -439,15 +439,15 @@ public class DefaultTerminalHandler {
         ImRevMap<Object, KeyExpr> lotKeys = MapFact.singletonRev("lot", lotExpr);
 
         QueryBuilder<Object, Object> lotQuery = new QueryBuilder<>(lotKeys);
-        lotQuery.addProperty("idLot", terminalOrderLotLM.findProperty("id[Lot]").getExpr(lotExpr));
-        lotQuery.addProperty("barcode", terminalOrderLotLM.findProperty("idBarcodeSku[Lot]").getExpr(lotExpr));
-        lotQuery.addProperty("idSku", terminalOrderLotLM.findProperty("idSku[Lot]").getExpr(lotExpr));
-        lotQuery.addProperty("idParent", terminalOrderLotLM.findProperty("idParent[Lot]").getExpr(lotExpr));
-        lotQuery.addProperty("numberOrder", terminalOrderLotLM.findProperty("numberTerminalOrder[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
-        lotQuery.addProperty("quantity", terminalOrderLotLM.findProperty("quantityTerminalOrder[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
-        lotQuery.addProperty("count", terminalOrderLotLM.findProperty("count[Lot]").getExpr(lotExpr));
+        lotQuery.addProperty("idLot", terminalLotLM.findProperty("id[Lot]").getExpr(lotExpr));
+        lotQuery.addProperty("barcode", terminalLotLM.findProperty("idBarcodeSku[Lot]").getExpr(lotExpr));
+        lotQuery.addProperty("idSku", terminalLotLM.findProperty("idSku[Lot]").getExpr(lotExpr));
+        lotQuery.addProperty("idParent", terminalLotLM.findProperty("idParent[Lot]").getExpr(lotExpr));
+        lotQuery.addProperty("numberOrder", terminalLotLM.findProperty("number[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
+        lotQuery.addProperty("quantity", terminalLotLM.findProperty("quantity[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
+        lotQuery.addProperty("count", terminalLotLM.findProperty("count[Lot]").getExpr(lotExpr));
 
-        lotQuery.and(terminalOrderLotLM.findProperty("numberTerminalOrder[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()).getWhere());
+        lotQuery.and(terminalLotLM.findProperty("filter[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()).getWhere());
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> lotResult = lotQuery.executeClasses(session);
         for (int i = 0; i < lotResult.size(); i++) {
