@@ -66,7 +66,11 @@ carrierOrder (YandexEdaAuth a) = ABSTRACT Carrier;
 
 yandexCarrier = GROUP MAX Carrier r IF id(r) = 'yandex';
 paymentTypeOrder (STRING type) = IF type = 'CASH' THEN PaymentTypeInternetOrder.inFact ELSE PaymentTypeInternetOrder.prepayment;
-yandexEdaOrderStatus (InternetOrder o) = CASE 
+
+//статусы заказа
+useCustomOrderStatus = ABSTRACT BOOLEAN ();
+yandexEdaOrderStatusCustom = ABSTRACT STRING (InternetOrder);
+yandexEdaOrderStatusDefault (InternetOrder o) = CASE 
     WHEN status(o) = StatusInternetOrder.new THEN 'ACCEPTED_BY_RESTAURANT'
     WHEN status(o) = StatusInternetOrder.isPicking THEN 'COOKING'
     WHEN status(o) = StatusInternetOrder.picked THEN 'READY'
@@ -74,6 +78,7 @@ yandexEdaOrderStatus (InternetOrder o) = CASE
     WHEN status(o) = StatusInternetOrder.delivered THEN 'DELIVERED'
     WHEN status(o) = StatusInternetOrder.closed THEN 'CANCELLED'
 ;
+yandexEdaOrderStatus (InternetOrder o) = IF useCustomOrderStatus() THEN yandexEdaOrderStatusCustom(o) ELSE yandexEdaOrderStatusDefault(o);
 
 httpHeadersYandex(TEXT name) = CASE
     WHEN name == 'Content-Type' THEN 'application/vnd.eats.order.v2+json';
