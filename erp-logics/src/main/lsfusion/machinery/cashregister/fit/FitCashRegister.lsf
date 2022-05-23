@@ -208,7 +208,9 @@ receiveFromFit (CashRegister cr) {
         IF NOT fileExists() THEN {
             NEWSESSION {
                 listFiles(pathGet(cr));
-                FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) DO {
+                FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND 
+                    ([FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) OR 
+                     [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'fl[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn)) DO {
                     READ pathGet(cr) + fn TO importFile;
                     IMPORT CSV ' ' NOHEADER NOESCAPE CHARSET 'cp866' FROM importFile() TO readedReceiptString;
                     fitOverImport(cr);
@@ -222,9 +224,9 @@ receiveFromFit (CashRegister cr) {
                         date(z) <- toDateFormat(substr(receiptString(line), 96, 8), 'DDMMYYYY');
                         time(z) <- TIME (toDateTimeFormat(substr(receiptString(line), 48, 5), 'HH24:MI'));
                         isPosted(z) <- TRUE;
+//                        APPLY NESTED LOCAL;
                     }
                     FOR INTEGER report = [GROUP MIN INTEGER k IF left(receiptString(k), 4) = '0511' AND trim(substr(receiptString(k), 5, 20))='903' BY substr(receiptString(k), 33, 4)](STRING rep) AND 
-                        INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 92, 4)](rep) AND 
                         ZReport z = zReport(STRING[100](rep  + lpad(STRING(cr), 18, '0'))) DO {
                             hasZReport(z) <- TRUE;
                     }
