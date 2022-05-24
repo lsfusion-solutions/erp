@@ -156,7 +156,7 @@ FORM repricingDashboard 'Переоценка'
                                               createRepricingLabelTransaction,
                                               createSnapshotRepricingLabelTransactionDepartmentStore
     PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() DRAW sk                                          
-    FILTERS inDashboardRepricing(sk), isParent(sg, sk) 
+    FILTERS inDashboardRepricing(sk), isParent(sg, sk)  
 
     OBJECTS p = Repricing
     PROPERTIES (p) READONLY isPosted, number, series, date, time, beforeDate,
@@ -257,5 +257,24 @@ EXTEND FORM  repricingDashboard
 NAVIGATOR {
     retailDashboardNavigator {
         NEW repricingDashboard;
+    }
+}
+
+descriptionPricing 'Цены для расчета конкретной цены' (Sku sku) = GROUP CONCAT TEXT (CONCAT ': ',  STRING[100] s, descriptionPricing(sku, s)) IF s IS STRING[100] AND descriptionPricing(sku, s), '/n' ORDER s;
+
+EXTEND FORM  repricingDashboard
+    PROPERTIES (sk) READONLY descriptionPricing PANEL
+    PROPERTIES (sk, d, t) calculateDescriptionPricing
+;
+
+DESIGN repricingDashboard {
+    tanContainer {
+        NEW descriptionPricing{
+            fill = 1;
+            caption = 'Расшифровка';
+            
+            MOVE PROPERTY(calculateDescriptionPricing(sk, d, t));
+            MOVE PROPERTY(descriptionPricing(sk)) { panelCaptionVertical = TRUE; fill = 1;};
+        }
     }
 }

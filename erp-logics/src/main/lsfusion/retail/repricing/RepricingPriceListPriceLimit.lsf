@@ -29,3 +29,19 @@ overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
 
     managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
 }
+
+calculateDescriptionPricing (Sku sku, DepartmentStore d, DATETIME dt) + {
+    descriptionPricing (sku, 'Предельные надбавки') <- STRING(IF markup(priceLimitPriceListType(d), sku) > 1 THEN
+             round([ X*(Y+100.0)*(Z+100.0)/10000.0](
+                   limitBasePrice(sku, d, dt),
+                   markup(priceLimitPriceListType(d), sku),
+                   valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku))
+        ELSE
+             IF markup(priceLimitPriceListType(d), sku) > 0.3 THEN
+                 markup(priceLimitPriceListType(d), sku)
+             ELSE
+                 round([ (X+Y)*(Z+100.0)/100.0](
+                     limitBasePrice(sku, d, dt),
+                     markup(priceLimitPriceListType(d), sku),
+                     valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku))); 
+}
