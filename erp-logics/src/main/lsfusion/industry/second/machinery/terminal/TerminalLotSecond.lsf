@@ -5,12 +5,12 @@ REQUIRE TerminalLot, LotAggregate, SkuLedgerLot;
 NAMESPACE Terminal;
 
 
-filter(Lot l, Stock s, Employee e) += l IS Lot AND s IS Stock AND e IS Employee AND currentBalance(l, s);
+filter(Lot l, Stock s, Employee e) += l IS Lot AND s IS Stock AND e IS Employee AND currentBalance(l);
 
 META defineAddDetailDialogTerminalLotSecond(object)
     overAddDetailDialogTerminal###object##Detail(###object##Detail d, TerminalDocumentDetail td) + {
         LOCAL countNew = INTEGER();
-        countNew() <- [GROUP SUM 1 IF id(TerminalLotDetail tl) AND terminalDocumentDetail(tl) = td AND NOT lot(id(tl))]();
+        countNew() <- [GROUP SUM 1 IF id(TerminalLotDetail tl) AND NOT lot(id(tl)) BY terminalDocumentDetail(tl)](td);
 
         quantity(d, Lot l) <- 1.0 WHERE [GROUP MIN TerminalLotDetail tld BY lot(id(tld)), terminalDocumentDetail(tld)](l, td); 
         quantity(d) <- [GROUP SUM quantity(d, Lot l) IF l IS Lot]() WHERE [GROUP MIN TerminalLotDetail tld BY terminalDocumentDetail(tld)](td); 

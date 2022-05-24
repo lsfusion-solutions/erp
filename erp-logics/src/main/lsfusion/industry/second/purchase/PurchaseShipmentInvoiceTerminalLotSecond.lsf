@@ -1,0 +1,19 @@
+MODULE PurchaseShipmentInvoiceTerminalLotSecond;
+
+REQUIRE PurchaseShipmentInvoiceTerminal, PurchaseShipmentLot, TerminalLotSecond;
+
+NAMESPACE Purchase;
+
+overAddDialogTerminalToUserInvoice (UserInvoice i, TerminalDocument t) +{
+    IF GROUP SUM 1 IF id(TerminalLotDetail tl) AND terminalDocument(tl) = t AND useLot(i) THEN { 
+        LOCAL countNew = INTEGER();
+        countNew() <- [GROUP SUM 1 IF id(TerminalLotDetail tl) AND NOT lot(id(tl)) BY terminalDocument(tl)](t);
+        
+        quantity(UserInvoiceDetail d, Lot l) <- NULL WHERE userInvoice(d) = i;
+        quantity(UserInvoiceDetail d, Lot l) <- 1.0 WHERE (GROUP SUM 1 IF l = lot(id(TerminalLotDetail tld)) AND t = terminalDocument(tld) AND sku(terminalDocumentDetail(tld)) = sku(d)) AND userInvoice(d) = i;
+        shipmentQuantity(UserInvoiceDetail d) <- [GROUP SUM quantity(d, Lot l) IF l IS Lot]() WHERE userInvoice(d) = i; // но потом оно перезаписывается и может стать другим. Пока что считаем фичей - будет видно расходение в строке
+
+        IF countNew() > 0 THEN
+            MESSAGE (CONCAT ' ', 'Неизвестных оценённых товаров:', countNew()) NOWAIT; 
+    } 
+}
