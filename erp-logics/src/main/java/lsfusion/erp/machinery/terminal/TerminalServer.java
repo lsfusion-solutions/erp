@@ -486,11 +486,13 @@ public class TerminalServer extends MonitorServer {
                                                 BigDecimal extraQuantityDocumentDetail = line.length <= 11 ? null : parseBigDecimal(line[11]);
                                                 String batchDocumentDetail = line.length <= 12 ? null : formatValue(line[12]);
                                                 String markDocumentDetail = line.length <= 13 ? null : formatValue(line[13]);
+                                                String replaceDocumentDetail = line.length <= 14 ? null : formatValue(line[14]);
                                                 terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType,
                                                         ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
                                                         priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
                                                         parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
-                                                        extraField2DocumentDetail, extraField3DocumentDetail, parentDocument, extraQuantityDocumentDetail, batchDocumentDetail, markDocumentDetail));
+                                                        extraField2DocumentDetail, extraField3DocumentDetail, parentDocument, extraQuantityDocumentDetail, batchDocumentDetail,
+                                                        markDocumentDetail, replaceDocumentDetail));
                                             }
                                         }
                                         logger.info("receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");

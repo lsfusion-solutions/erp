@@ -1054,6 +1054,10 @@ public class DefaultTerminalHandler {
                     ImportField markingTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("marking[TerminalDocumentDetail]"));
                     props.add(new ImportProperty(markingTerminalDocumentDetailField, terminalHandlerLM.findProperty("marking[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     fields.add(markingTerminalDocumentDetailField);
+
+                    ImportField replaceTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("raplace[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(replaceTerminalDocumentDetailField, terminalHandlerLM.findProperty("raplace[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(replaceTerminalDocumentDetailField);
                 }
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
