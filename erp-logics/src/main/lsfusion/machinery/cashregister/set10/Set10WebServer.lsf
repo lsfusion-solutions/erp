@@ -103,8 +103,8 @@ index = PARTITION SUM 1 ORDER d BY typeClass(d) CHARWIDTH 4;
 paymenId (INTEGER i) = STRING[100](idReceipt(purchasePayment(i)) + '_' + typeClass(i)) + '_' + 
     index(i);
 sumChange(INTEGER i) = NUMERIC[18,4](GROUP MAX amount1(INTEGER j) IF typeClass(j) = 'CashChangePaymentEntity' AND purchasePayment(j) = i);
-shop(STRING id) = GROUP MAX GroupCashRegister g IF idStoreSet(g) = id;
-
+shop(STRING id) = GROUP MAX GroupCashRegister g IF idStoreSet(g) = id AND active(g);
+startDateValid(INTEGER i) = TRUE IF (DATE(saletime1(i)) >= startDate(shop(shop1(i))) OR NOT startDate(shop(shop1(i))));
 
 skuCustom = ABSTRACT Sku (INTEGER);
 overCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
@@ -113,7 +113,9 @@ importReceipt(STRING purchases){
     NEWSESSION {
         stringToFile(purchases);
         IMPORT purchasesImport XML FROM resultFile();
-        FOR imported(INTEGER i) AND NOT receipt(idReceipt(i)) AND idReceipt(i) AND shop(shop1(i)) DO NEW r = Receipt{
+        FOR imported(INTEGER i) AND NOT receipt(idReceipt(i)) AND idReceipt(i) AND shop(shop1(i)) AND startDateValid(i)
+            DO NEW r = Receipt{
+            
             id(r) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i));
             date(r) <- DATE(saletime1(i));
             time(r) <- TIME(DATETIME(saletime1(i)));
