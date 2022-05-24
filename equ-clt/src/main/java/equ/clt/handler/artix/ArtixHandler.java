@@ -429,10 +429,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     requireQuantityScales = infoJSON.optInt("requirequantityscales");
                 }
 
-                Double taracapacity = infoJSON.optDouble("taracapacity");
-                if(!taracapacity.isNaN()) {
-                    inventObject.put("taramode", 7);
-                    inventObject.put("taracapacity", taracapacity);
+                boolean hasMode = infoJSON.has("taramode");
+                int taramode = hasMode ? infoJSON.optInt("taramode") : 7;
+                if (infoJSON.has("taracapacity")) {
+                    Double taracapacity = infoJSON.optDouble("taracapacity");
+                    if (!taracapacity.isNaN()) {
+                        inventObject.put("taramode", taramode);
+                        inventObject.put("taracapacity", taracapacity);
+                    }
+                } else if (hasMode) {
+                    inventObject.put("taramode", taramode);
                 }
 
                 if (infoJSON.has("extendedoptions")) {
