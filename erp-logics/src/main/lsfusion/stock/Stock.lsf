@@ -779,17 +779,15 @@ END
 
 META defineDocumentDialogStock(objectClass, filter, prefix, dataProp)
     change###dataProp###prefix##Stock###filter(###objectClass o)  { 
-        DIALOG filter###stocks OBJECTS l = prefix(o) NULL, s = dataProp###prefix##Stock(o) CHANGE LIST name(s);
+        DIALOG filter###stocks OBJECTS l = prefix(o) NULL, s = dataProp###prefix##Stock(o) CHANGE LIST name(s) DO {
+            IF NOT prefix(o) THEN prefix(o) <- legalEntity(dataProp###prefix##Stock(o));
+        }
     }
 END
 META defineDocumentDialogStock(objectClass, filter, prefixA, prefixB, dataProp)
     change###prefixA##Stock###filter(###objectClass o)  { 
-        IF filter(o) THEN {
-            DIALOG filter###stocks OBJECTS l = filter(o), s = prefixA##Stock(o) CHANGE;
-        } ELSE {
-             DIALOG filter##s###stock OBJECTS s = prefixA##Stock(o) CHANGE DO {                             
-                filter(o) <- legalEntity(prefixA##Stock(o));
-             }
+        DIALOG filter###stocks OBJECTS l = filter(o) NULL, s = prefixA##Stock(o) CHANGE LIST name(s) DO {
+            IF NOT filter(o) THEN filter(o) <- legalEntity(prefixA##Stock(o));
         }
     }
 END
