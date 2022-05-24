@@ -41,8 +41,10 @@ EXTEND CLASS AvailableVersion {
 version 'Версия'  = DATA AvailableVersion (Configuration);
 nameVersion 'Версия' (Configuration c) = OVERRIDE name(version(c)), '1.5' IF c IS Configuration; 
 
+overIn = ABSTRACT BOOLEAN (ObjectExchange, Configuration);
+
 inSending 'Передавать' = DATA BOOLEAN (ObjectExchange, Configuration);
-inSendingTag (ObjectExchange e, Configuration c) = IF inSending(e, c) THEN (IF version(c) = AvailableVersion.ver1_6 THEN '*' ELSE nameVersion(c)) ELSE '';
+inSendingTag (ObjectExchange e, Configuration c) = IF (inSending(e, c) OR overIn(e, c)) THEN (IF version(c) = AvailableVersion.ver1_6 THEN '*' ELSE nameVersion(c)) ELSE '';
 
 inReceiving 'Принимать' = DATA BOOLEAN (ObjectExchange, Configuration);
 inReceivingTag (ObjectExchange e, Configuration c) = IF inReceiving(e, c) THEN '1.6' ELSE '';
@@ -156,7 +158,7 @@ FORM sendMessage FORMEXTID 'Message'
 
     OBJECTS objectExchange = ObjectExchange EXTID 'msg:ObjectType' IN availableObjectTypes
     PROPERTIES  name(objectExchange) EXTID 'msg:Name', inSendingTag(objectExchange, configuration) EXTID 'msg:Sending', inReceivingTag(objectExchange, configuration) EXTID 'msg:Receiving'
-    FILTERS inSending(objectExchange, configuration) OR inReceiving(objectExchange, configuration)
+    FILTERS inSending(objectExchange, configuration) OR inReceiving(objectExchange, configuration) OR overIn(objectExchange, configuration)
     
     PROPERTIES (configuration) IN header prefix EXTID 'msg:Prefix'
     
