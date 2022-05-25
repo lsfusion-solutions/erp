@@ -702,6 +702,7 @@ supplierStock[Document](Repricing repricing) += departmentStore(repricing);
 
 // --------------------------- Формы --------------------------------- //
 editSku 'Редактировать SKU' (UserRepricingDetail d)  { NEWSESSION { edit(sku(d)); } }
+backgroundBalance  = ABSTRACT COLOR (RepricingDetail);
 
 FORM userRepricing 'Акт переоценки'
     OBJECTS p=UserRepricing PANEL
@@ -713,7 +714,7 @@ FORM userRepricing 'Акт переоценки'
 
     OBJECTS d=UserRepricingDetail
     PROPERTIES (d) index
-    PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) ON EDIT editSku(d) BACKGROUND backgroundBalance(d) idBarcodeSku, nameSku, shortNameUOMSku
     PROPERTIES (d) nameBatch ON CHANGE changeBatch(d), quantity,
 
                    curPrice, curSum,                    
@@ -826,9 +827,11 @@ DESIGN userRepricing {
     }
 }
 
+isShowFillQuantityUserRepricingDetail = ABSTRACT BOOLEAN (UserRepricingDetail);
+
 EXTEND FORM userRepricing
     PROPERTIES(p) nameOperation
-    PROPERTIES(p) DRAW d SHOWIF isOpened(d) toFillQuantityUserRepricingDetail TOOLBAR
+    PROPERTIES(p) DRAW d SHOWIF isOpened(d) OR isShowFillQuantityUserRepricingDetail(d) toFillQuantityUserRepricingDetail TOOLBAR
 ;
 DESIGN userRepricing{
     first {
