@@ -63,11 +63,10 @@ DESIGN integrationData {
     }
 }
 
-EDSServiceCustomerTopBy (EInvoice i) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(customerStock(i)), EDSServiceTopBy(customer(i));
-EDSServiceSupplierTopBy (EInvoice i) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(supplierStock(i)), EDSServiceTopBy(supplier(i));
-
-EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN EDSServiceCustomerTopBy(i);
-EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice THEN EDSServiceSupplierTopBy(i);
+EDSServiceCustomer(EDSApplication app, EInvoice i) += WHEN app == EDSApplication.edsService AND i IS EInvoice 
+        THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(customerStock(i)), EDSServiceTopBy(customer(i));
+EDSServiceSupplier(EDSApplication app, EInvoice i) += WHEN app == EDSApplication.edsService AND i IS EInvoice 
+        THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(supplierStock(i)), EDSServiceTopBy(supplier(i));
 
 
 sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, XMLFILE file) {
