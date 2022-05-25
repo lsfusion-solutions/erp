@@ -4,6 +4,16 @@ REQUIRE EDS, TopBy;
 
 NAMESPACE EDI;
 
+EXTEND CLASS EDSApplication {
+    edsService 'EDSService'
+}
+
+dataEDSApplication = DATA EDSApplication();
+EDSApplication() = OVERRIDE dataEDSApplication(), EDSApplication.edsService;
+nameEDSApplication 'Приложение ЭЦП' = staticCaption(EDSApplication());// пока не добавляем на форму т.к однно приложение для провайдера поддерживается
+
+EDSApplication(STRING[100] provider) += WHEN provider == 'TopBy' THEN EDSApplication();
+
 aliasEDSService 'Alias EDSService' = DATA STRING[100] (LegalEntity);
 passwordEDSService 'Пароль EDSService' = DATA STRING[100] (LegalEntity) ECHO;
 aliasEDSService 'Alias EDSService' = DATA STRING[100] (Stock);
@@ -89,7 +99,7 @@ FORM getEDSResponse
 ;
 
 getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF provider == 'TopBy' THEN {
+    IF EDSApplication(provider) == EDSApplication.edsService THEN {
         IF aliasEDSServiceCustomer(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)) THEN {
             signError() <- NULL;
             signResult() <- NULL;
@@ -118,7 +128,7 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
 }
 
 getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF provider == 'TopBy' THEN {
+    IF EDSApplication(provider) == EDSApplication.edsService THEN {
         IF aliasEDSServiceSupplier(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)) THEN {
             signError() <- NULL;
             signResult() <- NULL;

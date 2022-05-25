@@ -4,6 +4,16 @@ REQUIRE EDS, EDN;
 
 NAMESPACE EDN;
 
+EXTEND CLASS EDSApplication {
+    docudriveProxy 'Прокси сервис Docudrive'
+}
+
+dataEDSApplication = DATA EDSApplication();
+EDSApplication() = OVERRIDE dataEDSApplication(), EDSApplication.docudriveProxy;
+nameEDSApplication 'Приложение ЭЦП' = staticCaption(EDSApplication());
+
+EDSApplication(STRING[100] provider) += WHEN provider == 'EDN' THEN EDSApplication();
+
 aliasEDSService 'Токен ЭЦП - имя контейнера' = DATA STRING[100] (LegalEntity);
 passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (LegalEntity) ECHO;
 aliasEDSService 'Токен ЭЦП - имя контейнера' = DATA STRING[100] (Stock);
@@ -31,6 +41,7 @@ EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' A
 EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice THEN EDSServiceSupplier(i);
 
 EXTEND FORM integrationData
+    PROPERTIES nameEDSApplication()
     OBJECTS lee = LegalEntity
     FILTERS isCompany(lee)
     PROPERTIES(lee) SHOWIF NOT useDocuDrive() name READONLY, aliasEDSService, passwordEDSService, descriptionEDSService
@@ -47,7 +58,9 @@ EXTEND FORM integrationData
 
 DESIGN integrationData {
     ivsEDN {
+        MOVE PROPERTY (nameEDSApplication());
         NEW EDSServiceEDN {
+            showIf = EDSApplication() == EDSApplication.docudriveProxy;
             type = TABBED;
             fill = 1;
             MOVE BOX(lee);
@@ -102,7 +115,7 @@ PROPERTIES() IN signResult
 
 
 getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF provider == 'EDN' THEN {
+    IF EDSApplication(provider) == EDSApplication.docudriveProxy THEN {
         signError() <- NULL;
         signResult() <- NULL;
         
@@ -127,7 +140,7 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
 }
 
 getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF provider == 'EDN' THEN {
+    IF EDSApplication(provider) == EDSApplication.docudriveProxy THEN {
         signError() <- NULL;
         signResult() <- NULL;
         
