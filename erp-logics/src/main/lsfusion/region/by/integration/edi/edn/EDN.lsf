@@ -14,7 +14,7 @@ loginEDN 'Имя пользователя EDN' = DATA STRING[100] (LegalEntity);
 passwordEDN 'Пароль EDN' = DATA STRING[100] (LegalEntity) ECHO;
 hostEDN 'Хост' = DATA STRING[100] (LegalEntity);
 portEDN 'Порт' = DATA INTEGER (LegalEntity);
-extractEDN 'Распаковывать сообщения' = DATA BOOLEAN (LegalEntity);
+extractEDN 'Распаковывать сообщения' = DATA BOOLEAN (LegalEntity); //тут даже не то что распаковывать а вообще обмен в формате docurive
 archiveDirEDN 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirEDN 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
@@ -45,9 +45,10 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
 }
 
 receiveMessagesEDN (BOOLEAN invoices) {
-    hideMessageHeaderBlrapn() <- TRUE;
-    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO
+    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
+        hideMessageHeaderBlrapn() <- extractEDN(le);
         receiveMessagesSoap(login, passwordEDN(le), ('https://' +  hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, invoices, 'EDN');
+    }
 }
 
 receiveEDN 'Получить сообщения' {
