@@ -86,9 +86,6 @@ FORM statusAssembly 'Статус'
 
 status = DATA StatusAssembly(Assembly);
 nameStatus 'Статус' (Assembly p) = staticCaption(status(p)) IN documentPrm CHARWIDTH 8;
-WHEN LOCAL SET(Assembly o IS Assembly) DO {
-    status (o) <- StatusAssembly.new WHERE NOT CHANGED (status (o));
-}
 
 assemblyQuantity 'Собрано' = DATA NUMERIC[16,5](InternetOrderDetail);
 assemblyQuantityInternetOrderDetail 'Кол-во (всего) собрано'  = GROUP SUM assemblyQuantity(InternetOrderDetail idetail) BY assembly(idetail) IN documentSum MATERIALIZED;
@@ -127,26 +124,36 @@ CONSTRAINT (SETCHANGED (assembly(InternetOrderDetail d)) OR CHANGED (statusDetai
     MESSAGE 'У строки Сборки обязательно должен быть задан статус';
 
 WHEN LOCAL SET(assembly(InternetOrderDetail d)) DO {
+    status (assembly(d)) <- StatusAssembly.new;
     statusDetail (d) <- StatusDetail.expected;
     assemblyQuantity (d) <- 0; 
     status(picking(d))<-  StatusPicking.inWork;
 }
+
+prevAssembly(InternetOrderDetail d) = PREV(assembly(d));
+prevPicking(InternetOrderDetail d) = PREV(picking(d));
+
 WHEN DROPPED(assembly(InternetOrderDetail d)) DO {
     statusDetail (d) <- NULL;
     assemblyQuantity (d) <- NULL; 
+    pickingQuantity(d)<- NULL;
     status(picking(d))<-  StatusPicking.new;
     //
-    pickingQuantity(d) <- NULL;
-    status(picking(d))<- StatusPicking.new;
+    status(prevPicking(d))<-  StatusPicking.new;
+    status(prevAssembly(d))<-  StatusAssembly.new;   
+    
 }
 
 
 countInternetOrderDetailPicked 'К-во строк собрано' (o) =
     GROUP SUM 1 IF statusDetail(InternetOrderDetail d)==StatusDetail.picked BY assembly(d);
 
-WHEN SET(countInternetOrderDetail(Assembly a)==countInternetOrderDetailPicked(a)) DO {
-    status(a)<- StatusAssembly.processed;
-}
+//WHEN SET(countInternetOrderDetail(Assembly a)==countInternetOrderDetailPicked(a)) DO {
+//    status(a)<- StatusAssembly.processed;
+//}
+//WHEN DROPPED (countInternetOrderDetail(Assembly a)==countInternetOrderDetailPicked(a)) AND a IS Assembly DO {
+//    status(a)<- StatusAssembly.inWork;
+//}
 
 isPrev(Assembly a) = PREV(a IS Assembly);
 isPrev(InternetOrderDetail d) = isPrev(assembly(d));
@@ -375,6 +382,31 @@ DESIGN scanAssembly{
 //    setPickedStatus(d);
 //}
 
+isPrevAssemblyQuantity(InternetOrderDetail d) = PREV(assemblyQuantity(d)>=1);// OR PREV(statusDetail(d))==StatusDetail.picked;
+WHEN (CHANGED(assemblyQuantity(InternetOrderDetail d))) AND isPrevAssemblyQuantity(d) AND assembly(d) AND NOT CHANGED (statusDetail(d)) DO {
+    status(picking(d))<-  StatusPicking.new;
+    status(assembly(d))<-  StatusAssembly.new;
+    pickingQuantity(d)<- NULL;
+    statusDetail(d)<-  StatusDetail.expected;
+}
+
+WHEN (CHANGED(sku(InternetOrderDetail d))) AND assembly(d) DO {
+    statusDetail (d) <- StatusDetail.expected;
+    assemblyQuantity (d) <- 0;     
+    status(picking(d))<-  StatusPicking.new;
+    status(assembly(d))<-  StatusAssembly.new;
+    pickingQuantity(d)<- NULL;    
+}
+
+isPrevStatusDetail (InternetOrderDetail d) = PREV(statusDetail(d)!= StatusDetail.expected);
+WHEN (CHANGED(statusDetail(InternetOrderDetail d))) AND isPrevStatusDetail(d) AND assembly(d) AND NOT CHANGED (assemblyQuantity(d)) DO {
+    assemblyQuantity (d) <- 0;     
+    status(picking(d))<-  StatusPicking.new;
+    status(assembly(d))<-  StatusAssembly.new;
+    pickingQuantity(d)<- NULL;    
+}
+
+
 checkToPrint(Assembly td, InternetOrderDetail d){
     FOR InternetOrder o == internetOrder(d) AND td IS  Assembly DO { 
         IF NOT (GROUP SUM 1 IF assembly(InternetOrderDetail g)==td AND quantity(g) AND internetOrder(g)==o AND statusDetail(g)==StatusDetail.expected AND internetOrder(g)==o) THEN {
@@ -386,6 +418,7 @@ checkToPrint(Assembly td, InternetOrderDetail d){
 
             pickingQuantity(InternetOrderDetail g)<-assemblyQuantity(g) 
                                                         WHERE internetOrder(g)==o AND assembly(g)==td;        
+            status(td)<- StatusAssembly.processed;
             FOR relation(td, o, Picking p) DO {
                 status(picking(d))<- StatusPicking.picked;
             }                                                                          
@@ -511,20 +544,17 @@ DESIGN scanAssembly{
     PROPERTY (notAvailable(a,dd)){focusable = FALSE;}
 }
 
-isScan = DATA BOOLEAN (Assembly);
+
 scan 'Сканировать' (Assembly a) {
     IF NOT maxBin(a) THEN{
         MESSAGE 'Не задана максимальная ячейка' NOWAIT;
     }ELSE {
-        IF NOT isScan(a)THEN {
-            NEWSESSION {                
-                isScan(a)<- TRUE;        
-                status(a)<- StatusAssembly.inWork;                     
-                APPLY; 
-            }                           
-        }
+        NEWSESSION {                   
+            status(a)<- StatusAssembly.inWork;                     
+            APPLY; 
+        }                           
         inExecutor(currentUser(),a)<- TRUE; 
-        SHOW scanAssembly OBJECTS a =a;// DOCKED;
+        SHOW scanAssembly OBJECTS a =a;
         formRefresh();
     }
 }
@@ -580,7 +610,7 @@ FORM assembly 'Сборка'
     FILTERS assembly(d) == p
     
     OBJECTS o = InternetOrder
-    PROPERTIES (o) READONLY series, number, nameStatus, overBin
+    PROPERTIES (o) READONLY nameStatus, series, number, overBin
     PROPERTIES (o) internetOrderPrint, internetOrderPickingPrint
     FILTERS relation(p,o)
     OBJECTS dd = InternetOrderDetail
@@ -588,7 +618,7 @@ FORM assembly 'Сборка'
     PROPERTIES (dd) READONLY nameBatch, quantity, assemblyQuantity ON CHANGE changeAssemblyQuantity(dd) CHANGEABLE                  
     FILTERS internetOrder(dd) == o,
             assembly(dd)==p
-    PROPERTIES processed(p,dd) TOOLBAR DRAW o SHOWIF status(o)==StatusInternetOrder.isPicking
+    PROPERTIES processed(p,dd) TOOLBAR DRAW o //SHOWIF status(o)==StatusInternetOrder.isPicking
     EDIT Assembly OBJECT p
 ;
 
@@ -616,7 +646,7 @@ DESIGN assembly {
                         type = CONTAINERH;
                         MOVE BOX (o){
                             caption = '';
-                            //fill = 3;
+                            PROPERTY (nameStatus(o)){caption = 'Статус ИЗ';}
                         }
                         MOVE GROUP (print,o){
                             type = COLUMNS;
