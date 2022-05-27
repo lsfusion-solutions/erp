@@ -99,6 +99,8 @@ CLASS ABSTRACT Document 'Документ' : EnterpriseData;
 inSending 'Передавать' = ABSTRACT MULTI OVERRIDE BOOLEAN (Configuration, EnterpriseData) MATERIALIZED;
 
 in 'Вкл.' = DATA BOOLEAN (Configuration, EnterpriseData);
+
+skip = ABSTRACT VALUE OVERRIDE FIRST BOOLEAN (Configuration, EnterpriseData);
  
 WHEN SET(inSending(Configuration c, EnterpriseData e) AND NOT packet(c, e) <= idTicket(c)) AND NOT date(e, c) < dateStartExchange(c) DO in(c, e) <- inSending(c, e);
 
@@ -240,7 +242,7 @@ FORM objectExchange 'Настройки синхронизации'
     
     OBJECTS e = EnterpriseData
     PROPERTIES desc(e, c) READONLY, packet(c,e) READONLY, in(c, e)
-    FILTERS inSending(c, e) OR in(c, e);
+    FILTERS inSending(c, e) OR in(c, e), NOT skip(c, e);
 ;
 
 showOptions 'Настройки' (Configuration c) {
@@ -549,6 +551,8 @@ META extDocument(doctype, caption, ver)
     in (###doctype ##doctype, ###doctype##Detail ##doctype##Detail, Configuration configuration) = ##doctype(##doctype##Detail, configuration) == ##doctype; 
     
     @defProp(company, 'Организация', Company, ###doctype);
+    skip = ABSTRACT BOOLEAN (###doctype, Configuration);
+    skip (Configuration configuration, ###doctype type) += skip(type, configuration);
     
     EXTEND FORM sendMessage
         OBJECTS doctype = ###doctype EXTID 'Документ.'##caption IN bodySend###ver
@@ -559,7 +563,7 @@ META extDocument(doctype, caption, ver)
         PROPERTIES(company###doctype, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
         FILTERS company###doctype = company(doctype, configuration)
         
-        FILTERS in(configuration, doctype)
+        FILTERS in(configuration, doctype) AND NOT skip(doctype, configuration)
     ;
 
     uid###doctype = DATA LOCAL ISTRING[36](INTEGER);
