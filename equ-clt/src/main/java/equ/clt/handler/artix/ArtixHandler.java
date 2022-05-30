@@ -333,14 +333,24 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             inventObject.put("inventcode", trim(item.idItem != null ? item.idItem : item.idBarcode, 20)); //код товара
             inventObject.put("barcode", removeCheckDigitFromBarcode(mainBarcode, appendBarcode));
 
-            if(!barcodes.isEmpty()) {
+            JSONObject infoJSON = getExtInfo(item.info);
+
+            if (infoJSON != null && infoJSON.has("tmctype")) {
+                int tmcType = infoJSON.optInt("tmctype");
                 JSONArray barcodesArray = new JSONArray();
-                for(CashRegisterItem barcode : barcodes) {
-                    JSONObject barcodeObject = new JSONObject();
-                    barcodeObject.put("barcode", removeCheckDigitFromBarcode(barcode.idBarcode, appendBarcode));
-                    barcodesArray.put(barcodeObject);
+                barcodesArray.put(getBarcodeJSON(mainBarcode, appendBarcode, tmcType)); //main barcode
+                for (CashRegisterItem barcode : barcodes) { //additional barcodes
+                    barcodesArray.put(getBarcodeJSON(barcode.idBarcode, appendBarcode, tmcType));
                 }
                 inventObject.put("barcodes", barcodesArray);
+            } else {
+                if (!barcodes.isEmpty()) {
+                    JSONArray barcodesArray = new JSONArray();
+                    for (CashRegisterItem barcode : barcodes) {
+                        barcodesArray.put(getBarcodeJSON(barcode.idBarcode, appendBarcode, null));
+                    }
+                    inventObject.put("barcodes", barcodesArray);
+                }
             }
 
             boolean noMinPrice = item.flags == null || (item.flags & 16) == 0;
@@ -376,7 +386,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             Integer weightControlBypass = null;
             Integer requireQuantityManual = null;
             Integer requireQuantityScales = null;
-            JSONObject infoJSON = getExtInfo(item.info);
+
             if (infoJSON != null) {
                 Double alcoholPercent = infoJSON.optDouble("alcoholpercent");
                 if(!alcoholPercent.isNaN()) {
@@ -519,6 +529,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
         } else return null;
+    }
+
+    private JSONObject getBarcodeJSON(String barcode, boolean appendBarcode, Integer tmcType) {
+        JSONObject barcodeObject = new JSONObject();
+        barcodeObject.put("barcode", removeCheckDigitFromBarcode(barcode, appendBarcode));
+        barcodeObject.put("tmctype", tmcType);
+        return barcodeObject;
     }
 
     private String getDeleteInventItemJSON(ItemInfo item) throws JSONException {
