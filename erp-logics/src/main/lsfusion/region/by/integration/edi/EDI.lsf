@@ -761,6 +761,7 @@ encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
 httpHeadersEDI(TEXT name) = CASE WHEN basic() AND name = 'Authorization' THEN  'Basic ' + basic(); 
                               
 sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, XMLFILE request, BOOLEAN basicAuthorization, BOOLEAN client) {
+    logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
     basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
     timeoutHttp() <- 300000;
     IF client THEN {
