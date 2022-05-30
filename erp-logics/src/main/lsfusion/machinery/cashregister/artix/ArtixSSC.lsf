@@ -6,8 +6,9 @@ NAMESPACE Artix;
 
 overArtixInfo = ABSTRACT TEXT (MachineryPriceTransaction, Barcode);
 
-//стараемся выполнять последним
 skipLoadSSC = ABSTRACT BOOLEAN (GroupMachinery);
+skipLoadTaraCapacity = ABSTRACT BOOLEAN (GroupMachinery);
+//стараемся выполнять последним
 createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
     IF sidModel(gm) == 'Artix' THEN {
         
@@ -22,7 +23,7 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
                     '"weightcontrolbypass":1' IF weightControlBypass(sku(b)) AND NOT skipLoadSSC(gm),
                     '"requirequantitymanual":1' IF requireQuantityManual(sku(b)) AND NOT skipLoadSSC(gm),
                     '"requirequantityscales":1' IF requireQuantityScales(sku(b)) AND NOT skipLoadSSC(gm),
-                    ('"taracapacity":"' + taraCapacity(sku(b)) + '"') IF NOT skipLoadSSC(gm) ,
+                    ('"taracapacity":"' + taraCapacity(sku(b)) + '"') IF NOT skipLoadTaraCapacity(gm) ,
                     overArtixInfo(mpt,b)
                 )
                 +'\}\}') WHERE in(mpt, b);
@@ -86,6 +87,7 @@ convertImageArtix(Sku s, IMAGEFILE f){
     }
 }
 
+extraTextPickList = DATA LOCAL TEXT();
 createFilePickList (GroupCashRegister gm) {
     LOCAL rezult = TEXT ();
     
@@ -116,6 +118,8 @@ createFilePickList (GroupCashRegister gm) {
                         ) 
                     + '\}\}') IF idParent(s), '\n---\n' ORDER s)
                 +'\n---\n';
+                
+    rezult() <- CONCAT '', rezult(), extraTextPickList();
     
     createFilesArtix(rezult(), directoryPickList(gm));
 
