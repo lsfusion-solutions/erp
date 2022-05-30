@@ -111,11 +111,13 @@ function serialPortReceiveRender() {
             element.appendChild(status);
         },
 
-        update: function (element, controller, value) {
+        update: function (element, controller, options) {
             element.parentElement.style.setProperty("border", "none");
             element.parentElement.style.setProperty("margin", "0");
 
             onSerialPortReceive = function (value) {
+                if (options && options.debugInfo)
+                    element.status.innerText = value;
                 controller.changeValue(JSON.stringify(Array.from(value)));
             }
         }
