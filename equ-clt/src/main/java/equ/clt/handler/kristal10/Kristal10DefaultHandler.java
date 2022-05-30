@@ -36,6 +36,17 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return value;
     }
 
+    protected Element getBarcodeElement(CashRegisterItem item, String barcodeItem, String idItem, boolean exportAmountForBarcode) {
+        Element barcodeElement = new Element("bar-code");
+        setAttribute(barcodeElement, "code", barcodeItem);
+        addStringElement(barcodeElement, "default-code", (item.mainBarcode != null && !item.mainBarcode.equals(item.idBarcode)) ? "false" : "true");
+        setAttribute(barcodeElement, "marking-of-the-good", idItem);
+        if (exportAmountForBarcode && !BigDecimal.ONE.equals(item.amountBarcode)) {
+            addBigDecimalElement(barcodeElement, "count", item.amountBarcode);
+        }
+        return barcodeElement;
+    }
+
     protected static void addProductType(Element good, ItemInfo item, List<String> tobaccoGroups) {
         String productType;
         if(item.idItemGroup != null && tobaccoGroups != null && tobaccoGroups.contains(item.idItemGroup))
@@ -56,6 +67,11 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     }
 
     protected static void addIntegerElement(Element parent, String id, Integer value) {
+        if (value != null)
+            parent.addContent(new Element(id).setText(String.valueOf(value)));
+    }
+
+    protected static void addBigDecimalElement(Element parent, String id, BigDecimal value) {
         if (value != null)
             parent.addContent(new Element(id).setText(String.valueOf(value)));
     }

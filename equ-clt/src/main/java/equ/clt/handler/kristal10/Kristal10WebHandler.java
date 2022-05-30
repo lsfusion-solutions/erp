@@ -290,10 +290,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         processTransactionLogger.info(getLogPrefix() + "creating catalog-goods file with barcodes (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
 
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
-        List<String> notGTINPrefixes = kristalSettings != null ? kristalSettings.getNotGTINPrefixesList() : null;
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean skipWeightPrefix = kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
+        List<String> notGTINPrefixes = kristalSettings.getNotGTINPrefixesList();
+        boolean exportAmountForBarcode = kristalSettings.isExportAmountForBarcode();
 
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
@@ -317,10 +318,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 }
 
                 //parent: good
-                Element barcode = new Element("bar-code");
-                setAttribute(barcode, "marking-of-the-good", idItem);
-                setAttribute(barcode, "code", barcodeItem);
-                addStringElement(barcode, "default-code", "true");
+                Element barcode = getBarcodeElement(item, barcodeItem, idItem, exportAmountForBarcode);
                 rootElement.addContent(barcode);
 
                 for(String deleteBarcode : deleteBarcodeList) {

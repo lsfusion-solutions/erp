@@ -67,22 +67,23 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                 processTransactionLogger.info(getLogPrefix() + "Send Transaction # " + transaction.id);
 
-                Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-                boolean brandIsManufacturer = kristalSettings != null && kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
-                boolean seasonIsCountry = kristalSettings != null && kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
-                boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-                boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
-                boolean skipScalesInfo = kristalSettings != null && kristalSettings.getSkipScalesInfo() != null && kristalSettings.getSkipScalesInfo();
-                boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-                boolean skipUseShopIndicesMinPrice = kristalSettings != null && kristalSettings.getSkipUseShopIndicesMinPrice() != null && kristalSettings.getSkipUseShopIndicesMinPrice();
-                String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
-                boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
-                List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
-                List<String> notGTINPrefixes = kristalSettings != null ? kristalSettings.getNotGTINPrefixesList() : null;
-                boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
-                boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
-                String sftpPath = kristalSettings != null ? kristalSettings.getSftpPath() : null;
-                List<String> sftpDepartmentStoresList = kristalSettings != null ? kristalSettings.getSftpDepartmentStoresList() : null;
+                Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+                boolean brandIsManufacturer = kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
+                boolean seasonIsCountry = kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
+                boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+                boolean skipWeightPrefix = kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
+                boolean skipScalesInfo = kristalSettings.getSkipScalesInfo() != null && kristalSettings.getSkipScalesInfo();
+                boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+                boolean skipUseShopIndicesMinPrice = kristalSettings.getSkipUseShopIndicesMinPrice() != null && kristalSettings.getSkipUseShopIndicesMinPrice();
+                String weightShopIndices = kristalSettings.getWeightShopIndices();
+                boolean useIdItemInRestriction = kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
+                List<String> tobaccoGroups = getTobaccoGroups(kristalSettings.getTobaccoGroup());
+                List<String> notGTINPrefixes = kristalSettings.getNotGTINPrefixesList();
+                boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
+                boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
+                String sftpPath = kristalSettings.getSftpPath();
+                List<String> sftpDepartmentStoresList = kristalSettings.getSftpDepartmentStoresList();
+                boolean exportAmountForBarcode = kristalSettings.isExportAmountForBarcode();
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -207,9 +208,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             }
 
                             //parent: good
-                            Element barcode = new Element("bar-code");
-                            setAttribute(barcode, "code", barcodeItem);
-                            addStringElement(barcode, "default-code", (item.mainBarcode != null && !item.mainBarcode.equals(item.idBarcode)) ? "false" : "true");
+                            Element barcode = getBarcodeElement(item, barcodeItem, null, exportAmountForBarcode);
                             good.addContent(barcode);
 
                             for(String deleteBarcode : deleteBarcodeList) {

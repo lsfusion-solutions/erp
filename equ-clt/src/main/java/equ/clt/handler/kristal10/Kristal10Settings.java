@@ -115,6 +115,9 @@ public class Kristal10Settings implements Serializable{
     //если true, при экспорте дисконтных карт выгружать тег TargetCustomersGroups
     private boolean exportSegments;
 
+    //если true и amount != 1, в теге bar-code дополнительно выгружаем тег count
+    private boolean exportAmountForBarcode;
+
     public Kristal10Settings() {
     }
 
@@ -362,5 +365,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setExportSegments(boolean exportSegments) {
         this.exportSegments = exportSegments;
+    }
+
+    public boolean isExportAmountForBarcode() {
+        return exportAmountForBarcode;
+    }
+
+    public void setExportAmountForBarcode(boolean exportAmountForBarcode) {
+        this.exportAmountForBarcode = exportAmountForBarcode;
     }
 }
