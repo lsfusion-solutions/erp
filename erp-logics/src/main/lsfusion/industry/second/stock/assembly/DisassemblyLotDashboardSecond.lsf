@@ -84,9 +84,6 @@ FORM disassemblyLotDashboard 'Разукомплектация'
         FILTER 'Комплект' countPart(s) OR disassembly(st, currentUser(), s) DEFAULT
     EVENTS ON CHANGE s { dsku() <- s; }
 
-    OBJECTS a = Disassembly PANEL
-    FILTERS a = disassembly(st, currentUser(), s)
-    
     PROPERTIES PANEL 
                countLot 'Кол-во марок' = (OVERRIDE countDisassemblyLot(disassembly(st, currentUser(), s)), 0.0), 
                weightLot 'Вес марок' = (OVERRIDE weightDisassemblyLot(disassembly(st, currentUser(), s)), 0.0)
@@ -96,7 +93,11 @@ FORM disassemblyLotDashboard 'Разукомплектация'
     OBJECTS l = DisassemblyLot
     PROPERTIES(l) READONLY dateTime, nameUser, id, weight, nameSku, defect, price, image PANEL
     PROPERTIES(l) NEWSESSION DELETE
-    FILTERS disassembly(l) = a
+    FILTERS inProcess(disassembly(l)), 
+            stock(disassembly(l)) == st,
+            sku(disassembly(l)) == s
+
+    FILTERGROUP filter1 FILTER 'Текущего пользователя' user(l) = currentUser() DEFAULT
 ;
 
 DESIGN disassemblyLotDashboard {
