@@ -6,12 +6,14 @@ NAMESPACE ZReport;
 
 lot 'Марка' = DATA Lot (ReceiptSaleDetail) INDEXED;
 
-CONSTRAINT lot(ReceiptSaleDetail d) AND NOT sku(lot(d)) = sku(d) CHECKED BY lot[ReceiptSaleDetail]
+skipSkuControl = ABSTRACT BOOLEAN (ReceiptDetail);
+
+CONSTRAINT lot(ReceiptSaleDetail d) AND NOT sku(lot(d)) = sku(d) AND NOT skipSkuControl(d) CHECKED BY lot[ReceiptSaleDetail]
     MESSAGE 'Товар марки не соответствует товару строки чека продажи';
 
 lot 'Марка' = DATA Lot (ReceiptReturnDetail) INDEXED;
 
-CONSTRAINT lot(ReceiptReturnDetail d) AND NOT sku(lot(d)) = sku(d) CHECKED BY lot[ReceiptReturnDetail]
+CONSTRAINT lot(ReceiptReturnDetail d) AND NOT sku(lot(d)) = sku(d) AND NOT skipSkuControl(d) CHECKED BY lot[ReceiptReturnDetail]
     MESSAGE 'Товар марки не соответствует товару строки чека продажи';
 
 lot 'Марка' (ReceiptDetail d) = MULTI lot[ReceiptSaleDetail](d), lot[ReceiptReturnDetail](d) MATERIALIZED; 
