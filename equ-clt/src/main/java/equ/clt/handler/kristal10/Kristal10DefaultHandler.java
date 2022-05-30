@@ -41,7 +41,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         setAttribute(barcodeElement, "code", barcodeItem);
         addStringElement(barcodeElement, "default-code", (item.mainBarcode != null && !item.mainBarcode.equals(item.idBarcode)) ? "false" : "true");
         setAttribute(barcodeElement, "marking-of-the-good", idItem);
-        if (exportAmountForBarcode && item.amountBarcode != null && item.amountBarcode.intValue() != 1) {
+        if (exportAmountForBarcode && BigDecimal.ONE.compareTo(item.amountBarcode) != 0) {
             addBigDecimalElement(barcodeElement, "count", item.amountBarcode);
         }
         return barcodeElement;
