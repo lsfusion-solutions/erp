@@ -124,18 +124,26 @@ function serialPortReceiveRender() {
 
 let serialPortWriter;
 
-async function serialPortSend (port, value) {
-    if (!serialPortWriter) {
-        try {
-            serialPortWriter = await getPort(port);
-            if (!serialPortWriter) return;
+async function serialPortOpen (options) {
+    let port;
 
-            await serialPortWriter.open({ baudRate: port.baudRate });
-        } catch (error) {
-            serialPortWriter = undefined;
-            alert("Code " + error.code + " : " + error.message + " / " + error.name);
-            return;
-        }
+    try {
+        port = await getPort(options);
+        if (!port) return;
+
+        await port.open({ baudRate: options.baudRate });
+    } catch (error) {
+        alert("Code " + error.code + " : " + error.message + " / " + error.name);
+    }
+
+    return port;
+}
+
+
+async function serialPortSend (options, value) {
+    if (!serialPortWriter) {
+        serialPortWriter = await serialPortOpen(options);
+        if (!serialPortWriter) return;
     }
 
     const encoder = new TextEncoder();
@@ -144,4 +152,21 @@ async function serialPortSend (port, value) {
     await writer.write(encoder.encode(value));
 
     writer.releaseLock();
+}
+
+async function serialPortClose () {
+    if (serialPortWriter) {
+        await serialPortWriter.close();
+        serialPortWriter = undefined;
+    }
+}
+
+async function serialPortTest (options, alertSuccess) {
+    await serialPortClose();
+    let port = await serialPortOpen(options);
+    if (port) {
+        if (alertSuccess)
+            alert("Success");
+        await port.close();
+    }
 }

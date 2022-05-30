@@ -164,26 +164,14 @@ iprice 'Цена' = DATA LOCAL NUMERIC[16,4] ();
 
 // image
 iimage 'Изображение' = DATA LOCAL IMAGEFILE ();
+iimagePhoto () {
+    takePhoto();
+    iimage() <- photo();
+}
 
-istream = DATA LOCAL NUMERIC ();
-
-changeStream () {
-    INPUT s = TEXT DO {
-        IF s == '' THEN RETURN;
-        
-        istream() <- NULL;
-    
-        stringToFile(s);
-        
-        LOCAL value = TEXT();
-        IMPORT JSON FROM resultFile() TO() value;
-
-        iimage() <- decode(value(), 'base64');
-        
-        getFileSize(FILE(iimage()));
- //       MESSAGE fileSize();
-
-    }
+changeVideo () {
+    INPUT f = TEXT DO
+        iimage() <- decode(f, 'base64');
 }
 
 // options
@@ -234,15 +222,24 @@ overChangeIsku ABSTRACT (Sku, Stock);
 @defineOption(minimumWeight, 'Минимальный вес взвешивания (грамм)', INTEGER, disassembly);
 
 EXTEND FORM disassemblyLotDashboard
-    PROPERTIES() iweight ON CHANGE { INPUT w = iweight() DO { IF w >= (OVERRIDE minimumWeight(), 30) THEN iweight() <- w / 1000; ELSE iweight() <- w; istream() <- videoScale(); overChangeIweight(s, st); } }, 
+    PROPERTIES() iweight ON CHANGE { 
+                    INPUT w = iweight() DO { 
+                        IF w >= (OVERRIDE minimumWeight(), 30) THEN 
+                            iweight() <- w / 1000; 
+                        ELSE 
+                            iweight() <- w; 
+                        iimagePhoto();
+                        overChangeIweight(s, st); 
+                    }
+                 }, 
                  inameSku ON CHANGE { INPUT sk = isku() LIST name(sk) DO { isku() <- sk; overChangeIsku(s, st); } }, 
                  iprice READONLYIF skipPriceLotDashboard(isku()), 
-                 istream CUSTOM 'videoRender' ON CHANGE changeStream(), 
+                 ivideo = videoScale CUSTOM 'videoRender' ON CHANGE changeVideo(), 
                  ibarcode ON CHANGE { INPUT b = ibarcode() DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
                  iimage READONLYIF readonlyIimage()
     
     EVENTS ON INIT { openScalesPortReader(); }
-    EVENTS ON CLOSE { closePortReader(); }
+    EVENTS ON CLOSE { closePortReader(); serialPortClose(); }
     PROPERTIES readWeight = '' CUSTOM 'serialPortReceiveRender' ON CHANGE {
         INPUT t = TEXT DO {
             LOCAL weight = INTEGER();
@@ -264,7 +261,7 @@ EXTEND FORM disassemblyLotDashboard
                 }
             IF weight() >= (OVERRIDE minimumWeight(), 30) THEN {
                 iweight() <- NUMERIC(weight()) / 1000;
-                istream() <- videoScale();
+                iimagePhoto();
                 overChangeIweight(s, st);
             }
         }     
@@ -401,7 +398,7 @@ DESIGN disassemblyLotDashboard {
                         }
                         MOVE PROPERTY(iimage()) { panelCaptionVertical = TRUE; fill = 1; notNull = TRUE; focusable = FALSE; }
                     }
-                    MOVE PROPERTY(istream()) { caption =''; focusable = FALSE; }
+                    MOVE PROPERTY(ivideo) { caption =''; focusable = FALSE; }
                 }
             }
         }

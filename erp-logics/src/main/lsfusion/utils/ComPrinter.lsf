@@ -13,8 +13,18 @@ pidPrinterComPort 'PID принтера' = DATA STRING[4] (Computer) CHARWIDTH 8
 
 codePageComPort 'Кодировка' = DATA STRING[10] (Computer);
 
+jsonPrinterComPort (Computer c, INTEGER baudRate) = 
+                JSON FROM number = printerComPort(c),
+                          baudRate = baudRate,
+                          vid = vidPrinterComPort(c), 
+                          pid = pidPrinterComPort(c);
+                          
+jsonPrinterComPort (Computer c) = jsonPrinterComPort(c, OVERRIDE printerBaudRate(c), 9600); 
+
+testPrinterComPort 'Проверить подключение' (Computer c) { serialPortTest(jsonPrinterComPort(c), TRUE); }
+
 EXTEND FORM computer 
-    PROPERTIES(c) printerComPort, printerBaudRate, vidPrinterComPort, pidPrinterComPort, codePageComPort
+    PROPERTIES(c) printerComPort, printerBaudRate, vidPrinterComPort, pidPrinterComPort, codePageComPort, testPrinterComPort
 
     PROPERTIES requestPrinterPort = JSON FROM caption = 'Запросить' CUSTOM 'serialPortRequestPort' ON CHANGE {
         INPUT s = TEXT DO {
@@ -43,15 +53,11 @@ DESIGN computer {
                 MOVE PROPERTY(pidPrinterComPort(c));
                 MOVE PROPERTY(requestPrinterPort);
                 MOVE PROPERTY(codePageComPort(c));
+                MOVE PROPERTY(testPrinterComPort(c));
             }
         }
     }
 } 
-
-jsonPrinterComPort (Computer c) = JSON FROM number = printerComPort(c),
-                                            baudRate = (OVERRIDE printerBaudRate(c), 9600),
-                                            vid = vidPrinterComPort(c), 
-                                            pid = pidPrinterComPort(c); 
 
 localFileName 'Печатать в файл' = DATA STRING (Computer) CHARWIDTH 20;
 EXTEND FORM computer PROPERTIES(c) localFileName; 
