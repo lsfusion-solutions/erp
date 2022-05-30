@@ -8,11 +8,6 @@ overIdSkuGroup (MachineryPriceTransaction mpt, Barcode barcode) = OVERRIDE overI
 
 overTitleCashRegister = ABSTRACT ISTRING[255] (MachineryPriceTransaction, Barcode);
 
-createAttribute(MachineryPriceTransaction transaction, GroupCashRegister groupMachinery) + { 
-    IF groupMachinery IS GroupCashRegister THEN
-        name(transaction, Barcode barcode) <- (OVERRIDE overTitleCashRegister(transaction, barcode), titleCashRegister(barcode) IF transaction IS MachineryPriceTransaction) WHERE in(transaction, barcode);
-}
-
 maxCharactersNameCashRegisterItem 'Максимальное количество знаков в наименовании для касс' = DATA INTEGER ();
 
 EXTEND FORM options
@@ -24,8 +19,11 @@ DESIGN options {
     }
 }
 
-CONSTRAINT length(titleCashRegister(barcode(Sku item))) > maxCharactersNameCashRegisterItem() 
-    MESSAGE 'Максимальное количество знаков в наименовании для касс больше предельного значения';
+createAttribute(MachineryPriceTransaction transaction, GroupCashRegister groupMachinery) + { 
+    IF groupMachinery IS GroupCashRegister THEN
+        name(transaction, Barcode barcode) <- left((OVERRIDE overTitleCashRegister(transaction, barcode), titleCashRegister(barcode) IF transaction IS MachineryPriceTransaction), (OVERRIDE maxCharactersNameCashRegisterItem(), 255)) 
+            WHERE in(transaction, barcode);
+}
 
 EXTEND FORM item 
     PROPERTIES (b) skipMachineryPriceTransaction;
