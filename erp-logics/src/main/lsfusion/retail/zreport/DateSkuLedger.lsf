@@ -1,0 +1,157 @@
+MODULE DateSkuLedger;
+
+REQUIRE ZReport,SkuLedger;
+
+NAMESPACE ZReport;
+
+   
+//---------------------- Продажа ----------------//
+CLASS DateSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger, SaleLedger; //-- агрегированный объект
+TABLE DateSaleSkuLedger (DateSaleSkuLedger);
+TABLE departmentStoreSkuDate(DepartmentStore, Sku, DATE);
+
+
+quantityReceiptSaleDetail 'Кол-во' (department, sku, date) = GROUP SUM quantity(ReceiptSaleDetail d) IF isPosted(d)
+    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+sumReceiptSaleDetail 'Сумма' (department, sku, date) = GROUP SUM sum(ReceiptSaleDetail d) IF isPosted(d)
+    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+discountSumReceiptSaleDetail 'Сумма скидки' (department, sku, date) = GROUP SUM discountSum(ReceiptSaleDetail d) IF isPosted(d)
+    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+countReceiptSaleDetail (department, sku, date) = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
+    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+
+VATReceiptSaleDetail = DATA Range (DepartmentStore, Sku, DATE);
+WHEN SET(quantityReceiptSaleDetail(DepartmentStore department, Sku sku, DATE date)) DO {
+    VATReceiptSaleDetail (department, sku, date) <- VAT (sku, country(department));
+}
+
+departmentStore = DATA DepartmentStore (DateSaleSkuLedger) INDEXED;
+sku = DATA Sku (DateSaleSkuLedger);
+date = DATA DATE (DateSaleSkuLedger);
+
+dateSaleSkuLedger (departmentStore, sku, date) =
+    GROUP NAGGR DateSaleSkuLedger dateSaleSkuLedger 
+    WHERE dateSaleSkuLedger IS DateSaleSkuLedger BY departmentStore(dateSaleSkuLedger), sku(dateSaleSkuLedger), date(dateSaleSkuLedger);// MATERIALIZED INDEXED;
+
+countReceiptSaleDetail(DepartmentStore departmentStore, Sku sku, DATE date) => dateSaleSkuLedger(departmentStore, sku, date) RESOLVE LEFT;
+
+is(DateSaleSkuLedger dateSaleSkuLedger) = dateSaleSkuLedger IS DateSaleSkuLedger;
+is(DateSaleSkuLedger dateSaleSkuLedger) => countReceiptSaleDetail(departmentStore(dateSaleSkuLedger), sku(dateSaleSkuLedger), date(dateSaleSkuLedger)) RESOLVE RIGHT;
+
+INDEX sku(DateSaleSkuLedger o), departmentStore(o);
+INDEX date(DateSaleSkuLedger o), departmentStore(o), sku(o);
+
+dateTime[DataSkuLedger] (DateSaleSkuLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
+isPosted[DataSkuLedger] (DateSaleSkuLedger ledger) += ledger IS DateSaleSkuLedger;
+isClosed[DataSkuLedger] (DateSaleSkuLedger ledger) += ledger IS DateSaleSkuLedger;
+sku[DataSkuLedger] (DateSaleSkuLedger ledger) += sku(ledger);
+stock[DataSkuLedger] (DateSaleSkuLedger ledger) += departmentStore(ledger);
+description[DataSkuLedger] (DateSaleSkuLedger ledger) += STRING[200]('Продажа за день')IF ledger IS DateSaleSkuLedger;
+
+skip[SkuLedger] (DateSaleSkuLedger ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger)) OR
+                           skuType(sku(ledger)) == SkuType.skuTypeCharge;
+
+quantity[OutFIFOSkuLedger] (DateSaleSkuLedger ledger) += NUMERIC[14,3](quantityReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger)));
+
+//---------------------- SaleLedger ----------------//
+
+dateTime[SaleLedger] (DateSaleSkuLedger ledger) += toDateTime(date(ledger));
+isPosted[SaleLedger] (DateSaleSkuLedger ledger) += ledger IS DateSaleSkuLedger;
+isClosed[SaleLedger] (DateSaleSkuLedger ledger) += ledger IS DateSaleSkuLedger;
+sku[SaleLedger] (DateSaleSkuLedger ledger) += sku(ledger);
+stock[SaleLedger] (DateSaleSkuLedger ledger) += departmentStore(ledger);
+description[SaleLedger] (DateSaleSkuLedger ledger) += STRING[200]('Продажа за день')IF ledger IS DateSaleSkuLedger;
+
+cost(DateSaleSkuLedger ledger, Batch batch) +=  cost[SkuLedger,Batch](ledger, batch) IF ledger IS DateSaleSkuLedger;
+quantity[SaleLedger] (DateSaleSkuLedger ledger) += NUMERIC[14,3](quantityReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger)));
+VAT (DateSaleSkuLedger ledger) += VATReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger));
+sum[SaleLedger] (DateSaleSkuLedger ledger) += NUMERIC[18,4](sumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger)));
+
+discountSum (DateSaleSkuLedger ledger) += NUMERIC[18,4](discountSumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger)));
+
+//-----------------------
+
+@extendClassSaleZReportSkuLedger(DateSaleSkuLedger);
+
+//---------------------- Возврат ----------------//
+
+CLASS DateReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSkuLedger, SaleLedger; //-- агрегированный объект
+TABLE DateReturnSkuLedger (DateReturnSkuLedger);
+
+quantityReceiptReturnDetail 'Кол-во' (department, sku, date) = GROUP SUM quantity(ReceiptReturnDetail d) IF isPosted(d)
+    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+sumReceiptReturnDetail 'Сумма' (department, sku, date) = GROUP SUM sum(ReceiptReturnDetail d) IF isPosted(d)
+    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+discountSumReceiptReturnDetail 'Сумма скидки' (department, sku, date) = GROUP SUM discountSum(ReceiptReturnDetail d) IF isPosted(d)
+    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+countReceiptReturnDetail  (department, sku, date) = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d)
+    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+
+VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE);
+WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE date)) DO {
+    VATReceiptReturnDetail (department, sku, date) <- VAT (sku, country(department));
+}
+
+dateReturnSkuLedger = AGGR DateReturnSkuLedger WHERE countReceiptReturnDetail(DepartmentStore departmentStore, Sku sku, DATE date);// MATERIALIZED;
+INDEX sku(DateReturnSkuLedger o), departmentStore(o);
+INDEX date(DateReturnSkuLedger o), departmentStore(o), sku(o);
+
+dateTime[DataSkuLedger] (DateReturnSkuLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
+isPosted[DataSkuLedger] (DateReturnSkuLedger ledger) += ledger IS DateReturnSkuLedger;
+isClosed[DataSkuLedger] (DateReturnSkuLedger ledger) += ledger IS DateReturnSkuLedger;
+sku[DataSkuLedger] (DateReturnSkuLedger ledger) += sku(ledger);
+stock[DataSkuLedger] (DateReturnSkuLedger ledger) += departmentStore(ledger);
+description[DataSkuLedger] (DateReturnSkuLedger ledger) += STRING[200]('Возврат за день')IF ledger IS DateReturnSkuLedger;
+
+skip[SkuLedger] (DateReturnSkuLedger ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger)) OR
+                            skuType(sku(ledger)) == SkuType.skuTypeCharge;
+
+quantity[InLIFOSkuLedger] (DateReturnSkuLedger ledger) += NUMERIC[14,3](quantityReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger)));
+
+//---------------------- SaleLedger ----------------//
+
+dateTime[SaleLedger] (DateReturnSkuLedger ledger) += toDateTime(date(ledger));
+isPosted[SaleLedger] (DateReturnSkuLedger ledger) += ledger IS DateReturnSkuLedger;
+isClosed[SaleLedger] (DateReturnSkuLedger ledger) += ledger IS DateReturnSkuLedger;
+sku[SaleLedger] (DateReturnSkuLedger ledger) += sku(ledger);
+stock[SaleLedger] (DateReturnSkuLedger ledger) += departmentStore(ledger);
+description[SaleLedger] (DateReturnSkuLedger ledger) += STRING[200]('Возврат за день')IF ledger IS DateReturnSkuLedger;
+
+cost(DateReturnSkuLedger ledger, Batch batch) += -cost[SkuLedger,Batch](ledger, batch) IF ledger IS DateReturnSkuLedger;
+quantity[SaleLedger] (DateReturnSkuLedger ledger) += -NUMERIC[14,3](quantityReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger)));
+VAT (DateReturnSkuLedger ledger) += VATReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger));
+sum[SaleLedger] (DateReturnSkuLedger ledger) += -NUMERIC[18,4](sumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger)));
+discountSum (DateReturnSkuLedger ledger) += -NUMERIC[18,4](discountSumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger)));
+
+//-------------
+
+@extendClassReturnZReportSkuLedger(DateReturnSkuLedger);
+
+// AccountSum
+
+// Пересчет
+// accountPrice (DateSaleSkuLedger l) <- prevAccountPriceB(sku(l), departmentStore(l), dateTimeToDateTime(date(l), 23:59));
+// accountPrice (DateReturnSkuLedger l) <- prevAccountPriceB(sku(l), departmentStore(l), dateTimeToDateTime(date(l), 23:59));
+// APPLY;
+
+accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (DateSaleSkuLedger);
+WHEN SET (DateSaleSkuLedger l IS DateSaleSkuLedger) DO
+    accountPrice(l) <- NUMERIC[16,4](prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)));
+
+accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (DateSaleSkuLedger);
+accountSum(DateSaleSkuLedger l) <- round2(quantity[OutFIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[OutFIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
+
+sum[OutSkuLedger] (DateSaleSkuLedger ledger) += accountSum(ledger);
+
+costSum (DateSaleSkuLedger ledger) += WHEN ledger IS DateSaleSkuLedger THEN NUMERIC[16,3](accountSum(ledger));
+
+accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (DateReturnSkuLedger);
+WHEN SET (DateReturnSkuLedger l IS DateReturnSkuLedger) DO
+    accountPrice(l) <- NUMERIC[16,4](prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)));
+
+accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (DateReturnSkuLedger);
+accountSum(DateReturnSkuLedger l) <- round2(quantity[InLIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[InLIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
+
+sum[InSkuLedger] (DateReturnSkuLedger ledger) += accountSum(ledger);
+
+costSum (DateReturnSkuLedger ledger) += WHEN ledger IS DateReturnSkuLedger THEN NUMERIC[16,3](-accountSum(ledger));

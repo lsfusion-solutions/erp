@@ -1,0 +1,15 @@
+MODULE DateSkuLedgerLot;
+
+REQUIRE DateSkuLedger, ZReportLot, SkuLedgerLot;
+
+NAMESPACE ZReport;
+
+quantityReceiptSaleDetail 'Кол-во' (department, sku, date, lot) = GROUP SUM quantity(ReceiptSaleDetail d) IF isPosted(d)
+    BY departmentStore(d), sku(d), date(d), lot(d);
+    
+quantity(DateSaleSkuLedger d, Lot l) += quantityReceiptSaleDetail(departmentStore(d), sku(d), date(d), l);
+
+quantityReceiptReturnDetail 'Кол-во' (department, sku, date, lot) = GROUP SUM quantity(ReceiptReturnDetail d) IF isPosted(d)
+    BY departmentStore(d), sku(d), date(d), lot(d);
+    
+quantity(DateReturnSkuLedger d, Lot l) += quantityReceiptReturnDetail(departmentStore(d), sku(d), date(d), l);  
