@@ -63,6 +63,7 @@ async function openPortReader(info, timeout) {
     keepReading = true;
     while (port.readable && keepReading) {
         serialPortReader = port.readable.getReader();
+        serialPortReader.writer = port.writable.getWriter();
         try {
             let buffer;
             while (true) {
@@ -89,11 +90,17 @@ async function openPortReader(info, timeout) {
             alert("Код " + error.code + " : " + error.message + " / " + error.name);
         } finally {
             serialPortReader.releaseLock();
+            serialPortReader.writer.releaseLock();
         }
     }
 
     await port.close();
     serialPortReader = undefined;
+}
+
+async function sendPortReader(value) {
+    const encoder = new TextEncoder();
+    await serialPortReader.writer.write(encoder.encode(value));
 }
 
 async function closePortReader() {

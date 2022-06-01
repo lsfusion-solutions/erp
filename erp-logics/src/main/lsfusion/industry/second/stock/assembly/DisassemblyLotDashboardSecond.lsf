@@ -215,25 +215,22 @@ generateLot () {
     IF NOT ibarcode() THEN generateLotId(); 
 }
 
-overChangeIweight ABSTRACT (Sku, Stock);
-overChangeIsku ABSTRACT (Sku, Stock);
+overChangeDashboardWeight ABSTRACT LIST (Sku, Stock);
+overChangeDashboardSku ABSTRACT LIST (Sku, Stock);
+
+overChangeDashboardSku (Sku sk, Stock st) + { requestComWeight(); }
 
 @defineOption(readonlyIimage, 'Изображение на форме Разукомплектация не редактируется', disassembly);
-
-@defineOption(minimumWeight, 'Минимальный вес взвешивания (грамм)', INTEGER, disassembly);
 
 EXTEND FORM disassemblyLotDashboard
     PROPERTIES() iweight ON CHANGE { 
                     INPUT w = iweight() DO { 
-                        IF w >= (OVERRIDE minimumWeight(), 30) THEN 
-                            iweight() <- w / 1000; 
-                        ELSE 
-                            iweight() <- w; 
+                        iweight() <- w / 1000; 
                         iimagePhoto();
-                        overChangeIweight(s, st); 
+                        overChangeDashboardWeight(s, st); 
                     }
                  }, 
-                 inameSku ON CHANGE { INPUT sk = isku() LIST name(sk) DO { isku() <- sk; overChangeIsku(s, st); } }, 
+                 inameSku ON CHANGE { INPUT sk = isku() LIST name(sk) DO { isku() <- sk; overChangeDashboardSku(s, st); } }, 
                  iprice READONLYIF skipPriceLotDashboard(isku()), 
                  ivideo = videoScale CUSTOM 'videoRender' ON CHANGE changeVideo(), 
                  ibarcode ON CHANGE { INPUT b = ibarcode() DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
@@ -241,29 +238,13 @@ EXTEND FORM disassemblyLotDashboard
     
     EVENTS ON INIT { openScalesPortReader(); }
     EVENTS ON CLOSE { closePortReader(); serialPortClose(); }
-    PROPERTIES readWeight = JSON FROM debugInfo = scalesDebugInfo(currentComputer()) CUSTOM 'serialPortReceiveRender' ON CHANGE {
+    PROPERTIES readWeight = JSON FROM debugInfo = scalesDebugInfo(userComputer()) CUSTOM 'serialPortReceiveRender' ON CHANGE {
         INPUT t = TEXT DO {
-            LOCAL weight = INTEGER();
-            IF startsWith(t, '[32,32,') AND wordCount(t, ',') >= 8 THEN {
-                LOCAL bytes = TEXT ();
-                bytes() <- substrFrom(t, 8);
-                bytes() <- left(bytes(), length(bytes())-1);
-                
-                weight() <- max(INTEGER(getWord(bytes(), ',', 1)) - 48, 0) * 10000 + (INTEGER(getWord(bytes(), ',', 2)) - 48) * 1000 +
-                            (INTEGER(getWord(bytes(), ',', 4)) - 48) * 100 + (INTEGER(getWord(bytes(), ',', 5)) - 48) * 10 +
-                            (INTEGER(getWord(bytes(), ',', 6)) - 48);
-            } ELSE
-                IF isSubstring(t, '170,') THEN { 
-                    LOCAL bytes = TEXT ();
-                    bytes() <- substrFrom(t, strpos(t, '170,') + 4);
-                    bytes() <- left(bytes(), length(bytes())-1);
-    
-                    weight() <- INTEGER(getWord(bytes(), ',', 1)) + INTEGER(getWord(bytes(), ',', 2)) * 256;
-                }
-            IF weight() >= (OVERRIDE minimumWeight(), 30) THEN {
-                iweight() <- NUMERIC(weight()) / 1000;
+            readComWeight(t);
+            IF weightRead() THEN {
+                iweight() <- NUMERIC(weightRead()) / 1000;
                 iimagePhoto();
-                overChangeIweight(s, st);
+                overChangeDashboardWeight(s, st);
             }
         }     
     }
@@ -424,10 +405,16 @@ EXTEND FORM disassemblyLotDashboard
 fixedLotDashboard 'Брак' = DATA BOOLEAN (Item) IN itemLotDashboard;
 EXTEND FORM item PROPERTIES(i) fixedLotDashboard;
 
-overChangeIsku ABSTRACT;
-
-choose (Item i) { isku() <- i; overChangeIsku(); }
-choose (Part p) { isku() <- item(p); overChangeIsku(); }
+choose (Item i) { 
+    isku() <- i;
+    FOR [VIEW disassemblyLotDashboard.s](Sku sk) AND [VIEW disassemblyLotDashboard.st](Stock st) DO  
+        overChangeDashboardSku(sk, st); 
+}
+choose (Part p) { 
+    isku() <- item(p); 
+    FOR [VIEW disassemblyLotDashboard.s](Sku sk) AND [VIEW disassemblyLotDashboard.st](Stock st) DO  
+        overChangeDashboardSku(sk, st); 
+}
 
 onWebClientLoad() +{ INTERNAL CLIENT 'disassemblyLotDashboardSecond.css'; }
 
@@ -446,10 +433,10 @@ EXTEND FORM disassemblyLotDashboard
 DESIGN disassemblyLotDashboard {
     inputLeft {
         REMOVE BOX(p);
-        MOVE PROPERTY(choose(p)) { fontSize = 18; focusable = FALSE; }
+        MOVE PROPERTY(choose(p)) { fontSize = 14; fontStyle = 'bold'; focusable = FALSE; }
 
         REMOVE BOX(fi);
-        MOVE PROPERTY(choose(fi)) { fill = 1; fontSize = 24; focusable = FALSE; }
+        MOVE PROPERTY(choose(fi)) { fill = 1; fontSize = 18; fontStyle = 'bold'; focusable = FALSE; }
     }
 }
 

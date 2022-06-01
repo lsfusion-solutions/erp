@@ -4,6 +4,34 @@ REQUIRE WeightDaemon, SerialPort, EmployeeComputer;
 
 NAMESPACE WeightDaemon;
 
+// тип весов
+
+CLASS WeightType 'Тип весов';
+TABLE weightType (WeightType);
+
+name '{master.data.name}' = DATA ISTRING[100] (WeightType) CHARWIDTH 15;
+scalesBaudRate 'Baud rate весов' = DATA INTEGER (WeightType);
+requestCommand 'Команда запроса веса' = DATA STRING[5] (WeightType);
+
+FORM weightType 'Тип весов'
+    OBJECTS o = WeightType PANEL
+    PROPERTIES(o) name, scalesBaudRate, requestCommand
+    
+    EDIT WeightType OBJECT o
+;
+
+FORM weightTypes 'Типы весов'
+    OBJECTS o = WeightType
+    PROPERTIES(o) READONLY name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+
+    LIST WeightType OBJECT o
+;
+
+weightType = DATA WeightType (Computer);
+nameWeightType 'Тип весов' (Computer c) = name(weightType(c));
+
+// computer
 scalesBaudRate 'Baud rate весов' = DATA INTEGER (Computer);
 
 vidScalesComPort 'VID весов' = DATA STRING[4] (Computer) CHARWIDTH 8;
@@ -12,7 +40,7 @@ pidScalesComPort 'PID весов' = DATA STRING[4] (Computer) CHARWIDTH 8;
 scalesDebugInfo 'Debug info' = DATA BOOLEAN (Computer);
 
 EXTEND FORM computer 
-    PROPERTIES(c) scalesBaudRate, vidScalesComPort, pidScalesComPort, scalesDebugInfo
+    PROPERTIES(c) nameWeightType, scalesBaudRate, vidScalesComPort, pidScalesComPort, scalesDebugInfo
     
     PROPERTIES requestScalesPort = JSON FROM caption = 'Запросить' CUSTOM 'serialPortRequestPort' ON CHANGE {
         INPUT s = TEXT DO {
@@ -29,6 +57,7 @@ EXTEND FORM computer
 
 DESIGN computer {
     weight {
+        MOVE PROPERTY(nameWeightType(c)); 
         MOVE PROPERTY(scalesBaudRate(c)); 
         MOVE PROPERTY(vidScalesComPort(c)); 
         MOVE PROPERTY(pidScalesComPort(c));
@@ -39,9 +68,45 @@ DESIGN computer {
 
 // не запустится на версии ниже 5й
 jsonScalesComPort (Computer c) = JSON FROM number = scalesComPort(c),
-                                           baudRate = (OVERRIDE scalesBaudRate(c), 9600), 
+                                           baudRate = (OVERRIDE scalesBaudRate(c), scalesBaudRate(weightType(c)), 9600), 
                                            vid = vidScalesComPort(c), 
                                            pid = pidScalesComPort(c); 
 
 openScalesPortReader (Computer c) { openPortReader(jsonScalesComPort(c), 100); }
 openScalesPortReader () { openScalesPortReader(userComputer()); } 
+
+// считывание веса
+@defineOption(minimumWeight, 'Минимальный вес взвешивания (грамм)', INTEGER, commons);
+
+weightRead = DATA INTEGER ();
+
+requestComWeight () {
+    IF requestCommand(weightType(userComputer())) THEN
+        sendPortReader(requestCommand(weightType(userComputer())));
+}
+
+readComWeight (TEXT t) {
+    weightRead() <- NULL;
+
+    LOCAL bytes = TEXT ();
+    CASE WHEN startsWith(t, '[32,32,') AND wordCount(t, ',') >= 8 THEN {
+        bytes() <- substrFrom(t, 8);
+        bytes() <- left(bytes(), length(bytes())-1);
+        
+        weightRead() <- max(INTEGER(getWord(bytes(), ',', 1)) - 48, 0) * 10000 + (INTEGER(getWord(bytes(), ',', 2)) - 48) * 1000 +
+                    (INTEGER(getWord(bytes(), ',', 4)) - 48) * 100 + (INTEGER(getWord(bytes(), ',', 5)) - 48) * 10 +
+                    (INTEGER(getWord(bytes(), ',', 6)) - 48);
+    } WHEN isSubstring(t, '170,') AND wordCount(t, ',') >= 5 THEN { 
+        bytes() <- substrFrom(t, strpos(t, '170,') + 4);
+        bytes() <- left(bytes(), length(bytes())-1);
+
+        weightRead() <- INTEGER(getWord(bytes(), ',', 1)) + INTEGER(getWord(bytes(), ',', 2)) * 256;
+    } WHEN wordCount(t, ',') = 2 THEN {
+        bytes() <- substrFrom(t, 2);
+        bytes() <- left(bytes(), length(bytes())-1);
+        weightRead() <- INTEGER(getWord(bytes(), ',', 1)) + INTEGER(getWord(bytes(), ',', 2)) * 256;
+    }
+    
+    IF weightRead() < (OVERRIDE minimumWeight(), 30) THEN
+        weightRead() <- NULL;
+}
