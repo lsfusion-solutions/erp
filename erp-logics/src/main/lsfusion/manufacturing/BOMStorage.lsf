@@ -6,8 +6,8 @@ NAMESPACE BOM;
 
 showExpiry 'Сроки хранения' = DATA BOOLEAN(BOM) IN documentPrm;
 //-- грохнуть, как только пройдет migratedStorage() Гиппо
-expiryText 'Срок хранения' = DATA  ISTRING[100] (Product);
-conditionsText 'Условия хранения' = DATA  ISTRING[100] (Product);
+expiryText 'Срок хранения' = DATA  ISTRING[300] (Product);
+conditionsText 'Условия хранения' = DATA  ISTRING[300] (Product);
 
 //--------------------
 CLASS ExpiryStorage 'Срок хранения';
@@ -15,7 +15,7 @@ TABLE expiryStorage(ExpiryStorage);
 
 @defineExternalizable(expiryStorage, STRING[100]);
 
-name 'Наименование' = DATA ISTRING[100](ExpiryStorage);
+name 'Наименование' = DATA ISTRING[300](ExpiryStorage);
 expiryStorageName = GROUP NAGGR ExpiryStorage t BY name(t);
 
 
@@ -42,7 +42,7 @@ CLASS ExpiryCondition 'Условия хранения';
 TABLE expiryCondition(ExpiryCondition);
 @defineExternalizable(expiryCondition, STRING[100]);
 
-name 'Наименование' = DATA ISTRING[100](ExpiryCondition);
+name 'Наименование' = DATA ISTRING[300](ExpiryCondition);
 expiryConditionName = GROUP NAGGR ExpiryCondition t BY name(t);
 
 
@@ -113,13 +113,13 @@ EXTEND FORM BOM
 migratedStorage = DATA BOOLEAN ();
 onStarted() + { 
     IF NOT migratedStorage() THEN {
-        FOR [GROUP SUM 1 BY expiryText(Product p)](ISTRING[100] str) AND NOT expiryStorageName(str) DO {
+        FOR [GROUP SUM 1 BY expiryText(Product p)](ISTRING[300] str) AND NOT expiryStorageName(str) DO {
             NEW d = ExpiryStorage {
                 name(d) <- str;
                 expiryStorage(Product p) <- d WHERE expiryText(p) == str AND expiryStorage(p);
             }
         }
-        FOR [GROUP SUM 1 BY conditionsText(Product p)](ISTRING[100] str) AND NOT expiryConditionName(str) DO {
+        FOR [GROUP SUM 1 BY conditionsText(Product p)](ISTRING[300] str) AND NOT expiryConditionName(str) DO {
             NEW d = ExpiryCondition {
                 name(d) <- str;
                 expiryCondition(Product p) <- d WHERE conditionsText(p) == str AND NOT expiryCondition(p);
