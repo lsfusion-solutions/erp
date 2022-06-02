@@ -143,6 +143,7 @@ async function serialPortOpen (options) {
         await port.open({ baudRate: options.baudRate });
     } catch (error) {
         alert("Code " + error.code + " : " + error.message + " / " + error.name);
+        return;
     }
 
     return port;
