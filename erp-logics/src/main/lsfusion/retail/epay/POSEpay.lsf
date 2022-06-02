@@ -97,7 +97,9 @@ postPaymentEpayConsumerPresented (Receipt r) {
     DIALOG barcodeInput DO {
         authCode() <- [FORMULA TEXT PG 'translate($1, $2, $3)'](barcodeInput(), 'йцукенгшщзхъфывапролджячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЯЧСМИТЬБЮ', 'qwertyuiop[]asdfghjkl;zxcvbnm,./QWERTYUIOP\{\}ASDFGHJKL;ZXCVBNM');
         paymentEpay(epay(r));
-        deletePayment(r);
+        IF NOT currentStatusPayment() = StatusPayment.ok THEN {
+            deletePayment(r);
+        } 
     } ELSE {
         returnPost() <- TRUE;
     }
