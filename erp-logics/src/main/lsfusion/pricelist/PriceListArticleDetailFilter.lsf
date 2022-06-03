@@ -40,3 +40,16 @@ DESIGN operation {
         MOVE PROPERTY(showArticleDetail(o));
     }    
 }
+
+//contraintEqualArticles(UserAPriceListDetail d1, UserAPriceListDetail d2) = (CHANGED(article(d1)) OR SET(isPosted(d1))) AND isPosted(d1) AND article(d1) == article(d2) AND
+//                                                                                       userPriceList(d1) == userPriceList(d2) AND NOT d1 == d2 AND NOT allowRepeatSku(operation(userPriceList(d1)));
+//WHEN (GROUP SUM 1 IF contraintEqualArticles(UserAPriceListDetail d1, UserAPriceListDetail d2)) DO {
+//    FOR ISTRING[255] message == (GROUP CONCAT ('Строка номер ' + index(UserAPriceListDetail d) + ' : ' + idArticle(d) + ' ' + captionArticle(d)) IF contraintEqualArticles(d, UserAPriceListDetail d2), '\n' ORDER d) DO {
+//        cancel();
+//        MESSAGE 'Внимание, в прайсе есть одинаковые атрикулы!. \n' + message NOWAIT;
+//    }
+//}
+
+CONSTRAINT Article a = article(UserAPriceListDetail detail) AND countPriceListDetails(a, userPriceList(detail)) >1 AND NOT allowRepeatSku(operation(userPriceList(detail)))
+    MESSAGE 'В прайсе задублированы артикулы в строках '+ (GROUP CONCAT '№' + index(UserAPriceListDetail detail), ', ' IF SET(countPriceListDetails(article(detail), userPriceList(detail)) > 1) ORDER detail);
+;

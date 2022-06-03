@@ -14,8 +14,8 @@ TABLE userAPriceListDetail (UserAPriceListDetail);
 @defineDocumentDetailIndex(userPriceList, UserAPriceListDetail);
 @defineDocumentDetailPosted(userPriceList, UserAPriceListDetail);
 
-@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, from, 'с ');
-@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, to, 'по ');
+@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, from, ' с');
+@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, to, ' по');
 
 article 'Артикул' = DATA Article (UserAPriceListDetail);
 idArticle 'Код' (UserAPriceListDetail d) = id(article(d));
@@ -37,6 +37,13 @@ priceList (APriceListDetail d) += userPriceList(userAPriceListDetail(d));
 sku (APriceListDetail d) += item(d);
 price(APriceListDetail d, DataPriceListType t) += price(userAPriceListDetail(d), t);
 
+fromDataDate(APriceListDetail d) += fromDataDate(userAPriceListDetail(d));
+fromDataTime(APriceListDetail d) += fromDataTime(userAPriceListDetail(d));
+toDataDate(APriceListDetail d) += toDataDate(userAPriceListDetail(d));
+toDataTime(APriceListDetail d) += toDataTime(userAPriceListDetail(d));
+
+countPriceListDetails = GROUP SUM 1 BY article(UserAPriceListDetail detail), userPriceList(detail);
+
 // Действующие цены
 
 priceB 'Цена' (DataPriceListType type, Article article, DATETIME dateTime) =
@@ -55,6 +62,7 @@ prevPriceB 'Цена до' (UserAPriceListDetail d, DataPriceListType t) = PREV(
 EXTEND FORM userPriceList
     OBJECTS ad = UserAPriceListDetail
     PROPERTIES(ad) index, idArticle, captionArticle, nameBrandArticle
+    PROPERTIES SHOWIF showDateTimeUser(p) fromDate(ad), fromTime(ad), toDate(ad), toTime(ad)
     PROPERTIES(ad, tc) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
     PROPERTIES(ad, to) READONLY prevPriceB COLUMNS 'type' (to) HEADER headerNameCurrentData(to) BACKGROUND backgroundCurrent(to) DRAW ad 
     PROPERTIES(ad) NEW, DELETE GRID
