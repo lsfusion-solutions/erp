@@ -157,7 +157,7 @@ EXTEND FORM receiveMessage
 // patner
 @extReference(partner, 'Контрагенты');
 @defKeyPropSimple(name, 'Наименование', STRING, keyProperties, partner);
-@defKeyPropSimple(inn, 'Наименование', STRING[12], keyProperties, partner);
+@defKeyPropSimple(inn, 'ИНН', STRING[12], keyProperties, partner);
 @defKeyPropSimple(kpp, 'КПП', STRING[9], keyProperties, partner);
 @defKeyPropSimple(fullName, 'НаименованиеПолное', STRING, keyProperties, partner);
 @defKeyPropSimple(type, 'ЮридическоеФизическоеЛицо', TypePartner, keyProperties, partner);
@@ -401,6 +401,33 @@ END
 CLASS ABSTRACT CashflowType 'Справочник.СтатьиДДС' : Reference;
 @defProp(name, 'Наименование', STRING, CashflowType);
 
+//gift card type
+CLASS ABSTRACT GiftCardType 'Справочник.ВидыПодарочныхСертификатов' : Reference;
+@defProp(currency, 'Валюта', Currency, GiftCardType);
+
+@defProp(denomination, 'Номинал', NUMERIC[15,2], GiftCardType);
+@defProp(partPayment, 'РазрешитьЧастичнуюОплату', BOOLEAN, GiftCardType);
+
+META defGiftCardType(nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = GiftCardType EXTID extid
+        PROPERTIES (nm###class, configuration) sendUid EXTID 'Ссылка', denomination EXTID 'Номинал', name EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
+    ;
+    @defCurrency(currency, nm###class);
+END
+
+META defGiftCardType(nm, class)
+    @defGiftCardType(nm, class, 'ВидПодарочногоСертификата');
+END
+
+META defGiftCardTypeDetail(nm, class, table, extid, group)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class###table = GiftCardType EXTID extid
+        PROPERTIES(nm###class###table, configuration)  sendUid EXTID 'Ссылка', denomination EXTID 'Номинал', name EXTID 'Наименование'
+        FILTERS nm###class###table = nm(class###table, configuration)
+    ;
+END 
 // all documents
 @defProp(dateTime, 'Дата', DATETIME, Document);
 dateTimeString 'Дата' (Document d, Configuration c) = dateTimeToString(dateTime(d, c));
@@ -958,15 +985,34 @@ END
 @extTable(retailReport, paymentGiftCard);
 
 @defPropDetail(giftCardNum, 'СерийныйНомер', STRING, retailReport, paymentGiftCard);
+
+@defPropDetail(sum, 'Сумма', NUMERIC[15,2], retailReport, paymentGiftCard);
+@defPropDetail(barcode, 'Штрихкод', STRING, retailReport, paymentGiftCard);
+
 EXTEND FORM sendMessage
-    PROPERTIES (retailReportPaymentGiftCard, configuration) giftCardNum EXTID 'СерийныйНомер' IN paymentGiftCardInfo
+    PROPERTIES (retailReportPaymentGiftCard, configuration) giftCardNum EXTID 'СерийныйНомер' IN paymentGiftCardInfo,
+                                                                  barcode EXTID 'Штрихкод' IN paymentGiftCardInfo,
+                                                                  sum EXTID 'Сумма'
 ;
 
 EXTEND FORM receiveMessage
-    PROPERTIES (retailReportPaymentGiftCard) giftCardNumRetailReportPaymentGiftCard EXTID 'СерийныйНомер'
+    PROPERTIES (retailReportPaymentGiftCard) giftCardNumRetailReportPaymentGiftCard EXTID 'СерийныйНомер',
+                                             sumRetailReportPaymentGiftCard EXTID 'Сумма'
 ;
 
-@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], retailReport, paymentGiftCard);
+@defPropDetail(giftCardType, 'ВидПодарочногоСертификата', GiftCardType, retailReport, paymentGiftCard);
+
+EXTEND FORM sendMessage
+    OBJECTS giftCardTypeRetailReportPaymentGiftCard = GiftCardType EXTID 'ВидПодарочногоСертификата' IN paymentGiftCardInfo
+    PROPERTIES(giftCardTypeRetailReportPaymentGiftCard, configuration)  sendUid EXTID 'Ссылка', denomination EXTID 'Номинал'
+    FILTERS giftCardTypeRetailReportPaymentGiftCard = giftCardType(retailReportPaymentGiftCard, configuration)
+;
+
+@defCurrency(currency, giftCardTypeRetailReportPaymentGiftCard, 'Валюта');
+
+EXTEND FORM sendMessage
+    PROPERTIES(giftCardTypeRetailReportPaymentGiftCard, configuration) partPayment EXTID 'РазрешитьЧастичнуюОплату'
+;    
 
 //giftCard sales
 @extTable(retailReport, giftCard);
