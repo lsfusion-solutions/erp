@@ -1,6 +1,6 @@
 MODULE DateSkuLedger;
 
-REQUIRE ZReport,SkuLedger;
+REQUIRE ZReport, SkuLedger;
 
 NAMESPACE ZReport;
 
@@ -20,9 +20,11 @@ discountSumReceiptSaleDetail 'Сумма скидки' (department, sku, date) =
 countReceiptSaleDetail (department, sku, date) = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
     BY departmentStore(d), sku(d), date(d) MATERIALIZED;
 
+overVAT = ABSTRACT Range(DepartmentStore, Sku);
+
 VATReceiptSaleDetail = DATA Range (DepartmentStore, Sku, DATE);
 WHEN SET(quantityReceiptSaleDetail(DepartmentStore department, Sku sku, DATE date)) DO {
-    VATReceiptSaleDetail (department, sku, date) <- VAT (sku, country(department));
+    VATReceiptSaleDetail (department, sku, date) <- OVERRIDE overVAT(department, sku), VAT(sku, country(department));
 }
 
 departmentStore = DATA DepartmentStore (DateSaleSkuLedger) INDEXED;
@@ -89,7 +91,7 @@ countReceiptReturnDetail  (department, sku, date) = GROUP SUM 1 IF isPosted(Rece
 
 VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE);
 WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE date)) DO {
-    VATReceiptReturnDetail (department, sku, date) <- VAT (sku, country(department));
+    VATReceiptReturnDetail (department, sku, date) <- OVERRIDE overVAT(department, sku), VAT (sku, country(department));
 }
 
 dateReturnSkuLedger = AGGR DateReturnSkuLedger WHERE countReceiptReturnDetail(DepartmentStore departmentStore, Sku sku, DATE date);// MATERIALIZED;
