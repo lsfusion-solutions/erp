@@ -199,10 +199,16 @@ show 'Просмотреть' (DisassemblyDetail d)  {
 
 @extendFormDocumentSkuStock(disassembly, disassembly, a, stock, );
 
+filterDisassemblyStock = DATA LOCAL NESTED Stock();
+nameFilterDisassemblyStock 'Склад' = name(filterDisassemblyStock());
+filterDisassemblyStock (Disassembly w) = stock(w) == filterDisassemblyStock() OR NOT filterDisassemblyStock();      
+
 FORM disassemblies 'Разборки товаров'
+    PROPERTIES () nameFilterDisassemblyStock
 
     OBJECTS a = Disassembly
-    PROPERTIES(a) READONLY isClosed, isPosted, nameOperation, number, series, date, time, nameStock,
+    PROPERTIES(a) READONLYIF isReadonly() isClosed 
+    PROPERTIES(a) READONLY isPosted, nameOperation, number, series, date, time, nameStock,
                            idBarcodeSku, idSku, nameSku,
                            countDisassemblyDetail, quantityDisassemblyDetail, sumDisassemblyDetail
                              
@@ -213,6 +219,7 @@ FORM disassemblies 'Разборки товаров'
 
     PROPERTIES(a) NEWSESSION NEW, EDIT SHOWIF isOpened(a), DELETE SHOWIF isOpened(a) 
     PROPERTIES(a) close SHOWIF isOpened(a), open SHOWIF isClosed(a)     
+    FILTERS filterDisassemblyStock(a)
     
     OBJECTS d = DisassemblyDetail
     PROPERTIES(d) READONLY index,
@@ -222,7 +229,14 @@ FORM disassemblies 'Разборки товаров'
 ;
 @extendFormFilterAccessStock(Disassembly, a, disassemblies, stock, company);
 
+@extendFormEditable(disassemblies);
+
 DESIGN disassemblies {
+    NEW filters BEFORE OBJECTS {
+        type = CONTAINERH;
+        caption = 'Фильтры';
+        MOVE PROPERTY(nameFilterDisassemblyStock()); 
+    }
     OBJECTS {
         NEW tabbedPane {
             fill = 0.5;
