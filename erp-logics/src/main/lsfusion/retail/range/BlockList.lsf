@@ -158,6 +158,8 @@ lastBlockListDetail (sku, Stock stock, supplier, DATETIME dateTime) =
                 AND NOT dateTime >  toDateTime(stock, detail)
           BY   sku(stock, detail), supplier(stock, detail) COMPLEX;        
 inBlockListCurrent 'Временная блокировка товара' (LegalEntity sup, Sku sku, Stock stock) = inBlockList(sku,stock,sup,currentDateTime());
+                                                        
+background =  ABSTRACT CASE COLOR (BlockListDetail);    
 
 FORM blockList 'Временная блокировка товара'
 
@@ -185,7 +187,7 @@ FORM blockList 'Временная блокировка товара'
     
 
     OBJECTS d = BlockListDetail
-    PROPERTIES(d)   index,
+    PROPERTIES(d)  BACKGROUND background(d) index,
                     idBarcodeSku, nameSku, shortNameUOMSku, fromDate, fromTime, toDate, toTime
 
     PROPERTIES(d)   NEW, deletedd=DELETE GRID
@@ -301,7 +303,7 @@ DESIGN blockList {
 isActive(BlockList b) = fromDateTime(b) <= currentDateTime() AND (toDateTime(b) >= currentDateTime() OR NOT toDateTime(b));
 
 background 'Цвет' (BlockList blockList) = CASE WHEN fromDateTime(blockList) > currentDateTime() OR NOT isPosted(blockList) THEN RGB(224,255,224)
-                                                        WHEN toDateTime(blockList) < currentDateTime() THEN RGB(255,224,224);      
+                                                        WHEN toDateTime(blockList) < currentDateTime() THEN RGB(255,224,224);
 
 FORM blockLists 'Временная блокировка товара'
 
@@ -324,7 +326,7 @@ FORM blockLists 'Временная блокировка товара'
         FILTER 'Активные' isActive(b) OR (fromDateTime(b) > currentDateTime() AND NOT toDateTime(b) < currentDateTime()) 'F10' DEFAULT
 
     OBJECTS d=BlockListDetail
-    PROPERTIES(d)   READONLY index,
+    PROPERTIES(d) READONLY BACKGROUND background(d) index,
                     idBarcodeSku, nameSku, shortNameUOMSku, fromDate, fromTime, toDate, toTime
     FILTERS         blockList(d) == b
     
