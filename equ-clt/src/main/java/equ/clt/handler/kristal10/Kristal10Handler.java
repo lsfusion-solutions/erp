@@ -121,7 +121,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                     for (CashRegisterItem item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
 
-                            JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
+                            JSONObject infoJSON = getExtInfo(item.info);
 
                             String shopIndices = getIdDepartmentStore(transaction.nppGroupMachinery, transaction.idDepartmentStoreGroupCashRegister, useNumberGroupInShopIndices);
                             if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
@@ -198,14 +198,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                 addStringElement(maxDiscountRestriction, "shop-indices", shopIndices);
                             rootElement.addContent(maxDiscountRestriction);
 
-                            if (useShopIndices)
-                                addStringElement(good, "shop-indices", shopIndices);
-
-                            addStringElement(good, "name", item.name);
-
-                            if (infoJSON != null) {
-                                addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));
-                            }
+                            fillGoodElement(good, item, shopIndices, useShopIndices, infoJSON);
 
                             //parent: good
                             Element barcode = getBarcodeElement(item, barcodeItem, null, exportAmountForBarcode);
@@ -725,7 +718,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         for (MachineryInfo machineryInfo : machineryInfoSet) {
                             if (machineryInfo instanceof CashRegisterInfo) {
                                 CashRegisterInfo c = (CashRegisterInfo) machineryInfo;
-                                JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
+                                JSONObject infoJSON = getExtInfo(item.info);
                                 String section = infoJSON != null ? infoJSON.optString("section") : null;
                                 departNumberSet.add(getDepartNumber(section, c.overDepartNumber != null ? c.overDepartNumber : c.numberGroup, useSectionAsDepartNumber));
                             }

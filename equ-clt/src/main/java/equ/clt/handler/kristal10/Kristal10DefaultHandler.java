@@ -36,6 +36,22 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return value;
     }
 
+    protected void fillGoodElement(Element good, CashRegisterItem item, String shopIndices, boolean useShopIndices, JSONObject infoJSON) {
+        if (useShopIndices) {
+            addStringElement(good, "shop-indices", shopIndices);
+        }
+
+        addStringElement(good, "name", item.name);
+
+        if (infoJSON != null) {
+            addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));
+
+            if (infoJSON.has("age")) {
+                addStringElement(good, "age-limit", infoJSON.getString("age"));
+            }
+        }
+    }
+
     protected Element getBarcodeElement(CashRegisterItem item, String barcodeItem, String idItem, boolean exportAmountForBarcode) {
         Element barcodeElement = new Element("bar-code");
         setAttribute(barcodeElement, "code", barcodeItem);
@@ -206,7 +222,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return false;
     }
 
-    private JSONObject getExtInfo(String extInfo) {
+    protected JSONObject getExtInfo(String extInfo) {
         return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("kristal10") : null;
     }
 

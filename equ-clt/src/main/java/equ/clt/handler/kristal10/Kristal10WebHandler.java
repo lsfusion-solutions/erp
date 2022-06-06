@@ -177,7 +177,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
-                JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
+                JSONObject infoJSON = getExtInfo(item.info);
 
                 String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
 
@@ -207,14 +207,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                 rootElement.addContent(good);
 
-                if (useShopIndices)
-                    addStringElement(good, "shop-indices", shopIndices);
-
-                addStringElement(good, "name", item.name);
-
-                if (infoJSON != null) {
-                    addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));
-                }
+                fillGoodElement(good, item, shopIndices, useShopIndices, infoJSON);
 
                 addProductType(good, item, tobaccoGroups);
 
@@ -366,7 +359,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
-                JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
+                JSONObject infoJSON = getExtInfo(item.info);
 
                 String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
@@ -712,7 +705,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 for (MachineryInfo machineryInfo : machineryInfoSet) {
                     if (machineryInfo instanceof CashRegisterInfo) {
                         CashRegisterInfo c = (CashRegisterInfo) machineryInfo;
-                        JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
+                        JSONObject infoJSON = getExtInfo(item.info);
                         String section = infoJSON != null ? infoJSON.optString("section") : null;
                         departNumberSet.add(getDepartNumber(section, c.overDepartNumber != null ? c.overDepartNumber : c.numberGroup, useSectionAsDepartNumber));
                     }
