@@ -230,7 +230,7 @@ overChangeDashboardSku (Sku sk, Stock st) + { requestComWeight(); }
 EXTEND FORM disassemblyLotDashboard
     PROPERTIES() iweight ON CHANGE { 
                     INPUT w = iweight() DO { 
-                        iweight() <- w / 1000; 
+                        iweight() <- NUMERIC[11,5](IF w >= (OVERRIDE minimumWeight(), 30) THEN w / 1000 ELSE w); 
                         iimagePhoto();
                         overChangeDashboardWeight(s, st); 
                     }
@@ -265,6 +265,11 @@ overProcessLot ABSTRACT LIST (Lot);
 overCreateDisassemblyLot ABSTRACT LIST (Disassembly, Lot);
 
 processLot 'Обработать' (Stock st) {
+    IF disassemblyMode() AND lot(ibarcode()) THEN {
+        MESSAGE 'Используйте вкладку Редактирование';
+        RETURN;
+    }
+
     generateLot();
     IF ibarcode() AND NOT lot(ibarcode()) THEN {
         NEW l = Lot {
@@ -278,7 +283,7 @@ processLot 'Обработать' (Stock st) {
                     sku(d) <- dsku();
                     stock(d) <- st;
                 }
-            FOR Disassembly a = disassembly(st, currentUser(), dsku()) AND NOT disassemblyLot(a, l) AND NOT currentBalance(l) DO {
+            FOR Disassembly a = disassembly(st, currentUser(), dsku()) AND NOT disassemblyLot(a, l) DO {
                 NEW d = DisassemblyLot {
                     disassembly(d) <- a;
                     lot(d) <- l;
