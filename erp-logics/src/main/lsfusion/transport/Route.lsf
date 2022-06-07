@@ -1,6 +1,6 @@
 MODULE Route;
 
-REQUIRE Transport, Numerator;
+REQUIRE Transport, Numerator, Geo;
 
 // ------------------------------- Route ----------------------------------- //
 CLASS Route 'Маршрут';
@@ -19,18 +19,44 @@ FORM route 'Маршрут'
     EDIT Route OBJECT r
 ;
 
+DESIGN route {
+    OBJECTS { 
+        NEW header {
+            NEW numerator {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                MOVE PROPERTY(nameNumerator(r));
+                MOVE PROPERTY(number(r));
+                MOVE PROPERTY(series(r));
+            }
+            NEW truck {
+                type = CONTAINERH;
+                alignment = STRETCH;
+                MOVE PROPERTY(sidTruck(r));
+            }
+        }
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 1;
+        }
+    }
+}
+
 FORM routes 'Маршруты'
     OBJECTS r=Route
     PROPERTIES(r) READONLY nameNumerator, number, series, sidTruck
     PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE 
 ;
 
-
 // ------------------------------- Node ------------------------------------ //
 CLASS ABSTRACT Node 'Пункт';
 
 name 'Наименование' = ABSTRACT ISTRING[150](Node);
 address 'Адрес' = ABSTRACT ISTRING[150](Node);
+
+longitude 'Координата Y' = ABSTRACT NUMERIC[11,6](Node);
+latitude 'Координата X' = ABSTRACT NUMERIC[11,6](Node);
+
 legalEntity = ABSTRACT LegalEntity(Node);
 
 nameLegalEntity 'Юр. лицо' (Node node) = name(legalEntity(node));
@@ -43,8 +69,10 @@ EXTEND CLASS Stock : Node;
 //EXTEND CLASS supplier : node;
 
 name(Stock stock) += Stock.name(stock) IF stock IS Stock;
-
 address(Stock stock) += Stock.address(stock) IF stock IS Stock;
+
+longitude(Stock stock) += Geo.longitude(stock) IF stock IS Stock;
+latitude(Stock stock) += Geo.latitude(stock) IF stock IS Stock;
 
 legalEntity(Stock stock) += Stock.legalEntity(stock);
 
@@ -54,15 +82,42 @@ showNode (Route r) = r IS Route AND NOT skipShowNode(r);
 //nameNode(supplier) += name(supplier) IF supplier IS Supplier;
 
 EXTEND FORM route
-
-    OBJECTS n=Node
+    OBJECTS n = Node
     PROPERTIES (n) READONLY SHOWIF showNode(r) name, address
     PROPERTIES (n, r) SHOWIF showNode(r) in, number
+    
+    FILTERGROUP selected
+        FILTER 'Отмеченные' in(n, r)
+        
+    OBJECTS nm = Node MAP
+    PROPERTIES(nm) READONLY name, longitude, latitude
+    PROPERTIES READONLY color = RGB(255,0,0) IF in(nm, r) 
+    PROPERTIES(nm) READONLY PANEL address
+    PROPERTIES(nm, r) PANEL in, number
+
+    FILTERGROUP selectedM
+        FILTER 'Отмеченные' in(nm, r) DEFAULT
 ;
+
+DESIGN route {
+    tabbedPane {
+        MOVE BOX(n) {
+            caption = 'Склады';
+        }
+        MOVE BOX(nm) {
+            caption = 'Карта';
+            GRID(nm) {
+                MOVE PROPERTY(address(nm));
+                MOVE PROPERTY(in(nm, r));
+                MOVE PROPERTY(number(nm, r));
+            }
+        }
+    }
+}
 
 EXTEND FORM routes
     OBJECTS n=Node
-    PROPERTIES (n) READONLY SHOWIF showNode(r) name, address
+    PROPERTIES (n) READONLY SHOWIF showNode(r) name, address, longitude, latitude
     PROPERTIES(n, r) READONLY SHOWIF showNode(r) number 
     FILTERS in(n, r)
 ;
