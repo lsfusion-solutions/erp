@@ -118,25 +118,21 @@ public class TerminalServer extends MonitorServer {
     }
 
     public void setupDaemon() {
-        if (getDbManager().isServer()) {
-            assert terminalHandler != null;
+        assert terminalHandler != null;
 
-            try {
-                List<Object> hostPort = terminalHandler.readHostPort(createSession());
-                if (hostPort.size() >= 2 && hostPort.get(0) != null && hostPort.get(1) != null) {
-                    String host = (String) hostPort.get(0);
-                    Integer port = (Integer) hostPort.get(1);
-                    logger.info("Binding Terminal Server.");
-                    started = true;
-                    listenToPort(host, port);
-                } else {
-                    logger.info("Terminal Server disabled, no host/port settings found");
-                }
-            } catch (SQLException e) {
-                logger.error("Error reading Terminal Server settings");
+        try {
+            List<Object> hostPort = terminalHandler.readHostPort(createSession());
+            if (hostPort.size() >= 2 && hostPort.get(0) != null && hostPort.get(1) != null) {
+                String host = (String) hostPort.get(0);
+                Integer port = (Integer) hostPort.get(1);
+                logger.info("Binding Terminal Server.");
+                started = true;
+                listenToPort(host, port);
+            } else {
+                logger.info("Terminal Server disabled, no host/port settings found");
             }
-        } else {
-            logger.info("Terminal Server disabled, change serverComputer() to enable");
+        } catch (SQLException e) {
+            logger.error("Error reading Terminal Server settings");
         }
     }
 
