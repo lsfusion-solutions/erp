@@ -185,6 +185,12 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                         setAttribute(client, "sex", d.sexContact == 0 ? "MALE" : "FEMALE");
                     }
                     setAttribute(client, "isCompleted", d.isCompleted);
+
+                    JSONObject infoJSON = getExtInfo(d.extInfo);
+                    if(infoJSON != null && infoJSON.optBoolean("sendchecktoemail")) {
+                        setAttribute(client, "receipt-feedback", "BY_EMAIL");
+                    }
+
                     internalCard.addContent(client);
 
                     rootElement.addContent(internalCard);

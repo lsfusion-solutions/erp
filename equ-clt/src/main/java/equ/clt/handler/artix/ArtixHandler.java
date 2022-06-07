@@ -835,6 +835,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         JSONObject infoJSON = getExtInfo(card.extInfo);
         if (infoJSON != null) {
+
+            if(infoJSON.optBoolean("sendchecktoemail")) {
+                JSONObject options = new JSONObject();
+                options.put("sendchecktoemail", true);
+                clientObject.put("options", options);
+            }
+
             String extendedOptions = infoJSON.optString("extendedoptions");
             if (!extendedOptions.isEmpty()) {
                 clientObject.put("extendedoptions", extendedOptions);
