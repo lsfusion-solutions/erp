@@ -15,8 +15,18 @@ nearestAutoPricing 'Авто изменение цены' (CalcPriceListType cal
 
 autoPricing 'Авто изменение цены' (CalcPriceListType calcPriceListType, Group group) = OVERRIDE dataAutoPricing(calcPriceListType,group), nearestAutoPricing(calcPriceListType,group);
 
+quantityChildWithAutoPricing(CalcPriceListType calcPriceListType, Group group) = GROUP SUM 1 IF dataAutoPricing(calcPriceListType, ItemGroup childItemGroup) AND isParent(childItemGroup, group) MATERIALIZED;
+quantityParentWithAutoPricing(CalcPriceListType calcPriceListType, Group group) = GROUP SUM 1 IF dataAutoPricing(calcPriceListType, ItemGroup parentItemGroup) AND isParent(group, parentItemGroup) MATERIALIZED;
+
+backgroundShowAutoPricing (CalcPriceListType calcPriceListType, Group group) =
+    IF dataAutoPricing(calcPriceListType, group) THEN
+        RGB(0,0,0) IF group IS Group
+    ELSE
+        RGB(203,203,206) IF quantityChildWithAutoPricing (calcPriceListType, group) != descendantNumber(group)
+                         AND NOT quantityParentWithAutoPricing (calcPriceListType,group);
+
 EXTEND FORM calcPriceListType
-    PROPERTIES(c,g) autoPricing
+    PROPERTIES(c,g) autoPricing BACKGROUND backgroundShowAutoPricing(c,g)
 ; 
 
 skipRepricing = ABSTRACT BOOLEAN (Sku, Stock);
