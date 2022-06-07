@@ -37,7 +37,8 @@ priceBefore 'Старая цена' = ABSTRACT NUMERIC[16,4](Sku, Stock);
 priceBeforeIdBarcodeId(STRING[15] sku, STRING[100] stock) = priceBefore(skuBarcode(sku), stock(stock));
 
 manufacturer = ABSTRACT LegalEntity (Item);
-nameManufacturer (Barcode barcode) = OVERRIDE name(manufacturer(sku(barcode))), nameManufacturer(sku(barcode));
+nameManufacturerOver (Sku s) = OVERRIDE name(manufacturer(s)), nameManufacturer(s);
+nameManufacturer (Barcode b) = nameManufacturerOver(sku(b));
 
 terminalName = ABSTRACT ISTRING[255](Barcode, Stock);
 overNameSku (Barcode b, Stock s) = OVERRIDE terminalName(b, s), nameSku(b);
@@ -60,9 +61,10 @@ order(TerminalBarcodeFlags f) = CASE
     WHEN f = TerminalBarcodeFlags.goodInternetStore THEN 5l
     WHEN f = TerminalBarcodeFlags.goodMarking THEN 6l;
     
-in = ABSTRACT CASE BOOLEAN (Barcode, TerminalBarcodeFlags);
+in = ABSTRACT CASE BOOLEAN (Sku, TerminalBarcodeFlags);
 flag (TerminalBarcodeFlags f) = LONG(power(2l, order(f)));
-flags(Barcode b) = GROUP SUM flag(TerminalBarcodeFlags f) IF in(b, f);
+flags(Sku s) = GROUP SUM flag(TerminalBarcodeFlags f) IF in(s, f);
+flags(Barcode b) = flags(sku(b));
 
 image(Barcode b) = smallImage(sku(b)) IF hasImage(sku(b));
 

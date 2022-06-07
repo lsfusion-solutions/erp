@@ -601,7 +601,7 @@ public class DefaultTerminalHandler {
                                     addGoodsRow(statement, extraBarcode, order.name, order.price, null,
                                             order.idItem, order.manufacturer, null, null, null,
                                             image, order.weight, order.barcode, null, null, null,
-                                            null, null, BigDecimal.ZERO, null);
+                                            order.flags, null, BigDecimal.ZERO, null);
                                     statement.addBatch();
                                 }
                             }
@@ -610,7 +610,7 @@ public class DefaultTerminalHandler {
                                 String image = imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : null;
                                 addGoodsRow(statement, order.barcode, order.name, order.price, null, order.idItem,
                                         order.manufacturer, null, null, null, image, order.weight, order.barcode,
-                                        null, null, null, null, null, BigDecimal.ZERO,
+                                        null, null, null, order.flags, null, BigDecimal.ZERO,
                                         null);
                             }
                         }
@@ -1209,7 +1209,7 @@ public class DefaultTerminalHandler {
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
                         "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
-                        "minDeviationDate", "maxDeviationDate", "vop", "dateShipment", "extraBarcodes", "sortTerminal"};
+                        "minDeviationDate", "maxDeviationDate", "vop", "dateShipment", "extraBarcodes", "flags", "sortTerminal"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
                         "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "passScalesSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
@@ -1217,7 +1217,7 @@ public class DefaultTerminalHandler {
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
                         "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]",
                         "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]", "vop[TerminalOrderDetail]", "dateShipment[TerminalOrderDetail]",
-                        "extraBarcodes[TerminalOrderDetail]", "sortTerminal[TerminalOrderDetail]");
+                        "extraBarcodes[TerminalOrderDetail]", "flagsSku[TerminalOrderDetail]", "sortTerminal[TerminalOrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
@@ -1258,6 +1258,7 @@ public class DefaultTerminalHandler {
                     String vop = (String) entry.get("vop");
                     String extraBarcodes = (String) entry.get("extraBarcodes");
                     List<String> extraBarcodeList = extraBarcodes != null ? Arrays.asList(extraBarcodes.split(",")) : new ArrayList<>();
+                    Long flags = (Long) entry.get("flags");
 
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
@@ -1269,7 +1270,7 @@ public class DefaultTerminalHandler {
                         terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
-                                extraBarcodeList));
+                                extraBarcodeList, flags));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
@@ -1698,11 +1699,13 @@ public class DefaultTerminalHandler {
         public List<String> extraBarcodeList;
         public RawFileData image;
 
+        public Long flags;
+
         public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier, String barcode, String idItem, String name,
                              BigDecimal price, BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity,
                              BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, String color,
                              String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,
-                             String minDate1, String maxDate1, String vop, List<String> extraBarcodeList) {
+                             String minDate1, String maxDate1, String vop, List<String> extraBarcodeList, Long flags) {
             this.date = date;
             this.dateShipment = dateShipment;
             this.number = number;
@@ -1730,6 +1733,7 @@ public class DefaultTerminalHandler {
             this.maxDate1 = maxDate1;
             this.vop = vop;
             this.extraBarcodeList = extraBarcodeList;
+            this.flags = flags;
         }
     }
 

@@ -1,6 +1,6 @@
 MODULE TerminalOrder;
 
-REQUIRE System, LegalEntity, Barcode, Item;
+REQUIRE TerminalHandler;
 
 NAMESPACE Terminal;
 
@@ -30,6 +30,10 @@ idBarcodeSku 'Штрихкод' (TerminalOrderDetail d) = OVERRIDE terminalBarco
 idSku 'Код' (TerminalOrderDetail d) = id(sku(d));
 nameSku 'Наименование' (TerminalOrderDetail d) = name(sku(d));
 
+nameManufacturerSku (TerminalOrderDetail d) = nameManufacturerOver(sku(d));
+passScalesSku(TerminalOrderDetail d) = passScales(sku(d));
+flagsSku(TerminalOrderDetail d) = flags(sku(d));
+
 overExtraBarcodes = ABSTRACT STRING (TerminalOrderDetail);
 extraBarcodes (TerminalOrderDetail d) = OVERRIDE overExtraBarcodes(d), [GROUP CONCAT STRING(id(Barcode b)) IF sku(b) == sku(TerminalOrderDetail td) AND active(b), ',' ORDER b BY td](d);
 image(TerminalOrderDetail d) = smallImage(sku(d));
@@ -41,9 +45,6 @@ price 'Цена' = ABSTRACT NUMERIC[16,4] (TerminalOrderDetail);
 dataOrderQuantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (TerminalOrderDetail);
 overOrderQuantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (TerminalOrderDetail);
 orderQuantity 'Кол-во' (TerminalOrderDetail td) = OVERRIDE overOrderQuantity(td), dataOrderQuantity(td);
-
-nameManufacturerSku = ABSTRACT ISTRING[200] (TerminalOrderDetail);
-passScalesSku = ABSTRACT BOOLEAN (TerminalOrderDetail);
 
 maxDeviationQuantity 'Макс. кол-во' = ABSTRACT NUMERIC[29,11] (TerminalOrderDetail); 
 minDeviationQuantity 'Мин. кол-во' = ABSTRACT NUMERIC[29,11] (TerminalOrderDetail); 
