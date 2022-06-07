@@ -41,7 +41,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             addStringElement(good, "shop-indices", shopIndices);
         }
 
-        addStringElement(good, "name", item.name);
+        addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
 
         if (infoJSON != null) {
             addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));

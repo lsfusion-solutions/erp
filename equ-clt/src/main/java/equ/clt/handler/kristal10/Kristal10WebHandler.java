@@ -669,7 +669,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             Element good = new Element("good");
             idBarcode = transformBarcode(idBarcode, null, false, skipWeightPrefix);
             setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
-            addStringElement(good, "name", item.name);
+            addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
 
             addProductType(good, item, tobaccoGroups);
 
