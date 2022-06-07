@@ -1582,11 +1582,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 }
                                             }
 
+                                            String extDocId = trimToNull(inventPosition.optString("extdocid"));
+
                                             String externalNumber;
                                             if(receiptIdentifiersToExternalNumber) {
                                                 externalNumber = isSale ? identifier : (sourceIdentifier + "/" + inventPosition.optString("posNum"));
                                             } else {
-                                                externalNumber = trimToNull(inventPosition.optString("extdocid"));
+                                                externalNumber = extDocId;
                                             }
 
                                             String extendedOptions = trimToNull(inventPosition.optString("extendetoptions"));
@@ -1654,6 +1656,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 }
                                                 if(uid != null) {
                                                     receiptDetailExtraFields.put("uid", uid);
+                                                }
+                                                if(extDocId != null) {
+                                                    receiptDetailExtraFields.put("extDocId", extDocId);
                                                 }
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
