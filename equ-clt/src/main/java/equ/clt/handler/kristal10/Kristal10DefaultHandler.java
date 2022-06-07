@@ -47,7 +47,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));
 
             if (infoJSON.has("age")) {
-                addStringElement(good, "age-limit", infoJSON.getString("age"));
+                addIntegerElement(good, "age-limit", infoJSON.getInt("age"));
             }
         }
     }
