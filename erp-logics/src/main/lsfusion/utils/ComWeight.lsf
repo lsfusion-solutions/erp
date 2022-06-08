@@ -91,13 +91,20 @@ readComWeight (TEXT t) {
     weightRead() <- NULL;
 
     LOCAL bytes = TEXT ();
-    CASE WHEN (startsWith(t, '[32,32,') OR isSubstring(t, '83,32,32,') OR isSubstring(t, '85,32,32,')) AND wordCount(t, ',') >= 8 THEN {
-        bytes() <- substrFrom(t, strpos(t, '32,32,') + 6);
+    CASE WHEN startsWith(t, '[32,32,') AND wordCount(t, ',') >= 8 THEN {
+        bytes() <- substrFrom(t, 8);
         bytes() <- left(bytes(), length(bytes())-1);
         
         weightRead() <- max(INTEGER(getWord(bytes(), ',', 1)) - 48, 0) * 10000 + (INTEGER(getWord(bytes(), ',', 2)) - 48) * 1000 +
                     (INTEGER(getWord(bytes(), ',', 4)) - 48) * 100 + (INTEGER(getWord(bytes(), ',', 5)) - 48) * 10 +
                     (INTEGER(getWord(bytes(), ',', 6)) - 48);
+    } WHEN (isSubstring(t, '83,32,32,') OR isSubstring(t, '85,32,32,')) AND wordCount(t, ',') >= 9 THEN {
+        bytes() <- substrFrom(t, strpos(t, '32,32,') + 6);
+        bytes() <- left(bytes(), length(bytes())-1);
+        
+        weightRead() <- max(INTEGER(getWord(bytes(), ',', 1)) - 48, 0) * 1000 +
+                    (INTEGER(getWord(bytes(), ',', 3)) - 48) * 100 + (INTEGER(getWord(bytes(), ',', 4)) - 48) * 10 +
+                    (INTEGER(getWord(bytes(), ',', 5)) - 48);
     } WHEN isSubstring(t, '170,') AND wordCount(t, ',') >= 5 THEN { 
         bytes() <- substrFrom(t, strpos(t, '170,') + 4);
         bytes() <- left(bytes(), length(bytes())-1);
