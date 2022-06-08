@@ -415,10 +415,10 @@ EXTEND FORM disassemblyLotDashboard
 fixedLotDashboard 'Брак' = DATA BOOLEAN (Item) IN itemLotDashboard;
 EXTEND FORM item PROPERTIES(i) fixedLotDashboard;
 
-choose (Item i) { 
+choose (Sku sk, Item i) { 
     isku() <- i;
-//    FOR [VIEW disassemblyLotDashboard.st](Stock st) DO  
-//        overChangeDashboardSku(sk, st); 
+    FOR [VIEW disassemblyLotDashboard.st](Stock st) DO  
+        overChangeDashboardSku(sk, st); 
 }
 choose (Part p) { 
     isku() <- item(p); 
@@ -435,7 +435,7 @@ EXTEND FORM disassemblyLotDashboard
     FILTERS set(p) = s
     
     OBJECTS fi = Item
-    PROPERTIES choose(fi) COLUMNS (fi) HEADER name(fi), name(fi)
+    PROPERTIES choose(s, fi) COLUMNS (fi) HEADER name(fi), name(fi)
     ORDERS name(fi)
     FILTERS fixedLotDashboard(fi)
 ;
@@ -446,7 +446,7 @@ DESIGN disassemblyLotDashboard {
         MOVE PROPERTY(choose(p)) { fontSize = 14; fontStyle = 'bold'; focusable = FALSE; }
 
         REMOVE BOX(fi);
-        MOVE PROPERTY(choose(fi)) { fill = 1; fontSize = 18; fontStyle = 'bold'; focusable = FALSE; }
+        MOVE PROPERTY(choose(s, fi)) { fill = 1; fontSize = 18; fontStyle = 'bold'; focusable = FALSE; }
     }
 }
 
