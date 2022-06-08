@@ -11,12 +11,15 @@ META defineAddDetailDialogTerminalLotSecond(object)
     overAddDetailDialogTerminal###object##Detail(###object##Detail d, TerminalDocumentDetail td) + {
         LOCAL countNew = INTEGER();
         countNew() <- [GROUP SUM 1 IF id(TerminalLotDetail tl) AND NOT lot(id(tl)) BY terminalDocumentDetail(tl)](td);
-
-        quantity(d, Lot l) <- 1.0 WHERE [GROUP MIN TerminalLotDetail tld BY lot(id(tld)), terminalDocumentDetail(tld)](l, td); 
+        
+        LOCAL double = BOOLEAN(Lot);
+        double(Lot l) <- TRUE WHERE [GROUP MIN TerminalLotDetail tl BY terminalDocumentDetail(tl), lot(id(tl))](td, l) AND quantity(##object(d), l);
+          
+        quantity(d, Lot l) <- 1.0 WHERE [GROUP MIN TerminalLotDetail tld BY lot(id(tld)), terminalDocumentDetail(tld)](l, td) AND NOT double(l); 
         quantity(d) <- [GROUP SUM quantity(d, Lot l) IF l IS Lot]() WHERE [GROUP MIN TerminalLotDetail tld BY terminalDocumentDetail(tld)](td); 
 
-        IF countNew() > 0 THEN
-            MESSAGE (CONCAT ' ', 'Неизвестных оценённых товаров:', countNew()) NOWAIT; 
+//        IF countNew() > 0 THEN
+//            MESSAGE (CONCAT ' ', nameSku(d), 'неизвестных оценённых товаров:', countNew()) NOWAIT; 
     }
 END
 
