@@ -98,9 +98,17 @@ async function openPortReader(info, timeout) {
     serialPortReader = undefined;
 }
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function sendPortReader(value) {
     const encoder = new TextEncoder();
-    await serialPortReader.writer.write(encoder.encode(value));
+    var commands = value.split("PS");
+    for (var i = 0; i < commands.length ; i++) {
+    	await serialPortReader.writer.write(encoder.encode(commands[i]));
+        await sleep(100);
+    }
 }
 
 async function closePortReader() {
