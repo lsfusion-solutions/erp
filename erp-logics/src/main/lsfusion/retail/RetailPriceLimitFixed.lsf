@@ -44,15 +44,15 @@ onStarted() + {
         dataStepPercLimitRetailPrice(2022_01_01)<- 0.9; 
         dataStepPercLimitRetailPrice(2022_02_01)<- 0.9;   
         dataStepPercLimitRetailPrice(2022_03_01)<- 0.3;     
-        dataStepPercLimitRetailPrice(2022_04_01)<- 0.3; 
-        dataStepPercLimitRetailPrice(2022_05_01)<- 0.3;         
-        dataStepPercLimitRetailPrice(2022_06_01)<- 0.3;                 
-        dataStepPercLimitRetailPrice(2022_07_01)<- 0.3; 
-        dataStepPercLimitRetailPrice(2022_08_01)<- 0.3;         
-        dataStepPercLimitRetailPrice(2022_09_01)<- 0.3;    
-        dataStepPercLimitRetailPrice(2022_10_01)<- 0.3; 
-        dataStepPercLimitRetailPrice(2022_11_01)<- 0.3; 
-        dataStepPercLimitRetailPrice(2022_12_01)<- 0.3;                                
+        dataStepPercLimitRetailPrice(2022_04_01)<- 1.2; 
+        dataStepPercLimitRetailPrice(2022_05_01)<- 1.2;         
+        dataStepPercLimitRetailPrice(2022_06_01)<- 1.2;                 
+        dataStepPercLimitRetailPrice(2022_07_01)<- 1.2; 
+        dataStepPercLimitRetailPrice(2022_08_01)<- 1.2;         
+        dataStepPercLimitRetailPrice(2022_09_01)<- 1.2;    
+        dataStepPercLimitRetailPrice(2022_10_01)<- 1.2; 
+        dataStepPercLimitRetailPrice(2022_11_01)<- 1.2; 
+        dataStepPercLimitRetailPrice(2022_12_01)<- 1.2;                                
         migrateStepPerc() <- TRUE;
         APPLY;
     }
@@ -194,13 +194,16 @@ fillMaxLimitRetailPrice 'Заполнить максимальную розни�
     }
 }
 
+stockGroupFilter = ABSTRACT CASE BOOLEAN (DepartmentStore);
+stockGroupFilter(DepartmentStore ds) += WHEN stockGroup(ds) IS Store THEN TRUE;
+
 fillMaxLimitRetailPrice 'Заполнить максимальную розничную цену' (DATETIME dt) {
     IF stepPercLimitRetailPrice(firstDayOfMonth(sumMonth(DATE(dt),1))) THEN {
         IF useMaxLimitRetailPriceCustom() THEN {
             fillMaxLimitRetailPriceCustom(dt);
         } ELSE {
             LOCAL NESTED incl = BOOLEAN (DepartmentStore);
-            incl(DepartmentStore ds)<- ds IS DepartmentStore AND stockGroup(ds) IS Store;
+            incl(DepartmentStore ds)<- ds IS DepartmentStore AND stockGroupFilter(ds);
         
             FOR incl(DepartmentStore stock) DO {
                 fillMaxLimitRetailPrice(dt,stock);
@@ -249,7 +252,7 @@ FORM dialogDateTS 'Выбор даты/время'
     PROPERTIES usePeriod()
     OBJECTS st = DepartmentStore PANEL 
     PROPERTIES (st) SELECTOR name
-    FILTERS active(st), stockGroup(st) IS Store
+    FILTERS active(st), stockGroupFilter(st)
 ;
 
 DESIGN dialogDateTS {
@@ -457,19 +460,19 @@ WHEN DROPPED(calcCheckLimitRetailPrice(Sku s)) IF NOT disableLimitRetailPriceLog
 
 fillAllStocks 'Выбрать для всех магазинов' (Sku s,Stock st){
     DIALOG dialogNumeric OBJECTS n = maxLimitRetailPrice(s,st) INPUT DO {
-        maxLimitRetailPrice(s,Stock ds)<- NUMERIC[16,4](n) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
+        maxLimitRetailPrice(s,Stock ds)<- NUMERIC[16,4](n) WHERE ds IS DepartmentStore AND stockGroupFilter(ds); 
     }
 }
 useAllStocks 'Применить ко всем магазинам' (Sku s,Stock st){
-    maxLimitRetailPrice(s,Stock ds)<- maxLimitRetailPrice(s,st) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
+    maxLimitRetailPrice(s,Stock ds)<- maxLimitRetailPrice(s,st) WHERE ds IS DepartmentStore AND stockGroupFilter(ds); 
 }
 fillAllStocksCustom 'Выбрать для всех магазинов' (Sku s,Stock st){
     DIALOG dialogNumeric OBJECTS n = maxLimitRetailPriceCustom(s,st) INPUT DO {
-        maxLimitRetailPriceCustom(s,Stock ds)<- NUMERIC[16,4](n) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
+        maxLimitRetailPriceCustom(s,Stock ds)<- NUMERIC[16,4](n) WHERE ds IS DepartmentStore AND stockGroupFilter(ds); 
     }
 }
 useAllStocksCustom 'Применить ко всем магазинам' (Sku s,Stock st){
-    maxLimitRetailPriceCustom(s,Stock ds)<- maxLimitRetailPriceCustom(s,st) WHERE ds IS DepartmentStore AND stockGroup(ds) IS Store; 
+    maxLimitRetailPriceCustom(s,Stock ds)<- maxLimitRetailPriceCustom(s,st) WHERE ds IS DepartmentStore AND stockGroupFilter(ds); 
 }
 
 backgroundRetailPrice = ABSTRACT CASE COLOR(Sku);
@@ -599,7 +602,7 @@ FORM maxLimitRetailPrice 'Максимальные розничные цены'
  
         
     EVENTS ON INIT {
-        inLimit(Stock ss)<- TRUE IF ss == [GROUP MIN Stock ff IF accessCompany(currentUser(), ff) AND ff IS DepartmentStore AND stockGroup(ff) IS Store]();         
+        inLimit(Stock ss)<- TRUE IF ss == [GROUP MIN Stock ff IF accessCompany(currentUser(), ff) AND ff IS DepartmentStore AND stockGroupFilter(ff)]();         
         SEEK maxLimitRetailPrice.dates OBJECTS df=firstDayOfYear(currentDate()), dt = lastDayOfYear(currentDate());
     }
 ;
