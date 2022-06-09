@@ -366,6 +366,9 @@ headerNameChangeData (PriceListType dataPriceListType) =
 
 headerNameData (PriceListType dataPriceListType) =
     name(dataPriceListType) CHARWIDTH 30;
+
+overNameData = ABSTRACT CASE ISTRING[100] (PriceListDetail, PriceListType);
+headerNameData (PriceListDetail d, PriceListType pt) = OVERRIDE overNameData(d, pt), name(pt) CHARWIDTH 30;
     
 headerNameCompanyData (PriceListType dataPriceListType) = 'Организация (старая)' IF dataPriceListType IS PriceListType;    
 
@@ -595,7 +598,7 @@ FORM userPriceList 'Прайс'
                   fromTime SHOWIF showDateTimeUser(p), toDate SHOWIF showDateTimeUser(p), 
                   toTime SHOWIF showDateTimeUser(p), nameCompany SHOWIF showCompanyUser(p), 
                   exclude, NEW, deleted = DELETE GRID
-    PROPERTIES(d, tc) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
+    PROPERTIES(d, tc) price COLUMNS (tc) HEADER headerNameData(d,tc) BACKGROUND background(tc)
     PROPERTIES(p) DRAW d  fillDocument, addDetailInputBarcodeUserPriceListDetail
     ORDERS index(d)
     FILTERS userPriceList(d) == p,
@@ -1360,7 +1363,7 @@ FORM printPriceList 'Прайс'
     OBJECTS d = UserPriceListDetail
     PROPERTIES(d) READONLY index[PriceListDetail], idBarcodeSku[PriceListDetail], nameSku[PriceListDetail],
                            shortNameUOMSku[PriceListDetail], nameCompany[PriceListDetail]
-    PROPERTIES(d, t) price[PriceListDetail,DataPriceListType] COLUMNS (t) HEADER headerNameData(t) BACKGROUND background(t) DRAW d 
+    PROPERTIES(d, t) price[PriceListDetail,DataPriceListType] COLUMNS (t) HEADER headerNameData(d,t) BACKGROUND background(t) DRAW d 
 
     FILTERS priceList(d) == p
 ;
