@@ -27,6 +27,9 @@ FORM result
     OBJECTS message = INTEGER
     PROPERTIES(message) message EXTID 'value';
 
+idCategoryNum = ABSTRACT INTEGER (MachineryPriceTransaction, Group);
+idCategoryNum = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode);
+
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
     IF handlerModel(groupMachinery(t)) = 'lsf.machinery.scales.rbs.KS4010' THEN NEWSESSION {
         NEWSESSION {
@@ -37,7 +40,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
         LOCAL groups = JSONFILE();
         LOCAL groupsImages = FILE();
         EXPORT JSON FROM
-            category_num = INTEGER (id(Group g)),	//The index of the category //только цифры, если будет неверный код шлем без категории
+            category_num = (OVERRIDE idCategoryNum(t, Group g), INTEGER (id(g))),	//The index of the category //только цифры, если будет неверный код шлем без категории
             category_name = name(g), //The name of the category
             describ = '', //The description of the category.
             order = (OVERRIDE order(g), INTEGER (id(g)), 1000), //The order index of the category. The smaller the number, the higher priority it has when sorting categories. //пока не работает
@@ -61,7 +64,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             name_sort = name(t,b),
             product_abbr =name(t,b),
             abbr_sort =name(t, b),
-            category_num = INTEGER (idSkuGroup(t, b)),
+            category_num = (OVERRIDE idCategoryNum(t, b), INTEGER (idSkuGroup(t, b))),
             department_num = '1',
             sales_price = 0.0,
             original_price  = price(t, b),
