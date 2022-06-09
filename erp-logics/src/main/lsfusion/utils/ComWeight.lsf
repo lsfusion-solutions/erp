@@ -41,8 +41,10 @@ pidScalesComPort 'PID весов' = DATA STRING[4] (Computer) CHARWIDTH 8;
 
 scalesDebugInfo 'Debug info' = DATA BOOLEAN (Computer);
 
+scalesTimeout 'Таймаут' = DATA INTEGER (Computer);
+
 EXTEND FORM computer 
-    PROPERTIES(c) nameWeightType, scalesBaudRate, vidScalesComPort, pidScalesComPort, scalesDebugInfo
+    PROPERTIES(c) nameWeightType, scalesBaudRate, vidScalesComPort, pidScalesComPort, scalesDebugInfo, scalesTimeout
     
     PROPERTIES requestScalesPort = JSON FROM caption = 'Запросить' CUSTOM 'serialPortRequestPort' ON CHANGE {
         INPUT s = TEXT DO {
@@ -64,6 +66,7 @@ DESIGN computer {
         MOVE PROPERTY(vidScalesComPort(c)); 
         MOVE PROPERTY(pidScalesComPort(c));
         MOVE PROPERTY(scalesDebugInfo(c));
+        MOVE PROPERTY(scalesTimeout(c)); 
         MOVE PROPERTY(requestScalesPort); 
     }
 } 
@@ -74,7 +77,7 @@ jsonScalesComPort (Computer c) = JSON FROM number = scalesComPort(c),
                                            vid = vidScalesComPort(c), 
                                            pid = pidScalesComPort(c); 
 
-openScalesPortReader (Computer c) { openPortReader(jsonScalesComPort(c), 100); }
+openScalesPortReader (Computer c) { openPortReader(jsonScalesComPort(c), (OVERRIDE scalesTimeout(c), 100)); }
 openScalesPortReader () { openScalesPortReader(userComputer()); } 
 
 // считывание веса
