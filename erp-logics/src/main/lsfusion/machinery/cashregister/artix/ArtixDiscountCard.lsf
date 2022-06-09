@@ -19,9 +19,6 @@ DESIGN cashRegisterModel {
 
 inExportStep = DATA LOCAL BOOLEAN (DiscountCard);
 
-regexpMatch = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
-getQuotedAttribute(STRING string, STRING attr) = getWord(regexpMatch(string, '"'+attr+'":".*?["]'), ':', 2); 
-
 exportDiscountCardsStep 'Выгрузить дисконтные карты' () {
     
     IF NOT (GROUP SUM 1 IF inExportStep(DiscountCard s)) THEN {
@@ -50,7 +47,8 @@ exportDiscountCardsStep 'Выгрузить дисконтные карты' () 
                             '"name":"' + trim(escapeJSONValue(CONCAT ' ', lastNameContact(d), firstNameContact(d), middleNameHttpServerContact(d))) + '"',
                             '"sex":' + numberSexHttpServerContact(d),
                             '"birthday":"' + (birthdayContact(d) IF birthdayContact(d) > 1900_01_01) + '"',
-                            '"extendedoptions":' + getQuotedAttribute(extInfo(d), 'extendedoptions')
+                            '"extendedoptions":' + jsonObject(jsonObject(extInfo(d), 'artix'), 'extendedoptions'),
+                            '"options":\{"sendchecktoemail":'+jsonObject(jsonObject(extInfo(d), 'artix'), 'sendchecktoemail')+'\}'
                         )
                     + '\}\}') IF inExportStep(d), '\n---\n' ORDER d)
                 +'\n---\n';
