@@ -852,7 +852,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     //приведение к однобайтной кодировке cp1251. Все символы больше 1 байта не поддерживаются
     private String getItemName(ItemInfo item) throws UnsupportedEncodingException {
         String name = trim(item.name, "", 50);
-        return new String(new String(name.getBytes(), "cp1251").getBytes());
+        return new String(name.getBytes("cp1251"), "cp1251");
     }
 
     private List<Integer> getPackIds(ItemInfo item) {
