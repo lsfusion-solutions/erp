@@ -99,6 +99,8 @@ storeUidEvotor (CashRegister cr) = uidEvotorStore(groupCashRegister(cr));
 
 cashRegisterByUidInStore(STRING uid, GroupCashRegister gcr) = 
     GROUP LAST CashRegister cr ORDER cr WHERE (uuidEvotor(cr) == uid AND groupCashRegister(cr) == gcr);
+
+actualCashRegister = GROUP SUM 1 IF uuidEvotor(CashRegister cr)=id(INTEGER i) BY cr, i;
     
 fillDevices 'Заполнить из кабинета' (GroupCashRegister g){
     LOCAL f = FILE ();
@@ -113,6 +115,10 @@ fillDevices 'Заполнить из кабинета' (GroupCashRegister g){
             uuidEvotor(c) <- id(i);
             description(c) <- STRING[200](name(i));
             npp(c) <- INTEGER (CONCAT '', npp(g), (PARTITION SUM 1 IF groupCashRegister(c) = g));           
+        }
+        FOR id(INTEGER i) AND store_id(i) = uidEvotorStore(g) AND groupCashRegister(CashRegister c)=g AND NOT actualCashRegister(c, i) DO {
+            uuidEvotor(c) <- NULL;
+            disableSales(c) <- TRUE;
         }
     }
 }
