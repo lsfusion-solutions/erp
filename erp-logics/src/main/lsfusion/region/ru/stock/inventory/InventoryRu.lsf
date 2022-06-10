@@ -48,10 +48,10 @@ EXTEND FORM inventories
 
 DESIGN inventories {
     GROUP (print, cs) {
-        columns = 1;
         type = CONTAINERH;
         
         NEW collation {
+            type = CONTAINERH;
             MOVE PROPERTY (printINV3(cs)) {caption = 'ИНВ-3'; }
         }
     }
@@ -93,13 +93,13 @@ FORM printINV19 'ИНВ-19'
     PROPERTIES(i) name, code, idUOM, shortNameUOM     
     PROPERTIES(cs, i) quantityOverage, quantityDearth, sumOverage, sumDearth
        
-    FILTERS  include(cs, i), quantityOverage(cs, i) OR quantityDearth(cs, i)
+    FILTERS  include(cs, i), sumOverage(cs, i) OR sumDearth(cs, i)
 
     // 3 страница
     OBJECTS i2=Sku         
     PROPERTIES(cs, i2) quantityOverage, quantityDearth, sumOverage, sumDearth
        
-    FILTERS  include(cs, i2), quantityOverage(cs, i2) OR quantityDearth(cs, i2)
+    FILTERS  include(cs, i2), sumOverage(cs, i2) OR sumDearth(cs, i2)
 
     OBJECTS e=Employee
     PROPERTIES(e) shortName, namePosition
@@ -129,8 +129,8 @@ toPeriod 'По' (inventory) = DATA DATE (Inventory) IN documentPrm;
 dateFromPeriod 'Отчетный период с' (CollationSheet cs) = fromPeriod(inventory(cs));
 dateToPeriod 'Отчетный период по' (CollationSheet cs) = toPeriod(inventory(cs));
 
-overItem 'Излишки'  = GROUP SUM sumShortage(CollationSheet cs, Sku sku) IF include(cs, sku) AND sumShortage(cs, sku)<0 BY cs, skuType(sku);
-deficitItem 'Недостача'  = GROUP SUM sumShortage(CollationSheet cs, Sku sku) IF include(cs, sku) AND sumShortage(cs, sku)>0 BY cs,skuType(sku);
+overItem 'Излишки'  = GROUP SUM -sumShortage(CollationSheet cs, Sku sku) IF include(cs, sku) AND sumShortage(cs, sku)<0 BY cs, skuType(sku);
+deficitItem 'Недостача'  = GROUP SUM -sumShortage(CollationSheet cs, Sku sku) IF include(cs, sku) AND sumShortage(cs, sku)>0 BY cs,skuType(sku);
 
 
 FORM printINV26 'ИНВ-26'
