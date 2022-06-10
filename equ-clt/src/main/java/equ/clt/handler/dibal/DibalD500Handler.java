@@ -112,9 +112,10 @@ public class DibalD500Handler extends MultithreadScalesHandler {
 
     private void clearItems(TCPPort port) throws IOException {
         sendCommand(port, getClearPBBytes());
-            ServerSocket serverSocket = new ServerSocket(3001, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
+        try(ServerSocket serverSocket = new ServerSocket(3001, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()))) {
             serverSocket.setSoTimeout(60000);
             serverSocket.accept(); // Блокирует выполнение, пока не придёт ответ.
+        }
     }
 
     private void clearGroups(TCPPort port) throws IOException {
