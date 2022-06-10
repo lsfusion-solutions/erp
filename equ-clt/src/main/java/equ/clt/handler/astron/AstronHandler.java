@@ -18,6 +18,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.*;
@@ -427,7 +428,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean zeroGrpId, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
+    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean zeroGrpId, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException, UnsupportedEncodingException {
         String[] keys = new String[]{"ARTID"};
         String[] columns = getColumns(new String[]{"ARTID", "GRPID", "TAXGRPID", "ARTCODE", "ARTNAME", "ARTSNAME", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "ART", columns, keys)) {
@@ -444,15 +445,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, Integer.parseInt(grpId), 2); //GRPID
                             setObject(ps, getIdVAT(item.vat), 3); //TAXGRPID
                             setObject(ps, idItem, 4); //ARTCODE
-                            setObject(ps, trim(item.name, "", 50), 5); //ARTNAME
-                            setObject(ps, trim(item.name, "", 50), 6); //ARTSNAME
+                            setObject(ps, getItemName(item), 5); //ARTNAME
+                            setObject(ps, getItemName(item), 6); //ARTSNAME
                             setObject(ps, delFlag ? 1 : 0, 7); //DELFLAG
                         } else {
                             setObject(ps, grpId, 1, offset); //GRPID
                             setObject(ps, getIdVAT(item.vat), 2, offset); //TAXGRPID
                             setObject(ps, idItem, 3, offset); //ARTCODE
-                            setObject(ps, trim(item.name, "", 50), 4, offset); //ARTNAME
-                            setObject(ps, trim(item.name, "", 50), 5, offset); //ARTSNAME
+                            setObject(ps, getItemName(item), 4, offset); //ARTNAME
+                            setObject(ps, getItemName(item), 5, offset); //ARTSNAME
                             setObject(ps, delFlag ? "1" : "0", 6, offset); //DELFLAG
                             if (updateNum != null) setObject(ps, updateNum, 7, offset); //UPDATENUM
 
@@ -663,7 +664,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum, Long transactionId,
-                            boolean usePropertyGridFieldInPackTable) throws SQLException {
+                            boolean usePropertyGridFieldInPackTable) throws SQLException, UnsupportedEncodingException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(
                 usePropertyGridFieldInPackTable ?
@@ -699,7 +700,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, idUOM, 6); //UNITID
                             setObject(ps, item.splitItem ? 2 : 0, 7); //QUANTMASK
                             setObject(ps, item.passScalesItem ? 0 : item.splitItem ? 2 : 1, 8); //PACKDTYPE
-                            setObject(ps, trim(item.name, "", 50), 9); //PACKNAME
+                            setObject(ps, getItemName(item), 9); //PACKNAME
                             setObject(ps, delFlag ? 1 : 0, 10); //DELFLAG
                             setObject(ps, item.passScalesItem ? 2 : null, 11); //BARCID
                             if(usePropertyGridFieldInPackTable) {
@@ -718,7 +719,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, idUOM, 5, offset); //UNITID
                             setObject(ps, item.splitItem ? 2 : "", 6, offset); //QUANTMASK
                             setObject(ps, item.passScalesItem ? 0 : item.splitItem ? 2 : 1, 7, offset); //PACKDTYPE
-                            setObject(ps, trim(item.name, "", 50), 8, offset); //PACKNAME
+                            setObject(ps, getItemName(item), 8, offset); //PACKNAME
                             setObject(ps, delFlag ? "1" : "0", 9, offset); //DELFLAG
                             setObject(ps, item.passScalesItem ? "2" : null, 10, offset); //BARCID
 
@@ -786,7 +787,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return packIds;
     }
 
-    private void exportPackDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItem> usedDeleteBarcodeList, Integer maxBatchSize, Integer updateNum) throws SQLException {
+    private void exportPackDeleteBarcode(Connection conn, AstronConnectionString params, List<CashRegisterItem> usedDeleteBarcodeList, Integer maxBatchSize, Integer updateNum) throws SQLException, UnsupportedEncodingException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACK", columns, keys)) {
@@ -812,7 +813,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         setObject(ps, 0, 6); //UNITID
                         setObject(ps, 0, 7); //QUANTMASK
                         setObject(ps, item.passScalesItem ? 0 : 1, 8); //PACKDTYPE
-                        setObject(ps, trim(item.name, "", 50), 9); //PACKNAME
+                        setObject(ps, getItemName(item), 9); //PACKNAME
                         setObject(ps, 1, 10); //DELFLAG
                     } else {
                         setObject(ps, idItem, 1, offset); //ARTID
@@ -827,7 +828,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         setObject(ps, "0", 5, offset); //UNITID
                         setObject(ps, "", 6, offset); //QUANTMASK
                         setObject(ps, item.passScalesItem ? 0 : 1, 7, offset); //PACKDTYPE
-                        setObject(ps, trim(item.name, "", 50), 8, offset); //PACKNAME
+                        setObject(ps, getItemName(item), 8, offset); //PACKNAME
                         setObject(ps, "1", 9, offset); //DELFLAG
 
                         if(updateNum != null)
@@ -846,6 +847,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             executeAndCommitBatch(ps, conn);
         }
+    }
+
+    //приведение к однобайтной кодировке cp1251. Все символы больше 1 байта не поддерживаются
+    private String getItemName(ItemInfo item) throws UnsupportedEncodingException {
+        String name = trim(item.name, "", 50);
+        return new String(name.getBytes(), "cp1251");
     }
 
     private List<Integer> getPackIds(ItemInfo item) {
