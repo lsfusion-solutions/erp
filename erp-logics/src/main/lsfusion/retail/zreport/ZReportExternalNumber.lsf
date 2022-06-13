@@ -6,3 +6,15 @@ NAMESPACE ZReport;
 
 TABLE external(Receipt);
 externalNumber 'Внешний код' = DATA STRING[50] (Receipt) CHARWIDTH 10 TABLE external;
+
+TABLE externalReceiptDetail(ReceiptDetail);
+extId '{integration.id}' = ABSTRACT STRING[100] (ReceiptDetail) MATERIALIZED INDEXED CHARWIDTH 10 TABLE externalReceiptDetail;
+extReceiptDetail (id) = GROUP AGGR ReceiptDetail ReceiptDetail BY extId (ReceiptDetail);
+
+extId '{integration.id}' = DATA STRING[100] (ReceiptSaleDetail) IN id INDEXED CHARWIDTH 10 TABLE externalReceiptDetail;
+extReceiptSaleDetail (id) = GROUP AGGR ReceiptSaleDetail ReceiptSaleDetail BY extId (ReceiptSaleDetail);
+extId(ReceiptSaleDetail d) += extId(d);
+
+extId '{integration.id}' = DATA STRING[100] (ReceiptReturnDetail) IN id INDEXED CHARWIDTH 10 TABLE externalReceiptDetail;
+extReceiptReturnDetail (id) = GROUP AGGR ReceiptReturnDetail ReceiptReturnDetail BY extId (ReceiptReturnDetail);
+extId(ReceiptReturnDetail d) += extId(d);
