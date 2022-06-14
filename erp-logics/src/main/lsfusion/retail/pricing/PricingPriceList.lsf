@@ -65,6 +65,20 @@ includeExtraDashboardRepricing  ABSTRACT ( DepartmentStore, PriceListType, DATET
 skipDialog = DATA LOCAL BOOLEAN ();
 calculateAllGroups = DATA LOCAL BOOLEAN () COMPLEX;
 
+afterSetManagementRetailPrice(DepartmentStore d, PriceListType pt, DATETIME dt) {
+    overSetManagementRetailPrice(d, dt);  // контроль мин. и макс. фиксиров. цен, мин. цен на алкоголь, предельных надбавок
+    overSetManagementRetailPrice(pt, d, dt); 
+    
+    IF withoutCurrentRetailPrice() THEN //Формировать цену, если нет текущих розничных цен
+        inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
+    ELSE
+        inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
+    
+    includeExtraDashboardRepricing(d, pt, dt);
+    
+    formRefresh();
+}
+
 calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
     requestCanceled() <- NULL;
     IF NOT skipDialog() THEN {
@@ -79,7 +93,6 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt)
                 IF NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(skuGroup(sku)) OR calculateAllGroups());
-            managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         } ELSE {
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt)
                 IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND inSession(skuGroup(sku));                
@@ -87,21 +100,10 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt,sku, d, dt)
                 IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(skuGroup(sku)) OR calculateAllGroups());
-            managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         }
-        
-        overSetManagementRetailPrice(d, dt);  // контроль мин. и макс. фиксиров. цен, мин. цен на алкоголь, предельных надбавок
-        overSetManagementRetailPrice(pt, d, dt); 
-        
-        IF withoutCurrentRetailPrice() THEN //Формировать цену, если нет текущих розничных цен
-            inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt)  
-                                                           AND NOT skipRepricing(sku, d);
-        ELSE
-            inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
-        
-        includeExtraDashboardRepricing(d, pt, dt);
-        
-        formRefresh();
+        managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
+
+        afterSetManagementRetailPrice(d, pt, dt);    
     }
 }
 calculateDashboardAutoRepricing 'По надбавкам и прайсам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
@@ -135,16 +137,8 @@ calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, P
         customerManagementRepricing(d,pt,dt);  // реализовано в Fancy
     }
     managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku) AND skuType(sku) != SkuType.skuTypeContainer;  //тару не берем  
-    overSetManagementRetailPrice(d, dt); // контроль мин. и макс. фиксиров. цен, мин. цен на алкоголь, предельных надбавок
-    overSetManagementRetailPrice(pt, d, dt);
     
-    IF withoutCurrentRetailPrice() THEN //Формировать цену, если нет текущих розничных цен
-        inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt)  
-                                                       AND NOT skipRepricing(sku, d);
-    ELSE
-        inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
-    
-    includeExtraDashboardRepricing(d, pt, dt);
+    afterSetManagementRetailPrice(d, pt, dt);    
 }
 
 clearDashboardRepricing()  { 
