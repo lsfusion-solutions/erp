@@ -84,7 +84,8 @@ FORM goodsCatalog FORMEXTID 'goods-catalog'
     OBJECTS good = Barcode.Barcode
     PROPERTIES name(m, good), = OVERRIDE VAT(m, good), 0 EXTID 'vat', 
         = idSku(good) EXTID 'marking-of-the-good' ATTR,=  IF in(m, good) THEN 'false' EXTID 'delete-from-cash',
-        = OVERRIDE productType(sku(good)), 'ProductPieceEntity' EXTID 'product-type'
+        = OVERRIDE productType(sku(good)), 'ProductPieceEntity' EXTID 'product-type',
+        = idStoreSet(groupMachinery(m)) AND good IS Barcode EXTID 'shop-indices'
     PROPERTIES IN measure_type = OVERRIDE shortNameUOM(m, good) EXTID 'id' ATTR, shortNameUOM(m, good) EXTID 'name'
     
     OBJECTS plugin_property = STRING EXTID 'plugin-property'
@@ -110,8 +111,7 @@ FORM priceEntry FORMEXTID 'goods-catalog'
     
     OBJECTS good = Barcode.Barcode EXTID 'price-entry'
     PROPERTIES = idSku(good) EXTID 'marking-of-the-good' ATTR, = round2(price(m, good)) EXTID 'price' ATTR,
-        = IF in(m, good) THEN 'false' EXTID 'deleted' ATTR, = IF in(m, good) THEN '1' EXTID 'number',
-        = idStoreSet(groupMachinery(m)) AND good IS Barcode EXTID 'shop-indices'
+        = IF in(m, good) THEN 'false' EXTID 'deleted' ATTR, = IF in(m, good) THEN '1' EXTID 'number'
     PROPERTIES IN department = IF in(m, good) THEN '1' EXTID 'number'
     FILTERS in(m, good)
 ;
@@ -142,7 +142,7 @@ sendRequsetGoods(FILE f, STRING type, MachineryPriceTransaction t){
     LOCAL req = FILE();
     EXPORT requestItem XML TO req;
     TRY{
-        EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
+        EXTERNAL HTTP CLIENT POST urlServerSet10() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
         IMPORT answer XML FROM answer();
         IF return() = 'true' THEN statusTransaction(t, type) <- TI();
     }
@@ -243,7 +243,7 @@ sendPriceTransaction (MachineryPriceTransaction t){
 }
 
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
-    IF handlerModel(groupMachinery(t)) = 'lsf.set10' AND t IS CashRegisterPriceTransaction
+    IF handlerModel(groupMachinery(t)) = 'lsf.set10' AND countBarcodes(t) AND t IS CashRegisterPriceTransaction
         AND notSucceeded(t) THEN NEWSESSION {
         sendPriceTransaction(t);
     }

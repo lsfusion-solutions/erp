@@ -15,14 +15,15 @@ FORM lotsCatalog FORMEXTID 'goods-catalog'
     OBJECTS good = Lot
     PROPERTIES nameSku(good) EXTID 'name', = OVERRIDE valueVAT(sku(good)), 0 EXTID 'vat',
         = id(good) EXTID 'marking-of-the-good' ATTR, = IF isLot(good) THEN 'false' EXTID 'delete-from-cash',
-        = IF isLot(good) THEN 'ProductPieceEntity' EXTID 'product-type'
+        = IF isLot(good) THEN 'ProductPieceEntity' EXTID 'product-type',
+        = IF good IS Lot THEN idStoreSet(groupMachinery(t)) EXTID 'shop-indices'
     PROPERTIES IN measure_type = shortNameUOM(sku(good)) EXTID 'id' ATTR, = shortNameUOM(sku(good)) EXTID 'name'
    
     PROPERTIES IN bar_code = OVERRIDE id(good) EXTID 'code' ATTR, 
         = IF isLot(good) THEN 'true' ELSE 'false' EXTID 'default-code'      
     
     PROPERTIES IN priceEntry = price(good) EXTID 'price' ATTR, = IF isLot(good) THEN 'false' EXTID 'deleted' ATTR,
-        = IF isLot(good) THEN '1' EXTID 'number',  = idStoreSet(groupMachinery(t)) EXTID 'shop-indices'
+        = IF isLot(good) THEN '1' EXTID 'number'
     PROPERTIES IN departmentLot = IF isLot(good) THEN '1' EXTID 'number' ATTR 
     
     FILTERS in(t, good)
@@ -45,7 +46,7 @@ sendPriceTransactionLot(CashRegisterPriceTransactionLot t){
 }
 
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
-    IF handlerModel(groupMachinery(t)) = 'lsf.set10' AND t IS CashRegisterPriceTransactionLot
+    IF handlerModel(groupMachinery(t)) = 'lsf.set10' AND countItems(t) AND t IS CashRegisterPriceTransactionLot
         AND notSucceeded(t) THEN NEWSESSION {
         sendPriceTransactionLot(t);
     }
