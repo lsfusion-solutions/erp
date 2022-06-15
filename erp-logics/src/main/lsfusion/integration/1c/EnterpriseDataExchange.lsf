@@ -54,12 +54,27 @@ META defUOM(nm, class, extid)
     ;
 END
 
+META defTypeSkuItem(nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = TypeSkuItem EXTID extid
+        PROPERTIES(nm###class, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
+    ;
+    
+    id###nm###class = DATA STRING (INTEGER);
+    name###nm###class = DATA STRING (INTEGER);
+    EXTEND FORM receiveMessage
+        PROPERTIES (nm###class) id###nm###class EXTID 'Ссылка', name###nm###class EXTID 'Наименование'
+    ;
+END
+
 // item
 @extReference (item, 'Номенклатура');
 @defKeyPropSimple(fullName, 'НаименованиеПолное', STRING, keyProperties, item);
 @defKeyPropSimple(id, 'КодВПрограмме', item);
 @defKeyPropSimple(article, 'Артикул', STRING, keyProperties, item);
 @defKeyPropSimple(name, 'Наименование', item);
+@defPropObject(typeSku, 'ВидНоменклатуры', TypeSkuItem, item);
 @defPropId(type, 'ТипНоменклатуры', typeItem, item);
 @defPropObject(uom, 'ЕдиницаИзмерения', UOM, item);
 @defPropId(vat, 'СтавкаНДС', typeVat, item);
