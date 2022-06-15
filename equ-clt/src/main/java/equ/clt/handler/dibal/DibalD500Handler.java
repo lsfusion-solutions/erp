@@ -183,7 +183,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
         bytes.put(getBytes(fillSpaces(3)));
 
         //reference, 9 bytes
-        bytes.put(getBytes(fillZeroes(9)));
+        bytes.put(getBytes(prependZeroes(item.pluNumber, 9)));
 
         //free, 6 bytes
         bytes.put(getBytes(fillSpaces(6)));
