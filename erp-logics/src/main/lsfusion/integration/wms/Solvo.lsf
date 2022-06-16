@@ -1027,13 +1027,19 @@ PROPERTIES() order_id ATTR, type ATTR, new_status ATTR
 
 OBJECTS order_status_changed_detail = INTEGER
 PROPERTIES(order_status_changed_detail) line ATTR, qty ATTR, sku_id ATTR, s_serial_id ATTR, p_serial_id ATTR
-FILTERS imported(order_status_changed_detail);
+FILTERS imported(order_status_changed_detail)
+
+OBJECTS order_status_changed_cartons = INTEGER
+PROPERTIES(order_status_changed_cartons) type ATTR
+FILTERS imported(order_status_changed_cartons)
+;
 
 overIdBatch = ABSTRACT STRING[100](Purchase.InvoiceDetail);
 series (Purchase.InvoiceDetail d) = OVERRIDE overIdBatch(d), idBatch(d);
 
 overImportReceiveComplete ABSTRACT (SaleReturn.InvoiceDetail);
 overImportReceiveComplete ABSTRACT (Purchase.InvoiceDetail);
+overImportOrderStatusChanged ABSTRACT (PurchaseReturn.Invoice);
 overImportOrderStatusChanged ABSTRACT (Sale.Order);
 
 importDetails(LONG hId, STRING hMessage) {
@@ -1221,6 +1227,10 @@ importReplies 'Импортировать подтверждения' ()  {
                             WHEN new_status() = 'Y' THEN 'Погружен'
                             WHEN new_status() = '+' THEN 'Отгружен'
                             WHEN new_status() = 'С' THEN 'Отмена';
+                        
+                        IF new_status() = 'q' OR new_status() = 'X' OR new_status() = '+' THEN {
+                            overImportOrderStatusChanged(i);
+                        }
                     }
                     APPLY NESTED LOCAL;
                     done() <- TRUE;
