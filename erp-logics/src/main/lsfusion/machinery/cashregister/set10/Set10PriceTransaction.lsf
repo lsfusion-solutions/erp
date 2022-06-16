@@ -85,7 +85,7 @@ FORM goodsCatalog FORMEXTID 'goods-catalog'
     PROPERTIES name(m, good), = OVERRIDE VAT(m, good), 0 EXTID 'vat', 
         = idSku(good) EXTID 'marking-of-the-good' ATTR,=  IF in(m, good) THEN 'false' EXTID 'delete-from-cash',
         = OVERRIDE productType(sku(good)), 'ProductPieceEntity' EXTID 'product-type',
-        = idStoreSet(groupMachinery(m)) AND good IS Barcode EXTID 'shop-indices'
+        = IF good IS Barcode THEN idStoreSet(groupMachinery(m)) EXTID 'shop-indices'
     PROPERTIES IN measure_type = OVERRIDE shortNameUOM(m, good) EXTID 'id' ATTR, shortNameUOM(m, good) EXTID 'name'
     
     OBJECTS plugin_property = STRING EXTID 'plugin-property'
@@ -142,7 +142,7 @@ sendRequsetGoods(FILE f, STRING type, MachineryPriceTransaction t){
     LOCAL req = FILE();
     EXPORT requestItem XML TO req;
     TRY{
-        EXTERNAL HTTP CLIENT POST urlServerSet10() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
+        EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
         IMPORT answer XML FROM answer();
         IF return() = 'true' THEN statusTransaction(t, type) <- TI();
     }
