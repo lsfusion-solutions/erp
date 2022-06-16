@@ -1,0 +1,16 @@
+MODULE ServerUtils;
+
+REQUIRE Authentication, Security, Reflection, Service;
+
+restart() = actionCanonicalName('ServerUtils.restart');
+
+permitRestart (CustomUser user) = GROUP MAX permissionChange(UserRole r, restart()) = Permission.permit AND has(user, r);
+forbidRestart (CustomUser user) = GROUP MAX permissionChange(UserRole r, restart()) = Permission.forbid AND has(user, r);
+
+restart 'Перезапуск сервера (API)' () {
+    IF permitRestart(currentUser()) AND NOT forbidRestart(currentUser()) THEN {
+        restartServer();
+    } ELSE {
+        throwException('Permission error');   
+    }
+}@@api;
