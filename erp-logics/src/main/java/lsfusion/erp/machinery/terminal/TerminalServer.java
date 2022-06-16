@@ -7,6 +7,7 @@ import lsfusion.server.base.controller.manager.MonitorServer;
 import lsfusion.server.base.controller.thread.ExecutorFactory;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.LogicsInstance;
@@ -349,7 +350,7 @@ public class TerminalServer extends MonitorServer {
                 RawFileData fileData = null;
                 byte errorCode = 0;
                 String errorText = null;
-                String sessionId;
+                String sessionId = "";
 
                 switch (command) {
                     case TEST:
@@ -712,6 +713,7 @@ public class TerminalServer extends MonitorServer {
                                 write(outToClient, String.valueOf(System.currentTimeMillis()));
 
                                 int flags = 0;
+                                String userName = "";
 
                                 ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
                                 if (terminalHandlerLM != null) {
@@ -722,7 +724,15 @@ public class TerminalServer extends MonitorServer {
                                 writeByte(outToClient, esc);
                                 writeBytes(outToClient, String.valueOf(flags));
 
+                                if (terminalHandlerLM != null) {
+                                    UserInfo userInfo = userMap.get(result);
+                                    if (userInfo != null && userInfo.user != null) {
+                                        userName = (String )terminalHandlerLM.findProperty("name[CustomUser]").read(createSession(), userInfo.user);
+                                    }
+                                }
 
+                                writeByte(outToClient, esc);
+                                write(outToClient, userName);
                             }
                             writeByte(outToClient, etx);
                             break;
