@@ -1654,6 +1654,8 @@ TABLE itemAttributeItemGroup(ItemAttribute, ItemGroup);
 quantityChildWithRequired (ItemAttribute a, ItemGroup parent) = GROUP SUM 1 IF dataRequired(a, ItemGroup child) AND isParent(child, parent) ;
 quantityParentWithRequired (ItemAttribute a, ItemGroup child) = GROUP SUM 1 IF dataRequired(a, ItemGroup parent) AND isParent(child, parent) ;
 
+skipRequired 'Не обязтелен для товара' = ABSTRACT VALUE BOOLEAN (ItemAttribute, Item); 
+
 backgroundRequired (ItemAttribute a, ItemGroup g) =
     IF dataRequired(a, g) THEN
         RGB(0,0,0)
@@ -1664,7 +1666,7 @@ backgroundRequired (ItemAttribute a, ItemGroup g) =
 EXTEND FORM itemOptions 
     PROPERTIES(ia1, tg) required BACKGROUND backgroundRequired(ia1, tg);
 
-constraintRequired(ItemAttribute a, Item i) = (DROPPED (value(i, a)) OR SET (i IS Item)) AND required(a, itemGroup(i)) AND NOT value(i, a);
+constraintRequired(ItemAttribute a, Item i) = (DROPPED (value(i, a)) OR SET (i IS Item)) AND required(a, itemGroup(i)) AND NOT value(i, a) AND NOT skipRequired(a, i);
 
 CONSTRAINT  constraintRequired(ItemAttribute a, Item i)
     MESSAGE 
