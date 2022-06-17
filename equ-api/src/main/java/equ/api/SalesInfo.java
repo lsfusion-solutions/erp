@@ -9,7 +9,7 @@ import java.time.LocalTime;
 import java.util.Map;
 
 public class SalesInfo implements Serializable {
-    //sumCashEnd, sumProtectedEnd, sumBack, externalSum
+    //sumCashEnd, sumProtectedEnd, sumBack, externalSum, beginShift, endShift
     public Map<String, Object> zReportExtraFields;
     //bonusSum, bonusPaid, idBatch
     public Map<String, Object> detailExtraFields;
