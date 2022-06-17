@@ -12,6 +12,12 @@ numberInvoice 'Накладная' (CreditNote creditNote) = number(invoice(cred
 
 countUserCreditNote = GROUP SUM 1 BY invoice(UserCreditNote ic);
 
+@defineOperationProperty(allowNotOnlyCreditNote, 'Разрешить несколько актов расхождения для накладной', constraintContainer);
+
+CONSTRAINT countUserCreditNote(Invoice invoice) > 1.0 AND NOT allowNotOnlyCreditNote(operation(invoice))
+    CHECKED BY invoice[UserCreditNote]
+    MESSAGE 'Для накладной уже создан акт расхождения';
+
 CONSTRAINT invoice(userCreditNote(UserCreditNoteDetail detail)) AND invoiceDetail(detail) 
     AND NOT invoice(userCreditNote(detail))=invoice(invoiceDetail(detail))
     CHECKED BY invoiceDetail[UserCreditNoteDetail]
