@@ -71,7 +71,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             price_unit_index = 0, //-1:/pc, 0:/kg, 1:/100g, 2:/g
             ingredients = left(description(t, b), 1450), //по идее нужно именно 3000 байт посчитать, но пока так
             used_by_days = STRING (expiryDays(t, b)),
-            image_filename = IF hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) THEN 'item_' + id(b) + '.png' ELSE '',
+            image_filename = IF hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) THEN 'item_' + id(b) + '.jpg' ELSE '',
             disabled = '0',
             barcode = 0,
             exp_date = STRING(expiryDate(t, b)),
@@ -83,14 +83,14 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
         FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) AND NOT imageRBS(sku(b)) DO {
             convertedImage()<-NULL;
             TRY {
-                convertImage((OVERRIDE smallImage(sku(b)), image(sku(b))), 'png');
+                convertImage((OVERRIDE smallImage(sku(b)), image(sku(b))), 'jpg');
                 imageRBS(sku(b)) <- convertedImage();
             }
         }
         
         zipping(STRING[1000] f) <- NULL;
         FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) DO
-            zipping(STRING[1000] f) <- FILE(imageRBS(sku(b))) WHERE f == 'item_' + id(b) + '.png';
+            zipping(STRING[1000] f) <- FILE(imageRBS(sku(b))) WHERE f == 'item_' + id(b) + '.jpg';
         IF GROUP SUM 1 IF zipping(STRING[1000] f) THEN {
             makeZipFile();
             itemsImages() <- zipped();
@@ -150,5 +150,17 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             }
             
         APPLY;
+    }
+}
+
+migrateToJPG = DATA BOOLEAN ();
+
+onStarted() +{
+    IF NOT migrateToJPG() THEN {
+        NEWSESSION {
+            migrateToJPG() <- TRUE;
+            imageRBS(Item i) <- NULL;
+            APPLY;
+        }
     }
 }
