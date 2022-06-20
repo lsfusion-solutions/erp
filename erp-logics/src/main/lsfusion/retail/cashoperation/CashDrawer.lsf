@@ -1,0 +1,283 @@
+MODULE CashDrawer;
+
+REQUIRE ZReport;
+
+NAMESPACE CashOperation;
+
+//--------------------------------- Операции с наличными -------------------------------------------------//
+
+// Интерфес для внесения/изъятия денег с кассы
+CLASS ABSTRACT CashOperation 'Операция с наличными';
+TABLE cashOperation(CashOperation);
+
+date 'Дата документа' = ABSTRACT DATE (CashOperation) IN documentHeader;
+time 'Время документа' = ABSTRACT TIME (CashOperation) IN documentHeader;
+dateTime 'Дата/время документа'(CashOperation cashOperation) = dateTimeToDateTime(date(cashOperation), time(cashOperation)) IN documentHeader;
+
+number 'Номер' (cashOperation) = ABSTRACT STRING[50] (CashOperation) IN documentPrm;
+
+basis 'Основание' = ABSTRACT STRING[100] (CashOperation) IN documentPrm;
+
+sum 'Сумма' (cashOperation) = ABSTRACT NUMERIC[18,4] (CashOperation);
+
+isComplete 'Фискализировано' = DATA BOOLEAN (CashOperation);
+
+cashRegister = ABSTRACT CashRegister(CashOperation);
+cashRegisterModel (CashOperation cashOperation) = cashRegisterModel(groupCashRegister(cashRegister(cashOperation)));
+sidCashRegisterModel 'Код модели' (CashOperation cashOperation) = sid(cashRegisterModel (cashOperation));
+numberCashRegister 'Касса' (CashOperation cashOperation) = npp(cashRegister(cashOperation)) IN documentPrm;
+
+fiscalService 'Движение денег в фискальном регистраторе' (cashOperation)  ABSTRACT LIST ( CashOperation) CONFIRM;
+fiscalServiceCashRegister 'Движение денег в фискальном регистраторе' (CashOperation cashOperation)  { IF cashRegister(cashOperation) == currentCashRegister() THEN fiscalService(cashOperation); }
+
+zReport = ABSTRACT ZReport(CashOperation);
+numberZReport 'Z-отчет' (CashOperation cashOperation) = number(zReport(cashOperation)) IN documentPrm;
+
+//---------------------------- Внесение денег ----------------------------------------------------------------//
+
+CLASS IncomeCashOperation 'Внесение денег' : CashOperation;
+TABLE incomeCashOperation (IncomeCashOperation);
+
+is (IncomeCashOperation cashOperation) = cashOperation IS IncomeCashOperation;
+
+@defineDocumentHeaderCreated(IncomeCashOperation);
+@defineDocumentHeaderNumber(IncomeCashOperation, BPSTRING[2]);
+
+@defineNumeratedDefault(IncomeCashOperation, 'Внесения денег', 'ВД');
+
+@defineDocumentHeaderTime(IncomeCashOperation);
+@deriveDocumentHeaderTimePrefix(IncomeCashOperation, );
+
+cashRegister (incomeCashOperation) = DATA CashRegister (IncomeCashOperation);
+numberCashRegister 'Касса внесения денег' (IncomeCashOperation incomeCashOperation) = npp(cashRegister(incomeCashOperation)) IN documentPrm CHARWIDTH 20;
+
+zReport(incomeCashOperation) = DATA ZReport (IncomeCashOperation);
+numberZReport 'Z-отчет' (IncomeCashOperation incomeCashOperation) = number(zReport(incomeCashOperation)) IN documentPrm;
+
+departmentStore = stock(cashRegister(IncomeCashOperation incomeCashOperation));
+nameDepartmentStore 'Отдел магазина' (IncomeCashOperation incomeCashOperation) = name(departmentStore(incomeCashOperation)) IN documentHeader
+        CHARWIDTH 20;
+fullNameDepartmentStore 'Отдел магазина' (IncomeCashOperation incomeCashOperation) = fullName(departmentStore(incomeCashOperation)) IN documentHeader
+        CHARWIDTH 20;
+        
+legalEntityStock (IncomeCashOperation incomeCashOperation) = legalEntity(departmentStore(incomeCashOperation));
+nameLegalEntityStock 'Компания (Отдел магазина)' (IncomeCashOperation incomeCashOperation) = name(legalEntityStock (incomeCashOperation));
+fullNameLegalEntityStock 'Компания (Отдел магазина) полное наим-ие' (IncomeCashOperation incomeCashOperation) = fullName(legalEntityStock (incomeCashOperation));       
+addressLegalEntityStock 'Адрес компании (Отдел магазина)' (IncomeCashOperation incomeCashOperation) = address(legalEntityStock (incomeCashOperation));
+
+addressStock 'Адрес (Отдел магазина)' (IncomeCashOperation incomeCashOperation) = address(departmentStore(incomeCashOperation));
+
+country (IncomeCashOperation incomeCashOperation) = country(departmentStore(incomeCashOperation));
+
+sumCash 'Сумма внесения' = DATA NUMERIC[18,4] (IncomeCashOperation) IN documentSum;
+basis 'Основание' (IncomeCashOperation incomeCashOperation) =
+     CONCAT '','Внесение денег',' №' + seriesNumber(incomeCashOperation),' с кассы ' + numberCashRegister(incomeCashOperation),' от ' + date(incomeCashOperation) IN documentPrm;
+
+curSumIncomeOperation 'Текущая сумма внесенных денег' (cashRegister) =
+    GROUP SUM sumCash(IncomeCashOperation incomeCashOperation)
+    BY cashRegister[CashOperation](incomeCashOperation);
+
+sumAIncomeOperation 'Сумма внесенных денег после даты/время' (cashRegister, DATETIME date) =
+    GROUP SUM sumCash(IncomeCashOperation incomeCashOperation) IF
+              dateTime[CashOperation](incomeCashOperation) > date
+    BY cashRegister[CashOperation](incomeCashOperation);
+
+sumIncomeOperation 'Сумма внесенных денег на дату/время' (CashRegister cashRegister, DATETIME date) =
+    curSumIncomeOperation(cashRegister) (-)
+    sumAIncomeOperation(cashRegister, date);
+
+employee = DATA Employee (IncomeCashOperation);
+idEmployee 'Код кассира' (IncomeCashOperation d) = id(employee(d));
+nameEmployee 'Кассир' (IncomeCashOperation d) = shortName(employee(d));
+
+date[CashOperation](IncomeCashOperation incomeCashOperation) += date(incomeCashOperation);
+time[CashOperation](IncomeCashOperation incomeCashOperation) += time(incomeCashOperation);
+number[CashOperation](IncomeCashOperation incomeCashOperation) += seriesNumber(incomeCashOperation);
+basis[CashOperation](IncomeCashOperation incomeCashOperation) += STRING[100](basis(incomeCashOperation));
+sum(IncomeCashOperation incomeCashOperation) += sumCash(incomeCashOperation);
+cashRegister[CashOperation](IncomeCashOperation incomeCashOperation) += cashRegister(incomeCashOperation);
+zReport[CashOperation](IncomeCashOperation incomeCashOperation) += zReport(incomeCashOperation);
+//employee(IncomeCashOperation incomeCashOperation) += employee(incomeCashOperation);
+
+//------------------------------ Изъятие денег -----------------------------------------------------------//
+
+CLASS OutcomeCashOperation 'Изъятие денег' : CashOperation;
+TABLE outcomeCashOperation (OutcomeCashOperation);
+
+is (OutcomeCashOperation cashOperation) = cashOperation IS OutcomeCashOperation;
+
+@defineDocumentHeaderCreated(OutcomeCashOperation);
+@defineDocumentHeaderNumber(OutcomeCashOperation, BPSTRING[2]);
+
+@defineNumeratedDefault(OutcomeCashOperation, 'Изъятия денег', 'ВД');
+
+@defineDocumentHeaderTime(OutcomeCashOperation);
+@deriveDocumentHeaderTimePrefix(OutcomeCashOperation, );
+
+cashRegister (outcomeCashOperation) = DATA CashRegister (OutcomeCashOperation);
+numberCashRegister 'Касса изъятия денег' (OutcomeCashOperation outcomeCashOperation) = npp(cashRegister(outcomeCashOperation)) IN documentPrm CHARWIDTH 20;
+
+zReport(outcomeCashOperation) = DATA ZReport (OutcomeCashOperation);
+numberZReport 'Z-отчет' (OutcomeCashOperation outcomeCashOperation) = number(zReport(outcomeCashOperation)) IN documentPrm;
+
+departmentStore = stock(cashRegister(OutcomeCashOperation outcomeCashOperation));
+nameDepartmentStore 'Отдел магазина' (OutcomeCashOperation outcomeCashOperation) = name(departmentStore(outcomeCashOperation)) IN documentHeader
+        CHARWIDTH 20;
+fullNameDepartmentStore 'Отдел магазина' (OutcomeCashOperation outcomeCashOperation) = fullName(departmentStore(outcomeCashOperation)) IN documentHeader
+        CHARWIDTH 20;
+        
+legalEntityStock (OutcomeCashOperation outcomeCashOperation) = legalEntity(departmentStore(outcomeCashOperation));
+nameLegalEntityStock 'Компания (Отдел магазина)' (OutcomeCashOperation outcomeCashOperation) = name(legalEntityStock (outcomeCashOperation));
+fullNameLegalEntityStock 'Компания (Отдел магазина) полное наим-ие' (OutcomeCashOperation outcomeCashOperation) = fullName(legalEntityStock (outcomeCashOperation));       
+addressLegalEntityStock 'Адрес компании (Отдел магазина)' (OutcomeCashOperation outcomeCashOperation) = address(legalEntityStock (outcomeCashOperation));
+
+addressStock 'Адрес (Отдел магазина)' (OutcomeCashOperation outcomeCashOperation) = address(departmentStore(outcomeCashOperation));
+
+country (OutcomeCashOperation outcomeCashOperation) = country(departmentStore(outcomeCashOperation));
+                
+sumCash 'Сумма изъятия' = DATA NUMERIC[18,4] (OutcomeCashOperation) IN documentSum;
+basis 'Основание' (OutcomeCashOperation outcomeCashOperation) =
+    CONCAT '', 'Изъятие денег',' №' + seriesNumber(outcomeCashOperation) , ' с кассы ' + numberCashRegister(outcomeCashOperation), ' от ' + date(outcomeCashOperation) IN documentPrm;
+
+curSumOutcomeOperation 'Текущая сумма изъятых денег' (cashRegister) =
+    GROUP SUM sumCash(OutcomeCashOperation outcomeCashOperation)
+    BY cashRegister[CashOperation](outcomeCashOperation);
+
+sumAOutcomeOperation 'Сумма изъятых денег после даты/время' (cashRegister, DATETIME date) =
+    GROUP SUM sumCash(OutcomeCashOperation outcomeCashOperation) IF
+              dateTime[CashOperation](outcomeCashOperation) > date
+    BY cashRegister[CashOperation](outcomeCashOperation);
+
+sumOutcomeOperation 'Сумма изъятых денег на дату/время' (CashRegister cashRegister, DATETIME date) =
+    curSumOutcomeOperation(cashRegister) (-)
+    sumAOutcomeOperation(cashRegister, date);
+
+employee = DATA Employee (OutcomeCashOperation);
+idEmployee 'Код кассира' (OutcomeCashOperation d) = id(employee(d));
+nameEmployee 'Кассир' (OutcomeCashOperation d) = shortName(employee(d));
+
+date[CashOperation](OutcomeCashOperation outcomeCashOperation) += date(outcomeCashOperation);
+time[CashOperation](OutcomeCashOperation outcomeCashOperation) += time(outcomeCashOperation);
+number[CashOperation](OutcomeCashOperation outcomeCashOperation) += seriesNumber(outcomeCashOperation);
+basis[CashOperation](OutcomeCashOperation outcomeCashOperation) += STRING[100](basis(outcomeCashOperation));
+sum[CashOperation](OutcomeCashOperation outcomeCashOperation) += -sumCash(outcomeCashOperation);
+cashRegister[CashOperation](OutcomeCashOperation outcomeCashOperation) += cashRegister(outcomeCashOperation);
+zReport[CashOperation](OutcomeCashOperation outcomeCashOperation) += zReport(outcomeCashOperation);
+//employee(OutcomeCashOperation outcomeCashOperation) += employee(outcomeCashOperation);
+
+// Формы
+
+FORM incomeCashOperation 'Внесение денег'
+
+    OBJECTS i = IncomeCashOperation PANEL
+    PROPERTIES(i) number, series, date, time, nameDepartmentStore, numberCashRegister, numberZReport, sumCash, basis, nameEmployee
+
+    EDIT IncomeCashOperation OBJECT i
+;
+
+DESIGN incomeCashOperation {
+    NEW topContainer{
+        type = CONTAINERH;
+        NEW firstCase{
+            type = CONTAINERH;
+            caption = 'Шапка документа';
+            MOVE PROPERTY(numberCashRegister(i));
+            MOVE PROPERTY(numberZReport(i));
+            MOVE PROPERTY(number(i));
+            MOVE PROPERTY(series(i));
+            MOVE PROPERTY(date(i));
+            MOVE PROPERTY(time(i));
+        }
+        NEW secondCase{
+            caption = 'Параметры документа';
+            MOVE PROPERTY(nameDepartmentStore(i));
+            MOVE PROPERTY(nameEmployee(i));
+            MOVE PROPERTY(basis(i));
+        }
+        NEW thirdCase{
+            caption = 'Суммы';
+            MOVE PROPERTY(sumCash(i));
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+FORM outcomeCashOperation 'Изъятие денег'
+
+    OBJECTS o = OutcomeCashOperation PANEL
+    PROPERTIES(o) number, series, date, time, nameDepartmentStore, numberCashRegister, numberZReport, sumCash, basis, nameEmployee
+
+    EDIT OutcomeCashOperation OBJECT o;
+;
+
+DESIGN outcomeCashOperation {
+    NEW topContainer{
+        type = CONTAINERH;
+        NEW firstCase{
+            type = CONTAINERH;
+            caption = 'Шапка документа';
+            MOVE PROPERTY(numberCashRegister(o));
+            MOVE PROPERTY(numberZReport(o));
+            MOVE PROPERTY(number(o));
+            MOVE PROPERTY(series(o));
+            MOVE PROPERTY(date(o));
+            MOVE PROPERTY(time(o));
+        }
+        NEW secondCase{
+            caption = 'Параметры документа';
+            MOVE PROPERTY(nameDepartmentStore(o));
+            MOVE PROPERTY(nameEmployee(o));
+            MOVE PROPERTY(basis(o));
+        }
+        NEW thirdCase{
+            caption = 'Суммы';
+            MOVE PROPERTY(sumCash(o));
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+FORM operationCashRegister 'Кассовые операции'
+
+    OBJECTS interval = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES objFrom = VALUE(dFrom), objTo = VALUE(dTo)
+
+    PROPERTIES numberCurrentCashRegister() DRAW interval 
+
+    OBJECTS c = CashOperation
+    PROPERTIES(c) READONLY objectClassName, number, date, time,
+                           numberCashRegister, numberZReport, sum, basis
+    PROPERTIES(c) NEWSESSION EDIT, DELETE 
+    PROPERTIES(c) isComplete 
+
+    FILTERS date(c) >= dFrom,
+            date(c) <= dTo,
+            cashRegister(c) == currentCashRegister()
+
+    ORDERS date(c), time(c)
+;
+
+DESIGN operationCashRegister {
+    NEW top {
+        type = CONTAINERH;
+        MOVE BOX(interval) {
+            caption = 'Шапка документа';
+            type = CONTAINERH;
+            PROPERTY(objFrom) {
+                caption = 'Дата (с)';
+            }
+            PROPERTY(objTo) {
+                caption = 'Дата (по)';
+            }
+        }
+    }
+    MOVE BOX(c);
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        NEW operationCashRegister;
+    }
+}
+
