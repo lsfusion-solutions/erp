@@ -912,12 +912,15 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             LocalTime timeReceipt = sqlTimeToLocalTime(new Time(dateTimeReceipt));
 
                             String uid = null;
+                            String fiscalNumber = null;
                             List<Element> purchasePluginProperties = purchaseNode.getChildren("plugin-property");
                             for(Element pluginProperty : purchasePluginProperties) {
                                 String key = pluginProperty.getAttributeValue("key");
-                                if(key.equals("FISCAL_DOC_ID")) {
+                                if(key.equals("iKassa_document_uid")) {
                                     uid = pluginProperty.getAttributeValue("value");
-                                    break;
+                                }
+                                if(key.equals("FISCAL_DOC_ID")) {
+                                    fiscalNumber = pluginProperty.getAttributeValue("value");
                                 }
                              }
 
@@ -1130,6 +1133,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                         Map<String, Object> receiptDetailExtraFields = new HashMap<>();
                                         if(uid != null) {
                                             receiptDetailExtraFields.put("uid", uid);
+                                        }
+                                        if(fiscalNumber != null) {
+                                            receiptDetailExtraFields.put("fiscalNumber", fiscalNumber);
                                         }
 
                                         if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
