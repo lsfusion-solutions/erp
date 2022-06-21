@@ -1,7 +1,7 @@
 MODULE FitCashRegister;
 
 REQUIRE NativeMachinery, CashRegister, Store, ZReportDiscountCard, SkuRu, MachineryPriceTransactionStockTax, LotType, 
-        GiftCard, MachineryPriceTransactionPromotion, PriceListPromotion;
+        GiftCard, MachineryPriceTransactionPromotion, PriceListPromotion, MachineryPriceTransactionBalance;
 
 NAMESPACE Fit;
 
@@ -85,7 +85,7 @@ pluString (MachineryPriceTransaction t, Barcode b) =
     currentTimeText() +                         // 6.5 Дата время формирования
     'A' +                                       // 7. Код движения
     (IF split(t, b) THEN '2' ELSE '0') +        // 8. Признак весового товара
-    numeric(INTEGER(currentBalance(sku(b), stock(t)) * 1000), 11) + // 9. Количество
+    numeric(INTEGER((OVERRIDE balance(t, b), 0.0) * 1000), 11) + // 9. Количество
     '0' +                                       // 10. Код валюты
     '001' +                                     // 11. Секция
     '00' +                                      // 12. Код налога 1
