@@ -1364,8 +1364,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         zReportExtraFields.put("sumBack", sumBack);
                                         BigDecimal externalSum = externalSumType == 0 ? sumGain : safeSubtract(safeSubtract(sumProtectedEnd, sumProtectedBeg), sumBack);
                                         zReportExtraFields.put("externalSum", externalSum);
-                                        zReportExtraFields.put("beginShift", sqlTimestampToLocalDateTime(new Timestamp(timeBeg)));
-                                        zReportExtraFields.put("endShift", sqlTimestampToLocalDateTime(new Timestamp(timeEnd)));
+                                        if(timeBeg != null) {
+                                            zReportExtraFields.put("beginShift", sqlTimestampToLocalDateTime(new Timestamp(timeBeg)));
+                                        }
+                                        if(timeEnd != null) {
+                                            zReportExtraFields.put("endShift", sqlTimestampToLocalDateTime(new Timestamp(timeEnd)));
+                                        }
                                         externalSumMap.put(numberCashRegister + "/" + numberZReport, zReportExtraFields);
                                         shiftList.add(new ShiftInfo(numberCashRegister, numberZReport, timeBeg, timeEnd));
                                     }
