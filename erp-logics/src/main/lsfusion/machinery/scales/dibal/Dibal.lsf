@@ -22,7 +22,7 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
     IF sidModel(gm) == 'dibald900' AND toLoadImages()  THEN {
         
         LOCAL needResize = BOOLEAN(Item);
-        needResize(Item i) <- TRUE IF GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b) AND NOT imageDibal(i);
+        needResize(Item i) <- TRUE IF (GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b)) AND hasImage(i) AND NOT imageDibal(i);
     
         IF (GROUP SUM 1 IF needResize(Item i)) THEN NEWSESSION NESTED LOCAL {
             FOR needResize(Item s) DO {
@@ -34,8 +34,10 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
             }
             APPLY NESTED LOCAL;
         }
-                        
-        itemImage (mpt, Barcode b) <- imageDibal(sku(b)) WHERE in(mpt, b);
+        
+        LOCAL empty = IMAGEFILE ();
+        empty() <- IMAGEFILE (decode('Qk06AAAAAAAAADYAAAAoAAAAAQAAAAEAAAABABgAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAA////AA==','base64'));
+        itemImage (mpt, Barcode b) <- OVERRIDE imageDibal(sku(b)), empty() WHERE in(mpt, b);
         groupImage (mpt, Barcode b) <- image(customGroup(customGroupType(groupMachinery(mpt)), sku(b))) WHERE in(mpt, b) AND (PARTITION SUM 1 IF in(mpt, b) ORDER b BY mpt, customGroup(customGroupType(groupMachinery(mpt)), sku(b))) == 1;
         FOR groupImage (mpt, Barcode b) DO {
             resizeImage(groupImage (mpt, b),210,210);              
@@ -47,8 +49,6 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
 
 loadImages() + {
     NEWSESSION NESTED (select[Sku,Stock]) {
-    
-        select(Sku s, Stock st) <- NULL WHERE select(s, st) AND NOT hasImage(s);
         
         IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
 
