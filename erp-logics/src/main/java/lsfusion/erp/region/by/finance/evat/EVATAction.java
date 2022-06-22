@@ -32,6 +32,13 @@ public class EVATAction extends GenerateXMLEVATAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
+
+            boolean useActiveX = findProperty("useActiveXEVAT[]").read(context) != null;
+            boolean isWeb = findProperty("isWeb[]").read(context) != null;
+            if(useActiveX && isWeb) {
+                throw new RuntimeException("Это действие может быть выполнено только из десктоп-клиента");
+            }
+
             ERPLoggers.importLogger.info("EVAT: action started");
             Integer type = (Integer) context.getDataKeyValue(typeInterface).getValue();
             if (type != null) {
@@ -45,7 +52,6 @@ public class EVATAction extends GenerateXMLEVATAction {
                 Integer certIndex = (Integer) findProperty("certIndexEVAT[]").read(context);
                 if(certIndex == null)
                     certIndex = 0;
-                boolean useActiveX = findProperty("useActiveXEVAT[]").read(context) != null;
                 if (pathEVAT != null || useActiveX) {
                     if (passwordEVAT != null || useActiveX) {
                         switch (type) {
