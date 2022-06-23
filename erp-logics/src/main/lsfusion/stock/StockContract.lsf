@@ -369,9 +369,13 @@ addUserContractSkuSupplierCustomer 'Добавить'(LegalEntity supplier, Lega
 
 is (UserContractSku contractSku) = contractSku IS UserContractSku;
 
+show 'Просмотреть' (UserContractSku c) {
+    SHOW userContractSku OBJECTS c = c READONLY;
+} TOOLBAR;
+
 EXTEND FORM contracts
     PROPERTIES(c) READONLY nameContractType 
-    PROPERTIES(c) NEWSESSION NEW[UserContractSku]
+    PROPERTIES(c) NEWSESSION show[UserContractSku] SHOWIF skipEdit(c), NEW[UserContractSku]
 ;
 
 FORM contractSkus 'Договоры на поставку'
@@ -379,7 +383,7 @@ FORM contractSkus 'Договоры на поставку'
     PROPERTIES in(c)
     PROPERTIES(c) READONLY nameSupplier, namePartyAStocks, nameCustomer, namePartyBStocks, nameContractType,
                   seriesNumber, dateFrom, dateTo, nameCurrency,  nameTypeExchange, note
-    PROPERTIES(c) NEWSESSION NEW[UserContractSku], EDIT
+    PROPERTIES(c) NEWSESSION NEW[UserContractSku], EDIT SHOWIF NOT skipEdit(c), show[UserContractSku] SHOWIF skipEdit(c)
 
     LIST ContractSku OBJECT c
 ;
@@ -405,7 +409,7 @@ EXTEND FORM legalEntity
     PROPERTIES(css) SHOWIF isCustomer(l) READONLY seriesNumber, nameType, dateFrom,
                     dateTo, nameCurrency, note, descriptionPaymentCondition, namePartyAStocks, namePartyBStocks
     PROPERTIES      SHOWIF isCustomer(l) addUserContractSkuSupplierCustomer(s, l) DRAW css 
-    PROPERTIES(css) SHOWIF isCustomer(l) NESTEDSESSION EDIT
+    PROPERTIES(css) SHOWIF isCustomer(l) NESTEDSESSION EDIT SHOWIF NOT skipEdit(css), show[UserContractSku] SHOWIF skipEdit(css)
     PROPERTIES(css) DELETE SHOWIF isCustomer(l,css) GRID
     
     FILTERS customer(css) == l,
