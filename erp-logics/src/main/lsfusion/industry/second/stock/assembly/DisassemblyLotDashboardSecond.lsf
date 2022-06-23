@@ -15,6 +15,7 @@ disassembly (Stock st, CustomUser cu, Sku s) =
 countDisassembly (Stock st, CustomUser cu) = GROUP SUM 1 IF inProcess(Disassembly a) BY stock(a), createdUser(a); 
 
 dsku = DATA LOCAL NESTED Sku ();
+nameSku 'Микс' = name(dsku()) CHARWIDTH 10;
 
 postLotDashboard (Disassembly a) {
     date(a) <- currentDate();
@@ -64,18 +65,10 @@ DESIGN computer {
 
 userComputerSettings 'Настройки' { edit(userComputer()); }
 
-FORM disassemblyLotDashboard 'Разукомплектация'
-    PROPERTIES NEWSESSION userComputerSettings()
+inProcessDisassemblies 'Миксов в смене' (Stock st) = GROUP SUM 1 IF disassembly(st, currentUser(), Sku s);
 
-    OBJECTS st = Stock PANEL
-    PROPERTIES(st) name SELECTOR
-    FILTERS accessCompany(currentUser(), st)
-
-    OBJECTS m = STRING CUSTOM 'option'
-    PROPERTIES captionMode(m) EXTID 'name', selectedMode(m) EXTID 'selected'
-    FILTERS captionMode(m)
-    EVENTS ON INIT { dashboardMode() <- 'disassembly'; }
-
+FORM dialogMix 'Выберите микс'
+    OBJECTS st = Stock
     OBJECTS s = Sku
     PROPERTIES(s) READONLY SHOWIF disassemblyMode() BACKGROUND disassembly(st, currentUser(), s) id, name
     ORDERS id(s)
@@ -83,14 +76,33 @@ FORM disassemblyLotDashboard 'Разукомплектация'
         FILTER 'В наличии' currentBalance(s, st) > 0 OR disassembly(st, currentUser(), s) DEFAULT
     FILTERGROUP part
         FILTER 'Комплект' countPart(s) OR disassembly(st, currentUser(), s) DEFAULT
-    EVENTS ON CHANGE s { dsku() <- s; }
+;
+
+changeNameSku (Stock st) {
+    DIALOG dialogMix OBJECTS st = st, s = dsku() CHANGE LIST name(s);
+}
+
+FORM disassemblyLotDashboard 'Разукомплектация'
+    PROPERTIES NEWSESSION userComputerSettings()
+
+    OBJECTS st = Stock PANEL
+    PROPERTIES(st) name SELECTOR
+    PROPERTIES(st) READONLY SHOWIF disassemblyMode() inProcessDisassemblies
+    FILTERS accessCompany(currentUser(), st)
+
+    OBJECTS m = STRING CUSTOM 'option'
+    PROPERTIES captionMode(m) EXTID 'name', selectedMode(m) EXTID 'selected'
+    FILTERS captionMode(m)
+    EVENTS ON INIT { dashboardMode() <- 'disassembly'; }
+
+    PROPERTIES SHOWIF disassemblyMode() nameSku() ON CHANGE changeNameSku(st)
 
     OBJECTS a = Disassembly PANEL
-    FILTERS a = disassembly(st, currentUser(), s)
+    FILTERS a = disassembly(st, currentUser(), dsku())
     
     PROPERTIES PANEL 
-               countLot 'Кол-во марок' = (OVERRIDE countDisassemblyLot(disassembly(st, currentUser(), s)), 0.0), 
-               weightLot 'Вес марок' = (OVERRIDE weightDisassemblyLot(disassembly(st, currentUser(), s)), 0.0)
+               countLot 'Кол-во марок' = (OVERRIDE countDisassemblyLot(disassembly(st, currentUser(), dsku())), 0.0), 
+               weightLot 'Вес марок' = (OVERRIDE weightDisassemblyLot(disassembly(st, currentUser(), dsku())), 0.0)
     
     PROPERTIES(st) SHOWIF disassemblyMode() postDisassembly READONLYIF NOT countDisassembly(st, currentUser())
     
@@ -98,12 +110,6 @@ FORM disassemblyLotDashboard 'Разукомплектация'
     PROPERTIES(l) READONLY dateTime, nameUser, id, weight, nameSku, defect, price, image PANEL
     PROPERTIES(l) NEWSESSION DELETE
     FILTERS disassembly(l) = a
-
-//    FILTERS inProcess(disassembly(l)), 
-//            stock(disassembly(l)) == st,
-//            sku(disassembly(l)) == s
-//
-//    FILTERGROUP filter1 FILTER 'Текущего пользователя' user(l) = currentUser() DEFAULT
 ;
 
 DESIGN disassemblyLotDashboard {
@@ -115,23 +121,22 @@ DESIGN disassemblyLotDashboard {
                 fill = 0.5;
                 width = 200;
                 MOVE PROPERTY(userComputerSettings()) { alignment = STRETCH; }
-                MOVE PROPERTY(name(st)) { caption = 'Склад'; alignment = STRETCH; }
+                MOVE PROPERTY(name(st)) { font = 'bold 18'; caption = 'Склад'; alignment = STRETCH; }
                 
                 REMOVE BOX(m);
                 MOVE GRID(m) { boxed = FALSE; flex = 0; }
                 
-                MOVE BOX(s) {
-                    PROPERTY(name(s)) { charWidth = 15; }
-                }
-                MOVE FILTERGROUPS(s);
-                MOVE PROPERTY(postDisassembly(st)) { fontSize = 24; alignment = STRETCH; }
-                
+                MOVE PROPERTY(nameSku()) { font = 'bold 24'; alignment = STRETCH; focusable = FALSE; }
+
                 NEW totalDisassembly {
                     showIf = disassemblyMode();
                     alignment = STRETCH;
                     MOVE PROPERTY(countLot) { alignment = STRETCH; }
                     MOVE PROPERTY(weightLot) { alignment = STRETCH; }
                 }
+                MOVE PROPERTY(inProcessDisassemblies(st)) { fontSize = 24; alignment = STRETCH; }
+                MOVE PROPERTY(postDisassembly(st)) { fontSize = 24; alignment = STRETCH; }
+                
             }
             NEW tabbedPane {
                 fill = 4;
@@ -233,10 +238,10 @@ EXTEND FORM disassemblyLotDashboard
                     INPUT w = iweight() DO { 
                         iweight() <- NUMERIC[11,5](IF w >= (OVERRIDE minimumWeight(), 30) THEN w / 1000 ELSE w); 
                         iimagePhoto();
-                        overChangeDashboardWeight(s, st); 
+                        overChangeDashboardWeight(dsku(), st); 
                     }
                  }, 
-                 inameSku ON CHANGE { INPUT sk = isku() LIST name(sk) DO { isku() <- sk; overChangeDashboardSku(s, st); } }, 
+                 inameSku ON CHANGE { INPUT sk = isku() LIST name(sk) DO { isku() <- sk; overChangeDashboardSku(dsku(), st); } }, 
                  iprice READONLYIF skipPriceLotDashboard(isku()), 
                  ivideo = videoScale CUSTOM 'videoRender' ON CHANGE changeVideo(), 
                  ibarcode ON CHANGE { INPUT b = ibarcode() DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
@@ -250,7 +255,7 @@ EXTEND FORM disassemblyLotDashboard
             IF weightRead() THEN {
                 iweight() <- NUMERIC(weightRead()) / 1000;
                 iimagePhoto();
-                overChangeDashboardWeight(s, st);
+                overChangeDashboardWeight(dsku(), st);
             }
         }     
     }
@@ -416,10 +421,10 @@ EXTEND FORM disassemblyLotDashboard
 fixedLotDashboard 'Брак' = DATA BOOLEAN (Item) IN itemLotDashboard;
 EXTEND FORM item PROPERTIES(i) fixedLotDashboard;
 
-choose (Sku sk, Item i) { 
+choose (Item i) { 
     isku() <- i;
     FOR [VIEW disassemblyLotDashboard.st](Stock st) DO  
-        overChangeDashboardSku(sk, st); 
+        overChangeDashboardSku(dsku(), st); 
 }
 choose (Part p) { 
     isku() <- item(p); 
@@ -433,10 +438,10 @@ EXTEND FORM disassemblyLotDashboard
     OBJECTS p = Part
     PROPERTIES choose(p) COLUMNS (p) HEADER nameItem(p), nameItem(p)
     ORDERS nameItem(p)
-    FILTERS set(p) = s
+    FILTERS set(p) = dsku()
     
     OBJECTS fi = Item
-    PROPERTIES choose(s, fi) COLUMNS (fi) HEADER name(fi), name(fi)
+    PROPERTIES choose(fi) COLUMNS (fi) HEADER name(fi), name(fi)
     ORDERS name(fi)
     FILTERS fixedLotDashboard(fi)
 ;
@@ -447,7 +452,7 @@ DESIGN disassemblyLotDashboard {
         MOVE PROPERTY(choose(p)) { fontSize = 14; fontStyle = 'bold'; focusable = FALSE; }
 
         REMOVE BOX(fi);
-        MOVE PROPERTY(choose(s, fi)) { fill = 1; fontSize = 18; fontStyle = 'bold'; focusable = FALSE; }
+        MOVE PROPERTY(choose(fi)) { fill = 1; fontSize = 18; fontStyle = 'bold'; focusable = FALSE; }
     }
 }
 
