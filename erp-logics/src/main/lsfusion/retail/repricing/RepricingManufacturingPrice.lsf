@@ -38,8 +38,11 @@ manufacturingPrice(UserRepricingDetail d) <- curManufacturingPrice(d) WHEN
 useManufacturingCalcMarkup = ABSTRACT BOOLEAN (UserRepricingDetail);
 useCurManufacturingCalcMarkup = ABSTRACT BOOLEAN (UserRepricingDetail);
 
-overRepricingPrice[UserRepricingDetail](UserRepricingDetail detail) += manufacturingPrice(detail) IF (NOT skipCalcPricingManufacturingPrice() OR useManufacturingCalcMarkup(detail));
-overCurRepricingPrice[UserRepricingDetail](UserRepricingDetail detail) += curManufacturingPrice(detail) IF (NOT skipCalcPricingManufacturingPrice() OR useCurManufacturingCalcMarkup(detail));
+skipCalcPricingManufacturingPrice 'Делать расценку от входной цены, а не цены изготовителя' = ABSTRACT BOOLEAN (UserRepricingDetail);
+overSkipCalcPricingManufacturingPrice 'Делать расценку от входной цены, а не цены изготовителя' (UserRepricingDetail d) = OVERRIDE skipCalcPricingManufacturingPrice(d), skipCalcPricingManufacturingPrice();
+
+overRepricingPrice[UserRepricingDetail](UserRepricingDetail detail) += manufacturingPrice(detail) IF (NOT overSkipCalcPricingManufacturingPrice(detail) OR useManufacturingCalcMarkup(detail));
+overCurRepricingPrice[UserRepricingDetail](UserRepricingDetail detail) += curManufacturingPrice(detail) IF (NOT overSkipCalcPricingManufacturingPrice(detail) OR useCurManufacturingCalcMarkup(detail));
 
 EXTEND FORM userRepricing
     PROPERTIES(d) manufacturingPrice ON CHANGE changeManufacturingPrice(d) BEFORE price(d),

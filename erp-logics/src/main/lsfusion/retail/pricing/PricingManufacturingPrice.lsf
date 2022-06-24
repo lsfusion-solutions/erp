@@ -25,7 +25,12 @@ manufacturingPricePricing 'Расценка от цены изготовител
 manufacturingPricePricing 'Расценка от цены изготовителя' = ABSTRACT BOOLEAN (UserPricingDetail);
 manufacturingPricePricing(UserPricingDetail userPricingDetail) += manufacturingPricePricing(userPricingDetail);
 
-overPricingPrice[UserPricingDetail](UserPricingDetail detail) += manufacturingPrice(detail) IF (NOT skipCalcPricingManufacturingPrice()) OR manufacturingPricePricing(detail);
+skipCalcPricingManufacturingPrice 'Делать расценку от входной цены, а не цены изготовителя' = ABSTRACT BOOLEAN (PricingDetail);
+skipCalcPricingManufacturingPrice 'Делать расценку от входной цены, а не цены изготовителя' = ABSTRACT BOOLEAN (UserPricingDetail);
+skipCalcPricingManufacturingPrice(UserPricingDetail userPricingDetail) += skipCalcPricingManufacturingPrice(userPricingDetail);
+overSkipCalcPricingManufacturingPrice 'Делать расценку от входной цены, а не цены изготовителя' (UserPricingDetail d) = OVERRIDE skipCalcPricingManufacturingPrice(d), skipCalcPricingManufacturingPrice();
+
+overPricingPrice[UserPricingDetail](UserPricingDetail detail) += manufacturingPrice(detail) IF (NOT overSkipCalcPricingManufacturingPrice(detail)) OR manufacturingPricePricing(detail);
 
 //@changeDocumentDetailPricePrefix(userPricingDetail, manufacturing, retail, retail, manufacturing, retail, retail);
 

@@ -10,7 +10,16 @@ manufacturingPricePricing(InvoicePricingDetail detail) += manufacturingPricePric
 
 PricingManufacturingPrice.manufacturingPricePricing(InvoicePricingDetail detail) += manufacturingPricePricing(detail);
 
-overPricingPrice(InvoicePricingDetail detail) += manufacturingPrice(invoiceDetail(detail))  IF (NOT skipCalcPricingManufacturingPrice()) OR manufacturingPricePricing(detail);
-overPricingPrice[UserInvoiceDetail](UserInvoiceDetail detail) += manufacturingPrice(detail) IF (NOT skipCalcPricingManufacturingPrice()) OR manufacturingPricePricing(detail);
+skipCalcPricingManufacturingPrice 'Делать расценку от входной цены, а не цены изготовителя' = ABSTRACT BOOLEAN (InvoicePricingDetail);
+overSkipCalcPricingManufacturingPrice 'Делать расценку от входной цены, а не цены изготовителя' (InvoicePricingDetail d) = OVERRIDE skipCalcPricingManufacturingPrice(d), skipCalcPricingManufacturingPrice();
+
+skipCalcPricingManufacturingPrice 'Делать расценку от входной цены, а не цены изготовителя' = ABSTRACT BOOLEAN (InvoiceDetail);
+overSkipCalcPricingManufacturingPrice 'Делать расценку от входной цены, а не цены изготовителя' (UserInvoiceDetail d) = OVERRIDE skipCalcPricingManufacturingPrice(d), skipCalcPricingManufacturingPrice();
+
+skipCalcPricingManufacturingPrice(InvoicePricingDetail detail) += skipCalcPricingManufacturingPrice(invoiceDetail(detail));
+PricingManufacturingPrice.skipCalcPricingManufacturingPrice(InvoicePricingDetail detail) += skipCalcPricingManufacturingPrice(detail);
+
+overPricingPrice(InvoicePricingDetail detail) += manufacturingPrice(invoiceDetail(detail))  IF (NOT overSkipCalcPricingManufacturingPrice(detail)) OR manufacturingPricePricing(detail);
+overPricingPrice[UserInvoiceDetail](UserInvoiceDetail detail) += manufacturingPrice(detail) IF (NOT overSkipCalcPricingManufacturingPrice(detail)) OR manufacturingPricePricing(detail);
 
 manufacturingPrice(InvoicePricingDetail detail) += manufacturingPrice(invoiceDetail(detail));
