@@ -1614,8 +1614,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
                                                     BigDecimal discSize = null;
                                                     String discType = discountPosition.getString("discType");
-                                                    if(discType.equals("summ")) {
-                                                        //рассчитываем процент вручную
+                                                    if (discType.equals("summ") || discType.equals("price")) {
+                                                        //рассчитываем процент вручную при частичной оплате бонусами чтобы бонусы не пошли в скидку
                                                         BigDecimal discSum = BigDecimal.valueOf(discountPosition.getDouble("discSum"));
                                                         BigDecimal checkSum = BigDecimal.valueOf(discountPosition.getDouble("checkSum"));
                                                         discSize = safeMultiply(safeDivide(discSum, checkSum), 100);
