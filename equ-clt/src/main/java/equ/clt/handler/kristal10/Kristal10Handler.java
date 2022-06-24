@@ -907,9 +907,11 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             BigDecimal discountSumReceipt = null; //пока считаем, что скидки по чеку нету //readBigDecimalXMLAttribute(purchaseNode, "discountAmount");
                             //discountSumReceipt = (discountSumReceipt != null && !isSale) ? discountSumReceipt.negate() : discountSumReceipt;
 
-                            long dateTimeReceipt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss"/*.SSSX"*/).parse(readStringXMLAttribute(purchaseNode, "saletime")).getTime();
-                            LocalDate dateReceipt = sqlDateToLocalDate(new Date(dateTimeReceipt));
-                            LocalTime timeReceipt = sqlTimeToLocalTime(new Time(dateTimeReceipt));
+                            LocalDateTime dateTimeReceipt = LocalDateTime.parse(readStringXMLAttribute(purchaseNode, "saletime"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX"));
+                            LocalDate dateReceipt = dateTimeReceipt.toLocalDate();
+                            LocalTime timeReceipt = dateTimeReceipt.toLocalTime();
+
+                            LocalDate dateZReport = LocalDate.parse(readStringXMLAttribute(purchaseNode, "operDay"), DateTimeFormatter.ofPattern("yyyy-MM-ddXXX"));
 
                             String uid = null;
                             String fiscalNumber = null;
@@ -1140,7 +1142,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                                         if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                             sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                                        currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
+                                        currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
                                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
                                                 customPaymentMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                                 discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
