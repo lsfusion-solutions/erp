@@ -44,7 +44,7 @@ public class SendSalesEquipmentServer {
 
     public static void init(BusinessLogics BL) {
         cashRegisterLM = BL.getModule("EquipmentCashRegister");
-        cashOperationLM = BL.getModule("CashOperation");
+        cashOperationLM = BL.getModule("CashDrawer");
         equipmentCashRegisterLM = BL.getModule("EquipmentCashRegister");
         machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
         zReportLM = BL.getModule("ZReport");
