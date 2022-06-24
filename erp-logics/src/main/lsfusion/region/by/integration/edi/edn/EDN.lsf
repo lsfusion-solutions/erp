@@ -24,8 +24,6 @@ overInvoiceOutputDirEDN 'Путь сохранения отправленных 
 
 useDocuDrive 'Использовать DocuDrive' = DATA BOOLEAN();
 
-@receiveMessages(soap);
-
 document = DATA LOCAL RAWFILE();
 FORM edocument
 PROPERTIES() document;
@@ -47,7 +45,7 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
 receiveMessagesEDN (BOOLEAN invoices) {
     FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
         hideMessageHeaderBlrapn() <- extractEDN(le);
-        receiveMessagesSoap(login, passwordEDN(le), ('https://' +  hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, invoices, 'EDN');
+        receiveMessages(login, passwordEDN(le), ('https://' +  hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, invoices, 'EDN');
     }
 }
 
@@ -93,8 +91,6 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
                 despatchAdvicesFailed() <- 0;
                 invoiceMessagesSucceeded() <- 0;
                 invoiceMessagesFailed() <- 0;
-                creditNoteMessagesSucceeded() <- 0;
-                creditNoteMessagesFailed() <- 0;
                 eInvoicesSucceeded() <- 0;
                 eInvoicesFailed() <- 0;
                 blrwbrCount() <- 0;
@@ -128,8 +124,6 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
                 IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
                 IF invoiceMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по накладным: ' + invoiceMessagesSucceeded();
                 IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
-                IF creditNoteMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по актам приемки: ' + creditNoteMessagesSucceeded();
-                IF creditNoteMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по актам приемки: ' + creditNoteMessagesFailed();
                 IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
                 IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
                 IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
