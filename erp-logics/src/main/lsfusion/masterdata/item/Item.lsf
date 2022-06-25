@@ -2487,3 +2487,16 @@ DESIGN customGroupTypes {
 
 WHEN LOCAL CHANGED (barcode(Item i)) AND copyBarcodeInItemId() INLINE DO 
     id(i) <- idBarcode(i);
+    
+show 'Просмотреть' (Item i)   { 
+    NEWSESSION{
+        SHOW item OBJECTS i = i DOCKED READONLY;
+    }    
+}TOOLBAR;
+
+overShowEdit = ABSTRACT BOOLEAN (Item);
+showToShow (Item i) = i IS Item AND NOT overShowEdit(i);
+
+EXTEND FORM items 
+    PROPERTIES show(i) SHOWIF showToShow(i) BEFORE edit
+;
