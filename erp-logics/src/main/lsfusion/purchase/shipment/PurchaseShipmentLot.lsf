@@ -6,16 +6,18 @@ REQUIRE PurchaseShipment,
 NAMESPACE Purchase;
 
 @defineOperationProperty(useLot, 'Марки', showContainer);
-useLot (UserInvoice i) = useLot(operation(i));
+useLot (Invoice i) = useLot(operation(i));
+
+quantity = ABSTRACT NUMERIC[16,5] (InvoiceDetail, Lot);
+
+quantityLot 'Кол-во марок' (InvoiceDetail d) = GROUP SUM quantity(d, Lot l) MATERIALIZED;
+quantity (Invoice i, Lot l) = GROUP SUM quantity(InvoiceDetail d, l) IF invoice(d) = i;
+quantityLot 'Кол-во марок' = GROUP SUM quantityLot(InvoiceDetail d) BY invoice(d) MATERIALIZED;
 
 isPostedShipment (UserInvoiceDetail d) = isPosted(d) AND createShipment(d);
 @defineDocumentLotIn(userInvoice, shipmentQuantity, i, invoices, isPostedShipment);
 
-quantity = ABSTRACT NUMERIC[16,5] (InvoiceDetail, Lot);
 quantity(UserInvoiceDetail d, Lot l) += quantity(d, l);
-
-quantityLot 'Кол-во марок' (InvoiceDetail d) = GROUP SUM quantity(d, Lot l);
-quantity (Invoice i, Lot l) = GROUP SUM quantity(InvoiceDetail d, l) IF invoice(d) = i;
 
 @defineDocumentLotType(invoice);
 
