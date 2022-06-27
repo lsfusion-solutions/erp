@@ -20,7 +20,8 @@ stockReserve 'Страховой запас (кол-во)' (Stock stock, Sku sku
           ORDER dateIn
           WHERE dataStockReserve(stock, sku, dateIn) AND dateIn <= (date AS DATE) IN base;
 
-overStockReserve 'Страховой запас (кол-во)' = OVERRIDE dataStockReserve(Stock stock, Sku sku, DATE date), stockReserve(stock, sku, date);
+extraStockReserv 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[14,3] (Stock, Sku);
+overStockReserve 'Страховой запас (кол-во)' = OVERRIDE dataStockReserve(Stock stock, Sku sku, DATE date), stockReserve(stock, sku, date), extraStockReserv(stock, sku);
 
 stockReserve 'Страховой запас (кол-во)' (Stock stock, Sku sku) = stockReserve(stock, sku, currentDate()) IN base;
 
@@ -49,6 +50,7 @@ dialogStockReserve 'Страховой запас (кол-во)' (Stock stock, S
 overDialogStockReserveDate 'Страховой запас (кол-во)' (Stock stock, Sku sku)  { SHOW dialogStockReserveStockSku OBJECTS a = stock, b = sku; }  ASON CONTEXTMENU overStockReserve[Stock,Sku,DATE];
 dataStockReserveDays 'Страховой запас (дн.)' = DATA NUMERIC[14,3] (Stock, SkuGroup);
 dataStockReserveDays 'Страховой запас (дн.)' = DATA NUMERIC[14,3] (Stock, Sku) TABLE extraSkuStock;
+extraStockReservDays 'Страховой запас (дн.)' = ABSTRACT NUMERIC[14,3] (Stock, Sku);
 
 levelParent (Stock stock, SkuGroup skuGroup) = GROUP
                                                                MIN level(skuGroup, SkuGroup parent) IF dataStockReserveDays(stock, parent) MATERIALIZED;
@@ -62,7 +64,8 @@ stockReserveDays 'Страховой запас (дн.)' (Stock stock, SkuGroup 
 
 stockReserveDays 'Страховой запас (дн.)' (Stock stock, Sku sku) = OVERRIDE
     dataStockReserveDays(stock, sku),
-    nearestStockReserveDays(stock, skuGroup(sku));
+    nearestStockReserveDays(stock, skuGroup(sku)),
+    extraStockReservDays(stock, sku);
 
 fillReserveFromTo 'Проставить кол-во исходя из продаж в день и запаса(дн.) '(Stock stock, DATE date)  { 
     FOR stockReserveDays(stock, Sku sku) AND averageSold(sku,stock) DO {
@@ -147,7 +150,11 @@ DESIGN stockReserve {
             type = SPLITH;
             fill = 1;
             MOVE BOX(TREE skuTree) { caption = 'Товарные группы'; }
-            MOVE BOX(s) { fill = 3; };
+            NEW tabContainer{
+                fill = 4;
+                type=TABBED;
+                MOVE BOX(s) {caption='Товары';};
+            }            
         }
         MOVE TOOLBARBOX;
     }
