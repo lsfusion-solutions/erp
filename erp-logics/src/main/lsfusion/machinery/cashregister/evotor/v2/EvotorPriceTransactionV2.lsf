@@ -166,6 +166,84 @@ getInfoBulks(CashRegisterPriceTransaction t) {
     }
 }
 
+//-----------------------очистка базы товаров-----------------------//
+
+clearItemsBeforeSnapshotEvotor 'Очищать товары(при выгрузке целиком)' = DATA BOOLEAN ();
+
+countItems = DATA LOCAL INTEGER ();
+countProductGroups = DATA LOCAL INTEGER ();
+
+FORM getInfoItems
+    PROPERTIES() IN paging next_cursor
+
+    OBJECTS items = INTEGER
+    PROPERTIES(items) id
+    FILTERS imported(items)
+;
+
+countItems (GroupCashRegister g){
+    LOCAL f = FILE ();
+    LOCAL items = BOOLEAN (STRING);
+    headers('X-Authorization') <- tokenXAuth(token(evotorStore(g)));
+    WHILE TRUE DO{
+        EXTERNAL HTTP GET CONCAT '', 'https://api.evotor.ru/stores/' + uidEvotorStore(g) + '/products?', 
+            'fields=id' IF NOT next_cursor(), 'cursor=' + next_cursor()
+            HEADERS headers TO f;
+        IMPORT getInfoItems JSON FROM f();
+        FOR (id(INTEGER i)) DO items(id(i)) <- TRUE;
+        IF NOT next_cursor() THEN BREAK;
+    }
+    countItems() <- GROUP SUM 1 IF items(STRING s);
+}
+
+clearProuctGroups 'Очистка базы товаров магазина(каталог) '(GroupCashRegister g, BOOLEAN notify){
+    LOCAL f = FILE ();
+    LOCAL groups = BOOLEAN (STRING);
+    headers('X-Authorization') <- tokenXAuth(token(evotorStore(g)));
+    WHILE TRUE DO{
+        EXTERNAL HTTP GET CONCAT '', 'https://api.evotor.ru/stores/' + uidEvotorStore(g) + '/product-groups?', 
+            'fields=id' IF NOT next_cursor(), 'cursor=' + next_cursor()
+            HEADERS headers TO f;
+        IMPORT getInfoItems JSON FROM f();
+        FOR (id(INTEGER i)) DO groups(id(i)) <- TRUE;
+        IF NOT next_cursor() THEN BREAK;
+    }
+    IF notify THEN countItems(g);
+    countProductGroups() <- GROUP SUM 1 IF groups(STRING s);
+    IF countProductGroups() AND notify THEN {
+        ASK (CONCAT '\n', 'Всего ' + countProductGroups() + ' товарных групп', countItems() + ' товаров', 'Вы точно хотите продолжить удаление?') DO {
+            LOCAL result = TEXT();
+            result() <- GROUP CONCAT STRING s, ',' IF  groups(s) ORDER s;
+            EXTERNAL HTTP DELETE 'https://api.evotor.ru/stores/' + uidEvotorStore(g) + '/product-groups?id=' + result() HEADERS headers;
+            IF statusHttp() = 204 AND notify THEN 
+                MESSAGE 'Товары успешно удалены ';            
+        }
+    }
+    IF countProductGroups() AND NOT notify THEN {
+        LOCAL result = TEXT();
+        result() <- GROUP CONCAT STRING s, ',' IF  groups(s) ORDER s;
+        EXTERNAL HTTP DELETE 'https://api.evotor.ru/stores/' + uidEvotorStore(g) + '/product-groups?id=' + result() HEADERS headers;
+    }
+}
+
+clearAllItemsEvotor 'Очистка всех товаров в облаке Эвотор' (){
+    FOR isEvotor(GroupCashRegister g) DO{
+        clearProuctGroups(g, NULL);
+    }
+    MESSAGE 'Все товары очищены';
+}
+
+EXTEND FORM integrationData
+    PROPERTIES () clearItemsBeforeSnapshotEvotor, clearAllItemsEvotor;
+
+DESIGN integrationData{
+    evotor{
+        MOVE PROPERTY (clearItemsBeforeSnapshotEvotor());
+        BOX(auth){
+            MOVE PROPERTY (clearAllItemsEvotor());
+        }
+    }
+}
 sendEvotorPriceTransaction (CashRegisterPriceTransaction t){
     TRY{
         getInfoBulks(t);
@@ -176,6 +254,7 @@ sendEvotorPriceTransaction (CashRegisterPriceTransaction t){
         }
         ELSE {
             NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
+            IF snapshot(t) AND clearItemsBeforeSnapshotEvotor() THEN clearProuctGroups(groupCashRegister(t), NULL);
             asyncUploadItemGroup(t);
             asyncUploadItem(t);
         }
