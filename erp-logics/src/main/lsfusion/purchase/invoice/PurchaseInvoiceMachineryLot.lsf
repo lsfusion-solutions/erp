@@ -33,13 +33,22 @@ createMachineryPriceTransactionCustom 'Загрузить в оборудова�
     IF useLot(i) THEN createCashRegisterPriceTransactionDocumentLot(i);
     ELSE createMachineryPriceTransaction(i);
 }
+
+createSnapshotMachineryPriceTransactionCustom 'Перегрузить все позиции' (Invoice i) {
+    IF useLot(i) THEN createCashRegisterPriceTransactionDocumentLot(i);
+    ELSE createSnapshotMachineryPriceTransaction(i);
+}
+
 EXTEND FORM invoices
-    PROPERTIES (i) createMachineryPriceTransactionCustom SHOWIF showCreateMachineryPriceTransaction(i)
+    PROPERTIES (i) createMachineryPriceTransactionCustom SHOWIF showCreateMachineryPriceTransaction(i),
+                   createSnapshotMachineryPriceTransactionCustom 
 ;
 
 DESIGN invoices{
     machinery{
         REMOVE PROPERTY (createMachineryPriceTransaction(i));
         MOVE PROPERTY (createMachineryPriceTransactionCustom(i));
+        REMOVE PROPERTY (createSnapshotMachineryPriceTransaction(i));
+        MOVE PROPERTY (createSnapshotMachineryPriceTransactionCustom(i));
     }
 }
