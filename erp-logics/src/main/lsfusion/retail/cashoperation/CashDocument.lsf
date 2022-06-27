@@ -1,0 +1,33 @@
+MODULE CashDocument;
+
+REQUIRE Integration, Document, StoreEmployee;
+
+NAMESPACE CashOperation;
+
+// Интерфейс по работе с центральной кассой (кассовым счетом)
+CLASS ABSTRACT CashDocument 'Кассовый документ';
+TABLE cashDocument (CashDocument);
+TABLE sessionCashDocument (Session, CashDocument);
+
+@defineExternalizable(cashDocument, STRING[100]);
+
+date 'Дата документа' = ABSTRACT DATE (CashDocument) IN documentHeader;
+time 'Время документа' = ABSTRACT TIME (CashDocument) IN documentHeader;
+dateTime 'Дата/время документа' (CashDocument cashDocument) = dateTimeToDateTime(date(cashDocument), time(cashDocument)) IN documentHeader;
+
+number '{numerator.number.numerator}' = ABSTRACT BPSTRING[200] (CashDocument) IN documentPrm;
+series '{numerator.series.numerator}' = ABSTRACT BPISTRING[2] (CashDocument) IN documentPrm;
+
+departmentStore 'Подразделение' = ABSTRACT Stock (CashDocument);
+nameDepartmentStore 'Подразделение' (CashDocument d) = name(departmentStore(d)) IN documentHeader;
+
+legalEntity 'Компания' (CashDocument d) = legalEntity(departmentStore(d));
+nameLegalEntity 'Компания' (CashDocument d) = name(legalEntity(d)) IN documentHeader;
+
+basis 'Основание' = ABSTRACT STRING[100] (CashDocument) IN documentPrm;
+
+isPosted 'Проведен' = ABSTRACT BOOLEAN (CashDocument);
+
+employee = ABSTRACT Employee (CashDocument);
+idEmployee 'Код кассира' (CashDocument d) = id(employee(d));
+nameEmployee 'Кассир' (CashDocument d) = shortName(employee(d));

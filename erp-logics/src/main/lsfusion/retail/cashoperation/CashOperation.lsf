@@ -3,36 +3,6 @@ MODULE CashOperation;
 REQUIRE CashDrawer, CashRegisterStore, Numerator;
 
 // ----------------------------- Кассовые документы ---------------------------- //
-
-// Интерфейс для по работе с центральной кассой (кассовым счетом)
-CLASS ABSTRACT CashDocument 'Кассовый документ';
-TABLE cashDocument (CashDocument);
-TABLE sessionCashDocument (Session, CashDocument);
-
-@defineExternalizable(cashDocument, STRING[100]);
-
-date 'Дата документа' = ABSTRACT DATE (CashDocument) IN documentHeader;
-time 'Время документа' = ABSTRACT TIME (CashDocument) IN documentHeader;
-dateTime 'Дата/время документа' (CashDocument cashDocument) = dateTimeToDateTime(date(cashDocument), time(cashDocument)) IN documentHeader;
-
-number 'Номер' (cashDocument) = ABSTRACT BPSTRING[200] (CashDocument) IN documentPrm; ///
-
-departmentStore (cashDocument) = ABSTRACT Stock (CashDocument);
-nameDepartmentStore 'Подразделение' (CashDocument cashDocument) =
-    name(departmentStore(cashDocument)) IN documentHeader;
-nameLegalEntity 'Компания' (CashDocument cashDocument) = nameLegalEntity(departmentStore(cashDocument)) IN documentHeader;
-
-basis 'Основание' = ABSTRACT STRING[100] (CashDocument) IN documentPrm;
-
-cashRegister = ABSTRACT CashRegister(CashDocument);
-numberCashRegister 'Касса' (CashDocument cashDocument) = npp(cashRegister(cashDocument)) IN documentPrm;
-
-isPosted 'Закрыт' = ABSTRACT BOOLEAN (CashDocument);
-
-employee = ABSTRACT Employee (CashDocument);
-idEmployee 'Код кассира' (CashDocument d) = id(employee(d));
-nameEmployee 'Кассир' (CashDocument d) = shortName(employee(d));
-
 CLASS ABSTRACT IncomeCashOrder 'ПКО': CashDocument;
 CLASS ABSTRACT OutcomeCashOrder 'РКО': CashDocument;
 
