@@ -76,26 +76,38 @@ public class ImportItemsInfoEurooptAction extends EurooptAction {
                     Elements descriptionElement = doc.getElementsByClass("description");
                     List<Node> descriptionAttributes = descriptionElement.size() == 0 ? new ArrayList<>() : descriptionElement.get(0).childNodes();
                     String idBarcode = null;
+                    String countryItem = null;
                     String captionItem = doc.getElementsByTag("h1").text();
                     String brandItem = null;
                     BigDecimal netWeight = null;
                     String UOMItem = null;
                     for (Node attribute : descriptionAttributes) {
-                        if (attribute instanceof Element && ((Element) attribute).children().size() == 2) {
-                            String type = parseChild((Element) attribute, 0);
-                            String value = parseChild((Element) attribute, 1);
-                            switch (type) {
-                                case "Штрих-код:":
-                                    idBarcode = value;
+                        if (attribute instanceof Element) {
+                            String t1 = parseChild((Element) attribute, 0);
+                            String t2 = parseChild((Element) attribute, 1);
+                            String t3 = parseChild((Element) attribute, 2);
+                            switch (((Element) attribute).children().size()) {
+                                case 2 :
+                                    switch (t1) {
+                                        case "Штрих-код:":
+                                            idBarcode = t2;
+                                            break;
+                                        case "Страна производства:":
+                                            countryItem = t2;
+                                            break;
+                                        case "Масса / Объем:":
+                                            String[] split = t2.split(" ");
+                                            netWeight = new BigDecimal(split[0]);
+                                            UOMItem = split.length >= 2 ? split[1] : null;
+                                            break;
+                                    }
                                     break;
-                                case "Торговая марка:":
-                                    brandItem = value;
+                                case 3: {
+                                    if ("Торговая марка:".equals(t2)) {
+                                        brandItem = t3;
+                                    }
                                     break;
-                                case "Масса:":
-                                    String[] split = value.split(" ");
-                                    netWeight = new BigDecimal(split[0]);
-                                    UOMItem = split.length >= 2 ? split[1] : null;
-                                    break;
+                                }
                             }
                         }
                     }
@@ -161,6 +173,7 @@ public class ImportItemsInfoEurooptAction extends EurooptAction {
                         itemJSON.put("manufacturerItem", manufacturerItem);
                         itemJSON.put("UOMItem", UOMItem);
                         itemJSON.put("brandItem", brandItem);
+                        itemJSON.put("countryItem", countryItem);
 
                     }
                     itemsJSON.put(itemJSON);
