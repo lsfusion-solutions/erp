@@ -54,17 +54,19 @@ fld5 = ABSTRACT TEXT (Barcode, Stock);
 CLASS TerminalBarcodeFlags {
     needManufacturingDate 'Обязательна дата изготовления',
     goodInternetStore 'Признак товара интернет магазина',
-    goodMarking 'Признак маркированного товара'
+    goodMarking 'Признак маркированного товара',
+    goodNotInRange 'Признак товара не входящего в ассортимент магазина'
 }
 order(TerminalBarcodeFlags f) = CASE 
     WHEN f = TerminalBarcodeFlags.needManufacturingDate THEN 0l
     WHEN f = TerminalBarcodeFlags.goodInternetStore THEN 5l
-    WHEN f = TerminalBarcodeFlags.goodMarking THEN 6l;
+    WHEN f = TerminalBarcodeFlags.goodMarking THEN 6l
+    WHEN f = TerminalBarcodeFlags.goodNotInRange THEN 7l;
     
-in = ABSTRACT CASE BOOLEAN (Sku, TerminalBarcodeFlags);
+in = ABSTRACT CASE BOOLEAN (Sku, Stock, TerminalBarcodeFlags);
 flag (TerminalBarcodeFlags f) = LONG(power(2l, order(f)));
-flags(Sku s) = GROUP SUM flag(TerminalBarcodeFlags f) IF in(s, f);
-flags(Barcode b) = flags(sku(b));
+flags(Sku s, Stock st) = GROUP SUM flag(TerminalBarcodeFlags f) IF in(s, st, f);
+flags(Barcode b, Stock st) = flags(sku(b), st);
 
 image(Barcode b) = smallImage(sku(b)) IF hasImage(sku(b));
 
