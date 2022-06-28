@@ -27,7 +27,7 @@ import java.sql.SQLException;
 
 public class EurooptAction extends DefaultImportAction {
 
-    String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
+    String userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36";
 
     String logPrefix = "Import Euroopt: ";
 
@@ -54,6 +54,7 @@ public class EurooptAction extends DefaultImportAction {
                     Connection connection = Jsoup.connect(url);
                     connection.timeout(10000);
                     connection.userAgent(userAgent);
+                    connection.header("accept-language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7,be;q=0.6");
                     return connection.get();
                 } else {
                     URLConnection urlConnection = getTorConnection(lowerNetLayer, mainPage, url);

@@ -5,8 +5,7 @@ REQUIRE System, Item, ItemDescription, ItemNutrition, PurchasePack, Competitor;
 PRIORITY Competitor;
 
 CLASS MainPage 'Главная страница' {
-    edostavka 'https://e-dostavka.by',
-    gipermall 'https://gipermall.by'
+    edostavka 'https://e-dostavka.by'
 }
 FORM mainPages
     OBJECTS m = MainPage
@@ -28,6 +27,7 @@ CLASS EurooptItemList 'Список товаров';
 TABLE eurooptItemList (EurooptItemList);
 
 eurooptItemGroup = DATA EurooptItemGroup(EurooptItemList) NONULL DELETE;
+countItemList 'Количество списков' = GROUP SUM 1 BY eurooptItemGroup(EurooptItemList l);
 url 'URL' = DATA STRING[255] (EurooptItemList) INDEXED;
 mainPage(EurooptItemList l) = mainPage(eurooptItemGroup(l));
 dataIn 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItemList);
@@ -39,6 +39,7 @@ CLASS EurooptItem 'Товар';
 TABLE eurooptItem (EurooptItem);
 
 eurooptItemList = DATA EurooptItemList(EurooptItem);
+countItem 'Количество товаров' = GROUP SUM 1 BY eurooptItemGroup(eurooptItemList(EurooptItem i));
 idBarcode 'Штрихкод' (EurooptItem e) = DATA STRING[15](EurooptItem);
 noBarcode 'Без штрихкода' (EurooptItem e) = DATA BOOLEAN(EurooptItem);
 sku(EurooptItem e) = skuBarcode(idBarcode(e));
@@ -96,10 +97,6 @@ synchronizeItemsEdostavka 'Синхронизировать списки тов�
     mainPage() <- MainPage.edostavka;
     synchronizeItemsJSON();
 }
-synchronizeItemsGipermall 'Синхронизировать списки товаров Gipermall' () {
-    mainPage() <- MainPage.gipermall;
-    synchronizeItemsJSON();
-}
 
 onlyBarcode 'Импортировать только штрихкоды' = DATA BOOLEAN();
 
@@ -152,10 +149,6 @@ importItemsInfoJSON 'Импортировать информацию о това
 
 importItemsInfoEdostavka 'Импортировать информацию о товарах E-dostavka' () {
     mainPage() <- MainPage.edostavka;
-    importItemsInfoJSON();
-}
-importItemsInfoGipermall 'Импортировать информацию о товарах Gipermall' () {
-    mainPage() <- MainPage.gipermall;
     importItemsInfoJSON();
 }
 
@@ -273,19 +266,6 @@ importImageAndPriceEdostavka 'Импортировать изображения 
         importPricesJSON();
     }
 }
-importImageAndPriceGipermall 'Импортировать изображения и цены товаров Gipermall' () {
-    mainPage() <- MainPage.gipermall;
-
-    importImageAndPrice();
-
-    IF importImages() THEN {
-        importImagesJSON();
-    }
-    
-    IF importPrices() THEN {
-        importPricesJSON();
-    }
-}
 
 idItemGroup 'Код группы товаров' (Barcode barcode) = id(skuGroup(sku(barcode)));
 
@@ -304,10 +284,6 @@ FORM exportEuroopt 'Экспорт товаров'
 
 exportEdostavka 'Экспорт товаров E-dostavka (xls)' ()  { 
     PRINT exportEuroopt OBJECTS mp = MainPage.edostavka XLS;
-}
-
-exportGipermall 'Экспорт товаров Gipermall (xls)' ()  { 
-    PRINT exportEuroopt OBJECTS mp = MainPage.gipermall XLS;
 }
 
 importEuroopt 'Импорт товаров (xls)' ()  { 
@@ -355,11 +331,6 @@ importEdostavka 'Импорт товаров E-dostavka (xls)' ()  {
     importEuroopt();
 }
 
-importGipermall 'Импорт товаров Gipermall (xls)' ()  { 
-    mainPage() <- MainPage.gipermall;
-    importEuroopt();
-}
-
 resetSelection() {
     in(EurooptItemGroup g) <- NULL;
     dataIn(EurooptItemList g) <- NULL;
@@ -369,10 +340,9 @@ resetSelection() {
 EXTEND FORM integrationData
     OBJECTS mp = MainPage ON CHANGE resetSelection() PANEL, eig = EurooptItemGroup, eil = EurooptItemList, ei = EurooptItem
     PROPERTIES(mp) staticCaption SELECTOR
-    PROPERTIES() SHOWIF (mp == MainPage.edostavka) synchronizeItemsEdostavka, importItemsInfoEdostavka, importImageAndPriceEdostavka, exportEdostavka, importEdostavka, nameEurooptStock, getItemsUrls
-    PROPERTIES() SHOWIF (mp == MainPage.gipermall) synchronizeItemsGipermall, importItemsInfoGipermall, importImageAndPriceGipermall, exportGipermall, importGipermall                
+    PROPERTIES() SHOWIF (mp == MainPage.edostavka) synchronizeItemsEdostavka, importItemsInfoEdostavka, importImageAndPriceEdostavka, exportEdostavka, importEdostavka, nameEurooptStock, getItemsUrls             
     PROPERTIES() onlyBarcode, importImages, importPrices, useTor, ignoreItemGroups
-    PROPERTIES(eig) READONLY in CHANGEABLE, title, url
+    PROPERTIES(eig) READONLY in CHANGEABLE, title, url, countItemList, countItem
     PROPERTIES(eil) in, url READONLY
     PROPERTIES(ei) READONLY in CHANGEABLE, url, noBarcode, idBarcode, name
     FILTERS mainPage(eig) == mp, mainPage(eurooptItemGroup(eil)) == mp
@@ -392,12 +362,10 @@ DESIGN integrationData {
             MOVE PROPERTY(useTor());          
             MOVE PROPERTY(ignoreItemGroups());          
             MOVE PROPERTY(synchronizeItemsEdostavka());
-            MOVE PROPERTY(synchronizeItemsGipermall());
             NEW items {
                 caption = 'Импорт товаров';
                 MOVE PROPERTY(onlyBarcode());      
                 MOVE PROPERTY(importItemsInfoEdostavka());                             
-                MOVE PROPERTY(importItemsInfoGipermall());                             
                 MOVE PROPERTY(nameEurooptStock());                             
                 MOVE PROPERTY(getItemsUrls());                             
             }
@@ -406,13 +374,10 @@ DESIGN integrationData {
                 MOVE PROPERTY(importImages());
                 MOVE PROPERTY(importPrices());
                 MOVE PROPERTY(importImageAndPriceEdostavka());
-                MOVE PROPERTY(importImageAndPriceGipermall());
             }
             NEW xls {
                 MOVE PROPERTY(exportEdostavka());
-                MOVE PROPERTY(exportGipermall());
                 MOVE PROPERTY(importEdostavka());
-                MOVE PROPERTY(importGipermall());
             }
             NEW eItems {
                 type = SPLITH;
