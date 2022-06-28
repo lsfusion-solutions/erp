@@ -181,12 +181,10 @@ updateOrder(FILE f){
             phoneInternetCustomer(io) <- STRING[100](phoneNumber());
             courierArrivementDateText(io) <- courierArrivementDate();
             isPosted(io) <- TRUE;
-            //заказ присылается полностью, поэтому удаляем и перезаполняем(вопрос по пикеру, но пока так)
-            DELETE InternetOrderDetail detail WHERE internetOrder(detail) == internetOrderByUuid(order());
-            FOR id(INTEGER items) NEW detail = InternetOrderDetail DO{ 
-                sku(detail) <- itemById(id(items));
-                quantity(detail) <- NUMERIC[16,5](quantity(items));
-                price(detail) <- NUMERIC[15,2](price(items));
+            FOR id(INTEGER items) AND InternetOrderDetail detail = GROUP MAX InternetOrderDetail idetail IF sku(idetail) = sku(id(items)) DO{
+                sku(detail) <- sku(id(items));
+                pickingQuantity(detail) <- NUMERIC[16,5](quantity(items));
+                price(detail) <- NUMERIC[15,2](price(items)) WHERE price(items);
                 internetOrder(detail) <- io;
             }
             paymentTypeInternetOrder(io) <- paymentTypeOrder(paymentType());
