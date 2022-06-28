@@ -9,12 +9,14 @@ TABLE route(Route);
 @defineNumbered(Route, BPSTRING[2]);
 @defineNumeratedDefault(Route, 'Маршруты', 'МР');
 
+note 'Примечание' = DATA ISTRING (Route) CHARWIDTH 30;
+
 truck = DATA Truck(Route);
 sidTruck 'Машина' (Route route) = sid(truck(route));
 
 FORM route 'Маршрут'
     OBJECTS r=Route PANEL
-    PROPERTIES(r) nameNumerator, number, series, sidTruck
+    PROPERTIES(r) nameNumerator, number, series, sidTruck, note
 
     EDIT Route OBJECT r
 ;
@@ -34,6 +36,7 @@ DESIGN route {
                 alignment = STRETCH;
                 MOVE PROPERTY(sidTruck(r));
             }
+            MOVE PROPERTY(note(r)) { alignment = STRETCH; }
         }
         NEW tabbedPane {
             type = TABBED;
@@ -44,7 +47,7 @@ DESIGN route {
 
 FORM routes 'Маршруты'
     OBJECTS r=Route
-    PROPERTIES(r) READONLY nameNumerator, number, series, sidTruck
+    PROPERTIES(r) READONLY nameNumerator, number, series, sidTruck, note
     PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE 
 ;
 
@@ -52,18 +55,22 @@ FORM routes 'Маршруты'
 CLASS ABSTRACT Node 'Пункт';
 
 name 'Наименование' = ABSTRACT ISTRING[150](Node);
-address 'Адрес' = ABSTRACT ISTRING[150](Node);
+address 'Адрес' = ABSTRACT ISTRING[150](Node) CHARWIDTH 30;
 
 longitude 'Координата Y' = ABSTRACT NUMERIC[11,6](Node);
 latitude 'Координата X' = ABSTRACT NUMERIC[11,6](Node);
 
 legalEntity = ABSTRACT LegalEntity(Node);
-
-nameLegalEntity 'Юр. лицо' (Node node) = name(legalEntity(node));
+nameLegalEntity 'Организация' (Node node) = name(legalEntity(node));
 
 TABLE nodeRoute(Node, Route);
 in 'Включен' = DATA BOOLEAN(Node, Route);
 number 'Порядковый номер' = DATA INTEGER(Node, Route);
+
+changeIn (Node n, Route r) {
+    INPUT b = in(n, r) CHANGE DO 
+        IF b THEN number(n, r) <- [GROUP MAX number(Node nm, r) IF in(nm, r)]() (+) 1; 
+}
 
 EXTEND CLASS Stock : Node;
 //EXTEND CLASS supplier : node;
@@ -83,34 +90,19 @@ showNode (Route r) = r IS Route AND NOT skipShowNode(r);
 
 EXTEND FORM route
     OBJECTS n = Node
-    PROPERTIES (n) READONLY SHOWIF showNode(r) name, address
-    PROPERTIES (n, r) SHOWIF showNode(r) in, number
+    PROPERTIES (n) READONLY SHOWIF showNode(r) name, nameLegalEntity
+    PROPERTIES (n) address ON CHANGE { INPUT sl = STRING[150] CUSTOM 'customGoogleAutocomplete' DO address(n) <- sl; }
+    PROPERTIES (n) longitude, latitude 
+    PROPERTIES (n, r) SHOWIF showNode(r) in ON CHANGE changeIn(n, r), number
     
     FILTERGROUP selected
-        FILTER 'Отмеченные' in(n, r)
-        
-    OBJECTS nm = Node MAP
-    PROPERTIES(nm) READONLY name, longitude, latitude
-    PROPERTIES READONLY color = RGB(255,0,0) IF in(nm, r) 
-    PROPERTIES(nm) READONLY PANEL address
-    PROPERTIES(nm, r) PANEL in, number
-
-    FILTERGROUP selectedM
-        FILTER 'Отмеченные' in(nm, r) DEFAULT
+        FILTER 'Отмеченные' in(n, r) DEFAULT
 ;
 
 DESIGN route {
     tabbedPane {
         MOVE BOX(n) {
             caption = 'Склады';
-        }
-        MOVE BOX(nm) {
-            caption = 'Карта';
-            GRID(nm) {
-                MOVE PROPERTY(address(nm));
-                MOVE PROPERTY(in(nm, r));
-                MOVE PROPERTY(number(nm, r));
-            }
         }
     }
 }
