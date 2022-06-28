@@ -1,0 +1,395 @@
+MODULE PurchaseOrderEDICislink;
+
+REQUIRE PurchaseOrderEDITopByProtocol;
+
+NAMESPACE EDI;
+
+EXTEND CLASS EDIProvider {
+    cislink 'Cislink'
+}
+
+connectionStringCislink 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
+outPathCislink 'Путь для выгрузки файлов (с /)' = DATA STRING[100]();
+inPathCislink 'Путь для ответов (с /)' = DATA STRING[100]();
+confirmNotFoundOrdersCislink 'Подтверждать ответы по которым не найден заказ' = DATA BOOLEAN ();
+
+archiveInDirCislink 'Архив принятых сообщений' = DATA STRING[100] ();
+archiveOutDirCislink 'Архив отправленных сообщений' = DATA STRING[100] ();
+
+EXTEND FORM options
+    PROPERTIES () connectionStringCislink, outPathCislink, inPathCislink, confirmNotFoundOrdersCislink
+    PROPERTIES () archiveInDirCislink, archiveOutDirCislink
+;
+DESIGN options {
+    EDI {
+        NEW cislink{
+            caption = 'Cislink';
+            NEW cislink1{
+                type = CONTAINERV;
+                caption = 'Параметры';
+                MOVE PROPERTY (connectionStringCislink());
+                MOVE PROPERTY (outPathCislink());
+                MOVE PROPERTY (inPathCislink());
+                MOVE PROPERTY (confirmNotFoundOrdersCislink());
+            }
+            NEW cislink2{
+                type = CONTAINERV;
+                caption = 'Архив';
+                MOVE PROPERTY (archiveInDirCislink());
+                MOVE PROPERTY (archiveOutDirCislink());
+            }            
+        }
+    }
+}
+
+sendPurchaseOrder (EOrder o, STRING url, STRING[100] outputDir, STRING[100] provider) {
+    sendingCancelled() <- NULL;
+    TRY {
+        IF url THEN {
+            LOCAL error = TEXT();
+            error() <- '';
+            IF NOT GLNSupplierStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада поставщика\n';
+            IF NOT GLNCustomer(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN покупателя\n';
+            IF NOT GLNCustomerStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада покупателя\n';
+            IF NOT shipmentDateTime(o) >= sumMinutes(currentDateTime(),60) THEN error() <- error() + 'EOrder ' + number(o) + ': Не верная дата/время поставки';
+            
+            IF error() == '' THEN {
+                LOCAL contentSubXML = FILE();
+                EXPORT purchaseOrder OBJECTS o = o XML TO contentSubXML;
+                IF outputDir THEN {
+                    TRY{ mkdir(outputDir + '/sent/orders/'+ provider+'/'+ toChar(currentDate(),'yyyyMMdd')); }
+                    WRITE contentSubXML() TO outputDir + '/sent/orders/'+ provider+'/' + toChar(currentDate(),'yyyyMMdd') + '/' + (CONCAT '_', 'order', number(o)) ;
+                }
+                WRITE contentSubXML() TO url  + (CONCAT '_', 'order', number(o)); 
+                file() <- NULL;
+                READ url  + (CONCAT '_', 'order', number(o)) + '.xml' TO file;
+                IF file() THEN {
+                    logToFile('edi', provider + ' SendEOrder ' + number(o) +' request sent');
+                    MESSAGE provider + ' Заказ ' + number(o) + ' выгружен' NOWAIT;
+                } ELSE {
+                    MESSAGE provider + ' Заказ ' + number(o) + ' не выгружен: '  NOWAIT;//+ requestError()
+                }
+            } ELSE {
+                logToFile('edi', provider + ' SendEOrder: Не все поля заполнены. ' + error());
+                MESSAGE provider + ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' SendEOrder: не заданы имя пользователя / пароль / хост / порт');
+            MESSAGE provider + ' Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        MESSAGE 'Заказ не выгружен. Обратитесь к администратору' NOWAIT;
+        
+        CANCEL;
+        sendingCancelled() <- TRUE; 
+    }
+}
+
+sendPurchaseOrderCislink (EOrder o) {
+    checkIsServer();
+    IF isServer() THEN {
+        sendPurchaseOrder(o,  (connectionStringCislink()+ outPathCislink()), archiveOutDirCislink(), 'Cislink');
+    }
+}
+
+send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.cislink AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE {sendPurchaseOrderCislink(o);} }
+cancel(EOrder o) + {IF EDIProvider(supplier(o)) == EDIProvider.cislink AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderCislink(o);} }
+
+//------------------ Ответы ------------------
+
+overReceiveMessagesCislink ABSTRACT LIST (INTEGER, STRING, STRING, STRING[100], BOOLEAN, BOOLEAN, STRING[100]);
+
+overImportOrdrspCislink ABSTRACT (EOrderResponse);
+
+overReceiveMessagesCislink (INTEGER  i, STRING fileName, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, BOOLEAN invoices, STRING[100] provider) +{
+    IF isSubstring(lower(fileName), 'ordrsp_') AND NOT invoices  THEN { 
+        TRY {
+            LOCAL file = XMLFILE ();
+            READ url  + fileName + '.xml' TO file;
+            data(i)<- file();
+            id(i)<- fileName;
+            IMPORT ordrsp XML FROM data(i);
+            ordrspOrderNumber() <- trim(ordrspOrderNumber());
+            IF eOrder(ordrspOrderNumber()) THEN {
+                NEWSESSION NESTED LOCAL {
+                    IF NOT eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) THEN NEW r = EOrderResponse {
+                        id(r) <- ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber();
+                    }
+                    LOCAL idDetail = STRING[100] (INTEGER);
+                    idDetail(INTEGER l) <- CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1) WHERE ordrspGTIN(l);
+                    FOR ordrspGTIN(INTEGER l) AND NOT eOrderResponseDetail(idDetail(l)) DO NEW d = EOrderResponseDetail {
+                        orderResponse(d) <- eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber());
+                        id(d) <- idDetail(l);
+                    }
+                    FOR EOrderResponse r == eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) DO {
+                        number(r) <- ordrspDocumentNumber();
+                        dateTime(r) <- ordrspDocumentDate();
+                        responseType(r) <- CASE
+                                            WHEN ordrspResponseType() == 4 THEN EOrderResponseType.changed
+                                            WHEN ordrspResponseType() == 27 THEN EOrderResponseType.cancelled
+                                            WHEN ordrspResponseType() == 29 THEN EOrderResponseType.accepted;
+                        note(r) <- STRING[100](ordrspComment());
+                        supplier(r) <- legalEntityStockGLN(ordrspSupplierGLN());
+                        customer(r) <- legalEntityGLN(ordrspBuyerGLN());
+                        eOrder(r) <- eOrder(ordrspOrderNumber());
+                        customerStock(r) <- customerStock(eOrder(ordrspOrderNumber()));
+                        IF left(ordrspDeliveryDateTimeFirst(),1) == 'T' THEN {
+                            ordrspDeliveryDateTimeFirst() <- toChar(currentDate(),'yyyy-MM-dd') + ordrspDeliveryDateTimeFirst();
+                        }
+                        IF left(ordrspDeliveryDateTimeSecond(),1) == 'T' THEN {
+                            ordrspDeliveryDateTimeSecond() <- toChar(currentDate(),'yyyy-MM-dd') + ordrspDeliveryDateTimeSecond();
+                        }
+                        deliveryDateTime(r) <- toDateTimeFormat(ordrspDeliveryDateTimeFirst(),'yyyy-MM-ddThh24:mi:ss');
+                        deliveryDateTimeSecond(r) <- toDateTimeFormat(ordrspDeliveryDateTimeSecond(),'yyyy-MM-ddThh24:mi:ss');
+                        XMLPath(r) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        
+                        LOCAL indexSku = INTEGER (INTEGER);
+                        LOCAL sku = Sku (INTEGER);
+                        
+                        sku(INTEGER l) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == ordrspGTIN(l) AND order(dd) == eOrder(r)), skuGTIN(ordrspGTIN(l));
+                        indexSku(INTEGER l) <- PARTITION SUM 1 ORDER ordrspQuantityOrdered(l), -ordrspQuantityAccepted(l), l BY sku(l); //сортировка по принятым откланенным, принятые первыми
+                        fillIndexSku(eOrder(r));
+                        
+                        FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(idDetail(l)) DO {
+                            orderResponse(d) <- r;
+                            sku(d) <- sku(l);
+                            dataGTIN(d) <- ordrspGTIN(l);
+                            action(d) <- CASE
+                                            WHEN ordrspAction(l) == 1 THEN EOrderResponseDetailAction.added
+                                            WHEN ordrspAction(l) == 3 THEN EOrderResponseDetailAction.changed
+                                            WHEN ordrspAction(l) == 5 THEN EOrderResponseDetailAction.accepted
+                                            WHEN ordrspAction(l) == 7 THEN EOrderResponseDetailAction.cancelled;
+                            quantityOrdered(d) <- ordrspQuantityOrdered(l);
+                            quantityAccepted(d) <- ordrspQuantityAccepted(l);
+                            price(d) <- ordrspPriceElement(l);
+                            sumNoNDS(d) <- ordrspPriceNoNDS(l);
+                            sumNDS(d) <- ordrspPriceNDS(l);
+                        }
+                        FOR ordrspGTIN(INTEGER l) INLINE DO {
+                            responseDetail(EOrderDetail od) <- eOrderResponseDetail(idDetail(l)) WHERE eOrder(ordrspOrderNumber()) == order(od) AND sku(l) == sku(od) AND indexSku(l) == localIndexSku(od);
+                        }
+                        overImportOrdrspCislink(r);
+                        
+                        APPLY NESTED LOCAL;
+                        IF canceled() THEN {
+                            IF deleteFile  THEN {                                                                         
+                                TRY {delete(url + fileName);}        
+                            }
+                            logToFile('edi', provider + ' Import EOrderResponse ' + id(i) + ' failed: ' + applyMessage());
+                            responsesFailed() <- responsesFailed() + 1;
+                        } ELSE {
+                            IF deleteFile THEN {
+                                TRY {delete(url + fileName);}      
+                            }
+                            logToFile('edi', provider + ' Import EOrderResponse ' + id(i) + ' succeeded');
+                            responsesSucceeded() <- responsesSucceeded() + 1;
+                        }
+                    }
+                }
+            } ELSE {
+                IF confirmNotFoundOrdersCislink() THEN {
+                    IF deleteFile THEN {
+                        TRY {delete(url + fileName);}    
+                    }                  
+                } 
+                logToFile('edi', provider + ' Import EOrderResponse ' + id(i) + ' failed: ' + 'EOrder ' + (OVERRIDE ordrspOrderNumber(), 'NULL') + ' not found');
+                responsesFailed() <- responsesFailed() + 1;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderResponse ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте ответа по заказу ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            responsesFailed() <- responsesFailed() + 1;
+        }
+    }    
+}
+overReceiveMessageDesadvCislink ABSTRACT ();
+overReceiveMessagesCislink(INTEGER  i, STRING fileName, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, BOOLEAN invoices, STRING[100] provider) + {
+    IF isSubstring(lower(fileName), 'desadv_') AND NOT invoices  THEN {
+        TRY {
+            LOCAL file = XMLFILE ();
+            READ url  + fileName + '.xml' TO file;
+            data(i)<- file();
+            id(i)<- fileName;
+            IMPORT desadv XML FROM data(i);
+            desadvOrderNumber() <- trim(desadvOrderNumber());
+            overReceiveMessageDesadvCislink();
+            IF eOrder(desadvOrderNumber()) THEN {
+                NEWSESSION NESTED LOCAL {
+                    IF NOT eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber()) THEN NEW a = EOrderDespatchAdvice {
+                        id(a) <- desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber();
+                    }
+                    FOR desadvGTIN(INTEGER l) AND NOT eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO NEW d = EOrderDespatchAdviceDetail {
+                        orderDespatchAdvice(d) <- eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber());
+                        id(d) <- desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l;
+                    }
+                    FOR EOrderDespatchAdvice a == eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber()) DO {
+                        number(a) <- desadvDocumentNumber();
+                        dateTime(a) <- desadvDocumentDate();
+                        deliveryNoteNumber(a) <- desadvDeliveryNoteNumber();
+                        deliveryNoteDateTime(a) <- toDateTime(desadvDeliveryNoteDate());
+                        note(a) <- STRING[100](desadvComment());
+                        supplier(a) <- legalEntityStockGLN(desadvSupplierGLN());
+                        customer(a) <- legalEntityGLN(desadvBuyerGLN());
+                        eOrder(a) <- eOrder(desadvOrderNumber());
+                        customerStock(a) <- customerStock(eOrder(desadvOrderNumber()));
+                        deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
+                        XMLPath(a) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        FOR desadvGTIN(INTEGER l) AND EOrderDespatchAdviceDetail d == eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO {
+                            sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == desadvGTIN(l) AND order(dd) == eOrder(a)), skuGTIN(desadvGTIN(l));
+                            dataGTIN(d) <- desadvGTIN(l);
+                            quantityOrdered(d) <- desadvQuantityOrdered(l);
+                            quantityDespatch(d) <- desadvQuantityDespatch(l);
+                            valueVAT(d) <- desadvVAT(l);
+                            lineItemPrice(d) <- desadvLineItemPrice(l);
+                            lineItemAmountWithoutCharges(d) <- desadvLineItemAmountWithoutCharges(l);
+                            lineItemAmount(d) <- desadvLineItemAmount(l);
+                            lineItemAmountCharges(d) <- desadvLineItemAmountCharges(l);
+                        }
+                        APPLY NESTED LOCAL;
+                        IF canceled() THEN {                                                                                 
+                            IF deleteFile  THEN {                                                                         
+                                    TRY {delete(url + fileName);}      
+                                }
+                            logToFile('edi', provider + ' Import EOrderDespatchAdvice ' + id(i) + ' failed: ' + applyMessage());
+                            despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
+                        } ELSE {                           
+                            IF deleteFile THEN {
+                                TRY {delete(url + fileName);}      
+                            }
+                            logToFile('edi', provider + ' Import EOrderDespatchAdvice ' + id(i) + ' succeeded');
+                            despatchAdvicesSucceeded() <- despatchAdvicesSucceeded() + 1;
+                        }
+                    }
+                }
+            } ELSE {            
+                IF confirmNotFoundOrdersCislink() THEN {
+                    IF deleteFile THEN {
+                        TRY {delete(url + fileName);}    
+                    }                  
+                } 
+                logToFile('edi', provider + ' Import EOrderDespatchAdvice ' + id(i) + ' failed: ' + 'EOrder ' + (OVERRIDE desadvOrderNumber(), 'NULL') + ' not found');
+                despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderDespatchAdvice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте уведомления об отгрузке ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
+        }
+    }
+}
+
+overReceiveMessagesCislink(INTEGER  i, STRING fileName, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, BOOLEAN invoices, STRING[100] provider) + {
+    IF isSubstring(lower(fileName), 'systemmessage_') AND NOT invoices  THEN {
+        TRY {
+            LOCAL file = XMLFILE ();
+            READ url  + fileName + '.xml' TO file;
+            data(i)<- file();
+            id(i)<- fileName;
+            IMPORT systemMessage XML FROM data(i);
+            CASE
+                WHEN documentType() == 'ORDERS' THEN {
+                    NEWSESSION NESTED LOCAL {
+                        IF NOT eOrderMessage(messageDocumentNumber()) THEN NEW m = EOrderMessage {
+                            number(m) <- messageDocumentNumber();
+                        }
+                        FOR EOrderMessage m == eOrderMessage(messageDocumentNumber()) DO {
+                            dateTime(m) <- messageDocumentDate();
+                            code(m) <- code();
+                            description(m) <- OVERRIDE description(), description(code());
+                            eOrder(m) <- eOrder(documentNumber());
+                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                            APPLY NESTED LOCAL;
+                            IF canceled() THEN {
+                                IF deleteFile THEN {
+                                    TRY {delete(url + fileName);}  
+                                }
+                                logToFile('edi', provider + ' Import EOrderMessage ' + id(i) + ' failed: ' + applyMessage());
+                                orderMessagesFailed() <- orderMessagesFailed() + 1;
+                            } ELSE {
+                                IF deleteFile THEN {
+                                    TRY {delete(url + fileName);}      
+                                }
+                                logToFile('edi', provider + ' Import EOrderMessage ' + id(i) + ' succeeded');
+                                orderMessagesSucceeded() <- orderMessagesSucceeded() + 1;
+                            }
+                        }
+                    }
+                }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            orderMessagesFailed() <- orderMessagesFailed() + 1;
+        }
+    }
+}
+
+fillStartParams(){
+    sendRecipientErrorFailed() <- 0;
+    supplierOrdersSucceeded() <- 0;
+    supplierOrdersFailed() <- 0;
+    orderMessagesSucceeded() <- 0;
+    orderMessagesFailed() <- 0;
+    responsesSucceeded() <- 0;
+    responsesFailed() <- 0;
+    despatchAdvicesSucceeded() <- 0;
+    despatchAdvicesFailed() <- 0;
+    invoiceMessagesSucceeded() <- 0;
+    invoiceMessagesFailed() <- 0;
+    eInvoicesSucceeded() <- 0;
+    eInvoicesFailed() <- 0;
+    blrwbrCount() <- 0;
+    blrdnrCount() <- 0;
+    blradfCount() <- 0;
+}
+fillEndParams(){
+    LOCAL textMessage = TEXT();
+    IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
+    IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
+    IF orderMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по заказам: ' + orderMessagesSucceeded();
+    IF orderMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по заказам: ' + orderMessagesFailed();
+    IF responsesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ответов по заказам: ' + responsesSucceeded();
+    IF responsesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено ответов по заказам: ' + responsesFailed();
+    IF despatchAdvicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено уведомлений об отгрузке: ' + despatchAdvicesSucceeded();
+    IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
+    IF invoiceMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по накладным: ' + invoiceMessagesSucceeded();
+    IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
+    IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
+    IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
+    IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
+    IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
+    IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
+    IF blrdnrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrdnrCount() + ' BLRDNR';
+    IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
+    IF textMessage() THEN {
+        MESSAGE  textMessage() NOWAIT;    
+    }
+}
+
+importAnswer (STRING url, STRING[100] archiveDir, STRING[100] provider){
+    fileName(INTEGER i)<- NULL;
+    TRY {
+        listFiles(url);        
+    } CATCH {                
+        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        MESSAGE  'Сообщения не получены. Ошибка чтения списка каталогов. Обратитесь к администратору' NOWAIT;
+        RETURN; 
+    }
+    fillStartParams();
+    FOR STRING[250] fileName == fileName(INTEGER i) AND NOT fileIsDirectory(i) AND isSubstring(lower(fileName), '.xml') DO {
+        IF archiveDir THEN {
+            TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + fileName;
+        }
+        overReceiveMessagesCislink(i, fileName, url,archiveDir, TRUE, NULL, provider);
+    }
+    fillEndParams();    
+}
+
+importAnswerCislink 'Примем ответов' (){
+    checkIsServer();
+    IF isServer() THEN {
+        importAnswer((connectionStringCislink()+ inPathCislink()), archiveInDirCislink(), 'Cislink');
+    }
+}
+

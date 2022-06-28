@@ -1,52 +1,8 @@
 MODULE PurchaseOrderEDITopBy;
 
-REQUIRE EDI, TopBy;
+REQUIRE PurchaseOrderEDITopByProtocol;
 
 NAMESPACE EDI;
-
-FORM purchaseOrder FORMEXTID 'ORDERS'
-    OBJECTS o = EOrder PANEL
-    PROPERTIES READONLY number(o) EXTID 'documentNumber',
-                        documentDate = toChar(sendDateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'documentDate',
-                        documentType = (IF isCancel(o) THEN '1' ELSE '9') EXTID 'documentType',
-                        documentNameCode = (IF isReturn(o) THEN '70E' ELSE '220') EXTID 'documentNameCode',
-                        GLNCustomer(o) EXTID 'buyerGLN',
-                        nameCustomer(o) EXTID 'buyerName',
-                        GLNCustomerStock(o) EXTID 'destinationGLN',
-                        nameCustomerStock(o) EXTID 'destinationName',
-                        GLNSupplierStock(o) EXTID 'supplierGLN',
-                        GLNSupplierStock1(o) EXTID 'stGLN',
-                        nameSupplier(o) EXTID 'supplierName',
-                        deliveryDateTimeFirst = toChar(shipmentDateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'deliveryDateTimeFirst',
-                        lineQuantity = (GROUP SUM 1 IF overQuantity(EOrderDetail od) > 0 AND GTINBarcode(od) AND order(od) == o) EXTID 'lineQuantity',
-                        note(o) EXTID 'comment'
-    OBJECTS d = EOrderDetail EXTID 'line'
-    FILTERS order(d) == o
-    PROPERTIES READONLY GTINBarcode(d) EXTID 'GTIN',
-                        idSku(d) EXTID 'IDBuyer',
-                        nameSku(d) EXTID 'fullName',
-                        overQuantity(d) EXTID 'quantityOrdered',
-                        extraCodeUOMSku(d) EXTID 'measurement',
-                        priceElement = NUMERIC[16,2](round2(price(d))) EXTID 'priceElement',
-                        tax = NUMERIC[4,2](round2(valueVAT(d))) EXTID 'tax'
-    FILTERS overQuantity(d) > 0 AND GTINBarcode(d)
-;
-
-//FORM envelopePurchaseOrder
-//    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
-//    OBJECTS login = TEXT, password = TEXT, innerXML = TEXT
-//    OBJECTS o = EOrder
-//    PROPERTIES DRAW o IN sendDocument VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
-//    PROPERTIES IN sendDocument filename = (CONCAT '', 'order', number(o)) EXTID 'top:filename', 
-//                  documentDate = toChar(sendDateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'top:documentDate',
-//                  number(o) EXTID 'top:documentNumber',
-//                  senderCode = GLNCustomer(o) EXTID 'top:senderCode',
-//                  receiverCode = GLNCustomer(o) EXTID 'top:receiverCode',
-//                  GLNCustomerStock(o) EXTID 'top:deliveryPointCode',
-//                  documentType = 'ORDERS' EXTID 'top:documentType'
-//    PROPERTIES IN sendDocument VALUE(innerXML) EXTID 'top:content'
-//    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-//;
 
 sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir, STRING[100] provider) {
     sendingCancelled() <- NULL;
@@ -118,40 +74,6 @@ sendPurchaseOrderTopBy (EOrder o) {
 
 send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.topBy AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE {sendPurchaseOrderTopBy(o);} }
 cancel(EOrder o) + {IF EDIProvider(supplier(o)) == EDIProvider.topBy AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderTopBy(o);} }
-
-ordrspDocumentNumber = DATA LOCAL NESTED STRING[48]();
-ordrspDocumentDate = DATA LOCAL NESTED DATETIME();
-ordrspResponseType = DATA LOCAL NESTED INTEGER();
-ordrspBuyerGLN = DATA LOCAL NESTED STRING[13]();
-ordrspDestinationGLN = DATA LOCAL NESTED STRING[13]();
-ordrspSupplierGLN = DATA LOCAL NESTED STRING[13]();
-ordrspOrderNumber = DATA LOCAL NESTED STRING[48]();
-ordrspDeliveryDateTimeFirst = DATA LOCAL NESTED TEXT();
-ordrspDeliveryDateTimeSecond = DATA LOCAL NESTED TEXT();
-ordrspComment = DATA LOCAL NESTED TEXT();
-ordrspGTIN = DATA LOCAL NESTED STRING[15](INTEGER);
-ordrspAction = DATA LOCAL NESTED INTEGER(INTEGER);
-ordrspQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
-ordrspQuantityAccepted = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
-ordrspPriceElement = DATA LOCAL NESTED NUMERIC[16,2](INTEGER);
-ordrspPriceNoNDS = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-ordrspPriceNDS = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-
-FORM ordrsp
-    PROPERTIES() ordrspDocumentNumber EXTID 'documentNumber', ordrspDocumentDate EXTID 'documentDate',
-                 ordrspResponseType EXTID 'function', ordrspBuyerGLN EXTID 'buyerGLN',
-                 ordrspDestinationGLN EXTID 'destinationGLN', ordrspSupplierGLN EXTID 'supplierGLN',
-                 ordrspOrderNumber EXTID 'orderNumber', ordrspDeliveryDateTimeFirst EXTID 'deliveryDateTimeFirst',
-                 ordrspDeliveryDateTimeSecond EXTID 'deliveryDateTimeSecond', ordrspComment EXTID 'comment'
-    OBJECTS i = INTEGER EXTID 'line'
-    PROPERTIES(i) ordrspGTIN EXTID 'GTIN', ordrspAction EXTID 'action', ordrspQuantityOrdered EXTID 'quantityOrdered',
-                  ordrspQuantityAccepted EXTID 'quantityAccepted', ordrspPriceElement EXTID 'priceElement',
-                  ordrspPriceNoNDS EXTID 'priceNoNDS', ordrspPriceNDS EXTID 'priceNDS'
-;
-
-indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i),ordrspOrderNumber();
-
-@openXML(EOrderResponse,o,eOrderResponses);
 
 overImportOrdrsp ABSTRACT (EOrderResponse);
 
@@ -328,42 +250,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
         }
     }
 }
-
-desadvDocumentNumber = DATA LOCAL NESTED STRING[48]();
-desadvDocumentDate = DATA LOCAL NESTED DATETIME();
-desadvDeliveryNoteNumber = DATA LOCAL NESTED STRING[48]();
-desadvDeliveryNoteDate = DATA LOCAL NESTED DATE();
-desadvBuyerGLN = DATA LOCAL NESTED STRING[13]();
-desadvDestinationGLN = DATA LOCAL NESTED STRING[13]();
-desadvSupplierGLN = DATA LOCAL NESTED STRING[13]();
-desadvStGLN = DATA LOCAL NESTED STRING[13]();
-desadvOrderNumber = DATA LOCAL NESTED STRING[48]();
-desadvOrderDate = DATA LOCAL NESTED DATETIME();
-desadvDeliveryDateTimeFirst = DATA LOCAL NESTED DATETIME();
-desadvComment = DATA LOCAL NESTED TEXT();
-desadvGTIN = DATA LOCAL NESTED STRING[15](INTEGER);
-desadvQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
-desadvQuantityDespatch = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
-desadvVAT = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
-desadvLineItemPrice = DATA LOCAL NESTED NUMERIC[16,2](INTEGER);
-desadvLineItemAmountWithoutCharges = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-desadvLineItemAmount = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-desadvLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-
-FORM desadv
-    PROPERTIES() desadvDocumentNumber EXTID 'documentNumber', desadvDocumentDate EXTID 'documentDate',
-                 desadvDeliveryNoteNumber EXTID 'deliveryNoteNumber', desadvDeliveryNoteDate EXTID 'deliveryNoteDate',
-                 desadvBuyerGLN EXTID 'buyerGLN', desadvDestinationGLN EXTID 'destinationGLN', desadvSupplierGLN EXTID 'supplierGLN',
-                 desadvOrderNumber EXTID 'orderNumber', desadvOrderDate EXTID 'orderDate', desadvStGLN EXTID 'stGLN',
-                 desadvDeliveryDateTimeFirst EXTID 'deliveryDateTimeFirst', desadvComment EXTID 'comment'
-    OBJECTS i = INTEGER EXTID 'line'
-    PROPERTIES(i) desadvGTIN EXTID 'GTIN', desadvQuantityOrdered EXTID 'quantityOrdered',
-                  desadvQuantityDespatch EXTID 'quantityDespatch', desadvVAT EXTID 'vat',
-                  desadvLineItemPrice EXTID 'lineItemPrice', desadvLineItemAmountWithoutCharges EXTID 'lineItemAmountWithoutCharges',
-                  desadvLineItemAmount EXTID 'lineItemAmount', desadvLineItemAmountCharges EXTID 'lineItemAmountCharges'
-;
-
-@openXML(EOrderDespatchAdvice,o,eOrderDespatchAdvices);
 
 overReceiveMessageDesadv ABSTRACT ();
 
