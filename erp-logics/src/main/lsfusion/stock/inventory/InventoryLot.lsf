@@ -96,15 +96,30 @@ include(CollationSheet collationSheet, Lot lot) = MULTI
 
 EXTEND FORM inventory
     OBJECTS l = Lot GRID
-    PROPERTIES(l) READONLY SHOWIF useLot(cs) idBarcodeSku, nameSku, id
-    PROPERTIES(cs,l) SHOWIF useLot(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
+    PROPERTIES(l) READONLY idBarcodeSku, nameSku, id
+    PROPERTIES(cs,l) READONLY quantityPageInventoryDetail, quantityBalance, quantityShortage
     FILTERS include(cs,l),
             isParent(g, sku(l))
     FILTERGROUP diffLot FILTER 'Только расхождения' quantityShortage(cs,l)
 ;
+
 DESIGN inventory {
     wor11 {
-        MOVE BOX(l);
+        MOVE BOX(l) { showIf = useLot(cs); }
+    }
+}
+
+EXTEND FORM inventories
+    OBJECTS l = Lot GRID
+    PROPERTIES(l) READONLY idBarcodeSku, nameSku, id
+    PROPERTIES(cs,l) READONLY quantityPageInventoryDetail, quantityBalance, quantityShortage
+    FILTERS include(cs,l)
+    FILTERGROUP diffLot FILTER 'Только расхождения' quantityShortage(cs,l)
+;
+
+DESIGN inventories {
+    wor41 {
+        MOVE BOX(l) { showIf = useLot(cs); }
     }
 }
 
