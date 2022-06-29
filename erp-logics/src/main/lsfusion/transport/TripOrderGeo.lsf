@@ -1,0 +1,66 @@
+MODULE TripOrderGeo;
+
+REQUIRE TripOrder, Geo;
+
+NAMESPACE Trip;
+
+countOrderOpened 'Заказов' (Trip t, Stock stock) = 
+    GROUP SUM 1 IF isPosted(Order o) AND
+               (t = trip(o) OR (t IS Trip AND isOpened(o) AND NOT trip(o))) AND  
+               (stock = toStock(o) OR stock = fromStock(o)) AND 
+               (customer(o) == customer(t) OR NOT customer(t)) AND 
+               (supplier(o) == supplier(t) OR NOT supplier(t));
+
+grossWeightOpened 'Вес' (Trip t, Stock stock) = 
+    GROUP SUM grossWeightOrderDetail(Order o) IF isPosted(o) AND
+               (t = trip(o) OR (t IS Trip AND isOpened(o) AND NOT trip(o))) AND  
+               (stock = toStock(o) OR stock = fromStock(o)) AND 
+               (customer(o) == customer(t) OR NOT customer(t)) AND 
+               (supplier(o) == supplier(t) OR NOT supplier(t));
+
+showPath 'Показать путь' (Trip trip)  { 
+    numberPath(POI stock) <- (OVERRIDE number(stock, trip), 1) IF quantity(trip, stock) > 0;
+    showOnPath(showMapProvider());
+} TOOLBAR;
+
+EXTEND FORM trip
+    OBJECTS stm = Stock MAP
+    PROPERTIES(stm) READONLY name
+    PROPERTIES(stm) READONLY longitude[POI], latitude[POI]
+    PROPERTIES READONLY color = RGB(255,0,0) IF quantity(t, stm) > 0
+    PROPERTIES(stm) READONLY PANEL address
+    PROPERTIES READONLY PANEL countOrderOpened(t, stm), grossWeightOpened(t, stm)
+    PROPERTIES(t, stm) PANEL in ON CHANGE {
+        INPUT b = BOOLEAN DO {
+            IF b THEN {
+                number(stm, t) <- (GROUP MAX number(Stock stt, t) IF quantity(t, stt) > 0) (+) 1; 
+                trip(Order ord) <- t WHERE (stm = toStock(ord) OR stm = fromStock(ord)) AND isOpened(ord) AND isPosted(ord);
+            } ELSE 
+                trip(Order ord) <- NULL WHERE trip(ord) = t AND (stm = toStock(ord) OR stm = fromStock(ord)) AND isOpened(ord) AND isPosted(ord);
+        }
+    }
+    PROPERTIES(stm, t) PANEL 'Номер' = number
+    PROPERTIES(t) DRAW stm showPath
+    
+    FILTERS longitude[POI](stm) AND latitude[POI](stm),
+            countOrderOpened(t, stm)
+
+    FILTERGROUP selectedM
+        FILTER 'В рейсе' quantity (t, st) > 0
+
+;
+
+DESIGN trip {
+    pane {
+        MOVE BOX(stm) {
+            caption = 'Карта';
+            GRID(stm) {
+                MOVE PROPERTY(address(stm));
+                MOVE PROPERTY(countOrderOpened(t, stm));
+                MOVE PROPERTY(grossWeightOpened(t, stm));
+                MOVE PROPERTY(in(t, stm));
+                MOVE PROPERTY(number(stm, t));
+            }
+        }
+    }
+}

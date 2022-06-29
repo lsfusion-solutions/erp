@@ -15,11 +15,13 @@ nameDriverTrip 'Водитель' (Order order) = name[Contact](driverTrip(order
 dateTrip 'Дата вывоза' = date(trip(Order order));
 numberTrip 'Номер рейса' = number(trip(Order order));
 
-filter(Trip trip, Order order) = trip(order)==trip OR (trip IS Trip AND order IS Order AND NOT trip(order));
+filter(Trip trip, Order order) = trip(order) = trip OR (trip IS Trip AND isOpened(order) AND NOT trip(order));
 
 quantityFrom (trip, Stock stock) = GROUP SUM 1 IF quantityFrom(Order order, stock) BY trip(order);
 quantityTo (trip, Stock stock) = GROUP SUM 1 IF quantityTo(Order order, stock) BY trip(order);
 quantity(Trip trip, Stock stock) = quantityFrom(trip, stock) (+) quantityTo(trip, stock);
+
+in 'Вкл' (Trip trip, Stock stock) = quantity(trip, stock) > 0;
 
 TABLE tripStock(Trip, Stock);
 number 'Порядковый номер' = DATA INTEGER(Stock, Trip);
@@ -38,25 +40,12 @@ index 'Номер' (Trip trip, Order order) = maxNumber(trip) - number(toStock(o
 CONSTRAINT number(Stock stock1, trip(Order order)) >= number(Stock stock2, trip(order)) IF quantityFrom(order, stock1)>0 AND quantityTo(order, stock2)>0
     MESSAGE 'Номер не соответствует направлению заказа';
 
+countOrdered 'Кол-во заказов' (trip) = GROUP SUM 1 BY trip(Order order);
 grossWeightOrdered 'Суммарный вес заказов' (trip) = GROUP SUM grossWeightOrderDetail(Order order) BY trip(order);
 
 grossWeightTo 'Вес' = GROUP SUM round3(grossWeightOrderDetail(Order order)/1000) BY trip(order), toStock(order);
 
 quantityOrdered 'Кол-во в заказах' (trip, sku) = GROUP SUM quantity(OrderDetail orderDetail) BY trip(order(orderDetail)), sku(orderDetail);
-
-// отображение на карте
-showPoints 'Показать путь на карте' (Trip trip)  { 
-    numberPath(POI stock) <- OVERRIDE number(stock, trip), 1 IF quantity(trip, stock) > 0;
-    EXEC showOnPath(showMapProvider());
-
-} TOOLBAR;
-
-createPath 'Рассчитать путь' (Trip trip)  { 
-    startPathPOI() <- firstStock(trip);
-    inPath(POI stock) <- TRUE IF quantity(trip, stock);
-    EXEC calculatePath();
-    number(Stock stock, trip) <- numberPath(stock);
-} TOOLBAR;
 
 FORM ordersTrip
 
@@ -81,7 +70,7 @@ backgroundTripOrder 'Цвет' = ABSTRACT CASE COLOR(Order);
 backgroundTripStock 'Цвет' = ABSTRACT CASE COLOR(Trip,Stock);
 
 EXTEND FORM trip
-    PROPERTIES (t) READONLY grossWeightOrdered
+    PROPERTIES (t) READONLY countOrdered, grossWeightOrdered
 
     OBJECTS o=Order
     PROPERTIES(t, o) in
@@ -108,8 +97,6 @@ EXTEND FORM trip
     PROPERTIES(st) READONLY BACKGROUND backgroundTripStock(t,st) name, address, nameLegalEntity
     PROPERTIES(t, st) grossWeightTo
     PROPERTIES(st, t) number, isFirst
-    PROPERTIES (t) showPoints DRAW st
-    PROPERTIES (t) createPath DRAW st
 
     FILTERS quantity (t, st) > 0
     FILTERGROUP inactiveStock FILTER 'Активный' active(st) 'ctrl F10' DEFAULT
@@ -118,6 +105,7 @@ EXTEND FORM trip
 
 DESIGN trip {
     headerSum {
+        MOVE PROPERTY(countOrdered(t));
         MOVE PROPERTY(grossWeightOrdered(t));
     }
     
@@ -135,7 +123,7 @@ DESIGN trip {
 }
 
 EXTEND FORM trips
-    PROPERTIES(t) READONLY grossWeightOrdered
+    PROPERTIES(t) READONLY countOrdered, grossWeightOrdered
     
     OBJECTS o=Order
     PROPERTIES(o) READONLY BACKGROUND backgroundTripOrder(o) number, series, date, nameSupplier, nameFromStock, nameCustomer, nameToStock, grossWeightOrderDetail
