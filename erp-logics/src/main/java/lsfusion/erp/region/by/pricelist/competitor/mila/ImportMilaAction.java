@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.mila;
+package lsfusion.erp.region.by.pricelist.competitor.mila;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.file.FileData;

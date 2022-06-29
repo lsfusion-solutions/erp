@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.euroopt;
+package lsfusion.erp.region.by.pricelist.competitor.euroopt;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.MapFact;
