@@ -4,6 +4,7 @@ REQUIRE CustomerEInvoiceEDI, EInvoiceEDITopBy, EDS;
 
 NAMESPACE EDI;
 
+blrwblTestIndicator = DATA LOCAL STRING[1]();
 blrwblUserID = DATA LOCAL NESTED STRING[35]();
 blrwblDocumentNumber = DATA LOCAL NESTED STRING[35]();
 blrwblDeliveryNoteNumber = DATA LOCAL NESTED STRING[70]();
@@ -79,7 +80,8 @@ blrwblLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
 blrwblLineItemFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
 
 FORM blrwbl
-    PROPERTIES IN messageHeader blrwblUserID() EXTID 'UserID'
+    PROPERTIES IN messageHeader blrwblTestIndicator() EXTID 'TestIndicator',
+                                blrwblUserID() EXTID 'UserID'
     PROPERTIES IN deliveryNote blrwblDocumentNumber() EXTID 'DocumentID',
                                blrwblDeliveryNoteNumber() EXTID 'DeliveryNoteID',
                                blrwblDeliveryNoteDate() EXTID 'DeliveryNoteDate',
@@ -181,6 +183,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                     } ELSE NEW ei = EInvoice {
                         importedCustomer(ei) <- TRUE;
+                        isTestDocument(ei) <- TRUE IF blrwblTestIndicator() == '1';
                         id(ei) <- blrwblSupplierGLN() + '/' + blrwblDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
                         numberSupplier(ei) <- blrwblDocumentNumber() IF NOT isCancel();
                         dateSupplier(ei) <- blrwblDateTime() IF NOT isCancel();
@@ -420,6 +423,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
     }
 }
 
+blrdlnTestIndicator = DATA LOCAL STRING[1]();
 blrdlnUserID = DATA LOCAL NESTED STRING[35]();
 blrdlnDocumentNumber = DATA LOCAL NESTED STRING[35]();
 blrdlnDeliveryNoteNumber = DATA LOCAL NESTED STRING[70]();
@@ -484,7 +488,8 @@ blrdlnLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
 blrdlnLineItemFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
 
 FORM blrdln
-    PROPERTIES IN messageHeader blrdlnUserID() EXTID 'UserID'
+    PROPERTIES IN messageHeader blrdlnTestIndicator() EXTID 'TestIndicator',
+                                blrdlnUserID() EXTID 'UserID'
     PROPERTIES IN deliveryNote blrdlnDocumentNumber() EXTID 'DocumentID',
                                blrdlnDeliveryNoteNumber() EXTID 'DeliveryNoteID',
                                blrdlnDeliveryNoteDate() EXTID 'DeliveryNoteDate',
@@ -576,6 +581,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                     } ELSE NEW ei = EInvoice {
                         importedCustomer(ei) <- TRUE;
+                        isTestDocument(ei) <- TRUE IF blrdlnTestIndicator() == '1';
                         isTN2(ei) <- TRUE;
                         id(ei) <- blrdlnSupplierGLN() + '/' + blrdlnDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
                         numberSupplier(ei) <- blrdlnDocumentNumber() IF NOT isCancel();
@@ -995,7 +1001,8 @@ FORM exportBlrwbr FORMEXTID 'BLRWBR'
                         messageType = 'BLRWBR' EXTID 'MessageType',
                         glnCustomer(eih) EXTID 'MsgSenderID',
                         glnSupplier(eih) EXTID 'MsgReceiverID',
-                        userIDSupplierStock(eih) EXTID 'UserID'
+                        userIDSupplierStock(eih) EXTID 'UserID',
+                        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
     
     OBJECTS ein = EInvoice EXTID 'DeliveryNote'
     FILTERS ein == ei
@@ -1122,7 +1129,8 @@ FORM exportBlrdnr FORMEXTID 'BLRDNR'
                         messageType = 'BLRDNR' EXTID 'MessageType',
                         glnCustomer(eih) EXTID 'MsgSenderID',
                         glnSupplier(eih) EXTID 'MsgReceiverID',
-                        userIDSupplierStock(eih) EXTID 'UserID'
+                        userIDSupplierStock(eih) EXTID 'UserID',
+                        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
     
     OBJECTS ein = EInvoice EXTID 'DeliveryNote'
     FILTERS ein == ei
