@@ -5,7 +5,9 @@ REQUIRE TerminalLot, LotAggregate, SkuLedgerLot;
 NAMESPACE Terminal;
 
 
-filter(Lot l, Stock s, Employee e) += e IS Employee AND (currentBalance(l, s) OR [GROUP MIN SkuLedger sl IF date(sl) >= subtract(currentDate(), 50) AND signedQuantity(sl, l) BY stock(sl)](s));
+filter(Lot l, Stock st, Employee e) += l IS Lot AND st IS Stock AND e IS Employee 
+                                      AND (currentBalance(l, st) OR [GROUP MIN SkuLedger sl IF date(sl) >= subtract(currentDate(), 50) AND signedQuantity(sl, l) BY stock(sl)](st))
+                                      AND accessCompany(e, st);
 
 META defineAddDetailDialogTerminalLotSecond(object)
     overAddDetailDialogTerminal###object##Detail(###object##Detail d, TerminalDocumentDetail td) + {
@@ -17,9 +19,6 @@ META defineAddDetailDialogTerminalLotSecond(object)
           
         quantity(d, Lot l) <- 1.0 WHERE [GROUP MIN TerminalLotDetail tld BY lot(id(tld)), terminalDocumentDetail(tld)](l, td) AND NOT double(l); 
         quantity(d) <- [GROUP SUM quantity(d, Lot l) IF l IS Lot]() WHERE [GROUP MIN TerminalLotDetail tld BY terminalDocumentDetail(tld)](td); 
-
-//        IF countNew() > 0 THEN
-//            MESSAGE (CONCAT ' ', nameSku(d), 'неизвестных оценённых товаров:', countNew()) NOWAIT; 
     }
 END
 
