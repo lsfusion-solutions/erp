@@ -20,6 +20,20 @@ DESIGN options {
     }
 }
 
+dataState 'Состояние' = DATA STRING[150] (LegalEntity, DATE) IN law;
+state 'Состояние' (LegalEntity legalEntity) = GROUP LAST dataState(legalEntity, DATE d) ORDER d IN law;
+
+FORM dialogStateLegalEntity 'Состояние'
+    OBJECTS a=LegalEntity PANEL, d=DATE
+    PROPERTIES name(a) READONLY, VALUE(d) READONLY, dataState(a, d)
+    FILTERS dataState(a, d)
+;
+DESIGN dialogStateLegalEntity {
+    PROPERTY(name(a)) { focusable = FALSE; }
+}
+
+dialogState 'Состояние' (LegalEntity legalEntity)  { SHOW dialogStateLegalEntity OBJECTS a = legalEntity; }  ASON CONTEXTMENU state[LegalEntity] ASON CHANGE state[LegalEntity];
+
 fillGRP 'Заполнить из ГРП' (LegalEntity l)  { 
     IF urlGRP() THEN {
         LOCAL xml = FILE ();
@@ -30,8 +44,10 @@ fillGRP 'Заполнить из ГРП' (LegalEntity l)  {
         LOCAL NESTED VNAIMP = ISTRING[200] ();
         LOCAL NESTED VNAIMK = ISTRING[150] ();
         LOCAL NESTED VPADRES = STRING[150] ();
-        
-        IMPORT XML ROOT 'ROW' FROM xml() TO() VUNP = VUNP, VNAIMP = VNAIMP, VNAIMK = VNAIMK, VPADRES = VPADRES;
+        LOCAL NESTED VKODS = STRING[150] ();
+        LOCAL NESTED DLIKV = DATE ();
+        LOCAL NESTED DREG = DATE ();
+        IMPORT XML ROOT 'ROW' FROM xml() TO() VUNP = VUNP, VNAIMP = VNAIMP, VNAIMK = VNAIMK, VPADRES = VPADRES, VKODS = VKODS, DLIKV = DLIKV, DREG = DREG;
             
         IF VUNP() == UNP(l) THEN {
             IF upperNameGRP() THEN {
@@ -42,12 +58,132 @@ fillGRP 'Заполнить из ГРП' (LegalEntity l)  {
                 name(l) <- VNAIMK() WHERE VNAIMK() AND NOT name(l);
             }
             dataAddress(l, DATE d) <- VPADRES() WHERE VPADRES() AND d == currentDate();
+            dataState(l, DATE d) <- VKODS() WHERE VKODS() AND d = (OVERRIDE DLIKV(), DREG());
         }
     } ELSE 
         MESSAGE 'Не задан URL Государственного реестра плательщиков Республики Беларусь по УНП';
 }
 
+fillGRPs 'Заполнить колонки ГРП' () {
+    FOR in(LegalEntity l) DO {
+         fillGRP(l);
+         formOk();
+    }
+}
+
+fillFullNameGRP 'Заполнить полное наименование из ГРП' (LegalEntity l)  { 
+    IF urlGRP() THEN {
+        LOCAL xml = FILE ();
+        
+        EXTERNAL HTTP GET urlGRP() + UNP(l) TO xml;     
+        
+        LOCAL NESTED VUNP = STRING[9] ();
+        LOCAL NESTED VNAIMP = ISTRING[200] ();
+       
+        IMPORT XML ROOT 'ROW' FROM xml() TO() VUNP = VUNP, VNAIMP = VNAIMP;
+            
+        IF VUNP() == UNP(l) THEN {
+            IF upperNameGRP() THEN {
+                fullName(l) <- upper(VNAIMP()) WHERE VNAIMP();
+            } ELSE {
+                fullName(l) <- VNAIMP() WHERE VNAIMP();
+            }
+        }
+    } ELSE 
+        MESSAGE 'Не задан URL Государственного реестра плательщиков Республики Беларусь по УНП';
+}
+
+fillFullNameGRPs 'Заполнить полные наименования из ГРП' () {
+    FOR in(LegalEntity l) DO {
+         fillFullNameGRP(l);
+         formOk();
+    }
+}
+
+fillAddressGRP 'Заполнить юр. адрес из ГРП' (LegalEntity l)  { 
+    IF urlGRP() THEN {
+        LOCAL xml = FILE ();
+        
+        EXTERNAL HTTP GET urlGRP() + UNP(l) TO xml;     
+        
+        LOCAL NESTED VUNP = STRING[9] ();
+        LOCAL NESTED VPADRES = STRING[150] ();
+       
+        IMPORT XML ROOT 'ROW' FROM xml() TO() VUNP = VUNP,VPADRES = VPADRES;
+            
+        IF VUNP() == UNP(l) THEN {
+            dataAddress(l, DATE d) <- VPADRES() WHERE VPADRES() AND d == currentDate();
+        }
+    } ELSE 
+        MESSAGE 'Не задан URL Государственного реестра плательщиков Республики Беларусь по УНП';
+}
+
+EXTEND FORM dialogPostAddressLegalEntity 
+    PROPERTIES fillAddressGRP(a) SHOWIF isEditable()
+;
+
+fillAddressGRPs 'Заполнить юридеческиие адреса из ГРП' () {
+    FOR in(LegalEntity l) DO {
+         fillAddressGRP(l);
+         formOk();
+    }
+}
+
+fillStateGRP 'Заполнить состояние из ГРП' (LegalEntity l)  { 
+    IF urlGRP() THEN {
+        LOCAL xml = FILE ();
+        
+        EXTERNAL HTTP GET urlGRP() + UNP(l) TO xml;     
+        
+        LOCAL NESTED VUNP = STRING[9] ();
+        LOCAL NESTED VKODS = STRING[150] ();
+        LOCAL NESTED DLIKV = DATE();
+        LOCAL NESTED DREG = DATE();
+        
+        IMPORT XML ROOT 'ROW' FROM xml() TO() VUNP = VUNP, VKODS = VKODS, DLIKV = DLIKV, DREG = DREG;
+            
+        IF VUNP() == UNP(l) THEN {
+            dataState(l, DATE d) <- VKODS() WHERE VKODS() AND d = (OVERRIDE DLIKV(), DREG());
+        }
+    } ELSE 
+        MESSAGE 'Не задан URL Государственного реестра плательщиков Республики Беларусь по УНП';
+}
+
+EXTEND FORM dialogStateLegalEntity 
+    PROPERTIES fillStateGRP(a) SHOWIF isEditable()
+;
+
+fillStateGRPs 'Заполнить состояния из ГРП' () {
+    FOR in(LegalEntity l) DO {
+         fillStateGRP(l);
+         formOk();
+    }
+}
+
+FORM dialogFillInLegalEntityGRP 'Заполнение данных из ГРП'
+    PROPERTIES fillGRPs(), fillFullNameGRPs(), fillAddressGRPs(), fillStateGRPs()
+;
+DESIGN dialogFillInLegalEntityGRP {
+    OBJECTS {
+        NEW all {
+            type = CONTAINERH;
+            MOVE PROPERTY (fillGRPs());
+            NEW spec {
+                type = CONTAINERH;
+                MOVE PROPERTY (fillFullNameGRPs());
+                MOVE PROPERTY (fillAddressGRPs());
+                MOVE PROPERTY (fillStateGRPs());
+            }
+        }
+    }
+}
+
+fillInInLegalEntityGRP 'Заполнить отмеченные из ГРП' (){
+    DIALOG dialogFillInLegalEntityGRP;
+} TOOLBAR;
+
 EXTEND FORM legalEntity
+    PROPERTIES(l) state ON CONTEXTMENU fillStateGRP(l)
     PROPERTIES(l) SHOWIF UNP(l) fillGRP
 ;
 
@@ -56,3 +192,8 @@ DESIGN legalEntity {
         MOVE PROPERTY(fillGRP(l)) BEFORE PROPERTY(fullName(l));
     }
 }
+
+EXTEND FORM legalEntities
+    PROPERTIES fillInInLegalEntityGRP() SHOWIF isEditable() AND countInLegalEntity() > 0 DRAW l
+    PROPERTIES(l) READONLYIF isReadonly() state
+;
