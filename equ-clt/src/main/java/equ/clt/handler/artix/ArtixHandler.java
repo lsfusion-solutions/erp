@@ -467,6 +467,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 if (infoJSON.has("cquant")) {
                     inventObject.put("cquant", infoJSON.optInt("cquant"));
                 }
+
+                if (infoJSON.has("loyaltymode")) {
+                    inventObject.put("loyaltymode", infoJSON.optInt("loyaltymode"));
+                }
             }
 
             JSONObject itemOptions = new JSONObject();
