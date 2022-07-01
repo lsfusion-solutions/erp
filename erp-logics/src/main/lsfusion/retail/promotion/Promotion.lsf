@@ -242,8 +242,10 @@ recalculateValueVAT (PromotionDetail d)  {
 }
 
 price 'Стандартная цена без НДС' = DATA NUMERIC[16,4] (PromotionDetail);
+
+overPrice = ABSTRACT NUMERIC[16,4] (PromotionDetail);
 recalculatePrice (PromotionDetail d)  { 
-    price(d) <- (GROUP MAX prevPriceA(defaultPriceListType(), sku(d), Stock stock, toDateTime(fromDate(d)))) WHERE NOT CHANGED(price(d));
+    price(d) <- OVERRIDE overPrice(d), (GROUP MAX prevPriceA(defaultPriceListType(), sku(d), Stock stock, toDateTime(fromDate(d)))) WHERE NOT CHANGED(price(d));
 }
 
 markup 'Стандартная наценка' = DATA NUMERIC[8,3] (PromotionDetail);
