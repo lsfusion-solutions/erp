@@ -1031,6 +1031,8 @@ FORM exportBlrwbr FORMEXTID 'BLRWBR'
     PROPERTIES DRAW ein sealIDReceiver(ein) EXTID 'SealIDReceiver'
 ;
 
+overExportCustomer ABSTRACT (EInvoice);
+
 signAndSendCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir , STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
@@ -1083,6 +1085,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                                     toMilliseconds(exportBlrwbrDateTime());
                                     numberCustomer(ei) <- STRING[14](resultMilliseconds());
                                     dateCustomer(ei) <- exportBlrwbrDateTime();
+                                    overExportCustomer(ei);
                                     APPLY NESTED LOCAL;
                                 }
                             }
@@ -1094,6 +1097,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                         logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
                         MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
                         exportedCustomer(ei) <- TRUE;
+                        overExportCustomer(ei);
                         APPLY NESTED LOCAL;
                     }
                 } ELSE {
@@ -1205,6 +1209,7 @@ signAndSendCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100] pass
                                     toMilliseconds(exportBlrdnrDateTime());
                                     numberCustomer(ei) <- STRING[14](resultMilliseconds());
                                     dateCustomer(ei) <- exportBlrdnrDateTime();
+                                    overExportCustomer(ei);
                                     APPLY NESTED LOCAL;
                                 }
                             }
@@ -1216,6 +1221,7 @@ signAndSendCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100] pass
                         logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
                         MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
                         exportedCustomer(ei) <- TRUE;
+                        overExportCustomer(ei);
                         APPLY NESTED LOCAL;
                     }
                 } ELSE {
