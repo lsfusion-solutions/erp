@@ -23,9 +23,19 @@ DESIGN options {
 dataState 'Состояние' = DATA STRING[150] (LegalEntity, DATE) IN law;
 state 'Состояние' (LegalEntity legalEntity) = GROUP LAST dataState(legalEntity, DATE d) ORDER d IN law;
 
+FORM addStateLegalEntity 'Состояние'
+    OBJECTS a=LegalEntity PANEL, d=DATE PANEL
+    PROPERTIES name(a) READONLY, VALUE(d), dataState(a, d)
+;
+DESIGN addStateLegalEntity {
+    PROPERTY(name(a)) { focusable = FALSE; }
+}
+
+addState '{historizable.add}' (LegalEntity legalEntity)  { SHOW addStateLegalEntity OBJECTS a = legalEntity; }  TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
+
 FORM dialogStateLegalEntity 'Состояние'
     OBJECTS a=LegalEntity PANEL, d=DATE
-    PROPERTIES name(a) READONLY, VALUE(d) READONLY, dataState(a, d)
+    PROPERTIES name(a) READONLY, VALUE(d) READONLY, dataState(a, d), addState(a) DRAW d
     FILTERS dataState(a, d)
 ;
 DESIGN dialogStateLegalEntity {
