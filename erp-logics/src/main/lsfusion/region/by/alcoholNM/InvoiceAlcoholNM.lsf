@@ -1,0 +1,183 @@
+MODULE InvoiceAlcoholNM;
+
+REQUIRE ItemAlcohol, Invoice;
+
+NAMESPACE Invoice;
+
+//-- Модуль аналогичный InvoiceAlcohol только без MATERIALIZED
+
+alcoholDirectionType = ABSTRACT CASE AlcoholDirectionType(Invoice);
+nameAlcoholDirectionType 'Тип движения алкоголя' (Invoice i) = staticCaption(alcoholDirectionType(i));
+alcoholDirectionType (InvoiceDetail d) = alcoholDirectionType(invoice(d));
+    
+alcoholIncomeType = ABSTRACT CASE AlcoholIncomeType(Invoice);
+nameAlcoholIncomeType 'Тип приобретения алкоголя' (Invoice i) = staticCaption(alcoholIncomeType(i));
+alcoholIncomeType (InvoiceDetail d) = alcoholIncomeType(invoice(d));
+ 
+alcoholSupplierType = ABSTRACT AlcoholSupplierType(InvoiceDetail);
+nameAlcoholSupplierType 'Тип поставщика алкоголя' (InvoiceDetail i) = staticCaption(alcoholSupplierType(i));
+
+alcoholSupplierType = ABSTRACT AlcoholSupplierType(Invoice);
+nameAlcoholSupplierType 'Тип поставщика алкоголя' (Invoice i) = staticCaption(alcoholSupplierType(i));
+
+volume 'Объем' = ABSTRACT NUMERIC[16,5] (InvoiceDetail);
+signetVolume 'Объем' = ABSTRACT NUMERIC[16,5] (InvoiceDetail); 
+
+volumeInvoiceDetailLiterTypesFromTo 'Объем, л' = GROUP SUM signetVolume(InvoiceDetail d) IF 
+    isParent(Group group, sku(d)) AND isPosted(d) AND
+    date(d) >= DATE dateFrom AND date(d) <= DATE dateTo
+        BY group, customerStock(d), alcoholDirectionType(d), alcoholIncomeType(d), 
+            alcoholSupplierType(d), extractMonth(date(d)), dateFrom, dateTo; 
+
+volumeInvoiceDetailTypes 'Объем, тыс дал.' = NUMERIC[20,8]([GROUP SUM signetVolume(InvoiceDetail d) IF 
+    isParent(Group group, sku(d)) AND isPosted(d) AND
+    date(d) >= DATE dateFrom AND date(d) <= DATE dateTo
+        BY group, customerStock(d), alcoholDirectionType(d), alcoholIncomeType(d), 
+            alcoholSupplierType(d), extractMonth(date(d)), dateFrom, dateTo](StatisticGroup group,Stock stock,AlcoholDirectionType type1,AlcoholIncomeType type2,AlcoholSupplierType type3,Month month,DATE dateFrom,DATE dateTo)) /
+            (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup);    
+
+                                                    
+year 'Отчетный год' = extractYear(DATE dFrom) IF dFrom IS DATE;              
+
+FORM alcoholStockReports 'Отчет по алкоголю'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valDFrom = VALUE(dFrom), valDTo = VALUE(dTo)
+       
+    OBJECTS dt = DATE PANEL
+    PROPERTIES valDT = VALUE(dt)
+    
+    OBJECTS c = LegalEntity PANEL
+    PROPERTIES SELECTOR name(c)
+    FILTERS isCompany(c)   
+    
+    OBJECTS gt = GroupType PANEL
+    PROPERTIES(gt) SELECTOR name
+       
+    OBJECTS aaa = (sk = Group, s=Stock, type1 = AlcoholDirectionType, type2 = AlcoholIncomeType, type3 = AlcoholSupplierType, m = Month)  
+    PROPERTIES name(s), id(s), number(type1), number(type2), number(type3), number(m), year(dFrom) DRAW aaa,id(sk), name(sk) 
+
+    PROPERTIES(sk,s,type1,type2,type3,m,dFrom,dTo)  volumeInvoiceDetailTypes 
+
+    ORDERS number(m),id(sk)
+    
+    FILTERS number(m) >= extractMonthNumber(dFrom), number(m) <= extractMonthNumber(dTo),            
+            groupType(sk) == gt,
+            active(sk),
+            isCompany(s),
+            legalEntity(s) == c
+    
+    FILTERS volumeInvoiceDetailTypes(sk,s,type1,type2,type3,m,dFrom,dTo)
+    
+    EVENTS ON INIT {
+        SEEK alcoholStockReports.gt = defaultGroupType() IF defaultGroupType();
+    }
+;
+
+volumeInvoiceDetail 'Объем, тыс дал.' = NUMERIC[20,8]([GROUP SUM signetVolume(InvoiceDetail d) IF 
+    isParent(Group group, sku(d)) AND isPosted(d) AND
+    date(d) >= DATE dateFrom AND date(d) <= DATE dateTo BY group, customerStock(d), supplier(d), alcoholDirectionType(d), extractMonth(date(d)), dateFrom, dateTo //AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
+        ](StatisticGroup group,Stock stock,LegalEntity supplier,AlcoholDirectionType type,Month month,DATE dateFrom,DATE dateTo)) /
+            (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup);  
+
+volumeInvoiceDetailCustomerFromTo 'Объем, тыс дал. (итого)' = GROUP SUM 
+    (NUMERIC[20,8](signetVolume(InvoiceDetail d))/(OVERRIDE conversionFactor(group(GroupType groupType, sku(d))), 1.0 IF group(groupType, sku(d)) IS StatisticGroup)) IF    
+    isPosted(d) AND date(d) >= DATE dateFrom AND date(d) <= DATE dateTo BY groupType, customer(d), alcoholDirectionType(d), dateFrom, dateTo// AND alcoholDirectionTypeInvoiceDetail(d)==AlcoholDirectionType.income
+        ;
+
+FORM alcoholStockSupplierReports 'Отчет по алкоголю (поставщики)'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valDFrom = VALUE(dFrom), valDTo = VALUE(dTo)
+    
+    OBJECTS c = LegalEntity PANEL
+    PROPERTIES SELECTOR name(c)
+    FILTERS isCompany(c)       
+    
+    OBJECTS gt = GroupType PANEL
+    PROPERTIES(gt) SELECTOR name
+       
+    OBJECTS aaa = (sk = Group, s=Stock, l = LegalEntity, type = AlcoholDirectionType, m = Month)  
+    PROPERTIES name(s), id(s), name(l), number(type), number(m), year(dFrom) DRAW aaa,id(sk), name(sk) 
+
+    PROPERTIES  volumeInvoiceDetail(sk,s,l,type,m,dFrom,dTo)//, volumeInvoiceDetailGroupTypeCustomerDateFromTo(gt,c,dFrom,dTo)
+               
+
+    ORDERS number(m), name(l), id(sk)
+    
+    FILTERS number(m) >= extractMonthNumber(dFrom), number(m) <= extractMonthNumber(dTo),
+            isCompany(s),
+            groupType(sk) == gt,            
+            active(sk),            
+            legalEntity(s) == c        
+                
+    OBJECTS t = AlcoholDirectionType GRID
+    PROPERTIES(t) READONLY staticCaption, number                
+    PROPERTIES volumeInvoiceDetailCustomerFromTo(gt,c,t,dFrom,dTo)
+    
+    FILTERS volumeInvoiceDetail(sk,s,l,type,m,dFrom,dTo)
+    
+    EVENTS ON INIT {
+        SEEK alcoholStockSupplierReports.gt = defaultGroupType() IF defaultGroupType();
+    }
+;
+
+NAVIGATOR {
+    statisticsNavigator{
+        NEW alcoholStockReports;
+        NEW alcoholStockSupplierReports;
+    }
+}
+   
+META defineInvoiceAlcohol(dumb)
+    alcoholSupplierType = ABSTRACT AlcoholSupplierType(InvoiceDetail);
+    nameAlcoholSupplierType 'Тип поставщика алкоголя' (InvoiceDetail d) = staticCaption(alcoholSupplierType(d));
+    alcoholSupplierType = DATA AlcoholSupplierType(UserInvoiceDetail);
+    nameAlcoholSupplierType 'Тип поставщика алкоголя' (UserInvoiceDetail d) = staticCaption(alcoholSupplierType(d));
+    alcoholSupplierType(UserInvoiceDetail d) += alcoholSupplierType(d); 
+    alcoholSupplierType[Invoice.InvoiceDetail](InvoiceDetail d) += alcoholSupplierType(d);  
+    
+    alcoholSupplierType (UserInvoiceDetail d) <- alcoholSupplierType(supplier[InvoiceDetail](d),sku[InvoiceDetail](d))
+        WHEN CHANGED(sku[InvoiceDetail](d)) OR CHANGED(supplier[InvoiceDetail](d));
+        
+    alcoholSupplierType = ABSTRACT AlcoholSupplierType(Invoice);
+    nameAlcoholSupplierType 'Тип поставщика алкоголя' (Invoice i) = staticCaption(alcoholSupplierType(i));    
+    alcoholSupplierType = DATA AlcoholSupplierType(UserInvoice);
+    nameAlcoholSupplierType 'Тип поставщика алкоголя' (UserInvoice i) = staticCaption(alcoholSupplierType(i));
+    alcoholSupplierType(UserInvoice i) += alcoholSupplierType(i);  
+    alcoholSupplierType[Invoice.Invoice](Invoice i) += alcoholSupplierType(i);  
+    
+    EXTEND FORM userInvoice 
+        
+    ;
+    overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) + {       
+        alcoholSupplierType(d) <- alcoholSupplierType(detail);
+    } 
+
+    EXTEND FORM userInvoice
+        PROPERTIES (i) nameAlcoholSupplierType
+        PROPERTIES(d) nameAlcoholSupplierType
+        
+        OBJECTS da = UserInvoiceDetail
+        PROPERTIES (da) index, idBarcodeSku, nameSku,
+                        nameAlcoholSupplierType, DELETE GRID
+        FILTERS userInvoice(da) == i        
+
+    ;
+
+    DESIGN userInvoice{
+        specificationBox{
+            NEW alcoholContainer {
+                caption = 'Алкоголь';
+                NEW headerAlcoholContainer { type = CONTAINERH; MOVE PROPERTY (nameAlcoholSupplierType(i));}
+                MOVE BOX(da);
+            }
+        }
+    } 
+    EXTEND FORM invoices
+        PROPERTIES(d) READONLY nameAlcoholSupplierType
+    ;    
+    
+    WHEN LOCAL FORMS userInvoice CHANGED (alcoholSupplierType(userInvoice(UserInvoiceDetail d))) DO {
+        alcoholSupplierType (d) <- alcoholSupplierType(userInvoice(d));  
+    }
+  
+END
