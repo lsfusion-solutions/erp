@@ -17,6 +17,37 @@ DESIGN cashRegisterModel {
     }
 }    
 
+CLASS CardKind 'Тип карты';
+TABLE cardKind (CardKind);
+
+id 'Код' = DATA INTEGER (CardKind) CHARWIDTH 15;
+name 'Наименование' = DATA ISTRING[100] (CardKind) CHARWIDTH 15;
+
+FORM cardKind 'Тип карты'
+    OBJECTS o = CardKind PANEL
+    PROPERTIES(o) id, name
+    
+    EDIT CardKind OBJECT o
+;
+
+FORM cardKinds 'Типы карты'
+    OBJECTS o = CardKind
+    PROPERTIES(o) READONLY id, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    LIST CardKind OBJECT o
+;
+
+cardKind = DATA CardKind(DiscountCardType);
+idCardKind (DiscountCardType dt) = id(cardKind(dt));
+nameCardKind 'Типы карты Artix' (DiscountCardType dt) = name(cardKind(dt));
+
+dataId = DATA STRING[100](DiscountCardType);
+idArtix 'Код для Artix'(DiscountCardType d) = OVERRIDE dataId(d), id(d);
+
+EXTEND FORM discountCardType
+    PROPERTIES nameCardKind(t), idArtix(t);
+
+
 inExportStep = DATA LOCAL BOOLEAN (DiscountCard);
 
 exportDiscountCardsStep 'Выгрузить дисконтные карты' () {
@@ -30,9 +61,10 @@ exportDiscountCardsStep 'Выгрузить дисконтные карты' () 
     rezult() <- CONCAT '', rezult(),
                     (GROUP CONCAT ('\{"command":"addCardGroup","cardGroup":\{' + 
                         TEXT (CONCAT ',', 
-                            '"idcardgroup":"' + id(DiscountCardType t) + '"',
+                            '"idcardgroup":"' + idArtix(DiscountCardType t) + '"',
                             '"name":"' + escapeJSONValue(name(t)) + '"',
                             '"text":"' + id(t) + '"',
+                            '"cardmode":' + idCardKind(t),
                             '"notaddemptycard":true',
                             '"pattern":"[0-9]"',
                             '"inputmask":7'
@@ -58,7 +90,7 @@ exportDiscountCardsStep 'Выгрузить дисконтные карты' () 
                     (GROUP CONCAT ('\{"command":"addCard","card":\{' + 
                         TEXT (CONCAT ',', 
                             '"idcard":"' + seriesNumber(DiscountCard d) + '"',
-                            '"idcardgroup":"' + idDiscountCardType(d) + '"',
+                            '"idcardgroup":"' + idArtix(discountCardType(d)) + '"',
                             '"idclient":"' + seriesNumber(d) + '"',
                             '"number":"' + seriesNumber(d) + '"',
                             '"validitydatebeg":"' + date(d) + '"',

@@ -773,7 +773,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         JSONObject cardObject = new JSONObject();
         rootObject.put("card", cardObject);
         cardObject.put("idcard", card.numberDiscountCard); //идентификационный код карты
-        cardObject.put("idcardgroup", card.idDiscountCardType); //идентификационный код группы карт
+
+        JSONObject infoJSON = getExtInfo(card.extInfo);
+        String idCardGroup = "";
+        if (infoJSON != null) {
+            idCardGroup = infoJSON.optString("idcardgroup");
+        }
+
+        cardObject.put("idcardgroup", idCardGroup.isEmpty() ? card.idDiscountCardType : idCardGroup); //идентификационный код группы карт
         cardObject.put("idclient", card.numberDiscountCard); //идентификационный код клиента
         cardObject.put("number", card.numberDiscountCard); //номер карты
         cardObject.put("validitydatebeg", formatDate(card.dateFromDiscountCard)); //начало периода валидности
@@ -790,11 +797,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         JSONObject cardGroupObject = new JSONObject();
         rootObject.put("cardGroup", cardGroupObject);
-        cardGroupObject.put("idcardgroup", d.idDiscountCardType); //идентификационный код группы карт
+
+        JSONObject infoJSON = getExtInfo(d.extInfo);
+        String idCardGroup = "";
+        if (infoJSON != null) {
+            idCardGroup = infoJSON.optString("idcardgroup");
+        }
+
+        cardGroupObject.put("idcardgroup", idCardGroup.isEmpty() ? d.idDiscountCardType : idCardGroup); //идентификационный код группы карт
         cardGroupObject.put("name", d.nameDiscountCardType != null ? d.nameDiscountCardType : d.idDiscountCardType); //имя группы карт
         cardGroupObject.put("text", d.idDiscountCardType); //текст
 
-        JSONObject infoJSON = getExtInfo(d.extInfo);
         if (infoJSON != null) {
             try {
                 cardGroupObject.put("cardmode", infoJSON.getInt("cardmode"));
