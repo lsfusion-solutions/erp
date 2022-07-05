@@ -173,7 +173,6 @@ v1_nomenclature(FILE f){
         param() <- getWord(method(), '/', 2);
         LOCAL s = DepartmentStore();
         s() <- stock(aggr(), store());
-        beforeExportData(aggr());
         IF NOT s() THEN {
             statusHttpTo() <- 404;
             EXPORT FROM error = 'Не найден магазин', storeId = store();
@@ -182,6 +181,7 @@ v1_nomenclature(FILE f){
             EXPORT availability OBJECTS s = s() JSON;
         }
         IF param() == 'composition' THEN{
+            beforeExportData(aggr());
             EXPORT nomenclature OBJECTS s = s() JSON;    
         }
     }
@@ -189,4 +189,5 @@ v1_nomenclature(FILE f){
 
 closeExpiriedToken(){
     expired(YandexEdaSession y) <- TRUE IF NOT expired(y) AND DATE(dateTime(y)) < currentDate();
+    DELETE YandexEdaSession y WHERE expired(y);
 }
