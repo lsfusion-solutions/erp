@@ -10,6 +10,7 @@ import equ.api.stoplist.StopListInfo;
 import equ.api.stoplist.StopListItem;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
+import lsfusion.base.Pair;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -53,6 +54,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private static String EXTGRP = "EXTGRP";
     private static String ARTEXTGRP = "ARTEXTGRP";
 
+    private static DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     private FileSystemXmlApplicationContext springContext;
 
     public AstronHandler(FileSystemXmlApplicationContext springContext) {
@@ -76,6 +80,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         boolean isVersionalScheme = astronSettings.isVersionalScheme();
         boolean deleteBarcodeInSeparateProcess = astronSettings.isDeleteBarcodeInSeparateProcess();
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
+        boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
 
         List<DeleteBarcodeInfo> deleteBarcodeList = new ArrayList<>();
         if (!deleteBarcodeInSeparateProcess) {
@@ -121,7 +126,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         astronPackLogger.info(String.format("transaction %s (%s of %s)", transaction.id, transactionCount, totalCount)); //todo: временный лог для отслеживания packid
 
                         SendTransactionBatch batch = exportTransaction(transaction, exception, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(),
-                                exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, transactionCount, itemCount, usePropertyGridFieldInPackTable);
+                                exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, transactionCount, itemCount, usePropertyGridFieldInPackTable,
+                                waitSysLogInsteadOfDataPump);
                         exception = batch.exception;
 
                         currentSendTransactionBatchMap.put(transaction.id, batch);
@@ -148,7 +154,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Throwable exception = null;
                     for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
                         SendTransactionBatch batch = exportTransaction(transaction, exception, true, true, directoryTransactionEntry.getKey(),
-                                    exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, 1, transaction.itemsList.size(), usePropertyGridFieldInPackTable);
+                                    exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, 1, transaction.itemsList.size(), usePropertyGridFieldInPackTable, waitSysLogInsteadOfDataPump);
                         exception = batch.exception;
 
                         sendTransactionBatchMap.put(transaction.id, batch);
@@ -171,7 +177,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private SendTransactionBatch exportTransaction(TransactionCashRegisterInfo transaction, Throwable exception, boolean firstTransaction, boolean lastTransaction, String directory,
                                         boolean exportExtraTables, List<DeleteBarcodeInfo> deleteBarcodeList,
-                                        Integer timeout, Integer maxBatchSize, boolean isVersionalScheme, int transactionCount, int itemCount, boolean usePropertyGridFieldInPackTable) {
+                                        Integer timeout, Integer maxBatchSize, boolean isVersionalScheme, int transactionCount, int itemCount, boolean usePropertyGridFieldInPackTable,
+                                        boolean waitSysLogInsteadOfDataPump) {
         Set<String> deleteBarcodeSet = new HashSet<>();
         if(exception == null) {
             AstronConnectionString params = new AstronConnectionString(directory);
@@ -329,7 +336,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             } else if (lastTransaction) {
                                 astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
                                 exportFlags(conn, params, tables);
-                                Exception e = waitFlags(conn, params, tables, timeout);
+                                Exception e = waitFlags(conn, params, tables, timeout, waitSysLogInsteadOfDataPump);
                                 if (e != null) {
                                     throw e;
                                 }
@@ -1418,7 +1425,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Integer clientId = getClientId(d);
                     Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
                     String clientName = nvl(trim(d.nameDiscountCard, 50), "");
-                    String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "000000" : null;
+                    String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(dateFormatter) + "000000" : null;
                     if(params.pgsql) {
                         setObject(ps, clientId, 1); //CLNTID
                         setObject(ps, clientGroupId, 2); //CLNTGRPID
@@ -1655,20 +1662,83 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout) throws InterruptedException {
+        return waitFlags(conn, params, tables, timeout, false);
+    }
+
+    private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout, boolean waitSysLogInsteadOfDataPump) throws InterruptedException {
         int count = 0;
-        int flags;
-        while ((flags = checkFlags(conn, params, tables)) != 0) {
-            if (count > (timeout / 5)) {
-                String message = String.format("data was sent to db but %s flag records were not set to zero", flags);
-                astronLogger.error(message);
-                return new RuntimeException(message);
-            } else {
-                count++;
-                astronLogger.info(String.format("Waiting for setting to zero %s flag records", flags));
-                Thread.sleep(5000);
+        if (waitSysLogInsteadOfDataPump) {
+            Pair<Boolean, Exception> sysLog;
+            String currentTime = LocalDateTime.now().format(dateTimeFormatter);
+            while (!(sysLog = checkSysLog(conn, currentTime)).first) {
+                astronLogger.info("checkSysLog result: " + sysLog.first + " / " + sysLog.second); // temp log
+                if (count > (timeout / 5)) {
+                    String message = String.format("Data was sent to db but %s no records in syslog found", sysLog);
+                    astronLogger.error(message);
+                    return new RuntimeException(message);
+                } else {
+                    count++;
+                    astronLogger.info("Waiting for syslog");
+                    Thread.sleep(5000);
+                }
             }
+            astronLogger.info("checkSysLog finished: " + sysLog.first + " / " + sysLog.second); // temp log
+            return sysLog.second;
+        } else {
+            int flags;
+            while ((flags = checkFlags(conn, params, tables)) != 0) {
+                if (count > (timeout / 5)) {
+                    String message = String.format("Data was sent to db but %s flag records were not set to zero", flags);
+                    astronLogger.error(message);
+                    return new RuntimeException(message);
+                } else {
+                    count++;
+                    astronLogger.info(String.format("Waiting for setting to zero %s flag records", flags));
+                    Thread.sleep(5000);
+                }
+            }
+            return null;
         }
-        return null;
+    }
+
+    private Pair<Boolean, Exception> checkSysLog(Connection conn, String time) {
+        astronLogger.info("checkSysLog started"); // temp log
+        try (Statement statement = conn.createStatement()) {
+            String sql = "SELECT EVENTCODE, EVENTDATA FROM public.\"Syslog_DataServer\" WHERE EVENTTIME >= " + time + " ORDER BY SEC";
+            ResultSet rs = statement.executeQuery(sql);
+
+            astronLogger.info("checkSysLog executed"); // temp log
+
+            List<String> errors = new ArrayList<>();
+            boolean succeeded = false;
+            boolean finished = false;
+            while (rs.next()) {
+                int eventCode = rs.getInt("EVENTCODE");
+                String eventData = rs.getString("EVENTDATA");
+                astronLogger.info("checkSysLog record: " + eventCode + " / " + eventData); // temp log
+                switch (eventCode) {
+                    case 700:
+                        if(eventData.contains("Останавливаю сервис синхронизации...")) {
+                            finished = true;
+                        }
+                        break;
+                    case 701:
+                        //do nothing
+                        break;
+                    case 702:
+                        succeeded = true;
+                        break;
+                    default:
+                        errors.add(eventData);
+
+                }
+            }
+
+            return Pair.create(finished, succeeded ? null : new RuntimeException(String.join("\n", errors)));
+
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     private int checkFlags(Connection conn, AstronConnectionString params, String tables) {
@@ -2157,7 +2227,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
                 String numberZReport = String.valueOf(sessionId);
 
-                LocalDateTime salesDateTime = LocalDateTime.parse(salesTime, DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                LocalDateTime salesDateTime = LocalDateTime.parse(salesTime, dateTimeFormatter);
                 LocalDate dateReceipt = salesDateTime.toLocalDate();
                 LocalTime timeReceipt = salesDateTime.toLocalTime();
 
@@ -2184,7 +2254,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     if ((cashRegister != null || !ignoreSalesInfoWithoutCashRegister) && !uniqueReceiptDetailIdSet.contains(uniqueReceiptDetailId)) {
                         uniqueReceiptDetailIdSet.add(uniqueReceiptDetailId);
 
-                        LocalDateTime sessStartDateTime = LocalDateTime.parse(sessStart, DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                        LocalDateTime sessStartDateTime = LocalDateTime.parse(sessStart, dateTimeFormatter);
                         LocalDate dateZReport = sessStartDateTime.toLocalDate();
                         LocalTime timeZReport = sessStartDateTime.toLocalTime();
 
@@ -2243,7 +2313,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     String numberReceiptOriginal = salesAttrsSplitted.length > 3 ? salesAttrsSplitted[3] : null;
                                     String numberZReportOriginal = salesAttrsSplitted.length > 4 ? salesAttrsSplitted[4] : null;
                                     String numberCashRegisterOriginal = salesAttrsSplitted.length > 5 ? salesAttrsSplitted[5] : null;
-                                    LocalDate dateReceiptOriginal = salesAttrsSplitted.length > 7 ? LocalDateTime.parse(salesAttrsSplitted[7], DateTimeFormatter.ofPattern("yyyyMMddHHmmss")).toLocalDate() : null;
+                                    LocalDate dateReceiptOriginal = salesAttrsSplitted.length > 7 ? LocalDateTime.parse(salesAttrsSplitted[7], dateTimeFormatter).toLocalDate() : null;
                                     idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_" + (dateReceiptOriginal != null ? dateReceiptOriginal.format(DateTimeFormatter.ofPattern("ddMMyyyy")) : "") + "_" + numberReceiptOriginal;
                                 } else {
                                     idSaleReceiptReceiptReturnDetail = null;
@@ -2367,8 +2437,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         Statement statement = null;
                         try {
 
-                            String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-                            String dateTo = entry.dateTo.plusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));;
+                            String dateFrom = entry.dateFrom.format(dateFormatter);
+                            String dateTo = entry.dateTo.plusDays(1).format(dateFormatter);
                             String dateWhere = String.format("SALESTIME > '%s' AND SALESTIME < '%s'", dateFrom, dateTo);
 
                             StringBuilder stockWhere = new StringBuilder();

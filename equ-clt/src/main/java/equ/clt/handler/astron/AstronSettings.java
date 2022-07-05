@@ -1,10 +1,6 @@
 package equ.clt.handler.astron;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.apache.commons.lang3.StringUtils.trim;
 
 public class AstronSettings implements Serializable {
 
@@ -57,6 +53,9 @@ public class AstronSettings implements Serializable {
 
     //если true, то в sql.log пишется всё, что читается во время readSales
     private boolean enableSqlLog;
+
+    //если true, то при неверсионной схеме после выгрузки флагов проверяется не таблица DATAPUMP, а Syslog_DataServer
+    private boolean waitSysLogInsteadOfDataPump;
 
     public AstronSettings() {
     }
@@ -187,5 +186,13 @@ public class AstronSettings implements Serializable {
 
     public void setEnableSqlLog(boolean enableSqlLog) {
         this.enableSqlLog = enableSqlLog;
+    }
+
+    public boolean isWaitSysLogInsteadOfDataPump() {
+        return waitSysLogInsteadOfDataPump;
+    }
+
+    public void setWaitSysLogInsteadOfDataPump(boolean waitSysLogInsteadOfDataPump) {
+        this.waitSysLogInsteadOfDataPump = waitSysLogInsteadOfDataPump;
     }
 }
