@@ -46,7 +46,7 @@ pathGet 'Путь загрузки' (CashRegister cr) = CONCAT '', rtrim((OVERRI
 
 fitErrorMessage (CashRegister cr, STRING message) = OVERRIDE System.messageCaughtException(), CONCAT ' ', 'fit', '(' + shortDescription(cr) + ')', ': ' + message;
 
-put (CashRegister cr, STRING[8] name, TEXT t) {
+put (CashRegister cr, STRING[8] name, FILE f) {
     returnExchange(cr) <- TRUE;
     TRY {
         fileExists(pathPut(cr) + name +'.adr');
@@ -54,8 +54,9 @@ put (CashRegister cr, STRING[8] name, TEXT t) {
             fileExists(pathPut(cr) + name + '.log');
             IF fileExists() THEN
                 delete(pathPut(cr) + name + '.log');
-            stringToFile(t, 'cp866', '');
-            WRITE resultFile() TO CONCAT '', pathPut(cr), name + '.dat';
+                       
+            WRITE RAWFILE(f) TO CONCAT '', pathPut(cr), name + '.dat';
+            
             stringToFile('Ok\n', 'cp866', '');
             WRITE resultFile() TO CONCAT '', pathPut(cr), name + '.adr';
             returnExchange(cr) <- NULL;
@@ -71,75 +72,6 @@ alpha 'Тип alpha' (STRING s, INTEGER i) = rpad(s, i, ' ');
 char 'Тип char' (STRING s, INTEGER i) = lpad(s, i, '0');
 charSpace 'Тип char (с пробелами)' (STRING s, INTEGER i) = lpad(s, i, ' ');
 numeric 'Тип numeric' (INTEGER n, INTEGER i) = lpad(STRING (n), i, '0');      
-
-pluString (MachineryPriceTransaction t, Barcode b) =
-    charSpace(id(b), 16) +                      // 1. Код товара
-    '001' +                                     // 2. Код группы
-    (OVERRIDE idVat(VAT(t, b)), '03') +         // 3. Код налоговой ставки    
-    alpha(name(t, b), 20) +                     // 4. Наименование товара
-    numeric(INTEGER(price(t, b) * 100), 12) +   // 5. Цена товара
-    '00' +                                      // 6.1 Время начала "Счастливого часа"
-    '00' +                                      // 6.2 Время окончания "Счастливого часа"
-    '00000' +                                   // 6.3 Множитель цены
-    '0' +                                       // 6.4 Дополнительный признак
-    currentTimeText() +                         // 6.5 Дата время формирования
-    'A' +                                       // 7. Код движения
-    (IF split(t, b) THEN '2' ELSE '0') +        // 8. Признак весового товара
-    numeric(INTEGER((OVERRIDE balance(t, b), 0.0) * 1000), 11) + // 9. Количество
-    '0' +                                       // 10. Код валюты
-    '001' +                                     // 11. Секция
-    '00' +                                      // 12. Код налога 1
-    '00' +                                      // 13. Код налога 2
-    '00' +                                      // 14. Код налога 3
-    '00' +                                      // 15. Код налога 4
-    '00' +                                      // 16. Код налога 5
-    numeric(INTEGER(price(t, b) * 100), 12) +   // 17. Цена 1
-    numeric(INTEGER(price(t, b) * 100), 12) +   // 18. Цена 2
-    numeric(INTEGER(price(t, b) * 100), 12) +   // 19. Цена 3
-    numeric(INTEGER(price(t, b) * 100), 12) +   // 20. Цена 4
-    numeric(INTEGER(price(t, b) * 100), 12) +   // 21. Цена 5
-    '000000000' +                               // 22. Абсолютная скидка
-    '000000' +                                  // 23. Процентная скидки
-    '000000000' +                               // 24. Количественный порог
-    '0' +                                       // 25. Тип скидки
-    (IF resultForbidPromotion(sku(b), stock(t)) OR promotionPriceListDetailA(sku(b), stock(t)) THEN '1' ELSE '0') + // 26. Признак флаерса товара
-    '00000' +                                   // 27. Вес тары
-    alpha(name(t, b), 60) +                     // 28. Наименование товара
-    '0000' +                                    // 29. Время начала интервала
-    '0000' +                                    // 30. Время окончания интервала
-    '0' +                                       // 31. Самостоятельное подтверждение возраста
-    '00' +                                      // 32. Минимальный возраст
-    '0' +                                       // 33. Необходим вес
-    '0' +                                       // 34. Необходимо количество
-    '0' +                                       // 35. Необходима цена
-    '0' +                                       // 36. Визуальное подтверждение
-    '0' +                                       // 37. Признак ЕГАИС
-    '0' +                                       // 38. Запрет ручного ввода количества
-    alpha('', 3) +                              // 39. Код вида алкогольной продукции
-    alpha('', 64) +                             // 40. Наименование товарной позиции
-    alpha('', 7) +                              // 41. Крепость
-    alpha('', 8) +                              // 42. Объем тары
-    numeric(0, 3) +                             // 43. Количество товара в упаковке
-    numeric(0, 3) +                             // 44. Код скидки скидочного штрих-кода
-    alpha('', 12) +                             // 45. Код агента
-    numeric((OVERRIDE INTEGER(dataMinPrice(t, b) * 100), 0), 12) + // 46. Минимальная цена
-    alpha('', 22) +                             // 47. ТН ВЭД
-    (IF lotType(sku(b)) THEN '1' ELSE '0') +    // 48. Признак маркированной продукции
-    '    ' +                                    // 49. Тип маркированной продукции
-    numeric(INTEGER(trim(OVERRIDE sid(country(b)), sid(defaultCountry()))), 3) + // 50. Код страны происхождения
-    numeric(0, 9) +                             // 51. Акциз
-    numeric(0, 32) +                            // 52. Номер таможенной декларации
-    '  ' +                                      // 53. Признак предмета расчета
-    '  ' +                                      // 54. Признак способа расчета
-    charSpace(trim(OVERRIDE id[Item](sku(b)), id(b)), 16) + // 55. Локальный код товара
-    alpha('', 32) +                             // 56. Имя графического файла с изображением товара
-    alpha('', 32) +                             // 57. Имя звукового файла с изображением товара
-    alpha(STRING(measureQOC(sku(b))), 3) +      // 58. Мера количества предмета расчета
-    numeric(0, 6) +                             // 59. Код уровня альтернативого классификатора
-    '\r\n'
-;
-
-pluString (MachineryPriceTransaction t) = GROUP CONCAT pluString(t, Barcode b), '' IF in(t, b) ORDER b;
 
 checkPut 'Проверить передачу' (CashRegister cr, STRING[8] name) {
     returnExchange(cr) <- TRUE;
@@ -159,10 +91,80 @@ checkPut 'Проверить передачу' (CashRegister cr, STRING[8] name)
     }
 }
 
+append0D() = DATA BOOLEAN ();
+
 sendToFit (MachineryPriceTransaction t) {
     NEWSESSION {
         FOR isFit(CashRegister cr) AND groupCashRegister(cr)=groupMachinery(t) AND NOT inactive(cr) AND NOT in(t, cr) DO {
-            put(cr, 'plu', pluString(t));
+            exportFile() <- NULL;
+            EXPORT CSV '' NOHEADER NOESCAPE CHARSET 'CP866' FROM 
+                 codeSku = charSpace(id(Barcode b), 16),           // 1. Код товара
+                 codeGroup = '001',                                // 2. Код группы
+                 codeVAT = (OVERRIDE idVat(VAT(t, b)), '03'),      // 3. Код налоговой ставки    
+                 nameSku = alpha(name(t, b), 20),                  // 4. Наименование товара
+                 price = numeric(INTEGER(price(t, b) * 100), 12),  // 5. Цена товара
+                 timeBegHappyHour = '00',                          // 6.1 Время начала "Счастливого часа"
+                 timeEndHappyHour = '00',                          // 6.2 Время окончания "Счастливого часа"
+                 priceMultiplier = '00000',                        // 6.3 Множитель цены
+                 additionalFeature = '0',                          // 6.4 Дополнительный признак
+                 dateTimeCreate = currentTimeText(),               // 6.5 Дата время формирования
+                 codeMovement = 'A',                               // 7. Код движения
+                 signWeightedProduct = (IF split(t, b) THEN '2' ELSE '0'), // 8. Признак весового товара
+                 quantity = numeric(INTEGER((OVERRIDE balance(t, b), 0.0) * 1000), 11), // 9. Количество
+                 codeCurrecy = '0',                                // 10. Код валюты
+                 section = '001',                                  // 11. Секция
+                 codeVAT1 = '00',                                  // 12. Код налога 1
+                 codeVAT2 = '00',                                  // 13. Код налога 2
+                 codeVAT3 = '00',                                  // 14. Код налога 3
+                 codeVAT4 = '00',                                  // 15. Код налога 4
+                 codeVAT5 = '00',                                  // 16. Код налога 5
+                 price1 = numeric(INTEGER(price(t, b) * 100), 12), // 17. Цена 1
+                 price2 = numeric(INTEGER(price(t, b) * 100), 12), // 18. Цена 2
+                 price3 = numeric(INTEGER(price(t, b) * 100), 12), // 19. Цена 3
+                 price4 = numeric(INTEGER(price(t, b) * 100), 12), // 20. Цена 4
+                 price5 = numeric(INTEGER(price(t, b) * 100), 12), // 21. Цена 5
+                 absoluteDiscount = '000000000',                   // 22. Абсолютная скидка
+                 percentageDiscount = '000000',                    // 23. Процентная скидка
+                 quantitativeThreshold = '000000000',              // 24. Количественный порог
+                 typeDiscount  = '0',                              // 25. Тип скидки
+                 signProductFlyer = (IF resultForbidPromotion(sku(b), stock(t)) OR promotionPriceListDetailA(sku(b), stock(t)) THEN '1' ELSE '0'), // 26. Признак флаерса товара
+                 weightTare = '00000',                             // 27. Вес тары
+                 nameSku2 = alpha(name(t, b), 60),                 // 28. Наименование товара
+                 timeBegInterval = '0000',                         // 29. Время начала интервала                 
+                 timeEndInterval = '0000',                         // 30. Время окончания интервала
+                 selfVerificationAge = '0',                        // 31. Самостоятельное подтверждение возраста
+                 minAge = '00',                                    // 32. Минимальный возраст
+                 requiredWeight = '0',                             // 33. Необходим вес
+                 requiredQuantity = '0',                           // 34. Необходимо количество
+                 requiredPrice = '0',                              // 35. Необходима цена
+                 visualConfirmation = '0',                         // 36. Визуальное подтверждение
+                 signEGAIS = '0',                                  // 37. Признак ЕГАИС
+                 banManualQuantityEntry = '0',                     // 38. Запрет ручного ввода количества
+                 codeAlcoholic = alpha('', 3),                     // 39. Код вида алкогольной продукции
+                 nameCommodityItem = alpha('', 64),                // 40. Наименование товарной позиции
+                 strength = alpha('', 7),                          // 41. Крепость
+                 volumeTare = alpha('', 8),                        // 42. Объем тары
+                 quantityPackage = numeric(0, 3),                  // 43. Количество товара в упаковке
+                 codeDiscount = numeric(0, 3),                     // 44. Код скидки скидочного штрих-кода
+                 codeAgent = alpha('', 12),                        // 45. Код агента
+                 minPrice = numeric((OVERRIDE INTEGER(dataMinPrice(t, b) * 100), 0), 12), // 46. Минимальная цена
+                 TNVED = alpha('', 22),                            // 47. ТН ВЭД
+                 mark = (IF lotType(sku(b)) THEN '1' ELSE '0'),    // 48. Признак маркированной продукции
+                 typeMark = '    ',                                // 49. Тип маркированной продукции
+                 codeCountry = numeric(INTEGER(trim(OVERRIDE sid(country(b)), sid(defaultCountry()))), 3), // 50. Код страны происхождения
+                 excise = numeric(0, 9),                           // 51. Акциз
+                 numberDeclaration = numeric(0, 32),               // 52. Номер таможенной декларации
+                 subjectCalculation = '  ',                        // 53. Признак предмета расчета
+                 calculationMethod = '  ',                         // 54. Признак способа расчета
+                 localItemCode = charSpace(trim(OVERRIDE id[Item](sku(b)), id(b)), 16), // 55. Локальный код товара
+                 nameGraphicFileImage = alpha('', 32),             // 56. Имя графического файла с изображением товара
+                 nameSoundFile = alpha('', 32),                    // 57. Имя звукового файла с изображением товара
+                 measureQOC = alpha(STRING(measureQOC(sku(b))), 3),// 58. Мера количества предмета расчета
+                 alternativeClassifierLevelCode = numeric(0, 6),   // 59. Код уровня альтернативого классификатора
+                 append0D = '\r' IF append0D()
+            WHERE in(t, b) ORDER b; 
+                 
+            put(cr, 'plu', exportFile());
             IF returnExchange(cr) THEN {
                 addMachineryError(t);
             } ELSE {
