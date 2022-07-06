@@ -2119,7 +2119,17 @@ DESIGN itemGroup {
     }
 }
 
-WHEN LOCAL CHANGED(itemGroup(Item i)) AND CustomGroupType dc IS CustomGroupType AND NOT customGroup(dc, i) DO
+autoSyncDefaultItemGroup 'Автоматически заполнять значения по умолчанию для товара при смене группы' = DATA BOOLEAN ();
+
+EXTEND FORM options PROPERTIES autoSyncDefaultItemGroup();
+
+DESIGN options {
+    items {
+        MOVE PROPERTY(autoSyncDefaultItemGroup());
+    }
+}
+
+WHEN LOCAL CHANGED(itemGroup(Item i)) AND CustomGroupType dc IS CustomGroupType AND (NOT customGroup(dc, i) OR autoSyncDefaultItemGroup()) DO
     customGroup(dc, i) <- customGroup(dc, itemGroup(i));
 
 // форма просмотра информации по товару
