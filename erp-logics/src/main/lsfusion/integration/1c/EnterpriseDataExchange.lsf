@@ -109,6 +109,12 @@ END
 @defKeyPropSimple(fullName, 'НаименованиеПолное', specification);
 @defPropObject(item, 'Номенклатура', Item, specification);
 @defPropSimple(name, 'Наименование', STRING[10], specification);
+
+//серии номенклатуры
+@extReference(seriesSku, 'СерииНоменклатуры');
+
+@defKeyPropSimple(name, 'Наименование', seriesSku);
+@defKeyPropSimple(number, 'СерийныйНомер', seriesSku);
 META defSpecification(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Specification EXTID extid
@@ -805,6 +811,25 @@ EXTEND FORM receiveMessage
 @defPropSimpleDetail(sumCost, 'Себестоимость', NUMERIC[15,2], shipment, product);
 @defPropSimpleDetail(idBarcode, 'Штрихкод', STRING[200], shipment, product);
 
+//META defSeriesSkuDetail(nm, class, table, extid, group)
+//    EXTEND FORM sendMessage
+//        OBJECTS nm###class###table = SeriesSku IN group EXTID extid
+//        PROPERTIES(nm###class###table, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование'
+//        FILTERS nm###class###table = nm(class###table, configuration)
+//    ;
+//    uid###nm###class###table 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+//    name###nm###class###table 'Наименование' = DATA LOCAL STRING (INTEGER);
+//    
+//    EXTEND FORM receiveMessage
+//        PROPERTIES (class###table) IN itemData uid###nm###class###table EXTID 'Ссылка', name###nm###class###table EXTID 'Наименование'
+//    ;
+//END
+//
+//META defSeriesSkuDetail(nm, class, table, extid)
+//    @defSeriesSkuDetail(nm, class, table, extid, nm###table);
+//END
+//
+//@defPropObjectDetail(seriesSku, 'Характеристика', SeriesSku, shipment, product, itemData);
 // purchase return invoice
 @extDocument(purchaseReturnInvoice, 'ВозвратТоваровПоставщику');
 // Для обратной совместимости 1.6 -> 1.5
