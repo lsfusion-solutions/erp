@@ -157,6 +157,7 @@ orderNotFound(){
     EXPORT JSON FROM code = 100, description = 'Не найден заказ';
 }
 
+extraUpdateOrder ABSTRACT LIST (InternetOrder);
 
 updateOrder(FILE f){
     LOCAL order = STRING ();
@@ -177,6 +178,7 @@ updateOrder(FILE f){
             idAggregator(io) <- eatsId();
             supplierStock(io) <- stock(aggr(), restaurantId());
             customerComment(io) <- comment();
+            extraUpdateOrder(io);
             nameInternetCustomer(io) <- STRING[255](clientName());
             phoneInternetCustomer(io) <- STRING[100](phoneNumber());
             courierArrivementDateText(io) <- courierArrivementDate();
@@ -241,7 +243,8 @@ WHEN SETCHANGED (status(InternetOrder o)) DO updatedAt(o) <- currentZDateTime();
 //форма для экспорта статуса заказа
 FORM statusYandex FORMEXTID 'null'
     OBJECTS o = InternetOrder PANEL EXTID ''
-    PROPERTIES (o) yandexEdaOrderStatus EXTID 'status', updatedAt;
+    PROPERTIES (o) yandexEdaOrderStatus EXTID 'status'
+    PROPERTIES = STRING(updatedAt(o)) EXTID 'updatedAt'//,updatedAt;
 ; 
 
 quantityOrderDetail (InternetOrderDetail d) = IF status(internetOrder(d)) = StatusInternetOrder.new 
