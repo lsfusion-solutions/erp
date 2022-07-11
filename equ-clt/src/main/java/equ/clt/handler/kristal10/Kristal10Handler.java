@@ -1003,28 +1003,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                 }
                             }
 
-                            List<String> couponsList = new ArrayList<>();
-                            List<Element> cardsList = purchaseNode.getChildren("card");
-                            for (Element card : cardsList) {
-                                String type = card.getAttributeValue("type");
-                                if(type != null && (type.equals("COUPON_CARD") || type.equals("UNIQUE_COUPON")))
-                                    couponsList.add(card.getAttributeValue("number"));
-                            }
-
-                            String discountCard = null;
-                            List<Element> discountCardsList = purchaseNode.getChildren("discountCards");
-                            for (Object discountCardNode : discountCardsList) {
-                                List<Element> discountCardList = ((Element) discountCardNode).getChildren("discountCard");
-                                for (Object discountCardEntry : discountCardList) {
-                                    discountCard = ((Element) discountCardEntry).getValue();
-                                    if (discountCard != null && !couponsList.contains(discountCard)) {
-                                        discountCard = discountCard.trim();
-                                        if(discountCard.length() > 18)
-                                            discountCard = discountCard.substring(0, 18);
-                                        break;
-                                    } else discountCard = null;
-                                }
-                            }
+                            String discountCard = getDiscountCardNumber(purchaseNode);
 
                             List<Element> positionsList = purchaseNode.getChildren("positions");
                             List<SalesInfo> currentSalesInfoList = new ArrayList<>();

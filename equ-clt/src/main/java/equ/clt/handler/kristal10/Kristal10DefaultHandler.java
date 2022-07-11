@@ -5,6 +5,7 @@ import equ.api.ItemInfo;
 import equ.api.RequestExchange;
 import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
+import equ.clt.handler.HandlerUtils;
 import org.jdom.Attribute;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -417,6 +418,32 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             sendSalesLogger.error("invalid payment settings: " + payments);
         }
         return paymentsSet;
+    }
+
+    protected String getDiscountCardNumber(Element purchaseNode) {
+        List<String> couponsList = new ArrayList<>();
+        List<Element> cardsList = purchaseNode.getChildren("card");
+        for (Element card : cardsList) {
+            String type = card.getAttributeValue("type");
+            if(type != null && (type.equals("COUPON_CARD") || type.equals("UNIQUE_COUPON")))
+                couponsList.add(removeSpaces(card.getAttributeValue("number")));
+        }
+
+        List<Element> discountCardsList = purchaseNode.getChildren("discountCards");
+        for (Element discountCardNode : discountCardsList) {
+            List<Element> discountCardList = discountCardNode.getChildren("discountCard");
+            for (Element discountCardEntry : discountCardList) {
+                String discountCard = discountCardEntry.getValue();
+                if (discountCard != null && !couponsList.contains(discountCard)) {
+                    return HandlerUtils.trim(removeSpaces(discountCard), 18);
+                }
+            }
+        }
+        return null;
+    }
+
+    private String removeSpaces(String value) {
+        return value != null ? value.replace(" ", "") : null;
     }
 
     public class DeleteBarcode {
