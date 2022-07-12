@@ -788,6 +788,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         cardObject.put("cardSum", card.initialSumDiscountCard); //сумма на карте
         cardObject.put("blocked", !active); //состояние карты(заблокирована или нет)
         cardObject.put("discountpercent", card.percentDiscountCard); //процент скидки
+        if (infoJSON != null && infoJSON.has("cardstatus")) {
+            cardObject.put("cardstatus", infoJSON.optInt("cardstatus"));
+        }
         rootObject.put("command", "addCard");
         return rootObject.toString();
     }
