@@ -111,8 +111,9 @@ backgroundStatus = ABSTRACT CASE COLOR (Order);
 backgroundStatus(Purchase.Order o) += WHEN isRejected(o) THEN overBackgroundOrderStatusRejected();
 backgroundStatus(Purchase.Order o) += WHEN isPosted(o) THEN overBackgroundOrderStatusPosted();
 
+customLogicOriginalQuantity = ABSTRACT BOOLEAN (UserOrderDetail);
 originalQuantity(UserOrderDetail d) <- quantity(d)
-    WHEN CHANGED (quantity(d)) IF NOT (isConfirmed(d) OR isSent(d));    
+    WHEN CHANGED (quantity(d)) IF NOT (isConfirmed(d) OR isSent(d)) AND NOT customLogicOriginalQuantity(d);    
 
 backgroundOriginalQuantity 'Цвет' (OrderDetail d) = RGB(255,0,0) IF quantity(d) != originalQuantity(d);      
 
