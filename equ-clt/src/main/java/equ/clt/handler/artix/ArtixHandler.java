@@ -832,7 +832,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         rootObject.put("ChangeCardAccount", changeCardAccountObject);
         changeCardAccountObject.put("cardNumber", d.numberDiscountCard);
         changeCardAccountObject.put("accountnumber", d.numberDiscountCard);
-        changeCardAccountObject.put("cardstatus", "EARN_ONLY");
+
+        JSONObject infoJSON = getExtInfo(d.extInfo);
+        String cardstatus = "";
+        if (infoJSON != null) {
+            cardstatus = infoJSON.optString("cardstatus");
+        }
+
+        changeCardAccountObject.put("cardstatus", !cardstatus.isEmpty() ? cardstatus : "EARN_ONLY");
 
         rootObject.put("command", "addChangeCardAccount");
         return rootObject.toString();
