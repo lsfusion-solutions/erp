@@ -1770,10 +1770,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         conn.commit();
     }
 
-    private void truncateTablesDeleteBarcode(Connection conn) throws SQLException {
+    private void truncateTablesDeleteBarcode(Connection conn, AstronConnectionString params) throws SQLException {
         for (String table : new String[]{"ART", "UNIT", "PACK", "EXBARC"}) {
             try (Statement s = conn.createStatement()) {
-                s.execute("TRUNCATE TABLE " + table);
+                s.execute("TRUNCATE TABLE " + table + (params.pgsql ? " CASCADE" : ""));
             }
         }
         conn.commit();
@@ -1948,7 +1948,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             if (waitFlagsResult != null) {
                                 throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
                             }
-                            truncateTablesDeleteBarcode(conn);
+                            truncateTablesDeleteBarcode(conn, params);
                         }
 
                         deleteBarcode.barcodeList = deleteBarcode.barcodeList.stream().filter(item -> parseUOM(item.idUOM) != null && parseIdItem(item) != null).collect(Collectors.toList());
