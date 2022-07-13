@@ -230,6 +230,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         if (!transaction.itemsList.isEmpty()) {
 
+                            long eventTime = getEventTime(conn);
+
                             checkItems(params, transaction.itemsList, transaction.id);
 
                             Integer grpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "GRP");
@@ -336,7 +338,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             } else if (lastTransaction) {
                                 astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
                                 exportFlags(conn, params, tables);
-                                Exception e = waitFlags(conn, params, tables, timeout, waitSysLogInsteadOfDataPump);
+                                Exception e = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                                 if (e != null) {
                                     throw e;
                                 }
@@ -1662,15 +1664,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout) throws InterruptedException {
-        return waitFlags(conn, params, tables, timeout, false);
+        return waitFlags(conn, params, tables, timeout, 0, false);
     }
 
-    private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout, boolean waitSysLogInsteadOfDataPump) throws InterruptedException {
+    private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout, long eventTime, boolean waitSysLogInsteadOfDataPump) throws InterruptedException {
         int count = 0;
         if (waitSysLogInsteadOfDataPump) {
             Pair<Boolean, Exception> sysLog;
-            String currentTime = LocalDateTime.now().format(dateTimeFormatter);
-            while (!(sysLog = checkSysLog(conn, currentTime)).first) {
+            while (!(sysLog = checkSysLog(conn, eventTime)).first) {
                 astronLogger.info("checkSysLog result: " + sysLog.first + " / " + sysLog.second); // temp log
                 if (count > (timeout / 5)) {
                     String message = String.format("Data was sent to db but %s no records in syslog found", sysLog);
@@ -1701,10 +1702,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private Pair<Boolean, Exception> checkSysLog(Connection conn, String time) {
+    private long getEventTime(Connection conn) {
+        try (Statement statement = conn.createStatement()) {
+            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) FROM public.\"Syslog_DataServer\"");
+            if (rs.next()) {
+                return rs.getTimestamp("EVENTTIME").getTime();
+            }
+            return 0;
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    private Pair<Boolean, Exception> checkSysLog(Connection conn, long eventTime) {
         astronLogger.info("checkSysLog started"); // temp log
         try (Statement statement = conn.createStatement()) {
-            String sql = "SELECT EVENTCODE, EVENTDATA FROM public.\"Syslog_DataServer\" WHERE EVENTTIME >= " + time + " ORDER BY SEC";
+            String sql = "SELECT EVENTCODE, EVENTDATA FROM public.\"Syslog_DataServer\" WHERE EVENTTIME >= '" + eventTime + "' ORDER BY SEC";
             ResultSet rs = statement.executeQuery(sql);
 
             astronLogger.info("checkSysLog executed"); // temp log
