@@ -222,7 +222,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             if (waitFlagsResult != null) {
                                 throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
                             }
-                            truncateTables(conn, transaction, truncateTables);
+                            truncateTables(conn, params, transaction, truncateTables);
                         }
 
                         List<CashRegisterItem> usedDeleteBarcodeList = new ArrayList<>();
@@ -230,7 +230,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         if (!transaction.itemsList.isEmpty()) {
 
-                            long eventTime = getEventTime(conn);
+                            String eventTime = getEventTime(conn);
 
                             checkItems(params, transaction.itemsList, transaction.id);
 
@@ -1664,10 +1664,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout) throws InterruptedException {
-        return waitFlags(conn, params, tables, timeout, 0, false);
+        return waitFlags(conn, params, tables, timeout, "0", false);
     }
 
-    private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout, long eventTime, boolean waitSysLogInsteadOfDataPump) throws InterruptedException {
+    private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout, String eventTime, boolean waitSysLogInsteadOfDataPump) throws InterruptedException {
         int count = 0;
         if (waitSysLogInsteadOfDataPump) {
             Pair<Boolean, Exception> sysLog;
@@ -1702,22 +1702,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private long getEventTime(Connection conn) {
+    private String getEventTime(Connection conn) {
         try (Statement statement = conn.createStatement()) {
-            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) FROM public.\"Syslog_DataServer\"");
+            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM public.\"Syslog_DataServer\"");
             if (rs.next()) {
-                return rs.getTimestamp("EVENTTIME").getTime();
+                return rs.getString("EVENTTIME");
             }
-            return 0;
+            return "0";
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private Pair<Boolean, Exception> checkSysLog(Connection conn, long eventTime) {
+    private Pair<Boolean, Exception> checkSysLog(Connection conn, String eventTime) {
         astronLogger.info("checkSysLog started"); // temp log
         try (Statement statement = conn.createStatement()) {
-            String sql = "SELECT EVENTCODE, EVENTDATA FROM public.\"Syslog_DataServer\" WHERE EVENTTIME >= '" + eventTime + "' ORDER BY SEC";
+            String sql = "SELECT EVENTCODE, EVENTDATA FROM public.\"Syslog_DataServer\" WHERE EVENTTIME > '" + eventTime + "' ORDER BY SEQ";
             ResultSet rs = statement.executeQuery(sql);
 
             astronLogger.info("checkSysLog executed"); // temp log
@@ -1788,11 +1788,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return null;
     }
 
-    private void truncateTables(Connection conn, TransactionCashRegisterInfo transaction, Set<String> tables) throws SQLException {
+    private void truncateTables(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Set<String> tables) throws SQLException {
         astronLogger.info(String.format("transaction %s, truncate tables", transaction.id));
         for (String table : tables) {
             try (Statement s = conn.createStatement()) {
-                s.execute("TRUNCATE TABLE " + table);
+                s.execute("TRUNCATE TABLE " + table + (params.pgsql ? " CASCADE" : ""));
             }
         }
         conn.commit();
