@@ -1925,6 +1925,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         boolean isVersionalScheme = astronSettings.isVersionalScheme();
         boolean deleteBarcodeInSeparateProcess = astronSettings.isDeleteBarcodeInSeparateProcess();
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
+        boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
 
         if(deleteBarcodeInSeparateProcess) {
 
@@ -1957,6 +1958,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                             checkItems(params, deleteBarcode.barcodeList, null);
 
+                            String eventTime = getEventTime(conn);
+
                             Integer artUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "ART");
                             exportArt(conn, params, deleteBarcode.barcodeList, false, true, maxBatchSize, artUpdateNum);
                             outputUpdateNums.put("ART", artUpdateNum);
@@ -1980,7 +1983,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 astronLogger.info(String.format("waiting for processing %s deleteBarcode(s)", deleteBarcode.barcodeList.size()));
 
                                 exportFlags(conn, params, tables, 1);
-                                Exception e = waitFlags(conn, params, tables, timeout);
+                                Exception e = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                                 if (e != null) {
                                     throw e;
                                 }
@@ -2009,6 +2012,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
         boolean isVersionalScheme = astronSettings.isVersionalScheme();
         boolean exportDiscountCardExtraTables = astronSettings.isExportDiscountCardExtraTables();
+        boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
 
         for (String directory : getDirectorySet(requestExchange)) {
 
@@ -2032,6 +2036,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     if (flags > 0) {
                         exception = new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags));
                     } else {
+
+                        String eventTime = getEventTime(conn);
+
                         truncateTablesDiscountCard(conn, exportDiscountCardExtraTables);
 
                         Integer dcardUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, "DCARD");
@@ -2066,7 +2073,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         } else {
                             astronLogger.info("waiting for processing discount cards");
                             exportFlags(conn, params, tables, 1);
-                            exception = waitFlags(conn, params, tables, timeout);
+                            exception = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                         }
                     }
                 } catch (Exception e) {
