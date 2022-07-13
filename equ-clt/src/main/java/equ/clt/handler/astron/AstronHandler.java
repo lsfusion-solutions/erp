@@ -1843,6 +1843,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         Integer maxBatchSize =astronSettings.getMaxBatchSize();
         boolean isVersionalScheme = astronSettings.isVersionalScheme();
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
+        boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
 
         for (String directory : directorySet) {
             AstronConnectionString params = new AstronConnectionString(directory);
@@ -1862,6 +1863,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         connectionSemaphore.add(params.connectionString);
 
                         List<StopListItem> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
+
+                        String eventTime = getEventTime(conn);
 
                         Integer artUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
                         exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize, artUpdateNum);
@@ -1890,7 +1893,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             astronLogger.info("waiting for processing stopLists");
                             exportFlags(conn, params, tables, 1);
 
-                            Exception e = waitFlags(conn, params, tables, timeout);
+                            Exception e = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                             if (e != null) {
                                 throw e;
                             }
