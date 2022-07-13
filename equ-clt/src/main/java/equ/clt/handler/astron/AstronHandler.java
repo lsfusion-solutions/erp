@@ -183,9 +183,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         if(exception == null) {
             AstronConnectionString params = new AstronConnectionString(directory);
             if (params.connectionString == null) {
-                String error = "no connectionString found";
-                astronLogger.error(error);
-                exception = new RuntimeException(error);
+                exception = createException("no connectionString found");
             } else {
                 exception = waitConnectionSemaphore(params, timeout, false);
                 if (exception == null) {
@@ -337,7 +335,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 exportUpdateNums(conn, params, outputUpdateNums);
                             } else if (lastTransaction) {
                                 astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
-                                exportFlags(conn, params, tables);
+                                exportFlags(conn, params, tables, 1);
                                 Exception e = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                                 if (e != null) {
                                     throw e;
@@ -1651,32 +1649,31 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportFlags(Connection conn, AstronConnectionString params, String tables) throws SQLException {
+    private void exportFlags(Connection conn, AstronConnectionString params, String tables, int value) throws SQLException {
         conn.setAutoCommit(true);
         try (Statement statement = conn.createStatement()) {
             String sql = params.pgsql ?
-                    "UPDATE DATAPUMP SET recordnum = 1 WHERE dirname in (" + tables + ")" :
-                    "UPDATE [DATAPUMP] SET recordnum = 1 WHERE dirname in (" + tables + ")";
+                    "UPDATE DATAPUMP SET recordnum = " + value + " WHERE dirname in (" + tables + ")" :
+                    "UPDATE [DATAPUMP] SET recordnum = " + value + " WHERE dirname in (" + tables + ")";
             statement.executeUpdate(sql);
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout) throws InterruptedException {
+    private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout) throws InterruptedException, SQLException {
         return waitFlags(conn, params, tables, timeout, "0", false);
     }
 
-    private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout, String eventTime, boolean waitSysLogInsteadOfDataPump) throws InterruptedException {
+    private Exception waitFlags(Connection conn, AstronConnectionString params, String tables, int timeout, String eventTime, boolean waitSysLogInsteadOfDataPump) throws InterruptedException, SQLException {
         int count = 0;
         if (waitSysLogInsteadOfDataPump) {
             Pair<Boolean, Exception> sysLog;
             while (!(sysLog = checkSysLog(conn, eventTime)).first) {
                 astronLogger.info("checkSysLog result: " + sysLog.first + " / " + sysLog.second); // temp log
                 if (count > (timeout / 5)) {
-                    String message = String.format("Data was sent to db but %s no records in syslog found", sysLog);
-                    astronLogger.error(message);
-                    return new RuntimeException(message);
+                    exportFlags(conn, params, tables, 0);
+                    return createException(String.format("Data was sent to db but %s no records in syslog found", sysLog));
                 } else {
                     count++;
                     astronLogger.info("Waiting for syslog");
@@ -1689,9 +1686,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int flags;
             while ((flags = checkFlags(conn, params, tables)) != 0) {
                 if (count > (timeout / 5)) {
-                    String message = String.format("Data was sent to db but %s flag records were not set to zero", flags);
-                    astronLogger.error(message);
-                    return new RuntimeException(message);
+                    return createException(String.format("Data was sent to db but %s flag records were not set to zero", flags));
                 } else {
                     count++;
                     astronLogger.info(String.format("Waiting for setting to zero %s flag records", flags));
@@ -1923,7 +1918,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             exportUpdateNums(conn, params, outputUpdateNums);
                         } else {
                             astronLogger.info("waiting for processing stopLists");
-                            exportFlags(conn, params, tables);
+                            exportFlags(conn, params, tables, 1);
 
                             Exception e = waitFlags(conn, params, tables, timeout);
                             if (e != null) {
@@ -2011,7 +2006,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             } else {
                                 astronLogger.info(String.format("waiting for processing %s deleteBarcode(s)", deleteBarcode.barcodeList.size()));
 
-                                exportFlags(conn, params, tables);
+                                exportFlags(conn, params, tables, 1);
                                 Exception e = waitFlags(conn, params, tables, timeout);
                                 if (e != null) {
                                     throw e;
@@ -2048,8 +2043,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             AstronConnectionString params = new AstronConnectionString(directory);
             if (params.connectionString == null) {
-                astronLogger.error("no connectionString found");
-                exception = new RuntimeException("no connectionString found");
+                exception = createException("no connectionString found");
             } else {
 
                 try (Connection conn = getConnection(params)) {
@@ -2098,7 +2092,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             exportUpdateNums(conn, params, outputUpdateNums);
                         } else {
                             astronLogger.info("waiting for processing discount cards");
-                            exportFlags(conn, params, tables);
+                            exportFlags(conn, params, tables, 1);
                             exception = waitFlags(conn, params, tables, timeout);
                         }
                     }
@@ -2637,5 +2631,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private Integer getPriceLevelId(Integer nppGroupMachinery, boolean exportExtraTables, int priceNumber) {
         return exportExtraTables ? (nppGroupMachinery * 1000 + priceNumber) : nppGroupMachinery;
+    }
+
+    private RuntimeException createException(String message) {
+        astronLogger.error(message);
+        return new RuntimeException(message);
     }
 }
