@@ -43,7 +43,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     protected final static Logger astronLogger = Logger.getLogger("AstronLogger");
     protected final static Logger astronSalesLogger = Logger.getLogger("AstronSalesLogger");
-    protected final static Logger astronPackLogger = Logger.getLogger("AstronPackLogger");
     protected final static Logger astronSqlLogger = Logger.getLogger("AstronSqlLogger");
 
     private static String PROPERTYGRP = "PROPERTYGRP";
@@ -85,7 +84,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         List<DeleteBarcodeInfo> deleteBarcodeList = new ArrayList<>();
         if (!deleteBarcodeInSeparateProcess) {
             try {
-                //todo: если делать для всех, то вынести чтение deleteBarcode выше
                 List<DeleteBarcodeInfo> allDeleteBarcodeList = remote.readDeleteBarcodeInfoList();
                 for (DeleteBarcodeInfo deleteBarcodeInfo : allDeleteBarcodeList) {
                     if (deleteBarcodeInfo.handlerModelGroupMachinery.equals(getClass().getName())) {
@@ -114,16 +112,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     int itemCount = 0;
                     int totalCount = directoryTransactionEntry.getValue().size();
 
-                    astronPackLogger.info(String.format("sendTransaction started: directory %s, totalCount %s", directoryTransactionEntry.getKey(), totalCount)); //todo: временный лог для отслеживания packid
-
                     Throwable exception = null;
                     Map<Long, SendTransactionBatch> currentSendTransactionBatchMap = new HashMap<>();
                     for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
                         itemCount += transaction.itemsList.size();
                         boolean firstTransaction = transactionCount == 1;
                         boolean lastTransaction = transactionCount == transactionsAtATime || transactionCount == totalCount || (itemsAtATime > 0 && itemCount >= itemsAtATime);
-
-                        astronPackLogger.info(String.format("transaction %s (%s of %s)", transaction.id, transactionCount, totalCount)); //todo: временный лог для отслеживания packid
 
                         SendTransactionBatch batch = exportTransaction(transaction, exception, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(),
                                 exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, transactionCount, itemCount, usePropertyGridFieldInPackTable,
@@ -245,7 +239,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             outputUpdateNums.put("UNIT", unitUpdateNum);
 
                             Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
-                            exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum, transaction.id, usePropertyGridFieldInPackTable);
+                            exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable);
                             astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
                             exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, packUpdateNum);
                             outputUpdateNums.put("PACK", packUpdateNum);
@@ -402,8 +396,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         if (!Thread.currentThread().isInterrupted()) {
                             String idGroup = parseGroup(itemGroup.extIdItemGroup);
                             if (idGroup != null && !idGroup.isEmpty() && !usedGrp.contains(idGroup)) {
-                                //todo: временный лог по таблице GRP
-                                astronPackLogger.info(String.format("GRP: transaction %s, group id %s, group name %s", transaction.id, idGroup, trim(itemGroup.nameItemGroup, "", 50)));
                                 if(params.pgsql) {
                                     String parentId = parseGroup(itemGroup.idParentItemGroup, true);
                                     setObject(ps, Integer.parseInt(idGroup), 1); //GRPID
@@ -670,7 +662,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return null;
     }
 
-    private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum, Long transactionId,
+    private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum,
                             boolean usePropertyGridFieldInPackTable) throws SQLException, UnsupportedEncodingException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(
@@ -691,9 +683,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                     for (Integer packId : packIds) {
                         if (params.pgsql) {
-                            //todo: временный лог для отслеживания, какие packid мы пишем в pack и в packprc
-                            if(transactionId != null)
-                                astronPackLogger.info(String.format("transaction %s, table pack, ARTID %s, PACKID %s", transactionId, idItem, packId));
                             setObject(ps, packId, 1); //PACKID
                             setObject(ps, idItem, 2); //ARTID
                             setObject(ps, item.passScalesItem || item.splitItem ? 1000 : 1, 3); //PACKQUANT
@@ -745,7 +734,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         ps.addBatch();
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
-                            astronPackLogger.info("Pack: executeBatch started");
                             executeAndCommitBatch(ps, conn);
                             batchCount = 0;
                         }
@@ -759,20 +747,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             if(params.pgsql) {
                 Set<Integer> failedPackIds = new HashSet<>();
                 Set<Integer> readPackIds = readPackIds(conn, params);
-                astronPackLogger.info("readPackIds: " + readPackIds);
                 for (ItemInfo item : itemsList) {
                     List<Integer> packIds = getPackIds(item);
                     for (Integer packId : packIds) {
-                        astronPackLogger.info("readPackIds: test " + packId + "=" + readPackIds.contains(packId));
                         if(!readPackIds.contains(packId)) {
                             failedPackIds.add(packId);
                         }
                     }
                 }
                 if(!failedPackIds.isEmpty()) {
-                    String error = "Failed to write packIds: " + failedPackIds;
-                    astronPackLogger.error(error);
-                    throw new RuntimeException(error);
+                    throw createException("Failed to write packIds: " + failedPackIds);
                 }
             }
         }
@@ -1001,7 +985,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     JSONObject infoJSON = getExtInfo(item.info);
                     if (item.price != null) {
                         Integer packId = getPackId(item);
-                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, infoJSON, packId, offset, exportExtraTables, item.price, 1, null, false, keys.length, updateNum, transaction.id);
+                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, infoJSON, packId, offset, exportExtraTables, item.price, 1, null, false, keys.length, updateNum);
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
                             executeAndCommitBatch(ps, conn);
@@ -1016,7 +1000,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     JSONObject extraPrice = extraPrices.getJSONObject(j);
                                     Integer id = extraPrice.getInt("id");
                                     BigDecimal price = BigDecimal.valueOf(extraPrice.getDouble("price"));
-                                    addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, infoJSON, packId, offset, true, price, id, getBigDecimalValue(extraPrice, "overPackMinPrice"), false, keys.length, updateNum, transaction.id);
+                                    addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, infoJSON, packId, offset, true, price, id, getBigDecimalValue(extraPrice, "overPackMinPrice"), false, keys.length, updateNum);
                                 }
                             }
                         }
@@ -1036,17 +1020,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private BigDecimal getBigDecimalValue(JSONObject json, String key) {
-        return getBigDecimalValue(json, key, null);
-    }
-
-    private BigDecimal getBigDecimalValue(JSONObject json, String key, BigDecimal defaultValue) {
         if(json != null) {
             Double value = json.optDouble(key);
             if(!value.isNaN()) {
                 return BigDecimal.valueOf(value);
             }
         }
-        return defaultValue;
+        return null;
     }
 
     private Set<Integer> getHasExtraPrices(TransactionCashRegisterInfo transaction) {
@@ -1141,7 +1121,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
                                ItemInfo item, JSONObject infoJSON, Integer packId, int offset, boolean exportExtraTables,
-                               BigDecimal price, int priceNumber, BigDecimal overPackMinPrice, boolean delFlag, int keysOffset, Integer updateNum, Long transactionId) throws SQLException {
+                               BigDecimal price, int priceNumber, BigDecimal overPackMinPrice, boolean delFlag, int keysOffset, Integer updateNum) throws SQLException {
 
         Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables, priceNumber);
         BigDecimal packPrice = price == null || price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(price, 100);
@@ -1151,9 +1131,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         BigDecimal packBonusMinPrice = nvl(safeMultiply(getBigDecimalValue(infoJSON, "packBonusMinPrice"), 100), packPrice);
 
         if(params.pgsql) {
-            //todo: временный лог для отслеживания, какие packid мы пишем в pack и в packprc
-            if(transactionId != null)
-                astronPackLogger.info(String.format("transaction %s, table packprc, item %s, PACKID %s", transactionId, parseIdItem(item), packId));
             setObject(ps, packId, 1); //PACKID
             setObject(ps, priceLevelId, 2); //PRCLEVELID
             setObject(ps, packPrice, 3); //PACKPRICE
@@ -1220,7 +1197,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPackPrcStopList(Connection conn, AstronConnectionString params, StopListInfo stopListInfo, boolean exportExtraTables, boolean delFlag, Integer maxBatchSize, Integer updateNum, Long transactionId) throws SQLException {
+    private void exportPackPrcStopList(Connection conn, AstronConnectionString params, StopListInfo stopListInfo, boolean exportExtraTables, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
         String[] columns = getColumns(new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys)) {
@@ -1250,7 +1227,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         packIdCount++;
                         for (Integer nppGroupMachinery : groupMachinerySet) {
                             recordCount++;
-                            addPackPrcRow(ps, params, nppGroupMachinery, item, null, packId, offset, exportExtraTables, item.price, 1, null, delFlag, keys.length, updateNum, transactionId);
+                            addPackPrcRow(ps, params, nppGroupMachinery, item, null, packId, offset, exportExtraTables, item.price, 1, null, delFlag, keys.length, updateNum);
                             if(maxBatchSize != null && recordCount == maxBatchSize) {
                                 astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
                                         recordCount, itemCount, groupMachinerySet.size(), packIdCount));
@@ -1811,13 +1788,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         conn.commit();
     }
 
-    private void truncateTable(Connection conn, String name) throws SQLException {
-        try (Statement s = conn.createStatement()) {
-            s.execute("TRUNCATE TABLE " + name);
-        }
-        conn.commit();
-    }
-
     private void setObject(PreparedStatement ps, Object value, int index, int columnsSize) throws SQLException {
         setObject(ps, value, index);
         setObject(ps, value, index + columnsSize);
@@ -1902,7 +1872,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         outputUpdateNums.put("UNIT", unitUpdateNum);
 
                         Integer packUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
-                        exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, packUpdateNum, null, usePropertyGridFieldInPackTable);
+                        exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable);
                         outputUpdateNums.put("PACK", packUpdateNum);
 
                         Integer exBarcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
@@ -1910,7 +1880,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         outputUpdateNums.put("EXBARC", exBarcUpdateNum);
 
                         Integer packPrcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
-                        exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude, maxBatchSize, packPrcUpdateNum, null);
+                        exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude, maxBatchSize, packPrcUpdateNum);
                         outputUpdateNums.put("PACKPRC", packPrcUpdateNum);
 
                         if(versionalScheme) {
@@ -1993,7 +1963,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             outputUpdateNums.put("UNIT", unitUpdateNum);
 
                             Integer packUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "PACK");
-                            exportPack(conn, params, deleteBarcode.barcodeList, true, maxBatchSize, packUpdateNum, null, usePropertyGridFieldInPackTable);
+                            exportPack(conn, params, deleteBarcode.barcodeList, true, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable);
                             outputUpdateNums.put("PACK", packUpdateNum);
 
                             Integer exBarcUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "EXBARC");
@@ -2324,7 +2294,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 break;
                             }
                             case 1: {//оплата
-                                astronSqlLogger.info("Payment found: isBonusPayment = " + isBonusPayment); //todo: remove temp log
                                 if (!isBonusPayment) { //оплату бонусами игнорируем, она пойдёт как скидку на сумму SALESBONUS
                                     BigDecimal sum = safeDivide(salesSum, 100);
                                     if (isReturn) sum = safeNegate(sum);
@@ -2341,7 +2310,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                                 sumCard = safeAdd(sumCard, sum);
                                                 break;
                                             case 2:
-                                                astronSqlLogger.info("Adding giftCard payment"); //todo: remove temp log
                                                 String numberGiftCard = salesBarcs.length > 0 ? salesBarcs[0] : null;
                                                 GiftCard giftCard = sumGiftCardMap.getOrDefault(numberGiftCard, new GiftCard(BigDecimal.ZERO));
                                                 giftCard.sum = safeAdd(giftCard.sum, sum);
@@ -2373,10 +2341,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 if(bonusPaymentAsDiscount) {
                                     BigDecimal salesBonusValue = safeDivide(salesBonus, 100); //сумма социальной скидки для позиции
                                     if(salesBonusValue.compareTo(BigDecimal.ZERO) > 0) {
-                                        //todo: remove temp log
-                                        astronSalesLogger.info(String.format("SocialDiscount: nppGroupMachinery = %s, nppCashRegister = %s, numberZReport = %s, numberReceipt = %s, idBarcode = %s," +
-                                                        " SALESBONUS = %s, SALESDISC = %s",
-                                                nppGroupMachinery, nppCashRegister, numberZReport, numberReceipt, idBarcode, salesBonusValue, discountSumReceiptDetail));
                                         receiptDetailExtraFields.put("salesBonus", salesBonusValue);
                                     }
                                 }
@@ -2619,10 +2583,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private String concat(String left, String right, String splitter) {
         return left + (left.isEmpty() ? "" : splitter) + right;
-    }
-
-    private String getDeleteBarcodeKey(String connectionString, Integer nppGroupMachinery) {
-        return  connectionString + "/" + nppGroupMachinery;
     }
 
     private Integer getPriceLevelId(Integer nppGroupMachinery, boolean exportExtraTables) {
