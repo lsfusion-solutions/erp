@@ -1711,17 +1711,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             List<String> errors = new ArrayList<>();
             boolean succeeded = false;
-            boolean finished = false;
             while (rs.next()) {
                 int eventCode = rs.getInt("EVENTCODE");
                 String eventData = rs.getString("EVENTDATA");
                 astronLogger.info("checkSysLog record: " + eventCode + " / " + eventData); // temp log
                 switch (eventCode) {
                     case 700:
-                        if(eventData.contains("Останавливаю сервис синхронизации...")) {
-                            finished = true;
-                        }
-                        break;
                     case 701:
                         //do nothing
                         break;
@@ -1733,7 +1728,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 }
             }
-
+            boolean finished = succeeded || !errors.isEmpty();
             return Pair.create(finished, succeeded ? null : new RuntimeException(String.join("\n", errors)));
 
         } catch (Exception e) {
