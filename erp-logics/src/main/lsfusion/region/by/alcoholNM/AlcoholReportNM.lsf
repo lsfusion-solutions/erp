@@ -1,0 +1,637 @@
+MODULE AlcoholReportNM;
+
+REQUIRE InvoiceAlcoholNM, LegalEntityBy, PurchaseInvoice, WriteOff, Inventory, SaleReturnInvoice;
+
+NAMESPACE Invoice;
+
+isEEU 'Входит в ЕАЭС' (LegalEntity l) = isEEU(country(l));
+
+nameManufacturerSku 'Производитель' (Invoice.InvoiceDetail d) = nameManufacturer[Item](sku(d)); 
+
+
+notParent(StatisticGroup g)  = g IS StatisticGroup AND NOT parent(g);
+
+CLASS AlcoholParameter 'Показатель' {
+    param1 'Объем импорта по лицензиям на импорт',
+    param2 'Остаток на начало отчетного периода',
+    param3 'Поступление – всего',
+    param31 'В том числе: приобретено в Республике Беларусь',    
+    param311 'у производителей',       
+    param312 'у импортеров',
+    param313 'у организаций оптовой торговли',
+    param32 'импортировано – всего',
+    param321 'в том числе из стран Евразийского экономического союза',
+    param33 'прочее поступление',
+    param4 'Расход – всего',
+    param41 'В том числе: использовано на собственные нужды',
+    param42 'реализовано (отгружено) для производства пищевой продукции',
+    param43 'реализовано (отгружено) для оптовой и (или) розничной торговли',
+    param44 'отгружено в объекты собственной торговой сети',
+    param45 'реализовано (отгружено) на экспорт',
+    param46 'прочее использование (выбытие)',
+    param5 'Остаток на конец отчетного периода'
+};
+TABLE alcoholParameter (AlcoholParameter);
+
+number 'Номер' = DATA BPSTRING[10] (AlcoholParameter);
+
+CLASS AlcoholParameterType 'Тип показателей' {
+    default 'По умолчанию'
+}
+TABLE alcoholParameterType (AlcoholParameterType);
+name 'Наименование' = DATA ISTRING[255] (AlcoholParameterType) CHARWIDTH 20;
+emptyName'Наименование' (AlcoholParameterType t) = OVERRIDE name(t), staticCaption(t) CHARWIDTH 20; 
+type = DATA AlcoholParameterType (AlcoholParameter);
+nameType 'Тип показателей' (AlcoholParameter d) = emptyName(type(d));
+
+FORM alcoholParameterType 'Тип показателей'
+    OBJECTS t=AlcoholParameterType PANEL
+    PROPERTIES(t) emptyName
+    EDIT AlcoholParameterType OBJECT t
+;
+
+FORM alcoholParameterTypes 'Типы показателей'
+    OBJECTS t=AlcoholParameterType
+    PROPERTIES(t) READONLY   emptyName 
+    PROPERTIES(t) NEWSESSION NEW, EDIT, deleteb = DELETE
+    ORDERS emptyName(t)
+    LIST AlcoholParameterType OBJECT t
+;
+DESIGN alcoholParameterTypes { BOX { size = (600, 400); } }
+
+
+migrateAlcoholParameterType = DATA BOOLEAN ();
+onStarted()+{
+    IF NOT migrateAlcoholParameterType() THEN NEWSESSION {
+        type(AlcoholParameter p)<-  AlcoholParameterType.default;   
+        migrateAlcoholParameterType()<- TRUE;
+        APPLY;
+    }
+}
+
+CLASS AlcoholReport 'Декларация (алкоголь)';
+CLASS AlcoholReportDetail 'Строка декларации (алкоголь)';
+
+@defineDocument(alcoholReport);
+
+WHEN LOCAL SET(AlcoholReport r IS AlcoholReport) DO {
+    IF r IS AlcoholReport AND NOT date(r) THEN date(r) <- currentDate();
+    IF r IS AlcoholReport AND NOT time(r) THEN time(r) <- currentTime();
+};
+
+@defineDocumentHeaderNumber(AlcoholReport, BPSTRING[2]);
+@defineNumeratedDefault(AlcoholReport, 'Декларация (алкоголь)', 'ДА');
+@defineDocumentHeaderDescription (AlcoholReport, 'Декларация (алкоголь)');
+
+company = DATA LegalEntity (AlcoholReport);
+nameCompany 'Компания' (AlcoholReport o) = name(company(o)) IN documentPrm;
+OKYLPCompany 'ОКЮЛП компании' (AlcoholReport o) = OVERRIDE  OKYLP(company(o)), '613';
+UNPCompany 'УНП компании' (AlcoholReport o) = UNP(company(o));
+addressCompany 'Адрес компании' (AlcoholReport o) = address(company(o));
+chiefCompany 'Ответственное лицо компании' (AlcoholReport o) = nameChief(company(o));
+//licenceNumber 'Номер лицензии' (AlcoholReport o) = licenceNumberVitalur(company(o)); 
+
+CONSTRAINT  company(AlcoholReport o) AND NOT isCompany(company(o))
+    CHECKED BY company[AlcoholReport] MESSAGE 'В качестве компании в декларации выбрана организация, которая не является компанией.';
+
+WHEN LOCAL SET ( AlcoholReport r IS AlcoholReport) AND NOT company(r) DO {
+    company(r) <- legalEntity('ЮР0013');
+}
+
+leForDeclaration = DATA LegalEntity (LegalEntity);
+nameLeForDeclaration 'Организация для Декларации'(LegalEntity l)= name(leForDeclaration(l));
+//alcoholSupplier(Purchase.UserInvoiceDetail d) = OVERRIDE leForDeclaration(supplier(d)), supplier(d); 
+alcoholSupplier(InvoiceDetail d) = OVERRIDE leForDeclaration(supplier(d)) IF d IS Purchase.InvoiceDetail, from(d); 
+EXTEND FORM legalEntities
+    PROPERTIES(l) READONLYIF isReadonly() nameLeForDeclaration
+;
+
+fromDate 'Дата с' = DATA DATE (AlcoholReport) IN documentHeader;
+toDate 'Дата по' = DATA DATE (AlcoholReport) IN documentHeader;
+
+WHEN LOCAL SET(AlcoholReport o IS AlcoholReport) DO {
+    IF o IS AlcoholReport AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
+    IF o IS AlcoholReport AND NOT toDate(o) THEN toDate(o) <- currentDate();
+};
+
+groupType= DATA GroupType (AlcoholReport);
+nameGroupType 'Тип классификатора' (AlcoholReport a) = name(groupType(a)) IN documentHeader;
+
+groupType (name) = GROUP MAX GroupType groupType BY name(groupType);
+groupType (AlcoholReport r) <- groupType('Оптовая торговля (алкоголь)') WHEN SET (r IS AlcoholReport);
+
+alcoholType= DATA AlcoholParameterType (AlcoholReport);
+nameAlcoholType 'Тип параметров' (AlcoholReport a) = emptyName(alcoholType(a)) IN documentHeader;
+
+alcoholType (name) = GROUP MAX AlcoholParameterType alcoholType BY emptyName(alcoholType);
+alcoholType (AlcoholReport r) <- AlcoholParameterType.default WHEN SET (r IS AlcoholReport);
+
+TABLE alcoholParameterGroupAlcoholReport (AlcoholParameter, Group, AlcoholReport);
+
+quantity 'Количество' = DATA NUMERIC[16,6] (AlcoholParameter, Group, AlcoholReport);
+//quantityW 'Количество' = DATA NUMERIC[16,6] (AlcoholParameter, Group, AlcoholReport); // для таблицы "Опт.", которая устарела и в ней нет изменений по задаче 4809
+//overQuantity'Количество' (AlcoholParameter a, Group g, AlcoholReport r) = quantity(a, g, r) (+) quantityW(a, g, r);
+
+isWholesale = ABSTRACT BOOLEAN (Stock);
+
+balanceB 'Объем, тыс дал.' = // только isWholesale по бух. остаткам
+    [GROUP SUM volume[Item](Sku s)*balanceB(s,Stock st,DATE dt) IF    
+    isParent(Group group, s) AND isCompany(st) AND active(st) AND isWholesale(st)       
+        BY group, dt ](Group group, DATE dt)  /
+            (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup); 
+            
+balanceA 'Объем, тыс дал.' = // только isWholesale по бух. остаткам
+    [GROUP SUM volume[Item](Sku s)*balanceA(s,Stock st,DATE dt) IF    
+    isParent(Group group, s) AND isCompany(st) AND active(st) AND isWholesale(st)      
+        BY group, dt ](Group group, DATE dt)  /
+            (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup); 
+            
+//-- по поставщикам
+
+alcoholDirectionType = DATA AlcoholDirectionType (AlcoholReportDetail);
+nameAlcoholDirectionType 'Тип движения алкоголя' (AlcoholReportDetail d)= staticCaption(alcoholDirectionType(d));
+numberAlcoholDirectionType 'Тип движения' (AlcoholReportDetail d)= number(alcoholDirectionType(d));
+
+@defineDocumentHeaderLegalEntity(alcoholReportDetail, legalEntity, 'Организация');
+UNP 'УНП' (AlcoholReportDetail d) = UNP(legalEntity(d));
+name (AlcoholReportDetail d) = name(legalEntity(d));
+
+isEEU 'Входит в ЕАЭС' = DATA BOOLEAN (AlcoholReportDetail) CHARWIDTH 15; 
+
+alcoholSupplierType (alcoholReportDetail) = DATA AlcoholSupplierType (AlcoholReportDetail);
+nameSupplierType 'Тип поставщика' (AlcoholReportDetail d)= staticCaption(alcoholSupplierType(d));
+alcoholSupplierTypeOutcome (alcoholReportDetail) = DATA AlcoholSupplierTypeOutcome (AlcoholReportDetail);
+nameAlcoholSupplierTypeOutcome 'Тип расходования алкоголя' (AlcoholReportDetail d)= staticCaption(alcoholSupplierTypeOutcome(d));
+
+group = DATA Group (AlcoholReportDetail);
+nameGroup 'Группа' (AlcoholReportDetail d)= name(group(d));
+idGroup 'Код группы' (AlcoholReportDetail d)= id(group(d));
+
+CONSTRAINT group(AlcoholReportDetail d) AND  groupType(alcoholReport(d)) AND NOT   groupType(alcoholReport(d)) == groupType(group(d))
+    CHECKED BY group MESSAGE 'Группа не соответствует типу классификатора.';
+    
+quantity 'Количество' = DATA NUMERIC[16,6](AlcoholReportDetail); 
+
+signetVolume (InventorySkuDetail l) =  NUMERIC[16,5](abs(volume[Item](sku(l))*quantity(l)));
+signetVolume (WriteOffDetail l) =  NUMERIC[16,5](abs(volume[Item](sku(l))*quantity(l)));
+// todo: в логике заимплементить
+
+isAlcoholOther '' = ABSTRACT BOOLEAN (Inventory.Operation);
+isAlcoholOther '' = ABSTRACT BOOLEAN (WriteOff.Operation);
+
+volumeIncomeInvoice 'Объем, тыс дал.' = GROUP SUM volume(InvoiceDetail d) IF 
+    isParent(Group group, sku(d)) AND isPosted(d) AND isCompany(toStock(d)) AND active(toStock(d)) AND isWholesale(toStock(d)) AND
+    alcoholDirectionType(d) == AlcoholDirectionType.income AND date(d) >= DATE dateFrom AND date(d) <= DATE dateTo 
+        BY group, alcoholSupplier(d), alcoholSupplierType(d), dateFrom, dateTo;
+        
+volumeIncomeOther 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierType type, DATE df, DATE dt) = 
+    (GROUP SUM signetVolume(InventorySkuDetail d) IF isParent(group, sku(d)) AND isPosted(d) AND isCompany(stock(d)) AND active(stock(d)) AND isWholesale(stock(d)) 
+    AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND quantity(d) > 0
+    AND isAlcoholOther[Inventory.Operation](inventory(d))  AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierType.other;
+volumeIncome'Объем, тыс дал.'(Group group, LegalEntity supplier, AlcoholSupplierType type1, DATE df, DATE dt)= 
+    (volumeIncomeInvoice(group,supplier,type1,df,dt) (+) volumeIncomeOther(group,supplier,type1,df,dt))/
+    (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup);            
+            
+volumeIncomeNone 'Объем, тыс дал.' = [GROUP SUM volume(InvoiceDetail d) IF 
+    isParent(Group group, sku(d)) AND isPosted(d) AND isCompany(toStock(d)) AND active(toStock(d)) AND isWholesale(toStock(d)) AND 
+    alcoholDirectionType(d) == AlcoholDirectionType.income AND
+    date(d) >= DATE dateFrom AND date(d) <= DATE dateTo AND NOT alcoholSupplierType(d) AND isAlcoholGroup(sku(d))
+        BY group, alcoholSupplier(d), dateFrom, dateTo](Group group, LegalEntity supplier, DATE df, DATE dt) /
+            (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup);
+
+volumeIncome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.income
+                       BY alcoholReport(d), group(d), alcoholSupplierType(d)](AlcoholReport r, Group g, AlcoholSupplierType type); 
+                       
+volumeIncome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.income
+                       BY alcoholReport(d), group(d), alcoholSupplierType(d), legalEntity(d)](AlcoholReport r, Group g, AlcoholSupplierType type, LegalEntity supplier); 
+
+volumeIncome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.income
+                       BY alcoholReport(d), alcoholSupplierType(d)](AlcoholReport r, AlcoholSupplierType type); 
+
+volumeIncome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.income
+                       BY alcoholReport(d), group(d), legalEntity(d)](AlcoholReport r, Group g, LegalEntity supplier); 
+
+
+volumeOutcomeInvoice 'Объем, тыс дал.' = [GROUP SUM volume(InvoiceDetail d) IF 
+    isParent(Group group, sku(d)) AND isPosted(d) AND isCompany(fromStock(d)) AND active(fromStock(d)) AND alcoholDirectionType(d) == AlcoholDirectionType.outcome AND
+    date(d) >= DATE dateFrom AND date(d) <= DATE dateTo AND isWholesale(fromStock(d))
+        BY group, to(d), alcoholSupplierTypeOutcome(invoice(d)), dateFrom, dateTo](Group group, LegalEntity customer, AlcoholSupplierTypeOutcome typrl, DATE df, DATE dt);
+
+volumeOutcomeOther 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierTypeOutcome type, DATE df, DATE dt) = 
+    (GROUP SUM signetVolume(InventorySkuDetail d) IF isParent(group, sku(d)) AND isPosted(d) AND isCompany(stock(d)) AND active(stock(d)) 
+    AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND quantity(d) < 0 AND isWholesale(stock(d)) 
+    AND isAlcoholOther[Inventory.Operation](inventory(d)) AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierTypeOutcome.other;
+
+volumeOutcomeOtherEx 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierTypeOutcome type, DATE df, DATE dt) = 
+    (GROUP SUM signetVolume(WriteOffDetail d) IF isParent(group, sku(d)) AND isPosted(d) AND isCompany(stock(d)) AND active(stock(d)) 
+    AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND isWholesale(stock(d))
+    AND isAlcoholOther[WriteOff.Operation](writeOff(d)) AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierTypeOutcome.other;
+
+volumeOutcome 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierTypeOutcome type, DATE df, DATE dt) =
+    (volumeOutcomeInvoice(group,supplier,type,df,dt) (+) volumeOutcomeOther(group,supplier,type,df,dt) (+) volumeOutcomeOtherEx(group,supplier,type,df,dt))/
+    (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup); 
+            
+volumeOutcome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.outcome
+                       BY alcoholReport(d), group(d), legalEntity(d)](AlcoholReport r, Group g, LegalEntity customer);             
+volumeOutcome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.outcome
+                       BY alcoholReport(d), alcoholSupplierType(d)](AlcoholReport r, AlcoholSupplierType type);
+         
+volumeOutcome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.outcome
+                       BY alcoholReport(d), group(d), alcoholSupplierType(d)](AlcoholReport r, Group g, AlcoholSupplierType type); 
+
+volumeOutcome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.outcome
+                       BY alcoholReport(d)](AlcoholReport r);             
+
+volumeOutcome 'Объем, тыс дал.' = [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.outcome
+                       BY alcoholReport(d), group(d), alcoholSupplierTypeOutcome(d)](AlcoholReport r, Group group, AlcoholSupplierTypeOutcome type);
+  
+sortOrder(AlcoholReportDetail d) +=  STRING[100](CONCAT '',name(legalEntity(d)),id(group(d)));
+
+//isChecked 'Сверено' = DATA BOOLEAN (AlcoholReportDetail);
+defaultAlcoholReportDetailIncome = GROUP MAX  AlcoholReportDetail d 
+    IF alcoholDirectionType(d) == AlcoholDirectionType.income 
+        BY alcoholReport(d), group(d), legalEntity(d), alcoholSupplierType(d); 
+defaultAlcoholReportDetailOutcome = GROUP MAX  AlcoholReportDetail d 
+    IF alcoholDirectionType(d) == AlcoholDirectionType.outcome 
+        BY alcoholReport(d), group(d),  legalEntity(d), alcoholSupplierTypeOutcome(d); 
+  
+skipAlcohol (Group sk) = (id(sk) == '1000' OR id(sk) == '2000');
+             
+//--------------------------- Итоговые строки -------------------------//       
+
+CLASS AlcoholReportTotalDetail 'Итоговая строка декларации (алкоголь)';   
+TABLE alcoholReportTotalDetail (AlcoholReportTotalDetail);   
+
+alcoholReport = DATA AlcoholReport (AlcoholReportTotalDetail) NONULL DELETE INDEXED AGGR;
+in(AlcoholReport o, AlcoholReportTotalDetail d) = alcoholReport(d) == o;
+
+countAlcoholReportTotalDetail 'К-во итоговых строк' (o) =
+    GROUP SUM 1 BY alcoholReport(AlcoholReportTotalDetail d) MATERIALIZED IN documentSum;
+    
+dataIndex '{document.data.index.detail.class}' = DATA INTEGER (AlcoholReportTotalDetail); 
+defaultIndex '{document.default.index.detail.class}' (AlcoholReportTotalDetail d) =
+    PARTITION SUM 1
+    ORDER d BY alcoholReport(d) CHARWIDTH 4;
+index '{document.index.detail.class}' (AlcoholReportTotalDetail d) = OVERRIDE dataIndex(d), defaultIndex(d) IN id;  
+
+sortOrder '{document.sort.order}' (d) = ABSTRACT STRING[100] (AlcoholReportTotalDetail);
+sortOrderAlcoholReportTotalDetail = GROUP SUM 1 IF sortOrder(AlcoholReportTotalDetail d) BY alcoholReport(d);
+
+updateSortOrder '{document.update.sort.order}'(AlcoholReportTotalDetail detail)  { 
+    IF sortOrderAlcoholReportTotalDetail(alcoholReport(detail)) THEN {    
+        LOCAL int = INTEGER();
+        int() <- NULL;
+        int() <-1;
+        
+        FOR alcoholReport(detail) == alcoholReport(AlcoholReportTotalDetail d) ORDER sortOrder(d) DO {
+            dataIndex(d) <- int();
+             int() <-  int()+1;
+        }  
+    } ELSE {
+        MESSAGE '{document.message.update.sort.order.no.sort}';
+    }
+} ASON CONTEXTMENU index[AlcoholReportTotalDetail];                         
+deleteAlcoholReportTotalDetail '{document.delete.detail.class.object}'(AlcoholReport o)  { 
+    DELETE AlcoholReportTotalDetail d WHERE alcoholReport (d) == o;
+} IN documentPrm TOOLBAR CONFIRM;          
+     
+alcoholDirectionType = DATA AlcoholDirectionType (AlcoholReportTotalDetail);
+nameAlcoholDirectionType 'Тип движения алкоголя' (AlcoholReportTotalDetail d)= staticCaption(alcoholDirectionType(d));
+numberAlcoholDirectionType 'Тип движения' (AlcoholReportTotalDetail d)= number(alcoholDirectionType(d));
+
+@defineDocumentHeaderLegalEntity(AlcoholReportTotalDetail, legalEntity, 'Организация');
+UNP 'УНП' (AlcoholReportTotalDetail d) = UNP(legalEntity(d));
+name (AlcoholReportTotalDetail d) = name(legalEntity(d));
+
+isEEU 'Входит в ЕАЭС' = DATA BOOLEAN (AlcoholReportTotalDetail) CHARWIDTH 15; 
+
+alcoholSupplierType = DATA AlcoholSupplierType (AlcoholReportTotalDetail);
+nameSupplierType 'Тип поставщика' (AlcoholReportTotalDetail d)= staticCaption(alcoholSupplierType(d));
+alcoholSupplierTypeOutcome (alcoholReportDetail) = DATA AlcoholSupplierTypeOutcome (AlcoholReportTotalDetail);
+nameAlcoholSupplierTypeOutcome 'Тип расходования алкоголя' (AlcoholReportTotalDetail d)= staticCaption(alcoholSupplierTypeOutcome(d));
+
+group = DATA Group (AlcoholReportTotalDetail);
+nameGroup 'Группа' (AlcoholReportTotalDetail d)= name(group(d));
+idGroup 'Код группы' (AlcoholReportTotalDetail d)= id(group(d));
+
+CONSTRAINT group(AlcoholReportTotalDetail d) AND  groupType(alcoholReport(d)) AND NOT   groupType(alcoholReport(d)) == groupType(group(d))
+    CHECKED BY group[AlcoholReportTotalDetail] MESSAGE 'Группа не соответствует типу классификатора.';
+    
+quantity 'Количество' = DATA NUMERIC[16,6](AlcoholReportTotalDetail);                
+                    
+                    
+fillQuantitySupplier 'Заполнить по поставщикам' (AlcoholReport r)  { 
+    //recalculateAlcoholSupplierTypes(r);
+    DELETE AlcoholReportDetail detail WHERE alcoholReport(detail) == r;   
+    
+    FOR DATE fromDate = fromDate(r) AND DATE toDate = toDate(r) NOINLINE DO {
+        FOR volumeIncome(Group sk, LegalEntity c, AlcoholSupplierType st, fromDate, toDate) ==  NUMERIC[30,14] q AND groupType(sk) == groupType(r) 
+            AND NOT defaultAlcoholReportDetailIncome(r,sk,c,st) AND NOT skipAlcohol(sk) AND (st == AlcoholSupplierType.wholesale OR 
+            st == AlcoholSupplierType.importer OR st == AlcoholSupplierType.manufacturer OR st == AlcoholSupplierType.imported)
+            ORDER name(c), id(sk)  NEW d = AlcoholReportDetail DO {        
+            alcoholReport(d) <- r;
+            group(d) <- sk;
+            alcoholDirectionType(d)<- AlcoholDirectionType.income;
+            legalEntity(d) <- c;
+            isEEU(d) <- TRUE WHERE isEEU(c) AND st==AlcoholSupplierType.imported;
+            alcoholSupplierType(d) <- st;
+            quantity(d) <- NUMERIC[16,4](q);
+        }   
+        FOR volumeIncomeNone(Group sk, LegalEntity c, fromDate, toDate) ==  NUMERIC[30,14] q AND groupType(sk) == groupType(r) 
+            AND NOT defaultAlcoholReportDetailIncome(r,sk,c,AlcoholSupplierType.none) AND NOT skipAlcohol(sk) ORDER name(c), id(sk)  NEW d = AlcoholReportDetail DO {        
+            alcoholReport(d) <- r;
+            group(d) <- sk;
+            alcoholDirectionType(d)<- AlcoholDirectionType.income;
+            legalEntity(d) <- c;
+            alcoholSupplierType(d) <- AlcoholSupplierType.none;
+            quantity(d) <- NUMERIC[16,4](q);
+        }  
+        FOR volumeOutcome(Group sk, LegalEntity c, AlcoholSupplierTypeOutcome st, fromDate, toDate) == NUMERIC[30,14] q AND groupType(sk) == groupType(r) 
+            AND NOT defaultAlcoholReportDetailOutcome(r,sk,c,st) AND NOT skipAlcohol(sk) ORDER name(c), id(sk)  NEW d = AlcoholReportDetail DO {        
+            alcoholReport(d) <- r;
+            group(d) <- sk;
+            alcoholDirectionType(d)<- AlcoholDirectionType.outcome;
+            legalEntity(d) <- c;
+            alcoholSupplierTypeOutcome(d) <- st;
+            quantity(d) <- NUMERIC[16,4](q);
+        }    
+    }         
+    LOCAL int = INTEGER();
+    int() <- NULL;
+    int() <-1;
+
+    FOR r == alcoholReport(AlcoholReportDetail d) AND alcoholDirectionType(d) == AlcoholDirectionType.income ORDER name(legalEntity(d)), id(group(d)) DO {
+        dataIndex(d) <- int();
+        int() <-  int() + 1;
+    }    
+    FOR r == alcoholReport(AlcoholReportDetail d) AND NOT alcoholDirectionType(d) == AlcoholDirectionType.income ORDER name(legalEntity(d)), id(group(d)) DO {
+        dataIndex(d) <- int();
+        int() <-  int() + 1;
+    }              
+} 
+
+calcPrevAlcoholReport (AlcoholReport r) = PARTITION PREV r ORDER toDate(r), r 
+    BY company(r), groupType(r), alcoholType(r);
+dataPrevAlcoholReport = DATA AlcoholReport(AlcoholReport);
+prevAlcoholReport (AlcoholReport r) = OVERRIDE dataPrevAlcoholReport(r), calcPrevAlcoholReport(r);
+seriesNumberPrevReport 'Предыдущая декларация' (AlcoholReport r) = seriesNumber(prevAlcoholReport(r)) IN documentPrm CHARWIDTH 20;
+
+fillQuantityTotal 'Заполнить сводную' (AlcoholReport r)  {
+    //recalculateAlcoholSupplierTypes(r); 
+    IF [GROUP SUM quantity(AlcoholReportDetail d) IF alcoholDirectionType(d) == AlcoholDirectionType.income AND (alcoholSupplierType(d) = AlcoholSupplierType.none OR NOT alcoholSupplierType(d)) BY alcoholReport(d)](r) THEN {
+        MESSAGE 'Есть строки, у которых не заполнен "Тип поставщика алкоголя"';
+    }
+    ELSE {
+        quantity(AlcoholParameter d, Group sk, r) <- NULL WHERE groupType(sk) == groupType(r); 
+        // остаток до
+        IF NOT prevAlcoholReport(r) THEN {
+            quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](balanceB(sk,fromDate(r))) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param2 AND NOT skipAlcohol(sk); 
+        } ELSE {
+            quantity(AlcoholParameter d, Group sk, r) <- quantity(AlcoholParameter.param5, sk, prevAlcoholReport(r)) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param2 AND NOT skipAlcohol(sk);  
+        }  
+        // приход
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeIncome(r, sk, AlcoholSupplierType.manufacturer)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param311 AND NOT skipAlcohol(sk);   
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeIncome(r, sk, AlcoholSupplierType.importer)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param312 AND NOT skipAlcohol(sk);   
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeIncome(r, sk, AlcoholSupplierType.wholesale)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param313 AND NOT skipAlcohol(sk); 
+        quantity(AlcoholParameter d, Group sk, r) <-  quantity(AlcoholParameter.param311, sk, r) (+)  quantity(AlcoholParameter.param312, sk, r) (+) quantity(AlcoholParameter.param313, sk, r)
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param31 AND NOT skipAlcohol(sk);                  
+                
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeIncome(r, sk, AlcoholSupplierType.imported)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param32 AND NOT skipAlcohol(sk);                                               
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](GROUP SUM volumeIncome(r, sk, AlcoholSupplierType.imported, LegalEntity su) IF isEEU(su)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param321 AND NOT skipAlcohol(sk);
+        quantity(AlcoholParameter d, Group sk, r) <- quantity(AlcoholParameter.param32, sk, r) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param1 AND NOT skipAlcohol(sk);  
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeIncome(r, sk, AlcoholSupplierType.other)) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param33 AND NOT skipAlcohol(sk);        
+        quantity(AlcoholParameter d, Group sk, r) <- quantity(AlcoholParameter.param31, sk, r) (+) quantity(AlcoholParameter.param32, sk, r) (+) quantity(AlcoholParameter.param33, sk, r)
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param3 AND NOT skipAlcohol(sk);     
+                
+        // расход
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeOutcome(r, sk, AlcoholSupplierTypeOutcome.own)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param41 AND NOT skipAlcohol(sk);  
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeOutcome(r, sk, AlcoholSupplierTypeOutcome.production)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param42 AND NOT skipAlcohol(sk);         
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeOutcome(r, sk, AlcoholSupplierTypeOutcome.opt)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param43 AND NOT skipAlcohol(sk);  
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeOutcome(r, sk, AlcoholSupplierTypeOutcome.ownRetail)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param44 AND NOT skipAlcohol(sk);                         
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeOutcome(r, sk, AlcoholSupplierTypeOutcome.export)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param45 AND NOT skipAlcohol(sk);  
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](volumeOutcome(r, sk, AlcoholSupplierTypeOutcome.other)) 
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param46 AND NOT skipAlcohol(sk);     
+                
+                             
+        quantity(AlcoholParameter d, Group sk, r) <-  (quantity(AlcoholParameter.param41, sk, r) (+)  
+                                                        quantity(AlcoholParameter.param42, sk, r) (+)
+                                                        quantity(AlcoholParameter.param43, sk, r) (+)  
+                                                        quantity(AlcoholParameter.param44, sk, r) (+)
+                                                        quantity(AlcoholParameter.param45, sk, r) (+)  
+                                                        quantity(AlcoholParameter.param46, sk, r))
+                WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param4 AND NOT skipAlcohol(sk);         
+                
+                
+                                                  
+        // остаток после
+        quantity(AlcoholParameter d, Group sk, r) <- NUMERIC[16,4](balanceA(sk,toDate(r))) WHERE groupType(sk) == groupType(r) AND d == AlcoholParameter.param5 AND NOT skipAlcohol(sk);
+//--        
+        FOR AlcoholParameter d IS AlcoholParameter AND alcoholType(r)== type(d) DO {
+            quantity(d, Group sk, r) <- (GROUP SUM quantity(d, Group g, r) IF NOT skipAlcohol(g))
+                    WHERE groupType(sk) == groupType(r)  AND id(sk) == '1000';           
+        }   
+    
+        DELETE AlcoholReportTotalDetail detail WHERE alcoholReport(detail) == r;                                    
+    
+        FOR volumeIncome(r, Group sk, LegalEntity c) == q AND groupType(sk) == groupType(r) AND NOT skipAlcohol(sk) ORDER name(c), id(sk)  NEW d = AlcoholReportTotalDetail DO {
+            alcoholReport(d) <- r;
+            group(d) <- sk;
+            alcoholDirectionType(d)<- AlcoholDirectionType.income;
+            legalEntity(d) <- c;
+            quantity(d) <- NUMERIC[16,4](q);
+        }   
+        FOR volumeOutcome(r, Group sk, LegalEntity c) == q AND groupType(sk) == groupType(r) AND NOT skipAlcohol(sk) ORDER name(c), id(sk)  NEW d = AlcoholReportTotalDetail DO {
+            alcoholReport(d) <- r;
+            group(d) <- sk;
+            alcoholDirectionType(d)<- AlcoholDirectionType.outcome;
+            legalEntity(d) <- c;
+            quantity(d) <- NUMERIC[16,4](q);     
+        } 
+    }         
+}
+
+
+nameId(Group g) = CONCAT ' ', name(g), '('+ id(g) + ')';
+
+volumeSku 'Объем за ед.'  (InvoiceDetail d) = volume(sku(d));
+
+showMovementPriceSkuStocks 'Показать изменение цены товара' (InvoiceDetail d)  { 
+    FOR Sku s == sku(d) DO NEWSESSION {
+        dialogPriceListType() <- priceListType('shipment'); 
+        SHOW movementPriceSkuStocks OBJECTS s = s; 
+    }           
+};
+
+order 'Порядок' (AlcoholParameter p) = STRING[10](OVERRIDE getWord(staticName(p),'.',2), number(p));
+
+FORM alcoholDeclaration 'Декларация (алкоголь)'
+    
+    OBJECTS r = AlcoholReport PANEL
+    PROPERTIES(r)  nameNumerator, number, series, date, time, nameCompany, fromDate, toDate, note, nameGroupType, 
+                   nameAlcoholType, seriesNumberPrevReport
+        
+    OBJECTS sk = Group      
+    PROPERTIES(sk) id 
+    FILTERS groupType(sk) == groupType(r), id(sk) != '2000' 
+    
+    OBJECTS p = AlcoholParameter
+    PROPERTIES (p) READONLY order, staticCaption   
+
+    PROPERTIES quantity(p,sk,r) COLUMNS(sk) HEADER nameId(sk)
+    ORDERS order(p)
+    FILTERS type(p) ==  alcoholType(r)
+    PROPERTIES (r) DRAW p TOOLBAR fillQuantitySupplier, fillQuantityTotal 
+    
+    OBJECTS d = AlcoholReportDetail
+    PROPERTIES (d) index, nameAlcoholDirectionType, numberAlcoholDirectionType, UNP, nameLegalEntity, 
+                   nameSupplierType READONLYIF (alcoholDirectionType(d)==AlcoholDirectionType.outcome),
+                   nameAlcoholSupplierTypeOutcome READONLYIF (alcoholDirectionType(d)==AlcoholDirectionType.income),  
+                   nameGroup, idGroup, quantity, NEW, deleted=DELETE GRID 
+    PROPERTIES(r) DRAW d deleteAlcoholReportDetail  
+    FILTERS alcoholReport(d) == r 
+    EDIT AlcoholReport OBJECT r 
+;
+
+DESIGN alcoholDeclaration {
+    BOX {
+        REMOVE BOX(sk);
+        MOVE BOX(r) {
+            MOVE GROUP(numbered,r);
+            MOVE GROUP(documentHeader,r){
+                type = CONTAINERH;
+            }
+            NEW head {
+                caption = 'Классификаторы';
+                type = CONTAINERH;
+                MOVE PROPERTY (nameGroupType(r));
+                MOVE PROPERTY (nameAlcoholType(r));
+            }
+            MOVE GROUP(documentPrm,r);
+        }
+        NEW top {
+            fill = 1;
+            type = TABBED;
+            MOVE BOX(p) {
+                caption = 'Результат'; 
+            }
+            NEW suppliers {
+                fill = 1;
+                caption ='По поставщикам';
+                MOVE BOX(d);
+            } 
+        }        
+    }
+    MOVE TOOLBARBOX;
+}
+
+
+nameLegalEntity 'Организация' (License li) = name(legalEntity(li));
+UNPLegalEntity 'УНП' (License li) = UNP(legalEntity(li));
+
+inReportCustomer (LegalEntity l, AlcoholReport r) = TRUE IF [ GROUP SUM 1 IF alcoholDirectionType(AlcoholReportDetail rd) == AlcoholDirectionType.outcome 
+                                                                            BY legalEntity(rd),alcoholReport(rd)](l,r);
+
+isClosed 'Закрыт' = DATA BOOLEAN (AlcoholReport);
+isOpened 'Не закрыт' (AlcoholReport o) = o IS AlcoholReport AND NOT isClosed(o) MATERIALIZED;
+
+close 'Закрыть' (AlcoholReport o)  { 
+	NEWSESSION { isClosed(o) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+open 'Открыть' (AlcoholReport o)  { 
+	NEWSESSION { isClosed(o) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
+
+show 'Просмотреть' (AlcoholReport r)   { 
+    NEWSESSION {
+        SHOW alcoholDeclaration OBJECTS r = r DOCKED READONLY;
+    }
+} TOOLBAR;
+
+FORM alcoholDeclarations 'Декларации (алкоголь)'
+    
+    OBJECTS r = AlcoholReport 
+    PROPERTIES(r)  READONLY isClosed, number, series, date, time, fromDate, toDate, note, nameGroupType, nameAlcoholType//, licenceNumber CHANGEABLE
+    PROPERTIES (r) close SHOWIF isOpened(r), open SHOWIF isClosed(r), show SHOWIF isClosed(r)
+    
+    FILTERGROUP invoicefilters6 FILTER 'Открыт' isOpened(r) 'F6' DEFAULT
+    
+    OBJECTS sk = Group      
+    PROPERTIES(sk) id 
+    FILTERS groupType(sk) == groupType(r), id(sk) != '2000' 
+    ORDERS id(sk)
+    
+    PROPERTIES (r) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer  
+       
+    OBJECTS p = AlcoholParameter
+    PROPERTIES (p) READONLY order, staticCaption   
+    PROPERTIES READONLY quantity(p,sk,r) COLUMNS(sk) HEADER name(sk)
+    ORDERS order(p)
+    FILTERS type(p) ==  alcoholType(r)
+    
+    OBJECTS d = AlcoholReportTotalDetail
+    PROPERTIES (d) READONLY index, nameAlcoholDirectionType, numberAlcoholDirectionType, UNP, nameLegalEntity, nameGroup, idGroup, quantity
+    FILTERS alcoholReport(d) == r
+            
+    PROPERTIES (r) NEWSESSION NEW, EDIT SHOWIF isOpened(r), deleter = DELETE SHOWIF isOpened(r)
+   
+    OBJECTS li=License 
+    PROPERTIES(li) UNPLegalEntity, nameLegalEntity, number, //nameLicenseType, 
+                   dateFrom, dateTo
+    ORDERS nameLegalEntity(li)
+    FILTERS inReportCustomer (legalEntity(li), r) AND dateFrom(li) <= currentDate() AND NOT dateTo(li) < currentDate()
+                                                       
+    LIST AlcoholReport OBJECT r
+;
+DESIGN alcoholDeclarations {
+    BOX {
+        size = (1024, 768);
+        REMOVE BOX(sk);
+        NEW documentContainer BEFORE TOOLBARBOX {
+            fill = 1;
+
+            type = SPLITV;
+            MOVE BOX(r);    
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+                MOVE BOX(p) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                MOVE BOX(d) {caption ='По поставщикам';}
+                MOVE BOX(li) {caption ='Лицензии клиентов';}
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE GROUP(created,r);                       
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    statisticsNavigator{
+        NEW alcoholDeclarations;
+    }
+}

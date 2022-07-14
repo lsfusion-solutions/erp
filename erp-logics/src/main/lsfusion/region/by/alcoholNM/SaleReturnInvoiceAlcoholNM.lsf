@@ -1,11 +1,15 @@
 MODULE SaleReturnInvoiceAlcoholNM;
 
-REQUIRE SaleReturnInvoice, InvoiceAlcoholNM, Warehouse;
+REQUIRE SaleReturnInvoice, InvoiceAlcoholNM, Warehouse, SaleAlcoholNM;
 
 NAMESPACE SaleReturn;
 
-//-- только опт
-alcoholDirectionType(Invoice i) += WHEN i IS Invoice AND isCompany(supplierStock(i)) AND supplierStock(i) IS Warehouse AND NOT isCompany(customerStock(i)) THEN AlcoholDirectionType.outcome;
+alcoholSupplierType = ABSTRACT AlcoholSupplierType(InvoiceDetail);
+nameAlcoholSupplierType 'Тип поставщика алкоголя' (InvoiceDetail d) = staticCaption(alcoholSupplierType(d));
+alcoholSupplierType[Invoice.InvoiceDetail](InvoiceDetail d) += alcoholSupplierType(d);  
 
+//-- только опт
+alcoholDirectionType(Invoice i) += WHEN alcoholSupplierTypeOutcome(operation(i)) AND supplierStock(i) IS Warehouse THEN AlcoholDirectionType.income;
+alcoholIncomeType(Invoice i) += WHEN alcoholSupplierTypeOutcome(operation(i)) AND supplierStock(i) IS Warehouse THEN AlcoholIncomeType.other;
+alcoholSupplierType(InvoiceDetail d) += AlcoholSupplierType.other IF alcoholSupplierTypeOutcome(operation(d));
 volume(InvoiceDetail d) += NUMERIC[16,5](volume[Item](sku(d))*quantity(d));
-signetVolume(InvoiceDetail d) += -NUMERIC[16,5](volume[Item](sku(d))*quantity(d));

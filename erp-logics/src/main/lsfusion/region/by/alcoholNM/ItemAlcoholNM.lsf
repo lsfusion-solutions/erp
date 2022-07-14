@@ -1,0 +1,64 @@
+MODULE ItemAlcoholNM;
+
+REQUIRE ItemAlcohol;
+
+NAMESPACE Item;
+
+EXTEND CLASS AlcoholSupplierType {
+    imported 'Импортировано',
+    other 'Прочее поступление'  
+}
+
+EXTEND FORM alcoholSupplierTypies
+    FILTERGROUP activeVitalur 
+        FILTER 'Активные' d != AlcoholSupplierType.none OR d != AlcoholSupplierType.other 'F10' DEFAULT 
+;
+
+DESIGN alcoholSupplierTypies {
+    REMOVE FILTERGROUP(active);
+}
+
+migrateAlcoholImported = DATA BOOLEAN ();
+
+onStarted() + {  
+    IF NOT migrateAlcoholImported() THEN NEWSESSION {
+        number(AlcoholSupplierType d) <- 5 WHERE d == AlcoholSupplierType.imported;
+        number(AlcoholSupplierType d) <- 6 WHERE d == AlcoholSupplierType.other;
+        migrateAlcoholImported()<- TRUE;
+        APPLY;
+    }
+}
+
+CLASS AlcoholSupplierTypeOutcome 'Тип расходования алкоголя' { 
+    own 'Использовано на собственные нужды',
+    production 'Отгружено для производства пищевой продукции',
+    opt 'Отгружено для оптовой и (или) розничной торговли ',
+    ownRetail 'Отгружено в собственные торговые объекты и (или) собственные объекты общественного питания',
+    export 'Отгружено на экспорт',
+    other 'Прочее использование (выбытие)'     
+}
+
+TABLE alcoholSupplierTypeOutcome (AlcoholSupplierTypeOutcome);
+alcoholSupplierTypeOutcome = GROUP MAX AlcoholSupplierTypeOutcome l AS AlcoholSupplierTypeOutcome BY staticCaption(l);  
+
+number 'Номер расходования алкоголя' = DATA INTEGER (AlcoholSupplierTypeOutcome);
+AlcoholSupplierTypeOutcome (number) = GROUP AGGR AlcoholSupplierTypeOutcome a BY number(a);
+
+onStarted() + { 
+    number(AlcoholSupplierTypeOutcome d) <- 1 WHERE d == AlcoholSupplierTypeOutcome.own; 
+    number(AlcoholSupplierTypeOutcome d) <- 2 WHERE d == AlcoholSupplierTypeOutcome.production; 
+    number(AlcoholSupplierTypeOutcome d) <- 3 WHERE d == AlcoholSupplierTypeOutcome.opt; 
+    number(AlcoholSupplierTypeOutcome d) <- 4 WHERE d == AlcoholSupplierTypeOutcome.ownRetail; 
+    number(AlcoholSupplierTypeOutcome d) <- 5 WHERE d == AlcoholSupplierTypeOutcome.export; 
+    number(AlcoholSupplierTypeOutcome d) <- 6 WHERE d == AlcoholSupplierTypeOutcome.other;                
+}
+FORM AlcoholSupplierTypeOutcomes 'Типы расходования алкоголя'
+    OBJECTS d = AlcoholSupplierTypeOutcome
+    PROPERTIES(d) READONLY staticCaption, number
+    ORDERS number(d)
+    LIST AlcoholSupplierTypeOutcome OBJECT d
+;
+
+
+isAlcoholGroup = ABSTRACT BOOLEAN (SkuGroup);
+isAlcoholGroup(Sku s) = isAlcoholGroup(skuGroup(s));
