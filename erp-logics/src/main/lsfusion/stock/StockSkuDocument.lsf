@@ -92,10 +92,12 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
     showMovementPriceSku 'Показать изменение цены по складу' (Sku ks, ###object concrete)  { showMovementPriceSku(ks, stockProp(concrete)); }
         
     EXTEND FORM form
+        PROPERTIES filterNameSkuGroup()
 
         TREE skuTree sk = SkuGroup PARENT parent(sk)
         PROPERTIES READONLY order(sk), skuTreeName = name(sk)
         ORDERS order(sk), skuTreeName
+        FILTERS inIFilterName(sk) OR NOT filterNameSkuGroup()
         FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS ks=Sku
@@ -139,7 +141,13 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
                 caption = 'Подбор';
                 type = SPLITH;
                 fill = 1;
-                MOVE BOX(TREE skuTree) { caption = 'Группы SKU'; }
+                NEW skuTreePane {
+                    NEW skuTreeTopPane {
+                        caption = 'Поиск группы';
+                        MOVE PROPERTY(filterNameSkuGroup());
+                    }
+                    MOVE BOX(TREE skuTree) { caption = 'Группы SKU'; }
+                }
                 NEW skuMainPane {
                     fill = 3;
                     type = CONTAINERV;
