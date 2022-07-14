@@ -85,6 +85,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
 
             itemData.add(getItemL2Bytes(item));
             itemData.add(getItemH3Bytes(item, idItemGroup, tareWeight));
+            itemData.addAll(getItemDescriptionBytes(item));
 
             if (idItemGroup != null && !loadedGroups.contains(idItemGroup)) {
                 itemData.add(getItemGroupZSBytes(idItemGroup, nameItemGroup));
@@ -301,6 +302,39 @@ public class DibalD500Handler extends MultithreadScalesHandler {
 
         //free, 4 bytes
         bytes.put(getBytes(fillZeroes(4)));
+
+        return bytes.array();
+    }
+
+    private List<byte[]> getItemDescriptionBytes(ScalesItem item) {
+        List<byte[]> result = new ArrayList<>();
+        String description = item.description;
+        if(description != null) {
+            int start = 0;
+            int number = 1;
+            while (start < description.length()) {
+                int end = Math.min(start + 116, description.length());
+                result.add(getItemX4Bytes(item.idBarcode, number++, description.substring(start, end)));
+                start = end;
+            }
+        }
+        return result;
+    }
+
+    private byte[] getItemX4Bytes(String idBarcode, int number, String text) {
+        ByteBuffer bytes = ByteBuffer.allocate(130);
+
+        //6 bytes
+        bytes.put(getCommandPrefixBytes("X4"));
+
+        //code, 6 bytes
+        bytes.put(getBytes(prependZeroes(idBarcode, 6)));
+
+        //number of order, 2 bytes
+        bytes.put(getBytes(prependZeroes(number, 2)));
+
+        //ingredients text, max 116 bytes
+        bytes.put(getBytes(text));
 
         return bytes.array();
     }
