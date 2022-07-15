@@ -471,8 +471,8 @@ public class DibalD500Handler extends MultithreadScalesHandler {
     }
 
     private byte[] getNameBytes(String name, int index) {
-        int start = index * 24;
-        return getBytes(appendSpaces(name.length() > start ? name.substring(start, Math.min(name.length(), start + 24)) : "", 24));
+        int start = index * 20;
+        return getBytes(appendSpaces(name.length() > start ? name.substring(start, Math.min(name.length(), start + 20)) : "", 24));
     }
 
     private byte[] getBytes(String value) {
