@@ -1717,7 +1717,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 }
             }
             boolean finished = succeeded || !errors.isEmpty();
-            return Pair.create(finished, succeeded ? null : new RuntimeException(String.join("\n", errors)));
+            return Pair.create(finished, succeeded ? null : new RuntimeException(errors.isEmpty() ? "neither 702 nor error records in sysLog found" : String.join("\n", errors)));
 
         } catch (Exception e) {
             throw Throwables.propagate(e);
