@@ -222,7 +222,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         if (!transaction.itemsList.isEmpty()) {
 
-                            String eventTime = getEventTime(conn);
+                            String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
                             checkItems(params, transaction.itemsList, transaction.id);
 
@@ -1674,7 +1674,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private String getEventTime(Connection conn) {
+    private String getEventTime(Connection conn, boolean waitSysLogInsteadOfDataPump) {
+        if (!waitSysLogInsteadOfDataPump) {
+            return null;
+        }
         try (Statement statement = conn.createStatement()) {
             ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM public.\"Syslog_DataServer\"");
             if (rs.next()) {
@@ -1864,7 +1867,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         List<StopListItem> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
 
-                        String eventTime = getEventTime(conn);
+                        String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
                         Integer artUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
                         exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize, artUpdateNum);
@@ -1958,7 +1961,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                             checkItems(params, deleteBarcode.barcodeList, null);
 
-                            String eventTime = getEventTime(conn);
+                            String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
                             Integer artUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "ART");
                             exportArt(conn, params, deleteBarcode.barcodeList, false, true, maxBatchSize, artUpdateNum);
@@ -2037,7 +2040,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         exception = new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags));
                     } else {
 
-                        String eventTime = getEventTime(conn);
+                        String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
                         truncateTablesDiscountCard(conn, exportDiscountCardExtraTables);
 
