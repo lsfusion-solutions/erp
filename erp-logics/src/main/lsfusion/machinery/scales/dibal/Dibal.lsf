@@ -18,8 +18,13 @@ WHEN CHANGED (image(Item i)) DO {
 //поэтому изображения грузим через equ
 toLoadImages = DATA LOCAL BOOLEAN ();
 
+skipLoadImages 'Не загружать картинки' = DATA BOOLEAN (ScalesModel);
+EXTEND FORM scalesModel
+    PROPERTIES skipLoadImages(s) SHOWIF sid(s) = 'dibald900'
+;
+
 createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
-    IF sidModel(gm) == 'dibald900' AND toLoadImages()  THEN {
+    IF sidModel(gm) == 'dibald900' AND toLoadImages() AND NOT skipLoadImages(model(gm)) THEN {
         
         LOCAL needResize = BOOLEAN(Item);
         needResize(Item i) <- TRUE IF (GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b)) AND hasImage(i) AND NOT imageDibal(i);
