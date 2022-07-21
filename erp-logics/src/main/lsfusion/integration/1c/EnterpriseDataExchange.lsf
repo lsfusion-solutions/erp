@@ -660,6 +660,12 @@ END
 @defPropObject(partner, 'Контрагент', Partner, saleInvoice);
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, saleInvoice);
 
+order 'Заказ' = ABSTRACT SaleOrder (SaleInvoice, Configuration);
+WHEN CHANGED(order(SaleInvoice d, Configuration c)) DO {
+    packet(c, d) <- NULL;
+    in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);  
+}
+    
 orderSaleInvoice = DATA LOCAL INTEGER (INTEGER);
 uidOrderSaleInvoice 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
 
@@ -667,6 +673,16 @@ EXTEND FORM receiveMessage
     OBJECTS orderSaleInvoice = INTEGER EXTID 'Заказ'
     PROPERTIES (orderSaleInvoice) uidOrderSaleInvoice EXTID 'Ссылка'
     FILTERS orderSaleInvoice(orderSaleInvoice) = saleInvoice
+;
+
+EXTEND FORM sendMessage
+    OBJECTS orderSaleInvoice = SaleOrder EXTID 'Заказ' 
+    PROPERTIES(orderSaleInvoice, configuration) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+    OBJECTS companyOrderSaleInvoice = Company EXTID 'Организация'// IN legalEntityKey
+    PROPERTIES(companyOrderSaleInvoice, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS companyOrderSaleInvoice = company(orderSaleInvoice, configuration)
+        
+    FILTERS orderSaleInvoice = order(saleInvoice, configuration)
 ;
 
 @defPropSimple(note, 'Комментарий', STRING, saleInvoice);
