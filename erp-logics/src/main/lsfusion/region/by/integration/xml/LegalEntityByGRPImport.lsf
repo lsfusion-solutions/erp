@@ -44,7 +44,10 @@ DESIGN dialogStateLegalEntity {
 
 dialogState 'Состояние' (LegalEntity legalEntity)  { SHOW dialogStateLegalEntity OBJECTS a = legalEntity; }  ASON CONTEXTMENU state[LegalEntity] ASON CHANGE state[LegalEntity];
 
+skipFillGRP 'Запрет на заполнение из ГРП' = ABSTRACT CASE BOOLEAN (LegalEntity);
+
 fillGRP 'Заполнить из ГРП' (LegalEntity l)  { 
+    IF skipFillGRP(l) THEN RETURN;
     IF urlGRP() THEN {
         LOCAL xml = FILE ();
         
@@ -82,6 +85,8 @@ fillGRPs 'Заполнить колонки ГРП' () {
 }
 
 fillFullNameGRP 'Заполнить полное наименование из ГРП' (LegalEntity l)  { 
+    IF skipFillGRP(l) THEN RETURN;
+
     IF urlGRP() THEN {
         LOCAL xml = FILE ();
         
@@ -111,6 +116,8 @@ fillFullNameGRPs 'Заполнить полные наименования из 
 }
 
 fillAddressGRP 'Заполнить юр. адрес из ГРП' (LegalEntity l)  { 
+    IF skipFillGRP(l) THEN RETURN;
+
     IF urlGRP() THEN {
         LOCAL xml = FILE ();
         
@@ -129,7 +136,7 @@ fillAddressGRP 'Заполнить юр. адрес из ГРП' (LegalEntity l)
 }
 
 EXTEND FORM dialogPostAddressLegalEntity 
-    PROPERTIES fillAddressGRP(a) SHOWIF isEditable()
+    PROPERTIES fillAddressGRP(a) SHOWIF isEditable() AND NOT skipFillGRP(a)
 ;
 
 fillAddressGRPs 'Заполнить юридеческиие адреса из ГРП' () {
@@ -140,6 +147,8 @@ fillAddressGRPs 'Заполнить юридеческиие адреса из �
 }
 
 fillStateGRP 'Заполнить состояние из ГРП' (LegalEntity l)  { 
+    IF skipFillGRP(l) THEN RETURN;
+    
     IF urlGRP() THEN {
         LOCAL xml = FILE ();
         
@@ -160,7 +169,7 @@ fillStateGRP 'Заполнить состояние из ГРП' (LegalEntity l)
 }
 
 EXTEND FORM dialogStateLegalEntity 
-    PROPERTIES fillStateGRP(a) SHOWIF isEditable()
+    PROPERTIES fillStateGRP(a) SHOWIF isEditable() AND NOT skipFillGRP(a)
 ;
 
 fillStateGRPs 'Заполнить состояния из ГРП' () {
@@ -194,7 +203,7 @@ fillInInLegalEntityGRP 'Заполнить отмеченные из ГРП' (){
 
 EXTEND FORM legalEntity
     PROPERTIES(l) state ON CONTEXTMENU fillStateGRP(l)
-    PROPERTIES(l) SHOWIF UNP(l) fillGRP
+    PROPERTIES(l) SHOWIF UNP(l) AND NOT skipFillGRP(l) fillGRP
 ;
 
 DESIGN legalEntity {
@@ -203,7 +212,9 @@ DESIGN legalEntity {
     }
 }
 
+countInNotSkipGRPLegalEntity = GROUP SUM 1 IF in(LegalEntity legalEntity) AND NOT skipFillGRP(legalEntity);
+
 EXTEND FORM legalEntities
-    PROPERTIES fillInInLegalEntityGRP() SHOWIF isEditable() AND countInLegalEntity() > 0 DRAW l
+    PROPERTIES fillInInLegalEntityGRP() SHOWIF isEditable() AND countInNotSkipGRPLegalEntity() > 0 DRAW l
     PROPERTIES(l) READONLYIF isReadonly() state
 ;
