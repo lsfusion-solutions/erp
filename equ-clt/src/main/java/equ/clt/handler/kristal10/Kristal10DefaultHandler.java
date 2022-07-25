@@ -446,6 +446,11 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return value != null ? value.replace(" ", "") : null;
     }
 
+    protected String getWeightCode(CashRegisterInfo cashRegisterByKey) {
+        String weightCode = cashRegisterByKey != null ? cashRegisterByKey.weightCodeGroupCashRegister : null;
+        return weightCode != null ? weightCode : "21";
+    }
+
     public class DeleteBarcode {
         Integer nppGroupMachinery;
         String directory;

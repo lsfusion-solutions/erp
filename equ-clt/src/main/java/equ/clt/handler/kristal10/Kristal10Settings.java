@@ -118,6 +118,9 @@ public class Kristal10Settings implements Serializable{
     //если true и amount != 1, в теге bar-code дополнительно выгружаем тег count
     private boolean exportAmountForBarcode;
 
+    //если true, то не игнорируем реализацию на кассу с disableSales (для случая, когда нет с таким же номером без disableSales)
+    private boolean ignoreCashRegisterWithDisableSales;
+
     public Kristal10Settings() {
     }
 
@@ -373,5 +376,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setExportAmountForBarcode(boolean exportAmountForBarcode) {
         this.exportAmountForBarcode = exportAmountForBarcode;
+    }
+
+    public boolean isIgnoreCashRegisterWithDisableSales() {
+        return ignoreCashRegisterWithDisableSales;
+    }
+
+    public void setIgnoreCashRegisterWithDisableSales(boolean ignoreCashRegisterWithDisableSales) {
+        this.ignoreCashRegisterWithDisableSales = ignoreCashRegisterWithDisableSales;
     }
 }

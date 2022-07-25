@@ -836,6 +836,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
             giftCardRegexp = "(?!666)\\d{3}";
         boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
         Set<String> customPayments = kristalSettings == null ? new HashSet<>() : parseStringPayments(kristalSettings.getCustomPayments());
+        boolean ignoreCashRegisterWithDisableSales = kristalSettings.isIgnoreCashRegisterWithDisableSales();
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
@@ -1010,13 +1011,13 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             BigDecimal currentPaymentSum = BigDecimal.ZERO;
 
 
-                            for (Object positionNode : positionsList) {
+                            for (Element positionNode : positionsList) {
 
-                                List positionEntryList = ((Element) positionNode).getChildren("position");
+                                List<Element> positionEntryList = positionNode.getChildren("position");
 
                                 int count = 1;
                                 String departNumber = null;
-                                for (Object positionEntryNode : positionEntryList) {
+                                for (Element positionEntryNode : positionEntryList) {
 
                                     String positionDepartNumber = readStringXMLAttribute(positionEntryNode, "departNumber");
 
@@ -1026,106 +1027,106 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                     String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
 
                                     CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
-                                    String weightCode = cashRegisterByKey != null ? cashRegisterByKey.weightCodeGroupCashRegister : null;
-                                    if (weightCode == null)
-                                        weightCode = "21";
+                                    boolean ignoreSales = cashRegisterByKey != null && cashRegisterByKey.disableSales && ignoreCashRegisterWithDisableSales;
+                                    if (!ignoreSales) {
+                                        String weightCode = getWeightCode(cashRegisterByKey);
+                                        String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
+                                        String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
 
-                                    String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
-                                    String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
-
-                                    //обнаруживаем продажу сертификатов
-                                    boolean isGiftCard = false;
-                                    List<Element> pluginProperties = ((Element) positionEntryNode).getChildren("plugin-property");
-                                    for (Element pluginProperty : pluginProperties) {
-                                        String keyPluginProperty = pluginProperty.getAttributeValue("key");
-                                        String valuePluginProperty = pluginProperty.getAttributeValue("value");
-                                        if (notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
-                                            if (keyPluginProperty.equals("gift.card.number")) {
-                                                barcode = valuePluginProperty;
-                                                isGiftCard = true;
+                                        //обнаруживаем продажу сертификатов
+                                        boolean isGiftCard = false;
+                                        List<Element> pluginProperties = positionEntryNode.getChildren("plugin-property");
+                                        for (Element pluginProperty : pluginProperties) {
+                                            String keyPluginProperty = pluginProperty.getAttributeValue("key");
+                                            String valuePluginProperty = pluginProperty.getAttributeValue("value");
+                                            if (notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
+                                                if (keyPluginProperty.equals("gift.card.number")) {
+                                                    barcode = valuePluginProperty;
+                                                    isGiftCard = true;
+                                                }
                                             }
                                         }
-                                    }
 
-                                    if (!isGiftCard && barcode != null) {
-                                        Pattern pattern = Pattern.compile(giftCardRegexp);
-                                        Matcher matcher = pattern.matcher(barcode);
-                                        isGiftCard = matcher.matches();
-                                        if (isGiftCard) {
-                                            while (usedBarcodes.contains(dateTimeReceipt + "/" + count)) {
-                                                count++;
+                                        if (!isGiftCard && barcode != null) {
+                                            Pattern pattern = Pattern.compile(giftCardRegexp);
+                                            Matcher matcher = pattern.matcher(barcode);
+                                            isGiftCard = matcher.matches();
+                                            if (isGiftCard) {
+                                                while (usedBarcodes.contains(dateTimeReceipt + "/" + count)) {
+                                                    count++;
+                                                }
+                                                barcode = dateTimeReceipt + "/" + count;
+                                                usedBarcodes.add(barcode);
                                             }
-                                            barcode = dateTimeReceipt + "/" + count;
-                                            usedBarcodes.add(barcode);
-                                        }
-                                    }
-
-                                    BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
-
-                                    //временное решение для весовых товаров
-                                    if(barcode != null) {
-                                        if (barcode.length() == 7 && barcode.startsWith("2") && ignoreSalesWeightPrefix) {
-                                            barcode = barcode.substring(2);
-                                        } else if (barcode.startsWith(weightCode) && barcode.length() == 7)
-                                            barcode = barcode.substring(2);
-
-
-                                        // временно для касс самообслуживания в виталюре
-                                        if (ignoreSalesWeightPrefix && barcode.length() == 13 && barcode.startsWith("22") && !barcode.substring(8, 13).equals("00000") &&
-                                                quantity != null && (quantity.intValue() != quantity.doubleValue() || parseWeight(barcode.substring(7, 12)) == quantity.doubleValue()))
-                                            barcode = barcode.substring(2, 7);
-                                    }
-
-                                    quantity = (quantity != null && !isSale) ? quantity.negate() : quantity;
-                                    BigDecimal price = readBigDecimalXMLAttribute(positionEntryNode, "cost");
-                                    BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "amount");
-                                    sumReceiptDetail = (sumReceiptDetail != null && !isSale) ? sumReceiptDetail.negate() : sumReceiptDetail;
-                                    currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
-                                    BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "discountValue");
-                                    BigDecimal discountPercentReceiptDetail = discountSumReceiptDetail != null && discountSumReceiptDetail.compareTo(BigDecimal.ZERO) > 0 ?
-                                            safeDivide(safeMultiply(discountSumReceiptDetail, 100), safeAdd(discountSumReceiptDetail, sumReceiptDetail)) : null;
-                                    Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
-
-                                    LocalDate startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
-                                    if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
-                                        Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
-                                        if (nppGroupMachinery == null) {
-                                            sendSalesLogger.error("not found nppGroupMachinery : " + key);
                                         }
 
-                                        String idSaleReceiptReceiptReturnDetail = null;
-                                        Element originalPurchase = purchaseNode.getChild("original-purchase");
-                                        if(originalPurchase != null) {
-                                            Integer numberCashRegisterOriginal = readIntegerXMLAttribute(originalPurchase, "cash");
-                                            String numberZReportOriginal = readStringXMLAttribute(originalPurchase, "shift");
-                                            Integer numberReceiptOriginal = readIntegerXMLAttribute(originalPurchase, "number");
-                                            Date dateReceiptOriginal = new Date(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(readStringXMLAttribute(originalPurchase, "saletime")).getTime());
-                                            idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
-                                                    + new SimpleDateFormat("ddMMyyyy").format(dateReceiptOriginal) + "_" + numberReceiptOriginal;
-                                        }
-                                        
-//                                        String id = nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceipt) + "_" + numberReceipt + "_" + numberReceiptDetail;
-//                                        if (ids.contains(id)) {
-//                                            sendSalesLogger.error("found duplicate key : " + id);
-//                                        } else {
-//                                            ids.add(id);
-//                                        }
+                                        BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
 
-                                        Map<String, Object> receiptDetailExtraFields = new HashMap<>();
-                                        if(uid != null) {
-                                            receiptDetailExtraFields.put("uid", uid);
-                                        }
-                                        if(fiscalNumber != null) {
-                                            receiptDetailExtraFields.put("fiscalNumber", fiscalNumber);
+                                        //временное решение для весовых товаров
+                                        if(barcode != null) {
+                                            if (barcode.length() == 7 && barcode.startsWith("2") && ignoreSalesWeightPrefix) {
+                                                barcode = barcode.substring(2);
+                                            } else if (barcode.startsWith(weightCode) && barcode.length() == 7)
+                                                barcode = barcode.substring(2);
+
+
+                                            // временно для касс самообслуживания в виталюре
+                                            if (ignoreSalesWeightPrefix && barcode.length() == 13 && barcode.startsWith("22") && !barcode.substring(8, 13).equals("00000") &&
+                                                    quantity != null && (quantity.intValue() != quantity.doubleValue() || parseWeight(barcode.substring(7, 12)) == quantity.doubleValue()))
+                                                barcode = barcode.substring(2, 7);
                                         }
 
-                                        if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
-                                            sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                                        currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
-                                                numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
-                                                customPaymentMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
-                                                discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
-                                                useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptDetailExtraFields, cashRegisterByKey));
+                                        quantity = (quantity != null && !isSale) ? quantity.negate() : quantity;
+                                        BigDecimal price = readBigDecimalXMLAttribute(positionEntryNode, "cost");
+                                        BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "amount");
+                                        sumReceiptDetail = (sumReceiptDetail != null && !isSale) ? sumReceiptDetail.negate() : sumReceiptDetail;
+                                        currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
+                                        BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "discountValue");
+                                        BigDecimal discountPercentReceiptDetail = discountSumReceiptDetail != null && discountSumReceiptDetail.compareTo(BigDecimal.ZERO) > 0 ?
+                                                safeDivide(safeMultiply(discountSumReceiptDetail, 100), safeAdd(discountSumReceiptDetail, sumReceiptDetail)) : null;
+                                        Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
+
+                                        LocalDate startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
+                                        if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
+                                            Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
+                                            if (nppGroupMachinery == null) {
+                                                sendSalesLogger.error("not found nppGroupMachinery : " + key);
+                                            }
+
+                                            String idSaleReceiptReceiptReturnDetail = null;
+                                            Element originalPurchase = purchaseNode.getChild("original-purchase");
+                                            if(originalPurchase != null) {
+                                                Integer numberCashRegisterOriginal = readIntegerXMLAttribute(originalPurchase, "cash");
+                                                String numberZReportOriginal = readStringXMLAttribute(originalPurchase, "shift");
+                                                Integer numberReceiptOriginal = readIntegerXMLAttribute(originalPurchase, "number");
+                                                Date dateReceiptOriginal = new Date(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(readStringXMLAttribute(originalPurchase, "saletime")).getTime());
+                                                idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
+                                                        + new SimpleDateFormat("ddMMyyyy").format(dateReceiptOriginal) + "_" + numberReceiptOriginal;
+                                            }
+
+    //                                        String id = nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceipt) + "_" + numberReceipt + "_" + numberReceiptDetail;
+    //                                        if (ids.contains(id)) {
+    //                                            sendSalesLogger.error("found duplicate key : " + id);
+    //                                        } else {
+    //                                            ids.add(id);
+    //                                        }
+
+                                            Map<String, Object> receiptDetailExtraFields = new HashMap<>();
+                                            if(uid != null) {
+                                                receiptDetailExtraFields.put("uid", uid);
+                                            }
+                                            if(fiscalNumber != null) {
+                                                receiptDetailExtraFields.put("fiscalNumber", fiscalNumber);
+                                            }
+
+                                            if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
+                                                sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
+                                            currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
+                                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
+                                                    customPaymentMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
+                                                    discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
+                                                    useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptDetailExtraFields, cashRegisterByKey));
+                                        }
                                     }
                                     count++;
                                 }
