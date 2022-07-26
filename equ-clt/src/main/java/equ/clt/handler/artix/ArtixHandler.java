@@ -901,7 +901,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         List<Pair<File, Integer>> files = new ArrayList<>();
         for (Pair<File, Integer> dirEntry : getDirectories(cashRegisterList)) {
+            long start = System.currentTimeMillis();
             File[] filesList = dirEntry.first.listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
+            sendSalesLogger.info(logPrefix + "listFiles prereadFiles: " + (System.currentTimeMillis() - start) + " ms"); //temp log
             if (filesList != null) {
                 for (File file : filesList) {
                     files.add(Pair.create(file, dirEntry.second));
@@ -1055,7 +1057,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         for(CashRegisterInfo cashRegister : cashRegisterList) {
             if(cashRegister.directory != null) {
                 int priority = nvl(cashRegister.priority, -1);
+                long start = System.currentTimeMillis();
                 File[] subDirectoryList = new File(cashRegister.directory).listFiles(File::isDirectory);
+                sendSalesLogger.info(logPrefix + "listFiles getDirectories: " + (System.currentTimeMillis() - start) + " ms"); //temp log
                 if (subDirectoryList != null) {
                     for (File subDirectory : subDirectoryList) {
                         result.add(Pair.create(subDirectory, priority));
@@ -1090,13 +1094,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             for (Map.Entry<String, CashRegisterInfo> directoryEntry : directoryCashRegisterMap.entrySet()) {
                 String directory = directoryEntry.getKey();
                 CashRegisterInfo cashRegister = directoryEntry.getValue();
+                long start = System.currentTimeMillis();
                 File[] filesList = new File(directory).listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
+                sendSalesLogger.info(logPrefix + "ListFiles readCashDocumentInfo: " + (System.currentTimeMillis() - start) + " ms"); //temp log
 
                 if (filesList != null && filesList.length > 0) {
                     for (File file : filesList) {
                         if (!Thread.currentThread().isInterrupted() && readFiles.contains(file)) {
                             try {
-                                sendSalesLogger.info(logPrefix + "reading " + file.getName());
+                                sendSalesLogger.info(logPrefix + "reading cashDocument " + file.getName());
 
                                 Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
                                 Matcher m = p.matcher(readFile(file.getAbsolutePath(), encoding));
@@ -1330,7 +1336,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         List<File> files = new ArrayList<>();
         for(String dir : directorySet) {
+            long start = System.currentTimeMillis();
             File[] filesList = new File(dir).listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
+            sendSalesLogger.info(logPrefix + "ListFiles readSalesInfo: " + (System.currentTimeMillis() - start) + " ms"); //temp log
             if(filesList != null)
                 files.addAll(Arrays.asList(filesList));
         }
@@ -1345,7 +1353,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     try {
 
                         String fileName = file.getName();
-                        sendSalesLogger.info(logPrefix + "reading " + fileName);
+                        sendSalesLogger.info(logPrefix + "reading sales " + fileName);
 
                         List<CashierTime> currentCashierTimeList = readCashierTime(file, departNumberCashRegisterMap);
                         cashierTimeList.addAll(currentCashierTimeList);
