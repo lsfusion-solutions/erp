@@ -108,7 +108,8 @@ EXTEND CLASS SystemLedgerPriceListType { manufacturingPriceStockPriceListType '�
 batch (SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType AND isCompany(stock)
                                                THEN priceBatchLedger(stock);
 in (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN showManufacturingPrice(ledger) AND price(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN TRUE;
-price (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN showManufacturingPrice(ledger) AND price(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN manufacturingPrice(ledger);
+overLedgerManufacturingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail);
+price (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN showManufacturingPrice(ledger) AND price(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN OVERRIDE manufacturingPrice(ledger), overLedgerManufacturingPrice(ledger);
 
 addCostPriceToManufacturingPrice 'Учитывать в цене изготовителя доп. расходы' = DATA BOOLEAN (Purchase.Operation);
 
