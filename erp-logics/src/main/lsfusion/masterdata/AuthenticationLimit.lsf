@@ -4,12 +4,19 @@ REQUIRE Authentication, SystemEvents;
 
 NAMESPACE Authentication;
 
-mxcn = DATA INTEGER ();
+mxcn 'Максимально разрешённое кол-во подключений (без админов)' = DATA INTEGER ();
 
 CONSTRAINT (GROUP SUM 1 IF connectionStatus(Connection c) = ConnectionStatus.connectedConnection 
                         AND login(user(c)) != 'admin') > mxcn()
     MESSAGE 'Превышено количество закупленных лицензий на программное обеспечение. Обратитесь к администратору.';
 
+showMxcn = DATA BOOLEAN();
+
+EXTEND FORM connections
+    PROPERTIES () READONLY mxcn SHOWIF showMxcn() DRAW c TOOLBAR
+;
+    
+// эту опцию не предлагать. Только если клиент сам попросит и договорится с руководителем проекта
 dblck = DATA BOOLEAN ();
 
 CONSTRAINT [GROUP SUM 1 IF connectionStatus(Connection c) = ConnectionStatus.connectedConnection 
