@@ -1,0 +1,43 @@
+MODULE StockGroupReportsMainSupplier;
+
+REQUIRE StockGroupReports;
+
+NAMESPACE StockGroupReports;
+
+
+mainSupplier = DATA LegalEntity (Item);   
+nameMainSupplier 'Основной поставщик' (Item item) = name(mainSupplier(item)) IN itemBase;
+
+@defineItemAttributeForm(mainSupplier, name, 'Основной поставщик', itemBase);
+
+overCopy(Item item, Item i) + { 
+    mainSupplier(i) <- mainSupplier(item);
+}
+
+EXTEND FORM item PROPERTIES(i) nameMainSupplier SHOWIF showMainSupplier(i) BACKGROUND backgroundMainSupplier(i) ;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei nameMainSupplier SHOWIF showAnyMainSupplier(g);
+
+@createGroup(mainSupplier, 'По основному поставщику', 6);
+
+overSetNameGroup1 () + { 
+    IF order(6) == 1 THEN {
+        nameGroup1(Sku sk, Stock st) <- (OVERRIDE nameMainSupplier(sk), 'Не задано') IF sk IS Sku WHERE inSkuStock(sk, st);
+    }
+}   
+overSetNameGroup2 () + { 
+    IF order(6) == 2 THEN {
+        nameGroup2(Sku sk, Stock st) <- (OVERRIDE nameMainSupplier(sk), 'Не задано') IF sk IS Sku WHERE inSkuStock(sk, st);
+    }
+}   
+overSetNameGroup3 () + { 
+    IF order(6) == 3 THEN {
+        nameGroup3(Sku sk, Stock st) <- (OVERRIDE nameMainSupplier(sk), 'Не задано') IF sk IS Sku WHERE inSkuStock(sk, st);
+    }
+}
+
+EXTEND FORM reportBackSheet PROPERTIES() gMainSupplier;
+DESIGN reportBackSheet {
+    checkBoxContainer{
+    MOVE PROPERTY(gMainSupplier());    
+    }
+}
