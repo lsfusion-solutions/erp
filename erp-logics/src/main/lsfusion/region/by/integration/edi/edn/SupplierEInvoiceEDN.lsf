@@ -497,12 +497,13 @@ signAndSendBlrapnSupplierEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider
 
 signAndSendBlrapnSupplier(EInvoice e) + {  IF EDIProviderInvoice(customer(e)) == EDIProvider.edn AND useDocuDrive() THEN IF exportedBlrapnSupplier(e) THEN MESSAGE 'Извещение о прочтении (поставщик) уже отправлено'; ELSE IF isTN2(e) THEN {signAndSendBlrapnSupplierEInvoiceTN2DocuDrive(e,'EDN');} ELSE {signAndSendBlrapnSupplierEInvoiceDocuDrive(e,'EDN');}}
 signAndSendBlrapnSupplier(EInvoice e) + {
-    hideMessageHeaderBlrapn() <- extractEDN(supplier(e));
     IF EDIProviderInvoice(customer(e)) == EDIProvider.edn AND NOT useDocuDrive() THEN
         IF exportedBlrapnSupplier(e) THEN MESSAGE 'Извещение о прочтении (поставщик) уже отправлено';
         ELSE IF isTN2(e) THEN {
+            hideMessageHeaderBlrapn() <- extractEDN(supplier(e));
             signAndSendBlrapnSupplierEInvoiceTN2(e, loginEDN(supplier(e)), passwordEDN(supplier(e)), ('https://' + hostEDN(supplier(e)) +':' + portEDN(supplier(e)) + '/topby/DmcService?wsdl'), outputDirEDN(), overInvoiceOutputDirEDN(e), 'EDN');
         } ELSE {
+            hideMessageHeaderBlrapn() <- extractEDN(supplier(e));
             signAndSendBlrapnSupplierEInvoice(e, loginEDN(supplier(e)), passwordEDN(supplier(e)), ('https://' + hostEDN(supplier(e)) +':' + portEDN(supplier(e)) + '/topby/DmcService?wsdl'), outputDirEDN(), overInvoiceOutputDirEDN(e), 'EDN');
         }
 }
