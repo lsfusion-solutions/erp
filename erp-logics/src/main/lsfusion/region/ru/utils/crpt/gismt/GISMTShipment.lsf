@@ -149,15 +149,29 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
     ;
     
     // -- crossborderexport
-    @defineOperationProperty(crossBorderExport, 'Отгрузка в ЕАЭС с признанием КИ (экспорт)', BOOLEAN, outGISMTContainer);
+    crossBorder 'Отгрузка в ЕАЭС с признанием КИ' = DATA BOOLEAN (Operation) PREREAD;
+    crossBorderExport 'Экспорт' = DATA BOOLEAN (Operation) PREREAD;
+
+    EXTEND FORM operation
+        PROPERTIES(o) crossBorder, crossBorderExport SHOWIF crossBorder(o)
+    ;
+    DESIGN operation {
+        outGISMTContainer {
+            NEW crossBorder {
+                type = CONTAINERH;
+                MOVE PROPERTY(crossBorder(o));
+                MOVE PROPERTY(crossBorderExport(o));
+            }
+        }
+    }
     
-    gismtType(Invoice i) += WHEN crossBorderExport(operation(i)) THEN 'EAS_CROSSBORDER_EXPORT';
-    FORM exportInvoiceCrossBorderExport
+    gismtType(Invoice i) += WHEN crossBorder(operation(i)) THEN (IF crossBorderExport(operation(i)) THEN 'EAS_CROSSBORDER_EXPORT' ELSE 'EAS_CROSSBORDER');
+    FORM exportInvoiceCrossBorder
         OBJECTS i = Invoice, t = LotType PANEL
         
         PROPERTIES sender_inn = inn(senderProp(i)),
-                   receiver_inn = inn(receiverProp(i)), receiver = name(receiverProp(i)), receiver_country_code = sid(country(receiverProp(i))),  
-                   document_number = seriesNumber(i), document_date = toDateISO(date(i)), transfer_date = toDateISO(date(i))
+                   receiver_inn = inn(receiverProp(i)), receiver = name(receiverProp(i)), receiver_country_code = sid(country(receiverProp(i))),
+                   document_num = seriesNumber(i), document_date = toDateISO(date(i)), transfer_date = toDateISO(date(i))
         
         OBJECTS products = (d = InvoiceDetail, l = Lot)
         PROPERTIES cis = id(l)
@@ -165,8 +179,8 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
     ;
     
     export (InvoiceDocument i) + {
-        IF crossBorderExport(operation(invoice(i))) THEN
-            EXPORT exportInvoiceCrossBorderExport OBJECTS i = invoice(i), t = lotType(i) JSON;
+        IF crossBorder(operation(invoice(i))) THEN
+            EXPORT exportInvoiceCrossBorder OBJECTS i = invoice(i), t = lotType(i) JSON;
         ELSE IF actionReceipt(operation(invoice(i))) THEN
             EXPORT exportInvoiceReceipt OBJECTS i = invoice(i), t = lotType(i) JSON;
         ELSE
