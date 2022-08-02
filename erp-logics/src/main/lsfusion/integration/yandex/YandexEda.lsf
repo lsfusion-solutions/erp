@@ -153,17 +153,58 @@ FORM availability 'Наличие Яндекс.Еда'
 carrierSelect ABSTRACT LIST(YandexEdaAuth);
 beforeExportData ABSTRACT LIST (YandexEdaAuth);
 
+//блокировка запросов
+useLockRequests 'Использовать блокировку более одного запроса' = DATA BOOLEAN ();
+EXTEND FORM integrationData
+    PROPERTIES useLockRequests()
+;
+DESIGN integrationData{
+    yandexEda{
+        MOVE PROPERTY (useLockRequests());
+    }
+}
+
+lockRequest = DATA BOOLEAN ();
+lockRequestResult = DATA BOOLEAN ();
+
+WHEN CHANGED (useLockRequests()) DO lockRequest() <- NULL;
+
+lockRequest() {
+    IF useLockRequests() THEN NEWSESSION {
+        IF lockRequest() THEN {
+            statusHttpTo() <- 500;
+            logToFile('yandex', CONCAT ' : ', 'WARNING Запрос заблокирован');
+            EXPORT JSON FROM code = 100, description = 'Запросы заблокированны, повторите попытку позже';
+        } ELSE {
+            lockRequest() <- TRUE;
+            APPLY; 
+        } 
+    }
+}
+unlockRequest(){
+    IF useLockRequests() THEN NEWSESSION{
+        lockRequest() <- NULL;
+        APPLY;
+    }
+}
+onStarted()+{
+    unlockRequest();
+}
+
 //-------------------- /v1/nomenclature/{placeId}/composition(availability)------------------------//
 v1_nomenclature(FILE f){
+    logToFile('yandex', CONCAT ' : ', 'Поступил запрос ', servletPath() + pathInfo());
     LOCAL tokenClient = STRING ();
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);
     LOCAL aggr = YandexEdaAuth();
     aggr() <- auth(yandexEdaSession(tokenClient()));
     IF NOT (aggr()) THEN {
         statusHttpTo() <- 401;
+        logToFile('yandex', CONCAT ' : ', 'ERROR Не найден токен авторизации', tokenClient());
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
     }
     ELSE {
+        lockRequest();
         carrierSelect(aggr());
         LOCAL method = STRING ();
         method() <- replace(servletPath() + pathInfo(), TEXT('/exec/v1/nomenclature/'), TEXT (''));
@@ -175,15 +216,21 @@ v1_nomenclature(FILE f){
         s() <- stock(aggr(), store());
         IF NOT s() THEN {
             statusHttpTo() <- 404;
+            logToFile('yandex', CONCAT ' : ', ' ERROR Не найден магазин', store());
             EXPORT FROM error = 'Не найден магазин', storeId = store();
         }
+        LOCAL countItems = INTEGER ();
+        countItems() <- GROUP SUM 1 IF inOnlineYandex(Item i, s());
         IF param() == 'availability' THEN {
+            logToFile('yandex', CONCAT ' : ', 'Запрос остатков', countItems() + ' товаров');
             EXPORT availability OBJECTS s = s() JSON;
         }
         IF param() == 'composition' THEN{
             beforeExportData(aggr());
+            logToFile('yandex', CONCAT ' : ', 'Запрос номенклатуры', countItems() + ' товаров');
             EXPORT nomenclature OBJECTS s = s() JSON;    
         }
+        unlockRequest();
     }
 }@@noauth;
 
