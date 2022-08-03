@@ -88,6 +88,8 @@ FORM goodsCatalog FORMEXTID 'goods-catalog'
         = IF good IS Barcode THEN idStoreSet(groupMachinery(m)) EXTID 'shop-indices'
     PROPERTIES IN measure_type = OVERRIDE shortNameUOM(m, good) EXTID 'id' ATTR, shortNameUOM(m, good) EXTID 'name'
     
+    PROPERTIES IN group = idItemGroup(sku(good)) EXTID 'id' ATTR, = canonicalNameItemGroup(sku(good)) EXTID 'name'
+    
     OBJECTS plugin_property = STRING EXTID 'plugin-property'
     PROPERTIES value(plugin_property, good, m) ATTR EXTID 'value', VALUE(plugin_property) EXTID 'key' ATTR
     FILTERS value(plugin_property, good, m)
@@ -149,7 +151,7 @@ sendRequsetGoods(FILE f, STRING type, MachineryPriceTransaction t){
     CATCH {
         fileToString(answer());
         addMachineryError(t, 'Ошибка загрузки ' + type, (CONCAT '\n', messageCaughtException(), resultString()));
-        RETURN;
+        APPLY;
     }
     APPLY;
 }
@@ -159,7 +161,7 @@ GROUP getPackageStatus EXTID 'feed:getPackageStatus' : bodyRequest;
 GROUP xmlGetstatus : getPackageStatus;
 GROUP importRequest EXTID 'import' : xmlGetstatus;
 isCorrect (MachineryPriceTransaction t) = IF (GROUP SUM 1 IF statusTransaction(t, STRING s) = 'correct') 
-    = (GROUP SUM 1 IF statusTransaction(t, STRING s)) THEN TRUE ;
+    = (GROUP SUM 1 IF statusTransaction(t, STRING s)) THEN TRUE;
 
 
 import = DATA LOCAL STRING();
@@ -195,6 +197,8 @@ getFeedback(MachineryPriceTransaction t){
             headersSet('Content-Type') <- 'application/xml';
             EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/FeedbackWS' HEADERS headersSet 
                 PARAMS exportFile() TO answer;
+            fileToString(answer());
+            logToFile('set10', (CONCAT ' ', 'Get Feedback',  resultString()));
             IMPORT getFeedbackAnswer XML FROM answer();
             CASE
                 WHEN status() = '2' THEN message() <- CONCAT '\n', message(), s, status_message();
@@ -202,7 +206,6 @@ getFeedback(MachineryPriceTransaction t){
                 ELSE {
                     addMachineryError(t, (CONCAT ' : ', s, status_message()), resultString());
                     statusTransaction(t, s) <- 'fault';
-                    APPLY NESTED LOCAL;
                 } 
         }
         CATCH{
