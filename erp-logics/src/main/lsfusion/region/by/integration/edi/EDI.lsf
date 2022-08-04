@@ -799,3 +799,22 @@ importRequestResult(FILE xml, INTEGER status, TEXT root) {
         requestError() <- CONCAT ' ', 'Неизвестная ошибка: статус ', STRING[3](status);
     }
 }
+
+
+//добавление файлов
+META openXML (class, object, table)
+    XMLPath = DATA STRING[200] (class);
+    openXML 'Открыть XML' (class object) {
+        IF XMLPath(object) THEN {
+            LOCAL file = FILE();
+            READ 'file://' + XMLPath(object) + '.xml' TO file;
+            open(file());
+        } ELSE {
+            MESSAGE 'Отсутствует ссылка на файл xml';
+        }
+    }
+    
+    EXTEND FORM table
+        PROPERTIES(object) openXML GRID
+    ;
+END

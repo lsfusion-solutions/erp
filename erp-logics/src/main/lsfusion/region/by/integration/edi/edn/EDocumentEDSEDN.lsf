@@ -1,0 +1,74 @@
+MODULE EDocumentEDSEDN;
+
+REQUIRE EDocumentEDS, EDSEDN;
+
+NAMESPACE EDN;
+
+aliasEDSServiceSender (EDocument d) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(sender(d));
+passwordEDSServiceSender (EDocument d) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(sender(d));
+
+aliasEDSServiceReceiver (EDocument d) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(receiver(d));
+passwordEDSServiceReceiver (EDocument d) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(receiver(d));
+
+EDSServiceSender (EDocument d) = OVERRIDE EDSService(currentUser()), EDSService(sender(d));
+EDSServiceReceiver (EDocument d) = OVERRIDE EDSService(currentUser()), EDSService(receiver(d));
+
+EDSServiceSender(EDSApplication app, EDocument d) += WHEN app == EDSApplication.docudriveProxy AND d IS EDocument THEN EDSServiceSender(d);
+EDSServiceReceiver(EDSApplication app, EDocument d) += WHEN app == EDSApplication.docudriveProxy AND d IS EDocument THEN EDSServiceReceiver(d);
+
+sendRequestEDSSender(STRING[100] provider, EDocument d, XMLFILE file) {
+    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceSender(provider,d)) + ':' + port(EDSServiceSender(provider,d)) + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceSender(provider,d)));
+}
+sendRequestEDSReceiver(STRING[100] provider, EDocument d, XMLFILE file) {
+    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceReceiver(provider,d)) + ':' + port(EDSServiceReceiver(provider,d)) + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceReceiver(provider,d)));
+}
+
+getSignedDocumentSender(STRING[100] provider, EDocument eDocument, FILE contentSubXML, BOOLEAN interactive) + {
+    IF EDSApplication(provider) == EDSApplication.docudriveProxy THEN {
+        signError() <- NULL;
+        signResult() <- NULL;
+        
+        LOCAL xml = FILE();
+        name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+        documentType() <- 'BLRAPN';
+        data() <- XMLFILE(contentSubXML);
+        cryptoContainerId() <- aliasEDSServiceSender(eDocument);
+        cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSender(eDocument));
+        EXPORT envelopeEDN XML TO xml;
+        sendRequestEDSSender(provider, eDocument, XMLFILE(xml()));
+        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
+
+        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
+        IF fileData() THEN {
+            fileToString(FILE(fileData()));
+            encodeBase64(resultString());
+            signResult() <- encodedBase64();
+        }
+        RETURN;
+    }
+}
+
+getSignedDocumentReceiver(STRING[100] provider, EDocument eDocument, FILE contentSubXML, BOOLEAN interactive) + {
+    IF EDSApplication(provider) == EDSApplication.docudriveProxy THEN {
+        signError() <- NULL;
+        signResult() <- NULL;
+        
+        LOCAL xml = FILE();
+        name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+        documentType() <- 'BLRAPN';
+        data() <- XMLFILE(contentSubXML);
+        cryptoContainerId() <- aliasEDSServiceReceiver(eDocument);
+        cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(eDocument));
+        EXPORT envelopeEDN XML TO xml;
+        sendRequestEDSReceiver(provider, eDocument, XMLFILE(xml()));
+        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
+        
+        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
+        IF fileData() THEN {
+            fileToString(FILE(fileData()));
+            encodeBase64(resultString());
+            signResult() <- encodedBase64();
+        }
+        RETURN;
+    }
+}

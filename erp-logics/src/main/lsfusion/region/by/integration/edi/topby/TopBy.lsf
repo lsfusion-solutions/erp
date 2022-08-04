@@ -55,6 +55,8 @@ invoiceMessagesSucceeded = DATA LOCAL NESTED INTEGER();
 invoiceMessagesFailed = DATA LOCAL NESTED INTEGER();
 eInvoicesSucceeded = DATA LOCAL NESTED INTEGER();
 eInvoicesFailed = DATA LOCAL NESTED INTEGER();
+eDocumentsSucceeded = DATA LOCAL NESTED INTEGER();
+eDocumentsFailed = DATA LOCAL NESTED INTEGER();
 eCreditNotesSucceeded = DATA LOCAL NESTED INTEGER();
 eCreditNotesFailed = DATA LOCAL NESTED INTEGER();
 blrwbrCount = DATA LOCAL NESTED INTEGER();
@@ -100,6 +102,8 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 invoiceMessagesFailed() <- 0;
                 eInvoicesSucceeded() <- 0;
                 eInvoicesFailed() <- 0;
+                eDocumentsSucceeded() <- 0;
+                eDocumentsFailed() <- 0;
                 blrwbrCount() <- 0;
                 blrdnrCount() <- 0;
                 blradfCount() <- 0;
@@ -129,6 +133,8 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
                 IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
                 IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
+                IF eDocumentsSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных документов: ' + eDocumentsSucceeded();
+                IF eDocumentsFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных документов: ' + eDocumentsFailed();
                 IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
                 IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
                 IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
@@ -218,24 +224,6 @@ FORM envelope
                                envelopeContent() EXTID 'top:content'
     FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 ;
-
-
-META openXML (class, object, table)
-    XMLPath = DATA STRING[200] (class);
-    openXML 'Открыть XML' (class object) {
-        IF XMLPath(object) THEN {
-            LOCAL file = FILE();
-            READ 'file://' + XMLPath(object) + '.xml' TO file;
-            open(file());
-        } ELSE {
-            MESSAGE 'Отсутствует ссылка на файл xml';
-        }
-    }
-    
-    EXTEND FORM table
-        PROPERTIES(object) openXML GRID
-    ;
-END
 
 @openXML(EOrderMessage,m,eOrders);
 

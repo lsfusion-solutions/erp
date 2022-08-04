@@ -18,7 +18,7 @@ dateTimeCreated(EDocument d) <- currentDateTime() WHEN (d IS EDocument);
 in 'Вкл.' = DATA LOCAL BOOLEAN (EDocument);
 isCancel 'Отменен' = DATA BOOLEAN (EDocument);
 
-documentID 'Номер документа (системный)' = DATA STRING[35] (EDocument);
+documentID 'Номер документа (системный)' = DATA STRING[70] (EDocument);
 creationDateTime 'Дата и время электронного документа' = DATA DATETIME (EDocument);
 number 'Номер электронного документа (юридический)' = DATA STRING[50] (EDocument);
 date 'Дата электронного документа (юридический)' = DATA DATE (EDocument);
@@ -37,8 +37,14 @@ addressReceiver 'Адрес получателя' (EDocument d) = address(receiv
 unpReceiver 'УНП получателя' (EDocument d) = UNP(receiver(d));
 
 
-file 'Файл' = DATA RAWFILE (EDocument) NONULL;
+file 'Файл' = DATA RAWFILE (EDocument);
 name 'Имя файла' = DATA STRING[255] (EDocument);
+
+fileSender 'Файл с подписью отправителя' = DATA RAWFILE (EDocument);
+nameFileSender 'Имя файла с подписью отправителя' = DATA STRING[255] (EDocument);
+
+fileReceiver 'Файл с подписью получателя' = DATA RAWFILE (EDocument);
+nameFileReceiver 'Имя файла с подписью получателя' = DATA STRING[255] (EDocument);
 
 CLASS EDocumentRoute {
     route0 'документ подписывает обе стороны',
@@ -87,20 +93,21 @@ eDocumentMessage (eDocument, number, kind) = GROUP AGGR EDocumentMessage m BY eD
 
 EXTEND CLASS EInvoiceMessageType {
     systemmessage_blrdoc 'SYSTEMMESSAGE-BLRDOC',
-    blrapn_blrdoc 'BLRAPN-BLRDOC'
+    blrapn_blrdoc 'BLRAPN-BLRDOC',
+    aperak_pdf 'APERAK-PDF'
 }
 
 type 'Тип' = DATA EInvoiceMessageType (EDocumentMessage);
 nameType 'Тип' (EDocumentMessage m) = staticCaption(type(m));
 
-good(EDocumentMessage m) += WHEN (code(m) == '1250' OR code(m) == '2550' OR code(m) == '2560' OR code(m) == '2552' OR code(m) == '2562') THEN TRUE ;
+good(EDocumentMessage m) += WHEN (code(m) == '1240' OR code(m) == '1252' OR code(m) == '2550' OR code(m) == '2560' OR code(m) == '2552' OR code(m) == '2562') THEN TRUE ;
 
 FORM eDocuments 'Электронные документы EDI'
     OBJECTS d = EDocument
     PROPERTIES(d) in
     PROPERTIES(d) READONLYIF isReadonly() isCancel//, isTest
-    PROPERTIES(d) BACKGROUND background(d) READONLY number, date, type, name, glnSender, nameSender, glnReceiver, nameReceiver, dateTimeCreated,
-                  documentID, creationDateTime, nameRoute
+    PROPERTIES(d) BACKGROUND background(d) READONLY number, date, type, glnSender, nameSender, glnReceiver, nameReceiver, dateTimeCreated,
+                  documentID, creationDateTime, nameRoute, name, nameFileSender, nameFileReceiver
     FILTERGROUP notExported
 
     OBJECTS m = EDocumentMessage
@@ -140,8 +147,9 @@ NAVIGATOR {
 
 FORM eDocument 'Электронный документ EDI'
     OBJECTS d = EDocument PANEL 
-    PROPERTIES(d) BACKGROUND background(d) number, date, type, name, dateTimeCreated,
-                  glnSender, nameSender, glnReceiver, nameReceiver, nameRoute
+    PROPERTIES(d) BACKGROUND background(d) number, date, type, dateTimeCreated,
+                  glnSender, nameSender, glnReceiver, nameReceiver, nameRoute,
+                  name, nameFileSender, nameFileReceiver
 ;
 
 DESIGN eDocument {
@@ -149,7 +157,6 @@ DESIGN eDocument {
         type = COLUMNS;
         columns = 2;
     }
-    PROPERTY (name(d)){notNull = TRUE;}
     PROPERTY (glnSender(d)){notNull = TRUE;}
     PROPERTY (nameSender(d)){notNull = TRUE;}
     PROPERTY (glnReceiver(d)){notNull = TRUE;}
@@ -170,6 +177,14 @@ addEDocument 'Загрузить документ' () {
     }
 } TOOLBAR IMAGE 'add.png';
 
+openEDocumentSender 'Открыть документ с подписью отправителя' (EDocument d) {
+    open(setExtension(fileSender(d),(OVERRIDE getWord(nameFileSender(d),'.',wordCount(nameFileSender(d),'.')),'txt')));
+} TOOLBAR;
+
+openEDocumentReceiver 'Открыть документ с подписью получателя' (EDocument d) {
+    open(setExtension(fileReceiver(d),(OVERRIDE getWord(nameFileReceiver(d),'.',wordCount(nameFileReceiver(d),'.')),'txt')));
+} TOOLBAR;
+
 editEDocument 'Заполнить атрибуты' (EDocument d) { 
 	NEWSESSION {   
 	    SHOW eDocument OBJECTS d = d DOCKED;
@@ -177,13 +192,14 @@ editEDocument 'Заполнить атрибуты' (EDocument d) {
 } TOOLBAR IMAGE 'edit.png';
 
 EXTEND FORM eDocuments
-    PROPERTIES DRAW d openEDocument(d), addEDocument(), editEDocument(d)
+    PROPERTIES DRAW d openEDocument(d) SHOWIF file(d), openEDocumentSender(d) SHOWIF fileSender(d), 
+                      openEDocumentReceiver(d) SHOWIF fileReceiver(d), addEDocument(), editEDocument(d)
     //PROPERTIES NEWSESSION DELETE(d)
 ;
 
 //--------------------- действия ---------------------//
 exportedSender 'Экспортирован (отправитель)' = DATA BOOLEAN (EDocument);
-//importedReceiver 'Импортирован (получатель)' = DATA BOOLEAN (EDocument);
+importedReceiver 'Импортирован (получатель)' = DATA BOOLEAN (EDocument);
 //exportedReceiver 'Экспортирован (получатель)' = DATA BOOLEAN (EDocument);
 //importedSender 'Импортирован (отправитель)' = DATA BOOLEAN (EDocument);
 
@@ -205,10 +221,12 @@ signAndSendSenderEDI 'Подписать и отправить (отправит
 }
 
 EXTEND FORM eDocuments
-    PROPERTIES(d) BEFORE isCancel(d) READONLYIF isReadonly() exportedSender
+    PROPERTIES(d) BEFORE isCancel(d) READONLYIF isReadonly() exportedSender, importedReceiver
     EXTEND FILTERGROUP notExported
         FILTER 'Не экспортированы (отправитель)' NOT exportedSender(d) 'F8'
-        //FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) AND NOT importedNoticeSupplier(e) 'F11'
+        FILTER 'Не импортированы (получатель)' NOT importedReceiver(d) 'F9'
+        //FILTER 'Не экспортированы (получатель)' NOT exportedReceiver(d) AND NOT exportedNoticeCustomer(e) 'F10'
+        //FILTER 'Не импортированы (отправитель)' NOT importedSender(d) AND NOT importedNoticeSupplier(e) 'F11'
     PROPERTIES() DRAW d TOOLBAR signAndSendSenderEDI
 ;
 
@@ -223,3 +241,8 @@ DESIGN eDocuments {
         }
     }
 }
+
+//стоит сделать отдельные свойства для PDF отправителя и получателя
+@openXML(EDocument,d,eDocuments);
+
+@openXML(EDocumentMessage,m,eDocuments);
