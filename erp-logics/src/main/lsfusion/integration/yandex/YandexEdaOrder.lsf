@@ -204,7 +204,7 @@ updateOrder(FILE f){
 FORM closeOrder
 PROPERTIES() eatsId, comment;
 
-customDeleteOrderStatus = ABSTRACT StatusInternetOrder ();
+customDeleteOrderStatus = ABSTRACT CASE StatusInternetOrder (InternetOrder);
 
 deleteOrder(FILE f){
     LOCAL tokenClient = STRING ();
@@ -222,7 +222,7 @@ deleteOrder(FILE f){
         IF internetOrderByUuid(order()) THEN{
             IMPORT closeOrder FROM f;
             customerComment(internetOrderByUuid(order())) <- comment();
-            status(internetOrderByUuid(order())) <- OVERRIDE customDeleteOrderStatus(), StatusInternetOrder.closed;
+            status(internetOrderByUuid(order())) <- OVERRIDE customDeleteOrderStatus(internetOrderByUuid(order())), StatusInternetOrder.closed;
             APPLY ;
             IF canceled() THEN {
                 statusHttpTo() <- 500;
