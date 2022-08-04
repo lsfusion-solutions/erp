@@ -298,8 +298,9 @@ NAVIGATOR {
     }
 }
 
-CONSTRAINT isPosted(CustomerOrderDetail d) AND banNegativeQuantityInvoice(operation(d)) AND (quantity(d) < 0.0) //AND isPosted(d)
-    MESSAGE 'Запрещено вводить отрицательное количество в предварительный заказ';            
+CONSTRAINT (SETCHANGED(quantity(CustomerOrderDetail d)) OR SETCHANGED(operation(d)) OR SET(isPosted(d))) AND isPosted(d) AND quantity(d) < 0.0
+    AND banNegativeQuantityInvoice(operation(d))
+    MESSAGE 'Запрещено вводить отрицательное количество в предварительный заказ';   
 
 @extendFormFilterRoleAccess(customerOrder, o, customerOrders);
 @defineDocumentOperationConstraint(customerOrder, 'предварительный заказ', Sale);
