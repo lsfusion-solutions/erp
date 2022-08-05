@@ -535,7 +535,7 @@ META extTable(class, group)
     ;
 END
 
-META extDocument(doctype, caption, ver)
+META extDocument(doctype, caption, ver, deleteCaption)
     
     EXTEND CLASS ObjectExchange { doctype 'Документ.'##caption }
     
@@ -577,11 +577,15 @@ META extDocument(doctype, caption, ver)
                 uid###doctype EXTID 'Ссылка', id###doctype EXTID 'Номер', date###doctype EXTID 'Дата'
     ;
 
-    @extDeleteObject(doctype, caption##'Ссылка', ver);
+    @extDeleteObject(doctype, deleteCaption##'Ссылка', ver);
     overReceive(Configuration c) + {
         FOR EnterpriseData e = object(uid###doctype(INTEGER i)) AND NOT e IS ###doctype DO logToFile('ed', CONCAT ' ', uid###doctype(i), objectClassName(e), 'Документ.'##capt);
     }
 END
+
+META extDocument(doctype, caption, ver)
+    @extDocument(doctype, caption, ver, caption);
+END 
 
 META extDocument(doctype, caption)
     @extDocument(doctype, caption, 15);
