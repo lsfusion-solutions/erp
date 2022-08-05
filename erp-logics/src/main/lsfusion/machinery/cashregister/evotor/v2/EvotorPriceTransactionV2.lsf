@@ -27,13 +27,15 @@ id = DATA LOCAL STRING();
 type = DATA LOCAL STRING();
 status = DATA LOCAL STRING();
 
+xRateLimitResetItems = DATA DATETIME (EvotorStore);
+
 FORM asyncTransaction
     PROPERTIES() modifiedAt, details, id, type, status
 ;
 
 idGroupTransaction = DATA STRING[100] (CashRegisterPriceTransaction);
 statusGroupTransaction = DATA STRING[50] (CashRegisterPriceTransaction);
-
+evotorStore (CashRegisterPriceTransaction t) = evotorStore(groupCashRegister(t));
 idItemTransaction = DATA STRING[100] (CashRegisterPriceTransaction);
 statusItemTransaction = DATA STRING[50] (CashRegisterPriceTransaction);
 filterBarcode(STRING idSku, STRING barcode) = GROUP MAX Sku s IF idSku = id(s) AND idBarcode(s) = barcode;
@@ -51,8 +53,19 @@ asyncUploadItemGroup(CashRegisterPriceTransaction t) {
         headersX('Accept') <- 'application/vnd.evotor.v2+bulk+json';
         headersX('Content-Type') <- 'application/vnd.evotor.v2+bulk+json';
         LOCAL f = FILE();
-        EXTERNAL HTTP PUT 'https://api.evotor.ru/stores/' + uidEvotorStore(groupCashRegister(t)) + '/product-groups'
-            HEADERS headersX PARAMS exportFile() TO f;
+        TRY EXTERNAL HTTP PUT 'https://api.evotor.ru/stores/' + uidEvotorStore(groupCashRegister(t)) + '/product-groups'
+            HEADERS headersX HEADERSTO headersAns PARAMS exportFile() TO f;
+        CATCH {
+            IF statusHttp() = 429 THEN{
+                xRateLimitResetItems(evotorStore(t)) <- sumSeconds(currentDateTime(), LONG(headersAns('X-RateLimit-Reset')));
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Превышен лимит запросов по магазину. Дата разблокировки ', xRateLimitResetItems(evotorStore(t))));
+            }
+            ELSE {
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), messageCaughtException()));
+            }
+            APPLY; 
+            RETURN;  
+        }
         IF f() THEN {
             IMPORT asyncTransaction JSON FROM f();
             IF status() = 'ACCEPTED' AND id() AND t IS CashRegisterPriceTransaction THEN {
@@ -104,8 +117,19 @@ asyncUploadItem(CashRegisterPriceTransaction t){
     headersX('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(t))));
     headersX('Accept') <- 'application/vnd.evotor.v2+bulk+json';
     headersX('Content-Type') <- 'application/vnd.evotor.v2+bulk+json';
-    EXTERNAL HTTP PUT 'https://api.evotor.ru/stores/' + uidEvotorStore(groupCashRegister(t)) + '/products'
-        HEADERS headersX PARAMS exportFile() TO f;
+    TRY EXTERNAL HTTP PUT 'https://api.evotor.ru/stores/' + uidEvotorStore(groupCashRegister(t)) + '/products'
+        HEADERS headersX HEADERSTO headersAns PARAMS exportFile() TO f;
+    CATCH {
+        IF statusHttp() = 429 THEN{
+            xRateLimitResetItems(evotorStore(t)) <- sumSeconds(currentDateTime(), LONG(headersAns('X-RateLimit-Reset')));
+            addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Превышен лимит запросов по магазину. Дата разблокировки ', xRateLimitResetItems(evotorStore(t))));
+        }
+        ELSE {
+            addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), messageCaughtException()));
+        }
+        APPLY; 
+        RETURN;
+    }
     IF f() THEN {
         IMPORT asyncTransaction JSON FROM f();
         IF status() = 'ACCEPTED' AND id() AND t IS CashRegisterPriceTransaction THEN {
@@ -128,7 +152,18 @@ getInfoBulks(CashRegisterPriceTransaction t) {
         headersX('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(t))));
         headersX('Accept') <- 'application/vnd.evotor.v2+bulk+json';
         headersX('Content-Type') <- 'application/vnd.evotor.v2+bulk+json';
-        EXTERNAL HTTP GET 'https://api.evotor.ru/bulks/' + idGroupTransaction(t) HEADERS headersX TO f;
+        TRY EXTERNAL HTTP GET 'https://api.evotor.ru/bulks/' + idGroupTransaction(t) HEADERS headersX HEADERSTO headersAns TO f;
+        CATCH {
+            IF statusHttp() = 429 THEN{
+                xRateLimitResetItems(evotorStore(t)) <- sumSeconds(currentDateTime(), LONG(headersAns('X-RateLimit-Reset')));
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Превышен лимит запросов по магазину. Дата разблокировки ', xRateLimitResetItems(evotorStore(t))));
+            }
+            ELSE {
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), messageCaughtException()));
+            }
+            APPLY; 
+            RETURN;
+        }
         IF f() THEN{
             IMPORT asyncTransaction JSON FROM f();
             IF id() = idGroupTransaction(t) AND status() = 'COMPLETED' THEN {
@@ -149,7 +184,18 @@ getInfoBulks(CashRegisterPriceTransaction t) {
         headersX('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(t))));
         headersX('Accept') <- 'application/vnd.evotor.v2+bulk+json';
         headersX('Content-Type') <- 'application/vnd.evotor.v2+bulk+json';
-        EXTERNAL HTTP GET 'https://api.evotor.ru/bulks/' + idItemTransaction(t) HEADERS headersX TO f;
+        TRY EXTERNAL HTTP GET 'https://api.evotor.ru/bulks/' + idItemTransaction(t) HEADERS headersX TO f;
+        CATCH {
+            IF statusHttp() = 429 THEN{
+                xRateLimitResetItems(evotorStore(t)) <- sumSeconds(currentDateTime(), LONG(headersAns('X-RateLimit-Reset')));
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Превышен лимит запросов по магазину. Дата разблокировки ', xRateLimitResetItems(evotorStore(t))));
+            }
+            ELSE {
+                addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), messageCaughtException()));
+            }
+            APPLY; 
+            RETURN;
+        }
         IF f() THEN{
             IMPORT asyncTransaction JSON FROM f();
             IF id() = idItemTransaction(t) AND status() = 'COMPLETED' THEN {
@@ -244,8 +290,18 @@ DESIGN integrationData{
         }
     }
 }
+
 sendEvotorPriceTransaction (CashRegisterPriceTransaction t){
     TRY{
+        IF xRateLimitResetItems(evotorStore(t)) >= currentDateTime() THEN {
+            MESSAGE (CONCAT ' ', 'ОЖИДАНИЕ', 'ТОВАРЫ : Транзакции по магазину', name(evotorStore(t)), 
+                address(evotorStore(t)), 'заблокированны до', xRateLimitResetItems(evotorStore(t)));
+            RETURN;
+        }
+        ELSE IF xRateLimitResetItems(evotorStore(t)) THEN NEWSESSION {
+            xRateLimitResetItems(evotorStore(t)) <- NULL;
+            APPLY;
+        }
         getInfoBulks(t);
         IF statusGroupTransaction(t) = 'COMPLETED' AND statusItemTransaction(t) = 'COMPLETED' THEN {
             succeeded(t) <- TRUE;

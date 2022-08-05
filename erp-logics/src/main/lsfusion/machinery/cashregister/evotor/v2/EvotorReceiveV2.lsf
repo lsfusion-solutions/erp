@@ -140,6 +140,7 @@ afterCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
 ///запрос документов
 getLocalDateTime (STRING closeDateTime, NUMERIC timezone) = sumSeconds(DATETIME(closeDateTime), timezone/1000);
 afterCreateReceipts ABSTRACT LIST (CashRegister, DATETIME, FILE, BOOLEAN );
+xRateLimitResetDocuments = DATA DATETIME (EvotorStore);
 
 skuCustom = ABSTRACT Sku (INTEGER); 
 
@@ -152,8 +153,16 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until, BOOLEAN update){
         sinceP() <- '&since=' + round0(getMilliSeconds(ZDATETIME(since)));
         untilP() <- '&until=' + round0(getMilliSeconds(ZDATETIME(until)));
         headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(c))));
-        EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
-            '/devices/' + uuidEvotor(c) + '/documents?type=OPEN_SESSION,CLOSE_SESSION', sinceP(), untilP() HEADERS headers  TO f;
+        TRY EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
+            '/devices/' + uuidEvotor(c) + '/documents?type=OPEN_SESSION,CLOSE_SESSION', sinceP(), untilP() HEADERS headers  HEADERSTO headersAns TO f;
+        CATCH {
+            IF statusHttp() = 429 THEN{
+                xRateLimitResetDocuments(evotorStore(c)) <- sumSeconds(currentDateTime(), LONG(headersAns('X-RateLimit-Reset')));
+                MESSAGE (CONCAT ' : ' , nameGroupMachinery(c), 'ДОКУМЕНТЫ : Превышен лимит запросов по магазину. Дата разблокировки ', xRateLimitResetDocuments(evotorStore(c)));
+                APPLY; 
+                RETURN;
+            }
+        }
         fileToString(f());
         logToFile('evotor', CONCAT ' : ', 'documents', resultString());
         IMPORT listDocsEvotor JSON FROM f();
@@ -174,8 +183,19 @@ getDocuments(CashRegister c, DATETIME since, DATETIME until, BOOLEAN update){
         sinceP() <- '&since=' + round0(getMilliSeconds(ZDATETIME(since)));
         untilP() <- '&until=' + round0(getMilliSeconds(ZDATETIME(until)));
         headers('X-Authorization') <- tokenXAuth(token(evotorStore(groupCashRegister(c))));
-        EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
+        TRY EXTERNAL HTTP GET CONCAT '','https://api.evotor.ru/stores/', uidEvotorStore(groupCashRegister(c)),
             '/devices/' + uuidEvotor(c) + '/documents?type=SELL,PAYBACK', sinceP(), untilP() HEADERS headers TO f;
+        CATCH {
+            IF statusHttp() = 429 THEN{
+                xRateLimitResetDocuments(evotorStore(c)) <- sumSeconds(currentDateTime(), LONG(headersAns('X-RateLimit-Reset')));
+                MESSAGE (CONCAT ' : ' , nameGroupMachinery(c), 'ДОКУМЕНТЫ : Превышен лимит запросов по магазину. Дата разблокировки ', xRateLimitResetDocuments(evotorStore(c)));
+                APPLY; 
+                RETURN;
+            }
+            ELSE {
+                MESSAGE messageCaughtException();
+            }
+        }
         fileToString(f());
         logToFile('evotor', CONCAT ' : ', 'documents', resultString());
         IMPORT listDocsEvotor JSON FROM f();
@@ -234,6 +254,15 @@ getDocumentsWithoutDate (CashRegister c){
     getDocuments(c, NULL, NULL, NULL );
 }
 getDocumentsFromLastReceipt(CashRegister c){
+    IF xRateLimitResetDocuments(evotorStore(c)) >= currentDateTime() THEN {
+        MESSAGE (CONCAT ' ', 'ОЖИДАНИЕ', 'ДОКУМЕНТЫ : Транзакции по магазину', name(evotorStore(c)), address(evotorStore(c)), 
+            'заблокированны до', xRateLimitResetDocuments(evotorStore(c)));
+        RETURN;
+    }
+    ELSE IF xRateLimitResetDocuments(evotorStore(c)) THEN NEWSESSION {
+        xRateLimitResetDocuments(evotorStore(c)) <- NULL;
+        APPLY;
+    }
     getDocuments(c, (OVERRIDE dateTime(GROUP LAST Receipt r ORDER dateTime(r), r WHERE cashRegister(r) = c), 
         DATETIME(startDate(c))), NULL, NULL);
 }
@@ -245,10 +274,6 @@ receiveGroupMachinery(GroupCashRegister g) + {
             DO getDocumentsFromLastReceipt(c); 
     }   
 }
-
-EXTEND FORM groupCashRegister
-    PROPERTIES (c) getDocumentsWithoutDate;
-
 
 //Запрос
 EXTEND CLASS RequestExchangeType{

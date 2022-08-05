@@ -33,6 +33,7 @@ name 'Название' = DATA STRING (EvotorStore);
 token = DATA AuthEvotor (EvotorStore);
 isEvotor (GroupCashRegister group) = IF handlerModel(group) = 'lsf.evotor' THEN TRUE;
 evotorStore = DATA EvotorStore (GroupCashRegister);
+evotorStore (CashRegister c) = evotorStore(groupCashRegister(c));
 uidEvotorStore 'ID магазина Evotor' (GroupCashRegister gcr) = id(evotorStore(gcr));
 
 getStoresList 'Получить список магазинов' (AuthEvotor auth) {
@@ -140,6 +141,8 @@ DESIGN groupCashRegister{
     
 EXTEND FORM integrationData
     PROPERTIES (auth) getStoresList;
+headersAns = DATA LOCAL NESTED STRING (STRING);
+xRateLimitResetMasterdata = DATA DATETIME (AuthEvotor);
 
 //Пользователи
 patronymic_name = DATA LOCAL STRING(INTEGER);
@@ -162,10 +165,32 @@ FORM importUsers
 ;
 
 importUsers 'Импорт пользователей' (AuthEvotor a){
+    IF xRateLimitResetMasterdata(a) >= currentDateTime() THEN {
+        MESSAGE (CONCAT ' ' , 'ОЖИДАНИЕ', nameLegalEntity(a), phoneReg(a), 
+            'ПОЛЬЗОВАТЕЛИ : Превышен лимит запросов для аккаунта. Дата разблокировки ', xRateLimitResetMasterdata(a));
+        RETURN;
+    }
+    ELSE IF xRateLimitResetMasterdata(a) THEN NEWSESSION {
+        xRateLimitResetMasterdata(a) <- NULL;
+        APPLY;
+    }
     LOCAL f = FILE ();
     LOCAL headers = TEXT (STRING[100]);
     headers('X-Authorization') <- tokenXAuth(a);
-    EXTERNAL HTTP GET 'https://api.evotor.ru/employees' HEADERS headers TO f;
+    TRY EXTERNAL HTTP GET 'https://api.evotor.ru/employees' HEADERS headers HEADERSTO headersAns TO f;
+    CATCH {
+        IF statusHttp() = 429 THEN{
+            xRateLimitResetMasterdata(a) <- sumSeconds(currentDateTime(), LONG(headersAns('X-RateLimit-Reset')));
+            MESSAGE (CONCAT ' : ' , nameLegalEntity(a), phoneReg(a), 
+                'ПОЛЬЗОВАТЕЛИ : Превышен лимит запросов мастерданных для аккаунта. Дата разблокировки ', xRateLimitResetMasterdata(a));
+            APPLY; 
+            RETURN;
+        }
+        ELSE {
+            MESSAGE messageCaughtException();
+            RETURN;
+        }
+    }
     IMPORT importUsers JSON FROM f();
     FOR id(INTEGER i) AND NOT employee(id(i)) NEW e = Employee DO{
         id(e) <- id(i);
