@@ -267,9 +267,15 @@ skipStatistic 'Исключить из розн. статистики' = ABSTRAC
 quantitySoldStatistic(sku, stock, DATE dateFrom, DATE dateTo) = GROUP SUM quantity(SaleLedger ledger) 
     IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
         BY sku(ledger), stock(ledger);
+quantitySoldStatistic(sku, stock, DATE date) = GROUP SUM quantity(SaleLedger ledger) 
+    IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) == date
+        BY sku(ledger), stock(ledger);
 sumSoldStatistic(sku, stock, DATE dateFrom, DATE dateTo) = GROUP SUM sum(SaleLedger ledger) 
     IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
         BY sku(ledger), stock(ledger);
+sumSoldStatistic(sku, stock, DATE date) = GROUP SUM sum(SaleLedger ledger) 
+    IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) == date 
+    BY sku(ledger), stock(ledger);
         
 netWeightSoldStatistic 'Вес проданного товара, кг' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) =
     quantitySoldStatistic(sku, stock, dateFrom, dateTo) * netWeight(sku);
@@ -755,7 +761,7 @@ valueResidentByTo 'Остаток на конец отеч. пр-ва' (Statisti
     ;
 
 totalSumSoldBy 'Продано, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku) IF  NOT skipSale(stock)
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
 totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
@@ -999,7 +1005,8 @@ inStat 'Отм' (StockGroup stockGroup) =
 // Отметка для складов
 skipStock = ABSTRACT BOOLEAN (Stock);
 dataIn 'Отм.' = DATA LOCAL BOOLEAN (Stock);
-inStat 'Отм' (Stock stock) =
+inStat 'Отм' = ABSTRACT CASE OVERRIDE BOOLEAN (Stock);
+inStat (Stock stock) += WHEN stock IS Stock THEN
     (OVERRIDE dataIn(stock), inStat(stockGroup(stock))) AND 
     (legalEntity(stock) == statisticsLegalEntity() OR NOT statisticsLegalEntity()) AND NOT skipStock(stock);
 
