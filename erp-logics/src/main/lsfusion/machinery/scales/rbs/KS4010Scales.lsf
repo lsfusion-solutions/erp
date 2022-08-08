@@ -8,8 +8,6 @@ loadDefaultScalesModels () + {
     loadDefaultScalesModel('Весы РБС KS4010', 'KS4010', 'lsf.machinery.scales.rbs.KS4010');
 }
 
-onStarted() + {handler(ScalesModel m) <- 'lsf.machinery.scales.rbs.KS4010' WHERE handler(m) == 'lsf.integration.rbs.KS4010';}
-
 isSelfService(GroupScales s) += sidModel(s) == 'KS4010';
 scalesGroup (MachineryPriceTransaction t, Barcode b) += group(dataCustomGroupType(groupScales(t)), sku(b)) IF t IS MachineryPriceTransaction AND sidModel(groupScales(t)) == 'KS4010';
 
@@ -19,6 +17,7 @@ imageRBS = DATA IMAGEFILE (Item);
 WHEN CHANGED (image(Item i)) DO { 
     imageRBS(i) <- NULL;
 }
+@definePrimitiveItemAttribute(barcodeRBS, INTEGER, 'Параметр barcode (весы РБС)', scales);
 
 code = DATA LOCAL INTEGER ();
 message = DATA LOCAL STRING(INTEGER);
@@ -73,7 +72,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             used_by_days = STRING (expiryDays(t, b)),
             image_filename = IF hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) THEN 'item_' + id(b) + '.jpg' ELSE '',
             disabled = '0',
-            barcode = 0,
+            barcode = (OVERRIDE barcodeRBS(sku(b)),0),
             exp_date = STRING(expiryDate(t, b)),
             pre_tare_value = (OVERRIDE tareWeight(t, b), tareWeight(b)),
             pre_tare_unit_index = 1 IF tareWeight(t, b) OR tareWeight(b) //0:kg, 1:g, 2:tj, 3:gj, 4:lb, 5:oz, 6:lz
