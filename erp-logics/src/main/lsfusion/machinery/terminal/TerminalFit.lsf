@@ -29,20 +29,26 @@ addTerminalDocumentFit(GroupTerminal g) {
     }
 }
 
+fitErrorMessage (GroupTerminal g, STRING message) = OVERRIDE System.messageCaughtException(), CONCAT ' ', 'fit tsd', '(' + name(g) + ')', ': ' + message;
+
 importTerminalDocumentFit 'Импортировать из ФИТ' (GroupTerminal g) {
-    listFiles(directory(g));
-    FOR STRING[255] fileName = fileName(INTEGER j) AND isISubstring(fileName, 'csv') AND NOT fileIsDirectory(j) DO {
-        READ directory(g) + '/' + fileName TO file;
-        addTerminalDocumentFit(g, file());
-        APPLY NESTED LOCAL;
-        LOCAL succeessDir = STRING ();
-        IF NOT System.canceled() THEN {
-            succeessDir() <- directory(g) + 'succeess-' + currentTimeText(); 
-            mkdir(succeessDir());    
-            FOR STRING fn = fileName AND NOT fileIsDirectory(j) AND NOT System.canceled() DO {
-                move(directory(g) + fn, succeessDir() + '/' + fn);
+    TRY {
+        listFiles(directory(g));
+        FOR STRING[255] fileName = fileName(INTEGER j) AND isISubstring(fileName, 'csv') AND NOT fileIsDirectory(j) DO {
+            READ directory(g) + '/' + fileName TO file;
+            addTerminalDocumentFit(g, file());
+            APPLY NESTED LOCAL;
+            LOCAL succeessDir = STRING ();
+            IF NOT System.canceled() THEN {
+                succeessDir() <- directory(g) + 'succeess-' + currentTimeText(); 
+                mkdir(succeessDir());    
+                FOR STRING fn = fileName AND NOT fileIsDirectory(j) AND NOT System.canceled() DO {
+                    move(directory(g) + fn, succeessDir() + '/' + fn);
+                }
             }
         }
+    } CATCH {
+        System.messageCaughtException() <- fitErrorMessage(g, 'File exchange failed');
     }
 }
 
