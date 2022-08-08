@@ -101,6 +101,8 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
     
     participant (InvoiceDocument i) += receiverProp(invoice(i));
     participantStock (InvoiceDocument i) += receiverProp##Stock(invoice(i));
+
+    skipExport = ABSTRACT VALUE BOOLEAN (InvoiceDetail);
     
     FORM exportInvoice
         OBJECTS i = Invoice, t = LotType PANEL
@@ -116,7 +118,7 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
         PROPERTIES uit_code = id(l) IF NOT aggregated(l),
                    uitu_code = id(l) IF aggregated(l),
                    product_description = nameSku(d)
-        FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+        FILTERS invoice(d) = i, quantity(d, l), NOT skipExport(d), lotType(sku(d)) = t
     ;
     
     DESIGN operation {
@@ -145,7 +147,7 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
         
         OBJECTS products = (d = InvoiceDetail, l = Lot)
         PROPERTIES cis = id(l)
-        FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+        FILTERS invoice(d) = i, quantity(d, l), NOT skipExport(d), lotType(sku(d)) = t
     ;
     
     // -- crossborderexport
@@ -175,7 +177,7 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
         
         OBJECTS products = (d = InvoiceDetail, l = Lot)
         PROPERTIES cis = id(l)
-        FILTERS invoice(d) = i, quantity(d, l), lotType(sku(d)) = t
+        FILTERS invoice(d) = i, quantity(d, l), NOT skipExport(d), lotType(sku(d)) = t
     ;
     
     export (InvoiceDocument i) + {
