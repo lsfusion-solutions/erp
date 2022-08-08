@@ -33,6 +33,26 @@ signAndSendSupplierEDI 'Подписать и отправить (поставщ
     
 }
 
+signAndSendSupplierCancelEDI 'Подписать и отправить отмену (поставщик)'() {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EInvoice i) DO { 
+        IF isEDI(i) THEN {
+            IF EDIProviderInvoice(customer(i)) THEN {
+                isCancel(i) <- TRUE;
+                signAndSendSupplier(i);
+            } ELSE
+                MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
+        } ELSE
+            MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
+        in(i) <- NULL;
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одной накладной';
+    
+}
+
 signAndSendBlrapnSupplier 'Подписать и отправить извещение о прочтении (поставщик)'  ABSTRACT LIST ( EInvoice);
 signAndSendBlrapnSupplierEDI 'Подписать и отправить извещение о прочтении (поставщик)'() {
     IF askPasswordEDSService() THEN {
@@ -58,7 +78,7 @@ EXTEND FORM eInvoices
     EXTEND FILTERGROUP notExported
         FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
         FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) AND NOT importedNoticeSupplier(e) 'F11'
-    PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendBlrapnSupplierEDI
+    PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendSupplierCancelEDI, signAndSendBlrapnSupplierEDI
 ;
 
 DESIGN eInvoices{
@@ -69,6 +89,7 @@ DESIGN eInvoices{
             caption = 'Поставщик';
             type = CONTAINERV;        
             MOVE PROPERTY (signAndSendSupplierEDI()) { alignment = STRETCH; };
+            MOVE PROPERTY (signAndSendSupplierCancelEDI()) { alignment = STRETCH; };
             MOVE PROPERTY (signAndSendBlrapnSupplierEDI()) { alignment = STRETCH; };
         }
     }

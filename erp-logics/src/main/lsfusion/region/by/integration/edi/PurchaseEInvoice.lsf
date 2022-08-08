@@ -48,7 +48,8 @@ FORM selectEInvoice 'Накладные EDI'
             filterCustomer(ei),
             filterStock(ei),
             NOT invoice(ei),
-            importedCustomer(ei)            
+            importedCustomer(ei),
+            NOT isReturn(ei)            
 ;
 
 DESIGN selectEInvoice {
@@ -133,6 +134,7 @@ FORM dialogEInvoiceCustomer 'Выбор электронной накладно�
     OBJECTS i = EInvoice
     PROPERTIES(i) READONLY dateSupplier, numberSupplier, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
     FILTERS importedCustomer(i)
+    FILTERS NOT isReturn(i)
 ;
 @extendFormFilterAccessStock(dialogEInvoiceCustomer, i, dialogEInvoiceCustomer, customerStock, Company);
 
@@ -161,6 +163,13 @@ DESIGN userInvoice {
     }
 }
 
+signAndSendBlrapnCustomerEDI 'Подписать и отправить извещение о прочтении (покупатель)'(Invoice i)  { 
+    NEWSESSION {
+        in(EInvoice e) <- e = eInvoice(i);
+        signAndSendBlrapnCustomerEDI();
+        in(EInvoice e) <- NULL;
+    }
+}
 signAndSendCustomerEDI 'Подписать и отправить (покупатель)'(Invoice i)  { 
     NEWSESSION {
         in(EInvoice e) <- e = eInvoice(i);
@@ -176,12 +185,14 @@ signAndSendNoticeCustomerEDI 'Подписать и отправить увед�
     }
 }
 
+hideSignAndSendBlrapnCustomerEDI = ABSTRACT BOOLEAN (Invoice);
 hideSignAndSendCustomerEDI = ABSTRACT BOOLEAN (Invoice);
 hideSignAndSendNoticeCustomerEDI = ABSTRACT BOOLEAN (Invoice);
 
 EXTEND FORM invoices
     PROPERTIES READONLY numberEInvoice = numberEInvoice(i), statusDescription = statusDescription(i) BACKGROUND backgroundStatusDescription(i)
     PROPERTIES numberEInvoice(i) SHOWIF eInvoice(i) PANEL READONLY,
+               signAndSendBlrapnCustomerEDI(i) SHOWIF (eInvoice(i) AND NOT exportedBlrapnCustomer(eInvoice(i)) AND importedCustomer(eInvoice(i)) AND NOT hideSignAndSendBlrapnCustomerEDI(i)),
                signAndSendCustomerEDI(i) SHOWIF (eInvoice(i) AND NOT exportedCustomer(eInvoice(i)) AND NOT exportedNoticeCustomer(eInvoice(i)) AND NOT hideSignAndSendCustomerEDI(i)),
                signAndSendNoticeCustomerEDI(i) SHOWIF (eInvoice(i) AND NOT exportedCustomer(eInvoice(i)) AND NOT exportedNoticeCustomer(eInvoice(i)) AND NOT hideSignAndSendNoticeCustomerEDI(i)),
                statusDescription(i) SHOWIF eInvoice(i) PANEL
@@ -197,6 +208,7 @@ DESIGN invoices {
                 NEW createEI {
                     type = CONTAINERH;
                     MOVE PROPERTY(numberEInvoice(i));
+                    MOVE PROPERTY(signAndSendBlrapnCustomerEDI(i));
                     MOVE PROPERTY(signAndSendCustomerEDI(i));
                     MOVE PROPERTY(signAndSendNoticeCustomerEDI(i));
                     MOVE PROPERTY(statusDescription(i));
