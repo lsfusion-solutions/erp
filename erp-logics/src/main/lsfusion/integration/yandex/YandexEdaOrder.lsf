@@ -173,7 +173,7 @@ updateOrder(FILE f){
     }
     ELSE {
         IMPORT yandexorder FROM JSONFILE(f);
-         FOR InternetOrder io =  internetOrderByUuid(order()) DO{
+        FOR InternetOrder io =  internetOrderByUuid(order()) DO{
             carrier(io) <- carrierOrder(aggr());
             customerComment(io) <- comment();
             extraUpdateOrder(io);
@@ -181,10 +181,9 @@ updateOrder(FILE f){
             phoneInternetCustomer(io) <- STRING[100](phoneNumber());
             courierArrivementDateText(io) <- courierArrivementDate();
             isPosted(io) <- TRUE;
-            FOR id(INTEGER items) AND InternetOrderDetail detail = GROUP MAX InternetOrderDetail idetail IF sku(idetail) = sku(id(items)) DO{
-                sku(detail) <- sku(id(items));
+            FOR id(INTEGER items) AND InternetOrderDetail detail = GROUP MAX InternetOrderDetail idetail 
+                IF sku(idetail) = sku(id(items)) AND internetOrder(idetail) = io DO{
                 pickingQuantity(detail) <- NUMERIC[16,5](quantity(items));
-                internetOrder(detail) <- io;
             }
             paymentTypeInternetOrder(io) <- paymentTypeOrder(paymentType());
             paymentCardSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CARD';

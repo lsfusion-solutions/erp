@@ -165,19 +165,19 @@ DESIGN integrationData{
 }
 
 lockRequest = DATA BOOLEAN ();
-lockRequestResult = DATA BOOLEAN ();
+lockRequestResult = DATA LOCAL NESTED BOOLEAN ();
 
 WHEN CHANGED (useLockRequests()) DO lockRequest() <- NULL;
 
 lockRequest() {
     IF useLockRequests() THEN NEWSESSION {
         IF lockRequest() THEN {
+            lockRequestResult() <- TRUE;
             statusHttpTo() <- 500;
             logToFile('yandex', CONCAT ' : ', 'WARNING Запрос заблокирован');
-            EXPORT JSON FROM code = 100, description = 'Запросы заблокированны, повторите попытку позже';
         } ELSE {
             lockRequest() <- TRUE;
-            APPLY; 
+            APPLY NESTED LOCAL; 
         } 
     }
 }
@@ -205,6 +205,10 @@ v1_nomenclature(FILE f){
     }
     ELSE {
         lockRequest();
+        IF lockRequestResult() THEN {
+            EXPORT JSON FROM code = 100, description = 'Запросы заблокированны, повторите попытку позже';
+            RETURN;
+        }
         carrierSelect(aggr());
         LOCAL method = STRING ();
         method() <- replace(servletPath() + pathInfo(), TEXT('/exec/v1/nomenclature/'), TEXT (''));
