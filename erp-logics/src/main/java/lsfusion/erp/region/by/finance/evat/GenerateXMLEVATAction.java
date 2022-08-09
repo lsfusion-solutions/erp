@@ -314,7 +314,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     //parent: rootElement
     private Element createProviderElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, String declaration, Namespace namespace, boolean exportProviderTaxes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        String legalEntityStatus = trim((String) findProperty("nameLegalEntityStatusSupplier[EVAT]").read(context, evatObject));
+        String legalEntityStatus = trim((String) findProperty("overProviderStatus[EVAT]").read(context, evatObject));
         boolean dependentPerson = findProperty("dependentPersonSupplier[EVAT]").read(context, evatObject) != null;
         boolean residentsOfOffshore = findProperty("residentsOfOffshoreSupplier[EVAT]").read(context, evatObject) != null;
         boolean specialDealGoods = findProperty("specialDealGoodsSupplier[EVAT]").read(context, evatObject) != null;
