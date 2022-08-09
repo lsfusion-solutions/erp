@@ -14,12 +14,13 @@ EXTEND FORM zReports
     PROPERTIES  nameSection(d) READONLY ;
     
 TABLE receiptSection (Receipt, Section);
+TABLE departmentStoreSectionDate (DepartmentStore, Section, DATE);
 
 sumReceipDetail 'Сумма для секции' (r, s) = GROUP SUM signedSum(ReceiptDetail d) 
     IF isPosted(d)
     BY receipt(d), section(d)  MATERIALIZED;
 sum = GROUP SUM sumReceipDetail(Receipt r, Section sek) 
-    BY departmentStore(r), sek, date(zReport(r));
+    BY departmentStore(r), sek, date(zReport(r)) MATERIALIZED;
 sum 'Продано, руб.' (DepartmentStore ds, Section sek, DATE dateFrom, DATE dateTo) = GROUP 
     SUM sum(ds, sek, DATE date)
     IF date >= dateFrom AND date <= dateTo;
