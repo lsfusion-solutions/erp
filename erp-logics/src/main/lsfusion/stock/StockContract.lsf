@@ -175,18 +175,6 @@ file 'Файл договора' = DATA FILE (UserContractSku);
 saveFile 'Загрузить файл договора' (UserContractSku userContractSku)  { INPUT =file(userContractSku) CHANGE; }
 openFile 'Просмотреть файл договора' (UserContractSku userContractSku)  { open(file(userContractSku)); }
 
-migratedFileContractSku = DATA BOOLEAN ();
-onStarted() + { 
-    IF NOT migratedFileContractSku() THEN {
-        NEWSESSION {
-            setNoCancelInTransaction();
-            migratedFileContractSku() <- TRUE;
-            file(UserContractSku s) <- FILE (word(s));
-            APPLY;
-        }    
-    }
-}
-
 supplier = DATA LegalEntity (ContractSku) INDEXED;
 nameSupplier 'Поставщик' (ContractSku contract) = name(supplier(contract)) IN id CHARWIDTH 20;
 partyA (ContractSku contract) += supplier(contract);
