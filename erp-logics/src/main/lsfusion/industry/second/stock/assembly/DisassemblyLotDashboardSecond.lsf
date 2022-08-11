@@ -1,6 +1,6 @@
 MODULE DisassemblyLotDashboardSecond;
 
-REQUIRE DisassemblyLotSecond, LotExtra, LotPriceLabelSecond, 
+REQUIRE DisassemblyLotSecond, LotPriceLabelSecond, 
         PriceCategory, ItemPart, 
         ScalesItem, ComWeight, 
         Video; 
@@ -26,8 +26,18 @@ postLotDashboard (Disassembly a) {
     isPosted(a) <- TRUE;
 }
 
-EXTEND FORM options PROPERTIES() defaultVideoScale;
-DESIGN options { disassembly { MOVE PROPERTY(defaultVideoScale()); } }
+lotImageMimeType() += videoMimeType();
+
+EXTEND FORM options 
+    PROPERTIES() defaultVideoScale, videoMimeType 
+;
+
+DESIGN options { 
+    commons { 
+        MOVE PROPERTY(defaultVideoScale()); 
+        MOVE PROPERTY(videoMimeType()); 
+    } 
+}
 
 @defineOption(notAskOneSku, 'Не спрашивать про выбранную позицию при закрытии смены на форме Разукомплектация', disassembly);
 
@@ -176,7 +186,7 @@ inameSku 'Товар' () = name(isku()) CHARWIDTH 15;
 iprice 'Цена' = DATA LOCAL NUMERIC[16,4] ();
 
 // image
-iimage 'Изображение' = DATA LOCAL IMAGEFILE ();
+iimage 'Изображение' = DATA LOCAL NESTED IMAGEFILE ();
 iimagePhoto () {
     takePhoto();
     iimage() <- photo();
@@ -200,7 +210,14 @@ fillProperties(Lot l) +{
     iweight() <- weight(l);
     isku() <- sku(l);
     iprice() <- price(l);
-    iimage() <- image(l);
+    
+    IF defaultResizeLotImageScale() THEN {
+        TRY { READ CONCAT '/', pathLotImages(), createdDate(l), id(l) + '.jpg' TO imageFile; }
+        iimage() <- OVERRIDE imageFile(), image(l);
+    }
+    ELSE 
+        iimage() <- image(l);
+    
     ibarcode() <- id(l);
     
     ioption('defect') <- defect(l);
@@ -307,7 +324,13 @@ processLot 'Обработать' (Stock st) {
         weight(l) <- iweight();
         sku(l) <- isku();
         price(l) <- iprice();
-        image(l) <- iimage();
+        
+        IF defaultResizeLotImageScale() AND pathLotImages() THEN {
+            resizeImage(iimage(), defaultResizeLotImageScale());
+            image(l) <- resizedImage();
+        }
+        ELSE 
+            image(l) <- iimage();
         
         defect(l) <- ioption('defect');
         
@@ -320,6 +343,12 @@ processLot 'Обработать' (Stock st) {
             IF changedPrint() THEN printLabel(l);
             IF editMode() AND goToDisassemblyMode() THEN 
                 dashboardMode() <- 'disassembly';
+                
+            IF defaultResizeLotImageScale() AND pathLotImages() THEN {
+                TRY { mkdir(pathLotImages() + '/' + createdDate(l)); }    
+                WRITE iimage() TO CONCAT '/', pathLotImages(), createdDate(l), id(l);
+            }
+            iimage() <- NULL;
         }
     }
 
