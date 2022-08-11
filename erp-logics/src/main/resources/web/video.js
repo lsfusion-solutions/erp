@@ -32,19 +32,19 @@ function videoRender() {
     }
 }
 
-function takePhoto(coeff) {
+function takePhoto(options) {
     const element = document.getElementById("videoRenderId");
 
     const context = element.canvas.getContext('2d');
 
-    const width = element.video.videoWidth / coeff;
-    const height = element.video.videoHeight / coeff;
+    const width = element.video.videoWidth / options.scale;
+    const height = element.video.videoHeight / options.scale;
 
     element.canvas.width = width;
     element.canvas.height = height;
     context.drawImage(element.video, 0, 0, width, height);
 
-    const data = element.canvas.toDataURL('image/png');
+    const data = element.canvas.toDataURL('image/' + options.mimeType);
     let encoded = data.toString().replace(/^data:(.*,)?/, '');
     if ((encoded.length % 4) > 0) {
        encoded += '='.repeat(4 - (encoded.length % 4));

@@ -22,9 +22,15 @@ defaultVideoScale 'Коэффициент сжатия изображения'= 
 
 videoScale = OVERRIDE defaultVideoScale(currentComputer()), defaultVideoScale(), 1; 
 
+videoMimeType 'Формат' = DATA STRING[5] ();
+
+jsonVideo() = 
+                JSON FROM scale = videoScale(),
+                          mimeType = (OVERRIDE videoMimeType(), 'jpeg');
+
 encodedPhoto = DATA LOCAL TEXT ();
 photo = decode(encodedPhoto(), 'base64');
 
-takePhoto () {  INTERNAL CLIENT 'takePhoto' PARAMS videoScale() TO encodedPhoto; }
+takePhoto () {  INTERNAL CLIENT 'takePhoto' PARAMS jsonVideo() TO encodedPhoto; }
 
 onWebClientLoad() + { INTERNAL CLIENT 'video.js'; }
