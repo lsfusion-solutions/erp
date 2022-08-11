@@ -127,10 +127,13 @@ priceB(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
 priceA(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     priceA(basePriceListType(type), type, sku, stock, dateTime) COMPLEX;
 
+multiplierVAT = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[16,5] (CalcPriceListType, Batch);
+multiplierVAT (CalcPriceListType type, Batch batch) +=multiplierVAT(type, sku(batch));
+
 priceB(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
-    round(priceB(basePriceListType(type), batch, stock, dateTime) * multiplierVAT(type, sku(batch)), roundCondition(type, sku(batch))) COMPLEX;
+    round(priceB(basePriceListType(type), batch, stock, dateTime) * multiplierVAT(type, batch), roundCondition(type, sku(batch))) COMPLEX;
 priceA(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
-    round(priceA(basePriceListType(type), batch, stock, dateTime) * multiplierVAT(type, sku(batch)), roundCondition(type, sku(batch))) COMPLEX;
+    round(priceA(basePriceListType(type), batch, stock, dateTime) * multiplierVAT(type, batch), roundCondition(type, sku(batch))) COMPLEX;
 
 priceB(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceB(type, sku, stock, dateTime);
 priceA(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceA(type, sku, stock, dateTime);
@@ -151,7 +154,6 @@ DESIGN options{
         MOVE PROPERTY (allowChangeMarkup());
     }
 }
-
 
 FORM calcPriceListType 'Расчетный вид цен'
     OBJECTS c = CalcPriceListType PANEL
