@@ -102,6 +102,7 @@ public class Kristal10Settings implements Serializable{
     //в sendTransaction,
     //если задан, то сформированный файл catalog-goods дополнительно копируется по указанному sftp-пути
     //только для магазинов, заданных в sftpDepartmentStores (через запятую)
+    //если путь без sftp в начале то обычное копирование по абсолютному пути
     private String sftpPath;
     private String sftpDepartmentStores;
     private List<String> sftpDepartmentStoresList = new ArrayList<>();

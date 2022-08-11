@@ -354,7 +354,12 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         //copy to ftp
                         if(sftpPath != null && sftpDepartmentStoresList.contains(transaction.idDepartmentStoreGroupCashRegister)) {
                             try {
-                                WriteUtils.storeFileToSFTP(sftpPath + "/" + file.getName(), new RawFileData(tempFile), null);
+                                if (!sftpPath.startsWith("sftp")){
+                                    File copyFile = makeExportFile(sftpPath, "catalog-goods");
+                                    FileUtils.copyFile(tempFile, copyFile);
+                                } else {
+                                    WriteUtils.storeFileToSFTP(sftpPath + "/" + file.getName(), new RawFileData(tempFile), null);
+                                }
                             } catch (Exception e) {
                                 processTransactionLogger.error(getLogPrefix() + "sftp error", e);
                             }
