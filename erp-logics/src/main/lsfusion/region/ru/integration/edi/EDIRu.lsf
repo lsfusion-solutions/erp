@@ -1,6 +1,6 @@
 MODULE EDIRu;
 
-REQUIRE LegalEntityRu, Item, Store, Warehouse, LogTools;
+REQUIRE LegalEntityRu, Item, Store, Warehouse, LogTools, EDIGLN;
 
 NAMESPACE EDI;
 
@@ -99,10 +99,6 @@ DESIGN EDIProviders {
     PROPERTY (staticCaption(t)){caption = 'Наименование';};
 }
 
-
-GLN 'GLN' = DATA STRING[13] (LegalEntity);
-legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity llegalEntity BY GLN(llegalEntity);
-extraGLN = ABSTRACT STRING[13] (LegalEntity);
 GLNSupplier(EOrder e) = OVERRIDE GLN(supplier(e)), extraGLN(supplier(e));
 GLNCustomer(EOrder e) = OVERRIDE GLN(customer(e)), extraGLN(customer(e));
 
@@ -136,45 +132,12 @@ EXTEND FORM legalEntities PROPERTIES(l) READONLYIF isReadonly() GLN, nameEDIProv
 
 nameEDIProvider'Провайдер EDI'(EOrder o) = nameEDIProvider(supplier(o));
 
-dataGLN 'GLN' = DATA STRING[13] (Stock);
-GLN 'GLN' (Stock s) = OVERRIDE dataGLN(s), GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1 OR s IS Stock AND notCompany(s);
-
-companyStockGLN = GROUP NAGGR Stock stock WHERE isCompany(stock) BY GLN(stock);
-
-stockGLN = GROUP MAX Stock stock IF active(stock) BY GLN(stock);
-legalEntityStockGLN(STRING[13] GLN) = legalEntity(stockGLN(GLN));
-
 userID 'Идентификатор пользователя' = ABSTRACT STRING[35] (Stock);
 stockGLNUserID (STRING[13] GLN, STRING[35] userID) = GROUP MIN Stock s IF active(s) AND GLN(s) == GLN AND (OVERRIDE userID(s), '') == userID;
 
 GLNSupplierStock 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE GLN(supplierStock(e));
 GLNSupplierStock1 'GLN склада поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplierStock(e));
 GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
-
-EXTEND FORM warehouse PROPERTIES(w) GLN;
-EXTEND FORM warehouses PROPERTIES(w) READONLY GLN;
-DESIGN warehouse {
-    headerRight {
-        NEW EDI {
-            fill = 1;
-            caption = 'EDI';
-            MOVE PROPERTY (GLN(w));
-        }
-    }
-}
-
-EXTEND FORM departmentStore PROPERTIES(d) GLN;
-DESIGN departmentStore{
-    headerRight {
-        NEW EDI {
-            fill = 1;
-            caption = 'EDI';
-            MOVE PROPERTY (GLN(d));
-        }
-    }
-}
-
-EXTEND FORM departmentStores PROPERTIES(d) READONLY GLN;
 
 send 'Отправить'  ABSTRACT LIST ( EOrder);
 overSend  ABSTRACT LIST ( EOrder);
