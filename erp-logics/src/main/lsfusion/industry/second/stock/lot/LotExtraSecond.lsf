@@ -9,21 +9,14 @@ NAMESPACE Lot;
 
 @defineOption(defaultResizeLotImageScale, 'Коэффициент сжатия изображений оценённых товаров lsf', DOUBLE, commons); 
 
-lotImageMimeType 'Формат файла изображения' = ABSTRACT VALUE STRING();
-
-//saveLotImagesAction 'Сохранить изображения оценённых товаров' (DATE d) {
-//    TRY { delete(pathLotImages() + '/' + d); }
-//    TRY { mkdir(pathLotImages() + '/' + d); }
-//    FOR createdDate(Lot l) == d AND image(l) DO {
-//        WRITE image(l) TO CONCAT '/', pathLotImages(), d, id(l);
-//    }
-//}
+lotImageType 'Формат файла изображения' = ABSTRACT VALUE STRING();   // по 11.08.22 был png 
+overLotImageType = OVERRIDE lotImageType(), 'jpg';
 
 saveLotImagesAction 'Сохранить изображения оценённых товаров' (DATE d) {
     IF pathLotImages() THEN {
         TRY { mkdir(pathLotImages() + '/' + d); }
         FOR createdDate(Lot l) == d AND image(l) DO {
-            TRY { READ CONCAT '/', pathLotImages(), createdDate(l), id(l) + '.' + (OVERRIDE lotImageMimeType(), 'jpeg') TO imageFile; }
+            TRY { READ CONCAT '/', pathLotImages(), createdDate(l), id(l) + '.' + overLotImageType() TO imageFile; }
             
             IF NOT imageFile() THEN
                 WRITE image(l) TO CONCAT '/', pathLotImages(), d, id(l);
@@ -32,16 +25,20 @@ saveLotImagesAction 'Сохранить изображения оценённы�
 }
 
 restoreImage 'Восстановить изображение' (Lot l) {
-    TRY { READ CONCAT '/', pathLotImages(), createdDate(l), id(l) + '.' + (OVERRIDE lotImageMimeType(), 'jpeg') TO imageFile; }
+    TRY { READ CONCAT '/', pathLotImages(), createdDate(l), id(l) + '.' + overLotImageType() TO imageFile; }
 //    IF NOT imageFile() THEN
 //            TRY { READ CONCAT '/', pathLotImages(), createdDate(l), id(l) + '.png' TO imageFile; }
-        
-    IF defaultResizeLotImageScale() THEN {
-        resizeImage(imageFile(), defaultResizeLotImageScale());
-        image(l) <- resizedImage();
+    
+    IF imageFile() THEN {    
+        IF defaultResizeLotImageScale() THEN {
+            resizeImage(imageFile(), defaultResizeLotImageScale());
+            image(l) <- resizedImage();
+        }
+        ELSE
+            image(l) <- imageFile();
     }
-    ELSE
-        image(l) <- imageFile();
+    ELSE 
+        MESSAGE id(l) + ' файл изображения не найден' NOWAIT; 
         
     APPLY;
 }
@@ -64,7 +61,7 @@ DESIGN lot {
 
 openImage 'Просмотреть изображение' (Lot l) { 
     IF pathLotImages() AND defaultResizeLotImageScale() THEN {
-        TRY { READ CONCAT '/', pathLotImages(), createdDate(l), id(l) + '.' + (OVERRIDE lotImageMimeType(), 'jpeg') TO imageFile; }
+        TRY { READ CONCAT '/', pathLotImages(), createdDate(l), id(l) + '.' + overLotImageType() TO imageFile; }
         open(imageFile());        
     }
     ELSE open(image(l)); 
