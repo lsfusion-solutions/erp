@@ -100,11 +100,12 @@ inSending 'Передавать' = ABSTRACT MULTI OVERRIDE BOOLEAN (Configuratio
 
 in 'Вкл.' = DATA BOOLEAN (Configuration, EnterpriseData);
 
-skip = ABSTRACT VALUE OVERRIDE FIRST BOOLEAN (Configuration, EnterpriseData);
+skip = ABSTRACT BOOLEAN (Configuration, EnterpriseData);
  
 WHEN SET(inSending(Configuration c, EnterpriseData e) AND NOT packet(c, e) <= idTicket(c)) AND NOT date(e, c) < dateStartExchange(c) DO in(c, e) <- inSending(c, e);
 
-in (Configuration c) = GROUP MAX in(c, EnterpriseData e) AND NOT skip(c, e);
+notEmpty = ABSTRACT BOOLEAN (Configuration, EnterpriseData);
+in (Configuration c) = GROUP MAX in(c, EnterpriseData e) AND NOT skip(c, e) AND notEmpty(c, e);
 empty (Configuration c) = c IS Configuration AND NOT in(c); 
 emptyBody15 (Configuration c) = '' IF empty(c) AND (version(c) = AvailableVersion.ver1_5 OR NOT version(c));
 emptyBody16 (Configuration c) = '' IF empty(c) AND version(c) = AvailableVersion.ver1_6; 
@@ -219,30 +220,24 @@ receiveMessage 'Получить' (Configuration c) {
 }
 
 overSend ABSTRACT LIST (Configuration);
-beforeSend ABSTRACT LIST (Configuration);
-skipSend = DATA LOCAL BOOLEAN ();
 
 sendMessage 'Передать' (Configuration c) {
-    skipSend() <- NULL;
-    beforeSend(c);
-    IF skipSend() THEN MESSAGE 'Нет объектов для передачи';
-    ELSE
-        NEWSESSION {
-            TRY {
-                idSended(c) <- messageNo(c) (+) 1;
-                LOCAL f = XMLFILE ();
-                EXPORT sendMessage OBJECTS configuration = c XML TO f;
-                WRITE f() TO sendPath(c);
-                isSended(c) <- TRUE;
-                packet(c, EnterpriseData e) <- messageNo(c) WHERE in(c, e);
-                overSend(c);
-                APPLY;
-            } CATCH {
-                MESSAGE System.messageCaughtException();
-                NEWSESSION APPLY { isSended(c) <- NULL; }
-                CANCEL;
-            }
+    NEWSESSION {
+        TRY {
+            idSended(c) <- messageNo(c) (+) 1;
+            LOCAL f = XMLFILE ();
+            EXPORT sendMessage OBJECTS configuration = c XML TO f;
+            WRITE f() TO sendPath(c);
+            isSended(c) <- TRUE;
+            packet(c, EnterpriseData e) <- messageNo(c) WHERE in(c, e);
+            overSend(c);
+            APPLY;
+        } CATCH {
+            MESSAGE System.messageCaughtException();
+            NEWSESSION APPLY { isSended(c) <- NULL; }
+            CANCEL;
         }
+    }
 }
 
 FORM objectExchange 'Настройки синхронизации'
@@ -517,7 +512,7 @@ META extDeleteObject(objtype, caption, ver)
         PROPERTIES(objtype##Deleted, configuration) IN link IN linkInLink sendUid EXTID caption
         FILTERS sendUid(objtype##Deleted, configuration), EnterpriseData.isDeleted(objtype##Deleted)
         
-        FILTERS in(configuration, objtype##Deleted)
+        FILTERS in(configuration, objtype##Deleted), NOT skip(configuration, objtype##Deleted)
     ;
 END
 
