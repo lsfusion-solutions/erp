@@ -104,9 +104,10 @@ skip = ABSTRACT VALUE OVERRIDE FIRST BOOLEAN (Configuration, EnterpriseData);
  
 WHEN SET(inSending(Configuration c, EnterpriseData e) AND NOT packet(c, e) <= idTicket(c)) AND NOT date(e, c) < dateStartExchange(c) DO in(c, e) <- inSending(c, e);
 
-in (Configuration c) = GROUP MAX EnterpriseData e IF in(c,e);
+in (Configuration c) = GROUP MAX in(c, EnterpriseData e) AND NOT skip(c, e);
 empty (Configuration c) = c IS Configuration AND NOT in(c); 
-emptyBody (Configuration c) = '' IF empty(c); 
+emptyBody15 (Configuration c) = '' IF empty(c) AND (version(c) = AvailableVersion.ver1_5 OR NOT version(c));
+emptyBody16 (Configuration c) = '' IF empty(c) AND version(c) = AvailableVersion.ver1_6; 
 
 GROUP header EXTID 'msg:Header';
 GROUP confirmation EXTID 'msg:Confirmation' : header;
@@ -166,7 +167,8 @@ FORM sendMessage FORMEXTID 'Message'
     
     PROPERTIES (configuration) IN header prefix EXTID 'msg:Prefix'
     
-    PROPERTIES emptyBody(configuration) EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5:Body'
+    PROPERTIES emptyBody15(configuration) EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.5:Body'
+    PROPERTIES emptyBody16(configuration) EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.6:Body'
 ;
 
 idReceivedTicket = DATA LOCAL INTEGER ();
@@ -564,8 +566,8 @@ META extDocument(doctype, caption, ver, deleteCaption)
     }
         
     @defProp(company, 'Организация', Company, ###doctype);
-    skip = ABSTRACT BOOLEAN (###doctype, Configuration);
-    skip (Configuration configuration, ###doctype type) += skip(type, configuration);
+//    skip = ABSTRACT BOOLEAN (###doctype, Configuration);
+//    skip (Configuration configuration, ###doctype type) += skip(type, configuration);
     
     EXTEND FORM sendMessage
         OBJECTS doctype = ###doctype EXTID 'Документ.'##caption IN bodySend###ver
@@ -576,7 +578,7 @@ META extDocument(doctype, caption, ver, deleteCaption)
         PROPERTIES(company###doctype, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
         FILTERS company###doctype = company(doctype, configuration)
         
-        FILTERS in(configuration, doctype) AND NOT skip(doctype, configuration)
+        FILTERS in(configuration, doctype) AND NOT skip(configuration, doctype)
     ;
 
     uid###doctype = DATA LOCAL ISTRING[36](INTEGER);
