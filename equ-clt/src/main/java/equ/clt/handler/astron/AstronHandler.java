@@ -320,7 +320,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             List<JSONObject> artExtGrpJsonTable = jsonTables.get(ARTEXTGRP);
                             if(!artExtGrpJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, ARTEXTGRP);
-                                exportArtExtGrp(conn, artExtGrpJsonTable, updateNum);
+                                exportArtExtGrp(conn, params, artExtGrpJsonTable, updateNum);
                                 outputUpdateNums.put(ARTEXTGRP, updateNum);
                             }
 
@@ -593,17 +593,32 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportArtExtGrp(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+    private void exportArtExtGrp(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"ARTID"};
         String[] columns = getColumns(new String[]{"ARTID", "EXTGRPID", "DELFLAG"}, updateNum);
-        try (PreparedStatement ps = getPreparedStatement(conn, ARTEXTGRP, columns)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, ARTEXTGRP, columns, keys)) {
+            int offset = columns.length + keys.length;
+
             for (JSONObject jsonObject : jsonTable) {
-                setObject(ps, jsonObject.getInt("idItem"), 1); //добавляется вручную на этапе чтения json
-                setObject(ps, jsonObject.getInt("extGrpId"), 2);
-                setObject(ps, 0, 3);
-                if (updateNum != null) {
-                    setObject(ps, updateNum, 4);
-                }
-                ps.addBatch();
+                    Integer artId = jsonObject.getInt("idItem"); //добавляется вручную на этапе чтения json
+                    Integer extGrpId = jsonObject.getInt("extGrpId");
+                    if (params.pgsql) {
+                        setObject(ps, artId, 1); //ARTID
+                        setObject(ps, extGrpId, 2); //EXTGRPID
+                        setObject(ps, 0, 3); //DELFLAG
+                        if (updateNum != null) {
+                            setObject(ps, updateNum, 4); //UPDATENUM
+                        }
+                    } else {
+                        setObject(ps, extGrpId, 1, offset); //EXTGRPID
+                        setObject(ps, 0, 2, offset); //DELFLAG
+                        if (updateNum != null) {
+                            setObject(ps, updateNum, 3, offset); //UPDATENUM
+                        }
+
+                        setObject(ps, artId, updateNum != null ? 4 : 3, keys.length); //ARTID
+                    }
+                    ps.addBatch();
             }
             executeAndCommitBatch(ps, conn);
         }
