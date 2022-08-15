@@ -50,6 +50,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.rmi.RemoteException;
+import java.rmi.server.ServerNotActiveException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -62,6 +63,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static java.rmi.server.RemoteServer.getClientHost;
 import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 
@@ -321,6 +323,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return MachineryExchangeEquipmentServer.readCashierInfoList(this);
     }
 
+    private void logSourceHost(String requestType) {
+        try {
+            logger.info(requestType + " request from host: " + getClientHost());
+        } catch (ServerNotActiveException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
     @Override
     public boolean enabledStopListInfo() {
         return StopListEquipmentServer.enabledStopListInfo();
@@ -328,6 +338,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<StopListInfo> readStopListInfo() throws SQLException {
+        logSourceHost("readStopList");
         return StopListEquipmentServer.readStopListInfo(this);
     }
 
@@ -1977,6 +1988,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws SQLException {
+        logSourceHost("readTransaction");
         try (DataSession session = createSession()) {
             List<TransactionInfo> transactionList = new ArrayList<>();
 
