@@ -96,7 +96,8 @@ valueVAT 'НДС' (MarketingInvoice i) = (OVERRIDE (20 IF VATSum(i) > 0), 0);
 
 isReverse 'Обратный' (MarketingInvoiceDetail d) = isReverse(contractMarketing(condition(d)));
 
-averageMarketingPercent 'Процент маркетинга' (MarketingInvoice i) = 
+userAverageMarketingPercent 'Процент маркетинга (перегр.)' = ABSTRACT NUMERIC[7,2] (MarketingInvoice);
+averageMarketingPercent 'Процент маркетинга' (MarketingInvoice i) = OVERRIDE userAverageMarketingPercent(i),
     NUMERIC[7,2] (100 * overSumVAT(i) / [GROUP SUM sum(MarketingInvoiceDetail d) BY marketingInvoice(d)](i));
 
 sumCalcBase 'Сумма (согл. базе расчета)' = GROUP SUM (sum(MarketingInvoiceDetail d) (-) returnSum(d)) BY marketingInvoice(d);
