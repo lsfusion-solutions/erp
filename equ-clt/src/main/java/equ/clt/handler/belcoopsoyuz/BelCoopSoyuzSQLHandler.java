@@ -326,7 +326,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                 BigDecimal sum = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
                                 currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), numberReceipt,
                                         sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, null, null, null, null, null, barcodeItem, null, null, null, quantity, priceReceiptDetail,
-                                        sum, discountSumReceiptDetail, null, null, numberReceiptDetail, null, section, null, cashRegister));
+                                        sum, discountSumReceiptDetail, null, null, numberReceiptDetail, null, section, null, null, cashRegister));
                                 currentReadRecordSet.add(id);
                             } else {
                                 if (!unknownSections.contains(section)) {

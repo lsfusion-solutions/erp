@@ -1,14 +1,19 @@
 package equ.srv;
 
 import equ.api.GiftCard;
+import equ.api.Payment;
 import equ.api.SalesInfo;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.BusinessLogics;
+import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.logics.BusinessLogics;
+import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.physics.dev.integration.service.*;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -16,7 +21,7 @@ import java.util.*;
 
 public class EquipmentServerImport {
 
-    public static void importPaymentMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, int start, int finish, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPayments(BusinessLogics BL, DataSession session, ExecutionStack stack, List<SalesInfo> data, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ScriptingLogicsModule zReportLM = BL.getModule("ZReport");
         if (zReportLM != null) {
 
@@ -54,130 +59,106 @@ public class EquipmentServerImport {
             fields.add(numberPaymentField);
 
             List<List<Object>> dataPayment = new ArrayList<>();
-            for (int i = start; i < finish; i++) {
-                dataPayment.addAll(getPayments(salesInfoList.get(i), options));
-            }
-
-            if (!dataPayment.isEmpty())
-                new IntegrationService(session, new ImportTable(fields, dataPayment), keys, props).synchronize(true);
-        }
-    }
-
-    public static void importPayment(BusinessLogics BL, DataSession session, List<SalesInfo> data, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        ScriptingLogicsModule zReportLM = BL.getModule("ZReport");
-        if (zReportLM != null) {
-
-            List<ImportProperty<?>> props = new ArrayList<>();
-            List<ImportField> fields = new ArrayList<>();
-            List<ImportKey<?>> keys = new ArrayList<>();
-
-            ImportField idPaymentField = new ImportField(zReportLM.findProperty("id[Payment]"));
-            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("payment[STRING[100]]").getMapping(idPaymentField));
-            keys.add(paymentKey);
-            props.add(new ImportProperty(idPaymentField, zReportLM.findProperty("id[Payment]").getMapping(paymentKey)));
-            fields.add(idPaymentField);
-
-            ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
-            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptField));
-            keys.add(receiptKey);
-            props.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[Payment]").getMapping(paymentKey),
-                    zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
-            fields.add(idReceiptField);
-
-            ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
-            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[BPSTRING[10]]").getMapping(sidTypePaymentField));
-            keys.add(paymentTypeKey);
-            paymentTypeKey.skipKey = true;
-            props.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
-                    zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
-            fields.add(sidTypePaymentField);
-
-            ImportField sumPaymentField = new ImportField(zReportLM.findProperty("sum[Payment]"));
-            props.add(new ImportProperty(sumPaymentField, zReportLM.findProperty("sum[Payment]").getMapping(paymentKey)));
-            fields.add(sumPaymentField);
-
-            ImportField numberPaymentField = new ImportField(zReportLM.findProperty("number[Payment]"));
-            props.add(new ImportProperty(numberPaymentField, zReportLM.findProperty("number[Payment]").getMapping(paymentKey)));
-            fields.add(numberPaymentField);
-
-            List<List<Object>> dataPayment = new ArrayList<>();
+            JSONObject extraFields = new JSONObject();
+            Set<String> usedPaymentIds = new HashSet<>();
             for (SalesInfo sale : data) {
-                dataPayment.addAll(getPayments(sale, options));
+                String idReceipt = EquipmentServer.getIdReceipt(sale, options);
+                if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
+                    dataPayment.add(Arrays.asList(getPaymentId(idReceipt, "1"), idReceipt, "cash", sale.sumCash, 1));
+                }
+                if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
+                    dataPayment.add(Arrays.asList(getPaymentId(idReceipt, "2"), idReceipt, "card", sale.sumCard, 2));
+                }
+                if (sale.payments != null) {
+                    //из-за того, что у платежей giftCard id начинаются с 3
+                    int paymentNumber = 2 + (sale.sumGiftCardMap != null ? sale.sumGiftCardMap.size() : 0);
+                    for (Payment payment : sale.payments) {
+                        String paymentType = payment.type;
+                        String paymentId = getPaymentId(idReceipt, paymentType);
+                        dataPayment.add(Arrays.asList(paymentId, idReceipt, paymentType, payment.sum, ++paymentNumber));
+
+                        if(payment.extraFields != null && !usedPaymentIds.contains(paymentId)) {
+                            for (Map.Entry<String, Object> extraField : payment.extraFields.entrySet()) {
+                                JSONArray dataArray = extraFields.optJSONArray(extraField.getKey());
+                                if (dataArray == null) {
+                                    dataArray = new JSONArray();
+                                }
+                                JSONObject fieldReceipt = new JSONObject();
+                                fieldReceipt.put("id", paymentId);
+                                fieldReceipt.put("value", extraField.getValue());
+                                dataArray.put(fieldReceipt);
+
+                                extraFields.put(extraField.getKey(), dataArray);
+                            }
+                        }
+                        usedPaymentIds.add(paymentId);
+                    }
+                }
             }
 
-            if (!dataPayment.isEmpty())
+            if(!dataPayment.isEmpty()) {
                 new IntegrationService(session, new ImportTable(fields, dataPayment), keys, props).synchronize(true);
+
+                ScriptingLogicsModule cashRegisterLM = BL.getModule("EquipmentCashRegister");
+                if (!extraFields.isEmpty() && cashRegisterLM.findProperty("executeProcessPaymentExtraFields[]").read(session) != null) {
+                    cashRegisterLM.findAction("processPaymentExtraFields[STRING]").execute(session, stack, new DataObject(extraFields.toString()));
+                }
+            }
         }
     }
 
-    private static List<List<Object>> getPayments(SalesInfo sale, EquipmentServer.EquipmentServerOptions options) {
-        List<List<Object>> result = new ArrayList<>();
-        String idReceipt = EquipmentServer.getIdReceipt(sale, options);
-        if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
-            result.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
-        }
-        if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
-            result.add(Arrays.asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
-        }
-        //из-за того, что у платежей giftCard id начинаются с 3
-        if (sale.customPaymentMap != null && !sale.customPaymentMap.isEmpty()) {
-            int paymentNumber = 2 + (sale.sumGiftCardMap != null ? sale.sumGiftCardMap.size() : 0);
-            for (Map.Entry<String, BigDecimal> customPayment : sale.customPaymentMap.entrySet()) {
-                String paymentType = customPayment.getKey();
-                result.add(Arrays.asList(idReceipt + "_" + paymentType, idReceipt, paymentType, customPayment.getValue(), ++paymentNumber));
-            }
-        }
-        return result;
+    private static String getPaymentId(String idReceipt, String paymentType) {
+        return idReceipt + "_" + paymentType;
     }
 
     public static void importPaymentGiftCardMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, int start, int finish, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ScriptingLogicsModule giftCardLM = BL.getModule("GiftCard");
         if (giftCardLM != null) {
 
-            List<ImportProperty<?>> paymentGiftCardProperties = new ArrayList<>();
-            List<ImportField> paymentGiftCardFields = new ArrayList<>();
-            List<ImportKey<?>> paymentGiftCardKeys = new ArrayList<>();
+            List<ImportProperty<?>> paymentProperties = new ArrayList<>();
+            List<ImportField> paymentFields = new ArrayList<>();
+            List<ImportKey<?>> paymentKeys = new ArrayList<>();
 
-            ImportField idPaymentGiftCardField = new ImportField(giftCardLM.findProperty("id[Payment]"));
-            ImportKey<?> paymentGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentGiftCard"), giftCardLM.findProperty("payment[STRING[100]]").getMapping(idPaymentGiftCardField));
-            paymentGiftCardKeys.add(paymentGiftCardKey);
-            paymentGiftCardProperties.add(new ImportProperty(idPaymentGiftCardField, giftCardLM.findProperty("id[Payment]").getMapping(paymentGiftCardKey)));
-            paymentGiftCardFields.add(idPaymentGiftCardField);
+            ImportField idPaymentField = new ImportField(giftCardLM.findProperty("id[Payment]"));
+            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentGiftCard"), giftCardLM.findProperty("payment[STRING[100]]").getMapping(idPaymentField));
+            paymentKeys.add(paymentKey);
+            paymentProperties.add(new ImportProperty(idPaymentField, giftCardLM.findProperty("id[Payment]").getMapping(paymentKey)));
+            paymentFields.add(idPaymentField);
 
-            ImportField idReceiptGiftCardField = new ImportField(giftCardLM.findProperty("id[Receipt]"));
-            ImportKey<?> receiptGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("Receipt"), giftCardLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptGiftCardField));
-            paymentGiftCardKeys.add(receiptGiftCardKey);
-            paymentGiftCardProperties.add(new ImportProperty(idReceiptGiftCardField, giftCardLM.findProperty("receipt[Payment]").getMapping(paymentGiftCardKey),
-                    giftCardLM.object(giftCardLM.findClass("Receipt")).getMapping(receiptGiftCardKey)));
-            paymentGiftCardFields.add(idReceiptGiftCardField);
+            ImportField idReceiptField = new ImportField(giftCardLM.findProperty("id[Receipt]"));
+            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("Receipt"), giftCardLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptField));
+            paymentKeys.add(receiptKey);
+            paymentProperties.add(new ImportProperty(idReceiptField, giftCardLM.findProperty("receipt[Payment]").getMapping(paymentKey),
+                    giftCardLM.object(giftCardLM.findClass("Receipt")).getMapping(receiptKey)));
+            paymentFields.add(idReceiptField);
 
-            ImportField sidTypePaymentGiftCardField = new ImportField(giftCardLM.findProperty("sid[PaymentType]"));
-            ImportKey<?> paymentGiftCardTypeKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentType"), giftCardLM.findProperty("typePaymentSID[BPSTRING[10]]").getMapping(sidTypePaymentGiftCardField));
-            paymentGiftCardKeys.add(paymentGiftCardTypeKey);
-            paymentGiftCardProperties.add(new ImportProperty(sidTypePaymentGiftCardField, giftCardLM.findProperty("paymentType[Payment]").getMapping(paymentGiftCardKey),
-                    giftCardLM.object(giftCardLM.findClass("PaymentType")).getMapping(paymentGiftCardTypeKey)));
-            paymentGiftCardFields.add(sidTypePaymentGiftCardField);
+            ImportField sidTypePaymentField = new ImportField(giftCardLM.findProperty("sid[PaymentType]"));
+            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentType"), giftCardLM.findProperty("typePaymentSID[BPSTRING[10]]").getMapping(sidTypePaymentField));
+            paymentKeys.add(paymentTypeKey);
+            paymentProperties.add(new ImportProperty(sidTypePaymentField, giftCardLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
+                    giftCardLM.object(giftCardLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
+            paymentFields.add(sidTypePaymentField);
 
-            ImportField sumPaymentGiftCardField = new ImportField(giftCardLM.findProperty("sum[Payment]"));
-            paymentGiftCardProperties.add(new ImportProperty(sumPaymentGiftCardField, giftCardLM.findProperty("sum[Payment]").getMapping(paymentGiftCardKey)));
-            paymentGiftCardFields.add(sumPaymentGiftCardField);
+            ImportField sumPaymentField = new ImportField(giftCardLM.findProperty("sum[Payment]"));
+            paymentProperties.add(new ImportProperty(sumPaymentField, giftCardLM.findProperty("sum[Payment]").getMapping(paymentKey)));
+            paymentFields.add(sumPaymentField);
 
-            ImportField numberPaymentGiftCardField = new ImportField(giftCardLM.findProperty("number[Payment]"));
-            paymentGiftCardProperties.add(new ImportProperty(numberPaymentGiftCardField, giftCardLM.findProperty("number[Payment]").getMapping(paymentGiftCardKey)));
-            paymentGiftCardFields.add(numberPaymentGiftCardField);
+            ImportField numberPaymentField = new ImportField(giftCardLM.findProperty("number[Payment]"));
+            paymentProperties.add(new ImportProperty(numberPaymentField, giftCardLM.findProperty("number[Payment]").getMapping(paymentKey)));
+            paymentFields.add(numberPaymentField);
 
             ImportField idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
             ImportKey<?> giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
-            paymentGiftCardKeys.add(giftCardKey);
-            paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
-            paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
-            paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("giftCard[PaymentGiftCard]").getMapping(paymentGiftCardKey),
+            paymentKeys.add(giftCardKey);
+            paymentProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
+            paymentProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
+            paymentProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("giftCard[PaymentGiftCard]").getMapping(paymentKey),
                     giftCardLM.object(giftCardLM.findClass("GiftCard")).getMapping(giftCardKey)));
-            paymentGiftCardFields.add(idGiftCardField);
+            paymentFields.add(idGiftCardField);
 
             ImportField priceGiftCardField = new ImportField(giftCardLM.findProperty("price[GiftCard]"));
-            paymentGiftCardProperties.add(new ImportProperty(priceGiftCardField, giftCardLM.findProperty("price[GiftCard]").getMapping(giftCardKey), true));
-            paymentGiftCardFields.add(priceGiftCardField);
+            paymentProperties.add(new ImportProperty(priceGiftCardField, giftCardLM.findProperty("price[GiftCard]").getMapping(giftCardKey), true));
+            paymentFields.add(priceGiftCardField);
 
             List<List<Object>> dataPaymentGiftCard = new ArrayList<>();
             Set<String> ids = new HashSet();
@@ -201,8 +182,8 @@ public class EquipmentServerImport {
             }
 
             if (!dataPaymentGiftCard.isEmpty())
-                new IntegrationService(session, new ImportTable(paymentGiftCardFields, dataPaymentGiftCard),
-                        paymentGiftCardKeys, paymentGiftCardProperties).synchronize(true);
+                new IntegrationService(session, new ImportTable(paymentFields, dataPaymentGiftCard),
+                        paymentKeys, paymentProperties).synchronize(true);
         }
     }
 

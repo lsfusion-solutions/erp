@@ -2179,17 +2179,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             BigDecimal prologSum = BigDecimal.ZERO;
             String idDiscountCard = null;
 
-            BigDecimal sumCash = null;
-            BigDecimal sumCard = null;
             Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
-            Map<String, BigDecimal> customPaymentsMap = new HashMap<>();
+            List<Payment> payments = new ArrayList<>();
             String idSaleReceiptReceiptReturnDetail = null;
 
             Integer prevSAreaId = null;
             Integer prevNppCashRegister = null;
             Integer prevNumberReceipt = null;
-
-            List<String> paymentCardNumbers = new ArrayList<>();
 
             if(enableSqlLog) {
                 astronSqlLogger.info("readSalesInfo");
@@ -2290,11 +2286,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 currentUniqueReceiptId = uniqueReceiptId;
                                 uniqueReceiptIdNumberReceiptMap.put(uniqueReceiptId, numberReceipt);
 
-                                sumCash = null;
-                                sumCard = null;
                                 sumGiftCardMap = new HashMap<>();
-                                customPaymentsMap = new HashMap<>();
-                                paymentCardNumbers = new ArrayList<>();
+                                payments = new ArrayList<>();
                                 if (prologSum.compareTo(BigDecimal.ZERO) == 0) {
                                     salesInfoList.addAll(curSalesInfoList);
                                     recordList.addAll(curRecordList);
@@ -2326,16 +2319,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     BigDecimal sum = safeDivide(salesSum, 100);
                                     if (isReturn) sum = safeNegate(sum);
                                     if (customPaymentType) {
-                                        BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(salesType));
-                                        customPaymentsMap.put(String.valueOf(salesType), safeAdd(customPaymentSum, sum));
+                                        payments.add(new Payment(salesType, sum));
                                     } else {
                                         String[] salesBarcs = trimToEmpty(salesBarc).split(":");
                                         switch (salesType) {
                                             case 1:
+                                                String cardNumber = null;
                                                 if (salesBarcs.length > 0) {
-                                                    paymentCardNumbers.add(salesBarcs[0]);
+                                                    cardNumber = salesBarcs[0];
                                                 }
-                                                sumCard = safeAdd(sumCard, sum);
+                                                payments.add(Payment.getCard(sum, "paymentCard", cardNumber));
                                                 break;
                                             case 2:
                                                 String numberGiftCard = salesBarcs.length > 0 ? salesBarcs[0] : null;
@@ -2345,7 +2338,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                                 break;
                                             case 0:
                                             default:
-                                                sumCash = safeAdd(sumCash, sum);
+                                                payments.add(Payment.getCash(sum));
                                                 break;
                                         }
                                     }
@@ -2365,7 +2358,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
                                 sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
 
-                                receiptDetailExtraFields.put("paymentCard", StringUtils.join(paymentCardNumbers, ";"));
                                 if(bonusPaymentAsDiscount) {
                                     BigDecimal salesBonusValue = safeDivide(salesBonus, 100); //сумма социальной скидки для позиции
                                     if(salesBonusValue.compareTo(BigDecimal.ZERO) > 0) {
@@ -2374,9 +2366,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 }
 
                                 curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                                        idEmployee, nameEmployee, null, sumCard, sumCash, sumGiftCardMap, customPaymentsMap, idBarcode, idItem, null,
+                                        idEmployee, nameEmployee, null, null, null, sumGiftCardMap, payments, idBarcode, idItem, null,
                                         idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, null, discountSumReceiptDetail,
-                                        null, idDiscountCard, salesNum, null, null, false, receiptDetailExtraFields, cashRegister));
+                                        null, idDiscountCard, salesNum, null, null, false, null, receiptDetailExtraFields, cashRegister));
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                                 prologSum = safeSubtract(prologSum, salesSum);
                                 break;

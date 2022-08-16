@@ -932,11 +932,10 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                 }
                              }
 
-                            BigDecimal sumCard = BigDecimal.ZERO;
                             BigDecimal sumCash = BigDecimal.ZERO;
                             BigDecimal sumGiftCard = BigDecimal.ZERO;
                             Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
-                            Map<String, BigDecimal> customPaymentMap = new HashMap<>();
+                            List<Payment> payments = new ArrayList<>();
                             List<Element> paymentsList = purchaseNode.getChildren("payments");
                             for (Element paymentNode : paymentsList) {
 
@@ -947,7 +946,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                         BigDecimal sum = readBigDecimalXMLAttribute(paymentEntryNode, "amount");
                                         sum = (sum != null && !isSale) ? sum.negate() : sum;
                                         if(customPayments.contains(paymentType)) {
-                                            customPaymentMap.put(paymentType, HandlerUtils.safeAdd(customPaymentMap.get(paymentType), sum));
+                                            payments.add(new Payment(paymentType, sum));
                                         } else {
                                             switch (paymentType) {
                                                 case "CashPaymentEntity":
@@ -957,8 +956,10 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                                     sumCash = HandlerUtils.safeSubtract(sumCash, sum);
                                                     break;
                                                 case "ExternalBankTerminalPaymentEntity":
+                                                    payments.add(Payment.getCard(sum));
+                                                    break;
                                                 case "BankCardPaymentEntity":
-                                                    sumCard = HandlerUtils.safeAdd(sumCard, sum);
+                                                    payments.add(Payment.getCard(sum, "paymentCard", getPluginPropertyValue(paymentEntryNode, "card.number")));
                                                     break;
                                                 case "GiftCardPaymentEntity": {
                                                     List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
@@ -984,24 +985,14 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                                     break;
                                                 }
                                                 case "BonusCardPaymentEntity": {
-                                                    List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
-                                                    String giftCardNumber = null;
-                                                    for (Element pluginProperty : pluginProperties) {
-                                                        String keyPluginProperty = pluginProperty.getAttributeValue("key");
-                                                        String valuePluginProperty = pluginProperty.getAttributeValue("value");
-                                                        if (notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
-                                                            if (keyPluginProperty.equals("card.number")) {
-                                                                giftCardNumber = valuePluginProperty;
-                                                            }
-                                                        }
-                                                    }
+                                                    String giftCardNumber = getPluginPropertyValue(paymentEntryNode, "card.number");
                                                     if (giftCardNumber != null) {
                                                         sumGiftCardMap.put(giftCardNumber, new GiftCard(sum));
                                                     } else sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
                                                     break;
                                                 }
                                                 case "by.lwo.oplati.payment": {
-                                                    customPaymentMap.put(oplatiPaymentType, HandlerUtils.safeAdd(customPaymentMap.get(oplatiPaymentType), sum));
+                                                    payments.add(new Payment(oplatiPaymentType, sum));
                                                 }
                                             }
                                         }
@@ -1127,10 +1118,10 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                             if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                 sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                             currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
-                                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
-                                                    customPaymentMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
+                                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, null, sumCash, sumGiftCardMap,
+                                                    payments, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                                     discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
-                                                    useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptDetailExtraFields, cashRegisterByKey));
+                                                    useSectionAsDepartNumber ? positionDepartNumber : null, false, null, receiptDetailExtraFields, cashRegisterByKey));
                                         }
                                     }
                                     count++;
@@ -1138,18 +1129,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             }
 
-                            //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                            BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
-                            for(GiftCard giftCard : sumGiftCardMap.values()) {
-                                sum = HandlerUtils.safeAdd(sum, giftCard.sum);
-                            }
-                            for(BigDecimal customPayment : customPaymentMap.values()) {
-                                sum = HandlerUtils.safeAdd(sum, customPayment);
-                            }
-                            if (sum == null || sum.compareTo(currentPaymentSum) < 0)
-                                for (SalesInfo salesInfo : currentSalesInfoList) {
-                                    salesInfo.sumCash = HandlerUtils.safeSubtract(HandlerUtils.safeSubtract(currentPaymentSum, sumCard), sumGiftCard);
-                                }
+                            fixSumCash(sumCash, sumGiftCard, sumGiftCardMap, payments, currentPaymentSum, currentSalesInfoList);
 
                             salesInfoList.addAll(currentSalesInfoList);
                         }

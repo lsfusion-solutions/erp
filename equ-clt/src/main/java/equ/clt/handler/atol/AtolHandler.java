@@ -454,7 +454,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                         dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null,
                                         null, null, null, barcodeItem, null, itemObject, null, quantityReceiptDetail, priceReceiptDetail,
                                         sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, file.getName(),
-                                        null, null, cashRegister));
+                                        null, null, null, cashRegister));
                         } else if (isCancelDocument) {
                             cancelReceiptSet.add(numberReceipt);
                         } else {

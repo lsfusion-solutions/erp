@@ -170,17 +170,17 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
 
     //Atol, Belcoopsoyuz, HTC, Kristal, Maxishop, UKM4
     public static SalesInfo getSalesInfo(Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, LocalDate dateZReport, LocalTime timeZReport, Integer numberReceipt, LocalDate dateReceipt, LocalTime timeReceipt, String idEmployee, String firstNameContact,
-                                     BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, Map<String, BigDecimal> customPaymentMap, String barcodeItem,
+                                     BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, List<Payment> payments, String barcodeItem,
                                      String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
                                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                                     String idSection, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
+                                     String idSection, Map<String, Object> receiptExtraFields, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
         sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
         return  new SalesInfo(false, false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, null, sumCard, sumCash, sumGiftCardMap, customPaymentMap, barcodeItem, idItem, itemObject,
+                idEmployee, firstNameContact, null, sumCard, sumCash, sumGiftCardMap, payments, barcodeItem, idItem, itemObject,
                 idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,
-                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, receiptDetailExtraFields, cashRegisterInfo);
+                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, receiptExtraFields, receiptDetailExtraFields, cashRegisterInfo);
     }
 
     @Override
@@ -201,15 +201,15 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     //Artix, Astron, Dreamkas, EQS, Kristal10, UKM4MySQL
     public static SalesInfo getSalesInfo(boolean isGiftCard, boolean isReturnGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, LocalDate dateZReport,
                                          LocalTime timeZReport, Integer numberReceipt, LocalDate dateReceipt, LocalTime timeReceipt, String idEmployee, String firstNameContact,
-                                         String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, Map<String, BigDecimal> customPaymentMap,
+                                         String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, List<Payment> payments,
                                          String barcodeItem, String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                                          BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
                                          BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                                         String idSection, boolean skipReceipt, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
+                                         String idSection, boolean skipReceipt, Map<String, Object> receiptExtraFields, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
         return new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, customPaymentMap, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
+                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, payments, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
                 priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename,
-                idSection, skipReceipt, receiptDetailExtraFields, cashRegisterInfo);
+                idSection, skipReceipt, receiptExtraFields, receiptDetailExtraFields, cashRegisterInfo);
     }
 
     @Override

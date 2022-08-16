@@ -540,7 +540,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         int start = 0;
         while (start < salesInfoList.size()) {
-            int finish = (start + options.numberAtATime) < salesInfoList.size() ? (start + options.numberAtATime) : salesInfoList.size();
+            int finish = Math.min((start + options.numberAtATime), salesInfoList.size());
 
             Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
             if (lastNumberReceipt != null) {
@@ -938,11 +938,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (giftCardLM != null)
                 new IntegrationService(session, new ImportTable(giftCardFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
 
-            EquipmentServerImport.importPaymentMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, options);
+            EquipmentServerImport.importPayments(getBusinessLogics(), session, stack, salesInfoList.subList(start, finish), options);
 
             EquipmentServerImport.importPaymentGiftCardMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, options);
 
-            processReceiptDetailExtraFields(session, stack, rowsData);
+            processExtraFields(session, stack, rowsData);
 
             session.setKeepLastAttemptCountMap(true);
             String result = session.applyMessage(getBusinessLogics(), stack);
@@ -1328,11 +1328,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     new IntegrationService(session, new ImportTable(giftCardImportFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
                 }
 
-                EquipmentServerImport.importPayment(getBusinessLogics(), session, data, options);
+                EquipmentServerImport.importPayments(getBusinessLogics(), session, stack, data, options);
 
                 EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, options);
 
-                processReceiptDetailExtraFields(session, stack, rowsData);
+                processExtraFields(session, stack, rowsData);
 
                 session.setKeepLastAttemptCountMap(true);
                 String result = session.applyMessage(getBusinessLogics(), stack);
@@ -1785,6 +1785,25 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         List<List<Object>> dataGiftCard = new ArrayList<>();
         Map<Object, String> barcodeMap = new HashMap<>();
 
+        JSONObject receiptExtraFields = new JSONObject();
+        for (int i = start; i < finish; i++) {
+            SalesInfo sale = data.get(i);
+            if(sale.receiptExtraFields != null) {
+                for(Map.Entry<String, Object> receiptExtraField : sale.receiptExtraFields.entrySet()) {
+                    JSONArray dataArray = receiptExtraFields.optJSONArray(receiptExtraField.getKey());
+                    if(dataArray == null) {
+                        dataArray = new JSONArray();
+                    }
+                    JSONObject fieldReceipt = new JSONObject();
+                    fieldReceipt.put("id", getIdReceipt(sale, options));
+                    fieldReceipt.put("value", receiptExtraField.getValue());
+                    dataArray.put(fieldReceipt);
+
+                    receiptExtraFields.put(receiptExtraField.getKey(), dataArray);
+                }
+            }
+        }
+
         JSONObject receiptDetailExtraFields = new JSONObject();
         for (int i = start; i < finish; i++) {
             SalesInfo sale = data.get(i);
@@ -1852,20 +1871,23 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 ignoredReceiptDetailCount++;
             }
         }
-        return new RowsData(dataSale, dataReturn, dataGiftCard, receiptDetailExtraFields, ignoredReceiptDetailCount);
+        return new RowsData(dataSale, dataReturn, dataGiftCard, receiptExtraFields, receiptDetailExtraFields, ignoredReceiptDetailCount);
     }
 
     private class RowsData {
         List<List<Object>> dataSale;
         List<List<Object>> dataReturn;
         List<List<Object>> dataGiftCard;
+        JSONObject receiptExtraFields;
         JSONObject receiptDetailExtraFields;
         int ignoredReceiptDetailCount;
 
-        public RowsData(List<List<Object>> dataSale, List<List<Object>> dataReturn, List<List<Object>> dataGiftCard, JSONObject receiptDetailExtraFields, int ignoredReceiptDetailCount) {
+        public RowsData(List<List<Object>> dataSale, List<List<Object>> dataReturn, List<List<Object>> dataGiftCard,
+                        JSONObject receiptExtraFields, JSONObject receiptDetailExtraFields, int ignoredReceiptDetailCount) {
             this.dataSale = dataSale;
             this.dataReturn = dataReturn;
             this.dataGiftCard = dataGiftCard;
+            this.receiptExtraFields = receiptExtraFields;
             this.receiptDetailExtraFields = receiptDetailExtraFields;
             this.ignoredReceiptDetailCount = ignoredReceiptDetailCount;
         }
@@ -1889,9 +1911,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return new ArrayList<>(groupedSalesInfo.values());
     }
 
-    private void processReceiptDetailExtraFields(DataSession session, ExecutionStack stack, RowsData rowsData) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        if(cashRegisterLM != null && rowsData.receiptDetailExtraFields != null && cashRegisterLM.findProperty("executeProcessReceiptDetailExtraFields[]").read(session) != null) {
-            cashRegisterLM.findAction("processReceiptDetailExtraFields[STRING]").execute(session, stack, new DataObject(rowsData.receiptDetailExtraFields.toString()));
+    private void processExtraFields(DataSession session, ExecutionStack stack, RowsData rowsData) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if(cashRegisterLM != null) {
+            if (rowsData.receiptExtraFields != null && cashRegisterLM.findProperty("executeProcessReceiptExtraFields[]").read(session) != null) {
+                cashRegisterLM.findAction("processReceiptExtraFields[STRING]").execute(session, stack, new DataObject(rowsData.receiptExtraFields.toString()));
+            }
+            if (rowsData.receiptDetailExtraFields != null && cashRegisterLM.findProperty("executeProcessReceiptDetailExtraFields[]").read(session) != null) {
+                cashRegisterLM.findAction("processReceiptDetailExtraFields[STRING]").execute(session, stack, new DataObject(rowsData.receiptDetailExtraFields.toString()));
+            }
         }
     }
 

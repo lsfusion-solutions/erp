@@ -1,8 +1,6 @@
 package equ.clt.handler.kristal10;
 
-import equ.api.ItemGroup;
-import equ.api.ItemInfo;
-import equ.api.RequestExchange;
+import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
@@ -449,6 +447,35 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     protected String getWeightCode(CashRegisterInfo cashRegisterByKey) {
         String weightCode = cashRegisterByKey != null ? cashRegisterByKey.weightCodeGroupCashRegister : null;
         return weightCode != null ? weightCode : "21";
+    }
+
+    protected void fixSumCash(BigDecimal sumCash, BigDecimal sumGiftCard, Map<String, GiftCard> sumGiftCardMap, List<Payment> payments, BigDecimal currentPaymentSum, List<SalesInfo> currentSalesInfoList)  {
+        //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
+        BigDecimal sum = sumCash;
+        for(GiftCard giftCard : sumGiftCardMap.values()) {
+            sum = HandlerUtils.safeAdd(sum, giftCard.sum);
+        }
+        BigDecimal sumCard = payments.stream().filter(Payment::isCard).map(payment -> payment.sum).reduce(BigDecimal.ZERO, BigDecimal::add);
+        for(Payment payment : payments) {
+            sum = HandlerUtils.safeAdd(sum, payment.sum);
+        }
+        if (sum == null || sum.compareTo(currentPaymentSum) < 0) {
+            for (SalesInfo salesInfo : currentSalesInfoList) {
+                salesInfo.sumCash = HandlerUtils.safeSubtract(HandlerUtils.safeSubtract(currentPaymentSum, sumCard), sumGiftCard);
+            }
+        }
+    }
+
+    protected String getPluginPropertyValue(Element parentElement, String pluginPropertyKey) {
+        String pluginPropertyValue = null;
+        for (Element pluginProperty : (List<Element>) parentElement.getChildren("plugin-property")) {
+            String key = pluginProperty.getAttributeValue("key");
+            String value = pluginProperty.getAttributeValue("value");
+            if (key != null && key.equals(pluginPropertyKey)) {
+                pluginPropertyValue = value;
+            }
+        }
+        return pluginPropertyValue;
     }
 
     public class DeleteBarcode {

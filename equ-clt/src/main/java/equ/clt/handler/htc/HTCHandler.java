@@ -753,7 +753,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                     salesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt,
                                             dateReceipt, timeReceipt, idEmployee, null, sumCard, sumCash, null, null, barcodeItem, null, null, null, quantityReceiptDetail,
                                             priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
-                                            nameSalesFile, null, null, cashRegister));
+                                            nameSalesFile, null, null, null, cashRegister));
                                 }
                             }
                         }

@@ -1481,11 +1481,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         LocalDate dateZReport = dateTimeShift == null ? dateReceipt : sqlDateToLocalDate(new Date(dateTimeShift));
                                         Time timeZReport = dateTimeShift == null ? timeReceipt : new Time(dateTimeShift);
 
-                                        BigDecimal sumCard = BigDecimal.ZERO;
-                                        BigDecimal sumCash = BigDecimal.ZERO;
                                         BigDecimal sumGiftCard = BigDecimal.ZERO;
                                         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
-                                        Map<String, BigDecimal> customPaymentsMap = new HashMap<>();
+                                        List<Payment> payments = new ArrayList<>();
 
                                         Map<String, BigDecimal> certificatePriceMap = new HashMap<>();
                                         if(giftCardPriceInCertificatePositions) {
@@ -1500,13 +1498,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                         JSONArray moneyPositionsArray = documentObject.getJSONArray("moneyPositions");
 
-                                        List<String> paymentCard = new ArrayList<>();
                                         for (int i = 0; i < moneyPositionsArray.length(); i++) {
                                             JSONObject moneyPosition = moneyPositionsArray.getJSONObject(i);
 
-                                            String cardNum = moneyPosition.optString("cardnum");
-                                            if(!isEmpty(cardNum))
-                                                paymentCard.add(cardNum);
                                             Integer paymentType = moneyPosition.getInt("valCode");
                                             Integer operationCode = moneyPosition.getInt("opCode");
                                             BigDecimal sum = BigDecimal.valueOf(moneyPosition.getDouble("sumB"));
@@ -1515,11 +1509,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))))) {
 
                                                 if(customPayments.contains(paymentType)) {
-                                                    BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(paymentType));
-                                                    customPaymentsMap.put(String.valueOf(paymentType), safeAdd(customPaymentSum, sum));
+                                                    payments.add(new Payment(paymentType, sum));
                                                 } else if (oplatiPayments.contains(paymentType)) {
-                                                    BigDecimal customPaymentSum = customPaymentsMap.get("oplati");
-                                                    customPaymentsMap.put("oplati", safeAdd(customPaymentSum, sum));
+                                                    payments.add(new Payment("oplati", sum));
                                                 } else {
                                                     if (cashPayments.contains(paymentType)) //нал
                                                         paymentType = 1;
@@ -1531,7 +1523,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                                     switch (paymentType) {
                                                         case 4:
-                                                            sumCard = HandlerUtils.safeAdd(sumCard, sum);
+                                                            payments.add(Payment.getCard(sum, "paymentCard", trimToNull(moneyPosition.optString("cardnum"))));
                                                             break;
                                                         case 6:
                                                         case 7:
@@ -1549,7 +1541,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                             break;
                                                         case 1:
                                                         default:
-                                                            sumCash = HandlerUtils.safeAdd(sumCash, sum);
+                                                            payments.add(Payment.getCash(sum));
                                                             break;
                                                     }
                                                 }
@@ -1688,9 +1680,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 if(extendedOptions != null) {
                                                     receiptDetailExtraFields.put("extendedOptions", extendedOptions);
                                                 }
-                                                if (!paymentCard.isEmpty()) {
-                                                    receiptDetailExtraFields.put("paymentCard", StringUtils.join(paymentCard, ';'));
-                                                }
 
                                                 if(fourthPrice) {
                                                     receiptDetailExtraFields.put("priceLevelId", 4);
@@ -1704,9 +1693,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, null,
-                                                        sumCard, sumCash, sumGiftCardMap, customPaymentsMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
+                                                        null, null, sumGiftCardMap, payments, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
-                                                        numberReceiptDetail, fileName, null, isSkip, receiptDetailExtraFields, cashRegister);
+                                                        numberReceiptDetail, fileName, null, isSkip, null, receiptDetailExtraFields, cashRegister);
                                                 salesInfo.detailExtraFields = new HashMap<>();
                                                 if(!bonusesInDiscountPositions) {
                                                     salesInfo.detailExtraFields.put("bonusSum", bonusSum);

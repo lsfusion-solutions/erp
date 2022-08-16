@@ -482,7 +482,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                         dateReceipt, sqlTimeToLocalTime(timeReceipt), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idCashier,
                                         nameCashier, null, null, null, getZeroSumGiftCardMap(), null, idBarcode, idItem, null, null, totalQuantity,
                                         price, sum, discountPercent, discountSum, null, discountCard,
-                                        position, null, idSection, false, null, cashRegister);
+                                        position, null, idSection, false, null, null, cashRegister);
                                 //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
                                 //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
                                 List<SalesInfo> saleReturnEntryList = saleReturnMap.get(idBarcode);
@@ -516,9 +516,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             Integer typePayment = rs.getInt(15); //Payment, Номер оплаты
                             for (SalesInfo salesInfo : currentSalesInfoList) {
                                 if(customPayments.contains(typePayment)) {
-                                    if(salesInfo.customPaymentMap == null)
-                                        salesInfo.customPaymentMap = new HashMap<>();
-                                    salesInfo.customPaymentMap.put(String.valueOf(typePayment), HandlerUtils.safeAdd(salesInfo.customPaymentMap.get(String.valueOf(typePayment)), sumPayment));
+                                    if(salesInfo.payments == null)
+                                        salesInfo.payments = new ArrayList<>();
+                                    salesInfo.payments.add(new Payment(typePayment, sumPayment));
                                 } else {
 
                                     if (typePayment == 0)
@@ -531,9 +531,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                     } else if (typePayment == 3)
                                         salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
                                     else if(typePayment == 5) {
-                                        if(salesInfo.customPaymentMap == null)
-                                            salesInfo.customPaymentMap = new HashMap<>();
-                                        salesInfo.customPaymentMap.put(salaryPaymentType, HandlerUtils.safeAdd(salesInfo.customPaymentMap.get(oplatiPaymentType), sumPayment));
+                                        if(salesInfo.payments == null)
+                                            salesInfo.payments = new ArrayList<>();
+                                        salesInfo.payments.add(new Payment(salaryPaymentType, sumPayment));
                                     } else
                                         salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
 
