@@ -1471,7 +1471,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                         String identifier = documentObject.optString("identifier");
                                         String sourceIdentifier = documentObject.optString("sourceidentifier");
+
+                                        Map<String, Object> receiptExtraFields = new HashMap<>();
                                         String uid = documentObject.optString("frDocCopy");
+                                        if(uid != null) {
+                                            receiptExtraFields.put("uid", uid);
+                                        }
 
                                         Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
                                         LocalDate dateReceipt = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
@@ -1684,9 +1689,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 if(fourthPrice) {
                                                     receiptDetailExtraFields.put("priceLevelId", 4);
                                                 }
-                                                if(uid != null) {
-                                                    receiptDetailExtraFields.put("uid", uid);
-                                                }
                                                 if(extDocId != null) {
                                                     receiptDetailExtraFields.put("extDocId", extDocId);
                                                 }
@@ -1695,7 +1697,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, null,
                                                         null, null, sumGiftCardMap, payments, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
-                                                        numberReceiptDetail, fileName, null, isSkip, null, receiptDetailExtraFields, cashRegister);
+                                                        numberReceiptDetail, fileName, null, isSkip, receiptExtraFields, receiptDetailExtraFields, cashRegister);
                                                 salesInfo.detailExtraFields = new HashMap<>();
                                                 if(!bonusesInDiscountPositions) {
                                                     salesInfo.detailExtraFields.put("bonusSum", bonusSum);

@@ -466,6 +466,13 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         }
     }
 
+    protected Map<String, Object> getReceiptExtraFields(Element purchaseNode) {
+        Map<String, Object> receiptExtraFields = new HashMap<>();
+        receiptExtraFields.put("uid", getPluginPropertyValue(purchaseNode, "iKassa_document_uid"));
+        receiptExtraFields.put("fiscalNumber", getPluginPropertyValue(purchaseNode, "FISCAL_DOC_ID"));
+        return receiptExtraFields;
+    }
+
     protected String getPluginPropertyValue(Element parentElement, String pluginPropertyKey) {
         String pluginPropertyValue = null;
         for (Element pluginProperty : (List<Element>) parentElement.getChildren("plugin-property")) {

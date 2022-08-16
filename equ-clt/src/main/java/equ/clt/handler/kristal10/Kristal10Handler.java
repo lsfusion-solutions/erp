@@ -919,18 +919,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             LocalDate dateZReport = LocalDate.parse(readStringXMLAttribute(purchaseNode, "operDay"), DateTimeFormatter.ofPattern("yyyy-MM-ddXXX"));
 
-                            String uid = null;
-                            String fiscalNumber = null;
-                            List<Element> purchasePluginProperties = purchaseNode.getChildren("plugin-property");
-                            for(Element pluginProperty : purchasePluginProperties) {
-                                String key = pluginProperty.getAttributeValue("key");
-                                if(key.equals("iKassa_document_uid")) {
-                                    uid = pluginProperty.getAttributeValue("value");
-                                }
-                                if(key.equals("FISCAL_DOC_ID")) {
-                                    fiscalNumber = pluginProperty.getAttributeValue("value");
-                                }
-                             }
+                            Map<String, Object> receiptExtraFields = getReceiptExtraFields(purchaseNode);
 
                             BigDecimal sumCash = BigDecimal.ZERO;
                             BigDecimal sumGiftCard = BigDecimal.ZERO;
@@ -1107,21 +1096,13 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     //                                            ids.add(id);
     //                                        }
 
-                                            Map<String, Object> receiptDetailExtraFields = new HashMap<>();
-                                            if(uid != null) {
-                                                receiptDetailExtraFields.put("uid", uid);
-                                            }
-                                            if(fiscalNumber != null) {
-                                                receiptDetailExtraFields.put("fiscalNumber", fiscalNumber);
-                                            }
-
                                             if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                 sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                             currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
                                                     numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, null, sumCash, sumGiftCardMap,
                                                     payments, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                                     discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
-                                                    useSectionAsDepartNumber ? positionDepartNumber : null, false, null, receiptDetailExtraFields, cashRegisterByKey));
+                                                    useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptExtraFields, null, cashRegisterByKey));
                                         }
                                     }
                                     count++;
