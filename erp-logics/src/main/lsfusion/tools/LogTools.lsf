@@ -49,8 +49,17 @@ makeLogRotate 'Создать запись в logrotate.d'() {
     WRITE resultFile() TO '/etc/logrotate.d/lsfusion';
 }
 //
+downloadStdout 'Stdout' () { downloadFiles('logs/stdout*'); }
+downloadStderr 'Stderr' () { downloadFiles('logs/stderr*'); }
+downloadExplain 'Explain' () { downloadFiles('logs/explain*'); }
+downloadHttp 'Http' () { downloadFiles('logs/http*'); }
+downloadMemory 'Memory' () { downloadFiles('logs/memory*'); }
+downloadAllocatedBytes 'Allocated Bytes' () { downloadFiles('logs/allocatedbytes*'); }
+downloadStart 'Start' () { downloadFiles('logs/start*'); }
                           
 EXTEND FORM tools
+    PROPERTIES() downloadStdout, downloadStderr, downloadExplain, downloadHttp, downloadMemory, downloadAllocatedBytes, downloadStart
+
     OBJECTS l =  LogRotate
     PROPERTIES (l) READONLY staticName, staticCaption, rotate, nameRotateType, logString
     PROPERTIES () logsPath, showLogRotate, makeLogRotate
@@ -61,6 +70,17 @@ DESIGN tools{
         NEW logMain{
             caption = 'Логи';
             MOVE BOX (l);
+            NEW download {
+                caption = 'Download';
+                type = CONTAINERH;
+                MOVE PROPERTY(downloadStdout());
+                MOVE PROPERTY(downloadStderr());
+                MOVE PROPERTY(downloadExplain());
+                MOVE PROPERTY(downloadHttp());
+                MOVE PROPERTY(downloadMemory());
+                MOVE PROPERTY(downloadAllocatedBytes());
+                MOVE PROPERTY(downloadStart());
+            }
             NEW linux {
                 caption = 'Linux';
                 MOVE PROPERTY (logsPath());
