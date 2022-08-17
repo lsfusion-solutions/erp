@@ -39,7 +39,6 @@ import java.util.stream.Collectors;
 
 import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
-import static lsfusion.base.BaseUtils.isEmpty;
 import static lsfusion.base.BaseUtils.nvl;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -946,7 +945,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                             File reqFile = new File(directory + "/sale.req");
                             if (!reqFile.exists()) {
-                                Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(reqFile), StandardCharsets.UTF_8));
+                                Writer writer = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(reqFile.toPath()), StandardCharsets.UTF_8));
                                 String data = String.format("###\n%s-%s", dateFrom, dateTo);
                                 writer.write(data);
                                 writer.close();
@@ -1557,7 +1556,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         }
 
                                         //объединяем оплаты наличными, поскольку приходят лишние записи - сдача с плюсом и сдача с минусом
-                                        payments.add(Payment.getCash(sumCash));
+                                        if(sumCash != null) {
+                                            payments.add(Payment.getCash(sumCash));
+                                        }
 
                                         String seriesNumberDiscountCard = null;
                                         JSONArray cardPositionsArray = documentObject.getJSONArray("cardPositions");
