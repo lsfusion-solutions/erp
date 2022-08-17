@@ -1512,7 +1512,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             BigDecimal sum = BigDecimal.valueOf(moneyPosition.getDouble("sumB"));
                                             sum = (sum != null && !isSale) ? sum.negate() : sum;
 
-                                            if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))))) {
+                                            boolean isChange = operationCode.equals(72); //сдача
+
+                                            if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))) || isChange)) {
 
                                                 if(customPayments.contains(paymentType)) {
                                                     payments.add(new Payment(paymentType, sum));
@@ -1547,7 +1549,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                             break;
                                                         case 1:
                                                         default:
-                                                            sumCash = safeAdd(sumCash, sum);
+                                                            sumCash = safeAdd(sumCash, isChange ? safeNegate(sum) : sum);
                                                             break;
                                                     }
                                                 }
