@@ -88,7 +88,7 @@ public class EquipmentServerImport {
                                 paymentId = idReceipt + "_" + paymentType;
                             }
                         } else {
-                            paymentId = idReceipt + "_" + paymentNumber;
+                            paymentId = idReceipt + "/" + paymentNumber;
                         }
                         dataPayment.add(Arrays.asList(paymentId, idReceipt, paymentType, payment.sum, ++paymentNumber));
 
