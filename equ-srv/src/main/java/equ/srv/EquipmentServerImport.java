@@ -71,7 +71,7 @@ public class EquipmentServerImport {
                 }
                 if (sale.payments != null) {
                     //из-за того, что у платежей giftCard id начинаются с 3
-                    int paymentNumber = 2 + (sale.sumGiftCardMap != null ? sale.sumGiftCardMap.size() : 0);
+                    int paymentNumber = 3 + (sale.sumGiftCardMap != null ? sale.sumGiftCardMap.size() : 0);
 
                     //backward compatibility with old ids
                     Set<String> firstPaymentsOfType = new HashSet<>();
@@ -90,7 +90,7 @@ public class EquipmentServerImport {
                         } else {
                             paymentId = idReceipt + "/" + paymentNumber;
                         }
-                        dataPayment.add(Arrays.asList(paymentId, idReceipt, paymentType, payment.sum, ++paymentNumber));
+                        dataPayment.add(Arrays.asList(paymentId, idReceipt, paymentType, payment.sum, paymentNumber++));
 
                         if(payment.extraFields != null && !usedPaymentIds.contains(paymentId)) {
                             for (Map.Entry<String, Object> extraField : payment.extraFields.entrySet()) {
