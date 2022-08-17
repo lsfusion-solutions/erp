@@ -64,17 +64,32 @@ public class EquipmentServerImport {
             for (SalesInfo sale : data) {
                 String idReceipt = EquipmentServer.getIdReceipt(sale, options);
                 if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
-                    dataPayment.add(Arrays.asList(getPaymentId(idReceipt, "1"), idReceipt, "cash", sale.sumCash, 1));
+                    dataPayment.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
                 }
                 if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
-                    dataPayment.add(Arrays.asList(getPaymentId(idReceipt, "2"), idReceipt, "card", sale.sumCard, 2));
+                    dataPayment.add(Arrays.asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
                 }
                 if (sale.payments != null) {
                     //из-за того, что у платежей giftCard id начинаются с 3
                     int paymentNumber = 2 + (sale.sumGiftCardMap != null ? sale.sumGiftCardMap.size() : 0);
+
+                    //backward compatibility with old ids
+                    Set<String> firstPaymentsOfType = new HashSet<>();
                     for (Payment payment : sale.payments) {
                         String paymentType = payment.type;
-                        String paymentId = getPaymentId(idReceipt, paymentType);
+                        boolean firstPaymentOfType = firstPaymentsOfType.add(paymentType);
+                        String paymentId;
+                        if(firstPaymentOfType) {
+                            if(payment.type.equals("cash")) { //todo: method isCash (equ-api)
+                                paymentId = idReceipt + "1";
+                            } else if(payment.isCard()) {
+                                paymentId = idReceipt + "2";
+                            } else {
+                                paymentId = idReceipt + "_" + paymentType;
+                            }
+                        } else {
+                            paymentId = idReceipt + "_" + paymentNumber;
+                        }
                         dataPayment.add(Arrays.asList(paymentId, idReceipt, paymentType, payment.sum, ++paymentNumber));
 
                         if(payment.extraFields != null && !usedPaymentIds.contains(paymentId)) {
@@ -105,10 +120,6 @@ public class EquipmentServerImport {
                 }
             }
         }
-    }
-
-    private static String getPaymentId(String idReceipt, String paymentType) {
-        return idReceipt + "_" + paymentType;
     }
 
     public static void importPaymentGiftCardMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, int start, int finish, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
