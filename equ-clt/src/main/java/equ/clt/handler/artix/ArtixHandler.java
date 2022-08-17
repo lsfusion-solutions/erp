@@ -1503,6 +1503,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                         JSONArray moneyPositionsArray = documentObject.getJSONArray("moneyPositions");
 
+                                        BigDecimal sumCash = null;
                                         for (int i = 0; i < moneyPositionsArray.length(); i++) {
                                             JSONObject moneyPosition = moneyPositionsArray.getJSONObject(i);
 
@@ -1546,12 +1547,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                             break;
                                                         case 1:
                                                         default:
-                                                            payments.add(Payment.getCash(sum));
+                                                            sumCash = safeAdd(sumCash, sum);
                                                             break;
                                                     }
                                                 }
                                             }
                                         }
+
+                                        //объединяем оплаты наличными, поскольку приходят лишние записи - сдача с плюсом и сдача с минусом
+                                        payments.add(Payment.getCash(sumCash));
 
                                         String seriesNumberDiscountCard = null;
                                         JSONArray cardPositionsArray = documentObject.getJSONArray("cardPositions");
