@@ -220,6 +220,7 @@ receiveMessage 'Получить' (Configuration c) {
 }
 
 overSend ABSTRACT LIST (Configuration);
+overSend ABSTRACT LIST (Configuration, XMLFILE);
 
 sendMessage 'Передать' (Configuration c) {
     NEWSESSION {
@@ -231,6 +232,7 @@ sendMessage 'Передать' (Configuration c) {
             isSended(c) <- TRUE;
             packet(c, EnterpriseData e) <- messageNo(c) WHERE in(c, e);
             overSend(c);
+            overSend(c, f());
             APPLY;
         } CATCH {
             MESSAGE System.messageCaughtException();
@@ -297,7 +299,10 @@ DESIGN integrationData {
                 MOVE PROPERTY (panelToBase);
                 MOVE PROPERTY (fromBase());
             }
-            MOVE PROPERTY (path());
+            NEW path {
+                type = CONTAINERH;
+                MOVE PROPERTY (path());
+            }                
             NEW cGrid {
                 fill = 1;
                 MOVE BOX (c);
