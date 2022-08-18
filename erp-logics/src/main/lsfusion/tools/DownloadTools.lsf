@@ -16,12 +16,12 @@ downloadFiles(STRING file, STRING directory) {
 
 downloadFiles(STRING file) { downloadFiles(file, NULL); }
 
-selected 'Отм' = DATA LOCAL BOOLEAN (INTEGER);
-countSelected 'Отмечено' () = GROUP SUM 1 IF selected(INTEGER i);
+selectedFile 'Отм' = DATA LOCAL BOOLEAN (INTEGER);
+countSelectedFiles 'Отмечено' () = GROUP SUM 1 IF selectedFile(INTEGER i);
 
-select '+' (INTEGER i) { selected(i) <- NOT selected(i); } CHANGEKEY 'ADD' HIDE;
-invertSelection '*' () { selected(INTEGER i) <- NOT selected(i) WHERE fileName(i) AND NOT fileIsDirectory(i); } CHANGEKEY 'MULTIPLY' HIDE;
-deselectAll '-' () { selected(INTEGER i) <- NULL;} CHANGEKEY 'SUBTRACT' HIDE;
+select '+' (INTEGER i) { selectedFile(i) <- NOT selectedFile(i); } CHANGEKEY 'ADD' HIDE;
+invertSelection '*' () { selectedFile(INTEGER i) <- NOT selectedFile(i) WHERE fileName(i) AND NOT fileIsDirectory(i); } CHANGEKEY 'MULTIPLY' HIDE;
+deselectAll '-' () { selectedFile(INTEGER i) <- NULL;} CHANGEKEY 'SUBTRACT' HIDE;
 
 currentDirectory = DATA LOCAL STRING (INTEGER);
 currentDirectory 'Текущий директорий' () = GROUP CONCAT currentDirectory(INTEGER i), '/' ORDER i;
@@ -29,15 +29,15 @@ lastDirectoryLevel = GROUP MAX INTEGER i IF currentDirectory(i);
 
 scanDirectory () {
     listFiles(CONCAT '', '/', currentDirectory());
-    selected(INTEGER i) <- NULL;
+    selectedFile(INTEGER i) <- NULL;
     fileName(-1) <- '...' IF currentDirectory();
     fileIsDirectory(-1) <- TRUE IF currentDirectory();
 }
 
 downloadFileLimit 'Максимальный размер для скачивания' = DATA LONG ();
-selectedFileNames = GROUP CONCAT fileName(INTEGER i) IF selected(i), ' ' ORDER i;
+selectedFileNames = GROUP CONCAT fileName(INTEGER i) IF selectedFile(i), ' ' ORDER i;
 downloadSelectedFiles 'Скачать' {
-    IF (GROUP SUM fileSize(INTEGER i) IF selected(i)) > OVERRIDE downloadFileLimit(), 50000000 THEN
+    IF (GROUP SUM fileSize(INTEGER i) IF selectedFile(i)) > OVERRIDE downloadFileLimit(), 50000000 THEN
         MESSAGE 'Превышен допустимый размер скачивания';
     ELSE
         downloadFiles(selectedFileNames(), '/' + currentDirectory()); 
@@ -45,11 +45,11 @@ downloadSelectedFiles 'Скачать' {
 
 FORM downloadFiles 'Скачивание файлов'
     OBJECTS i = INTEGER
-    PROPERTIES(i) READONLY BACKGROUND RGB(240,240,240) IF fileIsDirectory(i) FOREGROUND RGB(255,0,0) IF selected(i) 
+    PROPERTIES(i) READONLY BACKGROUND RGB(240,240,240) IF fileIsDirectory(i) FOREGROUND RGB(255,0,0) IF selectedFile(i) 
                            fileName, fileSize, fileModifiedDateTime, fileIsDirectory
     
     PROPERTIES SHOWIF NOT fileIsDirectory(i) TOOLBAR select(i), invertSelection() DRAW i, deselectAll() DRAW i
-    PROPERTIES TOOLBAR downloadSelectedFiles() DRAW i SHOWIF countSelected()
+    PROPERTIES TOOLBAR downloadSelectedFiles() DRAW i SHOWIF countSelectedFiles()
     
     ORDERS fileIsDirectory(i) DESC, fileName(i)
     FILTERS fileName(i)
