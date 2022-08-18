@@ -52,54 +52,56 @@ overCopyItem(Barcode new, Barcode old, Sku i) + {
 
 GROUP itemPack 'Упаковка товара' : public;
 
-META definePackSku (caption, NS)
-    packBarcode 'Штрихкод для '##caption = DATA Barcode (Sku);
-    pack 'Штрихкод для '##caption (Barcode barcode)=  packBarcode(sku(barcode)) == barcode;
+META definePackSku (caption, NS, postfix)
+    packBarcode##postfix 'Штрихкод для '##caption = DATA Barcode (Sku);
+    pack##postfix 'Штрихкод для '##caption (Barcode barcode)=  packBarcode##postfix(sku(barcode)) == barcode;
     
-    CONSTRAINT sku(packBarcode(Sku item)) != item CHECKED BY packBarcode[Sku] MESSAGE 'Выбран неверный sku для штрихкода упаковки ('##caption##')';
+    CONSTRAINT sku(packBarcode##postfix(Sku item)) != item CHECKED BY packBarcode##postfix[Sku] MESSAGE 'Выбран неверный sku для штрихкода упаковки ('##caption##')';
     
-    changePack(Barcode barcode, Sku sku)  { 
+    changePack##postfix(Barcode barcode, Sku sku)  { 
         INPUT b = BOOLEAN DO
-            packBarcode(sku) <- barcode IF b;
+            packBarcode##postfix(sku) <- barcode IF b;
     }
     
     EXTEND FORM barcodeDialog
-        PROPERTIES (b) READONLY pack##NS = pack
+        PROPERTIES (b) READONLY pack##NS##postfix = pack##postfix
     ;
     EXTEND FORM barcodeSku
-        PROPERTIES (b) READONLY pack##NS = pack
+        PROPERTIES (b) READONLY pack##NS##postfix = pack##postfix
     ;
     
-    idBarcodePack 'Штрихкод упаковки' (Sku sku)= id(packBarcode(sku));
-    shortNameUOMPack 'Ед. изм. упаковки' (Sku sku)= shortNameUOM(packBarcode(sku));
-    amountPack 'Кол-во в упаковке'(Sku sku) =amount(packBarcode(sku)) IN itemPack;
+    idBarcodePack##postfix 'Штрихкод упаковки' (Sku sku)= id(packBarcode##postfix(sku));
+    shortNameUOMPack##postfix 'Ед. изм. упаковки' (Sku sku)= shortNameUOM(packBarcode##postfix(sku));
+    amountPack##postfix 'Кол-во в упаковке'(Sku sku) =amount(packBarcode##postfix(sku)) IN itemPack;
     
-    changeValuePack(Sku sku, NUMERIC[14,3] n)  { 
+    changeValuePack##postfix(Sku sku, NUMERIC[14,3] n)  { 
         IF n > 0.0 THEN {
-            IF NOT packBarcode(sku) THEN {
+            IF NOT packBarcode##postfix(sku) THEN {
                 NEW b = Barcode {
                    sku(b) <- sku;
                    dataAmount (b) <- n;
     
-                   packBarcode(sku) <- b;
+                   packBarcode##postfix(sku) <- b;
                 }
             } ELSE {
-                dataAmount (Barcode bb) <- n WHERE bb == packBarcode(sku) AND NOT primary(bb);
+                dataAmount (Barcode bb) <- n WHERE bb == packBarcode##postfix(sku) AND NOT primary(bb);
             }
     
         } ELSE {
-            IF packBarcode(sku) THEN {
-                DELETE Barcode p WHERE p==packBarcode(sku) AND NOT primary(p);
+            IF packBarcode##postfix(sku) THEN {
+                DELETE Barcode p WHERE p==packBarcode##postfix(sku) AND NOT primary(p);
             }
         }
     }
 
-    changePack(Sku sku)  { 
+    changePack##postfix(Sku sku)  { 
         INPUT n = NUMERIC[14,3] DO
-            changeValuePack(sku, n);
+            changeValuePack##postfix(sku, n);
     }
 END
-
+META definePackSku (caption, NS)
+    @definePackSku (caption, NS,);
+END
 // --------------------------- Макрос по добавлению упаковки в документы ---------------------- //
 
 META defineDocumentPack(object, detail, f)
