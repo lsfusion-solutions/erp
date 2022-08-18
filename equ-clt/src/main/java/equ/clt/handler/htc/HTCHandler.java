@@ -1,10 +1,7 @@
 package equ.clt.handler.htc;
 
 import com.google.common.base.Throwables;
-import equ.api.MachineryInfo;
-import equ.api.RequestExchange;
-import equ.api.SalesInfo;
-import equ.api.SendTransactionBatch;
+import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
@@ -23,6 +20,7 @@ import org.xBaseJ.xBaseJException;
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.Date;
 import java.sql.Time;
 import java.text.ParseException;
@@ -138,11 +136,10 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                             cachedPriceFile = File.createTempFile("cachedPrice", ".dbf");
                                             cachedPriceMdxFile = new File(cachedPriceFile.getAbsolutePath().replace(".dbf", ".mdx"));
                                             dbfFile = new DBF(cachedPriceFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
-                                            if (!append)
-                                                if (transaction.snapshot)
-                                                    dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, UNIT, STRFLAGS, NDS, NALOG});
-                                                else
-                                                    dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, UNIT, CMD, NDS, NALOG});
+                                            if (transaction.snapshot)
+                                                dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, UNIT, STRFLAGS, NDS, NALOG});
+                                            else
+                                                dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, UNIT, CMD, NDS, NALOG});
                                         }
 
                                         Set<String> usedBarcodes = new HashSet<>();
@@ -719,8 +716,19 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                 Integer numberReceipt = getDBFIntegerFieldValue(salesDBFFile, "CHECK", charset);
 
                                 List<Object> receiptEntry = receiptMap.get(numberReceipt);
+
+                                List<Payment> payments = new ArrayList<>();
+
                                 BigDecimal sumCash = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(0);
+                                if(sumCash != null) {
+                                    payments.add(Payment.getCash(sumCash));
+                                }
+
                                 BigDecimal sumCard = receiptEntry == null ? null : (BigDecimal) receiptEntry.get(1);
+                                if(sumCard != null) {
+                                    payments.add(Payment.getCard(sumCard));
+                                }
+
                                 String idDiscountCard = receiptEntry == null ? null : (String) receiptEntry.get(2);
 
                                 String idEmployee = getDBFFieldValue(salesDBFFile, "CASHIER", charset);
@@ -732,7 +740,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                     String barcodeItem = getDBFFieldValue(salesDBFFile, "BAR_CODE", charset);
                                     //временный чит для корректировки весовых штрихкодов
                                     if (barcodeItem != null && barcodeItem.startsWith("22") && barcodeItem.length() == 13) {
-                                        barcodeItem = barcodeItem.substring(2, 7).equals("00000") ? barcodeItem.substring(7, 12) : barcodeItem.substring(2, 7);
+                                        barcodeItem = barcodeItem.startsWith("00000", 2) ? barcodeItem.substring(7, 12) : barcodeItem.substring(2, 7);
                                     }
                                     if ("00000".equals(barcodeItem)) {
                                         barcodeItem = codeItem;
@@ -751,7 +759,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                     String numberZReport = dateReceipt.format(DateTimeFormatter.ofPattern("ddMMyy")) + "/" + nppGroupMachinery + "/" + nppMachinery;
 
                                     salesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt,
-                                            dateReceipt, timeReceipt, idEmployee, null, sumCard, sumCash, null, null, barcodeItem, null, null, null, quantityReceiptDetail,
+                                            dateReceipt, timeReceipt, idEmployee, null, null, null, null, payments, barcodeItem, null, null, null, quantityReceiptDetail,
                                             priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
                                             nameSalesFile, null, null, null, cashRegister));
                                 }
@@ -969,7 +977,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
             File receiptFile = new File(directory + "/Receipt.dbf");
             if (new File(directory).exists()) {
                 safeFileDelete(ansFile, sendSalesLogger);
-                Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), StandardCharsets.UTF_8));
+                Writer writer = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(queryFile.toPath()), StandardCharsets.UTF_8));
                 writer.write(date);
                 writer.close();
                 result = waitRequestSalesInfo(queryFile, ansFile, salesFile, receiptFile);
