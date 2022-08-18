@@ -1,0 +1,117 @@
+MODULE DownloadTools;
+
+REQUIRE Utils;
+
+NAMESPACE Tools;
+
+downloadFiles(STRING file, STRING directory) {
+    stringToFile((OVERRIDE 'cd ' + directory + ' && ', '') + 'zip /tmp/download.zip ' + file + ' -x download.sh','UTF-8','sh');
+    WRITE resultFile() TO '/tmp/download';
+    cmd('chmod +x /tmp/download.sh');
+    cmd('/tmp/download.sh');
+    delete('/tmp/download.sh');
+    open('/tmp/download.zip');
+    delete('/tmp/download.zip');
+}
+
+downloadFiles(STRING file) { downloadFiles(file, NULL); }
+
+selected 'Отм' = DATA LOCAL BOOLEAN (INTEGER);
+countSelected 'Отмечено' () = GROUP SUM 1 IF selected(INTEGER i);
+
+select '+' (INTEGER i) { selected(i) <- NOT selected(i); } CHANGEKEY 'ADD' HIDE;
+invertSelection '*' () { selected(INTEGER i) <- NOT selected(i) WHERE fileName(i) AND NOT fileIsDirectory(i); } CHANGEKEY 'MULTIPLY' HIDE;
+deselectAll '-' () { selected(INTEGER i) <- NULL;} CHANGEKEY 'SUBTRACT' HIDE;
+
+currentDirectory = DATA LOCAL STRING (INTEGER);
+currentDirectory 'Текущий директорий' () = GROUP CONCAT currentDirectory(INTEGER i), '/' ORDER i;
+lastDirectoryLevel = GROUP MAX INTEGER i IF currentDirectory(i);
+
+scanDirectory () {
+    listFiles(CONCAT '', '/', currentDirectory());
+    selected(INTEGER i) <- NULL;
+    fileName(-1) <- '...' IF currentDirectory();
+    fileIsDirectory(-1) <- TRUE IF currentDirectory();
+}
+
+downloadFileLimit 'Максимальный размер для скачивания' = DATA LONG ();
+selectedFileNames = GROUP CONCAT fileName(INTEGER i) IF selected(i), ' ' ORDER i;
+downloadSelectedFiles 'Скачать' {
+    IF (GROUP SUM fileSize(INTEGER i) IF selected(i)) > OVERRIDE downloadFileLimit(), 50000000 THEN
+        MESSAGE 'Превышен допустимый размер скачивания';
+    ELSE
+        downloadFiles(selectedFileNames(), '/' + currentDirectory()); 
+}
+
+FORM downloadFiles 'Скачивание файлов'
+    OBJECTS i = INTEGER
+    PROPERTIES(i) READONLY BACKGROUND RGB(240,240,240) IF fileIsDirectory(i) FOREGROUND RGB(255,0,0) IF selected(i) 
+                           fileName, fileSize, fileModifiedDateTime, fileIsDirectory
+    
+    PROPERTIES SHOWIF NOT fileIsDirectory(i) TOOLBAR select(i), invertSelection() DRAW i, deselectAll() DRAW i
+    PROPERTIES TOOLBAR downloadSelectedFiles() DRAW i SHOWIF countSelected()
+    
+    ORDERS fileIsDirectory(i) DESC, fileName(i)
+    FILTERS fileName(i)
+    
+    EVENTS ON INIT { currentDirectory(INTEGER j) <- NULL; scanDirectory(); }
+;
+
+DESIGN downloadFiles {
+    PROPERTY(fileIsDirectory(i)) { hide = TRUE; }
+    PROPERTY(fileSize(i)) { pattern = '#,##0'; }
+}
+
+enterDirectory 'Enter' (INTEGER i) {
+    IF i = -1 THEN
+        currentDirectory(lastDirectoryLevel()) <- NULL;
+    ELSE
+        currentDirectory(lastDirectoryLevel() (+) 1) <- fileName(i);
+    TRY {
+        scanDirectory();
+        SEEK downloadFiles.i = -1;
+    } CATCH {
+        currentDirectory(lastDirectoryLevel()) <- NULL;
+        MESSAGE messageCaughtException();
+    }
+} CHANGEKEY 'ENTER' CHANGEMOUSE 'DBLCLK';
+
+returnDirectory 'Return' () {
+    FOR STRING directory = currentDirectory(lastDirectoryLevel()) DO {  
+        currentDirectory(lastDirectoryLevel()) <- NULL;
+        scanDirectory();
+        SEEK downloadFiles.i = GROUP MAX INTEGER i IF fileName(i) = directory;
+    }
+} CHANGEKEY 'BACK_SPACE';
+
+changeDirectory () {
+    INPUT d = STRING DO {
+        currentDirectory(INTEGER i) <- getWord(d, '/', i) IF count(i, INTEGER(wordCount(d, '/')));
+        TRY {
+            scanDirectory();
+            SEEK downloadFiles.i = -1;
+        } CATCH {
+            currentDirectory(INTEGER j) <- NULL;
+            MESSAGE messageCaughtException();
+        }
+    }
+}
+
+EXTEND FORM downloadFiles
+    PROPERTIES() currentDirectory ON CHANGE changeDirectory()
+
+    PROPERTIES(i) TOOLBAR enterDirectory SHOWIF fileIsDirectory(i)
+    PROPERTIES()  TOOLBAR returnDirectory DRAW i SHOWIF currentDirectory()
+;
+
+DESIGN downloadFiles {
+    OBJECTS {
+        MOVE PROPERTY(currentDirectory()) FIRST { alignment = STRETCH ; };
+    }
+}
+
+NAVIGATOR {
+    application {
+        NEW downloadFiles;
+    }
+}
