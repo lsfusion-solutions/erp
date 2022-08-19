@@ -1,9 +1,16 @@
 package equ.clt.handler;
 
+import com.google.common.base.Throwables;
 import org.json.JSONObject;
+import org.springframework.util.FileCopyUtils;
 
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.concurrent.*;
+
+import static lsfusion.base.BaseUtils.nvl;
 
 public class HandlerUtils {
 
@@ -104,5 +111,22 @@ public class HandlerUtils {
             result = c + result;
         }
         return result;
+    }
+
+    public static void copyWithTimeout(File sourceFile, File destinationFile, long timeout) {
+        final Future future = Executors.newSingleThreadExecutor().submit(() -> {
+            try {
+                FileCopyUtils.copy(sourceFile, destinationFile);
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        });
+
+        try {
+            future.get(timeout, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException | ExecutionException | InterruptedException e) {
+            future.cancel(true);
+            throw new RuntimeException(String.format("Failed to copy file from %s to %s: %s", sourceFile.getAbsolutePath(), destinationFile.getAbsolutePath(), nvl(e.getMessage(), e.toString())), e);
+        }
     }
 }

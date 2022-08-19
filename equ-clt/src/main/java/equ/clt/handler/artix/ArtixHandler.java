@@ -288,14 +288,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         File file = new File(directory + "/pos" + currentTime + ".aif");
 
         try {
-            try {
-                FileCopyUtils.copy(tmpFile, file);
-            } catch (IOException e) {
-                logger.error(logPrefix + "writeFileAndWait copy file error: " + file.getAbsolutePath(), e);
-                return;
-            }
+            copyWithTimeout(tmpFile, file, 60000);
             if(copyDirectory != null) {
-                FileCopyUtils.copy(tmpFile, new File(copyDirectory + "/pos" + currentTime + ".aif"));
+                copyWithTimeout(tmpFile, new File(copyDirectory + "/pos" + currentTime + ".aif"), 60000);
             }
         } finally {
             if (!tmpFile.delete()) {
