@@ -1,6 +1,7 @@
 package equ.clt.handler.maxishop;
 
 import equ.api.ItemInfo;
+import equ.api.Payment;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashRegisterInfo;
@@ -19,10 +20,7 @@ import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -171,7 +169,7 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
                                         LocalDate date = LocalDate.parse(new String(importFile.getField("JFDATE").getBytes(), "Cp1251").trim(), DateTimeFormatter.ofPattern("yyyyMMdd"));
                                         String timeString = new String(importFile.getField("JFTIME").getBytes(), "Cp1251").trim();
                                         LocalTime time = sqlTimeToLocalTime(Time.valueOf(timeString.substring(0, 2) + ":" + timeString.substring(2, 4) + ":" + timeString.substring(4, 6)));
-                                        BigDecimal sumCash = new BigDecimal(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim());
+                                        List<Payment> payments = Collections.singletonList(Payment.getCash(new BigDecimal(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim())));
                                         String barcodeReceiptDetail = new String(importFile.getField("JFPLUCODE").getBytes(), "Cp1251").trim().replace("E", "");
                                         BigDecimal quantityReceiptDetail = new BigDecimal(new String(importFile.getField("JFQUANT").getBytes(), "Cp1251").trim());
                                         BigDecimal priceReceiptDetail = new BigDecimal(new String(importFile.getField("JFPRICE").getBytes(), "Cp1251").trim());
@@ -183,7 +181,7 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
                                             oldReceiptNumber = receiptNumber;
                                         }
                                         salesInfoList.add(getSalesInfo(numberCashRegister, null, zReportNumber, date, time, receiptNumber, date, time, null, null,
-                                                BigDecimal.ZERO, sumCash, BigDecimal.ZERO, null, barcodeReceiptDetail, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail,
+                                                null, null, BigDecimal.ZERO, payments, barcodeReceiptDetail, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail,
                                                 discountSumReceiptDetail, null, null, numberReceiptDetail, fileName, null, null, null, cashRegisterInfo));
                                         numberReceiptDetail++;
                                     }
