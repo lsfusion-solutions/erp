@@ -714,6 +714,7 @@ public class TerminalServer extends MonitorServer {
 
                                 int flags = 0;
                                 String userName = "";
+                                String nameStock = "";
 
                                 ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
                                 if (terminalHandlerLM != null) {
@@ -728,11 +729,14 @@ public class TerminalServer extends MonitorServer {
                                     UserInfo userInfo = userMap.get(result);
                                     if (userInfo != null && userInfo.user != null) {
                                         userName = (String )terminalHandlerLM.findProperty("name[CustomUser]").read(createSession(), userInfo.user);
+                                        nameStock = (String)terminalHandlerLM.findProperty("nameStock[Employee]").read(createSession(), userInfo.user);
                                     }
                                 }
 
                                 writeByte(outToClient, esc);
                                 write(outToClient, userName);
+                                writeByte(outToClient, esc);
+                                write(outToClient, nameStock);
                             }
                             writeByte(outToClient, etx);
                             break;
