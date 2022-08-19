@@ -13,7 +13,8 @@ REQUIRE System,
         SkuLedger,
         ItemPack,
         Barcode,
-        StatusUpd;
+        StatusUpd,
+        BankRu;
 
 NAMESPACE ConsignmentRu;
 
@@ -79,6 +80,7 @@ nameSupplierStock 'Склад отправителя' (Consignment consignment) 
      
 currency = ABSTRACT Currency (Consignment);
 nameCurrency 'Валюта' (Consignment consignment)= name(currency(consignment)) CHARWIDTH 10;
+documentNameCurrency 'Валюта' (Consignment consignment)= documentName(currency(consignment)) CHARWIDTH 10;
 sidCurrency 'Код валюты' (Consignment consignment) = sid(currency(consignment)) CHARWIDTH 10;
 
 managerSupplier 'Руководитель, ФИО' = ABSTRACT Employee (Consignment);
@@ -1122,3 +1124,49 @@ showAttributesUpd 'Просмотреть атрибуты УПД' (Consignment 
     }
 }
 
+ 
+nameSupplier 'Наим-ие отправителя' (Consignment consignment) = name(supplier(consignment)) CHARWIDTH 30;
+numberAccountSupplier 'Основной р/сч.' (Consignment consignment) = numberAccount(supplier(consignment));
+
+nameBankSupplier(Consignment consignment) = nameBank(account(supplier(consignment)));
+addressBankSupplier(Consignment consignment) = addressBank(account(supplier(consignment)));
+MFOBankSupplier 'Код BIC банка'  (Consignment consignment)=MFOBank(account(supplier(consignment)));
+corrAccountBankSupplier(Consignment consignment) = corrAccount(bank(account(supplier(consignment))));
+
+quantityTotal (Consignment consignment) = GROUP SUM quantity(ConsignmentDetail d) IF consignment(d) == consignment AND quantity(d) AND NOT skip(d);
+sumConsignmentTotal (Consignment consignment) = GROUP SUM sumConsignment(ConsignmentDetail d) IF consignment(d) == consignment AND sumConsignment(d) AND NOT skip(d);
+countPositions(Consignment consignment) = GROUP SUM 1 IF consignment(d) == consignment AND quantity(d) AND NOT skip(d);
+
+sumVAT(Consignment consignment, NUMERIC[10,5] vat) = GROUP SUM sumVAT(ConsignmentDetail d) IF consignment(d) == consignment AND sumVAT(d) AND vat(d) == vat AND NOT skip(d);
+
+shortNameManagerSupplier(Consignment consignment) = shortName(managerSupplier(consignment));
+shortNameAccountantSupplier(Consignment consignment) = shortName(accountantSupplier(consignment));
+
+descriptionBaseDocPayment = ABSTRACT STRING[100](Consignment);
+
+FORM consignmentPayment 'Счет на оплату'
+    OBJECTS c=Consignment PANEL   
+
+    PROPERTIES (c) nameSupplier, fullNameSupplier, INNSupplier, KPPSupplier, addressSupplier, numberAccountSupplier, 
+                   MFOBankSupplier, corrAccountBankSupplier, nameBankSupplier, addressBankSupplier,
+                   fullNameCustomer, INNCustomer, KPPCustomer, addressCustomer,
+                   date, number, sidCurrency, nameCurrency, documentNameCurrency,
+                   quantityTotal, sumConsignmentTotal, sumVATTotal, countPositions,
+                   shortNameManagerSupplier, shortNameAccountantSupplier,
+                   descriptionBaseDocPayment
+                   
+    OBJECTS d=ConsignmentDetail  SUBREPORT    
+    PROPERTIES(d) nameSku, idSku, shortNameUOM,  
+                  quantity,  
+                  price, sum, vat, sumVAT, sumConsignment  
+        
+    FILTERS consignment(d) == c,
+            quantity(d),
+            NOT skip(d)
+            
+    OBJECTS v = NUMERIC[10,5] SUBREPORT  
+    PROPERTIES sumVAT(c, v), valVAT = VALUE(v)
+    FILTERS sumVAT(c, v)        
+;
+
+consignmentPayment 'Счет на оплату' (Consignment consignment) { PRINT consignmentPayment OBJECTS c = consignment;} IMAGE 'print.png' IN print;

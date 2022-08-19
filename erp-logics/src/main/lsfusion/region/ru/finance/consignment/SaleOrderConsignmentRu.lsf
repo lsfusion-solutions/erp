@@ -1,0 +1,45 @@
+MODULE SaleOrderConsignmentRu;
+
+REQUIRE SaleOrder,
+        ConsignmentRu,
+        LegalEntity,
+        Store;
+
+NAMESPACE Sale;
+
+EXTEND CLASS Order : Consignment;
+
+dataDate[Consignment] (Order consignment) += date(consignment);
+number[Consignment] (Order consignment) += number(consignment);
+
+dataSupplier (Order consignment) += from(consignment);
+overAddressSupplier (Order consignment) += address(store(dataSupplierStock(consignment)));
+
+dataCustomer (Order consignment) += to(consignment);
+overAddressCustomer (Order consignment) += address(dataCustomer(consignment));
+
+managerSupplier[Consignment] (Order consignment)  += chief(supplier(consignment), date(consignment));
+accountantSupplier[Consignment] (Order consignment) += booker(supplier(consignment),date(consignment));
+descriptionBaseDocPayment(Order consignment) += CONCAT '', 'Заказ №', seriesNumber(consignment);
+
+currency[Consignment] (Order consignment) += currency(consignment);
+
+EXTEND CLASS OrderDetail : ConsignmentDetail;
+
+consignment[ConsignmentDetail] (OrderDetail d) += order(d);
+dataSku[ConsignmentDetail] (OrderDetail d) += sku (d);
+dataQuantity[ConsignmentDetail] (OrderDetail d) += quantity (d);
+dataPrice (OrderDetail detail) += WHEN detail IS OrderDetail THEN price(detail);
+dataVAT (OrderDetail detail) +=  WHEN detail IS OrderDetail THEN valueVAT(detail);
+dataSumVAT (OrderDetail detail) +=  WHEN detail IS OrderDetail THEN VATSum(detail);
+dataSumConsignment (OrderDetail detail) +=  WHEN detail IS OrderDetail THEN invoiceSum(detail);
+
+EXTEND FORM  orders
+    PROPERTIES(o) READONLYIF banPrint(o) consignmentPayment
+;
+
+DESIGN orders {
+    printContainer {                     
+        MOVE PROPERTY(consignmentPayment(o)) { alignment = STRETCH; }                              
+    }
+}
