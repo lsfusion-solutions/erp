@@ -76,19 +76,30 @@ closeOldTransactions 'Закрыть старые загрузки в обору
     }
 }
 
+countErrors 'Количество ошибок' = DATA INTEGER ();
+
+closeErrorsScales 'Отменить загрузки в оборудование с ошибками' () {
+    NEWSESSION {
+        canceled(ScalesPriceTransaction t) <- TRUE WHERE process(t) AND quantityMachineryPriceTransactionError(t) >= countErrors();
+        APPLY;
+    }
+}
+
 EXTEND FORM groupsScales 
-    PROPERTIES countDaysActiveScales(), closeOldTransactions(), closeInactiveScales(), openOldTransactions(), openInactiveScales();
+    PROPERTIES countDaysActiveScales(), closeOldTransactions(), closeInactiveScales(), openOldTransactions(), openInactiveScales(), countErrors(), closeErrorsScales();
     
 DESIGN groupsScales {
     actionContainer{
         NEW options{
             MOVE PROPERTY (countDaysActiveScales());
             MOVE PROPERTY (openOldTransactions());
+            MOVE PROPERTY (countErrors());
             
         }
         MOVE PROPERTY (closeOldTransactions());
         MOVE PROPERTY (closeInactiveScales());
         MOVE PROPERTY (openInactiveScales());
+        MOVE PROPERTY (closeErrorsScales());
     }
 }
 
