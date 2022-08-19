@@ -1,6 +1,6 @@
 MODULE Barcode;
 
-REQUIRE System, Integration, Numerator, SkuLedger, Utils, Document;
+REQUIRE System, Integration, Numerator, SkuLedger, Utils, Document, BarcodeLog;
 
 CLASS Barcode 'Штрих-код';
 TABLE barcode (Barcode);
@@ -343,15 +343,20 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
 
     consumedBarcode###idetail = DATA LOCAL BOOLEAN ();
     beforeInputBarcode###idetail ABSTRACT LIST (###object, STRING[200]);
+    processInputBarcode###idetail(###object object, STRING[200] s) {
+        weightQuantity() <- NULL;
+        IF length(s) > 11 AND left(s, 2) == weightPrefix() THEN {
+            weightQuantity() <- NUMERIC[7,0](substr(s, 8, 5)) / 1000.0;
+        }
+        beforeInputBarcode###idetail(object, s);
+        IF NOT consumedBarcode###idetail() THEN
+            addDetailBarcode###idetail(object, processedBarcode(s));
+    } 
+    
     changeAddDetailInputBarcode###idetail(###object object)  { 
         INPUT s = STRING[200] DO {
-            weightQuantity() <- NULL;
-            IF length(s) > 11 AND left(s, 2) == weightPrefix() THEN {
-                weightQuantity() <- NUMERIC[7,0](substr(s, 8, 5)) / 1000.0;
-            }
-            beforeInputBarcode###idetail(object, s);
-            IF NOT consumedBarcode###idetail() THEN
-                addDetailBarcode###idetail(object, processedBarcode(s));
+            logBarcode(LONG(object), s);
+            processInputBarcode###idetail(object, s);
         }
     };
     addDetailInputBarcode###idetail 'Ввод штрихкода :' (object) = DATA LOCAL STRING[200] (###object) TOOLBAR CHARWIDTH 13 CHANGEKEY 'F4;editing=all' EVENTID 'SCANNER'

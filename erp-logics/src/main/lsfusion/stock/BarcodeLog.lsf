@@ -1,0 +1,77 @@
+MODULE BarcodeLog;
+
+REQUIRE Authentication;
+
+NAMESPACE Barcode;
+
+CLASS BarcodeLog 'Лог сканирований';
+
+documentID 'Документ' = DATA LONG (BarcodeLog);
+INDEX documentID(BarcodeLog l);
+
+barcode 'Штрихкод' = DATA STRING[200] (BarcodeLog);
+
+user = DATA User (BarcodeLog);
+nameUser 'Пользователь' (BarcodeLog l) = name(user(l));
+
+computer = DATA Computer (BarcodeLog);
+hostnameComputer 'Компьютер' (BarcodeLog l) = hostname(computer(l));
+
+dateTime 'Время' = DATA DATETIME (BarcodeLog);
+
+enableBarcodeLog 'Включить логирование штрих-кодов' = DATA BOOLEAN ();
+autoApplyBarcodeLog 'Автоматическое сохранение при каждом логировании' = DATA BOOLEAN ();
+
+createBarcodeLog (LONG id, STRING[200] s) {
+    NEW l = BarcodeLog {
+        documentID(l) <- id;
+        barcode(l) <- s;
+        user(l) <- currentUser();
+        computer(l) <- currentComputer();
+        dateTime(l) <- currentDateTime();
+    }
+}
+
+logBarcode (LONG id, STRING[200] s) {
+    IF enableBarcodeLog() THEN {
+        IF autoApplyBarcodeLog() THEN 
+            NEWSESSION { createBarcodeLog(id, s); APPLY; }
+        ELSE
+            createBarcodeLog(id, s);
+    }
+}
+
+FORM barcodeLog 'Журнал сканирований штрих-кодов'
+    PROPERTIES() enableBarcodeLog, autoApplyBarcodeLog 
+
+    OBJECTS b = BarcodeLog
+    PROPERTIES(b) READONLY documentID, barcode, nameUser, hostnameComputer, dateTime
+;
+
+NAVIGATOR {
+    logs {
+        NEW barcodeLog;
+    }
+}
+
+in 'Отм' = DATA LOCAL BOOLEAN (BarcodeLog);
+countInBarcodeLog = GROUP SUM 1 IF in(BarcodeLog l);
+
+META defineDocumentLogBarcode(form, object, container, cls)
+    restoreBarcodeLog 'Восстановить' (###cls o) {
+        FOR in(BarcodeLog l) DO
+            processInputBarcode###cls##Detail(o, barcode(l));
+    }
+    EXTEND FORM form
+        OBJECTS bl = BarcodeLog
+        PROPERTIES(bl)          in
+        PROPERTIES(bl) READONLY barcode, nameUser, hostnameComputer, dateTime
+        PROPERTIES TOOLBAR DRAW bl restoreBarcodeLog(object) SHOWIF countInBarcodeLog()
+        FILTERS documentID(bl) = LONG(object)
+    ;
+    DESIGN form {
+        container {
+            MOVE BOX(bl);
+        }
+    }
+END
