@@ -13,7 +13,6 @@ import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.ScalesSettings;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
 import lsfusion.base.col.heavy.OrderedMap;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -543,7 +542,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         }
 
         String command1 = "PLST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(0) + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
-        boolean nonWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
+        boolean nonWeight = !isWeight(item, 1);
         if (!manualWeight) {
             if (nonWeight) {
                 command1 = command1 + "KLAR1" + separator;
@@ -557,7 +556,14 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         command1+= getPricesCommand(price, retailPrice, notInvertPrices);
 
         String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
-        String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
+        String idBarcode;
+        if(item.idBarcode != null && prefix != null && item.idBarcode.length() == 5) {
+            idBarcode = ("0" + prefix + item.idBarcode + "00000");
+        } else if(item.idBarcode != null && prefix != null && item.idBarcode.length() == 6) {
+            idBarcode = ("0" + prefix + item.idBarcode + "0000");
+        } else {
+            idBarcode = item.idBarcode;
+        }
         Integer tareWeight = 0;
         Integer tarePercent = getTarePercent(item);
         command1 = command1 + "RABZ1" + separator + "PTYP4" + separator + "WGNU" + getIdItemGroup(item) + separator + "ECO1" + idBarcode
