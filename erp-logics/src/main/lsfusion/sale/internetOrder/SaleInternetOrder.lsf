@@ -301,15 +301,40 @@ changeStatus(InternetOrder i) {
         customChangeStatus(i);
     }
 }
+isInternetOrder (InternetOrder o) = TRUE IF o IS InternetOrder;
 
+useCustomShowPersonalInfo 'Ограничить видимость персональных данных' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES useCustomShowPersonalInfo()
+;
+
+DESIGN options{
+    topInternetOrder{
+        NEW dataPrivacy{
+            caption = 'ЗПД';
+            MOVE PROPERTY (useCustomShowPersonalInfo());
+        }
+        
+    }
+}
+
+showPersonalInfo = ABSTRACT BOOLEAN (CustomUser);
+showPersonalInfoUser = IF useCustomShowPersonalInfo() THEN showPersonalInfo(currentUser()) ELSE TRUE;
+showPersonalInfoUser (InternetOrder o) = CASE 
+    WHEN NOT useCustomShowPersonalInfo() AND isInternetOrder(o) THEN TRUE 
+    WHEN useCustomShowPersonalInfo() AND showPersonalInfoUser() AND isInternetOrder(o) THEN TRUE 
+    WHEN useCustomShowPersonalInfo() AND NOT showPersonalInfoUser() AND NOT isClosed(o) THEN TRUE 
+    WHEN useCustomShowPersonalInfo() AND NOT showPersonalInfoUser() AND isClosed(o) THEN NULL
+;
+    
 background = ABSTRACT COLOR (InternetOrder);
 
 FORM internetOrder 'Интернет-заказ'
     OBJECTS o = InternetOrder PANEL
     PROPERTIES (o) isPosted, nameStatus ON CHANGE changeStatus(o), 
                    nameNumerator, number, series, date, time, nameCurrency, note,
-                   deliveryDate, issueCard, nameInternetCustomer, addressInternetCustomer, 
-                   areaInternetCustomer, indexInternetCustomer, cityInternetCustomer, phoneInternetCustomer, emailCustomer
+                   deliveryDate, issueCard, nameInternetCustomer SHOWIF showPersonalInfoUser(o), addressInternetCustomer SHOWIF showPersonalInfoUser(o), 
+                   areaInternetCustomer, indexInternetCustomer, cityInternetCustomer, phoneInternetCustomer SHOWIF showPersonalInfoUser(o), emailCustomer SHOWIF showPersonalInfoUser(o)
     PROPERTIES (o) numberDiscountCard BACKGROUND background(o)
     PROPERTIES (o) READONLY countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail, discountSumInternetOrderDetail BACKGROUND backgroundDiscount(o)
     
@@ -515,9 +540,10 @@ FORM internetOrders 'Интернет-заказы' AUTOREFRESH 60
     PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) isClosed
     PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) isPosted, nameStatus ON CHANGE changeStatus(o), fullNumber, number, series, date, time
     PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) nameCurrency,
-                                           deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer, 
+                                           deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer SHOWIF showPersonalInfoUser(), 
                                            areaInternetCustomer, indexInternetCustomer, cityInternetCustomer, 
-                                           addressInternetCustomer, phoneInternetCustomer, emailCustomer
+                                           addressInternetCustomer SHOWIF showPersonalInfoUser(), phoneInternetCustomer SHOWIF showPersonalInfoUser(), 
+                                           emailCustomer SHOWIF showPersonalInfoUser()
     PROPERTIES (o) READONLY BACKGROUND backgroundInternetOrder(o) countInternetOrderDetail, quantityInternetOrderDetail, sumInternetOrderDetail, 
                             discountSumInternetOrderDetail BACKGROUND backgroundDiscount(o), note
     PROPERTIES (o) READONLY BACKGROUND backgroundInternetOrder(o) namePaymentTypeInternetOrder, paymentCashSumInternetOrder, paymentCardSumInternetOrder, 

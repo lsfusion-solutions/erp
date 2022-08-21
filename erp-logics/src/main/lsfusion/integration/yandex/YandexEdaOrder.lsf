@@ -97,6 +97,7 @@ qtyYandex 'Кол-во Яндекс' = DATA NUMERIC[18,4] (InternetOrderDetail);
 EXTEND FORM internetOrder
     PROPERTIES (d) priceYandex, qtyYandex SHOWIF carrier(o) = yandexCarrier()
 ;
+afterCreateDetails ABSTRACT LIST (INTEGER, InternetOrderDetail);
 
 createOrder(FILE f){
     LOCAL tokenClient = STRING ();
@@ -134,10 +135,12 @@ createOrder(FILE f){
                 quantity(detail) <- NUMERIC[16,5](quantity(items));
                 price(detail) <- priceAggrRound(NUMERIC[15,2](price(items)), sku(detail));
                 internetOrder(detail) <- order;
+                afterCreateDetails(items, detail);
             }
             paymentTypeInternetOrder(order) <- paymentTypeOrder(paymentType());
             paymentCardSumInternetOrder(order) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CARD';
             paymentCashSumInternetOrder(order) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CASH';
+            paymentERIPSumInternetOrder(order) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'ONLINE';
             afterCreateOrder(order);
             APPLY ;
             IF canceled() THEN {
@@ -158,6 +161,7 @@ orderNotFound(){
 }
 
 extraUpdateOrder ABSTRACT LIST (InternetOrder);
+afterUpdateDetails ABSTRACT LIST (INTEGER, InternetOrderDetail);
 
 updateOrder(FILE f){
     LOCAL order = STRING ();
@@ -184,6 +188,7 @@ updateOrder(FILE f){
             FOR id(INTEGER items) AND InternetOrderDetail detail = GROUP MAX InternetOrderDetail idetail 
                 IF sku(idetail) = sku(id(items)) AND internetOrder(idetail) = io DO{
                 pickingQuantity(detail) <- NUMERIC[16,5](quantity(items));
+                afterUpdateDetails(items, detail);
             }
             paymentTypeInternetOrder(io) <- paymentTypeOrder(paymentType());
             paymentCardSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CARD';
