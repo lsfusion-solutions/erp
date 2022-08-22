@@ -1,5 +1,6 @@
 package equ.clt.handler.dreamkas;
 
+import equ.api.Payment;
 import equ.api.SalesInfo;
 import equ.api.cashregister.CashDocument;
 import equ.api.cashregister.CashRegisterInfo;
@@ -328,9 +329,17 @@ public class DreamkasServer {
                 if (isReturn) quantityReceiptDetail = quantityReceiptDetail.negate();
                 BigDecimal sumReceiptDetail = quantityReceiptDetail.multiply(priceReceiptDetail).setScale(2, RoundingMode.HALF_UP);
 
+                List<Payment> payments = new ArrayList<>();
+                if(sumCash.compareTo(BigDecimal.ZERO) != 0) {
+                    payments.add(Payment.getCash(sumCash));
+                }
+                if(sumCard.compareTo(BigDecimal.ZERO) != 0) {
+                    payments.add(Payment.getCash(sumCard));
+                }
+
                 salesInfoList.add(DreamkasHandler.getSalesInfo(false, false, cashRegister.numberGroup, cashRegister.number, numberZReport, sqlDateToLocalDate(dateZReport), sqlTimeToLocalTime(timeZReport),
                         numberReceipt, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, idEmployee != null ? firstNameContact : null,
-                        idEmployee != null ? lastNameContact : null, sumCard, sumCash, null, null,
+                        idEmployee != null ? lastNameContact : null, null, null, null, payments,
                         barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,
                         null, null, null, numberReceiptDetail, "", null, isCancel, null, null, null));
             }
