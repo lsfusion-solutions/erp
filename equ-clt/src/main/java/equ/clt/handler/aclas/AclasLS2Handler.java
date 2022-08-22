@@ -7,19 +7,19 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
-import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Callable;
 
+import static equ.clt.handler.HandlerUtils.copyWithTimeout;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
@@ -79,7 +79,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int clearData(ScalesInfo scales, long sleep) throws IOException, InterruptedException {
         File clearFile = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(clearFile), "cp1251"));
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(clearFile.toPath()), "cp1251"));
             bw.close();
 
             int result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), pluFile, sleep);
@@ -125,7 +125,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"))) {
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
                 bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
 
                 for (ScalesItem item : transaction.itemsList) {
@@ -186,7 +186,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadNote(ScalesInfo scales, List<List<Object>> noteData, TransactionScalesInfo transaction, String logDir, long sleep, int noteFile) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"))) {
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
                 bw.write(StringUtils.join(Arrays.asList("PLUID", "Value").iterator(), "\t"));
 
                 for (List<Object> noteEntry : noteData) {
@@ -235,7 +235,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"))) {
+            try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
                 bw.write(StringUtils.join(Arrays.asList("ButtonIndex", "ButtonValue").iterator(), "\t"));
 
                 for (ScalesItem item : transaction.itemsList) {
@@ -258,7 +258,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private void logFile(String logDir, File file, TransactionScalesInfo transaction, String prefix) throws IOException {
         if (logDir != null) {
             if (new File(logDir).exists() || new File(logDir).mkdirs()) {
-                FileCopyUtils.copy(file, new File(logDir + "/" + transaction.id + "-" + prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + ".txt"));
+                copyWithTimeout(file, new File(logDir + "/" + transaction.id + "-" + prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + ".txt"));
             }
         }
     }
