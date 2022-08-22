@@ -113,6 +113,10 @@ public class HandlerUtils {
         return result;
     }
 
+    public static void copyWithTimeout(File sourceFile, File destinationFile) {
+        copyWithTimeout(sourceFile, destinationFile, 60000);
+    }
+
     public static void copyWithTimeout(File sourceFile, File destinationFile, long timeout) {
         final Future future = Executors.newSingleThreadExecutor().submit(() -> {
             try {
