@@ -304,6 +304,7 @@ META defineOrderInvoice(sign, stockProp)
     countIncludeOrders(UserInvoice i)  = GROUP SUM 1 IF include(Order o,i);
     
     beforeCreateInvoice  ABSTRACT LIST ( Order);
+    afterCreateInvoice ABSTRACT LIST (UserInvoice);
     invoiceCreated = DATA LOCAL NESTED BOOLEAN (Order);
     overCreate  ABSTRACT LIST ( Order, UserInvoice);
     
@@ -322,6 +323,7 @@ META defineOrderInvoice(sign, stockProp)
             userInvoice(order) <- i;
             include(order,i) <- TRUE;
             overCreate (order, i);
+            afterCreateInvoice(i);
         }
     }
     createUserInvoice (Order order) + {  createUserInvoice(order); }
@@ -640,7 +642,7 @@ META defineOrderInvoice(sign, stockProp)
                         }
                         include[Order,UserInvoice](o,i)<- TRUE;             
                     }     
-                                  
+                    afterCreateInvoice(i);
                     SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                 }
             }
