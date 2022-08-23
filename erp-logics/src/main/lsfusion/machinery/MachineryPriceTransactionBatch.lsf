@@ -278,3 +278,63 @@ overClearMachineryPriceTransaction() + {
     in(MachineryPriceTransaction t, Barcode b, Batch bt) <- NULL WHERE in(t,b,bt) AND NOT in(t,b) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
     apply();
 }	    
+
+//Рейтинг 
+saleRating 'Рейтинг' = DATA INTEGER (MachineryPriceTransaction, Barcode, Batch);
+saleRating(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+prevTransactionSaleRating 'Рейтинг (тек.)' (Batch batch, Barcode barcode, GroupMachinery groupMachinery)  =
+    saleRating(prevLastFullTransaction(batch, barcode, groupMachinery), barcode, batch);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  saleRating(t, Barcode barcode, Batch batch) <- prevTransactionSaleRating(batch, barcode, groupMachinery) WHERE in(t, barcode, batch); }
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) saleRating;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY saleRating;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  saleRating;
+overSaleRating = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode, Batch);
+createAttribute(MachineryPriceTransaction t) + {saleRating(t, Barcode barcode, Batch batch) <- overSaleRating(t, barcode, batch) WHERE in(t, barcode, batch);}
+
+//Бонус при продаже
+saleBonus 'Бонус при продажи' = DATA INTEGER (MachineryPriceTransaction, Barcode, Batch);
+saleRating(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+prevTransactionSaleBonus 'Бонус при продажи (тек.)' (Batch batch, Barcode barcode, GroupMachinery groupMachinery)  =
+    saleBonus(prevLastFullTransaction(batch, barcode, groupMachinery), barcode, batch);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  saleBonus(t, Barcode barcode, Batch batch) <- prevTransactionSaleBonus(batch, barcode, groupMachinery) WHERE in(t, barcode, batch); }
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) saleBonus;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY saleBonus;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  saleBonus;
+overSaleBonus = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode, Batch);
+createAttribute(MachineryPriceTransaction t) + {saleBonus(t, Barcode barcode, Batch batch) <- overSaleBonus(t, barcode, batch) WHERE in(t, barcode, batch);}
+
+//Ряд
+row 'Ряд' = DATA STRING[20] (MachineryPriceTransaction, Barcode, Batch);
+row(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+prevTransactionRow 'Ряд (тек.)' (Batch batch, Barcode barcode, GroupMachinery groupMachinery)  =
+    row(prevLastFullTransaction(batch, barcode, groupMachinery), barcode, batch);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  row(t, Barcode barcode, Batch batch) <- prevTransactionRow(batch, barcode, groupMachinery) WHERE in(t, barcode, batch); }
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) row;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY row;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  row;
+overRow = ABSTRACT STRING[50] (MachineryPriceTransaction, Barcode, Batch);
+createAttribute(MachineryPriceTransaction t) + {row(t, Barcode barcode, Batch batch) <- overRow(t, barcode, batch) WHERE in(t, barcode, batch);}
+
+//Полка
+shelf 'Полка' = DATA STRING[50] (MachineryPriceTransaction, Barcode, Batch);
+shelf(MachineryPriceTransaction t, Barcode barcode, Batch batch) => in(t, barcode, batch) RESOLVE RIGHT;
+prevTransactionShelf 'Полка (тек.)' (Batch batch, Barcode barcode, GroupMachinery groupMachinery)  =
+    shelf(prevLastFullTransaction(batch, barcode, groupMachinery), barcode, batch);
+
+snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
+    {  shelf(t, Barcode barcode, Batch batch) <- prevTransactionShelf(batch, barcode, groupMachinery) WHERE in(t, barcode, batch); }
+
+EXTEND FORM machineryPriceTransaction PROPERTIES(t, b, batch) shelf;
+EXTEND FORM machineryPriceTransactions PROPERTIES(t, b, batch) READONLY shelf;
+EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb, bbatch) READONLY  shelf;
+overShelf = ABSTRACT STRING[50] (MachineryPriceTransaction, Barcode, Batch);
+createAttribute(MachineryPriceTransaction t) + {shelf(t, Barcode barcode, Batch batch) <- overShelf(t, barcode, batch) WHERE in(t, barcode, batch);}
