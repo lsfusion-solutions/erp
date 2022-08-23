@@ -3,6 +3,7 @@ package equ.clt.handler.ukm4;
 import com.google.common.base.Throwables;
 import com.hexiong.jdbf.DBFWriter;
 import equ.api.ItemGroup;
+import equ.api.Payment;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashRegisterInfo;
@@ -328,15 +329,21 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                             HandlerUtils.safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
 
                     salesInfoList.add(getSalesInfo(numberGroup, Integer.parseInt(numberCashRegister), zNumber,
-                            date, time, receiptNumber, date, time, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, null, barcodeReceiptDetail,
+                            date, time, receiptNumber, date, time, null, null, null, null, BigDecimal.ZERO, new ArrayList<>(), barcodeReceiptDetail,
                             null, null, null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
                             priceReceiptDetail,
                             operation % 2 == 1 ? sumReceiptDetail : sumReceiptDetail.negate(),
                             discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null, null, null, null, cashRegister));
                 }
                 for (SalesInfo salesInfo : salesInfoList) {
-                    salesInfo.sumCash = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[0];
-                    salesInfo.sumCard = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[1];
+                    BigDecimal sumCash = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[0];
+                    if(sumCash != null) {
+                        salesInfo.payments.add(Payment.getCash(sumCash));
+                    }
+                    BigDecimal sumCard = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[1];
+                    if(sumCard != null) {
+                        salesInfo.payments.add(Payment.getCard(sumCard));
+                    }
                 }
             }
 
