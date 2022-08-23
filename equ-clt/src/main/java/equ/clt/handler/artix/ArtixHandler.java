@@ -633,6 +633,22 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         medicineObject.put("remaindatetime", batch.balanceDate);
         medicineObject.put("countrycode", batch.countryCode);
         medicineObject.put("options", batch.flag);
+
+        JSONObject infoJSON = getExtInfo(batch.info);
+        if (infoJSON != null) {
+            if (infoJSON.has("rating")) {
+                medicineObject.put("rating", infoJSON.getInt("rating"));
+            }
+            if (infoJSON.has("bonusonsale")) {
+                medicineObject.put("bonusonsale", infoJSON.getInt("bonusonsale"));
+            }
+            if (infoJSON.has("row")) {
+                medicineObject.put("row", infoJSON.getString("row"));
+            }
+            if (infoJSON.has("shelf")) {
+                medicineObject.put("shelf", infoJSON.getString("shelf"));
+            }
+        }
         rootObject.put("command", "addMedicine");
         return rootObject.toString();
     }
