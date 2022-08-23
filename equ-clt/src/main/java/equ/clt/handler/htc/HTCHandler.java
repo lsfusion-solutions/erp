@@ -36,6 +36,7 @@ import java.util.concurrent.Future;
 
 import static equ.clt.EquipmentServer.sqlDateToLocalDate;
 import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
+import static equ.clt.handler.HandlerUtils.copyWithTimeout;
 import static equ.clt.handler.HandlerUtils.trim;
 
 public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
@@ -292,7 +293,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                     try {
                                         if (!append) {
                                             processTransactionLogger.info(String.format("HTC: Transaction # %s copying %s file", transaction.id, directory + "/" + fileName));
-                                            FileCopyUtils.copy(cachedPriceFile, priceFile);
+                                            copyWithTimeout(cachedPriceFile, priceFile);
                                             processTransactionLogger.info(String.format("HTC: Transaction # %s finished copying %s file", transaction.id, directory + "/" + fileName));
                                         }
                                         flagPriceFile.createNewFile();
@@ -345,7 +346,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
                 File discountCardFile = new File(directory + (startDate == null ? "/Discnew.dbf" : "/Discupd.dbf"));
                 if (cachedDiscFile != null) {
-                    FileCopyUtils.copy(cachedDiscFile, discountCardFile);
+                    copyWithTimeout(cachedDiscFile, discountCardFile);
                 } else {
                     cachedDiscFile = File.createTempFile("cachedDiscnew", ".dbf");
                     
@@ -385,7 +386,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                         }
                     }
                     dbfFile.close();
-                    FileCopyUtils.copy(cachedDiscFile, discountCardFile);
+                    copyWithTimeout(cachedDiscFile, discountCardFile);
                 }
                 File discountFlag = new File(directory + (startDate == null ? "/TMC.dcn" : "/TMC.dcu"));
                 discountFlag.createNewFile();
@@ -442,7 +443,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         if(promotionTimeList != null && !promotionTimeList.isEmpty()) {
             File timeFile = new File(directory + "/Timenew.dbf");
             if (cachedTimeFile != null) {
-                FileCopyUtils.copy(cachedTimeFile, timeFile);
+                copyWithTimeout(cachedTimeFile, timeFile);
             } else {
                 cachedTimeFile = File.createTempFile("cachedTimenew", ".dbf");
                 
@@ -470,7 +471,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                     if (dbfFile != null)
                         dbfFile.close();
                 }
-                FileCopyUtils.copy(cachedTimeFile, timeFile);
+                copyWithTimeout(cachedTimeFile, timeFile);
             }
             new File(directory + "/TMC.tmn").createNewFile();
             return cachedTimeFile;
@@ -481,7 +482,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         if (promotionQuantityList != null && !promotionQuantityList.isEmpty()) {
             File quantityFile = new File(directory + "/Bonnew.dbf");
             if (cachedQuantityFile != null) {
-                FileCopyUtils.copy(cachedQuantityFile, quantityFile);
+                copyWithTimeout(cachedQuantityFile, quantityFile);
             } else {
                 cachedQuantityFile = File.createTempFile("cachedBonnew", ".dbf");
                 
@@ -509,7 +510,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                     if (dbfFile != null)
                         dbfFile.close();
                 }
-                FileCopyUtils.copy(cachedQuantityFile, quantityFile);
+                copyWithTimeout(cachedQuantityFile, quantityFile);
             }
             new File(directory + "/TMC.bnn").createNewFile();
             return cachedQuantityFile;
@@ -520,7 +521,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         if (promotionSumList != null && !promotionSumList.isEmpty()) {
             File sumFile = new File(directory + "/Sumnew.dbf");
             if (cachedSumFile != null) {
-                FileCopyUtils.copy(cachedSumFile, sumFile);
+                copyWithTimeout(cachedSumFile, sumFile);
             } else {
                 cachedSumFile = File.createTempFile("cachedSumnew", ".dbf");
                 NumField SUM = new NumField("SUM", 12, 0);
@@ -543,7 +544,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                     if (dbfFile != null)
                         dbfFile.close();
                 }
-                FileCopyUtils.copy(cachedSumFile, sumFile);
+                copyWithTimeout(cachedSumFile, sumFile);
             }
             new File(directory + "/TMC.smn").createNewFile();
             return cachedSumFile;
@@ -675,11 +676,11 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                     nameSalesFile = remoteSalesFile.getName();
                     salesFile = File.createTempFile("Sales", ".dbf");
                     sendSalesLogger.info(String.format("Start copying sales.dbf from %s to %s", remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
-                    FileCopyUtils.copy(remoteSalesFile, salesFile);
+                    copyWithTimeout(remoteSalesFile, salesFile);
                     sendSalesLogger.info(String.format("End copying sales.dbf from %s to %s", remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
                     receiptFile = File.createTempFile("Receipt", ".dbf");
                     sendSalesLogger.info(String.format("Start copying receipt.dbf from %s to %s", remoteReceiptFile.getAbsolutePath(), receiptFile.getAbsolutePath()));
-                    FileCopyUtils.copy(remoteReceiptFile, receiptFile);
+                    copyWithTimeout(remoteReceiptFile, receiptFile);
                     sendSalesLogger.info(String.format("End copying receipt.dbf from %s to %s", remoteReceiptFile.getAbsolutePath(), receiptFile.getAbsolutePath()));
                 } catch (Exception e) {
                     copyError = true;
@@ -772,11 +773,11 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                             new File(directory + "/backup").mkdir();
                             File backupSalesFile = new File(directory + "/backup/Sales" + timePostfix);
                             sendSalesLogger.info(String.format("Start copying sales.dbf from %s to %s", salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
-                            FileCopyUtils.copy(salesFile, backupSalesFile);
+                            copyWithTimeout(salesFile, backupSalesFile);
                             sendSalesLogger.info(String.format("End copying sales.dbf from %s to %s", salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
                             File backupReceiptFile = new File(directory + "/backup/Receipt" + timePostfix);
                             sendSalesLogger.info(String.format("Start copying receipt.dbf from %s to %s", receiptFile.getAbsolutePath(), backupReceiptFile.getAbsolutePath()));
-                            FileCopyUtils.copy(receiptFile, backupReceiptFile);
+                            copyWithTimeout(receiptFile, backupReceiptFile);
                             sendSalesLogger.info(String.format("End copying receipt.dbf from %s to %s", receiptFile.getAbsolutePath(), backupReceiptFile.getAbsolutePath()));
 
                         }
@@ -941,8 +942,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                 File salesFile = new File(new File(directory).getParent() + "/Data/js" + dateFrom.format(DateTimeFormatter.ofPattern("yyMMdd")) + ".dbf");
                                 if(receiptFile.exists() && salesFile.exists()) {
                                     try {
-                                        FileCopyUtils.copy(receiptFile, new File(directory + "/Receipt" + getCurrentTimestamp() + ".dbf"));
-                                        FileCopyUtils.copy(salesFile, new File(directory + "/Sales" + getCurrentTimestamp() + ".dbf"));
+                                        copyWithTimeout(receiptFile, new File(directory + "/Receipt" + getCurrentTimestamp() + ".dbf"));
+                                        copyWithTimeout(salesFile, new File(directory + "/Sales" + getCurrentTimestamp() + ".dbf"));
                                         skip = true;
                                     } catch (Exception e) {
                                         sendSalesLogger.error("HTC: error copying files from data directory");
