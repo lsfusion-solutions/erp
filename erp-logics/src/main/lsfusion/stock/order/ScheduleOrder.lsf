@@ -206,8 +206,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     shipmentNameDOW 'День недели поставки' (ScheduleOrderTime d) = staticCaption(shipmentDOW(d)) IN id;
 
     shipmentWeeks 'Кол-во недель до поставки' = DATA INTEGER (ScheduleOrderTime);
-    shipmentTime 'Кол-во дней до поставки' (ScheduleOrderTime d) = OVERRIDE distanceDOWDOW(orderDOW(d), shipmentDOW(d)) (+) ((OVERRIDE shipmentWeeks(d),0)*7), 
-                                                                        0 IF d IS ScheduleOrderTime;
+    shipmentTime 'Кол-во дней до поставки' (ScheduleOrderTime d) = OVERRIDE distanceDOWDOW(orderDOW(d), shipmentDOW(d)) (+) ((OVERRIDE shipmentWeeks(d),0 IF d IS ScheduleOrderTime)*7), 
+                                                                        0 IF d IS ScheduleOrderTime MATERIALIZED;
 
     INDEX scheduleOrder(ScheduleOrderTime d), shipmentDOW(d);
     shipmentScheduleOrderTime = GROUP AGGR ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d); 
