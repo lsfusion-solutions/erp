@@ -369,15 +369,17 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 tmpDateP() <- tmpDate();
                 WHILE tmpDate() < sum(tmpDateP(), 7) AND tmpDate() <= toDate() DO {
                     IF inScheduleOrder(scheduleOrder, extractMonth(tmpDate())) AND shipmentScheduleOrderTime(scheduleOrder, extractDOW(tmpDate())) THEN {
+                        LOCAL time = ScheduleOrderTime();
+                        time() <- shipmentScheduleOrderTime(scheduleOrder,extractDOW(tmpDate()));
                         LOCAL orderDate = DATE();
-                        orderDate() <- subtract(tmpDate(), shipmentTime(shipmentScheduleOrderTime(scheduleOrder,extractDOW(tmpDate()))));
+                        orderDate() <- subtract(tmpDate(), shipmentTime(time()));
                         FOR in(scheduleOrder, Stock stock) AND active(stock) AND NOT tmpDate() <= lastDateSupply(scheduleOrder, stock) DO { //AND NOT countDetails(scheduleOrder, tmpDate(), orderDate(), stock) DO {                      
                             NEW o = ScheduleOrderDetail {
                                 dateOrder(o) <- orderDate();
                                 dateSupply(o) <- tmpDate();
                                 scheduleOrder(o) <- scheduleOrder;
                                 customerStock(o) <- stock; 
-                                timeToOrder(o) <- OVERRIDE timeToOrder(shipmentScheduleOrderTime(scheduleOrder, extractDOW(tmpDate()))), timeToOrder(scheduleOrder); 
+                                timeToOrder(o) <- OVERRIDE timeToOrder(time()), timeToOrder(scheduleOrder); 
                                 overCreate(o);                                                                                                                                                               
                             }
                         }
