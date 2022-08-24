@@ -921,16 +921,19 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
 
-//        files.sort((f1, f2) -> {
-//            int priorityDif = f2.second - f1.second;
-//            if (priorityDif != 0) return priorityDif;
-//            else return compareDates(f1.first, f2.first);
-//        });
-
         int totalFilesCount = files.size();
 
-        if(maxFilesCount == null || maxFilesCount > totalFilesCount)
+        if(maxFilesCount == null || maxFilesCount > totalFilesCount){
             maxFilesCount = totalFilesCount;
+        } else {
+            sendSalesLogger.info(logPrefix + "sorting " + totalFilesCount + " files");
+            files.sort((f1, f2) -> {
+                int priorityDif = f2.second - f1.second;
+                if (priorityDif != 0) return priorityDif;
+                else return compareNames(f1.first, f2.first);
+            });
+        }
+
         List<File> subFiles = new ArrayList<>();
         for(int i = 0; i < maxFilesCount; i++) {
             subFiles.add(files.get(i).first);
@@ -1058,8 +1061,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return result;
     }
 
-    private int compareDates(File f1, File f2) {
-        return Long.compare(f1.lastModified(), f2.lastModified());
+    private int compareNames(File f1, File f2) {
+        return f1.getName().compareTo(f2.getName());
     }
 
     private List<Pair<File, Integer>> getDirectories(List<CashRegisterInfo> cashRegisterList) {
