@@ -1069,7 +1069,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 int priority = nvl(cashRegister.priority, -1);
                 long start = System.currentTimeMillis();
                 File[] subDirectoryList = new File(cashRegister.directory).listFiles(File::isDirectory);
-                sendSalesLogger.info(logPrefix + "listFiles getDirectories: " + (System.currentTimeMillis() - start) + " ms"); //temp log
+                sendSalesLogger.info(logPrefix + "listFiles getDirectories: " + cashRegister.directory + " / " +
+                                     (subDirectoryList != null ? subDirectoryList.length : 0) + " files - " +
+                                     (System.currentTimeMillis() - start) + " ms"); //temp log
                 if (subDirectoryList != null) {
                     for (File subDirectory : subDirectoryList) {
                         result.add(Pair.create(subDirectory, priority));
