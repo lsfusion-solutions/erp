@@ -1448,13 +1448,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                     boolean isCanceled = false;
                                     //чек полностью отменён - в секции failedMoneyPositions поле opCode = 70 (аннулирование продажи)
-                                    JSONArray failedMoneyPositionsArray = documentObject.getJSONArray("failedMoneyPositions");
-                                    for (int i = 0; i < failedMoneyPositionsArray.length(); i++) {
-                                        JSONObject failedMoneyPosition = failedMoneyPositionsArray.getJSONObject(i);
-                                        Integer operationCode = failedMoneyPosition.getInt("opCode");
-                                        if (operationCode.equals(70)) {
-                                            isCanceled = true;
-                                            break;
+                                    JSONArray failedMoneyPositionsArray = documentObject.optJSONArray("failedMoneyPositions");
+                                    if (failedMoneyPositionsArray!=null){
+                                        for (int i = 0; i < failedMoneyPositionsArray.length(); i++) {
+                                            JSONObject failedMoneyPosition = failedMoneyPositionsArray.getJSONObject(i);
+                                            Integer operationCode = failedMoneyPosition.getInt("opCode");
+                                            if (operationCode.equals(70)) {
+                                                isCanceled = true;
+                                                break;
+                                            }
                                         }
                                     }
                                     if(!isCanceled) {
