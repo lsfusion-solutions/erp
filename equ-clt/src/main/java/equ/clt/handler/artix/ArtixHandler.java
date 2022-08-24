@@ -921,11 +921,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
 
-        files.sort((f1, f2) -> {
-            int priorityDif = f2.second - f1.second;
-            if (priorityDif != 0) return priorityDif;
-            else return compareDates(f1.first, f2.first);
-        });
+//        files.sort((f1, f2) -> {
+//            int priorityDif = f2.second - f1.second;
+//            if (priorityDif != 0) return priorityDif;
+//            else return compareDates(f1.first, f2.first);
+//        });
 
         int totalFilesCount = files.size();
 
