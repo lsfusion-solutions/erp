@@ -44,13 +44,58 @@ EXTEND FORM customGroup
 dataCustomGroupType = DATA CustomGroupType(GroupScales);
 overCustomGroupType = ABSTRACT CustomGroupType(GroupScales);
 customGroupType(GroupScales gs) = OVERRIDE dataCustomGroupType(gs), overCustomGroupType(gs);
-nameCustomGroupType 'Тип классификатора'(GroupScales gs) = name(customGroupType(gs));
+nameCustomGroupType 'Тип классификатора самообслуживания'(GroupScales gs) = name(customGroupType(gs));
 
 isSelfService = ABSTRACT VALUE BOOLEAN (GroupScales);
 skipSkuWioutGroup 'Не выгружать товары без классификатора' = DATA BOOLEAN (GroupScales);
 skip(GroupMachinery gm, Barcode b) += WHEN isSelfService(gm) AND skipSkuWioutGroup(gm) AND NOT customGroup(customGroupType(gm), sku(b)) THEN TRUE;
 
+filterSkuSelfService 'Фильтровать по классификатору самообслуживания' = DATA BOOLEAN (GroupScales);
+WHEN LOCAL SET (filterSkuSelfService(GroupScales gs)) DO filterSku(gs) <- NULL;
+WHEN LOCAL SET (filterSku(GroupScales gs)) DO filterSkuSelfService(gs) <- NULL;
+
+TABLE groupScalesCustomGroup (GroupScales, CustomGroup);
+in 'Вкл' = DATA BOOLEAN (GroupScales, CustomGroup);
+customIn(GroupScales gm, Sku s) = in(gm, customGroup(customGroupType(gm), s)) IF filterSkuSelfService(gm) MATERIALIZED;
+
+readOnlyIn = ABSTRACT BOOLEAN (GroupScales, CustomGroup);
+
+FORM filterCustomSelfService 'Фильтрация по классификатору'
+    OBJECTS gm = GroupScales PANEL
+    PROPERTIES(gm) READONLY npp, nameStock, name
+    OBJECTS gt = CustomGroupType PANEL
+    PROPERTIES(gt) READONLY name
+
+    TREE treeGroups cg=CustomGroup PARENT parent(cg)
+    PROPERTIES(cg) READONLY id, name
+    PROPERTIES(gm, cg) in READONLYIF readOnlyIn(gm, cg)
+    FILTERS customGroupType(cg) == gt
+    FILTERGROUP inactive1 FILTER 'Активные' active(cg) 'F5' DEFAULT
+;
+DESIGN filterCustomSelfService {
+    width = 800;
+    height = 700;
+    OBJECTS {
+        MOVE BOX(gm);
+        MOVE BOX(gt);
+        MOVE BOX(TREE treeGroups);
+    }
+}
+
+skipIn(GroupMachinery gm, Sku sku) += WHEN gm IS GroupScales AND sku IS Sku AND filterSkuSelfService(gm) AND NOT customIn(gm, sku) THEN TRUE;
+
+showFilterSkuCustom 'Выбрать группы' (GroupScales gm)  { SHOW filterCustomSelfService OBJECTS gm = gm, gt = customGroupType(gm); }
+
 EXTEND FORM groupScales 
-    PROPERTIES (grs) SHOWIF isSelfService(grs) nameCustomGroupType, skipSkuWioutGroup;
+    PROPERTIES (grs) SHOWIF isSelfService(grs) nameCustomGroupType, skipSkuWioutGroup, filterSkuSelfService, showFilterSkuCustom SHOWIF filterSkuSelfService(grs);
+    
+DESIGN groupScales{
+    items {
+        MOVE PROPERTY (nameCustomGroupType(grs));
+        MOVE PROPERTY (skipSkuWioutGroup(grs));
+        MOVE PROPERTY (filterSkuSelfService(grs));
+        MOVE PROPERTY (showFilterSkuCustom(grs));
+    }
+}
 
 pluNumber(GroupMachinery g, Barcode b) = OVERRIDE plu(g, b), plu(b, stock(g));
