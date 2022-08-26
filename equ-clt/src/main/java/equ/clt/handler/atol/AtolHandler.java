@@ -8,16 +8,17 @@ import equ.api.SendTransactionBatch;
 import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
-import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+
+import static equ.clt.handler.HandlerUtils.copyWithTimeout;
 
 public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
@@ -59,7 +60,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                     goodsWriter.println("#");
 
                     goodsWriter.println("$$$ADDENTERPRISES");
-                    goodsWriter.println(format(transaction.nppGroupMachinery, ";") + ";" + format(transaction.nppGroupMachinery, ";"));
+                    goodsWriter.println(format(transaction.nppGroupMachinery) + ";" + format(transaction.nppGroupMachinery));
 
                     if (!transaction.itemsList.isEmpty()) {
                         goodsWriter.println("$$$ADDQUANTITY");
@@ -83,9 +84,9 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
                         for (Map.Entry<String, String[]> itemGroupEntry : itemGroups.entrySet()) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                String itemGroupRecord = format(itemGroupEntry.getKey(), ";") + ";" + format(itemGroupEntry.getValue()[0], 100, ";") + //3
-                                        format(itemGroupEntry.getValue()[0], 100, ";") + ";;;" + formatFlags(itemGroupEntry.getValue()[2], ";") + //8
-                                        ";;;;;;;" + format(itemGroupEntry.getValue()[1], ";") + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                                String itemGroupRecord = format(itemGroupEntry.getKey()) + ";" + format(itemGroupEntry.getValue()[0], 100) + //3
+                                        format(itemGroupEntry.getValue()[0], 100) + ";;;" + formatFlags(itemGroupEntry.getValue()[2]) + //8
+                                        ";;;;;;;" + format(itemGroupEntry.getValue()[1]) + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
                                         (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
                                 goodsWriter.println(itemGroupRecord);
                             }
@@ -94,9 +95,9 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                         for (CashRegisterItem item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 String idItemGroup = item.idItemGroup == null ? "" : item.idItemGroup;
-                                String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
-                                        format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
-                                        ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                                String record = format(item.idItem) + format(item.idBarcode) + format(item.name, 100) + //3
+                                        format(item.name, 100) + format(item.price) + ";;" + formatFlags(item.splitItem ? "1" : "0") + //8
+                                        ";;;;;;;" + format(idItemGroup) + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
                                         (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
                                 goodsWriter.println(record);
                             }
@@ -128,9 +129,9 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
         return goodsFlagFile;
     }
 
-    private boolean processGoodsFlagFile(File goodsFile, File goodsFlagFile) throws FileNotFoundException, UnsupportedEncodingException {
+    private void processGoodsFlagFile(File goodsFile, File goodsFlagFile) throws IOException {
         processTransactionLogger.info("Atol: waiting for processing of goods file");
-        PrintWriter flagWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(goodsFlagFile), "windows-1251"));
+        PrintWriter flagWriter = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(goodsFlagFile.toPath()), "windows-1251"));
         flagWriter.close();
         while (!Thread.currentThread().isInterrupted() && (goodsFlagFile.exists() || !checkGoodsFile(goodsFile.getAbsolutePath()))) {
             try {
@@ -140,7 +141,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
             }
         }
         processTransactionLogger.info("Atol: deletion of goods file");
-        return goodsFile.delete();
+        goodsFile.delete();
     }
 
     @Override
@@ -158,7 +159,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                 String exchangeDirectory = directory + "/IN";
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                     File salesFlagFile = new File(exchangeDirectory + "/sales-flag.txt");
-                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(salesFlagFile), StandardCharsets.UTF_8));
+                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(salesFlagFile.toPath()), StandardCharsets.UTF_8));
                     writer.write("$$$TRANSACTIONSBYDATERANGE");
                     writer.newLine();
                     writer.write(dateFrom + ";" + dateTo);
@@ -205,7 +206,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                     bw.close();
                     br.close();
 
-                    FileCopyUtils.copy(outputFile, inputFile);
+                    copyWithTimeout(outputFile, inputFile);
                     if(!outputFile.delete())
                         outputFile.deleteOnExit();
                 }
@@ -485,15 +486,15 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                 (pathname.getName().startsWith("_current") && pathname.getPath().endsWith(".txt"));
     }
 
-    private String formatFlags(String splitItem, String postfix) {
-        return splitItem + ",,,,,1" + (postfix == null ? "" : postfix);
+    private String formatFlags(String splitItem) {
+        return splitItem + ",,,,,1" + ";";
     }
 
-    private String format(Object input, String postfix) {
-        return format(input, null, postfix);
+    private String format(Object input) {
+        return format(input, null);
     }
 
-    private String format(Object input, Integer length, String postfix) {
+    private String format(Object input, Integer length) {
         String result = "";
         if (input != null) {
             if (input instanceof BigDecimal)
@@ -505,7 +506,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                 result = length == null || length >= str.length() ? str : str.substring(0, length);
             }
         }
-        return result.replace(";", "¤") + (postfix == null ? "" : postfix);
+        return result.replace(";", "¤") + ";";
     }
 
     private String getStringValue(String[] entry, int index) {
