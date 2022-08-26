@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
+import static lsfusion.base.BaseUtils.nvl;
 
 public class DigiSM120Handler extends DigiHandler {
 
@@ -69,7 +70,7 @@ public class DigiSM120Handler extends DigiHandler {
 
         @Override
         protected boolean sendPLU(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
-            byte[] record = makePLURecord(item, plu, scales.pieceCodeGroupScales, scales.weightCodeGroupScales, nameLineFont, nameLineLength);
+            byte[] record = makePLURecord(item, plu, nameLineFont, nameLineLength);
             processTransactionLogger.info(String.format(getLogPrefix() + "Sending plu file item %s to scales %s", plu, scales.port));
             int reply = sendRecord(socket, cmdWrite, filePLU, record);
             if(reply != 0)
@@ -105,17 +106,15 @@ public class DigiSM120Handler extends DigiHandler {
             } else return true;
         }
 
-        private byte[] makePLURecord(ScalesItem item, Integer plu, String piecePrefix, String weightPrefix, Integer nameLineFont, Integer nameLineLength) throws IOException {
+        private byte[] makePLURecord(ScalesItem item, Integer plu, Integer nameLineFont, Integer nameLineLength) throws IOException {
             int flagForDelete = 0; //No data/0: Add or Change, 1: Delete
-            //временно весовой товар определяется как в старых Digi
-            //int isWeight = item.splitItem ? 0 : 1; //0: Weighed item   1: Non-weighed item
-            boolean isWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
-            int isWeightCode = isWeight ? 1 : 0;
+            boolean isWeight = isWeight(item, 3);
+            int isWeightCode = isWeight ? 0 : 1; //0: Weighed item; 1: Non-weighed item
             String price = getPrice(item.price); //max 9999.99
             String labelFormat1 = "017";
             String labelFormat2 = "0";
             String barcodeFormat = "5"; //F1F2 CCCCC XXXXX CD
-            String barcodeFlagOfEANData = isWeight ? (piecePrefix != null ? piecePrefix : "21") : (weightPrefix != null ? weightPrefix : "20");
+            String barcodeFlagOfEANData = isWeight ? nvl(scales.weightCodeGroupScales, "20") : nvl(scales.pieceCodeGroupScales, "21");
 
             String itemCodeOfEANData = plu + "00000"; //6-digit Item code + 4-digit Expanded item code
             String extendItemCodeOfEANData = "";
