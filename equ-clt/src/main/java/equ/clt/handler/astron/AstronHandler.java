@@ -80,6 +80,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         boolean deleteBarcodeInSeparateProcess = astronSettings.isDeleteBarcodeInSeparateProcess();
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
+        boolean specialSplitMode = astronSettings.isSpecialSplitMode();
 
         List<DeleteBarcodeInfo> deleteBarcodeList = new ArrayList<>();
         if (!deleteBarcodeInSeparateProcess) {
@@ -121,7 +122,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         SendTransactionBatch batch = exportTransaction(transaction, exception, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(),
                                 exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, transactionCount, itemCount, usePropertyGridFieldInPackTable,
-                                waitSysLogInsteadOfDataPump);
+                                waitSysLogInsteadOfDataPump, specialSplitMode);
                         exception = batch.exception;
 
                         currentSendTransactionBatchMap.put(transaction.id, batch);
@@ -148,7 +149,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Throwable exception = null;
                     for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
                         SendTransactionBatch batch = exportTransaction(transaction, exception, true, true, directoryTransactionEntry.getKey(),
-                                    exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, 1, transaction.itemsList.size(), usePropertyGridFieldInPackTable, waitSysLogInsteadOfDataPump);
+                                    exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, 1, transaction.itemsList.size(),
+                                usePropertyGridFieldInPackTable, waitSysLogInsteadOfDataPump, specialSplitMode);
                         exception = batch.exception;
 
                         sendTransactionBatchMap.put(transaction.id, batch);
@@ -172,7 +174,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private SendTransactionBatch exportTransaction(TransactionCashRegisterInfo transaction, Throwable exception, boolean firstTransaction, boolean lastTransaction, String directory,
                                         boolean exportExtraTables, List<DeleteBarcodeInfo> deleteBarcodeList,
                                         Integer timeout, Integer maxBatchSize, boolean isVersionalScheme, int transactionCount, int itemCount, boolean usePropertyGridFieldInPackTable,
-                                        boolean waitSysLogInsteadOfDataPump) {
+                                        boolean waitSysLogInsteadOfDataPump, boolean specialSplitMode) {
         Set<String> deleteBarcodeSet = new HashSet<>();
         if(exception == null) {
             AstronConnectionString params = new AstronConnectionString(directory);
@@ -239,7 +241,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             outputUpdateNums.put("UNIT", unitUpdateNum);
 
                             Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
-                            exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable);
+                            exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
                             astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
                             exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, packUpdateNum);
                             outputUpdateNums.put("PACK", packUpdateNum);
@@ -678,7 +680,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum,
-                            boolean usePropertyGridFieldInPackTable) throws SQLException, UnsupportedEncodingException {
+                            boolean usePropertyGridFieldInPackTable, boolean specialSplitMode) throws SQLException, UnsupportedEncodingException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(
                 usePropertyGridFieldInPackTable ?
@@ -696,6 +698,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Integer idItem = parseIdItem(item);
                     List<Integer> packIds = getPackIds(item);
 
+                    int packDType = specialSplitMode && item.splitItem ? 0 : (item.passScalesItem ? 0 : item.splitItem ? 2 : 1);
+
                     for (Integer packId : packIds) {
                         if (params.pgsql) {
                             setObject(ps, packId, 1); //PACKID
@@ -710,10 +714,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             }
                             setObject(ps, idUOM, 6); //UNITID
                             setObject(ps, item.splitItem ? 2 : 0, 7); //QUANTMASK
-                            setObject(ps, item.passScalesItem ? 0 : item.splitItem ? 2 : 1, 8); //PACKDTYPE
+                            setObject(ps, packDType, 8); //PACKDTYPE
                             setObject(ps, getItemName(item), 9); //PACKNAME
                             setObject(ps, delFlag ? 1 : 0, 10); //DELFLAG
-                            setObject(ps, item.passScalesItem ? 2 : null, 11); //BARCID
+                            setObject(ps, !specialSplitMode && item.passScalesItem ? 2 : null, 11); //BARCID
                             if(usePropertyGridFieldInPackTable) {
                                 setObject(ps, getPropertyGrpId(item), 12); //PROPERTYGRPID
                             }
@@ -729,10 +733,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             }
                             setObject(ps, idUOM, 5, offset); //UNITID
                             setObject(ps, item.splitItem ? 2 : "", 6, offset); //QUANTMASK
-                            setObject(ps, item.passScalesItem ? 0 : item.splitItem ? 2 : 1, 7, offset); //PACKDTYPE
+                            setObject(ps, packDType, 7, offset); //PACKDTYPE
                             setObject(ps, getItemName(item), 8, offset); //PACKNAME
                             setObject(ps, delFlag ? "1" : "0", 9, offset); //DELFLAG
-                            setObject(ps, item.passScalesItem ? "2" : null, 10, offset); //BARCID
+                            setObject(ps, !specialSplitMode && item.passScalesItem ? "2" : null, 10, offset); //BARCID
 
                             int delta = 0;
                             if(usePropertyGridFieldInPackTable) {
@@ -1862,6 +1866,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         boolean isVersionalScheme = astronSettings.isVersionalScheme();
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
+        boolean specialSplitMode = astronSettings.isSpecialSplitMode();
 
         for (String directory : directorySet) {
             AstronConnectionString params = new AstronConnectionString(directory);
@@ -1893,7 +1898,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         outputUpdateNums.put("UNIT", unitUpdateNum);
 
                         Integer packUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
-                        exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable);
+                        exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
                         outputUpdateNums.put("PACK", packUpdateNum);
 
                         Integer exBarcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
@@ -1944,6 +1949,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         boolean deleteBarcodeInSeparateProcess = astronSettings.isDeleteBarcodeInSeparateProcess();
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
+        boolean specialSplitMode = astronSettings.isSpecialSplitMode();
 
         if(deleteBarcodeInSeparateProcess) {
 
@@ -1987,7 +1993,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             outputUpdateNums.put("UNIT", unitUpdateNum);
 
                             Integer packUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "PACK");
-                            exportPack(conn, params, deleteBarcode.barcodeList, true, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable);
+                            exportPack(conn, params, deleteBarcode.barcodeList, true, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
                             outputUpdateNums.put("PACK", packUpdateNum);
 
                             Integer exBarcUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "EXBARC");

@@ -57,6 +57,9 @@ public class AstronSettings implements Serializable {
     //если true, то при неверсионной схеме после выгрузки флагов проверяется не таблица DATAPUMP, а Syslog_DataServer
     private boolean waitSysLogInsteadOfDataPump;
 
+    //если true, то влияет на поля PACKDTYPE и BARCID таблицы PACK
+    private boolean specialSplitMode;
+
     public AstronSettings() {
     }
 
@@ -194,5 +197,13 @@ public class AstronSettings implements Serializable {
 
     public void setWaitSysLogInsteadOfDataPump(boolean waitSysLogInsteadOfDataPump) {
         this.waitSysLogInsteadOfDataPump = waitSysLogInsteadOfDataPump;
+    }
+
+    public boolean isSpecialSplitMode() {
+        return specialSplitMode;
+    }
+
+    public void setSpecialSplitMode(boolean specialSplitMode) {
+        this.specialSplitMode = specialSplitMode;
     }
 }
