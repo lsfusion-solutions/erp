@@ -301,16 +301,14 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     INDEX sku(InvoiceDetail d), customerStock(d);
     sku[Invoice.InvoiceDetail](InvoiceDetail detail) += sku(detail);
     
-    countInSku (invoice) = GROUP SUM 1 IF in(Agreement agreement,sku(UserInvoiceDetail d)) 
-        AND fromDateTime(agreement) <= dateTime(d) AND NOT (toDateTime(agreement) < dateTime(d))
-        AND inSupplier(agreement, supplier(d)) AND inCustomer(agreement, customer(d))
-        AND currency(d) == currency(agreement)
-            BY userInvoice(d);
-            
-    maxAgreementInSku (invoice) = GROUP MAX Agreement agreement IF in(agreement,sku(UserInvoiceDetail d)) 
-        AND fromDateTime(agreement) <= dateTime(d) AND NOT (toDateTime(agreement) < dateTime(d))
-        AND inSupplier(agreement, supplier(d)) AND inCustomer(agreement, customer(d))
-            BY userInvoice(d);
+    matches (UserInvoice i, Agreement a) = fromDateTime(a) <= dateTime(i) AND NOT (toDateTime(a) < dateTime(i))
+                                                   AND inSupplier(a, supplier(i)) AND inCustomer(a, customer(i)); 
+
+    countInSku (UserInvoice i) = 
+        GROUP SUM 1 IF matches(i, Agreement a) AND currency(i) = currency(a) AND [GROUP SUM 1 IF in(a, sku(UserInvoiceDetail d)) BY userInvoice(d)](i);
+
+    maxAgreementInSku (UserInvoice i) = 
+        GROUP MAX Agreement a IF matches(i, a) AND [GROUP SUM 1 IF in(a, sku(UserInvoiceDetail d)) BY userInvoice(d)](i);
                         
     isStockSku (InvoiceDetail invoiceDetail) = isStock(sku(invoiceDetail));
     isStockSku (UserInvoiceDetail userInvoiceDetail) = isStock(sku(userInvoiceDetail));
