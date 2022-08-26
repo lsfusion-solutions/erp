@@ -1,5 +1,6 @@
 package equ.srv.actions;
 
+import equ.api.Payment;
 import equ.api.SalesInfo;
 import equ.srv.EquipmentServer;
 import lsfusion.base.col.MapFact;
@@ -175,8 +176,8 @@ public class GenerateZReport extends DefaultIntegrationAction {
                                         discountSum = safeAdd(discountSum, discountSumReceiptDetail);
                                         sumReceiptDetail = safeSubtract(sumReceiptDetail, discountSumReceiptDetail);
                                         receiptSalesInfoList.add(new SalesInfo(false, false, cashRegister.nppGroupMachinery, cashRegister.nppMachinery,
-                                                numberZReport, date, time, receiptNumber, date, time, null, null, null, BigDecimal.ZERO,
-                                                BigDecimal.ZERO, null, null, item.barcode, null, null, null, quantityReceiptDetail,
+                                                numberZReport, date, time, receiptNumber, date, time, null, null, null, null,
+                                                null, null, new ArrayList<>(), item.barcode, null, null, null, quantityReceiptDetail,
                                                 item.price, sumReceiptDetail, null, discountSumReceiptDetail, null, null, numberReceiptDetail,
                                                 null, null, false, null, null, null));
                                         item.count = safeSubtract(item.count, quantityReceiptDetail);
@@ -187,8 +188,8 @@ public class GenerateZReport extends DefaultIntegrationAction {
 
                             String seriesNumberDiscountCard = discountSum != null && !discountCardList.isEmpty() ? discountCardList.get(r.nextInt(discountCardList.size())) : null;
                             for (SalesInfo s : receiptSalesInfoList) {
-                                s.sumCash = sumCash;
-                                s.sumCard = sumCard;
+                                s.payments.add(Payment.getCard(sumCard));
+                                s.payments.add(Payment.getCash(sumCash));
                                 s.seriesNumberDiscountCard = seriesNumberDiscountCard;
                             }
                             salesInfoList.addAll(receiptSalesInfoList);
