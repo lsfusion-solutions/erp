@@ -17,14 +17,6 @@ imageRBS = DATA IMAGEFILE (Item);
 WHEN CHANGED (image(Item i)) DO { 
     imageRBS(i) <- NULL;
 }
-barcodeRBS 'Параметр barcode (весы РБС)' = DATA INTEGER (Item) IN scales;
-unitIndexRBS 'Параметр price_unit_index (весы РБС)' = DATA INTEGER (Item) IN scales;
-@defineItemAttribute(barcodeRBS, 'Параметры для весов РБС', scales);
-EXTEND FORM itemGroup PROPERTIES(g) userShowBarcodeRBS;
-EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() showBarcodeRBS BACKGROUND backgroundShowBarcodeRBS(g);
-
-EXTEND FORM item PROPERTIES(i) SHOWIF showBarcodeRBS(i) barcodeRBS, unitIndexRBS;
-EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() SHOWIF showAnyBarcodeRBS(g) BEFORE deletei barcodeRBS, unitIndexRBS;
 
 code = DATA LOCAL INTEGER ();
 message = DATA LOCAL STRING(INTEGER);
@@ -35,6 +27,9 @@ FORM result
 
 idCategoryNum = ABSTRACT INTEGER (MachineryPriceTransaction, Group);
 idCategoryNum = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode);
+
+isPiece(Barcode b) = passScales(b) AND istartsWith(shortNameUOM(b), 'шт');
+fullId(Barcode b, GroupScales gs) = CONCAT '', IF isPiece(b) THEN pieceCode(gs) ELSE weightCode(gs), id(b);
 
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
     IF handlerModel(groupMachinery(t)) = 'lsf.machinery.scales.rbs.KS4010' THEN NEWSESSION {
@@ -65,7 +60,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
         LOCAL itemsImages = FILE();
         EXPORT JSON FROM
             product_number = (OVERRIDE STRING(pluNumber(t, Barcode b)), id(b)),
-            product_code = id(b),
+            product_code = fullId(b, groupMachinery(t)),
             product_name = name(t,b),
             name_sort = name(t,b),
             product_abbr =name(t,b),
@@ -74,12 +69,12 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             department_num = '1',
             sales_price = 0.0,
             original_price  = price(t, b),
-            price_unit_index = (OVERRIDE 0, unitIndexRBS(sku(b))), //-1:/pc, 0:/kg, 1:/100g, 2:/g
+            price_unit_index = (IF isPiece(b) THEN -1 ELSE 0), //-1:/pc, 0:/kg, 1:/100g, 2:/g
             ingredients = left(description(t, b), 1450), //по идее нужно именно 3000 байт посчитать, но пока так
             used_by_days = STRING (expiryDays(t, b)),
-            image_filename = IF hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) THEN 'item_' + id(b) + '.jpg' ELSE '',
+            image_filename = IF hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) THEN 'item_' + fullId(b, groupMachinery(t)) + '.jpg' ELSE '',
             disabled = '0',
-            barcode = (OVERRIDE barcodeRBS(sku(b)),0),
+            barcode = 0,
             exp_date = STRING(expiryDate(t, b)),
             pre_tare_value = (OVERRIDE tareWeight(t, b), tareWeight(b)),
             pre_tare_unit_index = 1 IF tareWeight(t, b) OR tareWeight(b) //0:kg, 1:g, 2:tj, 3:gj, 4:lb, 5:oz, 6:lz
@@ -108,6 +103,10 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             LOCAL error = BOOLEAN ();
             LOCAL result = JSONFILE ();
             TRY {
+                //чтобы не ждать весь таймаут просто предварительно пингуем
+                ping(port(m));
+                IF pingError() THEN throwException( 'Scales: ' + port(m)+ ' ping error: ' + pingError());
+                            
                 IF snapshot(t) AND NOT cleared(m, t) THEN {
                     LOCAL id = STRING (INTEGER );
                     
@@ -156,17 +155,5 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             }
             
         APPLY;
-    }
-}
-
-migrateToJPG = DATA BOOLEAN ();
-
-onStarted() +{
-    IF NOT migrateToJPG() THEN {
-        NEWSESSION {
-            migrateToJPG() <- TRUE;
-            imageRBS(Item i) <- NULL;
-            APPLY;
-        }
     }
 }
