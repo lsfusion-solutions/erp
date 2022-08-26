@@ -222,7 +222,7 @@ public class DigiHandler extends MultithreadScalesHandler {
             bytes.put((byte) 0);
 
             // 1-й байт 1-го статуса
-            boolean pieceItem = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
+            boolean pieceItem = !isWeight(item, 3);
             byte st1b1 = 0;
             if (pieceItem)
                 st1b1 = setBit(st1b1, 0); //штучный

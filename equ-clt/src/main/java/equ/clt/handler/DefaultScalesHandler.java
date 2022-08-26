@@ -38,10 +38,16 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
             default:
                 return item.passScalesItem && item.splitItem;
             case 1:
-                return item.passScalesItem && (item.shortNameUOM == null || !item.shortNameUOM.toUpperCase().startsWith("ШТ"));
+                return item.passScalesItem && !isPieceUOM(item);
             case 2:
-                return item.splitItem || (item.shortNameUOM == null || !item.shortNameUOM.toUpperCase().startsWith("ШТ"));
+                return item.splitItem || !isPieceUOM(item);
+            case 3:
+                return !isPieceUOM(item);
         }
+    }
+
+    private boolean isPieceUOM(ScalesItem item) {
+        return item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
     }
 
     protected List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
