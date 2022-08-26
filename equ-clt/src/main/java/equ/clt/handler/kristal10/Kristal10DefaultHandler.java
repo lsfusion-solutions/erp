@@ -67,7 +67,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         if(item.idItemGroup != null && tobaccoGroups != null && tobaccoGroups.contains(item.idItemGroup))
             productType = "ProductCiggyEntity";
         else if (item.passScalesItem)
-            productType = item.splitItem && !item.shortNameUOM.toUpperCase().startsWith("ШТ") ? "ProductWeightEntity" : "ProductPieceWeightEntity";
+            productType = item.splitItem && !isPieceUOM(item) ? "ProductWeightEntity" : "ProductPieceWeightEntity";
         else
             productType = (item.flags == null || ((item.flags & 256) == 0)) ? "ProductPieceEntity" : "ProductSpiritsEntity";
         addStringElement(good, "product-type", productType);

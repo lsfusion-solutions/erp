@@ -220,4 +220,8 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     public Map<String, LocalDateTime> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException {
         return null;
     }
+
+    protected static boolean isPieceUOM(ItemInfo item) {
+        return item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
+    }
 }

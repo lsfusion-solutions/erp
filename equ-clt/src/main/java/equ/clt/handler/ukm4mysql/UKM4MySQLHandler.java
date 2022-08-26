@@ -355,7 +355,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     ps.setString(2, trim(item.name, "", 40)); //name
                     ps.setString(3, item.description == null ? "" : item.description); //descr
                     ps.setString(4, trim(item.shortNameUOM, "", 40)); //measure
-                    ps.setInt(5, item.passScalesItem ? (isNonWeight(item) ? 0 : 3) : (item.splitItem ? 3 : 0)); //measprec
+                    ps.setInt(5, item.passScalesItem ? (isPieceUOM(item) ? 0 : 3) : (item.splitItem ? 3 : 0)); //measprec
                     ps.setString(6, parseGroup(item.extIdItemGroup)); //classif
                     ps.setInt(7, 1); //prop - признак товара ?
                     ps.setString(8, trim(item.description, "", 100)); //summary
@@ -797,12 +797,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
        return section != null ? section : String.valueOf(transaction.departmentNumberGroupCashRegister);
     }*/
 
-    private boolean isNonWeight(CashRegisterItem item) {
-        return item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
-    }
-
     private String getPrefix(CashRegisterItem item, String weightCode, String pieceCode, boolean usePieceCode) {
-        return usePieceCode && isNonWeight(item) ? pieceCode : weightCode;
+        return usePieceCode && isPieceUOM(item) ? pieceCode : weightCode;
     }
 
     private String makeBarcode(String idBarcode, boolean passScalesItem, String prefix) {
