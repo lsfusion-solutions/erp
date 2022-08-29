@@ -2308,7 +2308,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemList,
                             cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister,
-                            idDepartmentStoreGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister, infoMPT));
+                            idDepartmentStoreGroupCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister, infoMPT));
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<>();

@@ -113,8 +113,6 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                     Document doc = new Document(rootElement);
                     doc.setRootElement(rootElement);
 
-                    String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
-
                     Map<String, String> deleteBarcodeMap = deleteBarcodeDirectoryMap.get(directory);
                     DeleteBarcode usedDeleteBarcodes = new DeleteBarcode(transaction.nppGroupMachinery, directory);
 
@@ -130,7 +128,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             //parent: rootElement
                             Element good = new Element("good");
 
-                            String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
+                            String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                             setAttribute(good, "marking-of-the-good", idItem);
@@ -685,7 +683,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                     //parent: rootElement
                     Element good = new Element("good");
-                    idBarcode = transformBarcode(idBarcode, null, false, skipWeightPrefix);
+                    idBarcode = transformBarcode(idBarcode, skipWeightPrefix);
                     setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
                     addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
 
@@ -796,7 +794,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                     deleteBarcodeSet = new HashMap<>();
                 for (CashRegisterItem item : deleteBarcodeInfo.barcodeList) {
                     if (!deleteBarcodeSet.containsKey(item.idBarcode)) {
-                        String idBarcode = transformBarcode(item.idBarcode, null, false, skipWeightPrefix);
+                        String idBarcode = transformBarcode(item.idBarcode, skipWeightPrefix);
                         deleteBarcodeSet.put(item.idBarcode, idItemInMarkingOfTheGood ? item.idItem : idBarcode);
                     }
                 }

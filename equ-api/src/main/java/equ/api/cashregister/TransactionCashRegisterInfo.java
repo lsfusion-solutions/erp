@@ -11,6 +11,7 @@ import java.util.Map;
 public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInfo, CashRegisterItem> {
     public Integer departmentNumberGroupCashRegister;
     public String idDepartmentStoreGroupCashRegister;
+    public String pieceCodeGroupCashRegister;
     public String weightCodeGroupCashRegister;
     public String nameStockGroupCashRegister;
     
@@ -19,11 +20,13 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
                                        Map<String, List<ItemGroup>> itemGroupMap, List<CashRegisterItem> itemsList,
                                        List<CashRegisterInfo> machineryInfoList, Boolean snapshot, LocalDateTime lastErrorDate,
                                        Integer departmentNumberGroupCashRegister, String idDepartmentStoreGroupCashRegister,
-                                       String weightCodeGroupCashRegister, String nameStockGroupCashRegister, String info) {
+                                       String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister,
+                                       String nameStockGroupCashRegister, String info) {
         super(id, dateTimeCode, date, handlerModel, idGroupMachinery, nppGroupMachinery, nameGroupMachinery, description,
                 itemGroupMap, itemsList, machineryInfoList, snapshot, lastErrorDate, info);
         this.departmentNumberGroupCashRegister = departmentNumberGroupCashRegister;
         this.idDepartmentStoreGroupCashRegister = idDepartmentStoreGroupCashRegister;
+        this.pieceCodeGroupCashRegister = pieceCodeGroupCashRegister;
         this.weightCodeGroupCashRegister = weightCodeGroupCashRegister;
         this.nameStockGroupCashRegister = nameStockGroupCashRegister;
     }

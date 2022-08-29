@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static lsfusion.base.BaseUtils.nvl;
+
 public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler<Kristal10SalesBatch> {
 
     protected static Map<String, Map<String, String>> deleteBarcodeDirectoryMap = new HashMap<>();
@@ -239,9 +241,16 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "T00:00:00";
     }
 
-    protected static String transformBarcode(String idBarcode, String weightCode, boolean passScalesItem, boolean skipWeightPrefix) {
-        //временное решение для весовых товаров
-        return passScalesItem && idBarcode.length() <= 6 && weightCode != null && !skipWeightPrefix ? (weightCode + idBarcode) : idBarcode;
+    protected static String transformBarcode(TransactionCashRegisterInfo transaction, CashRegisterItem item, boolean skipPrefix) {
+        return transformBarcode(item.idBarcode, isPieceUOM(item) ? nvl(transaction.pieceCodeGroupCashRegister, "") : nvl(transaction.weightCodeGroupCashRegister, "21"), item.passScalesItem, skipPrefix);
+    }
+
+    protected static String transformBarcode(String idBarcode, boolean skipPrefix) {
+        return transformBarcode(idBarcode, null, false, skipPrefix);
+    }
+
+    private static String transformBarcode(String idBarcode, String prefix, boolean passScalesItem, boolean skipPrefix) {
+        return passScalesItem && idBarcode.length() <= 6 && prefix != null && !skipPrefix ? (prefix + idBarcode) : idBarcode;
     }
 
     @Override

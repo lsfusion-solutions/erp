@@ -172,8 +172,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
 
-        String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
-
         for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
@@ -184,7 +182,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 //parent: rootElement
                 Element good = new Element("good");
 
-                String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
+                String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                 setAttribute(good, "marking-of-the-good", idItem);
@@ -292,12 +290,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
 
-        String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
-
         for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
-                String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
+                String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                 List<String> deleteBarcodeList = new ArrayList<>();
@@ -354,14 +350,12 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
 
-        String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
-
         for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
                 JSONObject infoJSON = getExtInfo(item.info);
 
-                String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
+                String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                 String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
@@ -454,13 +448,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
 
-        String weightCode = transaction.weightCodeGroupCashRegister == null ? "21" : transaction.weightCodeGroupCashRegister;
-
         for (CashRegisterItem item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
                 String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
-                String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
+                String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                 //parent: rootElement
@@ -667,7 +659,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             //parent: rootElement
             Element good = new Element("good");
-            idBarcode = transformBarcode(idBarcode, null, false, skipWeightPrefix);
+            idBarcode = transformBarcode(idBarcode, skipWeightPrefix);
             setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
             addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
 
@@ -770,7 +762,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     deleteBarcodeSet = new HashMap<>();
                 for (CashRegisterItem item : deleteBarcodeInfo.barcodeList) {
                     if (!deleteBarcodeSet.containsKey(item.idBarcode)) {
-                        String idBarcode = transformBarcode(item.idBarcode, null, false, skipWeightPrefix);
+                        String idBarcode = transformBarcode(item.idBarcode, skipWeightPrefix);
                         deleteBarcodeSet.put(item.idBarcode, idItemInMarkingOfTheGood ? item.idItem : idBarcode);
                     }
                 }
