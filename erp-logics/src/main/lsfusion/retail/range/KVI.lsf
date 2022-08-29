@@ -1,0 +1,352 @@
+MODULE KVI;
+
+REQUIRE System, Stock, Sku, Barcode, Numerator, Utils, StockSkuDocument, Document;
+
+NAMESPACE KVI;
+
+//----------------------------------- Документ KVI -------------------------------------------------------
+
+CLASS KVI 'Документ KVI' : Document;
+CLASS KVIDetail 'Строка документа KVI' : DocumentDetail;
+
+@defineDocument(KVI);
+@defineCreatedAbstract(KVIDetail);
+
+@deriveDocumentHeaderTimePrefix(KVI, );
+fromDate '{document.date.of} с' = DATA DATE (KVI) IN documentHeader INDEXED;
+fromDataDate =  DATA DATE (KVIDetail);
+fromDate '{document.date.of} с' (KVIDetail d) = OVERRIDE fromDataDate(d), fromDate(KVI(d)) MATERIALIZED;
+
+
+WHEN LOCAL SET(KVI o IS KVI) DO {
+    IF o IS KVI AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
+};
+
+toDate '{document.date.of} по' = DATA DATE (KVI) IN documentHeader INDEXED;
+toDataDate =  DATA DATE (KVIDetail);
+toDate '{document.date.of} по' (KVIDetail d) = OVERRIDE toDataDate(d), toDate(KVI(d)) MATERIALIZED;
+
+@defineDocumentHeaderNumber(KVI, BPSTRING[2]);
+@defineDocumentDetailNumber(KVI, KVIDetail);
+
+@defineNumeratedDefault(KVI, 'Документ KVI', 'ЗЗ');
+
+// ---------------------  Склады, для которых действует
+
+// Шапка
+
+allStocks 'Отм' = DATA BOOLEAN (KVI);
+
+TABLE KVIStockGroup(KVI, StockGroup);
+dataIn 'Отм' = DATA BOOLEAN (KVI, StockGroup);
+
+TABLE KVIStock(KVI, Stock);
+dataIn 'Отм' = DATA BOOLEAN (KVI, Stock);
+
+levelParent (KVI b, StockGroup stockGroup) = GROUP
+                                                               MIN level(stockGroup, StockGroup parent) IF dataIn(b, parent) MATERIALIZED;
+
+inParent (KVI b, StockGroup stockGroup) = TRUE IF levelParent (b, stockGroup) MATERIALIZED;
+
+in 'Отм' (KVI b, StockGroup stockGroup) = OVERRIDE
+    dataIn(b, stockGroup),
+    inParent (b, stockGroup),
+    allStocks(b) AND stockGroup IS StockGroup;
+
+in 'Отм' (KVI b, Stock stock) =
+    (OVERRIDE dataIn(b, stock), (in(b, stockGroup(stock)) AND active(stock)))
+    AND isCompany(stock) MATERIALIZED;  
+             
+@defineBackgroundNearestBoolean(allStocks, in, KVI, stock, inParent, isCompany);                    
+
+stocks 'Склады' (KVI b) = GROUP
+                                       CONCAT ISTRING[250] (name(Stock stock)) IF in(b, stock) , ', '
+                                       ORDER stock CHARWIDTH 20 MATERIALIZED;
+stocks 'Склады' (KVIDetail d) = stocks(KVI(d)) CHARWIDTH 20;                                       
+
+@defineDocumentPosted(KVI);
+@defineDocumentDescription (KVI, 'Документ KVI');
+
+@defineDocumentDetailSkuPrefix (KVI, sku, , '');
+
+overIdSku(KVIDetail d) = overId(sku(d));
+
+@defineExternalizable(KVIDetail, STRING[100]);
+
+//-- SKU
+KVIDetail (sku, KVI) =  GROUP MAX KVIDetail KVIDetail
+    BY sku(KVIDetail), KVI(KVIDetail);
+
+count 'Вкл.' (Sku sku, KVI KVI) =  TRUE IF [GROUP SUM 1 
+    BY sku(KVIDetail KVIDetail), KVI(KVIDetail)](sku, KVI);    
+                                    
+    
+changeValue(Sku sku, KVI KVI)  { 
+    INPUT b = BOOLEAN DO
+        IF KVIDetail(sku, KVI) THEN {
+            IF NOT b THEN {
+                DELETE KVIDetail d WHERE d == KVIDetail(sku, KVI);
+            } 
+        } ELSE {
+            IF b THEN {
+                NEW d = KVIDetail {
+                   KVI(d) <- KVI;
+                   sku(d) <- sku;
+                }
+            }
+        }
+}
+
+TABLE stockKVIDetail(Stock, KVIDetail);
+active(Stock stock, KVIDetail detail) = in(KVI(detail), stock) AND isPosted(detail) MATERIALIZED;
+sku(Stock stock, KVIDetail detail) = sku(detail) IF active(stock, detail) MATERIALIZED INDEXED; 
+fromDate(Stock stock, KVIDetail detail) = fromDate(detail) IF active(stock, detail) MATERIALIZED; 
+toDate(Stock stock, KVIDetail detail) = toDate(detail) IF active(stock, detail) MATERIALIZED;
+
+INDEX sku(Stock stock, KVIDetail detail), stock, fromDate(stock, detail), detail;
+   
+inKVI (sku, Stock stock, DATE date) =
+    GROUP LAST active(stock, KVIDetail detail)
+          ORDER fromDate(stock, detail) , detail 
+          WHERE date >= fromDate(stock, detail) 
+                AND NOT date >  toDate(stock, detail)
+          BY   sku(stock, detail) COMPLEX;        
+          
+lastKVIDetail (sku, Stock stock, DATE date) =
+    GROUP LAST KVIDetail detail 
+          ORDER fromDate(stock, detail) , detail 
+          WHERE date >= fromDate(stock, detail) 
+                AND NOT date >  toDate(stock, detail)
+          BY   sku(stock, detail) COMPLEX;        
+inKVICurrent 'KVI' (Sku sku, Stock stock) = inKVI(sku,stock,currentDate());
+                                                        
+background =  ABSTRACT CASE COLOR (KVIDetail);    
+
+FORM KVI 'Документ KVI'
+
+    OBJECTS b=KVI PANEL
+
+    PROPERTIES(b) isPosted, nameNumerator, number, series, date, time,
+                   countKVIDetail, note, fromDate, toDate
+                   
+    TREE stockTree a=BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    PROPERTIES(b) allStocks[KVI] DRAW a BACKGROUND backgroundAllStocks(b)
+    PROPERTIES(b, sg) in BACKGROUND backgroundIn(b,sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a)
+    FILTERS countCompanyStock(sg)// OR (showNotCompanyStocks(p) AND sg IS StockGroup)
+
+    OBJECTS ts = Stock
+    PROPERTIES READONLY  name(ts), nameLegalEntity(ts)
+    PROPERTIES(b, ts)    in BACKGROUND backgroundIn(b,ts)
+    FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParent(sg, ts)
+    FILTERGROUP filters2
+            FILTER 'Выбранные склады' in(b, ts) 'F10'
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+    
+
+    OBJECTS d = KVIDetail
+    PROPERTIES(d)  BACKGROUND background(d) index,
+                    idBarcodeSku, nameSku, shortNameUOMSku, fromDate, toDate
+    PROPERTIES(d)   NEW, deletedd=DELETE GRID
+    PROPERTIES(b) DRAW d deleteKVIDetail
+
+    FILTERS         KVI(d) == b    
+    
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), name(sk)
+    ORDERS order(sk), name(sk)
+
+    OBJECTS           ks=Sku 
+    PROPERTIES        READONLY name(ks), idBarcode(ks), shortNameUOM(ks)
+    PROPERTIES        addSku() DRAW ks, EDIT(ks) NEWSESSION, copy(ks), count(ks,b) ON CHANGE changeValue(ks,b)
+    ORDERS            name(ks) 
+    FILTERS           isParent(sk, ks),
+                      name(ks)
+      
+    FILTERGROUP inDocument FILTER 'В док-те' count(ks,b) 'F10'      
+
+    EVENTS
+        ON OK prePost(b)
+
+    EDIT KVI OBJECT b
+;
+
+DESIGN KVI {
+    BOX {
+        size = (1024, 768);
+        NEW headerBox {
+            type = CONTAINERH;
+
+            NEW headerRow1 {
+                fill = 1;
+                type = CONTAINERV;
+                MOVE GROUP(documentHeader,b) {
+                    columns = 1;
+                    type = CONTAINERV;
+                    
+                    NEW first {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(isPosted(b)) { charWidth = 10; }
+                    }
+                    NEW second { 
+                        type = CONTAINERH;
+                        MOVE PROPERTY (nameNumerator(b));
+                        MOVE PROPERTY (number(b));
+                        MOVE PROPERTY (series(b));
+                        MOVE PROPERTY (date(b));
+                        MOVE PROPERTY (time(b));
+                    }        
+                
+                    
+                }
+                NEW bBox{
+                    type = CONTAINERH;
+                    NEW timeContainer {
+                        caption = 'Период действия';
+                        type = CONTAINERH;
+                        MOVE PROPERTY (fromDate(b));
+                        MOVE PROPERTY (toDate(b));
+                    }                    
+                }
+                MOVE GROUP(documentPrm,b);
+            }
+            MOVE GROUP(documentSum,b) {
+                columns = 1;
+            }
+        }
+        NEW row {
+            fill = 1;
+            type = TABBED;
+            NEW specificationBox {
+                caption = 'Спецификация';
+                fill = 1;
+                type = TABBED;
+                MOVE BOX(d);
+                NEW itemBox {
+                    caption = 'Подбор';
+                    type = SPLITH;
+                    MOVE BOX(TREE skuTree) { caption = 'Группы SKU'; }
+                    MOVE BOX(ks) { fill = 2;}
+                }
+            }            
+            NEW selectStock {
+                caption = 'Выбор складов';
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX(TREE stockTree) {caption = 'Группы складов';}
+                MOVE BOX(ts) { fill = 2;}     
+            }
+
+        }    
+        MOVE TOOLBARBOX;
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+    }
+}
+
+@addEventGenerateNumberOnForm(KVI, b, KVI);
+
+isActive(KVI b) = fromDate(b) <= currentDate() AND (toDate(b) >= currentDate() OR NOT toDate(b));
+
+background 'Цвет' (KVI KVI) = CASE WHEN fromDate(KVI) > currentDate() OR NOT isPosted(KVI) THEN RGB(224,255,224)
+                                                        WHEN toDate(KVI) < currentDate() THEN RGB(255,224,224);
+
+FORM KVIs 'Документы KVI'
+
+    OBJECTS b = KVI
+    PROPERTIES (b) READONLYIF isReadonly() BACKGROUND background(b) isPosted, number, series, date, time
+    PROPERTIES (b) READONLY BACKGROUND background(b) fromDate, toDate, countKVIDetail
+    PROPERTIES (b) READONLYIF isReadonly() BACKGROUND background(b) note
+    PROPERTIES (b) READONLY BACKGROUND background(b) stocks
+    PROPERTIES READONLY BACKGROUND background(b) createdNameUser '{historizable.created.name.user}' = createdNameUser(b), 
+                         createdTime '{historizable.created.time}' = createdTime(b),
+                         createdHostnameComputer '{historizable.created.host.name.computer}' = createdHostnameComputer(b)
+
+    PROPERTIES(b)  READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                          postedNameUser, postedTime, postedHostnameComputer
+
+    PROPERTIES (b) NEWSESSION NEW, EDIT, deleted=DELETE
+
+    FILTERGROUP inactivePriceList
+        FILTER 'Текущие' isActive(b)             
+        FILTER 'Активные' isActive(b) OR (fromDate(b) > currentDate() AND NOT toDate(b) < currentDate()) 'F10' DEFAULT
+
+    OBJECTS d=KVIDetail
+    PROPERTIES(d) READONLY BACKGROUND background(d) index,
+                    idBarcodeSku, nameSku, shortNameUOMSku, fromDate, toDate
+    FILTERS         KVI(d) == b
+    
+    OBJECTS st = Stock GRID
+    PROPERTIES (st) READONLY name, id SHOWIF showIDs()
+    PROPERTIES READONLY in(b,st)
+    FILTERS in(b,st)
+;
+
+DESIGN KVIs {
+    BOX {
+        size = (1024, 768);
+        NEW documentContainer  {
+            fill = 1;
+            type = SPLITV;
+
+            MOVE BOX(b) {
+                fill = 2;
+            }
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE BOX(d) {
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    MOVE GROUP(created,b);
+                    MOVE GROUP(posted,b);
+                }
+                MOVE BOX(st);
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+@extendFormEditable(KVIs);
+
+NAVIGATOR {
+    skuNavigator {
+        NEW KVIs BEFORE UOMs;
+    }
+}
+
+show 'Просмотреть' (KVI i)   { 
+    NEWSESSION {
+        SHOW KVI OBJECTS b = i DOCKED READONLY;
+    }
+}TOOLBAR;
+show 'Просмотреть' (KVIDetail d)  { 
+	NEWSESSION {
+	    SHOW KVI OBJECTS b = KVI(d), d = d DOCKED READONLY ;
+	}
+}TOOLBAR;
+
+isPosted[Document](KVI KVI) += isPosted(KVI);
+number[Document](KVI KVI) += number(KVI);
+series[Document](KVI KVI) += series(KVI);
+date[Document](KVI KVI) += date(KVI);
+
+index[DocumentDetail](KVIDetail KVI) += index(KVI);
+sku[DocumentDetail](KVIDetail KVI) += sku(KVI);
+
+document(KVIDetail detail) += KVI(detail);
+
+@defineDocumentLogForm(KVIs, b);
