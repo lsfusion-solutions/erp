@@ -1,10 +1,7 @@
 package equ.clt.handler.atol;
 
 import com.google.common.base.Throwables;
-import equ.api.ItemGroup;
-import equ.api.RequestExchange;
-import equ.api.SalesInfo;
-import equ.api.SendTransactionBatch;
+import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
@@ -419,11 +416,11 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                     if (paymentType != null) {
                                         switch (paymentType) {
                                             case 2:
-                                                salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sum);
+                                                salesInfo.payments.add(Payment.getCard(sum));
                                                 break;
                                             case 1:
                                             default:
-                                                salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sum);
+                                                salesInfo.payments.add(Payment.getCash(sum));
                                                 break;
                                         }
                                     }
@@ -453,7 +450,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                             if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                 currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, numberCashRegister, numberZReport,
                                         dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null,
-                                        null, null, null, barcodeItem, null, itemObject, null, quantityReceiptDetail, priceReceiptDetail,
+                                        null, null, new ArrayList<>(), barcodeItem, null, itemObject, null, quantityReceiptDetail, priceReceiptDetail,
                                         sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, file.getName(),
                                         null, null, null, cashRegister));
                         } else if (isCancelDocument) {
@@ -466,7 +463,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                 }
 
                 for (SalesInfo salesInfo : currentSalesInfoList) {
-                    if (!cancelReceiptSet.contains(salesInfo.numberReceipt) && (notNull(salesInfo.sumCash) || notNull(salesInfo.sumCard)))
+                    if (!cancelReceiptSet.contains(salesInfo.numberReceipt) && !salesInfo.payments.isEmpty())
                         salesInfoList.add(salesInfo);
                 }
                 filePathList.put(file.getAbsolutePath(), isCurrent);
@@ -474,10 +471,6 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
                 new AtolSalesBatch(salesInfoList, filePathList);
-    }
-
-    private boolean notNull(BigDecimal value) {
-        return value != null && value.doubleValue() != 0;
     }
 
     private boolean acceptSalesFile(File pathname) {
