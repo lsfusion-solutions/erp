@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.clt.EquipmentServer.*;
+import static equ.clt.handler.HandlerUtils.copyWithTimeout;
 import static lsfusion.base.DateConverter.dateToStamp;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
@@ -368,14 +369,11 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             File f = new File(readFile);
 
             if (!deleteSuccessfulFiles) {
-                try {
-                    if (makeDirsIfNeeded(f.getParent() + "/success/")) {
-                        String directory = f.getParent() + "/success/" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "/";
-                        if (makeDirsIfNeeded(directory))
-                            FileCopyUtils.copy(f, new File(directory + f.getName()));
+                if (makeDirsIfNeeded(f.getParent() + "/success/")) {
+                    String directory = f.getParent() + "/success/" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "/";
+                    if (makeDirsIfNeeded(directory)) {
+                        copyWithTimeout(f, new File(directory + f.getName()));
                     }
-                } catch (IOException e) {
-                    throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
                 }
             }
 
@@ -388,11 +386,8 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
         for (String errorFile : salesBatch.errorFiles) {
             File f = new File(errorFile);
-            try {
-                if (makeDirsIfNeeded(f.getParent() + "/error/"))
-                    FileCopyUtils.copy(f, new File(f.getParent() + "/error/" + f.getName()));
-            } catch (IOException e) {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to error files", e);
+            if (makeDirsIfNeeded(f.getParent() + "/error/")) {
+                copyWithTimeout(f, new File(f.getParent() + "/error/" + f.getName()));
             }
 
             if (f.delete()) {
