@@ -119,7 +119,15 @@ lastKVIDetail (sku, Stock stock, DATE date) =
                 AND NOT date >  toDate(stock, detail)
           BY   sku(stock, detail) COMPLEX;        
 inKVICurrent 'KVI' (Sku sku, Stock stock) = inKVI(sku,stock,currentDate());
-                                                        
+     
+inKVI (sku, DATE date) =
+    GROUP LAST active(Stock stock, KVIDetail detail)
+          ORDER fromDate(stock, detail) , detail 
+          WHERE date >= fromDate(stock, detail) 
+                AND NOT date >  toDate(stock, detail)
+          BY   sku(stock, detail) COMPLEX;        
+inKVICurrent 'KVI' (Sku sku) = inKVI(sku,currentDate());    
+                                                    
 background =  ABSTRACT CASE COLOR (KVIDetail);    
 
 FORM KVI 'Документ KVI'
