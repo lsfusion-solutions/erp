@@ -163,6 +163,7 @@ orderNotFound(){
 
 extraUpdateOrder ABSTRACT LIST (InternetOrder);
 afterUpdateDetails ABSTRACT LIST (INTEGER, InternetOrderDetail);
+afterUpdateDetailsChange ABSTRACT LIST (INTEGER, InternetOrderDetail);
 
 updateOrder(FILE f){
     LOCAL order = STRING ();
@@ -186,10 +187,22 @@ updateOrder(FILE f){
             phoneInternetCustomer(io) <- STRING[100](phoneNumber());
             courierArrivementDateText(io) <- courierArrivementDate();
             isPosted(io) <- TRUE;
-            FOR id(INTEGER items) AND InternetOrderDetail detail = GROUP MAX InternetOrderDetail idetail 
-                IF sku(idetail) = sku(id(items)) AND internetOrder(idetail) = io DO{
+            LOCAL detailLoc = InternetOrderDetail (INTEGER);
+            detailLoc(INTEGER i) <- GROUP MAX InternetOrderDetail d IF sku(d) = sku(id(i)) AND internetOrder(d) = io;
+            FOR id(INTEGER items) AND InternetOrderDetail detail = detailLoc(items) DO{
                 pickingQuantity(detail) <- NUMERIC[16,5](quantity(items));
                 afterUpdateDetails(items, detail);
+            }
+            
+            FOR id(INTEGER items) AND NOT detailLoc(items)  NEW change = InternetOrderDetail DO {
+                
+                internetOrder(change) <- io;
+                sku(change) <- sku(id(items));
+                quantity(change) <- NUMERIC[16,5](quantity(items));
+                pickingQuantity(change) <- NUMERIC[16,5](quantity(items));
+                price(change) <- NUMERIC[16,4](price(items));
+                afterUpdateDetailsChange(items, change);
+                   
             }
             paymentTypeInternetOrder(io) <- paymentTypeOrder(paymentType());
             paymentCardSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CARD';
