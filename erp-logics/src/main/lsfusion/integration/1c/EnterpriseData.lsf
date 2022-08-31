@@ -242,13 +242,22 @@ sendMessage 'Передать' (Configuration c) {
     }
 }
 
+repeatIn (Configuration c, EnterpriseData e) {
+    INPUT b = BOOLEAN DO {
+        in(c, e) <- b;
+        IF b THEN {
+            packet(c,e) <- NULL;
+        }
+    } 
+}
+
 FORM objectExchange 'Настройки синхронизации'
     OBJECTS c = Configuration, o = ObjectExchange
     PROPERTIES name(o) READONLY, inSending(o, c), inReceiving(o, c)
     ORDERS name(o)
     
     OBJECTS e = EnterpriseData
-    PROPERTIES desc(e, c) READONLY, packet(c,e) READONLY, in(c, e)
+    PROPERTIES desc(e, c) READONLY, packet(c,e) READONLY, in(c, e) ON CHANGE repeatIn(c, e)
     FILTERS inSending(c, e) OR in(c, e), NOT skip(c, e);
 ;
 
