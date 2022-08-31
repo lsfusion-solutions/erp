@@ -1,10 +1,7 @@
 package equ.clt.handler.belcoopsoyuz;
 
 import com.google.common.base.Throwables;
-import equ.api.RequestExchange;
-import equ.api.SalesBatch;
-import equ.api.SalesInfo;
-import equ.api.SendTransactionBatch;
+import equ.api.*;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.TransactionCashRegisterInfo;
@@ -325,7 +322,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                 BigDecimal quantity = isSale ? quantityReceiptDetail : safeNegate(quantityReceiptDetail);
                                 BigDecimal sum = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
                                 currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), numberReceipt,
-                                        sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, null, null, null, null, null, barcodeItem, null, null, null, quantity, priceReceiptDetail,
+                                        sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, null, null, null, null, new ArrayList<>(), barcodeItem, null, null, null, quantity, priceReceiptDetail,
                                         sum, discountSumReceiptDetail, null, null, numberReceiptDetail, null, section, null, null, cashRegister));
                                 currentReadRecordSet.add(id);
                             } else {
@@ -359,9 +356,11 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                     }
 
                                     BigDecimal sumCard = rs.getBigDecimal("NEOPPRIC");
+                                    BigDecimal cardPayment = isSale ? sumCard : safeNegate(sumCard);
+                                    BigDecimal cashPayment = safeSubtract(isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail), cardPayment);
                                     for (SalesInfo salesInfo : currentSalesInfoList) {
-                                        salesInfo.sumCard = isSale ? sumCard : safeNegate(sumCard);
-                                        salesInfo.sumCash = safeSubtract(isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail), salesInfo.sumCard);
+                                        salesInfo.payments.add(Payment.getCard(cardPayment));
+                                        salesInfo.payments.add(Payment.getCash(cashPayment));
                                         salesInfo.discountSumReceipt = safeAdd(salesInfo.discountSumReceipt, extraDiscountSum);
                                         salesInfoList.add(salesInfo);
                                     }
