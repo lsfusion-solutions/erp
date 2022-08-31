@@ -16,7 +16,6 @@ import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
-import org.springframework.util.FileCopyUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.Util;
 import org.xBaseJ.fields.CharField;
@@ -27,6 +26,7 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.sql.Date;
 import java.sql.Time;
 import java.time.LocalDate;
@@ -38,6 +38,7 @@ import java.util.*;
 import static equ.clt.EquipmentServer.sqlDateToLocalDate;
 import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.DBFUtils.*;
+import static equ.clt.handler.HandlerUtils.copyWithTimeout;
 import static lsfusion.base.file.FTPPath.parseFTPPath;
 
 public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSalesBatch> {
@@ -147,7 +148,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                                         writeBaseFile(transaction, cashRegister, baseFile, append);
 
                                         processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s started copying %s file", transaction.id, pricePath));
-                                        FileCopyUtils.copy(baseFile, priceFile);
+                                        copyWithTimeout(baseFile, priceFile);
                                         processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s finished copying %s file", transaction.id, pricePath));
                                         if (flagPriceFile.createNewFile())
                                             waitList.add(Arrays.asList(ftp, priceFile, flagPriceFile, directory));
@@ -191,7 +192,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             if (ftpClient.login(ftpPath.username, ftpPath.password)) {
                 configureFTPClient(ftpClient, ftpPath);
 
-                InputStream inputStream = new FileInputStream(file);
+                InputStream inputStream = Files.newInputStream(file.toPath());
                 ftpClient.setDataTimeout(3600000);
                 boolean done = ftpClient.storeFile(ftpPath.remoteFile, inputStream);
                 inputStream.close();
@@ -228,7 +229,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             ftpClient.login(ftpPath.username, ftpPath.password);
             configureFTPClient(ftpClient, ftpPath);
 
-            OutputStream outputStream = new FileOutputStream(file);
+            OutputStream outputStream = Files.newOutputStream(file.toPath());
             ftpClient.setDataTimeout(3600000);
             boolean done = ftpClient.retrieveFile(ftpPath.remoteFile, outputStream);
             outputStream.close();
@@ -513,7 +514,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                     try {
                         salesFile = File.createTempFile(salesName, ".dbf");
                         sendSalesLogger.info(String.format("Start copying %s.dbf from %s to %s", salesName, remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
-                        FileCopyUtils.copy(remoteSalesFile, salesFile);
+                        copyWithTimeout(remoteSalesFile, salesFile);
                         sendSalesLogger.info(String.format("End copying %s.dbf from %s to %s", salesName, remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
                     } catch (Exception e) {
                         copyError = true;
@@ -528,7 +529,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                             new File(directory + "/backup").mkdir();
                             File backupSalesFile = new File(directory + "/backup/" + salesName + "-" + timestamp + ".dbf");
                             sendSalesLogger.info(String.format("Start copying %s.dbf from %s to %s", salesName, salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
-                            FileCopyUtils.copy(salesFile, backupSalesFile);
+                            copyWithTimeout(salesFile, backupSalesFile);
                             sendSalesLogger.info(String.format("End copying %s.dbf from %s to %s", salesName, salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
                         }
 
@@ -548,7 +549,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 safeFileDelete(lsfFlagFile, sendSalesLogger);
             }
         }
-        return (salesInfoList.isEmpty() && filePathMap.isEmpty()) ? null :
+        return salesInfoList.isEmpty() ? null :
                 new BelCoopSoyuzSalesBatch(salesInfoList, filePathMap);
     }
 
@@ -576,7 +577,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
     //используем jdbf, а не xbasej, т.к. xbasej не умеет работать с foxpro файлами
     private List<SalesInfo> readSalesFile(File salesFile, Map<String, CashRegisterInfo> sectionCashRegisterMap) throws IOException {
         List<SalesInfo> salesInfoList = new ArrayList<>();
-        InputStream dbf = new FileInputStream(salesFile);
+        InputStream dbf = Files.newInputStream(salesFile.toPath());
         try (DbfReader reader = new DbfReader(dbf)) {
             DbfRecord rec;
             Map<Integer, Integer> numberReceiptDetailMap = new HashMap<>();
