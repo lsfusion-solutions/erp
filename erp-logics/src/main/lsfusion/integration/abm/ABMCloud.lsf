@@ -10,38 +10,78 @@ connectionStringABM 'Строка подключения (ftp://username:passwor
 
 toDateYYYYMMDD = FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')';
 toDateYYYYMMDD2 = FORMULA STRING[10] 'to_char(($1),\'YYYY.MM.DD\')';
-toDateYYYYMM = FORMULA STRING[8] 'to_char(($1),\'YYYYMM\')';
+//toDateYYYYMM = FORMULA STRING[8] 'to_char(($1),\'YYYYMM\')';
 toTimeHHMISS = FORMULA STRING[10] 'to_char(($1),\'HH24MISS\')';
-toDateTimeYYYYMMDDHHMM = FORMULA STRING[14] 'to_char(($1),\'YYYYMMDDHH24MI\')';
+//toDateTimeYYYYMMDDHHMM = FORMULA STRING[14] 'to_char(($1),\'YYYYMMDDHH24MI\')';
 toTimeHHMI = FORMULA STRING[5] 'to_char(($1),\'HH24MI\')';
 
-barcodes (Sku s) = GROUP CONCAT id(Barcode b) IF id(b) AND amount(b) == 1.0 AND active(b) AND sku(b) == s, ',' ORDER b;
+//barcodes (Sku s) = GROUP CONCAT id(Barcode b) IF id(b) AND amount(b) == 1.0 AND active(b) AND sku(b) == s, ',' ORDER b;
 selectABM 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 countSelectABM () = GROUP SUM 1 IF selectABM(Stock st);
 
-filter = DATA LOCAL BOOLEAN (Stock);
-filter = DATA LOCAL BOOLEAN (Sku, Stock);
+filterABM = DATA LOCAL BOOLEAN (Sku);
+filterABM = DATA LOCAL BOOLEAN (Stock);
+filterABM = DATA LOCAL BOOLEAN (Sku, Stock);
+filterABM = DATA LOCAL BOOLEAN (SkuGroup);
+resetFilterABM(){
+    filterABM(Sku s)<- NULL;
+    filterABM(Stock st) <- NULL;
+    filterABM(Sku s, Stock st) <- NULL;
+    filterABM(SkuGroup s) <- NULL;
+}
 
 chr = FORMULA TEXT 'chr($1)';
 trimChr10 (STRING s) = rtrim(ltrim(s, chr(10)), chr(10));
 
-sentABM = DATA BOOLEAN (Sku, Stock) TABLE extraSkuStock;
-sentABM = GROUP SUM 1 IF sentABM(Sku s, Stock st) BY s;
+//Статусы товара
+//MTS – (make to stock) товар, который всегда должен быть в наличии на месте хранения, регулярно
+//заказывается и продается, покупатель всегда надеется найти этот товар на полке. Такой товар
+//попадает в регулярные заказы системы.
+//MTO – (make to order) товар, который везется по специальному заказу. Есть в ассортименте, но не
+//поддерживается на месте хранения постоянно. По умолчанию все товары, вошедшие в систему,
+//считаются новыми на протяжении 3-х месяцев (настраиваемый параметр). Новый товар имеет статус
+//MТО и буфер = 0 (необработанная карточка). Для того, чтобы товар начал попадать в регулярные
+//заказы системы, ему нужно установить статус MTS и рассчитать буфер в системе Leafio.
+//NА – (not active) неактивный товар в системе Leafio, который был выведен из ассортимента. Данные
+//этого товара не обновляются, остатки по всей сети = 0. Если для такого товара передался остаток, он
+//попадет в необработанные карточки.
+//NМ (HM) – (not management) товар, который не управляется в системе АВМ. Товарные запасы и продажи,
+//помеченные этим статусом, включаются в общие запасы и продажи предприятия.
+CLASS State 'Статус выгрузки ABM' {
+    MTS 'MTS', 
+    MTO 'MTO',
+    NA 'NA',
+    NM 'NM'
+}
+name 'Наименование' (State s) = staticCaption(s);
+// Помечаем статус выгрузки
+// используем везде один статус. Кроме товаров везде имеет значение только NA или любой другой 
+stateABM = DATA State (Sku, Stock) TABLE extraSkuStock;
+nameStateABM 'Статус товара в ABM'(Sku s, Stock st)  = name(stateABM(s,st));
+stateABMTime 'Время статуса' = DATA  DATETIME(Sku, Stock) TABLE extraSkuStock;
+stateABMSent (Sku s, Stock st) = stateABM(s,st)!=State.NA;
 
-//-- todo:Решить как использовать
-//newABM 'Новый товар в АВМ' = DATA BOOLEAN (Sku);
-//WHEN SET(sentABM(Sku s)) DO {
-//    newABM(s)<- NULL;
-//}
+stateABM = DATA State (Sku);
+nameStateABM 'Статус товара в ABM'(Sku s)  = name(stateABM(s));
+stateABMTime 'Время статуса' = DATA  DATETIME(Sku);
+stateABMSent (Sku s) = stateABM(s)!=State.NA;
+
+stateABM = DATA State (Stock);
+nameStateABM 'Статус товара в ABM'(Stock st)  = name(stateABM(st));
+stateABMTime 'Время статуса' = DATA  DATETIME(Stock);
+stateABMSent (Stock s) = stateABM(s)!=State.NA;
+
+stateABM = DATA State (SkuGroup);
+nameStateABM 'Статус товара в ABM'(SkuGroup st)  = name(stateABM(st));
+stateABMTime 'Время статуса' = DATA  DATETIME(SkuGroup);
+stateABMSent (SkuGroup s) = stateABM(s)!=State.NA;
 
 //-- todo: Параметры, которые надо перегрузить в логике 
 toSentABM = ABSTRACT VALUE BOOLEAN (Stock);
 toSentABM= ABSTRACT VALUE BOOLEAN (Sku, Stock, DATE);
+toSentABM = ABSTRACT VALUE BOOLEAN (SkuGroup);
 
-toSentABM(Sku s,Stock st, d) += sentABM(s,st) IF d IS DATE ;
-
-toSentABM  = GROUP SUM 1 IF toSentABM(Sku s,Stock st, DATE d ) BY s,d;
-
+//
 sentABM ABSTRACT LIST(DATE,BOOLEAN);
 
 sentDateTime = DATA LOCAL STRING ();
@@ -72,15 +112,7 @@ sentABMCustom (DATE d, BOOLEAN single, DATETIME  time, STRING package, Stock ts)
         makeZipFile();
         WRITE zipped() TO connectionStringABM() + package+dateTimeFormulasentABM(d,time);                
         deleteZippingPath(); 
-         
-        NEWSESSION NESTED LOCAL {
-            IF NOT ts THEN {    
-                sentABM(Sku s, Stock st) <- TRUE WHERE filter(s, st);
-            } ELSE {
-                sentABM(Sku s, ts) <- TRUE WHERE filter(s, ts);       
-            }
-            APPLY NESTED LOCAL;
-        }
+
     } ELSE {
         WRITE exportFile() TO '/tmp/' + package + toDateYYYYMMDD(d)+ '.csv';
         zippingPath(STRING name) <- '/tmp/' + package + toDateYYYYMMDD(d) + '.csv' WHERE name ==  (package + toDateYYYYMMDD(d) + '.csv');
@@ -91,64 +123,165 @@ sentABM(DATE d, BOOLEAN single, DATETIME  time, STRING package, Stock ts, STRING
     sentABMCustom(d,single,time,(CONCAT '', package, packageEx+'_',id(ts)+'_'),ts);
     exportFile() <- NULL;
 }
-// Таблица 1
-//Данные о товарах
-//-- todo: Параметры, которые надо перегрузить в логике 
-seasonal = ABSTRACT VALUE INTEGER (Sku);
-kvi = ABSTRACT VALUE INTEGER (Sku);
-cda = ABSTRACT VALUE INTEGER (Sku);
-fresh = ABSTRACT VALUE INTEGER (Sku);
+///////////////////////////////// Таблица 1 products
+//Данные о товарах 
+product_uid = DATA LOCAL STRING (Sku);
+name = DATA LOCAL STRING (Sku);
+category_uid = DATA LOCAL STRING (Sku);
+dimension_name = DATA LOCAL STRING (Sku);
+volume =  DATA LOCAL NUMERIC[16,5] (Sku);
+weight = DATA LOCAL NUMERIC[16,5] (Sku);
+kvi = DATA LOCAL INTEGER (Sku);
+cda = DATA LOCAL INTEGER (Sku);
+fresh = DATA LOCAL INTEGER (Sku);
+additional_1 = DATA LOCAL STRING (Sku);
+additional_2 = DATA LOCAL STRING (Sku);
+additional_3 = DATA LOCAL STRING (Sku);
+additional_4 = DATA LOCAL STRING (Sku);       
+additional_5 = DATA LOCAL STRING (Sku);
+additional_6 = DATA LOCAL STRING (Sku);
+additional_7 = DATA LOCAL STRING (Sku);
+additional_8 = DATA LOCAL STRING (Sku);   
+additional_9 = DATA LOCAL STRING (Sku);
+additional_10 = DATA LOCAL STRING (Sku);
+
+resetProducts(){
+    product_uid (Sku s)<- NULL;
+    name (Sku s)<- NULL;
+    category_uid (Sku s)<- NULL;
+    dimension_name (Sku s)<- NULL;
+    volume (Sku s)<- NULL;
+    weight (Sku s)<- NULL;
+    kvi (Sku s)<- NULL;
+    cda (Sku s)<- NULL;
+    fresh (Sku s)<- NULL;
+    additional_1 (Sku s)<- NULL;
+    additional_2 (Sku s)<- NULL;
+    additional_3 (Sku s)<- NULL;
+    additional_4 (Sku s)<- NULL;    
+    additional_5 (Sku s)<- NULL;
+    additional_6 (Sku s)<- NULL;
+    additional_7 (Sku s)<- NULL;
+    additional_8 (Sku s)<- NULL; 
+    additional_9 (Sku s)<- NULL;
+    additional_10 (Sku s)<- NULL;
+}
+//-- todo: действие, которое надо перегрузить в логике 
+fillProducts ABSTRACT (DATE);
+
 products 'products' (DATE d, BOOLEAN single) {
     IF single THEN {
-        filter(Stock st) <- NULL;
-        filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-    }
-      
-    LOCAL filter = BOOLEAN (Sku);
-    filter(Sku s) <- TRUE WHERE  toSentABM(s,d);
-    LOCAL out = BOOLEAN (Sku);
+        resetFilterABM();
+        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+        filterABM(Sku s, Stock st) <- toSentABM(s,st,d);
+        filterABM(Sku s) <- TRUE WHERE ( (GROUP SUM 1 IF filterABM(s, Stock st)) OR stateABMSent(s));        
+    }    
+    resetProducts();
+    fillProducts(d);
     
     EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM  
-        product_uid =id(Sku s), 
-        name =(name(s)), 
-        category_uid = idSkuGroup(s), 
-        dimension_name = nameUOM(s), 
+        product_uid =product_uid(Sku s), 
+        name =name(s), 
+        category_uid = category_uid(s),
+        dimension_name = dimension_name(s), 
         volume = volume(s),
-        weight = overGrossWeight(s),
-        out = IF NOT out(s) THEN 0 ELSE 1,
-        seasonal = seasonal(s),
+        weight = weight(s),
         kvi = kvi(s),
         cda = cda(s),
-        fresh = fresh(s)                    
-        WHERE filter(s);
+        fresh = fresh(s),
+        additional_1 = additional_1(s),
+        additional_2 = additional_2(s),
+        additional_3 = additional_3(s),
+        additional_4 = additional_4(s),        
+        additional_5 = additional_5(s),
+        additional_6 = additional_6(s),
+        additional_7 = additional_7(s),
+        additional_8 = additional_8(s),       
+        additional_9 = additional_9(s),    
+        additional_10 = additional_10(s)                      
+        WHERE filterABM(s);
+        
     sentABM(d,single,currentDateTime(),'products_', NULL, NULL);  
 }
 sentABM(DATE d, BOOLEAN single)+{
     products(d,single);
 }
-// Таблица 2
+///////////////////////////////// Таблица 2 items
 //Данные о наличии товара в ассортименте магазина, цене закупки, розничной цене и количестве остатка товара в магазине
+
+product_uid = DATA LOCAL STRING (Sku,Stock);
+store_uid = DATA LOCAL STRING (Sku,Stock);
+order_available = DATA LOCAL INTEGER (Sku,Stock);
+purchase_price = DATA LOCAL NUMERIC[16,4] (Sku,Stock);
+sale_price =  DATA LOCAL NUMERIC[16,4] (Sku,Stock);
+supplier_uid = DATA LOCAL STRING (Sku,Stock);
+moq = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+usq = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+split_mark = DATA LOCAL STRING (Sku,Stock);
+user_code = DATA LOCAL STRING (Sku,Stock);       
+stateClass = DATA LOCAL State (Sku,Stock);
+state(Sku s,Stock st) = name(stateClass(s,st));
+sb_1 = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+sb_2 = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+sb_3 = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+rsl = DATA LOCAL INTEGER (Sku,Stock);
+item_additional_1 = DATA LOCAL STRING (Sku,Stock);
+item_additional_2 = DATA LOCAL STRING (Sku,Stock);
+item_additional_3 = DATA LOCAL STRING (Sku,Stock);
+
+resetItems(){
+    product_uid (Sku s, Stock st)<- NULL;
+    store_uid (Sku s, Stock st)<- NULL;
+    order_available (Sku s, Stock st)<- NULL;
+    purchase_price (Sku s, Stock st)<- NULL;
+    sale_price (Sku s, Stock st)<- NULL;
+    supplier_uid (Sku s, Stock st)<- NULL;
+    moq (Sku s, Stock st)<- NULL;
+    usq (Sku s, Stock st)<- NULL;
+    split_mark (Sku s, Stock st)<- NULL;
+    user_code (Sku s, Stock st)<- NULL;
+    stateClass (Sku s, Stock st)<- NULL;
+    sb_1 (Sku s, Stock st)<- NULL;
+    sb_2 (Sku s, Stock st)<- NULL;    
+    sb_3 (Sku s, Stock st)<- NULL;
+    rsl (Sku s, Stock st)<- NULL;
+    item_additional_1 (Sku s, Stock st)<- NULL;
+    item_additional_2 (Sku s, Stock st)<- NULL; 
+    item_additional_3 (Sku s, Stock st)<- NULL;
+}
+//-- todo: действие, которое надо перегрузить в логике 
+fillItems ABSTRACT (Stock,DATE);
+
 items 'items' (DATE d, BOOLEAN single) {
     IF single THEN {
-        filter(Stock st) <- NULL;
-        filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-        filter(Sku s, Stock st) <- NULL;
-        filter(Sku s, Stock st) <- toSentABM(s,st,d);
-    }
-    
-    FOR filter(Stock st) DO {
+        resetFilterABM();      
+        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+        filterABM(Sku s, Stock st) <- toSentABM(s,st,d);
+    }    
+
+    FOR filterABM(Stock st) DO {
+        resetItems();
+        fillItems(st,d);    
         EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-            product_uid = id(Sku s), 
-            store_uid = id(st),
-            order_available = 1 IF  s IS Sku,
-            purchase_price = priceB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, s,st,currentDateTime()),  
-            sale_price = priceB(SystemLedgerPriceListType.retailPricingPriceListType, s,st,currentDateTime()),      
-            supplier_uid = id(lastSupplier(st,s)),   
-            supplier_sku_code = id(s),             
-            supplier_sku_name = name(s),
-            moq = MOQ(s),
-            usq = MOQ(s)                                                            
-            WHERE filter(s, st);
+            product_uid = product_uid(Sku s,st), 
+            store_uid = store_uid(s,st), 
+            order_available = order_available(s,st), 
+            purchase_price = purchase_price(s,st), 
+            sale_price = sale_price(s,st),    
+            supplier_uid = supplier_uid(s,st), 
+            moq = moq(s,st), 
+            usq = usq(s,st), 
+            split_mark = split_mark(s,st), 
+            user_code = user_code(s,st),            
+            state = state(s,st), 
+            sb_1 = sb_1(s,st), 
+            sb_2 = sb_2(s,st), 
+            sb_3 = sb_3(s,st), 
+            rsl = rsl(s,st),    
+            item_additional_1 = item_additional_1(s,st),             
+            item_additional_2 = item_additional_2(s,st),                        
+            item_additional_3 = item_additional_3(s,st)                                                                                
+            WHERE filterABM(s, st);                            
         sentABM(d,single,currentDateTime(),'items_', st, NULL);  
     }
 }
@@ -157,105 +290,74 @@ sentABM(DATE d, BOOLEAN single)+{
 }
 
 //-- todo: Параметры, которые надо перегрузить в логике 
-factsOutSale = ABSTRACT VALUE BOOLEAN (SaleLedger);
-factsInReturn = ABSTRACT VALUE BOOLEAN (PurchaseLedger);
-factsInPurchaseExternal= ABSTRACT VALUE BOOLEAN (PurchaseLedger);
-factsInPurchaseInternal= ABSTRACT VALUE BOOLEAN (PurchaseLedger);
-factsOutMove = ABSTRACT VALUE BOOLEAN (Sale.InvoiceDetail);
-factsInManufacture= ABSTRACT VALUE BOOLEAN (PurchaseLedger);
-factsInManufacture= ABSTRACT VALUE BOOLEAN (ProductDetail);
-factsOutManufacture = ABSTRACT VALUE BOOLEAN (Sale.InvoiceDetail);
-factsOutManufacture= ABSTRACT VALUE BOOLEAN (ComponentDetail);
-factsOutWriteOff = ABSTRACT VALUE BOOLEAN (WriteOffDetail);
-isPromo = ABSTRACT VALUE BOOLEAN (Sku,Stock,DATE );
-// Таблица 3
+
+///////////////////////////////// Таблица 3
 //Данные о движении товаров на каждой точке хранения
+
+//product_uid = DATA LOCAL STRING (Sku,Stock);
+//store_uid = DATA LOCAL STRING (Sku,Stock);
+date = DATA LOCAL STRING (Sku,Stock);
+balance = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+out_sale = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+in_return = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+out_return =  DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+in_purchase = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+in_move = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+out_move = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+in_manufacture = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+out_manufacture = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+out_write_off = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+season_erp = DATA LOCAL INTEGER (Sku,Stock);
+out_dsale = DATA LOCAL NUMERIC[16,5] (Sku,Stock);
+
+resetFacts(){
+    product_uid (Sku s, Stock st)<- NULL;
+    store_uid (Sku s, Stock st)<- NULL;
+    date (Sku s, Stock st)<- NULL;
+    balance (Sku s, Stock st)<- NULL;
+    out_sale (Sku s, Stock st)<- NULL;
+    in_return (Sku s, Stock st)<- NULL;
+    out_return (Sku s, Stock st)<- NULL;
+    in_purchase (Sku s, Stock st)<- NULL;
+    in_move (Sku s, Stock st)<- NULL;
+    out_move (Sku s, Stock st)<- NULL;
+    in_manufacture (Sku s, Stock st)<- NULL;
+    out_manufacture (Sku s, Stock st)<- NULL;
+    out_write_off (Sku s, Stock st)<- NULL;
+    season_erp (Sku s, Stock st)<- NULL; 
+    out_dsale  (Sku s, Stock st)<- NULL;   
+}
+//-- todo: действие, которое надо перегрузить в логике 
+fillFacts ABSTRACT (Stock,DATE);
+
+
 facts 'facts' (DATE d, BOOLEAN single) {
     IF single THEN {
-        filter(Stock st) <- NULL;
-        filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-        filter(Sku s, Stock st) <- NULL;
-        filter(Sku s, Stock st) <- toSentABM(s,st,d);
+        resetFilterABM();        
+        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());        
+        filterABM(Sku s, Stock st) <- toSentABM(s,st,d);
     }
-    ///////////////////// ОПТ и РОЗНИЦА /////////////////////    
-    // продажи и опт и розница покупателям
-    LOCAL qntOutSale = NUMERIC[15,4] (Stock, Sku);
-    qntOutSale(Stock st, Sku s) <- NUMERIC[15,4](GROUP SUM quantity(SaleLedger l) IF quantity(l) > 0 AND factsOutSale(l) AND
-                                    stock(l) == st AND sku(l) == s AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1)) AND active(l)) 
-        WHERE filter(s, st); 
-    // возврат от покупателей
-    LOCAL qntInSale = NUMERIC[15,4] (Stock, Sku);
-    qntInSale(Stock st, Sku s) <- NUMERIC[15,4](GROUP SUM abs(quantity(SaleLedger l)) IF quantity(l) < 0 AND stock(l) == st AND factsOutSale(l)
-                                    AND sku(l) == s AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1)) AND active(l)) 
-        WHERE filter(s, st);
-    // возврат поставщикам            
-    LOCAL qntInReturn = NUMERIC[15,4] (Stock, Sku);
-    qntInReturn(Stock st, Sku s) <- NUMERIC[15,4](GROUP SUM abs(quantity(PurchaseLedger l)) IF quantity(l) < 0 
-                                    AND stock(l) == st AND sku(l) == s AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1)) 
-                                    AND factsInReturn(l) AND active(l)) 
-        WHERE filter(s, st);
-    // полученнbt товара от внешних поставщиков 
-    LOCAL qntInPurchaseExternal = NUMERIC[15,4] (Stock, Sku);
-    qntInPurchaseExternal(Stock st, Sku s) <- NUMERIC[15,4](GROUP SUM quantity(PurchaseLedger l) IF quantity(l) > 0 
-                                                AND stock(l) == st AND sku(l) == s AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1))  
-                                                AND factsInPurchaseExternal(l) AND active(l)) 
-        WHERE filter(s, st);
-     // полученнbt товара от внутренних поставщиков     
-    LOCAL qntInPurchaseInternal = NUMERIC[15,4] (Stock, Sku);
-    qntInPurchaseInternal(Stock st, Sku s) <- NUMERIC[15,4](GROUP SUM quantity(PurchaseLedger l) IF quantity(l) > 0 
-                                                AND stock(l) == st AND sku(l) == s AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1))  
-                                                AND factsInPurchaseInternal(l) AND active(l))       
-        WHERE filter(s, st);       
-    //перемещенного товара на собственные склады    
-    LOCAL qntOutMove = NUMERIC[15,4] (Stock, Sku);
-    qntOutMove(Stock st, Sku s) <- NUMERIC[15,4](GROUP SUM shipmentQuantity(Sale.InvoiceDetail l) IF shipmentQuantity(l) > 0 
-                                    AND supplierStock(l) == st AND sku(l) == s AND factsOutMove(l) 
-                                    AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1)) AND isPosted(l)) 
-        WHERE filter(s, st);
-    //полученного товара в результате перемещений готовой продукции из собственного производства 
-    LOCAL qntInManufacture = NUMERIC[15,4] (Stock, Sku);
-    qntInManufacture(Stock st, Sku s) <- NUMERIC[15,4](GROUP SUM quantity(PurchaseLedger l) IF quantity(l) > 0 
-        AND stock(l) == st AND sku(l) == s AND factsInManufacture(l) AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1)) AND active(l))
-        WHERE filter(s, st);
-    qntInManufacture(Stock st, Sku s) <- qntInManufacture(st, s) (+) NUMERIC[15,4](GROUP SUM outputQuantity(ProductDetail l) IF outputQuantity(l) > 0 
-        AND productsStock(l) == st AND sku(l) == s AND factsInManufacture(l) AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1)) AND isPosted(l) AND createOutput(l))
-        WHERE filter(s, st);        
-        
-    //Количество за день списанного товара в производство 
-    LOCAL qntOutManufacture = NUMERIC[15,4] (Stock, Sku);
-    qntOutManufacture(Stock st, Sku s) <- NUMERIC[15,4](GROUP SUM shipmentQuantity(Sale.InvoiceDetail l) IF shipmentQuantity(l) > 0 
-                                            AND supplierStock(l) == st AND sku(l) == s AND factsOutManufacture(l) 
-                                            AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1)) AND isPosted(l))                                             
-        WHERE filter(s, st);       
-    qntOutManufacture(Stock st, Sku s) <- qntOutManufacture(st,s) (+) NUMERIC[15,4](GROUP SUM consumedQuantity(ComponentDetail l) IF consumedQuantity(l) > 0 
-                                            AND componentsStock(l) == st AND sku(l) == s AND factsOutManufacture(l) 
-                                            AND dateTime(l) >= DATETIME(d) AND dateTime(l) < DATETIME(sum(d, 1)) AND isPosted(l) AND createConsumption(l))                                             
-        WHERE filter(s, st);                
-    //Количество за день списанного товара в убытки 
-    LOCAL qntOutWriteOff = NUMERIC[15,4] (Stock, Sku);
-    qntOutWriteOff(Stock st, Sku s) <- NUMERIC[15,4](GROUP SUM quantity(WriteOffDetail dd) IF isPosted(dd) AND factsOutWriteOff(dd) AND
-                                        date(dd) == d AND stock(dd) == st AND sku(dd) == s AND quantity(dd) > 0) 
-        WHERE filter(s, st);
-
-    FOR filter(Stock st) DO {
+    
+    FOR filterABM(Stock st) DO {
+        resetFacts();
+        fillFacts(st,d);
         EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-            product_uid = id(Sku s), 
-            store_uid = id(st),
-            date = [FORMULA STRING[10] 'to_char(($1),\'YYYY-MM-DD\')'](d),
-            balance = (MAX balanceA(s,st,d),0.0),
-            out_sale = (MAX qntOutSale(st, s), 0.0), 
-            in_return = (MAX qntInSale(st, s), 0.0), 
-            out_return =  (MAX qntInReturn(st, s), 0.0), 
-            in_purchase = (MAX qntInPurchaseExternal(st, s), 0.0), 
-            in_move = (MAX qntInPurchaseInternal(st, s), 0.0), 
-            out_move = (MAX qntOutMove(st, s), 0.0), 
-            in_manufacture = (MAX qntInManufacture(st, s), 0.0), 
-            out_manufacture = (MAX qntOutManufacture(st, s), 0.0), 
-            out_write_off = (MAX qntOutWriteOff(st, s), 0.0), 
-            //pto
-            season_erp = IF isPromo(s,st,d)THEN 1 ELSE 0
-            
-            WHERE filter(s, st);
+            product_uid = product_uid(Sku s,st), 
+            store_uid = store_uid(s,st), 
+            date = date(s,st), 
+            balance = (MAX balance(s,st),0.0), 
+            out_sale = (MAX out_sale(s,st),0.0), 
+            in_return = (MAX in_return(s,st),0.0), 
+            out_return =  (MAX out_return(s,st),0.0), 
+            in_purchase = (MAX in_purchase(s,st),0.0), 
+            in_move = (MAX in_move(s,st),0.0), 
+            out_move = (MAX out_move(s,st),0.0), 
+            in_manufacture = (MAX in_manufacture(s,st),0.0), 
+            out_manufacture = (MAX out_manufacture(s,st),0.0), 
+            out_write_off = (MAX out_write_off(s,st),0.0), 
+            season_erp = season_erp(s,st),
+            out_dsale = out_dsale(s,st)           
+            WHERE filterABM(s, st);
         sentABM(d,single,currentDateTime(),'facts_', st, NULL);  
     }
 }
@@ -264,40 +366,57 @@ sentABM(DATE d, BOOLEAN single)+{
 }
 // Таблица 4
 //Данные о поставщиках
-suppliers 'suppliers' (DATE d, BOOLEAN single) {
-    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-        supplier_uid = id(LegalEntity l), 
-        name = name(l), 
-        active = IF l IS LegalEntity THEN 1 ELSE 0,
-        address = address(l), 
-        phones = phone(l),  
-        emails = email(l), 
-        contact_person = contacts(l)
-    WHERE isSupplier(l) AND active(l) AND NOT isCompany(l);
-    sentABM(d,single,currentDateTime(),'suppliers_', NULL, NULL);          
-}
-sentABM(DATE d, BOOLEAN single)+{
-    suppliers(d,single);
-}
-// Таблица 5
+//suppliers 'suppliers' (DATE d, BOOLEAN single) {
+//    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
+//        supplier_uid = id(LegalEntity l), 
+//        name = name(l), 
+//        active = IF l IS LegalEntity THEN 1 ELSE 0,
+//        address = address(l), 
+//        phones = phone(l),  
+//        emails = email(l), 
+//        contact_person = contacts(l)
+//    WHERE isSupplier(l) AND active(l) AND NOT isCompany(l);
+//    sentABM(d,single,currentDateTime(),'suppliers_', NULL, NULL);          
+//}
+//sentABM(DATE d, BOOLEAN single)+{
+//    suppliers(d,single);
+//}
+// Таблица 5 stores
 //Данные о магазинах
+store_uid = DATA LOCAL STRING (Stock);
+name = DATA LOCAL STRING (Stock);
+address = DATA LOCAL STRING (Stock);
+group_name = DATA LOCAL STRING (Stock);
+active = DATA LOCAL INTEGER (Stock);
+central = DATA LOCAL INTEGER (Stock);
+
+resetStores(){
+    store_uid (Stock s)<- NULL;
+    name (Stock s)<- NULL;
+    address (Stock s)<- NULL;
+    group_name (Stock s)<- NULL;
+    active (Stock s)<- NULL;
+    central (Stock s)<- NULL;
+}
+//-- todo: действие, которое надо перегрузить в логике 
+fillStores ABSTRACT (DATE);
+
 stores 'stores' (DATE d, BOOLEAN single) {
     IF single THEN {
-        filter(Stock st) <- NULL;
-        filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-        filter(Sku s, Stock st) <- NULL;
+        resetFilterABM();
+        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
     }
-
+    resetStores();
+    fillStores(d);
+    
     EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-        store_uid = id(Stock l), 
+        store_uid = store_uid(Stock l), 
         name = name(l), 
         address = address(l), 
-        group_name = nameStoreType(l),
-        active = IF active(l) THEN 1 ELSE 0,
-        central = IF l IS DepartmentStore THEN 0 ELSE 1,
-        latitude = latitude(l),  
-        longitude = longitude(l) 
-    WHERE filter(l);
+        group_name = group_name(l),
+        active = active(l),
+        central = central(l)
+    WHERE filterABM(l);
     sentABM(d,single,currentDateTime(),'stores_', NULL, NULL);          
 }
 sentABM(DATE d, BOOLEAN single)+{
@@ -318,133 +437,132 @@ period (Purchase.ScheduleOrder s) = CASE
 inABM = ABSTRACT BOOLEAN (Purchase.ScheduleOrder, Separation);
 like (STRING s) = FORMULA NULL BOOLEAN PG 'CASE WHEN trim($1) ~ \'^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$\' THEN 1 ELSE NULL END', MS 'CASE WHEN ltrim($1) NOT LIKE \'^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$\' THEN 1 ELSE NULL END';
 exportEmail (LegalEntity l) = IF like(email(l)) THEN email(l);
-schedules 'schedules' (DATE d, BOOLEAN single) {
-    IF single THEN {
-        filter(Stock st) <- NULL;
-        filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-        filter(Sku s, Stock st) <- NULL;
-    }
-    LOCAL sOrder = Purchase.ScheduleOrder (Stock , LegalEntity, Separation);
-    FOR [GROUP SUM 1 IF in(Purchase.ScheduleOrder s, Stock st) AND validScheduleOrder(s) AND filter(st)
-        AND active(supplier(s)) AND inABM(s, Separation sep) BY st, supplier(s), sep](Stock st, LegalEntity l, Separation sep) DO {
-        LOCAL s = Purchase.ScheduleOrder ();
-        sOrder(st,l,sep) <- OVERRIDE (GROUP MAX Purchase.ScheduleOrder s IF in(s, st) AND supplier(s) == l AND isActive(s, d) AND inABM(s, sep)),
-            (GROUP MAX Purchase.ScheduleOrder s IF in(s, st) AND supplier(s) == l AND inABM(s, sep));
-
-    }    
-    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-        store_uid = id(Stock st), 
-        supplier_uid = id(LegalEntity l), 
-        split_mark = IF Separation sep ==Separation.none THEN 'null0_null1_null2_null3_null4' ELSE name( sep), 
-        active = IF isActive(sOrder(st,l,sep), d) THEN 1 ELSE 0, 
-        olt_mo = numDays(sOrder(st,l,sep), DOW.monday), 
-        olt_tu = numDays(sOrder(st,l,sep), DOW.tuesday), 
-        olt_we = numDays(sOrder(st,l,sep), DOW.wednesday), 
-        olt_th = numDays(sOrder(st,l,sep), DOW.thursday), 
-        olt_fr = numDays(sOrder(st,l,sep), DOW.friday), 
-        olt_sa = numDays(sOrder(st,l,sep), DOW.saturday), 
-        olt_su = numDays(sOrder(st,l,sep), DOW.sunday), 
-        period = IF type(sOrder(st,l,sep)) == GenType.genDayMonth THEN 7 ELSE 30, 
-        frequency = period(sOrder(st,l,sep)), 
-        days_of_month = IF type(sOrder(st,l,sep)) == GenType.genDayMonth THEN '' ELSE stringNumber(sOrder(st,l,sep)), 
-        begin_date = toDateYYYYMMDD(startDate(sOrder(st,l,sep))), 
-        emails = exportEmail(l), 
-        auto_send = IF createUserOrderAuto(sOrder(st,l,sep)) THEN 1 ELSE 0,
-        time_until = toTimeHHMI(timeToOrder(sOrder(st,l,sep))), 
-        comment = note(sOrder(st,l,sep))
-        //delivery_slot        
-    WHERE sOrder(st,l,sep);
-    sentABM(d,single,currentDateTime(),'schedules_', NULL, NULL);        
-
-}
-sentABM(DATE d, BOOLEAN single)+{
-    schedules(d,single);
-}
+//schedules 'schedules' (DATE d, BOOLEAN single) {
+//    IF single THEN {
+//        resetFilterABM();;
+//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+//    }
+//    LOCAL sOrder = Purchase.ScheduleOrder (Stock , LegalEntity, Separation);
+//    FOR [GROUP SUM 1 IF in(Purchase.ScheduleOrder s, Stock st) AND validScheduleOrder(s) AND filterABM(st)
+//        AND active(supplier(s)) AND inABM(s, Separation sep) BY st, supplier(s), sep](Stock st, LegalEntity l, Separation sep) DO {
+//        LOCAL s = Purchase.ScheduleOrder ();
+//        sOrder(st,l,sep) <- OVERRIDE (GROUP MAX Purchase.ScheduleOrder s IF in(s, st) AND supplier(s) == l AND isActive(s, d) AND inABM(s, sep)),
+//            (GROUP MAX Purchase.ScheduleOrder s IF in(s, st) AND supplier(s) == l AND inABM(s, sep));
+//
+//    }    
+//    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
+//        store_uid = id(Stock st), 
+//        supplier_uid = id(LegalEntity l), 
+//        split_mark = IF Separation sep ==Separation.none THEN 'null0_null1_null2_null3_null4' ELSE name( sep), 
+//        active = IF isActive(sOrder(st,l,sep), d) THEN 1 ELSE 0, 
+//        olt_mo = numDays(sOrder(st,l,sep), DOW.monday), 
+//        olt_tu = numDays(sOrder(st,l,sep), DOW.tuesday), 
+//        olt_we = numDays(sOrder(st,l,sep), DOW.wednesday), 
+//        olt_th = numDays(sOrder(st,l,sep), DOW.thursday), 
+//        olt_fr = numDays(sOrder(st,l,sep), DOW.friday), 
+//        olt_sa = numDays(sOrder(st,l,sep), DOW.saturday), 
+//        olt_su = numDays(sOrder(st,l,sep), DOW.sunday), 
+//        period = IF type(sOrder(st,l,sep)) == GenType.genDayMonth THEN 7 ELSE 30, 
+//        frequency = period(sOrder(st,l,sep)), 
+//        days_of_month = IF type(sOrder(st,l,sep)) == GenType.genDayMonth THEN '' ELSE stringNumber(sOrder(st,l,sep)), 
+//        begin_date = toDateYYYYMMDD(startDate(sOrder(st,l,sep))), 
+//        emails = exportEmail(l), 
+//        auto_send = IF createUserOrderAuto(sOrder(st,l,sep)) THEN 1 ELSE 0,
+//        time_until = toTimeHHMI(timeToOrder(sOrder(st,l,sep))), 
+//        comment = note(sOrder(st,l,sep))
+//        //delivery_slot        
+//    WHERE sOrder(st,l,sep);
+//    sentABM(d,single,currentDateTime(),'schedules_', NULL, NULL);        
+//
+//}
+//sentABM(DATE d, BOOLEAN single)+{
+//    schedules(d,single);
+//}
 // Таблица 7
 //Данные об оприходованных заказах
 //-- todo: Параметры, которые надо перегрузить в логике 
 filterShipments = ABSTRACT VALUE BOOLEAN (Purchase.OrderDetail, DATE);
 numberABM = ABSTRACT STRING (Purchase.Order);
 
-shipments 'shipments' (DATE d, BOOLEAN single) {
-    IF single THEN {
-        filter(Stock st) <- NULL;
-        filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-    }
-    LOCAL filter = BOOLEAN (Purchase.OrderDetail);
-    filter(Purchase.OrderDetail dd) <- TRUE WHERE filterShipments(dd,d) AND filter(customerStock(dd));
-    LOCAL Q = NUMERIC[16,5](Sku, Purchase.Order);
-    Q(Sku s, Purchase.Order o)<- NUMERIC[15,4](GROUP SUM shipped(Purchase.OrderDetail dd) IF filter(dd) AND order(dd) == o AND sku(dd) = s);
-    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-        product_uid = id(Sku s), 
-        store_uid = id(customerStock(Purchase.Order o)),
-        supplier_uid = id(supplier(o)),                
-        quantity = Q(s,o),
-        order_number = numberABM(o),
-        document_uid = STRING(o)
-        WHERE Q(s,o) ORDER o, name(s);       
-    sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL);        
-}
-sentABM(DATE d, BOOLEAN single)+{
-    shipments(d,single);
-}
+//shipments 'shipments' (DATE d, BOOLEAN single) {
+//    IF single THEN {
+//        resetFilterABM();
+//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+//    }
+//    LOCAL filter = BOOLEAN (Purchase.OrderDetail);
+//    filter(Purchase.OrderDetail dd) <- TRUE WHERE filterShipments(dd,d) AND filterABM(customerStock(dd));
+//    LOCAL Q = NUMERIC[16,5](Sku, Purchase.Order);
+//    Q(Sku s, Purchase.Order o)<- NUMERIC[15,4](GROUP SUM shipped(Purchase.OrderDetail dd) IF filter(dd) AND order(dd) == o AND sku(dd) = s);
+//    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
+//        product_uid = id(Sku s), 
+//        store_uid = id(customerStock(Purchase.Order o)),
+//        supplier_uid = id(supplier(o)),                
+//        quantity = Q(s,o),
+//        order_number = numberABM(o),
+//        document_uid = STRING(o)
+//        WHERE Q(s,o) ORDER o, name(s);       
+//    sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL);        
+//}
+//sentABM(DATE d, BOOLEAN single)+{
+//    shipments(d,single);
+//}
 // Таблица 8
 //Данные о закрытии размещенных заказов
 closedDate = ABSTRACT DATE (Purchase.Order);
-orderclose 'orderclose' (DATE d, BOOLEAN single) {
-    IF single THEN {
-        filter(Stock st) <- NULL;
-        filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-    }
-    LOCAL filter = BOOLEAN (Purchase.Order);
-    filter(Purchase.Order o)<- TRUE WHERE numberABM(o) AND d == closedDate(o) AND filter(customerStock(o)) AND NOT shippedOrderDetail(o);
-    
-    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-        product_uid = numberABM(Purchase.Order o)
-        WHERE filter(o);       
-    sentABM(d,single,currentDateTime(),'orderclose_', NULL, NULL);            
-}
-sentABM(DATE d, BOOLEAN single)+{
-    orderclose(d,single);
-}
+//orderclose 'orderclose' (DATE d, BOOLEAN single) {
+//    IF single THEN {
+//        resetFilterABM();
+//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+//    }
+//    LOCAL filter = BOOLEAN (Purchase.Order);
+//    filter(Purchase.Order o)<- TRUE WHERE numberABM(o) AND d == closedDate(o) AND filterABM(customerStock(o)) AND NOT shippedOrderDetail(o);
+//    
+//    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
+//        product_uid = numberABM(Purchase.Order o)
+//        WHERE filter(o);       
+//    sentABM(d,single,currentDateTime(),'orderclose_', NULL, NULL);            
+//}
+//sentABM(DATE d, BOOLEAN single)+{
+//    orderclose(d,single);
+//}
 // Таблица 9
 //Данные о корректировке отправленных заказов, сделанных на стороне клиента
 includeABM 'Вкл.' = DATA BOOLEAN (LegalEntity);
 includeABM 'Вкл.' = DATA BOOLEAN (Stock);
 
-ordered 'ordered' (DATE d, BOOLEAN single) {
-    IF single THEN {
-        filter(Stock st) <- NULL;
-        filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-    }
-    LOCAL NESTED filter = BOOLEAN (Purchase.Order);    
-    NEWSESSION NESTED LOCAL {
-        FOR date(Purchase.Order o) == d AND includeABM(supplier(o)) AND includeABM(customerStock(o)) AND isPosted(o) AND NOT numberABM(o) AND number(o) AND filter(customerStock(o)) DO {
-            numberABM(o) <- number(o);
-            filter(o)<- TRUE;
-        }
-        APPLY NESTED LOCAL;
-    }   
-    // todo: определить условие для выгрузки
-    filter(Purchase.Order o)<- TRUE WHERE numberABM(o) //AND status(o) == StatusOrder.change 
-                                                    AND DATE(dateTime(response(o))) == d AND 
-                                                  (OVERRIDE DATE(deliveryDateTime(response(o))), shipmentDate(o)) >= d AND filter(customerStock(o)) ;                                                     
-    FOR filter(Purchase.UserOrder o)DO {
-        EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-            product_uid = idSku(Purchase.UserOrderDetail dd), 
-            store_uid = id(customerStock(dd)), 
-            supplier_uid = id(supplier(dd)), 
-            quantity = NUMERIC[15,4](quantityResponseEDI(dd)), 
-            order_number = numberABM(Purchase.userOrder(dd)), 
-            delivery_date = toDateYYYYMMDD2(OVERRIDE DATE(deliveryDateTime(response(o))), shipmentDate(o)) IF (OVERRIDE DATE(deliveryDateTime(response(o))), shipmentDate(o)) >= d
-            WHERE userOrder(dd) == o AND NOT quantityResponseEDI(dd) == quantity(dd) AND filter(customerStock(dd));        
-        sentABM(d,single,currentDateTime(),'ordered_', NULL, numberABM(o)+'_');     
-    }
-}
+//ordered 'ordered' (DATE d, BOOLEAN single) {
+//    IF single THEN {
+//        resetFilterABM();
+//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+//    }
+//    LOCAL NESTED filter = BOOLEAN (Purchase.Order);    
+//    NEWSESSION NESTED LOCAL {
+//        FOR date(Purchase.Order o) == d AND includeABM(supplier(o)) AND includeABM(customerStock(o)) AND isPosted(o) AND NOT numberABM(o) AND number(o) AND filterABM(customerStock(o)) DO {
+//            numberABM(o) <- number(o);
+//            filter(o)<- TRUE;
+//        }
+//        APPLY NESTED LOCAL;
+//    }   
+//    // todo: определить условие для выгрузки
+//    filter(Purchase.Order o)<- TRUE WHERE numberABM(o) //AND status(o) == StatusOrder.change 
+//                                                    AND DATE(dateTime(response(o))) == d AND 
+//                                                  (OVERRIDE DATE(deliveryDateTime(response(o))), shipmentDate(o)) >= d AND filterABM(customerStock(o)) ;                                                     
+//    FOR filter(Purchase.UserOrder o)DO {
+//        EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
+//            product_uid = idSku(Purchase.UserOrderDetail dd), 
+//            store_uid = id(customerStock(dd)), 
+//            supplier_uid = id(supplier(dd)), 
+//            quantity = NUMERIC[15,4](quantityResponseEDI(dd)), 
+//            order_number = numberABM(Purchase.userOrder(dd)), 
+//            delivery_date = toDateYYYYMMDD2(OVERRIDE DATE(deliveryDateTime(response(o))), shipmentDate(o)) IF (OVERRIDE DATE(deliveryDateTime(response(o))), shipmentDate(o)) >= d
+//            WHERE userOrder(dd) == o AND NOT quantityResponseEDI(dd) == quantity(dd) AND filterABM(customerStock(dd));        
+//        sentABM(d,single,currentDateTime(),'ordered_', NULL, numberABM(o)+'_');     
+//    }
+//}
 
-sentABM(DATE d, BOOLEAN single)+{
-    ordered(d,single);
-}
+//sentABM(DATE d, BOOLEAN single)+{
+//    ordered(d,single);
+//}
 // Таблица 11 и 12
 // Данные о создании новых периодах и их настройках (Акции)
 exportABM = DATA BOOLEAN (PriceList);
@@ -455,62 +573,83 @@ bufferChangeAMB = ABSTRACT INTEGER (PriceList);
 ignoreMaxBufferAMB = ABSTRACT INTEGER (PriceList);
 bufferControlAMB = ABSTRACT INTEGER (PriceList);
 // делаем два вместе promoheader и promobody
-promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
-    IF single THEN {
-        filter(Stock st) <- NULL;
-        filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-    }
-    LOCAL NESTED in = BOOLEAN (PriceList);
-    in (PriceList p)<- TRUE WHERE isPosted(p) AND isPromotion(operation(p)) AND fromDate(p) > d AND (GROUP SUM 1 IF in(p, Stock st) AND filter(st)) AND NOT exportABM(p);  
-      
-    IF (GROUP SUM 1 IF in (PriceList p)) THEN {
-        EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-            promo_uid = seriesNumber(PriceList p), 
-            name = namePromotionAMB(p), 
-            buffer_type = bufferTypeAMB(p), 
-            begin_date = toDateYYYYMMDD(fromDate(p)), 
-            end_date = toDateYYYYMMDD(toDate(p)), 
-            buffer_change = bufferChangeAMB(p),
-            ignore_max_buffer = ignoreMaxBufferAMB(p),
-            buffer_control = bufferControlAMB(p)
-            //........ еще много параметров, что с ними делать???
-            WHERE in(p);
-        sentABM(d,single,currentDateTime(),'promoheader_', NULL, NULL);       
-        NEWSESSION NESTED LOCAL {    
-            exportABM(PriceList p) <- TRUE WHERE in(p);  
-            APPLY NESTED LOCAL;      
-        } 
-    }
-    IF (GROUP SUM 1 IF in (PriceList p)) THEN {
-        EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-            promo_uid = seriesNumber(PriceListDetail p), 
-            product_uid = idSku(p), 
-            store_uid = id(Stock st), 
-            //........ еще много параметров, что с ними делать???            
-            nonpromo_price = prevRetailPricingPriceB(sku(p), st,fromDateTime(p)), 
-            promo_price = price(p,(GROUP MAX DataPriceListType t IF in(p,t)))
-            WHERE in(priceList(p)) AND in(p,st) AND filter(st);
-        sentABM(d,single,currentDateTime(),'promobody_', NULL, NULL);       
-        NEWSESSION NESTED LOCAL {    
-            exportABM(PriceList p) <- TRUE WHERE in(p);  
-            APPLY NESTED LOCAL;      
-        } 
-    }    
-}
+//promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
+//    IF single THEN {
+//        resetFilterABM();
+//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+//    }
+//    LOCAL NESTED in = BOOLEAN (PriceList);
+//    in (PriceList p)<- TRUE WHERE isPosted(p) AND isPromotion(operation(p)) AND fromDate(p) > d AND (GROUP SUM 1 IF in(p, Stock st) AND filterABM(st)) AND NOT exportABM(p);  
+//      
+//    IF (GROUP SUM 1 IF in (PriceList p)) THEN {
+//        EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
+//            promo_uid = seriesNumber(PriceList p), 
+//            name = namePromotionAMB(p), 
+//            buffer_type = bufferTypeAMB(p), 
+//            begin_date = toDateYYYYMMDD(fromDate(p)), 
+//            end_date = toDateYYYYMMDD(toDate(p)), 
+//            buffer_change = bufferChangeAMB(p),
+//            ignore_max_buffer = ignoreMaxBufferAMB(p),
+//            buffer_control = bufferControlAMB(p)
+//            //........ еще много параметров, что с ними делать???
+//            WHERE in(p);
+//        sentABM(d,single,currentDateTime(),'promoheader_', NULL, NULL);       
+//        NEWSESSION NESTED LOCAL {    
+//            exportABM(PriceList p) <- TRUE WHERE in(p);  
+//            APPLY NESTED LOCAL;      
+//        } 
+//    }
+//    IF (GROUP SUM 1 IF in (PriceList p)) THEN {
+//        EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
+//            promo_uid = seriesNumber(PriceListDetail p), 
+//            product_uid = idSku(p), 
+//            store_uid = id(Stock st), 
+//            //........ еще много параметров, что с ними делать???            
+//            nonpromo_price = prevRetailPricingPriceB(sku(p), st,fromDateTime(p)), 
+//            promo_price = price(p,(GROUP MAX DataPriceListType t IF in(p,t)))
+//            WHERE in(priceList(p)) AND in(p,st) AND filterABM(st);
+//        sentABM(d,single,currentDateTime(),'promobody_', NULL, NULL);       
+//        NEWSESSION NESTED LOCAL {    
+//            exportABM(PriceList p) <- TRUE WHERE in(p);  
+//            APPLY NESTED LOCAL;      
+//        } 
+//    }    
+//}
 
-sentABM(DATE d, BOOLEAN single)+{
-    promoheader(d,single);
-}
+//sentABM(DATE d, BOOLEAN single)+{
+//    promoheader(d,single);
+//}
 
-// Таблица 15
+// Таблица 15 categories
 // Данные основных категорий товаров
+
+category_uid = DATA LOCAL STRING (SkuGroup);
+name = DATA LOCAL STRING (SkuGroup);
+parent_category_uid = DATA LOCAL STRING (SkuGroup);
+deleted = DATA LOCAL INTEGER (SkuGroup);
+
+resetCategories(){
+    category_uid (SkuGroup s)<- NULL;
+    name (SkuGroup s)<- NULL;
+    parent_category_uid (SkuGroup s)<- NULL;
+    deleted (SkuGroup s)<- NULL;
+}
+//-- todo: действие, которое надо перегрузить в логике 
+fillCategories ABSTRACT (DATE);
+
 categories (DATE d, BOOLEAN single) {
+    IF single THEN {
+        resetFilterABM();
+        filterABM(SkuGroup s) <- TRUE WHERE toSentABM(s);
+    } 
+    resetCategories();    
+    fillCategories(d);
     EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-        category_uid = id(ItemGroup g), 
+        category_uid = category_uid(SkuGroup g), 
         name = name(g), 
-        parent_category_uid = id(parent(g)),
-        deleted = IF active(g) THEN 0 ELSE 1
-    WHERE active(g);
+        parent_category_uid = parent_category_uid(parent(g)),
+        deleted = deleted(g)
+    WHERE filterABM(g);
     
     sentABM(d,single,currentDateTime(),'categories_', NULL, NULL);       
 }
@@ -522,23 +661,20 @@ sentABM(DATE d, BOOLEAN single)+{
 
 exportAll 'Все файлы' (DATE d) {
     
-    filter(Stock st) <- NULL;
-    filter(Stock st) <- TRUE WHERE id(st) AND active(st) AND toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+    resetFilterABM();
+        
+    filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+    filterABM(Sku s, Stock st) <- toSentABM(s,st,d);    
+    filterABM(Sku s) <- TRUE WHERE (GROUP SUM 1 IF filterABM(s, Stock st)) OR stateABMSent(s);
+    filterABM(SkuGroup s) <- active(s) OR stateABMSent(s);    
     
-    filter(Sku s, Stock st) <- NULL;
-    filter(Sku s, Stock st) <- toSentABM(s,st,d);
     zippingPath(STRING[1000] s) <- NULL;
     
     sentABM(d, NULL);
     
     makeZipFile();
     WRITE zipped() TO connectionStringABM() + toDateYYYYMMDD(d);
-    deleteZippingPath();
-
-    NEWSESSION NESTED LOCAL {
-        sentABM(Sku s, Stock st) <- TRUE WHERE filter(s, st);
-        APPLY;
-    }  
+    deleteZippingPath(); 
 }
 
 EXTEND FORM integrationData
@@ -546,17 +682,18 @@ EXTEND FORM integrationData
     
     OBJECTS single = BOOLEAN PANEL
     EVENTS ON INIT { SEEK integrationData.single = TRUE; }
-
     
     OBJECTS d = DATE PANEL
     PROPERTIES date 'Дата' = VALUE(d)
-    PROPERTIES(d, single) products, items, facts, suppliers, stores, schedules, shipments, orderclose, ordered,
-                          promoheader, categories     
+    PROPERTIES(d, single) products, items, facts, //suppliers, 
+                stores, 
+                //schedules, shipments, orderclose, ordered, promoheader, 
+                categories     
     PROPERTIES(d)  exportAll
         
     OBJECTS abmStock = Stock
     PROPERTIES(abmStock) selectABM
-    PROPERTIES(abmStock) READONLY id, name
+    PROPERTIES(abmStock) READONLY id, Stock.name
     FILTERS isCompany(abmStock)
 ;
 
@@ -578,13 +715,13 @@ DESIGN integrationData {
                         MOVE PROPERTY(products(d, single));
                         MOVE PROPERTY(items(d, single));
                         MOVE PROPERTY(facts(d, single));
-                        MOVE PROPERTY(suppliers(d, single));
+                        //MOVE PROPERTY(suppliers(d, single));
                         MOVE PROPERTY(stores(d, single));                                                
-                        MOVE PROPERTY(shipments(d, single));                        
-                        MOVE PROPERTY(schedules(d, single));
-                        MOVE PROPERTY(orderclose(d, single));
-                        MOVE PROPERTY(ordered(d, single));
-                        MOVE PROPERTY(promoheader(d, single));
+//                        MOVE PROPERTY(shipments(d, single));                        
+//                        MOVE PROPERTY(schedules(d, single));
+//                        MOVE PROPERTY(orderclose(d, single));
+//                        MOVE PROPERTY(ordered(d, single));
+//                        MOVE PROPERTY(promoheader(d, single));
                         MOVE PROPERTY(categories(d, single));
                         MOVE PROPERTY(exportAll(d));
                     }
