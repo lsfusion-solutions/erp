@@ -16,12 +16,12 @@ import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
-import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.Files;
 import java.sql.Date;
 import java.sql.Time;
 import java.text.SimpleDateFormat;
@@ -521,28 +521,24 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
 
-            try {
-                Calendar calendar = Calendar.getInstance();
-                String directory = f.getParent() + "/success-" + new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime()) + "/";
-                if(cleanOldFilesDays != null) {
-                    calendar.add(Calendar.DATE, -cleanOldFilesDays);
-                    String oldDirectory = f.getParent() + "/success-" + new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime()) + "/";
-                    File oldDir = new File(oldDirectory);
-                    File[] files = oldDir.listFiles();
-                    if(files != null) {
-                        for (File file : files) {
-                            if (!file.delete())
-                                file.deleteOnExit();
-                        }
+            Calendar calendar = Calendar.getInstance();
+            String directory = f.getParent() + "/success-" + new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime()) + "/";
+            if(cleanOldFilesDays != null) {
+                calendar.add(Calendar.DATE, -cleanOldFilesDays);
+                String oldDirectory = f.getParent() + "/success-" + new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime()) + "/";
+                File oldDir = new File(oldDirectory);
+                File[] files = oldDir.listFiles();
+                if(files != null) {
+                    for (File file : files) {
+                        if (!file.delete())
+                            file.deleteOnExit();
                     }
-                    if(!oldDir.delete())
-                        oldDir.deleteOnExit();
                 }
-                if (new File(directory).exists() || new File(directory).mkdirs())
-                    FileCopyUtils.copy(f, new File(directory + f.getName()));
-            } catch (IOException e) {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
+                if(!oldDir.delete())
+                    oldDir.deleteOnExit();
             }
+            if (new File(directory).exists() || new File(directory).mkdirs())
+                copyWithTimeout(f, new File(directory + f.getName()));
 
             if (f.delete()) {
                 sendSalesLogger.info(getLogPrefix() + "file " + readFile + " has been deleted");
@@ -1177,7 +1173,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             String dir = file.getParent() + "/success-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "/";
                             File successDir = new File(dir);
                             if (successDir.exists() || successDir.mkdirs())
-                                FileCopyUtils.copy(file, new File(dir + file.getName()));
+                                copyWithTimeout(file, new File(dir + file.getName()));
                             if(!file.delete())
                                 file.deleteOnExit();
                         }
@@ -1193,7 +1189,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     private void exportXML(Document doc, File file) throws IOException {
         XMLOutputter xmlOutput = new XMLOutputter();
         xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-        PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), encoding));
+        PrintWriter fw = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), encoding));
         xmlOutput.output(doc, fw);
         fw.close();
     }
