@@ -1452,10 +1452,18 @@ addSkuLists 'Создать страницу описи по спискам SKU'
 
 isParentSkuGroup = (isParent(SkuGroup g, sku(PageInventoryDetail detail))) OR (g IS SkuGroup AND NOT sku(detail));
 
+changeBatch(PageInventoryDetail d)  {
+    DIALOG dialogBatchStockIn OBJECTS st = stock(d),
+                         t = dateTime(d),
+                         sk = sku(d),
+                         bt = batch(d) INPUT NULL LIST name(bt) NEWSESSION DO
+        batch(d) <- bt;
+}
+
 changeWYSNameBatch(PageInventoryDetail d)  {
-        INPUT s = STRING DO {
-            batch(d) <- GROUP LAST Batch b ORDER b WHERE sku(b) = sku(d) AND name(b) = s; 
-        } 
+    INPUT s = STRING DO {
+        batch(d) <- GROUP LAST Batch b ORDER b WHERE sku(b) = sku(d) AND name(b) = s; 
+    } 
 }
 
 FORM listInventory 'Опись'
@@ -1475,7 +1483,7 @@ FORM listInventory 'Опись'
     FILTERS         listInventory(pl) == li
 
     OBJECTS         dp=PageInventoryDetail
-    PROPERTIES (dp) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch SHOWIF isBatch(li) ON CHANGEWYS changeWYSNameBatch(dp), 
+    PROPERTIES (dp) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch SHOWIF isBatch(li) ON CHANGE changeBatch(dp) ON CHANGEWYS changeWYSNameBatch(dp), 
                     quantityGrid = quantity, price,
                     sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li), NEW SHOWIF countPageInventory(li), DELETE GRID
     FILTERS         listInventory(pageInventory(dp)) == li, isParentSkuGroup(g, dp)
