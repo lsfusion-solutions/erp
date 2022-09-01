@@ -1,6 +1,7 @@
 package equ.clt.handler.belcoopsoyuz;
 
 import com.google.common.base.Throwables;
+import equ.api.Payment;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashRegisterInfo;
@@ -620,24 +621,24 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                         switch (type) {
                             case "ТОВАР":
                                 curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                        timeReceipt, idEmployee, null, null/*sumCard*/, null/*sumCash*/, null, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
+                                        timeReceipt, idEmployee, null, null, null, null, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
                                         priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection, null, null, cashRegister));
                                 break;
                             case "ТОВАР ВОЗВРАТ":
                                 curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                        timeReceipt, idEmployee, null, null/*sumCard*/, null/*sumCash*/, null, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, HandlerUtils.safeNegate(quantityReceiptDetail),
+                                        timeReceipt, idEmployee, null, null, null, null, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, HandlerUtils.safeNegate(quantityReceiptDetail),
                                         priceReceiptDetail, HandlerUtils.safeNegate(sumReceiptDetail), discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection, null, null, cashRegister));
                                 break;
                             case "ВСЕГО":
                                 for (SalesInfo salesInfo : curSalesInfoList) {
-                                    salesInfo.sumCash = getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT");
+                                    salesInfo.payments = Collections.singletonList(Payment.getCash(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT")));
                                     salesInfoList.add(salesInfo);
                                 }
                                 curSalesInfoList = new ArrayList<>();
                                 break;
                             case "ВОЗВРАТ":
                                 for (SalesInfo salesInfo : curSalesInfoList) {
-                                    salesInfo.sumCash = HandlerUtils.safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"));
+                                    salesInfo.payments = Collections.singletonList(Payment.getCash(HandlerUtils.safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"))));
                                     salesInfoList.add(salesInfo);
                                 }
                                 curSalesInfoList = new ArrayList<>();
