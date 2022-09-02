@@ -75,6 +75,13 @@ quantityPickingPickingDetail (order, sku)= GROUP SUM pickingQuantity(OrderDetail
 excessQuantityPickingPickingDetail (Order order, Sku sku) = pickingPickingDetail(order, sku) (-) quantityPickingPickingDetail (order, sku);
 excessQuantityPickingPickingDetail(Order order) = GROUP SUM 1 IF excessQuantityPickingPickingDetail (order, Sku sku) > 0;
 
+excessQuantityPickingPickingDetail (Order order, Batch batch) = 
+    PARTITION UNGROUP excessQuantityPickingPickingDetail 
+        LIMIT availableQuantity(batch, fromStock(order)) 
+        ORDER date(batch),batch 
+    BY order,sku(batch)
+    IF excessQuantityPickingPickingDetail(order,sku(batch))>0;
+
 // ------------------------------------ Создание комплектации по заказу -------------------------------- //
 
 @defineDocumentAbstractProperty(order, createPickingOrder, 'Создать заказ на комплектацию');

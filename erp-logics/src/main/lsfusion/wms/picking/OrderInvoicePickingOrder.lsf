@@ -79,10 +79,19 @@ META defineOrderInvoicePickingOrder (sign)
             }
         }
 
-        FOR excessQuantityPickingPickingDetail(order, Sku sku) > 0 NEW d = UserInvoiceDetail DO {
-            userInvoice(d) <- userInvoice;
-            sku(d) <- sku;
-            quantity (d) <- excessQuantityPickingPickingDetail(order, sku);
+        IF explicitBatchLedger(fromStock(order)) THEN {
+            FOR NUMERIC[16,5] q==excessQuantityPickingPickingDetail(order, Batch batch) NEW d = UserInvoiceDetail DO {
+                userInvoice(d) <- userInvoice;
+                sku(d) <- sku(batch);
+                quantity(d) <- q;
+                batch(d) <- batch;
+            }  
+        } ELSE {
+            FOR excessQuantityPickingPickingDetail(order, Sku sku) > 0 NEW d = UserInvoiceDetail DO {
+                userInvoice(d) <- userInvoice;
+                sku(d) <- sku;
+                quantity(d) <- excessQuantityPickingPickingDetail(order, sku);
+            }        
         }
     }
     extraPickingDetail ABSTRACT LIST (UserInvoice);
@@ -106,6 +115,7 @@ META defineOrderInvoicePickingOrder (sign)
                 packQuantity(i) <- packQuantity(order);
                 createdUser(i, order) <- TRUE;
                 include(order,i) <- TRUE;
+                executeLocalEvents('Sale.userInvoice');
             }
         }
     }
@@ -125,6 +135,7 @@ META defineOrderInvoicePickingOrder (sign)
                             include[Order,UserInvoice](o,i) <- TRUE;
                         }
                         packQuantity(i) <- (GROUP SUM packQuantity(Order.Order o) IF inCreatePickingUserInvoicePosted(o));
+                        executeLocalEvents('Sale.userInvoice');
                         IF showPickingUserInvoicePosted() THEN {
                             SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                         }
@@ -138,6 +149,7 @@ META defineOrderInvoicePickingOrder (sign)
                     createdUser(i, order) <- TRUE;
                     userInvoice(order) <- i;
                     include(order,i) <- TRUE;
+                    executeLocalEvents('Sale.userInvoice');
                     IF showPickingUserInvoicePosted() THEN {
                         SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                     }
