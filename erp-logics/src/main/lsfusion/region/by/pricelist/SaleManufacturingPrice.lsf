@@ -37,8 +37,10 @@ WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
                                                      dateTime(detail)));
 }
 
-wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (OrderDetail detail) = NUMERIC[17,5](round2([ ((X*100.0)/Y-100.0)](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail) != 0.0)));
-wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (UserOrderDetail detail) = round2([ ((X*100.0)/Y-100.0)](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail) != 0.0 ));
+skipCalcWholesaleMarkup = ABSTRACT BOOLEAN (OrderDetail);
+
+wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (OrderDetail detail) = NUMERIC[17,5](round2([ ((X*100.0)/Y-100.0)](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail) != 0.0))) IF NOT skipCalcWholesaleMarkup(detail);
+wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (UserOrderDetail detail) = round2([ ((X*100.0)/Y-100.0)](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail) != 0.0 )) IF NOT skipCalcWholesaleMarkup(detail);
 wholesaleMarkup(OrderDetail d) += wholesaleMarkup(d);
 
 @defineDocumentInterfaceDetailDataSumPrefix (order, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
@@ -54,9 +56,12 @@ changeManufacturingPriceUser (OrderDetail detail)  {
     }
 }
 
+overBackgroundManufacturing 'Цвет'  (d)= ABSTRACT VALUE COLOR (OrderDetail);
+backgroundManufacturing (OrderDetail d) = OVERRIDE overBackgroundManufacturing(d), RGB(255, 255, 255);
+
 EXTEND FORM userOrder
     PROPERTIES(o)  showManufacturingPrice
-    PROPERTIES(d)  SHOWIF showManufacturingPrice(o) AFTER invoiceSum(d)  
+    PROPERTIES(d)  SHOWIF showManufacturingPrice(o) AFTER invoiceSum(d) BACKGROUND backgroundManufacturing(d)
                    manufacturingPrice ON CHANGE changeManufacturingPriceUser(d), wholesaleMarkup READONLY,
                    includeVAT, manufacturingSum
 
@@ -71,7 +76,7 @@ DESIGN userOrder {
 }
 
 EXTEND FORM orders
-    PROPERTIES(d) READONLY  SHOWIF showManufacturingPrice(o) AFTER invoiceSum(d) 
+    PROPERTIES(d) READONLY  SHOWIF showManufacturingPrice(o) AFTER invoiceSum(d)  BACKGROUND backgroundManufacturing(d)
                   manufacturingPrice, wholesaleMarkup, includeVAT, manufacturingSum
 ;
 
@@ -128,9 +133,12 @@ wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (UserI
 
 @defineDocumentInterfaceHeaderItemSum (invoice, manufacturing, manufacturing);
 
+overBackgroundManufacturing 'Цвет'  (d)= ABSTRACT VALUE COLOR (InvoiceDetail);
+backgroundManufacturing (InvoiceDetail d) = OVERRIDE overBackgroundManufacturing(d), RGB(255, 255, 255);
+
 EXTEND FORM userInvoice
     PROPERTIES(i)  showManufacturingPrice, updateManufacturingPrice
-    PROPERTIES(d)  SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d)  
+    PROPERTIES(d)  SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) BACKGROUND backgroundManufacturing(d)
                    manufacturingPrice, wholesaleMarkup READONLY, includeVAT, manufacturingSum
 
 ;
@@ -145,7 +153,7 @@ DESIGN userInvoice {
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY  SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) 
+    PROPERTIES(d) READONLY  SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d)  BACKGROUND backgroundManufacturing(d)
                   manufacturingPrice, wholesaleMarkup, includeVAT, manufacturingSum
 ;
 
