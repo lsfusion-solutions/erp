@@ -24,10 +24,27 @@ quantity(UserInvoiceDetail d, Lot l) += quantity(d, l);
 // shipment detail
 // пока упрощенная схема без поддержки UserShipmentDetail
 
+useLot (Shipment i) = useLot(operation(i));
+
 quantity = ABSTRACT NUMERIC[16,5] (ShipmentDetail, Lot);
 quantity(InvoiceShipmentDetail d, Lot l) += quantity(invoiceDetail(d), l);
 
 quantity (Shipment s, Lot l) = GROUP SUM quantity(ShipmentDetail d, l) IF shipment(d) = s;
+
+quantityLot 'Кол-во марок' (ShipmentDetail d) = GROUP SUM quantity(d, Lot l) MATERIALIZED;
+quantityLot 'Кол-во марок' = GROUP SUM quantityLot(ShipmentDetail d) BY shipment(d) MATERIALIZED;
+
+backgroundQuantityLot (ShipmentDetail d) = (IF quantityLot(d) = quantity(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) 
+                                                       IF lotType(sku(d));
+
+EXTEND FORM shipments
+    PROPERTIES(s) READONLY quantityLot
+
+    PROPERTIES(d) READONLY quantityLot AFTER quantity(d) 
+                  BACKGROUND backgroundQuantityLot(d) 
+                  SHOWIF useLot(s)
+                  READONLYIF NOT lotType(sku(d))
+;
 
 // ledger
 
