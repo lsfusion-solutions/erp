@@ -1,0 +1,24 @@
+MODULE PurchaseShipmentMachinery;
+
+REQUIRE PurchaseShipment, MachineryPriceTransaction;
+
+PRIORITY Purchase;
+
+
+DESIGN shipments {
+    actionContainer {
+        NEW machineryContainer {
+            caption = 'Загрузка';
+            type = CONTAINERV;
+        }
+    }
+}
+
+// ------------------------------------- Загрузка в оборудование ------------------------------ //
+
+@Machinery.implementPriceTransactionDocumentStock(Shipment, customerStock, supplier);
+@implementPriceTransactionDocumentDetail(shipment);
+@defineDocumentMachineryPriceTransaction(shipment, sku, customerStock);
+@extendFormDocumentMachineryPriceTransaction(shipments, s, shipment, nameCurrency, machineryContainer);
+
+@extendFormDocumentMachineryPriceTransactionError(shipments, s, shipment, documentDetail);

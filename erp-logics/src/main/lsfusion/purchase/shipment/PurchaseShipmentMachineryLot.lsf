@@ -1,0 +1,55 @@
+MODULE PurchaseShipmentMachineryLot;
+
+REQUIRE PurchaseShipmentMachinery, PurchaseShipmentLot, CashRegisterPriceTransactionCustomLot;
+
+NAMESPACE Purchase;
+
+
+createCashRegisterPriceTransactionDocumentLot 'Загрузить в оборудование' (Shipment i){
+    LOCAL message = TEXT();
+    LOCAL sentSomething = BOOLEAN();
+    message() <- TEXT('Принято к загрузке в оборудование : \n');
+    FOR stock(GroupCashRegister g) = customerStock(i) AND active(g) NEW t = CashRegisterPriceTransactionLot DO {
+        
+        groupCashRegister(t) <- g;
+        priceTransactionDocument(t) <- i;
+        in(t, Lot l) <- TRUE IF quantity(i, l);
+        in(t, CashRegister c) <- TRUE IF groupMachinery(c) = g AND active(c);
+        LOCAL countLots = INTEGER ();
+        countLots() <- GROUP SUM 1 IF in(t, Lot l);
+        message() <- message() + (OVERRIDE name(g), 'Без наименования') + ' - ' + (OVERRIDE  countLots() + ' марок.\n', ' ');
+        sent(i) <- TRUE IF isPosted(i) AND countLots();
+        sentSomething() <- TRUE;
+        APPLY NESTED LOCAL;
+        
+    }
+    IF sentSomething() THEN
+        MESSAGE message() NOWAIT;
+    ELSE
+        IF NOT supressNoNeedMessage() THEN
+            MESSAGE 'Загрузка марок в оборудование не требуется: ' + name(customerStock(i)) + '.\n' NOWAIT;
+}CONFIRM;
+
+createMachineryPriceTransactionCustom 'Загрузить в оборудование' (Shipment i) {
+    IF useLot(i) THEN createCashRegisterPriceTransactionDocumentLot(i);
+    ELSE createMachineryPriceTransaction(i);
+}
+
+createSnapshotMachineryPriceTransactionCustom 'Перегрузить все позиции' (Shipment i) {
+    IF useLot(i) THEN createCashRegisterPriceTransactionDocumentLot(i);
+    ELSE createSnapshotMachineryPriceTransaction(i);
+}
+
+EXTEND FORM shipments
+    PROPERTIES (s) createMachineryPriceTransactionCustom SHOWIF showCreateMachineryPriceTransaction(s),
+                   createSnapshotMachineryPriceTransactionCustom SHOWIF isPosted(s) 
+;
+
+DESIGN shipments{
+    machinery{
+        REMOVE PROPERTY (createMachineryPriceTransaction(s));
+        MOVE PROPERTY (createMachineryPriceTransactionCustom(s));
+        REMOVE PROPERTY (createSnapshotMachineryPriceTransaction(s));
+        MOVE PROPERTY (createSnapshotMachineryPriceTransactionCustom(s));
+    }
+}
