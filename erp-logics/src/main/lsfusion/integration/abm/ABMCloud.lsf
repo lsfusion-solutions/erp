@@ -23,11 +23,14 @@ filterABM = DATA LOCAL BOOLEAN (Sku);
 filterABM = DATA LOCAL BOOLEAN (Stock);
 filterABM = DATA LOCAL BOOLEAN (Sku, Stock);
 filterABM = DATA LOCAL BOOLEAN (SkuGroup);
+filterABM = DATA LOCAL BOOLEAN (LegalEntity);
+
 resetFilterABM(){
     filterABM(Sku s)<- NULL;
     filterABM(Stock st) <- NULL;
     filterABM(Sku s, Stock st) <- NULL;
     filterABM(SkuGroup s) <- NULL;
+    filterABM(LegalEntity s) <- NULL;
 }
 
 chr = FORMULA TEXT 'chr($1)';
@@ -57,30 +60,35 @@ name 'Наименование' (State s) = staticCaption(s);
 // Помечаем статус выгрузки
 // используем везде один статус. Кроме товаров везде имеет значение только NA или любой другой 
 stateABM = DATA State (Sku, Stock) TABLE extraSkuStock;
-nameStateABM 'Статус товара в ABM'(Sku s, Stock st)  = name(stateABM(s,st));
+nameStateABM 'Статус в ABM'(Sku s, Stock st)  = name(stateABM(s,st));
 stateABMTime 'Время статуса' = DATA  DATETIME(Sku, Stock) TABLE extraSkuStock;
 stateABMSent (Sku s, Stock st) = stateABM(s,st)!=State.NA;
 
 stateABM = DATA State (Sku);
-nameStateABM 'Статус товара в ABM'(Sku s)  = name(stateABM(s));
+nameStateABM 'Статус в ABM'(Sku s)  = name(stateABM(s));
 stateABMTime 'Время статуса' = DATA  DATETIME(Sku);
 stateABMSent (Sku s) = stateABM(s)!=State.NA;
 
 stateABM = DATA State (Stock);
-nameStateABM 'Статус товара в ABM'(Stock st)  = name(stateABM(st));
+nameStateABM 'Статус в ABM'(Stock st)  = name(stateABM(st));
 stateABMTime 'Время статуса' = DATA  DATETIME(Stock);
 stateABMSent (Stock s) = stateABM(s)!=State.NA;
 
 stateABM = DATA State (SkuGroup);
-nameStateABM 'Статус товара в ABM'(SkuGroup st)  = name(stateABM(st));
+nameStateABM 'Статус в ABM'(SkuGroup st)  = name(stateABM(st));
 stateABMTime 'Время статуса' = DATA  DATETIME(SkuGroup);
 stateABMSent (SkuGroup s) = stateABM(s)!=State.NA;
+
+stateABM = DATA State (LegalEntity);
+nameStateABM 'Статус в ABM'(LegalEntity st)  = name(stateABM(st));
+stateABMTime 'Время статуса' = DATA  DATETIME(LegalEntity);
+stateABMSent (LegalEntity s) = stateABM(s)!=State.NA;
 
 //-- todo: Параметры, которые надо перегрузить в логике 
 toSentABM = ABSTRACT VALUE BOOLEAN (Stock);
 toSentABM= ABSTRACT VALUE BOOLEAN (Sku, Stock, DATE);
 toSentABM = ABSTRACT VALUE BOOLEAN (SkuGroup);
-
+toSentABM = ABSTRACT VALUE BOOLEAN (LegalEntity);
 //
 sentABM ABSTRACT LIST(DATE,BOOLEAN);
 
@@ -366,21 +374,37 @@ sentABM(DATE d, BOOLEAN single)+{
 }
 // Таблица 4
 //Данные о поставщиках
-//suppliers 'suppliers' (DATE d, BOOLEAN single) {
-//    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-//        supplier_uid = id(LegalEntity l), 
-//        name = name(l), 
-//        active = IF l IS LegalEntity THEN 1 ELSE 0,
-//        address = address(l), 
-//        phones = phone(l),  
-//        emails = email(l), 
-//        contact_person = contacts(l)
-//    WHERE isSupplier(l) AND active(l) AND NOT isCompany(l);
-//    sentABM(d,single,currentDateTime(),'suppliers_', NULL, NULL);          
-//}
-//sentABM(DATE d, BOOLEAN single)+{
-//    suppliers(d,single);
-//}
+
+supplier_uid = DATA LOCAL STRING (LegalEntity);
+name = DATA LOCAL STRING (LegalEntity);
+active = DATA LOCAL INTEGER (LegalEntity);
+
+fillSuppliers ABSTRACT (DATE);
+
+resetSuppliers(){
+    supplier_uid (LegalEntity l)<- NULL;
+    name (LegalEntity l)<- NULL;
+    active (LegalEntity l)<- NULL; 
+}
+
+suppliers 'suppliers' (DATE d, BOOLEAN single) {
+    IF single THEN {
+        resetFilterABM();
+        filterABM(LegalEntity s) <- TRUE WHERE toSentABM(s);
+    } 
+    resetSuppliers();    
+    fillSuppliers(d);
+
+    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
+        supplier_uid = supplier_uid(LegalEntity l), 
+        name = name(l), 
+        active = active(l)
+    WHERE filterABM(l);
+    sentABM(d,single,currentDateTime(),'suppliers_', NULL, NULL);          
+}
+sentABM(DATE d, BOOLEAN single)+{
+    suppliers(d,single);
+}
 // Таблица 5 stores
 //Данные о магазинах
 store_uid = DATA LOCAL STRING (Stock);
@@ -685,8 +709,7 @@ EXTEND FORM integrationData
     
     OBJECTS d = DATE PANEL
     PROPERTIES date 'Дата' = VALUE(d)
-    PROPERTIES(d, single) products, items, facts, //suppliers, 
-                stores, 
+    PROPERTIES(d, single) products, items, facts, suppliers, stores,                 
                 //schedules, shipments, orderclose, ordered, promoheader, 
                 categories     
     PROPERTIES(d)  exportAll
@@ -715,7 +738,7 @@ DESIGN integrationData {
                         MOVE PROPERTY(products(d, single));
                         MOVE PROPERTY(items(d, single));
                         MOVE PROPERTY(facts(d, single));
-                        //MOVE PROPERTY(suppliers(d, single));
+                        MOVE PROPERTY(suppliers(d, single));
                         MOVE PROPERTY(stores(d, single));                                                
 //                        MOVE PROPERTY(shipments(d, single));                        
 //                        MOVE PROPERTY(schedules(d, single));
