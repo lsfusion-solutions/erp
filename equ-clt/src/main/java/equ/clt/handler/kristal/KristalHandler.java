@@ -18,7 +18,6 @@ import org.jdom.Element;
 import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
-import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -26,6 +25,8 @@ import java.math.RoundingMode;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.*;
 import java.text.ParseException;
 import java.time.LocalDate;
@@ -117,7 +118,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         throw new RuntimeException(existFilesMessage(pluFile, flagPluFile));
                     } else if (flagPluFile.createNewFile()) {
                         processTransactionLogger.info(String.format("Kristal: creating PLU file (Transaction #%s)", transactionInfo.id));
-                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
+                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(pluFile.toPath()), "windows-1251"));
 
                         Integer departmentNumber = transactionInfo.departmentNumberGroupCashRegister == null ? 1 : transactionInfo.departmentNumberGroupCashRegister;
 
@@ -160,7 +161,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             throw new RuntimeException(existFilesMessage(restrictionFile, flagRestrictionFile));
                         } else if (flagRestrictionFile.createNewFile()) {
                             processTransactionLogger.info(String.format("Kristal: creating Restriction file (Transaction #%s)", transactionInfo.id));
-                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(restrictionFile), "windows-1251"));
+                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(restrictionFile.toPath()), "windows-1251"));
 
                             for (CashRegisterItem item : transactionInfo.itemsList) {
                                 if (!Thread.currentThread().isInterrupted()) {
@@ -197,7 +198,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 throw new RuntimeException(existFilesMessage(messageFile, flagMessageFile));
                             } else if (flagMessageFile.createNewFile()) {
                                 processTransactionLogger.info(String.format("Kristal: creating MESSAGE file (Transaction #%s)", transactionInfo.id));
-                                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
+                                PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(messageFile.toPath()), "windows-1251"));
 
                                 for (CashRegisterItem item : transactionInfo.itemsList) {
                                     if (!Thread.currentThread().isInterrupted()) {
@@ -230,7 +231,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 throw new RuntimeException(existFilesMessage(scaleFile, flagScaleFile));
                             } else if (flagScaleFile.createNewFile()) {
                                 processTransactionLogger.info(String.format("Kristal: creating SCALES file (Transaction #%s)", transactionInfo.id));
-                                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
+                                PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(scaleFile.toPath()), "windows-1251"));
 
                                 for (CashRegisterItem item : transactionInfo.itemsList) {
                                     if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
@@ -263,7 +264,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             throw new RuntimeException(existFilesMessage(groupsFile, flagGroupsFile));
                         } else if (flagGroupsFile.createNewFile()) {
                             processTransactionLogger.info(String.format("Kristal: creating GROUPS file (Transaction #%s)", transactionInfo.id));
-                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
+                            PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(groupsFile.toPath()), "windows-1251"));
 
                             Set<String> numberGroupItems = new HashSet<>();
                             for (CashRegisterItem item : transactionInfo.itemsList) {
@@ -337,7 +338,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 String exchangeDirectory = directory + (exportPrefixPath == null ? "/Export" : exportPrefixPath) + "/request/";
 
                 if (makeDirsIfNeeded(exchangeDirectory)) {
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), StandardCharsets.UTF_8));
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(Paths.get(exchangeDirectory + "request.xml")), StandardCharsets.UTF_8));
 
                     String data = String.format("<?xml version=\"1.0\" encoding=\"windows-1251\" ?>\n" +
                             "<REPORLOAD REPORTTYPE=\"2\" >\n" +
@@ -766,7 +767,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 } else {
                     if (flagStopListFile.createNewFile()) {
                         processStopListLogger.info("Kristal: creating STOPLIST file");
-                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
+                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(stopListFile.toPath()), "windows-1251"));
 
                         for (Map.Entry<String, StopListItem> item : stopListInfo.stopListItemMap.entrySet()) {
                             String idBarcode = item.getKey();
@@ -804,7 +805,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 throw new RuntimeException(existFilesMessage(discCardFile, flagDiscCardFile));
             } else if (flagDiscCardFile.createNewFile()) {
                 machineryExchangeLogger.info("Kristal: creating DISCCARD file " + discCardFile.getAbsolutePath());
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(discCardFile), "windows-1251"));
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(discCardFile.toPath()), "windows-1251"));
 
                 for (DiscountCard card : discountCardList) {
                     boolean active = requestExchange.startDate == null || (card.dateFromDiscountCard != null && card.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
@@ -853,7 +854,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 throw new RuntimeException(existFilesMessage(cashierFile, flagCashierFile));
             } else if (flagCashierFile.createNewFile()) {
                 machineryExchangeLogger.info("Kristal: creating CASHIER file " + cashierFile.getAbsolutePath());
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(cashierFile), "windows-1251"));
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(cashierFile.toPath()), "windows-1251"));
 
                 for (CashierInfo cashier : cashierInfoList) {
                     if((idPositionCashier == null || idPositionCashier.equals(cashier.idPosition)) && stockSet.contains(cashier.idStock)) {
@@ -974,49 +975,48 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             try (FileReader fileReader = new FileReader(file)) {
                 document = builder.build(fileReader);
             }
-            Element rootNode = document.getRootElement();
-            List<Element> daysList = rootNode.getChildren("DAY");
+            Element rootElement = document.getRootElement();
+            List<Element> daysList = rootElement.getChildren("DAY");
 
-            for (Object dayNode : daysList) {
+            for (Element dayElement : daysList) {
 
-                List<Element> shopsList = ((Element) dayNode).getChildren("SHOP");
+                List<Element> shopsList = dayElement.getChildren("SHOP");
 
-                for (Object shopNode : shopsList) {
+                for (Element shopElement : shopsList) {
 
-                    List<Element> cashesList = ((Element) shopNode).getChildren("CASH");
+                    List<Element> cashesList = shopElement.getChildren("CASH");
 
-                    for (Object cashNode : cashesList) {
+                    for (Element cashElement : cashesList) {
 
-                        Integer numberCashRegister = readIntegerXMLAttribute((Element) cashNode, "CASHNUMBER");
-                        List<Element> gangsList = ((Element) cashNode).getChildren("GANG");
+                        Integer numberCashRegister = readIntegerXMLAttribute(cashElement, "CASHNUMBER");
+                        List<Element> gangsList = cashElement.getChildren("GANG");
 
                         if (notDetailed) {
 
                             //not detailed
 
-                            for (Object gangNode : gangsList) {
+                            for (Element gangElement : gangsList) {
 
-                                String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
+                                String numberZReport = gangElement.getAttributeValue("GANGNUMBER");
 
-                                Integer numberReceipt = readIntegerXMLAttribute((Element) gangNode, "CHEQUENUMBERFIRST");//всё пишем по номеру первого чека
+                                Integer numberReceipt = readIntegerXMLAttribute(gangElement, "CHEQUENUMBERFIRST");//всё пишем по номеру первого чека
 
                                 CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
                                 String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
                                 LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
 
-                                LocalDateTime dateTimeReceipt = sqlTimestampToLocalDateTime(dateToStamp(DateUtils.parseDate(((Element) gangNode).getAttributeValue("GANGDATESTART"), "dd.MM.yyyy HH:mm:ss")));
+                                LocalDateTime dateTimeReceipt = sqlTimestampToLocalDateTime(dateToStamp(DateUtils.parseDate(gangElement.getAttributeValue("GANGDATESTART"), "dd.MM.yyyy HH:mm:ss")));
                                 LocalDate dateReceipt = dateTimeReceipt.toLocalDate();
                                 LocalTime timeReceipt = dateTimeReceipt.toLocalTime();
 
-                                BigDecimal discountSumReceipt = readBigDecimalXMLAttribute((Element) gangNode, "DISCSUMM");
+                                BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(gangElement, "DISCSUMM");
 
-                                List<Element> receiptDetailsList = ((Element) gangNode).getChildren("GOOD");
-                                List<Element> paymentsList = ((Element) gangNode).getChildren("PAYMENT");
+                                List<Element> receiptDetailsList = gangElement.getChildren("GOOD");
+                                List<Element> paymentsList = gangElement.getChildren("PAYMENT");
 
                                 BigDecimal sumCard = BigDecimal.ZERO;
                                 BigDecimal sumCash = BigDecimal.ZERO;
-                                for (Object paymentNode : paymentsList) {
-                                    Element paymentElement = (Element) paymentNode;
+                                for (Element paymentElement : paymentsList) {
                                     if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Наличный расчет")) {
                                         sumCash = HandlerUtils.safeAdd(sumCash, readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"));
                                     } else if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Безналичный слип")) {
@@ -1027,9 +1027,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 List<SalesInfo> currentSalesInfoList = new ArrayList<>();
                                 BigDecimal currentPaymentSum = BigDecimal.ZERO;
                                 Integer numberReceiptDetail = 0;
-                                for (Object receiptDetailNode : receiptDetailsList) {
-
-                                    Element receiptDetailElement = (Element) receiptDetailNode;
+                                for (Element receiptDetailElement : receiptDetailsList) {
 
                                     String barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
                                     if (barcode != null && weightCode != null && (barcode.length() == 13 || barcode.length() == 7) && barcode.startsWith(weightCode))
@@ -1060,7 +1058,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                 //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
                                 BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
-                                if (sum == null || sum.compareTo(currentPaymentSum) != 0)
+                                if (sum.compareTo(currentPaymentSum) != 0)
                                     for (SalesInfo salesInfo : currentSalesInfoList) {
                                         salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
                                     }
@@ -1071,14 +1069,12 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                             //detailed
 
-                            for (Object gangNode : gangsList) {
+                            for (Element gangElement : gangsList) {
 
-                                String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
-                                List<Element> receiptsList = ((Element) gangNode).getChildren("HEAD");
+                                String numberZReport = gangElement.getAttributeValue("GANGNUMBER");
+                                List<Element> receiptsList = gangElement.getChildren("HEAD");
 
-                                for (Object receiptNode : receiptsList) {
-
-                                    Element receiptElement = (Element) receiptNode;
+                                for (Element receiptElement : receiptsList) {
 
                                     Integer numberReceipt = readIntegerXMLAttribute(receiptElement, useCheckNumber ? "CK_NUMBER" : "ID");
                                     //BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
@@ -1096,8 +1092,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                     BigDecimal sumCard = BigDecimal.ZERO;
                                     BigDecimal sumCash = BigDecimal.ZERO;
-                                    for (Object paymentNode : paymentsList) {
-                                        Element paymentElement = (Element) paymentNode;
+                                    for (Element paymentElement : paymentsList) {
                                         String payment = paymentElement.getAttributeValue("PAYTYPE");
                                         if (payment.equals("0")) {
                                             sumCash = HandlerUtils.safeAdd(sumCash, readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"));
@@ -1108,9 +1103,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                     List<SalesInfo> currentSalesInfoList = new ArrayList<>();
                                     BigDecimal currentPaymentSum = BigDecimal.ZERO;
-                                    for (Object receiptDetailNode : receiptDetailsList) {
-
-                                        Element receiptDetailElement = (Element) receiptDetailNode;
+                                    for (Element receiptDetailElement : receiptDetailsList) {
 
                                         String barcode;
                                         String idItem = null;
@@ -1131,9 +1124,9 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                         String discountCard = null;
                                         List<Element> discountCardList = receiptDetailElement.getChildren("DSC");
-                                        for (Object card : discountCardList) {
+                                        for (Element card : discountCardList) {
                                             if (discountCard == null || discountCard.isEmpty())
-                                                discountCard = ((Element) card).getAttributeValue("CARDNUMBER");
+                                                discountCard = card.getAttributeValue("CARDNUMBER");
                                         }
                                         if (discountCard != null && discountCard.isEmpty())
                                             discountCard = null;
@@ -1157,7 +1150,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                     //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
                                     BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
-                                    if (sum == null || sum.compareTo(currentPaymentSum) != 0)
+                                    if (sum.compareTo(currentPaymentSum) != 0)
                                         for (SalesInfo salesInfo : currentSalesInfoList) {
                                             salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
                                         }
