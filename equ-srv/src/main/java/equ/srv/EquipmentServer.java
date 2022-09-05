@@ -190,7 +190,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     protected void onStarted(LifecycleEvent event) {
-        if(true/*getDbManager().isServer()*/) {
+        if(getDbManager().isServer()) {
             logger.info("Binding Equipment Server.");
             try {
                 getRmiManager().bindAndExport(EXPORT_NAME, this);
