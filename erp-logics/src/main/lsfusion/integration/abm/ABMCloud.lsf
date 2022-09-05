@@ -24,6 +24,7 @@ filterABM = DATA LOCAL BOOLEAN (Stock);
 filterABM = DATA LOCAL BOOLEAN (Sku, Stock);
 filterABM = DATA LOCAL BOOLEAN (SkuGroup);
 filterABM = DATA LOCAL BOOLEAN (LegalEntity);
+filterABM = DATA LOCAL BOOLEAN (Stock, LegalEntity, Separation);
 
 resetFilterABM(){
     filterABM(Sku s)<- NULL;
@@ -31,6 +32,7 @@ resetFilterABM(){
     filterABM(Sku s, Stock st) <- NULL;
     filterABM(SkuGroup s) <- NULL;
     filterABM(LegalEntity s) <- NULL;
+    filterABM(Stock st, LegalEntity l, Separation s) <- NULL;
 }
 
 chr = FORMULA TEXT 'chr($1)';
@@ -84,6 +86,13 @@ nameStateABM 'Статус в ABM'(LegalEntity st)  = name(stateABM(st));
 stateABMTime 'Время статуса' = DATA  DATETIME(LegalEntity);
 stateABMSent (LegalEntity s) = stateABM(s)!=State.NA;
 
+TABLE scheduleOrderABM (Stock, LegalEntity, Separation); 
+stateABM = DATA State (Stock, LegalEntity, Separation) TABLE scheduleOrderABM;
+nameStateABM 'Статус в ABM'(Stock st, LegalEntity l, Separation s)  = name(stateABM(st,l,s));
+stateABMTime 'Время статуса' = DATA  DATETIME(Stock, LegalEntity, Separation)  TABLE scheduleOrderABM;
+stateABMSent (Stock st, LegalEntity l, Separation s) = stateABM(st,l,s)!=State.NA;
+scheduleOrder = DATA  Purchase.ScheduleOrder(Stock, LegalEntity, Separation) TABLE scheduleOrderABM;
+
 //-- todo: Параметры, которые надо перегрузить в логике 
 toSentABM = ABSTRACT VALUE BOOLEAN (Stock);
 toSentABM= ABSTRACT VALUE BOOLEAN (Sku, Stock, DATE);
@@ -98,7 +107,7 @@ replaceRN(){
     fileToString(exportFile());
     resultString()<- replace(resultString(),'\r\n','\n');
     resultString()<- replace(resultString(),'\n','\r\n');
-    resultString()<- replace(resultString(),'"null0_null1_null2_null3_null4"','null');
+    resultString()<- replace(resultString(),'null0_null1_null2_null3_null4','null');
     stringToFile(resultString());
     exportFile() <- resultFile();
 }
@@ -448,60 +457,76 @@ sentABM(DATE d, BOOLEAN single)+{
 }
 // Таблица 6
 //Данные о графиках формирования заказов поставщиков
-numDays (Purchase.ScheduleOrder s, DOW dow) = IF type(s) == GenType.genDayMonth THEN 
-    shipmentTime(GROUP MAX ScheduleOrderTime t IF scheduleOrder(t) == s AND orderDOW(t) == dow) ELSE dayBefore(s);
-validScheduleOrder (Purchase.ScheduleOrder s) = GROUP SUM 1 IF ScheduleOrderTime t IS ScheduleOrderTime AND
-    scheduleOrder(t) == s;
-period (Purchase.ScheduleOrder s) = CASE 
-    WHEN type(s) == GenType.genDayMonth AND (GROUP SUM 1 IF scheduleOrderTimeIn(s, DOW dow)) > 1 THEN 0
-    WHEN type(s) == GenType.genDayMonth AND (GROUP SUM 1 IF scheduleOrderTimeIn(s, DOW dow)) == 1 THEN overPeriod(s)
-    WHEN type(s) == GenType.genNumber AND wordCount(stringNumber(s), ',') > 1 THEN 0
-    ELSE 1;
+store_uid = DATA LOCAL STRING (Stock,LegalEntity,Separation);
+supplier_uid = DATA LOCAL STRING (Stock,LegalEntity,Separation);
+split_mark = DATA LOCAL STRING (Stock,LegalEntity,Separation);
+active = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+olt_mo = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+olt_tu = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+olt_we = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+olt_th = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+olt_fr = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+olt_sa = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+olt_su = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+period = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+frequency = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+begin_date = DATA LOCAL STRING (Stock,LegalEntity,Separation);
+auto_send = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
+comment = DATA LOCAL STRING (Stock,LegalEntity,Separation);
 
-inABM = ABSTRACT BOOLEAN (Purchase.ScheduleOrder, Separation);
-like (STRING s) = FORMULA NULL BOOLEAN PG 'CASE WHEN trim($1) ~ \'^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$\' THEN 1 ELSE NULL END', MS 'CASE WHEN ltrim($1) NOT LIKE \'^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$\' THEN 1 ELSE NULL END';
-exportEmail (LegalEntity l) = IF like(email(l)) THEN email(l);
-//schedules 'schedules' (DATE d, BOOLEAN single) {
-//    IF single THEN {
-//        resetFilterABM();;
-//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-//    }
-//    LOCAL sOrder = Purchase.ScheduleOrder (Stock , LegalEntity, Separation);
-//    FOR [GROUP SUM 1 IF in(Purchase.ScheduleOrder s, Stock st) AND validScheduleOrder(s) AND filterABM(st)
-//        AND active(supplier(s)) AND inABM(s, Separation sep) BY st, supplier(s), sep](Stock st, LegalEntity l, Separation sep) DO {
-//        LOCAL s = Purchase.ScheduleOrder ();
-//        sOrder(st,l,sep) <- OVERRIDE (GROUP MAX Purchase.ScheduleOrder s IF in(s, st) AND supplier(s) == l AND isActive(s, d) AND inABM(s, sep)),
-//            (GROUP MAX Purchase.ScheduleOrder s IF in(s, st) AND supplier(s) == l AND inABM(s, sep));
-//
-//    }    
-//    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
-//        store_uid = id(Stock st), 
-//        supplier_uid = id(LegalEntity l), 
-//        split_mark = IF Separation sep ==Separation.none THEN 'null0_null1_null2_null3_null4' ELSE name( sep), 
-//        active = IF isActive(sOrder(st,l,sep), d) THEN 1 ELSE 0, 
-//        olt_mo = numDays(sOrder(st,l,sep), DOW.monday), 
-//        olt_tu = numDays(sOrder(st,l,sep), DOW.tuesday), 
-//        olt_we = numDays(sOrder(st,l,sep), DOW.wednesday), 
-//        olt_th = numDays(sOrder(st,l,sep), DOW.thursday), 
-//        olt_fr = numDays(sOrder(st,l,sep), DOW.friday), 
-//        olt_sa = numDays(sOrder(st,l,sep), DOW.saturday), 
-//        olt_su = numDays(sOrder(st,l,sep), DOW.sunday), 
-//        period = IF type(sOrder(st,l,sep)) == GenType.genDayMonth THEN 7 ELSE 30, 
-//        frequency = period(sOrder(st,l,sep)), 
-//        days_of_month = IF type(sOrder(st,l,sep)) == GenType.genDayMonth THEN '' ELSE stringNumber(sOrder(st,l,sep)), 
-//        begin_date = toDateYYYYMMDD(startDate(sOrder(st,l,sep))), 
-//        emails = exportEmail(l), 
-//        auto_send = IF createUserOrderAuto(sOrder(st,l,sep)) THEN 1 ELSE 0,
-//        time_until = toTimeHHMI(timeToOrder(sOrder(st,l,sep))), 
-//        comment = note(sOrder(st,l,sep))
-//        //delivery_slot        
-//    WHERE sOrder(st,l,sep);
-//    sentABM(d,single,currentDateTime(),'schedules_', NULL, NULL);        
-//
-//}
-//sentABM(DATE d, BOOLEAN single)+{
-//    schedules(d,single);
-//}
+resetSchedules(){
+    store_uid (Stock st,LegalEntity l,Separation s)<- NULL;
+    supplier_uid (Stock st,LegalEntity l,Separation s)<- NULL;
+    split_mark (Stock st,LegalEntity l,Separation s)<- NULL;
+    active (Stock st,LegalEntity l,Separation s)<- NULL;
+    olt_mo (Stock st,LegalEntity l,Separation s)<- NULL;    
+    olt_tu (Stock st,LegalEntity l,Separation s)<- NULL;
+    olt_we (Stock st,LegalEntity l,Separation s)<- NULL;
+    olt_th (Stock st,LegalEntity l,Separation s)<- NULL;
+    olt_fr (Stock st,LegalEntity l,Separation s)<- NULL;
+    olt_sa (Stock st,LegalEntity l,Separation s)<- NULL;
+    olt_su (Stock st,LegalEntity l,Separation s)<- NULL;                                  
+    period (Stock st,LegalEntity l,Separation s)<- NULL;
+    frequency (Stock st,LegalEntity l,Separation s)<- NULL;  
+    begin_date (Stock st,LegalEntity l,Separation s)<- NULL;      
+    auto_send (Stock st,LegalEntity l,Separation s)<- NULL;   
+    comment (Stock st,LegalEntity l,Separation s)<- NULL;   
+}
+//-- todo: действие, которое надо перегрузить в логике 
+fillSchedules ABSTRACT (DATE);
+
+
+schedules 'schedules' (DATE d, BOOLEAN single) {
+    IF single THEN {
+        resetFilterABM();
+        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+        filterABM(LegalEntity l) <- TRUE WHERE toSentABM(l);
+    }
+    resetSchedules();
+    fillSchedules(d);
+    EXPORT CSV ',' HEADER CHARSET 'UTF-8' FROM 
+        store_uid = store_uid(Stock st,LegalEntity l,Separation s), 
+        supplier_uid = supplier_uid(st,l,s), 
+        split_mark = split_mark(st,l,s),
+        active = active(st,l,s),
+        olt_mo = olt_mo(st,l,s),
+        olt_tu = olt_tu(st,l,s),
+        olt_we = olt_we(st,l,s),
+        olt_th = olt_th(st,l,s),
+        olt_fr = olt_fr(st,l,s),
+        olt_sa = olt_sa(st,l,s),
+        olt_su = olt_su(st,l,s),
+        period = period(st,l,s),
+        frequency = frequency(st,l,s),
+        begin_date = begin_date(st,l,s),
+        auto_send = auto_send(st,l,s),
+        comment = comment(st,l,s)  
+    WHERE filterABM(st,l,s);
+    sentABM(d,single,currentDateTime(),'schedules_', NULL, NULL);          
+}
+sentABM(DATE d, BOOLEAN single)+{
+    schedules(d,single);
+}
 // Таблица 7
 //Данные об оприходованных заказах
 //-- todo: Параметры, которые надо перегрузить в логике 
@@ -710,7 +735,8 @@ EXTEND FORM integrationData
     OBJECTS d = DATE PANEL
     PROPERTIES date 'Дата' = VALUE(d)
     PROPERTIES(d, single) products, items, facts, suppliers, stores,                 
-                //schedules, shipments, orderclose, ordered, promoheader, 
+                schedules, 
+                //shipments, orderclose, ordered, promoheader, 
                 categories     
     PROPERTIES(d)  exportAll
         
@@ -741,7 +767,7 @@ DESIGN integrationData {
                         MOVE PROPERTY(suppliers(d, single));
                         MOVE PROPERTY(stores(d, single));                                                
 //                        MOVE PROPERTY(shipments(d, single));                        
-//                        MOVE PROPERTY(schedules(d, single));
+                        MOVE PROPERTY(schedules(d, single));
 //                        MOVE PROPERTY(orderclose(d, single));
 //                        MOVE PROPERTY(ordered(d, single));
 //                        MOVE PROPERTY(promoheader(d, single));
