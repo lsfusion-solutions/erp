@@ -568,42 +568,26 @@ resetShipments(){
 //-- todo: действие, которое надо перегрузить в логике 
 fillShipments ABSTRACT (DATE);
 
-//shipments 'shipments' (DATE d, BOOLEAN single) {
-//    IF single THEN {
-//        resetFilterABM();
-//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-//    }
-//    resetShipments();
-//    fillShipments(d);
-//    EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
-//        product_uid = product_uid(Purchase.Order o, Sku s), 
-//        store_uid = store_uid(o,s),
-//        supplier_uid = supplier_uid(o,s),             
-//        quantity = quantity(o,s),
-//        order_number = order_number(o,s),
-//        document_uid = document_uid(o,s)
-//        WHERE filterABM(o,s) ORDER o, name(s);       
-//    sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL);        
-//    
-//    
-//    
-//    LOCAL filter = BOOLEAN (Purchase.OrderDetail);
-//    filter(Purchase.OrderDetail dd) <- TRUE WHERE filterShipments(dd,d) AND filterABM(customerStock(dd));
-//    LOCAL Q = NUMERIC[16,5](Sku, Purchase.Order);
-//    Q(Sku s, Purchase.Order o)<- NUMERIC[15,4](GROUP SUM shipped(Purchase.OrderDetail dd) IF filter(dd) AND order(dd) == o AND sku(dd) = s);
-//    EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
-//        product_uid = id(Sku s), 
-//        store_uid = id(customerStock(Purchase.Order o)),
-//        supplier_uid = id(supplier(o)),                
-//        quantity = Q(s,o),
-//        order_number = numberABM(o),
-//        document_uid = STRING(o)
-//        WHERE Q(s,o) ORDER o, name(s);       
-//    sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL);        
-//}
-//sentABM(DATE d, BOOLEAN single)+{
-//    shipments(d,single);
-//}
+shipments 'shipments' (DATE d, BOOLEAN single) {
+    IF single THEN {
+        resetFilterABM();
+        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+    }
+    resetShipments();
+    fillShipments(d);
+    EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
+        product_uid = product_uid(Purchase.Order o, Sku s), 
+        store_uid = store_uid(o,s),
+        supplier_uid = supplier_uid(o,s),             
+        quantity = quantity(o,s),
+        order_number = order_number(o,s),
+        document_uid = document_uid(o,s)
+        WHERE filterABM(o,s) ORDER o, name(s);       
+    sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL);          
+}
+sentABM(DATE d, BOOLEAN single)+{
+    shipments(d,single);
+}
 // Таблица 8
 //Данные о закрытии размещенных заказов
 closedDate = ABSTRACT DATE (Purchase.Order);
@@ -785,14 +769,14 @@ EXTEND FORM integrationData
     OBJECTS d = DATE PANEL
     PROPERTIES date 'Дата' = VALUE(d)
     PROPERTIES(d, single) products, items, facts, suppliers, stores,                 
-                schedules, 
-                //shipments, orderclose, ordered, promoheader, 
+                schedules, shipments, 
+                //orderclose, ordered, promoheader, 
                 categories     
     PROPERTIES(d)  exportAll
         
     OBJECTS abmStock = Stock
     PROPERTIES(abmStock) selectABM
-    PROPERTIES(abmStock) READONLY id, Stock.name
+    PROPERTIES(abmStock) READONLY id, Stock.name, objectClassName
     FILTERS isCompany(abmStock)
 ;
 
@@ -816,7 +800,7 @@ DESIGN integrationData {
                         MOVE PROPERTY(facts(d, single));
                         MOVE PROPERTY(suppliers(d, single));
                         MOVE PROPERTY(stores(d, single));                                                
-//                        MOVE PROPERTY(shipments(d, single));                        
+                        MOVE PROPERTY(shipments(d, single));                        
                         MOVE PROPERTY(schedules(d, single));
 //                        MOVE PROPERTY(orderclose(d, single));
 //                        MOVE PROPERTY(ordered(d, single));
