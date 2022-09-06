@@ -165,11 +165,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         //items
                         Map<String, List<CashRegisterItem>> barcodeMap = new HashMap<>();
                         for (CashRegisterItem item : transaction.itemsList) {
-                            List<CashRegisterItem> items = barcodeMap.get(item.mainBarcode);
-                            if (items == null)
-                                items = new ArrayList<>();
-                            items.add(item);
-                            barcodeMap.put(item.mainBarcode, items);
+                            if (!skipItem(item, medicineMode)) {
+                                List<CashRegisterItem> items = barcodeMap.get(item.mainBarcode);
+                                if (items == null)
+                                    items = new ArrayList<>();
+                                items.add(item);
+                                barcodeMap.put(item.mainBarcode, items);
+                            }
                         }
 
                         for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
@@ -187,7 +189,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         //item groups
                         Set<String> usedItemGroups = new HashSet<>();
                         for (CashRegisterItem item : transaction.itemsList) {
-                            if (!Thread.currentThread().isInterrupted()) {
+                            if (!Thread.currentThread().isInterrupted() && !skipItem(item, medicineMode)) {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
                                 if (hierarchyItemGroup != null) {
                                     for (ItemGroup itemGroup : hierarchyItemGroup) {
@@ -205,7 +207,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         //Tax groups
                         Set<BigDecimal> usedTaxGroups = new HashSet<>();
                         for (CashRegisterItem item : transaction.itemsList) {
-                            if (!Thread.currentThread().isInterrupted()) {
+                            if (!Thread.currentThread().isInterrupted() && !skipItem(item, medicineMode)) {
                                 if (item.vat != null && !usedTaxGroups.contains(item.vat)) {
                                     String group = getAddTaxGroup(item);
                                     if (group != null)
@@ -218,7 +220,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         //UOMs
                         Set<String> usedUOMs = new HashSet<>();
                         for (CashRegisterItem item : transaction.itemsList) {
-                            if (!Thread.currentThread().isInterrupted()) {
+                            if (!Thread.currentThread().isInterrupted() && !skipItem(item, medicineMode)) {
                                 if (!usedUOMs.contains(item.idUOM)) {
                                     String unit = getAddUnitJSON(item);
                                     if (unit != null)
@@ -230,7 +232,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         //scale items
                         for (CashRegisterItem item : transaction.itemsList) {
-                            if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
+                            if (!Thread.currentThread().isInterrupted() && !skipItem(item, medicineMode) && item.passScalesItem) {
                                 writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item) + "\n---\n");
                             }
                         }
@@ -254,6 +256,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             result.put(emptyTransaction, new SendTransactionBatch(null));
         }
         return result;
+    }
+    
+    private boolean skipItem(CashRegisterItem item, boolean medicineMode) {
+        return medicineMode && (item.batchList == null || item.batchList.isEmpty());
     }
 
     @Override
