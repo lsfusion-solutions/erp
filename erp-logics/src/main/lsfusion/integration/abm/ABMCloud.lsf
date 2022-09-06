@@ -25,7 +25,10 @@ filterABM = DATA LOCAL BOOLEAN (Sku, Stock);
 filterABM = DATA LOCAL BOOLEAN (SkuGroup);
 filterABM = DATA LOCAL BOOLEAN (LegalEntity);
 filterABM = DATA LOCAL BOOLEAN (Stock, LegalEntity, Separation);
-filterABM = DATA LOCAL NUMERIC[16,5] (Purchase.Order,Sku);
+filterABM = DATA LOCAL BOOLEAN (Purchase.Invoice);
+filterABM = DATA LOCAL BOOLEAN (Purchase.InvoiceDetail);
+filterABM = DATA LOCAL BOOLEAN (Purchase.Order);
+filterABM = DATA LOCAL BOOLEAN (Purchase.OrderDetail);
 
 resetFilterABM(){
     filterABM(Sku s)<- NULL;
@@ -34,7 +37,10 @@ resetFilterABM(){
     filterABM(SkuGroup s) <- NULL;
     filterABM(LegalEntity s) <- NULL;
     filterABM(Stock st, LegalEntity l, Separation s) <- NULL;
-    filterABM(Purchase.Order o, Sku s) <- NULL;
+    filterABM(Purchase.Invoice d) <- NULL;
+    filterABM(Purchase.InvoiceDetail d) <- NULL;
+    filterABM(Purchase.Order d) <- NULL;
+    filterABM(Purchase.OrderDetail d) <- NULL;
 }
 
 chr = FORMULA TEXT 'chr($1)';
@@ -95,8 +101,13 @@ stateABMTime 'Время статуса' = DATA  DATETIME(Stock, LegalEntity, Se
 stateABMSent (Stock st, LegalEntity l, Separation s) = stateABM(st,l,s)!=State.NA;
 scheduleOrder = DATA  Purchase.ScheduleOrder(Stock, LegalEntity, Separation) TABLE scheduleOrderABM;
 
-quantityABM = DATA NUMERIC[16,5] (Purchase.Order,Sku);
-stateABMTime 'Время статуса' = DATA  DATETIME(Purchase.Order,Sku);
+TABLE shipmentsABMInvoice (Purchase.InvoiceDetail); 
+quantityABM = DATA NUMERIC[16,5] (Purchase.InvoiceDetail) TABLE shipmentsABMInvoice;
+stateABMTime 'Время статуса' = DATA  DATETIME(Purchase.InvoiceDetail) TABLE shipmentsABMInvoice;
+
+TABLE orderedABMOrder (Purchase.OrderDetail); 
+quantityABM = DATA NUMERIC[16,5] (Purchase.OrderDetail) TABLE orderedABMOrder;
+stateABMTime 'Время статуса' = DATA  DATETIME(Purchase.OrderDetail) TABLE orderedABMOrder;
 
 //-- todo: Параметры, которые надо перегрузить в логике 
 toSentABM = ABSTRACT VALUE BOOLEAN (Stock);
@@ -537,6 +548,7 @@ sentABM(DATE d, BOOLEAN single)+{
 //-- todo: Параметры, которые надо перегрузить в логике 
 filterShipments = ABSTRACT VALUE BOOLEAN (Purchase.OrderDetail, DATE);
 numberABM 'Номер ABM' = DATA STRING (Purchase.Order) CHARWIDTH 10;
+numberABM 'Номер ABM' (Purchase.OrderDetail d) = numberABM(order(d)) CHARWIDTH 10;
 EXTEND FORM Purchase.userOrder
     PROPERTIES (o) numberABM
 ;
@@ -550,20 +562,20 @@ EXTEND FORM Purchase.orders
 ;
 
 
-product_uid = DATA LOCAL STRING (Purchase.Order, Sku);
-store_uid = DATA LOCAL STRING (Purchase.Order, Sku);
-supplier_uid = DATA LOCAL STRING (Purchase.Order, Sku);
-quantity = DATA LOCAL NUMERIC[16,5] (Purchase.Order, Sku);
-order_number = DATA LOCAL STRING (Purchase.Order, Sku);
-document_uid = DATA LOCAL STRING (Purchase.Order, Sku);
+product_uid = DATA LOCAL STRING (Purchase.InvoiceDetail);
+store_uid = DATA LOCAL STRING (Purchase.InvoiceDetail);
+supplier_uid = DATA LOCAL STRING (Purchase.InvoiceDetail);
+quantity_ABM = DATA LOCAL NUMERIC[16,5] (Purchase.InvoiceDetail);
+order_number = DATA LOCAL STRING (Purchase.InvoiceDetail);
+document_uid = DATA LOCAL STRING (Purchase.InvoiceDetail);
 
 resetShipments(){
-    product_uid (Purchase.Order o, Sku s)<- NULL;
-    store_uid (Purchase.Order o, Sku s)<- NULL;
-    supplier_uid (Purchase.Order o, Sku s)<- NULL;
-    quantity (Purchase.Order o, Sku s)<- NULL;
-    order_number (Purchase.Order o, Sku s)<- NULL;    
-    document_uid (Purchase.Order o, Sku s)<- NULL; 
+    product_uid (Purchase.InvoiceDetail d)<- NULL;
+    store_uid (Purchase.InvoiceDetail d)<- NULL;
+    supplier_uid (Purchase.InvoiceDetail d)<- NULL;
+    quantity_ABM (Purchase.InvoiceDetail d)<- NULL;
+    order_number (Purchase.InvoiceDetail d)<- NULL;    
+    document_uid (Purchase.InvoiceDetail d)<- NULL; 
 }
 //-- todo: действие, которое надо перегрузить в логике 
 fillShipments ABSTRACT (DATE);
@@ -576,13 +588,13 @@ shipments 'shipments' (DATE d, BOOLEAN single) {
     resetShipments();
     fillShipments(d);
     EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
-        product_uid = product_uid(Purchase.Order o, Sku s), 
-        store_uid = store_uid(o,s),
-        supplier_uid = supplier_uid(o,s),             
-        quantity = quantity(o,s),
-        order_number = order_number(o,s),
-        document_uid = document_uid(o,s)
-        WHERE filterABM(o,s) ORDER o, name(s);       
+        product_uid = product_uid(Purchase.InvoiceDetail dd), 
+        store_uid = store_uid(dd), 
+        supplier_uid = supplier_uid(dd),       
+        quantity = quantity_ABM(dd),
+        order_number = order_number(dd),
+        document_uid = document_uid(dd)
+        WHERE filterABM(dd);       
     sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL);          
 }
 sentABM(DATE d, BOOLEAN single)+{
@@ -609,42 +621,49 @@ closedDate = ABSTRACT DATE (Purchase.Order);
 //}
 // Таблица 9
 //Данные о корректировке отправленных заказов, сделанных на стороне клиента
-includeABM 'Вкл.' = DATA BOOLEAN (LegalEntity);
-includeABM 'Вкл.' = DATA BOOLEAN (Stock);
 
-//ordered 'ordered' (DATE d, BOOLEAN single) {
-//    IF single THEN {
-//        resetFilterABM();
-//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-//    }
-//    LOCAL NESTED filter = BOOLEAN (Purchase.Order);    
-//    NEWSESSION NESTED LOCAL {
-//        FOR date(Purchase.Order o) == d AND includeABM(supplier(o)) AND includeABM(customerStock(o)) AND isPosted(o) AND NOT numberABM(o) AND number(o) AND filterABM(customerStock(o)) DO {
-//            numberABM(o) <- number(o);
-//            filter(o)<- TRUE;
-//        }
-//        APPLY NESTED LOCAL;
-//    }   
-//    // todo: определить условие для выгрузки
-//    filter(Purchase.Order o)<- TRUE WHERE numberABM(o) //AND status(o) == StatusOrder.change 
-//                                                    AND DATE(dateTime(response(o))) == d AND 
-//                                                  (OVERRIDE DATE(deliveryDateTime(response(o))), shipmentDate(o)) >= d AND filterABM(customerStock(o)) ;                                                     
-//    FOR filter(Purchase.UserOrder o)DO {
-//        EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
-//            product_uid = idSku(Purchase.UserOrderDetail dd), 
-//            store_uid = id(customerStock(dd)), 
-//            supplier_uid = id(supplier(dd)), 
-//            quantity = NUMERIC[15,4](quantityResponseEDI(dd)), 
-//            order_number = numberABM(Purchase.userOrder(dd)), 
-//            delivery_date = toDateYYYYMMDD2(OVERRIDE DATE(deliveryDateTime(response(o))), shipmentDate(o)) IF (OVERRIDE DATE(deliveryDateTime(response(o))), shipmentDate(o)) >= d
-//            WHERE userOrder(dd) == o AND NOT quantityResponseEDI(dd) == quantity(dd) AND filterABM(customerStock(dd));        
-//        sentABM(d,single,currentDateTime(),'ordered_', NULL, numberABM(o)+'_');     
-//    }
-//}
+product_uid = DATA LOCAL STRING (Purchase.OrderDetail);
+store_uid = DATA LOCAL STRING (Purchase.OrderDetail);
+supplier_uid = DATA LOCAL STRING (Purchase.OrderDetail);
+quantity_ABM = DATA LOCAL NUMERIC[16,5] (Purchase.OrderDetail);
+order_number = DATA LOCAL STRING (Purchase.OrderDetail);
+delivery_date = DATA LOCAL STRING (Purchase.OrderDetail);
 
-//sentABM(DATE d, BOOLEAN single)+{
-//    ordered(d,single);
-//}
+resetOrdered(){
+    product_uid (Purchase.OrderDetail d)<- NULL;
+    store_uid (Purchase.OrderDetail d)<- NULL;
+    supplier_uid (Purchase.OrderDetail d)<- NULL;
+    quantity_ABM (Purchase.OrderDetail d)<- NULL;
+    order_number (Purchase.OrderDetail d)<- NULL;
+    delivery_date (Purchase.OrderDetail d)<- NULL;
+}
+//-- todo: действие, которое надо перегрузить в логике 
+fillOrdered ABSTRACT (DATE);
+
+ordered 'ordered' (DATE d, BOOLEAN single) {
+    IF single THEN {
+        resetFilterABM();
+        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());        
+    }
+    resetOrdered();
+    fillOrdered(d);                                                 
+    
+    FOR filterABM(Purchase.UserOrder o) DO {
+        EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
+            product_uid = product_uid(Purchase.UserOrderDetail dd), 
+            store_uid = store_uid(customerStock(dd)), 
+            supplier_uid = supplier_uid(supplier(dd)), 
+            quantity = quantity_ABM(dd), 
+            order_number = order_number(dd), 
+            delivery_date = delivery_date(dd)
+            WHERE userOrder(dd) == o;        
+        sentABM(d,single,currentDateTime(),'ordered_', NULL, numberABM(o)+'_');     
+    }   
+}
+
+sentABM(DATE d, BOOLEAN single)+{
+    ordered(d,single);
+}
 // Таблица 11 и 12
 // Данные о создании новых периодах и их настройках (Акции)
 exportABM = DATA BOOLEAN (PriceList);
@@ -770,7 +789,9 @@ EXTEND FORM integrationData
     PROPERTIES date 'Дата' = VALUE(d)
     PROPERTIES(d, single) products, items, facts, suppliers, stores,                 
                 schedules, shipments, 
-                //orderclose, ordered, promoheader, 
+                //orderclose, 
+                ordered,
+                //promoheader, 
                 categories     
     PROPERTIES(d)  exportAll
         
@@ -803,7 +824,7 @@ DESIGN integrationData {
                         MOVE PROPERTY(shipments(d, single));                        
                         MOVE PROPERTY(schedules(d, single));
 //                        MOVE PROPERTY(orderclose(d, single));
-//                        MOVE PROPERTY(ordered(d, single));
+                        MOVE PROPERTY(ordered(d, single));
 //                        MOVE PROPERTY(promoheader(d, single));
                         MOVE PROPERTY(categories(d, single));
                         MOVE PROPERTY(exportAll(d));
