@@ -116,9 +116,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
         Element rootNode = document.getRootElement();
         List<Element> list = rootNode.getChildren("Item");
 
-        for (Object aList : list) {
-
-            Element node = (Element) aList;
+        for (Element node : list) {
 
             String id = node.getAttributeValue("ID");
 
@@ -132,9 +130,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
 
                 String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, findProperty("currencyExtraSID[BPSTRING[6]]").readClasses(context, new DataObject(extraSIDCurrency)));
 
-                for (Object anExchangeList : exchangeList) {
-
-                    Element exchangeNode = (Element) anExchangeList;
+                for (Element exchangeNode : exchangeList) {
 
                     BigDecimal value = BigDecimal.valueOf(Double.parseDouble(exchangeNode.getChildText("Value").replace(",", ".")) / Double.parseDouble(exchangeNode.getChildText("Nominal")));
 
