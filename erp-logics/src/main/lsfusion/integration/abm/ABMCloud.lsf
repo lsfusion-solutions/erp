@@ -125,6 +125,7 @@ stateABMTime 'Время статуса' = DATA  DATETIME(PriceList,Stock,Sku);
 stateABMSent (PriceList p,Stock st,Sku s) = stateABM(p,st,s)!=State.NA;
 
 //-- todo: Параметры, которые надо перегрузить в логике 
+skipSentABM= ABSTRACT VALUE BOOLEAN (Sku);
 toSentABM = ABSTRACT VALUE BOOLEAN (Stock);
 toSentABM= ABSTRACT VALUE BOOLEAN (Sku, Stock, DATE);
 toSentABM = ABSTRACT VALUE BOOLEAN (SkuGroup);
@@ -740,7 +741,7 @@ promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
         filterABM(PriceList s) <- TRUE WHERE toSentABM(s,d);
         filterABM(PriceList p, Stock st, Sku s) <- TRUE WHERE filterABM(p) AND filterABM(st) AND 
-            ((in(p,st)  AND userPriceListDetail(p,s)) OR stateABMSent(p,st,s));
+            ((in(p,st)  AND userPriceListDetail(p,s)) OR stateABMSent(p,st,s)) AND NOT skipSentABM(s);
     }
     resetPromoheader();
     fillPromoheader(d);
