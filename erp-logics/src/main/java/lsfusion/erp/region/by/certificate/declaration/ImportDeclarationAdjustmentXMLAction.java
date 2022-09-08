@@ -58,19 +58,18 @@ public class ImportDeclarationAdjustmentXMLAction extends DefaultImportAction {
 
                 rootNode = rootNode.getChild("KDToutGoodsShipment", ns);
 
-                List list = rootNode.getChildren("KDToutGoods", ns);
-                for (Object aList : list) {
-                    Element node = (Element) aList;
-                    List payment = node.getChildren("KDToutCustomsPaymentCalculation", ns);
+                List<Element> list = rootNode.getChildren("KDToutGoods", ns);
+                for (Element node : list) {
+                    List<Element> payment = node.getChildren("KDToutCustomsPaymentCalculation", ns);
 
                     Double duty = null;
                     Double vat = null;
-                    for (Object p : payment) {
-                        String paymentModeCode = ((Element) p).getChildText("PaymentModeCode", gns);
+                    for (Element p : payment) {
+                        String paymentModeCode = p.getChildText("PaymentModeCode", gns);
                         if ("2010".equals(paymentModeCode)) {
-                            duty = Double.valueOf(((Element) p).getChildText("PaymentAmount", gns));
+                            duty = Double.valueOf(p.getChildText("PaymentAmount", gns));
                         } else if ("5010".equals(paymentModeCode))
-                            vat = Double.valueOf(((Element) p).getChildText("PaymentAmount", gns));
+                            vat = Double.valueOf(p.getChildText("PaymentAmount", gns));
                     }
                     Double sum = Double.valueOf(node.getChildText("CustomsCost", gns));
                     Integer number = Integer.valueOf(node.getChildText("GoodsNumeric", gns));
