@@ -356,7 +356,7 @@ public class DefaultTerminalHandler {
                 barcodeQuery.addProperty("amountPack", terminalHandlerLM.findProperty("amountPack[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameSkuGroup", terminalHandlerLM.findProperty("nameSkuGroup[Barcode]").getExpr(barcodeExpr));
 
-                barcodeQuery.and(terminalHandlerLM.findProperty("filterGoods[Barcode,Stock,User]").getExpr(barcodeExpr, stockObject.getExpr(), user.getExpr()).getWhere());
+                barcodeQuery.and(terminalHandlerLM.findProperty("filterGoods[Barcode,Stock,User]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr(), user.getExpr()).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("active[Barcode]").getExpr(barcodeExpr).getWhere());
 
@@ -410,7 +410,7 @@ public class DefaultTerminalHandler {
             batchQuery.addProperty("cost", terminalHandlerLM.findProperty("cost[Batch]").getExpr(batchExpr));
             batchQuery.addProperty("extraField", terminalHandlerLM.findProperty("extraField[Batch, Stock]").getExpr(batchExpr, stockObject.getExpr()));
 
-            batchQuery.and(terminalHandlerLM.findProperty("filterBatch[Batch, Stock]").getExpr(batchExpr, stockObject.getExpr()).getWhere());
+            batchQuery.and(terminalHandlerLM.findProperty("filterBatch[Batch, Stock]").getExpr(session.getModifier(), batchExpr, stockObject.getExpr()).getWhere());
 
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> batchResult = batchQuery.executeClasses(session);
             for (int i = 0; i < batchResult.size(); i++) {
@@ -447,7 +447,7 @@ public class DefaultTerminalHandler {
         lotQuery.addProperty("quantity", terminalLotLM.findProperty("quantity[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
         lotQuery.addProperty("count", terminalLotLM.findProperty("count[Lot]").getExpr(lotExpr));
 
-        lotQuery.and(terminalLotLM.findProperty("filter[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()).getWhere());
+        lotQuery.and(terminalLotLM.findProperty("filter[Lot,Stock,Employee]").getExpr(session.getModifier(), lotExpr, stockObject.getExpr(), userInfo.user.getExpr()).getWhere());
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> lotResult = lotQuery.executeClasses(session);
         for (int i = 0; i < lotResult.size(); i++) {
@@ -1172,7 +1172,7 @@ public class DefaultTerminalHandler {
                 skuQuery.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
                 skuQuery.addProperty("nameSku", terminalHandlerLM.findProperty("name[Sku]").getExpr(skuExpr));
                 skuQuery.addProperty("extraBarcodes", terminalHandlerLM.findProperty("extraBarcodes[Sku,Stock]").getExpr(skuExpr, customerStockObject.getExpr()));
-                skuQuery.and(terminalHandlerLM.findProperty("extraBarcodes[Sku,Stock]").getExpr(skuExpr, customerStockObject.getExpr()).getWhere());
+                skuQuery.and(terminalHandlerLM.findProperty("extraBarcodes[Sku,Stock]").getExpr(session.getModifier(), skuExpr, customerStockObject.getExpr()).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
                 for (int i = 0, size = skuResult.size(); i < size; i++) {
@@ -1224,7 +1224,7 @@ public class DefaultTerminalHandler {
                 orderQuery.addProperty("flags", terminalOrderLM.findProperty("flagsSku[TerminalOrderDetail,Stock]").getExpr(orderDetailExpr, customerStockObject.getExpr()));
                 
                 orderQuery.and(terminalOrderLM.findProperty("filterTerminal[TerminalOrder, TerminalOrderDetail, Stock, Employee]").getExpr(
-                        orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
+                        session.getModifier(), orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session, MapFact.singletonOrder("sortTerminal", false));
                 for (int i = 0, size = orderResult.size(); i < size; i++) {
@@ -1293,14 +1293,9 @@ public class DefaultTerminalHandler {
                 orderQuery.addProperty("barcode", terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(orderDetailExpr));
                 orderQuery.addProperty("image", terminalOrderLM.findProperty("image[TerminalOrderDetail]").getExpr(orderDetailExpr));
 
-                //todo: заменить на одно свойство в lsf
-                orderQuery.and(terminalOrderLM.findProperty("filter[TerminalOrder, Stock]").getExpr(orderExpr, customerStockObject.getExpr()).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("checkUser[TerminalOrder, Employee]").getExpr(orderExpr, userInfo.user.getExpr()).getWhere());
-                orderQuery.and((terminalOrderLM.findProperty("isOpened[TerminalOrder]")).getExpr(orderExpr).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("order[TerminalOrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-                orderQuery.and(terminalOrderLM.findProperty("number[TerminalOrder]").getExpr(orderExpr).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(orderDetailExpr).getWhere());
                 orderQuery.and(terminalOrderLM.findProperty("hasImage[TerminalOrderDetail]").getExpr(orderDetailExpr).getWhere());
+                orderQuery.and(terminalOrderLM.findProperty("filterTerminal[TerminalOrder, TerminalOrderDetail, Stock, Employee]").getExpr(
+                        session.getModifier(), orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
                 for (ImMap<Object, Object> entry : orderResult.values()) {
@@ -1336,7 +1331,7 @@ public class DefaultTerminalHandler {
 
             query.and(terminalHandlerLM.findProperty("id[Stock]").getExpr(supplierExpr).getWhere());
             query.and(terminalHandlerLM.findProperty("overIdBarcode[Sku]").getExpr(skuExpr).getWhere());
-            query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(session.getModifier(), skuExpr, stockObject.getExpr(), supplierExpr).getWhere());
 
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
