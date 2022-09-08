@@ -125,7 +125,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                             for (ScalesItem item : transaction.itemsList) {
                                 count++;
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
-                                    if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                    if (item.idBarcode != null && item.idBarcode.length() <= 6) {
                                         processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                         int attempts = 0;
                                         String result = null;
