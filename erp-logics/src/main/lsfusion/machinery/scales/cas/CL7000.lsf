@@ -1,0 +1,46 @@
+MODULE CL7000;
+
+REQUIRE ScalesSelfService, Image;
+
+//CL7000
+loadImages() + {
+    NEWSESSION NESTED (select[Sku,Stock]) {
+        IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+            FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
+                FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'CasCL7000' DO {
+                    FOR select(sku(Barcode barcode), stock) AND pluNumber(groupScales(scales), barcode) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                        TRY {
+                            WRITE image(sku(barcode)) TO 'ftp://cas:cascl7200@' + port(scales) + '//image/' + pluNumber(groupScales(scales),barcode);
+                        } CATCH {
+                            MESSAGE 'Ошибка загрузки изображений в весы' NOWAIT;
+                            BREAK;
+                        }
+                    }
+                }
+            }
+        }
+    }
+} 
+showLoadImage(Stock ss) += (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'CasCL7000' AND stock(grsk) == ss AND active(grsk)) > 0;
+
+deleteImages() + {
+    NEWSESSION NESTED (select[Sku,Stock]) {
+        IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+            FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
+                FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'CasCL7000' DO {
+                    FOR select(sku(Barcode barcode), stock) AND pluNumber(groupScales(scales), barcode) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                        TRY {
+                            delete('ftp://cas:cascl7200@' + port(scales) + '//image/' + pluNumber(groupScales(scales),barcode) + '.jpg');
+                        }
+                    }
+                }
+            }
+            IF NOT notResetMachinerySelectSku() THEN {
+                select(Sku sku, Stock stock) <- NULL;
+            }
+        }
+    }
+}
+showDeleteImage(Stock ss) += (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'CasCL7000' AND stock(grsk) == ss AND active(grsk)) > 0;
+
+isSelfService(GroupScales s) += sidModel(s) == 'CasCL7000';
