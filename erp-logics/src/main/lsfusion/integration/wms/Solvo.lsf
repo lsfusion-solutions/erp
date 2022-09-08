@@ -22,7 +22,9 @@ connectionString 'строка подключения' () = 'jdbc:oracle:thin:' 
 
 EXTEND FORM integrationData 
     PROPERTIES() shost = host, base, login, password
-;DESIGN  integrationData {
+;
+
+DESIGN  integrationData {
     wms {
         NEW solvo {
             caption = 'Solvo';
@@ -1040,6 +1042,7 @@ overIdBatch = ABSTRACT STRING[100](Purchase.InvoiceDetail);
 series (Purchase.InvoiceDetail d) = OVERRIDE overIdBatch(d), idBatch(d);
 
 overImportReceiveComplete ABSTRACT (SaleReturn.InvoiceDetail);
+overImportReceiveComplete ABSTRACT (Purchase.Invoice);
 overImportReceiveComplete ABSTRACT (Purchase.InvoiceDetail);
 overImportOrderStatusChanged ABSTRACT (PurchaseReturn.Invoice);
 overImportOrderStatusChanged ABSTRACT (Sale.Order);
@@ -1116,6 +1119,8 @@ importReplies 'Импортировать подтверждения' ()  {
                         createShipment(i) <- TRUE;
                         shipmentDate(i) <- DATE (rcv_date());
                         shipmentTime(i) <- TIME (rcv_date());
+                        
+                        overImportReceiveComplete(i);
                         
                         FOR i == invoice(Purchase.InvoiceDetail d) DO {
                             shipmentQuantity(d) <- GROUP SUM qty(INTEGER r) IF idSku(d) == sku_id( r) AND series(d) == s_serial_id(r) AND index(d) == line(r);
