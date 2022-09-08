@@ -99,7 +99,7 @@ public class DefaultTerminalHandler {
                 String isWeight = terminalHandlerLM.findProperty("passScales[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
                 ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
                 BigDecimal price = (BigDecimal) terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").read(session, barcodeObject, stockObject);
-                BigDecimal quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Barcode,CustomUser]").read(session, barcodeObject, userInfo.user);
+                BigDecimal quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Barcode,Stock,CustomUser]").read(session, barcodeObject, stockObject, userInfo.user);
                 String priceValue = bigDecimalToString(price, 2);
                 String quantityValue = bigDecimalToString(quantity, 3);
 
@@ -336,7 +336,7 @@ public class DefaultTerminalHandler {
                 barcodeQuery.addProperty("overNameSku", terminalHandlerLM.findProperty("overNameSku[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 if (currentQuantity) {
-                    barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,CustomUser]").getExpr(barcodeExpr, user.getExpr()));
+                    barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock,CustomUser]").getExpr(barcodeExpr, stockObject.getExpr(), user.getExpr()));
                 }
                 barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));
