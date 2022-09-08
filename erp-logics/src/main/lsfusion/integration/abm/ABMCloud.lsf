@@ -29,6 +29,8 @@ filterABM = DATA LOCAL BOOLEAN (Purchase.Invoice);
 filterABM = DATA LOCAL BOOLEAN (Purchase.InvoiceDetail);
 filterABM = DATA LOCAL BOOLEAN (Purchase.Order);
 filterABM = DATA LOCAL BOOLEAN (Purchase.OrderDetail);
+filterABM = DATA LOCAL BOOLEAN (PriceList);
+filterABM = DATA LOCAL BOOLEAN (PriceList, Stock, Sku);
 
 resetFilterABM(){
     filterABM(Sku s)<- NULL;
@@ -41,6 +43,8 @@ resetFilterABM(){
     filterABM(Purchase.InvoiceDetail d) <- NULL;
     filterABM(Purchase.Order d) <- NULL;
     filterABM(Purchase.OrderDetail d) <- NULL;
+    filterABM(PriceList s) <- NULL;
+    filterABM(PriceList d, Stock s, Sku sk) <- NULL;
 }
 
 chr = FORMULA TEXT 'chr($1)';
@@ -109,11 +113,23 @@ TABLE orderedABMOrder (Purchase.OrderDetail);
 quantityABM = DATA NUMERIC[16,5] (Purchase.OrderDetail) TABLE orderedABMOrder;
 stateABMTime 'Время статуса' = DATA  DATETIME(Purchase.OrderDetail) TABLE orderedABMOrder;
 
+stateABM = DATA State (PriceList);
+nameStateABM 'Статус в ABM'(PriceList st)  = name(stateABM(st));
+stateABMTime 'Время статуса' = DATA  DATETIME(PriceList);
+stateABMSent (PriceList s) = stateABM(s)!=State.NA;
+
+TABLE promobodyABMPriceList (PriceList,Stock,Sku); 
+stateABM = DATA State (PriceList,Stock,Sku) TABLE promobodyABMPriceList;
+nameStateABM 'Статус в ABM'(PriceList p,Stock st,Sku s)  = name(stateABM(p,st,s));
+stateABMTime 'Время статуса' = DATA  DATETIME(PriceList,Stock,Sku);
+stateABMSent (PriceList p,Stock st,Sku s) = stateABM(p,st,s)!=State.NA;
+
 //-- todo: Параметры, которые надо перегрузить в логике 
 toSentABM = ABSTRACT VALUE BOOLEAN (Stock);
 toSentABM= ABSTRACT VALUE BOOLEAN (Sku, Stock, DATE);
 toSentABM = ABSTRACT VALUE BOOLEAN (SkuGroup);
 toSentABM = ABSTRACT VALUE BOOLEAN (LegalEntity);
+toSentABM = ABSTRACT VALUE BOOLEAN (PriceList,DATE);
 //
 sentABM ABSTRACT LIST(DATE,BOOLEAN);
 
@@ -604,22 +620,22 @@ sentABM(DATE d, BOOLEAN single)+{
 // Таблица 8
 //Данные о закрытии размещенных заказов
 closedDate = ABSTRACT DATE (Purchase.Order);
-//orderclose 'orderclose' (DATE d, BOOLEAN single) {
-//    IF single THEN {
-//        resetFilterABM();
-//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-//    }
-//    LOCAL filter = BOOLEAN (Purchase.Order);
-//    filter(Purchase.Order o)<- TRUE WHERE numberABM(o) AND d == closedDate(o) AND filterABM(customerStock(o)) AND NOT shippedOrderDetail(o);
-//    
-//    EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
-//        product_uid = numberABM(Purchase.Order o)
-//        WHERE filter(o);       
-//    sentABM(d,single,currentDateTime(),'orderclose_', NULL, NULL);            
-//}
-//sentABM(DATE d, BOOLEAN single)+{
-//    orderclose(d,single);
-//}
+orderclose 'orderclose' (DATE d, BOOLEAN single) {
+    IF single THEN {
+        resetFilterABM();
+        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+    }
+    LOCAL filter = BOOLEAN (Purchase.Order);
+    filter(Purchase.Order o)<- TRUE WHERE numberABM(o) AND d == closedDate(o) AND filterABM(customerStock(o)) AND NOT shippedOrderDetail(o);
+
+    EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
+        product_uid = numberABM(Purchase.Order o)
+        WHERE filter(o);       
+    sentABM(d,single,currentDateTime(),'orderclose_', NULL, NULL);            
+}
+sentABM(DATE d, BOOLEAN single)+{
+    orderclose(d,single);
+}
 // Таблица 9
 //Данные о корректировке отправленных заказов, сделанных на стороне клиента
 
@@ -667,60 +683,100 @@ sentABM(DATE d, BOOLEAN single)+{
 }
 // Таблица 11 и 12
 // Данные о создании новых периодах и их настройках (Акции)
-exportABM = DATA BOOLEAN (PriceList);
 //-- todo: Параметры, которые надо перегрузить в логике 
+
+promo_uid = DATA LOCAL STRING (PriceList);
+name_ABM = DATA LOCAL STRING (PriceList);
+buffer_type = DATA LOCAL INTEGER (PriceList);
+begin_date = DATA LOCAL STRING (PriceList);
+end_date = DATA LOCAL STRING (PriceList);
+buffer_change = DATA LOCAL INTEGER (PriceList);
+ignore_max_buffer = DATA LOCAL INTEGER (PriceList);
+buffer_control = DATA LOCAL INTEGER (PriceList);
+end_action = DATA LOCAL INTEGER (PriceList);
+promo_type_code = DATA LOCAL STRING (PriceList);
+default_promo_mechanic_code = DATA LOCAL STRING (PriceList);
+
+promo_uid = DATA LOCAL STRING (PriceList,Stock,Sku);
+product_uid = DATA LOCAL STRING (PriceList,Stock,Sku);
+store_uid = DATA LOCAL STRING (PriceList,Stock,Sku);
+promo_mechanic_code = DATA LOCAL STRING (PriceList,Stock,Sku);
+nonpromo_price = DATA LOCAL NUMERIC[16,4] (PriceList,Stock,Sku);
+promo_price = DATA LOCAL NUMERIC[16,4] (PriceList,Stock,Sku);
+deleted = DATA LOCAL INTEGER (PriceList,Stock,Sku);
+
+resetPromoheader(){
+    promo_uid (PriceList p)<- NULL;
+    name_ABM (PriceList p)<- NULL;
+    buffer_type (PriceList p)<- NULL;
+    begin_date (PriceList p)<- NULL;
+    end_date (PriceList p)<- NULL;
+    buffer_change (PriceList p)<- NULL;
+    ignore_max_buffer (PriceList p)<- NULL;
+    buffer_control (PriceList p)<- NULL;
+    end_action (PriceList p)<- NULL;
+    promo_type_code (PriceList p)<- NULL;
+    default_promo_mechanic_code (PriceList p)<- NULL;
+    //
+    promo_uid (PriceList d,Stock st, Sku s)<- NULL;
+    product_uid (PriceList d,Stock st, Sku s)<- NULL;
+    store_uid (PriceList d,Stock st, Sku s)<- NULL;
+    promo_mechanic_code (PriceList d,Stock st, Sku s)<- NULL;
+    nonpromo_price (PriceList d,Stock st, Sku s)<- NULL;
+    promo_price (PriceList d,Stock st, Sku s)<- NULL;        
+    deleted (PriceList d,Stock st, Sku s)<- NULL;        
+}
+fillPromoheader ABSTRACT (DATE);
+
 namePromotionAMB = ABSTRACT STRING (PriceList);
 bufferTypeAMB = ABSTRACT INTEGER (PriceList);
 bufferChangeAMB = ABSTRACT INTEGER (PriceList);
 ignoreMaxBufferAMB = ABSTRACT INTEGER (PriceList);
 bufferControlAMB = ABSTRACT INTEGER (PriceList);
 // делаем два вместе promoHEADER ESCAPE и promobody
-//promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
-//    IF single THEN {
-//        resetFilterABM();
-//        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-//    }
-//    LOCAL NESTED in = BOOLEAN (PriceList);
-//    in (PriceList p)<- TRUE WHERE isPosted(p) AND isPromotion(operation(p)) AND fromDate(p) > d AND (GROUP SUM 1 IF in(p, Stock st) AND filterABM(st)) AND NOT exportABM(p);  
-//      
-//    IF (GROUP SUM 1 IF in (PriceList p)) THEN {
-//        EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
-//            promo_uid = seriesNumber(PriceList p), 
-//            name = namePromotionAMB(p), 
-//            buffer_type = bufferTypeAMB(p), 
-//            begin_date = toDateYYYYMMDD(fromDate(p)), 
-//            end_date = toDateYYYYMMDD(toDate(p)), 
-//            buffer_change = bufferChangeAMB(p),
-//            ignore_max_buffer = ignoreMaxBufferAMB(p),
-//            buffer_control = bufferControlAMB(p)
-//            //........ еще много параметров, что с ними делать???
-//            WHERE in(p);
-//        sentABM(d,single,currentDateTime(),'promoheader_', NULL, NULL);       
-//        NEWSESSION NESTED LOCAL {    
-//            exportABM(PriceList p) <- TRUE WHERE in(p);  
-//            APPLY NESTED LOCAL;      
-//        } 
-//    }
-//    IF (GROUP SUM 1 IF in (PriceList p)) THEN {
-//        EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
-//            promo_uid = seriesNumber(PriceListDetail p), 
-//            product_uid = idSku(p), 
-//            store_uid = id(Stock st), 
-//            //........ еще много параметров, что с ними делать???            
-//            nonpromo_price = prevRetailPricingPriceB(sku(p), st,fromDateTime(p)), 
-//            promo_price = price(p,(GROUP MAX DataPriceListType t IF in(p,t)))
-//            WHERE in(priceList(p)) AND in(p,st) AND filterABM(st);
-//        sentABM(d,single,currentDateTime(),'promobody_', NULL, NULL);       
-//        NEWSESSION NESTED LOCAL {    
-//            exportABM(PriceList p) <- TRUE WHERE in(p);  
-//            APPLY NESTED LOCAL;      
-//        } 
-//    }    
-//}
+promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
+    IF single THEN {
+        resetFilterABM();
+        filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+        filterABM(PriceList s) <- TRUE WHERE toSentABM(s,d);
+        filterABM(PriceList p, Stock st, Sku s) <- TRUE WHERE filterABM(p) AND filterABM(st) AND 
+            ((in(p,st)  AND userPriceListDetail(p,s)) OR stateABMSent(p,st,s));
+    }
+    resetPromoheader();
+    fillPromoheader(d);
+    IF (GROUP SUM 1 IF filterABM (PriceList p)) THEN {
+        EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
+            promo_uid = promo_uid(PriceList p), 
+            name = name_ABM(p), 
+            buffer_type = buffer_type(p), 
+            begin_date = begin_date(p), 
+            end_date = end_date(p), 
+            buffer_change = buffer_change(p),
+            ignore_max_buffer = ignore_max_buffer(p),
+            buffer_control = buffer_control(p),
+            end_action = end_action(p),
+            promo_type_code = promo_type_code(p),
+            default_promo_mechanic_code = default_promo_mechanic_code(p)
+            WHERE filterABM(p);
+        sentABM(d,single,currentDateTime(),'promoheader_', NULL, NULL);        
+    }    
+    IF (GROUP SUM 1 IF filterABM (PriceList p)) THEN {
+        EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
+            promo_uid = promo_uid(PriceList p, Stock st, Sku s), 
+            product_uid = product_uid(p,st,s), 
+            store_uid = store_uid(p,st,s), 
+            promo_mechanic_code = promo_mechanic_code(p,st,s), 
+            nonpromo_price = nonpromo_price(p,st,s), 
+            promo_price = promo_price(p,st,s),
+            deleted = deleted(p,st,s)
+            WHERE filterABM(p,st,s);
+        sentABM(d,single,currentDateTime(),'promobody_', NULL, NULL);       
+    }       
+}
 
-//sentABM(DATE d, BOOLEAN single)+{
-//    promoheader(d,single);
-//}
+sentABM(DATE d, BOOLEAN single)+{
+    promoheader(d,single);
+}
 
 // Таблица 15 categories
 // Данные основных категорий товаров
@@ -790,9 +846,9 @@ EXTEND FORM integrationData
     PROPERTIES date 'Дата' = VALUE(d)
     PROPERTIES(d, single) products, items, facts, suppliers, stores,                 
                 schedules, shipments, 
-                //orderclose, 
+                orderclose, 
                 ordered,
-                //promoheader, 
+                promoheader, 
                 categories     
     PROPERTIES(d)  exportAll
         
@@ -824,9 +880,9 @@ DESIGN integrationData {
                         MOVE PROPERTY(stores(d, single));                                                
                         MOVE PROPERTY(shipments(d, single));                        
                         MOVE PROPERTY(schedules(d, single));
-//                        MOVE PROPERTY(orderclose(d, single));
+                        MOVE PROPERTY(orderclose(d, single));
                         MOVE PROPERTY(ordered(d, single));
-//                        MOVE PROPERTY(promoheader(d, single));
+                        MOVE PROPERTY(promoheader(d, single));
                         MOVE PROPERTY(categories(d, single));
                         MOVE PROPERTY(exportAll(d));
                     }
