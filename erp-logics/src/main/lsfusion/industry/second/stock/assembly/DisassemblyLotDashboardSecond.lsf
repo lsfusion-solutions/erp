@@ -78,13 +78,24 @@ userComputerSettings 'Настройки' { edit(userComputer()); }
 
 inProcessDisassemblies 'Миксов в смене' (Stock st) = GROUP SUM 1 IF disassembly(st, currentUser(), Sku s);
 
+skipCheckDisassemblyBalance 'Отображать в оценке миксы, которых нет в наличии' = DATA BOOLEAN (Employee);
+EXTEND FORM employee
+    PROPERTIES(e) skipCheckDisassemblyBalance
+;
+
+DESIGN employee {
+    access {
+        MOVE PROPERTY(skipCheckDisassemblyBalance(e));
+    }
+}
+
 FORM dialogMix 'Выберите микс'
     OBJECTS st = Stock
     OBJECTS s = Sku
     PROPERTIES(s) READONLY SHOWIF disassemblyMode() BACKGROUND disassembly(st, currentUser(), s) id, name
     ORDERS id(s)
-    FILTERGROUP balance
-        FILTER 'В наличии' currentBalance(s, st) > 0 OR disassembly(st, currentUser(), s) DEFAULT
+    FILTERS currentBalance(s, st) > 0 OR disassembly(st, currentUser(), s) OR skipCheckDisassemblyBalance(currentUser())
+    
     FILTERGROUP part
         FILTER 'Комплект' countPart(s) OR disassembly(st, currentUser(), s) DEFAULT
 ;
