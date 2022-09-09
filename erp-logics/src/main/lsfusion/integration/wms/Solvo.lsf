@@ -1115,12 +1115,12 @@ importReplies 'Импортировать подтверждения' ()  {
                     logToFile('WMS', 'Not found purchase invoice: ' + inc_id());
                     error() <- 'Накладная не найдена';
                 } ELSE {
+                    LOCAL NESTED lpi = Purchase.Invoice ();
                     FOR id(Purchase.Invoice i) == inc_id() DO {
+                        lpi()<-i;
                         createShipment(i) <- TRUE;
                         shipmentDate(i) <- DATE (rcv_date());
-                        shipmentTime(i) <- TIME (rcv_date());
-                        
-                        overImportReceiveComplete(i);
+                        shipmentTime(i) <- TIME (rcv_date());                        
                         
                         FOR i == invoice(Purchase.InvoiceDetail d) DO {
                             shipmentQuantity(d) <- GROUP SUM qty(INTEGER r) IF idSku(d) == sku_id( r) AND series(d) == s_serial_id(r) AND index(d) == line(r);
@@ -1133,6 +1133,7 @@ importReplies 'Импортировать подтверждения' ()  {
                         error() <- applyMessage();
                     }  ELSE {
                         done() <- TRUE;
+                        overImportReceiveComplete(lpi());                        
                     }
                 }
             }
