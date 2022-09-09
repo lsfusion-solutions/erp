@@ -139,13 +139,13 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
             boolean exportProviderTaxes = findProperty("exportProviderTaxes[EVAT]").read(context, evatObject) != null;
 
             Namespace xmlns = Namespace.getNamespace("http://www.w3schools.com");
-            Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
-            Namespace xsi = Namespace.getNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
+            //Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
+            //Namespace xsi = Namespace.getNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
 
             Element rootElement = new Element("issuance");
             rootElement.setNamespace(xmlns);
-            rootElement.addNamespaceDeclaration(xs);
-            rootElement.addNamespaceDeclaration(xsi);
+            //rootElement.addNamespaceDeclaration(xs);
+            //rootElement.addNamespaceDeclaration(xsi);
             setAttribute(rootElement, "sender", unpSender);
             Document doc = new Document(rootElement);
             doc.setRootElement(rootElement);
@@ -371,6 +371,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         boolean noCustomer = findProperty("noCustomer[EVAT]").read(context, evatObject) != null;
         String countryCode = trim((String) findProperty("countryCodeCustomer[EVAT]").read(context, evatObject));
         String unp = trim((String) findProperty("unpCustomer[EVAT]").read(context, evatObject));
+        boolean skipUnpCustomer = findProperty("skipUnpCustomer[EVAT]").read(context, evatObject) != null;
         String name = trim((String) findProperty("nameCustomer[EVAT]").read(context, evatObject));
         String branchCodeCustomer = (String) findProperty("branchCodeCustomer[EVAT]").read(context, evatObject);
         String address = trim((String) findProperty("addressCustomer[EVAT]").read(context, evatObject));
@@ -386,7 +387,9 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         addBooleanElement(namespace, recipientElement, "bigCompany", bigCompany);
         if (!noCustomer) {
             addStringElement(namespace, recipientElement, "countryCode", countryCode);
-            addStringElement(namespace, recipientElement, "unp", unp);
+            if (!skipUnpCustomer){
+                addStringElement(namespace, recipientElement, "unp", unp);
+            }
             addStringElement(namespace, recipientElement, "branchCode", branchCodeCustomer);
             addStringElement(namespace, recipientElement, "name", name);
             addStringElement(namespace, recipientElement, "address", address);
