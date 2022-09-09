@@ -616,9 +616,9 @@ shipments 'shipments' (DATE d, BOOLEAN single) {
         WHERE filterABM(dd);       
     sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL);          
 }
-sentABM(DATE d, BOOLEAN single)+{
-    shipments(d,single);
-}
+//sentABM(DATE d, BOOLEAN single)+{
+//    shipments(d,single);
+//}
 // Таблица 8
 //Данные о закрытии размещенных заказов
 closedDate = ABSTRACT DATE (Purchase.Order);
@@ -658,7 +658,7 @@ resetOrdered(){
 }
 //-- todo: действие, которое надо перегрузить в логике 
 fillOrdered ABSTRACT (DATE);
-
+fillOrdered ABSTRACT ();
 ordered 'ordered' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
@@ -838,8 +838,10 @@ exportAll 'Все файлы' (DATE d) {
     deleteZippingPath(); 
 }
 
+exportPostABMPath 'POST запрос' = DATA STRING[250] ();
+
 EXTEND FORM integrationData
-    PROPERTIES() connectionStringABM
+    PROPERTIES() connectionStringABM, exportPostABMPath
     
     OBJECTS single = BOOLEAN PANEL
     EVENTS ON INIT { SEEK integrationData.single = TRUE; }
@@ -847,9 +849,10 @@ EXTEND FORM integrationData
     OBJECTS d = DATE PANEL
     PROPERTIES date 'Дата' = VALUE(d)
     PROPERTIES(d, single) products, items, facts, suppliers, stores,                 
-                schedules, shipments, 
+                schedules, 
+                //shipments, 
                 orderclose, 
-                ordered,
+                //ordered,
                 promoheader, 
                 categories     
     PROPERTIES(d)  exportAll
@@ -865,7 +868,7 @@ DESIGN integrationData {
         NEW ABMInventory {
             caption = 'ABMCloud';
             MOVE PROPERTY(connectionStringABM());
-            //MOVE PROPERTY(errorEmailABM());
+            MOVE PROPERTY(exportPostABMPath());
             NEW paneABM {
                 type = TABBED;
                 fill = 1;
@@ -880,10 +883,10 @@ DESIGN integrationData {
                         MOVE PROPERTY(facts(d, single));
                         MOVE PROPERTY(suppliers(d, single));
                         MOVE PROPERTY(stores(d, single));                                                
-                        MOVE PROPERTY(shipments(d, single));                        
+                        //MOVE PROPERTY(shipments(d, single));                        
                         MOVE PROPERTY(schedules(d, single));
                         MOVE PROPERTY(orderclose(d, single));
-                        MOVE PROPERTY(ordered(d, single));
+                        //MOVE PROPERTY(ordered(d, single));
                         MOVE PROPERTY(promoheader(d, single));
                         MOVE PROPERTY(categories(d, single));
                         MOVE PROPERTY(exportAll(d));
@@ -892,5 +895,99 @@ DESIGN integrationData {
                 }
             }
         }
+    }
+}
+
+name = DATA LOCAL STRING();
+type = DATA LOCAL STRING();
+status = DATA LOCAL STRING();
+
+title = DATA LOCAL STRING();
+message = DATA LOCAL STRING();
+
+GROUP error;
+GROUP state;
+
+FORM answerABM
+    PROPERTIES() IN state name, type, status
+    PROPERTIES() IN error title, message
+;
+
+tokenABM 'Токен ABM API' = DATA STRING[255]() ECHO ;
+
+name_ABM = DATA LOCAL STRING();
+type_ABM = DATA LOCAL STRING();
+
+FORM ordered
+    PROPERTIES() name_ABM EXTID 'name', type_ABM EXTID 'type'
+    
+    OBJECTS data = Purchase.UserOrderDetail
+    PROPERTIES(data) quantity =quantity_ABM, warehouse_code = store_uid, sku = product_uid, order_id= numberABM
+    FILTERS filterABM(data)
+;
+
+
+exportOrdered 'ordered API' (DATE d){
+    resetFilterABM();
+    filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+    type_ABM()<- 'ordered';
+    name_ABM() <-  'ordered_'+toDateYYYYMMDD(currentDate())+'_'+toTimeHHMISS(currentDateTime());
+    resetOrdered();
+    fillOrdered(d);  
+    EXPORT ordered JSON;
+    TRY {
+        IF exportPostABMPath() THEN {
+            LOCAL headers = TEXT(STRING[100]);
+            headers('Authorization') <- tokenABM();
+            EXTERNAL HTTP POST exportPostABMPath()  HEADERS headers PARAMS exportFile() TO resultFile;
+            IMPORT answerABM JSON FROM resultFile();
+            IF title()  THEN {
+                logToFile('ABM', (CONCAT '\n', currentDateTime()+ ' ERROR IN Body: ordered', (CONCAT ', ', title(), message())));    
+            }
+        }
+    } CATCH {
+        logToFile('ABM', (CONCAT '\n', 'ERROR: ordered', (CONCAT '\n\n', messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException ())));
+    }
+} 
+
+FORM shipments
+    PROPERTIES() name_ABM EXTID 'name', type_ABM EXTID 'type'
+    
+    OBJECTS data = Purchase.UserInvoiceDetail
+    PROPERTIES(data) quantity =quantity_ABM, warehouse_code = store_uid, sku = product_uid, order_id= order_number
+    FILTERS filterABM(data)
+;
+
+exportShipments 'shipments API'(DATE d){
+    resetFilterABM();
+    filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
+    type_ABM()<- 'shipments';
+    name_ABM() <-  'shipments_'+toDateYYYYMMDD(currentDate())+'_'+toTimeHHMISS(currentDateTime());
+    resetShipments();
+    fillShipments(d);  
+    EXPORT shipments JSON;
+    TRY {
+        IF exportPostABMPath() THEN {
+            LOCAL headers = TEXT(STRING[100]);
+            headers('Authorization') <- tokenABM();
+            EXTERNAL HTTP POST exportPostABMPath()  HEADERS headers PARAMS exportFile() TO resultFile;
+            IMPORT answerABM JSON FROM resultFile();
+            IF title()  THEN {
+                logToFile('ABM', (CONCAT '\n', currentDateTime() +' ERROR IN Body: shipments', (CONCAT ', ', title(), message())));    
+            }
+        }
+    } CATCH {
+        logToFile('ABM', (CONCAT '\n', 'ERROR: shipments', (CONCAT '\n\n', messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException ())));
+    }
+} 
+
+EXTEND FORM integrationData
+    PROPERTIES () tokenABM
+    PROPERTIES (d) exportOrdered, exportShipments
+;
+DESIGN integrationData{
+    buttons {
+        MOVE PROPERTY (exportOrdered(d));
+        MOVE PROPERTY (exportShipments(d));
     }
 }
