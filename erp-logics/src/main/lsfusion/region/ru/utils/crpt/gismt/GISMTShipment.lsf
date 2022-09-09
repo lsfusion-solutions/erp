@@ -139,6 +139,8 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
     @defineOperationProperty(primaryDocumentCustomName, 'Наименование первичного документа', STRING, outGISMTContainer);
     
     gismtType(Invoice i) += WHEN actionReceipt(operation(i)) THEN 'LK_RECEIPT';
+    
+    productCost = ABSTRACT NUMERIC[16,4] (InvoiceDetail);
     FORM exportInvoiceReceipt
         OBJECTS i = Invoice, t = LotType PANEL
         
@@ -148,7 +150,7 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
                    inn = inn(senderProp(i))
         
         OBJECTS products = (d = InvoiceDetail, l = Lot)
-        PROPERTIES cis = id(l)
+        PROPERTIES cis = id(l), product_cost = productCost(d)
         FILTERS invoice(d) = i, quantity(d, l), NOT skipExport(d), lotType(sku(d)) = t
     ;
     
