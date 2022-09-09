@@ -228,55 +228,57 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
     afterInputBarcodeUserShipmentDetail ABSTRACT LIST (UserShipmentDetail, STRING[200]);
 
+    createUserShipmentDetail (UserShipment shipment, STRING[200] barcode, Sku sku, ShipmentDimension dimension) { 
+        LOCAL dialogBarcodeDetail = UserShipmentDetail();
+        dialogBarcodeDetail() <- IF dimension IS ShipmentDimension
+                                            THEN userShipmentDetail(shipment, sku, dimension)
+                                            ELSE userShipmentDetail(shipment, sku);
+
+
+        IF dialogBarcodeDetail() IS UserShipmentDetail THEN {
+            quantity(UserShipmentDetail detail) <-
+                quantity(detail) (+) (amount(barcode(barcode, date(shipment))) IF detail IS UserShipmentDetail)
+                WHERE detail == dialogBarcodeDetail();
+            seek(dialogBarcodeDetail());
+            afterInputBarcodeUserShipmentDetail(dialogBarcodeDetail(), barcode);
+        } ELSE {
+            NEW w = UserShipmentDetail {
+                userShipment(w) <- shipment;
+                sku(w) <- sku;
+                quantity(w) <- amount(barcode(barcode, date(shipment)));
+                seek(w);
+                afterInputBarcodeUserShipmentDetail(w, barcode);
+            }
+        }
+        setAddedUser(sku);
+    }
+    
     addDetailBarcodeUserShipmentDetail(UserShipment shipment, STRING[15] barcode, ShipmentDimension dimension)  { 
         LOCAL dialogBarcodeSku = Sku ();
         dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
 
         IF dialogBarcodeSku() IS Sku THEN {
-            LOCAL dialogBarcodeDetail = UserShipmentDetail();
-            dialogBarcodeDetail() <- IF dimension IS ShipmentDimension
-                                                THEN userShipmentDetail(shipment, dialogBarcodeSku(), dimension)
-                                                ELSE userShipmentDetail(shipment, dialogBarcodeSku());
-
-
-            IF dialogBarcodeDetail() IS UserShipmentDetail THEN {
-                quantity(UserShipmentDetail detail) <-
-                    quantity(detail) (+) (amount(barcode(barcode, date(shipment))) IF detail IS UserShipmentDetail)
-                    WHERE detail == dialogBarcodeDetail();
-                seek(dialogBarcodeDetail());
-                afterInputBarcodeUserShipmentDetail(dialogBarcodeDetail(), barcode);
-            } ELSE {
-                NEW w = UserShipmentDetail {
-                    userShipment(w) <- shipment;
-                    sku(w) <- dialogBarcodeSku();
-                    quantity(w) <- amount(barcode(barcode, date(shipment)));
-                    seek(w);
-                    afterInputBarcodeUserShipmentDetail(w, barcode);
-                }
-            }
-            setAddedUser(dialogBarcodeSku());
+            createUserShipmentDetail(shipment, barcode, dialogBarcodeSku(), dimension);     
         } ELSE {
             dialogBarcodeSku() <- NULL;
-            DIALOG emptyBarcodeSkus OBJECTS s INPUT DO {
-                dialogBarcodeSku() <- s;
-                NEW br = Barcode {
-                    id(br) <- barcode;
-                    dataDate(br) <- currentDate();
-                    sku(br) <- s;
-                    NEW w = UserShipmentDetail {
-                        userShipment(w) <- shipment;
-                        sku(w) <- s;
-                        quantity(w) <- amount(br);
-                        seek(w);
-                        afterInputBarcodeUserShipmentDetail(w, barcode);
+            IF NOT notFormSku() THEN {
+                DIALOG emptyBarcodeSkus OBJECTS s INPUT DO {
+                    dialogBarcodeSku() <- s;
+                    NEW br = Barcode {
+                        id(br) <- barcode;
+                        dataDate(br) <- currentDate();
+                        sku(br) <- s;
                     }
                 }
-            }
-            IF NOT dialogBarcodeSku() THEN {
+            }    
+            IF NOT notCreateItem() AND NOT dialogBarcodeSku() THEN {
                 createSkuBarcode(barcode, date(shipment));
                 dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
             }
-            setAddedUser(dialogBarcodeSku());
+            IF dialogBarcodeSku() THEN {
+                createUserShipmentDetail(shipment, barcode, dialogBarcodeSku(), dimension);
+            }
+            IF notFormSku() AND notCreateItem() AND NOT dialogBarcodeSku() AND errorMessageNotFormSku() THEN MESSAGE errorMessageNotFormSku();
         }
     }
 
