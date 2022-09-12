@@ -371,6 +371,12 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
             Map<String, List<SalesInfo>> saleReturnMap = new HashMap<>();
             Set<Integer> currentReadRecordSet = new HashSet<>();
+
+            List<Payment> payments = new ArrayList<>();
+            BigDecimal sumCash = null;
+            BigDecimal sumCard = null;
+            BigDecimal sumGiftCard = null;
+
             while (rs.next()) {
 
                 Integer id = rs.getInt(13);
@@ -480,7 +486,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 String nameCashier = idCashier != null ? ("Кассир " + idCashier) : null;
                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                         dateReceipt, sqlTimeToLocalTime(timeReceipt), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idCashier,
-                                        nameCashier, null, null, null, getZeroSumGiftCardMap(), null, idBarcode, idItem, null, null, totalQuantity,
+                                        nameCashier, null, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
                                         price, sum, discountPercent, discountSum, null, discountCard,
                                         position, null, idSection, false, null, null, cashRegister);
                                 //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
@@ -514,50 +520,60 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                             BigDecimal sumPayment = rs.getBigDecimal(8); //amount, Сумма
                             Integer typePayment = rs.getInt(15); //Payment, Номер оплаты
-                            for (SalesInfo salesInfo : currentSalesInfoList) {
-                                if(customPayments.contains(typePayment)) {
-                                    if(salesInfo.payments == null)
-                                        salesInfo.payments = new ArrayList<>();
-                                    salesInfo.payments.add(new Payment(typePayment, sumPayment));
-                                } else {
 
-                                    if (typePayment == 0)
-                                        salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
-                                    else if (typePayment == 1)
-                                        salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
-                                    else if (typePayment == 2) {
-                                        GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
-                                        salesInfo.sumGiftCardMap.put(null, new GiftCard(HandlerUtils.safeAdd(sumGiftCard.sum, sumPayment)));
-                                    } else if (typePayment == 3)
-                                        salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
-                                    else if(typePayment == 5) {
-                                        if(salesInfo.payments == null)
-                                            salesInfo.payments = new ArrayList<>();
-                                        salesInfo.payments.add(new Payment(salaryPaymentType, sumPayment));
-                                    } else
-                                        salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
-
-                                }
+                            if(customPayments.contains(typePayment)) {
+                                payments.add(new Payment(typePayment, sumPayment));
+                            } else {
+                                if (typePayment == 0)
+                                    sumCash = HandlerUtils.safeAdd(sumCash, sumPayment);
+                                else if (typePayment == 1)
+                                    sumCard = HandlerUtils.safeAdd(sumCard, sumPayment);
+                                else if (typePayment == 2) {
+                                    sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sumPayment);
+                                } else if (typePayment == 3)
+                                    sumCard = HandlerUtils.safeAdd(sumCard, sumPayment);
+                                else if(typePayment == 5) {
+                                    payments.add(new Payment(salaryPaymentType, sumPayment));
+                                } else
+                                    sumCash = HandlerUtils.safeAdd(sumCash, sumPayment);
                             }
+
                             break;
                         case 8: //Закрытие чека
                             currentReadRecordSet.add(id);
 
                             BigDecimal change = rs.getBigDecimal(17);
                             if (change != null && change.compareTo(BigDecimal.ZERO) != 0) {
-                                for (SalesInfo salesInfo : currentSalesInfoList) {
-                                    GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
-                                    //отнимаем "сдачу" от подарочного сертификата либо от наличных
-                                    if (sumGiftCard != null && sumGiftCard.sum != null && (salesInfo.sumCash == null || salesInfo.sumCash.compareTo(BigDecimal.ZERO) == 0)) {
-                                        change = sumGiftCard.sum != null && sumGiftCard.sum.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
-                                        sumGiftCard.sum = safeSubtract(sumGiftCard.sum, change);
-                                        salesInfo.sumGiftCardMap.put(null, sumGiftCard);
-                                    } else {
-                                        change = salesInfo.sumCash != null && salesInfo.sumCash.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
-                                        salesInfo.sumCash = HandlerUtils.safeSubtract(salesInfo.sumCash, change);
-                                    }
+                                //отнимаем "сдачу" от подарочного сертификата либо от наличных
+                                if (sumGiftCard != null && (sumCash == null || sumCash.compareTo(BigDecimal.ZERO) == 0)) {
+                                    change = sumGiftCard.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
+                                    sumGiftCard = safeSubtract(sumGiftCard, change);
+                                } else {
+                                    change = sumCash != null && sumCash.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(change) : change;
+                                    sumCash = HandlerUtils.safeSubtract(sumCash, change);
                                 }
                             }
+
+                            if(sumCash != null) {
+                                payments.add(Payment.getCash(sumCash));
+                            }
+                            if(sumCard != null) {
+                                payments.add(Payment.getCard(sumCard));
+                            }
+
+                            Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
+                            sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
+
+                            for (SalesInfo salesInfo : currentSalesInfoList) {
+                                salesInfo.payments = payments;
+                                salesInfo.sumGiftCardMap = sumGiftCardMap;
+                            }
+
+                            payments = new ArrayList<>();
+                            sumCash = null;
+                            sumCard = null;
+                            sumGiftCard = null;
+
                             salesInfoList.addAll(currentSalesInfoList);
                             readRecordSet.addAll(currentReadRecordSet);
 
@@ -574,12 +590,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             throw Throwables.propagate(e);
         }
         return new EQSSalesBatch(salesInfoList, readRecordSet, directory);
-    }
-
-    protected Map<String, GiftCard> getZeroSumGiftCardMap() {
-        Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
-        sumGiftCardMap.put(null, new GiftCard(null));
-        return sumGiftCardMap;
     }
 
     private boolean needAnnihilate(SalesInfo saleReturnEntry, BigDecimal totalQuantity, BigDecimal discountSum) {
@@ -667,7 +677,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     for (Integer record : readRecordSet) {
                         if(i >= blockSize) {
                             statement = conn.createStatement();
-                            statement.execute(String.format("UPDATE history SET new = 0 WHERE id IN (%s)", in.toString()));
+                            statement.execute(String.format("UPDATE history SET new = 0 WHERE id IN (%s)", in));
                             in = new StringBuilder();
                             i = 0;
                         }
@@ -675,7 +685,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         i++;
                     }
                     statement = conn.createStatement();
-                    statement.execute(String.format("UPDATE history SET new = 0 WHERE id IN (%s)", in.toString()));
+                    statement.execute(String.format("UPDATE history SET new = 0 WHERE id IN (%s)", in));
                     conn.commit();
 
                 } catch (SQLException e) {
