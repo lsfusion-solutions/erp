@@ -2778,7 +2778,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 List<ImportProperty<?>> zReportExternalProperties = new ArrayList<>();
                 zReportExternalProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
                 zReportExternalProperties.add(new ImportProperty(beginShiftZReportField, zReportExternalLM.findProperty("beginShift[ZReport]").getMapping(zReportKey)));
-                zReportExternalProperties.add(new ImportProperty(endShiftZReportField, zReportExternalLM.findProperty("endShift[ZReport]").getMapping(zReportKey)));
+                zReportExternalProperties.add(new ImportProperty(endShiftZReportField, zReportExternalLM.findProperty("endShift[ZReport]").getMapping(zReportKey), true));
 
                 saleFields.addAll(zReportExternalFields);
                 returnFields.addAll(zReportExternalFields);
