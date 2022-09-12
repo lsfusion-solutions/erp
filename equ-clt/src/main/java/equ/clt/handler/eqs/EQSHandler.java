@@ -55,44 +55,37 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
         if (transactionList != null) {
 
-            try {
+            EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
+            boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
+            boolean skipIdDepartmentStore = eqsSettings != null && eqsSettings.getSkipIdDepartmentStore() != null && eqsSettings.getSkipIdDepartmentStore();
+            List<String> forceIdDepartmentStoresList = eqsSettings != null ? eqsSettings.getForceIdDepartmentStoresList() : null;
 
-                Class.forName("com.mysql.jdbc.Driver");
+            for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
-                boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
-                boolean skipIdDepartmentStore = eqsSettings != null && eqsSettings.getSkipIdDepartmentStore() != null && eqsSettings.getSkipIdDepartmentStore();
-                List<String> forceIdDepartmentStoresList = eqsSettings != null ? eqsSettings.getForceIdDepartmentStoresList() : null;
+                skipIdDepartmentStore = skipIdDepartmentStore && (forceIdDepartmentStoresList == null || !forceIdDepartmentStoresList.contains(transaction.idDepartmentStoreGroupCashRegister));
 
-                for (TransactionCashRegisterInfo transaction : transactionList) {
-
-                    skipIdDepartmentStore = skipIdDepartmentStore && (forceIdDepartmentStoresList == null || !forceIdDepartmentStoresList.contains(transaction.idDepartmentStoreGroupCashRegister));
-
-                    String directory = null;
-                    for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
-                        if (cashRegister.directory != null) {
-                            directory = cashRegister.directory;
-                        }
-                    }
-                    EQSConnectionString params = new EQSConnectionString(directory);
-
-                    if (params.connectionString == null) {
-                        processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
-                    } else {
-                        processTransactionLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
-
-                        Exception exception = null;
-                        try(Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password)) {
-                            processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
-                            exportItems(conn, transaction, appendBarcode, skipIdDepartmentStore);
-                        } catch (Exception e) {
-                            exception = e;
-                        }
-                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
+                String directory = null;
+                for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
+                    if (cashRegister.directory != null) {
+                        directory = cashRegister.directory;
                     }
                 }
-            } catch (ClassNotFoundException e) {
-                throw Throwables.propagate(e);
+                EQSConnectionString params = new EQSConnectionString(directory);
+
+                if (params.connectionString == null) {
+                    processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
+                } else {
+                    processTransactionLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
+
+                    Exception exception = null;
+                    try(Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password)) {
+                        processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
+                        exportItems(conn, transaction, appendBarcode, skipIdDepartmentStore);
+                    } catch (Exception e) {
+                        exception = e;
+                    }
+                    sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
+                }
             }
         }
         return sendTransactionBatchMap;
@@ -172,7 +165,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     Connection conn = null;
                     PreparedStatement ps = null;
                     try {
-                        Class.forName("com.mysql.jdbc.Driver");
                         processStopListLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
@@ -267,7 +259,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 Connection conn = null;
                 PreparedStatement ps = null;
                 try {
-                    Class.forName("com.mysql.jdbc.Driver");
                     machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     conn.setAutoCommit(false);
@@ -329,7 +320,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
         try {
 
-            Class.forName("com.mysql.jdbc.Driver");
             EQSConnectionString params = new EQSConnectionString(directory);
 
             if (params.connectionString == null) {
@@ -617,7 +607,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             Connection conn = null;
             Statement statement = null;
             try {
-                Class.forName("com.mysql.jdbc.Driver");
 
                 for (Map.Entry<String, Set<CashRegisterInfo>> directoryCashRegisterEntry : getDirectoryCashRegisterMap(entry).entrySet()) {
                     EQSConnectionString params = new EQSConnectionString(directoryCashRegisterEntry.getKey());
