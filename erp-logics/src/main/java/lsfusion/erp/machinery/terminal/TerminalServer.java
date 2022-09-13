@@ -7,7 +7,6 @@ import lsfusion.server.base.controller.manager.MonitorServer;
 import lsfusion.server.base.controller.thread.ExecutorFactory;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.LogicsInstance;
@@ -35,7 +34,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
-import static lsfusion.base.BaseUtils.trimToNull;
 import static lsfusion.erp.integration.DefaultIntegrationAction.sqlDateToLocalDate;
 import static lsfusion.erp.integration.DefaultIntegrationAction.sqlTimestampToLocalDateTime;
 
@@ -78,7 +76,7 @@ public class TerminalServer extends MonitorServer {
     public static final byte SAVE_DOCUMENT = 6;
     public static final byte GET_ITEM_HTML = 7;
     public static final byte GET_ALL_BASE = 8;
-    public static final byte SAVE_PALLET = 9;
+//    public static final byte SAVE_PALLET = 9;
     public static final byte CHECK_ORDER = 10;//0x0A
     public static final byte GET_PREFERENCES = 11;//0x0B
     public static final byte CHANGE_ORDER_STATUS = 12;//0x0C
@@ -294,8 +292,8 @@ public class TerminalServer extends MonitorServer {
         return sessionId;
     }
 
-    protected Object readItem(UserInfo userInfo, String barcode, String bin) throws SQLException {
-        return terminalHandler.readItem(createSession(), userInfo, barcode, bin);
+    protected Object readItem(UserInfo userInfo, String barcode) throws SQLException {
+        return terminalHandler.readItem(createSession(), userInfo, barcode);
     }
 
     protected String readItemHtml(String barcode, String idStock) throws SQLException {
@@ -306,11 +304,11 @@ public class TerminalServer extends MonitorServer {
         return terminalHandler.readBase(createSession(), userInfo, readBatch);
     }
 
-    protected String savePallet(UserInfo userInfo, String numberPallet, String nameBin) throws SQLException {
-        try (DataSession session = createSession()) {
-            return terminalHandler.savePallet(session, getStack(), userInfo, numberPallet, nameBin);
-        }
-    }
+//    protected String savePallet(UserInfo userInfo, String numberPallet, String nameBin) throws SQLException {
+//        try (DataSession session = createSession()) {
+//            return terminalHandler.savePallet(session, getStack(), userInfo, numberPallet, nameBin);
+//        }
+//    }
 
     protected String checkOrder(String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = createSession()) {
@@ -405,14 +403,13 @@ public class TerminalServer extends MonitorServer {
                                 logger.info("requested barcode " + params[1]);
                                 sessionId = params[0];
                                 String barcode = params[1];
-                                String bin = params.length == 3 ? trimToNull(params[2]) : null;
                                 UserInfo userInfo = userMap.get(sessionId);
                                 if (userInfo == null || userInfo.user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
                                     logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
-                                    Object readItemResult = readItem(userInfo, barcode, bin);
+                                    Object readItemResult = readItem(userInfo, barcode);
                                     if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
                                         errorText = ITEM_NOT_FOUND_TEXT;
@@ -571,36 +568,36 @@ public class TerminalServer extends MonitorServer {
                             errorText = getUnknownErrorText(e);
                         }
                         break;
-                    case SAVE_PALLET:
-                        try {
-                            logger.info("received pallet");
-                            String[] params = readParams(inFromClient);
-                            if (params.length >= 3) {
-                                sessionId = params[0];
-                                String numberPallet = params[1];
-                                String nameBin = params[2];
-                                UserInfo userInfo = userMap.get(sessionId);
-                                if (userInfo == null || userInfo.user == null) {
-                                    errorCode = AUTHORISATION_REQUIRED;
-                                    errorText = AUTHORISATION_REQUIRED_TEXT;
-                                } else {
-                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
-                                    result = savePallet(userInfo, numberPallet, nameBin);
-                                    if (result != null) {
-                                        errorCode = SAVE_PALLET_ERROR;
-                                        errorText = result;
-                                    }
-                                }
-                            } else {
-                                errorCode = WRONG_PARAMETER_COUNT;
-                                errorText = WRONG_PARAMETER_COUNT_TEXT;
-                            }
-                        } catch (Exception e) {
-                            logger.error("SavePallet Unknown error", e);
-                            errorCode = UNKNOWN_ERROR;
-                            errorText = getUnknownErrorText(e);
-                        }
-                        break;
+//                    case SAVE_PALLET:
+//                        try {
+//                            logger.info("received pallet");
+//                            String[] params = readParams(inFromClient);
+//                            if (params.length >= 3) {
+//                                sessionId = params[0];
+//                                String numberPallet = params[1];
+//                                String nameBin = params[2];
+//                                UserInfo userInfo = userMap.get(sessionId);
+//                                if (userInfo == null || userInfo.user == null) {
+//                                    errorCode = AUTHORISATION_REQUIRED;
+//                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+//                                } else {
+//                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
+//                                    result = savePallet(userInfo, numberPallet, nameBin);
+//                                    if (result != null) {
+//                                        errorCode = SAVE_PALLET_ERROR;
+//                                        errorText = result;
+//                                    }
+//                                }
+//                            } else {
+//                                errorCode = WRONG_PARAMETER_COUNT;
+//                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+//                            }
+//                        } catch (Exception e) {
+//                            logger.error("SavePallet Unknown error", e);
+//                            errorCode = UNKNOWN_ERROR;
+//                            errorText = getUnknownErrorText(e);
+//                        }
+//                        break;
                     case CHECK_ORDER:
                         try {
                             logger.info("checkOrder");
@@ -756,7 +753,7 @@ public class TerminalServer extends MonitorServer {
                             break;
                         case SAVE_DOCUMENT:
                         case GET_ITEM_HTML:
-                        case SAVE_PALLET:
+//                        case SAVE_PALLET:
                         case CHECK_ORDER:
                         case CHANGE_ORDER_STATUS:
                             if (result != null) {

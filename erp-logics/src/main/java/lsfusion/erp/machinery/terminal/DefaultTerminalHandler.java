@@ -88,7 +88,7 @@ public class DefaultTerminalHandler {
         }
     }
 
-    public Object readItem(DataSession session, UserInfo userInfo, String barcode, String bin) {
+    public Object readItem(DataSession session, UserInfo userInfo, String barcode) {
         try {
             if(terminalHandlerLM != null) {
                 ObjectValue barcodeObject = terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
