@@ -108,7 +108,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
 
 
     private JSONObject getExtInfo(String extInfo) {
-        return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("Dibal") : null;
+        return getExtInfo(extInfo, "Dibal");
     }
 
     private void clearItems(TCPPort port) throws IOException {

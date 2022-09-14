@@ -9,6 +9,7 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,6 +32,10 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
     }
 
     protected abstract String getLogPrefix();
+
+    protected JSONObject getExtInfo(String extInfo, String id) {
+        return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject(id) : null;
+    }
 
     protected boolean isWeight(ScalesItem item, int type) {
         switch (type) {

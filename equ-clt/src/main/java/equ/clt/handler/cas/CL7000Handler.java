@@ -2,13 +2,19 @@ package equ.clt.handler.cas;
 
 import equ.api.scales.ScalesItem;
 import org.apache.commons.lang3.ArrayUtils;
+import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
+
+import static equ.clt.handler.HandlerUtils.prependZeroes;
+import static equ.clt.handler.HandlerUtils.trim;
 
 public class CL7000Handler extends CL5000JHandler {
 
@@ -36,7 +42,7 @@ public class CL7000Handler extends CL5000JHandler {
         Integer dataBlocksSize = deptRecord.length() + 2 + pluRecord.length() + 4 + imageRecord.length();
 
         //18 bytes
-        String headerRecord = "W02A" + fillZeroes(Integer.toHexString(pluNumber), 5) + "," + fillZeroes(dept, 2) + "L" + fillZeroes(Integer.toHexString(dataBlocksSize), 4) + ":";
+        String headerRecord = "W02A" + prependZeroes(Integer.toHexString(pluNumber), 5) + "," + prependZeroes(dept, 2) + "L" + prependZeroes(Integer.toHexString(dataBlocksSize), 4) + ":";
 
         ByteBuffer bytes = ByteBuffer.allocate(headerRecord.length() + dataBlocksSize + 1);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -61,29 +67,72 @@ public class CL7000Handler extends CL5000JHandler {
         return sendCommandTouch(socket, bytes.array()).error;
     }
 
+    private JSONObject getExtInfo(String extInfo) {
+        return getExtInfo(extInfo, "CL7000");
+    }
+
     @Override
     protected String sendTouchSpeedKeys(DataSocket socket, List<ScalesItem> itemsList) throws IOException {
-        CL7000Reply speedKeys = readTouchSpeedKeys(socket);
 
-        if(speedKeys.error != null) {
-            return speedKeys.error;
-        } else {
-
-            ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
-            speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
-
-            speedKeysByteBuffer.put(ArrayUtils.subarray(speedKeys.data, 0, 800));
-
-            for(ScalesItem item : itemsList) {
-                int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
-                if(pluNumber <= 200) {
-                    speedKeysByteBuffer.position((pluNumber - 1) * 4);
-                    speedKeysByteBuffer.putInt(pluNumber);
+        Map<Integer, String> groups = new HashMap<>();
+        for (ScalesItem item : itemsList) {
+            JSONObject info = getExtInfo(item.info);
+            if (info != null) {
+                int numberGroup = info.optInt("numberGroup");
+                String nameGroup = trim(info.optString("nameGroup", "group " + numberGroup), 30);
+                if (numberGroup >= 1 && numberGroup <= 4) {
+                    groups.put(numberGroup, nameGroup);
                 }
             }
-
-            return sendSpeedKeys(socket, speedKeysByteBuffer.array());
         }
+
+        for (Map.Entry<Integer, String> group : groups.entrySet()) {
+            CL7000Reply reply = sendGroup(socket, group.getKey(), group.getValue(), false);
+            if (reply.error != null) {
+                return reply.error;
+            }
+        }
+
+        //если нет групп товаров, все товары пишем в первую
+        if (groups.isEmpty()) {
+            groups.put(1, "");
+        }
+
+        for (Integer currentGroup : groups.keySet()) {
+
+            String numberGroup = getHEXNumberGroup(currentGroup);
+
+            CL7000Reply speedKeys = readTouchSpeedKeys(socket, numberGroup);
+
+            if (speedKeys.error != null) {
+                return speedKeys.error;
+            } else {
+
+                ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
+                speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
+
+                speedKeysByteBuffer.put(ArrayUtils.subarray(speedKeys.data, 0, 800));
+
+                for (ScalesItem item : itemsList) {
+
+                    JSONObject info = getExtInfo(item.info);
+                    int itemGroup = info != null ? info.optInt("numberGroup") : 1;
+                    if (itemGroup == currentGroup) {
+                        int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
+                        if (pluNumber <= 200) {
+                            speedKeysByteBuffer.position((pluNumber - 1) * 4);
+                            speedKeysByteBuffer.putInt(pluNumber);
+                        }
+                    }
+                }
+
+                CL7000Reply reply = sendSpeedKeys(socket, numberGroup, speedKeysByteBuffer.array());
+                if (reply.error != null) {
+                    return reply.error;
+                }
+            }
+        }
+        return null;
     }
 
     @Override
@@ -94,27 +143,51 @@ public class CL7000Handler extends CL5000JHandler {
         } catch (InterruptedException ignored) {
         }
 
-        //CL7000Reply speedKeys = readTouchSpeedKeys(socket);
+        for (int i = 1; i <= 4; i++) {
 
-        //if(speedKeys.error != null) {
-        //    return speedKeys.error;
-        //} else {
+            CL7000Reply reply = sendGroup(socket, i, "", true);
+            if (reply.error != null) {
+                return reply.error;
+            }
 
-            //ByteBuffer speedKeysByteBuffer = ByteBuffer.wrap(ArrayUtils.subarray(speedKeys.data, 0, 800));
             ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
-            //speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
-
-            //for(int i = 0; i < 200; i++) {
-            //    speedKeysByteBuffer.putInt(0);
-            //}
-            return sendSpeedKeys(socket, speedKeysByteBuffer.array());
-        //}
+            reply = sendSpeedKeys(socket, getHEXNumberGroup(i), speedKeysByteBuffer.array());
+            if (reply.error != null) {
+                return reply.error;
+            }
+        }
+        return null;
     }
 
-    private String sendSpeedKeys(DataSocket socket, byte[] speedKeys) throws IOException {
+    //groups 1, 2, 3, 4 -> HEX 15, 16, 17, 18
+    private String getHEXNumberGroup(Integer currentGroup) {
+        return Integer.toHexString(20 + currentGroup);
+    }
+
+    private CL7000Reply sendGroup(DataSocket socket, int numberGroup, String nameGroup, boolean disable) throws IOException {
+
+        String body = "P=" + prependZeroes(Integer.toHexString(nameGroup.length()).toUpperCase(), 2) + "." + nameGroup + "B=" + (disable ? "0" : "1") + ".";
+        String header = "W32F08,00" + numberGroup + "L00" + prependZeroes(Integer.toHexString(body.length()).toUpperCase(), 2) + ":";
+
+        byte[] bodyBytes = getBytes(body);
+
+        byte bcc = 0;
+        for(int i = 0; i < body.length(); i++) {
+            bcc = (byte) (bcc ^ bodyBytes[i]);
+        }
+
+        ByteBuffer bytes = ByteBuffer.allocate(header.length() + body.length() + 1);
+        bytes.order(ByteOrder.LITTLE_ENDIAN);
+        bytes.put(getBytes(header));
+        bytes.put(bodyBytes);
+        bytes.put(bcc);
+        return sendCommandTouch(socket, bytes.array());
+    }
+
+    private CL7000Reply sendSpeedKeys(DataSocket socket, String numberGroup, byte[] speedKeys) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(821);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
-        bytes.put(getBytes("W04F020415,0000L320:")); //self key type = 02, scale type = 04, data size = 320
+        bytes.put(getBytes("W04F0204" + numberGroup + ",0000L320:")); //self key type = 02, scale type = 04, data size = 320
 
         bytes.put(speedKeys);
 
@@ -125,11 +198,11 @@ public class CL7000Handler extends CL5000JHandler {
 
         bytes.put(bcc);
 
-        return sendCommandTouch(socket, bytes.array()).error;
+        return sendCommandTouch(socket, bytes.array());
     }
 
-    private CL7000Reply readTouchSpeedKeys(DataSocket socket) throws IOException {
-        String record = "R04F15,00";
+    private CL7000Reply readTouchSpeedKeys(DataSocket socket, String numberGroup) throws IOException {
+        String record = "R04F" + numberGroup + ",00";
         ByteBuffer bytes = ByteBuffer.allocate(record.length() + 1);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
         bytes.put(getBytes(record));
@@ -169,14 +242,6 @@ public class CL7000Handler extends CL5000JHandler {
             casLogger.error("CL5000J: receive reply error", e);
             return "E01".getBytes();
         }
-    }
-
-    private static String fillZeroes(Object value, int len) {
-        String result = String.valueOf(value);
-        while(result.length() < len) {
-            result = "0" + result;
-        }
-        return result;
     }
 
     private String getErrorMessageTouch(String errorNumber) {
