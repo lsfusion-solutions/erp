@@ -294,9 +294,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         File file = new File(directory + "/pos" + currentTime + ".aif");
 
         try {
-            copyWithTimeout(tmpFile, file, 60000);
+            copyWithTimeout(tmpFile, file);
             if(copyDirectory != null) {
-                copyWithTimeout(tmpFile, new File(copyDirectory + "/pos" + currentTime + ".aif"), 60000);
+                copyWithTimeout(tmpFile, new File(copyDirectory + "/pos" + currentTime + ".aif"));
             }
         } finally {
             if (!tmpFile.delete()) {
