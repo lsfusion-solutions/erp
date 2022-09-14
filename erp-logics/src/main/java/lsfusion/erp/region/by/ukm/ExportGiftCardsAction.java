@@ -50,7 +50,6 @@ public class ExportGiftCardsAction extends DefaultExportAction {
 
                 if (connectionString != null) {
 
-                    Class.forName("com.mysql.jdbc.Driver");
                     Connection connection = DriverManager.getConnection(connectionString, user, password);
                     connection.setAutoCommit(false);
 
@@ -70,7 +69,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
                 }
             }
             context.apply();
-        } catch (ScriptingErrorLog.SemanticErrorException | ClassNotFoundException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
     }

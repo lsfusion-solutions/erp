@@ -27,7 +27,6 @@ public abstract class ExportMySQLAction extends ExportSQLAction {
 
     @Override
     public void init() throws ClassNotFoundException {
-        Class.forName("com.mysql.jdbc.Driver");
     }
 
     @Override
