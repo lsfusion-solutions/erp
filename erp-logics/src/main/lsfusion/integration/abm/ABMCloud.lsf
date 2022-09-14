@@ -10,6 +10,7 @@ connectionStringABM 'Строка подключения (ftp://username:passwor
 
 toDateYYYYMMDD = FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')';
 toDateYYYYMMDD2 = FORMULA STRING[10] 'to_char(($1),\'YYYY.MM.DD\')';
+toDateYYYYMMDD3 = FORMULA STRING[10] 'to_char(($1),\'YYYY-MM-DD\')';
 //toDateYYYYMM = FORMULA STRING[8] 'to_char(($1),\'YYYYMM\')';
 toTimeHHMISS = FORMULA STRING[10] 'to_char(($1),\'HH24MISS\')';
 //toDateTimeYYYYMMDDHHMM = FORMULA STRING[14] 'to_char(($1),\'YYYYMMDDHH24MI\')';
@@ -171,7 +172,7 @@ sentABMCustom (DATE d, BOOLEAN single, DATETIME  time, STRING package, Stock ts)
 }
 sentABM(DATE d, BOOLEAN single, DATETIME  time, STRING package, Stock ts, STRING packageEx){
     replaceRN();
-    sentABMCustom(d,single,time,(CONCAT '', package, packageEx+'_',id(ts)+'_'),ts);
+    sentABMCustom(d,single,time,(CONCAT '', package, packageEx+'_',GLN(ts)+'_'),ts);
     exportFile() <- NULL;
 }
 ///////////////////////////////// Таблица 1 products
@@ -323,15 +324,22 @@ items 'items' (DATE d, BOOLEAN single) {
             moq = moq(s,st), 
             usq = usq(s,st), 
             split_mark = split_mark(s,st), 
-            user_code = user_code(s,st),            
+            user_code = user_code(s,st), 
+            buffer = '',
+            max_buffer = '',
+            min_buffer = '',
             state = state(s,st), 
             sb_1 = sb_1(s,st), 
             sb_2 = sb_2(s,st), 
             sb_3 = sb_3(s,st), 
+            sb_4 = '', 
+            sb_5 = '', 
             rsl = rsl(s,st),    
             item_additional_1 = item_additional_1(s,st),             
             item_additional_2 = item_additional_2(s,st),                        
-            item_additional_3 = item_additional_3(s,st)                                                                                
+            item_additional_3 = item_additional_3(s,st),                                                                               
+            item_additional_4 = '',
+            order_shelf = ''                                                                          
             WHERE filterABM(s, st);                            
         sentABM(d,single,currentDateTime(),'items_', st, NULL);  
     }
@@ -433,7 +441,7 @@ resetSuppliers(){
 suppliers 'suppliers' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
-        filterABM(LegalEntity s) <- TRUE WHERE toSentABM(s);
+        filterABM(LegalEntity s) <- TRUE WHERE toSentABM(s) AND active(s);
     } 
     resetSuppliers();    
     fillSuppliers(d);
@@ -541,7 +549,7 @@ schedules 'schedules' (DATE d, BOOLEAN single) {
     EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
         store_uid = store_uid(Stock st,LegalEntity l,Separation s), 
         supplier_uid = supplier_uid(st,l,s), 
-        split_mark = split_mark(st,l,s),
+        split_mark = (OVERRIDE split_mark(st,l,s), ''),
         active = active(st,l,s),
         olt_mo = olt_mo(st,l,s),
         olt_tu = olt_tu(st,l,s),
@@ -631,7 +639,7 @@ orderclose 'orderclose' (DATE d, BOOLEAN single) {
     filter(Purchase.Order o)<- TRUE WHERE numberABM(o) AND d == closedDate(o) AND filterABM(customerStock(o)) AND NOT shippedOrderDetail(o);
 
     EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
-        product_uid = numberABM(Purchase.Order o)
+        order_number = numberABM(Purchase.Order o)
         WHERE filter(o);       
     sentABM(d,single,currentDateTime(),'orderclose_', NULL, NULL);            
 }
@@ -675,7 +683,7 @@ ordered 'ordered' (DATE d, BOOLEAN single) {
             quantity = quantity_ABM(dd), 
             order_number = order_number(dd), 
             delivery_date = delivery_date(dd)
-            WHERE userOrder(dd) == o;        
+            WHERE userOrder(dd) == o AND order_number(dd);        
         sentABM(d,single,currentDateTime(),'ordered_', NULL, numberABM(o)+'_');     
     }   
 }
@@ -809,7 +817,7 @@ categories (DATE d, BOOLEAN single) {
         name = name(g), 
         parent_category_uid = parent_category_uid(parent(g)),
         deleted = deleted(g)
-    WHERE filterABM(g);
+    WHERE filterABM(g) AND g IS Item.ItemGroup;
     
     sentABM(d,single,currentDateTime(),'categories_', NULL, NULL);       
 }
