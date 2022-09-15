@@ -53,3 +53,36 @@ DESIGN operation {
 CONSTRAINT Article a = article(UserAPriceListDetail detail) AND countPriceListDetails(a, userPriceList(detail)) >1 AND NOT allowRepeatSku(operation(userPriceList(detail)))
     MESSAGE 'В прайсе задублированы артикулы в строках '+ (GROUP CONCAT '№' + index(UserAPriceListDetail detail), ', ' IF SET(countPriceListDetails(article(detail), userPriceList(detail)) > 1) ORDER detail);
 ;
+
+CONSTRAINT showArticleDetail(UserPriceList priceList) AND countUserPriceListDetail(priceList)
+    MESSAGE 'В прайсе есть строки с товарами, а не артикулами';
+    
+CONSTRAINT countUserAPriceListDetail(UserPriceList priceList) AND NOT showArticleDetail(priceList)
+    MESSAGE 'В прайсе есть строки с артикулами';    
+
+    
+deleteUserPriceListDetails (UserPriceList priceList) {
+    IF showArticleDetail(priceList) AND countUserPriceListDetail(priceList)
+        THEN ASK 'Удалить строки с товарами из прайса?' DO {
+            DELETE UserPriceListDetail detail WHERE userPriceList(detail)=priceList;
+        } ELSE {
+            showArticleDetail(priceList) <- NULL;
+        }
+}
+
+WHEN LOCAL FORMS userPriceList SET(showArticleDetail(UserPriceList priceList)) DO {
+    deleteUserPriceListDetails(priceList);
+}
+
+deleteUserAPriceListDetails (UserPriceList priceList) {
+    IF countUserAPriceListDetail(priceList) AND NOT showArticleDetail(priceList) 
+        THEN ASK 'Удалить строки с артикулами из прайса?' DO {
+            DELETE UserAPriceListDetail detail WHERE userPriceList(detail)=priceList;
+        } ELSE {
+            showArticleDetail(priceList) <- TRUE;
+        }
+}
+
+WHEN LOCAL FORMS userPriceList DROPPED(showArticleDetail(UserPriceList priceList)) DO {
+    deleteUserAPriceListDetails(priceList);
+}
