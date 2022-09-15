@@ -38,6 +38,7 @@ sendPurchaseOrder (EOrder o, STRING url, STRING[100] outputDir, STRING[100] prov
                 file() <- NULL;
                 READ url  + (CONCAT '_', 'order', number(o)) + '.xml' TO file;
                 IF file() THEN {
+                    IF isCancel(o) THEN exportedCanceled(o) <- TRUE; ELSE exported(o) <- TRUE;
                     logToFile('edi', provider + ' SendEOrder ' + number(o) +' request sent');
                     MESSAGE provider + ' Заказ ' + number(o) + ' выгружен' NOWAIT;
                 } ELSE {
