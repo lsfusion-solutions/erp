@@ -460,8 +460,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException {
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
 
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
@@ -516,8 +516,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     @Override
     public void finishReadingSalesInfo(Kristal10SalesBatch salesBatch) {
         sendSalesLogger.info(getLogPrefix() + "Finish Reading started");
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        Integer cleanOldFilesDays = kristalSettings == null ? null : kristalSettings.getCleanOldFilesDays();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        Integer cleanOldFilesDays = kristalSettings.getCleanOldFilesDays();
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
 
@@ -550,8 +550,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
     @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean ignoreFileLocks = kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         Set<String> directorySet = new HashSet<>();
@@ -589,9 +589,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             boolean cashIn = file.getName().startsWith("cash_in");
 
-                            List cashDocumentsList = rootNode.getChildren(cashIn ? "introduction" : "withdrawal");
+                            List<Element> cashDocumentsList = rootNode.getChildren(cashIn ? "introduction" : "withdrawal");
 
-                            for (Object cashDocumentNode : cashDocumentsList) {
+                            for (Element cashDocumentNode : cashDocumentsList) {
 
                                 String numberCashDocument = readStringXMLAttribute(cashDocumentNode, "number");
 
@@ -640,13 +640,13 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
         processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number + " to " + directorySet.size() + " directories.");
 
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
-        List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
-        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean skipWeightPrefix = kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
+        List<String> tobaccoGroups = getTobaccoGroups(kristalSettings.getTobaccoGroup());
+        boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
+        boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
 
         for (String directory : directorySet) {
             processStopListLogger.info(getLogPrefix() + " start sending to " + directory);
@@ -777,9 +777,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     @Override
     public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
 
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean skipWeightPrefix = kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
 
         if (deleteBarcodeInfo.directoryGroupMachinery != null && !deleteBarcodeInfo.barcodeList.isEmpty()) {
             String exchangeDirectory = deleteBarcodeInfo.directoryGroupMachinery + "/products/source/";
@@ -804,9 +804,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     @Override
     public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
         machineryExchangeLogger.info(getLogPrefix() + "sendDiscountCardList started");
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        String discountCardDirectory = kristalSettings != null ? kristalSettings.getDiscountCardDirectory() : null;
-        String discountCardFileName = kristalSettings != null ? kristalSettings.getDiscountCardFileName() : null;
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        String discountCardDirectory = kristalSettings.getDiscountCardDirectory();
+        String discountCardFileName = kristalSettings.getDiscountCardFileName();
         if (!discountCardList.isEmpty()) {
             Document doc = generateDiscountCardXML(discountCardList, requestExchange);
             for (String directory : getDirectorySet(requestExchange)) {
@@ -822,19 +822,19 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     @Override
     public Kristal10SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
 
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
-        Integer maxFilesCount = kristalSettings == null ? null : kristalSettings.getMaxFilesCount();
-        boolean ignoreSalesWeightPrefix = kristalSettings == null || kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
-        boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        boolean ignoreSalesDepartmentNumber = kristalSettings != null && kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
-        boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
-        String giftCardRegexp = kristalSettings != null ? kristalSettings.getGiftCardRegexp() : null;
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        String transformUPCBarcode = kristalSettings.getTransformUPCBarcode();
+        Integer maxFilesCount = kristalSettings.getMaxFilesCount();
+        boolean ignoreSalesWeightPrefix = kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
+        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        boolean ignoreSalesDepartmentNumber = kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
+        boolean ignoreFileLocks = kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
+        boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
+        String giftCardRegexp = kristalSettings.getGiftCardRegexp();
         if(giftCardRegexp == null)
             giftCardRegexp = "(?!666)\\d{3}";
-        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
-        Set<String> customPayments = kristalSettings == null ? new HashSet<>() : parseStringPayments(kristalSettings.getCustomPayments());
+        boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
+        Set<String> customPayments = parseStringPayments(kristalSettings.getCustomPayments());
         boolean ignoreCashRegisterWithDisableSales = kristalSettings.isIgnoreCashRegisterWithDisableSales();
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
@@ -983,6 +983,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                 }
                             }
 
+                            payments.add(Payment.getCash(sumCash));
+
                             String discountCard = getDiscountCardNumber(purchaseNode);
 
                             List<Element> positionsList = purchaseNode.getChildren("positions");
@@ -1093,8 +1095,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                             if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                 sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                             currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
-                                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, null, sumCash, sumGiftCardMap,
-                                                    payments, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
+                                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, null, null, sumGiftCardMap,
+                                                    null, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                                     discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
                                                     useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptExtraFields, null, cashRegisterByKey));
                                         }
@@ -1104,7 +1106,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             }
 
-                            fixSumCash(sumCash, sumGiftCard, sumGiftCardMap, payments, currentPaymentSum, currentSalesInfoList);
+                            addPayments(sumGiftCardMap, payments, currentPaymentSum, currentSalesInfoList);
 
                             salesInfoList.addAll(currentSalesInfoList);
                         }
@@ -1121,8 +1123,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
     @Override
     public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) {
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean ignoreFileLocks = kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
 
@@ -1153,9 +1155,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             Document document = builder.build(file);
                             Element rootNode = document.getRootElement();
-                            List zReportsList = rootNode.getChildren("zreport");
+                            List<Element> zReportsList = rootNode.getChildren("zreport");
 
-                            for (Object zReportNode : zReportsList) {
+                            for (Element zReportNode : zReportsList) {
 
                                 Integer numberCashRegister = readIntegerXMLValue(zReportNode, "cashNumber");
                                 CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);

@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static equ.clt.handler.HandlerUtils.safeAdd;
+import static equ.clt.handler.HandlerUtils.safeSubtract;
 import static lsfusion.base.BaseUtils.nvl;
 
 public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler<Kristal10SalesBatch> {
@@ -458,20 +460,19 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return weightCode != null ? weightCode : "21";
     }
 
-    protected void fixSumCash(BigDecimal sumCash, BigDecimal sumGiftCard, Map<String, GiftCard> sumGiftCardMap, List<Payment> payments, BigDecimal currentPaymentSum, List<SalesInfo> currentSalesInfoList)  {
+    protected void addPayments(Map<String, GiftCard> sumGiftCardMap, List<Payment> payments, BigDecimal currentPaymentSum, List<SalesInfo> currentSalesInfoList)  {
         //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-        BigDecimal sum = sumCash;
+        BigDecimal paymentSum = payments.stream().map(payment -> payment.sum).reduce(BigDecimal.ZERO, BigDecimal::add);
         for(GiftCard giftCard : sumGiftCardMap.values()) {
-            sum = HandlerUtils.safeAdd(sum, giftCard.sum);
+            paymentSum = safeAdd(paymentSum, giftCard.sum);
         }
-        BigDecimal sumCard = payments.stream().filter(Payment::isCard).map(payment -> payment.sum).reduce(BigDecimal.ZERO, BigDecimal::add);
-        for(Payment payment : payments) {
-            sum = HandlerUtils.safeAdd(sum, payment.sum);
+
+        if (paymentSum.compareTo(currentPaymentSum) < 0) {
+            payments.add(Payment.getCash(safeSubtract(currentPaymentSum, paymentSum)));
         }
-        if (sum == null || sum.compareTo(currentPaymentSum) < 0) {
-            for (SalesInfo salesInfo : currentSalesInfoList) {
-                salesInfo.sumCash = HandlerUtils.safeSubtract(HandlerUtils.safeSubtract(currentPaymentSum, sumCard), sumGiftCard);
-            }
+
+        for (SalesInfo salesInfo : currentSalesInfoList) {
+            salesInfo.payments = payments;
         }
     }
 

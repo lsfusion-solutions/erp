@@ -941,6 +941,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 }
             }
 
+            payments.add(Payment.getCash(sumCash));
+
             String discountCard = getDiscountCardNumber(purchaseNode);
 
             List<Element> positionsList = purchaseNode.getChildren("positions");
@@ -1044,8 +1046,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                             if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                 sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                             currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
-                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, null, sumCash, sumGiftCardMap,
-                                    payments, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
+                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, null, null, sumGiftCardMap,
+                                    null, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                     discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, null,
                                     useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptExtraFields, null, cashRegisterByKey));
                         }
@@ -1055,7 +1057,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             }
 
-            fixSumCash(sumCash, sumGiftCard, sumGiftCardMap, payments, currentPaymentSum, currentSalesInfoList);
+            addPayments(sumGiftCardMap, payments, currentPaymentSum, currentSalesInfoList);
 
             salesInfoList.addAll(currentSalesInfoList);
         }
