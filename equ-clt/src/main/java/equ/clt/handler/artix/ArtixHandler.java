@@ -1389,10 +1389,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         Pattern shiftPattern = Pattern.compile("(?:.*)?### shift info begin ###(.*)### shift info end ###(?:.*)?");
                         Matcher shiftMatcher = shiftPattern.matcher(fileContent);
                         if (shiftMatcher.matches()) {
+                            //добавляем }, поскольку внутри элемента тоже может быть ---
                             String[] documents = shiftMatcher.group(1).split("}---");
                             for (String document : documents) {
                                 if (!document.isEmpty()) {
-                                    JSONObject documentObject = new JSONObject(document);
+                                    JSONObject documentObject = new JSONObject(document + "}");
 
                                     Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
                                     String numberZReport = String.valueOf(documentObject.getInt("shift"));
@@ -1787,13 +1788,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Pattern p = Pattern.compile("(?:.*)?### securitylog info begin ###(.*)### securitylog info end ###(?:.*)?");
         Matcher m = p.matcher(fileContent);
         if (m.matches()) {
+            //добавляем }, поскольку внутри элемента тоже может быть ---
             String[] documents = m.group(1).split("}---");
 
             Timestamp logOnCashier = null;
             String numberCashier = null;
             for (String document : documents) {
                 if (!document.isEmpty()) {
-                    JSONObject documentObject = new JSONObject(document);
+                    JSONObject documentObject = new JSONObject(document + "}");
                     int opcode = documentObject.getInt("opcode");
                     switch (opcode) {
                         case 3:
