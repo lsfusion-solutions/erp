@@ -56,6 +56,7 @@ WHEN LOCAL SET (filterSku(GroupScales gs)) DO filterSkuSelfService(gs) <- NULL;
 
 TABLE groupScalesCustomGroup (GroupScales, CustomGroup);
 in 'Вкл' = DATA BOOLEAN (GroupScales, CustomGroup);
+idPart 'Номер'(GroupScales gs, CustomGroup cg) = PARTITION SUM 1 IF in(gs, cg) ORDER cg BY gs;
 customIn(GroupScales gm, Sku s) = in(gm, customGroup(customGroupType(gm), s)) IF filterSkuSelfService(gm) MATERIALIZED;
 
 readOnlyIn = ABSTRACT BOOLEAN (GroupScales, CustomGroup);
@@ -68,7 +69,7 @@ FORM filterCustomSelfService 'Фильтрация по классификато
 
     TREE treeGroups cg=CustomGroup PARENT parent(cg)
     PROPERTIES(cg) READONLY id, name
-    PROPERTIES(gm, cg) in READONLYIF readOnlyIn(gm, cg)
+    PROPERTIES(gm, cg) idPart READONLY, in READONLYIF readOnlyIn(gm, cg)
     FILTERS customGroupType(cg) == gt
     FILTERGROUP inactive1 FILTER 'Активные' active(cg) 'F5' DEFAULT
 ;

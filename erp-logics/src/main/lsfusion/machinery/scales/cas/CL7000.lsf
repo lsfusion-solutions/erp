@@ -44,3 +44,16 @@ deleteImages() + {
 showDeleteImage(Stock ss) += (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'CasCL7000' AND stock(grsk) == ss AND active(grsk)) > 0;
 
 isSelfService(GroupScales s) += sidModel(s) == 'CasCL7000';
+
+createAttribute(MachineryPriceTransaction mpt) + {
+    IF sidModel(groupScales(mpt)) == 'CasCL7000' THEN {
+        
+        info(mpt, Barcode b) <- ('\{"CL7000":\{'+
+                (CONCAT ',',
+                    (' "numberGroup":' + idPart(groupMachinery(mpt), customGroup(customGroupType(groupMachinery(mpt)), sku(b))) +
+                    ', nameGroup: "' + name(customGroup(customGroupType(groupMachinery(mpt)), sku(b))) + '"'
+                    )
+                )
+                +'\}\}') WHERE in(mpt, b);
+    }
+}
