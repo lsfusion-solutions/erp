@@ -1389,7 +1389,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         Pattern shiftPattern = Pattern.compile("(?:.*)?### shift info begin ###(.*)### shift info end ###(?:.*)?");
                         Matcher shiftMatcher = shiftPattern.matcher(fileContent);
                         if (shiftMatcher.matches()) {
-                            String[] documents = shiftMatcher.group(1).split("---");
+                            String[] documents = shiftMatcher.group(1).split("}---");
                             for (String document : documents) {
                                 if (!document.isEmpty()) {
                                     JSONObject documentObject = new JSONObject(document);
@@ -1787,7 +1787,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Pattern p = Pattern.compile("(?:.*)?### securitylog info begin ###(.*)### securitylog info end ###(?:.*)?");
         Matcher m = p.matcher(fileContent);
         if (m.matches()) {
-            String[] documents = m.group(1).split("---");
+            String[] documents = m.group(1).split("}---");
 
             Timestamp logOnCashier = null;
             String numberCashier = null;
