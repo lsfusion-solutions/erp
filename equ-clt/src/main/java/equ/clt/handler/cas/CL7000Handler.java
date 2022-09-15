@@ -8,9 +8,7 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 
 import static equ.clt.handler.HandlerUtils.prependZeroes;
@@ -108,22 +106,32 @@ public class CL7000Handler extends CL5000JHandler {
                 return speedKeys.error;
             } else {
 
-                ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
-                speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
-
-                speedKeysByteBuffer.put(ArrayUtils.subarray(speedKeys.data, 0, 800));
+                byte[] itemBytes = ArrayUtils.subarray(speedKeys.data, 0, 800);
+                List<Integer> items = new ArrayList<>();
+                for (int i = 0; i < 800; i = i + 4) {
+                    int item = convertByteArrayToInt(ArrayUtils.subarray(itemBytes, i, i + 4));
+                    if (item > 0) {
+                        items.add(item);
+                    }
+                }
 
                 for (ScalesItem item : itemsList) {
-
                     JSONObject info = getExtInfo(item.info);
                     int itemGroup = info != null ? info.optInt("numberGroup") : 1;
                     if (itemGroup == currentGroup) {
                         int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
-                        if (pluNumber <= 200) {
-                            speedKeysByteBuffer.position((pluNumber - 1) * 4);
-                            speedKeysByteBuffer.putInt(pluNumber);
+                        if (pluNumber <= 200 && !items.contains(pluNumber)) {
+                            items.add(pluNumber);
                         }
                     }
+                }
+
+                Collections.sort(items);
+
+                ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
+                speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
+                for (Integer item : items) {
+                    speedKeysByteBuffer.putInt(item);
                 }
 
                 CL7000Reply reply = sendSpeedKeys(socket, numberGroup, speedKeysByteBuffer.array());
@@ -133,6 +141,12 @@ public class CL7000Handler extends CL5000JHandler {
             }
         }
         return null;
+    }
+
+    private int convertByteArrayToInt(byte[] bytes) {
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        return buffer.getInt();
     }
 
     @Override
