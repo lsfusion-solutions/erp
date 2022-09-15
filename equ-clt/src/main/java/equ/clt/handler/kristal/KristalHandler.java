@@ -36,7 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.clt.EquipmentServer.*;
-import static equ.clt.handler.HandlerUtils.copyWithTimeout;
+import static equ.clt.handler.HandlerUtils.*;
 import static lsfusion.base.DateConverter.dateToStamp;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
@@ -1014,13 +1014,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 List<Element> receiptDetailsList = gangElement.getChildren("GOOD");
                                 List<Element> paymentsList = gangElement.getChildren("PAYMENT");
 
-                                BigDecimal sumCard = BigDecimal.ZERO;
-                                BigDecimal sumCash = BigDecimal.ZERO;
+                                List<Payment> payments = new ArrayList<>();
                                 for (Element paymentElement : paymentsList) {
+                                    BigDecimal sum = readBigDecimalXMLAttribute(paymentElement, "SUMMASALE");
                                     if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Наличный расчет")) {
-                                        sumCash = HandlerUtils.safeAdd(sumCash, readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"));
+                                        payments.add(Payment.getCash(sum));
                                     } else if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Безналичный слип")) {
-                                        sumCard = HandlerUtils.safeAdd(sumCard, readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"));
+                                        payments.add(Payment.getCard(sum));
                                     }
                                 }
 
@@ -1050,18 +1050,21 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                             failed = true;
                                         } else
                                             currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
-                                                    numberReceipt, dateReceipt, timeReceipt, null, null, sumCard, sumCash, null, null, barcode, idItem, null,
+                                                    numberReceipt, dateReceipt, timeReceipt, null, null, null, null, null, null, barcode, idItem, null,
                                                     null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName,
                                                     null, null, null, cashRegister));
                                     }
                                 }
 
                                 //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                                BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
-                                if (sum.compareTo(currentPaymentSum) != 0)
-                                    for (SalesInfo salesInfo : currentSalesInfoList) {
-                                        salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
-                                    }
+                                BigDecimal paymentSum = payments.stream().map(payment -> payment.sum).reduce(BigDecimal.ZERO, BigDecimal::add);
+                                if (paymentSum.compareTo(currentPaymentSum) != 0) {
+                                    payments.add(Payment.getCash(safeSubtract(currentPaymentSum, paymentSum)));
+                                }
+
+                                for (SalesInfo salesInfo : currentSalesInfoList) {
+                                    salesInfo.payments = payments;
+                                }
 
                                 salesInfoList.addAll(currentSalesInfoList);
                             }
@@ -1087,17 +1090,17 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                     String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
                                     LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
 
-                                    List<Element> receiptDetailsList = (receiptElement).getChildren("POS");
-                                    List<Element> paymentsList = (receiptElement).getChildren("PAY");
+                                    List<Element> receiptDetailsList = receiptElement.getChildren("POS");
+                                    List<Element> paymentsList = receiptElement.getChildren("PAY");
 
-                                    BigDecimal sumCard = BigDecimal.ZERO;
-                                    BigDecimal sumCash = BigDecimal.ZERO;
+                                    List<Payment> payments = new ArrayList<>();
                                     for (Element paymentElement : paymentsList) {
                                         String payment = paymentElement.getAttributeValue("PAYTYPE");
+                                        BigDecimal sum = readBigDecimalXMLAttribute(paymentElement, "DOCSUMM");
                                         if (payment.equals("0")) {
-                                            sumCash = HandlerUtils.safeAdd(sumCash, readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"));
+                                            payments.add(Payment.getCash(sum));
                                         } else if (payment.equals("1") || payment.equals("3")) {
-                                            sumCard = HandlerUtils.safeAdd(sumCard, readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"));
+                                            payments.add(Payment.getCard(sum));
                                         }
                                     }
 
@@ -1142,18 +1145,21 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                                 failed = true;
                                             } else
                                                 currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
-                                                        numberReceipt, dateReceipt, timeReceipt, idEmployee, null, sumCard, sumCash, null, null, barcode, idItem, null,
+                                                        numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, null, null, null, barcode, idItem, null,
                                                         null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, null, discountCard, numberReceiptDetail,
                                                         fileName, null, null, null, cashRegister));
                                         }
                                     }
 
                                     //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                                    BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
-                                    if (sum.compareTo(currentPaymentSum) != 0)
-                                        for (SalesInfo salesInfo : currentSalesInfoList) {
-                                            salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
-                                        }
+                                    BigDecimal paymentSum = payments.stream().map(payment -> payment.sum).reduce(BigDecimal.ZERO, BigDecimal::add);
+                                    if (paymentSum.compareTo(currentPaymentSum) != 0) {
+                                        payments.add(Payment.getCash(safeSubtract(currentPaymentSum, paymentSum)));
+                                    }
+
+                                    for (SalesInfo salesInfo : currentSalesInfoList) {
+                                        salesInfo.payments = payments;
+                                    }
 
                                     salesInfoList.addAll(currentSalesInfoList);
                                 }
