@@ -43,6 +43,21 @@ NAVIGATOR {
 }
 
 //-ГрузОт (только в УПД)
+//--ГрузОтпр
+//---ИдСв
+//----СвЮЛУч
+nameConsignorCompany 'Грузоотправитель' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
+innConsignorCompany 'ИНН грузоотправителя' = DATA STRING[10] (UpdDocument);//ИННЮЛ
+
+//-ГрузОт (только в УПД)
+//--ГрузОтпр
+//---Адрес
+//----АдрИнф
+countryCodeAddressConsignorCompany 'Код страны грузоотправителя' = DATA STRING[3] (UpdDocument); //КодСтр
+addressConsignorCompany 'Адрес грузоотправителя' = DATA STRING[1000] (UpdDocument);//АдрТекст
+
+//-ГрузОт (только в УПД)
+//--ОнЖе
 isConsignerSupplier 'Продавец является отправителем' = DATA BOOLEAN (UpdDocument); //ОнЖе
 
 //-ГрузПолуч (только в УПД)
@@ -55,7 +70,7 @@ innReceiverCompany 'ИНН грузополучателя' = DATA STRING[10] (Up
 //---Адрес
 //----АдрИнф
 countryCodeAddressReceiverCompany 'Код страны грузополучателя' = DATA STRING[3] (UpdDocument); //КодСтр
-addressReceiverCompany 'Адрес грузополучателя' = DATA STRING[150] (UpdDocument);//АдрТекст
+addressReceiverCompany 'Адрес грузополучателя' = DATA STRING[1000] (UpdDocument);//АдрТекст
 
 //-ДокПодтвОтгр (только УПД)
 shipmentDocumentName 'Наимен. док-та отгрузки' (UpdDocument upd) = 'УПД' IF upd IS UpdDocument; //НаимДокОтгр
@@ -211,7 +226,9 @@ idFile 'ИдФайл' (UpdDocument d) =
 
 EXTEND FORM updDocument
     PROPERTIES (u) idFile
-    PROPERTIES (u) isConsignerSupplier
+    PROPERTIES (u) READONLYIF nameConsignorCompany(u) isConsignerSupplier
+    PROPERTIES (u) READONLYIF isConsignerSupplier(u) nameConsignorCompany, innConsignorCompany
+    PROPERTIES (u) READONLYIF isConsignerSupplier(u) countryCodeAddressConsignorCompany, addressConsignorCompany
     PROPERTIES (u) nameReceiverCompany, innReceiverCompany
     PROPERTIES (u) countryCodeAddressReceiverCompany, addressReceiverCompany
     PROPERTIES (u) description, descriptionContract, numberContract, dateContract
@@ -243,7 +260,31 @@ DESIGN updDocument {
             }
             titlesContainer {
                 supplierTitle {                   
-                    supplierInfo {                       
+                    supplierInfo {   
+                        NEW companyConsignor BEFORE documentInfo {
+                            caption = 'Грузоотправитель';
+                            fill = 1;
+                            type = CONTAINERV;
+                            MOVE PROPERTY(isConsignerSupplier(u));
+                            NEW companyConsignorMain {
+                                fill = 1;
+                                type = CONTAINERH;
+                                NEW companyConsignorInfo {
+                                    fill = 1;
+                                    caption = 'Реквизиты';
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(nameConsignorCompany(u));
+                                    MOVE PROPERTY(innConsignorCompany(u));
+                                }
+                                NEW companyConsignorAddress {
+                                    caption = 'Адрес грузоотправителя';
+                                    fill = 1;
+                                    type = CONTAINERV;
+                                    MOVE PROPERTY(countryCodeAddressConsignorCompany(u));
+                                    MOVE PROPERTY(addressConsignorCompany(u));                            
+                                }
+                            }
+                        }                    
                         documentInfo {
                             documentDescription {
                                 MOVE PROPERTY(description(u));
@@ -262,7 +303,6 @@ DESIGN updDocument {
                             caption = 'Передача';
                             fill = 1;
                             type = CONTAINERV;
-                            MOVE PROPERTY(isConsignerSupplier(u));
                             NEW itemTransferTabbedContainer {
                                  fill = 1;
                                  type = TABBED;
@@ -446,6 +486,12 @@ GROUP UPDExportA EXTID  'СвСчФакт';
         GROUP UPDExportA2_4 EXTID  'БанкРекв' :UPDExportA2;            
             GROUP UPDExportA2_4_1 EXTID  'СвБанк' :UPDExportA2_4;     
     GROUP UPDExportA3 EXTID  'ГрузОт' :UPDExportA;
+        GROUP UPDExportA3_1 EXTID  'ГрузОтпр' :UPDExportA3;
+            GROUP UPDExportA3_1_1 EXTID  'ИдСв' :UPDExportA3_1;
+                GROUP UPDExportA3_1_1_1 EXTID  'СвЮЛУч' :UPDExportA3_1_1;
+            GROUP UPDExportA3_1_2 EXTID  'Адрес' :UPDExportA3_1;
+                GROUP UPDExportA3_1_2_1 EXTID  'АдрРФ' :UPDExportA3_1_2;
+                GROUP UPDExportA3_1_2_2 EXTID  'АдрИнф' :UPDExportA3_1_2;
     GROUP UPDExportA4 EXTID  'ГрузПолуч' :UPDExportA;
         GROUP UPDExportA4_1 EXTID  'ИдСв' :UPDExportA4;
             GROUP UPDExportA4_1_1 EXTID  'СвЮЛУч' :UPDExportA4_1;
@@ -541,6 +587,12 @@ FORM UPDPR FORMEXTID '=:Файл'
                = MFOBankSupplier(d) EXTID 'БИК' ATTR IN UPDExportA2_4_1,
                = corrAccountBankSupplier(d) EXTID 'КорСчет' ATTR IN UPDExportA2_4_1                              
     
+    PROPERTIES = (OVERRIDE nameConsignorCompany(d),'') IF NOT isConsignerSupplier(d) EXTID 'НаимОрг' ATTR IN UPDExportA3_1_1_1,
+               = innConsignorCompany(d) IF NOT isConsignerSupplier(d) EXTID 'ИННЮЛ' ATTR IN UPDExportA3_1_1_1
+               
+    PROPERTIES = countryCodeAddressConsignorCompany(d) IF NOT isConsignerSupplier(d) EXTID 'КодСтр' ATTR IN UPDExportA3_1_2_2,
+               = addressConsignorCompany(d) IF NOT isConsignerSupplier(d) EXTID 'АдрТекст' ATTR IN UPDExportA3_1_2_2    
+
     PROPERTIES = 'он же' IF isConsignerSupplier(d) EXTID 'ОнЖе' IN UPDExportA3      
 
     PROPERTIES = (OVERRIDE nameReceiverCompany(d),'') EXTID 'НаимОрг' ATTR IN UPDExportA4_1_1,
