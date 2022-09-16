@@ -17,6 +17,10 @@ public class ArtixSettings implements Serializable{
     //Если не задано, успешно принятые файлы реализации копируются в подпапку success
     private boolean disableCopyToSuccess;
 
+    //удаляем из папок подпапки success с успешно принятыми файлами с lastModified старше заданного кол-ва дней
+    //по умолчанию - 7 дней
+    private int cleanOldFilesDays = 7;
+
     //Если true, включается метод readCashDocuments
     private boolean readCashDocuments;
 
@@ -111,6 +115,14 @@ public class ArtixSettings implements Serializable{
 
     public void setDisableCopyToSuccess(boolean disableCopyToSuccess) {
         this.disableCopyToSuccess = disableCopyToSuccess;
+    }
+
+    public int getCleanOldFilesDays() {
+        return cleanOldFilesDays;
+    }
+
+    public void setCleanOldFilesDays(int cleanOldFilesDays) {
+        this.cleanOldFilesDays = cleanOldFilesDays;
     }
 
     public boolean isReadCashDocuments() {

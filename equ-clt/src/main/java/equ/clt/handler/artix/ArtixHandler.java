@@ -28,6 +28,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -990,15 +991,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(ArtixSalesBatch salesBatch) {
-        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
-        boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
+        ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+        boolean disable = artixSettings.isDisableCopyToSuccess();
+        int cleanOldFilesDays = artixSettings.getCleanOldFilesDays();
 
         sendSalesLogger.info(logPrefix + "Finish Reading started");
         RuntimeException error = null;
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
-
-            RuntimeException copyResult = copyToSuccess(f, disable);
+            RuntimeException copyResult = copyToSuccess(f, cleanOldFilesDays, disable);
             if(error == null)
                 error = copyResult;
             safeFileDelete(f, true);
@@ -1249,13 +1250,45 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
     }
 
-    private RuntimeException copyToSuccess(File file, boolean disable) {
+    private Set<String> usedDirs = new HashSet<>();
+    private Timer usedDirsTimer;
+
+    private RuntimeException copyToSuccess(File file, int cleanOldFilesDays, boolean disable) {
         RuntimeException result = null;
         if (!disable) {
             try {
-                String directory = file.getParent() + "/success-" + formatDate(LocalDate.now()) + "/";
-                if (new File(directory).exists() || new File(directory).mkdirs())
-                    FileCopyUtils.copy(file, new File(directory + file.getName()));
+
+                if(usedDirsTimer == null) {
+                    usedDirsTimer = new Timer();
+                    usedDirsTimer.schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            usedDirs.clear();
+                            usedDirsTimer = null;
+                        }
+                    }, 3600000); //1 hour
+                }
+
+                String parentDir = file.getParent();
+
+                if(!usedDirs.contains(parentDir)) {
+                    usedDirs.add(parentDir);
+                    LocalDateTime minDateTime = LocalDateTime.now().minusDays(cleanOldFilesDays);
+
+                    File[] directories = new File(parentDir).listFiles(File::isDirectory);
+                    if (directories != null) {
+                        for (File directory : directories) {
+                            LocalDateTime lastModified = LocalDateTime.ofInstant(Instant.ofEpochMilli(directory.lastModified()), TimeZone.getDefault().toZoneId());
+                            if (lastModified.isBefore(minDateTime)) {
+                                FileUtils.deleteDirectory(directory);
+                            }
+                        }
+                    }
+                }
+
+                String successDirectory = parentDir + "/success-" + formatDate(LocalDate.now()) + "/";
+                if (new File(successDirectory).exists() || new File(successDirectory).mkdirs())
+                    FileCopyUtils.copy(file, new File(successDirectory + file.getName()));
             } catch (IOException e) {
                 sendSalesLogger.error("The file " + file.getAbsolutePath() + " can not be copied to success files", e);
                 result = new RuntimeException("The file " + file.getAbsolutePath() + " can not be copied to success files", e);
