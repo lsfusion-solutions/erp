@@ -1114,8 +1114,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 } else {
 
                     if (customPayments.contains(paymentType)) {
-                        UKMPayment paymentEntry = paymentMap.get(key);
-                        if (paymentEntry == null) paymentEntry = new UKMPayment();
+                        UKMPayment paymentEntry = paymentMap.getOrDefault(key, new UKMPayment());
                         paymentEntry.payments.add(new Payment(paymentType, amount));
                         paymentMap.put(key, paymentEntry);
                     } else {
@@ -1140,11 +1139,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         if (paymentType != 0 && paymentType != 1 && paymentType != 2)
                             paymentType = 0;
 
-                        UKMPayment paymentEntry = paymentMap.get(key);
-                        if (paymentEntry == null) paymentEntry = new UKMPayment();
-                        if (paymentType == 0) paymentEntry.sumCash = HandlerUtils.safeAdd(paymentEntry.sumCash, amount);
-                        else if (paymentType == 1) {
-                            paymentEntry.sumCard = HandlerUtils.safeAdd(paymentEntry.sumCard, amount);
+                        UKMPayment paymentEntry = paymentMap.getOrDefault(key, new UKMPayment());
+                        if (paymentType == 0) {
+                            paymentEntry.payments.add(Payment.getCash(amount));
+                        } else if (paymentType == 1) {
+                            paymentEntry.payments.add(Payment.getCard(amount));
                         } else { //paymentType == 2
                             BigDecimal sumGiftCard = paymentEntry.sumGiftCardMap.get(giftCard);
                             paymentEntry.sumGiftCardMap.put(giftCard, HandlerUtils.safeAdd(sumGiftCard, amount));
@@ -1243,7 +1242,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                 UKMPayment paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
                 if(paymentEntry == null && zeroPaymentForZeroSumReceipt) {
-                    paymentEntry = new UKMPayment(BigDecimal.ZERO);
+                    paymentEntry = new UKMPayment();
+                    paymentEntry.payments.add(Payment.getCash(BigDecimal.ZERO));
                 }
                 if (paymentEntry != null && totalQuantity != null) {
                     Integer receiptType = rs.getInt(14); //r.type
@@ -1291,7 +1291,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 //                        if (cashRegister == null || cashRegister.startDate == null || (dateReceipt != null && dateReceipt.compareTo(cashRegister.startDate) >= 0)) {
                             salesInfoList.add(getSalesInfo(isGiftCard, false, cashRegister.numberGroup, cash_id, numberZReport,
                                     dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee,
-                                    null, lastNameContact, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, paymentEntry.payments, idBarcode, idItem, null, null, totalQuantity,
+                                    null, lastNameContact, null, null, sumGiftCardMap, paymentEntry.payments, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), null, discountSumReceiptDetail, null, discountCard,
                                     position, null, idSection, false, null, null, cashRegister));
 //                        }
@@ -1458,19 +1458,12 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private class UKMPayment {
-        BigDecimal sumCash;
-        BigDecimal sumCard;
         Map<String, BigDecimal> sumGiftCardMap;
         List<Payment> payments;
 
-        UKMPayment() {
+        public UKMPayment() {
             this.sumGiftCardMap = new HashMap<>();
             this.payments = new ArrayList<>();
-        }
-
-        public UKMPayment(BigDecimal sumCash) {
-            this.sumCash = sumCash;
-            this.sumGiftCardMap = new HashMap<>();
         }
     }
 }
