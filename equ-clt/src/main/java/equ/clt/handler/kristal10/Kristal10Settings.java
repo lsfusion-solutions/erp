@@ -122,6 +122,9 @@ public class Kristal10Settings implements Serializable{
     //если true, то не игнорируем реализацию на кассу с disableSales (для случая, когда нет с таким же номером без disableSales)
     private boolean ignoreCashRegisterWithDisableSales;
 
+    //если true, то игнорируем чек, если не нашли nppGroupMachinery (вместо ошибки в логе)
+    private boolean ignoreSalesWithoutNppGroupMachinery;
+
     public Kristal10Settings() {
     }
 
@@ -385,5 +388,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setIgnoreCashRegisterWithDisableSales(boolean ignoreCashRegisterWithDisableSales) {
         this.ignoreCashRegisterWithDisableSales = ignoreCashRegisterWithDisableSales;
+    }
+
+    public boolean isIgnoreSalesWithoutNppGroupMachinery() {
+        return ignoreSalesWithoutNppGroupMachinery;
+    }
+
+    public void setIgnoreSalesWithoutNppGroupMachinery(boolean ignoreSalesWithoutNppGroupMachinery) {
+        this.ignoreSalesWithoutNppGroupMachinery = ignoreSalesWithoutNppGroupMachinery;
     }
 }

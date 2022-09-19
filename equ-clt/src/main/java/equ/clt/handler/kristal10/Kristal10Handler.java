@@ -836,6 +836,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
         Set<String> customPayments = parseStringPayments(kristalSettings.getCustomPayments());
         boolean ignoreCashRegisterWithDisableSales = kristalSettings.isIgnoreCashRegisterWithDisableSales();
+        boolean ignoreSalesWithoutNppGroupMachinery = kristalSettings.isIgnoreSalesWithoutNppGroupMachinery();
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
@@ -1006,10 +1007,10 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                         departNumber = positionDepartNumber;
 
                                     String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
-
                                     CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
-                                    boolean ignoreSales = cashRegisterByKey != null && cashRegisterByKey.disableSales && ignoreCashRegisterWithDisableSales;
-                                    if (!ignoreSales) {
+                                    Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
+
+                                    if (!ignoreSales(cashRegisterByKey, nppGroupMachinery, key, ignoreCashRegisterWithDisableSales, ignoreSalesWithoutNppGroupMachinery)) {
                                         String weightCode = getWeightCode(cashRegisterByKey);
                                         String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
                                         String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
@@ -1069,10 +1070,6 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                                         LocalDate startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
                                         if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
-                                            Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
-                                            if (nppGroupMachinery == null) {
-                                                sendSalesLogger.error("not found nppGroupMachinery : " + key);
-                                            }
 
                                             String idSaleReceiptReceiptReturnDetail = null;
                                             Element originalPurchase = purchaseNode.getChild("original-purchase");

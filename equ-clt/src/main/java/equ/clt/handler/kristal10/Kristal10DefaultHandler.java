@@ -495,6 +495,20 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return pluginPropertyValue;
     }
 
+    protected boolean ignoreSales(CashRegisterInfo cashRegisterByKey, Integer nppGroupMachinery, String key, boolean ignoreCashRegisterWithDisableSales, boolean ignoreSalesWithoutNppGroupMachinery) {
+        boolean noNppGroupMachinery = false;
+        if (nppGroupMachinery == null) {
+            if(ignoreSalesWithoutNppGroupMachinery) {
+                noNppGroupMachinery = true;
+            } else {
+                sendSalesLogger.error("not found nppGroupMachinery : " + key);
+            }
+        }
+
+        boolean ignoreSales = cashRegisterByKey != null && cashRegisterByKey.disableSales && ignoreCashRegisterWithDisableSales;
+        return noNppGroupMachinery || ignoreSales;
+    }
+
     public class DeleteBarcode {
         Integer nppGroupMachinery;
         String directory;

@@ -813,18 +813,19 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private List<SalesInfo> parseSalesInfoXML(Document doc, String directory, List<CashRegisterInfo> cashRegisterInfoList, Set<String> usedBarcodes) {
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
-        boolean ignoreSalesWeightPrefix = kristalSettings == null || kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
-        boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        boolean ignoreSalesDepartmentNumber = kristalSettings != null && kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
-        String giftCardRegexp = kristalSettings != null ? kristalSettings.getGiftCardRegexp() : null;
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        String transformUPCBarcode = kristalSettings.getTransformUPCBarcode();
+        boolean ignoreSalesWeightPrefix = kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
+        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        boolean ignoreSalesDepartmentNumber = kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
+        boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
+        String giftCardRegexp = kristalSettings.getGiftCardRegexp();
         if(giftCardRegexp == null)
             giftCardRegexp = "(?!666)\\d{3}";
-        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
-        Set<String> customPayments = kristalSettings == null ? new HashSet<>() : parseStringPayments(kristalSettings.getCustomPayments());
-        boolean ignoreCashRegisterWithDisableSales = kristalSettings != null && kristalSettings.isIgnoreCashRegisterWithDisableSales();
+        boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
+        Set<String> customPayments = parseStringPayments(kristalSettings.getCustomPayments());
+        boolean ignoreCashRegisterWithDisableSales = kristalSettings.isIgnoreCashRegisterWithDisableSales();
+        boolean ignoreSalesWithoutNppGroupMachinery = kristalSettings.isIgnoreSalesWithoutNppGroupMachinery();
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
@@ -964,10 +965,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         departNumber = positionDepartNumber;
 
                     String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
-
                     CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
-                    boolean ignoreSales = cashRegisterByKey != null && cashRegisterByKey.disableSales && ignoreCashRegisterWithDisableSales;
-                    if (!ignoreSales) {
+                    Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
+
+                    if (!ignoreSales(cashRegisterByKey, nppGroupMachinery, key, ignoreCashRegisterWithDisableSales, ignoreSalesWithoutNppGroupMachinery)) {
                         String weightCode = getWeightCode(cashRegisterByKey);
                         String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
                         String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
@@ -1027,11 +1028,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                         LocalDate startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
                         if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
-                            Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
-                            if (nppGroupMachinery == null) {
-                                sendSalesLogger.error("not found nppGroupMachinery : " + key);
-                            }
-
                             String idSaleReceiptReceiptReturnDetail = null;
                             Element originalPurchase = purchaseNode.getChild("original-purchase");
                             if(originalPurchase != null) {
