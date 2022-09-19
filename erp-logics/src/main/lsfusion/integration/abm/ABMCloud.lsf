@@ -7,6 +7,44 @@ NAMESPACE Integration;
 
 
 connectionStringABM 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
+exportPostABMPath 'POST запрос' = DATA STRING[250] ();
+
+EXTEND FORM integrationData
+    PROPERTIES() connectionStringABM, exportPostABMPath
+    
+    OBJECTS single = BOOLEAN PANEL
+    EVENTS ON INIT { SEEK integrationData.single = TRUE; }
+    
+    OBJECTS d = DATE PANEL, dToABM = DATE PANEL
+    PROPERTIES date 'Дата' = VALUE(d), dateTo 'Дата по'= VALUE(dToABM)
+;
+
+DESIGN integrationData {
+    pane {
+        NEW ABMInventory {
+            caption = 'ABMCloud';
+            MOVE PROPERTY(connectionStringABM());
+            MOVE PROPERTY(exportPostABMPath());
+            NEW paneABM {
+                type = TABBED;
+                fill = 1;
+                NEW tab1 {
+                    caption = 'Файлы';
+                    type = CONTAINERH;
+                    NEW buttons {
+                        fill = 1;
+                        NEW datesAbm {
+                            type = CONTAINERH;
+                            MOVE PROPERTY(date);
+                            MOVE PROPERTY(dateTo);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 toDateYYYYMMDD = FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')';
 toDateYYYYMMDD2 = FORMULA STRING[10] 'to_char(($1),\'YYYY.MM.DD\')';
@@ -135,6 +173,33 @@ toSentABM = ABSTRACT VALUE BOOLEAN (LegalEntity);
 toSentABM = ABSTRACT VALUE BOOLEAN (PriceList,DATE);
 //
 sentABM ABSTRACT LIST(DATE,BOOLEAN);
+sendABMSelected 'Отмеченные файлы за период' ABSTRACT LIST(DATE, DATE, BOOLEAN);
+
+TABLE abmSelected() NODEFAULT;
+META sendABM(action)
+    sentABM(DATE d, BOOLEAN single)+{
+        action(d,single);
+    } 
+    toSend###action '' = DATA BOOLEAN () TABLE abmSelected;
+    sendABMSelected(DATE df, DATE dt, BOOLEAN single)+{
+        IF toSend###action() THEN {
+            FOR iterate(DATE d, df, dt) DO {
+                action(d,single);
+            }
+        }
+    }
+    EXTEND FORM integrationData
+        PROPERTIES toSend###action(), action(d, single);
+    DESIGN integrationData {
+        buttons{
+            NEW action###button{
+                type = CONTAINERH;
+                MOVE PROPERTY (toSend###action());
+                MOVE PROPERTY (action(d, single));
+            }
+        }
+    }
+END
 
 sentDateTime = DATA LOCAL STRING ();
 // null0_null1_null2_null3_null4 для подмены на просто null
@@ -142,7 +207,7 @@ replaceRN(){
     fileToString(exportFile());
     resultString()<- replace(resultString(),'\r\n','\n');
     resultString()<- replace(resultString(),'\n','\r\n');
-    resultString()<- replace(resultString(),'null0_null1_null2_null3_null4','null');
+    resultString()<- replace(resultString(),'null0_null1_null2_null3_null4','');
     stringToFile(resultString());
     exportFile() <- resultFile();
 }
@@ -255,9 +320,7 @@ products 'products' (DATE d, BOOLEAN single) {
         
     sentABM(d,single,currentDateTime(),'products_', NULL, NULL);  
 }
-sentABM(DATE d, BOOLEAN single)+{
-    products(d,single);
-}
+@sendABM(products);
 ///////////////////////////////// Таблица 2 items
 //Данные о наличии товара в ассортименте магазина, цене закупки, розничной цене и количестве остатка товара в магазине
 
@@ -344,9 +407,7 @@ items 'items' (DATE d, BOOLEAN single) {
         sentABM(d,single,currentDateTime(),'items_', st, NULL);  
     }
 }
-sentABM(DATE d, BOOLEAN single)+{
-    items(d,single);
-}
+@sendABM(items);
 
 //-- todo: Параметры, которые надо перегрузить в логике 
 
@@ -420,9 +481,7 @@ facts 'facts' (DATE d, BOOLEAN single) {
         sentABM(d,single,currentDateTime(),'facts_', st, NULL);  
     }
 }
-sentABM(DATE d, BOOLEAN single)+{
-    facts(d,single);
-}
+@sendABM(facts);
 // Таблица 4
 //Данные о поставщиках
 
@@ -453,9 +512,7 @@ suppliers 'suppliers' (DATE d, BOOLEAN single) {
     WHERE filterABM(l);
     sentABM(d,single,currentDateTime(),'suppliers_', NULL, NULL);          
 }
-sentABM(DATE d, BOOLEAN single)+{
-    suppliers(d,single);
-}
+@sendABM(suppliers);
 // Таблица 5 stores
 //Данные о магазинах
 store_uid = DATA LOCAL STRING (Stock);
@@ -494,9 +551,7 @@ stores 'stores' (DATE d, BOOLEAN single) {
     WHERE filterABM(l);
     sentABM(d,single,currentDateTime(),'stores_', NULL, NULL);          
 }
-sentABM(DATE d, BOOLEAN single)+{
-    stores(d,single);
-}
+@sendABM(stores);
 // Таблица 6
 //Данные о графиках формирования заказов поставщиков
 store_uid = DATA LOCAL STRING (Stock,LegalEntity,Separation);
@@ -566,9 +621,7 @@ schedules 'schedules' (DATE d, BOOLEAN single) {
     WHERE filterABM(st,l,s);
     sentABM(d,single,currentDateTime(),'schedules_', NULL, NULL);          
 }
-sentABM(DATE d, BOOLEAN single)+{
-    schedules(d,single);
-}
+@sendABM(schedules);
 // Таблица 7
 //Данные об оприходованных заказах
 //-- todo: Параметры, которые надо перегрузить в логике 
@@ -643,9 +696,7 @@ orderclose 'orderclose' (DATE d, BOOLEAN single) {
         WHERE filter(o);       
     sentABM(d,single,currentDateTime(),'orderclose_', NULL, NULL);            
 }
-sentABM(DATE d, BOOLEAN single)+{
-    orderclose(d,single);
-}
+@sendABM(orderclose);
 // Таблица 9
 //Данные о корректировке отправленных заказов, сделанных на стороне клиента
 
@@ -688,9 +739,7 @@ ordered 'ordered' (DATE d, BOOLEAN single) {
     }   
 }
 
-sentABM(DATE d, BOOLEAN single)+{
-    ordered(d,single);
-}
+@sendABM(ordered);
 // Таблица 11 и 12
 // Данные о создании новых периодах и их настройках (Акции)
 //-- todo: Параметры, которые надо перегрузить в логике 
@@ -784,9 +833,7 @@ promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
     }       
 }
 
-sentABM(DATE d, BOOLEAN single)+{
-    promoheader(d,single);
-}
+@sendABM(promoheader);
 
 // Таблица 15 categories
 // Данные основных категорий товаров
@@ -821,9 +868,7 @@ categories (DATE d, BOOLEAN single) {
     
     sentABM(d,single,currentDateTime(),'categories_', NULL, NULL);       
 }
-sentABM(DATE d, BOOLEAN single)+{
-    categories(d,single);
-}
+@sendABM(categories);
 
 //////////////////////////////////////////////////
 
@@ -846,24 +891,9 @@ exportAll 'Все файлы' (DATE d) {
     deleteZippingPath(); 
 }
 
-exportPostABMPath 'POST запрос' = DATA STRING[250] ();
 
-EXTEND FORM integrationData
-    PROPERTIES() connectionStringABM, exportPostABMPath
-    
-    OBJECTS single = BOOLEAN PANEL
-    EVENTS ON INIT { SEEK integrationData.single = TRUE; }
-    
-    OBJECTS d = DATE PANEL
-    PROPERTIES date 'Дата' = VALUE(d)
-    PROPERTIES(d, single) products, items, facts, suppliers, stores,                 
-                schedules, 
-                //shipments, 
-                orderclose, 
-                //ordered,
-                promoheader, 
-                categories     
-    PROPERTIES(d)  exportAll
+EXTEND FORM integrationData   
+    PROPERTIES exportAll(d), sendABMSelected(d, dToABM, single)
         
     OBJECTS abmStock = Stock
     PROPERTIES(abmStock) selectABM
@@ -872,37 +902,12 @@ EXTEND FORM integrationData
 ;
 
 DESIGN integrationData {
-    pane {
-        NEW ABMInventory {
-            caption = 'ABMCloud';
-            MOVE PROPERTY(connectionStringABM());
-            MOVE PROPERTY(exportPostABMPath());
-            NEW paneABM {
-                type = TABBED;
-                fill = 1;
-                NEW tab1 {
-                    caption = 'Файлы';
-                    type = CONTAINERH;
-                    NEW buttons {
-                        fill = 1;
-                        MOVE PROPERTY(date);
-                        MOVE PROPERTY(products(d, single));
-                        MOVE PROPERTY(items(d, single));
-                        MOVE PROPERTY(facts(d, single));
-                        MOVE PROPERTY(suppliers(d, single));
-                        MOVE PROPERTY(stores(d, single));                                                
-                        //MOVE PROPERTY(shipments(d, single));                        
-                        MOVE PROPERTY(schedules(d, single));
-                        MOVE PROPERTY(orderclose(d, single));
-                        //MOVE PROPERTY(ordered(d, single));
-                        MOVE PROPERTY(promoheader(d, single));
-                        MOVE PROPERTY(categories(d, single));
-                        MOVE PROPERTY(exportAll(d));
-                    }
-                    MOVE BOX(abmStock) { fill = 2; }
-                }
-            }
+    tab1 {
+        buttons {
+            MOVE PROPERTY(exportAll(d));
+            MOVE PROPERTY(sendABMSelected(d, dToABM, single));
         }
+        MOVE BOX(abmStock) { fill = 2; }
     }
 }
 
