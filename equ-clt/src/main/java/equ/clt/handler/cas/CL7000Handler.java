@@ -120,13 +120,16 @@ public class CL7000Handler extends CL5000JHandler {
                     int itemGroup = info != null ? info.optInt("numberGroup") : 1;
                     if (itemGroup == currentGroup) {
                         int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
-                        if (pluNumber <= 200 && !items.contains(pluNumber)) {
+                        if (!items.contains(pluNumber)) {
                             items.add(pluNumber);
                         }
                     }
                 }
 
                 Collections.sort(items);
+                //load max 200 sorted items
+                if (items.size() > 200)
+                    items = items.subList(0, 200);
 
                 ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
                 speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
