@@ -715,6 +715,52 @@ EXTEND FORM receiveMessage
 @defPropSimpleDetail(retailPrice, 'ЦенаРозничная', NUMERIC[15,2], saleInvoice, product);
 @defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], saleInvoice, product);
 
+CLASS ABSTRACT SaleInvoiceService : SaleInvoiceDetail;
+isService = ABSTRACT BOOLEAN (SaleInvoiceService, Configuration);
+
+EXTEND FORM sendMessage  
+    OBJECTS saleInvoiceService = SaleInvoiceService EXTID 'Строка' IN service
+    FILTERS in(saleInvoice, saleInvoiceService, configuration), isService(saleInvoiceService, configuration)
+;
+
+saleInvoiceService = DATA LOCAL INTEGER (INTEGER);
+calcIndexSaleInvoiceService (INTEGER detailIndex, INTEGER docIndex) = PARTITION SUM 1 IF saleInvoiceService(detailIndex) = docIndex ORDER detailIndex BY saleInvoiceService(detailIndex);
+
+EXTEND FORM receiveMessage
+    OBJECTS saleInvoiceService = INTEGER EXTID 'Строка' IN service
+    FILTERS saleInvoiceService(saleInvoiceService) = saleInvoice
+;
+
+item 'Номенклатура' = ABSTRACT Item (SaleInvoiceService, Configuration);
+WHEN CHANGED(item(SaleInvoiceService d, Configuration c)) DO {
+    packet(c, saleInvoice(d, c)) <- NULL;
+    in(c, saleInvoice(d, c)) <- inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
+}
+
+itemSaleInvoiceService 'Номенклатура' = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM sendMessage
+    OBJECTS itemSaleInvoiceService = Item EXTID 'Номенклатура'
+    PROPERTIES(itemSaleInvoiceService, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
+    FILTERS itemSaleInvoiceService = item(saleInvoiceService, configuration)
+;
+
+uidItemSaleInvoiceService 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+fullNameItemSaleInvoiceService 'НаименованиеПолное' = DATA LOCAL STRING (INTEGER);
+idItemSaleInvoiceService 'КодВПрограмме' = DATA LOCAL ISTRING[36] (INTEGER);
+articleItemSaleInvoiceService 'Артикул' = DATA LOCAL STRING (INTEGER);
+nameItemSaleInvoiceService 'Наименование' = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM receiveMessage
+    PROPERTIES (saleInvoiceService) IN item uidItemSaleInvoiceService EXTID 'Ссылка', fullNameItemSaleInvoiceService  EXTID 'НаименованиеПолное', idItemSaleInvoiceService EXTID 'КодВПрограмме', articleItemSaleInvoiceService EXTID 'Артикул', nameItemSaleInvoiceService EXTID 'Наименование'  
+;
+    
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], saleInvoice, service);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], saleInvoice, service);
+@defPropSimpleDetail(price, 'Цена', NUMERIC[15,2], saleInvoice, service);
+@defPropIdDetail(rateVat, 'СтавкаНДС', TypeVat, saleInvoice, service);
+@defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], saleInvoice, service);
+
 //outcome vat invoice
 CLASS ABSTRACT OutcomeVatInvoice 'Документ.СчетФактураВыданный' : Document;
 
