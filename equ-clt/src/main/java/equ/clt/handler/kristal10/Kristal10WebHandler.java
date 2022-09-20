@@ -1316,13 +1316,16 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         //пока рассматриваем только случай с 1 SetRetail сервером на 1 equ
         private final String sidEquipmentServer;
+        private final boolean ignoreSalesWithoutNppGroupMachinery;
 
         public HttpRequestHandler() {
-            Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-            sidEquipmentServer = kristalSettings == null ? null : kristalSettings.getSidEquipmentServer();
+            Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+            sidEquipmentServer = kristalSettings.getSidEquipmentServer();
             if(sidEquipmentServer == null) {
                 throw new RuntimeException(getLogPrefix() + "sidEquipmentServer option is required");
             }
+            ignoreSalesWithoutNppGroupMachinery = kristalSettings.isIgnoreSalesWithoutNppGroupMachinery();
+
         }
 
         @Override
@@ -1337,7 +1340,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                 if (purchases) {
                     try {
-                        readSalesInfo(sidEquipmentServer, httpExchange);
+                        readSalesInfo(sidEquipmentServer, httpExchange, ignoreSalesWithoutNppGroupMachinery);
                     } catch (Exception e) {
                         sendSalesLogger.error(getLogPrefix() + "Reading SalesInfo", e);
                         sendPurchasesResponse(httpExchange, e.getMessage());
@@ -1368,7 +1371,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private void readSalesInfo(String sidEquipmentServer, HttpExchange httpExchange) throws IOException, SQLException, JDOMException {
+    private void readSalesInfo(String sidEquipmentServer, HttpExchange httpExchange, boolean ignoreSalesWithoutNppGroupMachinery) throws IOException, SQLException, JDOMException {
         List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, "purchases"));
 
@@ -1382,7 +1385,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         //assert directorySet.size() == 1
         for (String directory : directorySet) {
             List<SalesInfo> salesInfoList = parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>());
-            if (!salesInfoList.isEmpty()) {
+            if (!salesInfoList.isEmpty() || ignoreSalesWithoutNppGroupMachinery) {
                 sendSalesLogger.info(getLogPrefix() + "Sending SalesInfo: " + salesInfoList.size());
                 String result = remote.sendSalesInfo(salesInfoList, sidEquipmentServer, directory);
                 if (result != null) {
