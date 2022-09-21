@@ -225,12 +225,14 @@ receiveMessage 'Получить' (Configuration c) {
 
 overSend ABSTRACT LIST (Configuration);
 overSend ABSTRACT LIST (Configuration, XMLFILE);
+beforeSend ABSTRACT LIST (Configuration);
 
 sendMessage 'Передать' (Configuration c) {
     NEWSESSION {
         TRY {
             idSended(c) <- messageNo(c) (+) 1;
             LOCAL f = XMLFILE ();
+            beforeSend(c);
             EXPORT sendMessage OBJECTS configuration = c XML TO f;
             WRITE f() TO sendPath(c);
             isSended(c) <- TRUE;
