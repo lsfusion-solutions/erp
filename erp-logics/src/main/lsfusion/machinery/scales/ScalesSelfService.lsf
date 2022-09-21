@@ -56,7 +56,8 @@ WHEN LOCAL SET (filterSku(GroupScales gs)) DO filterSkuSelfService(gs) <- NULL;
 
 TABLE groupScalesCustomGroup (GroupScales, CustomGroup);
 in 'Вкл' = DATA BOOLEAN (GroupScales, CustomGroup);
-idPart 'Номер'(GroupScales gs, CustomGroup cg) = PARTITION SUM 1 IF in(gs, cg) ORDER cg BY gs;
+isIn(GroupScales gs, CustomGroup cg) = in(gs, cg) IF customGroupType(gs) == customGroupType(cg) MATERIALIZED;
+idPart 'Номер'(GroupScales gs, CustomGroup cg) = PARTITION SUM 1 IF isIn(gs, cg) ORDER cg BY gs;
 customIn(GroupScales gm, Sku s) = in(gm, customGroup(customGroupType(gm), s)) IF filterSkuSelfService(gm) MATERIALIZED;
 
 readOnlyIn = ABSTRACT BOOLEAN (GroupScales, CustomGroup);

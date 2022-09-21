@@ -3,9 +3,28 @@ MODULE CL7000;
 REQUIRE ScalesSelfService, Image;
 
 //CL7000
+
+imageCAS = DATA IMAGEFILE (Item);
+WHEN CHANGED (image(Item i)) DO { 
+    imageCAS(i) <- NULL;
+}
+
 loadImages() + {
     NEWSESSION NESTED (select[Sku,Stock]) {
         IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+            LOCAL needResize = BOOLEAN(Item);
+            needResize(Item i) <- TRUE IF (GROUP SUM 1 IF select(i, Stock stock)) AND hasImage(i) AND NOT imageCAS(i);
+        
+            IF (GROUP SUM 1 IF needResize(Item i)) THEN NEWSESSION NESTED LOCAL {
+                FOR needResize(Item s) DO {
+                    TRY {
+                        resizeImage(image(s),210,210);              
+                        convertImage(resizedImage(), 'jpg');
+                        imageCAS(s) <- convertedImage();
+                    }
+                }
+                APPLY NESTED LOCAL;
+            }
             FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
                 FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'CasCL7000' DO {
                     FOR select(sku(Barcode barcode), stock) AND pluNumber(groupScales(scales), barcode) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
