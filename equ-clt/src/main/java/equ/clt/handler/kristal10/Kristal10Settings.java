@@ -125,6 +125,9 @@ public class Kristal10Settings implements Serializable{
     //если true, то игнорируем чек, если не нашли nppGroupMachinery (вместо ошибки в логе)
     private boolean ignoreSalesWithoutNppGroupMachinery;
 
+    //если true, то включается расширенное логирование (может быстро забивать файлы лога)
+    private boolean extendedLogs;
+
     public Kristal10Settings() {
     }
 
@@ -396,5 +399,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setIgnoreSalesWithoutNppGroupMachinery(boolean ignoreSalesWithoutNppGroupMachinery) {
         this.ignoreSalesWithoutNppGroupMachinery = ignoreSalesWithoutNppGroupMachinery;
+    }
+
+    public boolean isExtendedLogs() {
+        return extendedLogs;
+    }
+
+    public void setExtendedLogs(boolean extendedLogs) {
+        this.extendedLogs = extendedLogs;
     }
 }

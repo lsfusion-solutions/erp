@@ -96,6 +96,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean extendedLogs = kristalSettings.isExtendedLogs();
+
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, DeleteBarcode> usedDeleteBarcodeTransactionMap = new HashMap<>();
 
@@ -125,6 +128,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                     String response = null;
                     for(String xml : xmlList) {
+                        if(extendedLogs) {
+                            processTransactionLogger.info(getLogPrefix() + " sending xml " + xml);
+                        }
                         response = sendRequestGoods(directory, xml);
                         if(response != null)
                             break;
