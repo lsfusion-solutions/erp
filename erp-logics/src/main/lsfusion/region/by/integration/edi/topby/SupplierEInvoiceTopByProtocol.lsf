@@ -837,7 +837,6 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100
                         MESSAGE provider + ' Извещение о прочтении не выгружено: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                     }
                     ELSE IF signResult() THEN {
-                        encodeBase64(signResult());
                         LOCAL ixml = XMLFILE();
                         envelopeLogin() <- login;
                         envelopePassword() <- password;
@@ -848,7 +847,7 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100
                         envelopeReceiver() <- glnCustomer(ei);
                         envelopeDeliveryPoint() <- glnCustomerStock(ei);
                         envelopeDocumentType() <- 'BLRAPN';
-                        envelopeContent() <- encodedBase64();
+                        envelopeContent() <- signResult();
                         EXPORT envelope XML TO ixml;
                         sendRequestEDI(url, ixml());
                         logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');

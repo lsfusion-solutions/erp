@@ -745,7 +745,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                 IF signError() THEN {
                                                     logToFile('edi', provider + ' Parse Message ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(eInvoice(m)) + ' не подписан. Ошибка: ' + signError());
                                                 } ELSE IF signResult() THEN {
-                                                    encodeBase64(signResult());
                                                     LOCAL ixml = XMLFILE();
                                                     envelopeLogin() <- login;
                                                     envelopePassword() <- password;
@@ -756,7 +755,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                     envelopeReceiver() <- glnCustomer(eInvoice(m));
                                                     envelopeDeliveryPoint() <- glnCustomerStock(eInvoice(m));
                                                     envelopeDocumentType() <- 'BLRAPN';
-                                                    envelopeContent() <- encodedBase64();
+                                                    envelopeContent() <- signResult();
                                                     EXPORT envelope XML TO ixml;
                                                     sendRequestEDI(url, ixml());
                                                     logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(eInvoice(m)) +' request sent');
