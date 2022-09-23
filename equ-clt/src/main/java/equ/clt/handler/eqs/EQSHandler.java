@@ -2,10 +2,7 @@ package equ.clt.handler.eqs;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
-import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItem;
-import equ.api.cashregister.DiscountCard;
-import equ.api.cashregister.TransactionCashRegisterInfo;
+import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
@@ -28,7 +25,7 @@ import java.util.stream.Collectors;
 import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
 
-public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
+public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDocumentBatch> {
 
     private static String logPrefix = "EQS: ";
 

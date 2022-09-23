@@ -4,6 +4,7 @@ import equ.api.ItemInfo;
 import equ.api.Payment;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
+import equ.api.cashregister.CashDocumentBatch;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
@@ -26,7 +27,7 @@ import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static equ.clt.handler.HandlerUtils.safeSubtract;
 
-public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBatch> {
+public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBatch, CashDocumentBatch> {
 
     public MaxishopHandler() {
     }

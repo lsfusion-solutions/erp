@@ -17,7 +17,7 @@ import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.copyWithTimeout;
 
-public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
+public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch, CashDocumentBatch> {
 
     public AtolHandler() {
     }

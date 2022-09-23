@@ -40,7 +40,7 @@ import static equ.clt.handler.HandlerUtils.*;
 import static lsfusion.base.DateConverter.dateToStamp;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
-public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch> {
+public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch, CashDocumentBatch> {
     
     static Logger requestExchangeLogger;
     static {

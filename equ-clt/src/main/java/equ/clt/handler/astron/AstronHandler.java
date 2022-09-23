@@ -2,10 +2,7 @@ package equ.clt.handler.astron;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
-import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItem;
-import equ.api.cashregister.DiscountCard;
-import equ.api.cashregister.TransactionCashRegisterInfo;
+import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
 import equ.api.stoplist.StopListItem;
 import equ.clt.handler.DefaultCashRegisterHandler;
@@ -39,7 +36,7 @@ import static lsfusion.base.BaseUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @SuppressWarnings("SqlDialectInspection")
-public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> {
+public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, CashDocumentBatch> {
 
     protected final static Logger astronLogger = Logger.getLogger("AstronLogger");
     protected final static Logger astronSalesLogger = Logger.getLogger("AstronSalesLogger");

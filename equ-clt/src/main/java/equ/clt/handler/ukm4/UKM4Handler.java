@@ -6,6 +6,7 @@ import equ.api.ItemGroup;
 import equ.api.Payment;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
+import equ.api.cashregister.CashDocumentBatch;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.TransactionCashRegisterInfo;
@@ -29,7 +30,7 @@ import java.util.*;
 import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.trim;
 
-public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
+public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch, CashDocumentBatch> {
 
     String defaultCharset = "Cp1251";
     

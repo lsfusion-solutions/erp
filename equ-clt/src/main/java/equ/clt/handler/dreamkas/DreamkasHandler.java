@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBatch> {
+public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBatch, CashDocumentBatch> {
 
     private static String logPrefix = "Dreamkas: ";
 
@@ -113,12 +113,6 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
             }
         }
         return new CashDocumentBatch(server.cashDocList, null);
-    }
-
-    // Обратная связь: после чтения кассовых документов, отправка на сервер, что данные были приняты
-    @Override
-    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
-
     }
 
     public static String getRangeDatesSubQuery(LocalDateTime dateFrom, LocalDateTime dateTo) {

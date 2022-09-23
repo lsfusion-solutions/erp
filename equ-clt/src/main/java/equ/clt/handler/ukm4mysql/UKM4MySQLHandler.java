@@ -25,7 +25,7 @@ import static equ.clt.handler.HandlerUtils.safeDivide;
 import static equ.clt.handler.HandlerUtils.trim;
 import static lsfusion.base.BaseUtils.nvl;
 
-public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesBatch> {
+public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesBatch, UKM4MySQLCashDocumentBatch> {
 
     private static String logPrefix = "ukm4 mysql: ";
 
@@ -804,8 +804,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
+    public UKM4MySQLCashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
         List<CashDocument> result = new ArrayList<>();
+        Map<String, List<CashDocument>> directoryListCashDocumentMap = new HashMap<>();
 
         UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
         Integer lastDaysCashDocument = ukm4MySQLSettings != null ? ukm4MySQLSettings.getLastDaysCashDocument() : null;
@@ -832,7 +833,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     checkIndex(conn, "shift", "moneyoperation", "cash_id, shift_number");
 
                     Statement statement = conn.createStatement();
-                    String queryString = "select m.cash_id, m.id, m.date, m.type, m.amount, m.shift_number, s.id, s.date from moneyoperation m join shift s on m.shift_number = s.number AND m.cash_id = s.cash_id";
+                    String queryString = "select m.cash_id, m.id, m.date, m.type, m.amount, m.shift_number, s.id, s.date " +
+                                         "from moneyoperation m join shift s on m.shift_number = s.number AND m.cash_id = s.cash_id " +
+                                         "where m.ext_processed = 0";
                     if (lastDaysCashDocument != null) {
                         queryString += " where m.date >='" + LocalDate.now().minusDays(lastDaysCashDocument).format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "'";
                     }
@@ -879,9 +882,39 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     sendSalesLogger.info(logPrefix + params.connectionString + String.format(" found %s CashDocument(s)", cashDocumentList.size()));
             }
             result.addAll(cashDocumentList);
+            directoryListCashDocumentMap.put(directory, cashDocumentList);
 
         }
-        return new CashDocumentBatch(result, null);
+        return new UKM4MySQLCashDocumentBatch(result, directoryListCashDocumentMap);
+    }
+
+    @Override
+    public void finishReadingCashDocumentInfo(UKM4MySQLCashDocumentBatch cashDocumentBatch) {
+        for (Map.Entry<String, List<CashDocument>> entry : cashDocumentBatch.directoryListCashDocumentMap.entrySet()) {
+
+            String directory = entry.getKey();
+            List<CashDocument> cashDocumentList = entry.getValue();
+
+            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
+            if (params.connectionString != null && !cashDocumentList.isEmpty()) {
+
+                try(Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password)) {
+                    conn.setAutoCommit(false);
+                    try(PreparedStatement ps = conn.prepareStatement("UPDATE moneyoperation SET ext_processed = 1 WHERE id = ? AND cash_id = ?")) {
+                        for (CashDocument cashDocument : cashDocumentList) {
+                            ps.setString(1, cashDocument.numberCashDocument); //id
+                            ps.setInt(2, cashDocument.nppMachinery); //cash_id
+                            ps.addBatch();
+                        }
+                        ps.executeBatch();
+                        conn.commit();
+                    }
+
+                } catch (SQLException e) {
+                    throw new RuntimeException("finishReadingCashDocumentInfo failed", e);
+                }
+            }
+        }
     }
 
     @Override
@@ -1062,7 +1095,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 try {
                     sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-                    checkIndices(conn);
+                    checkColumnsAndIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, usePieceCode, machineryMap, cashPayments, cardPayments, giftCardPayments, customPayments,
                             giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, zeroPaymentForZeroSumReceipt,
                             cashRegisterByStoreAndNumber, useLocalNumber, useStoreInIdEmployee, useCashNumberInsteadOfCashId, directory);
@@ -1152,11 +1185,32 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         return paymentMap;
     }
 
-    private void checkIndices(Connection conn) throws SQLException {
+    private void checkColumnsAndIndices(Connection conn) throws SQLException {
+        checkColumn(conn, "receipt", "ext_processed");
+        checkColumn(conn, "moneyoperation", "ext_processed");
+
         checkIndex(conn, "ext_processed_index", "receipt", "ext_processed");
         checkIndex(conn, "receipt", "receipt_item", "cash_id, receipt_header");
         checkIndex(conn, "item", "receipt_item_properties", "cash_id, receipt_item");
         checkIndex(conn, "receipt", "receipt_payment", "cash_id, receipt_header");
+    }
+
+    private void checkColumn(Connection conn, String tableName, String columnName) throws SQLException {
+        try(Statement selectStatement = conn.createStatement()) {
+            String query = String.format("SELECT '%s' FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='%s';", columnName, tableName);
+            ResultSet rs = selectStatement.executeQuery(query);
+
+            while (rs.next()) {
+                boolean columnExists = rs.getInt(1) > 0;
+                if (!columnExists) {
+                    try(Statement createStatement = conn.createStatement()) {
+                        String command = String.format("ALTER TABLE '%s' ADD COLUMN '%s' TINYINT NOT NULL DEFAULT '0';", tableName, columnName);
+                        sendSalesLogger.info(logPrefix + command);
+                        createStatement.execute(command);
+                    }
+                }
+            }
+        }
     }
 
     private void checkIndex(Connection conn, String indexName, String tableName, String fields) throws SQLException {

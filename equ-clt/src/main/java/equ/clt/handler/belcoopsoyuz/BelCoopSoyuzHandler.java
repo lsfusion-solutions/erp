@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import equ.api.Payment;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
+import equ.api.cashregister.CashDocumentBatch;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.TransactionCashRegisterInfo;
@@ -42,7 +43,7 @@ import static equ.clt.handler.DBFUtils.*;
 import static equ.clt.handler.HandlerUtils.copyWithTimeout;
 import static lsfusion.base.file.FTPPath.parseFTPPath;
 
-public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSalesBatch> {
+public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSalesBatch, CashDocumentBatch> {
 
     private FileSystemXmlApplicationContext springContext;
 

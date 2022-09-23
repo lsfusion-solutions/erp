@@ -39,7 +39,7 @@ import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.copyWithTimeout;
 import static equ.clt.handler.HandlerUtils.trim;
 
-public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
+public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDocumentBatch> {
 
     private FileSystemXmlApplicationContext springContext;
     

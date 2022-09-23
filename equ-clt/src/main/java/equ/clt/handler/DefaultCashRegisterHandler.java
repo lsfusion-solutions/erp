@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 
-public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends CashRegisterHandler<S> {
+public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends CashDocumentBatch> extends CashRegisterHandler<S, C> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
@@ -150,8 +150,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
-
+    public void finishReadingCashDocumentInfo(C cashDocumentBatch) {
     }
 
     protected Set<Integer> parsePayments(String payments) {

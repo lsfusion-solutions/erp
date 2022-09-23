@@ -2,6 +2,7 @@ package equ.clt.handler.belcoopsoyuz;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
+import equ.api.cashregister.CashDocumentBatch;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItem;
 import equ.api.cashregister.TransactionCashRegisterInfo;
@@ -18,7 +19,7 @@ import java.util.*;
 import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
 
-public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSQLSalesBatch> {
+public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSQLSalesBatch, CashDocumentBatch> {
 
     private FileSystemXmlApplicationContext springContext;
 

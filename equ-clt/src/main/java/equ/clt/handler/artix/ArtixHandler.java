@@ -43,7 +43,7 @@ import static equ.clt.handler.HandlerUtils.*;
 import static lsfusion.base.BaseUtils.nvl;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
-public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
+public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, CashDocumentBatch> {
 
     private static String logPrefix = "Artix: ";
 

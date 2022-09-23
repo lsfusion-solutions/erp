@@ -20,7 +20,7 @@ import static equ.clt.handler.HandlerUtils.safeAdd;
 import static equ.clt.handler.HandlerUtils.safeSubtract;
 import static lsfusion.base.BaseUtils.nvl;
 
-public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler<Kristal10SalesBatch> {
+public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler<Kristal10SalesBatch, CashDocumentBatch> {
 
     protected static Map<String, Map<String, String>> deleteBarcodeDirectoryMap = new HashMap<>();
     protected FileSystemXmlApplicationContext springContext;

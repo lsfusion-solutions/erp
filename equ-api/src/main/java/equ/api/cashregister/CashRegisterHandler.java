@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public abstract class CashRegisterHandler<S extends SalesBatch> extends MachineryHandler<TransactionCashRegisterInfo, CashRegisterInfo, S> {
+public abstract class CashRegisterHandler<S extends SalesBatch, C extends CashDocumentBatch> extends MachineryHandler<TransactionCashRegisterInfo, CashRegisterInfo, S> {
 
     public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException;
 
@@ -35,7 +35,7 @@ public abstract class CashRegisterHandler<S extends SalesBatch> extends Machiner
 
     public abstract CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException;
 
-    public abstract void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch);
+    public abstract void finishReadingCashDocumentInfo(C cashDocumentBatch);
 
     public abstract void prereadFiles(List<CashRegisterInfo> cashRegisterList);
 
