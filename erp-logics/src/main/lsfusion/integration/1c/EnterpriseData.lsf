@@ -101,6 +101,8 @@ inSending 'Передавать' = ABSTRACT MULTI OVERRIDE BOOLEAN (Configuratio
 in 'Вкл.' = DATA BOOLEAN (Configuration, EnterpriseData);
 WHEN CHANGED (isDeleted(EnterpriseData ed)) AND ed IS EnterpriseData DO in(Configuration c, ed) <- TRUE WHERE inSending(c, ed);
 
+inLocalSending = DATA LOCAL BOOLEAN (Configuration, EnterpriseData); 
+
 skip = ABSTRACT BOOLEAN (Configuration, EnterpriseData);
  
 WHEN SET(inSending(Configuration c, EnterpriseData e) AND NOT packet(c, e) <= idTicket(c)) AND NOT date(e, c) < dateStartExchange(c) DO in(c, e) <- inSending(c, e);
@@ -233,10 +235,11 @@ sendMessage 'Передать' (Configuration c) {
             idSended(c) <- messageNo(c) (+) 1;
             LOCAL f = XMLFILE ();
             beforeSend(c);
+            inLocalSending(c, EnterpriseData e) <- TRUE WHERE in(c, e);
             EXPORT sendMessage OBJECTS configuration = c XML TO f;
             WRITE f() TO sendPath(c);
             isSended(c) <- TRUE;
-            packet(c, EnterpriseData e) <- messageNo(c) WHERE in(c, e);
+            packet(c, EnterpriseData e) <- messageNo(c) WHERE inLocalSending(c, e);
             overSend(c);
             overSend(c, f());
             APPLY;
@@ -532,7 +535,7 @@ META extDeleteObject(objtype, caption, ver)
         PROPERTIES(objtype##Deleted, configuration) IN link IN linkInLink sendUid EXTID caption
         FILTERS sendUid(objtype##Deleted, configuration), EnterpriseData.isDeleted(objtype##Deleted)
         
-        FILTERS in(configuration, objtype##Deleted), NOT skip(configuration, objtype##Deleted)
+        FILTERS inLocalSending(configuration, objtype##Deleted), NOT skip(configuration, objtype##Deleted)
     ;
 END
 
@@ -593,7 +596,7 @@ META extDocument(doctype, caption, ver, deleteCaption)
         PROPERTIES(company###doctype, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
         FILTERS company###doctype = company(doctype, configuration)
         
-        FILTERS in(configuration, doctype) AND NOT skip(configuration, doctype)
+        FILTERS inLocalSending(configuration, doctype) AND NOT skip(configuration, doctype)
     ;
 
     uid###doctype = DATA LOCAL ISTRING[36](INTEGER);
@@ -638,7 +641,7 @@ META extReference(reftype, capt)
     EXTEND FORM sendMessage
         OBJECTS reftype = ###reftype EXTID 'Справочник.'##capt IN bodySend15
         PROPERTIES(reftype, configuration) IN keyProperties sendUid EXTID 'Ссылка'
-        FILTERS in(configuration, reftype), NOT EnterpriseData.isDeleted(reftype)
+        FILTERS inLocalSending(configuration, reftype), NOT EnterpriseData.isDeleted(reftype)
     ;
 
     // receive
