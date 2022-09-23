@@ -883,6 +883,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             if(infoJSON.optBoolean("sendchecktoemail")) {
                 JSONObject options = new JSONObject();
                 options.put("sendchecktoemail", true);
+                options.put("emailconfirmed", true);
                 clientObject.put("options", options);
             }
 
