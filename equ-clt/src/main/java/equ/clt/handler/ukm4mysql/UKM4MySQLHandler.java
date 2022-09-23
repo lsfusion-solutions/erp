@@ -830,7 +830,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 try {
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
-                    checkIndex(conn, "shift", "moneyoperation", "cash_id, shift_number");
+                    checkCashDocumentColumnsAndIndices(conn);
 
                     Statement statement = conn.createStatement();
                     String queryString = "select m.cash_id, m.id, m.date, m.type, m.amount, m.shift_number, s.id, s.date " +
@@ -1095,7 +1095,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 try {
                     sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-                    checkColumnsAndIndices(conn);
+                    checkSalesColumnsAndIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, usePieceCode, machineryMap, cashPayments, cardPayments, giftCardPayments, customPayments,
                             giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, zeroPaymentForZeroSumReceipt,
                             cashRegisterByStoreAndNumber, useLocalNumber, useStoreInIdEmployee, useCashNumberInsteadOfCashId, directory);
@@ -1185,9 +1185,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         return paymentMap;
     }
 
-    private void checkColumnsAndIndices(Connection conn) throws SQLException {
-        checkColumn(conn, "receipt", "ext_processed");
+    private void checkCashDocumentColumnsAndIndices(Connection conn) throws SQLException {
         checkColumn(conn, "moneyoperation", "ext_processed");
+
+        checkIndex(conn, "shift", "moneyoperation", "cash_id, shift_number");
+    }
+
+    private void checkSalesColumnsAndIndices(Connection conn) throws SQLException {
+        checkColumn(conn, "receipt", "ext_processed");
 
         checkIndex(conn, "ext_processed_index", "receipt", "ext_processed");
         checkIndex(conn, "receipt", "receipt_item", "cash_id, receipt_header");
