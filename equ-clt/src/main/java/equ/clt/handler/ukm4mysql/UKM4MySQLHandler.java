@@ -1202,14 +1202,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     private void checkColumn(Connection conn, String tableName, String columnName) throws SQLException {
         try(Statement selectStatement = conn.createStatement()) {
-            String query = String.format("SELECT '%s' FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='%s';", columnName, tableName);
+            String query = String.format("SELECT COUNT(1) ColumnIsThere FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='%s' AND column_name='%s'", tableName, columnName);
             ResultSet rs = selectStatement.executeQuery(query);
 
             while (rs.next()) {
                 boolean columnExists = rs.getInt(1) > 0;
                 if (!columnExists) {
                     try(Statement createStatement = conn.createStatement()) {
-                        String command = String.format("ALTER TABLE '%s' ADD COLUMN '%s' TINYINT NOT NULL DEFAULT '0';", tableName, columnName);
+                        String command = String.format("ALTER TABLE %s ADD COLUMN %s TINYINT NOT NULL DEFAULT '0';", tableName, columnName);
                         sendSalesLogger.info(logPrefix + command);
                         createStatement.execute(command);
                     }
