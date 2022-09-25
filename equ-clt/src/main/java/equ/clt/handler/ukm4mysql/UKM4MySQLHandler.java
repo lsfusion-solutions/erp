@@ -841,7 +841,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                          "from moneyoperation m join shift s on m.shift_number = s.number AND m.cash_id = s.cash_id " +
                                          "where m.ext_processed = 0";
                     if (lastDaysCashDocument != null) {
-                        queryString += " where m.date >='" + LocalDate.now().minusDays(lastDaysCashDocument).format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "'";
+                        queryString += " where m.date >='" + LocalDate.now().minusDays(lastDaysCashDocument).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "'";
                     }
                     ResultSet rs = statement.executeQuery(queryString);
                     LocalTime midnight = LocalTime.of(23, 59, 59);
