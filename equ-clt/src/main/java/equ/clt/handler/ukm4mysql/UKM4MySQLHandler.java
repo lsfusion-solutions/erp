@@ -55,6 +55,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
             try {
 
+                Class.forName("com.mysql.jdbc.Driver");
+
                 UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
                 Integer timeout = nvl(ukm4MySQLSettings.getTimeout(), 300);
                 boolean skipItems = ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
@@ -821,6 +823,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             }
         }
 
+        Class.forName("com.mysql.jdbc.Driver");
+
         for (String directory : directorySet) {
             List<CashDocument> cashDocumentList = new ArrayList<>();
             UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
@@ -936,6 +940,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     Connection conn = null;
                     PreparedStatement ps = null;
                     try {
+                        Class.forName("com.mysql.jdbc.Driver");
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                         int version = getVersion(conn);
@@ -1022,6 +1027,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
         try {
             if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
+                Class.forName("com.mysql.jdbc.Driver");
 
                 UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
                 Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
@@ -1043,7 +1049,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     }
                 }
             }
-        } catch (SQLException e) {
+        } catch (ClassNotFoundException | SQLException e) {
             throw Throwables.propagate(e);
         }
         return true;
@@ -1085,6 +1091,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
 
         try {
+
+            Class.forName("com.mysql.jdbc.Driver");
 
             if (params.connectionString == null) {
                 processTransactionLogger.error("No connectionString found");
@@ -1373,6 +1381,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 try {
                     UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
                     if (params.connectionString != null) {
+                        Class.forName("com.mysql.jdbc.Driver");
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                         String dateFrom = requestExchange.dateFrom.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                         String dateTo = requestExchange.dateTo.plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
