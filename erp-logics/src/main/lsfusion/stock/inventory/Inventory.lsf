@@ -1743,9 +1743,11 @@ backgroundDiffInventoryProp(CollationSheet cs, Sku s) = backgroundDiffInventory(
     (((quantityBalance(cs,s) OR balanceB(s,stock(cs),dateTime(cs))) AND NOT quantityBalance(cs,s)==balanceB(s,stock(cs),dateTime(cs))) OR 
     ((sumBalance(cs,s) OR sumB(s,stock(cs),dateTime(cs))) AND NOT isPrice(inventory(cs)) AND NOT sumBalance(cs,s)==sumB(s,stock(cs),dateTime(cs))));
     
-backgroundDiffInventory(CollationSheet cs, Sku s) = RGB (255,153,153) IF backgroundDiffInventoryProp(cs,s);
-
-
+background 'Цвет' = ABSTRACT CASE COLOR (Sku, Stock, Inventory);
+backgroundDiffInventory(CollationSheet cs, Sku s) = CASE 
+    WHEN backgroundDiffInventoryProp(cs,s) THEN RGB (255,153,153) 
+    ELSE background(s, stock(cs), inventory(cs));
+    
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory PANEL
     PROPERTIES (in)  isBatch, isPrice, isShortageStockDocument, nameNumerator, number, series,
@@ -1772,7 +1774,7 @@ FORM inventory 'Инвентаризация'
     PROPERTIES(pl)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail
 
     OBJECTS          dp=PageInventoryDetail GRID
-    PROPERTIES (dp)  READONLY index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch  SHOWIF isBatch(li),
+    PROPERTIES (dp)  READONLY BACKGROUND background(sku(dp), ds, in) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch  SHOWIF isBatch(li),
                               quantity, price, sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li)
     FILTERS                   in(in, ds, li, pl, dp)
 
