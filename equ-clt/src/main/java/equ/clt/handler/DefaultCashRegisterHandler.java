@@ -223,4 +223,10 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
     protected static boolean isPieceUOM(ItemInfo item) {
         return item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
     }
+
+    //После повышения версии mysql-connector-java до 8.0.30 по идее уже не надо делать Class.forname,
+    //но пока всё равно падает no suitable driver found
+    protected void loadMySQLJDBCDriver() throws ClassNotFoundException {
+        Class.forName("com.mysql.jdbc.Driver");
+    }
 }

@@ -54,7 +54,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
 
             try {
 
-                Class.forName("com.mysql.jdbc.Driver");
+                loadMySQLJDBCDriver();
 
                 EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
                 boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
@@ -169,7 +169,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     Connection conn = null;
                     PreparedStatement ps = null;
                     try {
-                        Class.forName("com.mysql.jdbc.Driver");
+                        loadMySQLJDBCDriver();
                         processStopListLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
@@ -264,7 +264,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                 Connection conn = null;
                 PreparedStatement ps = null;
                 try {
-                    Class.forName("com.mysql.jdbc.Driver");
+                    loadMySQLJDBCDriver();
                     machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     conn.setAutoCommit(false);
@@ -326,7 +326,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
 
         try {
 
-            Class.forName("com.mysql.jdbc.Driver");
+            loadMySQLJDBCDriver();
             EQSConnectionString params = new EQSConnectionString(directory);
 
             if (params.connectionString == null) {
@@ -614,7 +614,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
             Connection conn = null;
             Statement statement = null;
             try {
-                Class.forName("com.mysql.jdbc.Driver");
+                loadMySQLJDBCDriver();
 
                 for (Map.Entry<String, Set<CashRegisterInfo>> directoryCashRegisterEntry : getDirectoryCashRegisterMap(entry).entrySet()) {
                     EQSConnectionString params = new EQSConnectionString(directoryCashRegisterEntry.getKey());
