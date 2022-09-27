@@ -202,6 +202,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         for (RequestExchange entry : requestExchangeList) {
             try {
+                Class.forName("com.mysql.jdbc.Driver");
 
                 for (String directory : getDirectorySet(entry)) {
                     machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", directory));
