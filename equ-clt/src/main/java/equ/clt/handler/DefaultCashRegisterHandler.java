@@ -5,8 +5,12 @@ import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
 import org.apache.log4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.math.BigDecimal;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
@@ -228,5 +232,37 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
     //но пока всё равно падает no suitable driver found
     protected void loadMySQLJDBCDriver() throws ClassNotFoundException {
         Class.forName("com.mysql.jdbc.Driver");
+    }
+
+    protected boolean isFileLocked(File file) {
+        boolean isLocked = false;
+        FileChannel channel = null;
+        FileLock lock = null;
+        try {
+            channel = new RandomAccessFile(file, "rw").getChannel();
+            lock = channel.tryLock();
+            if (lock == null)
+                isLocked = true;
+        } catch (Exception e) {
+            sendSalesLogger.info(e);
+            isLocked = true;
+        } finally {
+            if (lock != null) {
+                try {
+                    lock.release();
+                } catch (Exception e) {
+                    sendSalesLogger.info(e);
+                    isLocked = true;
+                }
+            }
+            if (channel != null)
+                try {
+                    channel.close();
+                } catch (IOException e) {
+                    sendSalesLogger.info(e);
+                    isLocked = true;
+                }
+        }
+        return isLocked;
     }
 }

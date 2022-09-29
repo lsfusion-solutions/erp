@@ -719,7 +719,8 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         if (cashRegister != null) {
                             BigDecimal sum = rs.getBigDecimal("Ck_Summa");
                             String idCashDocument = host + "/" + nppMachinery + "/" + number + "/" + ckNSmena;
-                            if (!cashDocumentSet.contains(idCashDocument))
+                            //убрана проверка, что этот документ ещё не загружен. Если будут проблемы, сделать через finishCashDocumentInfo
+                            //if (!cashDocumentSet.contains(idCashDocument))
                                 result.add(new CashDocument(idCashDocument, number, date, time, cashRegister.numberGroup, nppMachinery, null, sum));
                         }
                     }
@@ -1293,38 +1294,6 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             sendSalesLogger.error("Kristal Error: ", e);
             return null;
         }
-    }
-
-    public static boolean isFileLocked(File file) {
-        boolean isLocked = false;
-        FileChannel channel = null;
-        FileLock lock = null;
-        try {
-            channel = new RandomAccessFile(file, "rw").getChannel();
-            lock = channel.tryLock();
-            if (lock == null)
-                isLocked = true;
-        } catch (Exception e) {
-            sendSalesLogger.info(e);
-            isLocked = true;
-        } finally {
-            if (lock != null) {
-                try {
-                    lock.release();
-                } catch (Exception e) {
-                    sendSalesLogger.info(e);
-                    isLocked = true;
-                }
-            }
-            if (channel != null)
-                try {
-                    channel.close();
-                } catch (IOException e) {
-                    sendSalesLogger.info(e);
-                    isLocked = true;
-                }
-        }
-        return isLocked;
     }
 
     private class Sales {

@@ -19,9 +19,8 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.*;
 import java.math.BigDecimal;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Date;
 import java.sql.Time;
 import java.text.SimpleDateFormat;
@@ -478,16 +477,16 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                 String exchangeDirectory = directory + "/reports/source/";
 
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), encoding));
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(Paths.get(exchangeDirectory + "reports.request")), encoding));
                     if (!stockSet.isEmpty()) {
                         StringBuilder shopsRange = new StringBuilder();
                         for (String stock : stockSet) {
                             shopsRange.append((shopsRange.length() == 0) ? "" : ",").append(stock);
                         }
                         if (stockSet.size() == 1)
-                            writer.write(String.format("shop: %s\n", shopsRange.toString()));
+                            writer.write(String.format("shop: %s\n", shopsRange));
                         else
-                            writer.write(String.format("shopsRange: %s\n", shopsRange.toString()));
+                            writer.write(String.format("shopsRange: %s\n", shopsRange));
                     }
                     Set<CashRegisterInfo> cashRegisterSet = getCashRegisterSet(entry, false);
                     if(!cashRegisterSet.isEmpty()) {
@@ -495,7 +494,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         for (CashRegisterInfo cashRegister : cashRegisterSet) {
                             cashesRange.append((cashesRange.length() == 0) ? "" : ",").append(cashRegister.number);
                         }
-                        writer.write(String.format("%s: %s\n", cashRegisterSet.size() == 1 ? "cash" : "cashesRange", cashesRange.toString()));
+                        writer.write(String.format("%s: %s\n", cashRegisterSet.size() == 1 ? "cash" : "cashesRange", cashesRange));
                     }
                     writer.write(String.format("dateRange: %s-%s\nreport: purchases", dateFrom, dateTo));
                     writer.close();
@@ -1053,7 +1052,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
 
                                             // временно для касс самообслуживания в виталюре
-                                            if (ignoreSalesWeightPrefix && barcode.length() == 13 && barcode.startsWith("22") && !barcode.substring(8, 13).equals("00000") &&
+                                            if (ignoreSalesWeightPrefix && barcode.length() == 13 && barcode.startsWith("22") && !barcode.startsWith("00000", 8) &&
                                                     quantity != null && (quantity.intValue() != quantity.doubleValue() || parseWeight(barcode.substring(7, 12)) == quantity.doubleValue()))
                                                 barcode = barcode.substring(2, 7);
                                         }
@@ -1191,37 +1190,5 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         PrintWriter fw = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), encoding));
         xmlOutput.output(doc, fw);
         fw.close();
-    }
-
-    public static boolean isFileLocked(File file) {
-        boolean isLocked = false;
-        FileChannel channel = null;
-        FileLock lock = null;
-        try {
-            channel = new RandomAccessFile(file, "rw").getChannel();
-            lock = channel.tryLock();
-            if (lock == null)
-                isLocked = true;
-        } catch (Exception e) {
-            sendSalesLogger.info(e);
-            isLocked = true;
-        } finally {
-            if (lock != null) {
-                try {
-                    lock.release();
-                } catch (Exception e) {
-                    sendSalesLogger.info(e);
-                    isLocked = true;
-                }
-            }
-            if (channel != null)
-                try {
-                    channel.close();
-                } catch (IOException e) {
-                    sendSalesLogger.info(e);
-                    isLocked = true;
-                }
-        }
-        return isLocked;
     }
 }
