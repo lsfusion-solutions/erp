@@ -1,6 +1,8 @@
 package equ.clt.handler.cas;
 
 import equ.api.scales.ScalesItem;
+import lsfusion.base.file.RawFileData;
+import lsfusion.base.file.WriteUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -26,9 +28,13 @@ public class CL7000Handler extends CL5000JHandler {
     }
 
     @Override
-    protected String sendTouchPlu(DataSocket socket, int pluNumber) throws IOException {
+    protected String sendTouchPlu(DataSocket socket, RawFileData itemImage, int pluNumber) throws IOException {
         Short dept = 1;
         String imageName = pluNumber + ".jpg";
+
+        if(itemImage != null) {
+            WriteUtils.storeFileToFTP("cas:cascl7200@" + socket.ip + "/image/" + imageName, itemImage, null);
+        }
 
         //10 + 2 bytes; 01.57,2 - ptype = 1, stype = W, data size = 2
         String deptRecord = "F=01.57,2:";
@@ -241,6 +247,7 @@ public class CL7000Handler extends CL5000JHandler {
         try {
             final Future<byte[]> future = Executors.newSingleThreadExecutor().submit((Callable) () -> {
                 byte[] buffer = new byte[1024];
+                //noinspection ResultOfMethodCallIgnored
                 socket.inputStream.read(buffer);
 
                 return ArrayUtils.subarray(buffer, ArrayUtils.indexOf(buffer, (byte) ':') + 1, buffer.length);

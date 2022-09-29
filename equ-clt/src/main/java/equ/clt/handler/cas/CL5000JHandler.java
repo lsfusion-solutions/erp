@@ -9,7 +9,7 @@ import equ.api.stoplist.StopListInfo;
 import equ.clt.handler.HandlerUtils;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
+import lsfusion.base.file.RawFileData;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -101,7 +101,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
                                     localErrors.add(getLogPrefix() + String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply)));
                                     globalError++;
                                 } else {
-                                    String errorTouch = sendTouchPlu(socket, pluNumber);
+                                    String errorTouch = sendTouchPlu(socket, item.itemImage, pluNumber);
                                     if (errorTouch != null) {
                                         localErrors.add(getLogPrefix() + String.format("Send item touch %s failed. Error: %s\n", pluNumber, errorTouch));
                                         globalError++;
@@ -252,7 +252,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
         }
     }
 
-    protected String sendTouchPlu(DataSocket socket, int pluNumber) throws IOException {
+    protected String sendTouchPlu(DataSocket socket, RawFileData itemImage, int pluNumber) throws IOException {
         return null;
     }
 
