@@ -315,7 +315,12 @@ products 'products' (DATE d, BOOLEAN single) {
         additional_7 = additional_7(s),
         additional_8 = additional_8(s),       
         additional_9 = additional_9(s),    
-        additional_10 = additional_10(s)                      
+        additional_10 = additional_10(s),   
+        additional_11 = '' IF s IS Sku,
+        additional_12 = '' IF s IS Sku,
+        additional_13 = '' IF s IS Sku,
+        additional_14 = '' IF s IS Sku         
+                           
         WHERE filterABM(s);
         
     sentABM(d,single,currentDateTime(),'products_', NULL, NULL);  
@@ -475,6 +480,7 @@ facts 'facts' (DATE d, BOOLEAN single) {
             in_manufacture = (MAX in_manufacture(s,st),0.0), 
             out_manufacture = (MAX out_manufacture(s,st),0.0), 
             out_write_off = (MAX out_write_off(s,st),0.0), 
+            pto = 0,
             season_erp = season_erp(s,st),
             out_dsale = out_dsale(s,st)           
             WHERE filterABM(s, st);
@@ -615,8 +621,10 @@ schedules 'schedules' (DATE d, BOOLEAN single) {
         olt_su = olt_su(st,l,s),
         period = period(st,l,s),
         frequency = frequency(st,l,s),
-        begin_date = begin_date(st,l,s),
+        begin_date = (OVERRIDE begin_date(st,l,s), ''),
         auto_send = auto_send(st,l,s),
+        emails = '' IF st IS Stock AND l IS LegalEntity AND s IS Separation,
+        delivery_slot = '' IF st IS Stock AND l IS LegalEntity AND s IS Separation,
         comment = comment(st,l,s)  
     WHERE filterABM(st,l,s);
     sentABM(d,single,currentDateTime(),'schedules_', NULL, NULL);          
