@@ -177,19 +177,24 @@ sendABMSelected 'Отмеченные файлы за период' ABSTRACT LIS
 
 TABLE abmSelected() NODEFAULT;
 META sendABM(action)
+    skipABM###action = ABSTRACT BOOLEAN ();
     sentABM(DATE d, BOOLEAN single)+{
-        action(d,single);
+        IF NOT skipABM###action() THEN {
+            action(d,single);
+        }
     } 
     toSend###action '' = DATA BOOLEAN () TABLE abmSelected;
     sendABMSelected(DATE df, DATE dt, BOOLEAN single)+{
         IF toSend###action() THEN {
-            FOR iterate(DATE d, df, dt) DO {
-                action(d,single);
+            IF NOT skipABM###action() THEN {
+                FOR iterate(DATE d, df, dt) DO {
+                    action(d,single);
+                }
             }
         }
     }
     EXTEND FORM integrationData
-        PROPERTIES toSend###action(), action(d, single);
+        PROPERTIES SHOWIF (NOT skipABM###action()) toSend###action(), action(d, single) ;
     DESIGN integrationData {
         buttons{
             NEW action###button{
