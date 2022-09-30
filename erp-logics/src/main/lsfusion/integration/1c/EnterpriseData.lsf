@@ -102,6 +102,7 @@ in 'Вкл.' = DATA BOOLEAN (Configuration, EnterpriseData);
 WHEN CHANGED (isDeleted(EnterpriseData ed)) AND ed IS EnterpriseData DO in(Configuration c, ed) <- TRUE WHERE inSending(c, ed);
 
 inLocalSending = DATA LOCAL BOOLEAN (Configuration, EnterpriseData); 
+prevPacket = DATA LOCAL INTEGER (Configuration, EnterpriseData);
 
 skip = ABSTRACT BOOLEAN (Configuration, EnterpriseData);
  
@@ -234,16 +235,22 @@ sendMessage 'Передать' (Configuration c) {
         TRY {
             idSended(c) <- messageNo(c) (+) 1;
             LOCAL f = XMLFILE ();
+            inLocalSending(c, EnterpriseData e) <- NULL WHERE e IS EnterpriseData;
             beforeSend(c);
             inLocalSending(c, EnterpriseData e) <- TRUE WHERE in(c, e);
+            prevPacket(c, EnterpriseData e) <- packet(c, e) WHERE inLocalSending(c, e);
+            packet(c, EnterpriseData e) <- messageNo(c) WHERE inLocalSending(c, e);
+            APPLY NESTED LOCAL;
             EXPORT sendMessage OBJECTS configuration = c XML TO f;
             WRITE f() TO sendPath(c);
             isSended(c) <- TRUE;
-            packet(c, EnterpriseData e) <- messageNo(c) WHERE inLocalSending(c, e);
+//            packet(c, EnterpriseData e) <- messageNo(c) WHERE inLocalSending(c, e);
             overSend(c);
             overSend(c, f());
-            APPLY;
+            APPLY NESTED LOCAL;
         } CATCH {
+            packet(c, EnterpriseData e) <- prevPacket(c, e) WHERE inLocalSending(c, e);
+            APPLY;
             MESSAGE System.messageCaughtException();
             NEWSESSION APPLY { isSended(c) <- NULL; }
             CANCEL;
