@@ -249,7 +249,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                 //parent: good
                                 Element secondPriceEntry = new Element("price-entry");
                                 setAttribute(secondPriceEntry, "price", secondPrice);
-                                setAttribute(secondPriceEntry, "deleted", "false");
+                                setAttribute(secondPriceEntry, "deleted", String.valueOf(secondPriceDeleted));
                                 addStringElement(secondPriceEntry, "begin-date", secondPriceBeginDate != null ? secondPriceBeginDate : currentDate());
                                 if(secondPriceEndDate != null) {
                                     addStringElement(secondPriceEntry, "end-date", secondPriceEndDate);
