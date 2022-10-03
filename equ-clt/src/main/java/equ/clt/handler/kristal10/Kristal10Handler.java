@@ -915,7 +915,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             Map<String, Object> receiptExtraFields = getReceiptExtraFields(purchaseNode);
 
-                            BigDecimal sumCash = BigDecimal.ZERO;
+                            BigDecimal sumCash = null;
                             BigDecimal sumGiftCard = BigDecimal.ZERO;
                             Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
                             List<Payment> payments = new ArrayList<>();
@@ -983,7 +983,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                 }
                             }
 
-                            payments.add(Payment.getCash(sumCash));
+                            if(sumCash != null) {
+                                payments.add(Payment.getCash(sumCash));
+                            }
 
                             String discountCard = getDiscountCardNumber(purchaseNode);
 
