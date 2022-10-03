@@ -109,8 +109,11 @@ WHEN SETCHANGED(nameIssuanceAllowed(invoice(EInvoice e))) AND NOT (CHANGED(conta
 WHEN SETCHANGED(forwarder(invoice(EInvoice e))) AND NOT (CHANGED(deliveryContact(e)))  DO {
     deliveryContact(e) <- STRING[150](forwarder(invoice(e)));
 }
+
+overProxyID = ABSTRACT STRING[70] (EInvoice);
+
 WHEN SETCHANGED(warrant(invoice(EInvoice e))) AND NOT (CHANGED(proxyID(e)))  DO {
-    proxyID(e) <- STRING[70](warrant(invoice(e)));
+    proxyID(e) <- OVERRIDE overProxyID(e), STRING[70](warrant(invoice(e)));
 }
 WHEN SETCHANGED(warrantHolder(invoice(EInvoice e))) AND NOT (CHANGED(partyIssuingProxyName(e)))  DO {
     partyIssuingProxyName(e) <- STRING[175](warrantHolder(invoice(e)));
