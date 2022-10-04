@@ -41,12 +41,12 @@ changeCodeCustomsGroup(Country country, Item item)  {
             }
         }
     } ELSE {
-        DIALOG customsGroups OBJECTS cz = customsZone(country), cg = customsGroup(country, item) CHANGE;
+        DIALOG customsGroups OBJECTS cz = customsZone(country), cg = customsGroup(country, item) CHANGE LIST code(cg);
     }
 }
 
 changeCustomsGroupDefaultCountry(Item item)  { 
-    DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = customsGroup(defaultCountry(), item) INPUT NULL DO 
+    DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = customsGroup(defaultCountry(), item) INPUT NULL LIST code(cg) DO 
         customsGroup(Country country, item) <- cg WHERE country == defaultCountry();
 }
 
@@ -63,7 +63,7 @@ dataValueVATCustomsException 'Льгота НДС, %' (Country country, Item ite
 rangeVATCustomsException(Country country, Item item) = range(VATCustomsException(country, item));
 
 changeCustomsExceptionDefaultCountry(Item item)  { 
-    DIALOG VATCustomsExceptions OBJECTS vce = VATCustomsException(defaultCountry(), item) INPUT NULL DO
+    DIALOG VATCustomsExceptions OBJECTS vce = VATCustomsException(defaultCountry(), item) INPUT NULL LIST name(vce) DO
         VATCustomsException(Country country, item) <- vce WHERE country == defaultCountry();
 }
 
@@ -85,7 +85,7 @@ DESIGN options{
 }
 
 changeCustomsGroup(Country country, Item item, DATE date)  { 
-    DIALOG customsGroups OBJECTS cg = customsGroup(country, item) INPUT NULL DO {
+    DIALOG customsGroups OBJECTS cg = customsGroup(country, item) INPUT NULL LIST code(cg) DO {
         customsGroup(country, item) <- cg;
         IF NOT customsGroup(VATCustomsException(country, item)) == cg THEN
             VATCustomsException(country, item) <- NULL;
@@ -98,7 +98,7 @@ changeCustomsGroup(Country country, Item item, DATE date)  {
 }
 
 changeVATCustomsException(Country country, Item item, DATE date)  { 
-    DIALOG VATCustomsExceptions OBJECTS cg = customsGroup(country, item), vce = VATCustomsException(country, item) INPUT NULL DO {
+    DIALOG VATCustomsExceptions OBJECTS cg = customsGroup(country, item), vce = VATCustomsException(country, item) INPUT NULL LIST name(vce) DO {
         VATCustomsException(country, item) <- vce;
         VAT(item, country) <- IF vce IS VATCustomsException THEN
                                             rangeVATCustomsException(country, item)
