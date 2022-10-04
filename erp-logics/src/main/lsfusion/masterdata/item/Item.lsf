@@ -1138,18 +1138,18 @@ META defineItemFilterValue(object, captionProp, o)
     ;
     DESIGN object##s###session { BOX { size = (600, 400); } }    
   
-    add###object 'Добавить'(ItemGroup gg)  { 
+    add###object 'Добавить'(ItemGroup gg)  {  // кнопка + в выпадающем списке работает мимо всего этого
         DIALOG object###session OBJECTS gg = gg, v INPUT DO {
             LOCAL loc = ###object();
             LOCAL localName = ISTRING[100]();
             localName() <- IF trimAttributes() THEN trim(v) ELSE v;
             NEWSESSION NESTED (localName, loc) {
                 IF object##Name(localName()) THEN {
-                    dataIn(###object t, gg) <- TRUE WHERE  t == object##Name(localName());
+                    dataIn(###object t, gg) <- TRUE WHERE t == object##Name(localName()) AND countDataItemGroup(t);
                 } ELSE {
                     NEW p = ###object {
                         name(p) <- localName();
-                        dataIn(p, gg) <- TRUE;
+                        dataIn(p, gg) <- TRUE IF [GROUP SUM 1 IF countDataItemGroup(###object pp)]();
                         loc() <- p;
                     }
                 }
