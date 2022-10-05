@@ -78,11 +78,11 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
             LOCAL xml = XMLFILE();
             EXPORT receiveMessagesRequest OBJECTS login = login, password = password XML TO xml;
             sendRequestEDI(url, xml());
-            logToFile('edi', provider + ' ReceiveMessages request sent');
+            logToFile('edi', provider + ' (' + login + ') (' + login + ') ReceiveMessages request sent');
             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'GetDocumentsResponse');
             IF requestError() THEN {
-                logToFile('edi', provider + ' ReceiveMessages: ' + requestError());
-                MESSAGE  provider + ' Сообщения не получены: ' + requestError() NOWAIT;
+                logToFile('edi', provider + ' (' + login + ') ReceiveMessages: ' + requestError());
+                MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
             } ELSE {
                 LOCAL cdata = TEXT(INTEGER);
                 IMPORT XML ROOT 'GetDocumentsResponse' FROM sendRequestEDIResponse() TO cdata ='Data';
@@ -108,14 +108,14 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 blrdnrCount() <- 0;
                 blradfCount() <- 0;
                 
-                logToFile('edi', provider + ' ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
+                logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
                 
                 FOR documentType(INTEGER i) ORDER getWord(id(i), '_', 2), id(i), i DO {
                     IF archiveDir THEN {
                         TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                         WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                     }
-                    logToFile('edi', provider + ' Check Message type:' + documentType(i) + ' id:' + id(i));
+                    logToFile('edi', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i));
                     beforeOverReceiveMessages(i, login, archiveDir);
                     overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices, provider);
                 }
@@ -147,11 +147,11 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
             }
      
         } ELSE {
-            logToFile('edi', provider + ' ReceiveMessages: не заданы имя пользователя / пароль / хост / порт');
-            MESSAGE  provider + ' Сообщения не получены: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+            logToFile('edi', provider + ' (' + login + ') ReceiveMessages: не заданы имя пользователя / пароль / хост / порт');
+            MESSAGE  provider + ' (' + login + ') Сообщения не получены: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
         }
     } CATCH {
-        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
         MESSAGE  'Сообщения не получены. Обратитесь к администратору' NOWAIT;
     }
 }
@@ -260,37 +260,37 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     EXPORT envelope XML TO xml;
                                     //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
                                     sendRequestEDI(url, xml());
-                                    logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
                                     importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                     IF requestError() THEN {
                                         sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                        logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                                        MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                                        MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
                                     } ELSE {
-                                        logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
                                     }
                                 }
-                                logToFile('edi', provider + ' Import EOrderMessage ' + id(i) + ' failed: ' + applyMessage());
+                                logToFile('edi', provider + ' (' + login + ') Import EOrderMessage ' + id(i) + ' failed: ' + applyMessage());
                                 orderMessagesFailed() <- orderMessagesFailed() + 1;
                             } ELSE {
                                 IF NOT disableConfirmation THEN {
                                     LOCAL xml = XMLFILE();
                                     EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
                                     sendRequestEDI(url, xml());
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                     importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                     IF requestError() THEN {
-                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                        MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                        MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                     } ELSE {
                                         IF archiveDir THEN {
                                             TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                             WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                         }
-                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                     }
                                 }
-                                logToFile('edi', provider + ' Import EOrderMessage ' + id(i) + ' succeeded');
+                                logToFile('edi', provider + ' (' + login + ') Import EOrderMessage ' + id(i) + ' succeeded');
                                 orderMessagesSucceeded() <- orderMessagesSucceeded() + 1;
                             }
                         }
@@ -298,22 +298,22 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 }
                 //неплохо бы ORDRSP принимать к тому заказу к кторому он относится, но пока просто помечаем как обработанный
                 WHEN documentType() == 'SYSTEMMESSAGE' OR documentType() == 'ORDRSP' THEN {
-                    logToFile('edi', provider + ' Parse Order Message ' + id(i) + ' skipped for documentType ' + documentType());
+                    logToFile('edi', provider + ' (' + login + ') Parse Order Message ' + id(i) + ' skipped for documentType ' + documentType());
                     IF NOT disableConfirmation THEN {
                         LOCAL xml = XMLFILE();
                         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
                         sendRequestEDI(url, xml());
-                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                         IF requestError() THEN {
-                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                            MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                         } ELSE {
                             IF archiveDir THEN {
                                 TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                 WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             }
-                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                         }
                     }
                     orderMessagesFailed() <- orderMessagesFailed() + 1;
@@ -334,23 +334,23 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         EXPORT envelope XML TO xml;
                         //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
                         sendRequestEDI(url, xml());
-                        logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                         IF requestError() THEN {
                             sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                            logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                            MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                            MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
                         } ELSE {
-                            logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
                         }
                         orderMessagesFailed() <- orderMessagesFailed() + 1;
                     }
-                    logToFile('edi', provider + ' Parse Order Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
+                    logToFile('edi', provider + ' (' + login + ') Parse Order Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
                 }
         } CATCH {
             IF NOT disableConfirmation AND sendReplies THEN {
                 LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
+                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' (' + login + ') Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
                 fileToString(contentSubXML());
                 encodeBase64(resultString());
                 LOCAL xml = XMLFILE();
@@ -363,17 +363,17 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 EXPORT envelope XML TO xml;
                 //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
                 sendRequestEDI(url, xml());
-                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {
                     sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                    MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
                 } ELSE {
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
                 }
             }
-            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             orderMessagesFailed() <- orderMessagesFailed() + 1;
         }
@@ -442,37 +442,37 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         EXPORT envelope XML TO xml;
                                         //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
                                         sendRequestEDI(url, xml());
-                                        logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                         IF requestError() THEN {
                                             sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                            logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                                            MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                                            MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
                                         } ELSE {
-                                            logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
                                         }
                                     }
-                                    logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
+                                    logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
                                     invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                                 } ELSE {
                                     IF NOT disableConfirmation THEN {
                                         LOCAL xml = XMLFILE();
                                         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
                                         sendRequestEDI(url, xml());
-                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                         IF requestError() THEN {
-                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                            MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                         } ELSE {
                                             IF archiveDir THEN {
                                                 TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                                 WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                             }
-                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                         }
                                     }
-                                    logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' succeeded');
+                                    logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
                                     invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
                                 }
                             }
@@ -483,17 +483,17 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 LOCAL xml = XMLFILE();
                                 EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
                                 sendRequestEDI(url, xml());
-                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                 IF requestError() THEN {
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                    MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                 } ELSE {
                                     IF archiveDir THEN {
                                         TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                         WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                     }
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                 }
                             }
                         } ELSE {
@@ -512,50 +512,50 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 EXPORT envelope XML TO xml;
                                 //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
                                 sendRequestEDI(url, xml());
-                                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
                                     sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                                    MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
                                 } ELSE {
-                                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
                                 }
                             }
                         }
-                        logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' failed: ' + 'EInvoice ' + (OVERRIDE documentNumber(), 'NULL') + ' not found');
+                        logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + 'EInvoice ' + (OVERRIDE documentNumber(), 'NULL') + ' not found');
                         invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                     }
                 }
                 WHEN documentType() == 'BLRAPN' OR documentType() == 'SYSTEMMESSAGE' THEN {
-                    logToFile('edi', provider + ' Parse Invoice Message ' + id(i) + ' skipped for documentType ' + documentType());
+                    logToFile('edi', provider + ' (' + login + ') Parse Invoice Message ' + id(i) + ' skipped for documentType ' + documentType());
                     IF NOT disableConfirmation THEN {
                         LOCAL xml = XMLFILE();
                         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
                         sendRequestEDI(url, xml());
-                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                         IF requestError() THEN {
-                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                            MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                         } ELSE {
                             IF archiveDir THEN {
                                 TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                 WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             }
-                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                         }
                     }
                     invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                 }
                 ELSE {
-                    logToFile('edi', provider + ' Parse Invoice Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
+                    logToFile('edi', provider + ' (' + login + ') Parse Invoice Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
                 }
             }
         } CATCH {
             IF NOT disableConfirmation AND sendReplies THEN {
                 LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
+                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' (' + login + ') Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
                 fileToString(contentSubXML());
                 encodeBase64(resultString());
                 LOCAL xml = XMLFILE();
@@ -568,17 +568,17 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 EXPORT envelope XML TO xml;
                 //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
                 sendRequestEDI(url, xml());
-                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {
                     sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                    MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
                 } ELSE {
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
                 }
             }
-            logToFile('edi', CONCAT '\n', provider + ' Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
         }
@@ -704,17 +704,17 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         envelopeContent() <- encodedBase64();
                                         EXPORT envelope XML TO xml;
                                         sendRequestEDI(url, xml());
-                                        logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                         IF requestError() THEN {
                                             sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                            logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                                            MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                                            MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
                                         } ELSE {
-                                            logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
                                         }
                                     }
-                                    logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
+                                    logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
                                     invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                                 } ELSE {
                                     IF code(m) == '2750' AND (type(m) == EInvoiceMessageType.blrapn_blrwbl OR type(m) == EInvoiceMessageType.blrapn_blrdln) THEN {
@@ -743,7 +743,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                 
                                                 getSignedDocumentSupplier(provider, eInvoice(m), contentSubXML(), NULL);
                                                 IF signError() THEN {
-                                                    logToFile('edi', provider + ' Parse Message ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(eInvoice(m)) + ' не подписан. Ошибка: ' + signError());
+                                                    logToFile('edi', provider + ' (' + login + ') Parse Message ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(eInvoice(m)) + ' не подписан. Ошибка: ' + signError());
                                                 } ELSE IF signResult() THEN {
                                                     LOCAL ixml = XMLFILE();
                                                     envelopeLogin() <- login;
@@ -758,31 +758,31 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                     envelopeContent() <- signResult();
                                                     EXPORT envelope XML TO ixml;
                                                     sendRequestEDI(url, ixml());
-                                                    logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(eInvoice(m)) +' request sent');
+                                                    logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(eInvoice(m)) +' request sent');
                                                     importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                                     IF requestError() THEN {
-                                                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(eInvoice(m)) + ': ' + requestError());
-                                                        MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(eInvoice(m)) + ' не выгружено: ' + requestError() NOWAIT;
+                                                        logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(eInvoice(m)) + ': ' + requestError());
+                                                        MESSAGE provider + ' (' + login + ') Извещение о прочтении накладной ' + deliveryNoteNumber(eInvoice(m)) + ' не выгружено: ' + requestError() NOWAIT;
                                                     } ELSE {
-                                                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(eInvoice(m)) + ' request succeeded');
+                                                        logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(eInvoice(m)) + ' request succeeded');
                                                         IF NOT disableConfirmation THEN {
                                                             LOCAL cxml = XMLFILE();
                                                             EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
                                                             sendRequestEDI(url, cxml());
-                                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                                             IF requestError() THEN {
-                                                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                                                MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                                                MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                                             } ELSE {
                                                                 IF archiveDir THEN {
                                                                     TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                                                     WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                                                 }
-                                                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                                             }
                                                         }
-                                                        logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' succeeded');
+                                                        logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
                                                         invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
                                                         NEWSESSION NESTED LOCAL {
                                                             exportedBlrapnSupplier(eInvoice(m)) <- TRUE;
@@ -800,27 +800,27 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                                     }
                                                 }
                                             } ELSE {
-                                                logToFile('edi', provider + ' Parse Message ' + id(i) + ' error: не заданы параметры EDSService');
+                                                logToFile('edi', provider + ' (' + login + ') Parse Message ' + id(i) + ' error: не заданы параметры EDSService');
                                             }
                                         } ELSE {
                                             IF NOT disableConfirmation THEN {
                                                 LOCAL cxml = XMLFILE();
                                                 EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
                                                 sendRequestEDI(url, cxml());
-                                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                                 IF requestError() THEN {
-                                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                                    MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                                 } ELSE {
                                                     IF archiveDir THEN {
                                                         TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                                         WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                                     }
-                                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                                 }
                                             }
-                                            logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' succeeded');
+                                            logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
                                             invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
                                         }
                                     } ELSE {
@@ -828,20 +828,20 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                             LOCAL xml = XMLFILE();
                                             EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
                                             sendRequestEDI(url, xml());
-                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                             IF requestError() THEN {
-                                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                                MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                                MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                             } ELSE {
                                                 IF archiveDir THEN {
                                                     TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                                     WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                                 }
-                                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                             }
                                         }
-                                        logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' succeeded');
+                                        logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
                                         invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
                                     }
                                 }
@@ -864,24 +864,24 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         EXPORT envelope XML TO xml;
                         //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
                         sendRequestEDI(url, xml());
-                        logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                         IF requestError() THEN {
                             sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                            logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                            MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                            MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
                         } ELSE {
-                            logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
                         }
                     }
-                    logToFile('edi', provider + ' Parsing EInvoiceMessage ' + id(i) + ' failed');
+                    logToFile('edi', provider + ' (' + login + ') Parsing EInvoiceMessage ' + id(i) + ' failed');
                     invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                 }
             }
         } CATCH {
             IF NOT disableConfirmation AND sendReplies THEN {
                 LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
+                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' (' + login + ') Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
                 fileToString(contentSubXML());
                 encodeBase64(resultString());
                 LOCAL xml = XMLFILE();
@@ -893,17 +893,17 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 envelopeContent() <- encodedBase64();
                 EXPORT envelope XML TO xml;
                 sendRequestEDI(url, xml());
-                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {
                     sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                    MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
                 } ELSE {
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
                 }
             }
-            logToFile('edi', CONCAT '\n', provider + ' Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
         }

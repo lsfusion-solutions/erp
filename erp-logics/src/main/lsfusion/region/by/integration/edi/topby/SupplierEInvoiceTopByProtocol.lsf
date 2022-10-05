@@ -55,7 +55,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         IF EDSServiceSupplier(provider,ei) THEN {
                             getSignedDocumentSupplier(provider, ei, contentSubXML(), NULL);
                             IF signError() THEN {
-                                logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
+                                logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
                             }
                             ELSE IF signResult() THEN {
                                 LOCAL ixml = XMLFILE();
@@ -71,28 +71,28 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 envelopeContent() <- signResult();
                                 EXPORT envelope XML TO ixml;
                                 sendRequestEDI(url, ixml());
-                                logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                                logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
-                                    logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
-                                    MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + requestError() NOWAIT;
+                                    logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
+                                    MESSAGE provider + ' (' + login + ') Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + requestError() NOWAIT;
                                 } ELSE {
-                                    logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                                    logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
                                     IF NOT disableConfirmation THEN {
                                         LOCAL cxml = XMLFILE();
                                         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
                                         sendRequestEDI(url, cxml());
-                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                         IF requestError() THEN {
-                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                            MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                         } ELSE {
                                             IF archiveDir THEN {
                                                 TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                                 WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                             }
-                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                         }
                                     }
                                     blrwbrCount() <- blrwbrCount() + 1;
@@ -117,24 +117,24 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 }
                             }
                         } ELSE {
-                            logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: не заданы параметры EDSService');
+                            logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' error: не заданы параметры EDSService');
                         }
                     } ELSE {
                         IF NOT disableConfirmation THEN {
                             LOCAL cxml = XMLFILE();
                             EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
                             sendRequestEDI(url, cxml());
-                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                             IF requestError() THEN {
-                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                             } ELSE {
                                 IF archiveDir THEN {
                                     TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                     WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                 }
-                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                             }
                         }
                         blrwbrCount() <- blrwbrCount() + 1;
@@ -152,8 +152,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 }
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-            MESSAGE  'Ошибка при импорте накладной ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Ошибка при импорте накладной ' + id(i) +'. Обратитесь к администратору' NOWAIT;
         }
     }
 }
@@ -210,7 +210,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             getSignedDocumentSupplier(provider, ei, contentSubXML(), NULL);
                             LOCAL xml = FILE();
                             IF signError() THEN {
-                                logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
+                                logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
                             }
                             ELSE IF signResult() THEN {
                                 LOCAL ixml = XMLFILE();
@@ -226,28 +226,28 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 envelopeContent() <- signResult();
                                 EXPORT envelope XML TO ixml;
                                 sendRequestEDI(url, ixml());
-                                logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                                logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
-                                    logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
-                                    MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + requestError() NOWAIT;
+                                    logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
+                                    MESSAGE provider + ' (' + login + ') Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + requestError() NOWAIT;
                                 } ELSE {
-                                    logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                                    logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
                                     IF NOT disableConfirmation THEN {
                                         LOCAL cxml = XMLFILE();
                                         EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
                                         sendRequestEDI(url, cxml());
-                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                                         IF requestError() THEN {
-                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                            MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                         } ELSE {
                                             IF archiveDir THEN {
                                                 TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                                 WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                             }
-                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                         }
                                     }
                                     blrdnrCount() <- blrdnrCount() + 1;
@@ -272,24 +272,24 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 }
                             }
                         } ELSE {
-                            logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: не заданы параметры EDSService');
+                            logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' error: не заданы параметры EDSService');
                         }
                     } ELSE {
                         IF NOT disableConfirmation THEN {
                             LOCAL cxml = XMLFILE();
                             EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
                             sendRequestEDI(url, cxml());
-                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
                             IF requestError() THEN {
-                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                             } ELSE {
                                 IF archiveDir THEN {
                                     TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                                     WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                 }
-                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                             }
                         }
                         blrdnrCount() <- blrdnrCount() + 1;
@@ -307,8 +307,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 }
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-            MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
         }
     }
 }
@@ -475,8 +475,8 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                         
                         getSignedDocumentSupplier(provider, ei, contentSubXML(), TRUE);
                         IF signError() THEN {
-                            logToFile('edi', provider + ' SendEInvoice error: BLRWBL ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
-                            MESSAGE provider + ' Накладная не выгружена: BLRWBL ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') SendEInvoice error: BLRWBL ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + login + ') Накладная не выгружена: BLRWBL ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                         }
                         ELSE IF signResult() THEN {
                             LOCAL ixml = XMLFILE();
@@ -492,14 +492,14 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                             envelopeContent() <- signResult();
                             EXPORT envelope XML TO ixml;
                             sendRequestEDI(url, ixml());
-                            logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                            logToFile('edi', provider + ' (' + login + ') SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                             IF requestError() THEN {
-                                logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
-                                MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + ' не выгружена: ' + requestError() NOWAIT;
+                                logToFile('edi', provider + ' (' + login + ') SendEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
+                                MESSAGE provider + ' (' + login + ') Накладная ' + deliveryNoteNumber(ei) + ' не выгружена: ' + requestError() NOWAIT;
                             } ELSE {
-                                logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
-                                MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
+                                logToFile('edi', provider + ' (' + login + ') SendEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                                MESSAGE provider + ' (' + login + ') Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
                                 //NEWSESSION NESTED LOCAL {
                                     exportedSupplier(ei) <- TRUE;
                                     numberSupplier(ei) <- STRING[35](resultMilliseconds());
@@ -509,25 +509,25 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                             }
                         }
                     } ELSE {
-                        logToFile('edi', provider + ' SendEInvoice: Не все поля заполнены. ' + error());
-                        MESSAGE provider + ' Накладная не выгружена: Не все поля заполнены ' + error() NOWAIT;
+                        logToFile('edi', provider + ' (' + login + ') SendEInvoice: Не все поля заполнены. ' + error());
+                        MESSAGE provider + ' (' + login + ') Накладная не выгружена: Не все поля заполнены ' + error() NOWAIT;
                     }
                     
                 } ELSE {
-                    logToFile('edi', provider + ' SendEInvoice: не заданы параметры EDSService');
-                    MESSAGE provider + ' Накладная не выгружена: не заданы параметры EDSService' NOWAIT;
+                    logToFile('edi', provider + ' (' + login + ') SendEInvoice: не заданы параметры EDSService');
+                    MESSAGE provider + ' (' + login + ') Накладная не выгружена: не заданы параметры EDSService' NOWAIT;
                 }
             } ELSE {
-                logToFile('edi', provider + ' SendEInvoice: не заданы имя пользователя / пароль / хост / порт');
-                MESSAGE provider + ' Накладная не выгружена: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+                logToFile('edi', provider + ' (' + login + ') SendEInvoice: не заданы имя пользователя / пароль / хост / порт');
+                MESSAGE provider + ' (' + login + ') Накладная не выгружена: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
             MESSAGE 'Накладная не выгружена. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
-        logToFile('edi', provider + ' error: ' + 'SendEInvoice disabled, change serverComputer() to enable');
-        MESSAGE  provider + ' error: ' + 'SendEInvoice disabled, change serverComputer() to enable' NOWAIT;
+        logToFile('edi', provider + ' (' + login + ') error: ' + 'SendEInvoice disabled, change serverComputer() to enable');
+        MESSAGE provider + ' (' + login + ') error: ' + 'SendEInvoice disabled, change serverComputer() to enable' NOWAIT;
     }
 }
 
@@ -663,8 +663,8 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] passw
                         }
                         getSignedDocumentSupplier(provider, ei, contentSubXML(), TRUE);
                         IF signError() THEN {
-                            logToFile('edi', provider + ' SendEInvoice error: BLRDLN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
-                            MESSAGE provider + ' Накладная не выгружена: BLRDLN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') SendEInvoice error: BLRDLN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + login + ') Накладная не выгружена: BLRDLN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                         }
                         ELSE IF signResult() THEN {
                             LOCAL ixml = XMLFILE();
@@ -680,14 +680,14 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] passw
                             envelopeContent() <- signResult();
                             EXPORT envelope XML TO ixml;
                             sendRequestEDI(url, ixml());
-                            logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                            logToFile('edi', provider + ' (' + login + ') SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                             IF requestError() THEN {
-                                logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
-                                MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + ' не выгружена: ' + requestError() NOWAIT;
+                                logToFile('edi', provider + ' (' + login + ') SendEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
+                                MESSAGE provider + ' (' + login + ') Накладная ' + deliveryNoteNumber(ei) + ' не выгружена: ' + requestError() NOWAIT;
                             } ELSE {
-                                logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
-                                MESSAGE provider + ' Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
+                                logToFile('edi', provider + ' (' + login + ') SendEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                                MESSAGE provider + ' (' + login + ') Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
                                 //NEWSESSION NESTED LOCAL {
                                     exportedSupplier(ei) <- TRUE;
                                     numberSupplier(ei) <- STRING[35](resultMilliseconds());
@@ -697,25 +697,25 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] passw
                             }
                         }
                     } ELSE {
-                        logToFile('edi', provider + ' SendEInvoice: Не все поля заполнены. ' + error());
-                        MESSAGE provider + ' Накладная не выгружена: Не все поля заполнены ' + error() NOWAIT;
+                        logToFile('edi', provider + ' (' + login + ') SendEInvoice: Не все поля заполнены. ' + error());
+                        MESSAGE provider + ' (' + login + ') Накладная не выгружена: Не все поля заполнены ' + error() NOWAIT;
                     }
                     
                 } ELSE {
-                    logToFile('edi', provider + ' SendEInvoice: не заданы параметры EDSService');
-                    MESSAGE provider + ' Накладная не выгружена: не заданы параметры EDSService' NOWAIT;
+                    logToFile('edi', provider + ' (' + login + ') SendEInvoice: не заданы параметры EDSService');
+                    MESSAGE provider + ' (' + login + ') Накладная не выгружена: не заданы параметры EDSService' NOWAIT;
                 }
             } ELSE {
-                logToFile('edi', provider + ' SendEInvoice: не заданы имя пользователя / пароль / хост / порт');
-                MESSAGE provider + ' Накладная не выгружена: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+                logToFile('edi', provider + ' (' + login + ') SendEInvoice: не заданы имя пользователя / пароль / хост / порт');
+                MESSAGE provider + ' (' + login + ') Накладная не выгружена: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
             MESSAGE 'Накладная не выгружена. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
-        logToFile('edi', provider + ' error: ' + 'SendEInvoice disabled, change serverComputer() to enable');
-        MESSAGE  provider + ' error: ' + 'SendEInvoice disabled, change serverComputer() to enable' NOWAIT;
+        logToFile('edi', provider + ' (' + login + ') error: ' + 'SendEInvoice disabled, change serverComputer() to enable');
+        MESSAGE provider + ' (' + login + ') error: ' + 'SendEInvoice disabled, change serverComputer() to enable' NOWAIT;
     }
 }
 
@@ -748,8 +748,8 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] p
                     
                     getSignedDocumentSupplier(provider, ei, contentSubXML(), TRUE);
                     IF signError() THEN {
-                        logToFile('edi', provider + ' SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
-                        MESSAGE provider + ' Извещение о прочтении накладной не выгружено: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                        logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
+                        MESSAGE provider + ' (' + login + ') Извещение о прочтении накладной не выгружено: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                     }
                     ELSE IF signResult() THEN {
                         LOCAL ixml = XMLFILE();
@@ -765,14 +765,14 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] p
                         envelopeContent() <- signResult();
                         EXPORT envelope XML TO ixml;
                         sendRequestEDI(url, ixml());
-                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                        logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                         IF requestError() THEN {
-                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
-                            MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + requestError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
+                            MESSAGE provider + ' (' + login + ') Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + requestError() NOWAIT;
                         } ELSE {
-                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
-                            MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                            MESSAGE provider + ' (' + login + ') Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
                             exportedBlrapnSupplier(ei) <- TRUE;
                             NEW em = EInvoiceMessage {
                                 number(em) <- STRING[35](resultMilliseconds());
@@ -787,20 +787,20 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] p
                         }
                     }
                 } ELSE {
-                    logToFile('edi', provider + ' SendBlrapnEInvoice: не заданы параметры EDSService');
-                    MESSAGE provider + ' Извещение о прочтении не выгружено: не заданы параметры EDSService' NOWAIT;
+                    logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice: не заданы параметры EDSService');
+                    MESSAGE provider + ' (' + login + ') Извещение о прочтении не выгружено: не заданы параметры EDSService' NOWAIT;
                 }
             } ELSE {
-                logToFile('edi', provider + ' SendBlrapnEInvoice: не заданы имя пользователя / пароль / хост / порт');
-                MESSAGE provider + ' Извещение о прочтении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+                logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice: не заданы имя пользователя / пароль / хост / порт');
+                MESSAGE provider + ' (' + login + ') Извещение о прочтении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
             MESSAGE 'Извещение о прочтении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
-        logToFile('edi', provider + ' error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable');
-        MESSAGE  provider + ' error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable' NOWAIT;
+        logToFile('edi', provider + ' (' + login + ') error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable');
+        MESSAGE provider + ' (' + login + ') error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable' NOWAIT;
     }
 }
 
@@ -833,8 +833,8 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100
 
                     getSignedDocumentSupplier(provider, ei, contentSubXML(), TRUE);
                     IF signError() THEN {
-                        logToFile('edi', provider + ' SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
-                        MESSAGE provider + ' Извещение о прочтении не выгружено: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                        logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
+                        MESSAGE provider + ' (' + login + ') Извещение о прочтении не выгружено: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                     }
                     ELSE IF signResult() THEN {
                         LOCAL ixml = XMLFILE();
@@ -850,14 +850,14 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100
                         envelopeContent() <- signResult();
                         EXPORT envelope XML TO ixml;
                         sendRequestEDI(url, ixml());
-                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
+                        logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                         IF requestError() THEN {
-                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
-                            MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + requestError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ': ' + requestError());
+                            MESSAGE provider + ' (' + login + ') Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' не выгружено: ' + requestError() NOWAIT;
                         } ELSE {
-                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
-                            MESSAGE provider + ' Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice ' + deliveryNoteNumber(ei) + ' request succeeded');
+                            MESSAGE provider + ' (' + login + ') Извещение о прочтении накладной ' + deliveryNoteNumber(ei) + ' выгружено' NOWAIT;
                             exportedBlrapnSupplier(ei) <- TRUE;
                             NEW em = EInvoiceMessage {
                                 number(em) <- STRING[35](resultMilliseconds());
@@ -872,19 +872,19 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100
                         }
                     }
                 } ELSE {
-                    logToFile('edi', provider + ' SendBlrapnEInvoice: не заданы параметры EDSService');
-                    MESSAGE provider + ' Извещение о прочтении не выгружено: не заданы параметры EDSService' NOWAIT;
+                    logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice: не заданы параметры EDSService');
+                    MESSAGE provider + ' (' + login + ') Извещение о прочтении не выгружено: не заданы параметры EDSService' NOWAIT;
                 }
             } ELSE {
-                logToFile('edi', provider + ' SendBlrapnEInvoice: не заданы имя пользователя / пароль / хост / порт');
-                MESSAGE provider + ' Извещение о прочтении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+                logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice: не заданы имя пользователя / пароль / хост / порт');
+                MESSAGE provider + ' (' + login + ') Извещение о прочтении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
             MESSAGE 'Извещение о прочтении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
-        logToFile('edi', provider + ' error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable');
-        MESSAGE  provider + ' error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable' NOWAIT;
+        logToFile('edi', provider + ' (' + login + ') error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable');
+        MESSAGE provider + ' (' + login + ') error: ' + 'SendBlrapnEInvoice disabled, change serverComputer() to enable' NOWAIT;
     }
 }
