@@ -1,0 +1,34 @@
+MODULE WriteOffPurchaseItemStock;
+
+REQUIRE WriteOffPurchaseItem;
+
+NAMESPACE WriteOff;
+
+writeOffRate 'Норма отходов' = DATA WriteOffRate (Stock, Item);
+nameWriteOffRate 'Норма отходов' = name(writeOffRate(Stock st, Item item)) CHARWIDTH 20;
+percentWriteOffRate 'Норма отходов,%' = percent(writeOffRate(Stock st, Item item)) CHARWIDTH 6;
+
+countWriteOffRate = GROUP SUM 1 IF writeOffRate(Stock st, Item item) BY st;
+
+CONSTRAINT country(writeOffRate(Stock st, Item item)) != country(st)
+    CHECKED BY writeOffRate[Stock,Item] MESSAGE 'Страна нормы отходов не совпадает со страной склада';
+
+overCopy(Item s, Item d) + { 
+    writeOffRate(Stock st, d) <- writeOffRate(st, s);
+}
+
+EXTEND FORM item
+    OBJECTS stw = Stock
+    PROPERTIES (stw) READONLY name,id, objectClassName
+    FILTERS isCompany(stw)
+    FILTERGROUP filtersStw
+        FILTER 'Активные' active(stw)  DEFAULT       
+    PROPERTIES(stw,i) nameWriteOffRate, percentWriteOffRate
+;
+DESIGN item { 
+    itemDetail  { 
+        MOVE BOX(stw){caption = 'Норма отходов (склад)';}
+    } 
+}
+
+
