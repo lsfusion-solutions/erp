@@ -7,7 +7,7 @@ NAMESPACE Item;
 // Обработка статуса
 
 completedTranslate 'Обработан' = DATA BOOLEAN (Item);
-notCompletedTranslate 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedTranslate(i) BY article(i);
+notCompletedTranslate 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedTranslate(i) BY article(i) MATERIALIZED INDEXED;
 completedTranslate 'Обработан' = Article a IS Article AND NOT notCompletedTranslate(a);
 prevCompletedTranslate (Article article) = PREV(completedTranslate(article));
 
@@ -37,7 +37,7 @@ seriesNumberDateInvoices 'Накладные' (User user) =  GROUP
     CHARWIDTH 30;
 seriesNumberDateInvoicesCurrentUser 'Накладные' = seriesNumberDateInvoices(currentUser()) CHARWIDTH 30;
 
-countInvoices 'Кол-во накладных' (User user)= GROUP SUM 1 IF inPurchase(Purchase.Invoice invoice, user);
+countInvoices 'Кол-во накладных' (User user)= GROUP SUM 1 IF inPurchase(Purchase.Invoice invoice, user) MATERIALIZED PREREAD;
 
 FORM purchaseInvoices 'Выбрать накладные'
     OBJECTS u=User PANEL                           
@@ -98,13 +98,9 @@ quantityInvoiceDetail 'Кол-во товара в документе' (Sku sku,
     GROUP
         SUM quantityInvoiceDetail(sku, Purchase.Invoice invoice) IF inPurchase(invoice, user);
 
-quantityInvoiceDetail 'Кол-во товара в документе' (article, invoice) = 
-    GROUP SUM quantity(Purchase.InvoiceDetail idetail)
-          BY  article(sku(idetail)),
-              invoice(idetail);
-quantityInvoiceDetail 'Кол-во товара в документе' (Article article, User user) = 
-    GROUP
-        SUM quantityInvoiceDetail(article, Purchase.Invoice invoice) IF inPurchase(invoice, user);
+quantityInvoiceDetail 'Кол-во товара в документе' (Article article, User user) =
+    GROUP SUM quantity(Purchase.InvoiceDetail idetail) IF inPurchase(invoice(idetail), user)
+          BY  article(sku(idetail));
         
 defaultPurchaseInvoice (sku) =
     GROUP LAST invoice(Purchase.InvoiceDetail detail)
