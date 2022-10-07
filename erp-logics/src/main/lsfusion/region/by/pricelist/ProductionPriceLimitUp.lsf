@@ -1,0 +1,35 @@
+MODULE ProductionPriceLimitUp;
+
+REQUIRE ProductionOrder, PricingProductionOutput;
+
+NAMESPACE Production;
+
+@defineOption(enablePriceLimitUpProduction, 'Запретить рост цен (СП)', pricings);
+@defineOperationProperty(skipPriceUp, 'Исключить из проверки "Роста цен"', BOOLEAN , paramsContainer);
+
+allowPriceUp 'Разрешить рост цены' = DATA BOOLEAN (Order);
+EXTEND FORM order
+    PROPERTIES(o) allowPriceUp SHOWIF (enablePriceLimitUpProduction() AND createPricing(o))
+;
+     
+DESIGN order {
+    headerRow13 {
+         MOVE PROPERTY(allowPriceUp(o));
+    }
+}
+skipPriceUp(Order o) = skipPriceUp(operation(o));
+skipPriceUp(ProductDetail o) = skipPriceUp(operation(o));
+createPricing(ProductDetail o) = createPricing(operation(o));
+
+limitRetailPriceUp 'Расценить по текущей' (ProductDetail dd) {
+    price(ProductDetail d) <- prevRetailPricingPriceB(sku(d), productsStock(d), dateTime(d)) WHERE order(d) = order(dd) AND prevRetailPricingPriceB(sku(d), productsStock(d), dateTime(d));   
+} ASON CONTEXTMENU price[ProductDetail];
+
+WHEN FORMS order GOAFTER price[ProductDetail] 
+            (SETCHANGED(price(ProductDetail d)) OR SET(isPosted(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(productsStock(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(operation(d)) OR SETCHANGED(createPricing(d))) 
+            AND isPosted(d) AND createPricing(d) AND enablePriceLimitUpProduction() AND NOT allowPriceUp(order(d)) AND NOT skipPriceUp(d)  NOINLINE DO {
+    IF price(d) > prevRetailPricingPriceB(sku(d), productsStock(d), dateTime(d)) THEN {
+        MESSAGE 'Запрет роста цен по товару ' + nameSku(d) + ' c ' + prevRetailPricingPriceB(sku(d), productsStock(d), dateTime(d)) + ' до ' + price(d) + '\nОбратитесь в отдел ЦО' NOWAIT;
+        CANCEL;
+    }
+}
