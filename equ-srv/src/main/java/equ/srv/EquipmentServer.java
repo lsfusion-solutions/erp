@@ -1534,9 +1534,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return message;
     }
 
+    //todo: remove (equ-api)
     @Override
     public Set<String> readCashDocumentSet() throws SQLException {
-        return SendSalesEquipmentServer.readCashDocumentSet(this);
+        return new HashSet<>();
     }
 
     @Override

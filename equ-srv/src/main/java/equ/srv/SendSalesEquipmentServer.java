@@ -31,7 +31,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class SendSalesEquipmentServer {
@@ -100,28 +99,6 @@ public class SendSalesEquipmentServer {
             }
         }
         return cashRegisterInfoList;
-    }
-
-    public static Set<String> readCashDocumentSet(EquipmentServer server) throws SQLException {
-        Set<String> cashDocumentSet = new HashSet<>();
-        if (cashOperationLM != null) {
-            try (DataSession session = server.createSession()) {
-
-                KeyExpr cashDocumentExpr = new KeyExpr("cashDocument");
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("CashDocument", cashDocumentExpr);
-                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-                query.addProperty("idCashDocument", cashOperationLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr));
-                query.and(cashOperationLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr).getWhere());
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-
-                for (ImMap<Object, Object> row : result.values()) {
-                    cashDocumentSet.add((String) row.get("idCashDocument"));
-                }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return cashDocumentSet;
     }
 
     public static String sendCashDocumentInfo(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, List<CashDocument> cashDocumentList) {
