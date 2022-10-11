@@ -1,0 +1,45 @@
+MODULE EmployeeBarcode;
+
+REQUIRE Employee, Barcode;
+
+NAMESPACE Employee;
+
+idBarcode 'Штрихкод сотрудника'= DATA STRING[100] (Employee) INDEXED CHARWIDTH 10;
+
+EXTEND FORM employees
+    PROPERTIES idBarcode(e) READONLY
+;
+
+defaultNumeratorEmployeeBarcode = DATA Numerator ();
+nameDefaultNumeratorEmployeeBarcode 'Штрихкод сотрудника' = name(defaultNumeratorEmployeeBarcode()) IN defaultNumerator;
+
+WHEN SET(Employee o IS Employee) AND defaultNumeratorEmployeeBarcode() AND NOT idBarcode(o) DO {
+    idBarcode(o) <- STRING[100](completeBarcode(CONCAT '', series(defaultNumeratorEmployeeBarcode()), curStringValue(defaultNumeratorEmployeeBarcode())));  
+    incrementValueSession(defaultNumeratorEmployeeBarcode());
+    
+} 
+    
+EXTEND FORM defaultNumerators PROPERTIES() nameDefaultNumeratorEmployeeBarcode;
+
+onStarted()+{
+    IF NOT (GROUP MAX Numerator num IF name(num) = 'Штрихкод сотрудника') 
+        AND NOT defaultNumeratorEmployeeBarcode() THEN NEW n = Numerator{
+         name(n) <- 'Штрихкод сотрудника';
+         series(n) <- '';
+         minValue(n) <- 100000000000L;
+         maxValue(n) <- 200000000000L;
+         stringLength(n) <- 12;
+         defaultNumeratorEmployeeBarcode() <- n;       
+    }
+}
+
+loadDefaultNumerators() + { 
+    NEW n = Numerator {
+        name(n) <- 'Штрихкод сотрудника';
+        series(n) <- '';
+        minValue(n) <- 100000000000L;
+        maxValue(n) <- 200000000000L;
+        stringLength(n) <- 12;
+        defaultNumeratorEmployeeBarcode() <- n;
+    }
+}

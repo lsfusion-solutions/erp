@@ -1,0 +1,99 @@
+MODULE Set10Seller;
+
+REQUIRE Set10PriceTransaction, EmployeeStock, EmployeeBarcode;
+
+NAMESPACE Set10;
+
+useShopIndex 'Разграничить продавцов по складам' = DATA BOOLEAN ();
+
+shopIndex (Employee e) = GROUP CONCAT idStoreSet(GroupCashRegister gcr) IF isSet10(gcr) 
+    AND accessCompany(e, stock(gcr)) AND useShopIndex(), ' ' ORDER idStoreSet(gcr);
+    
+in = DATA LOCAL BOOLEAN (Employee);
+
+isSeller (Employee e) = TRUE IF idPosition(e) = 'seller';
+
+dateTimeUploaded 'Загруженно в Set10' = DATA DATETIME (Employee);
+
+EXTEND FORM employees
+    PROPERTIES dateTimeUploaded(e) READONLY
+;
+
+FORM sellers
+    OBJECTS seller = Employee
+    PROPERTIES id(seller) EXTID 'codeNum', = (OVERRIDE lastName(seller), '') EXTID 'lastName', 
+        = OVERRIDE firstName(seller), '' EXTID 'firstName', = (OVERRIDE '-', lastName(seller)) EXTID 'middleName',
+        = IF isLocked(seller) THEN TTRUE ELSE TFALSE  EXTID 'blocked' , codeNum = idBarcode(seller) EXTID 'codeNum', barCode = idBarcode(seller) EXTID 'barCode',
+        shopIndex(seller) EXTID 'shop-index', = TFALSE IF seller IS Employee EXTID 'deleted'
+    FILTERS in(seller)
+;
+xmlBase64Data = DATA LOCAL STRING ();
+GROUP bodyRequestSellers EXTID 'soapenv:Body';
+GROUP importSellers EXTID 'ws:importSellers' : bodyRequestSellers;
+
+FORM requestSellers FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://ws.sellers.ERPIntegration.crystals.ru/' EXTID 'xmlns:ws'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN importSellers xmlBase64Data EXTID 'XML', TI
+;
+
+//обработка ответа
+GROUP body EXTID 'soap:Body';
+GROUP importSellersResponse 
+    EXTID 'ns2=http://ws.sellers.ERPIntegration.crystals.ru/:importSellersResponse' : bodyAnswer;
+
+FORM answerSellers FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN importSellersResponse return;
+
+uploadSellersSet10 'Выгрузить продавцов' (){
+    NEWSESSION {
+        in(Employee e) <- TRUE IF idBarcode(e) AND isSeller(e);
+        LOCAL count = INTEGER ();
+        count() <- GROUP SUM 1 IF in(Employee e);
+        IF NOT count() THEN {
+            MESSAGE 'Нет продавцов для выгрузки';
+            RETURN;
+        }
+        EXPORT sellers XML;
+        fileToString(exportFile());
+        encodeBase64(resultString());
+        xmlBase64Data()<- encodedBase64();
+        LOCAL headersSet = STRING (STRING);
+        headersSet('Content-Type') <- 'application/xml';
+        generateUUID();
+        TI() <- generatedUUID();
+        EXPORT requestSellers XML;
+        LOCAL answer = FILE();
+        TRY{
+            EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SellersImportWS' HEADERS headersSet PARAMS exportFile() TO answer;
+            IMPORT answerSellers XML FROM answer();
+            fileToString(answer());
+            IF return() = 'true' THEN {
+                MESSAGE 'Успешно выгружен справочник продавцов.\nПродавцы: ' + count() NOWAIT;
+                dateTimeUploaded(Employee e) <- currentDateTime() WHERE in(e);
+                APPLY;
+            }
+            ELSE MESSAGE CONCAT '\n', 'Произошла ошибка', resultString();
+        }
+        CATCH {
+            fileToString(answer());
+            MESSAGE CONCAT '\n', messageCaughtException(), resultString();
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() uploadSellersSet10, useShopIndex
+;
+
+DESIGN integrationData{
+    set10{
+        NEW sellersSet10{
+            caption = 'Продавцы';
+            MOVE PROPERTY (useShopIndex());
+            MOVE PROPERTY (uploadSellersSet10());
+        }
+    }
+}
+
