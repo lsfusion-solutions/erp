@@ -293,10 +293,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemGroupResult = itemGroupQuery.execute(session);
 
         for (ImMap<Object, Object> row : itemGroupResult.valueIt()) {
-            String idItemGroup = getRowValue(row, "idItemGroup");
-            String overIdItemGroup = getRowValue(row, "overIdItemGroup");
-            String nameItemGroup = getRowValue(row, "nameItemGroup");
-            String idParentItemGroup = getRowValue(row, "idParentItemGroup");
+            String idItemGroup = (String) row.get("idItemGroup");
+            String overIdItemGroup = (String) row.get("overIdItemGroup");
+            String nameItemGroup = (String) row.get("nameItemGroup");
+            String idParentItemGroup = (String) row.get("idParentItemGroup");
             itemGroupMap.put(overIdItemGroup, new ItemGroup(idItemGroup, overIdItemGroup, nameItemGroup, idParentItemGroup));
         }
         
