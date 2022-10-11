@@ -321,8 +321,118 @@ CONSTRAINT group(AlcoholReportTotalDetail d) AND  groupType(alcoholReport(d)) AN
     CHECKED BY group[AlcoholReportTotalDetail] MESSAGE 'Группа не соответствует типу классификатора.';
     
 quantity 'Количество' = DATA NUMERIC[18,6](AlcoholReportTotalDetail);                
+          
+toDetailing = DATA LOCAL NESTED BOOLEAN (AlcoholReportDetail);        
+
+volumeOriginal 'Объем' = DATA LOCAL NESTED NUMERIC[18,6] (InvoiceDetail);      
+volumeConversion 'Количество' = DATA LOCAL NESTED NUMERIC[18,6] (InvoiceDetail);  
+
+volumeOriginal 'Объем' = DATA LOCAL NESTED NUMERIC[18,6] (InventorySkuDetail);      
+volumeConversion 'Количество' = DATA LOCAL NESTED NUMERIC[18,6] (InventorySkuDetail); 
+ 
+volumeOriginal 'Объем' = DATA LOCAL NESTED NUMERIC[18,6] (WriteOffDetail);      
+volumeConversion 'Количество' = DATA LOCAL NESTED NUMERIC[18,6] (WriteOffDetail); 
+volumeConversion 'Количество' = DATA LOCAL NESTED NUMERIC[18,6] (AlcoholReportDetail); 
                     
+nameAlcoholSupplierTypeOutcome 'Тип расходования алкоголя' (InvoiceDetail i) = staticCaption(alcoholSupplierTypeOutcome(invoice(i))) CHARWIDTH 10;
+nameAlcoholDirectionType 'Тип движения алкоголя' (InvoiceDetail d)  = staticCaption(alcoholDirectionType(d)) CHARWIDTH 10;                    
+
+FORM alcoholReportDetailing 'Детализация'
+    OBJECTS d = AlcoholReportDetail
+    PROPERTIES (d) READONLY index, nameAlcoholDirectionType, numberAlcoholDirectionType, UNP, nameLegalEntity, 
+                   nameSupplierType, nameAlcoholSupplierTypeOutcome,  
+                   nameGroup, idGroup, quantity, volumeConversion BACKGROUND RGB(255, 250, 205) 
+    FILTERS toDetailing(d)    
+    
+    OBJECTS i =InvoiceDetail   
+    PROPERTIES (i) READONLY date, time, series, number, index, objectClassName, nameAlcoholSupplierType, nameAlcoholDirectionType, 
+                    nameAlcoholSupplierTypeOutcome, nameSupplierStock, nameCustomerStock, nameSku, volumeOriginal, volumeConversion BACKGROUND RGB(255, 250, 205)        
+    FILTERS volumeOriginal(i)
+    OBJECTS in =InventorySkuDetail   
+    PROPERTIES (in) READONLY date, time
+    PROPERTIES READONLY series 'Серия' = series(inventory(in)), 
+                        number 'Номер' = number(inventory(in)), 
+                        nameStock 'Склад' = name(stock(in))
+    PROPERTIES (in) READONLY  nameSku, volumeOriginal, volumeConversion BACKGROUND RGB(255, 250, 205)   
+           
+    FILTERS volumeOriginal(in)    
+    OBJECTS w =WriteOffDetail   
+    PROPERTIES (w) READONLY date, time, series, number, nameStock, nameSku, volumeOriginal, volumeConversion BACKGROUND RGB(255, 250, 205)         
+    FILTERS volumeOriginal(w)       
+
+; 
+DESIGN alcoholReportDetailing{
+    OBJECTS {
+        MOVE BOX (d);
+        NEW tab{
+            fill = 5;
+            type = TABBED;
+            MOVE BOX (i);
+            MOVE BOX (in);
+            MOVE BOX (w);
+        }
+        PROPERTY (nameAlcoholSupplierType(i)){charWidth=10;}
+    }
+}
+fillDetailing 'Показать детализацию' (AlcoholReportDetail a){
+    
+    volumeOriginal(InvoiceDetail d)<- NULL;
+    volumeConversion(InvoiceDetail d)<- NULL;
+    volumeOriginal(InventorySkuDetail d)<- NULL;
+    volumeConversion(InventorySkuDetail d)<- NULL;    
+    volumeOriginal(WriteOffDetail d)<- NULL;
+    volumeConversion(WriteOffDetail d)<- NULL;   
+    toDetailing(AlcoholReportDetail dd)<- TRUE IF dd==a; 
+    volumeConversion(AlcoholReportDetail dd)<- NULL; 
+    
+    FOR DATE fromDate = fromDate(alcoholReport(a)) AND DATE toDate = toDate(alcoholReport(a)) AND group(a)== Group sk NOINLINE DO { 
+
+        IF alcoholDirectionType(a)==AlcoholDirectionType.income THEN {
+            IF alcoholSupplierType(a)==AlcoholSupplierType.none THEN {
+                volumeOriginal(InvoiceDetail d)<- volume(d) 
+                    WHERE isPosted(d) AND alcoholSupplier(d)==legalEntity(a) AND date(d) >= fromDate AND date(d) <= toDate
+                            AND isParent(sk, sku(d)) AND isCompany(toStock(d)) AND active(toStock(d)) AND isWholesale(toStock(d)) AND alcoholDirectionType(d) == AlcoholDirectionType.income
+                            AND NOT alcoholSupplierType(d) AND isAlcoholGroup(sku(d));             
+            } 
+            IF alcoholSupplierType(a)==AlcoholSupplierType.other THEN {
+                volumeOriginal(InventorySkuDetail d)<- signetVolume(d) 
+                    WHERE isPosted(d) AND legalEntity(a) ==legalEntity(stock(d)) AND date(d) >= fromDate AND date(d) <= toDate
+                            AND isParent(sk, sku(d)) AND isCompany(stock(d)) AND active(stock(d)) AND isWholesale(stock(d)) AND isAlcoholGroup(sku(d)) AND quantity(d) > 0
+                            AND isAlcoholOther[Inventory.Operation](inventory(d));                
+            }             
+            volumeOriginal(InvoiceDetail d)<- volumeOriginal(d) (+) volume(d) 
+                    WHERE isPosted(d) AND alcoholSupplier(d)==legalEntity(a) AND date(d) >= fromDate AND date(d) <= toDate
+                        AND isParent(sk, sku(d)) AND isCompany(toStock(d)) AND active(toStock(d)) AND isWholesale(toStock(d)) AND alcoholDirectionType(d) == AlcoholDirectionType.income
+                        AND alcoholSupplierType(a)==alcoholSupplierType(d); 
                     
+
+        }
+        IF alcoholDirectionType(a)==AlcoholDirectionType.outcome THEN {        
+            volumeOriginal(InvoiceDetail d)<- volume(d) WHERE isParent(sk, sku(d)) AND isPosted(d) AND isCompany(fromStock(d)) AND active(fromStock(d))  
+                    AND alcoholDirectionType(d) == AlcoholDirectionType.outcome AND date(d) >= fromDate AND date(d) <= toDate 
+                    AND isWholesale(fromStock(d))  AND to(d)== legalEntity(a) AND alcoholSupplierTypeOutcome(invoice(d))==  alcoholSupplierTypeOutcome(a);                                      
+      
+            IF alcoholSupplierTypeOutcome(a)==AlcoholSupplierTypeOutcome.other THEN {
+                volumeOriginal(InventorySkuDetail d)<- signetVolume(d) WHERE isPosted(d) AND legalEntity(a) ==legalEntity(stock(d)) AND date(d) >= fromDate AND date(d) <= toDate
+                        AND isParent(sk, sku(d)) AND isCompany(stock(d)) AND active(stock(d)) AND isWholesale(stock(d)) AND isAlcoholGroup(sku(d)) AND quantity(d) < 0
+                        AND isAlcoholOther[Inventory.Operation](inventory(d));                 
+                volumeOriginal(WriteOffDetail d)<- signetVolume(d) WHERE isPosted(d) AND legalEntity(a) ==legalEntity(stock(d)) AND date(d) >= fromDate AND date(d) <= toDate
+                    AND isParent(sk, sku(d)) AND isCompany(stock(d)) AND active(stock(d)) AND isWholesale(stock(d)) AND isAlcoholGroup(sku(d)) 
+                    AND isAlcoholOther[WriteOff.Operation](writeOff(d));
+            }         
+        }        
+        
+        volumeConversion(InvoiceDetail d)<- NUMERIC[18,6](volumeOriginal(d)/(OVERRIDE conversionFactor(sk), 1.0 IF sk IS StatisticGroup)) WHERE volumeOriginal(d);
+        volumeConversion(InventorySkuDetail d)<- NUMERIC[18,6](volumeOriginal(d)/(OVERRIDE conversionFactor(sk), 1.0 IF sk IS StatisticGroup)) WHERE volumeOriginal(d);
+        volumeConversion(WriteOffDetail d)<- NUMERIC[18,6](volumeOriginal(d)/(OVERRIDE conversionFactor(sk), 1.0 IF sk IS StatisticGroup)) WHERE volumeOriginal(d);
+        
+        volumeConversion(a)<- (GROUP SUM volumeConversion(InvoiceDetail d));
+        volumeConversion(a)<- volumeConversion(a) (+) (GROUP SUM volumeConversion(InventorySkuDetail d));
+        volumeConversion(a)<- volumeConversion(a) (+) (GROUP SUM volumeConversion(WriteOffDetail d));
+        
+        NEWSESSION SHOW alcoholReportDetailing DOCKED NOWAIT;
+    }  
+}
 fillQuantitySupplier 'Заполнить по поставщикам' (AlcoholReport r)  { 
     //recalculateAlcoholSupplierTypes(r);
     DELETE AlcoholReportDetail detail WHERE alcoholReport(detail) == r;   
@@ -496,11 +606,12 @@ FORM alcoholDeclaration 'Декларация (алкоголь)'
     PROPERTIES (r) DRAW p TOOLBAR fillQuantitySupplier, fillQuantityTotal 
     
     OBJECTS d = AlcoholReportDetail
-    PROPERTIES (d) index, nameAlcoholDirectionType, numberAlcoholDirectionType, UNP, nameLegalEntity, 
+    PROPERTIES (d) ON CONTEXTMENU fillDetailing(d) index, nameAlcoholDirectionType, numberAlcoholDirectionType, UNP, nameLegalEntity, 
                    nameSupplierType READONLYIF (alcoholDirectionType(d)==AlcoholDirectionType.outcome),
                    nameAlcoholSupplierTypeOutcome READONLYIF (alcoholDirectionType(d)==AlcoholDirectionType.income),  
                    nameGroup, idGroup, quantity, NEW, deleted=DELETE GRID 
-    PROPERTIES(r) DRAW d deleteAlcoholReportDetail  
+    PROPERTIES(r) DRAW d deleteAlcoholReportDetail 
+    PROPERTIES fillDetailing(d) TOOLBAR 
     FILTERS alcoholReport(d) == r 
     EDIT AlcoholReport OBJECT r 
 ;
