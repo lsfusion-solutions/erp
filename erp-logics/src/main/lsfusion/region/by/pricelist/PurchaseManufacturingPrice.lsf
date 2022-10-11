@@ -212,6 +212,15 @@ changeManufacturingPrice(UserInvoiceDetail d)  {
     }
 }
 
+overChangeManufacturingMarkup  ABSTRACT LIST ( UserInvoiceDetail);
+
+changeManufacturingMarkup(UserInvoiceDetail d)  { 
+    INPUT n = NUMERIC[8,3] DO {
+        manufacturingMarkup(d) <- n;
+        overChangeManufacturingMarkup(d);
+    }
+}
+
 toFillMarkup 'Проставить надбавку из вида цен'(UserInvoiceDetail detail)  { 
     manufacturingMarkup(detail) <- markup(manufacturingCalcPriceListType(detail), sku(detail));
         EXEC updateManufacturingPrice(detail);
@@ -259,7 +268,7 @@ EXTEND FORM userInvoice
                   nameManufacturingCalcPriceListType, reverseManufacturingPrice, calcManufacturingMarkupFromPrices
     PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrency(i) BACKGROUND backgroundManufacturing(i) dateManufacturingRateExchange, rateManufacturingExchange
     PROPERTIES(d) SHOWIF showManufacturingPrice(i) BACKGROUND backgroundManufacturing(d) AFTER invoiceSum(d) 
-                  manufacturingMarkup,
+                  manufacturingMarkup ON CHANGE changeManufacturingMarkup(d),
                   manufacturingPrice ON CHANGE changeManufacturingPrice(d), includeVAT, 
                   manufacturingSum
     PROPERTIES(d) SHOWIF showManufacturingPriceHomeCurrency(i) BACKGROUND backgroundManufacturing(d)
