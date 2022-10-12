@@ -335,14 +335,14 @@ importAnswer (STRING url, STRING[100] archiveDir, STRING[100] provider){
     fillStartParams();
     FOR STRING[250] fileName == fileName(INTEGER i) AND NOT fileIsDirectory(i) AND isSubstring(lower(fileName), '.xml') DO {
         TRY {
-            IF archiveDir THEN {
-                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + fileName;
-            }
             id(i) <- fileName;
             LOCAL file = XMLFILE ();
             READ url  + id(i) TO file;
             data(i) <- file();
+            IF archiveDir THEN {
+                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                WRITE file() TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + fileName;
+            }
         } CATCH {
             MESSAGE 'Ошибка при чтении сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             logToFile('edi', CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
