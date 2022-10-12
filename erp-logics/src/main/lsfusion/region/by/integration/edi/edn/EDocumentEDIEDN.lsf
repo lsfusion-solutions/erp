@@ -66,23 +66,22 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         logToFile('edi', provider + ' Import EDocument ' + id(i) + ' failed: ' + applyMessage());
                         eDocumentsFailed() <- eDocumentsFailed() + 1;
                     } ELSE {
-                        FOR EInvoice ei == eInvoiceDeliveryNoteNumber(pdfSenderILN() + '/' + pdfDocumentID()) DO {
-                                IF NOT disableConfirmation THEN {
-                                    LOCAL cxml = XMLFILE();
-                                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
-                                    sendRequestEDI(url, cxml());
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                                    IF requestError() THEN {
-                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                        MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                                    } ELSE {
-                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                                    }
+                        FOR EDocument ed = eDocument(pdfSenderILN() + '/' + pdfDocumentID()) DO {
+                            IF NOT disableConfirmation THEN {
+                                LOCAL cxml = XMLFILE();
+                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
+                                sendRequestEDI(url, cxml());
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                                IF requestError() THEN {
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                } ELSE {
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                 }
-                                logToFile('edi', provider + ' Import EDocument ' + id(i) + ' succeeded');
-                                eDocumentsSucceeded() <- eDocumentsSucceeded() + 1;
-                            //}
+                            }
+                            logToFile('edi', provider + ' Import EDocument ' + id(i) + ' succeeded');
+                            eDocumentsSucceeded() <- eDocumentsSucceeded() + 1;
                         }
                     }  
                 }
