@@ -17,6 +17,15 @@ exportedExportGiftCards 'Экспортирован' = DATA BOOLEAN (GiftCard);
 exportedActive 'Экспортирован (активация)' = DATA BOOLEAN (GiftCard);
 exportGiftCardsUKMCustom 'Экспорт в УКМ'  INTERNAL  'lsfusion.erp.region.by.ukm.ExportGiftCardsAction'();
 
+overExportGiftCardsUKMCustomBefore ABSTRACT LIST ();
+overExportGiftCardsUKMCustomAfter ABSTRACT LIST ();
+
+exportGiftCardsUKM 'Экспорт в УКМ' () {
+    overExportGiftCardsUKMCustomBefore();
+    exportGiftCardsUKMCustom();
+    overExportGiftCardsUKMCustomAfter();
+}
+
 idDepartmentStore = ABSTRACT ISTRING[10](GiftCard);
 isSoldInvoice 'Активировать при выгрузке' = ABSTRACT VALUE BOOLEAN (GiftCard);
 isDefect = ABSTRACT BOOLEAN (GiftCard);
@@ -33,8 +42,8 @@ EXTEND FORM editItemGift PROPERTIES (i) dataAllowReturn;
 exportGiftCards 'Экспорт в УКМ' ()  { 
 
     inExportGiftCards(GiftCard g) <- NULL WHERE inExportGiftCards(g) AND (exportedActive(g) OR sold(g) IS ReceiptGiftCardSaleDetail);
-
-    exportGiftCardsUKMCustom();
+    
+    exportGiftCardsUKM();
 };
 
 EXTEND FORM giftCards
