@@ -1,0 +1,172 @@
+MODULE ArtixItem;
+
+REQUIRE Item, MachineryPriceTransactionPromotion;
+
+NAMESPACE Item;
+
+// возврат
+
+dataDisableInventBack 'Вкл. запрет возврата' = DATA BOOLEAN (ItemGroup) IN paramsItemGroup;
+
+levelParentDisableInventBack(ItemGroup child)  = GROUP
+                                                              MIN level(child, ItemGroup parent) IF dataDisableInventBack(parent) MATERIALIZED;    
+nearestParentDisableInventBack (ItemGroup itemGroup) = itemGroup(itemGroup, levelParentDisableInventBack(itemGroup));
+nearestDisableInventBack (ItemGroup itemGroup) = dataDisableInventBack(nearestParentDisableInventBack (itemGroup));
+disableInventBack 'Вкл. запрет возврата' (ItemGroup itemGroup) =
+    OVERRIDE dataDisableInventBack(itemGroup), 
+             nearestDisableInventBack (itemGroup) MATERIALIZED IN paramsItemGroup;        
+
+prevDisableInventBack 'Вкл. запрет возврата' (ItemGroup itemGroup) =
+    OVERRIDE dataDisableInventBack(itemGroup), 
+             PREV(nearestDisableInventBack (itemGroup)) IN paramsItemGroup;        
+
+dataRevertDisableInventBack 'Откл. запрет возврата' = DATA BOOLEAN (ItemGroup) IN paramsItemGroup;
+
+levelParentRevertDisableInventBack(ItemGroup child)  = GROUP
+                                                              MIN level(child, ItemGroup parent) IF dataRevertDisableInventBack(parent) MATERIALIZED;    
+nearestParentRevertDisableInventBack (ItemGroup itemGroup) = itemGroup(itemGroup, levelParentRevertDisableInventBack(itemGroup));
+nearestRevertDisableInventBack (ItemGroup itemGroup) = dataRevertDisableInventBack(nearestParentRevertDisableInventBack (itemGroup));
+revertDisableInventBack 'Откл. запрет возврата' (ItemGroup itemGroup) =
+    OVERRIDE dataRevertDisableInventBack(itemGroup), 
+             nearestRevertDisableInventBack (itemGroup) MATERIALIZED IN paramsItemGroup;        
+
+prevRevertDisableInventBack 'Откл. запрет возврата' (ItemGroup itemGroup) =
+    OVERRIDE dataRevertDisableInventBack(itemGroup), 
+             PREV(nearestRevertDisableInventBack (itemGroup)) IN paramsItemGroup;        
+
+changeDisableInventBack (ItemGroup g) {
+    INPUT b = BOOLEAN DO {
+        IF b THEN {
+            dataDisableInventBack(g) <- TRUE;
+            dataRevertDisableInventBack(g) <- NULL;    
+        } ELSE {
+            dataDisableInventBack(g) <- NULL;
+            dataRevertDisableInventBack(g) <- TRUE;                              
+        }   
+    }
+} 
+
+changeRevertDisableInventBack (ItemGroup g) {
+    INPUT b = BOOLEAN DO {
+        IF b THEN {
+            dataDisableInventBack(g) <- NULL;
+            dataRevertDisableInventBack(g) <- TRUE;    
+        } ELSE {
+            dataDisableInventBack(g) <- TRUE;
+            dataRevertDisableInventBack(g) <- NULL;                              
+        }   
+    }
+} 
+
+EXTEND FORM itemGroup PROPERTIES(g) dataDisableInventBack ON CHANGE changeDisableInventBack(g); 
+EXTEND FORM itemGroup PROPERTIES(g) dataRevertDisableInventBack ON CHANGE changeRevertDisableInventBack(g); 
+
+CONSTRAINT dataDisableInventBack(ItemGroup g) AND dataRevertDisableInventBack(g)
+    MESSAGE 'Запрещено одновременно влючать и отключать запрет возврата для товарной группы';
+
+// контроль возраста
+
+dataAgeVerify 'Вкл. контроль возраста' = DATA BOOLEAN (ItemGroup) IN paramsItemGroup;
+
+levelParentAgeVerify(ItemGroup child)  = GROUP
+                                                              MIN level(child, ItemGroup parent) IF dataAgeVerify(parent) MATERIALIZED;    
+nearestParentAgeVerify (ItemGroup itemGroup) = itemGroup(itemGroup, levelParentAgeVerify(itemGroup));
+nearestAgeVerify (ItemGroup itemGroup) = dataAgeVerify(nearestParentAgeVerify (itemGroup));
+ageVerify 'Вкл. контроль возраста' (ItemGroup itemGroup) =
+    OVERRIDE dataAgeVerify(itemGroup), 
+             nearestAgeVerify (itemGroup) MATERIALIZED IN paramsItemGroup;        
+
+prevAgeVerify 'Вкл. контроль возраста' (ItemGroup itemGroup) =
+    OVERRIDE dataAgeVerify(itemGroup), 
+             PREV(nearestAgeVerify (itemGroup)) IN paramsItemGroup;        
+
+dataRevertAgeVerify 'Откл. контроль возраста' = DATA BOOLEAN (ItemGroup) IN paramsItemGroup;
+
+levelParentRevertAgeVerify(ItemGroup child)  = GROUP
+                                                              MIN level(child, ItemGroup parent) IF dataRevertAgeVerify(parent) MATERIALIZED;    
+nearestParentRevertAgeVerify (ItemGroup itemGroup) = itemGroup(itemGroup, levelParentRevertAgeVerify(itemGroup));
+nearestRevertAgeVerify (ItemGroup itemGroup) = dataRevertAgeVerify(nearestParentRevertAgeVerify (itemGroup));
+revertAgeVerify 'Откл. контроль возраста' (ItemGroup itemGroup) =
+    OVERRIDE dataRevertAgeVerify(itemGroup), 
+             nearestRevertAgeVerify (itemGroup) MATERIALIZED IN paramsItemGroup;        
+
+prevRevertAgeVerify 'Откл. контроль возраста' (ItemGroup itemGroup) =
+    OVERRIDE dataRevertAgeVerify(itemGroup), 
+             PREV(nearestRevertAgeVerify (itemGroup)) IN paramsItemGroup;        
+
+changeAgeVerify (ItemGroup g) {
+    INPUT b = BOOLEAN DO {
+        IF b THEN {
+            dataAgeVerify(g) <- TRUE;
+            dataRevertAgeVerify(g) <- NULL;    
+        } ELSE {
+            dataAgeVerify(g) <- NULL;
+            dataRevertAgeVerify(g) <- TRUE;                              
+        }   
+    }
+} 
+
+changeRevertAgeVerify (ItemGroup g) {
+    INPUT b = BOOLEAN DO {
+        IF b THEN {
+            dataAgeVerify(g) <- NULL;
+            dataRevertAgeVerify(g) <- TRUE;    
+        } ELSE {
+            dataAgeVerify(g) <- TRUE;
+            dataRevertAgeVerify(g) <- NULL;                              
+        }   
+    }
+} 
+
+EXTEND FORM itemGroup PROPERTIES(g) dataAgeVerify ON CHANGE changeAgeVerify(g);
+EXTEND FORM itemGroup PROPERTIES(g) dataRevertAgeVerify ON CHANGE changeRevertAgeVerify(g);
+
+CONSTRAINT dataAgeVerify(ItemGroup g) AND dataRevertAgeVerify(g)
+    MESSAGE 'Запрещено одновременно влючать и отключать контроль возраста для товарной группы';
+
+overDisableInventBack 'Запрет возврата' (ItemGroup g) = TRUE IF disableInventBack(g) AND NOT revertDisableInventBack(g) OR dataDisableInventBack(g);
+overAgeVerify 'Контроль возраста' (ItemGroup g) = TRUE IF ageVerify(g) AND NOT revertAgeVerify(g) OR dataAgeVerify(g);
+
+EXTEND FORM itemGroup
+    PROPERTIES(g) READONLY overDisableInventBack, overAgeVerify
+;
+
+DESIGN itemGroup {
+    params{
+        NEW extendParams{
+            type = CONTAINERH;
+            NEW disableInventBack{
+                caption = 'Запрет возврата';
+                MOVE PROPERTY(overDisableInventBack(g));
+                MOVE PROPERTY(dataDisableInventBack(g));
+                MOVE PROPERTY(dataRevertDisableInventBack(g));
+            }    
+            NEW ageVerify{
+                caption = 'Контроль возраста';
+                MOVE PROPERTY(overAgeVerify(g));
+                MOVE PROPERTY(dataAgeVerify(g));
+                MOVE PROPERTY(dataRevertAgeVerify(g));
+            }         
+        }           
+    }
+}
+
+EXTEND FORM itemGroups
+    PROPERTIES(g) READONLY overDisableInventBack, overAgeVerify
+;
+
+disableInventBack(Barcode barcode) = overDisableInventBack(skuGroup(sku(barcode)));
+ageVerify(Barcode barcode) = overAgeVerify(skuGroup(sku(barcode)));
+
+// запрет продаж через кассу
+disableInventSale 'Запрет продажи через кассу' = DATA BOOLEAN (Item) IN itemBase;
+EXTEND FORM item PROPERTIES(i) disableInventSale;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() disableInventSale;
+
+disableInventSale 'Запрет продажи на магазине' = DATA BOOLEAN (Brand);
+EXTEND FORM brand PROPERTIES(t) disableInventSale;
+EXTEND FORM brands PROPERTIES(t) READONLYIF isReadonly() disableInventSale;
+
+disableInventSale(Barcode barcode) = disableInventSale(sku(barcode)) OR disableInventSale(brand(sku(barcode)));
+
+extraFlags(Barcode b,Stock s) += ((IF disableInventBack(b) THEN 32 ELSE 0) + (IF ageVerify(b) THEN 64 ELSE 0) + (IF disableInventSale(b) THEN 128 ELSE 0)) IF s IS Stock;
