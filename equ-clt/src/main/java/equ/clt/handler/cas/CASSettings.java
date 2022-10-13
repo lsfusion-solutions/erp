@@ -12,6 +12,9 @@ public class CASSettings implements Serializable{
     //максимальная длина строки наименования. Если не задано, в каждой из 2 строк по 28 символов (максимум - 40)
     private Integer maxNameLength;
 
+    //отключение выгрузки стоп-листов
+    private boolean disableStopLists;
+
     public CASSettings() {}
 
     public Integer getPriceMultiplier() {
@@ -36,5 +39,13 @@ public class CASSettings implements Serializable{
 
     public void setMaxNameLength(Integer maxNameLength) {
         this.maxNameLength = maxNameLength;
+    }
+
+    public boolean isDisableStopLists() {
+        return disableStopLists;
+    }
+
+    public void setDisableStopLists(boolean disableStopLists) {
+        this.disableStopLists = disableStopLists;
     }
 }

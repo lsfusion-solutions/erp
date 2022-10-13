@@ -351,8 +351,9 @@ public class CL5000JHandler extends MultithreadScalesHandler {
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
-
-        if (stopListInfo != null && !stopListInfo.exclude) {
+        CASSettings settings = springContext.containsBean("casSettings") ? (CASSettings) springContext.getBean("casSettings") : new CASSettings();
+        boolean disableStopLists = settings.isDisableStopLists();
+        if (stopListInfo != null && !stopListInfo.exclude && !disableStopLists) {
             casLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
             if (!machineryInfoList.isEmpty()) {
                 for (MachineryInfo scales : machineryInfoList) {
