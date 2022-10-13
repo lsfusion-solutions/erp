@@ -21,12 +21,6 @@ limitRetailPriceUp 'Расценить по текущей' (UserInvoiceDetail d
     retailPrice(UserInvoiceDetail d) <- prevRetailPricingPriceB(sku(d), customerStock(d), dateTime(d)) WHERE userInvoice(d) = userInvoice(dd) AND prevRetailPricingPriceB(sku(d), customerStock(d), dateTime(d));   
 } ASON CONTEXTMENU retailPrice[UserInvoiceDetail];
 
-WHEN FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
-            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR SET(isPosted(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(sku(d))) 
-            AND isPosted(d) AND enablePriceLimitUp() AND NOT allowPriceUp(userInvoice(d)) NOINLINE DO {
-    IF retailPrice(d) > prevRetailPricingPriceB(sku(d), customerStock(d), dateTime(d)) THEN {
-        MESSAGE 'Запрет роста цен по товару ' + nameSku(d) + ' c ' + prevRetailPricingPriceB(sku(d), customerStock(d), dateTime(d)) + ' до ' + retailPrice(d) + '\nОбратитесь в отдел ЦО' NOWAIT;
-        CANCEL;
-        RETURN;
-    }
-}
+CONSTRAINT (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR SET(isPosted(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(sku(d))) 
+            AND isPosted(d) AND enablePriceLimitUp() AND NOT allowPriceUp(userInvoice(d)) AND retailPrice(d) > prevRetailPricingPriceB(sku(d), customerStock(d), dateTime(d))
+            MESSAGE 'Запрет роста цен. Обратитесь в отдел ЦО';
