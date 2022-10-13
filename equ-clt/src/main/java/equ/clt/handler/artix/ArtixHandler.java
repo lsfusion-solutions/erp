@@ -273,6 +273,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             boolean copyTransactionsToGlobalExchangeDirectory = artixSettings.isCopyPosToGlobalExchangeDirectory();
             Integer timeout = artixSettings.getTimeout();
 
+            List<File> files = new ArrayList<>();
             for (String directory : directorySet) {
                 processStopListLogger.info(logPrefix + String.format("start sending %s items to %s", stopListInfo.stopListItemMap.size(), directory));
                 File tmpFile = File.createTempFile("pos", ".aif");
@@ -285,12 +286,22 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                     }
                 }
 
-                writeFileAndWait(directory, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, timeout, processStopListLogger);
+                Pair<File, File> fileWithFlag = writeFileWithFlag(directory, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, processStopListLogger);
+                files.add(fileWithFlag.first);
+                files.add(fileWithFlag.second);
             }
+            waitForDeletion(files, timeout);
         }
     }
 
     public void writeFileAndWait(String directory, String copyDirectory, File tmpFile, Integer timeout, Logger logger) throws IOException {
+        Pair<File, File> fileWithFlag = writeFileWithFlag(directory, copyDirectory, tmpFile, logger);
+
+        waitForDeletion(fileWithFlag.first, fileWithFlag.second, timeout);
+        logger.info(String.format(logPrefix + "processed pos file %s", fileWithFlag.first.getAbsolutePath()));
+    }
+
+    public Pair<File, File> writeFileWithFlag(String directory, String copyDirectory, File tmpFile, Logger logger) throws IOException {
         String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         File file = new File(directory + "/pos" + currentTime + ".aif");
 
@@ -311,8 +322,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             logger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
 
         logger.info(String.format(logPrefix + "created pos file %s", file.getAbsolutePath()));
-        waitForDeletion(file, flagFile, timeout);
-        logger.info(String.format(logPrefix + "processed pos file %s", file.getAbsolutePath()));
+
+        return Pair.create(file, flagFile);
     }
 
 
@@ -904,6 +915,24 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 count++;
                 if (count >= timeout)
                     throw new RuntimeException(String.format(logPrefix + "file %s has been created but not processed by server", file.getAbsolutePath()));
+                else
+                    Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    private void waitForDeletion(List<File> files, int timeout) {
+        int count = 0;
+        while (!Thread.currentThread().isInterrupted() && !files.isEmpty()) {
+
+            files.removeIf(file -> !file.exists());
+
+            try {
+                count++;
+                if (count >= timeout)
+                    throw new RuntimeException(String.format(logPrefix + "file(s) %s has been created but not processed by server", files.stream().map(File::getAbsolutePath).collect(Collectors.joining(","))));
                 else
                     Thread.sleep(1000);
             } catch (InterruptedException e) {
