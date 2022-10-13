@@ -408,8 +408,9 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         String unpSupplier = trim((String) findProperty("unpConsignor[EVAT]").read(context, evatObject));
         String nameSupplier = trim((String) findProperty("consignor[EVAT]").read(context, evatObject));
 
+        boolean skipUnpCustomer = findProperty("skipUnpCustomer[EVAT]").read(context, evatObject) != null;
         String countryCodeCustomer = trim((String) findProperty("countryCodeConsignee[EVAT]").read(context, evatObject));
-        String unpCustomer = trim((String) findProperty("unpConsignee[EVAT]").read(context, evatObject));
+        String unpCustomer = !skipUnpCustomer ? trim((String) findProperty("unpConsignee[EVAT]").read(context, evatObject)) : null;
         String nameCustomer = trim((String) findProperty("consignee[EVAT]").read(context, evatObject));
 
         Element senderReceiverElement = new Element("senderReceiver");
