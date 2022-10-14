@@ -35,6 +35,8 @@ public class FiscalPiritCustomOperationClientAction extends FiscalPiritClientAct
                 case 6:
                     //do nothing, preparePrint is enough
                     break;
+                case 7:
+                    return FiscalPirit.getCashSum(serialPort);
                 default:
                     break;
             }

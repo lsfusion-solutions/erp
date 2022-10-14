@@ -70,6 +70,12 @@ public class FiscalPirit {
         }
     }
 
+    public static BigDecimal getCashSum(SerialPort serialPort) {
+        PiritReply replySale = checkCountersCommand(serialPort, 3);
+        PiritReply replyReturn = checkCountersCommand(serialPort, 5);
+        return safeSubtract(new BigDecimal(new String((splitData(replySale.data).get(1)))), new BigDecimal(new String((splitData(replyReturn.data).get(1)))));
+    }
+
     public static Integer printReceipt(SerialPort serialPort, String cashier, ReceiptInstance receipt, List<ReceiptItem> receiptList,
                                        Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType, String prefixFFD12, boolean sale) {
         openZReportIfClosed(serialPort, cashier);
@@ -191,6 +197,10 @@ public class FiscalPirit {
 
     private static PiritReply checkStatusFlagsCommand(SerialPort serialPort) {
         return sendCommand(serialPort, "00", "Запрос флагов статуса ККТ", true);
+    }
+
+    private static PiritReply checkCountersCommand(SerialPort serialPort, int index) {
+        return sendCommand(serialPort, "01", "Запрос сменных счетчиков и регистров", joinData(String.valueOf(index)), true);
     }
 
     private static PiritReply getReceiptStatusCommand(SerialPort serialPort) {
@@ -387,6 +397,13 @@ public class FiscalPirit {
         if (operand1 == null && operand2 == null)
             return null;
         else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+    }
+
+    public static BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else
+            return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
     }
 
     private static class PiritReply {
