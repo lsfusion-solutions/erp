@@ -91,9 +91,7 @@ public class CL7000Handler extends CL5000JHandler {
         }
 
         for (Map.Entry<Integer, String> group : groups.entrySet()) {
-            casLogger.info("sending group " + group.getKey() + "=" + group.getValue()); //todo: remove temp log
             CL7000Reply reply = sendGroup(socket, group.getKey(), group.getValue(), false);
-            casLogger.info("sending group " + group.getKey() + " result: " + reply.error); //todo: remove temp log
             if (reply.error != null) {
                 return reply.error;
             }
@@ -145,9 +143,7 @@ public class CL7000Handler extends CL5000JHandler {
                     speedKeysByteBuffer.putInt(item);
                 }
 
-                casLogger.info("sending speedKeys group " + numberGroup); //todo: remove temp log
                 CL7000Reply reply = sendSpeedKeys(socket, numberGroup, speedKeysByteBuffer.array());
-                casLogger.info("sending speedKeys group " + numberGroup + " result: " + reply.error); //todo: remove temp log
                 if (reply.error != null) {
                     return reply.error;
                 }
@@ -172,17 +168,13 @@ public class CL7000Handler extends CL5000JHandler {
 
         for (int i = 1; i <= 4; i++) {
 
-            casLogger.info("deleting group " + i); //todo: remove temp log
             CL7000Reply reply = sendGroup(socket, i, "", true);
-            casLogger.info("deleting group " + i + " result: " + reply.error);  //todo: remove temp log
             if (reply.error != null) {
                 return reply.error;
             }
 
-            casLogger.info("deleting speedKeys group " + i); //todo: remove temp log
             ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
             reply = sendSpeedKeys(socket, getHEXNumberGroup(i), speedKeysByteBuffer.array());
-            casLogger.info("deleting speedKeys group " + i + " result: " + reply.error);  //todo: remove temp log
             if (reply.error != null) {
                 return reply.error;
             }
