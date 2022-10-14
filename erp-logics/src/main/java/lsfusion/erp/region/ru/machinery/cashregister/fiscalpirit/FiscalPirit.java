@@ -76,6 +76,7 @@ public class FiscalPirit {
         openDocumentCommand(serialPort, cashier, sale ? "2" : "3");
 
         for (ReceiptItem item : receiptList) {
+            checkLotCommand(serialPort, item, prefixFFD12);
             setAdditionalPositionDetailsCommand(serialPort, item, prefixFFD12);
             registerItemCommand(serialPort, item, giftCardDepartment);
         }
@@ -226,16 +227,27 @@ public class FiscalPirit {
 
     private static void setAdditionalPositionDetailsCommand(SerialPort serialPort, ReceiptItem item, String prefixFFD12) {
         if(item.gtinLot != null && item.seriesLot != null) {
-            String hex = (prefixFFD12 != null ? prefixFFD12 : "") + "$44$4D"; //стандартный префикс системы ЧЗ
-            for (byte b : new BigInteger(item.gtinLot).toByteArray()) {
-                hex += String.format("$%02X", b); //$ + hex byte
-            }
-            for (byte b : item.seriesLot.getBytes()) {
-                hex += String.format("$%02X", b); //$ + hex byte
-            }
-            sendCommand(serialPort, "24", "Установить дополнительные реквизиты позиции", joinData(hex), true);
+            String lot = getLot(prefixFFD12, item.gtinLot, item.seriesLot);
+            sendCommand(serialPort, "24", "Установить дополнительные реквизиты позиции", joinData(lot), true);
         }
     }
+
+    private static void checkLotCommand(SerialPort serialPort, ReceiptItem item, String prefixFFD12) {
+        if(item.gtinLot != null && item.seriesLot != null) {
+            String lot = getLot(prefixFFD12, item.gtinLot, item.seriesLot);
+
+            sendCommand(serialPort, "79", "Передача КМ в ФН для проверки достоверности КМ", joinData("1", lot, "0", "1", "1", "0", "1"), true);
+
+            sendCommand(serialPort, "79", "Принятие КМ для включения в документ", joinData("2", "1"), true);
+
+            sendCommand(serialPort, "79", "Передача КМ для включения в кассовый чек", joinData("15", lot, "1", "0", "0", "0"), true);
+        }
+    }
+
+    private static String getLot(String prefixFFD12, String gtinLot, String seriesLot) {
+        return (prefixFFD12 != null ? prefixFFD12 : "") + "01" + gtinLot + "21" + seriesLot + "$1d";
+    }
+
 
     private static void registerItemCommand(SerialPort serialPort, ReceiptItem item, Integer giftCardDepartment) {
         String department = giftCardDepartment != null ? String.valueOf(giftCardDepartment) : "0";
