@@ -5,6 +5,7 @@ REQUIRE RepricingPriceList, PriceLimit;
 NAMESPACE Repricing;
 
 skipRepricingPriceLimit = ABSTRACT BOOLEAN (Sku);
+skipRepricingPriceLimit = ABSTRACT VALUE BOOLEAN (Sku, DepartmentStore);
 
 overLimitBasePrice = ABSTRACT NUMERIC[16,4] (Sku, DepartmentStore, DATETIME);
 limitBasePrice(Sku s, DepartmentStore d, DATETIME  dt) = round2(OVERRIDE overLimitBasePrice(s,d,dt), 
@@ -27,7 +28,7 @@ overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
                                         markup(priceLimitPriceListType(d), sku),
                                         valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku)) WHERE managementRetailPrice(sku);
 
-    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
+    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku) AND NOT skipRepricingPriceLimit(sku, d); 
 }
 
 calculateDescriptionPricing (Sku sku, DepartmentStore d, DATETIME dt) + {
