@@ -187,6 +187,8 @@ priceListTypes 'Цены' (PriceList priceList) = GROUP
                                                ORDER priceListType CHARWIDTH 10 MATERIALIZED;
 priceListTypes 'Цены' (PriceListDetail d) = priceListTypes(priceList(d));
 
+priceListType (PriceList p) = GROUP MIN DataPriceListType t IF in(p, t) MATERIALIZED;
+
 // Строки
 
 TABLE priceListDetailPriceListType (PriceListDetail, PriceListType);
@@ -426,11 +428,11 @@ supplier(PriceList priceList) += company(priceList);
 index[DocumentDetail](PriceListDetail priceList) += index(priceList);
 sku[DocumentDetail](PriceListDetail priceList) += sku(priceList);
 
-priceListType (PriceListDetail detail)= GROUP MIN DataPriceListType pt IF in(detail, pt);
+priceListType (PriceListDetail detail)= priceListType(priceList(detail));
 namePriceListType 'Вид цены' (PriceListDetail priceListDetail) = name(priceListType(priceListDetail));
 price 'Цена' (PriceListDetail priceListDetail) = price(priceListDetail, priceListType(priceListDetail));
 
-price[DocumentDetail](PriceListDetail detail) += price(detail, priceListType(detail));
+price[DocumentDetail](PriceListDetail detail) += price(detail);
 
 document(PriceListDetail detail) += priceList(detail);
 
