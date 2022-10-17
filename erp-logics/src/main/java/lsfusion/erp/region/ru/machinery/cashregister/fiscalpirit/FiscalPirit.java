@@ -73,7 +73,18 @@ public class FiscalPirit {
     public static BigDecimal getCashSum(SerialPort serialPort) {
         PiritReply replySale = checkCountersCommand(serialPort, 3);
         PiritReply replyReturn = checkCountersCommand(serialPort, 5);
-        return safeSubtract(new BigDecimal(new String((splitData(replySale.data).get(1)))), new BigDecimal(new String((splitData(replyReturn.data).get(1)))));
+        PiritReply replyCashInOut = checkCountersCommand(serialPort, 8);
+
+        BigDecimal saleSum = bytesToBigDecimal(replySale, 1);
+        BigDecimal returnSum = bytesToBigDecimal(replyReturn, 1);
+        BigDecimal cashInSum = bytesToBigDecimal(replyCashInOut, 3);
+        BigDecimal cashOutSum = bytesToBigDecimal(replyCashInOut, 4);
+
+        return safeSubtract(safeAdd(saleSum, cashInSum), safeAdd(returnSum, cashOutSum));
+    }
+
+    private static BigDecimal bytesToBigDecimal(PiritReply data, int index) {
+        return new BigDecimal(new String((splitData(data.data).get(index))));
     }
 
     public static Integer printReceipt(SerialPort serialPort, String cashier, ReceiptInstance receipt, List<ReceiptItem> receiptList,
