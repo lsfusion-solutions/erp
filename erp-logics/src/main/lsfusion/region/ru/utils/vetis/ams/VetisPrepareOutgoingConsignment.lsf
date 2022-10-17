@@ -6,8 +6,20 @@ NAMESPACE Vetis;
 
 CLASS PrepareOutgoingConsignmentRequest 'Оформление транспортной партии' : ApplicationRequest;
 
+allowDeleteOutgoingConsignment 'Разрешить удаление исходящих партий' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES () allowDeleteOutgoingConsignment
+;
+
+DESIGN integrationData {
+    vetis {
+        MOVE PROPERTY (allowDeleteOutgoingConsignment());
+    }
+}
+
 in = DATA BOOLEAN (PrepareOutgoingConsignmentRequest, OutgoingConsignment);
-CONSTRAINT DROPPED(in(PrepareOutgoingConsignmentRequest r, OutgoingConsignment c))
+CONSTRAINT DROPPED(in(PrepareOutgoingConsignmentRequest r, OutgoingConsignment c)) AND NOT allowDeleteOutgoingConsignment()
     MESSAGE 'Запрещено удалять исходящую партию для созданной заявки';
 
 localTransactionId (PrepareOutgoingConsignmentRequest r) = LONG(r AS PrepareOutgoingConsignmentRequest);
