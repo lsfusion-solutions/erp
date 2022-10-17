@@ -446,6 +446,8 @@ CONSTRAINT (SETCHANGED(component(ComponentDetail d)) OR SETCHANGED(componentsSto
     CHECKED BY BOM[ComponentDetail]
     MESSAGE 'Для строки компонента в производственном заказе выбрана компонента, которая не действует для склада компонента.';
 
+overCreate  ABSTRACT (ComponentDetail);
+
 createComponents 'Заполнить компоненты из спецификации'(BOM BOM, Order order)  { 
     FOR BOM(Component component) == BOM DO {
         NEW d=ComponentDetail {
@@ -464,6 +466,7 @@ createComponents 'Заполнить компоненты из специфик�
                     bruttoSku(d) <- sku[Product](material(component));
                 }
             }
+            overCreate(d);
         }
     }    
 }
@@ -526,6 +529,8 @@ createProducts 'Заполнить изделия из спецификации 
     overCreateProducts(order);
 } TOOLBAR;
 
+overCreate  ABSTRACT (ComponentDetail, ComponentDetail);
+
 expand 'Развернуть изделие'(ComponentDetail componentDetail)  { 
 
     FOR  BOM(Component component) == BOM(product(componentDetail))  DO {
@@ -547,6 +552,7 @@ expand 'Развернуть изделие'(ComponentDetail componentDetail)  {
                     bruttoSku(d) <- sku[Product](material(component));
                 }
             }
+            overCreate(d, componentDetail);
         }
     }
     DELETE componentDetail;
@@ -561,9 +567,11 @@ recBOMQuantity 'Рекур.кол-во' (BOM BOM, Order order, Component compone
 calcComponentBruttoQuantity (ComponentDetail d) = recBruttoQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
 calcComponentBOMQuantity (ComponentDetail d) = recBOMQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
 
-createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)'(BOM BOM, Order order) { 
+overCreateForRecComponents  ABSTRACT LIST (BOM, Order);
+skipCreateForRecComponents = ABSTRACT BOOLEAN (BOM);
 
-    FOR NUMERIC[91,46] q == recBruttoQuantity(BOM, order, Component component) IF material(component) IS Sku ORDER BOM NEW d = ComponentDetail DO {
+createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)'(BOM BOM, Order order) { 
+    FOR NUMERIC[91,46] q == recBruttoQuantity(BOM, order, Component component) IF material(component) IS Sku AND NOT skipCreateForRecComponents(BOM) ORDER BOM NEW d = ComponentDetail DO {
         order(d) <- order;
         BOM(d) <- BOM;
         bruttoSku(d) <- material(component);
@@ -571,6 +579,7 @@ createForRecComponents 'Заполнить из спецификации (рек
         bruttoQuantity(d) <- q;
         BOMQuantity(d) <- recBOMQuantity(BOM, order, component);
     }
+    overCreateForRecComponents(BOM, order);
 }
 
 createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)'(Order order)  { 
@@ -1963,7 +1972,7 @@ copy 'Копировать'(Order order)  {
 	            bruttoQuantity(c) <- bruttoQuantity(componentDetail);
 	//            BOMQuantityComponentDetail(c) <- BOMQuantityComponentDetail(componentDetail);
 	            BOM(c) <- BOM(componentDetail);
-	
+	            overCreate(c,componentDetail);
 	        }
 	        FOR bruttoQuantity(Sku sku,order) DO {
 	            dataBruttoPrice(sku,o) <- dataBruttoPrice(sku,order);
@@ -2145,6 +2154,7 @@ changeBruttoQuantityBrutto(Sku bruttoSku, Order order)  {
                     order(d) <- order;
                     bruttoSku(d) <- bruttoSku;
                     bruttoQuantity (d) <- n;
+                    overCreate(d);
                 }
             }
         }
