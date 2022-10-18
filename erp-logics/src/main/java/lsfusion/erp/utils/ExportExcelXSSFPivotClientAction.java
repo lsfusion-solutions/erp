@@ -213,8 +213,13 @@ public class ExportExcelXSSFPivotClientAction implements ClientAction {
                 Desktop.getDesktop().open(targetFile);
             }
         } finally {
-            if (sourceFile != null && !sourceFile.delete())
-                sourceFile.deleteOnExit();
+            safeDelete(sourceFile);
+        }
+    }
+
+    private void safeDelete(File file) {
+        if (file != null && !file.delete()) {
+            file.deleteOnExit();
         }
     }
 

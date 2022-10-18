@@ -90,8 +90,7 @@ public abstract class ExportCSVAction extends DefaultExportAction {
                         throw Throwables.propagate(e);
                     } finally {
                         try {
-                            if (localFile != null && !localFile.delete())
-                                localFile.deleteOnExit();
+                            safeFileDelete(localFile);
                             if (ftpClient.isConnected()) {
                                 ftpClient.logout();
                                 ftpClient.disconnect();

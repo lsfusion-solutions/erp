@@ -267,8 +267,8 @@ public class DefaultTerminalHandler {
                         }
                         return new RawFileData(zipFile);
                     } finally {
-                        if (baseZipDirectory == null && !zipFile.delete()) {
-                            zipFile.deleteOnExit();
+                        if (baseZipDirectory == null) {
+                            safeDelete(zipFile);
                         }
                     }
                 }
@@ -277,8 +277,13 @@ public class DefaultTerminalHandler {
         } catch (Exception e) {
             throw Throwables.propagate(e);
         } finally {
-            if(file != null && !file.delete())
-                file.deleteOnExit();
+            safeDelete(file);
+        }
+    }
+
+    private void safeDelete(File file) {
+        if (file != null && !file.delete()) {
+            file.deleteOnExit();
         }
     }
 

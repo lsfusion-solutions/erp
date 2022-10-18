@@ -1007,8 +1007,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         }
 
         dbfReader.close();
-        if(!tempFile.delete())
-            tempFile.deleteOnExit();
+        safeFileDelete(tempFile);
         return userPriceListDetailList;
     }
 

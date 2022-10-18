@@ -4,6 +4,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -16,7 +17,6 @@ import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
@@ -31,9 +31,7 @@ import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.*;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.sqlDateToLocalDate;
-
-public class ImportTNVEDCustomsRatesAction extends InternalAction {
+public class ImportTNVEDCustomsRatesAction extends DefaultIntegrationAction {
 
     public ImportTNVEDCustomsRatesAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -212,8 +210,7 @@ public class ImportTNVEDCustomsRatesAction extends InternalAction {
         } finally {
             if(dbfFile != null)
                 dbfFile.close();
-            if(tempFile != null && !tempFile.delete())
-                tempFile.deleteOnExit();
+            safeFileDelete(tempFile);
         }
         
         LocalDate defaultDateFrom = LocalDate.of(2001, 1, 1);

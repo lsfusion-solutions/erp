@@ -51,8 +51,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
             File file = exportGeneralLedgers(context, dateFrom, dateTo, legalEntity, glAccountType);
             if (file != null) {
                 context.delayUserInterfaction(new WriteClientAction(new RawFileData(file), "export", "dbf", false, true));
-                if(!file.delete())
-                    file.deleteOnExit();
+                safeFileDelete(file);
             }
             else
                 context.delayUserInterfaction(new MessageClientAction("По заданным параметрам не найдено ни одной проводки", "Ошибка"));

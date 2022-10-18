@@ -1430,8 +1430,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         } finally {
             if(file != null)
                 file.close();
-            if(tempFile != null && !tempFile.delete())
-                tempFile.deleteOnExit();
+            safeFileDelete(tempFile);
         }
        
         return checkArticles(context, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 

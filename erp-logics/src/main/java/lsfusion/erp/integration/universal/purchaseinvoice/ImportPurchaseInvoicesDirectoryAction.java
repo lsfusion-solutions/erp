@@ -116,8 +116,7 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
                     } finally {
                         if (ftp) {
                             for (File f : listFiles.values()) {
-                                if (!f.delete())
-                                    f.deleteOnExit();
+                                safeFileDelete(f);
                             }
                         }
                     }

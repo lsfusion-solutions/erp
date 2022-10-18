@@ -647,8 +647,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         } finally {
             if(file != null)
                 file.close();
-            if(tempFile != null && !tempFile.delete())
-                tempFile.deleteOnExit();
+            safeFileDelete(tempFile);
         }
 
         return Arrays.asList(primaryList, secondaryList);

@@ -300,25 +300,22 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                         String outExtension = BaseUtils.getFileExtension(outputFile);
                         if (extensionFilter.equalsIgnoreCase(outExtension))
                             result.add(Pair.create(fileName, new RawFileData(outputFile)));
-                        if(!outputFile.delete())
-                            outputFile.deleteOnExit();
+                        safeFileDelete(outputFile);
                     }
                     fh = a.nextFileHeader();
                 }
                 a.close();
             }
 
-            for(File dir : dirList)
-                if(dir != null && dir.exists() && !dir.delete())
-                    dir.deleteOnExit();
+            for(File dir : dirList) {
+                safeFileDelete(dir);
+            };
             
         } catch (RarException | IOException e) {
             throw Throwables.propagate(e);
         } finally {
-            if(inputFile != null && !inputFile.delete())
-                inputFile.deleteOnExit();
-            if(outputFile != null && !outputFile.delete())
-                outputFile.deleteOnExit();
+            safeFileDelete(inputFile);
+            safeFileDelete(outputFile);
         }
         return result;
     }
@@ -362,8 +359,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                             String outExtension = BaseUtils.getFileExtension(outputFile);
                             if (extensionFilter.equalsIgnoreCase(outExtension))
                                 result.add(Pair.create(fileName, new RawFileData(outputFile)));
-                            if(!outputFile.delete())
-                                outputFile.deleteOnExit();
+                            safeFileDelete(outputFile);
                         }
                     }
                     ze = inputStream.getNextEntry();
@@ -372,17 +368,15 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                 inputStream.close();
             }
             
-            for(File dir : dirList)
-                if(dir != null && dir.exists() && !dir.delete())
-                    dir.deleteOnExit();
+            for(File dir : dirList) {
+                safeFileDelete(dir);
+            }
                     
         } catch (IOException e) {
             throw Throwables.propagate(e);
         } finally {
-            if(inputFile != null && !inputFile.delete())
-                inputFile.deleteOnExit();
-            if(outputFile != null && !outputFile.delete())
-                outputFile.deleteOnExit();
+            safeFileDelete(inputFile);
+            safeFileDelete(outputFile);
         }
         return result;
     }

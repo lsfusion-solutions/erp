@@ -132,10 +132,17 @@ public class EVATActiveXHandler {
             logger.error("Send file error", e);
             return Arrays.asList(evat, e.getMessage(), true);
         } finally {
-            if(archiveDir == null && originalFile!= null && !originalFile.delete())
-                originalFile.deleteOnExit();
+            if(archiveDir == null) {
+                safeDelete(originalFile);
+            }
         }
         return result;
+    }
+
+    private void safeDelete(File file) {
+        if (file != null && !file.delete()) {
+            file.deleteOnExit();
+        }
     }
 
     public List<List<Object>> getStatus(Map<String, Map<Long, String>> invoices, String serviceUrl, String password, String certNumber) {

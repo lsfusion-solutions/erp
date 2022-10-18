@@ -215,8 +215,8 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
             throw Throwables.propagate(e);
         } finally {
-            if (choosePath && tmpFile != null && !tmpFile.delete())
-                tmpFile.deleteOnExit();
+            if (choosePath)
+                safeFileDelete(tmpFile);
         }
     }
 

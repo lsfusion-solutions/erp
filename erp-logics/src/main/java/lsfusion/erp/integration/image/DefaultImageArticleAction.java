@@ -69,8 +69,7 @@ public class DefaultImageArticleAction extends DefaultIntegrationAction {
                             findProperty("thumbnailImage[INTEGER]").change(new RawFileData(file), context, currentObject);
                             findProperty("urlImage[INTEGER]").change(imageUrl, context, currentObject);
                             findProperty("sizeImage[INTEGER]").change(width + "x" + height, context, currentObject);
-                            if(!file.delete())
-                                file.deleteOnExit();
+                            safeFileDelete(file);
                         }
                     }
                     findProperty("startImage[]").change(start + 1, context);
@@ -103,8 +102,7 @@ public class DefaultImageArticleAction extends DefaultIntegrationAction {
                         File file = readImage(jsonObject.getString("url"));
                         if (file != null) {
                             findProperty("image[Article]").change(new RawFileData(file), context, articleObject);
-                            if(!file.delete())
-                                file.deleteOnExit();
+                            safeFileDelete(file);
                             break;
                         }
                     }

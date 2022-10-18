@@ -189,8 +189,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
         } finally {
             if (dbfFile != null)
                 dbfFile.close();
-            if (tempFile != null && !tempFile.delete())
-                tempFile.deleteOnExit();
+            safeFileDelete(tempFile);
         }
         return declarationsMap;
     }

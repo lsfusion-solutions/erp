@@ -277,11 +277,11 @@ public class ExportDeclarationAction extends DefaultExportAction {
             writerTSDocs44.close();
 
             files.put("TSware.csv", new RawFileData(fileTSware));
-            fileTSware.delete();
+            safeFileDelete(fileTSware);
             files.put("TSmarkings.csv", new RawFileData(fileTSMarkings));
-            fileTSMarkings.delete();
+            safeFileDelete(fileTSMarkings);
             files.put("TSDocs44.csv", new RawFileData(fileTSDocs44));
-            fileTSDocs44.delete();
+            safeFileDelete(fileTSDocs44);
             context.delayUserInterfaction(new ExportFileClientAction(files));
 
         } catch (IOException | SQLException | ScriptingErrorLog.SemanticErrorException e) {

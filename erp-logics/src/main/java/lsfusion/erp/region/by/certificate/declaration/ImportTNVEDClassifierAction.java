@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
@@ -12,7 +13,6 @@ import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class ImportTNVEDClassifierAction extends InternalAction {
+public class ImportTNVEDClassifierAction extends DefaultIntegrationAction {
 
     public ImportTNVEDClassifierAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -88,8 +88,7 @@ public class ImportTNVEDClassifierAction extends InternalAction {
         } finally {
             if(dbfFile != null)
                 dbfFile.close();
-            if(tempFile != null && !tempFile.delete())
-                tempFile.deleteOnExit();
+            safeFileDelete(tempFile);
         }
         
         ImportField codeCustomsGroupField = new ImportField(findProperty("code[CustomsGroup]"));
@@ -160,8 +159,7 @@ public class ImportTNVEDClassifierAction extends InternalAction {
         } finally {
             if(file != null)
                 file.close();
-            if(tempFile != null && !tempFile.delete())
-                tempFile.deleteOnExit();
+            safeFileDelete(tempFile);
         }
 
         ImportField groupIDField = new ImportField(findProperty("code[CustomsGroup]"));

@@ -5,6 +5,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -17,7 +18,6 @@ import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -30,7 +30,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
+public class ImportTNVEDCustomsExceptionsAction extends DefaultIntegrationAction {
     private static final String charset = "Cp866";
 
     public ImportTNVEDCustomsExceptionsAction(ScriptingLogicsModule LM) {
@@ -142,8 +142,7 @@ public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
         } finally {
             if(dbfFile != null)
                 dbfFile.close();
-            if(tempFile != null && !tempFile.delete())
-                tempFile.deleteOnExit();
+            safeFileDelete(tempFile);
         }
         
         for (Map.Entry<String, List<Object>> entry : dataVATMap.entrySet()) {

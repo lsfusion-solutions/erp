@@ -175,8 +175,7 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
             ERPLoggers.importLogger.info(logPrefix + "image read failed for barcode " + barcode);
             return null;
         } finally {
-            if (imageItem != null && !imageItem.delete())
-                imageItem.deleteOnExit();
+            safeFileDelete(imageItem);
         }
     }
 

@@ -41,8 +41,7 @@ public class UploadImageArticleFromURLAction extends DefaultImageArticleAction {
             if (imageFile != null) {
                 findProperty("image[Article]").change(new DataObject(new RawFileData(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
                 findProperty("timeChangedImage[Article]").change(new DataObject(LocalDateTime.now(), DateTimeClass.instance), context, articleObject);
-                if(!imageFile.delete())
-                    imageFile.deleteOnExit();
+                safeFileDelete(imageFile);
 
             }
         } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
