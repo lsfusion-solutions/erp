@@ -7,9 +7,7 @@ import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
-import org.springframework.util.FileCopyUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.fields.CharField;
 import org.xBaseJ.fields.Field;
@@ -123,7 +121,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDo
                                 File flagPriceFile = new File(directory + "/price.qry");
 
                                 if (priceFile.exists() && priceFile.length() == 0)
-                                    safeFileDelete(priceFile, processTransactionLogger);
+                                    safeDelete(priceFile);
 
                                 boolean append = !transaction.snapshot && priceFile.exists();
 
@@ -317,8 +315,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDo
                     } catch (xBaseJException e) {
                         throw Throwables.propagate(e);
                     } finally {
-                        safeFileDelete(cachedPriceFile, processTransactionLogger);
-                        safeFileDelete(cachedPriceMdxFile, processTransactionLogger);
+                        safeDelete(cachedPriceFile);
+                        safeDelete(cachedPriceMdxFile);
                     }
                 }
             } catch (Exception e) {
@@ -394,8 +392,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDo
                 machineryExchangeLogger.info("HTCHandler: finish sending to " + directory);
             }
             if(cachedDiscFile != null) {
-                safeFileDelete(new File(cachedDiscFile.getAbsolutePath().replace(".dbf", ".mdx")), machineryExchangeLogger);
-                safeFileDelete(cachedDiscFile, machineryExchangeLogger);
+                safeDelete(new File(cachedDiscFile.getAbsolutePath().replace(".dbf", ".mdx")));
+                safeDelete(cachedDiscFile);
             }
         } catch (xBaseJException e) {
             throw Throwables.propagate(e);
@@ -420,18 +418,18 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDo
             }
             
             if(cachedTimeFile != null) {
-                safeFileDelete(cachedTimeFile, machineryExchangeLogger);
-                safeFileDelete(new File(cachedTimeFile.getAbsolutePath().replace(".dbf", ".mdx")), machineryExchangeLogger);
+                safeDelete(cachedTimeFile);
+                safeDelete(new File(cachedTimeFile.getAbsolutePath().replace(".dbf", ".mdx")));
             }
 
             if(cachedQuantityFile != null) {
-                safeFileDelete(cachedQuantityFile, machineryExchangeLogger);
-                safeFileDelete(new File(cachedQuantityFile.getAbsolutePath().replace(".dbf", ".mdx")), machineryExchangeLogger);
+                safeDelete(cachedQuantityFile);
+                safeDelete(new File(cachedQuantityFile.getAbsolutePath().replace(".dbf", ".mdx")));
             }
 
             if(cachedSumFile != null) {
-                safeFileDelete(cachedSumFile, machineryExchangeLogger);
-                safeFileDelete(new File(cachedSumFile.getAbsolutePath().replace(".dbf", ".mdx")), machineryExchangeLogger);
+                safeDelete(cachedSumFile);
+                safeDelete(new File(cachedSumFile.getAbsolutePath().replace(".dbf", ".mdx")));
             }
             
         } catch (xBaseJException e) {
@@ -792,9 +790,9 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDo
                         filePathList.add(remoteSalesFile.getAbsolutePath());
                         filePathList.add(remoteReceiptFile.getAbsolutePath());
                     }
-                    safeFileDelete(salesFile, sendSalesLogger);
-                    safeFileDelete(receiptFile, sendSalesLogger);
-                    safeFileDelete(new File(directory + "/Sales.ans"), sendSalesLogger);
+                    safeDelete(salesFile);
+                    safeDelete(receiptFile);
+                    safeDelete(new File(directory + "/Sales.ans"));
                 }
             }
             filePathList.addAll(receiptFilesPathList);
@@ -977,12 +975,12 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDo
             File salesFile = new File(directory + "/Sales.dbf");
             File receiptFile = new File(directory + "/Receipt.dbf");
             if (new File(directory).exists()) {
-                safeFileDelete(ansFile, sendSalesLogger);
+                safeDelete(ansFile);
                 Writer writer = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(queryFile.toPath()), StandardCharsets.UTF_8));
                 writer.write(date);
                 writer.close();
                 result = waitRequestSalesInfo(queryFile, ansFile, salesFile, receiptFile);
-                safeFileDelete(ansFile, sendSalesLogger);
+                safeDelete(ansFile);
             } else
                 result = "Error: " + directory + " doesn't exist. Request creation failed.";
             if (result != null)
@@ -1014,13 +1012,6 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDo
                 return renamed ? null : "Renaming of receipt file failed";
             } else
                 return "Renaming of sales file failed";
-        }
-    }
-
-    private void safeFileDelete(File file, Logger logger) {
-        if (file != null && !file.delete()) {
-            file.deleteOnExit();
-            logger.info(String.format("HTC: cannot delete file %s, will try to deleteOnExit", file.getAbsolutePath()));
         }
     }
 }

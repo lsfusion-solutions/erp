@@ -138,7 +138,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch, Cash
             }
         }
         processTransactionLogger.info("Atol: deletion of goods file");
-        goodsFile.delete();
+        safeDelete(goodsFile);
     }
 
     @Override
@@ -204,8 +204,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch, Cash
                     br.close();
 
                     copyWithTimeout(outputFile, inputFile);
-                    if(!outputFile.delete())
-                        outputFile.deleteOnExit();
+                    safeDelete(outputFile);
                 }
             } catch (IOException e) {
                 throw Throwables.propagate(e);

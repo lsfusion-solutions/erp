@@ -382,12 +382,6 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet, usedDeleteBarcodeTransactionMap);
     }
 
-    private void safeDelete(File file) {
-        if (file != null && file.exists() && !file.delete()) {
-            file.deleteOnExit();
-        }
-    }
-
     private Map<Long, SendTransactionBatch> waitForDeletion(Map<File, Long> filesMap, Map<Long, Exception> failedTransactionMap,
                                                                Set<Long> emptyTransactionSet, Map<Long, DeleteBarcode> usedDeleteBarcodeTransactionMap) {
         int count = 0;
@@ -529,12 +523,10 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                 File[] files = oldDir.listFiles();
                 if(files != null) {
                     for (File file : files) {
-                        if (!file.delete())
-                            file.deleteOnExit();
+                        safeDelete(file);
                     }
                 }
-                if(!oldDir.delete())
-                    oldDir.deleteOnExit();
+                safeDelete(oldDir);
             }
             if (new File(directory).exists() || new File(directory).mkdirs())
                 copyWithTimeout(f, new File(directory + f.getName()));
@@ -1174,8 +1166,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             File successDir = new File(dir);
                             if (successDir.exists() || successDir.mkdirs())
                                 copyWithTimeout(file, new File(dir + file.getName()));
-                            if(!file.delete())
-                                file.deleteOnExit();
+                            safeDelete(file);
                         }
                     } catch (Throwable e) {
                         sendSalesLogger.error("File: " + file.getAbsolutePath(), e);

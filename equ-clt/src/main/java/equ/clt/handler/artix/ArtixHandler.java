@@ -311,10 +311,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 copyWithTimeout(tmpFile, new File(copyDirectory + "/pos" + currentTime + ".aif"));
             }
         } finally {
-            if (!tmpFile.delete()) {
-                logger.info(String.format(logPrefix + "unable to delete pos file %s", tmpFile.getAbsolutePath()));
-                tmpFile.deleteOnExit();
-            }
+            safeDelete(tmpFile);
         }
 
         File flagFile = new File(directory + "/pos" + currentTime + ".flz");
@@ -1260,8 +1257,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                         }
 
                         FileCopyUtils.copy(tmpFile, file);
-                        if(!tmpFile.delete())
-                            tmpFile.deleteOnExit();
+                        safeDelete(tmpFile);
 
                         File flagFile = new File(globalExchangeDirectory + "/pos" + currentTime + ".flz");
                         if (!flagFile.createNewFile())
@@ -1362,8 +1358,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                     }
 
                     FileCopyUtils.copy(tmpFile, file);
-                    if (!tmpFile.delete())
-                        tmpFile.deleteOnExit();
+                    safeDelete(tmpFile);
 
                     File flagFile = new File(directory + "/pos" + currentTime + ".flz");
                     if (!flagFile.createNewFile())

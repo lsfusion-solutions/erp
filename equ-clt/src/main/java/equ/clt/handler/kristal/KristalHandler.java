@@ -761,8 +761,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 //stopList.txt
                 File stopListFile = new File(exchangeDirectory + "stoplist.txt");
                 File flagStopListFile = new File(exchangeDirectory + "WAITSTOPLIST");
-                if (flagStopListFile.exists() && !flagStopListFile.delete())
-                    flagStopListFile.deleteOnExit();
+                safeDelete(flagStopListFile);
                 if (stopListFile.exists() && flagStopListFile.exists()) {
                     throw new RuntimeException(existFilesMessage(stopListFile, flagStopListFile));
                 } else {
@@ -927,8 +926,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 try {
                     if(file.length() == 0) {
                         //file is empty
-                        if(!file.delete())
-                            file.deleteOnExit();
+                        safeDelete(file);
                         continue;
                     }
                     String fileName = file.getName();

@@ -120,9 +120,9 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                                     exception = e;
                                     processTransactionLogger.error("BelCoopSoyuz: error while create files", e);
                                 } finally {
-                                    safeFileDelete(baseFile, processTransactionLogger);
-                                    safeFileDelete(baseMdxFile, processTransactionLogger);
-                                    safeFileDelete(flagPriceFile, processTransactionLogger);
+                                    safeDelete(baseFile);
+                                    safeDelete(baseMdxFile);
+                                    safeDelete(flagPriceFile);
                                 }
                             } else {
                                 String pricePath = directory + "/" + priceName + ".dbf";
@@ -136,15 +136,15 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                                     File baseMdxFile = new File(baseMDXPath);
 
                                     if(transaction.snapshot) {
-                                        safeFileDelete(baseFile, processTransactionLogger);
-                                        safeFileDelete(baseMdxFile, processTransactionLogger);
+                                        safeDelete(baseFile);
+                                        safeDelete(baseMdxFile);
                                     }
 
                                     boolean append = !transaction.snapshot && baseFile.exists();
 
                                     File priceFile = new File(pricePath);
                                     File flagPriceFile = new File(flagPricePath);
-                                    safeFileDelete(flagPriceFile, processTransactionLogger);
+                                    safeDelete(flagPriceFile);
                                     try {
                                         //write to local base file
                                         writeBaseFile(transaction, cashRegister, baseFile, append);
@@ -487,10 +487,10 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                             else
                                 filePathMap.put(remoteSalesFile.getAbsolutePath(), true);
                         }
-                        safeFileDelete(salesFile, sendSalesLogger);
+                        safeDelete(salesFile);
                     }
                 } finally {
-                    safeFileDelete(lsfFlagFile, sendSalesLogger);
+                    safeDelete(lsfFlagFile);
                 }
             }
 
@@ -540,15 +540,15 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                     } finally {
                         if (!copyError) {
                             if (salesInfoList.isEmpty())
-                                safeFileDelete(remoteSalesFile, sendSalesLogger);
+                                safeDelete(remoteSalesFile);
                             else
                                 filePathMap.put(remoteSalesFile.getAbsolutePath(), false);
                         }
-                        safeFileDelete(salesFile, sendSalesLogger);
+                        safeDelete(salesFile);
                     }
                 }
             } finally {
-                safeFileDelete(lsfFlagFile, sendSalesLogger);
+                safeDelete(lsfFlagFile);
             }
         }
         return salesInfoList.isEmpty() ? null :
@@ -760,13 +760,6 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             }
         } catch (IOException e) {
             e.printStackTrace();
-        }
-    }
-
-    private void safeFileDelete(File file, Logger logger) {
-        if (file != null && file.exists() && !file.delete()) {
-            file.deleteOnExit();
-            logger.info(String.format("BelCoopSoyuz: cannot delete file %s, will try to deleteOnExit", file.getAbsolutePath()));
         }
     }
 

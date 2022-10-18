@@ -265,4 +265,10 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
         }
         return isLocked;
     }
+
+    public void safeDelete(File file) {
+        if (file != null && !file.delete()) {
+            file.deleteOnExit();
+        }
+    }
 }

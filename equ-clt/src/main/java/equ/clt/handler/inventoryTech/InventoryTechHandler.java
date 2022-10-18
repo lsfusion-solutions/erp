@@ -237,8 +237,7 @@ public class InventoryTechHandler extends TerminalHandler {
                                 sendTerminalDocumentLogger.info(String.format("InventoryTech: processed %s records in %s", count, directory));
                             }
                         }
-                        if (!flagFile.delete())
-                            flagFile.deleteOnExit();
+                        safeDelete(flagFile);
                     }
                 }
             }
@@ -308,12 +307,9 @@ public class InventoryTechHandler extends TerminalHandler {
                 File fileMDX = new File(path + "/GOODS.mdx");
                 File fileCDX = new File(path + "/GOODS.cdx");
                 if (transaction.snapshot) {
-                    if(!fileDBF.delete())
-                        fileDBF.deleteOnExit();
-                    if(!fileMDX.delete())
-                        fileMDX.deleteOnExit();
-                    if(!fileCDX.delete())
-                        fileCDX.deleteOnExit();
+                    safeDelete(fileDBF);
+                    safeDelete(fileMDX);
+                    safeDelete(fileCDX);
                 }
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
@@ -388,12 +384,9 @@ public class InventoryTechHandler extends TerminalHandler {
                 File fileMDX = new File(path + "/BARCODE.mdx");
                 File fileCDX = new File(path + "/BARCODE.cdx");
                 if (transaction.snapshot) {
-                    if(!fileDBF.delete())
-                        fileDBF.deleteOnExit();
-                    if(!fileMDX.delete())
-                        fileMDX.deleteOnExit();
-                    if(!fileCDX.delete())
-                        fileCDX.deleteOnExit();
+                    safeDelete(fileDBF);
+                    safeDelete(fileMDX);
+                    safeDelete(fileCDX);
                 }
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
@@ -472,12 +465,9 @@ public class InventoryTechHandler extends TerminalHandler {
                 File fileMDX = new File(path + "/SPRAV.mdx");
                 File fileCDX = new File(path + "/SPRAV.cdx");
                 if (transaction.snapshot) {
-                    if(!fileDBF.delete())
-                        fileDBF.deleteOnExit();
-                    if(!fileMDX.delete())
-                        fileMDX.deleteOnExit();
-                    if(!fileCDX.delete())
-                        fileCDX.deleteOnExit();
+                    safeDelete(fileDBF);
+                    safeDelete(fileMDX);
+                    safeDelete(fileCDX);
                 }
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
@@ -561,12 +551,9 @@ public class InventoryTechHandler extends TerminalHandler {
                 File fileMDX = new File(path + "/SPRDOC.mdx");
                 File fileCDX = new File(path + "/SPRDOC.cdx");
                 if (transaction.snapshot) {
-                    if(!fileDBF.delete())
-                        fileDBF.deleteOnExit();
-                    if(!fileMDX.delete())
-                        fileMDX.deleteOnExit();
-                    if(!fileCDX.delete())
-                        fileCDX.deleteOnExit();
+                    safeDelete(fileDBF);
+                    safeDelete(fileMDX);
+                    safeDelete(fileCDX);
                 }
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
