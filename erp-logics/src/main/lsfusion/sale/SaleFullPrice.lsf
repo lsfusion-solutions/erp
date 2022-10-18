@@ -25,9 +25,16 @@ showFullPrice 'Показывать полную цену и скидку' (Orde
 prevList (PriceListType t, UserOrderDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(d) AND NOT skipPercDiscount(d) THEN
                     NUMERIC[16,4](round2(prevPriceB(t, sku(d), priceStock(d), dateTime(d)) * (100.0 (-) percDiscount(d)) / 100.0));
 
+useCustomRecalculateDiscountPrice = ABSTRACT BOOLEAN (UserOrderDetail);
+customRecalculateDiscountPrice ABSTRACT (UserOrderDetail);
+
 recalculateDiscountPrice(UserOrderDetail d)  { 
-    price(d) <- round2(fullPrice(d) * (100.0 (-) percDiscountNotSkip (d)) / 100.0);
-    invoicePrice(d) <- round2(price (d) * (100 + calcValueVAT(d)) / 100);
+    IF useCustomRecalculateDiscountPrice(d) THEN
+        customRecalculateDiscountPrice(d);
+    ELSE {
+        price(d) <- round2(fullPrice(d) * (100.0 (-) percDiscountNotSkip (d)) / 100.0);
+        invoicePrice(d) <- round2(price (d) * (100 + calcValueVAT(d)) / 100);
+    }
 }
 
 // заполнение полной цены 
@@ -147,9 +154,16 @@ showFullPrice 'Показывать полную цену и скидку' (Invo
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(userInvoice(d)) AND NOT skipPercDiscount(d) THEN
                     NUMERIC[16,4](round2(prevPriceB(t, sku(d), supplierStock(d), dateTime(d)) * (100.0 (-) percDiscount(userInvoice(d))) / 100.0));
 
+useCustomRecalculateDiscountPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
+customRecalculateDiscountPrice ABSTRACT (UserInvoiceDetail);
+
 recalculateDiscountPrice(UserInvoiceDetail d)  { 
-    price(d) <- round2(fullPrice(d) * (100.0 (-) percDiscountNotSkip (d)) / 100.0);
-    invoicePrice(d) <- round2(price (d) * (100 + calcValueVAT(d)) / 100);
+    IF useCustomRecalculateDiscountPrice(d) THEN
+        customRecalculateDiscountPrice(d);
+    ELSE {
+        price(d) <- round2(fullPrice(d) * (100.0 (-) percDiscountNotSkip (d)) / 100.0);
+        invoicePrice(d) <- round2(price (d) * (100 + calcValueVAT(d)) / 100);
+    }
 }
 
 // заполнение полной цены 
