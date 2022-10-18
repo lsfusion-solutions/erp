@@ -4,6 +4,12 @@ REQUIRE EDN, CustomerEInvoiceTopByProtocol, EDSEDN;
 
 NAMESPACE EDI;
 
+
+overCreateEInvoiceBlrwbl(EInvoice ei) + {
+    isReturn(ei) <- TRUE WHERE (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'RETANN' AND blrwblFieldValue(e) == 'Истина');
+    replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014') WHERE NOT replaceNumber(ei);
+}
+
 overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrwbl' AND invoices THEN {
         TRY {
@@ -56,8 +62,6 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                         sealIDReceiver(ei) <- blrwblSealIDReceiver();
                         orderID(ei) <- blrwblOrderID();
                         currency(ei) <- blrwblCurrency();
-                        isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'RETANN' AND blrwblFieldValue(e) == 'Истина');
-                        replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014');
                         overCreateEInvoiceBlrwbl(ei);
                         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) ORDER blrwblLineItemNumber(l) DO NEW ed = EInvoiceDetail {
@@ -203,6 +207,11 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
     }
 }
 
+overCreateEInvoiceBlrdln(EInvoice ei) + {
+    isReturn(ei) <- TRUE WHERE (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'RETANN' AND blrwblFieldValue(e) == 'Истина');
+    replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014') WHERE NOT replaceNumber(ei);
+}
+
 overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrdln' AND invoices THEN {
         TRY {
@@ -248,8 +257,6 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                         partyIssuingProxyName(ei) <- blrdlnPartyIssuingProxyName();
                         orderID(ei) <- blrdlnOrderID();
                         currency(ei) <- blrdlnCurrency();
-                        isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrdlnFieldCode(INTEGER e) == 'RETANN' AND blrdlnFieldValue(e) == 'Истина');
-                        replaceNumber(ei) <- STRING[70](GROUP MAX blrdlnFieldValue(INTEGER e) IF blrdlnFieldCode(e) == 'PW0014');
                         overCreateEInvoiceBlrdln(ei);
                         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR blrdlnLineItemID(INTEGER l) OR blrdlnLineItemBuyerID(l) OR blrdlnLineItemSupplierID(l) ORDER blrdlnLineItemNumber(l) DO NEW ed = EInvoiceDetail {
