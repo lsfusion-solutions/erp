@@ -9,12 +9,14 @@ NAMESPACE Repricing;
 @defineDocumentInterfaceProperty (repricing, showLimitPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (repricing, limit, ' предельная');
 
+useLimitMarkupValue = ABSTRACT VALUE BOOLEAN (UserRepricingDetail);
+
 WHEN LOCAL //FORMS userRepricing 
              (CHANGED(departmentStore(UserRepricingDetail detail)) OR
               CHANGED(sku(detail)) OR 
               SET(showLimitPrice(detail)))
              AND showLimitPrice(detail) DO {
-    limitMarkup[UserRepricingDetail](detail) <- markup(priceLimitPriceListType(departmentStore(detail)), sku(detail));
+    limitMarkup[UserRepricingDetail](detail) <- OVERRIDE markup(priceLimitPriceListType(departmentStore(detail)), sku(detail)), limitMarkupValue() IF useLimitMarkupValue(detail);
 }
 
 //----------------------------------------------- Операции -----------------------------------------------------//
@@ -70,11 +72,9 @@ limitPrice (UserRepricingDetail detail) =
                                                     limitMarkup(detail),
                                                     valueVAT(detail)), roundCondition(priceLimitPriceListType(departmentStore(detail)), sku(detail)));
 
-skipLimitMarkup = ABSTRACT VALUE BOOLEAN (UserRepricingDetail);
-
 WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
             (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-             showLimitPrice(d) AND NOT skipLimitMarkup(d) AND limitPrice(d) < retailPrice(d) DO {
+             showLimitPrice(d) AND limitPrice(d) < retailPrice(d) DO {
     retailPrice(d) <- limitPrice(d);
      
     markup(d) <- NUMERIC[8,3]([ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](

@@ -5,11 +5,12 @@ REQUIRE RepricingPriceList, PriceLimit;
 NAMESPACE Repricing;
 
 skipRepricingPriceLimit = ABSTRACT BOOLEAN (Sku);
-skipRepricingPriceLimit = ABSTRACT VALUE BOOLEAN (Sku, DepartmentStore);
 
 overLimitBasePrice = ABSTRACT NUMERIC[16,4] (Sku, DepartmentStore, DATETIME);
 limitBasePrice(Sku s, DepartmentStore d, DATETIME  dt) = round2(OVERRIDE overLimitBasePrice(s,d,dt), 
                                                                          prevPriceA(basePriceListType(priceLimitPriceListType(d)), s, d, dt));
+
+useLimitMarkupValue = ABSTRACT VALUE BOOLEAN (Sku, DepartmentStore);
 
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + { 
     LOCAL limitPrice = NUMERIC[16,4] (Sku);
@@ -28,7 +29,12 @@ overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
                                         markup(priceLimitPriceListType(d), sku),
                                         valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku)) WHERE managementRetailPrice(sku);
 
-    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku) AND NOT skipRepricingPriceLimit(sku, d); 
+    limitPrice(Sku sku) <- round([ X*(Y+100.0)*(Z+100.0)/10000.0](
+                                      limitBasePrice(sku, d, dt),
+                                      limitMarkupValue(),
+                                      valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku)) WHERE useLimitMarkupValue(sku, d) AND NOT markup(priceLimitPriceListType(d), sku) AND managementRetailPrice(sku);
+
+    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
 }
 
 calculateDescriptionPricing (Sku sku, DepartmentStore d, DATETIME dt) + {

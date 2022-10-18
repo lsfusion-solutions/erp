@@ -62,6 +62,9 @@ onStarted() + {
 maxLimitRetailPriceCustom 'МРЦ' = DATA NUMERIC[16,4] (Sku, Stock) TABLE retailPrice; // Для разовых поднятий
 useCustomRetailPrice 'Использовать пользовательскую МРЦ' = DATA BOOLEAN () PREREAD;
 
+// свойство вместо Perc для уменьшения сложности, т.к. логика процента увеличения устарела
+overMaxLimitRetailPrice 'Максимальная розничная цена'(Sku s, Stock st) = OVERRIDE maxLimitRetailPriceCustom(s,st) IF useCustomRetailPrice(), maxLimitRetailPrice(s, st);
+
 maxLimitRetailPricePerc 'Максимальная розничная цена (шаг) текущая' (Sku s, Stock st) = OVERRIDE maxLimitRetailPriceCustom(s,st) IF useCustomRetailPrice(), 
     NUMERIC[16,4](floor(maxLimitRetailPrice(s,st)* (100.0+cumStepPercLimit(s,st, currentDate())))/100.0);
 
