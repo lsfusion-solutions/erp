@@ -1,0 +1,18 @@
+MODULE RetailPriceLimitFixedProduction;
+
+REQUIRE RetailPriceLimitFixed, PricingProductionOutput;
+
+NAMESPACE RetailPriceLimitFixed;
+
+skipMaxLimitRetailPricePerc = ABSTRACT VALUE BOOLEAN (ProductDetail);
+WHEN LOCAL FORMS Production.order GOAFTER price[ProductDetail] 
+            (SETCHANGED(price(ProductDetail d)) OR SETCHANGED (productsStock(d)) OR SETCHANGED (sku(d)) OR SETCHANGED(createPricing(order(d))) OR (SETCHANGED(dateTime(d)) AND NOT isPosted(d))) 
+            AND calcCheckLimitRetailPrice(sku(d)) AND createPricing(order(d)) 
+            AND maxLimitRetailPricePerc(sku(d), productsStock(d),DATE(dateTime(d))) < price(d) 
+            AND NOT skipMaxLimitRetailPricePerc(d) DO {
+            
+    price(d) <- maxLimitRetailPricePerc(sku(d), productsStock(d),DATE(dateTime(d)));
+    changeValueProductsPrice(d); 
+}
+
+

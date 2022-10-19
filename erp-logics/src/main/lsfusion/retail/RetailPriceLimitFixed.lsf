@@ -36,28 +36,50 @@ cumStepPercLimit 'Накопленный процент'(Sku s, Stock st, DATE d
 cumStepPercLimit 'Накопленный процент (текущий)'(Sku s, Stock st) = cumStepPercLimit(s,st,currentDate());
 
 
-migrateStepPerc= DATA BOOLEAN ();
+//migrateStepPerc= DATA BOOLEAN ();
+//onStarted() + {
+//    IF NOT migrateStepPerc() THEN NEWSESSION {
+//        dateFromPerc() <- 2022_03_31; 
+//        dataStepPercLimitRetailPrice(2021_12_01)<- 0.9; 
+//        dataStepPercLimitRetailPrice(2022_01_01)<- 0.9; 
+//        dataStepPercLimitRetailPrice(2022_02_01)<- 0.9;   
+//        dataStepPercLimitRetailPrice(2022_03_01)<- 0.3;     
+//        dataStepPercLimitRetailPrice(2022_04_01)<- 1.2; 
+//        dataStepPercLimitRetailPrice(2022_05_01)<- 1.2;         
+//        dataStepPercLimitRetailPrice(2022_06_01)<- 1.2;                 
+//        dataStepPercLimitRetailPrice(2022_07_01)<- 1.2; 
+//        dataStepPercLimitRetailPrice(2022_08_01)<- 1.2;         
+//        dataStepPercLimitRetailPrice(2022_09_01)<- 1.2;    
+//        dataStepPercLimitRetailPrice(2022_10_01)<- 1.2; 
+//        dataStepPercLimitRetailPrice(2022_11_01)<- 1.2; 
+//        dataStepPercLimitRetailPrice(2022_12_01)<- 1.2;                                
+//        migrateStepPerc() <- TRUE;
+//        APPLY;
+//    }
+//}
+migrateStepPercNew= DATA BOOLEAN ();
 onStarted() + {
-    IF NOT migrateStepPerc() THEN NEWSESSION {
-        dateFromPerc() <- 2022_03_31; 
-        dataStepPercLimitRetailPrice(2021_12_01)<- 0.9; 
-        dataStepPercLimitRetailPrice(2022_01_01)<- 0.9; 
-        dataStepPercLimitRetailPrice(2022_02_01)<- 0.9;   
-        dataStepPercLimitRetailPrice(2022_03_01)<- 0.3;     
-        dataStepPercLimitRetailPrice(2022_04_01)<- 1.2; 
-        dataStepPercLimitRetailPrice(2022_05_01)<- 1.2;         
-        dataStepPercLimitRetailPrice(2022_06_01)<- 1.2;                 
-        dataStepPercLimitRetailPrice(2022_07_01)<- 1.2; 
-        dataStepPercLimitRetailPrice(2022_08_01)<- 1.2;         
-        dataStepPercLimitRetailPrice(2022_09_01)<- 1.2;    
-        dataStepPercLimitRetailPrice(2022_10_01)<- 1.2; 
-        dataStepPercLimitRetailPrice(2022_11_01)<- 1.2; 
-        dataStepPercLimitRetailPrice(2022_12_01)<- 1.2;                                
-        migrateStepPerc() <- TRUE;
+    IF NOT migrateStepPercNew() THEN NEWSESSION {
+        //dateFromPerc() <- 2022_03_31; 
+        dataStepPercLimitRetailPrice(2022_11_01)<- 0.0; 
+        dataStepPercLimitRetailPrice(2022_12_01)<- 0.0; 
+        
+        dataStepPercLimitRetailPrice(2023_01_01)<- 0.0; 
+        dataStepPercLimitRetailPrice(2023_02_01)<- 0.0;   
+        dataStepPercLimitRetailPrice(2023_03_01)<- 0.0;     
+        dataStepPercLimitRetailPrice(2023_04_01)<- 0.0; 
+        dataStepPercLimitRetailPrice(2023_05_01)<- 0.0;         
+        dataStepPercLimitRetailPrice(2023_06_01)<- 0.0;                 
+        dataStepPercLimitRetailPrice(2023_07_01)<- 0.0; 
+        dataStepPercLimitRetailPrice(2023_08_01)<- 0.0;         
+        dataStepPercLimitRetailPrice(2023_09_01)<- 0.0;    
+        dataStepPercLimitRetailPrice(2023_10_01)<- 0.0; 
+        dataStepPercLimitRetailPrice(2023_11_01)<- 0.0; 
+        dataStepPercLimitRetailPrice(2023_12_01)<- 0.0;                                
+        migrateStepPercNew() <- TRUE;
         APPLY;
     }
 }
-
 
 maxLimitRetailPriceCustom 'МРЦ' = DATA NUMERIC[16,4] (Sku, Stock) TABLE retailPrice; // Для разовых поднятий
 useCustomRetailPrice 'Использовать пользовательскую МРЦ' = DATA BOOLEAN () PREREAD;
@@ -118,9 +140,10 @@ priceANotPromotion 'Цена' (LedgerPriceListType type, Sku sku, Stock stock, D
 
 countDaysMovedLimitRetail 'За сколько дней проверять движение' = DATA INTEGER ();
 positiveBalanceLimitRetail 'Проверять наличие остатка' = DATA BOOLEAN ();
+useCumPerc 'Использовать накопленный процент' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES () countDaysMovedLimitRetail, positiveBalanceLimitRetail 
+    PROPERTIES () countDaysMovedLimitRetail, positiveBalanceLimitRetail, useCumPerc 
 ;
 DESIGN options {
     pricings {
@@ -128,7 +151,8 @@ DESIGN options {
             type = CONTAINERH;
             caption = 'Параметры заполенения Максимальной РЦ (не обязательно)';
             MOVE PROPERTY (countDaysMovedLimitRetail());
-            MOVE PROPERTY (positiveBalanceLimitRetail());        
+            MOVE PROPERTY (positiveBalanceLimitRetail());    
+            MOVE PROPERTY (useCumPerc());        
         }
 
     }
@@ -164,35 +188,39 @@ fillMaxLimitRetailPrice 'Заполнить максимальную розни�
         maxLimitRetailPrice(Sku sku, stock)<- NULL WHERE sku IS Sku AND NOT inn(sku);                
         maxLimitRetailPrice(Sku sku, stock) <- priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt) 
                                                         WHERE inn(sku) AND priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dt);   
-        
-        //-- Фиксируем цену и накопленный %                                                                                               
-        LOCAL in = BOOLEAN (DATE);  
-        LOCAL cumP = NUMERIC[8,3] (Sku);                
-          
-        IF usePeriod() THEN {
-            in(DATE dd)<- TRUE WHERE iterate(dd,dateFromPerc(),firstDayOfMonth(sumMonth(DATE(dt),1))) AND firstDayOfMonth(dd)==dd;
-            cumPercLimit(Sku sku,stock,  DATE date) <- NULL WHERE cumPercLimit(sku,stock,date) AND date>=dateFromPerc();
-            prevRetailPrice(Sku sku,stock,  DATE date) <- NULL WHERE prevRetailPrice(sku,stock,date) AND  date>=dateFromPerc();
-            cumP(Sku s)<- 0.0 WHERE inn(s);                        
+        IF   useCumPerc() THEN { 
+            //-- Фиксируем цену и накопленный %                                                                                               
+            LOCAL in = BOOLEAN (DATE);  
+            LOCAL cumP = NUMERIC[8,3] (Sku);                
+              
+            IF usePeriod() THEN {
+                in(DATE dd)<- TRUE WHERE iterate(dd,dateFromPerc(),firstDayOfMonth(sumMonth(DATE(dt),1))) AND firstDayOfMonth(dd)==dd;
+                cumPercLimit(Sku sku,stock,  DATE date) <- NULL WHERE cumPercLimit(sku,stock,date) AND date>=dateFromPerc();
+                prevRetailPrice(Sku sku,stock,  DATE date) <- NULL WHERE prevRetailPrice(sku,stock,date) AND  date>=dateFromPerc();
+                cumP(Sku s)<- 0.0 WHERE inn(s);                        
+            } ELSE {
+                in(DATE dd)<- dd=firstDayOfMonth(sumMonth(DATE(dt),1));      
+                cumPercLimit(Sku sku,stock,  DATE date) <- NULL WHERE in(date);
+                prevRetailPrice(Sku sku,stock,  DATE date) <- NULL WHERE in(date);      
+                cumP(Sku s)<- cumPercLimit(s,stock,firstDayOfMonth(DATE(dt))) WHERE inn(s);                            
+            }               
+                   
+            FOR in(DATE date) AND DATETIME time ==sumSeconds(DATETIME(date),-1) ORDER date DO {                              
+                prevRetailPrice(Sku sku,stock,  date) <-  priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, time) 
+                                WHERE inn(sku);
+                cumP(Sku s)<- IF prevRetailPrice(s,stock,date)<= prevRetailPrice(s,stock,sumMonth(date,-1))
+                                THEN (cumP(s)(+)stepPercLimitRetailPrice(date))
+                                ELSE stepPercLimitRetailPrice(date)
+                    WHERE inn(s);                
+                                
+                cumPercLimit(Sku sku,stock, date)<- cumP(sku)
+                                WHERE inn(sku);
+                                
+            }   
         } ELSE {
-            in(DATE dd)<- dd=firstDayOfMonth(sumMonth(DATE(dt),1));      
-            cumPercLimit(Sku sku,stock,  DATE date) <- NULL WHERE in(date);
-            prevRetailPrice(Sku sku,stock,  DATE date) <- NULL WHERE in(date);      
-            cumP(Sku s)<- cumPercLimit(s,stock,firstDayOfMonth(DATE(dt))) WHERE inn(s);                            
-        }               
-               
-        FOR in(DATE date) AND DATETIME time ==sumSeconds(DATETIME(date),-1) ORDER date DO {                              
-            prevRetailPrice(Sku sku,stock,  date) <-  priceA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, time) 
-                            WHERE inn(sku);
-            cumP(Sku s)<- IF prevRetailPrice(s,stock,date)<= prevRetailPrice(s,stock,sumMonth(date,-1))
-                            THEN (cumP(s)(+)stepPercLimitRetailPrice(date))
-                            ELSE stepPercLimitRetailPrice(date)
-                WHERE inn(s);                
-                            
-            cumPercLimit(Sku sku,stock, date)<- cumP(sku)
-                            WHERE inn(sku);
-                            
-        }                                       
+            cumPercLimit(Sku sku,stock,  DATE date) <- NULL WHERE cumPercLimit(sku,stock,date) AND date>=firstDayOfMonth(DATE(dt));
+            prevRetailPrice(Sku sku,stock,  DATE date) <- NULL WHERE prevRetailPrice(sku,stock,date) AND date>=firstDayOfMonth(DATE(dt));         
+        }                                    
         APPLY;    
     }
 }
