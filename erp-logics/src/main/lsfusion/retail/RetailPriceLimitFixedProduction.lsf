@@ -4,9 +4,12 @@ REQUIRE RetailPriceLimitFixed, PricingProductionOutput;
 
 NAMESPACE RetailPriceLimitFixed;
 
+skipMaxLimitRetailPricePerc = DATA BOOLEAN (Production.Operation);
 skipMaxLimitRetailPricePerc = ABSTRACT VALUE BOOLEAN (ProductDetail);
+skipMaxLimitRetailPricePerc(ProductDetail d) += skipMaxLimitRetailPricePerc(operation(d));
+
 WHEN LOCAL FORMS Production.order GOAFTER price[ProductDetail] 
-            (SETCHANGED(price(ProductDetail d)) OR SETCHANGED (productsStock(d)) OR SETCHANGED (sku(d)) OR SETCHANGED(createPricing(order(d))) OR (SETCHANGED(dateTime(d)) AND NOT isPosted(d))) 
+            (SETCHANGED(price(ProductDetail d)) OR SETCHANGED(productsStock(d)) OR SETCHANGED(operation(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(createPricing(order(d))) OR (SETCHANGED(dateTime(d)) AND NOT isPosted(d))) 
             AND calcCheckLimitRetailPrice(sku(d)) AND createPricing(order(d)) 
             AND maxLimitRetailPricePerc(sku(d), productsStock(d),DATE(dateTime(d))) < price(d) 
             AND NOT skipMaxLimitRetailPricePerc(d) DO {
@@ -15,4 +18,8 @@ WHEN LOCAL FORMS Production.order GOAFTER price[ProductDetail]
     changeValueProductsPrice(d); 
 }
 
+maxLimitRetailPricePerc 'МРЦ' = maxLimitRetailPricePerc(sku(ProductDetail d), productsStock(d),DATE(dateTime(d)));
+EXTEND FORM Production.order
+    PROPERTIES (pd) READONLY maxLimitRetailPricePerc BEFORE price(pd) SHOWIF (createPricing(o) AND checkRetailPrice())
+;
 
