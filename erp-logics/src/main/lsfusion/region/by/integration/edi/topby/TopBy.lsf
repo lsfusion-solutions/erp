@@ -66,12 +66,6 @@ blradfCount = DATA LOCAL NESTED INTEGER();
 beforeOverReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100]);
 overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, STRING[100]);
 
-FORM data FORMEXTID 'Data'
-    OBJECTS documentData = INTEGER EXTID '=http://topby.by/:DocumentData'
-    PROPERTIES(documentData) data EXTID 'Data',
-                             id EXTID 'Id',
-                             documentType EXTID 'DocumentType';
-
 receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) {
     TRY {
         IF login AND password THEN {
@@ -84,10 +78,7 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages: ' + requestError());
                 MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
             } ELSE {
-                LOCAL cdata = TEXT(INTEGER);
-                IMPORT XML ROOT 'GetDocumentsResponse' FROM sendRequestEDIResponse() TO cdata ='Data';
-                stringToFile('<Data>'+cdata(0)+'</Data>','utf-8','xml');
-                IMPORT data XML FROM resultFile();
+                IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id',documentType = 'DocumentType';
                 
                 sendRecipientErrorFailed() <- 0;
                 supplierOrdersSucceeded() <- 0;
