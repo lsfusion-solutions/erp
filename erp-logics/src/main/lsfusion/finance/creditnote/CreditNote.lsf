@@ -398,11 +398,11 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
         
     @defineDocumentInterfaceProperty (invoice, createCreditNote, 'Создать акт расхождения');
     
-    skipCreateCreditNote = ABSTRACT BOOLEAN (InvoiceDetail) MATERIALIZED;
+    overCreateCreditNote = ABSTRACT BOOLEAN (InvoiceDetail);
     
     needToCreditNote (InvoiceDetail invoiceDetail)= createCreditNote(invoiceDetail)  AND
-        caseToShip (invoiceDetail) 
-        AND isNotCharge(sku(invoiceDetail)) AND NOT skipCreateCreditNote(invoiceDetail) MATERIALIZED;
+        (caseToShip (invoiceDetail) OR overCreateCreditNote(invoiceDetail))
+        AND isNotCharge(sku(invoiceDetail)) MATERIALIZED;
 
     overCopy(UserInvoice s, UserInvoice d) + { 
         createCreditNote(d) <- createCreditNote(s);
