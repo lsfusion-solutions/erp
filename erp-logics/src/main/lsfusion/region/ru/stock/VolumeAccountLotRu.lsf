@@ -1,0 +1,74 @@
+MODULE VolumeAccountLotRu;
+
+REQUIRE PurchaseShipmentLot, SaleShipmentLot, GISMTDocument;
+
+NAMESPACE Stock;
+
+volumeAccount 'Объемно-сортовой учет' = DATA BOOLEAN (LotType);
+volumeAccount 'Объемно-сортовой учет' (Sku sku) = volumeAccount(lotType(sku)) MATERIALIZED;
+volumeAccount 'Объемно-сортовой учет'  (Lot lot) = volumeAccount(sku(lot));
+
+skipShowQuantity (Lot lot) += volumeAccount(lot);
+
+FORM lotTypes 'Типы маркировки'
+    OBJECTS t = LotType
+    PROPERTIES (t) name READONLY, volumeAccount
+    ORDERS name(t)
+;
+
+NAVIGATOR {
+    gismtNavigator {
+        NEW lotTypes;
+    }
+}
+
+volumeAccount (Purchase.UserInvoiceDetail detail) = volumeAccount(Purchase.sku(detail));
+skipCheckDocumentLot(Purchase.UserInvoiceDetail detail) += volumeAccount(detail);
+isLotBarcode(Purchase.UserInvoiceDetail detail, STRING[200] s) += TRUE IF volumeAccount(detail) AND left(s, 2) = '02';
+
+CONSTRAINT quantityLot(Purchase.UserInvoiceDetail detail)>1 AND volumeAccount(detail)
+    MESSAGE 'Для товара объемно-сортового учета должны быть задана 1 марка';
+
+idVolumeAccountLot (Sale.UserInvoiceDetail detail) = CONCAT '', '02', gtin(Sale.sku(detail)), '37', STRING(INTEGER(Sale.quantity(detail)));
+
+volumeAccount (Sale.UserInvoiceDetail detail) = volumeAccount(Sale.sku(detail));
+skipCheckDocumentLot(Sale.UserInvoiceDetail detail) += volumeAccount(detail);
+
+setVolumeLot (Sale.UserInvoiceDetail detail)  {
+    FOR Lot l = lot(idVolumeAccountLot(detail)) DO {
+        IF NOT quantity(detail, l) THEN {
+            quantity(detail, Lot l1) <- NULL;
+            quantity(detail, l) <- 1.0; 
+        }
+    } ELSE {
+        NEW l = Lot {
+            id(l) <- idVolumeAccountLot(detail);
+            sku(l) <- sku(detail);
+            quantity(detail, Lot l1) <- NULL;
+            quantity(detail, l) <- 1.0;
+        }
+    }
+}
+
+setVolumeAccountLot 'Заполнить марки по ОСУ' (Sale.UserInvoiceDetail detail) {
+    IF volumeAccount(detail) THEN {
+        setVolumeLot(detail);
+    }
+} ASON CONTEXTMENU quantityLot[Sale.UserInvoiceDetail];
+
+setVolumeAccountLotUserInvoice 'Заполнить марки по ОСУ (все строки)' (Sale.UserInvoiceDetail detail) {
+    FOR userInvoice(detail)=userInvoice(Sale.UserInvoiceDetail detail1) AND volumeAccount(detail1) DO {
+        setVolumeLot(detail1);
+    }
+} ASON CONTEXTMENU quantityLot[Sale.UserInvoiceDetail];
+
+WHEN LOCAL FORMS Sale.userInvoice (SETCHANGED(Sale.quantity(Sale.UserInvoiceDetail detail)) OR CHANGED(sku(detail))) 
+    AND volumeAccount(detail) AND explicitLot(sku(detail)) AND quantity(detail)>0.0 DO {
+        setVolumeAccountLot(detail);
+}
+
+WHEN LOCAL FORMS Sale.userInvoice (DROPPED(Sale.quantity(Sale.UserInvoiceDetail detail)) OR DROPPED(explicitLot(sku(detail)))) 
+    OR (CHANGED(quantity(detail)) AND quantity(detail)=0.0) 
+    AND volumeAccount(detail) AND explicitLot(sku(detail)) DO {
+        quantity(detail, Lot l) <- NULL;
+}
