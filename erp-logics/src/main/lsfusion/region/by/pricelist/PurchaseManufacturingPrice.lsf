@@ -194,14 +194,14 @@ calcManufacturingMarkup(UserInvoiceDetail d) =
     NUMERIC[8,3]((manufacturingPrice(d) * 100.0 / calcBaseManufacturingPrice(d)) - 100.0);
 
 customChangeManufacturingPrice ABSTRACT LIST (UserInvoiceDetail);
-useCustomChangeManufacturingPrice 'Альтернативный метод расчета ' = ABSTRACT BOOLEAN ();
+useCustomChangeManufacturingPrice 'Альтернативный метод расчета ' = ABSTRACT BOOLEAN (UserInvoiceDetail);
 
 overChangeManufacturingPrice  ABSTRACT LIST ( UserInvoiceDetail);
 
 changeManufacturingPrice(UserInvoiceDetail d)  { 
     INPUT n = NUMERIC[16,4] DO {
         manufacturingPrice(d) <- n;
-        IF useCustomChangeManufacturingPrice() THEN customChangeManufacturingPrice(d);
+        IF useCustomChangeManufacturingPrice(d) THEN customChangeManufacturingPrice(d);
         ELSE { 
             CASE WHEN calcManufacturingMarkupFromPrices(d) THEN manufacturingMarkup(d) <- NUMERIC[8,3]( (calcBaseManufacturingPrice(d) / manufacturingPrice(d) - 1) *100);      
                 WHEN reverseManufacturingPrice(d) THEN price(d) <- calcReversePrice(d);  // пока не учитываем доп. расходы
