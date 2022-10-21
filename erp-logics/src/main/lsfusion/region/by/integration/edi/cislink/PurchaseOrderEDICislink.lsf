@@ -73,12 +73,12 @@ cancel(EOrder o) + {IF EDIProvider(supplier(o)) == EDIProvider.cislink AND isCan
 
 //------------------ Ответы ------------------
 
-overReceiveMessagesCislink ABSTRACT LIST (INTEGER, STRING, STRING[100], BOOLEAN, BOOLEAN, STRING[100]);
+overReceiveMessagesCislink ABSTRACT LIST (INTEGER, STRING, STRING[100], BOOLEAN, STRING[100]);
 
 overImportOrdrspCislink ABSTRACT (EOrderResponse);
 
-overReceiveMessagesCislink (INTEGER  i, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, BOOLEAN invoices, STRING[100] provider) +{
-    IF isSubstring(lower(id(i)), 'ordrsp_') AND NOT invoices  THEN { 
+overReceiveMessagesCislink (INTEGER  i, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, STRING[100] provider) +{
+    IF isSubstring(lower(id(i)), 'ordrsp_') THEN { 
         TRY {
             IMPORT ordrsp XML FROM data(i);
             ordrspOrderNumber() <- trim(ordrspOrderNumber());
@@ -169,8 +169,8 @@ overReceiveMessagesCislink (INTEGER  i, STRING url, STRING[100] archiveDir, BOOL
     }    
 }
 overReceiveMessageDesadvCislink ABSTRACT ();
-overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, BOOLEAN invoices, STRING[100] provider) + {
-    IF isSubstring(lower(id(i)), 'desadv_') AND NOT invoices  THEN {
+overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, STRING[100] provider) + {
+    IF isSubstring(lower(id(i)), 'desadv_')  THEN {
         TRY {
             IMPORT desadv XML FROM data(i);
             desadvOrderNumber() <- trim(desadvOrderNumber());
@@ -240,8 +240,8 @@ overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLE
     }
 }
 
-overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, BOOLEAN invoices, STRING[100] provider) + {
-    IF isSubstring(lower(id(i)), 'systemmessage_') AND NOT invoices  THEN {
+overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLEAN deleteFile, STRING[100] provider) + {
+    IF isSubstring(lower(id(i)), 'systemmessage_')  THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
             CASE
@@ -347,7 +347,7 @@ importAnswer (STRING url, STRING[100] archiveDir, STRING[100] provider){
             MESSAGE 'Ошибка при чтении сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             logToFile('edi', CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
         }
-        overReceiveMessagesCislink(i, url,archiveDir, TRUE, NULL, provider);
+        overReceiveMessagesCislink(i, url,archiveDir, TRUE, provider);
     }
     fillEndParams();    
 }

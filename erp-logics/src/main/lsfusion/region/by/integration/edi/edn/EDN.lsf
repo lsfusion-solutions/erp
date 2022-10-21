@@ -42,16 +42,11 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
     }
 }
 
-receiveMessagesEDN (BOOLEAN invoices) {
+receiveMessagesEDN () {
     FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
         hideMessageHeaderBlrapn() <- extractEDN(le);
-        receiveMessages(login, passwordEDN(le), ('https://' +  hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, invoices, 'EDN');
+        receiveMessages(login, passwordEDN(le), ('https://' +  hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, 'EDN');
     }
-}
-
-receiveEDN 'Получить сообщения' {
-    checkIsServer();
-    IF isServer() THEN {receiveMessagesEDN(NULL); };
 }
 
 sendPurchaseOrderEDN (EOrder o) {
@@ -69,12 +64,12 @@ good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1252') THEN TRUE
 exportDirectoryDocuDrive 'Каталог выгрузки сообщений для DocuDrive (c / в конце)' = DATA STRING[255]();
 importDirectoryDocuDrive 'Каталог загрузки сообщений от DocuDrive (c / в конце)' = DATA STRING[255]();
 
-overReceiveMessagesDocuDrive ABSTRACT LIST (INTEGER, STRING[255], STRING[255], STRING[100], BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, STRING[100]);
+overReceiveMessagesDocuDrive ABSTRACT LIST (INTEGER, STRING[255], STRING[255], STRING[100], BOOLEAN, BOOLEAN, BOOLEAN, STRING[100]);
 
 getFileName(TEXT txt) = getWord(getWord(txt,'\\', wordCount(txt,'\\')),'/', wordCount(txt,'/'));
 getDocumentType(TEXT txt) = getWord(getWord(getWord(txt,'\\', wordCount(txt,'\\')),'/', wordCount(txt,'/')),'_',1);
 
-receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) {
+receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) {
     TRY {
         IF importDir THEN {
             IF exportDir THEN {
@@ -110,7 +105,7 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
                         TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                         WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                     }
-                    overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices, provider);
+                    overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies,provider);
                 }
                 
                 LOCAL textMessage = TEXT();
@@ -149,14 +144,14 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
     }
 }
 
-receiveMessagesDocuDrive (BOOLEAN invoices) {
-    receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, invoices, 'EDN');
+receiveMessagesDocuDrive () {
+    receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, 'EDN');
 }
 
 //вообще логика сообщений, похоже, дублирует логику apn а в случе если они приходят от сервера edi у них еще и одинаковый номер
 //возможно для накладных можно отделить те которые приходят с сервера, или хотя бы не затирать данные по apn. пока дублируем добавлением в номер мимвола m
-overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
-    IF lower(documentType(i)) == 'systemmessage' AND invoices THEN {
+overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) + {
+    IF lower(documentType(i)) == 'systemmessage' THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
             skipSystemmessage() <- NULL;
@@ -296,13 +291,16 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
     }
 }
 
-receiveInvoiceEDN 'Получить сообщения по электронным накладным' () {
+receiveEDN 'Получить сообщения' {
     checkIsServer();
-    IF isServer() THEN { IF useDocuDrive() THEN {receiveMessagesDocuDrive(TRUE);} ELSE {receiveMessagesEDN(TRUE);} }  
+    IF isServer() THEN {
+        receiveMessagesEDN();
+        IF useDocuDrive() THEN {receiveMessagesDocuDrive();} 
+    }
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN, receiveInvoiceEDN, useDocuDrive
+    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN, useDocuDrive
     PROPERTIES() SHOWIF useDocuDrive() exportDirectoryDocuDrive, importDirectoryDocuDrive
     PROPERTIES() READONLY confirmNotFoundOrdersEDN = confirmNotFoundOrders, confirmNotFoundInvoicesEDN = confirmNotFoundInvoices, disableAutoBlrapnEDN = disableAutoBlrapn
     PROPERTIES() READONLY askPasswordEDSServiceEDN = askPasswordEDSService
@@ -322,6 +320,7 @@ DESIGN integrationData {
                 MOVE PROPERTY(outputDirEDN());
                 MOVE PROPERTY(disableConfirmationEDN());
                 MOVE PROPERTY(receiveSupplierMessagesEDN());
+                MOVE PROPERTY(receiveEDN());
                 MOVE BOX(lete);
             }
             NEW colEDN {
@@ -330,7 +329,6 @@ DESIGN integrationData {
                 NEW ovsEDN {
                     caption = 'Заказы';
                     MOVE PROPERTY(confirmNotFoundOrdersEDN);
-                    MOVE PROPERTY(receiveEDN());
                 }
                 NEW ivsEDN {
                     caption = 'Электронные накладные';
@@ -339,7 +337,6 @@ DESIGN integrationData {
                     MOVE PROPERTY (exportDirectoryDocuDrive());
                     MOVE PROPERTY (confirmNotFoundInvoicesEDN);
                     MOVE PROPERTY (disableAutoBlrapnEDN);
-                    MOVE PROPERTY(receiveInvoiceEDN());
                     MOVE PROPERTY(askPasswordEDSServiceEDN);
                     fill = 1;
                 }
