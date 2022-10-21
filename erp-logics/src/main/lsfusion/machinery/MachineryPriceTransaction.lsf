@@ -1317,7 +1317,18 @@ dataMinPrice 'Минимальная цена' = ABSTRACT NUMERIC[16,4] (Barcode
 dataMinPrice 'Минимальная цена (предв.)' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 dataMinPrice(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
 @defineMachineryPriceTransactionAttributeStockAction(NUMERIC[16,4], dataMinPrice, 'Минимальная цена', );
-minPrice 'Минимальная цена (рез.)' (MachineryPriceTransaction m, Barcode b) =  min(dataMinPrice(m, b), price(m, b));
+
+dontUsePriceAsMinPrice 'Не грузить цену как минимальную' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() dontUsePriceAsMinPrice
+;
+DESIGN options {
+    machinery {
+        MOVE PROPERTY(dontUsePriceAsMinPrice());
+    }
+}
+
+minPrice 'Минимальная цена (рез.)' (MachineryPriceTransaction m, Barcode b) =  min(dataMinPrice(m, b), (IF dontUsePriceAsMinPrice() THEN dataMinPrice(m, b) ELSE price(m, b)));
 
 EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) minPrice;
 EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY minPrice;
