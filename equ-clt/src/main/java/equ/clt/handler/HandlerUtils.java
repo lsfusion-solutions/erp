@@ -133,4 +133,16 @@ public class HandlerUtils {
             throw new RuntimeException(String.format("Failed to copy file from %s to %s: %s", sourceFile.getAbsolutePath(), destinationFile.getAbsolutePath(), nvl(e.getMessage(), e.toString())), e);
         }
     }
+
+    public static void safeDelete(File file) {
+        if (file != null && !file.delete()) {
+            file.deleteOnExit();
+        }
+    }
+
+    public static void forceDelete(File file) {
+        if (file != null && !file.delete()) {
+            throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be deleted");
+        }
+    }
 }

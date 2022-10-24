@@ -34,8 +34,7 @@ import java.util.concurrent.Future;
 
 import static equ.clt.EquipmentServer.sqlDateToLocalDate;
 import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
-import static equ.clt.handler.HandlerUtils.copyWithTimeout;
-import static equ.clt.handler.HandlerUtils.trim;
+import static equ.clt.handler.HandlerUtils.*;
 
 public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDocumentBatch> {
 
@@ -806,11 +805,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDo
         sendSalesLogger.info("HTC: Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
-            if (f.delete()) {
-                sendSalesLogger.info("HTC: file " + readFile + " has been deleted");
-            } else {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
-            }
+            sendSalesLogger.info("HTC: deleting file " + readFile);
+            forceDelete(f);
         }
     }
 

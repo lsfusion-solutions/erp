@@ -24,8 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
-import static equ.clt.handler.HandlerUtils.safeMultiply;
-import static equ.clt.handler.HandlerUtils.safeSubtract;
+import static equ.clt.handler.HandlerUtils.*;
 
 public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBatch, CashDocumentBatch> {
 
@@ -204,12 +203,8 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
     @Override
     public void finishReadingSalesInfo(MaxishopSalesBatch salesBatch) {
         for (String readFile : salesBatch.readFiles) {
-            File f = new File(readFile.substring(0, readFile.length() - 3) + "OUT");
-            if (!f.delete())
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
-            f = new File(readFile);
-            if (!f.delete())
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
+            forceDelete(new File(readFile.substring(0, readFile.length() - 3) + "OUT"));
+            forceDelete(new File(readFile));
         }
     }
 

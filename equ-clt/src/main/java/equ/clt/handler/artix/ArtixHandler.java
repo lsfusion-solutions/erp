@@ -1029,7 +1029,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             RuntimeException copyResult = copyToSuccess(f, cleanOldFilesDays, disable);
             if(error == null)
                 error = copyResult;
-            safeFileDelete(f, true);
+            sendSalesLogger.info(logPrefix + String.format("deleting file %s", f.getAbsolutePath()));
+            forceDelete(f);
         }
         if(error != null) {
             throw error;
@@ -1813,7 +1814,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                             if(notDeleteEmptyFiles) {
                                 sendSalesLogger.info(String.format("File %s has no sales nor cashierTime, but not deleted", file.getAbsolutePath()));
                             } else {
-                                safeFileDelete(file, false);
+                                sendSalesLogger.info(logPrefix + String.format("deleting file %s", file.getAbsolutePath()));
+                                safeDelete(file);
                             }
                         } else {
                             filePathSet.add(file.getAbsolutePath());
@@ -1888,18 +1890,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     static String readFile(String path, String encoding) throws IOException {
         byte[] encoded = Files.readAllBytes(Paths.get(path));
         return new String(encoded, encoding).replace("\n", "");
-    }
-
-    private void safeFileDelete(File file, boolean throwException) {
-        sendSalesLogger.info(logPrefix + String.format("deleting file %s", file.getAbsolutePath()));
-        if (!file.delete()) {
-            if(throwException) {
-                throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be deleted");
-            } else {
-                file.deleteOnExit();
-                sendSalesLogger.info(logPrefix + String.format("failed to delete file %s, will try to deleteOnExit", file.getAbsolutePath()));
-            }
-        }
     }
 
     private Long parseDateTime(Object value) throws ParseException {

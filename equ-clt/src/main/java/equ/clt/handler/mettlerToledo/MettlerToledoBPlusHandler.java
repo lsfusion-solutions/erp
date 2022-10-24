@@ -6,7 +6,6 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -14,8 +13,8 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
+import static equ.clt.handler.HandlerUtils.safeDelete;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 
 public class MettlerToledoBPlusHandler extends MultithreadScalesHandler {

@@ -41,6 +41,7 @@ import static equ.clt.EquipmentServer.sqlDateToLocalDate;
 import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.DBFUtils.*;
 import static equ.clt.handler.HandlerUtils.copyWithTimeout;
+import static equ.clt.handler.HandlerUtils.safeDelete;
 import static lsfusion.base.file.FTPPath.parseFTPPath;
 
 public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSalesBatch, CashDocumentBatch> {

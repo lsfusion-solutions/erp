@@ -25,6 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.clt.handler.DBFUtils.*;
+import static equ.clt.handler.HandlerUtils.safeDelete;
 
 public class InventoryTechHandler extends TerminalHandler {
 
@@ -690,11 +691,5 @@ public class InventoryTechHandler extends TerminalHandler {
 
     protected boolean listNotEmpty(List list) {
         return list != null && !list.isEmpty();
-    }
-
-    public static void safeDelete(File file) {
-        if (file != null && !file.delete()) {
-            file.deleteOnExit();
-        }
     }
 }

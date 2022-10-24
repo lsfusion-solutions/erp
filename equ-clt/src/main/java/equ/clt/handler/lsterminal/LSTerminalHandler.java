@@ -23,6 +23,7 @@ import java.util.zip.ZipOutputStream;
 
 import static equ.clt.EquipmentServer.localDateToSqlDate;
 import static equ.clt.EquipmentServer.sqlTimestampToLocalDateTime;
+import static equ.clt.handler.HandlerUtils.forceDelete;
 import static lsfusion.base.DateConverter.dateToStamp;
 
 public class LSTerminalHandler extends TerminalHandler {
@@ -167,12 +168,8 @@ public class LSTerminalHandler extends TerminalHandler {
     public void finishReadingTerminalDocumentInfo(TerminalDocumentBatch terminalDocumentBatch) {
         sendTerminalDocumentLogger.info("LSTerminal: Finish Reading started");
         for (String readFile : terminalDocumentBatch.readFiles) {
-            File f = new File(readFile);
-            if (f.delete()) {
-                sendTerminalDocumentLogger.info("LSTerminal: file " + readFile + " has been deleted");
-            } else {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
-            }
+            sendTerminalDocumentLogger.info("LSTerminal: deleting file " + readFile);
+            forceDelete(new File(readFile));
         }
     }
 

@@ -28,6 +28,7 @@ import java.time.LocalTime;
 import java.util.*;
 
 import static equ.clt.EquipmentServer.*;
+import static equ.clt.handler.HandlerUtils.forceDelete;
 import static equ.clt.handler.HandlerUtils.trim;
 
 public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch, CashDocumentBatch> {
@@ -364,9 +365,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch, Cash
     @Override
     public void finishReadingSalesInfo(UKM4SalesBatch salesBatch) {
         for (String readFile : salesBatch.readFiles) {
-            File f = new File(readFile);
-            if (!f.delete())
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
+            forceDelete(new File(readFile));
         }
     }
     

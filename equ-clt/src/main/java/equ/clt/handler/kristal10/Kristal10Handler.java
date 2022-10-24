@@ -531,11 +531,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
             if (new File(directory).exists() || new File(directory).mkdirs())
                 copyWithTimeout(f, new File(directory + f.getName()));
 
-            if (f.delete()) {
-                sendSalesLogger.info(getLogPrefix() + "file " + readFile + " has been deleted");
-            } else {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
-            }
+            sendSalesLogger.info(getLogPrefix() + "deleting file " + readFile);
+            forceDelete(f);
         }
     }
 
@@ -616,12 +613,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
         sendSalesLogger.info(getLogPrefix() + "Finish ReadingCashDocumentInfo started");
         for (String readFile : cashDocumentBatch.readFiles) {
-            File f = new File(readFile);
-            if (f.delete()) {
-                sendSalesLogger.info(getLogPrefix() + "file " + readFile + " has been deleted");
-            } else {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
-            }
+            sendSalesLogger.info(getLogPrefix() + "deleting file " + readFile);
+            forceDelete(new File(readFile));
         }
     }
 

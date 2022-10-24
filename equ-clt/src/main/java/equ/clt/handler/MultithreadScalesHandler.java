@@ -155,11 +155,4 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
             this.cleared = cleared;
         }
     }
-
-    protected void safeDelete(File file) {
-        if (file != null && file.exists() && !file.delete()) {
-            file.deleteOnExit();
-        }
-    }
-
 }

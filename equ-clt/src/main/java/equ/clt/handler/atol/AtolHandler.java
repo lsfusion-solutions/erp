@@ -15,7 +15,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static equ.clt.handler.HandlerUtils.copyWithTimeout;
+import static equ.clt.handler.HandlerUtils.*;
 
 public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch, CashDocumentBatch> {
 
@@ -183,11 +183,8 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch, Cash
                 File inputFile = new File(readFile.getKey());
 
                 if (readFile.getValue()) {
-                    if (inputFile.delete()) {
-                        sendSalesLogger.info("Atol: file " + readFile.getKey() + " has been deleted");
-                    } else {
-                        throw new RuntimeException("The file " + inputFile.getAbsolutePath() + " can not be deleted");
-                    }
+                    sendSalesLogger.info("Atol: deleting file " + readFile.getKey());
+                    forceDelete(inputFile);
                 } else {
                     BufferedReader br = new BufferedReader(new FileReader(inputFile));
 
