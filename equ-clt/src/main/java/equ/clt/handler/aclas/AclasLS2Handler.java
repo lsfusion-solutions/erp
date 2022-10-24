@@ -19,8 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Callable;
 
-import static equ.clt.handler.HandlerUtils.copyWithTimeout;
-import static equ.clt.handler.HandlerUtils.safeMultiply;
+import static equ.clt.handler.HandlerUtils.*;
 import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
@@ -255,7 +254,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
     }
 
-    private void logFile(String logDir, File file, TransactionScalesInfo transaction, String prefix) throws IOException {
+    private void logFile(String logDir, File file, TransactionScalesInfo transaction, String prefix) {
         if (logDir != null) {
             if (new File(logDir).exists() || new File(logDir).mkdirs()) {
                 copyWithTimeout(file, new File(logDir + "/" + transaction.id + "-" + prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + ".txt"));
