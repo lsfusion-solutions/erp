@@ -133,11 +133,14 @@ NAVIGATOR {
 
 quantity 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Lot);
 
+skipShowQuantity = ABSTRACT BOOLEAN (Lot);
+showQuantity (Lot lot) = lot IS Lot AND NOT skipShowQuantity(lot);
+
 FORM dialogInLots 'Список марок'
     OBJECTS l = Lot
     PROPERTIES(l) READONLY id
     PROPERTIES(l) count
-    PROPERTIES(l) READONLY quantity
+    PROPERTIES(l) READONLY quantity SHOWIF showQuantity(l)
     PROPERTIES(l) delete = DELETE
     FILTERS quantity(l)
 ;
@@ -148,7 +151,7 @@ removeLot 'Убрать' (Lot l) {
 
 FORM dialogOutLots 'Список марок'
     OBJECTS l = Lot
-    PROPERTIES(l) READONLY id, count, quantity
+    PROPERTIES(l) READONLY id, count, quantity SHOWIF showQuantity(l)
     PROPERTIES(l) removeLot
     FILTERS quantity(l)
 ;
@@ -166,8 +169,10 @@ META defineDocumentLot (doc, quantityProp, postedProp)
     quantityLot 'Кол-во марок' (###doc i) = GROUP SUM quantityLot(###doc##Detail d) IF doc(d) = i MATERIALIZED;
     quantity 'Кол-во марок' (###doc i, Lot l) = GROUP SUM quantity(###doc##Detail d, l) IF doc(d) = i;
     
+    skipCheckDocumentLot = ABSTRACT BOOLEAN (###doc##Detail);
+    
     CONSTRAINT SET((quantityProp(###doc##Detail d) OR quantityLot(d)) AND postedProp(d) AND NOT quantityProp(d) = OVERRIDE quantityLot(d), 0.0) 
-               IF explicitLot(sku(d)) AND NOT skipCheckDocumentLot()
+               IF explicitLot(sku(d)) AND NOT skipCheckDocumentLot() AND NOT skipCheckDocumentLot(d)
         MESSAGE 'Для строки документа неправильно заданы марки';
     
     backgroundQuantityLot (###doc##Detail d) = (IF quantityLot(d) = quantityProp(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) 
@@ -200,10 +205,16 @@ META defineDocumentLotBarcodeIn (doc, quantityProp)
         FILTERS cd = d
     ;
     
+    isLotBarcode = ABSTRACT BOOLEAN (###doc##Detail, STRING[200]);
+    local###doc##Detail = DATA LOCAL ###doc##Detail ();
+    
     beforeInputBarcode###doc##Detail(###doc i, STRING[200] s) + {
         lotBarcode() <- NULL;
         consumedBarcode###doc##Detail() <- NULL;
-        IF length(s) >= OVERRIDE lotMinLength(), 20 THEN {
+        FOR [FILTER doc.cd](###doc##Detail d) DO {
+            local###doc##Detail() <- d;
+        }
+        IF (length(s) >= OVERRIDE lotMinLength(), 20) OR isLotBarcode(local###doc##Detail(), s) THEN {
             lotBarcode() <- barcodeToId(s);
             FOR [FILTER doc.cd](###doc##Detail d) AND lotType(sku(d)) DO {
                 FOR Lot l = lot(lotBarcode()) DO {
