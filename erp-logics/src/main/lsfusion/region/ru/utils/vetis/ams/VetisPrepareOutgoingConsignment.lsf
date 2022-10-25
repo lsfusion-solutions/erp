@@ -93,17 +93,19 @@ toProcess 'К отправке' (OutgoingConsignment o) = o IS OutgoingConsignme
          status(vetDocument(o)) = VetDocumentStatus.WITHDRAWN) // или документ аннулировали
         MATERIALIZED INDEXED;  
 
+in = GROUP SUM 1 IF in(OutgoingConsignment c) BY transportStorageType(c); 
+
 processOutgoingConsignment () {
     NEWSESSION NESTED (in[OutgoingConsignment]) {
-        NEW r = PrepareOutgoingConsignmentRequest {
-            businessEntity(r) <- GROUP MAX consignorBusinessEntity(OutgoingConsignment oc) IF in(oc);
-            in(r, OutgoingConsignment oc) <- TRUE WHERE in(oc);
-            EXPORT prepareOutgoingConsignmentRequest OBJECTS r = r XML;
-        
-            submit(r, exportFile());
+        FOR in(STRING storageType) DO 
+            NEW r = PrepareOutgoingConsignmentRequest {
+                businessEntity(r) <- GROUP MAX consignorBusinessEntity(OutgoingConsignment oc) IF in(oc) AND transportStorageType(oc)=storageType;
+                in(r, OutgoingConsignment oc) <- TRUE WHERE in(oc) AND transportStorageType(oc)=storageType;
+                EXPORT prepareOutgoingConsignmentRequest OBJECTS r = r XML;
             
-            APPLY;
-        }
+                submit(r, exportFile());
+            }
+        APPLY;    
     }
 }
 
