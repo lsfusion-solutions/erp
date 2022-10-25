@@ -7,9 +7,10 @@ NAMESPACE EDI;
 GLN 'GLN' = DATA STRING[13] (LegalEntity);
 legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity llegalEntity BY GLN(llegalEntity);
 extraGLN = ABSTRACT STRING[13] (LegalEntity);
+notUseInStockGLN 'Не использовать GLN для складов' = DATA BOOLEAN (LegalEntity);
 
 dataGLN 'GLN' = DATA STRING[13] (Stock);
-GLN 'GLN' (Stock s) = OVERRIDE dataGLN(s), GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1 OR s IS Stock AND notCompany(s);
+GLN 'GLN' (Stock s) = OVERRIDE dataGLN(s), GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1 OR s IS Stock AND notCompany(s) AND NOT notUseInStockGLN(legalEntity(s));
 
 companyStockGLN = GROUP NAGGR Stock stock WHERE isCompany(stock) BY GLN(stock);
 
