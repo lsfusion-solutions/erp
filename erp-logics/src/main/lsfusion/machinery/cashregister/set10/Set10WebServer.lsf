@@ -108,6 +108,7 @@ startDateValid(INTEGER i) = TRUE IF (DATE(saletime1(i)) >= startDate(shop(shop1(
 
 skuCustom = ABSTRACT Sku (INTEGER);
 overCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
+afterCancelledTransaction ABSTRACT LIST (STRING);
 
 importReceipt(STRING purchases){
     NEWSESSION {
@@ -171,6 +172,10 @@ importReceipt(STRING purchases){
             }
         }
         APPLY NESTED LOCAL;
+        IF canceled() THEN {
+            logToFile('set10', (CONCAT ' : ', 'purchases canceled', applyMessage()));
+            afterCancelledTransaction(purchases);
+        }
     }
 }
 
