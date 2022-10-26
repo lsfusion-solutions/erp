@@ -6,9 +6,11 @@ NAMESPACE Repricing;
 
 skipRepricingPriceLimit = ABSTRACT BOOLEAN (Sku);
 
-overLimitBasePrice = ABSTRACT NUMERIC[16,4] (Sku, DepartmentStore, DATETIME);
+overLimitBasePrice = ABSTRACT VALUE NUMERIC[16,4] (Sku, DepartmentStore, DATETIME);
 limitBasePrice(Sku s, DepartmentStore d, DATETIME  dt) = round2(OVERRIDE overLimitBasePrice(s,d,dt), 
                                                                          prevPriceA(basePriceLimitPriceListType(d), s, d, dt));
+
+calculateLimitBasePrice ABSTRACT (DepartmentStore, DATETIME);
 
 useLimitMarkupValue = ABSTRACT VALUE BOOLEAN (Sku, DepartmentStore);
 
@@ -16,6 +18,7 @@ overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
     LOCAL limitPrice = NUMERIC[16,4] (Sku);
     
     FOR CalcPriceListType ct = priceLimitPriceListType(d) NOINLINE DO {
+        calculateLimitBasePrice(d, dt);
         limitPrice(Sku sku) <- IF markup(ct, sku) > 1 THEN
                                     round([ X*(Y+100.0)*(Z+100.0)/10000.0](
                                           limitBasePrice(sku, d, dt),
