@@ -1300,7 +1300,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 String idSection = rs.getString(13);
 
                 UKMPayment paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
-                if(paymentEntry == null && zeroPaymentForZeroSumReceipt) {
+                if(paymentEntry == null && zeroPaymentForZeroSumReceipt && realAmount.compareTo(BigDecimal.ZERO) == 0) {
                     paymentEntry = new UKMPayment();
                     paymentEntry.payments.add(Payment.getCash(BigDecimal.ZERO));
                 }
