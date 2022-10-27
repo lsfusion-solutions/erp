@@ -113,20 +113,30 @@ replace(Sku s, Batch b) + {  sku(UserRepricingDetail detail) <- s WHERE batch(de
 @defineInfoSku(userRepricingDetail); //-- показываем по нажатию правой клавиши информацию по товару
 
 // Автоматическое заполнение цен до
-curPrice (UserRepricingDetail detail)  <- round2(IF batch(detail)
-
-                                                THEN prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
+curPrice (UserRepricingDetail detail) <- IF notUseRound2() THEN  
+                                             IF batch(detail)
+                                                 THEN prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                                batch(detail),
+                                                                                                departmentStore(detail),
+                                                                                                dateTime(detail))
+                                                 ELSE prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                              sku(detail),
+                                                                                              departmentStore(detail),
+                                                                                              dateTime(detail))   
+                                         ELSE 
+                                             round2(IF batch(detail)
+                                                 THEN prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
                                                                                                batch(detail),
                                                                                                departmentStore(detail),
                                                                                                dateTime(detail))
-                                                ELSE prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                 ELSE prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
                                                                                              sku(detail),
                                                                                              departmentStore(detail),
                                                                                              dateTime(detail)))
-                                                WHEN DO CHANGED(sku(detail)) OR
-                                                     CHANGED(departmentStore(detail)) OR
-                                                     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-                                                     CHANGED(batch(detail));
+                                         WHEN DO CHANGED(sku(detail)) OR
+                                             CHANGED(departmentStore(detail)) OR
+                                             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                                             CHANGED(batch(detail));
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRepricing, retailPricingPriceListType, curRetail, sku, departmentStore);
 
