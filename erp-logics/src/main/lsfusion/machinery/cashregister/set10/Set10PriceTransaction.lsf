@@ -76,12 +76,11 @@ productType = ABSTRACT CASE STRING (Sku);
 productType (Sku s) += WHEN passScales(s) AND split(s) THEN 'ProductWeightEntity';
 productType (Sku s) += WHEN passScales(s) AND NOT split(s) THEN 'ProductPieceWeightEntity';
 
-value (STRING s, Barcode b, MachineryPriceTransaction m) = CASE 
-    WHEN s = 'precision' AND in(m, b) AND (passScales(m, b) OR split(m, b)) THEN '0.001'
-    WHEN s = 'precision' AND in(m, b) AND NOT (passScales(m, b) OR split(m, b)) THEN '1.0'
-    WHEN s = 'composition' AND in(m, b) AND expiryDate(m, b) THEN  'Годен до ' + toChar(expiryDate(m, b), 'dd.MM.yyyyy')
-    WHEN s = 'composition' AND in(m, b) AND expiryDays(m, b) THEN  'Срок годности ' + expiryDays(m, b) + ' дней'
-;
+value = ABSTRACT CASE STRING (STRING , Barcode, MachineryPriceTransaction);
+value (STRING s, Barcode b, MachineryPriceTransaction m) += WHEN s = 'precision' AND in(m, b) AND (passScales(m, b) OR split(m, b)) THEN '0.001';
+value (STRING s, Barcode b, MachineryPriceTransaction m) += WHEN s = 'precision' AND in(m, b) AND NOT (passScales(m, b) OR split(m, b)) THEN '1.0';
+value (STRING s, Barcode b, MachineryPriceTransaction m) += WHEN s = 'composition' AND in(m, b) AND expiryDate(m, b) THEN STRING('Годен до ' + toChar(expiryDate(m, b), 'dd.MM.yyyyy'));
+value (STRING s, Barcode b, MachineryPriceTransaction m) += WHEN s = 'composition' AND in(m, b) AND expiryDays(m, b) THEN STRING('Срок годности ' + expiryDays(m, b) + ' дней');
 
 FORM goodsCatalog FORMEXTID 'goods-catalog'
     OBJECTS m = MachineryPriceTransaction PANEL
