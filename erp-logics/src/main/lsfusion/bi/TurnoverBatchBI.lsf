@@ -20,6 +20,8 @@ balanceBatch = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
 balanceBBatch = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
 accountPrice = DATA LOCAL NUMERIC[16,4] (Batch, Stock);
 
+overInitExportTurnoverBatch(DATE dFrom, DATE dTo) ABSTRACT LIST;
+
 exportTurnoverBatch 'Выгрузить Оборачиваемость (по партиям)' (DATE dFrom, DATE dTo)  { 
     balanceBatch(Batch b, Stock st) <- balanceA(b, st, dTo);
     IF exportBalanceBBatch() THEN {
@@ -29,6 +31,8 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
     
     accountPrice(Batch b, Stock st) <- NULL;
     accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(sum(dTo, 1))) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, dTo) OR quantitySold(b, st, dTo);
+
+    overInitExportTurnoverBatch(dFrom, dTo);
 
     LOCAL date = DATE ();
     date() <- dTo;
