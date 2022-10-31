@@ -832,6 +832,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Set<String> customPayments = parseStringPayments(kristalSettings.getCustomPayments());
         boolean ignoreCashRegisterWithDisableSales = kristalSettings.isIgnoreCashRegisterWithDisableSales();
         boolean ignoreSalesWithoutNppGroupMachinery = kristalSettings.isIgnoreSalesWithoutNppGroupMachinery();
+        boolean extendedLogs = kristalSettings.isExtendedLogs();
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
@@ -843,6 +844,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 keyCashRegisterList.add(c);
                 cashRegisterByKeyMap.put(key, keyCashRegisterList);
             }
+        }
+
+        if(extendedLogs) {
+            processTransactionLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
         }
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
