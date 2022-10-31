@@ -96,7 +96,7 @@ public class DefaultTerminalHandler {
                 String overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock]").read(session, barcodeObject, stockObject);
                 if(overNameSku == null)
                     return null;
-                String isWeight = terminalHandlerLM.findProperty("passScales[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
+                String isWeight = terminalHandlerLM.findProperty("isWeight[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
                 ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
                 BigDecimal price = (BigDecimal) terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").read(session, barcodeObject, stockObject);
                 BigDecimal quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Barcode,Stock,CustomUser]").read(session, barcodeObject, stockObject, userInfo.user);
@@ -346,7 +346,7 @@ public class DefaultTerminalHandler {
                 barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameCountry", terminalHandlerLM.findProperty("nameCountry[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("passScales", terminalHandlerLM.findProperty("passScales[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("isWeight", terminalHandlerLM.findProperty("isWeight[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("color", terminalHandlerLM.findProperty("color[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("extInfo", terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
@@ -378,7 +378,7 @@ public class DefaultTerminalHandler {
                     String idSkuBarcode = trim((String) entry.get("idSkuBarcode"));
                     String nameManufacturer = trim((String) entry.get("nameManufacturer"));
                     String nameCountry = trim((String) entry.get("nameCountry"));
-                    String isWeight = entry.get("passScales") != null ? "1" : "0";
+                    String isWeight = entry.get("isWeight") != null ? "1" : "0";
                     String mainBarcode = trim((String) entry.get("mainBarcode"));
                     String color = formatColor((Color) entry.get("color"));
                     String extInfo = trim((String) entry.get("extInfo"));
@@ -1211,13 +1211,13 @@ public class DefaultTerminalHandler {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
-                        "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail", "minDeviationQuantityOrderDetail",
+                        "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "isWeighSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
                         "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
                         "minDeviationDate", "maxDeviationDate", "vop", "dateShipment", "extraBarcodes", "sortTerminal"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
                         "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
-                        "nameManufacturerSku[TerminalOrderDetail]", "passScalesSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
+                        "nameManufacturerSku[TerminalOrderDetail]", "isWeighSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
                         "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]",
@@ -1250,7 +1250,7 @@ public class DefaultTerminalHandler {
                     BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail");
                     BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail");
                     String nameManufacturer = (String) entry.get("nameManufacturerSkuOrderDetail");
-                    String weight = entry.get("passScalesSkuOrderDetail") != null ? "1" : "0";
+                    String weight = entry.get("isWeighSkuOrderDetail") != null ? "1" : "0";
                     String color = formatColor((Color) entry.get("color"));
 
                     String headField1 = (String) entry.get("headField1");
