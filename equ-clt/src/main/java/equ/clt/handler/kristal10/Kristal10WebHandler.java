@@ -508,35 +508,20 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         for (RequestExchange entry : requestExchangeList) {
-            for (Map.Entry<String, Set<String>> directoryStockEntry : getDirectoryStockMap(entry, useNumberGroupInShopIndices).entrySet()) {
-                String directory = directoryStockEntry.getKey();
-                Set<String> stockSet = new HashSet<>();//directoryStockEntry.getValue(); todo: для теста
-
+            for (String directory : getDirectoryStockMap(entry, useNumberGroupInShopIndices).keySet()) {
                 List<String> requestSalesInfoEntry = requestSalesInfoMap.getOrDefault(directory, new ArrayList<>());
-                requestSalesInfoEntry.addAll(generateRequestPurchasesByParams(entry.dateFrom, entry.dateTo, stockSet, getCashRegisterSet(entry, false)));
+                requestSalesInfoEntry.addAll(generateRequestPurchasesByParams(entry.dateFrom, entry.dateTo, getCashRegisterSet(entry, false)));
                 requestSalesInfoMap.put(directory, requestSalesInfoEntry);
                 succeededRequests.add(entry.requestExchange);
             }
         }
     }
 
-    private List<String> generateRequestPurchasesByParams(LocalDate dateFrom, LocalDate dateTo, Set<String> stockSet, Set<CashRegisterInfo> cashRegisterSet) {
+    private List<String> generateRequestPurchasesByParams(LocalDate dateFrom, LocalDate dateTo, Set<CashRegisterInfo> cashRegisterSet) {
         List<String> result = new ArrayList<>();
         while(dateFrom.compareTo(dateTo) <= 0) {
-            result.addAll(generateRequestPurchasesByParams(dateFrom, stockSet, cashRegisterSet));
+            result.addAll(generateRequestPurchasesByParams(dateFrom, (String) null, cashRegisterSet));
             dateFrom = dateFrom.plusDays(1);
-        }
-        return result;
-    }
-
-    private List<String> generateRequestPurchasesByParams(LocalDate date, Set<String> stockSet, Set<CashRegisterInfo> cashRegisterSet) {
-        List<String> result = new ArrayList<>();
-        if (stockSet.isEmpty()) {
-            result.addAll(generateRequestPurchasesByParams(date, (String) null, cashRegisterSet));
-        } else {
-            for (String stock : stockSet) {
-                result.addAll(generateRequestPurchasesByParams(date, stock, cashRegisterSet));
-            }
         }
         return result;
     }
