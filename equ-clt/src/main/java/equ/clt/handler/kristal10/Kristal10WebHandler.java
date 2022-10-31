@@ -194,33 +194,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                 setAttribute(good, "marking-of-the-good", idItem);
 
-                if(!skipScalesInfo) {
-                    //<plugin-property key="plu-number" value="4">
-                    Element extraPluginProperty = new Element("plugin-property");
-                    setAttribute(extraPluginProperty, "key", "plu-number");
-                    setAttribute(extraPluginProperty, "value", removeZeroes(item.idBarcode));
-                    good.addContent(extraPluginProperty);
-
-                    //<plugin-property value="1" key="composition"/>
-                    if (item.expiryDate != null) {
-                        Element expiryDateProperty = new Element("plugin-property");
-                        setAttribute(expiryDateProperty, "key", "composition");
-                        setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
-                        good.addContent(expiryDateProperty);
-                    }
-                }
-
-                String ntin = trimToNull(infoJSON.optString("ntin"));
-                if(ntin != null) {
-                    Element pluginProperty = new Element("plugin-property");
-                    setAttribute(pluginProperty, "key", "uz-ffd-spic");
-                    setAttribute(pluginProperty, "value", ntin);
-                    good.addContent(pluginProperty);
-                }
-
                 rootElement.addContent(good);
 
-                fillGoodElement(good, item, shopIndices, useShopIndices, infoJSON);
+                fillGoodElement(good, item, skipScalesInfo, shopIndices, useShopIndices, infoJSON);
 
                 addProductType(good, item, tobaccoGroups);
 

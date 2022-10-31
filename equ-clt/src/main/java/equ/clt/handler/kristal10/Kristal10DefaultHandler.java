@@ -19,6 +19,7 @@ import java.util.*;
 import static equ.clt.handler.HandlerUtils.safeAdd;
 import static equ.clt.handler.HandlerUtils.safeSubtract;
 import static lsfusion.base.BaseUtils.nvl;
+import static lsfusion.base.BaseUtils.trimToNull;
 
 public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler<Kristal10SalesBatch, CashDocumentBatch> {
 
@@ -39,7 +40,23 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return value;
     }
 
-    protected void fillGoodElement(Element good, CashRegisterItem item, String shopIndices, boolean useShopIndices, JSONObject infoJSON) {
+    protected void fillGoodElement(Element good, CashRegisterItem item, boolean skipScalesInfo, String shopIndices, boolean useShopIndices, JSONObject infoJSON) {
+        if(!skipScalesInfo) {
+            //<plugin-property key="plu-number" value="4">
+            Element extraPluginProperty = new Element("plugin-property");
+            setAttribute(extraPluginProperty, "key", "plu-number");
+            setAttribute(extraPluginProperty, "value", removeZeroes(item.idBarcode));
+            good.addContent(extraPluginProperty);
+
+            //<plugin-property value="1" key="composition"/>
+            if (item.expiryDate != null) {
+                Element expiryDateProperty = new Element("plugin-property");
+                setAttribute(expiryDateProperty, "key", "composition");
+                setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
+                good.addContent(expiryDateProperty);
+            }
+        }
+
         if (useShopIndices) {
             addStringElement(good, "shop-indices", shopIndices);
         }
@@ -47,6 +64,14 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
 
         if (infoJSON != null) {
+            String ntin = trimToNull(infoJSON.optString("ntin"));
+            if(ntin != null) {
+                Element pluginProperty = new Element("plugin-property");
+                setAttribute(pluginProperty, "key", "uz-ffd-spic");
+                setAttribute(pluginProperty, "value", ntin);
+                good.addContent(pluginProperty);
+            }
+
             addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));
 
             if (infoJSON.has("age")) {

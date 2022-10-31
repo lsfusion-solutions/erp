@@ -142,22 +142,6 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                 usedDeleteBarcodes.barcodes.add(item.idBarcode);
                             }
 
-                            if(!skipScalesInfo) {
-                                //<plugin-property key="plu-number" value="4">
-                                Element extraPluginProperty = new Element("plugin-property");
-                                setAttribute(extraPluginProperty, "key", "plu-number");
-                                setAttribute(extraPluginProperty, "value", removeZeroes(item.idBarcode));
-                                good.addContent(extraPluginProperty);
-
-                                //<plugin-property value="1" key="composition"/>
-                                if (item.expiryDate != null) {
-                                    Element expiryDateProperty = new Element("plugin-property");
-                                    setAttribute(expiryDateProperty, "key", "composition");
-                                    setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
-                                    good.addContent(expiryDateProperty);
-                                }
-                            }
-
                             rootElement.addContent(good);
 
                             //parent: rootElement
@@ -195,7 +179,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                 addStringElement(maxDiscountRestriction, "shop-indices", shopIndices);
                             rootElement.addContent(maxDiscountRestriction);
 
-                            fillGoodElement(good, item, shopIndices, useShopIndices, infoJSON);
+                            fillGoodElement(good, item, skipScalesInfo, shopIndices, useShopIndices, infoJSON);
 
                             //parent: good
                             Element barcode = getBarcodeElement(item, barcodeItem, null, exportAmountForBarcode);
