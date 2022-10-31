@@ -31,3 +31,22 @@ outgoingConsignment (InvoiceDetail vd, StockEntry se) = outgoingConsignment(invo
 @defineDocumentOutgoingProcess(invoice, i);
 
 @defineDocumentOutgoingWithdraw(invoice);
+
+FORM dialogPrepareOutgoingConsignmentRequest 'История заявок Ветис'
+    OBJECTS o = OutgoingConsignment   
+
+    OBJECTS r = PrepareOutgoingConsignmentRequest
+    PROPERTIES (r) READONLY id, issueDate, nameBusinessEntity, error, nameStatus
+    ORDERS issueDate(r) DESC
+    FILTERS in(r, o)   
+;
+
+showDialogPrepareOutgoingConsignmentRequest 'Показать историю заявок Ветис' (OutgoingConsignment o) {
+    NEWSESSION SHOW dialogPrepareOutgoingConsignmentRequest OBJECTS o = o;
+}
+
+showDialogPrepareOutgoingConsignmentRequest 'Показать историю заявок Ветис' (InvoiceDetail d, StockEntry e) {
+    FOR OutgoingConsignment o = outgoingConsignment(d, e) DO {
+        showDialogPrepareOutgoingConsignmentRequest(o);
+    }
+} ASON CONTEXTMENU nameStatusLastRequest[InvoiceDetail, StockEntry];
