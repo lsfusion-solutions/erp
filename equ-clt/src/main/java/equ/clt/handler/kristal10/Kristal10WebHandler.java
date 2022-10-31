@@ -41,6 +41,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static equ.clt.handler.HandlerUtils.*;
+import static lsfusion.base.BaseUtils.trimToNull;
 
 public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
@@ -207,6 +208,14 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
                         good.addContent(expiryDateProperty);
                     }
+                }
+
+                String ntin = trimToNull(infoJSON.optString("ntin"));
+                if(ntin != null) {
+                    Element pluginProperty = new Element("plugin-property");
+                    setAttribute(pluginProperty, "key", "uz-ffd-spic");
+                    setAttribute(pluginProperty, "value", ntin);
+                    good.addContent(pluginProperty);
                 }
 
                 rootElement.addContent(good);
