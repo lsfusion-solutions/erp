@@ -842,17 +842,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 List<CashRegisterInfo> keyCashRegisterList = cashRegisterByKeyMap.getOrDefault(key, new ArrayList<>());
                 keyCashRegisterList.add(c);
                 cashRegisterByKeyMap.put(key, keyCashRegisterList);
-                if(ignoreCashRegisterWithDisableSales) {
-                    sendSalesLogger.info("put cashRegisterByKeyMap: " + key); //todo: remove temp logs
-                }
             }
         }
-
-        if(ignoreSalesWithoutNppGroupMachinery) {
-            sendSalesLogger.info("received sales"); //todo: remove temp logs
-            sendSalesLogger.info(docToXMLString(doc));
-        }
-
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         Element rootNode = doc.getRootElement();
@@ -982,9 +973,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                     String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
                     CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
-                    if(ignoreSalesWithoutNppGroupMachinery) {
-                        sendSalesLogger.info("get cashRegisterByKeyMap: " + key); //todo: remove temp logs
-                    }
                     Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
 
                     if (!ignoreSales(cashRegisterByKey, nppGroupMachinery, key, ignoreCashRegisterWithDisableSales, ignoreSalesWithoutNppGroupMachinery)) {
