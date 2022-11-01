@@ -275,10 +275,17 @@ createdComputer (UserPriceListDetail d) += createdComputer(userPriceList(d));
 // Партии
 @defineDocumentInterfaceDetailBatch(priceList, batch);
 //@deriveDocumentDetailPricePriceListTypeVATBatch(userPriceList, stockProp, userPriceList);
+useCustomPurchaseBatch = ABSTRACT VALUE BOOLEAN (UserPriceListDetail);
+changePurchaseBatchCustom ABSTRACT (UserPriceListDetail);
 
 changePurchaseBatch(UserPriceListDetail userPriceListDetail)  { 
-    DIALOG dialogBatch OBJECTS sk = sku(userPriceListDetail), bt = batch(userPriceListDetail) INPUT NULL NEWSESSION DO
-        batch(userPriceListDetail) <- bt;
+    IF NOT useCustomPurchaseBatch(userPriceListDetail) THEN {
+        DIALOG dialogBatch OBJECTS sk = sku(userPriceListDetail), bt = batch(userPriceListDetail) INPUT NULL NEWSESSION DO {
+            batch(userPriceListDetail) <- bt;
+        }
+    } ELSE {
+        changePurchaseBatchCustom(userPriceListDetail);
+    }
 }
 
 replace(Sku s, Batch b) + {  sku(UserPriceListDetail detail) <- s WHERE batch(detail) == b;}
