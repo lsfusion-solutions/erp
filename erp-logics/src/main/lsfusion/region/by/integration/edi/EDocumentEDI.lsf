@@ -25,8 +25,10 @@ date 'Дата электронного документа (юридически
 type 'Тип электронного документа' = DATA STRING[255] (EDocument);
 
 sender 'Отправитель' = DATA LegalEntity (EDocument);
-glnSender 'GLN отправителя' (EDocument d) = GLN(sender(d));
-nameSender 'Отправитель' (EDocument d) = name(sender(d));
+dataGLNSender = DATA STRING[13](EDocument);
+glnSender 'GLN отправителя' (EDocument d) = OVERRIDE GLN(sender(d)), dataGLNSender(d);
+dataNameSender = DATA ISTRING[150](EDocument);
+nameSender 'Отправитель' (EDocument d) = OVERRIDE name(sender(d)), dataNameSender(d);
 addressSender 'Адрес отправителя' (EDocument d) = address(sender(d));
 unpSender 'УНП отправителя' (EDocument d) = UNP(sender(d));
 
@@ -67,6 +69,23 @@ FORM dialogEDocument 'Выбор электронного документа'
     
     LIST EDocument OBJECT d
 ;
+//-----------------------------------------Электронный документ со строками------------------------------------//
+CLASS EDocumentDetail 'Строка электронного документа';
+TABLE eDocumentDetail(EDocumentDetail);
+
+eDocument = DATA EDocument(EDocumentDetail) NONULL DELETE INDEXED;
+
+lineNumber 'Порядковый номер' = DATA INTEGER (EDocumentDetail) ; 
+senderItemCode 'Код в системе оотправителя'= DATA STRING[100] (EDocumentDetail);
+senderItemDescription 'Наименование' = DATA STRING[500] (EDocumentDetail);
+invoiceQuantity 'Количество' = DATA NUMERIC[13,3] (EDocumentDetail);
+lineItemUnitPriceWithoutTax 'Цена' = DATA NUMERIC[12,2] (EDocumentDetail);
+senderUnitOfMeasure 'Код единицы измерения' = DATA STRING[3] (EDocumentDetail);
+taxRate 'НДС, %' = DATA STRING[7](EDocumentDetail);
+lineItemCostWithoutTax 'Сумма'= DATA NUMERIC[12,2] (EDocumentDetail);
+lineItemCostWithTax 'Сумма с НДС'= DATA NUMERIC[12,2] (EDocumentDetail);
+
+countEDocumentDetail = GROUP SUM 1 BY eDocument(EDocumentDetail d) MATERIALIZED;
 
 //-----------------------------------------Сообщение по документу EDI-----------------------------------------//
 CLASS EDocumentMessage 'Сообщение по документу EDI';
@@ -78,10 +97,6 @@ numberEDocument 'Накладная' (EDocumentMessage m) = number(eDocument(m))
 dateTime 'Дата/время сообщения' = DATA DATETIME (EDocumentMessage);
 code 'Код сообщения' = DATA STRING[10] (EDocumentMessage);
 description 'Текст сообщения' = DATA STRING[1000] (EDocumentMessage);
-good = ABSTRACT CASE BOOLEAN (EDocumentMessage);
-currentOrderMessage = GROUP LAST EDocumentMessage m ORDER dateTime(m), m BY eDocument(m);
-statusDescription 'Статус отправки EDI'(EDocument d) = CONCAT ' ', code(currentOrderMessage(d)), description(currentOrderMessage(d)) CHARWIDTH 15;
-backgroundStatusDescription (EDocument d) = RGB(255,238,238) IF currentOrderMessage(d) AND NOT good(currentOrderMessage(d));
 
 background = ABSTRACT CASE COLOR (EDocument);
 
@@ -100,16 +115,19 @@ EXTEND CLASS EInvoiceMessageType {
 type 'Тип' = DATA EInvoiceMessageType (EDocumentMessage);
 nameType 'Тип' (EDocumentMessage m) = staticCaption(type(m));
 
-good(EDocumentMessage m) += WHEN (code(m) == '1240' OR code(m) == '1252' OR code(m) == '2550' OR code(m) == '2560' OR code(m) == '2552' OR code(m) == '2562') THEN TRUE ;
-
 FORM eDocuments 'Электронные документы EDI'
     OBJECTS d = EDocument
     PROPERTIES(d) in
     PROPERTIES(d) READONLYIF isReadonly() isCancel//, isTest
-    PROPERTIES(d) BACKGROUND background(d) READONLY number, date, type, glnSender, nameSender, glnReceiver, nameReceiver, dateTimeCreated,
-                  documentID, creationDateTime, nameRoute, name, nameFileSender, nameFileReceiver
+    PROPERTIES(d) BACKGROUND background(d) READONLY number, date, type, glnSender, nameSender, glnReceiver, nameReceiver, 
+                  dateTimeCreated,documentID, creationDateTime, nameRoute, name, nameFileSender, nameFileReceiver
     FILTERGROUP notExported
 
+    OBJECTS md = EDocumentDetail
+    PROPERTIES(md) READONLY SHOWIF countEDocumentDetail(d) lineNumber, senderItemCode, senderItemDescription, invoiceQuantity,
+                   lineItemUnitPriceWithoutTax, senderUnitOfMeasure, taxRate, lineItemCostWithoutTax, lineItemCostWithTax
+    FILTERS eDocument(md) == d
+    
     OBJECTS m = EDocumentMessage
     PROPERTIES(m) READONLY numberEDocument, dateTime, nameType, nameKind, code, description
     FILTERS eDocument(m) == d
@@ -123,6 +141,7 @@ DESIGN eDocuments {
         NEW tab {
             fill = 1;
             type = TABBED;
+            MOVE BOX(md);
             MOVE BOX(m);
             NEW actionContainer {
                 caption = 'Действия';
@@ -147,9 +166,12 @@ NAVIGATOR {
 
 FORM eDocument 'Электронный документ EDI'
     OBJECTS d = EDocument PANEL 
-    PROPERTIES(d) BACKGROUND background(d) number, date, type, dateTimeCreated,
-                  glnSender, nameSender, glnReceiver, nameReceiver, nameRoute,
-                  name, nameFileSender, nameFileReceiver
+    PROPERTIES(d) BACKGROUND background(d) number, date, type, dateTimeCreated, glnSender, nameSender, glnReceiver, nameReceiver,
+                  nameRoute, name, nameFileSender, nameFileReceiver
+    OBJECTS md = EDocumentDetail
+    PROPERTIES(md) READONLY lineNumber, senderItemCode, senderItemDescription, invoiceQuantity, lineItemUnitPriceWithoutTax,
+                   senderUnitOfMeasure, taxRate, lineItemCostWithoutTax, lineItemCostWithTax
+    FILTERS eDocument(md) == d
 ;
 
 DESIGN eDocument {
@@ -161,6 +183,7 @@ DESIGN eDocument {
     PROPERTY (nameSender(d)){notNull = TRUE;}
     PROPERTY (glnReceiver(d)){notNull = TRUE;}
     PROPERTY (nameReceiver(d)){notNull = TRUE;}
+    BOX (md) {fill = 1;}
 }
 
 openEDocument 'Открыть документ' (EDocument d) {

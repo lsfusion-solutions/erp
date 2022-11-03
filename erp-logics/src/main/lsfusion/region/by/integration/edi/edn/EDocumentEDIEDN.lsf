@@ -29,6 +29,61 @@ FORM envelopePDF
     PROPERTIES IN data pdfData() EXTID 'Data'
 ;
 
+//INVOICE 
+GROUP document_Header EXTID 'Document-Header';
+GROUP document_Parties EXTID 'Document-Parties';
+GROUP sender EXTID 'Sender' : document_Parties;
+GROUP receiver EXTID 'Receiver' : document_Parties;
+GROUP document_Lines EXTID 'Document-Lines';
+
+GROUP line_Item EXTID 'Line-Item';
+GROUP document_Attachments EXTID 'Document-Attachments';
+GROUP document_File EXTID 'Document-File' : document_Attachments;
+
+invoiceDocumentID = DATA LOCAL STRING[70]();
+invoiceDocumentDate = DATA LOCAL DATE();
+invoiceDocumentName = DATA LOCAL STRING[255]();
+invoiceDocumentNumber = DATA LOCAL STRING[50]();
+invoiceSingleSignature = DATA LOCAL BOOLEAN();
+invoiceSenderILN = DATA LOCAL STRING[13]();
+invoiceSenderName = DATA LOCAL STRING[150]();
+invoiceReceiverILN = DATA LOCAL STRING[13]();
+invoiceLineNumber = DATA LOCAL NUMERIC (INTEGER);
+invoiceSenderItemCode = DATA LOCAL STRING[100](INTEGER);
+invoiceSenderItemDescription = DATA LOCAL STRING[500](INTEGER);
+invoiceInvoiceQuantity = DATA LOCAL NUMERIC[13,3](INTEGER);
+invoiceLineItemUnitPriceWithoutTax = DATA LOCAL STRING(INTEGER);
+invoiceSenderUnitOfMeasure = DATA LOCAL STRING[3](INTEGER);
+invoiceTaxRate = DATA LOCAL STRING[7](INTEGER);
+invoiceLineItemCostWithoutTax = DATA LOCAL NUMERIC[12,2](INTEGER);
+invoiceLineItemCostWithTax = DATA LOCAL NUMERIC[12,2](INTEGER);
+invoiceFileName = DATA LOCAL STRING[255]();
+invoiceContent = DATA LOCAL RAWFILE ();
+
+FORM document_Invoice FORMEXTID 'Document-Invoice'
+    PROPERTIES() IN document_Header invoiceDocumentID EXTID 'DocumentID', 
+                                    invoiceDocumentNumber EXTID 'DocumentNumber', 
+                                    invoiceDocumentDate EXTID 'DocumentDate', 
+                                    invoiceDocumentName EXTID 'DocumentName', 
+                                    invoiceSingleSignature EXTID 'SingleSignature'
+                                    
+    PROPERTIES() IN sender invoiceSenderILN EXTID 'ILN', invoiceSenderName EXTID 'Name'
+    PROPERTIES() IN receiver invoiceReceiverILN EXTID 'ILN'
+    
+    OBJECTS line = INTEGER EXTID 'Line' IN document_Lines
+    PROPERTIES(line) IN line_Item invoiceLineNumber EXTID 'LineNumber', 
+                                  invoiceSenderItemCode EXTID 'SenderItemCode', 
+                                  invoiceSenderItemDescription EXTID 'SenderItemDescription', 
+                                  invoiceInvoiceQuantity EXTID 'InvoiceQuantity', 
+                                  invoiceLineItemUnitPriceWithoutTax EXTID 'LineItemUnitPriceWithoutTax', 
+                                  invoiceSenderUnitOfMeasure EXTID 'SenderUnitOfMeasure', 
+                                  invoiceTaxRate EXTID 'TaxRate', 
+                                  invoiceLineItemCostWithoutTax EXTID 'LineItemCostWithoutTax',
+                                  invoiceLineItemCostWithTax EXTID 'LineItemCostWithTax'
+    
+    PROPERTIES() IN document_File invoiceFileName EXTID 'File-Name', invoiceContent EXTID 'Content'
+;
+
 overImportPdf ABSTRACT ();
 skipPdf = DATA LOCAL NESTED BOOLEAN();
 overCreateEDocumentPdf ABSTRACT LIST (EDocument);
@@ -85,6 +140,73 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                     }  
                 }
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' Parse EDocument ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте документа ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            eDocumentsFailed() <- eDocumentsFailed() + 1;
+        }
+    }
+    IF lower(documentType(i)) == 'invoice' THEN {
+        TRY {
+            IMPORT document_Invoice XML FROM data(i);
+            NEWSESSION NESTED LOCAL {
+                FOR EDocument ed = eDocument(invoiceSenderILN() + '/' + invoiceDocumentID()) DO {
+                    importedReceiver(ed) <- TRUE;
+                    fileSender(ed) <- invoiceContent() IF NOT fileReceiver(ed);
+                    nameFileSender(ed) <- invoiceFileName() IF NOT fileReceiver(ed);
+                } ELSE NEW ed = EDocument {
+                    importedReceiver(ed) <- TRUE ;
+                    id(ed) <- invoiceSenderILN() + '/' + invoiceDocumentID();
+                    documentID(ed) <- invoiceDocumentID();
+                    creationDateTime(ed) <- currentDateTime();
+                    number(ed) <- invoiceDocumentNumber();
+                    date(ed) <- invoiceDocumentDate();
+                    type(ed) <- invoiceDocumentName();
+                    fileSender(ed) <- invoiceContent();
+                    nameFileSender(ed) <- invoiceFileName();
+                    sender(ed) <- legalEntityGLN(invoiceSenderILN());
+                    dataGLNSender(ed) <- invoiceSenderILN();
+                    dataNameSender(ed) <- invoiceSenderName();
+                    receiver(ed) <- legalEntityGLN(invoiceReceiverILN());
+                    route(ed) <- IF invoiceSingleSignature() THEN EDocumentRoute.route1 ELSE EDocumentRoute.route0;
+                    XMLPath(ed) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                    FOR invoiceLineNumber(INTEGER r) NEW d = EDocumentDetail DO {
+                        eDocument(d) <- ed;
+                        lineNumber(d)<- INTEGER(invoiceLineNumber(r)); 
+                        senderItemCode(d)<- invoiceSenderItemCode(r);
+                        senderItemDescription(d)<- invoiceSenderItemDescription(r);
+                        invoiceQuantity(d)<- invoiceInvoiceQuantity(r);
+                        lineItemUnitPriceWithoutTax(d)<- invoiceLineItemCostWithoutTax(r);
+                        senderUnitOfMeasure(d)<- invoiceSenderUnitOfMeasure(r);
+                        taxRate(d)<- invoiceTaxRate(r);
+                        lineItemCostWithoutTax(d)<- invoiceLineItemCostWithoutTax(r);
+                        lineItemCostWithTax(d)<- invoiceLineItemCostWithTax(r);
+                    }
+                }
+                APPLY NESTED LOCAL;
+                IF canceled() THEN {
+                    logToFile('edi', provider + ' Import EDocument ' + id(i) + ' failed: ' + applyMessage());
+                    eDocumentsFailed() <- eDocumentsFailed() + 1;
+                } ELSE {
+                    FOR EDocument ed = eDocument(invoiceSenderILN() + '/' + invoiceDocumentID()) DO {
+                        IF NOT disableConfirmation THEN {
+                            LOCAL cxml = XMLFILE();
+                            EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
+                            sendRequestEDI(url, cxml());
+                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                            IF requestError() THEN {
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                            } ELSE {
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                            }
+                        }
+                        logToFile('edi', provider + ' Import EDocument ' + id(i) + ' succeeded');
+                        eDocumentsSucceeded() <- eDocumentsSucceeded() + 1;
+                    }
+                }  
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' Parse EDocument ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
