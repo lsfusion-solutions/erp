@@ -321,6 +321,7 @@ groupType(SkuGroup group) += SystemGroupType.skuGroupType IF group IS SkuGroup;
 group(SystemGroupType type, Sku sku) += WHEN CLASS(skuGroup(sku)) AND type == SystemGroupType.skuGroupType THEN skuGroup(sku);
 
 name 'Наименование' (sku) = ABSTRACT ISTRING[255] (Sku) MATERIALIZED CHARWIDTH 30 INDEXED MATCH IN base;
+prevName 'Наименование' (Sku sku) = PREV(name(sku));
 
 UOM (sku) = ABSTRACT UOM (Sku) MATERIALIZED;
 nameUOM 'Ед. изм.' (Sku sku) = name(UOM(sku)) IN base;
@@ -479,7 +480,8 @@ END
 META defineDocumentDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, prefix, caption)
     prefix###skuClass = DATA skuClassUpper (###detail) INDEXED;
     prefix###id###skuClass 'Код'###caption (###detail detail) = id(prefix###skuClass(detail)) IN id;
-    prefix###name###skuClass 'Наименование'###caption (###detail detail) = name(prefix###skuClass(detail)) IN id  CHARWIDTH 40;
+    prefix###name###skuClass 'Наименование'###caption (###detail detail) = name(prefix###skuClass(detail)) CHARWIDTH 40;
+    prev###prefix###name###skuClass 'Наименование'###caption (###detail detail) = prevName(prefix###skuClass(detail)) IN id;
     prefix###shortNameUOM###skuClass 'Ед. изм.'###caption = shortNameUOM(prefix###skuClass(###detail detail)) IN id;
     prefix###idBarcode###skuClass 'Штрихкод'###caption (###detail detail) = idBarcode(prefix###skuClass(detail)) IN id;
     prefix###nameCountry###skuClass 'Страна'###caption (###detail detail) = nameCountry(prefix###skuClass(detail));
@@ -494,7 +496,8 @@ META defineDocumentAbstractDetailSkuCustomPrefixInner (detail, skuClass, skuClas
     prefix###skuClass = ABSTRACT skuClassUpper (###detail) MATERIALIZED;
     INDEX prefix###skuClass(###detail d), dateTime(d);
     prefix###id###skuClass 'Код'###caption (###detail detail) = id(prefix###skuClass(detail));
-    prefix###name###skuClass 'Наименование'###caption (###detail detail) = name(prefix###skuClass(detail)) IN id;
+    prefix###name###skuClass 'Наименование'###caption (###detail detail) = name(prefix###skuClass(detail));
+    prev###prefix###name###skuClass 'Наименование'###caption (###detail detail) = prevName(prefix###skuClass(detail)) IN id;
     prefix###shortNameUOM###skuClass 'Ед. изм.'###caption = shortNameUOM(prefix###skuClass(###detail detail)) IN base;
     prefix###idBarcode###skuClass 'Штрихкод'###caption (###detail detail) = idBarcode(prefix###skuClass(detail)) IN id;
     prefix###allBarcodes###skuClass 'Все штрих-коды'###caption (###detail detail) = allBarcodes(prefix###skuClass(detail));
