@@ -4,8 +4,9 @@ REQUIRE PriceListAccount;
 
 NAMESPACE PriceList;
 
+skipChangeAccountPrice = DATA LOCAL BOOLEAN ();
 accountPrice 'Последняя учетная цена' = DATA NUMERIC[16,4] (Sku, Stock);
-WHEN SETCHANGED(averagePrice(Sku sku, Stock stock)) AND averagePrice(sku, stock) > 0 DO
+WHEN SETCHANGED(averagePrice(Sku sku, Stock stock)) AND averagePrice(sku, stock) > 0 AND NOT skipChangeAccountPrice() DO
     accountPrice(sku, stock) <- NUMERIC[16,4](averagePrice(sku, stock)); 
 
 accountPriceB (Sku sku, Stock stock, DATETIME dateTime) += NUMERIC[16,4](OVERRIDE round2(sumB(sku, stock, dateTime) / balanceB(sku, stock, dateTime)), accountPrice(sku, stock));
