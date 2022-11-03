@@ -25,10 +25,8 @@ backgroundShowAutoPricing (CalcPriceListType calcPriceListType, Group group) =
         RGB(203,203,206) IF quantityChildWithAutoPricing (calcPriceListType, group) != descendantNumber(group)
                          AND NOT quantityParentWithAutoPricing (calcPriceListType,group);
 
-@defineOption(showAutoPricingOption, 'Всегда показывать колонку Авто изменение цены в расчётном виде цены', pricings);
-
 EXTEND FORM calcPriceListType
-    PROPERTIES(c,g) SHOWIF (g IS SkuGroup OR showAutoPricingOption()) autoPricing BACKGROUND backgroundShowAutoPricing(c,g)
+    PROPERTIES(c,g) autoPricing BACKGROUND backgroundShowAutoPricing(c,g)
 ; 
 
 skipRepricing = ABSTRACT BOOLEAN (Sku, Stock);
@@ -83,25 +81,29 @@ afterSetManagementRetailPrice(DepartmentStore d, PriceListType pt, DATETIME dt) 
 
 calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
     requestCanceled() <- NULL;
+    LOCAL gropType = GroupType();
     IF NOT skipDialog() THEN {
         DIALOG dialogSkuGroup;
+        gropType() <- SystemGroupType.skuGroupType;
+    } ELSE {
+        gropType() <- groupType(ct);
     }
     info(Sku s) <- NULL;
     IF NOT requestCanceled() THEN {
         IF onStockPriceListRepricing() THEN {  // переоценивать товары без остатка, настройка в options pricings (Акты расценки?)
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt) 
-                IF NOT skipManagementPriceList(pt, sku, d, dt) AND inSession(skuGroup(sku));
+                IF NOT skipManagementPriceList(pt, sku, d, dt) AND inSession(group(gropType(), sku));
             overSetMarkupManagementRetailPrice(d, dt);
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt)
-                IF NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(skuGroup(sku)) OR calculateAllGroups());
+                IF NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(group(gropType(), sku)) OR calculateAllGroups());
         } ELSE {
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt)
-                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND inSession(skuGroup(sku));                
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND inSession(group(gropType(), sku));                
             overSetMarkupManagementRetailPrice(d, dt);
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt,sku, d, dt)
-                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(skuGroup(sku)) OR calculateAllGroups());
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(group(gropType(), sku)) OR calculateAllGroups());
         }
         managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
 
