@@ -29,7 +29,20 @@ stockEntry = ABSTRACT StockEntry (OutgoingConsignment) MATERIALIZED INDEXED;
 guidStockEntry 'Код складского журнала' (OutgoingConsignment c) = guid(stockEntry(c));
 
 numberStockEntry 'Номер складского журнала' (OutgoingConsignment c) = number(stockEntry(c));
-transportStorageType 'Способ хранения продукции при перевозке' (OutgoingConsignment c) = lastTransportStorageType(stockEntry(c));
+
+CLASS TransportStorageType 'Способ хранения при перевозке' {
+    FROZEN 'Замороженный',
+    CHILLED 'Охлажденный',
+    COOLED 'Охлаждаемый',
+    VENTILATED 'Вентилируемый'
+}
+
+sid (TransportStorageType type) = staticName(type) IF type IS TransportStorageType;
+
+dataTransportStorageType 'Способ хранения продукции при перевозке' = ABSTRACT TransportStorageType (OutgoingConsignment);
+
+transportStorageType 'Способ хранения продукции при перевозке' (OutgoingConsignment c) = 
+    OVERRIDE sid(dataTransportStorageType(c)), lastTransportStorageType(stockEntry(c));
 
 volume 'Объем продукции' = ABSTRACT NUMERIC[16,5] (OutgoingConsignment) MATERIALIZED; 
 

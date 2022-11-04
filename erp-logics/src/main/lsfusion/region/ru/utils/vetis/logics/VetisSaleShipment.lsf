@@ -8,6 +8,31 @@ PRIORITY Sale;
 
 NAMESPACE VetisSale;
 
+transportStorageType = DATA TransportStorageType (Trip);
+nameTransportStorageType 'Способ хранения при перевозке' (Trip trip) = staticCaption(transportStorageType(trip));
+
+EXTEND FORM trip
+    PROPERTIES (t) nameTransportStorageType
+;
+
+DESIGN trip {
+    truckContainer {
+        MOVE PROPERTY(nameTransportStorageType(t));
+    }
+}
+
+nameTransportStorageType 'Способ хранения при перевозке' (InvoiceShipment is) = nameTransportStorageType(trip(is));
+
+EXTEND FORM invoices
+    PROPERTIES (tis) READONLY nameTransportStorageType AFTER nameTruckModelTrip(tis)
+;
+
+DESIGN invoices {
+    transport {
+        MOVE PROPERTY(nameTransportStorageType(tis)) AFTER PROPERTY(nameTruckModelTrip(tis));
+    }
+}
+
 @defineDocumentStockEntry(userShipment, supplierStock, quantity, s, specificationBox);
 
 // shipment detail
@@ -19,6 +44,8 @@ volume(InvoiceShipmentDetail d, StockEntry s) += volume(invoiceDetail(d), s);
 
 // consignment
 @defineDocumentOutgoingConsignment(shipment, supplier, customer, ' (продажа)');
+
+dataTransportStorageType (ShipmentOutgoingConsignment c) += transportStorageType(trip(shipment(shipmentDetail(c))));
 
 // shipment
 volume (ShipmentDetail d, VetDocument vd) = GROUP SUM volume(d, StockEntry s) IF vetDocument(outgoingConsignment(d, s)) = vd;
