@@ -51,9 +51,11 @@ truck = ABSTRACT Truck (OutgoingConsignment) MATERIALIZED;
 nameTruck 'Автомобиль' (OutgoingConsignment c) = name(truck(c));
 
 // waybill
-waybillSeries 'Серия ТТН' = ABSTRACT STRING (OutgoingConsignment); 
-waybillNumber 'Номер ТТН' = ABSTRACT STRING (OutgoingConsignment); 
-waybillDate 'Дата ТТН' = ABSTRACT DATE (OutgoingConsignment);
+waybillSeries 'Серия документа' = ABSTRACT STRING (OutgoingConsignment); 
+waybillNumber 'Номер документа' = ABSTRACT STRING (OutgoingConsignment); 
+waybillDate 'Дата документа' = ABSTRACT DATE (OutgoingConsignment);
+waybillType 'Тип документа' = ABSTRACT INTEGER (OutgoingConsignment);
+nameWaybillType 'Тип документа' = ABSTRACT STRING (OutgoingConsignment) CHARWIDTH 10;
 
 FORM outgoingConsignments 'Исходящие партии'
     OBJECTS c = OutgoingConsignment
@@ -62,7 +64,7 @@ FORM outgoingConsignments 'Исходящие партии'
                   nameConsignorBusinessEntity, nameConsignorEnterprise,
                   nameConsigneeBusinessEntity, nameConsigneeEnterprise,
                   volume, nameTruck,
-                  waybillSeries, waybillNumber, waybillDate
+                  nameWaybillType, waybillSeries, waybillNumber, waybillDate
                   
     PROPERTIES(c) NEWSESSION EDIT
 ;
@@ -104,10 +106,20 @@ META defineDocumentOutgoingConsignment (doc, consignor, consignee, caption)
     volume(###doc##OutgoingConsignment c) += volume(doc##Detail(c), stockEntry(c));
     
     truck(###doc##OutgoingConsignment c) += truck(trip(doc(doc##Detail(c))));
+
+    overWaybillType = ABSTRACT INTEGER (###doc##OutgoingConsignment);
+    waybillType(###doc##OutgoingConsignment c) += OVERRIDE overWaybillType(c), 1 IF c IS ###doc##OutgoingConsignment;
+            
+    waybillSeries(###doc##OutgoingConsignment c) += STRING(series(doc##Detail(c))) IF NOT overWaybillType(c);
     
-    waybillSeries(###doc##OutgoingConsignment c) += STRING(series(doc##Detail(c)));
-    waybillNumber(###doc##OutgoingConsignment c) += number(doc##Detail(c));
-    waybillDate(###doc##OutgoingConsignment c) += date(doc##Detail(c));
+    overWaybillNumber = ABSTRACT STRING (###doc##OutgoingConsignment);
+    waybillNumber(###doc##OutgoingConsignment c) += OVERRIDE overWaybillNumber(c), number(doc##Detail(c));
+    
+    overWaybillDate = ABSTRACT DATE (###doc##OutgoingConsignment);
+    waybillDate(###doc##OutgoingConsignment c) += OVERRIDE overWaybillDate(c), date(doc##Detail(c));
+       
+    overWaybillName = ABSTRACT STRING (###doc##OutgoingConsignment);
+    nameWaybillType(###doc##OutgoingConsignment c) += OVERRIDE overWaybillName(c), 'ТТН' IF c IS ###doc##OutgoingConsignment;
     
     edit(###doc##OutgoingConsignment c) + { edit(doc##Detail(c)); }
 END
