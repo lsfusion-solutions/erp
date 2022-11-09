@@ -1,0 +1,19 @@
+MODULE PurchaseReturnEInvoiceManufacturingPrice;
+
+REQUIRE PurchaseReturnEInvoice, PurchaseReturnManufacturingPrice;
+
+NAMESPACE PurchaseReturn;
+
+invoiceDetailPurchase (PurchaseReturn.InvoiceDetail d) = OVERRIDE invoiceDetail(batch(d)), invoiceDetail(lastOrderBatchB(sku(d), supplierStock(d), dateTime(d)));
+
+overManufacturingPrice (PurchaseReturn.InvoiceDetail d) = IF supplierStock(d) IS DepartmentStore
+    THEN (OVERRIDE manufacturingPrice(invoiceDetailPurchase(d)), price(invoiceDetailPurchase(d)))
+    ELSE (OVERRIDE manufacturingPrice(d), price(d));
+
+overManufacturingMarkup (PurchaseReturn.InvoiceDetail d) = round4([(X-Y)/Y*100](price(d),overManufacturingPrice(d))) IF overManufacturingPrice(d);
+
+overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
+    lineItemExtraFields(eid) <- (CONCAT ', ', lineItemExtraFields(eid), 'Отпускная цена: ' + trim(toChar(overManufacturingPrice[InvoiceDetail](cd),'FM999990.0099'))) IF cd IS PurchaseReturn.InvoiceDetail;
+    lineItemExtraFields(eid) <- (CONCAT ', ', lineItemExtraFields(eid), 'Оптовая надбавка: ' + trim(toChar(overManufacturingMarkup[InvoiceDetail](cd),'FM990.9999'))) IF cd IS PurchaseReturn.InvoiceDetail;
+    //lineItemExtraFields(eid) <- (CONCAT ', ', lineItemExtraFields(eid), 'Пояснения к ценообразованию: ' + replace(replace(newproperty(cd),':',''),',','')) IF cd IS PurchaseReturn.InvoiceDetail;
+}
