@@ -225,55 +225,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             setAttribute(department, "number", getDepartNumber(transaction, item, useSectionAsDepartNumber));
                             priceEntry.addContent(department);
 
-                            Double secondPrice = infoJSON != null ? infoJSON.optDouble("secondPrice") : null;
-                            String secondPriceBeginDate = infoJSON != null ? infoJSON.optString("secondBeginDate", null) : null;
-                            String secondPriceEndDate = infoJSON != null ? infoJSON.optString("secondEndDate", null) : null;
-                            boolean secondPriceDeleted = infoJSON != null && infoJSON.optBoolean("secondDeleted");
-                            if (secondPrice != null && !secondPrice.isNaN()) {
-                                //parent: good
-                                Element secondPriceEntry = new Element("price-entry");
-                                setAttribute(secondPriceEntry, "price", secondPrice);
-                                setAttribute(secondPriceEntry, "deleted", String.valueOf(secondPriceDeleted));
-                                addStringElement(secondPriceEntry, "begin-date", secondPriceBeginDate != null ? secondPriceBeginDate : currentDate());
-                                if(secondPriceEndDate != null) {
-                                    addStringElement(secondPriceEntry, "end-date", secondPriceEndDate);
-                                }
-                                addStringElement(secondPriceEntry, "deleted", String.valueOf(secondPriceDeleted));
-                                addStringElement(secondPriceEntry, "number", "2");
-                                good.addContent(secondPriceEntry);
-
-                                //parent: priceEntry
-                                Element secondDepartment = new Element("department");
-                                setAttribute(secondDepartment, "number", getDepartNumber(transaction, item, useSectionAsDepartNumber));
-                                secondPriceEntry.addContent(secondDepartment);
-                            }
-
-                            Double oldSecondPrice = infoJSON != null ? infoJSON.optDouble("oldSecondPrice") : null;
-                            if (oldSecondPrice != null && !oldSecondPrice.isNaN() && !oldSecondPrice.equals(secondPrice)) {
-                                //parent: good
-                                Element oldSecondPriceEntry = new Element("price-entry");
-                                setAttribute(oldSecondPriceEntry, "price", oldSecondPrice);
-                                setAttribute(oldSecondPriceEntry, "deleted", "true");
-                                addStringElement(oldSecondPriceEntry, "number", "2");
-                                good.addContent(oldSecondPriceEntry);
-
-                                //parent: priceEntry
-                                Element secondDepartment = new Element("department");
-                                setAttribute(secondDepartment, "number", getDepartNumber(transaction, item, useSectionAsDepartNumber));
-                                oldSecondPriceEntry.addContent(secondDepartment);
-                            }
-
-                            int zone = infoJSON != null ? infoJSON.optInt("zone") : 0;
-                            int countZone = infoJSON != null ? infoJSON.optInt("countZone") : 0;
-                            if(zone != 0 && countZone != 0) {
-                                for(int i = 1; i <= countZone; i++) {
-                                    if (i == zone) {
-                                        addPriceEntryElement(good, null, price, false, currentDate(), null, "1", i);
-                                    } else {
-                                        addPriceEntryElement(good, null, 1, true, null, null, "1", i);
-                                    }
-                                }
-                            }
+                            addExtraPriceElements(good, transaction, item, null, price, infoJSON, useSectionAsDepartNumber);
 
                             int vat = item.vat == null || item.vat.intValue() == 0 ? 20 : item.vat.intValue();
                             if(vat != 10 && vat != 20) {
