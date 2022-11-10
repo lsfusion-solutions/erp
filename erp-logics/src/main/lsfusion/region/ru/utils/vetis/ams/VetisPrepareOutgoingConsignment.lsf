@@ -196,6 +196,11 @@ META defineDocumentOutgoingProcess (doc, obj)
             processOutgoingConsignment(); 
     }
     
+    fillVolumeApply 'Заполнить' (###doc i) {
+        fillVolume(i);
+        APPLY;
+    }
+    
     EXTEND FORM doc##s
         OBJECTS vse = (vd = ###doc##Detail, se = StockEntry)
         PROPERTIES(vd) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku 
@@ -206,6 +211,7 @@ META defineDocumentOutgoingProcess (doc, obj)
         FILTERS doc(vd) = obj, volume(vd, se)
     
         PROPERTIES(obj) process DRAW vse TOOLBAR SHOWIF toProcess(obj)
+        PROPERTIES(obj) fillVolumeApply DRAW vse TOOLBAR
          
         PROPERTIES(vd, se) issueDateLastRequest, nameStatusLastRequest, errorLastRequest PANEL,
                            process READONLYIF NOT toProcess(outgoingConsignment(vd, se)) GRID
