@@ -68,16 +68,23 @@ FORM prepareOutgoingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
     PROPERTIES = transportStorageType(d) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:transportStorageType'
     
     PROPERTIES IN waybill
-               waybillSeries(d) EXTID 'vd:issueSeries',
-               waybillNumber(d) EXTID 'vd:issueNumber',
-               = toDateISO(waybillDate(d)) EXTID 'vd:issueDate',
-               waybillType(d) EXTID 'vd:type'
+              = waybillSeries(d) EXTID 'vd:issueSeries',
+              = waybillNumber(d) EXTID 'vd:issueNumber',
+              = toDateISO(waybillDate(d)) EXTID 'vd:issueDate',
+              = 1 IF d IS OutgoingConsignment EXTID 'vd:type'
 
     PROPERTIES IN vetCertificateAuthentication
                = guid(lastPurpose(stockEntry(d))) IN authenticationPurpose EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid', 
                = TRUE IF d IS OutgoingConsignment EXTID 'vd:cargoInspected',
                = 'VSEFULL' IF d IS OutgoingConsignment EXTID 'vd:cargoExpertized',
                = 'Местность благополучна' IF d IS OutgoingConsignment EXTID 'vd:locationProsperity'
+               
+    PROPERTIES IN relatedDocument
+               //updSeries = waybillSeries(d) EXTID 'vd:issueSeries',
+               = waybillNumber(d) IF waybillType(d)=23 EXTID 'vd:issueNumber',
+               = toDateISO(waybillDate(d)) IF waybillType(d)=23 EXTID 'vd:issueDate',
+               = waybillType(d) IF waybillType(d)=23 EXTID 'vd:type',
+               = 1 IF d IS OutgoingConsignment AND waybillType(d)=23 EXTID 'vd:relationshipType'             
 ;
 
 in 'Вкл' = DATA LOCAL BOOLEAN (OutgoingConsignment);
