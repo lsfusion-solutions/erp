@@ -92,18 +92,18 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
     IF NOT requestCanceled() THEN {
         IF onStockPriceListRepricing() THEN {  // переоценивать товары без остатка, настройка в options pricings (Акты расценки?)
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt) 
-                IF NOT skipManagementPriceList(pt, sku, d, dt) AND inSession(group(gropType(), sku));
+                IF NOT skipManagementPriceList(pt, sku, d, dt) AND include(gropType(), sku);
             overSetMarkupManagementRetailPrice(d, dt);
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt)
-                IF NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(group(gropType(), sku)) OR calculateAllGroups());
+                IF NOT skipManagementPriceList(pt, sku, d, dt) AND (include(gropType(), sku) OR calculateAllGroups());
         } ELSE {
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt)
-                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND inSession(group(gropType(), sku));                
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND include(gropType(), sku);                
             overSetMarkupManagementRetailPrice(d, dt);
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt,sku, d, dt)
-                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(group(gropType(), sku)) OR calculateAllGroups());
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt) AND (include(gropType(), sku) OR calculateAllGroups());
         }
         managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
 
@@ -112,6 +112,7 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
 }
 calculateDashboardAutoRepricing 'По надбавкам и прайсам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
     skipDialog() <- TRUE;
+    include(Sku s) <- NULL;
     calculateAllGroups() <- TRUE;
     inSession(Group g) <- autoPricing(ct,g);
     calculateDashboardRepricing(d,ct,pt,dt);
