@@ -11,7 +11,9 @@ NAMESPACE Revaluation;
 invoiceDetail 'Строка накладной' = invoiceDetail(batch(RevaluationDetail detail));
 descriptionInvoiceDetail 'Строка накладной' = description(invoiceDetail(RevaluationDetail detail));
 
-priceInvoiceDetail 'Контрактная цена' (RevaluationDetail detail) = price(invoiceDetail(detail));
+contractPrice 'Контрактная цена (после)' = ABSTRACT NUMERIC[16,4] (RevaluationDetail); 
+
+priceInvoiceDetail 'Контрактная цена' (RevaluationDetail detail) = OVERRIDE contractPrice(detail), price(invoiceDetail(detail));
 currencyInvoiceDetail 'Валюта контрактной цены' (RevaluationDetail detail) = currency(invoiceDetail(detail));
 shortNameCurrencyInvoiceDetail 'Валюта контрактной цены' (RevaluationDetail detail) = shortName(currencyInvoiceDetail(detail));
 rateExchangeInvoiceDetail 'Курс обмена' (RevaluationDetail detail) = rateExchange(invoiceDetail(detail));
@@ -81,7 +83,9 @@ WHEN LOCAL FORMS userRevaluation
         manufacturingPrice[UserRevaluationDetail](detail) <- NUMERIC[16,4](calcManufacturingPrice(detail));
     }     
 
-calcRateExchange = rateOn(typeExchange(userRevaluation(UserRevaluationDetail detail)),
+overCalcRateExchange = ABSTRACT NUMERIC[15,8](UserRevaluationDetail);
+
+calcRateExchange = OVERRIDE overCalcRateExchange(UserRevaluationDetail detail), rateOn(typeExchange(userRevaluation(detail)),
     currencyInvoiceDetail(detail), toDate(dateTime[RevaluationDetail](detail)));
 
 rateExchange(UserRevaluationDetail detail) <- calcRateExchange(detail)
