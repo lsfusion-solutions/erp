@@ -9,7 +9,9 @@ groupCashRegister 'Группа касс' = DATA GroupCashRegister (CashRegister
 groupMachinery (CashRegisterPriceTransactionLot transaction) += groupCashRegister(transaction);
 
 in 'Вкл.' = DATA BOOLEAN (CashRegisterPriceTransactionLot, Lot);
-VAT 'НДС %' (CashRegisterPriceTransactionLot t, Lot l) = OVERRIDE valueVAT(sku(l)), 0; 
+
+overValueVAT = ABSTRACT NUMERIC[10,5] (CashRegisterPriceTransactionLot, Lot);
+VAT 'НДС %' (CashRegisterPriceTransactionLot t, Lot l) = OVERRIDE overValueVAT(t, l), valueVAT(sku(l)), 0.0 IF l IS Lot; 
 
 createBalanceMachineryPriceTransactionLot 'Остатки(марк.товары)' (Stock stock)  { 
     LOCAL message = TEXT();
