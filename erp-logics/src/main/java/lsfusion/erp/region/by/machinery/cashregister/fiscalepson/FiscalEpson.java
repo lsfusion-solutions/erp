@@ -185,6 +185,8 @@ public class FiscalEpson {
     public static void registerItem(ReceiptItem item, boolean sendSKNO) throws RuntimeException {
         printLine(sendSKNO && item.isGiftCard ? ("1 " + item.barcode) : item.barcode);
 
+        boolean isGiftCardOrComission = item.isGiftCard || item.isCommission;
+
         boolean useBlisters = item.useBlisters && item.blisterQuantity != null;
         double price = useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue();
         double quantity = useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue();
@@ -194,9 +196,9 @@ public class FiscalEpson {
         epsonActiveXComponent.setProperty("Quantity", new Variant(quantity));
         epsonActiveXComponent.setProperty("QuantityUnit", new Variant(useBlisters ? "блист." : ""));
         epsonActiveXComponent.setProperty("ForcePrintSingleQuantity", new Variant(1));
-        epsonActiveXComponent.setProperty("Department", new Variant(item.section != null ? item.section : (item.isGiftCard ? 3 : 0)));
+        epsonActiveXComponent.setProperty("Department", new Variant(item.section != null ? item.section : (isGiftCardOrComission ? 3 : 0)));
 
-        if(sendSKNO && item.isGiftCard) { //подарочный сертификат должен начинаться с 99. Чтобы обойти это ограничение, можно для сертификата задавать TypeOfGoods = 4
+        if(sendSKNO && isGiftCardOrComission) { //подарочный сертификат должен начинаться с 99. Чтобы обойти это ограничение, можно для сертификата задавать TypeOfGoods = 4
             epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
             epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant(appendZeroes(item.barcode)));
         }

@@ -4,7 +4,8 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 
 public class ReceiptItem implements Serializable {
-    public Boolean isGiftCard;
+    public boolean isGiftCard;
+    public boolean isCommission;
     public BigDecimal price;
     public BigDecimal quantity;
     public boolean useBlisters;
@@ -18,9 +19,11 @@ public class ReceiptItem implements Serializable {
     public Integer section;
     public String comment;
 
-    public ReceiptItem(Boolean isGiftCard, BigDecimal price, BigDecimal quantity, boolean useBlisters, BigDecimal blisterPrice, BigDecimal blisterQuantity,
-                       String barcode, String name, BigDecimal sumPos, BigDecimal discount, String vatString, Integer section, String comment) {
+    public ReceiptItem(boolean isGiftCard, boolean isCommission, BigDecimal price, BigDecimal quantity, boolean useBlisters,
+                       BigDecimal blisterPrice, BigDecimal blisterQuantity, String barcode, String name, BigDecimal sumPos,
+                       BigDecimal discount, String vatString, Integer section, String comment) {
         this.isGiftCard = isGiftCard;
+        this.isCommission = isCommission;
         this.price = price;
         this.quantity = quantity;
         this.useBlisters = useBlisters;
