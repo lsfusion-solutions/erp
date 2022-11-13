@@ -288,6 +288,7 @@ FORM getOrder FORMEXTID 'null'
         = OVERRIDE '[]', idSku(items) EXTID 'modifications', = OVERRIDE '[]', idSku(items) EXTID 'promos'
     FILTERS internetOrder(items) = o AND quantityOrderDetail(items)
 ;
+logInfoOrder = DATA BOOLEAN ();
 
 getOrder (FILE f) {
     LOCAL tokenClient = STRING ();
@@ -317,6 +318,10 @@ getOrder (FILE f) {
         {
             headersTo(TEXT h) <- httpHeadersYandex(h);
             EXPORT getOrder OBJECTS o = order() JSON;
+            IF logInfoOrder() THEN {
+                fileToString(exportFile());
+                logToFile('yandex', CONCAT ' : ', 'INFO order', orderNumber(), resultString());
+            }
         }
     }
 }
