@@ -13,6 +13,8 @@ in 'Вкл.' = DATA BOOLEAN (CashRegisterPriceTransactionLot, Lot);
 overValueVAT = ABSTRACT NUMERIC[10,5] (CashRegisterPriceTransactionLot, Lot);
 VAT 'НДС %' (CashRegisterPriceTransactionLot t, Lot l) = OVERRIDE overValueVAT(t, l), valueVAT(sku(l)), 0.0 IF l IS Lot; 
 
+valueVAT 'НДС %'= DATA NUMERIC[10,5] (CashRegisterPriceTransactionLot, Lot);
+
 createBalanceMachineryPriceTransactionLot 'Остатки(марк.товары)' (Stock stock)  { 
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
@@ -24,6 +26,7 @@ createBalanceMachineryPriceTransactionLot 'Остатки(марк.товары)
 	    snapshot(t) <- TRUE;
 	    in(t, Lot l) <- TRUE IF currentBalance(l, stock) > 0 AND price(l);
 	    in(t, CashRegister c) <- TRUE IF groupMachinery(c) = g AND active(c);
+	    valueVAT(t, Lot l) <- VAT(t, l) WHERE in(t, l);
 	    LOCAL countLots = INTEGER ();
 	    countLots() <- GROUP SUM 1 IF in(t, Lot l);
 	    message() <- message() + (OVERRIDE name(g), 'Без наименования') + ' - ' + (OVERRIDE  countLots() + ' марок.\n', ' ');
@@ -48,12 +51,12 @@ EXTEND FORM machineryPriceTransactions
     
     OBJECTS l = Lot
     PROPERTIES READONLY SHOWIF (t IS CashRegisterPriceTransactionLot) id(l), idSku(l), 
-        nameSku(l), price(l), 'Ед. изм.' = shortNameUOM(sku(l)), VAT(t, l)     
+        nameSku(l), price(l), 'Ед. изм.' = shortNameUOM(sku(l)), valueVAT(t, l)     
     FILTERS in(t, l)
     
     OBJECTS lt = Lot
     PROPERTIES READONLY SHOWIF (tt IS CashRegisterPriceTransactionLot) id(lt), idSku(lt), 
-        nameSku(lt), price(lt), 'Ед. изм.' = shortNameUOM(sku(l)), VAT(tt, lt)
+        nameSku(lt), price(lt), 'Ед. изм.' = shortNameUOM(sku(l)), valueVAT(tt, lt)
     FILTERS in(tt, lt)
 ;
 
