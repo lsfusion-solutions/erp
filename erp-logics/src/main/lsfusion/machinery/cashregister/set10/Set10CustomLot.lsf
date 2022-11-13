@@ -11,32 +11,38 @@ GROUP departmentLot EXTID 'department' : priceEntry;
 
 FORM lotsCatalog FORMEXTID 'goods-catalog'
     OBJECTS t = CashRegisterPriceTransactionLot PANEL 
-    
+
     OBJECTS good = Lot
     PROPERTIES nameSku(good) EXTID 'name', = OVERRIDE valueVAT(sku(good)), 0 EXTID 'vat',
         = id(good) EXTID 'marking-of-the-good' ATTR, = IF isLot(good) THEN 'false' EXTID 'delete-from-cash',
         = IF isLot(good) THEN 'ProductPieceEntity' EXTID 'product-type',
         = IF good IS Lot THEN idStoreSet(groupMachinery(t)) EXTID 'shop-indices'
     PROPERTIES IN measure_type = shortNameUOM(sku(good)) EXTID 'id' ATTR, = shortNameUOM(sku(good)) EXTID 'name'
-   
+
     PROPERTIES IN group = idItemGroup(sku(good)) EXTID 'id' ATTR, = canonicalNameItemGroup(sku(good)) EXTID 'name'
     PROPERTIES IN bar_code = OVERRIDE id(good) EXTID 'code' ATTR, 
         = IF isLot(good) THEN 'true' ELSE 'false' EXTID 'default-code'      
-    
+
     PROPERTIES IN priceEntry = price(good) EXTID 'price' ATTR, = IF isLot(good) THEN 'false' EXTID 'deleted' ATTR,
         = IF isLot(good) THEN '1' EXTID 'number'
     PROPERTIES IN departmentLot = IF isLot(good) THEN '1' EXTID 'number' ATTR 
-    
+
     FILTERS in(t, good)
 ;
+
+customSend = ABSTRACT CASE BOOLEAN (CashRegisterPriceTransactionLot);
+customSend ABSTRACT LIST (CashRegisterPriceTransactionLot);
 
 sendPriceTransactionLot(CashRegisterPriceTransactionLot t){
     TRY{
         IF (GROUP SUM 1 IF statusTransaction(t, STRING s)) THEN getFeedback(t);
         ELSE {
             NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
-            EXPORT lotsCatalog OBJECTS t = t XML;
-            sendRequsetGoods(exportFile(), 'lots', t);
+            IF NOT customSend(t) THEN {
+                EXPORT lotsCatalog OBJECTS t = t XML;
+                sendRequsetGoods(exportFile(), 'lots', t);
+            }
+            ELSE customSend(t);
         }
     }
     CATCH {
