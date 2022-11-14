@@ -9,6 +9,17 @@ WHEN CHANGED (image(Item i)) DO {
     imageCAS(i) <- NULL;
 }
 
+migrateToFont = DATA BOOLEAN ();
+onStarted() +{
+    IF NOT migrateToFont() THEN {
+        NEWSESSION {
+            migrateToFont() <- TRUE;
+            imageCAS(Item i) <- NULL;
+            APPLY;
+        }
+    }
+}
+
 toLoadImages = DATA LOCAL BOOLEAN ();
 createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
     IF sidModel(gm) == 'CasCL7000' AND toLoadImages() THEN {
@@ -16,11 +27,14 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
         needResize(Item i) <- TRUE IF (GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b)) AND hasImage(i) AND NOT imageCAS(i);
     
         IF (GROUP SUM 1 IF needResize(Item i)) THEN NEWSESSION NESTED LOCAL {
+            resizeImage(IMAGEFILE (decode('Qk06AAAAAAAAADYAAAAoAAAAAQAAAAEAAAABABgAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAA////AA==','base64')), 140, 132);
+            LOCAL background = IMAGEFILE ();
+            background() <- resizedImage();
             FOR needResize(Item s) DO {
                 TRY {
-                    resizeImageMaxSize(image(s),210);              
-                    convertImage(resizedImage(), 'jpg');
-                    imageCAS(s) <- convertedImage();
+                    resizeImageMaxSize(image(s),132);
+                    mergeImages(background(),resizedImage());
+                    imageCAS(s) <- mergedImage();
                 }
             }
             APPLY NESTED LOCAL;
