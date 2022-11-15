@@ -55,7 +55,7 @@ public class SynchronizeItemLoyaAction extends SynchronizeLoyaAction {
                 Integer maxAllowBonus = (Integer) (nearestForbidPromotion ? 0 : findProperty("maxAllowBonusLoya[]").read(context));
                 Integer maxAwardBonus = (Integer) findProperty("maxAwardBonusLoya[]").read(context);
 
-                Map<String, Integer> discountLimits = getDiscountLimits(maxDiscount, maxAllowBonus, maxAwardBonus);
+                Map<String, Object> discountLimits = getDiscountLimits(maxDiscount, maxAllowBonus, maxAwardBonus);
                 String idSku = (String) findProperty("id[Item]").read(context, itemObject);
                 String barcode = (String) findProperty("idBarcode[Item]").read(context, itemObject);
                 String id = useBarcodeAsId ? barcode : idSku;

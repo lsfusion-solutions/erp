@@ -51,7 +51,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
             boolean deleteInactiveItemGroups = findProperty("deleteInactiveItemGroupsLoya[]").read(context) != null;
             boolean useBarcodeAsId = findProperty("useBarcodeAsIdLoya[]").read(context) != null;
             boolean useMinPrice = findProperty("useMinPrice[]").read(context) != null;
-            Map<String, Integer> discountLimits = getDiscountLimits(context);
+            Map<String, Object> discountLimits = getDiscountLimits(context);
 
             boolean succeeded = true;
 
@@ -499,7 +499,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         }
     }
 
-    private boolean uploadCategories(ExecutionContext<ClassPropertyInterface> context, List<Category> categoriesList, Map<String, Integer> discountLimits) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private boolean uploadCategories(ExecutionContext<ClassPropertyInterface> context, List<Category> categoriesList, Map<String, Object> discountLimits) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         boolean succeeded = true;
         for (Category category : categoriesList) {
             if (uploadCategory(context, category, discountLimits, true) != null) {
@@ -509,7 +509,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    protected String uploadCategory(ExecutionContext<ClassPropertyInterface> context, Category category, Map<String, Integer> discountLimits, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    protected String uploadCategory(ExecutionContext<ClassPropertyInterface> context, Category category, Map<String, Object> discountLimits, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
 
         ERPLoggers.importLogger.info("Loya: synchronizing category " + category.overId + " started");
         JSONObject requestBody = new JSONObject();
@@ -563,7 +563,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return response.succeeded ? null : response.message;
     }
 
-    private boolean uploadItems(ExecutionContext<ClassPropertyInterface> context, List<Item> itemsList, Map<String, Integer> discountLimits, Map<String, List<MinPriceLimit>> minPriceLimitsMap) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private boolean uploadItems(ExecutionContext<ClassPropertyInterface> context, List<Item> itemsList, Map<String, Object> discountLimits, Map<String, List<MinPriceLimit>> minPriceLimitsMap) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         boolean succeeded = true;
         for (Item item : itemsList) {
             List<MinPriceLimit> minPriceLimits = minPriceLimitsMap != null ? minPriceLimitsMap.get(item.id) : null;
@@ -573,7 +573,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    protected String uploadItem(ExecutionContext<ClassPropertyInterface> context, Item item, Map<String, Integer> discountLimits, List<MinPriceLimit> minPriceLimits, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected String uploadItem(ExecutionContext<ClassPropertyInterface> context, Item item, Map<String, Object> discountLimits, List<MinPriceLimit> minPriceLimits, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ERPLoggers.importLogger.info("Loya: synchronizing good " + item.id + " started");
         JSONObject requestBody = new JSONObject();
         requestBody.put("partnerId", settings.partnerId);
@@ -735,18 +735,21 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    protected Map<String, Integer> getDiscountLimits(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected Map<String, Object> getDiscountLimits(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         return getDiscountLimits(
                 (Integer) findProperty("maxDiscountLoya[]").read(context),
                 (Integer) findProperty("maxAllowBonusLoya[]").read(context),
                 (Integer) findProperty("maxAwardBonusLoya[]").read(context));
     }
 
-    protected Map<String, Integer> getDiscountLimits(Integer maxDiscount, Integer maxAllowBonus, Integer maxAwardBonus) {
-        Map<String, Integer> limitsMap = new HashMap<>();
+    protected Map<String, Object> getDiscountLimits(Integer maxDiscount, Integer maxAllowBonus, Integer maxAwardBonus) {
+        Map<String, Object> limitsMap = new HashMap<>();
         limitsMap.put("maxDiscount", maxDiscount);
         limitsMap.put("maxAllowBonus", maxAllowBonus);
         limitsMap.put("maxAwardBonus", maxAwardBonus);
+        limitsMap.put("maxDiscountType", "percent");
+        limitsMap.put("maxAllowBonusType", "percent");
+        limitsMap.put("maxAwardBonusType", "percent");
         return limitsMap;
     }
 
@@ -817,11 +820,11 @@ public class SynchronizeLoyaAction extends LoyaAction {
         Long id;
         String name;
         String description;
-        Map<String, Integer> discountLimits;
+        Map<String, Object> discountLimits;
         boolean forceNew;
 
 
-        public GoodGroup(Long id, String name, String description, Map<String, Integer> discountLimits, boolean forceNew) {
+        public GoodGroup(Long id, String name, String description, Map<String, Object> discountLimits, boolean forceNew) {
             this.id = id;
             this.name = name;
             this.description = description;
