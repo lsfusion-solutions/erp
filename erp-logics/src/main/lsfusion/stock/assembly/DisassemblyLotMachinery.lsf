@@ -14,32 +14,15 @@ number[PriceTransactionDocument] (Disassembly document) += Disassembly.number(do
 operation[PriceTransactionDocument] (Disassembly document) += operation(document);
 
  
-createCashRegisterPriceTransactionDocumentLot 'Загрузить в оборудование' (Disassembly d){
-    LOCAL message = TEXT();
-    LOCAL sentSomething = BOOLEAN();
-    message() <- TEXT('Принято к загрузке в оборудование : \n');
-    FOR stock(GroupCashRegister g) = stock(d) AND active(g) NEW t = CashRegisterPriceTransactionLot DO {
-        
-        groupCashRegister(t) <- g;
-        priceTransactionDocument(t) <- d;
-        comment(t) <- description(d);
-        in(t, Lot l) <- TRUE IF quantity(d, l);
-        in(t, CashRegister c) <- TRUE IF groupMachinery(c) = g AND active(c);
-	    valueVAT(t, Lot l) <- VAT(t, l) WHERE in(t, l);
-        LOCAL countLots = INTEGER ();
-        countLots() <- GROUP SUM 1 IF in(t, Lot l);
-        message() <- message() + (OVERRIDE name(g), 'Без наименования') + ' - ' + (OVERRIDE  countLots() + ' марок.\n', ' ');
-        sent(d) <- TRUE IF isPosted(d) AND countLots();
-        sentSomething() <- TRUE;
-        APPLY NESTED LOCAL;
-        
-    }
-    IF sentSomething() THEN
-        MESSAGE message() NOWAIT;
-    ELSE
-        IF NOT supressNoNeedMessage() THEN
-            MESSAGE 'Загрузка марок в оборудование не требуется: '+ nameStock(d) +'.\n' NOWAIT;
-}CONFIRM;
+createCashRegisterPriceTransactionDocumentLot 'Загрузить в оборудование' (Disassembly d) {
+    createMachineryPriceTransactionLot(Lot l) <- NULL;
+    createMachineryPriceTransactionLot(Lot l) <- TRUE WHERE quantity(d, l);
+    createMachineryPriceTransactionLotDocument() <- d;
+    createMachineryPriceTransactionLotComment() <- STRING[100](description(d));
+    
+    createMachineryPriceTransactionLot(stock(d));
+    APPLY;
+} CONFIRM;
 
 backgroundCreateMachineryPriceTransaction 'Цвет' (PriceTransactionDocument disassembly) = IF countProcess(disassembly) THEN
                                                                             RGB(255,255,128)
