@@ -474,7 +474,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                 //не должно использоваться одновременно с medicineModeNewScheme / blisterAmount
                 if (infoJSON.has("cquant")) {
-                    inventObject.put("cquant", infoJSON.optInt("cquant"));
+                    inventObject.put("cquant", getBigDecimal(infoJSON, "cquant"));
                 }
 
                 if (infoJSON.has("loyaltymode")) {
