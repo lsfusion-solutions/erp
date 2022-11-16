@@ -19,19 +19,6 @@ countInWorkshopGroups 'Вкл' (Stock st) = GROUP SUM 1 IF inWorkshop(ItemGroup 
 
 resetInWorkshopGroups  'Сбросить отмеченные'(Stock st)  { 
     inWorkshop(ItemGroup g, st) <- NULL WHERE g IS ItemGroup ;    
-}  
-
-//inWorkshop (Item i, Stock st)= GROUP SUM 1 IF isParent(ItemGroup g, i) AND inWorkshop(g,st);
-
-migratedGroupWorkshop = DATA BOOLEAN ();
-onStarted() + { 
-    IF NOT migratedGroupWorkshop() THEN {
-        NEWSESSION {
-            inWorkshop(ItemGroup g, Stock st) <- TRUE WHERE skuGroup(st)==g;
-            migratedGroupWorkshop() <- TRUE;
-            APPLY;
-        }    
-    }
 }
 
 FORM selectInWorkshopGroups 'Выбор групп'

@@ -110,26 +110,6 @@ EXTEND FORM BOM
     PROPERTIES(b) fillExpiryItem DRAW p SHOWIF (showExpiry(b) AND NOT fillExpiryItem())
 ;
 
-migratedStorage = DATA BOOLEAN ();
-onStarted() + { 
-    IF NOT migratedStorage() THEN {
-        FOR [GROUP SUM 1 BY expiryText(Product p)](ISTRING[300] str) AND NOT expiryStorageName(str) DO {
-            NEW d = ExpiryStorage {
-                name(d) <- str;
-                expiryStorage(Product p) <- d WHERE expiryText(p) == str AND expiryStorage(p);
-            }
-        }
-        FOR [GROUP SUM 1 BY conditionsText(Product p)](ISTRING[300] str) AND NOT expiryConditionName(str) DO {
-            NEW d = ExpiryCondition {
-                name(d) <- str;
-                expiryCondition(Product p) <- d WHERE conditionsText(p) == str AND NOT expiryCondition(p);
-            }
-        }    
-        migratedStorage() <- TRUE;
-        APPLY;
-    }
-}
-
 overCopy (BOM from, BOM to) + { 
     showExpiry(to) <- showExpiry(from);
 }

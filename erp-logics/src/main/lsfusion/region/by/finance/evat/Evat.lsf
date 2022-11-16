@@ -397,31 +397,6 @@ changeDescriptionTypes (EVATDetail d) {
     SHOW EVATDetailDescriptionType OBJECTS d = d;
 }
 
-descriptionType = DATA DescriptionType(EVATDetail); // устаревшее поле
-overNameDescriptionType (EVATDetail evatDetail) = nameDescriptionTypes(evatDetail);  // для xml
-nameDescriptionType (EVATDetail evatDetail) = staticName(descriptionType(evatDetail));  // для xml, потом можно будет убрать
-//captionDescriptionType 'Описание' (EVATDetail evatDetail)= staticCaption(descriptionType(evatDetail));
-
-migrateDescriptionTypes = DATA BOOLEAN ();
-onStarted() +{
-    IF NOT migrateDescriptionTypes() THEN {
-        in(EVATDetail d, DescriptionType t) <- TRUE WHERE descriptionType(d) == t;
-        name(DescriptionType t) <- CASE
-            WHEN t == DescriptionType.deductionInFull THEN 'DEDUCTION_IN_FULL'
-            WHEN t == DescriptionType.vatExcemption THEN 'VAT_EXEMPTION'
-            WHEN t == DescriptionType.outsideRB THEN 'OUTSIDE_RB'
-            WHEN t == DescriptionType.importVAT THEN 'IMPORT_VAT'
-            WHEN t == DescriptionType.exciseMark THEN 'EXCISE_MARK'
-            WHEN t == DescriptionType.controlMark THEN 'CONTROL_MARK'
-            WHEN t == DescriptionType.customsExcise THEN 'CUSTOMS_EXCISE'
-            WHEN t == DescriptionType.identifiedMark THEN 'IDENTIFIED_MARK'
-            WHEN t == DescriptionType.analyzedDeal THEN 'ANALYZED_DEAL';
-        caption(DescriptionType t) <- staticCaption(t) WHERE NOT caption(t);
-        migrateDescriptionTypes() <- TRUE;
-        APPLY;
-    }
-}
-
 totalSum 'Сумма (всего)'(EVAT evat) = GROUP SUM sum(EVATDetail evatDetail) BY evat(evatDetail);  
 totalExciseSum 'Сумма акциза (всего)' (EVAT evat) = GROUP SUM exciseSum(EVATDetail evatDetail) BY evat(evatDetail);  
 totalVATSum 'Сумма НДС (всего)' (EVAT evat) = GROUP SUM vatSum(EVATDetail evatDetail) BY evat(evatDetail);  

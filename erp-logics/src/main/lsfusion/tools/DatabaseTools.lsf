@@ -144,17 +144,8 @@ createIndexes 'Создать индексы' (Table t) {
 //https://www.postgresql.org/message-id/1878.1481823217%40sss.pgh.pa.us
 //что может приводить к большому времени ожидания завершения опраци если есть длинные запросы
 //поэтому на небольших индексах лучше на несколько секунд заблокировать все запросы к таблице чем REINDEX на долгое время
-reindexConcurrently 'REINDEX CONCURRENTLY' = DATA BOOLEAN ();
 reindexConcurrentlySize 'REINDEX CONCURRENTLY свыше (МБ)' = DATA NUMERIC[15,3] ();
-migrateConcurrently = DATA BOOLEAN ();
-onStarted() + {
-    IF NOT migrateConcurrently() THEN {
-        IF reindexConcurrently() THEN {
-            reindexConcurrentlySize() <- 300;
-        }
-        migrateConcurrently() <- TRUE;
-    }
-}
+
 skipExceptions 'Пропускать ошибки' = DATA BOOLEAN ();
 stopAfter 'Не запускать после' = DATA TIME();
 
