@@ -7,11 +7,13 @@ import lsfusion.server.base.controller.manager.MonitorServer;
 import lsfusion.server.base.controller.thread.ExecutorFactory;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 
@@ -61,6 +63,10 @@ public class TerminalServer extends MonitorServer {
     public static String UNKNOWN_COMMAND_TEXT = "Неизвестный запрос";
     public static byte GET_PREFERENCES_NOPREFERENCES = 112;
     public static String GET_PREFERENCES_NOPREFERENCES_TEXT = "Конфигурация для ТСД не определена";
+
+    public static byte STOCK_ERROR = 104;
+
+    public static String STOCK_ERROR_TEXT = "Неизвестный идентификатор склада";
 
     public static final byte GET_USER_INFO = 4;
 
@@ -286,9 +292,9 @@ public class TerminalServer extends MonitorServer {
         return result.split(escStr, -1);
     }
 
-    public String getSessionId(DataObject customUser, String login, String password, String idTerminal, String idApplication) {
+    public String getSessionId(DataObject customUser, String login, String password, String idTerminal, String idApplication, String idStock) {
         String sessionId = String.valueOf((login + password + idTerminal).hashCode());
-        userMap.put(sessionId, new UserInfo(customUser, idTerminal, idApplication));
+        userMap.put(sessionId, new UserInfo(customUser, idTerminal, idApplication, idStock));
         return sessionId;
     }
 
@@ -362,9 +368,12 @@ public class TerminalServer extends MonitorServer {
 
                                 String idApplication = "";
                                 String applicationVersion = "";
+                                String idStock = "";
 
                                 if (params.length > 3)
                                     idApplication = params[3];
+                                if (params.length > 4)
+                                    idStock = params[4];
                                 if (params.length > 5)
                                     applicationVersion = params[5];
 
@@ -372,8 +381,20 @@ public class TerminalServer extends MonitorServer {
                                     Object loginResult = terminalHandler.login(
                                             createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2], idApplication, applicationVersion);
                                     if (loginResult instanceof DataObject) {
-                                        result = getSessionId((DataObject) loginResult, params[0], params[1], params[2], idApplication);
-                                        logger.info(String.format("successfull login, idTerminal %s, idApplication '%s', applicationVersion '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication, applicationVersion));
+                                        result = getSessionId((DataObject) loginResult, params[0], params[1], params[2], idApplication, idStock);
+                                        logger.info(String.format("successfull login, idTerminal %s, idApplication '%s', applicationVersion '%s', idStock '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication, applicationVersion, idStock));
+
+                                        if (!idStock.isEmpty()) {
+                                            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+                                            if (terminalHandlerLM != null) {
+                                                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(createSession(), new DataObject(idStock));
+                                                if (stockObject.isNull()) {
+                                                    result = null;
+                                                    errorCode = STOCK_ERROR;
+                                                    errorText = STOCK_ERROR_TEXT;
+                                                }
+                                            }
+                                        }
                                     } else if (loginResult instanceof String) {
                                         errorCode = LOGIN_ERROR;
                                         errorText = (String) loginResult;
@@ -408,7 +429,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
+                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s', idStock '%s'", command, userInfo.idTerminal, userInfo.idApplication, userInfo.idStock));
                                     Object readItemResult = readItem(userInfo, barcode);
                                     if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
@@ -481,12 +502,18 @@ public class TerminalServer extends MonitorServer {
                                                 String batchDocumentDetail = line.length <= 12 ? null : formatValue(line[12]);
                                                 String markDocumentDetail = line.length <= 13 ? null : formatValue(line[13]);
                                                 String replaceDocumentDetail = line.length <= 14 ? null : formatValue(line[14]);
+                                                String ana1DocumentDetail = line.length <= 15 ? null : formatValue(line[15]);
+                                                String ana2DocumentDetail = line.length <= 16 ? null : formatValue(line[16]);
+
+                                                String imageBase64 = line.length <= 17 ? null : formatValue(line[17]);
+                                                RawFileData imageDocumentDetail = imageBase64 != null ? new RawFileData(Base64.decodeBase64(imageBase64)) : null;
+
                                                 terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType,
                                                         ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
                                                         priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
                                                         parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
                                                         extraField2DocumentDetail, extraField3DocumentDetail, parentDocument, extraQuantityDocumentDetail, batchDocumentDetail,
-                                                        markDocumentDetail, replaceDocumentDetail));
+                                                        markDocumentDetail, replaceDocumentDetail, ana1DocumentDetail, ana2DocumentDetail, imageDocumentDetail));
                                             }
                                         }
                                         logger.info("receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
@@ -704,32 +731,48 @@ public class TerminalServer extends MonitorServer {
                 } else {
                     switch (command) {
                         case GET_USER_INFO:
+
+                            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+
+                            int flags = 0;
+                            String userName = "";
+                            String nameStock = "";
+
+                            try {
+                                if (terminalHandlerLM != null) {
+
+                                    Integer countDaysFilterBatches = (Integer) terminalHandlerLM.findProperty("countDaysFilterBatches[]").read(createSession());
+                                    if (countDaysFilterBatches != null && countDaysFilterBatches > 0)
+                                        flags = 1;
+
+                                    UserInfo userInfo = userMap.get(result);
+
+                                    if (userInfo != null && userInfo.user != null) {
+                                        userName = (String) terminalHandlerLM.findProperty("name[CustomUser]").read(createSession(), userInfo.user);
+                                        if (userInfo.idStock.isEmpty())
+                                            nameStock = (String) terminalHandlerLM.findProperty("nameStock[Employee]").read(createSession(), userInfo.user);
+                                        else {
+                                            ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(createSession(), new DataObject(userInfo.idStock));
+                                            if (!stockObject.isNull())
+                                                nameStock = (String) terminalHandlerLM.findProperty("name[Stock]").read(createSession(), stockObject);
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception e) {
+                                logger.error("getUserInfo Unknown error", e);
+                                errorText = getUnknownErrorText(e);
+                                write(outToClient, errorText);
+                                writeByte(outToClient, etx);
+                                break;
+                            }
+
                             if (result != null) {
                                 writeBytes(outToClient, result);
                                 writeByte(outToClient, esc);
                                 write(outToClient, String.valueOf(System.currentTimeMillis()));
-
-                                int flags = 0;
-                                String userName = "";
-                                String nameStock = "";
-
-                                ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
-                                if (terminalHandlerLM != null) {
-                                    Integer countDaysFilterBatches = (Integer) terminalHandlerLM.findProperty("countDaysFilterBatches[]").read(createSession());
-                                    if (countDaysFilterBatches != null && countDaysFilterBatches > 0)
-                                        flags = 1;
-                                }
                                 writeByte(outToClient, esc);
                                 writeBytes(outToClient, String.valueOf(flags));
-
-                                if (terminalHandlerLM != null) {
-                                    UserInfo userInfo = userMap.get(result);
-                                    if (userInfo != null && userInfo.user != null) {
-                                        userName = (String )terminalHandlerLM.findProperty("name[CustomUser]").read(createSession(), userInfo.user);
-                                        nameStock = (String)terminalHandlerLM.findProperty("nameStock[Employee]").read(createSession(), userInfo.user);
-                                    }
-                                }
-
                                 writeByte(outToClient, esc);
                                 write(outToClient, userName);
                                 writeByte(outToClient, esc);

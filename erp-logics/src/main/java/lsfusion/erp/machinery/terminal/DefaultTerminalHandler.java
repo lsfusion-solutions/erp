@@ -28,6 +28,7 @@ import lsfusion.server.logics.property.classes.IsClassProperty;
 import lsfusion.server.logics.property.oraction.PropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.physics.dev.integration.service.*;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 
 import java.awt.*;
@@ -92,7 +93,13 @@ public class DefaultTerminalHandler {
         try {
             if(terminalHandlerLM != null) {
                 ObjectValue barcodeObject = terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
-                ObjectValue stockObject = userInfo.user == null ? NullValue.instance : terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
+
+                ObjectValue stockObject;
+                if (!userInfo.idStock.isEmpty())
+                    stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(userInfo.idStock));
+                else
+                    stockObject = userInfo.user == null ? NullValue.instance : terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
+
                 String overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock]").read(session, barcodeObject, stockObject);
                 if(overNameSku == null)
                     return null;
@@ -183,7 +190,13 @@ public class DefaultTerminalHandler {
 
                 boolean imagesInReadBase = terminalHandlerLM.findProperty("imagesInReadBase[]").read(session) != null;
                 String baseZipDirectory = (String) terminalHandlerLM.findProperty("baseZipDirectory[]").read(session);
-                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
+
+                ObjectValue stockObject;
+                if (!userInfo.idStock.isEmpty())
+                    stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(userInfo.idStock));
+                else
+                    stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
+
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject, imagesInReadBase, userInfo.user);
@@ -588,7 +601,7 @@ public class DefaultTerminalHandler {
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
                     if (barcode.idBarcode != null) {
-                        String image = imagesInReadBase && barcode.image != null ? (barcode.idBarcode + ".jpg") : null;
+                        String image = imagesInReadBase && barcode.image != null ? (barcode.idSkuBarcode + ".jpg") : null;
                         addGoodsRow(statement, barcode.idBarcode, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
                                 barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
                                 image, barcode.isWeight, barcode.mainBarcode, barcode.color, barcode.extInfo, barcode.unit,
@@ -1063,6 +1076,18 @@ public class DefaultTerminalHandler {
                     ImportField replaceTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("raplace[TerminalDocumentDetail]"));
                     props.add(new ImportProperty(replaceTerminalDocumentDetailField, terminalHandlerLM.findProperty("raplace[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     fields.add(replaceTerminalDocumentDetailField);
+
+                    ImportField ana1TerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("ana1[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(ana1TerminalDocumentDetailField, terminalHandlerLM.findProperty("ana1[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(ana1TerminalDocumentDetailField);
+
+                    ImportField ana2TerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("ana2[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(ana2TerminalDocumentDetailField, terminalHandlerLM.findProperty("ana2[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(ana2TerminalDocumentDetailField);
+
+                    ImportField imageTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("image[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(imageTerminalDocumentDetailField, terminalHandlerLM.findProperty("image[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(imageTerminalDocumentDetailField);
                 }
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
