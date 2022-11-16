@@ -1,6 +1,6 @@
 MODULE MobileReportReceipts;
 
-REQUIRE MobileReportSale, ZReport;
+REQUIRE MobileReportSale, MobileReportDepartmentStore, ZReport;
 
 NAMESPACE MobileReport;
 
@@ -55,7 +55,7 @@ color (INTERVAL[DATE] id, CustomerRow cr) = pivotColor(colorIndex(id, cr) - 1);
 EXTEND FORM mobileReport
     PROPERTIES totalSaleReceipt(intervalDate) PANEL, totalReturnReceipt(intervalDate) PANEL 
     OBJECTS customerBar = (dsr = DepartmentStore, cr = CustomerRow) PIVOT 'Horizontal Stacked Bar Chart' NOSETTINGS 
-    PROPERTIES READONLY customerBarMobileName = id(dsr), orderReceipt(cr), measure(dsr, intervalDate, cr)
+    PROPERTIES READONLY customerBarMobileName = mobileName(dsr), orderReceipt(cr), measure(dsr, intervalDate, cr)
     PIVOT customerBar CONFIG 'customeBar' COLUMNS customerBarMobileName ROWS orderReceipt(cr) MEASURES measure(dsr, intervalDate, cr)
     FILTERS measure(dsr, intervalDate, cr), in(dsr)
     
@@ -110,7 +110,7 @@ switchRow ABSTRACT LIST (AverageRow);
 
 EXTEND FORM mobileReport
     OBJECTS averageBar = (dsar = DepartmentStore, ar = AverageRow) PIVOT 'Horizontal Stacked Bar Chart' NOSETTINGS 
-    PROPERTIES READONLY averageBarMobileName = id(dsar), orderAverage(ar), measure(dsar, intervalDate, ar)
+    PROPERTIES READONLY averageBarMobileName = mobileName(dsar), orderAverage(ar), measure(dsar, intervalDate, ar)
     PIVOT averageBar CONFIG 'averageReceipt' COLUMNS averageBarMobileName ROWS orderAverage(ar) MEASURES measure(dsar, intervalDate, ar)
     FILTERS measure(dsar, intervalDate, ar), in(dsar)
 ;
@@ -204,6 +204,7 @@ DESIGN mobileReport {
         mobileTabbedPane {
             NEW paymentBar{
                 caption = 'Оплата';
+                showIf = IF 1 = 1 THEN NULL;
                 NEW totalPayment{
                     alignment = CENTER;
                     type = CONTAINERH;
@@ -217,3 +218,25 @@ DESIGN mobileReport {
 }
 
 
+EXTEND FORM mobileReport
+    OBJECTS dsT = DepartmentStore
+    PROPERTIES storeM 'Магазин' = mobileName(dsT) 
+    PROPERTIES averageT 'Ср.чек' = round2(sumReceiptDetailZReport(dsT, intervalDate) / qtySaleReceiptZReport(dsT, intervalDate)) ORDER DESC,
+        'Покупатели' = qtySaleReceiptZReport(dsT, intervalDate),
+        'Возвраты' = qtyReturnReceiptZReport(dsT, intervalDate),
+        'Продажа' = sumReceiptDetailZReport(dsT, intervalDate),
+        'Скидка' = discountSumZReport (dsT, intervalDate)
+    
+    FILTERS in(dsT)
+;
+
+DESIGN mobileReport{
+    mobileTabbedPane {
+        NEW tablePane{
+            caption = 'Таблица';
+            MOVE BOX (dsT){
+                PROPERTY (storeM){charWidth = 12;}
+            };
+        }
+    }
+}

@@ -4,10 +4,6 @@ REQUIRE BI, Mobile;
 
 NAMESPACE MobileReport;
 
-onWebClientLoad() +{
-    INTERNAL CLIENT 'pivotMobile.js';
-}
-
 pivotColor (INTEGER index) = CASE
     WHEN mod(index, 10) = 0 THEN #3378B6
     WHEN mod(index, 10) = 1 THEN #F67E00
@@ -50,8 +46,7 @@ FORM mobileReport 'Аналитические отчеты(mobile)'
     EVENTS
         ON INIT {
             SEEK mobileReport.intervalDate = interval(firstDayOfMonth(currentDate()), currentDate());      
-        },
-        ON QUERYCLOSE {}
+        }
 ;
 
 DESIGN mobileReport {
@@ -65,21 +60,24 @@ DESIGN mobileReport {
     }
 }
 
-showMobileForms() + {
-    IF permit(currentUser(), navigatorElementCanonicalName('MobileReport.mobileReport')) THEN {
-        SHOW mobileReport NOWAIT;
-    }
-}
 
 NAVIGATOR {
     BI {
         NEW mobileReport;
     }
 }
+DESIGN options{
+    pane{
+        NEW mobileBi{
+            caption = 'mobileBI';
+            fill = 1;
+        }
+    }
+}
 
 META addMenuReport1 (report, box, capt, image)
     show###report = DATA LOCAL BOOLEAN ();
-
+    
     hideMenuReport###report = ABSTRACT BOOLEAN ();
     doMenuReport###report capt ABSTRACT LIST FIRST () IMAGE image;
 

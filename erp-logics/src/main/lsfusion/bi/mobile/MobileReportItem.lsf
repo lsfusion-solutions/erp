@@ -1,0 +1,314 @@
+MODULE MobileReportItem;
+
+REQUIRE MobileReportDepartmentStore, ItemInfoAPI, SkuAPI, PurchaseInvoice, ItemNutrition, PriceListPromotion;
+
+NAMESPACE MobileReport;
+
+selectDepartmentStore '' ABSTRACT LIST IMAGE 'wms.png';
+
+CLASS DynamicsRow{
+    sold 'Продажа',
+    balance 'Остаток'
+}
+
+selectDepartmentStore(DepartmentStore d) = IF (GROUP SUM 1 IF in(DepartmentStore ds)) THEN in(d) ELSE TRUE;
+
+
+sold(DATE d, Sku s, DATE df, DATE dt) = GROUP SUM quantitySold(s, Stock st, d, d) IF iterate(d, df, dt) AND selectDepartmentStore(st);
+balance(DATE d, Sku s, DATE df, DATE dt) = GROUP SUM balanceA(s, Stock st, d) IF iterate(d, df, dt) AND selectDepartmentStore(st);
+ 
+nameSku 'Наименование' = DATA LOCAL ISTRING ();
+barcodeSku 'Штрихкод' = DATA LOCAL ISTRING ();
+customSelectDepartmentStore ABSTRACT LIST ();
+
+departmentStore '' ()  {
+    IF customSelectDepartmentStores() THEN customSelectDepartmentStore();
+    ELSE SHOW departmentStores WAIT NOMANAGESESSION NOCANCEL;
+} IMAGE 'retail.png';
+
+inFilter (NUMERIC n, Sku sku, Stock st, DATE d) = [GROUP SUM 1 BY priceA(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, sku, st, dateTimeToDateTime(d,23:59))](n);
+
+FORM imagePreview 'Изображение'
+    OBJECTS i = Item PANEL 
+    PROPERTIES (i) READONLY dataImage
+;
+
+DESIGN imagePreview{
+    height = 400;
+    width = 400;
+    OBJECTS {
+        alignment = STRETCH;
+        MOVE PROPERTY (dataImage(i)) {alignment = STRETCH; fill = 3; caption = ''; }
+    }
+
+}
+
+showImage 'Изображение' (Item i){
+    SHOW imagePreview;
+}
+
+showTab = DATA LOCAL STRING ();
+
+showSaleTab = showTab() = 'sale';
+showBalanceTab = showTab() = 'balance';
+
+
+FORM fullScreenDynamicsSale 'Динамика'
+    OBJECTS sku = Sku PANEL 
+    
+    OBJECTS stock = Stock PANEL
+
+    OBJECTS intervalDate = INTERVAL[DATE] PANEL 
+    
+    OBJECTS sw 'Динамика продаж' = SaleLedger PIVOT 'Line Chart' NOSETTINGS
+    PROPERTIES READONLY date(sw), qty = quantity(sw) MEASURE
+    PIVOT ROWS (date(sw))
+    FILTERS NOT date(sw) < from(intervalDate), NOT date(sw) > to(intervalDate) , sku(sw) = sku, stock(sw) = stock
+
+    OBJECTS sl 'Динамика остатка' = SkuLedger PIVOT 'Line Chart' NOSETTINGS
+    PROPERTIES READONLY date(sl), balance = balanceA(sl) MEASURE
+    PIVOT ROWS (date(sl))
+    FILTERS NOT date(sl) < from(intervalDate), NOT date(sl) > to(intervalDate) , sku(sl) = sku, stock(sl) = stock
+;
+
+DESIGN fullScreenDynamicsSale{
+    caption = CONCAT ' ', 'Динамика', IF showTab() = 'sale' THEN 'продаж' ELSE 'изменения остатка', STRING[18](name(sku));
+    height = 600;
+    width = 400;
+    OBJECTS {
+        alignment = STRETCH;
+        fill = 3;
+        NEW pane{
+            alignment = STRETCH;
+            fill = 3;
+            NEW sale{
+                caption = '';
+                fill = 3;
+                alignment = STRETCH;
+                showIf = showSaleTab();
+                MOVE BOX (sw) {REMOVE TOOLBARBOX(sw); caption = '';};
+                
+            }
+            NEW balance{
+                fill = 3;
+                alignment = STRETCH;
+                caption = '';
+                showIf = showBalanceTab();
+                MOVE BOX(sl){REMOVE TOOLBARBOX(sl); caption = '';};
+            }
+        }
+    }
+}
+
+
+showSale 'Продажи'(Sku s, Stock st, INTERVAL[DATE] d){
+    showTab() <- 'sale';
+    SHOW fullScreenDynamicsSale OBJECTS sku = s, stock = st, intervalDate = d;
+}
+
+showBalance 'Остаток' (Sku s, Stock st, INTERVAL[DATE] d) {
+    showTab() <- 'balance';
+    SHOW fullScreenDynamicsSale OBJECTS sku = s, stock = st, intervalDate = d;
+}
+
+backgroundReserve = ABSTRACT CASE COLOR(Sku, Stock);
+backgroundReserve(Sku s, Stock st) += WHEN currentReservePurchase(s, st) THEN RGB(191, 252, 188);
+backgroundReserve(Sku s, Stock st) += WHEN NOT currentReservePurchase(s, st) THEN RGB(255, 204, 204);
+
+backgroundBalance = ABSTRACT CASE COLOR(Sku, Stock);
+backgroundBalance (Sku s, Stock st) += WHEN currentBalance(s, st) THEN RGB(191, 252, 188);
+backgroundBalance (Sku s, Stock st) += WHEN NOT currentBalance(s, st) THEN RGB(255, 204, 204);
+
+backgroundPrice = ABSTRACT CASE COLOR(Sku, Stock);
+backgroundPrice (Sku s, Stock st) += WHEN currentRetailPricingPrice(s, st) THEN RGB(191, 252, 188);
+backgroundPrice (Sku s, Stock st) += WHEN NOT currentRetailPricingPrice(s, st) THEN RGB(255, 204, 204);
+
+backgroundSold = ABSTRACT CASE COLOR(Sku, Stock, INTERVAL[DATE]);
+backgroundSold (Sku s, Stock st, INTERVAL[DATE] d) += WHEN quantitySold(s, st, from(d), to(d)) AND d IS INTERVAL[DATE] THEN RGB(191, 252, 188);
+backgroundSold (Sku s, Stock st, INTERVAL[DATE] d) += WHEN NOT quantitySold(s, st, from(d), to(d)) AND d IS INTERVAL[DATE] THEN RGB(255, 204, 204);
+
+backgroundPriceRetail = ABSTRACT CASE COLOR (Sku, Stock, DATE);
+backgroundPriceRetail(Sku s, Stock st, DATE d) += WHEN promotionPriceListDetailA(s, st, d) THEN RGB(191, 252, 188);
+
+backgroundBalanceFrom = ABSTRACT CASE COLOR (Sku, Stock, DATE);
+backgroundBalanceFrom(Sku s, Stock st, DATE d) += WHEN balanceB(s, st, d) THEN RGB(191, 252, 188);
+backgroundBalanceFrom(Sku s, Stock st, DATE d) += WHEN NOT balanceB(s, st, d) AND d IS DATE THEN RGB(255, 204, 204);
+
+backgroundBalanceTo = ABSTRACT CASE COLOR (Sku, Stock, DATE);
+backgroundBalanceTo(Sku s, Stock st, DATE d) += WHEN balanceA(s, st, d) THEN RGB(191, 252, 188);
+backgroundBalanceTo(Sku s, Stock st, DATE d) += WHEN NOT balanceA(s, st, d) AND d IS DATE THEN RGB(255, 204, 204);
+
+
+FORM skuInfoMobile 'Инфо о товаре(mobile)'
+    OBJECTS intervalDate = INTERVAL[DATE] PANEL
+    PROPERTIES interval = VALUE (intervalDate) HEADER 'Период'
+    
+    PROPERTIES nameSku(), barcodeSku()
+    OBJECTS st 'Остатки' = DepartmentStore PANEL
+    
+    OBJECTS sku = Sku
+    PROPERTIES READONLY idBarcode(sku), name(sku)
+    FILTERS (isISubstring(idBarcode(sku), barcodeSku()) OR NOT barcodeSku())
+        AND (isISubstring(name(sku), nameSku()) OR NOT nameSku()) AND (barcodeSku() OR nameSku())
+        
+    FILTERS (currentBalance(sku, st) OR quantitySold(sku, st, from(intervalDate), to(intervalDate)) OR currentReservePurchase(sku, st)), selectDepartmentStore(st) 
+        
+    PROPERTIES stock 'СКЛАД' = name(st) SELECTOR
+    PROPERTIES READONLY PANEL DRAW st  balanceA 'ТЕК.ОСТАТОК' = currentBalance(sku, st) BACKGROUND backgroundBalance(sku, st), 
+        price 'ЦЕНА' = currentRetailPricingPrice(sku, st) BACKGROUND backgroundPrice(sku, st), 
+        sold 'ПРОДАНО' = quantitySold(sku, st, from(intervalDate), to(intervalDate)) BACKGROUND backgroundSold(sku, st, intervalDate),
+        reserve 'РЕЗЕРВ' = currentReservePurchase(sku, st) BACKGROUND backgroundReserve(sku, st) 
+
+    PROPERTIES  balanceFrom = balanceB(sku, st, from(intervalDate)) HEADER 'Остаток (' + toChar(from(intervalDate), 'DD.MM.YY') + ')' PANEL 
+        BACKGROUND backgroundBalanceFrom(sku, st, from(intervalDate)),
+        balanceTo = balanceA(sku, st, to(intervalDate)) HEADER 'Остаток (' + toChar(to(intervalDate), 'DD.MM.YY') + ')' PANEL
+        BACKGROUND backgroundBalanceTo(sku, st, to(intervalDate))
+    
+    OBJECTS s 'Движение' = SkuLedger
+    PROPERTIES READONLY 'ДАТА' = date(s), descriptionS 'ОПИСАНИЕ' = description(s), 'КОЛ-ВО' = signedQuantity(s)//, balanceB(s)
+    FILTERS active(s) AND sku(s) == sku AND date(s) >= from(intervalDate)
+        AND date(s) <= to(intervalDate) AND stock(s) = st
+    
+    OBJECTS d = DATE
+    PROPERTIES dateA 'Дата' = VALUE(d), priceDate 'Розничная' = retailPricingPriceA(sku, st, d) BACKGROUND backgroundPriceRetail(sku, st, d), 
+        priceS 'Приход' = priceA(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, sku, st, dateTimeToDateTime(d,23:59))
+        
+    FILTERS iterate(d, from(intervalDate), to(intervalDate)) AND retailPricingPriceA(sku, st, d)
+        AND (retailPricingPriceA(sku, st, d) != retailPricingPriceA(sku, st, sum(d, 1)) OR d = from(intervalDate) OR d = to(intervalDate))
+    
+    OBJECTS price = LedgerPriceListType
+    
+    OBJECTS sg = Sku PANEL
+    PROPERTIES showImage(sg) SHOWIF dataImage(sg)
+    
+    FILTERS sg = sku
+    PROPERTIES(sku, st, intervalDate) showSale, showBalance
+    
+;
+
+
+DESIGN skuInfoMobile{
+    REMOVE TOOLBARBOX;
+    OBJECTS {
+        alignment = STRETCH;
+        NEW settings{
+            caption = 'Настройки';
+            MOVE PROPERTY (interval) {
+                fontSize = 22;
+                caption = 'Период';
+                alignment = CENTER ;
+            }
+            MOVE PROPERTY (stock) {alignment = STRETCH; charWidth = 40; font = 'bold 18'; }
+            NEW search{
+                alignment = STRETCH ;
+                MOVE PROPERTY (nameSku()) {fontSize = 14;};
+                MOVE PROPERTY (barcodeSku()) {fontSize = 14;};
+            }
+        }
+    NEW sku{
+        alignment = STRETCH;
+        NEW info{
+            caption = '';
+            alignment = STRETCH;
+            NEW info1{
+                alignment = STRETCH;
+                horizontal = TRUE;
+                fontSize = 14;
+                MOVE PROPERTY (balanceA);
+                MOVE PROPERTY (price);
+            }
+            NEW info2{
+                alignment = STRETCH;
+                horizontal = TRUE;
+                fontSize = 14;
+                MOVE PROPERTY (sold);
+                MOVE PROPERTY (reserve);
+            }
+            NEW info3{
+                alignment = STRETCH;
+                horizontal = TRUE;
+                fontSize = 14;
+                MOVE PROPERTY (balanceFrom);
+                MOVE PROPERTY (balanceTo);  
+            }
+        }
+        MOVE BOX (sku){ REMOVE TOOLBARBOX(sku); caption = ''; };;
+    }
+    NEW tab{
+        type = TABBED;
+        fill = 2;
+        alignment = STRETCH;
+        NEW balance{
+            caption = 'Движения';
+            MOVE BOX (s) { REMOVE TOOLBARBOX(s); caption = ''; fill = 1; PROPERTY (descriptionS) {charWidth=12;}};
+        }
+        NEW prices{
+            caption = 'Цены';
+            alignment = STRETCH;
+            fill = 3 ;
+            MOVE BOX (d) { 
+                REMOVE TOOLBARBOX(d); 
+                caption = '';   
+                fill = 3; 
+            }
+        }
+        NEW dynamic{
+            caption = 'Динамика';
+            alignment = CENTER;
+            MOVE PROPERTY (showSale(sku, st, intervalDate)){fontSize = 18; alignment = STRETCH; };
+            MOVE PROPERTY (showBalance(sku, st, intervalDate)){fontSize = 18; alignment = STRETCH; };
+        }
+        NEW dynamicsSale{
+            caption = 'Динамика продаж';
+            
+        }
+        NEW itemInfo{
+            caption = 'Инфо';
+            fill = 1;
+            MOVE PROPERTY (showImage(sg)) {alignment = CENTER; fontSize = 18; }
+        }
+    }
+    }
+}
+META definePrimitiveAttributeMobileInfo(attribute, nameA)
+EXTEND FORM skuInfoMobile PROPERTIES READONLY nameA(sg) SHOWIF show###attribute(sg) BACKGROUND background###attribute(sg);
+DESIGN skuInfoMobile{ 
+    itemInfo{
+        MOVE PROPERTY (nameA(sg)) BEFORE PROPERTY (showImage(sg));
+    }    
+}
+END 
+
+@definePrimitiveAttributeMobileInfo(caption, caption);
+@definePrimitiveAttributeMobileInfo(UOM, nameUOM);
+@definePrimitiveAttributeMobileInfo(composition, composition);
+@definePrimitiveAttributeMobileInfo(fixedPrice, fixedPrice);
+
+@definePrimitiveAttributeMobileInfo(netWeight, netWeight);
+
+@definePrimitiveAttributeMobileInfo(grossWeight, grossWeight);
+
+@definePrimitiveAttributeMobileInfo(originalComposition, originalComposition);
+
+@definePrimitiveAttributeMobileInfo(length,length);
+@definePrimitiveAttributeMobileInfo(width, width);
+@definePrimitiveAttributeMobileInfo(height, height);
+@definePrimitiveAttributeMobileInfo(brand, nameBrand);
+@definePrimitiveAttributeMobileInfo(priceSegment, namePriceSegment);
+@definePrimitiveAttributeMobileInfo(country, nameCountry);
+@definePrimitiveAttributeMobileInfo(banPurchase, banPurchase);
+@definePrimitiveAttributeMobileInfo(manufacturer, nameManufacturer);
+@definePrimitiveAttributeMobileInfo(conditionStorage, conditionStorage);
+@definePrimitiveAttributeMobileInfo(originalCaption, originalCaption);
+@definePrimitiveAttributeMobileInfo(volume, volume);
+@definePrimitiveAttributeMobileInfo(split, split);
+
+
+NAVIGATOR {
+    BI{
+        NEW skuInfoMobile;
+    }
+}
+
+
+onWebClientLoad() +{ INTERNAL CLIENT 'pivotMobile.js';  INTERNAL CLIENT 'pivotConfigs.js';}
