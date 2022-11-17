@@ -204,7 +204,7 @@ DESIGN mobileReport {
         mobileTabbedPane {
             NEW paymentBar{
                 caption = 'Оплата';
-                showIf = IF 1 = 1 THEN NULL;
+                showIf = NULL; 
                 NEW totalPayment{
                     alignment = CENTER;
                     type = CONTAINERH;
@@ -217,15 +217,20 @@ DESIGN mobileReport {
     }
 }
 
+sumQtySaleReceiptZReport(INTERVAL[DATE] d) = GROUP SUM qtySaleReceiptZReport(DepartmentStore ds, d) IF in(ds);
+sumQtyReturnReceiptZReport(INTERVAL[DATE] d) = GROUP SUM qtyReturnReceiptZReport(DepartmentStore ds, d) IF in(ds);
+sumSumReceiptDetailZReport(INTERVAL[DATE] d) = GROUP SUM sumReceiptDetailZReport(DepartmentStore ds, d) IF in(ds);
+sumDiscountSumZReport(INTERVAL[DATE] d) = GROUP SUM discountSumZReport(DepartmentStore ds, d) IF in(ds);
+
 
 EXTEND FORM mobileReport
     OBJECTS dsT = DepartmentStore
-    PROPERTIES storeM 'Магазин' = mobileName(dsT) 
+    PROPERTIES storeM 'Магазин' = mobileName(dsT) FOOTER 'Итого'
     PROPERTIES averageT 'Ср.чек' = round2(sumReceiptDetailZReport(dsT, intervalDate) / qtySaleReceiptZReport(dsT, intervalDate)) ORDER DESC,
-        'Покупатели' = qtySaleReceiptZReport(dsT, intervalDate),
-        'Возвраты' = qtyReturnReceiptZReport(dsT, intervalDate),
-        'Продажа' = sumReceiptDetailZReport(dsT, intervalDate),
-        'Скидка' = discountSumZReport (dsT, intervalDate)
+        'Покупатели' = qtySaleReceiptZReport(dsT, intervalDate) FOOTER sumQtySaleReceiptZReport(intervalDate),
+        'Возвраты' = qtyReturnReceiptZReport(dsT, intervalDate) FOOTER sumQtyReturnReceiptZReport(intervalDate),
+        'Продажа' = sumReceiptDetailZReport(dsT, intervalDate) FOOTER sumSumReceiptDetailZReport(intervalDate),
+        'Скидка' = discountSumZReport (dsT, intervalDate) FOOTER sumDiscountSumZReport(intervalDate)
     
     FILTERS in(dsT)
 ;
