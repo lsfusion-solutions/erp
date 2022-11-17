@@ -207,7 +207,9 @@ META defineDocumentOutgoingProcess (doc, obj)
         fillVolume(i);
         APPLY;
     }
-    
+
+    hasProductItem###doc = GROUP SUM 1 IF productItem(sku(###doc##Detail detail)) OR volumeStockEntry(detail) BY ##doc(detail);
+        
     EXTEND FORM doc##s
         OBJECTS vse = (vd = ###doc##Detail, se = StockEntry)
         PROPERTIES(vd) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku 
@@ -218,7 +220,7 @@ META defineDocumentOutgoingProcess (doc, obj)
         FILTERS doc(vd) = obj, volume(vd, se)
     
         PROPERTIES(obj) process DRAW vse TOOLBAR SHOWIF toProcess(obj)
-        PROPERTIES(obj) fillVolumeApply DRAW vse TOOLBAR
+        PROPERTIES(obj) fillVolumeApply DRAW vse TOOLBAR SHOWIF hasProductItem###doc(obj)
          
         PROPERTIES(vd, se) issueDateLastRequest, nameStatusLastRequest, errorLastRequest PANEL,
                            process READONLYIF NOT toProcess(outgoingConsignment(vd, se)) GRID

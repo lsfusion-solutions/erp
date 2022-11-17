@@ -160,6 +160,58 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
 
 END
 
+META defineChangeOutgoingConsignmentDialog (doc)
+    FORM dialog###doc##OutgoingConsignment 'ВСД'
+        OBJECTS i = ###doc
+        OBJECTS vd = User###doc##Detail
+        PROPERTIES(vd) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, shipmentQuantity,
+        numberStockEntry, volumeStockEntry
+        ORDERS index(vd)
+        FILTERS user###doc(vd) = i,
+        productItem(sku(vd)) OR volumeStockEntry(vd)
+    
+        PROPERTIES(i) fillVolume DRAW vd TOOLBAR
+    
+        OBJECTS se = StockEntry
+        PROPERTIES(se) READONLY guid, number, nameProductItem, volume, expiryDate
+        PROPERTIES(vd, se)      volume, fillVolume GRID
+        FILTERS matches(vd, se)
+    
+        FILTERGROUP active
+            FILTER 'Активные' active(se) OR volume(vd, se) DEFAULT
+    ;
+    
+    DESIGN dialog###doc##OutgoingConsignment {
+        BOX {
+            size = (1024, 768);
+            NEW vetis {
+                fill = 1;
+                caption = 'ВСД';
+                NEW vetisHeader {
+                    type = CONTAINERH;
+                }
+                NEW vetisDetail {
+                    fill = 1;
+                    type = SPLITH;
+                    MOVE BOX(vd);
+                    MOVE BOX(se);
+                }
+            }
+            MOVE TOOLBARBOX;
+        }
+    }
+    
+    change###doc##OutgoingConsignment 'Изменить ВСД' (###doc i) {
+        NEWSESSION {
+            SHOW dialog###doc##OutgoingConsignment OBJECTS i=i DOCKED;
+        }
+    } TOOLBAR;
+    
+    EXTEND FORM ##doc##s
+        PROPERTIES (i) change###doc##OutgoingConsignment DRAW vse SHOWIF hasProductItem###doc(i)
+    ;
+
+END
 
 nameEnterprises 'Склады' (Enterprise e) = GROUP CONCAT name(Stock st) IF enterprise(st) == e, ', ' ORDER name(st), st CHARWIDTH 20;
 
