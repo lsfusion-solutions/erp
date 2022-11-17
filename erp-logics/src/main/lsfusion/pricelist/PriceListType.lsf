@@ -23,6 +23,7 @@ TABLE priceListType(PriceListType);
 name 'Наименование' = ABSTRACT ISTRING[100](PriceListType);
 
 includeVAT 'Цена с НДС' = ABSTRACT BOOLEAN (PriceListType) MATERIALIZED COMPLEX;
+differentOrganizations 'Для разных организаций' = ABSTRACT BOOLEAN (PriceListType) MATERIALIZED;
 
 priceB 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, DATETIME) CHARWIDTH 7;
 priceA 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, DATETIME) CHARWIDTH 7;
@@ -64,6 +65,14 @@ prevPricePVAT 'Цена с НДС (пред.)' (PriceListType type, Batch batch,
         ELSE
             prevPriceB(type, batch, stock, dateTime) * (100 + VAT)/100;
 
+//c компанией 
+priceB 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, LegalEntity, DATETIME) CHARWIDTH 7;
+priceA 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, LegalEntity, DATETIME) CHARWIDTH 7;
+
+prevPriceB 'Цена (пред.)' (PriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime) = PREV(priceB(type, sku, stock, company, dateTime)) CHARWIDTH 7 COMPLEX;
+prevPriceA 'Цена (пред.)' (PriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime) = PREV(priceA(type, sku, stock, company, dateTime)) CHARWIDTH 7 COMPLEX;
+
+//
 @defineDocumentAbstractHeaderCurrency(priceListType);
 
 roundCondition 'Условие округления' = DATA RoundCondition (PriceListType);

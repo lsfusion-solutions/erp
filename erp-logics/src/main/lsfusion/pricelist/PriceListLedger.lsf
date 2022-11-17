@@ -9,7 +9,8 @@ CLASS ABSTRACT LedgerPriceListType 'Регистровый вид цены' : Ba
 name 'Наименование' = ABSTRACT ISTRING[100](LedgerPriceListType) IN id;
 name(LedgerPriceListType type) += name(type) IF type IS LedgerPriceListType;
 
-differentOrganizations 'Для разных организаций' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType) MATERIALIZED;    
+differentOrganizations 'Для разных организаций' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType) MATERIALIZED;
+differentOrganizations(LedgerPriceListType pt) += differentOrganizations(pt);
 
 TABLE ledgerPriceListTypeStock (LedgerPriceListType, Stock);
 batch 'Использовать для партий свои цены' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType, Stock) MATERIALIZED;
@@ -475,6 +476,8 @@ priceB 'Цена' (LedgerPriceListType type, sku, Stock stock, company, DATETIME
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE fromDateTime(ledger, type, stock) < dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
           BY sku(ledger, type, stock), company(ledger, type, stock) COMPLEX;
+
+priceB(LedgerPriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime) += priceB(type, sku, stock, company, dateTime);
                 
 prevPriceB(LedgerPriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime) =
     PREV(priceB(type, sku, stock, company, dateTime)) COMPLEX; 
@@ -484,6 +487,8 @@ priceA 'Цена' (LedgerPriceListType type, sku, Stock stock, company, DATETIME
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
           BY sku(ledger, type, stock), company(ledger, type, stock) COMPLEX;
+
+priceA(LedgerPriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime) += priceA(type, sku, stock, company, dateTime);
 
 prevPriceA(LedgerPriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime) =
     PREV(priceA(type, sku, stock, company, dateTime)) COMPLEX; 
