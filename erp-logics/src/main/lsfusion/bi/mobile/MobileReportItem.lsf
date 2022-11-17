@@ -138,12 +138,13 @@ backgroundBalanceTo = ABSTRACT CASE COLOR (Sku, Stock, DATE);
 backgroundBalanceTo(Sku s, Stock st, DATE d) += WHEN balanceA(s, st, d) THEN RGB(191, 252, 188);
 backgroundBalanceTo(Sku s, Stock st, DATE d) += WHEN NOT balanceA(s, st, d) AND d IS DATE THEN RGB(255, 204, 204);
 
+scanBacrode 'Сканер'(){}
 
 FORM skuInfoMobile 'Инфо о товаре(mobile)'
     OBJECTS intervalDate = INTERVAL[DATE] PANEL
     PROPERTIES interval = VALUE (intervalDate) HEADER 'Период'
     
-    PROPERTIES nameSku(), barcodeSku()
+    PROPERTIES nameSku(), barcodeSku(), scanBacrode()
     OBJECTS st 'Остатки' = DepartmentStore PANEL
     
     OBJECTS sku = Sku
@@ -174,7 +175,7 @@ FORM skuInfoMobile 'Инфо о товаре(mobile)'
         priceS 'Приход' = priceA(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, sku, st, dateTimeToDateTime(d,23:59))
         
     FILTERS iterate(d, from(intervalDate), to(intervalDate)) AND retailPricingPriceA(sku, st, d)
-        AND (retailPricingPriceA(sku, st, d) != retailPricingPriceA(sku, st, sum(d, 1)) OR d = from(intervalDate) OR d = to(intervalDate))
+        AND (retailPricingPriceA(sku, st, d) != retailPricingPriceA(sku, st, sum(d, -1)) OR d = from(intervalDate) OR d = to(intervalDate))
     
     OBJECTS price = LedgerPriceListType
     
@@ -202,7 +203,12 @@ DESIGN skuInfoMobile{
             NEW search{
                 alignment = STRETCH ;
                 MOVE PROPERTY (nameSku()) {fontSize = 14;};
-                MOVE PROPERTY (barcodeSku()) {fontSize = 14;};
+                NEW barcode{
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY (barcodeSku()) {fontSize = 14;};
+                    MOVE PROPERTY (scanBacrode()) {fontSize = 14;};
+                }
             }
         }
     NEW sku{
