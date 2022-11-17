@@ -235,9 +235,10 @@ WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail] (CHANGED(price(Use
 }
 
 overRecalculateFullPrice  ABSTRACT LIST ( UserInvoiceDetail);
+overRecalculateFullPrice  ABSTRACT LIST ();
 
 recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'()  { 
-    FOR PriceListType pt == priceListType(UserInvoiceDetail d) AND isItem(sku(d)) AND [ FILTER userInvoice.d](d) NOINLINE (pt) DO {
+    FOR PriceListType pt == priceListType(UserInvoiceDetail d) AND isItem(sku(d)) AND NOT disableUpdateInvoiceFullPrice(d) AND [ FILTER userInvoice.d](d) NOINLINE (pt) DO {
         IF includeVAT(pt) THEN
             fullPrice(d) <- round2(fullPrevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d)));
         ELSE
@@ -245,6 +246,7 @@ recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'()  {
 
         overRecalculateFullPrice(d);               
     }
+    overRecalculateFullPrice();
 } ASON CONTEXTMENU fullPrice[UserInvoiceDetail];
 
 EXTEND FORM userInvoice
