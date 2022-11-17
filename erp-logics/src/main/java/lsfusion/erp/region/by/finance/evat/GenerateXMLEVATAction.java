@@ -478,10 +478,10 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
 
         QueryBuilder<Object, Object> evatDetailQuery = new QueryBuilder<>(evatDetailKeys);
         String[] evatDetailNames = new String[]{"objValue", "name", "code", "evatCodeUOM", "codeOced",
-                "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType", "overNameDescriptionType"};
+                "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "overNameDescriptionType"};
         LP<?>[] evatDetailProperties = findProperties("objValue[EVATDetail]", "name[EVATDetail]", "code[EVATDetail]", "evatCodeUOM[EVATDetail]",
                 "codeOced[EVATDetail]", "quantity[EVATDetail]", "price[EVATDetail]", "sum[EVATDetail]", "exciseSum[EVATDetail]",
-                "vatRate[EVATDetail]", "vatSum[EVATDetail]", "sumWithVAT[EVATDetail]", "nameDescriptionType[EVATDetail]", "overNameDescriptionType[EVATDetail]");
+                "vatRate[EVATDetail]", "vatSum[EVATDetail]", "sumWithVAT[EVATDetail]", "overNameDescriptionType[EVATDetail]");
         for (int i = 0; i < evatDetailProperties.length; i++) {
             evatDetailQuery.addProperty(evatDetailNames[i], evatDetailProperties[i].getExpr(evatDetailExpr));
         }
@@ -503,7 +503,6 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
             BigDecimal vatSum = (BigDecimal) entry.get("vatSum");
             BigDecimal sumWithVat = (BigDecimal) entry.get("sumWithVAT");
 
-            String description = getDescription(getLastPart(trim((String) entry.get("nameDescriptionType"))));
             String overDescription = (String) entry.get("overNameDescriptionType");
 
             Element rosterItemElement = new Element("rosterItem", namespace);
@@ -527,10 +526,6 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
                 for(String d : overDescription.split(",")) {
                     addStringElement(namespace, descriptionsElement, "description", d);
                 }
-                rosterItemElement.addContent(descriptionsElement);
-            } else if (description != null) {
-                Element descriptionsElement = new Element("descriptions", namespace);
-                addStringElement(namespace, descriptionsElement, "description", description);
                 rosterItemElement.addContent(descriptionsElement);
             }
             rosterElement.addContent(rosterItemElement);
