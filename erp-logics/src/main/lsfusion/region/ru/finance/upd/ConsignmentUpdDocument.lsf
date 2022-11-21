@@ -73,6 +73,8 @@ fill(ConsignmentDetail d, UpdDocumentDetail ed) {
     quantity(ed) <- quantity(d);
     price(ed) <- price(d);
     sum(ed) <- sum(d);
+    idCountry(ed) <- sid(country(sku(d)));
+    nameCountry(ed) <- name(country(sku(d)));
 
     VATStatus(ed)<- CASE 
                    WHEN isNotVATPayer(supplier(updDocument(ed)))  THEN VATStatus.vatNot
@@ -126,6 +128,7 @@ fillHeader(Consignment invoice, UpdDocument ei) {
     
     //invoiceNumerator(ei) <- defaultNumeratorConsignmentUpd(); //возможно нужно будет сделать параметризацию нумератора для организации
     dateInvoice(ei) <- date(invoice);
+    nameCurrency(ei) <- name(currency(invoice));
     codeCurrency(ei) <- sid(currency(invoice));
     
     supplier(ei) <- supplier(invoice);
@@ -166,6 +169,8 @@ fillHeader(Consignment invoice, UpdDocument ei) {
     descriptionContract(ei) <- 'Договор: (руб.)' IF invoice IS Consignment;
     numberContract(ei) <- number(contract(invoice));
     dateContract(ei) <- dateFrom(contract(invoice));
+
+    accountantSupplier(ei) <- shortName(booker(supplier(invoice)));
     
     supplierSignerCredentials(ei) <- Credential.c0 IF invoice IS Consignment; 
     supplierSignerStatus(ei) <- CStatus.c1 IF invoice IS Consignment; 
@@ -258,7 +263,7 @@ printConsignmentUpd 'УПД'(UpdDocument u) {
     select(UpdDocument updDocument) <- NULL; 
 } IMAGE 'print.png';
 
-printConsignmentUpdBreake 'УПД (двухсторонний)'(UpdDocument u) {
+printConsignmentUpdBreake 'УПД (двухсторонний)' (UpdDocument u) {
     doubleSided()<- TRUE ;
     IF NOT countSelectUpd() THEN {
         select(UpdDocument updDocument) <- TRUE IF updDocument==u;
@@ -272,7 +277,7 @@ printConsignmentUpdBreake 'УПД (двухсторонний)'(UpdDocument u) {
     doubleSided()<- NULL;
 } IMAGE 'print.png';
 
-printConsignmentUpdBreakeAuto 'УПД (без предпросмотра)'(UpdDocument u) {
+printConsignmentUpdBreakeAuto 'УПД (без предпросмотра)' (UpdDocument u) {
     doubleSided()<- TRUE ;
     IF NOT countSelectUpd() THEN {
         select(UpdDocument updDocument) <- TRUE IF updDocument==u;
@@ -286,48 +291,48 @@ printConsignmentUpdBreakeAuto 'УПД (без предпросмотра)'(UpdDo
     doubleSided()<- NULL;
 } IMAGE 'print.png';
 
-editAttributesUpd 'Заполнить атрибуты УПД'(UpdDocument u) {
+editAttributesUpd 'Заполнить атрибуты УПД' (UpdDocument u) {
     editAttributesUpd(invoice(u));
 } IMAGE 'edit.png';
 
-EXTEND FORM updDocuments
-    PROPERTIES (u) editAttributesUpd, printConsignmentUpd, printConsignmentUpdBreake, printConsignmentUpdBreakeAuto
-;
-
-DESIGN updDocuments {
-    documentDetail {
-        NEW printContainer {
-            caption = 'Печать';
-            type = CONTAINERV;
-            NEW consignmentUPD{
-                align = START;
-                type = CONTAINERH;
-                
-                NEW contUPD {
-                    alignment = STRETCH;
-                    type = CONTAINERH;
-                    caption = 'УПД';
-                    MOVE PROPERTY(editAttributesUpd(u)) {
-                        alignment = STRETCH;
-                    }
-                }
-                
-                NEW upd {
-                    alignment = STRETCH;
-                    type = COLUMNS;
-                    columns = 3;
-                    caption = 'Отчеты';
-                    MOVE PROPERTY(printConsignmentUpd(u)) { alignment = STRETCH; }
-                    MOVE PROPERTY(printConsignmentUpdBreake(u)) { alignment = STRETCH; }
-                    MOVE PROPERTY(printConsignmentUpdBreakeAuto(u)) { alignment = STRETCH; }
-                }
-            }        
-        }        
-    }
-    PROPERTY(nameCustomer(u)) {
-        charWidth = 40;
-    }
-}
+//EXTEND FORM updDocuments
+//    PROPERTIES (u) editAttributesUpd, printConsignmentUpd, printConsignmentUpdBreake, printConsignmentUpdBreakeAuto
+//;
+//
+//DESIGN updDocuments {
+//    documentDetail {
+//        NEW printContainer {
+//            caption = 'Печать';
+//            type = CONTAINERV;
+//            NEW consignmentUPD{
+//                align = START;
+//                type = CONTAINERH;
+//                
+//                NEW contUPD {
+//                    alignment = STRETCH;
+//                    type = CONTAINERH;
+//                    caption = 'УПД';
+//                    MOVE PROPERTY(editAttributesUpd(u)) {
+//                        alignment = STRETCH;
+//                    }
+//                }
+//                
+//                NEW upd {
+//                    alignment = STRETCH;
+//                    type = COLUMNS;
+//                    columns = 3;
+//                    caption = 'Отчеты';
+//                    MOVE PROPERTY(printConsignmentUpd(u)) { alignment = STRETCH; }
+//                    MOVE PROPERTY(printConsignmentUpdBreake(u)) { alignment = STRETCH; }
+//                    MOVE PROPERTY(printConsignmentUpdBreakeAuto(u)) { alignment = STRETCH; }
+//                }
+//            }        
+//        }        
+//    }
+//    PROPERTY(nameCustomer(u)) {
+//        charWidth = 40;
+//    }
+//}
 
 DESIGN options{
     updScroll {

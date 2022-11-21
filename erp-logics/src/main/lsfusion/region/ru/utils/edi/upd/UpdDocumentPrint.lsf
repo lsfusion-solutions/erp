@@ -1,0 +1,130 @@
+MODULE UpdDocumentPrint;
+
+REQUIRE UpdDocument, UpdPrintParams;
+
+NAMESPACE Upd;
+
+transportationInfo 'Данные о транспортировке и грузе' = DATA STRING (UpdDocument);
+otherInfoIssuance 'Иные сведения (передача)' = DATA STRING (UpdDocument);
+otherAcceptance 'Иные сведения (приемка)' = DATA STRING (UpdDocument);
+dataCountCopies 'Количество копий' = DATA INTEGER (UpdDocument);
+countCopies (UpdDocument upd) = OVERRIDE dataCountCopies(upd), 1;
+
+incl 'Отм.' = DATA LOCAL BOOLEAN (UpdDocument);
+countIncl = GROUP SUM 1 IF incl(UpdDocument c);
+
+EXTEND FORM updDocument
+    PROPERTIES (u) accountantSupplier, transportationInfo, otherInfoIssuance, otherAcceptance, dataCountCopies
+;
+
+DESIGN updDocument {
+    titlesContainer {
+        NEW print {
+            caption = 'Печать';
+            fill = 1;
+            MOVE PROPERTY(accountantSupplier(u));
+            MOVE PROPERTY(transportationInfo(u));
+            MOVE PROPERTY(otherInfoIssuance(u));
+            MOVE PROPERTY(otherAcceptance(u));
+            MOVE PROPERTY(dataCountCopies(u));
+        }
+    }    
+}
+
+FORM printUpd 'Универсальный передаточный документ'
+    OBJECTS dd = (c = UpdDocument, i = INTEGER)
+
+    PROPERTIES (c)  nameSupplier, addressSupplier, innSupplier, kppSupplier,
+                    nameCustomer, addressCustomer, innCustomer, kppCustomer, nameReceiverCompany,
+                    dateInvoice, numberInvoice, numberCorrection, //dateCorrection,
+                    contractInfo,
+                    transportationInfo,
+                    addressReceiverCompany,
+                
+                    //передача
+                    infoAgentSupplier, positionAgentSupplier,
+                    infoAgentExecuter, positionAgentExecuter,
+                    otherInfoIssuance,
+                    //прием
+                    receiverAgentCredentialsBase, infoReceiver,
+                    infoAgentReceiver, positionAgentReceiver,
+
+                    otherAcceptance,
+                
+                    nameCurrency, codeCurrency, idUpdDocumentPaperStatus,
+                    infoSupplierSignerAgent, accountantSupplier,
+
+                    countUpdDocument,
+                    countCopies
+    PROPERTIES doubleSided() DRAW dd
+
+    OBJECTS d = UpdDocumentDetail SUBREPORT
+    PROPERTIES(d)   nameSku, idSku, nameUOM, idUOM,
+                    quantity,
+                    price, sum, nameVATStatus, VATSum, invoiceSum,
+                    idCountry, nameCountry, numberDeclaration,
+                    numberInvoice, dateInvoice
+
+    FILTERS incl(c),
+            updDocument(d) == c,
+            count(i,countCopies(c)),
+            quantity(d)
+;
+
+printUpd 'УПД'(UpdDocument u) {
+    doubleSided()<- NULL;
+    IF NOT countSelectUpd() THEN {
+        incl(UpdDocument updDocument) <- TRUE IF updDocument==u;
+    }
+    PRINT printUpd;
+    incl(u) <- NULL;
+} IMAGE 'print.png';
+
+printUpdBreake 'УПД (двухсторонний)'(UpdDocument u) {
+    doubleSided()<- TRUE ;
+    IF NOT countSelectUpd() THEN {
+        incl(UpdDocument updDocument) <- TRUE IF updDocument==u;
+    }
+
+    PRINT printUpd;
+    incl(u) <- NULL;
+    doubleSided()<- NULL;
+} IMAGE 'print.png';
+
+printUpdBreakeAuto 'УПД (без предпросмотра)'(UpdDocument u) {
+    doubleSided()<- TRUE ;
+    IF NOT countSelectUpd() THEN {
+        incl(UpdDocument updDocument) <- TRUE IF updDocument==u;
+    }
+
+    PRINT printUpd NOPREVIEW;
+    incl(u) <- NULL;
+    doubleSided()<- NULL;
+} IMAGE 'print.png';
+
+EXTEND FORM updDocuments
+    PROPERTIES (u) printUpd, printUpdBreake, printUpdBreakeAuto
+;
+
+DESIGN updDocuments {
+    documentDetail {
+        NEW printContainer {
+            caption = 'Печать';
+            type = CONTAINERV;
+            NEW consignmentUPD{
+                align = START;
+                type = CONTAINERH;
+
+                NEW upd {
+                    alignment = STRETCH;
+                    type = COLUMNS;
+                    columns = 3;
+                    caption = 'Отчеты';
+                    MOVE PROPERTY(printUpd(u)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printUpdBreake(u)) { alignment = STRETCH; }
+                    MOVE PROPERTY(printUpdBreakeAuto(u)) { alignment = STRETCH; }
+                }
+            }        
+        }        
+    }
+}

@@ -72,7 +72,8 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     numberInvoice 'Номер '###signSchf = DATA STRING[1000] (###docType##Document) CHARWIDTH 15; //НомерСчФ
     dateInvoice 'Дата '###signSchf = DATA DATE (###docType##Document); //ДатаСчФ
     codeCurrency 'Код валюты' = DATA STRING[3] (###docType##Document); //КодОКВ
-    
+    nameCurrency 'Наименование валюты' = DATA STRING[50] (###docType##Document);
+
     //-СвПрод
     supplier 'Продавец' = DATA LegalEntity(###docType##Document);
     
@@ -139,6 +140,8 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
         PARTITION SUM 1
         ORDER d BY ##docType##Document(d) CHARWIDTH 4;
     count###docType##Document 'Кол-во строк' = GROUP SUM 1 BY ##docType##Document(###docType##DocumentDetail detail);
+    numberInvoice (###docType##DocumentDetail detail) = numberInvoice(##docType##Document(detail));
+    dateInvoice (###docType##DocumentDetail detail) = dateInvoice(##docType##Document(detail));
     
     //ТаблСчФакт
     //-СведТов
@@ -168,6 +171,9 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     supplierSignerAgentLastName 'Фамилия' = DATA STRING[60] (###docType##Document);//Фамилия
     supplierSignerAgentFirstName 'Имя' = DATA STRING[60] (###docType##Document);//Имя
     supplierSignerAgentMiddleName 'Отчество' = DATA STRING[60](###docType##Document); //Отчество
+
+    infoSupplierSignerAgent (###docType##Document d) = supplierSignerAgentLastName(d) 
+        + ' ' + left(supplierSignerAgentFirstName(d), 1) + '. '+ left(supplierSignerAgentMiddleName(d), 1) +'.';    
 
     //Титул покупателя
     //-------ИнфПок---------
