@@ -774,7 +774,8 @@ public class DefaultTerminalHandler {
                 " fld1 TEXT," +
                 " fld2 TEXT," +
                 " fld3 TEXT," +
-                " ticket TEXT)";
+                " ticket TEXT," +
+                " flags INTEGER)";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -784,7 +785,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalLegalEntity legalEntity : customANAList) {
                     if (legalEntity.idLegalEntity != null) {
@@ -794,6 +795,7 @@ public class DefaultTerminalHandler {
                         statement.setObject(4, formatValue(legalEntity.field2)); //fld2
                         statement.setObject(5, formatValue(legalEntity.field3)); //fld3
                         statement.setObject(6, formatValue(legalEntity.extInfo)); //ticket
+                        statement.setObject(7, formatValue(legalEntity.flags == null ? "0" : legalEntity.flags));
                         statement.addBatch();
                     }
                 }
@@ -1439,11 +1441,12 @@ public class DefaultTerminalHandler {
             ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev("terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(terminalHandbookTypeKeys);
             String[] names = new String[]{"exportId", "name", "propertyID", "propertyName", "filterProperty", "extInfoProperty",
-                    "field1Property", "field2Property", "field3Property"};
+                    "field1Property", "field2Property", "field3Property", "flagsProperty"};
             LP<?>[] properties = terminalHandlerLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
                     "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]",
                     "canonicalNameFilterProperty[TerminalHandbookType]", "canonicalNameExtInfoProperty[TerminalHandbookType]",
-                    "canonicalNameField1Property[TerminalHandbookType]", "canonicalNameField2Property[TerminalHandbookType]", "canonicalNameField3Property[TerminalHandbookType]");
+                    "canonicalNameField1Property[TerminalHandbookType]", "canonicalNameField2Property[TerminalHandbookType]", "canonicalNameField3Property[TerminalHandbookType]",
+                    "canonicalNameFlagsProperty[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
             }
@@ -1453,6 +1456,7 @@ public class DefaultTerminalHandler {
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String prefix = StringUtils.trim((String) entry.get("exportId"));
+                //Long flags = (Long)  entry.get("flags");
                 LP propertyID = (LP<?>) BL.findSafeProperty(StringUtils.trim((String) entry.get("propertyID")));
                 LP propertyName = (LP<?>) BL.findSafeProperty(StringUtils.trim((String) entry.get("propertyName")));
                 String canonicalNameFilterProperty = StringUtils.trim((String) entry.get("filterProperty"));
@@ -1465,6 +1469,8 @@ public class DefaultTerminalHandler {
                 LP field2Property = canonicalNameField2Property != null ? (LP<?>) BL.findSafeProperty(canonicalNameField2Property) : null;
                 String canonicalNameField3Property = StringUtils.trim((String) entry.get("field3Property"));
                 LP field3Property = canonicalNameField3Property != null ? (LP<?>) BL.findSafeProperty(canonicalNameField3Property) : null;
+                String canonicalNameFlagsProperty = StringUtils.trim((String) entry.get("flagsProperty"));
+                LP flagsProperty = canonicalNameFlagsProperty != null ? (LP<?>) BL.findSafeProperty(canonicalNameFlagsProperty) : null;
 
                 if(propertyID != null && propertyName != null) {
                     ImOrderSet<PropertyInterface> interfaces = propertyID.listInterfaces;
@@ -1479,6 +1485,7 @@ public class DefaultTerminalHandler {
                         addCustomField(userInfo.user, customANAExpr, customANAQuery, field1Property, "field1");
                         addCustomField(userInfo.user, customANAExpr, customANAQuery, field2Property, "field2");
                         addCustomField(userInfo.user, customANAExpr, customANAQuery, field3Property, "field3");
+                        addCustomField(userInfo.user, customANAExpr, customANAQuery, flagsProperty, "flags");
 
                         if (filterProperty != null) {
                             switch (filterProperty.listInterfaces.size()) {
@@ -1507,7 +1514,8 @@ public class DefaultTerminalHandler {
                             String field1 = StringUtils.trim((String) customANAEntry.get("field1"));
                             String field2 = StringUtils.trim((String) customANAEntry.get("field2"));
                             String field3 = StringUtils.trim((String) customANAEntry.get("field3"));
-                            customANAList.add(new TerminalLegalEntity(prefix + idCustomANA, nameCustomANA, extInfo, field1, field2, field3));
+                            Long flags = (Long) customANAEntry.get("flags");
+                            customANAList.add(new TerminalLegalEntity(prefix + idCustomANA, nameCustomANA, extInfo, field1, field2, field3, flags));
                         }
                     }
                 }
@@ -1685,13 +1693,16 @@ public class DefaultTerminalHandler {
         public String field2;
         public String field3;
 
-        public TerminalLegalEntity(String idLegalEntity, String nameLegalEntity, String extInfo, String field1, String field2, String field3) {
+        public Long flags;
+
+        public TerminalLegalEntity(String idLegalEntity, String nameLegalEntity, String extInfo, String field1, String field2, String field3, Long flags) {
             this.idLegalEntity = idLegalEntity;
             this.nameLegalEntity = nameLegalEntity;
             this.extInfo = extInfo;
             this.field1 = field1;
             this.field2 = field2;
             this.field3 = field3;
+            this.flags = flags;
         }
     }
 
