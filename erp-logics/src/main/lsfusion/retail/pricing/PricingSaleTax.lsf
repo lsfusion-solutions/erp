@@ -7,12 +7,12 @@ NAMESPACE Sale;
 // не меняем ставку НДС, если льготный НДС
 skipOverSetValueRetailVAT = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 
-overRetailVAT(UserInvoiceDetail detail) += VAT(batch(detail)) IF valueVAT(batch(detail)) != 0 AND NOT skipOverSetValueRetailVAT(detail);
+overRetailVAT(UserInvoiceDetail detail) += prevVAT(batch(detail)) IF prevValueVAT(batch(detail)) != 0 AND NOT skipOverSetValueRetailVAT(detail);
 
 // Принудительное обнуление НДС для тары в расценке
 skipOverSetValueRetailVAT(UserInvoiceDetail detail) += isContainer(sku(detail));
 
-overSetValueRetailVAT(UserInvoiceDetail detail) += valueVAT(batch(detail)) IF valueVAT(batch(detail)) != 0 AND NOT skipOverSetValueRetailVAT(detail);
+overSetValueRetailVAT(UserInvoiceDetail detail) += prevValueVAT(batch(detail)) IF prevValueVAT(batch(detail)) != 0 AND NOT skipOverSetValueRetailVAT(detail);
 
 // todo : временное решение, пока нету последовательности выполнения событий
 //WHEN LOCAL FORMS userInvoice CHANGED(batch(UserInvoiceDetail d)) DO {
