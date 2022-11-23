@@ -228,7 +228,8 @@ FORM contractSkuTypes 'Типы договоров на поставку'
 
 type = DATA ContractSkuType (ContractSku);
 nameType 'Тип договора' (ContractSku contract) = staticCaption(type(contract)) IN base;
-isSaleType(ContractSku contract) = type(contract) == ContractSkuType.sale;
+isSaleType = ABSTRACT CASE BOOLEAN (ContractSku) MATERIALIZED INDEXED;
+isSaleType(ContractSku contract) += WHEN type(contract) == ContractSkuType.sale THEN TRUE;
 isCommissionType(ContractSku contract) = type(contract) == ContractSkuType.commission;
 
 type (ContractSku o) <- ContractSkuType.sale WHEN SET(o IS ContractSku);
