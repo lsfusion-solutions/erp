@@ -61,7 +61,7 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
 }
 
 //товар
-imageArtix = DATA IMAGEFILE (Item);
+imageArtix = DATA IMAGEFILE (Item) TABLE itemImage;
 
 WHEN CHANGED (image(Item i)) DO { 
     imageArtix(i) <- NULL;
@@ -71,6 +71,7 @@ overName = ABSTRACT ISTRING[255](Item);
 
 orderArtix 'Порядок отображения для Artix' = DATA LOCAL INTEGER (Item);
 idParent = DATA LOCAL STRING (Item);
+exportTara = DATA LOCAL BOOLEAN (Item);
 
 //группа
 imageArtix 'Изображение для Artix' = DATA IMAGEFILE (CustomGroup);
@@ -149,7 +150,7 @@ createFilePickList (GroupCashRegister gm) {
                     + '\}\}') IF idParent(s), '\n---\n' ORDER s)
                 +'\n---\n';
                 
-    IF isUseNewTaraMode(gm) AND (GROUP SUM 1 IF idParent(Sku s) AND isTara(s)) THEN {
+    IF isUseNewTaraMode(gm) AND (GROUP SUM 1 IF exportTara(Sku s)) THEN {
         rezult() <- CONCAT '', rezult(),
                         ('\{"command": "addCatalog","catalog": \{' + 
                             (CONCAT ',', 
@@ -162,12 +163,12 @@ createFilePickList (GroupCashRegister gm) {
         rezult() <- CONCAT '', rezult(),
                         (GROUP CONCAT ('\{"command": "addInventCatalog","inventcatalog": \{' + 
                             (CONCAT ',', 
-                                '"tmccode": "' + id(Sku s) + '"',
+                                '"tmccode": "' + overId(Sku s) + '"',
                                 '"catalogId": ' + idCatalogTara() + '',
                                 '"tmcprice": ' + (GROUP MAX price(Barcode b) IF s == sku(b)) + '',
                                 '"image": "' + encodeBase64(imageArtix(s)) + '"'
                             ) 
-                        + '\}\}') IF idParent(s) AND isTara(s), '\n---\n' ORDER s)
+                        + '\}\}') IF exportTara(s), '\n---\n' ORDER s)
                     +'\n---\n';
     }
                 
@@ -189,6 +190,8 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
     export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm) AND (GROUP SUM 1 IF isParent(cg, Sku s) AND idParent(s)); 
     
     beforeExport(gm);
+
+    exportTara(Sku s) <- TRUE WHERE isTara(s);
     
     IF NOT (GROUP SUM 1 IF idParent(Sku s)) THEN {
         MESSAGE name(gm) +': Нет товаров к выгрузке' NOWAIT;
@@ -253,6 +256,8 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
                         AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s) AND (GROUP SUM 1 IF in(mpt, Barcode b) AND s == sku(b)); 
         
         beforeExport(gm);
+        
+        exportTara(Sku s) <- TRUE WHERE idParent(s) AND isTara(s);
          
         IF (GROUP SUM 1 IF idParent(Sku s)) THEN {
             createFilePickList(gm);
