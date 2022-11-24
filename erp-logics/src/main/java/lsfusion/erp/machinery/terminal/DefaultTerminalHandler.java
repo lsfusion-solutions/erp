@@ -779,7 +779,6 @@ public class DefaultTerminalHandler {
         statement.executeUpdate(sql);
         statement.close();
     }
-
     private void updateANATable(Connection connection, List<TerminalLegalEntity> customANAList, UserInfo userInfo) throws SQLException {
         if (!customANAList.isEmpty()) {
             PreparedStatement statement = null;
@@ -812,7 +811,6 @@ public class DefaultTerminalHandler {
             }
         }
     }
-
     private void createVOPTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE vop " +
@@ -822,6 +820,7 @@ public class DefaultTerminalHandler {
                 " van1 TEXT," +
                 " van2 TEXT," +
                 " van3 TEXT," +
+                " detail_van1 TEXT," +
                 " flags INTEGER )";
         statement.executeUpdate(sql);
         statement.close();
@@ -833,7 +832,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO vop VALUES(?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO vop VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalDocumentType tdt : terminalDocumentTypeList) {
                     if (tdt.id != null) {
@@ -843,7 +842,8 @@ public class DefaultTerminalHandler {
                         statement.setObject(4, formatValue(tdt.analytics1));
                         statement.setObject(5, formatValue(tdt.analytics2));
                         statement.setObject(6, "");
-                        statement.setObject(7, formatValue(tdt.flag == null ? "0" : tdt.flag));
+                        statement.setObject(7, formatValue(tdt.detail_analytics1));
+                        statement.setObject(8, formatValue(tdt.flag == null ? "0" : tdt.flag));
                         statement.addBatch();
                     }
                 }
@@ -1411,9 +1411,9 @@ public class DefaultTerminalHandler {
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("terminalDocumentType", terminalDocumentTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
-                    "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
+                    "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType", "idTerminalHandbookType1DetailTerminalDocumentType"};
             LP<?>[] properties = terminalHandlerLM.findProperties("id[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
-                    "idTerminalHandbookType1[TerminalDocumentType]", "idTerminalHandbookType2[TerminalDocumentType]");
+                    "idTerminalHandbookType1[TerminalDocumentType]", "idTerminalHandbookType2[TerminalDocumentType]", "idTerminalHandbookType1Detail[TerminalDocumentType]");
             for (int i = 0; i < properties.length; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
             }
@@ -1427,7 +1427,8 @@ public class DefaultTerminalHandler {
                 Long flag = (Long) entry.get("flagTerminalDocumentType");
                 String analytics1 = StringUtils.trim((String) entry.get("idTerminalHandbookType1TerminalDocumentType"));
                 String analytics2 = StringUtils.trim((String) entry.get("idTerminalHandbookType2TerminalDocumentType"));
-                terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, flag));
+                String detail_analytics1 = StringUtils.trim((String) entry.get("idTerminalHandbookType1DetailTerminalDocumentType"));
+                terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, detail_analytics1, flag));
             }
         }
         return terminalDocumentTypeList;
@@ -1664,13 +1665,16 @@ public class DefaultTerminalHandler {
         public String name;
         public String analytics1;
         public String analytics2;
+
+        public String detail_analytics1;
         public Long flag;
 
-        public TerminalDocumentType(String id, String name, String analytics1, String analytics2, Long flag) {
+        public TerminalDocumentType(String id, String name, String analytics1, String analytics2, String detail_analytics1, Long flag) {
             this.id = id;
             this.name = name;
             this.analytics1 = analytics1;
             this.analytics2 = analytics2;
+            this.detail_analytics1 = detail_analytics1;
             this.flag = flag;
         }
     }
