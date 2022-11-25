@@ -124,9 +124,13 @@ META defineDocumentIncoming(doc, prop, container, legal, partner)
     prop 'Документ на отгрузку товара' (###doc d) = GROUP CONCAT prop(d, LotType t) + '(' + name(t) + ')', ',' ORDER t CHARWIDTH 30;
     
     get###prop 'Запросить из ГИС МТ' (###doc i, LotType t) {
-        getIncomingDocuments(legal(i), partner(i), t, 'WAIT_ACCEPTANCE');
-        IF documentIndex() THEN
-            prop(i, t) <- number(documentIndex());
+        IF url() THEN {
+            getIncomingDocuments(legal(i), partner(i), t, 'WAIT_ACCEPTANCE');
+            IF documentIndex() THEN
+            prop(i, t) <- number(documentIndex());             
+        } ELSE {
+            MESSAGE 'Не задан url к стенду ГИС МТ' NOWAIT;
+        }
     }
     
     FORM change###prop 'Документ на отгрузку товара'
