@@ -511,7 +511,7 @@ resetSuppliers(){
 suppliers 'suppliers' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
-        filterABM(LegalEntity s) <- TRUE WHERE toSentABM(s) AND active(s);
+        filterABM(LegalEntity s) <- TRUE WHERE toSentABM(s);
     } 
     resetSuppliers();    
     fillSuppliers(d);
@@ -895,6 +895,9 @@ exportAll 'Все файлы' (DATE d) {
     filterABM(Sku s) <- TRUE WHERE (GROUP SUM 1 IF filterABM(s, Stock st)) OR stateABMSent(s);
     filterABM(SkuGroup s) <- active(s) OR stateABMSent(s);    
     filterABM(LegalEntity l) <- TRUE WHERE toSentABM(l);
+    filterABM(PriceList s) <- TRUE WHERE toSentABM(s,d);
+    filterABM(PriceList p, Stock st, Sku s) <- TRUE WHERE filterABM(p) AND filterABM(st) AND
+        ((in(p,st)  AND userPriceListDetail(p,s)) OR stateABMSent(p,st,s)) AND NOT skipSentABM(s);
     
     zippingPath(STRING[1000] s) <- NULL;
     
