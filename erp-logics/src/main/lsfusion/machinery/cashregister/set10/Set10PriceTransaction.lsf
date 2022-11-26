@@ -5,6 +5,7 @@ REQUIRE MachineryPriceTransactionStockTax, NativeMachinery, Item, CashRegisterPr
 NAMESPACE Set10;
 
 @defineLogRotate(set10, 5, weekly);
+useOutSet10Log 'Логировать исх. запросы set10' = DATA BOOLEAN ();
 
 isSet10 (GroupCashRegister g) = TRUE IF handlerModel(g) = 'lsf.set10';
 idStoreSet 'Код магазина Set10' = DATA STRING[20] (GroupCashRegister);
@@ -30,13 +31,14 @@ EXTEND FORM groupsCashRegister
 urlServerSet10 'Адрес:порт сервера SET10' = DATA STRING ();
 
 EXTEND FORM integrationData
-    PROPERTIES urlServerSet10();
+    PROPERTIES urlServerSet10(), useOutSet10Log();
 
 DESIGN integrationData{
     pane{
         NEW set10{
             caption = 'SET10';
             MOVE PROPERTY (urlServerSet10());
+            MOVE PROPERTY (useOutSet10Log());
         }
     }
 }
@@ -202,7 +204,7 @@ getFeedback(MachineryPriceTransaction t){
             EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/FeedbackWS' HEADERS headersSet 
                 PARAMS exportFile() TO answer;
             fileToString(answer());
-            logToFile('set10', (CONCAT ' ', 'Get Feedback', s, resultString()));
+            IF useOutSet10Log() THEN logToFile('set10', (CONCAT ' ', 'Get Feedback', s, resultString()));
             IMPORT getFeedbackAnswer XML FROM answer();
             CASE
                 WHEN status() = '2' THEN message() <- CONCAT '\n', message(), s, status_message();

@@ -1,6 +1,6 @@
 MODULE Set10Seller;
 
-REQUIRE Set10PriceTransaction, EmployeeStock, EmployeeBarcode;
+REQUIRE Set10WebServer, EmployeeStock, EmployeeBarcode;
 
 NAMESPACE Set10;
 
@@ -38,7 +38,7 @@ FORM requestSellers FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/
 ;
 
 //обработка ответа
-GROUP body EXTID 'soap:Body';
+//GROUP body1 EXTID 'soap:Body';
 GROUP importSellersResponse 
     EXTID 'ns2=http://ws.sellers.ERPIntegration.crystals.ru/:importSellersResponse' : bodyAnswer;
 
@@ -82,9 +82,9 @@ uploadSellersSet10 'Выгрузить продавцов' (){
         }
     }
 }
-
+fillSellerReceipt 'Заполнять продавцов в чеках' = DATA BOOLEAN () PREREAD;
 EXTEND FORM integrationData
-    PROPERTIES() uploadSellersSet10, useShopIndex
+    PROPERTIES() uploadSellersSet10, useShopIndex, fillSellerReceipt
 ;
 
 DESIGN integrationData{
@@ -93,7 +93,18 @@ DESIGN integrationData{
             caption = 'Продавцы';
             MOVE PROPERTY (useShopIndex());
             MOVE PROPERTY (uploadSellersSet10());
+            MOVE PROPERTY (fillSellerReceipt());
         }
     }
 }
 
+seller = DATA Employee (ReceiptDetail) INDEXED;
+nameSeller 'Продавец' (ReceiptDetail d) = name(seller(d));
+
+overCreateReceiptDetail(ReceiptDetail d, INTEGER i) +{
+    IF key(i) = 'seller' AND fillSellerReceipt() THEN seller(d) <- idBarcode(value(i));
+}
+
+EXTEND FORM zReports
+    PROPERTIES nameSeller(d)
+;
