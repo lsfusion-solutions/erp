@@ -18,7 +18,7 @@ sold(DATE d, Sku s, DATE df, DATE dt) = GROUP SUM quantitySold(s, Stock st, d, d
 balance(DATE d, Sku s, DATE df, DATE dt) = GROUP SUM balanceA(s, Stock st, d) IF iterate(d, df, dt) AND selectDepartmentStore(st);
  
 nameSku 'Наименование' = DATA LOCAL ISTRING ();
-barcodeSku 'Штрихкод' = DATA LOCAL ISTRING ();
+barcodeSku 'Штрихкод' = DATA LOCAL NESTED ISTRING ();
 customSelectDepartmentStore ABSTRACT LIST ();
 
 departmentStore '' ()  {
@@ -138,7 +138,40 @@ backgroundBalanceTo = ABSTRACT CASE COLOR (Sku, Stock, DATE);
 backgroundBalanceTo(Sku s, Stock st, DATE d) += WHEN balanceA(s, st, d) THEN RGB(191, 252, 188);
 backgroundBalanceTo(Sku s, Stock st, DATE d) += WHEN NOT balanceA(s, st, d) AND d IS DATE THEN RGB(255, 204, 204);
 
-scanBacrode 'Сканер'(){}
+onWebClientLoad() +{ INTERNAL CLIENT 'barcode.js'; }
+
+barcodeRender INTERNAL CLIENT 'barcodeRender'();
+
+resultR = DATA LOCAL TEXT ();
+
+takeBarcode(){
+    INPUT t = TEXT DO {
+        barcodeSku() <- t;
+        formClose();
+    }
+}
+
+FORM barcode
+    PROPERTIES resultR() CUSTOM 'barcodeRender' ON CHANGE {
+        INPUT t = TEXT DO {
+            barcodeSku() <- t;
+            formClose();
+        }
+    }
+    
+;
+
+DESIGN barcode{
+    caption = 'Нажмите для сканирования...';
+    height = 600;
+    width = 400;
+    OBJECTS {
+        alignment = STRETCH;
+        MOVE PROPERTY (resultR()) {alignment = STRETCH; fill = 3; caption = ''; }
+    }
+}
+
+scanBacrode 'Сканер' () { SHOW barcode; }
 
 FORM skuInfoMobile 'Инфо о товаре(mobile)'
     OBJECTS intervalDate = INTERVAL[DATE] PANEL
@@ -281,7 +314,7 @@ EXTEND FORM skuInfoMobile PROPERTIES READONLY nameA(sg) SHOWIF show###attribute(
 DESIGN skuInfoMobile{ 
     itemInfo{
         MOVE PROPERTY (nameA(sg)) BEFORE PROPERTY (showImage(sg));
-    }    
+    }
 }
 END 
 

@@ -6,15 +6,19 @@ NAMESPACE MobileReport;
 
 in = DATA LOCAL NESTED BOOLEAN (DepartmentStore);
 dataMobileName = DATA STRING[20] (Stock);
-mobileName 'Наименование mobile' (Stock s) = OVERRIDE dataMobileName(s), STRING[20](name(s));
+overMobileName 'Наименование mobile' (Stock s)=  OVERRIDE dataMobileName(s), STRING[20](name(s));
+
+index (Stock s) = PARTITION SUM 1 IF in(s) ORDER s BY overMobileName(s);
+
+mobileName 'Наименование mobile' (Stock s) = CONCAT '-', overMobileName(s);
 
 EXTEND FORM departmentStore
-    PROPERTIES (d) mobileName
+    PROPERTIES (d) overMobileName
 ;
 
 DESIGN departmentStore{
     headerExtraParams{
-        MOVE PROPERTY (mobileName(d));
+        MOVE PROPERTY (overMobileName(d));
     }
 }
 
@@ -32,7 +36,7 @@ clear 'Очистить' (){
 
 FORM departmentStores 'Отделы магазинов'
     OBJECTS sds = DepartmentStore
-    PROPERTIES (sds) mobileName BACKGROUND #A0A0FE IF in(sds) ON CHANGE { in(sds) <- NOT in(sds); }
+    PROPERTIES (sds) overMobileName BACKGROUND #A0A0FE IF in(sds) ON CHANGE { in(sds) <- NOT in(sds); }
     PROPERTIES fill(), clear()
     
     FILTERS active(sds), accessCompany(sds)
@@ -42,7 +46,7 @@ DESIGN departmentStores {
     GRID(sds) {
         headerHeight = 1;
         REMOVE TOOLBARBOX (sds);
-        PROPERTY (mobileName(sds)) { changeOnSingleClick = TRUE; }
+        PROPERTY (overMobileName(sds)) { changeOnSingleClick = TRUE; }
         PROPERTY (fill()) {alignment = STRETCH ;};
         PROPERTY (clear()) {alignment = STRETCH ;};
     }
