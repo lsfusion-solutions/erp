@@ -16,9 +16,23 @@ DESIGN options {
     }
 }
 
+dataLimitCalcPriceListType  = DATA CalcPriceListType (Operation);
+nameDataLimitCalcPriceListType 'Предельная цена от цены изготовителя' (Operation operation)= name(dataLimitCalcPriceListType(operation));
+
+EXTEND FORM operation
+    PROPERTIES(o) nameDataLimitCalcPriceListType
+;
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(nameDataLimitCalcPriceListType(o));
+    }
+}
+
+limitCalcPriceListType (Operation operation) = OVERRIDE dataLimitCalcPriceListType(operation), limitSaleCalcPriceListType();
+
 limitSaleMarkupPrice(UserOrderDetail d) = round([ X*(Y+100)/100](
                                               manufacturingPrice(d),
-                                              markup(limitSaleCalcPriceListType(), sku(d))), roundCondition(limitSaleCalcPriceListType())); 
+                                              markup(limitCalcPriceListType(operation(d)), sku(d))), roundCondition(limitCalcPriceListType(operation(d)))); 
 
 WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail]
            (CHANGED(price(UserOrderDetail d)) OR CHANGED(sku(d)) OR CHANGED(manufacturingPrice(d)) OR SET(showManufacturingPrice(d))) AND
@@ -29,7 +43,7 @@ WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail]
 
 limitSaleMarkupPrice(UserInvoiceDetail d) = round([ X*(Y+100)/100](
                                               manufacturingPrice(d),
-                                              markup(limitSaleCalcPriceListType(), sku(d))), roundCondition(limitSaleCalcPriceListType())); 
+                                              markup(limitCalcPriceListType(operation(d)), sku(d))), roundCondition(limitCalcPriceListType(operation(d)))); 
 
 WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail]
            (CHANGED(price(UserInvoiceDetail d)) OR CHANGED(sku(d)) OR CHANGED(manufacturingPrice(d)) OR SET(showManufacturingPrice(d))) AND
