@@ -146,6 +146,8 @@ stateABMTime 'Время статуса' = DATA  DATETIME(Stock, LegalEntity, Se
 stateABMSent (Stock st, LegalEntity l, Separation s) = stateABM(st,l,s)!=State.NA;
 scheduleOrder = DATA  Purchase.ScheduleOrder(Stock, LegalEntity, Separation) TABLE scheduleOrderABM;
 
+TABLE ABMInvoiceShipments (Purchase.Invoice);
+stateABMTime 'Время статуса' = DATA  DATETIME(Purchase.Invoice) TABLE ABMInvoiceShipments;
 TABLE shipmentsABMInvoice (Purchase.InvoiceDetail); 
 quantityABM = DATA NUMERIC[16,5] (Purchase.InvoiceDetail) TABLE shipmentsABMInvoice;
 stateABMTime 'Время статуса' = DATA  DATETIME(Purchase.InvoiceDetail) TABLE shipmentsABMInvoice;
@@ -694,9 +696,7 @@ shipments 'shipments' (DATE d, BOOLEAN single) {
         WHERE filterABM(dd);       
     sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL);          
 }
-//sentABM(DATE d, BOOLEAN single)+{
-//    shipments(d,single);
-//}
+@sendABM(shipments);
 // Таблица 8
 //Данные о закрытии размещенных заказов
 orderclose 'orderclose' (DATE d, BOOLEAN single) {
@@ -817,10 +817,10 @@ promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
-        filterABM(PriceList s) <- TRUE WHERE toSentABM(s,d);
-        filterABM(PriceList p, Stock st, Sku s) <- TRUE WHERE filterABM(p) AND filterABM(st) AND 
-            ((in(p,st)  AND userPriceListDetail(p,s)) OR stateABMSent(p,st,s)) AND NOT skipSentABM(s);
     }
+    filterABM(PriceList s) <- TRUE WHERE toSentABM(s,d);
+    filterABM(PriceList p, Stock st, Sku s) <- TRUE WHERE filterABM(p) AND filterABM(st) AND
+                                                    ((in(p,st)  AND userPriceListDetail(p,s)) OR stateABMSent(p,st,s)) AND NOT skipSentABM(s);
     resetPromoheader();
     fillPromoheader(d);
     IF (GROUP SUM 1 IF filterABM (PriceList p)) THEN {
@@ -901,10 +901,6 @@ exportAll 'Все файлы' (DATE d) {
     filterABM(Sku s) <- TRUE WHERE (GROUP SUM 1 IF filterABM(s, Stock st)) OR stateABMSent(s);
     filterABM(SkuGroup s) <- active(s) OR stateABMSent(s);    
     filterABM(LegalEntity l) <- TRUE WHERE toSentABM(l);
-    filterABM(PriceList s) <- TRUE WHERE toSentABM(s,d);
-    filterABM(PriceList p, Stock st, Sku s) <- TRUE WHERE filterABM(p) AND filterABM(st) AND
-        ((in(p,st)  AND userPriceListDetail(p,s)) OR stateABMSent(p,st,s)) AND NOT skipSentABM(s);
-    
     zippingPath(STRING[1000] s) <- NULL;
     
     sentABM(d, NULL);
