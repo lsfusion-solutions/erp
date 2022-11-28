@@ -70,6 +70,7 @@ filterABM = DATA LOCAL BOOLEAN (Purchase.Order);
 filterABM = DATA LOCAL BOOLEAN (Purchase.OrderDetail);
 filterABM = DATA LOCAL BOOLEAN (PriceList);
 filterABM = DATA LOCAL BOOLEAN (PriceList, Stock, Sku);
+filterABMClose = DATA LOCAL BOOLEAN (Purchase.Order);
 
 resetFilterABM(){
     filterABM(Sku s)<- NULL;
@@ -84,6 +85,7 @@ resetFilterABM(){
     filterABM(Purchase.OrderDetail d) <- NULL;
     filterABM(PriceList s) <- NULL;
     filterABM(PriceList d, Stock s, Sku sk) <- NULL;
+    filterABMClose(Purchase.Order d) <- NULL;
 }
 
 chr = FORMULA TEXT 'chr($1)';
@@ -152,6 +154,8 @@ TABLE orderedABM(Purchase.Order);
 stateABM = DATA State (Purchase.Order) TABLE orderedABM;
 nameStateABM 'Статус в ABM'(Purchase.Order o)  = name(stateABM(o)) CHARWIDTH 7;
 stateABMTime 'Время статуса' = DATA  DATETIME(Purchase.Order) TABLE orderedABM;
+
+stateABMTimeClose 'Время статуса Close' = DATA  DATETIME(Purchase.Order) TABLE orderedABM;
 
 stateABM = DATA State (PriceList);
 nameStateABM 'Статус в ABM'(PriceList st)  = name(stateABM(st));
@@ -695,18 +699,20 @@ shipments 'shipments' (DATE d, BOOLEAN single) {
 //}
 // Таблица 8
 //Данные о закрытии размещенных заказов
-closedDate = ABSTRACT DATE (Purchase.Order);
 orderclose 'orderclose' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
     }
-    LOCAL filter = BOOLEAN (Purchase.Order);
-    filter(Purchase.Order o)<- TRUE WHERE numberABM(o) AND d == closedDate(o) AND filterABM(customerStock(o)) AND NOT shippedOrderDetail(o);
-
+    filterABMClose(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '_',1) AND shipmentDate(o)>=sum(d,-2) AND shipmentDate(o)<=d 
+                                            AND filterABM(customerStock(o)) AND isClosed(o) AND NOT stateABMTimeClose(o);
+    NEWSESSION NESTED LOCAL {
+        stateABMTimeClose (Purchase.Order o) <- currentDateTime() WHERE filterABMClose(o);
+        APPLY NESTED LOCAL;
+    }
     EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
         order_number = numberABM(Purchase.Order o)
-        WHERE filter(o);       
+        WHERE filterABMClose(o);       
     sentABM(d,single,currentDateTime(),'orderclose_', NULL, NULL);            
 }
 @sendABM(orderclose);
