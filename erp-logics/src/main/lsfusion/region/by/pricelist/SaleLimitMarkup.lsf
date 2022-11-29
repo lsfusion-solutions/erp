@@ -30,9 +30,11 @@ DESIGN operation {
 
 limitCalcPriceListType (Operation operation) = OVERRIDE dataLimitCalcPriceListType(operation), limitSaleCalcPriceListType();
 
+markupLimitCalcPriceListType 'Предельная надбавка, %' (UserOrderDetail d) = markup(limitCalcPriceListType(operation(d)), sku(d));
+
 limitSaleMarkupPrice(UserOrderDetail d) = round([ X*(Y+100)/100](
                                               manufacturingPrice(d),
-                                              markup(limitCalcPriceListType(operation(d)), sku(d))), roundCondition(limitCalcPriceListType(operation(d)))); 
+                                              markupLimitCalcPriceListType(d)), roundCondition(limitCalcPriceListType(operation(d)))); 
 
 WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail]
            (CHANGED(price(UserOrderDetail d)) OR CHANGED(sku(d)) OR CHANGED(manufacturingPrice(d)) OR SET(showManufacturingPrice(d))) AND
@@ -41,9 +43,15 @@ WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail]
     invoicePrice(d) <- round2(limitSaleMarkupPrice(d) * (100.0 (+) valueVAT(d)) / 100.0);
 }
 
+EXTEND FORM userOrder
+    PROPERTIES(d) READONLY SHOWIF (limitCalcPriceListType(operation(d)) AND showManufacturingPrice(d)) markupLimitCalcPriceListType
+;
+
+markupLimitCalcPriceListType 'Предельная надбавка, %' (UserInvoiceDetail d) = markup(limitCalcPriceListType(operation(d)), sku(d));
+
 limitSaleMarkupPrice(UserInvoiceDetail d) = round([ X*(Y+100)/100](
                                               manufacturingPrice(d),
-                                              markup(limitCalcPriceListType(operation(d)), sku(d))), roundCondition(limitCalcPriceListType(operation(d)))); 
+                                              markupLimitCalcPriceListType(d)), roundCondition(limitCalcPriceListType(operation(d)))); 
 
 WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail]
            (CHANGED(price(UserInvoiceDetail d)) OR CHANGED(sku(d)) OR CHANGED(manufacturingPrice(d)) OR SET(showManufacturingPrice(d))) AND
@@ -51,4 +59,7 @@ WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail]
     price(d) <- limitSaleMarkupPrice(d);          
     invoicePrice(d) <- round2(limitSaleMarkupPrice(d) * (100.0 (+) valueVAT(d)) / 100.0);
 }
-           
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLY SHOWIF (limitCalcPriceListType(operation(d)) AND showManufacturingPrice(d)) markupLimitCalcPriceListType
+;
