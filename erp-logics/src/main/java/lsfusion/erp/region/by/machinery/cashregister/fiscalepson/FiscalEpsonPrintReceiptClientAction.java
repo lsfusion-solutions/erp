@@ -14,8 +14,10 @@ public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
     Integer cardType;
     Integer giftCardType;
     boolean sendSKNO;
+    boolean resetTypeOfGoods;
     
-    public FiscalEpsonPrintReceiptClientAction(Integer comPort, Integer baudRate, Boolean isReturn, ReceiptInstance receipt, Integer cardType, Integer giftCardType, boolean sendSKNO) {
+    public FiscalEpsonPrintReceiptClientAction(Integer comPort, Integer baudRate, Boolean isReturn, ReceiptInstance receipt, Integer cardType, Integer giftCardType,
+                                               boolean sendSKNO, boolean resetTypeOfGoods) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.isReturn = isReturn;
@@ -23,6 +25,7 @@ public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
         this.cardType = cardType;
         this.giftCardType = giftCardType;
         this.sendSKNO = sendSKNO;
+        this.resetTypeOfGoods = resetTypeOfGoods;
     }
 
 
@@ -32,7 +35,7 @@ public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
             FiscalEpson.init();
 
             FiscalEpson.openPort(comPort, baudRate);
-            return FiscalEpson.printReceipt(receipt, !isReturn, cardType, giftCardType, sendSKNO);
+            return FiscalEpson.printReceipt(receipt, !isReturn, cardType, giftCardType, sendSKNO, resetTypeOfGoods);
 
         } catch (RuntimeException e) {
             try {

@@ -182,7 +182,7 @@ public class FiscalEpson {
         checkErrors(true);
     }
 
-    public static void registerItem(ReceiptItem item, boolean sendSKNO) throws RuntimeException {
+    public static void registerItem(ReceiptItem item, boolean sendSKNO, boolean resetTypeOfGoods) throws RuntimeException {
         printLine(sendSKNO && item.isGiftCard ? ("1 " + item.barcode) : item.barcode);
 
         boolean isGiftCardOrComission = item.isGiftCard || item.isCommission;
@@ -204,6 +204,12 @@ public class FiscalEpson {
         }
 
         Dispatch.call(epsonDispatch, "Sale");
+
+        if (sendSKNO && isGiftCardOrComission && resetTypeOfGoods) {
+            epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(0));
+            epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant(appendZeroes("")));
+        }
+
         checkErrors(true);
 
     }
@@ -291,13 +297,13 @@ public class FiscalEpson {
         } else return null;
     }
 
-    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType, boolean sendSKNO) {
+    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType, boolean sendSKNO, boolean resetTypeOfGoods) {
         Integer offsetBefore = getElectronicJournalReadOffset();
         openReceipt(receipt.cashier, sale ? 1 : 2);
         DecimalFormat formatter = getFormatter();
         printLine(receipt.comment);
         for (ReceiptItem item : receipt.receiptList) {
-            registerItem(item, sendSKNO);
+            registerItem(item, sendSKNO, resetTypeOfGoods);
             discountItem(item, !sale, formatter);
             printLine(item.vatString);
             printLine(item.comment);
