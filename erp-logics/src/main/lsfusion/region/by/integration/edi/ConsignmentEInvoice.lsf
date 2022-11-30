@@ -1,6 +1,6 @@
 MODULE ConsignmentEInvoice;
 
-REQUIRE SupplierEInvoiceEDI, Invoice, ConsignmentBy;
+REQUIRE SupplierEInvoice, Invoice, ConsignmentBy;
 
 NAMESPACE Consignment;
 
@@ -24,7 +24,7 @@ loadDefaultNumerators() + {
 }
 
 generateSeriesNumber 'Сгенерировать номер'(EInvoice o)  { 
-    deliveryNoteNumber(o) <- prefix(EDIProviderInvoice(customer(o))) + (OVERRIDE GLN(supplier(o)), extraGLN(supplier(o))) + '-' + curStringValue(defaultNumeratorDeliveryNoteNumber()); //ССС-GGGGGGGGGGGGG-NNNNNNNNNN
+    deliveryNoteNumber(o) <- prefix(EDIProviderInvoice(customer(o), supplier(o))) + (OVERRIDE GLN(supplier(o)), extraGLN(supplier(o))) + '-' + curStringValue(defaultNumeratorDeliveryNoteNumber()); //ССС-GGGGGGGGGGGGG-NNNNNNNNNN
     incrementValueSession(defaultNumeratorDeliveryNoteNumber());
 }
 
@@ -251,32 +251,6 @@ createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice)  {
     }
 }
 
-UNPfullNamePayer (Invoice i) = CONCAT ', ', UNPPayer(i), fullNamePayer(i);
-UNPfullNameSupplier (Invoice i) = CONCAT ', ', UNPSupplier(i), fullNameSupplier[Consignment](i);
-addressSupplierAddressSupplierStock (Invoice i) = CONCAT ', ', addressSupplier[Consignment](i), addressSupplierStock[Consignment](i);
-infoCustomerBase (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consignment](i), addressCustomer[Consignment](i), shipmentBase(i);
-numberDate (Invoice i) = CONCAT ', ', number(i), toDateDDMMYY(date(i));
-nameProvider (Invoice i) = name(EDIProviderInvoice(customer(eInvoice(i))));
-
-//-- old
-FORM consignmentEInvoice 'РЕЕСТР'
-    OBJECTS i = Invoice PANEL SUBREPORT
-    PROPERTIES(i) READONLY UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock,
-                           date, nameTruck, overWaybill, nameDriver, trailer, number, numberDate, infoCustomerBase,
-                           grossWeightConsignmentDetail, overPackQuantityConsignmentDetail, sumVATConsignmentDetail,
-                           sumInvoiceConsignmentDetail, forwarder, overGoodsAccepted, numberEInvoice, nameProvider
-;
-
-FORM attachmentEInvoice 'Приложение'
-    OBJECTS i = Invoice PANEL SUBREPORT
-    PROPERTIES(i) READONLY number, date
-    
-    OBJECTS d = InvoiceDetail
-    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, quantity, price, sum, valueVAT, VATSum, invoiceSum,
-                           packQuantity, sumGrossWeight, idSku
-    FILTERS invoice(d) == i
-;
-
 UNPfullNamePayer (EInvoice i) = CONCAT ', ', UNP(freightPayer(i)), fullName(freightPayer(i));
 UNPfullNameSupplier (EInvoice i) = CONCAT ', ', unpSupplier(i), nameSupplier(i);
 addAddressSupplier = ABSTRACT ISTRING[50] (EInvoice);
@@ -288,7 +262,7 @@ infoCustomerBase (EInvoice i) = CONCAT ', ', unpCustomer(i), nameCustomer(i), ad
 include 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
 multy  = DATA LOCAL BOOLEAN ();
 
-nameProvider (EInvoice e) = name(EDIProviderInvoice(customer(e)));
+nameProvider (EInvoice e) = name(EDIProviderInvoice(customer(e), supplier(e)));
 
 FORM EInvoiceConsignment 'РЕЕСТР'
     OBJECTS e = EInvoice  
@@ -353,8 +327,6 @@ printConsignmentEAttachmentXLSX 'Приложение (xlsx)' (Invoice i)  {
 
 
 include 'Вкл.' = DATA LOCAL BOOLEAN (Invoice);
-countInclude() = GROUP SUM 1 IF include(Invoice i);
-maxInclude() = GROUP MAX Invoice i IF include(i);
 
 printConsignmentEInvoices 'Реестр ТТН (несколько)' ()  { 
     IF NOT ([ GROUP SUM 1 IF [GROUP SUM 1 IF include(Invoice i) BY fromStock(i)](Stock st)]() >1 OR 
@@ -373,30 +345,6 @@ printConsignmentEInvoices 'Реестр ТТН (несколько)' ()  {
 
 } IMAGE 'print.png';
 
-UNPfullNamePayer () = CONCAT ', ', UNPPayer(maxInclude()), fullNamePayer(maxInclude());
-addressPayer () = addressPayer(maxInclude());
-UNPfullNameSupplier () = CONCAT ', ', UNPSupplier(maxInclude()), fullNameSupplier[Consignment](maxInclude());
-addressSupplier () = addressSupplier[Consignment](maxInclude());
-date () = date(maxInclude());
-nameTruck () = nameTruck(maxInclude());
-overWaybill () = overWaybill(maxInclude());
-nameDriver () = nameDriver(maxInclude());
-forwarder () = forwarder(maxInclude());
-infoCustomer (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consignment](i), addressCustomer[Consignment](i);
-
-FORM consignmentEInvoices 'РЕЕСТР'
-    PROPERTIES() UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplier, date, nameTruck, overWaybill, nameDriver, forwarder
-    OBJECTS i = Invoice SUBREPORT
-    PROPERTIES(i) READONLY numberDate, infoCustomer, overGoodsAccepted, nameProvider
-    FILTERS include(i)
-;
-
-//printConsignmentEInvoicesXLSX 'Реестр ТТН (xlsx) (несколько)' ()  { 
-//    PRINT consignmentEInvoices XLSX;
-//    FOR include(Invoice i) DO {
-//        PRINT attachmentEInvoice OBJECTS i = i XLSX;
-//    }
-//} IMAGE 'print.png';
 @addRoleApplicationSetting(showEditEInvoice, 'Показывать форму редактирования электронной ТТН', BOOLEAN);
 showEditEInvoiceCurrent () = showEditEInvoice(mainRole(currentUser()));
 

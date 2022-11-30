@@ -4,7 +4,7 @@ REQUIRE EDIGLN, LegalEntityBy, Item, Store, Warehouse, LogTools;
 
 @defineLogRotate(edi, 5, weekly);
 downloadEdi 'edi' () { downloadFiles('logs/edi.log'); }
-                          
+
 EXTEND FORM tools
     PROPERTIES() downloadEdi
 ;
@@ -15,11 +15,10 @@ DESIGN tools{
     }
 }
 
-
 DESIGN options {
     pane {
         NEW EDI {
-        caption = 'EDI';
+            caption = 'EDI';
         }
     }
 }
@@ -33,7 +32,7 @@ skuGTINa = GROUP MAX Sku s BY GTINBarcode(s);
 skuGTIN(STRING[15] s) = OVERRIDE skuGTINa(s), skuBarcode(s);
 
 CLASS ABSTRACT EOrder 'EDI Заказ';
-TABLE eOrder(EOrder); 
+TABLE eOrder(EOrder);
 
 exported 'Экспортирован' = DATA BOOLEAN (EOrder);
 exportedCanceled 'Экспортирован (отмена)' = DATA BOOLEAN (EOrder);
@@ -45,7 +44,7 @@ isReturn 'Возврат' = ABSTRACT BOOLEAN (EOrder);
 
 @defineOption(sendCurrentDateTime, 'Использовать текущую дату при отправке заказа поставщику', EDI);
 dateTime 'Дата/время документа' = ABSTRACT DATETIME (EOrder);
-sendDateTime (EOrder o) = OVERRIDE currentDateTime() IF sendCurrentDateTime() AND o IS EOrder, dateTime(o); 
+sendDateTime (EOrder o) = OVERRIDE currentDateTime() IF sendCurrentDateTime() AND o IS EOrder, dateTime(o);
 
 shipmentDateTime 'Дата/время поставки' = ABSTRACT DATETIME (EOrder);
 
@@ -67,7 +66,7 @@ nameCustomerStock 'Склад покупателя' (EOrder o) = name(customerSt
 note 'Примечание' = ABSTRACT ISTRING[500] (EOrder);
 
 CLASS ABSTRACT EOrderDetail 'Строка EDI Заказа';
-TABLE eOrderDetail(EOrderDetail); 
+TABLE eOrderDetail(EOrderDetail);
 
 order = ABSTRACT EOrder(EOrderDetail);
 
@@ -92,51 +91,67 @@ valueVAT 'НДС, %' = ABSTRACT NUMERIC[10,5] (EOrderDetail);
 responseDetail = DATA EOrderResponseDetail(EOrderDetail) INDEXED;
 localIndexSku = DATA LOCAL INTEGER (EOrderDetail);
 fillIndexSku ABSTRACT LIST (EOrder);
-fillIndexSku(EOrder o) + {localIndexSku(EOrderDetail  d) <- PARTITION SUM 1 ORDER d BY sku(d), order(d) WHERE order(d) == o;}
+fillIndexSku(EOrder o) + {localIndexSku(EOrderDetail d) <- PARTITION SUM 1 ORDER d BY sku(d), order(d) WHERE order(d) == o;}
 
 CLASS EDIProvider 'Провайдер EDI' : StaticObject;
 prefix = ABSTRACT CASE STRING[4](EDIProvider);
 name = ABSTRACT CASE STRING[100](EDIProvider);
 
 FORM EDIProviders 'Провайдеры EDI'
-    OBJECTS t=EDIProvider
+    OBJECTS t = EDIProvider
     PROPERTIES (t) READONLY staticCaption
     LIST EDIProvider OBJECT t
 ;
 
-DESIGN EDIProviders { 
+DESIGN EDIProviders {
     size = (600, 400);
     PROPERTY (staticCaption(t)){caption = 'Наименование';};
 }
 
-
 GLNSupplier(EOrder e) = OVERRIDE GLN(supplier(e)), extraGLN(supplier(e));
 GLNCustomer(EOrder e) = OVERRIDE GLN(customer(e)), extraGLN(customer(e));
 
-notUseStockGLN 'Не использовать GLN склада для заказа' = DATA BOOLEAN  (LegalEntity);
+notUseStockGLN 'Не использовать GLN склада для заказа' = DATA BOOLEAN (LegalEntity);
 banCancel 'Запретить отмену заказа' = DATA BOOLEAN(LegalEntity);
 hourToSend 'Возможна повторная отправка до' = DATA TIME(LegalEntity);
-EDIProvider 'Провайдер EDI' = DATA EDIProvider(LegalEntity);
-nameEDIProvider 'Провайдер EDI'(LegalEntity l) = staticCaption(EDIProvider(l));
+EDIProvider 'EDI-провайдер' = DATA EDIProvider(LegalEntity);
+nameEDIProvider 'EDI-провайдер'(LegalEntity l) = staticCaption(EDIProvider(l));
+
 dataEDIProviderInvoice 'Провайдер EDI для накладных' = DATA EDIProvider(LegalEntity);
-EDIProviderInvoice(LegalEntity l) = OVERRIDE dataEDIProviderInvoice(l), EDIProvider(l);
-nameEDIProviderInvoice 'Провайдер EDI для накладных'(LegalEntity l) = staticCaption(EDIProviderInvoice(l));
 
 EXTEND FORM legalEntity
- PROPERTIES(l) GLN, nameEDIProvider, nameEDIProviderInvoice, notUseInStockGLN
- PROPERTIES(l) SHOWIF isSupplier(l) notUseStockGLN, banCancel, hourToSend;
- 
+    PROPERTIES(l) GLN, nameEDIProvider, notUseInStockGLN
+    PROPERTIES(l) SHOWIF isSupplier(l) notUseStockGLN, banCancel, hourToSend
+
+    OBJECTS eCom = LegalEntity
+    PROPERTIES (eCom) READONLY name, id, UNP
+    FILTERS isCompany(eCom)
+;
+
 DESIGN legalEntity {
-    column2{
-        NEW EDI {
+    extendContainer {
+        NEW EDITab {
             caption = 'EDI';
-            MOVE PROPERTY (GLN(l));
-            MOVE PROPERTY (notUseInStockGLN(l));
-            MOVE PROPERTY (notUseStockGLN(l));
-            MOVE PROPERTY (nameEDIProvider(l));
-            MOVE PROPERTY (nameEDIProviderInvoice(l));
-            MOVE PROPERTY (banCancel(l));
-            MOVE PROPERTY (hourToSend(l));
+            type = CONTAINERV;
+            fill = 1;
+            NEW EDI {
+                type = CONTAINERH;
+                NEW EDIComm {
+                    type = CONTAINERV;
+                    caption = 'Общие';
+                    MOVE PROPERTY (GLN(l));
+                    MOVE PROPERTY (notUseInStockGLN(l));
+                    MOVE PROPERTY (nameEDIProvider(l));
+                }
+                NEW EDIOrder{
+                    type = CONTAINERV;
+                    caption = 'Заказы';
+                    MOVE PROPERTY (notUseStockGLN(l));
+                    MOVE PROPERTY (banCancel(l));
+                    MOVE PROPERTY (hourToSend(l));
+                }
+            }
+            MOVE BOX (eCom) {caption = 'Компании';};
         }
     }
 }
@@ -151,41 +166,41 @@ GLNSupplierStock 'GLN поставщика' (EOrder e) = IF notUseStockGLN(suppl
 GLNSupplierStock1 'GLN склада поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplierStock(e));
 GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
 
-send 'Отправить'  ABSTRACT LIST ( EOrder);
-overSend  ABSTRACT LIST ( EOrder);
+send 'Отправить' ABSTRACT LIST ( EOrder);
+overSend ABSTRACT LIST ( EOrder);
 
 skipSend = ABSTRACT CASE BOOLEAN (EOrder);
 sendingCancelled = DATA LOCAL BOOLEAN();
 
-sendApply 'Отправить' (EOrder o)  { 
+sendApply 'Отправить' (EOrder o) {
     IF NOT skipSend(o) THEN NEWSESSION {
         send(o);
         IF NOT sendingCancelled() THEN
             APPLY;
     } ELSE {
-        overSend(o);    
-    }    
+        overSend(o);
+    }
 }
 
-cancel 'Отменить'  ABSTRACT LIST ( EOrder);
+cancel 'Отменить' ABSTRACT LIST ( EOrder);
 
-toSend (EOrder o) = IF NOT exported(o) THEN TRUE ELSE IF banCancel(supplier(o)) AND currentDateTime() < dateTimeToDateTime(DATE(dateTime(o)),hourToSend(supplier(o))) THEN TRUE;
-showCancel (EOrder o) = IF NOT banCancel(supplier(o)) THEN TRUE ELSE IF currentDateTime() > dateTimeToDateTime(DATE(dateTime(o)),hourToSend(supplier(o))) THEN TRUE;
+toSend (EOrder o) = IF NOT exported(o) THEN TRUE ELSE IF banCancel(supplier(o)) AND currentDateTime() < dateTimeToDateTime(DATE(dateTime(o)), hourToSend(supplier(o))) THEN TRUE;
+showCancel (EOrder o) = IF NOT banCancel(supplier(o)) THEN TRUE ELSE IF currentDateTime() > dateTimeToDateTime(DATE(dateTime(o)), hourToSend(supplier(o))) THEN TRUE;
 
 FORM eOrders 'Заказы EDI'
     OBJECTS o = EOrder
-    PROPERTIES(o) READONLY exported CHANGEABLE, isCancel, exportedCanceled CHANGEABLE, isClosed, isReturn, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, 
-                  nameEDIProvider, GLNSupplierStock, nameCustomer, nameCustomerStock, note
+    PROPERTIES(o) READONLY exported CHANGEABLE, isCancel, exportedCanceled CHANGEABLE, isClosed, isReturn, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock,
+        nameEDIProvider, GLNSupplierStock, nameCustomer, nameCustomerStock, note
     PROPERTIES(o) sendApply TOOLBAR
-    FILTERGROUP isEdi 
+    FILTERGROUP isEdi
         FILTER 'EDI поставщик' EDIProvider(supplier(o)) 'F5' DEFAULT
-    FILTERGROUP orderfilters6 
+    FILTERGROUP orderfilters6
         FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
-    
+
     OBJECTS d = EOrderDetail
     PROPERTIES(d) READONLY idBarcode, GTINBarcode, idSku, nameSku, extraCodeUOMSku, quantity, price
     PROPERTIES(d) NEW, DELETE GRID
-    
+
     FILTERS order(d) == o
 ;
 
@@ -218,10 +233,10 @@ currentOrderMessage = GROUP LAST EOrderMessage m ORDER priority(m), dateTime(m),
 statusDescription 'Статус отправки EDI'(EOrder o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
 
 EXTEND FORM eOrders
-OBJECTS m = EOrderMessage
-PROPERTIES(m) READONLY numberEOrder, dateTime, code, description
-FILTERS eOrder(m) == o
-ORDERS dateTime(m);
+    OBJECTS m = EOrderMessage
+    PROPERTIES(m) READONLY numberEOrder, dateTime, code, description
+    FILTERS eOrder(m) == o
+    ORDERS dateTime(m);
 
 DESIGN eOrders {
     tab {
@@ -264,7 +279,7 @@ dateTimeCreated 'Дата/время создания' = DATA DATETIME (EOrderRe
 dateTimeCreated(EOrderResponse e) <- currentDateTime() WHEN SET(e IS EOrderResponse);
 
 CLASS EOrderResponseDetail 'Строка ответа по заказу EDI';
-TABLE eOrderResponseDetail(EOrderResponseDetail); 
+TABLE eOrderResponseDetail(EOrderResponseDetail);
 @defineExternalizable(eOrderResponseDetail, STRING[100]);
 
 CLASS EOrderResponseDetailAction 'Решение' {
@@ -293,8 +308,8 @@ sumNDS 'Сумма с НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
 
 FORM eOrderResponses 'Ответы по Заказам EDI'
     OBJECTS o = EOrderResponse
-    PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameEDIProvider, nameCustomer, 
-                           nameCustomerStock, deliveryDateTime, deliveryDateTimeSecond, dateTimeCreated, note
+    PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameEDIProvider, nameCustomer,
+        nameCustomerStock, deliveryDateTime, deliveryDateTimeSecond, dateTimeCreated, note
 
     OBJECTS d = EOrderResponseDetail
     PROPERTIES(d) READONLY idBarcode, dataGTIN, GTINBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS
@@ -328,7 +343,7 @@ customerStock 'Склад покупателя' = DATA Stock (EOrderDespatchAdvi
 nameCustomerStock 'Склад покупателя' (EOrderDespatchAdvice o) = name(customerStock(o));
 
 CLASS EOrderDespatchAdviceDetail 'Строка ответа по заказу EDI';
-TABLE eOrderEOrderDespatchAdviceDetail(EOrderDespatchAdviceDetail); 
+TABLE eOrderEOrderDespatchAdviceDetail(EOrderDespatchAdviceDetail);
 @defineExternalizable(eOrderDespatchAdviceDetail, STRING[100]);
 
 orderDespatchAdvice = DATA EOrderDespatchAdvice(EOrderDespatchAdviceDetail) NONULL DELETE INDEXED;
@@ -347,14 +362,14 @@ lineItemAmount 'Стоимость товарной позиции с НДС' = 
 lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[16,4] (EOrderDespatchAdviceDetail);
 
 FORM eOrderDespatchAdvices 'Уведомления об отгрузке EDI'
-OBJECTS o = EOrderDespatchAdvice
-PROPERTIES(o) READONLY dateTime, number, numberEOrder, deliveryNoteNumber, deliveryNoteDateTime, nameSupplier, nameEDIProvider, nameCustomer, nameCustomerStock, deliveryDateTime, note
+    OBJECTS o = EOrderDespatchAdvice
+    PROPERTIES(o) READONLY dateTime, number, numberEOrder, deliveryNoteNumber, deliveryNoteDateTime, nameSupplier, nameEDIProvider, nameCustomer, nameCustomerStock, deliveryDateTime, note
 
-OBJECTS d = EOrderDespatchAdviceDetail
-PROPERTIES(d) READONLY idBarcode, dataGTIN, GTINBarcode, nameSku, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, 
-                lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
+    OBJECTS d = EOrderDespatchAdviceDetail
+    PROPERTIES(d) READONLY idBarcode, dataGTIN, GTINBarcode, nameSku, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice,
+        lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
 
-FILTERS orderDespatchAdvice(d) == o
+    FILTERS orderDespatchAdvice(d) == o
 ;
 
 //-----------------------------------------Электронная накладная----------------------------------------------//
@@ -364,7 +379,7 @@ TABLE eInvoice(EInvoice);
 isTN2 'ТН-2' = DATA BOOLEAN (EInvoice);
 
 dateTimeCreated 'Создана' = DATA DATETIME (EInvoice);
-dateTimeCreated(EInvoice i) <- currentDateTime() WHEN (i IS EInvoice); 
+dateTimeCreated(EInvoice i) <- currentDateTime() WHEN (i IS EInvoice);
 
 @defineExternalizable(eInvoice, STRING[100]);
 
@@ -449,14 +464,14 @@ userIDCustomerStock 'Идентификатор пользователя' (EInvo
 customSelectContactCustomerStock = ABSTRACT BOOLEAN (EInvoice);
 overSelectContactCustomerStock ABSTRACT (EInvoice);
 
-changeContactCustomerStock (EInvoice consignment)  {  
+changeContactCustomerStock (EInvoice consignment) {
     IF customSelectContactCustomerStock(consignment) THEN {
         overSelectContactCustomerStock(consignment);
     } ELSE {
         INPUT s = contactCustomerStock(consignment) DO {
             contactCustomerStock(consignment) <- s;
         }
-    }  
+    }
 }
 
 transportContact 'ФИО водителя' = DATA STRING[150] (EInvoice);
@@ -485,14 +500,14 @@ replaceNumber 'Номер заменяемой накладной' = DATA STRING
 
 CLASS EInvoiceDetail 'Строка электронной накладной EDI';
 TABLE eInvoiceDetail(EInvoiceDetail);
-TABLE sessionEInvoiceDetail(Session, EInvoiceDetail); 
+TABLE sessionEInvoiceDetail(Session, EInvoiceDetail);
 @defineExternalizable(eInvoiceDetail, STRING[100]);
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
 
 eInvoice = DATA EInvoice(EInvoiceDetail) NONULL DELETE INDEXED;
 
-dataIndex = DATA INTEGER (EInvoiceDetail) ; 
+dataIndex = DATA INTEGER (EInvoiceDetail) ;
 defaultIndex (EInvoiceDetail d) = PARTITION SUM 1 ORDER d BY eInvoice(d);
 lineItemNumber 'Порядковый номер' (EInvoiceDetail d) = OVERRIDE dataIndex(d), defaultIndex(d) MATERIALIZED;
 
@@ -515,11 +530,10 @@ quantityDespatched 'Кол-во отгружаемого товара' = DATA NU
 manufactureDate 'Дата изготовления' = DATA DATE (EInvoiceDetail);
 expiryDate 'Годен до' = DATA DATE (EInvoiceDetail);
 valueVAT 'НДС, %' = DATA STRING[7] (EInvoiceDetail); //по формату обмена именно строка и может прийти от поставщика  "Без НДС"
-changeValueVAT(EInvoiceDetail ed)  { 
+changeValueVAT(EInvoiceDetail ed) {
     INPUT n = NUMERIC[6,2] DO
         valueVAT(ed) <- STRING[7](n);
 }
-
 
 lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (EInvoiceDetail);
 lineItemManufacturerPrice 'Цена изготовителя за единицу товара' = DATA NUMERIC[16,4] (EInvoiceDetail);
@@ -530,9 +544,9 @@ lineItemExtraFields 'Дополнительная информация' = DATA S
 
 //получение информации из доп поля по имени
 lineItemExtraField (EInvoiceDetail d, STRING[255] name) =
-    GROUP MAX (getWord(getWord(lineItemExtraFields(d), ', ', INTEGER i),': ',2)) IF lineItemExtraFields(d)
-    AND getWord(getWord(lineItemExtraFields(d), ', ', i),': ',1) == name
-    AND iterate(i, 1, wordCount(lineItemExtraFields(d), ', '));
+    GROUP MAX (getWord(getWord(lineItemExtraFields(d), ', ', INTEGER i), ': ', 2)) IF lineItemExtraFields(d)
+        AND getWord(getWord(lineItemExtraFields(d), ', ', i), ': ', 1) == name
+        AND iterate(i, 1, wordCount(lineItemExtraFields(d), ', '));
 
 groupPackingCodeMark 'Код маркировки групповой упаковки' = DATA STRING[130] (EInvoiceDetail, INTEGER);
 upperLevelCodeMark 'Код маркировки групповой упаковки, в которую вложена описываемая упаковка' = DATA STRING[130] (EInvoiceDetail, INTEGER);
@@ -563,10 +577,10 @@ description 'Текст сообщения' = DATA STRING[1000] (EInvoiceMessage
 good = ABSTRACT CASE BOOLEAN (EInvoiceMessage);
 currentOrderMessage = GROUP LAST EInvoiceMessage m ORDER dateTime(m), m BY eInvoice(m) MATERIALIZED;
 statusDescription 'Статус отправки EDI'(EInvoice o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
-backgroundStatusDescription (EInvoice o) = RGB(255,238,238) IF currentOrderMessage(o) AND NOT good(currentOrderMessage(o));
+backgroundStatusDescription (EInvoice o) = RGB(255, 238, 238) IF currentOrderMessage(o) AND NOT good(currentOrderMessage(o));
 
 backgroundVAT 'Цвет' (EInvoiceDetail d) = IF sku(lineItemBuyerID(d)) AND NOT NUMERIC[10,5](valueVAT(d)) == valueVAT(sku(lineItemBuyerID(d)))
-                                                   THEN RGB(255,0,0);
+    THEN RGB(255, 0, 0);
 background = ABSTRACT CASE COLOR (EInvoice);
 
 CLASS EInvoiceMessageKind 'Вид сообщения по накладной EDI' {
@@ -600,17 +614,17 @@ FORM eInvoices 'Электронные накладные EDI'
     PROPERTIES(e) in
     PROPERTIES(e) READONLYIF isReadonly() isCancel
     PROPERTIES(e) BACKGROUND background(e) READONLY isTN2, numberSupplier, dateSupplier, deliveryNoteNumber, deliveryNoteDateTime,
-                  glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
-                  nameSupplierStock, nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock,
-                  dateTimeCreated, contractDate, contractName, contractId, replaceNumber
+        glnSupplier, nameSupplier, addressSupplier, unpSupplier,
+        nameSupplierStock, nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock,
+        dateTimeCreated, contractDate, contractName, contractId, replaceNumber
     PROPERTIES(e) contactCustomerStock, overReportId, overReportDate, overReportName
     FILTERGROUP notExported
-    
+
     OBJECTS d = EInvoiceDetail
     PROPERTIES(d) READONLY lineItemSign, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityDespatched, manufactureDate, expiryDate, valueVAT BACKGROUND backgroundVAT(d),
-     lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
-     grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, lineItemExtraFields,
-     deliveryTypePrev, deliveryNotePrev, deliveryNoteDatePrev, deliveryNotePrevLineID
+        lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
+        grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, lineItemExtraFields,
+        deliveryTypePrev, deliveryNotePrev, deliveryNoteDatePrev, deliveryNotePrevLineID
 
     FILTERS eInvoice(d) == e
 
@@ -634,7 +648,7 @@ DESIGN eInvoices {
                 type = CONTAINERH;
             }
         }
-        
+
         MOVE TOOLBARBOX {
             TOOLBAR(e) {
                 type = COLUMNS;
@@ -656,26 +670,26 @@ NAVIGATOR {
 }
 
 FORM eInvoice 'Электронная накладная EDI'
-    OBJECTS e = EInvoice PANEL 
-    PROPERTIES(e)  BACKGROUND background(e) dateSupplier, numberSupplier, 
-                   deliveryNoteNumber, deliveryNoteDateTime, dateTimeCreated,
-                   contractName, contractId, contractDate, waybillId SHOWIF NOT isTN2(e),
-                   nameSupplier, addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, contactSupplierStock,
-                   nameCustomer, addressCustomer, unpCustomer, nameCustomerStock, contactCustomerStock ON CHANGE changeContactCustomerStock(e),
-                   nameFreightPayer SHOWIF NOT isTN2(e), addressFreightPayer SHOWIF NOT isTN2(e), unpFreightPayer SHOWIF NOT isTN2(e),
-                   transportContact SHOWIF NOT isTN2(e), deliveryContact, proxyID, proxyDate, partyIssuingProxyName, 
-                   quantityTrip SHOWIF NOT isTN2(e), transportOwnerName SHOWIF NOT isTN2(e), transportID SHOWIF NOT isTN2(e), trailerID SHOWIF NOT isTN2(e),
-                   sealIDReceiver SHOWIF NOT isTN2(e), currency, orderID, replaceNumber
-    
+    OBJECTS e = EInvoice PANEL
+    PROPERTIES(e) BACKGROUND background(e) dateSupplier, numberSupplier,
+        deliveryNoteNumber, deliveryNoteDateTime, dateTimeCreated,
+        contractName, contractId, contractDate, waybillId SHOWIF NOT isTN2(e),
+        nameSupplier, addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, contactSupplierStock,
+        nameCustomer, addressCustomer, unpCustomer, nameCustomerStock, contactCustomerStock ON CHANGE changeContactCustomerStock(e),
+        nameFreightPayer SHOWIF NOT isTN2(e), addressFreightPayer SHOWIF NOT isTN2(e), unpFreightPayer SHOWIF NOT isTN2(e),
+        transportContact SHOWIF NOT isTN2(e), deliveryContact, proxyID, proxyDate, partyIssuingProxyName,
+        quantityTrip SHOWIF NOT isTN2(e), transportOwnerName SHOWIF NOT isTN2(e), transportID SHOWIF NOT isTN2(e), trailerID SHOWIF NOT isTN2(e),
+        sealIDReceiver SHOWIF NOT isTN2(e), currency, orderID, replaceNumber
+
     OBJECTS ed = EInvoiceDetail
     PROPERTIES (ed) lineItemSign, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityDespatched, manufactureDate, expiryDate, valueVAT ON CHANGE changeValueVAT(ed), lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount,
-                    lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, lineItemExtraFields,
-                    deliveryTypePrev, deliveryNotePrev, deliveryNoteDatePrev, deliveryNotePrevLineID
-     FILTERS eInvoice(ed) == e
+        lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, lineItemExtraFields,
+        deliveryTypePrev, deliveryNotePrev, deliveryNoteDatePrev, deliveryNotePrevLineID
+    FILTERS eInvoice(ed) == e
 ;
 
 DESIGN eInvoice {
-    GROUP (,e) {
+    GROUP (, e) {
         type = COLUMNS;
         columns = 2;
     }
@@ -686,7 +700,7 @@ DESIGN eInvoice {
     PROPERTY (contactSupplierStock(e)){notNull = TRUE;}
     PROPERTY (transportContact(e)){notNull = TRUE;} //(TRUE IF NOT isTN2(e));
     PROPERTY (deliveryContact(e)){notNull = TRUE;}
-    PROPERTY (transportID(e)){notNull = TRUE;}  //(TRUE IF NOT isTN2(e));
+    PROPERTY (transportID(e)){notNull = TRUE;} //(TRUE IF NOT isTN2(e));
     PROPERTY (currency(e)){notNull = TRUE;}
 }
 
@@ -708,10 +722,10 @@ EXTEND FORM eInvoices
 overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
     userShowGTIN(ng) <- userShowGTIN(itemGroup(g));
 }
-editAttributesEInvoice 'Заполнить атрибуты ЭТТН' (EInvoice i)  { 
-	NEWSESSION {   
-	    SHOW eInvoice OBJECTS e = i DOCKED; 
-	}
+editAttributesEInvoice 'Заполнить атрибуты ЭТТН' (EInvoice i) {
+    NEWSESSION {
+        SHOW eInvoice OBJECTS e = i DOCKED;
+    }
 } TOOLBAR IMAGE 'edit.png';
 
 EXTEND FORM eInvoices
@@ -724,8 +738,8 @@ sendRequestEDIStatus = DATA LOCAL INTEGER();
 
 basic = DATA LOCAL TEXT ();
 encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
-httpHeadersEDI(TEXT name) = CASE WHEN basic() AND name = 'Authorization' THEN  'Basic ' + basic(); 
-                              
+httpHeadersEDI(TEXT name) = CASE WHEN basic() AND name = 'Authorization' THEN 'Basic ' + basic();
+
 sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, XMLFILE request, BOOLEAN basicAuthorization, BOOLEAN client) {
     logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
     basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
@@ -751,21 +765,20 @@ requestError = DATA LOCAL NESTED TEXT();
 // todo : нужно переделать без входа xml и status
 importRequestResult(FILE xml, INTEGER status, TEXT root) {
     IF status == 200 THEN {
-        IMPORT XML ROOT root FROM xml TO succesful='Succesful', message='Message', errorCode='ErrorCode';
+        IMPORT XML ROOT root FROM xml TO succesful = 'Succesful', message = 'Message', errorCode = 'ErrorCode';
         IF succesful(0) == 'true' THEN {
             requestError() <- NULL;
         } ELSE {
             IF errorCode(0) == 1300 THEN {
-                requestError()<- 'Ошибка авторизации';
+                requestError() <- 'Ошибка авторизации';
             } ELSE {
                 requestError() <- CONCAT ' ', 'Ошибка ', errorCode(0) + ':', message(0);
-            }   
+            }
         }
     } ELSE {
         requestError() <- CONCAT ' ', 'Неизвестная ошибка: статус ', STRING[3](status);
     }
 }
-
 
 //добавление файлов
 META openXML (class, object, table)
@@ -779,7 +792,7 @@ META openXML (class, object, table)
             MESSAGE 'Отсутствует ссылка на файл xml';
         }
     }
-    
+
     EXTEND FORM table
         PROPERTIES(object) openXML GRID
     ;

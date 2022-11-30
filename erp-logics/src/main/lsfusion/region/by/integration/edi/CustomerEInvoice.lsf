@@ -1,6 +1,6 @@
-MODULE CustomerEInvoiceEDI;
+MODULE CustomerEInvoice;
 
-REQUIRE EInvoiceEDI, EDS;
+REQUIRE EInvoice, EDS;
 
 NAMESPACE EDI;
 
@@ -16,7 +16,7 @@ signAndSendBlrapnCustomerEDI 'Подписать и отправить изве�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(supplier(i)) THEN
+            IF EDIProviderInvoice(supplier(i), customer(i)) THEN
                 signAndSendBlrapnCustomer(i);
             ELSE
                 MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
@@ -35,7 +35,7 @@ signAndSendCustomerEDI 'Подписать и отправить (покупат
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(supplier(i)) THEN
+            IF EDIProviderInvoice(supplier(i),customer(i)) THEN
                 signAndSendCustomer(i);
             ELSE
                 MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
@@ -71,7 +71,7 @@ signAndSendNoticeCustomerEDI 'Подписать и отправить увед�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(supplier(i)) THEN {
+            IF EDIProviderInvoice(supplier(i), customer(i)) THEN {
                 noticeMessage() <- NULL;
                 fillNoticeMessage(i);
                 DIALOG signAndSendNotice OBJECTS d = noticeMessage() INPUT DO {
@@ -96,7 +96,7 @@ signAndSendNoticeCustomerEDIWithoutDialog 'Подписать и отправи�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(supplier(i)) THEN {
+            IF EDIProviderInvoice(supplier(i), customer(i)) THEN {
                 noticeMessage() <- NULL;
                 fillNoticeMessage(i);
                 IF noticeMessage() THEN {

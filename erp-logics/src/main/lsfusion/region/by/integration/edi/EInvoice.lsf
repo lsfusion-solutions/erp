@@ -1,0 +1,29 @@
+MODULE EInvoice;
+
+REQUIRE EDI;
+
+NAMESPACE EDI;
+
+//первый это поставщик или покупатель, второй - мы
+dataEDIProviderInvoice 'EDI-провайдер для накладных' = DATA EDIProvider (LegalEntity, LegalEntity);
+EDIProviderInvoice 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = OVERRIDE dataEDIProviderInvoice(legalEntity, company), EDIProvider(legalEntity);
+nameEDIProviderInvoice 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = staticCaption(EDIProviderInvoice(legalEntity, company));
+
+migrateEdiProviderInvoice = DATA BOOLEAN ();
+onStarted() + {
+    IF NOT migrateEdiProviderInvoice() THEN NEWSESSION {
+        dataEDIProviderInvoice(LegalEntity legalEntity, LegalEntity company) <- dataEDIProviderInvoice(legalEntity) WHERE isCompany(company);
+        migrateEdiProviderInvoice() <- TRUE;
+    }
+}
+
+EXTEND FORM legalEntity
+    PROPERTIES nameEDIProviderInvoice(l, eCom);
+DESIGN legalEntity {
+    EDI {
+        NEW EInvoice {
+            type = CONTAINERV;
+            caption = 'Накладные';
+        }
+    }   
+}

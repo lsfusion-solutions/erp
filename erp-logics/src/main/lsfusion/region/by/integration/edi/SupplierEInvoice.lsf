@@ -1,6 +1,6 @@
-MODULE SupplierEInvoiceEDI;
+MODULE SupplierEInvoice;
 
-REQUIRE EInvoiceEDI, EDS;
+REQUIRE EInvoice, EDS;
 
 NAMESPACE EDI;
 
@@ -20,7 +20,7 @@ signAndSendSupplierEDI 'Подписать и отправить (поставщ
     }
     FOR in(EInvoice i) DO { 
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(customer(i)) THEN
+            IF EDIProviderInvoice(customer(i), supplier(i)) THEN
                 signAndSendSupplier(i);
             ELSE
                 MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
@@ -39,7 +39,7 @@ signAndSendSupplierCancelEDI 'Подписать и отправить отме�
     }
     FOR in(EInvoice i) DO { 
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(customer(i)) THEN {
+            IF EDIProviderInvoice(customer(i), supplier(i)) THEN {
                 isCancel(i) <- TRUE;
                 signAndSendSupplier(i);
             } ELSE
@@ -60,7 +60,7 @@ signAndSendBlrapnSupplierEDI 'Подписать и отправить изве�
     }
     FOR in(EInvoice i) DO { 
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(customer(i)) THEN
+            IF EDIProviderInvoice(customer(i), supplier(i)) THEN
                 signAndSendBlrapnSupplier(i);
             ELSE
                 MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);

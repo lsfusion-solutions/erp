@@ -203,9 +203,9 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
 GROUP extraField00 EXTID 'ExtraField';
 
 EXTEND FORM exportBlrwbl
-    PROPERTIES DRAW ein IN extraField00 fieldName00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'Возвратная накладная' EXTID 'FieldName',
-                                        fieldCode00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'RETANN' EXTID 'FieldCode',
-                                        fieldValue00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'Истина' EXTID 'FieldValue'
+    PROPERTIES DRAW ein IN extraField00 fieldName00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.edn THEN 'Возвратная накладная' EXTID 'FieldName',
+                                        fieldCode00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.edn THEN 'RETANN' EXTID 'FieldCode',
+                                        fieldValue00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.edn THEN 'Истина' EXTID 'FieldValue'
 ;
 
 signAndSendSupplierEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
@@ -283,9 +283,9 @@ signAndSendSupplierEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
 }
 
 EXTEND FORM exportBlrdln
-    PROPERTIES DRAW ein IN extraField00 fieldName00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'Возвратная накладная' EXTID 'FieldName',
-                                        fieldCode00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'RETANN' EXTID 'FieldCode',
-                                        fieldValue00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein)) = EDIProvider.edn THEN 'Истина' EXTID 'FieldValue'
+    PROPERTIES DRAW ein IN extraField00 fieldName00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.edn THEN 'Возвратная накладная' EXTID 'FieldName',
+                                        fieldCode00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.edn THEN 'RETANN' EXTID 'FieldCode',
+                                        fieldValue00 = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.edn THEN 'Истина' EXTID 'FieldValue'
 ;
 
 signAndSendSupplierEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
@@ -356,9 +356,9 @@ signAndSendSupplierEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
     }
 }
 
-signAndSendSupplier(EInvoice e) + {  IF EDIProviderInvoice(customer(e)) == EDIProvider.edn AND useDocuDrive() THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE IF isTN2(e) THEN {signAndSendSupplierEInvoiceTN2DocuDrive(e,'EDN');} ELSE {signAndSendSupplierEInvoiceDocuDrive(e,'EDN');}}
+signAndSendSupplier(EInvoice e) + {  IF EDIProviderInvoice(customer(e), supplier(e)) == EDIProvider.edn AND useDocuDrive() THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE IF isTN2(e) THEN {signAndSendSupplierEInvoiceTN2DocuDrive(e,'EDN');} ELSE {signAndSendSupplierEInvoiceDocuDrive(e,'EDN');}}
 signAndSendSupplier(EInvoice e) + {
-    IF EDIProviderInvoice(customer(e)) == EDIProvider.edn AND NOT useDocuDrive() THEN
+    IF EDIProviderInvoice(customer(e), supplier(e)) == EDIProvider.edn AND NOT useDocuDrive() THEN
         IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена';
         ELSE IF isTN2(e) THEN {
             hideMessageHeaderBlrdln() <- extractEDN(supplier(e));
@@ -495,9 +495,9 @@ signAndSendBlrapnSupplierEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider
     }
 }
 
-signAndSendBlrapnSupplier(EInvoice e) + {  IF EDIProviderInvoice(customer(e)) == EDIProvider.edn AND useDocuDrive() THEN IF exportedBlrapnSupplier(e) THEN MESSAGE 'Извещение о прочтении (поставщик) уже отправлено'; ELSE IF isTN2(e) THEN {signAndSendBlrapnSupplierEInvoiceTN2DocuDrive(e,'EDN');} ELSE {signAndSendBlrapnSupplierEInvoiceDocuDrive(e,'EDN');}}
+signAndSendBlrapnSupplier(EInvoice e) + {  IF EDIProviderInvoice(customer(e), supplier(e)) == EDIProvider.edn AND useDocuDrive() THEN IF exportedBlrapnSupplier(e) THEN MESSAGE 'Извещение о прочтении (поставщик) уже отправлено'; ELSE IF isTN2(e) THEN {signAndSendBlrapnSupplierEInvoiceTN2DocuDrive(e,'EDN');} ELSE {signAndSendBlrapnSupplierEInvoiceDocuDrive(e,'EDN');}}
 signAndSendBlrapnSupplier(EInvoice e) + {
-    IF EDIProviderInvoice(customer(e)) == EDIProvider.edn AND NOT useDocuDrive() THEN
+    IF EDIProviderInvoice(customer(e), supplier(e)) == EDIProvider.edn AND NOT useDocuDrive() THEN
         IF exportedBlrapnSupplier(e) THEN MESSAGE 'Извещение о прочтении (поставщик) уже отправлено';
         ELSE IF isTN2(e) THEN {
             hideMessageHeaderBlrapn() <- extractEDN(supplier(e));

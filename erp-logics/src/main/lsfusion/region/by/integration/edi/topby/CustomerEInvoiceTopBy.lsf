@@ -4,7 +4,7 @@ REQUIRE CustomerEInvoiceTopByProtocol, EDSTopBy;
 
 
 signAndSendBlrapnCustomer(EInvoice e) + {
-    IF EDIProviderInvoice(supplier(e)) == EDIProvider.topBy THEN
+    IF EDIProviderInvoice(supplier(e), customer(e)) == EDIProvider.topBy THEN
         IF exportedBlrapnCustomer(e) THEN
             MESSAGE 'Извещение о прочтении (покупатель) уже отправлено';
             ELSE IF isTN2(e) THEN {
@@ -15,7 +15,7 @@ signAndSendBlrapnCustomer(EInvoice e) + {
 }
 
 signAndSendCustomer(EInvoice e) + {
-    IF EDIProviderInvoice(supplier(e)) == EDIProvider.topBy THEN
+    IF EDIProviderInvoice(supplier(e), customer(e)) == EDIProvider.topBy THEN
         IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
         ELSE IF isTN2(e) THEN {
             signAndSendCustomerEInvoiceTN2(e, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
@@ -25,7 +25,7 @@ signAndSendCustomer(EInvoice e) + {
 }
 
 signAndSendNoticeCustomer(EInvoice e, STRING[1000] d) + {
-    IF EDIProviderInvoice(supplier(e)) == EDIProvider.topBy THEN
+    IF EDIProviderInvoice(supplier(e), customer(e)) == EDIProvider.topBy THEN
         IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
         ELSE IF isTN2(e) THEN {
             signAndSendNoticeCustomerEInvoiceTN2(e, d, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
