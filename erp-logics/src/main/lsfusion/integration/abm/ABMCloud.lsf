@@ -108,7 +108,7 @@ trimChr10 (STRING s) = rtrim(ltrim(s, chr(10)), chr(10));
 CLASS State 'Статус выгрузки ABM' {
     MTS 'MTS', 
     MTO 'MTO',
-    NA 'NA',
+    NA 'NA', //неактивный
     NM 'NM'
 }
 name 'Наименование' (State s) = staticCaption(s);
@@ -225,11 +225,20 @@ replaceRN(){
 dateTimeFormulasentABM (DATE date, DATETIME dt) = toDateYYYYMMDD(date)+'_'+toTimeHHMISS(dt);
 
 
+toSent 'Пометить что выгрузили данные' = DATA LOCAL NESTED BOOLEAN (STRING);
+fillSentTime ABSTRACT LIST (STRING);
+resetSentTime ABSTRACT LIST();
 deleteZippingPath(){
+    FOR toSent(STRING str) DO{
+        fillSentTime(str);    
+    }
+    toSent(STRING str)<- NULL;
+    resetSentTime();
     FOR zippingPath(STRING name) ==STRING patch DO {
         TRY{delete(patch);}
     }
-    zippingPath(STRING[1000] s) <- NULL; 
+    zippingPath(STRING[1000] s) <- NULL;
+
 }
 
 sentABMCustom (DATE d, BOOLEAN single, DATETIME  time, STRING package, Stock ts){    
@@ -699,16 +708,27 @@ shipments 'shipments' (DATE d, BOOLEAN single) {
 @sendABM(shipments);
 // Таблица 8
 //Данные о закрытии размещенных заказов
+filterABMCloseLocal = DATA LOCAL NESTED BOOLEAN (Purchase.Order);
+fillSentTime(STRING  str) +{
+    IF str == 'orderclose' THEN {
+        NEWSESSION NESTED LOCAL {
+            stateABMTimeClose (Purchase.Order o) <- currentDateTime() WHERE filterABMCloseLocal(o);
+            APPLY NESTED LOCAL;
+        }
+    }
+}
+resetSentTime()+{
+    filterABMCloseLocal(Purchase.Order o)<- NULL;    
+}
+
 orderclose 'orderclose' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
     }
     filterABMClose(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND NOT stateABMTimeClose(o);
-    NEWSESSION NESTED LOCAL {
-        stateABMTimeClose (Purchase.Order o) <- currentDateTime() WHERE filterABMClose(o);
-        APPLY NESTED LOCAL;
-    }
+    filterABMCloseLocal(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND NOT stateABMTimeClose(o);
+    toSent('orderclose')<- TRUE;
     EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
         order_number = numberABM(Purchase.Order o)
         WHERE filterABMClose(o);       
@@ -819,7 +839,8 @@ promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
     }
     filterABM(PriceList s) <- TRUE WHERE toSentABM(s,d);
     filterABM(PriceList p, Stock st, Sku s) <- TRUE WHERE filterABM(p) AND filterABM(st) AND
-                                                    ((in(p,st)  AND userPriceListDetail(p,s)) OR stateABMSent(p,st,s)) AND NOT skipSentABM(s);
+                                                    ((in(p,st)  AND userPriceListDetail(p,s) AND NOT skipSentABM(s)) OR stateABMSent(p,st,s));
+    
     resetPromoheader();
     fillPromoheader(d);
     IF (GROUP SUM 1 IF filterABM (PriceList p)) THEN {
@@ -871,7 +892,7 @@ resetCategories(){
 //-- todo: действие, которое надо перегрузить в логике 
 fillCategories ABSTRACT (DATE);
 
-categories (DATE d, BOOLEAN single) {
+categories 'categories' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
         filterABM(SkuGroup s) <- TRUE WHERE toSentABM(s);
