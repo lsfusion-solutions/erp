@@ -1248,15 +1248,15 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     EXTEND FORM invoices PROPERTIES (d) READONLY descriptionInvoiceDetail AFTER shortNameUOMSku(d);
     EXTEND FORM nsdir.invoices PROPERTIES (d) READONLY returnQuantity BEFORE namePriceListType(d);
 
-    WHEN LOCAL FORMS userInvoice CHANGED(sku(UserInvoiceDetail d)) AND NOT sku(d)==sku(invoiceDetail(d)) DO
+    WHEN LOCAL FORMS userInvoice CHANGED(sku(UserInvoiceDetail d)) AND NOT sku(d)==prevSku(invoiceDetail(d)) DO
         invoiceDetail(d) <- NULL;
 
-    WHEN LOCAL FORMS userInvoice CHANGED(sku(UserInvoiceDetail d)) AND NOT sku(d)==sku(batch(d)) DO
+    WHEN LOCAL FORMS userInvoice CHANGED(sku(UserInvoiceDetail d)) AND NOT sku(d)==prevSku(batch(d)) DO
         batch(d) <- NULL;
     
     WHEN LOCAL FORMS userInvoice
-        CHANGED(invoiceDetail(UserInvoiceDetail detail)) AND countBatch(invoiceDetail(detail)) == 1 AND NOT skipFillBatch(detail) DO
-            batch(detail) <- maxBatch(invoiceDetail(detail));
+        CHANGED(invoiceDetail(UserInvoiceDetail detail)) AND prevCountBatch(invoiceDetail(detail)) == 1 AND NOT skipFillBatch(detail) DO
+            batch(detail) <- prevMaxBatch(invoiceDetail(detail));
 
     CONSTRAINT batch(UserInvoiceDetail detail) AND invoiceDetail(detail) AND
                NOT in(invoiceDetail(detail), batch(detail))

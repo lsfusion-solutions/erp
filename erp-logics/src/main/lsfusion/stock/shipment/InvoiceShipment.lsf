@@ -134,7 +134,9 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
                                                      batch(invoiceDetail) == batch MATERIALIZED; // приходится делать OR, так как если количество 0, то партии не расписываются
 
     countBatch 'Кол-во партий'(InvoiceDetail invoiceDetail)  = GROUP SUM 1 IF in(invoiceDetail, Batch batch) MATERIALIZED;
+    prevCountBatch (InvoiceDetail d) = PREV(countBatch(d));
     maxBatch(InvoiceDetail invoiceDetail)  = GROUP MAX Batch batch IF in(invoiceDetail, batch);
+    prevMaxBatch (InvoiceDetail d) = PREV(maxBatch(d));
 
     toShip 'Не поставлено' (InvoiceDetail invoiceDetail) = (quantity(invoiceDetail) (-) shipped(invoiceDetail)) IF NOT isCharge(sku(invoiceDetail));
     prevToShip 'Не поставлено' (InvoiceDetail invoiceDetail) = PREV(toShip(invoiceDetail));
