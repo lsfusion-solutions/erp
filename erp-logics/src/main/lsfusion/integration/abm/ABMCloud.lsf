@@ -63,7 +63,9 @@ filterABM = DATA LOCAL BOOLEAN (Stock);
 filterABM = DATA LOCAL BOOLEAN (Sku, Stock);
 filterABM = DATA LOCAL BOOLEAN (SkuGroup);
 filterABM = DATA LOCAL BOOLEAN (LegalEntity);
+filterABMSuppliers = DATA LOCAL BOOLEAN (Stock);
 filterABM = DATA LOCAL BOOLEAN (Stock, LegalEntity, Separation);
+filterABM = DATA LOCAL BOOLEAN (Stock, Stock, Separation);
 filterABM = DATA LOCAL BOOLEAN (Purchase.Invoice);
 filterABM = DATA LOCAL BOOLEAN (Purchase.InvoiceDetail);
 filterABM = DATA LOCAL BOOLEAN (Purchase.Order);
@@ -78,7 +80,9 @@ resetFilterABM(){
     filterABM(Sku s, Stock st) <- NULL;
     filterABM(SkuGroup s) <- NULL;
     filterABM(LegalEntity s) <- NULL;
+    filterABMSuppliers(Stock s) <- NULL;
     filterABM(Stock st, LegalEntity l, Separation s) <- NULL;
+    filterABM(Stock st, Stock l, Separation s) <- NULL;
     filterABM(Purchase.Invoice d) <- NULL;
     filterABM(Purchase.InvoiceDetail d) <- NULL;
     filterABM(Purchase.Order d) <- NULL;
@@ -139,12 +143,24 @@ nameStateABM 'Статус в ABM'(LegalEntity st)  = name(stateABM(st)) CHARWID
 stateABMTime 'Время статуса' = DATA  DATETIME(LegalEntity);
 stateABMSent (LegalEntity s) = stateABM(s)!=State.NA;
 
+stateABMSupplier = DATA State (Stock);
+nameStateABMSupplier 'Статус в ABM'(Stock st)  = name(stateABMSupplier(st)) CHARWIDTH 7;
+stateABMTimeSupplier 'Время статуса' = DATA  DATETIME(Stock);
+stateABMSentSupplier (Stock s) = stateABMSupplier(s)!=State.NA;
+
 TABLE scheduleOrderABM (Stock, LegalEntity, Separation); 
 stateABM = DATA State (Stock, LegalEntity, Separation) TABLE scheduleOrderABM;
 nameStateABM 'Статус в ABM'(Stock st, LegalEntity l, Separation s)  = name(stateABM(st,l,s)) CHARWIDTH 7;
 stateABMTime 'Время статуса' = DATA  DATETIME(Stock, LegalEntity, Separation)  TABLE scheduleOrderABM;
 stateABMSent (Stock st, LegalEntity l, Separation s) = stateABM(st,l,s)!=State.NA;
 scheduleOrder = DATA  Purchase.ScheduleOrder(Stock, LegalEntity, Separation) TABLE scheduleOrderABM;
+
+TABLE scheduleOrderABMSupplier (Stock, Stock, Separation);//склад-склад поставщика-признак разделения
+stateABM = DATA State (Stock, Stock, Separation) TABLE scheduleOrderABMSupplier;
+nameStateABM 'Статус в ABM'(Stock st, Stock supplier, Separation s)  = name(stateABM(st,supplier,s)) CHARWIDTH 7;
+stateABMTime 'Время статуса' = DATA  DATETIME(Stock, Stock, Separation)  TABLE scheduleOrderABMSupplier;
+stateABMSent (Stock st, Stock supplier, Separation s) = stateABM(st,supplier,s)!=State.NA;
+scheduleOrder = DATA  Purchase.ScheduleOrder(Stock, Stock, Separation) TABLE scheduleOrderABMSupplier;
 
 TABLE ABMInvoiceShipments (Purchase.Invoice);
 stateABMTime 'Время статуса' = DATA  DATETIME(Purchase.Invoice) TABLE ABMInvoiceShipments;
@@ -176,6 +192,7 @@ toSentABM 'Выгружать' = ABSTRACT VALUE BOOLEAN (Stock);
 toSentABM 'Выгружать' = ABSTRACT VALUE BOOLEAN (Sku, Stock, DATE);
 toSentABM 'Выгружать' = ABSTRACT VALUE BOOLEAN (SkuGroup);
 toSentABM 'Выгружать' = ABSTRACT VALUE BOOLEAN (LegalEntity);
+toSentABMSuppliers 'Выгружать' = ABSTRACT VALUE BOOLEAN (Stock);
 toSentABM 'Выгружать' = ABSTRACT VALUE BOOLEAN (PriceList,DATE);
 //
 sentABM ABSTRACT LIST(DATE,BOOLEAN);
@@ -218,7 +235,7 @@ replaceRN(){
     fileToString(exportFile());
     resultString()<- replace(resultString(),'\r\n','\n');
     resultString()<- replace(resultString(),'\n','\r\n');
-    resultString()<- replace(resultString(),'null0_null1_null2_null3_null4','');
+    //resultString()<- replace(resultString(),'null0_null1_null2_null3_null4','');
     stringToFile(resultString());
     exportFile() <- resultFile();
 }
@@ -515,27 +532,59 @@ supplier_uid = DATA LOCAL STRING (LegalEntity);
 name_ABM = DATA LOCAL STRING (LegalEntity);
 active_ABM = DATA LOCAL INTEGER (LegalEntity);
 
+supplier_uidSuppliers = DATA LOCAL STRING (Stock);
+name_ABMSuppliers = DATA LOCAL STRING (Stock);
+active_ABMSuppliers = DATA LOCAL INTEGER (Stock);
+
 fillSuppliers ABSTRACT (DATE);
 
 resetSuppliers(){
     supplier_uid (LegalEntity l)<- NULL;
     name_ABM (LegalEntity l)<- NULL;
-    active_ABM (LegalEntity l)<- NULL; 
+    active_ABM (LegalEntity l)<- NULL;
+
+    supplier_uidSuppliers (Stock l)<- NULL;
+    name_ABMSuppliers (Stock l)<- NULL;
+    active_ABMSuppliers (Stock l)<- NULL;
 }
 
 suppliers 'suppliers' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
         filterABM(LegalEntity s) <- TRUE WHERE toSentABM(s);
+        filterABMSuppliers(Stock s) <- TRUE WHERE toSentABMSuppliers(s);
     } 
     resetSuppliers();    
     fillSuppliers(d);
 
+//    LOCAL a = STRING(INTEGER);
+//    LOCAL b = STRING(INTEGER);
+//    LOCAL c = STRING(INTEGER);
+//    
+//    EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM
+//        supplier_uid = a(INTEGER i),
+//        name = b(i),
+//        active = c(i);
+//
+//    WRITE exportFile() TO '/tmp/temp_suppliers';
+    
     EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
         supplier_uid = supplier_uid(LegalEntity l), 
         name = name_ABM(l), 
         active = active_ABM(l)
     WHERE filterABM(l);
+    WRITE exportFile() TO '/tmp/temp_suppliers' APPEND;
+    
+    EXPORT CSV ',' ESCAPE CHARSET 'UTF-8' FROM
+        supplier_uid = supplier_uidSuppliers(Stock l),
+        name = name_ABMSuppliers(l),
+        active = active_ABMSuppliers(l)
+        WHERE filterABMSuppliers(l);
+    WRITE exportFile() TO '/tmp/temp_suppliers' APPEND;
+    
+    READ '/tmp/temp_suppliers.csv' TO exportFile;
+    delete('/tmp/temp_suppliers.csv');
+    
     sentABM(d,single,currentDateTime(),'suppliers_', NULL, NULL);          
 }
 @sendABM(suppliers);
@@ -596,6 +645,23 @@ frequency = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
 begin_date = DATA LOCAL STRING (Stock,LegalEntity,Separation);
 auto_send = DATA LOCAL INTEGER (Stock,LegalEntity,Separation);
 comment = DATA LOCAL STRING (Stock,LegalEntity,Separation);
+//--
+store_uid = DATA LOCAL STRING (Stock,Stock,Separation);
+supplier_uid = DATA LOCAL STRING (Stock,Stock,Separation);
+split_mark = DATA LOCAL STRING (Stock,Stock,Separation);
+active = DATA LOCAL INTEGER (Stock,Stock,Separation);
+olt_mo = DATA LOCAL INTEGER (Stock,Stock,Separation);
+olt_tu = DATA LOCAL INTEGER (Stock,Stock,Separation);
+olt_we = DATA LOCAL INTEGER (Stock,Stock,Separation);
+olt_th = DATA LOCAL INTEGER (Stock,Stock,Separation);
+olt_fr = DATA LOCAL INTEGER (Stock,Stock,Separation);
+olt_sa = DATA LOCAL INTEGER (Stock,Stock,Separation);
+olt_su = DATA LOCAL INTEGER (Stock,Stock,Separation);
+period = DATA LOCAL INTEGER (Stock,Stock,Separation);
+frequency = DATA LOCAL INTEGER (Stock,Stock,Separation);
+begin_date = DATA LOCAL STRING (Stock,Stock,Separation);
+auto_send = DATA LOCAL INTEGER (Stock,Stock,Separation);
+comment = DATA LOCAL STRING (Stock,Stock,Separation);
 
 resetSchedules(){
     store_uid (Stock st,LegalEntity l,Separation s)<- NULL;
@@ -614,16 +680,33 @@ resetSchedules(){
     begin_date (Stock st,LegalEntity l,Separation s)<- NULL;      
     auto_send (Stock st,LegalEntity l,Separation s)<- NULL;   
     comment (Stock st,LegalEntity l,Separation s)<- NULL;   
+    //
+    store_uid (Stock st,Stock l,Separation s)<- NULL;
+    supplier_uid (Stock st,Stock l,Separation s)<- NULL;
+    split_mark (Stock st,Stock l,Separation s)<- NULL;
+    active (Stock st,Stock l,Separation s)<- NULL;
+    olt_mo (Stock st,Stock l,Separation s)<- NULL;
+    olt_tu (Stock st,Stock l,Separation s)<- NULL;
+    olt_we (Stock st,Stock l,Separation s)<- NULL;
+    olt_th (Stock st,Stock l,Separation s)<- NULL;
+    olt_fr (Stock st,Stock l,Separation s)<- NULL;
+    olt_sa (Stock st,Stock l,Separation s)<- NULL;
+    olt_su (Stock st,Stock l,Separation s)<- NULL;
+    period (Stock st,Stock l,Separation s)<- NULL;
+    frequency (Stock st,Stock l,Separation s)<- NULL;
+    begin_date (Stock st,Stock l,Separation s)<- NULL;
+    auto_send (Stock st,Stock l,Separation s)<- NULL;
+    comment (Stock st,Stock l,Separation s)<- NULL;
 }
 //-- todo: действие, которое надо перегрузить в логике 
 fillSchedules ABSTRACT (DATE);
-
 
 schedules 'schedules' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
         filterABM(LegalEntity l) <- TRUE WHERE toSentABM(l);
+        filterABMSuppliers(Stock l) <- TRUE WHERE toSentABMSuppliers(l);
     }
     resetSchedules();
     fillSchedules(d);
@@ -647,6 +730,33 @@ schedules 'schedules' (DATE d, BOOLEAN single) {
         delivery_slot = '' IF st IS Stock AND l IS LegalEntity AND s IS Separation,
         comment = comment(st,l,s)  
     WHERE filterABM(st,l,s);
+    WRITE exportFile() TO '/tmp/temp_schedules' APPEND;
+
+    EXPORT CSV ',' ESCAPE CHARSET 'UTF-8' FROM
+        store_uid = store_uid(Stock st,Stock l,Separation s),
+        supplier_uid = supplier_uid(st,l,s),
+        split_mark = (OVERRIDE split_mark(st,l,s), ''),
+        active = active(st,l,s),
+        olt_mo = olt_mo(st,l,s),
+        olt_tu = olt_tu(st,l,s),
+        olt_we = olt_we(st,l,s),
+        olt_th = olt_th(st,l,s),
+        olt_fr = olt_fr(st,l,s),
+        olt_sa = olt_sa(st,l,s),
+        olt_su = olt_su(st,l,s),
+        period = period(st,l,s),
+        frequency = frequency(st,l,s),
+        begin_date = (OVERRIDE begin_date(st,l,s), ''),
+        auto_send = auto_send(st,l,s),
+        emails = '' IF st IS Stock AND l IS Stock AND s IS Separation,
+        delivery_slot = '' IF st IS Stock AND l IS Stock AND s IS Separation,
+        comment = comment(st,l,s)
+        WHERE filterABM(st,l,s);
+    WRITE exportFile() TO '/tmp/temp_schedules' APPEND;
+
+    READ '/tmp/temp_schedules.csv' TO exportFile;
+    delete('/tmp/temp_schedules.csv');
+    
     sentABM(d,single,currentDateTime(),'schedules_', NULL, NULL);          
 }
 @sendABM(schedules);
@@ -921,6 +1031,7 @@ exportAll 'Все файлы' (DATE d) {
     filterABM(Sku s) <- TRUE WHERE (GROUP SUM 1 IF filterABM(s, Stock st)) OR stateABMSent(s);
     filterABM(SkuGroup s) <- active(s) OR stateABMSent(s);    
     filterABM(LegalEntity l) <- TRUE WHERE toSentABM(l);
+    filterABMSuppliers(Stock l) <- TRUE WHERE toSentABMSuppliers(l);
     zippingPath(STRING[1000] s) <- NULL;
     
     sentABM(d, NULL);
