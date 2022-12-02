@@ -107,9 +107,11 @@ TABLE sessionPriceListDetail (Session, PriceListDetail);
 @defineDocumentInterfaceDataTimePrefix(priceList, from, ' c');
 @deriveDocumentHeaderTimePrefix(UserPriceList, from);
 
+INDEX fromDateTime(PriceList p), p;
+
 toDate 'Дата по' = ABSTRACT DATE (PriceList) IN documentHeader MATERIALIZED;
 toTime 'Время по' = ABSTRACT TIME (PriceList) IN documentHeader MATERIALIZED;
-toDateTime 'Дата/время по'(PriceList priceList) = dateTimeToDateTime(toDate(priceList), toTime(priceList)) MATERIALIZED;
+toDateTime 'Дата/время по'(PriceList priceList) = dateTimeToDateTime(toDate(priceList), toTime(priceList)) MATERIALIZED INDEXED;
 
 CONSTRAINT toDate(PriceList p) AND NOT toTime(p) MESSAGE 'Время по должно быть заполнено если заполнена дата по';
 
@@ -459,13 +461,10 @@ fillDocument 'Подбор документа'(UserPriceList userPriceList)  {
 } TOOLBAR;
 
 // ---------------------- Активность --------------------------- //
-isActive(PriceList priceList, DATETIME dateTime) = (fromDateTime(priceList) <= (dateTime AS DATETIME) AND toDateTime(priceList) >= dateTime) OR
-                                                 (fromDateTime(priceList) <= (dateTime AS DATETIME) AND NOT toDateTime(priceList));
-isActive(PriceList priceList) = isActive(priceList, currentDateTime());
-//(fromDateTimePriceList(priceList) <= currentDateTime() AND toDateTimePriceList(priceList) >= currentDateTime()) OR
-//                               (fromDateTimePriceList(priceList) <= currentDateTime() AND NOT toDateTimePriceList(priceList));
-isActive(PriceListDetail priceListDetail) = (fromDateTime(priceListDetail) <= currentDateTime() AND toDateTime(priceListDetail) >= currentDateTime()) OR
-                               (fromDateTime(priceListDetail) <= currentDateTime() AND NOT toDateTime(priceListDetail));
+isActive(PriceList p, DATETIME dt) = fromDateTime(p) <= (dt AS DATETIME) AND NOT toDateTime(p) < dt;
+isActive(PriceList p) = isActive(p, currentDateTime());
+
+isActive(PriceListDetail d) = fromDateTime(d) <= currentDateTime() AND NOT toDateTime(d) < currentDateTime();
 
 CONSTRAINT notNull(DataPriceListType priceListType) AND isActive(PriceListDetail detail) AND in(detail, priceListType) AND NOT price(detail, priceListType)
     MESSAGE 'Должна быть задана цена';
@@ -1249,12 +1248,12 @@ FORM priceLists 'Прайсы'
 
     FILTERGROUP inactivePriceList
         FILTER 'Текущие' isActive(p) 'F11'            
-        FILTER 'Активные' isActive(p) OR (fromDateTime(p) > currentDateTime() AND NOT toDateTime(p) < currentDateTime()) 'F10' DEFAULT
+        FILTER 'Активные' NOT toDateTime(p) < currentDateTime() 'F10' DEFAULT
         
     FILTERGROUP inactiveStock 
         FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT    
 
-    FILTERS priceList(d) == p,
+    FILTERS priceList(d) = p,
             in(p, t),
             in(p, ts),
             isCompany(ts)
