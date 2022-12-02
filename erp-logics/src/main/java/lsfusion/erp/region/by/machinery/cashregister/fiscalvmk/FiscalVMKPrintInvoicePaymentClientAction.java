@@ -38,7 +38,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
 
             FiscalVMK.closePort();
 
-            return null;
+            return numberReceipt;
         } catch (RuntimeException e) {
             FiscalVMK.cancelReceipt();
             return FiscalVMK.getError(true);

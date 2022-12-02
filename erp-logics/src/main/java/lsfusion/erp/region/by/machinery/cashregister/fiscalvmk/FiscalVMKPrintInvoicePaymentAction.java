@@ -90,10 +90,16 @@ public class FiscalVMKPrintInvoicePaymentAction extends InternalAction {
             }
             
             Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(isUnix, logPath, ip, comPort, baudRate, sumPayment, typePayment, true, invoiceDetailList));
-            if(result != null)
+            boolean error = false;
+            if(result instanceof Integer) {
+                findProperty("note[Sale.Invoice]").change(result, context, invoiceObject);
+                findProperty("number[Payment.Payment]").change(result, context, paymentObject);
+            } else if(result != null) {
+                error = true;
                 ServerLoggers.systemLogger.error("FiscalVMKPrintInvoicePayment Error: " + result);
-            findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : NullValue.instance, context);
-            findProperty("printReceiptError[]").change(result, context);
+            }
+            findProperty("printReceiptResult[]").change(error ? NullValue.instance : new DataObject(true), context);
+            findProperty("printReceiptError[]").change(error ? result : null, context);
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
