@@ -1105,9 +1105,15 @@ public class DefaultTerminalHandler {
                     if (terminalObject instanceof DataObject)
                         terminalHandlerLM.findProperty("createdTerminal[TerminalDocument]").change(terminalObject, session, (DataObject) terminalDocumentObject);
                 }
+                terminalHandlerLM.findProperty("processMessage[]").change(NullValue.instance, session);
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
                 ERPLoggers.terminalLogger.info("start applying terminal document " + idTerminalDocument);
-                String result = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
+                String processMessage = (String) terminalHandlerLM.findProperty("processMessage[]").read(session);
+                String result;
+                if (processMessage != null) {
+                    result = processMessage;
+                } else
+                    result = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
                 if(result != null) {
                     ERPLoggers.terminalLogger.error(String.format("Apply terminal document %s error: %s", idTerminalDocument, result));
                 }
