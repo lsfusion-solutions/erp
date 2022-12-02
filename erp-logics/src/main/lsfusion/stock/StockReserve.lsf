@@ -165,3 +165,17 @@ NAVIGATOR {
         NEW stockReserve;
     }
 }
+
+countDaysClearStockReserve 'За сколько дней хранить страховые запасы' = DATA INTEGER ();
+
+EXTEND FORM options PROPERTIES countDaysClearStockReserve();
+DESIGN options { log { MOVE PROPERTY(countDaysClearStockReserve());} }
+
+clearApplicationLog () + {
+    NEWSESSION {
+        IF countDaysClearStockReserve() THEN {
+            dataStockReserve(Stock st, Sku sk, DATE dt) <- NULL WHERE dataStockReserve(st, sk, dt) AND dt <= subtract(currentDate(), countDaysClearStockReserve()) AND dt != (GROUP LAST DATE dateIn ORDER dateIn WHERE dataStockReserve(st, sk, dateIn)); 
+            APPLY;
+        }
+    }
+}   
