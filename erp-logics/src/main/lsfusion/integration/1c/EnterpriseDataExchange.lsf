@@ -713,7 +713,42 @@ EXTEND FORM receiveMessage
 @defPropSimpleDetail(cost, 'Себестоимость', NUMERIC[15,2], saleInvoice, product);
 @defPropSimpleDetail(retailSum, 'СуммаРозничная', NUMERIC[15,2], saleInvoice, product);
 @defPropSimpleDetail(retailPrice, 'ЦенаРозничная', NUMERIC[15,2], saleInvoice, product);
-@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], saleInvoice, product);
+//@defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], saleInvoice, product){
+//    @defPropDetail(declaration, 'НомерГТД', STRING[30], saleInvoice, product){
+//    declaration 'НомерГТД' = ABSTRACT STRING[30] (SaleInvoiceProduct, Configuration);
+//    WHEN CHANGED(declaration(SaleInvoiceProduct d, Configuration c)) DO {
+//        packet(c, saleInvoice(d, c)) <- NULL;
+//        in(c, saleInvoice(d, c)) <- inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
+//    }
+//    
+//    declarationSaleInvoiceProduct 'НомерГТД' = DATA LOCAL STRING (INTEGER);
+//};
+//    EXTEND FORM sendMessage
+//        PROPERTIES (saleInvoiceProduct, configuration) declaration EXTID 'НомерГТД'
+//    ;
+//
+//    EXTEND FORM receiveMessage
+//        PROPERTIES (saleInvoiceProduct) declarationSaleInvoiceProduct EXTID 'НомерГТД'
+//    ; 
+//};
+
+declaration 'НомерГТД' = ABSTRACT STRING[30] (SaleInvoiceProduct, Configuration);
+WHEN CHANGED(declaration(SaleInvoiceProduct d, Configuration c)) DO {
+    packet(c, saleInvoice(d, c)) <- NULL;
+    in(c, saleInvoice(d, c)) <- inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
+}
+
+declarationSaleInvoiceProduct 'ДанныеГТД' = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM sendMessage
+    PROPERTIES (saleInvoiceProduct, configuration) declaration EXTID 'НомерГТД'
+;
+
+//GROUP declarationInfo 'ДанныеГТД';
+
+EXTEND FORM receiveMessage
+    PROPERTIES (saleInvoiceProduct) declarationSaleInvoiceProduct EXTID 'ДанныеГТД' //IN declarationInfo
+; 
 
 CLASS ABSTRACT SaleInvoiceService : SaleInvoiceDetail;
 isService = ABSTRACT BOOLEAN (SaleInvoiceService, Configuration);
