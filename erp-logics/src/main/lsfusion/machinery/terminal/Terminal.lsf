@@ -598,7 +598,7 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
                     FOR [GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](Sku sku) DO {
                         FOR explicitBatchLedger(stockProp(object)) AND quantity(sku(Batch b)) AND sku(b) == sku AND 
                             prevAvailableQuantity(b, stockProp(object)) (-) [GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object) > 0.0 
-                            ORDER dateTime(b) NEW o = class##Detail DO {
+                            ORDER dateTime(b) NOINLINE NEW o = class##Detail DO {
                             object(o) <- object;
                             sku(o) <- sku;
                             quantity(o) <- IF quantity(sku(b)) > (prevAvailableQuantity(b, stockProp(object)) (-) [GROUP SUM quantity(class##Detail detail) BY batch(detail), object(detail)](b, object))
@@ -611,7 +611,7 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
                             IF sku IS Sku AND NOT quantity(sku)
                                 THEN BREAK;
                         } 
-                        FOR quantity(sku) NEW o = class##Detail DO {
+                        FOR quantity(sku) NOINLINE NEW o = class##Detail DO {
                             object(o) <- object;
                             sku(o) <- sku; 
                             quantity(o) <- quantity(sku);   
