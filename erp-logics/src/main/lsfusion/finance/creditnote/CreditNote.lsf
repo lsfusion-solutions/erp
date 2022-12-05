@@ -73,7 +73,12 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @defineDocumentInterfaceDetailDataSum(creditNote);
     @deriveDocumentDetailSum(userCreditNote, quantity);
 
-    @defineDocumentInterfaceDetailVAT(creditNote, country###stockProp###stock);         //  derive см. ниже в "Связь акта и накладной"
+    @defineDocumentInterfaceDetailVAT(creditNote, country###stockProp###stock);
+    invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (CreditNoteDetail) MATERIALIZED;
+    invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserCreditNoteDetail);
+    invoicePrice (UserCreditNoteDetail creditNoteDetail) += invoicePrice(creditNoteDetail);
+    
+    //  derive см. ниже в "Связь акта и накладной"
     @defineDocumentInterfaceDetailVATDataSumCustom(creditNoteDetail, invoice);
 
     @defineDocumentInterfaceHeaderQuantity(creditNote);
@@ -129,7 +134,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
 
         OBJECTS d = UserCreditNoteDetail
         PROPERTIES (d) BACKGROUND background(d) index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
-                       quantity, price, sum,
+                       quantity, price, invoicePrice, sum,
                        numberVAT, valueVAT, VATSum, invoiceSum,
                        name###stockProp##Stock, NEW, deletecd=DELETE GRID
 
@@ -381,6 +386,9 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     price (UserCreditNoteDetail detail)  <- price(invoiceDetail(detail))
         WHEN CHANGED(invoiceDetail(detail));
 
+    invoicePrice (UserCreditNoteDetail detail)  <- invoicePrice(invoiceDetail(detail))
+        WHEN CHANGED(invoiceDetail(detail));    
+
     VAT (UserCreditNoteDetail detail)  <- VAT(invoiceDetail(detail))
         WHEN CHANGED(invoiceDetail(detail));
 
@@ -501,6 +509,8 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, numberVAT, 'НДС, номер');
     @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, valueVAT, 'НДС, %');
     valueVAT (InvoiceCreditNoteDetail creditNoteDetail) += valueVAT(creditNoteDetail);
+
+    invoicePrice (InvoiceCreditNoteDetail detail) += invoicePrice(invoiceDetail(detail));
 
     VATSum 'Сумма НДС' (InvoiceCreditNoteDetail invoiceCreditNoteDetail) = NUMERIC[18,4](round((sum(invoiceCreditNoteDetail) *
     valueVAT (invoiceCreditNoteDetail) / 100), currency(invoiceCreditNoteDetail)));

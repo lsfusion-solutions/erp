@@ -1,0 +1,25 @@
+MODULE SaleCreditNoteSaleLedger;
+
+REQUIRE SaleCreditNote, SaleLedger;
+
+NAMESPACE Sale;
+
+// --------------------------- Проведение по регистру продаж ------------------------------------ //
+EXTEND CLASS CreditNoteDetail : SaleLedger;
+dateTime[SaleLedger] (CreditNoteDetail ledger) += dateTime(ledger);
+isPosted[SaleLedger] (CreditNoteDetail ledger) += isPosted(ledger);
+isClosed[SaleLedger] (CreditNoteDetail ledger) += isClosed(ledger);
+sku[SaleLedger] (CreditNoteDetail ledger) += sku(ledger);
+stock[SaleLedger] (CreditNoteDetail ledger) += supplierStock(ledger);
+description[SaleLedger] (CreditNoteDetail ledger) += description(ledger);
+show[SaleLedger] (CreditNoteDetail ledger) + { show(ledger);};
+
+operation (CreditNoteDetail ledger) += operation(ledger);
+quantity[SaleLedger] (CreditNoteDetail ledger) += -quantity(ledger);
+VAT[SaleLedger] (CreditNoteDetail ledger) += VAT(ledger);
+sum[SaleLedger] (CreditNoteDetail ledger) += -invoiceSum(ledger);
+price[SaleLedger] (CreditNoteDetail ledger) += invoicePrice(ledger);
+customer (CreditNoteDetail ledger) += customer(ledger);
+customerStock (CreditNoteDetail ledger) += customerStock(ledger);
+skip[SaleLedger] (CreditNoteDetail ledger) += WHEN ledger IS CreditNoteDetail THEN skipSaleLedger(operation(ledger));
+numberDocument (CreditNoteDetail ledger) += number(ledger);
