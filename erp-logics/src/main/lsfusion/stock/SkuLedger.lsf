@@ -1038,6 +1038,8 @@ backgroundBalance  = ABSTRACT CASE COLOR (Sku, Stock, DATETIME);
 overFilterGroup = ABSTRACT BOOLEAN (Sku);
 overFilterStock = ABSTRACT BOOLEAN (Stock);
 
+overBackgroundIDBalance (Sku s, Stock st) = OVERRIDE backgroundID(s), backgroundBalance(s,st);
+
 FORM currentBalanceSkuStock 'Текущие остатки'
     PROPERTIES() multipleStores
     
@@ -1060,8 +1062,9 @@ FORM currentBalanceSkuStock 'Текущие остатки'
 
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        select(s,st)
-    PROPERTIES        BACKGROUND backgroundBalance(s,st) READONLY name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), 
+    PROPERTIES        BACKGROUND backgroundBalance(s,st) READONLY name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), nameCountry(s), 
                       stockName 'Склад' = name(st) SHOWIF multipleStores(), nameUOM(s)  //  idBarcodeSku
+    PROPERTIES BACKGROUND overBackgroundIDBalance(s, st) id(s) SHOWIF showIDs() BEFORE nameCountry(s)
     FILTERS           isParent(sk, s) OR overFilterGroup(s),
                       IF multipleStores() THEN 
                         st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts OR overFilterStock(st)
