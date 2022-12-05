@@ -95,6 +95,11 @@ createEVATSaleInvoiceHeader(EVAT e, Sale.Invoice i) {
     overCreateEVATSaleInvoice(e,i);
 }
 
+overQuantityExtra = ABSTRACT NUMERIC[16,5](InvoiceDetail);
+overSumExtra = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
+overVATSumExtra = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
+overInvoiceSumExtra = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
+
 createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
     createEVATSaleInvoiceHeader(e,i);
     
@@ -105,13 +110,13 @@ createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
         sku(ed) <- sku(id);
         code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
         UOM(ed) <- UOM(sku(id));
-        quantity(ed) <- quantity(id); 
+        quantity(ed) <- quantity(id) (-) overQuantityExtra(id); 
         price(ed) <- price(id);
-        sum(ed) <- sum(id);
+        sum(ed) <- sum(id) (-) overSumExtra(id);
         exciseSum(ed) <- 0;
         vatRate(ed) <- valueVAT(id);
-        vatSum(ed) <- VATSum(id);
-        sumWithVAT(ed) <- invoiceSum(id);
+        vatSum(ed) <- VATSum(id) (-) overVATSumExtra(id);
+        sumWithVAT(ed) <- invoiceSum(id) (-) overInvoiceSumExtra(id);
         
         IF valueVAT(id) == 0 THEN
             in(ed, DescriptionType.vatExcemption) <- TRUE;
