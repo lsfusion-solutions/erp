@@ -191,13 +191,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     @Override
     protected void onStarted(LifecycleEvent event) {
         if(getDbManager().isServer()) {
-            logger.info("Binding Equipment Server.");
-            try {
-                getRmiManager().bindAndExport(EXPORT_NAME, this);
-                started = true;
-            } catch (Exception e) {
-                throw new RuntimeException("Error exporting Equipment Server: ", e);
-            }
+            startEquipmentServer();
         } else {
             logger.info("Equipment Server disabled, change serverComputer() to enable");
         }
@@ -205,10 +199,30 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     protected void onStopping(LifecycleEvent event) {
+        stopEquipmentServer();
+    }
+
+    public void restartEquipmentServer() {
+        stopEquipmentServer();
+        startEquipmentServer();
+    }
+
+    private void startEquipmentServer() {
+        logger.info("Starting Equipment Server");
+        try {
+            getRmiManager().bindAndExport(EXPORT_NAME, this);
+            started = true;
+        } catch (Exception e) {
+            throw new RuntimeException("Error starting Equipment Server: ", e);
+        }
+    }
+
+    private void stopEquipmentServer() {
         if (started) {
-            logger.info("Stopping Equipment Server.");
+            logger.info("Stopping Equipment Server");
             try {
                 getRmiManager().unbindAndUnexport(EXPORT_NAME, this);
+                started = false;
             } catch (Exception e) {
                 throw new RuntimeException("Error stopping Equipment Server: ", e);
             }
