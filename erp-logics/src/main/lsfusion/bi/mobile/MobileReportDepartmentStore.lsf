@@ -7,10 +7,10 @@ NAMESPACE MobileReport;
 in = DATA LOCAL NESTED BOOLEAN (DepartmentStore);
 dataMobileName = DATA STRING[20] (Stock);
 overMobileName 'Наименование mobile' (Stock s)=  OVERRIDE dataMobileName(s), STRING[20](name(s));
+showName (Stock s) = IF in(s) THEN overMobileName(s);
+index(Stock s) = PARTITION SUM 1 ORDER s BY showName(s);
 
-index (Stock s) = PARTITION SUM 1 IF in(s) ORDER s BY overMobileName(s);
-
-mobileName 'Наименование mobile' (Stock s) = CONCAT '-', overMobileName(s);
+mobileName 'Наименование mobile' (Stock s) = CONCAT '-', overMobileName(s), index(s) IF index(s) > 1 ;
 
 EXTEND FORM departmentStore
     PROPERTIES (d) overMobileName
