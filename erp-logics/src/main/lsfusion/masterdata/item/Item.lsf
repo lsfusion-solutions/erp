@@ -406,8 +406,12 @@ addItem()  {
 addSku () + {  addItem(); }
 
 background = ABSTRACT CASE COLOR (Item);
-overBackgroundBarcode (Item i) = OVERRIDE backgroundBarcode(i), background(i);
-overBackgroundIDItems (Item i) = OVERRIDE backgroundID(i), background(i);
+
+backgroundBarcode = ABSTRACT VALUE COLOR (Item);
+backgroundBarcode(Item i) += background(i);
+
+backgroundId = ABSTRACT VALUE COLOR (Item);
+backgroundId(Item i) += background(i);
 
 FORM items 'Товары'
 
@@ -421,7 +425,7 @@ FORM items 'Товары'
     FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT
     
     OBJECTS i=Item  
-    PROPERTIES(i) READONLYIF isReadonly() idBarcode ON CHANGE changeBarcode(i) BACKGROUND overBackgroundBarcode(i), image PANEL SHOWIF showItemImage(), id SHOWIF showIDs() BACKGROUND overBackgroundIDItems(i)
+    PROPERTIES(i) READONLYIF isReadonly() idBarcode ON CHANGE changeBarcode(i) BACKGROUND backgroundBarcode(i), image PANEL SHOWIF showItemImage(), id SHOWIF showIDs() BACKGROUND backgroundId(i)
     PROPERTIES(i) NEWSESSION NEW, edit = EDIT SHOWIF enableEditing(i), deletei=DELETE 
     PROPERTIES seekBarcode() ON CHANGE seekSkuBarcode() EVENTID 'SCANNER'
     PROPERTIES READONLY PANEL  defaultItemImage() SHOWIF (showItemImage() AND NOT i IS Item)
