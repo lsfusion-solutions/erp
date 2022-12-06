@@ -11,6 +11,7 @@ import org.spongycastle.util.encoders.Hex;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.time.LocalDateTime;
@@ -273,7 +274,7 @@ public class FiscalPirit {
     private static void registerItemCommand(SerialPort serialPort, ReceiptItem item, Integer giftCardDepartment) {
         String department = giftCardDepartment != null ? String.valueOf(giftCardDepartment) : "0";
         sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode,
-                formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, item.articleDiscSum)), "0", "0",
+                formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, safeDivide(item.articleDiscSum, item.quantity))), "0", "0",
                 department, "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "112", "0"), true); //112 = Belarus
     }
 
@@ -410,11 +411,17 @@ public class FiscalPirit {
         else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 
-    public static BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
+    private static BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
         if (operand1 == null && operand2 == null)
             return null;
         else
             return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
+    }
+
+    private static BigDecimal safeDivide(BigDecimal dividend, BigDecimal quotient) {
+        if (dividend == null || quotient == null || quotient.doubleValue() == 0)
+            return null;
+        return dividend.divide(quotient, 3, RoundingMode.HALF_UP);
     }
 
     private static class PiritReply {
