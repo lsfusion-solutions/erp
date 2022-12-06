@@ -1,6 +1,6 @@
 MODULE EDIGLN;
 
-REQUIRE LegalEntity, Warehouse, Store;
+REQUIRE LegalEntity, Stock;
 
 NAMESPACE EDI;
 
@@ -16,28 +16,3 @@ companyStockGLN = GROUP NAGGR Stock stock WHERE isCompany(stock) BY GLN(stock);
 
 stockGLN = GROUP MAX Stock stock IF active(stock) BY GLN(stock);
 legalEntityStockGLN(STRING[13] GLN) = legalEntity(stockGLN(GLN));
-
-EXTEND FORM warehouse PROPERTIES(w) GLN;
-EXTEND FORM warehouses PROPERTIES(w) READONLY GLN;
-DESIGN warehouse {
-    headerRight {
-        NEW EDI {
-            fill = 1;
-            caption = 'EDI';
-            MOVE PROPERTY (GLN(w));
-        }
-    }
-}
-
-EXTEND FORM departmentStore PROPERTIES(d) GLN;
-DESIGN departmentStore{
-    headerRight {
-        NEW EDI {
-            fill = 1;
-            caption = 'EDI';
-            MOVE PROPERTY (GLN(d));
-        }
-    }
-}
-
-EXTEND FORM departmentStores PROPERTIES(d) READONLY GLN;
