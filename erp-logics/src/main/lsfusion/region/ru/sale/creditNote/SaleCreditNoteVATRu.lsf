@@ -4,10 +4,6 @@ REQUIRE SaleInvoiceCreditNote, SaleInvoiceVATRu;
 
 NAMESPACE Sale;
 
-invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (CreditNoteDetail) MATERIALIZED;
-invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserCreditNoteDetail);
-invoicePrice (UserCreditNoteDetail creditNoteDetail) += invoicePrice(creditNoteDetail);
-
 @defineDocumentInterfaceProperty (creditNote, withVATPrice, 'Цена с НДС');
 
 withVATPrice (UserCreditNote c) <- IF invoice(c) THEN withVATPrice(invoice(c)) ELSE isVATPayer(supplier(c))
@@ -18,7 +14,6 @@ invoicePrice (UserCreditNoteDetail detail)  <- invoicePrice(invoiceDetail(detail
     
 EXTEND FORM userCreditNote
     PROPERTIES (c) withVATPrice 
-    PROPERTIES (d) invoicePrice AFTER valueVAT(d)
 ;
 
 DESIGN userCreditNote {
