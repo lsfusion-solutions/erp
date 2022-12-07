@@ -9,16 +9,16 @@ public class ReceiptItem implements Serializable {
     public String barcode;
     public String name;
     public BigDecimal articleDiscSum;
-    public String gtinLot;
-    public String seriesLot;
+    public String idLot;
+    public String tailLot;
 
-    public ReceiptItem(BigDecimal price, BigDecimal quantity, String barcode, String name, BigDecimal articleDiscSum, String gtinLot, String seriesLot) {
+    public ReceiptItem(BigDecimal price, BigDecimal quantity, String barcode, String name, BigDecimal articleDiscSum, String idLot, String tailLot) {
         this.price = price;
         this.quantity = quantity;
         this.barcode = barcode;
         this.name = name;
         this.articleDiscSum = articleDiscSum;
-        this.gtinLot = gtinLot;
-        this.seriesLot = seriesLot;
+        this.idLot = idLot;
+        this.tailLot = tailLot;
     }
 }

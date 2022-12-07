@@ -70,7 +70,6 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 Integer giftCardPaymentType = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardPaymentTypeCurrentCashRegister[]").read(context): null;
                 Integer saleGiftCardPaymentType = (Integer) findProperty("saleGiftCardPaymentTypeCurrentCashRegister[]").read(context);
                 boolean use1162Tag = findProperty("use1162TagCurrentCashRegister[]").read(context) != null;
-                String prefixFFD12 = (String) findProperty("prefixFFD12CurrentCashRegister[]").read(context);
 
                 ScriptingLogicsModule zReportLotLM = context.getBL().getModule("ZReportLot");
 
@@ -128,8 +127,8 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 if(zReportLotLM != null && use1162Tag) {
-                    receiptDetailQuery.addProperty("gtinLot", zReportLotLM.findProperty("gtinLot[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                    receiptDetailQuery.addProperty("seriesLot", zReportLotLM.findProperty("seriesLot[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                    receiptDetailQuery.addProperty("idLot", zReportLotLM.findProperty("idLot[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                    receiptDetailQuery.addProperty("tailLot", zReportLotLM.findProperty("tailLot[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
                 }
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
@@ -152,21 +151,21 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                     if(discountSumReceiptDetail != null)
                         discountSumReceiptDetail = discountSumReceiptDetail.negate();
 
-                    String gtinLot = (String) receiptDetailValues.get("gtinLot");
-                    String seriesLot = (String) receiptDetailValues.get("seriesLot");
+                    String idLot = (String) receiptDetailValues.get("idLot");
+                    String tailLot = (String) receiptDetailValues.get("tailLot");
 
                     if (quantitySale != null && quantitySale.compareTo(BigDecimal.ZERO) > 0 && !isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(price, quantitySale, barcode, name, discountSumReceiptDetail, gtinLot, seriesLot));
+                        receiptSaleItemList.add(new ReceiptItem(price, quantitySale, barcode, name, discountSumReceiptDetail, idLot, tailLot));
                     if (quantity != null && quantity.compareTo(BigDecimal.ZERO) > 0 && isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(price, quantity, barcode, "Подарочный сертификат", discountSumReceiptDetail, gtinLot, seriesLot));
+                        receiptSaleItemList.add(new ReceiptItem(price, quantity, barcode, "Подарочный сертификат", discountSumReceiptDetail, idLot, tailLot));
                     if (quantityReturn != null && quantityReturn.compareTo(BigDecimal.ZERO) > 0)
-                        receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, discountSumReceiptDetail, gtinLot, seriesLot));
+                        receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, discountSumReceiptDetail, idLot, tailLot));
                 }
 
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalPiritPrintReceiptClientAction(isUnix, comPort, baudRate, cashier, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumPrepayment, sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType, prefixFFD12));
+                            giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())

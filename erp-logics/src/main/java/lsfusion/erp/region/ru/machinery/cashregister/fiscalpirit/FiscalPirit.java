@@ -89,13 +89,13 @@ public class FiscalPirit {
     }
 
     public static Integer printReceipt(SerialPort serialPort, String cashier, ReceiptInstance receipt, List<ReceiptItem> receiptList,
-                                       Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType, String prefixFFD12, boolean sale) {
+                                       Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType, boolean sale) {
         openZReportIfClosed(serialPort, cashier);
         openDocumentCommand(serialPort, cashier, sale ? "2" : "3");
 
         for (ReceiptItem item : receiptList) {
-            checkLotCommand(serialPort, item, prefixFFD12);
-            setAdditionalPositionDetailsCommand(serialPort, item, prefixFFD12);
+            checkLotCommand(serialPort, item);
+            setAdditionalPositionDetailsCommand(serialPort, item);
             registerItemCommand(serialPort, item, giftCardDepartment);
         }
 
@@ -247,16 +247,16 @@ public class FiscalPirit {
         sendCommand(serialPort, "32", "Аннулировать документ", false);
     }
 
-    private static void setAdditionalPositionDetailsCommand(SerialPort serialPort, ReceiptItem item, String prefixFFD12) {
-        if(item.gtinLot != null && item.seriesLot != null) {
-            String lot = getLot(prefixFFD12, item.gtinLot, item.seriesLot);
+    private static void setAdditionalPositionDetailsCommand(SerialPort serialPort, ReceiptItem item) {
+        if(item.idLot != null && item.tailLot != null) {
+            String lot = getLot(item.idLot, item.tailLot);
             sendCommand(serialPort, "24", "Установить дополнительные реквизиты позиции", joinData(lot), true);
         }
     }
 
-    private static void checkLotCommand(SerialPort serialPort, ReceiptItem item, String prefixFFD12) {
-        if(item.gtinLot != null && item.seriesLot != null) {
-            String lot = getLot(prefixFFD12, item.gtinLot, item.seriesLot);
+    private static void checkLotCommand(SerialPort serialPort, ReceiptItem item) {
+        if(item.idLot != null && item.tailLot != null) {
+            String lot = getLot(item.idLot, item.tailLot);
 
             sendCommand(serialPort, "79", "Передача КМ в ФН для проверки достоверности КМ", joinData("1", lot, "0", "1", "1", "0", "1"), true);
 
@@ -266,8 +266,8 @@ public class FiscalPirit {
         }
     }
 
-    private static String getLot(String prefixFFD12, String gtinLot, String seriesLot) {
-        return (prefixFFD12 != null ? prefixFFD12 : "") + "01" + gtinLot + "21" + seriesLot + "$1d";
+    private static String getLot(String idLot, String tailLot) {
+        return idLot + "$1d" + tailLot.substring(1,7) + "$1d" + tailLot.substring(8);
     }
 
 
