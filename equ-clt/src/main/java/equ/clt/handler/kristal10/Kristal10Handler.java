@@ -211,21 +211,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             setAttribute(pluginProperty, "value", (item.splitItem || item.passScalesItem) ? "0.001" : "1.0");
                             good.addContent(pluginProperty);
 
-                            //parent: good
-                            Element priceEntry = new Element("price-entry");
-                            Object price = item.price == null ? null : (item.price.doubleValue() == 0.0 ? "0.00" : item.price);
-                            setAttribute(priceEntry, "price", price);
-                            setAttribute(priceEntry, "deleted", "false");
-                            addStringElement(priceEntry, "begin-date", currentDate());
-                            addStringElement(priceEntry, "number", "1");
-                            good.addContent(priceEntry);
-
-                            //parent: priceEntry
-                            Element department = new Element("department");
-                            setAttribute(department, "number", getDepartNumber(transaction, item, useSectionAsDepartNumber));
-                            priceEntry.addContent(department);
-
-                            addExtraPriceElements(good, transaction, item, null, price, infoJSON, useSectionAsDepartNumber);
+                            addPriceEntryElements(good, transaction, item, null, infoJSON, useSectionAsDepartNumber, null);
 
                             int vat = item.vat == null || item.vat.intValue() == 0 ? 20 : item.vat.intValue();
                             if(vat != 10 && vat != 20) {
@@ -646,28 +632,11 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                         for (Integer departNumber : departNumberSet) {
 
-                            //parent: good
-                            Element priceEntry = new Element("price-entry");
-                            setAttribute(priceEntry, "price", 1);
-                            setAttribute(priceEntry, "deleted", "true");
-                            addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"));
-                            addStringElement(priceEntry, "number", "1");
-                            good.addContent(priceEntry);
-
-                            //parent: priceEntry
-                            Element department = new Element("department");
-                            setAttribute(department, "number", departNumber);
-                            priceEntry.addContent(department);
+                            addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, "1", departNumber);
                         }
                     }
                     if(noPriceEntry) {
-                        //parent: good
-                        Element priceEntry = new Element("price-entry");
-                        setAttribute(priceEntry, "price", 1);
-                        setAttribute(priceEntry, "deleted", "true");
-                        addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"));
-                        addStringElement(priceEntry, "number", "1");
-                        good.addContent(priceEntry);
+                        addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, "1", null);
                     }
 
                     Element measureType = new Element("measure-type");
