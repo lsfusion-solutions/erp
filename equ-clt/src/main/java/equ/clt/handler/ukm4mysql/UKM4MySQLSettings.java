@@ -21,7 +21,7 @@ public class UKM4MySQLSettings implements Serializable{
     private List<String> giftCardList = new ArrayList<>();
 
     //время ожидания в секундах обработки транзакции после выгрузки, по умолчанию - 300 секунд
-    private Integer timeout;
+    private Integer timeout = 300;
 
     //если true, то не выгружаются таблицы classif, taxes, taxGroups, items, itemsStocks, stocks, priceList,
     //priceType, priceTypeStorePriceList, var, properties, propertyValues, itemPropertyValues
@@ -83,6 +83,8 @@ public class UKM4MySQLSettings implements Serializable{
     //если true, то для штучных товаров (ед.изм = ШТ) используем pieceCode вместо weightCode
     private boolean usePieceCode;
 
+    //если true, то при чтении платежей делаем IF(p.card_type!='', p.card_type,p.card_number) вместо p.card_number
+    private boolean checkCardType;
 
     public UKM4MySQLSettings() {
     }
@@ -288,5 +290,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setUsePieceCode(boolean usePieceCode) {
         this.usePieceCode = usePieceCode;
+    }
+
+    public boolean isCheckCardType() {
+        return checkCardType;
+    }
+
+    public void setCheckCardType(boolean checkCardType) {
+        this.checkCardType = checkCardType;
     }
 }

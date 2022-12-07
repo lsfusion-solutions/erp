@@ -58,7 +58,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 loadMySQLJDBCDriver();
 
                 UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
-                Integer timeout = nvl(ukm4MySQLSettings.getTimeout(), 300);
+                Integer timeout = ukm4MySQLSettings.getTimeout();
                 boolean skipItems = ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
                 boolean skipClassif = ukm4MySQLSettings.getSkipClassif() != null && ukm4MySQLSettings.getSkipClassif();
                 boolean skipBarcodes = ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
@@ -810,8 +810,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         List<CashDocument> result = new ArrayList<>();
         Map<String, List<CashDocument>> directoryListCashDocumentMap = new HashMap<>();
 
-        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-        Integer lastDaysCashDocument = ukm4MySQLSettings != null ? ukm4MySQLSettings.getLastDaysCashDocument() : null;
+        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
+        Integer lastDaysCashDocument = ukm4MySQLSettings.getLastDaysCashDocument();
 
         Set<String> directorySet = new HashSet<>();
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
@@ -927,12 +927,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
             for (String directory : directorySet) {
 
-                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
-                timeout = timeout == null ? 300 : timeout;
-                boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
-                boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
-                boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
+                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
+                Integer timeout = ukm4MySQLSettings.getTimeout();
+                boolean skipBarcodes = ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
+                boolean useBarcodeAsId = ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
+                boolean appendBarcode = ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
 
 
                 UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0);
@@ -1029,9 +1028,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
                 loadMySQLJDBCDriver();
 
-                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
-                timeout = timeout == null ? 300 : timeout;
+                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
+                Integer timeout = ukm4MySQLSettings.getTimeout();
                 UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(deleteBarcodeInfo.directoryGroupMachinery, 0);
 
                 if (params.connectionString == null) {
@@ -1060,21 +1058,22 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
         UKM4MySQLSalesBatch salesBatch = null;
 
-        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-        Set<Integer> cashPayments = ukm4MySQLSettings == null ? new HashSet<>() : parsePayments(ukm4MySQLSettings.getCashPayments());
-        Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<>() : parsePayments(ukm4MySQLSettings.getCardPayments());
-        Set<Integer> giftCardPayments = ukm4MySQLSettings == null ? new HashSet<>() : parsePayments(ukm4MySQLSettings.getGiftCardPayments());
-        Set<Integer> customPayments = ukm4MySQLSettings == null ? new HashSet<>() : parsePayments(ukm4MySQLSettings.getCustomPayments());
-        List<String> giftCardList = ukm4MySQLSettings == null ? new ArrayList<>() : ukm4MySQLSettings.getGiftCardList();
-        boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
-        boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
-        boolean useShiftNumberAsNumberZReport = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseShiftNumberAsNumberZReport();
-        boolean zeroPaymentForZeroSumReceipt = ukm4MySQLSettings != null && ukm4MySQLSettings.isZeroPaymentForZeroSumReceipt();
-        boolean cashRegisterByStoreAndNumber = ukm4MySQLSettings != null && ukm4MySQLSettings.isCashRegisterByStoreAndNumber();
-        boolean useLocalNumber = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseLocalNumber();
-        boolean useStoreInIdEmployee = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseStoreInIdEmployee();
-        boolean useCashNumberInsteadOfCashId = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseCashNumberInsteadOfCashId();
-        boolean usePieceCode = ukm4MySQLSettings != null && ukm4MySQLSettings.isUsePieceCode();
+        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
+        Set<Integer> cashPayments = parsePayments(ukm4MySQLSettings.getCashPayments());
+        Set<Integer> cardPayments = parsePayments(ukm4MySQLSettings.getCardPayments());
+        Set<Integer> giftCardPayments = parsePayments(ukm4MySQLSettings.getGiftCardPayments());
+        Set<Integer> customPayments = parsePayments(ukm4MySQLSettings.getCustomPayments());
+        List<String> giftCardList = ukm4MySQLSettings.getGiftCardList();
+        boolean useBarcodeAsId = ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
+        boolean appendBarcode = ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
+        boolean useShiftNumberAsNumberZReport = ukm4MySQLSettings.isUseShiftNumberAsNumberZReport();
+        boolean zeroPaymentForZeroSumReceipt = ukm4MySQLSettings.isZeroPaymentForZeroSumReceipt();
+        boolean cashRegisterByStoreAndNumber = ukm4MySQLSettings.isCashRegisterByStoreAndNumber();
+        boolean useLocalNumber = ukm4MySQLSettings.isUseLocalNumber();
+        boolean useStoreInIdEmployee = ukm4MySQLSettings.isUseStoreInIdEmployee();
+        boolean useCashNumberInsteadOfCashId = ukm4MySQLSettings.isUseCashNumberInsteadOfCashId();
+        boolean usePieceCode = ukm4MySQLSettings.isUsePieceCode();
+        boolean checkCardType = ukm4MySQLSettings.isCheckCardType();
 
         UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
 
@@ -1106,7 +1105,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     checkSalesColumnsAndIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, usePieceCode, machineryMap, cashPayments, cardPayments, giftCardPayments, customPayments,
                             giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, zeroPaymentForZeroSumReceipt,
-                            cashRegisterByStoreAndNumber, useLocalNumber, useStoreInIdEmployee, useCashNumberInsteadOfCashId, directory);
+                            cashRegisterByStoreAndNumber, useLocalNumber, useStoreInIdEmployee, useCashNumberInsteadOfCashId, checkCardType, directory);
 
                 } finally {
                     if (conn != null)
@@ -1121,15 +1120,23 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private Map<String, UKMPayment> readPaymentMap(Connection conn, Set<Integer> cashPayments, Set<Integer> cardPayments,
-                                                   Set<Integer> giftCardPayments, Set<Integer> customPayments, List<String> giftCardList) {
+                                                   Set<Integer> giftCardPayments, Set<Integer> customPayments, List<String> giftCardList,
+                                                   boolean checkCardType) {
 
         Map<String, UKMPayment> paymentMap = new HashMap<>();
 
         try (Statement statement = conn.createStatement()) {
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
-            String query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, IF(p.card_type!='', p.card_type,p.card_number), p.type "
-                    + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id "
-                    + "where r.ext_processed = 0 AND r.result = 0 AND (p.type = 0 OR p.type = 2)"; // type 3 это сдача, type 2 - аннулирование
+            String query;
+            if(checkCardType) {
+                query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, IF(p.card_type!='', p.card_type,p.card_number), p.type "
+                        + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id "
+                        + "where r.ext_processed = 0 AND r.result = 0 AND (p.type = 0 OR p.type = 2)"; // type 3 это сдача, type 2 - аннулирование
+            } else {
+                query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number, p.type "
+                        + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id "
+                        + "where r.ext_processed = 0 AND r.result = 0 AND (p.type = 0 OR p.type = 2)"; // type 3 это сдача, type 2 - аннулирование
+            }
             ResultSet rs = statement.executeQuery(query);
             int count = 0;
             while (rs.next()) {
@@ -1251,7 +1258,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                                      Set<Integer> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
                                                      boolean cashRegisterByStoreAndNumber, boolean useLocalNumber, boolean useStoreInIdEmployee,
-                                                     boolean useCashNumberInsteadOfCashId, String directory) {
+                                                     boolean useCashNumberInsteadOfCashId, boolean checkCardType, String directory) {
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
@@ -1270,7 +1277,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     " WHERE r.ext_processed = 0 AND r.result = 0 AND i.type = 0";
             ResultSet rs = statement.executeQuery(query);
 
-            Map<String, UKMPayment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments, customPayments, giftCardList);
+            Map<String, UKMPayment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments, customPayments, giftCardList, checkCardType);
             int rowCount = 0;
             while (rs.next()) {
 
