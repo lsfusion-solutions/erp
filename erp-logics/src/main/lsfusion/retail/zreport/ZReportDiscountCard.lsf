@@ -4,7 +4,7 @@ REQUIRE ZReport, DiscountCard;
 
 NAMESPACE ZReport;
 
-discountCard (receipt) = DATA DiscountCard (Receipt) INDEXED;
+discountCard (receipt) = DATA DiscountCard (Receipt);
 countReceipt 'Кол-во чеков' = GROUP SUM 1 BY discountCard(Receipt r); 
 externalCountReceipt 'Кол-во чеков(дополнительно)' = ABSTRACT INTEGER (DiscountCard) MATERIALIZED; 
 totalCountReceipt 'Кол-во чеков(всего)'(DiscountCard dc) = countReceipt(dc) (+) externalCountReceipt(dc); 
@@ -61,6 +61,7 @@ externalSum 'Дополнительные накопления' (discountCard) =
 totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d); 
 prevTotalSum 'Накопленная сумма' (DiscountCard d) = PREV(totalSum(d)); 
 
+INDEX discountCard(Receipt r), date(r);
 dateFirstUse 'Дата первого использования'=  GROUP MIN date(Receipt receipt) BY discountCard (receipt);
 
 //перевод накоплений по карте
