@@ -489,8 +489,6 @@ resetProps (SnapshotABC snapshot){
 
 stop = DATA LOCAL NESTED BOOLEAN (SnapshotABC);
 
-takeFromToBefore ABSTRACT LIST (SnapshotABC);
-
 takeFromTo(SnapshotABC snapshot)   { 
     stop(snapshot) <- NULL;
     
@@ -529,15 +527,13 @@ takeFromTo(SnapshotABC snapshot)   {
     takeFromToReturn(snapshot);    
     IF stop(snapshot) THEN {
         RETURN;
-    }
-    LOCAL skip  = BOOLEAN(Sku,Stock,DATE);
-    takeFromToBefore(snapshot);
+    }   
     
     // Количество продаж товара (для XYZ-отчета)
     LOCAL quantitySold = NUMERIC[16,5] (Sku, DATE);            
     quantitySold (Sku sku, DATE date) <- (GROUP
             SUM quantitySold(sku, Stock st, date) 
-            IF include(snapshot, st) AND NOT skip(sku,st,date) AND 
+            IF include(snapshot, st) AND 
                (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot))) 
             WHERE include(snapshot, sku) AND 
                date >= fromDate(snapshot) AND date <= toDate(snapshot);
@@ -545,21 +541,6 @@ takeFromTo(SnapshotABC snapshot)   {
     // по товарам
     
     resetProps(snapshot);
-
-    LOCAL markupSumSold = NUMERIC[16,5] (Sku, DATE);
-    LOCAL sumSold = NUMERIC[16,5] (Sku, DATE);
-
-    markupSumSold (Sku sku, DATE date) <-(GROUP
-        SUM markupSumSold(sku, Stock st, date)
-            IF include(snapshot, st) AND NOT skip(sku,st,date) AND
-                (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot)))
-        WHERE include(snapshot, sku) AND date >= fromDate(snapshot) AND date <= toDate(snapshot);
-
-    sumSold (Sku sku, DATE date) <-  (GROUP
-        SUM sumSold(sku, Stock st, date)
-            IF include(snapshot, st) AND NOT skip(sku,st,date) AND
-                (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot)))
-        WHERE include(snapshot, sku) AND date >= fromDate(snapshot) AND date <= toDate(snapshot);
     
     markupSumSold (Sku sku, snapshot) <-OVERRIDE (GROUP
             SUM markupSumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) 
@@ -996,7 +977,7 @@ DESIGN snapshotsABC {
 
 NAVIGATOR {
     retailNavigator {
-        NEW FOLDER abcNavigatorSnapShot 'ABC-анализ' {
+        NEW FOLDER abcNavigator 'ABC-анализ' {
             NEW operations;
             NEW snapshotsABC;
         }
