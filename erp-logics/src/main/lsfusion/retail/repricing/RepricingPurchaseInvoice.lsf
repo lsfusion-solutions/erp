@@ -198,6 +198,8 @@ createExtraValuationStockTimeOperationNotForm ABSTRACT LIST ( UserRepricing);
 retailExtraPriceCustom = ABSTRACT NUMERIC[16,4](InvoiceDetail);
 retailExtraPriceOver(InvoiceDetail d) = OVERRIDE retailExtraPriceCustom(d), retailExtraPrice(d);
 
+createCustom ABSTRACT LIST (UserRepricing);
+
 createExtraValuationNotForm 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation)  { 
     LOCAL in = BOOLEAN (Invoice);
     in(Invoice invoice) <- filterToRepricingDate (invoice, department, timeFrom, timeTo);
@@ -255,8 +257,8 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
                 skipChangeLedger(r) <- TRUE;
                 isPosted(r) <- TRUE IF NOT createDraftRepricing();
                 date(r) <-  DATE(timeTo);
-                time(r) <- currentTime();                
-                
+                time(r) <- currentTime();
+                createCustom(r);
         
                 // дооценка в прямую сторону
                 FOR positive(InvoiceDetail detail) NEW rd = UserRepricingDetail DO {
