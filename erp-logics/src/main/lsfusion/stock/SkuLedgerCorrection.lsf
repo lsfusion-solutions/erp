@@ -1,0 +1,123 @@
+MODULE SkuLedgerCorrection;
+
+REQUIRE SkuLedger, SaleShipment, WriteOff, Inventory, 
+        PurchaseShipment, PurchaseReturnShipment, SaleCreditNoteStockDocument, PriceListAccountSum, Disparity, StockAdjustment,
+        SalePurchaseShipment, SalePurchaseInvoice, SalePurchaseInvoiceShipment;
+
+NAMESPACE Stock;
+
+
+corrected = DATA LOCAL NESTED BOOLEAN (Sku);
+corrected = DATA LOCAL NESTED BOOLEAN (Stock);
+
+lastSkuLedger = GROUP LAST SkuLedger ledger ORDER dateTime(ledger), ledger 
+    WHERE date(ledger)<DATE date BY sku(ledger), stock(ledger), date;
+
+overCorrectAccountSum ABSTRACT LIST (StockDocumentLedger);
+
+correctAccountSum (DATE dt) {
+    APPLY NESTED (corrected[Sku], corrected[Stock]){
+        accountPrice(Sku sku, Stock stock) <- NULL WHERE corrected(sku) AND corrected(stock);
+        accountPrice(Sku sku, Stock stock) <- NUMERIC[16,4](signedPrice(lastSkuLedger(sku, stock, dt))) WHERE corrected(sku) AND corrected(stock) AND lastSkuLedger(sku, stock, dt);
+    }
+    FOR date(StockDocumentLedger l) >= dt AND NOT date(l) < documentsClosedDate(stock(l)) AND corrected(stock(l)) ORDER dateTime(l), l DO {
+        skipChangeAccountPrice() <- TRUE;
+
+        IF l IS Sale.InvoiceShipment AND invoice[Sale.InvoiceShipment](l) IS Sale.UserInvoice THEN {
+            shipmentPrice(Sale.UserInvoiceDetail d) <- prevAccountPriceB(Sale.sku(d), supplierStock(d), dateTime(d))
+                WHERE userInvoice(d) = invoice[Sale.InvoiceShipment](l) AND prevAccountPriceB(Sale.sku(d), supplierStock(d), dateTime(d)) AND corrected(Sale.sku(d));
+            purchaseShipmentPrice(Sale.UserInvoiceDetail d) <- shipmentPrice(d)  WHERE userInvoice(d) = invoice[Sale.InvoiceShipment](l) AND corrected(Sale.sku(d));
+            APPLY NESTED (corrected[Sku], corrected[Stock], skipChangeAccountPrice[]);
+        }
+        IF l IS PurchaseReturn.InvoiceShipment AND invoice[PurchaseReturn.InvoiceShipment](l) IS PurchaseReturn.UserInvoice THEN {
+            shipmentPrice(PurchaseReturn.UserInvoiceDetail d) <- prevAccountPriceB(PurchaseReturn.sku(d), customerStock(d), dateTime(d))
+                WHERE userInvoice(d) = invoice[PurchaseReturn.InvoiceShipment](l) AND prevAccountPriceB(PurchaseReturn.sku(d), customerStock(d), dateTime(d)) AND corrected(PurchaseReturn.sku(d));
+            APPLY NESTED (corrected[Sku], corrected[Stock], skipChangeAccountPrice[]);
+        }
+        IF l IS Sale.CreditNote THEN {
+            accountPrice(Sale.UserCreditNoteDetail d) <- shipmentPrice(invoiceDetail(d))
+                WHERE creditNote(d) = l AND corrected(Sale.sku(d));
+            APPLY NESTED (corrected[Sku], corrected[Stock], skipChangeAccountPrice[]);
+        }
+        IF l IS UserWriteOff THEN {
+            price(UserWriteOffDetail d) <- prevAccountPriceB(WriteOff.sku(d), WriteOff.stock(d), WriteOff.dateTime(d))
+                WHERE userWriteOff(d) = l AND prevAccountPriceB(WriteOff.sku(d), WriteOff.stock(d), WriteOff.dateTime(d)) AND corrected(WriteOff.sku(d));
+            APPLY NESTED (corrected[Sku], corrected[Stock], skipChangeAccountPrice[]);
+        }
+        IF l IS InAdjustment THEN {
+            price(UserAdjustmentDetail d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
+                WHERE userAdjustment(d) = adjustment[InAdjustment](l) AND prevAccountPriceB(sku(d), stock(d), dateTime(d)) AND corrected(Stock.sku(d));
+            APPLY NESTED (corrected[Sku], corrected[Stock], skipChangeAccountPrice[]);
+        }
+        IF l IS OutAdjustment THEN {
+            price(UserAdjustmentDetail d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
+                WHERE userAdjustment(d) = adjustment[OutAdjustment](l) AND prevAccountPriceB(sku(d), stock(d), dateTime(d)) AND corrected(Stock.sku(d));
+            APPLY NESTED (corrected[Sku], corrected[Stock], skipChangeAccountPrice[]);
+        }
+        IF l IS Disparity.Disparity THEN {
+            price(Disparity.DisparityDetail d) <- prevAccountPriceB(Disparity.sku(d), Disparity.stock(d), Disparity.dateTime(d))
+                WHERE disparity(d) = l AND prevAccountPriceB(Disparity.sku(d), Disparity.stock(d), Disparity.dateTime(d)) AND corrected(Disparity.sku(d));
+            APPLY NESTED (corrected[Sku], corrected[Stock], skipChangeAccountPrice[]);
+        }
+        
+        overCorrectAccountSum (l);
+
+        CANCEL;
+    }
+    accountPrice(Sku sku, Stock stock) <- NUMERIC[16,4](averagePrice(sku, stock)) WHERE corrected(sku) AND corrected(stock) AND averagePrice(sku, stock) > 0.0;
+    skipChangeAccountPrice() <- NULL;
+    APPLY NESTED (corrected[Sku], corrected[Stock]);
+}
+
+correctAccountSum (LegalEntity l, DATE dt) {
+    corrected(Stock stock) <- NULL;
+    corrected(Stock stock) <- TRUE WHERE legalEntity(stock) = l;
+    corrected(Sku s) <- TRUE;
+    correctAccountSum(dt);
+}
+
+correctAccountSumStock 'Исправить учетные суммы' (Stock stock, DATE dt) {
+    IF dt < documentsClosedDate(stock) THEN {
+        MESSAGE 'Дата начала корректировки меньше даты закрытого периода склада. \n Корректировка не будет выполнена.';
+    } ELSE {
+        corrected(Stock st) <- NULL;
+
+        corrected(stock) <- TRUE;
+        corrected(Sku s) <- TRUE;
+        correctAccountSum(dt);
+    }
+}
+
+minDocumentsClosedDate = GROUP MIN documentsClosedDate(Stock st) BY legalEntity(st);
+
+correctAccountSumStock 'Исправить учетные суммы' (LegalEntity l) {
+    correctAccountSum(l, minDocumentsClosedDate(l));
+}
+
+FORM correctDateFrom 'Дата начала корректировки'
+    OBJECTS dt = DATE PANEL
+    PROPERTIES date = VALUE(dt)
+;
+
+DESIGN correctDateFrom {
+    PROPERTY (date) {
+        fill = 1;
+        caption = 'Дата с';
+        font = 'bold 16';
+        panelCaptionVertical = TRUE;
+    }
+}
+
+correctAccountSum 'Исправить учетные суммы' (Stock stock) {
+    DIALOG correctDateFrom OBJECTS dt INPUT DO {
+        correctAccountSumStock (stock, dt);
+    }
+} CONFIRM;
+
+correctAccountSumAccountPeriod 'Исправить учетные суммы (отчетный период)' (Stock stock) {
+    correctAccountSumStock (stock, documentsClosedDate(stock));
+} CONFIRM;
+
+EXTEND FORM closingDocuments
+    PROPERTIES (s) correctAccountSumAccountPeriod TOOLBAR     
+;
