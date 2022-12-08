@@ -1,6 +1,6 @@
 MODULE DateSkuLedger;
 
-REQUIRE ZReport, SkuLedger;
+REQUIRE ZReport, SkuLedger, PriceListAccountSum;
 
 NAMESPACE ZReport;
 
@@ -140,7 +140,7 @@ discountSum (DateReturnSkuLedger ledger) += -NUMERIC[18,4](discountSumReceiptRet
 
 accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (DateSaleSkuLedger);
 WHEN SET (DateSaleSkuLedger l IS DateSaleSkuLedger) DO
-    accountPrice(l) <- NUMERIC[16,4](prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)));
+    accountPrice(l) <- NUMERIC[16,4](OVERRIDE prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)), accountPrice(sku(l), departmentStore(l)));
 
 accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (DateSaleSkuLedger);
 accountSum(DateSaleSkuLedger l) <- round2(quantity[OutFIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[OutFIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
@@ -151,7 +151,7 @@ costSum (DateSaleSkuLedger ledger) += WHEN ledger IS DateSaleSkuLedger THEN NUME
 
 accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (DateReturnSkuLedger);
 WHEN SET (DateReturnSkuLedger l IS DateReturnSkuLedger) DO
-    accountPrice(l) <- NUMERIC[16,4](prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)));
+    accountPrice(l) <- NUMERIC[16,4](OVERRIDE prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)), accountPrice(sku(l), departmentStore(l)));
 
 accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (DateReturnSkuLedger);
 accountSum(DateReturnSkuLedger l) <- round2(quantity[InLIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[InLIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
