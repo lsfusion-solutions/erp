@@ -344,19 +344,22 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             JSONObject infoJSON = getExtInfo(item.info);
 
+            BigDecimal defaultQuantity = null;
+            if (infoJSON != null && infoJSON.has("defaultquantity")) {defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");}
+
             if (infoJSON != null && infoJSON.has("tmctype")) {
                 int tmcType = infoJSON.optInt("tmctype");
                 JSONArray barcodesArray = new JSONArray();
-                barcodesArray.put(getBarcodeJSON(mainBarcode, appendBarcode, tmcType)); //main barcode
+                barcodesArray.put(getBarcodeJSON(mainBarcode, appendBarcode, tmcType, defaultQuantity)); //main barcode
                 for (CashRegisterItem barcode : barcodes) { //additional barcodes
-                    barcodesArray.put(getBarcodeJSON(barcode.idBarcode, appendBarcode, tmcType));
+                    barcodesArray.put(getBarcodeJSON(barcode.idBarcode, appendBarcode, tmcType, defaultQuantity));
                 }
                 inventObject.put("barcodes", barcodesArray);
             } else {
                 if (!barcodes.isEmpty()) {
                     JSONArray barcodesArray = new JSONArray();
                     for (CashRegisterItem barcode : barcodes) {
-                        barcodesArray.put(getBarcodeJSON(barcode.idBarcode, appendBarcode, null));
+                        barcodesArray.put(getBarcodeJSON(barcode.idBarcode, appendBarcode, null, defaultQuantity));
                     }
                     inventObject.put("barcodes", barcodesArray);
                 }
@@ -395,6 +398,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             Integer weightControlBypass = null;
             Integer requireQuantityManual = null;
             Integer requireQuantityScales = null;
+            Integer enableQuantityScales = null;
 
             if (infoJSON != null) {
                 Double alcoholPercent = infoJSON.optDouble("alcoholpercent");
@@ -447,6 +451,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 if(infoJSON.has("requirequantityscales")) {
                     requireQuantityScales = infoJSON.optInt("requirequantityscales");
                 }
+                if(infoJSON.has("enablequantityscales")) {
+                    enableQuantityScales = infoJSON.optInt("enablequantityscales");
+                }
 
                 boolean hasMode = infoJSON.has("taramode");
                 int taramode = hasMode ? infoJSON.optInt("taramode") : 7;
@@ -480,6 +487,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 if (infoJSON.has("loyaltymode")) {
                     inventObject.put("loyaltymode", infoJSON.optInt("loyaltymode"));
                 }
+
+                if (defaultQuantity != null) {
+                    inventObject.put("defaultquantity", defaultQuantity);
+                }
             }
 
             JSONObject itemOptions = new JSONObject();
@@ -503,10 +514,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                     quantityoptions.put("enabledocumentquantitylimit", 2); //включить ограничение количества товара в чеке
                     itemOptions.put("quantityoptions", quantityoptions);
                 }
-            } else if(requireQuantityManual != null || requireQuantityScales != null) {
+            } else if(requireQuantityManual != null || requireQuantityScales != null || enableQuantityScales != null) {
                 JSONObject quantityoptions = new JSONObject();
                 quantityoptions.put("requirequantitymanual", requireQuantityManual);
                 quantityoptions.put("requirequantityscales", requireQuantityScales);
+                quantityoptions.put("enablequantityscales", enableQuantityScales);
                 itemOptions.put("quantityoptions", quantityoptions);
             }
 
@@ -544,10 +556,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         } else return null;
     }
 
-    private JSONObject getBarcodeJSON(String barcode, boolean appendBarcode, Integer tmcType) {
+    private JSONObject getBarcodeJSON(String barcode, boolean appendBarcode, Integer tmcType, BigDecimal defaultQuantity) {
         JSONObject barcodeObject = new JSONObject();
         barcodeObject.put("barcode", removeCheckDigitFromBarcode(barcode, appendBarcode));
         barcodeObject.put("tmctype", tmcType);
+        barcodeObject.put("quantdefault", defaultQuantity);
         return barcodeObject;
     }
 
