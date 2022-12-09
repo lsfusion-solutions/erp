@@ -4,7 +4,7 @@ REQUIRE NativeMachinery, ScalesSelfService;
 
 NAMESPACE RBS;
 
-loadDefaultScalesModels () + { 
+loadDefaultScalesModels () + {
     loadDefaultScalesModel('Весы РБС KS4010', 'KS4010', 'lsf.machinery.scales.rbs.KS4010');
 }
 
@@ -14,7 +14,7 @@ scalesGroup (MachineryPriceTransaction t, Barcode b) += group(dataCustomGroupTyp
 skilLoadImages 'Не выгружать изображения в весы' = ABSTRACT BOOLEAN (GroupScales) PREREAD;
 
 imageRBS = DATA IMAGEFILE (Item) TABLE itemImage;
-WHEN CHANGED (image(Item i)) DO { 
+WHEN CHANGED (image(Item i)) DO {
     imageRBS(i) <- NULL;
 }
 
@@ -22,6 +22,7 @@ code = DATA LOCAL INTEGER ();
 message = DATA LOCAL STRING(INTEGER);
 FORM result
     PROPERTIES () code
+
     OBJECTS message = INTEGER
     PROPERTIES(message) message EXTID 'value';
 
@@ -41,34 +42,34 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
         LOCAL groups = JSONFILE();
         LOCAL groupsImages = FILE();
         EXPORT JSON FROM
-            category_num = (OVERRIDE idCategoryNum(t, Group g), INTEGER (id(g))),	//The index of the category //только цифры, если будет неверный код шлем без категории
+            category_num = (OVERRIDE idCategoryNum(t, Group g), INTEGER (id(g))), //The index of the category //только цифры, если будет неверный код шлем без категории
             category_name = name(g), //The name of the category
             describ = '', //The description of the category.
             order = (OVERRIDE order(g), INTEGER (id(g)), 1000), //The order index of the category. The smaller the number, the higher priority it has when sorting categories. //пока не работает
             image = ('cat_' + id(g) + '.png') IF hasScalesImage(g) AND NOT skilLoadImages(groupMachinery(t))
             WHERE GROUP SUM 1 IF in(t, Barcode b) AND g == (OVERRIDE (scalesGroup(t, b)), skuGroup(t, b)) AND INTEGER (id(g))
             TO groups;
-            
+
         FOR [GROUP SUM 1 IF in(t, Barcode b) BY (OVERRIDE (scalesGroup(t, b)), skuGroup(t, b))](Group g) AND hasScalesImage(g) AND NOT skilLoadImages(groupMachinery(t)) DO
             zipping(STRING[1000] f) <- FILE(scalesImage(g)) WHERE f == 'cat_' + id(g) + '.png';
         IF GROUP SUM 1 IF zipping(STRING[1000] f) THEN {
             makeZipFile();
-            groupsImages()<- zipped();
+            groupsImages() <- zipped();
         }
-        
+
         LOCAL items = JSONFILE();
         LOCAL itemsImages = FILE();
         EXPORT JSON FROM
             product_number = (OVERRIDE STRING(pluNumber(t, Barcode b)), id(b)),
             product_code = fullId(b, groupMachinery(t)),
-            product_name = name(t,b),
-            name_sort = name(t,b),
-            product_abbr =name(t,b),
-            abbr_sort =name(t, b),
+            product_name = name(t, b),
+            name_sort = name(t, b),
+            product_abbr = name(t, b),
+            abbr_sort = name(t, b),
             category_num = (OVERRIDE idCategoryNum(t, b), INTEGER (idSkuGroup(t, b))),
             department_num = '1',
             sales_price = 0.0,
-            original_price  = price(t, b),
+            original_price = price(t, b),
             price_unit_index = (IF isPiece(b) THEN -1 ELSE 0), //-1:/pc, 0:/kg, 1:/100g, 2:/g
             ingredients = left(description(t, b), 1450), //по идее нужно именно 3000 байт посчитать, но пока так
             used_by_days = STRING (expiryDays(t, b)),
@@ -80,15 +81,15 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             pre_tare_unit_index = 1 IF tareWeight(t, b) OR tareWeight(b) //0:kg, 1:g, 2:tj, 3:gj, 4:lb, 5:oz, 6:lz
             WHERE in(t, b)
             TO items;
-        
+
         FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) AND NOT imageRBS(sku(b)) DO {
-            convertedImage()<-NULL;
+            convertedImage() <- NULL;
             TRY {
                 convertImage((OVERRIDE smallImage(sku(b)), image(sku(b))), 'jpg');
                 imageRBS(sku(b)) <- convertedImage();
             }
         }
-        
+
         zipping(STRING[1000] f) <- NULL;
         FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) DO
             zipping(STRING[1000] f) <- FILE(imageRBS(sku(b))) WHERE f == 'item_' + fullId(b, groupMachinery(t)) + '.jpg';
@@ -96,40 +97,43 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             makeZipFile();
             itemsImages() <- zipped();
         }
-        
+
         timeoutHttp() <- 900000;
-        FOR groupMachinery(Machinery m) == groupMachinery(t) AND (in(t, m) OR NOT npps(t)) AND NOT succeeded(m,t) AND NOT inactive(m) NOINLINE DO {
-            
+        FOR groupMachinery(Machinery m) == groupMachinery(t) AND (in(t, m) OR NOT npps(t)) AND NOT succeeded(m, t) AND NOT inactive(m) NOINLINE DO {
+            LOCAL ip, port = STRING ();
+            ip() <- getWord(port(m), ':', 1);
+            port() <- OVERRIDE getWord(port(m), ':', 2), '1235';
+
             LOCAL error = BOOLEAN ();
             LOCAL result = JSONFILE ();
             TRY {
                 //чтобы не ждать весь таймаут просто предварительно пингуем
-                ping(port(m));
-                IF pingError() THEN throwException( 'Scales: ' + port(m)+ ' ping error');
-                            
+                ping(ip());
+                IF pingError() THEN throwException( 'Scales: ' + ip() + ' ping error');
+
                 IF snapshot(t) AND NOT cleared(m, t) THEN {
                     LOCAL id = STRING (INTEGER );
-                    
-                    EXPORT JSON FROM value = 'ALL'  WHERE INTEGER i == 1;
-                    EXTERNAL HTTP DELETE 'http://'+ port(m) + ':1235/category' PARAMS exportFile() TO result;
-                    
-                    EXTERNAL HTTP DELETE 'http://'+ port(m) + ':1235/products' PARAMS exportFile() TO result;
-                    
+
+                    EXPORT JSON FROM value = 'ALL' WHERE INTEGER i == 1;
+                    EXTERNAL HTTP DELETE 'http://' + ip() + ':' + port() + '/category' PARAMS exportFile() TO result;
+
+                    EXTERNAL HTTP DELETE 'http://' + ip() + ':' + port() + '/products' PARAMS exportFile() TO result;
+
                     cleared(m, t) <- TRUE;
                 }
-                
-                IF groupsImages() THEN EXTERNAL HTTP POST 'http://'+ port(m) + ':1235/upload/categoryImage' BODYPARAMNAMES 'file' PARAMS groupsImages() TO result;
-                
-                EXTERNAL HTTP POST 'http://'+ port(m) + ':1235/category' PARAMS groups() TO result;
+
+                IF groupsImages() THEN EXTERNAL HTTP POST 'http://' + ip() + ':' + port() + '/upload/categoryImage' BODYPARAMNAMES 'file' PARAMS groupsImages() TO result;
+
+                EXTERNAL HTTP POST 'http://' + ip() + ':' + port() + '/category' PARAMS groups() TO result;
                 IMPORT JSON FROM result() TO() code;
                 IF code() THEN throwException('Ошибка выгрузки категорий');
-                
-                IF itemsImages() THEN EXTERNAL HTTP POST 'http://'+ port(m) + ':1235/upload/productImage' BODYPARAMNAMES 'file' PARAMS itemsImages() TO result;
-                
-                EXTERNAL HTTP POST 'http://'+ port(m) + ':1235/products' PARAMS items() TO result;
+
+                IF itemsImages() THEN EXTERNAL HTTP POST 'http://' + ip() + ':' + port() + '/upload/productImage' BODYPARAMNAMES 'file' PARAMS itemsImages() TO result;
+
+                EXTERNAL HTTP POST 'http://' + ip() + ':' + port() + '/products' PARAMS items() TO result;
                 IMPORT JSON FROM result() TO() code;
                 IF code() THEN throwException('Ошибка выгрузки товаров');
-                
+
             } CATCH {
                 error() <- TRUE;
                 NEW er = MachineryPriceTransactionError {
@@ -140,20 +144,20 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
                     errorTrace(er) <- CONCAT '\n\n', lsfStackTraceCaughtException(), javaStackTraceCaughtException ();
                 }
             }
-            
+
             IF NOT error() THEN {
                 succeeded(m, t) <- TRUE;
                 dateTimeSucceeded (m, t) <- currentDateTime();
             }
-            
+
         }
-        
+
         IF (GROUP SUM 1 IF groupMachinery(Machinery m) == groupMachinery(t) AND (in(t, m) OR NOT npps(t)) AND NOT inactive(m)) ==
             (GROUP SUM 1 IF groupMachinery(Machinery m) == groupMachinery(t) AND succeeded(m, t)) THEN {
                 succeeded(t) <- TRUE;
                 dateTimeSucceeded (t) <- currentDateTime();
             }
-            
+
         APPLY;
     }
 }
