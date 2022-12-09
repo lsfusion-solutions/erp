@@ -489,6 +489,9 @@ resetProps (SnapshotABC snapshot){
 
 stop = DATA LOCAL NESTED BOOLEAN (SnapshotABC);
 
+takeFromToBefore ABSTRACT (SnapshotABC);
+skip  = DATA LOCAL BOOLEAN(Sku,Stock,DATE);
+
 takeFromTo(SnapshotABC snapshot)   { 
     stop(snapshot) <- NULL;
     
@@ -527,13 +530,15 @@ takeFromTo(SnapshotABC snapshot)   {
     takeFromToReturn(snapshot);    
     IF stop(snapshot) THEN {
         RETURN;
-    }   
+    }
+    skip(Sku s,Stock st,DATE date)<- NULL;
+    takeFromToBefore(snapshot);
     
     // Количество продаж товара (для XYZ-отчета)
     LOCAL quantitySold = NUMERIC[16,5] (Sku, DATE);            
     quantitySold (Sku sku, DATE date) <- (GROUP
             SUM quantitySold(sku, Stock st, date) 
-            IF include(snapshot, st) AND 
+            IF include(snapshot, st) AND NOT skip(sku,st,date) AND 
                (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot))) 
             WHERE include(snapshot, sku) AND 
                date >= fromDate(snapshot) AND date <= toDate(snapshot);
@@ -541,17 +546,26 @@ takeFromTo(SnapshotABC snapshot)   {
     // по товарам
     
     resetProps(snapshot);
+
+    LOCAL markupSumSold = NUMERIC[18,4] (Sku, DATE);
+    LOCAL sumSold = NUMERIC[18,4] (Sku, DATE);
+
+    markupSumSold (Sku sku, DATE date) <-(GROUP
+        SUM markupSumSold(sku, Stock st, date)
+            IF include(snapshot, st) AND NOT skip(sku,st,date) AND
+                (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot)))
+        WHERE include(snapshot, sku) AND date >= fromDate(snapshot) AND date <= toDate(snapshot);
+
+    sumSold (Sku sku, DATE date) <-  (GROUP
+        SUM sumSold(sku, Stock st, date)
+            IF include(snapshot, st) AND NOT skip(sku,st,date) AND
+                (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot)))
+        WHERE include(snapshot, sku) AND date >= fromDate(snapshot) AND date <= toDate(snapshot);
     
-    markupSumSold (Sku sku, snapshot) <-OVERRIDE (GROUP
-            SUM markupSumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) 
-            IF include(snapshot, st) AND 
-               (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot))), 0.0 
+    markupSumSold (Sku sku, snapshot) <-OVERRIDE (GROUP SUM markupSumSold(sku, DATE date)), 0.0 
             WHERE include(snapshot, sku);
     
-    sumSold (Sku sku, snapshot) <- OVERRIDE (GROUP
-            SUM sumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) 
-            IF include(snapshot, st) AND 
-            (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot))), 0.0 
+    sumSold (Sku sku, snapshot) <- OVERRIDE (GROUP SUM sumSold(sku,DATE date)), 0.0
             WHERE include(snapshot, sku);
     
     percMarkupSold(Sku sku, snapshot) <- OVERRIDE round2(markupSumSold(sku, snapshot)*100.00 / sumSold(sku, snapshot)), 0.0 WHERE include(snapshot, sku);
@@ -626,12 +640,13 @@ takeFromTo(SnapshotABC snapshot)   {
     
     ///// XYZ
     //  Среднее кол-во продаж в день
-    averageSold(Sku sku, snapshot) <- round3( (GROUP
-        SUM quantitySold (sku, Stock st, fromDate(snapshot), toDate(snapshot))  
-        IF include(snapshot, st) AND 
-           (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot)))
-        / daysInclBetweenDates(fromDate(snapshot),toDate(snapshot))) WHERE include(snapshot, sku);
+    LOCAL quantitySoldTotal = NUMERIC[16,5] (Sku, DATE);
+    quantitySoldTotal (Sku sku, DATE date) <- (GROUP SUM (quantitySold(sku, Stock st, date) (+) extraQuantitySold(sku, st, date))
+        IF include(snapshot, st) AND NOT skip(sku,st,date) AND
+            (fltLegalEntity(snapshot) == supplierLastOrderBatch(sku, st) OR NOT fltLegalEntity(snapshot)))
+        WHERE include(snapshot, sku) AND date >= fromDate(snapshot) AND date <= toDate(snapshot);
 
+    averageSold(Sku sku, snapshot) <- round3( (GROUP SUM quantitySoldTotal (sku, DATE date)) / daysInclBetweenDates(fromDate(snapshot),toDate(snapshot))) WHERE include(snapshot, sku);
     //  Дисперсия однодневных продаж 
     dispersionSold(Sku sku, snapshot) <- round3( sqrt((GROUP SUM sqr((OVERRIDE quantitySold(sku, DATE date), 0.0 IF sku IS Sku )
         -  averageSold(sku, snapshot))
@@ -664,9 +679,7 @@ takeFromTo(SnapshotABC snapshot)   {
     
     finishTime(snapshot) <- currentDateTime();      
     apply();
-    
 };
-
 
 
 takeData 'Сформировать отчет' (SnapshotABC snapshot)  { 
@@ -742,42 +755,39 @@ DESIGN operation {
 }
    
 in (Operation type, DATE date) = ((countDOWsIn(type) AND in(type, extractDOW(date))) OR (type IS Operation AND date IS DATE AND NOT countDOWsIn(type))) AND
-                              ((countDaysIn(type) AND inDays(type, extractDay(date))) OR (type IS Operation AND date IS DATE AND NOT countDaysIn(type)));            
+                              ((countDaysIn(type) AND inDays(type, extractDay(date))) OR (type IS Operation AND date IS DATE AND NOT countDaysIn(type)));
 
 
+createSnapshotString 'Создать отчет' (BPSTRING[100] string, DATE date, DATE dateTo) {
+    FOR idReport(Operation type) == string  DO {
+        IF in(type, date) AND countDays(type) THEN {
 
+            IF NOT oneReport(type)   THEN NEWSESSION NEW r = SnapshotABC {
+                fromDate(r) <- subtract(dateTo,countDays(type)-1);
+                toDate(r) <- dateTo;
+                operation(r) <- type;
+                takeFromTo(r);
+                APPLY;
+
+            } ELSE {
+                FOR include(type, Stock stock)DO  NEWSESSION NEW r = SnapshotABC  {
+                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
+                    toDate(r) <- dateTo;
+                    operation(r) <- type;
+                    dataInclude(r, Stock st) <- NULL;
+                    dataInclude(r, StockGroup st) <- NULL;
+                    dataInclude(r, stock) <- TRUE;
+                    allStockInclude(r) <- NULL;
+                    takeFromTo(r);
+                    APPLY;
+                }
+            }
+        }
+    }
+}
   
-createSnapshotString 'Создать отчет' (BPSTRING[100] string, DATE dateTo)  { 
-	NEWSESSION { 
-	    FOR idReport(Operation type) == string  DO {
-	        IF in(type, currentDate()) AND countDays(type) THEN {     
-	
-	            IF NOT oneReport(type)   THEN {
-	
-	                NEW r = SnapshotABC {                    
-	                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
-	                    toDate(r) <- dateTo;
-	                    operation(r) <- type;
-	                    takeFromTo(r);                
-	                }
-    	            
-	            } ELSE {
-	                FOR include(type, Stock stock) NEW r = SnapshotABC DO {
-	                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
-	                    toDate(r) <- dateTo;
-	                    operation(r) <- type;
-	                    dataInclude(r, Stock st) <- NULL;
-	                    dataInclude(r, StockGroup st) <- NULL;
-	                    dataInclude(r, stock) <- TRUE;
-	                    allStockInclude(r) <- NULL;
-	                    takeFromTo(r);                      
-	                }
-	            }
-	
-	            apply();
-	        }
-	    }
-	}
+createSnapshotString 'Создать отчет' (BPSTRING[100] string, DATE dateTo)  {
+    createSnapshotString(string,currentDate(),dateTo);
 }
 
 countDaysDeleteSnapshotsABC 'Дней хранить ABC-отчеты без операции' = DATA INTEGER ();
@@ -977,7 +987,7 @@ DESIGN snapshotsABC {
 
 NAVIGATOR {
     retailNavigator {
-        NEW FOLDER abcNavigator 'ABC-анализ' {
+        NEW FOLDER abcNavigatorSnapShot 'ABC-анализ' {
             NEW operations;
             NEW snapshotsABC;
         }
