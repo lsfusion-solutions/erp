@@ -345,10 +345,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             JSONObject infoJSON = getExtInfo(item.info);
 
             BigDecimal defaultQuantity = null;
-            if (infoJSON != null && infoJSON.has("defaultquantity")) {defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");}
+            Integer tmcType = null;
 
-            if (infoJSON != null && infoJSON.has("tmctype")) {
-                int tmcType = infoJSON.optInt("tmctype");
+            if (infoJSON != null && infoJSON.has("defaultquantity")) {defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");}
+            if (infoJSON != null && infoJSON.has("tmctype")) { tmcType = infoJSON.optInt("tmctype");}
+
+            if (defaultQuantity != null || tmcType != null) {
                 JSONArray barcodesArray = new JSONArray();
                 barcodesArray.put(getBarcodeJSON(mainBarcode, appendBarcode, tmcType, defaultQuantity)); //main barcode
                 for (CashRegisterItem barcode : barcodes) { //additional barcodes
