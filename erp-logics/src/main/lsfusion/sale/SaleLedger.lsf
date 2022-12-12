@@ -86,7 +86,7 @@ VAT (ledger) = ABSTRACT Range (SaleLedger) MATERIALIZED;
 valueVAT 'НДС, %' (SaleLedger ledger) = valueRate(VAT(ledger), date(ledger)) MATERIALIZED;
 
 sumVAT 'Сумма НДС' (SaleLedger ledger) = ABSTRACT VALUE NUMERIC[18,4] (SaleLedger);
-sumVAT (SaleLedger ledger) += NUMERIC[18,4]([ X*Y/(100+Y)](sum(ledger), valueVAT(ledger)));
+sumVAT (SaleLedger ledger) += NUMERIC[18,4](round2([ X*Y/(100+Y)](sum(ledger), valueVAT(ledger))));
 
 markupSum 'Надбавка' (SaleLedger ledger) = sum(ledger) (-) sumVAT(ledger) (-) costSum(ledger);
 
@@ -195,7 +195,7 @@ coeff 'Удельный вес' (SaleLedger ledger, Batch batch) =
 
 sum 'Сумма продажи' (SaleLedger ledger, Batch batch) = NUMERIC[18,4](sum(ledger) * coeff(ledger, batch));
 costSum 'Себестоимость' (SaleLedger ledger, Batch batch) = NUMERIC[18,4](cost(ledger, batch) * cost(batch));
-sumVAT 'Сумма НДС' (SaleLedger s, Batch b) = NUMERIC[18,4](sum(s,b) * valueVAT(s) / (100 + valueVAT(s)));
+sumVAT 'Сумма НДС' (SaleLedger s, Batch b) = NUMERIC[18,4](round2(sum(s,b) * valueVAT(s) / (100 + valueVAT(s))));
 markupSum 'Надбавка' (SaleLedger ledger, Batch batch) = NUMERIC[18,4](sum(ledger, batch) - sumVAT(ledger, batch) - costSum(ledger, batch));
 
 //по складу и Batch на дату
