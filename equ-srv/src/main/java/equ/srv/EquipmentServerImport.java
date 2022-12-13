@@ -160,6 +160,7 @@ public class EquipmentServerImport {
 
             ImportField idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
             ImportKey<?> giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
+            giftCardKey.skipKey = options.skipGiftCardKeys;
             paymentKeys.add(giftCardKey);
             paymentProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
             paymentProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
@@ -236,6 +237,7 @@ public class EquipmentServerImport {
 
             ImportField idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
             ImportKey<?> giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
+            giftCardKey.skipKey = options.skipGiftCardKeys;
             paymentGiftCardKeys.add(giftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
             paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
