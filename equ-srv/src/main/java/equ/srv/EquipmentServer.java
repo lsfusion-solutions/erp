@@ -789,6 +789,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 giftCardFields.add(sumReceiptGiftCardSaleDetailField);
 
                 giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
+                giftCardKey.skipKey = options.skipGiftCardKeys;
                 giftCardKeys.add(giftCardKey);
 
                 isReturnReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]"));
@@ -1119,7 +1120,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 if(discountCardKey != null)
                     saleKeys.add(discountCardKey);
 
-                ImportKey<?> giftCardKey = giftCardLM == null ? null : new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
+                ImportKey<?> giftCardKey = null;
+                if(giftCardLM != null) {
+                    giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
+                    giftCardKey.skipKey = options.skipGiftCardKeys;
+                }
 
                 ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("section[STRING[100]]").getMapping(idSectionField));
                 if(sectionKey != null)
@@ -1972,10 +1977,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean timeId = equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
+        boolean skipGiftCardKeys = equLM.findProperty("skipGiftCardKeys[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean useNewIds = equLM.findProperty("useNewIds[EquipmentServer]").read(session, equipmentServerObject) != null;
         IdEncoder encoder = useNewIds ? (timeId ? new IdEncoder(5) : new IdEncoder()) : null;
         Map<String, DataObject> barcodeParts = readPartedBarcodes(session);
-        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, encoder, barcodeParts);
+        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, skipGiftCardKeys, encoder, barcodeParts);
     }
 
     public class EquipmentServerOptions {
@@ -1984,16 +1990,18 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean timeId;
         boolean ignoreReceiptsAfterDocumentsClosedDate;
         boolean overrideCashiers;
+        boolean skipGiftCardKeys;
         IdEncoder encoder;
         Map<String, DataObject> barcodeParts;
 
         public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate,
-                                      boolean overrideCashiers, IdEncoder encoder, Map<String, DataObject> barcodeParts) {
+                                      boolean overrideCashiers, boolean skipGiftCardKeys, IdEncoder encoder, Map<String, DataObject> barcodeParts) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
             this.timeId = timeId;
             this.ignoreReceiptsAfterDocumentsClosedDate = ignoreReceiptsAfterDocumentsClosedDate;
             this.overrideCashiers = overrideCashiers;
+            this.skipGiftCardKeys = skipGiftCardKeys;
             this.encoder = encoder;
             this.barcodeParts = barcodeParts;
         }
