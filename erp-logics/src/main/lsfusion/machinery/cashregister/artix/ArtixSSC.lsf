@@ -5,15 +5,18 @@ REQUIRE CashRegisterPriceTransaction, ItemSSC, ArtixSettings;
 NAMESPACE Artix;
 
 
+zeroDefaultQuantityScales 'Количество 0 по умолчанию для дробных товаров' = DATA BOOLEAN (CashRegisterModel);
 useNewTaraMode 'Тарирование на кассе' = DATA BOOLEAN (CashRegisterModel);
 idCatalog 'ID Каталога для тары' = DATA INTEGER (CashRegisterModel);
 idCatalogTara = idCatalog(cashRegisterSID('Artix')) IF useNewTaraMode(cashRegisterSID('Artix'));
 
 EXTEND FORM cashRegisterModel 
-    PROPERTIES (c) useNewTaraMode SHOWIF sid(c) == 'Artix', idCatalog SHOWIF useNewTaraMode(c);
+    PROPERTIES (c) SHOWIF sid(c) == 'Artix' zeroDefaultQuantityScales, useNewTaraMode
+    PROPERTIES (c) idCatalog SHOWIF useNewTaraMode(c);
     
 DESIGN cashRegisterModel{
     artix {
+        MOVE PROPERTY (zeroDefaultQuantityScales(c));
         MOVE PROPERTY (useNewTaraMode(c));
         MOVE PROPERTY (idCatalog(c));
     } 
@@ -31,6 +34,7 @@ DESIGN groupCashRegister {
 isUseNewTaraMode 'Тарирование на кассе' (GroupCashRegister cr) = useNewTaraMode(cashRegisterModel(cr)) AND useNewTaraMode(cr);
 @difineSSCAttribute(BOOLEAN, taraMode, 'Тарирование на кассе');
 @difineSSCAttribute(BOOLEAN, isTara, 'Упаковка для тарирования на кассе');
+overSplit = ABSTRACT VALUE BOOLEAN (Item);
 
 overArtixInfo = ABSTRACT TEXT (MachineryPriceTransaction, Barcode);
 
@@ -54,6 +58,7 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
                     ('"taracapacity":' + taraCapacity(sku(b))) IF NOT skipLoadTaraCapacity(gm) AND NOT isUseNewTaraMode(gm),
                     '"taramode":7' IF taraMode(sku(b)) AND isUseNewTaraMode(groupMachinery(mpt)),
                     ('"cquant":' + taraCapacity(sku(b))) IF isTara(sku(b)) AND isUseNewTaraMode(groupMachinery(mpt)),
+                    '"defaultquantity" : 0.0' IF zeroDefaultQuantityScales(model(groupMachinery(mpt))) AND (split(b) AND NOT requireQuantityScales(sku(b)) OR overSplit(sku(b))),
                     overArtixInfo(mpt,b)
                 )
                 +'\}\}') WHERE in(mpt, b);
