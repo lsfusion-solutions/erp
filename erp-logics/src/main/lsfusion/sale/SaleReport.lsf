@@ -126,6 +126,11 @@ skipSaleReport = ABSTRACT BOOLEAN (Batch);
 originalBatch = ABSTRACT Batch(Batch);
 batchOver (Batch b) = OVERRIDE originalBatch(b), b IF b IS Batch;
 
+useCustomReport = ABSTRACT BOOLEAN (SaleReport);
+fillDataCustomReport  ABSTRACT (SaleReport);
+quantityNested  = DATA LOCAL NESTED NUMERIC[16,5](Batch);
+reportNested  = DATA LOCAL NESTED BOOLEAN (Batch);
+
 fillData 'Заполнить данные'(SaleReport report)  {    
     IF supplier(report) AND contractSku(report) AND company(report) THEN {
         DELETE SaleReportDetail d WHERE d IS SaleReportDetail AND saleReport(d)== report;
@@ -140,10 +145,17 @@ fillData 'Заполнить данные'(SaleReport report)  {
         LOCAL value = NUMERIC[10,5](Batch);
          
         report(Batch batch) <- TRUE WHERE supplier(report) == supplier(batchOver(batch)) AND contractSku(report) == contractSku(invoice(invoiceDetail(batchOver(batch)))) AND NOT skipSaleReport(batch);
-
-        quantity(Batch batch) <- (IF companyStock(report) 
-                    THEN quantitySold(batch, companyStock(report), fromDate(report), toDate(report)) 
-                    ELSE quantitySoldCompanyFromTo(batch, company(report), fromDate(report), toDate(report))) WHERE report(batch); 
+        
+        quantity(Batch batch) <- (IF companyStock(report)
+            THEN quantitySold(batch, companyStock(report), fromDate(report), toDate(report))
+            ELSE quantitySoldCompanyFromTo(batch, company(report), fromDate(report), toDate(report))) WHERE report(batch);
+        IF useCustomReport(report) THEN {
+            quantityNested(Batch batch)<- NULL;
+            reportNested(Batch batch)<-  report(batch) AND quantity(batch);
+            fillDataCustomReport(report);
+            quantity(Batch batch)<- quantity(batch) (-) quantityNested(batch) WHERE quantityNested(batch);
+        }
+            
         quantityReturn(Batch batch) <- (IF companyStock(report) 
                     THEN quantityReturnFromTo(batch, companyStock(report), fromDate(report), toDate(report))
                     ELSE quantityReturnCompanyFromTo(batch, company(report), fromDate(report), toDate(report))) WHERE report(batch); 
