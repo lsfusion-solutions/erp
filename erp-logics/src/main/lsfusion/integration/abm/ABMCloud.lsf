@@ -766,7 +766,7 @@ schedules 'schedules' (DATE d, BOOLEAN single) {
 //-- todo: Параметры, которые надо перегрузить в логике 
 filterShipments = ABSTRACT VALUE BOOLEAN (Purchase.OrderDetail, DATE);
 numberABM 'Номер ABM' = DATA STRING (Purchase.Order) INDEXED CHARWIDTH 10;
-orderNumberABM = GROUP AGGR Purchase.Order o BY numberABM(o);
+orderNumberABM = GROUP MAX Purchase.Order o BY numberABM(o);
 numberABM 'Номер ABM' (Purchase.OrderDetail d) = numberABM(order(d)) CHARWIDTH 10;
 EXTEND FORM Purchase.userOrder
     PROPERTIES (o) numberABM
@@ -839,6 +839,13 @@ orderclose 'orderclose' (DATE d, BOOLEAN single) {
     }
     filterABMClose(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND NOT stateABMTimeClose(o);
     filterABMCloseLocal(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND NOT stateABMTimeClose(o);
+
+//    filterABMClose(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND NOT id(operation(o))=='prewarehouse' AND NOT stateABMTimeClose(o);
+//    filterABMClose(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND  id(operation(o))=='prewarehouse' AND NOT stateABMTimeClose(o)
+//        AND ((GROUP SUM 1 IF countInvoiceDetail(o,Purchase.Invoice i) AND isPosted(i) AND createShipment(i)) OR daysInclBetweenDates(shipmentDate(o),d)>10);
+//    filterABMCloseLocal(Purchase.Order o)<- TRUE WHERE filterABMClose(o);
+    
+    
     toSent('orderclose')<- TRUE;
     EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
         order_number = numberABM(Purchase.Order o)
