@@ -831,14 +831,15 @@ fillSentTime(STRING  str) +{
 resetSentTime()+{
     filterABMCloseLocal(Purchase.Order o)<- NULL;    
 }
-
+ordercloseCustom ABSTRACT ();
 orderclose 'orderclose' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
     }
     filterABMClose(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND NOT stateABMTimeClose(o);
-    filterABMCloseLocal(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND NOT stateABMTimeClose(o);
+    ordercloseCustom();
+    filterABMCloseLocal(Purchase.Order o)<- TRUE WHERE filterABMClose(o);
 
 //    filterABMClose(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND NOT id(operation(o))=='prewarehouse' AND NOT stateABMTimeClose(o);
 //    filterABMClose(Purchase.Order o)<- TRUE WHERE numberABM(o)==getWord(numberABM(o), '~',1) AND filterABM(customerStock(o)) AND NOT isOpened(o) AND  id(operation(o))=='prewarehouse' AND NOT stateABMTimeClose(o)
