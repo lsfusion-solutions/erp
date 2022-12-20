@@ -733,7 +733,12 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
 
         if(extendedLogs) {
-            processTransactionLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
+            sendSalesLogger.info("cashRegisterByKeyMap: ");
+            for(String key : cashRegisterByKeyMap.keySet()) {
+                sendSalesLogger.info(key);
+            }
+
+            sendSalesLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
         }
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
