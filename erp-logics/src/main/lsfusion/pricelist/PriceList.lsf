@@ -511,8 +511,9 @@ filterPriceListType (UserPriceList userPriceList, Batch batch, Stock stock) =
     (batch IS Batch AND stock IS Stock AND NOT filterPriceListType(userPriceList));
     
 editSku 'Редактировать SKU' (UserPriceListDetail d)  { NEWSESSION { edit(sku(d)); } }   
-   
-nameCompanyB 'Организация' (LedgerPriceListType type, Stock stock, UserPriceListDetail d) = name(companyB(type, sku(d), stock ,fromDateTime[PriceListDetail](d)));    
+
+overCompanyB = ABSTRACT LegalEntity (LedgerPriceListType, Stock, UserPriceListDetail);
+nameCompanyB 'Организация' (LedgerPriceListType type, Stock stock, UserPriceListDetail d) = name(OVERRIDE overCompanyB(type, stock, d), companyB(type, sku(d), stock ,fromDateTime[PriceListDetail](d)));    
 toShow (PriceList p, LedgerPriceListType to) = show(p, to) AND to IS LedgerPriceListType AND differentOrganizations(to);          
     
 showBatch 'Партия' =  ABSTRACT BOOLEAN (PriceList);   
