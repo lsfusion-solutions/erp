@@ -1210,6 +1210,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         //пока рассматриваем только случай с 1 SetRetail сервером на 1 equ
         private final String sidEquipmentServer;
         private final boolean ignoreSalesWithoutNppGroupMachinery;
+        private final boolean extendedLogs;
 
         public HttpRequestHandler() {
             Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
@@ -1218,6 +1219,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 throw new RuntimeException(getLogPrefix() + "sidEquipmentServer option is required");
             }
             ignoreSalesWithoutNppGroupMachinery = kristalSettings.isIgnoreSalesWithoutNppGroupMachinery();
+            extendedLogs = kristalSettings.isExtendedLogs();
 
         }
 
@@ -1233,7 +1235,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                 if (purchases) {
                     try {
-                        readSalesInfo(sidEquipmentServer, httpExchange, ignoreSalesWithoutNppGroupMachinery);
+                        readSalesInfo(sidEquipmentServer, httpExchange, ignoreSalesWithoutNppGroupMachinery, extendedLogs);
                     } catch (Exception e) {
                         sendSalesLogger.error(getLogPrefix() + "Reading SalesInfo", e);
                         sendPurchasesResponse(httpExchange, e.getMessage());
@@ -1264,7 +1266,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private void readSalesInfo(String sidEquipmentServer, HttpExchange httpExchange, boolean ignoreSalesWithoutNppGroupMachinery) throws IOException, SQLException, JDOMException {
+    private void readSalesInfo(String sidEquipmentServer, HttpExchange httpExchange, boolean ignoreSalesWithoutNppGroupMachinery, boolean extendedLogs) throws IOException, SQLException, JDOMException {
         List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, "purchases"));
 
@@ -1284,6 +1286,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 if (result != null) {
                     sendSalesLogger.info(getLogPrefix() + "Send SalesInfo result: " + result);
                     EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
+                }
+                if(extendedLogs) {
+                    sendSalesLogger.info(getLogPrefix() + "SendPurchasesResponse result: " + result);
                 }
                 sendPurchasesResponse(httpExchange, result);
             }
