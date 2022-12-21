@@ -1328,7 +1328,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             CashRegisterInfo cashRegister = numberCashRegisterMap.get(numberCashRegister);
             Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
 
-            LocalDate dateZReport = ZonedDateTime.parse(readStringXMLValue(zReportNode, "dateOperDay"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDate();
+            LocalDate dateZReport = LocalDate.parse(readStringXMLAttribute(zReportNode, "dateOperDay"), DateTimeFormatter.ofPattern("yyyy-MM-ddXXX"));
+            //LocalDate dateZReport = ZonedDateTime.parse(readStringXMLValue(zReportNode, "dateOperDay"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDate();
 
             String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
             String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
