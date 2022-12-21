@@ -12,6 +12,7 @@ dateNoticeSupplier 'Дата уведомления об изменении' = D
 importedSupplierCancel 'Импортирован (поставщик) отмена' = DATA BOOLEAN (EInvoice);
 exportedBlrapnSupplier 'Экспортировано извещение о прочтении (поставщик)' = DATA BOOLEAN (EInvoice);
 
+isImportedSupplier 'Можно отправить уведомление о получении'(EInvoice i) = importedSupplier(i) OR importedNoticeSupplier(i) OR importedSupplierCancel(i);
 
 signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST ( EInvoice);
 signAndSendSupplierEDI 'Подписать и отправить (поставщик)'() {
@@ -61,15 +62,17 @@ signAndSendBlrapnSupplierEDI 'Подписать и отправить изве�
     }
     FOR in(EInvoice i) DO { 
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(customer(i), supplier(i)) THEN
-                signAndSendBlrapnSupplier(i);
-            ELSE
+            IF EDIProviderInvoice(customer(i), supplier(i)) THEN {
+                IF isImportedSupplier(i) THEN {
+                    signAndSendBlrapnSupplier(i);
+                } ELSE
+                    MESSAGE 'Не получен ответ от покупателя по накладной: ' + deliveryNoteNumber(i);
+            } ELSE
                 MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
         } ELSE
             MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
         in(i) <- NULL;
-    }
-    ELSE
+    } ELSE
         MESSAGE 'Не выбрано ни одной накладной';
     
 }
@@ -78,7 +81,7 @@ EXTEND FORM eInvoices
     PROPERTIES(e) BEFORE isCancel(e) READONLYIF isReadonly() exportedSupplier, importedSupplier, importedNoticeSupplier, importedSupplierCancel, exportedBlrapnSupplier
     EXTEND FILTERGROUP notExported
         FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
-        FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) AND NOT importedNoticeSupplier(e) 'F11'
+        FILTER 'Не импортированы (поставщик)' NOT isImportedSupplier(e) 'F11'
     PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendSupplierCancelEDI, signAndSendBlrapnSupplierEDI
 ;
 
