@@ -7,22 +7,6 @@ NAMESPACE EDI;
 overInvoiceOutputDirTopBy 'Путь сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
 overInvoiceOutputFileName 'Имя файла для сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
 
-blrwbrUserID = DATA LOCAL NESTED STRING[35]();
-blrwbrDocumentNumber = DATA LOCAL NESTED STRING[48]();
-blrwbrDocumentId = DATA LOCAL NESTED STRING[35]();
-blrwbrDateTime = DATA LOCAL NESTED DATETIME();
-blrwbrDeliveryNoteNumber = DATA LOCAL NESTED STRING[70]();
-blrwbrFunctionCode = DATA LOCAL NESTED STRING[3]();
-
-FORM blrwbr
-    PROPERTIES IN messageHeader blrwbrDocumentNumber() EXTID 'MessageID',
-                                blrwbrUserID() EXTID 'UserID'
-    PROPERTIES IN deliveryNote blrwbrDocumentId() EXTID 'DocumentID',
-                               blrwbrDeliveryNoteNumber() EXTID 'DeliveryNoteID',
-                               blrwbrDateTime() EXTID 'CreationDateTime',
-                               blrwbrFunctionCode() EXTID 'FunctionCode'
-;
-
 overImportBlrwbr ABSTRACT ();
 skipBlrwbr = DATA LOCAL NESTED BOOLEAN();
 
@@ -154,22 +138,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
         }
     }
 }
-
-blrdnrUserID = DATA LOCAL NESTED STRING[35]();
-blrdnrDocumentNumber = DATA LOCAL NESTED STRING[48]();
-blrdnrDocumentId = DATA LOCAL NESTED STRING[35]();
-blrdnrDateTime = DATA LOCAL NESTED DATETIME();
-blrdnrDeliveryNoteNumber = DATA LOCAL NESTED STRING[70]();
-blrdnrFunctionCode = DATA LOCAL NESTED STRING[3]();
-
-FORM blrdnr
-    PROPERTIES IN messageHeader blrdnrDocumentNumber() EXTID 'MessageID',
-                                blrdnrUserID() EXTID 'UserID'
-    PROPERTIES IN deliveryNote blrdnrDocumentId() EXTID 'DocumentID',
-                               blrdnrDeliveryNoteNumber() EXTID 'DeliveryNoteID',
-                               blrdnrDateTime() EXTID 'CreationDateTime',
-                               blrdnrFunctionCode() EXTID 'FunctionCode'
-;
 
 overImportBlrdnr ABSTRACT ();
 skipBlrdnr = DATA LOCAL NESTED BOOLEAN();
@@ -304,125 +272,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
     }
 }
 
-exportBlrwblDateTime = DATA LOCAL NESTED DATETIME();
-
-GROUP freightPayer EXTID 'FreightPayer';
-GROUP shipFrom EXTID 'ShipFrom';
-GROUP carrier EXTID 'Carrier';
-GROUP extraField EXTID 'ExtraField';
-GROUP extraField0 EXTID 'ExtraField';
-GROUP despatchAdviceLogisticUnitLineItem EXTID 'DespatchAdviceLogisticUnitLineItem';
-GROUP lineItemIdentification EXTID 'LineItemIdentification';
-
-hideMessageHeaderBlrwbl = DATA LOCAL BOOLEAN ();
-
-FORM exportBlrwbl FORMEXTID 'BLRWBL'
-    PROPERTIES ATTR ='0.1' IF NOT hideMessageHeaderBlrwbl() EXTID 'version'
-    OBJECTS ei = EInvoice PANEL
-    
-    OBJECTS eih = EInvoice EXTID 'MessageHeader'
-    FILTERS (eih == ei AND NOT hideMessageHeaderBlrwbl()) OR NOT eih IS EInvoice
-    PROPERTIES DRAW eih messageId = resultMilliseconds() EXTID 'MessageID',
-                        msgDateTime = toChar(exportBlrwblDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
-                        messageType = 'BLRWBL' EXTID 'MessageType',
-                        glnSupplier(eih) EXTID 'MsgSenderID',
-                        glnCustomer(eih) EXTID 'MsgReceiverID',
-                        userIDCustomerStock(eih) EXTID 'UserID',
-                        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
-    
-    OBJECTS ein = EInvoice EXTID 'DeliveryNote'
-    FILTERS ein == ei
-    PROPERTIES DRAW ein deliveryNoteType = '700' EXTID 'DeliveryNoteType',
-                        documentID = resultMilliseconds() EXTID 'DocumentID',
-                        creationDateTime = toChar(exportBlrwblDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-                        functionCode = (IF isCancel(ein) THEN '1' ELSE '9') EXTID 'FunctionCode',
-                        deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
-                        deliveryNoteDateTime = toChar(deliveryNoteDateTime(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate',
-                        contractName(ein) EXTID 'ContractName',
-                        contractId(ein) EXTID 'ContractID',
-                        contractDate = toChar(contractDate(ein),'YYYYMMDD') EXTID 'ContractDate',
-                        waybillId(ein) EXTID 'WaybillID'
-    PROPERTIES DRAW ein IN shipper glnSupplier(ein) EXTID 'GLN',
-                                   nameSupplier(ein) EXTID 'Name',
-                                   addressSupplier(ein) EXTID 'Address',
-                                   unpSupplier(ein) EXTID 'VATRegistrationNumber',
-                                   contactSupplier(ein) EXTID 'Contact'
-    PROPERTIES DRAW ein IN receiver glnCustomer(ein) EXTID 'GLN',
-                                    nameCustomer(ein) EXTID 'Name',
-                                    addressCustomer(ein) EXTID 'Address',
-                                    unpCustomer(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN freightPayer glnFreightPayer(ein) EXTID 'GLN',
-                                        nameFreightPayer(ein) EXTID 'Name',
-                                        addressFreightPayer(ein) EXTID 'Address',
-                                        unpFreightPayer(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN shipFrom glnSupplierStock(ein) EXTID 'GLN',
-                                    addressSupplierStock(ein) EXTID 'Address',
-                                    contactSupplierStock(ein) EXTID 'Contact'
-    PROPERTIES DRAW ein IN shipTo glnCustomerStock(ein) EXTID 'GLN',
-                                  addressCustomerStock(ein) EXTID 'Address'
-    PROPERTIES DRAW ein IN carrier transportContact(ein) EXTID 'TransportContact',
-                                   deliveryContact(ein) EXTID 'DeliveryContact',
-                                   proxyID(ein) EXTID 'ProxyID',
-                                   proxyDate = toChar(proxyDate(ein),'YYYYMMDD') EXTID 'ProxyDate',
-                                   partyIssuingProxyName(ein) EXTID 'PartyIssuingProxyName'
-    PROPERTIES DRAW ein quantityTrip(ein) EXTID 'QuantityTrip',
-                        transportOwnerName(ein) EXTID 'TransportOwnerName',
-                        transportID(ein) EXTID 'TransportID',
-                        trailerID(ein) EXTID 'TrailerID',
-                        sealIDReceiver(ein) EXTID 'SealID',
-                        orderID(ein) EXTID 'OrderID',
-                        currency(ein) EXTID 'Currency'
-    PROPERTIES DRAW ein IN extraField fieldName = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.topBy THEN 'Признак возвратной накладной' EXTID 'FieldName',
-                                      fieldCode = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.topBy THEN 'PW0013' EXTID 'FieldCode',
-                                      fieldValue = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.topBy THEN '1' EXTID 'FieldValue'
-    PROPERTIES DRAW ein IN extraField0 fieldName0 = IF replaceNumber(ein) THEN 'Номер заменяемой накладной' EXTID 'FieldName',
-                                       fieldCode0 = IF replaceNumber(ein) THEN 'PW0014' EXTID 'FieldCode',
-                                       fieldValue0 = IF replaceNumber(ein) THEN replaceNumber(ein) EXTID 'FieldValue'
-    
-    OBJECTS d = EInvoiceDetail EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItem
-    FILTERS eInvoice(d) == ein
-    PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
-                      lineItemSign(d) EXTID 'LineItemSign',
-                      lineItemID(d) EXTID 'LineItemID',
-                      lineItemBuyerID(d) EXTID 'LineItemBuyerID',
-                      deliveryTypePrev(d) EXTID 'DeliveryTypePrev',
-                      deliveryNotePrev(d) EXTID 'DeliveryNotePrev',
-                      deliveryNoteDatePrev = toChar(deliveryNoteDatePrev(d),'YYYYMMDDHH24MISS') EXTID 'DeliveryNoteDatePrev',
-                      deliveryNotePrevLineID(d) EXTID 'DeliveryNotePrevLineID',
-                      lineItemSupplierID(d) EXTID 'LineItemSupplierID',
-                      lineItemName(d) EXTID 'LineItemName',
-                      grossWeightValue(d) EXTID 'GrossWeightValue',
-                      quantityDespatched(d) EXTID 'QuantityDespatched',
-                      lineItemQuantityUOM(d) EXTID 'LineItemQuantityUOM',
-                      despatchUnitQuantityDespatched(d) EXTID 'DespatchUnitQuantityDespatched',
-                      expiryDate = toChar(expiryDate(d),'YYYYMMDD') EXTID 'BestBeforeDate',
-                      valueVAT(d) EXTID 'TaxRate',
-                      additionalInformation(d) EXTID 'AdditionalInformation',
-                      manufactureDate = toChar(manufactureDate(d),'YYYYMMDD') EXTID 'LineItemProductDate',
-                      lineItemAmountWithoutCharges(d) EXTID 'LineItemAmountWithoutCharges',
-                      lineItemAmountCharges(d) EXTID 'LineItemAmountCharges',
-                      lineItemAmount(d) EXTID 'LineItemAmount',
-                      lineItemPrice(d) EXTID 'LineItemPrice',
-                      lineItemManufacturerPrice(d) EXTID 'LineItemManufacturerPrice',
-                      lineItemAmountExcise(d) EXTID 'LineItemAmountExcise'
-    
-    OBJECTS i = INTEGER EXTID 'GroupPackingHeader' IN lineItemIdentification
-    FILTERS groupPackingCodeMark(d,i) OR upperLevelCodeMark(d,i)
-    PROPERTIES DRAW i groupPackingCodeMark(d,i) EXTID 'GroupPackingCodeMark',
-                      upperLevelCodeMark(d,i) EXTID 'UpperLevelCodeMark'
-    PROPERTIES DRAW d IN lineItemIdentification fieldCodeMark(d) EXTID 'FieldCodeMark'
-    
-    OBJECTS eint = EInvoice EXTID 'Total'
-    FILTERS eint == ei
-    PROPERTIES DRAW ein totalAmountWithoutCharges(eint) EXTID 'TotalAmountWithoutCharges',
-                        totalAmountCharges(eint) EXTID 'TotalAmountCharges',
-                        totalAmount(eint) EXTID 'TotalAmount',
-                        totalLineItem(eint) EXTID 'TotalLineItem',
-                        totalLineItemQuantity(eint) EXTID 'TotalLineItemQuantity',
-                        totalGrossWeight(eint) EXTID 'TotalGrossWeight',
-                        totalDespatchUnitQuantity(eint) EXTID 'TotalDespatchUnitQuantity',
-                        totalAmountExcise(eint) EXTID 'TotalAmountExcise'
-;
 signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir , STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
@@ -523,103 +372,6 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
         MESSAGE provider + ' (' + login + ') error: ' + 'SendEInvoice disabled, change serverComputer() to enable' NOWAIT;
     }
 }
-
-exportBlrdlnDateTime = DATA LOCAL NESTED DATETIME();
-
-hideMessageHeaderBlrdln = DATA LOCAL BOOLEAN ();
-
-FORM exportBlrdln FORMEXTID 'BLRDLN'
-    PROPERTIES ATTR ='0.1' IF hideMessageHeaderBlrdln() EXTID 'version'
-    OBJECTS ei = EInvoice PANEL
-    
-    OBJECTS eih = EInvoice EXTID 'MessageHeader'
-    FILTERS (eih == ei AND NOT hideMessageHeaderBlrdln()) OR NOT eih IS EInvoice
-    PROPERTIES DRAW eih messageId = resultMilliseconds() EXTID 'MessageID',
-                        msgDateTime = toChar(exportBlrdlnDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
-                        messageType = 'BLRDLN' EXTID 'MessageType',
-                        glnSupplier(eih) EXTID 'MsgSenderID',
-                        glnCustomer(eih) EXTID 'MsgReceiverID',
-                        userIDCustomerStock(eih) EXTID 'UserID',
-                        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
-    
-    OBJECTS ein = EInvoice EXTID 'DeliveryNote'
-    FILTERS ein == ei
-    PROPERTIES DRAW ein deliveryNoteType = '270' EXTID 'DeliveryNoteType',
-                        documentID = resultMilliseconds() EXTID 'DocumentID',
-                        creationDateTime = toChar(exportBlrdlnDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-                        functionCode = (IF isCancel(ein) THEN '1' ELSE '9') EXTID 'FunctionCode',
-                        deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
-                        deliveryNoteDateTime = toChar(deliveryNoteDateTime(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate',
-                        contractName(ein) EXTID 'ContractName',
-                        contractId(ein) EXTID 'ContractID',
-                        contractDate = toChar(contractDate(ein),'YYYYMMDD') EXTID 'ContractDate'
-    PROPERTIES DRAW ein IN shipper glnSupplier(ein) EXTID 'GLN',
-                                   nameSupplier(ein) EXTID 'Name',
-                                   addressSupplier(ein) EXTID 'Address',
-                                   unpSupplier(ein) EXTID 'VATRegistrationNumber',
-                                   contactSupplier(ein) EXTID 'Contact'
-    PROPERTIES DRAW ein IN receiver glnCustomer(ein) EXTID 'GLN',
-                                    nameCustomer(ein) EXTID 'Name',
-                                    addressCustomer(ein) EXTID 'Address',
-                                    unpCustomer(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN shipFrom glnSupplierStock(ein) EXTID 'GLN',
-                                    addressSupplierStock(ein) EXTID 'Address',
-                                    contactSupplierStock(ein) EXTID 'Contact'
-    PROPERTIES DRAW ein IN shipTo glnCustomerStock(ein) EXTID 'GLN',
-                                  addressCustomerStock(ein) EXTID 'Address'
-    PROPERTIES DRAW ein IN carrier deliveryContact(ein) EXTID 'DeliveryContact',
-                                   proxyID(ein) EXTID 'ProxyID',
-                                   proxyDate = toChar(proxyDate(ein),'YYYYMMDD') EXTID 'ProxyDate',
-                                   partyIssuingProxyName(ein) EXTID 'PartyIssuingProxyName'
-    PROPERTIES DRAW ein orderID(ein) EXTID 'OrderID',
-                        currency(ein) EXTID 'Currency'
-    PROPERTIES DRAW ein IN extraField fieldName = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.topBy THEN 'Признак возвратной накладной' EXTID 'FieldName',
-                                      fieldCode = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.topBy THEN 'PW0013' EXTID 'FieldCode',
-                                      fieldValue = IF isReturn(ein) AND EDIProviderInvoice(customer(ein), supplier(ein)) = EDIProvider.topBy THEN '1' EXTID 'FieldValue'
-    PROPERTIES DRAW ein IN extraField0 fieldName0 = IF replaceNumber(ein) THEN 'Номер заменяемой накладной' EXTID 'FieldName',
-                                       fieldCode0 = IF replaceNumber(ein) THEN 'PW0014' EXTID 'FieldCode',
-                                       fieldValue0 = IF replaceNumber(ein) THEN replaceNumber(ein) EXTID 'FieldValue'
-    
-    OBJECTS d = EInvoiceDetail EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItem
-    FILTERS eInvoice(d) == ein
-    PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
-                      lineItemSign(d) EXTID 'LineItemSign',
-                      lineItemID(d) EXTID 'LineItemID',
-                      lineItemBuyerID(d) EXTID 'LineItemBuyerID',
-                      deliveryTypePrev(d) EXTID 'DeliveryTypePrev',
-                      deliveryNotePrev(d) EXTID 'DeliveryNotePrev',
-                      deliveryNoteDatePrev = toChar(deliveryNoteDatePrev(d),'YYYYMMDDHH24MISS') EXTID 'DeliveryNoteDatePrev',
-                      deliveryNotePrevLineID(d) EXTID 'DeliveryNotePrevLineID',
-                      lineItemSupplierID(d) EXTID 'LineItemSupplierID',
-                      lineItemName(d) EXTID 'LineItemName',
-                      quantityDespatched(d) EXTID 'QuantityDespatched',
-                      lineItemQuantityUOM(d) EXTID 'LineItemQuantityUOM',
-                      expiryDate = toChar(expiryDate(d),'YYYYMMDD') EXTID 'BestBeforeDate',
-                      valueVAT(d) EXTID 'TaxRate',
-                      additionalInformation(d) EXTID 'AdditionalInformation',
-                      manufactureDate = toChar(manufactureDate(d),'YYYYMMDD') EXTID 'LineItemProductDate',
-                      lineItemAmountWithoutCharges(d) EXTID 'LineItemAmountWithoutCharges',
-                      lineItemAmountCharges(d) EXTID 'LineItemAmountCharges',
-                      lineItemAmount(d) EXTID 'LineItemAmount',
-                      lineItemPrice(d) EXTID 'LineItemPrice',
-                      lineItemManufacturerPrice(d) EXTID 'LineItemManufacturerPrice',
-                      lineItemAmountExcise(d) EXTID 'LineItemAmountExcise'
-    
-    OBJECTS i = INTEGER EXTID 'GroupPackingHeader' IN lineItemIdentification
-    FILTERS groupPackingCodeMark(d,i) OR upperLevelCodeMark(d,i)
-    PROPERTIES DRAW i groupPackingCodeMark(d,i) EXTID 'GroupPackingCodeMark',
-                      upperLevelCodeMark(d,i) EXTID 'UpperLevelCodeMark'
-    PROPERTIES DRAW d IN lineItemIdentification fieldCodeMark(d) EXTID 'FieldCodeMark'
-    
-    OBJECTS eint = EInvoice EXTID 'Total'
-    FILTERS eint == ei
-    PROPERTIES DRAW ein totalAmountWithoutCharges(eint) EXTID 'TotalAmountWithoutCharges',
-                        totalAmountCharges(eint) EXTID 'TotalAmountCharges',
-                        totalAmount(eint) EXTID 'TotalAmount',
-                        totalLineItem(eint) EXTID 'TotalLineItem',
-                        totalLineItemQuantity(eint) EXTID 'TotalLineItemQuantity',
-                        totalAmountExcise(eint) EXTID 'TotalAmountExcise'
-;
 
 signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir , STRING[100] provider) {
     checkIsServer();
