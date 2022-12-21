@@ -1,6 +1,6 @@
 MODULE EDN;
 
-REQUIRE System, Integration, Warehouse, Store, PurchaseOrderEDITopBy;
+REQUIRE EDI, TopByApi;
 
 NAMESPACE EDI;
 
@@ -20,61 +20,48 @@ outputDirEDN 'Папка отправленных сообщений' = DATA STR
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesEDN 'Получать сообщения для поставщика' = DATA BOOLEAN ();
 
-overInvoiceOutputDirEDN 'Путь сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
-
 useDocuDrive 'Использовать DocuDrive' = DATA BOOLEAN();
 
 document = DATA LOCAL RAWFILE();
 FORM edocument
-PROPERTIES() document;
+    PROPERTIES() document;
 
 beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) + {
     IF extractEDN([GROUP MIN LegalEntity l BY loginEDN(l)](login)) THEN {
         IMPORT edocument FROM data(i);
-        unzipping()<-setExtension(document(), 'zip');
+        unzipping() <- setExtension(document(), 'zip');
         makeUnzipFile();
-        FOR unzipped(STRING[100] s) DO {            
+        FOR unzipped(STRING[100] s) DO {
             data(i) <- XMLFILE(unzipped(s));
         }
         IF archiveDir THEN {
-            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i) + '_extarcted';
+            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i) + '_extarcted';
         }
     }
 }
 
+overReceiveMessagesEDN ABSTRACT LIST(LegalEntity);
 receiveMessagesEDN () {
     FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
-        hideMessageHeaderBlrapn() <- extractEDN(le);
-        receiveMessages(login, passwordEDN(le), ('https://' +  hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, 'EDN');
+        overReceiveMessagesEDN(le);
+        receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, 'EDN');
     }
 }
 
-sendPurchaseOrderEDN (EOrder o) {
-    checkIsServer();
-    IF isServer() THEN {
-        sendPurchaseOrder(o, loginEDN(customer(o)), passwordEDN(customer(o)), ('https://' +  hostEDN(customer(o)) + ':' + portEDN(customer(o)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
-    }
-}
-
-send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE ('Заказ уже отправлен '+(OVERRIDE number(o), '')); ELSE {sendPurchaseOrderEDN(o); } }
-cancel(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderEDN(o);} }
-
-good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1252') THEN TRUE;
-
-exportDirectoryDocuDrive 'Каталог выгрузки сообщений для DocuDrive (c / в конце)' = DATA STRING[255]();
-importDirectoryDocuDrive 'Каталог загрузки сообщений от DocuDrive (c / в конце)' = DATA STRING[255]();
+exportDirectoryDocuDrive 'Каталог выгрузки для DocuDrive (c /)' = DATA STRING[255]() CHARWIDTH 50;
+importDirectoryDocuDrive 'Каталог загрузки от DocuDrive (c /)' = DATA STRING[255]() CHARWIDTH 50;
 
 overReceiveMessagesDocuDrive ABSTRACT LIST (INTEGER, STRING[255], STRING[255], STRING[100], BOOLEAN, BOOLEAN, BOOLEAN, STRING[100]);
 
-getFileName(TEXT txt) = getWord(getWord(txt,'\\', wordCount(txt,'\\')),'/', wordCount(txt,'/'));
-getDocumentType(TEXT txt) = getWord(getWord(getWord(txt,'\\', wordCount(txt,'\\')),'/', wordCount(txt,'/')),'_',1);
+getFileName(TEXT txt) = getWord(getWord(txt, '\\', wordCount(txt, '\\')), '/', wordCount(txt, '/'));
+getDocumentType(TEXT txt) = getWord(getWord(getWord(txt, '\\', wordCount(txt, '\\')), '/', wordCount(txt, '/')), '_', 1);
 
 receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) {
     TRY {
         IF importDir THEN {
             IF exportDir THEN {
-                listFiles(importDir,TRUE);
-                
+                listFiles(importDir, TRUE);
+
                 sendRecipientErrorFailed() <- 0;
                 supplierOrdersSucceeded() <- 0;
                 supplierOrdersFailed() <- 0;
@@ -91,23 +78,24 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
                 blrwbrCount() <- 0;
                 blrdnrCount() <- 0;
                 blradfCount() <- 0;
-                
+                messagesConfirmed() <- 0;
+
                 logToFile('edi', provider + ' ReceiveMessages count: ' + (GROUP SUM 1 IF fileName(INTEGER j) AND NOT fileIsDirectory(j) AND lower(right(fileName(j), 4)) = '.xml'));
-                
+
                 FOR STRING[255] fileName = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND lower(right(fileName, 4)) = '.xml'
-                ORDER getWord(fileName, '_', 2), fileName, i DO {
+                    ORDER getWord(fileName, '_', 2), fileName, i DO {
                     LOCAL file = XMLFILE();
                     READ 'file://' + importDir + fileName TO file;
                     data(i) <- file();
                     documentType(i) <- getDocumentType(fileName);
                     id(i) <- getFileName(fileName);
                     IF archiveDir THEN {
-                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd')); }
+                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i);
                     }
-                    overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies,provider);
+                    overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, provider);
                 }
-                
+
                 LOCAL textMessage = TEXT();
                 IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
                 IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
@@ -121,26 +109,25 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
                 IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
                 IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
                 IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
-                IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
-                IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
                 IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
                 IF blrdnrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrdnrCount() + ' BLRDNR';
                 IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
-                
+                IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
+
                 IF NOT (GROUP SUM 1 IF fileName(INTEGER j) AND NOT fileIsDirectory(j) AND lower(right(fileName(j), 4)) = '.xml') THEN {
                     MESSAGE (OVERRIDE textMessage(), 'Не найдено новых сообщений') NOWAIT;
                 }
             } ELSE {
                 logToFile('edi', provider + ' ReceiveMessages: не задан каталог выгрузки сообщений для DocuDrive');
-                MESSAGE  provider + ' Сообщения не получены: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
+                MESSAGE provider + ' Сообщения не получены: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
             }
         } ELSE {
             logToFile('edi', provider + ' ReceiveMessages: не задан каталог загрузки сообщений от DocuDrive');
-            MESSAGE  provider + ' Сообщения не получены: не задан каталог загрузки сообщений от DocuDrive' NOWAIT;
+            MESSAGE provider + ' Сообщения не получены: не задан каталог загрузки сообщений от DocuDrive' NOWAIT;
         }
     } CATCH {
         logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-        MESSAGE  'Сообщения не получены. Обратитесь к администратору' NOWAIT;
+        MESSAGE 'Сообщения не получены. Обратитесь к администратору' NOWAIT;
     }
 }
 
@@ -148,198 +135,40 @@ receiveMessagesDocuDrive () {
     receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, 'EDN');
 }
 
-//вообще логика сообщений, похоже, дублирует логику apn а в случе если они приходят от сервера edi у них еще и одинаковый номер
-//возможно для накладных можно отделить те которые приходят с сервера, или хотя бы не затирать данные по apn. пока дублируем добавлением в номер мимвола m
-overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) + {
-    IF lower(documentType(i)) == 'systemmessage' THEN {
-        TRY {
-            IMPORT systemMessage XML FROM data(i);
-            skipSystemmessage() <- NULL;
-            overImportSystemmessage();
-            IF NOT skipSystemmessage() THEN {
-                CASE
-                WHEN documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' OR documentType() == 'BLRDLN' OR documentType() == 'BLRDNR' THEN {
-                    LOCAL eInvoice = EInvoice();
-                    eInvoice() <- CASE
-                        WHEN (documentType() == 'BLRWBL' OR documentType() == 'BLRDLN') THEN eInvoiceSupplier(documentNumber())
-                        WHEN (documentType() == 'BLRWBR' OR documentType() == 'BLRDNR') THEN eInvoiceCustomer(documentNumber());
-                    IF eInvoice() THEN {
-                        NEWSESSION NESTED LOCAL {
-                            IF NOT eInvoiceMessage(eInvoice(), 'm' + messageDocumentNumber(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
-                                number(m) <- 'm' + messageDocumentNumber();
-                                eInvoice(m) <- eInvoice();
-                                kind(m) <- EInvoiceMessageKind.in;
-                            }
-                            FOR EInvoiceMessage m == eInvoiceMessage(eInvoice(), 'm' + messageDocumentNumber(), EInvoiceMessageKind.in) DO {
-                                dateTime(m) <- messageDocumentDate();
-                                code(m) <- code();
-                                description(m) <- OVERRIDE description(), description(code());
-                                type(m) <- CASE
-                                    WHEN documentType() == 'BLRWBL' THEN EInvoiceMessageType.systemmessage_blrwbl
-                                    WHEN documentType() == 'BLRWBR' THEN EInvoiceMessageType.systemmessage_blrwbr
-                                    WHEN documentType() == 'BLRDLN' THEN EInvoiceMessageType.systemmessage_blrdln
-                                    WHEN documentType() == 'BLRDNR' THEN EInvoiceMessageType.systemmessage_blrdnr;
-                                IF code(m) >= '1350' AND type(m) == EInvoiceMessageType.systemmessage_blrwbr 
-                                     //подверждение уже приходило, не трогаем больше
-                                    AND NOT (GROUP SUM 1 IF type(EInvoiceMessage em) == EInvoiceMessageType.blrapn_blrwbr AND code(em) == '2550' AND eInvoice(em) == eInvoice() AND NOT kind(em) == EInvoiceMessageKind.out) 
-                                    //10 ошибок, значит есть системная проблема и автоматически не убираем признак выгрузки
-                                    AND NOT (GROUP SUM 1 IF (code(EInvoiceMessage em) == '1354' OR code(em) == '1354') AND eInvoice(em) == eInvoice()) > 10
-                                     THEN {
-                                    exportedCustomer(eInvoice(m)) <- NULL;
-                                }
-                                XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
-                                APPLY NESTED LOCAL;
-                                IF canceled() THEN {
-                                    IF NOT disableConfirmation AND sendReplies THEN {
-                                        LOCAL contentSubXML = FILE();
-                                        EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                                        logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
-                                        TRY{ mkdir(exportDir + 'SYSTEMMESSAGE'); }
-                                        TRY {
-                                            WRITE data(i) TO exportDir + 'SYSTEMMESSAGE/' + id(i);
-                                            logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
-                                        } CATCH {
-                                            sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                            logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + messageCaughtException());
-                                            MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + messageCaughtException() NOWAIT;
-                                        }
-                                    }
-                                    logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
-                                    invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
-                                } ELSE {
-                                    IF NOT disableConfirmation THEN {
-                                        TRY {
-                                            delete(importDir + fileName(i)); 
-                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                                        } CATCH {
-                                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + messageCaughtException());
-                                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + messageCaughtException() NOWAIT;
-                                        }
-                                    }
-                                    logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' succeeded');
-                                    invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
-                                }
-                            }
-                        }
-                    } ELSE {
-                        IF confirmNotFoundInvoices() THEN {
-                            IF NOT disableConfirmation THEN {
-                                TRY {
-                                    delete(importDir + fileName(i)); 
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                                } CATCH {
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + messageCaughtException());
-                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + messageCaughtException() NOWAIT;
-                                }
-                            }
-                        } ELSE {
-                            IF NOT disableConfirmation AND sendReplies THEN {
-                                LOCAL contentSubXML = FILE();
-                                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (provider + ' Import EInvoiceMessage ' + id(i) + ' failed: ' + 'EInvoice ' + (OVERRIDE documentNumber(), 'NULL') + ' not found') XML TO contentSubXML;
-                                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');                                       
-                                TRY{ mkdir(exportDir + 'SYSTEMMESSAGE'); }
-                                TRY {
-                                    WRITE data(i) TO exportDir + 'SYSTEMMESSAGE/' + id(i);
-                                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
-                                } CATCH {
-                                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + messageCaughtException());
-                                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + messageCaughtException() NOWAIT;
-                                }
-                            }
-                        }
-                        logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' failed: ' + 'EInvoice ' + (OVERRIDE documentNumber(), 'NULL') + ' not found');
-                        invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
-                    }
-                }
-                WHEN documentType() == 'BLRAPN' OR documentType() == 'SYSTEMMESSAGE' THEN {
-                    logToFile('edi', provider + ' Parse Invoice Message ' + id(i) + ' skipped for documentType ' + documentType());
-                    IF NOT disableConfirmation THEN {
-                        TRY {
-                            delete(importDir + fileName(i)); 
-                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                        } CATCH {
-                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + messageCaughtException());
-                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + messageCaughtException() NOWAIT;
-                        }
-                    }
-                    invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
-                }
-                ELSE {
-                    logToFile('edi', provider + ' Parse Invoice Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
-                }
-            }
-        } CATCH {
-            IF NOT disableConfirmation AND sendReplies THEN {
-                LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
-                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');                                                                       
-                TRY{ mkdir(exportDir + 'SYSTEMMESSAGE'); }
-                TRY {
-                    WRITE data(i) TO exportDir + 'SYSTEMMESSAGE/' + id(i);
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
-                } CATCH {
-                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + messageCaughtException());
-                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + messageCaughtException() NOWAIT;
-                }
-            }
-            logToFile('edi', CONCAT '\n', provider + ' Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-            MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
-            invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
-        }
-    }
-}
-
 receiveEDN 'Получить сообщения' {
     checkIsServer();
     IF isServer() THEN {
         receiveMessagesEDN();
-        IF useDocuDrive() THEN {receiveMessagesDocuDrive();} 
+        IF useDocuDrive() THEN {receiveMessagesDocuDrive();}
     }
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN, useDocuDrive
-    PROPERTIES() SHOWIF useDocuDrive() exportDirectoryDocuDrive, importDirectoryDocuDrive
-    PROPERTIES() READONLY confirmNotFoundOrdersEDN = confirmNotFoundOrders, confirmNotFoundInvoicesEDN = confirmNotFoundInvoices, disableAutoBlrapnEDN = disableAutoBlrapn
-    PROPERTIES() READONLY askPasswordEDSServiceEDN = askPasswordEDSService
+    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN
+
     OBJECTS lete = LegalEntity
     FILTERS isCompany(lete)
     PROPERTIES(lete) name READONLY, loginEDN, passwordEDN, hostEDN, portEDN, extractEDN
 ;
-    
+
 DESIGN integrationData {
-    pane {
+    edi {
         NEW vsEDN {
             caption = 'EDN';
-            NEW paramsEDN {
-                caption = 'Общие';
-                fill = 1;
-                MOVE PROPERTY(archiveDirEDN());
-                MOVE PROPERTY(outputDirEDN());
-                MOVE PROPERTY(disableConfirmationEDN());
-                MOVE PROPERTY(receiveSupplierMessagesEDN());
-                MOVE PROPERTY(receiveEDN());
-                MOVE BOX(lete);
+            type = CONTAINERH;
+            NEW col1EDN {
+                NEW params {
+                    caption = 'Общие';
+                    MOVE PROPERTY(archiveDirEDN());
+                    MOVE PROPERTY(outputDirEDN());
+                    MOVE PROPERTY(disableConfirmationEDN());
+                    MOVE PROPERTY(receiveSupplierMessagesEDN());
+                    MOVE PROPERTY(receiveEDN());
+                }
             }
-            NEW colEDN {
-                type = CONTAINERH;
+            NEW col2EDN {
                 fill = 1;
-                NEW ovsEDN {
-                    caption = 'Заказы';
-                    MOVE PROPERTY(confirmNotFoundOrdersEDN);
-                }
-                NEW ivsEDN {
-                    caption = 'Электронные накладные';
-                    MOVE PROPERTY (useDocuDrive());
-                    MOVE PROPERTY (importDirectoryDocuDrive());
-                    MOVE PROPERTY (exportDirectoryDocuDrive());
-                    MOVE PROPERTY (confirmNotFoundInvoicesEDN);
-                    MOVE PROPERTY (disableAutoBlrapnEDN);
-                    MOVE PROPERTY(askPasswordEDSServiceEDN);
-                    fill = 1;
-                }
+                MOVE BOX(lete);
             }
         }
     }

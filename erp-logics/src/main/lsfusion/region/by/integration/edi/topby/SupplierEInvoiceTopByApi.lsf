@@ -1,8 +1,11 @@
-MODULE SupplierEInvoiceTopByProtocol;
+MODULE SupplierEInvoiceTopByApi;
 
-REQUIRE SupplierEInvoice, EInvoiceEDITopBy;
+REQUIRE SupplierEInvoice, EInvoiceTopByApi;
 
 NAMESPACE EDI;
+
+overInvoiceOutputDirTopBy 'Путь сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
+overInvoiceOutputFileName 'Имя файла для сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
 
 blrwbrUserID = DATA LOCAL NESTED STRING[35]();
 blrwbrDocumentNumber = DATA LOCAL NESTED STRING[48]();
@@ -53,6 +56,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
                         IF EDSServiceSupplier(provider,ei) THEN {
+                            name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            documentType() <- 'BLRAPN';
                             getSignedDocumentSupplier(provider, ei, contentSubXML(), NULL);
                             IF signError() THEN {
                                 logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -199,6 +204,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
                         IF EDSServiceSupplier(provider,ei) THEN {
+                            name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            documentType() <- 'BLRAPN';
                             getSignedDocumentSupplier(provider, ei, contentSubXML(), NULL);
                             LOCAL xml = FILE();
                             IF signError() THEN {
@@ -456,7 +463,9 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                             TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                             WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbl-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS'); 
                         }
-                        
+
+                        name() <- 'blrwbl-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                        documentType() <- 'BLRWBL';
                         getSignedDocumentSupplier(provider, ei, contentSubXML(), TRUE);
                         IF signError() THEN {
                             logToFile('edi', provider + ' (' + login + ') SendEInvoice error: BLRWBL ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -645,6 +654,9 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] passw
                             TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                             WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrdln-' + toChar(exportBlrdlnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS'); 
                         }
+
+                        name() <- 'blrdln-' + toChar(exportBlrdlnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                        documentType() <- 'BLRDLN';
                         getSignedDocumentSupplier(provider, ei, contentSubXML(), TRUE);
                         IF signError() THEN {
                             logToFile('edi', provider + ' (' + login + ') SendEInvoice error: BLRDLN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -730,6 +742,8 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] p
                         WRITE contentSubXML() TO (OVERRIDE outputDirInvoice, outputDir) + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                     }
                     
+                    name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                    documentType() <- 'BLRAPN';
                     getSignedDocumentSupplier(provider, ei, contentSubXML(), TRUE);
                     IF signError() THEN {
                         logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -814,7 +828,9 @@ signAndSendBlrapnSupplierEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100
                         TRY{ mkdir((OVERRIDE outputDirInvoice,outputDir) + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                         WRITE contentSubXML() TO (OVERRIDE outputDirInvoice,outputDir) + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                     }
-
+                    
+                    name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                    documentType() <- 'BLRAPN';
                     getSignedDocumentSupplier(provider, ei, contentSubXML(), TRUE);
                     IF signError() THEN {
                         logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());

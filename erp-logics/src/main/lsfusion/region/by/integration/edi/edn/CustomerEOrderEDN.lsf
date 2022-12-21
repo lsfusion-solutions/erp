@@ -1,0 +1,27 @@
+MODULE CustomerEOrderEDN;
+
+REQUIRE CustomerEOrderTopByApi, EDN;
+
+EXTEND FORM integrationData
+    PROPERTIES confirmNotFoundOrdersEDN = confirmNotFoundOrders();
+
+DESIGN integrationData {
+    col1EDN {
+        NEW ovsEDN {
+            caption = 'Заказы';
+            MOVE PROPERTY(confirmNotFoundOrdersEDN);
+        }
+    }
+}
+
+sendPurchaseOrderEDN (EOrder o) {
+    checkIsServer();
+    IF isServer() THEN {
+        sendPurchaseOrder(o, loginEDN(customer(o)), passwordEDN(customer(o)), ('https://' +  hostEDN(customer(o)) + ':' + portEDN(customer(o)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+    }
+}
+
+send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE ('Заказ уже отправлен '+(OVERRIDE number(o), '')); ELSE {sendPurchaseOrderEDN(o); } }
+cancel(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderEDN(o);} }
+
+good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1252') THEN TRUE;

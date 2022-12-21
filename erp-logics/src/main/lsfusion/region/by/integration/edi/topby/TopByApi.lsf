@@ -1,0 +1,195 @@
+MODULE TopByApi;
+
+REQUIRE EDI;
+
+NAMESPACE EDI;
+
+
+GROUP body EXTID 'soapenv:Body';
+GROUP sendDocument EXTID 'top:SendDocument' : body;
+GROUP getDocuments EXTID 'top:GetDocuments' : body;
+GROUP confirmDocumentReceived EXTID 'top:ConfirmDocumentReceived' : body;
+
+FORM receiveMessagesRequest
+    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    OBJECTS login = TEXT, password = TEXT
+    PROPERTIES IN getDocuments VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+beforeOverReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100]);
+overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, BOOLEAN, STRING[100]);
+
+receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) {
+    TRY {
+        IF login AND password THEN {
+            LOCAL xml = XMLFILE();
+            EXPORT receiveMessagesRequest OBJECTS login = login, password = password XML TO xml;
+            sendRequestEDI(url, xml());
+            logToFile('edi', provider + ' (' + login + ') ReceiveMessages request sent');
+            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'GetDocumentsResponse');
+            IF requestError() THEN {
+                logToFile('edi', provider + ' (' + login + ') ReceiveMessages: ' + requestError());
+                MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
+            } ELSE {
+                IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id',documentType = 'DocumentType';
+                
+                sendRecipientErrorFailed() <- 0;
+                supplierOrdersSucceeded() <- 0;
+                supplierOrdersFailed() <- 0;
+                orderMessagesSucceeded() <- 0;
+                orderMessagesFailed() <- 0;
+                responsesSucceeded() <- 0;
+                responsesFailed() <- 0;
+                despatchAdvicesSucceeded() <- 0;
+                despatchAdvicesFailed() <- 0;
+                invoiceMessagesSucceeded() <- 0;
+                invoiceMessagesFailed() <- 0;
+                eInvoicesSucceeded() <- 0;
+                eInvoicesFailed() <- 0;
+                eDocumentsSucceeded() <- 0;
+                eDocumentsFailed() <- 0;
+                blrwbrCount() <- 0;
+                blrdnrCount() <- 0;
+                blradfCount() <- 0;
+                messagesConfirmed() <- 0;
+                
+                logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
+                
+                FOR documentType(INTEGER i) ORDER getWord(id(i), '_', 2), id(i), i DO {
+                    IF archiveDir THEN {
+                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                    }
+                    logToFile('edi', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i));
+                    beforeOverReceiveMessages(i, login, archiveDir);
+                    overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, provider);
+                }
+                
+                LOCAL textMessage = TEXT();
+                IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
+                IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
+                IF orderMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по заказам: ' + orderMessagesSucceeded();
+                IF orderMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по заказам: ' + orderMessagesFailed();
+                IF responsesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ответов по заказам: ' + responsesSucceeded();
+                IF responsesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено ответов по заказам: ' + responsesFailed();
+                IF despatchAdvicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено уведомлений об отгрузке: ' + despatchAdvicesSucceeded();
+                IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
+                IF invoiceMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по накладным: ' + invoiceMessagesSucceeded();
+                IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
+                IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
+                IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
+                IF eDocumentsSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных документов: ' + eDocumentsSucceeded();
+                IF eDocumentsFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных документов: ' + eDocumentsFailed();
+                IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
+                IF blrdnrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrdnrCount() + ' BLRDNR';
+                IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
+                IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
+                
+                IF sendRecipientErrorFailed() == 0 THEN {
+                    MESSAGE (OVERRIDE textMessage(), 'Не найдено новых сообщений') NOWAIT;
+                }
+            }
+     
+        } ELSE {
+            logToFile('edi', provider + ' (' + login + ') ReceiveMessages: не заданы имя пользователя / пароль / хост / порт');
+            MESSAGE  provider + ' (' + login + ') Сообщения не получены: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        MESSAGE  'Сообщения не получены. Обратитесь к администратору' NOWAIT;
+    }
+}
+
+
+FORM confirmDocument
+    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    OBJECTS login = TEXT, password = TEXT, documentId = TEXT
+    PROPERTIES IN confirmDocumentReceived VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password', VALUE(documentId) EXTID 'top:documentId'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+FORM exportSystemMessage FORMEXTID 'SYSTEMMESSAGE'
+    OBJECTS documentId = TEXT, documentNumber = TEXT, code = TEXT, description = TEXT
+    PROPERTIES VALUE(documentId) EXTID 'documentNumber'
+    PROPERTIES IN reference VALUE(documentNumber) EXTID 'documentNumber', VALUE(code) EXTID 'code', VALUE(description) EXTID 'description'
+;
+
+envelopeLogin = DATA LOCAL NESTED STRING[100]();
+envelopePassword = DATA LOCAL NESTED STRING[100]();
+envelopeFilename = DATA LOCAL NESTED STRING[77]();
+envelopeDocumentDate = DATA LOCAL NESTED DATETIME();
+envelopeDocumentNumber = DATA LOCAL NESTED STRING[50]();
+envelopeSender = DATA LOCAL NESTED STRING[13]();
+envelopeReceiver = DATA LOCAL NESTED STRING[13]();
+envelopeDeliveryPoint = DATA LOCAL NESTED STRING[13]();
+envelopeDocumentType = DATA LOCAL NESTED STRING[13]();
+envelopeContent = DATA LOCAL NESTED TEXT();
+
+FORM envelope
+    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    PROPERTIES IN sendDocument envelopeLogin() EXTID 'top:username',
+                               envelopePassword() EXTID 'top:password',
+                               envelopeFilename() EXTID 'top:filename',
+                               documentDate = toChar(envelopeDocumentDate(),'YYYYMMDDHH24MISS') EXTID 'top:documentDate',
+                               envelopeDocumentNumber() EXTID 'top:documentNumber',
+                               envelopeSender() EXTID 'top:senderCode',
+                               envelopeReceiver() EXTID 'top:receiverCode',
+                               envelopeDeliveryPoint() EXTID 'top:deliveryPointCode',
+                               envelopeDocumentType() EXTID 'top:documentType',
+                               envelopeContent() EXTID 'top:content'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+overReceiveSystemMessage ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100] );
+overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+    logToFile('edi', provider + ' (' + login + ') Parse System Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
+}
+
+overImportSystemmessage ABSTRACT ();
+skipSystemmessage = DATA LOCAL NESTED BOOLEAN();
+
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) + {
+    IF lower(documentType(i)) == 'systemmessage' THEN {
+        TRY {
+            IMPORT systemMessage XML FROM data(i);
+            skipSystemmessage() <- NULL;
+            overImportSystemmessage();
+            IF NOT skipSystemmessage() THEN {
+                overReceiveSystemMessage(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
+            }
+        } CATCH {
+            IF NOT disableConfirmation AND sendReplies THEN {
+                LOCAL contentSubXML = FILE();
+                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' (' + login + ') Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
+                fileToString(contentSubXML());
+                encodeBase64(resultString());
+                LOCAL xml = XMLFILE();
+                envelopeLogin() <- login;
+                envelopePassword() <- password;
+                envelopeDocumentDate() <- currentDateTime();
+                envelopeDocumentNumber() <- id(i);
+                envelopeDocumentType() <- 'SYSTEMMESSAGE';
+                envelopeContent() <- encodedBase64();
+                EXPORT envelope XML TO xml;
+                //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
+                sendRequestEDI(url, xml());
+                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
+                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                IF requestError() THEN {
+                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                    MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                } ELSE {
+                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
+                }
+            }
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            orderMessagesFailed() <- orderMessagesFailed() + 1;
+        }
+    }
+}
+
+good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1251' OR code(m) == '1252') THEN TRUE ;
+good(EInvoiceMessage m) += WHEN (code(m) == '1250' OR code(m) == '2550' OR code(m) == '2560' OR code(m) == '2551' OR code(m) == '2571' OR code(m) == '2650') THEN TRUE ;

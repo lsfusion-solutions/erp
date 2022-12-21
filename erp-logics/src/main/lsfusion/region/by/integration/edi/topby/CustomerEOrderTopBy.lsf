@@ -1,0 +1,27 @@
+MODULE CustomerEOrderTopBy;
+
+REQUIRE CustomerEOrderTopByApi, TopBy;
+
+NAMESPACE EDI;
+
+EXTEND FORM integrationData
+    PROPERTIES confirmNotFoundOrders();
+
+DESIGN integrationData {
+    col1TopBy {
+        NEW ovs {
+            caption = 'Заказы';
+            MOVE PROPERTY (confirmNotFoundOrders());
+        }
+    }
+}
+
+sendPurchaseOrderTopBy (EOrder o) {
+    checkIsServer();
+    IF isServer() THEN {
+        sendPurchaseOrder(o, loginTopBy(customer(o)), passwordTopBy(customer(o)), ('http://' +  hostTopBy(customer(o)) + ':' + portTopBy(customer(o)) + '/DmcService'), outputDirTopBy(), 'TopBy');
+    }
+}
+
+send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.topBy AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE ('Заказ уже отправлен '+(OVERRIDE number(o), '')); ELSE {sendPurchaseOrderTopBy(o);} }
+cancel(EOrder o) + {IF EDIProvider(supplier(o)) == EDIProvider.topBy AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderTopBy(o);} }

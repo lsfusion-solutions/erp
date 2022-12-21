@@ -40,6 +40,7 @@ EDSServiceSupplier(EDSApplication app, EInvoice i) += WHEN app == EDSApplication
         THEN OVERRIDE EDSService(currentUser()), EDSService(supplierStock(i)), EDSService(supplier(i));
 
 EXTEND FORM integrationData
+    PROPERTIES() READONLY askPasswordEDSServiceEDN = askPasswordEDSService
     PROPERTIES nameEDSApplication()
     OBJECTS lee = LegalEntity
     FILTERS isCompany(lee)
@@ -56,15 +57,20 @@ EXTEND FORM integrationData
 ;
 
 DESIGN integrationData {
-    ivsEDN {
-        MOVE PROPERTY (nameEDSApplication());
-        NEW EDSServiceEDN {
-            showIf = EDSApplication() == EDSApplication.docudriveProxy;
-            type = TABBED;
+    col2EDN {
+        NEW edsEDN {
+            caption = 'Электронные подписи';
             fill = 1;
-            MOVE BOX(lee);
-            MOVE BOX(sedse);
-            MOVE BOX(eedse);
+            MOVE PROPERTY (askPasswordEDSServiceEDN);
+            MOVE PROPERTY (nameEDSApplication());
+            NEW EDSServiceEDN {
+                showIf = EDSApplication() == EDSApplication.docudriveProxy;
+                type = TABBED;
+                fill = 1;
+                MOVE BOX(lee);
+                MOVE BOX(sedse);
+                MOVE BOX(eedse);
+            }
         }
     }
 }
@@ -80,7 +86,6 @@ sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, XMLFILE file) {
 GROUP sign EXTID 'urn:Sign' : body;
 
 header = DATA LOCAL STRING();
-name = DATA LOCAL STRING();
 data = DATA LOCAL XMLFILE();
 cryptoContainerId = DATA LOCAL STRING();
 cryptoContainerPassword = DATA LOCAL STRING();
@@ -119,8 +124,6 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
         signResult() <- NULL;
         
         LOCAL xml = FILE();
-        name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
-        documentType() <- 'BLRAPN';
         data() <- XMLFILE(contentSubXML);
         cryptoContainerId() <- aliasEDSServiceCustomer(eInvoice);
         cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice));
@@ -144,8 +147,6 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentS
         signResult() <- NULL;
         
         LOCAL xml = FILE();
-        name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
-        documentType() <- 'BLRAPN';
         data() <- XMLFILE(contentSubXML);
         cryptoContainerId() <- aliasEDSServiceSupplier(eInvoice);
         cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice));

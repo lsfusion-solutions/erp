@@ -1,164 +1,8 @@
-MODULE CustomerEInvoiceTopByProtocol;
+MODULE CustomerEInvoiceTopByApi;
 
-REQUIRE CustomerEInvoice, EInvoiceEDITopBy, EDS;
+REQUIRE CustomerEInvoice, EInvoiceTopByApi, EDS;
 
 NAMESPACE EDI;
-
-blrwblTestIndicator = DATA LOCAL STRING[1]();
-blrwblUserID = DATA LOCAL NESTED STRING[35]();
-blrwblDocumentNumber = DATA LOCAL NESTED STRING[35]();
-blrwblDeliveryNoteNumber = DATA LOCAL NESTED STRING[70]();
-blrwblDateTime = DATA LOCAL NESTED DATETIME();
-blrwblDeliveryNoteDate = DATA LOCAL NESTED DATE();
-blrwblFunctionCode = DATA LOCAL NESTED STRING[3]();
-blrwblContractName = DATA LOCAL NESTED STRING[70]();
-blrwblContractID = DATA LOCAL NESTED STRING[70]();
-blrwblContractDate = DATA LOCAL NESTED DATE();
-blrwblWaybillID = DATA LOCAL NESTED STRING[70]();
-GROUP blrwblShipper EXTID 'Shipper' : deliveryNote;
-blrwblSupplierGLN = DATA LOCAL NESTED STRING[13]();
-blrwblSupplierName = DATA LOCAL NESTED STRING[150]();
-blrwblSupplierAddress = DATA LOCAL NESTED STRING[150]();
-blrwblSupplierVATRegistrationNumber = DATA LOCAL NESTED STRING[9]();
-blrwblContactSupplier  = DATA LOCAL NESTED STRING[150]();
-GROUP blrwblReceiver EXTID 'Receiver' : deliveryNote;
-blrwblCustomerGLN = DATA LOCAL NESTED STRING[13]();
-GROUP blrwblFreightPayer EXTID 'FreightPayer' : deliveryNote;
-blrwblFreightPayerGLN = DATA LOCAL NESTED STRING[13]();
-GROUP blrwblShipFrom EXTID 'ShipFrom' : deliveryNote;
-blrwblSupplierStockGLN = DATA LOCAL NESTED STRING[13]();
-blrwblSupplierStockAddress = DATA LOCAL NESTED STRING[150]();
-blrwblContactSupplierStock = DATA LOCAL NESTED STRING[150]();
-GROUP blrwblShipTo EXTID 'ShipTo' : deliveryNote;
-blrwblCustomerStockGLN = DATA LOCAL NESTED STRING[13]();
-GROUP blrwblCarrier EXTID 'Carrier' : deliveryNote;
-blrwblTransportContact = DATA LOCAL NESTED STRING[150]();
-blrwblDeliveryContact = DATA LOCAL NESTED STRING[150]();
-blrwblProxyID = DATA LOCAL NESTED STRING[70]();
-blrwblProxyDate = DATA LOCAL NESTED DATE();
-blrwblPartyIssuingProxyName = DATA LOCAL NESTED STRING[175]();
-blrwblQuantityTrip = DATA LOCAL NESTED STRING[70]();
-blrwblTransportOwnerName = DATA LOCAL NESTED STRING[175]();
-blrwblTransportID = DATA LOCAL NESTED STRING[35]();
-blrwblTrailerID = DATA LOCAL NESTED STRING[35]();
-blrwblSealIDReceiver = DATA LOCAL NESTED STRING[35]();
-blrwblOrderID = DATA LOCAL NESTED STRING[35]();
-blrwblCurrency = DATA LOCAL NESTED STRING[3]();
-blrwblFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
-blrwblFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
-blrwblFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
-GROUP blrwblDespatchAdviceLogisticUnitLineItemDeliveryNote EXTID 'DespatchAdviceLogisticUnitLineItem' :deliveryNote;
-blrwblLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
-blrwblLineItemSign = DATA LOCAL NESTED STRING[4](INTEGER);
-blrwblLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
-blrwblLineItemBuyerID = DATA LOCAL NESTED STRING[35](INTEGER);
-blrwblDeliveryTypePrev = DATA LOCAL NESTED INTEGER(INTEGER);
-blrwblDeliveryNotePrev = DATA LOCAL NESTED STRING[70](INTEGER);
-blrwblDeliveryNoteDatePrev = DATA LOCAL NESTED DATETIME(INTEGER);
-blrwblDeliveryNotePrevLineID = DATA LOCAL NESTED INTEGER(INTEGER);
-blrwblLineItemSupplierID = DATA LOCAL NESTED STRING[35](INTEGER);
-blrwblLineItemName = DATA LOCAL NESTED STRING[500](INTEGER);
-blrwblGrossWeightValue = DATA LOCAL NESTED NUMERIC[12,6](INTEGER);
-blrwblQuantityDespatched = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
-blrwblLineItemQuantityUOM = DATA LOCAL NESTED STRING[3](INTEGER);
-blrwblDespatchUnitQuantityDespatched = DATA LOCAL NESTED NUMERIC[12,5](INTEGER);
-blrwblExpiryDate = DATA LOCAL NESTED DATE(INTEGER);
-blrwblValueVAT = DATA LOCAL NESTED STRING[7](INTEGER);
-blrwblAdditionalInformation = DATA LOCAL NESTED STRING[512](INTEGER);
-blrwblLineItemProductDate = DATA LOCAL NESTED DATE(INTEGER);
-blrwblLineItemPrice = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-blrwblLineItemManufacturerPrice = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-blrwblLineItemAmountWithoutCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
-blrwblLineItemAmount = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
-blrwblLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
-blrwblLineItemAmountExcise = DATA LOCAL NESTED NUMERIC[12,5](INTEGER);
-blrwblLineItemLineItemIdentification = DATA LOCAL NESTED INTEGER(INTEGER);
-GROUP blrwblLineItemIdentification EXTID 'LineItemIdentification';
-blrwblGroupPackingCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
-blrwblUpperLevelCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
-blrwblFieldCodeMark = DATA LOCAL NESTED STRING[130000](INTEGER);
-blrwblLineItemLineItemExtraField = DATA LOCAL NESTED INTEGER(INTEGER);
-blrwblLineItemFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
-blrwblLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
-blrwblLineItemFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
-
-FORM blrwbl
-    PROPERTIES IN messageHeader blrwblTestIndicator() EXTID 'TestIndicator',
-                                blrwblUserID() EXTID 'UserID'
-    PROPERTIES IN deliveryNote blrwblDocumentNumber() EXTID 'DocumentID',
-                               blrwblDeliveryNoteNumber() EXTID 'DeliveryNoteID',
-                               blrwblDeliveryNoteDate() EXTID 'DeliveryNoteDate',
-                               blrwblDateTime() EXTID 'CreationDateTime',
-                               blrwblFunctionCode() EXTID 'FunctionCode',
-                               blrwblContractName() EXTID 'ContractName',
-                               blrwblContractID() EXTID 'ContractID',
-                               blrwblContractDate() EXTID 'ContractDate',
-                               blrwblWaybillID() EXTID 'WaybillID',
-                               blrwblQuantityTrip() EXTID 'QuantityTrip',
-                               blrwblTransportOwnerName() EXTID 'TransportOwnerName',
-                               blrwblTransportID() EXTID 'TransportID',
-                               blrwblTrailerID() EXTID 'TrailerID',
-                               blrwblSealIDReceiver() EXTID 'SealID',
-                               blrwblOrderID() EXTID 'OrderID',
-                               blrwblCurrency() EXTID 'Currency'
-    PROPERTIES IN blrwblShipper blrwblSupplierGLN() EXTID 'GLN',
-                                blrwblSupplierName() EXTID 'Name',
-                                blrwblSupplierAddress() EXTID 'Address',
-                                blrwblSupplierVATRegistrationNumber() EXTID 'VATRegistrationNumber',
-                                blrwblContactSupplier() EXTID 'Contact'
-    PROPERTIES IN blrwblReceiver blrwblCustomerGLN() EXTID 'GLN'
-    PROPERTIES IN blrwblFreightPayer blrwblFreightPayerGLN() EXTID 'GLN'
-    PROPERTIES IN blrwblShipFrom blrwblSupplierStockGLN() EXTID 'GLN',
-                                 blrwblSupplierStockAddress() EXTID 'Address',
-                                 blrwblContactSupplierStock() EXTID 'Contact'
-    PROPERTIES IN blrwblShipTo blrwblCustomerStockGLN() EXTID 'GLN'
-    PROPERTIES IN blrwblCarrier blrwblTransportContact() EXTID 'TransportContact',
-                                blrwblDeliveryContact() EXTID 'DeliveryContact',
-                                blrwblProxyID() EXTID 'ProxyID',
-                                blrwblProxyDate() EXTID 'ProxyDate',
-                                blrwblPartyIssuingProxyName() EXTID 'PartyIssuingProxyName'
-    
-    OBJECTS e = INTEGER EXTID 'ExtraField' IN deliveryNote
-    PROPERTIES(e) blrwblFieldName EXTID 'FieldName',
-                  blrwblFieldCode EXTID 'FieldCode',
-                  blrwblFieldValue EXTID 'FieldValue'
-    
-    OBJECTS i = INTEGER EXTID 'LineItem' IN blrwblDespatchAdviceLogisticUnitLineItemDeliveryNote
-    PROPERTIES(i) blrwblLineItemNumber EXTID 'LineItemNumber',
-                  blrwblLineItemSign EXTID 'LineItemSign',
-                  blrwblLineItemID EXTID 'LineItemID',
-                  blrwblLineItemBuyerID EXTID 'LineItemBuyerID',
-                  blrwblDeliveryTypePrev EXTID 'DeliveryTypePrev',
-                  blrwblDeliveryNotePrev EXTID 'DeliveryNotePrev',
-                  blrwblDeliveryNoteDatePrev EXTID 'DeliveryNoteDatePrev',
-                  blrwblDeliveryNotePrevLineID EXTID 'DeliveryNotePrevLineID',
-                  blrwblLineItemSupplierID EXTID 'LineItemSupplierID',
-                  blrwblLineItemName EXTID 'LineItemName',
-                  blrwblGrossWeightValue EXTID 'GrossWeightValue',
-                  blrwblQuantityDespatched EXTID 'QuantityDespatched',
-                  blrwblLineItemQuantityUOM EXTID 'LineItemQuantityUOM',
-                  blrwblDespatchUnitQuantityDespatched EXTID 'DespatchUnitQuantityDespatched',
-                  blrwblExpiryDate EXTID 'BestBeforeDate',
-                  blrwblValueVAT EXTID 'TaxRate',
-                  blrwblAdditionalInformation EXTID 'AdditionalInformation',
-                  blrwblLineItemProductDate EXTID 'LineItemProductDate',
-                  blrwblLineItemPrice EXTID 'LineItemPrice',
-                  blrwblLineItemManufacturerPrice EXTID 'LineItemManufacturerPrice',
-                  blrwblLineItemAmountWithoutCharges EXTID 'LineItemAmountWithoutCharges',
-                  blrwblLineItemAmount EXTID 'LineItemAmount',
-                  blrwblLineItemAmountCharges EXTID 'LineItemAmountCharges',
-                  blrwblLineItemAmountExcise EXTID 'LineItemAmountExcise'
-    OBJECTS d = INTEGER EXTID 'GroupPackingHeader' IN blrwblLineItemIdentification
-    PROPERTIES(d) blrwblGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
-                  blrwblUpperLevelCodeMark EXTID 'UpperLevelCodeMark'
-    PROPERTIES(i) IN blrwblLineItemIdentification blrwblFieldCodeMark EXTID 'FieldCodeMark'
-    FILTERS blrwblLineItemLineItemIdentification(d) == i
-    OBJECTS f = INTEGER EXTID 'LineItemExtraField'
-    PROPERTIES(f) blrwblLineItemFieldName EXTID 'FieldName',
-                  blrwblLineItemFieldCode EXTID 'FieldCode',
-                  blrwblLineItemFieldValue EXTID 'FieldValue'
-    FILTERS blrwblLineItemLineItemExtraField(f) == i
-;
 
 overImportBlrwbl ABSTRACT ();
 skipBlrwbl = DATA LOCAL NESTED BOOLEAN();
@@ -312,6 +156,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                                 }
                                 IF EDSServiceCustomer(provider,ei) THEN {
+                                    name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                    documentType() <- 'BLRAPN';
                                     getSignedDocumentCustomer(provider, ei, contentSubXML(), NULL);
                                     IF signError() THEN {
                                         logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -326,7 +172,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         envelopeSender() <- glnCustomer(ei);
                                         envelopeReceiver() <- glnCustomer(ei);
                                         envelopeDeliveryPoint() <- glnCustomerStock(ei);
-                                        envelopeDocumentType() <- 'BLRAPN';                                        
+                                        envelopeDocumentType() <- 'BLRAPN';
                                         envelopeContent() <- signResult();
                                         EXPORT envelope XML TO ixml;
                                         sendRequestEDI(url, ixml());
@@ -388,7 +234,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
                             }
                         }
-                    }  
+                    }
                 }
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped');
@@ -424,141 +270,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
         }
     }
 }
-
-blrdlnTestIndicator = DATA LOCAL STRING[1]();
-blrdlnUserID = DATA LOCAL NESTED STRING[35]();
-blrdlnDocumentNumber = DATA LOCAL NESTED STRING[35]();
-blrdlnDeliveryNoteNumber = DATA LOCAL NESTED STRING[70]();
-blrdlnDateTime = DATA LOCAL NESTED DATETIME();
-blrdlnDeliveryNoteDate = DATA LOCAL NESTED DATE();
-blrdlnFunctionCode = DATA LOCAL NESTED STRING[3]();
-blrdlnContractName = DATA LOCAL NESTED STRING[70]();
-blrdlnContractID = DATA LOCAL NESTED STRING[70]();
-blrdlnContractDate = DATA LOCAL NESTED DATE();
-GROUP blrdlnShipper EXTID 'Shipper' : deliveryNote;
-blrdlnSupplierGLN = DATA LOCAL NESTED STRING[13]();
-blrdlnSupplierName = DATA LOCAL NESTED STRING[150]();
-blrdlnSupplierAddress = DATA LOCAL NESTED STRING[150]();
-blrdlnSupplierVATRegistrationNumber = DATA LOCAL NESTED STRING[9]();
-blrdlnContactSupplier  = DATA LOCAL NESTED STRING[150]();
-GROUP blrdlnReceiver EXTID 'Receiver' : deliveryNote;
-blrdlnCustomerGLN = DATA LOCAL NESTED STRING[13]();
-GROUP blrdlnShipFrom EXTID 'ShipFrom' : deliveryNote;
-blrdlnSupplierStockGLN = DATA LOCAL NESTED STRING[13]();
-blrdlnSupplierStockAddress = DATA LOCAL NESTED STRING[150]();
-blrdlnContactSupplierStock = DATA LOCAL NESTED STRING[150]();
-GROUP blrdlnShipTo EXTID 'ShipTo' : deliveryNote;
-blrdlnCustomerStockGLN = DATA LOCAL NESTED STRING[13]();
-GROUP blrdlnCarrier EXTID 'Carrier' : deliveryNote;
-blrdlnDeliveryContact = DATA LOCAL NESTED STRING[150]();
-blrdlnProxyID = DATA LOCAL NESTED STRING[70]();
-blrdlnProxyDate = DATA LOCAL NESTED DATE();
-blrdlnPartyIssuingProxyName = DATA LOCAL NESTED STRING[175]();
-blrdlnOrderID = DATA LOCAL NESTED STRING[35]();
-blrdlnCurrency = DATA LOCAL NESTED STRING[3]();
-blrdlnFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
-blrdlnFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
-blrdlnFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
-GROUP blrdlnDespatchAdviceLogisticUnitLineItemDeliveryNote EXTID 'DespatchAdviceLogisticUnitLineItem' :deliveryNote;
-blrdlnLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
-blrdlnLineItemSign = DATA LOCAL NESTED STRING[4](INTEGER);
-blrdlnLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
-blrdlnLineItemBuyerID = DATA LOCAL NESTED STRING[35](INTEGER);
-blrdlnDeliveryTypePrev = DATA LOCAL NESTED INTEGER(INTEGER);
-blrdlnDeliveryNotePrev = DATA LOCAL NESTED STRING[70](INTEGER);
-blrdlnDeliveryNoteDatePrev = DATA LOCAL NESTED DATETIME(INTEGER);
-blrdlnDeliveryNotePrevLineID = DATA LOCAL NESTED INTEGER(INTEGER);
-blrdlnLineItemSupplierID = DATA LOCAL NESTED STRING[35](INTEGER);
-blrdlnLineItemName = DATA LOCAL NESTED STRING[500](INTEGER);
-blrdlnQuantityDespatched = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
-blrdlnLineItemQuantityUOM = DATA LOCAL NESTED STRING[3](INTEGER);
-blrdlnExpiryDate = DATA LOCAL NESTED DATE(INTEGER);
-blrdlnValueVAT = DATA LOCAL NESTED STRING[7](INTEGER);
-blrdlnAdditionalInformation = DATA LOCAL NESTED STRING[512](INTEGER);
-blrdlnLineItemProductDate = DATA LOCAL NESTED DATE(INTEGER);
-blrdlnLineItemPrice = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-blrdlnLineItemManufacturerPrice = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
-blrdlnLineItemAmountWithoutCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
-blrdlnLineItemAmount = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
-blrdlnLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
-blrdlnLineItemAmountExcise = DATA LOCAL NESTED NUMERIC[12,5](INTEGER);
-blrdlnLineItemLineItemIdentification = DATA LOCAL NESTED INTEGER(INTEGER);
-GROUP blrdlnLineItemIdentification EXTID 'LineItemIdentification';
-blrdlnGroupPackingCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
-blrdlnUpperLevelCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
-blrdlnFieldCodeMark = DATA LOCAL NESTED STRING[130000](INTEGER);
-blrdlnLineItemLineItemExtraField = DATA LOCAL NESTED INTEGER(INTEGER);
-blrdlnLineItemFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
-blrdlnLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
-blrdlnLineItemFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
-
-FORM blrdln
-    PROPERTIES IN messageHeader blrdlnTestIndicator() EXTID 'TestIndicator',
-                                blrdlnUserID() EXTID 'UserID'
-    PROPERTIES IN deliveryNote blrdlnDocumentNumber() EXTID 'DocumentID',
-                               blrdlnDeliveryNoteNumber() EXTID 'DeliveryNoteID',
-                               blrdlnDeliveryNoteDate() EXTID 'DeliveryNoteDate',
-                               blrdlnDateTime() EXTID 'CreationDateTime',
-                               blrdlnFunctionCode() EXTID 'FunctionCode',
-                               blrdlnContractName() EXTID 'ContractName',
-                               blrdlnContractID() EXTID 'ContractID',
-                               blrdlnContractDate() EXTID 'ContractDate',
-                               blrdlnOrderID() EXTID 'OrderID',
-                               blrdlnCurrency() EXTID 'Currency'
-    PROPERTIES IN blrdlnShipper blrdlnSupplierGLN() EXTID 'GLN',
-                                blrdlnSupplierName() EXTID 'Name',
-                                blrdlnSupplierAddress() EXTID 'Address',
-                                blrdlnSupplierVATRegistrationNumber() EXTID 'VATRegistrationNumber',
-                                blrdlnContactSupplier() EXTID 'Contact'
-    PROPERTIES IN blrdlnReceiver blrdlnCustomerGLN() EXTID 'GLN'
-    PROPERTIES IN blrdlnShipFrom blrdlnSupplierStockGLN() EXTID 'GLN',
-                                 blrdlnSupplierStockAddress() EXTID 'Address',
-                                 blrdlnContactSupplierStock() EXTID 'Contact'
-    PROPERTIES IN blrdlnShipTo blrdlnCustomerStockGLN() EXTID 'GLN'
-    PROPERTIES IN blrdlnCarrier blrdlnDeliveryContact() EXTID 'DeliveryContact',
-                                blrdlnProxyID() EXTID 'ProxyID',
-                                blrdlnProxyDate() EXTID 'ProxyDate',
-                                blrdlnPartyIssuingProxyName() EXTID 'PartyIssuingProxyName'
-    
-    OBJECTS e = INTEGER EXTID 'ExtraField' IN deliveryNote
-    PROPERTIES(e) blrdlnFieldName EXTID 'FieldName',
-                  blrdlnFieldCode EXTID 'FieldCode',
-                  blrdlnFieldValue EXTID 'FieldValue'
-    
-    OBJECTS i = INTEGER EXTID 'LineItem' IN blrdlnDespatchAdviceLogisticUnitLineItemDeliveryNote
-    PROPERTIES(i) blrdlnLineItemNumber EXTID 'LineItemNumber',
-                  blrdlnLineItemSign EXTID 'LineItemSign',
-                  blrdlnLineItemID EXTID 'LineItemID',
-                  blrdlnLineItemBuyerID EXTID 'LineItemBuyerID',
-                  blrdlnDeliveryTypePrev EXTID 'DeliveryTypePrev',
-                  blrdlnDeliveryNotePrev EXTID 'DeliveryNotePrev',
-                  blrdlnDeliveryNoteDatePrev EXTID 'DeliveryNoteDatePrev',
-                  blrdlnDeliveryNotePrevLineID EXTID 'DeliveryNotePrevLineID',
-                  blrdlnLineItemSupplierID EXTID 'LineItemSupplierID',
-                  blrdlnLineItemName EXTID 'LineItemName',
-                  blrdlnQuantityDespatched EXTID 'QuantityDespatched',
-                  blrdlnLineItemQuantityUOM EXTID 'LineItemQuantityUOM',
-                  blrdlnExpiryDate EXTID 'BestBeforeDate',
-                  blrdlnValueVAT EXTID 'TaxRate',
-                  blrdlnAdditionalInformation EXTID 'AdditionalInformation',
-                  blrdlnLineItemProductDate EXTID 'LineItemProductDate',
-                  blrdlnLineItemPrice EXTID 'LineItemPrice',
-                  blrdlnLineItemManufacturerPrice EXTID 'LineItemManufacturerPrice',
-                  blrdlnLineItemAmountWithoutCharges EXTID 'LineItemAmountWithoutCharges',
-                  blrdlnLineItemAmount EXTID 'LineItemAmount',
-                  blrdlnLineItemAmountCharges EXTID 'LineItemAmountCharges',
-                  blrdlnLineItemAmountExcise EXTID 'LineItemAmountExcise'
-    OBJECTS d = INTEGER EXTID 'GroupPackingHeader' IN blrdlnLineItemIdentification
-    PROPERTIES(d) blrdlnGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
-                  blrdlnUpperLevelCodeMark EXTID 'UpperLevelCodeMark'
-    PROPERTIES(i) IN blrdlnLineItemIdentification blrdlnFieldCodeMark EXTID 'FieldCodeMark'
-    FILTERS blrdlnLineItemLineItemIdentification(d) == i
-    OBJECTS f = INTEGER EXTID 'LineItemExtraField'
-    PROPERTIES(f) blrdlnLineItemFieldName EXTID 'FieldName',
-                  blrdlnLineItemFieldCode EXTID 'FieldCode',
-                  blrdlnLineItemFieldValue EXTID 'FieldValue'
-    FILTERS blrdlnLineItemLineItemExtraField(f) == i
-;
 
 overImportBlrdln ABSTRACT ();
 skipBlrdln = DATA LOCAL NESTED BOOLEAN();
@@ -703,8 +414,10 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                                 }
                                 IF EDSServiceCustomer(provider,ei) THEN {
+                                    name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                    documentType() <- 'BLRAPN';
                                     getSignedDocumentCustomer(provider, ei, contentSubXML(), NULL);
-                                    
+
                                     IF signError() THEN {
                                         logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
                                     }
@@ -718,7 +431,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         envelopeSender() <- glnCustomer(ei);
                                         envelopeReceiver() <- glnCustomer(ei);
                                         envelopeDeliveryPoint() <- glnCustomerStock(ei);
-                                        envelopeDocumentType() <- 'BLRAPN';                                        
+                                        envelopeDocumentType() <- 'BLRAPN';
                                         envelopeContent() <- signResult();
                                         EXPORT envelope XML TO ixml;
                                         sendRequestEDI(url, ixml());
@@ -780,7 +493,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
                             }
                         }
-                    }  
+                    }
                 }
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped');
@@ -817,8 +530,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
     }
 }
 
-
-
 signAndSendBlrapnCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir , STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
@@ -845,6 +556,8 @@ signAndSendBlrapnCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] p
                         TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                         WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                     }
+                    name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                    documentType() <- 'BLRAPN';
                     getSignedDocumentCustomer(provider, ei, contentSubXML(), TRUE);
                     IF signError() THEN {
                         logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -929,6 +642,8 @@ signAndSendBlrapnCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100
                         TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                         WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                     }
+                    name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                    documentType() <- 'BLRAPN';
                     getSignedDocumentCustomer(provider, ei, contentSubXML(), TRUE);
                     IF signError() THEN {
                         logToFile('edi', provider + ' (' + login + ') SendBlrapnEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -987,54 +702,6 @@ signAndSendBlrapnCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100
     }
 }
 
-
-exportBlrwbrDateTime = DATA LOCAL NESTED DATETIME();
-
-GROUP report EXTID 'Report';
-
-hideMessageHeaderBlrwbr = DATA LOCAL BOOLEAN ();
-
-FORM exportBlrwbr FORMEXTID 'BLRWBR'
-    PROPERTIES ATTR ='0.1' IF NOT hideMessageHeaderBlrwbr() EXTID 'version'
-    OBJECTS ei = EInvoice PANEL
-    
-    OBJECTS eih = EInvoice EXTID 'MessageHeader'
-    FILTERS (eih == ei AND NOT hideMessageHeaderBlrwbr()) OR NOT eih IS EInvoice
-    PROPERTIES DRAW eih messageId = resultMilliseconds() EXTID 'MessageID',
-                        msgDateTime = toChar(exportBlrwbrDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
-                        messageType = 'BLRWBR' EXTID 'MessageType',
-                        glnCustomer(eih) EXTID 'MsgSenderID',
-                        glnSupplier(eih) EXTID 'MsgReceiverID',
-                        userIDSupplierStock(eih) EXTID 'UserID',
-                        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
-    
-    OBJECTS ein = EInvoice EXTID 'DeliveryNote'
-    FILTERS ein == ei
-    PROPERTIES DRAW ein deliveryNoteType = '700' EXTID 'DeliveryNoteType',
-                        documentID = resultMilliseconds() EXTID 'DocumentID',
-                        creationDateTime = toChar(exportBlrwbrDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-                        functionCode = '11' EXTID 'FunctionCode',
-                        referenceDocument = numberSupplier(ein) EXTID 'ID' IN referenceDocument,
-                        date = toChar(dateSupplier(ein),'YYYYMMDDHH24MISS') EXTID 'Date' IN referenceDocument,
-                        deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
-                        deliveryNoteDateTime = toChar(deliveryNoteDateTime(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate'
-    PROPERTIES DRAW ein IN report overReportId(ein) EXTID 'ReportID',
-                                  overReportDate = toChar(overReportDate(ein),'YYYYMMDD') EXTID 'ReportDate',
-                                  overReportName(ein) EXTID 'ReportName'
-    PROPERTIES DRAW ein IN shipper glnSupplier(ein) EXTID 'GLN',
-                                   nameSupplier(ein) EXTID 'Name',
-                                   addressSupplier(ein) EXTID 'Address',
-                                   unpSupplier(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN receiver glnCustomer(ein) EXTID 'GLN',
-                                    nameCustomer(ein) EXTID 'Name',
-                                    addressCustomer(ein) EXTID 'Address',
-                                    unpCustomer(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN shipTo glnCustomerStock(ein) EXTID 'GLN',
-                                  addressCustomerStock(ein) EXTID 'Address',
-                                  contactCustomerStock(ein) EXTID 'Contact'
-    PROPERTIES DRAW ein sealIDReceiver(ein) EXTID 'SealIDReceiver'
-;
-
 overExportCustomer ABSTRACT (EInvoice);
 
 signAndSendCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir , STRING[100] provider) {
@@ -1048,7 +715,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                         error() <- '';
                         IF NOT length(addressCustomerStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Адрес пункта разгрузки (Адрес склада получателя)\'\n';
                         IF NOT length(contactCustomerStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не задано \'ФИО и должность лица, которое отвечает за получение груза со стороны грузополучателя\'\n';
-                        
+
                         IF error() == '' THEN {
                             LOCAL contentSubXML = FILE();
                             exportBlrwbrDateTime() <- currentDateTimeMillis();
@@ -1058,6 +725,8 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                                 TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                                 WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbr-' + toChar(exportBlrwbrDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                             }
+                            name() <- 'blrwbr-' + toChar(exportBlrwbrDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            documentType() <- 'BLRWBR';
                             getSignedDocumentCustomer(provider, ei, contentSubXML(), TRUE);
                             IF signError() THEN {
                                 logToFile('edi', provider + ' (' + login + ') SendEInvoice error: BLRWBR ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -1122,45 +791,6 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
     }
 }
 
-exportBlrdnrDateTime = DATA LOCAL NESTED DATETIME();
-
-hideMessageHeaderBlrdnr = DATA LOCAL BOOLEAN ();
-
-FORM exportBlrdnr FORMEXTID 'BLRDNR'
-    PROPERTIES ATTR ='0.1' IF NOT hideMessageHeaderBlrdnr() EXTID 'version'
-    OBJECTS ei = EInvoice PANEL
-    
-    OBJECTS eih = EInvoice EXTID 'MessageHeader'
-    FILTERS (eih == ei AND NOT hideMessageHeaderBlrdnr()) OR NOT eih IS EInvoice
-    PROPERTIES DRAW eih messageId = resultMilliseconds() EXTID 'MessageID',
-                        msgDateTime = toChar(exportBlrdnrDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
-                        messageType = 'BLRDNR' EXTID 'MessageType',
-                        glnCustomer(eih) EXTID 'MsgSenderID',
-                        glnSupplier(eih) EXTID 'MsgReceiverID',
-                        userIDSupplierStock(eih) EXTID 'UserID',
-                        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
-    
-    OBJECTS ein = EInvoice EXTID 'DeliveryNote'
-    FILTERS ein == ei
-    PROPERTIES DRAW ein deliveryNoteType = '270' EXTID 'DeliveryNoteType',
-                        documentID = resultMilliseconds() EXTID 'DocumentID',
-                        creationDateTime = toChar(exportBlrdnrDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-                        functionCode = '11' EXTID 'FunctionCode',
-                        referenceDocument = numberSupplier(ein) EXTID 'ID' IN referenceDocument,
-                        date = toChar(dateSupplier(ein),'YYYYMMDDHH24MISS') EXTID 'Date' IN referenceDocument,
-                        deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
-                        deliveryNoteDateTime = toChar(deliveryNoteDateTime(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate'
-    PROPERTIES DRAW ein IN shipper glnSupplier(ein) EXTID 'GLN',
-                                   nameSupplier(ein) EXTID 'Name',
-                                   addressSupplier(ein) EXTID 'Address',
-                                   unpSupplier(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN receiver glnCustomer(ein) EXTID 'GLN',
-                                    nameCustomer(ein) EXTID 'Name',
-                                    addressCustomer(ein) EXTID 'Address',
-                                    unpCustomer(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN shipTo contactCustomerStock(ein) EXTID 'Contact'
-;
-
 signAndSendCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir , STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
@@ -1172,7 +802,7 @@ signAndSendCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100] pass
                         error() <- '';
                         IF NOT length(addressCustomerStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Адрес пункта разгрузки (Адрес склада получателя)\'\n';
                         IF NOT length(contactCustomerStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не задано \'ФИО и должность лица, которое отвечает за получение груза со стороны грузополучателя\'\n';
-                        
+
                         IF error() == '' THEN {
                             LOCAL contentSubXML = FILE();
                             exportBlrdnrDateTime() <- currentDateTimeMillis();
@@ -1182,6 +812,8 @@ signAndSendCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100] pass
                                 TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                                 WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrdnr-' + toChar(exportBlrwbrDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                             }
+                            name() <- 'blrdnr-' + toChar(exportBlrwbrDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            documentType() <- 'BLRDNR';
                             getSignedDocumentCustomer(provider, ei, contentSubXML(), TRUE);
                             IF signError() THEN {
                                 logToFile('edi', provider + ' (' + login + ') SendEInvoice error: BLRDNR ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -1272,6 +904,8 @@ signAndSendNoticeCustomerEInvoice (EInvoice ei, STRING[1000] d, STRING[100] logi
                         TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                         WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                     }
+                    name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                    documentType() <- 'BLRAPN';
                     getSignedDocumentCustomer(provider, ei, contentSubXML(), TRUE);
                     IF signError() THEN {
                         logToFile('edi', provider + ' (' + login + ') SendNoticeEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -1357,6 +991,8 @@ signAndSendNoticeCustomerEInvoiceTN2 (EInvoice ei, STRING[1000] d, STRING[100] l
                         TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                         WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                     }
+                    name() <- 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                    documentType() <- 'BLRAPN';
                     getSignedDocumentCustomer(provider, ei, contentSubXML(), TRUE);
                     IF signError() THEN {
                         logToFile('edi', provider + ' (' + login + ') SendNoticeEInvoice error: BLRAPN ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -1401,7 +1037,7 @@ signAndSendNoticeCustomerEInvoiceTN2 (EInvoice ei, STRING[1000] d, STRING[100] l
                 } ELSE {
                     logToFile('edi', provider + ' (' + login + ') SendNoticeEInvoice: не заданы параметры EDSService');
                     MESSAGE provider + ' (' + login + ') Уведомление об изменении не выгружено: не заданы параметры EDSService' NOWAIT;
-                }  
+                }
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') SendNoticeEInvoice: не заданы имя пользователя / пароль / хост / порт');
                 MESSAGE provider + ' (' + login + ') Уведомление об изменении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;

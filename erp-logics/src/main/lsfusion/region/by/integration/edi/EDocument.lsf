@@ -1,4 +1,4 @@
-MODULE EDocumentEDI;
+MODULE EDocument;
 
 REQUIRE EDI, EDS;
 
@@ -8,15 +8,6 @@ NAMESPACE EDI;
 dataEDIProviderDocument 'EDI-провайдер для накладных' = DATA EDIProvider (LegalEntity, LegalEntity);
 EDIProviderDocument 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = OVERRIDE dataEDIProviderDocument(legalEntity, company), EDIProvider(legalEntity);
 nameEDIProviderDocument 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = staticCaption(EDIProviderDocument(legalEntity, company));
-
-migrateEdiProviderDocument = DATA BOOLEAN ();
-onStarted() + {
-    IF NOT migrateEdiProviderDocument() THEN NEWSESSION {
-        dataEDIProviderDocument(LegalEntity legalEntity, LegalEntity company) <- dataEDIProviderInvoice(legalEntity) WHERE isCompany(company);
-        migrateEdiProviderDocument() <- TRUE;
-        APPLY;
-    }
-}
 
 EXTEND FORM legalEntity
     PROPERTIES nameEDIProviderDocument(l, eCom);

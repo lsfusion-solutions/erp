@@ -1,6 +1,6 @@
-MODULE PurchaseOrderEDICislink;
+MODULE CustomerEOrderCislink;
 
-REQUIRE PurchaseOrderEDITopByProtocol;
+REQUIRE CustomerEOrder;
 
 NAMESPACE EDI;
 
@@ -291,13 +291,7 @@ fillStartParams(){
     responsesFailed() <- 0;
     despatchAdvicesSucceeded() <- 0;
     despatchAdvicesFailed() <- 0;
-    invoiceMessagesSucceeded() <- 0;
-    invoiceMessagesFailed() <- 0;
-    eInvoicesSucceeded() <- 0;
-    eInvoicesFailed() <- 0;
-    blrwbrCount() <- 0;
-    blrdnrCount() <- 0;
-    blradfCount() <- 0;
+    messagesConfirmed() <- 0;
 }
 fillEndParams(){
     LOCAL textMessage = TEXT();
@@ -309,15 +303,7 @@ fillEndParams(){
     IF responsesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено ответов по заказам: ' + responsesFailed();
     IF despatchAdvicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено уведомлений об отгрузке: ' + despatchAdvicesSucceeded();
     IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
-    IF invoiceMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по накладным: ' + invoiceMessagesSucceeded();
-    IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
-    IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
-    IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
-    IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
-    IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
-    IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
-    IF blrdnrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrdnrCount() + ' BLRDNR';
-    IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
+    IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
     IF textMessage() THEN {
         MESSAGE  textMessage() NOWAIT;    
     }
@@ -365,7 +351,7 @@ EXTEND FORM integrationData
 ;
 
 DESIGN integrationData {
-    pane {
+    edi {
         NEW cislink {
             caption = 'Cislink';
             NEW paramsC {
