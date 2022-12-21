@@ -9,6 +9,9 @@ exportedBlrapnCustomer 'Экспортировано извещение о пр�
 exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (EInvoice);
 exportedNoticeCustomer 'Экспортировано уведомление об изменении (покупатель)' = DATA BOOLEAN (EInvoice);
 
+overSupplier = ABSTRACT LegalEntity (EInvoice);
+signSupplier (EInvoice i) = OVERRIDE supplier(i), overSupplier(i);
+
 signAndSendBlrapnCustomer 'Подписать и отправить извещение о прочтении (покупатель)' ABSTRACT LIST (EInvoice);
 signAndSendBlrapnCustomerEDI 'Подписать и отправить извещение о прочтении (покупатель)'() {
     IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
@@ -16,7 +19,7 @@ signAndSendBlrapnCustomerEDI 'Подписать и отправить изве�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(supplier(i), customer(i)) THEN
+            IF EDIProviderInvoice(signSupplier(i), customer(i)) THEN
                 signAndSendBlrapnCustomer(i);
             ELSE
                 MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
@@ -35,7 +38,7 @@ signAndSendCustomerEDI 'Подписать и отправить (покупат
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(supplier(i),customer(i)) THEN
+            IF EDIProviderInvoice(signSupplier(i),customer(i)) THEN
                 signAndSendCustomer(i);
             ELSE
                 MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
@@ -71,7 +74,7 @@ signAndSendNoticeCustomerEDI 'Подписать и отправить увед�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(supplier(i), customer(i)) THEN {
+            IF EDIProviderInvoice(signSupplier(i), customer(i)) THEN {
                 noticeMessage() <- NULL;
                 fillNoticeMessage(i);
                 DIALOG signAndSendNotice OBJECTS d = noticeMessage() INPUT DO {
@@ -96,7 +99,7 @@ signAndSendNoticeCustomerEDIWithoutDialog 'Подписать и отправи�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(supplier(i), customer(i)) THEN {
+            IF EDIProviderInvoice(signSupplier(i), customer(i)) THEN {
                 noticeMessage() <- NULL;
                 fillNoticeMessage(i);
                 IF noticeMessage() THEN {
