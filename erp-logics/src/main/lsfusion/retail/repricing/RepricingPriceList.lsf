@@ -18,17 +18,23 @@ DESIGN options {
 }
 
 overPriceListUser  ABSTRACT LIST ( RepricingDetail);
-
-calculateDashboardRepricing 'По группам'(DepartmentStore d, Operation o, DATETIME dt)  { 
+repricingOperationLocal = DATA LOCAL NESTED Operation();
+calculateDashboardRepricing 'По группам'(DepartmentStore d, Operation o, DATETIME dt)  {
+    repricingOperationLocal()<- o;
     calculateDashboardRepricing(d, (OVERRIDE calcPriceListType(o), retailCalcPriceListType(d)), (OVERRIDE priceListType(o), retailPriceListType(d)), dt);
+    repricingOperationLocal()<- NULL;
 } TOOLBAR;
 
-calculateDashboardAutoRepricing 'По надбавкам и прайсам'(DepartmentStore d, Operation o, DATETIME dt)  { 
+calculateDashboardAutoRepricing 'По надбавкам и прайсам'(DepartmentStore d, Operation o, DATETIME dt)  {
+    repricingOperationLocal()<- o;
     calculateDashboardAutoRepricing(d, (OVERRIDE calcPriceListType(o), retailCalcPriceListType(d)), (OVERRIDE priceListType(o), retailPriceListType(d)), dt);
+    repricingOperationLocal()<- NULL;
 } TOOLBAR;
 
-calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt)  { 
+calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt)  {
+    repricingOperationLocal()<- o;
     calculateDashboardManagementRepricing(d, (OVERRIDE priceListType(o), retailPriceListType(d)), dt);
+    repricingOperationLocal()<- NULL;
 }
 
 calculateDashboardManagementRepricingForm 'По прайсам'(DepartmentStore d, Operation o, DATETIME dt)  { 
