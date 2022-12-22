@@ -343,6 +343,21 @@ fiscalCancel 'Отменить чек'  ABSTRACT LIST( Receipt);
 
 // Проведение чека
 
+allowZeroSumReceipt 'Печатать чеки с 0 суммой' = DATA BOOLEAN ();
+
+EXTEND FORM options 
+    PROPERTIES () allowZeroSumReceipt 
+;
+DESIGN options {
+    pane {
+        NEW pos {
+            caption = 'POS';
+            type = CONTAINERV;
+            MOVE PROPERTY (allowZeroSumReceipt());
+        }
+    }    
+}
+
 GROUP receiptAction 'Оплата' : public;
 
 postPrint 'Напечатать фискальный чек'  ABSTRACT LIST ( Receipt);
@@ -439,7 +454,7 @@ post 'Смешанная'(Receipt receipt)  {
     overPostCash(receipt);
     IF returnPost() THEN RETURN;
     
-    IF sumReceiptDetail(receipt) THEN {
+    IF sumReceiptDetail(receipt) OR (allowZeroSumReceipt() AND quantityReceiptDetail(receipt)) THEN {
         NEW p = Payment {
             receipt(p) <- receipt;
             paymentType(p) <- minCashPaymentType();
@@ -487,11 +502,11 @@ postCard 'Карточкой'(Receipt receipt)  {
     overPostCard(receipt);
     IF returnPost() THEN RETURN;
     
-    IF sumReceiptDetail(receipt) THEN {
+    IF sumReceiptDetail(receipt) OR (allowZeroSumReceipt() AND quantityReceiptDetail(receipt)) THEN {
         NEW p = Payment {
             receipt(p) <- receipt;
             paymentType(p) <- minCardPaymentType();
-            sum(p) <- sumReceiptDetail(receipt);
+            sum(p) <- OVERRIDE sumReceiptDetail(receipt), 0.0;
         }
         postPaymentTerminal(receipt);
         IF NOT postPaymentTerminalReceiptResult() THEN {
@@ -523,11 +538,11 @@ postCash 'Наличными'(Receipt receipt)  {
     overPostCash(receipt);
     IF returnPost() THEN RETURN;
     
-    IF sumReceiptDetail(receipt) THEN {
+    IF sumReceiptDetail(receipt) OR (allowZeroSumReceipt() AND quantityReceiptDetail(receipt)) THEN {
         NEW p = Payment {
             receipt(p) <- receipt;
             paymentType(p) <- minCashPaymentType();
-            sum(p) <- sumReceiptDetail(receipt);
+            sum(p) <- OVERRIDE sumReceiptDetail(receipt), 0.0;
         }
         LOCAL printed = BOOLEAN();
         printed() <- NULL;
@@ -878,13 +893,11 @@ EXTEND FORM options
     PROPERTIES () allReceiptReturn 
 ;
 DESIGN options {
-    pane {
-        NEW pos {
-            caption = 'POS';
-            type = CONTAINERV;
-            MOVE PROPERTY (allReceiptReturn());
-        }
-    }    
+    pos {
+        caption = 'POS';
+        type = CONTAINERV;
+        MOVE PROPERTY (allReceiptReturn());
+    }
 }
 
 returnQuantity 'Количество возврата' (receiptDetail) = ABSTRACT NUMERIC[16,5] (ReceiptReturnDetail);
