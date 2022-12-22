@@ -1,0 +1,160 @@
+MODULE CryptoProClient;
+
+REQUIRE CryptoProLegalEntity, Dashboard, LogTools;
+
+NAMESPACE CryptoPro;
+
+@defineLogRotate(cryptoProClient, 5, weekly);
+
+dataToSign = DATA LOCAL TEXT ();
+errorSignature = DATA LOCAL TEXT ();
+description = DATA LOCAL TEXT ();
+
+CLASS Certificate 'Сертификат CryptoPro';
+TABLE certificate (Certificate);
+
+serial 'С/Н'= DATA STRING[255] (Certificate) INDEXED;
+sha 'SHA' = DATA STRING (Certificate);
+user = DATA CustomUser (Certificate) INDEXED;
+legalEntity = DATA LegalEntity (Certificate) INDEXED;
+nameLegalEntity 'Организация' (Certificate c) = name(legalEntity(c));
+certificate = GROUP AGGR Certificate c BY serial(c), user(c);
+certificate = GROUP AGGR Certificate c BY legalEntity(c), user(c);
+dateFrom 'Дата от' = DATA DATE (Certificate);
+dateTo 'Дата до' = DATA DATE (Certificate);
+description 'Описание' = DATA STRING (Certificate);
+isValid 'Действующий' (Certificate c) = TRUE IF dateTo(c) >= currentDate();
+
+FORM certificates 'Сертфикаты CryptoPro'
+    OBJECTS c = Certificate
+    PROPERTIES (c) READONLY serial, dateFrom, dateTo, sha, description, isValid
+    PROPERTIES nameLegalEntity(c)
+    PROPERTIES (c) DELETE
+    FILTERS user(c) = currentUser()
+;
+
+
+dateTo = DATA LOCAL ZDATETIME(INTEGER);
+legal = DATA LOCAL STRING(INTEGER);
+SN = DATA LOCAL STRING(INTEGER);
+dateFrom = DATA LOCAL ZDATETIME(INTEGER);
+sha = DATA LOCAL STRING(INTEGER);
+
+FORM listCerts
+    OBJECTS data = INTEGER EXTID 'Data'
+    PROPERTIES(data) dateTo, legal, SN, dateFrom, sha
+    FILTERS imported(data)
+;
+
+fillCertsList(TEXT f){
+    stringToFile(f);
+    IMPORT listCerts JSON FROM resultFile();
+    LOCAL count = INTEGER();
+    FOR imported(INTEGER i) AND NOT certificate(SN(i), currentUser()) NEW c = Certificate DO{
+        serial(c) <- SN(i);
+        description(c) <- legal(i);
+        sha(c) <- sha(i);
+        dateFrom(c) <- DATE(dateFrom(i));
+        dateTo(c) <- DATE(dateTo(i));
+        user(c) <- currentUser();
+        count() <- count() (+) 1;
+        MESSAGE 'Сертификат ' + serial(c) + ' добавлен\n' + description(c) NOWAIT; 
+    }
+    IF count() THEN APPLY NESTED LOCAL;
+}
+
+useCerts (LegalEntity l, CustomUser u) = GROUP SUM 1 BY legalEntity(Certificate c), user(c);
+
+FORM signClient 'Подпись CryptoPro'
+    OBJECTS l = LegalEntity PANEL
+    PROPERTIES sign = JSON FROM data = encodedBase64(), caption = 'Подписать', sha = sha(certificate(l, currentUser())) CUSTOM 'SignCadesBES_Async'
+    ON CHANGE {
+        LOCAL result = TEXT ();
+        INPUT f = TEXT DO {
+            IF f THEN{
+                stringToFile(f);
+                IMPORT JSON FROM resultFile() TO () result = sign, errorSignature = error, description = description;
+                signature() <- decode(result(), 'base64');
+                formClose();
+            }
+        }
+    }
+;
+DESIGN signClient{
+    height = 274;
+    width = 290;
+    MOVE PROPERTY (sign) {
+        fill = 1;
+        caption = '';
+        alignment = CENTER;
+    }
+    REMOVE TOOLBARBOX;
+}
+
+resultText = DATA LOCAL TEXT ();
+signData(JSON f){ INTERNAL CLIENT 'signData' PARAMS f; }
+checkSign(STRING id){ INTERNAL CLIENT 'checkSign' PARAMS id TO resultText; }
+maxAttempt = DATA INTEGER();
+
+signClientAction(FILE f, LegalEntity l) {
+    IF NOT certificate(l, currentUser()) 
+        THEN throwException(CONCAT ' ', 'Не найден сертификат Крипто-Про для', name(l));
+    dataToSign() <- encode(f, 'base64');
+    generateUUID();
+    LOCAL result = STRING();
+    LOCAL id = STRING ();
+    signData(JSON FROM data = dataToSign(), sha = sha(certificate(l, currentUser())), id = generatedUUID());
+    logToFile('cryptoProClient', 'Транзакция ' + generatedUUID() + ' началась подпись');
+    LOCAL count = INTEGER();
+    WHILE (TRUE) DO{
+        IF count() >= OVERRIDE maxAttempt(), 10 THEN throwException('Превышен таймаут подписи');
+        sleep(1000);
+        checkSign(generatedUUID());
+        stringToFile(resultText());
+        logToFile('cryptoProClient', CONCAT ' : ', generatedUUID(), resultText());
+        IMPORT JSON FROM resultFile() TO () result = sign, errorSignature = error, description = descriptionid, id = id;
+        IF errorSignature() THEN throwException(description());
+        IF id() != generatedUUID() THEN throwException('Не совпадают id транзакций');
+        IF result() THEN {
+            signature() <- decode(result(), 'base64');
+            BREAK;
+        }
+        count() <- count() (+) 1;
+    }
+}
+
+
+FORM optionsCryptoPro 'Настройки CryptoPro'
+    OBJECTS c = Certificate
+    PROPERTIES (c) READONLY serial, dateFrom, dateTo, sha, description, isValid
+    PROPERTIES nameLegalEntity(c)
+    PROPERTIES fill = JSON FROM caption = 'Заполнить сертификаты' CUSTOM 'fillCertsAsync' TOOLBAR DRAW c
+    ON CHANGE {
+        INPUT f = TEXT DO {
+            IF f THEN fillCertsList(f);
+        }
+    }
+    PROPERTIES (c) DELETE
+    FILTERS user(c) = currentUser()
+;
+
+signCustom(LegalEntity l) += WHEN certificate(l, currentUser()) THEN TRUE;
+
+signCustom(FILE f, LegalEntity l) +{
+    signClientAction(f, l);
+}
+
+onWebClientLoad() +{ 
+    IF permit(currentUser(), navigatorElementCanonicalName('CryptoPro.optionsCryptoPro')) THEN{
+        INTERNAL CLIENT 'cryptopro.js'; 
+        INTERNAL CLIENT 'cadesPlugin';
+    }
+} 
+    
+NAVIGATOR {
+    dashboardNavigator{
+        NEW FOLDER cryptoPro 'Крипто-про'{  
+            NEW optionsCryptoPro;
+        }
+    }
+}
