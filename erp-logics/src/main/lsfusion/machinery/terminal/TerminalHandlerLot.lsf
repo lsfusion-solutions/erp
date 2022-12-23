@@ -7,10 +7,18 @@ NAMESPACE TerminalHandler;
 overProcessMarking ABSTRACT LIST (TerminalDocumentDetail, TerminalLotDetail, INTEGER);
 
 process (TerminalDocument document) + {
-    FOR marking(TerminalDocumentDetail d) AND terminalDocument(d) == document AND count(INTEGER i, jsonArrayLength(marking(d))) AND STRING mark = jsonArrayElement(marking(d), i, 'id') DO NEW l = TerminalLotDetail {
-        id(l) <- STRING[200](mark);
-        quantity(l) <- NUMERIC[14,3](jsonArrayElement(marking(d), i, 'quantity'));
-        terminalDocumentDetail(l) <- d;
-        overProcessMarking(d, l, i);
-    } 
+    FOR marking(TerminalDocumentDetail d) AND terminalDocument(d) == document AND count(INTEGER i, jsonArrayLength(marking(d))) AND STRING mark = jsonArrayElement(marking(d), i, 'id') DO {
+        FOR STRING[200] id == STRING[200](mark) AND NOT (GROUP SUM 1 IF terminalDocumentDetail(TerminalLotDetail ll) == d AND id(ll) == id) NEW l = TerminalLotDetail DO {
+            id(l) <- id;
+            terminalDocumentDetail(l) <- d;
+        }
+        FOR d == terminalDocumentDetail(TerminalLotDetail l) AND STRING[200](mark) == id(l) DO {
+            quantity(l) <- NUMERIC[14,3](jsonArrayElement(marking(d), i, 'quantity'));
+            overProcessMarking(d, l, i);
+        }
+    }
+    FOR terminalDocument(TerminalDocumentDetail d) == document AND terminalDocumentDetail(TerminalLotDetail l) == d
+        AND NOT (GROUP SUM 1 IF marking(d) AND count(INTEGER i, jsonArrayLength(marking(d))) AND id(l) = STRING[200](jsonArrayElement(marking(d), i, 'id'))) DO {
+        DELETE l;
+    }
 } 
