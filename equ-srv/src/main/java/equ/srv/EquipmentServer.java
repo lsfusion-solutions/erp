@@ -953,9 +953,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (giftCardLM != null)
                 new IntegrationService(session, new ImportTable(giftCardFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
 
-            EquipmentServerImport.importPayments(getBusinessLogics(), session, stack, salesInfoList.subList(start, finish), options);
+            EquipmentServerImport.importPayments(getBusinessLogics(), session, stack, salesInfoList.subList(start, finish), rowsData.ignoredIdReceipts, options);
 
-            EquipmentServerImport.importPaymentGiftCardMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, options);
+            EquipmentServerImport.importPaymentGiftCardMultiThread(getBusinessLogics(), session, salesInfoList, rowsData.ignoredIdReceipts, start, finish, options);
 
             processExtraFields(session, stack, rowsData);
 
@@ -1347,9 +1347,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     new IntegrationService(session, new ImportTable(giftCardImportFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
                 }
 
-                EquipmentServerImport.importPayments(getBusinessLogics(), session, stack, data, options);
+                EquipmentServerImport.importPayments(getBusinessLogics(), session, stack, data, rowsData.ignoredIdReceipts, options);
 
-                EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, options);
+                EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, rowsData.ignoredIdReceipts, options);
 
                 processExtraFields(session, stack, rowsData);
 
@@ -1843,6 +1843,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
         }
 
+        Set<String> ignoredIdReceipts = new HashSet<>();
         int ignoredReceiptDetailCount = 0;
         for (int i = start; i < finish; i++) {
             SalesInfo sale = data.get(i);
@@ -1888,10 +1889,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
 
             } else {
+                ignoredIdReceipts.add(getIdReceipt(sale, options));
                 ignoredReceiptDetailCount++;
             }
         }
-        return new RowsData(dataSale, dataReturn, dataGiftCard, receiptExtraFields, receiptDetailExtraFields, ignoredReceiptDetailCount);
+        return new RowsData(dataSale, dataReturn, dataGiftCard, receiptExtraFields, receiptDetailExtraFields, ignoredIdReceipts, ignoredReceiptDetailCount);
     }
 
     private class RowsData {
@@ -1900,15 +1902,18 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         List<List<Object>> dataGiftCard;
         JSONObject receiptExtraFields;
         JSONObject receiptDetailExtraFields;
+        Set<String> ignoredIdReceipts;
         int ignoredReceiptDetailCount;
 
         public RowsData(List<List<Object>> dataSale, List<List<Object>> dataReturn, List<List<Object>> dataGiftCard,
-                        JSONObject receiptExtraFields, JSONObject receiptDetailExtraFields, int ignoredReceiptDetailCount) {
+                        JSONObject receiptExtraFields, JSONObject receiptDetailExtraFields,
+                        Set<String> ignoredIdReceipts, int ignoredReceiptDetailCount) {
             this.dataSale = dataSale;
             this.dataReturn = dataReturn;
             this.dataGiftCard = dataGiftCard;
             this.receiptExtraFields = receiptExtraFields;
             this.receiptDetailExtraFields = receiptDetailExtraFields;
+            this.ignoredIdReceipts = ignoredIdReceipts;
             this.ignoredReceiptDetailCount = ignoredReceiptDetailCount;
         }
     }

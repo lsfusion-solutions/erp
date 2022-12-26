@@ -21,7 +21,7 @@ import java.util.*;
 
 public class EquipmentServerImport {
 
-    public static void importPayments(BusinessLogics BL, DataSession session, ExecutionStack stack, List<SalesInfo> data, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPayments(BusinessLogics BL, DataSession session, ExecutionStack stack, List<SalesInfo> data, Set<String> ignoredIdReceipts, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ScriptingLogicsModule zReportLM = BL.getModule("ZReport");
         if (zReportLM != null) {
 
@@ -63,50 +63,52 @@ public class EquipmentServerImport {
             Set<String> usedPaymentIds = new HashSet<>();
             for (SalesInfo sale : data) {
                 String idReceipt = EquipmentServer.getIdReceipt(sale, options);
-                if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
-                    dataPayment.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
-                }
-                if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
-                    dataPayment.add(Arrays.asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
-                }
-                if (sale.payments != null) {
-                    //из-за того, что у платежей giftCard id начинаются с 3
-                    int paymentNumber = 3 + (sale.sumGiftCardMap != null ? sale.sumGiftCardMap.size() : 0);
+                if (!ignoredIdReceipts.contains(idReceipt)) {
+                    if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
+                        dataPayment.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
+                    }
+                    if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
+                        dataPayment.add(Arrays.asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
+                    }
+                    if (sale.payments != null) {
+                        //из-за того, что у платежей giftCard id начинаются с 3
+                        int paymentNumber = 3 + (sale.sumGiftCardMap != null ? sale.sumGiftCardMap.size() : 0);
 
-                    //backward compatibility with old ids
-                    Set<String> firstPaymentsOfType = new HashSet<>();
-                    for (Payment payment : sale.payments) {
-                        String paymentType = payment.type;
-                        boolean firstPaymentOfType = firstPaymentsOfType.add(paymentType);
-                        String paymentId;
-                        if(firstPaymentOfType) {
-                            if(payment.type.equals("cash")) { //todo: method isCash (equ-api)
-                                paymentId = idReceipt + "1";
-                            } else if(payment.isCard()) {
-                                paymentId = idReceipt + "2";
-                            } else {
-                                paymentId = idReceipt + "_" + paymentType;
-                            }
-                        } else {
-                            paymentId = idReceipt + "/" + paymentNumber;
-                        }
-                        dataPayment.add(Arrays.asList(paymentId, idReceipt, paymentType, payment.sum, paymentNumber++));
-
-                        if(payment.extraFields != null && !usedPaymentIds.contains(paymentId)) {
-                            for (Map.Entry<String, Object> extraField : payment.extraFields.entrySet()) {
-                                JSONArray dataArray = extraFields.optJSONArray(extraField.getKey());
-                                if (dataArray == null) {
-                                    dataArray = new JSONArray();
+                        //backward compatibility with old ids
+                        Set<String> firstPaymentsOfType = new HashSet<>();
+                        for (Payment payment : sale.payments) {
+                            String paymentType = payment.type;
+                            boolean firstPaymentOfType = firstPaymentsOfType.add(paymentType);
+                            String paymentId;
+                            if (firstPaymentOfType) {
+                                if (payment.type.equals("cash")) { //todo: method isCash (equ-api)
+                                    paymentId = idReceipt + "1";
+                                } else if (payment.isCard()) {
+                                    paymentId = idReceipt + "2";
+                                } else {
+                                    paymentId = idReceipt + "_" + paymentType;
                                 }
-                                JSONObject fieldReceipt = new JSONObject();
-                                fieldReceipt.put("id", paymentId);
-                                fieldReceipt.put("value", extraField.getValue());
-                                dataArray.put(fieldReceipt);
-
-                                extraFields.put(extraField.getKey(), dataArray);
+                            } else {
+                                paymentId = idReceipt + "/" + paymentNumber;
                             }
+                            dataPayment.add(Arrays.asList(paymentId, idReceipt, paymentType, payment.sum, paymentNumber++));
+
+                            if (payment.extraFields != null && !usedPaymentIds.contains(paymentId)) {
+                                for (Map.Entry<String, Object> extraField : payment.extraFields.entrySet()) {
+                                    JSONArray dataArray = extraFields.optJSONArray(extraField.getKey());
+                                    if (dataArray == null) {
+                                        dataArray = new JSONArray();
+                                    }
+                                    JSONObject fieldReceipt = new JSONObject();
+                                    fieldReceipt.put("id", paymentId);
+                                    fieldReceipt.put("value", extraField.getValue());
+                                    dataArray.put(fieldReceipt);
+
+                                    extraFields.put(extraField.getKey(), dataArray);
+                                }
+                            }
+                            usedPaymentIds.add(paymentId);
                         }
-                        usedPaymentIds.add(paymentId);
                     }
                 }
             }
@@ -122,7 +124,7 @@ public class EquipmentServerImport {
         }
     }
 
-    public static void importPaymentGiftCardMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, int start, int finish, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPaymentGiftCardMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, Set<String> ignoredIdReceipts, int start, int finish, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ScriptingLogicsModule giftCardLM = BL.getModule("GiftCard");
         if (giftCardLM != null) {
 
@@ -177,17 +179,19 @@ public class EquipmentServerImport {
             for (int j = start; j < finish; j++) {
                 SalesInfo sale = salesInfoList.get(j);
                 String idReceipt = EquipmentServer.getIdReceipt(sale, options);
-                if (sale.sumGiftCardMap != null && !sale.sumGiftCardMap.isEmpty()) {
-                    int i = 0;
-                    for (Map.Entry<String, GiftCard> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
-                        String idPayment = idReceipt + String.valueOf(3 + i);
-                        String numberGiftCard = giftCardEntry.getKey();
-                        BigDecimal sumGiftCard = giftCardEntry.getValue().sum;
-                        BigDecimal priceGiftCard = giftCardEntry.getValue().price;
-                        if(!ids.contains(idPayment) && sumGiftCard != null) {
-                            dataPaymentGiftCard.add(Arrays.asList(idPayment, idReceipt, "giftcard", sumGiftCard, 3 + i, numberGiftCard, priceGiftCard));
-                            ids.add(idPayment);
-                            i++;
+                if (!ignoredIdReceipts.contains(idReceipt)) {
+                    if (sale.sumGiftCardMap != null && !sale.sumGiftCardMap.isEmpty()) {
+                        int i = 0;
+                        for (Map.Entry<String, GiftCard> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
+                            String idPayment = idReceipt + String.valueOf(3 + i);
+                            String numberGiftCard = giftCardEntry.getKey();
+                            BigDecimal sumGiftCard = giftCardEntry.getValue().sum;
+                            BigDecimal priceGiftCard = giftCardEntry.getValue().price;
+                            if (!ids.contains(idPayment) && sumGiftCard != null) {
+                                dataPaymentGiftCard.add(Arrays.asList(idPayment, idReceipt, "giftcard", sumGiftCard, 3 + i, numberGiftCard, priceGiftCard));
+                                ids.add(idPayment);
+                                i++;
+                            }
                         }
                     }
                 }
@@ -199,7 +203,7 @@ public class EquipmentServerImport {
         }
     }
 
-    public static void importPaymentGiftCard(BusinessLogics BL, DataSession session, List<SalesInfo> data, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPaymentGiftCard(BusinessLogics BL, DataSession session, List<SalesInfo> data, Set<String> ignoredIdReceipts, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ScriptingLogicsModule giftCardLM = BL.getModule("GiftCard");
         if (giftCardLM != null) {
 
@@ -253,17 +257,19 @@ public class EquipmentServerImport {
             Set<String> ids = new HashSet();
             for (SalesInfo sale : data) {
                 String idReceipt = EquipmentServer.getIdReceipt(sale, options);
-                if (sale.sumGiftCardMap != null && !sale.sumGiftCardMap.isEmpty()) {
-                    int i = 0;
-                    for (Map.Entry<String, GiftCard> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
-                        String idPayment = idReceipt + String.valueOf(3 + i);
-                        String numberGiftCard = giftCardEntry.getKey();
-                        BigDecimal sumGiftCard = giftCardEntry.getValue().sum;
-                        BigDecimal priceGiftCard = giftCardEntry.getValue().price;
-                        if(!ids.contains(idPayment) && sumGiftCard != null) {
-                            dataPaymentGiftCard.add(Arrays.asList(idPayment, idReceipt, "giftcard", sumGiftCard, 3 + i, numberGiftCard, priceGiftCard));
-                            ids.add(idPayment);
-                            i++;
+                if (!ignoredIdReceipts.contains(idReceipt)) {
+                    if (sale.sumGiftCardMap != null && !sale.sumGiftCardMap.isEmpty()) {
+                        int i = 0;
+                        for (Map.Entry<String, GiftCard> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
+                            String idPayment = idReceipt + String.valueOf(3 + i);
+                            String numberGiftCard = giftCardEntry.getKey();
+                            BigDecimal sumGiftCard = giftCardEntry.getValue().sum;
+                            BigDecimal priceGiftCard = giftCardEntry.getValue().price;
+                            if (!ids.contains(idPayment) && sumGiftCard != null) {
+                                dataPaymentGiftCard.add(Arrays.asList(idPayment, idReceipt, "giftcard", sumGiftCard, 3 + i, numberGiftCard, priceGiftCard));
+                                ids.add(idPayment);
+                                i++;
+                            }
                         }
                     }
                 }
