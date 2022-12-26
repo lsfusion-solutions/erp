@@ -597,26 +597,26 @@ META fillUkdDocument(docType, NS, NS1)
     fill(NS1.###docType##Detail cd, NS.InvoiceDetail d, UkdDocumentDetail ed) {
         updDocumentDetail(ed) <- updDocumentDetail(d);
         number(ed) <- index(cd);
-        nameSku(ed) <- nameSku(d);
+        nameSku(ed) <- nameSku(cd);
     
         VATStatusB(ed)<- CASE 
                        WHEN isNotVATPayer(supplier(ukdDocument(ed)))  THEN VATStatus.vatNot
-                       WHEN vat(d)==0.0  THEN VATStatus.vat0
-                       WHEN vat(d)==10.0  THEN VATStatus.vat10
-                       WHEN vat(d)==18.0  THEN VATStatus.vat18
-                       WHEN vat(d)==20.0  THEN VATStatus.vat20
+                       WHEN valueVAT(cd)==0.0  THEN VATStatus.vat0
+                       WHEN valueVAT(cd)==10.0  THEN VATStatus.vat10
+                       WHEN valueVAT(cd)==18.0  THEN VATStatus.vat18
+                       WHEN valueVAT(cd)==20.0  THEN VATStatus.vat20
                        ;
                        
         VATStatusA(ed) <- VATStatusB(ed);
         
-        idUOMB(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
-        idUOMA(ed) <- OVERRIDE codeOKEI(UOM(sku(d))), idUOM(d);
+        idUOMB(ed) <- OVERRIDE codeOKEI(UOM(sku(cd))), idUOM(d);
+        idUOMA(ed) <- OVERRIDE codeOKEI(UOM(sku(cd))), idUOM(d);
         
-        idSku(ed) <- OVERRIDE id(sku(d)), idBarcode(sku(d));
-        nameUOMB(ed) <- nameUOM(sku(d));
-        nameUOMA(ed) <- nameUOM(sku(d));
-        shortNameUOMB(ed) <- shortNameUOM(sku(d));
-        shortNameUOMA(ed) <- shortNameUOM(sku(d));
+        idSku(ed) <- OVERRIDE id(sku(cd)), idBarcode(sku(cd));
+        nameUOMB(ed) <- nameUOM(sku(cd));
+        nameUOMA(ed) <- nameUOM(sku(cd));
+        shortNameUOMB(ed) <- shortNameUOM(sku(cd));
+        shortNameUOMA(ed) <- shortNameUOM(sku(cd));
         
         quantityB(ed) <- quantity(d);
         quantityA(ed) <- quantity(d) (-) quantity(cd);
@@ -636,11 +636,11 @@ META fillUkdDocument(docType, NS, NS1)
         withoutDutyB(ed) <- TRUE;
         withoutDutyA(ed) <- TRUE;
         
-        sidCountryB(ed) <- sid(country(sku(d)));
-        sidCountryA(ed) <- sid(country(sku(d)));
+        sidCountryB(ed) <- sid(country(sku(cd)));
+        sidCountryA(ed) <- sid(country(sku(cd)));
         
-        shortNameCountryB(ed) <- name(country(sku(d)));
-        shortNameCountryA(ed) <- name(country(sku(d)));
+        shortNameCountryB(ed) <- name(country(sku(cd)));
+        shortNameCountryA(ed) <- name(country(sku(cd)));
     }
     
     createDetails (###docType c, UkdDocument ukd) {
