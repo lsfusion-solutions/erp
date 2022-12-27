@@ -510,7 +510,7 @@ calcQuantityPageInventoryDetail 'Кол-во по описям' (collationSheet,
 
 calcPartitionQuantity (CollationSheet cs, Batch batch) = 
     PARTITION UNGROUP notBatchQuantityPageInventoryDetail
-           LIMIT (balanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch))
+           LIMIT (prevBalanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch))
            ORDER DESC dateTime(batch), batch                            
            BY cs, sku(batch);
                                                            
@@ -2295,9 +2295,9 @@ EXTEND FORM inventory
 
 lastOrderNotExcludeBatchB(Inventory inventory, sku, Stock stock, DATETIME dateTimeIn)  =
         GROUP LAST Batch batch
-              ORDER dateTime(batch, stock), batch
-              WHERE dateTime(batch, stock) < dateTimeIn AND prevCountLedger(batch, stock, dateTimeIn) AND NOT excludeBatch(inventory, batch)
-              BY skuLedger(batch, stock);                 
+              ORDER prevDateTime(batch, stock), batch
+              WHERE prevDateTime(batch, stock) < dateTimeIn AND prevCountLedger(batch, stock, dateTimeIn) AND NOT excludeBatch(inventory, batch)
+              BY prevSkuLedger(batch, stock);                 
 
 overRecalculateBalance(Inventory inventory) + { 
     FOR inventory(CollationSheet cs) = inventory AND Stock st = stock(cs) AND DATETIME dt = dateTime(cs) NOINLINE DO {
