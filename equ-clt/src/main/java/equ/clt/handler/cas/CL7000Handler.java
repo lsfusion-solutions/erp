@@ -3,6 +3,7 @@ package equ.clt.handler.cas;
 import equ.api.scales.ScalesItem;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -237,7 +238,7 @@ public class CL7000Handler extends CL5000JHandler {
         socket.outputStream.write(bytes);
         byte[] result = receiveReplyTouch(socket);
         if (result[0] == 'E') {
-            return new CL7000Reply(getErrorMessageTouch(new String(result).substring(1, 3)));
+            return new CL7000Reply(getErrorMessageTouch(new String(result).substring(1, 3), result));
         } else {
             return new CL7000Reply(result);
         }
@@ -268,12 +269,12 @@ public class CL7000Handler extends CL5000JHandler {
         }
     }
 
-    private String getErrorMessageTouch(String errorNumber) {
+    private String getErrorMessageTouch(String errorNumber, byte[] bytes) {
         switch(errorNumber) {
             case "02": return "TimeoutException. Check logs";
             case "01": return "Exception occurred. Check logs";
             case "82": return "Mismatch Receive Data or Invalid Value";
-            default: return "Unknown error " + errorNumber;
+            default: return "Unknown error " + Hex.encodeHexString(bytes);
         }
     }
 
