@@ -782,6 +782,7 @@ public class EquipmentServer {
             try {
                 remote.errorTransactionReport(idTransactionInfo, e);
             } catch (Exception e1) {
+                equipmentLogger.error("Equipment server error at transaction " + idTransactionInfo, e);
                 errorEquipmentServerReport(e1);
             }
         }
