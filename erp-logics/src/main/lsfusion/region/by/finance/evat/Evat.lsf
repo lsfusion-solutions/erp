@@ -379,7 +379,9 @@ FORM descriptionTypes 'Описания'
 TABLE EVATDetailDescriptionType (EVATDetail, DescriptionType);
 in 'Вкл.' = DATA BOOLEAN (EVATDetail, DescriptionType);
 
-nameDescriptionTypes (EVATDetail d) = GROUP CONCAT TEXT(name(DescriptionType t)) IF in(d,t), ', ' ORDER t;
+@defineOption(notExportControlAndIdentifiedMark, 'Не выгружать в xml признаки Маркированный КИЗ и Маркированный СИ', EVAT);
+
+nameDescriptionTypes (EVATDetail d) = GROUP CONCAT TEXT(name(DescriptionType t)) IF in(d,t) AND ((t != DescriptionType.controlMark AND t != DescriptionType.identifiedMark) OR NOT notExportControlAndIdentifiedMark()), ', ' ORDER t;
 captionDescriptionTypes 'Описание' (EVATDetail d)= STRING(GROUP CONCAT TEXT(caption(DescriptionType t)) IF in(d,t), ', ' ORDER t);
 
 FORM EVATDetailDescriptionType 'Описания'
