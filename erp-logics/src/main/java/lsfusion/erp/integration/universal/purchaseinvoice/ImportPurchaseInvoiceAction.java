@@ -546,7 +546,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                         countryData.add(Collections.singletonList(country));
                     }
 
-                    new IntegrationService(context, new ImportTable(Collections.singletonList(countryIdImportCodeField), countryData), Arrays.asList(countryKey, importCodeKey), countryProps).synchronize(true, false);
+                    integrationServiceSynchronize(context, Collections.singletonList(countryIdImportCodeField), countryData, Arrays.asList(countryKey, importCodeKey), countryProps);
                 }
 
 
@@ -828,10 +828,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     }
                 }
 
-                ImportTable table = new ImportTable(fields, data);
-
-                IntegrationService service = new IntegrationService(context, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(context, fields, data, keys, props);
                 return Pair.create(IMPORT_RESULT_OK, userInvoiceObject);
             } else {
                 return Pair.create(IMPORT_RESULT_DOCUMENTS_CLOSED_DATE, userInvoiceObject);

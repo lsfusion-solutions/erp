@@ -1,6 +1,7 @@
 package lsfusion.erp.region.ru.masterdata;
 
 import com.google.common.base.Throwables;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -10,8 +11,10 @@ import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
-import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.physics.dev.integration.service.ImportField;
+import lsfusion.server.physics.dev.integration.service.ImportKey;
+import lsfusion.server.physics.dev.integration.service.ImportProperty;
+import lsfusion.server.physics.dev.integration.service.ImportTable;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -28,7 +31,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-public class ImportCBRFExchangeRateAction extends InternalAction {
+public class ImportCBRFExchangeRateAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface currencyInterface;
 
     public ImportCBRFExchangeRateAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -99,12 +102,9 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
         for (Exchange e : exchangesList) {
             data.add(Arrays.asList("ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, BigDecimal.valueOf(1 / e.exchangeRate.doubleValue()), e.date));
         }
-        ImportTable table = new ImportTable(Arrays.asList(typeExchangeRUField, typeExchangeForeignField, currencyField,
-                homeCurrencyField, rateField, foreignRateField, dateField), data);
 
-        IntegrationService service = new IntegrationService(context, table, Arrays.asList(typeExchangeRUKey,
-                typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
-        service.synchronize(true, false);
+        integrationServiceSynchronize(context, Arrays.asList(typeExchangeRUField, typeExchangeForeignField, currencyField,
+                homeCurrencyField, rateField, foreignRateField, dateField), data, Arrays.asList(typeExchangeRUKey, typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
     }
 
     private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

@@ -148,11 +148,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < parentGroupsList.size(); i++)
                 data.get(i).add(parentGroupsList.get(i).parent);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -185,11 +182,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < itemGroupsList.size(); i++)
                 data.get(i).add(itemGroupsList.get(i).name);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -228,11 +222,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < waresList.size(); i++)
                 data.get(i).add(waresList.get(i).priceWare);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -284,11 +275,8 @@ public class ImportAction extends DefaultImportAction {
         for (int i = 0; i < uomsList.size(); i++)
             data.get(i).add(uomsList.get(i).shortNameUOM);
 
-        ImportTable table = new ImportTable(fields, data);
-
         try(ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table, keys, props);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(newContext, fields, data, keys, props);
             newContext.apply();
         }
     }
@@ -624,11 +612,8 @@ public class ImportAction extends DefaultImportAction {
                 data.get(i).add(itemsList.get(i).nameCustomsZone);
         }
 
-        ImportTable table = new ImportTable(fields, data);
-
         try(ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table, keys, props);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(newContext, fields, data, keys, props);
             newContext.apply();
         }
     }
@@ -1112,11 +1097,8 @@ public class ImportAction extends DefaultImportAction {
                         data.get(i).add(dataUserInvoiceDetail.get(i).dateTrip);
                 }
 
-                ImportTable table = new ImportTable(fields, data);
-
                 try(ExecutionContext.NewSession newContext = context.newSession()) {
-                    IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                    service.synchronize(true, false);
+                    integrationServiceSynchronize(newContext, fields, data, keys, props);
                     newContext.apply();
                 }
             }
@@ -1228,10 +1210,7 @@ public class ImportAction extends DefaultImportAction {
                     for (int i = 0; i < priceListStoresList.size(); i++)
                         data.get(i).add(true);
 
-                    ImportTable table = new ImportTable(fields, data);
-
-                    IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                    service.synchronize(true, false);
+                    integrationServiceSynchronize(newContext, fields, data, keys, props);
                     newContext.apply();
                 }
             }
@@ -1334,10 +1313,7 @@ public class ImportAction extends DefaultImportAction {
                     for (int i = 0; i < priceListSuppliersList.size(); i++)
                         data.get(i).add(true);
 
-                    ImportTable table = new ImportTable(fields, data);
-
-                    IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                    service.synchronize(true, false);
+                    integrationServiceSynchronize(newContext, fields, data, keys, props);
                     newContext.apply();
                 }
             }
@@ -1515,12 +1491,9 @@ public class ImportAction extends DefaultImportAction {
             fields.add(idLegalEntityGroupField);
             for (int i = 0; i < legalEntitiesList.size(); i++)
                 data.get(i).add(legalEntitiesList.get(i).idLegalEntityGroup);
-            
-            ImportTable table = new ImportTable(fields, data);
 
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -1576,11 +1549,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < employeesList.size(); i++)
                 data.get(i).add(employeesList.get(i).idPosition);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -1613,11 +1583,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < warehouseGroupsList.size(); i++)
                 data.get(i).add(warehouseGroupsList.get(i).nameWarehouseGroup);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -1677,11 +1644,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < warehousesList.size(); i++)
                 data.get(i).add(warehousesList.get(i).idWarehouseGroup);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -1752,11 +1716,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < storesList.size(); i++)
                 data.get(i).add(((Store) storesList.get(i)).storeType);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -1799,11 +1760,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < departmentStoresList.size(); i++)
                 data.get(i).add((departmentStoresList.get(i)).idStore);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -1860,11 +1818,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < banksList.size(); i++)
                 data.get(i).add(banksList.get(i).cbuBank);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -1913,11 +1868,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < rateWastesList.size(); i++)
                 data.get(i).add(rateWastesList.get(i).nameCountry);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }
@@ -1994,11 +1946,8 @@ public class ImportAction extends DefaultImportAction {
             for (int i = 0; i < contractsList.size(); i++)
                 data.get(i).add(contractsList.get(i).shortNameCurrency);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }

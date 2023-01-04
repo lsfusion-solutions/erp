@@ -92,10 +92,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
             props.add(new ImportProperty(homeSumDeclarationAdjustmentField, findProperty("homeSum[DeclarationAdjustment, DeclarationDetail]").getMapping(declarationAdjustmentKey, declarationDetailKey)));
             fields.add(homeSumDeclarationAdjustmentField);
 
-            ImportTable table = new ImportTable(fields, data);
-
-            IntegrationService service = new IntegrationService(context, table, keys, props);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(context, fields, data, keys, props);
             context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт КТС"));
         }
     }

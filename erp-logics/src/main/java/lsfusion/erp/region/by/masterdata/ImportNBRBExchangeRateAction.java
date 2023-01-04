@@ -81,13 +81,9 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
         for (Exchange e : exchangesList) {
             data.add(Arrays.asList("НБРБ (BYR)", "НБРБ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, BigDecimal.valueOf(1 / e.exchangeRate.doubleValue()), e.date));
         }
-        ImportTable table = new ImportTable(Arrays.asList(typeExchangeBYRField, typeExchangeForeignField, currencyField,
-                homeCurrencyField, rateField, foreignRateField, dateField), data);
 
-        IntegrationService service = new IntegrationService(context, table, Arrays.asList(typeExchangeBYRKey,
-                typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
-        service.synchronize(true, false);
-        //session.apply(LM.getBL());
+        integrationServiceSynchronize(context, Arrays.asList(typeExchangeBYRField, typeExchangeForeignField, currencyField,
+                homeCurrencyField, rateField, foreignRateField, dateField), data, Arrays.asList(typeExchangeBYRKey, typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
     }
 
     private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency, Boolean useHttp) throws IOException, JSONException {

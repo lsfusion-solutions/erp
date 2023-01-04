@@ -257,11 +257,8 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         props.add(new ImportProperty(exportedActiveGiftCardsField, findProperty("exportedActive[GiftCard]").getMapping(giftCardKey)));
         fields.add(exportedActiveGiftCardsField);
 
-        ImportTable table = new ImportTable(fields, data);
-
         try(ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table, keys, props);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(newContext, fields, data, keys, props);
             newContext.apply();
         }
     }

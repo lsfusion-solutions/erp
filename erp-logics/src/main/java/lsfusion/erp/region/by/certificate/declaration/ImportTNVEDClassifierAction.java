@@ -112,13 +112,9 @@ public class ImportTNVEDClassifierAction extends DefaultIntegrationAction {
                 object(findClass("CustomsZone")).getMapping(customsZoneKey)));
         properties.add(new ImportProperty(hasCodeCustomsGroupField, findProperty("hasCode[CustomsGroup]").getMapping(customsGroupKey)));
 
-        ImportTable table = new ImportTable(Arrays.asList(codeCustomsGroupField, nameCustomsGroupField,
-                numberCustomsGroupField, nameCustomsZoneField, hasCodeCustomsGroupField, vatField, dateField), data);
-
         try (ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table,
-                    Arrays.asList(customsGroupKey, customsZoneKey, VATKey), properties);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(newContext, Arrays.asList(codeCustomsGroupField, nameCustomsGroupField,
+                    numberCustomsGroupField, nameCustomsZoneField, hasCodeCustomsGroupField, vatField, dateField), data, Arrays.asList(customsGroupKey, customsZoneKey, VATKey), properties);
             newContext.apply();
         }
     }
@@ -172,12 +168,8 @@ public class ImportTNVEDClassifierAction extends DefaultIntegrationAction {
         properties.add(new ImportProperty(parentIDField, findProperty("parent[CustomsGroup]").getMapping(customsGroupKey),
                 object(findClass("CustomsGroup")).getMapping(parentCustomsGroupKey)));
 
-        ImportTable table = new ImportTable(Arrays.asList(groupIDField, parentIDField), data);
-
         try (ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table,
-                    Arrays.asList(customsGroupKey, parentCustomsGroupKey), properties);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(newContext, Arrays.asList(groupIDField, parentIDField), data, Arrays.asList(customsGroupKey, parentCustomsGroupKey), properties);
             newContext.apply();
         }
     }

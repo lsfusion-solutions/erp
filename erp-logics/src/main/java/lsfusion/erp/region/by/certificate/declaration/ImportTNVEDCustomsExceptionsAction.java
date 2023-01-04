@@ -95,11 +95,8 @@ public class ImportTNVEDCustomsExceptionsAction extends DefaultIntegrationAction
         props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateTo[VATCustomsException]").getMapping(VATCustomsExceptionKey)));
         fields.add(dateToCustomsGroupField);
 
-        ImportTable table = new ImportTable(fields, data);
-
         try (ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table, keys, props);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(newContext, fields, data, keys, props);
             newContext.apply();
         }
     }

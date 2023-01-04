@@ -323,10 +323,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
                     data.get(i).add(orderDetailsList.get(i).isPosted);
             }
 
-            ImportTable table = new ImportTable(fields, data);
-
-            IntegrationService service = new IntegrationService(context, table, keys, props);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(context, fields, data, keys, props);
             String result = context.applyMessage();
 
             return result == null;

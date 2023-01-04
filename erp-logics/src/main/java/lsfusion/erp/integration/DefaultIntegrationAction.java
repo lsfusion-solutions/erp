@@ -4,10 +4,12 @@ import com.google.common.base.Throwables;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.Settings;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.lang3.time.DateUtils;
 
 import java.io.File;
@@ -21,6 +23,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.*;
@@ -255,6 +258,16 @@ public class DefaultIntegrationAction extends InternalAction {
 
     public static LocalDateTime sqlTimestampToLocalDateTime(java.sql.Timestamp value) {
         return value != null ? value.toLocalDateTime() : null;
+    }
+
+    public void integrationServiceSynchronize(ExecutionContext context, List<ImportField> fields, List<List<Object>> data, Collection<? extends ImportKey<?>> keys,
+                                              Collection<ImportProperty<?>> properties) throws SQLException, SQLHandledException {
+        new IntegrationService(context, new ImportTable(fields, data), keys, properties).synchronize(true, false);
+    }
+
+    public void integrationServiceSynchronize(DataSession session, List<ImportField> fields, List<List<Object>> data, Collection<? extends ImportKey<?>> keys,
+                                              Collection<ImportProperty<?>> properties) throws SQLException, SQLHandledException {
+        new IntegrationService(session, new ImportTable(fields, data), keys, properties).synchronize(true, false);
     }
 
 }

@@ -98,10 +98,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
             props.add(new ImportProperty(homeSumDeclarationDetailField, findProperty("homeSum[DeclarationDetail]").getMapping(declarationDetailKey)));
             fields.add(homeSumDeclarationDetailField);
 
-            ImportTable table = new ImportTable(fields, data);
-
-            IntegrationService service = new IntegrationService(context, table, keys, props);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(context, fields, data, keys, props);
             context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт из декларанта"));
         }
     }

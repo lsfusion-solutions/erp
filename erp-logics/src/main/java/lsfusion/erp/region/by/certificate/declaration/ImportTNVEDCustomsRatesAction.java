@@ -111,11 +111,8 @@ public class ImportTNVEDCustomsRatesAction extends DefaultIntegrationAction {
         props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateTo[DutyCustomsRate]").getMapping(dutyCustomsRateKey)));
         fields.add(dateToCustomsGroupField);
 
-        ImportTable table = new ImportTable(fields, data);
-
         try (ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table, keys, props);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(newContext, fields, data, keys, props);
             newContext.apply();
         }
     }
@@ -157,11 +154,8 @@ public class ImportTNVEDCustomsRatesAction extends DefaultIntegrationAction {
         props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateTo[VATCustomsRate]").getMapping(VATCustomsRateKey)));
         fields.add(dateToCustomsGroupField);
 
-        ImportTable table = new ImportTable(fields, data);
-
         try (ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table, keys, props);
-            service.synchronize(true, false);
+            integrationServiceSynchronize(newContext, fields, data, keys, props);
             newContext.apply();
         }
     }

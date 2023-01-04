@@ -139,11 +139,8 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
             props.add(new ImportProperty(quantityUserOrderDetailField, findProperty("quantity[UserOrderDetail]").getMapping(userOrderDetailKey)));
             fields.add(quantityUserOrderDetailField);
 
-            ImportTable table = new ImportTable(fields, data);
-
             try(ExecutionContext.NewSession newContext = context.newSession()) {
-                IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                service.synchronize(true, false);
+                integrationServiceSynchronize(newContext, fields, data, keys, props);
                 newContext.apply();
             }
         }

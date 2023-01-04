@@ -571,9 +571,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 }
             }
 
-            ImportTable table = new ImportTable(fields, data);
-
-            synchronize(context, table, keys, props);
+            integrationServiceSynchronize(context, fields, data, keys, props);
             String result = null;
             if (apply)
                 result = context.applyMessage();
@@ -673,10 +671,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(true);
 
-
-            ImportTable table = new ImportTable(fields, data);
-
-            synchronize(context, table, keys, props);
+            integrationServiceSynchronize(context, fields, data, keys, props);
             String result = null;
             if (apply)
                 result = context.applyMessage();
@@ -686,11 +681,6 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
             return result == null;
         }
         return false;
-    }
-
-    private void synchronize(ExecutionContext context, ImportTable table, List<ImportKey<?>> keys, List<ImportProperty<?>> props) throws SQLException, SQLHandledException {
-        IntegrationService service = new IntegrationService(context, table, keys, props);
-        service.synchronize(true, false);
     }
 
     private List<UserPriceListDetail> importUserPriceListsFromXLS(RawFileData importFile, DataObject userPriceListObject, ImportPriceListSettings settings,
