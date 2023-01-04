@@ -1454,12 +1454,21 @@ addSkuLists 'Создать страницу описи по спискам SKU'
 
 isParentSkuGroup = (isParent(SkuGroup g, sku(PageInventoryDetail detail))) OR (g IS SkuGroup AND NOT sku(detail));
 
+useOverChangeBatch = ABSTRACT BOOLEAN (PageInventoryDetail);
+overChangeBatch ABSTRACT LIST (PageInventoryDetail);
+
 changeBatch(PageInventoryDetail d)  {
-    DIALOG dialogBatchStockIn OBJECTS st = stock(d),
-                         t = dateTime(d),
-                         sk = sku(d),
-                         bt = batch(d) INPUT NULL LIST name(bt) NEWSESSION DO
-        batch(d) <- bt;
+    IF useOverChangeBatch(d) THEN {
+        overChangeBatch(d);
+    }
+    ELSE {
+        DIALOG dialogBatchStockIn OBJECTS st = stock(d),
+            t = dateTime(d),
+            sk = sku(d),
+            bt = batch(d) INPUT NULL LIST name(bt) NEWSESSION DO {
+            batch(d) <- bt;
+        }
+    }
 }
 
 changeWYSNameBatch(PageInventoryDetail d)  {
