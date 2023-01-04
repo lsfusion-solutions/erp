@@ -4,8 +4,9 @@ NAMESPACE Stock;
 
 dateAccountDelta 'Дата с (отклонение от фактического)' = ABSTRACT DATE (Stock) MATERIALIZED;
 
+TABLE deltaSkuStock (Sku, Stock);
 calcAccountDelta(Sku s, Stock st) = (GROUP SUM -signedQuantity(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
-    AND skip(stockDocumentLedger(l)) AND NOT date(l) < dateAccountDelta(stock(l)) AND sku(l)==s AND stock(l)==st) MATERIALIZED;   
+    AND skip(stockDocumentLedger(l)) AND NOT date(l) < dateAccountDelta(stock(l)) AND sku(l)==s AND stock(l)==st) MATERIALIZED TABLE deltaSkuStock;   
 accountDeltaQuantity(Sku s, Stock st) += calcAccountDelta(s,st);    
 
 accountDeltaQuantity(Sku s, Stock st, DATE df, DATE dt) += (GROUP SUM -signedQuantity(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
@@ -16,7 +17,7 @@ accountDeltaBQuantity(Sku s, Stock st, DATETIME dateTime) +=  accountDeltaQuanti
     AND NOT date(l) < dateAccountDelta(stock(l)) AND   dateTime(l) >= dateTime);
                                        
 calcAccountDeltaSum(Sku s, Stock st) = NUMERIC[18,4](GROUP SUM -signedSum(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
-    AND skip(stockDocumentLedger(l)) AND NOT date(l) < dateAccountDelta(stock(l)) AND sku(l)==s AND stock(l)==st) MATERIALIZED;   
+    AND skip(stockDocumentLedger(l)) AND NOT date(l) < dateAccountDelta(stock(l)) AND sku(l)==s AND stock(l)==st) MATERIALIZED TABLE deltaSkuStock;   
 accountDeltaSum(Sku s, Stock st) += calcAccountDeltaSum(s,st);    
 
 accountDeltaSum(Sku s, Stock st, DATE df, DATE dt) += (GROUP SUM -signedSum(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
