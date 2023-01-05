@@ -21,6 +21,10 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             overImportBlrapn(i, login, password, url, archiveDir, IF disableConfirmation THEN 1 ELSE 0, provider);
             IF NOT skipBlrapn() THEN {
                 IF blrapnDeliveryNoteId() AND blrapnCode() THEN {
+                    IF NOT eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId()) THEN {
+                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' skipped (not found noteId) for ' + blrapnDeliveryNoteId());
+                        RETURN;
+                    }
                     IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND DATE(deliveryNoteDateTime(eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId()))) == blrapnDeliveryNoteDate()) OR lower(blrapnReferenceDocumentType()) == 'blrwbr' OR lower(blrapnReferenceDocumentType()) == 'blrwbl'
                         OR lower(blrapnReferenceDocumentType()) == 'blrdnr' OR lower(blrapnReferenceDocumentType()) == 'blrdln' THEN {
                         NEWSESSION NESTED LOCAL {
