@@ -617,6 +617,9 @@ moved (Sku item, Stock departmentStore, DATE date, LONG period) =
 balance (Sku item, Stock departmentStore, DATE date, LONG period) =
     moved (item, departmentStore, date, period) OR balanceA(item, departmentStore, date);
 
+currentBalance (Sku item, Stock departmentStore, LONG period) =
+    moved (item, departmentStore, currentDate(), period) OR currentBalance(item, departmentStore);
+
 //----------------------------------------- По партиям ---------------------------------------------//
 
 signedQuantity = GROUP SUM signedCost (SkuLedger ledger, Batch batch) IF isPosted(ledger)
@@ -1085,9 +1088,9 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     PROPERTIES() READONLY countSelectSkuStocks SHOWIF countSelectSkuStocks() DRAW sts 
     FILTERGROUP filters
         FILTER 'Товары с остатком' currentBalance(s, st) OR currentSum(s, st) 'F10' DEFAULT
-        FILTER 'Товары с движением не позднее 1 дня' balance(s, st, currentDate(), 1) 'F9'
-        FILTER 'Товары с движением не позднее 7 дней' balance(s, st, currentDate(), 7) 'F8'
-        FILTER 'Товары с движением не позднее 30 дней' balance(s, st, currentDate(), 30) 'F7'
+        FILTER 'Товары с движением не позднее 1 дня' currentBalance(s, st, 1) 'F9'
+        FILTER 'Товары с движением не позднее 7 дней' currentBalance(s, st, 7) 'F8'
+        FILTER 'Товары с движением не позднее 30 дней' currentBalance(s, st, 30) 'F7'
         FILTER 'Товары с отрицательным остатком' currentBalance(s, st) < 0 'F6'
     
     OBJECTS bil=SkuLedger
