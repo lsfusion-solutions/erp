@@ -1,0 +1,39 @@
+MODULE StockUz;
+
+REQUIRE Stock;
+
+NAMESPACE Stock;
+
+nameUz 'Регион (узб.)' = DATA STRING (Region);
+
+EXTEND FORM regions
+    PROPERTIES (r) READONLY id, nameUz
+;
+
+EXTEND FORM region
+    PROPERTIES (r) id, nameUz
+;
+
+CLASS District 'Район';
+
+id 'ИД' = DATA STRING[4] (District);
+code 'Код' = DATA INTEGER (District);
+
+region 'Регион' = DATA Region (District);
+nameRegion 'Регион' (District d) = name(region(d));
+
+name 'Район (рус.)' = DATA STRING (District);
+nameUz 'Район (узб.)' = DATA STRING (District);
+
+FORM districts 'Районы'
+    OBJECTS d = District
+    PROPERTIES (d) READONLY id, code, nameRegion, name, nameUz
+    PROPERTIES (d) NEWSESSION NEW, EDIT, DELETE
+    LIST District OBJECT d
+;
+
+FORM district 'Район'
+    OBJECTS d = District PANEL
+    PROPERTIES (d) id, code, nameRegion, name, nameUz
+    EDIT District OBJECT d
+;

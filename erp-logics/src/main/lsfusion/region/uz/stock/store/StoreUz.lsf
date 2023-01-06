@@ -1,0 +1,28 @@
+MODULE StoreUz;
+
+REQUIRE Store, StockUz;
+
+NAMESPACE Store;
+
+district 'Район' = DATA District (Store) CHARWIDTH 30;
+nameDistrict 'Район' (Store s) = name(district(s)) CHARWIDTH 30;
+
+CONSTRAINT region(Store s) AND NOT region(district(s)) = region(s)
+    CHECKED BY district
+    MESSAGE 'Выбранный район не соответствует региону'
+;
+
+EXTEND FORM store PROPERTIES nameDistrict(s);
+EXTEND FORM stores PROPERTIES nameDistrict(s) AFTER nameRegion(s);
+
+DESIGN store {
+    headerLocationParams {
+        NEW addressRow BEFORE firstRow {
+            type = COLUMNS;
+            columns = 3;
+            MOVE PROPERTY(nameRegion(s));
+            MOVE PROPERTY(nameDistrict(s));
+            MOVE PROPERTY(address(s)); 
+        }
+    }
+}
