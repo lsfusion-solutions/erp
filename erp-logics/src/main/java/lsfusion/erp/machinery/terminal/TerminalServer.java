@@ -369,6 +369,7 @@ public class TerminalServer extends MonitorServer {
                                 String idApplication = "";
                                 String applicationVersion = "";
                                 String idStock = "";
+                                String deviceModel = "";
 
                                 if (params.length > 3)
                                     idApplication = params[3];
@@ -376,10 +377,12 @@ public class TerminalServer extends MonitorServer {
                                     idStock = params[4];
                                 if (params.length > 5)
                                     applicationVersion = params[5];
+                                if (params.length > 6)
+                                    deviceModel = params[6];
 
                                 if (terminalHandler.isActiveTerminal(createSession(), getStack(), params[2])) {
                                     Object loginResult = terminalHandler.login(
-                                            createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2], idApplication, applicationVersion);
+                                            createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2], idApplication, applicationVersion, deviceModel);
                                     if (loginResult instanceof DataObject) {
                                         result = getSessionId((DataObject) loginResult, params[0], params[1], params[2], idApplication, idStock);
                                         logger.info(String.format("successfull login, idTerminal %s, idApplication '%s', applicationVersion '%s', idStock '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication, applicationVersion, idStock));

@@ -19,14 +19,15 @@ lastUser 'Пользователь' = DATA CustomUser (Terminal);
 shortNameLastUser 'Пользователь' (Terminal terminal) = shortName(lastUser(terminal));
 nameStockLastUser 'Склад пользователя' (Terminal terminal) = nameStock(lastUser(terminal));
 applicationVersion 'Версия приложения' = DATA STRING[50] (Terminal);
+deviceModel 'Модель терминала' = DATA STRING[50] (Terminal);
 
 maxNpp () = GROUP MAX npp(Terminal t) IF t IS Terminal;
 defaultGroupTerminal() = GROUP MIN GroupTerminal gt IF gt IS GroupTerminal AND NOT stock(gt);
 
-EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser, applicationVersion;
+EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser, applicationVersion, deviceModel;
 EXTEND FORM groupsTerminal
     PROPERTIES () checkIdTerminal
-    PROPERTIES(t) AFTER npp(t) READONLY id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser, applicationVersion;
+    PROPERTIES(t) AFTER npp(t) READONLY id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser, applicationVersion, deviceModel;
 
 
 hostTerminalServer 'Хост' = DATA STRING[30] ();
@@ -335,11 +336,13 @@ nameStockUser 'Склад пользователя' (TerminalConnection c) = nam
 ip 'IP' = DATA STRING[50] (TerminalConnection);
 application 'ID приложения' = DATA STRING[50] (TerminalConnection);
 applicationVersion 'Версия приложения' = DATA STRING[50] (TerminalConnection);
+deviceModel 'Модель терминала' = DATA STRING[50] (TerminalConnection);
 
-processTerminalConnection(Terminal terminal, CustomUser user, STRING[50] ip, STRING[50] application, STRING[50] applicationVersion) {
+processTerminalConnection(Terminal terminal, CustomUser user, STRING[50] ip, STRING[50] application, STRING[50] applicationVersion, STRING[50] deviceModel) {
     lastConnectionTime(terminal) <- currentDateTime();
     lastUser(terminal) <- user;
     applicationVersion(terminal) <- applicationVersion;
+    deviceModel(terminal) <- deviceModel;
     NEW tc = TerminalConnection {
         terminal(tc) <- terminal;
         dateTime(tc) <- currentDateTime();
@@ -347,12 +350,13 @@ processTerminalConnection(Terminal terminal, CustomUser user, STRING[50] ip, STR
         ip(tc) <- ip;
         application(tc) <- application;
         applicationVersion(tc) <- applicationVersion;
+        deviceModel(tc) <- deviceModel;
     }
 }
 
 EXTEND FORM groupsTerminal
     OBJECTS tc = TerminalConnection
-    PROPERTIES(tc) READONLY idTerminal, dateTime, date, shortNameUser, nameStockUser, ip, application, applicationVersion
+    PROPERTIES(tc) READONLY idTerminal, dateTime, date, shortNameUser, nameStockUser, ip, application, applicationVersion, deviceModel
     FILTERS groupTerminal(terminal(tc)) = grt 
 ;
 
