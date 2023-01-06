@@ -11,7 +11,7 @@ loadDefaultScalesModels () + {
 isSelfService(GroupScales s) += sidModel(s) == 'KS4010';
 scalesGroup (MachineryPriceTransaction t, Barcode b) += group(dataCustomGroupType(groupScales(t)), sku(b)) IF t IS MachineryPriceTransaction AND sidModel(groupScales(t)) == 'KS4010';
 
-skilLoadImages 'Не выгружать изображения в весы' = ABSTRACT BOOLEAN (GroupScales) PREREAD;
+skipLoadImages 'Не выгружать изображения в весы' = ABSTRACT BOOLEAN (GroupScales) PREREAD;
 
 imageRBS = DATA IMAGEFILE (Item) TABLE itemImage;
 WHEN CHANGED (image(Item i)) DO {
@@ -46,11 +46,11 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             category_name = name(g), //The name of the category
             describ = '', //The description of the category.
             order = (OVERRIDE order(g), INTEGER (id(g)), 1000), //The order index of the category. The smaller the number, the higher priority it has when sorting categories. //пока не работает
-            image = ('cat_' + id(g) + '.png') IF hasScalesImage(g) AND NOT skilLoadImages(groupMachinery(t))
+            image = ('cat_' + id(g) + '.png') IF hasScalesImage(g) AND NOT skipLoadImages(groupMachinery(t))
             WHERE GROUP SUM 1 IF in(t, Barcode b) AND g == (OVERRIDE (scalesGroup(t, b)), skuGroup(t, b)) AND INTEGER (id(g))
             TO groups;
 
-        FOR [GROUP SUM 1 IF in(t, Barcode b) BY (OVERRIDE (scalesGroup(t, b)), skuGroup(t, b))](Group g) AND hasScalesImage(g) AND NOT skilLoadImages(groupMachinery(t)) DO
+        FOR [GROUP SUM 1 IF in(t, Barcode b) BY (OVERRIDE (scalesGroup(t, b)), skuGroup(t, b))](Group g) AND hasScalesImage(g) AND NOT skipLoadImages(groupMachinery(t)) DO
             zipping(STRING[1000] f) <- FILE(scalesImage(g)) WHERE f == 'cat_' + id(g) + '.png';
         IF GROUP SUM 1 IF zipping(STRING[1000] f) THEN {
             makeZipFile();
@@ -73,7 +73,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             price_unit_index = (IF isPiece(b) THEN -1 ELSE 0), //-1:/pc, 0:/kg, 1:/100g, 2:/g
             ingredients = left(description(t, b), 1450), //по идее нужно именно 3000 байт посчитать, но пока так
             used_by_days = STRING (expiryDays(t, b)),
-            image_filename = IF hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) THEN 'item_' + fullId(b, groupMachinery(t)) + '.jpg' ELSE '',
+            image_filename = IF hasImage(sku(b)) AND NOT skipLoadImages(groupMachinery(t)) THEN 'item_' + fullId(b, groupMachinery(t)) + '.jpg' ELSE '',
             disabled = '0',
             barcode = 0,
             exp_date = STRING(expiryDate(t, b)),
@@ -82,7 +82,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
             WHERE in(t, b)
             TO items;
 
-        FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) AND NOT imageRBS(sku(b)) DO {
+        FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skipLoadImages(groupMachinery(t)) AND NOT imageRBS(sku(b)) DO {
             convertedImage() <- NULL;
             TRY {
                 convertImage((OVERRIDE smallImage(sku(b)), image(sku(b))), 'jpg');
@@ -91,7 +91,7 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
         }
 
         zipping(STRING[1000] f) <- NULL;
-        FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skilLoadImages(groupMachinery(t)) DO
+        FOR in(t, Barcode b) AND hasImage(sku(b)) AND NOT skipLoadImages(groupMachinery(t)) DO
             zipping(STRING[1000] f) <- FILE(imageRBS(sku(b))) WHERE f == 'item_' + fullId(b, groupMachinery(t)) + '.jpg';
         IF GROUP SUM 1 IF zipping(STRING[1000] f) THEN {
             makeZipFile();

@@ -1,0 +1,47 @@
+MODULE Bizerba;
+
+REQUIRE ScalesSelfService, Image;
+
+
+//Bizerba PC-Based
+loadImages() + {
+    NEWSESSION NESTED (select[Sku,Stock]) {
+        IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+            FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
+                FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'BizerbaPC' DO {
+                    FOR select(sku(Barcode barcode), stock) AND pluNumber(groupScales(scales), barcode) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                        TRY {
+                            WRITE convertedImage() TO 'ftp://bizuser:bizerba@' + port(scales) + '//bizstorecard/bizerba/data/add_mediafiles/plu/image/' + idSku(barcode) + '_1';
+                        } CATCH {
+                            MESSAGE 'Ошибка загрузки изображений в весы' NOWAIT;
+                            BREAK;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+showLoadImage(Stock ss) += (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'BizerbaPC' AND stock(grsk) == ss AND active(grsk)) > 0;
+
+deleteImages() + {
+    NEWSESSION NESTED (select[Sku,Stock]) {
+        IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+            FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
+                FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'BizerbaPC' DO {
+                    FOR select(sku(Barcode barcode), stock) AND pluNumber(groupScales(scales), barcode) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                        TRY {
+                            delete('ftp://bizuser:bizerba@' + port(scales) + '//bizstorecard/bizerba/data/add_mediafiles/plu/image/' + idSku(barcode) + '_1.jpg');
+                        }
+                    }
+                }
+            }
+            IF NOT notResetMachinerySelectSku() THEN {
+                select(Sku sku, Stock stock) <- NULL;
+            }
+        }
+    }
+}
+showDeleteImage(Stock ss) += (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'BizerbaPC' AND stock(grsk) == ss AND active(grsk)) > 0;
+
+isSelfService(GroupScales s) += sidModel(s) == 'BizerbaPC';
