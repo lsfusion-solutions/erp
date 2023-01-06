@@ -1,0 +1,53 @@
+MODULE ItemUz;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+
+ikpu 'ИКПУ' (Item i) = DATA ISTRING[21] (Item) IN itemBase;
+
+// Признак маркировки для касс
+marked 'Маркированный товар' = DATA BOOLEAN (Item) IN itemBase;
+
+EXTEND FORM item 
+    PROPERTIES(i) ikpu, marked
+;
+
+EXTEND FORM items 
+    PROPERTIES (i) READONLYIF isReadonly() ikpu, marked
+;
+
+translate (TEXT s, TEXT ms, TEXT rs) = FORMULA TEXT PG 'translate($1, $2, $3)';
+upper (TEXT s) = FORMULA TEXT PG 'upper($1)';
+
+translateUz (TEXT s) = 
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace( 
+        translate(upper(s), 'АБВГДЖЗЕИЙКЛМНОПРСТУФХЪЫЭ', 'ABVGDJZEIYKLMNOPRSTUFXʼIE'),
+        'Ё', 'YO'),
+        'Ц', 'TS'),
+        'Ч', 'CH'),
+        'Ш', 'SH'),
+        'Щ', 'SHCH'),
+        'Ь', ''),
+        'Ю', 'YU'),
+        'Я', 'YA');
+
+nameAttributeUz 'Наименование (уз.)' (Item i) = ISTRING(translateUz(nameAttribute(i)));
+
+EXTEND FORM item
+    PROPERTIES (i) nameAttributeUz
+;
+
+DESIGN item {
+    itemHeader {
+        MOVE PROPERTY(nameAttributeUz(i));
+    }
+}

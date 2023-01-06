@@ -1,0 +1,27 @@
+MODULE MachineryPriceTransactionUz;
+
+REQUIRE MachineryPriceTransaction, ItemUz;
+
+NAMESPACE Machinery;
+
+
+artixParams (Barcode b) = '\{"artix": \{' +
+    (CONCAT ', ',
+        '"ntin":"' + ikpu[Item](sku(b)) + '"',
+        '"tmctype": 7' IF marked[Item](sku(b))
+    ) + '\}\}'
+; 
+
+createAttribute(MachineryPriceTransaction t) + {
+    info(t, Barcode b) <- artixParams(b) WHERE in(t, b) AND sid(model(groupMachinery(t)))=='Artix';
+}
+
+kristalParams (Barcode b) = '\{"kristal10": \{' +
+    (CONCAT ', ',
+        '"ntin":"' + ikpu[Item](sku(b)) + '"'
+    ) + '\}\}'
+; 
+
+createAttribute(MachineryPriceTransaction t) + {
+    info(t, Barcode b) <- kristalParams(b) WHERE in(t, b) AND sid(model(groupMachinery(t)))=='Kristal10Web';
+}
