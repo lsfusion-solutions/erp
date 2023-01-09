@@ -1,0 +1,61 @@
+MODULE BarcodeReader;
+
+REQUIRE SystemEvents, Machinery;
+
+NAMESPACE Utils;
+
+resultScan 'Штрихкод' = DATA LOCAL STRING ();
+intervalBarcodeReader 'Интервал сканирования штрихкода(мс)' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES intervalBarcodeReader()
+;
+DESIGN options{
+    machinery{
+        NEW barcodeReader{
+            caption = 'Сканер штрихкода';
+            MOVE PROPERTY (intervalBarcodeReader());
+        }
+    }
+}
+
+flashLight 'Подсветка' (){ INTERNAL CLIENT 'flashlight'; }
+
+FORM barcode
+    PROPERTIES ivideo = JSON FROM count = 50 CUSTOM 'barcodeRender',
+    iscan = JSON FROM interval = OVERRIDE intervalBarcodeReader(), 300 CUSTOM 'barcodeReader' ON CHANGE {
+        INPUT t = TEXT DO{
+            resultScan() <- t;
+            formClose();
+        }
+    }
+    PROPERTIES flashLight()
+    EVENTS
+    ON OK BEFORE { CANCEL; INTERNAL CLIENT 'stopStreamedVideo'; formClose(); },
+    ON APPLY BEFORE {INTERNAL CLIENT 'stopStreamedVideo'; formClose(); },
+    ON CANCEL {INTERNAL CLIENT 'stopStreamedVideo'; formClose(); }
+;
+
+DESIGN barcode{
+    caption = 'Нажмите для сканирования...';
+    height = 600;
+    width = 400;
+    OBJECTS {
+        alignment = STRETCH;
+        MOVE PROPERTY (ivideo) {alignment = STRETCH; fill = 3; caption = ''; }
+        NEW buttons{
+            horizontal = TRUE;
+            alignment = CENTER;
+            MOVE PROPERTY (iscan);
+            MOVE PROPERTY (flashLight());
+        }
+        TOOLBAR {
+            PROPERTY (formClose()){ hide = TRUE; }
+        }
+    }
+}
+
+scanBarcode 'Сканер' () { SHOW barcode; }
+
+
+onWebClientLoad() + { INTERNAL CLIENT 'zxing_scanner.js'; INTERNAL CLIENT 'initZXing'; }

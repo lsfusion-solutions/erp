@@ -1,6 +1,6 @@
 MODULE MobileReportItem;
 
-REQUIRE MobileReportDepartmentStore, ItemInfoAPI, SkuAPI, PurchaseInvoice, ItemNutrition, PriceListPromotion;
+REQUIRE MobileReportDepartmentStore, BarcodeReader, ItemInfoAPI, SkuAPI, PurchaseInvoice, ItemNutrition, PriceListPromotion;
 
 NAMESPACE MobileReport;
 
@@ -138,52 +138,18 @@ backgroundBalanceTo = ABSTRACT CASE COLOR (Sku, Stock, DATE);
 backgroundBalanceTo(Sku s, Stock st, DATE d) += WHEN balanceA(s, st, d) THEN RGB(191, 252, 188);
 backgroundBalanceTo(Sku s, Stock st, DATE d) += WHEN NOT balanceA(s, st, d) AND d IS DATE THEN RGB(255, 204, 204);
 
-onWebClientLoad() +{ INTERNAL CLIENT 'barcode.js'; }
-
-barcodeRender INTERNAL CLIENT 'barcodeRender'();
-
-resultR = DATA LOCAL TEXT ();
-
-takeBarcode(){
-    INPUT t = TEXT DO {
-        barcodeSku() <- t;
-        formClose();
-    }
-}
-
-FORM barcode
-    PROPERTIES resultR() CUSTOM 'barcodeRender' ON CHANGE {
-        INPUT t = TEXT DO {
-            barcodeSku() <- t;
-            formClose();
-        }
-    }
-    
-;
-
-DESIGN barcode{
-    caption = 'Нажмите для сканирования...';
-    height = 600;
-    width = 400;
-    OBJECTS {
-        alignment = STRETCH;
-        MOVE PROPERTY (resultR()) {alignment = STRETCH; fill = 3; caption = ''; }
-    }
-}
-
-scanBacrode 'Сканер' () { SHOW barcode; }
 
 FORM skuInfoMobile 'Инфо о товаре(mobile)'
     OBJECTS intervalDate = INTERVAL[DATE] PANEL
     PROPERTIES interval = VALUE (intervalDate) HEADER 'Период'
     
-    PROPERTIES nameSku(), barcodeSku(), scanBacrode()
+    PROPERTIES nameSku(), resultScan(), scanBarcode()
     OBJECTS st 'Остатки' = DepartmentStore PANEL
     
     OBJECTS sku = Sku
     PROPERTIES READONLY idBarcode(sku), name(sku)
-    FILTERS (isISubstring(idBarcode(sku), barcodeSku()) OR NOT barcodeSku())
-        AND (isISubstring(name(sku), nameSku()) OR NOT nameSku()) AND (barcodeSku() OR nameSku())
+    FILTERS (isISubstring(idBarcode(sku), resultScan()) OR NOT resultScan())
+        AND (isISubstring(name(sku), nameSku()) OR NOT nameSku()) AND (resultScan() OR nameSku())
         
     FILTERS (currentBalance(sku, st) OR quantitySold(sku, st, from(intervalDate), to(intervalDate)) OR currentReservePurchase(sku, st)), selectDepartmentStore(st) 
         
@@ -192,7 +158,8 @@ FORM skuInfoMobile 'Инфо о товаре(mobile)'
         price 'ЦЕНА' = currentRetailPricingPrice(sku, st) BACKGROUND backgroundPrice(sku, st), 
         sold 'ПРОДАНО' = quantitySold(sku, st, from(intervalDate), to(intervalDate)) BACKGROUND backgroundSold(sku, st, intervalDate),
         reserve 'РЕЗЕРВ' = currentReservePurchase(sku, st) BACKGROUND backgroundReserve(sku, st) 
-
+    FILTERS accessCompany(currentUser(), st)
+    
     PROPERTIES  balanceFrom = balanceB(sku, st, from(intervalDate)) HEADER 'Остаток (' + toChar(from(intervalDate), 'DD.MM.YY') + ')' PANEL 
         BACKGROUND backgroundBalanceFrom(sku, st, from(intervalDate)),
         balanceTo = balanceA(sku, st, to(intervalDate)) HEADER 'Остаток (' + toChar(to(intervalDate), 'DD.MM.YY') + ')' PANEL
@@ -239,8 +206,8 @@ DESIGN skuInfoMobile{
                 NEW barcode{
                     horizontal = TRUE;
                     alignment = STRETCH;
-                    MOVE PROPERTY (barcodeSku()) {fontSize = 14;};
-                    MOVE PROPERTY (scanBacrode()) {fontSize = 14;};
+                    MOVE PROPERTY (resultScan()) {fontSize = 14;};
+                    MOVE PROPERTY (scanBarcode()) {fontSize = 14;};
                 }
             }
         }
