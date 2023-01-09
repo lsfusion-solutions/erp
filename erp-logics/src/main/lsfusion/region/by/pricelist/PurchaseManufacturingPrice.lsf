@@ -330,3 +330,14 @@ EXTEND FORM invoices
 
 EXTEND FORM userOrder
     PROPERTIES (d) SHOWIF showManufacturingPrice(o) manufacturingMarkup, manufacturingPrice;
+
+@defineOperationProperty(isManufacturingPrice, 'Должна быть задана цена изготовителя', constraintContainer);
+
+skipCheckManufacturingPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
+
+WHEN SET(isManufacturingPrice(Operation o)) AND NOT showManufacturingPrice(o) DO {
+    showManufacturingPrice (o) <- TRUE;
+}
+
+CONSTRAINT (CHANGED(isPosted(UserInvoiceDetail d)) OR CHANGED(operation(d)) OR CHANGED(manufacturingPrice(d))) AND isPosted(d) AND isManufacturingPrice(operation(d)) AND NOT manufacturingPrice(d) AND NOT skipCheckManufacturingPrice(d)
+    MESSAGE 'Для строки накладной (закупка) должна быть задана цена изготовителя';
