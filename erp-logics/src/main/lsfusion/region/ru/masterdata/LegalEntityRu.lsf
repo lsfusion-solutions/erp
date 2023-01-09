@@ -72,3 +72,15 @@ kppOld 'КПП (старый)' = DATA STRING[9] (LegalEntity);
 onStarted() + {
     dataKpp(LegalEntity le, DATE dt) <- kppOld(le) WHERE le IS LegalEntity AND dt = DATE('2021_01_01');
 }
+
+isIE 'ИП' = DATA BOOLEAN (Ownership);
+
+EXTEND FORM ownership
+    PROPERTIES (o) isIE
+;
+
+EXTEND FORM ownerships
+    PROPERTIES (o) READONLY isIE
+;
+
+isIE 'ИП' (LegalEntity l) = isIE(ownership(l)) MATERIALIZED;

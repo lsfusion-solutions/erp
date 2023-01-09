@@ -158,8 +158,13 @@ fillHeader(Consignment invoice, UpdDocument ei) {
     
     customer(ei) <- customer(invoice);
     nameCustomer(ei) <- fullName(customer(invoice));
-    innCustomer(ei) <- inn(customer(invoice));
-    kppCustomer(ei) <- kpp(customer(invoice), date(invoice));
+    innCustomer(ei) <- inn(customer(invoice)) WHERE NOT typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    kppCustomer(ei) <- kpp(customer(invoice), date(invoice)) WHERE NOT typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    innCustomerIE(ei) <- inn(customer(invoice)) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    customerIELastName(ei) <- getWord(name(customer(invoice)), ' ', 1) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    customerIEFirstName(ei) <- getWord(name(customer(invoice)), ' ', 2) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    customerIEMiddleName(ei) <- getWord(name(customer(invoice)), ' ', 3) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
+    
     regionCodeCustomer(ei) <- STRING[2](id(region(customerStock(invoice))));
     
     countryCodeAddressCustomer(ei) <- sid(country(customer(invoice)));

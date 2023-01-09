@@ -521,6 +521,8 @@ GROUP UPDExportA EXTID  'СвСчФакт';
     GROUP UPDExportA6 EXTID  'СвПокуп' :UPDExportA;
         GROUP UPDExportA6_1 EXTID  'ИдСв' :UPDExportA6;
             GROUP UPDExportA6_1_1 EXTID  'СвЮЛУч' :UPDExportA6_1;
+            GROUP UPDExportA6_1_2 EXTID  'СвИП' :UPDExportA6_1;
+                GROUP UPDExportA6_1_2_1 EXTID  'ФИО' :UPDExportA6_1_2;
         GROUP UPDExportA6_2 EXTID  'Адрес' :UPDExportA6;
             GROUP UPDExportA6_2_1 EXTID  'АдрРФ' :UPDExportA6_2;
             GROUP UPDExportA6_2_2 EXTID  'АдрИнф' :UPDExportA6_2;
@@ -625,10 +627,16 @@ FORM UPDPR FORMEXTID '=:Файл'
                    
     PROPERTIES = okpoCustomer(d) EXTID 'ОКПО' ATTR IN UPDExportA6   
     
-    PROPERTIES = (OVERRIDE nameCustomer(d),'') EXTID 'НаимОрг' ATTR IN UPDExportA6_1_1,
+    PROPERTIES = ((OVERRIDE nameCustomer(d),'') IF NOT typeCompany(customer(d))=TypeCompany.individualEntrepreneur) EXTID 'НаимОрг' ATTR IN UPDExportA6_1_1,
                = innCustomer(d) EXTID 'ИННЮЛ' ATTR IN UPDExportA6_1_1,
-               = kppCustomer(d) EXTID 'КПП' ATTR IN UPDExportA6_1_1    
-               
+               = kppCustomer(d) EXTID 'КПП' ATTR IN UPDExportA6_1_1
+
+    PROPERTIES = innCustomerIE(d) EXTID 'ИННФЛ' ATTR IN UPDExportA6_1_2
+
+    PROPERTIES = customerIELastName(d) EXTID 'Фамилия' ATTR IN UPDExportA6_1_2_1,
+               = customerIEFirstName(d) EXTID 'Имя' ATTR IN UPDExportA6_1_2_1,
+               = customerIEMiddleName(d) EXTID 'Отчество' ATTR IN UPDExportA6_1_2_1
+
     //PROPERTIES = (regionCodeCustomer(d) IF regionCodeCustomer(d) AND NOT codeAdrressCustomer(d)) EXTID 'КодРегион' ATTR IN UPDExportA6_2_1                 
     PROPERTIES = countryCodeAddressCustomer(d) EXTID 'КодСтр' ATTR IN UPDExportA6_2_2,
                = addressCustomer(d) EXTID 'АдрТекст' ATTR IN UPDExportA6_2_2   

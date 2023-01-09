@@ -1,6 +1,6 @@
 MODULE VATInvoiceDocument;
 
-REQUIRE MasterData, Utils, Numerator, Contract, Certificate;
+REQUIRE MasterData, Utils, Numerator, Contract, Certificate, LegalEntityRu;
 
 NAMESPACE VATInvoice;
 
@@ -32,6 +32,17 @@ CLASS CStatus 'Статус подписанта (продавец)' {
     c3 '3',
     c4 '4'  
 }
+
+CLASS TypeCompany 'Тип' {
+    organization 'Организация',
+    individualEntrepreneur 'Индивидуальный предприниматель',
+    foreignOrganization 'Иностранная организация',
+    individuaPerson 'Физическое лицо'
+}
+
+typeCompany 'Тип' (LegalEntity l) = CASE
+    WHEN isIE(l) THEN TypeCompany.individualEntrepreneur
+    WHEN l IS LegalEntity THEN TypeCompany.organization;
 
 META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     CLASS ###docType##Document sign;
@@ -110,6 +121,13 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     okpoCustomer 'ОКПО покупателя' = DATA STRING[10] (###docType##Document); //ОКПО
     
     //--ИдСв
+    //---СвИП
+    innCustomerIE 'ИННФЛ' = DATA STRING[12] (###docType##Document); //ИННФЛ
+    //----ФИО
+    customerIELastName 'Фамилия' = DATA STRING[60] (###docType##Document);//Фамилия
+    customerIEFirstName 'Имя' = DATA STRING[60] (###docType##Document);//Имя
+    customerIEMiddleName 'Отчество' = DATA STRING[60](###docType##Document); //Отчество
+    
     //---СвЮЛУч
     nameCustomer 'Покупатель' = DATA STRING[1000] (###docType##Document) CHARWIDTH 20; //НаимОрг
     innCustomer 'ИНН покупателя' = DATA STRING[10] (###docType##Document); //ИННЮЛ
@@ -277,7 +295,9 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
         PROPERTIES (u) regionCodeSupplier, countryCodeAddressSupplier, addressSupplier, codeAddressSupplier
         PROPERTIES (u) numberAccountSupplier, nameBankSupplier, MFOBankSupplier, corrAccountBankSupplier
         
-        PROPERTIES (u) nameCustomer, innCustomer, kppCustomer, okpoCustomer
+        PROPERTIES (u) nameCustomer
+        PROPERTIES (u) SHOWIF (NOT typeCompany(customer(u))=TypeCompany.individualEntrepreneur) innCustomer, kppCustomer, okpoCustomer
+        PROPERTIES (u) SHOWIF (typeCompany(customer(u))=TypeCompany.individualEntrepreneur) innCustomerIE, customerIELastName, customerIEFirstName, customerIEMiddleName 
         PROPERTIES (u) addressCustomer, regionCodeCustomer, countryCodeAddressCustomer, codeAddressCustomer
         PROPERTIES (u) codeBusinessEvent, descriptionBusinessEvent
         PROPERTIES (u) nameSupplierSignerCredentials, nameSupplierSignerStatus, supplierSignerCredentialsBase
@@ -470,6 +490,10 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
                                         MOVE PROPERTY(innCustomer(u));
                                         MOVE PROPERTY(kppCustomer(u));
                                         MOVE PROPERTY(okpoCustomer(u));
+                                        MOVE PROPERTY(innCustomerIE(u));
+                                        MOVE PROPERTY(customerIELastName(u));
+                                        MOVE PROPERTY(customerIEFirstName(u));
+                                        MOVE PROPERTY(customerIEMiddleName(u));
                                     }    
                                     NEW customerAddress {
                                         caption = 'Адрес';
