@@ -323,6 +323,8 @@ GROUP UKDExportA EXTID  'СвКСчФ';
     GROUP UKDExportA6 EXTID  'СвПокуп' :UKDExportA;
         GROUP UKDExportA6_1 EXTID  'ИдСв' :UKDExportA6;
             GROUP UKDExportA6_1_1 EXTID  'СвЮЛУч' :UKDExportA6_1;
+            GROUP UKDExportA6_1_2 EXTID  'СвИП' :UKDExportA6_1;
+                GROUP UKDExportA6_1_2_1 EXTID  'ФИО' :UKDExportA6_1_2;
         GROUP UKDExportA6_2 EXTID  'Адрес' :UKDExportA6;
             GROUP UKDExportA6_2_1 EXTID  'АдрРФ' :UKDExportA6_2;
             GROUP UKDExportA6_2_2 EXTID  'АдрИнф' :UKDExportA6_2;
@@ -428,10 +430,16 @@ FORM UKDPR FORMEXTID '=:Файл'
                    
     PROPERTIES = okpoCustomer(d) EXTID 'ОКПО' ATTR IN UKDExportA6   
     
-    PROPERTIES = (OVERRIDE nameCustomer(d),'') EXTID 'НаимОрг' ATTR IN UKDExportA6_1_1,
-               = innCustomer(d) EXTID 'ИННЮЛ' ATTR IN UKDExportA6_1_1,
-               = kppCustomer(d) EXTID 'КПП' ATTR IN UKDExportA6_1_1    
-                           
+    PROPERTIES = ((OVERRIDE nameCustomer(d),'') IF NOT typeCompany(customer(d))=TypeCompany.individualEntrepreneur) EXTID 'НаимОрг' ATTR IN UKDExportA6_1_1,
+               = (innCustomer(d) IF NOT typeCompany(customer(d))=TypeCompany.individualEntrepreneur) EXTID 'ИННЮЛ' ATTR IN UKDExportA6_1_1,
+               = (kppCustomer(d) IF NOT typeCompany(customer(d))=TypeCompany.individualEntrepreneur) EXTID 'КПП' ATTR IN UKDExportA6_1_1
+
+    PROPERTIES = innCustomerIE(d) EXTID 'ИННФЛ' ATTR IN UKDExportA6_1_2
+
+    PROPERTIES = customerIELastName(d) EXTID 'Фамилия' ATTR IN UKDExportA6_1_2_1,
+               = customerIEFirstName(d) EXTID 'Имя' ATTR IN UKDExportA6_1_2_1,
+               = customerIEMiddleName(d) EXTID 'Отчество' ATTR IN UKDExportA6_1_2_1
+    
     PROPERTIES = countryCodeAddressCustomer(d) EXTID 'КодСтр' ATTR IN UKDExportA6_2_2,
                = addressCustomer(d) EXTID 'АдрТекст' ATTR IN UKDExportA6_2_2   
     PROPERTIES = codeAddressCustomer(d) EXTID 'КодГАР' IN UKDExportA6_2
@@ -706,9 +714,14 @@ META fillUkdDocument(docType, NS, NS1)
         
         customer(ei) <- customer(c);
         nameCustomer(ei) <- fullName(customer(c));
-        innCustomer(ei) <- inn(customer(c));
+        innCustomer(ei) <- inn(customer(c)) WHERE NOT typeCompany(customer(c))=TypeCompany.individualEntrepreneur;
         kppCustomer(ei) <- kpp(customer(c), date(c));
         regionCodeCustomer(ei) <- STRING[2](id(region(customerStock(c))));
+
+        innCustomerIE(ei) <- inn(customer(c)) WHERE typeCompany(customer(c))=TypeCompany.individualEntrepreneur;
+        customerIELastName(ei) <- getWord(name(customer(c)), ' ', 1) WHERE typeCompany(customer(c))=TypeCompany.individualEntrepreneur;
+        customerIEFirstName(ei) <- getWord(name(customer(c)), ' ', 2) WHERE typeCompany(customer(c))=TypeCompany.individualEntrepreneur;
+        customerIEMiddleName(ei) <- getWord(name(customer(c)), ' ', 3) WHERE typeCompany(customer(c))=TypeCompany.individualEntrepreneur;
         
         countryCodeAddressCustomer(ei) <- sid(country(customer(c)));
         addressCustomer(ei) <- address(customer(c), date(c));
