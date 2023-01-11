@@ -1,6 +1,6 @@
 MODULE EDI;
 
-REQUIRE EDIGLN, LegalEntityBy, Item, Store, Warehouse, LogTools, EDIGLNWarehouse, EDIGLNStore;
+REQUIRE EDIGLN, EDIGTIN, LegalEntityBy, Item, Store, Warehouse, LogTools, EDIGLNWarehouse, EDIGLNStore;
 
 @defineLogRotate(edi, 5, weekly);
 downloadEdi 'edi' () { downloadFiles('logs/edi.log'); }
@@ -31,14 +31,6 @@ DESIGN integrationData {
     }
 }
 
-
-@defineDoubleItemAttribute(GTIN, STRING[14], 'GTIN', itemBase);
-
-INDEX GTIN(Item i);
-
-GTINBarcode 'GTIN' (Sku s) = OVERRIDE GTIN(s), idBarcode(s);
-skuGTINa = GROUP MAX Sku s BY GTINBarcode(s);
-skuGTIN(STRING[15] s) = OVERRIDE skuGTINa(s), skuBarcode(s);
 
 CLASS ABSTRACT EOrder 'EDI Заказ';
 TABLE eOrder(EOrder);
