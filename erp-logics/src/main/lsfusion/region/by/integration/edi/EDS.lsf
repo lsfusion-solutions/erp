@@ -4,7 +4,7 @@ REQUIRE EDI;
 
 NAMESPACE EDI;
 
-CLASS EDSApplication 'Приложение ЭЦП' : StaticObject;
+CLASS EDSApplication 'Тип приложения ЭЦП' : StaticObject;
 TABLE EDSApplication (EDSApplication);
 
 EDSApplication = ABSTRACT CASE EDSApplication(STRING[100]);
@@ -12,31 +12,31 @@ EDSApplication = ABSTRACT CASE EDSApplication(STRING[100]);
 CLASS EDSService 'EDS';
 TABLE EDSService (EDSService);
 
-name 'Имя' = DATA ISTRING[100] (EDSService) CHARWIDTH 15;
+name 'Примечание' = DATA ISTRING[100] (EDSService) CHARWIDTH 15;
+edsApplication = DATA EDSApplication (EDSService) NONULL;
+nameEDSApplication 'Тип приложения ЭЦП' (EDSService e) = staticCaption(edsApplication(e)) IF e IS EDSService;
 host 'Хост EDS' = DATA STRING[100] (EDSService) CHARWIDTH 15 NONULL;
 port 'Порт EDS' = DATA INTEGER (EDSService) NONULL;
 client 'На клиенте' = DATA BOOLEAN(EDSService);
-description 'EDS' (EDSService s) = CONCAT ' ', name(s), host(s) + ':' + port(s), '(на клиенте)' IF client(s) CHARWIDTH 30;
+description 'EDS' (EDSService s) = CONCAT ' ', nameEDSApplication(s), host(s) + ':' + port(s), '(на клиенте)' IF client(s) CHARWIDTH 30;
 
-FORM EDSService 'EDS'
+FORM EDSService 'Приложение ЭЦП'
     OBJECTS o = EDSService PANEL
-    PROPERTIES(o) name, host, port, client 
-    
+    PROPERTIES(o) nameEDSApplication, host, port, client, name
+
     EDIT EDSService OBJECT o
 ;
 
 FORM EDSServices 'Приложения ЭЦП'
     OBJECTS o = EDSService
-    PROPERTIES(o) READONLY description
+    PROPERTIES(o) READONLY description, name
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
     LIST EDSService OBJECT o
 ;
 
-EDSServiceCustomer = ABSTRACT CASE EDSService (EDSApplication, EInvoice);
-EDSServiceCustomer(STRING[100] provider, EInvoice ei) = EDSServiceCustomer(EDSApplication(provider), ei);
+EDSServiceCustomer = ABSTRACT CASE EDSService (STRING[100], EInvoice);
 
-EDSServiceSupplier = ABSTRACT CASE EDSService (EDSApplication, EInvoice);
-EDSServiceSupplier(STRING[100] provider, EInvoice ei) = EDSServiceSupplier(EDSApplication(provider), ei);
+EDSServiceSupplier = ABSTRACT CASE EDSService (STRING[100], EInvoice);
 
 signError = DATA LOCAL STRING ();
 signResult = DATA LOCAL STRING ();
@@ -45,18 +45,19 @@ getSignedDocumentSupplier ABSTRACT LIST FIRST (STRING[100], EInvoice, FILE, BOOL
 
 getSignedDocumentCustomer ABSTRACT LIST FIRST (STRING[100], EInvoice, FILE, BOOLEAN);
 
-askPasswordEDSService 'Запрашивать пароль EDSService' = DATA BOOLEAN ();
-passwordEDSService 'Пароль EDSService' = DATA LOCAL NESTED STRING[100] () ECHO;
-FORM passwordEDSService 'Пароль EDSService'
+askPasswordEDSService 'Запрашивать пароль для подписания' = DATA BOOLEAN ();
+passwordEDSService 'Пароль для подписания' = DATA LOCAL NESTED STRING[100] () ECHO;
+
+FORM passwordEDSService 'Пароль для подписания'
     PROPERTIES passwordEDSService()
     EVENTS
-    ON INIT {
-        passwordEDSService() <- NULL;
-    },
-    ON OK BEFORE {
-        IF NOT passwordEDSService() THEN {
-            MESSAGE 'Необходимо задать пароль' NOWAIT;
-            beforeCanceled() <- TRUE;
+        ON INIT {
+            passwordEDSService() <- NULL;
+        },
+        ON OK BEFORE {
+            IF NOT passwordEDSService() THEN {
+                MESSAGE 'Необходимо задать пароль' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
         }
-    }
 ;

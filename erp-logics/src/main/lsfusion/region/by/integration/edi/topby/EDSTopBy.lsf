@@ -5,21 +5,18 @@ REQUIRE EDS, TopBy;
 NAMESPACE EDI;
 
 EXTEND CLASS EDSApplication {
-    edsService 'EDSService'
+    edsService '(СТТ) EDSService',
+    edsSign '(СТТ) ЭЦП REST-сервисы'
 }
 
-dataEDSApplication = DATA EDSApplication();
-EDSApplication() = OVERRIDE dataEDSApplication(), EDSApplication.edsService;
-nameEDSApplication 'Приложение ЭЦП' = staticCaption(EDSApplication());// пока не добавляем на форму т.к однно приложение для провайдера поддерживается
+isTopBy(EDSApplication a) = a == EDSApplication.edsService OR a == EDSApplication.edsSign; 
 
-EDSApplication(STRING[100] provider) += WHEN provider == 'TopBy' THEN EDSApplication();
-
-aliasEDSService 'Alias EDSService' = DATA STRING[150] (LegalEntity);
-passwordEDSService 'Пароль EDSService' = DATA STRING[100] (LegalEntity) ECHO;
-aliasEDSService 'Alias EDSService' = DATA STRING[150] (Stock);
-passwordEDSService 'Пароль EDSService' = DATA STRING[100] (Stock) ECHO;
-aliasEDSService 'Alias EDSService' = DATA STRING[150] (Employee);
-passwordEDSService 'Пароль EDSService' = DATA STRING[100] (Employee) ECHO;
+aliasEDSService 'Контейнер ключа' = DATA STRING[150] (LegalEntity);
+passwordEDSService 'Пароль ключа' = DATA STRING[100] (LegalEntity) ECHO;
+aliasEDSService 'Контейнер ключа' = DATA STRING[150] (Stock);
+passwordEDSService 'Пароль ключа' = DATA STRING[100] (Stock) ECHO;
+aliasEDSService 'Контейнер ключа' = DATA STRING[150] (Employee);
+passwordEDSService 'Пароль ключа' = DATA STRING[100] (Employee) ECHO;
 
 aliasEDSServiceCustomer (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(customerStock(i)), aliasEDSService(customer(i));
 passwordEDSServiceCustomer (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(customerStock(i)), passwordEDSService(customer(i));
@@ -27,12 +24,23 @@ passwordEDSServiceCustomer (EInvoice i) = OVERRIDE passwordEDSService(currentUse
 aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
 passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
 
-EDSServiceTopBy 'EDSService' = DATA EDSService (LegalEntity);
-descriptionEDSServiceTopBy 'EDSService' (LegalEntity o) = description(EDSServiceTopBy(o));
-EDSServiceTopBy 'EDSService' = DATA EDSService (Stock);
-descriptionEDSServiceTopBy 'EDSService' (Stock o) = description(EDSServiceTopBy(o));
-EDSServiceTopBy 'EDSService' = DATA EDSService (Employee);
-descriptionEDSServiceTopBy 'EDSService' (Employee o) = description(EDSServiceTopBy(o));
+EDSServiceTopBy 'Адрес службы ЭЦП' = DATA EDSService (LegalEntity);
+descriptionEDSServiceTopBy 'Адрес службы ЭЦП' (LegalEntity o) = description(EDSServiceTopBy(o));
+CONSTRAINT EDSServiceTopBy(LegalEntity o) AND NOT isTopBy(edsApplication(EDSServiceTopBy(o))) 
+    CHECKED BY EDSServiceTopBy[LegalEntity]
+    MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
+
+EDSServiceTopBy 'Адрес службы ЭЦП' = DATA EDSService (Stock);
+descriptionEDSServiceTopBy 'Адрес службы ЭЦП' (Stock o) = description(EDSServiceTopBy(o));
+CONSTRAINT EDSServiceTopBy(Stock o) AND NOT isTopBy(edsApplication(EDSServiceTopBy(o)))
+    CHECKED BY EDSServiceTopBy[Stock]
+    MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
+
+EDSServiceTopBy 'Адрес службы ЭЦП' = DATA EDSService (Employee);
+descriptionEDSServiceTopBy 'Адрес службы ЭЦП' (Employee o) = description(EDSServiceTopBy(o));
+CONSTRAINT EDSServiceTopBy(Employee o) AND NOT isTopBy(edsApplication(EDSServiceTopBy(o)))
+    CHECKED BY EDSServiceTopBy[Employee]
+    MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
 
 
 EXTEND FORM integrationData
@@ -67,16 +75,17 @@ DESIGN integrationData {
     }
 }
 
-EDSServiceCustomer(EDSApplication app, EInvoice i) += WHEN app == EDSApplication.edsService AND i IS EInvoice 
+EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice 
         THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(customerStock(i)), EDSServiceTopBy(customer(i));
-EDSServiceSupplier(EDSApplication app, EInvoice i) += WHEN app == EDSApplication.edsService AND i IS EInvoice 
+EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice 
         THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(supplierStock(i)), EDSServiceTopBy(supplier(i));
 
 
-sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, XMLFILE file) {
+//EDSService
+sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, FILE file) {
     sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceCustomer(provider,ei)) + ':' + port(EDSServiceCustomer(provider,ei)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceCustomer(provider,ei)));
 }
-sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, XMLFILE file) {
+sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, FILE file) {
     sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceSupplier(provider,ei)));
 }
 
@@ -102,7 +111,7 @@ FORM getEDSResponse
 ;
 
 getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF EDSApplication(provider) == EDSApplication.edsService THEN {
+    IF edsApplication(EDSServiceCustomer(provider, eInvoice)) == EDSApplication.edsService THEN {
         IF aliasEDSServiceCustomer(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)) THEN {
             signError() <- NULL;
             signResult() <- NULL;
@@ -114,7 +123,7 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
             innerXML() <- resultString();
             fileToString(xml());
             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-            sendRequestEDSCustomer(provider, eInvoice, XMLFILE(resultFile()));
+            sendRequestEDSCustomer(provider, eInvoice, resultFile());
             IMPORT getEDSResponse FROM sendRequestEDIResponse();
             signError() <- faultstring();
             IF waybill() THEN {
@@ -132,7 +141,7 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
 }
 
 getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF EDSApplication(provider) == EDSApplication.edsService THEN {
+    IF edsApplication(EDSServiceSupplier(provider, eInvoice)) == EDSApplication.edsService THEN {
         IF aliasEDSServiceSupplier(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)) THEN {
             signError() <- NULL;
             signResult() <- NULL;
@@ -144,7 +153,7 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentS
             innerXML() <- resultString();
             fileToString(xml());
             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-            sendRequestEDSSupplier(provider, eInvoice, XMLFILE(resultFile()));
+            sendRequestEDSSupplier(provider, eInvoice, resultFile());
             IMPORT getEDSResponse FROM sendRequestEDIResponse();
             signError() <- faultstring();
             IF waybill() THEN {
@@ -158,5 +167,159 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentS
             logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
         }
         RETURN;
+    }
+}
+
+//CTT-EDS-SIGN
+alias = DATA LOCAL STRING[150](INTEGER);
+
+FORM listAliases 'Список ключей'
+    OBJECTS value = INTEGER
+    PROPERTIES(value) alias READONLY
+    FILTERS imported(value)
+;
+DESIGN listAliases {
+    width = 600;
+}
+selected = DATA LOCAL INTEGER ();
+
+listAliases 'Получить список ключей' (EDSService s) {
+    //sendRequestEDI('eds', 'eds', ('http://' + host(s) + ':' + port(s) + '/token/listAliases'), NULL, TRUE, client(s));
+
+    basic() <- encodeText('eds:eds', 'base64');
+    timeoutHttp() <- 300000;
+    IF client(s) THEN {
+        EXTERNAL HTTP CLIENT GET 'http://' + host(s) + ':' + port(s) + '/token/listAliases' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
+    } ELSE {
+        EXTERNAL HTTP GET 'http://' + host(s) + ':' + port(s) + '/token/listAliases' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
+    }
+
+    IF statusHttp() == 200 THEN {
+        IMPORT listAliases JSON FROM sendRequestEDIResponse();
+        DIALOG listAliases OBJECTS value INPUT DO {
+            selected() <- value;
+        }
+    } ELSE {
+        MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
+        logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
+    }
+}
+
+changeAlias 'Получить список ключей' (LegalEntity l) {
+    listAliases(EDSServiceTopBy(l));
+    aliasEDSService(l) <- alias(selected()) WHERE selected();
+} TOOLBAR;
+changeAlias 'Получить список ключей' (Stock l) {
+    listAliases(EDSServiceTopBy(l));
+    aliasEDSService(l) <- alias(selected()) WHERE selected();
+} TOOLBAR;
+changeAlias 'Получить список ключей' (Employee l) {
+    listAliases(EDSServiceTopBy(l));
+    aliasEDSService(l) <- alias(selected()) WHERE selected();
+} TOOLBAR;
+
+EXTEND FORM integrationData
+    PROPERTIES(le) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(le)) == EDSApplication.edsSign)
+    PROPERTIES(seds) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(seds)) == EDSApplication.edsSign)
+    PROPERTIES(eeds) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(eeds)) == EDSApplication.edsSign)
+;
+
+
+FORM signRespone
+    PROPERTIES signError() EXTID 'errorMessage'
+;
+
+getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceSupplier(provider, eInvoice)) == EDSApplication.edsSign THEN {
+        IF aliasEDSServiceSupplier(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)) THEN {
+            signError() <- NULL;
+            signResult() <- NULL;
+
+            EXPORT JSON FROM
+                alias = aliasEDSServiceSupplier(eInvoice),
+                pass = (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)),
+                dataType = 'EDIXML',
+                dataBase64 = RAWFILE(contentSubXML)
+            ;
+
+            sendRequestEDI('eds',
+                'eds',
+                ('http://' + host(EDSServiceSupplier(provider,eInvoice)) + ':' + port(EDSServiceSupplier(provider,eInvoice)) + '/token/sign'),
+                exportFile(),
+                TRUE,
+                client(EDSServiceSupplier(provider,eInvoice)));
+
+            IF statusHttp() == 200 THEN {
+                fileToString(sendRequestEDIResponse());
+                encodeBase64(resultString());
+                signResult() <- encodedBase64();
+            }
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
+        }
+        RETURN;
+    }
+}
+
+getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceCustomer(provider, eInvoice)) == EDSApplication.edsSign THEN {
+        IF aliasEDSServiceCustomer(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)) THEN {
+            signError() <- NULL;
+            signResult() <- NULL;
+
+            EXPORT JSON FROM
+                alias = aliasEDSServiceCustomer(eInvoice),
+                pass = (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)),
+                dataType = 'EDIXML',
+                dataBase64 = RAWFILE(contentSubXML)
+            ;
+
+            sendRequestEDI('eds',
+                'eds',
+                ('http://' + host(EDSServiceCustomer(provider,eInvoice)) + ':' + port(EDSServiceCustomer(provider,eInvoice)) + '/token/sign'),
+                exportFile(),
+                TRUE,
+                client(EDSServiceCustomer(provider,eInvoice)));
+
+            IF statusHttp() == 200 THEN {
+                fileToString(sendRequestEDIResponse());
+                encodeBase64(resultString());
+                signResult() <- encodedBase64();
+            }
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
+        }
+        RETURN;
+    }
+}
+
+migratedEDSTopBy = DATA BOOLEAN();
+onStarted()+{
+    IF NOT migratedEDSTopBy() THEN NEWSESSION {
+        
+        FOR EDSService eds IS EDSService AND ((GROUP SUM 1 IF eds == EDSServiceTopBy(LegalEntity l)) OR (GROUP SUM 1 IF eds == EDSServiceTopBy(Stock ls)) OR (GROUP SUM 1 IF eds == EDSServiceTopBy(Employee e)))
+            AND NOT edsApplication(eds) DO {
+            edsApplication(eds) <- EDSApplication.edsService;
+        }
+        FOR EDSService eds IS EDSService AND ((GROUP SUM 1 IF eds == EDSServiceTopBy(LegalEntity l)) OR (GROUP SUM 1 IF eds == EDSServiceTopBy(Stock ls)) OR (GROUP SUM 1 IF eds == EDSServiceTopBy(Employee e)))
+            AND NOT edsApplication(eds) == EDSApplication.edsService NEW nEds = EDSService DO {
+            edsApplication(nEds) <- EDSApplication.edsService;
+            host(nEds) <- host(eds);
+            port(nEds) <- port(eds);
+            name(nEds) <- name(eds);
+            client(nEds) <- client(eds);
+            EDSServiceTopBy(LegalEntity l) <- nEds WHERE EDSServiceTopBy(l) == eds;
+            EDSServiceTopBy(Stock l) <- nEds WHERE EDSServiceTopBy(l) == eds;
+            EDSServiceTopBy(Employee l) <- nEds WHERE EDSServiceTopBy(l) == eds;
+        }
+
+        migratedEDSTopBy() <- TRUE;
+        APPLY;
     }
 }

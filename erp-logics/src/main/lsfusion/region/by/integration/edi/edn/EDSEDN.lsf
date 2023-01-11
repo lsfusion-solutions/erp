@@ -5,14 +5,10 @@ REQUIRE EDS, EDN;
 NAMESPACE EDN;
 
 EXTEND CLASS EDSApplication {
-    docudriveProxy 'Прокси сервис Docudrive'
+    docudriveProxy '(ЭДиН) Прокси сервис Docudrive'
 }
 
-dataEDSApplication = DATA EDSApplication();
-EDSApplication() = OVERRIDE dataEDSApplication(), EDSApplication.docudriveProxy;
-nameEDSApplication 'Приложение ЭЦП' = staticCaption(EDSApplication());
-
-EDSApplication(STRING[100] provider) += WHEN provider == 'EDN' THEN EDSApplication();
+isEDN(EDSApplication a) = a == EDSApplication.docudriveProxy;
 
 aliasEDSService 'Токен ЭЦП - имя контейнера' = DATA STRING[150] (LegalEntity);
 passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (LegalEntity) ECHO;
@@ -29,19 +25,31 @@ passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(currentUse
 
 EDSService 'Прокси сервис Docudrive' = DATA EDSService (LegalEntity);
 descriptionEDSService 'Прокси сервис Docudrive' (LegalEntity o) = description(EDSService(o));
+CONSTRAINT EDSService(LegalEntity o) AND NOT isEDN(edsApplication(EDSService(o)))
+    CHECKED BY EDSService[LegalEntity]
+    MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
+
 EDSService 'Прокси сервис Docudrive' = DATA EDSService (Stock);
 descriptionEDSService 'Прокси сервис Docudrive' (Stock o) = description(EDSService(o));
+CONSTRAINT EDSService(Stock o) AND NOT isEDN(edsApplication(EDSService(o)))
+    CHECKED BY EDSService[Stock]
+    MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
+
 EDSService 'Прокси сервис Docudrive' = DATA EDSService (Employee);
 descriptionEDSService 'Прокси сервис Docudrive' (Employee o) = description(EDSService(o));
+CONSTRAINT EDSService(Employee o) AND NOT isEDN(edsApplication(EDSService(o)))
+    CHECKED BY EDSService[Employee]
+    MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
 
-EDSServiceCustomer(EDSApplication app, EInvoice i) += WHEN app == EDSApplication.docudriveProxy AND i IS EInvoice 
+useExternalApplication = ABSTRACT BOOLEAN ();
+
+EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice AND NOT useExternalApplication()
         THEN OVERRIDE EDSService(currentUser()), EDSService(customerStock(i)), EDSService(customer(i));
-EDSServiceSupplier(EDSApplication app, EInvoice i) += WHEN app == EDSApplication.docudriveProxy AND i IS EInvoice 
+EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice AND NOT useExternalApplication()
         THEN OVERRIDE EDSService(currentUser()), EDSService(supplierStock(i)), EDSService(supplier(i));
 
 EXTEND FORM integrationData
     PROPERTIES() READONLY askPasswordEDSServiceEDN = askPasswordEDSService
-    PROPERTIES nameEDSApplication()
     OBJECTS lee = LegalEntity
     FILTERS isCompany(lee)
     PROPERTIES(lee) SHOWIF NOT useDocuDrive() name READONLY, aliasEDSService, passwordEDSService, descriptionEDSService
@@ -62,9 +70,8 @@ DESIGN integrationData {
             caption = 'Электронные подписи';
             fill = 1;
             MOVE PROPERTY (askPasswordEDSServiceEDN);
-            MOVE PROPERTY (nameEDSApplication());
             NEW EDSServiceEDN {
-                showIf = EDSApplication() == EDSApplication.docudriveProxy;
+                showIf = NOT useExternalApplication();
                 type = TABBED;
                 fill = 1;
                 MOVE BOX(lee);
@@ -75,11 +82,11 @@ DESIGN integrationData {
     }
 }
 
-sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, XMLFILE file) {
+sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, FILE file) {
     sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceCustomer(provider,ei)) + ':' + port(EDSServiceCustomer(provider,ei))  + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceCustomer(provider,ei)) );
 }
     
-sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, XMLFILE file) {
+sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, FILE file) {
     sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceSupplier(provider,ei)) );
 }
 
@@ -119,7 +126,7 @@ PROPERTIES() IN signResult
 
 
 getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF EDSApplication(provider) == EDSApplication.docudriveProxy THEN {
+    IF edsApplication(EDSServiceCustomer(provider, eInvoice)) == EDSApplication.docudriveProxy THEN {
         signError() <- NULL;
         signResult() <- NULL;
         
@@ -128,7 +135,7 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
         cryptoContainerId() <- aliasEDSServiceCustomer(eInvoice);
         cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice));
         EXPORT envelopeEDN XML TO xml;
-        sendRequestEDSCustomer(provider, eInvoice, XMLFILE(xml()));
+        sendRequestEDSCustomer(provider, eInvoice, xml());
         IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
 
         signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
@@ -142,7 +149,7 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
 }
 
 getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF EDSApplication(provider) == EDSApplication.docudriveProxy THEN {
+    IF edsApplication(EDSServiceSupplier(provider, eInvoice)) == EDSApplication.docudriveProxy THEN {
         signError() <- NULL;
         signResult() <- NULL;
         
@@ -151,7 +158,7 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentS
         cryptoContainerId() <- aliasEDSServiceSupplier(eInvoice);
         cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice));
         EXPORT envelopeEDN XML TO xml;
-        sendRequestEDSSupplier(provider, eInvoice, XMLFILE(xml()));
+        sendRequestEDSSupplier(provider, eInvoice, xml());
         IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
         
         signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
@@ -161,5 +168,30 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentS
             signResult() <- encodedBase64();
         }
         RETURN;
+    }
+}
+
+migratedEDS = DATA BOOLEAN();
+onStarted()+{
+    IF NOT migratedEDS() AND NOT useExternalApplication() THEN NEWSESSION {
+
+        FOR EDSService eds IS EDSService AND ((GROUP SUM 1 IF eds == EDSService(LegalEntity l)) OR (GROUP SUM 1 IF eds == EDSService(Stock ls)) OR (GROUP SUM 1 IF eds == EDSService(Employee e)))
+            AND NOT edsApplication(eds) DO {
+            edsApplication(eds) <- EDSApplication.docudriveProxy;
+        }
+        FOR EDSService eds IS EDSService AND ((GROUP SUM 1 IF eds == EDSService(LegalEntity l)) OR (GROUP SUM 1 IF eds == EDSService(Stock ls)) OR (GROUP SUM 1 IF eds == EDSService(Employee e)))
+            AND NOT edsApplication(eds) == EDSApplication.docudriveProxy NEW nEds = EDSService DO {
+            edsApplication(nEds) <- EDSApplication.docudriveProxy;
+            host(nEds) <- host(eds);
+            port(nEds) <- port(eds);
+            name(nEds) <- name(eds);
+            client(nEds) <- client(eds);
+            EDSService(LegalEntity l) <- nEds WHERE EDSService(l) == eds;
+            EDSService(Stock l) <- nEds WHERE EDSService(l) == eds;
+            EDSService(Employee l) <- nEds WHERE EDSService(l) == eds;
+        }
+
+        migratedEDS() <- TRUE;
+        APPLY;
     }
 }

@@ -759,7 +759,7 @@ basic = DATA LOCAL TEXT ();
 encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
 httpHeadersEDI(TEXT name) = CASE WHEN basic() AND name = 'Authorization' THEN 'Basic ' + basic();
 
-sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, XMLFILE request, BOOLEAN basicAuthorization, BOOLEAN client) {
+sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, FILE request, BOOLEAN basicAuthorization, BOOLEAN client) {
     logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
     basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
     timeoutHttp() <- 300000;
@@ -771,7 +771,7 @@ sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, XMLFIL
     sendRequestEDIStatus() <- statusHttp();
 }
 sendRequestEDI 'Отправить' (TEXT url, XMLFILE request) {
-    sendRequestEDI(NULL, NULL, url, request, NULL, NULL);
+    sendRequestEDI(NULL, NULL, url, FILE(request), NULL, NULL);
 }
 
 //----------------------- importRequestResult ---------------------------//

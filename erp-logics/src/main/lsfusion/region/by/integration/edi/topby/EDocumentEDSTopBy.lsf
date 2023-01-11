@@ -13,19 +13,19 @@ passwordEDSServiceReceiver (EDocument d) = OVERRIDE passwordEDSService(currentUs
 EDSServiceSenderTopBy (EDocument d) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(sender(d));
 EDSServiceReceiverTopBy (EDocument d) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(receiver(d));
 
-EDSServiceSender(EDSApplication app, EDocument d) += WHEN app == EDSApplication.edsService AND d IS EDocument THEN EDSServiceSenderTopBy(d);
-EDSServiceReceiver(EDSApplication app, EDocument d) += WHEN app == EDSApplication.edsService AND d IS EDocument THEN EDSServiceReceiverTopBy(d);
+EDSServiceSender(STRING[100] provider, EDocument d) += WHEN provider == 'TopBy' AND d IS EDocument THEN EDSServiceSenderTopBy(d);
+EDSServiceReceiver(STRING[100] provider, EDocument d) += WHEN provider == 'TopBy' AND d IS EDocument THEN EDSServiceReceiverTopBy(d);
 
 
-sendRequestEDSSender(STRING[100] provider, EDocument d, XMLFILE file) {
+sendRequestEDSSender(STRING[100] provider, EDocument d, FILE file) {
     sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceSender(provider,d)) + ':' + port(EDSServiceSender(provider,d)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceSender(provider,d)));
 }
-sendRequestEDSReceiver(STRING[100] provider, EDocument d, XMLFILE file) {
+sendRequestEDSReceiver(STRING[100] provider, EDocument d, FILE file) {
     sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceReceiver(provider,d)) + ':' + port(EDSServiceReceiver(provider,d)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceReceiver(provider,d)));
 }
 
 getSignedDocumentSender(STRING[100] provider, EDocument eDocument, FILE contentSubXML, BOOLEAN interactive) + {
-    IF EDSApplication(provider) == EDSApplication.edsService THEN {
+    IF edsApplication(EDSServiceSender(provider, eDocument)) == EDSApplication.edsService THEN {
         IF aliasEDSServiceSender(eDocument) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSender(eDocument)) THEN {
             signError() <- NULL;
             signResult() <- NULL;
@@ -37,7 +37,7 @@ getSignedDocumentSender(STRING[100] provider, EDocument eDocument, FILE contentS
             innerXML() <- resultString();
             fileToString(xml());
             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-            sendRequestEDSSender(provider, eDocument, XMLFILE(resultFile()));
+            sendRequestEDSSender(provider, eDocument, resultFile());
             IMPORT getEDSResponse FROM sendRequestEDIResponse();
             signError() <- faultstring();
             IF waybill() THEN {
@@ -54,7 +54,7 @@ getSignedDocumentSender(STRING[100] provider, EDocument eDocument, FILE contentS
 }
 
 getSignedDocumentReceiver(STRING[100] provider, EDocument eDocument, FILE contentSubXML, BOOLEAN interactive) + {
-    IF EDSApplication(provider) == EDSApplication.edsService THEN {
+    IF edsApplication(EDSServiceReceiver(provider, eDocument)) == EDSApplication.edsService THEN {
         IF aliasEDSServiceReceiver(eDocument) AND (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(eDocument)) THEN {
             signError() <- NULL;
             signResult() <- NULL;
@@ -66,7 +66,7 @@ getSignedDocumentReceiver(STRING[100] provider, EDocument eDocument, FILE conten
             innerXML() <- resultString();
             fileToString(xml());
             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-            sendRequestEDSReceiver(provider, eDocument, XMLFILE(resultFile()));
+            sendRequestEDSReceiver(provider, eDocument, resultFile());
             IMPORT getEDSResponse FROM sendRequestEDIResponse();
             signError() <- faultstring();
             IF waybill() THEN {
