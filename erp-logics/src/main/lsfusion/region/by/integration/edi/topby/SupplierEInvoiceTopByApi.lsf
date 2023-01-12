@@ -87,6 +87,19 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         } ELSE {
                                             importedSupplier(ei) <- TRUE;
                                         }
+                                        numberCustomer(ei) <- blrwbrDocumentId();
+                                        dateCustomer(ei) <- blrwbrDateTime();
+                                        IF NOT eInvoiceMessage(ei, 'wbr' + blrwbrDocumentId(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
+                                            number(m) <- 'wbr' + blrwbrDocumentId();
+                                            eInvoice(m) <- ei;
+                                            kind(m) <- EInvoiceMessageKind.in;
+                                        }
+                                        FOR EInvoiceMessage m == eInvoiceMessage(ei, 'wbr' + blrwbrDocumentId(), EInvoiceMessageKind.in) DO {
+                                            dateTime(m) <- blrwbrDateTime();
+                                            code(m) <- blrwbrFunctionCode();
+                                            type(m) <- EInvoiceMessageType.blrwbr;
+                                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                                        }
                                         exportedBlrapnSupplier(ei) <- TRUE;
                                         NEW em = EInvoiceMessage {
                                             number(em) <- STRING[35](resultMilliseconds());
@@ -220,6 +233,19 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         } ELSE {
                                             importedSupplier(ei) <- TRUE;
                                         }
+                                        numberCustomer(ei) <- blrdnrDocumentId();
+                                        dateCustomer(ei) <- blrdnrDateTime();
+                                        IF NOT eInvoiceMessage(ei, 'dnr' + blrdnrDocumentId(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
+                                            number(m) <- 'dnr' + blrdnrDocumentId();
+                                            eInvoice(m) <- ei;
+                                            kind(m) <- EInvoiceMessageKind.in;
+                                        }
+                                        FOR EInvoiceMessage m == eInvoiceMessage(ei, 'dnr' + blrdnrDocumentId(), EInvoiceMessageKind.in) DO {
+                                            dateTime(m) <- blrdnrDateTime();
+                                            code(m) <- blrdnrFunctionCode();
+                                            type(m) <- EInvoiceMessageType.blrdnr;
+                                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                                        }
                                         exportedBlrapnSupplier(ei) <- TRUE;
                                         NEW em = EInvoiceMessage {
                                             number(em) <- STRING[35](resultMilliseconds());
@@ -346,6 +372,15 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                                     exportedSupplier(ei) <- TRUE;
                                     numberSupplier(ei) <- STRING[35](resultMilliseconds());
                                     dateSupplier(ei) <- exportBlrwblDateTime();
+                                    NEW em = EInvoiceMessage {
+                                        number(em) <- 'wbl' + STRING[35](resultMilliseconds());
+                                        eInvoice(em) <- ei;
+                                        dateTime(em) <- exportBlrwblDateTime();
+                                        code(em) <- (IF isCancel(ei) THEN '1' ELSE '9');
+                                        kind(em) <- EInvoiceMessageKind.out;
+                                        type(em) <- EInvoiceMessageType.blrwbl;
+                                        XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbl-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                    }
                                     APPLY NESTED LOCAL;
                                 //}
                             }
@@ -440,6 +475,15 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] passw
                                     exportedSupplier(ei) <- TRUE;
                                     numberSupplier(ei) <- STRING[35](resultMilliseconds());
                                     dateSupplier(ei) <- exportBlrdlnDateTime();
+                                    NEW em = EInvoiceMessage {
+                                        number(em) <- 'dln' + STRING[35](resultMilliseconds());
+                                        eInvoice(em) <- ei;
+                                        dateTime(em) <- exportBlrdlnDateTime();
+                                        code(em) <- (IF isCancel(ei) THEN '1' ELSE '9');
+                                        kind(em) <- EInvoiceMessageKind.out;
+                                        type(em) <- EInvoiceMessageType.blrdln;
+                                        XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrdln-' + toChar(exportBlrdlnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                    }
                                     APPLY NESTED LOCAL;
                                 //}
                             }

@@ -93,6 +93,19 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                             lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrwblLineItemFieldName(INTEGER f), blrwblLineItemFieldValue(f)) IF blrwblLineItemLineItemExtraField(f) == l, ', ' ORDER blrwblLineItemFieldName(f);
                         }
                     }
+                    FOR EInvoice ei = eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber()) DO {
+                        IF NOT eInvoiceMessage(ei, 'wbl' + blrwblDocumentNumber(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
+                            number(m) <- 'wbl' + blrwblDocumentNumber();
+                            eInvoice(m) <- ei;
+                            kind(m) <- EInvoiceMessageKind.in;
+                        }
+                        FOR EInvoiceMessage m == eInvoiceMessage(ei, 'wbl' + blrwblDocumentNumber(), EInvoiceMessageKind.in) DO {
+                            dateTime(m) <- blrwblDateTime();
+                            code(m) <- blrwblFunctionCode();
+                            type(m) <- EInvoiceMessageType.blrwbl;
+                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        }
+                    }
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
                         IF NOT disableConfirmation AND sendReplies THEN {
@@ -283,6 +296,19 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                             upperLevelCodeMark(ed, INTEGER j) <- blrdlnUpperLevelCodeMark(j) WHERE blrdlnLineItemLineItemIdentification(j) == l;
                             fieldCodeMark(ed) <- blrdlnFieldCodeMark(l);
                             lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrdlnLineItemFieldName(INTEGER f), blrdlnLineItemFieldValue(f)) IF blrdlnLineItemLineItemExtraField(f) == l, ', ' ORDER blrdlnLineItemFieldName(f);
+                        }
+                    }
+                    FOR EInvoice ei = eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber()) DO {
+                        IF NOT eInvoiceMessage(ei, 'dln' + blrdlnDocumentNumber(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
+                            number(m) <- 'dln' + blrdlnDocumentNumber();
+                            eInvoice(m) <- ei;
+                            kind(m) <- EInvoiceMessageKind.in;
+                        }
+                        FOR EInvoiceMessage m == eInvoiceMessage(ei, 'dln' + blrdlnDocumentNumber(), EInvoiceMessageKind.in) DO {
+                            dateTime(m) <- blrdlnDateTime();
+                            code(m) <- blrdlnFunctionCode();
+                            type(m) <- EInvoiceMessageType.blrdln;
+                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         }
                     }
                     APPLY NESTED LOCAL;
@@ -567,6 +593,15 @@ signAndSendCustomerEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                             numberCustomer(ei) <- STRING[35](resultMilliseconds());
                             dateCustomer(ei) <- exportBlrwbrDateTime();
                             overExportCustomer(ei);
+                            NEW em = EInvoiceMessage {
+                                number(em) <- 'wbr' + STRING[35](resultMilliseconds());
+                                eInvoice(em) <- ei;
+                                dateTime(em) <- exportBlrwbrDateTime();
+                                code(em) <- '11';
+                                kind(em) <- EInvoiceMessageKind.out;
+                                type(em) <- EInvoiceMessageType.blrwbr;
+                                XMLPath(em) <- outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbr_' + LONG(resultMilliseconds() + 1);
+                            }
                             APPLY NESTED LOCAL;
                         } CATCH {
                             logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ': ' + messageCaughtException());
@@ -629,6 +664,15 @@ signAndSendCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
                             numberCustomer(ei) <- STRING[35](resultMilliseconds());
                             dateCustomer(ei) <- exportBlrdnrDateTime();
                             overExportCustomer(ei);
+                            NEW em = EInvoiceMessage {
+                                number(em) <- 'dnr' + STRING[35](resultMilliseconds());
+                                eInvoice(em) <- ei;
+                                dateTime(em) <- exportBlrdnrDateTime();
+                                code(em) <- '11';
+                                kind(em) <- EInvoiceMessageKind.out;
+                                type(em) <- EInvoiceMessageType.blrdnr;
+                                XMLPath(em) <- outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrdnr_' + LONG(resultMilliseconds() + 1);
+                            }
                             APPLY NESTED LOCAL;
                         } CATCH {
                             logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) + ': ' + messageCaughtException());
