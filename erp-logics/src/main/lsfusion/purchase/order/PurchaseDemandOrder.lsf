@@ -54,9 +54,11 @@ recommendedQuantityDemandOrder 'Рекомендуемое к закупке к�
     (ceilRecommendedQuantity(sku, recQuantityDemandOrder(sku, stock, dateTime, dFrom, dTo))) IF recQuantityDemandOrder(sku, stock, dateTime, dFrom, dTo) > 0;
 
 numberSkuPurchaseSupplier 'Кол-во товаров' = DATA LOCAL INTEGER (LegalEntity);
-recalculateNumberSkuPurchaseSupplier 'Рассчитать потребность'(Stock stock, LedgerPriceListType priceListType, INTEGER int, DATETIME dateTime)  { 
-    numberSkuPurchaseSupplier(LegalEntity supplier) <- numberSkuPurchaseReserve(supplier, stock, priceListType, int, dateTime);
+recalculateNumberSkuPurchaseSupplier 'Рассчитать потребность'(Stock stock, PriceListType priceListType, INTEGER int, DATETIME dateTime)  { 
+    numberSkuPurchaseSupplier(LegalEntity supplier) <- numberSkuPurchaseReserve(supplier, stock, ledgerPriceListType(priceListType), int, dateTime);
 } TOOLBAR;
+
+nameCompanyA 'Организация' (PriceListType type, Sku sku, Stock stock, DATETIME dateTime) =name(companyA(ledgerPriceListType(type), sku, stock, dateTime));
 
 backgroundDemand 'Цвет' = ABSTRACT CASE COLOR (Sku, Stock);
 
@@ -100,7 +102,7 @@ FORM demandOrder 'Заказы по потребностям'
 
     PROPERTIES READONLY overPurchaseReserve(st, s, dt), averageSold(s, st), quantitySold(s, st, dFrom, dTo), currentBalance(s, st), currentReserve(s, st),
         diffPurchaseReserve(st, s, i, dt), recommendedQuantityDemandOrder(s, st, dt, dFrom, dTo), nameCompanyA(p, s, st, dt),
-        priceA[LedgerPriceListType,Sku,Stock,DATETIME](p, s, st, dt), dateTimeLastOrderBatch(s,st), dateTimeLastMoved(s, st) 
+        priceA(p, s, st, dt), dateTimeLastOrderBatch(s,st), dateTimeLastMoved(s, st) 
     PROPERTIES READONLY accountPriceA(s,st,dt)
     
     FILTERGROUP filterActive
