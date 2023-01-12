@@ -265,6 +265,9 @@ overChangeDashboardSku (Sku sk, Stock st) + { requestComWeight(); }
 
 @defineOption(readonlyIimage, 'Изображение на форме Разукомплектация не редактируется', disassembly);
 
+isSecond = ABSTRACT BOOLEAN (Sku);
+filterIsku(Sku s) = isSecond(s) OR (s IS Sku AND NOT [GROUP MIN Sku sk IF isSecond(sk)]());
+
 EXTEND FORM disassemblyLotDashboard
     PROPERTIES() iweight ON CHANGE { 
                     INPUT w = iweight() DO { 
@@ -273,7 +276,7 @@ EXTEND FORM disassemblyLotDashboard
                         overChangeDashboardWeight(dsku(), st); 
                     }
                  }, 
-                 inameSku ON CHANGE { INPUT sk = isku() LIST name(sk) DO { isku() <- sk; overChangeDashboardSku(dsku(), st); } }, 
+                 inameSku ON CHANGE { DIALOG skus OBJECTS s = isku() INPUT LIST name(s) FILTERS filterIsku(s) DO { isku() <- s; overChangeDashboardSku(dsku(), st); } }, 
                  iprice READONLYIF skipPriceLotDashboard(isku()), 
                  ivideo = jsonVideo CUSTOM 'videoRender' ON CHANGE changeVideo(), 
                  ibarcode ON CHANGE { INPUT b = STRING[200] DO IF b THEN { IF lot(b) THEN fillProperties(lot(b)); ELSE MESSAGE 'Штрих-код не найден'; } ELSE ibarcode() <- NULL; },
