@@ -1,0 +1,14 @@
+MODULE PricingBatch;
+
+REQUIRE Pricing;
+
+NAMESPACE Pricing;
+
+currentPriceListLedger 'Цена' (LedgerPriceListType type, Batch batch, Stock stock) =
+    GROUP
+        LAST price(PriceListLedger ledger, type, stock, batch)
+        ORDER fromDateTime(ledger, type, stock), ledger
+        WHERE active(ledger, type, stock, batch);
+
+currentRetailPricingPrice 'Розничная цена' (Batch b, Stock stock) =
+    currentPriceListLedger(SystemLedgerPriceListType.retailPricingPriceListType, b, stock) MATERIALIZED TABLE extraBatchStock;
