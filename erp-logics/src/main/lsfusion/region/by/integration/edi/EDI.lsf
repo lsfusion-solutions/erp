@@ -419,11 +419,14 @@ contractId 'Номер документа, служащего основание
 contractDate 'Дата документа, служащего основанием отпуска' = DATA DATE (EInvoice);
 waybillId 'Номер путевого листа' = DATA STRING[70] (EInvoice);
 
+useFullNameLegalEntity = DATA BOOLEAN (EInvoice); //временно для перехода чтобы для старых документов не ругалось при отмене 
+useFullNameLegalEntity(EInvoice i) <- TRUE WHEN SET(i IS EInvoice);
+
 supplier 'Поставщик' = DATA LegalEntity (EInvoice);
 dataGLNSupplier = DATA STRING[13] (EInvoice);
 glnSupplier 'GLN поставщика' (EInvoice i) = OVERRIDE GLN(supplier(i)), extraGLN(supplier(i)), dataGLNSupplier(i);
 dataNameSupplier = DATA STRING[150] (EInvoice);
-nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE name(supplier(i)), dataNameSupplier(i);
+nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE IF useFullNameLegalEntity(i) THEN fullName(supplier(i)) ELSE name(supplier(i)), dataNameSupplier(i);
 dataAddressSupplier = DATA STRING[150] (EInvoice);
 addressSupplier 'Адрес поставщика' (EInvoice i) = OVERRIDE address(supplier(i)), dataAddressSupplier(i);
 dataUnpSupplier = DATA STRING[9] (EInvoice);
@@ -443,12 +446,12 @@ userIDSupplierStock 'Идентификатор пользователя' (EInvo
 
 freightPayer 'Заказчик автомобильной перевозки (плательщик)' = DATA LegalEntity (EInvoice);
 glnFreightPayer 'GLN заказчика автомобильной перевозки' (EInvoice i) = OVERRIDE GLN(freightPayer(i)), extraGLN(freightPayer(i));
-nameFreightPayer 'Заказчик автомобильной перевозки' (EInvoice i) = name(freightPayer(i));
+nameFreightPayer 'Заказчик автомобильной перевозки' (EInvoice i) =  IF useFullNameLegalEntity(i) THEN fullName(freightPayer(i)) ELSE name(freightPayer(i));
 addressFreightPayer 'Адрес заказчика автомобильной перевозки' (EInvoice i) = address(freightPayer(i));
 unpFreightPayer 'УНП заказчика автомобильной перевозки' (EInvoice i) = UNP(freightPayer(i));
 
 customer 'Покупатель' = DATA LegalEntity (EInvoice);
-nameCustomer 'Покупатель' (EInvoice i) = name(customer(i));
+nameCustomer 'Покупатель' (EInvoice i) = IF useFullNameLegalEntity(i) THEN fullName(customer(i)) ELSE name(customer(i));
 glnCustomer 'GLN покупателя' (EInvoice i) = OVERRIDE GLN(customer(i)), extraGLN(customer(i));
 addressCustomer 'Адрес покупателя' (EInvoice i) = address(customer(i));
 unpCustomer 'УНП покупателя' (EInvoice i) = UNP(customer(i));
