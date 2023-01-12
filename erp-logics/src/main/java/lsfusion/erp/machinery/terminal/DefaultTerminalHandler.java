@@ -329,6 +329,14 @@ public class DefaultTerminalHandler {
         return null;
     }
 
+/*    public String createTerminalDocument(DataSession session, ExecutionStack stack, String json) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
+        if(terminalHandlerLM != null) {
+            FileData jsonFile = new FileData(new RawFileData(json.getBytes()), "json");
+            terminalHandlerLM.findAction("createTerminalDocument[FILE]").execute(session, stack, new DataObject(jsonFile, DynamicFormatFileClass.get()));
+        }
+        return null;
+    }*/
+
     public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
         ScriptingLogicsModule terminalPreferencesLM = getLogicsInstance().getBusinessLogics().getModule("TerminalPreferences");
@@ -1177,7 +1185,11 @@ public class DefaultTerminalHandler {
             if(terminalHandlerLM != null) {
                 ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcase[?]").readClasses(session, new DataObject(login.toUpperCase()));
                 boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword(session, (DataObject) customUser, password, stack);
-                if(authenticated) {
+
+                if (idTerminal.startsWith("EMULATOR")) // if android emulator login without pass
+                    authenticated = true;
+
+                if (authenticated) {
                     if(terminalHandlerLM.findProperty("restricted[CustomUser]").read(session, customUser) != null)
                         return "Данный пользователь заблокирован";
                     else {
