@@ -577,7 +577,7 @@ eInvoice 'Накладная' = DATA EInvoice (EInvoiceMessage) NONULL DELETE;
 numberEInvoice 'Накладная' (EInvoiceMessage m) = deliveryNoteNumber(eInvoice(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (EInvoiceMessage);
 code 'Код сообщения' = DATA STRING[10] (EInvoiceMessage);
-description 'Текст сообщения' = DATA STRING[1000] (EInvoiceMessage);
+description 'Текст сообщения' = DATA STRING[1000] (EInvoiceMessage) CHARWIDTH 100;
 good = ABSTRACT CASE BOOLEAN (EInvoiceMessage);
 currentOrderMessage = GROUP LAST EInvoiceMessage m ORDER dateTime(m), m BY eInvoice(m) MATERIALIZED;
 statusDescription 'Статус отправки EDI'(EInvoice o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
@@ -593,7 +593,7 @@ CLASS EInvoiceMessageKind 'Вид сообщения по накладной EDI
 }
 
 kind 'Вид' = DATA EInvoiceMessageKind (EInvoiceMessage);
-nameKind 'Вид' (EInvoiceMessage o) = staticCaption(kind(o));
+nameKind 'Вид' (EInvoiceMessage o) = staticCaption(kind(o)) CHARWIDTH 20;
 
 INDEX eInvoice(EInvoiceMessage m), number(m), kind(m);
 eInvoiceMessage (eInvoice, number, kind) = GROUP AGGR EInvoiceMessage e BY eInvoice(e), number(e), kind(e);
@@ -615,7 +615,7 @@ CLASS EInvoiceMessageType 'Тип сообщения по накладной EDI
 }
 
 type 'Тип' = DATA EInvoiceMessageType (EInvoiceMessage);
-nameType 'Тип' (EInvoiceMessage o) = staticCaption(type(o));
+nameType 'Тип' (EInvoiceMessage o) = staticCaption(type(o)) CHARWIDTH 20;
 
 FORM eInvoices 'Электронные накладные EDI'
     OBJECTS e = EInvoice
