@@ -8,7 +8,7 @@ overInvoiceOutputDirTopBy 'Путь сохранения отправленны�
 overInvoiceOutputFileName 'Имя файла для сохранения отправленных документов' = ABSTRACT CASE STRING (EInvoice);
 
 overImportBlrwbr ABSTRACT ();
-skipBlrwbr = DATA LOCAL NESTED BOOLEAN();
+skipBlrwbr = DATA LOCAL NESTED STRING();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrwbr' AND receiveSupplierMessages AND NOT disableConfirmation THEN {
@@ -144,6 +144,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                     }
                 }
+            } ELSE {
+                logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped: ' + skipBlrwbr());
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
@@ -153,7 +155,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
 }
 
 overImportBlrdnr ABSTRACT ();
-skipBlrdnr = DATA LOCAL NESTED BOOLEAN();
+skipBlrdnr = DATA LOCAL NESTED STRING ();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrdnr' AND receiveSupplierMessages AND NOT disableConfirmation THEN {
@@ -290,6 +292,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                     }
                 }
+            } ELSE {
+                logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped: ' + skipBlrdnr());
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());

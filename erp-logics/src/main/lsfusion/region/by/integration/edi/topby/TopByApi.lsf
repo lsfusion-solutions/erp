@@ -55,7 +55,10 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 blrdnrCount() <- 0;
                 blradfCount() <- 0;
                 messagesConfirmed() <- 0;
+
+                LOCAL textMessage = TEXT();
                 
+                IF (GROUP SUM 1 IF documentType(INTEGER i)) > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Сообщений в очереди: ' + (GROUP SUM 1 IF documentType(INTEGER i));
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
                 
                 FOR documentType(INTEGER i) ORDER getWord(id(i), '_', 2), id(i), i DO {
@@ -68,7 +71,6 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                     overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, provider);
                 }
                 
-                LOCAL textMessage = TEXT();
                 IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
                 IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
                 IF orderMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по заказам: ' + orderMessagesSucceeded();
@@ -91,7 +93,7 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
                 
                 IF sendRecipientErrorFailed() == 0 THEN {
-                    MESSAGE (OVERRIDE textMessage(), 'Не найдено новых сообщений') NOWAIT;
+                    MESSAGE (OVERRIDE textMessage(), provider + '(' + login + ') Не найдено новых сообщений') NOWAIT;
                 }
             }
      
@@ -101,7 +103,7 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
         }
     } CATCH {
         logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-        MESSAGE  'Сообщения не получены. Обратитесь к администратору' NOWAIT;
+        MESSAGE provider + '(' + login + ') Сообщения не получены. Обратитесь к администратору' NOWAIT;
     }
 }
 
@@ -207,7 +209,7 @@ disableAutoBlrapn 'Отключить автоматическую отправ�
 
 overImportBlrapn ABSTRACT ();
 overImportBlrapn ABSTRACT (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], INTEGER, STRING[100]);
-skipBlrapn = DATA LOCAL NESTED BOOLEAN();
+skipBlrapn = DATA LOCAL NESTED STRING ();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrapn' THEN {
@@ -218,6 +220,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             overImportBlrapn(i, login, password, url, archiveDir, IF disableConfirmation THEN 1 ELSE 0, provider);
             IF NOT skipBlrapn() THEN {
                 overReceiveBlrapn(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
+            } ELSE {
+                logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' skipped: ' + skipBlrapn());
             }
         } CATCH {
             IF NOT disableConfirmation AND sendReplies THEN {
