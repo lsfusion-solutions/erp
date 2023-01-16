@@ -73,6 +73,13 @@ isConsignerSupplier 'Продавец является отправителем'
 nameReceiverCompany 'Грузополучатель' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
 innReceiverCompany 'ИНН грузополучателя' = DATA STRING[10] (UpdDocument);//ИННЮЛ
 
+//---СвИП
+innReceiverCompanyIE 'ИННФЛ' = DATA STRING[12] (UpdDocument); //ИННФЛ
+//----ФИО
+receiverCompanyIELastName 'Фамилия' = DATA STRING[60] (UpdDocument);//Фамилия
+receiverCompanyIEFirstName 'Имя' = DATA STRING[60] (UpdDocument);//Имя
+receiverCompanyIEMiddleName 'Отчество' = DATA STRING[60](UpdDocument); //Отчество
+
 //--ГрузПолуч (только в УПД)
 //---Адрес
 //----АдрИнф
@@ -249,7 +256,8 @@ EXTEND FORM updDocument
     PROPERTIES (u) isConsignerSupplier
     PROPERTIES (u) READONLYIF isConsignerSupplier(u) nameConsignorCompany, innConsignorCompany
     PROPERTIES (u) READONLYIF isConsignerSupplier(u) countryCodeAddressConsignorCompany, addressConsignorCompany
-    PROPERTIES (u) nameReceiverCompany, innReceiverCompany
+    PROPERTIES (u) SHOWIF (NOT typeCompany(customer(u))=TypeCompany.individualEntrepreneur) nameReceiverCompany, innReceiverCompany
+    PROPERTIES (u) SHOWIF (typeCompany(customer(u))=TypeCompany.individualEntrepreneur) innReceiverCompanyIE, receiverCompanyIELastName, receiverCompanyIEFirstName, receiverCompanyIEMiddleName  
     PROPERTIES (u) countryCodeAddressReceiverCompany, addressReceiverCompany
     PROPERTIES (u) description, descriptionContract, numberContract, dateContract
     PROPERTIES (u) positionAgentSupplier, lastNameAgentSupplier, firstNameAgentSupplier, middleNameAgentSupplier
@@ -369,6 +377,10 @@ DESIGN updDocument {
                                 type = CONTAINERV;
                                 MOVE PROPERTY(nameReceiverCompany(u));
                                 MOVE PROPERTY(innReceiverCompany(u));
+                                MOVE PROPERTY(innReceiverCompanyIE(u));
+                                MOVE PROPERTY(receiverCompanyIELastName(u));
+                                MOVE PROPERTY(receiverCompanyIEFirstName(u));
+                                MOVE PROPERTY(receiverCompanyIEMiddleName(u));
                             }
                             NEW companyReceiverAddress {
                                 caption = 'Адрес грузополучателя';
@@ -515,6 +527,8 @@ GROUP UPDExportA EXTID  'СвСчФакт';
     GROUP UPDExportA4 EXTID  'ГрузПолуч' :UPDExportA;
         GROUP UPDExportA4_1 EXTID  'ИдСв' :UPDExportA4;
             GROUP UPDExportA4_1_1 EXTID  'СвЮЛУч' :UPDExportA4_1;
+            GROUP UPDExportA4_1_2 EXTID  'СвИП' :UPDExportA4_1;
+                GROUP UPDExportA4_1_2_1 EXTID  'ФИО' :UPDExportA4_1_2;
         GROUP UPDExportA4_2 EXTID  'Адрес' :UPDExportA4;
             GROUP UPDExportA4_2_1 EXTID  'АдрРФ' :UPDExportA4_2;
             GROUP UPDExportA4_2_2 EXTID  'АдрИнф' :UPDExportA4_2;
@@ -617,8 +631,13 @@ FORM UPDPR FORMEXTID '=:Файл'
 
     PROPERTIES = 'он же' IF isConsignerSupplier(d) EXTID 'ОнЖе' IN UPDExportA3      
 
-    PROPERTIES = (OVERRIDE nameReceiverCompany(d),'') EXTID 'НаимОрг' ATTR IN UPDExportA4_1_1,
-               = innReceiverCompany(d)EXTID 'ИННЮЛ' ATTR IN UPDExportA4_1_1
+    PROPERTIES = ((OVERRIDE nameReceiverCompany(d),'') IF NOT typeCompany(customer(d))=TypeCompany.individualEntrepreneur) EXTID 'НаимОрг' ATTR IN UPDExportA4_1_1,
+               = innReceiverCompany(d) IF NOT typeCompany(customer(d))=TypeCompany.individualEntrepreneur EXTID 'ИННЮЛ' ATTR IN UPDExportA4_1_1
+    
+    PROPERTIES = innReceiverCompanyIE(d) IF typeCompany(customer(d))=TypeCompany.individualEntrepreneur EXTID 'ИННФЛ' ATTR IN UPDExportA4_1_2,
+               = receiverCompanyIELastName(d) IF typeCompany(customer(d))=TypeCompany.individualEntrepreneur EXTID 'Фамилия' ATTR IN UPDExportA4_1_2_1,
+               = receiverCompanyIEFirstName(d) IF typeCompany(customer(d))=TypeCompany.individualEntrepreneur EXTID 'Имя' ATTR IN UPDExportA4_1_2_1,
+               = receiverCompanyIEMiddleName(d) IF typeCompany(customer(d))=TypeCompany.individualEntrepreneur EXTID 'Отчество' ATTR IN UPDExportA4_1_2_1
                
 //    PROPERTIES = (regionCodeCustomer(d) IF regionCodeCustomer(d) AND NOT codeAdrressReceiverCompany(d)) EXTID 'КодРегион' ATTR IN UPDExportA4_2_1 
     PROPERTIES = countryCodeAddressReceiverCompany(d) EXTID 'КодСтр' ATTR IN UPDExportA4_2_2,
