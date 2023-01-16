@@ -2,11 +2,31 @@ MODULE ProductionOrderPurchaseManufacturing;
 
 REQUIRE ProductionOrderPurchaseInvoice, PurchaseManufacturingPrice;
 
-NAMESPACE Purchase;
+NAMESPACE Production;
+
+changeManufacturingPrice 'Изменять цену изготовителя' = DATA BOOLEAN (Order);
+EXTEND FORM order
+    PROPERTIES(o) changeManufacturingPrice
+;
+
+DESIGN order {
+    row111 {
+        MOVE PROPERTY(changeManufacturingPrice(o));
+    }
+}
+
+@defineOperationProperty(changeManufacturingPrice, 'Изменять цену изготовителя', paramsContainer);
+@deriveDocumentOperationProperty(Order, changeManufacturingPrice);
+
+changeManufacturingPrice (ProductDetail d) = changeManufacturingPrice(order(d));
+manufacturingPrice 'Цена изготовителя' = DATA NUMERIC[16,4] (ProductDetail);
+EXTEND FORM order
+    PROPERTIES(pd) manufacturingPrice SHOWIF changeManufacturingPrice(o) AFTER costPrice(pd) 
+;
 
 // --------------- Проведение по регистру цен ------------- //
 
-in (ProductDetail ledger, SystemLedgerPriceListType type) += WHEN costPrice(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN TRUE;
-price (ProductDetail ledger, SystemLedgerPriceListType type) += WHEN costPrice(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN costPrice(ledger);
+in (ProductDetail ledger, SystemLedgerPriceListType type) += WHEN changeManufacturingPrice(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN TRUE;
+price (ProductDetail ledger, SystemLedgerPriceListType type) += WHEN changeManufacturingPrice(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN manufacturingPrice(ledger);
 
 
