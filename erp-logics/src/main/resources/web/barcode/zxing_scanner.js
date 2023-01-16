@@ -71,7 +71,9 @@ function barcodeRender() {
             element.id = "videoRenderId";
             var video = document.createElement("video");
             video.innerText = 'Video stream not available.';
-      
+            video.setAttribute('autoplay', '');
+            video.setAttribute('muted', '');
+            video.setAttribute('playsinline', '');
             element.video = video;
             element.appendChild(video);
             navigator.mediaDevices.getUserMedia({ 
