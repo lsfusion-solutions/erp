@@ -1,0 +1,111 @@
+MODULE ErpUz;
+
+// Учёт по себестоимости, без Актов переоценки, реализацмя принимается по товару за дату (DateSkuLedger)
+
+REQUIRE Scheduler, Service, SystemEvents, Backup, Eval, Excel, SQLUtils,
+        LegalEntityUz, StoreUz,
+        ItemUz, PurchasePackItem, SalePackItem, 
+        EmployeeLegalEntity,
+        PurchaseSaleOrder, // OR
+        PurchaseDemandOrder, // PO
+        PurchaseOrderPrint,
+//        PurchaseOrderSeparation, PurchaseDemandSeparation, // PO
+        PurchaseDemandOrderPromotion, // PO, PL
+//        PurchaseScheduleOrder, PurchaseScheduleOrderPriceList, PurchaseScheduleDemand, PurchaseScheduleOrderContract, // SO
+//        PurchaseScheduleOrderSeparation, // SO
+//        RangeLevel, RangeLevelShelf, RangeLog, RangeLevelLog, RangePurchaseOrderStore, RangeBalance, RangePurchaseDemandOrder, RangeCompare, // AM
+//        PurchaseAutoOrder, PurchaseDemandAuto, // AM
+        PurchaseOrderPriceList, // OR, PL
+        PurchaseOrderReplace, SaleOrderReplace, // OR
+        PurchaseOrderStatus, //PurchaseScheduleOrderStatus, // OR
+        PurchaseOrderPromotion, // OR, PL
+        PurchaseInvoice, PurchaseReturnInvoiceUz, PurchaseSaleReturnInvoice, PurchaseInvoiceCharge,
+        SaleInvoiceUz,
+        PurchaseLedgerItem,
+        SaleLedgerItem,
+//        SaleLedgerRetailCRM, // POS, CRM
+        ConsignmentDashboard, // OR
+        PurchaseOrderInvoiceDashboard, SaleReturnOrderInvoiceDashboard, PurchaseOrderInvoiceDashboardExtra, // OR
+        PurchaseOrderAgreement, PurchaseInvoiceAgreement, PurchaseOrderInvoiceAgreement, // OR
+        PurchaseSaleReturnInvoiceShipment, SalePurchaseInvoiceShipment,
+        SalePurchaseShipmentFixed, 
+        PriceListAccountSum,
+//        TripSaleShipment, TripPurchaseReturnShipment,
+        TerminalHandlerPricing,
+        PurchaseOrderTerminalOrder, // OR
+        WarehouseSkuLedger, StockMovementItem,
+        WriteOffWarehouse, 
+        WriteOffStore, // RT
+        StockAdjustment,
+        Disparity, // DisparityLabel, DisparityMachinery,
+//        PricingDisparity, RepricingDisparity, RepricingCommittee, // RT
+        InventoryTerminal,
+        StockDocumentWarehouse, StockDocumentStore,
+        PriceListCalc, PriceListOver, PriceListForm, PriceListItem, PriceListLedgerItem, PriceListPurchase, PriceListPurchaseInvoice, // PL
+        PriceListDashboard, PriceListDashboardStore, // PL
+        PriceListContract, // PL
+        PriceListBefore, PriceListPromotion, // PL
+//        Promotion, // PL
+        DateSkuLedger, DateStockDocumentAccountSum,            // по товарам за дату, без цены
+//        PricingSalePurchaseShipment, PricingPurchaseReturn, PricingSalePurchaseSalePricing, PricingSalePurchaseShipment,
+//        PricingWriteOff, PricingZReport,
+        PricingLabel, PricingMachinery, PricingPurchase, PricingDashboard, //PricingPriceListRange,
+        UpdatePriceDashboardLabel,
+//        PricingPurchaseInvoiceDashboard, // OR
+//        RepricingStore, RepricingPurchaseShipment,
+//        RepricingLabel,
+//        RepricingDashboard, // PL
+//        RepricingPurchaseInvoice,
+//        DiscountCardReceiptSkuLedger, DiscountCardReports, // CRM
+        PriceListMachinery, PurchaseInvoiceMachinery, // Отключать, если POS
+        //EquipmentTerminal, EquipmentPriceChecker;  - в модуле ErpEquUz
+//        RepricingMachinery, // Отключать, если POS
+        MachineryPriceTransactionUz,
+        MachineryOrderInvoiceDashboard, // OR // Отключать, если POS
+        CashRegisterItem, // Отключать, если POS
+        ScalesItem, // Отключать, если POS
+        PriceCheckerItem,
+        LabelItem, SalePurchaseLabel,
+        LabelPromotion, // PL
+        LabelPriceList, // PL 
+        LabelOrderInvoiceDashboard, // OR
+//        POS, CashOperationPOS, // POS
+        StoreSaleOrder, StoreSaleInvoice, StoreSaleReturnInvoice,
+        ContractSaleReport,      // Управление задолженностями
+        PurchaseReports, SaleReports, StockReports,
+        PurchaseLedgerWeek, SaleLedgerWeek, SaleLedgerCustomerWeek,
+        SaleTurnover, SupplierStockReports, StockGroupReports,
+        ZReportReport, //ZReportReportDiscountCard, 
+        ZReportProcessing,
+//        GiftCardItem, ZReportReportGiftCard,
+        ReceiptReports,
+//        PurchaseSnapshot, SaleSnapshot, WriteOffSnapshot, ZReportSnapshot,
+        PurchaseReturnInvoiceContract, SalePurchaseInvoiceContract, SaleInvoiceContract,  // Управление задолженностями
+//        PurchaseInvoicePayment, SaleInvoicePayment, BankPaymentLedger,
+//        Dimension, GeneralLedger,
+        ProductionConsumptionBatch, ProductionOutputPurchaseInvoice, // MF
+        ProductionConsumptionDefaultSkuLedger, // MF
+        ProductionOrderLabel, // MF
+        ProductionOrderMachinery, // MF
+        BOMTechnology, // MF
+//        PurchaseOrderRamp, PurchaseReturnOrderRamp, SaleOrderRamp, SaleReturnOrderRamp, // WMS, OR
+//        PurchaseScheduleOrderRamp, // WMS, SO
+        // Стандартные данные 
+        ItemDefault, TaxUz, CountryDefaultUz, CurrencyDefaultUz, PriceListDefault, LabelDefault,
+        PricingOperationDefault, PurchaseOperationDefaultStore, SaleOperationDefaultStore,
+        WriteOffOperationDefault, InventoryOperationDefault, StockAdjustmentOperationDefault, PriceListOperationDefaultStore,
+        ItemImport, LegalEntityImport, WarehouseImport, UOMImport, ItemGroupImport, BrandImport, AccountImport, StoreTypeImport, StoreImport,
+        ImportDocument, ImportPurchaseInvoice, ImportUserPriceList,   // Универсальный импорт
+//        SalePurchaseShipmentLot, PurchaseSaleReturnShipmentLot, PurchaseSaleInvoiceLot, WriteOffLot, DisparityLot,
+//        PurchaseShipmentTerminalLot, PurchaseReturnShipmentTerminalLot, SaleShipmentTerminalLot, SaleReturnShipmentTerminalLot,
+//        ReceiptSkuLedgerLot, //POSLot,
+        TerminalDashboard, //TerminalDashboardLot,
+//        GISMTAuthentication, GISMTDescription, GISMTLotInit, GISMTLotStatus, GISMTWriteOff, GISMTPurchaseReturnShipment, GISMTSalePurchaseShipment, GISMTPurchaseSaleReturnShipment,
+//        GISMTLegalEntityRu,
+//        SUZLotOrder,
+        PurchaseCreditNote //PurchaseCreditNoteContract,
+//        Dimension, GeneralLedger,                                  // Проводки
+//        PurchaseInvoiceGeneralLedger, SaleInvoiceGeneralLedger, ZReportGeneralLedger, PricingGeneralLedger, SalePurchaseShipmentGeneralLedger,
+//        TurnoverBI, ReceiptBI //, MobileReports, MobileReportReceiptsGiftCard,// BI
+//        MarketingInvoice,
+        ;
