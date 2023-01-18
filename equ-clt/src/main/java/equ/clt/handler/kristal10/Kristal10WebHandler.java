@@ -614,11 +614,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 }
                 noPriceEntry = departNumberSet.isEmpty();
                 for (Integer departNumber : departNumberSet) {
-                    addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, "1", departNumber);
+                    addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, 1, departNumber);
                 }
             }
             if (noPriceEntry) {
-                addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, "1", null);
+                addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, 1, null);
             }
 
             Element measureType = new Element("measure-type");

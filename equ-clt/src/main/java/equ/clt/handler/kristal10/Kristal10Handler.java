@@ -632,11 +632,11 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                         for (Integer departNumber : departNumberSet) {
 
-                            addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, "1", departNumber);
+                            addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, 1, departNumber);
                         }
                     }
                     if(noPriceEntry) {
-                        addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, "1", null);
+                        addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, 1, null);
                     }
 
                     Element measureType = new Element("measure-type");
