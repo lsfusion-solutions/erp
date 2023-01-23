@@ -188,15 +188,16 @@ public class FiscalEpson {
         boolean isGiftCardOrComission = item.isGiftCard || item.isCommission;
 
         boolean useBlisters = item.useBlisters && item.blisterQuantity != null;
+        Integer department = item.section != null ? item.section : (isGiftCardOrComission ? 3 : 0);
         double price = useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue();
         double quantity = useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue();
-        logger.info(String.format("Epson Sale: name %s, price %s, quantity %s", item.name, price, quantity));
+        logger.info(String.format("Epson Sale: department %s, name %s, price %s, quantity %s", department, item.name, price, quantity));
         epsonActiveXComponent.setProperty("Article", new Variant(getMultilineName(item.name)));
         epsonActiveXComponent.setProperty("Price", new Variant(price));
         epsonActiveXComponent.setProperty("Quantity", new Variant(quantity));
         epsonActiveXComponent.setProperty("QuantityUnit", new Variant(useBlisters ? "блист." : ""));
         epsonActiveXComponent.setProperty("ForcePrintSingleQuantity", new Variant(1));
-        epsonActiveXComponent.setProperty("Department", new Variant(item.section != null ? item.section : (isGiftCardOrComission ? 3 : 0)));
+        epsonActiveXComponent.setProperty("Department", department);
 
         if(sendSKNO && isGiftCardOrComission) { //подарочный сертификат должен начинаться с 99. Чтобы обойти это ограничение, можно для сертификата задавать TypeOfGoods = 4
             epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
