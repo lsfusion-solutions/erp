@@ -1,6 +1,6 @@
 MODULE SaleStatistics;
 
-REQUIRE System, Utils, Historizable, Stock, LegalEntity, SaleLedger, Sale, Integration, Store, CountryDefault;
+REQUIRE System, Utils, Historizable, Stock, LegalEntity, SaleLedger, Sale, Integration, CountryDefault;
 
 NAMESPACE Sale;
 
@@ -284,30 +284,6 @@ netWeightSoldStatistic 'Вес проданного товара, кг' (Sku sku
     quantitySoldStatistic(sku, stock, dateFrom, dateTo) * netWeight(sku);
 volumeSoldStatistic 'Объем проданного товара, л' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) =
     quantitySoldStatistic(sku, stock, dateFrom, dateTo) * volume(sku);
-
-//---------------------------------------------- Магазин 1 торг стат. отчетов -------------------------------------//
-
-isInternet 'Интернет-магазин' = DATA BOOLEAN (Store);
-skipCorporate = ABSTRACT BOOLEAN (DepartmentStore);
-isCorporate 'Фирменный магазин' = DATA BOOLEAN (Store);
-isCorporate 'Фирменный магазин' (DepartmentStore ds) = isCorporate(store(ds)) AND NOT skipCorporate(ds);
-skipInternet = ABSTRACT BOOLEAN (DepartmentStore);
-isInternet 'Интернет-магазин' (DepartmentStore ds) = isInternet(store(ds)) AND NOT skipInternet(ds);
-
-EXTEND FORM store PROPERTIES(s) isCorporate, isInternet;
- 
-DESIGN store{
-    header{
-        NEW header1Torg {
-         caption = 'Параметры 1-торг';
-         type = COLUMNS;
-         columns = 4;
-         MOVE PROPERTY(isCorporate(s));
-         MOVE PROPERTY(isInternet(s));
-        }
-    }
-}
-
 
 //---------------------------------------------- Предподсчет ---------------------------------------------//
 useCalcData 'Использовать заранее рассчитанные данные' = DATA BOOLEAN () COMPLEX;
@@ -767,13 +743,6 @@ totalSumSoldBy 'Продано, руб.' (StatisticGroup group, legalEntity, reg
     GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
-totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCorporate(stock) AND isParent(group, sku) AND NOT skipSale(stock)
-    BY legalEntity(stock), region(stock);
-
-totalSumInternetSoldBy 'В интернет-магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isInternet (stock) AND isParent(group, sku) AND NOT skipSale(stock)
-    BY legalEntity(stock), region(stock);
 
 totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
     GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku) AND NOT skipSale(stock)
@@ -833,14 +802,6 @@ totalSumSoldBy 'Продано, руб.' (StatisticGroup group, Stock stock, DAT
 totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     IF useCalcData() THEN (GROUP SUM calcTotalSumResidentSoldBy(group,stock, DATE date) IF date >= dateFrom AND date <= dateTo)
     ELSE (GROUP SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku));
-
-totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
-    GROUP
-    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isCorporate(stock) AND isParent(group, sku);
-
-totalSumInternetSoldBy 'В интернет-магазинах' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
-    GROUP
-    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isInternet(stock) AND isParent(group, sku);
 
 // суммовые показатели
 sumBalanceBBy 'Сумма остатка на начало, руб.' (StatisticGroup group, Stock stock, DATE dateFrom) =
