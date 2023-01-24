@@ -18,12 +18,6 @@ passwordEDSService 'Пароль ключа' = DATA STRING[100] (Stock) ECHO;
 aliasEDSService 'Контейнер ключа' = DATA STRING[150] (Employee);
 passwordEDSService 'Пароль ключа' = DATA STRING[100] (Employee) ECHO;
 
-aliasEDSServiceCustomer (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(customerStock(i)), aliasEDSService(customer(i));
-passwordEDSServiceCustomer (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(customerStock(i)), passwordEDSService(customer(i));
-
-aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
-passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
-
 EDSServiceTopBy 'Адрес службы ЭЦП' = DATA EDSService (LegalEntity);
 descriptionEDSServiceTopBy 'Адрес службы ЭЦП' (LegalEntity o) = description(EDSServiceTopBy(o));
 CONSTRAINT EDSServiceTopBy(LegalEntity o) AND NOT isTopBy(edsApplication(EDSServiceTopBy(o))) 
@@ -75,20 +69,7 @@ DESIGN integrationData {
     }
 }
 
-EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice 
-        THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(customerStock(i)), EDSServiceTopBy(customer(i));
-EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'TopBy' AND i IS EInvoice 
-        THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(supplierStock(i)), EDSServiceTopBy(supplier(i));
-
-
 //EDSService
-sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, FILE file) {
-    sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceCustomer(provider,ei)) + ':' + port(EDSServiceCustomer(provider,ei)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceCustomer(provider,ei)));
-}
-sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, FILE file) {
-    sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceSupplier(provider,ei)));
-}
-
 GROUP getEDS EXTID 'ws:GetEDS' : body;
 GROUP keyInfo : getEDS;
 
@@ -109,66 +90,6 @@ waybill = DATA LOCAL NESTED TEXT();
 FORM getEDSResponse
     PROPERTIES() faultstring IN soapFault, waybill IN getEDSResponse
 ;
-
-getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceCustomer(provider, eInvoice)) == EDSApplication.edsService THEN {
-        IF aliasEDSServiceCustomer(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)) THEN {
-            signError() <- NULL;
-            signResult() <- NULL;
-            
-            LOCAL xml = FILE();
-            fileToString(contentSubXML);
-            EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(eInvoice),password = (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)) XML TO xml;
-            LOCAL innerXML = TEXT();
-            innerXML() <- resultString();
-            fileToString(xml());
-            stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-            sendRequestEDSCustomer(provider, eInvoice, resultFile());
-            IMPORT getEDSResponse FROM sendRequestEDIResponse();
-            signError() <- faultstring();
-            IF waybill() THEN {
-                encodeBase64(waybill());
-                signResult() <- encodedBase64();
-            }
-        } ELSE {
-            IF interactive THEN {
-                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
-            }
-            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
-        }
-        RETURN;
-    }
-}
-
-getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceSupplier(provider, eInvoice)) == EDSApplication.edsService THEN {
-        IF aliasEDSServiceSupplier(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)) THEN {
-            signError() <- NULL;
-            signResult() <- NULL;
-            
-            LOCAL xml = FILE();
-            fileToString(contentSubXML);
-            EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(eInvoice), password = (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)) XML TO xml;
-            LOCAL innerXML = TEXT();
-            innerXML() <- resultString();
-            fileToString(xml());
-            stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-            sendRequestEDSSupplier(provider, eInvoice, resultFile());
-            IMPORT getEDSResponse FROM sendRequestEDIResponse();
-            signError() <- faultstring();
-            IF waybill() THEN {
-                encodeBase64(waybill());
-                signResult() <- encodedBase64();
-            }
-        } ELSE {
-            IF interactive THEN {
-                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
-            }
-            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
-        }
-        RETURN;
-    }
-}
 
 //CTT-EDS-SIGN
 alias = DATA LOCAL STRING[150](INTEGER);
@@ -228,77 +149,6 @@ EXTEND FORM integrationData
 FORM signRespone
     PROPERTIES signError() EXTID 'errorMessage'
 ;
-
-getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceSupplier(provider, eInvoice)) == EDSApplication.edsSign THEN {
-        IF aliasEDSServiceSupplier(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)) THEN {
-            signError() <- NULL;
-            signResult() <- NULL;
-
-            EXPORT JSON FROM
-                alias = aliasEDSServiceSupplier(eInvoice),
-                pass = (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)),
-                attributeOID = '1.2.112.1.2.1.1.1.1.2',
-                dataType = 'EDIXML',
-                dataBase64 = RAWFILE(contentSubXML)
-            ;
-
-            sendRequestEDI('eds',
-                'eds',
-                ('http://' + host(EDSServiceSupplier(provider,eInvoice)) + ':' + port(EDSServiceSupplier(provider,eInvoice)) + '/token/sign'),
-                exportFile(),
-                TRUE,
-                client(EDSServiceSupplier(provider,eInvoice)));
-
-            IF statusHttp() == 200 THEN {
-                fileToString(sendRequestEDIResponse());
-                encodeBase64(resultString());
-                signResult() <- encodedBase64();
-            }
-        } ELSE {
-            IF interactive THEN {
-                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
-            }
-            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
-        }
-        RETURN;
-    }
-}
-
-getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceCustomer(provider, eInvoice)) == EDSApplication.edsSign THEN {
-        IF aliasEDSServiceCustomer(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)) THEN {
-            signError() <- NULL;
-            signResult() <- NULL;
-
-            EXPORT JSON FROM
-                alias = aliasEDSServiceCustomer(eInvoice),
-                pass = (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)),
-                dataType = 'EDIXML',
-                dataBase64 = RAWFILE(contentSubXML)
-            ;
-
-            sendRequestEDI('eds',
-                'eds',
-                ('http://' + host(EDSServiceCustomer(provider,eInvoice)) + ':' + port(EDSServiceCustomer(provider,eInvoice)) + '/token/sign'),
-                exportFile(),
-                TRUE,
-                client(EDSServiceCustomer(provider,eInvoice)));
-
-            IF statusHttp() == 200 THEN {
-                fileToString(sendRequestEDIResponse());
-                encodeBase64(resultString());
-                signResult() <- encodedBase64();
-            }
-        } ELSE {
-            IF interactive THEN {
-                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
-            }
-            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
-        }
-        RETURN;
-    }
-}
 
 migratedEDSTopBy = DATA BOOLEAN();
 onStarted()+{

@@ -17,12 +17,6 @@ passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (Stock)
 aliasEDSService 'Токен ЭЦП - имя контейнера' = DATA STRING[150] (Employee);
 passwordEDSService 'Токен ЭЦП - пароль' = DATA STRING[100] (Employee) ECHO;
 
-aliasEDSServiceCustomer (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(customerStock(i)), aliasEDSService(customer(i));
-passwordEDSServiceCustomer (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(customerStock(i)), passwordEDSService(customer(i));
-
-aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
-passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
-
 EDSService 'Прокси сервис Docudrive' = DATA EDSService (LegalEntity);
 descriptionEDSService 'Прокси сервис Docudrive' (LegalEntity o) = description(EDSService(o));
 CONSTRAINT EDSService(LegalEntity o) AND NOT isEDN(edsApplication(EDSService(o)))
@@ -42,11 +36,6 @@ CONSTRAINT EDSService(Employee o) AND NOT isEDN(edsApplication(EDSService(o)))
     MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
 
 useExternalApplication = ABSTRACT BOOLEAN ();
-
-EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice AND NOT useExternalApplication()
-        THEN OVERRIDE EDSService(currentUser()), EDSService(customerStock(i)), EDSService(customer(i));
-EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice AND NOT useExternalApplication()
-        THEN OVERRIDE EDSService(currentUser()), EDSService(supplierStock(i)), EDSService(supplier(i));
 
 EXTEND FORM integrationData
     PROPERTIES() READONLY askPasswordEDSServiceEDN = askPasswordEDSService
@@ -80,14 +69,6 @@ DESIGN integrationData {
             }
         }
     }
-}
-
-sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, FILE file) {
-    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceCustomer(provider,ei)) + ':' + port(EDSServiceCustomer(provider,ei))  + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceCustomer(provider,ei)) );
-}
-    
-sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, FILE file) {
-    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceSupplier(provider,ei)) );
 }
 
 GROUP sign EXTID 'urn:Sign' : body;
@@ -124,52 +105,6 @@ PROPERTIES() IN signResult
     fileName EXTID '=urn:webservice:FileName', 
     fileData EXTID '=urn:webservice:FileData';
 
-
-getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceCustomer(provider, eInvoice)) == EDSApplication.docudriveProxy THEN {
-        signError() <- NULL;
-        signResult() <- NULL;
-        
-        LOCAL xml = FILE();
-        data() <- XMLFILE(contentSubXML);
-        cryptoContainerId() <- aliasEDSServiceCustomer(eInvoice);
-        cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice));
-        EXPORT envelopeEDN XML TO xml;
-        sendRequestEDSCustomer(provider, eInvoice, xml());
-        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
-
-        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
-        IF fileData() THEN {
-            fileToString(FILE(fileData()));
-            encodeBase64(resultString());
-            signResult() <- encodedBase64();
-        }
-        RETURN;
-    }
-}
-
-getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceSupplier(provider, eInvoice)) == EDSApplication.docudriveProxy THEN {
-        signError() <- NULL;
-        signResult() <- NULL;
-        
-        LOCAL xml = FILE();
-        data() <- XMLFILE(contentSubXML);
-        cryptoContainerId() <- aliasEDSServiceSupplier(eInvoice);
-        cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice));
-        EXPORT envelopeEDN XML TO xml;
-        sendRequestEDSSupplier(provider, eInvoice, xml());
-        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
-        
-        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
-        IF fileData() THEN {
-            fileToString(FILE(fileData()));
-            encodeBase64(resultString());
-            signResult() <- encodedBase64();
-        }
-        RETURN;
-    }
-}
 
 migratedEDS = DATA BOOLEAN();
 onStarted()+{

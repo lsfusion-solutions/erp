@@ -5,4 +5,304 @@ REQUIRE EDI;
 NAMESPACE EDI;
 
 
+notUseStockGLN 'Не использовать GLN склада для заказа' = DATA BOOLEAN (LegalEntity);
+banCancel 'Запретить отмену заказа' = DATA BOOLEAN(LegalEntity);
+hourToSend 'Возможна повторная отправка до' = DATA TIME(LegalEntity);
+EXTEND FORM legalEntity
+    PROPERTIES(l) SHOWIF isSupplier(l) notUseStockGLN, banCancel, hourToSend;
+
+DESIGN legalEntity {
+    EDI {
+        NEW EDIOrder{
+            type = CONTAINERV;
+            caption = 'Заказы';
+            MOVE PROPERTY (notUseStockGLN(l));
+            MOVE PROPERTY (banCancel(l));
+            MOVE PROPERTY (hourToSend(l));
+        }
+    }
+}
+
+
+CLASS ABSTRACT EOrder 'EDI Заказ';
+TABLE eOrder(EOrder);
+
+exported 'Экспортирован' = DATA BOOLEAN (EOrder);
+exportedCanceled 'Экспортирован (отмена)' = DATA BOOLEAN (EOrder);
+
+isClosed 'Закрыт' = ABSTRACT BOOLEAN (EOrder);
+isOpened = ABSTRACT BOOLEAN (EOrder);
+isCancel 'Отмена заказа' = ABSTRACT BOOLEAN (EOrder);
+isReturn 'Возврат' = ABSTRACT BOOLEAN (EOrder);
+
+@defineOption(sendCurrentDateTime, 'Использовать текущую дату при отправке заказа поставщику', EDI);
+dateTime 'Дата/время документа' = ABSTRACT DATETIME (EOrder);
+sendDateTime (EOrder o) = OVERRIDE currentDateTime() IF sendCurrentDateTime() AND o IS EOrder, dateTime(o);
+
+shipmentDateTime 'Дата/время поставки' = ABSTRACT DATETIME (EOrder);
+
+number 'Номер' = ABSTRACT STRING[48] (EOrder);
+eOrder (number) = GROUP AGGR EOrder e BY number(e);
+
+supplier 'Поставщик' = ABSTRACT LegalEntity (EOrder);
+nameSupplier 'Поставщик' (EOrder o) = name(supplier(o));
+GLNSupplier(EOrder e) = OVERRIDE GLN(supplier(e)), extraGLN(supplier(e));
+
+supplierStock 'Склад поставщика' = ABSTRACT Stock (EOrder);
+nameSupplierStock 'Склад поставщика' (EOrder o) = name(supplierStock(o));
+
+customer 'Покупатель' = ABSTRACT LegalEntity (EOrder);
+nameCustomer 'Покупатель' (EOrder o) = name(customer(o));
+GLNCustomer(EOrder e) = OVERRIDE GLN(customer(e)), extraGLN(customer(e));
+
+customerStock 'Склад покупателя' = ABSTRACT Stock (EOrder);
+nameCustomerStock 'Склад покупателя' (EOrder o) = name(customerStock(o));
+
+note 'Примечание' = ABSTRACT ISTRING[500] (EOrder);
+
+CLASS ABSTRACT EOrderDetail 'Строка EDI Заказа';
+TABLE eOrderDetail(EOrderDetail);
+
+order = ABSTRACT EOrder(EOrderDetail);
+
+sku = ABSTRACT Sku(EOrderDetail);
+idSku 'Код товара' (EOrderDetail o) = id(sku(o));
+nameSku 'Наименование' (EOrderDetail o) = name(sku(o));
+idBarcode 'Штрихкод' (EOrderDetail o) = idBarcode(sku(o));
+GTINBarcode 'GTIN' (EOrderDetail o) = GTINBarcode(sku(o));
+
+extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderDetail o) = extraCodeUOM(UOM(sku(o)));
+
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (EOrderDetail);
+cancelQuantity 'Кол-во (отмена)' = ABSTRACT NUMERIC[16,5] (EOrderDetail);
+overQuantity (EOrderDetail d) = IF isCancel(order(d)) THEN OVERRIDE cancelQuantity(d), quantity(d) ELSE quantity(d);
+price 'Цена' = ABSTRACT NUMERIC[16,4] (EOrderDetail);
+valueVAT 'НДС, %' = ABSTRACT NUMERIC[10,5] (EOrderDetail);
+
+responseDetail = DATA EOrderResponseDetail(EOrderDetail) INDEXED;
+localIndexSku = DATA LOCAL INTEGER (EOrderDetail);
+fillIndexSku ABSTRACT LIST (EOrder);
+fillIndexSku(EOrder o) + {localIndexSku(EOrderDetail d) <- PARTITION SUM 1 ORDER d BY sku(d), order(d) WHERE order(d) == o;}
+
+nameEDIProvider'Провайдер EDI'(EOrder o) = nameEDIProvider(supplier(o));
+
+GLNSupplierStock 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE GLN(supplierStock(e));
+GLNSupplierStock1 'GLN склада поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplierStock(e));
+GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
+
+send 'Отправить' ABSTRACT LIST ( EOrder);
+overSend ABSTRACT LIST ( EOrder);
+
+skipSend = ABSTRACT CASE BOOLEAN (EOrder);
+sendingCancelled = DATA LOCAL BOOLEAN();
+
+sendApply 'Отправить' (EOrder o) {
+    IF NOT skipSend(o) THEN NEWSESSION {
+        send(o);
+        IF NOT sendingCancelled() THEN
+            APPLY;
+    } ELSE {
+        overSend(o);
+    }
+}
+
+cancel 'Отменить' ABSTRACT LIST ( EOrder);
+
+toSend (EOrder o) = IF NOT exported(o) THEN TRUE ELSE IF banCancel(supplier(o)) AND currentDateTime() < dateTimeToDateTime(DATE(dateTime(o)), hourToSend(supplier(o))) THEN TRUE;
+showCancel (EOrder o) = IF NOT banCancel(supplier(o)) THEN TRUE ELSE IF currentDateTime() > dateTimeToDateTime(DATE(dateTime(o)), hourToSend(supplier(o))) THEN TRUE;
+
+FORM eOrders 'Заказы EDI'
+    OBJECTS o = EOrder
+    PROPERTIES(o) READONLY exported CHANGEABLE, isCancel, exportedCanceled CHANGEABLE, isClosed, isReturn, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock,
+        nameEDIProvider, GLNSupplierStock, nameCustomer, nameCustomerStock, note
+    PROPERTIES(o) sendApply TOOLBAR
+    FILTERGROUP isEdi
+        FILTER 'EDI поставщик' EDIProvider(supplier(o)) 'F5' DEFAULT
+    FILTERGROUP orderfilters6
+        FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
+
+    OBJECTS d = EOrderDetail
+    PROPERTIES(d) READONLY idBarcode, GTINBarcode, idSku, nameSku, extraCodeUOMSku, quantity, price
+    PROPERTIES(d) NEW, DELETE GRID
+
+    FILTERS order(d) == o
+;
+
+DESIGN eOrders {
+    BOX {
+        MOVE BOX(o);
+        NEW tab {
+            fill = 1;
+            type = TABBED;
+            MOVE BOX(d);
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+//-----------------------------------------Сообщение по заказу EDI-----------------------------------------//
+CLASS EOrderMessage 'Сообщение по заказу EDI';
+TABLE eOrderMessage(EOrderMessage);
+
+number 'Номер' = DATA STRING[35] (EOrderMessage) INDEXED;
+eOrderMessage (number) = GROUP AGGR EOrderMessage e BY number(e);
+eOrder 'Заказ' = DATA EOrder (EOrderMessage) NONULL DELETE INDEXED;
+numberEOrder 'Заказ' (EOrderMessage m) = number(eOrder(m));
+dateTime 'Дата/время сообщения' = DATA DATETIME (EOrderMessage);
+code 'Код сообщения' = DATA STRING[10] (EOrderMessage);
+description 'Текст сообщения' = DATA STRING[1000] (EOrderMessage);
+good = ABSTRACT CASE BOOLEAN (EOrderMessage);
+priority(EOrderMessage m) = IF good(m) THEN 0 ELSE 1;
+currentOrderMessage = GROUP LAST EOrderMessage m ORDER priority(m), dateTime(m), m BY eOrder(m) MATERIALIZED;
+statusDescription 'Статус отправки EDI'(EOrder o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
+
+EXTEND FORM eOrders
+    OBJECTS m = EOrderMessage
+    PROPERTIES(m) READONLY numberEOrder, dateTime, code, description
+    FILTERS eOrder(m) == o
+    ORDERS dateTime(m);
+
+DESIGN eOrders {
+    tab {
+        MOVE BOX(m);
+    }
+}
+
+//-----------------------------------------Ответ по заказу EDI----------------------------------------------//
+CLASS EOrderResponse 'Ответ по заказу EDI';
+TABLE eOrderResponse(EOrderResponse);
+
+CLASS EOrderResponseType 'Тип ответа' {
+    changed 'Принят с  изменениями',
+    cancelled 'Не принят',
+    accepted 'Принят без изменений'
+}
+
+@defineExternalizable(eOrderResponse, STRING[100]);
+dateTime 'Дата/время документа' = DATA DATETIME (EOrderResponse);
+number 'Номер' = DATA STRING[48] (EOrderResponse);
+note 'Примечание' = DATA STRING[100] (EOrderResponse);
+responseType 'Тип ответа' = DATA EOrderResponseType (EOrderResponse);
+captionResponseType 'Тип ответа' (EOrderResponse e) = staticCaption(responseType(e));
+
+eOrder 'Заказ' = DATA EOrder (EOrderResponse) NONULL DELETE INDEXED;
+numberEOrder 'Номер заказа' (EOrderResponse e) = number(eOrder(e));
+deliveryDateTime 'Дата/время доставки (с)' = DATA DATETIME (EOrderResponse);
+deliveryDateTimeSecond 'Дата/время доставки (по)' = DATA DATETIME (EOrderResponse);
+
+supplier 'Поставщик' = DATA LegalEntity (EOrderResponse);
+nameSupplier 'Поставщик' (EOrderResponse o) = name(supplier(o));
+nameEDIProvider 'EDI провайдер' (EOrderResponse o) = nameEDIProvider(supplier(o));
+
+customer 'Покупатель' = DATA LegalEntity (EOrderResponse);
+nameCustomer 'Покупатель' (EOrderResponse o) = name(customer(o));
+customerStock 'Склад покупателя' = DATA Stock (EOrderResponse);
+nameCustomerStock 'Склад покупателя' (EOrderResponse o) = name(customerStock(o));
+
+dateTimeCreated 'Дата/время создания' = DATA DATETIME (EOrderResponse);
+dateTimeCreated(EOrderResponse e) <- currentDateTime() WHEN SET(e IS EOrderResponse);
+
+CLASS EOrderResponseDetail 'Строка ответа по заказу EDI';
+TABLE eOrderResponseDetail(EOrderResponseDetail);
+@defineExternalizable(eOrderResponseDetail, STRING[100]);
+
+CLASS EOrderResponseDetailAction 'Решение' {
+    added 'Добавление',
+    changed 'Изменение',
+    accepted 'Принято без изменений',
+    cancelled 'Не принято'
+}
+
+orderResponse = DATA EOrderResponse(EOrderResponseDetail) NONULL DELETE INDEXED;
+dataGTIN 'GTIN (из XML)' = DATA STRING[15] (EOrderResponseDetail);
+sku = DATA Sku(EOrderResponseDetail) INDEXED;
+nameSku 'Наименование' (EOrderResponseDetail o) = name(sku(o));
+idBarcode 'Штрихкод' (EOrderResponseDetail o) = idBarcode(sku(o));
+GTINBarcode 'GTIN' (EOrderResponseDetail o) = GTINBarcode(sku(o));
+
+eOrder (EOrderResponseDetail d) = eOrder(orderResponse(d)) MATERIALIZED INDEXED;
+
+action 'Решение' (EOrderResponseDetail) = DATA EOrderResponseDetailAction (EOrderResponseDetail);
+captionAction 'Решение' (EOrderResponseDetail e) = staticCaption(action(e));
+quantityOrdered 'Кол-во (заказано)' = DATA NUMERIC[16,5] (EOrderResponseDetail) CHARWIDTH 7;
+quantityAccepted 'Кол-во (принято)' = DATA NUMERIC[16,5] (EOrderResponseDetail) CHARWIDTH 7;
+price 'Цена за единицу' = DATA NUMERIC[16,4] (EOrderResponseDetail);
+sumNoNDS 'Сумма без НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
+sumNDS 'Сумма с НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
+
+FORM eOrderResponses 'Ответы по Заказам EDI'
+    OBJECTS o = EOrderResponse
+    PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameEDIProvider, nameCustomer,
+        nameCustomerStock, deliveryDateTime, deliveryDateTimeSecond, dateTimeCreated, note
+
+    OBJECTS d = EOrderResponseDetail
+    PROPERTIES(d) READONLY idBarcode, dataGTIN, GTINBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS
+
+    FILTERS orderResponse(d) == o
+;
+
+//--------------------------------------Уведомление об отгрузке EDI-----------------------------------------//
+CLASS EOrderDespatchAdvice 'Уведомление об отгрузке EDI';
+TABLE eOrderDespatchAdvice(EOrderDespatchAdvice);
+
+@defineExternalizable(eOrderDespatchAdvice, STRING[100]);
+dateTime 'Дата/время документа' = DATA DATETIME (EOrderDespatchAdvice);
+number 'Номер' = DATA STRING[48] (EOrderDespatchAdvice);
+
+deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA STRING[48] (EOrderDespatchAdvice);
+deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATETIME (EOrderDespatchAdvice);
+
+eOrder 'Заказ' = DATA EOrder (EOrderDespatchAdvice) NONULL DELETE INDEXED;
+numberEOrder 'Номер заказа' (EOrderDespatchAdvice e) = number(eOrder(e));
+deliveryDateTime 'Дата/время доставки' = DATA DATETIME (EOrderDespatchAdvice);
+note 'Примечание' = DATA STRING[100] (EOrderDespatchAdvice);
+
+supplier 'Поставщик' = DATA LegalEntity (EOrderDespatchAdvice);
+nameSupplier 'Поставщик' (EOrderDespatchAdvice o) = name(supplier(o));
+nameEDIProvider 'EDI провайдер' (EOrderDespatchAdvice o) = nameEDIProvider(supplier(o));
+
+customer 'Покупатель' = DATA LegalEntity (EOrderDespatchAdvice);
+nameCustomer 'Покупатель' (EOrderDespatchAdvice o) = name(customer(o));
+customerStock 'Склад покупателя' = DATA Stock (EOrderDespatchAdvice);
+nameCustomerStock 'Склад покупателя' (EOrderDespatchAdvice o) = name(customerStock(o));
+
+CLASS EOrderDespatchAdviceDetail 'Строка ответа по заказу EDI';
+TABLE eOrderEOrderDespatchAdviceDetail(EOrderDespatchAdviceDetail);
+@defineExternalizable(eOrderDespatchAdviceDetail, STRING[100]);
+
+orderDespatchAdvice = DATA EOrderDespatchAdvice(EOrderDespatchAdviceDetail) NONULL DELETE INDEXED;
+dataGTIN 'GTIN (из XML)' = DATA STRING[15] (EOrderDespatchAdviceDetail);
+sku = DATA Sku(EOrderDespatchAdviceDetail) INDEXED;
+nameSku 'Наименование' (EOrderDespatchAdviceDetail o) = name(sku(o));
+idBarcode 'Штрихкод' (EOrderDespatchAdviceDetail o) = idBarcode(sku(o));
+GTINBarcode 'GTIN' (EOrderDespatchAdviceDetail o) = GTINBarcode(sku(o));
+quantityOrdered 'Кол-во заказываемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
+quantityDespatch 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
+valueVAT 'НДС, %' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
+
+lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (EOrderDespatchAdviceDetail);
+lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[16,4] (EOrderDespatchAdviceDetail);
+lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[16,4] (EOrderDespatchAdviceDetail);
+lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[16,4] (EOrderDespatchAdviceDetail);
+
+FORM eOrderDespatchAdvices 'Уведомления об отгрузке EDI'
+    OBJECTS o = EOrderDespatchAdvice
+    PROPERTIES(o) READONLY dateTime, number, numberEOrder, deliveryNoteNumber, deliveryNoteDateTime, nameSupplier, nameEDIProvider, nameCustomer, nameCustomerStock, deliveryDateTime, note
+
+    OBJECTS d = EOrderDespatchAdviceDetail
+    PROPERTIES(d) READONLY idBarcode, dataGTIN, GTINBarcode, nameSku, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice,
+        lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
+
+    FILTERS orderDespatchAdvice(d) == o
+;
+
+NAVIGATOR {
+    edi {
+        NEW eOrders;
+        NEW eOrderResponses;
+        NEW eOrderDespatchAdvices;
+    }
+}
+
+
 @openXML(EOrderMessage,m,eOrders);
