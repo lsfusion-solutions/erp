@@ -74,8 +74,8 @@ limitPrice (UserRepricingDetail detail) =
 
 WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
             (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-             showLimitPrice(d) AND limitPrice(d)(+) extraRetailPrice(d) < retailPrice(d) DO {
-    retailPrice(d) <- limitPrice(d) (+) extraRetailPrice(d);
+             showLimitPrice(d) AND (limitPrice(d) + OVERRIDE extraRetailPrice(d), 0.0) < retailPrice(d) DO {
+    retailPrice(d) <- limitPrice(d) + OVERRIDE extraRetailPrice(d), 0.0;
      
     markup(d) <- NUMERIC[8,3]([ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                       limitPrice(d),
