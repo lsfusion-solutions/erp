@@ -482,6 +482,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 try (DataSession outerSession = createSession()) {
 
                     EquipmentServerOptions options = readEquipmentServerOptions(sidEquipmentServer, outerSession);
+                    if (options.skipReceiveSales)
+                        return "Временно отключен прием реализации";
 
                     //временная опция для Табака
                     if(cashRegisterLM.findProperty("disableSalesForClosedZReports[]").read(outerSession) != null) {
@@ -1984,9 +1986,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean skipGiftCardKeys = equLM.findProperty("skipGiftCardKeys[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean useNewIds = equLM.findProperty("useNewIds[EquipmentServer]").read(session, equipmentServerObject) != null;
+        boolean skipReceiveSales = equLM.findProperty("skipReceiveSales[EquipmentServer]").read(session, equipmentServerObject) != null;
         IdEncoder encoder = useNewIds ? (timeId ? new IdEncoder(5) : new IdEncoder()) : null;
         Map<String, DataObject> barcodeParts = readPartedBarcodes(session);
-        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, skipGiftCardKeys, encoder, barcodeParts);
+        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, skipGiftCardKeys, skipReceiveSales, encoder, barcodeParts);
     }
 
     public class EquipmentServerOptions {
@@ -1996,17 +1999,19 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean ignoreReceiptsAfterDocumentsClosedDate;
         boolean overrideCashiers;
         boolean skipGiftCardKeys;
+        boolean skipReceiveSales;
         IdEncoder encoder;
         Map<String, DataObject> barcodeParts;
 
         public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate,
-                                      boolean overrideCashiers, boolean skipGiftCardKeys, IdEncoder encoder, Map<String, DataObject> barcodeParts) {
+                                      boolean overrideCashiers, boolean skipGiftCardKeys, boolean skipReceiveSales, IdEncoder encoder, Map<String, DataObject> barcodeParts) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
             this.timeId = timeId;
             this.ignoreReceiptsAfterDocumentsClosedDate = ignoreReceiptsAfterDocumentsClosedDate;
             this.overrideCashiers = overrideCashiers;
             this.skipGiftCardKeys = skipGiftCardKeys;
+            this.skipReceiveSales = skipReceiveSales;
             this.encoder = encoder;
             this.barcodeParts = barcodeParts;
         }
