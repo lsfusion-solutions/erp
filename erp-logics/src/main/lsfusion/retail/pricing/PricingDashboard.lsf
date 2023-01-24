@@ -32,6 +32,10 @@ calculateDashboardManagementRepricingForm 'По прайсам'(DepartmentStore 
     formRefresh();
 } TOOLBAR;
 
+calculateDashboardAutoRepricing 'По надбавкам и прайсам'(DepartmentStore d, Operation o, DATETIME dt)  {
+    calculateDashboardAutoRepricing(d, (OVERRIDE pricingCalcPriceListType(o), retailCalcPriceListType(d)), (OVERRIDE pricingPriceListType(o), retailPriceListType(d)), dt);
+} TOOLBAR;
+
 // ----------------------- Создание расценки ---------------------- //
 
 repForm =  DATA LOCAL UserPricing();  
@@ -93,7 +97,7 @@ FORM pricingDashboard 'Расценка'
     PROPERTIES(sk) READONLY idBarcode, id, name ON CONTEXTMENU showMovementSku(sk, d) ON CONTEXTMENU showMovementPriceSku(sk, d), shortNameUOM
     PROPERTIES     READONLY dateTimeLastMoved(sk, d), dateTimeLastOrderBatch(sk, d), nameSupplierLastOrderBatch(sk, d), nameCountry(sk), currentBalance(sk,d), 
                    managementRetailPrice(sk), retailPricingPriceB(sk,d,t) 
-    PROPERTIES (d,o,t)  DRAW sk  TOOLBAR calculateDashboardRepricing, calculateDashboardManagementRepricingForm
+    PROPERTIES (d,o,t)  DRAW sk  TOOLBAR calculateDashboardAutoRepricing, calculateDashboardRepricing, calculateDashboardManagementRepricingForm
     
     PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() DRAW sk                                          
     FILTERS inDashboardRepricing(sk), isParent(sg, sk) 
