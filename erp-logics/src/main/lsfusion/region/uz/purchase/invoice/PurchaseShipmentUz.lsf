@@ -1,0 +1,37 @@
+MODULE PurchaseShipmentUz;
+
+REQUIRE PurchaseShipment, InvoicePrint;
+
+NAMESPACE Purchase;
+
+
+descriptionLocale 'Название документа' (UserOrder o) = CONCAT ' ', 'Заказ №',  seriesNumber(o), 'от ' + toDateDDMMYYYY(date(o));
+
+isIncludeOrder(Invoice i, Order o) = GROUP MAX orderDetail(InvoiceDetail id) == OrderDetail od
+    IF invoice(id) = i AND order(od) = o;
+
+includeOrdersForPrint (Invoice i) = GROUP CONCAT descriptionLocale(Order o) IF isIncludeOrder(i, o), ', ' ORDER o;
+barcodesSku (UserInvoiceDetail d) = GROUP CONCAT id(Barcode b) IF sku(b) = sku(d) AND active(b), '\n' ORDER b;
+globalContract(Invoice i) = descriptionContractSku(i);
+
+FORM acceptanceCertificate 'Акт приёмки'
+    OBJECTS i = Invoice PANEL
+    PROPERTIES (i) date, seriesNumber, nameCustomerStock, nameCustomer, addressCustomer, numberAccountCustomer, nameBankCustomer, 
+                   addressBankCustomer, MFOBankCustomer, addressCustomerStock, nameSupplier, addressSupplier, numberAccountSupplier, nameBankSupplier, 
+                   addressBankSupplier, MFOBankSupplier, numberContractSku, dateFromContractSku,
+                   includeOrdersForPrint, globalContract
+
+    OBJECTS d = InvoiceDetail
+    PROPERTIES (d) index, idSku, barcodesSku, nameSku, nameCountrySku, userInvoice, shortNameUOMSku,
+                   quantityOrder, priceOrder, quantity, price, sum, shipmentQuantity, expiryDate, valueVAT
+    FILTERS invoice(d) = i
+    ORDERS index(d)
+;
+
+printAcceptanceCertificateFull 'Акт приёмки (полный)' (Invoice i) {
+    PRINT acceptanceCertificate OBJECTS i = i;
+} IMAGE 'print.png' IN print CHARWIDTH 28;
+
+EXTEND FORM invoices
+    PROPERTIES(i)  printAcceptanceCertificateFull 
+;
