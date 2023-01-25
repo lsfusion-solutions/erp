@@ -58,19 +58,23 @@ overLimitBasePrice = ABSTRACT NUMERIC[16,4] (UserRepricingDetail);
 limitBasePrice(UserRepricingDetail d) = OVERRIDE overLimitBasePrice(d), price(d);
  
 limitPrice (UserRepricingDetail detail) =
-                                       IF limitMarkup(detail) > 0.3 AND limitMarkup(detail) <= 1  THEN
-                                           limitMarkup(detail)
-                                       ELSE
-                                           round(
-                                           IF limitMarkup(detail) <= 0.3 THEN
-                                                [ (X+Y)*(Z+100)/100](
-                                                    limitBasePrice(detail),
-                                                    limitMarkup(detail),
-                                                    valueVAT(detail))
-                                           ELSE [ X*(Y+100)*(Z+100)/10000](
-                                                    limitBasePrice(detail),
-                                                    limitMarkup(detail),
-                                                    valueVAT(detail)), roundCondition(priceLimitPriceListType(departmentStore(detail)), sku(detail)));
+            round([ X*(Y+100)*(Z+100)/10000](
+                    limitBasePrice(detail),
+                    limitMarkup(detail),
+                    valueVAT(detail)), roundCondition(priceLimitPriceListType(departmentStore(detail)), sku(detail)));
+//                                       IF limitMarkup(detail) > 0.3 AND limitMarkup(detail) <= 1  THEN
+//                                           limitMarkup(detail)
+//                                       ELSE
+//                                           round(
+//                                           IF limitMarkup(detail) <= 0.3 THEN
+//                                                [ (X+Y)*(Z+100)/100](
+//                                                    limitBasePrice(detail),
+//                                                    limitMarkup(detail),
+//                                                    valueVAT(detail))
+//                                           ELSE [ X*(Y+100)*(Z+100)/10000](
+//                                                    limitBasePrice(detail),
+//                                                    limitMarkup(detail),
+//                                                    valueVAT(detail)), roundCondition(priceLimitPriceListType(departmentStore(detail)), sku(detail)));
 
 WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
             (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
