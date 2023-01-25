@@ -34,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -1121,7 +1122,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             if(cashRegister.directory != null) {
                 int priority = nvl(cashRegister.priority, -1);
                 long start = System.currentTimeMillis();
-                File[] subDirectoryList = new File(cashRegister.directory).listFiles(File::isDirectory);
+                File[] subDirectoryList = listDirectoriesWithTimeout(cashRegister.directory);
                 sendSalesLogger.info(logPrefix + "listFiles getDirectories: " + cashRegister.directory + " / " +
                                      (subDirectoryList != null ? subDirectoryList.length : 0) + " files - " +
                                      (System.currentTimeMillis() - start) + " ms"); //temp log
@@ -1136,6 +1137,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             }
         }
         return result.stream().distinct().collect(Collectors.toList());
+    }
+
+    private File[] listDirectoriesWithTimeout(String directory) {
+        sendSalesLogger.info(logPrefix + "listDirectories: " + directory);
+        final Future<File[]> future = Executors.newSingleThreadExecutor().submit(() -> new File(directory).listFiles(File::isDirectory));
+        try {
+            return future.get(60000, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException | ExecutionException | InterruptedException e) {
+            future.cancel(true);
+            sendSalesLogger.error(logPrefix + "listDirectories failed", e);
+            throw new RuntimeException("listDirectories failed", e);
+        }
     }
 
     @Override
