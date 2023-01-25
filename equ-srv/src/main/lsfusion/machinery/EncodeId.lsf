@@ -4,60 +4,94 @@ REQUIRE Equipment, ZReport, SQLUtils;
 
 NAMESPACE ZReport;
 
-eid = DATA STRING[100](ReceiptDetail);
+//eid = DATA STRING[100](ReceiptDetail);
+//
+//migrateReceipDetail(DATE dt) {
+//    logToFile('migrateIds', 'detail  start ' + dt);
+//    FOR LONG(ReceiptDetail d) == LONG i AND date(d) == dt DO  
+//        encodingId(i) <-  id(d);
+//    logToFile('migrateIds', 'detail  count: ' + (GROUP SUM 1 IF encodingId(LONG i)));
+//        
+//    logToFile('migrateIds', 'detail  encode');
+//    timeInId() <- timeId(sidTo('1'));
+//    encodeIds();
+//    
+//    logToFile('migrateIds', 'detail  write');
+//    APPLY {
+//        eid(ReceiptDetail d ) <- encodingId(LONG(d)) WHERE encodingId(LONG(d));
+//    }
+//}
+//
+//migrateIds(DATE dt) {
+//    
+//    logToFile('migrateIds', 'detail  move');
+//    runSQL('DROP INDEX zreport_id_receiptdetail_key0_idx_zreport_receiptdetail;');
+//    runSQL('ALTER TABLE zreport_receiptdetail DROP COLUMN zreport_id_receiptdetail;');
+//    
+//    runSQL('ALTER TABLE zreport_receiptdetail RENAME COLUMN zreport_eid_receiptdetail TO zreport_id_receiptdetail;');
+//    runSQL('CREATE INDEX zreport_id_receiptdetail_key0_idx_zreport_receiptdetail ' +
+//                'ON zreport_receiptdetail USING btree (zreport_id_receiptdetail)');
+//    
+//    logToFile('migrateIds', 'detail  create column');
+//    
+//    runSQL('ALTER TABLE public.zreport_receiptdetail ' +
+//              '  ADD COLUMN zreport_eid_receiptdetail character varying(100) ');     
+////    runSQL('CREATE INDEX zreport_eid_receiptdetail_key0_idx_zreport_receiptdetail ' +
+////                'ON zreport_receiptdetail USING btree (zreport_eid_receiptdetail, key0)');
+//    
+//    logToFile('migrateIds', 'detail end');
+//    
+//    FOR LONG(Receipt d) == LONG i AND date(d) >= dt DO  
+//        encodingId(i) <-  id(d);
+//    timeInId() <- timeId(sidTo('1'));
+//    encodeIds();
+//    FOR LONG(Receipt d) == LONG i AND encodingId(i) DO  
+//        id(d) <-  encodingId(i);
+//    APPLY ;
+//    logToFile('migrateIds', 'Receipt end');
+//    
+//    FOR LONG(ZReport d) == LONG i AND date(d) >= dt DO  
+//        encodingId(i) <-  id(d);
+//    timeInId() <- timeId(sidTo('1'));
+//    encodeIds();
+//    FOR LONG(ZReport d) == LONG i AND encodingId(i) DO  
+//        id(d) <-  encodingId(i);
+//    APPLY ;
+//    logToFile('migrateIds', 'ZReport end');
+//	useNewIds(EquipmentServer e) <- TRUE;
+//	APPLY;
+//}
 
-migrateReceipDetail(DATE dt) {
-    logToFile('migrateIds', 'detail  start ' + dt);
-    FOR LONG(ReceiptDetail d) == LONG i AND date(d) == dt DO  
-        encodingId(i) <-  id(d);
-    logToFile('migrateIds', 'detail  count: ' + (GROUP SUM 1 IF encodingId(LONG i)));
-        
-    logToFile('migrateIds', 'detail  encode');
-    timeInId() <- timeId(sidTo('1'));
-    encodeIds();
-    
-    logToFile('migrateIds', 'detail  write');
-    APPLY {
-        eid(ReceiptDetail d ) <- encodingId(LONG(d)) WHERE encodingId(LONG(d));
+dropReceiptDetailIDS(INTEGER days) {
+    logToFile('database-tools', 'DISABLE SALES');
+
+    skipReceiveSales(EquipmentServer s) <- TRUE;
+    APPLY;
+
+    logToFile('database-tools', 'ALTER TABLE ADD ');
+    runSQL('ALTER TABLE zreport_receiptdetail ADD newid character varying(100);');
+
+    FOR iterate(DATE d, subtract(currentDate(), days), currentDate()) DO {
+        logToFile('database-tools', 'UPDATE ' + toDateISO(d));
+        runSQL('UPDATE zreport_receiptdetail SET newid = zreport_id_receiptdetail WHERE zreport_date_receiptdetail = \'' + toDateISO(d) + '\'' );
     }
-}
 
-migrateIds(DATE dt) {
-    
-    logToFile('migrateIds', 'detail  move');
+    logToFile('database-tools', 'CREATE INDEX CONCURRENTLY');
+    runSQL('CREATE INDEX CONCURRENTLY newid ON public.zreport_receiptdetail USING btree (newid NULLS FIRST);');
+
+    logToFile('database-tools', 'DROP INDEX');
     runSQL('DROP INDEX zreport_id_receiptdetail_key0_idx_zreport_receiptdetail;');
-    runSQL('ALTER TABLE zreport_receiptdetail DROP COLUMN zreport_id_receiptdetail;');
+
+    logToFile('database-tools', 'RENAME INDEX');
+    runSQL('ALTER INDEX newid RENAME TO zreport_id_receiptdetail_key0_idx_zreport_receiptdetail;');
+
+    logToFile('database-tools', 'DROP FIELD');
+    runSQL('ALTER TABLE zreport_receiptdetail DROP zreport_id_receiptdetail; ');
+
+    logToFile('database-tools', 'RENAME FIELD');
+    runSQL('ALTER TABLE zreport_receiptdetail RENAME newid TO zreport_id_receiptdetail; ');
+
+    logToFile('database-tools', 'DONE ID');
     
-    runSQL('ALTER TABLE zreport_receiptdetail RENAME COLUMN zreport_eid_receiptdetail TO zreport_id_receiptdetail;');
-    runSQL('CREATE INDEX zreport_id_receiptdetail_key0_idx_zreport_receiptdetail ' +
-                'ON zreport_receiptdetail USING btree (zreport_id_receiptdetail)');
-    
-    logToFile('migrateIds', 'detail  create column');
-    
-    runSQL('ALTER TABLE public.zreport_receiptdetail ' +
-              '  ADD COLUMN zreport_eid_receiptdetail character varying(100) ');     
-//    runSQL('CREATE INDEX zreport_eid_receiptdetail_key0_idx_zreport_receiptdetail ' +
-//                'ON zreport_receiptdetail USING btree (zreport_eid_receiptdetail, key0)');
-    
-    logToFile('migrateIds', 'detail end');
-    
-    FOR LONG(Receipt d) == LONG i AND date(d) >= dt DO  
-        encodingId(i) <-  id(d);
-    timeInId() <- timeId(sidTo('1'));
-    encodeIds();
-    FOR LONG(Receipt d) == LONG i AND encodingId(i) DO  
-        id(d) <-  encodingId(i);
-    APPLY ;
-    logToFile('migrateIds', 'Receipt end');
-    
-    FOR LONG(ZReport d) == LONG i AND date(d) >= dt DO  
-        encodingId(i) <-  id(d);
-    timeInId() <- timeId(sidTo('1'));
-    encodeIds();
-    FOR LONG(ZReport d) == LONG i AND encodingId(i) DO  
-        id(d) <-  encodingId(i);
-    APPLY ;
-    logToFile('migrateIds', 'ZReport end');
-	useNewIds(EquipmentServer e) <- TRUE;
-	APPLY;
+    MESSAGE 'Требуется включить прием реализации вручную !!!!';
 }
