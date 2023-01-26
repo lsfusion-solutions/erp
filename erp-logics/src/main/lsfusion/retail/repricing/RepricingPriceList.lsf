@@ -85,7 +85,7 @@ nameToManagementRepricingOperation 'Операция для переоценки
 
 createOverManagementRepricing  ABSTRACT LIST ( Stock);
 
-createManagementRepricingAll 'Создать автоматическую переоценку упр.'(DepartmentStore department)  { 
+createManagementRepricingAll 'Создать автоматическую переоценку по прайсам'(DepartmentStore department)  { 
     NEWSESSION {
         calculateDashboardManagementRepricing(department, toManagementRepricingOperation(), currentDateTime());
         createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime()); 
@@ -94,7 +94,7 @@ createManagementRepricingAll 'Создать автоматическую пер
     }
 }
 
-createManagementRepricingAllStocks 'Создать автоматическую переоценку упр.'()  { 
+createManagementRepricingAllStocks 'Создать автоматическую переоценку по прайсам'()  { 
     FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO {
     	createManagementRepricingAll(department);
 	}
@@ -103,7 +103,7 @@ createManagementRepricingAllStocks 'Создать автоматическую 
 dataCountTreadsRepricingAllStocks = DATA INTEGER ();
 countTreadsRepricingAllStocks 'Количество потоков для создания переоценок'() = OVERRIDE dataCountTreadsRepricingAllStocks(), 4;
 
-createManagementRepricingAllStocksMultithread 'Создать автоматическую переоценку упр. (Многопоточно)'()  { 
+createManagementRepricingAllStocksMultithread 'Создать автоматическую переоценку по прайсам (Многопоточно)'()  { 
     NEWEXECUTOR 
         FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO 
             NEWTHREAD NEWSESSION NEWSQL {
