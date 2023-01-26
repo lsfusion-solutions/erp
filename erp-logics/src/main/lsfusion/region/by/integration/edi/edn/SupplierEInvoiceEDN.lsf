@@ -103,6 +103,17 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                             }
                             numberCustomer(ei) <- blrwbrDocumentId();
                             dateCustomer(ei) <- blrwbrDateTime();
+                            IF NOT eInvoiceMessage(ei, 'wbr' + blrwbrDocumentId(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
+                                number(m) <- 'wbr' + blrwbrDocumentId();
+                                eInvoice(m) <- ei;
+                                kind(m) <- EInvoiceMessageKind.in;
+                            }
+                            FOR EInvoiceMessage m == eInvoiceMessage(ei, 'wbr' + blrwbrDocumentId(), EInvoiceMessageKind.in) DO {
+                                dateTime(m) <- blrwbrDateTime();
+                                code(m) <- blrwbrFunctionCode();
+                                type(m) <- EInvoiceMessageType.blrwbr;
+                                XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                            }
                             APPLY NESTED LOCAL;
                         }
                     }
@@ -214,6 +225,17 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                             }
                             numberCustomer(ei) <- blrdnrDocumentId();
                             dateCustomer(ei) <- blrdnrDateTime();
+                            IF NOT eInvoiceMessage(ei, 'dnr' + blrdnrDocumentId(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
+                                number(m) <- 'dnr' + blrdnrDocumentId();
+                                eInvoice(m) <- ei;
+                                kind(m) <- EInvoiceMessageKind.in;
+                            }
+                            FOR EInvoiceMessage m == eInvoiceMessage(ei, 'dnr' + blrdnrDocumentId(), EInvoiceMessageKind.in) DO {
+                                dateTime(m) <- blrdnrDateTime();
+                                code(m) <- blrdnrFunctionCode();
+                                type(m) <- EInvoiceMessageType.blrdnr;
+                                XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                            }
                             APPLY NESTED LOCAL;
                         }
                     }
