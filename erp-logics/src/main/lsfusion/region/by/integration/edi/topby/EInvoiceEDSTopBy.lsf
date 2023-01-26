@@ -91,12 +91,15 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentS
             signError() <- NULL;
             signResult() <- NULL;
 
+            fileToString(contentSubXML);
+            stringToFile(replace(replace(resultString(), '\n', ''), '\r', ''),'UTF-8','xml');
+
             EXPORT JSON FROM
                 alias = aliasEDSServiceSupplier(eInvoice),
                 pass = (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)),
                 attributeOID = '1.2.112.1.2.1.1.1.1.2',
                 dataType = 'EDIXML',
-                dataBase64 = RAWFILE(contentSubXML)
+                dataBase64 = RAWFILE(resultFile())
             ;
 
             sendRequestEDI('eds',
@@ -127,12 +130,15 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
             signError() <- NULL;
             signResult() <- NULL;
 
+            fileToString(contentSubXML);
+            stringToFile(replace(replace(resultString(), '\n', ''), '\r', ''),'UTF-8','xml');
+
             EXPORT JSON FROM
                 alias = aliasEDSServiceCustomer(eInvoice),
                 pass = (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)),
                 attributeOID = '1.2.112.1.2.1.1.1.1.2',
                 dataType = 'EDIXML',
-                dataBase64 = RAWFILE(contentSubXML)
+                dataBase64 = RAWFILE(resultFile())
             ;
 
             sendRequestEDI('eds',
