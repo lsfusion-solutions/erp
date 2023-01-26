@@ -1,0 +1,85 @@
+MODULE PricingPriceListAuto;
+
+REQUIRE PricingPriceList, PricingDashboard;
+
+NAMESPACE Pricing;
+
+
+skipManagementPricing = ABSTRACT BOOLEAN (DepartmentStore);
+
+toManagementPricingOperation  = DATA Operation ();
+nameToManagementPricingOperation 'Операция для расценки упр.' = name(toManagementPricingOperation());
+
+createOverManagementPricing  ABSTRACT LIST ( Stock);
+
+createManagementPricingAll 'Создать автоматическую расценку по прайсам'(DepartmentStore department)  { 
+    NEWSESSION {
+        calculateDashboardManagementRepricing(department, toManagementPricingOperation(), currentDateTime());
+        createDashboardRepricing(Sku sku) <- inDashboardRepricing(sku);
+        createDashboardRepricingNotForm(department, toManagementPricingOperation(), currentDateTime()); 
+        createOverManagementPricing(department);
+        APPLY;
+    }
+}
+
+createManagementPricingAllStocks 'Создать автоматическую расценку по прайсам'()  { 
+    FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementPricing(department)  DO {
+    	createManagementPricingAll(department);
+	}
+}
+
+dataCountTreadsPricingAllStocks = DATA INTEGER ();
+countTreadsPricingAllStocks 'Количество потоков для создания расценок'() = OVERRIDE dataCountTreadsPricingAllStocks(), 4;
+
+createManagementPricingAllStocksMultithread 'Создать автоматическую расценку по прайсам (Многопоточно)'()  { 
+    NEWEXECUTOR 
+        FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementPricing(department)  DO 
+            NEWTHREAD NEWSESSION NEWSQL {
+                createManagementPricingAll(department);
+            } 
+	THREADS countTreadsPricingAllStocks();
+}
+
+createAutoPricingAll 'Создать автоматическую расценку по надбавкам и прайсам'(DepartmentStore department)  { 
+    NEWSESSION {
+        calculateDashboardAutoRepricing(department, toManagementPricingOperation(), currentDateTime());
+        createDashboardRepricing(Sku sku) <- inDashboardRepricing(sku);
+        createDashboardRepricingNotForm(department, toManagementPricingOperation(), currentDateTime()); 
+        createOverManagementPricing(department);
+        APPLY;
+    }
+}
+
+createAutoPricingAllStocks 'Создать автоматическую расценку по надбавкам и прайсам'()  { 
+    FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementPricing(department) AND id(department) == '0001'  DO {
+    	createAutoPricingAll(department);
+	}
+}
+
+createAutoPricingAllStocksMultithread 'Создать автоматическую расценку по надбавкам и прайсам (Многопоточно)'()  { 
+    NEWEXECUTOR 
+        FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementPricing(department)  DO 
+            NEWTHREAD NEWSESSION NEWSQL {
+                createAutoPricingAll(department);
+            } 
+	THREADS countTreadsPricingAllStocks();
+}
+
+EXTEND FORM options
+    PROPERTIES() nameToManagementPricingOperation, createManagementPricingAllStocks, createAutoPricingAllStocks, countTreadsPricingAllStocks, 
+                 createManagementPricingAllStocksMultithread, createAutoPricingAllStocksMultithread
+;
+
+DESIGN options {
+    pricings {
+        NEW managementPricing {
+            caption = 'Автоматическая расценка упр.';
+            MOVE PROPERTY(nameToManagementPricingOperation());
+            MOVE PROPERTY(createManagementPricingAllStocks());
+            MOVE PROPERTY(createAutoPricingAllStocks());
+            MOVE PROPERTY(countTreadsPricingAllStocks());
+            MOVE PROPERTY(createManagementPricingAllStocksMultithread());
+            MOVE PROPERTY(createAutoPricingAllStocksMultithread());
+        }
+    }
+}
