@@ -9,23 +9,13 @@ public class ImportData {
     private List<ItemGroup> parentGroupsList;
     private List<Bank> banksList;
     private List<LegalEntity> legalEntitiesList;
-    private List<Employee> employeesList;
     private List<WarehouseGroup> warehouseGroupsList;
     private List<Warehouse> warehousesList;
     private List<LegalEntity> storesList;
     private List<DepartmentStore> departmentStoresList;
     private List<Contract> contractsList;
-    private List<RateWaste> rateWastesList;
-    private List<Ware> waresList;
-    private List<PriceListStore> priceListStoresList;
-    private List<PriceList> priceListSuppliersList;
     private List<UserInvoiceDetail> userInvoicesList;
-    private Integer numberOfItemsAtATime;
-    private Integer numberOfPriceListsAtATime;
-    private Integer numberOfUserInvoicesAtATime;
-    private Boolean importInactive;
     private boolean skipKeys;
-    private boolean userInvoiceCreateNewItems;
     
     public ImportData() {
     }
@@ -78,14 +68,6 @@ public class ImportData {
         this.legalEntitiesList = legalEntitiesList;
     }
 
-    public List<Employee> getEmployeesList() {
-        return employeesList;
-    }
-
-    public void setEmployeesList(List<Employee> employeesList) {
-        this.employeesList = employeesList;
-    }
-
     public List<WarehouseGroup> getWarehouseGroupsList() {
         return warehouseGroupsList;
     }
@@ -126,38 +108,6 @@ public class ImportData {
         this.contractsList = contractsList;
     }
 
-    public List<RateWaste> getRateWastesList() {
-        return rateWastesList;
-    }
-
-    public void setRateWastesList(List<RateWaste> rateWastesList) {
-        this.rateWastesList = rateWastesList;
-    }
-
-    public List<Ware> getWaresList() {
-        return waresList;
-    }
-
-    public void setWaresList(List<Ware> waresList) {
-        this.waresList = waresList;
-    }
-
-    public List<PriceListStore> getPriceListStoresList() {
-        return priceListStoresList;
-    }
-
-    public void setPriceListStoresList(List<PriceListStore> priceListStoresList) {
-        this.priceListStoresList = priceListStoresList;
-    }
-
-    public List<PriceList> getPriceListSuppliersList() {
-        return priceListSuppliersList;
-    }
-
-    public void setPriceListSuppliersList(List<PriceList> priceListSuppliersList) {
-        this.priceListSuppliersList = priceListSuppliersList;
-    }
-
     public List<UserInvoiceDetail> getUserInvoicesList() {
         return userInvoicesList;
     }
@@ -166,51 +116,11 @@ public class ImportData {
         this.userInvoicesList = userInvoicesList;
     }
 
-    public Integer getNumberOfItemsAtATime() {
-        return numberOfItemsAtATime;
-    }
-
-    public void setNumberOfItemsAtATime(Integer numberOfItemsAtATime) {
-        this.numberOfItemsAtATime = numberOfItemsAtATime;
-    }
-
-    public Integer getNumberOfPriceListsAtATime() {
-        return numberOfPriceListsAtATime;
-    }
-
-    public void setNumberOfPriceListsAtATime(Integer numberOfPriceListsAtATime) {
-        this.numberOfPriceListsAtATime = numberOfPriceListsAtATime;
-    }
-
-    public Integer getNumberOfUserInvoicesAtATime() {
-        return numberOfUserInvoicesAtATime;
-    }
-
-    public void setNumberOfUserInvoicesAtATime(Integer numberOfUserInvoicesAtATime) {
-        this.numberOfUserInvoicesAtATime = numberOfUserInvoicesAtATime;
-    }
-
-    public Boolean getImportInactive() {
-        return importInactive;
-    }
-
-    public void setImportInactive(Boolean importInactive) {
-        this.importInactive = importInactive;
-    }
-
     public boolean getSkipKeys() {
         return skipKeys;
     }
 
     public void setSkipKeys(boolean skipKeys) {
         this.skipKeys = skipKeys;
-    }
-
-    public boolean getUserInvoiceCreateNewItems() {
-        return userInvoiceCreateNewItems;
-    }
-
-    public void setUserInvoiceCreateNewItems(boolean userInvoiceCreateNewItems) {
-        this.userInvoiceCreateNewItems = userInvoiceCreateNewItems;
     }
 }

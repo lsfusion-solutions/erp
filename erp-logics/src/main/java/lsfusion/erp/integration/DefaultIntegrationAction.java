@@ -75,7 +75,7 @@ public class DefaultIntegrationAction extends InternalAction {
                 //чит для отличия ddMMyyyy от yyyyMMdd
                 Integer intValue = Integer.parseInt(value.substring(4, 6));
                 if(intValue > 12)
-                return new Date(DateUtils.parseDate(value, "ddMMyyyy").getTime());
+                    return new Date(DateUtils.parseDate(value, "ddMMyyyy").getTime());
             } catch(Exception e) {
                 return defaultValue;
             }            

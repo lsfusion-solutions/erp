@@ -11,14 +11,9 @@ public class Contract {
     public LocalDate dateFromContract;
     public LocalDate dateToContract;
     public String shortNameCurrency;
-    public String idPaymentCondition;
-    public Integer countDays;
-    public Boolean bankingDays;
-
 
     public Contract(String idUserContractSku, String idSupplier, String idCustomer, String numberContract,
-                    LocalDate dateFromContract, LocalDate dateToContract, String shortNameCurrency, String idPaymentCondition,
-                    Integer countDays, Boolean bankingDays) {
+                    LocalDate dateFromContract, LocalDate dateToContract, String shortNameCurrency) {
         this.idUserContractSku = idUserContractSku;
         this.idSupplier = idSupplier;
         this.idCustomer = idCustomer;
@@ -26,8 +21,5 @@ public class Contract {
         this.dateFromContract = dateFromContract;
         this.dateToContract = dateToContract;
         this.shortNameCurrency = shortNameCurrency;
-        this.idPaymentCondition = idPaymentCondition;
-        this.countDays = countDays;
-        this.bankingDays = bankingDays;
     }
 }

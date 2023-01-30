@@ -4,7 +4,6 @@ import lsfusion.base.ExceptionUtils;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
@@ -12,10 +11,11 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.data.StringClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.data.time.TimeClass;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.physics.dev.integration.service.ImportField;
+import lsfusion.server.physics.dev.integration.service.ImportKey;
+import lsfusion.server.physics.dev.integration.service.ImportProperty;
 
 import java.lang.reflect.Field;
 import java.sql.SQLException;
@@ -88,8 +88,6 @@ public class ImportAction extends DefaultImportAction {
 
             importLegalEntities(importData.getLegalEntitiesList());
 
-            importEmployees(importData.getEmployeesList());
-
             importWarehouseGroups(importData.getWarehouseGroupsList());
 
             importWarehouses(importData.getWarehousesList());
@@ -100,19 +98,11 @@ public class ImportAction extends DefaultImportAction {
 
             importContracts(importData.getContractsList(), importData.getSkipKeys());
 
-            importRateWastes(importData.getRateWastesList());
-
-            importWares(importData.getWaresList());
-
             importUOMs(importData.getUOMsList());
 
-            importItems(importData.getItemsList(), importData.getNumberOfItemsAtATime());
+            importItems(importData.getItemsList());
 
-            importPriceListStores(importData.getPriceListStoresList(), importData.getNumberOfPriceListsAtATime(), importData.getSkipKeys());
-
-            importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime(), importData.getSkipKeys());
-
-            importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys(), importData.getUserInvoiceCreateNewItems());
+            importUserInvoices(importData.getUserInvoicesList(), importData.getSkipKeys());
 
         } catch (Exception e) {
             throw ExceptionUtils.propagate(e, SQLException.class);
@@ -189,49 +179,9 @@ public class ImportAction extends DefaultImportAction {
         }
     }
 
-    private void importWares(List<Ware> waresList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importItems(List<Item> itemsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (warePurchaseInvoiceLM != null && notNullNorEmpty(waresList)) {
-
-            ERPLoggers.importLogger.info("importWares");
-
-            List<ImportProperty<?>> props = new ArrayList<>();
-            List<ImportField> fields = new ArrayList<>();
-            List<ImportKey<?>> keys = new ArrayList<>();
-
-            List<List<Object>> data = initData(waresList.size());
-
-            ImportField idWareField = new ImportField(warePurchaseInvoiceLM.findProperty("id[Ware]"));
-            ImportKey<?> wareKey = new ImportKey((CustomClass) warePurchaseInvoiceLM.findClass("Ware"),
-                    warePurchaseInvoiceLM.findProperty("ware[STRING[100]]").getMapping(idWareField));
-            keys.add(wareKey);
-            props.add(new ImportProperty(idWareField, warePurchaseInvoiceLM.findProperty("id[Ware]").getMapping(wareKey)));
-            fields.add(idWareField);
-            for (int i = 0; i < waresList.size(); i++)
-                data.get(i).add(waresList.get(i).idWare);
-
-            ImportField nameWareField = new ImportField(warePurchaseInvoiceLM.findProperty("name[Ware]"));
-            props.add(new ImportProperty(nameWareField, warePurchaseInvoiceLM.findProperty("name[Ware]").getMapping(wareKey)));
-            fields.add(nameWareField);
-            for (int i = 0; i < waresList.size(); i++)
-                data.get(i).add(waresList.get(i).nameWare);
-
-            ImportField priceWareField = new ImportField(warePurchaseInvoiceLM.findProperty("price[Ware]"));
-            props.add(new ImportProperty(priceWareField, warePurchaseInvoiceLM.findProperty("dataPrice[Ware,DATE]").getMapping(wareKey, defaultDate)));
-            fields.add(priceWareField);
-            for (int i = 0; i < waresList.size(); i++)
-                data.get(i).add(waresList.get(i).priceWare);
-
-            try(ExecutionContext.NewSession newContext = context.newSession()) {
-                integrationServiceSynchronize(newContext, fields, data, keys, props);
-                newContext.apply();
-            }
-        }
-    }
-
-    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-
-        Integer numAtATime = (numberOfItemsAtATime == null || numberOfItemsAtATime <= 0) ? 5000 : numberOfItemsAtATime;
+        Integer numAtATime = 5000;
         if (itemsList != null) {
             int amountOfImportIterations = (int) Math.ceil((double) itemsList.size() / numAtATime);
             Integer rest = itemsList.size();
@@ -618,18 +568,16 @@ public class ImportAction extends DefaultImportAction {
         }
     }
 
-    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys,
-                                    boolean userInvoiceCreateNewItems)
+    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, boolean skipKeys)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(userInvoiceDetailsList)) {
 
-            if (numberAtATime == null)
-                numberAtATime = userInvoiceDetailsList.size();
+            Integer numberAtATime = userInvoiceDetailsList.size();
 
             for (int start = 0; true; start += numberAtATime) {
 
-                int finish = (start + numberAtATime) < userInvoiceDetailsList.size() ? (start + numberAtATime) : userInvoiceDetailsList.size();
+                int finish = Math.min((start + numberAtATime), userInvoiceDetailsList.size());
                 List<UserInvoiceDetail> dataUserInvoiceDetail = start < finish ? userInvoiceDetailsList.subList(start, finish) : new ArrayList<>();
                 if (dataUserInvoiceDetail.isEmpty())
                     return;
@@ -792,10 +740,8 @@ public class ImportAction extends DefaultImportAction {
                 ImportField idItemField = new ImportField(findProperty("id[Item]"));
                 ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                         findProperty("item[STRING[100]]").getMapping(idItemField));
-                itemKey.skipKey = skipKeys && !userInvoiceCreateNewItems;
+                itemKey.skipKey = skipKeys;
                 keys.add(itemKey);
-                if (userInvoiceCreateNewItems)
-                    props.add(new ImportProperty(idItemField, findProperty("id[Item]").getMapping(itemKey)));
                 props.add(new ImportProperty(idItemField, findProperty("sku[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
                         LM.object(findClass("Sku")).getMapping(itemKey)));
                 fields.add(idItemField);
@@ -1105,221 +1051,6 @@ public class ImportAction extends DefaultImportAction {
         }
     }
 
-    private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime, boolean skipKeys) 
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-
-        if (notNullNorEmpty(priceListStoresList) && importUserPriceListLM != null && storeLM != null) {
-
-            if (numberAtATime == null)
-                numberAtATime = priceListStoresList.size();
-
-            for (int start = 0; true; start += numberAtATime) {
-
-                int finish = (start + numberAtATime) < priceListStoresList.size() ? (start + numberAtATime) : priceListStoresList.size();
-                List<PriceListStore> dataPriceListStores = start < finish ? priceListStoresList.subList(start, finish) : new ArrayList<>();
-                if (dataPriceListStores.isEmpty())
-                    return;
-
-                ERPLoggers.importLogger.info("importPriceListStores " + dataPriceListStores.size());
-
-                try(ExecutionContext.NewSession newContext = context.newSession()) {
-
-                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[STRING[100]]").readClasses(newContext, new DataObject("Coordinated", StringClass.get(100)));
-                    if (dataPriceListTypeObject instanceof NullValue) {
-                        dataPriceListTypeObject = newContext.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        ObjectValue defaultCurrency = findProperty("currencyShortName[BPSTRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
-                        findProperty("name[PriceListType]").change("Поставщика (согласованная)", newContext, (DataObject) dataPriceListTypeObject);
-                        findProperty("currency[DataPriceListType]").change(defaultCurrency, newContext, (DataObject) dataPriceListTypeObject);
-                        findProperty("id[DataPriceListType]").change("Coordinated", newContext, (DataObject) dataPriceListTypeObject);
-                    }
-
-                    List<ImportProperty<?>> props = new ArrayList<>();
-                    List<ImportField> fields = new ArrayList<>();
-                    List<ImportKey<?>> keys = new ArrayList<>();
-
-                    List<List<Object>> data = initData(priceListStoresList.size());
-
-                    ImportField idItemField = new ImportField(findProperty("id[Item]"));
-                    ImportField idUserPriceListField = new ImportField(findProperty("id[UserPriceList]"));
-                    ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                            findProperty("item[STRING[100]]").getMapping(idItemField));
-                    itemKey.skipKey = true;
-                    keys.add(itemKey);
-                    ImportKey<?> userPriceListDetailKey = new ImportKey((CustomClass) findClass("UserPriceListDetail"),
-                            importUserPriceListLM.findProperty("userPriceListDetailIdId[STRING[100],STRING[100]]").getMapping(idItemField, idUserPriceListField));
-                    keys.add(userPriceListDetailKey);
-                    ImportKey<?> userPriceListKey = new ImportKey((CustomClass) findClass("UserPriceList"),
-                            findProperty("userPriceList[STRING[100]]").getMapping(idUserPriceListField));
-                    keys.add(userPriceListKey);
-                    props.add(new ImportProperty(idItemField, findProperty("sku[UserPriceListDetail]").getMapping(userPriceListDetailKey),
-                            LM.object(findClass("Item")).getMapping(itemKey)));
-                    props.add(new ImportProperty(idUserPriceListField, findProperty("id[UserPriceList]").getMapping(userPriceListKey)));
-                    props.add(new ImportProperty(idUserPriceListField, findProperty("userPriceList[UserPriceListDetail]").getMapping(userPriceListDetailKey),
-                            LM.object(findClass("UserPriceList")).getMapping(userPriceListKey)));
-                    fields.add(idItemField);
-                    fields.add(idUserPriceListField);
-                    for (int i = 0; i < priceListStoresList.size(); i++) {
-                        data.get(i).add(priceListStoresList.get(i).idItem);
-                        data.get(i).add(priceListStoresList.get(i).idPriceList);
-                    }
-
-                    ImportField idLegalEntityField = new ImportField(findProperty("id[LegalEntity]"));
-                    ImportKey<?> legalEntityKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                            findProperty("legalEntity[STRING[100]]").getMapping(idLegalEntityField));
-                    legalEntityKey.skipKey = skipKeys;
-                    keys.add(legalEntityKey);
-                    props.add(new ImportProperty(idLegalEntityField, findProperty("company[UserPriceList]").getMapping(userPriceListKey),
-                            LM.object(findClass("LegalEntity")).getMapping(legalEntityKey)));
-                    fields.add(idLegalEntityField);
-                    for (int i = 0; i < priceListStoresList.size(); i++)
-                        data.get(i).add(priceListStoresList.get(i).idSupplier);
-
-                    ImportField idDepartmentStoreField = new ImportField(storeLM.findProperty("id[DepartmentStore]"));
-                    ImportKey<?> departmentStoreKey = new ImportKey((CustomClass) storeLM.findClass("DepartmentStore"),
-                            storeLM.findProperty("departmentStore[STRING[100]]").getMapping(idDepartmentStoreField));
-                    keys.add(departmentStoreKey);
-                    fields.add(idDepartmentStoreField);
-                    for (int i = 0; i < priceListStoresList.size(); i++)
-                        data.get(i).add(priceListStoresList.get(i).idDepartmentStore);
-
-                    ImportField shortNameCurrencyField = new ImportField(findProperty("shortName[Currency]"));
-                    ImportKey<?> currencyKey = new ImportKey((CustomClass) findClass("Currency"),
-                            findProperty("currencyShortName[BPSTRING[3]]").getMapping(shortNameCurrencyField));
-                    keys.add(currencyKey);
-                    props.add(new ImportProperty(shortNameCurrencyField, findProperty("currency[UserPriceList]").getMapping(userPriceListKey),
-                            LM.object(findClass("Currency")).getMapping(currencyKey)));
-                    fields.add(shortNameCurrencyField);
-                    for (int i = 0; i < priceListStoresList.size(); i++)
-                        data.get(i).add(priceListStoresList.get(i).shortNameCurrency);
-
-                    ImportField pricePriceListDetailField = new ImportField(findProperty("price[PriceListDetail,DataPriceListType]"));
-                    props.add(new ImportProperty(pricePriceListDetailField, findProperty("price[UserPriceListDetail,DataPriceListType]").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
-                    fields.add(pricePriceListDetailField);
-                    for (int i = 0; i < priceListStoresList.size(); i++)
-                        data.get(i).add(priceListStoresList.get(i).pricePriceListDetail);
-
-                    ImportField inPriceListPriceListTypeField = new ImportField(findProperty("in[UserPriceList,DataPriceListType]"));
-                    props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("in[UserPriceList,DataPriceListType]").getMapping(userPriceListKey, dataPriceListTypeObject)));
-                    fields.add(inPriceListPriceListTypeField);
-                    for (int i = 0; i < priceListStoresList.size(); i++)
-                        data.get(i).add(true);
-
-                    ImportField inPriceListStockField = new ImportField(findProperty("in[PriceList,Stock]"));
-                    props.add(new ImportProperty(inPriceListStockField, findProperty("in[PriceList,Stock]").getMapping(userPriceListKey, departmentStoreKey)));
-                    fields.add(inPriceListStockField);
-                    for (int i = 0; i < priceListStoresList.size(); i++)
-                        data.get(i).add(true);
-
-                    integrationServiceSynchronize(newContext, fields, data, keys, props);
-                    newContext.apply();
-                }
-            }
-        }
-    }
-
-    private void importPriceListSuppliers(List<PriceList> priceListSuppliersList, Integer numberAtATime, boolean skipKeys) 
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-
-        if (notNullNorEmpty(priceListSuppliersList)) {
-
-            if (numberAtATime == null)
-                numberAtATime = priceListSuppliersList.size();
-
-            for (int start = 0; true; start += numberAtATime) {
-
-                int finish = (start + numberAtATime) < priceListSuppliersList.size() ? (start + numberAtATime) : priceListSuppliersList.size();
-                List<PriceList> dataPriceListSuppliers = start < finish ? priceListSuppliersList.subList(start, finish) : new ArrayList<>();
-                if (dataPriceListSuppliers.isEmpty())
-                    return;
-
-                ERPLoggers.importLogger.info("importPriceListSuppliers " + dataPriceListSuppliers.size());
-
-                try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
-                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[STRING[100]]").readClasses(newContext, new DataObject("Offered", StringClass.get(100)));
-                    if (dataPriceListTypeObject instanceof NullValue) {
-                        dataPriceListTypeObject = newContext.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        ObjectValue defaultCurrency = findProperty("currencyShortName[BPSTRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
-                        findProperty("name[PriceListType]").change("Поставщика (предлагаемая)", newContext, (DataObject) dataPriceListTypeObject);
-                        findProperty("currency[DataPriceListType]").change(defaultCurrency, newContext, (DataObject) dataPriceListTypeObject);
-                        findProperty("id[DataPriceListType]").change("Offered", newContext, (DataObject) dataPriceListTypeObject);
-                    }
-
-                    List<ImportProperty<?>> props = new ArrayList<>();
-                    List<ImportField> fields = new ArrayList<>();
-                    List<ImportKey<?>> keys = new ArrayList<>();
-
-                    List<List<Object>> data = initData(priceListSuppliersList.size());
-
-                    ImportField idItemField = new ImportField(findProperty("id[Item]"));
-                    ImportField idUserPriceListField = new ImportField(findProperty("id[UserPriceList]"));
-                    ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                            findProperty("item[STRING[100]]").getMapping(idItemField));
-                    itemKey.skipKey = true;
-                    keys.add(itemKey);
-                    ImportKey<?> userPriceListDetailKey = new ImportKey((CustomClass) findClass("UserPriceListDetail"),
-                            importUserPriceListLM.findProperty("userPriceListDetailIdId[STRING[100],STRING[100]]").getMapping(idItemField, idUserPriceListField));
-                    keys.add(userPriceListDetailKey);
-                    ImportKey<?> userPriceListKey = new ImportKey((CustomClass) findClass("UserPriceList"),
-                            findProperty("userPriceList[STRING[100]]").getMapping(idUserPriceListField));
-                    keys.add(userPriceListKey);
-                    props.add(new ImportProperty(idItemField, findProperty("sku[UserPriceListDetail]").getMapping(userPriceListDetailKey),
-                            LM.object(findClass("Item")).getMapping(itemKey)));
-                    props.add(new ImportProperty(idUserPriceListField, findProperty("id[UserPriceList]").getMapping(userPriceListKey)));
-                    props.add(new ImportProperty(idUserPriceListField, findProperty("userPriceList[UserPriceListDetail]").getMapping(userPriceListDetailKey),
-                            LM.object(findClass("UserPriceList")).getMapping(userPriceListKey)));
-                    fields.add(idItemField);
-                    fields.add(idUserPriceListField);
-                    for (int i = 0; i < priceListSuppliersList.size(); i++) {
-                        data.get(i).add(priceListSuppliersList.get(i).idItem);
-                        data.get(i).add(priceListSuppliersList.get(i).idPriceList);
-                    }
-
-                    ImportField idLegalEntityField = new ImportField(findProperty("id[LegalEntity]"));
-                    ImportKey<?> legalEntityKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                            findProperty("legalEntity[STRING[100]]").getMapping(idLegalEntityField));
-                    legalEntityKey.skipKey = skipKeys;
-                    keys.add(legalEntityKey);
-                    props.add(new ImportProperty(idLegalEntityField, findProperty("company[UserPriceList]").getMapping(userPriceListKey),
-                            LM.object(findClass("LegalEntity")).getMapping(legalEntityKey)));
-                    fields.add(idLegalEntityField);
-                    for (int i = 0; i < priceListSuppliersList.size(); i++)
-                        data.get(i).add(priceListSuppliersList.get(i).idSupplier);
-
-                    ImportField shortNameCurrencyField = new ImportField(findProperty("shortName[Currency]"));
-                    ImportKey<?> currencyKey = new ImportKey((CustomClass) findClass("Currency"),
-                            findProperty("currencyShortName[BPSTRING[3]]").getMapping(shortNameCurrencyField));
-                    keys.add(currencyKey);
-                    props.add(new ImportProperty(shortNameCurrencyField, findProperty("currency[UserPriceList]").getMapping(userPriceListKey),
-                            LM.object(findClass("Currency")).getMapping(currencyKey)));
-                    fields.add(shortNameCurrencyField);
-                    for (int i = 0; i < priceListSuppliersList.size(); i++)
-                        data.get(i).add(priceListSuppliersList.get(i).shortNameCurrency);
-
-                    ImportField pricePriceListDetailField = new ImportField(findProperty("price[PriceListDetail,DataPriceListType]"));
-                    props.add(new ImportProperty(pricePriceListDetailField, findProperty("price[UserPriceListDetail,DataPriceListType]").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
-                    fields.add(pricePriceListDetailField);
-                    for (int i = 0; i < priceListSuppliersList.size(); i++)
-                        data.get(i).add(priceListSuppliersList.get(i).pricePriceListDetail);
-
-                    ImportField inPriceListPriceListTypeField = new ImportField(findProperty("in[UserPriceList,DataPriceListType]"));
-                    props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("in[UserPriceList,DataPriceListType]").getMapping(userPriceListKey, dataPriceListTypeObject)));
-                    fields.add(inPriceListPriceListTypeField);
-                    for (int i = 0; i < priceListSuppliersList.size(); i++)
-                        data.get(i).add(true);
-
-                    ImportField allStocksUserPriceListField = new ImportField(findProperty("allStocks[UserPriceList]"));
-                    props.add(new ImportProperty(allStocksUserPriceListField, findProperty("allStocks[UserPriceList]").getMapping(userPriceListKey)));
-                    fields.add(allStocksUserPriceListField);
-                    for (int i = 0; i < priceListSuppliersList.size(); i++)
-                        data.get(i).add(true);
-
-                    integrationServiceSynchronize(newContext, fields, data, keys, props);
-                    newContext.apply();
-                }
-            }
-        }
-    }
-
     private void importLegalEntities(List<LegalEntity> legalEntitiesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (notNullNorEmpty(legalEntitiesList)) {
@@ -1491,63 +1222,6 @@ public class ImportAction extends DefaultImportAction {
             fields.add(idLegalEntityGroupField);
             for (int i = 0; i < legalEntitiesList.size(); i++)
                 data.get(i).add(legalEntitiesList.get(i).idLegalEntityGroup);
-
-            try(ExecutionContext.NewSession newContext = context.newSession()) {
-                integrationServiceSynchronize(newContext, fields, data, keys, props);
-                newContext.apply();
-            }
-        }
-    }
-
-    private void importEmployees(List<Employee> employeesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-
-        if (notNullNorEmpty(employeesList)) {
-
-            ERPLoggers.importLogger.info("importEmployees");
-
-            List<ImportProperty<?>> props = new ArrayList<>();
-            List<ImportField> fields = new ArrayList<>();
-            List<ImportKey<?>> keys = new ArrayList<>();
-
-            List<List<Object>> data = initData(employeesList.size());
-
-            ImportField idEmployeeField = new ImportField(findProperty("id[Employee]"));
-            ImportKey<?> employeeKey = new ImportKey((CustomClass) findClass("Employee"),
-                    findProperty("employee[STRING[100]]").getMapping(idEmployeeField));
-            keys.add(employeeKey);
-            props.add(new ImportProperty(idEmployeeField, findProperty("id[Employee]").getMapping(employeeKey)));
-            fields.add(idEmployeeField);
-            for (int i = 0; i < employeesList.size(); i++)
-                data.get(i).add(employeesList.get(i).idEmployee);
-
-            ImportField firstNameEmployeeField = new ImportField(findProperty("firstName[Contact]"));
-            props.add(new ImportProperty(firstNameEmployeeField, findProperty("firstName[Contact]").getMapping(employeeKey)));
-            fields.add(firstNameEmployeeField);
-            for (int i = 0; i < employeesList.size(); i++)
-                data.get(i).add(employeesList.get(i).firstNameEmployee);
-
-            ImportField lastNameEmployeeField = new ImportField(findProperty("lastName[Contact]"));
-            props.add(new ImportProperty(lastNameEmployeeField, findProperty("lastName[Contact]").getMapping(employeeKey)));
-            fields.add(lastNameEmployeeField);
-            for (int i = 0; i < employeesList.size(); i++)
-                data.get(i).add(employeesList.get(i).lastNameEmployee);
-
-            ImportField idPositionField = new ImportField(findProperty("id[Position]"));
-            ImportKey<?> positionKey = new ImportKey((CustomClass) findClass("Position"),
-                    findProperty("position[STRING[100]]").getMapping(idPositionField));
-            keys.add(positionKey);
-            props.add(new ImportProperty(idPositionField, findProperty("id[Position]").getMapping(positionKey)));
-            props.add(new ImportProperty(idPositionField, findProperty("position[Employee]").getMapping(employeeKey),
-                    LM.object(findClass("Position")).getMapping(positionKey)));
-            fields.add(idPositionField);
-            for (int i = 0; i < employeesList.size(); i++)
-                data.get(i).add(employeesList.get(i).idPosition);
-
-            ImportField namePositionField = new ImportField(findProperty("name[Position]"));
-            props.add(new ImportProperty(namePositionField, findProperty("name[Position]").getMapping(positionKey)));
-            fields.add(namePositionField);
-            for (int i = 0; i < employeesList.size(); i++)
-                data.get(i).add(employeesList.get(i).idPosition);
 
             try(ExecutionContext.NewSession newContext = context.newSession()) {
                 integrationServiceSynchronize(newContext, fields, data, keys, props);
@@ -1817,56 +1491,6 @@ public class ImportAction extends DefaultImportAction {
             fields.add(cbuBankField);
             for (int i = 0; i < banksList.size(); i++)
                 data.get(i).add(banksList.get(i).cbuBank);
-
-            try(ExecutionContext.NewSession newContext = context.newSession()) {
-                integrationServiceSynchronize(newContext, fields, data, keys, props);
-                newContext.apply();
-            }
-        }
-    }
-
-    private void importRateWastes(List<RateWaste> rateWastesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-
-        if (writeOffItemLM != null && notNullNorEmpty(rateWastesList)) {
-
-            ERPLoggers.importLogger.info("importRateWastes");
-
-            List<ImportProperty<?>> props = new ArrayList<>();
-            List<ImportField> fields = new ArrayList<>();
-            List<ImportKey<?>> keys = new ArrayList<>();
-
-            List<List<Object>> data = initData(rateWastesList.size());
-
-            ImportField idWriteOffRateField = new ImportField(writeOffItemLM.findProperty("id[WriteOffRate]"));
-            ImportKey<?> writeOffRateKey = new ImportKey((CustomClass) writeOffItemLM.findClass("WriteOffRate"),
-                    writeOffItemLM.findProperty("writeOffRate[STRING[100]]").getMapping(idWriteOffRateField));
-            keys.add(writeOffRateKey);
-            props.add(new ImportProperty(idWriteOffRateField, writeOffItemLM.findProperty("id[WriteOffRate]").getMapping(writeOffRateKey)));
-            fields.add(idWriteOffRateField);
-            for (int i = 0; i < rateWastesList.size(); i++)
-                data.get(i).add(rateWastesList.get(i).idRateWaste);
-
-            ImportField nameWriteOffRateField = new ImportField(writeOffItemLM.findProperty("name[WriteOffRate]"));
-            props.add(new ImportProperty(nameWriteOffRateField, writeOffItemLM.findProperty("name[WriteOffRate]").getMapping(writeOffRateKey)));
-            fields.add(nameWriteOffRateField);
-            for (int i = 0; i < rateWastesList.size(); i++)
-                data.get(i).add(rateWastesList.get(i).nameRateWaste);
-
-            ImportField percentWriteOffRateField = new ImportField(writeOffItemLM.findProperty("percent[WriteOffRate]"));
-            props.add(new ImportProperty(percentWriteOffRateField, writeOffItemLM.findProperty("percent[WriteOffRate]").getMapping(writeOffRateKey)));
-            fields.add(percentWriteOffRateField);
-            for (int i = 0; i < rateWastesList.size(); i++)
-                data.get(i).add(rateWastesList.get(i).percentWriteOffRate);
-
-            ImportField nameCountryField = new ImportField(findProperty("name[Country]"));
-            ImportKey<?> countryKey = new ImportKey((CustomClass) findClass("Country"),
-                    findProperty("countryName[ISTRING[50]]").getMapping(nameCountryField));
-            keys.add(countryKey);
-            props.add(new ImportProperty(nameCountryField, writeOffItemLM.findProperty("country[WriteOffRate]").getMapping(writeOffRateKey),
-                    LM.object(findClass("Country")).getMapping(countryKey)));
-            fields.add(nameCountryField);
-            for (int i = 0; i < rateWastesList.size(); i++)
-                data.get(i).add(rateWastesList.get(i).nameCountry);
 
             try(ExecutionContext.NewSession newContext = context.newSession()) {
                 integrationServiceSynchronize(newContext, fields, data, keys, props);

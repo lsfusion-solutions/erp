@@ -22,10 +22,6 @@ public class DefaultImportDBFAction extends DefaultImportAction {
         super(LM);
     }
 
-    public DefaultImportDBFAction(ScriptingLogicsModule LM, ValueClass valueClass) {
-        super(LM, valueClass);
-    }
-
     public DefaultImportDBFAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }

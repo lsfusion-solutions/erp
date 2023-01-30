@@ -60,7 +60,7 @@ public class ImportExcelContractsAction extends ImportExcelAction {
             LocalDate dateToContract = parseDateValue(sheet.getCell(4, i));
             String shortNameCurrency = parseString(sheet.getCell(5, i));
             data.add(new Contract(idContract, idSupplier, idCustomer, numberContract, dateFromContract,
-                    dateToContract, shortNameCurrency, null, null, null));
+                    dateToContract, shortNameCurrency));
         }
 
         return data;

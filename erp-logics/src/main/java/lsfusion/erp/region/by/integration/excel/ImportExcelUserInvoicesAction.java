@@ -68,9 +68,9 @@ public class ImportExcelUserInvoicesAction extends ImportExcelAction {
             String userInvoiceDetailSID = (seriesUserInvoice == null ? "" : seriesUserInvoice) + numberUserInvoice + idItem;
 
             data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice, seriesUserInvoice, numberUserInvoice,
-                    null, true, userInvoiceDetailSID, dateUserInvoice, idItem, false, quantity, supplier,
+                    null, true, userInvoiceDetailSID, dateUserInvoice, idItem, quantity, supplier,
                     customerWarehouse, supplierWarehouse, price, null, null, chargePrice, null, null, null, null,
-                    retailPrice, retailMarkup, null, textCompliance, null, null, null, null, null, null, null, null,
+                    retailPrice, retailMarkup, textCompliance, null, null, null, null, null, null, null, null,
                     null, null, null, null, null, null, null, null, null, null, null, null));
         }
 

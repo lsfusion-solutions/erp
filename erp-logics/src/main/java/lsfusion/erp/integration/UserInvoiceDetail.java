@@ -13,7 +13,6 @@ public class UserInvoiceDetail {
     public String idUserInvoiceDetail;
     public LocalDate date;
     public String idItem;
-    public Boolean isWare;
     public BigDecimal quantity;
     public String idSupplier;
     public String idCustomerStock;
@@ -28,7 +27,6 @@ public class UserInvoiceDetail {
     public BigDecimal wholesaleMarkup;
     public BigDecimal retailPrice;
     public BigDecimal retailMarkup;
-    public String contractPrice;
     public String certificateText;
     public String idContract;
     public String numberDeclaration;
@@ -53,11 +51,11 @@ public class UserInvoiceDetail {
 
 
     public UserInvoiceDetail(String idUserInvoice, String series, String number, Boolean createPricing,
-                             Boolean createShipment, String idUserInvoiceDetail, LocalDate date, String idItem, Boolean isWare,
+                             Boolean createShipment, String idUserInvoiceDetail, LocalDate date, String idItem,
                              BigDecimal quantity, String idSupplier, String idCustomerStock, String idSupplierStock,
                              BigDecimal price, BigDecimal shipmentPrice, BigDecimal shipmentSum, BigDecimal chargePrice,
                              BigDecimal manufacturingPrice, BigDecimal manufacturingMarkup, BigDecimal wholesalePrice,
-                             BigDecimal wholesaleMarkup, BigDecimal retailPrice, BigDecimal retailMarkup, String contractPrice,
+                             BigDecimal wholesaleMarkup, BigDecimal retailPrice, BigDecimal retailMarkup,
                              String certificateText, String idContract, String numberDeclaration, LocalDate dateDeclaration,
                              String numberCompliance, LocalDate fromDateCompliance, LocalDate toDateCompliance, LocalDate expiryDate,
                              String idBin, BigDecimal rateExchange, BigDecimal homePrice, BigDecimal priceDuty,
@@ -72,7 +70,6 @@ public class UserInvoiceDetail {
         this.idUserInvoiceDetail = idUserInvoiceDetail;
         this.date = date;
         this.idItem = idItem;
-        this.isWare = isWare;
         this.quantity = quantity;
         this.idSupplier = idSupplier;
         this.idCustomerStock = idCustomerStock;
@@ -87,7 +84,6 @@ public class UserInvoiceDetail {
         this.wholesaleMarkup = wholesaleMarkup;
         this.retailPrice = retailPrice;
         this.retailMarkup = retailMarkup;
-        this.contractPrice = contractPrice;
         this.certificateText = certificateText;
         this.idContract = idContract;
         this.numberDeclaration = numberDeclaration;

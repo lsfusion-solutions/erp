@@ -18,10 +18,6 @@ public class DefaultExportTXTAction extends DefaultExportAction {
         super(LM);
     }
 
-    public DefaultExportTXTAction(ScriptingLogicsModule LM, ValueClass valueClass) {
-        super(LM, valueClass);
-    }
-
     public DefaultExportTXTAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
