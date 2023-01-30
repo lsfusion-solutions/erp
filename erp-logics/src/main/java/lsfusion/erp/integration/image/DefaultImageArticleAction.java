@@ -28,10 +28,6 @@ public class DefaultImageArticleAction extends DefaultIntegrationAction {
         super(LM);
     }
 
-    public DefaultImageArticleAction(ScriptingLogicsModule LM, ValueClass valueClass) {
-        super(LM, valueClass);
-    }
-
     public DefaultImageArticleAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }

@@ -2,10 +2,6 @@ package lsfusion.erp.integration.universal;
 
 public class UniversalImportException extends Exception {
 
-    public UniversalImportException(String message) {
-        super(message);
-    }
-
     public UniversalImportException(ImportColumnDetail importColumnDetail, int row, Throwable cause) {
         this(importColumnDetail == null ? null : importColumnDetail.field, importColumnDetail == null ? null : importColumnDetail.getFullIndex(), row, cause);
     }

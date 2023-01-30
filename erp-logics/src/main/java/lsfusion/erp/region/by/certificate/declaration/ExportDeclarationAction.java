@@ -306,10 +306,6 @@ public class ExportDeclarationAction extends DefaultExportAction {
             row += separator;
     }
 
-    public void addPartStringCellToRow(Object cell, String prefix, String separator, Boolean useSeparatorIfNull) {
-        addCellToRow(cell, false, null, prefix, separator, useSeparatorIfNull);
-    }
-
     public void addStringCellToRow(Object cell, String separator) {
         addCellToRow(cell, false, null, null, separator, true);
     }

@@ -28,10 +28,6 @@ import java.util.List;
 
 public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
 
-    public ImportNBRBExchangeRateAction(ScriptingLogicsModule LM, ValueClass valueClass) {
-        super(LM, valueClass);
-    }
-
     public ImportNBRBExchangeRateAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }

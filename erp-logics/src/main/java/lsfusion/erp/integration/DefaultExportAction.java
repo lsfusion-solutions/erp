@@ -13,10 +13,6 @@ public class DefaultExportAction extends DefaultIntegrationAction {
     public DefaultExportAction(ScriptingLogicsModule LM) {
         super(LM);
     }
-
-    public DefaultExportAction(ScriptingLogicsModule LM, ValueClass valueClass) {
-        super(LM, valueClass);
-    }
     
     public DefaultExportAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);

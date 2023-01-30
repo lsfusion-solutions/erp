@@ -32,7 +32,6 @@ public class ImportAction extends DefaultImportAction {
     ScriptingLogicsModule pricingPurchaseLM;
     ScriptingLogicsModule purchaseCertificateLM;
     ScriptingLogicsModule purchaseComplianceDetailLM;
-    ScriptingLogicsModule importUserPriceListLM;
     ScriptingLogicsModule purchaseDeclarationDetailLM;
     ScriptingLogicsModule purchaseInvoiceChargeLM;
     ScriptingLogicsModule purchaseInvoiceWholesalePriceLM;
@@ -42,9 +41,6 @@ public class ImportAction extends DefaultImportAction {
     ScriptingLogicsModule warePurchaseInvoiceLM;
     ScriptingLogicsModule writeOffItemLM;
     ScriptingLogicsModule tripInvoiceLM;
-
-    public boolean skipExtraInvoiceParams;
-    public boolean skipCertificateInvoiceParams;
 
     DataObject defaultDate = new DataObject(LocalDate.of(2001, 1, 1), DateClass.instance);
 
@@ -63,7 +59,6 @@ public class ImportAction extends DefaultImportAction {
             this.pricingPurchaseLM = context.getBL().getModule("PricingPurchase");
             this.purchaseCertificateLM = context.getBL().getModule("PurchaseCertificate");
             this.purchaseComplianceDetailLM = context.getBL().getModule("PurchaseComplianceDetail");
-            this.importUserPriceListLM = context.getBL().getModule("ImportUserPriceList");
             this.purchaseDeclarationDetailLM = context.getBL().getModule("PurchaseDeclarationDetail");
             this.purchaseInvoiceChargeLM = context.getBL().getModule("PurchaseInvoiceCharge");
             this.purchaseInvoiceWholesalePriceLM = context.getBL().getModule("PurchaseInvoiceWholesalePrice");
@@ -784,73 +779,70 @@ public class ImportAction extends DefaultImportAction {
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).expiryDate);
 
-                if (!skipExtraInvoiceParams) {
+                ImportField dataRateExchangeUserInvoiceDetailField = new ImportField(findProperty("dataRateExchange[UserInvoiceDetail]"));
+                props.add(new ImportProperty(dataRateExchangeUserInvoiceDetailField, findProperty("dataRateExchange[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                fields.add(dataRateExchangeUserInvoiceDetailField);
+                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                    data.get(i).add(dataUserInvoiceDetail.get(i).rateExchange);
 
-                    ImportField dataRateExchangeUserInvoiceDetailField = new ImportField(findProperty("dataRateExchange[UserInvoiceDetail]"));
-                    props.add(new ImportProperty(dataRateExchangeUserInvoiceDetailField, findProperty("dataRateExchange[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
-                    fields.add(dataRateExchangeUserInvoiceDetailField);
+
+                ImportField homePriceUserInvoiceDetailField = new ImportField(findProperty("homePrice[UserInvoiceDetail]"));
+                props.add(new ImportProperty(homePriceUserInvoiceDetailField, findProperty("homePrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                fields.add(homePriceUserInvoiceDetailField);
+                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                    data.get(i).add(dataUserInvoiceDetail.get(i).homePrice);
+
+
+                if (showField(dataUserInvoiceDetail, "priceDuty")) {
+                    ImportField priceDutyUserInvoiceDetailField = new ImportField(findProperty("dutyPrice[UserInvoiceDetail]"));
+                    props.add(new ImportProperty(priceDutyUserInvoiceDetailField, findProperty("dutyPrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                    fields.add(priceDutyUserInvoiceDetailField);
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                        data.get(i).add(dataUserInvoiceDetail.get(i).rateExchange);
+                        data.get(i).add(dataUserInvoiceDetail.get(i).priceDuty);
+                }
 
-
-                    ImportField homePriceUserInvoiceDetailField = new ImportField(findProperty("homePrice[UserInvoiceDetail]"));
-                    props.add(new ImportProperty(homePriceUserInvoiceDetailField, findProperty("homePrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
-                    fields.add(homePriceUserInvoiceDetailField);
+                if (showField(dataUserInvoiceDetail, "priceCompliance") && purchaseComplianceDetailLM != null) {
+                    ImportField priceComplianceUserInvoiceDetailField = new ImportField(purchaseComplianceDetailLM.findProperty("compliancePrice[UserInvoiceDetail]"));
+                    props.add(new ImportProperty(priceComplianceUserInvoiceDetailField, purchaseComplianceDetailLM.findProperty("compliancePrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                    fields.add(priceComplianceUserInvoiceDetailField);
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                        data.get(i).add(dataUserInvoiceDetail.get(i).homePrice);
+                        data.get(i).add(dataUserInvoiceDetail.get(i).priceCompliance);
 
+                    ImportField showComplianceUserInvoiceDetailField = new ImportField(purchaseComplianceDetailLM.findProperty("showCompliance[UserInvoice]"));
+                    props.add(new ImportProperty(showComplianceUserInvoiceDetailField, purchaseComplianceDetailLM.findProperty("showCompliance[UserInvoice]").getMapping(userInvoiceKey)));
+                    fields.add(showComplianceUserInvoiceDetailField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(true);
+                }
 
-                    if (showField(dataUserInvoiceDetail, "priceDuty")) {
-                        ImportField priceDutyUserInvoiceDetailField = new ImportField(findProperty("dutyPrice[UserInvoiceDetail]"));
-                        props.add(new ImportProperty(priceDutyUserInvoiceDetailField, findProperty("dutyPrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
-                        fields.add(priceDutyUserInvoiceDetailField);
+                if (showField(dataUserInvoiceDetail, "priceRegistration")) {
+                    ImportField priceRegistrationUserInvoiceDetailField = new ImportField(findProperty("registrationPrice[UserInvoiceDetail]"));
+                    props.add(new ImportProperty(priceRegistrationUserInvoiceDetailField, findProperty("registrationPrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                    fields.add(priceRegistrationUserInvoiceDetailField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).priceRegistration);
+                }
+
+                if (showField(dataUserInvoiceDetail, "chargePrice") || showField(dataUserInvoiceDetail, "chargeSum")) {
+
+                    if (purchaseInvoiceChargeLM != null) {
+                        ImportField chargePriceUserInvoiceDetailField = new ImportField(purchaseInvoiceChargeLM.findProperty("chargePrice[UserInvoiceDetail]"));
+                        props.add(new ImportProperty(chargePriceUserInvoiceDetailField, purchaseInvoiceChargeLM.findProperty("chargePrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                        fields.add(chargePriceUserInvoiceDetailField);
                         for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).priceDuty);
-                    }
+                            data.get(i).add(dataUserInvoiceDetail.get(i).chargePrice);
 
-                    if (showField(dataUserInvoiceDetail, "priceCompliance") && purchaseComplianceDetailLM != null) {
-                        ImportField priceComplianceUserInvoiceDetailField = new ImportField(purchaseComplianceDetailLM.findProperty("compliancePrice[UserInvoiceDetail]"));
-                        props.add(new ImportProperty(priceComplianceUserInvoiceDetailField, purchaseComplianceDetailLM.findProperty("compliancePrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
-                        fields.add(priceComplianceUserInvoiceDetailField);
+                        ImportField chargeSumUserInvoiceDetailField = new ImportField(purchaseInvoiceChargeLM.findProperty("chargeSum[UserInvoiceDetail]"));
+                        props.add(new ImportProperty(chargeSumUserInvoiceDetailField, purchaseInvoiceChargeLM.findProperty("chargeSum[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                        fields.add(chargeSumUserInvoiceDetailField);
                         for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).priceCompliance);
+                            data.get(i).add(dataUserInvoiceDetail.get(i).chargeSum);
 
-                        ImportField showComplianceUserInvoiceDetailField = new ImportField(purchaseComplianceDetailLM.findProperty("showCompliance[UserInvoice]"));
-                        props.add(new ImportProperty(showComplianceUserInvoiceDetailField, purchaseComplianceDetailLM.findProperty("showCompliance[UserInvoice]").getMapping(userInvoiceKey)));
-                        fields.add(showComplianceUserInvoiceDetailField);
+                        ImportField showChargePriceUserInvoiceDetailField = new ImportField(purchaseInvoiceChargeLM.findProperty("showChargePrice[UserInvoice]"));
+                        props.add(new ImportProperty(showChargePriceUserInvoiceDetailField, purchaseInvoiceChargeLM.findProperty("showChargePrice[UserInvoice]").getMapping(userInvoiceKey)));
+                        fields.add(showChargePriceUserInvoiceDetailField);
                         for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                             data.get(i).add(true);
-                    }
-
-                    if (showField(dataUserInvoiceDetail, "priceRegistration")) {
-                        ImportField priceRegistrationUserInvoiceDetailField = new ImportField(findProperty("registrationPrice[UserInvoiceDetail]"));
-                        props.add(new ImportProperty(priceRegistrationUserInvoiceDetailField, findProperty("registrationPrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
-                        fields.add(priceRegistrationUserInvoiceDetailField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).priceRegistration);
-                    }
-
-                    if (showField(dataUserInvoiceDetail, "chargePrice") || showField(dataUserInvoiceDetail, "chargeSum")) {
-
-                        if (purchaseInvoiceChargeLM != null) {
-                            ImportField chargePriceUserInvoiceDetailField = new ImportField(purchaseInvoiceChargeLM.findProperty("chargePrice[UserInvoiceDetail]"));
-                            props.add(new ImportProperty(chargePriceUserInvoiceDetailField, purchaseInvoiceChargeLM.findProperty("chargePrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
-                            fields.add(chargePriceUserInvoiceDetailField);
-                            for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                                data.get(i).add(dataUserInvoiceDetail.get(i).chargePrice);
-
-                            ImportField chargeSumUserInvoiceDetailField = new ImportField(purchaseInvoiceChargeLM.findProperty("chargeSum[UserInvoiceDetail]"));
-                            props.add(new ImportProperty(chargeSumUserInvoiceDetailField, purchaseInvoiceChargeLM.findProperty("chargeSum[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
-                            fields.add(chargeSumUserInvoiceDetailField);
-                            for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                                data.get(i).add(dataUserInvoiceDetail.get(i).chargeSum);
-
-                            ImportField showChargePriceUserInvoiceDetailField = new ImportField(purchaseInvoiceChargeLM.findProperty("showChargePrice[UserInvoice]"));
-                            props.add(new ImportProperty(showChargePriceUserInvoiceDetailField, purchaseInvoiceChargeLM.findProperty("showChargePrice[UserInvoice]").getMapping(userInvoiceKey)));
-                            fields.add(showChargePriceUserInvoiceDetailField);
-                            for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                                data.get(i).add(true);
-                        }
                     }
                 }
 
@@ -874,22 +866,20 @@ public class ImportAction extends DefaultImportAction {
                         data.get(i).add(true);
                 }
 
-                if (!skipExtraInvoiceParams) {
-                    if (purchaseManufacturingPriceLM != null) {
-                        ImportField manufacturingPriceUserInvoiceDetailField = new ImportField(purchaseManufacturingPriceLM.findProperty("manufacturingPrice[UserInvoiceDetail]"));
-                        props.add(new ImportProperty(manufacturingPriceUserInvoiceDetailField, purchaseManufacturingPriceLM.findProperty("manufacturingPrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
-                        fields.add(manufacturingPriceUserInvoiceDetailField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).manufacturingPrice);
+                if (purchaseManufacturingPriceLM != null) {
+                    ImportField manufacturingPriceUserInvoiceDetailField = new ImportField(purchaseManufacturingPriceLM.findProperty("manufacturingPrice[UserInvoiceDetail]"));
+                    props.add(new ImportProperty(manufacturingPriceUserInvoiceDetailField, purchaseManufacturingPriceLM.findProperty("manufacturingPrice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                    fields.add(manufacturingPriceUserInvoiceDetailField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).manufacturingPrice);
 
-                        ImportField manufacturingMarkupUserInvoiceDetailField = new ImportField(purchaseManufacturingPriceLM.findProperty("manufacturingMarkup[UserInvoiceDetail]"));
-                        props.add(new ImportProperty(manufacturingMarkupUserInvoiceDetailField, purchaseManufacturingPriceLM.findProperty("manufacturingMarkup[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
-                        fields.add(manufacturingMarkupUserInvoiceDetailField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).manufacturingMarkup);
-                    }
+                    ImportField manufacturingMarkupUserInvoiceDetailField = new ImportField(purchaseManufacturingPriceLM.findProperty("manufacturingMarkup[UserInvoiceDetail]"));
+                    props.add(new ImportProperty(manufacturingMarkupUserInvoiceDetailField, purchaseManufacturingPriceLM.findProperty("manufacturingMarkup[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                    fields.add(manufacturingMarkupUserInvoiceDetailField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).manufacturingMarkup);
                 }
-                
+
                 if(purchaseCertificateLM != null) {
                     ImportField certificateTextUserInvoiceDetailField = new ImportField(purchaseCertificateLM.findProperty("certificateText[UserInvoiceDetail]"));
                     props.add(new ImportProperty(certificateTextUserInvoiceDetailField, purchaseCertificateLM.findProperty("certificateText[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
@@ -919,63 +909,59 @@ public class ImportAction extends DefaultImportAction {
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                         data.get(i).add(dataUserInvoiceDetail.get(i).idContract);
                 }
-                
-                if (!skipCertificateInvoiceParams) {
-                    if (showField(dataUserInvoiceDetail, "numberDeclaration")) {
-                        ImportField numberDeclarationField = new ImportField(findProperty("number[Declaration]"));
-                        ImportKey<?> declarationKey = new ImportKey((CustomClass) findClass("Declaration"),
-                                findProperty("declaration[STRING[100]]").getMapping(numberDeclarationField));
-                        keys.add(declarationKey);
-                        props.add(new ImportProperty(numberDeclarationField, findProperty("number[Declaration]").getMapping(declarationKey)));
-                        props.add(new ImportProperty(numberDeclarationField, findProperty("id[Declaration]").getMapping(declarationKey)));
-                        props.add(new ImportProperty(numberDeclarationField, findProperty("declaration[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
-                                LM.object(findClass("Declaration")).getMapping(declarationKey)));
-                        fields.add(numberDeclarationField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).numberDeclaration);
 
-                        ImportField dateDeclarationField = new ImportField(findProperty("date[Declaration]"));
-                        props.add(new ImportProperty(dateDeclarationField, findProperty("date[Declaration]").getMapping(declarationKey)));
-                        fields.add(dateDeclarationField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).dateDeclaration);
-                    }
+                if (showField(dataUserInvoiceDetail, "numberDeclaration")) {
+                    ImportField numberDeclarationField = new ImportField(findProperty("number[Declaration]"));
+                    ImportKey<?> declarationKey = new ImportKey((CustomClass) findClass("Declaration"),
+                            findProperty("declaration[STRING[100]]").getMapping(numberDeclarationField));
+                    keys.add(declarationKey);
+                    props.add(new ImportProperty(numberDeclarationField, findProperty("number[Declaration]").getMapping(declarationKey)));
+                    props.add(new ImportProperty(numberDeclarationField, findProperty("id[Declaration]").getMapping(declarationKey)));
+                    props.add(new ImportProperty(numberDeclarationField, findProperty("declaration[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
+                            LM.object(findClass("Declaration")).getMapping(declarationKey)));
+                    fields.add(numberDeclarationField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).numberDeclaration);
 
-                    if (showField(dataUserInvoiceDetail, "numberCompliance")) {
-                        ImportField numberComplianceField = new ImportField(findProperty("number[Compliance]"));
-                        ImportKey<?> complianceKey = new ImportKey((CustomClass) findClass("Compliance"),
-                                findProperty("compliance[BPSTRING[100]]").getMapping(numberComplianceField));
-                        keys.add(complianceKey);
-                        props.add(new ImportProperty(numberComplianceField, findProperty("number[Compliance]").getMapping(complianceKey)));
-                        props.add(new ImportProperty(numberComplianceField, findProperty("compliance[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
-                                LM.object(findClass("Compliance")).getMapping(complianceKey)));
-                        fields.add(numberComplianceField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).numberCompliance);
-
-                        ImportField fromDateComplianceField = new ImportField(findProperty("fromDate[Compliance]"));
-                        props.add(new ImportProperty(fromDateComplianceField, findProperty("date[Compliance]").getMapping(complianceKey)));
-                        props.add(new ImportProperty(fromDateComplianceField, findProperty("fromDate[Compliance]").getMapping(complianceKey)));
-                        fields.add(fromDateComplianceField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).fromDateCompliance);
-
-                        ImportField toDateComplianceField = new ImportField(findProperty("toDate[Compliance]"));
-                        props.add(new ImportProperty(toDateComplianceField, findProperty("toDate[Compliance]").getMapping(complianceKey)));
-                        fields.add(toDateComplianceField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).toDateCompliance);
-                    }
+                    ImportField dateDeclarationField = new ImportField(findProperty("date[Declaration]"));
+                    props.add(new ImportProperty(dateDeclarationField, findProperty("date[Declaration]").getMapping(declarationKey)));
+                    fields.add(dateDeclarationField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).dateDeclaration);
                 }
-                
-                if (!skipExtraInvoiceParams) {
-                    if (showField(dataUserInvoiceDetail, "isHomeCurrency")) {
-                        ImportField isHomeCurrencyUserInvoiceField = new ImportField(findProperty("isHomeCurrency[UserInvoice]"));
-                        props.add(new ImportProperty(isHomeCurrencyUserInvoiceField, findProperty("isHomeCurrency[UserInvoice]").getMapping(userInvoiceKey), true));
-                        fields.add(isHomeCurrencyUserInvoiceField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).isHomeCurrency);
-                    }
+
+                if (showField(dataUserInvoiceDetail, "numberCompliance")) {
+                    ImportField numberComplianceField = new ImportField(findProperty("number[Compliance]"));
+                    ImportKey<?> complianceKey = new ImportKey((CustomClass) findClass("Compliance"),
+                            findProperty("compliance[BPSTRING[100]]").getMapping(numberComplianceField));
+                    keys.add(complianceKey);
+                    props.add(new ImportProperty(numberComplianceField, findProperty("number[Compliance]").getMapping(complianceKey)));
+                    props.add(new ImportProperty(numberComplianceField, findProperty("compliance[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
+                            LM.object(findClass("Compliance")).getMapping(complianceKey)));
+                    fields.add(numberComplianceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).numberCompliance);
+
+                    ImportField fromDateComplianceField = new ImportField(findProperty("fromDate[Compliance]"));
+                    props.add(new ImportProperty(fromDateComplianceField, findProperty("date[Compliance]").getMapping(complianceKey)));
+                    props.add(new ImportProperty(fromDateComplianceField, findProperty("fromDate[Compliance]").getMapping(complianceKey)));
+                    fields.add(fromDateComplianceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).fromDateCompliance);
+
+                    ImportField toDateComplianceField = new ImportField(findProperty("toDate[Compliance]"));
+                    props.add(new ImportProperty(toDateComplianceField, findProperty("toDate[Compliance]").getMapping(complianceKey)));
+                    fields.add(toDateComplianceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).toDateCompliance);
+                }
+
+                if (showField(dataUserInvoiceDetail, "isHomeCurrency")) {
+                    ImportField isHomeCurrencyUserInvoiceField = new ImportField(findProperty("isHomeCurrency[UserInvoice]"));
+                    props.add(new ImportProperty(isHomeCurrencyUserInvoiceField, findProperty("isHomeCurrency[UserInvoice]").getMapping(userInvoiceKey), true));
+                    fields.add(isHomeCurrencyUserInvoiceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).isHomeCurrency);
                 }
 
                 if (showField(dataUserInvoiceDetail, "codeCustomsGroup") || showField(dataUserInvoiceDetail, "priceDuty") || showField(dataUserInvoiceDetail, "priceRegistration")) {
@@ -995,22 +981,20 @@ public class ImportAction extends DefaultImportAction {
                 fields.add(shortNameCurrencyField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).shortNameCurrency);
-                
-                if (!skipCertificateInvoiceParams) {
-                    if (purchaseDeclarationDetailLM != null) {
-                        ObjectValue defaultCountryObject = findProperty("defaultCountry[]").readClasses(context);
-                        ImportField codeCustomsGroupField = new ImportField(purchaseDeclarationDetailLM.findProperty("code[CustomsGroup]"));
-                        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) purchaseDeclarationDetailLM.findClass("CustomsGroup"),
-                                purchaseDeclarationDetailLM.findProperty("customsGroup[BPSTRING[10]]").getMapping(codeCustomsGroupField));
-                        keys.add(customsGroupKey);
-                        props.add(new ImportProperty(codeCustomsGroupField, purchaseDeclarationDetailLM.findProperty("customsGroup[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
-                                purchaseDeclarationDetailLM.object(purchaseDeclarationDetailLM.findClass("CustomsGroup")).getMapping(customsGroupKey)));
-                        props.add(new ImportProperty(codeCustomsGroupField, purchaseDeclarationDetailLM.findProperty("customsGroup[Country,Item]").getMapping(defaultCountryObject, itemKey),
-                                purchaseDeclarationDetailLM.object(purchaseDeclarationDetailLM.findClass("CustomsGroup")).getMapping(customsGroupKey)));
-                        fields.add(codeCustomsGroupField);
-                        for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).codeCustomsGroup);
-                    }
+
+                if (purchaseDeclarationDetailLM != null) {
+                    ObjectValue defaultCountryObject = findProperty("defaultCountry[]").readClasses(context);
+                    ImportField codeCustomsGroupField = new ImportField(purchaseDeclarationDetailLM.findProperty("code[CustomsGroup]"));
+                    ImportKey<?> customsGroupKey = new ImportKey((CustomClass) purchaseDeclarationDetailLM.findClass("CustomsGroup"),
+                            purchaseDeclarationDetailLM.findProperty("customsGroup[BPSTRING[10]]").getMapping(codeCustomsGroupField));
+                    keys.add(customsGroupKey);
+                    props.add(new ImportProperty(codeCustomsGroupField, purchaseDeclarationDetailLM.findProperty("customsGroup[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
+                            purchaseDeclarationDetailLM.object(purchaseDeclarationDetailLM.findClass("CustomsGroup")).getMapping(customsGroupKey)));
+                    props.add(new ImportProperty(codeCustomsGroupField, purchaseDeclarationDetailLM.findProperty("customsGroup[Country,Item]").getMapping(defaultCountryObject, itemKey),
+                            purchaseDeclarationDetailLM.object(purchaseDeclarationDetailLM.findClass("CustomsGroup")).getMapping(customsGroupKey)));
+                    fields.add(codeCustomsGroupField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).codeCustomsGroup);
                 }
                     
                 ImportField valueVATUserInvoiceDetailField = new ImportField(findProperty("valueVAT[UserInvoiceDetail]"));

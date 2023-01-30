@@ -10,10 +10,6 @@ import java.util.Map;
 
 public class ImportDefaultPurchaseInvoiceAction extends ImportDocumentAction {
 
-    public ImportDefaultPurchaseInvoiceAction(ScriptingLogicsModule LM, ValueClass valueClass) {
-        super(LM, valueClass);
-    }
-
     public ImportDefaultPurchaseInvoiceAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }

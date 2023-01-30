@@ -28,11 +28,11 @@ import org.jdom.Element;
 import org.jdom.Namespace;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -200,7 +200,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
 
             if (error.isEmpty()) {
                 tmpFile = File.createTempFile("evat", "xml");
-                outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), StandardCharsets.UTF_8), "UTF-8");
+                outputXml(doc, new OutputStreamWriter(Files.newOutputStream(tmpFile.toPath()), StandardCharsets.UTF_8), "UTF-8");
                 RawFileData fileData = new RawFileData(tmpFile);
                 if (choosePath)
                     context.delayUserInterfaction(new WriteClientAction(fileData, documentNumber, "xml", false, true));
@@ -225,42 +225,6 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
             String[] split = trim(value).split("\\.");
             return split[split.length - 1];
         } else return null;
-    }
-
-    private String getDescription(String value) {
-        String result = null;
-        if (value != null) {
-            switch (value) {
-                case "deductionInFull":
-                    result = "DEDUCTION_IN_FULL";
-                    break;
-                case "vatExcemption":
-                    result = "VAT_EXEMPTION";
-                    break;
-                case "outsideRB":
-                    result = "OUTSIDE_RB";
-                    break;
-                case "importVAT":
-                    result = "IMPORT_VAT";
-                    break;
-                case "exciseMark":
-                    result = "EXCISE_MARK";
-                    break;
-                case "controlMark":
-                    result = "CONTROL_MARK";
-                    break;
-                case "customsExcise":
-                    result = "CUSTOMS_EXCISE";
-                    break;
-                case "identifiedMark":
-                    result = "IDENTIFIED_MARK";
-                    break;
-                case "analyzedDeal":
-                    result = "ANALYZED_DEAL";
-                    break;
-            }
-        }
-        return result;
     }
 
     //parent: rootElement
