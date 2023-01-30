@@ -49,14 +49,17 @@ FORM printPLU 'PLU'
     PROPERTIES(g) READONLY name
     
     OBJECTS s = Barcode
-    PROPERTIES READONLY pluNumber(g,s), id(s), nameSku(s)
-    FILTERS pluNumber(g,s)
+    PROPERTIES READONLY plu(g,s), id(s), nameSku(s)
+    FILTERS plu(g,s)
     FILTERS inPrint(s)
     ORDERS nameSku(s)
 ;
 
 readonlyPlu = ABSTRACT BOOLEAN (GroupScales, Barcode);
 activeSku'Активный'(Barcode b) = active(sku(b));
+
+include 'Вкл.' = DATA LOCAL BOOLEAN (SkuGroup);
+clearInclude 'Очистить' () {include(SkuGroup sk) <- NULL;}
 
 FORM pluDashboard 'Задание PLU'
     OBJECTS d = DepartmentStore PANEL
@@ -71,6 +74,7 @@ FORM pluDashboard 'Задание PLU'
     
     TREE skuTree sk = SkuGroup PARENT parent(sk)
     PROPERTIES READONLY order(sk), name(sk)
+    PROPERTIES include(sk), clearInclude() TOOLBAR DRAW sk
     ORDERS order(sk), name(sk)
     FILTERGROUP inactive FILTER 'Активные' active(sk) DEFAULT
     
@@ -79,7 +83,7 @@ FORM pluDashboard 'Задание PLU'
     PROPERTIES(b) READONLY id, nameSku, idSku, activeSku
     PROPERTIES fillPLU(g,b) SHOWIF NOT pluNumber(g,b) TOOLBAR
     FILTERS passScales(b) AND length(id(b)) < 6 AND active(b) AND in(g,sku(b))
-    FILTERS isParent(sk,sku(b))
+    FILTERS (isParent(sk,sku(b)) AND NOT (GROUP SUM 1 IF include(SkuGroup skk))) OR (GROUP SUM 1 IF include(SkuGroup skk) AND isParent(skk,sku(b)))
     FILTERGROUP activeSku FILTER 'Активные' activeSku(b) DEFAULT
     FILTERGROUP plu FILTER 'Без PLU' NOT pluNumber(g,b)
                     FILTER 'С PLU' pluNumber(g,b)
