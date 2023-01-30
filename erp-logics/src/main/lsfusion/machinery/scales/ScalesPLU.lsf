@@ -4,9 +4,9 @@ REQUIRE ScalesPriceTransaction, Scales, Store;
 
 NAMESPACE Scales;
 
-dataPluNumber = ABSTRACT INTEGER (GroupScales, Sku);
+dataPluNumber = ABSTRACT INTEGER (GroupScales, Barcode);
 pluNumber 'Номер PLU' = DATA INTEGER (GroupScales, Barcode);
-plu (GroupMachinery g, Barcode b) += OVERRIDE pluNumber(g, b), dataPluNumber(g, sku(b));
+plu (GroupMachinery g, Barcode b) += OVERRIDE pluNumber(g, b), dataPluNumber(g, b);
 maxPluNumber 'Максимальное значение PLU' = DATA INTEGER (GroupScales);
 quantityNullPluNumber 'Кол-во не назнач. PLU' (GroupScales g) = GROUP SUM 1 IF passScales(sku(Barcode b)) AND active(sku(b)) AND in(g, sku(b)) AND NOT pluNumber(g,b);
 
@@ -55,6 +55,7 @@ FORM printPLU 'PLU'
     ORDERS nameSku(s)
 ;
 
+readonlyPlu = ABSTRACT BOOLEAN (GroupScales, Barcode);
 activeSku'Активный'(Barcode b) = active(sku(b));
 
 FORM pluDashboard 'Задание PLU'
@@ -74,7 +75,7 @@ FORM pluDashboard 'Задание PLU'
     FILTERGROUP inactive FILTER 'Активные' active(sk) DEFAULT
     
     OBJECTS b = Barcode
-    PROPERTIES pluNumber(g,b)
+    PROPERTIES pluNumber(g,b) READONLYIF readonlyPlu(g, b)
     PROPERTIES(b) READONLY id, nameSku, idSku, activeSku
     PROPERTIES fillPLU(g,b) SHOWIF NOT pluNumber(g,b) TOOLBAR
     FILTERS passScales(b) AND length(id(b)) < 6 AND active(b) AND in(g,sku(b))
