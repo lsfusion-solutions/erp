@@ -207,9 +207,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 }
 
                 int vat = item.vat == null || item.vat.intValue() == 0 ? 20 : item.vat.intValue();
-                if(vat != 10 && vat != 20) {
-                    vat = 20;
-                }
+//                if(vat != 10 && vat != 20) {
+//                    vat = 20;
+//                }
                 addStringElement(good, "vat", String.valueOf(vat));
 
                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
