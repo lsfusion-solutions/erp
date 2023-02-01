@@ -1,0 +1,37 @@
+MODULE SaleStatisticsReportWholesaleBy;
+
+REQUIRE SaleStatisticsReport;
+
+NAMESPACE Sale;
+
+fromMonth(StatisticReport r) = extractMonthName(fromDate(r));
+toMonth(StatisticReport r) = extractMonthName(toDate(r));
+
+caption (StatisticReport r)= CASE
+    WHEN reportKind(r) == ReportKind.stock THEN CONCAT ': ',staticCaption(reportKind(r)), nameStock(r)
+    WHEN reportKind(r) == ReportKind.region THEN CONCAT ': ',staticCaption(reportKind(r)), nameRegion(r)
+    WHEN reportKind(r) == ReportKind.consolidate THEN CONCAT ': ',staticCaption(reportKind(r)), consolidateStocks(r);
+
+
+FORM statisticReport1WholesalePrint '1-торг (опт)'
+
+    OBJECTS r = StatisticReport PANEL SUBREPORT
+    PROPERTIES (r) READONLY name, nameStock,  fullNameLegalEntityStock,
+        addressLegalEntityStock, addressStock,
+        note, fromDate, toDate,
+        fromMonth, toMonth, caption
+
+    PROPERTIES (r) READONLY countStatisticReportDetail
+    PROPERTIES (r) NEWSESSION NEW, EDIT, deleter=DELETE TOOLBAR
+    PROPERTIES (r) READONLY  createdNameUser, createdTime, createdHostnameComputer
+
+    OBJECTS d = StatisticReportDetail
+    PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
+        sidStatisticGroup,
+        soldSum, soldSumCorporate, soldSumInternet, soldSumResident, balanceSum
+    ORDERS index(d)
+
+    FILTERS statisticReport(d) == r
+;
+statistic1WholesalePrint '1-торг (опт)' (StatisticReport r)  { PRINT statisticReport1WholesalePrint OBJECTS r =r; }   IMAGE 'print.png' IN print;
+excel1WholesalePrint '1-торг (опт) (xls)' (StatisticReport r)  { PRINT statisticReport1WholesalePrint OBJECTS r =r XLSX; }  IMAGE 'print.png' IN print;   
