@@ -165,8 +165,10 @@ nameGroupType 'Тип классификатора' = name(groupType(UserPriceLi
 // ---------------- Цены для видов цен
 
 // Шапка
-
+TABLE sessionPriceListPriceListType (Session, PriceList, PriceListType);
 TABLE priceListPriceListType (PriceList, PriceListType);
+TABLE priceListDataPriceListType (PriceList, DataPriceListType);
+
 show 'Показывать цены' = ABSTRACT BOOLEAN (PriceList, PriceListType) MATERIALIZED;
 show 'Показывать цены' = DATA BOOLEAN (UserPriceList, PriceListType);
 show (UserPriceList priceList, PriceListType priceListType) += show(priceList, priceListType);
@@ -175,7 +177,6 @@ orderShow 'Порядок (показ.)' = ABSTRACT INTEGER (PriceList, PriceLis
 orderShow 'Порядок (показ.)' = DATA INTEGER (UserPriceList, PriceListType);
 orderShow (UserPriceList priceList, PriceListType priceListType) += orderShow(priceList, priceListType);
 
-TABLE priceListDataPriceListType (PriceList, DataPriceListType);
 in 'Изменять цены' = ABSTRACT BOOLEAN (PriceList, DataPriceListType) MATERIALIZED;
 in 'Изменять цены' = DATA BOOLEAN (UserPriceList, DataPriceListType);
 in (UserPriceList priceList, DataPriceListType dataPriceListType) += in(priceList, dataPriceListType);
@@ -192,12 +193,12 @@ priceListTypes 'Цены' (PriceListDetail d) = priceListTypes(priceList(d));
 priceListType (PriceList p) = GROUP MIN DataPriceListType t IF in(p, t) MATERIALIZED;
 
 // Строки
-
+TABLE sessionPriceListDetailPriceListType (Session, PriceListDetail, PriceListType);
 TABLE priceListDetailPriceListType (PriceListDetail, PriceListType);
-
 TABLE priceListDetailDataPriceListType (PriceListDetail, DataPriceListType);
+
 price 'Цена (новая)' = ABSTRACT NUMERIC[16,4] (PriceListDetail, DataPriceListType) MATERIALIZED;
-price 'Цена (новая)' = DATA NUMERIC[16,4] (UserPriceListDetail, DataPriceListType); //annotation не нужен, делим скриптом с учетом валюты вида цен
+price 'Цена (новая)' = DATA NUMERIC[16,4] (UserPriceListDetail, DataPriceListType);
 price (UserPriceListDetail priceListDetail, DataPriceListType dataPriceListType) += price(priceListDetail, dataPriceListType);
 
 in (PriceListDetail detail, DataPriceListType type) = in(priceList(detail), type);
