@@ -1,0 +1,80 @@
+MODULE PurchaseReturnInvoiceUserGeneralLedgerUz;
+
+REQUIRE GeneralLedgerStock, PurchaseReturnInvoice, DimensionLegalEntity, DimensionStock, DimensionTax, DimensionContract;
+
+NAMESPACE PurchaseReturn;
+
+
+//---------------------------- Возврат поставщику ---------------------------//
+
+EXTEND CLASS Invoice : GeneralLedger.GLDocument;
+isPosted[GLDocument](Invoice document) += isPosted(document);
+name[GLDocument](Invoice document) += description(document);
+
+number[GLDocument](Invoice document) += number(document);
+series[GLDocument](Invoice document) += series(document);
+
+dateTime[GLDocument](Invoice document) += dateTime(document);
+operation[GLDocument](Invoice document) += operation(document);
+
+//-------------------------------- НДС поставщика ---------------------------
+//-- Товар
+@defineGeneralLedgerOperationStock (invoice, 
+                                          InvSupVATI,
+                                          customer,
+                                          customerStock,
+                                          VATSumItemInvoiceDetail,
+                                          description,
+                                          '6010',
+                                          '4410',
+                                          'uz_default',
+                                          'purchaseStoreSupplier',
+                                          'purchaseWarehouseSupplier');
+
+overCreateInvSupVATIInvoice(UserGeneralLedger generalLedger, Invoice invoice) + {  
+    debit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.organization THEN supplier(invoice)
+                                                               WHEN dimensionType == DimensionType.contract THEN contractSku(invoice);
+}
+
+//-------------------------------- Сумма поставщика -------------------------------
+//-- Товар
+@defineGeneralLedgerOperationStock (invoice,
+                                          InvSupIH,
+                                          customer,
+                                          customerStock,
+                                          sumItemInvoiceDetail,
+                                          description,
+                                          '6010',
+                                          '2920',
+                                          'uz_default',
+                                          'purchaseStoreSupplier'
+                                          );
+overCreateInvSupIHInvoice(UserGeneralLedger generalLedger, Invoice invoice) + {  
+    debit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.organization THEN supplier(invoice)
+                                                               WHEN dimensionType == DimensionType.contract THEN contractSku(invoice);
+    
+    credit(generalLedger, DimensionType dimensionType) <- IF dimensionType == DimensionType.stock THEN customerStock(invoice);
+}
+
+@defineGeneralLedgerOperationStock (invoice,
+                                          InvSupIHW,
+                                          customer,
+                                          customerStock,
+                                          sumItemInvoiceDetail,
+                                          description,
+                                          '6010',
+                                          '2910',
+                                          'uz_default',
+                                          'purchaseWarehouseSupplier'
+                                          );
+overCreateInvSupIHInvoice(UserGeneralLedger generalLedger, Invoice invoice) + {  
+    debit(generalLedger, DimensionType dimensionType) <- CASE WHEN dimensionType == DimensionType.organization THEN supplier(invoice)
+                                                              WHEN dimensionType == DimensionType.contract THEN contractSku(invoice);
+    
+    credit(generalLedger, DimensionType dimensionType) <- IF dimensionType == DimensionType.stock THEN customerStock(invoice);  
+    // + номенклатура??
+}
+
+// ----------------------------------- Стандартные данные ----------------------------------- //
+
+@extendFormGeneralLedgerDocument(invoices, i);

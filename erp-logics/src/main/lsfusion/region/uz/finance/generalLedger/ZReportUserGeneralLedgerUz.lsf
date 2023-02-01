@@ -1,0 +1,135 @@
+MODULE ZReportUserGeneralLedgerUz;
+
+REQUIRE GeneralLedger, ZReport, DimensionStock, ZReportSkuLedgerAccountSum;
+
+NAMESPACE ZReport;
+
+
+EXTEND CLASS ZReport : GeneralLedger.GLDocument;
+isPosted[GLDocument](ZReport document) += isPosted(document);
+name(ZReport document) += description(document);
+
+number[GLDocument](ZReport document) += STRING[48](number(document));
+dateTime[GLDocument](ZReport document) += dateTime(document);
+
+defaultVAT = [GROUP MAX Tax.Range v BY number(v)](2);
+valueVAT (ZReport r) =  valueRate(defaultVAT(), date(r));
+
+//-- Оплачено налично         sumCashPaymentZReport
+shortDescription 'Название документа' (ZReport zReport) =  STRING[200] (CONCAT '', 'Продажа по кассе ' + nameDepartmentStore(zReport),
+                                            ' от ' + date(zReport));
+sumCashVAT (ZReport r) = round2(sumCash(r) / (100 (+) valueVAT(r)) * valueVAT(r)); 
+sumCardVAT (ZReport r) = round2(sumCard(r) / (100 (+) valueVAT(r)) * valueVAT(r)); 
+sumCashWithoutVAT (ZReport r) = sumCash(r) (-) sumCashVAT(r); 
+sumCardWithoutVAT (ZReport r) = sumCard(r) (-) sumCardVAT(r);
+sumWithoutVAT(ZReport r) = sumCashWithoutVAT(r) (+) sumCardWithoutVAT(r);
+
+@defineGeneralLedger (zReport, 
+                                    ZCashWV, 
+                                    legalEntityStock, 
+                                    sumCashWithoutVAT, 
+                                    date, 
+                                    time, 
+                                    shortDescription, 
+                                    '5010', 
+                                    '9020', 
+                                    'uz_default') ;
+overCreateZCashWVZReport(UserGeneralLedger generalLedger) + { 
+    credit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
+}
+
+@defineGeneralLedger (zReport, 
+                                    ZCashV, 
+                                    legalEntityStock, 
+                                    sumCashVAT, 
+                                    date, 
+                                    time, 
+                                    shortDescription, 
+                                    '5010', 
+                                    '6410', 
+                                    'uz_default');
+
+//-- Оплачено карточкой         sumCardPaymentZReport
+@defineGeneralLedger (           zReport, 
+                                 ZCardWV, 
+                                 legalEntityStock, 
+                                 sumCardWithoutVAT, 
+                                 date, 
+                                 time, 
+                                 shortDescription, 
+                                 '5710', 
+                                 '9020', 
+                                 'by_default'
+                                 );
+overCreateZCardWVZReport(UserGeneralLedger generalLedger) + { 
+    credit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
+}
+
+@defineGeneralLedger (           zReport, 
+                                 ZCardV, 
+                                 legalEntityStock, 
+                                 sumCardVAT, 
+                                 date, 
+                                 time, 
+                                 shortDescription, 
+                                 '5710', 
+                                 '6410', 
+                                 'by_default'
+                                 );
+
+//----------------------- Себестоимость и надбавка  -------------------------------
+
+sumCost 'Себестоимость' (ZReport r) = GROUP SUM costSum[SkuLedger](ZReportSaleSkuLedger ledger) BY zReport(ledger);
+
+@defineGeneralLedger (zReport, 
+                                 cost, 
+                                 legalEntityStock, 
+                                 sumCost, 
+                                 shortDescription, 
+                                 '9120', 
+                                 '2920', 
+                                 'uz_default'
+                                 ) ;
+overCreateCostZReport(UserGeneralLedger generalLedger) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
+    credit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
+}
+
+sumMarkup 'Надбавка' (ZReport r) = sumWithoutVAT(r) (-) sumCost(r);
+
+@defineGeneralLedger (zReport, 
+                                 markup, 
+                                 legalEntityStock, 
+                                 sumMarkup, 
+                                 shortDescription, 
+                                 '2980', 
+                                 '9120', 
+                                 'uz_default'
+                                 ) ;
+overCreateMarkupZReport(UserGeneralLedger generalLedger) + { 
+    debit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
+    credit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
+}
+
+// ----------------------------------- Стандартные данные ----------------------------------- //
+
+EXTEND FORM zReports
+    OBJECTS g=GeneralLedger
+    PROPERTIES(g) READONLY description, idDebit, idDimensionsDebit, dimensionsDebit, 
+                            idCredit, idDimensionsCredit, dimensionsCredit, sum
+    FILTERS GLDocument(g) == z
+;
+
+DESIGN zReports {
+    firstCase {
+        NEW ledgerContainer AFTER ZFilters {
+            fill =1;
+            type = TABBED;
+            MOVE BOX(b);
+            MOVE BOX(g) {
+                fill = 1;
+                caption = 'Проводки';
+            };
+        }
+    }            
+} 
