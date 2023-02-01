@@ -1,0 +1,23 @@
+MODULE SaleStatisticsReportStore;
+
+REQUIRE SaleStatisticsReport, SaleStatisticsStore;
+
+NAMESPACE Sale;
+
+overFillSumData(StatisticReport report) + {
+    FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
+        Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
+            soldSumCorporate(d) <- NUMERIC[16,3](totalSumCorporateSoldBy(s, st, dFrom, dTo));
+            soldSumInternet(d) <- NUMERIC[16,3](totalSumInternetSoldBy(s, st, dFrom, dTo));        
+    }
+}
+
+overFillSumRegionData(StatisticReport report) + {
+    FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
+        LegalEntity c == company(report) AND Region r == region(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report)
+        NOINLINE DO {
+            soldSumCorporate(d) <- NUMERIC[16,3](totalSumCorporateSoldBy(s, c, r, dFrom, dTo));
+            soldSumInternet(d) <- NUMERIC[16,3](totalSumInternetSoldBy(s, c, r, dFrom, dTo));        
+    }
+}
+
