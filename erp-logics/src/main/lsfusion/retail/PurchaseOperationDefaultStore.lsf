@@ -104,6 +104,34 @@ loadDefaultPurchaseStoreOperations 'Загрузить стандартные о
         defaultPriceListType(o) <- priceListType('supplier');
         defaultReturnPriceListType(o) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
     }
+
+    //  
+    createDefaultOperation('Поступление на склад от склада', 'purchaseWarehouseWarehouse');  
+    FOR operation('purchaseWarehouseWarehouse') ==  Operation o DO {
+        nameReturn(o) <- 'Возврат со склада на склад';
+        needSupplier(o) <- TRUE;
+        needCustomer(o) <- TRUE;
+        needSupplierStock(o) <- TRUE;
+        needCustomerStock(o) <- TRUE;        
+        
+        dataInSupplier(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+        dataInCustomer(LegalEntityGroup g, o) <- TRUE WHERE id(g) == 'companies';  
+               
+        dataInSupplier(StockGroup g, o) <- TRUE WHERE id(g) == 'company';
+        dataInCustomer(StockGroup g, o) <- TRUE WHERE id(g) == 'company';
+
+        createShipment(o) <- TRUE;
+            
+        isPurchaseValueVAT(o) <- TRUE;
+        isPrice(o) <- TRUE;
+        isShipmentPrice(o) <- TRUE;
+        banNegativeQuantityInvoice(o) <- TRUE;
+        
+        in(PriceListType t, o) <- TRUE WHERE t == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+        in(PriceListType t, o) <- TRUE WHERE t == priceListType('supplier');
+        defaultPriceListType(o) <- priceListType('supplier');
+        defaultReturnPriceListType(o) <- SystemLedgerPriceListType.purchaseInvoiceStockPriceListType;
+    }
     
 } IN loadDefault;
     
