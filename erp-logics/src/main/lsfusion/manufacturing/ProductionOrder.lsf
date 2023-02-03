@@ -327,13 +327,14 @@ CONSTRAINT SETCHANGED (bruttoSku(ComponentDetail d)) AND NOT isComponentGroup(br
 UOM = UOM(component(ComponentDetail componentDetail));
 shortNameUOM 'Ед. изм.' (ComponentDetail componentDetail) = shortName(UOM(componentDetail));
 
-CONSTRAINT (CHANGED(component(ComponentDetail d)) OR CHANGED (bruttoSku(d))) AND component(d) AND bruttoSku(d) AND NOT bruttoSku(d) == sku(component(d))
+skipBom = ABSTRACT VALUE BOOLEAN (Order);
+CONSTRAINT (CHANGED(component(ComponentDetail d)) OR CHANGED (bruttoSku(d))) AND component(d) AND bruttoSku(d) AND NOT bruttoSku(d) == sku(component(d)) AND NOT skipBom(order(d))
     CHECKED BY component[ComponentDetail] MESSAGE 'Sku компонента и строки компонента не соответствуют друг другу';
 
 product = DATA Product (ComponentDetail) INDEXED;
 nameMaterial 'Изделие' (ComponentDetail componentDetail) = name(product(componentDetail));
 
-CONSTRAINT product(ComponentDetail componentDetail) AND bruttoSku(componentDetail) AND NOT bruttoSku(componentDetail) == sku(product(componentDetail))
+CONSTRAINT product(ComponentDetail d) AND bruttoSku(d) AND NOT bruttoSku(d) == sku(product(d)) AND NOT skipBom(order(d))
     CHECKED BY product[ComponentDetail] MESSAGE 'Sku изделия и строки компонента не соответствуют друг другу';
 
 // Кол-во
