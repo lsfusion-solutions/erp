@@ -8,7 +8,9 @@ dataPluNumber = ABSTRACT INTEGER (GroupScales, Barcode);
 pluNumber 'Номер PLU' = DATA INTEGER (GroupScales, Barcode);
 plu (GroupMachinery g, Barcode b) += OVERRIDE pluNumber(g, b), dataPluNumber(g, b);
 maxPluNumber 'Максимальное значение PLU' = DATA INTEGER (GroupScales);
-quantityNullPluNumber 'Кол-во не назнач. PLU' (GroupScales g) = GROUP SUM 1 IF passScales(sku(Barcode b)) AND active(sku(b)) AND in(g, sku(b)) AND NOT pluNumber(g,b);
+
+isScales(Barcode b) = passScales(b) AND length(id(b)) < 6 AND active(b);
+quantityNullPluNumber 'Кол-во не назнач. PLU' (GroupScales g) = GROUP SUM 1 IF isScales(Barcode b) AND active(sku(b)) AND in(g, sku(b)) AND NOT pluNumber(g,b);
 
 countItemPLU (GroupScales g, INTEGER plu) = GROUP SUM 1 IF plu == pluNumber(g, Barcode b);
 CONSTRAINT countItemPLU(GroupMachinery gs, INTEGER plu) > 1
@@ -82,7 +84,7 @@ FORM pluDashboard 'Задание PLU'
     PROPERTIES pluNumber(g,b) READONLYIF readonlyPlu(g, b)
     PROPERTIES(b) READONLY id, nameSku, idSku, activeSku
     PROPERTIES fillPLU(g,b) SHOWIF NOT pluNumber(g,b) TOOLBAR
-    FILTERS passScales(b) AND length(id(b)) < 6 AND active(b) AND in(g,sku(b))
+    FILTERS isScales(b) AND in(g,sku(b))
     FILTERS (isParent(sk,sku(b)) AND NOT (GROUP SUM 1 IF include(SkuGroup skk))) OR (GROUP SUM 1 IF include(SkuGroup skk) AND isParent(skk,sku(b)))
     FILTERGROUP activeSku FILTER 'Активные' activeSku(b) DEFAULT
     FILTERGROUP plu FILTER 'Без PLU' NOT plu(g,b)
