@@ -6,10 +6,16 @@ NAMESPACE Purchase;
 
 // ------------------------------- Проведение регистру учетных цен ------------------------ //
 
+accountLedgerPrice = ABSTRACT VALUE NUMERIC[16,4] (ShipmentDetail);
+accountLedgerPrice (ShipmentDetail d) += price(d);
+
+accountPrice(ShipmentBatch b) = accountLedgerPrice(shipmentDetail(b));
+
 // Новая партия
 supplier (ShipmentBatch ledger) = supplier(shipmentDetail(ledger));
 show (ShipmentBatch ledger)  { show(shipmentDetail(ledger));};
-@implementSystemLedgerPriceListTypeBatch(account, ShipmentBatch, supplier, stock);
+@implementSystemLedgerPriceListType(account, ShipmentBatch, supplier, stock, account);
+in(ShipmentBatch ledger, ShipmentBatch batch) += (ledger AS ShipmentBatch) == batch;
 skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentBatch);
 skipChangeLedger(ShipmentBatch b) += dataSkipChangeLedger(invoiceDetail(shipmentDetail(b)));
 skipChangeLedger(ShipmentBatch b) += onlyPositivePriceLedger(operation(shipmentDetail(b))) AND NOT quantity(shipmentDetail(b)) >0;
@@ -17,9 +23,11 @@ skipChangeLedger(ShipmentBatch b) += onlyPositivePriceLedger(operation(shipmentD
 skip[PriceListLedger](ShipmentBatch ledger) += skipChangeLedger(ledger);
 
 // Просто движение
+accountPrice(ShipmentSkuLedger l) = accountLedgerPrice(shipmentDetail(l));
+
 supplier (ShipmentSkuLedger ledger) = supplier(shipmentDetail(ledger));
 show (ShipmentSkuLedger batch)  { show(shipmentDetail(batch));};
-@implementSystemLedgerPriceListType(account, ShipmentSkuLedger, supplier, stock);
+@implementSystemLedgerPriceListType(account, ShipmentSkuLedger, supplier, stock, account);
 in (ShipmentSkuLedger ledger, Batch batch) += batch(shipmentDetail(ledger)) == batch; 
 
 skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN(ShipmentSkuLedger);
