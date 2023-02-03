@@ -240,8 +240,8 @@ updDocument (UpdLotDetail detail) = updDocument(updDocumentDetail(detail));
 //--ДопСведТов
 //---НомСредИдентТов
 id 'Код' = DATA STRING[255] (UpdTransportPackDetail);//ИдентТрансУпак
-id 'Код' = DATA STRING[255] (UpdPackDetail);//КИЗ
-id 'Код' = DATA STRING[255] (UpdLotDetail);//НомУпак
+id 'Код' = DATA STRING[255] (UpdPackDetail);//НомУпак
+id 'Код' = DATA STRING[255] (UpdLotDetail);//КИЗ
 
 fileSupplierPrefix (UpdDocument d) = 
     IF countUpdTransportPackDetail(d) OR countUpdPackDetail(d) OR countUpdLotDetail(d) 
@@ -548,10 +548,11 @@ GROUP UPDExportB EXTID  'ТаблСчФакт';
     GROUP UPDExportB1 EXTID  'Акциз';      
     GROUP UPDExportB2 EXTID  'СумНал';     
     GROUP UPDExportB3 EXTID  'СвТД';    
-    GROUP UPDExportB4 EXTID  'ДопСведТов';     
+    GROUP UPDExportB4 EXTID  'ДопСведТов';
+        GROUP UPDLotDetail EXTID 'НомСредИдентТов' : UPDExportB4;
 GROUP UPDExportBB EXTID  'ВсегоОпл' : UPDExportB;              
-    GROUP UPDExportBB_1 EXTID  'СумНалВсего' : UPDExportBB;            
-            
+    GROUP UPDExportBB_1 EXTID  'СумНалВсего' : UPDExportBB;
+
 GROUP UPDExportC EXTID  'СвПродПер';
     GROUP UPDExportC1 EXTID  'СвПер': UPDExportC;
         GROUP UPDExportC1_1 EXTID  'ОснПер': UPDExportC1;   
@@ -699,16 +700,16 @@ FORM UPDPR FORMEXTID '=:Файл'
                = nameCountry(detail)  EXTID 'КрНаимСтрПр' ATTR IN UPDExportB4,
                = idSku(detail)  EXTID 'КодТов' ATTR IN UPDExportB4 
     
-    OBJECTS utd = UpdTransportPackDetail EXTID 'НомСредИдентТов' IN UPDExportB4
-    PROPERTIES = (OVERRIDE id(utd),'') EXTID 'ИдентТрансУпак' ATTR
+    OBJECTS utd = UpdTransportPackDetail EXTID 'НомСредИдентТов' IN UPDLotDetail
+    PROPERTIES = (OVERRIDE id(utd),'') EXTID 'value' ATTR
     FILTERS updDocumentDetail(utd)==detail
     
-    OBJECTS upd = UpdPackDetail EXTID 'НомСредИдентТов' IN UPDExportB4
-    PROPERTIES = (OVERRIDE id(upd),'') EXTID 'КИЗ'
+    OBJECTS upd = UpdPackDetail EXTID 'НомСредИдентТов' IN UPDLotDetail
+    PROPERTIES = (OVERRIDE id(upd),'') EXTID 'value'
     FILTERS updDocumentDetail(upd)==detail
         
-    OBJECTS uld = UpdLotDetail EXTID 'НомСредИдентТов' IN UPDExportB4
-    PROPERTIES = (OVERRIDE id(uld),'') EXTID 'НомУпак'
+    OBJECTS uld = UpdLotDetail EXTID 'КИЗ' IN UPDLotDetail
+    PROPERTIES = (OVERRIDE id(uld),'') EXTID 'value'
     FILTERS updDocumentDetail(uld)==detail
         
     PROPERTIES = sum(d) EXTID 'СтТовБезНДСВсего' ATTR IN UPDExportBB          

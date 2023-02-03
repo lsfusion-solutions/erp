@@ -1,14 +1,16 @@
 MODULE ConsignmentUpdDocumentLot;
 
-REQUIRE UpdDocumentLot, ConsignmentUpdDocument, SaleShipmentLot;
+REQUIRE UpdDocumentLot, ConsignmentUpdDocument, SaleShipmentLot, VolumeAccountLotRu;
 
 NAMESPACE Upd;
 
 overFill(UpdDocumentDetail d, Sale.InvoiceDetail id) + {
-    FOR quantity(id, Lot lot) NEW ld = UpdLotDetail DO {
+    FOR quantity(id, Lot lot) AND NOT volumeAccount(lot) NEW ld = UpdLotDetail DO {
         updDocumentDetail(ld) <- d;
         id(ld) <- left(id(lot), 31);
-    }   
+    }
+    FOR quantity(id, Lot lot) AND volumeAccount(lot) NEW ld = UpdPackDetail DO {
+        updDocumentDetail(ld) <- d;
+        id(ld) <- id(lot);
+    }
 }
-
-
