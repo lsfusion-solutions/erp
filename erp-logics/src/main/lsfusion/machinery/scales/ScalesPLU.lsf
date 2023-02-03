@@ -40,6 +40,7 @@ fillPLU 'Проставить PLU' (GroupScales g, Barcode b) {
         }
     }
 };
+skipShowFillPlu = ABSTRACT BOOLEAN (GroupScales);
 
 CONSTRAINT CHANGED(in(GroupScales g, sku(Barcode b))) AND pluNumber(g,b) AND NOT in(g,sku(b))
     MESSAGE 'Должна быть доступна группа для товара, у которого задан PLU';
@@ -83,7 +84,7 @@ FORM pluDashboard 'Задание PLU'
     OBJECTS b = Barcode
     PROPERTIES pluNumber(g,b) READONLYIF readonlyPlu(g, b)
     PROPERTIES(b) READONLY id, nameSku, idSku, activeSku
-    PROPERTIES fillPLU(g,b) SHOWIF NOT pluNumber(g,b) TOOLBAR
+    PROPERTIES fillPLU(g,b) SHOWIF (NOT pluNumber(g,b) AND NOT skipShowFillPlu(g)) TOOLBAR
     FILTERS isScales(b) AND in(g,sku(b))
     FILTERS (isParent(sk,sku(b)) AND NOT (GROUP SUM 1 IF include(SkuGroup skk))) OR (GROUP SUM 1 IF include(SkuGroup skk) AND isParent(skk,sku(b)))
     FILTERGROUP activeSku FILTER 'Активные' activeSku(b) DEFAULT
