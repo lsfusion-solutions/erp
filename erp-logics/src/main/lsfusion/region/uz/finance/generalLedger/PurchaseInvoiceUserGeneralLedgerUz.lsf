@@ -1,6 +1,6 @@
 MODULE PurchaseInvoiceUserGeneralLedgerUz;
 
-REQUIRE GeneralLedgerStock, PurchaseInvoice, DimensionLegalEntity, DimensionStock, DimensionTax, DimensionContract;
+REQUIRE GeneralLedgerStock, PurchaseInvoice, DimensionLegalEntity, DimensionStock, DimensionTax, DimensionContract, LegalEntityUz;
 
 NAMESPACE Purchase;
 
@@ -19,11 +19,14 @@ operation[GLDocument](Invoice document) += operation(document);
 
 //-------------------------------- НДС поставщика ---------------------------
 //-- Товар
+
+VATSumItemInvoiceDetailChecked(Invoice i) = VATSumItemInvoiceDetail(i) IF VATPayer(supplier(i));
+
 @defineGeneralLedgerOperationStock (invoice, 
                                           InvSupVATI,
                                           customer,
                                           customerStock,
-                                          VATSumItemInvoiceDetail,
+                                          VATSumItemInvoiceDetailChecked,
                                           description,
                                           '4410',
                                           '6010',
