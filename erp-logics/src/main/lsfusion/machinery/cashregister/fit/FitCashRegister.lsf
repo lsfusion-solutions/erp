@@ -286,7 +286,9 @@ receiveFromFit (CashRegister cr) {
                             sku(d) <- sku(barcode(STRING[15](ltrim(substr(srl, 5, 16)))));
                             price(d) <- NUMERIC[16,4](NUMERIC(substr(srl, 85, 14)) / 100);
                             quantity(d) <- NUMERIC[16,5](NUMERIC(substr(srl, 78, 7)) / 1000);
-                            discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
+                            discountPercent(d) <- NUMERIC[6,2](-NUMERIC(substr(srl, 40, 11)) / 100) IF substr(srl, 3, 2) = '41';
+                            discountSum(d) <- IF discountPercent(d) THEN NUMERIC[18,4](round2(discountPercent(d)*price(d)*quantity(d) / 100))
+                                                    ELSE NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
                     }
                     FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '12' AND substr(srl, 77, 1) = '+' AND
                         INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
@@ -314,7 +316,8 @@ receiveFromFit (CashRegister cr) {
                             sku(d) <- sku(barcode(STRING[15](ltrim(substr(srl, 5, 16)))));
                             price(d) <- NUMERIC[16,4](abs(NUMERIC(substr(srl, 85, 14)) / 100));
                             quantity(d) <- NUMERIC[16,5](NUMERIC(substr(srl, 78, 7)) / 1000);
-                            discountSum(d) <- NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100);
+                            discountSum(d) <- IF substr(srl, 3, 2) = '42' THEN NUMERIC[18,4](-NUMERIC(substr(srl, 40, 11)) / 100)
+                                ELSE IF substr(srl, 3, 2) = '41' THEN NUMERIC[18,4](round2(-NUMERIC(substr(srl, 40, 11))*price(d)*quantity(d) / 100));
                     }
                     FOR STRING srl = receiptString(INTEGER j) AND left(srl, 2) = '04' AND
                         INTEGER sl = (GROUP MAX INTEGER l IF left(receiptString(l), 2) = '01' AND l < j) AND
