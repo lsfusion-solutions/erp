@@ -1243,7 +1243,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     }
                 } else if (introductions || withdrawals) {
                     try {
-                        readCashDocuments(sidEquipmentServer, httpExchange, introductions);
+                        readCashDocuments(sidEquipmentServer, httpExchange, introductions, extendedLogs);
                     } catch (Exception e) {
                         sendSalesLogger.error(getLogPrefix() + "Reading CashDocuments", e);
                         sendCashDocumentResponse(httpExchange, e.getMessage(), introductions);
@@ -1295,9 +1295,13 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private void readCashDocuments(String sidEquipmentServer, HttpExchange httpExchange, boolean introductions) throws IOException, SQLException, JDOMException {
+    private void readCashDocuments(String sidEquipmentServer, HttpExchange httpExchange, boolean introductions, boolean extendedLogs) throws IOException, SQLException, JDOMException {
         List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, introductions ? "introductions" :  "withdrawals"));
+
+        if(extendedLogs) {
+            sendSalesLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
+        }
 
         List<CashDocument> cashDocumentList = parseCashDocumentXML(doc, cashRegisterInfoList, introductions);
         if (!cashDocumentList.isEmpty()) {
