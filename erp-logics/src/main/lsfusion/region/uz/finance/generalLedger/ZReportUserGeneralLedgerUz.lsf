@@ -15,15 +15,16 @@ dateTime[GLDocument](ZReport document) += dateTime(document);
 defaultVAT = [GROUP MAX Tax.Range v BY number(v)](2);
 valueVAT (ZReport r) =  valueRate(defaultVAT(), date(r));
 
-//-- Оплачено налично         sumCashPaymentZReport
 shortDescription 'Название документа' (ZReport zReport) =  STRING[200] (CONCAT '', 'Продажа по кассе ' + nameDepartmentStore(zReport),
                                             ' от ' + date(zReport));
+                                            
 sumCashVAT (ZReport r) = round2(sumCash(r) / (100 (+) valueVAT(r)) * valueVAT(r)); 
 sumCardVAT (ZReport r) = round2(sumCard(r) / (100 (+) valueVAT(r)) * valueVAT(r)); 
 sumCashWithoutVAT (ZReport r) = sumCash(r) (-) sumCashVAT(r); 
 sumCardWithoutVAT (ZReport r) = sumCard(r) (-) sumCardVAT(r);
 sumWithoutVAT(ZReport r) = sumCashWithoutVAT(r) (+) sumCardWithoutVAT(r);
 
+//-- Оплачено налично
 @defineGeneralLedger (zReport, 
                                     ZCashWV, 
                                     legalEntityStock, 
@@ -79,7 +80,8 @@ overCreateZCardWVZReport(UserGeneralLedger generalLedger) + {
 
 //----------------------- Себестоимость и надбавка  -------------------------------
 
-sumCost 'Себестоимость' (ZReport r) = GROUP SUM costSum[SkuLedger](ZReportSaleSkuLedger ledger) BY zReport(ledger);
+sumCost 'Себестоимость' (ZReport r) = [GROUP SUM costSum[SkuLedger](ZReportSaleSkuLedger ledger) BY zReport(ledger)](r) 
+                                                        (-) [GROUP SUM costSum[SkuLedger](ZReportReturnSkuLedger ledger) BY zReport(ledger)](r);
 
 @defineGeneralLedger (zReport, 
                                  cost, 
