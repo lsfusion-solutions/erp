@@ -1,0 +1,299 @@
+MODULE Set10Promotion;
+
+REQUIRE PriceListOperation, LogTools, Set10, PriceListBefore, CashRegister;
+
+NAMESPACE Set10;
+
+
+CLASS SetPromotion 'Тип скидки на кассе'{
+    fixPrice 'Акционная цена',
+    set '1+1'
+};
+TABLE setPromotion (SetPromotion);
+
+name 'Наименование' (SetPromotion o) = staticCaption(o) IF o IS SetPromotion CHARWIDTH 15;
+
+FORM dialogSetPromotions 'Тип скидки на кассе'
+    OBJECTS o = SetPromotion
+    PROPERTIES(o) READONLY name
+
+    LIST SetPromotion OBJECT o
+;
+
+setPromotion = ABSTRACT SetPromotion (PriceList);
+promotion = DATA SetPromotion (UserPriceList);
+setPromotion(UserPriceList priceList) += promotion(priceList);
+
+nameSetPromotion 'Тип скидки на кассе' = name(setPromotion(UserPriceList priceList));
+nameSetPromotion 'Тип скидки на кассе' = name(setPromotion(PriceList priceList));
+
+showSetPromotion 'Тип скидки на кассе' = DATA BOOLEAN (PriceList.Operation);
+showSetPromotion 'Тип скидки на кассе' (UserPriceList p) = showSetPromotion(operation(p)) MATERIALIZED;
+
+EXTEND FORM PriceList.operation PROPERTIES(o) showSetPromotion;
+
+DESIGN PriceList.operation {
+    showContainer {
+        MOVE PROPERTY(showSetPromotion(o));
+    }
+}
+
+EXTEND FORM priceLists
+    PROPERTIES (p) READONLYIF isReadonly() nameSetPromotion AFTER nameOperation(p)
+;
+
+
+CLASS SaleGroup 'Группа продаж';
+TABLE saleGroup (SaleGroup);
+
+name 'Наименование' = DATA ISTRING[100] (SaleGroup) CHARWIDTH 15;
+saleGroup = GROUP AGGR SaleGroup sg BY name(sg);
+
+inactive 'Неактивная' = DATA BOOLEAN (SaleGroup);
+active 'Активная' (SaleGroup g) = g IS SaleGroup AND NOT inactive(g);
+
+FORM saleGroup 'Группа продаж'
+    OBJECTS o = SaleGroup PANEL
+    PROPERTIES(o) name, inactive
+
+    EDIT SaleGroup OBJECT o
+;
+
+FORM saleGroups 'Группы продаж'
+    OBJECTS o = SaleGroup
+    PROPERTIES(o) READONLY name, inactive
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogSaleGroups 'Группы продаж'
+    OBJECTS o = SaleGroup
+    PROPERTIES(o) READONLY name, inactive
+    FILTERGROUP inactive FILTER 'Активные' active(o) DEFAULT
+
+    LIST SaleGroup OBJECT o
+;
+
+saleGroup 'Группа продаж'  = DATA SaleGroup(UserPriceListDetail);
+nameSaleGroup 'Группа продаж' (UserPriceListDetail d) = name(saleGroup(d));
+
+CONSTRAINT (CHANGED (saleGroup(UserPriceListDetail d)) AND in(d, DataPriceListType t) OR CHANGED (price(d,t)))
+    AND (PARTITION SUM 1 BY userPriceList(d), saleGroup(d), price(d,t)) != (PARTITION SUM 1 BY userPriceList(d), saleGroup(d))
+    MESSAGE 'В одну группу продаж должны быть включены товары с одинаковой ценой';
+
+fillInactiveSaleGroup (DATE dt) {
+    inactive(SaleGroup g) <- TRUE WHERE active(g) AND (GROUP MAX toDate(UserPriceListDetail d) IF saleGroup(d) == g) < dt;
+    APPLY;
+}
+
+createSaleGroup 'Создать группу продаж'(UserPriceListDetail dd){
+
+    isSelected(dd) <- TRUE WHERE NOT (GROUP SUM 1 IF isSelected(UserPriceListDetail pd));
+
+    DIALOG dialogString OBJECTS s INPUT NULL DO {
+        LOCAL name = STRING[200]();
+        name() <- replace(s, ' ', '_') + '_' + toChar(fromDate(dd), 'DD.MM') + '-' + toChar(toDate(dd), 'DD.MM');
+
+        IF NOT saleGroup(name()) THEN NEW sg = SaleGroup {
+            name(sg) <- name();
+        }
+
+        FOR isSelected(UserPriceListDetail d) DO {
+            saleGroup(d) <- saleGroup(name());
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM userPriceList
+    PROPERTIES (p) nameSetPromotion SHOWIF showSetPromotion(p)
+    PROPERTIES (d) SHOWIF (setPromotion(p) == SetPromotion.set)  nameSaleGroup BEFORE shortNameUOMSku(d), createSaleGroup
+;
+
+DESIGN userPriceList{
+    first {
+        MOVE PROPERTY(nameSetPromotion(p))
+        {charWidth = 30;}
+    }
+}
+
+statusPromotionToSET 'Статус выгрузки' = DATA INTEGER (UserPriceList);
+statusMessagePromotionToSET 'Сообщение' = DATA TEXT (UserPriceList);
+needCheckPromotionStatus 'Требуется проверить статус' = DATA BOOLEAN (UserPriceList) INDEXED ;
+tiPromotionSET 'TI последнего запроса'= DATA TEXT (UserPriceList);
+
+@defineLogRotate(setPromotion, 5, weekly);
+
+FORM goods_catalog FORMEXTID 'goods-catalog'
+
+    OBJECTS p = PriceList PANEL
+
+    OBJECTS sg = SaleGroup EXTID 'sale-group'
+    PROPERTIES(sg) name, id = name ATTR
+    PROPERTIES oper = 'CHANGE' IF sg IS SaleGroup EXTID 'operation' ATTR
+    FILTERS (GROUP SUM 1 IF p == priceList(PriceListDetail d) AND NOT exclude(d) AND sg = saleGroup(d))
+
+    OBJECTS s = Sku EXTID 'good-binding'
+    PROPERTIES(s) id EXTID 'marking-of-the-good' ATTR
+    FILTERS (GROUP SUM 1 IF p == priceList(PriceListDetail d)  AND NOT exclude(d) AND sg = saleGroup(d) AND s == sku(d))
+;
+
+exportPromotionToSET 'Отправить в SET' (PriceList p) {
+    NEWSESSION {
+        IF NOT toDate(p) THEN {
+            MESSAGE 'Для рекламной акции должна быть задана дата окончания';
+            RETURN;
+        }
+
+        LOCAL outerXML = TEXT();
+        IF setPromotion(p) == SetPromotion.set THEN {
+            EXPORT goods_catalog OBJECTS p = p XML ;
+            fileToString(exportFile());
+            encodeBase64(resultString());
+            outerXML() <- '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://plugins.products.ERPIntegration.crystals.ru/">' +
+                '<soapenv:Header/>' +
+                '<soapenv:Body>' +
+                '<web:getGoodsCatalog>' +
+                '<goodsCatalogXML><![CDATA[' + encodedBase64() + ']]></goodsCatalogXML>' +
+                //'<TI>' + tiSegmentSET(p) + '</TI>' +
+                '</web:getGoodsCatalog>' +
+                '</soapenv:Body>' +
+                '</soapenv:Envelope>';
+            logToFile('setPromotion', 'Sending sale-group to ' + (OVERRIDE urlServerSet10() + '/SET/WSGoodsCatalogImport', 'NULL') + ' ' + (OVERRIDE resultString(), 'NULL'));
+            LOCAL resultRequest = FILE();
+            TRY {
+                EXTERNAL HTTP urlServerSet10() + '/SET/WSGoodsCatalogImport' PARAMS outerXML() TO resultRequest;
+            } CATCH {
+                logToFile('setPromotion', messageCaughtException());
+            }
+        }
+
+        LOCAL innerXML = TEXT ();
+        innerXML() <- '<AdvertisingActions>';
+        innerXML() <- innerXML() +'<AdvertisingAction name="'+ escapeXMLValue(nameSetPromotion(p)) + ' ' + toChar(fromDate(p), 'DD.MM')+ '-' +toChar(toDate(p), 'DD.MM')+'" active="true" mode="unconditional" ignoreRestictions="true" worksAnyTime="false" priority="1" color="" external-code="LSF_'+ number(p) +'"  >';
+        innerXML() <- innerXML() +'<shop-indices>'+(IF (GROUP SUM 1 IF dataIn(p, StockGroup sg) ) THEN '*' ELSE (GROUP CONCAT STRING(npp(GroupCashRegister gcr)) IF in(p, stock(gcr)) AND (sidModel(gcr) == 'Kristal10' OR sidModel(gcr) == 'Kristal10Web') AND active(gcr), ' ' ORDER gcr))+'</shop-indices>';
+        innerXML() <- innerXML() +'<begin-date>'+ fromDate(p)+'T'+fromTime(p) +'</begin-date>';
+        innerXML() <- innerXML() +'<end-date>'+ toDate(p)+'T'+toTime(p) +'</end-date>';
+        innerXML() <- innerXML() +'<actionResults>';
+        CASE
+            WHEN setPromotion(p) == SetPromotion.fixPrice THEN {
+                innerXML() <- innerXML() +'<catalog>';
+                innerXML() <- innerXML() + (GROUP CONCAT TEXT ('<marking-of-the-good id="'+ idSku(PriceListDetail d) +'" fixedPrice="'+priceBefore(d)+'"/>') IF priceList(d) == p AND priceBefore(d) AND NOT exclude(d),'' ORDER d);
+                innerXML() <- innerXML() +'</catalog>';
+            }
+            WHEN setPromotion(p) == SetPromotion.set THEN {
+                innerXML() <- CONCAT '', innerXML(), (GROUP CONCAT TEXT ('<set name="'+ escapeXMLValue(name(SaleGroup sg))+'" valueType="fixedPrice" value = "'+price(PriceListDetail mind, (GROUP MIN DataPriceListType dtp IF in(p, dtp)))+'">'
+                    +'<row requiedQuantity="2.0">'
+                    + '<sale-groups-element id="'+ name(sg) +'"/>'
+                    +'</row>'
+                    +'</set>') IF mind == (GROUP MIN PriceListDetail dd IF p == priceList(dd) AND NOT exclude(dd) AND sg = saleGroup(dd)), '' ORDER sg);
+                innerXML() <- CONCAT '', innerXML(), (GROUP CONCAT TEXT ('<set name="'+ escapeXMLValue(OVERRIDE caption(sku(PriceListDetail d)), nameSku(d)) + ' ' + escapeXMLValue(OVERRIDE nameBrand(sku(d)), '') +'" valueType="fixedPrice" value = "'+price(d, (GROUP MIN DataPriceListType dtp IF in(p, dtp)))+'">'
+                    +'<row requiedQuantity="2.0">'
+                    + '<marking-of-the-good id="'+ id(sku(d)) +'"/>'
+                    +'</row>'
+                    +'</set>') IF p == priceList(d) AND NOT exclude(d) AND NOT saleGroup(d), '' ORDER d);
+            }
+
+        innerXML() <- innerXML() + '</actionResults>';
+        innerXML() <- innerXML() + '</AdvertisingAction>';
+        innerXML() <- innerXML() + '</AdvertisingActions>';
+
+        encodeBase64(innerXML());
+
+        tiPromotionSET(p) <- rpad(replace(replace(TEXT([FORMULA TEXT 'extract(epoch from now()) + $1'](0)),'.',''),',',''),17,'0');
+        outerXML() <- '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://ws.discounts.ERPIntegration.crystals.ru/">' +
+            '<soapenv:Header/>' +
+            '<soapenv:Body>' +
+            '<web:importActionsWithTi>' +
+            '<xmlData><![CDATA[' + encodedBase64() + ']]></xmlData>' +
+            '<TI>' + tiPromotionSET(p) + '</TI>' +
+            '</web:importActionsWithTi>' +
+            '</soapenv:Body>' +
+            '</soapenv:Envelope>';
+        logToFile('setPromotion', 'Sending promotion to ' + (OVERRIDE urlServerSet10() + '/AdvertisingActionsImport', 'NULL') + ' : TI=' + tiPromotionSET(p) + ' ' + (OVERRIDE innerXML(), 'NULL'));
+        LOCAL resultRequest = FILE();
+        TRY {
+            EXTERNAL HTTP urlServerSet10() + '/AdvertisingActionsImport' PARAMS outerXML() TO resultRequest;
+            needCheckPromotionStatus(p) <- TRUE;
+            statusPromotionToSET(p) <- NULL ;
+            statusMessagePromotionToSET(p) <- NULL;
+            APPLY;
+            MESSAGE 'Акция выгружена успешно.';
+        } CATCH {
+            logToFile('setPromotion', messageCaughtException());
+            MESSAGE 'Возникла ошибка при выгрузке.';
+        }
+    }
+}
+
+EXTEND FORM priceLists
+    PROPERTIES (p) PANEL SHOWIF setPromotion(p) exportPromotionToSET, statusPromotionToSET, statusMessagePromotionToSET;
+
+DESIGN priceLists {
+    actionContainer{
+        NEW set {
+            MOVE PROPERTY (exportPromotionToSET(p));
+            MOVE PROPERTY (statusPromotionToSET(p));
+            MOVE PROPERTY (statusMessagePromotionToSET(p));
+        }
+    }
+}
+
+
+GROUP body EXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Body';
+GROUP getPackageStatusResponse EXTID 'ns2=http://feedback.ERPIntegration.crystals.ru/:getPackageStatusResponse' : body;
+GROUP xmlGetstatus : getPackageStatusResponse;
+
+GROUP advertisingAction EXTID 'AdvertisingAction';
+
+errormessage = DATA LOCAL STRING(INTEGER);
+status_message = DATA LOCAL STRING(INTEGER);
+status = DATA LOCAL INTEGER(INTEGER);
+ti = DATA LOCAL STRING(INTEGER);
+
+FORM envelope FORMEXTID 'Envelope'
+    OBJECTS import = INTEGER IN xmlGetstatus
+    PROPERTIES(import) status_message EXTID 'status-message' ATTR, status ATTR, ti ATTR
+    PROPERTIES(import) IN advertisingAction errormessage ATTR;
+
+
+checkStatusSET 'Проверить статус выгрузки в SET' () {
+    NEWSESSION {
+        IF (GROUP SUM 1 IF needCheckPromotionStatus(UserPriceList d)) THEN {
+            LOCAL getPackageStatus = TEXT();
+            getPackageStatus() <- '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:feed="http://feedback.ERPIntegration.crystals.ru/">' +
+                '<soapenv:Header/>' +
+                '<soapenv:Body>' +
+                '<feed:getPackageStatus>' +
+                '<xmlGetstatus>' +
+                (GROUP CONCAT '<import ti="' + tiPromotionSET(UserPriceList d) + '"/>','' ORDER tiPromotionSET(d)) +
+                '</xmlGetstatus>' +
+                '</feed:getPackageStatus>' +
+                '</soapenv:Body>' +
+                '</soapenv:Envelope>';
+
+            LOCAL resultRequest = FILE();
+            TRY {
+                logToFile('setPromotion', 'Sending getPackageStatus to ' + (OVERRIDE urlServerSet10() + '/SET/FeedbackWS', 'NULL') + ' ' + (OVERRIDE getPackageStatus(), 'NULL'));
+                EXTERNAL HTTP urlServerSet10() + '/SET/FeedbackWS' PARAMS getPackageStatus() TO resultRequest;
+                logToFile('setPromotion', resultRequest());
+
+                IMPORT envelope XML FROM resultRequest();
+                FOR ti(INTEGER i) DO {
+                    statusPromotionToSET(UserPriceList d) <- status(i) WHERE tiPromotionSET(d) == ti(i) ;
+                    statusMessagePromotionToSET(UserPriceList d) <- CONCAT '\n',status_message(i), errormessage(i) WHERE tiPromotionSET(d) == ti(i) ;
+                }
+
+                APPLY;
+            } CATCH {
+                logToFile('setPromotion', messageCaughtException());
+            }
+        }
+    }
+}
+
+EXTEND FORM integrationData PROPERTIES() checkStatusSET;
+
+DESIGN integrationData {
+    set10 {
+        MOVE PROPERTY(checkStatusSET());
+    }
+}
