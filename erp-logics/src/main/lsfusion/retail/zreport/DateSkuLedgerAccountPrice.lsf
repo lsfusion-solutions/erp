@@ -1,0 +1,34 @@
+MODULE DateSkuLedgerAccountPrice;
+
+REQUIRE DateSkuLedger;
+
+NAMESPACE ZReport;
+
+// Account Price
+
+accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (DateSaleSkuLedger);
+WHEN SET (DateSaleSkuLedger l IS DateSaleSkuLedger) DO
+    accountPrice(l) <- prevCurrentAccountPrice(sku(l), departmentStore(l));
+
+accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (DateSaleSkuLedger);
+accountSum(DateSaleSkuLedger l) <- round2(quantity[OutFIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[OutFIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
+
+sum[OutSkuLedger] (DateSaleSkuLedger ledger) += accountSum(ledger);
+
+costSum (DateSaleSkuLedger ledger) += WHEN ledger IS DateSaleSkuLedger THEN NUMERIC[16,3](accountSum(ledger));
+
+accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (DateReturnSkuLedger);
+WHEN SET (DateReturnSkuLedger l IS DateReturnSkuLedger) DO
+    accountPrice(l) <- prevCurrentAccountPrice(sku(l), departmentStore(l));
+
+accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (DateReturnSkuLedger);
+accountSum(DateReturnSkuLedger l) <- round2(quantity[InLIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[InLIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
+
+sum[InSkuLedger] (DateReturnSkuLedger ledger) += accountSum(ledger);
+
+costSum (DateReturnSkuLedger ledger) += WHEN ledger IS DateReturnSkuLedger THEN NUMERIC[16,3](-accountSum(ledger));
+
+// Пересчет
+// accountPrice (DateSaleSkuLedger l) <- prevAccountPriceB(sku(l), departmentStore(l), dateTimeToDateTime(date(l), 23:59));
+// accountPrice (DateReturnSkuLedger l) <- prevAccountPriceB(sku(l), departmentStore(l), dateTimeToDateTime(date(l), 23:59));
+// APPLY;

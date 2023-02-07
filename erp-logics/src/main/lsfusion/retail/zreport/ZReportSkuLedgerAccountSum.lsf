@@ -1,12 +1,12 @@
 MODULE ZReportSkuLedgerAccountSum;
 
-REQUIRE ZReportSkuLedger, PriceListAccountSum;
+REQUIRE ZReportSkuLedger, PriceListAccount;
 
 NAMESPACE ZReport;
 
 accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (ZReportSaleSkuLedger);
 WHEN SET (ZReportSaleSkuLedger l IS ZReportSaleSkuLedger) DO
-    accountPrice(l) <- NUMERIC[16,4](prevCurrentSum(sku(l), stock[DataSkuLedger](l)) / prevCurrentBalance(sku(l), stock[DataSkuLedger](l)));
+    accountPrice(l) <- prevCurrentAccountPrice(sku(l), departmentStore(zReport(l)));
 
 accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (ZReportSaleSkuLedger);
 accountSum(ZReportSaleSkuLedger l) <- round2(quantity[OutFIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[OutFIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
@@ -17,7 +17,7 @@ costSum (ZReportSaleSkuLedger ledger) += WHEN ledger IS ZReportSaleSkuLedger THE
 
 accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (ZReportReturnSkuLedger);
 WHEN SET (ZReportReturnSkuLedger l IS ZReportReturnSkuLedger) DO
-    accountPrice(l) <- NUMERIC[16,4](accountPrice(sku(l), stock[DataSkuLedger](l)));
+    accountPrice(l) <- prevCurrentAccountPrice(sku(l), departmentStore(zReport(l)));
 
 accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (ZReportReturnSkuLedger);
 accountSum(ZReportReturnSkuLedger l) <- round2(quantity[InLIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[InLIFOSkuLedger](l)) OR CHANGED(accountPrice(l));

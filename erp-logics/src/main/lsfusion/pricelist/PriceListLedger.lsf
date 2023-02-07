@@ -279,6 +279,11 @@ priceA 'Цена' (LedgerPriceListType type, sku, Stock stock, DATETIME dateTime
           WHERE fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
           BY sku(ledger, type, stock) COMPLEX CHARWIDTH 7;
 
+lastPrice 'Цена' (LedgerPriceListType type, sku, Stock stock) =
+    GROUP LAST price(PriceListLedger ledger, type, stock)
+    ORDER fromDateTime(ledger, type, stock), ledger
+    BY sku(ledger, type, stock) COMPLEX;
+
 priceListLedgerA (LedgerPriceListType type, sku, Stock stock, DATETIME dateTime) =
     GROUP LAST PriceListLedger ledger
           ORDER fromDateTime(ledger, type, stock), ledger
@@ -660,7 +665,7 @@ META implementSystemLedgerPriceListType (type, objectClass, companyProp, stockPr
     company (objectClass ledger) += companyProp(ledger);
 
     in (objectClass ledger, SystemLedgerPriceListType type) += WHEN prefix###price(ledger) AND type == SystemLedgerPriceListType.##type##PriceListType THEN TRUE;
-    price (objectClass ledger, SystemLedgerPriceListType type) += WHEN prefix###price(ledger) AND type == SystemLedgerPriceListType.##type##PriceListType THEN price(ledger);
+    price (objectClass ledger, SystemLedgerPriceListType type) += WHEN prefix###price(ledger) AND type == SystemLedgerPriceListType.##type##PriceListType THEN prefix###price(ledger);
 
     in (objectClass ledger, ###stockProp stock) += stockProp(ledger) == stock;
     

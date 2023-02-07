@@ -1,31 +1,21 @@
 MODULE DateSkuLedger;
 
-REQUIRE ZReport, SkuLedger, PriceListAccountSum;
+REQUIRE ZReport, SkuLedger;
 
 NAMESPACE ZReport;
 
-   
 //---------------------- Продажа ----------------//
 CLASS DateSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger, SaleLedger; //-- агрегированный объект
 TABLE DateSaleSkuLedger (DateSaleSkuLedger);
-TABLE departmentStoreSkuDate(DepartmentStore, Sku, DATE);
-
 
 quantityReceiptSaleDetail 'Кол-во' (department, sku, date) = GROUP SUM quantity(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+    BY departmentStore(d), sku(d), date(d);
 sumReceiptSaleDetail 'Сумма' (department, sku, date) = GROUP SUM sum(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+    BY departmentStore(d), sku(d), date(d);
 discountSumReceiptSaleDetail 'Сумма скидки' (department, sku, date) = GROUP SUM discountSum(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+    BY departmentStore(d), sku(d), date(d);
 countReceiptSaleDetail (department, sku, date) = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
-    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
-
-overVAT = ABSTRACT Range(DepartmentStore, Sku);
-
-VATReceiptSaleDetail = DATA Range (DepartmentStore, Sku, DATE);
-WHEN SET(quantityReceiptSaleDetail(DepartmentStore department, Sku sku, DATE date)) DO {
-    VATReceiptSaleDetail (department, sku, date) <- OVERRIDE overVAT(department, sku), VAT(sku, country(department));
-}
+    BY departmentStore(d), sku(d), date(d);
 
 departmentStore = DATA DepartmentStore (DateSaleSkuLedger) INDEXED;
 sku = DATA Sku (DateSaleSkuLedger);
@@ -57,6 +47,26 @@ quantity[OutFIFOSkuLedger] (DateSaleSkuLedger ledger) += NUMERIC[14,3](quantityR
 
 //---------------------- SaleLedger ----------------//
 
+overVAT = ABSTRACT Range(DepartmentStore, Sku);
+
+VAT = DATA Range(DateSaleSkuLedger);
+WHEN SET(DateSaleSkuLedger l IS DateSaleSkuLedger) DO {
+    VAT(l) <- OVERRIDE overVAT(departmentStore(l), sku(l)), VAT(sku(l), country(departmentStore(l)));
+}
+
+// to delete
+VATReceiptSaleDetail = DATA Range (DepartmentStore, Sku, DATE);
+
+migratedVATSale = DATA BOOLEAN();
+onStarted() + {
+    IF NOT migratedVATSale() THEN NEWSESSION {
+        APPLY {
+            VAT(DateSaleSkuLedger l) <- VATReceiptSaleDetail(departmentStore(l), sku(l), date(l));
+            migratedVATSale() <- TRUE;
+        }
+    }
+}
+
 dateTime[SaleLedger] (DateSaleSkuLedger ledger) += toDateTime(date(ledger));
 isPosted[SaleLedger] (DateSaleSkuLedger ledger) += ledger IS DateSaleSkuLedger;
 isClosed[SaleLedger] (DateSaleSkuLedger ledger) += ledger IS DateSaleSkuLedger;
@@ -66,7 +76,7 @@ description[SaleLedger] (DateSaleSkuLedger ledger) += STRING[200]('Продаж�
 
 cost(DateSaleSkuLedger ledger, Batch batch) +=  cost[SkuLedger,Batch](ledger, batch) IF ledger IS DateSaleSkuLedger;
 quantity[SaleLedger] (DateSaleSkuLedger ledger) += NUMERIC[14,3](quantityReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger)));
-VAT (DateSaleSkuLedger ledger) += VATReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger));
+VAT (DateSaleSkuLedger ledger) += VAT(ledger);
 sum[SaleLedger] (DateSaleSkuLedger ledger) += NUMERIC[18,4](sumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger)));
 
 discountSum (DateSaleSkuLedger ledger) += NUMERIC[18,4](discountSumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger)));
@@ -81,18 +91,13 @@ CLASS DateReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSkuLe
 TABLE DateReturnSkuLedger (DateReturnSkuLedger);
 
 quantityReceiptReturnDetail 'Кол-во' (department, sku, date) = GROUP SUM quantity(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+    BY departmentStore(d), sku(d), date(d);
 sumReceiptReturnDetail 'Сумма' (department, sku, date) = GROUP SUM sum(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+    BY departmentStore(d), sku(d), date(d);
 discountSumReceiptReturnDetail 'Сумма скидки' (department, sku, date) = GROUP SUM discountSum(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
+    BY departmentStore(d), sku(d), date(d);
 countReceiptReturnDetail  (department, sku, date) = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d)
-    BY departmentStore(d), sku(d), date(d) MATERIALIZED;
-
-VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE);
-WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE date)) DO {
-    VATReceiptReturnDetail (department, sku, date) <- OVERRIDE overVAT(department, sku), VAT (sku, country(department));
-}
+    BY departmentStore(d), sku(d), date(d);
 
 dateReturnSkuLedger = AGGR DateReturnSkuLedger WHERE countReceiptReturnDetail(DepartmentStore departmentStore, Sku sku, DATE date);// MATERIALIZED;
 INDEX sku(DateReturnSkuLedger o), departmentStore(o);
@@ -112,6 +117,24 @@ quantity[InLIFOSkuLedger] (DateReturnSkuLedger ledger) += NUMERIC[14,3](quantity
 
 //---------------------- SaleLedger ----------------//
 
+VAT = DATA Range(DateReturnSkuLedger);
+WHEN SET(DateReturnSkuLedger l IS DateReturnSkuLedger) DO {
+    VAT(l) <- OVERRIDE overVAT(departmentStore(l), sku(l)), VAT(sku(l), country(departmentStore(l)));
+}
+
+// to delete
+VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE);
+
+migratedVATReturn = DATA BOOLEAN();
+onStarted() + {
+    IF NOT migratedVATReturn() THEN NEWSESSION {
+        APPLY {
+            VAT(DateReturnSkuLedger l) <- VATReceiptReturnDetail(departmentStore(l), sku(l), date(l));
+            migratedVATReturn() <- TRUE;
+        }
+    }
+}
+
 dateTime[SaleLedger] (DateReturnSkuLedger ledger) += toDateTime(date(ledger));
 isPosted[SaleLedger] (DateReturnSkuLedger ledger) += ledger IS DateReturnSkuLedger;
 isClosed[SaleLedger] (DateReturnSkuLedger ledger) += ledger IS DateReturnSkuLedger;
@@ -121,41 +144,10 @@ description[SaleLedger] (DateReturnSkuLedger ledger) += STRING[200]('Возвр�
 
 cost(DateReturnSkuLedger ledger, Batch batch) += -cost[SkuLedger,Batch](ledger, batch) IF ledger IS DateReturnSkuLedger;
 quantity[SaleLedger] (DateReturnSkuLedger ledger) += -NUMERIC[14,3](quantityReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger)));
-VAT (DateReturnSkuLedger ledger) += VATReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger));
+VAT (DateReturnSkuLedger ledger) += VAT(ledger);
 sum[SaleLedger] (DateReturnSkuLedger ledger) += -NUMERIC[18,4](sumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger)));
 discountSum (DateReturnSkuLedger ledger) += -NUMERIC[18,4](discountSumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger)));
 
 //-------------
 
 @extendClassReturnZReportSkuLedger(DateReturnSkuLedger);
-
-// AccountSum
-
-// Пересчет
-// accountPrice (DateSaleSkuLedger l) <- prevAccountPriceB(sku(l), departmentStore(l), dateTimeToDateTime(date(l), 23:59));
-// accountSum(DateSaleSkuLedger l) <- round2(quantity[OutFIFOSkuLedger](l) * accountPrice(l));
-// accountPrice (DateReturnSkuLedger l) <- prevAccountPriceB(sku(l), departmentStore(l), dateTimeToDateTime(date(l), 23:59));
-// accountSum(DateReturnSkuLedger l) <- round2(quantity[InLIFOSkuLedger](l) * accountPrice(l));
-// APPLY;
-
-accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (DateSaleSkuLedger);
-WHEN SET (DateSaleSkuLedger l IS DateSaleSkuLedger) DO
-    accountPrice(l) <- NUMERIC[16,4](OVERRIDE prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)), accountPrice(sku(l), departmentStore(l)));
-
-accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (DateSaleSkuLedger);
-accountSum(DateSaleSkuLedger l) <- round2(quantity[OutFIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[OutFIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
-
-sum[OutSkuLedger] (DateSaleSkuLedger ledger) += accountSum(ledger);
-
-costSum (DateSaleSkuLedger ledger) += WHEN ledger IS DateSaleSkuLedger THEN NUMERIC[16,3](accountSum(ledger));
-
-accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (DateReturnSkuLedger);
-WHEN SET (DateReturnSkuLedger l IS DateReturnSkuLedger) DO
-    accountPrice(l) <- NUMERIC[16,4](OVERRIDE prevCurrentSum(sku(l), departmentStore(l)) / prevCurrentBalance(sku(l), departmentStore(l)), accountPrice(sku(l), departmentStore(l)));
-
-accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (DateReturnSkuLedger);
-accountSum(DateReturnSkuLedger l) <- round2(quantity[InLIFOSkuLedger](l) * accountPrice(l)) WHEN CHANGED(quantity[InLIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
-
-sum[InSkuLedger] (DateReturnSkuLedger ledger) += accountSum(ledger);
-
-costSum (DateReturnSkuLedger ledger) += WHEN ledger IS DateReturnSkuLedger THEN NUMERIC[16,3](-accountSum(ledger));
