@@ -360,13 +360,14 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                         exportBlrwblDateTime() <- currentDateTimeMillis();
                         toMilliseconds(exportBlrwblDateTime());
                         EXPORT exportBlrwbl OBJECTS ei = ei XML TO contentSubXML;
-                        IF outputDir THEN {
-                            TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                            WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbl-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS'); 
-                        }
-
+                        
                         name() <- 'blrwbl-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         documentType() <- 'BLRWBL';
+                        IF outputDir THEN {
+                            TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + name();
+                        }
+
                         getSignedDocumentSupplier(provider, ei, contentSubXML(), TRUE);
                         IF signError() THEN {
                             logToFile('edi', provider + ' (' + login + ') SendEInvoice error: BLRWBL ' + deliveryNoteNumber(ei) + ' не подписан. Ошибка: ' + signError());
@@ -405,7 +406,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                                         code(em) <- (IF isCancel(ei) THEN '1' ELSE '9');
                                         kind(em) <- EInvoiceMessageKind.out;
                                         type(em) <- EInvoiceMessageType.blrwbl;
-                                        XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbl-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                        XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + name();
                                     }
                                     APPLY NESTED LOCAL;
                                 //}

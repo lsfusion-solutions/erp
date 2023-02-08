@@ -282,11 +282,12 @@ signAndSendSupplierEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                     toMilliseconds(exportBlrwblDateTime());
                     hideMessageHeaderBlrwbl() <- TRUE;
                     EXPORT exportBlrwbl OBJECTS ei = ei XML TO contentSubXML;
-                    LOCAL filePath = STRING();
+                    LOCAL filePath, fileName = STRING();
                     IF outputDirEDN() THEN {                        
                         filePath() <- OVERRIDE overInvoiceOutputDirEDN(ei),outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
+                        fileName() <- 'blrwbl_' + OVERRIDE overInvoiceOutputFileName(ei), STRING(LONG(resultMilliseconds() + 1));  
                         TRY{ mkdir(filePath()); }
-                        WRITE contentSubXML() TO filePath() + '/' + 'blrwbl_' + OVERRIDE overInvoiceOutputFileName(ei), STRING(LONG(resultMilliseconds() + 1));
+                        WRITE contentSubXML() TO filePath() + '/' + fileName();
                     }
                     logToFile('edi', provider + ' SendEInvoice ' + deliveryNoteNumber(ei) +' request sent');
                     TRY{ mkdir(exportDirectoryDocuDrive() + 'BLRWBL'); }
@@ -305,7 +306,7 @@ signAndSendSupplierEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                                 code(em) <- (IF isCancel(ei) THEN '1' ELSE '9');
                                 kind(em) <- EInvoiceMessageKind.out;
                                 type(em) <- EInvoiceMessageType.blrwbl;
-                                XMLPath(em) <- filePath() + '/' + 'blrwbl_' + OVERRIDE overInvoiceOutputFileName(ei), STRING(LONG(resultMilliseconds() + 1));
+                                XMLPath(em) <- filePath() + '/' + fileName();
                             }
                             APPLY NESTED LOCAL;
                         //}
