@@ -507,7 +507,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             if(!cashIn)
                 sumCashDocument = sumCashDocument == null ? null : sumCashDocument.negate();
 
-            LocalDateTime dateTimeCashDocument = ZonedDateTime.parse(readStringXMLAttribute(cashDocumentNode, "regtime"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDateTime();
+            LocalDateTime dateTimeCashDocument = LocalDateTime.parse(readStringXMLAttribute(cashDocumentNode, "regtime"), DateTimeFormatter.ISO_DATE_TIME);
 
             cashDocumentList.add(new CashDocument(numberCashDocument, numberCashDocument, dateTimeCashDocument.toLocalDate(), dateTimeCashDocument.toLocalTime(),
                     numberGroup, numberCashRegister, null, sumCashDocument));
@@ -767,11 +767,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             BigDecimal discountSumReceipt = null; //пока считаем, что скидки по чеку нету //readBigDecimalXMLAttribute(purchaseNode, "discountAmount");
             //discountSumReceipt = (discountSumReceipt != null && !isSale) ? discountSumReceipt.negate() : discountSumReceipt;
 
-            LocalDateTime dateTimeReceipt = ZonedDateTime.parse(readStringXMLAttribute(purchaseNode, "saletime"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDateTime();
+            LocalDateTime dateTimeReceipt = LocalDateTime.parse(readStringXMLAttribute(purchaseNode, "saletime"), DateTimeFormatter.ISO_DATE_TIME);
             LocalDate dateReceipt = dateTimeReceipt.toLocalDate();
             LocalTime timeReceipt = dateTimeReceipt.toLocalTime();
 
-            LocalDate dateZReport = LocalDate.parse(readStringXMLAttribute(purchaseNode, "operDay"), DateTimeFormatter.ofPattern("yyyy-MM-ddXXX"));
+            LocalDate dateZReport = LocalDate.parse(readStringXMLAttribute(purchaseNode, "operDay"), DateTimeFormatter.ISO_DATE);
 
             Map<String, Object> receiptExtraFields = getReceiptExtraFields(purchaseNode);
 
@@ -937,7 +937,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 Integer numberCashRegisterOriginal = readIntegerXMLAttribute(originalPurchase, "cash");
                                 String numberZReportOriginal = readStringXMLAttribute(originalPurchase, "shift");
                                 Integer numberReceiptOriginal = readIntegerXMLAttribute(originalPurchase, "number");
-                                LocalDate dateReceiptOriginal = ZonedDateTime.parse(readStringXMLAttribute(originalPurchase, "saletime"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDate();
+                                LocalDate dateReceiptOriginal = LocalDate.parse(readStringXMLAttribute(originalPurchase, "saletime"), DateTimeFormatter.ISO_DATE_TIME);
                                 idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
                                         + dateReceiptOriginal.format(DateTimeFormatter.ofPattern("ddMMyyyy")) + "_" + numberReceiptOriginal;
                             }
@@ -1337,7 +1337,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             CashRegisterInfo cashRegister = numberCashRegisterMap.get(numberCashRegister);
             Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
 
-            LocalDate dateZReport = ZonedDateTime.parse(readStringXMLValue(zReportNode, "dateOperDay"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDate();
+            LocalDate dateZReport = LocalDate.parse(readStringXMLValue(zReportNode, "dateOperDay"), DateTimeFormatter.ISO_DATE_TIME);
 
             String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
             String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
