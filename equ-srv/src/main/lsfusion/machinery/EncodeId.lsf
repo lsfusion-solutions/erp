@@ -96,3 +96,73 @@ dropReceiptDetailIDS(INTEGER days) {
     skipReceiveSales(EquipmentServer s) <- NULL;
     APPLY;
 }
+
+dropReceiptIDS(INTEGER days) {
+    logToFile('database-tools', 'DISABLE SALES');
+
+    skipReceiveSales(EquipmentServer s) <- TRUE;
+    APPLY;
+
+    logToFile('database-tools', 'ALTER TABLE ADD ');
+    runSQL('ALTER TABLE zreport_receipt ADD newid character varying(100);');
+
+    FOR iterate(DATE d, subtract(currentDate(), days), currentDate()) DO {
+        logToFile('database-tools', 'UPDATE ' + toDateISO(d));
+        runSQL('UPDATE zreport_receipt SET newid = zreport_id_receipt WHERE zreport_date_receipt = \'' + toDateISO(d) + '\'' );
+    }
+
+    logToFile('database-tools', 'CREATE INDEX CONCURRENTLY');
+    runSQL('CREATE INDEX CONCURRENTLY newid ON public.zreport_receipt USING btree (newid NULLS FIRST);');
+
+    logToFile('database-tools', 'DROP INDEX');
+    runSQL('DROP INDEX zreport_id_receipt_key0_idx_zreport_receipt;');
+
+    logToFile('database-tools', 'RENAME INDEX');
+    runSQL('ALTER INDEX newid RENAME TO zreport_id_receipt_key0_idx_zreport_receipt;');
+
+    logToFile('database-tools', 'DROP FIELD');
+    runSQL('ALTER TABLE zreport_receipt DROP zreport_id_receipt; ');
+
+    logToFile('database-tools', 'RENAME FIELD');
+    runSQL('ALTER TABLE zreport_receipt RENAME newid TO zreport_id_receipt; ');
+
+    logToFile('database-tools', 'DONE ID');
+
+    skipReceiveSales(EquipmentServer s) <- NULL;
+    APPLY;
+}
+
+dropPaymentIDS(INTEGER days) {
+    logToFile('database-tools', 'DISABLE SALES');
+
+    skipReceiveSales(EquipmentServer s) <- TRUE;
+    APPLY;
+
+    logToFile('database-tools', 'ALTER TABLE ADD ');
+    runSQL('ALTER TABLE zreport_payment ADD newid character varying(100);');
+
+    FOR iterate(DATE d, subtract(currentDate(), days), currentDate()) DO {
+        logToFile('database-tools', 'UPDATE ' + toDateISO(d));
+        runSQL('UPDATE zreport_payment zp SET newid = zp.zreport_id_payment FROM zreport_receipt zr WHERE zr.key0 = zp.zreport_receipt_payment AND zr.zreport_date_receipt = \'' + toDateISO(d) + '\'' );
+    }
+
+    logToFile('database-tools', 'CREATE INDEX CONCURRENTLY');
+    runSQL('CREATE INDEX CONCURRENTLY newid ON public.zreport_payment USING btree (newid NULLS FIRST);');
+
+    logToFile('database-tools', 'DROP INDEX');
+    runSQL('DROP INDEX zreport_id_payment_key0_idx_zreport_payment;');
+
+    logToFile('database-tools', 'RENAME INDEX');
+    runSQL('ALTER INDEX newid RENAME TO zreport_id_payment_key0_idx_zreport_payment;');
+
+    logToFile('database-tools', 'DROP FIELD');
+    runSQL('ALTER TABLE zreport_payment DROP zreport_id_payment; ');
+
+    logToFile('database-tools', 'RENAME FIELD');
+    runSQL('ALTER TABLE zreport_payment RENAME newid TO zreport_id_payment; ');
+
+    logToFile('database-tools', 'DONE ID');
+
+    skipReceiveSales(EquipmentServer s) <- NULL;
+    APPLY;
+}
