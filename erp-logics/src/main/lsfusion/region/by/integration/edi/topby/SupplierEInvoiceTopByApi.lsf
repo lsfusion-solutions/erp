@@ -397,8 +397,13 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                                 MESSAGE provider + ' (' + login + ') Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
                                 //NEWSESSION NESTED LOCAL {
                                     exportedSupplier(ei) <- TRUE;
-                                    numberSupplier(ei) <- STRING[35](resultMilliseconds());
-                                    dateSupplier(ei) <- exportBlrwblDateTime();
+                                    IF isCancel(ei) THEN {
+                                        numberSupplierCancel(ei) <- STRING[35](resultMilliseconds());
+                                        dateSupplierCancel(ei) <- exportBlrwblDateTime();
+                                    } ELSE {
+                                        numberSupplier(ei) <- STRING[35](resultMilliseconds());
+                                        dateSupplier(ei) <- exportBlrwblDateTime();
+                                    }
                                     NEW em = EInvoiceMessage {
                                         number(em) <- 'wbl' + STRING[35](resultMilliseconds());
                                         eInvoice(em) <- ei;
@@ -500,8 +505,13 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] passw
                                 MESSAGE provider + ' (' + login + ') Накладная ' + deliveryNoteNumber(ei) + (IF isCancel(ei) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
                                 //NEWSESSION NESTED LOCAL {
                                     exportedSupplier(ei) <- TRUE;
-                                    numberSupplier(ei) <- STRING[35](resultMilliseconds());
-                                    dateSupplier(ei) <- exportBlrdlnDateTime();
+                                    IF isCancel(ei) THEN {
+                                        numberSupplierCancel(ei) <- STRING[35](resultMilliseconds());
+                                        dateSupplierCancel(ei) <- exportBlrdlnDateTime();
+                                    } ELSE {
+                                        numberSupplier(ei) <- STRING[35](resultMilliseconds());
+                                        dateSupplier(ei) <- exportBlrdlnDateTime();
+                                    }
                                     NEW em = EInvoiceMessage {
                                         number(em) <- 'dln' + STRING[35](resultMilliseconds());
                                         eInvoice(em) <- ei;
