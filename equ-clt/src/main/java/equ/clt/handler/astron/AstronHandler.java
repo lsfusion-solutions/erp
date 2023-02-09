@@ -213,7 +213,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             if (waitFlagsResult != null) {
                                 throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
                             }
-                            truncateTables(conn, params, transaction, truncateTables);
+                            truncateTables(conn, params, String.valueOf(transaction.id), truncateTables);
                         }
 
                         List<CashRegisterItem> usedDeleteBarcodeList = new ArrayList<>();
@@ -1779,29 +1779,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         return null;
     }
 
-    private void truncateTables(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, Set<String> tables) throws SQLException {
-        astronLogger.info(String.format("transaction %s, truncate tables", transaction.id));
+    private void truncateTables(Connection conn, AstronConnectionString params, String transactionId, Set<String> tables) throws SQLException {
+        astronLogger.info(String.format("transaction %s, truncate tables", transactionId));
         for (String table : tables) {
             try (Statement s = conn.createStatement()) {
-                s.execute("TRUNCATE TABLE " + table + (params.pgsql ? " CASCADE" : ""));
-            }
-        }
-        conn.commit();
-    }
-
-    private void truncateTablesDeleteBarcode(Connection conn, AstronConnectionString params) throws SQLException {
-        for (String table : new String[]{"ART", "UNIT", "PACK", "EXBARC"}) {
-            try (Statement s = conn.createStatement()) {
-                s.execute("TRUNCATE TABLE " + table + (params.pgsql ? " CASCADE" : ""));
-            }
-        }
-        conn.commit();
-    }
-
-    private void truncateTablesDiscountCard(Connection conn, boolean exportDiscountCardExtraTables) throws SQLException {
-        for (String table : exportDiscountCardExtraTables ? new String[]{"DCARD", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY"} : new String[] {"DCARD"}) {
-            try (Statement s = conn.createStatement()) {
-                s.execute("TRUNCATE TABLE " + table);
+                if (params.pgsql) {
+                    s.execute("TRUNCATE TABLE " + table + " CASCADE");
+                } else {
+                    s.execute("DELETE FROM " + table);
+                }
             }
         }
         conn.commit();
@@ -1970,7 +1956,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             if (waitFlagsResult != null) {
                                 throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
                             }
-                            truncateTablesDeleteBarcode(conn, params);
+                            truncateTables(conn, params, "DeleteBarcode", new HashSet<>(Arrays.asList("ART", "UNIT", "PACK", "EXBARC")));
                         }
 
                         deleteBarcode.barcodeList = deleteBarcode.barcodeList.stream().filter(item -> parseUOM(item.idUOM) != null && parseIdItem(item) != null).collect(Collectors.toList());
@@ -2060,7 +2046,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                         String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
-                        truncateTablesDiscountCard(conn, exportDiscountCardExtraTables);
+                        truncateTables(conn, params, "DiscountCard", exportDiscountCardExtraTables ? new HashSet<>(Arrays.asList("DCARD", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY")) : new HashSet<>(Collections.singletonList("DCARD")));
 
                         Integer dcardUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, "DCARD");
                         exportDCard(conn, params, discountCardList, dcardUpdateNum);
