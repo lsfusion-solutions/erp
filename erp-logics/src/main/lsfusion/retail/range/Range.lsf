@@ -17,7 +17,7 @@ TABLE range(Range);
 
 @defineExternalizable(range, STRING[100]);
 
-name 'Название' = DATA ISTRING[100] (Range) IN id;
+name 'Название' = DATA ISTRING[100] (Range) INDEXED MATCH IN id;
 
 TABLE rangeSkuGroup(Range, SkuGroup);
 inData 'Вкл' = DATA BOOLEAN (Range, SkuGroup);
@@ -469,9 +469,9 @@ EXTEND FORM ranges FILTERS (r1 IS Range AND NOT limitAccess(currentUser())) OR c
 
 in 'В ассортименте' = ABSTRACT BOOLEAN (Sku, Range, Store, DATE);
 countRange 'В ассортименте' (Sku s,Store st,DATE d) = GROUP SUM 1 IF in(s, Range r, st, d);
-countRange 'В ассортименте' (Sku s, DepartmentStore ds, DATE d) = countRange(s, store(ds), d); 
+countRange 'В ассортименте' (Sku s, DepartmentStore ds, DATE d) = countRange(s, store(ds), d);
 
-in 'В ассортименте' (Sku sku, Range range, Store store) = in(sku, range, store, currentDate());
+ranges 'Ассортиментные матрицы' (Sku s, DepartmentStore ds, DATE d) = GROUP CONCAT name(Range r) IF in(s, r, store(ds), d) ,', ' ORDER r CHARWIDTH 30;
 
 nameGroup 'Включенные группы'(Range r) = GROUP CONCAT name(SkuGroup g) IF inData(r,g), ',' ORDER name(g) CHARWIDTH 50 ;
 
@@ -693,3 +693,20 @@ DESIGN rangeRev {
 CONSTRAINT SETCHANGED(date(RangeRev r)) AND [GROUP SUM 1 BY date(RangeRev rr), range(rr)](date(r), range(r)) > 1
     AND NOT allowDoubleDates()
     MESSAGE 'Запрещено несколько версий ассортиментной матрицы с одинаковой датой';
+
+// Матрицы на текущую дату
+
+TABLE storeSkuRange(Store, Sku, Range);
+in = DATA BOOLEAN (Store, Sku, Range);
+
+recalculateRangeCurrentDate () {
+    NEWSESSION {
+        in(Store st, Sku s, Range r) <- in(s, r, st, currentDate());
+        APPLY;
+    }
+}
+
+ranges 'Ассортиментные матрицы' (Sku s, Store st) = 
+    GROUP CONCAT name(Range r) IF in(st, s, r) ,', ' ORDER r CHARWIDTH 30;
+
+ranges 'Ассортиментные матрицы' (Sku s, DepartmentStore st) = ranges(s, store(st)) CHARWIDTH 30; 
