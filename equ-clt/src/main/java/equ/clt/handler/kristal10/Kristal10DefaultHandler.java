@@ -166,8 +166,8 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             if (extraPrices != null && !extraPrices.isEmpty()) {
                 for (int i = 0; i < extraPrices.length(); i++) {
                     JSONObject extraPrice = extraPrices.getJSONObject(i);
-                    addExtraPriceEntryElement(parentElement, idItem, extraPrice.getDouble("price"), extraPrice.getBoolean("deleted"),
-                            extraPrice.getString("beginDate"), extraPrice.getString("endDate"), extraPrice.getInt("number"),
+                    addExtraPriceEntryElement(parentElement, idItem, extraPrice.getDouble("price"), extraPrice.optBoolean("deleted"),
+                            extraPrice.getString("beginDate"), extraPrice.optString("endDate"), extraPrice.getInt("number"),
                             extraPrice.getInt("departmentNumber"));
                 }
             }
