@@ -1695,7 +1695,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             return null;
         }
         try (Statement statement = conn.createStatement()) {
-            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM public.\"Syslog_DataServer\"");
+            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM \"Syslog_DataServer\"");
             if (rs.next()) {
                 return rs.getString("EVENTTIME");
             }
@@ -1708,7 +1708,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     private Pair<Boolean, Exception> checkSysLog(Connection conn, String eventTime) {
         astronLogger.info("checkSysLog started"); // temp log
         try (Statement statement = conn.createStatement()) {
-            String sql = "SELECT EVENTCODE, EVENTDATA FROM public.\"Syslog_DataServer\" WHERE EVENTTIME > '" + eventTime + "' ORDER BY SEQ";
+            String sql = "SELECT EVENTCODE, EVENTDATA FROM \"Syslog_DataServer\" WHERE EVENTTIME > '" + eventTime + "' ORDER BY SEQ";
             ResultSet rs = statement.executeQuery(sql);
 
             astronLogger.info("checkSysLog executed"); // temp log
