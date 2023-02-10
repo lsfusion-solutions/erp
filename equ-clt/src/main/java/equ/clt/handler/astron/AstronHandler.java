@@ -1662,7 +1662,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         int count = 0;
         if (waitSysLogInsteadOfDataPump) {
             Pair<Boolean, Exception> sysLog;
-            while (!(sysLog = checkSysLog(conn, eventTime)).first) {
+            while (!(sysLog = checkSysLog(conn, params, eventTime)).first) {
                 astronLogger.info("checkSysLog result: " + sysLog.first + " / " + sysLog.second); // temp log
                 if (count > (timeout / 5)) {
                     exportFlags(conn, params, tables, 0);
@@ -1705,10 +1705,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private Pair<Boolean, Exception> checkSysLog(Connection conn, String eventTime) {
+    private Pair<Boolean, Exception> checkSysLog(Connection conn, AstronConnectionString params, String eventTime) {
         astronLogger.info("checkSysLog started"); // temp log
         try (Statement statement = conn.createStatement()) {
-            String sql = "SELECT EVENTCODE, EVENTDATA FROM \"Syslog_DataServer\" WHERE EVENTTIME > '" + eventTime + "' ORDER BY SEQ";
+            String sql = "SELECT EVENTCODE, EVENTDATA FROM \"Syslog_DataServer\" WHERE EVENTTIME > '" + eventTime + "' ORDER BY SEQ" + (params.pgsql ? "" : " DESC");
             ResultSet rs = statement.executeQuery(sql);
 
             astronLogger.info("checkSysLog executed"); // temp log
