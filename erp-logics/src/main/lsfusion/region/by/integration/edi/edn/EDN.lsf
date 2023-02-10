@@ -18,7 +18,6 @@ extractEDN 'Распаковывать сообщения' = DATA BOOLEAN (Legal
 archiveDirEDN 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirEDN 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
-receiveSupplierMessagesEDN 'Получать сообщения для поставщика' = DATA BOOLEAN ();
 
 useDocuDrive 'Использовать DocuDrive' = DATA BOOLEAN();
 
@@ -44,19 +43,19 @@ overReceiveMessagesEDN ABSTRACT LIST(LegalEntity);
 receiveMessagesEDN () {
     FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
         overReceiveMessagesEDN(le);
-        receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, 'EDN');
+        receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
     }
 }
 
 exportDirectoryDocuDrive 'Каталог выгрузки для DocuDrive (c /)' = DATA STRING[255]() CHARWIDTH 50;
 importDirectoryDocuDrive 'Каталог загрузки от DocuDrive (c /)' = DATA STRING[255]() CHARWIDTH 50;
 
-overReceiveMessagesDocuDrive ABSTRACT LIST (INTEGER, STRING[255], STRING[255], STRING[100], BOOLEAN, BOOLEAN, BOOLEAN, STRING[100]);
+overReceiveMessagesDocuDrive ABSTRACT LIST (INTEGER, STRING[255], STRING[255], STRING[100], BOOLEAN, BOOLEAN, STRING[100]);
 
 getFileName(TEXT txt) = getWord(getWord(txt, '\\', wordCount(txt, '\\')), '/', wordCount(txt, '/'));
 getDocumentType(TEXT txt) = getWord(getWord(getWord(txt, '\\', wordCount(txt, '\\')), '/', wordCount(txt, '/')), '_', 1);
 
-receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, STRING[100] provider) {
+receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) {
     TRY {
         IF importDir THEN {
             IF exportDir THEN {
@@ -93,7 +92,7 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
                         TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd')); }
                         WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i);
                     }
-                    overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, provider);
+                    overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, sendReplies, provider);
                 }
 
                 LOCAL textMessage = TEXT();
@@ -132,7 +131,7 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
 }
 
 receiveMessagesDocuDrive () {
-    receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, 'EDN');
+    receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
 }
 
 receiveEDN 'Получить сообщения' {
@@ -144,7 +143,7 @@ receiveEDN 'Получить сообщения' {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN
+    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN
 
     OBJECTS lete = LegalEntity
     FILTERS isCompany(lete)
@@ -162,7 +161,6 @@ DESIGN integrationData {
                     MOVE PROPERTY(archiveDirEDN());
                     MOVE PROPERTY(outputDirEDN());
                     MOVE PROPERTY(disableConfirmationEDN());
-                    MOVE PROPERTY(receiveSupplierMessagesEDN());
                     MOVE PROPERTY(receiveEDN());
                 }
             }
