@@ -1,0 +1,37 @@
+MODULE DateSkuLedgerAccountCost;
+
+REQUIRE DateSkuLedgerAccountPrice, SkuLedgerCost;
+
+NAMESPACE ZReport;
+
+recalculateCostCalculated(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в реализации через кассы');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        accountPrice(DateSaleSkuLedger d) <- calculatedCost(sku(d), departmentStore(d)) WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(departmentStore(d))
+            AND calculatedCost(sku(d), departmentStore(d)) AND NOT calculatedCost(sku(d), departmentStore(d)) = accountPrice(d);
+    }
+    IF canceled() THEN CANCEL;
+
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        accountPrice(DateReturnSkuLedger d) <- calculatedCost(sku(d), departmentStore(d)) WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(departmentStore(d))
+            AND calculatedCost(sku(d), departmentStore(d)) AND NOT calculatedCost(sku(d), departmentStore(d)) = accountPrice(d);
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в реализации через кассы');
+}
+
+recalculateCostAccount(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в реализации через кассы');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        accountPrice(DateSaleSkuLedger d) <- prevAccountPriceB(sku(d), departmentStore(d), dateTimeToDateTime(date(d), 23:59))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(departmentStore(d));
+    }
+    IF canceled() THEN CANCEL;
+
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        accountPrice(DateReturnSkuLedger d) <- prevAccountPriceB(sku(d), departmentStore(d), dateTimeToDateTime(date(d), 23:59))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(departmentStore(d));
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в реализации через кассы');
+}

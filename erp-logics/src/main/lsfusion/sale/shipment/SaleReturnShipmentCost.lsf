@@ -4,7 +4,7 @@ REQUIRE SaleReturnShipment, SkuLedgerCost;
 
 NAMESPACE SaleReturn;
 
-recalculateCostOperation(DATE dFrom, DATE dTo) +{
+recalculateCostCalculated(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в поставках (продажа-возврат)');
     APPLY NESTED (calculatedCost[Sku, Stock]) {            
         price(UserShipmentDetail d) <- calculatedCost(sku(d), supplierStock(d)) 
@@ -18,6 +18,23 @@ recalculateCostOperation(DATE dFrom, DATE dTo) +{
         shipmentPrice(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d)) 
                 WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
                       calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = shipmentPrice(d);
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа-возврат)');
+}
+
+recalculateCostAccount(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в поставках (продажа-возврат)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        price(UserShipmentDetail d) <- prevAccountPriceB(sku(d), supplierStock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d));
+    }
+    IF canceled() THEN CANCEL;
+
+    logToFile('cost', 'Начат пересчет цен в накладных (продажа-возврат)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        shipmentPrice(UserInvoiceDetail d) <- prevAccountPriceB(sku(d), supplierStock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d));
     }
     IF canceled() THEN CANCEL;
     logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа-возврат)');

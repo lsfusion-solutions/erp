@@ -4,7 +4,7 @@ REQUIRE Disparity, SkuLedgerCost;
 
 NAMESPACE Disparity;
 
-recalculateCostOperation(DATE dFrom, DATE dTo) +{
+recalculateCostCalculated(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в изменениях сортности');
     APPLY NESTED (calculatedCost[Sku, Stock]) {
         price(UserDisparityDetail d) <- calculatedCost(sku(d), stock(d)) WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(stock(d)) 
@@ -14,3 +14,12 @@ recalculateCostOperation(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Закончен пересчет цен в изменениях сортности');
 }
 
+recalculateCostAccount(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в изменениях сортности');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        price(UserDisparityDetail d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d)) 
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в изменениях сортности');
+}

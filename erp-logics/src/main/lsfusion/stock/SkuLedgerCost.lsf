@@ -13,9 +13,11 @@ EXTEND FORM costSkuLedger
     PROPERTIES(bil) READONLY fixedCost, nameFromStock
 ;
 
+// calculated gauss
+
 calculatedCost = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
 calculatedErrors = DATA LOCAL STRING ();
-recalculateCostOperation ABSTRACT LIST (DATE, DATE);
+recalculateCostCalculated ABSTRACT LIST (DATE, DATE);
 
 fixedCostQuantity (Sku sku, Stock stock, DATE dFrom, DATE dTo) = 
     GROUP SUM signedQuantity(SkuLedger l) IF fixedCost(l) AND NOT fromStock(l) AND 
@@ -43,7 +45,7 @@ recalculateCost = DATA LOCAL BOOLEAN (Sku);
 recalculateAllSkus = DATA LOCAL BOOLEAN () PREREAD;
 calcRecalculateCost (Sku sku) = recalculateAllSkus() OR recalculateCost(sku); 
 
-recalculateCost (DATE dFrom, DATE dTo) {
+recalculateCostGauss (DATE dFrom, DATE dTo) {
     NEWSESSION NESTED(recalculateCost[Sku]) {
         recalculateAllSkus() <- TRUE IF NOT (GROUP SUM 1 IF recalculateCost(Sku sku)); 
     
@@ -101,8 +103,16 @@ recalculateCost (DATE dFrom, DATE dTo) {
     
         logToFile('cost', 'Закончен подсчет по методу Гаусса');
     
-        recalculateCostOperation(dFrom, dTo);
+        recalculateCostCalculated(dFrom, dTo);
     
         logToFile('cost', 'Записаны себестоимости в расходы');
     }
+}
+
+// account price
+recalculateCostAccount ABSTRACT LIST (DATE, DATE);
+
+recalculateCostLedger ABSTRACT LIST FIRST (DATE, DATE);
+recalculateCostLedger (DATE dFrom, DATE dTo) + {
+    recalculateCostAccount(dFrom, dTo);
 }
