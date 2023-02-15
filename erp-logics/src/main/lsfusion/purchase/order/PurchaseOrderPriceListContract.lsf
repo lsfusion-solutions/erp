@@ -4,6 +4,19 @@ REQUIRE PurchaseOrderPriceList, PriceListContract;
 
 NAMESPACE Purchase;
 
+
+inContractSku 'Товар только из договора' = DATA BOOLEAN (Operation) PREREAD;
+
+EXTEND FORM operation
+    PROPERTIES(o) inContractSku
+;
+
+DESIGN operation {
+    constraintContainer {
+        MOVE PROPERTY(inContractSku(o)) AFTER PROPERTY(isContract(o));
+    }
+}
+
 EXTEND FORM userOrder
     FILTERGROUP filterContract
         FILTER 'В договоре' (contractSku[PriceListDetail](prevPriceListLedgerA(ledgerPriceListType(priceListType(o, ks)), ks, st, supplier(o), dateTime(o))) = contractSku(o)) OR 
@@ -16,6 +29,6 @@ CONSTRAINT (SET(isPosted(UserOrderDetail detail)) OR
             SETCHANGED(customerStock(detail)) OR 
             SETCHANGED(contractSku(detail)) OR 
             SETCHANGED(priceListType(detail)))
-        AND isPosted(detail) AND contractSku(detail) AND
+        AND isPosted(detail) AND contractSku(detail) AND inContractSku(operation(detail)) AND
         NOT contractSku[PriceListDetail](prevPriceListLedgerB(priceListType(detail), sku(detail), customerStock(detail), supplier(detail), dateTime(detail))) = contractSku(detail)
             MESSAGE 'Заказ должен включать товар только из выбранного договора';
