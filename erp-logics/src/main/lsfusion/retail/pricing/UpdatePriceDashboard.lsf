@@ -1,6 +1,6 @@
 MODULE UpdatePriceDashboard;
 
-REQUIRE Barcode, Pricing, Label, MachineryPriceTransaction;
+REQUIRE Barcode, Label, MachineryPriceTransaction;
 
 NAMESPACE Pricing;
 
@@ -34,27 +34,14 @@ FORM priceMachineryPriceTransactionBarcode 'Цена в оборудовании
 ;
 showPriceMachineryPriceTransaction 'Показать изменение цены' (Sku sku, Stock stock)  { SHOW priceMachineryPriceTransactionBarcode OBJECTS b = barcode(sku), st = stock; }  ASON CONTEXTMENU transactionPrice[Sku,Stock];
 
-useCurrentPriceUpdatePriceDashboard 'Использовать текущие цены в обновлении цен' = DATA BOOLEAN ();
-EXTEND FORM options
-    PROPERTIES() useCurrentPriceUpdatePriceDashboard
-;
+updatePrice 'Розничная цена' = ABSTRACT NUMERIC[16,4] (Sku, Stock);
+updateDescription 'Описание' = ABSTRACT ISTRING[200] (Sku, Stock);
+updateFromDateTime 'Дата/время с' = ABSTRACT DATETIME (Sku, Stock);
 
-DESIGN options {
-    pricings {
-        MOVE PROPERTY(useCurrentPriceUpdatePriceDashboard());
-    }
-}
-
-useCurrentPrice = DATA LOCAL BOOLEAN();
-initUseCurrentPrice()  { 
-    useCurrentPrice() <- useCurrentPriceUpdatePriceDashboard();
-}
-updatePrice 'Розничная цена' (Sku sku, Stock stock) = IF useCurrentPrice() THEN currentRetailPricingPrice(sku, stock) ELSE retailPricingPriceA(sku, stock);   
-updateDescription 'Описание' (Sku sku, Stock stock) = IF useCurrentPrice() THEN currentRetailPricingDescription(sku, stock) ELSE retailPricingDescriptionA(sku, stock);   
-updateFromDateTime 'Дата/время с' (Sku sku, Stock stock) = IF useCurrentPrice() THEN currentRetailPricingFromDateTime(sku, stock) ELSE retailPricingFromDateTimeA(sku, stock);   
+updatePriceListType = ABSTRACT LedgerPriceListType ();
 
 showMovementPriceSkuStocks 'Показать изменение цены товара' (Sku sku, Stock stock)  { 
-    dialogPriceListType() <- SystemLedgerPriceListType.retailPricingPriceListType;
+    dialogPriceListType() <- updatePriceListType();
     SHOW movementPriceSkuStock OBJECTS s = sku, st = stock ;
 } ASON CONTEXTMENU updatePrice[Sku,Stock];
 
@@ -113,9 +100,6 @@ FORM updatePriceDashboard 'Обновление розничных цен'
     OBJECTS pd = Machinery.PriceTransactionDocumentDetail
     PROPERTIES (pd) READONLY idBarcodeSku, nameSku, quantity, price
     FILTERS priceTransactionDocument(pd) == p
-                                                                                     
-    EVENTS
-        ON INIT initUseCurrentPrice()
 ;
 
 @extendFormFilterStockAccess(d, updatePriceDashboard);

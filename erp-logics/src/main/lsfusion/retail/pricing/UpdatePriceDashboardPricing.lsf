@@ -1,0 +1,32 @@
+MODULE UpdatePriceDashboardPricing;
+
+REQUIRE UpdatePriceDashboard, Pricing;
+
+NAMESPACE Pricing;
+
+useCurrentPriceUpdatePriceDashboard 'Использовать текущие цены в обновлении цен' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() useCurrentPriceUpdatePriceDashboard
+;
+
+DESIGN options {
+    pricings {
+        MOVE PROPERTY(useCurrentPriceUpdatePriceDashboard());
+    }
+}
+
+useCurrentPrice = DATA LOCAL BOOLEAN();
+initUseCurrentPrice()  {
+    useCurrentPrice() <- useCurrentPriceUpdatePriceDashboard();
+}
+
+updatePrice (Sku sku, Stock stock) += IF useCurrentPrice() THEN currentRetailPricingPrice(sku, stock) ELSE retailPricingPriceA(sku, stock);
+updateDescription (Sku sku, Stock stock) += IF useCurrentPrice() THEN currentRetailPricingDescription(sku, stock) ELSE retailPricingDescriptionA(sku, stock);
+updateFromDateTime (Sku sku, Stock stock) += IF useCurrentPrice() THEN currentRetailPricingFromDateTime(sku, stock) ELSE retailPricingFromDateTimeA(sku, stock);
+
+updatePriceListType() += SystemLedgerPriceListType.retailPricingPriceListType;
+
+EXTEND FORM updatePriceDashboard
+    EVENTS
+        ON INIT initUseCurrentPrice()
+;
