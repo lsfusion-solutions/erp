@@ -39,6 +39,7 @@ createUserOrder 'Заказ (закупка)'(Invoice invoice)   {
 	        FOR invoice(InvoiceDetail detail)==invoice AND NOT skipCreateOrderDetail(detail) NEW d = Purchase.UserOrderDetail DO {
 	
 	            userOrder(d) <- o;
+                purchaseUserOrderDetail(detail) <- d;
 	
 	            sku(d) <- sku(detail);
 	            quantity (d) <- quantity(detail);
@@ -51,8 +52,8 @@ createUserOrder 'Заказ (закупка)'(Invoice invoice)   {
 	            packQuantity (d) <- packQuantity(detail);
 	
 	            batch(d) <- batch(detail) WHERE NOT (notUseBatchPurchaseInvoice(operation(invoice)) OR skipFillBatch(d));
-	            overFillOrder(d,detail);
-	            purchaseUserOrderDetail(detail) <- d;
+	            
+                overFillOrder(d,detail);
 	        }
 	
 	    SHOW Purchase.userOrder OBJECTS o = o DOCKED NOCANCEL;
