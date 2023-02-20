@@ -116,7 +116,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             result = loadNotes(scales, transaction, logDir, pluNumberAsPluId, sleep);
         }
         if (result == 0 && !skipLoadHotKey) {
-            result = loadHotKey(scales, transaction, logDir, sleep);
+            result = loadHotKey(scales, transaction, pluNumberAsPluId, logDir, sleep);
         }
         return result;
     }
@@ -231,7 +231,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         return Arrays.asList(dataNote1, dataNote2, dataNote3, dataNote4);
     }
 
-    private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
+    private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
@@ -241,7 +241,11 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     if (item.pluNumber != null) {
                         bw.write(0x0d);
                         bw.write(0x0a);
-                        bw.write(StringUtils.join(Arrays.asList(item.pluNumber, item.idBarcode).iterator(), "\t"));
+                        if (pluNumberAsPluId) {
+                            bw.write(StringUtils.join(Arrays.asList(item.idBarcode, item.pluNumber).iterator(), "\t"));
+                        } else {
+                            bw.write(StringUtils.join(Arrays.asList(item.pluNumber, item.idBarcode).iterator(), "\t"));
+                        }
                     }
                 }
             }
