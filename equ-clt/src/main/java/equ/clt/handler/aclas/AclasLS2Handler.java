@@ -242,7 +242,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                         bw.write(0x0d);
                         bw.write(0x0a);
                         if (pluNumberAsPluId) {
-                            bw.write(StringUtils.join(Arrays.asList(item.idBarcode, item.pluNumber).iterator(), "\t"));
+                            bw.write(StringUtils.join(Arrays.asList(item.pluNumber, item.pluNumber).iterator(), "\t"));
                         } else {
                             bw.write(StringUtils.join(Arrays.asList(item.pluNumber, item.idBarcode).iterator(), "\t"));
                         }
