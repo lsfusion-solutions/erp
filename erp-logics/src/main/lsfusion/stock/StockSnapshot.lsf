@@ -1546,6 +1546,7 @@ in 'Вкл.' = DATA BOOLEAN (SnapshotType, DOW);
 countDOWsIn (SnapshotType t) = GROUP SUM 1 IF in(t,DOW d);
 oneReport 'Отдельный отчет для склада' = DATA BOOLEAN (SnapshotType);
 idReport 'Идентификатор для планировщика' = DATA BPSTRING[100] (SnapshotType);
+countThreads 'Кол-во потоков для планировщика' = DATA INTEGER (SnapshotType);
 countDays 'Количество дней' = DATA INTEGER (SnapshotType);
 countDaysDelete 'Количество дней для хранения отчетов' = DATA INTEGER (SnapshotType);
 
@@ -1615,24 +1616,39 @@ createSnapshotString 'Создать отчет'(BPSTRING[100] string, DATE date
 	                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
 	                    toDate(r) <- dateTo;
 	                    snapshotType(r) <- type;
-	                    takeFromTo(r, fromDate(r), toDate(r));                
+	                    takeFromTo(r, fromDate(r), toDate(r));
 	                }
-	
 	
 	            } ELSE {
-	                FOR include(type, Stock stock) NEW r = Snapshot DO {
-	                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
-	                    toDate(r) <- dateTo;
-	                    snapshotType(r) <- type;
-	                    dataInclude(r, Stock st) <- NULL;
-	                    dataInclude(r, StockGroup st) <- NULL;
-	                    dataInclude(r, stock) <- TRUE;
-	                    allStockInclude(r) <- NULL;
-	                    takeFromTo(r, fromDate(r), toDate(r));                      
-	                }
+                    IF countThreads(type) THEN {
+                        NEWEXECUTOR
+                            FOR include(type, Stock stock) DO
+                                NEWTHREAD NEWSESSION NEWSQL {
+                                    NEW r = Snapshot {
+                                        fromDate(r) <- subtract(dateTo,countDays(type)-1);
+                                        toDate(r) <- dateTo;
+                                        snapshotType(r) <- type;
+                                        dataInclude(r, Stock st) <- NULL;
+                                        dataInclude(r, StockGroup st) <- NULL;
+                                        dataInclude(r, stock) <- TRUE;
+                                        allStockInclude(r) <- NULL;
+                                        takeFromTo(r, fromDate(r), toDate(r));
+                                    }
+                                }
+                            THREADS countThreads(type);
+                        
+                    } ELSE
+                        FOR include(type, Stock stock) NEW r = Snapshot DO {
+                            fromDate(r) <- subtract(dateTo,countDays(type)-1);
+                            toDate(r) <- dateTo;
+                            snapshotType(r) <- type;
+                            dataInclude(r, Stock st) <- NULL;
+                            dataInclude(r, StockGroup st) <- NULL;
+                            dataInclude(r, stock) <- TRUE;
+                            allStockInclude(r) <- NULL;
+                            takeFromTo(r, fromDate(r), toDate(r));
+                        }
 	            }
-	
-	            apply();
 	        }
 	    }
 	}
@@ -1750,7 +1766,7 @@ FORM snapshot 'Аналитический отчет'
     ORDERS order(sk), name(sk)
     FILTERGROUP inactivesk FILTER 'Активные' active(sk) 'F5' DEFAULT
     
-    PROPERTIES() nameFilterSnapshotSupplier ON CHANGE changeFilterSnapshotSupplier()
+    PROPERTIES() SHOWIF isBatch(r) nameFilterSnapshotSupplier ON CHANGE changeFilterSnapshotSupplier()
     
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        READONLY name(s), idBarcode(s), id(s) SHOWIF showIDs(), nameLegalEntity(st), idStockGroup = id(stockGroup(st)), name(st), nameSupplierLastOrderBatch(s, st)
