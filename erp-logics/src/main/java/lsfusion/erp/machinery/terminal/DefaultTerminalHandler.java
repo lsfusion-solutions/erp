@@ -8,7 +8,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -28,8 +27,8 @@ import lsfusion.server.logics.property.classes.IsClassProperty;
 import lsfusion.server.logics.property.oraction.PropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.physics.dev.integration.service.*;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.util.TextUtils;
 
 import java.awt.*;
 import java.io.*;
@@ -52,6 +51,8 @@ public class DefaultTerminalHandler {
     static ScriptingLogicsModule terminalOrderLM;
     static ScriptingLogicsModule terminalHandlerLM;
     static ScriptingLogicsModule terminalLotLM;
+    static ScriptingLogicsModule ediGtinLM;
+    static ScriptingLogicsModule terminalOrderGtinLM;
 
     static String ID_APPLICATION_TSD = "1";
     static String ID_APPLICATION_ORDER = "2";
@@ -73,8 +74,10 @@ public class DefaultTerminalHandler {
     public void init() {
         terminalOrderLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrder");
         terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
-
         terminalLotLM = getLogicsInstance().getBusinessLogics().getModule("TerminalLot");
+
+        terminalOrderGtinLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrderGTIN");
+        ediGtinLM = getLogicsInstance().getBusinessLogics().getModule("EDIGTIN");
     }
 
     public List<Object> readHostPort(DataSession session) {
@@ -382,6 +385,9 @@ public class DefaultTerminalHandler {
                 barcodeQuery.addProperty("amountPack", terminalHandlerLM.findProperty("amountPack[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameSkuGroup", terminalHandlerLM.findProperty("nameSkuGroup[Barcode]").getExpr(barcodeExpr));
 
+                if (ediGtinLM != null)
+                    barcodeQuery.addProperty("GTIN", ediGtinLM.findProperty("GTIN[Barcode]").getExpr(barcodeExpr));
+
                 barcodeQuery.and(terminalHandlerLM.findProperty("filterGoods[Barcode,Stock,User]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr(), user.getExpr()).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("active[Barcode]").getExpr(barcodeExpr).getWhere());
@@ -412,9 +418,13 @@ public class DefaultTerminalHandler {
                     BigDecimal amountPack = (BigDecimal) entry.get("amountPack");
                     String category = trim((String) entry.get("nameSkuGroup"));
 
-                    result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
-                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, flags, image, nameCountry, amountPack, category));
+                    String GTIN = null;
+                    if (ediGtinLM != null)
+                        GTIN = trim((String) entry.get("GTIN"));
 
+                    result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
+                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, flags, image,
+                            nameCountry, amountPack, category, GTIN));
                 }
             }
         }
@@ -607,38 +617,60 @@ public class DefaultTerminalHandler {
                 String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
+
                 for (TerminalBarcode barcode : barcodeList) {
                     if (barcode.idBarcode != null) {
                         String image = imagesInReadBase && barcode.image != null ? (barcode.idSkuBarcode + ".jpg") : null;
-                        addGoodsRow(statement, barcode.idBarcode, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
-                                barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
-                                image, barcode.isWeight, barcode.mainBarcode, barcode.color, barcode.extInfo, barcode.unit,
-                                barcode.flags, barcode.nameCountry, barcode.amountPack, barcode.category);
-                        usedBarcodes.add(barcode.idBarcode);
+                        if (!usedBarcodes.contains(barcode.idBarcode)) {
+                            addGoodsRow(statement, barcode.idBarcode, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
+                                    barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
+                                    image, barcode.isWeight, barcode.mainBarcode,
+                                    barcode.color, barcode.extInfo, barcode.unit,
+                                    barcode.flags, barcode.nameCountry, barcode.amountPack, barcode.category);
+                            usedBarcodes.add(barcode.idBarcode);
+                        }
+                        if (!TextUtils.isEmpty(barcode.GTIN) && !usedBarcodes.contains(barcode.GTIN)) {
+                            addGoodsRow(statement, barcode.GTIN, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
+                                    barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
+                                    image, barcode.isWeight, barcode.mainBarcode,
+                                    barcode.color, barcode.extInfo, barcode.unit,
+                                    barcode.flags, barcode.nameCountry, barcode.amountPack, barcode.category);
+                            usedBarcodes.add(barcode.GTIN);
+                        }
                     }
                 }
+
                 for (TerminalOrder order : orderList) {
                     if (order.barcode != null) {
+                        String image = imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : null;
                         List<String> orderExtraBarcodeList = order.extraBarcodeList;
                         if (orderExtraBarcodeList != null) {
                             for (String extraBarcode : orderExtraBarcodeList) {
                                 if(!usedBarcodes.contains(extraBarcode)) {
-                                    String image = imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : null;
                                     addGoodsRow(statement, extraBarcode, order.name, order.price, null,
                                             order.idItem, order.manufacturer, null, null, null,
-                                            image, order.weight, order.barcode, null, null, null,
+                                            image, order.weight, order.barcode,
+                                            null, null, null,
                                             order.flags, null, BigDecimal.ZERO, null);
-                                    statement.addBatch();
+                                    usedBarcodes.add(extraBarcode);
                                 }
                             }
                         } else {
                             if(!usedBarcodes.contains(order.barcode)) {
-                                String image = imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : null;
                                 addGoodsRow(statement, order.barcode, order.name, order.price, null, order.idItem,
                                         order.manufacturer, null, null, null, image, order.weight, order.barcode,
                                         null, null, null, order.flags, null, BigDecimal.ZERO,
                                         null);
+                                usedBarcodes.add(order.barcode);
                             }
+                        }
+                        if (!TextUtils.isEmpty(order.GTIN) && !usedBarcodes.contains(order.GTIN)) {
+                            addGoodsRow(statement, order.GTIN, order.name, order.price, null,
+                                    order.idItem, order.manufacturer, null, null, null,
+                                    image, order.weight, order.barcode,
+                                    null, null, null,
+                                    order.flags, null, BigDecimal.ZERO, null);
+                            usedBarcodes.add(order.GTIN);
                         }
                     }
                 }
@@ -1272,6 +1304,9 @@ public class DefaultTerminalHandler {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
                 orderQuery.addProperty("flags", terminalOrderLM.findProperty("flagsSku[TerminalOrderDetail,Stock]").getExpr(orderDetailExpr, customerStockObject.getExpr()));
+
+                if (terminalOrderGtinLM != null)
+                    orderQuery.addProperty("GTIN", terminalOrderLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(orderDetailExpr));
                 
                 orderQuery.and(terminalOrderLM.findProperty("filterTerminal[TerminalOrder, TerminalOrderDetail, Stock, Employee]").getExpr(
                         session.getModifier(), orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
@@ -1311,6 +1346,10 @@ public class DefaultTerminalHandler {
                     List<String> extraBarcodeList = extraBarcodes != null ? Arrays.asList(extraBarcodes.split(",")) : new ArrayList<>();
                     Long flags = (Long) entry.get("flags");
 
+                    String GTIN = null;
+                    if (terminalOrderGtinLM != null)
+                        GTIN = trim((String) entry.get("GTIN"));
+
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
                     if (terminalOrder != null) {
@@ -1321,7 +1360,7 @@ public class DefaultTerminalHandler {
                         terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
-                                extraBarcodeList, flags));
+                                extraBarcodeList, flags, GTIN));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
@@ -1610,12 +1649,13 @@ public class DefaultTerminalHandler {
         String nameCountry;
         BigDecimal amountPack;
         String category;
+        String GTIN;
 
         public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock,
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode,
                                String color, String extInfo, String fld3, String fld4, String fld5, String unit,
                                Long flags, RawFileData image, String nameCountry, BigDecimal amountPack,
-                               String category) {
+                               String category, String GTIN) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.price = price;
@@ -1635,6 +1675,7 @@ public class DefaultTerminalHandler {
             this.nameCountry = nameCountry;
             this.amountPack = amountPack;
             this.category = category;
+            this.GTIN = GTIN;
         }
     }
 
@@ -1760,11 +1801,13 @@ public class DefaultTerminalHandler {
 
         public Long flags;
 
+        public String GTIN;
+
         public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier, String barcode, String idItem, String name,
                              BigDecimal price, BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity,
                              BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, String color,
                              String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,
-                             String minDate1, String maxDate1, String vop, List<String> extraBarcodeList, Long flags) {
+                             String minDate1, String maxDate1, String vop, List<String> extraBarcodeList, Long flags, String GTIN) {
             this.date = date;
             this.dateShipment = dateShipment;
             this.number = number;
@@ -1793,6 +1836,8 @@ public class DefaultTerminalHandler {
             this.vop = vop;
             this.extraBarcodeList = extraBarcodeList;
             this.flags = flags;
+
+            this.GTIN = GTIN;
         }
     }
 
