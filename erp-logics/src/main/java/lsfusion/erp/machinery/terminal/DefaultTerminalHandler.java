@@ -1306,7 +1306,7 @@ public class DefaultTerminalHandler {
                 orderQuery.addProperty("flags", terminalOrderLM.findProperty("flagsSku[TerminalOrderDetail,Stock]").getExpr(orderDetailExpr, customerStockObject.getExpr()));
 
                 if (terminalOrderGtinLM != null)
-                    orderQuery.addProperty("GTIN", terminalOrderLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(orderDetailExpr));
+                    orderQuery.addProperty("GTIN", terminalOrderGtinLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(orderDetailExpr));
                 
                 orderQuery.and(terminalOrderLM.findProperty("filterTerminal[TerminalOrder, TerminalOrderDetail, Stock, Employee]").getExpr(
                         session.getModifier(), orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
