@@ -19,10 +19,10 @@ DESIGN operation {
 promotionPriceListType = DATA DataPriceListType();
 namePromotionPriceListType 'Вид цены акции' = name(promotionPriceListType());
 
-promotionStartDateTime 'Дата/время определения акций' = DATA DATETIME ();
+promotionStartDateTime 'Дата/время определения акций' = DATA DATETIME () PREREAD;
 
 TABLE promotionPriceListDetailStock (PriceListDetail, Stock);
-isPromotion (PriceListDetail d) = (in(d, promotionPriceListType()) OR NOT promotionPriceListType()) AND isPromotion(operation(d)) AND isPosted(d) AND NOT toDateTime(d) < promotionStartDateTime(); 
+isPromotion (PriceListDetail d) = (in(d, promotionPriceListType()) OR NOT promotionPriceListType()) AND isPromotion(operation(d)) AND isPosted(d) AND NOT toDateTime(d) < promotionStartDateTime() AND NOT exclude(d); 
 isPromotion (PriceListDetail d, Stock st) = isPromotion(d) AND in(priceList(d), st) MATERIALIZED TABLE promotionPriceListDetailStock;
 
 sku (PriceListDetail d, Stock st) = sku(d) IF isPromotion(d, st) MATERIALIZED TABLE promotionPriceListDetailStock;
@@ -50,20 +50,20 @@ DESIGN options {
 lastPromotionPriceListDetailB (Sku sk, DATETIME dt) = 
     GROUP LAST PriceListDetail d
           ORDER fromDateTime(d, Stock st), d
-          WHERE fromDateTime(d, st) < dt AND NOT exclude(d)
+          WHERE fromDateTime(d, st) < dt
           BY sku(d, st) COMPLEX;
 
 promotionPriceListDetailA (Sku sk, Stock st, DATETIME dt) = 
     GROUP LAST PriceListDetail d
           ORDER fromDateTime(d, st), d
-          WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt AND NOT exclude(d)
+          WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt
           BY sku(d, st) COMPLEX;
 prevPromotionPriceListDetailA (Sku sku, Stock stock, DATETIME dt) = PREV(promotionPriceListDetailA(sku, stock, dt));
           
 promotionPriceListDetailA (Sku sk, Stock st, DATE dt) = 
   GROUP LAST PriceListDetail d
         ORDER fromDateTime(d, st), d
-        WHERE fromDateTime(d, st) < DATETIME(sum(dt, 1)) AND NOT toDateTime(d, st) < DATETIME(dt) AND NOT exclude(d)
+        WHERE fromDateTime(d, st) < DATETIME(sum(dt, 1)) AND NOT toDateTime(d, st) < DATETIME(dt)
         BY sku(d, st) COMPLEX;
 
 lastPromotionPriceListDetail (Sku sk, Stock st) = GROUP LAST PriceListDetail d
