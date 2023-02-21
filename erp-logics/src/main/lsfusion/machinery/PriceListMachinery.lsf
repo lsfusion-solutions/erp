@@ -22,16 +22,20 @@ createPriceListMachinery 'Загрузить в оборудование'(PriceT
 } TOOLBAR CONFIRM;
 
 createSnapshotPriceListMachinery 'Перегрузить все позиции'(PriceTransactionDocument priceList)  { 
-	NEWSESSION {
-	    createMachineryPriceTransactionSnapshot() <- TRUE;
-	    createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
-	    createMachineryPriceTransactionDocument() <- priceList;
-	    FOR in(priceList, Stock stock) DO {
-	        createMachineryPriceTransaction(stock);   
-	    }  
-	    sent(priceList) <- TRUE;
-	    apply();
-	}
+    IF isPosted[PriceList](priceList) AND NOT skip(priceList) THEN {
+        NEWSESSION {
+            createMachineryPriceTransactionSnapshot() <- TRUE;
+            createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
+            createMachineryPriceTransactionDocument() <- priceList;
+            FOR in(priceList, Stock stock) DO {
+                createMachineryPriceTransaction(stock);
+            }
+            sent(priceList) <- TRUE;
+            apply();
+        }
+    } ELSE {
+        MESSAGE 'Документ не проведен или запрещен к загрузке' NOWAIT;   
+    }
 } CONFIRM;
 
 showCreateMachineryPriceTransaction 'Показывать' (PriceList priceList) = isPosted(priceList) AND NOT skip(priceList)
