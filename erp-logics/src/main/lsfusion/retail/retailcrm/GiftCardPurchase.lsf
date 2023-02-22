@@ -208,7 +208,6 @@ moveGiftCards 'Переместить подарочные сертификат�
                     departmentStore(GiftCard g) <- departmentStore(p) WHERE iterate(numberReport(g),fromGiftCard(d), toGiftCard(d)) AND sku(d) == sku(g) AND select(g); 
                     date(GiftCard g) <- date(p) WHERE iterate(numberReport(g),fromGiftCard(d), toGiftCard(d)) AND sku(d) == sku(g) AND select(g); 
                 }
-                                      
             } 
             select(GiftCard g) <- NULL;
             fromN(Sku g) <- NULL;
@@ -221,6 +220,7 @@ moveGiftCards 'Переместить подарочные сертификат�
       
 }TOOLBAR;
     
+skipInterval = ABSTRACT BOOLEAN (GiftCardPurchase);
 
 FORM giftCardPurchase 'Поступление подарочных сертификатов'
 
@@ -230,10 +230,11 @@ FORM giftCardPurchase 'Поступление подарочных сертиф�
     OBJECTS d = GiftCardPurchaseDetail
     PROPERTIES (d) index 
     PROPERTIES (d) ON CHANGE changeSku(d) idSku, nameSku, price, expiryDays
-    PROPERTIES (d) fromGiftCard, toGiftCard, NEW, deleteid=DELETE GRID
+    PROPERTIES (d) SHOWIF NOT skipInterval(p) fromGiftCard, toGiftCard
+    PROPERTIES (d) NEW, deleteid=DELETE GRID
     FILTERS giftCardPurchase(d) == p
     
-    PROPERTIES(p) DRAW d deleteGiftCard, generateGiftCards, moveGiftCards
+    PROPERTIES(p) DRAW d deleteGiftCard, generateGiftCards SHOWIF NOT skipInterval(p), moveGiftCards SHOWIF NOT skipInterval(p)
     ORDERS index(d)
 
     OBJECTS g = GiftCard
