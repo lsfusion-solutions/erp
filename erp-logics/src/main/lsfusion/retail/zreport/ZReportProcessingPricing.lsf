@@ -1,0 +1,13 @@
+MODULE ZReportProcessingPricing;
+
+REQUIRE ZReportProcessing, Pricing;
+
+NAMESPACE ZReportProcessing;
+
+retailPrice 'Розничная цена' (ReceiptDetail d)= priceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType, sku(d), departmentStore(d), dateTime(d));
+
+EXTEND FORM ZReportProcessing
+    EXTEND FILTERGROUP priceFilter
+        FILTER  'Без расценки' sku(d) AND NOT retailPrice(d) 'F11'
+        FILTER  'Разные цены' retailPrice(d) != price(d) 'F10'
+;
