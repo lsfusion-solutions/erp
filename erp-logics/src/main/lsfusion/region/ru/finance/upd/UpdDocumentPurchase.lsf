@@ -53,7 +53,7 @@ createInvoice 'Создать приходную накладную'(UpdDocument
                         sku(l) <- skuBarcode(idSku(ed));
                     }
                     FOR updDocumentDetail(UpdLotDetail ud) == ed AND l = lot(id(ud))  DO {
-                        quantity(id, l) <- quantity(ed);
+                        quantity(id, l) <- 1;
                     }
                 }
             SHOW userInvoice OBJECTS i = invoice;
@@ -62,7 +62,9 @@ createInvoice 'Создать приходную накладную'(UpdDocument
     }
 }
 
-showCreateInvoice (UpdDocument d) = NOT invoice(d) AND primaryStatusTextDocument(d) = 'Подписан';
+overShowCreateInvoice = ABSTRACT BOOLEAN (UpdDocument);
+
+showCreateInvoice (UpdDocument d) = (NOT invoice(d) AND primaryStatusTextDocument(d) = 'Подписан') OR overShowCreateInvoice(d);
 
 EXTEND FORM updDocuments
     PROPERTIES(u) createInvoice SHOWIF showCreateInvoice(u)
