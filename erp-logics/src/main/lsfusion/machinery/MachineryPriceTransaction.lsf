@@ -245,13 +245,15 @@ overClearMachineryPriceTransaction  ABSTRACT LIST();
 clearApplicationLog () + { 
 	NEWSESSION {
 	    IF countDaysClearMachineryPriceTransaction() THEN {
-	    in(MachineryPriceTransaction t, Barcode b) <- NULL WHERE in(t,b) AND NOT t == lastTransaction(b, groupMachinery(t)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
-	    apply();
-
-        overClearMachineryPriceTransaction();
-	    
-	    DELETE MachineryPriceTransaction t WHERE t IS MachineryPriceTransaction AND NOT (GROUP SUM 1 IF in(t, Barcode b)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
-	    apply();
+            APPLY {
+                in(MachineryPriceTransaction t, Barcode b) <- NULL WHERE in(t, b) AND NOT t == lastTransaction(b, groupMachinery(t)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
+            }
+    
+            overClearMachineryPriceTransaction();
+            
+            APPLY {
+                DELETE MachineryPriceTransaction t WHERE t IS MachineryPriceTransaction AND NOT (GROUP SUM 1 IF in(t, Barcode b)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
+            }
 	    }
 	}
 }   
@@ -282,7 +284,16 @@ backgroundLastTransaction (Sku sku, Stock stock) = RGB (255,0,0) IF quantityMach
 INDEX groupMachinery(MachineryPriceTransaction t), dateTime(t), t; 
 lastErrorTime (GroupMachinery g) = GROUP LAST dateTime(MachineryPriceTransaction t) IF quantityMachineryPriceTransactionError(t) ORDER dateTime(t), t WHERE process(t) BY groupMachinery(t);
 
-@defineLog (MachineryPriceTransactionError, 'ошибок загрузки прайсов', log, toDate);
+@defineLog (MachineryPriceTransactionError, 'ошибок загрузки прайсов', log);
+overClearMachineryPriceTransaction () + { 
+	NEWSESSION {
+        APPLY {
+            IF countDaysClearMachineryPriceTransactionError() THEN {
+                DELETE MachineryPriceTransactionError d WHERE d IS MachineryPriceTransactionError AND toDate(d) <= subtract(currentDate(), countDaysClearMachineryPriceTransactionError());
+            }
+        }
+    }
+}       
 
 // Загрузка в конкретные устройства
 TABLE machineryPriceTransactionMachinery (MachineryPriceTransaction, Machinery);
