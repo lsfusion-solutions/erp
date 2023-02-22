@@ -32,3 +32,29 @@ DESIGN departmentStore {
         MOVE PROPERTY(shortNameClient(d));
     }
 }
+
+nameStock 'Склады' (Client c) = GROUP CONCAT name(Stock s) IF client(s) = c, ',' ORDER s CHARWIDTH 20;
+EXTEND FORM clients
+    PROPERTIES(o) READONLY nameStock
+;
+
+// import excel
+// В УТ выгружается из Классификатор организаций ЕГАИС (Торговый объект)
+importStockProductXls 'Импорт соответствия из Excel' () {
+    INPUT f = EXCELFILE DO {
+        NEWSESSION {
+            LOCAL idStock = STRING[100] (INTEGER);
+            LOCAL idClient = STRING (INTEGER);
+
+            IMPORT XLS FROM f TO idStock = A, idClient = B;
+
+            FOR [GROUP SUM 1 BY idClient(INTEGER r)](STRING id) AND NOT client(id) NEW p = Client DO {
+                id(p) <- id;
+            }
+            FOR id(Stock i) = idStock(INTEGER r) AND id(Client p) = idClient(r) DO
+                client(i) <- p;
+
+            APPLY;
+        }
+    }
+}

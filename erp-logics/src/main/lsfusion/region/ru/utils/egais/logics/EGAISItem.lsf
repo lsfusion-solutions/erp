@@ -74,3 +74,24 @@ DESIGN product {
 EXTEND FORM products
     PROPERTIES(o) READONLY nameItem
 ;
+
+// import excel
+// В УТ выгружается из Соответствие номенклатуры ЕГАИС
+importItemProductXls 'Импорт соответствия из Excel' () {
+    INPUT f = EXCELFILE DO {
+        NEWSESSION {
+            LOCAL idItem = STRING[100] (INTEGER);
+            LOCAL idProduct = STRING (INTEGER);
+
+            IMPORT XLS FROM f TO idItem = A, idProduct = B;
+
+            FOR [GROUP SUM 1 BY idProduct(INTEGER r)](STRING id) AND NOT product(id) NEW p = Product DO {
+                id(p) <- id;
+            }
+            FOR id(Item i) = idItem(INTEGER r) AND id(Product p) = idProduct(r) DO
+                in(i, p) <- TRUE;
+            
+            APPLY;
+        }
+    }
+}
