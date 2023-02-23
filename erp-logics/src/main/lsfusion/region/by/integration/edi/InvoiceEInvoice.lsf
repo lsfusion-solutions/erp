@@ -4,11 +4,12 @@ REQUIRE Invoice, CustomerEInvoice;
 
 NAMESPACE EDI;
 
-invoice = DATA Invoice(EInvoice) INDEXED;
-eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER deliveryNoteDateTime(ei), ei BY invoice(ei);
+invoice = DATA Invoice(EInvoice);
+INDEX invoice(EInvoice i), deliveryNoteDateTime(i), i;
+eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER deliveryNoteDateTime(ei), ei BY invoice(ei) MATERIALIZED INDEXED;
 numberInvoice 'Номер накладной EDI (приход)' (EInvoice i) = number(invoice(i));
 
-eInvoiceAll = GROUP LAST EInvoice ei AS EInvoice IF ei IS EInvoice ORDER deliveryNoteDateTime(ei), ei BY invoice(ei);
+eInvoiceAll = GROUP LAST EInvoice ei AS EInvoice IF ei IS EInvoice ORDER deliveryNoteDateTime(ei), ei BY invoice(ei) MATERIALIZED INDEXED;
 
 numberEInvoice 'Серия и номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
 
