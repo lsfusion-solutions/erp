@@ -21,3 +21,9 @@ EXTEND FORM userOrder
 EXTEND FORM orders
     PROPERTIES(o) READONLYIF isReadonly() nameSeparation 
 ;
+
+@defineOperationProperty(checkSkuSeparation, 'Товары только по признаку разделения', constraintContainer);
+
+CONSTRAINT (SETCHANGED(sku(UserOrderDetail d)) OR SETCHANGED(separation(userOrder(d)))) AND separation(userOrder(d)) AND checkSkuSeparation(operation(d))
+    AND separation(supplier(d), sku(d)) != separation(userOrder(d)) AND sku(d) IS Item
+    MESSAGE 'В заказе запрещены товары с другим признаком разделения';
