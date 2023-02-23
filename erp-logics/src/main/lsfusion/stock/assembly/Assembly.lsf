@@ -322,3 +322,28 @@ quantity(AssemblyInSkuLedger l) += quantity(l);
 sum(AssemblyInSkuLedger l) += sum(l);
 
 show(AssemblyInSkuLedger l) + { show(assembly(l)); } 
+
+// copy
+
+copy 'Копировать'(Assembly s)  {
+    NEWSESSION {
+        NEW a = Assembly {
+            operation(a) <- operation(s);
+            stock(a) <- stock(s);
+            sku(a) <- sku(s);
+            quantity(a) <- quantity(s);
+            
+            FOR assembly(AssemblyDetail sd) == s DO NEW d = AssemblyDetail {
+                assembly(d) <- a;
+                sku(d) <- sku(sd);
+                quantity(d) <- quantity(sd);
+            }
+
+            SHOW assembly OBJECTS a = a DOCKED NOCANCEL;
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM assemblies
+    PROPERTIES(a) copy
+;

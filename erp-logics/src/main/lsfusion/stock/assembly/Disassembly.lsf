@@ -366,3 +366,28 @@ sumItem [IncStockDocumentLedger](Disassembly ledger) += sumDisassemblyDetail(led
 operation[StockDocumentLedger](Disassembly ledger) += operation(ledger);
 
 close[StockDocumentLedger](Disassembly l) + {  close(l); }
+
+// copy
+copy 'Копировать'(Disassembly s)  {
+    NEWSESSION {
+        NEW a = Disassembly {
+            operation(a) <- operation(s);
+            stock(a) <- stock(s);
+            sku(a) <- sku(s);
+            quantity(a) <- quantity(s);
+
+            FOR disassembly(DisassemblyDetail sd) == s DO NEW d = DisassemblyDetail {
+                disassembly(d) <- a;
+                sku(d) <- sku(sd);
+                quantity(d) <- quantity(sd);
+                dataPercent(d) <- dataPercent(sd);
+            }
+
+            SHOW disassembly OBJECTS a = a DOCKED NOCANCEL;
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM disassemblies
+    PROPERTIES(a) copy
+;
