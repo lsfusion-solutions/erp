@@ -1,0 +1,20 @@
+MODULE InvoiceOperation;
+
+REQUIRE Invoice;
+
+NAMESPACE Invoice;
+
+
+META defineShipmentsOnly (text)
+@defineOperationProperty(shipmentsOnly, 'Использовать только Поставки вместо Накладных', paramsContainer);
+
+messageShipments() = CONCAT ' ', 'Для данной операции воспользуйтесь документом Поставка', ##text; 
+
+WHEN LOCAL FORMS userInvoice SETCHANGED (operation(UserInvoice i)) AND shipmentsOnly(operation(i)) DO {
+    MESSAGE messageShipments();
+    operation(i) <- NULL;
+}
+
+CONSTRAINT (SETCHANGED(operation(UserInvoice i))) AND i IS UserInvoice AND shipmentsOnly(operation(i))
+    MESSAGE messageShipments();    
+END
