@@ -43,7 +43,7 @@ END
 META defUOM(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = UOM EXTID extid
-        PROPERTIES(nm###class, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', id EXTID 'Код', name EXTID 'Наименование'
         FILTERS nm###class = nm(class, configuration)
     ;
     
@@ -57,7 +57,7 @@ END
 META defTypeSkuItem(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = TypeSkuItem EXTID extid
-        PROPERTIES(nm###class, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование'
         FILTERS nm###class = nm(class, configuration)
     ;
     
@@ -68,16 +68,58 @@ META defTypeSkuItem(nm, class, extid)
     ;
 END
 
+CLASS ABSTRACT Country 'Справочник.СтраныМира' : Reference;
+@defProp(name, 'Наименование', STRING, Country);
+@defProp(alha2, 'КодАльфа2', STRING[2], Country);
+@defProp(alha3, 'КодАльфа3', STRING[3], Country);
+@defProp(fullName, 'НаименованиеПолное', STRING, Country);
+META defCountryDetail (nm, class, table, extid, group)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class###table = Country EXTID extid
+        PROPERTIES(nm###class###table, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        FILTERS nm###class###table = nm(class###table, configuration)
+    ;
+END
+
+META defCountry (nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Country EXTID extid
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', id EXTID 'Код', name EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
+    ;
+    uid###nm###class = DATA LOCAL STRING (INTEGER);
+    id###nm###class = DATA LOCAL STRING (INTEGER);
+    name###nm###class = DATA LOCAL STRING (INTEGER);
+    EXTEND FORM receiveMessage
+        PROPERTIES (nm###class) uid###nm###class  EXTID 'Ссылка', id###nm###class EXTID 'Код', name###nm###class EXTID 'Наименование'
+    ;
+END
+META defCountry (nm, class, group, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Country EXTID extid IN group
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', id EXTID 'Код', name EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
+    ;
+    uid###nm###class = DATA LOCAL STRING (INTEGER);
+    id###nm###class = DATA LOCAL STRING (INTEGER);
+    name###nm###class = DATA LOCAL STRING (INTEGER);
+    EXTEND FORM receiveMessage
+        PROPERTIES (nm###class) uid###nm###class  EXTID 'Ссылка', id###nm###class EXTID 'Код', name###nm###class EXTID 'Наименование'
+    ;
+END
+
 // item
 @extReference (item, 'Номенклатура');
 @defKeyPropSimple(fullName, 'НаименованиеПолное', STRING, keyProperties, item);
 @defKeyPropSimple(id, 'КодВПрограмме', item);
 @defKeyPropSimple(article, 'Артикул', STRING, keyProperties, item);
 @defKeyPropSimple(name, 'Наименование', item);
-@defPropObject(typeSku, 'ВидНоменклатуры', TypeSkuItem, item);
 @defPropId(type, 'ТипНоменклатуры', typeItem, item);
 @defPropObject(uom, 'ЕдиницаИзмерения', UOM, item);
 @defPropId(vat, 'СтавкаНДС', typeVat, item);
+@defPropObject(country, 'СтранаПроисхождения', Country, item);
+
+@defPropObject(typeSku, 'ВидНоменклатуры', TypeSkuItem, item);
 META defItem(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Item EXTID extid
@@ -197,11 +239,38 @@ EXTEND FORM receiveMessage
 // patner
 @extReference(partner, 'Контрагенты');
 @defKeyPropSimple(name, 'Наименование', STRING, keyProperties, partner);
+@defKeyPropSimple(fullName, 'НаименованиеПолное', STRING, keyProperties, partner);
 @defKeyPropSimple(inn, 'ИНН', STRING[12], keyProperties, partner);
 @defKeyPropSimple(kpp, 'КПП', STRING[9], keyProperties, partner);
-@defKeyPropSimple(fullName, 'НаименованиеПолное', STRING, keyProperties, partner);
-@defKeyPropSimple(type, 'ЮридическоеФизическоеЛицо', TypePartner, keyProperties, partner);
+
+
+//@defKeyPropSimple(type, 'ЮридическоеФизическоеЛицо', TypePartner, keyProperties, partner) 
+type 'ЮридическоеФизическоеЛицо' = ABSTRACT TypePartner (Partner, Configuration);
 idType 'ЮридическоеФизическоеЛицо' (Partner p, Configuration c) = staticCaption(type(p, c));
+WHEN CHANGED(type(Partner d, Configuration c)) DO {
+    packet(c, d) <- NULL;
+    in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);
+}
+typePartner 'ЮридическоеФизическоеЛицо' = DATA LOCAL STRING (INTEGER);
+EXTEND FORM sendMessage PROPERTIES idType(partner, configuration) IN keyProperties EXTID 'ЮридическоеФизическоеЛицо';
+EXTEND FORM receiveMessage PROPERTIES typePartner(partner) IN keyProperties EXTID 'ЮридическоеФизическоеЛицо';
+
+//country
+//CLASS ABSTRACT Country 'Справочник.СтраныМира' : Reference;
+//@defProp(name, 'Наименование', STRING, Country){
+//    name 'Наименование' = ABSTRACT STRING (Country, Configuration);
+//    
+//    WHEN CHANGED(name(Country d, Configuration c)) DO {
+//        packet(c, d) <- NULL;
+//        in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);  
+//    }
+//};
+
+
+@defKeyPropObject(country, 'СтранаРегистрации', Country, keyProperties, partner);
+
+@defKeyPropSimple(group, 'Наименование', ISTRING[100], hierarchyGroup, partner);
+
 
 @extTable(partner, contactInfo);
 @defPropSimpleDetail(typeContactInfo, 'ВидКонтактнойИнформации', STRING, partner, contactInfo);
@@ -376,19 +445,6 @@ META defSettlement(nm, class, extid)
     @defCurrency(currencySettlement, nm###class, 'ВалютаВзаиморасчетов');
 END
 
-//country
-CLASS ABSTRACT Country 'Справочник.СтраныМира' : Reference;
-@defProp(name, 'Наименование', STRING, Country);
-@defProp(alha2, 'КодАльфа2', STRING[2], Country);
-@defProp(alha3, 'КодАльфа3', STRING[3], Country);
-@defProp(fullName, 'НаименованиеПолное', STRING, Country);
-META defCountryDetail (nm, class, table, extid, group)
-    EXTEND FORM sendMessage
-        OBJECTS nm###class###table = Country EXTID extid 
-        PROPERTIES(nm###class###table, configuration) id EXTID 'Код', name EXTID 'Наименование'
-        FILTERS nm###class###table = nm(class###table, configuration)
-    ;
-END
 
 // bank
 CLASS ABSTRACT Bank 'Справочник.Банки' : Reference;
@@ -425,7 +481,6 @@ CLASS ABSTRACT BankAccount 'Справочник.БанковскиеСчета'
 @defProp(number, 'НомерСчета', STRING[34], BankAccount);
 @defProp(bank, 'Банк', Bank, BankAccount);
 @defProp(owner, 'Владелец', Partner, BankAccount);
-
 META defBankAccount(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = BankAccount EXTID extid
@@ -1372,3 +1427,27 @@ EXTEND FORM receiveMessage
 @defPropSimple(kppPayer, 'КПППлательщика', STRING[12], paymentOrder);
 @defPropSimple(innBeneficiary, 'ИННПолучателя', STRING[12], paymentOrder);
 @defPropSimple(kppBeneficiary, 'КПППолучателя', STRING[12], paymentOrder);
+
+//------------------------ расширяем формы -------------------//
+
+EXTEND FORM receiveMessage
+    OBJECTS ownerBankAccountPartner = INTEGER EXTID 'Владелец'
+;
+@defPropObject(bankAccount, 'ОсновнойБанковскийСчет', BankAccount, partner);
+bankBankAccountPartner = DATA LOCAL INTEGER (INTEGER);
+ownerBankAccountPartner = DATA LOCAL INTEGER (INTEGER);
+
+EXTEND FORM receiveMessage
+    FILTERS  bankBankAccountPartner(bankBankAccountPartner)==bankAccountPartner      
+    FILTERS ownerBankAccountPartner AND NOT TRUE // т.к. нужны свойства в отдельной группе
+    OBJECTS ownerBankAccountPartnerEx = INTEGER EXTID 'Владелец'
+    PROPERTIES (ownerBankAccountPartnerEx) IN counterparties uidPartnerBankAccountPartner  EXTID 'Ссылка', namePartnerBankAccountPartner EXTID 'Наименование', fullNamePartnerBankAccountPartner EXTID 'НаименованиеПолное', innPartnerBankAccountPartner EXTID 'ИНН', kppPartnerBankAccountPartner EXTID 'КПП'
+    FILTERS ownerBankAccountPartner(ownerBankAccountPartnerEx)==bankAccountPartner
+;
+
+EXTEND FORM sendMessage
+    FILTERS ownerBankAccountPartner AND NOT TRUE    
+    OBJECTS ownerBankAccountPartnerEx = Partner EXTID 'Владелец'
+    PROPERTIES(ownerBankAccountPartnerEx, configuration) IN counterparties sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS ownerBankAccountPartnerEx = owner(bankAccountPartner, configuration)
+;

@@ -126,6 +126,8 @@ GROUP bodyReceive EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.6:Body';
 
 GROUP keyProperties EXTID 'КлючевыеСвойства';
 GROUP contactInfo EXTID 'КонтактнаяИнформация';
+GROUP hierarchyGroup EXTID 'Группа';
+GROUP counterparties EXTID 'КонтрагентыСсылка';
 
 GROUP product EXTID 'Товары';
 GROUP service EXTID 'Услуги';
@@ -414,6 +416,22 @@ META defPropObject(name, caption, type, class)
         FILTERS name###class(name###class) = class
     ;
     @def###type(name, class, caption);
+END
+
+META defPropObject(name, caption, type, class, group)
+    name caption = ABSTRACT type (###class, Configuration);
+    WHEN CHANGED(name(###class d, Configuration c)) DO {
+        packet(c, d) <- NULL;
+        in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);
+    }
+
+    name###class caption = DATA LOCAL INTEGER (INTEGER);
+
+    EXTEND FORM receiveMessage
+        OBJECTS name###class = INTEGER EXTID caption
+        FILTERS name###class(name###class) = class
+    ;
+    @def###type(name, class, caption, group);
 END
 
 META defPropObjectDetail(name, caption, type, class, table, group)
