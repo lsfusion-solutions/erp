@@ -211,22 +211,33 @@ userSet 'Задается кассиром' (PromotionCondition promotionConditi
 
 // skuGroup
 TABLE promotionConditionSkuGroup (PromotionCondition, SkuGroup);
+
+dataExcluded 'Исключить из условия' = DATA BOOLEAN (PromotionCondition, SkuGroup);
+inParentExcluded (PromotionCondition promotionCondition, SkuGroup child) =
+    GROUP SUM 1 IF dataExcluded(promotionCondition, SkuGroup parent) AND isParent(child, parent) MATERIALIZED;
+excluded 'Исключить из условия' = OVERRIDE dataExcluded(PromotionCondition  promotionCondition, SkuGroup skuGroup), TRUE IF inParentExcluded(promotionCondition, skuGroup);
+
 inData 'В условии' = DATA BOOLEAN (PromotionCondition, SkuGroup);
-inParent (PromotionCondition promotionCondition, SkuGroup child) = GROUP
-                                                                          SUM 1 IF inData(promotionCondition, SkuGroup parent) AND isParent(child, parent) MATERIALIZED;
-in 'В условии' = OVERRIDE inData(PromotionCondition  promotionCondition, SkuGroup skuGroup), TRUE IF inParent(promotionCondition, skuGroup);
+inParent (PromotionCondition promotionCondition, SkuGroup child) = 
+    GROUP SUM 1 IF inData(promotionCondition, SkuGroup parent) AND isParent(child, parent) MATERIALIZED;
+in 'В условии' =
+    (OVERRIDE inData(PromotionCondition  promotionCondition, SkuGroup skuGroup), TRUE IF inParent(promotionCondition, skuGroup)) AND NOT 
+        excluded(promotionCondition, skuGroup);
 
 // sku
 TABLE promotionConditionSku (PromotionCondition, Sku);
+
 inData 'В условии' = DATA BOOLEAN (PromotionCondition, Sku);
-excluded 'Исключить из условия' = DATA BOOLEAN (PromotionCondition, Sku);
+dataExcluded 'Исключить из условия' = DATA BOOLEAN (PromotionCondition, Sku);
 
 overIn 'В условии' = ABSTRACT BOOLEAN (PromotionCondition, Sku);
+overExcluded 'Исключить из условия' = ABSTRACT BOOLEAN (PromotionCondition, Sku);
 
-in 'В условии' (PromotionCondition c, Sku sku) = (OVERRIDE
-    inData(c, sku),
-    overIn(c, sku),                                                                        
-    TRUE IF inParent(c, skuGroup(sku))) AND NOT excluded(c, sku);
+excluded 'Исключить из условия' = OVERRIDE dataExcluded(PromotionCondition c, Sku sku), overExcluded(c, sku), TRUE IF inParentExcluded(c, skuGroup(sku));
+
+in 'В условии' (PromotionCondition c, Sku sku) = 
+    (OVERRIDE inData(c, sku), overIn(c, sku), TRUE IF inParent(c, skuGroup(sku))) 
+        AND NOT excluded(c, sku);
 
 notHasDiscountCard (Promotion p) = NOT hasDiscountCard(p);
 notNoDiscountCard (Promotion p) = NOT noDiscountCard(p);
@@ -267,7 +278,7 @@ FORM promotion 'Акция'
     TREE skuTree skg = SkuGroup PARENT parent(skg)
     PROPERTIES READONLY order(skg), skuTreeName = name(skg)
     ORDERS order(skg), skuTreeName
-    PROPERTIES(sg, skg) in
+    PROPERTIES(sg, skg) in, excluded
     FILTERGROUP inactive FILTER 'Активные' active(skg) 'F5' DEFAULT
 
     OBJECTS sk = Sku
