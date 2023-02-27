@@ -1,0 +1,32 @@
+MODULE RepricingManufacturingPriceLedger;
+
+REQUIRE Repricing, RepricingManufacturingPrice;
+
+NAMESPACE Repricing;
+
+//----- Проведение по регистру изменения цены изготовителя
+
+changeManufacturingPrice 'Проводить по регистру изменение цены изготовителя' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) changeManufacturingPrice
+;
+DESIGN operation {
+    propertyContainer {
+        MOVE PROPERTY(changeManufacturingPrice(o));
+    }
+}
+
+@defineDocumentInterfaceProperty (repricing, changeManufacturingPrice, 'Проводить по регистру изменение цены изготовителя');
+
+@deriveDocumentOperationProperty(UserRepricing, changeManufacturingPrice);
+
+EXTEND FORM userRepricing
+    PROPERTIES (p) changeManufacturingPrice
+;
+
+in(RepricingDetail ledger, SystemLedgerPriceListType type) +=
+    WHEN manufacturingPrice(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN changeManufacturingPrice(ledger);
+
+price(RepricingDetail ledger, SystemLedgerPriceListType type) +=
+    WHEN manufacturingPrice(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType AND changeManufacturingPrice(ledger) THEN manufacturingPrice(ledger);
