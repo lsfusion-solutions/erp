@@ -836,6 +836,14 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 }
                                 case "by.lwo.oplati.payment": {
                                     payments.add(new Payment(oplatiPaymentType, sum));
+                                    break;
+                                }
+                                case "payme.service.payment": {
+                                    payments.add(new Payment("payme", sum));
+                                    break;
+                                }
+                                case "clickpass.service.payment": {
+                                    payments.add(new Payment("clickpass", sum));
                                 }
                             }
                         }
