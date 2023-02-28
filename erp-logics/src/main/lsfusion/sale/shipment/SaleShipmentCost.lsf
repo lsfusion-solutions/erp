@@ -25,14 +25,14 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
 
 recalculateCostAccount(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в поставках (продажа)');
-    APPLY NESTED (calculatedCost[Sku, Stock]) {
+    APPLY {
         price(UserShipmentDetail d) <- prevAccountPriceB(sku(d), supplierStock(d), dateTime(d))
             WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d));
     }
     IF canceled() THEN CANCEL;
 
     logToFile('cost', 'Начат пересчет цен в накладных (продажа)');
-    APPLY NESTED (calculatedCost[Sku, Stock]) {
+    APPLY {
         shipmentPrice(UserInvoiceDetail d) <- prevAccountPriceB(sku(d), supplierStock(d), dateTime(d))
             WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d));
     }

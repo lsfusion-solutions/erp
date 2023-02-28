@@ -7,14 +7,7 @@ NAMESPACE Purchase;
 accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (ShipmentDetail);
 accountLedgerPrice (ShipmentDetail d) += accountPrice(d);
 
-calcAccountPrice (ShipmentDetail d) = IF balanceB(d) > 0.0 THEN
-                                            round2((balanceB(d)*accountPriceB(d) + quantity(d)*price(d))/(quantity(d) + balanceB(d)))
-                                            ELSE price(d);
-
-// пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
-WHEN SETCHANGED(sku(ShipmentDetail d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(quantity(d)) OR SETCHANGED(price(d)) DO
-    accountPrice(d) <- calcAccountPrice(d);
-
+@defineCalcAveragePrice(ShipmentDetail, customerStock);
 
 EXTEND FORM currentBalanceSkuStock
     OBJECTS sd = ShipmentDetail

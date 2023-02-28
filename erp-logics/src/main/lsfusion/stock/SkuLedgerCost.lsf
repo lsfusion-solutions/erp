@@ -112,7 +112,25 @@ recalculateCostGauss (DATE dFrom, DATE dTo) {
 // account price
 recalculateCostAccount ABSTRACT LIST (DATE, DATE);
 
+recalculateCostAccountFirst ABSTRACT LIST (DATE, DATE);
+
 recalculateCostLedger ABSTRACT LIST FIRST (DATE, DATE);
 recalculateCostLedger (DATE dFrom, DATE dTo) + {
+    recalculateCostAccountFirst(dFrom, dTo);
+    
     recalculateCostAccount(dFrom, dTo);
 }
+
+// average
+
+META defineCalcAveragePrice(obj, stockProp)
+    calcAccountPrice (obj d) = IF balanceB(sku(d), stockProp(d), dateTime(d)) > 0.0 THEN
+        round2((balanceB(sku(d), stockProp(d), dateTime(d))*accountPriceB(sku(d), stockProp(d), dateTime(d)) +
+            quantity(d) * price(d))/(quantity(d) + balanceB(sku(d), stockProp(d), dateTime(d))))
+        ELSE price(d);
+
+    // пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
+    WHEN SETCHANGED(sku(obj d)) OR SETCHANGED(stockProp(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(quantity(d)) OR SETCHANGED(price(d)) DO
+        accountPrice(d) <- calcAccountPrice(d);
+END
+

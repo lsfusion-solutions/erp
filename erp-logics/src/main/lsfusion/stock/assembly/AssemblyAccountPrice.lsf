@@ -1,0 +1,21 @@
+MODULE AssemblyAccountPrice;
+
+REQUIRE Assembly, SkuLedgerCost, AssemblyAccountLedger;
+
+NAMESPACE Assembly;
+
+accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (Assembly);
+accountLedgerPrice (Assembly d) += accountPrice(d);
+
+@defineCalcAveragePrice(Assembly, stock);
+
+recalculateCostAccountFirst (DATE dFrom, DATE dTo) + {
+    logToFile('cost', 'Начат пересчет цен в сборках');
+    APPLY {
+        price(AssemblyDetail d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в сборках');
+}
+
