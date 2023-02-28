@@ -14,7 +14,7 @@ import lsfusion.base.DaemonThreadFactory;
 import lsfusion.base.Pair;
 import lsfusion.base.file.IOUtils;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -130,7 +130,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     String response = null;
                     for(String xml : xmlList) {
                         if(extendedLogs) {
-                            processTransactionLogger.info(getLogPrefix() + " sending xml " + xml);
+                            processTransactionLogger.info(getLogPrefix() + " sending xml (Transaction " + transaction.id + ") - " + xml);
                         }
                         response = sendRequestGoods(directory, xml);
                         if(response != null)
