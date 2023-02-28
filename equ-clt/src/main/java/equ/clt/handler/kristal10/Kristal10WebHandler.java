@@ -1205,7 +1205,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private Document xmlStringToDoc(String xml) throws JDOMException, IOException {
-        processTransactionLogger.info("parsing xml: " + xml); //todo: remove temp log
+        //processTransactionLogger.info("parsing xml: " + xml); //todo: remove temp log
         return new SAXBuilder().build(org.apache.commons.io.IOUtils.toInputStream(xml, encoding));
     }
 
