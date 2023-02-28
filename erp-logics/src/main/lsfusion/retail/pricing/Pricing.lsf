@@ -82,32 +82,40 @@ END
 META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime, cap, concrete)
     overRecalculate###prefix##Price  ABSTRACT LIST ( );
 
+    recalc###prefix##Price = ABSTRACT CASE NUMERIC[16,4] (###idetail, RoundCondition);
+    recalc###prefix##Price(###idetail detail, RoundCondition r) += WHEN detail IS ###idetail AND r IS RoundCondition THEN
+        NUMERIC[16,4](round([ X*(Y+100)*(Z+100)/10000](
+                prefixP##Price(detail),
+                prefix##Markup(detail),
+                value###prefix##VAT(detail)), r));
+    
+    recalc###prefix##Markup = ABSTRACT CASE NUMERIC[8,3] (###idetail);
+    recalc###prefix##Markup(###idetail detail) += WHEN detail IS ###idetail THEN
+        NUMERIC[8,3]([round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                prefix##Price(detail),
+                prefixP##Price(detail),
+                value###prefix##VAT(detail)));
+    
     recalculate###prefix##Price 'Пересчитать розн. цену'###cap ()  { 
         FOR sku(###idetail detail)  AND CalcPriceListType priceListType == prefix##PriceListType(detail) 
             AND RoundCondition roundCondition == roundCondition(prefix##PriceListType(detail), sku(detail))    
             AND pricingDocument(priceListType) AND [ FILTER form.concrete](detail) NOINLINE (priceListType, roundCondition) INLINE DO {
             
-            prefix##Markup(detail) <- markup(priceListType, sku(detail))
-                                                         WHERE prefix##PriceListType(detail) == priceListType;
-            prefix##Price(detail) <- round([ X*(Y+100)*(Z+100)/10000](
-                                                                    prefixP##Price(detail),
-                                                                    prefix##Markup(detail),
-                                                                    value###prefix##VAT(detail)), roundCondition)
-                                                         WHERE prefix##PriceListType(detail) == priceListType;
-        } 
-           
+            prefix##Markup(detail) <- markup(priceListType, sku(detail)) WHERE prefix##PriceListType(detail) == priceListType;
+            prefix##Price(detail) <- recalc###prefix##Price(detail, roundCondition) WHERE prefix##PriceListType(detail) == priceListType;
+        }
+
+        
         FOR sku(###idetail detail) AND PriceListType priceListType == prefix##PriceListType(detail) 
             AND NOT pricingDocument(priceListType) AND [ FILTER form.concrete](detail) NOINLINE (priceListType) INLINE DO {
     
-            prefix##Price(detail) <- IF batch(detail) THEN prevPriceA(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
-                                                    ELSE prevPriceA(priceListType, sku(detail), stockProp(detail), prefixTime###dateTime(detail))
-                                                         WHERE prefix##PriceListType(detail) == priceListType;
-                                                         
-            prefix##Markup(detail) <- [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-                                                               prefix##Price(detail),
-                                                               prefixP##Price(detail),
-                                                               value###prefix##VAT(detail))
-                                                         WHERE prefix##PriceListType(detail) == priceListType;
+            prefix##Price(detail) <- IF batch(detail) 
+                THEN prevPriceA(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
+                ELSE prevPriceA(priceListType, sku(detail), stockProp(detail), prefixTime###dateTime(detail))
+            WHERE prefix##PriceListType(detail) == priceListType;
+
+            
+            prefix##Markup(detail) <- recalc###prefix##Markup(detail) WHERE prefix##PriceListType(detail) == priceListType;
         } 
         overRecalculate###prefix##Price();           
     } ASON CONTEXTMENU prefix##Price[###idetail];
@@ -115,7 +123,8 @@ END
 
 META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixAA,prefixB, prefixC, prefixD)
     skipCalc###prefixA##Markup = ABSTRACT BOOLEAN (###detail);
-    calc###prefixD###markup(###detail detail)  = NUMERIC[8,3]([ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+    calc###prefixD###markup = ABSTRACT CASE NUMERIC[8,3] (###detail);
+    calc###prefixD###markup(###detail detail) += WHEN detail IS ###detail THEN NUMERIC[8,3]([ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
         prefixAA###price(detail),
         prefixB###price(detail),
         value###prefixD##VAT(detail))) IF NOT skipCalc###prefixA##Markup(detail);
@@ -133,7 +142,8 @@ END
 
 META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixCondition)
     skipCalc###prefixA##Price = ABSTRACT BOOLEAN (###detail);
-    calc###prefixA##Price(###detail detail)  = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
+    calc###prefixA##Price = ABSTRACT CASE NUMERIC[16,4] (###detail);
+    calc###prefixA##Price(###detail detail) += WHEN detail IS ###detail THEN round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
         prefixB###price(detail),
         prefixD###markup(detail),
         value###prefixD##VAT(detail))), prefixCondition###roundCondition(detail)) IF NOT skipCalc###prefixA##Price(detail);
