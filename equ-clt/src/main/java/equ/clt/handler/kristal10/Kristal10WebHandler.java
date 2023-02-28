@@ -14,6 +14,7 @@ import lsfusion.base.DaemonThreadFactory;
 import lsfusion.base.Pair;
 import lsfusion.base.file.IOUtils;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -1345,7 +1346,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             CashRegisterInfo cashRegister = numberCashRegisterMap.get(numberCashRegister);
             Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
 
-            LocalDate dateZReport = LocalDate.parse(readStringXMLValue(zReportNode, "dateOperDay"), DateTimeFormatter.ISO_DATE_TIME);
+            LocalDate dateZReport = LocalDate.parse(StringUtils.left(readStringXMLValue(zReportNode, "dateOperDay"),10), DateTimeFormatter.ISO_DATE);
 
             String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
             String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
