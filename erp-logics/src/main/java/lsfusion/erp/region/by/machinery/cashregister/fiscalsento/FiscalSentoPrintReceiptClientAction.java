@@ -11,15 +11,17 @@ public class FiscalSentoPrintReceiptClientAction extends FiscalSentoClientAction
     String receiptTop;
     String receiptBottom;
     Integer giftCardDepartment;
+    Integer flags;
 
     public FiscalSentoPrintReceiptClientAction(boolean isUnix, String logPath, String comPort, Integer baudRate,
                                                ReceiptInstance receipt, String receiptTop, String receiptBottom,
-                                               Integer giftCardDepartment) {
+                                               Integer giftCardDepartment, Integer flags) {
         super(isUnix, logPath, comPort, baudRate);
         this.receipt = receipt;
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
         this.giftCardDepartment = giftCardDepartment;
+        this.flags = flags;
     }
 
 
@@ -67,7 +69,7 @@ public class FiscalSentoPrintReceiptClientAction extends FiscalSentoClientAction
 
         if (!sale) {
             if(receiptList.size() == 1) {
-                FiscalSento.openRefundDocument(receiptList.get(0));
+                FiscalSento.openRefundDocument(receiptList.get(0), flags);
                 FiscalSento.discountItem(receiptList.get(0));
             } else {
                 throw new RuntimeException("В чеке возврата может быть только 1 строка");
@@ -77,7 +79,7 @@ public class FiscalSentoPrintReceiptClientAction extends FiscalSentoClientAction
 
         if(sale) {
             for (int i = 0; i < receiptList.size(); i++) {
-                FiscalSento.registerItem(receiptList.get(i), i == 0 ? receiptTop : null, giftCardDepartment);
+                FiscalSento.registerItem(receiptList.get(i), i == 0 ? receiptTop : null, giftCardDepartment, flags);
                 FiscalSento.discountItem(receiptList.get(i));
             }
         }

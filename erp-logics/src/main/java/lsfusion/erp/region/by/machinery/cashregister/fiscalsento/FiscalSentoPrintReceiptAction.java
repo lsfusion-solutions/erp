@@ -61,6 +61,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
+                Integer flags = (Integer) findProperty("flagsCurrentCashRegister[]").read(context);
 
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
@@ -171,7 +172,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                     Object result = context.requestUserInteraction(new FiscalSentoPrintReceiptClientAction(false, logPath, comPort, baudRate,
                             new ReceiptInstance(sumDisc, sumCard, sumCash, sumCheck, sumSalary,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalSentoReceiptTop, fiscalSentoReceiptBottom, giftCardDepartment));
+                            fiscalSentoReceiptTop, fiscalSentoReceiptBottom, giftCardDepartment, flags == null ? 0 : flags));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())

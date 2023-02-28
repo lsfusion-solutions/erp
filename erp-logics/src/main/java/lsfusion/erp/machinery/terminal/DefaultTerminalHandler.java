@@ -382,7 +382,7 @@ public class DefaultTerminalHandler {
                 if(imagesInReadBase) {
                     barcodeQuery.addProperty("image", terminalHandlerLM.findProperty("image[Barcode]").getExpr(barcodeExpr));
                 }
-                barcodeQuery.addProperty("amountPack", terminalHandlerLM.findProperty("amountPack[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("amount", terminalHandlerLM.findProperty("amount[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameSkuGroup", terminalHandlerLM.findProperty("nameSkuGroup[Barcode]").getExpr(barcodeExpr));
 
                 if (ediGtinLM != null)
@@ -415,7 +415,8 @@ public class DefaultTerminalHandler {
                     String unit = trim((String) entry.get("unit"));
                     Long flags = (Long) entry.get("flags") ;
                     RawFileData image = (RawFileData) entry.get("image");
-                    BigDecimal amountPack = (BigDecimal) entry.get("amountPack");
+                    BigDecimal amount = (BigDecimal) entry.get("amount");
+                    BigDecimal capacity = (BigDecimal) entry.get("capacity");
                     String category = trim((String) entry.get("nameSkuGroup"));
 
                     String GTIN = null;
@@ -424,7 +425,7 @@ public class DefaultTerminalHandler {
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
                             nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, flags, image,
-                            nameCountry, amountPack, category, GTIN));
+                            nameCountry, amount, capacity, category, GTIN));
                 }
             }
         }
@@ -603,7 +604,7 @@ public class DefaultTerminalHandler {
                 " unit TEXT," +
                 " flags INTEGER," +
                 " country TEXT, " +
-                " amount_pack REAL, " +
+                " capacity REAL, " +
                 " category TEXT);";
         statement.executeUpdate(sql);
         statement.close();
@@ -626,7 +627,7 @@ public class DefaultTerminalHandler {
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
                                     image, barcode.isWeight, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
-                                    barcode.flags, barcode.nameCountry, barcode.amountPack, barcode.category);
+                                    barcode.flags, barcode.nameCountry, barcode.amount, barcode.category);
                             usedBarcodes.add(barcode.idBarcode);
                         }
                         if (!TextUtils.isEmpty(barcode.GTIN) && !usedBarcodes.contains(barcode.GTIN)) {
@@ -634,7 +635,7 @@ public class DefaultTerminalHandler {
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
                                     image, barcode.isWeight, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
-                                    barcode.flags, barcode.nameCountry, barcode.amountPack, barcode.category);
+                                    barcode.flags, barcode.nameCountry, barcode.amount, barcode.category);
                             usedBarcodes.add(barcode.GTIN);
                         }
                     }
@@ -700,7 +701,7 @@ public class DefaultTerminalHandler {
                              String fld3, String fld4, String fld5, String image, String weight, String mainBarcode, String color, String ticketData, String unit,
                              Long flags, String nameCountry, BigDecimal amountPack, String category) throws SQLException {
         statement.setObject(1, format(idBarcode)); //idBarcode
-        statement.setObject(2, format(name)); //name
+        statement.setObject(2, !TextUtils.isEmpty(name) ? name.toUpperCase() : ""); //name
         statement.setObject(3, format(price)); //price
         statement.setObject(4, format(quantity)); //quantity
         statement.setObject(5, format(idItem)); //idItem, fld1
@@ -1647,15 +1648,16 @@ public class DefaultTerminalHandler {
         Long flags;
         RawFileData image;
         String nameCountry;
-        BigDecimal amountPack;
+        BigDecimal amount;
+        BigDecimal capacity;
         String category;
         String GTIN;
 
         public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock,
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode,
                                String color, String extInfo, String fld3, String fld4, String fld5, String unit,
-                               Long flags, RawFileData image, String nameCountry, BigDecimal amountPack,
-                               String category, String GTIN) {
+                               Long flags, RawFileData image, String nameCountry, BigDecimal amount,
+                               BigDecimal capacity, String category, String GTIN) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.price = price;
@@ -1673,7 +1675,8 @@ public class DefaultTerminalHandler {
             this.flags = flags;
             this.image = image;
             this.nameCountry = nameCountry;
-            this.amountPack = amountPack;
+            this.amount = amount;
+            this.capacity = capacity;
             this.category = category;
             this.GTIN = GTIN;
         }

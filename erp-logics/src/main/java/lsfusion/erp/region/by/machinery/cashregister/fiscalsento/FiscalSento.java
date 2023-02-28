@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalsento;
 import com.google.common.base.Throwables;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Level;
@@ -16,11 +17,14 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.BitSet;
 import java.util.concurrent.*;
 
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class FiscalSento {
+
+    static final int FLG_EXT_SALE = 0; // 1 - Расширенная регистрация покупки
 
     static Logger logger;
     static {
@@ -142,11 +146,18 @@ public class FiscalSento {
         sentoDLL.sento.closePort();
     }
 
-    public static void openRefundDocument(ReceiptItem item) {
+    public static void openRefundDocument(ReceiptItem item, long flags) {
+        BitSet bits = BitSet.valueOf(new long[]{flags});
         double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
         double sum = item.sumPos - item.articleDiscSum; //we need sum without discount
-        logAction("openRefundDocument", 1, item.barcode, getVAT(item.numberSection), price, item.quantity, sum, item.name);
-        if(!sentoDLL.sento.openRefundDocument(1, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name)))
+        logAction("openRefundDocument", flags, 1, item.barcode, getVAT(item.numberSection), price, item.quantity, sum, item.name);
+        boolean result;
+        if (bits.get(FLG_EXT_SALE))
+            result = sentoDLL.sento.openRefundDocument(1, getBytes(item.barcode), getVAT(item.numberSection), sum, 1, sum, getBytes(item.name));
+        else
+            result = sentoDLL.sento.openRefundDocument(1, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name));
+
+        if(!result)
             checkErrors();
     }
 
@@ -276,12 +287,23 @@ public class FiscalSento {
         return result.toString();
     }
 
-    public static void registerItem(ReceiptItem item, String comment, Integer giftCardDepartment) {
+    public static void registerItem(ReceiptItem item, String comment, Integer giftCardDepartment, Integer flags) {
+        BitSet bits = BitSet.valueOf(new long[]{flags});
         double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
         double sum = item.sumPos - item.articleDiscSum; //we need sum without discount
         int department = item.isGiftCard && giftCardDepartment != null ? giftCardDepartment : 1;
-        logAction("sale", 6, department, item.barcode, getVAT(item.numberSection), price, item.quantity, sum, item.name, comment != null ? comment : "");
-        boolean result = sentoDLL.sento.sale((short) 6, department, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name), getBytes(comment != null ? comment : ""));
+        logAction("sale", flags, 6, department, item.barcode, getVAT(item.numberSection), price, item.quantity, sum, item.name, comment != null ? comment : "");
+
+        boolean result;
+        if (bits.get(FLG_EXT_SALE)) {
+            String textPrice = String.format("Цена: %.2f", item.price);
+            String description = String.format("Кол-во: %.4f", item.quantity);
+            description = StringUtils.rightPad(description, 35-textPrice.length(), '.') + textPrice;
+            result = sentoDLL.sento.sale((short) 6, department, getBytes(item.barcode), getVAT(item.numberSection), sum, 1, sum, getBytes(description), getBytes(item.name));
+        }
+        else
+            result = sentoDLL.sento.sale((short) 6, department, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name), getBytes(comment != null ? comment : ""));
+
         if(!result)
             checkErrors();
     }
