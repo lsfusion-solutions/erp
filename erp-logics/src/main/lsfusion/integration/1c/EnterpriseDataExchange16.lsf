@@ -38,7 +38,7 @@ CLASS ABSTRACT UOM 'Справочник.ЕдиницыИзмерения' : Ref
 META defUOMDetail (nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = UOM EXTID extid
-        PROPERTIES(nm###class###table, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        PROPERTIES(nm###class###table, configuration) sendUid EXTID 'Ссылка' , id EXTID 'Код', name EXTID 'Наименование'
         FILTERS nm###class###table = nm(class###table, configuration)
     ;
 END
@@ -375,7 +375,7 @@ CLASS ABSTRACT Department 'Справочник.Подразделения' : Re
 META defDepartment(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Department EXTID extid
-        PROPERTIES(nm###class, configuration) nameDepartment EXTID 'Наименование'
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', nameDepartment EXTID 'Наименование'
         FILTERS nm###class = nm(class, configuration)
     ;
 END
@@ -605,9 +605,21 @@ EXTEND FORM receiveMessage
 @extDocument(purchaseInvoice, 'ПоступлениеТоваровУслуг');
 // Для обратной совместимости 1.6 -> 1.5
 @defKeyPropObject(partnerKey, 'Контрагент', Partner, keyProperties, purchaseInvoice);
+
 @defKeyPropSimple(numberInnerDocument, 'НомерВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice);
 @defKeyPropDate(dateInnerDocument, 'ДатаВходящегоДокумента', innerDocumentData, purchaseInvoice);
 @defKeyPropSimple(nameInnerDocument, 'НаименованиеВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice);
+
+EXTEND FORM sendMessage
+    OBJECTS partnerKey = Partner EXTID 'Контрагент' IN keyProperties
+    PROPERTIES(partnerKey, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS partnerKey = partnerKey(purchaseInvoice, configuration)
+
+    OBJECTS countryPartnerKey = Country EXTID 'СтранаРегистрации'
+    PROPERTIES(countryPartnerKey, configuration) sendUid EXTID 'Ссылка', id EXTID 'Код', name EXTID 'Наименование'
+    FILTERS country(partnerKey, configuration)==countryPartnerKey
+;
+
 @extTable(purchaseInvoice, product);
 @defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, purchaseInvoice, product);
 @defPropDetail(item, 'Номенклатура', Item, purchaseInvoice);
