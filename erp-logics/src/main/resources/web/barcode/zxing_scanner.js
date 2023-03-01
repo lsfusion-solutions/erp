@@ -104,7 +104,6 @@ function barcodeRender() {
                 ZXing().then(function(value) {
                     zxing = value;
                 });
-                console.log('22');
             }
         }
     }
@@ -158,4 +157,59 @@ function flashlight(){
     catch(err){
         console.log(err.message);
     }
+}
+
+//v2
+function scanCustom(element, controller, func){
+    try{
+        var video = document.getElementById("videoRenderId");
+        var canvasElement = document.createElement("canvas")
+        canvasElement.hidden = false;
+        canvasElement.id = "canvas"
+        canvasElement.height = video.video.videoHeight;
+        canvasElement.width = video.video.videoWidth;
+
+        var canvas = canvasElement.getContext("2d");
+        canvas.drawImage(video.video, 0, 0, canvasElement.width, canvasElement.height);
+        let resultCode = scanBarcode(canvasElement, '');
+        console.log(resultCode);
+        if (resultCode.text != ''){
+            console.log(resultCode.text);
+            element.text = resultCode.text;
+            clearInterval(timerId);
+            func(resultCode.text, controller);
+            pause = true;
+        }
+    }
+    catch(err){
+        console.log('Failed scan: ' + err.message);
+    }
+}
+
+function barcodeReaderCustom() {
+    return {
+        render: function (element) {
+            element.id = "caption";
+            var label = document.createElement("caption");
+            label.text = 'Здесь будет штрихкод товара';
+            element.appendChild(label);
+
+        },
+        update: function (element, controller, value) {
+            if(!interval){
+                interval = value.interval;
+            }
+            if(!timerId) 
+                startScan(element, controller);
+            if (pause) setTimeout(startScan, 5000, element, controller);
+        }
+    }
+}
+
+let interval;
+let pause;
+
+function startScan(element, controller){
+    pause = false;
+    timerId = setInterval(() => barcode = scanCustom(element, controller, setValue), interval);
 }
