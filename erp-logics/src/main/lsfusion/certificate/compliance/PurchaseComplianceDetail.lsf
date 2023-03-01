@@ -4,16 +4,6 @@ REQUIRE PurchaseCompliance, ComplianceGroup, ComplianceType, PurchaseInvoiceChar
 
 NAMESPACE Purchase;
 
-//---------------------------------- накладные для сертификата --------------------------------------------------------//
-
-in 'Вкл.' (Compliance compliance, UserInvoice invoice) = compliance(invoice)==compliance;
-
-in 'Вкл.' (Compliance compliance, UserInvoiceDetail invoiceDetail) = dataCompliance(invoiceDetail)==compliance;
-
-invoices 'Накладные' (Compliance compliance) =
-    GROUP
-              CONCAT shortDescription(UserInvoice invoice) IF in (compliance, invoice), ',' ORDER invoice MATERIALIZED CHARWIDTH 40;
-
 // Тип сертификата
 nameComplianceTypeCompliance 'Тип сертификата' (UserInvoiceDetail invoiceDetail) = nameComplianceType(compliance(invoiceDetail));
 
@@ -157,57 +147,8 @@ EXTEND FORM invoices
                                                 nameComplianceGroup, compliancePrice
 ;
 
-// ------------------------- Расширение формы сертификатов данными из инвойсов ----------------------------- //
-
 EXTEND FORM compliance
-    PROPERTIES(c) READONLY invoices
-
-    OBJECTS id=UserInvoiceDetail
-    PROPERTIES(id) READONLY seriesNumber, dateTime, idBarcodeSku, nameSku,
-                            quantity, price, homePrice, homeSum
-    PROPERTIES(id) BACKGROUND backgroundCompliance()
-                            nameComplianceGroup, compliancePrice, complianceSum
-
-    FILTERS compliance(id) == c
-;
-
-DESIGN compliance {
-    documentParams{
-        MOVE PROPERTY(invoices(c));
-    }
-    firstTab{
-        MOVE BOX(id);        
-    }
-    
-}
-
-// ------------------------------------------ Выбор накладных непосредственно в форме сертификата -------------------------------------- //
-
-FORM complianceInvoices 'Накладные сертификации'
-    OBJECTS c=Compliance PANEL
-    PROPERTIES(c) READONLY seriesNumber, nameLegalEntity, dateTime
-
-    OBJECTS i=UserInvoice
-    PROPERTIES(c, i)       in
-    PROPERTIES(i) READONLY number, series, date, time, nameSupplier, nameCustomer
-    FILTERS in(c, i) OR c IS Compliance AND NOT compliance(i)
-
-    FILTERGROUP filtersImporter
-        FILTER 'Только получателя' legalEntity(c) == customer(i) 'F11' DEFAULT
-
-    OBJECTS id=UserInvoiceDetail
-    PROPERTIES(c, id) in
-    PROPERTIES(id) READONLY index, idBarcodeSku, nameSku,
-                            shortNameUOMSku, quantity, price
-    FILTERS userInvoice(id)==i
-;
-
-selectInvoices 'Выбрать накладные'(Compliance compliance)  { 
-    SHOW complianceInvoices OBJECTS c=compliance ;
-} TOOLBAR;
-
-EXTEND FORM compliance
-    PROPERTIES (c) selectInvoices DRAW id 
+    PROPERTIES(id) BACKGROUND backgroundCompliance() nameComplianceGroup, compliancePrice, complianceSum
 ;
 
 //-------------------------------------- Расписывание затрат по сертификату ----------------------------------------------//
