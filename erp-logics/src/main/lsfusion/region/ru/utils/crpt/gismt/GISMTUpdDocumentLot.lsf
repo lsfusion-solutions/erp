@@ -1,0 +1,111 @@
+MODULE GISMTUpdDocumentLot;
+
+REQUIRE GISMTLegalEntity, UpdDocumentLot;
+
+NAMESPACE UpdDocumentLot;
+
+status 'Статус КМ' = DATA STRING (UpdLotDetail);
+inn 'ИНН' = DATA STRING (UpdLotDetail);
+
+checkedGISMT 'Проверен ГИСМТ' = DATA STRING (UpdDocument);
+
+//checkedGISMT 'Проверен ГИСМТ' (UpdDocument ud) = IF [GROUP SUM 1 IF (status(UpdLotDetail d) != 'INTRODUCED' OR status(d) != 'INTRODUCED_RETURNED' OR  inn(d) != innCustomer(updDocument(d)) OR inn(d) != innSupplier(updDocument(d))) BY updDocument(d)](ud) THEN 'ОК' ELSE '?';
+
+token = DATA TEXT ();
+
+EXTEND FORM integrationData
+    PROPERTIES () token
+;   
+
+DESIGN integrationData {
+    GISMT {
+        MOVE PROPERTY(token());
+    }
+}
+
+
+gtin = DATA LOCAL STRING(INTEGER);
+tnVedEaesGroup = DATA LOCAL STRING(INTEGER);
+requestedCis = DATA LOCAL STRING(INTEGER);
+producerInn = DATA LOCAL STRING(INTEGER);
+producerName = DATA LOCAL STRING(INTEGER);
+withdrawReason = DATA LOCAL STRING(INTEGER);
+introducedDate = DATA LOCAL ZDATETIME(INTEGER);
+productGroupId = DATA LOCAL NUMERIC(INTEGER);
+emissionType = DATA LOCAL STRING(INTEGER);
+cis = DATA LOCAL STRING(INTEGER);
+packageType = DATA LOCAL STRING(INTEGER);
+productName = DATA LOCAL STRING(INTEGER);
+tnVedEaes = DATA LOCAL STRING(INTEGER);
+emissionDate = DATA LOCAL ZDATETIME(INTEGER);
+ownerName = DATA LOCAL STRING(INTEGER);
+productGroup = DATA LOCAL STRING(INTEGER);
+ownerInn = DATA LOCAL STRING(INTEGER);
+statusEx = DATA LOCAL STRING(INTEGER);
+maxRetailPrice = DATA LOCAL STRING(INTEGER);
+applicationDate = DATA LOCAL ZDATETIME(INTEGER);
+status = DATA LOCAL STRING(INTEGER);
+generalPackageType = DATA LOCAL STRING(INTEGER);
+child = DATA LOCAL STRING(INTEGER);
+valueChild = DATA LOCAL INTEGER(INTEGER);
+
+FORM aaaaa
+
+OBJECTS value = INTEGER
+PROPERTIES(value) gtin, tnVedEaesGroup, requestedCis, producerInn, producerName, withdrawReason, introducedDate, productGroupId, emissionType, cis, packageType, productName, tnVedEaes, emissionDate, ownerName, productGroup, ownerInn, statusEx, maxRetailPrice, applicationDate, status, generalPackageType
+FILTERS imported(value)
+
+OBJECTS child = INTEGER
+PROPERTIES(child) child EXTID 'value'
+FILTERS imported(child)
+FILTERS valueChild(child) == value;
+
+
+
+checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
+    NEWSESSION {
+        IF NOT token() THEN getToken(LegalEntity.legalEntity('ВТРЛ'));
+        headers('Authorization') <- 'Bearer ' + OVERRIDE token(), GISMT.token();
+        headers('Content-Type') <- 'application/json; charset=UTF-8';
+        LOCAL result = FILE ();
+        FOR updDocument(UpdLotDetail l) = d DO {
+            TRY {
+                urlEncode(id(l));
+                EXTERNAL HTTP POST  'https://markirovka.crpt.ru/api/v3/true-api/cises/list?values=' + urlEncoded() HEADERS headers TO resultFile;
+            }CATCH {
+            fileToString(resultFile(), 'UTF-8');
+            MESSAGE 'Ошибка ' + resultString();
+            RETURN;
+            }
+            IMPORT aaaaa JSON FROM resultFile();
+            FOR cis(INTEGER i) DO {
+                status(l) <-  status(i);
+                inn(l) <- ownerInn(i);
+            }
+        }
+        checkedGISMT(d) <- IF [GROUP SUM 1 IF NOT (status(UpdLotDetail l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) BY updDocument(l)](d) THEN '?' ELSE 'OK';        
+        APPLY;
+    }
+}
+
+EXTEND FORM updDocument
+    PROPERTIES (uld)  READONLY status, inn
+;
+
+EXTEND FORM updDocuments
+    PROPERTIES (u)  checkLot, checkedGISMT READONLY 
+    OBJECTS uld = UpdLotDetail
+    PROPERTIES (uld)  READONLY numberDetail, id, status, inn
+    FILTERS updDocument(uld)=u
+;
+
+DESIGN updDocuments {
+    documentDetail {
+        NEW GISMT {
+            caption = 'Проверка ГИСМТ';
+            type = CONTAINERV;    
+            MOVE PROPERTY (checkLot(u)); 
+            MOVE BOX(uld);
+        }
+    }
+}
