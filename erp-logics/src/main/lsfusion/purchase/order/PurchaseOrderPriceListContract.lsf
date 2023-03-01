@@ -17,10 +17,13 @@ DESIGN operation {
     }
 }
 
+skipFilterContract = ABSTRACT VALUE BOOLEAN (UserOrder, Sku, Stock);
+
 EXTEND FORM userOrder
     FILTERGROUP filterContract
-        FILTER 'В договоре' (contractSku[PriceListDetail](prevPriceListLedgerA(ledgerPriceListType(priceListType(o, ks)), ks, st, supplier(o), dateTime(o))) = contractSku(o)) OR 
-                            NOT contractSku(o) DEFAULT
+        FILTER 'В договоре' (contractSku[PriceListDetail](prevPriceListLedgerA(ledgerPriceListType(priceListType(o, ks)), ks, st, supplier(o), dateTime(o))) = contractSku(o)) 
+                            OR NOT contractSku(o) 
+                            OR skipFilterContract(o, ks, st) DEFAULT
 ;
 
 CONSTRAINT (SET(isPosted(UserOrderDetail detail)) OR 
