@@ -2,7 +2,7 @@ MODULE SkuLedgerCorrection;
 
 REQUIRE SkuLedger, SaleShipment, WriteOff, Inventory, 
         PurchaseShipment, PurchaseReturnShipment, SaleCreditNoteStockDocument, PriceListAccountSum, Disparity, StockAdjustment,
-        SalePurchaseShipment, SalePurchaseInvoice, SalePurchaseInvoiceShipment;
+        SalePurchaseShipment, SalePurchaseInvoice, SalePurchaseInvoiceShipment, StockDocumentSkuLedger;
 
 NAMESPACE Stock;
 
@@ -20,7 +20,7 @@ correctAccountSum (DATE dt) {
         accountPrice(Sku sku, Stock stock) <- NULL WHERE corrected(sku) AND corrected(stock);
         accountPrice(Sku sku, Stock stock) <- NUMERIC[16,4](signedPrice(lastSkuLedger(sku, stock, dt))) WHERE corrected(sku) AND corrected(stock) AND lastSkuLedger(sku, stock, dt);
     }
-    FOR date(StockDocumentLedger l) >= dt AND NOT date(l) < documentsClosedDate(stock(l)) AND corrected(stock(l)) ORDER dateTime(l), l DO {
+    FOR date(StockDocumentLedger l) >= dt AND NOT date(l) < documentsClosedDate(stock(l)) AND corrected(stock(l)) AND [GROUP SUM 1 IF corrected(sku(SkuLedger sl)) BY stockDocumentLedger(sl)](l) ORDER dateTime(l), l DO {
         skipChangeAccountPrice() <- TRUE;
 
         IF l IS Sale.InvoiceShipment AND invoice[Sale.InvoiceShipment](l) IS Sale.UserInvoice THEN {
