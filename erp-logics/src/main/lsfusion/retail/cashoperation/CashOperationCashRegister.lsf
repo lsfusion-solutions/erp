@@ -1,0 +1,219 @@
+MODULE CashOperationCashRegister;
+
+REQUIRE CashOperation;
+
+NAMESPACE CashOperation;
+
+sumCashForIncomeOperation 'Сумма внесения денег' = DATA LOCAL NUMERIC[18,4] (CashRegister);
+doNotFiscalisation 'Не фискализировать' = DATA LOCAL BOOLEAN (CashRegister);
+
+FORM addIncomeCashOperation 'Внесение денег'
+
+    OBJECTS dt = DATE PANEL
+    PROPERTIES(dt) date = VALUE
+
+    OBJECTS t = TIME PANEL
+    PROPERTIES(t) time = VALUE
+
+    OBJECTS d = DepartmentStore PANEL
+    PROPERTIES(d) name SELECTOR
+
+    OBJECTS c = CashRegister
+    PROPERTIES(c) READONLY npp
+    PROPERTIES(c) sumCashForIncomeOperation, doNotFiscalisation
+
+    FILTERS stock(c) == d
+    FILTERGROUP filtersCashRegister
+        FILTER 'Только для текущей кассы' c==currentCashRegister() 'F9' DEFAULT;
+
+;
+
+DESIGN addIncomeCashOperation {
+    height = 600;
+    width = 800;
+
+    NEW topContainer {
+        fill = 1;
+        NEW firstCase {
+            type = CONTAINERH;
+            NEW dateTimeContainer{
+                caption = 'Дата/время';
+                MOVE PROPERTY(date);
+                MOVE PROPERTY(time);
+            }
+            MOVE BOX(d);
+        }
+
+        MOVE BOX(c);
+    }
+    MOVE TOOLBARBOX;
+}
+
+overAddIncomeCashOperation ABSTRACT LIST (CashRegister,IncomeCashOperation);
+
+addIncomeCashOperationForm 'Внесение денег' ()  {
+    NEWSESSION {
+
+        DIALOG addIncomeCashOperation OBJECTS d = stock(currentCashRegister()) NULL NOMANAGESESSION DO {
+            LOCAL fail = BOOLEAN();
+            FOR sumCashForIncomeOperation(CashRegister cashRegister) DO {
+                NEW c = IncomeCashOperation {
+                    cashRegister(c) <- cashRegister;
+                    sumCash(c) <- sumCashForIncomeOperation(cashRegister);
+                    overAddIncomeCashOperation(cashRegister,c);
+                    generateSeriesNumber(c);
+                    IF NOT doNotFiscalisation(cashRegister) THEN {
+                        fiscalServiceCashRegister(c);
+                    }
+                    IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
+                        fail() <- TRUE;
+                }
+            }
+            IF NOT fail() THEN
+                apply();
+        }
+    }
+} TOOLBAR;
+
+dontUseCurrentCashRegister 'Не использовать текущую кассу на форме центральная касса' = DATA BOOLEAN ();
+setDateTimeCashDocument 'Задавать дату и время документов изъятий и внесений на форме центральная касса' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES dontUseCurrentCashRegister(), setDateTimeCashDocument()
+;
+
+DESIGN options{
+    zReport{
+        NEW cashDocuments {
+            caption = 'Внесения/изъятия';
+            MOVE PROPERTY(dontUseCurrentCashRegister());
+            MOVE PROPERTY(setDateTimeCashDocument());
+        }
+    }
+}
+
+addIncomeCashOperationForm 'Внесение денег' (DepartmentStore dep)  {
+    NEWSESSION {
+        LOCAL departmentStore = DepartmentStore();
+        IF dontUseCurrentCashRegister() THEN
+            departmentStore() <- dep;
+        ELSE departmentStore() <- stock(currentCashRegister());
+        DIALOG addIncomeCashOperation OBJECTS d = departmentStore() NULL, dt INPUT, t INPUT NOMANAGESESSION DO {
+            LOCAL fail = BOOLEAN();
+            FOR sumCashForIncomeOperation(CashRegister cashRegister) DO {
+                NEW c = IncomeCashOperation {
+                    cashRegister(c) <- cashRegister;
+                    sumCash(c) <- sumCashForIncomeOperation(cashRegister);
+                    IF setDateTimeCashDocument() THEN {
+                        date(c) <- dt;
+                        time(c) <- t;
+                    }
+                    overAddIncomeCashOperation(cashRegister,c);
+                    generateSeriesNumber(c);
+                    IF NOT doNotFiscalisation(cashRegister) THEN {
+                        fiscalServiceCashRegister(c);
+                    }
+                    IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
+                        fail() <- TRUE;
+                }
+            }
+            IF NOT fail() THEN
+                apply();
+        }
+    }
+} TOOLBAR;
+
+sumCashForOutcomeOperation 'Сумма изъятия денег' = DATA LOCAL NUMERIC[18,4] (CashRegister);
+
+FORM addOutcomeCashOperation 'Изъятие денег'
+
+    OBJECTS dt = DATE PANEL
+    PROPERTIES(dt) date = VALUE
+
+    OBJECTS t = TIME PANEL
+    PROPERTIES(t) time = VALUE
+
+    OBJECTS d = DepartmentStore PANEL
+    PROPERTIES(d) name SELECTOR
+
+    OBJECTS c = CashRegister
+    PROPERTIES(c) READONLY npp
+    PROPERTIES(c) sumCashForOutcomeOperation, doNotFiscalisation
+
+    FILTERS stock(c) == d
+    FILTERGROUP filtersCashRegister
+        FILTER 'Только для текущей кассы' c==currentCashRegister() 'F9' DEFAULT;
+
+;
+
+DESIGN addOutcomeCashOperation {
+    height = 600;
+    width = 800;
+
+    NEW topContainer {
+        fill = 1;
+        NEW firstCase {
+            type = CONTAINERH;
+            NEW dateTimeContainer{
+                caption = 'Дата/время';
+                MOVE PROPERTY(date);
+                MOVE PROPERTY(time);
+            }
+            MOVE BOX(d);
+        }
+        MOVE BOX(c);
+    }
+    MOVE TOOLBARBOX;
+}
+
+overAddOutcomeCashOperation ABSTRACT LIST (CashRegister,OutcomeCashOperation);
+
+addOutcomeCashOperationForm 'Изъятие денег' ()  {
+    NEWSESSION {
+        DIALOG addOutcomeCashOperation OBJECTS d = stock(currentCashRegister()) NULL NOMANAGESESSION DO {
+            LOCAL fail = BOOLEAN();
+            FOR sumCashForOutcomeOperation(CashRegister cashRegister) NEW c = OutcomeCashOperation DO {
+                cashRegister(c) <- cashRegister;
+                sumCash(c) <- sumCashForOutcomeOperation(cashRegister);
+                overAddOutcomeCashOperation(cashRegister,c);
+                generateSeriesNumber(c);
+                IF NOT doNotFiscalisation(cashRegister) THEN {
+                    fiscalServiceCashRegister(c);
+                }
+                IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
+                    fail() <- TRUE;
+            }
+            IF NOT fail() THEN
+                apply();
+        }
+    }
+} TOOLBAR;
+
+addOutcomeCashOperationForm 'Изъятие денег' (DepartmentStore dep)  {
+    NEWSESSION {
+        LOCAL departmentStore = DepartmentStore();
+        IF dontUseCurrentCashRegister() THEN
+            departmentStore() <- dep;
+        ELSE departmentStore() <- stock(currentCashRegister());
+        DIALOG addOutcomeCashOperation OBJECTS d = departmentStore() NULL, dt INPUT, t INPUT NOMANAGESESSION DO {
+            LOCAL fail = BOOLEAN();
+            FOR sumCashForOutcomeOperation(CashRegister cashRegister) NEW c = OutcomeCashOperation DO {
+                cashRegister(c) <- cashRegister;
+                sumCash(c) <- sumCashForOutcomeOperation(cashRegister);
+                IF setDateTimeCashDocument() THEN {
+                    date(c) <- dt;
+                    time(c) <- t;
+                }
+                overAddOutcomeCashOperation(cashRegister,c);
+                generateSeriesNumber(c);
+                IF NOT doNotFiscalisation(cashRegister) THEN {
+                    fiscalServiceCashRegister(c);
+                }
+                IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
+                    fail() <- TRUE;
+            }
+            IF NOT fail() THEN
+                apply();
+        }
+    }
+} TOOLBAR;
