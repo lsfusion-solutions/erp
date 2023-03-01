@@ -18,6 +18,12 @@ overCopy(GroupCashRegister old, GroupCashRegister new ) + {  usePriceList(new) <
 
 // ----------------------------- Кассовый модуль ---------------- //
 
+// Действия ФР
+fiscalAdvancePaper 'Прогон ленты'  ABSTRACT LIST( );
+fiscalCutReceipt 'Отрезать чек'  ABSTRACT LIST( );
+fiscalPrintCopyReceipt 'Копия чека'()  ABSTRACT LIST ( );
+fiscalCashSum 'Наличных в кассе'()  ABSTRACT LIST ( );
+
 fiscalSkip 'Отключить ФР' (receipt) = DATA BOOLEAN (Receipt);
 
 EXTEND FORM zReports PROPERTIES(b) READONLY fiscalSkip;
@@ -1609,9 +1615,11 @@ DESIGN options {
 }
 
 CONSTRAINT onlyPossitiveQuantityReceipSaleDetail() AND ReceiptSaleDetail detail IS ReceiptSaleDetail AND NOT quantity(detail) >= 0.0
-    MESSAGE 'Количество товаров для продажи должно быть больше 0';    
+    MESSAGE 'Количество товаров для продажи должно быть больше 0';
 
 // ----------------------------------------- Кассовые операции ---------------------------------------------- //
+
+fiscalXReport 'X-отчёт'  ABSTRACT LIST( );
 fiscalZReport 'Закрыть Z-отчет'  ABSTRACT LIST ( ) CONFIRM;
 fiscalZReport() + {  IF NOT sidModelCurrentCashRegister() THEN closeCurrentZReport(); }
 
@@ -1665,6 +1673,7 @@ showifFiscalResetReceipt = ABSTRACT BOOLEAN ();
 EXTEND FORM operationCashRegister
     PROPERTIES READONLY curSumCurrentCashRegister() DRAW interval 
     PROPERTIES() READONLY numberCurrentZReport SHOWIF stockCurrentCashRegister()
+    PROPERTIES() fiscalXReport SHOWIF currentCashRegister()
     PROPERTIES() fiscalZReport SHOWIF currentZReportDepartmentStore()
     PROPERTIES() openCurrentZReport SHOWIF closedCurrentZReportDepartmentStore()
     PROPERTIES() SHOWIF (currentZReportDepartmentStore() AND showifElectronicJournal()) fiscalElectronicJournal, fiscalElectronicJournalToFile
@@ -1684,15 +1693,21 @@ EXTEND FORM operationCashRegister
 
 DESIGN operationCashRegister {
     BOX {
-        firstRowActions {
-            MOVE PROPERTY(fiscalZReport()) { font = '24'; }
-            MOVE PROPERTY(openCurrentZReport()) { font = '24'; };
-            MOVE PROPERTY(fiscalElectronicJournal()) { font = '24'; }
-            MOVE PROPERTY(fiscalElectronicJournalToFile()) { font = '24'; }
-        }
-        secondRowActions {
-            MOVE PROPERTY(fiscalResetReceipt()) { font = '24'; }
-            MOVE PROPERTY(numberCurrentZReport()) { font = '24'; };        
+        NEW actions FIRST {
+            caption = 'Действия с кассой';
+            type = CONTAINERV;
+            NEW firstRowActions{
+                type = CONTAINERH;
+                MOVE PROPERTY(fiscalXReport()) { font = '24'; }
+                MOVE PROPERTY(fiscalZReport()) { font = '24'; }
+                MOVE PROPERTY(openCurrentZReport()) { font = '24'; };
+                MOVE PROPERTY(fiscalElectronicJournal()) { font = '24'; }
+                MOVE PROPERTY(fiscalElectronicJournalToFile()) { font = '24'; }
+            }
+            NEW secondRowActions{
+                MOVE PROPERTY(fiscalResetReceipt()) { font = '24'; }
+                MOVE PROPERTY(numberCurrentZReport()) { font = '24'; };
+            }
         }
         MOVE BOX(z) BEFORE TOOLBARBOX;
     }

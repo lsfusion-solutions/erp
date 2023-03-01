@@ -8,8 +8,51 @@ curSum 'Текущая сумма наличных в кассе' (CashRegister 
     (curSumIncomeOperation(cashRegister) (-) curSumOutcomeOperation(cashRegister) (+) sumCashZReport(cashRegister)) IF cashRegister IS CashRegister;
 
 curSumCurrentCashRegister 'Текущая сумма наличных в кассе' = curSum(currentCashRegister()); 
-curCardSumCurrentCashRegister 'Сумма безнал. по кассе' = sumCardZReport(currentCashRegister()); 
+curCardSumCurrentCashRegister 'Сумма безнал. по кассе' = sumCardZReport(currentCashRegister());
 
+FORM operationCashRegister 'Кассовые операции'
+
+    OBJECTS interval = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES objFrom = VALUE(dFrom), objTo = VALUE(dTo)
+
+    PROPERTIES numberCurrentCashRegister() DRAW interval
+
+    OBJECTS c = CashOperation
+    PROPERTIES(c) READONLY objectClassName, number, date, time,
+        numberCashRegister, numberZReport, sum, basis
+    PROPERTIES(c) NEWSESSION EDIT, DELETE
+    PROPERTIES(c) isComplete
+
+    FILTERS date(c) >= dFrom,
+        date(c) <= dTo,
+        cashRegister(c) == currentCashRegister()
+
+    ORDERS date(c), time(c)
+;
+
+DESIGN operationCashRegister {
+    NEW top {
+        type = CONTAINERH;
+        MOVE BOX(interval) {
+            caption = 'Шапка документа';
+            type = CONTAINERH;
+            PROPERTY(objFrom) {
+                caption = 'Дата (с)';
+            }
+            PROPERTY(objTo) {
+                caption = 'Дата (по)';
+            }
+        }
+    }
+    MOVE BOX(c);
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        NEW operationCashRegister;
+    }
+}
 //Проводим Z-отчет как приходный кассовый ордер
 //EXTEND CLASS ZReport : IncomeCashOrder; 
 //
