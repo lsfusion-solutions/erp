@@ -1,0 +1,34 @@
+MODULE CashBookIncome;
+
+REQUIRE CashBook, CashOrder,
+        CashIncome, CashOperation;
+
+NAMESPACE CashOperation;
+
+cashBookList = DATA CashBookList (IncomeCashOrder) INDEXED;
+numberCashBookList 'Лист кассовой книги' (IncomeCashOrder o) = number(cashBookList(o));
+
+sumIncome 'Приход' (CashBookList l) = GROUP SUM sum(IncomeCashOrder o) BY cashBookList(o) MATERIALIZED;
+
+EXTEND FORM cashBooks
+    PROPERTIES(l) READONLY sumIncome
+    
+    OBJECTS o = IncomeCashOrder
+    PROPERTIES(o) READONLY number, series, date, time, nameLegalEntity, nameDepartmentStore, basis, sum, numberCashBookList
+    PROPERTIES(o) NEWSESSION 'Изъятие наличных из ККМ' = NEW[OutcomeCashOperation], 'Приход наличных' = NEW[CashIncome]
+;
+
+DESIGN cashBooks {
+    tabbedPane {
+        MOVE BOX(o) { caption = 'Приходные кассовые ордера'; }
+    }
+}
+
+fill (CashBookList l) + {
+    cashBookList(IncomeCashOrder o) <- l WHERE date(o) = date(l) AND departmentStore(o) = departmentStore(l) AND NOT cashBookList(o);
+}
+cashBookList(IncomeCashOrder o) += cashBookList(o);
+
+EXTEND FORM cashBookList
+    PROPERTIES GRID READONLY sumIncome 'Приход' = sum(d) IF d IS IncomeCashOrder 
+;

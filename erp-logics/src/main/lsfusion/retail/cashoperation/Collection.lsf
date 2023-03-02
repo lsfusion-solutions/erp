@@ -1,6 +1,6 @@
 MODULE Collection;
 
-REQUIRE CashOperationZReport, CashOperationCashRegister, CashOperationCashOrder;
+REQUIRE CashOperationCashRegister, CashOperationCashOrder;
 
 NAMESPACE CashOperation;
 
@@ -28,7 +28,7 @@ bankAccount = DATA Bank.Account (Collection);
 bankAccount(Collection collection) <- bankAccount(store(departmentStore(collection)))
     WHEN SET(departmentStore(collection));
 
-sumCash 'Сумма инкассации' = DATA NUMERIC[18,4] (Collection) IN documentSum;
+sumCash 'Сумма' = DATA NUMERIC[18,4] (Collection) IN documentSum;
 basis 'Основание' (Collection collection) =
     'Инкассация №' + seriesNumber(collection) + ' от ' + date(collection) IN documentPrm;
 
@@ -71,18 +71,19 @@ DESIGN addCollection {
 
 FORM collection 'Инкассация'
     OBJECTS c = Collection PANEL
-    PROPERTIES(c) number, series, date, time, nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c),
-                  sumCash, basis
+    PROPERTIES(c) nameNumerator, number, series, date, time, 
+                  nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c),
+                  sumCash
 
     EDIT Collection OBJECT c
 ;
 
 DESIGN collection {
     NEW topContainer{
-        type = CONTAINERH;
         NEW firstCase{
             type = CONTAINERH;
             caption = 'Шапка документа';
+            MOVE PROPERTY(nameNumerator(c));
             MOVE PROPERTY(number(c));
             MOVE PROPERTY(series(c));
             MOVE PROPERTY(date(c));
@@ -91,9 +92,8 @@ DESIGN collection {
         NEW secondCase{
             caption = 'Параметры документа';
             MOVE PROPERTY(nameDepartmentStore(c));
-            MOVE PROPERTY(basis(c));
         }
-        NEW thirdCase{
+        NEW thirdCase {
             caption = 'Суммы';
             MOVE PROPERTY(sumCash(c));
         }

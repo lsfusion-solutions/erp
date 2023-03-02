@@ -56,6 +56,10 @@ numberCashRegister 'Касса внесения денег' (IncomeCashOperation
 zReport(incomeCashOperation) = DATA ZReport (IncomeCashOperation);
 numberZReport 'Z-отчет' (IncomeCashOperation incomeCashOperation) = number(zReport(incomeCashOperation)) IN documentPrm;
 
+CONSTRAINT zReport(IncomeCashOperation c) AND NOT cashRegister(zReport(c)) = cashRegister(c)
+    CHECKED BY zReport[IncomeCashOperation]
+    MESSAGE 'Z-отчет внесения денег должен соответствовать кассе';
+
 departmentStore = stock(cashRegister(IncomeCashOperation incomeCashOperation));
 nameDepartmentStore 'Отдел магазина' (IncomeCashOperation incomeCashOperation) = name(departmentStore(incomeCashOperation)) IN documentHeader
         CHARWIDTH 20;
@@ -96,7 +100,7 @@ date[CashOperation](IncomeCashOperation incomeCashOperation) += date(incomeCashO
 time[CashOperation](IncomeCashOperation incomeCashOperation) += time(incomeCashOperation);
 number[CashOperation](IncomeCashOperation incomeCashOperation) += seriesNumber(incomeCashOperation);
 basis[CashOperation](IncomeCashOperation incomeCashOperation) += STRING[100](basis(incomeCashOperation));
-sum(IncomeCashOperation incomeCashOperation) += sumCash(incomeCashOperation);
+sum[CashOperation](IncomeCashOperation incomeCashOperation) += sumCash(incomeCashOperation);
 cashRegister[CashOperation](IncomeCashOperation incomeCashOperation) += cashRegister(incomeCashOperation);
 zReport[CashOperation](IncomeCashOperation incomeCashOperation) += zReport(incomeCashOperation);
 //employee(IncomeCashOperation incomeCashOperation) += employee(incomeCashOperation);
@@ -121,6 +125,10 @@ numberCashRegister 'Касса изъятия денег' (OutcomeCashOperation 
 
 zReport(outcomeCashOperation) = DATA ZReport (OutcomeCashOperation);
 numberZReport 'Z-отчет' (OutcomeCashOperation outcomeCashOperation) = number(zReport(outcomeCashOperation)) IN documentPrm;
+
+CONSTRAINT zReport(OutcomeCashOperation c) AND NOT cashRegister(zReport(c)) = cashRegister(c)
+    CHECKED BY zReport[OutcomeCashOperation]
+    MESSAGE 'Z-отчет внесения денег должен соответствовать кассе';
 
 departmentStore = stock(cashRegister(OutcomeCashOperation outcomeCashOperation));
 nameDepartmentStore 'Отдел магазина' (OutcomeCashOperation outcomeCashOperation) = name(departmentStore(outcomeCashOperation)) IN documentHeader
@@ -170,19 +178,18 @@ zReport[CashOperation](OutcomeCashOperation outcomeCashOperation) += zReport(out
 FORM incomeCashOperation 'Внесение денег'
 
     OBJECTS i = IncomeCashOperation PANEL
-    PROPERTIES(i) number, series, date, time, nameDepartmentStore, numberCashRegister, numberZReport, sumCash, basis, nameEmployee
+    PROPERTIES(i) nameNumerator, number, series, date, time, 
+                  numberCashRegister, nameDepartmentStore READONLY, numberZReport, nameEmployee,
+                  sumCash
 
     EDIT IncomeCashOperation OBJECT i
 ;
 
 DESIGN incomeCashOperation {
-    NEW topContainer{
-        type = CONTAINERH;
+    NEW topContainer FIRST {
         NEW firstCase{
             type = CONTAINERH;
             caption = 'Шапка документа';
-            MOVE PROPERTY(numberCashRegister(i));
-            MOVE PROPERTY(numberZReport(i));
             MOVE PROPERTY(number(i));
             MOVE PROPERTY(series(i));
             MOVE PROPERTY(date(i));
@@ -190,34 +197,34 @@ DESIGN incomeCashOperation {
         }
         NEW secondCase{
             caption = 'Параметры документа';
+            MOVE PROPERTY(numberCashRegister(i));
             MOVE PROPERTY(nameDepartmentStore(i));
+            MOVE PROPERTY(numberZReport(i));
             MOVE PROPERTY(nameEmployee(i));
-            MOVE PROPERTY(basis(i));
         }
         NEW thirdCase{
             caption = 'Суммы';
             MOVE PROPERTY(sumCash(i));
         }
     }
-    MOVE TOOLBARBOX;
 }
 
 FORM outcomeCashOperation 'Изъятие денег'
 
     OBJECTS o = OutcomeCashOperation PANEL
-    PROPERTIES(o) number, series, date, time, nameDepartmentStore, numberCashRegister, numberZReport, sumCash, basis, nameEmployee
+    PROPERTIES(o) nameNumerator, number, series, date, time, 
+                  numberCashRegister, nameDepartmentStore READONLY, numberZReport, nameEmployee, 
+                  sumCash
 
     EDIT OutcomeCashOperation OBJECT o;
 ;
 
 DESIGN outcomeCashOperation {
-    NEW topContainer{
-        type = CONTAINERH;
+    NEW topContainer FIRST {
         NEW firstCase{
             type = CONTAINERH;
             caption = 'Шапка документа';
-            MOVE PROPERTY(numberCashRegister(o));
-            MOVE PROPERTY(numberZReport(o));
+            MOVE PROPERTY(nameNumerator(o));
             MOVE PROPERTY(number(o));
             MOVE PROPERTY(series(o));
             MOVE PROPERTY(date(o));
@@ -225,14 +232,14 @@ DESIGN outcomeCashOperation {
         }
         NEW secondCase{
             caption = 'Параметры документа';
+            MOVE PROPERTY(numberCashRegister(o));
             MOVE PROPERTY(nameDepartmentStore(o));
+            MOVE PROPERTY(numberZReport(o));
             MOVE PROPERTY(nameEmployee(o));
-            MOVE PROPERTY(basis(o));
         }
         NEW thirdCase{
             caption = 'Суммы';
             MOVE PROPERTY(sumCash(o));
         }
     }
-    MOVE TOOLBARBOX;
 }

@@ -1,0 +1,66 @@
+MODULE CashIncome;
+
+REQUIRE CashOrder;
+
+NAMESPACE CashOperation;
+
+CLASS CashIncome 'Приход наличных' : IncomeCashOrder;
+TABLE cashIncome (CashIncome);
+
+@defineDocumentHeaderCreated(CashIncome);
+@defineDocumentHeaderNumber(CashIncome, BPSTRING[3]);
+
+@defineNumeratedDefault(CashIncome, 'Приходы наличных', 'ПН');
+
+@defineDocumentHeaderTime(CashIncome);
+@deriveDocumentHeaderTimePrefix(CashIncome, );
+@defineDocumentHeaderDepartmentStore(cashIncome);
+
+@defineDocumentDialogStocks(cashIncome, departmentStore, company, , );
+
+@defineDocumentHeaderDescription (CashIncome, 'Приход наличных');
+
+@defineDocumentHeaderNote(CashIncome);
+
+sumCash 'Сумма' = DATA NUMERIC[18,4] (CashIncome) IN documentSum;
+basis 'Основание' (CashIncome cashIncome) =
+    'Приход наличных №' + seriesNumber(cashIncome) + ' от ' + date(cashIncome) IN documentPrm;
+
+FORM cashIncome 'Приход наличных'
+    OBJECTS c = CashIncome PANEL
+    PROPERTIES(c) number, series, date, time, 
+                  nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c), sumCash, 
+                  note
+
+    EDIT CashIncome OBJECT c
+;
+
+DESIGN cashIncome {
+    NEW header FIRST {
+        NEW headerInfo {
+            type = CONTAINERH;
+            caption = 'Шапка документа';
+            MOVE PROPERTY(number(c));
+            MOVE PROPERTY(series(c));
+            MOVE PROPERTY(date(c));
+            MOVE PROPERTY(time(c));
+        }
+        NEW headerParams {
+            caption = 'Параметры документа';
+            MOVE PROPERTY(nameDepartmentStore(c));
+            MOVE PROPERTY(sumCash(c));
+        }
+        MOVE PROPERTY(note(c)) { align = STRETCH; }
+    }
+}
+
+
+// --- Implement cash document
+
+date(CashIncome c) += date(c);
+time(CashIncome c) += time(c);
+number(CashIncome c) += seriesNumber(c);
+departmentStore(CashIncome c) += departmentStore(c);
+sumCash(CashIncome c) += sumCash(c);
+basis(CashIncome c) += STRING[100](description(c));
+isPosted(CashIncome c) += c IS CashIncome;
