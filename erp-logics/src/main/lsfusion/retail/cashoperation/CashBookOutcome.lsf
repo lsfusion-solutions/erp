@@ -8,13 +8,13 @@ NAMESPACE CashOperation;
 cashBookList = DATA CashBookList (OutcomeCashOrder) INDEXED;
 numberCashBookList 'Лист кассовой книги' (OutcomeCashOrder o) = number(cashBookList(o));
 
-sumOutcome 'Расход' (CashBookList l) = GROUP SUM sum(OutcomeCashOrder o) BY cashBookList(o) MATERIALIZED;
+sumOutcome 'Расход' (CashBookList l) = GROUP SUM sumCash(OutcomeCashOrder o) BY cashBookList(o) MATERIALIZED;
 
 EXTEND FORM cashBooks
     PROPERTIES(l) READONLY sumOutcome
 
     OBJECTS i = OutcomeCashOrder
-    PROPERTIES(i) READONLY number, series, date, time, nameLegalEntity, nameDepartmentStore, basis, sum, numberCashBookList
+    PROPERTIES(i) READONLY number, series, date, time, nameLegalEntity, nameDepartmentStore, basis, sumCash, numberCashBookList
     PROPERTIES(i) NEWSESSION 'Внесение наличных из ККМ' = NEW[OutcomeCashOperation],
                              'Инкассация' = NEW[Collection],
                              'Расход наличных' = NEW[CashOutcome]
@@ -32,5 +32,5 @@ fill (CashBookList l) + {
 cashBookList(OutcomeCashOrder o) += cashBookList(o);
 
 EXTEND FORM cashBookList
-    PROPERTIES GRID READONLY sumOutcome 'Расход' = sum(d) IF d IS OutcomeCashOrder
+    PROPERTIES GRID READONLY sumOutcome 'Расход' = sumCash[OutcomeCashOrder](d)
 ;

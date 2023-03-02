@@ -13,7 +13,7 @@ TABLE sessionCashDocument (Session, CashDocument);
 
 date 'Дата документа' = ABSTRACT DATE (CashDocument) IN documentHeader;
 time 'Время документа' = ABSTRACT TIME (CashDocument) IN documentHeader;
-dateTime 'Дата/время документа' (CashDocument cashDocument) = dateTimeToDateTime(date(cashDocument), time(cashDocument)) IN documentHeader;
+dateTime 'Дата/время документа' = ABSTRACT DATETIME (CashDocument) IN documentHeader;
 
 number '{numerator.number.numerator}' = ABSTRACT BPSTRING[200] (CashDocument) IN documentPrm;
 series '{numerator.series.numerator}' = ABSTRACT BPISTRING[2] (CashDocument) IN documentPrm;
@@ -24,8 +24,6 @@ nameDepartmentStore 'Подразделение' (CashDocument d) = name(departm
 legalEntity 'Компания' (CashDocument d) = legalEntity(departmentStore(d));
 nameLegalEntity 'Компания' (CashDocument d) = name(legalEntity(d)) IN documentHeader;
 
-sum 'Сумма' = ABSTRACT NUMERIC[18,4] (CashDocument) IN documentSum;
-
 basis 'Основание' = ABSTRACT STRING[100] (CashDocument) IN documentPrm;
 
 isPosted 'Проведен' = ABSTRACT BOOLEAN (CashDocument);
@@ -33,3 +31,10 @@ isPosted 'Проведен' = ABSTRACT BOOLEAN (CashDocument);
 employee = ABSTRACT Employee (CashDocument);
 idEmployee 'Код кассира' (CashDocument d) = id(employee(d));
 nameEmployee 'Кассир' (CashDocument d) = shortName(employee(d));
+
+sum 'Сумма' = ABSTRACT NUMERIC[18,4] (CashDocument) IN documentSum;
+
+currentBalance 'Остаток наличных' = GROUP SUM sum(CashDocument d) BY departmentStore(d) MATERIALIZED;
+
+balanceA (DepartmentStore d, DATETIME dt) = currentBalance(d) (-)
+    [GROUP SUM sum(CashDocument cd) IF dateTime(cd) > dt BY departmentStore(cd)](d);

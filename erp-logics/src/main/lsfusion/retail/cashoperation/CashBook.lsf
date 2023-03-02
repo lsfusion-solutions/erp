@@ -83,3 +83,13 @@ EXTEND FORM cashBookList
     PROPERTIES fill(c) DRAW d TOOLBAR
     FILTERS cashBookList(d) = c
 ;
+
+endDateTime (CashBookList l) = GROUP MAX dateTime(CashDocument d) BY cashBookList(d) MATERIALIZED;
+endBalance 'Конечный остаток' (CashBookList l) = balanceA(departmentStore(l), endDateTime(l));
+
+EXTEND FORM cashBooks
+    PROPERTIES(l) READONLY endBalance
+;
+EXTEND FORM cashBookList
+    PROPERTIES(c) READONLY endBalance DRAW d TOOLBAR 
+;
