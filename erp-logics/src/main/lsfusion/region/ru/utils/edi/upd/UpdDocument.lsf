@@ -4,6 +4,16 @@ REQUIRE MasterData, Utils, Numerator,  Contract, Certificate, XMLUtils, VATInvoi
 
 NAMESPACE Upd;
 
+@defineStaticObject(updDocumentType, 'Вид УПД');
+
+EXTEND CLASS UpdDocumentType {
+    PURCHASE 'Приходная',
+    SALE 'Расходная'
+}
+
+type 'Вид' = DATA UpdDocumentType (UpdDocument);
+nameType 'Вид' (UpdDocument upd) = staticCaption(type(upd)) CHARWIDTH 8; //Функция
+
 @defineStaticObject(updDocumentStatus, 'Функция УПД');
 
 EXTEND CLASS UpdDocumentStatus {
@@ -760,3 +770,16 @@ FORM UPDPR FORMEXTID '=:Файл'
 @defineInvoiceDocumentXMLExport (upd, 'УПД', PPR, 'ON_NSCHFDOPPR', UPDPR);
 
 idUpdDocumentPaperStatus (UpdDocument upd) = idUpdDocumentPaperStatus(status(upd));
+
+EXTEND FORM updDocument
+    PROPERTIES (u) nameType
+;
+
+DESIGN updDocument {
+    supplierInvoice {
+        MOVE PROPERTY (nameType(u)) BEFORE PROPERTY (nameStatus(u));
+    }
+}
+EXTEND FORM updDocuments
+    PROPERTIES (u) BEFORE updType(u) nameType
+;

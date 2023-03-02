@@ -9,6 +9,9 @@ inn 'ИНН' = DATA STRING (UpdLotDetail);
 
 checkedGISMT 'Проверен ГИСМТ' = DATA STRING (UpdDocument);
 
+checkedGISMT 'Проверен ГИСМТ' = DATA STRING (UpdDocumentDetail);
+checkedGISMT 'Проверен ГИСМТ' = DATA STRING (UpdLotDetail);
+
 //checkedGISMT 'Проверен ГИСМТ' (UpdDocument ud) = IF [GROUP SUM 1 IF (status(UpdLotDetail d) != 'INTRODUCED' OR status(d) != 'INTRODUCED_RETURNED' OR  inn(d) != innCustomer(updDocument(d)) OR inn(d) != innSupplier(updDocument(d))) BY updDocument(d)](ud) THEN 'ОК' ELSE '?';
 
 token = DATA TEXT ();
@@ -83,19 +86,23 @@ checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
                 inn(l) <- ownerInn(i);
             }
         }
-        checkedGISMT(d) <- IF [GROUP SUM 1 IF NOT (status(UpdLotDetail l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) BY updDocument(l)](d) THEN '?' ELSE 'OK';        
+        checkedGISMT(d) <- IF [GROUP SUM 1 IF NOT (status(UpdLotDetail l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) BY updDocument(l)](d) THEN 'Ошибка' ELSE 'OK';
+        FOR updDocument(UpdDocumentDetail udd) = d DO
+            checkedGISMT(udd) <- IF [GROUP SUM 1 IF NOT (status(UpdLotDetail l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) BY updDocumentDetail(l)](udd) THEN 'Ошибка' ELSE 'OK';
+        checkedGISMT(UpdLotDetail l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
         APPLY;
     }
 }
 
 EXTEND FORM updDocument
-    PROPERTIES (uld)  READONLY status, inn
+    PROPERTIES (uld)  READONLY status, inn, checkedGISMT
 ;
 
 EXTEND FORM updDocuments
     PROPERTIES (u)  checkLot, checkedGISMT READONLY 
+    PROPERTIES (d)  checkedGISMT READONLY 
     OBJECTS uld = UpdLotDetail
-    PROPERTIES (uld)  READONLY numberDetail, id, status, inn
+    PROPERTIES (uld)  READONLY numberDetail, id, checkedGISMT, status, inn
     FILTERS updDocument(uld)=u
 ;
 
