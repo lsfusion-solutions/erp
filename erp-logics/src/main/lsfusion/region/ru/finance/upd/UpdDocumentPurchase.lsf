@@ -24,6 +24,8 @@ invoice =
         BY updDocument(ui);
 
 skipCreateUserInvoiceDetail = ABSTRACT BOOLEAN (UpdDocumentDetail);
+overCreateInvoice ABSTRACT (UserInvoice, UpdDocument);
+overCreateInvoice ABSTRACT (UserInvoiceDetail, UpdDocumentDetail);
 
 createInvoice 'Создать приходную накладную'(UpdDocument d){
     operation () <- NULL;
@@ -38,8 +40,9 @@ createInvoice 'Создать приходную накладную'(UpdDocument
                 supplier(invoice) <- OVERRIDE legalEntityEdi(idConsignor(d)), legalEntityInn(innSupplier(d));
                 customer(invoice) <- OVERRIDE legalEntityEdi(idConsignee(d)), legalEntityInn(innCustomer(d));
                 operation(invoice) <- operation();
-//                supplierStock(invoice) <- stockSupplier();
+                supplierStock(invoice) <- [GROUP LAST Stock s ORDER s BY legalEntity(s)] (supplier(invoice));
                 customerStock(invoice) <- stockCustomer();
+                overCreateInvoice(invoice, d);
                 FOR updDocument(UpdDocumentDetail ed) == d AND NOT skipCreateUserInvoiceDetail(ed) NEW id = UserInvoiceDetail  DO {
                     updDocumentDetail(id) <- ed;
                     userInvoice(id) <- invoice;
@@ -54,7 +57,9 @@ createInvoice 'Создать приходную накладную'(UpdDocument
                     FOR updDocumentDetail(UpdLotDetail ud) == ed AND l = lot(id(ud))  DO {
                         quantity(id, l) <- 1;
                     }
+                overCreateInvoice(id, ed);                    
                 }
+//            APPLY;
             SHOW userInvoice OBJECTS i = invoice;
             }
         }
