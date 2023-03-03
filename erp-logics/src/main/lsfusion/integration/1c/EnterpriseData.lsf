@@ -1,6 +1,6 @@
 MODULE EnterpriseData;
 
-REQUIRE Time, Utils, MasterData, SystemEvents;
+REQUIRE Time, Utils, MasterData, SystemEvents, XMLUtils;
 
 NAMESPACE EnterpriseData;
 
@@ -112,7 +112,8 @@ notEmpty = ABSTRACT BOOLEAN (Configuration, EnterpriseData);
 in (Configuration c) = GROUP MAX in(c, EnterpriseData e) AND NOT skip(c, e) AND notEmpty(c, e);
 empty (Configuration c) = c IS Configuration AND NOT in(c); 
 emptyBody15 (Configuration c) = '' IF empty(c) AND (version(c) = AvailableVersion.ver1_5 OR NOT version(c));
-emptyBody16 (Configuration c) = '' IF empty(c) AND version(c) = AvailableVersion.ver1_6; 
+skipEmptyBody16 = DATA LOCAL BOOLEAN ();
+emptyBody16 (Configuration c) = '' IF empty(c) AND version(c) = AvailableVersion.ver1_6 AND NOT skipEmptyBody16(); 
 
 GROUP header EXTID 'msg:Header';
 GROUP confirmation EXTID 'msg:Confirmation' : header;
@@ -227,6 +228,17 @@ receiveMessage 'Получить' (Configuration c) {
 overSend ABSTRACT LIST (Configuration);
 overSend ABSTRACT LIST (Configuration, XMLFILE);
 beforeSend ABSTRACT LIST (Configuration);
+beforeExport ABSTRACT LIST (Configuration);
+afterExport ABSTRACT LIST (Configuration);
+
+
+scheme 'Схема' = DATA FILE (Configuration);
+loadScheme 'Загрузить схему ' (Configuration c)  { INPUT =scheme(c) CHANGE; }
+openScheme'Открыть схему' (Configuration c)  { open(scheme(c)); }
+deleteImage 'Удалить схему'(Configuration c)  {
+    scheme(c) <- NULL;
+}
+hasScheme 'Схема задана' (Configuration c) = TRUE IF scheme(c) MATERIALIZED;
 
 sendMessage 'Передать' (Configuration c) {
     NEWSESSION {
@@ -239,8 +251,17 @@ sendMessage 'Передать' (Configuration c) {
             prevPacket(c, EnterpriseData e) <- packet(c, e) WHERE inLocalSending(c, e);
             packet(c, EnterpriseData e) <- messageNo(c) WHERE inLocalSending(c, e);
             APPLY NESTED LOCAL;
+            beforeExport(c);
             EXPORT sendMessage OBJECTS configuration = c XML TO f;
+            IF hasScheme(c) THEN {
+                TRY{
+                    validateXML(scheme(c), FILE(f()));
+                } CATCH {
+                    MESSAGE (CONCAT '\n','Файл не соответствует схеме',(CONCAT '\n\n', validateError(), System.messageCaughtException()))  NOWAIT;    
+                }
+            } 
             WRITE f() TO sendPath(c);
+            afterExport(c);
             isSended(c) <- TRUE;
 //            packet(c, EnterpriseData e) <- messageNo(c) WHERE inLocalSending(c, e);
             overSend(c);
@@ -304,6 +325,8 @@ EXTEND FORM integrationData
     PROPERTIES (c) SHOWIF someConfigurations() NEWSESSION NEW, EDIT, DELETE
     
     PROPERTIES sendMessage(c), receiveMessage(c), showOptions(c), generateUid() DRAW c    
+    PROPERTIES (c) SHOWIF someConfigurations() hasScheme
+    PROPERTIES (c) GRID loadScheme SHOWIF (someConfigurations() AND NOT hasScheme(c)), deleteImage SHOWIF (hasScheme(c) AND someConfigurations())
 ;
 
 DESIGN integrationData {
