@@ -11,7 +11,7 @@ TABLE cashBookList (CashBookList);
 
 @defineDocumentHeaderCreated(CashBookList);
 
-number 'Номер' = DATA INTEGER (CashBookList) IN numbered CHARWIDTH 8;
+listNumber 'Номер' = DATA INTEGER (CashBookList) IN numbered CHARWIDTH 8;
 
 @defineDocumentHeaderTime(CashBookList);
 @deriveDocumentHeaderTimePrefix(CashBookList, );
@@ -20,16 +20,16 @@ year (CashBookList l) = extractYear(date(l));
 @defineDocumentHeaderDepartmentStore(cashBookList);
 @defineDocumentDialogStocks(cashBookList, departmentStore, company, , );
 
-maxNumber (DepartmentStore d, INTEGER y) = GROUP MAX number(CashBookList l) BY departmentStore(l), year(l);
+maxNumber (DepartmentStore d, INTEGER y) = GROUP MAX listNumber(CashBookList l) BY departmentStore(l), year(l);
 prevMaxNumber (DepartmentStore d, INTEGER y) = PREV(maxNumber(d, y));
-WHEN LOCAL (SETCHANGED(departmentStore(CashBookList l)) OR SETCHANGED(year(l))) AND NOT CHANGED(number(l)) DO
-    number(l) <- maxNumber(departmentStore(l), year(l)) (+) 1;    
+WHEN LOCAL (SETCHANGED(departmentStore(CashBookList l)) OR SETCHANGED(year(l))) AND NOT CHANGED(listNumber(l)) DO
+    listNumber(l) <- maxNumber(departmentStore(l), year(l)) (+) 1;    
 
 @defineDocumentHeaderNote(CashBookList);
 
 FORM cashBookList 'Лист кассовой книги'
     OBJECTS c = CashBookList PANEL
-    PROPERTIES(c) number, date, time,
+    PROPERTIES(c) listNumber, date, time,
                   nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c),
                   note
 
@@ -41,7 +41,7 @@ DESIGN cashBookList {
         NEW headerInfo {
             type = CONTAINERH;
             caption = 'Шапка документа';
-            MOVE PROPERTY(number(c));
+            MOVE PROPERTY(listNumber(c));
             MOVE PROPERTY(date(c));
             MOVE PROPERTY(time(c));
             MOVE PROPERTY(nameDepartmentStore(c));
@@ -52,7 +52,7 @@ DESIGN cashBookList {
 
 FORM cashBooks 'Кассовые книги'
     OBJECTS l = CashBookList
-    PROPERTIES(l) READONLY number, date, time, nameDepartmentStore, note
+    PROPERTIES(l) READONLY listNumber, date, time, nameDepartmentStore, note
     PROPERTIES(l) NEWSESSION NEW, EDIT, DELETE
 ;
 
@@ -79,7 +79,8 @@ fill 'Заполнить' ABSTRACT LIST (CashBookList);
 cashBookList = ABSTRACT CashBookList (CashDocument);
 EXTEND FORM cashBookList
     OBJECTS d = CashDocument
-    PROPERTIES(d) READONLY number, series, date, time, nameLegalEntity, nameDepartmentStore, basis
+    PROPERTIES(d) READONLY number, series, date, time, nameLegalEntity, nameDepartmentStore, basis, nameOperation
+    PROPERTIES(d) NEWSESSION EDIT
     PROPERTIES fill(c) DRAW d TOOLBAR
     FILTERS cashBookList(d) = c
 ;

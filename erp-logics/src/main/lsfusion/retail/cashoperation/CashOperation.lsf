@@ -20,6 +20,9 @@ number 'Номер' (cashOperation) = ABSTRACT STRING[50] (CashOperation) IN doc
 
 basis 'Основание' = ABSTRACT STRING[100] (CashOperation) IN documentPrm;
 
+operation = ABSTRACT Operation (CashOperation);
+nameOperation 'Операция' (CashOperation c) = name(operation(c));
+
 sum 'Сумма' (cashOperation) = ABSTRACT NUMERIC[18,4] (CashOperation);
 
 isComplete 'Фискализировано' = DATA BOOLEAN (CashOperation);
@@ -50,8 +53,10 @@ is (IncomeCashOperation cashOperation) = cashOperation IS IncomeCashOperation;
 @defineDocumentHeaderTime(IncomeCashOperation);
 @deriveDocumentHeaderTimePrefix(IncomeCashOperation, );
 
+@defineDocumentOperationCash(IncomeCashOperation, 'Внесение денег');
+
 cashRegister (incomeCashOperation) = DATA CashRegister (IncomeCashOperation);
-numberCashRegister 'Касса внесения денег' (IncomeCashOperation incomeCashOperation) = npp(cashRegister(incomeCashOperation)) IN documentPrm CHARWIDTH 20;
+numberCashRegister 'Касса ККМ' (IncomeCashOperation incomeCashOperation) = npp(cashRegister(incomeCashOperation)) IN documentPrm CHARWIDTH 20;
 
 zReport(incomeCashOperation) = DATA ZReport (IncomeCashOperation);
 numberZReport 'Z-отчет' (IncomeCashOperation incomeCashOperation) = number(zReport(incomeCashOperation)) IN documentPrm;
@@ -101,6 +106,7 @@ time[CashOperation](IncomeCashOperation incomeCashOperation) += time(incomeCashO
 number[CashOperation](IncomeCashOperation incomeCashOperation) += seriesNumber(incomeCashOperation);
 basis[CashOperation](IncomeCashOperation incomeCashOperation) += STRING[100](basis(incomeCashOperation));
 sum[CashOperation](IncomeCashOperation incomeCashOperation) += sumCash(incomeCashOperation);
+operation[CashOperation](IncomeCashOperation incomeCashOperation) += operation(incomeCashOperation);
 cashRegister[CashOperation](IncomeCashOperation incomeCashOperation) += cashRegister(incomeCashOperation);
 zReport[CashOperation](IncomeCashOperation incomeCashOperation) += zReport(incomeCashOperation);
 //employee(IncomeCashOperation incomeCashOperation) += employee(incomeCashOperation);
@@ -120,8 +126,10 @@ is (OutcomeCashOperation cashOperation) = cashOperation IS OutcomeCashOperation;
 @defineDocumentHeaderTime(OutcomeCashOperation);
 @deriveDocumentHeaderTimePrefix(OutcomeCashOperation, );
 
+@defineDocumentOperationCash(OutcomeCashOperation, 'Изъятие денег');
+
 cashRegister (outcomeCashOperation) = DATA CashRegister (OutcomeCashOperation);
-numberCashRegister 'Касса изъятия денег' (OutcomeCashOperation outcomeCashOperation) = npp(cashRegister(outcomeCashOperation)) IN documentPrm CHARWIDTH 20;
+numberCashRegister 'Касса ККМ' (OutcomeCashOperation outcomeCashOperation) = npp(cashRegister(outcomeCashOperation)) IN documentPrm CHARWIDTH 20;
 
 zReport(outcomeCashOperation) = DATA ZReport (OutcomeCashOperation);
 numberZReport 'Z-отчет' (OutcomeCashOperation outcomeCashOperation) = number(zReport(outcomeCashOperation)) IN documentPrm;
@@ -171,6 +179,7 @@ time[CashOperation](OutcomeCashOperation outcomeCashOperation) += time(outcomeCa
 number[CashOperation](OutcomeCashOperation outcomeCashOperation) += seriesNumber(outcomeCashOperation);
 basis[CashOperation](OutcomeCashOperation outcomeCashOperation) += STRING[100](basis(outcomeCashOperation));
 sum[CashOperation](OutcomeCashOperation outcomeCashOperation) += -sumCash(outcomeCashOperation);
+operation[CashOperation](OutcomeCashOperation outcomeCashOperation) += operation(outcomeCashOperation);
 cashRegister[CashOperation](OutcomeCashOperation outcomeCashOperation) += cashRegister(outcomeCashOperation);
 zReport[CashOperation](OutcomeCashOperation outcomeCashOperation) += zReport(outcomeCashOperation);
 
@@ -179,7 +188,7 @@ FORM incomeCashOperation 'Внесение денег'
 
     OBJECTS i = IncomeCashOperation PANEL
     PROPERTIES(i) nameNumerator, number, series, date, time, 
-                  numberCashRegister, nameDepartmentStore READONLY, numberZReport, nameEmployee,
+                  nameOperation, numberCashRegister, nameDepartmentStore READONLY, numberZReport, nameEmployee,
                   sumCash
 
     EDIT IncomeCashOperation OBJECT i
@@ -190,6 +199,7 @@ DESIGN incomeCashOperation {
         NEW firstCase{
             type = CONTAINERH;
             caption = 'Шапка документа';
+            MOVE PROPERTY(nameNumerator(i));
             MOVE PROPERTY(number(i));
             MOVE PROPERTY(series(i));
             MOVE PROPERTY(date(i));
@@ -197,6 +207,7 @@ DESIGN incomeCashOperation {
         }
         NEW secondCase{
             caption = 'Параметры документа';
+            MOVE PROPERTY(nameOperation(i));
             MOVE PROPERTY(numberCashRegister(i));
             MOVE PROPERTY(nameDepartmentStore(i));
             MOVE PROPERTY(numberZReport(i));
@@ -213,7 +224,7 @@ FORM outcomeCashOperation 'Изъятие денег'
 
     OBJECTS o = OutcomeCashOperation PANEL
     PROPERTIES(o) nameNumerator, number, series, date, time, 
-                  numberCashRegister, nameDepartmentStore READONLY, numberZReport, nameEmployee, 
+                  nameOperation, numberCashRegister, nameDepartmentStore READONLY, numberZReport, nameEmployee, 
                   sumCash
 
     EDIT OutcomeCashOperation OBJECT o;
@@ -232,6 +243,7 @@ DESIGN outcomeCashOperation {
         }
         NEW secondCase{
             caption = 'Параметры документа';
+            MOVE PROPERTY(nameOperation(o));
             MOVE PROPERTY(numberCashRegister(o));
             MOVE PROPERTY(nameDepartmentStore(o));
             MOVE PROPERTY(numberZReport(o));

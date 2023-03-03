@@ -1,0 +1,41 @@
+MODULE CashDocumentOperation;
+
+REQUIRE Operation, Retail;
+
+NAMESPACE CashOperation;
+
+@defineOperation(' (касса)');
+@defineOperationRole();
+
+DESIGN operation {
+    tabContainer {
+        NEW constraintContainer {
+            caption = 'Ограничения';
+        }
+        NEW paramsContainer {
+            caption = 'Параметры';
+        }
+    }
+}
+
+NAVIGATOR {
+    retailMasterData {
+        NEW 'Операции (касса)' = operations;
+    }
+}
+
+META defineDocumentOperationCash (doc, caption)
+    operation = DATA Operation (doc);
+    nameOperation 'Операция' (doc c) = name(operation(c));
+    
+    @defineOperationProperty(allow##doc, 'Разрешить использовать для '##caption, constraintContainer);
+        
+    CONSTRAINT operation(doc d) AND NOT allow##doc(operation(d))
+        CHECKED BY operation[doc]
+        MESSAGE 'Выбрана недопустимая операция для '##caption;
+        
+    countAllow##doc##Operation = GROUP SUM 1 IF allow##doc(Operation o);
+    defaultAllow##doc##Operation = GROUP MIN Operation o IF allow##doc(o);
+    
+    operation(doc o) <- defaultAllow##doc##Operation() IF countAllow##doc##Operation() WHEN SET(o IS doc);
+END

@@ -16,10 +16,11 @@ is (Collection collection) = collection IS Collection;
 
 @defineDocumentHeaderTime(Collection);
 @deriveDocumentHeaderTimePrefix(Collection, );
+
+@defineDocumentOperationCash(Collection, 'Инкассация');
+
 @defineDocumentHeaderDepartmentStore(collection);
-
 INDEX departmentStore(Collection c);
-
 @defineDocumentDialogStocks(collection, departmentStore, company, , );
 
 @defineDocumentHeaderDescription (Collection, 'Инкассация');
@@ -36,6 +37,7 @@ date(Collection collection) += date(collection);
 time(Collection collection) += time(collection);
 dateTime(Collection collection) += dateTime(collection);
 number(Collection collection) += seriesNumber(collection) IF collection IS Collection;
+operation(Collection collection) += operation(collection);
 departmentStore(Collection collection) += departmentStore(collection);
 sumCash(Collection collection) += sumCash(collection);
 basis(Collection collection) += STRING[100](basis(collection));
@@ -73,7 +75,7 @@ DESIGN addCollection {
 FORM collection 'Инкассация'
     OBJECTS c = Collection PANEL
     PROPERTIES(c) nameNumerator, number, series, date, time, 
-                  nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c),
+                  nameOperation, nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c),
                   sumCash
 
     EDIT Collection OBJECT c
@@ -92,6 +94,7 @@ DESIGN collection {
         }
         NEW secondCase{
             caption = 'Параметры документа';
+            MOVE PROPERTY(nameOperation(c));
             MOVE PROPERTY(nameDepartmentStore(c));
         }
         NEW thirdCase {
@@ -128,7 +131,7 @@ FORM centralCashRegister 'Центральная касса'
 
     OBJECTS i = IncomeCashOrder
     PROPERTIES(i) READONLY objectClassName, number, date, time, nameDepartmentStore,
-                           numberCashRegister, sumCash, basis, isPrinted, idEmployee, nameEmployee
+                           numberCashRegister, sumCash, basis, nameOperation, isPrinted, idEmployee, nameEmployee
     PROPERTIES(i) READONLY isComplete 
     PROPERTIES addOutcomeCashOperationForm(d) DRAW i TOOLBAR
     PROPERTIES eoc = EDIT(i) SHOWIF is(i)
@@ -143,7 +146,7 @@ FORM centralCashRegister 'Центральная касса'
 
     OBJECTS o = OutcomeCashOrder
     PROPERTIES(o) READONLY number, date, time, nameDepartmentStore,
-                           numberCashRegister, sumCash, basis, isPrinted, idEmployee, nameEmployee
+                           numberCashRegister, sumCash, basis, nameOperation, isPrinted, idEmployee, nameEmployee
     PROPERTIES addIncomeCashOperationForm(d) DRAW o TOOLBAR
     PROPERTIES addCollectionForm() DRAW o TOOLBAR
     PROPERTIES(o) NEWSESSION EDIT, DELETE 

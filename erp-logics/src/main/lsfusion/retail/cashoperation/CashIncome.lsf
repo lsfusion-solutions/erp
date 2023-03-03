@@ -14,8 +14,10 @@ TABLE cashIncome (CashIncome);
 
 @defineDocumentHeaderTime(CashIncome);
 @deriveDocumentHeaderTimePrefix(CashIncome, );
-@defineDocumentHeaderDepartmentStore(cashIncome);
 
+@defineDocumentOperationCash(CashIncome, 'Приход наличных');
+
+@defineDocumentHeaderDepartmentStore(cashIncome);
 @defineDocumentDialogStocks(cashIncome, departmentStore, company, , );
 
 @defineDocumentHeaderDescription (CashIncome, 'Приход наличных');
@@ -28,8 +30,8 @@ basis 'Основание' (CashIncome cashIncome) =
 
 FORM cashIncome 'Приход наличных'
     OBJECTS c = CashIncome PANEL
-    PROPERTIES(c) number, series, date, time, 
-                  nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c), sumCash, 
+    PROPERTIES(c) nameNumerator, number, series, date, time,
+                  nameOperation, nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c), sumCash, 
                   note
 
     EDIT CashIncome OBJECT c
@@ -40,6 +42,7 @@ DESIGN cashIncome {
         NEW headerInfo {
             type = CONTAINERH;
             caption = 'Шапка документа';
+            MOVE PROPERTY(nameNumerator(c));
             MOVE PROPERTY(number(c));
             MOVE PROPERTY(series(c));
             MOVE PROPERTY(date(c));
@@ -47,6 +50,7 @@ DESIGN cashIncome {
         }
         NEW headerParams {
             caption = 'Параметры документа';
+            MOVE PROPERTY(nameOperation(c));
             MOVE PROPERTY(nameDepartmentStore(c));
             MOVE PROPERTY(sumCash(c));
         }
@@ -61,6 +65,7 @@ date(CashIncome c) += date(c);
 time(CashIncome c) += time(c);
 dateTime(CashIncome c) += dateTime(c);
 number(CashIncome c) += seriesNumber(c);
+operation(CashIncome c) += operation(c);
 departmentStore(CashIncome c) += departmentStore(c);
 sumCash(CashIncome c) += sumCash(c);
 basis(CashIncome c) += STRING[100](description(c));

@@ -6,7 +6,7 @@ REQUIRE CashBook, CashOrder,
 NAMESPACE CashOperation;
 
 cashBookList = DATA CashBookList (IncomeCashOrder) INDEXED;
-numberCashBookList 'Лист кассовой книги' (IncomeCashOrder o) = number(cashBookList(o));
+numberCashBookList 'Лист кассовой книги' (IncomeCashOrder o) = listNumber(cashBookList(o));
 
 sumIncome 'Приход' (CashBookList l) = GROUP SUM sumCash(IncomeCashOrder o) BY cashBookList(o) MATERIALIZED;
 
@@ -14,8 +14,8 @@ EXTEND FORM cashBooks
     PROPERTIES(l) READONLY sumIncome
     
     OBJECTS o = IncomeCashOrder
-    PROPERTIES(o) READONLY number, series, date, time, nameLegalEntity, nameDepartmentStore, basis, sumCash, numberCashBookList
-    PROPERTIES(o) NEWSESSION 'Изъятие наличных из ККМ' = NEW[OutcomeCashOperation], 'Приход наличных' = NEW[CashIncome]
+    PROPERTIES(o) READONLY number, series, date, time, nameLegalEntity, nameDepartmentStore, basis, nameOperation, sumCash, numberCashBookList
+    PROPERTIES(o) NEWSESSION 'Изъятие наличных из ККМ' = NEW[OutcomeCashOperation], 'Приход наличных' = NEW[CashIncome], EDIT, DELETE
 ;
 
 DESIGN cashBooks {

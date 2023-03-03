@@ -10,12 +10,14 @@ TABLE cashOutcome (CashOutcome);
 @defineDocumentHeaderCreated(CashOutcome);
 @defineDocumentHeaderNumber(CashOutcome, BPSTRING[3]);
 
-@defineNumeratedDefault(CashOutcome, 'Расходы наличных', 'ПН');
+@defineNumeratedDefault(CashOutcome, 'Расходы наличных', 'РН');
 
 @defineDocumentHeaderTime(CashOutcome);
 @deriveDocumentHeaderTimePrefix(CashOutcome, );
-@defineDocumentHeaderDepartmentStore(cashOutcome);
 
+@defineDocumentOperationCash(CashOutcome, 'Расход наличных');
+
+@defineDocumentHeaderDepartmentStore(cashOutcome);
 @defineDocumentDialogStocks(cashOutcome, departmentStore, company, , );
 
 @defineDocumentHeaderDescription (CashOutcome, 'Расход наличных');
@@ -28,9 +30,9 @@ basis 'Основание' (CashOutcome cashOutcome) =
 
 FORM cashOutcome 'Расход наличных'
     OBJECTS c = CashOutcome PANEL
-    PROPERTIES(c) number, series, date, time,
-        nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c), sumCash,
-        note
+    PROPERTIES(c) nameNumerator, number, series, date, time,
+                  nameOperation, nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c), sumCash,
+                  note
 
     EDIT CashOutcome OBJECT c
 ;
@@ -40,6 +42,7 @@ DESIGN cashOutcome {
         NEW headerInfo {
             type = CONTAINERH;
             caption = 'Шапка документа';
+            MOVE PROPERTY(nameNumerator(c));
             MOVE PROPERTY(number(c));
             MOVE PROPERTY(series(c));
             MOVE PROPERTY(date(c));
@@ -47,6 +50,7 @@ DESIGN cashOutcome {
         }
         NEW headerParams {
             caption = 'Параметры документа';
+            MOVE PROPERTY(nameOperation(c));
             MOVE PROPERTY(nameDepartmentStore(c));
             MOVE PROPERTY(sumCash(c));
         }
@@ -61,6 +65,7 @@ date(CashOutcome c) += date(c);
 time(CashOutcome c) += time(c);
 dateTime(CashOutcome c) += dateTime(c);
 number(CashOutcome c) += seriesNumber(c);
+operation(CashOutcome c) += operation(c);
 departmentStore(CashOutcome c) += departmentStore(c);
 sumCash(CashOutcome c) += sumCash(c);
 basis(CashOutcome c) += STRING[100](description(c));
