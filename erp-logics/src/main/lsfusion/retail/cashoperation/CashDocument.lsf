@@ -21,6 +21,8 @@ series '{numerator.series.numerator}' = ABSTRACT BPISTRING[2] (CashDocument) IN 
 operation = ABSTRACT Operation (CashDocument);
 nameOperation 'Операция' (CashDocument d) = name(operation(d));
 
+corrAccount 'Корреспондентский счет' (CashDocument d) = corrAccount(operation(d));
+
 departmentStore 'Подразделение' = ABSTRACT Stock (CashDocument);
 nameDepartmentStore 'Подразделение' (CashDocument d) = name(departmentStore(d)) IN documentHeader;
 
@@ -38,6 +40,9 @@ nameEmployee 'Кассир' (CashDocument d) = shortName(employee(d));
 sum 'Сумма' = ABSTRACT NUMERIC[18,4] (CashDocument) IN documentSum;
 
 currentBalance 'Остаток наличных' = GROUP SUM sum(CashDocument d) BY departmentStore(d) MATERIALIZED;
+
+balanceB (DepartmentStore d, DATETIME dt) = currentBalance(d) (-)
+    [GROUP SUM sum(CashDocument cd) IF dateTime(cd) >= dt BY departmentStore(cd)](d);
 
 balanceA (DepartmentStore d, DATETIME dt) = currentBalance(d) (-)
     [GROUP SUM sum(CashDocument cd) IF dateTime(cd) > dt BY departmentStore(cd)](d);
