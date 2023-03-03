@@ -20,17 +20,21 @@ year (CashBookList l) = extractYear(date(l));
 @defineDocumentHeaderDepartmentStore(cashBookList);
 @defineDocumentDialogStocks(cashBookList, departmentStore, company, , );
 
-maxNumber (DepartmentStore d, INTEGER y) = GROUP MAX listNumber(CashBookList l) BY departmentStore(l), year(l);
-prevMaxNumber (DepartmentStore d, INTEGER y) = PREV(maxNumber(d, y));
-WHEN LOCAL (SETCHANGED(departmentStore(CashBookList l)) OR SETCHANGED(year(l))) AND NOT CHANGED(listNumber(l)) DO
-    listNumber(l) <- maxNumber(departmentStore(l), year(l)) (+) 1;    
+maxNumber (DepartmentStore d, INTEGER y, CashBookList bl) = GROUP MAX listNumber(CashBookList l) IF l != bl BY departmentStore(l), year(l);
+prevMaxNumber (DepartmentStore d, INTEGER y, CashBookList l) = PREV(maxNumber(d, y, l));
+WHEN LOCAL (SETCHANGED(departmentStore(CashBookList l)) OR SETCHANGED(year(l))) AND departmentStore(l) AND NOT CHANGED(listNumber(l)) DO
+    listNumber(l) <- prevMaxNumber(departmentStore(l), year(l), l) (+) 1;
+
+employee 'Кассир' = DATA Employee (CashBookList);
+nameEmployee 'Кассир' (CashBookList c) = shortName(employee(c)) CHARWIDTH 20;
+employee(CashBookList l) <- currentUser() WHEN SET(l IS CashBookList);
 
 @defineDocumentHeaderNote(CashBookList);
 
 FORM cashBookList 'Лист кассовой книги'
     OBJECTS c = CashBookList PANEL
     PROPERTIES(c) listNumber, date, time,
-                  nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c),
+                  nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c), nameEmployee,
                   note
 
     EDIT CashBookList OBJECT c
@@ -44,7 +48,12 @@ DESIGN cashBookList {
             MOVE PROPERTY(listNumber(c));
             MOVE PROPERTY(date(c));
             MOVE PROPERTY(time(c));
+        }
+        NEW params {
+            type = CONTAINERH;
+            caption = 'Параметры документа';
             MOVE PROPERTY(nameDepartmentStore(c));
+            MOVE PROPERTY(nameEmployee(c));
         }
         MOVE PROPERTY(note(c)) { align = STRETCH; }
     }
@@ -52,7 +61,7 @@ DESIGN cashBookList {
 
 FORM cashBooks 'Кассовые книги'
     OBJECTS l = CashBookList
-    PROPERTIES(l) READONLY listNumber, date, time, nameDepartmentStore, note
+    PROPERTIES(l) READONLY listNumber, date, time, nameDepartmentStore, nameEmployee, note
     PROPERTIES(l) NEWSESSION NEW, EDIT, DELETE
 ;
 
@@ -85,12 +94,15 @@ EXTEND FORM cashBookList
     FILTERS cashBookList(d) = c
 ;
 
+startDateTime (CashBookList l) = GROUP MIN dateTime(CashDocument d) BY cashBookList(d) MATERIALIZED;
+startBalance 'Начальный остаток' (CashBookList l) = balanceB(departmentStore(l), startDateTime(l));
+
 endDateTime (CashBookList l) = GROUP MAX dateTime(CashDocument d) BY cashBookList(d) MATERIALIZED;
 endBalance 'Конечный остаток' (CashBookList l) = balanceA(departmentStore(l), endDateTime(l));
 
 EXTEND FORM cashBooks
-    PROPERTIES(l) READONLY endBalance
+    PROPERTIES(l) READONLY startBalance, endBalance
 ;
 EXTEND FORM cashBookList
-    PROPERTIES(c) READONLY endBalance DRAW d TOOLBAR 
+    PROPERTIES(c) READONLY DRAW d TOOLBAR startBalance, endBalance 
 ;

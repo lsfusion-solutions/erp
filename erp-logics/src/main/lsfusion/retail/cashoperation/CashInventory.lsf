@@ -7,171 +7,22 @@ NAMESPACE CashOperation;
 CLASS CashInventory 'Инвентаризация наличных' : CashDocument;
 TABLE cashInventory (CashInventory);
 
-@defineDocumentHeaderCreated(CashInventory){
-    @defineCreated(CashInventory){
-    createdTime '{historizable.created.time}'= DATA DATETIME (CashInventory) IN created;
-    createdTime (CashInventory o) <- currentDateTime() WHEN SET(o IS CashInventory);
-    
-    createdUser = DATA CustomUser (CashInventory);
-    createdNameUser '{historizable.created.name.user}' (CashInventory o) = name[Contact](createdUser(o)) CHARWIDTH 10 IN created;
-    createdUser (CashInventory o) <- currentUser() WHEN SET(o IS CashInventory);
-    
-    createdComputer = DATA Computer (CashInventory);
-    createdHostnameComputer '{historizable.created.host.name.computer}' (CashInventory o) = hostname(createdComputer(o)) CHARWIDTH 10 IN created;
-    createdComputer (CashInventory o) <- currentComputer() WHEN SET(o IS CashInventory);
-};
-};
-@defineDocumentHeaderNumber(CashInventory, BPSTRING[3]){
-    @defineNumbered(CashInventory, BPSTRING[3]){
-    number '{numerator.number.numerator}' = DATA STRING[48] (CashInventory) IN numbered INDEXED CHARWIDTH 8;
-    series '{numerator.series.numerator}' = DATA BPSTRING[3] (CashInventory) IN numbered CHARWIDTH 3 NOFLEX;
-     
-    WHEN useLoweredNumber() AND CHANGED(number(CashInventory o))
-         INLINE DO number(o) <- lower(number(o));
-         
-    WHEN useUpperedSeries() AND CHANGED(series(CashInventory o))
-         INLINE DO series(o) <- upper(series(o));
-    
-    WHEN CHANGED(number(CashInventory o)) AND NOT keepNumberSpaces()
-        INLINE DO number(o) <- replace(number(o), ' ', '');
+@defineDocumentHeaderCreated(CashInventory);
+@defineDocumentHeaderNumber(CashInventory, BPSTRING[3]);
 
-    seriesNumber '{numerator.series.number.numerator}' (CashInventory o) = 
-        CONCAT '', series(o), number(o) 
-        CHARWIDTH 7 INDEXED MATERIALIZED;
-        
-};
-};
+@defineNumeratedDefault(CashInventory, 'Инвентаризация наличных', 'ИН');
 
-@defineNumeratedDefault(CashInventory, 'Инвентаризация наличных', 'ИН'){
-    @defineNumeratedDefault(CashInventory, 'Инвентаризация наличных', 'ИН', ){
-    @defineNumerated(CashInventory){
-    numerator '{numerator.id.numerator}' = DATA Numerator (CashInventory);
-    nameNumerator '{numerator.numerator}' (CashInventory o) = name(numerator(o)) IN numbered CHARWIDTH 7;
+@defineDocumentHeaderTime(CashInventory);
+@deriveDocumentHeaderTimePrefix(CashInventory, );
 
-    generateSeriesNumber '{numerator.generate.number}'(CashInventory o)  { 
-        number(o) <- curStringValue(numerator(o));
-        series(o) <- series(numerator(o));
-        incrementValueSession(numerator(o));
-    }
-    
-    WHEN SETCHANGED(numerator(CashInventory o)) AND
-         NOT CHANGED(number(o)) AND
-         NOT CHANGED(series(o))
-         DO generateSeriesNumber(o) ;
-};
-    @defineNumeratedDefaultPrefix(CashInventory, 'Инвентаризация наличных', 'ИН', ){
+@defineDocumentOperationCash(CashInventory, 'Инвентаризация наличных');
 
-    defaultNumeratorCashInventory = DATA Numerator ();
-    nameDefaultNumeratorCashInventory 'Инвентаризация наличных' = name(defaultNumeratorCashInventory()) IN defaultNumerator;
+@defineDocumentHeaderDepartmentStore(cashInventory);
+@defineDocumentDialogStocks(cashInventory, departmentStore, company, , );
 
-    numerator(CashInventory o) <- defaultNumeratorCashInventory() WHEN SET(o IS CashInventory);
+@defineDocumentHeaderDescription (CashInventory, 'Инвентаризация наличных');
 
-    EXTEND FORM defaultNumerators
-        PROPERTIES() nameDefaultNumeratorCashInventory = nameDefaultNumeratorCashInventory
-    ;
-    
-    loadDefaultNumerators() + { 
-        NEW n = Numerator {
-            name(n) <- 'Инвентаризация наличных';
-            series(n) <- 'ИН';
-            minValue(n) <- 1L;
-            maxValue(n) <- 99999L;
-            stringLength(n) <- 5;
-
-            defaultNumeratorCashInventory() <- n;
-        }
-    }
-
-};
-};
-};
-
-@defineDocumentHeaderTime(CashInventory){
-    @defineDocumentHeaderTimePrefix(CashInventory, ,' {document.of.document}'){
-    date '{document.date.of} {document.of.document}' = DATA DATE (CashInventory) IN documentHeader INDEXED;
-    time '{document.time.of} {document.of.document}' = DATA TIME (CashInventory) IN documentHeader;
-    dateTime '{document.date.time.of} {document.of.document}' (CashInventory o) = dateTimeToDateTime(date(o), time(o)) MATERIALIZED INDEXED;
-};
-};
-@deriveDocumentHeaderTimePrefix(CashInventory, ){
-    WHEN LOCAL SET(CashInventory o IS CashInventory) DO {
-        IF o IS CashInventory AND NOT date(o) THEN date(o) <- currentDate();
-        IF o IS CashInventory AND NOT time(o) THEN time(o) <- currentTime();
-    };
-    WHEN LOCAL CHANGED(date(CashInventory o)) AND NOT CHANGED(time(o)) DO {
-        time(o) <- IF date(o) > currentDate() THEN 00:00 ELSE currentTime();
-    } 
-};
-
-@defineDocumentOperationCash(CashInventory, 'Инвентаризация наличных'){
-    operation = DATA Operation (CashInventory);
-    nameOperation 'Операция' (CashInventory c) = name(operation(c));
-    
-    @defineOperationProperty(allowCashInventory, 'Разрешить использовать для Инвентаризация наличных', constraintContainer){
-    @defineOperationProperty(allowCashInventory, 'Разрешить использовать для Инвентаризация наличных', BOOLEAN, constraintContainer){
-    allowCashInventory 'Разрешить использовать для Инвентаризация наличных' = DATA BOOLEAN (Operation) PREREAD;
-
-    EXTEND FORM operation
-        PROPERTIES(o) allowCashInventory
-    ;
-    DESIGN operation {
-        constraintContainer {
-            MOVE PROPERTY(allowCashInventory(o));
-        }
-    }
-};
-};
-        
-    CONSTRAINT operation(CashInventory d) AND NOT allowCashInventory(operation(d))
-        CHECKED BY operation[CashInventory]
-        MESSAGE 'Выбрана недопустимая операция для Инвентаризация наличных';
-        
-    countAllowCashInventoryOperation = GROUP SUM 1 IF allowCashInventory(Operation o);
-    defaultAllowCashInventoryOperation = GROUP MIN Operation o IF allowCashInventory(o);
-    
-    operation(CashInventory o) <- defaultAllowCashInventoryOperation() IF countAllowCashInventoryOperation() WHEN SET(o IS CashInventory);
-};
-
-@defineDocumentHeaderDepartmentStore(cashInventory){
-    @defineDocumentHeaderStock(cashInventory, departmentStore, 'Отдел магазина'){
-    @defineDocumentHeaderStock(cashInventory, departmentStore, 'Отдел магазина', ){
-    @defineDocumentHeaderStockInner (cashInventory, departmentStore, DepartmentStore, 'Отдел магазина', ){
-    departmentStore = DATA DepartmentStore(CashInventory);
-    nameDepartmentStore 'Отдел магазина' (CashInventory cashInventory) = name(departmentStore(cashInventory)) IN documentHeader
-            CHARWIDTH 20;
-    fullNameDepartmentStore 'Отдел магазина' (CashInventory cashInventory) = fullName(departmentStore(cashInventory)) IN documentHeader
-            CHARWIDTH 20;
-    replace(DepartmentStore s, DepartmentStore o) + { departmentStore(CashInventory cashInventory) <- o WHERE departmentStore(cashInventory) == s;}             
-            
-    legalEntityStock (CashInventory cashInventory) = legalEntity(departmentStore(cashInventory));
-    nameLegalEntityStock 'Компания (Отдел магазина)' (CashInventory cashInventory) = name(legalEntityStock (cashInventory));
-    fullNameLegalEntityStock 'Компания (Отдел магазина) полное наим-ие' (CashInventory cashInventory) = fullName(legalEntityStock (cashInventory));       
-    addressLegalEntityStock 'Адрес компании (Отдел магазина)' (CashInventory cashInventory) = address(legalEntityStock (cashInventory));
-
-    addressStock 'Адрес (Отдел магазина)' (CashInventory cashInventory) = address(departmentStore(cashInventory));
-
-    country (CashInventory cashInventory) = country(departmentStore(cashInventory));
-    
-    //для CONSTRAINT 
-    nameDepartmentStoreId 'Отдел магазина' (CashInventory cashInventory) = name(departmentStore(cashInventory)) IN id;    
-};
-};
-};
-};
-@defineDocumentDialogStocks(cashInventory, departmentStore, company, , ){
-    changeDepartmentStoreCompany(CashInventory o)  { 
-        DIALOG companysStock OBJECTS s = departmentStore(o) CHANGE LIST name(s);
-    }
-};
-
-@defineDocumentHeaderDescription (CashInventory, 'Инвентаризация наличных'){
-    description '{document.description.object}' (CashInventory o) =
-        STRING[200](CONCAT ' ', 'Инвентаризация наличных' IF o IS CashInventory, '{document.desription.number} ' + seriesNumber(o), '{document.desription.of} ' + date(o)) CHARWIDTH 30;
-};
-
-@defineDocumentHeaderNote(CashInventory){
-    note '{document.note}' = DATA ISTRING[500] (CashInventory) CHARWIDTH 30 IN documentPrm MATERIALIZED;
-};
+@defineDocumentHeaderNote(CashInventory);
 
 sumBalance 'Сумма по учету' = DATA NUMERIC[18,4] (CashInventory) IN documentSum;
 WHEN LOCAL CHANGED(departmentStore(CashInventory c)) OR CHANGED(dateTime(c)) DO

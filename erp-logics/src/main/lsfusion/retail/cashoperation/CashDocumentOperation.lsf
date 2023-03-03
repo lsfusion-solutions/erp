@@ -4,176 +4,8 @@ REQUIRE Operation, Retail;
 
 NAMESPACE CashOperation;
 
-@defineOperation(' (касса)'){
-    @defineOperation(' (касса)', ){
-
-    CLASS Operation 'Операция (касса)' : Operation.Operation;
-    TABLE operation(Operation);
-
-    @defineCreated(Operation){
-    createdTime '{historizable.created.time}'= DATA DATETIME (Operation) IN created;
-    createdTime (Operation o) <- currentDateTime() WHEN SET(o IS Operation);
-    
-    createdUser = DATA CustomUser (Operation);
-    createdNameUser '{historizable.created.name.user}' (Operation o) = name[Contact](createdUser(o)) CHARWIDTH 10 IN created;
-    createdUser (Operation o) <- currentUser() WHEN SET(o IS Operation);
-    
-    createdComputer = DATA Computer (Operation);
-    createdHostnameComputer '{historizable.created.host.name.computer}' (Operation o) = hostname(createdComputer(o)) CHARWIDTH 10 IN created;
-    createdComputer (Operation o) <- currentComputer() WHEN SET(o IS Operation);
-};
-    
-    name 'Наименование' = DATA ISTRING[100](Operation) CHARWIDTH 30;
-    name(Operation operation) += name(operation);
-    
-    priceRound 'Количество знаков для округления сумм документов' = DATA INTEGER (Operation);
-
-    id 'ID' = DATA ISTRING[100](Operation);
-    id(Operation operation) += id(operation);
-    operation (id) = GROUP MAX Operation operation BY id(operation);
-
-    FORM operation 'Операция (касса)'
-        OBJECTS o = Operation PANEL
-        PROPERTIES(o) name, id, priceRound
-        PROPERTIES(o) READONLY createdNameUser, createdTime, createdHostnameComputer
-
-        EDIT Operation OBJECT o
-    ;
-
-    DESIGN operation {
-        BOX {
-            size = (1024, 768);
-            NEW topContainer{
-                fill = 1;
-                type = CONTAINERV;
-                NEW headContainer {
-                    type = CONTAINERV;
-                    NEW propertyContainer{
-                        type = CONTAINERH;
-                        caption = 'Параметры';
-                        MOVE PROPERTY(name(o));
-                        MOVE PROPERTY(id(o));
-                        MOVE PROPERTY(priceRound(o));
-                    }
-                    MOVE GROUP(created,o);
-                }
-                NEW tabContainer {
-                    fill = 1;
-                    type = TABBED;
-                }
-            }
-            MOVE TOOLBARBOX;
-        }
-    }
-
-    FORM operations 'Операции'
-        OBJECTS o = Operation
-        PROPERTIES(o) READONLY name, id, createdNameUser, createdTime, createdHostnameComputer
-        PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE 
-    ;
-
-    DESIGN operations 'Операции (касса)' {
-    }
-
-    FORM dialogOperations 'Операции' 
-        OBJECTS o = Operation
-        PROPERTIES(o) READONLY name, id
-
-        LIST Operation OBJECT o
-    ;
-    
-    DESIGN dialogOperations 'Операции (касса)' {
-    }
-
-};
-};
-@defineOperationRole(){
-
-    allRoles 'Для всех ролей' = DATA BOOLEAN (Operation);
-    preventChangesDocumentDefault 'Запретить редактирование' = DATA BOOLEAN (Operation);
-    countDaysDocumentDefault 'Количество дней для запрета' = DATA INTEGER (Operation);
-    preventCloseDocumentDefault 'Запретить закрытие' = DATA BOOLEAN (Operation);
-    preventOpenDocumentDefault 'Запретить открытие' = DATA BOOLEAN (Operation);
-
-    TABLE userRoleOperation (UserRole, Operation);
-    dataIn 'Отм.' = DATA BOOLEAN (UserRole, Operation);
-
-    in 'Отм' (UserRole role, Operation operation) =
-        OVERRIDE dataIn(role, operation), allRoles(operation) AND role IS UserRole;
-    
-    TABLE userOperation (User, Operation);
-    in (User user, Operation operation) = allRoles(operation) AND user IS User OR 
-                                        dataIn(mainRole(user), operation) MATERIALIZED;
-    in(User user, Operation operation) += in(user, operation);
-    countOperations(User user)  = GROUP SUM 1 IF in(user, Operation operation);
-    countUsers (Operation operation) = GROUP SUM 1 IF in (User user, operation);
-    defaultOperation 'Операция по умолчанию'(User user)  = GROUP MIN Operation operation IF in(user, operation);
-    
-    preventChangesDocument 'Запретить редактирование' = DATA BOOLEAN (UserRole, Operation);
-    preventChangesDocument (User user, Operation operation) = preventChangesDocument(mainRole(user), operation);
-    Operation.preventChangesDocument (UserRole role, Operation operation) += preventChangesDocument(role, operation);
-    
-    countDaysDocument 'Количество дней для запрета' = DATA INTEGER (UserRole, Operation);
-    countDaysDocument (User user, Operation operation) = countDaysDocument(mainRole(user), operation);
-    Operation.countDaysDocument (UserRole role, Operation operation) += countDaysDocument(role, operation);
-    
-    preventCloseDocument 'Запретить закрытие' = DATA BOOLEAN (UserRole, Operation);
-    preventCloseDocument (User user, Operation operation) = preventCloseDocument(mainRole(user), operation);
-
-    preventOpenDocument 'Запретить открытие' = DATA BOOLEAN (UserRole, Operation);
-    preventOpenDocument (User user, Operation operation) = preventOpenDocument(mainRole(user), operation);
-
-    EXTEND FORM operation
-        PROPERTIES(o) allRoles, preventChangesDocumentDefault, countDaysDocumentDefault, preventCloseDocumentDefault, preventOpenDocumentDefault
-
-        OBJECTS r = UserRole
-        PROPERTIES(r) READONLY name
-        PROPERTIES(r, o) in, preventChangesDocument, countDaysDocument, preventCloseDocument, preventOpenDocument
-
-        FILTERGROUP filtersRole
-                FILTER 'Показывать отмеченные' in(r, o) 'F8'
-    ;
-
-    DESIGN operation {
-        tabContainer {
-            NEW roleContainer{
-                type = CONTAINERV;
-                caption = 'Роли';
-                NEW roleContainer1 {
-                    type = CONTAINERH;
-                    NEW roleContainer11 {
-                        MOVE PROPERTY(allRoles(o));
-                        caption = 'Для всех';
-                        }
-                    NEW roleContainer12 {
-                        type = CONTAINERH;
-                        MOVE PROPERTY(preventChangesDocumentDefault(o));
-                        MOVE PROPERTY(countDaysDocumentDefault(o));
-                        MOVE PROPERTY(preventCloseDocumentDefault(o));
-                        MOVE PROPERTY(preventOpenDocumentDefault(o));
-                        caption = 'По умолчанию (для новых ролей)';
-                    }
-                }
-                MOVE BOX(r);
-            }
-        }
-    }
-    copy (UserRole userRole, UserRole ur) + { 
-        dataIn(ur, Operation o) <- dataIn(userRole,o) WHERE dataIn(userRole,o);
-        preventChangesDocument(ur, Operation o) <- preventChangesDocument(userRole,o) WHERE preventChangesDocument(userRole,o);
-        
-        countDaysDocument(ur, Operation o) <- countDaysDocument(userRole,o) WHERE countDaysDocument(userRole,o);
-        preventCloseDocument(ur, Operation o) <- preventCloseDocument(userRole,o) WHERE preventCloseDocument(userRole,o);
-        preventOpenDocument(ur, Operation o) <- preventOpenDocument(userRole,o) WHERE preventOpenDocument(userRole,o);    
-    }
-    preventChangesDocument(UserRole ur, Operation o) <- preventChangesDocumentDefault(o) WHEN SET (ur IS UserRole);
-    countDaysDocument(UserRole ur, Operation o) <- countDaysDocumentDefault(o) WHEN SET (ur IS UserRole);
-    preventCloseDocument(UserRole ur, Operation o) <- preventCloseDocumentDefault(o) WHEN SET (ur IS UserRole);
-    preventOpenDocument(UserRole ur, Operation o) <- preventOpenDocumentDefault(o) WHEN SET (ur IS UserRole);
-    @extendFormFilterRole(o, dialogOperations){
-    EXTEND FORM dialogOperations FILTERS in(currentUser(), o);
-};
-};
+@defineOperation(' (касса)');
+@defineOperationRole();
 
 DESIGN operation {
     tabContainer {
@@ -196,20 +28,7 @@ META defineDocumentOperationCash (doc, caption)
     operation = DATA Operation (doc);
     nameOperation 'Операция' (doc c) = name(operation(c));
     
-    @defineOperationProperty(allow##doc, 'Разрешить использовать для '##caption, constraintContainer){
-    @defineOperationProperty(allow##doc, 'Разрешить использовать для '##caption, BOOLEAN, constraintContainer){
-    allow##doc 'Разрешить использовать для '##caption = DATA BOOLEAN (Operation) PREREAD;
-
-    EXTEND FORM operation
-        PROPERTIES(o) allow##doc
-    ;
-    DESIGN operation {
-        constraintContainer {
-            MOVE PROPERTY(allow##doc(o));
-        }
-    }
-};
-};
+    @defineOperationProperty(allow##doc, 'Разрешить использовать для '##caption, constraintContainer);
         
     CONSTRAINT operation(doc d) AND NOT allow##doc(operation(d))
         CHECKED BY operation[doc]
@@ -222,17 +41,4 @@ META defineDocumentOperationCash (doc, caption)
 END
 
 // корр счет
-@defineOperationProperty(corrAccount, 'Корреспондентский счет', paramsContainer){
-    @defineOperationProperty(corrAccount, 'Корреспондентский счет', BOOLEAN, paramsContainer){
-    corrAccount 'Корреспондентский счет' = DATA BOOLEAN (Operation) PREREAD;
-
-    EXTEND FORM operation
-        PROPERTIES(o) corrAccount
-    ;
-    DESIGN operation {
-        paramsContainer {
-            MOVE PROPERTY(corrAccount(o));
-        }
-    }
-};
-};
+@defineOperationProperty(corrAccount, 'Корреспондентский счет', STRING[20], paramsContainer);
