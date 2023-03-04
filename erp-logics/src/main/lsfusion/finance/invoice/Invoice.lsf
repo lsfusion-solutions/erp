@@ -499,6 +499,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         
     skipShowQuantity = ABSTRACT BOOLEAN (Invoice);
     showQuantity (Invoice i) = i IS Invoice AND NOT skipShowQuantity(i);
+    readonlyQuantity = ABSTRACT BOOLEAN (UserInvoiceDetail);
     editSku 'Редактировать SKU' (UserInvoiceDetail d)  { NEWSESSION { edit(sku(d)); } }
     
     backgroundCustomer 'Цвет'  (d)= ABSTRACT CASE COLOR (UserInvoice);
@@ -525,7 +526,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         PROPERTIES (d) index
         PROPERTIES (d) ON EDIT editSku(d) BACKGROUND backgroundBarcode(d) idBarcodeSku 
         PROPERTIES (d) BACKGROUND backgroundSku(d) idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
-        PROPERTIES (d) quantity SHOWIF showQuantity(i) BACKGROUND backgroundQuantity(d), namePriceListType,
+        PROPERTIES (d) quantity SHOWIF showQuantity(i) BACKGROUND backgroundQuantity(d) READONLYIF readonlyQuantity(d), namePriceListType,
                        price ON CHANGE changePrice(d) SHOWIF NOT hideWithoutVAT(i) BACKGROUND backgroundPrice(d), sum SHOWIF NOT hideWithoutVAT(i),
                        numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
                        valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
