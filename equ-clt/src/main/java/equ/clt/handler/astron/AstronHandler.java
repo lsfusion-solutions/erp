@@ -1643,6 +1643,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private void exportFlags(Connection conn, AstronConnectionString params, String tables, int value) throws SQLException {
+        astronLogger.info(String.format("UPDATE DATAPUMP SET recordnum = %s WHERE dirname in (%s)", value, tables));
         conn.setAutoCommit(true);
         try (Statement statement = conn.createStatement()) {
             String sql = params.pgsql ?
