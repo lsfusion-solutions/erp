@@ -29,6 +29,11 @@ bankAccount = DATA Bank.Account (Collection);
 bankAccount(Collection collection) <- bankAccount(store(departmentStore(collection)))
     WHEN SET(departmentStore(collection));
 
+employee = DATA Employee (Collection);
+nameEmployee 'Кассир' (Collection c) = shortName(employee(c));
+
+issuedTo 'Выдать' = DATA ISTRING (Collection);
+
 sumCash 'Сумма' = DATA NUMERIC[18,4] (Collection) IN documentSum;
 basis 'Основание' (Collection collection) =
     'Инкассация №' + seriesNumber(collection) + ' от ' + date(collection) IN documentPrm;
@@ -39,9 +44,12 @@ dateTime(Collection collection) += dateTime(collection);
 number(Collection collection) += seriesNumber(collection) IF collection IS Collection;
 operation(Collection collection) += operation(collection);
 departmentStore(Collection collection) += departmentStore(collection);
-sumCash(Collection collection) += sumCash(collection);
+employee(Collection collection) += employee(collection);
 basis(Collection collection) += STRING[100](basis(collection));
 isPosted(Collection collection) += collection IS Collection;
+
+issuedTo(Collection o) += issuedTo(o);
+sumCash(Collection collection) += sumCash(collection);
 
 sumCashForCollection 'Сумма инкассации' = DATA LOCAL NUMERIC[18,4] (DepartmentStore);
 
@@ -75,7 +83,8 @@ DESIGN addCollection {
 FORM collection 'Инкассация'
     OBJECTS c = Collection PANEL
     PROPERTIES(c) nameNumerator, number, series, date, time, 
-                  nameOperation, nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c),
+                  nameOperation, nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c), 
+                  nameEmployee, issuedTo,
                   sumCash
 
     EDIT Collection OBJECT c
@@ -96,6 +105,8 @@ DESIGN collection {
             caption = 'Параметры документа';
             MOVE PROPERTY(nameOperation(c));
             MOVE PROPERTY(nameDepartmentStore(c));
+            MOVE PROPERTY(nameEmployee(c));
+            MOVE PROPERTY(issuedTo(c));
         }
         NEW thirdCase {
             caption = 'Суммы';

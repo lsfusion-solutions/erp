@@ -4,18 +4,27 @@ REQUIRE CashBookIncome, CashBookOutcome;
 
 NAMESPACE CashOperation;
 
+countDocument(CashBookList l) = countIncome(l) (+) countOutcome(l);
 FORM printCashBookList
     OBJECTS l = CashBookList PANEL
-    PROPERTIES(l) date, time, nameDepartmentStore, 
+    PROPERTIES(l) listNumber, date, time, nameDepartmentStore, 
                   startBalance, endBalance,
                   sumIncome, sumOutcome,
-                  countIncome, countOutcome,
+                  countIncome, countOutcome, countDocument,
                   nameEmployee
     
     OBJECTS d = CashDocument
-    PROPERTIES(d) dateTime, seriesNumber, corrAccount
+    PROPERTIES(d) dateTime, seriesNumber, subject, corrAccount
     PROPERTIES    sumIncome 'Приход' = sumCash[IncomeCashOrder](d),
-                  sumOutcome 'Расход' = sumCash[IncomeCashOrder](d)
-        
+                  sumOutcome 'Расход' = sumCash[OutcomeCashOrder](d)
     ORDERS dateTime(d)
+    FILTERS cashBookList(d) = l
+;
+
+print 'Печать' (CashBookList l) {
+    PRINT printCashBookList OBJECTS l = l;
+}
+
+EXTEND FORM cashBooks
+    PROPERTIES(l) print TOOLBAR
 ;
