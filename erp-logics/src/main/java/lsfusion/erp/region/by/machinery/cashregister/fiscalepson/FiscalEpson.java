@@ -188,7 +188,7 @@ public class FiscalEpson {
         boolean isGiftCardOrComission = item.isGiftCard || item.isCommission;
 
         boolean useBlisters = item.useBlisters && item.blisterQuantity != null;
-        Integer department = item.section != null ? item.section : (isGiftCardOrComission ? 3 : 0);
+        Integer department = item.section != null ? item.section : 0;
         double price = useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue();
         double quantity = useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue();
         logger.info(String.format("Epson Sale: department %s, name %s, price %s, quantity %s", department, item.name, price, quantity));
