@@ -21,8 +21,8 @@ FORM dialogSetPromotions 'Тип скидки на кассе'
 ;
 
 setPromotion = ABSTRACT SetPromotion (PriceList);
-promotion = DATA SetPromotion (UserPriceList);
-setPromotion(UserPriceList priceList) += promotion(priceList);
+setPromotion = DATA SetPromotion (UserPriceList);
+setPromotion(UserPriceList priceList) += setPromotion(priceList);
 
 nameSetPromotion 'Тип скидки на кассе' = name(setPromotion(UserPriceList priceList));
 nameSetPromotion 'Тип скидки на кассе' = name(setPromotion(PriceList priceList));
@@ -297,3 +297,20 @@ DESIGN integrationData {
         MOVE PROPERTY(checkStatusSET());
     }
 }
+
+GROUP saleGroup 'sale-group';
+nameSaleGroup = DATA LOCAL STRING ();
+typeSaleGroup = DATA LOCAL STRING[10] ();
+idSaleGroup = DATA LOCAL STRING ();
+operationSaleGroup = DATA LOCAL STRING[10] ();
+shopsSaleGroup = DATA LOCAL STRING ();
+inSaleGroup = DATA LOCAL BOOLEAN (Sku);
+
+FORM goods_catalog_items FORMEXTID 'goods-catalog'
+    PROPERTIES IN saleGroup nameSaleGroup() EXTID 'name', typeSaleGroup() EXTID 'type', idSaleGroup() EXTID 'id' ATTR,
+               operationSaleGroup() EXTID 'operation' ATTR, shopsSaleGroup() EXTID 'shop-indices' ATTR
+
+    OBJECTS s = Sku EXTID 'good-binding' IN saleGroup
+    PROPERTIES(s) id EXTID 'marking-of-the-good' ATTR
+    FILTERS inSaleGroup(s)
+;
