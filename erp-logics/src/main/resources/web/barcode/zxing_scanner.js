@@ -175,10 +175,16 @@ function scanCustom(element, controller, func){
         console.log(resultCode);
         if (resultCode.text != ''){
             console.log(resultCode.text);
-            element.text = resultCode.text;
-            clearInterval(timerId);
-            func(resultCode.text, controller);
-            pause = true;
+            if (lastResult != resultCode.text){
+                lastResult = resultCode.text;
+                clearInterval(timerId);
+                func(resultCode.text, controller);
+                pause = true;
+            }else{
+                if (lastResult)
+                    setTimeout(skipResult, 5000);
+            }
+            
         }
     }
     catch(err){
@@ -201,15 +207,25 @@ function barcodeReaderCustom() {
             }
             if(!timerId) 
                 startScan(element, controller);
-            if (pause) setTimeout(startScan, 5000, element, controller);
+            if (pause) setTimeout(startScan, 1000, element, controller);
         }
     }
 }
 
 let interval;
 let pause;
+let lastResult;
 
+function skipResult(){
+    lastResult = null;
+}
 function startScan(element, controller){
     pause = false;
     timerId = setInterval(() => barcode = scanCustom(element, controller, setValue), interval);
+}
+
+function vibrate(){
+    if(!window.navigator.vibrate)
+        return;
+    navigator.vibrate(200);
 }
