@@ -65,6 +65,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private Set<String> connectionSemaphore = new HashSet<>();
 
+    private Set<String> updateTables = new HashSet<>();
+
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
@@ -193,23 +195,24 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             }
                         }
 
-                        Set<String> truncateTables = new HashSet<>(Arrays.asList("GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC"));
-
                         Map<String, List<JSONObject>> jsonTables = getJsonTables(transaction);
-                        for(String table : new String [] {PROPERTYGRP, NUMPROPERTY, NUMBERS, BINARYDATA, BINPROPERTY, EXTGRP, ARTEXTGRP}) {
-                            if(!jsonTables.get(table).isEmpty()) {
-                                truncateTables.add(table);
-                            }
+
+                        //Читаем статус и чистим все таблицы с которыми можем в теории работать
+                        Set<String> truncateTables = new HashSet<>(Arrays.asList("GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC", PROPERTYGRP, NUMPROPERTY, NUMBERS, BINARYDATA, BINPROPERTY, EXTGRP, ARTEXTGRP));
+                        if(exportExtraTables) {
+                            truncateTables.add("PRCLEVEL");
+                            truncateTables.add("SAREA");
+                            truncateTables.add("SAREAPRC");
                         }
-                        String tables = truncateTables.stream().collect(Collectors.joining("','", "'", "'")) + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
+                        String prevTables = truncateTables.stream().collect(Collectors.joining("','", "'", "'"));
 
                         boolean versionalScheme = params.versionalScheme(isVersionalScheme);
-                        Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
-                        Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
+                        Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, prevTables) : new HashMap<>();
+                        Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, prevTables) : new HashMap<>();
                         Map<String, Integer> outputUpdateNums = new HashMap<>();
 
                         if (firstTransaction && !versionalScheme) {
-                            Exception waitFlagsResult = waitFlags(conn, params, tables, timeout);
+                            Exception waitFlagsResult = waitFlags(conn, params, prevTables, timeout);
                             if (waitFlagsResult != null) {
                                 throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
                             }
@@ -328,8 +331,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                 exportUpdateNums(conn, params, outputUpdateNums);
                             } else if (lastTransaction) {
                                 astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
-                                exportFlags(conn, params, tables, 1);
-                                Exception e = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
+                                String newTables = updateTables.stream().collect(Collectors.joining("','", "'", "'"));
+                                updateTables = null;
+                                exportFlags(conn, params, newTables, 1);
+                                Exception e = waitFlags(conn, params, newTables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                                 if (e != null) {
                                     throw e;
                                 }
@@ -360,6 +365,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private Integer getTransactionUpdateNum(TransactionCashRegisterInfo transaction, boolean versionalScheme, Map<String, Integer> processedUpdateNums, Map<String, Integer> inputUpdateNums, String tbl) {
         Integer updateNum = versionalScheme ? (inputUpdateNums.getOrDefault(tbl, 0) + 1) : null;
+        updateTables.add(tbl);
         astronLogger.info(String.format("transaction %s, table %s", transaction.id, tbl) +
                 (versionalScheme ? String.format(" (updateNum processed %s, new %s)", processedUpdateNums.get(tbl), updateNum) : ""));
         return updateNum;
