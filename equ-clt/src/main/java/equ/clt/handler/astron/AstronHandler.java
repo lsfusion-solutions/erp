@@ -332,7 +332,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             } else if (lastTransaction) {
                                 astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
                                 String newTables = updateTables.stream().collect(Collectors.joining("','", "'", "'"));
-                                updateTables = null;
+                                updateTables.clear();
                                 exportFlags(conn, params, newTables, 1);
                                 Exception e = waitFlags(conn, params, newTables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                                 if (e != null) {
