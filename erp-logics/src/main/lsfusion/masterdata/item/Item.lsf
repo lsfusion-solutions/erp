@@ -1530,7 +1530,15 @@ FORM manufacturerDialog 'Производители товара'
 DESIGN manufacturerDialog { BOX { size = (600, 400); } }
 
 @defineObjectItemAttribute(manufacturer, Manufacturer, name, 'Производитель', itemBase);
-@defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
+
+overManufacturer = ABSTRACT Manufacturer (Batch);
+manufacturer (Batch batch) = OVERRIDE overManufacturer(batch), manufacturer[Item](sku(batch));
+
+nameManufacturer 'Производитель' (Batch batch) = name(manufacturer(batch));
+showManufacturer 'Производитель' (Batch batch)= showManufacturer(sku(batch));
+
+EXTEND FORM batches PROPERTIES(bt) READONLY  nameManufacturer SHOWIF showAnyManufacturer(sk);
+
 @implementItemAttribute(nameManufacturer, 'Производитель', String, itemManufacturer);
 
 @defineItemFilterValue(manufacturer, 'Производитель', m);
