@@ -27,11 +27,13 @@ toAccept 'К приемке' (WayBill w) = w IS WayBill AND NOT accepted(w) AND 
 
 shipper = DATA Client (WayBill) INDEXED;
 shortNameShipper 'Отправитель' (WayBill w) = shortName(shipper(w)) IN id;
+descriptionShipper 'Описание отправителя' (WayBill w) = description(shipper(w)) IN id;
 
 wayBill = GROUP MAX WayBill b BY shipper(b), key(b);
 
 consignee = DATA Client (WayBill) INDEXED;
 shortNameConsignee 'Получатель' (WayBill w) = shortName(consignee(w)) IN id;
+descriptionConsignee 'Описание получателя' (WayBill w) = description(consignee(w)) IN id;
 
 base 'Основание' = DATA STRING (WayBill);
 note 'Примечание' = DATA STRING (WayBill);
@@ -156,7 +158,7 @@ FORM wayBill 'ТТН ЕГАИС'
     OBJECTS w = WayBill PANEL
     PROPERTIES(w) accepted, canceled, 
                   id, number, date, shippingDate, regId,
-                  shortNameShipper, shortNameConsignee, 
+                  shortNameShipper, descriptionShipper, shortNameConsignee, descriptionConsignee, 
                   base, note,
                   
                   tranType, changeOwnership, 
@@ -263,7 +265,7 @@ DESIGN wayBill {
 FORM wayBills 'ТТН'
     OBJECTS w = WayBill
     PROPERTIES(w) READONLY accepted, canceled, id, number, date, shippingDate,
-                           shortNameShipper, shortNameConsignee, regId,
+                           shortNameShipper, descriptionShipper, shortNameConsignee, descriptionConsignee, regId,
                            base, note
     PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE
 
@@ -329,7 +331,17 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock)
                 IF in(sku(d), product(p))
                    WHERE doc(d) = i AND wayBill(p) = wayBill(i);
     }
-    
+
+    createDetail 'Создать строки' (###doc i) {
+        FOR wayBill(WayBillPosition p) = wayBill(i) ORDER p DO NEW d = UserInvoiceDetail {
+            userInvoice(d) <- i;
+            sku(d) <- minItem(product(p));
+            quantity(d) <- quantity(p);
+            quantity(d, p) <- quantity(p);
+            price(d) <- price(p);
+        } 
+    }
+        
     EXTEND FORM doc
         OBJECTS ed = ###doc##Detail
         PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, price, quantityProp,
@@ -337,7 +349,7 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock)
         ORDERS index(ed)
         FILTERS doc(ed) = i
     
-        PROPERTIES(i) fillQuantity DRAW ed TOOLBAR
+        PROPERTIES(i) DRAW ed TOOLBAR createDetail, fillQuantity
         PROPERTIES(i) numberDateWayBill ON CHANGE changeNumberDateWayBill(i)
         
         OBJECTS wp = WayBillPosition

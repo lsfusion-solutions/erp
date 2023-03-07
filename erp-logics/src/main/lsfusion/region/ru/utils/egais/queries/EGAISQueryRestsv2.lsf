@@ -28,7 +28,7 @@ FORM queryRestsv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryRes
 
 FORM queryRestsv2Params 'Параметры запроса'
     OBJECTS r = QueryRestsv2 PANEL
-    PROPERTIES(r) nameUtm, idClient, shortNameClient
+    PROPERTIES(r) nameUtm, idClient, shortNameClient, descriptionClient
 ;
 
 queryRestsv2 (QueryRestsv2 r) {
@@ -85,14 +85,14 @@ process (InDoc d) + {
             FOR product(INTEGER i) DO
                 importProduct(product(i));
             
-            FOR informF1RegId(INTEGER i) AND NOT f1Reg(informF1RegId(i)) DO NEW r = F1Reg {
-                id(r) <- informF1RegId(i);
-                product(r) <- product(productCode(i));
+            FOR INTEGER j = [GROUP MIN INTEGER i BY informF1RegId(i)](STRING idF1) AND NOT f1Reg(idF1) DO NEW r = F1Reg {
+                id(r) <- idF1;
+                product(r) <- product(productCode(j));
             } 
             
             FOR informF2RegId(INTEGER i) AND NOT f2Reg(informF2RegId(i)) DO NEW r = F2Reg {
                 id(r) <- informF2RegId(i);
-                f1Reg(r) <- f1Reg(informF2RegId(i));
+                f1Reg(r) <- f1Reg(informF1RegId(i));
                 client(r) <- client(outDoc(d));
             }
             

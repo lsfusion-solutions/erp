@@ -19,6 +19,7 @@ alcVolume 'Алкоголь, %' = DATA NUMERIC[12,3] (Product);
 producer = DATA Client (Product) INDEXED;
 idProducer 'Код производителя' (Product p) = id(producer(p));
 shortNameProducer 'Производитель' (Product p) = shortName(producer(p));
+descriptionProducer 'Описание производителя' (Product p) = description(producer(p));
 
 type 'Вид алкогольной продукции' = DATA ProductType (Product);
 idType 'Код вида алкогольной продукции' (Product p) = name(type(p));
@@ -29,7 +30,7 @@ xml 'Описание в XML' = DATA TEXT (Product);
 FORM product 'Алкогольная продукция'
     OBJECTS o = Product PANEL
     PROPERTIES(o) id, fullName, capacity, unitTypeId, alcVolume, nameType,
-                  idProducer, shortNameProducer, xml
+                  idProducer, shortNameProducer, descriptionProducer, xml
     
     EDIT Product OBJECT o
 ;
@@ -63,6 +64,7 @@ DESIGN product {
                     alignment = STRETCH;
                     MOVE PROPERTY(idProducer(o));
                     MOVE PROPERTY(shortNameProducer(o));
+                    MOVE PROPERTY(descriptionProducer(o));
                 }
             }
             NEW xml {
@@ -77,14 +79,14 @@ DESIGN product {
 FORM products 'Алкогольная продукция'
     OBJECTS o = Product
     PROPERTIES(o) READONLY id, fullName, capacity, unitTypeId, alcVolume, nameType,
-                           idProducer, shortNameProducer
+                           idProducer, shortNameProducer, descriptionProducer
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
 ;
 
 FORM dialogProducts 'Алкогольная продукция'
     OBJECTS o = Product
     PROPERTIES(o) READONLY id, fullName, capacity, unitTypeId, alcVolume, nameType,
-                           idProducer, shortNameProducer
+                           idProducer, shortNameProducer, descriptionProducer
     
     LIST Product OBJECT o
 ;
@@ -129,6 +131,7 @@ META defineDocumentProduct(doc, capt)
     
     client = DATA Client (###doc) INDEXED;
     shortNameClient 'Организация' (###doc d) = shortName(client(d)) IN id;
+    descriptionClient 'Описание организации' (###doc d) = description(client(d)) IN id;
     
     CONSTRAINT client(###doc d) AND NOT own(client(d))
         CHECKED BY client[###doc]
@@ -159,7 +162,7 @@ META defineDocumentProduct(doc, capt)
     FORM doc capt##' ЕГАИС'
         OBJECTS d = ###doc PANEL
         PROPERTIES(d) posted, number, dateTime,
-                      shortNameClient, note
+                      shortNameClient, descriptionClient, note
         
         OBJECTS p = ###doc##Position
         PROPERTIES(p) idProduct, fullNameProduct, quantity, 
@@ -172,7 +175,7 @@ META defineDocumentProduct(doc, capt)
     FORM doc##s capt
         OBJECTS d = ###doc
         PROPERTIES(d) READONLY posted, number, dateTime,
-                               shortNameClient, note
+                               shortNameClient, descriptionClient, note
         PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
     
         OBJECTS p = ###doc##Position

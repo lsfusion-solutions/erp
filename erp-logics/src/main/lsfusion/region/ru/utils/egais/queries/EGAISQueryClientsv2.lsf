@@ -1,6 +1,6 @@
 MODULE EGAISQueryClientsv2;
 
-REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISClientImport;
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISClientImport, EGAISTicket;
 
 NAMESPACE EGAIS;
 
@@ -19,7 +19,7 @@ GROUP parameter EXTID 'qp:Parameter' : parameters;
 name (QueryClientsv2 r, INTEGER i) = CASE WHEN i = 0 AND id(r) THEN 'СИО'
                                                       WHEN i = 1 AND INN(r) THEN 'ИНН';  
 value (QueryClientsv2 r, INTEGER i) = CASE WHEN i = 0 AND id(r) THEN id(r)
-                                                    WHEN i = 0 AND INN(r) THEN INN(r);
+                                                    WHEN i = 1 AND INN(r) THEN INN(r);
 
 FORM queryClientsv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryClients_v2'
     PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
@@ -80,5 +80,11 @@ process (InDoc d) + {
             processed(d) <- TRUE;
             APPLY;
         }
+    }
+}
+
+process (Ticket t) + {
+    IF docType(t) = 'QueryClients_v2' THEN {
+        processed() <- TRUE;
     }
 }
