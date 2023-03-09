@@ -122,6 +122,7 @@ recalculateCostLedger (DATE dFrom, DATE dTo) + {
 }
 
 // average
+disableCalcAccountPrice = DATA LOCAL BOOLEAN () PREREAD;
 
 META defineCalcAveragePrice(obj, stockProp)
     calcAccountPrice (obj d) = IF balanceB(sku(d), stockProp(d), dateTime(d)) > 0.0 THEN
@@ -130,7 +131,8 @@ META defineCalcAveragePrice(obj, stockProp)
         ELSE price(d);
 
     // пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
-    WHEN SETCHANGED(sku(obj d)) OR SETCHANGED(stockProp(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(quantity(d)) OR SETCHANGED(price(d)) DO
+    WHEN (SETCHANGED(sku(obj d)) OR SETCHANGED(stockProp(d)) OR SETCHANGED(dateTime(d)) OR 
+        SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
         accountPrice(d) <- calcAccountPrice(d);
 END
 
