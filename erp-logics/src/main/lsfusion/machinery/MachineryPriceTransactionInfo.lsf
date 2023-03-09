@@ -1,0 +1,13 @@
+MODULE MachineryPriceTransactionInfo;
+
+REQUIRE MachineryPriceTransaction;
+
+NAMESPACE Machinery;
+
+info = ABSTRACT VALUE ISTRING (MachineryPriceTransaction, Barcode, STRING);
+
+calcInfo (MachineryPriceTransaction t, Barcode b) = '\{' + (GROUP CONCAT '"' + STRING key + '":"' + escapeJSONValue(info(t, b, key)) + '"', ',' ORDER key) + '\}';   
+
+createAttribute(MachineryPriceTransaction mpt) + {
+    info(mpt, Barcode b) <- calcInfo(mpt, b) WHERE in(mpt, b);
+}

@@ -11,7 +11,7 @@ CLASS LotType 'Тип маркировки' {
     perfumery 'Парфюмерия'
 }
 
-id 'Код' (LotType t) = getWord(staticName(t),'.',2) IF t IS LotType CHARWIDTH 20;
+id 'Код' (LotType t) = ISTRING(getWord(staticName(t),'.',2)) IF t IS LotType CHARWIDTH 20;
 name 'Наименование' (LotType t) = staticCaption(t) IF t IS LotType CHARWIDTH 20;
 
 FORM dialogLotTypes 'Выбор типа маркировки'
@@ -36,6 +36,7 @@ skipLotType = ABSTRACT BOOLEAN (Sku);
 dataLotType = DATA LotType (Sku); 
 lotType (Sku s) = (OVERRIDE dataLotType(s), lotType(skuGroup(s))) IF NOT skipLotType(s) MATERIALIZED;
 
+idLotType 'Код типа маркировки' (Sku s) = id(lotType(s)) IN itemBase;
 nameLotType 'Тип маркировки' (Sku s) = name(lotType(s)) IN itemBase;
 
 EXTEND FORM item

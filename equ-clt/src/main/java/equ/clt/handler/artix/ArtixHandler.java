@@ -344,8 +344,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             JSONObject infoJSON = getExtInfo(item.info);
 
+            String alcTypeCode = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("alctypecode") : null;
+
             BigDecimal defaultQuantity = null;
             Integer tmcType = null;
+
+            String lotType = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("lottype") : null;
+            if (lotType != null && !lotType.isEmpty()) tmcType = 7;
+
+            boolean autoGetQuantity = item.info != null && new JSONObject(item.info).has("autogetquantityfromscales");
+
+            boolean tobacco = "tobacco".equals(lotType) || "tobaccoProduct".equals(lotType);
+            if (tobacco) tmcType = 3;
 
             if (infoJSON != null && infoJSON.has("defaultquantity")) {defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");}
             if (infoJSON != null && infoJSON.has("tmctype")) { tmcType = infoJSON.optInt("tmctype");}
@@ -522,6 +532,19 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 quantityoptions.put("requirequantityscales", requireQuantityScales);
                 quantityoptions.put("enablequantityscales", enableQuantityScales);
                 itemOptions.put("quantityoptions", quantityoptions);
+            }
+
+            if (autoGetQuantity) {
+                if (!itemOptions.has("quantityoptions")) itemOptions.put("quantityoptions", new JSONObject());
+                itemOptions.optJSONObject("quantityoptions").put("autogetquantityfromscales", true);
+            }
+
+            if (tobacco)
+                inventItemOptions.put("tobacco", true);
+
+            if (alcTypeCode != null && !alcTypeCode.isEmpty()) {
+                inventItemOptions.put("egaisverify", true);
+                inventObject.put("alctypecode", Long.valueOf(alcTypeCode));
             }
 
             itemOptions.put("inventitemoptions", inventItemOptions);
