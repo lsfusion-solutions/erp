@@ -15,6 +15,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.cookie.params.CookieSpecPNames;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.Arrays;
 
 public class LoyaAction extends InternalAction {
 
@@ -148,6 +150,7 @@ public class LoyaAction extends InternalAction {
 
                 postRequest.addHeader("content-type", "application/json");
                 postRequest.setEntity(input);
+                postRequest.getParams().setParameter(CookieSpecPNames.DATE_PATTERNS, Arrays.asList("EEE, d MMM yyyy HH:mm:ss z"));
 
                 ERPLoggers.importLogger.info("Loya login request: " + IOUtils.toString(postRequest.getEntity().getContent()));
 
