@@ -2402,6 +2402,7 @@ FORM replaceToItemGroupDialog 'Соответствие групп для пер
 ;
 
 overReplaceToItemGroup ABSTRACT LIST (CustomGroup, ItemGroup);
+overChangeItemGroup ABSTRACT LIST (CustomGroupType);
 
 overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
     IF (GROUP SUM 1 IF customGroupType(CustomGroup g) == t AND NOT itemGroup(g)) THEN
@@ -2427,6 +2428,7 @@ overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
         userShowFixedPrice(ng) <- userShowFixedPrice(itemGroup(g));
         userShowPriceSegment(ng) <- userShowPriceSegment(itemGroup(g));
         userShowBanPurchase(ng) <- userShowBanPurchase(itemGroup(g));
+        userShowConditionStorage(ng) <- userShowConditionStorage(itemGroup(g));
         userShowOriginalCaption(ng) <- userShowOriginalCaption(itemGroup(g));
         userShowOriginalComposition(ng) <- userShowOriginalComposition(itemGroup(g));
         userShowNetWeight(ng) <- userShowNetWeight(itemGroup(g));
@@ -2434,6 +2436,10 @@ overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
         userShowExpiry(ng) <- userShowExpiry(itemGroup(g));
         dataCaption(ng) <- prevCaption(itemGroup(g));
         dataUOM(ng) <- prevUOM(itemGroup(g));
+        dataRequired(ItemAttribute ia, ng) <- OVERRIDE dataRequired(ia,itemGroup(g)), PREV(nearestRequired(ia,itemGroup(g)));
+        dataNumberInName(ItemAttribute ia, ng) <- OVERRIDE dataNumberInName(ia,itemGroup(g)), PREV(nearestNumberInName(ia,itemGroup(g)));
+        dataNumberInNameCashRegister(ItemAttribute ia, ng) <- OVERRIDE dataNumberInNameCashRegister(ia,itemGroup(g)), PREV(nearestNumberInNameCashRegister(ia,itemGroup(g)));
+        dataNumberInNameScales(ItemAttribute ia, ng) <- OVERRIDE dataNumberInNameScales(ia,itemGroup(g)), PREV(nearestNumberInNameScales(ia,itemGroup(g)));
         dataCustomGroup(CustomGroupType cgt, ng) <- prevCustomGroup(cgt,itemGroup(g));
 
         overReplaceToItemGroup(g,ng);
@@ -2448,6 +2454,7 @@ overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
         } ELSE {
             printToLog('' + currentDateTime() + ' Changing itemGroup in Items');
             itemGroup(Item item) <- itemGroup('tst_' + id(customGroup(t,item)));
+            overChangeItemGroup(t);
             setNoCancelInTransaction();
             APPLY NESTED LOCAL;
             IF canceled() THEN {
