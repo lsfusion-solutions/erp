@@ -382,6 +382,13 @@ META defDepartment(nm, class, extid)
         FILTERS nm###class = nm(class, configuration)
     ;
 END
+META defDepartment(nm, class, extid, group)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Department EXTID extid IN group
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', nameDepartment EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
+    ;
+END
 
 // currency
 CLASS ABSTRACT Currency 'Справочник.Валюты' : Reference;
@@ -396,6 +403,14 @@ END
 META defCurrency(nm, class)
     @defCurrency(nm, class, 'Валюта');
 END
+META defCurrency(nm, class, extid, group)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Currency EXTID extid IN group
+        PROPERTIES(nm###class, configuration) id EXTID 'Код', name EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
+    ;
+END
+
 
 // contract
 CLASS Contract 'Справочник.Договоры' : Reference;
@@ -1185,17 +1200,19 @@ EXTEND FORM receiveMessage
 @defPropSimple(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderInternal);
 
 @extDocument(outcomeCashOrderBank, 'РКОНаБанковскийСчет');
-@defPropObject(currency, 'Валюта', Currency, outcomeCashOrderBank);
+@defPropObject(currency, 'Валюта', Currency, outcomeCashOrderBank, commonData);
 @defPropId(operation, 'ВидОперации', typeOutcomeCashOrderBank, outcomeCashOrderBank);
 @defPropSimple(issuedTo, 'Выдать', STRING, outcomeCashOrderBank);
 @defPropSimple(chiefAccounter, 'ГлавныйБухгалтер', STRING, outcomeCashOrderBank);
 @defPropSimple(note, 'Комментарий', STRING, outcomeCashOrderBank);
 @defPropSimple(paymentInformation, 'НазначениеПлатежа', STRING, outcomeCashOrderBank);
+
+@defPropSimple(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderBank, commonData);
+@defPropObject(department, 'Подразделение', Department, outcomeCashOrderBank, commonData);
 @defPropSimple(reason, 'Основание', STRING, outcomeCashOrderBank);
 @defPropSimple(document, 'ПоДокументу', STRING, outcomeCashOrderBank);
 @defPropSimple(appendix, 'Приложение', STRING, outcomeCashOrderBank);
 @defPropSimple(chief, 'Руководитель', STRING, outcomeCashOrderBank);
-@defPropSimple(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderBank);
 
 @extDocument(outcomeCashOrderOther, 'РКОПрочаяВыдача');
 @defPropObject(currency, 'Валюта', Currency, outcomeCashOrderOther);
