@@ -82,6 +82,9 @@ public class ArtixSettings implements Serializable{
     //временная опция для включения новой схемы medicineMode
     private boolean medicineModeNewScheme;
 
+    //для заполнения обязательных полей для российских настроек
+    private boolean russian;
+
     public ArtixSettings() {
     }
 
@@ -291,5 +294,13 @@ public class ArtixSettings implements Serializable{
 
     public void setMedicineModeNewScheme(boolean medicineModeNewScheme) {
         this.medicineModeNewScheme = medicineModeNewScheme;
+    }
+
+    public boolean isRussian() {
+        return russian;
+    }
+
+    public void setRussian(boolean russian) {
+        this.russian = russian;
     }
 }

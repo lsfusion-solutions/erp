@@ -78,6 +78,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         Integer timeout = artixSettings.getTimeout();
         boolean medicineMode = artixSettings.isMedicineMode();
         boolean medicineModeNewScheme = artixSettings.isMedicineModeNewScheme();
+        boolean russian = artixSettings.isRussian();
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, Exception> failedTransactionMap = new HashMap<>();
@@ -177,7 +178,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                         for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
                             if (!Thread.currentThread().isInterrupted()) {
-                                String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode, medicineMode, medicineModeNewScheme);
+                                String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode, medicineMode, medicineModeNewScheme, russian);
                                 if(inventItem != null) {
                                     writeStringToFile(tmpFile, inventItem + "\n---\n");
                                 } else {
@@ -324,7 +325,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     }
 
 
-    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode, boolean medicineMode, boolean medicineModeNewScheme) throws JSONException {
+    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode, boolean medicineMode, boolean medicineModeNewScheme, boolean russian) throws JSONException {
         Set<CashRegisterItem> barcodes = new HashSet<>();
         for(CashRegisterItem item : items) {
             //если есть addMedicine, дополнительные ШК не выгружаем
@@ -344,6 +345,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             JSONObject infoJSON = getExtInfo(item.info);
 
+            String capacity = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("capacity") : null;
+            String alcVolume = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("alcvolume") : null;
             String alcTypeCode = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("alctypecode") : null;
 
             BigDecimal defaultQuantity = null;
@@ -401,6 +404,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
             if (itemGroupList != null) {
                 inventObject.put("inventgroup", itemGroupList.get(0).extIdItemGroup); //код родительской группы товаров
+            }
+            if (russian) {
+                inventObject.put("paymentobject", 1);
             }
 
             Integer requireSaleRestrict = null;
@@ -547,7 +553,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 inventObject.put("alctypecode", Long.valueOf(alcTypeCode));
             }
 
-            itemOptions.put("inventitemoptions", inventItemOptions);
+            if (capacity != null && !capacity.isEmpty())
+                itemOptions.put("taracapacity", Double.valueOf(capacity));
+
+            if (alcVolume != null && !alcVolume.isEmpty())
+                itemOptions.put("alcoholpercent", Double.valueOf(alcVolume));
 
             inventObject.put("options", itemOptions);
 
