@@ -89,6 +89,7 @@ public class LoyaAction extends InternalAction {
         request.setHeader("Cookie", "PLAY2AUTH_SESS_ID=" + sessionKey);
         final HttpParams httpParams = new BasicHttpParams();
         HttpConnectionParams.setConnectionTimeout(httpParams, 5*60000);
+        httpParams.setParameter(CookieSpecPNames.DATE_PATTERNS, Arrays.asList("EEE, d MMM yyyy HH:mm:ss z"));
         return new DefaultHttpClient(httpParams).execute(request);
     }
 
