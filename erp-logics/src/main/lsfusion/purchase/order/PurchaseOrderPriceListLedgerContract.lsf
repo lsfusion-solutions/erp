@@ -1,0 +1,15 @@
+MODULE PurchaseOrderPriceListLedgerContract;
+
+REQUIRE PurchaseOrderPriceListContract, PriceListLedgerContract;
+
+NAMESPACE Purchase;
+
+
+@defineOperationProperty(contractPrice, 'Учитывать договор при поиске цены', priceListTypes);
+
+prevList (LedgerPriceListType priceListType, UserOrderDetail userOrderDetail) += WHEN priceListType IS LedgerPriceListType AND sku(userOrderDetail) AND contractPrice(operation(userOrderDetail)) AND NOT overPriceStockUser(userOrder(userOrderDetail)) THEN
+    prevPriceA(priceListType,
+        sku(userOrderDetail),
+        priceStock(userOrderDetail),
+        contractSku(userOrderDetail),
+        priceDateTime(userOrderDetail));

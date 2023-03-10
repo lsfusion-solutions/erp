@@ -1,0 +1,47 @@
+MODULE PriceListLedgerContract;
+
+REQUIRE PriceListLedger, PriceListContract;
+
+NAMESPACE PriceList;
+
+
+contractSku = ABSTRACT ContractSku (PriceListLedger) MATERIALIZED;
+descriptionContractSku 'Договор' = description(contractSku(PriceListLedger ledger));
+INDEX sku(PriceListLedger ledger), contractSku(ledger), fromDateTime(ledger), ledger;
+
+contractSku(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
+    contractSku(ledger) IF active(ledger, type, stock) MATERIALIZED;
+
+//c договором 
+priceB 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, ContractSku, DATETIME) CHARWIDTH 7;
+priceA 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, ContractSku, DATETIME) CHARWIDTH 7;
+
+prevPriceB 'Цена (пред.)' (PriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) = PREV(priceB(type, sku, stock, contractSku, dateTime)) CHARWIDTH 7 COMPLEX;
+prevPriceA 'Цена (пред.)' (PriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) = PREV(priceA(type, sku, stock, contractSku, dateTime)) CHARWIDTH 7 COMPLEX;
+
+priceB 'Цена' (LedgerPriceListType type, sku, Stock stock, contractSku, DATETIME dateTime) =
+    GROUP LAST price(PriceListLedger ledger, type, stock)
+    ORDER fromDateTime(ledger, type, stock), ledger
+    WHERE fromDateTime(ledger, type, stock) < dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
+    BY sku(ledger, type, stock), contractSku(ledger, type, stock) COMPLEX;
+
+priceB(LedgerPriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) += priceB(type, sku, stock, contractSku, dateTime);
+
+prevPriceB(LedgerPriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) =
+    PREV(priceB(type, sku, stock, contractSku, dateTime)) COMPLEX;
+
+priceA 'Цена' (LedgerPriceListType type, sku, Stock stock, contractSku, DATETIME dateTime) =
+    GROUP LAST price(PriceListLedger ledger, type, stock)
+    ORDER fromDateTime(ledger, type, stock), ledger
+    WHERE fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
+    BY sku(ledger, type, stock), contractSku(ledger, type, stock) COMPLEX;
+
+priceA(LedgerPriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) += priceA(type, sku, stock, contractSku, dateTime);
+
+prevPriceA(LedgerPriceListType type, Sku sku, Stock stock, ContractSku contractSku, DATETIME dateTime) =
+    PREV(priceA(type, sku, stock, contractSku, dateTime)) COMPLEX;
+
+contractSku (PriceListDetail ledger) += contractSku(ledger);
+
+
+
