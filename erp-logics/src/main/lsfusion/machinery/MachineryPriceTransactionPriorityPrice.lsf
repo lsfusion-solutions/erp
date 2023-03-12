@@ -1,0 +1,30 @@
+MODULE MachineryPriceTransactionPriorityPrice;
+
+REQUIRE MachineryPriceTransaction, CashRegister;
+
+NAMESPACE Machinery;
+
+// --------------------------------- Приоритетный вид цены ----------------------------- //
+
+priorityPriceListType 'Приоритетный вид цен' = DATA PriceListType (GroupCashRegister);
+namePriorityPriceListType 'Приоритетный вид цен' (GroupCashRegister groupMachinery) = name(priorityPriceListType(groupMachinery));
+
+EXTEND FORM groupCashRegister
+    PROPERTIES(grc) namePriorityPriceListType
+;
+DESIGN groupCashRegister {
+    topContainer {
+        MOVE PROPERTY(namePriorityPriceListType(grc)) AFTER PROPERTY(namePriceListType(grc));
+    }
+}
+
+hasOverPrice (Barcode b, GroupMachinery m) += TRUE IF priceA(priorityPriceListType(m), sku(b), stock(m), currentDateTime());
+
+
+overCreateMachineryPriceTransaction(GroupMachinery g) + {
+    IF priorityPriceListType(g) AND NOT skipLastTransaction(g) THEN {
+        price(Barcode barcode) <- priceA(priorityPriceListType(g), sku(barcode), stock(g), currentDateTime())
+            WHERE send(barcode) AND priceA(priorityPriceListType(g), sku(barcode), stock(g), currentDateTime());
+    }
+}
+
