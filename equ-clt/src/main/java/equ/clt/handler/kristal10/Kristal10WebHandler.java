@@ -1260,7 +1260,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     }
                 } else if (zreports) {
                     try {
-                        readZReports(sidEquipmentServer, httpExchange);
+                        readZReports(sidEquipmentServer, httpExchange, extendedLogs);
                     } catch (Exception e) {
                         sendSalesLogger.error(getLogPrefix() + "Reading ZReports", e);
                         sendZReportsResponse(httpExchange, e.getMessage());
@@ -1324,7 +1324,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private void readZReports(String sidEquipmentServer, HttpExchange httpExchange) throws IOException, SQLException, JDOMException {
+    private void readZReports(String sidEquipmentServer, HttpExchange httpExchange, boolean extendedLogs) throws IOException, SQLException, JDOMException {
         List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
 
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
@@ -1337,6 +1337,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
 
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, "zreports"));
+        if(extendedLogs) {
+            sendSalesLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
+        }
         Element rootNode = doc.getRootElement();
         List zReportsList = rootNode.getChildren("zreport");
 
@@ -1361,7 +1364,14 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         //вне зависимости от результата отправляем, что запрос обработан успешно
         sendZReportsResponse(httpExchange, null);
 
-        ExtraCheckZReportBatch extraCheckResult = compareExtraCheckZReport(zReportSumMap, remote.readZReportSumMap());
+        Map<String, BigDecimal> baseZReportSumMap;
+        baseZReportSumMap = remote.readZReportSumMap();
+        if(extendedLogs) {
+            sendSalesLogger.info(getLogPrefix() + " zReportSumMap:" + StringUtils.join(zReportSumMap, ','));
+            sendSalesLogger.info(getLogPrefix() + " baseZReportSumMap:" + StringUtils.join(baseZReportSumMap, ','));
+        }
+
+        ExtraCheckZReportBatch extraCheckResult = compareExtraCheckZReport(zReportSumMap, baseZReportSumMap);
         if (extraCheckResult.message.isEmpty()) {
             remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
         } else {
