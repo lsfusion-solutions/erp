@@ -1329,13 +1329,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
 
-        Map<Integer, CashRegisterInfo> numberCashRegisterMap = new HashMap<>();
-        for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (fitHandler(c) && c.number != null) {
-                numberCashRegisterMap.put(c.number, c);
-            }
-        }
-
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, "zreports"));
         if(extendedLogs) {
             sendSalesLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
@@ -1346,8 +1339,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         for (Object zReportNode : zReportsList) {
 
             Integer numberCashRegister = readIntegerXMLValue(zReportNode, "cashNumber");
-            CashRegisterInfo cashRegister = numberCashRegisterMap.get(numberCashRegister);
-            Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
+            Integer numberGroupCashRegister = readIntegerXMLValue(zReportNode, "shopNumber");
 
             LocalDate dateZReport = LocalDate.parse(StringUtils.left(readStringXMLValue(zReportNode, "dateOperDay"),10), DateTimeFormatter.ISO_DATE);
 
@@ -1364,8 +1356,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         //вне зависимости от результата отправляем, что запрос обработан успешно
         sendZReportsResponse(httpExchange, null);
 
-        Map<String, BigDecimal> baseZReportSumMap;
-        baseZReportSumMap = remote.readZReportSumMap();
+        Map<String, BigDecimal> baseZReportSumMap = remote.readZReportSumMap();
         if(extendedLogs) {
             sendSalesLogger.info(getLogPrefix() + " zReportSumMap:" + StringUtils.join(zReportSumMap, ','));
             sendSalesLogger.info(getLogPrefix() + " baseZReportSumMap:" + StringUtils.join(baseZReportSumMap, ','));
