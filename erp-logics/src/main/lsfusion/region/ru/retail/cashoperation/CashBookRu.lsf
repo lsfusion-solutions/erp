@@ -1,0 +1,103 @@
+MODULE CashBookRu;
+
+REQUIRE CashBookIncome, CashBookOutcome, LegalEntityRu;
+
+NAMESPACE CashOperation;
+
+numeratorIncomeCashOrder 'Нумератор ПКО' = DATA Numerator (DepartmentStore);
+nameNumeratorIncomeCashOrder 'Нумератор ПКО' (DepartmentStore s) = name(numeratorIncomeCashOrder(s));
+
+numerator(CashIncome o) <- numeratorIncomeCashOrder(departmentStore(o)) WHEN SET(o IS CashIncome);
+
+numeratorOutcomeCashOrder 'Нумератор РКО' = DATA Numerator (DepartmentStore);
+nameNumeratorOutcomeCashOrder 'Нумератор РКО' (DepartmentStore s) = name(numeratorOutcomeCashOrder(s));
+
+numerator(CashOutcome o) <- numeratorOutcomeCashOrder(departmentStore(o)) WHEN SET(o IS CashOutcome);
+
+idCashDocument 'Код структурного подразделения' = DATA STRING (DepartmentStore);
+idCashDocument 'Код структурного подразделения' (CashDocument d) = idCashDocument(departmentStore(d));
+
+EXTEND FORM departmentStore
+    PROPERTIES (d) nameNumeratorIncomeCashOrder, nameNumeratorOutcomeCashOrder, idCashDocument
+;
+
+DESIGN departmentStore {
+    headerRight {
+        fill = 0.3;
+        NEW headerCachParams {
+            alignment = STRETCH;
+            type = COLUMNS;
+            columns = 2;
+            caption = 'Для кассовых документов';
+            MOVE PROPERTY(nameNumeratorIncomeCashOrder(d));
+            MOVE PROPERTY(nameNumeratorOutcomeCashOrder(d));
+            MOVE PROPERTY(idCashDocument(d));
+        }
+    }
+}
+
+trunc = FORMULA INTEGER 'trunc($1)';
+fullNameLegalEntity 'Компания' (CashDocument d) = fullName(legalEntity(d));
+addressLegalEntity 'Адрес компании' (CashDocument d) = address(legalEntity(d));
+seriesNumberReport 'Серия/номер' (CashDocument d) = CONCAT '-', series(d), number(d) CHARWIDTH 7;
+
+okpo 'ОКПО' (CashDocument c) = okpo(legalEntity(departmentStore(c)));
+additionalDocs 'Приложение' = ABSTRACT STRING (CashDocument);
+
+namePositionCheif 'Руководитель (должность)' (CashDocument c) = OVERRIDE namePosition(chief(legalEntity(departmentStore(c))));
+shortNameCheif 'Руководитель (ФИО)' (CashDocument c)= OVERRIDE shortName(chief(legalEntity(departmentStore(c))));
+
+namePositionBooker 'Главный бухгалтер (должность)' (CashDocument c) = namePosition(booker(legalEntity(departmentStore(c))));
+shortNameBooker 'Главный бухгалтер (ФИО)' (CashDocument c) = shortName(booker(legalEntity(departmentStore(c))));
+
+sumCashRubB (IncomeCashOrder c) = trunc(sumCash(c));
+sumCashKopB (IncomeCashOrder c) = lpad((OVERRIDE STRING[2](round0(abs(sumCashRubB(c) (-) sumCash(c))*100.0)), '' IF sumCash(c)), 2, '0');
+
+FORM incomeCashOrderPring 'Печать ПКО'
+    OBJECTS c = IncomeCashOrder PANEL
+    PROPERTIES currentDateTime()
+    PROPERTIES(c) READONLY fullNameLegalEntity, okpo, seriesNumberReport, date, takenFrom, basis, sumCash, sumCashRubB, sumCashKopB, namePositionCheif, shortNameCheif,
+    namePositionBooker, shortNameBooker, nameEmployee, seriesNumber, nameDepartmentStore, addressLegalEntity, additionalDocs, idCashDocument
+    REPORT 'CashOperation_printIncomeCashOrderRu.jrxml'
+;
+
+printIncomeCashOrder 'Печать ПКО' (IncomeCashOrder c) {
+    PRINT incomeCashOrderPring OBJECTS c = c;
+}
+EXTEND FORM cashBooks
+    PROPERTIES(o) printIncomeCashOrder
+;
+
+DESIGN cashBooks {
+    tabbedPane {
+        MOVE BOX(i) { caption = 'Расходные кассовые ордера'; }
+        TOOLBARRIGHT (o) {
+            MOVE PROPERTY (printIncomeCashOrder(o));
+        }
+    }
+}
+
+sumCashRubB (OutcomeCashOrder c) = trunc(sumCash(c));
+sumCashKopB (OutcomeCashOrder c) = lpad((OVERRIDE STRING[2](round0(abs(sumCashRubB(c) (-) sumCash(c))*100.0)), '' IF sumCash(c)), 2, '0');
+
+FORM outcomeCashOrderPring 'Печать РКО'
+    OBJECTS c = OutcomeCashOrder PANEL
+    PROPERTIES(c) READONLY fullNameLegalEntity, okpo, seriesNumberReport, date, issuedTo, basis, sumCash, namePositionCheif, shortNameCheif,
+    namePositionBooker, shortNameBooker, nameEmployee, sumCashRubB, sumCashKopB, seriesNumber, nameDepartmentStore,
+    addressLegalEntity, additionalDocs, idCashDocument, corrAccount
+    REPORT 'CashOperation_printOutcomeCashOrderRu.jrxml'
+;
+
+printOutcomeCashOrder 'Печать РКО' (OutcomeCashOrder c) {
+    PRINT outcomeCashOrderPring OBJECTS c = c;
+}
+
+EXTEND FORM cashBooks
+    PROPERTIES(i) printOutcomeCashOrder
+;
+
+DESIGN cashBooks {
+    TOOLBARRIGHT (i) {
+        MOVE PROPERTY (printOutcomeCashOrder(i));
+    }
+}
