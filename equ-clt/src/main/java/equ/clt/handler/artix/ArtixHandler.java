@@ -554,10 +554,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             }
 
             if (capacity != null && !capacity.isEmpty())
-                itemOptions.put("taracapacity", Double.valueOf(capacity));
+                inventObject.put("taracapacity", Double.valueOf(capacity));
 
             if (alcVolume != null && !alcVolume.isEmpty())
-                itemOptions.put("alcoholpercent", Double.valueOf(alcVolume));
+                inventObject.put("alcoholpercent", Double.valueOf(alcVolume));
+
+            itemOptions.put("inventitemoptions", inventItemOptions);
 
             inventObject.put("options", itemOptions);
 
