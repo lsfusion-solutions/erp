@@ -328,12 +328,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             if (versionalScheme) {
                                 astronLogger.info(String.format("transaction %s, table DATAPUMP", transaction.id));
-                                exportUpdateNums(conn, params, outputUpdateNums);
+                                exportUpdateNums(conn, outputUpdateNums);
                             } else if (lastTransaction) {
                                 astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
                                 String newTables = updateTables.stream().collect(Collectors.joining("','", "'", "'"));
                                 updateTables.clear();
-                                exportFlags(conn, params, newTables, 1);
+                                exportFlags(conn, newTables, 1);
                                 Exception e = waitFlags(conn, params, newTables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                                 if (e != null) {
                                     throw e;
@@ -1624,7 +1624,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     private Map<String, Integer> readProcessedUpdateNums(Connection conn, String tables) {
         Map<String, Integer> recordNums = new HashMap<>();
         try (Statement statement = conn.createStatement()) {
-            String query = "SELECT dirname, pumpupdatenum FROM DataServer.dbo.DATAPUMPDIRS where [SOURCETYPE]=1 AND dirname IN (" + tables + ")";
+            String query = "SELECT dirname, pumpupdatenum FROM DataServer.dbo.DATAPUMPDIRS where SOURCETYPE=1 AND dirname IN (" + tables + ")";
             ResultSet result = statement.executeQuery(query);
             while (result.next()) {
                 recordNums.put(result.getString("dirname"), result.getInt("pumpupdatenum"));
@@ -1636,25 +1636,23 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         return recordNums;
     }
 
-    private void exportUpdateNums(Connection conn, AstronConnectionString params, Map<String, Integer> updateNums) throws SQLException {
-        assert !params.pgsql;
+    private void exportUpdateNums(Connection conn, Map<String, Integer> updateNums) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("UPDATE DATAPUMP SET recordnum = ? WHERE dirname = ?")) {
             for (Map.Entry<String, Integer> entry : updateNums.entrySet()) {
                 setObject(ps, entry.getValue(), 1); //recordnum
                 setObject(ps, entry.getKey(), 2); //dirname
                 ps.addBatch();
+                astronLogger.info(String.format("UPDATE DATAPUMP SET recordnum = %s WHERE dirname = %s", entry.getValue(), entry.getKey()));
             }
             executeAndCommitBatch(ps, conn);
         }
     }
 
-    private void exportFlags(Connection conn, AstronConnectionString params, String tables, int value) throws SQLException {
+    private void exportFlags(Connection conn, String tables, int value) throws SQLException {
         astronLogger.info(String.format("UPDATE DATAPUMP SET recordnum = %s WHERE dirname in (%s)", value, tables));
         conn.setAutoCommit(true);
         try (Statement statement = conn.createStatement()) {
-            String sql = params.pgsql ?
-                    "UPDATE DATAPUMP SET recordnum = " + value + " WHERE dirname in (" + tables + ")" :
-                    "UPDATE [DATAPUMP] SET recordnum = " + value + " WHERE dirname in (" + tables + ")";
+            String sql = "UPDATE DATAPUMP SET recordnum = " + value + " WHERE dirname in (" + tables + ")";
             statement.executeUpdate(sql);
         } catch (Exception e) {
             throw Throwables.propagate(e);
@@ -1672,7 +1670,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             while (!(sysLog = checkSysLog(conn, params, eventTime)).first) {
                 astronLogger.info("checkSysLog result: " + sysLog.first + " / " + sysLog.second); // temp log
                 if (count > (timeout / 5)) {
-                    exportFlags(conn, params, tables, 0);
+                    exportFlags(conn, tables, 0);
                     return createException(String.format("Data was sent to db but %s no records in syslog found", sysLog));
                 } else {
                     count++;
@@ -1901,10 +1899,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                         if(versionalScheme) {
                             astronLogger.info(String.format("stoplist %s, table datapump", stopListInfo.number));
-                            exportUpdateNums(conn, params, outputUpdateNums);
+                            exportUpdateNums(conn, outputUpdateNums);
                         } else {
                             astronLogger.info("waiting for processing stopLists");
-                            exportFlags(conn, params, tables, 1);
+                            exportFlags(conn, tables, 1);
 
                             Exception e = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                             if (e != null) {
@@ -1992,11 +1990,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             if (versionalScheme) {
                                 astronLogger.info("deleteBarcode, table DATAPUMP");
-                                exportUpdateNums(conn, params, outputUpdateNums);
+                                exportUpdateNums(conn, outputUpdateNums);
                             } else {
                                 astronLogger.info(String.format("waiting for processing %s deleteBarcode(s)", deleteBarcode.barcodeList.size()));
 
-                                exportFlags(conn, params, tables, 1);
+                                exportFlags(conn, tables, 1);
                                 Exception e = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                                 if (e != null) {
                                     throw e;
@@ -2083,10 +2081,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         }
 
                         if(versionalScheme) {
-                            exportUpdateNums(conn, params, outputUpdateNums);
+                            exportUpdateNums(conn, outputUpdateNums);
                         } else {
                             astronLogger.info("waiting for processing discount cards");
-                            exportFlags(conn, params, tables, 1);
+                            exportFlags(conn, tables, 1);
                             exception = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
                         }
                     }
