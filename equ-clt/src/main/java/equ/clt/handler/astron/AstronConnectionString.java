@@ -34,6 +34,6 @@ class AstronConnectionString {
     }
 
     public boolean versionalScheme(boolean isVersionalScheme) {
-        return isVersionalScheme && !pgsql; //схема с версионностью пока только для mssql
+        return isVersionalScheme;
     }
 }
