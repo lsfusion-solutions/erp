@@ -172,7 +172,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private SendTransactionBatch exportTransaction(TransactionCashRegisterInfo transaction, Throwable exception, boolean firstTransaction, boolean lastTransaction, String directory,
                                         boolean exportExtraTables, List<DeleteBarcodeInfo> deleteBarcodeList,
-                                        Integer timeout, Integer maxBatchSize, boolean isVersionalScheme, int transactionCount, int itemCount, boolean usePropertyGridFieldInPackTable,
+                                        Integer timeout, Integer maxBatchSize, boolean versionalScheme, int transactionCount, int itemCount, boolean usePropertyGridFieldInPackTable,
                                         boolean waitSysLogInsteadOfDataPump, boolean specialSplitMode) {
         Set<String> deleteBarcodeSet = new HashSet<>();
         if(exception == null) {
@@ -206,8 +206,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         }
                         String prevTables = truncateTables.stream().collect(Collectors.joining("','", "'", "'"));
 
-                        boolean versionalScheme = params.versionalScheme(isVersionalScheme);
-                        Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, prevTables) : new HashMap<>();
+                        Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, prevTables, params) : new HashMap<>();
                         Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, prevTables) : new HashMap<>();
                         Map<String, Integer> outputUpdateNums = new HashMap<>();
 
@@ -407,6 +406,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                     setObject(ps, parentId != null ? Integer.parseInt(parentId) : parentId, 2); //PARENTGRPID
                                     setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 3); //GRPNAME
                                     setObject(ps, 0, 4); //DELFLAG
+                                    if(updateNum != null)
+                                        setObject(ps, updateNum, 5);
                                 } else {
                                     setObject(ps, parseGroup(itemGroup.idParentItemGroup, true), 1, offset); //PARENTGRPID
                                     setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 2, offset); //GRPNAME
@@ -452,6 +453,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, getItemName(item), 5); //ARTNAME
                             setObject(ps, getItemName(item), 6); //ARTSNAME
                             setObject(ps, delFlag ? 1 : 0, 7); //DELFLAG
+                            if (updateNum != null) setObject(ps, updateNum, 8); //UPDATENUM
                         } else {
                             setObject(ps, grpId, 1, offset); //GRPID
                             setObject(ps, getIdVAT(item.vat), 2, offset); //TAXGRPID
@@ -647,6 +649,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, item.shortNameUOM, 2); //UNITNAME
                             setObject(ps, item.shortNameUOM, 3); //UNITFULLNAME
                             setObject(ps, delFlag ? 1 : 0, 4); //DELFLAG
+                            if(updateNum != null)
+                                setObject(ps, updateNum, 5); //UNITFULLNAME
+
                         } else {
                             setObject(ps, item.shortNameUOM, 1, offset); //UNITNAME
                             setObject(ps, item.shortNameUOM, 2, offset); //UNITFULLNAME
@@ -721,8 +726,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, getItemName(item), 9); //PACKNAME
                             setObject(ps, delFlag ? 1 : 0, 10); //DELFLAG
                             setObject(ps, !specialSplitMode && item.passScalesItem ? 2 : null, 11); //BARCID
+                            int delta = 0;
                             if(usePropertyGridFieldInPackTable) {
-                                setObject(ps, getPropertyGrpId(item), 12); //PROPERTYGRPID
+                                setObject(ps, getPropertyGrpId(item), 11 + ++delta); //PROPERTYGRPID
+                            }
+                            if(updateNum != null) {
+                                setObject(ps, updateNum, 11 + ++delta);
                             }
                         } else {
                             setObject(ps, idItem, 1, offset); //ARTID
@@ -828,6 +837,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, item.passScalesItem ? 0 : 1, 8); //PACKDTYPE
                         setObject(ps, getItemName(item), 9); //PACKNAME
                         setObject(ps, 1, 10); //DELFLAG
+                        if(updateNum != null)
+                            setObject(ps, updateNum, 11);
                     } else {
                         setObject(ps, idItem, 1, offset); //ARTID
                         setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 2, offset); //PACKQUANT
@@ -918,6 +929,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                 setObject(ps, "", 3); //EXBARCTYPE
                                 setObject(ps, getExBarcBody(item), 4); //EXBARCBODY
                                 setObject(ps, delFlag ? 1 : 0, 5); //DELFLAG
+                                if(updateNum != null)
+                                    setObject(ps, updateNum, 6);
                             } else {
                                 setObject(ps, packId, 1, offset); //PACKID
                                 setObject(ps, "", 2, offset); //EXBARCTYPE
@@ -965,6 +978,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, "", 3); //EXBARCTYPE
                             setObject(ps, getExBarcBody(item), 4); //EXBARCBODY
                             setObject(ps, 1, 5); //DELFLAG
+                            if(updateNum != null)
+                                setObject(ps, updateNum, 6);
                         } else {
                             setObject(ps, packId, 1, offset); //PACKID
                             setObject(ps, "", 2, offset); //EXBARCTYPE
@@ -1159,6 +1174,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             setObject(ps, packMinPrice, 4); //PACKMINPRICE
             setObject(ps, packBonusMinPrice, 5); //PACKBONUSMINPRICE
             setObject(ps, delFlag ? 1 : 0, 6); //DELFLAG
+            if(updateNum != null)
+                setObject(ps, updateNum, 7);
         } else {
             setObject(ps, packPrice, 1, offset); //PACKPRICE
             setObject(ps, packMinPrice, 2, offset); //PACKMINPRICE
@@ -1292,6 +1309,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             setObject(ps, priceLevelName, 2); //PRCLEVELNAME
             setObject(ps, 0, 3); //PRCLEVELKEY
             setObject(ps, 0, 4); //DELFLAG
+            if(updateNum != null)
+                setObject(ps, updateNum, 5);
         } else {
             setObject(ps, priceLevelName, 1, offset); //PRCLEVELNAME
             setObject(ps, 0, 2, offset); //PRCLEVELKEY
@@ -1319,6 +1338,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 setObject(ps, 933, 5); //CURRENCYID
                 setObject(ps, trim(transaction.nameGroupMachinery, 50), 6); //SAREANAME
                 setObject(ps, 0, 7); //DELFLAG
+                if(updateNum != null)
+                    setObject(ps, updateNum, 8);
             } else {
                 setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 1, offset); //PRCLEVELID
                 setObject(ps, 1, 2, offset); //CASHPROFILEID
@@ -1361,6 +1382,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             setObject(ps, transaction.nppGroupMachinery, 1); //SAREAID
             setObject(ps, priceLevelId, 2); //PRCLEVELID
             setObject(ps, 0, 3); //DELFLAG
+            if(updateNum != null)
+                setObject(ps, updateNum, 4);
         } else {
             setObject(ps, "0", 1, offset); //DELFLAG
 
@@ -1392,6 +1415,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, isPayment ? 1 : 0, 5); //ISPAYMENT
                         setObject(ps, 0, 6); //DELFLAG
                         setObject(ps, 0, 7); //LOCKED
+                        if(updateNum != null)
+                            setObject(ps, updateNum, 8);
                     } else {
                         setObject(ps, discountCard.numberDiscountCard, 1, offset); //CLNTID
                         setObject(ps, discountCard.numberDiscountCard, 2, offset); //DCARDCODE
@@ -1436,6 +1461,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, 0, 8); //DELFLAG
                         setObject(ps, null, 9); //PRIMARYEMAIL
                         setObject(ps, null, 10); //PRIMARYPHONE
+                        if(updateNum != null)
+                            setObject(ps, updateNum, 11);
                     } else {
                         setObject(ps, clientGroupId, 1, offset); //CLNTGRPID
                         setObject(ps, null, 2, offset); //COMPANYID
@@ -1486,6 +1513,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 setObject(ps, null, 5); //ACTIVEFROM
                 setObject(ps, null, 6); //ACTIVETO
                 setObject(ps, 0, 7); //DELFLAG
+                if(updateNum != null)
+                    setObject(ps, updateNum, 8);
             } else {
                 setObject(ps, clientFormName, 1, offset); //CLNTFORMNAME
                 setObject(ps, 0, 2, offset); //ORDERNUM
@@ -1524,6 +1553,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, 0, 4); //ORDERNUM
                         setObject(ps, 0, 5); //ISREQUIRED
                         setObject(ps, 0, 6); //DELFLAG
+                        if(updateNum != null)
+                            setObject(ps, updateNum, 7);
                     } else {
                         setObject(ps, question, 1, offset); //CLNTFORMITEM
                         setObject(ps, 0, 2, offset); //ORDERNUM
@@ -1567,6 +1598,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                     setObject(ps, clientFormItemId, 3); //CLNTFORMITEMID
                                     setObject(ps, clientAnswer, 4); //CLNTPROPERTYVAL
                                     setObject(ps, 0, 5); //DELFLAG
+                                    if (updateNum != null)
+                                        setObject(ps, updateNum, 6);
                                 } else {
                                     setObject(ps, clientAnswer, 1, offset); //CLNTPROPERTYVAL
                                     setObject(ps, 0, 2, offset); //DELFLAG
@@ -1621,17 +1654,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         return recordNums;
     }
 
-    private Map<String, Integer> readProcessedUpdateNums(Connection conn, String tables) {
+    private Map<String, Integer> readProcessedUpdateNums(Connection conn, String tables, AstronConnectionString params) {
         Map<String, Integer> recordNums = new HashMap<>();
-        try (Statement statement = conn.createStatement()) {
-            String query = "SELECT dirname, pumpupdatenum FROM DataServer.dbo.DATAPUMPDIRS where SOURCETYPE=1 AND dirname IN (" + tables + ")";
-            ResultSet result = statement.executeQuery(query);
-            while (result.next()) {
-                recordNums.put(result.getString("dirname"), result.getInt("pumpupdatenum"));
+        if(!params.pgsql) {  //можно в теории через dblink сделать и для psql
+            try (Statement statement = conn.createStatement()) {
+                String query = "SELECT dirname, pumpupdatenum FROM DataServer.dbo.DATAPUMPDIRS where SOURCETYPE=1 AND dirname IN (" + tables + ")";
+                ResultSet result = statement.executeQuery(query);
+                while (result.next()) {
+                    recordNums.put(result.getString("dirname"), result.getInt("pumpupdatenum"));
 
+                }
+            } catch (SQLException e) {
+                throw Throwables.propagate(e);
             }
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
         }
         return recordNums;
     }
@@ -1851,7 +1886,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
         boolean exportExtraTables = astronSettings.isExportExtraTables();
         Integer maxBatchSize =astronSettings.getMaxBatchSize();
-        boolean isVersionalScheme = astronSettings.isVersionalScheme();
+        boolean versionalScheme = astronSettings.isVersionalScheme();
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
         boolean specialSplitMode = astronSettings.isSpecialSplitMode();
@@ -1866,8 +1901,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     try (Connection conn = getConnection(params)) {
                         String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
 
-                        boolean versionalScheme = params.versionalScheme(isVersionalScheme);
-                        Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
+                        Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables, params) : new HashMap<>();
                         Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
                         Map<String, Integer> outputUpdateNums = new HashMap<>();
 
@@ -1933,7 +1967,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
         Integer timeout = nvl(astronSettings.getTimeout(), 300);
         Integer maxBatchSize = astronSettings.getMaxBatchSize();
-        boolean isVersionalScheme = astronSettings.isVersionalScheme();
+        boolean versionalScheme = astronSettings.isVersionalScheme();
         boolean deleteBarcodeInSeparateProcess = astronSettings.isDeleteBarcodeInSeparateProcess();
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
@@ -1952,7 +1986,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                         String tables = "'ART', 'UNIT', 'PACK', 'EXBARC'";
 
-                        boolean versionalScheme = params.versionalScheme(isVersionalScheme);
                         Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
                         Map<String, Integer> outputUpdateNums = new HashMap<>();
 
@@ -2022,7 +2055,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
         Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
-        boolean isVersionalScheme = astronSettings.isVersionalScheme();
+        boolean versionalScheme = astronSettings.isVersionalScheme();
         boolean exportDiscountCardExtraTables = astronSettings.isExportDiscountCardExtraTables();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
 
@@ -2039,8 +2072,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     astronLogger.info("export discount сards to " + directory);
                     String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
 
-                    boolean versionalScheme = params.versionalScheme(isVersionalScheme);
-                    Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables) : new HashMap<>();
+                    Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables, params) : new HashMap<>();
                     Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
                     Map<String, Integer> outputUpdateNums = new HashMap<>();
 
@@ -2051,7 +2083,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                         String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
-                        truncateTables(conn, params, "DiscountCard", exportDiscountCardExtraTables ? new HashSet<>(Arrays.asList("DCARD", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY")) : new HashSet<>(Collections.singletonList("DCARD")));
+                        if (!versionalScheme) {
+                            truncateTables(conn, params, "DiscountCard", exportDiscountCardExtraTables ? new HashSet<>(Arrays.asList("DCARD", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY")) : new HashSet<>(Collections.singletonList("DCARD")));
+                        }
 
                         Integer dcardUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, "DCARD");
                         exportDCard(conn, params, discountCardList, dcardUpdateNum);
