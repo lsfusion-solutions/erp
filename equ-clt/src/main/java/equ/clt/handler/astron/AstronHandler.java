@@ -106,7 +106,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 directoryTransactionMap.computeIfAbsent(getDirectory(transaction), t -> new ArrayList<>()).add(transaction);
             }
 
-            if((transactionsAtATime > 1 || itemsAtATime > 0) && !isVersionalScheme) {
+            if(transactionsAtATime > 1 || itemsAtATime > 0) {
 
                 for(Map.Entry<String, List<TransactionCashRegisterInfo>> directoryTransactionEntry : directoryTransactionMap.entrySet()) {
 
