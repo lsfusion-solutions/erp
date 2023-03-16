@@ -485,13 +485,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     public List<CashDocument> parseCashDocumentXML(Document doc, List<CashRegisterInfo> cashRegisterInfoList, boolean cashIn) {
         List<CashDocument> cashDocumentList = new ArrayList<>();
 
-        Map<Integer, CashRegisterInfo> numberCashRegisterMap = new HashMap<>();
-        for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (fitHandler(c) && c.number != null) {
-                numberCashRegisterMap.put(c.number, c);
-            }
-        }
-
         Element rootNode = doc.getRootElement();
 
         List cashDocumentsList = rootNode.getChildren(cashIn ? "introduction" : "withdrawal");
@@ -499,10 +492,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         for (Object cashDocumentNode : cashDocumentsList) {
 
             String numberCashDocument = readStringXMLAttribute(cashDocumentNode, "number");
-
+            String numberZReport = readStringXMLAttribute(cashDocumentNode, "shift");
             Integer numberCashRegister = readIntegerXMLAttribute(cashDocumentNode, "cash");
-            CashRegisterInfo cashRegister = numberCashRegisterMap.get(numberCashRegister);
-            Integer numberGroup = cashRegister == null ? null : cashRegister.numberGroup;
+            Integer numberGroup = readIntegerXMLAttribute(cashDocumentNode, "shop");
 
             BigDecimal sumCashDocument = readBigDecimalXMLAttribute(cashDocumentNode, "amount");
             if(!cashIn)
@@ -510,8 +502,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             LocalDateTime dateTimeCashDocument = LocalDateTime.parse(readStringXMLAttribute(cashDocumentNode, "regtime"), DateTimeFormatter.ISO_DATE_TIME);
 
-            cashDocumentList.add(new CashDocument(numberCashDocument, numberCashDocument, dateTimeCashDocument.toLocalDate(), dateTimeCashDocument.toLocalTime(),
-                    numberGroup, numberCashRegister, null, sumCashDocument));
+            String idCashDocument = numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + numberZReport + "/" + (cashIn ? "introduction" : "withdrawal");
+            cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateTimeCashDocument.toLocalDate(), dateTimeCashDocument.toLocalTime(),
+                    numberGroup, numberCashRegister, numberZReport, sumCashDocument));
         }
 
         return cashDocumentList;
