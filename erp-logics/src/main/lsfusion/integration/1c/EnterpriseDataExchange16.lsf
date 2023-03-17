@@ -1277,6 +1277,32 @@ END
 @defPropSimpleDetail(sumVat, 'СуммаНДС', NUMERIC[15,2], retailReport, productReturn);
 @defPropSimpleDetail(cost, 'Себестоимость', NUMERIC[15,2], retailReport, productReturn);
 
+META defRetailReportDetail(nm, class, table, extid, group)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class###table = RetailReport  EXTID extid
+        PROPERTIES(nm###class###table, configuration) sendUid EXTID 'Ссылка', dateTimeString EXTID 'Дата', id EXTID 'Номер'
+        FILTERS nm###class###table = nm(class###table, configuration)
+    ;
+
+    uid###nm###class###table 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+    fullName###nm###class###table 'НаименованиеПолное' = DATA LOCAL STRING (INTEGER);
+    id###nm###class###table 'КодВПрограмме' = DATA LOCAL ISTRING[36] (INTEGER);
+    article###nm###class###table 'Артикул' = DATA LOCAL STRING (INTEGER);
+    name###nm###class###table 'Наименование' = DATA LOCAL STRING (INTEGER);
+
+    EXTEND FORM receiveMessage
+        PROPERTIES (class###table) IN item uid###nm###class###table EXTID 'Ссылка', fullName###nm###class###table  EXTID 'НаименованиеПолное', id###nm###class###table EXTID 'КодВПрограмме', article###nm###class###table EXTID 'Артикул', name###nm###class###table EXTID 'Наименование'
+    ;
+END
+
+@defPropObjectDetail(retailReportReturn, 'ОтчетОРозничныхПродажах', RetailReport, retailReport, productReturn);
+
+EXTEND FORM sendMessage
+    OBJECTS companyReturnRetailReportReturnProductReturn = Partner EXTID 'Организация'
+    PROPERTIES(companyReturnRetailReportReturnProductReturn, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS companyReturnRetailReportReturnProductReturn = company(retailReportReturnRetailReportProductReturn, configuration)
+;
+
 //--
 @extTable(retailReport, paymentCard);
 @defPropSimpleDetail(sum, 'СуммаОплаты', NUMERIC[15,2], retailReport, paymentCard);
