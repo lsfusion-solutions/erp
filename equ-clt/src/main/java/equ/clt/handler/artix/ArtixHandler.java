@@ -996,7 +996,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         List<Pair<File, Integer>> files = new ArrayList<>();
         for (Pair<File, Integer> dirEntry : getDirectories(cashRegisterList)) {
             long start = System.currentTimeMillis();
-            File[] filesList = dirEntry.first.listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
+            File[] filesList = dirEntry.first.listFiles(pathname -> pathname.getPath().endsWith(".json"));
             sendSalesLogger.info(logPrefix + "listFiles prereadFiles: " + (System.currentTimeMillis() - start) + " ms"); //temp log
             if (filesList != null) {
                 for (File file : filesList) {
@@ -1467,7 +1467,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         List<File> files = new ArrayList<>();
         for(String dir : directorySet) {
             long start = System.currentTimeMillis();
-            File[] filesList = new File(dir).listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
+            File[] filesList = new File(dir).listFiles(pathname -> pathname.getPath().endsWith(".json"));
             sendSalesLogger.info(logPrefix + "ListFiles readSalesInfo: " + (System.currentTimeMillis() - start) + " ms"); //temp log
             if(filesList != null)
                 files.addAll(Arrays.asList(filesList));
