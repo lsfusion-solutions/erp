@@ -102,6 +102,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, DeleteBarcode> usedDeleteBarcodeTransactionMap = new HashMap<>();
+        Map<Transaction, List<String>> usedTiMap = new HashMap<>();
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -128,29 +129,61 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     usedDeleteBarcodeTransactionMap.put(transaction.id, usedDeleteBarcodes);
 
                     String response = null;
+                    List<String> tiList = new ArrayList<>();
                     for(String xml : xmlList) {
                         if(extendedLogs) {
                             processTransactionLogger.info(getLogPrefix() + " sending xml (Transaction " + transaction.id + ") - " + xml);
                         }
-                        response = sendRequestGoods(directory, xml);
-                        if(response != null)
+                        String ti = String.valueOf(Instant.now().toEpochMilli());
+                        response = sendRequestGoods(directory, xml, ti);
+                        if (response != null) {
                             break;
+                        } else {
+                            tiList.add(ti);
+                        }
                     }
 
                     if (response != null) {
                         processTransactionLogger.error(getLogPrefix() + response);
                         result.put(transaction.id, new SendTransactionBatch(new RuntimeException(response)));
                     } else {
-                        DeleteBarcode deleteBarcodes = usedDeleteBarcodeTransactionMap.get(transaction.id);
-                        if (deleteBarcodes != null) {
-                            for (String b : deleteBarcodes.barcodes) {
-                                Map<String, String> deleteBarcodesEntry = deleteBarcodeDirectoryMap.get(deleteBarcodes.directory);
-                                deleteBarcodesEntry.remove(b);
-                                deleteBarcodeDirectoryMap.put(deleteBarcodes.directory, deleteBarcodesEntry);
-                            }
-                        }
-                        result.put(transaction.id, new SendTransactionBatch(null, null, deleteBarcodes == null ? null : deleteBarcodes.nppGroupMachinery, deleteBarcodes == null ? null : deleteBarcodes.barcodes, null));
+                        usedTiMap.put(new Transaction(transaction.id, directory), tiList);
                     }
+                }
+            } catch (Exception e) {
+                processTransactionLogger.error(getLogPrefix(), e);
+                result.put(transaction.id, new SendTransactionBatch(e));
+            }
+        }
+
+        for (Map.Entry<Transaction, List<String>> entry : usedTiMap.entrySet()) {
+            Transaction transaction = entry.getKey();
+            List<String> tiList = entry.getValue();
+            try {
+                String response = null;
+                for (String ti : tiList) {
+                    if(extendedLogs) {
+                        processTransactionLogger.info(String.format(getLogPrefix() + "Check TI %s (Transaction %s)", ti, transaction.id));
+                    }
+                    response = getStatusMessage(transaction.directory, ti);
+                    if (response != null) {
+                        break;
+                    }
+                }
+
+                if (response != null) {
+                    processTransactionLogger.error(getLogPrefix() + response);
+                    result.put(transaction.id, new SendTransactionBatch(new RuntimeException(response)));
+                } else {
+                    DeleteBarcode deleteBarcodes = usedDeleteBarcodeTransactionMap.get(transaction.id);
+                    if (deleteBarcodes != null) {
+                        for (String b : deleteBarcodes.barcodes) {
+                            Map<String, String> deleteBarcodesEntry = deleteBarcodeDirectoryMap.get(deleteBarcodes.directory);
+                            deleteBarcodesEntry.remove(b);
+                            deleteBarcodeDirectoryMap.put(deleteBarcodes.directory, deleteBarcodesEntry);
+                        }
+                    }
+                    result.put(transaction.id, new SendTransactionBatch(null, null, deleteBarcodes == null ? null : deleteBarcodes.nppGroupMachinery, deleteBarcodes == null ? null : deleteBarcodes.barcodes, null));
                 }
             } catch (Exception e) {
                 processTransactionLogger.error(getLogPrefix(), e);
@@ -439,7 +472,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
     private List<String> generateRequestPurchasesByParams(LocalDate dateFrom, LocalDate dateTo, Set<CashRegisterInfo> cashRegisterSet) {
         List<String> result = new ArrayList<>();
-        while(dateFrom.compareTo(dateTo) <= 0) {
+        while(!dateFrom.isAfter(dateTo)) {
             result.addAll(generateRequestPurchasesByParams(dateFrom, (String) null, cashRegisterSet));
             dateFrom = dateFrom.plusDays(1);
         }
@@ -482,7 +515,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     public void finishReadingSalesInfo(Kristal10SalesBatch salesBatch) {
     }
 
-    public List<CashDocument> parseCashDocumentXML(Document doc, List<CashRegisterInfo> cashRegisterInfoList, boolean cashIn) {
+    public List<CashDocument> parseCashDocumentXML(Document doc, boolean cashIn) {
         List<CashDocument> cashDocumentList = new ArrayList<>();
 
         Element rootNode = doc.getRootElement();
@@ -519,7 +552,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 processStopListLogger.info(getLogPrefix() + String.format("Send StopList # %s to url %s", stopListInfo.number, directory));
                 if (!stopListInfo.stopListItemMap.isEmpty()) {
                     try {
-                        String response = sendRequestGoods(directory, docToXMLString(doc));
+                        String ti = String.valueOf(Instant.now().toEpochMilli());
+                        String response = sendRequestGoods(directory, docToXMLString(doc), ti);
+                        if (response == null) {
+                            response = getStatusMessage(directory, ti);
+                        }
                         if (response != null) {
                             processStopListLogger.error(getLogPrefix() + response);
                             throw new RuntimeException(getLogPrefix() + response);
@@ -666,7 +703,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             for (String directory : getDirectorySet(requestExchange)) {
                 machineryExchangeLogger.info(String.format(getLogPrefix() + "Send DiscountCards to %s", directory));
                 try {
-                    String response = sendRequestCards(directory, docToXMLString(doc));
+                    String ti = String.valueOf(Instant.now().toEpochMilli());
+                    String response = sendRequestCards(directory, docToXMLString(doc), ti);
+                    if (response == null) {
+                        response = getStatusMessage(directory, ti);
+                    }
                     if (response != null) {
                         processStopListLogger.error(getLogPrefix() + response);
                         throw new RuntimeException(getLogPrefix() + response);
@@ -932,7 +973,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
 
                         LocalDate startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
-                        if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
+                        if (startDate == null || !dateReceipt.isBefore(startDate)) {
                             String idSaleReceiptReceiptReturnDetail = null;
                             Element originalPurchase = purchaseNode.getChild("original-purchase");
                             if(originalPurchase != null) {
@@ -1016,17 +1057,15 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         os.close();
     }
 
-    private String sendRequestGoods(String url, String xml) throws IOException, JDOMException, InterruptedException {
-        return sendRequest(url, goodsUrl, xml, plugProductsNamespace, "getGoodsCatalogWithTi", "goodsCatalogXML", "getGoodsCatalogWithTiResponse", ns2ProductsNamespace);
+    private String sendRequestGoods(String url, String xml, String ti) throws IOException, JDOMException, InterruptedException {
+        return sendRequest(url, goodsUrl, xml, plugProductsNamespace, "getGoodsCatalogWithTi", "goodsCatalogXML", "getGoodsCatalogWithTiResponse", ns2ProductsNamespace, ti);
     }
 
-    private String sendRequestCards(String url, String xml) throws IOException, JDOMException, InterruptedException {
-        return sendRequest(url, cardsUrl, xml, webNamespace, "getCardsCatalogWithTi", "cardsCatalogXML", "getCardsCatalogWithTiResponse", webNamespace);
+    private String sendRequestCards(String url, String xml, String ti) throws IOException, JDOMException, InterruptedException {
+        return sendRequest(url, cardsUrl, xml, webNamespace, "getCardsCatalogWithTi", "cardsCatalogXML", "getCardsCatalogWithTiResponse", webNamespace, ti);
     }
 
-    private String sendRequest(String baseUrl, String url, String xml, Namespace namespace, String getCatalogTagWithTi, String catalogXMLTag, String getCatalogWithTiResponseTag, Namespace responseNamespace) throws IOException, JDOMException, InterruptedException { //http://192.168.42.211:8090/SET-ERPIntegration
-
-        String ti = String.valueOf(Instant.now().toEpochMilli());
+    private String sendRequest(String baseUrl, String url, String xml, Namespace namespace, String getCatalogTagWithTi, String catalogXMLTag, String getCatalogWithTiResponseTag, Namespace responseNamespace, String ti) throws IOException, JDOMException { //http://192.168.42.211:8090/SET-ERPIntegration
 
         Element envelopeElement = new Element("Envelope", soapenvNamespace);
         envelopeElement.addNamespaceDeclaration(namespace);
@@ -1047,8 +1086,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Document doc = new Document(envelopeElement);
 
         Document responseDoc = sendRequest(baseUrl + url, docToXMLString(doc));
-        String responseResult = parseResponse(responseDoc, getCatalogWithTiResponseTag, responseNamespace);
-        return responseResult != null ? responseResult : getStatusMessage(baseUrl, ti);
+        return parseResponse(responseDoc, getCatalogWithTiResponseTag, responseNamespace);
     }
 
     private Document sendRequest(String url, String xml) throws IOException, JDOMException {
@@ -1298,14 +1336,13 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private void readCashDocuments(String sidEquipmentServer, HttpExchange httpExchange, boolean introductions, boolean extendedLogs) throws IOException, SQLException, JDOMException {
-        List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, introductions ? "introductions" :  "withdrawals"));
 
         if(extendedLogs) {
             sendSalesLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
         }
 
-        List<CashDocument> cashDocumentList = parseCashDocumentXML(doc, cashRegisterInfoList, introductions);
+        List<CashDocument> cashDocumentList = parseCashDocumentXML(doc, introductions);
         if (!cashDocumentList.isEmpty()) {
             sendSalesLogger.info(getLogPrefix() + "Sending CashDocuments: " + cashDocumentList.size());
             String result = remote.sendCashDocumentInfo(cashDocumentList);
@@ -1318,7 +1355,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private void readZReports(String sidEquipmentServer, HttpExchange httpExchange, boolean extendedLogs) throws IOException, SQLException, JDOMException {
-        List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
 
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
 
@@ -1372,5 +1408,15 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
     private List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException {
         return remote.readCashRegisterInfo(sidEquipmentServer);
+    }
+
+    private static class Transaction {
+        Long id;
+        String directory;
+
+        public Transaction(Long id, String directory) {
+            this.id = id;
+            this.directory = directory;
+        }
     }
 }
