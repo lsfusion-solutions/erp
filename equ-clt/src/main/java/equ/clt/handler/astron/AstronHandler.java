@@ -315,7 +315,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             if (lastTransaction) {
                                 if (versionalScheme) {
-                                    astronLogger.info(String.format("transaction %s, table DATAPUMP", transaction.id));
+                                    astronLogger.info(String.format("set updateNum for %s transaction(s) with %s item(s)", transactionCount, itemCount));
                                     exportUpdateNums(conn, outputUpdateNums);
                                     outputUpdateNums.clear();
                                 } else {
