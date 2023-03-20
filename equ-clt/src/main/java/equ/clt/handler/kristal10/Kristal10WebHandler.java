@@ -162,9 +162,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             try {
                 String response = null;
                 for (String ti : tiList) {
-                    if(extendedLogs) {
-                        processTransactionLogger.info(String.format(getLogPrefix() + "Check TI %s (Transaction %s)", ti, transaction.id));
-                    }
+                    processTransactionLogger.info(String.format(getLogPrefix() + "Process TI %s (Transaction %s)", ti, transaction.id));
                     response = getStatusMessage(transaction.directory, ti);
                     if (response != null) {
                         break;
