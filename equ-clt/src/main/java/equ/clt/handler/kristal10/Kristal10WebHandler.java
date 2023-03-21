@@ -1098,10 +1098,12 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     private String getStatusMessage(String url, String ti) throws IOException, JDOMException, InterruptedException {
         String getStatusXML = getStatusXML(ti);
         Pair<Integer, String> response = null;
-        while (response == null || response.first == 2) { //2 = пакет в обработке
-            Thread.sleep(1000);
+        while (true) {
             Document responseDoc = sendRequest(url + feedbackUrl, getStatusXML);
             response = parseStatusResponse(responseDoc);
+            if(response.first != 2) //2 = пакет в обработке
+                break;
+            Thread.sleep(1000);
         }
         return response.first == 3 ? null : response.second; // 3 = пакет обработан успешно
     }
