@@ -12,19 +12,48 @@ WHEN CHANGED (image(Item i)) DO {
     imageAstron(i) <- NULL;
 }
 //группа
-imageAstron 'Изображение для Astron' = DATA IMAGEFILE (CustomGroup);
-
-EXTEND FORM customGroups
-    PROPERTIES (g) READONLY imageAstron;
-    
-EXTEND FORM customGroup
-    PROPERTIES (g) imageAstron;
+imageAstron 'Изображение для PowerPOS' = DATA IMAGEFILE (CustomGroup);
 
 //группа касс
 dataCustomGroupTypeAstron = DATA CustomGroupType(GroupCashRegister);
-nameCustomGroupTypeAstron 'Тип классификатора КСО'(GroupCashRegister gs) = name(dataCustomGroupTypeAstron(gs));
+nameCustomGroupTypeAstron 'Тип дополнительного классификатора'(GroupCashRegister gs) = name(dataCustomGroupTypeAstron(gs));
 
-testModeAstron '!!!Тестовый режим!!! Для тестовой транзитной' = DATA BOOLEAN (GroupCashRegister);
+testModeAstron 'Выгружать дополнительную информацию' = DATA BOOLEAN (GroupCashRegister);
+
+TABLE customGroupGroupCashRegister(CustomGroup, GroupCashRegister);
+id 'Код в PowerPOS' = DATA INTEGER (CustomGroup, GroupCashRegister);
+
+TABLE maxId() NODEFAULT;
+maxGroupId = (GROUP MAX id(CustomGroup g, GroupCashRegister gc)) MATERIALIZED TABLE maxId;
+
+WHEN SET(customGroupType(CustomGroup g) == dataCustomGroupTypeAstron(GroupCashRegister gc)) AND NOT id(g, gc) DO {
+    id(g, gc) <- maxGroupId() (+) 1 ;
+}
+
+CONSTRAINT [GROUP SUM 1 IF INTEGER r == id(CustomGroup g, GroupCashRegister gc) BY r](INTEGER r) > 1 
+    MESSAGE 'Данный код группы в PowerPOS уже используется';
+
+
+EXTEND FORM customGroups
+    OBJECTS gc= GroupCashRegister PANEL BEFORE g
+    PROPERTIES name(gc) SELECTOR SHOWIF (GROUP SUM 1 IF dataCustomGroupTypeAstron(GroupCashRegister gcr) == t)
+    FILTERS dataCustomGroupTypeAstron(gc) == t
+    PROPERTIES READONLY id(g, gc), imageAstron(g)
+;
+
+DESIGN customGroups {
+    OBJECTS {
+        NEW filters{
+            type = CONTAINERH;
+            MOVE BOX (t);
+            MOVE BOX (gc);
+        }
+        MOVE BOX (TREE treeGroups);
+    }
+}
+
+EXTEND FORM customGroup
+    PROPERTIES (g) imageAstron;
 
 //выгрузка
 encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\r]+\', \' \', \'g\' )';
@@ -54,13 +83,13 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
             ) +']'
         ),
         //группы
-        ('"extGrp":['+(GROUP CONCAT ('\{'+ (CONCAT ',','"extGrpId":'+INTEGER(id(CustomGroup g)),
+        ('"extGrp":['+(GROUP CONCAT ('\{'+ (CONCAT ',','"extGrpId":'+id(CustomGroup g, groupMachinery(mpt)),
                 '"sareaId":'+nppGroupMachinery(mpt),
-                '"parentExtGrpId":'+INTEGER(id(parent(g))),
+                '"parentExtGrpId":'+id(parent(g), groupMachinery(mpt)),
                 '"extGrpName":"'+escapeJSONValue(name(g))+'"',
                 '"extGrpPicture":"'+encodeBase64(imageAstron(g)) IF toLoadImages()+'"') + '\}') 
                     IF isParent(g, sku(b)) AND customGroupType(g) == dataCustomGroupTypeAstron(groupMachinery(mpt)), ', ' ORDER g) + '],'+
-        '"artExtGrp":[\{"extGrpId":'+INTEGER(id(customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),sku(b)))) + '\}]') IF customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),sku(b))
+        '"artExtGrp":[\{"extGrpId":'+id(customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),sku(b)), groupMachinery(mpt)) + '\}]') IF customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),sku(b))
     ) IF testModeAstron(groupMachinery(mpt))
     ;
 
