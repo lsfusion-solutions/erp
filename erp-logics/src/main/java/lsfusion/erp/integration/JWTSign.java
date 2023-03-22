@@ -3,6 +3,7 @@ package lsfusion.erp.integration;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Throwables;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -62,16 +63,8 @@ public class JWTSign extends InternalAction {
                         .signWith(SignatureAlgorithm.RS256, privKey)
                         .compact();
             this.findProperty("signedJWT").change(result, context);
-        } catch (ScriptingErrorLog.SemanticErrorException ignored) { } catch (JsonMappingException e) {
-            e.printStackTrace();
-        } catch (JsonParseException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } catch (InvalidKeySpecException e) {
-            e.printStackTrace();
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+            throw Throwables.propagate(e);
         }
     }
 }
