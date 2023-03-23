@@ -536,3 +536,26 @@ DESIGN items {
 EXTEND FORM disparity
     PROPERTIES  copyDisparity(ks)
 ;
+
+// copy
+copy 'Копировать'(Disparity s)  {
+    NEWSESSION {
+        NEW dis = UserDisparity {
+            operation(dis) <- operation(s);
+            stock(dis) <- stock(s);
+
+            FOR disparity(DisparityDetail sd) == s DO NEW d = UserDisparityDetail {
+                disparity(d) <- dis;
+                sku(d) <- sku(sd);
+                quantity(d) <- quantity(sd);
+                inputSku(d) <- inputSku(sd);
+            }
+
+            SHOW disparity OBJECTS dis = dis DOCKED NOCANCEL;
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM disparities
+    PROPERTIES(dis) copy
+;
