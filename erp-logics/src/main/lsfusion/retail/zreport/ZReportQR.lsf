@@ -1,0 +1,43 @@
+MODULE ZReportQR;
+
+REQUIRE ZReport;
+
+NAMESPACE ZReport;
+
+EXTEND CLASS PaymentMeans { paymentMeansQR 'Оплата по QR' }
+order (PaymentMeans p) += WHEN p = PaymentMeans.paymentMeansQR THEN 4;
+
+
+sumQRPayment 'Сумма продажа (QR)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansQR BY receipt(payment);
+sumPositiveQRPayment 'Сумма продажа (QR)' (Receipt receipt) =  sumQRPayment (receipt) IF sumQRPayment(receipt) >= 0.0 IN documentSum;
+sumNegativeQRPayment 'Сумма возврата (QR)' (Receipt receipt) =  sumQRPayment(receipt) IF sumQRPayment(receipt) < 0.0 IN documentSum;
+
+sumQRPayment 'Оплати (чек)' (ReceiptDetail detail) = sumQRPayment(receipt(detail));
+
+sumQR 'Сумма по QR Z-отчета' (zReport) = GROUP SUM sumQRPayment(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
+sumPositiveQRPayment 'Сумма продажа (QR)' (zReport) = GROUP SUM sumPositiveQRPayment(Receipt r) IF NOT skip(r) BY zReport(r) IN documentSum;
+sumNegativeQRPayment 'Сумма возврата (QR)' (zReport) = GROUP SUM sumNegativeQRPayment(Receipt r) IF NOT skip(r) BY zReport(r) MATERIALIZED IN documentSum;
+
+
+EXTEND FORM zReports
+    PROPERTIES(z) READONLY sumPositiveQRPayment BEFORE sumPositiveCashPayment(z),
+    sumNegativeQRPayment BEFORE sumNegativeCashPayment(z)
+    PROPERTIES(b) sumQRPayment BEFORE sumCashPayment(b)
+;
+
+EXTEND FORM zReport
+    PROPERTIES(z) sumPositiveQRPayment,
+    sumNegativeQRPayment
+    PROPERTIES(b) sumQRPayment BEFORE sumCardPayment(b)
+;
+overLoadDefaultPaymentTypes() + {
+    loadDefaultType('Оплата по QR', PaymentMeans.paymentMeansQR, 'QR');
+}
+
+onStarted() +{
+    IF NOT typePaymentSID('QR') THEN  NEW p = PaymentType {
+        name(p) <- 'Оплата по QR';
+        paymentMeans(p) <- PaymentMeans.paymentMeansQR;
+        sid(p) <- 'QR';
+    }
+}

@@ -110,6 +110,8 @@ skuCustom = ABSTRACT Sku (INTEGER);
 overCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
 afterCancelledTransaction ABSTRACT LIST (STRING);
 
+extraPaymentType = ABSTRACT CASE PaymentType (STRING);
+
 importReceipt(STRING purchases){
     NEWSESSION {
         stringToFile(purchases);
@@ -160,14 +162,15 @@ importReceipt(STRING purchases){
             
             }
             FOR purchasePayment(INTEGER j) == i AND NOT payment(paymenId(j)) 
-                AND NOT typeClass(j) = 'CashChangePaymentEntity'  NEW p = Payment DO {
+                AND NOT typeClass(j) = 'CashChangePaymentEntity' NEW p = Payment DO {
             
                 id(p) <- STRING[100](paymenId(j));
                 receipt(p) <- r;
                 sum(p) <- NUMERIC[18,4]((IF typeClass(j) = 'CashPaymentEntity' THEN 
                     (NUMERIC[18,4](amount1(j)) (-) sumChange(i))
                     ELSE  NUMERIC[18,4] (amount1(j))) * (IF operationType(i) = 'true' THEN 1 ELSE -1));
-                paymentType(p) <- IF typeClass(j) = 'CashPaymentEntity' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
+                paymentType(p) <- IF typeClass(j) = 'CashPaymentEntity' THEN typePaymentSID('cash') 
+                    ELSE OVERRIDE extraPaymentType(typeClass(j)), typePaymentSID('card');
   
             }
         }
@@ -253,8 +256,8 @@ reImportReceipt(STRING purchases){
                 sum(p) <- NUMERIC[18,4]((IF typeClass(j) = 'CashPaymentEntity' THEN 
                     (NUMERIC[18,4](amount1(j)) (-) sumChange(i))
                     ELSE  NUMERIC[18,4] (amount1(j))) * (IF operationType(i) = 'true' THEN 1 ELSE -1));
-                paymentType(p) <- IF typeClass(j) = 'CashPaymentEntity' THEN typePaymentSID('cash') ELSE typePaymentSID('card');
-  
+                paymentType(p) <- IF typeClass(j) = 'CashPaymentEntity' THEN typePaymentSID('cash')
+                    ELSE OVERRIDE extraPaymentType(typeClass(j)), typePaymentSID('card');
             }
         }
         APPLY;
