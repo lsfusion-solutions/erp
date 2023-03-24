@@ -2,20 +2,42 @@ MODULE GISMTWriteOff;
 
 REQUIRE GISMTDocument, WriteOffLot;
 
+PRIORITY WriteOff;
+
 NAMESPACE GISMT;
 
-gismtType (WriteOff w) = 'LK_RECEIPT' IF w IS WriteOff;
+gismtType = ABSTRACT CASE STRING[30] (WriteOff);
+gismtType(WriteOff w) += WHEN w IS WriteOff THEN 'LK_APPLIED_KM_CANCELLATION';
+
+DESIGN operation {
+    paramsContainer {
+        NEW GISMTContainer {
+            caption = 'ГИС МТ';
+        }
+    }
+}
+
+// -- receipt
+@defineOperationProperty(gismtType, 'Тип документа', STRING[30], GISMTContainer);
+gismtType(WriteOff w) += WHEN gismtType(operation(w)) THEN gismtType(operation(w));
+
 @defineDocumentGISMT(writeOff, isPosted, writeOffs, w, legalEntityStock, stock);
+
+cancellationReason = ABSTRACT CASE STRING (WriteOff);
+cancellationReason(WriteOff w) += WHEN w IS WriteOff THEN 'KM_LOST';
+
+@defineOperationProperty(cancellationReason, 'Причина списания', STRING, GISMTContainer);
+cancellationReason(WriteOff w) += WHEN cancellationReason(operation(w)) THEN cancellationReason(operation(w));
 
 FORM exportWriteOff
     OBJECTS i = WriteOff, t = LotType PANEL
     
-    PROPERTIES action = 'DAMAGE_LOSS', action_date = toDateISO(date(i)), 
-               document_date = toDateISO(date(i)), document_number = seriesNumber(i),
-               document_type = 'DESTRUCTION_ACT', inn = inn(legalEntityStock(i))
+    PROPERTIES cancellation_doc_date = toDateISO(date(i)), cancellation_doc_number = seriesNumber(i),
+               cancellation_reason = cancellationReason(i),
+               trade_participant_inn = inn(legalEntityStock(i))
     
-    OBJECTS products = (d = WriteOffDetail, l = Lot)
-    PROPERTIES cis = id(l)
+    OBJECTS km_list = (d = WriteOffDetail, l = Lot)
+    PROPERTIES uit = id(l)
     FILTERS writeOff(d) = i, quantity(d, l), lotType(sku(d)) = t
 ;
 
