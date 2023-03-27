@@ -6,6 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -21,6 +22,7 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.property.classes.IsClassProperty;
@@ -53,6 +55,7 @@ public class DefaultTerminalHandler {
     static ScriptingLogicsModule terminalLotLM;
     static ScriptingLogicsModule ediGtinLM;
     static ScriptingLogicsModule terminalOrderGtinLM;
+    static ScriptingLogicsModule terminalTeamWorkLM;
 
     static String ID_APPLICATION_TSD = "1";
     static String ID_APPLICATION_ORDER = "2";
@@ -78,6 +81,8 @@ public class DefaultTerminalHandler {
 
         terminalOrderGtinLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrderGTIN");
         ediGtinLM = getLogicsInstance().getBusinessLogics().getModule("EDIGTIN");
+
+        terminalTeamWorkLM = getLogicsInstance().getBusinessLogics().getModule("TerminalTeamWork");
     }
 
     public List<Object> readHostPort(DataSession session) {
@@ -332,13 +337,13 @@ public class DefaultTerminalHandler {
         return null;
     }
 
-/*    public String createTerminalDocument(DataSession session, ExecutionStack stack, String json) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
-        if(terminalHandlerLM != null) {
+    public String teamWorkDocument(DataSession session, ExecutionStack stack, int idCommand, String json) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
+        if(terminalTeamWorkLM != null) {
             FileData jsonFile = new FileData(new RawFileData(json.getBytes()), "json");
-            terminalHandlerLM.findAction("createTerminalDocument[FILE]").execute(session, stack, new DataObject(jsonFile, DynamicFormatFileClass.get()));
+            terminalTeamWorkLM.findAction("process[INTEGER, FILE]").execute(session, stack, new DataObject(idCommand), new DataObject(jsonFile, DynamicFormatFileClass.get()));
         }
         return null;
-    }*/
+    }
 
     public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;

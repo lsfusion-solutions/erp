@@ -87,6 +87,9 @@ public class TerminalServer extends MonitorServer {
     public static final byte GET_PREFERENCES = 11;//0x0B
     public static final byte CHANGE_ORDER_STATUS = 12;//0x0C
 
+    public static final byte TEAMWORK_DOCUMENT = 13;//0x0D
+
+
     private static final Logger logger = ERPLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = ERPLoggers.priceCheckerLogger;
 
@@ -328,6 +331,12 @@ public class TerminalServer extends MonitorServer {
         }
     }
 
+    public String teamWorkDocument(int idCommand, String json) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
+        try (DataSession session = createSession()) {
+            return terminalHandler.teamWorkDocument(session, getStack(), idCommand, json);
+        }
+    }
+
     public class SocketCallable implements Callable {
         private Socket socket;
 
@@ -540,6 +549,41 @@ public class TerminalServer extends MonitorServer {
                             errorText = getUnknownErrorText(e);
                         }
                         break;
+
+                    case TEAMWORK_DOCUMENT:
+                        try {
+                            logger.info("create teamwork document");
+
+                            String[] params = readParams(inFromClient);
+                            if (params.length > 0) {
+                                sessionId = params[0];
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    if (params.length == 3) {
+                                        int idCommand = Integer.parseInt(params[1]);
+                                        String json = params[2];
+                                        logger.info(String.format("%s, idCommand=%d, json: '%s'", command, idCommand, json));
+                                        result = teamWorkDocument(idCommand, json);
+                                        if (result != null) {
+                                            errorCode = PROCESS_DOCUMENT_ERROR;
+                                            errorText = PROCESS_DOCUMENT_ERROR_TEXT + ": " + result;
+                                        }
+                                    } else {
+                                        errorCode = WRONG_PARAMETER_COUNT;
+                                        errorText = WRONG_PARAMETER_COUNT_TEXT;
+                                    }
+                                }
+                            }
+                        } catch (Exception e) {
+                            logger.error("NewDocument Unknown error", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
+
                     case GET_ITEM_HTML:
                         try {
                             logger.info("requested getItemHtml");
@@ -797,6 +841,7 @@ public class TerminalServer extends MonitorServer {
                             }
                             writeByte(outToClient, etx);
                             break;
+//                        case NEW_DOCUMENT:
                         case SAVE_DOCUMENT:
                         case GET_ITEM_HTML:
 //                        case SAVE_PALLET:
