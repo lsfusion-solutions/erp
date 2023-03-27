@@ -1937,6 +1937,55 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         return result;
     }
 
+    @Override
+    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
+
+        if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
+            ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : new ArtixSettings();
+            String globalExchangeDirectory = artixSettings.getGlobalExchangeDirectory();
+            boolean copyTransactionsToGlobalExchangeDirectory = artixSettings.isCopyPosToGlobalExchangeDirectory();
+            Integer timeout = artixSettings.getTimeout();
+
+            List<CashRegisterItem> scalesBarcodeList = new ArrayList<>();
+            for (CashRegisterItem item : deleteBarcodeInfo.barcodeList) {
+                if (item.passScalesItem) {
+                    scalesBarcodeList.add(item);
+                }
+            }
+
+            if (!scalesBarcodeList.isEmpty()) {
+                try {
+                    deleteBarcodeLogger.info(logPrefix + String.format("start sending %s items to %s", scalesBarcodeList.size(), deleteBarcodeInfo.directoryGroupMachinery));
+                    File tmpFile = File.createTempFile("pos", ".aif");
+
+                    for (CashRegisterItem item : scalesBarcodeList) {
+                        if (!Thread.currentThread().isInterrupted()) {
+                            writeStringToFile(tmpFile, getDeleteTmcScaleJSON(item) + "\n---\n");
+                        }
+                    }
+                    Pair<File, File> fileWithFlag = writeFileWithFlag(deleteBarcodeInfo.directoryGroupMachinery, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, deleteBarcodeLogger);
+                    List<File> files = new ArrayList<>();
+                    files.add(fileWithFlag.first);
+                    files.add(fileWithFlag.second);
+
+                    waitForDeletion(files, timeout);
+                } catch (Exception e) {
+                    throw Throwables.propagate(e);
+                }
+            }
+        }
+        return true;
+    }
+
+    private String getDeleteTmcScaleJSON(CashRegisterItem item) throws JSONException {
+        JSONObject rootObject = new JSONObject();
+
+        rootObject.put("command", "deleteTmcScale");
+        rootObject.put("tmcscalecode", trim(item.idBarcode, 5)); //Штрих-код товара на весах
+        rootObject.put("tmccode", trim(item.idItem, 100)); //код товара
+        return rootObject.toString();
+    }
+
     static String readFile(String path, String encoding) throws IOException {
         byte[] encoded = Files.readAllBytes(Paths.get(path));
         return new String(encoded, encoding).replace("\n", "");
