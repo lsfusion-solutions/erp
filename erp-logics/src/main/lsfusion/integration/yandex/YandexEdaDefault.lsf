@@ -1,0 +1,74 @@
+MODULE YandexEdaDefault;
+
+REQUIRE YandexEdaOrder, PriceListPromotion, Pricing;
+
+NAMESPACE YandexEda;
+
+yandexGroupType = DATA CustomGroupType ();
+nameYandexGroupType 'Классификатор ЯндексЕда'= name(yandexGroupType());
+useNameAsGeneral 'Использовать наименование как описание'= DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES () nameYandexGroupType, useNameAsGeneral
+;
+DESIGN integrationData{
+    yandexEda{
+        MOVE PROPERTY (nameYandexGroupType()) FIRST;
+        MOVE PROPERTY (useNameAsGeneral()) AFTER PROPERTY (nameYandexGroupType());
+    }
+}
+
+categoryId (Item i) += WHEN i IS Item THEN id(customGroup[Stock.CustomGroupType,Item.Item](yandexGroupType(), i));
+yandexName (Item i) += IF quantum(i) THEN ISTRING(replace(replace(replace(replace(name(i), '1 КГ', ''),
+    '1 кг', ''), '1кг', ''), '1 Кг', '')) ELSE name(i);
+modiffersGroup (Item i) += IF i IS Item THEN '[]';
+
+general (Item i) += IF useNameAsGeneral() THEN STRING(yandexName(i));
+
+nutritionalValue (Item i) += STRING(CONCAT ', ',  'Белки на 100 гр. - ' + proteins(i),
+    'Жиры на 100 гр. - ' + fats(i), 'Углеводы на 100 гр. - ' + carbohydrates(i),
+    'Энергетическая ценность на 100 гр., ккал - ' + energy(i), IF containsGMO(i) THEN 'Содержит ГМО');
+composition(Item i) += STRING(Item.composition(i));
+packageInfo(Item i) += STRING(namePackType(i));
+vendorName(Item i ) += STRING(nameManufacturer(i));
+
+quantum (Item i) += IF isCatchWeight(i) THEN passScalesQuantum(i);
+currentPrice(Item i, DepartmentStore d) += retailPricingPriceA(i, d);
+oldPrice (Item i, DepartmentStore d) += priceBefore(promotionPriceListDetailA(i, d, currentDateTime()));
+
+available(Item i, DepartmentStore d) += NUMERIC[16,5](currentBalance(i, d));
+
+inOnlineYandex(Item i, DepartmentStore d) +=
+    WHEN customGroup[Stock.CustomGroupType,Item.Item](yandexGroupType(), i) AND d IS DepartmentStore
+    THEN TRUE;
+onlineCategory(Group g) += WHEN g IS CustomGroup AND customGroupType(g) = yandexGroupType() THEN TRUE;
+
+EXTEND FORM nomenclature
+    FILTERS urlHttpAccess(i) AND hashImage(i) AND currentPrice(i, s);
+
+EXTEND FORM availability
+    FILTERS urlHttpAccess(i) AND hashImage(i) AND currentPrice(i, s);
+
+beforeExportData(YandexEdaAuth auth) +{
+    headersTo('Content-Type') <- 'application/vnd.eda.picker.nomenclature.v1+json';
+}
+//работа с заказами
+carrierOrder(YandexEdaAuth a) += carrier(id(a));
+
+afterCreateOrder(InternetOrder o) +{
+    IF NOT deliveryDate(o) THEN deliveryDate(o) <- currentDate();
+}
+
+idYandex 'ID ЯндексЕда' = DATA STRING[20] (DepartmentStore);
+yandexStore = GROUP MAX DepartmentStore d BY idYandex(d);
+stock (YandexEdaAuth client, STRING id) += IF client IS YandexEdaAuth THEN yandexStore(id);
+
+EXTEND FORM departmentStore
+    PROPERTIES (d) idYandex
+;
+
+DESIGN departmentStore{
+    headerExtraParams{
+        MOVE PROPERTY (idYandex(d));
+    }
+}
