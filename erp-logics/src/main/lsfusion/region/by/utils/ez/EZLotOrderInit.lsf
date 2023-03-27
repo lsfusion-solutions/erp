@@ -141,7 +141,8 @@ getCatalogs 'Разделы каталога товаров' (LotInit i) {
 } 
 
 overGtin = ABSTRACT STRING[14] (LotInitDetail);
-gtin 'GTIN' (LotInitDetail d) = OVERRIDE overGtin(d), gtin(sku(d));
+
+gtin 'GTIN' (LotInitDetail d) = OVERRIDE overGtin(d), STRING[14](lpad(gtin(sku(d)), 14, '0'));
 
 lastLotInitDetail(LotInit i, STRING[14] gtin) = GROUP LAST LotInitDetail d IF i == lotInit(d) AND gtin == gtin(d) ORDER d;
 
@@ -154,6 +155,39 @@ quantitySendLot 'Кол-во отправленных марок' (LotInitDetail
 isSend 'Отправлен' (LotInitDetail d) = quantitySendLot(d) == quantityLot(d) AND quantitySendLot(d);
 quantitySendLot 'Кол-во марок' (LotInit i) = GROUP SUM quantitySendLot(LotInitDetail d) IF lotInit(d) = i;
 isSend 'Отправлен' (LotInit i) = quantitySendLot(i) == quantityLot(i) AND quantityLot(i);
+
+// !!!смотреть список параметров и коды к ним по действию getParameters
+// !!! getParameters брать только на проде api
+// 101 Цель маркировки
+// 100 Страна экспорта
+// 97 Дата выпуска товаров по декларации
+// 96 Регистрационный номер декларации на товары
+// 95 Способ маркировки (полиграфическая защита)   
+// 93 Тип производственного заказа 
+
+markTargetProd () = '101';
+markTargetTest () = '137';
+markTarget 'Цель маркировки' () = IF testWebService() THEN markTargetTest() ELSE markTargetProd();
+
+exportCountryProd () = '100';
+exportCountryTest () = '130';
+exportCountry 'Страна экспорта' () = IF testWebService() THEN exportCountryTest() ELSE exportCountryProd();
+
+declarationReleaseDateProd () = '97';
+declarationReleaseDateTest () = '127';
+declarationReleaseDate 'Дата выпуска товаров по декларации' = IF testWebService() THEN declarationReleaseDateTest() ELSE declarationReleaseDateProd();
+
+declarationNumberProd () = '96';
+declarationNumberTest ()= '126';
+declarationNumber 'Регистрационный номер декларации на товары' = IF testWebService() THEN declarationNumberTest() ELSE declarationNumberProd();
+
+markMethodProd () = '95';
+markMethodTest () = '124';
+markMethod 'Способ маркировки (полиграфическая защита)' = IF testWebService() THEN markMethodTest() ELSE markMethodProd();
+
+orderTypeProd () = '93';
+orderTypeTest () = '123';
+orderType 'Тип производственного заказа' = IF testWebService() THEN orderTypeTest() ELSE orderTypeTest();
 
 // разрешено формировать отчтет только по одному GTIN
 addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
@@ -196,28 +230,28 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
 //        IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 124, "value": "' + codeMethod(i) + '"\}';           
                     
         WHEN mode(i) == LotInitMode.PRODUCTION THEN {            
-            listParams() <- listParams() + ' \{ "code": 101, "value": "' + codeMode(i) + '"\}';              
-            IF codeProductionType(i) THEN listParams() <- listParams() + ', \{ "code": 93, "value": "' + codeProductionType(i) + '"\}'; 
-            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 95, "value": "' + codeMethod(i) + '"\}';            
+            listParams() <- listParams() + ' \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}';              
+            IF codeProductionType(i) THEN listParams() <- listParams() + ', \{ "code": ' + orderType() + ', "value": "' + codeProductionType(i) + '"\}'; 
+            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": ' + markMethod() + ', "value": "' + codeMethod(i) + '"\}';            
         }
         WHEN mode(i) == LotInitMode.IMPORT_ THEN {            
-            listParams() <- listParams() + '  \{ "code": 101, "value": "' + codeMode(i) + '"\}'; 
-            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": 95, "value": "' + codeMethod(i) + '"\}'; 
+            listParams() <- listParams() + '  \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}'; 
+            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": ' + markMethod() + ', "value": "' + codeMethod(i) + '"\}'; 
             
             IF sidCountryDeclaration(i, gtin) THEN {
-                listParams() <- listParams() + ', \{ "code": 100, "value": "' + sidCountryDeclaration(i, gtin) + '"\}';
+                listParams() <- listParams() + ', \{ "code": ' + exportCountry() + ', "value": "' + sidCountryDeclaration(i, gtin) + '"\}';
             } ELSE {
                 MESSAGE 'Не задана страна экспорта'NOWAIT;
             }
             
             IF registrationNumberDeclaration(i, gtin) THEN {
-                listParams() <- listParams() + ', \{ "code": 96, "value": "' + registrationNumberDeclaration(i, gtin) + '"\}';
+                listParams() <- listParams() + ', \{ "code": ' + declarationNumber() + ', "value": "' + registrationNumberDeclaration(i, gtin) + '"\}';
             } ELSE {
                 MESSAGE 'Не задан номер декларации' NOWAIT;
             }
             
             IF toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN {
-                listParams() <- listParams() + ', \{ "code": 97, "value": "' + toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') + '"\}';      
+                listParams() <- listParams() + ', \{ "code": ' + declarationReleaseDate() + ', "value": "' + toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') + '"\}';      
             } ELSE {
                 MESSAGE 'Не задана дата декларации' NOWAIT;
             }       
@@ -226,10 +260,10 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
                 RETURN;
         }
         WHEN mode(i) == LotInitMode.COMMISSION THEN {
-            listParams() <- listParams() + ' \{ "code": 101, "value": "' + codeMode(i) + '"\}';  
+            listParams() <- listParams() + ' \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}';  
         }
         WHEN mode(i) == LotInitMode.REMARK THEN {
-            listParams() <- listParams() + ' \{ "code": 101, "value": "' + codeMode(i) + '"\}';     
+            listParams() <- listParams() + ' \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}';     
         };
         
     strResult() <- '\{' + strResult() + ', "params": [' + listParams() + ']' + '\}';
