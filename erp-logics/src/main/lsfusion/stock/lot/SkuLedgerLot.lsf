@@ -18,11 +18,10 @@ dateTime (SkuLedger ledger, Lot lot) = dateTime(ledger) IF signedQuantityActive(
 
 INDEX stock(SkuLedger ledger, Lot lot), dateTime(ledger, lot), lot;
 
-batch (Lot l) = GROUP LAST batch(SkuLedger sl) 
+batch (Lot l) += GROUP LAST batch(SkuLedger sl) 
                                ORDER DESC dateTime(sl), sl 
-                               WHERE signedQuantity(sl, l) AND batch(sl) AND sku(sl) = sku(l) // проверка на sku(sl) = sku(l) нужна для уценки, когда sku у lot меняется на лету 
-                         MATERIALIZED INDEXED;
-
+                               WHERE signedQuantity(sl, l) AND batch(sl) AND sku(sl) = sku(l); // проверка на sku(sl) = sku(l) нужна для уценки, когда sku у lot меняется на лету 
+                         
 nameBatch 'Партия' (Lot l) = name(batch(l));
 
 skuBalance = GROUP SUM signedQuantity(SkuLedger ledger, Lot lot) IF active(ledger) BY lot, stock(ledger) CHARWIDTH 7;
@@ -144,3 +143,15 @@ FORM dialogStockLot 'Выбор марки'
     FILTERGROUP balance
         FILTER 'Есть остаток' currentBalance(l, s) DEFAULT
 ;
+
+META defineDocumentLotOutLedger(doc, form, stock)
+    fillLotBalance###doc 'Заполнить марки из остатков' () {
+        quantity(###doc##Detail d, Lot l) <- prevCurrentBalance(l, stock(d))
+            WHERE lotType(sku(d)) AND sku(l) = sku(d) AND [FILTER form.d](d) AND NOT quantityLot(d);
+    } ASON CONTEXTMENU quantityLot[###doc##Detail];
+    
+    fillLotBatch###doc 'Заполнить марки из партий' (###doc o) {
+        quantity(###doc##Detail d, Lot l) <- prevCurrentBalance(l, stock(d))
+            WHERE lotType(sku(d)) AND batch(l) = batch(d) AND [FILTER form.d](d) AND NOT quantityLot(d);
+    } ASON CONTEXTMENU quantityLot[###doc##Detail];
+END

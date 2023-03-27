@@ -52,6 +52,8 @@ idSku 'Код товара' (Lot l) = id(sku(l)) IN id;
 nameSku 'Наименование товара' (Lot l) = name(sku(l)) IN id;
 idBarcodeSku 'Штрихкод' (Lot l) = idBarcode(sku(l)) IN id;
 
+batch = ABSTRACT Batch (Lot) MATERIALIZED INDEXED;
+
 overPreprocessedBarcode(STRING[200] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
 
 changeSku 'Заменить товар' (Lot l) {
@@ -167,6 +169,7 @@ FORM dialogOutLots 'Список марок'
 @defineOption(skipCheckDocumentLot, 'Не проверять КМ в документе', stock1);
 
 META defineDocumentLot (doc, quantityProp, postedProp)
+    TABLE doc##Detail##Lot(###doc##Detail, Lot);
     quantity 'Кол-во' = DATA NUMERIC[16,5] (###doc##Detail, Lot);
     
     CONSTRAINT quantity(###doc##Detail d, Lot l) AND NOT sku(l) = sku(d)
@@ -353,16 +356,6 @@ META defineDocumentLotOut(doc, form, stock, quantityProp, obj, postedProp)
         }    
     }
 
-    fillLotBalance 'Заполнить марки из остатков' (###doc o) {
-        quantity(###doc##Detail d, Lot l) <- prevCurrentBalance(l, stock(o)) 
-            WHERE doc(d) = o AND NOT quantityLot(d) AND lotType(sku(d)) AND sku(l) = sku(d) AND [FILTER form.d](d); 
-    }
-
-    fillLotBatch 'Заполнить марки из партий' (###doc o) {
-        quantity(###doc##Detail d, Lot l) <- prevCurrentBalance(l, stock(o)) 
-            WHERE doc(d) = o AND NOT quantityLot(d) AND lotType(sku(d)) AND batch(l) = batch(d) AND [FILTER form.d](d); 
-    }
-    
     dropLotBatch 'Сбросить марки' (###doc o) {
         quantity(###doc##Detail d, Lot l) <- NULL 
             WHERE doc(d) = o AND [FILTER form.d](d); 
@@ -370,7 +363,7 @@ META defineDocumentLotOut(doc, form, stock, quantityProp, obj, postedProp)
     
     EXTEND FORM form
         PROPERTIES(d) quantityLot AFTER quantity(d) ON CHANGE changeQuantityLot(d) 
-                      ON CONTEXTMENU fillLotBalance(obj) ON CONTEXTMENU fillLotBatch(obj) ON CONTEXTMENU dropLotBatch(obj)  
+                      ON CONTEXTMENU dropLotBatch(obj)  
                       BACKGROUND backgroundQuantityLot(d) 
                       SHOWIF useLot(obj)
                       READONLYIF NOT lotType(sku(d))
