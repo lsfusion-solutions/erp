@@ -486,15 +486,22 @@ onStarted()+ {
     }    
 }
 
+createGeneralLedgerCustom = ABSTRACT BOOLEAN ();
+createGeneralLedgerCustom ABSTRACT (LegalEntity, DATE, DATE);
 createGeneralLedger 'Создать проводки' (LegalEntity legalEntity, DATE dFrom, DATE dTo)  { 
+    
     NEWSESSION {
         lock(legalEntity);
         IF lockResult() THEN {
             TRY {
-                DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dFrom AND date(ud) <= dTo AND legalEntity(ud) == legalEntity;
-                APPLY;
-                createGeneralLedgerFromTo(legalEntity, dFrom, dTo);
-                APPLY;
+                IF NOT createGeneralLedgerCustom() THEN {
+                    DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dFrom AND date(ud) <= dTo AND legalEntity(ud) == legalEntity;
+                    APPLY;
+                    createGeneralLedgerFromTo(legalEntity, dFrom, dTo);
+                    APPLY;
+                } ELSE {
+                    createGeneralLedgerCustom(legalEntity, dFrom, dTo);   
+                }
             } FINALLY {
                 unlock(legalEntity);
             }
