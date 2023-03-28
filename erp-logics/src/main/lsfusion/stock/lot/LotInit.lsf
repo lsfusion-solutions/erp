@@ -1,7 +1,6 @@
 MODULE LotInit;
 
-REQUIRE Lot, StockSkuDocument,
-        LotLedger;
+REQUIRE Lot, StockSkuDocument;
 
 NAMESPACE Lot;
 
@@ -109,8 +108,6 @@ EXTEND FORM lotInit
     PROPERTIES(i) DRAW d addDetailInputBarcodeLotInitDetail
 ;
 
-lotInit (Lot l) = GROUP MAX lotInit(LotInitDetail d) IF quantity(d, l) MATERIALIZED INDEXED;
-
 FORM lotInits 'Ввод в оборот'
     OBJECTS i = LotInit
     PROPERTIES(i) READONLY isPosted, canceled, id, number, series, date, time, 
@@ -136,6 +133,8 @@ DESIGN lotInits {
 
 useLot (LotInit i) = i IS LotInit;
 @defineDocumentLotIn(lotInit, quantity, i, lotInits, isPosted);
+
+lotInit (Lot l) = GROUP MAX lotInit(LotInitDetail d) IF quantity(d, l) MATERIALIZED INDEXED;
 
 NAVIGATOR {
     lotNavigator {
@@ -170,15 +169,3 @@ copy 'Копировать' (LotInit i)  {
     }
 }
 EXTEND FORM lotInits PROPERTIES(i) TOOLBAR copy;
-
-// проводим по регистру
-EXTEND CLASS LotInitDetail : LotLedger;
-
-active(LotInitDetail l) += isPosted(l);
-
-dateTime(LotInitDetail l) += dateTime(l);
-description(LotInitDetail l) += ISTRING[200](CONCAT ' ', 'Ввод в оборот', '№ ' + seriesNumber(l), 'от ' + date(l));
-
-stock(LotInitDetail l) += stock(l);
-
-quantity(LotInitDetail li, Lot l) += quantity(li, l);
