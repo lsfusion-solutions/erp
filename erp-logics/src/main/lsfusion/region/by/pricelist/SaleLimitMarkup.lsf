@@ -32,7 +32,8 @@ limitCalcPriceListType (Operation operation) = OVERRIDE dataLimitCalcPriceListTy
 
 markupLimitCalcPriceListType 'Предельная надбавка, %' (UserOrderDetail d) = markup(limitCalcPriceListType(operation(d)), sku(d));
 
-limitSaleMarkupPrice(UserOrderDetail d) = round([ X*(Y+100)/100](
+limitSaleMarkupPrice = ABSTRACT CASE NUMERIC[16,4] (OrderDetail);
+limitSaleMarkupPrice(UserOrderDetail d) += WHEN d IS UserOrderDetail THEN round([ X*(Y+100)/100](
                                               manufacturingPrice(d),
                                               markupLimitCalcPriceListType(d)), roundCondition(limitCalcPriceListType(operation(d)))); 
 
@@ -49,7 +50,8 @@ EXTEND FORM userOrder
 
 markupLimitCalcPriceListType 'Предельная надбавка, %' (UserInvoiceDetail d) = markup(limitCalcPriceListType(operation(d)), sku(d));
 
-limitSaleMarkupPrice(UserInvoiceDetail d) = round([ X*(Y+100)/100](
+limitSaleMarkupPrice = ABSTRACT CASE NUMERIC[16,4] (InvoiceDetail);
+limitSaleMarkupPrice(UserInvoiceDetail d) += WHEN d IS UserInvoiceDetail THEN round([ X*(Y+100)/100](
                                               manufacturingPrice(d),
                                               markupLimitCalcPriceListType(d)), roundCondition(limitCalcPriceListType(operation(d)))); 
 

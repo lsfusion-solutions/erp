@@ -52,6 +52,10 @@ info = DATA LOCAL NESTED TEXT (Sku);
 
 skipManagementPriceList = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME); 
 
+overManagementRetailPrice ABSTRACT LIST (CalcPriceListType, DepartmentStore, DATETIME, GroupType, PriceListType);
+overManagementRetailPriceOnStock ABSTRACT LIST (CalcPriceListType, DepartmentStore, DATETIME, GroupType, PriceListType);
+skipManagementRetailPrice = ABSTRACT BOOLEAN ();
+
 overSetMarkupManagementRetailPrice  ABSTRACT LIST( DepartmentStore, DATETIME);
 overSetMarkupManagementRetailPrice  ABSTRACT LIST(CalcPriceListType, DepartmentStore, DATETIME);
 overSetManagementRetailPriceFirstAct  ABSTRACT LIST ( DepartmentStore, DATETIME);  // реализовано в Sosedi
@@ -92,14 +96,16 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
     IF NOT requestCanceled() THEN {
         IF onStockPriceListRepricing() THEN {  // переоценивать товары без остатка, настройка в options pricings (Акты расценки?)
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt) 
-                IF NOT skipManagementPriceList(pt, sku, d, dt) AND include(groupType(), sku);
+                IF NOT skipManagementRetailPrice() AND NOT skipManagementPriceList(pt, sku, d, dt) AND include(groupType(), sku);
+            overManagementRetailPrice(ct, d, dt, groupType(), pt);
             overSetMarkupManagementRetailPrice(d, dt);
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt)
                 IF NOT skipManagementPriceList(pt, sku, d, dt) AND (include(groupType(), sku) OR calculateAllGroups());
         } ELSE {
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt)
-                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND include(groupType(), sku);                
+                IF NOT skipManagementRetailPrice() AND currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND include(groupType(), sku);
+            overManagementRetailPriceOnStock(ct, d, dt, groupType(), pt);
             overSetMarkupManagementRetailPrice(d, dt);
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt,sku, d, dt)
