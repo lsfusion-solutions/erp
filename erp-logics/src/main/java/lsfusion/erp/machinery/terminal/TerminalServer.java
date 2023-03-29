@@ -331,9 +331,9 @@ public class TerminalServer extends MonitorServer {
         }
     }
 
-    public String teamWorkDocument(int idCommand, String json) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
+    public RawFileData teamWorkDocument(int idCommand, String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
         try (DataSession session = createSession()) {
-            return terminalHandler.teamWorkDocument(session, getStack(), idCommand, json);
+            return terminalHandler.teamWorkDocument(session, getStack(), idCommand, json, userInfo);
         }
     }
 
@@ -566,11 +566,11 @@ public class TerminalServer extends MonitorServer {
                                         int idCommand = Integer.parseInt(params[1]);
                                         String json = params[2];
                                         logger.info(String.format("%s, idCommand=%d, json: '%s'", command, idCommand, json));
-                                        result = teamWorkDocument(idCommand, json);
-                                        if (result != null) {
-                                            errorCode = PROCESS_DOCUMENT_ERROR;
-                                            errorText = PROCESS_DOCUMENT_ERROR_TEXT + ": " + result;
-                                        }
+                                        fileData = teamWorkDocument(idCommand, json, userInfo);
+//                                        if (fileData == null) {
+//                                            errorCode = PROCESS_DOCUMENT_ERROR;
+//                                            errorText = PROCESS_DOCUMENT_ERROR_TEXT;
+//                                        }
                                     } else {
                                         errorCode = WRONG_PARAMETER_COUNT;
                                         errorText = WRONG_PARAMETER_COUNT_TEXT;
@@ -861,6 +861,7 @@ public class TerminalServer extends MonitorServer {
                             }
                             break;
                         case GET_ALL_BASE:
+                        case TEAMWORK_DOCUMENT:
                             if (fileData != null) {
                                 byte[] fileBytes = fileData.getBytes();
                                 write(outToClient, String.valueOf(fileBytes.length));
