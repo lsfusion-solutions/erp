@@ -863,7 +863,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 case "BonusCardPaymentEntity": {
                                     String giftCardNumber = getPluginPropertyValue(paymentEntryNode, "card.number");
                                     if (giftCardNumber != null) {
-                                        sumGiftCardMap.put(giftCardNumber, new GiftCard(sum));
+                                        GiftCard card = sumGiftCardMap.get(giftCardNumber);
+                                        if (card != null)
+                                            card.sum = HandlerUtils.safeAdd(card.sum, sum);
+                                        else
+                                            sumGiftCardMap.put(giftCardNumber, new GiftCard(sum));
                                     } else sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
                                     break;
                                 }
