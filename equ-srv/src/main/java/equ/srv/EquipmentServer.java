@@ -579,7 +579,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                    int taskIndex, int taskSize, String directory, EquipmentServerOptions options, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         try (DataSession session = createSession()) {
-            logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
+            logger.info(String.format("Sending SalesInfo from %s to %s (%s)", start, finish, !salesInfoList.isEmpty() ? (salesInfoList.get(0).nppGroupMachinery + " - " + salesInfoList.get(0).nppMachinery) : ""));
 
             LocalDateTime timeStart = LocalDateTime.now();
 
@@ -974,6 +974,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             } else
                 return result;
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | CloneNotSupportedException e) {
+            logger.info(String.format("Error reading sales for (%s) - %s", (!salesInfoList.isEmpty() ? (salesInfoList.get(0).nppGroupMachinery + " - " + salesInfoList.get(0).nppMachinery) : ""), e));
             throw Throwables.propagate(e);
         }
         return null;
