@@ -2708,8 +2708,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     private List<Object> getReceiptDetailRow(SalesInfo sale, BarcodePart barcodePart, String barcode, EquipmentServerOptions options) {
         BigDecimal sumCashEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumCashEnd") : null;
+        if (sumCashEnd != null && sumCashEnd.compareTo(BigDecimal.valueOf(1000000000000L)) > 0) sumCashEnd = null;
         BigDecimal sumProtectedEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumProtectedEnd") : null;
+        if (sumProtectedEnd != null && sumProtectedEnd.compareTo(BigDecimal.valueOf(1000000000000L)) > 0) sumProtectedEnd = null;
         BigDecimal sumBack = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumBack") : null;
+        if (sumBack != null && sumBack.compareTo(BigDecimal.valueOf(1000000000000L)) > 0) sumBack = null;
 
         BigDecimal externalSum = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("externalSum") : null;
         LocalDateTime beginShift = sale.zReportExtraFields != null ? (LocalDateTime) sale.zReportExtraFields.get("beginShift") : null;
