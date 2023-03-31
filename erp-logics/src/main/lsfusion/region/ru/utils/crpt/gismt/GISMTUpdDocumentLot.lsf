@@ -7,10 +7,18 @@ NAMESPACE UpdDocumentLot;
 status 'Статус КМ' = DATA STRING (UpdLotDetail);
 inn 'ИНН' = DATA STRING (UpdLotDetail);
 
+status 'Статус КМ' = DATA STRING (UpdPackDetail);
+inn 'ИНН' = DATA STRING (UpdPackDetail);
+
+status 'Статус КМ' = DATA STRING (UpdTransportPackDetail);
+inn 'ИНН' = DATA STRING (UpdTransportPackDetail);
+
 checkedGISMT 'Проверен ГИСМТ' = DATA STRING (UpdDocument);
 
 checkedGISMT 'Проверен ГИСМТ' = DATA STRING (UpdDocumentDetail);
 checkedGISMT 'Проверен ГИСМТ' = DATA STRING (UpdLotDetail);
+checkedGISMT 'Проверен ГИСМТ' = DATA STRING (UpdPackDetail);
+checkedGISMT 'Проверен ГИСМТ' = DATA STRING (UpdTransportPackDetail);
 
 //checkedGISMT 'Проверен ГИСМТ' (UpdDocument ud) = IF [GROUP SUM 1 IF (status(UpdLotDetail d) != 'INTRODUCED' OR status(d) != 'INTRODUCED_RETURNED' OR  inn(d) != innCustomer(updDocument(d)) OR inn(d) != innSupplier(updDocument(d))) BY updDocument(d)](ud) THEN 'ОК' ELSE '?';
 
@@ -52,16 +60,15 @@ generalPackageType = DATA LOCAL STRING(INTEGER);
 child = DATA LOCAL STRING(INTEGER);
 valueChild = DATA LOCAL INTEGER(INTEGER);
 
-FORM aaaaa
-
-OBJECTS value = INTEGER
-PROPERTIES(value) gtin, tnVedEaesGroup, requestedCis, producerInn, producerName, withdrawReason, introducedDate, productGroupId, emissionType, cis, packageType, productName, tnVedEaes, emissionDate, ownerName, productGroup, ownerInn, statusEx, maxRetailPrice, applicationDate, status, generalPackageType
-FILTERS imported(value)
-
-OBJECTS child = INTEGER
-PROPERTIES(child) child EXTID 'value'
-FILTERS imported(child)
-FILTERS valueChild(child) == value;
+FORM checkLot
+    OBJECTS value = INTEGER
+    PROPERTIES(value) gtin, tnVedEaesGroup, requestedCis, producerInn, producerName, withdrawReason, introducedDate, productGroupId, emissionType, cis, packageType, productName, tnVedEaes, emissionDate, ownerName, productGroup, ownerInn, statusEx, maxRetailPrice, applicationDate, status, generalPackageType
+    FILTERS imported(value)
+    OBJECTS child = INTEGER
+    PROPERTIES(child) child EXTID 'value' 
+    FILTERS imported(child)
+    FILTERS valueChild(child) == value
+;
 
 
 
@@ -80,16 +87,50 @@ checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
             MESSAGE 'Ошибка ' + resultString();
             RETURN;
             }
-            IMPORT aaaaa JSON FROM resultFile();
+            IMPORT checkLot JSON FROM resultFile();
             FOR cis(INTEGER i) DO {
                 status(l) <-  status(i);
                 inn(l) <- ownerInn(i);
             }
         }
-        checkedGISMT(d) <- IF [GROUP SUM 1 IF NOT (status(UpdLotDetail l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) BY updDocument(l)](d) THEN 'Ошибка' ELSE 'OK';
-        FOR updDocument(UpdDocumentDetail udd) = d DO
-            checkedGISMT(udd) <- IF [GROUP SUM 1 IF NOT (status(UpdLotDetail l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) BY updDocumentDetail(l)](udd) THEN 'Ошибка' ELSE 'OK';
+        FOR updDocument(UpdPackDetail l) = d DO {
+            TRY {
+                urlEncode(id(l));
+                EXTERNAL HTTP POST  'https://markirovka.crpt.ru/api/v3/true-api/cises/list?values=' + urlEncoded() HEADERS headers TO resultFile;
+            }CATCH {
+            fileToString(resultFile(), 'UTF-8');
+            MESSAGE 'Ошибка ' + resultString();
+            RETURN;
+            }
+            IMPORT checkLot JSON FROM resultFile();
+            FOR cis(INTEGER i) DO {
+                status(l) <-  status(i);
+                inn(l) <- ownerInn(i);
+            }
+        }
+        FOR updDocument(UpdTransportPackDetail l) = d DO {
+            TRY {
+                urlEncode(id(l));
+                EXTERNAL HTTP POST  'https://markirovka.crpt.ru/api/v3/true-api/cises/list?values=' + urlEncoded() HEADERS headers TO resultFile;
+            }CATCH {
+            fileToString(resultFile(), 'UTF-8');
+            MESSAGE 'Ошибка ' + resultString();
+            RETURN;
+            }
+            IMPORT checkLot JSON FROM resultFile();
+            FOR cis(INTEGER i) DO {
+                status(l) <-  status(i);
+                inn(l) <- ownerInn(i);
+            }
+        }
         checkedGISMT(UpdLotDetail l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
+        checkedGISMT(UpdPackDetail l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
+        checkedGISMT(UpdTransportPackDetail l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
+        FOR updDocument(UpdDocumentDetail udd) = d DO
+            checkedGISMT(udd) <- IF [GROUP SUM 1 IF checkedGISMT(UpdLotDetail l) = 'Ошибка' BY updDocumentDetail(l)](udd) OR 
+                [GROUP SUM 1 IF checkedGISMT(UpdPackDetail l) = 'Ошибка' BY updDocumentDetail(l)](udd) OR 
+                [GROUP SUM 1 IF checkedGISMT(UpdTransportPackDetail l) = 'Ошибка' BY updDocumentDetail(l)](udd) THEN 'Ошибка' ELSE 'OK';
+        checkedGISMT(d) <- IF [GROUP SUM 1 IF checkedGISMT(UpdDocumentDetail l) = 'Ошибка' BY updDocument(l)](d) THEN 'Ошибка' ELSE 'OK';
         APPLY;
     }
 }
@@ -104,7 +145,17 @@ EXTEND FORM updDocuments
     OBJECTS uld = UpdLotDetail
     PROPERTIES (uld)  READONLY numberDetail, id, checkedGISMT, status, inn
     FILTERS updDocument(uld)=u
+    OBJECTS upd = UpdPackDetail
+    PROPERTIES (upd)  READONLY numberDetail, id, checkedGISMT, status, inn
+    FILTERS updDocument(upd)=u
+    OBJECTS utpd = UpdTransportPackDetail
+    PROPERTIES (utpd)  READONLY numberDetail, id, checkedGISMT, status, inn
+    FILTERS updDocument(utpd)=u
 ;
+
+showifUpdLotDetail = GROUP SUM 1 BY updDocument(UpdLotDetail l);
+showifUpdPackDetail = GROUP SUM 1 BY updDocument(UpdPackDetail l);
+showifUpdTransportPackDetail = GROUP SUM 1 BY updDocument(UpdTransportPackDetail l);
 
 DESIGN updDocuments {
     documentDetail {
@@ -112,7 +163,9 @@ DESIGN updDocuments {
             caption = 'Проверка ГИСМТ';
             type = CONTAINERV;    
             MOVE PROPERTY (checkLot(u)); 
-            MOVE BOX(uld);
+            MOVE BOX(uld) {showIf = showifUpdLotDetail(u);};
+            MOVE BOX(upd) {showIf = showifUpdPackDetail(u);};
+            MOVE BOX(utpd) {showIf = showifUpdTransportPackDetail(u);};
         }
     }
 }
