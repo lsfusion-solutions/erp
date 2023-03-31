@@ -83,14 +83,15 @@ checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
                 urlEncode(id(l));
                 EXTERNAL HTTP POST  'https://markirovka.crpt.ru/api/v3/true-api/cises/list?values=' + urlEncoded() HEADERS headers TO resultFile;
             }CATCH {
-            fileToString(resultFile(), 'UTF-8');
-            MESSAGE 'Ошибка ' + resultString();
-            RETURN;
+                fileToString(resultFile(), 'UTF-8');
+                MESSAGE 'Ошибка ' + resultString();
+                checkedGISMT(l) <- 'Ошибка';            
             }
             IMPORT checkLot JSON FROM resultFile();
             FOR cis(INTEGER i) DO {
                 status(l) <-  status(i);
                 inn(l) <- ownerInn(i);
+                checkedGISMT(l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
             }
         }
         FOR updDocument(UpdPackDetail l) = d DO {
@@ -98,14 +99,15 @@ checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
                 urlEncode(id(l));
                 EXTERNAL HTTP POST  'https://markirovka.crpt.ru/api/v3/true-api/cises/list?values=' + urlEncoded() HEADERS headers TO resultFile;
             }CATCH {
-            fileToString(resultFile(), 'UTF-8');
-            MESSAGE 'Ошибка ' + resultString();
-            RETURN;
+                fileToString(resultFile(), 'UTF-8');
+                MESSAGE 'Ошибка ' + resultString();
+                checkedGISMT(l) <- 'Ошибка';            
             }
             IMPORT checkLot JSON FROM resultFile();
             FOR cis(INTEGER i) DO {
                 status(l) <-  status(i);
                 inn(l) <- ownerInn(i);
+                checkedGISMT(l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
             }
         }
         FOR updDocument(UpdTransportPackDetail l) = d DO {
@@ -113,19 +115,17 @@ checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
                 urlEncode(id(l));
                 EXTERNAL HTTP POST  'https://markirovka.crpt.ru/api/v3/true-api/cises/list?values=' + urlEncoded() HEADERS headers TO resultFile;
             }CATCH {
-            fileToString(resultFile(), 'UTF-8');
-            MESSAGE 'Ошибка ' + resultString();
-            RETURN;
+                fileToString(resultFile(), 'UTF-8');
+                MESSAGE 'Ошибка ' + resultString();
+                checkedGISMT(l) <- 'Ошибка';            
             }
             IMPORT checkLot JSON FROM resultFile();
             FOR cis(INTEGER i) DO {
                 status(l) <-  status(i);
                 inn(l) <- ownerInn(i);
+                checkedGISMT(l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
             }
         }
-        checkedGISMT(UpdLotDetail l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
-        checkedGISMT(UpdPackDetail l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
-        checkedGISMT(UpdTransportPackDetail l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
         FOR updDocument(UpdDocumentDetail udd) = d DO
             checkedGISMT(udd) <- IF [GROUP SUM 1 IF checkedGISMT(UpdLotDetail l) = 'Ошибка' BY updDocumentDetail(l)](udd) OR 
                 [GROUP SUM 1 IF checkedGISMT(UpdPackDetail l) = 'Ошибка' BY updDocumentDetail(l)](udd) OR 
