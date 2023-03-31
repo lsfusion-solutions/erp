@@ -215,7 +215,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
             (discountSumReceiptDetail != null && discountSumReceiptDetail.compareTo(BigDecimal.valueOf(10000000)) > 0) ||
             (sumCard != null && sumCard.compareTo(BigDecimal.valueOf(10000000)) > 0) ||
             (sumCash != null && sumCash.compareTo(BigDecimal.valueOf(10000000)) > 0))
-            processTransactionLogger.error("Too big value for quantity or sum for detail : " + nppMachinery + " / " + nppMachinery + " / " + " receipt number " + numberReceipt + " idItem " + idItem);
+            sendSalesLogger.error("Too big value for quantity or sum for detail : " + nppMachinery + " / " + nppMachinery + " / " + " receipt number " + numberReceipt + " idItem " + idItem);
         return new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                 idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, payments, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
                 priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename,
