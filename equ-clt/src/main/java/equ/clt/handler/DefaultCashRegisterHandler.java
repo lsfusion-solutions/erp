@@ -209,12 +209,13 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
                                          BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
                                          BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
                                          String idSection, boolean skipReceipt, Map<String, Object> receiptExtraFields, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
-        if ((quantityReceiptDetail != null && quantityReceiptDetail.compareTo(BigDecimal.valueOf(10000000)) > 0) ||
-            (priceReceiptDetail != null && priceReceiptDetail.compareTo(BigDecimal.valueOf(10000000)) > 0) ||
-            (sumReceiptDetail != null && sumReceiptDetail.compareTo(BigDecimal.valueOf(10000000)) > 0) ||
-            (discountSumReceiptDetail != null && discountSumReceiptDetail.compareTo(BigDecimal.valueOf(10000000)) > 0) ||
-            (sumCard != null && sumCard.compareTo(BigDecimal.valueOf(10000000)) > 0) ||
-            (sumCash != null && sumCash.compareTo(BigDecimal.valueOf(10000000)) > 0))
+        if ((quantityReceiptDetail != null && quantityReceiptDetail.compareTo(BigDecimal.valueOf(1000000)) > 0) ||
+            (priceReceiptDetail != null && priceReceiptDetail.compareTo(BigDecimal.valueOf(1000000)) > 0) ||
+            (sumReceiptDetail != null && sumReceiptDetail.compareTo(BigDecimal.valueOf(1000000)) > 0) ||
+            (discountSumReceiptDetail != null && discountSumReceiptDetail.compareTo(BigDecimal.valueOf(1000000)) > 0) ||
+            (sumCard != null && sumCard.compareTo(BigDecimal.valueOf(1000000)) > 0) ||
+            (sumCash != null && sumCash.compareTo(BigDecimal.valueOf(1000000)) > 0) ||
+            (discountSumReceipt != null && discountSumReceipt.compareTo(BigDecimal.valueOf(1000000)) > 0))
             sendSalesLogger.error("Too big value for quantity or sum for detail : " + nppMachinery + " / " + nppMachinery + " / " + " receipt number " + numberReceipt + " idItem " + idItem);
         return new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                 idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, payments, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
