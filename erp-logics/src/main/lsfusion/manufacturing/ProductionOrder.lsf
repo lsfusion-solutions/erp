@@ -1520,7 +1520,8 @@ WHEN LOCAL FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), ord
 additionalCost = ABSTRACT NUMERIC[16,4](ComponentDetail);         
 calcCost = (OVERRIDE prevCost(batch(ComponentDetail detail)), cost(sku(detail), order(detail))); 
 
-WHEN LOCAL FORMS order CHANGED(cost(sku(ComponentDetail detail), order(detail))) OR CHANGED(batch(detail)) DO
+skipSetCost = ABSTRACT BOOLEAN (ComponentDetail);
+WHEN LOCAL FORMS order (CHANGED(cost(sku(ComponentDetail detail), order(detail))) OR CHANGED(batch(detail))) AND NOT skipSetCost(detail) DO
     cost (detail) <- calcCost(detail);           
        
 WHEN LOCAL FORMS order CHANGED(product(ProductDetail detail)) DO
