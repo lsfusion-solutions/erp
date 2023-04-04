@@ -115,6 +115,7 @@ errorEpay(JSONFILE f) {
     } ELSE {
         errorMessage() <- CONCAT ': ','Сервер вернул ошибку', statusHttp();
     }
+    logToFile('epay.log', errorMessage());
     IF conn() THEN {
         NEWTHREAD {
             formClose();
@@ -255,6 +256,12 @@ deletePayment 'Техническая отмена' (Receipt r) {
         
         TRY {
             EXTERNAL HTTP DELETE 'https://' + calcAddressRequest() + '/pos/payments/' + lastPayment(cashRegister(r)) HEADERS httpHeaders HEADERSTO headers;
+
+            logToFile('epay.log', 'Запрос DELETE /pos/payments');
+            logToFile('epay.log', CONCAT ' ', 'Чек:', description(r));
+            logToFile('epay.log', CONCAT ' ', 'Касса:', description(cashRegister(r)));
+            logToFile('epay.log', CONCAT ' ', 'Платеж:', lastPayment(cashRegister(r)));
+
             setToken(cashRegister(r), headers('token'));
             setLastPayment(cashRegister(r), NULL);
         }
@@ -297,6 +304,10 @@ paymentStatus(Payment p) {
     TRY {
         resultHttp() <- NULL;
         EXTERNAL HTTP GET 'https://' + calcAddressRequest() + '/pos/payments/' + STRING(paymentId(p)) HEADERS httpHeadersToken TO resultHttp;
+        logToFile('epay.log', 'Запрос GET /pos/payments/');
+        fileToString(FILE(resultHttp()));
+        logToFile('epay.log', CONCAT '\\n', 'Тело ответа:', resultString());
+
         setPaymentStatus(p, resultHttp());
     } CATCH {
         errorEpay(resultHttp());
@@ -350,6 +361,14 @@ paymentEpay (Payment p) {
             HEADERS httpHeaders
             HEADERSTO headers 
             PARAMS exportFile() TO result;
+
+            logToFile('epay.log', 'Запрос POST /pos/payments');
+            logToFile('epay.log', CONCAT ' ', 'Платеж:', p);
+            logToFile('epay.log', CONCAT ' ', 'Чек:', description(receipt(p)));
+            logToFile('epay.log', CONCAT ' ', 'Касса:', description(cashRegister(receipt(p))));
+            fileToString(exportFile());
+            logToFile('epay.log', CONCAT ' ', 'Тело запроса:', resultString());
+        
         setToken(cashRegister(receipt(p)), headers('token'));
         setPaymentStatus(p, result());
         SHOW paymentStatus OBJECTS p = p WAIT NOMANAGESESSION;
@@ -392,6 +411,14 @@ reversalEpay (Payment p) {
             HEADERS httpHeaders
             HEADERSTO headers 
             PARAMS exportFile() TO result;
+
+        logToFile('epay.log', 'Запрос POST /pos/payments/');
+        logToFile('epay.log', CONCAT ' ', 'Платеж:', p);
+        logToFile('epay.log', CONCAT ' ', 'Чек:', description(receipt(p)));
+        logToFile('epay.log', CONCAT ' ', 'Касса:', description(cashRegister(receipt(p))));
+        fileToString(exportFile());
+        logToFile('epay.log', CONCAT '\\n', 'Тело запроса:', resultString());
+
         setToken(cashRegister(receipt(p)), headers('token'));
         setPaymentStatus(p, result());
     } CATCH {
@@ -408,7 +435,10 @@ consumerStatus(STRING calcAddressRequest, STRING[20] regNum) {
     TRY {
         EXTERNAL HTTP GET 'https://' + calcAddressRequest + '/pos/consumerStatus'
             HEADERS httpHeadersToken TO resultHttp;
+            logToFile('epay.log', 'Запрос GET /pos/consumerStatus');
             IF resultHttp() THEN {
+                fileToString(FILE(resultHttp()));
+                logToFile('epay.log', CONCAT '\\n', 'Тело ответа:', resultString());
                 IMPORT JSON FROM resultHttp() TO () isConsumerReady;
             } ELSE {
                 isConsumerReady() <- NULL;
@@ -471,6 +501,13 @@ demandPayment(CashRegister c) {
             HEADERS httpHeaders
             HEADERSTO headers
             PARAMS exportFile() TO result;
+
+        logToFile('epay.log', 'Запрос POST /pos/demandPayment');
+        logToFile('epay.log', CONCAT ' ', 'Касса:', description(c));
+        fileToString(exportFile());
+        logToFile('epay.log', CONCAT '\\n', 'Тело запроса:', resultString());
+
+
         setToken(c, headers('token'));
         IMPORT JSON FROM result() TO () currentPin = pin, currentSessionId = sessionId;
         IF currentPin() AND currentSessionId() THEN NEWSESSION NESTED LOCAL {
@@ -478,6 +515,7 @@ demandPayment(CashRegister c) {
         } ELSE {
             returnPost() <- TRUE;
             MESSAGE 'Ошибка требования оплаты - не получен корректный PIN';
+            logToFile('epay.log', 'Ошибка требования оплаты - не получен корректный PIN');
         }
         } CATCH {
             errorEpay(result());
