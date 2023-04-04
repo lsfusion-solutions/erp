@@ -1329,12 +1329,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             if (!salesInfoList.isEmpty() || ignoreSalesWithoutNppGroupMachinery) {
                 sendSalesLogger.info(getLogPrefix() + "Sending SalesInfo: " + salesInfoList.size());
                 String result = remote.sendSalesInfo(salesInfoList, sidEquipmentServer, directory);
+                sendSalesLogger.info(getLogPrefix() + "Send SalesInfo result: " + result);
                 if (result != null) {
-                    sendSalesLogger.info(getLogPrefix() + "Send SalesInfo result: " + result);
                     EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
-                }
-                if(extendedLogs) {
-                    sendSalesLogger.info(getLogPrefix() + "SendPurchasesResponse result: " + result);
                 }
                 sendPurchasesResponse(httpExchange, result);
             }
