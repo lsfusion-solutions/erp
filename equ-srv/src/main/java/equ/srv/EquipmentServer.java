@@ -973,7 +973,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, rowsData.ignoredReceiptDetailCount, taskIndex, taskSize, timeStart, directory));
             } else
                 return result;
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | CloneNotSupportedException e) {
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | CloneNotSupportedException | SQLException e) {
             logger.info(String.format("Error reading sales for (%s) - %s", (!salesInfoList.isEmpty() ? (salesInfoList.get(0).nppGroupMachinery + " - " + salesInfoList.get(0).nppMachinery) : ""), e));
             throw Throwables.propagate(e);
         }
@@ -2715,6 +2715,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         if (sumBack != null && sumBack.compareTo(BigDecimal.valueOf(1000000000000L)) > 0) sumBack = null;
 
         BigDecimal externalSum = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("externalSum") : null;
+        if (externalSum != null && externalSum.compareTo(BigDecimal.valueOf(1000000000000L)) > 0) externalSum = null;
         LocalDateTime beginShift = sale.zReportExtraFields != null ? (LocalDateTime) sale.zReportExtraFields.get("beginShift") : null;
         LocalDateTime endShift = sale.zReportExtraFields != null ? (LocalDateTime) sale.zReportExtraFields.get("endShift") : null;
 
