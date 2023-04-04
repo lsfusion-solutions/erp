@@ -1,0 +1,37 @@
+MODULE EInvoiceLot;
+
+REQUIRE EInvoice, Lot;
+
+NAMESPACE EDI;
+
+CLASS EInvoiceLotDetail 'Марки электронной накладной EDI';
+TABLE eInvoiceLotDetail (EInvoiceLotDetail);
+
+eInvoiceDetail = DATA EInvoiceDetail (EInvoiceLotDetail) NONULL DELETE INDEXED;
+eInvoice (EInvoiceLotDetail d) = eInvoice(eInvoiceDetail(d));
+
+id 'Код' = DATA STRING[200] (EInvoiceLotDetail);
+quantity 'Кол-во' = DATA NUMERIC[14,3] (EInvoiceLotDetail);
+
+quantityLot 'Марок' (EInvoiceDetail ed) = GROUP SUM quantity(EInvoiceLotDetail ld) IF eInvoiceDetail(ld) = ed; 
+
+//backgroundQuantityLot (EInvoiceDetail d) = (IF quantityLot(d) = quantityDespatched(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) 
+//                                                       IF lotType(sku(d));
+
+EXTEND FORM eInvoices
+    OBJECTS eld = EInvoiceLotDetail
+    PROPERTIES(eld) READONLY id, quantity
+    FILTERS eInvoiceDetail(eld) = d
+;
+
+DESIGN eInvoices {
+    tab {
+        NEW eInvoiceDetail FIRST {
+            fill = 1;
+            caption = 'Спецификация';
+            type = SPLITH;
+            MOVE BOX(d) {fill = 3;}
+            MOVE BOX(eld) {caption = 'Маркировка';fill = 1;}
+        }
+    }
+}
