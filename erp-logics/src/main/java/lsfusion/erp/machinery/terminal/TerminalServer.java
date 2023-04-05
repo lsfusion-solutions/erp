@@ -562,9 +562,11 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    if (params.length == 3) {
+                                    if (params.length >= 2) {
                                         int idCommand = Integer.parseInt(params[1]);
-                                        String json = params[2];
+                                        String json = null;
+                                        if (params.length > 2)
+                                            json = params[2];
                                         logger.info(String.format("%s, idCommand=%d, json: '%s'", command, idCommand, json));
                                         fileData = teamWorkDocument(idCommand, json, userInfo);
 //                                        if (fileData == null) {
@@ -862,12 +864,11 @@ public class TerminalServer extends MonitorServer {
                             break;
                         case GET_ALL_BASE:
                         case TEAMWORK_DOCUMENT:
-                            if (fileData != null) {
-                                byte[] fileBytes = fileData.getBytes();
-                                write(outToClient, String.valueOf(fileBytes.length));
-                                writeByte(outToClient, etx);
-                                write(outToClient, fileBytes);
-                            }
+                            int bytes = fileData != null ? fileData.getLength() : 0;
+                            write(outToClient, String.valueOf(bytes));
+                            writeByte(outToClient, etx);
+                            if (fileData != null)
+                                write(outToClient, fileData.getBytes());
                     }
                 }
 
