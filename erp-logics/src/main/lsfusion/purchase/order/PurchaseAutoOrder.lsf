@@ -290,14 +290,15 @@ closeScheduleOrderDetailsEndDate 'Аннулировать точки заказ
 }
 skipAutoClosed = ABSTRACT BOOLEAN ();
 autoClosed ABSTRACT LIST(ScheduleOrderDetail);
-skipCreateAutoOrders = ABSTRACT BOOLEAN (ScheduleOrderDetail);
+createAutoOrdersBefore ABSTRACT LIST();
 
 createAutoOrders 'Создание автозаказов' () {    
     toCreate(ScheduleOrderDetail d)<- NULL;
     toCreate(ScheduleOrderDetail d) <- TRUE WHERE dateOrder(d) == currentDate() AND createUserOrderAuto(scheduleOrder(d)) 
             AND active(customerStock(d)) AND NOT isClosed(d) AND NOT (GROUP SUM 1 IF scheduleOrderDetail(Order o) == d AND isOpened(o)) 
-            AND NOT dateOrder(d)>endDate(scheduleOrder(d)) AND NOT skipCreateAutoOrders(d);    
- 
+            AND NOT dateOrder(d)>endDate(scheduleOrder(d));
+    createAutoOrdersBefore();
+    
     FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) DO {                 
         NEWSESSION {
             printToLog(CONCAT ' ', 'Автозаказ:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail));
