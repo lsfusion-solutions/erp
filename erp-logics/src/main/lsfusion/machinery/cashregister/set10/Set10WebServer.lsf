@@ -111,13 +111,14 @@ overCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
 afterCancelledTransaction ABSTRACT LIST (STRING);
 
 extraPaymentType = ABSTRACT CASE PaymentType (STRING);
+cashRegister(INTEGER i) = GROUP MAX CashRegister c IF idStoreSet(c) = shop1(i) AND idCashRegisterSet(c) = cash1(i);
 
 importReceipt(STRING purchases){
     NEWSESSION {
         stringToFile(purchases);
         IMPORT purchasesImport XML FROM resultFile();
         FOR imported(INTEGER i) AND NOT receipt(idReceipt(i)) AND idReceipt(i) AND shop(shop1(i)) AND startDateValid(i)
-            DO NEW r = Receipt{
+            AND cashRegister(i) DO NEW r = Receipt{
             
             id(r) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i));
             date(r) <- DATE(saletime1(i));
