@@ -353,7 +353,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             Integer tmcType = null;
 
             String lotType = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("lottype") : null;
-            if (lotType != null && !lotType.isEmpty()) tmcType = 7;
+            if (lotType != null && !lotType.isEmpty() && alcTypeCode == null) tmcType = 7;
 
             boolean autoGetQuantity = item.info != null && new JSONObject(item.info).has("autogetquantityfromscales");
 
