@@ -30,6 +30,8 @@ own 'Собственный' = DATA BOOLEAN (Client);
 utm = DATA UTM (Client);
 nameUtm 'УТМ' (Client c) = name(utm(c));
 
+clients 'Клиенты' (UTM u) = GROUP CONCAT (CONCAT ' / ', shortName(Client c), description(c)) IF utm(c) = u, ',' ORDER c CHARWIDTH 30; 
+
 FORM client 'Организация'
     OBJECTS o = Client PANEL
     PROPERTIES(o) id, shortName, description, fullName, own, nameUtm SHOWIF own(o),
@@ -105,6 +107,8 @@ shortNameDefaultClient 'Организация по умолчанию' () = sho
 
 EXTEND FORM integrationData
     PROPERTIES() idDefaultClient, shortNameDefaultClient
+    
+    PROPERTIES(utm) clients
 ;
 
 DESIGN integrationData {
