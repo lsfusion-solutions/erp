@@ -3,7 +3,6 @@ MODULE ContainerMovement;
 REQUIRE System,
         Utils,
         Stock,
-        Store,
         SkuLedger,
         PriceListLedgerAccount,
         Item;
@@ -11,17 +10,8 @@ REQUIRE System,
 
 //------------------------------------Отчет по таре-------------------------------------------//
 
-//in 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
-//countInStock = GROUP SUM 1 IF in(Stock Stock);
-//
-//EXTEND FORM departmentStores
-//    PROPERTIES(d) in BEFORE id(d)
-//;
-
-namesDepartmentStores 'Наименования'() = GROUP CONCAT name(DepartmentStore d) IF in(d), ', ' ORDER d CHARWIDTH 50;
-in(Store st) = GROUP SUM 1 IF in(DepartmentStore d) BY store(d);
-namesStores 'Магазины' () = GROUP CONCAT name(Store st) IF in(st), ', ' ORDER st CHARWIDTH 50;
-in(LegalEntity l) = GROUP SUM 1 IF in(DepartmentStore d) BY legalEntity(d);
+nameStocks 'Наименования'() = GROUP CONCAT name(Stock st) IF in(st), ', ' ORDER st CHARWIDTH 50;
+in(LegalEntity l) = GROUP SUM 1 IF in(Stock st) BY legalEntity(st);
 namesLegalEntities 'Компании' () = GROUP CONCAT name(LegalEntity l) IF in(l), ', ' ORDER l CHARWIDTH 50;
 
 namesFilterItems 'Товары' = GROUP CONCAT name(Item i) IF in(i), ', ' ORDER i CHARWIDTH 50;
@@ -189,10 +179,10 @@ sumMoveInPrice = GROUP SUM sumMoveIn(Stock st, Batch bt) IF inContainerMovement(
 balanceMoveOutPrice = GROUP SUM balanceMoveOut(Stock st, Batch bt) IF inContainerMovement(st,bt) BY st, sku(bt), lastPrice(st,bt);
 sumMoveOutPrice = GROUP SUM sumMoveOut(Stock st, Batch bt) IF inContainerMovement(st,bt) BY st, sku(bt), lastPrice(st,bt);
 
-changeDepartmentStores(DATE dateFrom, DATE dateTo)  { 
-    DIALOG departmentStores OBJECTS d INPUT DO {
-        IF NOT (GROUP SUM 1 IF in(DepartmentStore ds)) THEN
-            in(d) <- TRUE;
+changeStocks(DATE dateFrom, DATE dateTo)  { 
+    DIALOG dialogMultiStocks OBJECTS s INPUT DO {
+        IF NOT (GROUP SUM 1 IF in(Stock st)) THEN
+            in(s) <- TRUE;
         includeContainerMovementBatchFromTo(dateFrom,dateTo);
     }
 }
@@ -269,11 +259,11 @@ FORM containerMovement 'Отчет по таре'
     OBJECTS params = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES objFrom = VALUE(dFrom), objTo = VALUE(dTo)
     
-    PROPERTIES() ON CHANGE changeDepartmentStores(dFrom, dTo) namesDepartmentStores, namesLegalEntities 
+    PROPERTIES() ON CHANGE changeStocks(dFrom, dTo) nameStocks, namesLegalEntities 
     PROPERTIES() namesFilterItems ON CHANGE filterItems(dFrom, dTo), namesFilterSuppliers ON CHANGE filterSuppliers(dFrom, dTo)
     PROPERTIES() READONLY accountSumContainerStockDateFrom, accountSumContainerStockDateTo
     
-    OBJECTS sb = (dep = DepartmentStore, bt = Batch)
+    OBJECTS sb = (dep = Stock, bt = Batch)
 
     PROPERTIES(bt) READONLY idBarcodeSku, nameSku, nameSupplier
     PROPERTIES(dep,bt) READONLY lastPrice, balanceIn, sumIn, balanceOut, sumOut, balanceMoveIn, sumMoveIn, balanceMoveOut, sumMoveOut
@@ -297,9 +287,9 @@ DESIGN containerMovement {
             type = CONTAINERH;
         }
         NEW stocks {
-            caption = 'Отделы магазинов';
+            caption = 'Склады';
             type = CONTAINERH;
-            MOVE PROPERTY(namesDepartmentStores());
+            MOVE PROPERTY(nameStocks());
             MOVE PROPERTY(namesLegalEntities());
         }
     }

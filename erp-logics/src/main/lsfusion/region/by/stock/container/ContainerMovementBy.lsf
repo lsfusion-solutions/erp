@@ -8,11 +8,11 @@ FORM printContainerMovementBy 'Отчет по таре'
 
     OBJECTS params = (dFrom = DATE, dTo = DATE) PANEL SUBREPORT
     PROPERTIES objFrom = VALUE(dFrom), objTo = VALUE(dTo)
-    PROPERTIES() READONLY namesDepartmentStores, namesStores, namesLegalEntities
+    PROPERTIES() READONLY nameStocks, namesLegalEntities
     PROPERTIES() READONLY accountSumContainerStockDateFrom, accountSumContainerStockDateTo
     PROPERTIES() READONLY balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches, sumMoveInBatches, balanceMoveOutBatches
     
-    OBJECTS sb = (dep = DepartmentStore, bt = Batch)
+    OBJECTS sb = (dep = Stock, bt = Batch)
     PROPERTIES(dep) READONLY name
     PROPERTIES(dep) READONLY balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches, sumMoveInBatches, balanceMoveOutBatches
     PROPERTIES(dep) READONLY accountSumContainerDateFrom, accountSumContainerDateTo
@@ -24,18 +24,18 @@ FORM printContainerMovementBy 'Отчет по таре'
     ORDERS name(dep), nameSku(bt)    
 ;
 
-printContainerMovementBy 'Распечатать' (DATE dateFrom, DATE dateTo, DepartmentStore departmentStore) 
+printContainerMovementBy 'Распечатать' (DATE dateFrom, DATE dateTo) 
     { PRINT printContainerMovementBy OBJECTS dFrom = dateFrom, dTo = dateTo; }   IMAGE 'print.png' IN print;
 
 EXTEND FORM containerMovement
 
-    PROPERTIES printContainerMovementBy(dFrom, dTo, dep) DRAW params 
+    PROPERTIES printContainerMovementBy(dFrom, dTo) DRAW params 
 ;
 
 DESIGN containerMovement{
 
     print {
-        MOVE PROPERTY(printContainerMovementBy(dFrom,dTo,dep));
+        MOVE PROPERTY(printContainerMovementBy(dFrom,dTo));
     }
 }
 //-- 
