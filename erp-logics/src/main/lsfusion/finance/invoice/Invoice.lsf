@@ -381,6 +381,14 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentDetailNumberVATOnChange(userInvoice, stockProp###stock);
     @defineDocumentDetailValueVATOnChange(userInvoice);
     @defineDocumentDetailInvoicePriceVATOnChange(userInvoice);
+
+    overChangeInvoiceSum ABSTRACT LIST (UserInvoiceDetail);
+    changeInvoiceSum (UserInvoiceDetail d)  {
+        INPUT n = NUMERIC[18,4] DO {
+            invoiceSum (d) <- n;
+            overChangeInvoiceSum(d);
+        }
+    }
     
     priceRound = ABSTRACT CASE INTEGER (InvoiceDetail);
     priceRound (InvoiceDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
@@ -531,7 +539,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                        numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
                        valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
                        invoicePrice ON CHANGE changeInvoicePrice(d) SHOWIF NOT hideWithVAT(i),
-                       VATSum, invoiceSum, sumNetWeight BACKGROUND backgroundSku(d), 
+                       VATSum, invoiceSum ON CHANGE changeInvoiceSum(d), sumNetWeight BACKGROUND backgroundSku(d), 
                        sumGrossWeight BACKGROUND backgroundSku(d), NEW SHOWIF NOT hideAdd(i), deleteid=DELETE SHOWIF NOT hideDelete(i) GRID
         ORDERS index(d)
 
