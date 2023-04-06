@@ -339,9 +339,14 @@ public class DefaultTerminalHandler {
 
     public RawFileData teamWorkDocument(DataSession session, ExecutionStack stack, int idCommand, String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
         if(terminalTeamWorkLM != null) {
-            FileData jsonFile = new FileData(new RawFileData(json.getBytes()), "json");
+            FileData jsonFile = null;
+            if (!TextUtils.isEmpty(json))
+                jsonFile = new FileData(new RawFileData(json.getBytes()), "json");
+
             terminalTeamWorkLM.findAction("process[INTEGER, FILE, CustomUser, STRING[100]]").execute(session, stack, new DataObject(idCommand), new DataObject(jsonFile, DynamicFormatFileClass.get()), userInfo.user, new DataObject(userInfo.idStock));
-            return (RawFileData) terminalTeamWorkLM.findProperty("exportFile[]").read(session);
+            FileData fileData = (FileData) terminalTeamWorkLM.findProperty("exportFile[]").read(session);
+            if (fileData != null)
+                return fileData.getRawFile();
         }
         return null;
     }
