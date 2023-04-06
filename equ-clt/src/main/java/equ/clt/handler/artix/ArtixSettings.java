@@ -85,6 +85,9 @@ public class ArtixSettings implements Serializable{
     //для заполнения обязательных полей для российских настроек
     private boolean russian;
 
+    //дополнять код кассира кодом группы касс
+    private boolean appendCashierId;
+
     public ArtixSettings() {
     }
 
@@ -302,5 +305,13 @@ public class ArtixSettings implements Serializable{
 
     public void setRussian(boolean russian) {
         this.russian = russian;
+    }
+
+    public boolean isAppendCashierId() {
+        return appendCashierId;
+    }
+
+    public void setAppendCashierId(boolean appendCashierId) {
+        this.appendCashierId = appendCashierId;
     }
 }

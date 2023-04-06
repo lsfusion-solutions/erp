@@ -1446,6 +1446,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         int externalSumType = artixSettings.getExternalSumType();
         boolean medicineMode = artixSettings.isMedicineMode();
         boolean receiptIdentifiersToExternalNumber = artixSettings.isReceiptIdentifiersToExternalNumber();
+        boolean appendCashierId = artixSettings.isAppendCashierId();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1602,6 +1603,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                         String idEmployee = documentObject.getString("userCode");
                                         String nameEmployee = cashiersMap.get(idEmployee);
 
+                                        CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
+                                        if (cashRegister == null)
+                                            sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
+                                        Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+
+                                        if (appendCashierId) {
+                                            idEmployee = nppGroupMachinery + "_" + idEmployee;
+                                        }
+
                                         String identifier = documentObject.optString("identifier");
                                         String sourceIdentifier = documentObject.optString("sourceidentifier");
 
@@ -1701,6 +1711,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             JSONObject cardPosition = cardPositionsArray.getJSONObject(i);
                                             seriesNumberDiscountCard = BaseUtils.trimToNull(cardPosition.getString("number"));
                                         }
+
+                                        LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
 
                                         JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
 
@@ -1809,11 +1821,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                             sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
 
-                                            CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
-                                            if (cashRegister == null)
-                                                sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
-                                            Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                                            LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
                                             if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                                 if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                     sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
