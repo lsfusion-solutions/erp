@@ -32,6 +32,7 @@ WHEN LOCAL CHANGED (date(UserOrder o)) AND NOT CHANGED(dateToSoldPeriod(o)) AND 
 }
 
 quantitySold 'Продано' (Sku sku, UserOrder userOrder) = quantitySold(sku, customerStock(userOrder), dateFromSoldPeriod(userOrder), dateToSoldPeriod(userOrder));
+averageSold 'Продаж в день' (Sku sku, UserOrder userOrder) = averageSold(sku, customerStock(userOrder));
 
 insuranceReserve 'Страховой запас (авто)' = ABSTRACT NUMERIC[16,5](Sku, UserOrder);
 purchaseReserve 'Страховой запас (ручн)' = ABSTRACT NUMERIC[16,5](Stock, Sku, DATE) CHARWIDTH 7;
@@ -113,7 +114,7 @@ fillRecommendedQuantityStockDialog 'Заполнить рекомендуемы�
 EXTEND FORM userOrder
     PROPERTIES(o) DRAW sts PANEL READONLYIF readOnlySoldPeriod(o) dateFromSoldPeriod, dateToSoldPeriod
 
-    PROPERTIES READONLY AFTER prevCurrentBalance(ks,st) quantitySold(ks, o), purchaseReserve(ks,st,o)
+    PROPERTIES READONLY AFTER prevCurrentBalance(ks,st) quantitySold(ks, o), averageSold(ks, o), purchaseReserve(ks,st,o)
     PROPERTIES READONLY AFTER quantityCustomer(ks, o, st)
         recommendedQuantity(ks, o) ON CONTEXTMENU fillRecommendedQuantityStockDialog(o)
 ;
