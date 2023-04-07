@@ -180,7 +180,7 @@ volumeIncomeInvoice 'Объем, тыс дал.' = GROUP SUM volume(InvoiceDetai
 volumeIncomeOther 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierType type, DATE df, DATE dt) = 
     (GROUP SUM signetVolume(InventorySkuDetail d) IF isParent(group, sku(d)) AND isPosted(d) AND isCompany(stock(d)) AND active(stock(d)) AND isWholesale(stock(d)) 
     AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND quantity(d) > 0
-    AND isAlcoholOther[Inventory.Operation](inventory(d))  AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierType.other;
+    AND isAlcoholOther(operation(inventory(d)))  AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierType.other;
 volumeIncome'Объем, тыс дал.'(Group group, LegalEntity supplier, AlcoholSupplierType type1, DATE df, DATE dt)= 
     NUMERIC[18,6]((volumeIncomeInvoice(group,supplier,type1,df,dt) (+) volumeIncomeOther(group,supplier,type1,df,dt))/
     (OVERRIDE conversionFactor(group), 1.0 IF group IS StatisticGroup));            
@@ -213,12 +213,12 @@ volumeOutcomeInvoice 'Объем, тыс дал.' = [GROUP SUM volume(InvoiceDet
 volumeOutcomeOther 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierTypeOutcome type, DATE df, DATE dt) = 
     (GROUP SUM signetVolume(InventorySkuDetail d) IF isParent(group, sku(d)) AND isPosted(d) AND isCompany(stock(d)) AND active(stock(d)) 
     AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND quantity(d) < 0 AND isWholesale(stock(d)) 
-    AND isAlcoholOther[Inventory.Operation](inventory(d)) AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierTypeOutcome.other;
+    AND isAlcoholOther(operation(inventory(d))) AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierTypeOutcome.other;
 
 volumeOutcomeOtherEx 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierTypeOutcome type, DATE df, DATE dt) = 
     (GROUP SUM signetVolume(WriteOffDetail d) IF isParent(group, sku(d)) AND isPosted(d) AND isCompany(stock(d)) AND active(stock(d)) 
     AND date(d) >= df AND date(d) <= dt AND isAlcoholGroup(sku(d)) AND isWholesale(stock(d))
-    AND isAlcoholOther[WriteOff.Operation](writeOff(d)) AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierTypeOutcome.other;
+    AND isAlcoholOther(operation(d)) AND supplier == legalEntity(stock(d))) IF type == AlcoholSupplierTypeOutcome.other;
 
 volumeOutcome 'Объем, тыс дал.' (Group group, LegalEntity supplier, AlcoholSupplierTypeOutcome type, DATE df, DATE dt) =
     NUMERIC[18,6]((volumeOutcomeInvoice(group,supplier,type,df,dt) (+) volumeOutcomeOther(group,supplier,type,df,dt) (+) volumeOutcomeOtherEx(group,supplier,type,df,dt))/
@@ -388,7 +388,7 @@ fillDetailing 'Показать детализацию' (AlcoholReportDetail a){
                 volumeOriginal(InventorySkuDetail d)<- signetVolume(d) 
                     WHERE isPosted(d) AND legalEntity(a) ==legalEntity(stock(d)) AND date(d) >= fromDate AND date(d) <= toDate
                             AND isParent(sk, sku(d)) AND isCompany(stock(d)) AND active(stock(d)) AND isWholesale(stock(d)) AND isAlcoholGroup(sku(d)) AND quantity(d) > 0
-                            AND isAlcoholOther[Inventory.Operation](inventory(d));                
+                            AND isAlcoholOther(operation(inventory(d)));                
             }             
             volumeOriginal(InvoiceDetail d)<- volumeOriginal(d) (+) volume(d) 
                     WHERE isPosted(d) AND alcoholSupplier(d)==legalEntity(a) AND date(d) >= fromDate AND date(d) <= toDate
@@ -405,10 +405,10 @@ fillDetailing 'Показать детализацию' (AlcoholReportDetail a){
             IF alcoholSupplierTypeOutcome(a)==AlcoholSupplierTypeOutcome.other THEN {
                 volumeOriginal(InventorySkuDetail d)<- signetVolume(d) WHERE isPosted(d) AND legalEntity(a) ==legalEntity(stock(d)) AND date(d) >= fromDate AND date(d) <= toDate
                         AND isParent(sk, sku(d)) AND isCompany(stock(d)) AND active(stock(d)) AND isWholesale(stock(d)) AND isAlcoholGroup(sku(d)) AND quantity(d) < 0
-                        AND isAlcoholOther[Inventory.Operation](inventory(d));                 
+                        AND isAlcoholOther(operation(inventory(d)));                 
                 volumeOriginal(WriteOffDetail d)<- signetVolume(d) WHERE isPosted(d) AND legalEntity(a) ==legalEntity(stock(d)) AND date(d) >= fromDate AND date(d) <= toDate
                     AND isParent(sk, sku(d)) AND isCompany(stock(d)) AND active(stock(d)) AND isWholesale(stock(d)) AND isAlcoholGroup(sku(d)) 
-                    AND isAlcoholOther[WriteOff.Operation](writeOff(d));
+                    AND isAlcoholOther(operation(d));
             }         
         }        
         
