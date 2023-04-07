@@ -22,13 +22,13 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
 
 recalculateCostAccount(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в реализации через кассы');
-    APPLY {
+    APPLY NESTED LOCAL {
         accountPrice(DateSaleSkuLedger d) <- prevAccountPriceB(sku(d), departmentStore(d), dateTimeToDateTime(date(d), 23:59))
             WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(departmentStore(d));
     }
     IF canceled() THEN CANCEL;
 
-    APPLY {
+    APPLY NESTED LOCAL {
         accountPrice(DateReturnSkuLedger d) <- prevAccountPriceB(sku(d), departmentStore(d), dateTimeToDateTime(date(d), 23:59))
             WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(departmentStore(d));
     }
