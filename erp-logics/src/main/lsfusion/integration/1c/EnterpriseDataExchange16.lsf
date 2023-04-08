@@ -622,11 +622,22 @@ EXTEND FORM receiveMessage
 // Purchase invoice
 @extDocument(purchaseInvoice, 'ПоступлениеТоваровУслуг');
 // Для обратной совместимости 1.6 -> 1.5
-@defKeyPropObject(partnerKey, 'Контрагент', Partner, keyProperties, purchaseInvoice);
 
-@defKeyPropSimple(numberInnerDocument, 'НомерВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice);
-@defKeyPropDate(dateInnerDocument, 'ДатаВходящегоДокумента', innerDocumentData, purchaseInvoice);
-@defKeyPropSimple(nameInnerDocument, 'НаименованиеВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice);
+//@defKeyPropSimple(numberInnerDocument, 'НомерВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice)
+//@defKeyPropDate(dateInnerDocument, 'ДатаВходящегоДокумента', innerDocumentData, purchaseInvoice)
+//@defKeyPropSimple(nameInnerDocument, 'НаименованиеВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice)
+@defProp(numberInnerDocument, 'НомерВходящегоДокумента', STRING, purchaseInvoice);
+@defProp(dateInnerDocument, 'ДатаВходящегоДокумента', DATE, purchaseInvoice);
+@defProp(nameInnerDocument, 'НаименованиеВходящегоДокумента', STRING, purchaseInvoice);
+EXTEND FORM sendMessage
+    OBJECTS innerDocument  = INTEGER EXTID 'ДанныеВходящегоДокумента' IN keyProperties
+    PROPERTIES  = numberInnerDocument(purchaseInvoice, configuration) IF innerDocument IS INTEGER EXTID 'НомерВходящегоДокумента',
+                = dateToString(dateInnerDocument(purchaseInvoice, configuration)) IF innerDocument IS INTEGER EXTID 'ДатаВходящегоДокумента',
+                = nameInnerDocument(purchaseInvoice, configuration) IF innerDocument IS INTEGER EXTID 'НаименованиеВходящегоДокумента'
+    FILTERS iterate(innerDocument, 0,0) AND purchaseInvoice IS PurchaseInvoice AND configuration IS Configuration
+;
+
+@defKeyPropObject(partnerKey, 'Контрагент', Partner, keyProperties, purchaseInvoice);
 
 EXTEND FORM sendMessage
     OBJECTS partnerKey = Partner EXTID 'Контрагент' IN keyProperties
