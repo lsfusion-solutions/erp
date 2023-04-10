@@ -11,8 +11,45 @@ importTNVEDClassifierAction 'Импортировать справочник (ф
 importTNVEDCustomsRatesAction 'Импортировать платежи (файл TNVED_ST.DBF)'  INTERNAL  'lsfusion.erp.region.by.certificate.declaration.ImportTNVEDCustomsRatesAction' () IN tnved;
 importTNVEDCustomsExceptionsAction 'Импортировать льготы (файл TNVED_PL.DBF)'  INTERNAL  'lsfusion.erp.region.by.certificate.declaration.ImportTNVEDCustomsExceptionsAction' () IN tnved;
 
+importTNVEDClassifierNew 'Импортировать справочник (файл TNVED4.DBF) (new)' () {
+    INPUT f = FILE DO NEWSESSION {
+
+        LOCAL KOD, NAIM, KR_NAIM, idParent = STRING(INTEGER );
+        IMPORT DBF CHARSET 'CP866' FROM f TO KOD, NAIM, KR_NAIM;
+
+        KOD(INTEGER r) <- '-' + r WHERE KOD(r) == '··········';
+
+        LOCAL level = INTEGER (INTEGER);
+        level(INTEGER r) <- (length(NAIM(r)) - length(ltrim(NAIM(r), '- ')))/2 (+) 1 WHERE imported(r);
+        LOCAL idLevel = STRING (INTEGER);
+        FOR imported(INTEGER r) ORDER r NOINLINE DO {
+            IF level(r) == 1 THEN {
+                idLevel(INTEGER l) <- NULL;
+            }
+            idLevel(level(r)) <- KOD(r);
+            idParent(r) <- idLevel(level(r) - 1);
+        }
+
+        DELETE CustomsGroup g WHERE left(code(g),1) == '-' AND NOT (GROUP SUM 1 IF code(g) == KOD(INTEGER r));
+
+        FOR imported(INTEGER r) AND NOT customsGroup(KOD(r)) NEW c = CustomsGroup DO {
+            code(c) <- KOD(r);
+        }
+
+        FOR code(CustomsGroup c) == KOD(INTEGER r) DO {
+            name(c) <- NAIM(r);
+            number(c) <- r;
+            parent(c) <- customsGroup(idParent(r));
+            customsZone(c) <- customsZone('БЕЛАРУСЬ');
+            hasCode(c) <- TRUE;
+        }
+
+        APPLY;
+    }
+} IN tnved;
+
 EXTEND FORM defaultData
-    PROPERTIES() importTNVEDClassifierAction, importTNVEDCustomsRatesAction, importTNVEDCustomsExceptionsAction
+    PROPERTIES() importTNVEDClassifierNew, importTNVEDCustomsRatesAction, importTNVEDCustomsExceptionsAction
 ;
 
 DESIGN defaultData {
@@ -20,7 +57,7 @@ DESIGN defaultData {
         NEW customs {
             caption = 'ТН ВЭД';
 
-            MOVE PROPERTY(importTNVEDClassifierAction());
+            MOVE PROPERTY(importTNVEDClassifierNew());
             MOVE PROPERTY(importTNVEDCustomsRatesAction());
             MOVE PROPERTY(importTNVEDCustomsExceptionsAction());
         }
