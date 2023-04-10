@@ -109,51 +109,53 @@ overAverageQuantitySold 'Среднедневные продажи (кол-во)
 overAverageMarkupSumSold 'Среднедневные продажи (надбавка)' (Sku sk, DepartmentStore ds, RangeDocument d) = OVERRIDE averageMarkupSumSold(sk,ds,d), averageMarkupSumSold(sk,storeType(ds),d), averageMarkupSumSold(sk,chainStores(ds),d);
 overAverageSumSold 'Среднедневные продажи (сумма)' (Sku sk, DepartmentStore ds, RangeDocument d) = OVERRIDE averageSumSold(sk,ds,d), averageSumSold(sk,storeType(ds),d), averageSumSold(sk,chainStores(ds),d);
 
-lostQuantitySold 'Упущенная прибыль (кол-во)' (Store s, RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d) IF store(ds) == s;
-lostMarkupSumSold 'Упущенная прибыль (надбавка)' (Store s, RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d) IF store(ds) == s;
-lostSumSold 'Упущенная прибыль (сумма)' (Store s, RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d) IF store(ds) == s;
+skipShow = ABSTRACT VALUE BOOLEAN (Sku);
 
-lostQuantitySold 'Упущенная прибыль (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d) IF storeType(ds) == t;
-lostMarkupSumSold 'Упущенная прибыль (надбавка)' (StoreType t, RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d) IF storeType(ds) == t;
-lostSumSold 'Упущенная прибыль (сумма)' (StoreType t, RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d) IF storeType(ds) == t;
+lostQuantitySold 'Упущенная прибыль (кол-во)' (Store s, RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d) IF store(ds) == s AND NOT skipShow(sk);
+lostMarkupSumSold 'Упущенная прибыль (надбавка)' (Store s, RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d) IF store(ds) == s AND NOT skipShow(sk);
+lostSumSold 'Упущенная прибыль (сумма)' (Store s, RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d) IF store(ds) == s AND NOT skipShow(sk);
 
-lostQuantitySold 'Упущенная прибыль (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d) IF chainStores(ds) == c;
-lostMarkupSumSold 'Упущенная прибыль (надбавка)' (ChainStores c, RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d) IF chainStores(ds) == c;
-lostSumSold 'Упущенная прибыль (сумма)' (ChainStores c, RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d) IF chainStores(ds) == c;
+lostQuantitySold 'Упущенная прибыль (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d) IF storeType(ds) == t AND NOT skipShow(sk);
+lostMarkupSumSold 'Упущенная прибыль (надбавка)' (StoreType t, RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d) IF storeType(ds) == t AND NOT skipShow(sk);
+lostSumSold 'Упущенная прибыль (сумма)' (StoreType t, RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d) IF storeType(ds) == t AND NOT skipShow(sk);
 
-lostQuantitySold 'Упущенная прибыль (кол-во)' (RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d);
-lostMarkupSumSold 'Упущенная прибыль (надбавка)' (RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d);
-lostSumSold 'Упущенная прибыль (сумма)' (RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d);
+lostQuantitySold 'Упущенная прибыль (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d) IF chainStores(ds) == c AND NOT skipShow(sk);
+lostMarkupSumSold 'Упущенная прибыль (надбавка)' (ChainStores c, RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d) IF chainStores(ds) == c AND NOT skipShow(sk);
+lostSumSold 'Упущенная прибыль (сумма)' (ChainStores c, RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d) IF chainStores(ds) == c AND NOT skipShow(sk);
 
-lostQuantitySold 'Упущенная прибыль (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d) IF isParent(g,sk);
-lostMarkupSumSold 'Упущенная прибыль (надбавка)' (SkuGroup g, RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d) IF isParent(g,sk);
-lostSumSold 'Упущенная прибыль (сумма)' (SkuGroup g, RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d) IF isParent(g,sk);
+lostQuantitySold 'Упущенная прибыль (кол-во)' (RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d) IF NOT skipShow(sk);
+lostMarkupSumSold 'Упущенная прибыль (надбавка)' (RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d) IF NOT skipShow(sk);
+lostSumSold 'Упущенная прибыль (сумма)' (RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d) IF NOT skipShow(sk);
 
-quantityOnStock 'На складе и нет в ассортименте (кол-во)' (Store s, RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d) AND store(ds) == s;
-quantityOnRange 'В ассортименте и нет на складе (кол-во)' (Store s, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d) AND store(ds) == s;
-quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (Store s, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d) AND store(ds) == s;
-quantityOnStockRange 'На складе и в ассортименте (кол-во)' (Store s, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d) AND store(ds) == s;
+lostQuantitySold 'Упущенная прибыль (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM lostQuantitySold(Sku sk, DepartmentStore ds, d) IF isParent(g,sk) AND NOT skipShow(sk);
+lostMarkupSumSold 'Упущенная прибыль (надбавка)' (SkuGroup g, RangeDocument d) = GROUP SUM lostMarkupSumSold(Sku sk, DepartmentStore ds, d) IF isParent(g,sk) AND NOT skipShow(sk);
+lostSumSold 'Упущенная прибыль (сумма)' (SkuGroup g, RangeDocument d) = GROUP SUM lostSumSold(Sku sk, DepartmentStore ds, d) IF isParent(g,sk) AND NOT skipShow(sk);
 
-quantityOnStock 'На складе и нет в ассортименте (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d) AND storeType(ds) == t;
-quantityOnRange 'В ассортименте и нет на складе (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d) AND storeType(ds) == t;
-quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d) AND storeType(ds) == t;
-quantityOnStockRange 'На складе и в ассортименте (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d) AND storeType(ds) == t;
+quantityOnStock 'На складе и нет в ассортименте (кол-во)' (Store s, RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d) AND store(ds) == s AND NOT skipShow(sk);
+quantityOnRange 'В ассортименте и нет на складе (кол-во)' (Store s, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d) AND store(ds) == s AND NOT skipShow(sk);
+quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (Store s, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d) AND store(ds) == s AND NOT skipShow(sk);
+quantityOnStockRange 'На складе и в ассортименте (кол-во)' (Store s, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d) AND store(ds) == s AND NOT skipShow(sk);
 
-quantityOnStock 'На складе и нет в ассортименте (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d) AND chainStores(ds) == c;
-quantityOnRange 'В ассортименте и нет на складе (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d) AND chainStores(ds) == c;
-quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d) AND chainStores(ds) == c;
-quantityOnStockRange 'На складе и в ассортименте (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d) AND chainStores(ds) == c;
+quantityOnStock 'На складе и нет в ассортименте (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d) AND storeType(ds) == t AND NOT skipShow(sk);
+quantityOnRange 'В ассортименте и нет на складе (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d) AND storeType(ds) == t AND NOT skipShow(sk);
+quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d) AND storeType(ds) == t AND NOT skipShow(sk);
+quantityOnStockRange 'На складе и в ассортименте (кол-во)' (StoreType t, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d) AND storeType(ds) == t AND NOT skipShow(sk);
 
-quantityOnStock 'На складе и нет в ассортименте (кол-во)' (RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d);
-quantityOnRange 'В ассортименте и нет на складе (кол-во)' (RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d);
-quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d);
-quantityOnStockRange 'На складе и в ассортименте (кол-во)' (RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d);
+quantityOnStock 'На складе и нет в ассортименте (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d) AND chainStores(ds) == c AND NOT skipShow(sk);
+quantityOnRange 'В ассортименте и нет на складе (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d) AND chainStores(ds) == c AND NOT skipShow(sk);
+quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d) AND chainStores(ds) == c AND NOT skipShow(sk);
+quantityOnStockRange 'На складе и в ассортименте (кол-во)' (ChainStores c, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d) AND chainStores(ds) == c AND NOT skipShow(sk);
+
+quantityOnStock 'На складе и нет в ассортименте (кол-во)' (RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d) AND NOT skipShow(sk);
+quantityOnRange 'В ассортименте и нет на складе (кол-во)' (RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d) AND NOT skipShow(sk);
+quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d) AND NOT skipShow(sk);
+quantityOnStockRange 'На складе и в ассортименте (кол-во)' (RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d) AND NOT skipShow(sk);
 
 
-quantityOnStock 'На складе и нет в ассортименте (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d) AND isParent(g,sk);
-quantityOnRange 'В ассортименте и нет на складе (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d) AND isParent(g,sk);
-quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d) AND isParent(g,sk);
-quantityOnStockRange 'На складе и в ассортименте (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d) AND isParent(g,sk);
+quantityOnStock 'На складе и нет в ассортименте (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM 1 IF daysOnStock(Sku sk, DepartmentStore ds, d) AND NOT daysOnRange(sk,ds,d) AND isParent(g,sk) AND NOT skipShow(sk);
+quantityOnRange 'В ассортименте и нет на складе (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND NOT daysOnStock(sk,ds,d) AND isParent(g,sk) AND NOT skipShow(sk);
+quantityOnStockRangeAll 'На складе и в ассортименте за весь период (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) == daysOnStock(sk,ds,d) AND isParent(g,sk) AND NOT skipShow(sk);
+quantityOnStockRange 'На складе и в ассортименте (кол-во)' (SkuGroup g, RangeDocument d) = GROUP SUM 1 IF daysOnRange(Sku sk, DepartmentStore ds, d) AND daysOnStock(sk,ds,d) AND NOT daysOnRange(sk,ds,d) == daysOnStock(sk,ds,d) AND isParent(g,sk) AND NOT skipShow(sk);
 
 fillSku 'Заполнить данные'(RangeDocument d) {
     LOCAL message = TEXT ();
