@@ -623,19 +623,15 @@ EXTEND FORM receiveMessage
 @extDocument(purchaseInvoice, 'ПоступлениеТоваровУслуг');
 // Для обратной совместимости 1.6 -> 1.5
 
-//@defKeyPropSimple(numberInnerDocument, 'НомерВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice)
-//@defKeyPropDate(dateInnerDocument, 'ДатаВходящегоДокумента', innerDocumentData, purchaseInvoice)
-//@defKeyPropSimple(nameInnerDocument, 'НаименованиеВходящегоДокумента', STRING, innerDocumentData, purchaseInvoice)
 @defProp(numberInnerDocument, 'НомерВходящегоДокумента', STRING, purchaseInvoice);
 @defProp(dateInnerDocument, 'ДатаВходящегоДокумента', DATE, purchaseInvoice);
 @defProp(nameInnerDocument, 'НаименованиеВходящегоДокумента', STRING, purchaseInvoice);
 EXTEND FORM sendMessage
-    OBJECTS innerDocument  = INTEGER EXTID 'ДанныеВходящегоДокумента' IN keyProperties
-    PROPERTIES  = numberInnerDocument(purchaseInvoice, configuration) IF innerDocument IS INTEGER EXTID 'НомерВходящегоДокумента',
-                = dateToString(dateInnerDocument(purchaseInvoice, configuration)) IF innerDocument IS INTEGER EXTID 'ДатаВходящегоДокумента',
-                = nameInnerDocument(purchaseInvoice, configuration) IF innerDocument IS INTEGER EXTID 'НаименованиеВходящегоДокумента'
-    FILTERS iterate(innerDocument, 0,0) AND
-            (numberInnerDocument(purchaseInvoice, configuration) OR dateInnerDocument(purchaseInvoice, configuration) OR nameInnerDocument(purchaseInvoice, configuration))
+    OBJECTS innerDocument  = PurchaseInvoice EXTID 'ДанныеВходящегоДокумента' IN keyProperties
+    PROPERTIES  = numberInnerDocument(innerDocument, configuration) EXTID 'НомерВходящегоДокумента',
+                = dateToString(dateInnerDocument(innerDocument, configuration))  EXTID 'ДатаВходящегоДокумента',
+                = nameInnerDocument(innerDocument, configuration)  EXTID 'НаименованиеВходящегоДокумента'
+    FILTERS innerDocument == purchaseInvoice //AND (numberInnerDocument(purchaseInvoice, configuration) OR dateInnerDocument(purchaseInvoice, configuration) OR nameInnerDocument(purchaseInvoice, configuration))
 ;
 
 @defKeyPropObject(partnerKey, 'Контрагент', Partner, keyProperties, purchaseInvoice);
