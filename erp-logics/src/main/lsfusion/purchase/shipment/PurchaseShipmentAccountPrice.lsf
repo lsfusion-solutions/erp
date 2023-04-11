@@ -28,8 +28,8 @@ DESIGN currentBalanceSkuStock {
 // в оперативном расчете пока это не учитываем в целях производительности
 calcIntraAccountPrice (ShipmentDetail d) =
     NUMERIC[16,4]((balanceB(d)*accountPriceB(d) +
-            quantityShipmentDetail(sku(d), shipment(d))* (IF shipmentDetail(d) THEN accountPriceB(sku(d), supplierStock(d), dateTime(d)) ELSE price(d)))
-        / (quantityShipmentDetail(sku(d), shipment(d)) + balanceB(d)));
+           (OVERRIDE quantityShipmentDetail(sku(d), shipment(d)), 0.0) * (IF shipmentDetail(d) THEN accountPriceB(sku(d), supplierStock(d), dateTime(d)) ELSE price(d)))
+        / ((OVERRIDE quantityShipmentDetail(sku(d), shipment(d)), 0.0) + balanceB(d)));
 
 recalculateCostLedger (DATE dFrom, DATE dTo) + {
     LOCAL ordered = INTEGER (ShipmentDetail);
