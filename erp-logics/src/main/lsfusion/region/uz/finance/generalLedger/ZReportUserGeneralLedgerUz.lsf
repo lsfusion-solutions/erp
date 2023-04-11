@@ -17,11 +17,14 @@ valueVAT (ZReport r) =  valueRate(defaultVAT(), date(r));
 
 shortDescription 'Название документа' (ZReport zReport) =  STRING[200] (CONCAT '', 'Продажа по кассе ' + nameDepartmentStore(zReport),
                                             ' от ' + date(zReport));
-                                            
-sumCashVAT (ZReport r) = round2(sumCash(r) / (100 (+) valueVAT(r)) * valueVAT(r)); 
-sumCardVAT (ZReport r) = round2(sumCard(r) / (100 (+) valueVAT(r)) * valueVAT(r)); 
-sumCashWithoutVAT (ZReport r) = sumCash(r) (-) sumCashVAT(r); 
-sumCardWithoutVAT (ZReport r) = sumCard(r) (-) sumCardVAT(r);
+
+extraSumCash = ABSTRACT NUMERIC[18,4] (ZReport);
+extraSumCard = ABSTRACT NUMERIC[18,4] (ZReport);
+
+sumCashVAT (ZReport r) = round2((sumCash(r) (+) extraSumCash(r)) / (100 (+) valueVAT(r)) * valueVAT(r)); 
+sumCardVAT (ZReport r) = round2((sumCard(r) (+) extraSumCard(r)) / (100 (+) valueVAT(r)) * valueVAT(r)); 
+sumCashWithoutVAT (ZReport r) = (sumCash(r) (+) extraSumCash(r)) (-) sumCashVAT(r); 
+sumCardWithoutVAT (ZReport r) = (sumCard(r) (+) extraSumCard(r)) (-) sumCardVAT(r);
 sumWithoutVAT(ZReport r) = sumCashWithoutVAT(r) (+) sumCardWithoutVAT(r);
 
 //-- Оплачено налично
@@ -60,7 +63,7 @@ overCreateZCashWVZReport(UserGeneralLedger generalLedger) + {
                                  shortDescription, 
                                  '5710', 
                                  '9020', 
-                                 'by_default'
+                                 'uz_default'
                                  );
 overCreateZCardWVZReport(UserGeneralLedger generalLedger) + { 
     credit(generalLedger, DimensionType dimensionType) <- departmentStore[ZReport](GLDocument(generalLedger)) WHERE dimensionType == DimensionType.stock;
@@ -75,7 +78,7 @@ overCreateZCardWVZReport(UserGeneralLedger generalLedger) + {
                                  shortDescription, 
                                  '5710', 
                                  '6410', 
-                                 'by_default'
+                                 'uz_default'
                                  );
 
 //----------------------- Себестоимость и надбавка  -------------------------------
