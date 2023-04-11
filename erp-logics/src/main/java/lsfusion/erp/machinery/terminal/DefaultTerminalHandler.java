@@ -217,7 +217,7 @@ public class DefaultTerminalHandler {
                 List<SkuExtraBarcode> skuExtraBarcodeList = readSkuExtraBarcodeList(session, stockObject);
                 Map<String, RawFileData> orderImages = imagesInReadBase ? readTerminalOrderImages(session, stockObject, userInfo) : new HashMap<>();
 
-                List<TerminalAssortment> assortmentList = readTerminalAssortmentList(session, stockObject);
+                List<TerminalAssortment> assortmentList = readTerminalAssortmentList(session, stockObject, userInfo);
                 List<TerminalHandbookType> handbookTypeList = readTerminalHandbookTypeList(session);
                 List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, userInfo);
                 List<TerminalLegalEntity> customANAList = readCustomANAList(session, BL, userInfo);
@@ -1412,7 +1412,7 @@ public class DefaultTerminalHandler {
         return terminalOrderImages;
     }
 
-    public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, ObjectValue stockObject)
+    public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, ObjectValue stockObject, UserInfo userInfo)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalAssortment> terminalAssortmentList = new ArrayList<>();
         if (terminalHandlerLM != null) {
@@ -1432,7 +1432,7 @@ public class DefaultTerminalHandler {
 
             query.and(terminalHandlerLM.findProperty("id[Stock]").getExpr(supplierExpr).getWhere());
             query.and(terminalHandlerLM.findProperty("overIdBarcode[Sku]").getExpr(skuExpr).getWhere());
-            query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(session.getModifier(), skuExpr, stockObject.getExpr(), supplierExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock,STRING[1]]").getExpr(session.getModifier(), skuExpr, stockObject.getExpr(), supplierExpr, new DataObject(userInfo.idApplication).getExpr()).getWhere());
 
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
