@@ -223,9 +223,10 @@ skipToSentOrderMessage = ABSTRACT TEXT (Purchase.Order);
 overEmailCustomer  ABSTRACT LIST ( Order.Order);
 consumedEmailCustomer = DATA LOCAL NESTED BOOLEAN (Order.Order);
 
-emailCustomerSingle 'Отправить заказ поставщику' (Purchase.Order order)  { 
-	IF NOT skipToSentOrder(order) THEN NEWSESSION {	    
-	    overEmailCustomer(order);	
+emailCustomerSingle 'Отправить заказ поставщику' (Purchase.Order order) {
+    IF NOT skipToSentOrder(order) THEN NEWSESSION {
+        consumedEmailCustomer(order) <- NULL;
+        overEmailCustomer(order);
 	    IF NOT consumedEmailCustomer(order) THEN {
 	        IF (OVERRIDE overEmailList(order), email(supplierStock(order)), email(supplier(order))) THEN {
 	            isSent(order) <- TRUE;
