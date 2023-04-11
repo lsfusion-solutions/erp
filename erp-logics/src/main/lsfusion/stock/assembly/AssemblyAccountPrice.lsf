@@ -9,13 +9,12 @@ accountLedgerPrice (Assembly d) += accountPrice(d);
 
 @defineCalcAveragePrice(Assembly, stock);
 
-recalculateCostAccountFirst (DATE dFrom, DATE dTo) + {
-    logToFile('cost', 'Начат пересчет цен в сборках');
+recalculateCostAccountFirst(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в сборках (приход)');
     APPLY NESTED LOCAL {
-        price(AssemblyDetail d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
+        accountPrice(Assembly d) <- calcAccountPrice(d)
             WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
     }
     IF canceled() THEN CANCEL;
-    logToFile('cost', 'Закончен пересчет цен в сборках');
+    logToFile('cost', 'Закончен пересчет цен в сборках (приход)');
 }
-
