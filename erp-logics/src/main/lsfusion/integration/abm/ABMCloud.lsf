@@ -164,6 +164,13 @@ stateABMTime 'Время статуса' = DATA  DATETIME(Stock, Stock, Separati
 stateABMSent (Stock st, Stock supplier, Separation s) = stateABM(st,supplier,s)!=State.NA;
 scheduleOrder = DATA  Purchase.ScheduleOrder(Stock, Stock, Separation) TABLE scheduleOrderABMSupplier;
 
+countStockSO = GROUP SUM 1 BY scheduleOrder(Stock st, Stock ss, Separation sep);
+countLegalentitySO = GROUP SUM 1 BY scheduleOrder(Stock st, LegalEntity ss, Separation sep);
+
+skipDeleteSO = DATA BOOLEAN ();
+CONSTRAINT DROPPED(Purchase.ScheduleOrder o AS Purchase.ScheduleOrder) AND (PREV(countStockSO(o)) OR PREV(countLegalentitySO(o))) AND NOT skipDeleteSO()
+    MESSAGE 'Запрещено удалять графики заказов, которые были выгружены в ABM';
+
 TABLE ABMInvoiceShipments (Purchase.Invoice);
 stateABMTime 'Время статуса' = DATA  DATETIME(Purchase.Invoice) TABLE ABMInvoiceShipments;
 TABLE shipmentsABMInvoice (Purchase.InvoiceDetail); 
