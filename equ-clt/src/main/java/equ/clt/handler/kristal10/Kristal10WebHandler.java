@@ -1033,6 +1033,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private void sendResponse(HttpExchange httpExchange, String tag, Namespace ns1Namespace, String error) throws IOException {
+        sendSalesLogger.info(getLogPrefix() + "Send response: " + error);
 
         Element envelopeElement = new Element("Envelope", soapNamespace);
         //envelopeElement.setNamespace(soapNamespace);
@@ -1329,7 +1330,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             if (!salesInfoList.isEmpty() || ignoreSalesWithoutNppGroupMachinery) {
                 sendSalesLogger.info(getLogPrefix() + "Sending SalesInfo: " + salesInfoList.size());
                 String result = remote.sendSalesInfo(salesInfoList, sidEquipmentServer, directory);
-                sendSalesLogger.info(getLogPrefix() + "Send SalesInfo result: " + result);
                 if (result != null) {
                     EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
                 }
@@ -1381,7 +1381,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
             BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
             BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
-            zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport));
+            zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport, numberGroupCashRegister));
 
         }
 

@@ -1061,7 +1061,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                 BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
                                 BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
                                 BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
-                                zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport));
+                                zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport, numberGroupCashRegister));
 
                             }
                             String dir = file.getParent() + "/success-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "/";

@@ -352,12 +352,13 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             Integer numberCashRegister = (Integer) valuesHandler.get(1);
             String numberZReport = (String) valuesHandler.get(2);
             String idZReport = (String) valuesHandler.get(3);
+            Integer numberGroupCashRegister = (Integer) valuesHandler.get(4);
 
             BigDecimal sumBase = baseZReportSumMap.get(idZReportHandler);
 
             if (sumHandler == null || sumBase == null || sumHandler.doubleValue() != sumBase.doubleValue())
-                message.append(String.format("CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n",
-                        numberCashRegister, numberZReport, sumBase, sumHandler));
+                message.append(String.format("GroupCashRegister %s. CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n",
+                        numberGroupCashRegister, numberCashRegister, numberZReport, sumBase, sumHandler));
             else
                 idZReportList.add(idZReport);
         }
