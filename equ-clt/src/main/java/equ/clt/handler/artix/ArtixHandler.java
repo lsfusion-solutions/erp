@@ -561,6 +561,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             itemOptions.put("inventitemoptions", inventItemOptions);
 
+            if (tobacco){
+                JSONObject priceOptions = new JSONObject();
+                priceOptions.put("enableexcisemarkprice", 1);
+                itemOptions.put("priceoptions", priceOptions);
+            }
+
             inventObject.put("options", itemOptions);
 
             if(medicineModeNewScheme) {
