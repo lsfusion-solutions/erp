@@ -71,6 +71,9 @@ FORM checkLot
 ;
 
 
+correctLot (UpdLotDetail l) = left(id(l),2) ='02' AND substr(id(l),17,2) = '37';
+correctLot (UpdPackDetail l) = left(id(l),2) ='02' AND substr(id(l),17,2) = '37';
+correctLot (UpdTransportPackDetail l) = left(id(l),2) ='02' AND substr(id(l),17,2) = '37';
 
 checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
     NEWSESSION {
@@ -78,7 +81,8 @@ checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
         headers('Authorization') <- 'Bearer ' + OVERRIDE token(), GISMT.token();
         headers('Content-Type') <- 'application/json; charset=UTF-8';
         LOCAL result = FILE ();
-        FOR updDocument(UpdLotDetail l) = d DO {
+        FOR updDocument(UpdLotDetail l) = d AND correctLot(l) DO checkedGISMT(l) <- 'ОСУ';
+        FOR updDocument(UpdLotDetail l) = d AND NOT correctLot(l) DO {
             TRY {
                 urlEncode(id(l));
                 EXTERNAL HTTP POST  'https://markirovka.crpt.ru/api/v3/true-api/cises/list?values=' + urlEncoded() HEADERS headers TO resultFile;
@@ -93,7 +97,8 @@ checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
                 checkedGISMT(l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
             }
         }
-        FOR updDocument(UpdPackDetail l) = d DO {
+        FOR updDocument(UpdPackDetail l) = d AND correctLot(l) DO checkedGISMT(l) <- 'ОСУ';
+        FOR updDocument(UpdPackDetail l) = d AND NOT correctLot(l) DO {
             TRY {
                 urlEncode(id(l));
                 EXTERNAL HTTP POST  'https://markirovka.crpt.ru/api/v3/true-api/cises/list?values=' + urlEncoded() HEADERS headers TO resultFile;
@@ -108,7 +113,8 @@ checkLot 'Проверка КМ в ГИС МТ' (UpdDocument d) {
                 checkedGISMT(l) <- IF NOT (status(l) = 'INTRODUCED' OR status(l) = 'INTRODUCED_RETURNED') OR NOT (inn(l) = innCustomer(updDocument(l)) OR inn(l) = innSupplier(updDocument(l))) AND updDocument(l) = d THEN 'Ошибка' ELSE 'OK';            
             }
         }
-        FOR updDocument(UpdTransportPackDetail l) = d DO {
+        FOR updDocument(UpdTransportPackDetail l) = d AND correctLot(l) DO checkedGISMT(l) <- 'ОСУ';
+        FOR updDocument(UpdTransportPackDetail l) = d AND NOT correctLot(l) DO {
             TRY {
                 urlEncode(id(l));
                 EXTERNAL HTTP POST  'https://markirovka.crpt.ru/api/v3/true-api/cises/list?values=' + urlEncoded() HEADERS headers TO resultFile;
