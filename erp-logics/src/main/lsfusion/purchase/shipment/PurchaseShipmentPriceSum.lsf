@@ -1,0 +1,12 @@
+MODULE PurchaseShipmentPriceSum;
+
+REQUIRE PurchaseShipment;
+
+NAMESPACE Purchase;
+
+shipmentSum(Purchase.UserInvoiceDetail d) <- NUMERIC[18,4](costSum(d) / quantity(d) * shipmentQuantity(d))
+    WHEN CHANGED(costSum(d)) OR CHANGED(quantity(d)) OR CHANGED(shipmentQuantity(d));
+
+shipmentPrice(Purchase.UserInvoiceDetail d) <- NUMERIC[16,4](OVERRIDE shipmentSum(d)/shipmentQuantity(d), price(d))
+    WHEN CHANGED(shipmentSum(d)) OR CHANGED(shipmentQuantity(d)) OR CHANGED(price(d));
+
