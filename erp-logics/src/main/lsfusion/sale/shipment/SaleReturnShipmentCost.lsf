@@ -32,7 +32,7 @@ recalculateCostAccount(DATE dFrom, DATE dTo) +{
     IF canceled() THEN CANCEL;
 
     logToFile('cost', 'Начат пересчет цен в накладных (продажа-возврат)');
-    APPLY {
+    APPLY NESTED LOCAL {
         shipmentPrice(UserInvoiceDetail d) <- prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d))
             WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d));
     }
