@@ -24,12 +24,14 @@ DESIGN currentBalanceSkuStock {
     }
 }
 
-// считаем кол-во по всему документу, чтобы исключить проблемы с одним товаром разными строками в одном документе
+// считаем кол-во за один момент, чтобы исключить проблемы с одним товаром разными строками за одно время
 // в оперативном расчете пока это не учитываем в целях производительности
+quantityShipmentDetail (Sku sk, DATETIME dt) = GROUP SUM quantity(ShipmentDetail d) BY sku(d), dateTime(d);
+
 calcIntraAccountPrice (ShipmentDetail d) =
     NUMERIC[16,4]((balanceB(d)*accountPriceB(d) +
-           (OVERRIDE quantityShipmentDetail(sku(d), shipment(d)), 0.0) * (IF shipmentDetail(d) THEN accountPriceB(sku(d), supplierStock(d), dateTime(d)) ELSE price(d)))
-        / ((OVERRIDE quantityShipmentDetail(sku(d), shipment(d)), 0.0) + balanceB(d)));
+           (OVERRIDE quantityShipmentDetail(sku(d), dateTime(d)), 0.0) * (IF shipmentDetail(d) THEN accountPriceB(sku(d), supplierStock(d), dateTime(d)) ELSE price(d)))
+        / ((OVERRIDE quantityShipmentDetail(sku(d), dateTime(d)), 0.0) + balanceB(d)));
 
 recalculateCostLedger (DATE dFrom, DATE dTo) + {
     LOCAL ordered = INTEGER (ShipmentDetail);
