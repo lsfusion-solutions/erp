@@ -18,28 +18,31 @@ DESIGN cashRegisterModel{
     }
 }
 
+artixError = DATA LOCAL NESTED BOOLEAN ();
 createFilesArtix(STRING data, STRING directory) {
-    
+
     IF NOT directory THEN {
         MESSAGE 'Каталог не задан.';
         RETURN;
     }
-    
+
     LOCAL aif = FILE ();
-    stringToFile(data,'UTF-8','aif');
+    stringToFile(data, 'UTF-8', 'aif');
     aif() <- resultFile();
-    
+
     LOCAL flz = FILE ();
-    stringToFile('','UTF-8','flz');
+    stringToFile('', 'UTF-8', 'flz');
     flz() <- resultFile();
-    
+
     LOCAL name = STRING[50]();
     name() <- 'pos' + toChar(currentDateTimeMillis(), 'YYYYMMDDHH24MISSMS');
-    
-   TRY {
-        WRITE aif() TO directory + '/'+ name();
-        WRITE flz() TO directory + '/'+ name();
-   } CATCH {
-        MESSAGE 'Ошибка при записи файла.';
-   }
+
+    artixError() <- NULL;
+    TRY {
+        WRITE aif() TO directory + '/' + name();
+        WRITE flz() TO directory + '/' + name();
+    } CATCH {
+        MESSAGE 'Ошибка при записи файла.' NOWAIT;
+        artixError() <- TRUE;
+    }
 }

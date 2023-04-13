@@ -121,8 +121,10 @@ succeeded 'Загружена' = DATA BOOLEAN (MachineryPriceTransaction);
 notSucceeded 'Не загружена' (MachineryPriceTransaction machineryPriceTransaction) = NOT succeeded(machineryPriceTransaction);
 dateTimeSucceeded 'Время загрузки' = DATA DATETIME (MachineryPriceTransaction);
 canceled 'Отменена' = DATA BOOLEAN (MachineryPriceTransaction);
+skipProcess = ABSTRACT BOOLEAN (MachineryPriceTransaction);
 process 'Требуется загрузка' (MachineryPriceTransaction machineryPriceTransaction) =
     machineryPriceTransaction IS MachineryPriceTransaction AND NOT
+    skipProcess(machineryPriceTransaction) AND NOT
     succeeded(machineryPriceTransaction) AND NOT
     canceled(machineryPriceTransaction) MATERIALIZED INDEXED;
 
@@ -185,13 +187,14 @@ price(MachineryPriceTransaction t, Barcode barcode)  => in(t, barcode) RESOLVE R
 TABLE barcodeGroupMachinery (Barcode, GroupMachinery);
 
 skipLastTransaction 'Не учитывать для определения текущих цен в оборудовании' = ABSTRACT BOOLEAN (GroupMachinery);
+skipLastTransaction 'Не учитывать для определения текущих цен в оборудовании' = ABSTRACT VALUE BOOLEAN (MachineryPriceTransaction);
 
 // INDEX groupInMachineryPriceTransactionBarcode + barcode 
 groupIn = groupMachinery(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode) 
-    AND NOT skipLastTransaction(groupMachinery(transaction)) MATERIALIZED;
+    AND NOT skipLastTransaction(groupMachinery(transaction)) AND NOT skipLastTransaction(transaction) MATERIALIZED;
 
 dateTimeIn = dateTime(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode) 
-    AND NOT skipLastTransaction(groupMachinery(transaction)) MATERIALIZED;
+    AND NOT skipLastTransaction(groupMachinery(transaction)) AND NOT skipLastTransaction(transaction) MATERIALIZED;
     
 INDEX groupIn(MachineryPriceTransaction t, Barcode b), b, dateTimeIn(t,b), t;
     

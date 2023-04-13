@@ -96,6 +96,7 @@ directoryPickList 'Директория для пиклиста' = DATA STRING[2
 
 skipFilterBalance = ABSTRACT BOOLEAN (GroupCashRegister, Sku);
 beforeExport ABSTRACT LIST (GroupCashRegister);
+afterExport ABSTRACT LIST (GroupCashRegister);
 
 //выгрузка
 skipFilterBalance 'Не фильтровать по остаткам' = DATA LOCAL NESTED BOOLEAN ();
@@ -212,7 +213,10 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
     
     createFilePickList(gm);
     
-    MESSAGE name(gm) +': Пиклист выгружен' NOWAIT;
+    IF NOT artixError() THEN {
+        afterExport(gm);
+        MESSAGE name(gm) +': Пиклист выгружен' NOWAIT;
+    }
 }
 
 exportPickListAndClose 'Выгрузить' (GroupMachinery gm) {
