@@ -89,6 +89,8 @@ public class TerminalServer extends MonitorServer {
 
     public static final byte TEAMWORK_DOCUMENT = 13;//0x0D
 
+    public static final byte SET_STOCK = 14;
+
 
     private static final Logger logger = ERPLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = ERPLoggers.priceCheckerLogger;
@@ -395,18 +397,6 @@ public class TerminalServer extends MonitorServer {
                                     if (loginResult instanceof DataObject) {
                                         result = getSessionId((DataObject) loginResult, params[0], params[1], params[2], idApplication, idStock);
                                         logger.info(String.format("successfull login, idTerminal %s, idApplication '%s', applicationVersion '%s', idStock '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication, applicationVersion, idStock));
-
-                                        if (!idStock.isEmpty()) {
-                                            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
-                                            if (terminalHandlerLM != null) {
-                                                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(createSession(), new DataObject(idStock));
-                                                if (stockObject.isNull()) {
-                                                    result = null;
-                                                    errorCode = STOCK_ERROR;
-                                                    errorText = STOCK_ERROR_TEXT;
-                                                }
-                                            }
-                                        }
                                     } else if (loginResult instanceof String) {
                                         errorCode = LOGIN_ERROR;
                                         errorText = (String) loginResult;
@@ -424,6 +414,30 @@ public class TerminalServer extends MonitorServer {
                             }
                         } catch (Exception e) {
                             logger.error("GetUserInfo Unknown error: ", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
+                    case SET_STOCK:
+                        try {
+                            logger.info("requested setStock");
+                            String[] params = readParams(inFromClient);
+                            if (params.length >= 2) {
+                                logger.info("id stock: " + params[1]);
+                                sessionId = params[0];
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    userInfo.idStock = params[1];
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            logger.error("setStock Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
@@ -786,6 +800,7 @@ public class TerminalServer extends MonitorServer {
                             int flags = 0;
                             String userName = "";
                             String nameStock = "";
+                            String accessList = "";
 
                             try {
                                 if (terminalHandlerLM != null) {
@@ -798,13 +813,8 @@ public class TerminalServer extends MonitorServer {
 
                                     if (userInfo != null && userInfo.user != null) {
                                         userName = (String) terminalHandlerLM.findProperty("name[CustomUser]").read(createSession(), userInfo.user);
-                                        if (userInfo.idStock.isEmpty())
-                                            nameStock = (String) terminalHandlerLM.findProperty("nameStock[Employee]").read(createSession(), userInfo.user);
-                                        else {
-                                            ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(createSession(), new DataObject(userInfo.idStock));
-                                            if (!stockObject.isNull())
-                                                nameStock = (String) terminalHandlerLM.findProperty("name[Stock]").read(createSession(), stockObject);
-                                        }
+                                        nameStock = (String) terminalHandlerLM.findProperty("nameStock[Employee]").read(createSession(), userInfo.user);
+                                        accessList = (String) terminalHandlerLM.findProperty("accessList[Employee]").read(createSession(), userInfo.user);
                                     }
                                 }
                             }
@@ -826,6 +836,8 @@ public class TerminalServer extends MonitorServer {
                                 write(outToClient, userName);
                                 writeByte(outToClient, esc);
                                 write(outToClient, nameStock);
+                                writeByte(outToClient, esc);
+                                write(outToClient, accessList);
                             }
                             writeByte(outToClient, etx);
                             break;
@@ -849,6 +861,7 @@ public class TerminalServer extends MonitorServer {
 //                        case SAVE_PALLET:
                         case CHECK_ORDER:
                         case CHANGE_ORDER_STATUS:
+                        case SET_STOCK:
                             if (result != null) {
                                 write(outToClient, result);
                             }
