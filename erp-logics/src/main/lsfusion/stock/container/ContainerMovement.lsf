@@ -57,6 +57,8 @@ accountSumContainerStockDateFrom 'Остаток на начало по скла
 
 accountSumContainerStockDateTo 'Остаток на конец по складам' = GROUP SUM accountSumContainerDateTo(Stock st);
 
+overBeforeIncludeContainerMovementBatchFromTo ABSTRACT ();
+
 includeContainerMovementBatchFromTo 'Рассчитать'(DATE dateFrom, DATE dateTo)  {
 
     LOCAL isContainer = BOOLEAN (Sku, Stock);
@@ -67,7 +69,9 @@ includeContainerMovementBatchFromTo 'Рассчитать'(DATE dateFrom, DATE d
 
     inContainerMovement(Stock st, Batch bt) <- NULL WHERE (GROUP SUM 1 IF LegalEntity.in(LegalEntity l)) AND NOT LegalEntity.in(supplier(bt));
     inContainerMovement(Stock st, Batch bt) <- NULL WHERE (GROUP SUM 1 IF in(Item i)) AND NOT in(sku(bt));
-
+    
+    overBeforeIncludeContainerMovementBatchFromTo();
+    
     balanceIn(Stock st, Batch bt) <- NULL;
     balanceOut(Stock st, Batch bt) <- NULL;
 
