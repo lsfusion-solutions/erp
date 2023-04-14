@@ -17,8 +17,9 @@ META defineAddDetailDialogTerminalLotSecond(object)
         LOCAL double = BOOLEAN(Lot);
         double(Lot l) <- TRUE WHERE [GROUP MIN TerminalLotDetail tl BY terminalDocumentDetail(tl), lot(id(tl))](td, l) AND quantity(##object(d), l);
           
-        quantity(d, Lot l) <- 1.0 WHERE [GROUP MIN TerminalLotDetail tld BY lot(id(tld)), terminalDocumentDetail(tld)](l, td) AND NOT double(l); 
-        quantity(d) <- IF [GROUP MIN TerminalLotDetail tld BY terminalDocumentDetail(tld)](td) THEN [GROUP SUM quantity(d, Lot l) IF l IS Lot]() ELSE 0.0; 
+        quantity(d, Lot l) <- 1.0 WHERE [GROUP MIN TerminalLotDetail tld BY lot(id(tld)), terminalDocumentDetail(tld)](l, td) AND NOT double(l);
+        IF useLot(operation(d)) THEN
+            quantity(d) <- IF [GROUP MIN TerminalLotDetail tld BY terminalDocumentDetail(tld)](td) THEN [GROUP SUM quantity(d, Lot l) IF l IS Lot]() ELSE 0.0; 
     }
 END
 
