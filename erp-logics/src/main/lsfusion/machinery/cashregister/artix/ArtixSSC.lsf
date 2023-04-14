@@ -96,7 +96,8 @@ directoryPickList 'Директория для пиклиста' = DATA STRING[2
 
 skipFilterBalance = ABSTRACT BOOLEAN (GroupCashRegister, Sku);
 beforeExport ABSTRACT LIST (GroupCashRegister);
-afterExport ABSTRACT LIST (GroupCashRegister);
+beforeFullExport ABSTRACT LIST (GroupCashRegister);
+afterFullExport ABSTRACT LIST (GroupCashRegister);
 
 //выгрузка
 skipFilterBalance 'Не фильтровать по остаткам' = DATA LOCAL NESTED BOOLEAN ();
@@ -196,6 +197,7 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
     export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm) AND (GROUP SUM 1 IF isParent(cg, Sku s) AND idParent(s)); 
     
     beforeExport(gm);
+    beforeFullExport(gm);
 
     exportTara(Sku s) <- TRUE WHERE isTara(s);
     
@@ -214,7 +216,7 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
     createFilePickList(gm);
     
     IF NOT artixError() THEN {
-        afterExport(gm);
+        afterFullExport(gm);
         MESSAGE name(gm) +': Пиклист выгружен' NOWAIT;
     }
 }
