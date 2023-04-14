@@ -306,7 +306,7 @@ batch(AssemblyOutSkuLedger l) += batch(assemblyDetail(l));
 
 show(AssemblyOutSkuLedger l) + { show(assemblyDetail(l)); } 
 
-// Разборка
+// Сборка
 CLASS AssemblyInSkuLedger 'Сборка товара (приход)';
 TABLE assemblyInSkuLedger(AssemblyInSkuLedger);
 
@@ -327,7 +327,23 @@ sum(AssemblyInSkuLedger l) = sum(assembly(l));
 quantity(AssemblyInSkuLedger l) += quantity(l);
 sum(AssemblyInSkuLedger l) += sum(l);
 
-show(AssemblyInSkuLedger l) + { show(assembly(l)); } 
+show(AssemblyInSkuLedger l) + { show(assembly(l)); }
+
+@implementStockDocumentLedgerInc(Assembly, stock);
+
+sumItem [IncStockDocumentLedger](Assembly ledger) += sum(ledger);
+
+EXTEND CLASS Assembly : OutStockDocumentLedger;
+
+type(Assembly l) += STRING[50]('Сборка товаров') IF l IS Assembly;
+sumItem [OutStockDocumentLedger](Assembly ledger) += sumAssemblyDetail(ledger);
+
+operation[StockDocumentLedger](Assembly ledger) += operation(ledger);
+
+close[StockDocumentLedger](Assembly l) + {  close(l); }
+
+stockDocumentLedger(AssemblyOutSkuLedger ledger) += assembly(assemblyDetail(ledger));
+stockDocumentLedger(AssemblyInSkuLedger ledger) += assembly(ledger);
 
 // copy
 
