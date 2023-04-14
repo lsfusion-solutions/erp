@@ -360,6 +360,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             boolean tobacco = "tobacco".equals(lotType) || "tobaccoProduct".equals(lotType);
             if (tobacco) tmcType = 3;
 
+            Integer exciseMarkPrice = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optInt("enableexcisemarkprice") : null;
+
             if (infoJSON != null && infoJSON.has("defaultquantity")) {defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");}
             if (infoJSON != null && infoJSON.has("tmctype")) { tmcType = infoJSON.optInt("tmctype");}
 
@@ -561,9 +563,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             itemOptions.put("inventitemoptions", inventItemOptions);
 
-            if (tobacco){
+            if (exciseMarkPrice != null) {
                 JSONObject priceOptions = new JSONObject();
-                priceOptions.put("enableexcisemarkprice", 1);
+                priceOptions.put("enableexcisemarkprice", exciseMarkPrice);
                 itemOptions.put("priceoptions", priceOptions);
             }
 

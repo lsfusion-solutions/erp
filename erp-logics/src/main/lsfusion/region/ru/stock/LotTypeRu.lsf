@@ -18,3 +18,15 @@ EXTEND CLASS LotType {
     water 'Упакованная вода'
 }
 
+showEnableExciseMarkPrice 'Цена табачной продукции в коде маркировки' = DATA BOOLEAN (LotType);
+EXTEND FORM dialogLotTypes
+    PROPERTIES READONLY showEnableExciseMarkPrice(t);
+onStarted() + {
+    showEnableExciseMarkPrice(LotType t) <- t == LotType.tobacco OR t == LotType.tobaccoProduct;
+}
+
+enableExciseMarkPrice 'Цена табачной продукции в коде маркировки' = DATA BOOLEAN (Item) IN itemBase;
+
+EXTEND FORM item PROPERTIES(i) enableExciseMarkPrice AFTER nameLotType(i) SHOWIF showEnableExciseMarkPrice(lotType(i));
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() AFTER nameLotType(i) enableExciseMarkPrice SHOWIF showEnableExciseMarkPrice(lotType(i));
+
