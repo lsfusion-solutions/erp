@@ -106,6 +106,9 @@ changeNameSku (Stock st) {
     DIALOG dialogMix OBJECTS st = st, s = dsku() CHANGE LIST name(s);
 }
 
+balanceMix 'Остаток микса' (Stock st) = IF split(dsku()) THEN currentBalance(dsku(), st) (-) weightDisassemblyLot(disassembly(st, currentUser(), dsku()))
+                                                    ELSE currentBalance(dsku(), st) (-) countDisassemblyLot(disassembly(st, currentUser(), dsku()));
+
 FORM disassemblyLotDashboard 'Разукомплектация'
     PROPERTIES NEWSESSION userComputerSettings()
 
@@ -126,7 +129,8 @@ FORM disassemblyLotDashboard 'Разукомплектация'
     
     PROPERTIES PANEL 
                countLot 'Кол-во марок' = (OVERRIDE countDisassemblyLot(disassembly(st, currentUser(), dsku())), 0.0), 
-               weightLot 'Вес марок' = (OVERRIDE weightDisassemblyLot(disassembly(st, currentUser(), dsku())), 0.0)
+               weightLot 'Вес марок' = (OVERRIDE weightDisassemblyLot(disassembly(st, currentUser(), dsku())), 0.0),
+               balanceMix(st) BACKGROUND RGB(255,100,100) IF balanceMix(st) < 0
     
     PROPERTIES(st) SHOWIF disassemblyMode() postDisassembly READONLYIF NOT countDisassembly(st, currentUser())
     
@@ -156,6 +160,7 @@ DESIGN disassemblyLotDashboard {
                 NEW totalDisassembly {
                     showIf = disassemblyMode();
                     alignment = STRETCH;
+                    MOVE PROPERTY(balanceMix(st)) { fontSize = 16; alignment = STRETCH; }
                     MOVE PROPERTY(countLot) { fontSize = 16; alignment = STRETCH; }
                     MOVE PROPERTY(weightLot) { fontSize = 16; alignment = STRETCH; }
                 }
