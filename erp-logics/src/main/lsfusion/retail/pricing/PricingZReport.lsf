@@ -12,9 +12,8 @@ CLASS ZReportRepricing 'Скидка по продаже через кассы';
 TABLE zReportRepricing (ZReportRepricing);
 
 extraDiscountSumReceiptDetail = ABSTRACT NUMERIC[18,4] (ZReport);
-overTotalDiscountSumReceiptDetail = ABSTRACT NUMERIC[18,4] (ZReport);
-// +0.0 нужен для конечного результата NULL при условии, что OVERRIDE даёт 0
-totalDiscountSumReceiptDetail(ZReport zReport) = (OVERRIDE overTotalDiscountSumReceiptDetail(zReport), (discountSum(zReport) (+) extraDiscountSumReceiptDetail(zReport))) (+) 0.0;
+totalDiscountSumReceiptDetail = ABSTRACT CASE NUMERIC[18,4] (ZReport);
+totalDiscountSumReceiptDetail(ZReport z) += WHEN z IS ZReport THEN discountSum(z) (+) extraDiscountSumReceiptDetail(z); 
 
 zReportRepricing = AGGR ZReportRepricing WHERE totalDiscountSumReceiptDetail(ZReport zReport) MATERIALIZED INDEXED;
 @defineDocumentAggregationHeaderNumberCustom(zReport, zReportRepricing, zReport);
