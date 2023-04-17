@@ -1,0 +1,146 @@
+MODULE EGAISLotInit;
+
+REQUIRE LotInit, EGAISLot, EGAISStock, EGAISItem, EGAISMarkCode, EGAISFRegLedger,
+        EGAISActFixBarCodeExchange;
+
+NAMESPACE EGAIS;
+
+f2Reg = DATA F2Reg (LotInitDetail, Lot) INDEXED;
+idF2Reg 'Справка Б' (LotInitDetail d, Lot l) = id(f2Reg(d, l));
+
+quantity (LotInitDetail d, F2Reg r) = GROUP SUM 1 IF f2Reg(d, Lot l) = r AND quantity(d, l);
+
+fillQuantity 'Выбрать' (LotInitDetail d, Lot l, F2Reg s) { f2Reg(d, l) <- s; }
+
+matches (LotInitDetail d, F2Reg r) = client(r) = client(stock(d)) AND in(sku(d), product(r));
+
+fillQuantity 'Заполнить' (LotInit s) {
+    f2Reg(LotInitDetail d, Lot l) <- f2Reg(markCode(id(l))) WHERE lotInit(d) = s AND f2Reg(markCode(id(l))) AND quantity(d, l);
+}
+
+EXTEND FORM lotInit
+    OBJECTS edl = (ed = LotInitDetail, l = Lot)
+    PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity
+    PROPERTIES     READONLY id(l), quantity(ed, l)
+    PROPERTIES              idF2Reg(ed, l)
+    ORDERS index(ed)
+    FILTERS lotInit(ed) = i,
+            quantity(ed, l)
+    
+    PROPERTIES(i) fillQuantity DRAW edl TOOLBAR
+    
+    OBJECTS re = F2Reg
+    PROPERTIES(re) READONLY id, idF1Reg PANEL, fullNameProduct, currentBalance
+    PROPERTIES(ed, l, re)      fillQuantity GRID
+    FILTERS matches(ed, re)
+
+    FILTERGROUP active
+        FILTER 'С остатком' currentBalance(re) > 0 OR f2Reg(ed, l) = re DEFAULT 
+;
+
+DESIGN lotInit {
+    specificationBox {
+        NEW EGAIS {
+            caption = 'ЕГАИС';
+            NEW EGAISHeader {
+                type = CONTAINERH;
+            }
+            NEW EGAISDetail {
+                fill = 1;
+                type = SPLITH;
+                MOVE BOX(edl);
+                MOVE BOX(re);
+            }
+        }
+    }
+}
+
+// process
+actFixBarCode = DATA ActFixBarCode (LotInit);
+
+lotInitDetail = DATA LotInitDetail (ActFixBarCodePosition);
+
+process 'Отправить в ЕГАИС' (LotInit i) {
+    LOCAL checkF2Reg = STRING();
+    checkF2Reg() <- (GROUP CONCAT id(Lot l) IF quantity(LotInitDetail d, l) IF lotInit(d) = i AND NOT f2Reg(d, l), ',' ORDER l, d);
+    IF checkF2Reg() THEN {
+        MESSAGE 'Не выбраны справки Б для следующих марок : ' + checkF2Reg() + '. Отправка невозможна.';
+        RETURN;
+    }
+    
+    NEWSESSION {
+        NEW a = ActFixBarCode {
+            actFixBarCode(i) <- a;
+            
+            number(a) <- seriesNumber(i);
+            
+            dateTime(a) <- dateTime(i);
+            
+            client(a) <- client(stock(i));
+            
+            note(a) <- note(i);
+
+            FOR quantity(LotInitDetail d, Lot l) IF lotInit(d) = i AND NOT markCode(id(l)) DO NEW m = MarkCode {
+                id(m) <- id(l);
+            }
+            
+            FOR quantity(LotInitDetail d, F2Reg r) IF lotInit(d) = i INLINE NEW p = ActFixBarCodePosition DO {
+                actFixBarCode(p) <- a;
+                
+                lotInitDetail(p) <- d;
+                
+                product(p) <- product(r);
+                
+                f2Reg(p) <- r;
+
+                FOR quantity(d, Lot l) IF MarkCode mc = markCode(id(l)) AND f2Reg(d, l) = r INLINE NEW m = ActFixBarCodeMark DO {
+                    actFixBarCodePosition(m) <- p;
+                    markCode(m) <- mc;
+                }
+            }
+            
+            check();
+            
+            IF NOT canceled() THEN {
+                process(a);
+            }
+        }
+    }
+}
+
+//cancel 'Отменить' (LotInit i) {
+//    createAct(wayBill(i), TRUE);
+//} CONFIRM;
+
+EXTEND FORM lotInits
+    OBJECTS a = ActFixBarCode PANEL
+    PROPERTIES(a) READONLY posted, canceled, number, date // canceled
+    FILTERS a = actFixBarCode(i)
+
+    OBJECTS wp = ActFixBarCodePosition
+    PROPERTIES(wp) READONLY idProduct, fullNameProduct, idF2Reg, countMarkCodes
+    FILTERS actFixBarCode(wp) = a
+
+    PROPERTIES READONLY PANEL
+                    commentsActFixBarCodeAct 'Комментарий' = comments(actFixBarCodeOutDoc(a))
+                             
+    PROPERTIES(i) DRAW wp TOOLBAR 
+                    processEGAIS = process SHOWIF isPosted(i) AND (NOT notRejected(actFixBarCodeOutDoc(a)) OR canceled(a))
+//                    cancelEGAIS = cancel SHOWIF notRejected(actFixBarCodeOutDoc(a)) AND NOT notRejected(actFixBarCodeActOutDoc(actFixBarCodeAct(a))) 
+//                                                AND NOT posted(a) AND NOT canceled(a)
+;
+
+DESIGN lotInits {
+    tabbedPane {
+        NEW EGAIS {
+            caption = 'ЕГАИС';
+            MOVE BOX(a);
+            MOVE BOX(wp);
+            NEW comments {
+                fill = 0.2;
+                type = CONTAINERH;
+                MOVE PROPERTY(commentsActFixBarCodeAct) { panelCaptionVertical = TRUE; fill = 1; }
+            }
+        }
+    }
+}

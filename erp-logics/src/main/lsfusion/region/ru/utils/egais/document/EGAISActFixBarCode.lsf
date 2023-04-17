@@ -1,0 +1,160 @@
+MODULE EGAISActFixBarCode;
+
+REQUIRE EGAISClient, EGAISFReg, EGAISMarkCode;
+
+CLASS ActFixBarCode 'Акт фиксации штрихкодов на балансе ЕГАИС';
+
+posted 'Проведен' = DATA BOOLEAN (ActFixBarCode);
+
+canceled 'Отменен' = DATA BOOLEAN (ActFixBarCode);
+
+number 'Номер' = DATA STRING (ActFixBarCode) IN id;
+number(ActFixBarCode a) <- STRING(a) WHEN SET(a IS ActFixBarCode);
+
+dateTime 'Время' = DATA DATETIME (ActFixBarCode) IN id;
+dateTime(ActFixBarCode a) <- currentDateTime() WHEN SET(a IS ActFixBarCode);
+
+date 'Дата' (ActFixBarCode a) = DATE(dateTime(a));
+
+numberDate (ActFixBarCode w) = CONCAT ' от ', number(w), toDateDDMMYY(dateTime(w));
+
+// transport
+
+client = DATA Client (ActFixBarCode) INDEXED;
+shortNameClient 'Организация' (ActFixBarCode w) = shortName(client(w)) IN id;
+descriptionClient 'Описание организации' (ActFixBarCode w) = description(client(w)) IN id;
+
+note 'Примечание' = DATA STRING (ActFixBarCode);
+
+// position
+
+CLASS ActFixBarCodePosition 'Строка акта фиксации штрихкодов на балансе ЕГАИС';
+
+actFixBarCode 'Акт фиксации штрихкодов на балансе ЕГАИС' = DATA ActFixBarCode (ActFixBarCodePosition) INDEXED NONULL DELETE;
+
+posted 'Проведен' (ActFixBarCodePosition p) = posted(actFixBarCode(p));
+canceled 'Отменен' (ActFixBarCodePosition p) = canceled(actFixBarCode(p));
+
+number 'Номер' (ActFixBarCodePosition p) = number(actFixBarCode(p));
+dateTime 'Время' (ActFixBarCodePosition p) = dateTime(actFixBarCode(p));
+date 'Дата' (ActFixBarCodePosition p) = date(actFixBarCode(p));
+
+client (ActFixBarCodePosition p) = client(actFixBarCode(p));
+shortNameClient 'Организация' (ActFixBarCodePosition p) = shortNameClient(actFixBarCode(p));
+descriptionClient 'Описание организации' (ActFixBarCodePosition p) = descriptionClient(actFixBarCode(p));
+
+product 'Продукция' = DATA Product (ActFixBarCodePosition) NONULL INDEXED;
+idProduct 'Код продукции' (ActFixBarCodePosition p) = id(product(p));
+fullNameProduct 'Продукция' (ActFixBarCodePosition p) = fullName(product(p));
+
+f2Reg 'Справка Б' = DATA F2Reg (ActFixBarCodePosition) NONULL;
+idF2Reg 'Справка Б' (ActFixBarCodePosition p) = id(f2Reg(p));
+
+// mark
+
+CLASS ActFixBarCodeMark 'Строка маркировки акта фиксации ЕГАИС';
+
+actFixBarCodePosition 'Строка ТТН' = DATA ActFixBarCodePosition (ActFixBarCodeMark) NONULL DELETE INDEXED;
+
+posted 'Проведен' (ActFixBarCodeMark p) = posted(actFixBarCodePosition(p));
+canceled 'Отменен' (ActFixBarCodeMark p) = canceled(actFixBarCodePosition(p));
+
+number 'Номер' (ActFixBarCodeMark p) = number(actFixBarCodePosition(p));
+date 'Дата' (ActFixBarCodeMark p) = date(actFixBarCodePosition(p));
+
+client (ActFixBarCodeMark p) = client(actFixBarCodePosition(p));
+shortNameClient 'Организация' (ActFixBarCodeMark p) = shortNameClient(actFixBarCodePosition(p));
+descriptionClient 'Описание организации' (ActFixBarCodeMark p) = descriptionClient(actFixBarCodePosition(p));
+
+idF2Reg 'Справка Б' (ActFixBarCodeMark p) = idF2Reg(actFixBarCodePosition(p));
+
+markCode 'Код маркировки' = DATA MarkCode (ActFixBarCodeMark) NONULL INDEXED;
+idMarkCode 'Код маркировки' (ActFixBarCodeMark m) = id(markCode(m));
+
+INDEX markCode(ActFixBarCodeMark m), actFixBarCodePosition(m);
+actFixBarCodePosition (MarkCode c) = GROUP LAST actFixBarCodePosition(ActFixBarCodeMark m) ORDER m BY markCode(m) MATERIALIZED INDEXED;
+f2Reg (MarkCode c) += f2Reg(actFixBarCodePosition(c));
+
+countMarkCodes 'Кол-во марок' (ActFixBarCodePosition p) = GROUP SUM 1 IF actFixBarCodePosition(ActFixBarCodeMark m) = p MATERIALIZED;
+
+// header properties
+
+FORM actFixBarCode 'Акт фиксации штрихкодов на балансе ЕГАИС'
+    OBJECTS w = ActFixBarCode PANEL
+    PROPERTIES(w) posted, canceled, number, dateTime,
+                  shortNameClient, descriptionClient, note
+
+    OBJECTS p = ActFixBarCodePosition
+    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, countMarkCodes,
+                  NEW, DELETE
+    FILTERS actFixBarCode(p) = w
+    
+    OBJECTS m = ActFixBarCodeMark
+    PROPERTIES(m) idMarkCode
+    FILTERS actFixBarCodePosition(m) = p
+
+    EDIT ActFixBarCode OBJECT w
+;
+
+DESIGN actFixBarCode {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            type = CONTAINERH;
+            MOVE BOX(p) { caption = 'Позиции'; }
+            MOVE BOX(m) { caption = 'Марки'; }
+        }
+    }
+}
+
+FORM actFixBarCodes 'Фиксация штрихкодов на баланс'
+    OBJECTS d = ActFixBarCode
+    PROPERTIES(d) READONLY posted, canceled, number, dateTime,
+                           shortNameClient, descriptionClient, note
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+
+    OBJECTS p = ActFixBarCodePosition
+    PROPERTIES(p) READONLY idProduct, fullNameProduct, idF2Reg, countMarkCodes
+    FILTERS actFixBarCode(p) = d
+
+    OBJECTS m = ActFixBarCodeMark
+    PROPERTIES(m) idMarkCode
+    FILTERS actFixBarCodePosition(m) = p
+
+    LIST ActFixBarCode OBJECT d
+;
+
+DESIGN actFixBarCodes {
+    OBJECTS {
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 1;
+            NEW specification {
+                type = CONTAINERH;
+                MOVE BOX(p) { caption = 'Позиции'; }
+                MOVE BOX(m) { caption = 'Марки'; }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    EGAISReg {
+        NEW actFixBarCodes;
+    }
+}
+
+EXTEND FORM markCodes
+    OBJECTS afb = ActFixBarCodeMark
+    PROPERTIES(afb) READONLY posted, canceled, number, date,
+                             shortNameClient, descriptionClient,
+                             idF2Reg
+    PROPERTIES(afb) EDIT
+    FILTERS markCode(afb) = m
+;
+
+DESIGN markCodes {
+    pane {
+        MOVE BOX(afb) { caption = 'Фиксация штрихкодов'; }
+    }
+}

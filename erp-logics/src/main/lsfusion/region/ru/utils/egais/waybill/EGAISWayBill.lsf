@@ -1,6 +1,6 @@
 MODULE EGAISWayBill;
 
-REQUIRE EGAISInDoc, EGAISProduct, EGAISFReg;
+REQUIRE EGAISInDoc, EGAISProduct, EGAISFReg, EGAISMarkCode;
 
 NAMESPACE EGAIS;
 
@@ -89,7 +89,12 @@ canceled 'Отменена' (WayBillPosition p) = canceled(wayBill(p));
 accepted 'Принята получателем' (WayBillPosition p) = accepted(wayBill(p));
 
 shipper (WayBillPosition p) = shipper(wayBill(p));
+shortNameShipper 'Отправитель' (WayBillPosition p) = shortNameShipper(wayBill(p));
+descriptionShipper 'Описание отправителя' (WayBillPosition p) = shortNameShipper(wayBill(p));
+
 consignee (WayBillPosition p) = consignee(wayBill(p));
+shortNameConsignee 'Получатель' (WayBillPosition p) = shortNameConsignee(wayBill(p));
+descriptionConsignee 'Описание получателя' (WayBillPosition p) = descriptionConsignee(wayBill(p));
 
 number 'Номер' (WayBillPosition p) = number(wayBill(p));
 date 'Дата' (WayBillPosition p) = date(wayBill(p));
@@ -110,17 +115,13 @@ isAccept (WayBill w) = CASE WHEN w IS WayBill AND NOT countRealQuantity(w) THEN 
 consigneeF2Reg 'Справка Б получателя' = DATA F2Reg (WayBillPosition);
 idConsigneeF2Reg 'Справка Б получателя' (WayBillPosition p) = id(consigneeF2Reg(p));
 
+edit(WayBillPosition p) + { edit(wayBill(p)); }
+
 // box
 CLASS Box 'Короб ЕГАИС';
 
 id 'Код' = DATA STRING (Box) INDEXED IN id;
 box = GROUP AGGR Box b BY id(b);
-
-// mark code
-CLASS MarkCode 'Код маркировки ЕГАИС';
-
-id 'Код' = DATA STRING[200] (MarkCode) INDEXED IN id;
-markCode = GROUP AGGR MarkCode b BY id(b);
 
 // way bill mark
 CLASS WayBillMark 'Строка маркировки ТТН ЕГАИС';
@@ -130,10 +131,24 @@ wayBillPosition 'Строка ТТН' = DATA WayBillPosition (WayBillMark) NONUL
 markCode 'Код маркировки' = DATA MarkCode (WayBillMark) NONULL INDEXED;
 idMarkCode 'Код маркировки' (WayBillMark m) = id(markCode(m));
 
+canceled 'Отменена' (WayBillMark p) = canceled(wayBillPosition(p));
+
+shipper (WayBillMark p) = shipper(wayBillPosition(p));
+shortNameShipper 'Отправитель' (WayBillMark p) = shortNameShipper(wayBillPosition(p));
+descriptionShipper 'Описание отправителя' (WayBillMark p) = descriptionShipper(wayBillPosition(p));
+
+consignee (WayBillMark p) = consignee(wayBillPosition(p));
+shortNameConsignee 'Получатель' (WayBillMark p) = shortNameConsignee(wayBillPosition(p));
+descriptionConsignee 'Описание получателя' (WayBillMark p) = descriptionConsignee(wayBillPosition(p));
+
+idConsigneeF2Reg 'Справка Б получателя' (WayBillMark p) = idConsigneeF2Reg(wayBillPosition(p));
+
+number 'Номер' (WayBillMark p) = number(wayBillPosition(p));
+date 'Дата' (WayBillMark p) = date(wayBillPosition(p));
+
 INDEX markCode(WayBillMark m), wayBillPosition(m);
 wayBillPosition (MarkCode c) = GROUP LAST wayBillPosition(WayBillMark m) ORDER m WHERE accepted(wayBillPosition(m)) BY markCode(m) MATERIALIZED INDEXED;
-f2Reg (MarkCode c) = consigneeF2Reg(wayBillPosition(c)) MATERIALIZED INDEXED;
-prevF2Reg (MarkCode c) = PREV(f2Reg(c));
+f2Reg (MarkCode c) += consigneeF2Reg(wayBillPosition(c));
 
 countMarkCodes 'Кол-во марок' (WayBillPosition p) = GROUP SUM 1 IF wayBillPosition(WayBillMark m) = p MATERIALIZED;
 
@@ -151,6 +166,8 @@ acceptedMarkCodes (WayBillPosition p) = GROUP SUM 1 IF accepted(WayBillMark m) A
 
 CONSTRAINT countMarkCodes(WayBillPosition p) AND (OVERRIDE realQuantity(p), 0.0) != (OVERRIDE acceptedMarkCodes(p), 0.0)
     MESSAGE 'Количество принятого товара не равно количеству принятых марок';
+
+edit(WayBillMark p) + { edit(wayBillPosition(p)); }
 
 bottlingDate 'Дата розлива' = DATA DATE (WayBillPosition);
 
@@ -292,6 +309,23 @@ NAVIGATOR {
         NEW wayBills;
     }
 }
+
+EXTEND FORM markCodes
+    OBJECTS wbm = WayBillMark
+    PROPERTIES(wbm) READONLY accepted, canceled, number, date, 
+                             shortNameShipper, descriptionShipper,
+                             shortNameConsignee, descriptionConsignee,
+                             idConsigneeF2Reg
+    PROPERTIES(wbm) EDIT
+    FILTERS markCode(wbm) = m
+;
+
+DESIGN markCodes {
+    pane {
+        MOVE BOX(wbm) { caption = 'ТТН'; }
+    }
+}
+
 
 META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock)
     quantity 'Кол-во (ЕГАИС)' = DATA NUMERIC[16,5] (###doc##Detail, WayBillPosition);

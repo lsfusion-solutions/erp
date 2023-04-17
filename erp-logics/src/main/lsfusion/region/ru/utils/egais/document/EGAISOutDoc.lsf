@@ -159,21 +159,19 @@ END
 
 META defineDocumentOutProcess(doc, container)
     process 'Отправить в ЕГАИС' (###doc t) {
-        NEWSESSION {
-            NEW r = ###doc##OutDoc {
-                client(r) <- client(t);
-                doc(r) <- t;
-    
-                EXPORT doc##OutDoc OBJECTS r = r XML;
-                submit(r, exportFile());
-                APPLY;
-            }
+        NEW r = ###doc##OutDoc {
+            client(r) <- client(t);
+            doc(r) <- t;
+
+            EXPORT doc##OutDoc OBJECTS r = r XML;
+            submit(r, exportFile());
+            APPLY;
         }
     }
     
     EXTEND FORM doc##s
         PROPERTIES(d) READONLY comments###doc##OutDoc PANEL
-        PROPERTIES(d) process SHOWIF NOT notRejected(doc##OutDoc(d)) TOOLBAR
+        PROPERTIES(d) NEWSESSION process SHOWIF NOT notRejected(doc##OutDoc(d)) TOOLBAR
         
         OBJECTS odd = ###doc##OutDoc
         PROPERTIES(odd) READONLY id, dateTime, comments

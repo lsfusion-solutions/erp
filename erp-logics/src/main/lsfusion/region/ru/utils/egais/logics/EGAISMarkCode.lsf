@@ -1,0 +1,45 @@
+MODULE EGAISMarkCode;
+
+REQUIRE EGAISFReg;
+
+NAMESPACE EGAIS;
+
+// mark code
+CLASS MarkCode 'Код маркировки ЕГАИС';
+
+id 'Код' = DATA STRING[200] (MarkCode) INDEXED IN id;
+markCode = GROUP AGGR MarkCode b BY id(b);
+
+f2Reg = ABSTRACT VALUE F2Reg (MarkCode) MATERIALIZED INDEXED;
+prevF2Reg (MarkCode c) = PREV(f2Reg(c));
+
+idF2Reg 'Справка Б' (MarkCode m) = id(f2Reg(m));
+
+idF1Reg 'Справка А' (MarkCode m) = idF1Reg(f2Reg(m));
+
+product (MarkCode m) = product(f2Reg(m));
+idProduct 'Код продукции' (MarkCode m) = idProduct(f2Reg(m));
+fullNameProduct 'Продукция' (MarkCode m) = fullNameProduct(f2Reg(m));
+
+shortNameClient 'Организация' (MarkCode m) = shortNameClient(f2Reg(m));
+descriptionClient 'Описание организации' (MarkCode m) = descriptionClient(f2Reg(m));
+
+FORM markCodes 'Коды маркировок'
+    OBJECTS m = MarkCode
+    PROPERTIES(m) READONLY id, idF2Reg, idF1Reg, idProduct, fullNameProduct, shortNameClient, descriptionClient
+;
+
+DESIGN markCodes {
+    OBJECTS {
+        NEW pane {
+            type = TABBED;
+            fill = 1;
+        }
+    }
+}
+
+NAVIGATOR {
+    EGAISReg {
+        NEW markCodes;
+    }
+}

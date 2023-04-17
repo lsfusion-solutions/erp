@@ -1,0 +1,48 @@
+MODULE EGAISActFixBarCodeExchange;
+
+REQUIRE EGAISActFixBarCode, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+@defineDocumentOutDoc(actFixBarCode, ActFixBarCode, 'Акт фиксации штрихкодов на балансе');
+
+GROUP header EXTID 'awr:Header';
+GROUP content EXTID 'awr:Content';
+
+GROUP markInfo EXTID 'awr:MarkInfo';
+
+FORM actFixBarCodeOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ActFixBarCode'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ActFixBarCode' EXTID 'xmlns:awr', ='http://fsrar.ru/WEGAIS/CommonEnum' EXTID 'xmlns:ce'
+
+    OBJECTS r = ActFixBarCodeOutDoc PANEL
+
+    PROPERTIES =LONG(r) EXTID 'awr:Identity'
+
+    PROPERTIES IN header
+        =number(actFixBarCode(r)) EXTID 'awr:ActNumber',
+        =toDateISO(date(actFixBarCode(r))) EXTID 'awr:ActDate',
+        =note(actFixBarCode(r)) EXTID 'awr:Note'
+
+    OBJECTS p = ActFixBarCodePosition IN content EXTID 'awr:Position'
+    PROPERTIES =LONG(p) EXTID 'awr:Identity', idF2Reg(p) EXTID 'awr:Inform2RegId'
+    FILTERS actFixBarCode(p) = actFixBarCode(r)
+    
+    OBJECTS m = ActFixBarCodeMark EXTID 'ce:amc' IN markInfo
+    PROPERTIES(m) idMarkCode EXTID 'value'
+    FILTERS actFixBarCodePosition(m) = p
+;
+
+@defineDocumentOutProcess(actFixBarCode, tabbedPane);
+
+// ticket
+
+@defineOutDocTicket(actFixBarCode, d, tabbedPane);
+
+process (Ticket t) + {
+    IF docType(t) = 'ActFixBarCode' THEN {
+        IF operationResult(t) = 'Accepted' THEN {
+            posted(actFixBarCode(outDoc(t))) <- TRUE;
+        }
+        processed() <- TRUE;
+    }
+}
