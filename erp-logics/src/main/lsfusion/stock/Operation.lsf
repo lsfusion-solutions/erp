@@ -493,6 +493,8 @@ META defineOperationGroupType(dumb)
     }
 END
 
+skipSetDefaultSettingRole = DATA LOCAL BOOLEAN();
+
 META defineOperationRole(dumb)
 
     allRoles 'Для всех ролей' = DATA BOOLEAN (Operation);
@@ -572,10 +574,12 @@ META defineOperationRole(dumb)
         preventCloseDocument(ur, Operation o) <- preventCloseDocument(userRole,o) WHERE preventCloseDocument(userRole,o);
         preventOpenDocument(ur, Operation o) <- preventOpenDocument(userRole,o) WHERE preventOpenDocument(userRole,o);    
     }
-    preventChangesDocument(UserRole ur, Operation o) <- preventChangesDocumentDefault(o) WHEN SET (ur IS UserRole);
-    countDaysDocument(UserRole ur, Operation o) <- countDaysDocumentDefault(o) WHEN SET (ur IS UserRole);
-    preventCloseDocument(UserRole ur, Operation o) <- preventCloseDocumentDefault(o) WHEN SET (ur IS UserRole);
-    preventOpenDocument(UserRole ur, Operation o) <- preventOpenDocumentDefault(o) WHEN SET (ur IS UserRole);
+    WHEN LOCAL SET(UserRole ur IS UserRole) AND NOT skipSetDefaultSettingRole()  DO {
+        preventChangesDocument(ur, Operation o) <- preventChangesDocumentDefault(o);
+        countDaysDocument(ur, Operation o) <- countDaysDocumentDefault(o);
+        preventCloseDocument(ur, Operation o) <- preventCloseDocumentDefault(o);
+        preventOpenDocument(ur, Operation o) <- preventOpenDocumentDefault(o);
+    }
     @extendFormFilterRole(o, dialogOperations);
 END
 
