@@ -9,6 +9,7 @@ GROUP bodySend15 EXTID '=http://v8.1c.ru/edi/edi_stnd/EnterpriseData/1.6:Body';
 
 GROUP productSale EXTID 'ТоварыПродажа';
 GROUP productReturn EXTID 'ТоварыВозвратПродажи';
+GROUP settlementData EXTID 'ДанныеРасчетов';
 
 // complex props
 CLASS ABSTRACT PaymentDetail : EnterpriseData;
@@ -1256,6 +1257,30 @@ EXTEND FORM receiveMessage
 
 @extTable(outcomeCashOrderOther, paymentDescription);
 @defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderOther, paymentDescription);
+
+
+//-- Документ.РКОВыплатаЗарплаты
+
+@extDocument(outcomeCashOrderSalary, 'РКОВыплатаЗарплаты');
+@defPropObject(currency, 'Валюта', Currency, outcomeCashOrderSalary, commonData);
+@defPropSimple(issuedTo, 'Выдать', STRING, outcomeCashOrderSalary);
+@defPropSimple(chiefAccounter, 'ГлавныйБухгалтер', STRING, outcomeCashOrderSalary);
+@defPropSimple(note, 'Комментарий', STRING, outcomeCashOrderSalary);
+@defPropSimple(paymentInformation, 'НазначениеПлатежа', STRING, outcomeCashOrderSalary);
+@defPropSimple(reason, 'Основание', STRING, outcomeCashOrderSalary);
+@defPropSimple(document, 'ПоДокументу', STRING, outcomeCashOrderSalary);
+@defPropSimple(appendix, 'Приложение', STRING, outcomeCashOrderSalary);
+@defPropSimple(chief, 'Руководитель', STRING, outcomeCashOrderSalary);
+@defPropSimple(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderSalary, commonData);
+@defPropObject(department, 'Подразделение', Department, outcomeCashOrderSalary, commonData);
+
+@extTable(outcomeCashOrderSalary, paymentDescription);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderSalary, paymentDescription, settlementData);
+
+
+@defKeyPropDate (datePayroll, 'ДатаВедомостиНаВыплатуЗарплаты', settlementData, outcomeCashOrderSalaryPaymentDescription);
+@defPropSimpleDetail(numberPayroll, 'НомерВедомостиНаВыплатуЗарплаты', STRING , outcomeCashOrderSalary, paymentDescription, settlementData);
+
 
 // retail report
 @extDocument(retailReport, 'ОтчетОРозничныхПродажах');
