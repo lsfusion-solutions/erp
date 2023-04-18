@@ -793,13 +793,16 @@ relationComponentsCustom (sku,BOM)= GROUP SUM 1 BY sku(material(Component c)), B
 
 backgroundCustom 'Цвет'  = ABSTRACT CASE COLOR (Sku,BOM);
 
+skipEdit = ABSTRACT VALUE BOOLEAN (BOM);
+showEdit (BOM b) = b IS BOM AND NOT skipEdit(b);
+
 FORM BOMs 'Спецификации'
 
     OBJECTS b=BOM
 
     PROPERTIES(b)  READONLY BACKGROUND background(b) inactive, products, name, number, series,  date, time, fromDate, toDate, components,  
                    overNettoNetWeightProduct, overNettoNetWeightComponent, overBruttoNetWeightyComponent, pricePercent, note, stocks
-    PROPERTIES (b) NEWSESSION NEW, EDIT, deleteb=DELETE
+    PROPERTIES (b) NEWSESSION NEW, EDIT SHOWIF showEdit(b), deleteb=DELETE SHOWIF showEdit(b)
     PROPERTIES (b)            copy 
     PROPERTIES (b) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
     FILTERGROUP inactiveBOM
@@ -827,7 +830,7 @@ FORM BOMs 'Спецификации'
     OBJECTS b1=BOM    
     PROPERTIES(b1) READONLY inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 
                    overBruttoNetWeightyComponent, pricePercent, note, stocks
-    PROPERTIES(b1) NEWSESSION EDIT
+    PROPERTIES(b1) NEWSESSION EDIT SHOWIF showEdit(b1)
     PROPERTIES     addBOM(p1) DRAW b1
     FILTERS        relationProducts(p1,b1)
           
@@ -847,7 +850,7 @@ FORM BOMs 'Спецификации'
     PROPERTIES(b2) READONLY BACKGROUND backgroundCustom(c2,b2) 
                    inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 
                    overBruttoNetWeightyComponent, pricePercent, note, stocks
-    PROPERTIES(b2) NEWSESSION EDIT        
+    PROPERTIES(b2) NEWSESSION EDIT SHOWIF showEdit(b2)        
     //FILTERS relationComponents(c2,b2)           
     FILTERS        IF useCustomFilterBOMs() 
                     THEN relationComponentsCustom(c2,b2)
@@ -1293,9 +1296,14 @@ showBOM 'Показать спецификацию' (Component c)  {
         NEWSESSION SHOW  BOM  OBJECTS b = b, p = p READONLY; }  
 ASON CONTEXTMENU nameMaterial[Component];
 showEditBOM 'Редактировать спецификацию' (Component c)  { 
-    FOR b == BOM(material(c)) AND p == material(c) DO
-        NEWSESSION SHOW BOM OBJECTS b = b, p = p; }  
-ASON CONTEXTMENU nameMaterial[Component];
+    FOR BOM b == BOM(material(c)) AND Product p == material(c) DO {
+        IF showEdit(b) THEN {
+            NEWSESSION SHOW BOM OBJECTS b = b, p = p;
+        } ELSE {
+            NEWSESSION SHOW BOM OBJECTS b = b, p = p READONLY;    
+        }
+    }
+} ASON CONTEXTMENU nameMaterial[Component];
 
 number(BOM BOM) += number(BOM);
 series(BOM BOM) += series(BOM);

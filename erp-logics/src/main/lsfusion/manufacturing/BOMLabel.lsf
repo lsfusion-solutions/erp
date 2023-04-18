@@ -70,9 +70,15 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
 showBOM 'Показать спецификацию' (Sku s,Stock st)  { 
     NEWSESSION SHOW BOM OBJECTS b = BOM(productOver(s,st)), p = productOver(s,st) READONLY;  
 };
-showEditBOM 'Редактировать спецификацию' (Sku s,Stock st)  { 
-    NEWSESSION SHOW BOM OBJECTS b = BOM(productOver(s,st)), p = productOver(s,st);  
-};
+showEditBOM 'Редактировать спецификацию' (Sku s,Stock st)  {
+    FOR BOM b == BOM(productOver(s,st)) AND Product p == productOver(s,st) DO {
+        IF showEdit(b) THEN {
+            NEWSESSION SHOW BOM OBJECTS b = b, p = p;
+        } ELSE {
+            NEWSESSION SHOW BOM OBJECTS b = b, p = p READONLY;
+        }
+    }
+}
 
 FORM LabelProduct 'Печать ценников СП' 
     OBJECTS ds = DepartmentStore PANEL    
