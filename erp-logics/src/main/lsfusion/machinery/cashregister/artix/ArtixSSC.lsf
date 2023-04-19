@@ -9,13 +9,15 @@ zeroDefaultQuantityScales 'Количество 0 по умолчанию для
 useNewTaraMode 'Тарирование на кассе' = DATA BOOLEAN (CashRegisterModel);
 idCatalog 'ID Каталога для тары' = DATA INTEGER (CashRegisterModel);
 idCatalogTara = idCatalog(cashRegisterSID('Artix')) IF useNewTaraMode(cashRegisterSID('Artix'));
+usePassScalesForSplit 'Проверять на признак весового вместо дробного' = DATA BOOLEAN (CashRegisterModel);
 
 EXTEND FORM cashRegisterModel 
-    PROPERTIES (c) SHOWIF sid(c) == 'Artix' zeroDefaultQuantityScales, useNewTaraMode
+    PROPERTIES (c) SHOWIF sid(c) == 'Artix' usePassScalesForSplit, zeroDefaultQuantityScales, useNewTaraMode
     PROPERTIES (c) idCatalog SHOWIF useNewTaraMode(c);
     
 DESIGN cashRegisterModel{
     artix {
+        MOVE PROPERTY (usePassScalesForSplit(c));
         MOVE PROPERTY (zeroDefaultQuantityScales(c));
         MOVE PROPERTY (useNewTaraMode(c));
         MOVE PROPERTY (idCatalog(c));
@@ -44,7 +46,13 @@ skipLoadTaraCapacity = ABSTRACT BOOLEAN (GroupMachinery);
 createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
     IF sidModel(gm) == 'Artix' THEN {
         
-        split(mpt, Barcode b) <- NULL WHERE in(mpt, b) AND split(mpt, b) AND NOT split(UOM(sku(b)));
+        IF usePassScalesForSplit(model(gm)) THEN {
+            split(mpt, Barcode b) <- TRUE WHERE in(mpt, b) AND split(UOM(sku(b))) AND passScales(b);
+            //для того чтобы если разная дробность создалось новая единица измерения
+            idUOM(mpt, Barcode b) <- '-' + idUOM(mpt, b) WHERE in(mpt, b) AND split(mpt, b) AND NOT split(UOM(sku(b)));
+        } ELSE {
+            split(mpt, Barcode b) <- NULL WHERE in(mpt, b) AND split(mpt, b) AND NOT split(UOM(sku(b)));
+        }
       
         info(mpt, Barcode b) <- ('\{"artix":\{'+
                 (CONCAT ',',
