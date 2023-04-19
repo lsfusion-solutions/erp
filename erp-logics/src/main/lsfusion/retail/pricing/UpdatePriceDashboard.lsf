@@ -72,8 +72,9 @@ FORM updatePriceDashboard 'Обновление розничных цен'
         FILTER 'Оборудование' updatePrice(sk, d) AND barcode(sk) AND NOT updatePrice(sk, d) == transactionPrice(sk, d) 'F10'
         FILTER 'Ценники и оборуд.' updatePrice(sk, d) 
                                                             AND (NOT (updatePrice(sk, d) == prevPriceLabelTransactionDetail(sk, d)) OR 
-                                                                 (barcode(sk) AND NOT updatePrice(sk, d) == transactionPrice(sk, d))) 'F9' DEFAULT 
-                                                                 
+                                                                 (barcode(sk) AND NOT updatePrice(sk, d) == transactionPrice(sk, d))) 'F9' DEFAULT
+        FILTER 'По штрихкодам' updatePrice(sk, d) AND (GROUP SUM 1 IF sku(Barcode b) = sk AND active(b) AND NOT updatePrice(sku(b), d) == transactionPrice(b, d)) 'F8'
+
     FILTERGROUP error
         FILTER 'С ошибками' quantityMachineryPriceTransactionError(lastTransaction(barcode(sk), d)) AND NOT
                                 succeeded(lastTransaction(barcode(sk), d)) 'F6'                                                                  
