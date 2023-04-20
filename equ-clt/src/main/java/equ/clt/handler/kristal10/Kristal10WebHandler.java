@@ -102,7 +102,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, DeleteBarcode> usedDeleteBarcodeTransactionMap = new HashMap<>();
-        Map<Transaction, List<String>> usedTiMap = new HashMap<>();
+        List<Kristal10Transaction> usedTransactionList = new ArrayList<>();
 
         for(TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -147,7 +147,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         processTransactionLogger.error(getLogPrefix() + response);
                         result.put(transaction.id, new SendTransactionBatch(new RuntimeException(response)));
                     } else {
-                        usedTiMap.put(new Transaction(transaction.id, directory), tiList);
+                        usedTransactionList.add(new Kristal10Transaction(transaction.id, directory, tiList));
                     }
                 }
             } catch (Exception e) {
@@ -156,14 +156,12 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             }
         }
 
-        for (Map.Entry<Transaction, List<String>> entry : usedTiMap.entrySet()) {
-            Transaction transaction = entry.getKey();
-            List<String> tiList = entry.getValue();
+        for (Kristal10Transaction usedTransaction : usedTransactionList) {
             try {
                 String response = null;
-                for (String ti : tiList) {
-                    processTransactionLogger.info(String.format(getLogPrefix() + "Process TI %s (Transaction %s)", ti, transaction.id));
-                    response = getStatusMessage(transaction.directory, ti);
+                for (String ti : usedTransaction.tiList) {
+                    processTransactionLogger.info(String.format(getLogPrefix() + "Process TI %s (Transaction %s)", ti, usedTransaction.id));
+                    response = getStatusMessage(usedTransaction.directory, ti);
                     if (response != null) {
                         break;
                     }
@@ -171,9 +169,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                 if (response != null) {
                     processTransactionLogger.error(getLogPrefix() + response);
-                    result.put(transaction.id, new SendTransactionBatch(new RuntimeException(response)));
+                    result.put(usedTransaction.id, new SendTransactionBatch(new RuntimeException(response)));
                 } else {
-                    DeleteBarcode deleteBarcodes = usedDeleteBarcodeTransactionMap.get(transaction.id);
+                    DeleteBarcode deleteBarcodes = usedDeleteBarcodeTransactionMap.get(usedTransaction.id);
                     if (deleteBarcodes != null) {
                         for (String b : deleteBarcodes.barcodes) {
                             Map<String, String> deleteBarcodesEntry = deleteBarcodeDirectoryMap.get(deleteBarcodes.directory);
@@ -181,11 +179,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                             deleteBarcodeDirectoryMap.put(deleteBarcodes.directory, deleteBarcodesEntry);
                         }
                     }
-                    result.put(transaction.id, new SendTransactionBatch(null, null, deleteBarcodes == null ? null : deleteBarcodes.nppGroupMachinery, deleteBarcodes == null ? null : deleteBarcodes.barcodes, null));
+                    result.put(usedTransaction.id, new SendTransactionBatch(null, null, deleteBarcodes == null ? null : deleteBarcodes.nppGroupMachinery, deleteBarcodes == null ? null : deleteBarcodes.barcodes, null));
                 }
             } catch (Exception e) {
                 processTransactionLogger.error(getLogPrefix(), e);
-                result.put(transaction.id, new SendTransactionBatch(e));
+                result.put(usedTransaction.id, new SendTransactionBatch(e));
             }
         }
         return result;
@@ -1413,13 +1411,16 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         return remote.readCashRegisterInfo(sidEquipmentServer);
     }
 
-    private static class Transaction {
+    private static class Kristal10Transaction {
         Long id;
         String directory;
 
-        public Transaction(Long id, String directory) {
+        List<String> tiList;
+
+        public Kristal10Transaction(Long id, String directory, List<String> tiList) {
             this.id = id;
             this.directory = directory;
+            this.tiList = tiList;
         }
     }
 }
