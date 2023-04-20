@@ -1,0 +1,74 @@
+MODULE PurchaseCreditNoteVATRu;
+
+REQUIRE PurchaseInvoiceCreditNote, PurchaseInvoiceVATRu;
+
+NAMESPACE Purchase;
+
+@defineDocumentInterfaceProperty (creditNote, withVATPrice, 'Цена с НДС');
+
+withVATPrice (UserCreditNote c) <- IF invoice(c) THEN withVATPrice(invoice(c)) ELSE isVATPayer(supplier(c))
+    WHEN CHANGED(supplier(c)) OR CHANGED(invoice(c));
+
+invoicePrice (UserCreditNoteDetail detail)  <- invoicePrice(invoiceDetail(detail))
+    WHEN CHANGED(invoiceDetail(detail));
+
+EXTEND FORM userCreditNote
+    PROPERTIES (c) withVATPrice
+;
+
+DESIGN userCreditNote {
+    GROUP(documentPrm,c) {
+        MOVE PROPERTY (withVATPrice(c));
+    }
+    PROPERTY (invoicePrice(d)){
+        background = RGB(212,255,212);
+    }
+}
+
+EXTEND FORM creditNotes
+    PROPERTIES (d) READONLY invoicePrice AFTER valueVAT(d)
+;
+
+WHEN LOCAL (CHANGED(quantity(UserCreditNoteDetail detail)) OR CHANGED(invoicePrice(detail)) OR CHANGED(currency(detail))) AND withVATPrice(invoice(userCreditNote(detail))) DO
+    invoiceSum (detail) <- NUMERIC[18,4](round(quantity(detail) * invoicePrice(detail), currency(detail)));
+
+WHEN LOCAL (CHANGED(invoiceSum(CreditNoteDetail detail)) OR CHANGED(valueVAT(detail)) OR CHANGED(currency(detail))) AND withVATPrice(invoice(userCreditNote(detail)))  DO
+    VATSum (detail)  <- NUMERIC[18,4](round(invoiceSum(detail) * valueVAT(detail) / (100 (+) valueVAT (detail)), currency(detail)));
+
+WHEN LOCAL (CHANGED(invoiceSum(CreditNoteDetail detail)) OR CHANGED (VATSum(detail))) AND withVATPrice(invoice(userCreditNote(detail)))  DO
+    sum (detail) <- NUMERIC[18,4](invoiceSum(detail) (-) VATSum(detail));
+
+//filling price for details without invoice details
+WHEN LOCAL FORMS userCreditNote
+    (CHANGED(sku(UserCreditNoteDetail detail)) OR CHANGED (invoice(userCreditNote(detail)))) AND NOT invoiceDetail(detail) AND NOT CHANGED(VAT(detail)) DO {
+    VAT(detail) <- VAT (sku(detail), country(supplierStock(detail)));
+
+}
+
+WHEN LOCAL GOAFTER VAT[UserCreditNoteDetail]
+    (CHANGED(VAT(UserCreditNoteDetail detail)) AND NOT invoiceDetail(detail)) AND v == valueRate(VAT(detail), date(invoice(userCreditNote(detail)))) AND NOT CHANGED(valueVAT(detail)) DO {
+    valueVAT(detail) <- v;
+}
+
+priceListType (UserCreditNoteDetail d) = OVERRIDE priceListType(agreement(invoice(userCreditNote(d))), sku(d)),
+    priceListType(invoice(userCreditNote(d)));
+
+WHEN LOCAL FORMS userCreditNote GOAFTER valueVAT[UserCreditNoteDetail] // цены берем на начало сессии, а не этого event'а
+    ((CHANGED(invoice(userCreditNote(UserCreditNoteDetail d))) AND NOT isPosted(d)) OR
+        (CHANGED(priceListType(d)) OR
+            CHANGED(sku(d))))
+        AND NOT CHANGED(price(d)) AND NOT invoiceDetail(d)
+        AND PriceListType pt == priceListType(d) AND sku(d) AND NOT includeVAT(pt) NOINLINE (pt) DO {
+    price(d) <- round(prevPriceB(pt, sku(d), supplierStock(d), dateTime(invoice(userCreditNote(d)))), 2);
+    invoicePrice(d) <- round((prevPriceB(pt, sku(d), supplierStock(d), dateTime(invoice(userCreditNote(d)))) * (100.0 (+) calcValueVAT(d)) / 100.0), 2);
+}
+
+WHEN LOCAL FORMS userCreditNote GOAFTER valueVAT[UserCreditNoteDetail] // цены берем на начало сессии, а не этого event'а
+    ((CHANGED(invoice(userCreditNote(UserCreditNoteDetail d))) AND NOT isPosted(d)) OR
+        (CHANGED(priceListType(d)) OR
+            CHANGED(sku(d))))
+        AND NOT CHANGED(price(d)) AND NOT invoiceDetail(d)
+        AND PriceListType pt == priceListType(d) AND sku(d) AND includeVAT(pt) NOINLINE (pt) DO {
+    price(d) <- round(prevPriceB(pt, sku(d), supplierStock(d), dateTime(invoice(userCreditNote(d)))) * 100.0 /(100.0 (+) calcValueVAT(d)), 2);
+    invoicePrice(d) <- round(prevPriceB(pt, sku(d), supplierStock(d), dateTime(invoice(userCreditNote(d)))), 2);
+}
