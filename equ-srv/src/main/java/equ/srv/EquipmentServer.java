@@ -698,7 +698,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
 
             //optional properties
-            OptionalProperties optionalProperties = new OptionalProperties(zReportKey, receiptSaleDetailKey, receiptReturnDetailKey);
+            OptionalProperties optionalProperties = new OptionalProperties(zReportKey, receiptSaleDetailKey, receiptReturnDetailKey, options);
 
             //sale 1
             ImportField quantityReceiptSaleDetailField = new ImportField(zReportLM.findProperty("quantity[ReceiptSaleDetail]"));
@@ -1104,7 +1104,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 saleKeys.add(zReportKey);
 
                 //optional properties
-                OptionalProperties optionalProperties = new OptionalProperties(zReportKey, receiptSaleDetailKey, receiptReturnDetailKey);
+                OptionalProperties optionalProperties = new OptionalProperties(zReportKey, receiptSaleDetailKey, receiptReturnDetailKey, options);
 
                 ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField));
                 cashRegisterKey.skipKey = true;
@@ -1988,9 +1988,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean skipGiftCardKeys = equLM.findProperty("skipGiftCardKeys[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean useNewIds = equLM.findProperty("useNewIds[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean skipReceiveSales = equLM.findProperty("skipReceiveSales[EquipmentServer]").read(session, equipmentServerObject) != null;
+        boolean receiveVATSales = equLM.findProperty("receiveVATSales[EquipmentServer]").read(session, equipmentServerObject) != null;
         IdEncoder encoder = useNewIds ? (timeId ? new IdEncoder(5) : new IdEncoder()) : null;
         Map<String, DataObject> barcodeParts = readPartedBarcodes(session);
-        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, skipGiftCardKeys, skipReceiveSales, encoder, barcodeParts);
+        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, skipGiftCardKeys, skipReceiveSales, receiveVATSales, encoder, barcodeParts);
     }
 
     public class EquipmentServerOptions {
@@ -2001,11 +2002,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean overrideCashiers;
         boolean skipGiftCardKeys;
         boolean skipReceiveSales;
+        boolean receiveVATSales;
         IdEncoder encoder;
         Map<String, DataObject> barcodeParts;
 
         public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate,
-                                      boolean overrideCashiers, boolean skipGiftCardKeys, boolean skipReceiveSales, IdEncoder encoder, Map<String, DataObject> barcodeParts) {
+                                      boolean overrideCashiers, boolean skipGiftCardKeys, boolean skipReceiveSales, boolean receiveVATSales,
+                                      IdEncoder encoder, Map<String, DataObject> barcodeParts) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
             this.timeId = timeId;
@@ -2013,6 +2016,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             this.overrideCashiers = overrideCashiers;
             this.skipGiftCardKeys = skipGiftCardKeys;
             this.skipReceiveSales = skipReceiveSales;
+            this.receiveVATSales = receiveVATSales;
             this.encoder = encoder;
             this.barcodeParts = barcodeParts;
         }
@@ -2727,6 +2731,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         String externalNumber = sale.detailExtraFields != null ? (String) sale.detailExtraFields.get("externalNumber") : null;
         String idBatch = sale.detailExtraFields != null ? (String) sale.detailExtraFields.get("idBatch") : null;
 
+        BigDecimal sumVAT = sale.detailExtraFields != null ? (BigDecimal) sale.detailExtraFields.get("sumVAT") : null;
+
         String idReceiptDetail = getIdReceiptDetail(sale, options) + (barcodePart != null ? ("_" + barcodePart.index) : "");
         BigDecimal quantity = barcodePart != null ? barcodePart.quantity : sale.quantityReceiptDetail;
         BigDecimal price = barcodePart != null ? barcodePart.price : sale.priceReceiptDetail;
@@ -2786,8 +2792,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if(zReportBatchLM != null) {
                 row.add(idBatch);
             }
+            if (options.receiveVATSales)
+                row.add(sumVAT);
         }
-        
+
         return row;
     }
     
@@ -2804,7 +2812,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         List<ImportKey<?>> giftCardKeys = new ArrayList<>();
         List<ImportProperty<?>> giftCardProperties = new ArrayList<>();
         
-        public OptionalProperties(ImportKey<?> zReportKey, ImportKey<?> receiptSaleDetailKey, ImportKey<?> receiptReturnDetailKey) throws ScriptingErrorLog.SemanticErrorException {
+        public OptionalProperties(ImportKey<?> zReportKey, ImportKey<?> receiptSaleDetailKey, ImportKey<?> receiptReturnDetailKey, EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException {
 
             if (zReportExternalLM != null) {
                 ImportField externalSumZReportField = new ImportField(zReportExternalLM.findProperty("externalSum[ZReport]"));
@@ -2844,6 +2852,17 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 
                 returnProperties.add(new ImportProperty(bonusSumReceiptReturnDetailField, zReportBonusLM.findProperty("bonusSum[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
                 returnProperties.add(new ImportProperty(bonusPaidReceiptReturnDetailField, zReportBonusLM.findProperty("bonusPaid[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+            }
+
+            if (options.receiveVATSales) {
+                ImportField sumVATReceiptSaleDetailField = new ImportField(zReportLM.findProperty("sumVAT[ReceiptDetail]"));
+                ImportField sumVATReceiptReturnDetailField = new ImportField(zReportLM.findProperty("sumVAT[ReceiptDetail]"));
+
+                saleFields.add(sumVATReceiptSaleDetailField);
+                saleProperties.add(new ImportProperty(sumVATReceiptSaleDetailField, zReportLM.findProperty("sumVAT[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
+
+                returnFields.add(sumVATReceiptReturnDetailField);
+                returnProperties.add(new ImportProperty(sumVATReceiptReturnDetailField, zReportLM.findProperty("sumVAT[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
             }
 
             if (zReportBatchLM != null) {

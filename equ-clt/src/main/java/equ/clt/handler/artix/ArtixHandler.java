@@ -1781,6 +1781,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 }
                                             }
 
+                                            BigDecimal sumVAT = null;
+                                            JSONArray taxesArray = inventPosition.getJSONArray("taxes");
+                                            for (int j = 0; j < taxesArray.length(); j++) {
+                                                JSONObject taxesPosition = taxesArray.getJSONObject(j);
+                                                BigDecimal amount = taxesPosition.getBigDecimal("taxSum");
+                                                if(amount != null)
+                                                    sumVAT = safeAdd(sumVAT, amount);
+                                            }
+
+
                                             String extDocId = trimToNull(inventPosition.optString("extdocid"));
 
                                             String externalNumber;
@@ -1861,6 +1871,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 }
                                                 salesInfo.detailExtraFields.put("idBatch", idBatch);
                                                 salesInfo.detailExtraFields.put("externalNumber", externalNumber);
+
+                                                salesInfo.detailExtraFields.put("sumVAT", sumVAT);
                                                 currentSalesInfoList.add(salesInfo);
                                             }
                                         }
