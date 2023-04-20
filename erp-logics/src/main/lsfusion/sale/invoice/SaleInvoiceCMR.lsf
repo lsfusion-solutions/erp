@@ -1,0 +1,294 @@
+MODULE SaleInvoiceCMR;
+
+REQUIRE SaleInvoice, ConsignmentDashboardBy, CustomsGroupItem;
+
+NAMESPACE Sale;
+
+// Перевозчик
+nameTransporter 'Наименование' = DATA ISTRING[200] (Consignment);
+addressTransporter 'Адрес' = DATA ISTRING[150] (Consignment);
+countryTransporter 'Страна' = DATA ISTRING[50] (Consignment);
+
+numberTruck 'Регистрац. номер тягача' = DATA ISTRING[50] (Consignment);
+modelTruck 'Марка тягача' = DATA ISTRING[70] (Consignment);
+numberTrailer 'Регистрац. номер полуприцепа' = DATA ISTRING[50] (Consignment);
+modelTrailer 'Марка полуприцепа' = DATA ISTRING[70] (Consignment);
+
+specialConditions '20. Особые условия' = DATA ISTRING[150] (Consignment) CHARWIDTH 100;
+dateWaybill '23. Дата путевого листа' = DATA DATE (Consignment);
+
+dateTime 'Дата/время' (d) = ABSTRACT DATETIME (Consignment);
+dateTime (Invoice i) += dateTime(i);
+
+addressConsigmentLegalEntity(Invoice i) = addressConsigmentLegalEntity(customerStock(i));
+nameConsigmentLegalEntity(Invoice i) = nameConsigmentLegalEntity(customerStock(i));
+
+dataAddressSupplierStockCMR 'Адрес склада поставщика' = DATA ISTRING[150] (Consignment);
+overAddressSupplierStockCMR '4. Адрес склада поставщика' (Consignment i) = OVERRIDE dataAddressSupplierStockCMR(i), address(supplierStock(i));
+
+changeAddressSupplierStockCMR(Consignment c)  {
+    INPUT s = dataAddressSupplierStockCMR(c) DO {
+        dataAddressSupplierStockCMR(c) <- s;
+    }
+}
+
+dataNumberCMR 'Номер CMR' = DATA ISTRING[48] (Consignment);
+overNumberCMR = ABSTRACT VALUE ISTRING[48] (Consignment);
+numberCMR 'Номер CMR' (Consignment i) = OVERRIDE dataNumberCMR(i), overNumberCMR(i), number(i);
+
+changeDataNumberCMR(Consignment c)  {
+    INPUT s = dataNumberCMR(c) DO {
+        dataNumberCMR(c) <- s;
+    }
+}
+
+dataSignsCMR = DATA STRING (Consignment);
+overSignsCMR = ABSTRACT VALUE STRING (Consignment);
+signsCMR '6. Знаки и номера' (Consignment i) = OVERRIDE dataSignsCMR(i), overSignsCMR(i);
+
+changeDataSignsCMR(Consignment c)  {
+    INPUT s = dataSignsCMR(c) DO {
+        dataSignsCMR(c) <- s;
+    }
+}
+
+dataPackQuantityCMR = DATA NUMERIC[16,5] (Consignment);
+overPackQuantityCMR = ABSTRACT VALUE NUMERIC[16,5] (Consignment);
+packQuantityCMR '7. Количество мест' (Consignment i) = OVERRIDE dataPackQuantityCMR(i), overPackQuantityCMR(i), packQuantityConsignmentDetail(i);
+
+changeDataPackQuantityCMR(Consignment c)  {
+    INPUT s = dataPackQuantityCMR(c) DO {
+        dataPackQuantityCMR(c) <- s;
+    }
+}
+
+dataPackTypeCMR = DATA STRING (Consignment);
+overPackTypeCMR = ABSTRACT VALUE STRING (Consignment);
+packTypeCMR '8. Род упаковки' (Consignment i) = OVERRIDE dataPackTypeCMR(i), overPackTypeCMR(i);
+
+changeDataPackTypeCMR(Consignment c)  {
+    INPUT s = dataPackTypeCMR(c) DO {
+        dataPackTypeCMR(c) <- s;
+    }
+}
+
+dataNameLoadCMR = DATA STRING (Consignment);
+overNameLoadCMR = ABSTRACT VALUE STRING (Consignment);
+nameLoadCMR '9. Наименование груза' (Consignment i) = OVERRIDE dataNameLoadCMR(i), overNameLoadCMR(i);
+
+changeDataNameLoadCMR(Consignment c)  {
+    INPUT s = dataNameLoadCMR(c) DO {
+        dataNameLoadCMR(c) <- s;
+    }
+}
+
+dataGrossWeightCMR = DATA NUMERIC[14,3] (Consignment);
+overGrossWeightCMR = ABSTRACT VALUE NUMERIC[14,3] (Consignment);
+grossWeightCMR '11. Вес брутто, кг' (Consignment i) = OVERRIDE dataGrossWeightCMR(i), overGrossWeightCMR(i), sumGrossWeightInvoiceDetail(i);
+
+changeDataGrossWeightCMR(Consignment c)  {
+    INPUT s = dataGrossWeightCMR(c) DO {
+        dataGrossWeightCMR(c) <- s;
+    }
+}
+
+dataVolumeCMR = DATA NUMERIC[16,5] (Consignment);
+overVolumeCMR = ABSTRACT VALUE NUMERIC[16,5] (Consignment);
+volumeCMR '12. Объём, м3' (Consignment i) = OVERRIDE dataVolumeCMR(i), overVolumeCMR(i);
+
+changeDataVolumeCMR(Consignment c)  {
+    INPUT s = dataVolumeCMR(c) DO {
+        dataVolumeCMR(c) <- s;
+    }
+}
+
+@defineOperationProperty(showPrintCMR, 'Возможность печати CMR', showContainer);
+
+showPrintCMR = ABSTRACT BOOLEAN (Consignment);
+showPrintCMR(Invoice i) = showPrintCMR(operation(i));
+showPrintCMR(Invoice i) += showPrintCMR(i);
+
+EXTEND FORM consignment
+    PROPERTIES(c) SHOWIF showPrintCMR(c) numberCMR ON CHANGE changeDataNumberCMR(c), packQuantityCMR ON CHANGE changeDataPackQuantityCMR(c), signsCMR ON CHANGE changeDataSignsCMR(c),
+        packTypeCMR ON CHANGE changeDataPackTypeCMR(c), nameLoadCMR ON CHANGE changeDataNameLoadCMR(c), volumeCMR ON CHANGE changeDataVolumeCMR(c), grossWeightCMR ON CHANGE changeDataGrossWeightCMR(c),
+        nameTransporter, addressTransporter, countryTransporter, dateWaybill, overAddressSupplierStockCMR ON CHANGE changeAddressSupplierStockCMR(c),
+        numberTruck, modelTruck, numberTrailer, modelTrailer, specialConditions
+;
+
+DESIGN consignment {
+    pane {
+        NEW cmr {
+            caption = 'CMR';
+            NEW cmrRow1 {
+                type = CONTAINERH;
+                NEW common {
+                    caption = 'Шапка документа';
+                    MOVE PROPERTY(numberCMR(c));
+                }
+                NEW transporter {
+                    caption = '16. Перевозчик';
+                    MOVE PROPERTY(nameTransporter(c));
+                    MOVE PROPERTY(addressTransporter(c));
+                    MOVE PROPERTY(countryTransporter(c));
+                }
+            }
+            NEW cmrRow2 {
+                type = CONTAINERH;
+                NEW numbers {
+                    caption = 'Груз';
+                    MOVE PROPERTY(signsCMR(c));
+                    MOVE PROPERTY(packQuantityCMR(c));
+                    MOVE PROPERTY(packTypeCMR(c));
+                    MOVE PROPERTY(nameLoadCMR(c));
+
+                }
+                NEW quantity {
+                    caption = 'Количества';
+                    MOVE PROPERTY(grossWeightCMR(c));
+                    MOVE PROPERTY(volumeCMR(c));
+                }
+            }
+            NEW cmrRow3 {
+                caption = 'Параметры';
+                MOVE PROPERTY(overAddressSupplierStockCMR(c));
+                MOVE PROPERTY(dateWaybill(c));
+                MOVE PROPERTY(specialConditions(c));
+            }
+            NEW cmrRow4 {
+                type = CONTAINERH;
+                NEW numberAuto {
+                    caption = '25. Регистрационный номер';
+                    MOVE PROPERTY(numberTruck(c));
+                    MOVE PROPERTY(numberTrailer(c));
+                }
+                NEW modelAuto {
+                    caption = '26. Марка';
+                    MOVE PROPERTY(modelTruck(c));
+                    MOVE PROPERTY(modelTrailer(c));
+                }
+            }
+        }
+    }
+}
+
+codeCustomsGroupID  = GROUP SUM 1 BY codeCustomsGroupDefaultCountry(sku(InvoiceDetail id)), invoice(id);
+codeCustomsGroupI = GROUP CONCAT STRING(STRING[10] str) IF codeCustomsGroupID(str, Invoice i), ', ' ORDER str BY i;
+
+FORM printCRM 'CMR'
+    OBJECTS i = Invoice PANEL SUBREPORT
+    PROPERTIES(i) READONLY seriesNumber, numberCMR, fullNameSupplier, addressSupplier, fullNameCustomer, addressCustomer, nameTransporter,
+        addressTransporter, countryTransporter, overAddressSupplierStockCMR, addressCustomerStock, date, addressConsigmentLegalEntity, nameConsigmentLegalEntity,
+        packQuantityCMR, packTypeCMR, nameLoadCMR, signsCMR, volumeCMR, invoiceSumInvoiceDetail, shortNameCurrency, overWaybill, dateWaybill,
+        nameDriver, numberTruck, modelTruck, numberTrailer, modelTrailer, grossWeightCMR, specialConditions,
+        consignmentAddressCustomerStock = Consignment.addressCustomerStock, codeCustomsGroupI
+    PROPERTIES READONLY supplierCountry = name(supplierCountry(i)), customerCountry = name(customerCountry(i)),
+        countrySupplierStock = nameCountry(supplierStock(i)), countryCustomerStock = nameCountry(customerStock(i))
+
+    OBJECTS d = STRING[10] SUBREPORT
+    PROPERTIES READONLY customsGroup = VALUE(d)
+    FILTERS [ GROUP MIN InvoiceDetail id BY invoice(id), codeCustomsGroupDefaultCountry(sku(id))](i,d)
+
+    OBJECTS dd = InvoiceDetail //для создания сабрепорта
+    FILTERS invoice(dd) == i,
+        NOT dd IS InvoiceDetail
+;
+
+printCMR 'CMR' (Invoice i)  {
+    PRINT printCRM OBJECTS i=i;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM invoices
+    PROPERTIES(i) SHOWIF showPrintCMR(i) READONLYIF banPrint(i) printCMR
+;
+
+EXTEND FORM consignmentDashboard
+    PROPERTIES(i) SHOWIF showPrintCMR(i) READONLYIF banPrint(i) printCMR
+;
+
+nameTransporter 'Наименование' = DATA ISTRING[200] (LegalEntity);
+addressTransporter 'Адрес' = DATA ISTRING[150] (LegalEntity);
+countryTransporter 'Страна' = DATA ISTRING[50] (LegalEntity);
+dateWaybill 'Дата путевого листа' = DATA DATE (LegalEntity);
+numberTruck 'Регистрац. номер тягача' = DATA ISTRING[50] (LegalEntity);
+modelTruck 'Марка тягача' = DATA ISTRING[70] (LegalEntity);
+numberTrailer 'Регистрац. номер полуприцепа' = DATA ISTRING[50] (LegalEntity);
+modelTrailer 'Марка полуприцепа' = DATA ISTRING[70] (LegalEntity);
+specialConditions 'Особые условия' = DATA ISTRING[150] (LegalEntity) CHARWIDTH 100;
+
+EXTEND FORM legalEntity
+    PROPERTIES(l) nameTransporter, addressTransporter, countryTransporter, dateWaybill, numberTruck, modelTruck, numberTrailer, modelTrailer, specialConditions
+;
+
+WHEN SETCHANGED (customer(Consignment c)) AND notUseDriverTruck(c) DO {
+    dateWaybill(c) <- dateWaybill(customer(c));
+    nameTransporter(c) <- nameTransporter(customer(c));
+    addressTransporter(c) <- addressTransporter(customer(c));
+    countryTransporter(c) <- countryTransporter(customer(c));
+    numberTruck(c) <- numberTruck(customer(c));
+    modelTruck(c) <- modelTruck(customer(c));
+    numberTrailer(c) <- numberTrailer(customer(c));
+    modelTrailer(c) <- modelTrailer(customer(c));
+    specialConditions(c) <- specialConditions(customer(c));
+}
+
+DESIGN legalEntity {
+    extendContainer {
+        consignment {
+            NEW cmr {
+                caption = 'CMR';
+                NEW cmrRow1 {
+                    type = CONTAINERH;
+                    NEW common {
+                        MOVE PROPERTY(dateWaybill(l));
+                    }
+                    NEW transporter {
+                        caption = 'Перевозчик';
+                        MOVE PROPERTY(nameTransporter(l));
+                        MOVE PROPERTY(addressTransporter(l));
+                        MOVE PROPERTY(countryTransporter(l));
+                    }
+                    NEW auto {
+                        caption = 'Автомобиль';
+                        type = COLUMNS;
+                        columns = 2;
+                        MOVE PROPERTY(numberTruck(l));
+                        MOVE PROPERTY(modelTruck(l));
+                        MOVE PROPERTY(numberTrailer(l));
+                        MOVE PROPERTY(modelTrailer(l));
+                    }
+                }
+                NEW cmrRow2 {
+                    MOVE PROPERTY(specialConditions(l));
+                }
+            }
+        }
+    }
+}
+
+WHEN CHANGED (dateWaybill(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    dateWaybill(LegalEntity le) <- dateWaybill(c) WHERE le == customer(c);
+}
+WHEN CHANGED (nameTransporter(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    nameTransporter(LegalEntity le) <- nameTransporter(c) WHERE le == customer(c);
+}
+WHEN CHANGED (addressTransporter(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    addressTransporter(LegalEntity le) <- addressTransporter(c) WHERE le == customer(c);
+}
+WHEN CHANGED (countryTransporter(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    countryTransporter(LegalEntity le) <- countryTransporter(c) WHERE le == customer(c);
+}
+WHEN CHANGED (numberTruck(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    numberTruck(LegalEntity le) <- numberTruck(c) WHERE le == customer(c);
+}
+WHEN CHANGED (modelTruck(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    modelTruck(LegalEntity le) <- modelTruck(c) WHERE le == customer(c);
+}
+WHEN CHANGED (numberTrailer(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    numberTrailer(LegalEntity le) <- numberTrailer(c) WHERE le == customer(c);
+}
+WHEN CHANGED (modelTrailer(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    modelTrailer(LegalEntity le) <- modelTrailer(c) WHERE le == customer(c);
+}
+WHEN CHANGED (specialConditions(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    specialConditions(LegalEntity le) <- specialConditions(c) WHERE le == customer(c);
+}
