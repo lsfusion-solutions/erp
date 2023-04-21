@@ -249,15 +249,43 @@ getFunctionalnameByGTINCustom 'Проверить ePass' (Item i) {
         APPLY NESTED LOCAL;
     }      
 }
+checkBarcode 'Проверять' = DATA BOOLEAN (INTEGER);
+
+EXTEND FORM integrationData
+    OBJECTS intB= INTEGER 
+    PROPERTIES READONLY  val 'К-во знаков' = VALUE(intB)
+    PROPERTIES (intB) checkBarcode
+    FILTERS iterate(intB,1,18)
+    FILTERGROUP check
+        FILTER 'Отм' checkBarcode(intB) 'F9' DEFAULT 
+;
+
 checkBarcode8 'Проверять 8-значный шк/gtin' = DATA BOOLEAN ();
 
-isLength13(Item i) = ((length(idBarcode(i))==13 AND onlyDigits(idBarcode(i))) OR (length(GTIN(i))==13 AND onlyDigits(GTIN(i))));
-isLength8(Item i) = ((length(idBarcode(i))==8 AND onlyDigits(idBarcode(i))) OR (length(GTIN(i))==8 AND onlyDigits(GTIN(i)))) AND checkBarcode8();
+migrateCheckBarcode = DATA BOOLEAN ();
+onStarted()+{
+    IF NOT migrateCheckBarcode() THEN NEWSESSION {
+        checkBarcode(INTEGER i)<- TRUE WHERE i==13 OR (i==8 AND checkBarcode8());
+        migrateCheckBarcode()<- TRUE;
+        APPLY;
+    }
+}
 
-checkBarcode(Item i) = ((length(idBarcode(i))==13 AND onlyDigits(idBarcode(i))) OR (length(idBarcode(i))==8 AND onlyDigits(idBarcode(i)) AND checkBarcode8()))
-    AND (IF skipCheckEPass() THEN NOT registeredTimeBarcode(i) ELSE TRUE);
-checkGTIN(Item i) = ((length(GTIN(i))==13 AND onlyDigits(GTIN(i))) OR (length(GTIN(i))==8 AND onlyDigits(GTIN(i)) AND checkBarcode8()))
-    AND (IF skipCheckEPass() THEN NOT registeredTimeGTIN(i) ELSE TRUE);
+//isLength13(Item i) = ((length(idBarcode(i))==13 AND onlyDigits(idBarcode(i))) OR (length(GTIN(i))==13 AND onlyDigits(GTIN(i))));
+//isLength8(Item i) = ((length(idBarcode(i))==8 AND onlyDigits(idBarcode(i))) OR (length(GTIN(i))==8 AND onlyDigits(GTIN(i)))) AND checkBarcode8();
+
+isLengthCheckBarcode(Item i) = checkBarcode(length(idBarcode(i))) AND onlyDigits(idBarcode(i));
+isLengthCheckGTIN(Item i) = checkBarcode(length(GTIN(i))) AND onlyDigits(GTIN(i));
+
+isLengthCheck(Item i) = isLengthCheckBarcode(i) OR isLengthCheckGTIN(i);
+
+checkBarcode(Item i) = isLengthCheckBarcode(i) AND (IF skipCheckEPass() THEN NOT registeredTimeBarcode(i) ELSE TRUE);
+checkGTIN(Item i) = isLengthCheckGTIN(i) AND (IF skipCheckEPass() THEN NOT registeredTimeGTIN(i) ELSE TRUE);
+
+//checkBarcode(Item i) = ((length(idBarcode(i))==13 AND onlyDigits(idBarcode(i))) OR (length(idBarcode(i))==8 AND onlyDigits(idBarcode(i)) AND checkBarcode8()))
+//    AND (IF skipCheckEPass() THEN NOT registeredTimeBarcode(i) ELSE TRUE);
+//checkGTIN(Item i) = ((length(GTIN(i))==13 AND onlyDigits(GTIN(i))) OR (length(GTIN(i))==8 AND onlyDigits(GTIN(i)) AND checkBarcode8()))
+//    AND (IF skipCheckEPass() THEN NOT registeredTimeGTIN(i) ELSE TRUE);
 
 
 getFunctionalnameByGTIN 'Проверить ePass' (Item i) {
@@ -267,8 +295,8 @@ getFunctionalnameByGTIN 'Проверить ePass' (Item i) {
             LOCAL file = XMLFILE ();                       
             LOCAL result = XMLFILE ();               
             
-            IF isLength13(i) OR isLength8(i) THEN {
-                IF (checkBarcode(i) OR checkGTIN(i)) THEN{     
+            IF isLengthCheck(i)  THEN {
+                IF (checkBarcode(i) OR checkGTIN(i)) THEN {     
                     NEWSESSION NESTED LOCAL {
                         registeredGTIN(i)<- NULL;
                         registeredTimeGTIN(i)<- NULL;
@@ -318,14 +346,16 @@ getFunctionalnameByGTIN 'Проверить ePass' (Item i) {
                         IF GTIN(i) THEN {
                             registeredGTIN(i)<- NULL;
                             registeredTimeGTIN(i)<- currentDateTime();
-                            nameGTIN(i)<- NULL; 
-                            errorGTIN(i)<- 'GTIN должны состоять из 13' +(CONCAT '',' или 8' IF checkBarcode8(),'' )+' цифр';
+                            nameGTIN(i)<- NULL;
+                            //errorGTIN(i)<- 'GTIN должны состоять из 13' +(CONCAT '',' или 8' IF checkBarcode8(),'' )+' цифр';
+                            errorGTIN(i)<- CONCAT '', 'GTIN должен состоять из: ',(OVERRIDE '('+(GROUP CONCAT STRING (INTEGER t) IF checkBarcode( t),', ' ORDER t)+') цифр', 'ЗНАЧЕНИЕ НЕ ЗАДАНО');
                         }
                         IF idBarcode(i) THEN {
                             registeredBarcode(i)<- NULL;
                             registeredTimeBarcode(i)<- currentDateTime();
                             nameBarcode(i)<- NULL;
-                            errorBarcode(i)<- 'Штрихкод должны состоять из 13' +(CONCAT '',' или 8' IF checkBarcode8(),'' )+' цифр';  
+                            //errorBarcode(i)<- 'Штрихкод должны состоять из 13' +(CONCAT '',' или 8' IF checkBarcode8(),'' )+' цифр';
+                            errorBarcode(i)<- CONCAT '', 'Штрихкод должен состоять из: ',(OVERRIDE '('+(GROUP CONCAT STRING (INTEGER t) IF checkBarcode( t),', ' ORDER t)+') цифр', 'ЗНАЧЕНИЕ НЕ ЗАДАНО');
                         }            
                         APPLY NESTED LOCAL ;
                     }
@@ -342,15 +372,16 @@ getFunctionalnameByGTIN 'Проверить ePass' (Item i) {
 countSelectAskData 'Количество отмеченых товаров, после которых спрашивать' = DATA INTEGER ();
 countSelectAsk'Количество отмеченых товаров, после которых задавать вопрос' () = OVERRIDE countSelectAskData(), 100;
 EXTEND FORM integrationData
-    PROPERTIES () checkBarcode8, countSelectAsk
+    PROPERTIES () countSelectAsk
 ;
 DESIGN integrationData {
     ePass{
-        MOVE PROPERTY (checkBarcode8());
         MOVE PROPERTY (countSelectAsk());
+        MOVE BOX(intB){
+            caption = 'К-во знаков для проверки шк/gtin';
+        }
     }
 }
-
 getFunctionalnameByGTINSelect 'Проверить ePass' (Item i) {
     IF (GROUP SUM 1 IF inSession(Item ii) ) THEN {
         LOCAL ok = BOOLEAN ();
