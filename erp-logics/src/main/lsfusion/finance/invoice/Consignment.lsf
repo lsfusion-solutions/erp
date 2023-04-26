@@ -1,0 +1,319 @@
+MODULE Consignment;
+
+REQUIRE System,
+        LegalEntity,
+        Stock,
+        Sku,
+        Employee,
+        Utils,
+        Transport,
+        Numerator,
+        StockContract;
+
+NAMESPACE Consignment;
+
+
+CLASS ABSTRACT Consignment 'Накладная';
+TABLE consignment(Consignment);
+TABLE sessionConsignment(Session, Consignment);
+
+CLASS ABSTRACT ConsignmentDetail 'Строка накладной';
+
+
+dataDate 'Дата' = ABSTRACT DATE (Consignment);
+overDate 'Дата' = ABSTRACT DATE (Consignment);
+date 'Дата' (Consignment consignment) = OVERRIDE overDate(consignment), dataDate(consignment);
+
+number 'Номер' = ABSTRACT STRING[48] (Consignment) IN numbered CHARWIDTH 7;
+series 'Серия' = ABSTRACT BPSTRING[2] (Consignment) IN numbered CHARWIDTH 3 NOFLEX;
+
+banPrint 'Запрет печати' = ABSTRACT CASE BOOLEAN (Consignment);
+
+// ---------------------------------- Юридические лица ---------------------- //
+
+dataSupplier = ABSTRACT LegalEntity (Consignment);
+overSupplier = ABSTRACT LegalEntity (Consignment);
+supplier (Consignment consignment)= OVERRIDE overSupplier(consignment), dataSupplier(consignment);
+
+overAddressSupplier = ABSTRACT VALUE ISTRING[350] (Consignment);
+addressSupplier 'Юр. адрес отправителя' (Consignment consignment) =
+    OVERRIDE overAddressSupplier(consignment), address(supplier(consignment), date(consignment)) CHARWIDTH 30;
+
+overFullNameSupplier = ABSTRACT ISTRING[200] (Consignment);  
+fullNameSupplier 'Наим-ие отправителя' (Consignment consignment) = 
+    OVERRIDE overFullNameSupplier(consignment), fullName(supplier(consignment)) CHARWIDTH 30;
+
+dataCustomer = ABSTRACT LegalEntity (Consignment);
+overCustomer = ABSTRACT LegalEntity (Consignment);
+customer (Consignment consignment)= OVERRIDE overCustomer(consignment), dataCustomer(consignment);
+
+overAddressCustomer = ABSTRACT VALUE ISTRING[350] (Consignment);
+extraAddressCustomer = ABSTRACT ISTRING[350] (Consignment);
+addressCustomer 'Юр. адрес получателя' (Consignment consignment) =
+    OVERRIDE overAddressCustomer(consignment), extraAddressCustomer(consignment), address(customer(consignment), date(consignment)) CHARWIDTH 30;
+
+nameCustomer 'Наим-ие получателя' (Consignment consignment) = name(customer(consignment)) CHARWIDTH 30;
+overFullNameCustomer = ABSTRACT ISTRING[200] (Consignment);  
+extraFullNameCustomer = ABSTRACT ISTRING[200] (Consignment);  
+fullNameCustomer 'Наим-ие получателя' (Consignment consignment) = 
+    OVERRIDE overFullNameCustomer(consignment), extraFullNameCustomer(consignment), fullName(customer(consignment)) CHARWIDTH 30;
+
+// ------------------------------------- Атрибуты --------------------------------- //
+
+GROUP carConsignment 'Автомобиль' : base;
+
+dataSupplierStock (consignment) = ABSTRACT Stock (Consignment);
+overSupplierStock (consignment) = ABSTRACT Stock (Consignment);
+supplierStock (Consignment c) = OVERRIDE overSupplierStock(c), dataSupplierStock(c);
+
+overNameSupplierStock (Consignment consignment) = ABSTRACT ISTRING[150] (Consignment);
+nameSupplierStock 'Склад погрузки' (Consignment consignment) =
+     OVERRIDE overNameSupplierStock(consignment), name(supplierStock(consignment)) CHARWIDTH 20;
+
+dataAddressSupplierStock 'Пункт погрузки' (consignment) = ABSTRACT STRING[250] (Consignment);
+addressSupplierStock 'Пункт погрузки' (Consignment consignment) = OVERRIDE dataAddressSupplierStock (consignment),
+                                                                          address(supplierStock(consignment)) CHARWIDTH 40 IN carConsignment;
+
+dataCustomerStock (consignment) = ABSTRACT Stock (Consignment);
+overCustomerStock (consignment) = ABSTRACT Stock (Consignment);
+customerStock (Consignment c) = OVERRIDE overCustomerStock(c), dataCustomerStock(c);
+
+overNameCustomerStock (Consignment consignment) = ABSTRACT ISTRING[350] (Consignment);
+nameCustomerStock 'Склад разгрузки' (Consignment consignment) =
+     OVERRIDE overNameCustomerStock(consignment), name(customerStock(consignment)) CHARWIDTH 30;
+
+dataAddressCustomerStock 'Пункт разгрузки' (consignment) = ABSTRACT STRING[250] (Consignment) IN carConsignment;
+overAddressCustomerStock = ABSTRACT ISTRING[350] (Consignment);
+addressCustomerStock 'Пункт разгрузки' (Consignment consignment) =
+    OVERRIDE dataAddressCustomerStock(consignment), overAddressCustomerStock(consignment), address(customerStock(consignment)) CHARWIDTH 40 IN carConsignment;
+
+
+FORM dialogEmployeesConsignment 'Сотрудники'
+    OBJECTS e = Employee
+    PROPERTIES (e) READONLY inactive, lastName, firstName, namePosition, nameMainRole, userRoles
+
+    FILTERGROUP active FILTER 'Активные' active(e) 'F5'  DEFAULT
+;
+
+DESIGN dialogEmployeesConsignment {
+    size = (800, 600);
+    PROPERTY (lastName(e)) {
+        charWidth = 15;
+    }
+    PROPERTY (firstName(e)) {
+        charWidth = 25;
+    }
+    PROPERTY (namePosition(e)) {
+        charWidth = 30;
+    }
+    PROPERTY (nameMainRole(e)) {
+        charWidth = 25;
+    }
+}
+
+// ------------------------------------- Отпуск товара --------------------------------- //
+
+GROUP issuanceConsignment 'Отпуск' : base;
+GROUP invoiceConsignment 'Накладная' : base;
+GROUP sumConsignment 'Суммы' : base;
+
+contract = ABSTRACT Contract (Consignment);
+overDescription 'Описание' (Contract contract) = CONCAT '', 'Договор поставки ', description(contract);
+
+descriptionContract = overDescription(contract(Consignment consignment));
+
+dataShipmentBase 'Основание отпуска' (consignment) = ABSTRACT STRING[100] (Consignment);
+overShipmentBase 'Основание отпуска' (consignment) = ABSTRACT STRING[100] (Consignment);
+shipmentBase 'Основание отпуска' (Consignment consignment) = OVERRIDE  overShipmentBase(consignment),
+                                                                      dataShipmentBase(consignment),
+                                                                      STRING[100](descriptionContract(consignment)) IN issuanceConsignment CHARWIDTH 20;
+
+changeShipmentBase (Consignment consignment)  {   
+    INPUT s = shipmentBase(consignment) DO {
+        overShipmentBase(consignment) <- s;  
+    }                       
+}
+
+notUseIssuanceAllowed 'Не использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
+dataIssuanceAllowed = DATA STRING[100](Consignment);
+overIssuanceAllowed (consignment) = DATA Employee (Consignment);
+issuanceAllowed (consignment) = ABSTRACT Employee (Consignment);
+nameIssuanceAllowed 'Отпуск разрешил' (Consignment consignment) = OVERRIDE dataIssuanceAllowed(consignment),
+
+    positionShortName(issuanceAllowed(consignment)), // для агрегированных объектов (накладная на основании накладной)
+    positionShortName(overIssuanceAllowed(consignment)) IN issuanceConsignment CHARWIDTH 20;
+overChangeIssuanceAllowed ABSTRACT (Consignment);
+
+customSelectIssuanceAllowed = ABSTRACT BOOLEAN (Consignment);
+overSelectIssuanceAllowed ABSTRACT (Consignment);
+
+changeIssuanceAllowed(Consignment consignment)  {
+    IF notUseIssuanceAllowed(consignment) THEN {
+        INPUT s = dataIssuanceAllowed(consignment) DO {
+            dataIssuanceAllowed(consignment) <- s;
+        }
+    } ELSE
+        IF customSelectIssuanceAllowed(consignment) THEN {
+            overSelectIssuanceAllowed(consignment);
+        } ELSE {
+            DIALOG dialogEmployeesConsignment OBJECTS e = issuanceAllowed(consignment) INPUT NULL DO {
+                issuanceAllowed(consignment) <- e;
+                IF NOT issuanceAllowed(consignment) THEN {
+                    overIssuanceAllowed(consignment) <- e;
+                }
+            }
+        }
+    overChangeIssuanceAllowed(consignment);
+}
+
+addressConsigmentLegalEntity 'Юр. адрес' = DATA ISTRING[150] (Stock) IN invoiceConsignment CHARWIDTH 20;
+overAddressSupplier(Consignment consignment) += addressConsigmentLegalEntity(supplierStock(consignment));
+overAddressCustomer(Consignment consignment) += addressConsigmentLegalEntity(customerStock(consignment));
+
+nameConsigmentLegalEntity 'Наименование юр. лица' = DATA STRING[200] (Stock) IN invoiceConsignment CHARWIDTH 20;
+overFullNameSupplier(Consignment consignment) += nameConsigmentLegalEntity(supplierStock(consignment));
+overFullNameCustomer(Consignment consignment) += nameConsigmentLegalEntity(customerStock(consignment));
+
+driver = ABSTRACT CASE Employee(Consignment);
+dataEmployee = ABSTRACT Employee(Consignment);
+mandatoryDriver 'Обязательный выбор водителя из справочника' = ABSTRACT CASE BOOLEAN (Consignment);
+
+dataNameDriver = DATA STRING[30] (Consignment);
+nameDriver 'Водитель' (Consignment consignment) = OVERRIDE dataNameDriver(consignment),
+    shortName(dataEmployee(consignment)),
+    shortName(driver(consignment)) CHARWIDTH 15 IN carConsignment;
+skipDriver 'Пропустить проверку водителя' = ABSTRACT CASE BOOLEAN (Consignment);
+
+overChangeDriver  ABSTRACT ( Consignment);
+notUseDriverTruck = ABSTRACT BOOLEAN(Consignment);
+
+customSelectDriver = ABSTRACT BOOLEAN (Consignment);
+overSelectDriver ABSTRACT (Consignment);
+
+changeDriver(Consignment consignment)  {
+    IF notUseDriverTruck(consignment) THEN {
+        INPUT s = dataNameDriver(consignment) DO {
+            dataNameDriver(consignment) <- s;
+        }
+    } ELSE {
+        IF customSelectDriver(consignment) THEN
+            overSelectDriver(consignment);
+        ELSE
+            DIALOG dialogEmployees OBJECTS e = dataEmployee(consignment) INPUT NULL DO {
+                dataEmployee(consignment) <- e;
+                dataNameDriver(consignment) <- NULL;
+            }
+    }
+    overChangeDriver(consignment);
+}
+
+pickDriver 'Выбрать водителя из справочника' (Consignment consignment)  {
+    IF customSelectDriver(consignment) THEN {
+        overSelectDriver(consignment);
+        dataNameDriver(consignment) <- NULL;
+    } ELSE
+        DIALOG dialogEmployees OBJECTS e = dataEmployee(consignment) INPUT NULL DO {
+            dataEmployee(consignment) <- e;
+            dataNameDriver(consignment) <- NULL;
+        }
+} ASON CONTEXTMENU nameDriver[Consignment];
+
+editDriver 'Ввести водителя' (Consignment consignment)  {
+    IF mandatoryDriver(consignment) THEN {
+        MESSAGE 'Запрещено вводить водителя не из справочника';
+        RETURN;
+    }
+    DIALOG dialogString OBJECTS s = nameDriver(consignment) INPUT NULL DO {
+        dataNameDriver(consignment) <- s;
+    }
+} ASON CONTEXTMENU nameDriver[Consignment];
+
+dataWaybill 'Путевой лист' (consignment) = ABSTRACT STRING[50] (Consignment) IN carConsignment;
+
+waybill 'Путевой лист' (consignment) = ABSTRACT STRING[50] (Consignment);
+
+overWaybill 'Путевой лист' (Consignment consignment) = OVERRIDE dataWaybill(consignment), waybill(consignment) CHARWIDTH 15 IN carConsignment;
+skipWaybill 'Пропустить проверку путевого листа' = ABSTRACT CASE BOOLEAN (Consignment);
+
+
+
+
+consignment (d) = ABSTRACT Consignment (ConsignmentDetail);
+
+order 'Порядок сортировки' = ABSTRACT ISTRING[255] (ConsignmentDetail);
+index 'Номер строки' = ABSTRACT INTEGER (ConsignmentDetail);
+skip = ABSTRACT BOOLEAN (ConsignmentDetail);
+
+
+dataQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+quantity 'Количество' (ConsignmentDetail d) = OVERRIDE overQuantity(d), dataQuantity(d);
+
+
+
+dataPackQuantity 'Количество грузовых мест' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
+overPackQuantity 'Количество грузовых мест' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
+roundPack 'Количество знаков после запятой для грузовых мест' = ABSTRACT INTEGER (ConsignmentDetail);
+packQuantity 'Количество грузовых мест' (ConsignmentDetail d) = OVERRIDE overPackQuantity(d),
+                                                                                     dataPackQuantity(d);
+changePackQuantity (ConsignmentDetail d)  {    
+    INPUT s = NUMERIC[21,6]  DO {
+        dataPackQuantity(d) <- s;
+    }        
+}
+
+
+
+countConsignmentDetail 'Количество строк' (consignment) = GROUP SUM 1 IF ConsignmentDetail d IS ConsignmentDetail AND NOT skip(d)
+BY consignment(d) IN sumConsignment;
+
+quantityConsignmentDetail 'Количество (всего)' (consignment) = GROUP SUM quantity(ConsignmentDetail d) IF NOT skip(d)
+BY consignment(d) IN sumConsignment;
+
+packQuantityConsignmentDetail 'Общее количество грузовых мест' (consignment) = GROUP SUM packQuantity(ConsignmentDetail d) IF quantity(d) AND NOT skip(d)
+BY consignment(d) IN sumConsignment;
+
+packQuantity 'Общее количество грузовых мест' = ABSTRACT CASE NUMERIC[8,2] (Consignment);
+overPackQuantityConsignmentDetail 'Общее количество грузовых мест' (Consignment consignment) = OVERRIDE packQuantity(consignment),
+    packQuantityConsignmentDetail(consignment);
+
+
+FORM consignment 'Атрибуты накладной'
+    OBJECTS c = Consignment PANEL
+
+    OBJECTS d = ConsignmentDetail
+    PROPERTIES(d) order, index
+;
+
+DESIGN consignment {
+    size = (1024, 768);
+    NEW pane {
+        fill = 1;
+        type = TABBED;
+        NEW mainContainer {
+            caption = 'Основная информация';
+            NEW mainScroll {
+                fill = 1;
+                height = 1;
+                type = SCROLL;
+                NEW mainTab {
+                    alignment = STRETCH;
+                }
+            }
+        }
+        MOVE BOX(d) {
+            caption = 'Спецификация';
+            PROPERTY(order(d)) {
+                charWidth = 10;
+            }
+        }
+    }
+}
+
+DESIGN legalEntity {
+    extendContainer {
+        NEW consignment {
+            caption = 'Оформление накладных';
+        }
+    }
+}
