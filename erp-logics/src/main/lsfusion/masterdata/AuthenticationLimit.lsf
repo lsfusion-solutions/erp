@@ -1,6 +1,6 @@
 MODULE AuthenticationLimit;
 
-REQUIRE Authentication, SystemEvents;
+REQUIRE Authentication, SystemEvents, Security;
 
 NAMESPACE Authentication;
 
@@ -23,3 +23,16 @@ CONSTRAINT [GROUP SUM 1 IF connectionStatus(Connection c) = ConnectionStatus.con
                         BY user(c)](User u) > 1 AND login(u) != 'admin' AND dblck()
     MESSAGE 'Пользователь с таким логином уже работает. Возможно было некорректное завершение работы программы.';
 
+autoLogoutSameUser 'Отключать при повторном входе' = DATA BOOLEAN (UserRole);
+EXTEND FORM securityPolicy
+    PROPERTIES(ur) autoLogoutSameUser PANEL
+;
+DESIGN securityPolicy {
+    roleApplicationSettings { MOVE PROPERTY(autoLogoutSameUser(ur)); }
+}
+
+onClientStarted() + {
+    IF GROUP SUM 1 IF in(currentUser(), UserRole r) AND autoLogoutSameUser(r) THEN 
+        FOR connectionStatus(Connection c) = ConnectionStatus.connectedConnection AND user(c) = currentUser() AND c != currentConnection() 
+            DO shutdown(c);
+}
