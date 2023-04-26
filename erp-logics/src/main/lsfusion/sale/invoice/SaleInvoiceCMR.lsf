@@ -1,6 +1,6 @@
 MODULE SaleInvoiceCMR;
 
-REQUIRE SaleInvoice, ConsignmentDashboardBy, CustomsGroupItem;
+REQUIRE SaleInvoice, Consignment, ConsignmentDashboard, CustomsGroupItem;
 
 NAMESPACE Sale;
 
@@ -102,6 +102,16 @@ changeDataVolumeCMR(Consignment c)  {
     }
 }
 
+dataCompiledCMR = DATA STRING (Consignment);
+overCompiledCMR = ABSTRACT VALUE STRING (Consignment);
+compiledCMR '21. Составлена в' (Consignment i) = OVERRIDE dataCompiledCMR(i), overCompiledCMR(i);
+
+changeDataCompiledCMR(Consignment c)  {
+    INPUT s = dataCompiledCMR(c) DO {
+        dataCompiledCMR(c) <- s;
+    }
+}
+
 @defineOperationProperty(showPrintCMR, 'Возможность печати CMR', showContainer);
 
 showPrintCMR = ABSTRACT BOOLEAN (Consignment);
@@ -109,7 +119,7 @@ showPrintCMR(Invoice i) = showPrintCMR(operation(i));
 showPrintCMR(Invoice i) += showPrintCMR(i);
 
 EXTEND FORM consignment
-    PROPERTIES(c) SHOWIF showPrintCMR(c) numberCMR ON CHANGE changeDataNumberCMR(c), packQuantityCMR ON CHANGE changeDataPackQuantityCMR(c), signsCMR ON CHANGE changeDataSignsCMR(c),
+    PROPERTIES(c) SHOWIF showPrintCMR(c) numberCMR ON CHANGE changeDataNumberCMR(c), packQuantityCMR ON CHANGE changeDataPackQuantityCMR(c), signsCMR ON CHANGE changeDataSignsCMR(c), compiledCMR ON CHANGE changeDataCompiledCMR(c),
         packTypeCMR ON CHANGE changeDataPackTypeCMR(c), nameLoadCMR ON CHANGE changeDataNameLoadCMR(c), volumeCMR ON CHANGE changeDataVolumeCMR(c), grossWeightCMR ON CHANGE changeDataGrossWeightCMR(c),
         nameTransporter, addressTransporter, countryTransporter, dateWaybill, overAddressSupplierStockCMR ON CHANGE changeAddressSupplierStockCMR(c),
         numberTruck, modelTruck, numberTrailer, modelTrailer, specialConditions
@@ -151,8 +161,9 @@ DESIGN consignment {
             NEW cmrRow3 {
                 caption = 'Параметры';
                 MOVE PROPERTY(overAddressSupplierStockCMR(c));
-                MOVE PROPERTY(dateWaybill(c));
                 MOVE PROPERTY(specialConditions(c));
+                MOVE PROPERTY(compiledCMR(c));
+                MOVE PROPERTY(dateWaybill(c));
             }
             NEW cmrRow4 {
                 type = CONTAINERH;
@@ -175,7 +186,7 @@ FORM printCRM 'CMR'
     OBJECTS i = Invoice PANEL SUBREPORT
     PROPERTIES(i) READONLY seriesNumber, numberCMR, fullNameSupplier, addressSupplier, fullNameCustomer, addressCustomer, nameTransporter,
         addressTransporter, countryTransporter, overAddressSupplierStockCMR, addressCustomerStock, date, addressConsigmentLegalEntity, nameConsigmentLegalEntity,
-        packQuantityCMR, packTypeCMR, nameLoadCMR, signsCMR, volumeCMR, invoiceSumInvoiceDetail, shortNameCurrency, overWaybill, dateWaybill,
+        packQuantityCMR, packTypeCMR, nameLoadCMR, signsCMR, volumeCMR, invoiceSumInvoiceDetail, shortNameCurrency, overWaybill, dateWaybill, compiledCMR,
         nameDriver, numberTruck, modelTruck, numberTrailer, modelTrailer, grossWeightCMR, specialConditions,
         consignmentAddressCustomerStock = Consignment.addressCustomerStock
     PROPERTIES READONLY supplierCountry = name(supplierCountry(i)), customerCountry = name(customerCountry(i)),
@@ -198,9 +209,21 @@ EXTEND FORM invoices
     PROPERTIES(i) SHOWIF showPrintCMR(i) READONLYIF banPrint(i) printCMR
 ;
 
+DESIGN invoices {
+    printTab {
+        MOVE GROUP(print,i);
+    }
+}
+
 EXTEND FORM consignmentDashboard
-    PROPERTIES(i) SHOWIF showPrintCMR(i) READONLYIF banPrint(i) printCMR
+    PROPERTIES(i) SHOWIF showPrintCMR[Consignment](i) READONLYIF banPrint(i) printCMR
 ;
+
+DESIGN consignmentDashboard {
+    printContainer {
+        MOVE GROUP(print,i);
+    }
+}
 
 nameTransporter 'Наименование' = DATA ISTRING[200] (LegalEntity);
 addressTransporter 'Адрес' = DATA ISTRING[150] (LegalEntity);
