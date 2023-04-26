@@ -1188,6 +1188,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean readCashDocuments = artixSettings != null && artixSettings.isReadCashDocuments();
+        boolean appendCashierId = artixSettings.isAppendCashierId();
 
         if (readCashDocuments) {
             //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
@@ -1229,6 +1230,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                                 int numberCashDocument = documentObject.getInt("docNum");
                                                 String idEmployee = documentObject.getString("userCode");
+                                                if (appendCashierId) {
+                                                    idEmployee = cashRegister.numberGroup + "_" + idEmployee;
+                                                }
                                                 int shift = documentObject.getInt("shift");
 
                                                 BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("docSum"));
