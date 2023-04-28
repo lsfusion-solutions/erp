@@ -1283,6 +1283,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         readSalesInfo(sidEquipmentServer, httpExchange, ignoreSalesWithoutNppGroupMachinery, extendedLogs);
                     } catch (Exception e) {
                         sendSalesLogger.error(getLogPrefix() + "Reading SalesInfo", e);
+                        sendSalesLogger.info(getLogPrefix() + "Request body was: " + new String(IOUtils.readBytesFromStream(httpExchange.getRequestBody()), encoding));
                         sendPurchasesResponse(httpExchange, e.getMessage());
                         reportEquipmentServerError(remote, sidEquipmentServer, e);
                     }
