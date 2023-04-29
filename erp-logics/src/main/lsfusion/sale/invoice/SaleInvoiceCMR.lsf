@@ -234,9 +234,10 @@ modelTruck 'Марка тягача' = DATA ISTRING[70] (LegalEntity);
 numberTrailer 'Регистрац. номер полуприцепа' = DATA ISTRING[50] (LegalEntity);
 modelTrailer 'Марка полуприцепа' = DATA ISTRING[70] (LegalEntity);
 specialConditions 'Особые условия' = DATA ISTRING[150] (LegalEntity) CHARWIDTH 100;
+driverText 'Водитель' = DATA STRING[30](LegalEntity);
 
 EXTEND FORM legalEntity
-    PROPERTIES(l) nameTransporter, addressTransporter, countryTransporter, dateWaybill, numberTruck, modelTruck, numberTrailer, modelTrailer, specialConditions
+    PROPERTIES(l) nameTransporter, addressTransporter, countryTransporter, dateWaybill, numberTruck, modelTruck, numberTrailer, modelTrailer, specialConditions, driverText
 ;
 
 WHEN SETCHANGED (customer(Consignment c)) AND notUseDriverTruck(c) DO {
@@ -249,6 +250,7 @@ WHEN SETCHANGED (customer(Consignment c)) AND notUseDriverTruck(c) DO {
     numberTrailer(c) <- numberTrailer(customer(c));
     modelTrailer(c) <- modelTrailer(customer(c));
     specialConditions(c) <- specialConditions(customer(c));
+    dataNameDriver(c) <- driverText(customer(c));
 }
 
 DESIGN legalEntity {
@@ -259,6 +261,7 @@ DESIGN legalEntity {
                 NEW cmrRow1 {
                     type = CONTAINERH;
                     NEW common {
+                        MOVE PROPERTY(driverText(l));
                         MOVE PROPERTY(dateWaybill(l));
                     }
                     NEW transporter {
@@ -285,6 +288,9 @@ DESIGN legalEntity {
     }
 }
 
+WHEN CHANGED (nameDriver(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
+    driverText(LegalEntity le) <- nameDriver(c) WHERE le == customer(c);
+}
 WHEN CHANGED (dateWaybill(Consignment c)) AND c == [GROUP LAST Consignment cc ORDER dateTime(cc),cc BY customer(cc)](customer(c)) DO {
     dateWaybill(LegalEntity le) <- dateWaybill(c) WHERE le == customer(c);
 }

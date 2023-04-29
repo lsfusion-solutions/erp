@@ -255,26 +255,20 @@ nameIssuanceExecuted 'Отпуск произвел' (Consignment consignment) =
                                                                                                 positionShortName(overIssuanceExecuted(consignment)) IN issuanceConsignment CHARWIDTH 20;
 overChangeIssuanceExecuted ABSTRACT (Consignment);
 
-customSelectIssuanceExecuted = ABSTRACT BOOLEAN (Consignment);
-overSelectIssuanceExecuted ABSTRACT (Consignment);
-
 changeIssuanceExecuted(Consignment consignment)  {    
     IF notUseIssuanceExecuted(consignment) THEN {
         INPUT s = dataIssuanceExecuted(consignment) DO {
             dataIssuanceExecuted(consignment) <- s;
         } 
         
-    } ELSE 
-        IF customSelectIssuanceExecuted(consignment) THEN {
-            overSelectIssuanceExecuted(consignment);
-        } ELSE {
-            DIALOG dialogEmployeesConsignment OBJECTS e = issuanceExecuted(consignment) INPUT NULL DO {
-                issuanceExecuted(consignment) <- e;
-                IF NOT issuanceExecuted(consignment) THEN {
-                    overIssuanceExecuted(consignment) <- e;
-                }
-            }               
-        }        
+    } ELSE { 
+        DIALOG dialogEmployeesConsignment OBJECTS e = issuanceExecuted(consignment) INPUT NULL DO {
+            issuanceExecuted(consignment) <- e;
+            IF NOT issuanceExecuted(consignment) THEN {
+                overIssuanceExecuted(consignment) <- e;
+            }
+        }               
+    }        
     overChangeIssuanceExecuted(consignment);
 }
 
@@ -407,49 +401,24 @@ namePayer 'Заказчик перевозки ' (Consignment consignment) =
     
 showNullQuantity = ABSTRACT BOOLEAN (ConsignmentDetail);
 
-batch = ABSTRACT Batch (ConsignmentDetail);
-nameBatch 'Партия' (ConsignmentDetail d) = name(batch(d)) CHARWIDTH 20;
-
-dataSku (d) = ABSTRACT Sku (ConsignmentDetail);
-overSku (d) = ABSTRACT Sku (ConsignmentDetail);
-sku (ConsignmentDetail d) = OVERRIDE overSku(d), dataSku(d);
-idSku (ConsignmentDetail d) = id(sku(d));
-shortNameUOMSku (ConsignmentDetail d) = shortNameUOM(sku(d));
-
-overNameSku = ABSTRACT ISTRING[255](ConsignmentDetail); // дополнительные характеристики
-dataNameSku = ABSTRACT ISTRING[255](ConsignmentDetail);
-
-nameSku 'Наименование товара' (ConsignmentDetail d) = CONCAT ' ',
-    (OVERRIDE overDocumentNameSku(batch(d)), dataNameSku(d), name(sku(d))),
-    overNameSku(d) CHARWIDTH 30;
-
-overNameUOM = ABSTRACT ISTRING[255](ConsignmentDetail);
-    
-shortNameUOM 'Единица измерения' (ConsignmentDetail d) = OVERRIDE overNameUOM(d), shortNameUOM(sku(d)) CHARWIDTH 5;
-
 // Базовые абстрактные свойства
 dataPrice 'Цена' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
 dataInvoicePrice 'Цена с НДС' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
 
 dataSum 'Стоимость' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
-dataVAT 'НДС, %' (d) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
-dataSumVAT 'Сумма НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
 dataSumInvoice 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
 
 // С учетом "переключений"
 
 isInvoicePrice 'Печатать в качестве цены цену с НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);
-price 'Цена' (ConsignmentDetail d) = IF NOT isInvoicePrice(d) THEN dataPrice(d) ELSE dataInvoicePrice(d);
+priceBy 'Цена' (ConsignmentDetail d) = IF NOT isInvoicePrice(d) THEN dataPrice(d) ELSE dataInvoicePrice(d);
+price(ConsignmentDetail d) += priceBy(d);
 
 switchSum (ConsignmentDetail d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);
-sum 'Стоимость' (ConsignmentDetail d) = IF NOT switchSum(d) THEN dataSum(d) ELSE dataSumInvoice(d);
+sumBy 'Стоимость' (ConsignmentDetail d) = IF NOT switchSum(d) THEN dataSum(d) ELSE dataSumInvoice(d);
+sum(ConsignmentDetail d) += sumBy(d);
 
 printWithoutVAT 'Печатать вместо ставки 0 "Без НДС"' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);     
-
-useEmptyVAT 'Нет НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);     
-useEmptyVATConsignmentDetail = GROUP SUM 1 IF useEmptyVAT(ConsignmentDetail d) BY consignment(d); // todo : рефакторить
-vat 'НДС, %' (ConsignmentDetail d) = dataVAT(d) IF NOT useEmptyVAT(d);
-sumVAT 'Сумма НДС' (ConsignmentDetail d) = dataSumVAT(d) IF NOT useEmptyVAT(d);
 
 switchSumInvoice (ConsignmentDetail d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);
 sumInvoice 'Сумма с НДС' (ConsignmentDetail d) = IF NOT switchSumInvoice(d) THEN dataSumInvoice(d) ELSE dataSum(d);
@@ -549,6 +518,7 @@ checkMandatoryAttribute(Consignment c) + {
 // ---------------------------- Формы для накладных --------------------------------- //
 
 useCustomFormSimplePrint = DATA LOCAL NESTED BOOLEAN ();
+printAllConsignmentDetail() += useCustomFormSimplePrint();
 
 META defineConsignmentFormSimple(form, caption)
 
@@ -958,8 +928,6 @@ reportFilePrintConsignmentHorizontalB () = 'Consignment_consignmentHorizontalB_b
 hidePayerConsignmnet = ABSTRACT BOOLEAN (Consignment);
 showPayerConsignment = ABSTRACT BOOLEAN (Consignment);
 showPayer(Consignment consignment) = (showTTN1(consignment) AND NOT hidePayerConsignmnet(consignment)) OR showPayerConsignment(consignment) ;
-banSeries = ABSTRACT BOOLEAN (Consignment);
-toShowSeries = Consignment c IS Consignment AND NOT banSeries(c);
 
 changeTrailer(Consignment c)  { 
     INPUT s = trailer(c) DO {
@@ -986,9 +954,7 @@ changeAddressCustomerStock(Consignment c)  {
 }
 
 EXTEND FORM consignment
-    PROPERTIES(c) READONLY nameSupplierStock
-    PROPERTIES(c)  number, series SHOWIF toShowSeries(c), date, UNPCustomer READONLY, UNPSupplier READONLY, 
-                   addressSupplier READONLY, addressCustomer READONLY, fullNameSupplier READONLY, fullNameCustomer READONLY 
+    PROPERTIES(c)  UNPCustomer READONLY, UNPSupplier READONLY 
                    
     PROPERTIES(c)  shipmentBase ON CHANGE changeShipmentBase(c),
                    nameIssuanceAllowed ON CHANGE changeIssuanceAllowed(c), nameIssuanceExecuted ON CHANGE changeIssuanceExecuted(c),
@@ -1008,44 +974,19 @@ EXTEND FORM consignment
                    countConsignmentDetail, note, shortNameCurrency, countPages, additionalDocuments
     PROPERTIES(c) SHOWIF showPayer(c) fullNamePayer ON CHANGE changePayer(c), UNPPayer ON CHANGE changeUNPPayer(c), addressPayer ON CHANGE changeAddressPayer(c)              
 
-    PROPERTIES(d) nameSku READONLY, shortNameUOM READONLY, quantity, price,
-                  sum, vat, sumVAT, sumInvoice,
+    PROPERTIES(d) vat, sumVAT, sumInvoice,
                   packQuantity ON CHANGE changePackQuantity(d), grossWeight ON CHANGE changeGrossWeight(d), note, extraDescription READONLY
-    ORDERS order(d), index(d)  
-
-    FILTERS IF NOT useCustomFormSimplePrint() THEN consignment(d) == c ELSE TRUE,
-            NOT skip(d)
 ;
 
 DESIGN consignment {
     pane {
         mainTab {
-            NEW header {
-                alignment = STRETCH;
-                caption = 'Шапка документа';
-                type = CONTAINERH;
-                MOVE PROPERTY(nameSupplierStock(c));
-                MOVE PROPERTY(number(c));
-                MOVE PROPERTY(series(c));
-                MOVE PROPERTY(date(c));
+            supplier {
+                MOVE PROPERTY(UNPSupplier(c)) BEFORE PROPERTY(addressSupplier(c));
             }
         
-            NEW supplier {
-                alignment = STRETCH;
-                caption = 'Грузоотправитель';
-                type = CONTAINERH;
-                MOVE PROPERTY(fullNameSupplier(c));
-                MOVE PROPERTY(UNPSupplier(c));
-                MOVE PROPERTY(addressSupplier(c));
-            }
-        
-            NEW customer {
-                alignment = STRETCH;
-                caption = 'Грузополучатель';
-                type = CONTAINERH;
-                MOVE PROPERTY(fullNameCustomer(c));
-                MOVE PROPERTY(UNPCustomer(c));
-                MOVE PROPERTY(addressCustomer(c));
+            customer {
+                MOVE PROPERTY(UNPCustomer(c)) BEFORE PROPERTY(addressCustomer(c));
             }
         
             NEW payer {
@@ -1104,26 +1045,17 @@ DESIGN consignment {
 }
 
 skipShowEditAttributes = ABSTRACT BOOLEAN (Consignment);
-customEditAttributes ABSTRACT LIST (Consignment);
-editAttributes 'Заполнить атрибуты накладной' (Consignment consignment)  { 
-	NEWSESSION {
-	    IF NOT isArrivalTime(consignment) AND NOT dataArrivalTime(consignment) THEN {
-	//        dataArrivalTime(consignment) <- currentDateTime();
-	        IF NOT notArrivalTimeConsignment() THEN {
-	            IF date(consignment) <= currentDate() THEN {
-	                dataArrivalTime(consignment) <- currentDateTime();
-	            } ELSE {
-	                dataArrivalTime(consignment) <- dateTimeToDateTime(date(consignment), currentTime());
-	            }        
-	        }
-	    }
-	    customEditAttributes(consignment);    
-	    SHOW consignment OBJECTS c = consignment DOCKED; 
-	}
-} IMAGE 'edit.png';
-showAttributes 'Просмотреть атрибуты накладной' (Consignment consignment) { 
-    NEWSESSION {
-        SHOW consignment OBJECTS c = consignment DOCKED READONLY;
+
+beforeEditAttributes(Consignment consignment) + {
+    IF NOT isArrivalTime(consignment) AND NOT dataArrivalTime(consignment) THEN {
+        //        dataArrivalTime(consignment) <- currentDateTime();
+        IF NOT notArrivalTimeConsignment() THEN {
+            IF date(consignment) <= currentDate() THEN {
+                dataArrivalTime(consignment) <- currentDateTime();
+            } ELSE {
+                dataArrivalTime(consignment) <- dateTimeToDateTime(date(consignment), currentTime());
+            }
+        }
     }
 }
 

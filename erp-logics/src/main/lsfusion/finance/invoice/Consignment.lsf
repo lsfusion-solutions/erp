@@ -8,6 +8,7 @@ REQUIRE System,
         Utils,
         Transport,
         Numerator,
+        SkuLedger,
         StockContract;
 
 NAMESPACE Consignment;
@@ -235,8 +236,8 @@ waybill 'Путевой лист' (consignment) = ABSTRACT STRING[50] (Consignme
 overWaybill 'Путевой лист' (Consignment consignment) = OVERRIDE dataWaybill(consignment), waybill(consignment) CHARWIDTH 15 IN carConsignment;
 skipWaybill 'Пропустить проверку путевого листа' = ABSTRACT CASE BOOLEAN (Consignment);
 
-
-
+banSeries = ABSTRACT BOOLEAN (Consignment);
+toShowSeries = Consignment c IS Consignment AND NOT banSeries(c);
 
 consignment (d) = ABSTRACT Consignment (ConsignmentDetail);
 
@@ -244,12 +245,40 @@ order 'Порядок сортировки' = ABSTRACT ISTRING[255] (Consignment
 index 'Номер строки' = ABSTRACT INTEGER (ConsignmentDetail);
 skip = ABSTRACT BOOLEAN (ConsignmentDetail);
 
+batch = ABSTRACT Batch (ConsignmentDetail);
+nameBatch 'Партия' (ConsignmentDetail d) = name(batch(d)) CHARWIDTH 20;
+
+dataSku (d) = ABSTRACT Sku (ConsignmentDetail);
+overSku (d) = ABSTRACT Sku (ConsignmentDetail);
+sku (ConsignmentDetail d) = OVERRIDE overSku(d), dataSku(d);
+idSku (ConsignmentDetail d) = id(sku(d));
+shortNameUOMSku (ConsignmentDetail d) = shortNameUOM(sku(d));
+
+overNameSku = ABSTRACT ISTRING[255](ConsignmentDetail); // дополнительные характеристики
+dataNameSku = ABSTRACT ISTRING[255](ConsignmentDetail);
+
+nameSku 'Наименование товара' (ConsignmentDetail d) = CONCAT ' ',
+    (OVERRIDE overDocumentNameSku(batch(d)), dataNameSku(d), name(sku(d))),
+    overNameSku(d) CHARWIDTH 30;
+
+overNameUOM = ABSTRACT ISTRING[255](ConsignmentDetail);
+shortNameUOM 'Единица измерения' (ConsignmentDetail d) = OVERRIDE overNameUOM(d), shortNameUOM(sku(d)) CHARWIDTH 5;
+
+// Базовые абстрактные свойства
+price 'Цена' = ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
+sum 'Стоимость' = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
+
+dataVAT 'НДС, %' (d) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
+dataSumVAT 'Сумма НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
+
+useEmptyVAT 'Нет НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);
+useEmptyVATConsignmentDetail = GROUP SUM 1 IF useEmptyVAT(ConsignmentDetail d) BY consignment(d); // todo : рефакторить
+vat 'НДС, %' (ConsignmentDetail d) = dataVAT(d) IF NOT useEmptyVAT(d);
+sumVAT 'Сумма НДС' (ConsignmentDetail d) = dataSumVAT(d) IF NOT useEmptyVAT(d);
 
 dataQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 quantity 'Количество' (ConsignmentDetail d) = OVERRIDE overQuantity(d), dataQuantity(d);
-
-
 
 dataPackQuantity 'Количество грузовых мест' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
 overPackQuantity 'Количество грузовых мест' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
@@ -261,8 +290,6 @@ changePackQuantity (ConsignmentDetail d)  {
         dataPackQuantity(d) <- s;
     }        
 }
-
-
 
 countConsignmentDetail 'Количество строк' (consignment) = GROUP SUM 1 IF ConsignmentDetail d IS ConsignmentDetail AND NOT skip(d)
 BY consignment(d) IN sumConsignment;
@@ -277,12 +304,21 @@ packQuantity 'Общее количество грузовых мест' = ABSTR
 overPackQuantityConsignmentDetail 'Общее количество грузовых мест' (Consignment consignment) = OVERRIDE packQuantity(consignment),
     packQuantityConsignmentDetail(consignment);
 
+printAllConsignmentDetail = ABSTRACT BOOLEAN();
 
 FORM consignment 'Атрибуты накладной'
     OBJECTS c = Consignment PANEL
-
+    PROPERTIES(c) READONLY nameSupplierStock
+    PROPERTIES(c) number, series SHOWIF toShowSeries(c), date,
+                  addressSupplier READONLY, addressCustomer READONLY, fullNameSupplier READONLY, fullNameCustomer READONLY
+    
     OBJECTS d = ConsignmentDetail
     PROPERTIES(d) order, index
+    PROPERTIES(d) nameSku READONLY, shortNameUOM READONLY, quantity, price, sum
+    ORDERS order(d), index(d)
+
+    FILTERS IF NOT printAllConsignmentDetail() THEN consignment(d) == c ELSE TRUE,
+            NOT skip(d)
 ;
 
 DESIGN consignment {
@@ -298,6 +334,30 @@ DESIGN consignment {
                 type = SCROLL;
                 NEW mainTab {
                     alignment = STRETCH;
+                    NEW header {
+                        alignment = STRETCH;
+                        caption = 'Шапка документа';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameSupplierStock(c));
+                        MOVE PROPERTY(number(c));
+                        MOVE PROPERTY(series(c));
+                        MOVE PROPERTY(date(c));
+                    }
+                    NEW supplier {
+                        alignment = STRETCH;
+                        caption = 'Грузоотправитель';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(fullNameSupplier(c));
+                        MOVE PROPERTY(addressSupplier(c));
+                    }
+
+                    NEW customer {
+                        alignment = STRETCH;
+                        caption = 'Грузополучатель';
+                        type = CONTAINERH;
+                        MOVE PROPERTY(fullNameCustomer(c));
+                        MOVE PROPERTY(addressCustomer(c));
+                    }
                 }
             }
         }
@@ -307,6 +367,23 @@ DESIGN consignment {
                 charWidth = 10;
             }
         }
+    }
+}
+
+beforeEditAttributes ABSTRACT LIST (Consignment);
+customEditAttributes ABSTRACT LIST (Consignment);
+
+editAttributes 'Заполнить атрибуты накладной' (Consignment consignment)  {
+    beforeEditAttributes(consignment);
+    customEditAttributes(consignment);
+    NEWSESSION {
+        SHOW consignment OBJECTS c = consignment DOCKED;
+    }
+} IMAGE 'edit.png';
+
+showAttributes 'Просмотреть атрибуты накладной' (Consignment consignment) {
+    NEWSESSION {
+        SHOW consignment OBJECTS c = consignment DOCKED READONLY;
     }
 }
 
