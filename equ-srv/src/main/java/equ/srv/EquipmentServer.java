@@ -962,6 +962,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             processExtraFields(session, stack, rowsData);
 
             session.setKeepLastAttemptCountMap(true);
+            if (options.ignoreConstraints)
+                session.setNoCancelInTransaction(true);
             String result = session.applyMessage(getBusinessLogics(), stack);
 
             for (String setting : settingsSet) {
@@ -1357,6 +1359,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 processExtraFields(session, stack, rowsData);
 
                 session.setKeepLastAttemptCountMap(true);
+                if (options.ignoreConstraints)
+                    session.setNoCancelInTransaction(true);
                 String result = session.applyMessage(getBusinessLogics(), stack);
 
                 for (String setting : settingsSet) {
@@ -1989,9 +1993,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean useNewIds = equLM.findProperty("useNewIds[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean skipReceiveSales = equLM.findProperty("skipReceiveSales[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean receiveVATSales = equLM.findProperty("receiveVATSales[EquipmentServer]").read(session, equipmentServerObject) != null;
+        boolean ignoreConstraints = equLM.findProperty("ignoreConstraints[EquipmentServer]").read(session, equipmentServerObject) != null;
         IdEncoder encoder = useNewIds ? (timeId ? new IdEncoder(5) : new IdEncoder()) : null;
         Map<String, DataObject> barcodeParts = readPartedBarcodes(session);
-        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, skipGiftCardKeys, skipReceiveSales, receiveVATSales, encoder, barcodeParts);
+        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, skipGiftCardKeys, skipReceiveSales, receiveVATSales, ignoreConstraints, encoder, barcodeParts);
     }
 
     public class EquipmentServerOptions {
@@ -2003,11 +2008,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean skipGiftCardKeys;
         boolean skipReceiveSales;
         boolean receiveVATSales;
+        boolean ignoreConstraints;
         IdEncoder encoder;
         Map<String, DataObject> barcodeParts;
 
         public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate,
-                                      boolean overrideCashiers, boolean skipGiftCardKeys, boolean skipReceiveSales, boolean receiveVATSales,
+                                      boolean overrideCashiers, boolean skipGiftCardKeys, boolean skipReceiveSales, boolean receiveVATSales, boolean ignoreConstraints,
                                       IdEncoder encoder, Map<String, DataObject> barcodeParts) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
@@ -2017,6 +2023,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             this.skipGiftCardKeys = skipGiftCardKeys;
             this.skipReceiveSales = skipReceiveSales;
             this.receiveVATSales = receiveVATSales;
+            this.ignoreConstraints = ignoreConstraints;
             this.encoder = encoder;
             this.barcodeParts = barcodeParts;
         }
