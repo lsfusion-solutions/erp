@@ -1,0 +1,375 @@
+MODULE TsrvOperation;
+
+REQUIRE TsrvStructure, Utils, Time;
+
+tsrvCashier 'Текущий кассир' = DATA LOCAL STRING[16] ();
+tsrvSumCashDrawer 'Сумма наличных' = DATA LOCAL NUMERIC[10,2] (); 
+tsvrCurrentShift 'Текущая смена' = DATA LOCAL INTEGER ();
+tsvrReceiptOperation 'Операция' = DATA LOCAL STRING ();
+
+
+onFillDataPrinter 'Заполнение параметров принтера' (CashRegister o) {
+    IF printerName(o) THEN {
+        printer_spool_name() <- printerName(o);
+    } ELSE IF printerVId(o) AND printerPId(o) THEN {
+        printer_usb_vendor() <- printerVId(o);
+        printer_usb_product() <- printerPId(o);
+    } ELSE {
+        printer_dummy() <- '';
+        RETURN ;
+    } 
+    printer_spl() <- printerSpl(o);
+    printer_cp866() <- printerCP(o);
+    printer_feed() <- printerFeed(o);
+    printer_cut() <- IF printerCut(o) THEN TTRUE ELSE TFALSE;
+    printer_prefix() <- printerPrefix(o);            
+}
+
+
+onFillDataHeaders 'Заполнение части стандартного заголовка' (CashRegister o,STRING action, address, reply) {
+    type() <- 'send'; 
+    action() <- action;
+    token() <- tsrvToken(o);
+    sid() <- tsrvSid(o);
+    address() <- address;
+    reply_address() <- reply;
+    tsrvCashier() <- STRING[16](OVERRIDE name(currentUser()), login(currentUser()), 'Кассир');
+}
+
+
+onSaveLog 'Запись отдельного лога' (CashRegister o, STRING cmsg, cmsg2) {
+    LOCAL ctxt = TEXT ();
+    IF NOT logPath(o) THEN RETURN;
+    ctxt() <- currentDateTime() + ', ' + cmsg;
+    fileToString(exportFile(),'UTF-8');
+    ctxt() <- ctxt() + '\n' + resultString() + repeat('-',70) +'\n';
+    IF NOT cmsg2 THEN {
+        fileToString(tsrvResult(),'UTF-8');
+        ctxt() <- ctxt() + resultString() + repeat('=',70) +'\n';
+        
+    } ELSE ctxt() <- ctxt() +  cmsg2 + '\n' + repeat('=',70) +'\n';
+    appendToFile(logPath(o),ctxt());
+} 
+
+
+onSend 'Передача данных' (CashRegister o, STRING cmsg) {
+    LOCAL header = TEXT(STRING[100]);
+    LOCAL emsg, emsg2, sp = STRING ();
+    header('Content-Type') <- 'application/json';
+    tsrvEMessage() <- NULL; 
+    tsrvECode() <- NULL;
+    emsg() <- 'Операция: ' + cmsg + '\n';
+    TRY {
+        EXTERNAL HTTP CLIENT POST 'http://' + tsrvIp(o) +'/tsrv' HEADERS header PARAMS exportFile() TO tsrvResult;
+        onSaveLog(o, cmsg, NULL);
+    } CATCH {
+        emsg2() <- 'Ошибка выполнения http запроса. ';
+        emsg() <- emsg() + emsg2() + '\n';
+        tsrvECode() <- 'FUSION_HTTP_ERROR';
+        IF statusHttp() = 0 THEN {
+            tsrvEMessage() <- emsg() + 'Ответ от сервера не получен\nПроверьте работу службы\n' + messageCaughtException();
+            emsg2() <- emsg2() + 'Ответ от сервера не получен. Проверьте работу службы. ' + messageCaughtException();
+        } ELSE {
+            tsrvEMessage() <- emsg() + messageCaughtException();
+            emsg2() <- emsg2() +  messageCaughtException();
+        }
+        onSaveLog(o, cmsg, emsg2());            
+   }
+   IF tsrvECode() THEN RETURN;
+   IMPORT receiveForm JSON FROM tsrvResult();
+   IF rtype() = 'error' THEN {
+        tsrvECode() <- name();
+        sp() <- repeat('-',40) + '\n';
+        onGetEDescription(description());
+        tsrvEMessage() <- emsg() + sp() + tsrvEDescription() + '\n' + sp() + 'Код ошибки:\n' + tsrvECode();
+        RETURN; 
+   }
+}
+
+
+onShowError 'Сообщение об ошибках' (STRING emsg) { MESSAGE emsg; RETURN; }
+
+
+calcMD5(STRING ctxt) = FORMULA STRING[100] 'md5($1)'; // получение Хэш (сессии)
+eqSession 'Получение ID сессии' (CashRegister o) {
+    type() <- 'send'; address() <- 'ik.service.app'; action() <- 'init_session'; 
+    EXPORT tokenForm JSON;
+    onSend(o,'Открытие сессии');
+    CASE
+        WHEN NOT tsrvECode() THEN {
+            tsrvSid(o) <- STRING[100](rdata()); // дискриптор сессии
+            APPLY ;
+        }
+        WHEN tsrvECode() = 'SM_SESSION_EXISTS' AND NOT tsrvSid(o) THEN {  // такого быть не должно
+            tsrvECode()     <- 'FUSION_CKO_RESTART';
+            tsrvEMessage()  <- 'Сессия существует, но ее ID не найден\nТребуется рестарт СКО';
+        }
+        WHEN tsrvECode() = 'SM_SESSION_EXISTS' AND tsrvSid(o) THEN {  // сравниваем Хэш коды
+            action() <- 'get_active_session_hash';
+            EXPORT tokenForm JSON;
+            onSend(o,'Получение ХЭШ сессии');
+            IF tsrvECode() THEN RETURN; 
+            IF NOT upper(calcMD5(tsrvSid(o))) = rdata() THEN {
+                tsrvECode()     <- 'FUSION_CKO_RESTART';
+                tsrvEMessage()  <- 'Не совпадают Хэш коды сессий\nТребуется рестарт СКО';
+            }
+        }
+}
+
+eqAuthorize 'Авторизация подключения' (CashRegister o) {
+    onFillDataHeaders(o,'authorize','ik.service.token.authority','example');
+    pin() <- tsrvPin(o);
+    tokens_refresh() <- TRUE;
+    EXPORT tokenForm JSON;
+    onSend(o,'Авторизация подключения к СКО');
+    IF tsrvECode() = 'AVQFR_SESSION_ALREADY_AUTHORIZED' THEN tsrvECode() <- NULL; 
+    IF tsrvECode() THEN RETURN;   
+}
+
+
+eqGetState 'Статус подключения' (CashRegister o) {
+    onFillDataHeaders(o,'get_token_state','ik.service.token',NULL);
+    EXPORT tokenForm JSON;
+    onSend(o,'Получение Статуса СКО');
+    IF tsrvECode() = 'TSRV_TOKEN_NOT_FOUND' THEN {
+        tokens_refresh() <- TRUE; // может возникнуть после длительного простоя
+        EXPORT tokenForm JSON;
+        onSend(o,'Получение Статуса СКО');
+    }
+    IF (tsrvECode() = 'SM_SID_NOT_FOUND') OR (tsrvECode() = 'SM_INVALID_SESSION') THEN eqSession(o);
+    IF tsrvECode() THEN RETURN;
+}
+
+
+eqConnection 'Соединение с СКО' (CashRegister o) {
+    tsrvSumCashDrawer() <- NULL; 
+    tsvrCurrentShift()  <- NULL;
+    eqGetState(o);
+    IF tsrvECode() THEN RETURN;
+    IF NOT rdata() THEN {
+        eqAuthorize(o);
+        IF tsrvECode() THEN RETURN; 
+        eqGetState(o);
+        IF tsrvECode() THEN RETURN;
+    }
+    tsrvSumCashDrawer() <- NUMERIC[10,2](byn()); 
+    tsvrCurrentShift() <- shift_number();
+} 
+
+
+onOpenShift 'Открытие смены на СКО' (CashRegister o) {
+    onFillDataHeaders(o,'openShift','ik.service.token.shift','example');
+    onFillDataPrinter(o);
+    pin() <- tsrvPin(o);
+    tokens_refresh() <- TRUE;
+    EXPORT tokenForm JSON;
+    onSend(o,'Открытие смены');
+    IF tsrvECode() = 'AVQFR_SHIFT_IS_OPENED' THEN tsrvECode() <- NULL; 
+    IF tsrvECode() THEN RETURN;
+}
+
+
+eqStatus 'Статус кассы' (CashRegister o) {
+    eqConnection(o);
+    IF tsrvECode() THEN RETURN;
+    IF NOT shift_state() THEN { // смена не открыта
+        onOpenShift(o);
+   }
+}
+
+
+eqOpenShift 'Открытие смены' (CashRegister o) {
+    eqStatus(o);
+    IF tsrvECode() THEN {
+        onShowError(tsrvEMessage());
+        RETURN;     
+    }    
+    IF shift_state() THEN RETURN; // смена уже открыта
+    onOpenShift(o);   
+}
+
+ 
+FORM sumCashDrawer 'Сумма в денежном ящике' PROPERTIES () READONLY tsrvSumCashDrawer;
+
+eqCashMoney 'Сумма наличных' (CashRegister o) {
+    eqStatus(o);
+    IF tsrvECode() THEN { 
+        onShowError(tsrvEMessage()); 
+        RETURN; 
+    } 
+    SHOW sumCashDrawer;
+}
+
+
+eqCashInCome 'Внесение' (CashRegister o,NUMERIC[10,2] suma) {
+    IF NOT suma OR suma = 0.00 THEN { onShowError('Сумма для операции < Внесения > не определена'); RETURN; }
+    eqStatus(o);
+    IF tsrvECode() THEN { onShowError(tsrvEMessage()); RETURN; }
+    onFillDataHeaders(o,'create_deposit','ik.service.token.deposit',NULL);
+    onFillDataPrinter(o);
+    cash_cashier() <- tsrvCashier();
+    cash_currency() <- 'BYN';
+    cash_sum() <- trim(toChar(suma,'999999999.99'));
+    EXPORT cashForm JSON;
+    onSend(o,'Внесение наличных');
+    IF tsrvECode() THEN onShowError(tsrvEMessage());   
+}
+
+
+eqCashOutCome 'Изъятие' (CashRegister o,NUMERIC[10,2] suma) {
+    IF NOT suma OR suma = 0.00 THEN {onShowError('Сумма для операции < Изъятие > не определена'); RETURN;}
+    eqStatus(o);
+    IF tsrvECode() THEN { onShowError(tsrvEMessage()); RETURN; }
+    onFillDataHeaders(o,'create_withdraw','ik.service.token.withdraw',NULL);
+    onFillDataPrinter(o);
+    cash_cashier() <- tsrvCashier();
+    cash_currency() <- 'BYN';
+    cash_sum() <- trim(toChar(suma,'999999999.99'));
+    EXPORT cashForm JSON;
+    onSend(o,'Изъятие наличных');
+    IF tsrvECode() THEN onShowError(tsrvEMessage());   
+}
+
+
+eqXReport 'X-отчет' (CashRegister o) {
+    eqStatus(o);
+    IF tsrvECode() THEN { onShowError(tsrvEMessage()); RETURN; }
+    onFillDataHeaders(o,'print_x_report','ik.service.token.shift','example');
+    onFillDataPrinter(o);
+    tokens_refresh() <- TRUE ;
+    EXPORT tokenForm JSON;
+    onSend(o,'X-отчет');
+    IF tsrvECode() THEN onShowError(tsrvEMessage());   
+}
+
+
+eqZReport 'Z-отчет' (CashRegister o) {
+    LOCAL snal = NUMERIC[10,2] ();
+    LOCAL cmsg = TEXT ();
+    eqStatus(o);
+    IF tsrvECode() THEN { onShowError(tsrvEMessage()); RETURN; }
+    snal() <- NUMERIC[10,2](byn()); 
+    IF snal() > 0 THEN {
+        cmsg() <- 'В кассе присутствуют наличные: ' + byn() + ' руб.\n';
+        cmsg() <- cmsg() + 'Требуется выполнить операцию < Изъятия наличных >'; 
+        tsrvECode() <- 'FUSION_ERROR';
+        tsrvEMessage() <- cmsg();
+        onShowError(tsrvEMessage()); 
+        RETURN;
+    }
+    onFillDataHeaders(o,'closeShift','ik.service.token.shift','example');
+    onFillDataPrinter(o);
+    tokens_refresh() <- TRUE ;
+    zreport_cashier() <- tsrvCashier();
+    EXPORT zreportForm JSON;
+    onSend(o,'Z-отчет');
+    IF tsrvECode() THEN onShowError(tsrvEMessage());   
+}
+
+
+onChkReceipt 'Проверка чека' (Receipt r) {
+    tsvrReceiptOperation() <- NULL;
+    tsrvECode() <- NULL; 
+    FOR (ReceiptDetail rd IS ReceiptDetail) AND receipt(rd) = r ORDER index(rd) DO {
+        IF NOT tsvrReceiptOperation() THEN tsvrReceiptOperation() <- type(rd);
+        IF NOT tsvrReceiptOperation() = type(rd) THEN {
+            BREAK;
+            tsrvECode() <- 'FUSION_ERROR';
+            tsrvEMessage() <- 'Ошибка\n' + repeat('-',40) + '\nНедопустимые операции \nПродажа и Возврат в одном чеке';
+        } 
+    }
+    IF tsrvECode() THEN RETURN;
+    IF tsvrReceiptOperation() = 'Продажа' THEN tsvrReceiptOperation() <- 'sale'; ELSE {
+        tsvrReceiptOperation() <- 'back';
+        IF (GROUP SUM index(ReceiptDetail rd) IF receipt(rd) = r) > 1 THEN {
+            tsrvECode() <- 'FUSION_ERROR';
+            tsrvEMessage() <- 'Ошибка\n' + repeat('-',40) + '\nВыполнение операции < Возврат > предполагает \nналичие только одной позиции';
+        } 
+    }
+}
+
+
+eqSale 'Продажа' (CashRegister o, Receipt r) {
+    onChkReceipt(r);
+    IF tsrvECode() THEN { onShowError(tsrvEMessage()); RETURN; }
+    eqStatus(o);
+    IF tsrvECode() THEN { onShowError(tsrvEMessage()); RETURN; }
+    onFillDataPrinter(o);
+    tsrvTax() <-  IF tsrvTax(o) THEN 'tax' + trim(toChar(tsrvTax(o),'99'));
+    cheque_discount() <- IF discountSum(r) THEN trim(toChar(discountSum(r),'9999999999.99')) ELSE '-0.00';
+    IF tsvrReceiptOperation() = 'sale' THEN {
+        onFillDataHeaders(o,'create_sale','ik.service.token.sales.retail',NULL);
+        sale_cashier()   <- tsrvCashier();
+        sale_currency()  <- 'BYN';
+        EXPORT saleForm FILTERS receipt(items) = r, receipt(payments) = r JSON;
+        onSend(o,'Чек продажи');
+    } ELSE {
+        LOCAL rd = ReceiptDetail ();
+        rd() <- GROUP MAX (ReceiptDetail ord) IF receipt(ord) = r;
+        onFillDataHeaders(o,'create_money_back','ik.service.token.moneyback',NULL);
+        back_cashier()    <- tsrvCashier();
+        back_currency()   <- 'BYN';
+        back_quantity()   <- trim(toChar(quantity(rd()),'99999999.999'));
+        back_price()      <- trim(toChar(price(rd()),'99999999.99'));
+        back_name()       <- STRING[128]((overNameSku(rd())));
+        back_discount()   <- IF discountSum(rd()) THEN '-' + trim(toChar(discountSum(rd()),'99999999.999'));
+        back_tax_rate()   <- tsrvTax();
+        back_code_type()  <- 0; 
+        back_code_value() <- OVERRIDE LONG(idBarcode(rd())), 1; 
+        EXPORT backForm FILTERS receipt(payments) = r JSON;
+        onSend(o,'Чек возврата');
+    }
+    IF tsrvECode() THEN onShowError(tsrvEMessage());
+}
+
+
+numberShift 'Номер смены' = DATA LOCAL INTEGER ();
+numberDoc 'Номер документа' = DATA LOCAL INTEGER ();
+
+
+CLASS SelectOperation 'Выбор операции' { p1 'Копия документа',p2 'Копия Z-отчета' }
+selectOperation = DATA LOCAL SelectOperation (); 
+nameSelectOperation 'Операция' = staticCaption(selectOperation()) ;
+
+
+FORM copyDocs 'Копия документа' PROPERTIES () numberShift, numberDoc, nameSelectOperation ;
+DESIGN copyDocs { 
+    GROUP() {
+        NEW cnt {
+            horizontal = FALSE ;
+            MOVE PROPERTY (numberShift());
+            MOVE PROPERTY (numberDoc());
+            MOVE PROPERTY (nameSelectOperation());
+        }
+    }
+}
+
+
+eqCopyDoc 'Копия документа' (CashRegister o) {
+    eqStatus(o);
+    IF tsrvECode() THEN { onShowError(tsrvEMessage()); RETURN; }
+    numberShift() <- tsvrCurrentShift();
+    selectOperation() <- GROUP MAX (SelectOperation s) IF staticCaption(s) = 'Копия документа'; 
+    DIALOG copyDocs DO {
+        IF nameSelectOperation() = 'Копия документа' THEN {
+            selectShift() <- numberShift();
+            selectNumber() <- numberDoc();
+            onFillDataHeaders(o,'print_prev_receipt','ik.service.token','example');
+        } ELSE {
+            onFillDataHeaders(o,'get_z_report_copy','ik.service.token.shift','example');    
+            selectNumber() <- numberShift();
+        }
+        onFillDataPrinter(o);
+        EXPORT tokenForm;
+        onSend(o,nameSelectOperation());
+        IF tsrvECode() THEN {
+            onShowError(tsrvEMessage());
+            RETURN;       
+        }
+        IF NOT rdata() THEN onShowError('Ошибка\n' + repeat('-',40) + '\nНесуществующий номер документа и(или) смены');
+    } 
+}
+
+
+
+

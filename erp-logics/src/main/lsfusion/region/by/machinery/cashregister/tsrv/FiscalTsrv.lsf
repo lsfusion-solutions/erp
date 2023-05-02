@@ -1,0 +1,59 @@
+MODULE FiscalTsrv;
+
+REQUIRE System, POS, TsrvOperation, Utils;
+
+// открытие смены
+fiscalOpenZReport() + {
+    IF sidModelCurrentCashRegister() == 'tsrv' THEN {
+        eqOpenShift(currentCashRegister());
+        IF NOT tsrvECode() THEN apply();
+    }    
+}
+
+
+// Перемещение денег cashOperation
+fiscalService(CashOperation cashOperation) + {
+    CASE
+        WHEN sidCashRegisterModel(cashOperation) == 'tsrv' AND sum(cashOperation) > 0 THEN {
+            eqCashInCome(currentCashRegister(),NUMERIC[10,2](sum(cashOperation))); // внесение
+            IF NOT tsrvECode() THEN apply();
+        }
+        WHEN sidCashRegisterModel(cashOperation) == 'tsrv' AND sum(cashOperation) < 0 THEN {
+            eqCashOutCome(currentCashRegister(),NUMERIC[10,2](abs(sum(cashOperation)))); // изъятие
+            IF NOT tsrvECode() THEN apply();
+        }
+}
+
+// X-отчет
+fiscalXReport() + {  IF sidModelCurrentCashRegister() == 'tsrv' THEN eqXReport(currentCashRegister()); }
+
+// Наличные в кассе
+fiscalCashSum() + {  IF sidModelCurrentCashRegister() == 'tsrv' THEN eqCashMoney(currentCashRegister());}
+
+// Z-отчет
+fiscalZReport() + {  
+    IF sidModelCurrentCashRegister() == 'tsrv' THEN {
+        eqZReport(currentCashRegister());
+        IF NOT tsrvECode() THEN closeCurrentZReport();
+    } 
+}
+
+// Напечатать чек
+postPrint(Receipt receipt) + {
+    IF sidModelCurrentCashRegister() == 'tsrv' THEN {
+        eqSale(currentCashRegister(),receipt);
+        IF NOT tsrvECode() THEN {
+            apply();
+            createCurrentReceipt();
+        } ELSE cancel(receipt);
+    }    
+}
+
+// отрезать чек
+fiscalCutReceipt() + { IF sidModelCurrentCashRegister() == 'tsrv' THEN MESSAGE 'Операция не поддерживается'; }
+
+// прогон ленты
+fiscalAdvancePaper() + { IF sidModelCurrentCashRegister() == 'tsrv' THEN MESSAGE 'Операция не поддерживается'; }
+
+// копия документа
+fiscalPrintCopyReceipt() + { IF sidModelCurrentCashRegister() == 'tsrv' THEN eqCopyDoc(currentCashRegister()); } 

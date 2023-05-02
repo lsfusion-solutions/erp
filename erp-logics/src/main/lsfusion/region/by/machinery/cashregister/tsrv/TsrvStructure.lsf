@@ -1,0 +1,463 @@
+MODULE TsrvStructure;
+
+REQUIRE POS;
+
+tsrvSid 'TSRV, сессия'                = DATA STRING[100]  (CashRegister);
+tsrvIp 'TSRV, IP адрес'               = DATA STRING[30]   (CashRegister);
+tsrvToken 'TSRV, Номер'               = DATA STRING[100]  (CashRegister); // нужен почти для всех операций
+tsrvPin 'TSRV, ПИН код'               = DATA STRING[100]  (CashRegister); // нужен для авторизации
+tsrvTax 'TSRV, Ставка НДС'            = DATA INTEGER      (CashRegister);
+printerName 'TSRV, Имя очереди'       = DATA STRING[30]   (CashRegister);
+printerVId 'TSRV, VID'                = DATA STRING[20]   (CashRegister);
+printerPId 'TSRV, PID'                = DATA STRING[20]   (CashRegister);
+printerSpl 'TSRV, Ширина ленты'       = DATA INTEGER      (CashRegister);
+printerCP 'TSRV, cp866'               = DATA INTEGER      (CashRegister); 
+printerFeed 'TSRV, Прокрутка'         = DATA INTEGER      (CashRegister);
+printerCut 'TSRV, Отрезчик'           = DATA BOOLEAN      (CashRegister);
+printerPrefix 'TSRV, Префикс'        = DATA STRING       (CashRegister);
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (c) SHOWIF sidModel(grc) = 'tsrv' tsrvSid
+    PROPERTIES (c) SHOWIF sidModel(grc) = 'tsrv' tsrvIp, tsrvToken, tsrvPin, tsrvTax, printerName, printerVId, printerPId, printerSpl, printerCP, printerFeed, printerCut, printerPrefix
+;
+
+// Общие локальные данные
+tsrvEMessage 'Сообщение об ошибке' = DATA LOCAL STRING ();
+tsrvEDescription 'Описание ошибки' = DATA LOCAL STRING ();
+tsrvECode 'Код ошибки' = DATA LOCAL STRING ();
+tsrvResult = DATA LOCAL FILE ();
+tsrvTax = DATA LOCAL STRING ();
+
+// ОБЩАЯ ФОРМА приема данных от СКО
+GROUP receive_data EXTID 'data';
+GROUP shift_state : receive_data;
+GROUP cash_in : shift_state;
+
+op_data = DATA LOCAL STRING();
+name = DATA LOCAL STRING();
+description = DATA LOCAL STRING();
+rtype = DATA LOCAL STRING();
+rdata = DATA LOCAL STRING();
+shift_state = DATA LOCAL STRING();
+byn = DATA LOCAL STRING ();
+shift_number = DATA LOCAL INTEGER ();
+version = DATA LOCAL STRING ();
+
+FORM receiveForm
+PROPERTIES() rtype EXTID 'type', rdata EXTID 'data'
+PROPERTIES() IN receive_data op_data, name, description, shift_state, version
+PROPERTIES() IN shift_state shift_number  
+PROPERTIES() IN cash_in byn EXTID 'BYN'
+;
+
+// ОБШАЯ ФОРМА передачи данных в СКО
+GROUP headers;
+GROUP data;
+
+// общие для всех
+action = DATA LOCAL STRING();
+address = DATA LOCAL STRING();
+reply_address = DATA LOCAL STRING();
+data = DATA LOCAL STRING();
+type = DATA LOCAL STRING();
+token = DATA LOCAL STRING();
+sid = DATA LOCAL STRING();
+pin = DATA LOCAL STRING();
+tokens_refresh = DATA LOCAL BOOLEAN ();
+selectShift = DATA LOCAL INTEGER ();
+selectNumber = DATA LOCAL INTEGER ();
+
+// принтер, общие для всех
+printer_dummy       = DATA LOCAL STRING();
+printer_spool_name  = DATA LOCAL STRING();
+printer_usb_vendor  = DATA LOCAL STRING();
+printer_usb_product = DATA LOCAL STRING();
+printer_spl         = DATA LOCAL INTEGER();
+printer_cp866       = DATA LOCAL INTEGER();
+printer_feed        = DATA LOCAL INTEGER();
+printer_cut         = DATA LOCAL TBOOLEAN();
+printer_prefix      = DATA LOCAL TEXT(); 
+
+FORM tokenForm 'Операции: сессия, хэш, авторизация, статус, версия, X-отчет'
+PROPERTIES() type, address, reply_address, data
+PROPERTIES() IN data pin, selectShift EXTID 'shift_number', selectNumber EXTID 'number'
+PROPERTIES() IN headers action, token, sid, tokens_refresh EXTID 'tokens.refresh',
+   printer_dummy EXTID 'printer.dummy', printer_spool_name EXTID 'printer.spool.name', printer_usb_vendor EXTID 'printer.usb.vendor',
+   printer_usb_product EXTID 'printer.usb.product', printer_spl EXTID 'printer.spl', printer_cp866 EXTID 'printer.cp866',
+   printer_feed EXTID 'printer.feed', printer_cut EXTID 'printer.cut', printer_prefix EXTID 'printer.prefix'
+;
+
+// ВНЕСЕНИЕ, ИЗЪЯТИЯ
+GROUP cash_sum_cheque_data EXTID 'sum_cheque_data' : data;
+GROUP cash_header EXTID 'header' : cash_sum_cheque_data;
+
+cash_cashier = DATA LOCAL STRING();
+cash_currency = DATA LOCAL STRING();
+cash_sum = DATA LOCAL STRING();
+
+FORM cashForm 'Операции: внесения, изъятия'
+PROPERTIES() type, address
+PROPERTIES() IN cash_sum_cheque_data cash_sum EXTID 'sum'
+PROPERTIES() IN cash_header cash_cashier EXTID 'cashier', cash_currency EXTID 'currency'
+PROPERTIES() IN headers action, token, sid, tokens_refresh EXTID 'tokens.refresh',
+   printer_dummy EXTID 'printer.dummy', printer_spool_name EXTID 'printer.spool.name', printer_usb_vendor EXTID 'printer.usb.vendor',
+   printer_usb_product EXTID 'printer.usb.product', printer_spl EXTID 'printer.spl', printer_cp866 EXTID 'printer.cp866',
+   printer_feed EXTID 'printer.feed', printer_cut EXTID 'printer.cut', printer_prefix EXTID 'printer.prefix'
+;
+
+// Z-ОТЧЕТ
+zreport_cashier = DATA LOCAL STRING();
+
+FORM zreportForm 'Операция: Z-отчет'
+PROPERTIES() type, address, reply_address 
+PROPERTIES() IN data zreport_cashier EXTID 'cashier'
+PROPERTIES() IN headers action, token, sid, tokens_refresh EXTID 'tokens.refresh',
+   printer_dummy EXTID 'printer.dummy', printer_spool_name EXTID 'printer.spool.name', printer_usb_vendor EXTID 'printer.usb.vendor',
+   printer_usb_product EXTID 'printer.usb.product', printer_spl EXTID 'printer.spl', printer_cp866 EXTID 'printer.cp866',
+   printer_feed EXTID 'printer.feed', printer_cut EXTID 'printer.cut', printer_prefix EXTID 'printer.prefix'
+;
+
+// ЧЕК ПРОДАЖИ, особенность: строки чека, как массив объектов
+GROUP sale : data;
+GROUP sale_header EXTID 'header' : sale;
+GROUP code;
+
+sale_cashier = DATA LOCAL STRING();
+sale_currency = DATA LOCAL STRING();
+cnt = DATA LOCAL INTEGER();
+
+code_type (ReceiptDetail o) = IF o THEN 0;
+code_value (ReceiptDetail o) = OVERRIDE LONG(idBarcode(o)), 1; 
+sku_discount (ReceiptDetail o) = IF discountSum(o) THEN '-' + trim(toChar(discountSum(o),'99999999.999')); 
+tax_rate (ReceiptDetail o) = IF o THEN tsrvTax();
+ch_quantity (ReceiptDetail o) = trim(toChar(quantity(o),'99999999.999'));
+ch_price (ReceiptDetail o) = trim(toChar(price(o),'99999999.99'));
+name (ReceiptDetail o) = left(overNameSku(o),128);
+cheque_discount = DATA LOCAL STRING();
+payment_sum (Payment o) = trim(toChar(abs(sum(o)),'9999999999.99'));
+payment_type (Payment o) = IF namePaymentType(o) = 'Наличные' THEN 'cash' ELSE 
+                                        IF namePaymentType(o) = 'Карточка' THEN 'cashless' ELSE 'other';
+
+FORM saleForm 'Чек продажи'
+PROPERTIES() type, address
+PROPERTIES() IN headers action, token, sid, tokens_refresh EXTID 'tokens.refresh',
+   printer_dummy EXTID 'printer.dummy', printer_spool_name EXTID 'printer.spool.name', printer_usb_vendor EXTID 'printer.usb.vendor',
+   printer_usb_product EXTID 'printer.usb.product', printer_spl EXTID 'printer.spl', printer_cp866 EXTID 'printer.cp866',
+   printer_feed EXTID 'printer.feed', printer_cut EXTID 'printer.cut', printer_prefix EXTID 'printer.prefix'
+PROPERTIES() IN sale_header sale_cashier EXTID 'cashier', sale_currency EXTID 'currency'
+OBJECTS items = ReceiptDetail IN sale
+PROPERTIES (items) ch_quantity EXTID 'quantity', ch_price EXTID 'price', name, discountSum EXTID 'discount',tax_rate // ,comment
+PROPERTIES(items) IN code code_type EXTID 'type', code_value EXTID 'value'
+PROPERTIES() IN sale cheque_discount
+OBJECTS payments = Payment IN sale
+PROPERTIES(payments) payment_type, payment_sum EXTID 'value'
+;
+
+// ЧЕК ВОЗВРАТА, особенность: строка чека, как объект
+GROUP money_back : data;
+GROUP item : money_back;
+GROUP back_code EXTID 'code' : item;
+GROUP back_header EXTID 'header' : money_back;
+
+back_cashier = DATA LOCAL STRING();
+back_currency = DATA LOCAL STRING();
+back_quantity = DATA LOCAL STRING();
+back_price = DATA LOCAL STRING();
+back_name = DATA LOCAL STRING[128]();
+back_discount = DATA LOCAL STRING();
+back_tax_rate = DATA LOCAL STRING();
+back_code_type = DATA LOCAL INTEGER (); 
+back_code_value = DATA LOCAL LONG (); 
+
+FORM backForm 'Чек возврата'
+PROPERTIES() type, address
+PROPERTIES() IN headers action, token, sid, tokens_refresh EXTID 'tokens.refresh',
+   printer_dummy EXTID 'printer.dummy', printer_spool_name EXTID 'printer.spool.name', printer_usb_vendor EXTID 'printer.usb.vendor',
+   printer_usb_product EXTID 'printer.usb.product', printer_spl EXTID 'printer.spl', printer_cp866 EXTID 'printer.cp866',
+   printer_feed EXTID 'printer.feed', printer_cut EXTID 'printer.cut', printer_prefix EXTID 'printer.prefix'
+PROPERTIES() IN back_header back_cashier EXTID 'cashier', back_currency EXTID 'currency'
+PROPERTIES() IN item back_quantity EXTID 'quantity', back_price EXTID 'price', back_name EXTID 'name', back_discount EXTID 'discount', back_tax_rate EXTID 'tax_rate'
+PROPERTIES() IN back_code back_code_type EXTID 'type', back_code_value EXTID 'value'
+PROPERTIES() IN money_back cheque_discount
+OBJECTS payments = Payment IN money_back
+PROPERTIES(payments) payment_type, payment_sum EXTID 'value'
+;
+
+// возвращает расшифровку ошибок СКО
+onGetEDescription (STRING eDescription) {
+    CASE
+        WHEN tsrvECode() == 'AVQFR_INVALID_COMMAND' THEN
+            tsrvEDescription() <- 'Подана команда с неизвестным кодом или нарушен\nпорядок подачи команд'; 
+        WHEN tsrvECode() == 'AVQFR_UNSUPPORTED_VERSION' THEN
+            tsrvEDescription() <- 'Версия протокола взаимодействия с устройством не поддерживается';
+        WHEN tsrvECode() == 'AVQFR_ACCESS_DENIED' THEN
+            tsrvEDescription() <- 'Неверно указана роль при авторизации (отличная от\nPIN, PUK или REG)';
+        WHEN tsrvECode() == 'AVQFR_BAD_SERIAL_NUMBER' THEN
+            tsrvEDescription() <- 'Неверно задан серийный номер устройства';
+        WHEN tsrvECode() == 'AVQFR_BAD_DEVICE_MODE' THEN
+            tsrvEDescription() <- 'Команда не может быть выполнена в текущем режиме устройства';
+        WHEN tsrvECode() == 'AVQFR_INTERNAL_ERROR' THEN
+            tsrvEDescription() <- 'Внутренняя ошибка (возможная причина - аппаратный сбой)';
+        WHEN tsrvECode() == 'AVQFR_TIMEOUT' THEN
+            tsrvEDescription() <- 'Превышено время ожидания ответа при синхронизации времени';
+        WHEN tsrvECode() == 'AVQFR_BAD_FW_UPGRADE_KEY' THEN
+            tsrvEDescription() <- 'Отсутствует ключ обновления прошивки\nили его целостность нарушена';
+        WHEN tsrvECode() == 'AVQFR_NOT_MOUNTED' THEN
+            tsrvEDescription() <- 'Файловая система на смонтирована\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_NOT_FORMATTED' THEN
+            tsrvEDescription() <- 'Носитель не отформатирован\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_INSUFFICIENT_SPACE' THEN
+            tsrvEDescription() <- 'Недостаточно места для записи данных';
+        WHEN tsrvECode() == 'AVQFR_FILE_IS_TOO_BIG' THEN
+            tsrvEDescription() <- 'Превышен размер файла\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_FILE_NOT_EXIST' THEN
+            tsrvEDescription() <- 'Файл не найден, необходимые данные отсутствуют';
+        WHEN tsrvECode() == 'AVQFR_FILE_ALREADY_EXISTS' THEN
+            tsrvEDescription() <- 'Файл уже имеется\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_INVALID_OFFSET' THEN 
+            tsrvEDescription() <- 'Неверное смещение\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_PROGRAM_ERROR' THEN
+            tsrvEDescription() <- 'Ошибка записи во флеш-память\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_BAD_ADDRESS' THEN
+            tsrvEDescription() <- 'Неверно задан адрес блока памяти\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_ERASE_ERROR' THEN
+            tsrvEDescription() <- 'Ошибка стирания флеш-памяти\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_NO_CIPHER_CALLBACKS' THEN
+            tsrvEDescription() <- 'Функции шифрования файловой системы недоступны\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_MAC_NOT_FOUND' THEN
+            tsrvEDescription() <- 'У файла отсутствует имитовставка\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_NOT_ACTUAL_KEY' THEN
+            tsrvEDescription() <- 'Срок действия ключа не наступил или истек';
+        WHEN tsrvECode() == 'AVQFR_BAD_SIGN' THEN
+            tsrvEDescription() <- 'Подпись не верна';
+        WHEN tsrvECode() == 'AVQFR_INCORRECT_PARAM_SIZE' THEN
+            tsrvEDescription() <- 'Неверный размер параметра\n(один из параметров команды имеет неверную длину)';
+        WHEN tsrvECode() == 'AVQFR_BAD_SYNC_REQUEST_ID' THEN
+            tsrvEDescription() <- 'Неверный идентификатор запроса синхронизации времени';
+        WHEN tsrvECode() == 'AVQFR_BAD_FILE_INDEX' THEN
+            tsrvEDescription() <- 'Недопустимое имя файла\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_NO_DATA' THEN
+            tsrvEDescription() <- 'Запрашиваемые данные отсутствуют\n(попытка получить внутренний или отсутствующий документ)';
+        WHEN tsrvECode() == 'AVQFR_INTEGRITY_ERROR' THEN
+            tsrvEDescription() <- 'Нарушение целостности данных,\nхранящихся в устройстве (устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_PRNG_NOT_INITIALIZED' THEN
+            tsrvEDescription() <- 'Генератор СЧП не инициализирован,\nинициализация устройства не завершена';
+        WHEN tsrvECode() == 'AVQFR_BAD_SIGN_CTR' THEN
+            tsrvEDescription() <- 'Неверное значение счетчика подписей';
+        WHEN tsrvECode() == 'AVQFR_BAD_STATUS_CODE' THEN
+            tsrvEDescription() <- 'Неверное значение кода завершения\nобработки запроса сервером';
+        WHEN tsrvECode() == 'AVQFR_INVALID_MODE' THEN 
+            tsrvEDescription() <- 'Неверно задан режим алгоритма\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_INCORRECT_PARAM' THEN
+            tsrvEDescription() <- 'Один из переданных параметров имеет недопустимое значение';
+        WHEN tsrvECode() == 'AVQFR_SELF_TEST_FAILURE' THEN
+            tsrvEDescription() <- 'Ошибка самотестирования (устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_SHIFT_IDLE_TIMEOUT' THEN
+            tsrvEDescription() <- 'Превышено время бездействия,\nтребуется синхронизация времени';
+        WHEN tsrvECode() == 'AVQFR_BAD_KEY_AUTH_DATA' THEN
+            tsrvEDescription() <- 'Неверные данные для авторизации сессии\n(неверное значение PIN, PUK или REG)';
+        WHEN tsrvECode() == 'AVQFR_INVALID_ATTR_ID' THEN
+            tsrvEDescription() <- 'Неверный идентификатор атрибута устройства\n(атрибут, не поддерживается устройством)';
+        WHEN tsrvECode() == 'AVQFR_BAD_KEY_TOKEN' THEN
+            tsrvEDescription() <- 'Токен ключа сформирован некорректно';
+        WHEN tsrvECode() == 'AVQFR_FILE_BACKUP_ERROR' THEN
+            tsrvEDescription() <- 'Ошибка дублирования файла\n(внутренняя ошибка, устройство неисправно)';
+        WHEN tsrvECode() == 'AVQFR_BAD_KEY_ID' THEN
+            tsrvEDescription() <- 'Идентификатор ключа отсутствует или имеет неверный размер';
+        WHEN tsrvECode() == 'AVQFR_BAD_KEY' THEN
+            tsrvEDescription() <- 'Ключ отсутствует, имеет неверный размер\nили неверный формат набора ключей';
+        WHEN tsrvECode() == 'AVQFR_ASN1_PARSE_ERROR' THEN
+            tsrvEDescription() <- 'Невозможно разобрать ASNI-структуру\n(нарушена структура сертификата или ответа сервера)';
+        WHEN tsrvECode() == 'AVQFR_INCORRECT_DATA_SIZE' THEN
+            tsrvEDescription() <- 'Неверный общий размер данных команды\n(передана команда неподдерживаемой длины)';
+        WHEN tsrvECode() == 'AVQFR_SESSIONS_LIMIT_EXCEEDED' THEN
+            tsrvEDescription() <- 'Слишком много одновременно открытых сессий';
+        WHEN tsrvECode() == 'AVQFR_INVALID_SESSION_ID' THEN
+            tsrvEDescription() <- 'Неверный идентификатор сессии';
+        WHEN tsrvECode() == 'AVQFR_SHIFT_IS_PENDING' THEN
+            tsrvEDescription() <- 'Превышен интервал в 24 часа.\nНеобходимо закрыть смену';
+        WHEN tsrvECode() == 'AVQFR_RECEIPT_IS_PENDING' THEN
+            tsrvEDescription() <- 'В устройстве присутствуют кассовые документы,\nкоторые необходимо передать на сервер';
+        WHEN tsrvECode() == 'AVQFR_RECEIPT_SUM_OVERFLOW' THEN
+            tsrvEDescription() <- 'Переполнение счетчиков, необходимо закрыть смену';
+        WHEN tsrvECode() == 'AVQFR_RECEIPT_NEGATIVE_VALUE' THEN
+            tsrvEDescription() <- 'Задано отрицательное значение суммы';
+        WHEN tsrvECode() == 'AVQFR_NEGATIVE_SHIFT_BALANCE' THEN
+            tsrvEDescription() <- 'Получен отрицательный сменный баланс';
+        WHEN tsrvECode() == 'AVQFR_SESSION_ALREADY_AUTHORIZED' THEN
+            tsrvEDescription() <- 'Сессия уже авторизована\n(попытка повторной авторизации уже авторизованной сессии)';
+        WHEN tsrvECode() == 'AVQFR_SESSION_NOT_AUTHORIZED' THEN
+            tsrvEDescription() <- 'Сессия не авторизована\n(команда требует обязательной авторизации)';
+        WHEN tsrvECode() == 'AVQFR_SESSION_EXISTS' THEN
+            tsrvEDescription() <- 'Имеется открытая сессия\n(выполнение команды возможно только в монопольном режиме)';
+        WHEN tsrvECode() == 'AVQFR_SHIFT_IS_OPENED' THEN
+            tsrvEDescription() <- 'Смена открыта (команда возможна только при закрытой смене)';
+        WHEN tsrvECode() == 'AVQFR_SHIFT_IS_CLOSED' THEN
+            tsrvEDescription() <- 'Смена закрыта (команда возможна только при открытой смене)';
+        WHEN tsrvECode() == 'AVQFR_BAD_DATE_TIME' THEN
+            tsrvEDescription() <- 'Неверный формат или значение даты или времени\n(операция выполняется задним числом)';
+        WHEN tsrvECode() == 'AVQFR_BAD_CASH_REG_NUMBER' THEN
+            tsrvEDescription() <- 'Неверный номер кассового аппарата (номер КСА в СККО)';
+        WHEN tsrvECode() == 'AVQFR_BAD_CURRENCY_NAME' THEN
+            tsrvEDescription() <- 'Неверное наименование кода валюты';
+        WHEN tsrvECode() == 'AVQFR_BAD_RECEIPT_TYPE' THEN
+            tsrvEDescription() <- 'Неверный тип кассового документа';
+        WHEN tsrvECode() == 'AVQFR_BAD_RECEIPT_NUMBER' THEN
+            tsrvEDescription() <- 'Номер кассового документа отличается от значения\nвнутренего счетчика кассовых документов';
+        WHEN tsrvECode() == 'AVQFR_BAD_RECEIPT_COST' THEN
+            tsrvEDescription() <- 'Рассогласование по полю Итого общая стоимость';
+        WHEN tsrvECode() == 'AVQFR_BAD_RECEIPT_DISCOUNT' THEN
+            tsrvEDescription() <- 'Рассогласование по полю Сумма скидки (надбавки)';
+        WHEN tsrvECode() == 'AVQFR_BAD_RECEIPT_TOTAL' THEN
+            tsrvEDescription() <- 'Рассогласование по полю Итого к оплате';
+        WHEN tsrvECode() == 'AVQFR_BAD_RECEIPT_CENTS' THEN
+            tsrvEDescription() <- 'Неправильное значение дробной части денежного поля';
+        WHEN tsrvECode() == 'AVQFR_BAD_TAXPAYER_NUMBER' THEN
+            tsrvEDescription() <- 'Задан неверный УНП';
+        WHEN tsrvECode() == 'AVQFR_BAD_CORRECTION_VALUE' THEN
+            tsrvEDescription() <- 'Задана ненулевая сумма коррекции при отсутствии коррекций';
+        WHEN tsrvECode() == 'AVQFR_TOTAL_TRADE_OVERFLOW' THEN
+            tsrvEDescription() <- 'Переполнение счетчика суммарного торгового оборота';
+        WHEN tsrvECode() == 'AVQFR_UNKNOWN' THEN
+            tsrvEDescription() <- 'Неизвестная ошибка';
+        WHEN tsrvECode() == 'TR_EMPTY_INPUT' THEN
+            tsrvEDescription() <- 'Неверные входные данные (данные отсутствуют)';
+        WHEN tsrvECode() == 'TR_INVALID_TYPE' THEN
+            tsrvEDescription() <- 'Неверный тип данных';
+        WHEN tsrvECode() == 'TR_INSUFFICIENT_BYTES' THEN
+            tsrvEDescription() <- 'Недостаточно данных для считывания информации';
+        WHEN tsrvECode() == 'USB_IO' THEN
+            tsrvEDescription() <- 'Ошибка ввода/вывода при работе с оборудованием';
+        WHEN tsrvECode() == 'USB_INVALID_PARAM' THEN
+            tsrvEDescription() <- 'Ошибка параметра';
+        WHEN tsrvECode() == 'USB_ACCESS' THEN
+            tsrvEDescription() <- 'Доступ запрещен (недостаточно прав)';
+        WHEN tsrvECode() == 'USB_NO_DEVICE' THEN
+            tsrvEDescription() <- 'Устройство не найдено или было отключено';
+        WHEN tsrvECode() == 'USB_NOT_FOUND' THEN
+            tsrvEDescription() <- 'Entity not found (сущность не найдена)';
+        WHEN tsrvECode() == 'USB_BUSY' THEN
+            tsrvEDescription() <- 'Ресурс занят';
+        WHEN tsrvECode() == 'USB_TIMEOUT' THEN
+            tsrvEDescription() <- 'Ошибка тайм-аут при выполнении операции';
+        WHEN tsrvECode() == 'USB_OVERFLOW' THEN
+            tsrvEDescription() <- 'Переполнение';
+        WHEN tsrvECode() == 'USB_PIPE' THEN
+            tsrvEDescription() <- 'Pipe error';
+        WHEN tsrvECode() == 'USB_INTERRUPTED' THEN
+            tsrvEDescription() <- 'System call interrupted (perhaps due to signal)';
+        WHEN tsrvECode() == 'USB_NO_MEM' THEN
+            tsrvEDescription() <- 'Недостаточно памяти';
+        WHEN tsrvECode() == 'USB_NOT_SUPPORTED' THEN
+            tsrvEDescription() <- 'операция не поддерживается (не подготовлена) на платформе';
+        WHEN tsrvECode() == 'USB_BAD_DESCRIPTOR' THEN
+            tsrvEDescription() <- 'Неверный дескриптор';
+        WHEN tsrvECode() == 'USB_OTHER' THEN
+            tsrvEDescription() <- 'Other error';
+        WHEN tsrvECode() == 'CRT_MISSING_DEVICE_ID' THEN
+            tsrvEDescription() <- 'Отсутствует идентификатор устройства';
+        WHEN tsrvECode() == 'CRT_MISSING_OWNER_TAX_NUMBER' THEN
+            tsrvEDescription() <- 'Отсутствует УНП';
+        WHEN tsrvECode() == 'CRT_MISSING_OPERATOR_CODE' THEN
+            tsrvEDescription() <- 'Отсутствует код оператора';
+        WHEN tsrvECode() == 'CRT_MISSING_SERIAL_NUMBER' THEN
+            tsrvEDescription() <- 'Отсутствует серийный номер';
+        WHEN tsrvECode() == 'CRT_MISSING_OWNER_NAME' THEN
+            tsrvEDescription() <- 'Отсутствует имя владельца в сертификате';
+        WHEN tsrvECode() == 'CRT_MISSING_CERT_SERIAL' THEN
+            tsrvEDescription() <- 'Отсутствует серийный номер сертификата';
+        WHEN tsrvECode() == 'CRT_INVALID' THEN
+            tsrvEDescription() <- 'Ошибочный сертификат';
+        WHEN tsrvECode() == 'AVTPCR_ATTR_NOT_FOUND' THEN
+            tsrvEDescription() <- 'Отсутствует обязательный атрибут';
+        WHEN tsrvECode() == 'TIN_CODE_LEN' THEN
+            tsrvEDescription() <- 'Недопустимая длина кода';
+        WHEN tsrvECode() == 'TIN_EMPTY_NAME' THEN
+            tsrvEDescription() <- 'Имя не определено';
+        WHEN tsrvECode() == 'TIN_NAME_LEN' THEN
+            tsrvEDescription() <- 'Недопустимая длина имени';
+        WHEN tsrvECode() == 'TIN_INVALID_GTIN' THEN
+            tsrvEDescription() <- 'Недопустимые значения gtin/ean';
+        WHEN tsrvECode() == 'TIN_ZERO_SUM' THEN
+            tsrvEDescription() <- 'Значение суммы не может быть равна нулю';
+        WHEN tsrvECode() == 'TIN_NEGATIVE_SUM' THEN
+            tsrvEDescription() <- 'Значение суммы не может быть отрицательным';
+        WHEN tsrvECode() == 'TIN_SUM_OVERFLOW' THEN
+            tsrvEDescription() <- 'Переполнение суммы';
+        WHEN tsrvECode() == 'TIN_QUANTITY_OVERFLOW' THEN
+            tsrvEDescription() <- 'Переполнение количества';
+        WHEN tsrvECode() == 'TIN_ZERO_QUANTITY' THEN
+            tsrvEDescription() <- 'Значение количества не может быть равно нулю';
+        WHEN tsrvECode() == 'TIN_EMPTY_CASHIER' THEN
+            tsrvEDescription() <- 'Имя кассира не определено';
+        WHEN tsrvECode() == 'TIN_NO_ITEMS' THEN
+            tsrvEDescription() <- 'Недопустимый массив элементов. Элементы не определены';
+        WHEN tsrvECode() == 'TIN_MAX_ITEMS' THEN
+            tsrvEDescription() <- 'Слишком много элементов (массива)';
+        WHEN tsrvECode() == 'TIN_NOT_ENOUGH_MONEY' THEN
+            tsrvEDescription() <- 'Недостаточная сумма платежей';
+        WHEN tsrvECode() == 'TIN_CASHLESS_OVERFLOW' THEN
+            tsrvEDescription() <- 'Слишком много безналичных платежей';
+        WHEN tsrvECode() == 'TIN_CASH_OVERFLOW' THEN
+            tsrvEDescription() <- 'Слишком много наличных';
+        WHEN tsrvECode() == 'TIN_NEGATIVE_CHANGE' THEN
+            tsrvEDescription() <- 'Сумма сдачи не может быть отрицательной';
+        WHEN tsrvECode() == 'TIN_CASHIER_LEN' THEN
+            tsrvEDescription() <- 'Ошибка в длине имени кассира';
+        WHEN tsrvECode() == 'TIN_NOT_ENOUGH_CASH_IN' THEN
+            tsrvEDescription() <- 'Недостаточная сумма наличных в денежном ящике';
+        WHEN tsrvECode() == 'TSRV_APP_WAS_NOT_CONFIGURED' THEN
+            tsrvEDescription() <- 'Приложение не настроено';
+        WHEN tsrvECode() == 'TSRV_EMPTY_ADDRESS' THEN
+            tsrvEDescription() <- 'Не указан адрес';
+        WHEN tsrvECode() == 'TSRV_DISPATCHER_NOT_FOUND' THEN
+            tsrvEDescription() <- 'Диспетчер не найден';
+        WHEN tsrvECode() == 'TSRV_DESERIALIZE_ERROR' THEN {
+            tsrvEDescription() <- 'Failed to deserialize value\nВозможно, не все поля заполнены или заполнены с ошибкой';
+            tsrvEDescription() <- tsrvEDescription() + '\n' + repeat('-',50) + '\n' + eDescription;
+        }
+        WHEN tsrvECode() == 'TSRV_EMPTY_MSG_DATA' THEN {
+            tsrvEDescription() <- 'Data field is required but was not provided\nОшибка передаваемых данных';
+            tsrvEDescription() <- tsrvEDescription() + '\n' + repeat('-',50) + '\n' + eDescription;
+        }
+        WHEN tsrvECode() == 'TSRV_ACTION_NOT_FOUND' THEN
+            tsrvEDescription() <- 'Неизвестная операция';
+        WHEN tsrvECode() == 'TSRV_INVALID_HEADER' THEN
+            tsrvEDescription() <- 'Invalid header value';
+        WHEN tsrvECode() == 'TSRV_TOKEN_NOT_FOUND' THEN
+            tsrvEDescription() <- 'Токен не найден\nПопробуйте выполнить рестарт службы';
+        WHEN tsrvECode() == 'TSRV_INVALID_SUM_DEC_PART' THEN
+            tsrvEDescription() <- 'Неверно указана десятичная часть значения сумы.\nДолжно быть 2 знака после запятой';
+        WHEN tsrvECode() == 'TSRV_INVALID_QUANTITY_DEC_PART' THEN
+            tsrvEDescription() <- 'Неверно указана десятичная часть значения количества.\nДолжно быть 3 знака после запятой';
+        WHEN tsrvECode() == 'TSRV_NEGATIVE_CHEQUE_DISCOUNT' THEN
+            tsrvEDescription() <- 'Значение скидки не может быть отрицательным';
+        WHEN tsrvECode() == 'TSRV_TOKEN_NOT_ACTIVE' THEN
+            tsrvEDescription() <- 'Не активный токен';
+        WHEN tsrvECode() == 'TSRV_ITEM_NOT_FOUND' THEN
+            tsrvEDescription() <- 'Товар не найден в БД устройства';
+        WHEN tsrvECode() == 'PR_IO_ERROR' THEN
+            tsrvEDescription() <- 'Ошибки ввода/вывода при работе с принтером';
+        WHEN tsrvECode() == 'PR_NOT_FOUND' THEN
+            tsrvEDescription() <- 'Принтер не найден';
+        WHEN tsrvECode() == 'PR_USB_ERROR' THEN
+            tsrvEDescription() <- 'Ошибка USB принтера';
+        WHEN tsrvECode() == 'SM_SESSION_EXISTS' THEN
+            tsrvEDescription() <- 'Сессия уже существует. Выполните рестарт.';
+        WHEN tsrvECode() == 'SM_INVALID_SESSION' THEN
+            tsrvEDescription() <- 'Неправильный ID сессии';
+        WHEN tsrvECode() == 'SM_SID_NOT_FOUND' THEN
+            tsrvEDescription() <- 'ID сессии не найден';
+        WHEN tsrvECode() == 'TORD_FAILED_TO_REMOVE' THEN
+            tsrvEDescription() <- 'Не удалось удалить предварительный заказ';
+        WHEN tsrvECode() == 'TORD_FAILED_TO_DESER' THEN
+            tsrvEDescription() <- 'Не удалось восстановить предварительный заказ\n(файл может быть поврежден)';
+        WHEN tsrvECode() == 'TORD_READ_FAILED' THEN
+            tsrvEDescription() <- 'Не удалось прочитать заказ';
+        WHEN tsrvECode() == 'TORD_WRITE_FAILED' THEN
+            tsrvEDescription() <- 'Не удалось записать заказ';
+        WHEN tsrvECode() == 'TORD_NOT_FOUND' THEN
+            tsrvEDescription() <- 'Заказ не найден';
+	    ELSE
+	        tsrvEDescription() <- IF eDescription THEN eDescription ELSE 'Неизвестная ошибка';
+}
