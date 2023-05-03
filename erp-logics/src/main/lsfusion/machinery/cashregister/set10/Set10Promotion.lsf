@@ -132,7 +132,7 @@ FORM goods_catalog FORMEXTID 'goods-catalog'
     FILTERS (GROUP SUM 1 IF p == priceList(PriceListDetail d) AND NOT exclude(d) AND sg = saleGroup(d))
 
     OBJECTS s = Sku EXTID 'good-binding'
-    PROPERTIES(s) overId EXTID 'marking-of-the-good' ATTR
+    PROPERTIES(s) overSet10Id EXTID 'marking-of-the-good' ATTR
     FILTERS (GROUP SUM 1 IF p == priceList(PriceListDetail d)  AND NOT exclude(d) AND sg = saleGroup(d) AND s == sku(d))
 ;
 
@@ -176,7 +176,7 @@ exportPromotionToSET 'Отправить в SET' (PriceList p) {
         CASE
             WHEN setPromotion(p) == SetPromotion.fixPrice THEN {
                 innerXML() <- innerXML() +'<catalog>';
-                innerXML() <- innerXML() + (GROUP CONCAT TEXT ('<marking-of-the-good id="'+ overId(sku(PriceListDetail d)) +'" fixedPrice="'+priceBefore(d)+'"/>') IF priceList(d) == p AND priceBefore(d) AND NOT exclude(d),'' ORDER d);
+                innerXML() <- innerXML() + (GROUP CONCAT TEXT ('<marking-of-the-good id="'+ overSet10Id(sku(PriceListDetail d)) +'" fixedPrice="'+priceBefore(d)+'"/>') IF priceList(d) == p AND priceBefore(d) AND NOT exclude(d),'' ORDER d);
                 innerXML() <- innerXML() +'</catalog>';
             }
             WHEN setPromotion(p) == SetPromotion.set THEN {
@@ -187,7 +187,7 @@ exportPromotionToSET 'Отправить в SET' (PriceList p) {
                     +'</set>') IF mind == (GROUP MIN PriceListDetail dd IF p == priceList(dd) AND NOT exclude(dd) AND sg = saleGroup(dd)), '' ORDER sg);
                 innerXML() <- CONCAT '', innerXML(), (GROUP CONCAT TEXT ('<set name="'+ escapeXMLValue(OVERRIDE caption(sku(PriceListDetail d)), nameSku(d)) + ' ' + escapeXMLValue(OVERRIDE nameBrand(sku(d)), '') +'" valueType="fixedPrice" value = "'+price(d, (GROUP MIN DataPriceListType dtp IF in(p, dtp)))+'">'
                     +'<row requiedQuantity="2.0">'
-                    + '<marking-of-the-good id="'+ overId(sku(d)) +'"/>'
+                    + '<marking-of-the-good id="'+ overSet10Id(sku(d)) +'"/>'
                     +'</row>'
                     +'</set>') IF p == priceList(d) AND NOT exclude(d) AND NOT saleGroup(d), '' ORDER d);
             }
@@ -311,6 +311,6 @@ FORM goods_catalog_items FORMEXTID 'goods-catalog'
                operationSaleGroup() EXTID 'operation' ATTR, shopsSaleGroup() EXTID 'shop-indices' ATTR
 
     OBJECTS s = Sku EXTID 'good-binding' IN saleGroup
-    PROPERTIES(s) overId EXTID 'marking-of-the-good' ATTR
+    PROPERTIES(s) overSet10Id EXTID 'marking-of-the-good' ATTR
     FILTERS inSaleGroup(s)
 ;
