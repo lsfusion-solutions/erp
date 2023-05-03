@@ -723,7 +723,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (zReportDiscountCardLM != null) {
                 saleFields.add(seriesNumberDiscountCardField);
             }
-            ImportKey<?> discountCardKey = zReportDiscountCardLM == null ? null : new ImportKey((ConcreteCustomClass) zReportDiscountCardLM.findClass("DiscountCard"), zReportDiscountCardLM.findProperty("discountSeriesNumber[BPSTRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
+            ImportKey<?> discountCardKey = zReportDiscountCardLM == null ? null : new ImportKey((ConcreteCustomClass) zReportDiscountCardLM.findClass("DiscountCard"), zReportDiscountCardLM.findProperty("discountSeriesNumber[BPSTRING[18]]").getMapping(seriesNumberDiscountCardField));
             if (discountCardKey != null) {
                 saleKeys.add(discountCardKey);
                 returnKeys.add(discountCardKey);
@@ -2158,18 +2158,19 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "infoMPTBarcode", "pluNumberMachineryPriceTransactionBarcode",
                         "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
-                        "canonicalNameSkuGroupMachineryPriceTransactionBarcode", "retailPrice"};
+                        "canonicalNameSkuGroupMachineryPriceTransactionBarcode", "retailPrice", "idSkuBarcode"};
                 LP[] skuProperties = equLM.findProperties("name[MachineryPriceTransaction,Barcode]", "price[MachineryPriceTransaction,Barcode]",
                         "expiryDate[MachineryPriceTransaction,Barcode]", "split[MachineryPriceTransaction,Barcode]", "passScales[MachineryPriceTransaction,Barcode]",
                         "idUOM[MachineryPriceTransaction,Barcode]", "shortNameUOM[MachineryPriceTransaction,Barcode]", "info[MachineryPriceTransaction,Barcode]",
                         "pluNumber[MachineryPriceTransaction,Barcode]", "flags[MachineryPriceTransaction,Barcode]", "expiryDays[MachineryPriceTransaction,Barcode]",
-                        "minPrice[MachineryPriceTransaction,Barcode]", "canonicalNameSkuGroup[MachineryPriceTransaction,Barcode]", "retailPrice[MachineryPriceTransaction, Barcode]");
+                        "minPrice[MachineryPriceTransaction,Barcode]", "canonicalNameSkuGroup[MachineryPriceTransaction,Barcode]", "retailPrice[MachineryPriceTransaction, Barcode]",
+                        "idSku[MachineryPriceTransaction, Barcode]");
                 for (int i = 0; i < skuProperties.length; i++) {
                     skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionExpr, barcodeExpr));
                 }
 
-                String[] barcodeNames = new String[]{"valueBarcode", "idBarcode", "skuBarcode", "idSkuBarcode", "skuGroupBarcode"};
-                LP[] barcodeProperties = equLM.findProperties("value[Barcode]", "id[Barcode]", "sku[Barcode]", "idSku[Barcode]", "skuGroup[Barcode]");
+                String[] barcodeNames = new String[]{"valueBarcode", "idBarcode", "skuBarcode", "skuGroupBarcode"};
+                LP[] barcodeProperties = equLM.findProperties("value[Barcode]", "id[Barcode]", "sku[Barcode]", "skuGroup[Barcode]");
                 for (int i = 0; i < barcodeProperties.length; i++) {
                     skuQuery.addProperty(barcodeNames[i], barcodeProperties[i].getExpr(barcodeExpr));
                 }
