@@ -115,7 +115,7 @@ errorEpay(JSONFILE f) {
     } ELSE {
         errorMessage() <- CONCAT ': ','Сервер вернул ошибку', statusHttp();
     }
-    logToFile('epay.log', errorMessage());
+    logToFile('epay', errorMessage());
     IF conn() THEN {
         NEWTHREAD {
             formClose();
@@ -141,6 +141,8 @@ httpHeaders(TEXT name) = CASE
     WHEN name = 'regNum' THEN currentRegNum()
     WHEN name = 'token' THEN currentToken()
 ;
+
+httpHeaders() = GROUP CONCAT (CONCAT ': ', TEXT name, httpHeaders(name)) IF httpHeaders(name), '' ORDER name;;
 
 // token
 setToken (CashRegister c, STRING[36] t) {
@@ -255,12 +257,19 @@ deletePayment 'Техническая отмена' (Receipt r) {
         currentToken() <- token(cashRegister(r));
         
         TRY {
+            logToFile('epay', 'Техническая отмена');
+            logToFile('epay', 'Заголовки (перед):');
+            logToFile('epay', httpHeaders());
+            
             EXTERNAL HTTP DELETE 'https://' + calcAddressRequest() + '/pos/payments/' + lastPayment(cashRegister(r)) HEADERS httpHeaders HEADERSTO headers;
 
-            logToFile('epay.log', 'Запрос DELETE /pos/payments');
-            logToFile('epay.log', CONCAT ' ', 'Чек:', description(r));
-            logToFile('epay.log', CONCAT ' ', 'Касса:', description(cashRegister(r)));
-            logToFile('epay.log', CONCAT ' ', 'Платеж:', lastPayment(cashRegister(r)));
+            logToFile('epay', 'Запрос DELETE /pos/payments');
+            logToFile('epay', 'Заголовки (после):');
+            logToFile('epay', httpHeaders());
+            logToFile('epay', CONCAT ' ', 'Чек:', description(r));
+            logToFile('epay', CONCAT ' ', 'Касса:', description(cashRegister(r)));
+            logToFile('epay', CONCAT ' ', 'Регистрационный номер:', regNum(cashRegister(r)));
+            logToFile('epay', CONCAT ' ', 'Платеж:', lastPayment(cashRegister(r)));
 
             setToken(cashRegister(r), headers('token'));
             setLastPayment(cashRegister(r), NULL);
@@ -303,10 +312,16 @@ paymentStatus(Payment p) {
     currentRegNum() <- regNum(cashRegister(receipt(p)));
     TRY {
         resultHttp() <- NULL;
+        logToFile('epay', 'Статус платежа');
+        logToFile('epay', 'Заголовки (перед):');
+        logToFile('epay', httpHeaders());
+
         EXTERNAL HTTP GET 'https://' + calcAddressRequest() + '/pos/payments/' + STRING(paymentId(p)) HEADERS httpHeadersToken TO resultHttp;
-        logToFile('epay.log', 'Запрос GET /pos/payments/');
+        logToFile('epay', 'Запрос GET /pos/payments/');
+        logToFile('epay', 'Заголовки (после):');
+        logToFile('epay', httpHeaders());
         fileToString(FILE(resultHttp()));
-        logToFile('epay.log', CONCAT '\\n', 'Тело ответа:', resultString());
+        logToFile('epay', CONCAT '\\n', 'Тело ответа:', resultString());
 
         setPaymentStatus(p, resultHttp());
     } CATCH {
@@ -357,17 +372,25 @@ paymentEpay (Payment p) {
     
     LOCAL result = JSONFILE ();
     TRY {
+        logToFile('epay', 'Платеж');
+        logToFile('epay', 'Заголовки (перед):');
+        logToFile('epay', httpHeaders());
+
         EXTERNAL HTTP POST 'https://' + calcAddressRequest() + '/pos/payments'
             HEADERS httpHeaders
             HEADERSTO headers 
             PARAMS exportFile() TO result;
 
-            logToFile('epay.log', 'Запрос POST /pos/payments');
-            logToFile('epay.log', CONCAT ' ', 'Платеж:', p);
-            logToFile('epay.log', CONCAT ' ', 'Чек:', description(receipt(p)));
-            logToFile('epay.log', CONCAT ' ', 'Касса:', description(cashRegister(receipt(p))));
+            logToFile('epay', 'Запрос POST /pos/payments');
+            logToFile('epay', 'Заголовки (после):');
+            logToFile('epay', httpHeaders());
+
+            logToFile('epay', CONCAT ' ', 'Платеж:', p);
+            logToFile('epay', CONCAT ' ', 'Чек:', description(receipt(p)));
+            logToFile('epay', CONCAT ' ', 'Касса:', description(cashRegister(receipt(p))));
+            logToFile('epay', CONCAT ' ', 'Регистрационный номер:', regNum(cashRegister(receipt(p))));
             fileToString(exportFile());
-            logToFile('epay.log', CONCAT ' ', 'Тело запроса:', resultString());
+            logToFile('epay', CONCAT ' ', 'Тело запроса:', resultString());
         
         setToken(cashRegister(receipt(p)), headers('token'));
         setPaymentStatus(p, result());
@@ -407,17 +430,24 @@ reversalEpay (Payment p) {
 
     LOCAL result = JSONFILE ();
     TRY {
+        logToFile('epay', 'Отмена платежа');
+        logToFile('epay', 'Заголовки (перед):');
+        logToFile('epay', httpHeaders());
+
         EXTERNAL HTTP POST 'https://' + calcAddressRequest() + '/pos/payments/' + STRING(paymentSaleId(p)) + '/reversals'
             HEADERS httpHeaders
             HEADERSTO headers 
             PARAMS exportFile() TO result;
 
-        logToFile('epay.log', 'Запрос POST /pos/payments/');
-        logToFile('epay.log', CONCAT ' ', 'Платеж:', p);
-        logToFile('epay.log', CONCAT ' ', 'Чек:', description(receipt(p)));
-        logToFile('epay.log', CONCAT ' ', 'Касса:', description(cashRegister(receipt(p))));
+        logToFile('epay', 'Запрос POST /pos/payments/');
+        logToFile('epay', 'Заголовки (после):');
+        logToFile('epay', httpHeaders());
+        logToFile('epay', CONCAT ' ', 'Платеж:', p);
+        logToFile('epay', CONCAT ' ', 'Чек:', description(receipt(p)));
+        logToFile('epay', CONCAT ' ', 'Касса:', description(cashRegister(receipt(p))));
+        logToFile('epay', CONCAT ' ', 'Регистрационный номер:', regNum(cashRegister(receipt(p))));
         fileToString(exportFile());
-        logToFile('epay.log', CONCAT '\\n', 'Тело запроса:', resultString());
+        logToFile('epay', CONCAT '\\n', 'Тело запроса:', resultString());
 
         setToken(cashRegister(receipt(p)), headers('token'));
         setPaymentStatus(p, result());
@@ -433,12 +463,19 @@ consumerStatus(STRING calcAddressRequest, STRING[20] regNum) {
     isConsumerReady() <- NULL;
     currentRegNum() <- regNum;
     TRY {
+        logToFile('epay', 'Получение статуса');
+        logToFile('epay', 'Заголовки (перед):');
+        logToFile('epay', httpHeaders());
+
         EXTERNAL HTTP GET 'https://' + calcAddressRequest + '/pos/consumerStatus'
             HEADERS httpHeadersToken TO resultHttp;
-            logToFile('epay.log', 'Запрос GET /pos/consumerStatus');
-            IF resultHttp() THEN {
+            logToFile('epay', 'Запрос GET /pos/consumerStatus');
+            logToFile('epay', 'Заголовки (после):');
+            logToFile('epay', httpHeaders());
+
+        IF resultHttp() THEN {
                 fileToString(FILE(resultHttp()));
-                logToFile('epay.log', CONCAT '\\n', 'Тело ответа:', resultString());
+                logToFile('epay', CONCAT '\\n', 'Тело ответа:', resultString());
                 IMPORT JSON FROM resultHttp() TO () isConsumerReady;
             } ELSE {
                 isConsumerReady() <- NULL;
@@ -497,15 +534,22 @@ demandPayment(CashRegister c) {
     LOCAL result = JSONFILE ();
     TRY {
         EXPORT demandPayment JSON CHARSET 'UTF-8';
+        logToFile('epay', 'Требование платежа');
+        logToFile('epay', 'Заголовки (перед):');
+        logToFile('epay', httpHeaders());
         EXTERNAL HTTP POST 'https://' + calcAddressRequest() + '/pos/demandPayment'
             HEADERS httpHeaders
             HEADERSTO headers
             PARAMS exportFile() TO result;
 
-        logToFile('epay.log', 'Запрос POST /pos/demandPayment');
-        logToFile('epay.log', CONCAT ' ', 'Касса:', description(c));
+        logToFile('epay', 'Запрос POST /pos/demandPayment');
+        logToFile('epay', 'Заголовки (после):');
+        logToFile('epay', httpHeaders());
+        logToFile('epay', CONCAT ' ', 'Касса:', description(c));
+        logToFile('epay', CONCAT ' ', 'Регистрационный номер:', regNum(c));
+        
         fileToString(exportFile());
-        logToFile('epay.log', CONCAT '\\n', 'Тело запроса:', resultString());
+        logToFile('epay', CONCAT '\\n', 'Тело запроса:', resultString());
 
 
         setToken(c, headers('token'));
@@ -515,7 +559,7 @@ demandPayment(CashRegister c) {
         } ELSE {
             returnPost() <- TRUE;
             MESSAGE 'Ошибка требования оплаты - не получен корректный PIN';
-            logToFile('epay.log', 'Ошибка требования оплаты - не получен корректный PIN');
+            logToFile('epay', 'Ошибка требования оплаты - не получен корректный PIN');
         }
         } CATCH {
             errorEpay(result());
