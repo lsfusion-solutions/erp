@@ -1721,7 +1721,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                         for (int i = 0; i < cardPositionsArray.length(); i++) {
                                             JSONObject cardPosition = cardPositionsArray.getJSONObject(i);
-                                            seriesNumberDiscountCard = BaseUtils.trimToNull(cardPosition.getString("number"));
+                                            seriesNumberDiscountCard = cardPosition.getString("number");
+                                            if (seriesNumberDiscountCard != null)
+                                                seriesNumberDiscountCard = seriesNumberDiscountCard.replace(" ", "");
                                         }
 
                                         LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
