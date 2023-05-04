@@ -17,10 +17,12 @@ manufacturingPrice[Order.OrderDetail](OrderDetail d) += manufacturingPrice(d);
 includeVAT(UserOrderDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (sku(detail));
 @defineDocumentInterfaceDetailMPVATCustomPrefix (orderDetail, manufacturing, );
 
+disableUpdateManufacturingPrice = ABSTRACT VALUE BOOLEAN (UserOrderDetail);
+
 WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR              
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
             CHANGED(batch(detail)) OR SET(showManufacturingPrice(detail)))
-            AND batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) DO {
+            AND batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) AND NOT disableUpdateManufacturingPrice(detail) DO {
     manufacturingPrice (detail)  <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                                                       batch(detail),
                                                       supplierStock(detail),
@@ -30,7 +32,7 @@ WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
 WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR              
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
             DROPPED(batch(detail)) OR CHANGED(sku(detail)) OR SET(showManufacturingPrice(detail)))
-            AND NOT batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) DO {
+            AND NOT batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) AND NOT disableUpdateManufacturingPrice(detail) DO {
     manufacturingPrice (detail) <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                                                      sku(detail),
                                                      supplierStock(detail),
@@ -95,7 +97,7 @@ includeVAT(UserInvoiceDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (s
 updateManufacturingPrice 'Изменить цену изготовителя' = DATA BOOLEAN (UserInvoice);
 updateManufacturingPrice = updateManufacturingPrice(userInvoice(UserInvoiceDetail d));
 
-disableUpdateManufacturingPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
+disableUpdateManufacturingPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
             CHANGED(batch(detail)) OR DROPPED(updateManufacturingPrice(detail)) OR SET(showManufacturingPrice(detail)))
