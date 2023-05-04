@@ -26,7 +26,8 @@ nameReceiver 'Приёмщик'(Invoice i) = name(receiver(i));
 eInvoiceDetail 'Строка ЭТТН' = DATA EInvoiceDetail (Purchase.InvoiceDetail) INDEXED;
 numberEInvoiceDetail 'Строка ЭТТН' (Purchase.InvoiceDetail d) = lineItemNumber(eInvoiceDetail(d));
 
-prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN lineItemPrice(eInvoiceDetail(d));
+overPrevList = ABSTRACT NUMERIC[16,4] (EInvoiceDetail);
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN (OVERRIDE overPrevList(eInvoiceDetail(d)), lineItemPrice(eInvoiceDetail(d)));
 
 filterDate 'Дата' = DATA LOCAL DATE ();
 filterDate (EInvoice i) = DATE(deliveryNoteDateTime(i)) == filterDate() OR NOT filterDate();      
