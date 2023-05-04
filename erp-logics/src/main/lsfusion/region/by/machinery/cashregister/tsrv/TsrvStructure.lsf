@@ -2,22 +2,22 @@ MODULE TsrvStructure;
 
 REQUIRE POS;
 
-tsrvSid 'TSRV, сессия'                = DATA STRING[100]  (CashRegister);
-tsrvIp 'TSRV, IP адрес'               = DATA STRING[30]   (CashRegister);
-tsrvToken 'TSRV, Номер'               = DATA STRING[100]  (CashRegister); // нужен почти для всех операций
-tsrvPin 'TSRV, ПИН код'               = DATA STRING[100]  (CashRegister); // нужен для авторизации
-tsrvTax 'TSRV, Ставка НДС'            = DATA INTEGER      (CashRegister);
-printerName 'TSRV, Имя очереди'       = DATA STRING[30]   (CashRegister);
-printerVId 'TSRV, VID'                = DATA STRING[20]   (CashRegister);
-printerPId 'TSRV, PID'                = DATA STRING[20]   (CashRegister);
-printerSpl 'TSRV, Ширина ленты'       = DATA INTEGER      (CashRegister);
-printerCP 'TSRV, cp866'               = DATA INTEGER      (CashRegister); 
-printerFeed 'TSRV, Прокрутка'         = DATA INTEGER      (CashRegister);
-printerCut 'TSRV, Отрезчик'           = DATA BOOLEAN      (CashRegister);
-printerPrefix 'TSRV, Префикс'        = DATA STRING       (CashRegister);
+tsrvSid 'ID сессии (tsvr)'                      = DATA STRING[100] (CashRegister);
+tsrvIp 'IP адрес (tsvr)'                        = DATA STRING[30]  (CashRegister) NONULL;
+tsrvToken 'Сер.номер (tsvr)'                    = DATA STRING[100] (CashRegister) NONULL; // нужен почти для всех операций
+tsrvPin 'ПИН код (tsvr)'                        = DATA STRING[100] (CashRegister) NONULL; // нужен для авторизации
+tsrvTax 'НДС в чеке (tsvr)'                     = DATA BOOLEAN     (CashRegister) CHARWIDTH 10;
+printerName 'Имя чек.принтера (tsvr,windows)'   = DATA STRING[30]  (CashRegister) CHARWIDTH 16;
+printerVId 'VID (tsvr,linux)'                   = DATA STRING[20]  (CashRegister);
+printerPId 'PID (tsvr,linux)'                   = DATA STRING[20]  (CashRegister);
+printerSpl 'Ширина ленты (tsvr)'                = DATA INTEGER     (CashRegister);
+printerCP 'cp866 (tsvr)'                        = DATA INTEGER     (CashRegister); 
+printerFeed 'Прокрутка чека (tsvr)'             = DATA INTEGER     (CashRegister) CHARWIDTH 14;
+printerCut 'Отрезчик (tsvr)'                    = DATA BOOLEAN     (CashRegister) CHARWIDTH 8;
+printerPrefix 'Префикс (tsvr)'                  = DATA STRING      (CashRegister);
 
 EXTEND FORM groupCashRegister
-    PROPERTIES (c) SHOWIF sidModel(grc) = 'tsrv' tsrvSid
+    PROPERTIES (c) READONLY SHOWIF sidModel(grc) = 'tsrv' tsrvSid
     PROPERTIES (c) SHOWIF sidModel(grc) = 'tsrv' tsrvIp, tsrvToken, tsrvPin, tsrvTax, printerName, printerVId, printerPId, printerSpl, printerCP, printerFeed, printerCut, printerPrefix
 ;
 
@@ -26,7 +26,6 @@ tsrvEMessage 'Сообщение об ошибке' = DATA LOCAL STRING ();
 tsrvEDescription 'Описание ошибки' = DATA LOCAL STRING ();
 tsrvECode 'Код ошибки' = DATA LOCAL STRING ();
 tsrvResult = DATA LOCAL FILE ();
-tsrvTax = DATA LOCAL STRING ();
 
 // ОБЩАЯ ФОРМА приема данных от СКО
 GROUP receive_data EXTID 'data';
@@ -129,7 +128,6 @@ cnt = DATA LOCAL INTEGER();
 code_type (ReceiptDetail o) = IF o THEN 0;
 code_value (ReceiptDetail o) = OVERRIDE LONG(idBarcode(o)), 1; 
 sku_discount (ReceiptDetail o) = IF discountSum(o) THEN '-' + trim(toChar(discountSum(o),'99999999.999')); 
-tax_rate (ReceiptDetail o) = IF o THEN tsrvTax();
 ch_quantity (ReceiptDetail o) = trim(toChar(quantity(o),'99999999.999'));
 ch_price (ReceiptDetail o) = trim(toChar(price(o),'99999999.99'));
 name (ReceiptDetail o) = left(overNameSku(o),128);
@@ -137,6 +135,10 @@ cheque_discount = DATA LOCAL STRING();
 payment_sum (Payment o) = trim(toChar(abs(sum(o)),'9999999999.99'));
 payment_type (Payment o) = IF namePaymentType(o) = 'Наличные' THEN 'cash' ELSE 
                                         IF namePaymentType(o) = 'Карточка' THEN 'cashless' ELSE 'other';
+
+saleTaxRate 'Розничный НДС' (ReceiptDetail o) = 
+    IF (valueVAT(o) AND (valueVAT(o)=0 OR valueVAT(o)=10 OR valueVAT(o)=20 OR valueVAT(o)=25)) AND tsrvTax(currentCashRegister()) THEN 
+    'tax' + trim(toChar(valueVAT(o),'99')) ELSE NULL;
 
 FORM saleForm 'Чек продажи'
 PROPERTIES() type, address
@@ -146,7 +148,8 @@ PROPERTIES() IN headers action, token, sid, tokens_refresh EXTID 'tokens.refresh
    printer_feed EXTID 'printer.feed', printer_cut EXTID 'printer.cut', printer_prefix EXTID 'printer.prefix'
 PROPERTIES() IN sale_header sale_cashier EXTID 'cashier', sale_currency EXTID 'currency'
 OBJECTS items = ReceiptDetail IN sale
-PROPERTIES (items) ch_quantity EXTID 'quantity', ch_price EXTID 'price', name, discountSum EXTID 'discount',tax_rate // ,comment
+PROPERTIES (items) ch_quantity EXTID 'quantity', ch_price EXTID 'price', name, 
+                   discountSum EXTID 'discount',saleTaxRate EXTID 'tax_rate' // ,comment
 PROPERTIES(items) IN code code_type EXTID 'type', code_value EXTID 'value'
 PROPERTIES() IN sale cheque_discount
 OBJECTS payments = Payment IN sale
@@ -176,7 +179,8 @@ PROPERTIES() IN headers action, token, sid, tokens_refresh EXTID 'tokens.refresh
    printer_usb_product EXTID 'printer.usb.product', printer_spl EXTID 'printer.spl', printer_cp866 EXTID 'printer.cp866',
    printer_feed EXTID 'printer.feed', printer_cut EXTID 'printer.cut', printer_prefix EXTID 'printer.prefix'
 PROPERTIES() IN back_header back_cashier EXTID 'cashier', back_currency EXTID 'currency'
-PROPERTIES() IN item back_quantity EXTID 'quantity', back_price EXTID 'price', back_name EXTID 'name', back_discount EXTID 'discount', back_tax_rate EXTID 'tax_rate'
+PROPERTIES() IN item back_quantity EXTID 'quantity', back_price EXTID 'price', back_name EXTID 'name', 
+                back_discount EXTID 'discount', back_tax_rate EXTID 'tax_rate'
 PROPERTIES() IN back_code back_code_type EXTID 'type', back_code_value EXTID 'value'
 PROPERTIES() IN money_back cheque_discount
 OBJECTS payments = Payment IN money_back
