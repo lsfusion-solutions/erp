@@ -56,11 +56,11 @@ fillLeftBonuses 'Заполнить оставшиеся бонусы' () {
     leftSum(DiscountCard d) <- GROUP SUM leftSum(BonusIncome i) IF discountCard(i) == d;
     extraSum(DiscountCard d) <- leftSum(d) (-) availableBonuses(d);
     
-    extraSum(BonusIncome i) <- (PARTITION UNGROUP extraSum LIMIT leftSum(i) IF leftSum(i) AND NOT skip(i) ORDER burnDate(i), i BY discountCard(i)) WHERE extraSum(discountCard(i)) > 0;
+    extraSum(BonusIncome i) <- (PARTITION UNGROUP extraSum LIMIT leftSum(i) IF leftSum(i) AND NOT skip(i) ORDER burnDate(i), date(i), i BY discountCard(i)) WHERE extraSum(discountCard(i)) > 0;
     leftSum(BonusIncome i) <- (leftSum(i) (-) extraSum(i)) WHERE extraSum(discountCard(i)) > 0;
     
     extraSum(DiscountCard d) <- - extraSum(d);
-    extraSum(BonusIncome i) <- (PARTITION UNGROUP extraSum LIMIT sum(i) (-) leftSum(i) IF NOT skip(i) ORDER DESC date(i), i BY discountCard(i)) WHERE extraSum(discountCard(i)) > 0;
+    extraSum(BonusIncome i) <- (PARTITION UNGROUP extraSum LIMIT sum(i) (-) leftSum(i) IF NOT skip(i) ORDER DESC burnDate(i), date(i), i BY discountCard(i)) WHERE extraSum(discountCard(i)) > 0;
     leftSum(BonusIncome i) <- (leftSum(i) (+) extraSum(i)) WHERE extraSum(discountCard(i)) > 0;
     
     overFillLeftBonuses();
