@@ -154,7 +154,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             if (!secondPrice.isNaN()) {
                 int numberForSecondPrice = infoJSON.has("numberForSecondPrice") ? infoJSON.getInt("numberForSecondPrice") : 2;
                 Integer departNumberForSecondPrice = infoJSON.has("departNumberForSecondPrice") ? infoJSON.getInt("departNumberForSecondPrice") : getDepartNumber(transaction, item, useSectionAsDepartNumber);
-                addExtraPriceEntryElement(parentElement, idItem, secondPrice, secondPriceDeleted, secondPriceBeginDate, secondPriceEndDate, numberForSecondPrice, departNumberForSecondPrice);
+                addExtraPriceEntryElement(parentElement, idItem, secondPrice, secondPriceDeleted, shopIndices, secondPriceBeginDate, secondPriceEndDate, numberForSecondPrice, departNumberForSecondPrice);
             }
 
             Double oldSecondPrice = infoJSON.optDouble("oldSecondPrice");
@@ -166,7 +166,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             if (extraPrices != null && !extraPrices.isEmpty()) {
                 for (int i = 0; i < extraPrices.length(); i++) {
                     JSONObject extraPrice = extraPrices.getJSONObject(i);
-                    addExtraPriceEntryElement(parentElement, idItem, extraPrice.getDouble("price"), extraPrice.optBoolean("deleted"),
+                    addExtraPriceEntryElement(parentElement, idItem, extraPrice.getDouble("price"), extraPrice.optBoolean("deleted"), shopIndices,
                             extraPrice.getString("beginDate"), extraPrice.optString("endDate"), extraPrice.getInt("number"),
                             extraPrice.getInt("departmentNumber"));
                 }
@@ -190,8 +190,8 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         addPriceEntryElement(parent, barcode, price, deleted, null, beginDate, endDate, number, departmentNumber, false);
     }
 
-    private static void addExtraPriceEntryElement(Element parent, String barcode, Double price, boolean deleted, String beginDate, String endDate, int number, Integer departmentNumber) {
-        addPriceEntryElement(parent, barcode, price, deleted, null, beginDate != null ? beginDate : currentDate(), endDate, number, departmentNumber, true);
+    private static void addExtraPriceEntryElement(Element parent, String barcode, Double price, boolean deleted, String shopIndices, String beginDate, String endDate, int number, Integer departmentNumber) {
+        addPriceEntryElement(parent, barcode, price, deleted, shopIndices, beginDate != null ? beginDate : currentDate(), endDate, number, departmentNumber, true);
     }
 
     private static void addPriceEntryElement(Element parent, String barcode, Object price, boolean deleted, String shopIndices, String beginDate, String endDate, int number, Object departmentNumber, boolean extra) {
