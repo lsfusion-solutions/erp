@@ -127,7 +127,7 @@ cnt = DATA LOCAL INTEGER();
 
 code_type (ReceiptDetail o) = IF o THEN 0;
 code_value (ReceiptDetail o) = OVERRIDE LONG(idBarcode(o)), 1; 
-sku_discount (ReceiptDetail o) = IF discountSum(o) THEN '-' + trim(toChar(discountSum(o),'99999999.999')); 
+sale_discount (ReceiptDetail o) = IF discountSum(o) THEN trim(toChar(discountSum(o),'99999999.99')) ELSE NULL; // '-'
 ch_quantity (ReceiptDetail o) = trim(toChar(quantity(o),'99999999.999'));
 ch_price (ReceiptDetail o) = trim(toChar(price(o),'99999999.99'));
 name (ReceiptDetail o) = left(overNameSku(o),128);
@@ -149,7 +149,7 @@ PROPERTIES() IN headers action, token, sid, tokens_refresh EXTID 'tokens.refresh
 PROPERTIES() IN sale_header sale_cashier EXTID 'cashier', sale_currency EXTID 'currency'
 OBJECTS items = ReceiptDetail IN sale
 PROPERTIES (items) ch_quantity EXTID 'quantity', ch_price EXTID 'price', name, 
-                   discountSum EXTID 'discount',saleTaxRate EXTID 'tax_rate' // ,comment
+                   sale_discount EXTID 'discount',saleTaxRate EXTID 'tax_rate' // ,comment
 PROPERTIES(items) IN code code_type EXTID 'type', code_value EXTID 'value'
 PROPERTIES() IN sale cheque_discount
 OBJECTS payments = Payment IN sale
