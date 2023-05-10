@@ -70,6 +70,10 @@ KPPCustomer 'КПП получателя' (Consignment consignment) = OVERRIDE o
 overOKPOCustomer 'ОКПО получателя' = ABSTRACT STRING[50] (Consignment);
 extraOKPOCustomer 'ОКПО получателя' = ABSTRACT STRING[50] (Consignment);
 OKPOCustomer 'ОКПО получателя' (Consignment consignment) = OVERRIDE overOKPOCustomer(consignment), extraOKPOCustomer(consignment), okpo(customer(consignment));
+
+overOKULPCustomer 'ОКЮЛП получателя' = ABSTRACT STRING[50] (Consignment);
+extraOKULPCustomer 'ОКЮЛП получателя' = ABSTRACT STRING[50] (Consignment);
+OKULPCustomer 'ОКЮЛП получателя' (Consignment consignment) = OVERRIDE overOKULPCustomer(consignment), extraOKULPCustomer(consignment), okulp(customer(consignment));
     
 overNameCustomerStore (Consignment consignment) = ABSTRACT ISTRING[350] (Consignment);
 nameCustomerStore (Consignment consignment) =
@@ -920,6 +924,13 @@ addressBankSupplier(Consignment consignment) = addressBank(account(supplier(cons
 MFOBankSupplier 'Код BIC банка'  (Consignment consignment)=MFOBank(account(supplier(consignment)));
 corrAccountBankSupplier(Consignment consignment) = corrAccount(bank(account(supplier(consignment))));
 
+numberAccountCustomer 'Основной р/сч.' (Consignment consignment) = numberAccount(customer(consignment));
+numberNewAccountCustomer 'IBAN' (Consignment consignment) = numberNew(account(customer(consignment)));
+nameBankCustomer(Consignment consignment) = nameBank(account(customer(consignment)));
+addressBankCustomer(Consignment consignment) = addressBank(account(customer(consignment)));
+MFOBankCustomer 'Код BIC банка'  (Consignment consignment)=MFOBank(account(customer(consignment)));
+corrAccountBankCustomer(Consignment consignment) = corrAccount(bank(account(customer(consignment))));
+
 quantityTotal (Consignment consignment) = GROUP SUM quantity(ConsignmentDetail d) IF consignment(d) == consignment AND quantity(d) AND NOT skip(d);
 sumConsignmentTotal (Consignment consignment) = GROUP SUM sumConsignment(ConsignmentDetail d) IF consignment(d) == consignment AND sumConsignment(d) AND NOT skip(d);
 countPositions(Consignment consignment) = GROUP SUM 1 IF consignment(d) == consignment AND quantity(d) AND NOT skip(d);
@@ -959,3 +970,39 @@ FORM consignmentPayment 'Счет на оплату'
 consignmentPayment 'Счет на оплату' (Consignment consignment) { PRINT consignmentPayment OBJECTS c = consignment;} IMAGE 'print.png' IN print;
 
 hideCreateUpdDocument = ABSTRACT BOOLEAN (Consignment);
+
+innCustomer 'ИНН покупателя' (Consignment c) = inn(customer(c));
+innSupplier 'ИНН поставщика' (Consignment c) = inn(supplier(c));
+kppCustomer 'КПП покупателя' (Consignment c) = kpp(customer(c));
+kppSupplier 'КПП поставщика' (Consignment c) = kpp(supplier(c));
+
+nameChief 'Директор' (Consignment c) = nameChief(supplier(c));
+nameBooker 'Главный бухгалтер' (Consignment c) = nameBooker(supplier(c));
+
+paymentDocument 'Платежно-расчетный документ' = DATA STRING (Consignment) CHARWIDTH 40;
+
+EXTEND FORM consignment PROPERTIES(c) paymentDocument;
+
+DESIGN consignment {
+    mainTab {
+        MOVE PROPERTY(paymentDocument(c));
+    }
+}
+
+FORM consignmentInvoiceRu 'Счет-фактура'
+    OBJECTS c = Consignment PANEL
+    PROPERTIES(c) nameSupplier, addressSupplier, addressCustomer, nameCustomer,
+        innSupplier, kppSupplier, innCustomer, kppCustomer, paymentDocument, nameChief, nameBooker,
+        nameCurrency, sidCurrency, number, date, shipmentBase, addressSupplierStock, addressCustomerStock,
+        quantityConsignmentDetail, sumConsignmentDetail, VATSumConsignmentDetail, countConsignmentDetail
+
+    OBJECTS d = ConsignmentDetail
+    PROPERTIES(d) index, nameSku, idUOM, shortNameUOM, quantity, price, sum, vat, sumVAT, sumConsignment
+    FILTERS consignment(d) == c,
+        quantity(d),
+        NOT skip(d)
+;
+
+printInvoiceRu 'Счет-фактура' (Consignment c)  {
+    PRINT consignmentInvoiceRu OBJECTS c = c;
+} IMAGE 'print.png' IN print;
