@@ -10,9 +10,6 @@ otherAcceptance 'Иные сведения (приемка)' = DATA STRING (UpdD
 dataCountCopies 'Количество копий' = DATA INTEGER (UpdDocument);
 countCopies (UpdDocument upd) = OVERRIDE dataCountCopies(upd), 1;
 
-incl 'Отм.' = DATA LOCAL BOOLEAN (UpdDocument);
-countIncl = GROUP SUM 1 IF incl(UpdDocument c);
-
 EXTEND FORM updDocument
     PROPERTIES (u) accountantSupplier, transportationInfo, otherInfoIssuance, otherAcceptance, dataCountCopies
 ;
@@ -65,7 +62,7 @@ FORM printUpd 'Универсальный передаточный докуме�
                     idCountry, nameCountry, numberDeclaration,
                     numberInvoice, dateInvoice
 
-    FILTERS incl(c),
+    FILTERS select(c),
             updDocument(d) == c,
             count(i,countCopies(c)),
             quantity(d)
@@ -74,31 +71,31 @@ FORM printUpd 'Универсальный передаточный докуме�
 printUpd 'УПД'(UpdDocument u) {
     doubleSided()<- NULL;
     IF NOT countSelectUpd() THEN {
-        incl(UpdDocument updDocument) <- TRUE IF updDocument==u;
+        select(UpdDocument updDocument) <- TRUE IF updDocument==u;
     }
     PRINT printUpd;
-    incl(u) <- NULL;
+    select(UpdDocument updDocument) <- NULL;
 } IMAGE 'print.png';
 
 printUpdBreake 'УПД (двухсторонний)'(UpdDocument u) {
     doubleSided()<- TRUE ;
     IF NOT countSelectUpd() THEN {
-        incl(UpdDocument updDocument) <- TRUE IF updDocument==u;
+        select(UpdDocument updDocument) <- TRUE IF updDocument==u;
     }
 
     PRINT printUpd;
-    incl(u) <- NULL;
+    select(UpdDocument updDocument) <- NULL;
     doubleSided()<- NULL;
 } IMAGE 'print.png';
 
 printUpdBreakeAuto 'УПД (без предпросмотра)'(UpdDocument u) {
     doubleSided()<- TRUE ;
     IF NOT countSelectUpd() THEN {
-        incl(UpdDocument updDocument) <- TRUE IF updDocument==u;
+        select(UpdDocument updDocument) <- TRUE IF updDocument==u;
     }
 
     PRINT printUpd NOPREVIEW;
-    incl(u) <- NULL;
+    select(UpdDocument updDocument) <- NULL;
     doubleSided()<- NULL;
 } IMAGE 'print.png';
 
