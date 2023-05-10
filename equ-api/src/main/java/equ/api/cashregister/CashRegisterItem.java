@@ -28,13 +28,13 @@ public class CashRegisterItem extends ItemInfo {
 
     public CashRegisterItem(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry,
                             Integer hoursExpiry, LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
-                            String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM, String info,
+                            String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM, String info, String extraInfo,
                             Long itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
                             String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode,
                             BigDecimal balance, LocalDateTime balanceDate, LocalDateTime restrictionToDateTime, Long barcodeObject, String mainBarcode,
                             Integer manufactureDays, List<CashRegisterItemBatch> batchList) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, hoursExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
-                idUOM, shortNameUOM, info);
+                idUOM, shortNameUOM, info, extraInfo);
         this.itemGroupObject = itemGroupObject;
         this.description = description;
         this.idBrand = idBrand;

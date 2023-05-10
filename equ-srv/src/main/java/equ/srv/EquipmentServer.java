@@ -2156,12 +2156,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 String[] skuNames = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
-                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "infoMPTBarcode", "pluNumberMachineryPriceTransactionBarcode",
+                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "infoMPTBarcode", "extraInfoMPTBarcode", "pluNumberMachineryPriceTransactionBarcode",
                         "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
                         "canonicalNameSkuGroupMachineryPriceTransactionBarcode", "retailPrice", "idSkuBarcode"};
                 LP[] skuProperties = equLM.findProperties("name[MachineryPriceTransaction,Barcode]", "price[MachineryPriceTransaction,Barcode]",
                         "expiryDate[MachineryPriceTransaction,Barcode]", "split[MachineryPriceTransaction,Barcode]", "passScales[MachineryPriceTransaction,Barcode]",
-                        "idUOM[MachineryPriceTransaction,Barcode]", "shortNameUOM[MachineryPriceTransaction,Barcode]", "info[MachineryPriceTransaction,Barcode]",
+                        "idUOM[MachineryPriceTransaction,Barcode]", "shortNameUOM[MachineryPriceTransaction,Barcode]", "info[MachineryPriceTransaction,Barcode]", "extraInfo[MachineryPriceTransaction,Barcode]",
                         "pluNumber[MachineryPriceTransaction,Barcode]", "flags[MachineryPriceTransaction,Barcode]", "expiryDays[MachineryPriceTransaction,Barcode]",
                         "minPrice[MachineryPriceTransaction,Barcode]", "canonicalNameSkuGroup[MachineryPriceTransaction,Barcode]", "retailPrice[MachineryPriceTransaction, Barcode]",
                         "idSku[MachineryPriceTransaction, Barcode]");
@@ -2321,6 +2321,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
                         String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
                         String info = (String) row.get("infoMPTBarcode");
+                        String extraInfo = (String) row.get("extraInfoMPTBarcode");
                         String idBrand = itemLM == null ? null : (String) row.get("idBrandBarcode");
                         String nameBrand = itemLM == null ? null : (String) row.get("nameBrandBarcode");
                         String idSeason = itemFashionLM == null ? null : (String) row.get("idSeasonBarcode");
@@ -2344,7 +2345,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Integer manufactureDays = (Integer) row.get("manufactureDays");
 
                         CashRegisterItem c = new CashRegisterItem(idItem, barcode, name, price, split, daysExpiry, hoursExpiry, expiryDate, passScales, valueVAT,
-                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, itemGroupObject, description, idBrand, nameBrand,
+                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, extraInfo, itemGroupObject, description, idBrand, nameBrand,
                                 idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
                                 balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode, manufactureDays, barcodeBatchMap.get(barcode));
                         cashRegisterItemList.add(c);
@@ -2424,6 +2425,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
                         String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
                         String info = (String) row.get("infoMPTBarcode");
+                        String extraInfo = (String) row.get("extraInfoMPTBarcode");
 
                         String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
@@ -2437,7 +2439,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                         scalesItemList.add(new ScalesItem(idItem, barcode, name, price, split, daysExpiry, hoursExpiry,
                                 expiryDate, passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup,
-                                null, description, descriptionNumberCellScales, idUOM, shortNameUOM, info, extraPercent,
+                                null, description, descriptionNumberCellScales, idUOM, shortNameUOM, info, extraInfo, extraPercent,
                                 retailPrice, imagesCount, groupImage, itemImage));
                     }
 
@@ -2489,7 +2491,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
 
                         priceCheckerItemList.add(new PriceCheckerItem(idItem, barcode, name, price, split,
-                                daysExpiry, hoursExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null, null));
+                                daysExpiry, hoursExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null, null, null));
                     }
 
                     transactionList.add(new TransactionPriceCheckerInfo((Long) transactionObject.getValue(), dateTimeCode,
@@ -2550,7 +2552,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
 
                         terminalItemList.add(new TerminalItem(idItem, barcode, name, price, split, daysExpiry, hoursExpiry,
-                                expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null));
+                                expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null, null));
                     }
 
                     //закомментировали, чтобы снизить обьём передаваемых данных

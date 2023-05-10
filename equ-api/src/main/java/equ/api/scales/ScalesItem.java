@@ -20,10 +20,10 @@ public class ScalesItem extends ItemInfo {
                       Integer daysExpiry, Integer hoursExpiry, LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber,
                       Integer flags, String idItemGroup, String canonicalNameSkuGroup,
                       Integer labelFormat, String description, Integer descriptionNumber, String idUOM,
-                      String shortNameUOM, String info, BigDecimal extraPercent, BigDecimal retailPrice, Integer imagesCount,
+                      String shortNameUOM, String info, String extraInfo, BigDecimal extraPercent, BigDecimal retailPrice, Integer imagesCount,
                       RawFileData groupImage, RawFileData itemImage) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, hoursExpiry, expiryDate, passScales, vat, pluNumber, flags,
-                idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info);
+                idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, extraInfo);
         this.labelFormat = labelFormat;
         this.description = description;
         this.descriptionNumber = descriptionNumber;

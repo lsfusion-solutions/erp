@@ -12,9 +12,9 @@ public class StopListItem extends ItemInfo {
 
     public StopListItem(Map<String, Integer> stockPluNumberMap, String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem,
                         Integer daysExpiry, Integer hoursExpiry, LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber,
-                        Integer flags, String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM, String info, List<Long> barcodeObjectList) {
+                        Integer flags, String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM, String info, String extraInfo, List<Long> barcodeObjectList) {
         super(stockPluNumberMap, idItem, idBarcode, name, price, splitItem, daysExpiry, hoursExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
-                idUOM, shortNameUOM, info);
+                idUOM, shortNameUOM, info, extraInfo);
         this.barcodeObjectList = barcodeObjectList;
     }
 }

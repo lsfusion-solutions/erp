@@ -345,22 +345,22 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             JSONObject infoJSON = getExtInfo(item.info);
 
-            String capacity = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("capacity") : null;
-            String alcVolume = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("alcvolume") : null;
-            String alcTypeCode = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("alctypecode") : null;
+            String capacity = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("capacity") : null;
+            String alcVolume = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("alcvolume") : null;
+            String alcTypeCode = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("alctypecode") : null;
 
             BigDecimal defaultQuantity = null;
             Integer tmcType = null;
 
-            String lotType = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optString("lottype") : null;
+            String lotType = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("lottype") : null;
             if (lotType != null && !lotType.isEmpty() && (alcTypeCode == null || alcTypeCode.isEmpty())) tmcType = 7;
 
-            boolean autoGetQuantity = item.info != null && new JSONObject(item.info).has("autogetquantityfromscales");
+            boolean autoGetQuantity = item.extraInfo != null && new JSONObject(item.extraInfo).has("autogetquantityfromscales");
 
             boolean tobacco = "tobacco".equals(lotType) || "tobaccoProduct".equals(lotType);
             if (tobacco) tmcType = 3;
 
-            Integer exciseMarkPrice = item.info != null && !item.info.isEmpty() ? new JSONObject(item.info).optInt("enableexcisemarkprice") : null;
+            Integer exciseMarkPrice = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optInt("enableexcisemarkprice") : null;
 
             if (infoJSON != null && infoJSON.has("defaultquantity")) {defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");}
             if (infoJSON != null && infoJSON.has("tmctype")) { tmcType = infoJSON.optInt("tmctype");}
