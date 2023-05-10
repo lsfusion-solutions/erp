@@ -86,8 +86,8 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
 
         List<Exchange> exchangesList = new ArrayList<>();
 
-        String url = useHttp != null && useHttp ? "http://nbrb.by" :"https://www.nbrb.by";
-        JSONArray document = readJsonFromUrl(url + "/API/ExRates/Currencies");
+        String url = useHttp != null && useHttp ? "http://api.nbrb.by" :"https://api.nbrb.by";
+        JSONArray document = readJsonFromUrl(url + "/ExRates/Currencies");
         for (int i = 0; i < document.length(); i++) {
             JSONObject jsonObject = document.getJSONObject(i);
 
@@ -97,7 +97,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
                 String id = String.valueOf(jsonObject.getInt("Cur_ID"));
                 BigDecimal scale = jsonObject.getBigDecimal("Cur_Scale");
 
-                JSONArray exchangeDocument = readJsonFromUrl(url + "/API/ExRates/Rates/Dynamics/" + id
+                JSONArray exchangeDocument = readJsonFromUrl(url + "/ExRates/Rates/Dynamics/" + id
                         + "?startDate=" + dateFrom.format(DateTimeFormatter.ofPattern("MM/dd/yyyy"))
                         + "&endDate=" + dateTo.format(DateTimeFormatter.ofPattern("MM/dd/yyyy")));
 
