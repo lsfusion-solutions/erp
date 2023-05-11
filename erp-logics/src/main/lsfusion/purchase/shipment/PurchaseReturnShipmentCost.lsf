@@ -27,14 +27,14 @@ recalculateCostAccount(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в поставках (закупка-возврат)');
     APPLY NESTED LOCAL {
         price(UserShipmentDetail d) <- prevAdjustedAccountPriceB(sku(d), customerStock(d), dateTime(d))
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(customerStock(d));
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND prevAdjustedAccountPriceB(sku(d), customerStock(d), dateTime(d)) AND NOT date(d) < documentsClosedDate(customerStock(d));
     }
     IF canceled() THEN CANCEL;
 
     logToFile('cost', 'Начат пересчет цен в накладных (закупка-возврат)');
     APPLY NESTED LOCAL {
         shipmentPrice(UserInvoiceDetail d) <- prevAdjustedAccountPriceB(sku(d), customerStock(d), dateTime(d))
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(customerStock(d));
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND prevAdjustedAccountPriceB(sku(d), customerStock(d), dateTime(d)) AND NOT date(d) < documentsClosedDate(customerStock(d));
     }
     IF canceled() THEN CANCEL;
     logToFile('cost', 'Закончен пересчет цен в поставках и накладных (закупка-возврат)');
