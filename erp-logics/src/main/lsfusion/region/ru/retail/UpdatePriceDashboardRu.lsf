@@ -1,0 +1,28 @@
+MODULE UpdatePriceDashboardRu;
+
+REQUIRE UpdatePriceDashboard, MachineryPriceTransactionStockTax;
+
+NAMESPACE Pricing;
+
+transactionVAT 'Текущий НДС в оборудовании' (Barcode barcode, GroupMachinery groupMachinery)  =
+    VAT(lastTransaction(barcode, groupMachinery), barcode) MATERIALIZED;
+prevTransactionVAT (Barcode barcode, GroupMachinery groupMachinery) = VAT(prevLastFullTransaction(barcode, groupMachinery),barcode);
+
+transactionVAT 'Текущий НДС в оборудовании' (Barcode barcode, stock) =
+    GROUP LAST transactionVAT(barcode, GroupMachinery g)
+    ORDER dateTimeIn(lastTransaction(barcode, g), barcode), lastTransaction(barcode, g)
+    WHERE lastTransaction(barcode, g)
+    BY stock(g);
+
+transactionVAT 'Текущий НДС в оборудовании' (Sku sku, Stock stock) =
+    transactionVAT(barcode(sku), stock) MATERIALIZED TABLE extraSkuStock;
+
+EXTEND FORM updatePriceDashboard
+    PROPERTIES READONLY valueVAT(sk)
+    PROPERTIES (sk, d) READONLY transactionVAT AFTER transactionPrice(sk, d)
+    EXTEND FILTERGROUP diffPrice
+        FILTER 'По НДС' updatePrice(sk, d) AND transactionPrice(sk, d) AND NOT valueVAT(sk) == transactionVAT(sk, d)
+;    
+
+
+
