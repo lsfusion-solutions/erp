@@ -1,0 +1,61 @@
+MODULE EGAISQueryResendDoc;
+
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+CLASS QueryResendDoc 'Повторный запрос ТТН' : OutDoc;
+TABLE queryResendDoc(QueryResendDoc);
+
+WBRegID 'Код ТТН' = DATA STRING (QueryResendDoc) NONULL;
+
+EXTEND CLASS DocType { QueryResendDoc 'Повторный запрос ТТН' }
+docType (QueryResendDoc r) += DocType.QueryResendDoc IF r IS QueryResendDoc;
+
+GROUP parameters EXTID 'qp:Parameters';
+GROUP parameter EXTID 'qp:Parameter' : parameters;
+
+queryResendDocName (INTEGER i) = CASE WHEN i = 0 THEN 'WBREGID';
+queryResendDocValue (QueryResendDoc r, INTEGER i) = CASE WHEN i = 0 THEN WBRegID(r);
+
+FORM queryResendDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryResendDoc'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
+
+    OBJECTS r = QueryResendDoc PANEL
+
+    OBJECTS i = INTEGER IN parameters EXTID 'qp:Parameter'
+    PROPERTIES queryResendDocName(i) EXTID 'qp:Name', queryResendDocValue(r, i) EXTID 'qp:Value'
+    FILTERS queryResendDocName(i)
+;
+
+FORM queryResendDocParams 'Параметры запроса'
+    OBJECTS r = QueryResendDoc PANEL
+    PROPERTIES(r) idClient, shortNameClient, descriptionClient, nameUtm, WBRegID
+;
+
+queryResendDoc (QueryResendDoc r) {
+    EXPORT queryResendDoc OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+queryResendDoc 'Повторный запрос ТТН' () {
+    NEWSESSION {
+        NEW r = QueryResendDoc {
+            DIALOG queryResendDocParams OBJECTS r = r NOMANAGESESSION DO {
+                queryResendDoc(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM outDocs
+    PROPERTIES() queryResendDoc DRAW r TOOLBAR
+;
+
+// ticket
+process (Ticket t) + {
+    IF docType(t) = 'QueryResendDoc' THEN {
+        processed() <- TRUE;
+    }
+}

@@ -1,0 +1,59 @@
+MODULE EGAISQueryNATTN;
+
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+CLASS QueryNATTN 'Запрос необработанных ТТН' : OutDoc;
+TABLE queryNATTN(QueryNATTN);
+
+EXTEND CLASS DocType { QueryNATTN 'Запрос необработанных ТТН' }
+docType (QueryNATTN r) += DocType.QueryNATTN IF r IS QueryNATTN;
+
+GROUP parameters EXTID 'qp:Parameters';
+GROUP parameter EXTID 'qp:Parameter' : parameters;
+
+queryNATTNName (INTEGER i) = CASE WHEN i = 0 THEN 'КОД';
+queryNATTNValue (QueryNATTN r, INTEGER i) = CASE WHEN i = 0 THEN idClient(r);
+
+FORM queryNATTN FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryNATTN'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
+
+    OBJECTS r = QueryNATTN PANEL
+
+    OBJECTS i = INTEGER IN parameters EXTID 'qp:Parameter'
+    PROPERTIES queryNATTNName(i) EXTID 'qp:Name', queryNATTNValue(r, i) EXTID 'qp:Value'
+    FILTERS queryNATTNName(i)
+;
+
+FORM queryNATTNParams 'Параметры запроса'
+    OBJECTS r = QueryNATTN PANEL
+    PROPERTIES(r) idClient, shortNameClient, descriptionClient, nameUtm
+;
+
+queryNATTN (QueryNATTN r) {
+    EXPORT queryNATTN OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+queryNATTN 'Запросить необработанные ТТН' () {
+    NEWSESSION {
+        NEW r = QueryNATTN {
+            DIALOG queryNATTNParams OBJECTS r = r NOMANAGESESSION DO {
+                queryNATTN(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM outDocs
+    PROPERTIES() queryNATTN DRAW r TOOLBAR
+;
+
+// ticket
+process (Ticket t) + {
+    IF docType(t) = 'QueryNATTN' THEN {
+        processed() <- TRUE;
+    }
+}
