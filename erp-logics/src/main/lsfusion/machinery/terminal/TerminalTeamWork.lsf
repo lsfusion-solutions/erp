@@ -231,7 +231,9 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
     WHEN command == 3 THEN { //закрытие документа
         LOCAL id = STRING ();
         IMPORT JSON FROM file TO () id;
+        
         used(TerminalDocument d) <- TRUE WHERE id(d) == id();
+        APPLY;
     }
     WHEN command == 4 THEN { //добавление строки
         LOCAL idDocument, id, barcode, field1, field2, field3, ana1, ana2, comment = STRING ();
@@ -269,6 +271,12 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
         }
         
         EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()), user = user JSON;
+    }
+    WHEN command == 5 THEN { //выгрузка документа по запросу
+        LOCAL id = STRING ();
+        IMPORT JSON FROM file TO () id;
+
+        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(id()), user = user JSON;
     }
     ELSE {
         EXPORT JSON FROM error = 'Неизвестная команда';
