@@ -7,9 +7,9 @@ NAMESPACE Terminal;
 
 CLASS TeamWorkDocument 'Документ совместной приемки';
 TABLE teamWorkDocument (TeamWorkDocument);
-TABLE sessionTeamWorkDocument (Session, TeamWorkDocument);
 
-TABLE teamWorkDocumentId(ISTRING[1000]);
+TABLE teamWorkDocumentId(ISTRING[1000]) NODEFAULT;
+TABLE teamWorkDocumentBarcode(TeamWorkDocument, STRING);
 
 id 'Код' = DATA STRING[100] (TeamWorkDocument) IN id INDEXED CHARWIDTH 10;
 teamWorkDocument (id) = GROUP AGGR (TeamWorkDocument td) BY id (td) MATERIALIZED TABLE teamWorkDocumentId;
@@ -24,22 +24,24 @@ notUsed 'Неиспользован' (TeamWorkDocument teamWorkDocument) = teamW
 createdUser = DATA CustomUser (TeamWorkDocument);
 createdNameUser 'Создан пользователем' (TeamWorkDocument td) = name[Contact](createdUser(td)) CHARWIDTH 10 IN created;
 
-stock = DATA Stock (TeamWorkDocument);
-INDEX stock(TeamWorkDocument d), d;
+createdTime 'Время создания'= DATA DATETIME (TeamWorkDocument) IN created;
+createdTime (TeamWorkDocument o) <- currentDateTime() WHEN SET(o IS TeamWorkDocument);
+
+stock = DATA Stock (TeamWorkDocument) INDEXED;
 nameStock 'Склад' (TeamWorkDocument document) = name(stock (document)) IN documentHeader;
 
 terminalDocumentType = DATA TerminalDocumentType (TeamWorkDocument) INDEXED;
 nameTerminalDocumentType 'Тип документа' (TeamWorkDocument d) = name(terminalDocumentType(d));
 idTerminalDocumentType 'Тип документа' (TeamWorkDocument d) = id(terminalDocumentType(d));
 
-createdTime 'Время создания'= DATA DATETIME (TeamWorkDocument) IN created;
-createdTime (TeamWorkDocument o) <- currentDateTime() WHEN SET(o IS TeamWorkDocument);
+numberOrders 'Заказы' = DATA STRING (TeamWorkDocument) IN base;
 
 CLASS TeamWorkDocumentDetail 'Строка документа совместной приемки';
 TABLE teamWorkDocumentDetail (TeamWorkDocumentDetail);
-TABLE sessionTeamWorkDocumentDetail (Session, TeamWorkDocumentDetail);
 
 id 'Код' = DATA STRING[100] (TeamWorkDocumentDetail) IN id INDEXED CHARWIDTH 10;
+user = DATA CustomUser  (TeamWorkDocumentDetail);
+nameUser 'Пользователель' (TeamWorkDocumentDetail td) = name[Contact](user(td)) CHARWIDTH 10;
 
 teamWorkDocument = DATA TeamWorkDocument(TeamWorkDocumentDetail) NONULL DELETE INDEXED;
 
@@ -51,6 +53,7 @@ number 'Номер' = DATA INTEGER (TeamWorkDocumentDetail) IN base;
 
 barcode 'Штрихкод' = DATA STRING[30] (TeamWorkDocumentDetail) IN base;
 quantity 'Количество' = DATA NUMERIC[14,3] (TeamWorkDocumentDetail) IN base;
+quantity = GROUP SUM quantity(TeamWorkDocumentDetail d) BY teamWorkDocument(d), barcode(d) MATERIALIZED;
 price 'Цена' = DATA NUMERIC[16,4] (TeamWorkDocumentDetail) IN base;
 sum 'Сумма' = DATA NUMERIC[18,4] (TeamWorkDocumentDetail) IN base;
 sum(TeamWorkDocumentDetail d) <- round2(quantity(d) * price(d)) WHEN CHANGED(quantity(d)) OR CHANGED(price(d));
@@ -63,14 +66,12 @@ extraDate2 'Дата 2' = DATA DATE (TeamWorkDocumentDetail) IN base;
 extraField1 'Поле 1' = DATA STRING[100] (TeamWorkDocumentDetail) IN base;
 extraField2 'Поле 2' = DATA STRING[100] (TeamWorkDocumentDetail) IN base;
 extraField3 'Поле 3' = DATA STRING[100] (TeamWorkDocumentDetail) IN base;
-numberOrders 'Заказы' = DATA STRING (TeamWorkDocument) IN base;
 extraQuantity 'Доп. количество' = DATA NUMERIC[14,3] (TeamWorkDocumentDetail) IN base;
+extraQuantity = GROUP SUM extraQuantity(TeamWorkDocumentDetail d) BY teamWorkDocument(d), barcode(d) MATERIALIZED;
 marking 'Маркировка' = DATA STRING (TeamWorkDocumentDetail) IN base;
 ana1 'Аналитика 1' = DATA STRING (TeamWorkDocumentDetail) IN base;
 ana2 'Аналитика 2' = DATA STRING (TeamWorkDocumentDetail) IN base;
 image 'Изображение' = DATA IMAGEFILE (TeamWorkDocumentDetail) IN base;
-
-stock 'Склад' (TeamWorkDocumentDetail detail) = stock(teamWorkDocument(detail)) MATERIALIZED INDEXED;
 
 sku = DATA Sku (TeamWorkDocumentDetail) INDEXED;
 nameSku 'Наименование товара' (TeamWorkDocumentDetail d) = name(sku(d));
@@ -79,13 +80,11 @@ nameUOMSku 'Ед. изм.' (TeamWorkDocumentDetail d) = nameUOM(sku(d));
 dataName 'Наименование' = DATA STRING[200] (TeamWorkDocumentDetail);
 name 'Наименование' (TeamWorkDocumentDetail d) = OVERRIDE dataName(d), nameSku(d) IN base;
 
-teamWorkDocumentDetail(teamWorkDocument, sku) = GROUP MAX TeamWorkDocumentDetail detail BY teamWorkDocument(detail), sku(detail);
 
 WHEN LOCAL SETCHANGED(barcode(TeamWorkDocumentDetail d)) DO {
     sku(d) <- OVERRIDE skuBarcode(barcode(d)), sku(barcode(d));
 }
 
-@defineDocumentIs(TeamWorkDocument, TeamWorkDocumentDetail);
 @defineDocumentHeaderClosed(TeamWorkDocument);
 INDEX isOpened(TeamWorkDocument o), o;
 
@@ -101,7 +100,7 @@ FORM teamWorkDocument 'Документ совместной приемки'
         sumTeamWorkDocumentDetail, used, createdNameUser READONLY
 
     OBJECTS tdd = TeamWorkDocumentDetail
-    PROPERTIES(tdd) number, barcode, name, quantity, price, sum, comment, dateTimeScan, extraQuantity,
+    PROPERTIES(tdd) id, number, nameUser, barcode, name, quantity, price, sum, comment, dateTimeScan, extraQuantity,
         extraDate1, extraDate2, extraField1, extraField2, extraField3, ana1, ana2, image,
         NEW, deletetdd = DELETE GRID
 
@@ -144,7 +143,7 @@ FORM teamWorkDocuments 'Документы совместной приемки' 
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
 
     OBJECTS tdd=TeamWorkDocumentDetail
-    PROPERTIES(tdd) READONLY BACKGROUND backgroundTeamWorkDocumentDetail(tdd) id, number, barcode, name, quantity, price, sum,
+    PROPERTIES(tdd) READONLY BACKGROUND backgroundTeamWorkDocumentDetail(tdd) id, number, nameUser, barcode, name, quantity, price, sum,
         comment, dateTimeScan, extraQuantity, extraDate1, extraDate2, extraField1, extraField2, extraField3, ana1, ana2, image
 
     FILTERS teamWorkDocument(tdd) == td
@@ -162,6 +161,38 @@ NAVIGATOR {
     }
     
 }
+
+error = DATA LOCAL NESTED STRING();
+
+id = GROUP MAX id(TeamWorkDocumentDetail d) BY user(d), teamWorkDocument(d), barcode(d);
+detail = GROUP MAX TeamWorkDocumentDetail d BY teamWorkDocument(d), barcode(d);
+
+GROUP document;
+
+FORM exportTeamWork
+    PROPERTIES error()
+
+    OBJECTS user = CustomUser PANEL
+    
+    OBJECTS document = TeamWorkDocument 
+    PROPERTIES (document) IN document id, dateTime EXTID 'date', number, terminalDocumentType EXTID 'vop', comment, numberOrders
+    
+    OBJECTS  barcode = STRING EXTID 'detail'
+    PROPERTIES  id = id(user, document, barcode) , 
+                barcode = VALUE(barcode), 
+                field1 = extraField1(detail(document, barcode)), 
+                field2 = extraField2(detail(document, barcode)), 
+                field3 = extraField3(detail(document, barcode)), 
+                ana1 = ana1(detail(document, barcode)), 
+                ana2 = ana2(detail(document, barcode)), 
+                comment = comment(detail(document, barcode)), 
+                quantity = quantity(document, barcode), 
+                extraQuantity = extraQuantity(document, barcode), 
+                price = price(detail(document, barcode)), 
+                date1 = extraDate1(detail(document, barcode)), 
+                date2 = extraDate2(detail(document, barcode))
+    FILTERS quantity(document, barcode)
+;
 
 
 process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
@@ -195,7 +226,49 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
     }
     WHEN command == 2 THEN { //список доступных документов
         EXPORT JSON FROM id(TeamWorkDocument d), date = dateTime(d), number(d), vop = idTerminalDocumentType(d), comment(d), numberOrders(d)
-            WHERE stock(d) == (OVERRIDE stock(idStock), stock(user)) AND NOT used(d);
+            WHERE stock(d) == (OVERRIDE stock(idStock), stock(user)) AND notUsed(d);
+    }
+    WHEN command == 3 THEN { //закрытие документа
+        LOCAL id = STRING ();
+        IMPORT JSON FROM file TO () id;
+        used(TerminalDocument d) <- TRUE WHERE id(d) == id();
+    }
+    WHEN command == 4 THEN { //добавление строки
+        LOCAL idDocument, id, barcode, field1, field2, field3, ana1, ana2, comment = STRING ();
+        LOCAL quantity, extraQuantity, price, quantityMax = NUMERIC ();
+        LOCAL date1, date2 = DATE ();
+        IMPORT JSON FROM file TO () idDocument, id, barcode, field1, field2, field3, ana1, ana2, comment, quantity, extraQuantity, price, quantityMax, date1, date2
+        
+        error() <- NULL;
+        APPLY NESTED LOCAL {
+            IF (quantity(teamWorkDocument(idDocument()), barcode()) (+) quantity()) > quantityMax() THEN {
+               error() <- 'Количество превышает максимальное, уже принято: ' + (OVERRIDE quantity(teamWorkDocument(idDocument()), barcode()), 0) 
+                   + ', максимальное: ' + quantityMax();
+            } ELSE {
+                NEW d = TeamWorkDocumentDetail {
+                    teamWorkDocument(d) <- teamWorkDocument(idDocument());
+                    user(d) <- user;
+                    id(d) <- id();
+                    barcode(d) <- barcode();
+                    extraField1(d) <- field1();
+                    extraField2(d) <- field2();
+                    extraField3(d) <- field3();
+                    ana1(d) <- ana1();
+                    ana2(d) <- ana2();
+                    comment(d) <- comment();
+                    quantity(d) <- quantity();
+                    extraQuantity(d) <- extraQuantity();
+                    price(d) <- price();
+                    extraDate1(d) <- date1();
+                    extraDate2(d) <- date2();
+                }
+            }
+        }
+        IF canceled() THEN {
+            error() <- applyMessage();
+        }
+        
+        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()), user = user JSON;
     }
     ELSE {
         EXPORT JSON FROM error = 'Неизвестная команда';
