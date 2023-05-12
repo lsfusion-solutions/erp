@@ -95,6 +95,7 @@ DESIGN outDocs {
 delete 'Удалить из УТМ' (InDoc d) {
     LOCAL response = FILE();
     TRY {
+        logToFile('egais', 'Удаление документа : ' + url(d));
         EXTERNAL HTTP DELETE url(d) TO response;
     } CATCH {
         fileToString(response());
@@ -148,6 +149,7 @@ getInDocs 'Получить входящие документы' (UTM u) {
     FOR docType(INTEGER i) AND NOT skipImport(docType(i)) AND NOT inDoc(u, url(i)) DO {
         NEWSESSION NESTED LOCAL {
             TRY {
+                logToFile('egais', 'Получение документа : ' + url(i));
                 EXTERNAL HTTP GET url(i) TO response;
                 fileToString(response());
                 NEW d = InDoc {
