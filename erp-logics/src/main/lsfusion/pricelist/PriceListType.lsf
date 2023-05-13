@@ -442,9 +442,11 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
                 
     disableUpdateInvoicePrice = ABSTRACT VALUE BOOLEAN (###detail);
     
+    skipChangeDate = ABSTRACT VALUE BOOLEAN (###detail); 
+    
     WHEN LOCAL FORMS form GOAFTER valueVAT[###detail], priceListType[###detail]  // цены берем на начало сессии, а не этого event'а
             (((CHANGED(stockProp(###detail d)) OR
-             CHANGED(dateTimeProp(d))) AND NOT isPosted(d)) OR
+             CHANGED(dateTimeProp(d))) AND NOT isPosted(d) AND NOT skipChangeDate(d)) OR
              (CHANGED(priceListType(d)) OR
              CHANGED(batch(d)) OR
              CHANGED(sku(d))))
@@ -456,7 +458,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
 
     WHEN LOCAL FORMS form GOAFTER valueVAT[###detail], priceListType[###detail] // цены берем на начало сессии, а не этого event'а
             (((CHANGED(stockProp(###detail d)) OR
-             CHANGED(dateTimeProp(d))) AND NOT isPosted(d)) OR
+             CHANGED(dateTimeProp(d))) AND NOT isPosted(d) AND NOT skipChangeDate(d)) OR
              (CHANGED(priceListType(d)) OR
              CHANGED(batch(d)) OR
              CHANGED(sku(d))))
