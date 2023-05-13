@@ -56,9 +56,12 @@ sumCard 'Продано с использованием банк. карточе
     GROUP 
     SUM sumCard (ZReport z) IF inStat(departmentStore(z)) AND dateFrom <= date(z) AND dateTo >= date(z);
 
+extraSumSale = ABSTRACT NUMERIC[18,4](DATE, DATE);
+
 sumSale 'Продано по кассе' (DATE dateFrom, DATE dateTo) =
-    GROUP 
-    SUM sumReceiptDetail (ZReport z) IF inStat(departmentStore(z)) AND dateFrom <= date(z) AND dateTo >= date(z); // вся сумма, с учетом проданных сертификатов
+    (GROUP 
+    SUM sumReceiptDetail (ZReport z) IF inStat(departmentStore(z)) AND dateFrom <= date(z) AND dateTo >= date(z)) // вся сумма, с учетом проданных сертификатов
+    (+) extraSumSale(dateFrom, dateTo);
 
 EXTEND FORM statisticalReportStockSelect
     PROPERTIES   sumCard(dFrom, dTo), 
