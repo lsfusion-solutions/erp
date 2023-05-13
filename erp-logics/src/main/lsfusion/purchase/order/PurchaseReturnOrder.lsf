@@ -166,4 +166,22 @@ NAVIGATOR {
 }
 
 CONSTRAINT  isPosted(UserOrder i) AND isContract(operation(i)) AND NOT contractSku[Order](i) 
-    MESSAGE 'Для заказа (закупка-возврат) обязан быть задан договор';  
+    MESSAGE 'Для заказа (закупка-возврат) обязан быть задан договор';
+
+lastOrderBatchAvailable(Sku sku, Stock stock, NUMERIC[16,5] q) =
+    GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock) >= q
+    ORDER dateTime(batch), batch BY skuLedger(batch, stock);
+
+fillBatch 'Проставить партию' ABSTRACT LIST (UserOrderDetail) ASON CONTEXTMENU nameBatch[UserInvoiceDetail];
+beforeFillBatch ABSTRACT LIST (UserOrderDetail);
+
+fillBatch (UserOrderDetail d) + {
+    beforeFillBatch(d);
+    batch(d) <- lastOrderBatchAvailable(sku(d), customerStock(d), quantity(d))
+        WHERE NOT batch(d);
+}
+
+fillAllBatch 'Проставить партии для всех'(UserOrderDetail detail)  {
+    FOR userOrder(detail) == userOrder(UserOrderDetail d) DO
+        fillBatch(d);
+} ASON CONTEXTMENU nameBatch[UserInvoiceDetail];

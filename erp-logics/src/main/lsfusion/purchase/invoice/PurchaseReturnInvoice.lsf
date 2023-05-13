@@ -216,3 +216,17 @@ CONSTRAINT isPosted(Invoice i) AND isCharLength(operation(i)) AND NOT (length(nu
     MESSAGE 'У накладной (закупка-возврат) номер должен состоять из семи цифр';
 
 @defineMergeDocumentDetails(invoice, userInvoice, i);
+
+fillBatch 'Проставить партию' ABSTRACT LIST (PurchaseReturn.UserInvoiceDetail) ASON CONTEXTMENU nameBatch[UserInvoiceDetail];
+beforeFillBatch ABSTRACT LIST (PurchaseReturn.UserInvoiceDetail);
+
+fillBatch (PurchaseReturn.UserInvoiceDetail d) + {
+    beforeFillBatch(d);
+    batch(d) <- lastOrderBatchAvailable(sku(d), customerStock(d), quantity(d))
+        WHERE NOT batch(d);
+}
+
+fillAllBatch 'Проставить партии для всех'(PurchaseReturn.UserInvoiceDetail detail)  {
+    FOR userInvoice(detail) == userInvoice(PurchaseReturn.UserInvoiceDetail d) DO
+        fillBatch(d);
+} ASON CONTEXTMENU nameBatch[UserInvoiceDetail];
