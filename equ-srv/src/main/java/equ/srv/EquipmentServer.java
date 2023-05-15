@@ -2550,9 +2550,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
+                        String extraInfo = (String) row.get("extraInfoMPTBarcode");
 
                         terminalItemList.add(new TerminalItem(idItem, barcode, name, price, split, daysExpiry, hoursExpiry,
-                                expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null, null));
+                                expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, extraInfo, null, null));
                     }
 
                     //закомментировали, чтобы снизить обьём передаваемых данных
