@@ -7,7 +7,46 @@ NAMESPACE Purchase;
 accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (ShipmentDetail);
 accountLedgerPrice (ShipmentDetail d) += accountPrice(d);
 
-@defineCalcAveragePrice(ShipmentDetail, customerStock);
+//@defineCalcAveragePrice(ShipmentDetail, customerStock){
+//    calcAccountPrice (ShipmentDetail d) =
+//        NUMERIC[16,4]((balanceB(sku(d), customerStock(d), dateTime(d))*accountPriceB(sku(d), customerStock(d), dateTime(d)) +
+//            quantity(d) * price(d))/(quantity(d) + balanceB(sku(d), customerStock(d), dateTime(d))));
+//
+//    // пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
+//    WHEN (SETCHANGED(sku(ShipmentDetail d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR 
+//        SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
+//        accountPrice(d) <- calcAccountPrice(d);
+//};
+
+positiveBalanceB(Sku sk, Stock st, DATETIME dt) = OVERRIDE (balanceB(sk, st, dt) IF balanceB(sk, st, dt)>0.0), 0.0;
+positiveBalanceB 'Остаток (до)' (ShipmentDetail d) = positiveBalanceB(sku(d), customerStock(d), dateTime(d));
+
+useOnlyBalanceB 'Учитывать только положит.остатки при расчете учетной цены' = DATA BOOLEAN ();
+
+EXTEND FORM options 
+    PROPERTIES () useOnlyBalanceB
+;
+
+DESIGN options {
+    stock {
+        MOVE PROPERTY(useOnlyBalanceB());
+    }
+}
+
+calcAccountPriceBalance (Sku sk, Stock st, DATETIME dt) = IF useOnlyBalanceB()
+    THEN positiveBalanceB(sk, st, dt)
+    ELSE balanceB(sk, st, dt);
+
+calcAccountPriceBalance (ShipmentDetail d) = calcAccountPriceBalance(sku(d), customerStock(d), dateTime(d));
+
+calcAccountPrice (ShipmentDetail d) =
+    NUMERIC[16,4]((calcAccountPriceBalance(sku(d), customerStock(d), dateTime(d))*accountPriceB(sku(d), customerStock(d), dateTime(d)) +
+        quantity(d) * price(d))/(quantity(d) + calcAccountPriceBalance(sku(d), customerStock(d), dateTime(d))));
+
+// пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
+WHEN (SETCHANGED(sku(ShipmentDetail d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR
+    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
+    accountPrice(d) <- calcAccountPrice(d);
 
 EXTEND FORM currentBalanceSkuStock
     OBJECTS sd = ShipmentDetail
@@ -29,9 +68,9 @@ DESIGN currentBalanceSkuStock {
 quantityShipmentDetail (Sku sk, DATETIME dt, Stock st) = GROUP SUM quantity(ShipmentDetail d) BY sku(d), dateTime(d), customerStock(d);
 
 calcIntraAccountPrice (ShipmentDetail d) =
-    NUMERIC[16,4]((balanceB(d)*accountPriceB(d) +
+    NUMERIC[16,4]((calcAccountPriceBalance(d)*accountPriceB(d) +
            (OVERRIDE quantityShipmentDetail(sku(d), dateTime(d), customerStock(d)), 0.0) * (IF shipmentDetail(d) THEN accountPriceB(sku(d), supplierStock(d), dateTime(d)) ELSE price(d)))
-        / ((OVERRIDE quantityShipmentDetail(sku(d), dateTime(d), customerStock(d)), 0.0) + balanceB(d)));
+        / ((OVERRIDE quantityShipmentDetail(sku(d), dateTime(d), customerStock(d)), 0.0) + calcAccountPriceBalance(d)));
 
 recalculateCostLedger (DATE dFrom, DATE dTo) + {
     LOCAL ordered = INTEGER (ShipmentDetail);
