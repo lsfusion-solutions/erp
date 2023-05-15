@@ -323,26 +323,27 @@ public class InventoryTechHandler extends TerminalHandler {
                     if (!append)
                         dbfWriter.addField(new Field[]{ARTICUL, NAME, QUAN, PRICE, PRICE2, GR_NAME, FLAGS, INBOX, IDSET});
 
-                    Map<String, Integer> barcodeRecordMap = new HashMap<>();
+                    Map<String, Integer> articleRecordMap = new HashMap<>();
                     for (int i = 1; i <= dbfWriter.getRecordCount(); i++) {
                         dbfWriter.read();
-                        String barcode = getDBFFieldValue(dbfWriter, "ARTICUL", charset);
-                        barcodeRecordMap.put(barcode, i);
+                        articleRecordMap.put(getDBFFieldValue(dbfWriter, "ARTICUL", charset), i);
                     }
                     dbfWriter.startTop();
 
-                    Set<String> usedBarcodes = new HashSet<>();
-                    for (TerminalItem item : transaction.itemsList) {
+                    Set<String> usedArticles = new HashSet<>();
+                    for (Map.Entry<String, TerminalItem> itemEntry : getItemsMap(transaction).entrySet()) {
+                        String article = itemEntry.getKey();
+                        TerminalItem item = itemEntry.getValue();
                         if (!Thread.currentThread().isInterrupted()) {
-                            if (!usedBarcodes.contains(item.idBarcode)) {
+                            if (!usedArticles.contains(article)) {
                                 Integer recordNumber = null;
                                 if (append) {
-                                    recordNumber = barcodeRecordMap.get(item.idBarcode);
+                                    recordNumber = articleRecordMap.get(article);
                                     if (recordNumber != null)
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
 
-                                putField(dbfWriter, ARTICUL, item.idBarcode, 15, append);
+                                putField(dbfWriter, ARTICUL, article, 15, append);
                                 putField(dbfWriter, NAME, item.name, 200, append);
                                 putNumField(dbfWriter, QUAN, item.quantity == null ? 1 : item.quantity.intValue(), append);
                                 putNumField(dbfWriter, PRICE, item.price == null ? 0 : item.price.doubleValue(), append);
@@ -353,9 +354,9 @@ public class InventoryTechHandler extends TerminalHandler {
                                     dbfWriter.write();
                                     dbfWriter.file.setLength(dbfWriter.file.length() - 1);
                                     if (append)
-                                        barcodeRecordMap.put(item.idBarcode, barcodeRecordMap.size() + 1);
+                                        articleRecordMap.put(article, articleRecordMap.size() + 1);
                                 }
-                                usedBarcodes.add(item.idBarcode);
+                                usedArticles.add(article);
                             }
                         }
                     }
@@ -403,31 +404,15 @@ public class InventoryTechHandler extends TerminalHandler {
                     Map<String, Integer> articleRecordMap = new HashMap<>();
                     for (int i = 1; i <= dbfWriter.getRecordCount(); i++) {
                         dbfWriter.read();
-                        String barcode = getDBFFieldValue(dbfWriter, "ARTICUL", charset);
-                        articleRecordMap.put(barcode, i);
+                        articleRecordMap.put(getDBFFieldValue(dbfWriter, "ARTICUL", charset), i);
                     }
                     dbfWriter.startTop();
 
                     Set<String> usedArticles = new HashSet<>();
-
-                    Map<String, String> itemsMap = new OrderedMap<>();
-                    for (TerminalItem item : transaction.itemsList) {
-                        JSONObject extInfo = getExtInfo(item.extraInfo);
-                        if(extInfo != null && extInfo.has("batches")) {
-                            //{"batches": ["1","2","3"]}
-                            JSONArray batches = extInfo.getJSONArray("batches");
-                            for (int i = 0; i < batches.length(); i++) {
-                                itemsMap.put(batches.getString(i), item.idBarcode);
-                            }
-                        } else {
-                            itemsMap.put(item.idBarcode, item.idBarcode);
-                        }
-                    }
-
-                    for (Map.Entry<String, String> item : itemsMap.entrySet()) {
+                    for (Map.Entry<String, TerminalItem> itemEntry : getItemsMap(transaction).entrySet()) {
                         if (!Thread.currentThread().isInterrupted()) {
-                            String article = item.getKey();
-                            String barcode = item.getValue();
+                            String article = itemEntry.getKey();
+                            TerminalItem item = itemEntry.getValue();
                             if (!usedArticles.contains(article)) {
                                 Integer recordNumber = null;
                                 if (append) {
@@ -437,7 +422,7 @@ public class InventoryTechHandler extends TerminalHandler {
                                 }
 
                                 putField(dbfWriter, ARTICUL, article, 15, append);
-                                putField(dbfWriter, BARCODE, barcode, 26, append);
+                                putField(dbfWriter, BARCODE, item.idBarcode, 26, append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -459,6 +444,23 @@ public class InventoryTechHandler extends TerminalHandler {
                 safeDelete(tempFileDPF);
             }
         }
+    }
+
+    private Map<String, TerminalItem> getItemsMap(TransactionTerminalInfo transaction) {
+        Map<String, TerminalItem> itemsMap = new OrderedMap<>();
+        for (TerminalItem item : transaction.itemsList) {
+            JSONObject extInfo = getExtInfo(item.extraInfo);
+            if(extInfo != null && extInfo.has("batches")) {
+                //{"batches": ["1","2","3"]}
+                JSONArray batches = extInfo.getJSONArray("batches");
+                for (int i = 0; i < batches.length(); i++) {
+                    itemsMap.put(batches.getString(i), item);
+                }
+            } else {
+                itemsMap.put(item.idBarcode, item);
+            }
+        }
+        return itemsMap;
     }
 
     private JSONObject getExtInfo(String extInfo) {
