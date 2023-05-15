@@ -7,8 +7,11 @@ import equ.api.TransactionInfo;
 import equ.api.terminal.*;
 import equ.clt.handler.HandlerUtils;
 import equ.clt.handler.NumField2;
+import lsfusion.base.col.heavy.OrderedMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.xBaseJ.DBF;
 import org.xBaseJ.fields.CharField;
 import org.xBaseJ.fields.Field;
@@ -397,27 +400,44 @@ public class InventoryTechHandler extends TerminalHandler {
                     if (!append)
                         dbfWriter.addField(new Field[]{ARTICUL, BARCODE, IDSET});
 
-                    Map<String, Integer> barcodeRecordMap = new HashMap<>();
+                    Map<String, Integer> articleRecordMap = new HashMap<>();
                     for (int i = 1; i <= dbfWriter.getRecordCount(); i++) {
                         dbfWriter.read();
                         String barcode = getDBFFieldValue(dbfWriter, "ARTICUL", charset);
-                        barcodeRecordMap.put(barcode, i);
+                        articleRecordMap.put(barcode, i);
                     }
                     dbfWriter.startTop();
 
-                    Set<String> usedBarcodes = new HashSet<>();
+                    Set<String> usedArticles = new HashSet<>();
+
+                    Map<String, String> itemsMap = new OrderedMap<>();
                     for (TerminalItem item : transaction.itemsList) {
+                        JSONObject extInfo = getExtInfo(item.extraInfo);
+                        if(extInfo != null && extInfo.has("batches")) {
+                            //{"batches": ["1","2","3"]}
+                            JSONArray batches = extInfo.getJSONArray("batches");
+                            for (int i = 0; i < batches.length(); i++) {
+                                itemsMap.put(batches.getString(i), item.idBarcode);
+                            }
+                        } else {
+                            itemsMap.put(item.idBarcode, item.idBarcode);
+                        }
+                    }
+
+                    for (Map.Entry<String, String> item : itemsMap.entrySet()) {
                         if (!Thread.currentThread().isInterrupted()) {
-                            if (!usedBarcodes.contains(item.idBarcode)) {
+                            String article = item.getKey();
+                            String barcode = item.getValue();
+                            if (!usedArticles.contains(article)) {
                                 Integer recordNumber = null;
                                 if (append) {
-                                    recordNumber = barcodeRecordMap.get(item.idBarcode);
+                                    recordNumber = articleRecordMap.get(article);
                                     if (recordNumber != null)
                                         dbfWriter.gotoRecord(recordNumber);
                                 }
 
-                                putField(dbfWriter, ARTICUL, item.idBarcode, 15, append);
-                                putField(dbfWriter, BARCODE, item.idBarcode, 26, append);
+                                putField(dbfWriter, ARTICUL, article, 15, append);
+                                putField(dbfWriter, BARCODE, barcode, 26, append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -425,9 +445,9 @@ public class InventoryTechHandler extends TerminalHandler {
                                     dbfWriter.write();
                                     dbfWriter.file.setLength(dbfWriter.file.length() - 1);
                                     if (append)
-                                        barcodeRecordMap.put(item.idBarcode, barcodeRecordMap.size() + 1);
+                                        articleRecordMap.put(article, articleRecordMap.size() + 1);
                                 }
-                                usedBarcodes.add(item.idBarcode);
+                                usedArticles.add(article);
                             }
                         }
                     }
@@ -439,6 +459,10 @@ public class InventoryTechHandler extends TerminalHandler {
                 safeDelete(tempFileDPF);
             }
         }
+    }
+
+    private JSONObject getExtInfo(String extInfo) {
+        return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("inventory") : null;
     }
 
     private void createSpravFile(TransactionTerminalInfo transaction, String path) throws IOException, xBaseJException {
