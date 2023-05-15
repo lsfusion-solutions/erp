@@ -5,6 +5,14 @@ REQUIRE Set10PriceTransaction, ZReport;
 NAMESPACE Set10;
 
 useWebServerSet10 'Использовать Web Server Set10' = DATA BOOLEAN ();
+useInSet10Log 'Логировать вх. запросы set10' = DATA BOOLEAN () PREREAD;
+EXTEND FORM integrationData
+    PROPERTIES useInSet10Log();
+DESIGN integrationData{
+    set10{
+        MOVE PROPERTY (useInSet10Log());
+    }
+}
 
 GROUP original_purchase EXTID 'original-purchase';
 GROUP discountCards;
@@ -196,10 +204,10 @@ FORM purchasesRequest FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:
 set_purchases(FILE f) {
     TRY{
         fileToString(f);
-        logToFile('set10', (CONCAT ' ', 'purchases',  resultString()));
         IMPORT purchasesRequest XML FROM f;
         IF purchases() THEN {
             decodeBase64(purchases());
+            IF useInSet10Log() THEN logToFile('set10', (CONCAT ' ', 'purchases',  decodedBase64()));
             importReceipt(decodedBase64());
             IF canceled() THEN {
                 logToFile('set10', (CONCAT ' : ', 'purchases error', applyMessage()));
