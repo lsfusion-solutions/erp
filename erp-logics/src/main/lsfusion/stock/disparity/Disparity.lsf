@@ -570,11 +570,12 @@ lastOrderBatchAvailable(Sku sku, Stock stock, NUMERIC[16,5] q) =
 
 fillBatch 'Проставить партию' ABSTRACT LIST (UserDisparityDetail) ASON CONTEXTMENU nameBatch[UserDisparityDetail];
 beforeFillBatch ABSTRACT LIST (UserDisparityDetail);
+afterFillBatch ABSTRACT LIST (UserDisparityDetail);
 
 fillBatch (UserDisparityDetail d) + {
     beforeFillBatch(d);
-    batch(d) <- firstOrderBatchAvailable(sku(d), stock(d), quantity(d))
-        WHERE NOT batch(d);
+    batch(d) <- firstOrderBatchAvailable(sku(d), stock(d), quantity(d)) WHERE NOT batch(d);
+    afterFillBatch(d);
 } 
 
 fillAllBatch 'Проставить партии для всех'(UserDisparityDetail detail)  {
