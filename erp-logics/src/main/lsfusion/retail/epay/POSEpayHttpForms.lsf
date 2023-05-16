@@ -317,15 +317,18 @@ paymentStatus(Payment p) {
         logToFile('epay', httpHeaders());
 
         EXTERNAL HTTP GET 'https://' + calcAddressRequest() + '/pos/payments/' + STRING(paymentId(p)) HEADERS httpHeadersToken TO resultHttp;
+
+        setPaymentStatus(p, resultHttp());
+    } CATCH {
+        //errorEpay(resultHttp());
+        logToFile('epay', 'Сервер вернул сообщение об ошибке:');
+    } FINALLY {
         logToFile('epay', 'Запрос GET /pos/payments/');
         logToFile('epay', 'Заголовки (после):');
         logToFile('epay', httpHeaders());
         fileToString(FILE(resultHttp()));
         logToFile('epay', CONCAT '\\n', 'Тело ответа:', resultString());
-
-        setPaymentStatus(p, resultHttp());
-    } CATCH {
-        errorEpay(resultHttp());
+        
     }
 }
 
