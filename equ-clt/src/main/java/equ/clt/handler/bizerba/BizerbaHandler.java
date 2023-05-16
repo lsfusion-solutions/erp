@@ -68,15 +68,6 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
     }
 
     @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        ScalesSettings bizerbaSettings = springContext.containsBean("bizerbaSettings") ? (ScalesSettings) springContext.getBean("bizerbaSettings") : null;
-        boolean allowParallel = bizerbaSettings == null || bizerbaSettings.isAllowParallel();
-        if (allowParallel) {
-            return super.getGroupId(transactionInfo);
-        } else return getModel();
-    }
-
-    @Override
     protected SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
         ScalesSettings bizerbaSettings = springContext.containsBean("bizerbaSettings") ? (ScalesSettings) springContext.getBean("bizerbaSettings") : null;
         boolean capitalLetters = bizerbaSettings != null && bizerbaSettings.isCapitalLetters();

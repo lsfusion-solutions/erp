@@ -7,7 +7,7 @@ public class ScalesSettings implements Serializable{
     private boolean usePLUNumberInMessage;
     private boolean newLineNoSubstring;
     private boolean useSockets;
-    private boolean allowParallel;
+    private boolean allowParallel; //todo: not used, remove
     private boolean capitalLetters;
     private Integer advancedClearMaxPLU;
     private boolean notInvertPrices; //временная опция для BizerbaBS
