@@ -15,6 +15,9 @@ isSeller (Employee e) = TRUE IF idPosition(e) = 'seller';
 
 dateTimeUploaded 'Загруженно в Set10' = DATA DATETIME (Employee);
 
+customLocked = ABSTRACT CASE BOOLEAN (Employee);
+blockedSeller (Employee e) = OVERRIDE customLocked(e), isLocked(e);
+
 EXTEND FORM employees
     PROPERTIES dateTimeUploaded(e) READONLY
 ;
@@ -23,7 +26,7 @@ FORM sellers
     OBJECTS seller = Employee
     PROPERTIES id(seller) EXTID 'codeNum', = (OVERRIDE lastName(seller), '') EXTID 'lastName', 
         = OVERRIDE firstName(seller), '' EXTID 'firstName', = (OVERRIDE '-', lastName(seller)) EXTID 'middleName',
-        = IF isLocked(seller) THEN TTRUE ELSE TFALSE  EXTID 'blocked' , codeNum = idBarcode(seller) EXTID 'codeNum', barCode = idBarcode(seller) EXTID 'barCode',
+        = IF blockedSeller(seller) THEN TTRUE ELSE TFALSE  EXTID 'blocked' , codeNum = idBarcode(seller) EXTID 'codeNum', barCode = idBarcode(seller) EXTID 'barCode',
         shopIndex(seller) EXTID 'shop-index', = TFALSE IF seller IS Employee EXTID 'deleted'
     FILTERS in(seller)
 ;
@@ -57,6 +60,7 @@ uploadSellersSet10 'Выгрузить продавцов' (){
         EXPORT sellers XML;
         fileToString(exportFile());
         encodeBase64(resultString());
+        logToFile('set10Seller', resultString());
         xmlBase64Data()<- encodedBase64();
         LOCAL headersSet = STRING (STRING);
         headersSet('Content-Type') <- 'application/xml';
