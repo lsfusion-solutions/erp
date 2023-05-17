@@ -91,7 +91,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         return "kristal10Web";
     }
 
-    protected String getLogPrefix() {
+    @Override
+    public String getLogPrefix() {
         return "Kristal10Web: ";
     }
 
@@ -225,9 +226,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                 rootElement.addContent(good);
 
-                fillGoodElement(good, item, skipScalesInfo, shopIndices, useShopIndices, infoJSON);
-
-                addProductType(good, item, tobaccoGroups);
+                fillGoodElement(good, transaction, item, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
+                        brandIsManufacturer, seasonIsCountry, infoJSON);
 
                 if(item.splitItem && !item.passScalesItem) {
                     Element pluginProperty = new Element("plugin-property");
@@ -235,54 +235,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     setAttribute(pluginProperty, "value", "0.001");
                     good.addContent(pluginProperty);
                 }
-
-                int vat = item.vat == null || item.vat.intValue() == 0 ? 20 : item.vat.intValue();
-//                if(vat != 10 && vat != 20) {
-//                    vat = 20;
-//                }
-                addStringElement(good, "vat", String.valueOf(vat));
-
-                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
-                if (hierarchyItemGroup != null) {
-                    ItemGroup firstElementInHierarchy = hierarchyItemGroup.get(0);
-                    //parent: good
-                    Element group = new Element("group");
-                    setAttribute(group, "id", firstElementInHierarchy.idItemGroup);
-                    addStringElement(group, "name", firstElementInHierarchy.nameItemGroup);
-                    good.addContent(group);
-
-                    addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
-                }
-
-                //parent: good
-                if (item.idUOM == null || item.shortNameUOM == null) {
-                    String error = getLogPrefix() + "Error! UOM not specified for item with barcode " + barcodeItem;
-                    processTransactionLogger.error(error);
-                    throw new RuntimeException(error);
-                }
-                Element measureType = new Element("measure-type");
-                setAttribute(measureType, "id", item.idUOM);
-                addStringElement(measureType, "name", item.shortNameUOM);
-                good.addContent(measureType);
-
-                if (brandIsManufacturer) {
-                    //parent: good
-                    Element manufacturer = new Element("manufacturer");
-                    setAttribute(manufacturer, "id", item.idBrand);
-                    addStringElement(manufacturer, "name", item.nameBrand);
-                    good.addContent(manufacturer);
-                }
-
-                if (seasonIsCountry) {
-                    //parent: good
-                    Element country = new Element("country");
-                    setAttribute(country, "id", item.idSeason);
-                    addStringElement(country, "name", item.nameSeason);
-                    good.addContent(country);
-                }
-
-                addStringElement(good, "delete-from-cash", "false");
-
             }
         }
         processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items (Transaction %s)", transaction.id));

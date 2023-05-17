@@ -32,6 +32,8 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         this.springContext = springContext;
     }
 
+    abstract String getLogPrefix();
+
     protected static String removeZeroes(String value) {
         if(value != null) {
             while(value.startsWith("0")) {
@@ -41,7 +43,41 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return value;
     }
 
-    protected void fillGoodElement(Element good, CashRegisterItem item, boolean skipScalesInfo, String shopIndices, boolean useShopIndices, JSONObject infoJSON) {
+    protected void fillGoodElement(Element good, TransactionCashRegisterInfo transaction, CashRegisterItem item, String barcodeItem,
+                                   List<String> tobaccoGroups, boolean skipScalesInfo, String shopIndices, boolean useShopIndices,
+                                   boolean brandIsManufacturer, boolean seasonIsCountry, JSONObject infoJSON) {
+
+        addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
+
+        addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
+
+        addProductType(good, item, tobaccoGroups);
+
+        addStringElement(good, "delete-from-cash", "false");
+
+        List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
+        if (hierarchyItemGroup != null) {
+            ItemGroup firstElementInHierarchy = hierarchyItemGroup.get(0);
+            //parent: good
+            Element group = new Element("group");
+            setAttribute(group, "id", firstElementInHierarchy.idItemGroup);
+            addStringElement(group, "name", firstElementInHierarchy.nameItemGroup);
+            good.addContent(group);
+
+            addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
+        }
+
+        if (item.idUOM == null || item.shortNameUOM == null) {
+            String error = getLogPrefix() + "Error! UOM not specified for item with barcode " + barcodeItem;
+            processTransactionLogger.error(error);
+            throw new RuntimeException(error);
+        } else {
+            Element measureType = new Element("measure-type");
+            setAttribute(measureType, "id", item.idUOM);
+            addStringElement(measureType, "name", item.shortNameUOM);
+            good.addContent(measureType);
+        }
+
         if(!skipScalesInfo) {
             //<plugin-property key="plu-number" value="4">
             Element extraPluginProperty = new Element("plugin-property");
@@ -62,7 +98,21 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             addStringElement(good, "shop-indices", shopIndices);
         }
 
-        addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
+        if (brandIsManufacturer) {
+            //parent: good
+            Element manufacturer = new Element("manufacturer");
+            setAttribute(manufacturer, "id", item.idBrand);
+            addStringElement(manufacturer, "name", item.nameBrand);
+            good.addContent(manufacturer);
+        }
+
+        if (seasonIsCountry) {
+            //parent: good
+            Element country = new Element("country");
+            setAttribute(country, "id", item.idSeason);
+            addStringElement(country, "name", item.nameSeason);
+            good.addContent(country);
+        }
 
         if (infoJSON != null) {
             String ntin = trimToNull(infoJSON.optString("ntin"));
@@ -77,6 +127,10 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
             if (infoJSON.has("age")) {
                 addIntegerElement(good, "age-limit", infoJSON.getInt("age"));
+            }
+
+            if (infoJSON.has("weight")) {
+                addStringElement(good, "weight", infoJSON.getString("weight"));
             }
         }
     }
