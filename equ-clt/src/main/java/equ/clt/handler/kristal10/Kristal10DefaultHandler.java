@@ -43,9 +43,11 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return value;
     }
 
-    protected void fillGoodElement(Element good, TransactionCashRegisterInfo transaction, CashRegisterItem item, String barcodeItem,
+    protected void fillGoodElement(Element good, TransactionCashRegisterInfo transaction, CashRegisterItem item, String idItem, String barcodeItem,
                                    List<String> tobaccoGroups, boolean skipScalesInfo, String shopIndices, boolean useShopIndices,
-                                   boolean brandIsManufacturer, boolean seasonIsCountry, JSONObject infoJSON) {
+                                   boolean brandIsManufacturer, boolean seasonIsCountry, JSONObject infoJSON, boolean web) {
+
+        setAttribute(good, "marking-of-the-good", idItem);
 
         addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
 
@@ -76,6 +78,20 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             setAttribute(measureType, "id", item.idUOM);
             addStringElement(measureType, "name", item.shortNameUOM);
             good.addContent(measureType);
+        }
+
+        if(web) {
+            if(item.splitItem && !item.passScalesItem) {
+                Element pluginProperty = new Element("plugin-property");
+                setAttribute(pluginProperty, "key", "precision");
+                setAttribute(pluginProperty, "value", "0.001");
+                good.addContent(pluginProperty);
+            }
+        } else {
+            Element pluginProperty = new Element("plugin-property");
+            setAttribute(pluginProperty, "key", "precision");
+            setAttribute(pluginProperty, "value", (item.splitItem || item.passScalesItem) ? "0.001" : "1.0");
+            good.addContent(pluginProperty);
         }
 
         if(!skipScalesInfo) {
@@ -133,6 +149,86 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 addStringElement(good, "weight", infoJSON.getString("weight"));
             }
         }
+    }
+
+    protected String getShopIndices(TransactionCashRegisterInfo transaction, CashRegisterItem item, boolean useNumberGroupInShopIndices, boolean useShopIndices, String weightShopIndices) {
+        String shopIndices = getIdDepartmentStore(transaction.nppGroupMachinery, transaction.idDepartmentStoreGroupCashRegister, useNumberGroupInShopIndices);
+        if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
+            shopIndices += " " + weightShopIndices;
+        }
+        return shopIndices;
+    }
+
+    protected void fillBarcodes(Element parent, Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes, CashRegisterItem item, String idItem, Element barcode,
+                                List<String> notGTINPrefixes, String barcodeItem, boolean web) {
+        List<String> deleteBarcodeList = new ArrayList<>();
+        if(deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem)) {
+            for(Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
+                if(entry.getValue().equals(idItem)){
+                    deleteBarcodeList.add(entry.getKey());
+                }
+            }
+            usedDeleteBarcodes.barcodes.add(item.idBarcode);
+        }
+
+        for(String deleteBarcode : deleteBarcodeList) {
+            Element deleteBarcodeElement = new Element("bar-code");
+            if(web) {
+                setAttribute(barcode, "marking-of-the-good", idItem);
+            }
+            setAttribute(deleteBarcodeElement, "code", deleteBarcode);
+            setAttribute(deleteBarcodeElement, "deleted", true);
+            parent.addContent(deleteBarcodeElement);
+        }
+
+        if (notGTINPrefixes != null) {
+            if (barcodeItem != null && barcodeItem.length() > 7) {
+                for (String notGTINPrefix : notGTINPrefixes) {
+                    if (!barcodeItem.startsWith(notGTINPrefix)) {
+                        barcode.setAttribute("barcode-type", "GTIN");
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    protected void fillRestrictionsElement(Element rootElement, CashRegisterItem item, String idItem, String barcodeItem,
+                                           boolean useIdItemInRestriction, String shopIndices, boolean useShopIndices, boolean skipUseShopIndicesMinPrice) {
+        //parent: rootElement
+        if (item.minPrice != null) {
+            Element minPriceRestriction = new Element("min-price-restriction");
+            setAttribute(minPriceRestriction, "id", "MP-" + (useIdItemInRestriction ? idItem : barcodeItem) + "-" + shopIndices);
+            setAttribute(minPriceRestriction, "subject-type", "GOOD");
+            setAttribute(minPriceRestriction, "subject-code", idItem);
+            setAttribute(minPriceRestriction, "type", "MIN_PRICE");
+            setAttribute(minPriceRestriction, "value", item.minPrice != null ? item.minPrice : BigDecimal.ZERO);
+            addStringElement(minPriceRestriction, "since-date", currentDate());
+            addStringElement(minPriceRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2051-01-01T23:59:59"));
+            addStringElement(minPriceRestriction, "since-time", "00:00:00");
+            addStringElement(minPriceRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
+            addStringElement(minPriceRestriction, "deleted", item.minPrice.compareTo(BigDecimal.ZERO) != 0 ? "false" : "true");
+            addStringElement(minPriceRestriction, "days-of-week", "MO TU WE TH FR SA SU");
+            if (useShopIndices && !skipUseShopIndicesMinPrice)
+                addStringElement(minPriceRestriction, "shop-indices", shopIndices);
+            rootElement.addContent(minPriceRestriction);
+        }
+
+        //parent: rootElement
+        Element maxDiscountRestriction = new Element("max-discount-restriction");
+        setAttribute(maxDiscountRestriction, "id", useIdItemInRestriction ? idItem : barcodeItem);
+        setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
+        setAttribute(maxDiscountRestriction, "subject-code", idItem);
+        setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
+        setAttribute(maxDiscountRestriction, "value", "0");
+        addStringElement(maxDiscountRestriction, "since-date", currentDate());
+        addStringElement(maxDiscountRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2051-01-01T23:59:59"));
+        addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
+        addStringElement(maxDiscountRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
+        addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
+        if (useShopIndices)
+            addStringElement(maxDiscountRestriction, "shop-indices", shopIndices);
+        rootElement.addContent(maxDiscountRestriction);
     }
 
     protected Element getBarcodeElement(CashRegisterItem item, String barcodeItem, String idItem, boolean exportAmountForBarcode) {

@@ -99,6 +99,21 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean brandIsManufacturer = kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
+        boolean seasonIsCountry = kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
+        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean skipWeightPrefix = kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
+        boolean skipScalesInfo = kristalSettings.getSkipScalesInfo() != null && kristalSettings.getSkipScalesInfo();
+        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        boolean skipUseShopIndicesMinPrice = kristalSettings.getSkipUseShopIndicesMinPrice() != null && kristalSettings.getSkipUseShopIndicesMinPrice();
+        String weightShopIndices = kristalSettings.getWeightShopIndices();
+        boolean useIdItemInRestriction = kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
+        List<String> tobaccoGroups = getTobaccoGroups(kristalSettings.getTobaccoGroup());
+        List<String> notGTINPrefixes = kristalSettings.getNotGTINPrefixesList();
+        boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
+        boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
+        boolean exportAmountForBarcode = kristalSettings.isExportAmountForBarcode();
+
         boolean extendedLogs = kristalSettings.isExtendedLogs();
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
@@ -122,10 +137,14 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     DeleteBarcode usedDeleteBarcodes = new DeleteBarcode(transaction.nppGroupMachinery, directory);
 
                     List<String> xmlList = new ArrayList<>();
-                    xmlList.add(docToXMLString(generateCatalogGoodsItemsXML(transaction)));
-                    xmlList.add(docToXMLString(generateCatalogGoodsBarcodesXML(transaction, deleteBarcodeDirectoryMap.get(directory), usedDeleteBarcodes)));
-                    xmlList.add(docToXMLString(generateCatalogGoodsPricesXML(transaction)));
-                    xmlList.add(docToXMLString(generateCatalogGoodsRestrictionsXML(transaction)));
+                    xmlList.add(docToXMLString(generateCatalogGoodsItemsXML(transaction, brandIsManufacturer, seasonIsCountry, idItemInMarkingOfTheGood, skipWeightPrefix,
+                            skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices)));
+                    xmlList.add(docToXMLString(generateCatalogGoodsBarcodesXML(transaction, deleteBarcodeDirectoryMap.get(directory), usedDeleteBarcodes, idItemInMarkingOfTheGood,
+                            skipWeightPrefix, notGTINPrefixes, exportAmountForBarcode)));
+                    xmlList.add(docToXMLString(generateCatalogGoodsPricesXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useSectionAsDepartNumber, useShopIndices,
+                            weightShopIndices, useNumberGroupInShopIndices)));
+                    xmlList.add(docToXMLString(generateCatalogGoodsRestrictionsXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useShopIndices, skipUseShopIndicesMinPrice,
+                            weightShopIndices, useIdItemInRestriction, useNumberGroupInShopIndices)));
 
                     usedDeleteBarcodeTransactionMap.put(transaction.id, usedDeleteBarcodes);
 
@@ -191,20 +210,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
     // ----------------- http server end ----------------- //
 
-    private Document generateCatalogGoodsItemsXML(TransactionCashRegisterInfo transaction) {
-
+    private Document generateCatalogGoodsItemsXML(TransactionCashRegisterInfo transaction, boolean brandIsManufacturer, boolean seasonIsCountry,
+                                                  boolean idItemInMarkingOfTheGood, boolean skipWeightPrefix, boolean skipScalesInfo, boolean useShopIndices,
+                                                  String weightShopIndices, List<String> tobaccoGroups, boolean useNumberGroupInShopIndices) {
         processTransactionLogger.info(getLogPrefix() + "creating catalog-goods file with items (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
-
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean brandIsManufacturer = kristalSettings != null && kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
-        boolean seasonIsCountry = kristalSettings != null && kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
-        boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
-        boolean skipScalesInfo = kristalSettings != null && kristalSettings.getSkipScalesInfo() != null && kristalSettings.getSkipScalesInfo();
-        boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
-        List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
@@ -213,51 +222,24 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             if (!Thread.currentThread().isInterrupted()) {
 
                 JSONObject infoJSON = getExtInfo(item.info);
-
                 String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
-
-                //parent: rootElement
-                Element good = new Element("good");
-
                 String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                setAttribute(good, "marking-of-the-good", idItem);
-
+                //parent: rootElement
+                Element good = new Element("good");
                 rootElement.addContent(good);
-
-                fillGoodElement(good, transaction, item, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
-                        brandIsManufacturer, seasonIsCountry, infoJSON);
-
-                if(item.splitItem && !item.passScalesItem) {
-                    Element pluginProperty = new Element("plugin-property");
-                    setAttribute(pluginProperty, "key", "precision");
-                    setAttribute(pluginProperty, "value", "0.001");
-                    good.addContent(pluginProperty);
-                }
+                fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
+                        brandIsManufacturer, seasonIsCountry, infoJSON, true);
             }
         }
         processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items (Transaction %s)", transaction.id));
         return doc;
     }
 
-    private String getShopIndices(TransactionCashRegisterInfo transaction, CashRegisterItem item, boolean useNumberGroupInShopIndices, boolean useShopIndices, String weightShopIndices) {
-        String shopIndices = getIdDepartmentStore(transaction.nppGroupMachinery, transaction.idDepartmentStoreGroupCashRegister, useNumberGroupInShopIndices);
-        if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
-            shopIndices += " " + weightShopIndices;
-        }
-        return shopIndices;
-    }
-
-    private Document generateCatalogGoodsBarcodesXML(TransactionCashRegisterInfo transaction, Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes) {
-
+    private Document generateCatalogGoodsBarcodesXML(TransactionCashRegisterInfo transaction, Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes,
+                                                     boolean idItemInMarkingOfTheGood, boolean skipWeightPrefix, List<String> notGTINPrefixes, boolean exportAmountForBarcode) {
         processTransactionLogger.info(getLogPrefix() + "creating catalog-goods file with barcodes (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
-
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
-        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean skipWeightPrefix = kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
-        List<String> notGTINPrefixes = kristalSettings.getNotGTINPrefixesList();
-        boolean exportAmountForBarcode = kristalSettings.isExportAmountForBarcode();
 
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
@@ -268,56 +250,19 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                List<String> deleteBarcodeList = new ArrayList<>();
-                if(deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem)) {
-                    for(Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
-                        if(entry.getValue().equals(idItem)){
-                            deleteBarcodeList.add(entry.getKey());
-                        }
-                    }
-                    usedDeleteBarcodes.barcodes.add(item.idBarcode);
-                }
-
                 //parent: good
                 Element barcode = getBarcodeElement(item, barcodeItem, idItem, exportAmountForBarcode);
                 rootElement.addContent(barcode);
-
-                for(String deleteBarcode : deleteBarcodeList) {
-                    //parent: good
-                    Element deleteBarcodeElement = new Element("bar-code");
-                    setAttribute(barcode, "marking-of-the-good", idItem);
-                    setAttribute(deleteBarcodeElement, "code", deleteBarcode);
-                    setAttribute(deleteBarcodeElement, "deleted", true);
-                    rootElement.addContent(deleteBarcodeElement);
-                }
-
-                if (notGTINPrefixes != null) {
-                    if (barcodeItem != null && barcodeItem.length() > 7) {
-                        for (String notGTINPrefix : notGTINPrefixes) {
-                            if (!barcodeItem.startsWith(notGTINPrefix)) {
-                                barcode.setAttribute("barcode-type", "GTIN");
-                                break;
-                            }
-                        }
-                    }
-                }
+                fillBarcodes(rootElement, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem, true);
             }
         }
         processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with barcodes (Transaction %s)", transaction.id));
         return doc;
     }
 
-    private Document generateCatalogGoodsPricesXML(TransactionCashRegisterInfo transaction) {
-
+    private Document generateCatalogGoodsPricesXML(TransactionCashRegisterInfo transaction, boolean idItemInMarkingOfTheGood, boolean skipWeightPrefix,
+                                                   boolean useSectionAsDepartNumber, boolean useShopIndices, String weightShopIndices, boolean useNumberGroupInShopIndices) {
         processTransactionLogger.info(getLogPrefix() + "creating catalog-goods file with prices(Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
-
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
-        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
-        boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
@@ -326,11 +271,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             if (!Thread.currentThread().isInterrupted()) {
 
                 JSONObject infoJSON = getExtInfo(item.info);
-
+                String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
                 String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
-
-                String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
 
                 addPriceEntryElements(rootElement, transaction, item, idItem, infoJSON, useSectionAsDepartNumber, useShopIndices ? shopIndices : null);
             }
@@ -339,18 +282,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         return doc;
     }
 
-    private Document generateCatalogGoodsRestrictionsXML(TransactionCashRegisterInfo transaction) {
-
+    private Document generateCatalogGoodsRestrictionsXML(TransactionCashRegisterInfo transaction, boolean idItemInMarkingOfTheGood, boolean skipWeightPrefix,
+                                                         boolean useShopIndices, boolean skipUseShopIndicesMinPrice, String weightShopIndices, boolean useIdItemInRestriction,
+                                                         boolean useNumberGroupInShopIndices) {
         processTransactionLogger.info(getLogPrefix() + "creating catalog-goods file with restrictions (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
-
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
-        boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        boolean skipUseShopIndicesMinPrice = kristalSettings != null && kristalSettings.getSkipUseShopIndicesMinPrice() != null && kristalSettings.getSkipUseShopIndicesMinPrice();
-        String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
-        boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
@@ -362,40 +297,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                //parent: rootElement
-                if (item.minPrice != null) {
-                    Element minPriceRestriction = new Element("min-price-restriction");
-                    setAttribute(minPriceRestriction, "id", "MP-" + (useIdItemInRestriction ? idItem : barcodeItem) + "-" + shopIndices);
-                    setAttribute(minPriceRestriction, "subject-type", "GOOD");
-                    setAttribute(minPriceRestriction, "subject-code", idItem);
-                    setAttribute(minPriceRestriction, "type", "MIN_PRICE");
-                    setAttribute(minPriceRestriction, "value", item.minPrice != null ? item.minPrice : BigDecimal.ZERO);
-                    addStringElement(minPriceRestriction, "since-date", currentDate());
-                    addStringElement(minPriceRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2051-01-01T23:59:59"));
-                    addStringElement(minPriceRestriction, "since-time", "00:00:00");
-                    addStringElement(minPriceRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
-                    addStringElement(minPriceRestriction, "deleted", item.minPrice.compareTo(BigDecimal.ZERO) != 0 ? "false" : "true");
-                    addStringElement(minPriceRestriction, "days-of-week", "MO TU WE TH FR SA SU");
-                    if (useShopIndices && !skipUseShopIndicesMinPrice)
-                        addStringElement(minPriceRestriction, "shop-indices", shopIndices);
-                    rootElement.addContent(minPriceRestriction);
-                }
-
-                //parent: rootElement
-                Element maxDiscountRestriction = new Element("max-discount-restriction");
-                setAttribute(maxDiscountRestriction, "id", useIdItemInRestriction ? idItem : barcodeItem);
-                setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
-                setAttribute(maxDiscountRestriction, "subject-code", idItem);
-                setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
-                setAttribute(maxDiscountRestriction, "value", "0");
-                addStringElement(maxDiscountRestriction, "since-date", currentDate());
-                addStringElement(maxDiscountRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2051-01-01T23:59:59"));
-                addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
-                addStringElement(maxDiscountRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
-                addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
-                if (useShopIndices)
-                    addStringElement(maxDiscountRestriction, "shop-indices", shopIndices);
-                rootElement.addContent(maxDiscountRestriction);
+                fillRestrictionsElement(rootElement, item, idItem, barcodeItem, useIdItemInRestriction, shopIndices, useShopIndices, skipUseShopIndicesMinPrice);
             }
         }
         processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with restrictions (Transaction %s)", transaction.id));
@@ -405,8 +307,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
 
         for (RequestExchange entry : requestExchangeList) {
             for (String directory : getDirectoryStockMap(entry, useNumberGroupInShopIndices).keySet()) {
@@ -520,13 +422,13 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private Document generateStopListXML(StopListInfo stopListInfo) {
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
-        boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
-        List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
-        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean skipWeightPrefix = kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
+        List<String> tobaccoGroups = getTobaccoGroups(kristalSettings.getTobaccoGroup());
+        boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
+        boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
 
         if (stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
             String error = getLogPrefix() + "Error! Start DateTime not specified for stopList " + stopListInfo.number;
@@ -620,9 +522,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     @Override
     public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
 
-        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
-        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean idItemInMarkingOfTheGood = kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean skipWeightPrefix = kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
 
         if (deleteBarcodeInfo.directoryGroupMachinery != null && !deleteBarcodeInfo.barcodeList.isEmpty()) {
             String exchangeDirectory = deleteBarcodeInfo.directoryGroupMachinery + "/products/source/";

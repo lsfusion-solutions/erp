@@ -120,96 +120,22 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         if (!Thread.currentThread().isInterrupted()) {
 
                             JSONObject infoJSON = getExtInfo(item.info);
-
-                            String shopIndices = getIdDepartmentStore(transaction.nppGroupMachinery, transaction.idDepartmentStoreGroupCashRegister, useNumberGroupInShopIndices);
-                            if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
-                                shopIndices += " " + weightShopIndices;
-                            }
-                            //parent: rootElement
-                            Element good = new Element("good");
-
+                            String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
                             String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                            setAttribute(good, "marking-of-the-good", idItem);
+                            fillRestrictionsElement(rootElement, item, idItem, barcodeItem, useIdItemInRestriction, shopIndices, useShopIndices, skipUseShopIndicesMinPrice);
 
-                            List<String> deleteBarcodeList = new ArrayList<>();
-                            if(deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem)) {
-                                for(Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
-                                    if(entry.getValue().equals(idItem)){
-                                        deleteBarcodeList.add(entry.getKey());
-                                    }
-                                }
-                                usedDeleteBarcodes.barcodes.add(item.idBarcode);
-                            }
-
+                            //parent: rootElement
+                            Element good = new Element("good");
                             rootElement.addContent(good);
-
-                            //parent: rootElement
-                            if (item.minPrice != null) {
-                                Element minPriceRestriction = new Element("min-price-restriction");
-                                setAttribute(minPriceRestriction, "id", "MP-" + (useIdItemInRestriction ? idItem : barcodeItem) + "-" + shopIndices);
-                                setAttribute(minPriceRestriction, "subject-type", "GOOD");
-                                setAttribute(minPriceRestriction, "subject-code", idItem);
-                                setAttribute(minPriceRestriction, "type", "MIN_PRICE");
-                                setAttribute(minPriceRestriction, "value", item.minPrice != null ? item.minPrice : BigDecimal.ZERO);
-                                addStringElement(minPriceRestriction, "since-date", currentDate());
-                                addStringElement(minPriceRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2051-01-01T23:59:59"));
-                                addStringElement(minPriceRestriction, "since-time", "00:00:00");
-                                addStringElement(minPriceRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
-                                addStringElement(minPriceRestriction, "deleted", item.minPrice.compareTo(BigDecimal.ZERO) != 0 ? "false" : "true");
-                                addStringElement(minPriceRestriction, "days-of-week", "MO TU WE TH FR SA SU");
-                                if (useShopIndices && !skipUseShopIndicesMinPrice)
-                                    addStringElement(minPriceRestriction, "shop-indices", shopIndices);
-                                rootElement.addContent(minPriceRestriction);
-                            }
-                                
-                            //parent: rootElement
-                            Element maxDiscountRestriction = new Element("max-discount-restriction");
-                            setAttribute(maxDiscountRestriction, "id", useIdItemInRestriction ? idItem : barcodeItem);
-                            setAttribute(maxDiscountRestriction, "subject-type", "GOOD");
-                            setAttribute(maxDiscountRestriction, "subject-code", idItem);
-                            setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
-                            setAttribute(maxDiscountRestriction, "value", "0");
-                            addStringElement(maxDiscountRestriction, "since-date", currentDate());
-                            addStringElement(maxDiscountRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2051-01-01T23:59:59"));
-                            addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
-                            addStringElement(maxDiscountRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
-                            addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
-                            if (useShopIndices)
-                                addStringElement(maxDiscountRestriction, "shop-indices", shopIndices);
-                            rootElement.addContent(maxDiscountRestriction);
-
-                            fillGoodElement(good, transaction, item, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
-                                    brandIsManufacturer, seasonIsCountry, infoJSON);
+                            fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
+                                    brandIsManufacturer, seasonIsCountry, infoJSON, false);
 
                             //parent: good
                             Element barcode = getBarcodeElement(item, barcodeItem, null, exportAmountForBarcode);
                             good.addContent(barcode);
-
-                            for(String deleteBarcode : deleteBarcodeList) {
-                                //parent: good
-                                Element deleteBarcodeElement = new Element("bar-code");
-                                setAttribute(deleteBarcodeElement, "code", deleteBarcode);
-                                setAttribute(deleteBarcodeElement, "deleted", true);
-                                good.addContent(deleteBarcodeElement);
-                            }
-
-                            if (notGTINPrefixes != null) {
-                                if (barcodeItem != null && barcodeItem.length() > 7) {
-                                    for (String notGTINPrefix : notGTINPrefixes) {
-                                        if (!barcodeItem.startsWith(notGTINPrefix)) {
-                                            barcode.setAttribute("barcode-type", "GTIN");
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-
-                            Element pluginProperty = new Element("plugin-property");
-                            setAttribute(pluginProperty, "key", "precision");
-                            setAttribute(pluginProperty, "value", (item.splitItem || item.passScalesItem) ? "0.001" : "1.0");
-                            good.addContent(pluginProperty);
+                            fillBarcodes(good, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem, false);
 
                             addPriceEntryElements(good, transaction, item, null, infoJSON, useSectionAsDepartNumber, null);
                         }
