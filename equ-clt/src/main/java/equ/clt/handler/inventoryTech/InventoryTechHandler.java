@@ -454,7 +454,15 @@ public class InventoryTechHandler extends TerminalHandler {
                 //{"batches": ["1","2","3"]}
                 JSONArray batches = extInfo.getJSONArray("batches");
                 for (int i = 0; i < batches.length(); i++) {
-                    itemsMap.put(batches.getString(i), item);
+                    JSONObject batch = batches.getJSONObject(i);
+
+                    String id = batch.getString("id");
+                    BigDecimal price = batch.getBigDecimal("price");
+                    String nameSku = batch.getString("nameSku");
+                    BigDecimal quantity = batch.getBigDecimal("quantity");
+
+                    itemsMap.put(id, new TerminalItem(item.idItem, item.idBarcode, nameSku, price, item.splitItem, item.daysExpiry, item.hoursExpiry, item.expiryDate,
+                            item.passScalesItem, item.vat, item.pluNumber, item.flags, item.idItemGroup, item.nameItemGroup, item.info, item.extraInfo, quantity, item.image));
                 }
             } else {
                 itemsMap.put(item.idBarcode, item);
