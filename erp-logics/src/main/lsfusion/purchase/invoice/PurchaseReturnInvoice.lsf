@@ -219,11 +219,13 @@ CONSTRAINT isPosted(Invoice i) AND isCharLength(operation(i)) AND NOT (length(nu
 
 fillBatch 'Проставить партию' ABSTRACT LIST (PurchaseReturn.UserInvoiceDetail) ASON CONTEXTMENU nameBatch[UserInvoiceDetail];
 beforeFillBatch ABSTRACT LIST (PurchaseReturn.UserInvoiceDetail);
+afterFillBatch ABSTRACT LIST (PurchaseReturn.UserInvoiceDetail);
+disableStandartFillBatch = ABSTRACT BOOLEAN (PurchaseReturn.UserInvoiceDetail);
 
 fillBatch (PurchaseReturn.UserInvoiceDetail d) + {
     beforeFillBatch(d);
-    batch(d) <- lastOrderBatchAvailable(sku(d), customerStock(d), quantity(d))
-        WHERE NOT batch(d);
+    batch(d) <- lastOrderBatchAvailable(sku(d), customerStock(d), quantity(d)) WHERE NOT batch(d) AND NOT disableStandartFillBatch(d);
+    afterFillBatch(d);
 }
 
 fillAllBatch 'Проставить партии для всех'(PurchaseReturn.UserInvoiceDetail detail)  {

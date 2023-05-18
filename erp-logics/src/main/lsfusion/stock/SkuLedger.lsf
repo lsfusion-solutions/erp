@@ -1810,3 +1810,67 @@ DESIGN options {
 
 CONSTRAINT SET (isPosted(SkuLedger l) AND NOT dateTime(l))  AND checkDateTimeSkuLedger()
     MESSAGE 'Для регистра движения должна быть задана дата/время';
+
+META fillBatchSeveralLines (typeDetail, nameDocumentProperty, nameStockProperty, fifoLifo, order)
+
+    fillLineFromExample##fifoLifo ABSTRACT LIST (typeDetail, typeDetail, Batch, NUMERIC[16,5]);
+
+    fillBatchSeveralLines##fifoLifo 'Распределить партии по '##fifoLifo##' с разбиением строк' (typeDetail d) {
+        LOCAL qty = NUMERIC[16,5] (Batch);
+        qty(Batch batch) <- prevAvailableQuantity(batch, nameStockProperty(d)) IF prevAvailableQuantity(batch, nameStockProperty(d)) > 0 AND skuLedger(batch, nameStockProperty(d)) = sku(d);
+
+        LOCAL qtySpreading = NUMERIC[16,5] ();
+        LOCAL qtySpreaded = NUMERIC[16,5] ();
+
+        qtySpreading() <- GROUP SUM quantity(typeDetail detail) IF nameDocumentProperty(detail) = nameDocumentProperty(d) AND sku(detail) = sku(d);
+        quantity(d) <- NULL;
+
+        // Оставляем только одну строку с текущей номенклатурой, будем использовать ее как образец
+        FOR typeDetail detail AND nameDocumentProperty(detail) = nameDocumentProperty(d) AND detail != d AND sku(detail) = sku(d) DO {
+            DELETE detail;
+        }
+
+        FOR qtySpreading() > 0 AND qty(Batch batch) > 0 ORDER ###order dateTime(batch), batch DO {
+
+            qtySpreaded() <- MIN qtySpreading(), qty(batch);
+
+            IF NOT quantity(d) THEN {
+                // Первая строка
+                fillLineFromExample##fifoLifo(d, d, batch, qtySpreaded());
+            }
+            ELSE NEW newDetail = typeDetail {
+                fillLineFromExample##fifoLifo(d, newDetail, batch, qtySpreaded());
+            }
+
+            qtySpreading() <- qtySpreading() - qtySpreaded();
+
+            IF qtySpreading() = 0 THEN BREAK;
+        }
+        IF qtySpreading() > 0 THEN NEW newDetail = typeDetail {
+            fillLineFromExample##fifoLifo(d, newDetail, NULL, qtySpreading());
+        }
+    }
+    // В процедуру вынесено только заполнение основных реквизитов, если нужно заполнить что-то еще - дополняем процедуру имплементацией
+    fillLineFromExample##fifoLifo (typeDetail detailFrom, typeDetail detailTo, Batch batch, NUMERIC[16,5] quantity) + {
+
+        quantity(detailTo) <- quantity;
+        batch(detailTo) <- batch;
+        sku(detailTo) <- sku(detailFrom);
+
+        nameDocumentProperty(detailTo) <- nameDocumentProperty(detailFrom) WHERE detailTo IS typeDetail AND NOT nameDocumentProperty(detailTo);
+
+    }
+
+END
+
+META fillBatchSeveralLinesFIFO (typeDetail, nameDocumentProperty, nameStockProperty)
+    
+   @fillBatchSeveralLines (typeDetail, nameDocumentProperty, nameStockProperty, FIFO, );
+    
+END
+
+META fillBatchSeveralLinesLIFO (typeDetail, nameDocumentProperty, nameStockProperty)
+
+    @fillBatchSeveralLines (typeDetail, nameDocumentProperty, nameStockProperty, LIFO, dESC);
+    
+END 
