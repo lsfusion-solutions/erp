@@ -54,9 +54,13 @@ waybillId 'Номер путевого листа' = DATA STRING[70] (EInvoice);
 useFullNameLegalEntity = DATA BOOLEAN (EInvoice); //временно для перехода чтобы для старых документов не ругалось при отмене 
 useFullNameLegalEntity(EInvoice i) <- TRUE WHEN SET(i IS EInvoice);
 
+dataGLNeInvoice 'GLN для накладных' = DATA STRING[13] (LegalEntity);
+GLNeInvoice 'GLN для накладных' (LegalEntity l) = OVERRIDE dataGLNeInvoice(l), GLN(l);
+legalEntityGLNeInvoice (legalEntity) = GROUP AGGR LegalEntity llegalEntity BY GLNeInvoice(llegalEntity);
+
 supplier 'Поставщик' = DATA LegalEntity (EInvoice);
 dataGLNSupplier = DATA STRING[13] (EInvoice);
-glnSupplier 'GLN поставщика' (EInvoice i) = OVERRIDE GLN(supplier(i)), extraGLN(supplier(i)), dataGLNSupplier(i);
+glnSupplier 'GLN поставщика' (EInvoice i) = OVERRIDE GLNeInvoice(supplier(i)), extraGLN(supplier(i)), dataGLNSupplier(i);
 dataNameSupplier = DATA STRING[150] (EInvoice);
 nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE IF useFullNameLegalEntity(i) THEN fullName(supplier(i)) ELSE name(supplier(i)), dataNameSupplier(i);
 dataAddressSupplier = DATA STRING[150] (EInvoice);
@@ -391,7 +395,7 @@ nameEDIProviderInvoice 'EDI-провайдер для накладных' (Legal
 
 EXTEND FORM legalEntity
     PROPERTIES (eCom) READONLY UNP
-    PROPERTIES nameEDIProviderInvoice(l, eCom);
+    PROPERTIES nameEDIProviderInvoice(l, eCom), GLNeInvoice(l) DRAW eCom;
 
 DESIGN legalEntity {
     EDI {
