@@ -296,6 +296,13 @@ EXTEND FORM receiveMessage PROPERTIES typePartner(partner) IN keyProperties EXTI
 
 // workaround для совместимости 1.6 -> 1.5
 META defPartner(nm, class, group, extid)
+
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Partner EXTID extid IN group
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+        FILTERS nm###class = nm(class, configuration)
+    ;
+    
     uid###nm###class = DATA LOCAL ISTRING[36] (INTEGER);
     name###nm###class = DATA LOCAL STRING (INTEGER);
     fullName###nm###class = DATA LOCAL STRING (INTEGER);
@@ -695,6 +702,21 @@ EXTEND FORM receiveMessage
 @defPropObject(partner, 'Контрагент', Partner, purchaseInvoice);
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseInvoice);
 
+META defPurchaseInvoice(nm, class, extid)
+    
+    @defKeyPropSimple(uidPurchaseInvoice, 'Ссылка', ISTRING[36], purchaseInvoice, class);
+    uidPurchaseInvoice(###class nm, Configuration configuration) += sendUid(nm(nm, configuration), configuration);
+    @defKeyPropDate(datePurchaseInvoice, 'Дата', purchaseInvoice, class);
+    datePurchaseInvoice(###class nm, Configuration configuration) += date(nm(nm, configuration), configuration);
+    @defKeyPropSimple(idPurchaseInvoice, 'Номер', STRING[256], purchaseInvoice, class);
+    idPurchaseInvoice(###class nm, Configuration configuration) += STRING[256](id(nm(nm, configuration), configuration));
+    @defKeyPropObject(companyPurchaseInvoice, 'Организация', Company, purchaseInvoice, class);
+    companyPurchaseInvoice(###class nm, Configuration configuration) += company(nm(nm, configuration), configuration);
+    @defKeyPropObject(partnerPurchaseInvoice, 'Контрагент', Partner, purchaseInvoice, class);
+    partnerPurchaseInvoice(###class nm, Configuration configuration) += partner(nm(nm, configuration), configuration);
+
+END
+
 //purchase order
 orderPurchaseInvoice = DATA LOCAL INTEGER (INTEGER);
 uidOrderPurchaseInvoice 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
@@ -1076,6 +1098,9 @@ EXTEND FORM receiveMessage
 @defPropObject(partner, 'Контрагент', Partner, purchaseReturnInvoice);
 
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseReturnInvoice);
+
+@defPropObject(purchaseInvoice, 'ДокументПоступления', PurchaseInvoice, purchaseReturnInvoice);
+
 @defPropSimple(note, 'Комментарий', STRING, purchaseReturnInvoice);
 
 @extTable(purchaseReturnInvoice, product);
