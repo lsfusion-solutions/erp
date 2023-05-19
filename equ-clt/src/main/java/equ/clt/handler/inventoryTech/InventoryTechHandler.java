@@ -451,7 +451,7 @@ public class InventoryTechHandler extends TerminalHandler {
         for (TerminalItem item : transaction.itemsList) {
             JSONObject extInfo = getExtInfo(item.extraInfo);
             if(extInfo != null && extInfo.has("batches")) {
-                //{"batches": ["1","2","3"]}
+                //{"inventory": {"batches":[{"id": "1", "price": 27.82, "nameSku": "Tablet", "quantity": 1.00000}]}}
                 JSONArray batches = extInfo.getJSONArray("batches");
                 for (int i = 0; i < batches.length(); i++) {
                     JSONObject batch = batches.getJSONObject(i);
