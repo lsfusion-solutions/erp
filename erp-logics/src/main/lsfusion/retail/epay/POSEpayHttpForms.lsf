@@ -142,7 +142,8 @@ httpHeaders(TEXT name) = CASE
     WHEN name = 'token' THEN currentToken()
 ;
 
-httpHeaders() = GROUP CONCAT (CONCAT ': ', TEXT name, httpHeaders(name)) IF httpHeaders(name), '' ORDER name;;
+httpHeaders() = GROUP CONCAT (CONCAT ': ', TEXT name, httpHeaders(name)) IF httpHeaders(name), '' ORDER name;
+httpHeadersToken() = GROUP CONCAT (CONCAT ': ', TEXT name, httpHeadersToken(name)) IF httpHeadersToken(name), '' ORDER name;
 
 // token
 setToken (CashRegister c, STRING[36] t) {
@@ -314,18 +315,18 @@ paymentStatus(Payment p) {
         resultHttp() <- NULL;
         logToFile('epay', 'Статус платежа');
         logToFile('epay', 'Заголовки (перед):');
-        logToFile('epay', httpHeaders());
+        logToFile('epay', httpHeadersToken());
 
         EXTERNAL HTTP GET 'https://' + calcAddressRequest() + '/pos/payments/' + STRING(paymentId(p)) HEADERS httpHeadersToken TO resultHttp;
 
         setPaymentStatus(p, resultHttp());
     } CATCH {
-        //errorEpay(resultHttp());
+        errorEpay(resultHttp());
         logToFile('epay', 'Сервер вернул сообщение об ошибке:');
     } FINALLY {
-        logToFile('epay', 'Запрос GET /pos/payments/');
+        logToFile('epay', 'Запрос GET /pos/payments/' + STRING(paymentId(p)));
         logToFile('epay', 'Заголовки (после):');
-        logToFile('epay', httpHeaders());
+        logToFile('epay', httpHeadersToken());
         fileToString(FILE(resultHttp()));
         logToFile('epay', CONCAT '\\n', 'Тело ответа:', resultString());
         
@@ -335,7 +336,8 @@ paymentStatus(Payment p) {
 waitPaymentStatus (Payment p) {
     conn() <- currentConnection();
     currentPayment() <- p;
-    NEWTHREAD {
+    NEWTHREAD { 
+        sleep(5000);
         WHILE currentStatusPayment() == StatusPayment.inProgress AND NOT returnPost() DO {
             paymentStatus(currentPayment());
             sleep(5000);        
@@ -344,7 +346,7 @@ waitPaymentStatus (Payment p) {
             NEWTHREAD formClose(); CONNECTION conn();
         }
     }
-}
+} WAIT;
 
 FORM paymentStatus 'Статус платежа' AUTOREFRESH 1
     OBJECTS p = Payment PANEL
@@ -401,7 +403,7 @@ paymentEpay (Payment p) {
     } CATCH {
         errorEpay(result());
     }
-}
+} WAIT;
 
 //asyncPaymentEpay (Receipt r) {
 //    currentRegNum() <- regNum(cashRegister(r));
