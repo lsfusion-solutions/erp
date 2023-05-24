@@ -11,12 +11,20 @@ numberCashBookList 'Лист кассовой книги' (IncomeCashOrder o) = 
 countIncome 'Приход' (CashBookList l) = GROUP SUM 1 BY cashBookList(IncomeCashOrder o) MATERIALIZED;
 sumIncome 'Приход' (CashBookList l) = GROUP SUM sumCash(IncomeCashOrder o) BY cashBookList(o) MATERIALIZED;
 
+filterDateFromZreport (IncomeCashOrder c) = date(c) >= filterZReportDateFrom() OR (c IS IncomeCashOrder AND NOT filterZReportDateFrom());
+filterDateToZreport (IncomeCashOrder c) = date(c) <= filterZReportDateTo() OR (c IS IncomeCashOrder AND NOT filterZReportDateTo());
+filterDepartmentStore (IncomeCashOrder c) = departmentStore(c) == filterZReportDepartmentStore() OR (c IS IncomeCashOrder AND NOT filterZReportDepartmentStore());
+
 EXTEND FORM cashBooks
     PROPERTIES(l) READONLY sumIncome
     
     OBJECTS o = IncomeCashOrder
     PROPERTIES(o) READONLY number, series, date, time, nameLegalEntity, nameDepartmentStore, basis, nameOperation, sumCash, numberCashBookList
     PROPERTIES(o) NEWSESSION 'Изъятие наличных из ККМ' = NEW[OutcomeCashOperation], 'Приход наличных' = NEW[CashIncome], EDIT, DELETE
+
+    FILTERS filterDateFromZreport(o),
+        filterDateToZreport(o),
+        filterDepartmentStore(o)
 ;
 
 DESIGN cashBooks {

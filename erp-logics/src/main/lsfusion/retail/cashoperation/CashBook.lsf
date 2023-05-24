@@ -59,14 +59,39 @@ DESIGN cashBookList {
     }
 }
 
+filterZReportDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFromZreport (CashBookList c) = date(c) >= filterZReportDateFrom() OR (c IS CashBookList AND NOT filterZReportDateFrom());
+
+filterZReportDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateToZreport (CashBookList c) = date(c) <= filterZReportDateTo() OR (c IS CashBookList AND NOT filterZReportDateTo());
+
+filterZReportDepartmentStore  = DATA LOCAL DepartmentStore ();
+nameFilterZReportDepartmentStore 'Отдел магазина' = name(filterZReportDepartmentStore()) CHARWIDTH 15;
+filterDepartmentStore (CashBookList c) = departmentStore(c) == filterZReportDepartmentStore() OR (c IS CashBookList AND NOT filterZReportDepartmentStore());
+
 FORM cashBooks 'Кассовые книги'
+    
+    PROPERTIES ()  filterZReportDateFrom, filterZReportDateTo, nameFilterZReportDepartmentStore
+    
     OBJECTS l = CashBookList
     PROPERTIES(l) READONLY listNumber, date, time, nameDepartmentStore, nameEmployee, note
     PROPERTIES(l) NEWSESSION NEW, EDIT, DELETE
+
+    FILTERS filterDateFromZreport(l),
+        filterDateToZreport(l),
+        filterDepartmentStore(l)
 ;
 
 DESIGN cashBooks {
-    NEW tabbedPane FIRST {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        caption = 'Фильтры';
+        type = CONTAINERH;
+        MOVE PROPERTY(filterZReportDateFrom());
+        MOVE PROPERTY(filterZReportDateTo());
+        MOVE PROPERTY(nameFilterZReportDepartmentStore());
+    }
+    NEW tabbedPane AFTER filters {
         fill = 1;
         type = TABBED;
         MOVE BOX(l) {
