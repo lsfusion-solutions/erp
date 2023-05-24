@@ -297,11 +297,11 @@ EXTEND FORM receiveMessage PROPERTIES typePartner(partner) IN keyProperties EXTI
 // workaround для совместимости 1.6 -> 1.5
 META defPartner(nm, class, group, extid)
 
-    EXTEND FORM sendMessage
-        OBJECTS nm###class = Partner EXTID extid IN group
-        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-        FILTERS nm###class = nm(class, configuration)
-    ;
+//    EXTEND FORM sendMessage
+//        OBJECTS nm###class = Partner EXTID extid IN group
+//        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+//        FILTERS nm###class = nm(class, configuration)
+//    ;
     
     uid###nm###class = DATA LOCAL ISTRING[36] (INTEGER);
     name###nm###class = DATA LOCAL STRING (INTEGER);
@@ -1266,6 +1266,27 @@ EXTEND FORM receiveMessage
 @defPropSimple(document, 'ПоДокументу', STRING, outcomeCashOrderBank);
 @defPropSimple(appendix, 'Приложение', STRING, outcomeCashOrderBank);
 @defPropSimple(chief, 'Руководитель', STRING, outcomeCashOrderBank);
+
+CLASS ABSTRACT OutcomeCashOrderBankAdditionalDetails : OutcomeCashOrderBankDetail;
+
+isAdditionalDetails = ABSTRACT BOOLEAN (OutcomeCashOrderBankAdditionalDetails, Configuration);
+
+EXTEND FORM sendMessage  
+    OBJECTS outcomeCashOrderBankAdditionalDetails = OutcomeCashOrderBankAdditionalDetails EXTID 'Свойство' IN additionalDetails
+    FILTERS in(outcomeCashOrderBank, outcomeCashOrderBankAdditionalDetails, configuration), isAdditionalDetails(outcomeCashOrderBankAdditionalDetails, configuration)
+;
+
+outcomeCashOrderBankAdditionalDetails = DATA LOCAL INTEGER (INTEGER);
+calcIndexOutcomeCashOrderBankAdditionalDetails (INTEGER detailIndex, INTEGER docIndex) = PARTITION SUM 1 IF outcomeCashOrderBankAdditionalDetails(detailIndex) = docIndex ORDER detailIndex BY outcomeCashOrderBankAdditionalDetails(detailIndex);
+indexOutcomeCashOrderBankAdditionalDetails = DATA LOCAL INTEGER (INTEGER, INTEGER);
+
+EXTEND FORM receiveMessage
+    OBJECTS outcomeCashOrderBankAdditionalDetails = INTEGER EXTID 'Свойство' IN additionalDetails
+    FILTERS outcomeCashOrderBankAdditionalDetails(outcomeCashOrderBankAdditionalDetails) = outcomeCashOrderBank
+;
+
+
+@defPropSimpleDetail(name, 'Наименование', STRING, outcomeCashOrderBank, additionalDetails);
 
 @extDocument(outcomeCashOrderOther, 'РКОПрочийРасход');
 @defPropObject(currency, 'Валюта', Currency, outcomeCashOrderOther, commonData);
