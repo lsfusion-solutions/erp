@@ -18,6 +18,10 @@ dateTimeUploaded 'Загруженно в Set10' = DATA DATETIME (Employee);
 customLocked = ABSTRACT CASE BOOLEAN (Employee);
 blockedSeller (Employee e) = OVERRIDE customLocked(e), isLocked(e);
 
+WHEN SETCHANGED (lastName(Employee e)) OR CHANGED (firstName(e))
+    OR CHANGED (idBarcode(e)) OR SETCHANGED (blockedSeller(e)) OR DROPCHANGED (blockedSeller(e)) 
+    DO dateTimeUploaded(e) <- NULL;
+
 EXTEND FORM employees
     PROPERTIES dateTimeUploaded(e) READONLY
 ;
@@ -48,47 +52,59 @@ GROUP importSellersResponse
 FORM answerSellers FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES() IN importSellersResponse return;
 
+count = GROUP SUM 1 IF in(Employee e);
+
 uploadSellersSet10 'Выгрузить продавцов' (){
+    EXPORT sellers XML;
+    fileToString(exportFile());
+    encodeBase64(resultString());
+    logToFile('set10Seller', resultString());
+    xmlBase64Data()<- encodedBase64();
+    LOCAL headersSet = STRING (STRING);
+    headersSet('Content-Type') <- 'application/xml';
+    generateUUID();
+    TI() <- generatedUUID();
+    EXPORT requestSellers XML;
+    LOCAL answer = FILE();
+    TRY{
+        EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SellersImportWS' HEADERS headersSet PARAMS exportFile() TO answer;
+        IMPORT answerSellers XML FROM answer();
+        fileToString(answer());
+        IF return() = 'true' THEN {
+            MESSAGE 'Успешно выгружен справочник продавцов.\nПродавцы: ' + count() NOWAIT;
+            dateTimeUploaded(Employee e) <- currentDateTime() WHERE in(e);
+            APPLY;
+        }
+        ELSE MESSAGE CONCAT '\n', 'Произошла ошибка', resultString();
+    }
+        CATCH {
+        fileToString(answer());
+        MESSAGE CONCAT '\n', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
+uploadAllSellersSet10 'Выгрузить всех продавцов' (){
     NEWSESSION {
         in(Employee e) <- TRUE IF idBarcode(e) AND isSeller(e);
-        LOCAL count = INTEGER ();
-        count() <- GROUP SUM 1 IF in(Employee e);
         IF NOT count() THEN {
             MESSAGE 'Нет продавцов для выгрузки';
             RETURN;
-        }
-        EXPORT sellers XML;
-        fileToString(exportFile());
-        encodeBase64(resultString());
-        logToFile('set10Seller', resultString());
-        xmlBase64Data()<- encodedBase64();
-        LOCAL headersSet = STRING (STRING);
-        headersSet('Content-Type') <- 'application/xml';
-        generateUUID();
-        TI() <- generatedUUID();
-        EXPORT requestSellers XML;
-        LOCAL answer = FILE();
-        TRY{
-            EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SellersImportWS' HEADERS headersSet PARAMS exportFile() TO answer;
-            IMPORT answerSellers XML FROM answer();
-            fileToString(answer());
-            IF return() = 'true' THEN {
-                MESSAGE 'Успешно выгружен справочник продавцов.\nПродавцы: ' + count() NOWAIT;
-                dateTimeUploaded(Employee e) <- currentDateTime() WHERE in(e);
-                APPLY;
-            }
-            ELSE MESSAGE CONCAT '\n', 'Произошла ошибка', resultString();
-        }
-        CATCH {
-            fileToString(answer());
-            MESSAGE CONCAT '\n', messageCaughtException(), resultString();
-            APPLY;
+        }ELSE {
+            uploadSellersSet10();
         }
     }
 }
+uploadChangedSellersSet10 'Выгрузить продавцов(изм)' (){
+    NEWSESSION {
+        in(Employee e) <- TRUE IF idBarcode(e) AND isSeller(e) AND NOT dateTimeUploaded(e);
+        IF count() THEN uploadSellersSet10();
+    }
+}
+
 fillSellerReceipt 'Заполнять продавцов в чеках' = DATA BOOLEAN () PREREAD;
 EXTEND FORM integrationData
-    PROPERTIES() uploadSellersSet10, useShopIndex, fillSellerReceipt
+    PROPERTIES() uploadAllSellersSet10, uploadChangedSellersSet10, useShopIndex, fillSellerReceipt
 ;
 
 DESIGN integrationData{
@@ -96,7 +112,8 @@ DESIGN integrationData{
         NEW sellersSet10{
             caption = 'Продавцы';
             MOVE PROPERTY (useShopIndex());
-            MOVE PROPERTY (uploadSellersSet10());
+            MOVE PROPERTY (uploadAllSellersSet10());
+            MOVE PROPERTY (uploadChangedSellersSet10());
             MOVE PROPERTY (fillSellerReceipt());
         }
     }
