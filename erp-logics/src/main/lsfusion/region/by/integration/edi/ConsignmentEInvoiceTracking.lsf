@@ -12,5 +12,15 @@ overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
     deliveryNotePrevLineID(eid) <- (OVERRIDE numberEInvoiceDetail(invoiceDetail(batch(cd))), index(invoiceDetail(batch(cd))))  IF isTracking(sku(cd));
     quantityDespatchedSPT(eid) <- (OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](packQuantity(cd)), 1.0) IF isTracking(sku(cd));
     lineItemQuantitySPT(eid) <- (OVERRIDE trackingUOM(sku(cd)), '796') IF isTracking(sku(cd));
-    lineItemPriceSPT(eid) <-   NUMERIC[12,2](price(cd)) IF isTracking(sku(cd));
+    lineItemPriceSPT(eid) <- (OVERRIDE lineItemPriceSPT(eInvoiceDetail(invoiceDetail(batch(cd)))), NUMERIC[12,2](price(cd))) IF isTracking(sku(cd));
 }
+
+EXTEND FORM eInvoices 
+    PROPERTIES(d) READONLY deliveryTypePrev, deliveryNotePrev, deliveryNoteDatePrev, deliveryNotePrevLineID, 
+                           lineItemPriceSPT, lineItemQuantitySPT, quantityDespatchedSPT
+;
+
+EXTEND FORM eInvoice
+    PROPERTIES(ed) deliveryTypePrev, deliveryNotePrev, deliveryNoteDatePrev, deliveryNotePrevLineID,
+                   lineItemPriceSPT, lineItemQuantitySPT, quantityDespatchedSPT
+; 
