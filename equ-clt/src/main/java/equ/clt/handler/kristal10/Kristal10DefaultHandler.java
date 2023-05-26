@@ -146,7 +146,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             }
 
             if (infoJSON.has("weight")) {
-                addStringElement(good, "weight", infoJSON.getString("weight"));
+                addIntegerElement(good, "weight", infoJSON.getInt("weight"));
             }
         }
     }
