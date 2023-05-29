@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.trim;
 
 public class MassaKRL10Handler extends MultithreadScalesHandler {
@@ -539,7 +540,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
                             int count = 0;
                             for (ScalesItem item : transaction.itemsList) {
                                 count++;
-                                if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                                if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                         int attempts = 0;
@@ -569,7 +570,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
                             int count = 0;
                             for (ScalesItem item : transaction.itemsList) {
                                 count++;
-                                if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                                if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending plu #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                         int attempts = 0;

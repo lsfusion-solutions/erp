@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 import static equ.clt.EquipmentServer.localDateToSqlDate;
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
 
 public class ShtrihPrintHandler extends DefaultScalesHandler {
@@ -124,7 +125,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                             Set<Integer> usedPLUNumberSet = new HashSet<>();
                                             for (ScalesItem item : transaction.itemsList) {
 
-                                                if (!Thread.currentThread().isInterrupted()) {
+                                                if (notInterruptedTransaction(transaction.id)) {
 
                                                     Integer pluNumber = pluNumbers.get(item.idItem);
 
@@ -193,7 +194,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                 String secondLine = "";
                                                 String message = "";
                                                 for (int i = 1; i <= advancedClearMaxPLU; i++)
-                                                    if (!Thread.currentThread().isInterrupted() && !usedPLUNumberSet.contains(i)) {
+                                                    if(notInterruptedTransaction(transaction.id) && !usedPLUNumberSet.contains(i)) {
                                                         int error;
                                                         int attempt = 0;
                                                         List<String> itemErrors;

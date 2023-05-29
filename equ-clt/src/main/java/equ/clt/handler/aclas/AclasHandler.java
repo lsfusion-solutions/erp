@@ -5,7 +5,6 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.Pair;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
@@ -20,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static equ.clt.handler.HandlerUtils.trim;
 
@@ -308,7 +308,7 @@ public class AclasHandler extends MultithreadScalesHandler {
                             int count = 0;
                             for (ScalesItem item : transaction.itemsList) {
                                 count++;
-                                if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                                if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                         Boolean result = loadPLU(udpPort, scales, item) && (!loadMessages || loadMessage(udpPort, item));

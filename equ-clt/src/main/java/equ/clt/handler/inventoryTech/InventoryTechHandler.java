@@ -27,6 +27,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.DBFUtils.*;
 import static equ.clt.handler.HandlerUtils.safeDelete;
 
@@ -65,7 +66,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 }
 
                 for (String path : directorySet) {
-                    if (!Thread.currentThread().isInterrupted()) {
+                    if (notInterruptedTransaction(((TransactionInfo) transaction).id)) {
                         File directory = new File(path);
                         if (!directory.exists() && !directory.mkdir())
                             processTransactionLogger.info("Failed to create directory " + directory.getAbsolutePath());
@@ -334,7 +335,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     for (Map.Entry<String, TerminalItem> itemEntry : getItemsMap(transaction).entrySet()) {
                         String article = itemEntry.getKey();
                         TerminalItem item = itemEntry.getValue();
-                        if (!Thread.currentThread().isInterrupted()) {
+                        if (notInterruptedTransaction(transaction.id)) {
                             if (!usedArticles.contains(article)) {
                                 Integer recordNumber = null;
                                 if (append) {
@@ -410,7 +411,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
                     Set<String> usedArticles = new HashSet<>();
                     for (Map.Entry<String, TerminalItem> itemEntry : getItemsMap(transaction).entrySet()) {
-                        if (!Thread.currentThread().isInterrupted()) {
+                        if (notInterruptedTransaction(transaction.id)) {
                             String article = itemEntry.getKey();
                             TerminalItem item = itemEntry.getValue();
                             if (!usedArticles.contains(article)) {
@@ -523,7 +524,7 @@ public class InventoryTechHandler extends TerminalHandler {
                     Set<String> usedCodes = new HashSet<>();
                     putNumField(dbfWriter, VIDSPR, 10, append);
                     for (TerminalLegalEntity le : transaction.terminalLegalEntityList) {
-                        if (!Thread.currentThread().isInterrupted()) {
+                        if (notInterruptedTransaction(transaction.id)) {
                             if (!usedCodes.contains(le.idLegalEntity)) {
                                 Integer recordNumber = null;
                                 if (append) {
@@ -608,7 +609,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
                     Set<String> usedCodes = new HashSet<>();
                     for (TerminalDocumentType tdt : transaction.terminalDocumentTypeList) {
-                        if (!Thread.currentThread().isInterrupted()) {
+                        if (notInterruptedTransaction(transaction.id)) {
                             if (!usedCodes.contains(tdt.id)) {
                                 Integer recordNumber = null;
                                 if (append) {

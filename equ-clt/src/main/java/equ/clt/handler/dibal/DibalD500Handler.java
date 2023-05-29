@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.*;
 
 public class DibalD500Handler extends MultithreadScalesHandler {
@@ -447,7 +448,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
                         int count = 0;
                         Set<String> loadedGroups = new HashSet<>();
                         for (ScalesItem item : transaction.itemsList) {
-                            if (!Thread.currentThread().isInterrupted()) {
+                            if (notInterruptedTransaction(transaction.id)) {
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, ++count, item.idBarcode, transaction.itemsList.size()));
                                 loadItem(port, loadedGroups, item);
                             } else break;

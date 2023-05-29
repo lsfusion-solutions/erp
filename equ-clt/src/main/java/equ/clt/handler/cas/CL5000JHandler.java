@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
 
 public class CL5000JHandler extends MultithreadScalesHandler {
@@ -89,7 +90,7 @@ public class CL5000JHandler extends MultithreadScalesHandler {
                         int count = 0;
                         for (ScalesItem item : transaction.itemsList) {
                             count++;
-                            if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                            if (notInterruptedTransaction(transaction.id) && globalError < 5) {
 
                                 int barcode = getBarcode(item);
                                 int pluNumber = getPluNumber(item.pluNumber, barcode);

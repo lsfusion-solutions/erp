@@ -30,6 +30,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterrupted;
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.*;
 import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
@@ -231,24 +233,34 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             checkItems(params, transaction.itemsList, transaction.id);
 
-                            Integer grpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "GRP");
-                            exportGrp(conn, params, transaction, maxBatchSize, grpUpdateNum);
+                            if (notInterruptedTransaction(transaction.id)) {
+                                Integer grpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "GRP");
+                                exportGrp(conn, params, transaction, maxBatchSize, grpUpdateNum);
+                            }
 
-                            Integer artUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
-                            exportArt(conn, params, transaction.itemsList, false, false, maxBatchSize, artUpdateNum);
+                            if (notInterruptedTransaction(transaction.id)) {
+                                Integer artUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
+                                exportArt(conn, params, transaction.itemsList, false, false, maxBatchSize, artUpdateNum);
+                            }
 
-                            Integer unitUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
-                            exportUnit(conn, params, transaction.itemsList, false, maxBatchSize, unitUpdateNum);
+                            if (notInterruptedTransaction(transaction.id)) {
+                                Integer unitUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
+                                exportUnit(conn, params, transaction.itemsList, false, maxBatchSize, unitUpdateNum);
+                            }
 
-                            Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
-                            exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
-                            astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
-                            exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, packUpdateNum);
+                            if (notInterruptedTransaction(transaction.id)) {
+                                Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
+                                exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
+                                astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
+                                exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, packUpdateNum);
+                            }
 
-                            Integer exBarcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
-                            exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize, exBarcUpdateNum);
-                            astronLogger.info(String.format("transaction %s, table exbarc delete", transaction.id));
-                            exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, exBarcUpdateNum);
+                            if (notInterruptedTransaction(transaction.id)) {
+                                Integer exBarcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
+                                exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize, exBarcUpdateNum);
+                                astronLogger.info(String.format("transaction %s, table exbarc delete", transaction.id));
+                                exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, exBarcUpdateNum);
+                            }
 
                             Set<Integer> hasExtraPrices = getHasExtraPrices(transaction);
 
@@ -693,7 +705,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             Set<Integer> idItems = new HashSet<>();
             int batchCount = 0;
             for (ItemInfo item : itemsList) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     Integer idUOM = parseUOM(item.idUOM);
                     Integer idItem = parseIdItem(item);
                     List<Integer> packIds = getPackIds(item);
@@ -810,7 +822,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             Set<Integer> idItems = new HashSet<>();
             int batchCount = 0;
             for (CashRegisterItem item : usedDeleteBarcodeList) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     Integer idItem = parseIdItem(item);
                     Integer packId = getPackId(item);
                     if(params.pgsql) {
@@ -909,7 +921,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
             int batchCount = 0;
             for (ItemInfo item : itemsList) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     if (item.idBarcode != null) {
 
                         List<Integer> packIds = getPackIds(item);
@@ -961,7 +973,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
             int batchCount = 0;
             for (CashRegisterItem item : usedDeleteBarcodeList) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     if (item.idBarcode != null) {
                         Integer packId = getPackId(item);
                         if(params.pgsql) {
@@ -1009,7 +1021,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
             int batchCount = 0;
             for (int i = 0; i < transaction.itemsList.size(); i++) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     CashRegisterItem item = transaction.itemsList.get(i);
                     JSONObject infoJSON = getExtInfo(item.info);
                     if (item.price != null) {
@@ -1194,7 +1206,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
             int batchCount = 0;
             for (CashRegisterItem item : usedDeleteBarcodeList) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     Integer packId = getPackId(item);
                     if(params.pgsql) {
                         setObject(ps, packId, 1); //PACKID
@@ -1252,7 +1264,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             int itemCount = 0;
             for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                 itemCount++;
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     List<Integer> packIds = getPackIds(item);
                     for (Integer packId : packIds) {
                         packIdCount++;
@@ -1396,7 +1408,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             int offset = columns.length + keys.length;
 
             for (DiscountCard discountCard : discountCardList) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     Integer clientId = getClientId(discountCard);
                     boolean isPayment = isSocial(discountCard);
                     if(params.pgsql) {
@@ -1437,7 +1449,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             int offset = columns.length + keys.length;
 
             for (DiscountCard d : discountCardList) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     Integer clientId = getClientId(d);
                     Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
                     String clientName = nvl(trim(d.nameDiscountCard, 50), "");
@@ -1536,7 +1548,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             Integer clientFormId = 1;
             int questionId = 0;
             for (String question : new String[] {"Тип удостоверения", "Номер удостоверения", "Срок действия удостоверения", "Признак социальная карта"}) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     questionId++;
                     if(params.pgsql) {
                         setObject(ps, clientFormId, 1); //CLNTFORMID
@@ -1574,7 +1586,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             int offset = columns.length + keys.length;
 
             for (DiscountCard d : discountCardList) {
-                if (!Thread.currentThread().isInterrupted()) {
+                if (notInterrupted()) {
                     JSONObject infoJSON = getExtInfo(d.extInfo);
                     if(infoJSON != null) {
                         JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");

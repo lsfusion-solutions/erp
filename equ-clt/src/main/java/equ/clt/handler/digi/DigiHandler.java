@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
 
 public class DigiHandler extends MultithreadScalesHandler {
@@ -80,7 +81,7 @@ public class DigiHandler extends MultithreadScalesHandler {
                         int count = 0;
                         for (ScalesItem item : transaction.itemsList) {
                             count++;
-                            if (!Thread.currentThread().isInterrupted() && globalError < 3) {
+                            if (notInterruptedTransaction(transaction.id) && globalError < 3) {
                                 processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                 Integer pluNumber = getPlu(item);
                                 if(item.idBarcode.length() <= 5) {

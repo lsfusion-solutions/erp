@@ -41,6 +41,7 @@ import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static equ.clt.handler.HandlerUtils.*;
 
 public class Kristal10WebHandler extends Kristal10DefaultHandler {
@@ -134,40 +135,43 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                 for (String directory : directoriesList) {
 
-                    DeleteBarcode usedDeleteBarcodes = new DeleteBarcode(transaction.nppGroupMachinery, directory);
+                    if(notInterruptedTransaction(transaction.id)) {
 
-                    List<String> xmlList = new ArrayList<>();
-                    xmlList.add(docToXMLString(generateCatalogGoodsItemsXML(transaction, brandIsManufacturer, seasonIsCountry, idItemInMarkingOfTheGood, skipWeightPrefix,
-                            skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices)));
-                    xmlList.add(docToXMLString(generateCatalogGoodsBarcodesXML(transaction, deleteBarcodeDirectoryMap.get(directory), usedDeleteBarcodes, idItemInMarkingOfTheGood,
-                            skipWeightPrefix, notGTINPrefixes, exportAmountForBarcode)));
-                    xmlList.add(docToXMLString(generateCatalogGoodsPricesXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useSectionAsDepartNumber, useShopIndices,
-                            weightShopIndices, useNumberGroupInShopIndices)));
-                    xmlList.add(docToXMLString(generateCatalogGoodsRestrictionsXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useShopIndices, skipUseShopIndicesMinPrice,
-                            weightShopIndices, useIdItemInRestriction, useNumberGroupInShopIndices)));
+                        DeleteBarcode usedDeleteBarcodes = new DeleteBarcode(transaction.nppGroupMachinery, directory);
 
-                    usedDeleteBarcodeTransactionMap.put(transaction.id, usedDeleteBarcodes);
+                        List<String> xmlList = new ArrayList<>();
+                        xmlList.add(docToXMLString(generateCatalogGoodsItemsXML(transaction, brandIsManufacturer, seasonIsCountry, idItemInMarkingOfTheGood, skipWeightPrefix,
+                                skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices)));
+                        xmlList.add(docToXMLString(generateCatalogGoodsBarcodesXML(transaction, deleteBarcodeDirectoryMap.get(directory), usedDeleteBarcodes, idItemInMarkingOfTheGood,
+                                skipWeightPrefix, notGTINPrefixes, exportAmountForBarcode)));
+                        xmlList.add(docToXMLString(generateCatalogGoodsPricesXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useSectionAsDepartNumber, useShopIndices,
+                                weightShopIndices, useNumberGroupInShopIndices)));
+                        xmlList.add(docToXMLString(generateCatalogGoodsRestrictionsXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useShopIndices, skipUseShopIndicesMinPrice,
+                                weightShopIndices, useIdItemInRestriction, useNumberGroupInShopIndices)));
 
-                    String response = null;
-                    List<String> tiList = new ArrayList<>();
-                    for(String xml : xmlList) {
-                        if(extendedLogs) {
-                            processTransactionLogger.info(getLogPrefix() + " sending xml (Transaction " + transaction.id + ") - " + xml);
+                        usedDeleteBarcodeTransactionMap.put(transaction.id, usedDeleteBarcodes);
+
+                        String response = null;
+                        List<String> tiList = new ArrayList<>();
+                        for(String xml : xmlList) {
+                            if(extendedLogs) {
+                                processTransactionLogger.info(getLogPrefix() + " sending xml (Transaction " + transaction.id + ") - " + xml);
+                            }
+                            String ti = String.valueOf(Instant.now().toEpochMilli());
+                            response = sendRequestGoods(directory, xml, ti);
+                            if (response != null) {
+                                break;
+                            } else {
+                                tiList.add(ti);
+                            }
                         }
-                        String ti = String.valueOf(Instant.now().toEpochMilli());
-                        response = sendRequestGoods(directory, xml, ti);
+
                         if (response != null) {
-                            break;
+                            processTransactionLogger.error(getLogPrefix() + response);
+                            result.put(transaction.id, new SendTransactionBatch(new RuntimeException(response)));
                         } else {
-                            tiList.add(ti);
+                            usedTransactionList.add(new Kristal10Transaction(transaction.id, directory, tiList));
                         }
-                    }
-
-                    if (response != null) {
-                        processTransactionLogger.error(getLogPrefix() + response);
-                        result.put(transaction.id, new SendTransactionBatch(new RuntimeException(response)));
-                    } else {
-                        usedTransactionList.add(new Kristal10Transaction(transaction.id, directory, tiList));
                     }
                 }
             } catch (Exception e) {

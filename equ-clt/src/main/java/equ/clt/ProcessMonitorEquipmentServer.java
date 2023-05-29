@@ -12,6 +12,14 @@ import java.util.Set;
 public class ProcessMonitorEquipmentServer {
     private final static Logger processMonitorLogger = Logger.getLogger("ProcessMonitorLogger");
 
+    public static boolean notInterrupted() {
+        return !Thread.currentThread().isInterrupted();
+    }
+
+    public static boolean notInterruptedTransaction(Long transactionId) {
+        return notInterrupted(); //dumb
+    }
+
     static void process(EquipmentServer equipmentServer, EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
         processMonitorLogger.info("Process ProcessMonitor");
         boolean needUpdateProcessMonitor = remote.needUpdateProcessMonitor(sidEquipmentServer);

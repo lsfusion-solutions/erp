@@ -27,6 +27,8 @@ import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterrupted;
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
 import static lsfusion.base.BaseUtils.nvl;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
@@ -115,7 +117,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                             int count = 0;
                             for (ScalesItem item : transaction.itemsList) {
                                 count++;
-                                if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                                if (notInterruptedTransaction(transaction.id) && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 6) {
                                         processTransactionLogger.info(String.format("Bizerba: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                         int attempts = 0;
@@ -644,7 +646,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                     int count = 0;
                     for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                         count++;
-                        if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                        if (notInterrupted() && globalError < 5) {
                             if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                 if(!skip(item.idItem)) {
                                     processStopListLogger.info(String.format("Bizerba: IP %s, sending StopList for item #%s (barcode %s) of %s", scales.port, count, item.idBarcode, stopListInfo.stopListItemMap.values().size()));
