@@ -1,0 +1,103 @@
+MODULE EGAISQueryRestsBCode;
+
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISProductImport, EGAISFRegLedger, EGAISActChargeOn, EGAISTicket, EGAISMarkCode;
+
+NAMESPACE EGAIS;
+
+CLASS QueryRestsBCode 'Запрос остатков' : OutDoc;
+TABLE queryRestsBCode(QueryRestsBCode);
+
+f2Reg 'Справка Б' = DATA F2Reg (QueryRestsBCode);
+idF2Reg 'Справка Б' (QueryRestsBCode q) = id(f2Reg(q)); 
+
+EXTEND CLASS DocType { QueryRestBCode 'Запрос остатков штрихкодов по справке 2' }
+docType (QueryRestsBCode r) += DocType.QueryRestBCode IF r IS QueryRestsBCode;
+
+GROUP parameters EXTID 'qp:Parameters';
+GROUP parameter EXTID 'qp:Parameter' : parameters;
+
+queryRestsBCodeName (INTEGER i) = CASE WHEN i = 0 THEN 'ФОРМА2';
+queryRestsBCodeValue (QueryRestsBCode r, INTEGER i) = CASE WHEN i = 0 THEN idF2Reg(r);
+
+FORM queryRestsBCode FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryRestBCode'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
+
+    OBJECTS r = QueryRestsBCode PANEL
+
+    OBJECTS i = INTEGER IN parameters EXTID 'qp:Parameter'
+    PROPERTIES queryRestsBCodeName(i) EXTID 'qp:Name', queryRestsBCodeValue(r, i) EXTID 'qp:Value'
+    FILTERS queryRestsBCodeName(i)
+;
+
+FORM queryRestsBCodeParams 'Параметры запроса'
+    OBJECTS r = QueryRestsBCode PANEL
+    PROPERTIES(r) idClient, shortNameClient, descriptionClient, nameUtm, idF2Reg
+;
+
+queryRestsBCode (QueryRestsBCode r) {
+    EXPORT queryRestsBCode OBJECTS r = r XML;
+    submit(r, exportFile());
+}
+
+queryRestsBCode 'Запросить марки' (F2Reg f) {
+    NEWSESSION {
+        NEW r = QueryRestsBCode {
+            f2Reg(r) <- f;
+            client(r) <- client(f); 
+            DIALOG queryRestsBCodeParams OBJECTS r = r NOMANAGESESSION DO {
+                queryRestsBCode(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM balanceReg
+    PROPERTIES(r) queryRestsBCode DRAW r TOOLBAR
+;
+
+// response
+EXTEND CLASS DocType { ReplyRestBCode 'Ответ на запрос остатков штрихкодов по справке 2' }
+
+GROUP replyRestBCode EXTID 'ns:ReplyRestBCode' : document;
+
+GROUP rstMarkInfo EXTID 'rst:MarkInfo' : replyRestBCode;
+
+FORM replyRestsBCode FORMEXTID 'ns:Documents'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:oref', 
+                    ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:pref', 
+                    ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp', 
+                    ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:rst', 
+                    ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi',
+                    ='http://fsrar.ru/WEGAIS/CommonV3' EXTID 'xmlns:ce'
+    PROPERTIES() IN owner FSRAR_ID EXTID 'ns:FSRAR_ID'
+    PROPERTIES() IN replyRestBCode restsDate EXTID 'rst:RestsDate'
+    PROPERTIES() IN replyRestBCode informF2RegId EXTID 'rst:Inform2RegId'
+
+    OBJECTS amc = INTEGER EXTID 'ce:amc' IN rstMarkInfo
+    PROPERTIES(amc) amc EXTID 'value'
+;
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyRestBCode THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT replyRestsBCode XML FROM resultFile();
+            
+            FOR amc(INTEGER i) AND NOT markCode(amc(i)) NEW m = MarkCode DO {
+                id(m) <- amc(i);
+                dataF2Reg(m) <- f2Reg(informF2RegId());
+            }
+
+            processed(d) <- TRUE;
+            APPLY;
+        }
+    }
+}
+
+// ticket
+process (Ticket t) + {
+    IF docType(t) = 'QueryRestBCode' THEN {
+        processed() <- TRUE;
+    }
+}

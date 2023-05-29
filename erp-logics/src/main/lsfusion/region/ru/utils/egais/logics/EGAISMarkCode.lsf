@@ -1,6 +1,6 @@
 MODULE EGAISMarkCode;
 
-REQUIRE EGAISFReg;
+REQUIRE EGAISFRegLedger;
 
 NAMESPACE EGAIS;
 
@@ -12,6 +12,9 @@ markCode = GROUP AGGR MarkCode b BY id(b);
 
 f2Reg = ABSTRACT VALUE F2Reg (MarkCode) MATERIALIZED INDEXED;
 prevF2Reg (MarkCode c) = PREV(f2Reg(c));
+
+dataF2Reg = DATA F2Reg (MarkCode) INDEXED;
+f2Reg(MarkCode m) += dataF2Reg(m);
 
 idF2Reg 'Справка Б' (MarkCode m) = id(f2Reg(m));
 
@@ -43,3 +46,18 @@ NAVIGATOR {
         NEW markCodes;
     }
 }
+
+EXTEND FORM balanceReg
+    OBJECTS m = MarkCode
+    PROPERTIES(m) READONLY id
+    FILTERS f2Reg(m) = r
+;
+
+DESIGN balanceReg {
+    tabPane {
+        MOVE BOX(m) { caption = 'Коды маркировки'; }
+    }
+}
+
+// import
+amc = DATA LOCAL STRING[200] (INTEGER);
