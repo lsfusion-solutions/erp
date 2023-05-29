@@ -162,12 +162,15 @@ META defineOrderInvoice(sign, stockProp)
 
     overFill  ABSTRACT LIST ( UserInvoiceDetail, OrderDetail);
     overFill  ABSTRACT LIST ( UserInvoice, Order);
+    skipFillPriceInvoiceOrder = ABSTRACT BOOLEAN (OrderDetail);
+    //skipFillPriceInvoiceOrder = skipFillPriceInvoiceOrder(orderDetail(InvoiceDetail d));
+    skipFillPriceInvoiceOrder = ABSTRACT BOOLEAN (InvoiceDetail);
     
     fill(UserInvoiceDetail id, OrderDetail od)  {    
         VAT(id) <- VAT(od);
         valueVAT(id) <- valueVAT(od);
         priceListType(id) <- priceListType(od);
-        IF NOT notFillPriceInvoiceOrder(operation(od)) THEN {
+        IF NOT (skipFillPriceInvoiceOrder(od) OR notFillPriceInvoiceOrder(operation(od))) THEN {
             price(id) <- price(od);
             invoicePrice(id) <- invoicePrice(od);
         }
@@ -242,6 +245,11 @@ META defineOrderInvoice(sign, stockProp)
                 price(d) <- prevListMVAT (pt, d);
                 invoicePrice(d) <- prevListPVAT (pt, d);
             }
+        } ELSE {
+            FOR userInvoice(UserInvoiceDetail d) == userInvoice AND skipFillPriceInvoiceOrder(d) AND PriceListType pt == priceListType(d) AND sku(d) NOINLINE (pt) DO {
+                price(d) <- prevListMVAT (pt, d);
+                invoicePrice(d) <- prevListPVAT (pt, d);
+            }            
         }
     }
     
