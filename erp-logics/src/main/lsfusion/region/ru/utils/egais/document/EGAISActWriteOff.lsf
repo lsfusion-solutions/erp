@@ -1,0 +1,162 @@
+MODULE EGAISActWriteOff;
+
+REQUIRE EGAISClient, EGAISFReg, EGAISMarkCode, EGAISActWriteOffType;
+
+CLASS ActWriteOff 'Акт о списании с баланса ЕГАИС';
+
+posted 'Проведен' = DATA BOOLEAN (ActWriteOff);
+
+canceled 'Отменен' = DATA BOOLEAN (ActWriteOff);
+
+number 'Номер' = DATA STRING (ActWriteOff) IN id;
+number(ActWriteOff a) <- STRING(a) WHEN SET(a IS ActWriteOff);
+
+dateTime 'Время' = DATA DATETIME (ActWriteOff) IN id;
+dateTime(ActWriteOff a) <- currentDateTime() WHEN SET(a IS ActWriteOff);
+
+date 'Дата' (ActWriteOff a) = DATE(dateTime(a));
+
+numberDate (ActWriteOff w) = CONCAT ' от ', number(w), toDateDDMMYY(dateTime(w));
+
+// transport
+
+client = DATA Client (ActWriteOff) INDEXED;
+shortNameClient 'Организация' (ActWriteOff w) = shortName(client(w)) IN id;
+descriptionClient 'Описание организации' (ActWriteOff w) = description(client(w)) IN id;
+
+type 'Тип' = DATA WriteOffType (ActWriteOff) NONULL;
+idType 'Тип' (ActWriteOff w) = id(type(w));
+
+note 'Примечание' = DATA STRING (ActWriteOff);
+
+// position
+
+CLASS ActWriteOffPosition 'Строка акта списания с баланса ЕГАИС';
+
+actWriteOff 'Акт о списании с баланса ЕГАИС' = DATA ActWriteOff (ActWriteOffPosition) INDEXED NONULL DELETE;
+
+posted 'Проведен' (ActWriteOffPosition p) = posted(actWriteOff(p));
+canceled 'Отменен' (ActWriteOffPosition p) = canceled(actWriteOff(p));
+
+number 'Номер' (ActWriteOffPosition p) = number(actWriteOff(p));
+dateTime 'Время' (ActWriteOffPosition p) = dateTime(actWriteOff(p));
+date 'Дата' (ActWriteOffPosition p) = date(actWriteOff(p));
+
+client (ActWriteOffPosition p) = client(actWriteOff(p));
+shortNameClient 'Организация' (ActWriteOffPosition p) = shortNameClient(actWriteOff(p));
+descriptionClient 'Описание организации' (ActWriteOffPosition p) = descriptionClient(actWriteOff(p));
+
+product 'Продукция' = DATA Product (ActWriteOffPosition) NONULL INDEXED;
+idProduct 'Код продукции' (ActWriteOffPosition p) = id(product(p));
+fullNameProduct 'Продукция' (ActWriteOffPosition p) = fullName(product(p));
+
+f2Reg 'Справка Б' = DATA F2Reg (ActWriteOffPosition) NONULL;
+idF2Reg 'Справка Б' (ActWriteOffPosition p) = id(f2Reg(p));
+
+// mark
+
+CLASS ActWriteOffMark 'Строка маркировки акта списания ЕГАИС';
+
+actWriteOffPosition 'Строка акта списания' = DATA ActWriteOffPosition (ActWriteOffMark) NONULL DELETE INDEXED;
+
+posted 'Проведен' (ActWriteOffMark p) = posted(actWriteOffPosition(p));
+canceled 'Отменен' (ActWriteOffMark p) = canceled(actWriteOffPosition(p));
+
+number 'Номер' (ActWriteOffMark p) = number(actWriteOffPosition(p));
+date 'Дата' (ActWriteOffMark p) = date(actWriteOffPosition(p));
+
+client (ActWriteOffMark p) = client(actWriteOffPosition(p));
+shortNameClient 'Организация' (ActWriteOffMark p) = shortNameClient(actWriteOffPosition(p));
+descriptionClient 'Описание организации' (ActWriteOffMark p) = descriptionClient(actWriteOffPosition(p));
+
+idF2Reg 'Справка Б' (ActWriteOffMark p) = idF2Reg(actWriteOffPosition(p));
+
+markCode 'Код маркировки' = DATA MarkCode (ActWriteOffMark) NONULL INDEXED;
+idMarkCode 'Код маркировки' (ActWriteOffMark m) = id(markCode(m));
+
+quantity 'Кол-во' (ActWriteOffPosition p) = GROUP SUM 1 IF actWriteOffPosition(ActWriteOffMark m) = p MATERIALIZED;
+
+// header properties
+
+FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
+    OBJECTS w = ActWriteOff PANEL
+    PROPERTIES(w) posted, canceled, number, dateTime,
+                  shortNameClient, descriptionClient, 
+                  idType, note
+
+    OBJECTS p = ActWriteOffPosition
+    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, quantity,
+        NEW, DELETE
+    FILTERS actWriteOff(p) = w
+
+    OBJECTS m = ActWriteOffMark
+    PROPERTIES(m) idMarkCode
+    FILTERS actWriteOffPosition(m) = p
+
+    EDIT ActWriteOff OBJECT w
+;
+
+DESIGN actWriteOff {
+    OBJECTS {
+        NEW pane {
+            fill = 1;
+            type = CONTAINERH;
+            MOVE BOX(p) { caption = 'Позиции'; }
+            MOVE BOX(m) { caption = 'Марки'; }
+        }
+    }
+}
+
+FORM actWriteOffs 'Списания с баланса'
+    OBJECTS d = ActWriteOff
+    PROPERTIES(d) READONLY posted, canceled, number, dateTime,
+                           shortNameClient, descriptionClient, 
+                           idType, note
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+
+    OBJECTS p = ActWriteOffPosition
+    PROPERTIES(p) READONLY idProduct, fullNameProduct, idF2Reg, quantity
+    FILTERS actWriteOff(p) = d
+
+    OBJECTS m = ActWriteOffMark
+    PROPERTIES(m) idMarkCode
+    FILTERS actWriteOffPosition(m) = p
+
+    LIST ActWriteOff OBJECT d
+;
+
+DESIGN actWriteOffs {
+    OBJECTS {
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 1;
+            NEW specification {
+                caption = 'Спецификация';
+                type = CONTAINERH;
+                MOVE BOX(p) { caption = 'Позиции'; }
+                MOVE BOX(m) { caption = 'Марки'; }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    EGAISReg {
+        NEW actWriteOffs;
+    }
+}
+
+EXTEND FORM markCodes
+    OBJECTS awo = ActWriteOffMark
+    PROPERTIES(awo) READONLY posted, canceled, number, date,
+                             shortNameClient, descriptionClient,
+                             idF2Reg
+    PROPERTIES(awo) EDIT
+    FILTERS markCode(awo) = m
+;
+
+DESIGN markCodes {
+    pane {
+        MOVE BOX(awo) { caption = 'Списание штрихкодов'; }
+    }
+}

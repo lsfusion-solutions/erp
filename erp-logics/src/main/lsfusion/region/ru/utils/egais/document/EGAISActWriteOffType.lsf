@@ -1,0 +1,53 @@
+MODULE EGAISActWriteOffType;
+
+REQUIRE EGAIS;
+
+NAMESPACE EGAIS;
+
+CLASS WriteOffType 'Тип списания ЕГАИС';
+
+id 'Наименование' = DATA STRING[30] (WriteOffType) CHARWIDTH 15;
+writeOffType = GROUP AGGR WriteOffType t BY id(t);
+
+name 'Наименование' = DATA ISTRING (WriteOffType) CHARWIDTH 30;
+
+FORM writeOffType 'Тип списания ЕГАИС'
+    OBJECTS o = WriteOffType PANEL
+    PROPERTIES(o) id, name
+    
+    EDIT WriteOffType OBJECT o
+;
+
+FORM writeOffTypes 'Типы списания ЕГАИС'
+    OBJECTS o = WriteOffType
+    PROPERTIES(o) READONLY id, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogWriteOffTypes 'Тип списания ЕГАИС'
+    OBJECTS o = WriteOffType
+    PROPERTIES(o) READONLY id, name
+    
+    LIST WriteOffType OBJECT o
+;
+
+NAVIGATOR {
+    EGAISMasterData {
+        NEW writeOffTypes;
+    }
+}
+
+onStarted() + {
+    IF NOT GROUP SUM 1 IF t IS WriteOffType THEN {
+        NEW t = WriteOffType { id(t) <- 'Пересортица'; name(t) <- 'Недостача пересортица'; }
+        NEW t = WriteOffType { id(t) <- 'Недостача'; name(t) <- 'Недостача (хищение, злоупотребление материально ответственных лиц, ошибки учета, естественная убыль,...)'; }
+        NEW t = WriteOffType { id(t) <- 'Уценка'; name(t) <- 'Уценка (списание) в результате порчи'; }
+        NEW t = WriteOffType { id(t) <- 'Порча'; name(t) <- 'Списание объема продукции, не подлежащей дальнейшей реализации (бой, срок годности, порча)'; }
+        NEW t = WriteOffType { id(t) <- 'Потери'; name(t) <- 'Потери при транспортировке'; }
+        NEW t = WriteOffType { id(t) <- 'Проверки'; name(t) <- 'Списание объема продукции, израсходованной на лабораторные нужды для прохождения добровольной проверки качества, рекламные образцы. Требуется указание штрихкодов.'; }
+        NEW t = WriteOffType { id(t) <- 'Арест'; name(t) <- 'Списание арестованной продукции, изъятой из оборота продукции, конфискованной продукции по решению суда. Требуется указание штрихкодов'; }
+        NEW t = WriteOffType { id(t) <- 'Иные цели'; name(t) <- 'Списание продукции, когда ФСМ/АМ не возможно считать'; }
+        NEW t = WriteOffType { id(t) <- 'Реализация'; name(t) <- 'Розничная реализация продукции, не подлежащей фиксации в ЕГАИС'; }
+        NEW t = WriteOffType { id(t) <- 'Производственные потери'; name(t) <- 'Списание продукции при производственных потерях'; }
+    }
+}

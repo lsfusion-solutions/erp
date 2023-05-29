@@ -1,0 +1,119 @@
+MODULE EGAISWriteOff;
+
+REQUIRE WriteOffLot, EGAISFRegLedger, EGAISStock, EGAISItem, EGAISMarkCode, EGAISActWriteOffExchange;
+
+PRIORITY WriteOff;
+
+NAMESPACE EGAIS;
+
+@defineDocumentOutBalance(userWriteOff, w, stock, quantity);
+
+quantity = ABSTRACT NUMERIC[16,5] (WriteOffDetail, F2Reg);
+quantity(UserWriteOffDetail d, F2Reg r) += quantity(d, r);
+
+// process
+writeOffType = DATA WriteOffType (Operation);
+idWriteOffType 'Тип списания ЕГАИС' (Operation o) = id(writeOffType(o));
+
+EXTEND FORM operation
+    PROPERTIES(o) idWriteOffType
+;
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(idWriteOffType(o));//AFTER PROPERTY(createPurchaseInvoiceOperation)
+    }
+}
+
+writeOffType = DATA WriteOffType (Reason);
+idWriteOffType 'Тип списания ЕГАИС' (Reason r) = id(writeOffType(r));
+
+EXTEND FORM reason
+    PROPERTIES(r) idWriteOffType
+;
+
+writeOffType (WriteOff w) = OVERRIDE writeOffType(reason(w)), writeOffType(operation(w));
+
+actWriteOff = DATA ActWriteOff (WriteOff);
+
+writeOffDetail = DATA WriteOffDetail (ActWriteOffPosition);
+
+process 'Отправить в ЕГАИС' (WriteOff w) {
+    IF NOT writeOffType(w) THEN {
+        MESSAGE 'Для операции или причины списания не задан тип списания ЕГАИС';
+        RETURN;
+    }
+
+    NEWSESSION {
+        NEW a = ActWriteOff {
+            actWriteOff(w) <- a;
+
+            number(a) <- seriesNumber(w);
+
+            dateTime(a) <- dateTime(w);
+
+            client(a) <- client(stock(w));
+
+            type(a) <- writeOffType(w);
+
+            note(a) <- note(w);
+
+            FOR quantity(WriteOffDetail d, F2Reg r) IF writeOff(d) = w INLINE NEW p = ActWriteOffPosition DO {
+                actWriteOff(p) <- a;
+
+                writeOffDetail(p) <- d;
+
+                product(p) <- product(r);
+
+                f2Reg(p) <- r;
+
+                FOR quantity(d, Lot l) IF MarkCode mc = markCode(id(l)) AND f2Reg(mc) = r INLINE NEW m = ActWriteOffMark DO {
+                    actWriteOffPosition(m) <- p;
+                    markCode(m) <- mc;
+                }
+            }
+
+            check();
+
+            IF NOT canceled() THEN {
+                process(a);
+            }
+        }
+    }
+}
+
+//cancel 'Отменить' (WriteOff i) {
+//    createAct(wayBill(i), TRUE);
+//} CONFIRM;
+
+EXTEND FORM writeOffs
+    OBJECTS a = ActWriteOff PANEL
+    PROPERTIES(a) READONLY posted, canceled, number, date // canceled
+    FILTERS a = actWriteOff(w)
+
+    OBJECTS wp = ActWriteOffPosition
+    PROPERTIES(wp) READONLY idProduct, fullNameProduct, idF2Reg, quantity
+    FILTERS actWriteOff(wp) = a
+
+    PROPERTIES READONLY PANEL
+    commentsActWriteOffAct 'Комментарий' = comments(actWriteOffOutDoc(a))
+
+    PROPERTIES(w) DRAW wp TOOLBAR
+            processEGAIS = process SHOWIF isPosted(w) AND (NOT notRejected(actWriteOffOutDoc(a)) OR canceled(a))
+    //                    cancelEGAIS = cancel SHOWIF notRejected(actWriteOffOutDoc(a)) AND NOT notRejected(actWriteOffActOutDoc(actWriteOffAct(a))) 
+    //                                                AND NOT posted(a) AND NOT canceled(a)
+;
+
+DESIGN writeOffs {
+    documentDetail {
+        NEW EGAIS {
+            caption = 'ЕГАИС';
+            MOVE BOX(a);
+            MOVE BOX(wp);
+            NEW comments {
+                fill = 0.2;
+                type = CONTAINERH;
+                MOVE PROPERTY(commentsActWriteOffAct) { panelCaptionVertical = TRUE; fill = 1; }
+            }
+        }
+    }
+}

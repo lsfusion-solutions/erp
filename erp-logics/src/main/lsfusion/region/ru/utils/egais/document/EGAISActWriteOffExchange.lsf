@@ -1,0 +1,55 @@
+MODULE EGAISActWriteOffExchange;
+
+REQUIRE EGAISActWriteOff, EGAISTicket;
+
+NAMESPACE EGAIS;
+
+@defineDocumentOutDoc(actWriteOff, ActWriteOff_v3, 'Акт о списании с баланса (версия 3)');
+
+GROUP header EXTID 'awr:Header';
+GROUP content EXTID 'awr:Content';
+
+GROUP informF1F2 EXTID 'awr:InformF1F2';
+GROUP informF2 EXTID 'awr:InformF2' : informF1F2;
+
+GROUP markCodeInfo EXTID 'awr:MarkCodeInfo';
+
+FORM actWriteOffOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:ActWriteOff_v3'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ActWriteOff_v3' EXTID 'xmlns:awr', 
+                    ='http://fsrar.ru/WEGAIS/CommonEnum' EXTID 'xmlns:ce', 
+                    ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref'
+
+    OBJECTS r = ActWriteOffOutDoc PANEL
+
+    PROPERTIES =LONG(r) EXTID 'awr:Identity'
+
+    PROPERTIES IN header
+        =number(actWriteOff(r)) EXTID 'awr:ActNumber',
+        =toDateISO(date(actWriteOff(r))) EXTID 'awr:ActDate',
+        =idType(actWriteOff(r)) EXTID 'awr:TypeWriteOff',
+        =note(actWriteOff(r)) EXTID 'awr:Note'
+
+    OBJECTS p = ActWriteOffPosition IN content EXTID 'awr:Position'
+    PROPERTIES =LONG(p) EXTID 'awr:Identity', quantity(p) EXTID 'awr:Quantity'
+    PROPERTIES idF2Reg(p) EXTID 'pref:F2RegId' IN informF2
+    FILTERS actWriteOff(p) = actWriteOff(r)
+
+    OBJECTS m = ActWriteOffMark EXTID 'ce:amc' IN markCodeInfo
+    PROPERTIES(m) idMarkCode EXTID 'value'
+    FILTERS actWriteOffPosition(m) = p
+;
+
+@defineDocumentOutProcess(actWriteOff, tabbedPane);
+
+// ticket
+
+@defineOutDocTicket(actWriteOff, d, tabbedPane);
+
+process (Ticket t) + {
+    IF docType(t) = 'ActWriteOff' THEN {
+        IF operationResult(t) = 'Accepted' THEN {
+            posted(actWriteOff(outDoc(t))) <- TRUE;
+        }
+        processed() <- TRUE;
+    }
+}
