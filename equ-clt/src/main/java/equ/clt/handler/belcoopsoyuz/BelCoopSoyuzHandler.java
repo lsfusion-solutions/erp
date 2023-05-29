@@ -315,40 +315,37 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             putField(dbfFile, CECUCOD, cashRegister.section, 25, append); //секция, "600358416 MF"
             putField(dbfFile, CEOPCURO, "BYN 933 1", 25, append); //валюта
             for (CashRegisterItem item : transaction.itemsList) {
-                if (!Thread.currentThread().isInterrupted()) {
-
-                    String barcode = appendBarcode(item.idBarcode);
-                    if (!usedBarcodes.contains(barcode)) {
-                        Integer recordNumber = null;
-                        if (append) {
-                            recordNumber = barcodeRecordMap.get(barcode);
-                            if (recordNumber != null)
-                                dbfFile.gotoRecord(recordNumber);
-                        }
-
-                        putField(dbfFile, CEUNIKEY, barcode, 25, append);
-                        putField(dbfFile, CEOBIDE, barcode, 25, append);
-                        putField(dbfFile, CEOBMEA, item.shortNameUOM, 25, append);
-                        putField(dbfFile, MEOBNAM, item.name, 100, append);
-                        putNumField(dbfFile, NERECOST, item.price, append);
-                        putNumField(dbfFile, NEOPPRIC, item.price, append);
-                        putNumField(dbfFile, NEOPPRIE, item.price, append);
-                        putNumField(dbfFile, NEOPNDS, item.vat, append);
-                        putField(dbfFile, FORMAT, item.splitItem ? "999.999" : "999", 10, append);
-                        putNumField(dbfFile, NEOBFREE, item.balance == null ? BigDecimal.ZERO : item.balance, append); //остаток
-                        putField(dbfFile, CESUCOD, item.section, 25, append);
-                        putNumField(dbfFile, NEASPRIC, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, append);
-
+                String barcode = appendBarcode(item.idBarcode);
+                if (!usedBarcodes.contains(barcode)) {
+                    Integer recordNumber = null;
+                    if (append) {
+                        recordNumber = barcodeRecordMap.get(barcode);
                         if (recordNumber != null)
-                            dbfFile.update();
-                        else {
-                            dbfFile.write();
-                            dbfFile.file.setLength(dbfFile.file.length() - 1);
-                            if (append)
-                                barcodeRecordMap.put(barcode, barcodeRecordMap.size() + 1);
-                        }
-                        usedBarcodes.add(barcode);
+                            dbfFile.gotoRecord(recordNumber);
                     }
+
+                    putField(dbfFile, CEUNIKEY, barcode, 25, append);
+                    putField(dbfFile, CEOBIDE, barcode, 25, append);
+                    putField(dbfFile, CEOBMEA, item.shortNameUOM, 25, append);
+                    putField(dbfFile, MEOBNAM, item.name, 100, append);
+                    putNumField(dbfFile, NERECOST, item.price, append);
+                    putNumField(dbfFile, NEOPPRIC, item.price, append);
+                    putNumField(dbfFile, NEOPPRIE, item.price, append);
+                    putNumField(dbfFile, NEOPNDS, item.vat, append);
+                    putField(dbfFile, FORMAT, item.splitItem ? "999.999" : "999", 10, append);
+                    putNumField(dbfFile, NEOBFREE, item.balance == null ? BigDecimal.ZERO : item.balance, append); //остаток
+                    putField(dbfFile, CESUCOD, item.section, 25, append);
+                    putNumField(dbfFile, NEASPRIC, item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO, append);
+
+                    if (recordNumber != null)
+                        dbfFile.update();
+                    else {
+                        dbfFile.write();
+                        dbfFile.file.setLength(dbfFile.file.length() - 1);
+                        if (append)
+                            barcodeRecordMap.put(barcode, barcodeRecordMap.size() + 1);
+                    }
+                    usedBarcodes.add(barcode);
                 }
             }
         } finally {

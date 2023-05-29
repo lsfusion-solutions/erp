@@ -117,28 +117,25 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                     DeleteBarcode usedDeleteBarcodes = new DeleteBarcode(transaction.nppGroupMachinery, directory);
 
                     for (CashRegisterItem item : transaction.itemsList) {
-                        if (!Thread.currentThread().isInterrupted()) {
+                        JSONObject infoJSON = getExtInfo(item.info);
+                        String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
+                        String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
+                        String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                            JSONObject infoJSON = getExtInfo(item.info);
-                            String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
-                            String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
-                            String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
+                        fillRestrictionsElement(rootElement, item, idItem, barcodeItem, useIdItemInRestriction, shopIndices, useShopIndices, skipUseShopIndicesMinPrice);
 
-                            fillRestrictionsElement(rootElement, item, idItem, barcodeItem, useIdItemInRestriction, shopIndices, useShopIndices, skipUseShopIndicesMinPrice);
+                        //parent: rootElement
+                        Element good = new Element("good");
+                        rootElement.addContent(good);
+                        fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
+                                brandIsManufacturer, seasonIsCountry, infoJSON, false);
 
-                            //parent: rootElement
-                            Element good = new Element("good");
-                            rootElement.addContent(good);
-                            fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
-                                    brandIsManufacturer, seasonIsCountry, infoJSON, false);
+                        //parent: good
+                        Element barcode = getBarcodeElement(item, barcodeItem, null, exportAmountForBarcode);
+                        good.addContent(barcode);
+                        fillBarcodes(good, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem, false);
 
-                            //parent: good
-                            Element barcode = getBarcodeElement(item, barcodeItem, null, exportAmountForBarcode);
-                            good.addContent(barcode);
-                            fillBarcodes(good, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem, false);
-
-                            addPriceEntryElements(good, transaction, item, null, infoJSON, useSectionAsDepartNumber, null);
-                        }
+                        addPriceEntryElements(good, transaction, item, null, infoJSON, useSectionAsDepartNumber, null);
                     }
                     usedDeleteBarcodeTransactionMap.put(transaction.id, usedDeleteBarcodes);
                     processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file (Transaction %s)", transaction.id));

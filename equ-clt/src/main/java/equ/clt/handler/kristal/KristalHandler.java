@@ -123,27 +123,25 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         Integer departmentNumber = transactionInfo.departmentNumberGroupCashRegister == null ? 1 : transactionInfo.departmentNumberGroupCashRegister;
 
                         for (CashRegisterItem item : transactionInfo.itemsList) {
-                            if (!Thread.currentThread().isInterrupted()) {
-                                List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.extIdItemGroup);
-                                String idItemGroup = zeroesInItemGroup ? "1|00|00|00|00"
-                                        : importGroupType == null || importGroupType.equals(0) ? "0|0|0|0|0"
-                                        : importGroupType.equals(1) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup, false)
-                                        : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
-                                        : importGroupType.equals(3) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup.subList(0, Math.min(hierarchyItemGroup.size(), 2)), true) : "";
-                                boolean isWeightItem = item.passScalesItem && item.splitItem;
-                                Object code = useIdItem ? item.idItem : item.idBarcode;
-                                String barcode = (isWeightItem ? weightPrefix : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                            List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.extIdItemGroup);
+                            String idItemGroup = zeroesInItemGroup ? "1|00|00|00|00"
+                                    : importGroupType == null || importGroupType.equals(0) ? "0|0|0|0|0"
+                                    : importGroupType.equals(1) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup, false)
+                                    : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
+                                    : importGroupType.equals(3) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup.subList(0, Math.min(hierarchyItemGroup.size(), 2)), true) : "";
+                            boolean isWeightItem = item.passScalesItem && item.splitItem;
+                            Object code = useIdItem ? item.idItem : item.idBarcode;
+                            String barcode = (isWeightItem ? weightPrefix : "") + (item.idBarcode == null ? "" : item.idBarcode);
 
-                                int vat = item.vat == null ? 0 : item.vat.intValue();
-                                if(vat != 10 && vat != 20) {
-                                    vat = 0;
-                                }
-                                String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
-                                        (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
-                                        departmentNumber + "|"/*section*/ + item.price + "|" + "0|"/*fixprice*/ +
-                                        (item.splitItem ? "0.001|" : "1|") + idItemGroup + "|" + vat + "|0";
-                                writer.println(record);
+                            int vat = item.vat == null ? 0 : item.vat.intValue();
+                            if(vat != 10 && vat != 20) {
+                                vat = 0;
                             }
+                            String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
+                                    (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
+                                    departmentNumber + "|"/*section*/ + item.price + "|" + "0|"/*fixprice*/ +
+                                    (item.splitItem ? "0.001|" : "1|") + idItemGroup + "|" + vat + "|0";
+                            writer.println(record);
                         }
                         writer.close();
 
@@ -164,14 +162,12 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(restrictionFile.toPath()), "windows-1251"));
 
                             for (CashRegisterItem item : transactionInfo.itemsList) {
-                                if (!Thread.currentThread().isInterrupted()) {
-                                    //boolean isWeightItem = item.passScalesItem && item.splitItem;
-                                    Object code = useIdItem ? item.idItem : item.idBarcode;
-                                    //String barcode = (isWeightItem ? weightPrefix : "") + (item.idBarcode == null ? "" : item.idBarcode);
-                                    boolean forbid = item.flags != null && ((item.flags & 16) == 0);
-                                    String record = (forbid ? "+" : "-") + "|" + code + "|" + code + "|" + "20010101" + "|" + "20510101";
-                                    writer.println(record);
-                                }
+                                //boolean isWeightItem = item.passScalesItem && item.splitItem;
+                                Object code = useIdItem ? item.idItem : item.idBarcode;
+                                //String barcode = (isWeightItem ? weightPrefix : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                                boolean forbid = item.flags != null && ((item.flags & 16) == 0);
+                                String record = (forbid ? "+" : "-") + "|" + code + "|" + code + "|" + "20010101" + "|" + "20510101";
+                                writer.println(record);
                             }
                             writer.close();
 
@@ -201,11 +197,9 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(messageFile.toPath()), "windows-1251"));
 
                                 for (CashRegisterItem item : transactionInfo.itemsList) {
-                                    if (!Thread.currentThread().isInterrupted()) {
-                                        if (item.description != null && !item.description.equals("")) {
-                                            String record = "+|" + item.idBarcode + "|" + item.description.replace("\n", " ") + "|||";
-                                            writer.println(record);
-                                        }
+                                    if (item.description != null && !item.description.equals("")) {
+                                        String record = "+|" + item.idBarcode + "|" + item.description.replace("\n", " ") + "|||";
+                                        writer.println(record);
                                     }
                                 }
                                 writer.close();
@@ -234,16 +228,14 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(scaleFile.toPath()), "windows-1251"));
 
                                 for (CashRegisterItem item : transactionInfo.itemsList) {
-                                    if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
-                                        String messageNumber = (item.description != null ? item.idBarcode : "0");
-                                        Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
-                                        String code = useIdItem ? item.idItem : item.idBarcode;
-                                        if(code.length() <= 5) { //only weight codes
-                                            String record = "+|" + pluNumber + "|" + code + "|" + weightPrefix + "|" + item.name + "||" +
-                                                    (item.daysExpiry == null ? "0" : item.daysExpiry) + "|1|"/*GoodLinkToScales*/ + messageNumber + "|" +
-                                                    item.price;
-                                            writer.println(record);
-                                        }
+                                    String messageNumber = (item.description != null ? item.idBarcode : "0");
+                                    Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
+                                    String code = useIdItem ? item.idItem : item.idBarcode;
+                                    if(code.length() <= 5) { //only weight codes
+                                        String record = "+|" + pluNumber + "|" + code + "|" + weightPrefix + "|" + item.name + "||" +
+                                                (item.daysExpiry == null ? "0" : item.daysExpiry) + "|1|"/*GoodLinkToScales*/ + messageNumber + "|" +
+                                                item.price;
+                                        writer.println(record);
                                     }
                                 }
                                 writer.close();
@@ -268,19 +260,17 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                             Set<String> numberGroupItems = new HashSet<>();
                             for (CashRegisterItem item : transactionInfo.itemsList) {
-                                if (!Thread.currentThread().isInterrupted()) {
-                                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.extIdItemGroup);
-                                    hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<>() : Lists.reverse(hierarchyItemGroup);
-                                    for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
-                                        String idItemGroup = importGroupType.equals(1) ?
-                                                makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i), false, true)
-                                                : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
-                                                : importGroupType.equals(3) ? makeIdItemGroup(hierarchyItemGroup.subList(1, Math.min(hierarchyItemGroup.size() - i, 3)), true, true) : "";
-                                        if (!numberGroupItems.contains(idItemGroup)) {
-                                            String record = String.format("+|%s|%s", hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup, idItemGroup);
-                                            writer.println(record);
-                                            numberGroupItems.add(idItemGroup);
-                                        }
+                                List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.extIdItemGroup);
+                                hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<>() : Lists.reverse(hierarchyItemGroup);
+                                for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
+                                    String idItemGroup = importGroupType.equals(1) ?
+                                            makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i), false, true)
+                                            : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
+                                            : importGroupType.equals(3) ? makeIdItemGroup(hierarchyItemGroup.subList(1, Math.min(hierarchyItemGroup.size() - i, 3)), true, true) : "";
+                                    if (!numberGroupItems.contains(idItemGroup)) {
+                                        String record = String.format("+|%s|%s", hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup, idItemGroup);
+                                        writer.println(record);
+                                        numberGroupItems.add(idItemGroup);
                                     }
                                 }
                             }

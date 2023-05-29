@@ -64,40 +64,34 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch, Cash
 
                         LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<>();
                         for (CashRegisterItem item : transaction.itemsList) {
-                            if (!Thread.currentThread().isInterrupted()) {
-                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
-                                if(hierarchyItemGroup != null) {
-                                    for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
-                                        String idItemGroup = hierarchyItemGroup.get(i).idItemGroup;
-                                        if (!itemGroups.containsKey(idItemGroup)) {
-                                            String nameItemGroup = hierarchyItemGroup.get(i).nameItemGroup;
-                                            String parentItemGroup = hierarchyItemGroup.size() <= (i + 1) ? null : hierarchyItemGroup.get(i + 1).idItemGroup;
-                                            itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.splitItem ? "1" : "0"});
-                                        }
+                            List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
+                            if (hierarchyItemGroup != null) {
+                                for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
+                                    String idItemGroup = hierarchyItemGroup.get(i).idItemGroup;
+                                    if (!itemGroups.containsKey(idItemGroup)) {
+                                        String nameItemGroup = hierarchyItemGroup.get(i).nameItemGroup;
+                                        String parentItemGroup = hierarchyItemGroup.size() <= (i + 1) ? null : hierarchyItemGroup.get(i + 1).idItemGroup;
+                                        itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.splitItem ? "1" : "0"});
                                     }
                                 }
                             }
                         }
 
                         for (Map.Entry<String, String[]> itemGroupEntry : itemGroups.entrySet()) {
-                            if (!Thread.currentThread().isInterrupted()) {
-                                String itemGroupRecord = format(itemGroupEntry.getKey()) + ";" + format(itemGroupEntry.getValue()[0], 100) + //3
-                                        format(itemGroupEntry.getValue()[0], 100) + ";;;" + formatFlags(itemGroupEntry.getValue()[2]) + //8
-                                        ";;;;;;;" + format(itemGroupEntry.getValue()[1]) + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
-                                        (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
-                                goodsWriter.println(itemGroupRecord);
-                            }
+                            String itemGroupRecord = format(itemGroupEntry.getKey()) + ";" + format(itemGroupEntry.getValue()[0], 100) + //3
+                                    format(itemGroupEntry.getValue()[0], 100) + ";;;" + formatFlags(itemGroupEntry.getValue()[2]) + //8
+                                    ";;;;;;;" + format(itemGroupEntry.getValue()[1]) + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                                    (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
+                            goodsWriter.println(itemGroupRecord);
                         }
 
                         for (CashRegisterItem item : transaction.itemsList) {
-                            if (!Thread.currentThread().isInterrupted()) {
-                                String idItemGroup = item.idItemGroup == null ? "" : item.idItemGroup;
-                                String record = format(item.idItem) + format(item.idBarcode) + format(item.name, 100) + //3
-                                        format(item.name, 100) + format(item.price) + ";;" + formatFlags(item.splitItem ? "1" : "0") + //8
-                                        ";;;;;;;" + format(idItemGroup) + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
-                                        (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
-                                goodsWriter.println(record);
-                            }
+                            String idItemGroup = item.idItemGroup == null ? "" : item.idItemGroup;
+                            String record = format(item.idItem) + format(item.idBarcode) + format(item.name, 100) + //3
+                                    format(item.name, 100) + format(item.price) + ";;" + formatFlags(item.splitItem ? "1" : "0") + //8
+                                    ";;;;;;;" + format(idItemGroup) + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                                    (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
+                            goodsWriter.println(record);
                         }
                     }
                     goodsWriter.close();

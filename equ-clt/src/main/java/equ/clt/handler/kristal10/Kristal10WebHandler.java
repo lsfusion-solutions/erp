@@ -219,19 +219,16 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Document doc = new Document(rootElement);
 
         for (CashRegisterItem item : transaction.itemsList) {
-            if (!Thread.currentThread().isInterrupted()) {
+            JSONObject infoJSON = getExtInfo(item.info);
+            String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
+            String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
+            String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                JSONObject infoJSON = getExtInfo(item.info);
-                String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
-                String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
-                String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
-
-                //parent: rootElement
-                Element good = new Element("good");
-                rootElement.addContent(good);
-                fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
-                        brandIsManufacturer, seasonIsCountry, infoJSON, true);
-            }
+            //parent: rootElement
+            Element good = new Element("good");
+            rootElement.addContent(good);
+            fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
+                    brandIsManufacturer, seasonIsCountry, infoJSON, true);
         }
         processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items (Transaction %s)", transaction.id));
         return doc;
@@ -245,16 +242,13 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Document doc = new Document(rootElement);
 
         for (CashRegisterItem item : transaction.itemsList) {
-            if (!Thread.currentThread().isInterrupted()) {
+            String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
+            String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
-                String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
-
-                //parent: good
-                Element barcode = getBarcodeElement(item, barcodeItem, idItem, exportAmountForBarcode);
-                rootElement.addContent(barcode);
-                fillBarcodes(rootElement, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem, true);
-            }
+            //parent: good
+            Element barcode = getBarcodeElement(item, barcodeItem, idItem, exportAmountForBarcode);
+            rootElement.addContent(barcode);
+            fillBarcodes(rootElement, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem, true);
         }
         processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with barcodes (Transaction %s)", transaction.id));
         return doc;
@@ -268,15 +262,12 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Document doc = new Document(rootElement);
 
         for (CashRegisterItem item : transaction.itemsList) {
-            if (!Thread.currentThread().isInterrupted()) {
+            JSONObject infoJSON = getExtInfo(item.info);
+            String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
+            String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
+            String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                JSONObject infoJSON = getExtInfo(item.info);
-                String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
-                String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
-                String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
-
-                addPriceEntryElements(rootElement, transaction, item, idItem, infoJSON, useSectionAsDepartNumber, useShopIndices ? shopIndices : null);
-            }
+            addPriceEntryElements(rootElement, transaction, item, idItem, infoJSON, useSectionAsDepartNumber, useShopIndices ? shopIndices : null);
         }
         processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with prices (Transaction %s)", transaction.id));
         return doc;
@@ -291,14 +282,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Document doc = new Document(rootElement);
 
         for (CashRegisterItem item : transaction.itemsList) {
-            if (!Thread.currentThread().isInterrupted()) {
+            String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
+            String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
+            String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
-                String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
-                String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
-
-                fillRestrictionsElement(rootElement, item, idItem, barcodeItem, useIdItemInRestriction, shopIndices, useShopIndices, skipUseShopIndicesMinPrice);
-            }
+            fillRestrictionsElement(rootElement, item, idItem, barcodeItem, useIdItemInRestriction, shopIndices, useShopIndices, skipUseShopIndicesMinPrice);
         }
         processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with restrictions (Transaction %s)", transaction.id));
         return doc;
