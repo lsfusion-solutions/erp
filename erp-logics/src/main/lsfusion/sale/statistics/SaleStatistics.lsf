@@ -1255,11 +1255,14 @@ valueResidentByFrom 'В т.ч. отеч., ЕИ' (StatisticGroup group, DATE date
         ELSE 0 IF group IS StatisticGroup AND date IS DATE
     ;
 
+extraTotalSumSoldBy = ABSTRACT NUMERIC[16,5](StatisticGroup, DATE, DATE);
+
 totalSumSoldBy 'Продано, руб.' (StatisticGroup group, DATE dateFrom, DATE dateTo)=
     IF useCalcData() THEN (GROUP
         SUM calcTotalSumSoldBy(group, Stock stock, DATE date) IF inStat(stock) AND date >= dateFrom AND date <= dateTo)
     ELSE (GROUP
-        SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)  AND inStat(stock));
+        SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)  AND inStat(stock)) 
+            (+) extraTotalSumSoldBy(group, dateFrom, dateTo);
 
 totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, DATE dateFrom, DATE dateTo)=
     IF useCalcData() THEN (GROUP
