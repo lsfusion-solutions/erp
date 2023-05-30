@@ -1,0 +1,275 @@
+MODULE SaleInternetPickingTerminalOrderDefault;
+
+REQUIRE SaleInternetPickingTerminalOrder;
+
+useTerminalOrderDetailVop 'Использовать VOP 15 для комплектаций ИМ' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES useTerminalOrderDetailVop()
+;
+
+DESIGN options {
+    internetOrder{
+        MOVE PROPERTY(useTerminalOrderDetailVop());
+    }
+}
+
+
+filter(Picking o, Stock s) += (status(o) == StatusPicking.new AND stock(o) == s);
+vop(TerminalOrderDetail d) += WHEN d IS InternetOrderDetail AND useTerminalOrderDetailVop() THEN '15';
+maxDeviationQuantity(InternetOrderDetail d) += quantity(d);
+
+createPickingCustom 'Создать комплектацию ИМ' (InternetOrder o)  {
+    NEWSESSION {
+        LOCAL count = INTEGER ();
+
+        IF  filterDashboard(o) THEN {
+            NEW p = Picking{
+                date(p) <- currentDate();
+                time(p) <- currentTime();
+                number(p) <- number(o);
+                stock(p) <- supplierStock(o);
+                carrier(p) <- carrier(o);
+                status(p) <- StatusPicking.new;
+
+                FOR internetOrder(InternetOrderDetail detail) == o DO {
+                    picking(detail) <- p;
+                }
+                status(o) <- StatusInternetOrder.isPicking;
+                APPLY NESTED LOCAL ;
+                count() <- count() (+) 1;
+            }
+        }
+        select(InternetOrder order) <- NULL;
+        APPLY NESTED LOCAL ;
+        IF count() THEN MESSAGE 'Комплектация создана: ' + number(o);
+    }
+}
+
+process(TerminalDocument document) + {
+    IF idTerminalDocumentType(document)=='15' THEN {
+        LOCAL in = BOOLEAN (Picking);
+
+        FOR getWord(parentDocument(document), ',', INTEGER int) AND iterate(int, 1, INTEGER(wordCount(parentDocument(document), ','))) DO {
+            in(Picking p) <- TRUE WHERE number[TerminalOrder](p) == getWord(parentDocument(document), ',', int) AND p AS Picking;
+        }
+        IF (GROUP SUM 1 IF in(Picking p)) THEN {
+            LOCAL q = NUMERIC[16,5] (Sku);
+            q(Sku sku) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF terminalDocument(tdd) = document BY sku(tdd)](sku);
+
+            FOR in(picking(InternetOrderDetail d)) ORDER number(picking(d)), index(d), d DO {
+                pickingQuantity(d) <- OVERRIDE (PARTITION UNGROUP q[Sku] LIMIT STRICT quantity(d) IF in(picking(d)) ORDER number(picking(d)), index(d), d BY sku(d)), 0.0;
+            }
+            executor(Picking p) <- createdUser(document) WHERE in(p);
+            status(Picking p)<- StatusPicking.picked WHERE in(p);
+            status(InternetOrder o) <- StatusInternetOrder.picked WHERE (GROUP SUM 1 IF in(Picking p) AND relation(p, o));
+        }
+        used(document) <- TRUE;
+    }
+};
+
+changeStatusTerminalOrder (STRING type, STRING status, STRING parentOrders) + {
+    FOR type =='15' AND number(Picking p) == getWord(parentOrders, ',', INTEGER int) AND iterate(int, 1, INTEGER(wordCount(parentOrders, ','))) DO {
+        CASE WHEN status=='1' THEN {
+            IF status(p) == StatusPicking.inWork THEN {
+                throwException('Комплектация ' + number(p) + ' уже в работе');
+            } ELSE {
+                status(p) <- StatusPicking.inWork;
+            }
+        }
+            WHEN status=='2' AND NOT status(p)==StatusPicking.contactCancel THEN {
+                status(p) <- StatusPicking.new;
+            }
+        APPLY;
+    }
+}
+
+//фильтрация комплектаций
+useCustomfilterDashboard() += TRUE;
+
+customFilterDashboard (InternetOrderDetail detail)+= select(internetOrder(detail)) AND status(internetOrder(detail)) == StatusInternetOrder.new
+    AND NOT picking(detail) AND NOT skipFilter(detail);
+customFilterDashboard (InternetOrder i)+= GROUP SUM 1 IF status(internetOrder(InternetOrderDetail d)) == StatusInternetOrder.new
+    AND NOT picking(d) AND NOT skipFilter(d) AND NOT isClosed(d)  AND internetOrder(d)==i;
+
+useCustomCreatePicking () += TRUE;
+
+EXTEND FORM pickingDashboard
+    PROPERTIES createPickingCustom(o) TOOLBAR DRAW o
+    FILTERS accessCompany(currentUser(), supplierStock(o))
+;
+
+DESIGN pickingDashboard{
+    REMOVE PROPERTY (createPicking(o));
+}
+
+CLASS PickingLog 'Запись лога документов';
+TABLE pickingLog(PickingLog);
+
+picking = DATA Picking (PickingLog) INDEXED;
+
+numberDocument 'Номер документа' = DATA STRING[48] (PickingLog) IN id CHARWIDTH 8 INDEXED;
+seriesDocument 'Серия документа' = DATA BPSTRING[2] (PickingLog) IN id CHARWIDTH 3 NOFLEX;
+dateDocument 'Дата документа' = DATA DATE(PickingLog) IN id;
+
+hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (PickingLog) CHARWIDTH 20;
+userLogin 'Логин пользователя' = DATA STRING[100] (PickingLog) CHARWIDTH 20;
+nameContact 'Имя пользователя' =  DATA STRING[100] (PickingLog) IN id;
+dateTimeSession 'Время изменения' = DATA DATETIME (PickingLog) IN id;
+dateSession'Дата изменения' (PickingLog d) = DATE(dateTimeSession(d));
+timeSession 'Время изменения' (PickingLog d) = TIME(dateTimeSession(d));
+
+stock = DATA Stock(PickingLog);
+nameStock 'Склад'(PickingLog d) = name(stock(d));
+
+carrier = DATA Carrier (PickingLog);
+nameCarrier 'Перевозчик' (PickingLog p) = name(carrier(p)) CHARWIDTH 20;
+
+status = DATA StatusPicking(PickingLog);
+nameStatus 'Статус' (PickingLog p) = staticCaption(status(p)) IN documentPrm CHARWIDTH 8;
+
+executor = DATA Employee (PickingLog);
+nameExecutor 'Исполнитель' (PickingLog p) = name(carrier(p)) CHARWIDTH 20;
+
+CLASS TypeChangePicking{
+    changeStatus 'Изменение статуса',
+    changeCountInternetOrderDetail 'Изменение кол-ва строк',
+    changePickingQuantityInternetOrderDetail 'Изменение кол-ва (всего) собрано',
+    changePickingSumInternetOrderDetail 'Изменение суммы (всего) собрано',
+    sendStatus 'Отправка статуса "В комплектации" интернет заказа'
+}
+
+typeChange= DATA TypeChangePicking (PickingLog);
+nameTypeChange 'Тип изменения' (PickingLog l) = staticCaption(typeChange(l)) IN id CHARWIDTH 25;
+
+note 'Примечание' = DATA STRING[255] (PickingLog) CHARWIDTH 30;
+
+WHEN (CHANGED(status(Picking p)) AND PREV(status(p)) AND p IS Picking) DO {
+    NEW d = PickingLog {
+        picking(d) <- p;
+        numberDocument(d) <- number(p);
+        seriesDocument(d) <- series(p);
+        dateDocument(d) <- date(p);
+        status(d) <- status(p);
+        typeChange(d) <- TypeChangePicking.changeStatus;
+        note(d) <- STRING[255]('Предыдущее значение: '+ PREV(nameStatus(p)));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(p);
+    }
+}
+
+WHEN (CHANGED(countInternetOrderDetail(Picking p)) AND PREV(countInternetOrderDetail(p)) AND p IS Picking) DO {
+    NEW d = PickingLog {
+        picking(d) <- p;
+        numberDocument(d) <- number(p);
+        seriesDocument(d) <- series(p);
+        dateDocument(d) <- date(p);
+        status(d) <- status(p);
+        typeChange(d) <- TypeChangePicking.changeCountInternetOrderDetail;
+        note(d) <- STRING[255]('Предыдущее значение: '+ PREV(countInternetOrderDetail(p)));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(p);
+    }
+}
+
+WHEN (CHANGED(pickingQuantityInternetOrderDetail(Picking p)) AND PREV(pickingQuantityInternetOrderDetail(p)) AND p IS Picking) DO {
+    NEW d = PickingLog {
+        picking(d) <- p;
+        numberDocument(d) <- number(p);
+        seriesDocument(d) <- series(p);
+        dateDocument(d) <- date(p);
+        status(d) <- status(p);
+        typeChange(d) <- TypeChangePicking.changePickingQuantityInternetOrderDetail;
+        note(d) <- STRING[255]('Предыдущее значение: '+ PREV(pickingQuantityInternetOrderDetail(p)));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(p);
+    }
+}
+
+WHEN (CHANGED(pickingSumInternetOrderDetail(Picking p)) AND pickingQuantityInternetOrderDetail(p)
+    AND PREV(pickingSumInternetOrderDetail(p)) AND PREV(pickingQuantityInternetOrderDetail(p))
+    AND (NOT (pickingSumInternetOrderDetail(p) / pickingQuantityInternetOrderDetail(p)) = (PREV(pickingSumInternetOrderDetail(p)) / PREV(pickingQuantityInternetOrderDetail(p))))
+    AND p IS Picking) DO {
+    NEW d = PickingLog {
+        picking(d) <- p;
+        numberDocument(d) <- number(p);
+        seriesDocument(d) <- series(p);
+        dateDocument(d) <- date(p);
+        status(d) <- status(p);
+        typeChange(d) <- TypeChangePicking.changePickingSumInternetOrderDetail;
+        note(d) <- STRING[255]('Предыдущее значение: '+ PREV(pickingQuantityInternetOrderDetail(p)));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        stock(d) <- stock(p);
+    }
+}
+
+EXTEND FORM picking
+    OBJECTS dLog=PickingLog GRID
+    PROPERTIES(dLog) READONLY numberDocument, seriesDocument, dateDocument, nameStock,
+        hostnameComputer, userLogin, nameContact, dateSession, timeSession, nameTypeChange,
+        note
+    FILTERS picking(dLog) = p
+
+
+    OBJECTS ddLog = DocumentDetailLog GRID
+    PROPERTIES (ddLog) READONLY index, idSku, nameSku, quantity, price, nameUser, date, time, note
+    FILTERS (GROUP MAX (InternetOrderDetail iod) IF (LONG(internetOrder(iod)) = documentId(ddLog) AND picking(iod) = p) AND index(iod) = index(ddLog))
+;
+
+DESIGN picking {
+    specificationBox{
+        type = TABBED;
+        NEW historyBox {
+            type = TABBED;
+            caption = 'История';
+            MOVE BOX (dLog) {caption = 'По комплектации';}
+            MOVE BOX (ddLog) {caption = 'По спецификации';}
+        }
+    }
+}
+nullPickingBanStatus 'Запрет изменения статуса "Собран" без собранного количества' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES nullPickingBanStatus();
+
+DESIGN options{
+    topInternetOrder{
+        MOVE PROPERTY (nullPickingBanStatus());
+    }
+}
+
+withoutPickingQauntity (InternetOrder o) = GROUP SUM 1 IF
+    NOT pickingQuantity(InternetOrderDetail d) AND internetOrder(d) = o;
+
+CONSTRAINT CHANGED (status(InternetOrder o)) AND status(o) == StatusInternetOrder.picked
+    AND nullPickingBanStatus() AND withoutPickingQauntity(o)
+    MESSAGE 'Запрещенно менять статус на "собран". при незаполненном количестве собрано.';
+
+notNeedExecutorStockConstraint() += TRUE;
+
+
+EXTEND CLASS StatusPicking {
+    contactCancel 'Отменен покупателем'
+}
+
+WHEN SET(status(internetOrder(InternetOrderDetail d)) == StatusInternetOrder.closed) AND picking(d)  DO {
+    status(Picking p) <- StatusPicking.contactCancel WHERE picking(d)==p;
+}
+
+WHEN LOCAL CHANGED (status(InternetOrder o)) AND status(o) = StatusInternetOrder.new
+    AND (GROUP SUM 1 IF picking(InternetOrderDetail d) AND internetOrder(d) = o) DO{
+    MESSAGE 'Запрещено менять статус заказа на "НОВЫЙ", при наличии комплектаций по этому заказу!';
+    CANCEL;
+}
