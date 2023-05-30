@@ -11,6 +11,13 @@ NAMESPACE EGAIS;
 quantity = ABSTRACT NUMERIC[16,5] (WriteOffDetail, F2Reg);
 quantity(UserWriteOffDetail d, F2Reg r) += quantity(d, r);
 
+beforeInputLotBarcode (UserWriteOffDetail d, STRING[200] s) +{
+    IF markCode(s) AND NOT lot(s) AND in(sku(d), product(markCode(s))) THEN NEW l = Lot {
+        id(l) <- s;
+        sku(l) <- sku(d);
+    }
+}
+
 // process
 writeOffType = DATA WriteOffType (Operation);
 idWriteOffType 'Тип списания ЕГАИС' (Operation o) = id(writeOffType(o));

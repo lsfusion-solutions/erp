@@ -285,12 +285,20 @@ META defineDocumentLotIn(doc, quantityProp, obj, formList, postedProp)
     @defineDocumentLotBarcodeIn(doc, quantityProp);
 END
 
-META defineDocumentLotBarcodeOut (doc, stock)
+META defineDocumentLotBarcodeOut (doc, form, stock)
+    EXTEND FORM form
+        OBJECTS cd = ###doc##Detail PANEL
+        FILTERS cd = d
+    ;
+
     afterInputLotBarcode ABSTRACT LIST (###doc);
+    beforeInputLotBarcode ABSTRACT LIST (###doc##Detail, STRING[200]);
     beforeInputBarcode###doc##Detail(###doc i, STRING[200] s) + {
         lotBarcode() <- NULL;
         consumedBarcode###doc##Detail() <- NULL;
         IF length(s) >= OVERRIDE lotMinLength(), 20 THEN {
+            FOR [FILTER form.cd](###doc##Detail d) AND lotType(sku(d)) DO
+                beforeInputLotBarcode(d, s);
             FOR STRING[200] bc = barcodeToId(s) AND Lot l = lot(bc) DO {
                 lotBarcode() <- bc;
                 IF quantity(i, l) = 1.0 THEN {
@@ -346,6 +354,10 @@ META defineDocumentLotBarcodeOut (doc, stock)
     }
 END
 
+META defineDocumentLotBarcodeOut (doc, stock)
+    defineDocumentLotBarcodeOut(doc, doc, stock);
+END
+    
 META defineDocumentLotOut(doc, form, stock, quantityProp, obj, postedProp)
     @defineDocumentLot(doc, quantityProp, postedProp);
 
@@ -366,10 +378,10 @@ META defineDocumentLotOut(doc, form, stock, quantityProp, obj, postedProp)
                       ON CONTEXTMENU dropLotBatch(obj)  
                       BACKGROUND backgroundQuantityLot(d) 
                       SHOWIF useLot(obj)
-                      READONLYIF NOT lotType(sku(d))
+        READONLYIF NOT lotType(sku(d))
     ;
     
-    @defineDocumentLotBarcodeOut(doc, stock);
+    @defineDocumentLotBarcodeOut(doc, form, stock);
 END
 META defineDocumentLotOut(doc, stock, quantityProp, obj, postedProp)
     @defineDocumentLotOut(doc, doc, stock, quantityProp, obj, postedProp);
