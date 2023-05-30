@@ -147,6 +147,14 @@ META defItem(nm, class, extid)
     ;
 END
 
+META defItem(nm, class, extid, group)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = Item IN group EXTID extid
+        PROPERTIES (nm###class, configuration) sendUid EXTID 'Ссылка', fullName EXTID 'НаименованиеПолное', id EXTID 'КодВПрограмме', article EXTID 'Артикул', name EXTID 'Наименование'
+        FILTERS nm###class = nm(class, configuration)
+    ;
+END
+
 META defItemDetail(nm, class, table, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class###table = Item IN group EXTID extid
@@ -1207,6 +1215,43 @@ EXTEND FORM sendMessage
 @defPropIdDetail(typeInventory, 'ТипЗапасов', TypeInventory, moveIn, product);
 @defPropSimpleDetail(declaration, 'НомерГТД', STRING[30], moveIn, product);
 @defPropObjectDetail(country, 'СтранаПроисхождения', Country, moveIn, product);
+
+// Сборка товаров
+@extDocument(assembly, 'СборкаТоваров');
+
+@defStaticType(typeAssembly, 'ВидыОперацийСборкаТоваров');
+
+@defStaticTypeValue(typeAssembly, assembly, 'Сборка');
+
+@defStaticTypeValue(typeAssembly, disassembly, 'Разборка');
+
+@defPropId(operation, 'ВидОперации', typeAssembly, assembly);
+
+@defPropSimple(note, 'Комментарий', STRING, assembly);
+
+@defPropObject(stock, 'Склад', Stock, assembly);
+
+@defPropObject(department, 'Подразделение', Department, assembly);
+
+@defPropObject(item, 'Номенклатура', Item, assembly, itemData);
+
+@defPropObject(uom, 'ЕдиницаИзмерения', UOM, assembly);
+
+@defPropSimple(quantity, 'Количество', NUMERIC[15,3], assembly);
+
+@defPropId(typeInventory, 'ТипЗапасов', typeInventory, assembly);
+
+@extTable(assembly, product);
+
+@defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, assembly, product);
+
+@defPropObjectDetail(item, 'Номенклатура', Item, assembly, product, itemData);
+
+@defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, assembly, product);
+
+@defPropSimpleDetail(quantity, 'Количество', NUMERIC[15,3], assembly, product);
+
+@defPropIdDetail(typeInventory, 'ТипЗапасов', TypeInventory, assembly, product);
 
 // income cash orders
 @extDocument(incomeCashOrderRetailSales, 'ПКОРозничнаяВыручка');
