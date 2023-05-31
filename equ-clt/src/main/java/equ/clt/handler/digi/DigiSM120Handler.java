@@ -84,11 +84,13 @@ public class DigiSM120Handler extends DigiHandler {
                 String description = item.description.replace("\r", "");
                 int lineNumber = 1;
                 int reply = sendIngredientRecord(socket, localErrors, plu, "delete", lineNumber, 2, descriptionLineFont);
-                while (!description.isEmpty() && reply == 0) {
-                    String lineData = description.substring(0, Math.min(description.length(), descriptionLineLength));
-                    description = description.substring(lineData.length());
-                    reply = sendIngredientRecord(socket, localErrors, plu, encodeText(lineData), lineNumber, 0, descriptionLineFont);
-                    lineNumber++;
+                for (String line : description.split("\\\\n")) {
+                    while (!line.isEmpty() && reply == 0) {
+                        String lineData = line.substring(0, Math.min(description.length(), descriptionLineLength));
+                        line = line.substring(lineData.length());
+                        reply = sendIngredientRecord(socket, localErrors, plu, encodeText(lineData), lineNumber, 0, descriptionLineFont);
+                        lineNumber++;
+                    }
                 }
                 return reply == 0;
             } else return true;
@@ -176,7 +178,7 @@ public class DigiSM120Handler extends DigiHandler {
         private int sendIngredientRecord(DataSocket socket, List<String> localErrors, Integer plu, String lineData, int lineNumber, int flagForDelete, int fontSize) throws IOException {
             //FlagForDelete: No data/0: Add or Change   1: Delete line   2: Delete record
             byte[] record = makeIngredientRecord(plu, lineData, lineNumber, flagForDelete, fontSize);
-            processTransactionLogger.info(String.format(getLogPrefix() + "Sending ingredient file item %s line %s to scales %s", plu, lineNumber, scales.port));
+            processTransactionLogger.info(String.format(getLogPrefix() + "Sending ingredient file item %s line %s (delete %s) to scales %s. Text: %s, ", plu, lineNumber, flagForDelete, scales.port, lineData));
             int reply = sendRecord(socket, cmdWrite, fileIngredient, record);
             if (reply != 0)
                 logError(localErrors, String.format(getLogPrefix() + "Send ingredient file item %s line %s to scales %s failed. Error: %s", plu, lineNumber, scales.port, reply));
