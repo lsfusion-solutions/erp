@@ -6,4 +6,18 @@ NAMESPACE Disparity;
 
 @defineDocumentLotOutLedger(userDisparity, disparity, stock);
 
-quantity[OutFIFOSkuLedger, Lot](UserDisparityDetail sd, Lot l) += quantity(sd, l);
+skipLotLedgerDisparity 'Кол-во марки не списывать при изменении сортности' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES skipLotLedgerDisparity()
+;
+
+DESIGN options {
+    pane {
+        disparity {
+            MOVE PROPERTY(skipLotLedgerDisparity());
+        }
+    }
+}
+
+quantity[OutFIFOSkuLedger, Lot](UserDisparityDetail sd, Lot l) += quantity(sd, l) IF NOT skipLotLedgerDisparity();
