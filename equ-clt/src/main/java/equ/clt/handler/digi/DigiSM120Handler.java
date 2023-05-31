@@ -86,7 +86,7 @@ public class DigiSM120Handler extends DigiHandler {
                 int reply = sendIngredientRecord(socket, localErrors, plu, "delete", lineNumber, 2, descriptionLineFont);
                 for (String line : description.split("\\\\n")) {
                     while (!line.isEmpty() && reply == 0) {
-                        String lineData = line.substring(0, Math.min(description.length(), descriptionLineLength));
+                        String lineData = line.substring(0, Math.min(line.length(), descriptionLineLength));
                         line = line.substring(lineData.length());
                         reply = sendIngredientRecord(socket, localErrors, plu, encodeText(lineData), lineNumber, 0, descriptionLineFont);
                         lineNumber++;
