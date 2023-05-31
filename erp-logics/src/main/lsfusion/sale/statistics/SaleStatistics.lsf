@@ -1314,12 +1314,14 @@ quantityNoGroups 'Количество товаров без групп, шт' (
 
 quantitySoldNot 'Продано без группы, шт' (StatisticGroupType type, DATE dateFrom, DATE dateTo)=
     GROUP SUM quantitySoldStatistic(Sku sku, Stock stock, dateFrom, dateTo) IF type IS StatisticGroupType AND NOT       
-    statistic(type,sku) AND inStat(stock);
+    statistic(type,sku) AND inStat(stock) ;
+
+extraSumSoldNot = ABSTRACT NUMERIC[16,5](StatisticGroupType, DATE, DATE);
 
 sumSoldNot 'Продано сум без группы, руб' (StatisticGroupType type, DATE dateFrom, DATE dateTo)=
-    GROUP SUM sumSoldStatistic(Sku sku, Stock stock, dateFrom, dateTo) IF type IS StatisticGroupType AND NOT
-        statistic(type,sku) AND inStat(stock);
-
+    (GROUP SUM sumSoldStatistic(Sku sku, Stock stock, dateFrom, dateTo) IF type IS StatisticGroupType AND NOT
+        statistic(type,sku) AND inStat(stock))
+        (+) extraSumSoldNot(type, dateFrom, dateTo);
 balanceBNot 'Остаток на начало без групп, шт' (StatisticGroupType type, DATE date)=
     GROUP SUM balanceB(Sku sku, Stock stock, date) IF type IS StatisticGroupType AND NOT       
     statistic(type,sku) AND inStat(stock);  
