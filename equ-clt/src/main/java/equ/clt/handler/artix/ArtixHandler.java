@@ -415,9 +415,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             Integer enableQuantityScales = null;
 
             if (infoJSON != null) {
+                if(infoJSON.has("requiresalerestrict")) {
+                    requireSaleRestrict = infoJSON.optInt("requiresalerestrict");
+                }
                 Double alcoholPercent = infoJSON.optDouble("alcoholpercent");
                 if(!alcoholPercent.isNaN()) {
-                    requireSaleRestrict = infoJSON.getInt("requiresalerestrict");
                     inventObject.put("alcoholpercent", alcoholPercent);
                 }
 
