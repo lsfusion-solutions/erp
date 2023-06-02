@@ -20,9 +20,10 @@ DESIGN groupCashRegister {
 
 hasOverPrice (Barcode b, GroupMachinery m) += TRUE IF priceA(priorityPriceListType(m), sku(b), stock(m), currentDateTime());
 
+skipPriority = ABSTRACT BOOLEAN ();
 
 overCreateMachineryPriceTransaction(GroupMachinery g) + {
-    IF priorityPriceListType(g) AND NOT skipLastTransaction(g) THEN {
+    IF priorityPriceListType(g) AND NOT (skipLastTransaction(g) OR skipPriority()) THEN {
         price(Barcode barcode) <- priceA(priorityPriceListType(g), sku(barcode), stock(g), currentDateTime())
             WHERE send(barcode) AND priceA(priorityPriceListType(g), sku(barcode), stock(g), currentDateTime());
     }
