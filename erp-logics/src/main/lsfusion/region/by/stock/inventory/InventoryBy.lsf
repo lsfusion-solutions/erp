@@ -190,7 +190,8 @@ countIndexBatch 'Количество наименований партий'(Col
         SUM 1 IF includeCustomOver(cs,Batch b) IN documentSum;     
   
 countResponsiblePersonStock = TRUE IF [GROUP SUM 1 IF isOverResponsiblePerson(stock(CollationSheet cs), Employee e1) BY cs](CollationSheet cs);
-        
+resetCollationSheet ABSTRACT LIST();
+
 FORM printCollationSheet 'Опись'
 
     OBJECTS          cs=CollationSheet PANEL SUBREPORT
@@ -236,8 +237,10 @@ FORM printCollationSheet 'Опись'
     FILTERS    isOverResponsiblePerson(stock(cs), e2)     
 ;
 
-print 'Опись' (CollationSheet collationSheet) 
-    { PRINT printCollationSheet OBJECTS cs = collationSheet; }   IMAGE 'print.png' IN print;
+print 'Опись' (CollationSheet collationSheet) {
+    resetCollationSheet();    
+    PRINT printCollationSheet OBJECTS cs = collationSheet; 
+} IMAGE 'print.png' IN print;
 
 FORM printCollationSheetXLS 'Опись'
 
@@ -278,9 +281,10 @@ FORM printCollationSheetXLS 'Опись'
     
 ;
 
-printXLS 'Опись (xls)' (CollationSheet collationSheet) 
-    { PRINT printCollationSheetXLS OBJECTS cs = collationSheet XLSX; } 
-    IMAGE 'print.png' IN print;
+printXLS 'Опись (xls)' (CollationSheet collationSheet) {
+    resetCollationSheet();  
+    PRINT printCollationSheetXLS OBJECTS cs = collationSheet XLSX; 
+} IMAGE 'print.png' IN print;
     
 
 countIndexFacts 'Количество наименований товара'(CollationSheet cs) = GROUP
