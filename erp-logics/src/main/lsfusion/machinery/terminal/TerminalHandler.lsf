@@ -1,6 +1,6 @@
 MODULE TerminalHandler; 
 
-REQUIRE Terminal, PriceListAccount, Item, PurchasePack, TerminalPreferences;
+REQUIRE Terminal, PriceListAccount, Item, PurchasePack, TerminalPreferences, StockDocumentSkuLedger;
 
 processMessage = DATA LOCAL NESTED STRING ();
 
@@ -216,6 +216,13 @@ EXTEND FORM terminalHandbookType
 EXTEND FORM terminalHandbookTypes 
     PROPERTIES (t) READONLY canonicalNameField1Property, canonicalNameField2Property, canonicalNameField3Property, canonicalNameFlagsProperty;
 
+
+exportMoves(Sku s, Stock st) {
+    EXPORT JSON FROM  numberDocument(SkuLedger move), seriesDocument(move), date(move), dateTime(move), 
+        description(move), nameOperationDocument(move), nameLegalEntityDocument(move), nameLegalEntityStockDocument(move), 
+        signedQuantity(move), signedPrice(move), signedSum(move) , balanceA(move), priceA(move), sumA(move)
+        WHERE sku(move) == s AND stock(move) == st AND isPosted(move);
+}
 
 CLASS TerminalFlags {
     FLG_VOP_GROUP 'Включает накопление товаров в документе при вводе',//    0  // 1
