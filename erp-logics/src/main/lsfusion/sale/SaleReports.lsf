@@ -36,8 +36,10 @@ sumStock 'Сумма' = DATA LOCAL NUMERIC[18,4] (Group);
 inSaleReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 inSaleReportDialog 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
+@defineOption(useReportStockCodes, 'Использовать коды складов в отчетах', sale);
+
 inSaleReportStocks 'Склады' () =
-    GROUP CONCAT name(Stock st) IF inSaleReport(st) ,', ' ORDER st CHARWIDTH 30;
+    GROUP CONCAT (OVERRIDE id(Stock st) IF useReportStockCodes(), name(st)) IF inSaleReport(st) ,', ' ORDER st CHARWIDTH 30;
 defaultStockSaleReport = GROUP MIN Stock st IF inSaleReport(st);
 
 skipSaleReport = ABSTRACT CASE BOOLEAN (Sku,Stock);
