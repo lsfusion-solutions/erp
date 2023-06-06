@@ -398,6 +398,10 @@ META defStock(nm, class, extid)
     ;
 END
 
+META defStock(nm, class)
+    @defStock(nm, class, 'Склад');
+END
+
 // department
 CLASS ABSTRACT Department 'Справочник.Подразделения' : Reference;
 @defProp(nameDepartment, 'Наименование', STRING, department);
@@ -548,6 +552,44 @@ END
 
 META defBankAccount(nm, class)
     @defBankAccount(nm, class, 'БанковскийСчет');
+END
+
+// cash register
+@extReference (cashRegister, 'КассыККМ');
+@defKeyPropSimple(name, 'Наименование', STRING, keyProperties, cashRegister);
+@defProp(company, 'Организация', Company, CashRegister);
+@defProp(stock, 'Склад', Stock, CashRegister);
+META defCashRegister (nm, class, extid)
+    EXTEND FORM sendMessage
+        OBJECTS nm###class = CashRegister EXTID extid
+        FILTERS nm###class = nm(class, configuration)
+        PROPERTIES (nm###class, configuration) name EXTID 'Наименование'
+    ;
+    @defCompany(company, nm###class);
+    EXTEND FORM sendMessage
+        OBJECTS stock###nm###class = Stock EXTID 'Склад'
+        PROPERTIES(stock###nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', idType EXTID 'ТипСклада'
+        FILTERS stock###nm###class = stock(nm###class, configuration)
+    ;
+//    @defStock(stock, nm###class){
+//    @defStock(stock, nm###class, 'Склад'){
+//    EXTEND FORM sendMessage
+//        OBJECTS stock###nm###class = Stock EXTID 'Склад'
+//        PROPERTIES(stock###nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', idType EXTID 'ТипСклада'
+//        FILTERS stock###nm###class = stock(nm###class, configuration)
+//    ;
+//
+//    uidStock###nm###class 'Ссылка' = DATA LOCAL ISTRING[36] (INTEGER);
+//    nameStock###nm###class 'Наименование' = DATA LOCAL STRING (INTEGER);
+//
+//    EXTEND FORM receiveMessage
+//        PROPERTIES (stock###nm###class) uidStock###nm###class EXTID 'Ссылка', nameStock###nm###class EXTID 'Наименование'
+//    ;
+//};
+//};
+    EXTEND FORM sendMessage
+        PROPERTIES(nm###class) uid EXTID 'Ссылка'
+    ;
 END
 
 //cash flow type
@@ -710,20 +752,77 @@ EXTEND FORM receiveMessage
 @defPropObject(partner, 'Контрагент', Partner, purchaseInvoice);
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseInvoice);
 
-META defPurchaseInvoice(nm, class, extid)
+META defPurchaseInvoice(nm, class, extid, group)
     
-    @defKeyPropSimple(uidPurchaseInvoice, 'Ссылка', ISTRING[36], purchaseInvoice, class);
-    uidPurchaseInvoice(###class nm, Configuration configuration) += sendUid(nm(nm, configuration), configuration);
-    @defKeyPropDate(datePurchaseInvoice, 'Дата', purchaseInvoice, class);
-    datePurchaseInvoice(###class nm, Configuration configuration) += date(nm(nm, configuration), configuration);
-    @defKeyPropSimple(idPurchaseInvoice, 'Номер', STRING[256], purchaseInvoice, class);
-    idPurchaseInvoice(###class nm, Configuration configuration) += STRING[256](id(nm(nm, configuration), configuration));
-    @defKeyPropObject(companyPurchaseInvoice, 'Организация', Company, purchaseInvoice, class);
-    companyPurchaseInvoice(###class nm, Configuration configuration) += company(nm(nm, configuration), configuration);
-    @defKeyPropObject(partnerPurchaseInvoice, 'Контрагент', Partner, purchaseInvoice, class);
-    partnerPurchaseInvoice(###class nm, Configuration configuration) += partner(nm(nm, configuration), configuration);
+    @defKeyPropSimple(uid###nm, 'Ссылка', ISTRING[36], group, class);
+    uid###nm(###class nm, Configuration configuration) += sendUid(nm(nm, configuration), configuration);
+    @defKeyPropDate(date###nm, 'Дата', group, class);
+    date###nm(###class nm, Configuration configuration) += date(nm(nm, configuration), configuration);
+    @defKeyPropSimple(id###nm, 'Номер', STRING[256], group, class);
+    id###nm(###class nm, Configuration configuration) += STRING[256](id(nm(nm, configuration), configuration));
+    @defKeyPropObject(company###nm, 'Организация', Company, group, class);
+    company###nm(###class nm, Configuration configuration) += company(nm(nm, configuration), configuration);
+    @defKeyPropObject(partner###nm, 'Контрагент', Partner, group, class);
+    partner###nm(###class nm, Configuration configuration) += partner(nm(nm, configuration), configuration);
 
 END
+
+// Виды операций корректировки инвойсов
+@defStaticType(typeInvoiceCorrection, 'ВидыОперацийИсправленияПоступленияРеализации');
+@defStaticTypeValue(typeInvoiceCorrection, agreedChange, 'СогласованноеИзменение');
+@defStaticTypeValue(typeInvoiceCorrection, mistakeCorrection, 'ИсправлениеОшибки');
+
+// КорректировкаПоступленияТоваров
+@extDocument(purchaseInvoiceCorrection, 'КорректировкаПоступленияТоваров');
+@defKeyPropObject(partner, 'Контрагент', Partner, keyProperties, purchaseInvoiceCorrection);
+EXTEND FORM sendMessage
+    OBJECTS partnerPurchaseInvoiceCorrection = Partner EXTID 'Контрагент' IN keyProperties
+    PROPERTIES(partnerPurchaseInvoiceCorrection, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS partnerPurchaseInvoiceCorrection = partner(purchaseInvoiceCorrection, configuration)
+
+//    OBJECTS countryPartnerPurchaseInvoiceCorrection = Country EXTID 'СтранаРегистрации'
+//    PROPERTIES(countryPartnerPurchaseInvoiceCorrection, configuration) sendUid EXTID 'Ссылка', id EXTID 'Код', name EXTID 'Наименование'
+//    FILTERS country(partnerPurchaseInvoiceCorrection, configuration)==countryPartner
+;
+@defPropSimple(note, 'Комментарий', STRING, purchaseInvoiceCorrection);
+@defPropObject(department, 'Подразделение', Department, purchaseInvoiceCorrection);
+@defPropObject(stock, 'Склад', Stock, purchaseInvoiceCorrection);
+@defPropObject(currency, 'Валюта', Currency, purchaseInvoiceCorrection);
+@defPropObject(contract, 'Договор', Contract, purchaseInvoiceCorrection);
+@defPropBoolean(includeVAT, 'СуммаВключаетНДС', purchaseInvoiceCorrection);
+@defPropObject(purchaseInvoice, 'ПоступлениеТоваровУслугСсылка', PurchaseInvoice, purchaseInvoiceCorrection, purchaseInvoice);
+EXTEND FORM sendMessage
+    OBJECTS partnerPurchaseInvoicePurchaseInvoiceCorrection = Partner EXTID 'Контрагент' IN purchaseInvoice
+    PROPERTIES(partnerPurchaseInvoicePurchaseInvoiceCorrection, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS partnerPurchaseInvoicePurchaseInvoiceCorrection = partnerPurchaseInvoice(purchaseInvoiceCorrection, configuration)
+;
+@defPropObject(purchaseInvoiceCorrected, 'ПоступлениеТоваровУслугСсылка', PurchaseInvoice, purchaseInvoiceCorrection, purchaseInvoiceCorrected);
+EXTEND FORM sendMessage
+    OBJECTS partnerPurchaseInvoiceCorrectedPurchaseInvoiceCorrection = Partner EXTID 'Контрагент' IN purchaseInvoiceCorrected
+    PROPERTIES(partnerPurchaseInvoiceCorrectedPurchaseInvoiceCorrection, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    FILTERS partnerPurchaseInvoiceCorrectedPurchaseInvoiceCorrection = partnerPurchaseInvoiceCorrected(purchaseInvoiceCorrection, configuration)
+;
+@defPropId(operation, 'ВидОперации', typeInvoiceCorrection, purchaseInvoiceCorrection);
+@extTable(purchaseInvoiceCorrection, product);
+@defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, purchaseInvoiceCorrection, product);
+@defPropObjectDetail(item, 'Номенклатура', Item, purchaseInvoiceCorrection, product, itemData);
+@defPropObjectDetail(specification, 'Характеристика', Specification, purchaseInvoiceCorrection, product, itemData);
+@defPropSimpleDetail(quantityA, 'Количество', NUMERIC[15,3], purchaseInvoiceCorrection, product);
+@defPropSimpleDetail(quantityB, 'КоличествоДоИзменения', NUMERIC[15,3], purchaseInvoiceCorrection, product);
+@defPropSimpleDetail(sumA, 'Сумма', NUMERIC[15,2], purchaseInvoiceCorrection, product);
+@defPropSimpleDetail(sumB, 'СуммаДоИзменения', NUMERIC[15,2], purchaseInvoiceCorrection, product);
+@defPropSimpleDetail(priceA, 'Цена', NUMERIC[15,2], purchaseInvoiceCorrection, product);
+@defPropSimpleDetail(priceB, 'ЦенаДоИзменения', NUMERIC[15,2], purchaseInvoiceCorrection, product);
+@defPropIdDetail(rateVatA, 'СтавкаНДС', TypeVat, purchaseInvoiceCorrection, product);
+EXTEND FORM receiveMessage
+    PROPERTIES (purchaseInvoiceCorrectionProduct) rateVatAPurchaseInvoiceCorrectionProduct EXTID 'СтавкаНДС'
+;
+@defPropIdDetail(rateVatB, 'СтавкаНДСДоИзменения', TypeVat, purchaseInvoiceCorrection, product);
+EXTEND FORM receiveMessage
+    PROPERTIES (purchaseInvoiceCorrectionProduct) rateVatBPurchaseInvoiceCorrectionProduct EXTID 'СтавкаНДС'
+;
+@defPropSimpleDetail(sumVatA, 'СуммаНДС', NUMERIC[15,2], purchaseInvoiceCorrection, product);
+@defPropSimpleDetail(sumVatB, 'СуммаНДСДоИзменения', NUMERIC[15,2], purchaseInvoiceCorrection, product);
 
 //purchase order
 orderPurchaseInvoice = DATA LOCAL INTEGER (INTEGER);
@@ -1107,10 +1206,10 @@ EXTEND FORM receiveMessage
 
 @defPropObject(settlements, 'ДанныеВзаиморасчетов', Settlement, purchaseReturnInvoice);
 
-@defPropObject(purchaseInvoice, 'ДокументПоступления', PurchaseInvoice, purchaseReturnInvoice);
+@defPropObject(purchaseInvoice, 'ДокументПоступления', PurchaseInvoice, purchaseReturnInvoice, purchaseDocument);
 
 EXTEND FORM sendMessage
-    OBJECTS partnerPurchaseInvoicePurchaseReturnInvoice = Partner EXTID 'Контрагент' IN purchaseInvoice
+    OBJECTS partnerPurchaseInvoicePurchaseReturnInvoice = Partner EXTID 'Контрагент' IN purchaseDocument
     PROPERTIES(partnerPurchaseInvoicePurchaseReturnInvoice, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
     FILTERS partnerPurchaseInvoicePurchaseReturnInvoice = partnerPurchaseInvoice(purchaseReturnInvoice, configuration)
 ;
@@ -1289,6 +1388,17 @@ EXTEND FORM sendMessage
 @defPropObject(department, 'Подразделение', Department, incomeCashOrderOther, commonData);
 @extTable(incomeCashOrderOther, paymentDescription);
 @defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], incomeCashOrderOther, paymentDescription);
+
+@extDocument(incomeCashOrderFromCashRegister, 'ПКОПоступлениеИзКассыККМ');
+@defPropObject(currency, 'Валюта', Currency, incomeCashOrderFromCashRegister, commonData);
+@defPropSimple(sum, 'Сумма', NUMERIC[15,2], incomeCashOrderFromCashRegister, commonData);
+@defPropSimple(note, 'Комментарий', STRING, incomeCashOrderFromCashRegister, commonData);
+@defPropObject(department, 'Подразделение', Department, incomeCashOrderFromCashRegister, commonData);
+@defPropSimple(reason, 'Основание', STRING, incomeCashOrderFromCashRegister, commonData);
+@defPropSimple(takenFrom, 'ПринятоОт', STRING, incomeCashOrderFromCashRegister, commonData);
+
+@defPropObject(cashRegister, 'КассаККМ', CashRegister, incomeCashOrderFromCashRegister);
+
 // outcome cash orders
 @extDocument(outcomeCashOrderInternal, 'РКОВнутренняяПередача');
 @defPropObject(currency, 'Валюта', Currency, outcomeCashOrderInternal);

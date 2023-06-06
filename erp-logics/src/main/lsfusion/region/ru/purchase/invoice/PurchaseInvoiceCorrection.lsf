@@ -100,7 +100,9 @@ priceA 'Цена (после)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
 invoicePriceB 'Цена с НДС (до)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
 invoicePriceA 'Цена с НДС (после)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
 
-quantity 'Кол-во' = DATA NUMERIC[16,5] (InvoiceCorrectionDetail);
+quantityB 'Кол-во (до)' = DATA NUMERIC[16,5] (InvoiceCorrectionDetail);
+quantityA 'Кол-во (после)' = DATA NUMERIC[16,5] (InvoiceCorrectionDetail);
+quantityDiff 'Кол-во (разница)' (InvoiceCorrectionDetail d) = quantityA(d) (-) quantityB(d);
 
 sumB 'Сумма (до)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
 sumA 'Сумма (после)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
@@ -148,8 +150,8 @@ decreaseVATSumInvoiceCorrectionDetail 'Сумма НДС (уменьшение)'
 decreaseInvoiceSumInvoiceCorrectionDetail 'Сумма с НДС (уменьшение)' = GROUP SUM decreaseInvoiceSum(InvoiceCorrectionDetail idetail) 
     BY invoiceCorrection(idetail) IN documentSum;
 
-WHEN LOCAL (CHANGED(quantity(InvoiceCorrectionDetail detail)) OR CHANGED(invoicePriceA(detail)) OR CHANGED(currency (detail))) AND withVATPrice(invoiceDetail(detail)) DO
-    invoiceSumA (detail) <- NUMERIC[18,4](round(quantity(detail) * invoicePriceA(detail), currency(detail))); 
+WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(invoicePriceA(detail)) OR CHANGED(currency (detail))) AND withVATPrice(invoiceDetail(detail)) DO
+    invoiceSumA (detail) <- NUMERIC[18,4](round(quantityA(detail) * invoicePriceA(detail), currency(detail))); 
     
 WHEN LOCAL (CHANGED(invoiceSumA(InvoiceCorrectionDetail detail)) OR CHANGED(valueVAT (detail)) OR CHANGED(currency (detail))) AND withVATPrice(invoiceDetail(detail)) DO 
     VATSumA (detail)  <- NUMERIC[18,4](round(invoiceSumA(detail) * valueVAT(detail) / (100 (+) valueVAT (detail)), currency(detail)));
@@ -164,7 +166,7 @@ WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail
     invoicePriceB(invoiceCorrectionDetail) <- invoicePrice(invoiceDetail(invoiceCorrectionDetail));
     invoiceSumB(invoiceCorrectionDetail) <- invoiceSum(invoiceDetail(invoiceCorrectionDetail));
     VATSumB(invoiceCorrectionDetail) <- VATSum(invoiceDetail(invoiceCorrectionDetail));
-    quantity(invoiceCorrectionDetail) <- quantity(invoiceDetail(invoiceCorrectionDetail));
+    quantityB(invoiceCorrectionDetail) <- quantity(invoiceDetail(invoiceCorrectionDetail));
     VAT(invoiceCorrectionDetail) <- VAT(invoiceDetail(invoiceCorrectionDetail));
     valueVAT(invoiceCorrectionDetail) <- valueVAT(invoiceDetail(invoiceCorrectionDetail));
 }
@@ -175,8 +177,9 @@ WHEN LOCAL CHANGED(invoicePriceA(InvoiceCorrectionDetail detail)) AND withVATPri
 
 WHEN LOCAL CHANGED(priceA(InvoiceCorrectionDetail detail)) AND NOT withVATPrice(invoiceDetail(detail)) DO {
     invoicePriceA (detail) <- round(priceA(detail) * (100.0 (+) valueVAT(detail)) /100.0, defaultRound(currency(detail)));
-}  
+}
 
+quantityA 'Количество (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = quantityA(invoiceCorrectionDetail(detail, invoiceCorrection));
 priceA 'Цена (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = priceA(invoiceCorrectionDetail(detail, invoiceCorrection));
 invoicePriceA 'Цена с НДС (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = invoicePriceA(invoiceCorrectionDetail(detail, invoiceCorrection));
 
@@ -198,6 +201,8 @@ changePriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrectio
                 invoiceCorrection(d) <- invoiceCorrection;
                 invoiceDetail(d) <- invoiceDetail;
                 sku(d) <- sku(invoiceDetail);
+                quantityB (d) <- quantity(invoiceDetail);
+                quantityA (d) <- quantity(invoiceDetail);
                 priceB (d) <- price(invoiceDetail);
                 priceA (d) <- n;
             }
@@ -208,6 +213,36 @@ changePriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrectio
 changePrice(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection)  { 
     INPUT n = NUMERIC[16,5] DO
         changePriceValue(invoiceDetail, invoiceCorrection, n);
+}
+
+changeQuantityValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection, NUMERIC[16,4] n)  {
+    IF invoiceCorrectionDetail(invoiceDetail, invoiceCorrection) THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            quantityA(InvoiceCorrectionDetail detail) <- n WHERE detail == invoiceCorrectionDetail(invoiceDetail, invoiceCorrection);
+        } ELSE {
+            FOR invoiceCorrectionDetail(invoiceDetail, invoiceCorrection) == InvoiceCorrectionDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            NEW d = InvoiceCorrectionDetail {
+                invoiceCorrection(d) <- invoiceCorrection;
+                invoiceDetail(d) <- invoiceDetail;
+                sku(d) <- sku(invoiceDetail);
+                priceB(d) <- price(invoiceDetail);
+                priceA(d) <- price(invoiceDetail);
+                invoicePriceB (d) <- invoicePrice(invoiceDetail);
+                invoicePriceA (d) <- invoicePrice(invoiceDetail);
+                quantityB (d) <- quantity(invoiceDetail);
+                quantityA (d) <- n;
+            }
+        }
+    }
+}
+
+changeQuantity(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection)  {
+    INPUT n = NUMERIC[16,5] DO
+        changeQuantityValue(invoiceDetail, invoiceCorrection, n);
 }
 
 changeInvoicePriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection, NUMERIC[16,4] n)  { 
@@ -224,6 +259,8 @@ changeInvoicePriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCo
                 invoiceCorrection(d) <- invoiceCorrection;
                 invoiceDetail(d) <- invoiceDetail;
                 sku(d) <- sku(invoiceDetail);
+                quantityB (d) <- quantity(invoiceDetail);
+                quantityA (d) <- quantity(invoiceDetail);
                 invoicePriceB (d) <- invoicePrice(invoiceDetail);
                 invoicePriceA (d) <- n;
             }
@@ -270,7 +307,7 @@ FORM invoiceCorrection 'Корректировка накладной (заку�
                invoicePriceB 'Цена с НДС (до)' = invoicePrice(id) SHOWIF NOT hideWithVAT(invoice(id)) READONLY,
                VATSumB 'Сумма НДС (до)' = VATSum(id) READONLY,  
                invoiceSumB 'Сумма с НДС (до)' = invoiceSum(id) SHOWIF NOT hideWithVAT(invoice(id)) READONLY
-    PROPERTIES BACKGROUND RGB(213,249,185) priceA(id, i) ON CHANGE changePrice(id, i) SHOWIF NOT hideWithoutVAT(invoice(id)),
+    PROPERTIES BACKGROUND RGB(213,249,185) quantityA(id, i) ON CHANGE changeQuantity(id, i), priceA(id, i) ON CHANGE changePrice(id, i) SHOWIF NOT hideWithoutVAT(invoice(id)),
                sumA(id, i) SHOWIF NOT hideWithoutVAT(invoice(id)),
                invoicePriceA(id, i) ON CHANGE changeInvoicePrice(id, i) SHOWIF NOT hideWithVAT(invoice(id)),
                VATSumA(id, i),
@@ -285,9 +322,9 @@ FORM invoiceCorrection 'Корректировка накладной (заку�
     OBJECTS d = InvoiceCorrectionDetail GRID
     PROPERTIES (d) index
     PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku 
-    PROPERTIES (d) idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, quantity, valueVAT
+    PROPERTIES (d) idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, quantityB, valueVAT
     PROPERTIES (d) READONLY BACKGROUND RGB(255,238,165) priceB, sumB, VATSumB, invoicePriceB, invoiceSumB
-    PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) priceA, sumA, VATSumA, invoicePriceA, invoiceSumA
+    PROPERTIES (d) READONLY BACKGROUND RGB(213,249,185) quantityA, priceA, sumA, VATSumA, invoicePriceA, invoiceSumA
     PROPERTIES (d) deleteid=DELETE SHOWIF NOT hideDelete(i) GRID
     ORDERS index(d)
     PROPERTIES deleteInvoiceCorrectionDetail(i) DRAW d
@@ -549,7 +586,7 @@ FORM invoiceCorrections 'Корректировки накладных'
     OBJECTS d = InvoiceCorrectionDetail
     PROPERTIES (d) READONLY index
     PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
-    PROPERTIES (d) READONLY quantity, priceB SHOWIF NOT hideWithoutVAT(invoice(i)), sumB SHOWIF NOT hideWithoutVAT(invoice(i)),
+    PROPERTIES (d) READONLY quantityB, priceB SHOWIF NOT hideWithoutVAT(invoice(i)), sumB SHOWIF NOT hideWithoutVAT(invoice(i)),
                    numberVAT SHOWIF NOT hideWithoutVAT(invoice(i)), valueVAT SHOWIF NOT hideWithoutVAT(invoice(i)), 
                    invoicePriceB SHOWIF NOT hideWithVAT(invoice(i)),
                    VATSumB, invoiceSumB 
@@ -696,6 +733,8 @@ price[PurchaseLedger] (InvoiceCorrectionDetail ledger) += invoicePriceA(ledger);
 supplier[PurchaseLedger] (InvoiceCorrectionDetail ledger) += supplier(ledger);
 supplierStock[PurchaseLedger] (InvoiceCorrectionDetail ledger) += supplierStock(ledger);
 skip[PurchaseLedger] (InvoiceCorrectionDetail ledger) += skipPurchaseLedger(operation(ledger));
+quantity[PurchaseLedger] (InvoiceCorrectionDetail ledger) += quantityDiff(ledger);
+shipmentQuantity[PurchaseLedger] (InvoiceCorrectionDetail ledger) += quantityDiff(ledger);
 //numberDocument[PurchaseLedger] (InvoiceCorrectionDetail ledger) += number(ledger);
 
 //-- Запрет на изменение документа другим пользователем
