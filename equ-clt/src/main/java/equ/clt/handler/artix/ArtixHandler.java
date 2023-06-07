@@ -1182,7 +1182,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean readCashDocuments = artixSettings != null && artixSettings.isReadCashDocuments();
-        boolean appendCashierId = artixSettings.isAppendCashierId();
+        boolean appendCashierId = artixSettings != null && artixSettings.isAppendCashierId();
 
         if (readCashDocuments) {
             //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
@@ -1201,7 +1201,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 File[] filesList = new File(directory).listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
                 sendSalesLogger.info(logPrefix + "ListFiles readCashDocumentInfo: " + (System.currentTimeMillis() - start) + " ms"); //temp log
 
-                if (filesList != null && filesList.length > 0) {
+                if (filesList != null) {
                     for (File file : filesList) {
                         if (!Thread.currentThread().isInterrupted() && readFiles.contains(file)) {
                             try {
@@ -1596,7 +1596,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                         canceledReceipts.put(documentObject);
                                     }
 
-                                    Integer docType = documentObject.getInt("docType");
+                                    int docType = documentObject.getInt("docType");
                                     boolean isSaleInvoice = docType == 18; //Импортируем как продажу, записываем json в receiptDetailExtraFields
                                     boolean isSale = docType == 1 || docType == 8 || isSaleInvoice; //sale or sale cancellation
                                     boolean isReturn = docType == 2 || docType == 25 || docType == 7; //return or return cancellation
