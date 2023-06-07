@@ -4,9 +4,6 @@ REQUIRE MachineryPriceTransactionStockTax, NativeMachinery, Item, CashRegisterPr
 
 NAMESPACE Set10;
 
-@defineLogRotate(set10, 5, weekly);
-useOutSet10Log 'Логировать исх. запросы set10' = DATA BOOLEAN ();
-
 isSet10 (GroupCashRegister g) = TRUE IF handlerModel(g) = 'lsf.set10';
 idStoreSet 'Код магазина Set10' = DATA STRING[20] (GroupCashRegister);
 idStoreSet (CashRegister c) = idStoreSet(groupCashRegister(c));
@@ -40,8 +37,6 @@ DESIGN integrationData {
 }
 
 //обработка ответа
-GROUP bodyRequest EXTID 'soapenv:Body';
-GROUP bodyAnswer EXTID 'soap:Body';
 GROUP getGoodsCatalogWithTiResponse 
     EXTID 'ns2=http://plugins.products.ERPIntegration.crystals.ru/:getGoodsCatalogWithTiResponse' : bodyAnswer;
 
@@ -119,18 +114,6 @@ FORM priceEntry FORMEXTID 'goods-catalog'
     PROPERTIES IN department = IF in(m, good) THEN '1' EXTID 'number'
     FILTERS in(m, good)
 ;
-    
-GROUP getGoodsCatalogWithTi EXTID 'plug:getGoodsCatalogWithTi' : bodyRequest;
-
-header = DATA LOCAL STRING();
-goodsCatalogXML = DATA LOCAL STRING();
-TI = DATA LOCAL STRING[100]();
-
-FORM requestItem FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-    PROPERTIES ATTR ='http://plugins.products.ERPIntegration.crystals.ru/' EXTID 'xmlns:plug'
-    PROPERTIES() header EXTID 'soapenv:Header'
-    PROPERTIES() IN getGoodsCatalogWithTi goodsCatalogXML, TI
-;
 
 statusTransaction = DATA STRING[100] (MachineryPriceTransaction, STRING);
 
@@ -158,35 +141,8 @@ sendRequsetGoods(FILE f, STRING type, MachineryPriceTransaction t){
     APPLY;
 }
 
-//get feedback
-GROUP getPackageStatus EXTID 'feed:getPackageStatus' : bodyRequest;
-GROUP xmlGetstatus : getPackageStatus;
-GROUP importRequest EXTID 'import' : xmlGetstatus;
-isCorrect (MachineryPriceTransaction t) = IF (GROUP SUM 1 IF statusTransaction(t, STRING s) = 'correct') 
+isCorrect (MachineryPriceTransaction t) = IF (GROUP SUM 1 IF statusTransaction(t, STRING s) = 'correct')
     = (GROUP SUM 1 IF statusTransaction(t, STRING s)) THEN TRUE;
-
-
-import = DATA LOCAL STRING();
-ti = DATA LOCAL STRING();
-
-FORM getFeedbackRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-    PROPERTIES ATTR ='http://feedback.ERPIntegration.crystals.ru/' EXTID 'xmlns:feed'
-    PROPERTIES() header EXTID 'soapenv:Header'
-    PROPERTIES() IN xmlGetstatus import
-    PROPERTIES() IN importRequest ti ATTR
-;
-
-GROUP getPackageStatusResponse EXTID 'ns2=http://feedback.ERPIntegration.crystals.ru/:getPackageStatusResponse' : bodyAnswer;
-GROUP xmlGetstatusAnswer EXTID 'xmlGetstatus': getPackageStatusResponse;
-GROUP importAnswer EXTID 'import' : xmlGetstatusAnswer;
-
-status_message = DATA LOCAL STRING();
-status = DATA LOCAL STRING();
-
-FORM getFeedbackAnswer FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-    PROPERTIES ATTR IN getPackageStatusResponse ='http://feedback.ERPIntegration.crystals.ru/' EXTID 'xmlns:ns2'
-    PROPERTIES() IN importAnswer status_message EXTID 'status-message' ATTR, status ATTR, ti ATTR
-;
 
 getFeedback(MachineryPriceTransaction t){
     LOCAL message = STRING ();

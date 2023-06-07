@@ -1,14 +1,16 @@
 MODULE Set10;
 
-REQUIRE Integration, Item, Store, Machinery;
+REQUIRE Integration, Item, Store, Machinery, LogTools;
 
+@defineLogRotate(set10, 5, weekly);
+useOutSet10Log 'Логировать исх. запросы set10' = DATA BOOLEAN ();
 
 urlServerSet10 'Адрес:порт сервера SET10' = DATA STRING ();
 
 EXTEND FORM integrationData
     PROPERTIES urlServerSet10();
 
-DESIGN integrationData{
+DESIGN integrationData {
     pane {
         NEW set10 {
             caption = 'SET10';
@@ -16,7 +18,59 @@ DESIGN integrationData{
         }
     }
 }
+
+onStarted() +{
+    NEWSESSION {
+        urlServerSet10()<-replace(urlServerSet10(),'SET-ERPIntegration/', '');
+        urlServerSet10()<-replace(urlServerSet10(),'SET-ERPIntegration', '');
+        APPLY;
+    }
+}
+
 defaultStock = GROUP MIN DepartmentStore ds IF id(ds) == id(store(ds)) AND active(ds) AND (GROUP SUM 1 IF sidModel(GroupMachinery m) == 'Kristal10Web' AND stock(m) == ds);
 
 extraSet10id = ABSTRACT STRING[100](Item, Stock);
 overSet10Id(Item i, Stock s) = OVERRIDE extraSet10id(i, s), overId(i);
+
+
+GROUP bodyRequest EXTID 'soapenv:Body';
+GROUP bodyAnswer EXTID 'soap:Body';
+
+GROUP getGoodsCatalogWithTi EXTID 'plug:getGoodsCatalogWithTi' : bodyRequest;
+
+header = DATA LOCAL STRING();
+goodsCatalogXML = DATA LOCAL STRING();
+TI = DATA LOCAL STRING[100]();
+
+FORM requestItem FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://plugins.products.ERPIntegration.crystals.ru/' EXTID 'xmlns:plug'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN getGoodsCatalogWithTi goodsCatalogXML, TI
+;
+
+//get feedback
+GROUP getPackageStatus EXTID 'feed:getPackageStatus' : bodyRequest;
+GROUP xmlGetstatus : getPackageStatus;
+GROUP importRequest EXTID 'import' : xmlGetstatus;
+
+import = DATA LOCAL STRING();
+ti = DATA LOCAL STRING();
+
+FORM getFeedbackRequest FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://feedback.ERPIntegration.crystals.ru/' EXTID 'xmlns:feed'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN xmlGetstatus import
+    PROPERTIES() IN importRequest ti ATTR
+;
+
+GROUP getPackageStatusResponse EXTID 'ns2=http://feedback.ERPIntegration.crystals.ru/:getPackageStatusResponse' : bodyAnswer;
+GROUP xmlGetstatusAnswer EXTID 'xmlGetstatus': getPackageStatusResponse;
+GROUP importAnswer EXTID 'import' : xmlGetstatusAnswer;
+
+status_message = DATA LOCAL STRING();
+status = DATA LOCAL STRING();
+
+FORM getFeedbackAnswer FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR IN getPackageStatusResponse ='http://feedback.ERPIntegration.crystals.ru/' EXTID 'xmlns:ns2'
+    PROPERTIES() IN importAnswer status_message EXTID 'status-message' ATTR, status ATTR, ti ATTR
+;
