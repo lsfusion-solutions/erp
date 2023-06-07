@@ -14,11 +14,13 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Закончен пересчет цен в изменениях остатков');
 }
 
+skipRecalculateCostAccount (UserAdjustmentDetail d) = ABSTRACT BOOLEAN (UserAdjustmentDetail) MATERIALIZED;
+
 recalculateCostAccount(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в изменениях остатков');
     APPLY NESTED LOCAL {
         price(UserAdjustmentDetail d) <- prevAdjustedAccountPriceB(sku(d), stock(d), dateTime(d))
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d)) AND NOT skipRecalculateCostAccount(d);
     }
     IF canceled() THEN CANCEL;
     logToFile('cost', 'Закончен пересчет цен в изменениях остатков');
