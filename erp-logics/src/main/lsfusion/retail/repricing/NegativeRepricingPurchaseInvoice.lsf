@@ -127,7 +127,8 @@ pricingQuantityN 'К-во к переоценке' (UserInvoiceDetail d) = (pric
 pricingSumN(UserInvoiceDetail d) = NUMERIC[18,4](Utils.round(pricingQuantityN(d) * price(d), homePriceRound(d))) IF extraPricingQuantityN(d);
 retailSumN(UserInvoiceDetail d) = NUMERIC[18,4](Utils.round(pricingQuantityN(d) * retailPrice(d), homePriceRound(d))) IF extraPricingQuantityN(d); 
 retailVATSumN (UserInvoiceDetail d)  = NUMERIC[18,4](Utils.round([ X*Y/(100+Y)](retailSumN(d), calcValueRetailVAT(d)), homePriceRound(d))) IF  extraPricingQuantityN(d);
-retailMarkupSumN(UserInvoiceDetail d) = retailSumN(d) (-) retailVATSumN (d) (-) pricingSumN(d);
+retailMarkupSumN = ABSTRACT VALUE NUMERIC[18,4](UserInvoiceDetail);
+retailMarkupSumN(UserInvoiceDetail d) += retailSumN(d) (-) retailVATSumN(d) (-) pricingSumN(d);
 
 @defineDocumentDetailDataSumCustomPrefix (UserInvoiceDetail, afterRetail, ' розничная после');
 calcAfterRetailSum(UserInvoiceDetail d) = NUMERIC[18,4](round(pricingQuantityN(d) * afterRetailPrice(d), currency(d))); 
