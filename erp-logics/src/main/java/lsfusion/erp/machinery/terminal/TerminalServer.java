@@ -91,6 +91,7 @@ public class TerminalServer extends MonitorServer {
 
     public static final byte SET_STOCK = 14;
 
+    public static final byte GET_MOVES = 15;
 
     private static final Logger logger = ERPLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = ERPLoggers.priceCheckerLogger;
@@ -339,6 +340,13 @@ public class TerminalServer extends MonitorServer {
         }
     }
 
+    public RawFileData getMoves(String barcode, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
+        try (DataSession session = createSession()) {
+            return terminalHandler.getMoves(session, getStack(), barcode, userInfo);
+        }
+    }
+
+
     public class SocketCallable implements Callable {
         private Socket socket;
 
@@ -460,7 +468,7 @@ public class TerminalServer extends MonitorServer {
                                     if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
                                         errorText = ITEM_NOT_FOUND_TEXT;
-                                    } else if(readItemResult instanceof String) {
+                                    } else if (readItemResult instanceof String) {
                                         errorCode = GET_ITEM_INFO_ERROR;
                                         errorText = (String) readItemResult;
                                     } else {
@@ -504,7 +512,7 @@ public class TerminalServer extends MonitorServer {
                                         //String ana3 = document[6];
                                         String comment = formatValue(document[7]);
                                         String parentDocument = document.length <= 8 ? null : formatValue(document[8]);
-                                        if(parentDocument != null)
+                                        if (parentDocument != null)
                                             parentDocument = parentDocument.replace("'", "");
                                         for (int i = 1; i < params.size(); i++) {
                                             String[] line = params.get(i);
@@ -583,10 +591,10 @@ public class TerminalServer extends MonitorServer {
                                             json = params[2];
                                         logger.info(String.format("%s, idCommand=%d, json: '%s'", command, idCommand, json));
                                         fileData = teamWorkDocument(idCommand, json, userInfo);
-//                                        if (fileData == null) {
-//                                            errorCode = PROCESS_DOCUMENT_ERROR;
-//                                            errorText = PROCESS_DOCUMENT_ERROR_TEXT;
-//                                        }
+                                        if (fileData == null) {
+                                            errorCode = UNKNOWN_ERROR;
+                                            errorText = UNKNOWN_ERROR_TEXT;
+                                        }
                                     } else {
                                         errorCode = WRONG_PARAMETER_COUNT;
                                         errorText = WRONG_PARAMETER_COUNT_TEXT;
@@ -640,7 +648,7 @@ public class TerminalServer extends MonitorServer {
                                 } else {
                                     logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                     boolean readBatch = (params.length > 1 && params[1].equalsIgnoreCase("1"));
-                                    if(readBatch)
+                                    if (readBatch)
                                         logger.info("requested readBatch");
                                     fileData = readBase(userInfo, readBatch);
                                     if (fileData == null) {
@@ -771,6 +779,39 @@ public class TerminalServer extends MonitorServer {
                             errorText = getUnknownErrorText(e);
                         }
                         break;
+                    case GET_MOVES: {
+                        try {
+                            logger.info("GetMoves");
+
+                            String[] params = readParams(inFromClient);
+                            if (params.length > 0) {
+                                sessionId = params[0];
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    if (params.length >= 2) {
+                                        String barcode = params[1];
+                                        logger.info(String.format("%s, barcode='%s'", command, barcode));
+                                        fileData = getMoves(barcode, userInfo);
+                                        if (fileData == null) {
+                                            errorCode = UNKNOWN_ERROR;
+                                            errorText = UNKNOWN_ERROR_TEXT;
+                                        }
+                                    } else {
+                                        errorCode = WRONG_PARAMETER_COUNT;
+                                        errorText = WRONG_PARAMETER_COUNT_TEXT;
+                                    }
+                                }
+                            }
+                        } catch (Exception e) {
+                            logger.error("GetMoves Unknown error", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
+                    }
                     default:
                         result = "unknown command";
                         errorCode = UNKNOWN_COMMAND;
@@ -877,6 +918,7 @@ public class TerminalServer extends MonitorServer {
                             break;
                         case GET_ALL_BASE:
                         case TEAMWORK_DOCUMENT:
+                        case GET_MOVES:
                             int bytes = fileData != null ? fileData.getLength() : 0;
                             write(outToClient, String.valueOf(bytes));
                             writeByte(outToClient, etx);

@@ -351,6 +351,25 @@ public class DefaultTerminalHandler {
         return null;
     }
 
+    public RawFileData getMoves(DataSession session, ExecutionStack stack, String barcode, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
+        if(terminalHandlerLM != null) {
+
+            ObjectValue stockObject;
+            if (!userInfo.idStock.isEmpty())
+                stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(userInfo.idStock));
+            else
+                stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
+
+            ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
+
+            terminalHandlerLM.findAction("exportMoves[Sku, Stock]").execute(session, stack, skuObject, stockObject);
+            FileData fileData = (FileData) terminalTeamWorkLM.findProperty("exportFile[]").read(session);
+            if (fileData != null)
+                return fileData.getRawFile();
+        }
+        return null;
+    }
+
     public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
         ScriptingLogicsModule terminalPreferencesLM = getLogicsInstance().getBusinessLogics().getModule("TerminalPreferences");
