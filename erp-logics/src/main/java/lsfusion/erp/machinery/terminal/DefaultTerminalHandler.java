@@ -352,7 +352,7 @@ public class DefaultTerminalHandler {
     }
 
     public RawFileData getMoves(DataSession session, ExecutionStack stack, String barcode, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
-        if(terminalHandlerLM != null) {
+        if (terminalHandlerLM != null) {
 
             ObjectValue stockObject;
             if (!userInfo.idStock.isEmpty())
@@ -363,7 +363,7 @@ public class DefaultTerminalHandler {
             ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
 
             terminalHandlerLM.findAction("exportMoves[Sku, Stock]").execute(session, stack, skuObject, stockObject);
-            FileData fileData = (FileData) terminalTeamWorkLM.findProperty("exportFile[]").read(session);
+            FileData fileData = (FileData) terminalHandlerLM.findProperty("exportFile[]").read(session);
             if (fileData != null)
                 return fileData.getRawFile();
         }
