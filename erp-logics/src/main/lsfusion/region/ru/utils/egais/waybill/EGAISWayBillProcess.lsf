@@ -99,8 +99,15 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer)
                 tranRedirect(w) <- redirect(trip(i));
                 tranForwarder(w) <- forwarder(trip(i));
 
+                LOCAL boxId = STRING(); 
+                boxId() <- lpad(STRING(w), 18, '0');
+                IF NOT box(boxId()) THEN NEW b = Box {
+                    id(b) <- boxId();
+                }
+                
                 FOR quantity(###doc##Detail d, Lot l) IF doc(d) = s AND NOT markCode(id(l)) DO NEW m = MarkCode {
                     id(m) <- id(l);
+                    dataF2Reg(m) <- GROUP MAX F2Reg r IF quantity(d, r); 
                 }
                 
                 FOR quantity(###doc##Detail d, F2Reg r) IF doc(d) = i INLINE NEW p = WayBillPosition DO {
@@ -118,10 +125,10 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer)
                     f1Reg(p) <- f1Reg(r);
                     f2Reg(p) <- r;
 
-                    FOR quantity(d, Lot l) IF MarkCode mc = markCode(id(l)) AND prevF2Reg(mc) = r INLINE NEW m = WayBillMark DO {
+                    FOR quantity(d, Lot l) IF MarkCode mc = markCode(id(l)) AND (OVERRIDE prevF2Reg(mc), dataF2Reg(mc)) = r INLINE NEW m = WayBillMark DO {
                         wayBillPosition(m) <- p;
                         markCode(m) <- mc;
-                        box(m) <- prevBox(mc);
+                        box(m) <- OVERRIDE prevBox(mc), box(boxId());
                     }
                 }
                 
