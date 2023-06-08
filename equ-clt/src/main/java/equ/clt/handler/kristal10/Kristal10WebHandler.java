@@ -163,6 +163,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 break;
                             } else {
                                 tiList.add(ti);
+                                processTransactionLogger.info(getLogPrefix() + "ti " + ti + " sent");
                             }
                         }
 
