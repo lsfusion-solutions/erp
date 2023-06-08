@@ -264,53 +264,15 @@ EXTEND FORM receiveMessage
 ;
 
 // patner
-@extReference(partner, 'Контрагенты');
-@defKeyPropSimple(name, 'Наименование', STRING, keyProperties, partner);
-@defKeyPropSimple(fullName, 'НаименованиеПолное', STRING, keyProperties, partner);
-@defKeyPropSimple(inn, 'ИНН', STRING[12], keyProperties, partner);
-@defKeyPropSimple(kpp, 'КПП', STRING[9], keyProperties, partner);
-
-
-//@defKeyPropSimple(type, 'ЮридическоеФизическоеЛицо', TypePartner, keyProperties, partner) 
-type 'ЮридическоеФизическоеЛицо' = ABSTRACT TypePartner (Partner, Configuration);
-idType 'ЮридическоеФизическоеЛицо' (Partner p, Configuration c) = staticCaption(type(p, c));
-WHEN CHANGED(type(Partner d, Configuration c)) DO {
-    packet(c, d) <- NULL;
-    in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);
-}
-typePartner 'ЮридическоеФизическоеЛицо' = DATA LOCAL STRING (INTEGER);
-EXTEND FORM sendMessage PROPERTIES idType(partner, configuration) IN keyProperties EXTID 'ЮридическоеФизическоеЛицо';
-EXTEND FORM receiveMessage PROPERTIES typePartner(partner) IN keyProperties EXTID 'ЮридическоеФизическоеЛицо';
-
-//country
-//CLASS ABSTRACT Country 'Справочник.СтраныМира' : Reference;
-//@defProp(name, 'Наименование', STRING, Country){
-//    name 'Наименование' = ABSTRACT STRING (Country, Configuration);
-//    
-//    WHEN CHANGED(name(Country d, Configuration c)) DO {
-//        packet(c, d) <- NULL;
-//        in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);  
-//    }
-//};
-
-@defKeyPropObject(country, 'СтранаРегистрации', Country, keyProperties, partner);
-
-@defKeyPropSimple(group, 'Наименование', ISTRING[100], hierarchyGroup, partner);
-
-
-@extTable(partner, contactInfo);
-@defPropSimpleDetail(typeContactInfo, 'ВидКонтактнойИнформации', STRING, partner, contactInfo);
-@defPropSimpleDetail(contentContactInfo, 'ЗначенияПолей', STRING, partner, contactInfo);
-
 // workaround для совместимости 1.6 -> 1.5
 META defPartner(nm, class, group, extid)
 
-//    EXTEND FORM sendMessage
-//        OBJECTS nm###class = Partner EXTID extid IN group
-//        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
-//        FILTERS nm###class = nm(class, configuration)
-//    ;
-    
+    //    EXTEND FORM sendMessage
+    //        OBJECTS nm###class = Partner EXTID extid IN group
+    //        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', fullName EXTID 'НаименованиеПолное', inn EXTID 'ИНН', kpp EXTID 'КПП', idType EXTID 'ЮридическоеФизическоеЛицо'
+    //        FILTERS nm###class = nm(class, configuration)
+    //    ;
+
     uid###nm###class = DATA LOCAL ISTRING[36] (INTEGER);
     name###nm###class = DATA LOCAL STRING (INTEGER);
     fullName###nm###class = DATA LOCAL STRING (INTEGER);
@@ -352,6 +314,48 @@ META defPartnerDetail(nm, class, table, extid, group)
         FILTERS nm###class###table = nm(class###table, configuration)
     ;
 END
+
+@extReference(partner, 'Контрагенты');
+@defKeyPropSimple(name, 'Наименование', STRING, keyProperties, partner);
+@defKeyPropSimple(fullName, 'НаименованиеПолное', STRING, keyProperties, partner);
+@defKeyPropSimple(inn, 'ИНН', STRING[12], keyProperties, partner);
+@defKeyPropSimple(kpp, 'КПП', STRING[9], keyProperties, partner);
+
+
+//@defKeyPropSimple(type, 'ЮридическоеФизическоеЛицо', TypePartner, keyProperties, partner) 
+type 'ЮридическоеФизическоеЛицо' = ABSTRACT TypePartner (Partner, Configuration);
+idType 'ЮридическоеФизическоеЛицо' (Partner p, Configuration c) = staticCaption(type(p, c));
+WHEN CHANGED(type(Partner d, Configuration c)) DO {
+    packet(c, d) <- NULL;
+    in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);
+}
+typePartner 'ЮридическоеФизическоеЛицо' = DATA LOCAL STRING (INTEGER);
+EXTEND FORM sendMessage PROPERTIES idType(partner, configuration) IN keyProperties EXTID 'ЮридическоеФизическоеЛицо';
+EXTEND FORM receiveMessage PROPERTIES typePartner(partner) IN keyProperties EXTID 'ЮридическоеФизическоеЛицо';
+
+//country
+//CLASS ABSTRACT Country 'Справочник.СтраныМира' : Reference;
+//@defProp(name, 'Наименование', STRING, Country){
+//    name 'Наименование' = ABSTRACT STRING (Country, Configuration);
+//    
+//    WHEN CHANGED(name(Country d, Configuration c)) DO {
+//        packet(c, d) <- NULL;
+//        in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);  
+//    }
+//};
+
+@defKeyPropObject(country, 'СтранаРегистрации', Country, keyProperties, partner);
+
+@defKeyPropSimple(group, 'Наименование', ISTRING[100], hierarchyGroup, partner);
+
+
+@extTable(partner, contactInfo);
+@defPropSimpleDetail(typeContactInfo, 'ВидКонтактнойИнформации', STRING, partner, contactInfo);
+@defPropSimpleDetail(contentContactInfo, 'ЗначенияПолей', STRING, partner, contactInfo);
+
+@defPropObject(mainPartner, 'ГоловнойКонтрагент', Partner, partner);
+
+@defPropSimple(isIndependentDepartment, 'ОбособленноеПодразделение', BOOLEAN, partner);
 
 // company
 CLASS ABSTRACT Company 'Справочник.Организации' : Partner;

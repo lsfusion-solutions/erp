@@ -86,3 +86,22 @@ EXTEND FORM ownerships
 ;
 
 isIE 'ИП' (LegalEntity l) = isIE(ownership(l)) MATERIALIZED;
+
+GROUP independentDepartment 'Обособленное подразделение' : public;
+isIndependenDepartment 'Явл. обособленным подразделением' = DATA BOOLEAN (LegalEntity) IN independentDepartment;
+mainLegalEntity 'Головная организация' = DATA LegalEntity(LegalEntity) IN independentDepartment;
+
+EXTEND FORM legalEntity
+    PROPERTIES isIndependenDepartment(l), nameMainLegalEntity 'Головная организация' = name(mainLegalEntity(l)) SHOWIF isIndependenDepartment(l)
+;
+
+DESIGN legalEntity{
+    column2 {
+        NEW independentDepartment {
+            caption = 'Обособленное подразделение';
+            type = CONTAINERV;
+            MOVE PROPERTY (isIndependenDepartment(l));
+            MOVE PROPERTY (nameMainLegalEntity);
+        }
+    }
+}
