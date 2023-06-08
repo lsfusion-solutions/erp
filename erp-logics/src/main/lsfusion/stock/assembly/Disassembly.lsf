@@ -45,6 +45,12 @@ operation 'Операция' (DisassemblyDetail disassemblyDetail) = operation(d
 // header sku 
 @defineDocumentDetailSkuCustomPrefix(disassembly, sku, , );
 
+@defineDocumentDetailBatchCustom(disassembly, batch);
+
+CONSTRAINT SETCHANGED(batch(Disassembly disassembly)) AND NOT countLedger(batch(disassembly), stock(disassembly))
+    CHECKED BY batch[Disassembly]
+    MESSAGE 'Расходовать можно только партию с движением по складу';
+
 @defineDocumentDetailQuantityCustomPrefix(disassembly, ,);
 
 @defineDocumentDetailPriceCustomPrefix (disassembly, , );
@@ -94,7 +100,7 @@ FORM disassembly 'Разборка'
     OBJECTS a = Disassembly PANEL
 
     PROPERTIES(a) isPosted, nameOperation, nameNumerator, number, series, nameStock ON CHANGE changeStockCompany(a),
-                  idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
+                  idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, nameBatch,
                   quantity, nameCurrency, price, sum, 
                   date, time, quantityDisassemblyDetail, sumDisassemblyDetail, note
 
@@ -146,6 +152,7 @@ DESIGN disassembly {
                             MOVE PROPERTY(idSku(a));
                             MOVE PROPERTY(nameSku(a));
                             MOVE PROPERTY(shortNameUOMSku(a));
+                            MOVE PROPERTY(nameBatch(a));
                         }
                         NEW headerParams {
                             caption = 'Параметры';
@@ -309,12 +316,16 @@ dateTime(DisassemblyOutSkuLedger l) = dateTime(disassembly(l));
 isPosted(DisassemblyOutSkuLedger l) = isPosted(disassembly(l));
 isClosed(DisassemblyOutSkuLedger l) = isClosed(disassembly(l));
 sku(DisassemblyOutSkuLedger l) = sku(disassembly(l));
+batch(DisassemblyOutSkuLedger l) = batch(disassembly(l));
 stock(DisassemblyOutSkuLedger l) = stock(disassembly(l));
 description(DisassemblyOutSkuLedger l) = description(disassembly(l));
 quantity(DisassemblyOutSkuLedger l) = quantity(disassembly(l));
 sum(DisassemblyOutSkuLedger l) = sum(disassembly(l));
 
 @implementSkuLedgerOutFIFO(DisassemblyOutSkuLedger, sku, stock);
+
+batch[DataSkuLedger] (DisassemblyOutSkuLedger ledger) += batch(ledger);
+@implementSkuLedgerOutFIFOBatchBalance(disassemblyOutSkuLedger, );
 
 quantity(DisassemblyOutSkuLedger l) += quantity(l);
 sum(DisassemblyOutSkuLedger l) += sum(l);
