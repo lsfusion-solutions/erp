@@ -1,0 +1,129 @@
+MODULE StructureTitanPOS;
+
+REQUIRE POS;
+
+titanPort 'Порт (titanPOS)'             = DATA STRING[10] (CashRegister);
+titanPin  'PIN код (titanPOS)'          = DATA STRING[10] (CashRegister);
+titanBarcode 'Код в чеке (titanPOS)'    = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
+titanTax 'НДС в чеке (titanPOS)'        = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (c) SHOWIF sidModel(grc) = 'titanPOS' titanPort, titanPin, titanBarcode, titanTax 
+;
+
+
+// Локальные внутренние свойства
+// ---------------------------------------------------------
+titanResult 'Ответ от СКО' = DATA LOCAL FILE ();
+titanEMessage 'Текст ошибки' = DATA LOCAL STRING ();
+titanECode 'Код ошибки' = DATA LOCAL INTEGER ();
+titanSid 'ID сессии' = DATA LOCAL STRING ();
+
+
+// ПРИЕМ ДАННЫХ
+// ---------------------------------------------------------
+// форма стандартного приема
+status 'Код статуса' = DATA LOCAL INTEGER ();
+error 'Текст ошибки' = DATA LOCAL STRING();
+titanKey 'ID сессии' = DATA LOCAL STRING();
+
+// + получение статуса 
+registerId 'Регистрационный номер ПК' = DATA LOCAL STRING();
+firstDocNumber 'Номер первого кассового документа в смене или 0, если смена не открыта' = DATA LOCAL NUMERIC();
+shiftOpened 'Признак открытой/закрытой кассовой смены' = DATA LOCAL BOOLEAN ();
+receiveCashier 'Кассир открывший смену' = DATA LOCAL STRING ();
+certExpDate 'Срок действия сертификата СКО (дата и время)' = DATA LOCAL DATETIME();
+totalSum 'Сумма наличных денег в кассе' = DATA LOCAL NUMERIC();
+docNumber 'Номер следующего кассового документа или 0, если смена не открыта' = DATA LOCAL NUMERIC();
+model 'Модель СКО' = DATA LOCAL STRING();
+serial 'Серийный номер СКО' = DATA LOCAL STRING();
+
+revocationServiceStatus 'Пустая строка или текст ошибки обновления СОС' = DATA LOCAL STRING();
+eventsCount 'Количество неотправленных событий программной кассы' = DATA LOCAL NUMERIC();
+docsCount ' Количество не отправленных документов программной кассы' = DATA LOCAL NUMERIC();
+documentsSenderStatus 'Пустая строка или текст ошибки отправки документов' = DATA LOCAL STRING();
+eventsSenderStatus 'Пустая строка или текст ошибки отправки документов' = DATA LOCAL STRING();
+
+
+FORM receiveForm 'Принятые данные'
+    PROPERTIES() status EXTID 'Status', error EXTID 'Error', titanKey EXTID 'TitanKey'
+    PROPERTIES() registerId EXTID 'RegisterId', revocationServiceStatus EXTID 'RevocationServiceStatus',
+        eventsCount EXTID 'EventsCount', firstDocNumber EXTID 'FirstDocNumber', shiftOpened EXTID 'ShiftOpened',
+        receiveCashier EXTID 'Cashier', docsCount EXTID 'DocsCount', documentsSenderStatus EXTID 'DocumentsSenderStatus',
+        serial EXTID 'Serial', certExpDate EXTID 'CertExpDate', totalSum EXTID 'TotalSum', docNumber EXTID 'DocNumber',
+        model EXTID 'Model', eventsSenderStatus EXTID 'EventsSenderStatus'
+;
+
+// ПЕРЕДАЧА ДАННЫХ
+// ---------------------------------------------------------
+pin = DATA LOCAL STRING ();
+sendCashier = DATA LOCAL STRING ();
+
+// Формы запросов 
+FORM sendOpen 'Открытие сеанса с СКО'
+    PROPERTIES () titanKey EXTID 'TitanKey',pin EXTID 'Pin', sendCashier EXTID 'Cashier';
+
+FORM sendForm 'Передача: init, info, close, openshift'
+    PROPERTIES () titanKey EXTID 'TitanKey';
+
+
+// Внесение, изъятия
+sendTotalSum 'Сумма' = DATA LOCAL NUMERIC[10,2] ();
+isDeposit  'Флаг внесения / изъятия' = DATA LOCAL TBOOLEAN ();
+
+FORM sendInOutMoney 'Внесение / изъятия'
+    PROPERTIES () titanKey EXTID 'TitanKey'
+    PROPERTIES () sendTotalSum EXTID 'TotalSum', isDeposit EXTID 'IsDeposit';
+
+
+// Копии документов
+copyDocNumber 'Копия документа' = DATA LOCAL INTEGER ();
+copyZReport 'Копия Z отчета' = DATA LOCAL INTEGER ();
+
+FORM sendCopyDocNumber 'Копия документа'
+    PROPERTIES () titanKey EXTID 'TitanKey'
+    PROPERTIES () copyDocNumber EXTID 'ChequeNumber', copyZReport EXTID 'Number';
+
+// Чек продажи / возврат
+GROUP goods EXTID 'Goods';
+
+receiptRefund 'Признак: false - продажа, true - возврат' = DATA LOCAL TBOOLEAN ();
+receiptDiscountLabel 'Описание скидки на чек' = DATA LOCAL STRING();
+receiptDiscountSum 'Сумма скидки на чек' = DATA LOCAL NUMERIC();
+receiptTotalSum 'Общая сумма чека с учетом скидок' = DATA LOCAL NUMERIC();
+receiptSendEmail 'Флаг отправки почты' = DATA LOCAL TBOOLEAN ();
+receiptEmail 'Почтовый адрес' = DATA LOCAL STRING();
+// ---------------------------------------------------
+paymentTypeFlag 'Тип расчета' (Payment p) = 
+    IF namePaymentType(p) = 'Наличные' THEN 1 ELSE IF namePaymentType(p) = 'Карточка' THEN 2 ELSE 3;                                                    
+paymentSum 'Сумма' (Payment p) = IF receiptRefund() = TTRUE THEN abs(sum(p)) ELSE sum(p);
+// ---------------------------------------------------
+detailQuantity 'Количество товара' (ReceiptDetail o) = quantity(o);
+detailPrice 'Цена товара' (ReceiptDetail o) = price(o);
+detailDiscountLabel 'Описание скидки на товара' (ReceiptDetail o) = IF discountSum(o) THEN 'скидка на товар' ELSE '';
+detailDiscountSum 'Сумма скидки на товар' (ReceiptDetail o) = discountSum(o);
+detailTotalSum 'Сумма товара' (ReceiptDetail o) = sum(o);
+detailName 'Название товара' (ReceiptDetail o) = overNameSku(o);
+detailCodeType 'Вид кода товара: 0 - без кода; 1 - EAN13; 2 - услуга' (ReceiptDetail o) = IF idBarcode(o) THEN 1 ELSE 1;
+detailBarcode 'Код товара' (ReceiptDetail o) = IF titanBarcode(currentCashRegister()) THEN idBarcode(o);
+detailTax 'Ставка НДС' (ReceiptDetail o) = IF titanTax(currentCashRegister()) AND valueVAT(o) THEN 
+    IF valueVAT(o) = 20 THEN 1 ELSE IF valueVAT(o) = 10 THEN 2 ELSE NULL;
+
+FORM saleForm
+    PROPERTIES () titanKey EXTID 'TitanKey'
+    PROPERTIES() receiptRefund EXTID 'Refund',
+                 receiptDiscountSum EXTID 'DiscountSum',
+                 receiptTotalSum EXTID 'TotalSum', receiptSendEmail EXTID 'SendEmail', receiptEmail EXTID 'Email'
+
+    OBJECTS payments = Payment EXTID 'Payments'
+    PROPERTIES(payments) paymentTypeFlag EXTID 'TypeFlag',  paymentSum EXTID 'Sum'
+
+    OBJECTS lines = ReceiptDetail EXTID 'Lines'
+    PROPERTIES(lines) detailQuantity EXTID 'Quantity', detailPrice EXTID 'Price',
+                      detailTax EXTID 'Tax',  
+                      detailDiscountSum EXTID 'DiscountSum', 
+                      detailTotalSum EXTID 'TotalSum'
+    
+    PROPERTIES(lines) IN goods detailBarcode EXTID 'Barcode', detailCodeType EXTID 'CodeType', detailName EXTID 'Name'
+;    
+

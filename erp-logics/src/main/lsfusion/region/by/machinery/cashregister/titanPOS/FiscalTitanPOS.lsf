@@ -1,0 +1,59 @@
+MODULE FiscalTitanPOS;
+
+REQUIRE System, POS, OperationTitanPOS, Utils;
+
+// открытие смены
+fiscalOpenZReport() + {
+    IF sidModelCurrentCashRegister() == 'titanPOS' THEN {
+        eqOpenShift(currentCashRegister());
+        IF NOT titanECode() THEN apply();
+    }
+}
+
+
+// Перемещение денег cashOperation
+fiscalService(CashOperation cashOperation) + {
+    CASE
+        WHEN sidCashRegisterModel(cashOperation) == 'titanPOS' AND sum(cashOperation) > 0 THEN {
+            eqCashInCome(currentCashRegister(),NUMERIC[10,2](sum(cashOperation))); // внесение
+            IF NOT titanECode() THEN apply();
+        }
+        WHEN sidCashRegisterModel(cashOperation) == 'titanPOS' AND sum(cashOperation) < 0 THEN {
+            eqCashOutCome(currentCashRegister(),NUMERIC[10,2](abs(sum(cashOperation)))); // изъятие
+            IF NOT titanECode() THEN apply();
+        }
+}
+
+// X-отчет
+fiscalXReport() + {  IF sidModelCurrentCashRegister() == 'titanPOS' THEN eqXReport(currentCashRegister()); }
+
+// Наличные в кассе
+fiscalCashSum() + {  IF sidModelCurrentCashRegister() == 'titanPOS' THEN eqCashMoney(currentCashRegister());}
+
+// Z-отчет
+fiscalZReport() + {
+    IF sidModelCurrentCashRegister() == 'titanPOS' THEN {
+        eqZReport(currentCashRegister());
+        IF NOT titanECode() THEN closeCurrentZReport();
+    }
+}
+
+// Напечатать чек
+postPrint(Receipt receipt) + {
+    IF sidModelCurrentCashRegister() == 'titanPOS' THEN {
+        eqSale(currentCashRegister(),receipt);
+        IF NOT titanECode() THEN {
+            apply();
+            createCurrentReceipt();
+        } // ELSE cancel(receipt); - не отменяем, чтоб не сбрасывать чек, мало какие ошибки
+    }
+}
+
+// отрезать чек
+fiscalCutReceipt() + { IF sidModelCurrentCashRegister() == 'titanPOS' THEN MESSAGE 'Операция не поддерживается'; }
+
+// прогон ленты
+fiscalAdvancePaper() + { IF sidModelCurrentCashRegister() == 'titanPOS' THEN MESSAGE 'Операция не поддерживается'; }
+
+// копия документа
+fiscalPrintCopyReceipt() + { IF sidModelCurrentCashRegister() == 'titanPOS' THEN eqCopyDoc(currentCashRegister()); } 
