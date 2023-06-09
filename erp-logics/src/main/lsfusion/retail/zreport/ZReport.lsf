@@ -464,7 +464,7 @@ WHEN CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) DO {
 sumVAT 'Сумма НДС' (d) = DATA NUMERIC[18,4] (ReceiptDetail);
 calcSumVAT 'Сумма НДС' (ReceiptDetail d) = round(sum(d) * valueVAT(d) / (100 + valueVAT(d)), currency(d)) CHARWIDTH 8;
 // пока делаем не сессионным событием, чтобы быстрее принималось
-WHEN CHANGED(valueVAT(ReceiptDetail d)) OR CHANGED(sum(d)) OR CHANGED(currency(d)) DO {
+WHEN (CHANGED(valueVAT(ReceiptDetail d)) OR CHANGED(sum(d)) OR CHANGED(currency(d))) AND NOT CHANGED(sumVAT(d)) DO {
     sumVAT(d) <- calcSumVAT(d);
 }
 
