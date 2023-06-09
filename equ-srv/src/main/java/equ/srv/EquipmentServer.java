@@ -808,7 +808,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             List<ImportProperty<?>> commonProperties = getCommonProperties(nppMachineryField, idZReportField, numberZReportField, dateZReportField,
                     timeZReportField, sumCashEndZReportField, sumProtectedEndZReportField, sumBackZReportField, isPostedZReportField, zReportKey, cashRegisterKey,
-                    idReceiptField, numberReceiptField, dateReceiptField, timeReceiptField, skipReceiptField, externalNumberReceiptField, receiptKey);
+                    idReceiptField, numberReceiptField, dateReceiptField, timeReceiptField, skipReceiptField, externalNumberReceiptField, receiptKey, options);
 
             //sale 2
             saleProperties.addAll(commonProperties);
@@ -1140,7 +1140,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 List<ImportProperty<?>> commonProperties = getCommonProperties(nppMachineryField, idZReportField, numberZReportField, dateZReportField,
                         timeZReportField, sumCashEndZReportField, sumProtectedEndZReportField, sumBackZReportField, isPostedZReportField, zReportKey, cashRegisterKey,
-                        idReceiptField, numberReceiptField, dateReceiptField, timeReceiptField, skipReceiptField, externalNumberReceiptField, receiptKey);
+                        idReceiptField, numberReceiptField, dateReceiptField, timeReceiptField, skipReceiptField, externalNumberReceiptField, receiptKey, options);
 
                 //sale 2
                 saleProperties.addAll(commonProperties);
@@ -1393,7 +1393,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                                         ImportKey<?> zReportKey, ImportKey<?> cashRegisterKey,
                                                         ImportField idReceiptField, ImportField numberReceiptField, ImportField dateReceiptField,
                                                         ImportField timeReceiptField, ImportField skipReceiptField, ImportField externalNumberReceiptField,
-                                                        ImportKey<?> receiptKey) throws ScriptingErrorLog.SemanticErrorException {
+                                                        ImportKey<?> receiptKey, EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException {
 
         List<ImportProperty<?>> commonProperties = new ArrayList<>();
 
@@ -1402,8 +1402,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         commonProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
         commonProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
                 zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-        commonProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-        commonProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
+        commonProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey), options.doNotReplaceZReportDateTime));
+        commonProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey), options.doNotReplaceZReportDateTime));
         commonProperties.add(new ImportProperty(sumCashEndZReportField, zReportLM.findProperty("sumCashEnd[ZReport]").getMapping(zReportKey)));
         commonProperties.add(new ImportProperty(sumProtectedEndZReportField, zReportLM.findProperty("sumProtectedEnd[ZReport]").getMapping(zReportKey)));
         commonProperties.add(new ImportProperty(sumBackZReportField, zReportLM.findProperty("sumBack[ZReport]").getMapping(zReportKey)));
@@ -1994,9 +1994,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean skipReceiveSales = equLM.findProperty("skipReceiveSales[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean receiveVATSales = equLM.findProperty("receiveVATSales[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean ignoreConstraints = equLM.findProperty("ignoreConstraints[EquipmentServer]").read(session, equipmentServerObject) != null;
+        boolean doNotReplaceZReportDateTime = equLM.findProperty("doNotReplaceZReportDateTime[EquipmentServer]").read(session, equipmentServerObject) != null;
         IdEncoder encoder = useNewIds ? (timeId ? new IdEncoder(5) : new IdEncoder()) : null;
         Map<String, DataObject> barcodeParts = readPartedBarcodes(session);
-        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, skipGiftCardKeys, skipReceiveSales, receiveVATSales, ignoreConstraints, encoder, barcodeParts);
+        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers,
+                                          skipGiftCardKeys, skipReceiveSales, receiveVATSales, ignoreConstraints, doNotReplaceZReportDateTime, encoder, barcodeParts);
     }
 
     public class EquipmentServerOptions {
@@ -2009,11 +2011,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean skipReceiveSales;
         boolean receiveVATSales;
         boolean ignoreConstraints;
+        boolean doNotReplaceZReportDateTime;
         IdEncoder encoder;
         Map<String, DataObject> barcodeParts;
 
         public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate,
-                                      boolean overrideCashiers, boolean skipGiftCardKeys, boolean skipReceiveSales, boolean receiveVATSales, boolean ignoreConstraints,
+                                      boolean overrideCashiers, boolean skipGiftCardKeys, boolean skipReceiveSales, boolean receiveVATSales,
+                                      boolean ignoreConstraints, boolean doNotReplaceZReportDateTime,
                                       IdEncoder encoder, Map<String, DataObject> barcodeParts) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
@@ -2024,6 +2028,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             this.skipReceiveSales = skipReceiveSales;
             this.receiveVATSales = receiveVATSales;
             this.ignoreConstraints = ignoreConstraints;
+            this.doNotReplaceZReportDateTime = doNotReplaceZReportDateTime;
             this.encoder = encoder;
             this.barcodeParts = barcodeParts;
         }
