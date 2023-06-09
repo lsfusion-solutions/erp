@@ -57,16 +57,16 @@ META setNameGroup(number)
     setNameGroup##number () { 
         nameGroup##number(Sku sk, Stock st) <- NULL;
         IF order(1) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(st), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(st), 'Не задано') WHERE inBackSheet(st) AND balanceB(sk,st);
         }
         IF order(2) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(sk), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(sk), 'Не задано') WHERE inBackSheet(st) AND balanceB(sk,st);
         }
         IF order(3) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSkuGroup(sk), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSkuGroup(sk), 'Не задано') WHERE inBackSheet(st) AND balanceB(sk,st);
         }
         IF order(4) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE fullName(supplierLastOrderBatch(sk)), 'Не задано') IF sk IS Sku WHERE inBackSheet(st) AND balanceB(sk);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE fullName(supplierLastOrderBatch(sk)), 'Не задано') WHERE inBackSheet(st) AND balanceB(sk,st);
         }
     }   
 END
@@ -77,17 +77,20 @@ END
 
 @setNameGroup(3);
 
+costB 'Себестоимость на начало дня' (Batch batch, Stock stock, DATETIME dateTime) = balanceB(batch, stock, dateTime) * cost(batch);
+costSumB 'Себестоимость на начало дня' (sku, Stock stock, DATETIME dateTime) = GROUP SUM costB(Batch batch, stock, dateTime) BY sku(batch);
+
 fillGroupBalanceSkusStock 'Сформировать'(GroupType gt, DATETIME d)  { 
     balanceB(Sku sk, Stock st) <- NULL;
     costSumB(Sku sk, Stock st) <- NULL; 
     sumB(Sku sk, Stock st) <- NULL; 
     costVATSum(Sku sk, Stock st) <- NULL;
     
-    balanceB(Sku sk, Stock st) <- NUMERIC[16,5]((GROUP SUM balanceB(sk, st, d) IF inBackSheet(st)));
-    costSumB(Sku sk, Stock st) <- NUMERIC[32,9]([GROUP SUM costSumB(sk, st, DATE dd) IF inBackSheet(st) BY dd](toDate(d)));
-    sumB(Sku sk, Stock st) <- NUMERIC[18,4]((GROUP SUM sumB(sk, st, d) IF inBackSheet(st)));
-    costVATSum(Sku sk, Stock st) <- NUMERIC[26,8]([GROUP SUM costB(Batch b, st, DATE dt)*(1 + Stock.valueVAT(b)/100) IF inBackSheet(st) BY sku(b), dt](sk, toDate(d)));
-  
+    balanceB(Sku sk, Stock st) <- balanceB(sk,st,d) IF inBackSheet(st);
+    costSumB(Sku sk, Stock st) <- costSumB(sk,st,d) IF inBackSheet(st);
+    sumB(Sku sk, Stock st) <- sumB(sk,st,d) IF inBackSheet(st);
+    costVATSum(Sku sk, Stock st) <- NUMERIC[26,8]([GROUP SUM costB(Batch b, Stock s, DATETIME dt)*(1 + Stock.valueVAT(b)/100) BY sku(b), s, dt](sk,st,d)) IF inBackSheet(st);
+    
     setNameGroup1();
     setNameGroup2();
     setNameGroup3();
