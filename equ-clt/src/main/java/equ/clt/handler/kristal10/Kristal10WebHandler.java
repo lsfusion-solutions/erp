@@ -275,6 +275,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
         if (count > 0) {
             processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with barcodes (Transaction %s, count %s)", transaction.id, count));
+            xmlList.add(docToXMLString(doc));
         }
         return xmlList;
     }
