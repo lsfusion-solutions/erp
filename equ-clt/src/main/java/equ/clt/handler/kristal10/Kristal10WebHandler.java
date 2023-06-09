@@ -16,6 +16,7 @@ import lsfusion.base.file.IOUtils;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -984,7 +985,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         HttpPost httpPost = new HttpPost(url);
         httpPost.addHeader("Content-Type", "text/xml");
         httpPost.setEntity(new StringEntity(xml, encoding));
-        HttpResponse response = HttpClientBuilder.create().build().execute(httpPost);
+        RequestConfig.Builder configBuilder = RequestConfig.custom().setSocketTimeout(300000).setConnectTimeout(300000).setConnectionRequestTimeout(300000);//5 min
+        HttpResponse response = HttpClientBuilder.create().setDefaultRequestConfig(configBuilder.build()).build().execute(httpPost);
         return inputStreamToDoc(response.getEntity().getContent());
     }
 
