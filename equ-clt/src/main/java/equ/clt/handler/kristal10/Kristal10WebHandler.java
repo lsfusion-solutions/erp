@@ -141,10 +141,12 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         DeleteBarcode usedDeleteBarcodes = new DeleteBarcode(transaction.nppGroupMachinery, directory);
 
                         List<String> xmlList = new ArrayList<>();
-                        xmlList.addAll(generateCatalogGoodsItemsXML(transaction, brandIsManufacturer, seasonIsCountry, idItemInMarkingOfTheGood, skipWeightPrefix,
-                                skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices));
-                        xmlList.addAll(generateCatalogGoodsBarcodesXML(transaction, deleteBarcodeDirectoryMap.get(directory), usedDeleteBarcodes, idItemInMarkingOfTheGood,
-                                skipWeightPrefix, notGTINPrefixes, exportAmountForBarcode));
+                        if (!transaction.snapshot) { //при выгрузке целиком товары не выгружаем чтобы быстрее
+                            xmlList.addAll(generateCatalogGoodsItemsXML(transaction, brandIsManufacturer, seasonIsCountry, idItemInMarkingOfTheGood, skipWeightPrefix,
+                                    skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices));
+                            xmlList.addAll(generateCatalogGoodsBarcodesXML(transaction, deleteBarcodeDirectoryMap.get(directory), usedDeleteBarcodes, idItemInMarkingOfTheGood,
+                                    skipWeightPrefix, notGTINPrefixes, exportAmountForBarcode));
+                        }
                         xmlList.addAll(generateCatalogGoodsPricesXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useSectionAsDepartNumber, useShopIndices,
                                 weightShopIndices, useNumberGroupInShopIndices));
                         xmlList.addAll(generateCatalogGoodsRestrictionsXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useShopIndices, skipUseShopIndicesMinPrice,
