@@ -617,9 +617,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 List<String> requestSalesInfoEntry = requestSalesInfoMap.get(directory);
                 if (requestSalesInfoEntry != null && !requestSalesInfoEntry.isEmpty()) {
                     //обрабатываем запросы перезагрузки продаж
+                    sendSalesLogger.info(getLogPrefix() + "sending request for directory : " + directory + ", Request: " + requestSalesInfoEntry.get(0) );
                     String response = parseResponsePurchasesByParams(sendRequest(directory + "/FiscalInfoExport", requestSalesInfoEntry.remove(0)));
                     Document doc = xmlStringToDoc(response);
                     salesInfoList.addAll(parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>()));
+                    sendSalesLogger.info(getLogPrefix() + "found " + salesInfoList.size());
                 }
             } catch (Throwable e) {
                 sendSalesLogger.error(getLogPrefix() + "readSalesInfo", e);
