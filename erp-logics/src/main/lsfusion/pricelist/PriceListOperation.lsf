@@ -343,13 +343,14 @@ setToDateTime 'Установить дату действия по' (UserPriceLi
     }
 }
 
+skipExclude = ABSTRACT VALUE BOOLEAN (PriceListDetail);
+isToExclude(PriceListDetail d) = toDate(d) < subtract(currentDate(), countDaysToExcludePriceLists(operation(d))) AND NOT exclude(d) AND countDaysToExcludePriceLists(operation(d)) AND NOT skipExclude(d);
+
 excludePriceListsToDate 'Исключить прайсы с датой окончания из регистра до даты' ()  {
-    FOR [GROUP SUM 1 IF toDate(UserPriceListDetail d) < subtract(currentDate(), countDaysToExcludePriceLists(operation(d))) AND NOT exclude(d) AND countDaysToExcludePriceLists(operation(d)) BY userPriceList(d)](UserPriceList p) DO NEWSESSION {
-        exclude(UserPriceListDetail d) <- TRUE WHERE userPriceList(d) = p AND toDate(d) < subtract(currentDate(), countDaysToExcludePriceLists(operation(d))) AND NOT exclude(d) AND countDaysToExcludePriceLists(operation(d));
+    FOR [GROUP SUM 1 IF isToExclude(PriceListDetail d) BY priceList(d)](PriceList p) DO NEWSESSION {
+        exclude(UserPriceListDetail d) <- TRUE WHERE userPriceList(d) = p AND isToExclude(d);
         APPLY;
     }
-//    exclude(UserPriceListDetail d) <- TRUE WHERE toDate(d) < subtract(currentDate(), countDaysToExcludePriceLists(operation(d))) AND NOT exclude(d) AND countDaysToExcludePriceLists(operation(d));
-//    APPLY ;
 }
 
 EXTEND FORM options PROPERTIES() excludePriceListsToDate;
