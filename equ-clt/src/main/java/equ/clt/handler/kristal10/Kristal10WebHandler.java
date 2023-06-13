@@ -143,9 +143,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         List<String> xmlList = new ArrayList<>();
                         if (!transaction.snapshot) { //при выгрузке целиком товары не выгружаем чтобы быстрее
                             xmlList.addAll(generateCatalogGoodsItemsXML(transaction, brandIsManufacturer, seasonIsCountry, idItemInMarkingOfTheGood, skipWeightPrefix,
-                                    skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices));
-                            xmlList.addAll(generateCatalogGoodsBarcodesXML(transaction, deleteBarcodeDirectoryMap.get(directory), usedDeleteBarcodes, idItemInMarkingOfTheGood,
-                                    skipWeightPrefix, notGTINPrefixes, exportAmountForBarcode));
+                                    skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices, deleteBarcodeDirectoryMap.get(directory),
+                                    usedDeleteBarcodes, notGTINPrefixes, exportAmountForBarcode));
                         }
                         xmlList.addAll(generateCatalogGoodsPricesXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useSectionAsDepartNumber, useShopIndices,
                                 weightShopIndices, useNumberGroupInShopIndices));
@@ -220,8 +219,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
     private List<String> generateCatalogGoodsItemsXML(TransactionCashRegisterInfo transaction, boolean brandIsManufacturer, boolean seasonIsCountry,
                                                   boolean idItemInMarkingOfTheGood, boolean skipWeightPrefix, boolean skipScalesInfo, boolean useShopIndices,
-                                                  String weightShopIndices, List<String> tobaccoGroups, boolean useNumberGroupInShopIndices) {
-        processTransactionLogger.info(getLogPrefix() + "creating catalog-goods file with items (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
+                                                  String weightShopIndices, List<String> tobaccoGroups, boolean useNumberGroupInShopIndices,
+                                                  Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes, List<String> notGTINPrefixes, boolean exportAmountForBarcode) {
+        processTransactionLogger.info(getLogPrefix() + "creating catalog-goods file with items and barcodes (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
 
         List<String> xmlList = new ArrayList<>();
         int count = 0;
@@ -239,45 +239,19 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             rootElement.addContent(good);
             fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
                     brandIsManufacturer, seasonIsCountry, infoJSON, true);
+
+            Element barcode = getBarcodeElement(item, barcodeItem, null, exportAmountForBarcode);
+            good.addContent(barcode);
+            fillBarcodes(good, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem, false);
+
             if (++count >= 1000) {
-                processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items (Transaction %s, count %s)", transaction.id, count));
-                xmlList.add(docToXMLString(doc));
-                count = 0;
-            }
-
-        }
-        if (count > 0) {
-            processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items (Transaction %s, count %s)", transaction.id, count));
-            xmlList.add(docToXMLString(doc));
-        }
-        return xmlList;
-    }
-
-    private List<String> generateCatalogGoodsBarcodesXML(TransactionCashRegisterInfo transaction, Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes,
-                                                     boolean idItemInMarkingOfTheGood, boolean skipWeightPrefix, List<String> notGTINPrefixes, boolean exportAmountForBarcode) {
-        processTransactionLogger.info(getLogPrefix() + "creating catalog-goods file with barcodes (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
-
-        List<String> xmlList = new ArrayList<>();
-        int count = 0;
-
-        Element rootElement = new Element("goods-catalog");
-        Document doc = new Document(rootElement);
-
-        for (CashRegisterItem item : transaction.itemsList) {
-            String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
-            String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
-
-            Element barcode = getBarcodeElement(item, barcodeItem, idItem, exportAmountForBarcode);
-            rootElement.addContent(barcode);
-            fillBarcodes(rootElement, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem, true);
-            if (++count >= 1000) {
-                processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with barcodes (Transaction %s, count %s)", transaction.id, count));
+                processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items and barcodes (Transaction %s, count %s)", transaction.id, count));
                 xmlList.add(docToXMLString(doc));
                 count = 0;
             }
         }
         if (count > 0) {
-            processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with barcodes (Transaction %s, count %s)", transaction.id, count));
+            processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items and barcodes (Transaction %s, count %s)", transaction.id, count));
             xmlList.add(docToXMLString(doc));
         }
         return xmlList;
