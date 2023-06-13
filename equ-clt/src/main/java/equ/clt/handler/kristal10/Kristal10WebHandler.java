@@ -1167,7 +1167,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         public void handle(HttpExchange httpExchange) throws IOException {
             try {
                 String uri = String.valueOf(httpExchange.getRequestURI());
-                sendSalesLogger.info(getLogPrefix() + "HttpServer received " + uri);
+                sendSalesLogger.info(getLogPrefix() + "HttpServer received " + uri + " from address" + httpExchange.getRemoteAddress().toString());
                 boolean purchases = uri.endsWith("purchases");
                 boolean introductions = uri.endsWith("introductions");
                 boolean withdrawals = uri.endsWith("withdrawals");
@@ -1275,7 +1275,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
             BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
             BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
-            zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport, numberGroupCashRegister));
+            if (kristalSum.compareTo(BigDecimal.ZERO) != 0) {
+                zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport, numberGroupCashRegister));
+            }
 
         }
 
