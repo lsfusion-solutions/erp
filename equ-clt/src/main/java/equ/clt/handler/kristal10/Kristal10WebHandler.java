@@ -670,6 +670,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         List<SalesInfo> salesInfoList = new ArrayList<>();
         Element rootNode = doc.getRootElement();
         List<Element> purchasesList = rootNode.getChildren("purchase");
+        sendSalesLogger.info(getLogPrefix() + " purchase count: " + purchasesList.size());
 
         for (Element purchaseNode : purchasesList) {
 
