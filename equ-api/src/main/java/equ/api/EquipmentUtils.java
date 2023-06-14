@@ -3,7 +3,7 @@ package equ.api;
 public class EquipmentUtils {
 
     public static int getEquApiVersion() {
-        return 14;
+        return 15;
     }
 
 }

@@ -84,6 +84,35 @@ logProcesses 'Записать в лог текущие процессы' (Equip
     NEWSESSION { needLogProcesses(e) <- TRUE; apply();}
 } TOOLBAR;
 
+needInterruptTransactions = DATA STRING (EquipmentServer);
+interrupt 'Прервать транзакцию' (EquipmentServer e, MachineryPriceTransaction t) {
+    NEWSESSION {
+        needInterruptTransactions(e) <- CONCAT ',', needInterruptTransactions(e), t;
+        apply();
+    }
+}
+
+processMonitorTaskJSON(STRING sid) = JSON FROM 'interruptTransactions' = needInterruptTransactions(sidTo(sid)), 'logProcesses' = needLogProcesses(sidTo(sid));
+
+finishProcessMonitorTask(STRING sidEquipmentServer, STRING json) {
+    stringToFile(json);
+    LOCAL logProcessesData = TEXT();
+    LOCAL interruptedTransactions = BOOLEAN();
+    IMPORT JSON FROM resultFile() TO() logProcessesData, interruptedTransactions;
+
+    IF(logProcessesData()) THEN {
+        NEW esl = EquipmentServerLog {
+            equipmentServer(esl) <- sidTo(sidEquipmentServer);
+            data(esl) <- logProcessesData();
+            date(esl) <- currentDateTime();
+        }
+        needLogProcesses(sidTo(sidEquipmentServer)) <- NULL;
+    }
+    
+    IF(interruptedTransactions()) THEN
+        needInterruptTransactions(sidTo(sidEquipmentServer)) <- NULL;
+}
+
 //---------------------------- Формы для серверов оборудования ----------------------------//
 
 FORM equipmentServer 'Сервер оборудования'

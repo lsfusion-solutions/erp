@@ -32,6 +32,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
 
+import static equ.clt.ProcessMonitorEquipmentServer.removeInterruptedTransaction;
+
 public class EquipmentServer {
 
     private Thread thread;
@@ -778,11 +780,12 @@ public class EquipmentServer {
             return enabledMachineryInfoList.isEmpty() ? machineryInfoList : enabledMachineryInfoList;
         }
 
-        private void errorTransactionReport(Long idTransactionInfo, Throwable e) {
+        private void errorTransactionReport(Long transactionId, Throwable e) {
             try {
-                remote.errorTransactionReport(idTransactionInfo, e);
+                removeInterruptedTransaction(transactionId);
+                remote.errorTransactionReport(transactionId, e);
             } catch (Exception e1) {
-                equipmentLogger.error("Equipment server error at transaction " + idTransactionInfo, e);
+                equipmentLogger.error("Equipment server error at transaction " + transactionId, e);
                 errorEquipmentServerReport(e1);
             }
         }

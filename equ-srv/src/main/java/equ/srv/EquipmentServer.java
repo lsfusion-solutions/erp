@@ -1683,13 +1683,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public boolean needUpdateProcessMonitor(String sidEquipmentServer) {
-        return ProcessMonitorEquipmentServer.needUpdateProcessMonitor(this, sidEquipmentServer);
+    public String getProcessMonitorTaskJSON(String sidEquipmentServer) {
+        return ProcessMonitorEquipmentServer.getProcessMonitorTaskJSON(this, sidEquipmentServer);
     }
 
     @Override
-    public void logProcesses(String sidEquipmentServer, String data) {
-        ProcessMonitorEquipmentServer.logProcesses(getBusinessLogics(), this, getStack(), sidEquipmentServer, data);
+    public void finishProcessMonitorTask(String sidEquipmentServer, String resultJSON) {
+        ProcessMonitorEquipmentServer.finishProcessMonitorTask(getBusinessLogics(), this, getStack(), sidEquipmentServer, resultJSON);
     }
 
     private Set<String> readClosedZReportSet(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
