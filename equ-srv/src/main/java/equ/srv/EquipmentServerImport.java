@@ -81,7 +81,7 @@ public class EquipmentServerImport {
                             boolean firstPaymentOfType = firstPaymentsOfType.add(paymentType);
                             String paymentId;
                             if (firstPaymentOfType) {
-                                if (payment.type.equals("cash")) { //todo: method isCash (equ-api)
+                                if (payment.isCash()) {
                                     paymentId = idReceipt + "1";
                                 } else if (payment.isCard()) {
                                     paymentId = idReceipt + "2";

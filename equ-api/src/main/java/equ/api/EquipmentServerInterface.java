@@ -59,7 +59,6 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     //sendSales consumer
     List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException;
     String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) throws IOException, SQLException;
-    Set<String> readCashDocumentSet() throws IOException, SQLException;
     String sendCashDocumentInfo(List<CashDocument> cashDocumentList) throws IOException, SQLException;
 
     //checkZReportSum

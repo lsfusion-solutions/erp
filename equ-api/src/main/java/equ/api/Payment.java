@@ -46,6 +46,10 @@ public class Payment implements Serializable {
         return new Payment("card", sum, extraFields);
     }
 
+    public boolean isCash() {
+        return type.equals("cash");
+    }
+
     public boolean isCard() {
         return type.equals("card");
     }
