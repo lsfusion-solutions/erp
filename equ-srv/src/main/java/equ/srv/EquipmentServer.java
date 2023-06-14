@@ -417,13 +417,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public Map<String, BigDecimal> readZReportSumMap() throws SQLException {
-        return SendSalesEquipmentServer.readZReportSumMap(this);
+    public Map<String, BigDecimal> readZReportSumMap(Set<String> idZReportSet) throws SQLException {
+        return SendSalesEquipmentServer.readZReportSumMap(this, idZReportSet);
     }
     
     @Override
-    public void succeedExtraCheckZReport(List<String> idZReportList) throws SQLException {
-        SendSalesEquipmentServer.succeedExtraCheckZReport(getBusinessLogics(), this, getStack(), idZReportList);
+    public void succeedExtraCheckZReport(Set<String> idZReportSet) throws SQLException {
+        SendSalesEquipmentServer.succeedExtraCheckZReport(getBusinessLogics(), this, getStack(), idZReportSet);
     }
 
     @Override

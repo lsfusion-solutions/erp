@@ -1,13 +1,13 @@
 package equ.api.cashregister;
 
-import java.util.List;
+import java.util.Set;
 
 public class ExtraCheckZReportBatch {
-    public List<String> idZReportList;
+    public Set<String> idZReportSet;
     public String message;
 
-    public ExtraCheckZReportBatch(List<String> idZReportList, String message) {
-        this.idZReportList = idZReportList;
+    public ExtraCheckZReportBatch(Set<String> idZReportSet, String message) {
+        this.idZReportSet = idZReportSet;
         this.message = message;
     }
 }

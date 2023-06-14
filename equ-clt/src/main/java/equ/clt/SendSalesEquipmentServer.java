@@ -203,9 +203,10 @@ public class SendSalesEquipmentServer {
             throws RemoteException, SQLException {
         Map<String, List<Object>> handlerZReportSumMap = handler.readExtraCheckZReport(cashRegisterInfoList);
         if (handlerZReportSumMap != null) {
-            ExtraCheckZReportBatch extraCheckResult = handler.compareExtraCheckZReport(handlerZReportSumMap, remote.readZReportSumMap());
+            ExtraCheckZReportBatch extraCheckResult = handler.compareExtraCheckZReport(handlerZReportSumMap,
+                    remote.readZReportSumMap(handlerZReportSumMap.keySet()));
             if (extraCheckResult.message.isEmpty()) {
-                remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
+                remote.succeedExtraCheckZReport(extraCheckResult.idZReportSet);
             } else {
                 EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message);
             }

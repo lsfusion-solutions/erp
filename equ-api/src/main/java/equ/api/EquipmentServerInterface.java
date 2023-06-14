@@ -67,8 +67,8 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     void logRequestZReportSumCheck(Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException;
 
     //extraCheckZReportSum
-    Map<String, BigDecimal> readZReportSumMap() throws RemoteException, SQLException;
-    void succeedExtraCheckZReport(List<String> idZReportList) throws RemoteException, SQLException;
+    Map<String, BigDecimal> readZReportSumMap(Set<String> idZReportSet) throws RemoteException, SQLException;
+    void succeedExtraCheckZReport(Set<String> idZReportSet) throws RemoteException, SQLException;
 
     //processTransaction consumer
     List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException;

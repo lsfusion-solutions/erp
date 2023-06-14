@@ -492,7 +492,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) {
 
         StringBuilder message = new StringBuilder();
-        List<String> idZReportList = new ArrayList<>();
+        Set<String> idZReportSet = new HashSet<>();
 
         for (Map.Entry<String, List<Object>> kristalEntry : handlerZReportSumMap.entrySet()) {
 
@@ -510,9 +510,9 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 message.append(String.format("GroupCashRegister %s. CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n",
                         numberGroupCashRegister, numberCashRegister, numberZReport, sumBase, sumHandler));
             else
-                idZReportList.add(idZReport);
+                idZReportSet.add(idZReport);
         }
-        return idZReportList.isEmpty() && (message.length() == 0) ? null : new ExtraCheckZReportBatch(idZReportList, message.toString());
+        return idZReportSet.isEmpty() && (message.length() == 0) ? null : new ExtraCheckZReportBatch(idZReportSet, message.toString());
     }
 
     protected List<String> getTobaccoGroups (String tobaccoGroup) {

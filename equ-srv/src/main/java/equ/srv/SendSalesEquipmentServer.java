@@ -292,7 +292,7 @@ public class SendSalesEquipmentServer {
         return zReportSumMap;
     }
 
-    public static Map<String, BigDecimal> readZReportSumMap(EquipmentServer server) throws SQLException {
+    public static Map<String, BigDecimal> readZReportSumMap(EquipmentServer server, Set<String> idZReportSet) throws SQLException {
         Map<String, BigDecimal> zReportSumMap = new HashMap<>();
         if (zReportLM != null) {
             try (DataSession session = server.createSession()) {
@@ -311,7 +311,10 @@ public class SendSalesEquipmentServer {
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
-                    zReportSumMap.put((String) row.get("idZReport"), (BigDecimal) row.get("sumReceiptDetailZReport"));
+                    String idZReport = (String) row.get("idZReport");
+                    if(idZReportSet.contains(idZReport)) {
+                        zReportSumMap.put(idZReport, (BigDecimal) row.get("sumReceiptDetailZReport"));
+                    }
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
@@ -320,10 +323,10 @@ public class SendSalesEquipmentServer {
         return zReportSumMap;
     }
 
-    public static void succeedExtraCheckZReport(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, List<String> idZReportList) throws SQLException {
+    public static void succeedExtraCheckZReport(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, Set<String> idZReportSet) throws SQLException {
         if (zReportLM != null) {
             try {
-                for (String idZReport : idZReportList) {
+                for (String idZReport : idZReportSet) {
                     try (DataSession session = server.createSession()) {
                         zReportLM.findProperty("succeededExtraCheck[ZReport]").change(true, session, (DataObject) zReportLM.findProperty("zReport[STRING[100]]").readClasses(session, new DataObject(idZReport)));
                         session.applyException(BL, stack);
