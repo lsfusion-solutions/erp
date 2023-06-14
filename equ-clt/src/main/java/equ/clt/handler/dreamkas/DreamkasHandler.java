@@ -96,7 +96,7 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
 
     // Чтение кассовых документов (внесения/изъятия) throws ClassNotFoundException - убрал
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList) {
         DreamkasSettings dreamkasSettings = springContext.containsBean("dreamkasSettings") ? (DreamkasSettings) springContext.getBean("dreamkasSettings") : null;
         Integer salesHours = dreamkasSettings != null ? dreamkasSettings.getSalesHours() : null;
 

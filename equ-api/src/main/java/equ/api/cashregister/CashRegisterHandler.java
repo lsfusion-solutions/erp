@@ -33,7 +33,7 @@ public abstract class CashRegisterHandler<S extends SalesBatch, C extends CashDo
 
     public abstract void finishReadingSalesInfo(S salesBatch);
 
-    public abstract CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException;
+    public abstract CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException;
 
     public abstract void finishReadingCashDocumentInfo(C cashDocumentBatch);
 

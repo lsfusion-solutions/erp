@@ -108,9 +108,7 @@ public class SendSalesEquipmentServer {
 
     static void sendCashDocument(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
             throws IOException, SQLException, ClassNotFoundException {
-        //todo: remove (equ-api)
-        Set<String> cashDocumentSet = new HashSet<>();
-        CashDocumentBatch cashDocumentBatch = handler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
+        CashDocumentBatch cashDocumentBatch = handler.readCashDocumentInfo(cashRegisterInfoList);
         if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
             sendSalesLogger.info("Sending CashDocuments");
             String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList);

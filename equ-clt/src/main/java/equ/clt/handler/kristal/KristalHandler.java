@@ -656,7 +656,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException {
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         Integer lastDaysCashDocument = kristalSettings != null ? kristalSettings.getLastDaysCashDocument() : null;

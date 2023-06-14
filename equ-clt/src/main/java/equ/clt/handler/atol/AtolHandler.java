@@ -262,7 +262,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch, Cash
     }*/
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList) {
 
         try {
 

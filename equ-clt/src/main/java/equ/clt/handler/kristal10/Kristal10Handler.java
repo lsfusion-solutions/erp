@@ -334,7 +334,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList) {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
         boolean ignoreFileLocks = kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 

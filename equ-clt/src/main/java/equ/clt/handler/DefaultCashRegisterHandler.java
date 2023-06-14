@@ -149,7 +149,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException {
         return null;
     }
 

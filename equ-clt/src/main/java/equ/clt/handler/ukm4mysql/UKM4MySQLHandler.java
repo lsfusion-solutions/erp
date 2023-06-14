@@ -806,7 +806,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public UKM4MySQLCashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
+    public UKM4MySQLCashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException {
         List<CashDocument> result = new ArrayList<>();
         Map<String, List<CashDocument>> directoryListCashDocumentMap = new HashMap<>();
 
@@ -862,8 +862,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             BigDecimal sum = type == 100 ? rs.getBigDecimal("m.amount") : type == 101 ? HandlerUtils.safeNegate(rs.getBigDecimal("m.amount")) : null;
                             if (sum != null) {
                                 String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
-                                if (!cashDocumentSet.contains(idCashDocument))
-                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, numberZReport, sum));
+                                cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, numberZReport, sum));
                             }
                         }
                     }
