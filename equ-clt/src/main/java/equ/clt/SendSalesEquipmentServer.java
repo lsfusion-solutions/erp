@@ -205,10 +205,12 @@ public class SendSalesEquipmentServer {
         if (handlerZReportSumMap != null) {
             ExtraCheckZReportBatch extraCheckResult = handler.compareExtraCheckZReport(handlerZReportSumMap,
                     remote.readZReportSumMap(new HashSet<>(handlerZReportSumMap.keySet())));
-            if (extraCheckResult.message.isEmpty()) {
-                remote.succeedExtraCheckZReport(extraCheckResult.idZReportSet);
-            } else {
-                EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message);
+            if(extraCheckResult != null) {
+                if (extraCheckResult.message.isEmpty()) {
+                    remote.succeedExtraCheckZReport(extraCheckResult.idZReportSet);
+                } else {
+                    EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message);
+                }
             }
         }
     }
