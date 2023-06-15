@@ -22,7 +22,6 @@ dateTime 'Время' = DATA DATETIME (InDoc);
 dateTime(InDoc d) <- currentDateTime() WHEN SET(d IS InDoc);
 
 url 'Url' = DATA STRING (InDoc) INDEXED;
-inDoc = GROUP MAX InDoc d BY utm(d), url(d);
 
 document 'Документ' = DATA TEXT (InDoc); 
 
@@ -125,11 +124,22 @@ FORM getInDocs FORMEXTID 'A'
     PROPERTIES(i) url EXTID 'value', replyId EXTID 'replyId' ATTR 
 ;
 
+inDocInterval 'Период очистки входящих документов в УТМ' = DATA INTEGER () PREREAD;
+
 skipImport 'Не импортировать' = DATA BOOLEAN (DocType);
 skipDelete 'Не удалять' = DATA BOOLEAN (DocType);
 EXTEND FORM integrationData
+    PROPERTIES() inDocInterval
+
     PROPERTIES(edt) skipImport, skipDelete
 ;
+
+DESIGN integrationData {
+    EGAIS {
+        MOVE PROPERTY(inDocInterval());
+    }
+}
+inDoc = GROUP MAX InDoc d IF dateTime(d) >= subtractDay(currentDateTime(), OVERRIDE inDocInterval(), 14) BY utm(d), url(d);
 
 getInDocs 'Получить входящие документы' (UTM u) {
     LOCAL response = FILE();
