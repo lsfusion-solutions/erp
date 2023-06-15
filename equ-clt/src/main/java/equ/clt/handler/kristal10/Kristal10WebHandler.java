@@ -1259,7 +1259,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         //вне зависимости от результата отправляем, что запрос обработан успешно
         sendZReportsResponse(httpExchange, null);
 
-        Map<String, BigDecimal> baseZReportSumMap = remote.readZReportSumMap(zReportSumMap.keySet());
+        Map<String, BigDecimal> baseZReportSumMap = remote.readZReportSumMap(new HashSet<>(zReportSumMap.keySet()));
         if(extendedLogs) {
             sendSalesLogger.info(getLogPrefix() + " zReportSumMap:" + StringUtils.join(zReportSumMap, ','));
             sendSalesLogger.info(getLogPrefix() + " baseZReportSumMap:" + StringUtils.join(baseZReportSumMap, ','));

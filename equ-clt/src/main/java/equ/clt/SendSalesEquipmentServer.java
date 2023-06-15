@@ -204,7 +204,7 @@ public class SendSalesEquipmentServer {
         Map<String, List<Object>> handlerZReportSumMap = handler.readExtraCheckZReport(cashRegisterInfoList);
         if (handlerZReportSumMap != null) {
             ExtraCheckZReportBatch extraCheckResult = handler.compareExtraCheckZReport(handlerZReportSumMap,
-                    remote.readZReportSumMap(handlerZReportSumMap.keySet()));
+                    remote.readZReportSumMap(new HashSet<>(handlerZReportSumMap.keySet())));
             if (extraCheckResult.message.isEmpty()) {
                 remote.succeedExtraCheckZReport(extraCheckResult.idZReportSet);
             } else {
