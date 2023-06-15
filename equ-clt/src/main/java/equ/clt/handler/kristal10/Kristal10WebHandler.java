@@ -1260,10 +1260,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         sendZReportsResponse(httpExchange, null);
 
         Map<String, BigDecimal> baseZReportSumMap = remote.readZReportSumMap(new HashSet<>(zReportSumMap.keySet()));
-        if(extendedLogs) {
+        //if(extendedLogs) {
             sendSalesLogger.info(getLogPrefix() + " zReportSumMap:" + StringUtils.join(zReportSumMap, ','));
             sendSalesLogger.info(getLogPrefix() + " baseZReportSumMap:" + StringUtils.join(baseZReportSumMap, ','));
-        }
+        //}
 
         ExtraCheckZReportBatch extraCheckResult = compareExtraCheckZReport(zReportSumMap, baseZReportSumMap);
         if (extraCheckResult.message.isEmpty()) {
