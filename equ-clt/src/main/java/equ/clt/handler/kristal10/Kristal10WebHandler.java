@@ -247,6 +247,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             if (++count >= 1000) {
                 processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items and barcodes (Transaction %s, count %s)", transaction.id, count));
                 xmlList.add(docToXMLString(doc));
+                rootElement = new Element("goods-catalog");
                 doc = new Document(rootElement);
                 count = 0;
             }
@@ -278,6 +279,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             if (++count >= 1000) {
                 processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with prices (Transaction %s, count %s)", transaction.id, count));
                 xmlList.add(docToXMLString(doc));
+                rootElement = new Element("goods-catalog");
                 doc = new Document(rootElement);
                 count = 0;
             }
@@ -309,6 +311,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             if (++count >= 1000) {
                 processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with restrictions (Transaction %s, count %s)", transaction.id, count));
                 xmlList.add(docToXMLString(doc));
+                rootElement = new Element("goods-catalog");
                 doc = new Document(rootElement);
                 count = 0;
             }
