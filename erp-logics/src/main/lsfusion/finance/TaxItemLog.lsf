@@ -1,0 +1,30 @@
+MODULE TaxItemLog;
+
+REQUIRE TaxItem, ItemLog;
+
+NAMESPACE Item;
+
+EXTEND CLASS TypeChange{
+    addVAT 'Добавление НДС',
+    deleteVAT 'Удаление НДС',
+    changeVAT 'Изменение НДС'
+}
+
+WHEN CHANGED(VAT(Item i, Country c)) AND c == defaultCountry() AND i IS Item AND NOT disableItemLog()  DO {
+    NEW d = ItemLog {
+        item(d) <- i;
+        id(d) <- id(i);
+        idBarcode(d) <- idBarcode(i);
+        name(d) <- nameAttribute(i);
+
+        typeChange(d) <- CASE 
+                WHEN PREV(VAT(i,c))!=VAT(i,c) THEN  TypeChange.changeVAT
+                WHEN SET(VAT(i,c)) THEN TypeChange.addVAT
+                ELSE TypeChange.deleteVAT;
+        note(d) <- STRING[500](CONCAT ' ', 'Шкала НДС:', 'До: '+PREV(numberVAT(i,c))+'.', 'После: '+numberVAT(i,c));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+    }
+}
