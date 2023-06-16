@@ -727,7 +727,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, idUOM, 6); //UNITID
                             setObject(ps, item.splitItem ? 2 : 0, 7); //QUANTMASK
                             setObject(ps, packDType, 8); //PACKDTYPE
-                            setObject(ps, getItemName(item), 9); //PACKNAME
+                            setObject(ps, getPackName(item), 9); //PACKNAME
                             setObject(ps, delFlag ? 1 : 0, 10); //DELFLAG
                             setObject(ps, !specialSplitMode && item.passScalesItem ? 2 : null, 11); //BARCID
                             int delta = 0;
@@ -750,7 +750,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, idUOM, 5, offset); //UNITID
                             setObject(ps, item.splitItem ? 2 : "", 6, offset); //QUANTMASK
                             setObject(ps, packDType, 7, offset); //PACKDTYPE
-                            setObject(ps, getItemName(item), 8, offset); //PACKNAME
+                            setObject(ps, getPackName(item), 8, offset); //PACKNAME
                             setObject(ps, delFlag ? "1" : "0", 9, offset); //DELFLAG
                             setObject(ps, !specialSplitMode && item.passScalesItem ? "2" : null, 10, offset); //BARCID
 
@@ -839,7 +839,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, 0, 6); //UNITID
                         setObject(ps, 0, 7); //QUANTMASK
                         setObject(ps, item.passScalesItem ? 0 : 1, 8); //PACKDTYPE
-                        setObject(ps, getItemName(item), 9); //PACKNAME
+                        setObject(ps, getPackName(item), 9); //PACKNAME
                         setObject(ps, 1, 10); //DELFLAG
                         if(updateNum != null)
                             setObject(ps, updateNum, 11);
@@ -856,7 +856,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, "0", 5, offset); //UNITID
                         setObject(ps, "", 6, offset); //QUANTMASK
                         setObject(ps, item.passScalesItem ? 0 : 1, 7, offset); //PACKDTYPE
-                        setObject(ps, getItemName(item), 8, offset); //PACKNAME
+                        setObject(ps, getPackName(item), 8, offset); //PACKNAME
                         setObject(ps, "1", 9, offset); //DELFLAG
 
                         if(updateNum != null)
@@ -877,10 +877,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    //приведение к однобайтной кодировке cp1251. Все символы больше 1 байта не поддерживаются
+    private String getPackName(ItemInfo item) throws UnsupportedEncodingException {
+        JSONObject infoJSON = getExtInfo(item.info);
+        String packName = infoJSON.optString("packName", null);
+        return packName != null ? encode(packName) : getItemName(item);
+    }
+
     private String getItemName(ItemInfo item) throws UnsupportedEncodingException {
-        String name = trim(item.name, "", 50);
-        return new String(name.getBytes("cp1251"), "cp1251");
+        return encode(trim(item.name, "", 50));
+    }
+
+    //приведение к однобайтной кодировке cp1251. Все символы больше 1 байта не поддерживаются
+    private String encode(String value) throws UnsupportedEncodingException {
+        return new String(value.getBytes("cp1251"), "cp1251");
     }
 
     private List<Integer> getPackIds(ItemInfo item) {
