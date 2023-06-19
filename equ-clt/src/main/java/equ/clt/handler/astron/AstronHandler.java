@@ -452,7 +452,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         if (params.pgsql) {
                             setObject(ps, idItem, 1); //ARTID
                             setObject(ps, Integer.parseInt(grpId), 2); //GRPID
-                            setObject(ps, getIdVAT(item.vat), 3); //TAXGRPID
+                            setObject(ps, getIdVAT(item), 3); //TAXGRPID
                             setObject(ps, idItem, 4); //ARTCODE
                             setObject(ps, getItemName(item), 5); //ARTNAME
                             setObject(ps, getItemName(item), 6); //ARTSNAME
@@ -460,7 +460,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             if (updateNum != null) setObject(ps, updateNum, 8); //UPDATENUM
                         } else {
                             setObject(ps, grpId, 1, offset); //GRPID
-                            setObject(ps, getIdVAT(item.vat), 2, offset); //TAXGRPID
+                            setObject(ps, getIdVAT(item), 2, offset); //TAXGRPID
                             setObject(ps, idItem, 3, offset); //ARTCODE
                             setObject(ps, getItemName(item), 4, offset); //ARTNAME
                             setObject(ps, getItemName(item), 5, offset); //ARTSNAME
@@ -486,16 +486,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private Integer getIdVAT(BigDecimal vat) {
-        Integer result = 0;
-        if (vat != null) {
-            if (vat.compareTo(BigDecimal.valueOf(10)) == 0) {
-                result = 1;
-            } else if (vat.compareTo(BigDecimal.valueOf(20)) == 0) {
-                result = 2;
+    private Integer getIdVAT(ItemInfo item) {
+        JSONObject infoJSON = getExtInfo(item.info);
+        if(infoJSON.has("idvat")) {
+            return infoJSON.getInt("idvat");
+        } else {
+            Integer result = 0;
+            if (item.vat != null) {
+                if (item.vat.compareTo(BigDecimal.valueOf(10)) == 0) {
+                    result = 1;
+                } else if (item.vat.compareTo(BigDecimal.valueOf(20)) == 0) {
+                    result = 2;
+                }
             }
+            return result;
         }
-        return result;
     }
 
     private void exportPropertyGrp(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
