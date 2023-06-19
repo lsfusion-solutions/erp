@@ -884,7 +884,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private String getPackName(ItemInfo item) throws UnsupportedEncodingException {
         JSONObject infoJSON = getExtInfo(item.info);
-        String packName = infoJSON.optString("packName", null);
+        String packName = null;
+        if (infoJSON != null && infoJSON.has("packName")) {
+            packName = infoJSON.optString("packName", "");
+        }
         return packName != null ? encode(packName) : getItemName(item);
     }
 
