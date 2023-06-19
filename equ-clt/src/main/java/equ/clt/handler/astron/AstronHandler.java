@@ -488,7 +488,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private Integer getIdVAT(ItemInfo item) {
         JSONObject infoJSON = getExtInfo(item.info);
-        if(infoJSON.has("idvat")) {
+        if(infoJSON != null && infoJSON.has("idvat")) {
             return infoJSON.getInt("idvat");
         } else {
             Integer result = 0;
