@@ -591,10 +591,12 @@ public class TerminalServer extends MonitorServer {
                                             json = params[2];
                                         logger.info(String.format("%s, idCommand=%d, json: '%s'", command, idCommand, json));
                                         fileData = teamWorkDocument(idCommand, json, userInfo);
+/*
                                         if (fileData == null) {
                                             errorCode = UNKNOWN_ERROR;
                                             errorText = UNKNOWN_ERROR_TEXT;
                                         }
+*/
                                     } else {
                                         errorCode = WRONG_PARAMETER_COUNT;
                                         errorText = WRONG_PARAMETER_COUNT_TEXT;
