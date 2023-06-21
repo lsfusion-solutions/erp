@@ -328,6 +328,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     price (UserInvoiceDetail invoiceDetail) += price(invoiceDetail);
     
     price[Invoice.InvoiceDetail](InvoiceDetail detail) += price(detail);
+    priceReadonlyIf = ABSTRACT VALUE BOOLEAN(UserInvoiceDetail);
 
     @defineDocumentInterfaceDetailVAT(invoice, country###stockProp###stock, , ); // объявляем шкалу
     
@@ -375,7 +376,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     invoicePrice (UserInvoiceDetail invoiceDetail) += invoicePrice(invoiceDetail);
 
     invoicePrice[Invoice.InvoiceDetail](InvoiceDetail detail) += invoicePrice(detail);
-    
+    invoicePriceReadonlyIf = ABSTRACT VALUE BOOLEAN(UserInvoiceDetail);
     // объявляем Action'ы для ON CHANGE по изменению цен
     @defineDocumentDetailPriceVATOnChange(userInvoice);
     @defineDocumentDetailNumberVATOnChange(userInvoice, stockProp###stock);
@@ -535,10 +536,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         PROPERTIES (d) ON EDIT editSku(d) BACKGROUND backgroundBarcode(d) idBarcodeSku 
         PROPERTIES (d) BACKGROUND backgroundSku(d) idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
         PROPERTIES (d) quantity SHOWIF showQuantity(i) BACKGROUND backgroundQuantity(d) READONLYIF readonlyQuantity(d), namePriceListType,
-                       price ON CHANGE changePrice(d) SHOWIF NOT hideWithoutVAT(i) BACKGROUND backgroundPrice(d), sum SHOWIF NOT hideWithoutVAT(i),
+                       price ON CHANGE changePrice(d) SHOWIF NOT hideWithoutVAT(i) BACKGROUND backgroundPrice(d) READONLYIF priceReadonlyIf(d), sum SHOWIF NOT hideWithoutVAT(i),
                        numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
                        valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundVAT(d) SHOWIF NOT hideWithoutVAT(i),
-                       invoicePrice ON CHANGE changeInvoicePrice(d) SHOWIF NOT hideWithVAT(i),
+                       invoicePrice ON CHANGE changeInvoicePrice(d) SHOWIF NOT hideWithVAT(i) READONLYIF invoicePriceReadonlyIf(d),
                        VATSum, invoiceSum ON CHANGE changeInvoiceSum(d), sumNetWeight BACKGROUND backgroundSku(d), 
                        sumGrossWeight BACKGROUND backgroundSku(d), NEW SHOWIF NOT hideAdd(i), deleteid=DELETE SHOWIF NOT hideDelete(i) GRID
         ORDERS index(d)
