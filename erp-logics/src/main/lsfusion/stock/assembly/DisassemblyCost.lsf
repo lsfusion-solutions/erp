@@ -1,0 +1,26 @@
+MODULE DisassemblyCost;
+
+REQUIRE Disassembly, SkuLedgerCost;
+
+NAMESPACE Disassembly;
+
+recalculateCostCalculated(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в разборках');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        price(Disassembly d) <- calculatedCost(sku(d), stock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(stock(d)) AND
+            calculatedCost(sku(d), stock(d)) AND NOT calculatedCost(sku(d), stock(d)) = price(d);
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в разборках');
+}
+
+recalculateCostAccountFirst(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в разборках (расход)');
+    APPLY NESTED LOCAL {
+        price(Disassembly d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
+    }
+    IF canceled() THEN CANCEL;
+    logToFile('cost', 'Закончен пересчет цен в разборках (расход)');
+}
