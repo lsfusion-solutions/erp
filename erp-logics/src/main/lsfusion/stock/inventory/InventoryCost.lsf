@@ -1,0 +1,21 @@
+MODULE InventoryCost;
+
+REQUIRE Inventory, SkuLedgerCost;
+
+NAMESPACE Inventory;
+
+//recalculateCostCalculated(DATE dFrom, DATE dTo) +{
+// нужно действие пересчёта дублировать, пока не будем 
+
+recalculateCostAccount(DATE dFrom, DATE dTo) + {
+    IF recalculateAllSkus() THEN { // иначе действие нужно изменять или дублировать, пока не будем
+        logToFile('cost', 'Начат пересчет цен в инвентаризациях');
+        APPLY NESTED LOCAL {
+            FOR date(CollationSheet c) >= dFrom AND date(c) <= dTo AND NOT date(c) < documentsClosedDate(stock(c)) ORDER dateTime(c) DO {
+                recalculatePrice(c);
+            }
+        }
+        IF canceled() THEN CANCEL;
+        logToFile('cost', 'Закончен пересчет цен в инвентаризациях');
+    }
+}
