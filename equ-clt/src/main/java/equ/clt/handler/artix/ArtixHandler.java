@@ -1790,6 +1790,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                     sumVAT = safeAdd(sumVAT, amount);
                                             }
 
+                                            String idLot = trimToNull(inventPosition.optString("excisemark"));
 
                                             String extDocId = trimToNull(inventPosition.optString("extdocid"));
 
@@ -1871,6 +1872,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 }
                                                 salesInfo.detailExtraFields.put("idBatch", idBatch);
                                                 salesInfo.detailExtraFields.put("externalNumber", externalNumber);
+
+                                                if (idLot != null)
+                                                    salesInfo.detailExtraFields.put("idLot", idLot);
 
                                                 salesInfo.detailExtraFields.put("sumVAT", sumVAT);
                                                 currentSalesInfoList.add(salesInfo);

@@ -106,6 +106,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule zReportLM;
     private ScriptingLogicsModule zReportDiscountCardLM;
     private ScriptingLogicsModule zReportSectionLM;
+    private ScriptingLogicsModule zReportLotLM;
     private ScriptingLogicsModule zReportExternalLM;
     private ScriptingLogicsModule zReportExternalNumberLM;
     private ScriptingLogicsModule zReportBonusLM;
@@ -180,6 +181,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         zReportExternalNumberLM = getBusinessLogics().getModule("ZReportExternalNumber");
         zReportBonusLM = getBusinessLogics().getModule("ZReportBonus");
         zReportBatchLM = getBusinessLogics().getModule("ZReportBatch");
+        zReportLotLM = getBusinessLogics().getModule("ZReportLot");
         DeleteBarcodeEquipmentServer.init(getBusinessLogics());
         MachineryExchangeEquipmentServer.init(getBusinessLogics());
         SendSalesEquipmentServer.init(getBusinessLogics());
@@ -2740,6 +2742,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
         String externalNumber = sale.detailExtraFields != null ? (String) sale.detailExtraFields.get("externalNumber") : null;
         String idBatch = sale.detailExtraFields != null ? (String) sale.detailExtraFields.get("idBatch") : null;
+        String idLot = sale.detailExtraFields != null ? (String) sale.detailExtraFields.get("idLot") : null;
 
         BigDecimal sumVAT = sale.detailExtraFields != null ? (BigDecimal) sale.detailExtraFields.get("sumVAT") : null;
 
@@ -2802,6 +2805,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if(zReportBatchLM != null) {
                 row.add(idBatch);
             }
+            if(zReportLotLM != null)
+                row.add(idLot);
             if (options.receiveVATSales)
                 row.add(sumVAT);
         }
@@ -2864,17 +2869,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 returnProperties.add(new ImportProperty(bonusPaidReceiptReturnDetailField, zReportBonusLM.findProperty("bonusPaid[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
             }
 
-            if (options.receiveVATSales) {
-                ImportField sumVATReceiptSaleDetailField = new ImportField(zReportLM.findProperty("sumVAT[ReceiptDetail]"));
-                ImportField sumVATReceiptReturnDetailField = new ImportField(zReportLM.findProperty("sumVAT[ReceiptDetail]"));
-
-                saleFields.add(sumVATReceiptSaleDetailField);
-                saleProperties.add(new ImportProperty(sumVATReceiptSaleDetailField, zReportLM.findProperty("sumVAT[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
-
-                returnFields.add(sumVATReceiptReturnDetailField);
-                returnProperties.add(new ImportProperty(sumVATReceiptReturnDetailField, zReportLM.findProperty("sumVAT[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
-            }
-
             if (zReportBatchLM != null) {
                 ImportField idBatchField = new ImportField(zReportBatchLM.findProperty("id[Batch]"));
                 saleFields.add(idBatchField);
@@ -2891,6 +2885,34 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 returnProperties.add(new ImportProperty(idBatchField, zReportBatchLM.findProperty("id[Batch]").getMapping(batchKey), true));
                 returnProperties.add(new ImportProperty(idBatchField, zReportBatchLM.findProperty("batch[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
                         zReportBatchLM.object(zReportBatchLM.findClass("Batch")).getMapping(batchKey), true));
+            }
+
+            if (zReportLotLM != null) {
+                ImportField idLotField = new ImportField(zReportLotLM.findProperty("id[Lot]"));
+                saleFields.add(idLotField);
+                returnFields.add(idLotField);
+
+                ImportKey<?> lotKey = new ImportKey((CustomClass) zReportLotLM.findClass("Lot"), zReportLotLM.findProperty("lot[STRING[200]]").getMapping(idLotField));
+                lotKey.skipKey = true;
+                saleKeys.add(lotKey);
+                returnKeys.add(lotKey);
+
+                saleProperties.add(new ImportProperty(idLotField, zReportLotLM.findProperty("lot[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey),
+                        zReportLotLM.object(zReportLotLM.findClass("Lot")).getMapping(lotKey)));
+
+                returnProperties.add(new ImportProperty(idLotField, zReportLotLM.findProperty("lot[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
+                        zReportLotLM.object(zReportLotLM.findClass("Lot")).getMapping(lotKey)));
+            }
+
+            if (options.receiveVATSales) {
+                ImportField sumVATReceiptSaleDetailField = new ImportField(zReportLM.findProperty("sumVAT[ReceiptDetail]"));
+                ImportField sumVATReceiptReturnDetailField = new ImportField(zReportLM.findProperty("sumVAT[ReceiptDetail]"));
+
+                saleFields.add(sumVATReceiptSaleDetailField);
+                saleProperties.add(new ImportProperty(sumVATReceiptSaleDetailField, zReportLM.findProperty("sumVAT[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
+
+                returnFields.add(sumVATReceiptReturnDetailField);
+                returnProperties.add(new ImportProperty(sumVATReceiptReturnDetailField, zReportLM.findProperty("sumVAT[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
             }
         }
     }
