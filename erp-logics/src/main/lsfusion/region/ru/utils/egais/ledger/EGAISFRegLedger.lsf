@@ -1,6 +1,6 @@
 MODULE EGAISFRegLedger;
 
-REQUIRE EGAISFReg;
+REQUIRE EGAISFReg, EGAISItem, EGAISStock;
 
 NAMESPACE EGAIS;
 
@@ -134,3 +134,127 @@ END
 
 // import
 restsDate = DATA LOCAL DATETIME();
+
+isAlcohol (Item i) = GROUP SUM 1 IF in(i, Product p);
+stock (Client c) = GROUP MIN Stock s IF client(s) = c;          // весь остаток ЕГАИС будем вешать только на один склад
+item (Product p) = GROUP MIN Item i IF in(i, p);                // и только на одну номенклатуру
+
+ballanceBEGAIS 'Остаток ЕГАИС' (Item i, Stock st, DATE d) = GROUP SUM balanceB(F2Reg r, d) IF item(product(r)) = i AND stock(client(r)) = st;
+differenceEGAIS 'Разница с данными ЕГАИС' (Item i, Stock st, DATE d) = balanceB(i, st, d) (-) ballanceBEGAIS(i, st, d);
+
+FORM balanceSkuAlcoholStock 'Остатки алкоголя на дату'
+
+    OBJECTS t=DATE PANEL
+    PROPERTIES valT = VALUE(t)
+
+    PROPERTIES() multipleStores
+
+    OBJECTS ss = Stock PANEL
+    PROPERTIES(ss) name SELECTOR SHOWIF singleStore()
+    FILTERS isCompany(ss)
+
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg), ts = Stock
+    PROPERTIES READONLY SHOWIF multipleStores() VALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a),
+        stockGroup(ts) == sg,
+        isCompany(ts)
+    FILTERGROUP sginactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDERS order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
+    OBJECTS           sts=(st=Stock, s=Item)
+    PROPERTIES        select(s,st)
+    PROPERTIES        READONLY BACKGROUND backgroundBalance(s,st,toDateTime(t)) name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), stockName = name(st) SHOWIF multipleStores(), nameUOM(s)  //  idBarcodeSku
+    FILTERS           isParent(sk, s),
+            IF multipleStores() THEN
+            st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
+            ELSE
+            st == ss,
+        isAlcohol(s),
+        isCompany(st) OR NOT multipleStores()
+
+    FILTERGROUP inactiveStock
+        FILTER 'Активный' (active(st) OR NOT multipleStores()) AND active(s) 'ctrl F10' DEFAULT
+        FILTER 'Неактивный' inactive(s) 'shift F10'
+
+    PROPERTIES(s, st, t) READONLY balanceB, sumB, ballanceBEGAIS, differenceEGAIS
+    PROPERTIES READONLY averagePriceB 'Цена (средневзв.)' = averagePriceB(s, st, toDateTime(t))
+    PROPERTIES(s, st) READONLY dateTimeLastMoved, nameSupplierLastOrderBatch
+    PROPERTIES(s)     READONLY idSkuGroup, canonicalNameSkuGroup
+
+    FILTERGROUP container
+        FILTER 'Товар' isItem(s)
+        FILTER 'Тара' isContainer(s)
+
+    FILTERGROUP filters
+        FILTER 'Товары с остатком' balanceB(s, st, t) OR sumB(s, st, t) OR ballanceBEGAIS(s, st, t) 'F10' DEFAULT
+        FILTER 'Товары с отклонением к ЕГАИС' differenceEGAIS(s, st, t) 'F9'
+    //        FILTER 'Товары с движением не позднее 1 дня' balance(s, st, t, 1) 'F9'
+    //        FILTER 'Товары с движением не позднее 7 дней' balance(s, st, t, 7) 'F8'
+    //        FILTER 'Товары с движением не позднее 30 дней' balance(s, st, t, 30) 'F7'
+
+    OBJECTS bil=SkuLedger
+    PROPERTIES(bil) READONLY dateTime, description, nameBatch,
+        signedQuantity, signedPrice, signedSum, skip
+    FILTERS isPosted(bil) AND sku(bil)==s AND stock(bil)==st
+    ORDERS dateTime(bil) DESC
+
+    OBJECTS bt=Batch
+    PROPERTIES(bt) READONLY      number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost
+    PROPERTIES(bt, st, t) READONLY  balanceB
+    FILTERS isPosted(bt),
+        sku(bt) == s,
+        countLedger(bt, st)
+    ORDERS dateTime(bt) DESC
+;
+
+DESIGN balanceSkuAlcoholStock {
+    BOX {
+        size = (1024, 768);
+        NEW filter {
+            alignment = STRETCH;
+            type = CONTAINERH;
+            MOVE PROPERTY (valT);
+            MOVE PROPERTY (multipleStores());
+            MOVE PROPERTY (name(ss));
+        }
+        NEW topContainer {
+            fill = 1;
+            type = SPLITH;
+
+            NEW firstCaseTwo {
+                fill = 1;
+                type = SPLITV;
+                MOVE BOX(TREE stockTree) { caption = 'Склады'; }
+                MOVE BOX(TREE skuTree) { caption = 'Группы'; }
+            }
+
+            NEW secondCase {
+                fill = 3;
+                type = SPLITV;
+                NEW skuBox {
+                    fill = 2;
+                    MOVE BOX(sts) {
+                        fill = 2;
+                    }
+                }
+                NEW ledgerBox {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE BOX(bil);
+                    MOVE BOX(bt);
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    balanceSku {
+        NEW balanceSkuAlcoholStock;
+    }
+}
