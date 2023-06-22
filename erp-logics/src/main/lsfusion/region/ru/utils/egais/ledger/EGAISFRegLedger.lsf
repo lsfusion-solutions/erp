@@ -23,6 +23,12 @@ TABLE balanceF2Reg(F2Reg);
 currentBalance 'Текущий остаток' (F2Reg r) = GROUP SUM quantity(FRegLedger l) IF posted(l) BY f2Reg(l) MATERIALIZED TABLE balanceF2Reg;
 prevCurrentBalance (F2Reg r) = PREV(currentBalance(r));
 
+balanceB 'Остаток на начало дня' (F2Reg r, DATE date) = currentBalance(r)
+    (-) [GROUP SUM quantity(FRegLedger l) IF posted(l) AND date(l) >= date BY f2Reg(l)](r);
+
+balanceA 'Остаток на конец дня' (F2Reg r, DATE date) = currentBalance(r)
+    (-) [GROUP SUM quantity(FRegLedger l) IF posted(l) AND date(l) > date BY f2Reg(l)](r);
+
 CONSTRAINT currentBalance(F2Reg r) < 0 MESSAGE 'Остаток по справке Б не может быть отрицательным'; 
 
 EXTEND FORM f2Regs
