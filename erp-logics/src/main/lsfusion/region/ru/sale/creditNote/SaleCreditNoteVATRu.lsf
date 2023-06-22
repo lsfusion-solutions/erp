@@ -29,13 +29,18 @@ EXTEND FORM creditNotes
     PROPERTIES (d) READONLY invoicePrice AFTER valueVAT(d)
 ;
 
-WHEN LOCAL (CHANGED(quantity(UserCreditNoteDetail detail)) OR CHANGED(invoicePrice(detail)) OR CHANGED(currency(detail))) AND withVATPrice(invoice(userCreditNote(detail))) DO
+WHEN LOCAL (CHANGED(quantity(UserCreditNoteDetail detail)) OR CHANGED(invoicePrice(detail)) OR CHANGED(currency(detail))) AND withVATPrice(invoice(userCreditNote(detail))) DO {
     invoiceSum (detail) <- NUMERIC[18,4](round(quantity(detail) * invoicePrice(detail), currency(detail)));
-
-WHEN LOCAL (CHANGED(invoiceSum(CreditNoteDetail detail)) OR CHANGED(valueVAT(detail)) OR CHANGED(currency(detail))) AND withVATPrice(invoice(userCreditNote(detail)))  DO 
     VATSum (detail)  <- NUMERIC[18,4](round(invoiceSum(detail) * valueVAT(detail) / (100 (+) valueVAT (detail)), currency(detail)));
+    sum (detail) <- NUMERIC[18,4](invoiceSum(detail) (-) VATSum(detail));
+}
 
-WHEN LOCAL (CHANGED(invoiceSum(CreditNoteDetail detail)) OR CHANGED (VATSum(detail))) AND withVATPrice(invoice(userCreditNote(detail)))  DO
+WHEN LOCAL (CHANGED(invoiceSum(CreditNoteDetail detail)) OR CHANGED(valueVAT(detail)) OR CHANGED(currency(detail))) AND NOT CHANGED(VATSum(detail)) AND withVATPrice(invoice(userCreditNote(detail)))  DO {
+    VATSum (detail)  <- NUMERIC[18,4](round(invoiceSum(detail) * valueVAT(detail) / (100 (+) valueVAT (detail)), currency(detail)));
+    sum (detail) <- NUMERIC[18,4](invoiceSum(detail) (-) VATSum(detail));
+}
+
+WHEN LOCAL (CHANGED(invoiceSum(CreditNoteDetail detail)) OR CHANGED (VATSum(detail))) AND NOT CHANGED(sum(detail)) AND withVATPrice(invoice(userCreditNote(detail)))  DO
     sum (detail) <- NUMERIC[18,4](invoiceSum(detail) (-) VATSum(detail));
 
 //filling price for details without invoice details
