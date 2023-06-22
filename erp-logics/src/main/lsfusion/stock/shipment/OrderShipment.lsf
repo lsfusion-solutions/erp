@@ -142,22 +142,50 @@ META defineOrderShipment(sign, stockProp)
         overFillOrder(s, o);
     }
     
-    fillDetail (UserShipment s, Order o) {
-        FOR order(OrderDetail od) == o AND
-            toShip(od) > 0
-            NEW sd = UserShipmentDetail DO {
-                userShipment(sd) <- s;
-                orderDetail(sd) <- od;
-                sku(sd) <- sku(od);
-                quantity(sd) <- toShip(od);
+    toShip (Batch b, OrderDetail d) = PARTITION UNGROUP toShip
+        LIMIT STRICT currentBalance(b, stockProp(d)) IF skuCurrentBalance(b, stockProp(d)) == sku(d)
+        ORDER dateTime(b), b
+        BY d;
 
-                overFillOrder(sd, od);
-        }
+    createDetail(UserShipment userShipment, Order order)  {
+        IF explicitBatchLedger(stockProp(order)) THEN {
+            // проходим по строкам, для которых не задана партия
+            FOR order(OrderDetail orderDetail) == order AND NUMERIC[16,5] q == toShip(Batch batch, orderDetail) AND NOT batch(orderDetail) NEW d = UserShipmentDetail DO {
+                userShipment(d) <- userShipment;
+                orderDetail(d) <- orderDetail;
+                sku(d) <- sku(orderDetail);
+                batch(d) <- batch;
+                quantity (d) <- q;
+
+                overFillOrder(d, orderDetail);
+            }
+            // проходим по строкам, для которых задана партия
+            FOR order(OrderDetail orderDetail) == order AND PREV(toShip(orderDetail)) AND batch(orderDetail) NEW d = UserShipmentDetail DO {
+                userShipment(d) <- userShipment;
+                orderDetail(d) <- orderDetail;
+                sku(d) <- sku(orderDetail);
+                batch(d) <- batch(orderDetail);
+                quantity (d) <- PREV(toShip(orderDetail));
+
+                overFillOrder(d, orderDetail);
+            }
+        } ELSE {
+            FOR order(OrderDetail orderDetail) == order AND toShip(orderDetail) > 0 NEW d = UserShipmentDetail DO {
+                userShipment(d) <- userShipment;
+                orderDetail(d) <- orderDetail;
+                sku(d) <- sku(orderDetail);
+                batch(d) <- batch(orderDetail);
+                quantity (d) <- toShip(orderDetail);
+
+                overFillOrder(d, orderDetail);
+            }
+        }    
     }
+    
     fillOrder 'Заполнить на основе заказа'(UserShipment s)   { 
         DIALOG shipmentOrders OBJECTS s = supplier(s), ss = supplierStock(s),
                                     c = customer(s), cs = customerStock(s), o INPUT DO {
-            fillDetail(s, o);
+            createDetail(s, o);
         }
     } IN order;
 
@@ -167,7 +195,7 @@ META defineOrderShipment(sign, stockProp)
                 fillHeader(s, order);
                 
                 FOR selected(Order.Order o) DO {
-                    fillDetail(s, o);   
+                    createDetail(s, o);   
                 }     
                               
                 SHOW userShipment OBJECTS s = s DOCKED NOCANCEL;
@@ -176,11 +204,11 @@ META defineOrderShipment(sign, stockProp)
     }
     overCreateMultiUserShipment(Order o) + { IF o IS Order THEN createMultiUserShipment(o); }
     
-    addUserShipment 'Поставка (продажа)' (Order o)   { 
+    addUserShipment 'Поставка'##sign (Order o)   { 
 	    NEWSESSION {
 	        NEW s = UserShipment {
 	            fillHeader(s, o);
-	            fillDetail(s, o);
+                createDetail(s, o);
                 SHOW userShipment OBJECTS s = s DOCKED NOCANCEL;
             }
 	    }
