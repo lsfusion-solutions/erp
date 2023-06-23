@@ -293,18 +293,26 @@ repeatIn (Configuration c, EnterpriseData e) {
     } 
 }
 
+objectExchange = ABSTRACT VALUE ObjectExchange(EnterpriseData);
+
 FORM objectExchange 'Настройки синхронизации'
     OBJECTS c = Configuration, o = ObjectExchange
     PROPERTIES name(o) READONLY, inSending(o, c), inReceiving(o, c)
     ORDERS name(o)
+    FILTERGROUP inExchange
+        FILTER 'Передается/принимается' inSending(o, c) OR inReceiving(o, c)
     
     OBJECTS e = EnterpriseData
     PROPERTIES desc(e, c) READONLY, packet(c,e) READONLY, in(c, e) ON CHANGE repeatIn(c, e)
-    FILTERS inSending(c, e) OR in(c, e), NOT skip(c, e);
+    FILTERS inSending(c, e) OR in(c, e), NOT skip(c, e)
+    FILTERGROUP inSending
+        FILTER 'Вкл.' in(c, e)
+    FILTERGROUP objectExchange
+        FILTER 'По объекту синхронизации' objectExchange(e)=o
 ;
 
 showOptions 'Настройки' (Configuration c) {
-    SHOW objectExchange OBJECTS c = c WAIT MANAGESESSION;
+    SHOW objectExchange OBJECTS c = c NEWSESSION;
 }
 
 FORM configuration 'Конфигурация'
@@ -630,7 +638,9 @@ META extDocument(doctype, caption, ver, deleteCaption)
     desc (###doctype doctype, Configuration configuration) += STRING (CONCAT ' ', caption, 'от ' + date(doctype, configuration), '№ ' + id(doctype, configuration));
     
     inSending (Configuration configuration, ###doctype doctype) += inSending(ObjectExchange.doctype, configuration) IF doctype IS ###doctype AND NOT skip(configuration, doctype);
-    
+    objectExchange (###doctype doctype) = ObjectExchange.doctype IF doctype IS ###doctype;
+    objectExchange (###doctype doctype) += objectExchange(doctype);
+        
     CLASS ABSTRACT ###doctype##Detail 'Строка';
     
     ##doctype = ABSTRACT ###doctype (###doctype##Detail, Configuration);
@@ -695,7 +705,9 @@ META extReference(reftype, capt)
 
     // send
     inSending (Configuration configuration, ###reftype reftype) += inSending(ObjectExchange.reftype, configuration) IF reftype IS ###reftype AND NOT skip(configuration, reftype);
-
+    objectExchange (###reftype reftype) = ObjectExchange.reftype IF reftype IS ###reftype;
+    objectExchange (###reftype reftype) += objectExchange(reftype);
+    
     EXTEND FORM sendMessage
         OBJECTS reftype = ###reftype EXTID 'Справочник.'##capt IN bodySend15
         PROPERTIES(reftype, configuration) IN keyProperties sendUid EXTID 'Ссылка'
