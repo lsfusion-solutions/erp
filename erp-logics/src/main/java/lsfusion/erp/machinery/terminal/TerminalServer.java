@@ -304,8 +304,8 @@ public class TerminalServer extends MonitorServer {
         return sessionId;
     }
 
-    protected Object readItem(UserInfo userInfo, String barcode) throws SQLException {
-        return terminalHandler.readItem(createSession(), userInfo, barcode);
+    protected Object readItem(UserInfo userInfo, String barcode, String vop) throws SQLException {
+        return terminalHandler.readItem(createSession(), userInfo, barcode, vop);
     }
 
     protected String readItemHtml(String barcode, String idStock) throws SQLException {
@@ -374,6 +374,8 @@ public class TerminalServer extends MonitorServer {
                 byte errorCode = 0;
                 String errorText = null;
                 String sessionId = "";
+
+                logger.info(String.format("Command %s", command));
 
                 switch (command) {
                     case TEST:
@@ -452,19 +454,22 @@ public class TerminalServer extends MonitorServer {
                         break;
                     case GET_ITEM_INFO:
                         try {
-                            logger.info("requested getItemInfo");
+                            logger.info("requested GetItemInfo");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 2) {
-                                logger.info("requested barcode " + params[1]);
                                 sessionId = params[0];
                                 String barcode = params[1];
+                                String vop = "";
+                                if (params.length >= 3)
+                                    vop = params[2];
+
                                 UserInfo userInfo = userMap.get(sessionId);
                                 if (userInfo == null || userInfo.user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s', idStock '%s'", command, userInfo.idTerminal, userInfo.idApplication, userInfo.idStock));
-                                    Object readItemResult = readItem(userInfo, barcode);
+                                    logger.info(String.format("barcode '%s', vop '%s'", barcode, vop));
+                                    Object readItemResult = readItem(userInfo, barcode, vop);
                                     if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
                                         errorText = ITEM_NOT_FOUND_TEXT;
@@ -487,7 +492,7 @@ public class TerminalServer extends MonitorServer {
                         break;
                     case SAVE_DOCUMENT:
                         try {
-                            logger.info("received document");
+                            logger.info("requested SaveDocument");
                             List<String[]> params = readDocumentParams(inFromClient);
                             if (params.size() >= 1) {
                                 String[] document = params.get(0);
@@ -502,7 +507,6 @@ public class TerminalServer extends MonitorServer {
                                         errorCode = AUTHORISATION_REQUIRED;
                                         errorText = AUTHORISATION_REQUIRED_TEXT;
                                     } else {
-                                        logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                         String dateDocument = document[1];
                                         String numberDocument = document[2];
                                         String idDocument = numberDocument + " " + dateDocument + " " + userInfo.user.object;
@@ -574,7 +578,7 @@ public class TerminalServer extends MonitorServer {
 
                     case TEAMWORK_DOCUMENT:
                         try {
-                            logger.info("create teamwork document");
+                            logger.info("requested TeamWorkDocument");
 
                             String[] params = readParams(inFromClient);
                             if (params.length > 0) {
@@ -589,14 +593,8 @@ public class TerminalServer extends MonitorServer {
                                         String json = null;
                                         if (params.length > 2)
                                             json = params[2];
-                                        logger.info(String.format("%s, idCommand=%d, json: '%s'", command, idCommand, json));
+                                        logger.info(String.format("idCommand=%d, json: '%s'", idCommand, json));
                                         fileData = teamWorkDocument(idCommand, json, userInfo);
-/*
-                                        if (fileData == null) {
-                                            errorCode = UNKNOWN_ERROR;
-                                            errorText = UNKNOWN_ERROR_TEXT;
-                                        }
-*/
                                     } else {
                                         errorCode = WRONG_PARAMETER_COUNT;
                                         errorText = WRONG_PARAMETER_COUNT_TEXT;
@@ -604,7 +602,7 @@ public class TerminalServer extends MonitorServer {
                                 }
                             }
                         } catch (Exception e) {
-                            logger.error("NewDocument Unknown error", e);
+                            logger.error("TeamWorkDocument Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
@@ -612,7 +610,7 @@ public class TerminalServer extends MonitorServer {
 
                     case GET_ITEM_HTML:
                         try {
-                            logger.info("requested getItemHtml");
+                            logger.info("requested GetItemHtml");
                             String[] params = readParams(inFromClient);
                             String idApplication = "";
                             if (params.length >= 2) {
@@ -621,7 +619,7 @@ public class TerminalServer extends MonitorServer {
                                 if (params.length >= 3)
                                     idApplication = params[2];
 
-                                priceCheckerLogger.info(String.format("requested barcode '%s', stock '%s', application '%s'", params[0], params[1], idApplication));
+                                priceCheckerLogger.info(String.format("barcode '%s', stock '%s', application '%s'", params[0], params[1], idApplication));
                                 result = readItemHtml(barcode, idStock);
                                 if (result == null) {
                                     errorCode = ITEM_NOT_FOUND;
@@ -639,7 +637,7 @@ public class TerminalServer extends MonitorServer {
                         break;
                     case GET_ALL_BASE:
                         try {
-                            logger.info("requested getAllBase");
+                            logger.info("requested GetAllBase");
                             String[] params = readParams(inFromClient);
                             if (params.length > 0) {
                                 sessionId = params[0];
@@ -648,7 +646,6 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                     boolean readBatch = (params.length > 1 && params[1].equalsIgnoreCase("1"));
                                     if (readBatch)
                                         logger.info("requested readBatch");
@@ -700,7 +697,7 @@ public class TerminalServer extends MonitorServer {
 //                        break;
                     case CHECK_ORDER:
                         try {
-                            logger.info("checkOrder");
+                            logger.info("requested CheckOrder");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 2) {
                                 sessionId = params[0];
@@ -710,7 +707,6 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                     result = checkOrder(numberOrder);
                                     if (result == null) {
                                         errorCode = UNKNOWN_ERROR;
@@ -729,7 +725,7 @@ public class TerminalServer extends MonitorServer {
                         break;
                     case CHANGE_ORDER_STATUS:
                         try {
-                            logger.info("changeOrderStatus");
+                            logger.info("requested ChangeOrderStatus");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 4) {
                                 sessionId = params[0];
@@ -741,7 +737,6 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
                                     changeStatusOrder(vop, status, numberOrder);
                                 }
                             } else {
@@ -749,14 +744,14 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("CheckOrder Unknown error", e);
+                            logger.error("ChangeOrderStatus Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
                     case GET_PREFERENCES:
                         try {
-                            logger.info("getPreferences");
+                            logger.info("GetPreferences");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 1) {
                                 sessionId = params[0];
