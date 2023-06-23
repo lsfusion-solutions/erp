@@ -1,0 +1,475 @@
+MODULE InventoryOrder;
+
+REQUIRE Inventory, OrderLedger, InventoryOperation;
+
+NAMESPACE Inventory;
+
+DESIGN options {
+    pane {
+        NEW inventoryOrder {
+            caption = 'Заявки инвентаризации';
+        }
+    }
+}
+
+
+CLASS Order 'Заявка инвентаризации' : Document;
+CLASS OrderDetail 'Строка заявки инвентаризации' : DocumentDetail;
+
+CLASS UserOrder 'Заявка инвентаризации (польз.)' : Order;
+CLASS UserOrderDetail 'Строка заявки инвентаризации (польз.)' : OrderDetail;
+
+@defineDocumentInterface(order);
+
+TABLE sessionInvoice(Session, Order);
+TABLE sessionInvoiceDetail(Session, OrderDetail);
+
+@deriveDocumentHeaderTimePrefix(UserOrder, );
+
+@defineDocumentInterfaceDataStock(order, stock, 'Склад');
+
+@defineExternalizable(userOrder, STRING[100]);
+
+id = DATA STRING[100] (OrderDetail);
+orderDetail (id, order) = GROUP AGGR OrderDetail orderDetail WHERE orderDetail IS OrderDetail BY id(orderDetail), order(orderDetail);
+
+@defineDocumentDialogStocks(userOrder, stock, company, , );
+@defineDocumentStockAccess(UserOrder, stock, company);
+
+CONSTRAINT stock(UserOrder w) AND NOT  isCompany(stock(w))
+    CHECKED BY stock[UserOrder]
+    MESSAGE 'Выбран склад, который не принадлежит компании';
+
+@defineDocumentInterfaceNumber(order, BPSTRING[2]);
+@defineNumeratedDefault(UserOrder, 'Заявка инвентаризации', 'ЗИ');
+
+
+@defineDocumentInterfacePosted(order);
+@defineDocumentInterfaceClosed(order);
+@defineDocumentClosedConstraint(UserOrder);
+@defineDocumentInterfaceDescription (order, 'Заявка инвентаризации');
+
+addressLegalEntity 'Адрес' (Order order) = address(legalEntityStock(order), date(order));
+addressLegalEntity 'Адрес' (UserOrder userOrder) = address(legalEntityStock(userOrder), date(userOrder));
+
+@defineDocumentInterfaceDetailSku(order, sku);
+
+// Для инвентаризации по партиям
+@showDocumentInterfaceDetailBatch(order);
+//@defineDocumentInterfaceDetailBatch(order, batch)
+//
+//useOverChangeBatch = ABSTRACT BOOLEAN (UserOrderDetail);
+//overChangeBatch ABSTRACT LIST (UserOrderDetail);
+//
+//changeBatch(UserOrderDetail detail)  {
+//    IF  useOverChangeBatch(detail) THEN overChangeBatch(detail);
+//    ELSE
+//        DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
+//            t = dateTime(detail),
+//            sk = sku(detail),
+//            bt = batch(detail) INPUT NULL LIST name(bt) NEWSESSION DO
+//            batch(detail) <- bt;
+//}
+//replace(Sku s, Batch b) + {  sku(UserOrderDetail detail) <- s WHERE batch(detail) == b;}
+
+@defineDocumentInterfaceDetailQuantity(order);
+@defineDocumentInterfaceDetailPrice(order);
+@defineDocumentInterfaceDetailDataSum(order);
+calcSum = ABSTRACT VALUE NUMERIC[18,4] (UserOrderDetail);
+calcSum(UserOrderDetail userOrderDetail) += NUMERIC[18,4](round2(quantity(userOrderDetail) * price(userOrderDetail)));
+sum (UserOrderDetail userOrderDetail) <- calcSum(userOrderDetail)
+    WHEN DO CHANGED(quantity(userOrderDetail)) OR CHANGED (price(userOrderDetail));
+
+@defineDocumentInterfaceHeaderQuantity(order);
+@defineDocumentHeaderSkuQuantity(order, sku);
+@defineDocumentHeaderSkuQuantity(userOrder, sku);
+
+@defineDocumentInterfaceHeaderSum(order);
+
+@defineDocumentInterfaceHeaderItemSum(order, , );
+
+@defineAddDetailDialogSkuStock(userOrder, sku, stock, dialogSku);
+@defineAddDetailDialogBarcode(userOrder, sku);
+
+@implementDocument(order);
+
+@implementDocumentForm(order, iio, 'Заявка инвентаризации');
+
+//@implementDocumentBatch(order)
+
+@implementDocumentBatchForm(iio);
+
+supplierStock(Order order) += stock(order);
+
+isStockSku (OrderDetail orderDetail) = isStock(sku(orderDetail));
+isStockSku (UserOrderDetail userOrderDetail) = isStock(sku(userOrderDetail));
+
+// --------------------------- Формы списания ---------------------------------
+
+FORM userOrder 'Заявка инвентаризации'
+    OBJECTS w=UserOrder PANEL
+    PROPERTIES (w) isPosted, nameNumerator, number, series, date, time,
+        nameStock ON CHANGE changeStockCompany(w), note,
+        countUserOrderDetail, quantityUserOrderDetail,
+        sumUserOrderDetail 
+
+    OBJECTS d=UserOrderDetail
+    PROPERTIES (d) index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, quantity,
+        price, sum, nameStock, NEW, deletewd=DELETE GRID
+
+    PROPERTIES(w) DRAW d fillDocument, addDetailDialogSkuStockUserOrderDetail,
+        addDetailInputBarcodeUserOrderDetail, deleteUserOrderDetail
+    FILTERS userOrder(d)==w
+
+    EVENTS
+        ON OK prePost(w)
+
+    EDIT Order OBJECT w
+    EDIT UserOrder OBJECT w
+;
+
+DESIGN userOrder {
+    BOX {
+        size = (1024, 768);
+        NEW mainTabbed {
+            type = TABBED;
+            fill = 1;
+            NEW documentBox {
+                type = CONTAINERV;
+                fill = 1;
+                caption = 'Заявка инвентаризации';
+                NEW header {
+                    type = CONTAINERH;
+
+                    NEW headerRow1 {
+                        fill = 1;
+
+                        MOVE GROUP(documentHeader,w) {
+                            columns = 1;
+                            type = CONTAINERV;
+                            NEW first {
+                                type = CONTAINERH;
+                                MOVE PROPERTY(isPosted(w));
+                                MOVE PROPERTY(nameStock(w));
+                            }
+                            NEW second {
+                                type = CONTAINERH;
+                                MOVE PROPERTY(nameNumerator(w));
+                                MOVE PROPERTY(number(w));
+                                MOVE PROPERTY(series(w));
+                                MOVE PROPERTY(date(w));
+                                MOVE PROPERTY(time(w));
+                            }
+                        }
+
+                        NEW headerTabbedPane {
+                            alignment = STRETCH;
+                            type = TABBED;
+                            NEW headerMainParams {
+                                caption = 'Основные параметры';
+                                MOVE GROUP(documentPrm,w) {
+                                    columns = 2;
+                                }
+                            }
+                            NEW headerExtraParams {
+                                caption = 'Дополнительные параметры';
+                            }
+                            NEW headerCreateDetail {
+                                caption = 'Основание';
+                            }
+                            NEW headerCreateDocuments {
+                                caption = 'Производные документы';
+                            }
+                        }
+                    }
+
+                    MOVE GROUP(documentSum,w) {
+                        columns = 1;
+                    }
+                }
+
+                NEW specificationBox {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                    }
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+        PROPERTY(sumUserOrderDetail(w)) { charWidth = 13;}
+    }
+}
+
+@addEventGenerateNumberOnForm(userOrder, w, UserOrder);
+
+WHEN LOCAL FORMS userOrder CHANGED(batch(UserOrderDetail detail)) DO {
+    sku (detail)  <- sku(batch(detail)) WHERE batch(detail);
+}
+
+@deriveDocumentDetailPriceAccountBatch(userOrder, sku, stock);
+
+//-- SKU
+@defineDocumentSkuStockPriceListTypeSystemLedger(userOrder, );
+@extendFormDocumentSkuStock(userOrder, userOrder, w, legalEntityStock, );
+
+@defineDocumentBatchStockPriceListTypeSystemLedger(userOrder, );
+@extendFormDocumentBatchStock(userOrder, userOrder, w, legalEntityStock, );
+
+@defineMovementSku(orderDetail, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineMovementSku(userOrderDetail, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(orderDetail); //-- показываем по нажатию правой клавиши остатки товара
+@defineBalancesSku(userOrderDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+@defineInfoSku(orderDetail); //-- показываем по нажатию правой клавиши информацию по товару
+@defineInfoSku(userOrderDetail); //-- показываем по нажатию правой клавиши информацию по товару
+
+@defineBarcodeSku(orderDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
+@defineBarcodeSku(userOrderDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара   
+
+// История по правой кнопке
+@defineBalancesBatch(orderDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineBalancesBatch(userOrderDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(orderDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
+@defineMovementBatch(userOrderDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
+
+shipmentDateTime(Order order) = dateTime(order);
+
+@extendFormDocumentSkuStockOrderLedger(order, userOrder, w, stock);
+
+@extendFormDocumentSkuStockOrderLedgerAll(userOrder, userOrder, w);
+
+@extendFormDocumentBatchStockOrderLedger(userOrder, userOrder, w);
+
+skipShowEdit = ABSTRACT BOOLEAN (Order);
+skipShowDelete = ABSTRACT BOOLEAN (Order);
+
+overShowEditDelete = ABSTRACT VALUE BOOLEAN (Order);
+
+
+showEdit (Order w) = isOpened(w) AND overShowEditDelete(w) AND NOT skipShowEdit(w);
+showDelete(UserOrder w) = isOpened[Order](w) AND is(w) AND overShowEditDelete(w) AND NOT skipShowDelete(w);
+
+filterOrderDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
+filterDateFrom (Order w) = date(w) >= filterOrderDateFrom() OR (w IS Order AND NOT filterOrderDateFrom());
+
+filterOrderDateTo 'Дата по' = DATA LOCAL NESTED DATE ();
+filterDateTo (Order w) = date(w) <= filterOrderDateTo() OR (w IS Order AND NOT filterOrderDateTo());
+
+filterOrderStock = DATA LOCAL NESTED Stock();
+nameFilterOrderStock 'Склад' = name(filterOrderStock());
+filterOrderStock (Order w) = stock(w) == filterOrderStock() OR NOT filterOrderStock();
+
+EXTEND FORM userOrder
+
+    FILTERGROUP filter
+        FILTER 'С остатком' prevCurrentBalance(ks, st) 'F10' DEFAULT
+        FILTER 'В документе' quantity(ks, w, st) 'F9'
+;
+
+EXTEND FORM userOrder
+
+    FILTERGROUP filter3
+        FILTER 'С остатком' prevCurrentBalance(b, sto) 'F10' DEFAULT
+        FILTER 'В документе' quantity(b, w, sto) 'F9'
+        FILTER 'С движением за последний месяц' prevDateTime(b, sto) > subtractDay(dateTime(w), 30)
+        FILTER 'С движением за последний год' prevDateTime(b, sto) > subtractDay(dateTime(w), 365)
+        FILTER 'С движением' prevCountLedger(b, sto) 'F8'
+;
+
+backgroundDraft 'Цвет'  (Order i)= RGB(212,255,212) IF isDraft(i);
+backgroundOrder 'Цвет' = ABSTRACT COLOR (Order);
+FORM orders 'Заявки инвентаризации'
+    PROPERTIES () filterOrderDateFrom, filterOrderDateTo, nameFilterOrderStock
+
+    OBJECTS w=Order LAST BACKGROUND backgroundOrder(w)
+    PROPERTIES (w) READONLYIF isReadonly()  isClosed
+    PROPERTIES (w) READONLYIF isReadonly() BACKGROUND backgroundDraft(w) isPosted, number, series,
+        date, time
+    PROPERTIES (w) READONLYIF isReadonly()  nameStock
+    PROPERTIES (w) READONLY quantityOrderDetail, countOrderDetail,
+        sumOrderDetail
+    PROPERTIES (w) READONLYIF isReadonly() note
+
+    PROPERTIES (w) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer,
+        postedNameUser, postedTime, postedHostnameComputer
+    PROPERTIES (w) NEWSESSION NEW[UserOrder], editW = EDIT SHOWIF showEdit(w), deletew = DELETE SHOWIF showDelete[UserOrder](w)
+    PROPERTIES (w) close[UserOrder] SHOWIF isOpened[UserOrder](w), open[UserOrder] SHOWIF isClosed[UserOrder](w)
+
+    OBJECTS d=OrderDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, nameBatch,
+        quantity, price, sum, nameStock
+
+    FILTERS order(d) == w
+    FILTERS filterDateFrom(w),
+        filterDateTo(w),
+        filterOrderStock(w)
+;
+@extendFormFilterAccessStock(Order, w, orders, stock, company);
+
+DESIGN orders {
+    NEW pane {
+        fill = 1;
+        type = SPLITV;
+
+        NEW filtersBox {
+            fill = 1;
+            NEW topFilters {
+                caption = 'Фильтры';
+                type = CONTAINERH;
+                MOVE PROPERTY(filterOrderDateFrom());
+                MOVE PROPERTY(filterOrderDateTo());
+                MOVE PROPERTY(nameFilterOrderStock());
+            }
+            MOVE BOX(w) {
+                fill = 2;
+            }
+        }
+        NEW documentDetail {
+            fill = 1;
+            type = TABBED;
+
+            MOVE BOX(d) {
+                caption = 'Спецификация';
+            }
+            NEW documentHistory {
+                caption = 'История';
+
+                MOVE GROUP(created,w);
+                MOVE GROUP(posted,w);
+            }
+            NEW printTab {
+                caption = 'Печатные формы';
+                NEW printContainer {
+                    caption = 'Печать';
+                    type = CONTAINERH;
+                }
+            }
+            NEW actionContainer {
+                caption = 'Действия';
+                type = CONTAINERH;
+                NEW createdContainer {
+                    caption = 'Создание на основе';
+                }
+            }
+        }
+    }
+
+    MOVE TOOLBARBOX;
+}
+@extendFormEditable(orders);
+@defineFilterIsOpened (order, orders, w);
+@defineDocumentLogForm(orders, w);
+
+FORM orderDetails 'Заявка инвентаризации'
+    OBJECTS d = OrderDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, description,
+        shortNameUOMSku,
+        quantity, price, sum, nameStock
+
+    LIST OrderDetail OBJECT d
+;
+
+isStockOrders 'Разрешить ввод заявки инвентаризации без склада ' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() isStockOrders
+;
+
+DESIGN options {
+    pane {
+        inventoryOrder {
+            MOVE PROPERTY(isStockOrders());
+        }
+    }
+}
+
+CONSTRAINT isPosted(UserOrder i) AND NOT isStockOrders() AND NOT  stock(i)
+    MESSAGE 'Для заявки инвентаризации должен быть задан склад';
+
+//----------------------------------------------- Операции -----------------------------------------------------//
+@defineDocumentInterfaceOperation (order, Inventory, );
+@extendFormFilterRoleAccess(order, w, orders);
+@defineDocumentOperationConstraint(order, 'заявка инвентаризации', Order);
+@defineDocumentOperationRolePrefix(userOrder, );
+
+EXTEND FORM userOrder
+    PROPERTIES(w) nameOperation
+;
+DESIGN userOrder{
+    first{
+        MOVE PROPERTY (nameOperation(w)) BEFORE PROPERTY(nameStock(w));
+    }
+}
+EXTEND FORM orders
+    PROPERTIES(w) READONLYIF isReadonly() nameOperation AFTER nameStock(w)
+;
+
+NAVIGATOR {
+    inventoryNavigator {
+        NEW orders  BEFORE inventories;        
+    }
+}
+
+
+edit(UserOrderDetail d) + {  DIALOG userOrder OBJECTS w = userOrder(d), d = d DOCKED; }
+
+show 'Просмотреть'  ABSTRACT LIST ( OrderDetail) TOOLBAR;
+show(UserOrderDetail d)  {
+    NEWSESSION {
+        SHOW userOrder OBJECTS w = userOrder(d), d = d DOCKED READONLY;
+    }
+}
+show(UserOrderDetail d) + {  show(d); }
+//show[SkuLedger](OrderDetail d) + {  show(d); }
+
+show 'Просмотреть' (UserOrder w)  {
+    NEWSESSION {
+        SHOW userOrder OBJECTS w = w DOCKED READONLY;
+    }
+}TOOLBAR;
+
+showToShow (UserOrder w) = is(w) AND NOT showEdit(w);
+EXTEND FORM orders
+    PROPERTIES show(w) SHOWIF showToShow(w) BEFORE editW
+;
+
+firstOrderBatchBalance (Sku sku, Stock stock, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock) >= q
+ORDER DESC dateTime(batch), batch
+BY skuLedger(batch, stock) COMPLEX;
+
+
+fillBatch 'Проставить партию'(UserOrderDetail d)   {
+    batch(d) <- firstOrderBatchBalance(sku(d), stock(d), quantity(d));
+} ASON CONTEXTMENU nameBatch[UserOrderDetail];
+
+fillAllBatch 'Проставить партии для всех'(UserOrderDetail detail)  {
+    FOR userOrder(detail) == userOrder(UserOrderDetail d) AND NOT batch(d) DO
+        fillBatch(d);
+} ASON CONTEXTMENU nameBatch[UserOrderDetail];
+
+@defineMergeDocumentDetails(order, userOrder, w);
+
+@defineAddSkuLists(userOrder, userOrder, w);
+
+@defineNewSkuList(userOrder, userOrder, orders, w);
+
+DESIGN userOrder {
+    headerTabbedPane {
+        NEW add AFTER headerCreateDocuments {
+            caption = 'Подбор';
+            type = CONTAINERH;
+            alignment = START;
+            MOVE PROPERTY(addSkuLists(w));
+            MOVE PROPERTY(newSkuList(w));
+        }
+    }
+}
+
+@defineOperationChangesDocument(order, Order, preventChangesDocument, createdUser);
+overShowEditDelete(Order p) += showEditDeleteUser(p);
