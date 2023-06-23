@@ -64,14 +64,19 @@ discountSum 'Скидка (сумма)' (sku, stock, date) =  GROUP SUM discount
   
 discountSum 'Скидка за интервал (сумма)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
         SUM
-        discountSum(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;  
+        discountSum(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
 
-                    
+totalReset(Snapshot snapshot) + {
+    discountSum(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+    discountSum(Sku sku, Stock stock, snapshot) <- NULL;
+    discountSum(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;    
+}
+
 overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + { 
     IF isDiscount(snapshot) THEN {
         IF isDate(snapshot) THEN {
             IF isSum(snapshot) THEN {
-                discountSum(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+                
                 discountSum(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](discountSum(sku, stock, date)) 
                     WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                         AND date <= (dateTo AS DATE) AND discountSum(sku, stock, date);  
@@ -79,8 +84,6 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
             }                               
         }  
         IF isSum(snapshot) THEN {  
-            discountSum(Sku sku, Stock stock, snapshot) <- NULL;
-            discountSum(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
             discountSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](discountSum(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND discountSum(sku, stock, dateFrom, dateTo);    
             discountSum(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM discountSum (Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
@@ -94,12 +97,13 @@ discountSum 'Скидка (сумма)' (batch, stock, date) =  GROUP SUM discou
   
 discountSum 'Скидка за интервал (сумма)' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
         SUM
-        discountSum(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;  
-
+        discountSum(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+totalReset(Snapshot snapshot) + {
+    discountSum(Batch batch, Stock stock, snapshot) <- NULL;   
+}
 overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + { 
     IF isDiscount(snapshot) THEN {
         IF isSum(snapshot) THEN { 
-            discountSum(Batch batch, Stock stock, snapshot) <- NULL;
             discountSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](discountSum(batch, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND discountSum(batch, stock, dateFrom, dateTo);   
        

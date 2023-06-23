@@ -74,39 +74,38 @@ writeOffSum 'Списано за интервал (сумма)' (Sku sku, Stock 
         writeOffSum(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;  
 writeOffQuantity 'списано за интервал (кол-во)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
         SUM
-        writeOffQuantity(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;    
-                    
+        writeOffQuantity(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+totalReset(Snapshot snapshot) + {
+    writeOffQuantity(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+    writeOffSum(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+    writeOffQuantity(Sku sku, Stock stock, snapshot) <- NULL;
+    writeOffQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
+    writeOffSum(Sku sku, Stock stock, snapshot) <- NULL;
+    writeOffSum(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
+}   
+
 overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + { 
     IF isWriteOff(snapshot) THEN {
         IF isDate(snapshot) THEN {
-            IF isQuantity(snapshot) THEN {
-                writeOffQuantity(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+            IF isQuantity(snapshot) THEN {                
                 writeOffQuantity(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[14,3](writeOffQuantity(sku, stock, date)) 
                     WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                         AND date <= (dateTo AS DATE) AND writeOffQuantity(sku, stock, date);
             }
-            IF isSum(snapshot) THEN {
-                writeOffSum(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+            IF isSum(snapshot) THEN {                
                 writeOffSum(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](writeOffSum(sku, stock, date)) 
                     WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
-                        AND date <= (dateTo AS DATE) AND writeOffSum(sku, stock, date);   
-                     
+                        AND date <= (dateTo AS DATE) AND writeOffSum(sku, stock, date);                   
             }                               
         }
-        
         IF isQuantity(snapshot) THEN {
-            writeOffQuantity(Sku sku, Stock stock, snapshot) <- NULL;
-            writeOffQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;
-
             writeOffQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](writeOffQuantity(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND writeOffQuantity(sku, stock, dateFrom, dateTo);
             writeOffQuantity(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[14,3](GROUP SUM writeOffQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
                 WHERE (GROUP SUM writeOffQuantity(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
-
         }    
-        IF isSum(snapshot) THEN { 
-            writeOffSum(Sku sku, Stock stock, snapshot) <- NULL;
-            writeOffSum(SkuGroup skuGroup, Stock stock, snapshot) <- NULL;            
+        IF isSum(snapshot) THEN {
             writeOffSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](writeOffSum(sku, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku) AND writeOffSum(sku, stock, dateFrom, dateTo);    
             writeOffSum(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM writeOffSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
@@ -125,19 +124,19 @@ writeOffSum 'Списано за интервал (сумма)' (Batch batch, St
 writeOffQuantity 'списано за интервал (кол-во)' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
         SUM
         writeOffQuantity(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
-
+totalReset(Snapshot snapshot) + {
+    writeOffQuantity(Batch batch, Stock stock, snapshot) <- NULL;
+    writeOffSum(Batch batch, Stock stock, snapshot) <- NULL;
+}
 overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + { 
     IF isWriteOff(snapshot) THEN {
-        IF isQuantity(snapshot) THEN {
-            writeOffQuantity(Batch batch, Stock stock, snapshot) <- NULL;
+        IF isQuantity(snapshot) THEN {            
             writeOffQuantity(Batch batch, Stock stock, snapshot) <- NUMERIC[14,3](writeOffQuantity(batch, stock, dateFrom, dateTo)) 
                 WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND writeOffQuantity(batch, stock, dateFrom, dateTo);
         }
-        IF isSum(snapshot) THEN { 
-            writeOffSum(Batch batch, Stock stock, snapshot) <- NULL;
+        IF isSum(snapshot) THEN {             
             writeOffSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](writeOffSum(batch, stock, dateFrom, dateTo)) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND writeOffSum(batch, stock, dateFrom, dateTo);   
-       
+                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND writeOffSum(batch, stock, dateFrom, dateTo);
         }          
     }      
 };  
