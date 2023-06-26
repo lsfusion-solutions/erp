@@ -1,0 +1,46 @@
+MODULE PurchaseShipmentOperationLabel;
+
+REQUIRE Label, PurchaseShipmentOperation;
+
+NAMESPACE Purchase;
+
+
+@Label.implementPriceTransactionDocument(Shipment);
+
+@defineDocumentLabelTransaction(shipment, Shipment, sku, batch, customerStock, );
+
+showToPrintLabelTransaction 'Показывать' (Shipment shipment) = isPosted(shipment) AND NOT
+    skip[PriceTransactionDocument](shipment) AND // OR printedPriceTransactionDocument(shipment)
+    customerStock(shipment) IS DepartmentStore;
+
+EXTEND FORM shipments
+    PROPERTIES(s) statusLabel BACKGROUND backgroundPrintLabelTransaction(s) READONLY,
+        createLabelTransaction SHOWIF showToPrintLabelTransaction(s) AND shipmentsOnly(operation(s)),
+        createSnapshotLabelTransaction SHOWIF isPosted(s) AND shipmentsOnly(operation(s)),
+        createLabelTransactionChoice SHOWIF showToPrintLabelTransaction(s) AND shipmentsOnly(operation(s))
+
+;
+DESIGN shipments {
+    actionContainer {
+        NEW machineryContainer {
+            caption = 'Загрузка';
+            type = CONTAINERV;
+            NEW label {
+                caption = 'Ценники' ;
+                type = CONTAINERV;
+                NEW labelFirst {
+                    type = CONTAINERV;
+                    MOVE PROPERTY (createLabelTransaction(s)) { alignment = STRETCH; }
+                    MOVE PROPERTY (createSnapshotLabelTransaction(s)) { alignment = STRETCH; }
+                }
+                NEW labelSecond {
+                    type = CONTAINERV;
+                    caption = 'Выбор позиций';
+                    MOVE PROPERTY (createLabelTransactionChoice(s)) { alignment = STRETCH; }
+                }
+            }
+        }
+    }
+}
+
+notChangePrintPrice (LabelTransaction t) += notChangePrintPrice() AND priceTransactionDocument(t) IS Shipment;
