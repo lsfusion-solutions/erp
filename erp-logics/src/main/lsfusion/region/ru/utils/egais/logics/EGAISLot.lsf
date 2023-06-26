@@ -1,8 +1,10 @@
 MODULE EGAISLot;
 
-REQUIRE LotType;
+REQUIRE Lot, EGAISMarkCode;
 
 NAMESPACE EGAIS;
+
+lot (MarkCode m) = lot(id(m));
 
 EXTEND CLASS LotType {
     alcohol 'Алкоголь'
@@ -13,7 +15,7 @@ META defineDocumentInWayBillLot (doc, obj)
         LOCAL detail = ###doc##Detail (WayBillMark);
         detail (WayBillMark m) <- (GROUP MAX ###doc##Detail d IF quantity(d, wayBillPosition(m))) WHERE wayBill(wayBillPosition(m)) = wayBill(i); 
     
-        FOR Sku sku = sku(detail(WayBillMark m)) AND NOT lot(idMarkCode(m)) NEW l = Lot DO {
+        FOR Sku sku = sku(detail(WayBillMark m)) AND NOT lot(markCode(m)) NEW l = Lot DO {
             id(l) <- idMarkCode(m);
             sku(l) <- sku;
         }

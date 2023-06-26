@@ -1,6 +1,6 @@
 MODULE EGAISWayBillProcess;
 
-REQUIRE EGAISWayBillActExchange, EGAISRequestRepealWB, EGAISWayBillConfirmTicket;
+REQUIRE EGAISWayBillActExchange, EGAISRequestRepealWB, EGAISWayBillConfirmTicket, EGAISLot;
 
 NAMESPACE EGAIS;
 
@@ -12,7 +12,7 @@ META defineDocumentInWayBillActProcess (doc)
         FOR WayBill w = wayBill(d) DO {
             NEWSESSION {
                 realQuantity(WayBillPosition p) <- quantity###doc(p) WHERE wayBill(p) = w;
-                accepted(WayBillMark m) <- TRUE IF quantity(d, lot(idMarkCode(m))) WHERE wayBill(wayBillPosition(m)) = w;
+                accepted(WayBillMark m) <- TRUE IF quantity(d, lot(markCode(m))) WHERE wayBill(wayBillPosition(m)) = w;
                 APPLY;
                 IF canceled() THEN RETURN;
             }
