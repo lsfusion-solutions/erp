@@ -4,14 +4,25 @@ REQUIRE ZReport, Lot;
 
 NAMESPACE ZReport;
 
-lot 'Марка' = DATA Lot (ReceiptSaleDetail) INDEXED;
+skipSkuControl = ABSTRACT VALUE BOOLEAN (ReceiptDetail);
 
-skipSkuControl = ABSTRACT BOOLEAN (ReceiptDetail);
+@defineOption(skipLotControl, 'Разрешать прием марок с неправильным sku', BOOLEAN, zReport){
+    skipLotControl 'Разрешать прием марок с неправильным sku' = DATA BOOLEAN () COMPLEX;
+    
+    EXTEND FORM options PROPERTIES() skipLotControl;
+    DESIGN options { disassembly { MOVE PROPERTY(skipLotControl()); } }
+};
+skipSkuControl (ReceiptDetail d) += skipLotControl() AND d IS ReceiptDetail; 
+
+lot 'Марка' = DATA Lot (ReceiptSaleDetail) INDEXED;
+idLot 'Марка' (ReceiptSaleDetail d) = id(lot(d)) IN id;
+
 
 CONSTRAINT lot(ReceiptSaleDetail d) AND NOT sku(lot(d)) = sku(d) AND NOT skipSkuControl(d) CHECKED BY lot[ReceiptSaleDetail]
     MESSAGE 'Товар марки не соответствует товару строки чека продажи';
 
 lot 'Марка' = DATA Lot (ReceiptReturnDetail) INDEXED;
+idLot 'Марка' (ReceiptReturnDetail d) = id(lot(d)) IN id;
 
 CONSTRAINT lot(ReceiptReturnDetail d) AND NOT sku(lot(d)) = sku(d) AND NOT skipSkuControl(d) CHECKED BY lot[ReceiptReturnDetail]
     MESSAGE 'Товар марки не соответствует товару строки чека продажи';
