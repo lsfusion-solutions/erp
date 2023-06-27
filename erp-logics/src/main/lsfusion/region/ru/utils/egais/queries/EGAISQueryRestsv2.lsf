@@ -37,12 +37,17 @@ queryRestsv2 (QueryRestsv2 r) {
 }
 
 queryRestsv2ForScheduler 'Запросить остатки (для планировщика)' () {
-    FOR Client c IS Client AND own(c) DO NEWSESSION NEW r = QueryRestsv2 {
-        client(r) <- c;
-        utm(r) <- utm(client(r));
-        queryRestsv2(r);
-        APPLY;
-    }
+    FOR Client c IS Client AND own(c) DO NEWSESSION 
+        TRY {
+            NEW r = QueryRestsv2 {
+                client(r) <- c;
+                utm(r) <- utm(client(r));
+                queryRestsv2(r);
+                APPLY;
+            }
+        } CATCH {
+            MESSAGE 'Ошибка при отправке запроса в ЕГАИС на получение остатков' + messageCaughtException();
+        }
 }
 
 queryRestsv2 'Запросить остатки' () {

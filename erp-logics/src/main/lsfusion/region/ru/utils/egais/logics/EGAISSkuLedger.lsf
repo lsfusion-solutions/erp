@@ -4,11 +4,7 @@ REQUIRE EGAISFRegLedger, EGAISItem, EGAISStock;
 
 NAMESPACE EGAIS;
 
-isAlcohol (Item i) = GROUP SUM 1 IF in(i, Product p);
-stock (Client c) = GROUP MIN Stock s IF client(s) = c;          // весь остаток ЕГАИС будем вешать только на один склад
-item (Product p) = GROUP MIN Item i IF in(i, p);                // и только на одну номенклатуру
-
-ballanceBEGAIS 'Остаток ЕГАИС' (Item i, Stock st, DATE d) = GROUP SUM balanceB(F2Reg r, d) IF item(product(r)) = i AND stock(client(r)) = st;
+ballanceBEGAIS 'Остаток ЕГАИС' (Item i, Stock st, DATE d) = GROUP SUM balanceB(F2Reg r, d) IF minItem(product(r)) = i AND stock(client(r)) = st;
 differenceEGAIS 'Разница с данными ЕГАИС' (Item i, Stock st, DATE d) = balanceB(i, st, d) (-) ballanceBEGAIS(i, st, d);
 
 FORM balanceSkuAlcoholStock 'Остатки алкоголя на дату'
@@ -42,7 +38,7 @@ FORM balanceSkuAlcoholStock 'Остатки алкоголя на дату'
             st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
             ELSE
             st == ss,
-        isAlcohol(s),
+        minProduct(s),
         isCompany(st) OR NOT multipleStores()
 
     FILTERGROUP inactiveStock

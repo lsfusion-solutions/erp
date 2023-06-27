@@ -2,12 +2,10 @@ MODULE LotAdjustment;
 
 REQUIRE LotLedger, StockSkuDocument, SkuLedgerLot;
 
-NAMESPACE LotAdjustment;
+NAMESPACE Lot;
 
 CLASS LotAdjustment 'Изменение остатка марки';
 CLASS LotAdjustmentDetail 'Строка изменения остатка марки';
-
-id 'Код' = DATA STRING[100] (LotAdjustment) CHARWIDTH 36;
 
 @defineDocument(lotAdjustment);
 @defineDocumentHeaderNumber(LotAdjustment, STRING[10]);
@@ -103,8 +101,6 @@ lotAdjustmentDetail (Lot sku, LotAdjustment lotAdjustment) = lotAdjustmentDetail
 
 currentBalance 'Остаток' (Lot sku, LotAdjustment lotAdjustment) = currentBalance(sku, stock(lotAdjustment));
 prevCurrentBalance 'Остаток' (Lot sku, LotAdjustment lotAdjustment) = prevCurrentBalance(sku, stock(lotAdjustment));
-//    backgroundQuantitySku###object 'Цвет' (sku, object) = RGB(255,128,128) IF quantity###detail###skuProp###object(sku, object) AND NOT
-//        (quantity###detail###skuProp###object(sku, object) <= currentBalanceSku###object(sku, object));
 backgroundQuantity 'Цвет' (lot, lotAdjustment) = ABSTRACT CASE COLOR (Lot, LotAdjustment);
 backgroundViewPrice 'Цвет' (lot, lotAdjustment) = ABSTRACT CASE COLOR (Lot, LotAdjustment);
 
@@ -145,20 +141,14 @@ changeAllQuantity(Lot lot, LotAdjustment lotAdjustment)  {
     }
 }
 
-backgroundPickName 'Цвет в подборе' = ABSTRACT CASE COLOR (Lot, LotAdjustment);
-hideQuantitySkuDocument = ABSTRACT BOOLEAN (LotAdjustment);
-showQuantitySkuDocument = NOT hideQuantitySkuDocument(LotAdjustment o);
-
 EXTEND FORM lotAdjustment
-    OBJECTS ks=Lot
-    PROPERTIES READONLY 'Код марки' = id(ks), inputName = nameSku(ks) BACKGROUND backgroundPickName(ks, i)
-    PROPERTIES(ks) READONLY  BACKGROUND backgroundPickName(ks, i) idBarcodeSku, idSku SHOWIF showIDs()
-    PROPERTIES(ks, i) quantityLotAdjustmentDetail ON CHANGE changeQuantity(ks, i)
-    BACKGROUND backgroundQuantity(ks, i) SHOWIF showQuantitySkuDocument(i)
-    QUICKFILTER inputName,
-        prevCurrentBalance READONLY,
-        allQuantity ON CHANGE changeAllQuantity(ks, i)
-    PROPERTIES               addSku() DRAW ks, editKS = EDIT(ks) NEWSESSION
+    OBJECTS ks = Lot
+    PROPERTIES READONLY 'Код марки' = id(ks), inputName = nameSku(ks)
+    PROPERTIES(ks) READONLY idBarcodeSku, idSku SHOWIF showIDs()
+    PROPERTIES(ks, i) quantityLotAdjustmentDetail ON CHANGE changeQuantity(ks, i),
+                      prevCurrentBalance READONLY,
+                      allQuantity ON CHANGE changeAllQuantity(ks, i)
+    PROPERTIES addSku() DRAW ks, editKS = EDIT(ks) NEWSESSION
     
     ORDERS inputName
 ;
@@ -197,7 +187,7 @@ EXTEND FORM lotAdjustment
 
 FORM lotAdjustments 'Изменения остатков марок'
     OBJECTS i = LotAdjustment
-    PROPERTIES(i) READONLY isPosted, id, number, series, date, time,
+    PROPERTIES(i) READONLY isPosted, number, series, date, time,
         nameStock, note, countLotAdjustmentDetail
     PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE
 

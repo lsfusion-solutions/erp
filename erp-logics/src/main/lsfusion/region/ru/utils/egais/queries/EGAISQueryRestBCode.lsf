@@ -78,6 +78,8 @@ FORM replyRestsBCode FORMEXTID 'ns:Documents'
     PROPERTIES(amc) amc EXTID 'value'
 ;
 
+processReplyRestBCode ABSTRACT LIST (InDoc);
+
 process (InDoc d) + {
     IF docType(d) = DocType.ReplyRestBCode THEN {
         NEWSESSION {
@@ -87,9 +89,11 @@ process (InDoc d) + {
             FOR amc(INTEGER i) AND NOT markCode(amc(i)) NEW m = MarkCode DO {
                 id(m) <- amc(i);
             }
-            FOR MarkCode m = markCode(amc(i)) DO {
+            FOR MarkCode m = markCode(amc(INTEGER i)) DO {
                 dataF2Reg(m) <- f2Reg(informF2RegId());
             }
+            
+            processReplyRestBCode(d);
 
             processed(d) <- TRUE;
             APPLY;

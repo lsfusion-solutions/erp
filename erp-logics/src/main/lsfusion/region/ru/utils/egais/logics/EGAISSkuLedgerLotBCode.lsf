@@ -1,0 +1,38 @@
+MODULE EGAISSkuLedgerLotBCode;
+
+REQUIRE EGAISQueryRestsBCode, EGAISSkuLedgerLot, EGAISItem, EGAISStock, LotAdjustment;
+
+NAMESPACE EGAIS;
+
+changeLotBalance 'Изменять остатки по маркам' = DATA BOOLEAN (QueryRestsBCode);
+EXTEND FORM queryRestsBCodeParams
+    PROPERTIES(r) changeLotBalance
+;
+
+processReplyRestBCode(InDoc d) +{
+    IF changeLotBalance(outDoc(d)) THEN {
+        FOR MarkCode m = markCode(amc(INTEGER i)) AND NOT lot(m) DO NEW l = Lot {
+            id(l) <- amc(i);
+            sku(l) <- minItem(product(f2Reg(m)));
+        }
+
+        LOCAL quantity = NUMERIC[16,5] (MarkCode);
+        quantity(MarkCode m) <- GROUP SUM 1 IF amc(INTEGER i) = id(m) AND informF2RegId() = id(f2Reg(m));
+
+        LOCAL delta = NUMERIC[16,5] (MarkCode);
+        delta(MarkCode m) <- quantity(m) (-) currentBalance(m) WHERE id(f2Reg(m)) = informF2RegId();
+
+        IF GROUP SUM 1 IF delta(MarkCode m) THEN {
+            NEW a = LotAdjustment {
+                isPosted(a) <- TRUE;
+                stock(a) <- stock(client(outDoc(d)));
+                note(a) <- 'Изменение остатков справки Б ' + informF2RegId() + ' по ответу ЕГАИС документа ' + idOutDoc(d);
+                FOR delta(MarkCode m) NEW ad = LotAdjustmentDetail DO {
+                    lotAdjustment(ad) <- a;
+                    lot(ad) <- lot(m);
+                    quantity(ad) <- delta(m);
+                }
+            }
+        }
+    }
+}
