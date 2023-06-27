@@ -52,6 +52,14 @@ queryRestsBCode 'Запросить марки' (F2Reg f) {
     }
 }
 
+createQueryRestsBCode 'Запросить марки' (F2Reg f) {
+    NEW r = QueryRestsBCode {
+        f2Reg(r) <- f;
+        client(r) <- client(f);
+        queryRestsBCode(r);
+    }
+}
+
 EXTEND FORM balanceReg
     PROPERTIES(r) queryRestsBCode DRAW r TOOLBAR
 ;
@@ -105,5 +113,28 @@ process (InDoc d) + {
 process (Ticket t) + {
     IF docType(t) = 'QueryRestBCode' THEN {
         processed() <- TRUE;
+    }
+}
+
+
+// scheduler
+
+scheduledRequestRestsBCode 'Запросить марки' = DATA BOOLEAN (F2Reg) INDEXED;
+EXTEND FORM balanceReg
+    PROPERTIES(r) scheduledRequestRestsBCode
+;
+
+requestRestsBCode 'Запросить марки' () {
+    FOR [GROUP SUM 1 IF scheduledRequestRestsBCode(F2Reg r) BY client(r)](Client c) DO NEWSESSION {
+        TRY {
+            FOR F2Reg fr = GROUP MIN F2Reg r IF scheduledRequestRestsBCode(r) AND client(r) = c DO {
+                createQueryRestsBCode(fr);
+                scheduledRequestRestsBCode(fr) <- NULL;
+                APPLY;
+            }
+            
+        } CATCH {
+            MESSAGE CONCAT '\n', 'Ошибка при формировании запроса остатков марок к ЕГАИС :', messageCaughtException(), resultString(); 
+        }
     }
 }

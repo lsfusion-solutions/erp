@@ -4,10 +4,22 @@ REQUIRE EGAISQueryRestsBCode, EGAISSkuLedgerLot, EGAISItem, EGAISStock, LotAdjus
 
 NAMESPACE EGAIS;
 
+changeLotBalanceQueryRests 'Изменять остатки по маркам при запросе остатков' = DATA BOOLEAN ();
+EXTEND FORM integrationData
+    PROPERTIES() changeLotBalanceQueryRests
+;
+
+DESIGN integrationData {
+    EGAIS {
+        MOVE PROPERTY(changeLotBalanceQueryRests());
+    }
+}
+
 changeLotBalance 'Изменять остатки по маркам' = DATA BOOLEAN (QueryRestsBCode);
 EXTEND FORM queryRestsBCodeParams
     PROPERTIES(r) changeLotBalance
 ;
+changeLotBalance(QueryRestsBCode b) <- changeLotBalanceQueryRests() WHEN SET(b IS QueryRestsBCode);
 
 processReplyRestBCode(InDoc d) +{
     IF changeLotBalance(outDoc(d)) THEN {
