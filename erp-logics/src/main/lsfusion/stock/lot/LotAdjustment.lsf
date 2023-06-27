@@ -1,0 +1,249 @@
+MODULE LotAdjustment;
+
+REQUIRE LotLedger, StockSkuDocument, SkuLedgerLot;
+
+NAMESPACE LotAdjustment;
+
+CLASS LotAdjustment 'Изменение остатка марки';
+CLASS LotAdjustmentDetail 'Строка изменения остатка марки';
+
+id 'Код' = DATA STRING[100] (LotAdjustment) CHARWIDTH 36;
+
+@defineDocument(lotAdjustment);
+@defineDocumentHeaderNumber(LotAdjustment, STRING[10]);
+@defineNumeratedDefault(LotAdjustment, 'Изменение остатка марки', 'ИОМ');
+@deriveDocumentHeaderTime(LotAdjustment);
+@defineDocumentStock(lotAdjustment, stock, 'Склад');
+
+CONSTRAINT stock(LotAdjustment i) AND NOT isCompany(stock(i))
+    CHECKED BY stock[LotAdjustment]
+    MESSAGE 'Для изменения остатка марки выбран склад, который не принадлежит компании';
+
+@defineDocumentStockAccess(LotAdjustment, stock, company);
+@defineDocumentDialogStocks(lotAdjustment, stock, company, , );
+@defineDocumentPosted(lotAdjustment);
+
+@defineDocumentDetailNumber(lotAdjustment, LotAdjustmentDetail);
+
+lot = DATA Lot (LotAdjustmentDetail) INDEXED;
+id 'Код' (LotAdjustmentDetail d) = id(lot(d)) IN id;
+
+sku  (LotAdjustmentDetail d) = sku(lot(d));
+idSku 'Код товара' (LotAdjustmentDetail d) = id(sku(d)) IN id;
+nameSku 'Наименование товара' (LotAdjustmentDetail d) = name(sku(d)) CHARWIDTH 40;
+prevNameSku 'Наименование товара' (LotAdjustmentDetail d) = prevName(sku(d)) IN id;
+shortNameUOMSku 'Ед. изм. товара' = shortNameUOM(sku(LotAdjustmentDetail d)) IN id;
+idBarcodeSku 'Штрихкод товара' (LotAdjustmentDetail d) = idBarcode(sku(d)) IN id;
+nameCountrySku 'Страна товара' (LotAdjustmentDetail d) = nameCountry(sku(d));
+
+@defineDocumentDetailQuantity(lotAdjustment);
+quantityLotAdjustmentDetail 'Кол-во марок в документе'  =
+    GROUP SUM quantity(LotAdjustmentDetail idetail)
+    BY  lot(idetail), lotAdjustment(idetail);
+countLotAdjustmentDetail 'Кол-во строк марок в документе'  =
+    GROUP SUM 1 BY lot(LotAdjustmentDetail idetail), lotAdjustment(idetail);
+
+changeLot (LotAdjustmentDetail d) {
+    DIALOG dialogLots OBJECTS l INPUT DO lot(d) <- l;
+}
+
+FORM lotAdjustment 'Изменение остатка марки'
+    OBJECTS i = LotAdjustment PANEL
+    PROPERTIES(i) isPosted, nameNumerator, number, series, date, time,
+        nameStock ON CHANGE changeStockCompany(i), note
+
+    OBJECTS d = LotAdjustmentDetail
+    PROPERTIES(d) index READONLY, id, idBarcodeSku, idSku, nameSku ON CHANGE { changeLot(d); }, shortNameUOMSku, quantity, NEW, DELETE
+    FILTERS lotAdjustment(d) = i
+
+    EDIT LotAdjustment OBJECT i
+;
+
+DESIGN lotAdjustment {
+    OBJECTS {
+        NEW mainTabbed {
+            type = TABBED;
+            fill = 1;
+            NEW documentBox {
+                caption = 'Заказ';
+                NEW header {
+                    NEW headerRow1 {
+                        type = CONTAINERH;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(isPosted(i));
+                        MOVE PROPERTY(nameNumerator(i));
+                        MOVE PROPERTY(number(i));
+                        MOVE PROPERTY(series(i));
+                        MOVE PROPERTY(date(i));
+                        MOVE PROPERTY(time(i));
+                    }
+                    NEW headerRow2 {
+                        type = CONTAINERH;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(nameStock(i));
+                    }
+                    MOVE PROPERTY(note(i));
+                }
+                NEW specificationBox {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Подбор
+lotAdjustmentDetail (sku, lotAdjustment, stock) =  GROUP MAX LotAdjustmentDetail lotAdjustmentDetail
+    BY lot(lotAdjustmentDetail), lotAdjustment(lotAdjustmentDetail), stock(lotAdjustmentDetail);
+lotAdjustmentDetail (Lot sku, LotAdjustment lotAdjustment) = lotAdjustmentDetail(sku, lotAdjustment, stock(lotAdjustment));
+
+currentBalance 'Остаток' (Lot sku, LotAdjustment lotAdjustment) = currentBalance(sku, stock(lotAdjustment));
+prevCurrentBalance 'Остаток' (Lot sku, LotAdjustment lotAdjustment) = prevCurrentBalance(sku, stock(lotAdjustment));
+//    backgroundQuantitySku###object 'Цвет' (sku, object) = RGB(255,128,128) IF quantity###detail###skuProp###object(sku, object) AND NOT
+//        (quantity###detail###skuProp###object(sku, object) <= currentBalanceSku###object(sku, object));
+backgroundQuantity 'Цвет' (lot, lotAdjustment) = ABSTRACT CASE COLOR (Lot, LotAdjustment);
+backgroundViewPrice 'Цвет' (lot, lotAdjustment) = ABSTRACT CASE COLOR (Lot, LotAdjustment);
+
+overChangeQuantityValueLot  ABSTRACT LIST ( LotAdjustmentDetail);
+
+changeQuantityValue(Lot lot, LotAdjustment lotAdjustment, NUMERIC[16,5] n) {
+    IF lotAdjustmentDetail(lot, lotAdjustment) THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            quantity(LotAdjustmentDetail lotAdjustmentDetail) <- n WHERE lotAdjustmentDetail == lotAdjustmentDetail(lot, lotAdjustment);
+            overChangeQuantityValueLot(lotAdjustmentDetail(lot, lotAdjustment));
+        } ELSE {
+            FOR lotAdjustmentDetail(lot, lotAdjustment) == LotAdjustmentDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            NEW d = LotAdjustmentDetail {
+                lotAdjustment(d) <- lotAdjustment;
+                lot(d) <- lot;
+                quantity (d) <- n;
+                overChangeQuantityValueLot(d);
+            }
+        }
+    }
+}
+
+changeQuantity(Lot lot, LotAdjustment lotAdjustment)  {
+    INPUT n = NUMERIC[16,5] DO
+        changeQuantityValue(lot, lotAdjustment, n);
+}
+
+// Выбор всего остатка
+allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Lot, LotAdjustment);
+changeAllQuantity(Lot lot, LotAdjustment lotAdjustment)  {
+    INPUT b = BOOLEAN DO {
+        allQuantity (lot,lotAdjustment) <- b;
+        changeQuantityValue(lot, lotAdjustment, prevCurrentBalance(lot,lotAdjustment) IF b);
+    }
+}
+
+backgroundPickName 'Цвет в подборе' = ABSTRACT CASE COLOR (Lot, LotAdjustment);
+hideQuantitySkuDocument = ABSTRACT BOOLEAN (LotAdjustment);
+showQuantitySkuDocument = NOT hideQuantitySkuDocument(LotAdjustment o);
+
+EXTEND FORM lotAdjustment
+    OBJECTS ks=Lot
+    PROPERTIES READONLY 'Код марки' = id(ks), inputName = nameSku(ks) BACKGROUND backgroundPickName(ks, i)
+    PROPERTIES(ks) READONLY  BACKGROUND backgroundPickName(ks, i) idBarcodeSku, idSku SHOWIF showIDs()
+    PROPERTIES(ks, i) quantityLotAdjustmentDetail ON CHANGE changeQuantity(ks, i)
+    BACKGROUND backgroundQuantity(ks, i) SHOWIF showQuantitySkuDocument(i)
+    QUICKFILTER inputName,
+        prevCurrentBalance READONLY,
+        allQuantity ON CHANGE changeAllQuantity(ks, i)
+    PROPERTIES               addSku() DRAW ks, editKS = EDIT(ks) NEWSESSION
+    
+    ORDERS inputName
+;
+
+DESIGN lotAdjustment {
+    mainTabbed {
+        NEW itemBox {
+            caption = 'Подбор';
+            fill = 1;
+                type = CONTAINERV;
+                width = 400;
+            NEW skuSelectPane {
+                fill = 1;
+                type = CONTAINERV;
+                NEW skuPane {
+                    type = CONTAINERV;
+                    caption = 'Марки';
+                    fill = 1;
+                    MOVE BOX(ks);
+                }
+            }
+        }
+    }
+    PROPERTY(prevCurrentBalance(ks, i)) { background = #FFEEEE; }
+    PROPERTY(quantityLotAdjustmentDetail(ks, i)) { background = #D4FFD4; }
+}
+
+EXTEND FORM lotAdjustment
+    FILTERGROUP filterLot
+        FILTER 'Маркируется' lotType(sku(ks)) DEFAULT
+
+    FILTERGROUP filterSku
+        FILTER 'С остатком' prevCurrentBalance(ks, stock(i)) 'F10' DEFAULT
+        FILTER 'В документе' quantityLotAdjustmentDetail(ks, i) 'F9'
+;
+
+FORM lotAdjustments 'Изменения остатков марок'
+    OBJECTS i = LotAdjustment
+    PROPERTIES(i) READONLY isPosted, id, number, series, date, time,
+        nameStock, note, countLotAdjustmentDetail
+    PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE
+
+    OBJECTS d = LotAdjustmentDetail
+    PROPERTIES(d) READONLY index, id, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity
+    FILTERS lotAdjustment(d) = i
+;
+
+NAVIGATOR {
+    lotNavigator {
+        NEW lotAdjustments;
+    }
+}
+
+@extendFormFilterAccessStock(LotAdjustment, i, lotAdjustments, stock, company);
+
+copy ABSTRACT LIST (LotAdjustmentDetail, LotAdjustmentDetail);
+copy (LotAdjustmentDetail nd, LotAdjustmentDetail d) + {
+    lot(nd) <- lot(d);
+    quantity(nd) <- quantity(d);
+}
+
+copy ABSTRACT LIST (LotAdjustment, LotAdjustment);
+copy (LotAdjustment ni, LotAdjustment i) + {
+    stock(ni) <- stock(i);
+    FOR lotAdjustment(LotAdjustmentDetail d) = i INLINE NEW nd = LotAdjustmentDetail DO {
+        lotAdjustment(nd) <- ni;
+        copy(nd, d);
+    }
+}
+
+copy 'Копировать' (LotAdjustment i)  {
+    NEWSESSION {
+        NEW ni = LotAdjustment {
+            copy(ni, i);
+            SHOW lotAdjustment OBJECTS i = ni DOCKED;
+        }
+    }
+}
+EXTEND FORM lotAdjustments PROPERTIES(i) TOOLBAR copy;
+
+EXTEND CLASS LotAdjustmentDetail : LotLedger;
+
+active(LotAdjustmentDetail l) += isPosted(l);
+dateTime(LotAdjustmentDetail l) += dateTime(l);
+description(LotAdjustmentDetail l) += ISTRING[200](CONCAT ' ', 'Изменение остатка марки', '№ ' + seriesNumber(l), 'от ' + date(l));
+stock(LotAdjustmentDetail l) += stock(l);
+
+quantity(LotAdjustmentDetail li, Lot l) += quantity(li) IF lot(li) == l;
