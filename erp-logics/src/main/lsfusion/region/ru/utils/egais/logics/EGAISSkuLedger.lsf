@@ -4,10 +4,10 @@ REQUIRE EGAISFRegLedger, EGAISItem, EGAISStock;
 
 NAMESPACE EGAIS;
 
-ballanceBEGAIS 'Остаток ЕГАИС' (Item i, Stock st, DATE d) = GROUP SUM balanceB(F2Reg r, d) IF minItem(product(r)) = i AND stock(client(r)) = st;
+ballanceBEGAIS 'Остаток ЕГАИС' (Item i, Stock st, DATE d) = GROUP SUM balanceB(F2Reg r, d) IF in(i, product(r)) AND stock(client(r)) = st;
 differenceEGAIS 'Разница с данными ЕГАИС' (Item i, Stock st, DATE d) = balanceB(i, st, d) (-) ballanceBEGAIS(i, st, d);
 
-FORM balanceSkuAlcoholStock 'Остатки алкоголя на дату'
+FORM balanceSkuAlcoholStock 'Сопоставление остатков'
 
     OBJECTS t=DATE PANEL
     PROPERTIES valT = VALUE(t)
@@ -119,7 +119,7 @@ DESIGN balanceSkuAlcoholStock {
 }
 
 NAVIGATOR {
-    balanceSku {
+    EGAISReg {
         NEW balanceSkuAlcoholStock;
     }
 }
