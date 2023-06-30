@@ -108,7 +108,12 @@ public class DefaultTerminalHandler {
                 else
                     stockObject = userInfo.user == null ? NullValue.instance : terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
 
-                String overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock]").read(session, barcodeObject, stockObject);
+                String overNameSku;
+                if (!vop.isEmpty())
+                    overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock,User,STRING]").read(session, barcodeObject, stockObject, userInfo.user, new DataObject(vop));
+                else
+                    overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock]").read(session, barcodeObject, stockObject);
+
                 if(overNameSku == null)
                     return null;
                 String isWeight = terminalHandlerLM.findProperty("isWeight[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
