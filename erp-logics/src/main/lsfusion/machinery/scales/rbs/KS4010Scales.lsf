@@ -11,7 +11,15 @@ loadDefaultScalesModels () + {
 isSelfService(GroupScales s) += sidModel(s) == 'KS4010';
 scalesGroup (MachineryPriceTransaction t, Barcode b) += group(dataCustomGroupType(groupScales(t)), sku(b)) IF t IS MachineryPriceTransaction AND sidModel(groupScales(t)) == 'KS4010';
 
-skipLoadImages 'Не выгружать изображения в весы' = ABSTRACT BOOLEAN (GroupScales) PREREAD;
+skipLoadImages 'Не выгружать изображения в весы' = DATA BOOLEAN (GroupScales) PREREAD;
+EXTEND FORM groupScales
+    PROPERTIES (grs) SHOWIF  left(sidModel(grs),6) == 'KS4010' skipLoadImages;
+
+DESIGN groupScales {
+    items {
+        MOVE PROPERTY (skipLoadImages(grs));
+    }
+}
 
 imageRBS = DATA IMAGEFILE (Item) TABLE itemImage;
 WHEN CHANGED (image(Item i)) DO {
