@@ -355,6 +355,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             if (tobacco) tmcType = 3;
 
             Integer exciseMarkPrice = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optInt("enableexcisemarkprice") : null;
+            Integer containsSugar = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optInt("containssugar") : null;
 
             if (infoJSON != null && infoJSON.has("defaultquantity")) {defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");}
             if (infoJSON != null && infoJSON.has("tmctype")) { tmcType = infoJSON.optInt("tmctype");}
@@ -402,7 +403,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 inventObject.put("inventgroup", itemGroupList.get(0).extIdItemGroup); //код родительской группы товаров
             }
             if (russian) {
-                inventObject.put("paymentobject", 1);
+                if (containsSugar != null)
+                    inventObject.put("paymentobject", 2);
+                else
+                    inventObject.put("paymentobject", 1);
             }
 
             Integer requireSaleRestrict = null;
