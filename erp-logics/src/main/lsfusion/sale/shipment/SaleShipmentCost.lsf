@@ -11,7 +11,6 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
                 WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND 
                       calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = price(d);
     }
-    IF canceled() THEN CANCEL;
     
     logToFile('cost', 'Начат пересчет цен в накладных (продажа)');
     APPLY NESTED (calculatedCost[Sku, Stock]) {            
@@ -19,7 +18,6 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
                 WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
                       calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = shipmentPrice(d);
     }
-    IF canceled() THEN CANCEL;
     logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа)');
 }
 
@@ -30,7 +28,6 @@ recalculateCostAccount(DATE dFrom, DATE dTo) +{
             WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d)) 
             AND prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d));
     }
-    IF canceled() THEN CANCEL;
 
     logToFile('cost', 'Начат пересчет цен в накладных (продажа)');
     APPLY NESTED LOCAL {
@@ -38,6 +35,5 @@ recalculateCostAccount(DATE dFrom, DATE dTo) +{
             WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d)) 
             AND prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d));
     }
-    IF canceled() THEN CANCEL;
     logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа)');
 }

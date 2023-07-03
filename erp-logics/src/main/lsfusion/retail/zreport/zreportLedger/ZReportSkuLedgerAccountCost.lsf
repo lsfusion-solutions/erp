@@ -10,13 +10,11 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
         accountPrice(ZReportSaleSkuLedger d) <- calculatedCost(sku(d), departmentStore(zReport(d))) WHERE date(zReport(d)) >= dFrom AND date(zReport(d)) <= dTo AND NOT date(zReport(d)) < documentsClosedDate(departmentStore(zReport(d))) 
                                                 AND calculatedCost(sku(d), departmentStore(zReport(d))) AND NOT calculatedCost(sku(d), departmentStore(zReport(d))) = accountPrice(d);
     }
-    IF canceled() THEN CANCEL;
 
     APPLY NESTED (calculatedCost[Sku, Stock]) {            
         accountPrice(ZReportReturnSkuLedger d) <- calculatedCost(sku(d), departmentStore(zReport(d))) WHERE date(zReport(d)) >= dFrom AND date(zReport(d)) <= dTo AND NOT date(zReport(d)) < documentsClosedDate(departmentStore(zReport(d)))
                                                   AND calculatedCost(sku(d), departmentStore(zReport(d))) AND NOT calculatedCost(sku(d), departmentStore(zReport(d))) = accountPrice(d);
     }
-    IF canceled() THEN CANCEL;
     logToFile('cost', 'Закончен пересчет цен в реализации через кассы');
 }
 
@@ -26,12 +24,10 @@ recalculateCostAccount(DATE dFrom, DATE dTo) +{
         accountPrice(ZReportSaleSkuLedger d) <- prevAdjustedAccountPriceB(sku(d), departmentStore(zReport(d)), (OVERRIDE dateTimeToDateTime(date(zReport(d)), 23:59) IF inFixTime(), dateTime(zReport(d))))
             WHERE date(zReport(d)) >= dFrom AND date(zReport(d)) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(zReport(d)) < documentsClosedDate(departmentStore(zReport(d)));
     }
-    IF canceled() THEN CANCEL;
 
     APPLY NESTED LOCAL {
         accountPrice(ZReportReturnSkuLedger d) <- prevAdjustedAccountPriceB(sku(d), departmentStore(zReport(d)), (OVERRIDE dateTimeToDateTime(date(zReport(d)), 23:59) IF inFixTime(), dateTime(zReport(d))))
             WHERE date(zReport(d)) >= dFrom AND date(zReport(d)) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(zReport(d)) < documentsClosedDate(departmentStore(zReport(d)));
     }
-    IF canceled() THEN CANCEL;
     logToFile('cost', 'Закончен пересчет цен в реализации через кассы');
 }
