@@ -88,12 +88,7 @@ FORM replyRestsv2 FORMEXTID 'ns:Documents'
                               productCode IN rstProduct EXTID 'pref:AlcCode'
 ;
 
-postmport 'Проводить при импорте' = DATA BOOLEAN (DocType);
-
-EXTEND FORM integrationData
-    PROPERTIES(edt) postmport
-;
-
+postActChargeOnRests 'Проводить постановку на баланс при импорте остатков' = DATA BOOLEAN (); 
 
 process (InDoc d) + {
     IF docType(d) = DocType.ReplyRests_v2 THEN {
@@ -118,7 +113,7 @@ process (InDoc d) + {
             NEW a = ActChargeOn {
                 client(a) <- client(outDoc(d));
                 dateTime(a) <- restsDate();
-                posted(a) <- postmport(DocType.ReplyRests_v2);
+                posted(a) <- postActChargeOnRests();
                 note(a) <- 'Запрос остатков из ЕГАИС';
                 
                 FOR NUMERIC[16,5] delta = (quantity(INTEGER i) (-) currentBalance(f2Reg(informF2RegId(i)))) NEW p = ActChargeOnPosition DO {
