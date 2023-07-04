@@ -1,0 +1,55 @@
+MODULE StockAdjustmentAccountPrice;
+
+REQUIRE StockAdjustment, PriceListLedgerAccount;
+
+NAMESPACE Stock;
+
+changeAccountPrice 'Изменять учетную цену' = ABSTRACT BOOLEAN (AdjustmentDetail);
+changeAccountPrice 'Изменять учетную цену' = DATA BOOLEAN (UserAdjustmentDetail);
+changeAccountPrice(UserAdjustmentDetail d) += changeAccountPrice(d);
+
+EXTEND FORM userAdjustment
+    PROPERTIES(d) changeAccountPrice
+;
+
+EXTEND FORM adjustments
+    PROPERTIES(d) READONLY changeAccountPrice
+;
+
+WHEN LOCAL (CHANGED(sku(UserAdjustmentDetail d)) OR CHANGED(stock(d)) OR CHANGED(dateTime(d))) DO 
+    changeAccountPrice(d) <- NOT prevAccountPriceB(sku(d), stock(d), dateTime(d));
+
+CLASS AdjustmentPriceListLedger;
+TABLE adjustmentPriceListLedger(AdjustmentPriceListLedger);
+
+adjustmentPriceListLedger = AGGR AdjustmentPriceListLedger WHERE changeAccountPrice(AdjustmentDetail adjustmentDetail) MATERIALIZED INDEXED;
+
+dateTime(AdjustmentPriceListLedger l) = dateTime(adjustmentDetail(l));
+isPosted(AdjustmentPriceListLedger l) = isPosted(adjustmentDetail(l));
+sku(AdjustmentPriceListLedger l) = sku(adjustmentDetail(l));
+batch(AdjustmentPriceListLedger l) = batch(adjustmentDetail(l));
+description(AdjustmentPriceListLedger l) = description(adjustmentDetail(l));
+stock(AdjustmentPriceListLedger l) = stock(adjustmentDetail(l));
+
+price(AdjustmentPriceListLedger l) = price(adjustmentDetail(l));
+
+EXTEND CLASS AdjustmentPriceListLedger : PriceListLedger;
+
+fromDateTime (AdjustmentPriceListLedger ledger) += dateTime(ledger);
+
+isPosted[PriceListLedger](AdjustmentPriceListLedger ledger) += isPosted(ledger);
+
+sku[PriceListLedger] (AdjustmentPriceListLedger ledger) += sku(ledger);
+
+description[PriceListLedger] (AdjustmentPriceListLedger ledger) += description(ledger);
+
+in (AdjustmentPriceListLedger ledger, SystemLedgerPriceListType account) += 
+    WHEN price(ledger) AND account == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
+price (AdjustmentPriceListLedger ledger, SystemLedgerPriceListType account) += 
+    WHEN price(ledger) AND account == SystemLedgerPriceListType.accountPriceListType THEN price(ledger);
+
+in (AdjustmentPriceListLedger ledger, Stock stock) += stock(ledger) == stock;
+in(AdjustmentPriceListLedger ledger, Batch batch) += batch(ledger) = batch;
+
+edit[PriceListLedger] (AdjustmentPriceListLedger ledger) + { edit(adjustmentDetail(ledger));};
+show[PriceListLedger] (AdjustmentPriceListLedger ledger) + { show(adjustmentDetail(ledger));};
