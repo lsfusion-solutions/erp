@@ -60,7 +60,8 @@ DESIGN currentBalanceSkuStock {
 
 // считаем кол-во за один момент, чтобы исключить проблемы с одним товаром разными строками за одно время
 // в оперативном расчете пока это не учитываем в целях производительности
-quantityShipmentDetail (Sku sk, DATETIME dt, Stock st) = GROUP SUM quantity(ShipmentDetail d) BY sku(d), dateTime(d), customerStock(d);
+adjustAccountQuantity = ABSTRACT NUMERIC[16,5] (ShipmentDetail);
+quantityShipmentDetail (Sku sk, DATETIME dt, Stock st) = GROUP SUM quantity(ShipmentDetail d) + (OVERRIDE adjustAccountQuantity(d), 0.0)  BY sku(d), dateTime(d), customerStock(d);
 
 calcIntraAccountPrice (ShipmentDetail d) =
     NUMERIC[16,4]((calcAccountPriceBalance(d)*accountPriceB(d) +
