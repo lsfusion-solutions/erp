@@ -18,10 +18,7 @@ accountLedgerPrice (ShipmentDetail d) += accountPrice(d);
 //        accountPrice(d) <- calcAccountPrice(d);
 //};
 
-positiveBalanceB(Sku sk, Stock st, DATETIME dt) = OVERRIDE (balanceB(sk, st, dt) IF balanceB(sk, st, dt)>0.0), 0.0;
-positiveBalanceB 'Остаток (до)' (ShipmentDetail d) = positiveBalanceB(sku(d), customerStock(d), dateTime(d));
-
-useOnlyBalanceB 'Учитывать только положит.остатки при расчете учетной цены' = DATA BOOLEAN ();
+useOnlyBalanceB 'Учитывать только положит.остатки при расчете учетной цены' = DATA BOOLEAN () PREREAD;
 
 EXTEND FORM options 
     PROPERTIES () useOnlyBalanceB
@@ -33,15 +30,13 @@ DESIGN options {
     }
 }
 
-calcAccountPriceBalance (Sku sk, Stock st, DATETIME dt) = IF useOnlyBalanceB()
-    THEN positiveBalanceB(sk, st, dt)
-    ELSE balanceB(sk, st, dt);
-
+calcAccountPriceBalance (Sku sk, Stock st, DATETIME dt) = balanceB(sk, st, dt) IF (NOT useOnlyBalanceB() OR balanceB(sk, st, dt) > 0);
 calcAccountPriceBalance (ShipmentDetail d) = calcAccountPriceBalance(sku(d), customerStock(d), dateTime(d));
 
 calcAccountPrice (ShipmentDetail d) =
-    NUMERIC[16,4]((calcAccountPriceBalance(sku(d), customerStock(d), dateTime(d))*accountPriceB(sku(d), customerStock(d), dateTime(d)) +
-        quantity(d) * price(d))/(quantity(d) + calcAccountPriceBalance(sku(d), customerStock(d), dateTime(d))));
+    NUMERIC[16,4](
+        (calcAccountPriceBalance(d) * accountPriceB(sku(d), customerStock(d), dateTime(d)) + quantity(d) * price(d))/
+        (quantity(d) + calcAccountPriceBalance(d)));
 
 // пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
 WHEN (SETCHANGED(sku(ShipmentDetail d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR
