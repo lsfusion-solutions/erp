@@ -1,0 +1,18 @@
+MODULE SchedulerEmail;
+
+REQUIRE Scheduler;
+
+NAMESPACE Scheduler;
+
+notifyEmail 'Email для уведомлений' = DATA STRING ();
+
+notifyFailure 'Уведомлять об ошибке' = DATA BOOLEAN (ScheduledTask);
+EXTEND FORM scheduledTask
+    PROPERTIES(t) notifyFailure
+;
+
+WHEN SET(isFailed(ScheduledTaskLog l)) AND notifyFailure(scheduledTask(l)) AND notifyEmail() DO
+    EMAIL
+        SUBJECT 'Scheduler task failure ' + name(scheduledTask(l))
+        TO notifyEmail();
+    
