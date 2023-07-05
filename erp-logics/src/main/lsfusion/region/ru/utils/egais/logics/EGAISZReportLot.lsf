@@ -1,0 +1,57 @@
+MODULE EGAISZReportLot;
+
+REQUIRE EGAISClient, EGAISActWriteOffExchange, DateSkuLedgerLot, EGAISStock;
+
+NAMESPACE EGAIS;
+
+
+sold 'Продано за день' (Client c, Lot l, DATE d) = GROUP SUM 
+    quantityReceiptSaleDetail(Stock st, sku(l), d, l) (-) quantityReceiptReturnDetail(st, sku(l), d, l)
+    IF client(st) = c;
+
+actWriteOff = GROUP MAX ActWriteOff a BY client(a), date(a), type(a);
+
+createActWriteOff 'Создать списание на основе реализации' (Client c, DATE d) {
+    NEWSESSION {
+        quantity(Lot l) <- sold(c, l, d) IF sold(c, l, d) > 0 AND f2Reg(markCode(id(l)));
+
+        IF (GROUP SUM 1 IF quantity(Lot l)) THEN NEW a = ActWriteOff {
+            posted(a) <- TRUE;
+
+            client(a) <- c;
+            dateTime(a) <- DATETIME(d);
+            type(a) <- writeOffType('Розничная продажа');
+            note(a) <- 'Списание на основе реализации';
+
+            FOR [GROUP SUM 1 IF quantity(Lot l) BY f2Reg(markCode(id(l)))](F2Reg f) INLINE NEW ps = ActWriteOffPosition DO {
+                actWriteOff(ps) <- a;
+
+                product(ps) <- product(f);
+                f2Reg(ps) <- f;
+
+                FOR [GROUP SUM 1 IF quantity(Lot l) BY markCode(id(l))](MarkCode mc) AND f2Reg(mc) = f INLINE NEW m = ActWriteOffMark DO {
+                    actWriteOffPosition(m) <- ps;
+                    markCode(m) <- mc;
+                }
+            }
+
+            APPLY;
+        }
+    }
+}
+
+actWriteOffDays 'Кол-во дней проверки списаниЙ на основе реализации' = DATA INTEGER ();
+
+EXTEND FORM options PROPERTIES() actWriteOffDays;
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY(actWriteOffDays());
+    }
+}
+
+createActWriteOff () {
+    FOR iterate(DATE d, sum(currentDate(), -actWriteOffDays() - 1), sum(currentDate(), -1)) DO {
+        FOR Client c IS Client AND NOT actWriteOff(c, d, writeOffType('Розничная продажа')) DO createActWriteOff(c,d);
+    }
+}
