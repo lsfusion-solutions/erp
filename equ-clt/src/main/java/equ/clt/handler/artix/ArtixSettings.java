@@ -88,6 +88,9 @@ public class ArtixSettings implements Serializable{
     //дополнять код кассира кодом группы касс
     private boolean appendCashierId;
 
+    //если true, то в качестве идентификатора товара используется idBarcode, а не idItem
+    private boolean useBarcodeAsId;
+
     public ArtixSettings() {
     }
 
@@ -313,5 +316,13 @@ public class ArtixSettings implements Serializable{
 
     public void setAppendCashierId(boolean appendCashierId) {
         this.appendCashierId = appendCashierId;
+    }
+
+    public Boolean getUseBarcodeAsId() {
+        return useBarcodeAsId;
+    }
+
+    public void setUseBarcodeAsId(boolean useBarcodeAsId) {
+        this.useBarcodeAsId = useBarcodeAsId;
     }
 }

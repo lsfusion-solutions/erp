@@ -79,6 +79,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         boolean medicineMode = artixSettings.isMedicineMode();
         boolean medicineModeNewScheme = artixSettings.isMedicineModeNewScheme();
         boolean russian = artixSettings.isRussian();
+        boolean useBarcodeAsId = artixSettings.getUseBarcodeAsId();
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, Exception> failedTransactionMap = new HashMap<>();
@@ -163,24 +164,41 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                         }
 
                         //items
-                        Map<String, List<CashRegisterItem>> barcodeMap = new HashMap<>();
-                        for (CashRegisterItem item : transaction.itemsList) {
-                            if (!skipItem(item, medicineMode)) {
-                                List<CashRegisterItem> items = barcodeMap.get(item.mainBarcode);
-                                if (items == null)
-                                    items = new ArrayList<>();
-                                items.add(item);
-                                barcodeMap.put(item.mainBarcode, items);
+                        if(useBarcodeAsId) {
+                            for (CashRegisterItem item : transaction.itemsList) {
+                                if (!skipItem(item, medicineMode)) {
+                                    List<CashRegisterItem> items = new ArrayList<>();
+                                    items.add(item);
+                                    String inventItem = getAddInventItemJSON(transaction, batchItems, item.idBarcode, items, appendBarcode, medicineMode, medicineModeNewScheme, russian, item.idBarcode);
+                                    if (inventItem != null) {
+                                        writeStringToFile(tmpFile, inventItem + "\n---\n");
+                                    } else {
+                                        processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + item.idBarcode);
+                                    }
+                                }
                             }
-                        }
+                        } else {
+                            Map<String, List<CashRegisterItem>> barcodeMap = new HashMap<>();
+                            for (CashRegisterItem item : transaction.itemsList) {
+                                if (!skipItem(item, medicineMode)) {
+                                    List<CashRegisterItem> items = barcodeMap.get(item.mainBarcode);
+                                    if (items == null)
+                                        items = new ArrayList<>();
+                                    items.add(item);
+                                    barcodeMap.put(item.mainBarcode, items);
+                                }
+                            }
 
-                        for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
-                            String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode, medicineMode, medicineModeNewScheme, russian);
-                            if (inventItem != null) {
-                                writeStringToFile(tmpFile, inventItem + "\n---\n");
-                            } else {
-                                //сейчас inventItem == null только при отсутствии UOM
-                                processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + barcodeEntry.getKey());
+                            for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
+                                CashRegisterItem item = barcodeEntry.getValue().get(0);
+                                String idItem = trim(item.idItem != null ? item.idItem : item.idBarcode, 20);
+                                String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode, medicineMode, medicineModeNewScheme, russian, idItem);
+                                if (inventItem != null) {
+                                    writeStringToFile(tmpFile, inventItem + "\n---\n");
+                                } else {
+                                    //сейчас inventItem == null только при отсутствии UOM
+                                    processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + barcodeEntry.getKey());
+                                }
                             }
                         }
 
@@ -269,6 +287,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             String globalExchangeDirectory = artixSettings.getGlobalExchangeDirectory();
             boolean copyTransactionsToGlobalExchangeDirectory = artixSettings.isCopyPosToGlobalExchangeDirectory();
             Integer timeout = artixSettings.getTimeout();
+            boolean useBarcodeAsId = artixSettings.getUseBarcodeAsId();
 
             List<File> files = new ArrayList<>();
             for (String directory : directorySet) {
@@ -277,7 +296,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                 for (Map.Entry<String, StopListItem> entry : stopListInfo.stopListItemMap.entrySet()) {
                     ItemInfo item = entry.getValue();
-                    String inventItem = getDeleteInventItemJSON(item);
+                    String inventItem = getDeleteInventItemJSON(item, useBarcodeAsId);
                     writeStringToFile(tmpFile, inventItem + "\n---\n");
                 }
 
@@ -319,11 +338,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     }
 
 
-    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode, boolean medicineMode, boolean medicineModeNewScheme, boolean russian) throws JSONException {
+    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode, boolean medicineMode, boolean medicineModeNewScheme, boolean russian, String idItem) throws JSONException {
         Set<CashRegisterItem> barcodes = new HashSet<>();
         for(CashRegisterItem item : items) {
             //если есть addMedicine, дополнительные ШК не выгружаем
-            if(!batchItems.contains(item.mainBarcode) && !item.idBarcode.equals(item.mainBarcode)) {
+            if(!batchItems.contains(item.mainBarcode) && !item.idBarcode.equals(mainBarcode)) {
                 barcodes.add(item);
             }
         }
@@ -334,7 +353,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             JSONObject inventObject = new JSONObject();
             rootObject.put("invent", inventObject);
-            inventObject.put("inventcode", trim(item.idItem != null ? item.idItem : item.idBarcode, 20)); //код товара
+            inventObject.put("inventcode", idItem); //код товара
             inventObject.put("barcode", removeCheckDigitFromBarcode(mainBarcode, appendBarcode));
 
             JSONObject infoJSON = getExtInfo(item.info);
@@ -388,7 +407,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             inventObject.put("minprice", noMinPrice ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
             //inventObject.put("isInvent", true);
             inventObject.put("isInventItem", true); //признак это товар (1) или группа (0)
-            inventObject.put("articul", item.idItem); //артикул
+            inventObject.put("articul", idItem); //артикул
             inventObject.put("rtext", item.name); //текст для чека
             inventObject.put("name", item.name); //наименование товара
             inventObject.put("measurecode", idUOM); //код единицы измерения
@@ -605,9 +624,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         return barcodeObject;
     }
 
-    private String getDeleteInventItemJSON(ItemInfo item) throws JSONException {
+    private String getDeleteInventItemJSON(ItemInfo item, boolean useBarcodeAsId) throws JSONException {
         JSONObject rootObject = new JSONObject();
-        rootObject.put("inventcode", trim(item.idItem != null ? item.idItem : item.idBarcode, 20)); //код товара
+        rootObject.put("inventcode", trim(item.idItem != null && !useBarcodeAsId ? item.idItem : item.idBarcode, 20)); //код товара
         rootObject.put("command", "deleteInventItem");
         return rootObject.toString();
     }
@@ -1453,6 +1472,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         boolean medicineMode = artixSettings.isMedicineMode();
         boolean receiptIdentifiersToExternalNumber = artixSettings.isReceiptIdentifiersToExternalNumber();
         boolean appendCashierId = artixSettings.isAppendCashierId();
+        boolean useBarcodeAsId = artixSettings.getUseBarcodeAsId();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1727,13 +1747,19 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                         for (int i = 0; i < inventPositionsArray.length(); i++) {
                                             JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
 
-                                            String idItem = inventPosition.getString("inventCode");
+                                            String idItem = null;
                                             String barcodeString = BaseUtils.trimToNull(inventPosition.getString("barCode"));
                                             int opCode = inventPosition.getInt("opCode");
 
-                                            // вот такой вот чит из-за того, что могут ввести код товара в кассе
-                                            String barcode = idItem != null && idItem.equals(barcodeString) ? null :
-                                                    appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
+                                            String barcode;
+                                            if(useBarcodeAsId){
+                                                barcode = appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
+                                            } else {
+                                                idItem = inventPosition.getString("inventCode");
+                                                // вот такой вот чит из-за того, что могут ввести код товара в кассе
+                                                barcode = idItem != null && idItem.equals(barcodeString) ? null :
+                                                        appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
+                                            }
 
                                             //обнаруживаем продажу сертификатов
                                             boolean isGiftCard = false;
