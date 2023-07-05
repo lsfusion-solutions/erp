@@ -1681,7 +1681,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             BigDecimal sum = BigDecimal.valueOf(moneyPosition.getDouble("sumB"));
                                             sum = (sum != null && !isSale) ? sum.negate() : sum;
 
-                                            boolean isChange = operationCode.equals(72); //сдача
+                                            boolean isChange = operationCode.equals(72) || operationCode.equals(76) || operationCode.equals(101) ; //сдача
 
                                             if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))) || isChange)) {
 
