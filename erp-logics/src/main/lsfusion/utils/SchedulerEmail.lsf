@@ -7,9 +7,18 @@ NAMESPACE Scheduler;
 notifyEmail 'Email для уведомлений' = DATA STRING ();
 
 notifyFailure 'Уведомлять об ошибке' = DATA BOOLEAN (ScheduledTask);
+
 EXTEND FORM scheduledTask
+    PROPERTIES() notifyEmail
+    
     PROPERTIES(t) notifyFailure
 ;
+
+DESIGN scheduledTask {
+    settingsContainer {
+        MOVE PROPERTY(notifyEmail());
+    }
+}
 
 WHEN SET(isFailed(ScheduledTaskLog l)) AND notifyFailure(scheduledTask(l)) AND notifyEmail() DO
     EMAIL
