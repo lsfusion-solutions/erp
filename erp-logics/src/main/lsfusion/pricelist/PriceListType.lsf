@@ -442,14 +442,15 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
                 
     disableUpdateInvoicePrice = ABSTRACT VALUE BOOLEAN (###detail);
     
-    skipChangeDate = ABSTRACT VALUE BOOLEAN (###detail); 
-    
+    skipChangeDate = ABSTRACT VALUE BOOLEAN (###detail);
+    changePrevList###form = ABSTRACT VALUE BOOLEAN(###detail);
     WHEN LOCAL FORMS form GOAFTER valueVAT[###detail], priceListType[###detail]  // цены берем на начало сессии, а не этого event'а
             (((CHANGED(stockProp(###detail d)) OR
              CHANGED(dateTimeProp(d))) AND NOT isPosted(d) AND NOT skipChangeDate(d)) OR
              (CHANGED(priceListType(d)) OR
              CHANGED(batch(d)) OR
-             CHANGED(sku(d))))
+             CHANGED(sku(d))) OR
+             changePrevList###form(d))
              AND NOT CHANGED(price(d)) 
              AND PriceListType pt == priceListType(d) AND sku(d) AND includeVAT(pt) AND NOT disableUpdateInvoicePrice(d) NOINLINE (pt) DO {
         price(d) <- round((prevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d))), defaultPriceRound(d));
@@ -461,7 +462,8 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
              CHANGED(dateTimeProp(d))) AND NOT isPosted(d) AND NOT skipChangeDate(d)) OR
              (CHANGED(priceListType(d)) OR
              CHANGED(batch(d)) OR
-             CHANGED(sku(d))))
+             CHANGED(sku(d))) OR
+             changePrevList###form(d))
              AND NOT CHANGED(price(d)) 
              AND PriceListType pt == priceListType(d) AND sku(d) AND NOT includeVAT(pt) AND NOT disableUpdateInvoicePrice(d) NOINLINE (pt) DO {
         price(d) <- round(prevList(pt, d), defaultPriceRound(d));
