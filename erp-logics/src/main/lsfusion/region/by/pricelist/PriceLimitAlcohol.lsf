@@ -206,14 +206,21 @@ NAVIGATOR {
         NEW alcoholLimits;
     }
 }
+minAlcoholLimitPrice = ABSTRACT CASE NUMERIC[16,4](Item , DATETIME);
+minAlcoholLimitPriceRB = ABSTRACT CASE NUMERIC[16,4](Item , DATETIME);
+useCustomAlcoholLimitPrice = ABSTRACT BOOLEAN ();
 
-minAlcoholLimitPrice (Item s, DATETIME dt) = GROUP 
+skipAlcoholLimitPrice = ABSTRACT VALUE BOOLEAN (AlcoholLimitDetail);
+
+minAlcoholLimitPriceCalc (Item s, DATETIME dt) = GROUP 
             LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
             ORDER dateTime(ad), ad
-            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND NOT isRB(ad);
+            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND NOT isRB(ad) AND NOT skipAlcoholLimitPrice(ad);
             
-minAlcoholLimitPriceRB (Item s, DATETIME dt) = GROUP 
+minAlcoholLimitPriceRBCalc (Item s, DATETIME dt) = GROUP 
             LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
             ORDER dateTime(ad), ad
-            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND isRB(ad);
-   
+            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND isRB(ad) AND NOT skipAlcoholLimitPrice(ad);
+
+minAlcoholLimitPrice (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND NOT useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceCalc(s,dt);
+minAlcoholLimitPriceRB (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND NOT useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceRBCalc(s,dt);

@@ -1,0 +1,107 @@
+MODULE PriceLimitAlcoholGroup;
+
+REQUIRE PriceLimitAlcohol;
+
+NAMESPACE PriceLimitAlcohol;
+
+isPriceLimitAlcoholGroup 'Минимальные цены на алкоголь по группам (использовать)' = DATA BOOLEAN ();
+showPriceLimitAlcoholGroup 'Минимальные цены на алкоголь по группам (показать)' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () isPriceLimitAlcoholGroup, showPriceLimitAlcoholGroup
+;
+
+DESIGN options {
+    commons {        
+        MOVE PROPERTY (showPriceLimitAlcoholGroup());
+        MOVE PROPERTY (isPriceLimitAlcoholGroup());
+    }
+}
+
+showAlcoholGroup = isPriceLimitAlcoholGroup() OR showPriceLimitAlcoholGroup();
+
+groupType = DATA GroupType (AlcoholLimit);
+nameGroupType 'Тип классификатора' (AlcoholLimit alcoholLimit) = name(groupType(alcoholLimit));
+
+groupType (AlcoholLimit o) <- SystemGroupType.skuGroupType WHEN SET(o IS AlcoholLimit) AND isPriceLimitAlcoholGroup();
+
+//--
+dataIn 'Вкл.' (alcoholLimit, group) = DATA BOOLEAN (AlcoholLimit, Group);
+
+WHEN CHANGED (groupType(AlcoholLimit a)) DO {
+    dataIn(a,Group g)<- NULL WHERE dataIn(a,g) AND NOT groupType(a)==groupType(g);
+}
+
+countGroup (AlcoholLimit a) = GROUP SUM 1 IF dataIn(a, Group g) MATERIALIZED;
+countGroup (AlcoholLimitDetail a) = countGroup(alcoholLimit(a));
+
+levelParentDataIn (AlcoholLimit alcoholLimit, Group group) =
+    GROUP
+        MIN level(group, Group parent) IF dataIn(alcoholLimit, parent) MATERIALIZED;
+nearestDataParent (AlcoholLimit alcoholLimit, Group group) = group(group, levelParentDataIn (alcoholLimit, group));
+nearestDataIn (AlcoholLimit alcoholLimit, Group group) =
+    dataIn(alcoholLimit, nearestDataParent(alcoholLimit, group)) MATERIALIZED;
+
+in 'Вкл.' (AlcoholLimit alcoholLimit, Group group) =  OVERRIDE dataIn(alcoholLimit, group), nearestDataIn(alcoholLimit, group)  MATERIALIZED;
+
+in 'Вкл.' (AlcoholLimit a, Sku s) = in (a, group(groupType(a),s));
+in 'Вкл.' (AlcoholLimitDetail a, Sku s) = in (alcoholLimit(a), s);
+
+quantityChildWith (Group group, AlcoholLimit alcoholLimit) = GROUP SUM 1 IF dataIn(alcoholLimit, Group childGroup) AND isParent(childGroup, group) MATERIALIZED;
+quantityParentWith (Group group, AlcoholLimit alcoholLimit) = GROUP SUM 1 IF dataIn(alcoholLimit, Group parentGroup) AND isParent(group, parentGroup) MATERIALIZED;
+
+backgroundIn 'Цвет' (AlcoholLimit alcoholLimit, Group group) = CASE
+    WHEN dataIn(alcoholLimit, group) THEN RGB(0,0,0)
+    WHEN nearestDataIn(alcoholLimit, group) THEN RGB(230,248,250)
+    WHEN quantityChildWith (group, alcoholLimit) != descendantNumber(group) AND NOT quantityParentWith (group, alcoholLimit) THEN RGB(203,203,203);
+
+EXTEND FORM alcoholLimit
+    PROPERTIES (r) nameGroupType
+    TREE groupTree g=Group PARENT parent(g)
+    PROPERTIES READONLY order(g), name(g)
+    FILTERS groupType(g) == groupType(r)
+    ORDERS order(g), name(g)
+    FILTERGROUP ginactive FILTER 'Активные' active(g) DEFAULT
+    PROPERTIES(r, g)  in BACKGROUND backgroundIn(r, g)
+;
+DESIGN alcoholLimit{
+    specificationBox{
+        type = TABBED;
+        NEW group{
+            showIf = showAlcoholGroup();
+            caption = 'Группы';
+            fill = 1;
+            NEW panBox{
+                MOVE PROPERTY (nameGroupType(r));
+                alignment = STRETCH;
+            }
+            MOVE BOX(TREE groupTree);
+        }       
+
+    }
+}
+
+groups 'Группы' (AlcoholLimit a) = ISTRING[2000](GROUP
+    CONCAT ISTRING[250] (name(Group g)) IF dataIn(a, g) , ', '
+    ORDER id(g), g) CHARWIDTH 30 MATERIALIZED;
+
+EXTEND FORM alcoholLimits
+    PROPERTIES (r) READONLY SHOWIF showAlcoholGroup() nameGroupType, groups
+;
+
+skipAlcoholLimitPrice  (AlcoholLimitDetail d) += TRUE IF countGroup(d);
+
+minAlcoholLimitPriceExtra (Item s, DATETIME dt) = GROUP
+    LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
+    ORDER dateTime(ad), ad
+    WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND NOT isRB(ad) AND in(ad,s);
+
+minAlcoholLimitPriceRBExtra (Item s, DATETIME dt) = GROUP
+    LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
+    ORDER dateTime(ad), ad
+    WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND isRB(ad) AND in(ad,s);
+
+useCustomAlcoholLimitPrice() += isPriceLimitAlcoholGroup();
+
+minAlcoholLimitPrice (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceExtra(s,dt);
+minAlcoholLimitPriceRB (Item s, DATETIME dt) += WHEN s IS Item AND dt IS DATETIME AND  useCustomAlcoholLimitPrice() THEN minAlcoholLimitPriceRBExtra(s,dt);
