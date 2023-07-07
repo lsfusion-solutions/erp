@@ -291,7 +291,7 @@ closeScheduleOrderDetailsEndDate 'Аннулировать точки заказ
 skipAutoClosed = ABSTRACT BOOLEAN ();
 autoClosed ABSTRACT LIST(ScheduleOrderDetail);
 createAutoOrdersBefore ABSTRACT LIST();
-
+createExtraLog  ABSTRACT (ScheduleOrderDetail);
 createAutoOrders 'Создание автозаказов' () {    
     toCreate(ScheduleOrderDetail d)<- NULL;
     toCreate(ScheduleOrderDetail d) <- TRUE WHERE dateOrder(d) == currentDate() AND createUserOrderAuto(scheduleOrder(d)) 
@@ -349,6 +349,7 @@ createAutoOrders 'Создание автозаказов' () {
                         APPLY;
                         IF canceled() THEN {
                             printToLog(CONCAT ' ', 'Автозаказ. ERROR:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), applyMessage());
+                            createExtraLog(scheduleOrderDetail); 
                         }                
                     }
                 } ELSE {
