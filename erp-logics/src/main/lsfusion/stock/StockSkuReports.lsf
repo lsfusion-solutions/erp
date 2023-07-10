@@ -80,6 +80,8 @@ END
 costB 'Себестоимость на начало дня' (Batch batch, Stock stock, DATETIME dateTime) = balanceB(batch, stock, dateTime) * cost(batch);
 costSumB 'Себестоимость на начало дня' (sku, Stock stock, DATETIME dateTime) = GROUP SUM costB(Batch batch, stock, dateTime) BY sku(batch);
 
+retailVATSum 'Сумма НДС розничная' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
 fillGroupBalanceSkusStock 'Сформировать'(GroupType gt, DATETIME d)  { 
     balanceB(Sku sk, Stock st) <- NULL;
     costSumB(Sku sk, Stock st) <- NULL; 
@@ -90,6 +92,7 @@ fillGroupBalanceSkusStock 'Сформировать'(GroupType gt, DATETIME d)  
     costSumB(Sku sk, Stock st) <- costSumB(sk,st,d) IF inBackSheet(st);
     sumB(Sku sk, Stock st) <- sumB(sk,st,d) IF inBackSheet(st);
     costVATSum(Sku sk, Stock st) <- NUMERIC[26,8]([GROUP SUM costB(Batch b, Stock s, DATETIME dt)*(1 + Stock.valueVAT(b)/100) BY sku(b), s, dt](sk,st,d)) IF inBackSheet(st);
+    retailVATSum(Sku sk, Stock st) <- NUMERIC[16,5](GROUP SUM sumB(sk, st) * valueVAT(sk, st)/(100 + valueVAT(sk, st))) IF inBackSheet(st);
     
     setNameGroup1();
     setNameGroup2();
@@ -109,11 +112,11 @@ FORM printGroupBalanceSkusStock 'Остатки по товарам'
 
     OBJECTS s = (s = Sku, st = Stock)
     PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
-    PROPERTIES(s, st) READONLY balanceB, sumB, costSumB, costVATSum
+    PROPERTIES(s, st) READONLY balanceB, sumB, costSumB, costVATSum, retailVATSum
     PROPERTIES(s, st) nameGroup1, nameGroup2, nameGroup3
     FILTERS inSession(group(gt, s))
     FILTERS inBackSheet(st)
-    FILTERS balanceB(s, st)
+    FILTERS balanceB(s, st) AND sumB(s,st)
     FILTERS inBackSheet(supplierLastOrderBatch(s, st))
     FILTERS s IS Sku AND st IS Stock AND d IS DATETIME // фильтр, чтобы сохранилась старая иерархия
     ORDERS nameGroup1(s, st), nameGroup2(s, st), nameGroup3(s, st)
