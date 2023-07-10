@@ -50,6 +50,8 @@ GLNSupplier(EOrder e) = OVERRIDE GLN(supplier(e)), extraGLN(supplier(e));
 
 supplierStock 'Склад поставщика' = ABSTRACT Stock (EOrder);
 nameSupplierStock 'Склад поставщика' (EOrder o) = name(supplierStock(o));
+GLNSupplierStock 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE GLN(supplierStock(e));
+GLNSupplierStock1 'GLN склада поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplierStock(e));
 
 customer 'Покупатель' = ABSTRACT LegalEntity (EOrder);
 nameCustomer 'Покупатель' (EOrder o) = name(customer(o));
@@ -57,8 +59,11 @@ GLNCustomer(EOrder e) = OVERRIDE GLN(customer(e)), extraGLN(customer(e));
 
 customerStock 'Склад покупателя' = ABSTRACT Stock (EOrder);
 nameCustomerStock 'Склад покупателя' (EOrder o) = name(customerStock(o));
+GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
 
 note 'Примечание' = ABSTRACT ISTRING[500] (EOrder);
+
+contractNumber = ABSTRACT STRING[50] (EOrder);
 
 CLASS ABSTRACT EOrderDetail 'Строка EDI Заказа';
 TABLE eOrderDetail(EOrderDetail);
@@ -85,10 +90,6 @@ fillIndexSku ABSTRACT LIST (EOrder);
 fillIndexSku(EOrder o) + {localIndexSku(EOrderDetail d) <- PARTITION SUM 1 ORDER d BY sku(d), order(d) WHERE order(d) == o;}
 
 nameEDIProvider'Провайдер EDI'(EOrder o) = nameEDIProvider(supplier(o));
-
-GLNSupplierStock 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE GLN(supplierStock(e));
-GLNSupplierStock1 'GLN склада поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplierStock(e));
-GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
 
 send 'Отправить' ABSTRACT LIST ( EOrder);
 overSend ABSTRACT LIST ( EOrder);
