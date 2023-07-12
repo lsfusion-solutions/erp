@@ -1132,16 +1132,14 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     CONSTRAINT returnQuantity(invoiceDetail(InvoiceDetail d)) > quantity((invoiceDetail(d)))
         MESSAGE 'Количество строки возврата больше чем количество строки основания';
 
-    CONSTRAINT sku(invoiceDetail(UserInvoiceDetail d)) != sku(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
+    CONSTRAINT invoiceDetail(UserInvoiceDetail d) AND NOT sku(invoiceDetail(d)) = sku(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
         MESSAGE 'SKU строки основания должен соответствовать SKU строки возврата';
 
-    CONSTRAINT supplier(invoiceDetail(UserInvoiceDetail d)) != supplier(d) AND NOT skipCheckInvoceReturnSupplier(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
+    CONSTRAINT invoiceDetail(UserInvoiceDetail d) AND NOT supplier(invoiceDetail(d)) = supplier(d) AND NOT skipCheckInvoceReturnSupplier(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
         MESSAGE 'Поставщик строки основания должен соответствовать Поставщик строки возврата';
 
-    CONSTRAINT customer(invoiceDetail(UserInvoiceDetail d)) != customer(d) AND NOT skipCheckInvoceReturnCustomer(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
+    CONSTRAINT invoiceDetail(UserInvoiceDetail d) AND NOT customer(invoiceDetail(d)) = customer(d) AND NOT skipCheckInvoceReturnCustomer(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
         MESSAGE 'Покупатель строки основания должен соответствовать Покупатель строки возврата';
-        
-        
 
     descriptionInvoiceDetail 'Основание' (InvoiceDetail invoiceDetail) = description(invoiceDetail(invoiceDetail));
     descriptionInvoiceDetail 'Основание' (UserInvoiceDetail userInvoiceDetail) = description(invoiceDetail(userInvoiceDetail));
