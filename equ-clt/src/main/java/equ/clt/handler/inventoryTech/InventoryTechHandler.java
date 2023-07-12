@@ -346,7 +346,7 @@ public class InventoryTechHandler extends TerminalHandler {
 
                                 putField(dbfWriter, ARTICUL, article, 15, append);
                                 putField(dbfWriter, NAME, item.name, 200, append);
-                                putNumField(dbfWriter, QUAN, item.quantity == null ? 1 : item.quantity.intValue(), append);
+                                putNumField(dbfWriter, QUAN, item.quantity == null ? 1 : item.quantity.doubleValue(), append);
                                 putNumField(dbfWriter, PRICE, item.price == null ? 0 : item.price.doubleValue(), append);
 
                                 if (recordNumber != null)
