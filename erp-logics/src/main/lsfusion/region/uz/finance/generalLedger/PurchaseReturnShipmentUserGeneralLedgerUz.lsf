@@ -1,0 +1,37 @@
+MODULE PurchaseReturnShipmentUserGeneralLedgerUz;
+
+REQUIRE GeneralLedgerStock, PurchaseReturnShipment, DimensionStock;
+
+NAMESPACE PurchaseReturn;
+
+
+EXTEND CLASS UserShipment : GeneralLedger.GLDocument;
+isPosted[GLDocument](UserShipment document) += isPosted(document);
+name(UserShipment document) += description(document);
+
+number[GLDocument](UserShipment document) += number(document);
+series[GLDocument](UserShipment document) += series(document);
+
+dateTime[GLDocument](UserShipment document) += dateTime(document);
+operation[GLDocument](UserShipment document) += operation(document);
+
+@extendFormGeneralLedgerDocument(shipments, s);
+
+// возврат из магазина на склад
+
+@defineGeneralLedgerOperationStock (userShipment,
+    shipmentSumIntraWS,
+    supplier,
+    supplierStock,
+    sumShipmentDetail,
+    description,
+    '2910',
+    '2920',
+    'uz_default',
+    'purchaseStoreWarehouse'
+);
+
+overCreateShipmentSumIntraWSUserShipment(UserGeneralLedger generalLedger, UserShipment userShipment) + {
+    debit(generalLedger, DimensionType dimensionType) <- supplierStock(userShipment) WHERE dimensionType == DimensionType.stock;
+    credit(generalLedger, DimensionType dimensionType) <- customerStock(userShipment) WHERE dimensionType == DimensionType.stock;
+}

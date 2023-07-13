@@ -1,0 +1,40 @@
+MODULE SaleShipmentUserGeneralLedgerUz;
+
+REQUIRE GeneralLedgerStock, SaleShipment, DimensionStock;
+
+NAMESPACE Sale;
+
+
+EXTEND CLASS UserShipment : GeneralLedger.GLDocument;
+isPosted[GLDocument](UserShipment document) += isPosted(document);
+name[GLDocument](UserShipment document) += description(document);
+
+number[GLDocument](UserShipment document) += number(document);
+series[GLDocument](UserShipment document) += series(document);
+
+dateTime[GLDocument](UserShipment document) += dateTime(document);
+operation[GLDocument](UserShipment document) += operation(document);
+
+
+// ----------------------------------- Стандартные данные ----------------------------------- //
+
+@extendFormGeneralLedgerDocument(shipments, s);
+
+// перемещение со склада на магазин
+
+@defineGeneralLedgerOperationStock (userShipment,
+    shipmentSumIntraWS,
+    supplier,
+    supplierStock,
+    sumShipmentDetail,
+    description,
+    '2920',
+    '2910',
+    'uz_default',
+    'saleWarehouseStore'
+);
+
+overCreateShipmentSumIntraWSUserShipment(UserGeneralLedger generalLedger, UserShipment userShipment) + {
+    debit(generalLedger, DimensionType dimensionType) <- customerStock(userShipment) WHERE dimensionType == DimensionType.stock;
+    credit(generalLedger, DimensionType dimensionType) <- supplierStock(userShipment) WHERE dimensionType == DimensionType.stock;
+}

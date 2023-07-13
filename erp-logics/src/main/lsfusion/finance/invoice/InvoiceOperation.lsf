@@ -5,18 +5,20 @@ REQUIRE Invoice;
 NAMESPACE Invoice;
 
 
-META defineShipmentsOnly (text)
+META defineShipmentsOnlyOption (text)
 @defineOperationProperty(shipmentsOnly, 'Использовать только Поставки вместо Накладных', paramsContainer);
+END
 
-messageShipments() = CONCAT ' ', 'Для данной операции воспользуйтесь документом Поставка', ##text; 
+META defineShipmentsOnlyConstraint (text)
+    messageShipments() = CONCAT ' ', 'Для данной операции воспользуйтесь документом Поставка', ##text;
 
-WHEN LOCAL FORMS userInvoice SETCHANGED (operation(UserInvoice i)) AND shipmentsOnly(operation(i)) DO {
-    MESSAGE messageShipments();
-    operation(i) <- NULL;
-}
+    WHEN LOCAL FORMS userInvoice SETCHANGED (operation(UserInvoice i)) AND shipmentsOnly(operation(i)) DO {
+        MESSAGE messageShipments();
+        operation(i) <- NULL;
+    }
 
-CONSTRAINT (SETCHANGED(operation(UserInvoice i))) AND i IS UserInvoice AND shipmentsOnly(operation(i))
-    MESSAGE messageShipments();    
+    CONSTRAINT (SETCHANGED(operation(UserInvoice i))) AND i IS UserInvoice AND shipmentsOnly(operation(i))
+        MESSAGE messageShipments();
 END
 
 META defineOrderShipment (text)
@@ -27,6 +29,7 @@ EXTEND FORM orders
 DESIGN orders {
     createdContainer {
         MOVE PROPERTY(addUserShipment(o))  { alignment = STRETCH; }
+        PROPERTY (addUserInvoice(o)) { showIf = NOT shipmentsOnly(operation(o)); }
     }
 }
 END
