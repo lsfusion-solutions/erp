@@ -41,7 +41,7 @@ public class FiscalEpson {
                 epsonDispatch = epsonActiveXComponent.getObject();
             }
         } catch (UnsatisfiedLinkError e) {
-            System.out.println(e.toString());
+            System.out.println(e);
         }
     }
 

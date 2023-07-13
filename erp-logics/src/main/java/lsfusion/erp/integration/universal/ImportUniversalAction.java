@@ -68,9 +68,6 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
         super(LM);
     }
 
-    @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-    }
     String constantParenthesisPattern = "=\\((.*)\\)";
     String substringPattern = "(.*)\\^\\(((?:'.*')|(?:(?:-|\\d)+)),((?:'.*')|(?:(?:-|\\d)+))?\\)";
     String patternedDateTimePattern = "(.*)(~(.*))+";
@@ -153,10 +150,8 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                 } else if (isSumValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\+", false);
                     String summedValue = null;
-                    int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getCSVFieldValue(valuesList, importColumnDetail.clone(arg), row), c, isNumeric);
-                        c++;
+                        summedValue = checkedSum(summedValue, getCSVFieldValue(valuesList, importColumnDetail.clone(arg), row), isNumeric);
                     }
                     value = formatValue(summedValue);
                 } else if (isSubtractValue(cell)) {
@@ -320,10 +315,8 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                 } else if (isSumValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\+", false);
                     String summedValue = null;
-                    int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getXLSFieldValue(sheet, row, importColumnDetail.clone(arg)), c, isNumeric);
-                        c++;
+                        summedValue = checkedSum(summedValue, getXLSFieldValue(sheet, row, importColumnDetail.clone(arg)), isNumeric);
                     }
                     value = formatValue(summedValue);
                 } else if (isSubtractValue(cell)) {
@@ -424,10 +417,8 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                 } else if (isSumValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\+", false);
                     String summedValue = null;
-                    int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getXLSFieldValue(formulaEvaluator, sheet, row, importColumnDetail.clone(arg)), c, isNumeric);
-                        c++;
+                        summedValue = checkedSum(summedValue, getXLSFieldValue(formulaEvaluator, sheet, row, importColumnDetail.clone(arg)), isNumeric);
                     }
                     value = formatValue(summedValue);
                 } else if (isSubtractValue(cell)) {
@@ -673,10 +664,8 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                 } else if (isSumValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\+", false);
                     String summedValue = null;
-                    int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getXLSXFieldValue(sheet, row, importColumnDetail.clone(arg)), c, isNumeric);
-                        c++;
+                        summedValue = checkedSum(summedValue, getXLSXFieldValue(sheet, row, importColumnDetail.clone(arg)), isNumeric);
                     }
                     value = formatValue(summedValue);
                 } else if (isSubtractValue(cell)) {
@@ -857,10 +846,8 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                 } else if (isSumValue(column)) {
                     String[] splittedField = splitCell(column, "\\+", false);
                     String summedValue = null;
-                    int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getDBFFieldValue(importFile, importColumnDetail.clone(arg), row, charset), c, isNumeric);
-                        c++;
+                        summedValue = checkedSum(summedValue, getDBFFieldValue(importFile, importColumnDetail.clone(arg), row, charset), isNumeric);
                     }
                     value = formatValue(summedValue);
                 } else if (isSubtractValue(column)) {
@@ -1008,10 +995,8 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                 } else if (isSumValue(column)) {
                     String[] splittedField = splitCell(column, "\\+", false);
                     String summedValue = null;
-                    int c = 0;
                     for (String arg : splittedField) {
-                        summedValue = checkedSum(summedValue, getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg), row), c, isNumeric);
-                        c++;
+                        summedValue = checkedSum(summedValue, getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg), row), isNumeric);
                     }
                     value = formatValue(summedValue);
                 } else if (isSubtractValue(column)) {
@@ -1344,7 +1329,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
         }
     }
 
-    private String checkedSum(String summedValue, String argument, int c, boolean isNumeric) {
+    private String checkedSum(String summedValue, String argument, boolean isNumeric) {
         return summedValue == null ? argument : trySum(summedValue, argument, isNumeric);
     }
 

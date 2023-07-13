@@ -32,12 +32,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
         super(LM, classes);
     }
 
-    @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-    }
-
     protected void importExchanges(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency, Boolean useHttp, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, SQLHandledException, JSONException {
-
 
         List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, shortNameCurrency, useHttp);
 

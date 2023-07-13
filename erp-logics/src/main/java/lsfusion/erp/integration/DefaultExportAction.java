@@ -1,12 +1,7 @@
 package lsfusion.erp.integration;
 
-import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
-
-import java.sql.SQLException;
+import lsfusion.server.logics.classes.ValueClass;
 
 public class DefaultExportAction extends DefaultIntegrationAction {
 
@@ -16,10 +11,6 @@ public class DefaultExportAction extends DefaultIntegrationAction {
     
     public DefaultExportAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
-    }
-    
-    @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     protected String formatString(Object value, int length) {

@@ -121,7 +121,7 @@ public class ShuttleBoardDaemon extends MonitorServer implements InitializingBea
 
                 Result result = readMessage(barcode.toString(), ip);
                 session.write(IoBuffer.wrap(result.bytes));
-                priceCheckerLogger.info(String.format("%s succeeded request ip %s, barcode %s, reply %s", getEventName(), ip, barcode.toString(), new String(result.bytes, 3, result.bytes.length - 3, result.charset)));
+                priceCheckerLogger.info(String.format("%s succeeded request ip %s, barcode %s, reply %s", getEventName(), ip, barcode, new String(result.bytes, 3, result.bytes.length - 3, result.charset)));
             }
             ThreadLocalContext.aspectAfterMonitor(ExecutorFactoryThreadInfo.instance);
         }

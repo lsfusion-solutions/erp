@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -219,7 +220,7 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
                         byte[] buffer = new byte[4096];
                         int n;
                         file = File.createTempFile("image", ".tmp");
-                        OutputStream output = new FileOutputStream(file);
+                        OutputStream output = Files.newOutputStream(file.toPath());
                         while ((n = input.read(buffer)) != -1) {
                             output.write(buffer, 0, n);
                         }

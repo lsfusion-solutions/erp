@@ -18,6 +18,7 @@ import java.io.*;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.SQLException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,11 +31,6 @@ public class DefaultImageArticleAction extends DefaultIntegrationAction {
 
     public DefaultImageArticleAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
-    }
-
-
-    @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     public void loadImages(ExecutionContext<ClassPropertyInterface> context, DataObject articleObject, Integer start, Integer pageSize) {
@@ -118,7 +114,7 @@ public class DefaultImageArticleAction extends DefaultIntegrationAction {
             byte[] buffer = new byte[4096];
             int n;
             file = File.createTempFile("image", ".tmp");
-            OutputStream output = new FileOutputStream(file);
+            OutputStream output = Files.newOutputStream(file.toPath());
             while ((n = input.read(buffer)) != -1) {
                 output.write(buffer, 0, n);
             }

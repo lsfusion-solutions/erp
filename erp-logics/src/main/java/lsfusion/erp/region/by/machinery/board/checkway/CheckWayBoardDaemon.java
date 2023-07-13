@@ -102,7 +102,7 @@ public class CheckWayBoardDaemon extends BoardDaemon {
                     }
                     Result result = readMessage(barcode.toString(), ip);
                     outToClient.write(result.bytes);
-                    priceCheckerLogger.info(String.format("%s succeeded request ip %s, barcode %s, reply %s", getEventName(), ip, barcode.toString(), new String(result.bytes, 3, result.bytes.length - 3, result.charset)));
+                    priceCheckerLogger.info(String.format("%s succeeded request ip %s, barcode %s, reply %s", getEventName(), ip, barcode, new String(result.bytes, 3, result.bytes.length - 3, result.charset)));
                 }
                 Thread.sleep(1000);
                 return null;

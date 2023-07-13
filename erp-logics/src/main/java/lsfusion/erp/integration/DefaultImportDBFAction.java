@@ -1,10 +1,7 @@
 package lsfusion.erp.integration;
 
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -12,7 +9,6 @@ import org.xBaseJ.xBaseJException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
 
@@ -24,10 +20,6 @@ public class DefaultImportDBFAction extends DefaultImportAction {
 
     public DefaultImportDBFAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
-    }
-
-    @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {

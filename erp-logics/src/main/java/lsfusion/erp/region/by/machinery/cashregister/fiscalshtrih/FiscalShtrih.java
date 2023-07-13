@@ -18,7 +18,7 @@ public class FiscalShtrih {
             shtrihActiveXComponent = new ActiveXComponent("AddIn.DrvFR");
             shtrihDispatch = shtrihActiveXComponent.getObject();
         } catch (UnsatisfiedLinkError e) {
-            System.out.println(e.toString());
+            System.out.println(e);
         }
     }
 
