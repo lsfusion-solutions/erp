@@ -483,7 +483,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                                 String nameCashier = idCashier != null ? ("Кассир " + idCashier) : null;
                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                         dateReceipt, sqlTimeToLocalTime(timeReceipt), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idCashier,
-                                        nameCashier, null, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
+                                        nameCashier, null, null, null, idBarcode, idItem, null, null, totalQuantity,
                                         price, sum, discountPercent, discountSum, null, discountCard,
                                         position, null, idSection, false, null, null, cashRegister);
                                 //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки

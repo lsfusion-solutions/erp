@@ -754,7 +754,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch, CashDo
                                     String numberZReport = dateReceipt.format(DateTimeFormatter.ofPattern("ddMMyy")) + "/" + nppGroupMachinery + "/" + nppMachinery;
 
                                     salesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt,
-                                            dateReceipt, timeReceipt, idEmployee, null, null, null, null, payments, barcodeItem, null, null, null, quantityReceiptDetail,
+                                            dateReceipt, timeReceipt, idEmployee, null, payments, barcodeItem, null, null, null, quantityReceiptDetail,
                                             priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
                                             nameSalesFile, null, null, null, cashRegister));
                                 }

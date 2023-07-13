@@ -864,7 +864,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                             if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                 sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                             currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
-                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, null, null, sumGiftCardMap,
+                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumGiftCardMap,
                                     null, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                     discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, null,
                                     useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptExtraFields, null, cashRegisterByKey));

@@ -323,7 +323,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                 BigDecimal quantity = isSale ? quantityReceiptDetail : safeNegate(quantityReceiptDetail);
                                 BigDecimal sum = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
                                 currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), numberReceipt,
-                                        sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, null, null, null, null, new ArrayList<>(), barcodeItem, null, null, null, quantity, priceReceiptDetail,
+                                        sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, null, new ArrayList<>(), barcodeItem, null, null, null, quantity, priceReceiptDetail,
                                         sum, discountSumReceiptDetail, null, null, numberReceiptDetail, null, section, null, null, cashRegister));
                                 currentReadRecordSet.add(id);
                             } else {
@@ -432,15 +432,15 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     for (String record : readRecordSet) {
                         if (i >= blockSize) {
                             statement = conn.createStatement();
-                            statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in.toString()));
+                            statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in));
                             in = new StringBuilder();
                             i = 0;
                         }
-                        in.append(in.length() == 0 ? "" : ",").append('\'' + record + '\'');
+                        in.append(in.length() == 0 ? "" : ",").append('\'').append(record).append('\'');
                         i++;
                     }
                     statement = conn.createStatement();
-                    statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in.toString()));
+                    statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in));
                     conn.commit();
 
                 } catch (SQLException e) {

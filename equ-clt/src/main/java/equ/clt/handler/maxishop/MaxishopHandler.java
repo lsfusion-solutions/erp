@@ -179,7 +179,7 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
                                             oldReceiptNumber = receiptNumber;
                                         }
                                         salesInfoList.add(getSalesInfo(numberCashRegister, null, zReportNumber, date, time, receiptNumber, date, time, null, null,
-                                                null, null, BigDecimal.ZERO, payments, barcodeReceiptDetail, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail,
+                                                payments, barcodeReceiptDetail, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail,
                                                 discountSumReceiptDetail, null, null, numberReceiptDetail, fileName, null, null, null, cashRegisterInfo));
                                         numberReceiptDetail++;
                                     }

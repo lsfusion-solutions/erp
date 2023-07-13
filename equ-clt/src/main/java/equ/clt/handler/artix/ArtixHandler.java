@@ -1888,7 +1888,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, null,
-                                                        null, null, sumGiftCardMap, payments, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
+                                                        sumGiftCardMap, payments, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
                                                         numberReceiptDetail, fileName, null, isSkip, receiptExtraFields, receiptDetailExtraFields, cashRegister);
                                                 salesInfo.detailExtraFields = new HashMap<>();

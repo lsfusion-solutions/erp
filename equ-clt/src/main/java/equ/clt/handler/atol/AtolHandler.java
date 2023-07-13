@@ -439,8 +439,8 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch, Cash
 
                             if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                 currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, numberCashRegister, numberZReport,
-                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null,
-                                        null, null, new ArrayList<>(), barcodeItem, null, itemObject, null, quantityReceiptDetail, priceReceiptDetail,
+                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null,
+                                        new ArrayList<>(), barcodeItem, null, itemObject, null, quantityReceiptDetail, priceReceiptDetail,
                                         sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, file.getName(),
                                         null, null, null, cashRegister));
                         } else if (isCancelDocument) {
