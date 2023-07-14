@@ -1,0 +1,131 @@
+MODULE NaturalLossDefault;
+
+REQUIRE Document, PriceListType, SaleLedger, PurchaseLedger, Integration, PriceListLedger;
+
+NAMESPACE NaturalLoss;
+
+GROUP rate 'Нормы' : public;
+
+// ----------------------------------- Справочник норм естественной убыли -------------------------------------------- //
+
+CLASS NaturalLossStockType 'Тип склада естественной убыли';
+TABLE naturalLossStockType(NaturalLossStockType);
+
+name 'Наименование' = DATA ISTRING[250](NaturalLossStockType) IN id CHARWIDTH 30;
+
+naturalLossStockType 'Тип склада естественной убыли' = ABSTRACT NaturalLossStockType (Stock);
+
+CLASS NaturalLossGroup 'Группа естественной убыли';
+TABLE naturalLossGroup(NaturalLossGroup);
+
+name 'Наименование' = DATA ISTRING[250](NaturalLossGroup) IN id CHARWIDTH 30;
+
+CLASS SubNaturalLossGroup 'Группа естественной убыли';
+TABLE subNaturalLossGroup(SubNaturalLossGroup);
+
+name 'Наименование' = DATA ISTRING[250](SubNaturalLossGroup) IN id CHARWIDTH 30;
+
+parent = DATA NaturalLossGroup (SubNaturalLossGroup) AUTOSET;
+nameParent 'Родительская группа' (SubNaturalLossGroup subNaturalLossGroup) = name(parent(subNaturalLossGroup));
+code 'Код нормы естественной убыли' = DATA BPSTRING[5] (SubNaturalLossGroup);
+subNaturalLossGroupId (name) = GROUP AGGR SubNaturalLossGroup subNaturalLossGroup WHERE subNaturalLossGroup IS SubNaturalLossGroup BY code(subNaturalLossGroup);
+
+subNaturalLossGroupName = GROUP NAGGR SubNaturalLossGroup g WHERE g IS SubNaturalLossGroup BY name(g);
+
+naturalLossGroup (name) = GROUP AGGR NaturalLossGroup naturalLossGroup WHERE naturalLossGroup IS NaturalLossGroup BY name(naturalLossGroup);
+
+inParentNull (NaturalLossGroup naturalLossGroup, SubNaturalLossGroup subNaturalLossGroup) = OVERRIDE
+    subNaturalLossGroup IS SubNaturalLossGroup AND NOT naturalLossGroup,
+    parent(subNaturalLossGroup) == naturalLossGroup;
+
+country = DATA Country (NaturalLossGroup) AUTOSET;
+nameCountry 'Страна' (NaturalLossGroup naturalLossGroup) = name(country(naturalLossGroup)) IN base;
+
+country = DATA Country (SubNaturalLossGroup) AUTOSET;
+nameCountry 'Страна' (SubNaturalLossGroup subNaturalLossGroup) = name(country(subNaturalLossGroup)) IN base;
+
+CONSTRAINT  country(parent(SubNaturalLossGroup subNaturalLossGroup)) !=  country(subNaturalLossGroup)
+    CHECKED BY parent[SubNaturalLossGroup] MESSAGE 'Страна родительской группы должна совпадать со страной группы';
+
+FORM subNaturalLossGroup 'Группа естественное убыли'
+
+    OBJECTS s = SubNaturalLossGroup PANEL
+    PROPERTIES(s) name, nameParent,  nameCountry, code
+
+    EDIT SubNaturalLossGroup OBJECT s
+;
+
+FORM dialogSubNaturalLossGroup 'Группа естественное убыли'
+
+    OBJECTS s = SubNaturalLossGroup
+    PROPERTIES(s) READONLY name, nameParent, nameCountry
+    LIST SubNaturalLossGroup OBJECT s
+;
+
+FORM naturalLossGroup 'Группа естественной убыли'
+    OBJECTS n = NaturalLossGroup PANEL
+    PROPERTIES name(n), nameCountry(n)
+    EDIT NaturalLossGroup  OBJECT n
+;
+
+showAllContries 'Показать все страны' = DATA LOCAL BOOLEAN ();
+
+FORM naturalLossGroups 'Справочник норм естественной убыли'
+    OBJECTS c=Country PANEL 
+    PROPERTIES(c) name
+    PROPERTIES showAllContries()
+    TREE treeNaturalLoss a =BPSTRING[3], n=NaturalLossGroup
+    PROPERTIES READONLY VALUE(a)
+    PROPERTIES READONLY name(n), nameCountry(n)
+    PROPERTIES NEWSESSION NEW(n), deleten=DELETE(n)
+    ORDERS name(n)
+
+    OBJECTS sg=SubNaturalLossGroup
+    PROPERTIES(sg) READONLY name, nameParent, code
+    PROPERTIES(sg) NEWSESSION EDIT, NEW DRAW sg, deletesg=DELETE
+
+    FILTERS stringEqualsAll(a), inParentNull(n, sg)
+    ORDERS name(sg)
+    FILTERS country(n) == c OR n IS NaturalLossGroup AND (NOT c OR showAllContries())
+    FILTERS country(sg) == c OR sg IS SubNaturalLossGroup AND (NOT c OR showAllContries())
+;
+
+DESIGN naturalLossGroups {
+    NEW topContainer {
+        fill = 1;
+        type = CONTAINERV;
+        MOVE BOX(c){
+            type = CONTAINERH;
+            MOVE PROPERTY(showAllContries());
+        }
+        NEW firstContainer {
+            fill = 1;
+            type = SPLITH;
+
+            MOVE BOX(TREE treeNaturalLoss);
+            NEW firstCase {
+                fill = 3;
+                type = CONTAINERV;
+                MOVE BOX(sg) {
+                    fill = 2;
+                }
+                NEW firstCaseTab{
+                    fill = 1;        
+                }
+            }
+        }
+    }
+
+    MOVE TOOLBARBOX;
+}
+
+subNaturalLossGroup 'Группа естественной убыли товара(ИД)' = ABSTRACT SubNaturalLossGroup (Country, Sku);
+nameSubNaturalLossGroup 'Группа естественной убыли товара' (Country country, Sku sku) = name(subNaturalLossGroup(country, sku)) IN rate;
+
+NAVIGATOR {
+    stockNavigator {
+        NEW FOLDER naturalLossNavigator 'Естественная убыль' BEFORE balanceSku ;
+    }
+}
+
+

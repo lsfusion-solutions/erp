@@ -1,0 +1,37 @@
+MODULE NaturalLossWholesaleItem;
+
+REQUIRE NaturalLossWholesale, Item;
+
+NAMESPACE NaturalLoss;
+
+naturalLossWholesaleDetail =
+    GROUP MAX NaturalLossWholesaleDetail detail IF NUMERIC[10,5] shelfLife > dayFrom(detail) AND (shelfLife <= dayTo(detail) OR NOT dayTo(detail))
+    BY subNaturalLossGroup(detail), shelfLife;
+
+naturalLossWholesaleDetail(Sku sku, NUMERIC[10,5] shelfLife) = naturalLossWholesaleDetail(subNaturalLossGroup(defaultCountry(),sku), shelfLife);
+// Если берем приход 1 числа, а продажа 10. То будет 9 дней, с 1 по 9. 
+countDays = [GROUP SUM 1 IF iterate(DATE date AS DATE , DATE df AS DATE, sum(DATE dt AS DATE,-1)) AND Sku sku AS Sku BY sku, extractMonth(date), df, dt](Sku s, Month m, DATE df, DATE dt) ;
+
+// Два варианта, в зависимости от признака Сезон 
+percentNaturalLoss 'Процент' (Sku sku, NUMERIC[10,5] shelfLife) = percent(naturalLossWholesaleDetail(sku, shelfLife));
+percentNaturalLoss 'Процент'(Sku s, DATE dfrom, DATE dto) = NUMERIC[10,5]([GROUP SUM percent(subNaturalLossGroup(defaultCountry(),Sku sku),Month m)*countDays(sku,m,DATE df AS DATE, DATE dt AS DATE) BY sku,df,dt](s,dfrom,dto));
+
+shelfLife 'Срок хранения, дней' (DATETIME dIn, DATETIME dOut) = NUMERIC[10,5](secondsBetweenDates(dOut,dIn) / 86400.0);
+
+percentNaturalLoss 'Процент' (Sku sku, NUMERIC[10,5] shelfLife, DATE df, DATE dt) = IF isSeason(subNaturalLossGroup(defaultCountry(),sku))
+    THEN (percentNaturalLoss(sku,df,dt) IF shelfLife IS NUMERIC[10,5])
+    ELSE (percentNaturalLoss(sku,shelfLife) IF df IS DATE AND dt IS DATE);
+
+breakGroup = DATA BreakGroup(Item);
+nameBreakGroup 'Группа потерь (боя)' (Item i) = name(breakGroup(i));
+
+EXTEND FORM item
+    PROPERTIES nameBreakGroup(i) DRAW c
+;
+EXTEND FORM items
+    PROPERTIES nameBreakGroup(i) READONLYIF isReadonly()
+;
+
+
+
+

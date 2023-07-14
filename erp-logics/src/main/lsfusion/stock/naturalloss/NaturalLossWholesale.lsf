@@ -1,0 +1,129 @@
+MODULE NaturalLossWholesale;
+
+REQUIRE NaturalLossDefault;
+
+NAMESPACE NaturalLoss;
+
+CLASS NaturalLossWholesaleDetail 'Строка группы естественной убыли (опт)';
+TABLE naturalLossWholesaleDetail(NaturalLossWholesaleDetail);
+
+isSeason 'Сезон (опт)' = DATA BOOLEAN (SubNaturalLossGroup);
+TABLE subNaturalLossGroupMonth(SubNaturalLossGroup,Month);
+percent 'Нормы естественной убыли, %' = DATA NUMERIC[10,5](SubNaturalLossGroup,Month) TABLE subNaturalLossGroupMonth;
+
+subNaturalLossGroup = DATA SubNaturalLossGroup (NaturalLossWholesaleDetail) NONULL DELETE;
+nameSubNaturalLossGroup 'Группа естественной убыли' (NaturalLossWholesaleDetail d) = name(subNaturalLossGroup(d)) IN id;
+dayFrom 'Срок с' = DATA NUMERIC[5,1] (NaturalLossWholesaleDetail) IN id;
+dayTo 'Срок по' = DATA NUMERIC[5,1] (NaturalLossWholesaleDetail) IN id;
+percent 'Нормы ЕУ, % (накопленный)' = DATA NUMERIC[10,5] (NaturalLossWholesaleDetail)IN id; 
+
+intersect(NaturalLossWholesaleDetail i, NaturalLossWholesaleDetail i2) =   i IS NaturalLossWholesaleDetail AND i2 IS NaturalLossWholesaleDetail
+    AND NOT (dayFrom(i) >= dayTo(i2))
+    AND NOT (dayTo(i) <= dayFrom(i2));
+
+CONSTRAINT intersect(NaturalLossWholesaleDetail interval1, NaturalLossWholesaleDetail interval2) AND interval1 != interval2
+    AND subNaturalLossGroup(interval1) == subNaturalLossGroup(interval2)
+    MESSAGE 'Интервалы не могут пересекаться';
+
+
+FORM stepPercent 'Процент'
+    OBJECTS n = NUMERIC[10,5] PANEL 
+    PROPERTIES val 'Шаг' = VALUE (n)
+;
+DESIGN stepPercent {
+    NEW n BEFORE TOOLBARBOX {
+        fill = 1;
+        MOVE PROPERTY (val) {
+            fill = 1;
+            caption = 'Шаг %';
+            font = 'bold 64';
+            panelCaptionVertical = TRUE;
+        }
+    }
+}
+
+CLASS BreakGroup 'Группа потерь (боя)';
+TABLE breakGroup(BreakGroup);
+name 'Наименование' = DATA ISTRING[250](BreakGroup) IN id CHARWIDTH 30;
+@defineExternalizable(breakGroup, STRING[100], );
+CLASS BreakType 'Вид деятельности' {
+    whole 'Оптовая торговля',
+    retail 'Розничная торговля'
+}
+name 'Вид деятельности' (BreakType t) = staticCaption(t) CHARWIDTH 20;
+TABLE breakGroupBreakType(BreakGroup,BreakType);
+percent 'Нормы потерь (боя), %' = DATA NUMERIC[10,5](BreakGroup,BreakType) TABLE breakGroupBreakType;
+
+FORM breakGroup 'Группа потерь (боя)'
+    OBJECTS  g = BreakGroup PANEL 
+    PROPERTIES (g) name, id
+    EDIT BreakGroup  OBJECT g
+;
+FORM breakGroups 'Группы потерь (боя)'
+    OBJECTS  g = BreakGroup
+    PROPERTIES (g) READONLY name, id
+    PROPERTIES(g) NEWSESSION EDIT, NEW DRAW g, deleteg=DELETE
+    OBJECTS t = BreakType
+    PROPERTIES name(t) READONLY , percent(g,t)
+;
+NAVIGATOR {
+    naturalLossNavigator {
+        NEW breakGroups;
+    }
+}
+FORM breakGroupsDialog 'Группы потерь (боя)'
+    OBJECTS  g = BreakGroup
+    PROPERTIES (g) READONLY name, id
+    PROPERTIES(g) NEWSESSION EDIT, NEW DRAW g, deleteg=DELETE
+    OBJECTS t = BreakType
+    PROPERTIES READONLY name(t)  , percent(g,t)
+    LIST BreakGroup  OBJECT g
+;
+
+
+fillPercent 'Заполнить с шагом' (NaturalLossWholesaleDetail d) {
+    DIALOG stepPercent OBJECTS  n INPUT DO {
+        DELETE NaturalLossWholesaleDetail det WHERE subNaturalLossGroup(det) == subNaturalLossGroup(d) AND dayTo(det) > dayTo(d);
+        LOCAL prev = NaturalLossWholesaleDetail();
+        prev()<- d;
+        
+        FOR iterate(INTEGER i, INTEGER(dayTo(d)), 29) AND subNaturalLossGroup(d) == SubNaturalLossGroup g NOINLINE NEW det = NaturalLossWholesaleDetail DO {
+            subNaturalLossGroup(det) <- g;
+            dayFrom(det) <- i;
+            dayTo(det) <- i + 1;
+            percent(det) <- percent(prev()) (+) n;
+            prev()<- det;
+        }
+    }
+}
+
+EXTEND FORM subNaturalLossGroup
+    PROPERTIES (s) isSeason
+;
+EXTEND FORM naturalLossGroups 
+    PROPERTIES (sg) READONLY isSeason
+    OBJECTS det = NaturalLossWholesaleDetail
+    PROPERTIES (det) dayFrom, dayTo, percent        
+    PROPERTIES fillPercent(det) TOOLBAR
+    PROPERTIES(det) NEW, DELETE GRID
+    FILTERS subNaturalLossGroup(det)==sg
+
+    OBJECTS m = Month
+    PROPERTIES (m) READONLY number, captionM 'Месяц'= staticCaption
+    PROPERTIES (sg,m) percent
+    ORDERS number(m)
+;
+DESIGN naturalLossGroups{
+    firstCaseTab{
+        type = TABBED;
+
+        MOVE BOX(det){showIf = NOT isSeason(sg);}
+        MOVE BOX(m){
+            caption = 'Сезон';
+            showIf = isSeason(sg);
+        }
+    }  
+}
+
+
+

@@ -1,0 +1,88 @@
+MODULE NaturalLossItemDefault;
+
+REQUIRE NaturalLossDefault, Item;
+
+NAMESPACE NaturalLossItem;
+
+subNaturalLossGroup = DATA SubNaturalLossGroup (Country, Item);
+nameSubNaturalLossGroup 'Группа естественной убыли'(Country country, Item item)  = name(subNaturalLossGroup(country, item));
+nameSubNaturalLossGroupDefaultCountry 'Группа естественной убыли' (Item item) = name(subNaturalLossGroup(defaultCountry(), item));
+
+changeSubNaturalLossGroupDefaultCountry(Item item)  {
+    DIALOG naturalLossGroups OBJECTS c = defaultCountry(), sg = subNaturalLossGroup(defaultCountry(), item) INPUT NULL DO
+        subNaturalLossGroup(Country country, item) <- sg WHERE country == defaultCountry();
+}
+
+CONSTRAINT country(subNaturalLossGroup(Country country, Item item)) != country
+    CHECKED BY subNaturalLossGroup[Country,Item] MESSAGE 'Страна группы естественной убыли не совпадает со страной';
+
+subNaturalLossGroup (Country country, Item sku) += subNaturalLossGroup (country, sku);
+
+overCopy(Item s, Item d) + {
+    subNaturalLossGroup(Country country, d) <- subNaturalLossGroup(country, s);
+}
+
+EXTEND FORM item
+    PROPERTIES(c,i) nameSubNaturalLossGroup
+    PROPERTIES(i) nameSubNaturalLossGroupDefaultCountry ON CHANGE changeSubNaturalLossGroupDefaultCountry(i)
+;
+DESIGN item { regionPrm  { MOVE PROPERTY(nameSubNaturalLossGroupDefaultCountry(i));} }
+
+EXTEND FORM items
+    PROPERTIES(i) READONLYIF isReadonly() nameSubNaturalLossGroupDefaultCountry ON CHANGE changeSubNaturalLossGroupDefaultCountry(i)
+;
+//--
+
+@defineItemDefaultValue(subNaturalLossGroup, 'Группа естественной убыли (по умолчанию)', SubNaturalLossGroup, nameSubNaturalLossGroup, country);
+
+assignNaturalLossGroupItems 'Назначить всем товарам группы' (Country c, ItemGroup group)  {
+    NEWSESSION {
+        subNaturalLossGroup(c, Item i) <- prevSubNaturalLossGroup(c, group) WHERE isParent(group, i);
+        APPLY;
+    }
+} TOOLBAR CONFIRM;
+
+EXTEND FORM itemGroup
+    OBJECTS tc=Country
+    PROPERTIES(tc)   READONLY name
+    PROPERTIES(tc, g) prevNameSubNaturalLossGroup
+    PROPERTIES(tc, g) assignNaturalLossGroupItems DRAW tc
+    FILTERGROUP isResident
+        FILTER 'Отечественный производитель' resident(tc) OR defaultCountry()==tc DEFAULT
+;
+
+DESIGN itemGroup {
+    defaultPane {
+        MOVE BOX(tc) { caption = 'Группа естественной убыли';}
+    }
+}
+
+WHEN LOCAL CHANGED(itemGroup(Item item)) AND Country country = defaultCountry() AND NOT subNaturalLossGroup(country, item) DO
+    subNaturalLossGroup(country, item) <- subNaturalLossGroup(country, itemGroup(item));
+
+EXTEND CLASS NaturalLossGroup : Group;
+EXTEND CLASS SubNaturalLossGroup : Group;
+
+EXTEND CLASS SystemGroupType { naturalLossGroupType 'Естественная убыль' };
+
+CLASS NaturalLossGroupAll { naturalLossAll 'Все' } : Group;
+TABLE naturalLossGroupAll(NaturalLossGroupAll);
+
+parent (NaturalLossGroup group) += NaturalLossGroupAll.naturalLossAll IF group IS NaturalLossGroup;
+parent (SubNaturalLossGroup group) += parent(group);
+
+name (NaturalLossGroupAll group) += ISTRING[250](staticCaption(group)) IF group IS NaturalLossGroupAll;
+name (SubNaturalLossGroup group) += name(group);
+name (NaturalLossGroup group) += name(group);
+
+groupType(NaturalLossGroupAll group) += SystemGroupType.naturalLossGroupType IF group IS NaturalLossGroupAll;
+groupType(NaturalLossGroup group) += SystemGroupType.naturalLossGroupType IF group IS NaturalLossGroup ;
+groupType(SubNaturalLossGroup group) += SystemGroupType.naturalLossGroupType IF group IS SubNaturalLossGroup;
+
+
+group(SystemGroupType type, Item sku) += WHEN sku IS Item AND type == SystemGroupType.naturalLossGroupType THEN subNaturalLossGroup(defaultCountry(),sku);
+
+//----------------------- Переход на новый основной классификатор ---------------------------//
+overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
+    dataSubNaturalLossGroup(Country c, ng) <- prevSubNaturalLossGroup(c,itemGroup(g));
+}
