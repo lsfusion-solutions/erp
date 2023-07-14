@@ -6,13 +6,25 @@ PRIORITY PurchaseReturn;
 
 //----------------------------------------------------------------------------//
 
+// -- Операция
+createSaleReturnShipment 'Поставка (продажа-возврат)' = DATA BOOLEAN (Purchase.Operation);
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) createSaleReturnShipment
+;
+DESIGN Purchase.operation {
+    saleReturnContainer {
+        MOVE PROPERTY(createSaleReturnShipment(o));
+    }
+}
+
 GROUP shipment 'Информация о поставке' : base;
 
 createSaleReturn 'Создать поставку (продажа-возврат)' = ABSTRACT BOOLEAN (Shipment) MATERIALIZED;
 createSaleReturn 'Создать поставку (продажа-возврат)' = DATA BOOLEAN (UserShipment) MATERIALIZED;
 createSaleReturn(UserShipment shipment) += createSaleReturn(shipment);
 
-createSaleReturn (UserShipment o) <- createShipment(operation(o))
+createSaleReturn (UserShipment o) <- createSaleReturnShipment(operation(o))
     WHEN CHANGED(operation(o));
 
 createSaleReturn 'Создать поставку (продажа-возврат)' (ShipmentDetail shipmentDetail) = createSaleReturn(shipment(shipmentDetail))MATERIALIZED;
