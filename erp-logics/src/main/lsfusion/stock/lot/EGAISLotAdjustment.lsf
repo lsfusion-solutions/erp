@@ -1,0 +1,132 @@
+MODULE EGAISLotAdjustment;
+
+REQUIRE LotAdjustment, EGAISStock, EGAISActWriteOffExchange, EGAISActFixBarCodeExchange;
+
+PRIORITY Lot;
+
+NAMESPACE EGAIS;
+
+actWriteOff = DATA ActWriteOff (LotAdjustment);
+actFixBarCode = DATA ActFixBarCode (LotAdjustment);
+
+process 'Отправить в ЕГАИС' (LotAdjustment a) {
+    NEWSESSION {
+        quantity(Lot l) <- GROUP SUM quantity(LotAdjustmentDetail d) IF lotAdjustment(d) == a AND lot(d) == l;
+
+        IF (GROUP SUM 1 IF quantity(Lot l) < 0) THEN NEW w = ActWriteOff {
+            posted(w) <- TRUE;
+            actWriteOff(a) <- w;
+
+            number(w) <- seriesNumber(a);
+            client(w) <- client(stock(a));
+            dateTime(w) <- dateTime(a);
+            type(w) <- writeOffType('Изменение остатка');
+            note(w) <- 'Списание продукции на основе изменения остатков';
+
+            FOR [GROUP SUM 1 IF quantity(Lot l) < 0 BY f2Reg(markCode(id(l)))](F2Reg f) INLINE NEW ps = ActWriteOffPosition DO {
+                actWriteOff(ps) <- w;
+
+                product(ps) <- product(f);
+                f2Reg(ps) <- f;
+
+                FOR [GROUP SUM 1 IF quantity(Lot l) < 0 BY markCode(id(l))](MarkCode mc) AND f2Reg(mc) = f INLINE NEW m = ActWriteOffMark DO {
+                    actWriteOffPosition(m) <- ps;
+                    markCode(m) <- mc;
+                }
+            }
+            APPLY;
+
+            IF NOT canceled() THEN {
+                process(w);
+            }
+        }
+
+        quantity(Lot l) <- GROUP SUM quantity(LotAdjustmentDetail d) IF lotAdjustment(d) == a AND lot(d) == l;
+
+        IF (GROUP SUM 1 IF quantity(Lot l) > 0) THEN NEW b = ActFixBarCode {
+            posted(b) <- TRUE;
+            actFixBarCode(a) <- b;
+
+            number(b) <- seriesNumber(a);
+            dateTime(b) <- dateTime(a);
+            client(b) <- client(stock(a));
+            note(b) <- 'Фиксации штрихкодов на балансе на основе изменения остатков';
+
+            FOR [GROUP SUM 1 IF quantity(Lot l) > 0 BY f2Reg(markCode(id(l)))](F2Reg f) INLINE NEW ps = ActFixBarCodePosition DO {
+                actFixBarCode(ps) <- b;
+
+                product(ps) <- product(f);
+                f2Reg(ps) <- f;
+
+                FOR [GROUP SUM 1 IF quantity(Lot l) > 0 BY markCode(id(l))](MarkCode mc) AND f2Reg(mc) = f INLINE NEW m = ActFixBarCodeMark DO {
+                    actFixBarCodePosition(m) <- ps;
+                    markCode(m) <- mc;
+                }
+            }
+            APPLY;
+
+            IF NOT canceled() THEN {
+                process(b);
+
+            }
+        }
+    }
+}
+
+EXTEND FORM lotAdjustments 
+    PROPERTIES(i) process SHOWIF isPosted(i) AND NOT (actWriteOff(i) OR actFixBarCode(i)) DRAW i TOOLBAR
+
+    OBJECTS a = ActWriteOff PANEL
+    PROPERTIES(a) READONLY posted, canceled, number, date // canceled
+    FILTERS a = actWriteOff(i)
+
+    OBJECTS wp = ActWriteOffPosition
+    PROPERTIES(wp) READONLY idProduct, fullNameProduct, idF2Reg, quantity
+    FILTERS actWriteOff(wp) = a
+
+    PROPERTIES READONLY PANEL
+        commentsActWriteOffAct 'Комментарий' = comments(actWriteOffOutDoc(a))
+
+    OBJECTS b = ActFixBarCode PANEL
+    PROPERTIES(b) READONLY posted, canceled, number, date // canceled
+    FILTERS b = actFixBarCode(i)
+
+    OBJECTS bp = ActFixBarCodePosition
+    PROPERTIES(bp) READONLY idProduct, fullNameProduct, idF2Reg, countMarkCodes
+    FILTERS actFixBarCode(bp) = b
+
+    PROPERTIES READONLY PANEL
+        commentsActFixBarCodeAct 'Комментарий' = comments(actFixBarCodeOutDoc(b))
+;
+
+DESIGN lotAdjustments {
+    NEW documentDetail {
+        fill = 1;
+        type = TABBED;
+        MOVE BOX(d);
+        NEW EGAIS {
+            caption = 'ЕГАИС';
+            type = TABBED;
+            NEW actWriteOff {
+                caption = 'Акт списания';
+                MOVE BOX(a);
+                MOVE BOX(wp);
+                NEW comments {
+                    fill = 0.2;
+                    type = CONTAINERH;
+                    MOVE PROPERTY(commentsActWriteOffAct) { panelCaptionVertical = TRUE; fill = 1; }
+                }
+            }
+            NEW actFixBarCode {
+                caption = 'Акт фиксации';
+                MOVE BOX(b);
+                MOVE BOX(bp);
+                NEW comments2 {
+                    fill = 0.2;
+                    type = CONTAINERH;
+                    MOVE PROPERTY(commentsActFixBarCodeAct) { panelCaptionVertical = TRUE; fill = 1; }
+                }
+            }
+        }
+    }
+}
