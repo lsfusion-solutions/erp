@@ -1,0 +1,88 @@
+MODULE LotAdjustmentLot;
+
+REQUIRE LotAdjustment, TerminalLot;
+
+NAMESPACE Lot;
+
+//пока подразумеваем что count[Lot] = 1
+deviationLot 'Расхождение' (Sku s, Stock st) = currentBalance(s, st) (-) currentBalanceLot(s, st);
+lotAdjustmentDetail (Sku s, LotAdjustment a) = GROUP MAX LotAdjustmentDetail d BY sku(lot(d)), lotAdjustment(d);
+
+EXTEND FORM lotAdjustment
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY id, idBarcode, name
+    PROPERTIES 'Остаток товара' = currentBalance(s, stock(i)), 'Остаток марок' = currentBalanceLot(s, stock(i)),
+        'Расхождение' = deviationLot(s, stock(i))
+    
+    FILTERGROUP deviation
+        FILTER 'С расхождением' deviationLot(s, stock(i))
+    FILTERGROUP document
+        FILTER 'По документу' lotAdjustmentDetail(s, i)
+;
+
+DESIGN lotAdjustment {
+    mainTabbed {
+        NEW inventory {
+            caption = 'Инвентаризация';
+            MOVE BOX(s);
+        }
+    }
+}
+
+FORM lotInventory 'Инвентаризация'
+    OBJECTS st = Stock PANEL 
+    PROPERTIES name(st)
+    
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY id, idBarcode, name
+    PROPERTIES 'Остаток товара' = currentBalance(s, st), 'Остаток марок' = currentBalanceLot(s, st),
+        'Расхождение' = deviationLot(s, st)
+    FILTERS [FILTER lotAdjustment.s](s)
+;
+
+printLotInventory 'Печать' (Stock st) {
+    PRINT lotInventory OBJECTS st = st;
+} IMAGE 'print.png';
+
+printLotInventory 'Печать' (LotAdjustment a) {
+    PRINT lotInventory OBJECTS st = stock(a);
+} IMAGE 'print.png';
+
+EXTEND FORM lotAdjustment PROPERTIES printLotInventory(i) DRAW s TOOLBAR;
+
+beforeAddDialogTerminalLotAdjustment ABSTRACT LIST (LotAdjustment);
+
+importTerminalDocumentLot 'Импорт из ТСД' (LotAdjustment a) {
+    filterStock() <- stock(a);
+    beforeAddDialogTerminalLotAdjustment(a);
+    DIALOG terminalDocuments OBJECTS td INPUT DO {
+        IF NOT (GROUP SUM 1 IF include(TerminalDocument ttd)) THEN {
+            include(td) <- TRUE;
+        }
+        used(TerminalDocument ttd) <- TRUE WHERE include(ttd);
+
+        FOR id(TerminalLotDetail tl) AND include(terminalDocument(tl)) AND NOT lot(id(tl)) DO NEW l = Lot {
+            id(l) <- id(tl);
+            sku(l) <- sku(terminalDocumentDetail(tl));
+        }
+
+        LOCAL quantity = NUMERIC[16,5] (Lot);
+        quantity(Lot l) <- [GROUP SUM quantity(TerminalLotDetail ld) IF include(terminalDocument(ld)) BY id(ld)](id(l));
+
+        FOR quantity(Lot l) AND NOT quantity(l) == currentBalance(l, stock(a)) AND lotAdjustmentDetail(l, a) DO {
+            IF isPosted(a) THEN 
+                quantity(lotAdjustmentDetail(l, a)) <- quantity(l) (-) currentBalance(l, stock(a)) (+) quantity(lotAdjustmentDetail(l, a));
+            ELSE quantity(lotAdjustmentDetail(l, a)) <- quantity(l) (-) currentBalance(l, stock(a));
+        }
+        
+        FOR quantity(Lot l) AND NOT quantity(l) == currentBalance(l, stock(a)) AND NOT lotAdjustmentDetail(l, a) DO NEW d = LotAdjustmentDetail {
+            lotAdjustment(d) <- a;
+            lot(d) <- l;
+            quantity(d) <- quantity(l) (-) currentBalance(l, stock(a));
+        }
+
+        include(TerminalDocument ttd) <- NULL;
+    }
+}
+
+EXTEND FORM lotAdjustment PROPERTIES importTerminalDocumentLot(i) DRAW d TOOLBAR;
