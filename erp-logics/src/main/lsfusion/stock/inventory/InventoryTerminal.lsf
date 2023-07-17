@@ -72,6 +72,19 @@ addInventoryDetails(TerminalDocument td,ListInventory li)  {
 inOneListInventoryDetails =  GROUP SUM 1 IF include(terminalDocument(TerminalDocumentDetail tdd)) BY sku(tdd);
 quantityOneListInventoryDetails (Sku sku) = GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd);
 
+createZeroDetail 'Создавать строки описи с количеством "0" при импорте из ТСД, если такие строки были в документе ТСД' = DATA BOOLEAN (Inventory.Operation);
+EXTEND FORM Inventory.operation
+    PROPERTIES (o) createZeroDetail
+;
+DESIGN Inventory.operation{
+    paramsContainer{
+        MOVE PROPERTY (createZeroDetail(o));
+    }
+}
+
+createZeroDetailData = ABSTRACT BOOLEAN (ListInventory);
+createZeroDetail(ListInventory li) = OVERRIDE createZeroDetailData(li), createZeroDetail(operation(inventory(li)));
+
 overAddOneListInventoryDetail  ABSTRACT LIST (PageInventoryDetail);
 
 addOneListInventoryDetails(ListInventory li)  { 
@@ -83,7 +96,7 @@ addOneListInventoryDetails(ListInventory li)  {
             quantity(Sku s, Batch b) <- GROUP SUM NUMERIC[16,5](getWord(str, ':', 2)) IF getID(b) == LONG(getWord(str, ':', 1)) AND sku(d) == s; 
         }
 
-        FOR inOneListInventoryDetails(Sku sku) AND NUMERIC[16,5] qty == quantityOneListInventoryDetails(sku) (-) (GROUP SUM quantity(sku, Batch b)) INLINE NEW pid = PageInventoryDetail DO {
+        FOR inOneListInventoryDetails(Sku sku) AND NUMERIC[16,5] qty == (OVERRIDE quantityOneListInventoryDetails(sku), 0.0 IF createZeroDetail(li)) (-) (GROUP SUM quantity(sku, Batch b)) INLINE NEW pid = PageInventoryDetail DO {
             pageInventory(pid) <- p;
             sku(pid) <- sku;
             quantity(pid) <- qty;
