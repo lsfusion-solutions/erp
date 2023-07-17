@@ -5,6 +5,7 @@ REQUIRE PriceList, Store, ItemDescription, CashRegisterPriceTransaction, LogTool
 @defineLogRotate(RestFront, 5, weekly);
 
 urlAPI 'URL к API' = DATA STRING[255](DepartmentStore);
+systemKey 'ИД подсистемы' = DATA INTEGER(DepartmentStore);
 usernameRestFront 'Пользователь' = DATA STRING[255](DepartmentStore);
 passwordRestFront 'Пароль' = DATA STRING[255](DepartmentStore) ECHO;
 idMenuRestFront 'Код меню' = DATA INTEGER(DepartmentStore);
@@ -17,7 +18,7 @@ namePriceListTypeRestFront 'Вид цен' () = name(priceListTypeRestFront());
 EXTEND FORM integrationData
     PROPERTIES() nameGroupTypeRestFront, namePriceListTypeRestFront
     OBJECTS ds = DepartmentStore
-    PROPERTIES(ds) name READONLY, urlAPI, usernameRestFront, passwordRestFront, idMenuRestFront
+    PROPERTIES(ds) name READONLY, urlAPI, systemKey, usernameRestFront, passwordRestFront, idMenuRestFront
 ;
 
 DESIGN integrationData {
@@ -32,6 +33,9 @@ DESIGN integrationData {
     }
 }
 
+value = DATA LOCAL STRING (STRING );
+params = GROUP CONCAT (STRING key + '=' + value(key)), '&' ORDER key;
+
 token = DATA LOCAL NESTED STRING[1000]();
 
 getToken (DepartmentStore ds) {
@@ -40,9 +44,12 @@ getToken (DepartmentStore ds) {
     file() <- '\{"login":"' + usernameRestFront(ds) + '","password":"' + passwordRestFront(ds) + '"\}';
     stringToFile(file(),'UTF-8','json');
     
-    logToFile('RestFront', 'POST: ' + urlAPI(ds) + '/api/front/login' + '\n' + file());
+    value(STRING key) <- CASE 
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds));  
+    
+    logToFile('RestFront', 'POST: ' + (CONCAT '?', urlAPI(ds) + '/api/front/login', params()) + '\n' + file());
     TRY {
-        EXTERNAL HTTP urlAPI(ds) + '/api/front/login' PARAMS resultFile() TO result;
+        EXTERNAL HTTP (CONCAT '?', urlAPI(ds) + '/api/front/login', params()) PARAMS resultFile() TO result;
         IMPORT JSON FROM result() TO() token = token;
     }
     CATCH {
@@ -145,11 +152,15 @@ putPrintGroup (DepartmentStore ds, PrintGroup g) {
     LOCAL file = TEXT();
     file() <- textPrintGroup(g);
     stringToFile(file(),'UTF-8','json');
+
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds))
+        WHEN key = 'name' THEN name(g);
     
-    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/printGroup/name?name=' + name(g) + '\n' + file());
+    logToFile('RestFront', 'PUT: ' + (CONCAT '?', urlAPI(ds) + '/api/front/printGroup/name', params()) + '\n' + file());
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/printGroup/name?name=' + name(g) HEADERS httpHeaders PARAMS resultFile() TO result;
+        EXTERNAL HTTP PUT (CONCAT '?', urlAPI(ds) + '/api/front/printGroup/name', params()) HEADERS httpHeaders PARAMS resultFile() TO result;
     }
     CATCH {
         logToFile('RestFront', messageCaughtException());
@@ -162,9 +173,13 @@ exportPrintGroup 'Выгрузить группы печати' (DepartmentStore
     getToken(ds);
     
     LOCAL result = FILE();
-    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/printGroup');
+    
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds));
+
+    logToFile('RestFront', 'GET: ' + (CONCAT '?', urlAPI(ds) + '/api/front/printGroup',params()));
     TRY {
-        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/printGroup' HEADERS httpHeaders TO result;
+        EXTERNAL HTTP GET (CONCAT '?', urlAPI(ds) + '/api/front/printGroup',params()) HEADERS httpHeaders TO result;
         IMPORT JSON FROM result() TO namePrintGroup = name, cookingTimePrintGroup = cookingTime, showInQueuePrintGroup = showInQueue;
         
         FOR PrintGroup g == printGroup(namePrintGroup(INTEGER i)) AND NOT (cookingTimePrintGroup(i) == (OVERRIDE cookingTime(g), 0)
@@ -200,10 +215,14 @@ putGoodGroup (DepartmentStore ds, CustomGroup g) {
     file() <- textGoodGroup(g);
     stringToFile(file(),'UTF-8','json');
     
-    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/goodGroup/name?name=' + name(g) + '\n' + file());
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds))
+        WHEN key = 'name' THEN name(g);
+    
+    logToFile('RestFront', 'PUT: ' + (CONCAT '?', urlAPI(ds) + '/api/front/goodGroup/name', params()) + '\n' + file());
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/goodGroup/name?name=' + name(g) HEADERS httpHeaders PARAMS resultFile() TO result;
+        EXTERNAL HTTP PUT (CONCAT '?', urlAPI(ds) + '/api/front/goodGroup/name', params()) HEADERS httpHeaders PARAMS resultFile() TO result;
     }
     CATCH {
         logToFile('RestFront', messageCaughtException());
@@ -216,10 +235,13 @@ groupRestFront (STRING[250] name) = GROUP MAX CustomGroup g IF groupType(g) == g
 exportGoodGroup 'Выгрузить товарные группы' (DepartmentStore ds) {
     getToken(ds);
     
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds));
+
     LOCAL result = FILE();
-    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/goodGroup');
+    logToFile('RestFront', 'GET: ' + (CONCAT '?', urlAPI(ds) + '/api/front/goodGroup', params()));
     TRY {
-        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/goodGroup' HEADERS httpHeaders TO result;
+        EXTERNAL HTTP GET (CONCAT '?', urlAPI(ds) + '/api/front/goodGroup', params()) HEADERS httpHeaders TO result;
         IMPORT importGoodGroup JSON FROM result();
         
         FOR groupType(CustomGroup g) == groupTypeRestFront() AND NOT (GROUP SUM 1 IF nameGoodGroup(INTEGER i) == name(g)) ORDER level(g), g DO {
@@ -282,10 +304,14 @@ putAdditionGroup (DepartmentStore ds, AdditionGroup g) {
     file() <- textAdditionGroup(g);
     stringToFile(file(),'UTF-8','json');
     
-    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/additionGroup/name?name=' + name(g) + '\n' + file());
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds))
+        WHEN key = 'name' THEN name(g);
+
+    logToFile('RestFront', 'PUT: ' + (CONCAT ',',urlAPI(ds) + '/api/front/additionGroup/name', params()) + '\n' + file());
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/additionGroup/name?name=' + name(g) HEADERS httpHeaders PARAMS resultFile() TO result;
+        EXTERNAL HTTP PUT (CONCAT ',',urlAPI(ds) + '/api/front/additionGroup/name', params()) HEADERS httpHeaders PARAMS resultFile() TO result;
     }
     CATCH {
         logToFile('RestFront', messageCaughtException());
@@ -297,9 +323,13 @@ exportAdditionGroup 'Выгрузить группы добавок' (Department
     getToken(ds);
     
     LOCAL result = FILE();
-    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/additionGroup');
+
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds));
+    
+    logToFile('RestFront', 'GET: ' + (CONCAT '?', urlAPI(ds) + '/api/front/additionGroup', params()));
     TRY {
-        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/additionGroup' HEADERS httpHeaders TO result;
+        EXTERNAL HTTP GET (CONCAT '?', urlAPI(ds) + '/api/front/additionGroup', params()) HEADERS httpHeaders TO result;
         IMPORT JSON FROM result() TO nameAdditionGroup = name;
         
         //FOR AdditionGroup g == additionGroup(nameAdditionGroup(INTEGER i)) DO {
@@ -352,10 +382,14 @@ putGood (DepartmentStore ds, Item i) {
     file() <- textGood(i);
     stringToFile(file(),'UTF-8','json');
     
-    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/good/alias?alias=' + id(i) + '\n' + file());
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds))
+        WHEN key = 'alias' THEN id(i);
+    
+    logToFile('RestFront', 'PUT: ' + (CONCAT '?', urlAPI(ds) + '/api/front/good/alias' + params()) + '\n' + file());
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/good/alias?alias=' + id(i) HEADERS httpHeaders PARAMS resultFile() TO result;
+        EXTERNAL HTTP PUT (CONCAT '?', urlAPI(ds) + '/api/front/good/alias' + params()) HEADERS httpHeaders PARAMS resultFile() TO result;
     }
     CATCH {
         logToFile('RestFront', messageCaughtException());
@@ -367,9 +401,13 @@ exportGood 'Выгрузить товары' (DepartmentStore ds) {
     getToken(ds);
     
     LOCAL result = FILE();
-    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/good');
+
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds));
+
+    logToFile('RestFront', 'GET: ' + (CONCAT '?', urlAPI(ds) + '/api/front/good', params()));
     TRY {
-        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/good' HEADERS httpHeaders TO result;
+        EXTERNAL HTTP GET (CONCAT '?', urlAPI(ds) + '/api/front/good', params()) HEADERS httpHeaders TO result;
         IMPORT importGood JSON FROM result();
         
         FOR groupRestFront(Item i) AND active(i) AND NOT (GROUP SUM 1 IF aliasGood(INTEGER j) == id(i)) AND nameRestFront(i) DO {
@@ -390,11 +428,16 @@ exportGood 'Выгрузить товары' (DepartmentStore ds) {
     }
 }
 
-putImage (DepartmentStore ds, Item i) {    
-    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/good/image/alias?alias=' + id(i));
+putImage (DepartmentStore ds, Item i) {
+
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds))
+        WHEN key = 'alias' THEN id(i);
+    
+    logToFile('RestFront', 'PUT: ' + (CONCAT '?', urlAPI(ds) + '/api/front/good/image/alias', params()));
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/good/image/alias?alias=' + id(i) HEADERS httpHeaders
+        EXTERNAL HTTP PUT (CONCAT '?', urlAPI(ds) + '/api/front/good/image/alias', params()) HEADERS httpHeaders
                  PARAMS (OVERRIDE image(i), imageRestFront(groupRestFront(i))) TO result;
     }
     CATCH {
@@ -407,9 +450,13 @@ exportImage 'Выгрузить изображения' (DepartmentStore ds) {
     getToken(ds);
     
     LOCAL result = FILE();
-    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/good');
+
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds));
+    
+    logToFile('RestFront', 'GET: ' + (CONCAT ',', urlAPI(ds) + '/api/front/good', params()));
     TRY {
-        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/good' HEADERS httpHeaders TO result;
+        EXTERNAL HTTP GET (CONCAT ',', urlAPI(ds) + '/api/front/good', params()) HEADERS httpHeaders TO result;
         IMPORT importGood JSON FROM result();
         
         FOR Item i == item(aliasGood(INTEGER j)) AND (hasImage(i) OR imageRestFront(groupRestFront(i))) DO {
@@ -439,11 +486,15 @@ putAddition (DepartmentStore ds, Item i) {
     LOCAL file = TEXT();
     file() <- textAddition(i);
     stringToFile(file(),'UTF-8','json');
+
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds))
+        WHEN key = 'alias' THEN id(i);
     
-    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/addition/alias?alias=' + id(i) + '\n' + file());
+    logToFile('RestFront', 'PUT: ' + (CONCAT '?', urlAPI(ds) + '/api/front/addition/alias', params()) + '\n' + file());
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/addition/alias?alias=' + id(i) HEADERS httpHeaders PARAMS resultFile() TO result;
+        EXTERNAL HTTP PUT (CONCAT '?', urlAPI(ds) + '/api/front/addition/alias', params()) HEADERS httpHeaders PARAMS resultFile() TO result;
     }
     CATCH {
         logToFile('RestFront', messageCaughtException());
@@ -455,9 +506,13 @@ exportAddition 'Выгрузить добавки' (DepartmentStore ds) {
     getToken(ds);
     
     LOCAL result = FILE();
-    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/addition');
+
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds));
+    
+    logToFile('RestFront', 'GET: ' + (CONCAT '?', urlAPI(ds) + '/api/front/addition', params()));
     TRY {
-        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/addition' HEADERS httpHeaders TO result;
+        EXTERNAL HTTP GET (CONCAT '?', urlAPI(ds) + '/api/front/addition', params()) HEADERS httpHeaders TO result;
         IMPORT importAddition JSON FROM result();
         
         FOR groupRestFront(Item i)  AND active(i) AND additionGroup(i) AND NOT (GROUP SUM 1 IF aliasGoodAddition(INTEGER j) == id(i)) DO {
@@ -490,10 +545,14 @@ FORM importMenuLine
 ;
 
 deleteMenuLine (DepartmentStore ds, INTEGER id) {
-    logToFile('RestFront', 'DELETE: ' + urlAPI(ds) + '/api/front/menu/line/' + id);
+
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds));
+    
+    logToFile('RestFront', 'DELETE: ' + (CONCAT '?', urlAPI(ds) + '/api/front/menu/line/' + id, params()));
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP DELETE urlAPI(ds) + '/api/front/menu/line/' + id HEADERS httpHeaders TO result;
+        EXTERNAL HTTP DELETE (CONCAT '?', urlAPI(ds) + '/api/front/menu/line/' + id, params()) HEADERS httpHeaders TO result;
     }
     CATCH {
         logToFile('RestFront', messageCaughtException());
@@ -506,10 +565,14 @@ putMenuLine (DepartmentStore ds, Item i) {
     file() <- textMenuLine(ds,i);
     stringToFile(file(),'UTF-8','json');
     
-    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/menu/line/goodAlias?goodAlias=' + id(i) + '\n' + file());
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(ds))
+        WHEN key = 'goodAlias' THEN id(i);
+    
+    logToFile('RestFront', 'PUT: ' + (CONCAT '?', urlAPI(ds) + '/api/front/menu/line/goodAlias',params()) + '\n' + file());
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/menu/line/goodAlias?goodAlias=' + id(i) HEADERS httpHeaders PARAMS resultFile() TO result;
+        EXTERNAL HTTP PUT (CONCAT '?', urlAPI(ds) + '/api/front/menu/line/goodAlias',params()) HEADERS httpHeaders PARAMS resultFile() TO result;
     }
     CATCH {
         logToFile('RestFront', messageCaughtException());
@@ -522,9 +585,13 @@ exportMenuLine 'Выгрузить цены' (DepartmentStore ds) {
         getToken(ds);
         
         LOCAL result = FILE();
-        logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/menu/' + idMenuRestFront(ds) + '/line');
+
+        value(STRING key) <- CASE
+            WHEN key = 'systemKey' THEN STRING(systemKey(ds));
+        
+        logToFile('RestFront', 'GET: ' + (CONCAT '?',urlAPI(ds) + '/api/front/menu/' + idMenuRestFront(ds) + '/line', params()));
         TRY {
-            EXTERNAL HTTP GET urlAPI(ds) + '/api/front/menu/' + idMenuRestFront(ds) + '/line' HEADERS httpHeaders TO result;
+            EXTERNAL HTTP GET (CONCAT '?',urlAPI(ds) + '/api/front/menu/' + idMenuRestFront(ds) + '/line', params()) HEADERS httpHeaders TO result;
             IMPORT importMenuLine JSON FROM result();
             FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR inStopList(item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(groupRestFront(item(aliasGoodMenuLine(i)))))) DO {
                 deleteMenuLine(ds,idMenuLine(i));
@@ -571,10 +638,14 @@ createAttribute (MachineryPriceTransaction t, Stock s) + {
         getToken(s);
                 
         LOCAL result = FILE();
-        logToFile('RestFront', 'GET: ' + urlAPI(s) + '/api/front/menu/' + idMenuRestFront(s) + '/line');
+
+        value(STRING key) <- CASE
+            WHEN key = 'systemKey' THEN STRING(systemKey(s));
+        
+        logToFile('RestFront', 'GET: ' + (CONCAT '?', urlAPI(s) + '/api/front/menu/' + idMenuRestFront(s) + '/line', params()));
         
         TRY {
-            EXTERNAL HTTP GET urlAPI(s) + '/api/front/menu/' + idMenuRestFront(s) + '/line' HEADERS httpHeaders TO result;
+            EXTERNAL HTTP GET (CONCAT '?', urlAPI(s) + '/api/front/menu/' + idMenuRestFront(s) + '/line', params()) HEADERS httpHeaders TO result;
             IMPORT importMenuLine JSON FROM result();
             
             IF createMachineryPriceTransactionAll() AND NOT skipSnapshot(t) THEN {
@@ -601,9 +672,13 @@ WHEN SET(succeeded(Stock st, StopList l)) AND isPosted(l) AND NOT exclude(l) AND
      getToken(st);
              
      LOCAL result = FILE();
-     logToFile('RestFront', 'GET: ' + urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line');
+
+    value(STRING key) <- CASE
+        WHEN key = 'systemKey' THEN STRING(systemKey(st));
+    
+     logToFile('RestFront', 'GET: ' + (CONCAT '?', urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line', params()));
      TRY {
-         EXTERNAL HTTP GET urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line' HEADERS httpHeaders TO result;
+         EXTERNAL HTTP GET (CONCAT '?', urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line', params()) HEADERS httpHeaders TO result;
          IMPORT importMenuLine JSON FROM result();
          FOR idMenuLine(INTEGER i) AND count(item(aliasGoodMenuLine(i)),l) DO {
              deleteMenuLine(st,idMenuLine(i));
