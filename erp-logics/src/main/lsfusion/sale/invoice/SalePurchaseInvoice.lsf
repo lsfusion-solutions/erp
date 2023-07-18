@@ -194,25 +194,31 @@ CONSTRAINT SET(invoiceDetail(Purchase.UserInvoiceDetail d)) AND NOT Purchase.sku
         MESSAGE 'Sku в строке накладной закупки и продажи должны совпадать'; 
 
 CONSTRAINT equalsPriceSale(operation(Purchase.UserInvoiceDetail d)) AND invoiceDetail(d) AND NOT Purchase.price(d) == price(invoiceDetail(d))
-    MESSAGE 'Цена в строке накладной закупки и продажи должна совпадать'; 
+    MESSAGE 'Цена в строке накладной закупки и продажи должна совпадать';
 
-skipStockConstraint = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
+skipSupplierStockConstraint = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
+skipSupplierConstraint = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
 
-CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT supplier(invoiceDetail(d)) = supplier(d) 
+CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT supplier(invoiceDetail(d)) = supplier(d)
+    AND NOT skipSupplierConstraint(d)
     CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
     MESSAGE 'Поставщик строки накладной закупки должен соответствовать поставщику строки накладной продажи';
 
 CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT supplierStock(invoiceDetail(d)) = supplierStock(d) 
-           AND NOT skipStockConstraint(d) 
+           AND NOT skipSupplierStockConstraint(d) 
     CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
     MESSAGE 'Склад поставщика строки накладной закупки должен соответствовать складу поставщика строки накладной продажи';
 
-CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT customer(invoiceDetail(d)) = customer(d) 
+skipCustomerStockConstraint = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
+skipCustomerConstraint = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
+
+CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT customer(invoiceDetail(d)) = customer(d)
+    AND NOT skipCustomerConstraint(d)
     CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
     MESSAGE 'Покупатель строки накладной закупки должен соответствовать покупателю строки накладной продажи';
 
 CONSTRAINT invoiceDetail(Purchase.UserInvoiceDetail d) AND NOT customerStock(invoiceDetail(d)) = customerStock(d)
-           AND NOT skipStockConstraint(d) 
+           AND NOT skipCustomerStockConstraint(d) 
     CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
     MESSAGE 'Склад покупателя строки накладной закупки должен соответствовать складу покупателя строки накладной продажи';
 
