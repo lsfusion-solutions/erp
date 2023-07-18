@@ -1,0 +1,11 @@
+MODULE DateSaleSkuLedgerVATSum;
+
+REQUIRE SaleLedgerVATSum, DateSkuLedger;
+
+NAMESPACE ZReport;
+
+sumVAT 'Сумма НДС' (department, sku, date) = GROUP SUM sumVAT(ReceiptSaleDetail d) IF isPosted(d)
+    BY departmentStore(d), sku(d), date(d);
+
+sumVAT (DateSaleSkuLedger ledger) = sumVAT(departmentStore(ledger), sku(ledger), date(ledger));
+overSumVAT (DateSaleSkuLedger l) += sumVAT(l);
