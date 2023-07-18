@@ -57,16 +57,16 @@ META setNameGroup(number)
     setNameGroup##number () { 
         nameGroup##number(Sku sk, Stock st) <- NULL;
         IF order(1) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(st), 'Не задано') WHERE inBackSheet(st) AND balanceB(sk,st);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(st), 'Не задано') WHERE inBackSheet(st) AND (balanceB(sk,st) OR sumB(sk,st));
         }
         IF order(2) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(sk), 'Не задано') WHERE inBackSheet(st) AND balanceB(sk,st);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE name(sk), 'Не задано') WHERE inBackSheet(st) AND (balanceB(sk,st) OR sumB(sk,st));
         }
         IF order(3) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSkuGroup(sk), 'Не задано') WHERE inBackSheet(st) AND balanceB(sk,st);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE nameSkuGroup(sk), 'Не задано') WHERE inBackSheet(st) AND (balanceB(sk,st) OR sumB(sk,st));
         }
         IF order(4) == number THEN {
-            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE fullName(supplierLastOrderBatch(sk)), 'Не задано') WHERE inBackSheet(st) AND balanceB(sk,st);
+            nameGroup##number(Sku sk, Stock st) <- (OVERRIDE fullName(supplierLastOrderBatch(sk)), 'Не задано') WHERE inBackSheet(st) AND (balanceB(sk,st) OR sumB(sk,st));
         }
     }   
 END
@@ -87,6 +87,7 @@ fillGroupBalanceSkusStock 'Сформировать'(GroupType gt, DATETIME d)  
     costSumB(Sku sk, Stock st) <- NULL; 
     sumB(Sku sk, Stock st) <- NULL; 
     costVATSum(Sku sk, Stock st) <- NULL;
+    retailVATSum(Sku sk, Stock st) <- NULL;
     
     balanceB(Sku sk, Stock st) <- balanceB(sk,st,d) IF inBackSheet(st);
     costSumB(Sku sk, Stock st) <- costSumB(sk,st,d) IF inBackSheet(st);
