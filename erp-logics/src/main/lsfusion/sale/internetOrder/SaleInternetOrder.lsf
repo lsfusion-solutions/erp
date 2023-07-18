@@ -332,6 +332,8 @@ showPersonalInfoUser (InternetOrder o) = CASE
     
 background = ABSTRACT COLOR (InternetOrder);
 readOnly = ABSTRACT CASE BOOLEAN (InternetOrderDetail);
+useCustomFilterStocks = ABSTRACT BOOLEAN ();
+customFilterStocks = ABSTRACT BOOLEAN (InternetOrderDetail, Stock);
 
 FORM internetOrder 'Интернет-заказ'
     OBJECTS o = InternetOrder PANEL
@@ -366,8 +368,7 @@ FORM internetOrder 'Интернет-заказ'
     PROPERTIES(d, st) READONLY prevAvailableQuantity, prevCurrentBalance
     PROPERTIES(d, st) prevCurrentReserve ON CHANGE reviewReserve(d,st)
     PROPERTIES(d, st) selectSupplierStock
-    FILTERS prevCurrentBalance(d, st)
-
+    FILTERS (prevCurrentBalance(d, st) AND NOT useCustomFilterStocks()) OR (customFilterStocks(d, st) AND useCustomFilterStocks())
     EVENTS
         ON OK prePost(o)
 
