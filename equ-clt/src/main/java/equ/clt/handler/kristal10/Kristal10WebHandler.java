@@ -756,6 +756,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 case "clickpass.service.payment": {
                                     payments.add(new Payment("clickpass", sum));
                                 }
+                                case "apelsinpay.payment.plugin": {
+                                    payments.add(new Payment("apelsinpay", sum));
+                                }
                             }
                         }
                     }
