@@ -141,11 +141,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         DeleteBarcode usedDeleteBarcodes = new DeleteBarcode(transaction.nppGroupMachinery, directory);
 
                         List<String> xmlList = new ArrayList<>();
-                        if (!transaction.snapshot) { //при выгрузке целиком товары не выгружаем чтобы быстрее
-                            xmlList.addAll(generateCatalogGoodsItemsXML(transaction, brandIsManufacturer, seasonIsCountry, idItemInMarkingOfTheGood, skipWeightPrefix,
-                                    skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices, deleteBarcodeDirectoryMap.get(directory),
-                                    usedDeleteBarcodes, notGTINPrefixes, exportAmountForBarcode));
-                        }
+                        xmlList.addAll(generateCatalogGoodsItemsXML(transaction, brandIsManufacturer, seasonIsCountry, idItemInMarkingOfTheGood, skipWeightPrefix,
+                                skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices, deleteBarcodeDirectoryMap.get(directory),
+                                usedDeleteBarcodes, notGTINPrefixes, exportAmountForBarcode));
                         xmlList.addAll(generateCatalogGoodsPricesXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useSectionAsDepartNumber, useShopIndices,
                                 weightShopIndices, useNumberGroupInShopIndices));
                         xmlList.addAll(generateCatalogGoodsRestrictionsXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useShopIndices, skipUseShopIndicesMinPrice,
@@ -231,6 +229,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         for (CashRegisterItem item : transaction.itemsList) {
             JSONObject infoJSON = getExtInfo(item.info);
+            if (infoJSON != null && infoJSON.optBoolean("skipGood")) {
+                continue;
+            }
             String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
             String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
@@ -255,6 +256,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         if (count > 0) {
             processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items and barcodes (Transaction %s, count %s)", transaction.id, count));
             xmlList.add(docToXMLString(doc));
+        } else {
+            processTransactionLogger.info(String.format(getLogPrefix() + "not created catalog-goods file with items and barcodes (Transaction %s, count %s)", transaction.id, count));
         }
         return xmlList;
     }
