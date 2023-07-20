@@ -179,6 +179,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
                                      String idSection, Map<String, Object> receiptExtraFields, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
         sumGiftCardMap.put(null, new GiftCard(null));
+        //todo: remove sumCash and sumCard (change equ-api)
         return  new SalesInfo(false, false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                 idEmployee, firstNameContact, null, null, null, sumGiftCardMap, payments, barcodeItem, idItem, itemObject,
                 idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,

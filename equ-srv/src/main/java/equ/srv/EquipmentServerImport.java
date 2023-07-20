@@ -64,12 +64,6 @@ public class EquipmentServerImport {
             for (SalesInfo sale : data) {
                 String idReceipt = EquipmentServer.getIdReceipt(sale, options);
                 if (!ignoredIdReceipts.contains(idReceipt)) {
-                    if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
-                        dataPayment.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
-                    }
-                    if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
-                        dataPayment.add(Arrays.asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
-                    }
                     if (sale.payments != null) {
                         //из-за того, что у платежей giftCard id начинаются с 3
                         int paymentNumber = 3 + (sale.sumGiftCardMap != null ? sale.sumGiftCardMap.size() : 0);
