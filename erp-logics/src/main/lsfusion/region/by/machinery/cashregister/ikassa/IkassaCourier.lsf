@@ -1,0 +1,358 @@
+MODULE IkassaCourier;
+
+REQUIRE SaleInternetPicking, ZReport, ItemInternet;
+
+NAMESPACE Ikassa;
+
+isIkassaCourier (GroupMachinery g) = TRUE IF handlerModel(g) = 'lsf.ikassa.courier';
+
+skipMachineryPriceTransaction(GroupMachinery g) += TRUE IF g IS GroupCashRegister AND isIkassaCourier(g);
+CLASS UserIkassa 'Пользователь ikassa';
+TABLE usersIkass (UserIkassa);
+
+@defineExternalizable(userIkassa, STRING[20]);
+
+login 'Логин' = DATA STRING (UserIkassa);
+password 'Пароль' = DATA STRING (UserIkassa);
+token 'Токен' = DATA STRING (UserIkassa);
+expiresIn 'Срок действия' = DATA DATETIME (UserIkassa);
+stock = DATA Stock (UserIkassa) NONULL DELETE;
+nameStock 'Склад' (UserIkassa u) = name(stock(u));
+userIkassa = GROUP AGGR UserIkassa u BY stock(u);
+isMain 'Основной' = DATA BOOLEAN (UserIkassa);
+mainUser = GROUP MAX UserIkassa u IF isMain(u);
+
+createUser(UserIkassa u){
+    LOCAL f = FILE ();
+    EXPORT JSON FROM login = login(u), password = password(u), name = nameStock(u);
+    headers('Authorization') <- 'Bearer ' + token(mainUser());
+    EXTERNAL HTTP POST 'https://api.connector.ikassa.by/api/users' HEADERS headers PARAMS exportFile() TO f;
+    LOCAL id = STRING[20]();
+    IMPORT JSON FROM f() TO() id = id;
+    fileToString(f());
+    IF id() THEN {
+        id(u) <- id();
+    }
+    ELSE {
+        MESSAGE CONCAT '\n', 'Произошла ошибка при создании пользователя в ikassa', resultString();
+    }
+}
+
+updateUser(UserIkassa u){
+    LOCAL f = FILE ();
+    EXPORT JSON FROM login = login(u), password = password(u), name = nameStock(u);
+    headers('Authorization') <- 'Bearer ' + token(mainUser());
+    EXTERNAL HTTP PUT 'https://api.connector.ikassa.by/api/users/' + id(u) HEADERS headers PARAMS exportFile() TO f;
+    LOCAL id = STRING[20]();
+    IMPORT JSON FROM f() TO() id = id;
+    fileToString(f());
+    IF id() THEN {
+        MESSAGE 'Данные пользователя обновлены';
+    }
+    ELSE {
+        MESSAGE CONCAT '\n', 'Произошла ошибка при создании пользователя в ikassa', resultString();
+    }
+}
+
+WHEN CHANGED (login(UserIkassa u)) OR CHANGED (password(u)) OR CHANGED (stock(u)) AND id(u)
+    AND NOT isMain(u) DO TRY updateUser(u);
+
+WHEN SET (UserIkassa u IS UserIkassa) AND NOT isMain(u) DO createUser(u);
+
+fillUsers 'Заполнить пользователей' (UserIkassa u){
+    LOCAL f = FILE ();
+    headers('Authorization') <- 'Bearer ' + token(mainUser());
+    EXTERNAL HTTP GET 'https://api.connector.ikassa.by/api/users/list' HEADERS headers TO f;
+    LOCAL id = STRING[20](INTEGER);
+    LOCAL name = STRING(INTEGER);
+    LOCAL login = STRING(INTEGER);
+    LOCAL password = STRING(INTEGER);
+    IMPORT JSON FROM f() TO id = id, name = name, login = login, password = password;
+    FOR imported(INTEGER i) AND login(i) = login(u) AND password(i) = password(u) DO id(u) <- id(i);
+    FOR id(INTEGER i) AND NOT userIkassa(id(i)) NEW ui = UserIkassa DO {
+        id(ui) <- id(i);
+        login(ui) <- login(i);
+        password(ui) <- password(i);
+        stock(ui) <- GROUP MAX Stock s IF name(s) = name(i);
+    }
+    APPLY;
+}
+
+
+
+EXTEND FORM integrationData
+    OBJECTS userIkassa = UserIkassa
+    PROPERTIES (userIkassa) login, password, nameStock, isMain
+    PROPERTIES (userIkassa)  token, expiresIn, fillUsers
+    PROPERTIES (userIkassa) NEW, DELETE
+;
+
+DESIGN integrationData{
+    delivery{
+        NEW ikassaCourier{
+            caption = 'Ikassa courier';
+            MOVE BOX (userIkassa);
+        }
+    }
+}
+
+expires_in = DATA LOCAL NUMERIC () ;
+token = DATA LOCAL STRING ();
+
+FORM tokenCreate FORMEXTID 'null'
+    PROPERTIES() expires_in, token
+;
+
+auth 'Авторизация' (UserIkassa u){
+    LOCAL f = FILE ();
+    encodeBase64(login(u) + ':' + password(u));
+    LOCAL headers = TEXT(STRING[100]);
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+    headers('Content-Type') <- 'application/json';
+    EXTERNAL HTTP POST 'https://api.connector.ikassa.by/token/create' HEADERS headers TO f;
+    IMPORT tokenCreate JSON FROM f();
+    IF token() THEN {
+        token(u) <- token();
+        expiresIn(u) <- sumSeconds(currentDateTime(), INTEGER(expires_in()));
+    }
+    APPLY NESTED LOCAL;
+}
+
+authVailidation(UserIkassa u){
+    LOCAL f = FILE();
+    headers('Authorization') <- 'Bearer ' + token(u);
+    EXTERNAL HTTP GET 'https://api.connector.ikassa.by/token/is_valid' HEADERS headers TO f;
+    fileToString(f());
+    IF NOT STRING[4](resultString()) = 'true' THEN {
+        auth(u);
+    }
+}
+
+
+EXTEND FORM integrationData
+    PROPERTIES (userIkassa) auth
+;
+
+authIkassa (InternetOrder o) = userIkassa(supplierStock(o));
+orderSent 'Отправлен' = DATA BOOLEAN (InternetOrder);
+sumDiscountDetail = ABSTRACT NUMERIC[18,4] (InternetOrderDetail);
+
+GROUP delivery;
+GROUP customer;
+
+FORM exportOrder FORMEXTID 'null'
+    OBJECTS o = InternetOrder PANEL
+    PROPERTIES  = OVERRIDE number(o) EXTID 'id', = id(authIkassa(o)) EXTID 'user_id'
+    PROPERTIES IN delivery = OVERRIDE addressInternetCustomer(o), 'Самовывоз' EXTID 'address', customerComment(o) EXTID 'comment'
+    PROPERTIES IN customer = OVERRIDE nameInternetCustomer(o), 'Покупатель ИМ' EXTID 'name',
+        = OVERRIDE phoneInternetCustomer(o), '+375XXXXXXXXX' EXTID 'phone', = OVERRIDE emailCustomer(o), '-' EXTID 'email'
+
+    OBJECTS products = InternetOrderDetail
+    PROPERTIES = nameSku(products) EXTID 'name', = idSku(products) EXTID 'id', pickingQuantity(products) EXTID 'quantity',
+        price(products) EXTID 'price', = OVERRIDE sumDiscountDetail(products), 0 EXTID 'discount'
+    FILTERS internetOrder(products) = o AND pickingQuantity(products) > 0
+;
+
+sendOrderToCashRegister 'Отправить заказ на кассу' (InternetOrder o) {
+    IF authIkassa(o) THEN NEWSESSION {
+        LOCAL f = FILE ();
+        authVailidation(mainUser());
+        EXPORT exportOrder OBJECTS o = o JSON;
+        LOCAL headers = TEXT(STRING[100]);
+        headers('Authorization') <- 'Bearer ' + token(mainUser());
+        TRY{
+            logToFile('ikassa', exportFile());
+            EXTERNAL HTTP POST 'https://api.connector.ikassa.by/api/orders/order' HEADERS headers PARAMS exportFile() TO f;
+            orderSent(o) <- TRUE;
+            APPLY;
+            MESSAGE 'Заказ успешно отпаравлен на кассу';
+        }
+            CATCH {
+            fileToString(f());
+            MESSAGE CONCAT '\n', messageCaughtException(), resultString();
+        }
+    }
+    ELSE
+        MESSAGE 'Для данного склада не заполнен аккаунт ikassa. Обратитесь в саппорт';
+}
+
+
+GROUP company;
+GROUP user;
+
+address = DATA LOCAL STRING();
+comment = DATA LOCAL STRING();
+id = DATA LOCAL NUMERIC();
+company_id = DATA LOCAL NUMERIC();
+fiscal_uid = DATA LOCAL STRING();
+discount = DATA LOCAL NUMERIC();
+external_id = DATA LOCAL STRING();
+fiscal_num = DATA LOCAL STRING();
+total = DATA LOCAL NUMERIC(INTEGER);
+order_product_id = DATA LOCAL NUMERIC(INTEGER);
+quantity = DATA LOCAL NUMERIC(INTEGER);
+price = DATA LOCAL NUMERIC(INTEGER);
+subtotal = DATA LOCAL NUMERIC(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+discount1 = DATA LOCAL NUMERIC(INTEGER);
+external_id1 = DATA LOCAL STRING(INTEGER);
+total1 = DATA LOCAL NUMERIC();
+subtotal1 = DATA LOCAL NUMERIC();
+id1 = DATA LOCAL NUMERIC();
+additional_payment_information = DATA LOCAL STRING();
+order_id = DATA LOCAL NUMERIC();
+company_id1 = DATA LOCAL NUMERIC();
+name2 = DATA LOCAL STRING();
+id2 = DATA LOCAL NUMERIC();
+login = DATA LOCAL STRING();
+phone = DATA LOCAL STRING();
+name3 = DATA LOCAL STRING();
+id3 = DATA LOCAL NUMERIC();
+email = DATA LOCAL STRING();
+date_fiscalized = DATA LOCAL DATETIME();
+payed_cash = DATA LOCAL NUMERIC[16,4] ();
+payed_card = DATA LOCAL NUMERIC[16,4] ();
+payed_cert = DATA LOCAL NUMERIC[16,4] ();
+
+FORM getFiscalizedOrder
+    PROPERTIES()  fiscal_uid, discount, external_id, fiscal_num, total1 EXTID 'total', subtotal1 EXTID 'subtotal',
+        additional_payment_information, order_id, date_fiscalized, payed_cash, payed_card, payed_cert
+
+    OBJECTS products = INTEGER
+    PROPERTIES(products) total, order_product_id, quantity, price, subtotal, name, discount1 EXTID 'discount',
+        external_id1 EXTID 'external_id'
+    FILTERS imported(products)
+;
+isCancelled (InternetOrder o) = status(o) = StatusInternetOrder.closed;
+filtered = ABSTRACT BOOLEAN (InternetOrder);
+
+zReportByOrder (InternetOrder o) = GROUP MAX ZReport z IF id(z) = STRING[100](CONCAT '-', id(supplierStock(o)),
+    toChar((OVERRIDE deliveryDate(o), date(o)),'yyyyMMdd'), id(carrier(o)));
+
+afterCreateZReport ABSTRACT LIST (InternetOrder, ZReport);
+afterCreateReceipt ABSTRACT LIST (InternetOrder, Receipt);
+afterCreateReceiptDetail ABSTRACT LIST (InternetOrder, ReceiptDetail);
+
+getOrderInfo 'Получить инфо о заказе' (InternetOrder o){
+    IF orderSent(o) AND NOT filtered(o) AND NOT isCancelled(o) THEN NEWSESSION {
+        LOCAL f = FILE();
+        LOCAL headers = TEXT(STRING[100]);
+        headers('Authorization') <- 'Bearer ' + token(mainUser());
+        TRY{
+            EXTERNAL HTTP GET 'https://api.connector.ikassa.by/api/orders/order/' + number(o) HEADERS headers TO f;
+            LOCAL id = STRING ();
+            LOCAL external_id = STRING ();
+            LOCAL fiscalized_order = STRING ();
+            IMPORT JSON FROM f() TO() id, external_id, fiscalized_order;
+            IF fiscalized_order() THEN {
+                stringToFile(fiscalized_order());
+                IMPORT getFiscalizedOrder JSON FROM resultFile();
+                IF NOT zReportByOrder(o) THEN NEW z = ZReport{
+
+                    departmentStore(z) <- supplierStock(o);
+                    id(z) <- STRING[100](CONCAT '-', id(supplierStock(o)),
+                        toChar((OVERRIDE deliveryDate(o), date(o)),'yyyyMMdd'), id(carrier(o)));
+                    number(z) <- id(z);
+                    date(z) <- (OVERRIDE deliveryDate(o), date(o));
+                    time(z) <- TIME('23:59:59');
+                    isPosted(z) <- TRUE;
+                    afterCreateZReport(o, z);
+
+                }
+                IF external_id() THEN NEW r = Receipt{
+
+                    date(r) <- DATE(date_fiscalized());
+                    time(r) <- TIME(date_fiscalized());
+                    zReport(r) <- zReportByOrder(o);
+                    number(r) <- INTEGER(fiscal_num());
+                    afterCreateReceipt(o, r);
+
+
+
+                    FOR external_id1(INTEGER  i) AND Sku sku = sku(getWord(external_id1(i), '-', 1)) NEW rd = ReceiptSaleDetail DO {
+
+                        sku(rd) <- sku;
+                        quantity(rd) <- quantity(i);
+                        price(rd) <- price(i);
+                        discountSum(rd) <- discount1(i);
+                        receipt(rd) <- r;
+                        afterCreateReceiptDetail(o, rd);
+
+                    }
+                    IF payed_cash() THEN NEW p = Payment{
+                        receipt(p) <- r;
+                        paymentType(p) <- typePaymentSID('cash');
+                        sum(p) <- payed_cash();
+                    }
+                    IF payed_card() THEN NEW p = Payment{
+                        receipt(p) <- r;
+                        paymentType(p) <- typePaymentSID('card');
+                        sum(p) <- payed_card();
+                    }
+                    
+                    APPLY;
+                    IF canceled() THEN {
+                        fileToString(f());
+                        MESSAGE CONCAT '\n', 'Ошибка сохранения. Заказ ' + number(o), applyMessage(), '***\n' NOWAIT;
+                    }
+                }
+            }
+        }
+        CATCH {
+            fileToString(f());
+            MESSAGE CONCAT '\n', 'Произошла ошибка. Заказ ' + number(o), messageCaughtException(), resultString(), '***\n' NOWAIT;
+        }
+    }
+}
+
+useIkassa 'iKassa' = DATA BOOLEAN (Carrier);
+
+EXTEND FORM internetCatalogs
+    PROPERTIES useIkassa(carrier)
+;
+
+CLASS StatusIkassaOrder{
+    skip 'Загрузка не требуется',
+    dontSend 'Не загружен',
+    sent 'Загружен в кассу',
+    receipt 'Чек закрыт'
+}
+
+statusIkassa = ABSTRACT CASE StatusIkassaOrder (InternetOrder);
+nameStatusIkassa 'Статус iKassa' (InternetOrder o) = staticCaption(statusIkassa(o));
+
+statusIkassa(InternetOrder o) += WHEN NOT useIkassa(carrier(o)) THEN StatusIkassaOrder.skip;
+statusIkassa(InternetOrder o) += WHEN useIkassa(carrier(o)) AND NOT orderSent(o) THEN StatusIkassaOrder.dontSend;
+
+
+backgroundStatusIkassa = ABSTRACT CASE COLOR (InternetOrder);
+backgroundStatusIkassa(InternetOrder o) += WHEN statusIkassa(o) = StatusIkassaOrder.dontSend THEN RGB(255, 186, 0);
+backgroundStatusIkassa(InternetOrder o) += WHEN statusIkassa(o) = StatusIkassaOrder.sent THEN RGB(0, 229, 255);
+backgroundStatusIkassa(InternetOrder o) += WHEN statusIkassa(o) = StatusIkassaOrder.receipt THEN RGB(156, 255, 60);
+
+WHEN ([GROUP SUM 1 IF CHANGED (sku(InternetOrderDetail d)) OR CHANGED (pickingQuantity(d)) 
+    BY internetOrder(d)](InternetOrder o)) AND orderSent(o) AND useIkassa(carrier(o)) DO TRY sendOrderToCashRegister(o);
+
+
+canSend (InternetOrder o) = useIkassa(carrier(o)) AND NOT filtered(o) AND NOT isCancelled(o)
+    AND [GROUP SUM 1 IF pickingQuantity(InternetOrderDetail d) BY internetOrder(d)](o);
+
+EXTEND FORM internetOrders
+    PROPERTIES (o) nameStatusIkassa BACKGROUND backgroundStatusIkassa(o)
+    PROPERTIES (o) sendOrderToCashRegister SHOWIF canSend(o)
+;
+
+DESIGN internetOrders{
+    actionContainer{
+        NEW ikassa{
+            caption = 'Ikassa';
+            MOVE PROPERTY (sendOrderToCashRegister(o));
+        }
+    }
+}
+
+
+//для планировщика
+getInfoOrders 'Обработка заказов ikassa' (){
+    FOR orderSent(InternetOrder o) AND NOT filtered(o) AND NOT isCancelled(o) DO NEWSESSION getOrderInfo(o);
+}
