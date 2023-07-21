@@ -794,15 +794,19 @@ replaceBefore(Sku i, Sku item) + {
     curInputPrice(DisparityDetail disparityDetail) <- curInputPrice(disparityDetail) WHERE sku(disparityDetail) = i;
     curInputRetailPrice(DisparityDetail disparityDetail) <- curInputRetailPrice(disparityDetail) WHERE sku(disparityDetail) = i;
 }
-fillBatch 'Проставить партию' ABSTRACT LIST (DisparityDetail) ASON CONTEXTMENU nameBatch[DisparityDetail];
+
+lastOrderBatchAvailableDisparity(Sku sku, Stock stock, NUMERIC[16,5] q) =
+    GROUP LAST Disparity.InputDisparityDetail batch IF prevAvailableQuantity(batch, stock) >= q 
+    ORDER dateTime(batch), batch BY prevSkuLedger(batch, stock);
+
 beforeFillBatch ABSTRACT LIST (DisparityDetail);
 afterFillBatch ABSTRACT LIST (DisparityDetail);
 
-fillBatch (DisparityDetail d) + {
+fillBatch 'Проставить партию' (DisparityDetail d) {
     beforeFillBatch(d);
-    batch(d) <- lastOrderBatchAvailable(sku(d), stock(d), quantity(d)) WHERE NOT batch(d);
+    batch(d) <- lastOrderBatchAvailableDisparity(sku(d), stock(d), quantity(d)) WHERE NOT batch(d);
     afterFillBatch(d);
-}
+} ASON CONTEXTMENU nameBatch[DisparityDetail];
 
 fillAllBatch 'Проставить партии для всех'(DisparityDetail detail)  {
     FOR disparity(detail) == disparity(DisparityDetail d) DO
