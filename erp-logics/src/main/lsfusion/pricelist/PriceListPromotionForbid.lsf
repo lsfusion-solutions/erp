@@ -5,6 +5,7 @@ REQUIRE PriceListPromotion, MachineryPriceTransactionPromotion;
 NAMESPACE PriceList;
 
 allowPromotion 'Разрешить скидки' = DATA BOOLEAN (PriceList);
+allowPromotion 'Разрешить скидки' (PriceListDetail d) = allowPromotion(priceList(d)) MATERIALIZED;
 
 EXTEND FORM userPriceList PROPERTIES allowPromotion(p);
 
@@ -14,4 +15,4 @@ DESIGN userPriceList {
     }
 }
 
-overForbidPromotion(Sku sku, DepartmentStore stock) += TRUE IF promotionPriceListDetailA(sku, stock) AND NOT allowPromotion(priceList(promotionPriceListDetailA(sku, stock)));
+overForbidPromotion(Sku sku, DepartmentStore stock) += promotionPriceListDetailA(sku, stock) AND NOT allowPromotion(promotionPriceListDetailA(sku, stock));
