@@ -165,34 +165,55 @@ public class DefaultTerminalHandler {
     }
 
     public String readItemHtml(DataSession session, String barcode, String idStock) {
+
         try {
-            if(terminalHandlerLM != null) {
-                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
-                String overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock]").read(session,
-                        terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode)), stockObject);
-                if(overNameSku == null)
-                    return null;
-
-                ObjectValue barcodeObject = terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
-                BigDecimal price = null;
-                BigDecimal oldPrice = null;
-                if(barcodeObject instanceof DataObject && stockObject instanceof DataObject) {
-                    price = (BigDecimal) terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").read(session, barcodeObject, stockObject);
-                    oldPrice = (BigDecimal) terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").read(session, barcodeObject, stockObject);
-                }
-                boolean action = price != null && oldPrice != null && price.compareTo(oldPrice) == 0;
-
-                return action ?
-                        String.format("<html><body bgcolor=\"#FFFF00\">Наименование: <b>%s</b><br/><b><font color=\"#FF0000\">Акция</font></b> Цена: <b>%s</b>, Скидка: <b>%s</b></body></html>",
-                                overNameSku, price.doubleValue(), (oldPrice.doubleValue() - price.doubleValue()))
-                        : String.format("<html><body><div align=center><font size=+4><b>%s</b><br><br><br>Цена: <b>%s</b></font></div></body></html>",
-                        overNameSku, price == null ? "0" : String.valueOf(price.doubleValue()));
-            } else return null;
-
+            if (terminalHandlerLM != null) {
+                if (barcode.matches("\\d{1,14}")) {
+                    String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSku[Barcode]").read(session, terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode)));
+                    //boolean stop = terminalHandlerLM.findProperty("inStopList[STRING[15],STRING[100]]").read(session, new DataObject(barcode), new DataObject(idStock)) != null;
+                    if (nameSkuBarcode != null /*&& !stop*/) {
+                        if (nameSkuBarcode.length() > 100)
+                            nameSkuBarcode = nameSkuBarcode.substring(0,100) + "...";
+                        BigDecimal price = (BigDecimal) terminalHandlerLM.findProperty("transactionPriceIdBarcodeId[STRING[15],STRING[100]]").read(session, new DataObject(barcode), new DataObject(idStock));
+                        Integer leftPrice = price == null ? null : price.intValue();
+                        Integer rightPrice = price == null ? null : (price.multiply(BigDecimal.valueOf(100))).intValue() % 100;
+                        return getDefaultPriceHTML(nameSkuBarcode, leftPrice, rightPrice);
+                    } else return getDefaultNotFoundPriceHTML();
+                } else return getDefaultNotFoundPriceHTML();
+            }
+            return null;
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }
+
+    private String getDefaultPriceHTML(String name, Integer leftPrice, Integer rightPrice) {
+        String left = leftPrice == null ? "0" : String.valueOf(leftPrice);
+        String right = leftPrice == null ? "" : rightPrice == null || rightPrice.equals(0) ? "00" :
+                rightPrice < 10 ? "0" + String.valueOf(rightPrice) : String.valueOf(rightPrice);
+        return String.format("<html><head><style>" +
+                "   @font-face {font-family: \"pt-sans\"; src: url(file:///android_asset/fonts/pt-sans.ttf);}" +
+                "   @font-face {font-family: \"pt-sans-narrow\"; src: url(file:///android_asset/fonts/pt-sans-narrow.ttf);}" +
+                "   @font-face {font-family: \"pt-sans-bold-italic\"; src: url(file:///android_asset/fonts/pt-sans-bold-italic.ttf);}" +
+                "   body {background: url(file:///android_asset/main.png) no-repeat; background-size: 100%%; margin: 0px; padding: 0px; text-align: center; font-family: \"pt-sans-narrow\";}" +
+                "   p {margin-bottom: 25px; margin-right: 5px; text-align: center;}" +
+                "  .name {font-size:56px; font-weight: bold; color:rgb(0,51,102); margin-top:20%%;left:50%%; }" +
+                "  .price1 {font-family: \"pt-sans\"; font-size:180px; font-weight: bold; font-style: italic; letter-spacing: -12px; color:rgb(0,51,102); margin: 0px; display: inline-block;}" +
+                "  .price2 {font-family: \"pt-sans-bold-italic\"; font-size:80px; font-weight: bold; font-style: italic; color:rgb(0,51,102); margin-top: 28px; margin-left: 30px; vertical-align: top; display: inline-block;}" +
+                "</style><head>" +
+                "<body><div class=\"name\"><p>%s</p></div><p text-align: center;><div class=\"price1\">%s</div><div class=\"price2\">%s</div></p></body></html>", name, left, right);
+    }
+
+    private String getDefaultNotFoundPriceHTML() {
+        return "<html><head><style>" +
+                "   @font-face {font-family: \"pt-sans-narrow\"; src: url(file:///android_asset/fonts/pt-sans-narrow.ttf);}" +
+                "   body {background: url(file:///android_asset/main.png) no-repeat; background-size: 100%; margin: 0px; padding: 0px; text-align: center; font-family: \"pt-sans-narrow\";}" +
+                "   p {margin-bottom: 25px; margin-right: 5px; text-align: center;}" +
+                "  .name {font-size:56px; font-weight: bold; color:rgb(233,0,0); margin-top:20%;left:50%; }" +
+                "</style></head>" +
+                "<body><div class=\"name\"><p>Товар не найден</p></div></body></html>";
+    }
+
 
     public RawFileData readBase(DataSession session, UserInfo userInfo, boolean readBatch) {
         File file = null;
