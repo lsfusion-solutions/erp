@@ -4,7 +4,7 @@ REQUIRE CustomerEInvoice, EInvoiceTopByApi, EDS;
 
 NAMESPACE EDI;
 
-overImportBlrwbl ABSTRACT ();
+overImportBlrwbl ABSTRACT (INTEGER);
 skipBlrwbl = DATA LOCAL NESTED STRING ();
 overCreateEInvoiceBlrwbl ABSTRACT LIST (EInvoice);
 overCreateEInvoiceDetailBlrwbl ABSTRACT LIST (EInvoiceDetail,INTEGER);
@@ -12,10 +12,10 @@ overCreateEInvoiceDetailBlrwbl ABSTRACT LIST (EInvoiceDetail,INTEGER);
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrwbl' THEN {
         TRY {
-            IMPORT blrwbl XML FROM data(i);
             skipBlrwbl() <- NULL;
-            overImportBlrwbl();
+            overImportBlrwbl(i);
             IF NOT skipBlrwbl() THEN {
+                IMPORT blrwbl XML FROM data(i);
                 NEWSESSION NESTED LOCAL {
                     LOCAL isCancel = BOOLEAN();
                     isCancel() <- TRUE IF blrwblFunctionCode() == '1';
@@ -288,7 +288,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
     }
 }
 
-overImportBlrdln ABSTRACT ();
+overImportBlrdln ABSTRACT (INTEGER);
 skipBlrdln = DATA LOCAL NESTED STRING();
 overCreateEInvoiceBlrdln ABSTRACT LIST (EInvoice);
 overCreateEInvoiceDetailBlrdln ABSTRACT LIST (EInvoiceDetail,INTEGER);
@@ -296,10 +296,10 @@ overCreateEInvoiceDetailBlrdln ABSTRACT LIST (EInvoiceDetail,INTEGER);
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrdln' THEN {
         TRY {
-            IMPORT blrdln XML FROM data(i);
             skipBlrdln() <- NULL;
-            overImportBlrdln();
+            overImportBlrdln(i);
             IF NOT skipBlrdln() THEN {
+                IMPORT blrdln XML FROM data(i);
                 NEWSESSION NESTED LOCAL {
                     LOCAL isCancel = BOOLEAN();
                     isCancel() <- TRUE IF blrdlnFunctionCode() == '1';
