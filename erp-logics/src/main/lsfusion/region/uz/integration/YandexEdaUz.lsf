@@ -9,3 +9,18 @@ GROUP serviceCodesUz;
 EXTEND FORM nomenclature
     PROPERTIES (i) IN serviceCodesUz ikpu EXTID 'mxikCodeUz'
 ;
+
+returnOnlyNotZeroPositions 'Возвращать только не нулевые позиции' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES returnOnlyNotZeroPositions()
+;
+DESIGN integrationData{
+    yandexEda{
+        MOVE PROPERTY (returnOnlyNotZeroPositions());
+    }
+}
+
+EXTEND FORM getOrder
+    FILTERS (quantityOrderDetail(items) > 0 AND returnOnlyNotZeroPositions()) OR NOT returnOnlyNotZeroPositions()
+;
