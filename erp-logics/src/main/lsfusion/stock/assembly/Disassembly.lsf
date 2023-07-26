@@ -44,6 +44,8 @@ operation 'Операция' (DisassemblyDetail disassemblyDetail) = operation(d
 
 // header sku 
 @defineDocumentDetailSkuCustomPrefix(disassembly, sku, , );
+CONSTRAINT isPosted(Disassembly a) AND NOT sku(a)
+    MESSAGE 'Для разборки товаров должен быть задан SKU';
 
 @defineDocumentDetailBatchCustom(disassembly, batch);
 
@@ -60,6 +62,8 @@ CONSTRAINT SETCHANGED(batch(Disassembly disassembly)) AND NOT countLedger(batch(
 
 // detail
 @defineDocumentDetailSku(disassembly, sku);
+CONSTRAINT isPosted(DisassemblyDetail d) AND NOT sku(d)
+    MESSAGE 'Для строки разборки товаров должен быть задан SKU';
 
 @defineDocumentDetailQuantity (disassembly);
 
@@ -150,7 +154,7 @@ DESIGN disassembly {
                             alignment = STRETCH;
                             MOVE PROPERTY(idBarcodeSku(a));
                             MOVE PROPERTY(idSku(a));
-                            MOVE PROPERTY(nameSku(a));
+                            MOVE PROPERTY(nameSku(a)) { notNull = TRUE; }
                             MOVE PROPERTY(shortNameUOMSku(a));
                             MOVE PROPERTY(nameBatch(a));
                         }
@@ -177,6 +181,7 @@ DESIGN disassembly {
                     type = TABBED;
                     MOVE BOX(d) {
                         caption = 'Спецификация';
+                        PROPERTY(nameSku(d)) { notNull = TRUE; }
                     }
                 }
             }

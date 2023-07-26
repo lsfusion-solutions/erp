@@ -41,6 +41,8 @@ operation 'Операция' (AssemblyDetail assemblyDetail) = operation(assembl
 
 // header sku 
 @defineDocumentDetailSkuCustomPrefix(assembly, sku, , );
+CONSTRAINT isPosted(Assembly a) AND NOT sku(a)
+    MESSAGE 'Для сборки товаров должен быть задан SKU';
 
 @defineDocumentDetailQuantityCustomPrefix(assembly, ,);
 
@@ -51,6 +53,8 @@ price(Assembly a) <- NUMERIC[16,4](sum(a) / quantity(a)) WHEN CHANGED(sum(a)) OR
 
 // detail
 @defineDocumentDetailSku(assembly, sku);
+CONSTRAINT isPosted(AssemblyDetail d) AND NOT sku(d)
+    MESSAGE 'Для строки сборки товаров должен быть задан SKU';
 
 @defineDocumentDetailQuantity (assembly);
 
@@ -152,7 +156,7 @@ DESIGN assembly {
                             alignment = STRETCH;
                             MOVE PROPERTY(idBarcodeSku(a));
                             MOVE PROPERTY(idSku(a));
-                            MOVE PROPERTY(nameSku(a));
+                            MOVE PROPERTY(nameSku(a)) { notNull = TRUE; }
                             MOVE PROPERTY(shortNameUOMSku(a));
                         }
                         NEW headerParams {
@@ -173,7 +177,9 @@ DESIGN assembly {
                         }
                     }
                 }
-                MOVE BOX(d);
+                MOVE BOX(d) {
+                    PROPERTY(nameSku(d)) { notNull = TRUE; }
+                }
             }
         }
     }
