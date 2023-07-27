@@ -212,3 +212,12 @@ CONSTRAINT isPosted(ShipmentDetail d) AND isShipmentPrice(operation(d)) AND NOT 
     MESSAGE 'Для документа (закупка-возврат) должна быть задана учетная цена';
     
 shipmentDateTime(InvoiceDetail l) += shipmentDateTime(l);
+
+fillBatch 'Проставить партию' (UserShipmentDetail d) {
+    batch(d) <- prevFirstOrderBatchAvailable(sku(d), customerStock(d), quantity(d)) WHERE NOT batch(d);
+} ASON CONTEXTMENU nameBatch[UserShipmentDetail];
+
+fillAllBatch 'Проставить партии для всех'(PurchaseReturn.UserShipmentDetail detail)  {
+    FOR userShipment(detail) == userShipment(PurchaseReturn.UserShipmentDetail d) DO
+        fillBatch(d);
+} ASON CONTEXTMENU nameBatch[UserShipmentDetail];
