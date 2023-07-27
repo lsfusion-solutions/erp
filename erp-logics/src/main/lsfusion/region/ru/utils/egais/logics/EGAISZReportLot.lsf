@@ -40,18 +40,18 @@ createActWriteOff 'Создать списание на основе реали�
     }
 }
 
-actWriteOffDays 'Кол-во дней проверки списаниЙ на основе реализации' = DATA INTEGER ();
+actWriteOffDays 'Кол-во дней проверки списаний на основе реализации' = DATA INTEGER ();
 
-EXTEND FORM options PROPERTIES() actWriteOffDays;
+EXTEND FORM integrationData PROPERTIES() actWriteOffDays;
 
-DESIGN options {
-    commons {
+DESIGN integrationData {
+    EGAIS {
         MOVE PROPERTY(actWriteOffDays());
     }
 }
 
-createActWriteOff () {
-    FOR iterate(DATE d, sum(currentDate(), -actWriteOffDays() - 1), sum(currentDate(), -1)) DO {
+createActWriteOff 'Создать списание ЕГАИС на основе реализации' () {
+    FOR iterate(DATE d, sum(currentDate(), (OVERRIDE -actWriteOffDays(), -1)), sum(currentDate(), -1)) DO {
         FOR own(Client c) AND NOT actWriteOff(c, d, writeOffType('Розничная продажа')) DO createActWriteOff(c,d);
     }
 }
