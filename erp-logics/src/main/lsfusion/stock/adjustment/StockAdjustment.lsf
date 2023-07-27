@@ -990,3 +990,13 @@ fillAllBatch 'Проставить партии для всех'(UserAdjustmentD
     FOR userAdjustment(detail) == userAdjustment(UserAdjustmentDetail d) DO
         fillBatch(d);
 } ASON CONTEXTMENU nameBatch[UserAdjustmentDetail];
+
+@defineOperationProperty(quantityFillCheck, 'Должно быть заполнено количество', BOOLEAN, paramsContainer);
+
+CONSTRAINT (SET (isPosted(UserAdjustmentDetail d)) OR DROPPED (quantity(d))) AND isPosted(d) AND quantityFillCheck(operation(d)) AND NOT quantity(d) 
+    MESSAGE 'Для текущей операции обязательно заполнение поля "Количество"';
+
+@defineOperationProperty(priceFillCheck, 'Должна быть заполнена цена', BOOLEAN, paramsContainer);
+
+CONSTRAINT (SET (isPosted(UserAdjustmentDetail d)) OR DROPPED (price(d))) AND isPosted(d) AND priceFillCheck(operation(d)) AND NOT price(d) 
+    MESSAGE 'Для текущей операции обязательно заполнение поля "Цена"';
