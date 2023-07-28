@@ -1781,7 +1781,9 @@ background 'Цвет' = ABSTRACT CASE COLOR (Sku, Stock, Inventory);
 backgroundDiffInventory(CollationSheet cs, Sku s) = CASE 
     WHEN backgroundDiffInventoryProp(cs,s) THEN RGB (255,153,153) 
     ELSE background(s, stock(cs), inventory(cs));
-    
+
+hideQuantityPageInventoryDetailSku = ABSTRACT BOOLEAN ();
+
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory PANEL
     PROPERTIES (in)  isBatch, isPrice, isShortageStockDocument, nameNumerator, number, series,
@@ -1852,7 +1854,7 @@ FORM inventory 'Инвентаризация'
 
     OBJECTS          i=Sku GRID
     PROPERTIES(i) READONLY                      BACKGROUND backgroundDiffInventory(cs,i) idBarcode, iNameSku = name ON CONTEXTMENU showMovementSkuStock(cs,i) ON CONTEXTMENU movementDocumentDetailSku(i,cs), id
-    PROPERTIES(cs, i)                           quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i), quantityBalance, quantityShortage ON CONTEXTMENU showCost(cs, i)
+    PROPERTIES(cs, i)                           quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i) SHOWIF NOT hideQuantityPageInventoryDetailSku(), quantityBalance, quantityShortage ON CONTEXTMENU showCost(cs, i)
     PROPERTIES(cs, i) SHOWIF isSku(in) pricePageInventoryDetail BACKGROUND differentPrice(cs, i),
                                                 priceBalance BACKGROUND differentPrice(cs, i)
     PROPERTIES(cs, i) SHOWIF isSku(in) sumPageInventoryDetail, sumBalance, sumShortage
