@@ -1,0 +1,66 @@
+MODULE EnterpriseDataDrop;
+
+REQUIRE EnterpriseData;
+
+NAMESPACE EnterpriseData;
+
+CLASS EnterpriseDataDrop 'Универсальный обмен 1С (drop)' : EnterpriseData;
+TABLE enterpriseDataDrop (EnterpriseDataDrop);
+TABLE configurationEnterpriseDataDrop (Configuration, EnterpriseDataDrop);
+
+//uid 'Ссылка' = DATA STRING[36] (EnterpriseDataDrop) INDEXED;
+configuration = DATA Configuration (EnterpriseDataDrop) INDEXED;
+date 'Дата' = DATA DATE (EnterpriseDataDrop);
+desc 'Описание' = DATA STRING (EnterpriseDataDrop);
+desc(EnterpriseDataDrop e,Configuration c) += desc(e) IF c==configuration(e);
+createdTime '{historizable.created.time}'= DATA DATETIME (EnterpriseDataDrop);
+hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (EnterpriseDataDrop);
+userLogin 'Логин пользователя' = DATA STRING[100] (EnterpriseDataDrop);
+nameContact 'Имя пользователя' =  DATA STRING[100] (EnterpriseDataDrop) IN id;
+//sendUid(EnterpriseDataDrop e, Configuration c) = uid(e) IF c==configuration(e);
+skip = DATA BOOLEAN (EnterpriseDataDrop);
+skip (Configuration c, EnterpriseDataDrop e) += skip(e) IF c==configuration(e);
+
+isDrop (EnterpriseData e) = e IS EnterpriseDataDrop;
+objectExchangeDrop = DATA ObjectExchange(EnterpriseDataDrop);
+objectExchange(EnterpriseDataDrop e) +=  objectExchangeDrop(e) IF e IS EnterpriseDataDrop;
+isDeleted(EnterpriseDataDrop e) +=  TRUE IF e IS EnterpriseDataDrop;
+
+inSending (Configuration c, EnterpriseDataDrop drop) += inSending(objectExchange(drop), c) IF drop IS EnterpriseDataDrop AND configuration(drop)==c  AND NOT skip(c, drop);
+
+skipAggr(EnterpriseData e) += TRUE IF configuration(e);
+
+WHEN DROPPED(EnterpriseData ed AS EnterpriseData) AND Configuration c IS Configuration AND NOT PREV(configuration(ed)) //AND PREV(sendUid (ed, c)) 
+    DO {
+        NEW d = EnterpriseDataDrop {
+            configuration(d) <- c;
+            uid(d) <- OVERRIDE PREV(sendUid (ed, c)), PREV(uid(ed));
+            date(d) <- PREV(date(ed, c));
+            desc(d) <- CONCAT ' ', 'Удаление:',PREV(desc(ed, c)), name(PREV(objectExchange(ed)));
+            objectExchangeDrop(d) <- PREV(objectExchange(ed));
+            skip(d) <- PREV(skip(c, ed));
+            createdTime(d) <- currentDateTime();
+            hostnameComputer(d) <- hostnameCurrentComputer();
+            userLogin(d) <- login(currentUser());
+            nameContact(d) <- STRING[100](name(currentUser()));
+        }
+
+}
+
+nameLink(EnterpriseDataDrop d) = getWord(staticCaption(objectExchangeDrop(d)), '.',2)+'Ссылка';
+sendUidConcat(EnterpriseDataDrop d, Configuration c) = '<'+nameLink(d)+' xmlns="http://v8.1c.ru/edi/edi_stnd/EnterpriseData/'+(nameVersion(c))+'">'+ sendUid(d,c)+ '</'+nameLink(d)+'>';
+
+META extDeleteObjectExtra( ver)
+    EXTEND FORM sendMessage
+        OBJECTS obj##DeletedExtra = EnterpriseDataDrop EXTID 'УдалениеОбъекта' IN bodySend###ver
+        PROPERTIES(obj##DeletedExtra, configuration) IN link IN linkInLink sendUidConcat EXTID 'value'
+        FILTERS sendUid(obj##DeletedExtra, configuration), 
+                EnterpriseData.isDeleted(obj##DeletedExtra), 
+                configuration(obj##DeletedExtra)==configuration
+
+        FILTERS inLocalSending(configuration, obj##DeletedExtra), NOT skip(configuration, obj##DeletedExtra)
+    ;
+END
+
+
+
