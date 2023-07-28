@@ -4,8 +4,8 @@ REQUIRE Stock, Item, Barcode, Document, EmployeeStock, PriceListAccount,
         StockMovement, StockSkuDocument,
         DisassemblyOperation;
 
-CLASS Disassembly 'Разборка';
-CLASS DisassemblyDetail 'Строка разборки';
+CLASS Disassembly 'Разборка' : Document;
+CLASS DisassemblyDetail 'Строка разборки' : DocumentDetail;
 
 @defineDocument(disassembly);
 TABLE sessionDisassembly (Session, Disassembly);
@@ -96,6 +96,34 @@ weight (DisassemblyDetail d) += netWeight(sku(d));
 
 @defineAddDetailDialogSkuStock(disassembly, sku, stock, dialogSku);
 @defineAddDetailDialogBarcode(disassembly, sku);
+isClosed[Document](Disassembly disassembly) += isClosed(disassembly);
+isPosted[Document](Disassembly disassembly) += isPosted(disassembly);
+number[Document](Disassembly disassembly) += number(disassembly);
+series[Document](Disassembly disassembly) += series(disassembly);
+date[Document](Disassembly disassembly) += date(disassembly);
+
+index[DocumentDetail](DisassemblyDetail detail) += index(detail);
+sku[DocumentDetail](DisassemblyDetail detail) += sku(detail);
+quantity[DocumentDetail](DisassemblyDetail detail) += quantity(detail);
+price[DocumentDetail](DisassemblyDetail detail) += price(detail);
+
+document[DocumentDetail](DisassemblyDetail detail) += disassembly(detail);
+
+overFillDocument  ABSTRACT LIST ( DisassemblyDetail, DocumentDetail); 
+fillDocument 'Подбор документа'(Disassembly disassembly)  { 
+    DIALOG documents DO {
+        FOR inSession(document(DocumentDetail documentDetail)) NEW i = DisassemblyDetail DO {
+            disassembly(i) <- disassembly;
+            sku(i) <- sku(documentDetail);
+            quantity(i) <- quantity(documentDetail);
+            price(i) <- price(documentDetail) WHERE fillPriceDocuments();
+            overFillDocument(i, documentDetail);
+        }
+    }
+} TOOLBAR;
+
+@implementDocumentForm(disassembly, das, 'Разборка');
+supplierStock(Disassembly disassembly) += stock(disassembly);
 
 @defineDocumentSkuStockPriceListTypeSystemLedger(disassembly, );
 
@@ -274,7 +302,10 @@ DESIGN disassemblies {
 }
 @defineFilterIsOpened (disassembly, disassemblies, a);
 @extendFormFilterRoleAccess(disassembly, a, disassemblies);
+@defineDocumentLogForm(disassemblies, a, history);
+@defineDocumentLogForm(disassembly, a, detailsPane);
 
+DESIGN disassembly { historyTabs { caption = 'История'; } }
 NAVIGATOR {
     stockNavigator {
         NEW FOLDER disassemblyNavigator 'Разборка' BEFORE balanceSku {

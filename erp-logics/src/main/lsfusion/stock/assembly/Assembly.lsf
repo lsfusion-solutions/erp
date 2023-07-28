@@ -4,8 +4,8 @@ REQUIRE Stock, Item, Barcode, Document, EmployeeStock, PriceListAccount,
         StockMovement, StockSkuDocument,
         AssemblyOperation;
 
-CLASS Assembly 'Сборка';
-CLASS AssemblyDetail 'Строка сборки';
+CLASS Assembly 'Сборка' : Document;
+CLASS AssemblyDetail 'Строка сборки' : DocumentDetail;
 
 @defineDocument(assembly);
 TABLE sessionAssembly (Session, Assembly);
@@ -97,6 +97,34 @@ changeBatch(AssemblyDetail d)  {
 
 @defineAddDetailDialogSkuStock(assembly, sku, stock, dialogSku);
 @defineAddDetailDialogBarcode(assembly, sku);
+isClosed[Document](Assembly assembly) += isClosed(assembly);
+isPosted[Document](Assembly assembly) += isPosted(assembly);
+number[Document](Assembly assembly) += number(assembly);
+series[Document](Assembly assembly) += series(assembly);
+date[Document](Assembly assembly) += date(assembly);
+
+index[DocumentDetail](AssemblyDetail detail) += index(detail);
+sku[DocumentDetail](AssemblyDetail detail) += sku(detail);
+quantity[DocumentDetail](AssemblyDetail detail) += quantity(detail);
+price[DocumentDetail](AssemblyDetail detail) += price(detail);
+
+document[DocumentDetail](AssemblyDetail detail) += assembly(detail);
+
+overFillDocument  ABSTRACT LIST ( AssemblyDetail, DocumentDetail); 
+fillDocument 'Подбор документа'(Assembly assembly)  { 
+    DIALOG documents DO {
+        FOR inSession(document(DocumentDetail documentDetail)) NEW i = AssemblyDetail DO {
+            assembly(i) <- assembly;
+            sku(i) <- sku(documentDetail);
+            quantity(i) <- quantity(documentDetail);
+            price(i) <- price(documentDetail) WHERE fillPriceDocuments();
+            overFillDocument(i, documentDetail);
+        }
+    }
+} TOOLBAR;
+
+@implementDocumentForm(assembly, as, 'Сборка');
+supplierStock(Assembly assembly) += stock(assembly);
 
 @defineDocumentSkuStockPriceListTypeSystemLedger(assembly, );
 
@@ -177,8 +205,13 @@ DESIGN assembly {
                         }
                     }
                 }
-                MOVE BOX(d) {
-                    PROPERTY(nameSku(d)) { notNull = TRUE; }
+                NEW detailsPane {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                        PROPERTY(nameSku(d)) { notNull = TRUE; }
+                    }
                 }
             }
         }
@@ -260,7 +293,10 @@ DESIGN assemblies {
 }
 @defineFilterIsOpened (assembly, assemblies, a);
 @extendFormFilterRoleAccess(assembly, a, assemblies);
+@defineDocumentLogForm(assemblies, a, history);
+@defineDocumentLogForm(assembly, a, detailsPane);
 
+DESIGN assembly { historyTabs { caption = 'История'; } }
 NAVIGATOR {
     stockNavigator {
         NEW FOLDER assemblyNavigator 'Сборка' BEFORE balanceSku {

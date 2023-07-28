@@ -26,8 +26,8 @@ DESIGN options {
 
 //----------------------------------- Пересорт товара -------------------------------------------------------
 
-CLASS ABSTRACT Disparity 'Изменение сортности';
-CLASS ABSTRACT DisparityDetail 'Строка изменения сортности';
+CLASS ABSTRACT Disparity 'Изменение сортности' : Document;
+CLASS ABSTRACT DisparityDetail 'Строка изменения сортности' : DocumentDetail;
 
 CLASS UserDisparity 'Изменение сортности (польз.)': Disparity;
 CLASS UserDisparityDetail 'Строка изменения сортности (польз.)' : DisparityDetail;
@@ -62,7 +62,7 @@ disparityDetail (id, disparity) = GROUP AGGR UserDisparityDetail disparityDetail
 @defineDocumentInterfaceDetailSkuPrefix (disparity, sku, input, ' (приход)');
 
 @showDocumentInterfaceDetailBatch(disparity);
-skipFillBatch = ABSTRACT CASE BOOLEAN (DisparityDetail);
+//skipFillBatch = ABSTRACT CASE BOOLEAN (DisparityDetail);
 @defineDocumentInterfaceDetailBatch(disparity, batch);
 changeBatch(UserDisparityDetail d)  { 
     DIALOG dialogBatchStockOut OBJECTS st = stock(d),
@@ -129,6 +129,16 @@ inputSumDisparityDetail '{document.sum.of} учетная (приход)' (dispa
 
 @defineAddDetailDialogSkuStock(userDisparity, sku, stock, dialogSku);
 @defineAddDetailDialogBarcode(userDisparity, sku);
+
+@implementDocument(disparity);
+
+@implementDocumentForm(disparity, dis, 'Изменение сортности');
+
+@implementDocumentBatch(disparity);
+
+@implementDocumentBatchForm(dis);
+
+supplierStock(Disparity disparity) += stock(disparity);
 
 @defineDocumentInterfaceDetailDiffSumCustomPrefix(disparityDetail, sum, , input, ' изменения учетной');
 diffSumDisparityDetail 'Сумма' (disparity) =
@@ -435,6 +445,10 @@ DESIGN disparities {
 }
 @extendFormEditable(disparities);
 @defineFilterIsOpened (disparity, disparities, dis);
+@defineDocumentLogForm(disparities, dis);
+@defineDocumentLogForm(disparity, dis, specificationBox);
+
+DESIGN disparity { historyTabs { caption = 'История'; } }
 NAVIGATOR {
     stockNavigator {
         NEW FOLDER disparityNavigator 'Изменение сортности' BEFORE balanceSku {
