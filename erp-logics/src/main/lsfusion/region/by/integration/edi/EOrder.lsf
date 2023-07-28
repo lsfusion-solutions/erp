@@ -8,8 +8,15 @@ NAMESPACE EDI;
 notUseStockGLN 'Не использовать GLN склада для заказа' = DATA BOOLEAN (LegalEntity);
 banCancel 'Запретить отмену заказа' = DATA BOOLEAN(LegalEntity);
 hourToSend 'Возможна повторная отправка до' = DATA TIME(LegalEntity);
+//
+isBranch 'Явл. филиалом' = DATA BOOLEAN (LegalEntity) IN id;
+headLegalEntity 'Головная организация' = DATA LegalEntity (LegalEntity);
+nameHeadLegalEntity 'Головная организация' (LegalEntity l) = name(headLegalEntity(l)) IN id;
+WHEN LOCAL DROPPED(isBranch(LegalEntity l)) DO headLegalEntity(l) <- NULL;
+//
+
 EXTEND FORM legalEntity
-    PROPERTIES(l) SHOWIF isSupplier(l) notUseStockGLN, banCancel, hourToSend;
+    PROPERTIES(l) SHOWIF isSupplier(l) notUseStockGLN, banCancel, hourToSend, isBranch, nameHeadLegalEntity SHOWIF isBranch(l) AND isSupplier(l);
 
 DESIGN legalEntity {
     EDI {
@@ -19,6 +26,11 @@ DESIGN legalEntity {
             MOVE PROPERTY (notUseStockGLN(l));
             MOVE PROPERTY (banCancel(l));
             MOVE PROPERTY (hourToSend(l));
+            NEW branch {
+                type = CONTAINERH;
+                MOVE PROPERTY (isBranch(l));
+                MOVE PROPERTY (nameHeadLegalEntity(l));
+            }
         }
     }
 }
@@ -46,7 +58,7 @@ eOrder (number) = GROUP AGGR EOrder e BY number(e);
 
 supplier 'Поставщик' = ABSTRACT LegalEntity (EOrder);
 nameSupplier 'Поставщик' (EOrder o) = name(supplier(o));
-GLNSupplier(EOrder e) = OVERRIDE GLN(supplier(e)), extraGLN(supplier(e));
+GLNSupplier(EOrder e) = OVERRIDE GLN(headLegalEntity(supplier(e))), GLN(supplier(e)), extraGLN(supplier(e));
 
 supplierStock 'Склад поставщика' = ABSTRACT Stock (EOrder);
 nameSupplierStock 'Склад поставщика' (EOrder o) = name(supplierStock(o));
