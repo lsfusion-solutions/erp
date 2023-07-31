@@ -37,6 +37,12 @@ CONSTRAINT customer(UserCreditNote userCreditNote) AND NOT isCustomer(customer(u
 @defineOperationProperty(createCreditNote, 'Акт расхождения', createContainer);
 @deriveDocumentOperationProperty(UserInvoice, createCreditNote);
 
+@defineOperationProperty(checkDateTimeCreditNote, 'Акт расхождения (польз.) должен быть создан позже накладной', constraintContainer);
+checkDateTimeCreditNote 'Акт расхождения (польз.) должен быть создан позже накладной' (UserCreditNoteDetail d) = checkDateTimeCreditNote(operation(d));
+CONSTRAINT (SETCHANGED (invoiceDetail(UserCreditNoteDetail d)) OR SETCHANGED (operation(d)) OR SETCHANGED (dateTime(d)) OR SET(isPosted(d))) 
+    AND isPosted(d) AND checkDateTimeCreditNote(d) AND dateTime(d) <= dateTime(invoiceDetail(d))
+        MESSAGE 'Акт расхождения (польз.) должен быть создан позже накладной';
+
 @defineDocumentOperationLegalEntity(userCreditNote, supplier, 'Поставщик');
 @deriveDocumentOperationLegalEntity(userCreditNote, supplier, userCreditNote);
 @defineDocumentOperationLegalEntity(userCreditNote, customer, 'Покупатель');
