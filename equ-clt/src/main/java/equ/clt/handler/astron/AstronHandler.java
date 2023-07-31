@@ -2568,7 +2568,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     private void createFusionProcessedIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
             String query = params.pgsql ?
-                    String.format("CREATE INDEX CONCURRENTLY IF NOT EXISTS %s ON sales(salescanc, fusion_processed)", getFusionProcessedIndexName()) :
+                    String.format("CREATE INDEX IF NOT EXISTS %s ON sales(salescanc, fusion_processed)", getFusionProcessedIndexName()) :
                     String.format("IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), '%s', 'IndexId') > 0) BEGIN CREATE INDEX %s ON SALES (SALESCANC, FUSION_PROCESSED) END",
                     getFusionProcessedIndexName(), getFusionProcessedIndexName());
             statement.executeQuery(query);
@@ -2585,7 +2585,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     protected void createSalesIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
             String query = params.pgsql ?
-                    "CREATE INDEX CONCURRENTLY IF NOT EXISTS sale ON sales(SALESNUM, SESSID, SYSTEMID, SAREAID)" :
+                    "CREATE INDEX IF NOT EXISTS sale ON sales(SALESNUM, SESSID, SYSTEMID, SAREAID)" :
                     "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (SALESNUM, SESSID, SYSTEMID, SAREAID) END";
             statement.executeQuery(query);
         } catch (SQLException e) {
@@ -2596,7 +2596,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     protected void createSalestimeIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
             String query = params.pgsql ?
-                    "CREATE INDEX CONCURRENTLY IF NOT EXISTS salestime ON sales(SALESTIME, SYSTEMID)" :
+                    "CREATE INDEX IF NOT EXISTS salestime ON sales(SALESTIME, SYSTEMID)" :
                     "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'salestime', 'IndexId') > 0) BEGIN CREATE INDEX salestime ON SALES (SALESTIME, SYSTEMID) END";
             statement.executeQuery(query);
             conn.commit();
