@@ -2571,7 +2571,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     String.format("CREATE INDEX IF NOT EXISTS %s ON sales(salescanc, fusion_processed)", getFusionProcessedIndexName()) :
                     String.format("IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), '%s', 'IndexId') > 0) BEGIN CREATE INDEX %s ON SALES (SALESCANC, FUSION_PROCESSED) END",
                     getFusionProcessedIndexName(), getFusionProcessedIndexName());
-            statement.executeQuery(query);
+            statement.execute(query);
+            conn.commit();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
@@ -2587,7 +2588,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             String query = params.pgsql ?
                     "CREATE INDEX IF NOT EXISTS sale ON sales(SALESNUM, SESSID, SYSTEMID, SAREAID)" :
                     "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (SALESNUM, SESSID, SYSTEMID, SAREAID) END";
-            statement.executeQuery(query);
+            statement.execute(query);
+            conn.commit();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
@@ -2598,7 +2600,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             String query = params.pgsql ?
                     "CREATE INDEX IF NOT EXISTS salestime ON sales(SALESTIME, SYSTEMID)" :
                     "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'salestime', 'IndexId') > 0) BEGIN CREATE INDEX salestime ON SALES (SALESTIME, SYSTEMID) END";
-            statement.executeQuery(query);
+            statement.execute(query);
             conn.commit();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
