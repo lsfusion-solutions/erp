@@ -82,24 +82,17 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
                 if (importColumns != null && fileExtension != null) {
 
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, fileExtension + " Files", fileExtension);
+                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
-                        Map<String, RawFileData> fileList = valueClass.getMultipleNamedFiles(objectValue.getValue());
-
-                        for (Map.Entry<String, RawFileData> file : fileList.entrySet()) {
-
-                            try {
-                                makeImport(context, orderObject, importColumns, file.getValue(), settings, fileExtension,
-                                        operationObject, supplierObject, supplierStockObject, customerObject, customerStockObject);
-
-                                context.apply();
-
-                                findAction("formRefresh[]").execute(context);
-                            } catch (IOException | xBaseJException | ParseException | ScriptingErrorLog.SemanticErrorException | BiffException e) {
-                                ERPLoggers.importLogger.error("ImportSaleOrder failed, file " + file.getKey(), e);
-                                throw Throwables.propagate(e);
-                            }
+                        try {
+                            makeImport(context, orderObject, importColumns, (RawFileData) objectValue.getValue(), settings, fileExtension,
+                                    operationObject, supplierObject, supplierStockObject, customerObject, customerStockObject);
+                            context.apply();
+                            findAction("formRefresh[]").execute(context);
+                        } catch (IOException | xBaseJException | ParseException | ScriptingErrorLog.SemanticErrorException | BiffException e) {
+                            ERPLoggers.importLogger.error("ImportSaleOrder failed", e);
+                            throw Throwables.propagate(e);
                         }
                     }
                 }
