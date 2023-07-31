@@ -76,11 +76,11 @@ limitPrice (UserInvoiceDetail detail) += WHEN detail IS UserInvoiceDetail THEN r
 //        retailMarkup(d) <- calcRetailMarkup(d);
 //    }
 //}
-
+skipLocalLimitPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
              showLimitPrice(d) NOINLINE DO { // AND limitMarkup(d) > 1
-    IF limitPrice(d) < retailPrice(d) THEN {
+    IF limitPrice(d) < retailPrice(d) AND NOT skipLocalLimitPrice(d) THEN {
         retailPrice(d) <- limitPrice(d);
         retailMarkup(d) <- calcRetailMarkup(d);
     }
