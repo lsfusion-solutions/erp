@@ -2567,6 +2567,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private void createFusionProcessedIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
+            conn.setAutoCommit(false);
             String query = params.pgsql ?
                     String.format("CREATE INDEX CONCURRENTLY IF NOT EXISTS %s ON sales(salescanc, fusion_processed)", getFusionProcessedIndexName()) :
                     String.format("IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), '%s', 'IndexId') > 0) BEGIN CREATE INDEX %s ON SALES (SALESCANC, FUSION_PROCESSED) END",
@@ -2585,6 +2586,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     protected void createSalesIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
+            conn.setAutoCommit(false);
             String query = params.pgsql ?
                     "CREATE INDEX CONCURRENTLY IF NOT EXISTS sale ON sales(SALESNUM, SESSID, SYSTEMID, SAREAID)" :
                     "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (SALESNUM, SESSID, SYSTEMID, SAREAID) END";
@@ -2597,6 +2599,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     protected void createSalestimeIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
+            conn.setAutoCommit(false);
             String query = params.pgsql ?
                     "CREATE INDEX CONCURRENTLY IF NOT EXISTS salestime ON sales(SALESTIME, SYSTEMID)" :
                     "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'salestime', 'IndexId') > 0) BEGIN CREATE INDEX salestime ON SALES (SALESTIME, SYSTEMID) END";
