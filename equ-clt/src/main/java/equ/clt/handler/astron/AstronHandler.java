@@ -2536,10 +2536,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         ps.addBatch();
                         count++;
                         if(count > 20000) {
+                            astronSalesLogger.info("FinishReadingSalesInfo: Commit " + count);
                             executeAndCommitBatch(ps, conn);
                             count = 0;
                         }
                     }
+                    astronSalesLogger.info("FinishReadingSalesInfo: Commit " + count);
                     executeAndCommitBatch(ps, conn);
 
                 } catch (SQLException | ClassNotFoundException e) {
