@@ -19,9 +19,30 @@ outputDirTopBy 'Папка отправленных сообщений' = DATA S
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
 
+@lockedObjects(TopBy,LegalEntity);
+
+onStarted()+ { 
+    NEWSESSION {
+        lockedTopBy(LegalEntity l) <- NULL WHERE lockedTopBy(l) AND l IS LegalEntity;
+        APPLY;      
+    }
+}
+
 receiveMessagesTopBy () {
-    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginTopBy(l)](STRING login) AND passwordTopBy(le) DO
-        receiveMessages(login, passwordTopBy(le), ('http://' +  hostTopBy(le) + ':' + portTopBy(le) + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), NULL, 'TopBy');
+    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginTopBy(l)](STRING login) AND passwordTopBy(le) DO {
+        NEWSESSION {
+            lockTopBy(le);
+            IF lockResultTopBy() THEN {
+                TRY {
+                    receiveMessages(login, passwordTopBy(le), ('http://' +  hostTopBy(le) + ':' + portTopBy(le) + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), NULL, 'TopBy');
+                } FINALLY {
+                    unlockTopBy(le);
+                }
+            } ELSE {
+                MESSAGE 'Уже выполняется получение сообщений TopBy для ' + login + '. Подождите...' NOWAIT;
+            }
+        }
+    }
 }
 
 receiveTopBy 'Получить сообщения' {

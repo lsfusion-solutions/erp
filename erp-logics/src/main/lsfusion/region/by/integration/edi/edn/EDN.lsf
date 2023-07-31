@@ -39,11 +39,31 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
     }
 }
 
+@lockedObjects(EDN,LegalEntity);
+
+onStarted()+ { 
+    NEWSESSION {
+        lockedEDN(LegalEntity l) <- NULL WHERE lockedEDN(l) AND l IS LegalEntity;
+        APPLY;      
+    }
+}
+
 overReceiveMessagesEDN ABSTRACT LIST(LegalEntity);
 receiveMessagesEDN () {
     FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
-        overReceiveMessagesEDN(le);
-        receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
+        NEWSESSION {
+            lockEDN(le);
+            IF lockResultEDN() THEN {
+                TRY {
+                    overReceiveMessagesEDN(le);
+                    receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
+                } FINALLY {
+                    unlockEDN(le);
+                }
+            } ELSE {
+                MESSAGE 'Уже выполняется получение сообщений EDN для ' + login + '. Подождите...' NOWAIT;
+            }
+        }
     }
 }
 
@@ -130,8 +150,49 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
     }
 }
 
+lockedDocuDrive = DATA User ();
+lockResultDocuDrive = DATA LOCAL NESTED BOOLEAN ();
+
+lockDocuDrive()  { 
+    NEWSESSION {    
+        lockResultDocuDrive() <- NULL;
+        APPLY SERIALIZABLE {
+            IF lockedDocuDrive() THEN {
+                cancel();
+            } ELSE {
+                lockedDocuDrive() <- currentUser();
+                lockResultDocuDrive() <- TRUE;
+            }
+        }
+    }
+}
+
+unlockDocuDrive()  { 
+    NEWSESSION { 
+        APPLY lockedDocuDrive() <- NULL;
+    }
+}
+
+onStarted()+ { 
+    NEWSESSION {
+        lockedDocuDrive() <- NULL WHERE lockedDocuDrive();
+        APPLY;      
+    }
+}
+
 receiveMessagesDocuDrive () {
-    receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
+    NEWSESSION {
+        lockDocuDrive();
+        IF lockResultDocuDrive() THEN {
+            TRY {
+                receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
+            } FINALLY {
+                unlockDocuDrive();
+            }
+        } ELSE {
+            MESSAGE 'Уже выполняется получение сообщений DocuDrive. Подождите...' NOWAIT;
+        }
+    }
 }
 
 receiveEDN 'Получить сообщения' {
