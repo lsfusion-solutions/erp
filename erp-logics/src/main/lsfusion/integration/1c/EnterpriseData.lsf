@@ -207,6 +207,39 @@ generateUid 'Генерировать UID' () {
 
 turnOutConstraints 'Отключить ограничения' = DATA BOOLEAN (Configuration);
 
+CLASS Import1CLog 'Лог импорта 1С';
+TABLE import1CLog (Import1CLog);
+
+createImport1CLog 'Писать "Лог импорта 1С"' = DATA BOOLEAN (Configuration);
+countDaysImport1CLog 'К-во дней для хранения  "Лог импорта 1С"' = DATA INTEGER (Configuration);
+countDaysImport1CLogOver 'К-во дней для хранения  "Лог импорта 1С"' (Configuration c) = OVERRIDE countDaysImport1CLog(c), 180;
+configuration = DATA Configuration(Import1CLog) INDEXED;
+dateTime 'Дата/время изменения' = DATA DATETIME (Import1CLog);
+date 'Дата изменения' (Import1CLog l) = DATE(dateTime(l)) MATERIALIZED INDEXED;
+time 'Время изменения' (Import1CLog l) = TIME(dateTime(l));
+
+user 'Пользователь' = DATA User (Import1CLog);
+nameUser 'Пользователь' (Import1CLog l) = name(user(l));
+idReceived 'Номер принятого сообщения' = DATA INTEGER (Import1CLog);
+isReceived 'Сообщение принято' = DATA BOOLEAN (Import1CLog);
+idTicket 'Получена квитанция' = DATA INTEGER (Import1CLog);
+text 'Сообщение' = DATA TEXT (Import1CLog);
+
+log1C = DATA LOCAL Import1CLog(Configuration);
+
+deleteImport1CLog 'Очистить "Лог импорта 1С"' (Configuration c) {
+    NEWSESSION {        
+        DELETE Import1CLog log WHERE date(log)<=sum(currentDate(), -countDaysImport1CLogOver(c)) AND configuration(log)==c;
+        APPLY;
+    }
+}
+deleteImport1CLog 'Очистить "Лог импорта 1С"'(){
+    FOR countDaysImport1CLogOver(Configuration c) DO NEWSESSION {
+        DELETE Import1CLog log WHERE date(log)<=sum(currentDate(), -countDaysImport1CLogOver(c)) AND configuration(log)==c;
+        APPLY;
+    }    
+}
+
 receiveMessage 'Получить' (Configuration c) {
     NEWSESSION {
         LOCAL f = XMLFILE ();
@@ -214,21 +247,57 @@ receiveMessage 'Получить' (Configuration c) {
             READ receivePath(c) + '.xml' TO f;
             IMPORT receiveMessage XML FROM f();
             overImport(c);
+            log1C(c)<- NULL;            
             IF idReceivedTemp() AND NOT idReceivedTemp() <= idReceived(c) THEN {
+                IF createImport1CLog(c) THEN NEWSESSION  NESTED LOCAL {
+                    NEW l = Import1CLog {
+                        configuration(l)<- c;
+                        dateTime(l)<- currentDateTime();
+                        user(l)<- currentUser();
+                        idReceived(l) <- idReceivedTemp();
+                        isReceived(l) <- TRUE;
+                        idTicket(l)<- idReceivedTicket();
+                    }
+                    APPLY NESTED LOCAL;
+                }
                 idReceived(c) <- idReceivedTemp();
                 isReceived(c) <- TRUE;
                 overReceive(c);
+                log1C(c)<- NULL;
                 overReceive(c, f(), idReceivedTemp());
                 in (c, EnterpriseData e) <- NULL WHERE packet(c, e) <= idReceivedTicket();
                 idTicket(c) <- idReceivedTicket();
             } ELSE {
-                isReceived(c) <- NULL;    
+                isReceived(c) <- NULL;
+                IF createImport1CLog(c) THEN NEWSESSION  NESTED LOCAL {
+                    NEW l = Import1CLog {
+                        configuration(l)<- c;
+                        dateTime(l)<- currentDateTime();
+                        user(l)<- currentUser();
+                        idReceived(l) <- idReceivedTemp();
+                        isReceived(l) <- NULL;
+                        idTicket(l)<- idReceivedTicket();
+                    }
+                    APPLY NESTED LOCAL;
+                }
             }
             IF turnOutConstraints(c) THEN setNoCancelInTransaction();
             APPLY; 
         } CATCH {
             MESSAGE System.messageCaughtException();
             NEWSESSION APPLY { isReceived(c) <- NULL; }
+            IF createImport1CLog(c) THEN NEWSESSION  NESTED LOCAL {
+                NEW l = Import1CLog {
+                    configuration(l)<- c;
+                    dateTime(l)<- currentDateTime();
+                    user(l)<- currentUser();
+                    idReceived(l) <- idReceivedTemp();
+                    isReceived(l) <- NULL;
+                    idTicket(l)<- idReceivedTicket();
+                    text(l)<- CONCAT  '\n', text(l), System.messageCaughtException();
+                }
+                APPLY NESTED LOCAL;
+            }
         }
     }
 }
@@ -337,19 +406,27 @@ EXTEND FORM integrationData
     PROPERTIES (c) PANEL
                panelIdSended = idSended BACKGROUND (IF isSended(c) THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
                panelIdReceived = idReceived BACKGROUND (IF isReceived(c) THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
-               panelDataStartExchange = dateStartExchange, panelToBase = toBase
-               
+               panelDataStartExchange = dateStartExchange, panelToBase = toBase,
+               panelCreateImport1CLog = createImport1CLog, panelCountDaysImport1CLog= countDaysImport1CLogOver
+    
     PROPERTIES (c) SHOWIF someConfigurations() 
                name,
                idTicket BACKGROUND (IF isSended(c) THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
                idSended BACKGROUND (IF isSended(c) THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
                idReceived BACKGROUND (IF isReceived(c) THEN RGB(225,255,225) ELSE RGB(255, 225, 225)),
-               dateStartExchange, fromBase, toBase, path, nameVersion
+               dateStartExchange, fromBase, toBase, path, nameVersion,
+               createImport1CLog, countDaysImport1CLogOver
     PROPERTIES (c) SHOWIF someConfigurations() NEWSESSION NEW, EDIT, DELETE
     
     PROPERTIES sendMessage(c), receiveMessage(c), showOptions(c), generateUid() DRAW c    
     PROPERTIES (c) SHOWIF someConfigurations() hasScheme
     PROPERTIES (c) GRID loadScheme SHOWIF (someConfigurations() AND NOT hasScheme(c)), deleteImage SHOWIF (hasScheme(c) AND someConfigurations())
+    OBJECTS  log = Import1CLog
+    PROPERTIES (log) READONLY date, time, nameUser, idReceived, idTicket, text PANEL
+    PROPERTIES  READONLY isError 'Ошибка' = TRUE IF text(log)
+    PROPERTIES deleteImport1CLog(c) TOOLBAR DRAW log
+
+    FILTERS configuration(log) == c
 ;
 
 DESIGN integrationData {
@@ -383,6 +460,18 @@ DESIGN integrationData {
                 MOVE PROPERTY (generateUid());
                 MOVE PROPERTY (showOptions(c));
                 MOVE PROPERTY (someConfigurations());
+            }
+            NEW alignPane {
+                type = TABBED;
+                fill = 1;
+                NEW log{
+                    fill = 1;
+                    type = SPLITH;
+                    caption = 'Лог';
+                    showIf = createImport1CLog(c);
+                    MOVE BOX(log){fill = 2;}
+                    MOVE PROPERTY (text(log)){panelCaptionVertical = TRUE;alignment = STRETCH;}
+                }
             }
         }
     }
@@ -681,7 +770,10 @@ META extDocument(doctype, caption, ver, deleteCaption)
 
     @extDeleteObject(doctype, deleteCaption##'Ссылка', ver);
     overReceive(Configuration c) + {
-        FOR EnterpriseData e = object(uid###doctype(INTEGER i)) AND NOT e IS ###doctype DO logToFile('ed', CONCAT ' ', uid###doctype(i), objectClassName(e), 'Документ.'##capt);
+        FOR EnterpriseData e = object(uid###doctype(INTEGER i)) AND NOT e IS ###doctype DO {
+            logToFile('ed', CONCAT ' ', uid###doctype(i), objectClassName(e), 'Документ.'##caption);            
+            text(log1C(c))<- CONCAT  '\n',text(log1C(c)), (CONCAT ' ', 'Ошибка данных', uid###doctype(i), objectClassName(e), 'Документ.'##caption);
+        }
     }
 END
 
@@ -728,7 +820,10 @@ META extReference(reftype, capt)
     @extDeleteObject(reftype, capt##'Ссылка');
 
     overReceive(Configuration c) + {
-        FOR EnterpriseData e = object(uid###reftype(INTEGER i)) AND NOT e IS ###reftype DO logToFile('ed', CONCAT ' ', uid###reftype(i), objectClassName(e), 'Справочник.'##capt);
+        FOR EnterpriseData e = object(uid###reftype(INTEGER i)) AND NOT e IS ###reftype DO {
+            logToFile('ed', CONCAT ' ', uid###reftype(i), objectClassName(e), 'Справочник.'##capt);
+            text(log1C(c))<- CONCAT  '\n', text(log1C(c)), (CONCAT ' ', 'Ошибка данных', uid###reftype(i), objectClassName(e), 'Справочник.'##capt);
+        }
     }
 END
 
