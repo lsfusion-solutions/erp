@@ -58,6 +58,8 @@ public class FiscalVMKPrintInvoicePaymentAction extends InternalAction {
             BigDecimal sumPayment = (BigDecimal) findProperty("sum[Payment.Payment]").read(context, paymentObject);
             Integer typePayment = (Integer) findProperty("fiscalType[Payment.Payment]").read(context, paymentObject);
 
+            Integer numberSection = (Integer) findProperty("numberSection[Sale.Invoice]").read(context, invoiceObject);
+
             List<InvoiceDetail> invoiceDetailList = new ArrayList<>();
             if(detail) {
                 KeyExpr detailExpr = new KeyExpr("invoiceDetail");
@@ -89,7 +91,8 @@ public class FiscalVMKPrintInvoicePaymentAction extends InternalAction {
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(isUnix, logPath, ip, comPort, baudRate, sumPayment, typePayment, true, invoiceDetailList));
+            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(isUnix, logPath, ip, comPort,
+                    baudRate, sumPayment, typePayment, numberSection, true, invoiceDetailList));
             boolean error = false;
             if(result instanceof Integer) {
                 findProperty("note[Sale.Invoice]").change(String.valueOf(result), context, invoiceObject);

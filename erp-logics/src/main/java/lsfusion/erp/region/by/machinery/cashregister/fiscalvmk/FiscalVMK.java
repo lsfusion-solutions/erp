@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.*;
 
+import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class FiscalVMK {
@@ -376,11 +377,12 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean registerItemPayment(BigDecimal sumPayment) {
+    public static boolean registerItemPayment(BigDecimal sumPayment, Integer numberSection) {
         try {
             double sum = sumPayment.doubleValue();
-            logAction("vmk_sale", "", "ОПЛАТА", sum, 1 /*отдел*/, 1, 0);
-            return vmkDLL.vmk.vmk_sale(getBytes(""), getBytes("ОПЛАТА"), sum, 1 /*отдел*/, 1.0, 0.0);
+            Integer section = nvl(numberSection, 1);
+            logAction("vmk_sale", "", "ОПЛАТА", sum, section /*отдел*/, 1, 0);
+            return vmkDLL.vmk.vmk_sale(getBytes(""), getBytes("ОПЛАТА"), sum, section /*отдел*/, 1.0, 0.0);
         } catch (UnsupportedEncodingException e) {
             return false;
         }

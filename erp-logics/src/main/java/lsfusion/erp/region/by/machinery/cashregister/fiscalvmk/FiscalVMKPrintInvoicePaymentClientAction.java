@@ -9,14 +9,17 @@ import java.util.List;
 public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAction {
     BigDecimal sumPayment;
     Integer typePayment;
+    Integer numberSection;
     boolean sale;
     List<InvoiceDetail> invoiceDetailList;
 
     public FiscalVMKPrintInvoicePaymentClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate,
-                                                    BigDecimal sumPayment, Integer typePayment, boolean sale, List<InvoiceDetail> invoiceDetailList) {
+                                                    BigDecimal sumPayment, Integer typePayment, Integer numberSection,
+                                                    boolean sale, List<InvoiceDetail> invoiceDetailList) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.sumPayment = sumPayment;
         this.typePayment = typePayment;
+        this.numberSection = numberSection;
         this.sale = sale;
         this.invoiceDetailList = invoiceDetailList;
     }
@@ -55,7 +58,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
         Integer receiptNumber = FiscalVMK.getReceiptNumber();
 
         if(invoiceDetailList.isEmpty()) {
-            if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment))
+            if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment, numberSection))
                 return null;
         } else {
             for(InvoiceDetail detail : invoiceDetailList) {

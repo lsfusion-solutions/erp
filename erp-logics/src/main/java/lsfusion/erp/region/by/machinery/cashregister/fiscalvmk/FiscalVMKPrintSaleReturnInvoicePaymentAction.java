@@ -58,6 +58,8 @@ public class FiscalVMKPrintSaleReturnInvoicePaymentAction extends InternalAction
             Integer typePayment = (Integer) findProperty("fiscalType[Payment.Payment]").read(context, paymentObject);
             boolean isUnix = findProperty("isUnix[]").read(context) != null;
 
+            Integer numberSection = (Integer) findProperty("numberSection[SaleReturn.Invoice]").read(context, invoiceObject);
+
             List<InvoiceDetail> invoiceDetailList = new ArrayList<>();
             if(detail) {
                 KeyExpr detailExpr = new KeyExpr("invoiceDetail");
@@ -89,7 +91,8 @@ public class FiscalVMKPrintSaleReturnInvoicePaymentAction extends InternalAction
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(isUnix, logPath, ip, comPort, baudRate, sumPayment, typePayment, false, invoiceDetailList));
+            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(isUnix, logPath, ip, comPort,
+                    baudRate, sumPayment, typePayment, numberSection, false, invoiceDetailList));
             if(result == null)
                 findProperty("printReceiptResult[]").change(new DataObject(true), context);
             else {
