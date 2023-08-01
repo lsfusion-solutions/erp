@@ -1,0 +1,27 @@
+MODULE PurchaseEInvoiceBranch;
+
+REQUIRE PurchaseEInvoice, EOrder;
+
+NAMESPACE Purchase;
+
+isHead(LegalEntity l) = TRUE IF GROUP SUM 1 IF l = headLegalEntity(l); 
+
+eOrder = DATA EOrder(EInvoice); 
+nameSupplierOrder 'Поставщик из заказа' (EInvoice ei) = nameSupplier(eOrder(ei));
+
+EXTEND FORM eInvoices 
+    PROPERTIES nameSupplierOrder(e) READONLY BEFORE addressSupplier(e);
+
+WHEN SET(orderID(EInvoice ei)) AND isHead(supplier(ei)) DO {
+    eOrder(ei) <- GROUP MAX EOrder o IF number(o) == orderID(ei);
+}
+
+overFilterSupplier(EInvoice ei) += supplier(eOrder(ei));
+
+overCopy(EInvoice ei, UserInvoice i) + {
+    IF isHead(supplier(ei)) AND eOrder(ei) THEN {
+        supplier(i) <- supplier(eOrder(ei));
+        supplierStock(i) <- supplierStock(eOrder(ei));
+        include[Order,UserInvoice](eOrder(ei), i) <- TRUE;
+    }
+}
