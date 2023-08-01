@@ -26,6 +26,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -2633,6 +2634,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         if(params.pgsql) {
             Class.forName("org.postgresql.Driver");
             conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+            conn.setNetworkTimeout(Executors.newSingleThreadExecutor(), 1800000); //30m
             conn.setAutoCommit(false);
         } else {
             Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
