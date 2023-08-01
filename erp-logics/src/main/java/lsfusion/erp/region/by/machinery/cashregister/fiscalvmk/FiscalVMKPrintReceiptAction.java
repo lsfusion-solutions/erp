@@ -46,7 +46,6 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
             String numberDiscountCard = (String) findProperty("numberDiscountCard[Receipt]").read(context, receiptObject);
 
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
-            ScriptingLogicsModule cashRegisterTaxLM = context.getBL().getModule("CashRegisterTax");
 
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
@@ -125,11 +124,13 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                 String[] receiptDetailNames = new String[]{"nameSkuReceiptDetail", "quantityReceiptDetail", "quantityReceiptSaleDetail",
                         "quantityReceiptReturnDetail", "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
                         "discountPercentReceiptSaleDetail", "discountSumReceiptDetail", "numberVATReceiptDetail", "typeReceiptDetail",
-                        "skuReceiptDetail", "boardNameSkuReceiptDetail", "bonusSumReceiptDetail", "bonusPaidReceiptDetail"};
+                        "skuReceiptDetail", "boardNameSkuReceiptDetail", "bonusSumReceiptDetail", "bonusPaidReceiptDetail",
+                        "numberSection"};
                 LP[] receiptDetailProperties = findProperties("nameSku[ReceiptDetail]", "quantity[ReceiptDetail]", "quantity[ReceiptSaleDetail]",
                         "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
                         "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "numberVAT[ReceiptDetail]", "type[ReceiptDetail]",
-                        "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]", "bonusSum[ReceiptDetail]", "bonusPaid[ReceiptDetail]");
+                        "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]", "bonusSum[ReceiptDetail]", "bonusPaid[ReceiptDetail]",
+                        "numberSection[ReceiptDetail]");
                 for (int j = 0; j < receiptDetailProperties.length; j++) {
                     receiptDetailQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(context.getModifier(), receiptDetailExpr));
                 }
@@ -137,9 +138,6 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
 
                 if(posChargeLM != null) {
                     receiptDetailQuery.addProperty("isCharge", posChargeLM.findProperty("isCharge[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                }
-                if (cashRegisterTaxLM != null) {
-                    receiptDetailQuery.addProperty("numberSection", cashRegisterTaxLM.findProperty("numberSection[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
                 }
                 if(posGiftCardLM != null) {
                     receiptDetailQuery.addProperty("isReturn", posGiftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]").getExpr(context.getModifier(), receiptDetailExpr));
