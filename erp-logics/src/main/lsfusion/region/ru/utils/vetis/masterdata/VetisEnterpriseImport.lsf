@@ -120,6 +120,7 @@ GROUP activityLocationList EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v
 enterprise = DATA LOCAL TEXT (INTEGER);
 
 FORM getActivityLocationListResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN activityLocationList Vetis.count ATTR, total ATTR, offset ATTR
     OBJECTS location = INTEGER EXTID 'dt:location' IN activityLocationList
     PROPERTIES(location) enterprise EXTID 'dt:enterprise'
 ;
@@ -146,6 +147,25 @@ getActivityLocationList 'Загрузить данные' (BusinessEntity b) {
         
         FOR enterprise(INTEGER i) DO
             importEnterprise(enterprise(i), b);
+
+        FOR iterate(INTEGER k, 1, INTEGER (total()/ count())) DO{
+            offset() <- count()*k;
+            EXPORT getActivityLocationListRequest OBJECTS b = b XML;
+    
+            TRY {
+                EXTERNAL HTTP urlCerberus() HEADERS httpHeaders PARAMS exportFile() TO response;
+            } CATCH {
+                fileToString(response());
+                MESSAGE CONCAT ' ', 'Ошибка при запросе к службе : ', resultString();
+                RETURN;
+            }
+    
+            IMPORT getActivityLocationListResponse XML FROM response();
+    
+            FOR enterprise(INTEGER i) DO
+                importEnterprise(enterprise(i), b);
+        }
+        
     }
 }
 
