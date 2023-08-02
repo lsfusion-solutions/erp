@@ -5,9 +5,9 @@ REQUIRE EGAISClient, EGAISActWriteOffExchange, DateSkuLedgerLot, EGAISStock;
 NAMESPACE EGAIS;
 
 
-sold 'Продано за день' (Client c, Lot l, DATE d) = GROUP SUM 
-    quantityReceiptSaleDetail(Stock st, sku(l), d, l) (-) quantityReceiptReturnDetail(st, sku(l), d, l)
-    IF client(st) = c;
+sold 'Продано за день' (Client c, Lot l, DATE d) =
+    [GROUP SUM quantity(ReceiptSaleDetail sd) IF isPosted(sd) BY client(departmentStore(sd)), lot(sd), date(sd)](c, l, d) (-)
+    [GROUP SUM quantity(ReceiptReturnDetail sd) IF isPosted(sd) BY client(departmentStore(sd)), lot(sd), date(sd)](c, l, d);
 
 actWriteOff = GROUP MAX ActWriteOff a BY client(a), date(a), type(a);
 
@@ -19,7 +19,7 @@ createActWriteOff 'Создать списание на основе реали�
             posted(a) <- TRUE;
 
             client(a) <- c;
-            dateTime(a) <- DATETIME(d);
+            dateTime(a) <- dateTimeToDateTime(d, 23:59);
             type(a) <- writeOffType('Розничная продажа');
             note(a) <- 'Списание на основе реализации';
 
