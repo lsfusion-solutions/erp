@@ -1041,6 +1041,7 @@ FILTERS imported(order_status_changed_cartons)
 overIdBatch = ABSTRACT STRING[100](Purchase.InvoiceDetail);
 series (Purchase.InvoiceDetail d) = OVERRIDE overIdBatch(d), idBatch(d);
 
+overImportReceiveComplete ABSTRACT (SaleReturn.Invoice);
 overImportReceiveComplete ABSTRACT (SaleReturn.InvoiceDetail);
 overImportReceiveComplete ABSTRACT (Purchase.Invoice);
 overImportReceiveComplete ABSTRACT (Purchase.InvoiceDetail);
@@ -1101,6 +1102,7 @@ importReplies 'Импортировать подтверждения' ()  {
                             shipmentQuantity(d) <- GROUP SUM qty(INTEGER r) IF idSku(d) == sku_id( r) AND series(d) == s_serial_id(r) AND index(d) == line(r);
                             overImportReceiveComplete(d);
                         }
+                        overImportReceiveComplete(i);
                     }
                     APPLY NESTED LOCAL ;
                     IF canceled() THEN {
