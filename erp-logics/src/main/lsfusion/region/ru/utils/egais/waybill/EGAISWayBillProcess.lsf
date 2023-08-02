@@ -5,10 +5,16 @@ REQUIRE EGAISWayBillActExchange, EGAISRequestRepealWB, EGAISWayBillConfirmTicket
 NAMESPACE EGAIS;
 
 // in
-META defineDocumentInWayBillActProcess (doc)
+META defineDocumentInWayBillActProcess (doc, quantityProp)
     quantity###doc 'Кол-во (в документе)' (WayBillPosition p) = GROUP SUM quantity(###doc##Detail d, p);
+    quantityWayBill 'Кол-во (ЕГАИС)' (###doc###Detail d) = GROUP SUM quantity(d, WayBillPosition p);
 
     process 'Отправить в ЕГАИС' (###doc d) {
+        IF (GROUP SUM 1 IF doc(###doc##Detail dd) = d AND quantityProp(dd) > 0 AND NOT quantityProp(dd) = quantityWayBill(dd)) THEN {
+            MESSAGE 'Не для всех строк документа выбраны строки ТТН ЕГАИС. Отправка невозможна.';
+            RETURN;
+        }
+
         FOR WayBill w = wayBill(d) DO {
             NEWSESSION {
                 realQuantity(WayBillPosition p) <- quantity###doc(p) WHERE wayBill(p) = w;
