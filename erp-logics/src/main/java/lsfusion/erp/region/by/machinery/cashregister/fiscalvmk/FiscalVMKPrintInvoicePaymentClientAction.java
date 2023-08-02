@@ -5,6 +5,8 @@ import lsfusion.interop.action.ClientActionDispatcher;
 import java.math.BigDecimal;
 import java.util.List;
 
+import static lsfusion.base.BaseUtils.nvl;
+
 
 public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAction {
     BigDecimal sumPayment;
@@ -56,13 +58,14 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
             return null;
 
         Integer receiptNumber = FiscalVMK.getReceiptNumber();
+        Integer section = nvl(numberSection, 1);
 
         if(invoiceDetailList.isEmpty()) {
-            if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment, numberSection))
+            if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment, section))
                 return null;
         } else {
             for(InvoiceDetail detail : invoiceDetailList) {
-                if(!FiscalVMK.registerItemPaymentDetail(detail))
+                if(!FiscalVMK.registerItemPaymentDetail(detail, section))
                     return null;
             }
         }

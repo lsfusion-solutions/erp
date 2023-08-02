@@ -350,8 +350,7 @@ public class FiscalVMK {
 
     public static boolean registerAndDiscountItem(double sum, double discSum) {
         try {
-            logAction("vmk_sale", "", "", sum, 1 /*отдел*/, 1, sum);
-            if (!vmkDLL.vmk.vmk_sale(getBytes(""), getBytes(""), sum, 1/*отдел*/, 1.0, sum))
+            if (!vmk_sale("","", sum, 1, 1.0, sum))
                 checkErrors();
             if (discSum != 0) {
                 boolean discount = discSum < 0;
@@ -369,33 +368,33 @@ public class FiscalVMK {
             double sum = item.sumPos - item.articleDiscSum + item.bonusPaid;
             Integer department = item.isCharge ? (chargeDepartment != null ? chargeDepartment : 1) :
                     (item.isGiftCard ? (giftCardDepartment != null ? giftCardDepartment : 2) : (item.numberSection != null ? item.numberSection : 1)); /*отдел*/
-            logAction("vmk_sale", item.barcode, item.name, price, department, item.quantity, sum);
-            return vmkDLL.vmk.vmk_sale(getBytes(item.barcode), getBytes(item.name), //articleDiscSum is negative, bonusPaid is positive
+            return vmk_sale(item.barcode, item.name, //articleDiscSum is negative, bonusPaid is positive
                     price, department, item.quantity, sum);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
     }
 
-    public static boolean registerItemPayment(BigDecimal sumPayment, Integer numberSection) {
+    public static boolean registerItemPayment(BigDecimal sumPayment, Integer section) {
         try {
-            double sum = sumPayment.doubleValue();
-            Integer section = nvl(numberSection, 1);
-            logAction("vmk_sale", "", "ОПЛАТА", sum, section /*отдел*/, 1, 0);
-            return vmkDLL.vmk.vmk_sale(getBytes(""), getBytes("ОПЛАТА"), sum, section /*отдел*/, 1.0, 0.0);
+            return vmk_sale("", "ОПЛАТА", sumPayment.doubleValue(), section, 1.0, 0.0);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
     }
 
-    public static boolean registerItemPaymentDetail(InvoiceDetail detail) {
+    public static boolean registerItemPaymentDetail(InvoiceDetail detail, Integer section) {
         try {
-            logAction("vmk_sale", "", detail.name, detail.price.doubleValue(), 1 /*отдел*/, detail.quantity.doubleValue(), detail.sum.doubleValue());
             //кассам с СКНО обязательно нужен ШК, иначе не печатается наименование
-            return vmkDLL.vmk.vmk_sale(getBytes("1"), getBytes(detail.name), detail.price.doubleValue(), 1 /*отдел*/, detail.quantity.doubleValue(), detail.sum.doubleValue());
+            return vmk_sale("1", detail.name, detail.price.doubleValue(), section, detail.quantity.doubleValue(), detail.sum.doubleValue());
         } catch (UnsupportedEncodingException e) {
             return false;
         }
+    }
+
+    private static boolean vmk_sale(String barcode, String name, double price, Integer section, double quantity, double sum) throws UnsupportedEncodingException {
+        logAction("vmk_sale", barcode, name, price, section, quantity, sum);
+        return vmkDLL.vmk.vmk_sale(getBytes(barcode), getBytes(name), price, section, quantity, sum);
     }
     
     public static boolean discountItem(ReceiptItem item, String numberDiscountCard) {
