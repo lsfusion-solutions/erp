@@ -23,6 +23,18 @@ dateTimeCreated(EDocument d) <- currentDateTime() WHEN (d IS EDocument);
 
 @defineExternalizable(eDocument, STRING[70]);
 
+numberReceiver 'Номер документа получателя' = DATA STRING[35] (EDocument);
+eDocumentReceiver(number) = GROUP MAX EDocument e BY numberReceiver(e);
+dateReceiver 'Дата документа получателя' = DATA DATETIME (EDocument);
+
+numberSender 'Номер документа отправителя'= DATA STRING[35] (EDocument);
+eDocumentSender (number) = GROUP MAX EDocument e BY numberSender(e);
+dateSender 'Дата документа отправителя' = DATA DATETIME (EDocument);
+
+numberSenderCancel 'Номер документа отмены отправителя' = DATA STRING[35] (EDocument);
+eDocumentSenderCancel (number) = GROUP MAX EDocument e BY numberSenderCancel(e);
+dateSenderCancel 'Дата документа отмены отправителя' = DATA DATETIME (EDocument);
+
 in 'Вкл.' = DATA LOCAL BOOLEAN (EDocument);
 isCancel 'Отменен' = DATA BOOLEAN (EDocument);
 
@@ -31,6 +43,8 @@ creationDateTime 'Дата и время электронного докумен
 number 'Номер электронного документа (юридический)' = DATA STRING[50] (EDocument);
 date 'Дата электронного документа (юридический)' = DATA DATE (EDocument);
 type 'Тип электронного документа' = DATA STRING[255] (EDocument);
+
+eDocumentNumberDate (number, date) = GROUP MAX EDocument e BY number(e), date(e);
 
 sender 'Отправитель' = DATA LegalEntity (EDocument);
 dataGLNSender = DATA STRING[13](EDocument);
@@ -55,6 +69,8 @@ nameFileSender 'Имя файла с подписью отправителя' = 
 
 fileReceiver 'Файл с подписью получателя' = DATA RAWFILE (EDocument);
 nameFileReceiver 'Имя файла с подписью получателя' = DATA STRING[255] (EDocument);
+
+xmlFile = DATA XMLFILE (EDocument);
 
 CLASS EDocumentRoute {
     route0 'документ подписывает обе стороны',
@@ -117,6 +133,7 @@ eDocumentMessage (eDocument, number, kind) = GROUP AGGR EDocumentMessage m BY eD
 EXTEND CLASS EInvoiceMessageType {
     systemmessage_blrdoc 'SYSTEMMESSAGE-BLRDOC',
     blrapn_blrdoc 'BLRAPN-BLRDOC',
+    blrdoc 'BLRDOC',
     aperak_pdf 'APERAK-PDF'
 }
 
@@ -231,9 +248,9 @@ EXTEND FORM eDocuments
 //--------------------- действия ---------------------//
 exportedSender 'Экспортирован (отправитель)' = DATA BOOLEAN (EDocument);
 importedReceiver 'Импортирован (получатель)' = DATA BOOLEAN (EDocument);
-//exportedReceiver 'Экспортирован (получатель)' = DATA BOOLEAN (EDocument);
-//importedSender 'Импортирован (отправитель)' = DATA BOOLEAN (EDocument);
-
+exportedReceiver 'Экспортирован (получатель)' = DATA BOOLEAN (EDocument);
+importedSender 'Импортирован (отправитель)' = DATA BOOLEAN (EDocument);
+exportedBlrapnReceiver 'Экспортировано извещение о прочтении отмены (получатель)' = DATA BOOLEAN (EDocument);
 
 signAndSendSender 'Подписать и отправить (отправитель)'  ABSTRACT LIST (EDocument);
 signAndSendSenderEDI 'Подписать и отправить (отправитель)'() {
@@ -251,14 +268,64 @@ signAndSendSenderEDI 'Подписать и отправить (отправит
         MESSAGE 'Не выбрано ни одного документа';
 }
 
+signAndSendSenderCancelEDI 'Подписать и отправить отмену (отправитель)'() {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EDocument d) DO {
+        IF EDIProviderDocument(receiver(d), sender(d)) THEN {
+            exportedSender(d) <- NULL WHERE exportedSender(d) AND NOT isCancel(d); //если оригинал отправлялся а отмена нет то нужно разрешить отправить отмену
+            isCancel(d) <- TRUE;
+            signAndSendSender(d);
+        } ELSE
+            MESSAGE 'Не выбран EDI провайдер для документа: ' + (OVERRIDE documentID(d), number(d), '');
+        in(d) <- NULL;
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одного документа';
+    
+}
+
+signAndSendBlrapnReceiver 'Подписать и отправить извещение о прочтении отмены (получатель)' ABSTRACT LIST (EDocument);
+signAndSendBlrapnReceiverEDI 'Подписать и отправить извещение о прочтении отмены (получатель)'() {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EDocument d) AND numberSenderCancel(d) DO {
+        IF EDIProviderDocument(sender(d), receiver(d)) THEN
+            signAndSendBlrapnReceiver(d);
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для документа: ' + (OVERRIDE documentID(d), number(d), '');
+        in(d) <- NULL;
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одного документа';
+}
+
+signAndSendReceiver 'Подписать и отправить (получатель)'  ABSTRACT LIST (EDocument);
+signAndSendReceiverEDI 'Подписать и отправить (получатель)'() {
+    IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EDocument d) AND xmlFile(d) DO {
+        IF EDIProviderDocument(sender(d), receiver(d)) THEN
+            signAndSendReceiver(d);
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для документа: ' + (OVERRIDE documentID(d), number(d), '');
+        in(d) <- NULL;
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одного документа';
+}
+
 EXTEND FORM eDocuments
-    PROPERTIES(d) BEFORE isCancel(d) READONLYIF isReadonly() exportedSender, importedReceiver
+    PROPERTIES(d) BEFORE isCancel(d) READONLYIF isReadonly() exportedSender, importedReceiver, exportedReceiver, importedSender, exportedBlrapnReceiver
     EXTEND FILTERGROUP notExported
         FILTER 'Не экспортированы (отправитель)' NOT exportedSender(d) 'F8'
         FILTER 'Не импортированы (получатель)' NOT importedReceiver(d) 'F9'
-        //FILTER 'Не экспортированы (получатель)' NOT exportedReceiver(d) AND NOT exportedNoticeCustomer(e) 'F10'
-        //FILTER 'Не импортированы (отправитель)' NOT importedSender(d) AND NOT importedNoticeSupplier(e) 'F11'
-    PROPERTIES() DRAW d TOOLBAR signAndSendSenderEDI
+        FILTER 'Не экспортированы (получатель)' NOT exportedReceiver(d) 'F10'
+        FILTER 'Не импортированы (отправитель)' NOT importedSender(d) 'F11'
+    PROPERTIES() DRAW d TOOLBAR signAndSendSenderEDI, signAndSendSenderCancelEDI, signAndSendReceiverEDI, signAndSendBlrapnReceiverEDI 
 ;
 
 DESIGN eDocuments {
@@ -269,6 +336,13 @@ DESIGN eDocuments {
             caption = 'Отправитель';
             type = CONTAINERV;        
             MOVE PROPERTY (signAndSendSenderEDI()) { alignment = STRETCH; };
+            MOVE PROPERTY (signAndSendSenderCancelEDI()) { alignment = STRETCH; };
+        }
+        NEW receiver {
+            caption = 'Получатель';
+            type = CONTAINERV;        
+            MOVE PROPERTY (signAndSendReceiverEDI()) { alignment = STRETCH; };
+            MOVE PROPERTY (signAndSendBlrapnReceiverEDI()) { alignment = STRETCH; };
         }
     }
 }

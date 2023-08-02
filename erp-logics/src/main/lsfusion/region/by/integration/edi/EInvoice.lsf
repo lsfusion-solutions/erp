@@ -250,7 +250,6 @@ EXTEND CLASS EInvoiceMessageType {
     systemmessage_blrwbr 'SYSTEMMESSAGE-BLRWBR',
     systemmessage_blrdln 'SYSTEMMESSAGE-BLRDLN',
     systemmessage_blrdnr 'SYSTEMMESSAGE-BLRDNR',
-    blrapn_blrapn 'BLRAPN-BLRAPN',
     blrapn_blrwbr 'BLRAPN-BLRWBR',
     blrapn_blrwbl 'BLRAPN-BLRWBL',
     blrapn_blrdln 'BLRAPN-BLRDLN',
@@ -415,33 +414,3 @@ GROUP deliveryNote EXTID 'DeliveryNote';
 GROUP shipper EXTID 'Shipper';
 GROUP receiver EXTID 'Receiver';
 GROUP shipTo EXTID 'ShipTo';
-
-// формы импорта/экспорта APN
-
-hideMessageHeaderBlrapn = DATA LOCAL BOOLEAN ();
-
-FORM exportBlrapn FORMEXTID 'BLRAPN'
-    PROPERTIES ATTR ='0.1' IF NOT hideMessageHeaderBlrapn() EXTID 'version'
-    PROPERTIES IN messageHeader
-    messageId = resultMilliseconds() IF NOT hideMessageHeaderBlrapn() EXTID 'MessageID',
-        msgDateTime = toChar(blrapnDateTime(),'YYYYMMDDHH24MISS') IF NOT hideMessageHeaderBlrapn() EXTID 'MsgDateTime',
-        messageType = 'BLRAPN' IF NOT hideMessageHeaderBlrapn() EXTID 'MessageType',
-        msgSenderID = blrapnMsgSender() IF NOT hideMessageHeaderBlrapn() EXTID 'MsgSenderID',
-        msgReceiverID = blrapnMsgReceiver() IF NOT hideMessageHeaderBlrapn() EXTID 'MsgReceiverID',
-        userID = blrapnUserID() IF NOT hideMessageHeaderBlrapn() EXTID 'UserID'
-    PROPERTIES IN acknowledgement
-    documentId = resultMilliseconds() EXTID 'DocumentID',
-        functionCode = '6' EXTID 'FunctionCode',
-        creationdateTime = toChar(blrapnDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-        blrapnDeliveryNoteId() EXTID 'DeliveryNoteID',
-        deliveryNoteDate = toChar(blrapnDeliveryNoteDate(),'YYYYMMDD') EXTID 'DeliveryNoteDate',
-        blrapnReferenceDocumentType() EXTID 'Type' IN blrapnReferenceDocument,
-        blrapnReferenceDocumentId() EXTID 'ID' IN blrapnReferenceDocument,
-        date = toChar(blrapnReferenceDocumentDate(),'YYYYMMDDHH24MISS') EXTID 'Date' IN blrapnReferenceDocument,
-        blrapnShipper() EXTID 'GLN' IN blrapnShipper,
-        blrapnReceiver() EXTID 'GLN' IN blrapnReceiver,
-        blrapnCode() EXTID 'Code' IN blrapnErrorOrAcknowledgement,
-        blrapnDescription() EXTID 'Description' IN blrapnErrorOrAcknowledgement
-;
-
-// формы импорта/экспорта WBR

@@ -99,6 +99,10 @@ CLASS EInvoiceMessageKind 'Вид сообщения по накладной EDI
 
 CLASS EInvoiceMessageType 'Тип сообщения по накладной EDI' : StaticObject;
 
+EXTEND CLASS EInvoiceMessageType {
+    blrapn_blrapn 'BLRAPN-BLRAPN'
+}
+
 //-------------------------- Send Request ------------------------------//
 sendRequestEDIResponse = DATA LOCAL FILE();
 sendRequestEDIStatus = DATA LOCAL INTEGER();
@@ -194,6 +198,8 @@ messagesConfirmed = DATA LOCAL NESTED INTEGER();
 GROUP reference;
 messageDocumentNumber = DATA LOCAL NESTED STRING[35]();
 messageDocumentDate = DATA LOCAL NESTED DATETIME();
+messageBuyerGLN = DATA LOCAL NESTED STRING[48]();
+messageSupplierGLN = DATA LOCAL NESTED STRING[48]();
 name = DATA LOCAL NESTED STRING ();
 documentType = DATA LOCAL NESTED TEXT();
 documentNumber = DATA LOCAL NESTED STRING[48]();
@@ -208,7 +214,10 @@ description (STRING[10] code) = CASE
     WHEN code == '2750' THEN 'Уведомление об изменении';
 
 FORM systemMessage
-    PROPERTIES() messageDocumentNumber EXTID 'documentNumber', messageDocumentDate EXTID 'documentDate'
+    PROPERTIES() messageDocumentNumber EXTID 'documentNumber',
+                 messageDocumentDate EXTID 'documentDate',
+                 messageBuyerGLN EXTID 'buyerGLN',
+                 messageSupplierGLN EXTID 'supplierGLN'
     PROPERTIES() IN reference documentType, documentNumber, code, description
 ;
 
@@ -240,7 +249,34 @@ FORM importBlrapn
     PROPERTIES() IN acknowledgement blrapnDocumentNumber EXTID 'DocumentID', blrapnDateTime EXTID 'CreationDateTime',
         blrapnDeliveryNoteId EXTID 'DeliveryNoteID', blrapnDeliveryNoteDate EXTID 'DeliveryNoteDate'
     PROPERTIES() IN blrapnReferenceDocument blrapnReferenceDocumentType EXTID 'Type',
-        blrapnReferenceDocumentId EXTID 'ID'
+        blrapnReferenceDocumentId EXTID 'ID', blrapnReferenceDocumentDate EXTID 'Date'
+    PROPERTIES() IN blrapnShipper blrapnShipper EXTID 'GLN'
     PROPERTIES() IN blrapnReceiver blrapnReceiver EXTID 'GLN'
     PROPERTIES() IN blrapnErrorOrAcknowledgement blrapnCode EXTID 'Code', blrapnDescription EXTID 'Description'
+;
+
+hideMessageHeaderBlrapn = DATA LOCAL BOOLEAN ();
+
+FORM exportBlrapn FORMEXTID 'BLRAPN'
+    PROPERTIES ATTR ='0.1' IF NOT hideMessageHeaderBlrapn() EXTID 'version'
+    PROPERTIES IN messageHeader
+    messageId = resultMilliseconds() IF NOT hideMessageHeaderBlrapn() EXTID 'MessageID',
+        msgDateTime = toChar(blrapnDateTime(),'YYYYMMDDHH24MISS') IF NOT hideMessageHeaderBlrapn() EXTID 'MsgDateTime',
+        messageType = 'BLRAPN' IF NOT hideMessageHeaderBlrapn() EXTID 'MessageType',
+        msgSenderID = blrapnMsgSender() IF NOT hideMessageHeaderBlrapn() EXTID 'MsgSenderID',
+        msgReceiverID = blrapnMsgReceiver() IF NOT hideMessageHeaderBlrapn() EXTID 'MsgReceiverID',
+        userID = blrapnUserID() IF NOT hideMessageHeaderBlrapn() EXTID 'UserID'
+    PROPERTIES IN acknowledgement
+    documentId = resultMilliseconds() EXTID 'DocumentID',
+        functionCode = '6' EXTID 'FunctionCode',
+        creationdateTime = toChar(blrapnDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
+        blrapnDeliveryNoteId() EXTID 'DeliveryNoteID',
+        deliveryNoteDate = toChar(blrapnDeliveryNoteDate(),'YYYYMMDD') EXTID 'DeliveryNoteDate',
+        blrapnReferenceDocumentType() EXTID 'Type' IN blrapnReferenceDocument,
+        blrapnReferenceDocumentId() EXTID 'ID' IN blrapnReferenceDocument,
+        date = toChar(blrapnReferenceDocumentDate(),'YYYYMMDDHH24MISS') EXTID 'Date' IN blrapnReferenceDocument,
+        blrapnShipper() EXTID 'GLN' IN blrapnShipper,
+        blrapnReceiver() EXTID 'GLN' IN blrapnReceiver,
+        blrapnCode() EXTID 'Code' IN blrapnErrorOrAcknowledgement,
+        blrapnDescription() EXTID 'Description' IN blrapnErrorOrAcknowledgement
 ;
