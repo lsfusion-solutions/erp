@@ -29,6 +29,7 @@ import lsfusion.server.logics.property.classes.IsClassProperty;
 import lsfusion.server.logics.property.oraction.PropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.physics.dev.integration.service.*;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.util.TextUtils;
 
@@ -36,6 +37,7 @@ import java.awt.*;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
@@ -168,6 +170,7 @@ public class DefaultTerminalHandler {
 
         try {
             if (terminalHandlerLM != null) {
+                String templateHtml;
                 if (barcode.matches("\\d{1,14}")) {
                     String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSku[Barcode]").read(session, terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode)));
                     //boolean stop = terminalHandlerLM.findProperty("inStopList[STRING[15],STRING[100]]").read(session, new DataObject(barcode), new DataObject(idStock)) != null;
@@ -177,9 +180,25 @@ public class DefaultTerminalHandler {
                         BigDecimal price = (BigDecimal) terminalHandlerLM.findProperty("transactionPriceIdBarcodeId[STRING[15],STRING[100]]").read(session, new DataObject(barcode), new DataObject(idStock));
                         Integer leftPrice = price == null ? null : price.intValue();
                         Integer rightPrice = price == null ? null : (price.multiply(BigDecimal.valueOf(100))).intValue() % 100;
-                        return getDefaultPriceHTML(nameSkuBarcode, leftPrice, rightPrice);
-                    } else return getDefaultNotFoundPriceHTML();
-                } else return getDefaultNotFoundPriceHTML();
+
+                        String left = leftPrice == null ? "0" : String.valueOf(leftPrice);
+                        String right = leftPrice == null ? "" : rightPrice == null || rightPrice.equals(0) ? "00" :
+                                rightPrice < 10 ? "0" + String.valueOf(rightPrice) : String.valueOf(rightPrice);
+
+                        templateHtml = getTemplatePriceHTML(session);
+                        if (templateHtml != null) {
+                            templateHtml = templateHtml.replace("@name@", nameSkuBarcode);
+                            templateHtml = templateHtml.replace("@priceLeft@", left);
+                            templateHtml = templateHtml.replace("@priceRight@", right);
+                            return templateHtml;
+                        }
+                    }
+                    else
+                        templateHtml = getDefaultNotFoundPriceHTML(session);
+                } else
+                    templateHtml = getDefaultNotFoundPriceHTML(session);
+
+                return  templateHtml;
             }
             return null;
         } catch (Exception e) {
@@ -187,11 +206,9 @@ public class DefaultTerminalHandler {
         }
     }
 
-    private String getDefaultPriceHTML(String name, Integer leftPrice, Integer rightPrice) {
-        String left = leftPrice == null ? "0" : String.valueOf(leftPrice);
-        String right = leftPrice == null ? "" : rightPrice == null || rightPrice.equals(0) ? "00" :
-                rightPrice < 10 ? "0" + String.valueOf(rightPrice) : String.valueOf(rightPrice);
-        return String.format("<html><head><style>" +
+    private String getTemplatePriceHTML(DataSession session) {
+
+        String templateHtml = "<html><head><style>" +
                 "   @font-face {font-family: \"pt-sans\"; src: url(file:///android_asset/fonts/pt-sans.ttf);}" +
                 "   @font-face {font-family: \"pt-sans-narrow\"; src: url(file:///android_asset/fonts/pt-sans-narrow.ttf);}" +
                 "   @font-face {font-family: \"pt-sans-bold-italic\"; src: url(file:///android_asset/fonts/pt-sans-bold-italic.ttf);}" +
@@ -201,17 +218,43 @@ public class DefaultTerminalHandler {
                 "  .price1 {font-family: \"pt-sans\"; font-size:180px; font-weight: bold; font-style: italic; letter-spacing: -12px; color:rgb(0,51,102); margin: 0px; display: inline-block;}" +
                 "  .price2 {font-family: \"pt-sans-bold-italic\"; font-size:80px; font-weight: bold; font-style: italic; color:rgb(0,51,102); margin-top: 28px; margin-left: 30px; vertical-align: top; display: inline-block;}" +
                 "</style><head>" +
-                "<body><div class=\"name\"><p>%s</p></div><p text-align: center;><div class=\"price1\">%s</div><div class=\"price2\">%s</div></p></body></html>", name, left, right);
+                "<body><div class=\"name\"><p>@name@</p></div><p text-align: center;><div class=\"price1\">@priceLeft@</div><div class=\"price2\">@priceRight@</div></p></body></html>";
+
+        if (terminalHandlerLM != null) {
+            FileData fileTemplate;
+            try {
+                fileTemplate = (FileData) terminalHandlerLM.findProperty("templatePriceHtml").read(session);
+                if (fileTemplate != null)
+                    templateHtml = IOUtils.toString(fileTemplate.getRawFile().getInputStream(), StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return templateHtml;
     }
 
-    private String getDefaultNotFoundPriceHTML() {
-        return "<html><head><style>" +
+    private String getDefaultNotFoundPriceHTML(DataSession session) {
+        String templateHtml = "<html><head><style>" +
                 "   @font-face {font-family: \"pt-sans-narrow\"; src: url(file:///android_asset/fonts/pt-sans-narrow.ttf);}" +
                 "   body {background: url(file:///android_asset/main.png) no-repeat; background-size: 100%; margin: 0px; padding: 0px; text-align: center; font-family: \"pt-sans-narrow\";}" +
                 "   p {margin-bottom: 25px; margin-right: 5px; text-align: center;}" +
                 "  .name {font-size:56px; font-weight: bold; color:rgb(233,0,0); margin-top:20%;left:50%; }" +
                 "</style></head>" +
                 "<body><div class=\"name\"><p>Товар не найден</p></div></body></html>";
+
+        if (terminalHandlerLM != null) {
+            FileData fileTemplate;
+            try {
+                fileTemplate = (FileData) terminalHandlerLM.findProperty("templateNotFoundPriceHtml").read(session);
+                if (fileTemplate != null)
+                    templateHtml = IOUtils.toString(fileTemplate.getRawFile().getInputStream(), StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return templateHtml;
     }
 
 

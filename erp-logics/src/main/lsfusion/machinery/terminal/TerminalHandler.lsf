@@ -202,7 +202,31 @@ DESIGN options {
             MOVE PROPERTY(restartTerminal()) AFTER PROPERTY(portTerminalServer());          
         }
     }
-}    
+}
+
+templatePriceHtml = DATA FILE ();
+loadTemplatePriceHtml 'Загрузить шаблон (цена товара)'()  { INPUT = templatePriceHtml() CHANGE; }
+deleteTemplatePriceHtml 'Удалить шаблон (цена товара)'()  { templatePriceHtml() <- NULL; } CONFIRM;
+
+templateNotFoundPriceHtml = DATA FILE ();
+loadTemplateNotFoundPriceHtml 'Загрузить шаблон (товар не найден)'()  { INPUT = templateNotFoundPriceHtml() CHANGE; }
+deleteTemplateNotFoundPriceHtml 'Удалить шаблон (товар не найден)'()  { templateNotFoundPriceHtml() <- NULL; } CONFIRM;
+
+EXTEND FORM options PROPERTIES() loadTemplatePriceHtml, deleteTemplatePriceHtml, loadTemplateNotFoundPriceHtml, deleteTemplateNotFoundPriceHtml;;
+
+DESIGN options {
+    machinery {
+        terminalServer {
+            NEW androidPriceChecker {
+                caption = 'Android прайс-чекер';
+                MOVE PROPERTY (loadTemplatePriceHtml());
+                MOVE PROPERTY (deleteTemplatePriceHtml());
+                MOVE PROPERTY (loadTemplateNotFoundPriceHtml());
+                MOVE PROPERTY (deleteTemplateNotFoundPriceHtml());
+            }
+        }
+    }
+}
 
 field1Property 'Свойство поле 1' = DATA Property (TerminalHandbookType);
 canonicalNameField1Property 'Свойство поле 1' (t) = canonicalName(field1Property(t)) CHARWIDTH 30; 
