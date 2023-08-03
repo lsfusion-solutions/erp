@@ -30,6 +30,19 @@ DESIGN Inventory.operation {
 overCreateTerminal ABSTRACT LIST (PageInventory);
 
 getID = FORMULA LONG '$1';
+
+createZeroDetail 'Создавать строки описи с количеством "0" при импорте из ТСД, если такие строки были в документе ТСД' = DATA BOOLEAN (Inventory.Operation);
+EXTEND FORM Inventory.operation
+    PROPERTIES (o) createZeroDetail
+;
+DESIGN Inventory.operation{
+    paramsContainer{
+        MOVE PROPERTY (createZeroDetail(o));
+    }
+}
+createZeroDetailData = ABSTRACT BOOLEAN (ListInventory);
+createZeroDetail(ListInventory li) = OVERRIDE createZeroDetailData(li), createZeroDetail(operation(inventory(li)));
+
 addInventoryDetails(TerminalDocument td,ListInventory li)  { 
 
     LOCAL quantity = NUMERIC[16,5](TerminalDocumentDetail, Batch);
@@ -50,7 +63,8 @@ addInventoryDetails(TerminalDocument td,ListInventory li)  {
     
     LOCAL index = INTEGER (PageInventoryDetail);
     
-    FOR terminalDocument(TerminalDocumentDetail tdd) == td AND NUMERIC[16,5] qty == quantity(tdd) (-) (GROUP SUM quantity(tdd, Batch b)) INLINE NEW pid = PageInventoryDetail DO {
+    FOR terminalDocument(TerminalDocumentDetail tdd) == td AND NUMERIC[16,5] qty == (OVERRIDE (quantity(tdd) (-) (GROUP SUM quantity(tdd, Batch b))), (quantity(tdd) IF createZeroDetail(li) AND NOT (GROUP SUM quantity(tdd, Batch b))) ) 
+        INLINE NEW pid = PageInventoryDetail DO {
         sku(pid) <- sku(tdd);
         quantity(pid) <- qty;
         index(pid) <- index(tdd);
@@ -71,19 +85,6 @@ addInventoryDetails(TerminalDocument td,ListInventory li)  {
 
 inOneListInventoryDetails =  GROUP SUM 1 IF include(terminalDocument(TerminalDocumentDetail tdd)) BY sku(tdd);
 quantityOneListInventoryDetails (Sku sku) = GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd);
-
-createZeroDetail 'Создавать строки описи с количеством "0" при импорте из ТСД, если такие строки были в документе ТСД' = DATA BOOLEAN (Inventory.Operation);
-EXTEND FORM Inventory.operation
-    PROPERTIES (o) createZeroDetail
-;
-DESIGN Inventory.operation{
-    paramsContainer{
-        MOVE PROPERTY (createZeroDetail(o));
-    }
-}
-
-createZeroDetailData = ABSTRACT BOOLEAN (ListInventory);
-createZeroDetail(ListInventory li) = OVERRIDE createZeroDetailData(li), createZeroDetail(operation(inventory(li)));
 
 overAddOneListInventoryDetail  ABSTRACT LIST (PageInventoryDetail);
 
