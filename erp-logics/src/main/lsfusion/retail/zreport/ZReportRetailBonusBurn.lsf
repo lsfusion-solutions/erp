@@ -115,3 +115,16 @@ EXTEND FORM promotions
 WHEN (SETCHANGED(sum(BonusLedger l))) AND sum(l) > 0 AND NOT burnDate(l) AND burnDaysBonus() DO {
     burnDate(l) <- sum(date(l), burnDaysBonus(date(l)));
 }
+
+//---------------------- Перевод бонусов ----------------------//
+skipTransferBonusLedger (DiscountCard d) += TRUE IF d IS DiscountCard;
+
+WHEN SETCHANGED(discountCard(DiscountCard d)) DO {
+    FOR NUMERIC[18,4] sum = [GROUP SUM leftSum(BonusLedger l) BY burnDate(l), discountCard(l)](DATE burnDate, d) NEW l = BonusLedger DO {
+        discountCard(l) <- discountCard(d);
+        typeBonusLedger(l) <- TypeBonusLedger.transfer;
+        transferCard(l) <- d;
+        sum(l) <- sum;
+        burnDate(l) <- burnDate;
+    }
+}

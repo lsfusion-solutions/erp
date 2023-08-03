@@ -53,11 +53,16 @@ EXTEND FORM discountCards
 
 // Перевод бонусов
 
-WHEN LOCAL FORMS discountCard SETCHANGED(transferCard(BonusLedger l)) DO {
+skipTransferBonusLedger = ABSTRACT BOOLEAN (DiscountCard);
+
+CONSTRAINT [GROUP SUM 1 BY discountCard(BonusLedger l), transferCard(l)](DiscountCard new, DiscountCard old) > 1 AND NOT skipTransferBonusLedger(new)
+    MESSAGE 'Запрещено добавлять второй перевод с одной и той же карты';
+
+WHEN LOCAL FORMS discountCard SETCHANGED(transferCard(BonusLedger l)) AND NOT skipTransferBonusLedger(discountCard(l)) DO {
     sum(l) <- prevTotalBonuses(transferCard(l));
 }
 
-WHEN SETCHANGED(discountCard(DiscountCard d)) AND NOT transferBonusLedger(d) DO {
+WHEN SETCHANGED(discountCard(DiscountCard d)) AND NOT transferBonusLedger(d) AND NOT skipTransferBonusLedger(d) DO {
     NEW l = BonusLedger {
         discountCard(l) <- discountCard(d);
         typeBonusLedger(l) <- TypeBonusLedger.transfer;
@@ -65,7 +70,7 @@ WHEN SETCHANGED(discountCard(DiscountCard d)) AND NOT transferBonusLedger(d) DO 
     }
 }
 
-WHEN (CHANGED(totalBonuses(DiscountCard d)) OR CHANGED(discountCard(d))) AND discountCard(d) AND BonusLedger l == transferBonusLedger(d) DO {
+WHEN (CHANGED(totalBonuses(DiscountCard d)) OR CHANGED(discountCard(d))) AND discountCard(d) AND BonusLedger l == transferBonusLedger(d) AND NOT skipTransferBonusLedger(discountCard(l)) DO {
     sum(l) <- prevTotalBonuses(d);
 }
 
