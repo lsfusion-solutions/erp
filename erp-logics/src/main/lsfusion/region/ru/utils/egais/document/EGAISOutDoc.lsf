@@ -20,6 +20,10 @@ nameDocType 'Тип документа' (OutDoc d) = name(docType(d));
 dateTime 'Время' = DATA DATETIME (OutDoc);
 dateTime(OutDoc d) <- currentDateTime() WHEN SET(d IS OutDoc);
 
+createdUser = DATA CustomUser (OutDoc);
+createdNameUser 'Создан пользователем' (OutDoc d) = name[Contact](createdUser(d)) CHARWIDTH 10 IN created;
+createdUser(OutDoc d) <- currentUser() WHEN SET(d IS OutDoc);
+
 date 'Дата' (OutDoc d) = DATE(dateTime(d));
 
 client 'Организация' = DATA Client (OutDoc);
@@ -36,7 +40,7 @@ utm(OutDoc d) <- utm(client(d)) WHEN SETCHANGED(client(d)) AND utm(client(d));
 
 FORM outDocs 'Исходящие документы'
     OBJECTS r = OutDoc
-    PROPERTIES(r) READONLY nameUtm, id, idDocType, nameDocType, dateTime, idClient, shortNameClient, descriptionClient
+    PROPERTIES(r) READONLY nameUtm, id, idDocType, nameDocType, dateTime, createdNameUser, idClient, shortNameClient, descriptionClient
     PROPERTIES(r) NEWSESSION SHOWIF isEditable() DELETE 
 ;
 
@@ -175,7 +179,7 @@ META defineDocumentOutProcess(doc, container)
         PROPERTIES(d) NEWSESSION process SHOWIF NOT notRejected(doc##OutDoc(d)) TOOLBAR
         
         OBJECTS odd = ###doc##OutDoc
-        PROPERTIES(odd) READONLY id, dateTime, comments
+        PROPERTIES(odd) READONLY id, dateTime, createdNameUser, comments
     ;
     
     DESIGN doc##s {

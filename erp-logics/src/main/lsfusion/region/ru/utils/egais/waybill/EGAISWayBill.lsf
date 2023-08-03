@@ -327,7 +327,7 @@ DESIGN markCodes {
 }
 
 
-META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock)
+META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, prefix, captionDocs)
     quantity 'Кол-во (ЕГАИС)' = DATA NUMERIC[16,5] (###doc##Detail, WayBillPosition);
     
     fillQuantity 'Выбрать' (###doc##Detail d, WayBillPosition p) { 
@@ -353,6 +353,7 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock)
     
     wayBill 'ТТН ЕГАИС' = DATA WayBill (###doc) INDEXED;
     numberDateWayBill 'ТТН ЕГАИС' (###doc i) = numberDate(wayBill(i));
+    seriesNumber###doc captionDocs (WayBill w) = GROUP CONCAT seriesNumber(###doc d), ', ' ORDER d BY wayBill(d);
     
     changeNumberDateWayBill (###doc d) {
         DIALOG wayBills OBJECTS w = wayBill(d) NULL INPUT FILTERS toAccept(w) AND matches(d, w) DO {
@@ -420,6 +421,10 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock)
             }
         }
     }
+    
+    EXTEND FORM wayBills
+        PROPERTIES(w) READONLY prefix##SeriesNumber###doc = seriesNumber###doc
+    ;
 END
 
 WBRegId = DATA LOCAL STRING();

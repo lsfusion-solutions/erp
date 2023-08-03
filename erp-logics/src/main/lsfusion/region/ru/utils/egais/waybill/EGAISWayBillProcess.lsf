@@ -4,6 +4,17 @@ REQUIRE EGAISWayBillActExchange, EGAISRequestRepealWB, EGAISWayBillConfirmTicket
 
 NAMESPACE EGAIS;
 
+forbidEditWayBillAct 'Запретить изменять документы после отправки' = DATA BOOLEAN () PREREAD;
+EXTEND FORM integrationData
+    PROPERTIES() forbidEditWayBillAct
+;
+
+DESIGN integrationData {
+    EGAISParams {
+        MOVE PROPERTY(forbidEditWayBillAct());
+    }
+}
+
 // in
 META defineDocumentInWayBillActProcess (doc, quantityProp)
     quantity###doc 'Кол-во (в документе)' (WayBillPosition p) = GROUP SUM quantity(###doc##Detail d, p);
@@ -30,6 +41,9 @@ META defineDocumentInWayBillActProcess (doc, quantityProp)
     cancel 'Отменить' (###doc d) {
         cancel(wayBillAct(wayBill(d)));
     } CONFIRM;
+
+    skipShowEdit(###doc d) += forbidEditWayBillAct() AND activeWayBillAct(wayBill(d));
+    skipShowDelete(###doc d) += forbidEditWayBillAct() AND activeWayBillAct(wayBill(d));
 END
 
 META defineDocumentInWayBillActForm (doc, obj)
@@ -45,9 +59,9 @@ META defineDocumentInWayBillActForm (doc, obj)
     
         PROPERTIES READONLY commentsWayBillAct 'Комментарий' = comments(wayBillActOutDoc(wayBillAct(w))) PANEL     
         PROPERTIES(obj) DRAW wp TOOLBAR 
-                        processEGAIS = process SHOWIF isPosted(obj) AND NOT notRejected(wayBillActOutDoc(wayBillAct(w))),
+                        processEGAIS = process SHOWIF isPosted(obj) AND NOT activeWayBillAct(w),
                         cancelEGAIS = cancel SHOWIF accepted(w) AND NOT canceled(w) AND 
-                                                    notRejected(wayBillActOutDoc(wayBillAct(w))) AND
+                                                    activeWayBillAct(w) AND
                                                     NOT (notRejected(requestRepealWBOutDoc(wayBillAct(w))) AND hasRRWB(wayBillAct(w)))
     ;
     
@@ -64,8 +78,13 @@ META defineDocumentInWayBillActForm (doc, obj)
 END
 
 // out
-META defineDocumentOutWayBillProcess (doc, supplier, customer)
+META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDocs)
     wayBill = DATA WayBill (###doc) INDEXED;
+    seriesNumber###doc captionDocs (WayBill w) = GROUP CONCAT seriesNumber(###doc d), ', ' ORDER d BY wayBill(d);
+    
+    EXTEND FORM wayBills
+        PROPERTIES(w) READONLY prefix##SeriesNumber###doc = seriesNumber###doc
+    ;
     
     doc##Detail = DATA ###doc##Detail (WayBillPosition) INDEXED;
     
@@ -155,6 +174,9 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer)
     confirm 'Ответить на акт разногласий' (###doc i) {
         confirm(wayBillAct(wayBill(i)));
     }
+
+    skipShowEdit(###doc d) += forbidEditWayBillAct() AND activeWayBillAct(wayBill(d));
+    skipShowDelete(###doc d) += forbidEditWayBillAct() AND activeWayBillAct(wayBill(d));
 END
 
 META defineDocumentOutWayBillForm (doc, obj)
@@ -173,9 +195,9 @@ META defineDocumentOutWayBillForm (doc, obj)
                         commentsWayBillTicket 'Комментарий запроса на подтверждение акта разногласий' = commentsWayBillTicketOutDoc(wayBillAct(w))
                                  
         PROPERTIES(obj) DRAW wp TOOLBAR 
-                        processEGAIS = process SHOWIF isPosted(obj) AND (NOT notRejected(wayBillOutDoc(w)) OR canceled(w)),
-                        cancelEGAIS = cancel SHOWIF notRejected(wayBillOutDoc(w)) AND NOT notRejected(wayBillActOutDoc(wayBillAct(w))) 
-                                                    AND NOT accepted(w) AND NOT canceled(w),
+                        processEGAIS = process SHOWIF isPosted(obj) AND NOT activeWayBillOutDoc(w),
+                        cancelEGAIS = cancel SHOWIF activeWayBillOutDoc(w) AND NOT activeWayBillAct(w)
+                                                    AND NOT accepted(w),
                         confirmEGAIS = confirm SHOWIF differences(wayBillAct(w)) AND NOT accepted(w) AND NOT canceled(w) AND 
                                                       NOT notRejected(wayBillTicketOutDoc(wayBillAct(w)))  
     ;
@@ -195,4 +217,7 @@ META defineDocumentOutWayBillForm (doc, obj)
             }
         }
     }
+
+    skipShowEdit(###doc d) += forbidEditWayBillAct() AND activeWayBillOutDoc(wayBill(d));
+    skipShowDelete(###doc d) += forbidEditWayBillAct() AND activeWayBillOutDoc(wayBill(d));
 END
