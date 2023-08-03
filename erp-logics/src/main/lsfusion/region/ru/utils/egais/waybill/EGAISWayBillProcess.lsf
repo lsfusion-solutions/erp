@@ -18,7 +18,7 @@ DESIGN integrationData {
 // in
 META defineDocumentInWayBillActProcess (doc, quantityProp)
     quantity###doc 'Кол-во (в документе)' (WayBillPosition p) = GROUP SUM quantity(###doc##Detail d, p);
-    quantityWayBill 'Кол-во (ЕГАИС)' (###doc###Detail d) = GROUP SUM quantity(d, WayBillPosition p);
+    quantityWayBill 'Кол-во (ЕГАИС)' (###doc###Detail d) = GROUP SUM quantity(d, WayBillPosition p) IF NOT canceled(p);
 
     process 'Отправить в ЕГАИС' (###doc d) {
         IF (GROUP SUM 1 IF doc(###doc##Detail dd) = d AND quantityProp(dd) > 0 AND NOT quantityProp(dd) = quantityWayBill(dd)) THEN {
