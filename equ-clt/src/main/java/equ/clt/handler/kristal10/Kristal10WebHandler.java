@@ -335,7 +335,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         for (RequestExchange entry : requestExchangeList) {
             for (String directory : getDirectoryStockMap(entry, useNumberGroupInShopIndices).keySet()) {
                 List<String> requestSalesInfoEntry = requestSalesInfoMap.getOrDefault(directory, new ArrayList<>());
-                requestSalesInfoEntry.addAll(generateRequestPurchasesByParams(entry.dateFrom, entry.dateTo, getCashRegisterSet(entry, false)));
+                requestSalesInfoEntry.addAll(generateRequestPurchasesByParams(entry.dateFrom, entry.dateTo, getCashRegisterSet(entry, true)));
                 requestSalesInfoMap.put(directory, requestSalesInfoEntry);
                 succeededRequests.add(entry.requestExchange);
             }
@@ -345,25 +345,15 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     private List<String> generateRequestPurchasesByParams(LocalDate dateFrom, LocalDate dateTo, Set<CashRegisterInfo> cashRegisterSet) {
         List<String> result = new ArrayList<>();
         while(!dateFrom.isAfter(dateTo)) {
-            result.addAll(generateRequestPurchasesByParams(dateFrom, (String) null, cashRegisterSet));
+            for (CashRegisterInfo cashRegister : cashRegisterSet) {
+                result.add(generateRequestPurchasesByParams(dateFrom, cashRegister.numberGroup, cashRegister.number));
+            }
             dateFrom = dateFrom.plusDays(1);
         }
         return result;
     }
 
-    private List<String> generateRequestPurchasesByParams(LocalDate date, String shopNumber, Set<CashRegisterInfo> cashRegisterSet) {
-        List<String> result = new ArrayList<>();
-        if (cashRegisterSet.isEmpty()) {
-            result.add(generateRequestPurchasesByParams(date, shopNumber, (Integer) null));
-        } else {
-            for (CashRegisterInfo cashRegister : cashRegisterSet) {
-                result.add(generateRequestPurchasesByParams(date, null, cashRegister.number));
-            }
-        }
-        return result;
-    }
-
-    private String generateRequestPurchasesByParams(LocalDate date, String shopNumber, Integer cashNumber) {
+    private String generateRequestPurchasesByParams(LocalDate date, Integer shopNumber, Integer cashNumber) {
         Element envelopeElement = new Element("Envelope", soapenvNamespace);
         //envelopeElement.setNamespace(soapenvNamespace);
         envelopeElement.addNamespaceDeclaration(plugOperdayNamespace);
@@ -376,7 +366,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         Element getNewPurchasesByParamsElement = new Element("getPurchasesByParams", plugOperdayNamespace);
         addStringElement(getNewPurchasesByParamsElement, "dateOperDay", date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
-        addStringElement(getNewPurchasesByParamsElement, "shopNumber", shopNumber);
+        addIntegerElement(getNewPurchasesByParamsElement, "shopNumber", shopNumber);
         addIntegerElement(getNewPurchasesByParamsElement, "cashNumber", cashNumber);
         bodyElement.addContent(getNewPurchasesByParamsElement);
 
