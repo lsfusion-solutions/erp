@@ -339,10 +339,6 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
         shipper(w) = client(supplierStock(i)) AND
         consignee(w) = client(customerStock(i));
     
-    quantityWayBill 'Кол-во (ЕГАИС)' (###doc##Detail d) = GROUP SUM quantity(d, WayBillPosition s) MATERIALIZED;
-    incorrectQuantityWayBill (###doc##Detail d) = quantityProp(d) AND NOT quantityProp(d) = quantityWayBill(d);
-    backgroundQuantityWayBill(###doc##Detail d) = RGB(255,212,212) IF incorrectQuantityWayBill(d);
-    
     quantity###doc 'Кол-во (в документе)' (WayBillPosition p) = GROUP SUM quantity(###doc##Detail d, p) MATERIALIZED;
     left###doc (WayBillPosition p) = quantity(p) (-) quantity###doc(p);
     CONSTRAINT left###doc(WayBillPosition p) < 0
@@ -377,7 +373,11 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
             price(d) <- round2(price(p) * 100 / (100 + valueVAT(minItem(product(p)))));
         } 
     }
-        
+
+    quantityWayBill 'Кол-во (ЕГАИС)' (###doc##Detail d) = GROUP SUM quantity(d, WayBillPosition s) IF NOT canceled(s); // проверяем не wayBill(doc(d)) = wayBill(s), чтобы было одинаково с последующим подтверждением
+    incorrectQuantityWayBill (###doc##Detail d) = quantityProp(d) AND NOT quantityProp(d) = quantityWayBill(d);
+    backgroundQuantityWayBill(###doc##Detail d) = RGB(255,212,212) IF incorrectQuantityWayBill(d);
+
     EXTEND FORM doc
         OBJECTS ed = ###doc##Detail
         PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, price, quantityProp,
