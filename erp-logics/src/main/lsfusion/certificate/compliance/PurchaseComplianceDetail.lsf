@@ -41,6 +41,11 @@ CONSTRAINT countComplianceGroup(compliance(UserInvoice invoice, ComplianceGroup 
            AND NOT in(group, compliance(invoice, group))
     CHECKED BY compliance[UserInvoice,ComplianceGroup] MESSAGE 'Сертификат должен соответствовать группе сертификации';
 
+CONSTRAINT SETCHANGED(compliance(UserInvoice invoice, ComplianceGroup group))
+    AND NOT in(group, compliance(invoice, group))
+    CHECKED BY compliance[UserInvoice, ComplianceGroup] 
+    MESSAGE 'Сертификат должен соответствовать группе сертификации';
+
 WHEN LOCAL FORMS userInvoice CHANGED(compliance(UserInvoice i, ComplianceGroup g)) DO
     dataCompliance(UserInvoiceDetail d) <- compliance(i, g)
         WHERE userInvoice(d) == i AND complianceGroup(d) == g;
@@ -105,7 +110,7 @@ EXTEND FORM userInvoice
                             name
     PROPERTIES(i, cg) SHOWIF showCompliance(i)
                             descriptionCompliance,
-                            nameComplianceTypeCompliance
+                            nameComplianceTypeCompliance READONLY 
     FILTERS count(i, cg)
 
     OBJECTS d2 = UserInvoiceDetail GRID
