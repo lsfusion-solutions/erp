@@ -5,10 +5,10 @@ REQUIRE EInvoiceEDN, CustomerEInvoiceTopByApi, EInvoiceEDSEDN;
 NAMESPACE EDI;
 
 
-overCreateEInvoiceBlrwbl(EInvoice ei) + {
-    isReturn(ei) <- TRUE WHERE (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'RETANN' AND blrwblFieldValue(e) == 'Истина'); //позже можно убрать, сейчас у провайдеров общий признак PW0013
-    replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014') WHERE NOT replaceNumber(ei);
-}
+//overCreateEInvoiceBlrwbl(EInvoice ei) + {
+//    isReturn(ei) <- TRUE WHERE (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'RETANN' AND blrwblFieldValue(e) == 'Истина'); //позже можно убрать, сейчас у провайдеров общий признак PW0013
+//    replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014') WHERE NOT replaceNumber(ei);
+//}
 
 overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrwbl' THEN {
@@ -64,6 +64,14 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                         sealIDReceiver(ei) <- blrwblSealIDReceiver();
                         orderID(ei) <- blrwblOrderID();
                         currency(ei) <- blrwblCurrency();
+                        //isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'PW0013' AND blrwblFieldValue(e) == '1');
+                        //replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014');
+                        FOR blrwblFieldName(INTEGER e) OR blrwblFieldValue(e) DO NEW ef = ExtraField {
+                            name(ef) <- blrwblFieldName(e);
+                            code(ef) <- blrwblFieldCode(e);
+                            value(ef) <- blrwblFieldValue(e);
+                            eInvoice(ef) <- ei;
+                        }
                         overCreateEInvoiceBlrwbl(ei);
                         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) ORDER blrwblLineItemNumber(l) DO NEW ed = EInvoiceDetail {
@@ -94,7 +102,13 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                             groupPackingCodeMark(ed, INTEGER j) <- blrwblGroupPackingCodeMark(j) WHERE blrwblLineItemLineItemIdentification(j) == l;
                             upperLevelCodeMark(ed, INTEGER j) <- blrwblUpperLevelCodeMark(j) WHERE blrwblLineItemLineItemIdentification(j) == l;
                             fieldCodeMark(ed) <- blrwblFieldCodeMark(l);
-                            lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrwblLineItemFieldName(INTEGER f), blrwblLineItemFieldValue(f)) IF blrwblLineItemLineItemExtraField(f) == l, ', ' ORDER blrwblLineItemFieldName(f);
+                            //lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrwblLineItemFieldName(INTEGER f), blrwblLineItemFieldValue(f)) IF blrwblLineItemLineItemExtraField(f) == l, ', ' ORDER blrwblLineItemFieldName(f);
+                            FOR blrwblLineItemFieldName(INTEGER e) OR blrwblLineItemFieldValue(e) DO NEW ief = ItemExtraField {
+                                name(ief) <- blrwblLineItemFieldName(e);
+                                code(ief) <- blrwblLineItemFieldCode(e);
+                                value(ief) <- blrwblLineItemFieldValue(e);
+                                eInvoiceDetail(ief) <- ed;
+                            }
                         }
                     }
                     FOR EInvoice ei = eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber()) DO {
@@ -224,10 +238,10 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
     }
 }
 
-overCreateEInvoiceBlrdln(EInvoice ei) + {
-    isReturn(ei) <- TRUE WHERE (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'RETANN' AND blrwblFieldValue(e) == 'Истина');
-    replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014') WHERE NOT replaceNumber(ei);
-}
+//overCreateEInvoiceBlrdln(EInvoice ei) + {
+//    isReturn(ei) <- TRUE WHERE (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'RETANN' AND blrwblFieldValue(e) == 'Истина');
+//    replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014') WHERE NOT replaceNumber(ei);
+//}
 
 overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrdln' THEN {
@@ -276,6 +290,14 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                         partyIssuingProxyName(ei) <- blrdlnPartyIssuingProxyName();
                         orderID(ei) <- blrdlnOrderID();
                         currency(ei) <- blrdlnCurrency();
+                        //isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrdlnFieldCode(INTEGER e) == 'PW0013' AND blrdlnFieldValue(e) == '1');
+                        //replaceNumber(ei) <- STRING[70](GROUP MAX blrdlnFieldValue(INTEGER e) IF blrdlnFieldCode(e) == 'PW0014');
+                        FOR blrdlnFieldName(INTEGER e) OR blrdlnFieldValue(e) DO NEW ef = ExtraField {
+                            name(ef) <- blrdlnFieldName(e);
+                            code(ef) <- blrdlnFieldCode(e);
+                            value(ef) <- blrdlnFieldValue(e);
+                            eInvoice(ef) <- ei;
+                        }
                         overCreateEInvoiceBlrdln(ei);
                         XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR blrdlnLineItemID(INTEGER l) OR blrdlnLineItemBuyerID(l) OR blrdlnLineItemSupplierID(l) ORDER blrdlnLineItemNumber(l) DO NEW ed = EInvoiceDetail {
@@ -303,7 +325,13 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                             groupPackingCodeMark(ed, INTEGER j) <- blrdlnGroupPackingCodeMark(j) WHERE blrdlnLineItemLineItemIdentification(j) == l;
                             upperLevelCodeMark(ed, INTEGER j) <- blrdlnUpperLevelCodeMark(j) WHERE blrdlnLineItemLineItemIdentification(j) == l;
                             fieldCodeMark(ed) <- blrdlnFieldCodeMark(l);
-                            lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrdlnLineItemFieldName(INTEGER f), blrdlnLineItemFieldValue(f)) IF blrdlnLineItemLineItemExtraField(f) == l, ', ' ORDER blrdlnLineItemFieldName(f);
+                            //lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrdlnLineItemFieldName(INTEGER f), blrdlnLineItemFieldValue(f)) IF blrdlnLineItemLineItemExtraField(f) == l, ', ' ORDER blrdlnLineItemFieldName(f);
+                            FOR blrdlnLineItemFieldName(INTEGER e) OR blrdlnLineItemFieldValue(e) DO NEW ief = ItemExtraField {
+                                name(ief) <- blrdlnLineItemFieldName(e);
+                                code(ief) <- blrdlnLineItemFieldCode(e);
+                                value(ief) <- blrdlnLineItemFieldValue(e);
+                                eInvoiceDetail(ief) <- ed;
+                            }
                         }
                     }
                     FOR EInvoice ei = eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber()) DO {

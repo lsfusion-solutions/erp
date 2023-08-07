@@ -8,11 +8,38 @@ NAMESPACE PurchaseReturn;
 @defineInvoiceEinvoice();
 
 overCreate(EInvoice ei, Consignment c) + {
-    isReturn(ei) <- TRUE IF c IS PurchaseReturn.Invoice;
+    //isReturn(ei) <- TRUE IF c IS PurchaseReturn.Invoice;
+    IF c IS PurchaseReturn.Invoice THEN NEW f = ExtraField {
+        name(f) <- 'Признак возвратной накладной';
+        code(f) <- 'PW0013';
+        value(f) <- '1';
+        eInvoice(f) <- ei;
+    }
+}
+
+changeIsReturn (EInvoice e) {
+    INPUT b = BOOLEAN DO {
+        IF useExtraFields(e) THEN {
+            IF extraFieldByCode(e,'PW0013') AND NOT b THEN {
+                DELETE ExtraField f WHERE eInvoice(f) == e AND code(f) == 'PW0013';
+            } ELSE IF extraFieldByCode(e,'PW0013') AND b THEN {
+                value(ExtraField f) <- '1' WHERE eInvoice(f) == e AND code(f) == 'PW0013';
+            } ELSE IF NOT extraFieldByCode(e,'PW0013') AND b THEN {
+                NEW f = ExtraField {
+                    name(f) <- 'Признак возвратной накладной';
+                    code(f) <- 'PW0013';
+                    value(f) <- '1';
+                    eInvoice(f) <- e;
+                }
+            }
+        } ELSE {
+            isReturn(e) <- b;
+        }
+    }
 }
 
 EXTEND FORM eInvoices
-    PROPERTIES(e) READONLYIF isReadonly() isReturn AFTER isCancel(e)
+    PROPERTIES(e) READONLYIF isReadonly() overIsReturn ON CHANGE changeIsReturn(e) AFTER isCancel(e)
 ;
 
 overSkipNumberCheck = ABSTRACT BOOLEAN (Invoice);

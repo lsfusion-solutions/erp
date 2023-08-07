@@ -199,13 +199,19 @@ FORM exportBlrwbl FORMEXTID 'BLRWBL'
         sealIDReceiver(ein) EXTID 'SealID',
         orderID(ein) EXTID 'OrderID',
         currency(ein) EXTID 'Currency'
-    PROPERTIES DRAW ein IN extraField0 fieldName0 = IF replaceNumber(ein) THEN 'Номер заменяемой накладной' EXTID 'FieldName',
-        fieldCode0 = IF replaceNumber(ein) THEN 'PW0014' EXTID 'FieldCode',
-        fieldValue0 = IF replaceNumber(ein) THEN replaceNumber(ein) EXTID 'FieldValue'
-    PROPERTIES DRAW ein IN extraField fieldName = IF isReturn(ein) THEN 'Признак возвратной накладной' EXTID 'FieldName',
-        fieldCode = IF isReturn(ein) THEN 'PW0013' EXTID 'FieldCode',
-        fieldValue = IF isReturn(ein) THEN '1' EXTID 'FieldValue'
-
+    PROPERTIES DRAW ein IN extraField0 fieldName0 = IF replaceNumber(ein) AND NOT useExtraFields(ein) THEN 'Номер заменяемой накладной' EXTID 'FieldName',
+        fieldCode0 = IF replaceNumber(ein) AND NOT useExtraFields(ein) THEN 'PW0014' EXTID 'FieldCode',
+        fieldValue0 = IF replaceNumber(ein) AND NOT useExtraFields(ein) THEN replaceNumber(ein) EXTID 'FieldValue'
+    PROPERTIES DRAW ein IN extraField fieldName = IF isReturn(ein) AND NOT useExtraFields(ein) THEN 'Признак возвратной накладной' EXTID 'FieldName',
+        fieldCode = IF isReturn(ein) AND NOT useExtraFields(ein) THEN 'PW0013' EXTID 'FieldCode',
+        fieldValue = IF isReturn(ein) AND NOT useExtraFields(ein) THEN '1' EXTID 'FieldValue'
+    
+    OBJECTS f = ExtraField EXTID 'ExtraField'
+    FILTERS eInvoice(f) == ein AND useExtraFields(ein)
+    PROPERTIES DRAW f name(f) EXTID 'FieldName',
+        code(f) EXTID 'FieldCode',
+        value(f) EXTID 'FieldValue'
+    
     OBJECTS d = EInvoiceDetail EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItem
     FILTERS eInvoice(d) == ein
     PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
@@ -248,6 +254,12 @@ FORM exportBlrwbl FORMEXTID 'BLRWBL'
     PROPERTIES DRAW i groupPackingCodeMark(d,i) EXTID 'GroupPackingCodeMark',
         upperLevelCodeMark(d,i) EXTID 'UpperLevelCodeMark'
     PROPERTIES DRAW d IN lineItemIdentification fieldCodeMark(d) EXTID 'FieldCodeMark'
+
+    OBJECTS if = ItemExtraField EXTID 'LineItemExtraField'
+    FILTERS eInvoiceDetail(if) == d AND useExtraFields(eInvoice(d))
+    PROPERTIES DRAW if name(if) EXTID 'FieldName',
+        code(if) EXTID 'FieldCode',
+        value(if) EXTID 'FieldValue'
 
     OBJECTS eint = EInvoice EXTID 'Total'
     FILTERS eint == ei
@@ -315,12 +327,18 @@ FORM exportBlrdln FORMEXTID 'BLRDLN'
         partyIssuingProxyName(ein) EXTID 'PartyIssuingProxyName'
     PROPERTIES DRAW ein orderID(ein) EXTID 'OrderID',
         currency(ein) EXTID 'Currency'
-    PROPERTIES DRAW ein IN extraField0 fieldName0 = IF replaceNumber(ein) THEN 'Номер заменяемой накладной' EXTID 'FieldName',
-        fieldCode0 = IF replaceNumber(ein) THEN 'PW0014' EXTID 'FieldCode',
-        fieldValue0 = IF replaceNumber(ein) THEN replaceNumber(ein) EXTID 'FieldValue'
-    PROPERTIES DRAW ein IN extraField fieldName = IF isReturn(ein) THEN 'Признак возвратной накладной' EXTID 'FieldName',
-        fieldCode = IF isReturn(ein) THEN 'PW0013' EXTID 'FieldCode',
-        fieldValue = IF isReturn(ein) THEN '1' EXTID 'FieldValue'
+    PROPERTIES DRAW ein IN extraField0 fieldName0 = IF replaceNumber(ein) AND NOT useExtraFields(ein) THEN 'Номер заменяемой накладной' EXTID 'FieldName',
+        fieldCode0 = IF replaceNumber(ein) AND NOT useExtraFields(ein) THEN 'PW0014' EXTID 'FieldCode',
+        fieldValue0 = IF replaceNumber(ein) AND NOT useExtraFields(ein) THEN replaceNumber(ein) EXTID 'FieldValue'
+    PROPERTIES DRAW ein IN extraField fieldName = IF isReturn(ein) AND NOT useExtraFields(ein) THEN 'Признак возвратной накладной' EXTID 'FieldName',
+        fieldCode = IF isReturn(ein) AND NOT useExtraFields(ein) THEN 'PW0013' EXTID 'FieldCode',
+        fieldValue = IF isReturn(ein) AND NOT useExtraFields(ein) THEN '1' EXTID 'FieldValue'
+
+    OBJECTS f = ExtraField EXTID 'ExtraField'
+    FILTERS eInvoice(f) == ein AND useExtraFields(ein)
+    PROPERTIES DRAW f name(f) EXTID 'FieldName',
+        code(f) EXTID 'FieldCode',
+        value(f) EXTID 'FieldValue'
 
     OBJECTS d = EInvoiceDetail EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItem
     FILTERS eInvoice(d) == ein
@@ -362,6 +380,12 @@ FORM exportBlrdln FORMEXTID 'BLRDLN'
     PROPERTIES DRAW i groupPackingCodeMark(d,i) EXTID 'GroupPackingCodeMark',
         upperLevelCodeMark(d,i) EXTID 'UpperLevelCodeMark'
     PROPERTIES DRAW d IN lineItemIdentification fieldCodeMark(d) EXTID 'FieldCodeMark'
+
+    OBJECTS if = ItemExtraField EXTID 'LineItemExtraField'
+    FILTERS eInvoiceDetail(if) == d AND useExtraFields(eInvoice(d))
+    PROPERTIES DRAW if name(if) EXTID 'FieldName',
+        code(if) EXTID 'FieldCode',
+        value(if) EXTID 'FieldValue'
 
     OBJECTS eint = EInvoice EXTID 'Total'
     FILTERS eint == ei
