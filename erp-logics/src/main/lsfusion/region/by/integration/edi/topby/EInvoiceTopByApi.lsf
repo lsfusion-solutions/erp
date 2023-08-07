@@ -251,9 +251,7 @@ overReceiveSystemMessage ABSTRACT LIST (EInvoiceMessage);
 overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
     IF documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' OR documentType() == 'BLRDLN' OR documentType() == 'BLRDNR' THEN {
         LOCAL eInvoice = EInvoice();
-        eInvoice() <- CASE
-            WHEN (documentType() == 'BLRWBL' OR documentType() == 'BLRDLN') THEN (OVERRIDE eInvoiceSupplierCancel(documentNumber()), eInvoiceSupplier(documentNumber()))
-            WHEN (documentType() == 'BLRWBR' OR documentType() == 'BLRDNR') THEN eInvoiceCustomer(documentNumber());
+        eInvoice() <- eInvoiceM(documentNumber());
         IF eInvoice() THEN {
             NEWSESSION NESTED LOCAL {
                 IF NOT eInvoiceMessage(eInvoice(), 'm' + messageDocumentNumber(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {

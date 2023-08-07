@@ -41,9 +41,7 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                 CASE
                     WHEN documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' OR documentType() == 'BLRDLN' OR documentType() == 'BLRDNR' THEN {
                         LOCAL eInvoice = EInvoice();
-                        eInvoice() <- CASE
-                            WHEN (documentType() == 'BLRWBL' OR documentType() == 'BLRDLN') THEN (OVERRIDE eInvoiceSupplierCancel(documentNumber()), eInvoiceSupplier(documentNumber()))
-                            WHEN (documentType() == 'BLRWBR' OR documentType() == 'BLRDNR') THEN eInvoiceCustomer(documentNumber());
+                        eInvoice() <- eInvoiceM(documentNumber());
                         IF eInvoice() THEN {
                             NEWSESSION NESTED LOCAL {
                                 IF NOT eInvoiceMessage(eInvoice(), 'm' + messageDocumentNumber(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {

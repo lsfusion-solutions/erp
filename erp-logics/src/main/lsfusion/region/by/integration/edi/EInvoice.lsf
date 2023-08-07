@@ -15,20 +15,14 @@ dateTimeCreated(EInvoice i) <- currentDateTime() WHEN (i IS EInvoice);
 
 @defineExternalizable(eInvoice, STRING[100]);
 
-numberCustomer 'Номер документа покупателя (BLRWBR/BLRDNR)' = DATA STRING[35] (EInvoice) INDEXED;
-eInvoiceCustomer(number) = GROUP MAX EInvoice e BY numberCustomer(e);
+numberCustomer 'Номер документа покупателя (BLRWBR/BLRDNR)' = DATA STRING[35] (EInvoice);
 dateCustomer'Дата документа покупателя' = DATA DATETIME (EInvoice);
 
-numberSupplier 'Номер документа поставщика (BLRWBL/BLRDLN)'= DATA STRING[35] (EInvoice) INDEXED;
-eInvoiceSupplier (number) = GROUP MAX EInvoice e BY numberSupplier(e);
+numberSupplier 'Номер документа поставщика (BLRWBL/BLRDLN)'= DATA STRING[35] (EInvoice);
 dateSupplier 'Дата документа поставщика' = DATA DATETIME (EInvoice);
 
-numberSupplierCancel 'Номер документа отмены поставщика' = DATA STRING[35] (EInvoice) INDEXED;
-eInvoiceSupplierCancel (number) = GROUP MAX EInvoice e BY numberSupplierCancel(e);
+numberSupplierCancel 'Номер документа отмены поставщика' = DATA STRING[35] (EInvoice);
 dateSupplierCancel 'Дата документа поставщика' = DATA DATETIME (EInvoice);
-
-dateTime 'Дата/время документа' = DATA DATETIME (EInvoice);
-number 'Номер' = DATA STRING[35] (EInvoice);
 
 dataReportId 'Номер акта' = DATA STRING[70] (EInvoice);
 reportId 'Номер акта' = DATA STRING[70] (EInvoice);
@@ -287,7 +281,7 @@ CONSTRAINT SET(EInvoice i IS EInvoice) AND NOT (GROUP SUM 1 IF eInvoice(EInvoice
 CLASS EInvoiceMessage 'Сообщение по накладной EDI';
 TABLE eInvoiceMessage(EInvoiceMessage);
 
-number 'Номер' = DATA STRING[35] (EInvoiceMessage);
+number 'Номер' = DATA STRING[35] (EInvoiceMessage) INDEXED;
 eInvoice 'Накладная' = DATA EInvoice (EInvoiceMessage) NONULL DELETE;
 numberEInvoice 'Накладная' (EInvoiceMessage m) = deliveryNoteNumber(eInvoice(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (EInvoiceMessage);
@@ -308,6 +302,7 @@ nameKind 'Вид' (EInvoiceMessage o) = staticCaption(kind(o)) CHARWIDTH 20;
 
 INDEX eInvoice(EInvoiceMessage m), number(m), kind(m);
 eInvoiceMessage (eInvoice, number, kind) = GROUP AGGR EInvoiceMessage e BY eInvoice(e), number(e), kind(e);
+eInvoiceM(STRING num) = eInvoice(GROUP MAX EInvoiceMessage m IF number(m) == right(num,-3) OR number(m) == num);//мы добавили тип документа или точное соответствие
 
 EXTEND CLASS EInvoiceMessageType {
     systemmessage_blrwbl 'SYSTEMMESSAGE-BLRWBL',
