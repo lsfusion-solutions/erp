@@ -379,6 +379,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             if (infoJSON != null && infoJSON.has("defaultquantity")) {defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");}
             if (infoJSON != null && infoJSON.has("tmctype")) { tmcType = infoJSON.optInt("tmctype");}
 
+            Integer deptCode = null;
+            if (infoJSON != null) {
+                if (infoJSON.has("deptcode")) {
+                    deptCode = infoJSON.getInt("deptcode");
+                }
+            }
+
             if (defaultQuantity != null || tmcType != null) {
                 JSONArray barcodesArray = new JSONArray();
                 barcodesArray.put(getBarcodeJSON(mainBarcode, appendBarcode, tmcType, defaultQuantity)); //main barcode
@@ -402,7 +409,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             boolean disableInventSale = item.flags != null && (item.flags & 128) != 0;
 
             //основной штрих-код
-            inventObject.put("deptcode", 1); //код отдела
+            inventObject.put("deptcode", nvl(deptCode, 1)); //код отдела
             inventObject.put("price", item.price); //цена
             inventObject.put("minprice", noMinPrice ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
             //inventObject.put("isInvent", true);
