@@ -19,7 +19,30 @@ outputDirTopBy 'Папка отправленных сообщений' = DATA S
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
 
-@lockedObjects(TopBy,LegalEntity);
+lockedTopBy = DATA User (LegalEntity) TABLE legalEntityEDI;
+lockResultTopBy = DATA LOCAL NESTED BOOLEAN ();
+
+lockTopBy(LegalEntity object)  { 
+    NEWSESSION {    
+        lockResultTopBy() <- NULL;
+        APPLY SERIALIZABLE {
+            IF NOT object THEN
+                RETURN;
+            IF lockedTopBy(object) THEN {
+                cancel();
+            } ELSE {
+                lockedTopBy(object) <- currentUser();
+                lockResultTopBy() <- TRUE;
+            }
+        }
+    }
+}
+
+unlockTopBy(LegalEntity object)  { 
+    NEWSESSION { 
+        APPLY lockedTopBy(object) <- NULL;
+    }
+}
 
 onStarted()+ { 
     NEWSESSION {

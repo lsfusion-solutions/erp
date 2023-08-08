@@ -39,7 +39,30 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
     }
 }
 
-@lockedObjects(EDN,LegalEntity);
+lockedEDN = DATA User (LegalEntity) TABLE legalEntityEDI;
+lockResultEDN = DATA LOCAL NESTED BOOLEAN ();
+
+lockEDN(LegalEntity object)  { 
+    NEWSESSION {    
+        lockResultEDN() <- NULL;
+        APPLY SERIALIZABLE {
+            IF NOT object THEN
+                RETURN;
+            IF lockedEDN(object) THEN {
+                cancel();
+            } ELSE {
+                lockedEDN(object) <- currentUser();
+                lockResultEDN() <- TRUE;
+            }
+        }
+    }
+}
+
+unlockEDN(LegalEntity object)  { 
+    NEWSESSION { 
+        APPLY lockedEDN(object) <- NULL;
+    }
+}
 
 onStarted()+ { 
     NEWSESSION {
