@@ -281,7 +281,7 @@ CONSTRAINT SET(EInvoice i IS EInvoice) AND NOT (GROUP SUM 1 IF eInvoice(EInvoice
 CLASS EInvoiceMessage 'Сообщение по накладной EDI';
 TABLE eInvoiceMessage(EInvoiceMessage);
 
-number 'Номер' = DATA STRING[35] (EInvoiceMessage) INDEXED;
+number 'Номер' = DATA STRING[35] (EInvoiceMessage) INDEXED LIKE;
 eInvoice 'Накладная' = DATA EInvoice (EInvoiceMessage) NONULL DELETE;
 numberEInvoice 'Накладная' (EInvoiceMessage m) = deliveryNoteNumber(eInvoice(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (EInvoiceMessage);
@@ -302,7 +302,7 @@ nameKind 'Вид' (EInvoiceMessage o) = staticCaption(kind(o)) CHARWIDTH 20;
 
 INDEX eInvoice(EInvoiceMessage m), number(m), kind(m);
 eInvoiceMessage (eInvoice, number, kind) = GROUP AGGR EInvoiceMessage e BY eInvoice(e), number(e), kind(e);
-eInvoiceM(STRING num) = eInvoice(GROUP MAX EInvoiceMessage m IF right(number(m),-3) == num OR number(m) == num);//мы добавили тип документа или точное соответствие
+eInvoiceM(STRING num) = eInvoice(GROUP MAX EInvoiceMessage m IF number(m) LIKE '___'+num OR number(m) == num);//мы добавили тип документа или точное соответствие
 
 EXTEND CLASS EInvoiceMessageType {
     systemmessage_blrwbl 'SYSTEMMESSAGE-BLRWBL',
