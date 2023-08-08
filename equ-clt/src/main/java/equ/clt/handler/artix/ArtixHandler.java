@@ -1690,12 +1690,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                             boolean isChange = operationCode.equals(72) || operationCode.equals(76) || operationCode.equals(101) ; //сдача
 
+                                            String additionalData = moneyPosition.optString("additionaldata", null);
+
                                             if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))) || isChange)) {
 
+                                                Payment payment = null;
+
                                                 if(customPayments.contains(paymentType)) {
-                                                    payments.add(new Payment(paymentType, sum));
+                                                    payment = new Payment(paymentType, sum);
                                                 } else if (oplatiPayments.contains(paymentType)) {
-                                                    payments.add(new Payment("oplati", sum));
+                                                    payment = new Payment("oplati", sum);
                                                 } else {
                                                     if (cashPayments.contains(paymentType)) //нал
                                                         paymentType = 1;
@@ -1707,7 +1711,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                                     switch (paymentType) {
                                                         case 4:
-                                                            payments.add(Payment.getCard(sum, "paymentCard", trimToNull(moneyPosition.optString("cardnum"))));
+                                                            payment = Payment.getCard(sum, "paymentCard", trimToNull(moneyPosition.optString("cardnum")));
                                                             break;
                                                         case 6:
                                                         case 7:
@@ -1729,6 +1733,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                             break;
                                                     }
                                                 }
+                                                if(payment != null) {
+                                                    if(payment.extraFields == null) {
+                                                        payment.extraFields = new HashMap<>();
+                                                    }
+                                                    payment.extraFields.put("additionalData", additionalData);
+                                                    payments.add(payment);
+                                                }
+
                                             }
                                         }
 
