@@ -334,6 +334,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
         logger.info(String.format(logPrefix + "created pos file %s", file.getAbsolutePath()));
 
+        if(copyDirectory != null) {
+            File flagCopy = new File(copyDirectory + "/pos" + currentTime + ".flz");
+            if (!flagCopy.createNewFile()) {
+                logger.info(String.format(logPrefix + "can't create flag file %s", flagCopy.getAbsolutePath()));
+            }
+        }
+
         return Pair.create(file, flagFile);
     }
 
