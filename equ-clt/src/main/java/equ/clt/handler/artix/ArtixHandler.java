@@ -364,32 +364,43 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             inventObject.put("barcode", removeCheckDigitFromBarcode(mainBarcode, appendBarcode));
 
             JSONObject infoJSON = getExtInfo(item.info);
+            JSONObject extraInfo = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo) : null;
 
-            String capacity = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("capacity") : null;
-            String alcVolume = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("alcvolume") : null;
-            String alcTypeCode = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("alctypecode") : null;
+            String capacity = null;
+            String alcVolume = null;
+            String alcTypeCode = null;
+            String lotType = null;
+            Integer exciseMarkPrice = null;
+            Integer containsSugar = null;
+            Integer deptCode = null;
+            boolean autoGetQuantity = false;
+            if(extraInfo != null) {
+                capacity = extraInfo.optString("capacity");
+                alcVolume = extraInfo.optString("alcvolume");
+                alcTypeCode = extraInfo.optString("alctypecode");
+                lotType = extraInfo.optString("lottype");
+                exciseMarkPrice = extraInfo.optInt("enableexcisemarkprice");
+                containsSugar = extraInfo.optInt("containssugar");
+                if (extraInfo.has("deptcode")) {
+                    deptCode = extraInfo.getInt("deptcode");
+                }
+                autoGetQuantity = extraInfo.has("autogetquantityfromscales");
+            }
 
             BigDecimal defaultQuantity = null;
             Integer tmcType = null;
 
-            String lotType = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("lottype") : null;
             if (lotType != null && !lotType.isEmpty() && (alcTypeCode == null || alcTypeCode.isEmpty())) tmcType = 7;
-
-            boolean autoGetQuantity = item.extraInfo != null && new JSONObject(item.extraInfo).has("autogetquantityfromscales");
 
             boolean tobacco = "tobacco".equals(lotType) || "tobaccoProduct".equals(lotType);
             if (tobacco) tmcType = 3;
 
-            Integer exciseMarkPrice = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optInt("enableexcisemarkprice") : null;
-            Integer containsSugar = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optInt("containssugar") : null;
-
-            if (infoJSON != null && infoJSON.has("defaultquantity")) {defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");}
-            if (infoJSON != null && infoJSON.has("tmctype")) { tmcType = infoJSON.optInt("tmctype");}
-
-            Integer deptCode = null;
-            if (infoJSON != null) {
-                if (infoJSON.has("deptcode")) {
-                    deptCode = infoJSON.getInt("deptcode");
+            if(infoJSON != null) {
+                if (infoJSON.has("defaultquantity")) {
+                    defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");
+                }
+                if (infoJSON.has("tmctype")) {
+                    tmcType = infoJSON.optInt("tmctype");
                 }
             }
 
