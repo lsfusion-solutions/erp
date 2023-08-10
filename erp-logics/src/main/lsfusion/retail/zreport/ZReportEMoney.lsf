@@ -7,7 +7,6 @@ NAMESPACE ZReport;
 EXTEND CLASS PaymentMeans { paymentMeansEpay 'Электронный платеж "Оплати"' }
 order (PaymentMeans p) += WHEN p = PaymentMeans.paymentMeansEpay THEN 4;
 
-
 sumEMoneyPayment 'Сумма продажа (Оплати)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansEpay BY receipt(payment);
 sumPositiveEMoneyPayment 'Сумма продажа (Оплати)' (Receipt receipt) =  sumEMoneyPayment (receipt) IF sumEMoneyPayment(receipt) >= 0.0 IN documentSum;
 sumNegativeEMoneyPayment 'Сумма возврата (Оплати)' (Receipt receipt) =  sumEMoneyPayment(receipt) IF sumEMoneyPayment(receipt) < 0.0 IN documentSum;
@@ -17,7 +16,6 @@ sumEMoneyPayment 'Оплати (чек)' (ReceiptDetail detail) = sumEMoneyPayme
 sumEMoney 'Сумма по Оплати Z-отчета' (zReport) = GROUP SUM sumEMoneyPayment(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
 sumPositiveEMoneyPayment 'Сумма продажа (Оплати)' (zReport) = GROUP SUM sumPositiveEMoneyPayment(Receipt r) IF NOT skip(r) BY zReport(r) IN documentSum;
 sumNegativeEMoneyPayment 'Сумма возврата (Оплати)' (zReport) = GROUP SUM sumNegativeEMoneyPayment(Receipt r) IF NOT skip(r) BY zReport(r) MATERIALIZED IN documentSum;
-
 
 EXTEND FORM zReports
     PROPERTIES(z) READONLY sumPositiveEMoneyPayment BEFORE sumPositiveCashPayment(z), 
