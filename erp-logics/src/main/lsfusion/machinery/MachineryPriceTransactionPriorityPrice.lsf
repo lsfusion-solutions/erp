@@ -1,13 +1,16 @@
 MODULE MachineryPriceTransactionPriorityPrice;
 
-REQUIRE MachineryPriceTransaction, CashRegister;
+REQUIRE MachineryPriceTransaction, CashRegister, Scales;
 
 NAMESPACE Machinery;
 
 // --------------------------------- Приоритетный вид цены ----------------------------- //
+priorityPriceListType 'Приоритетный вид цен' = ABSTRACT PriceListType (GroupMachinery);
 
 priorityPriceListType 'Приоритетный вид цен' = DATA PriceListType (GroupCashRegister);
 namePriorityPriceListType 'Приоритетный вид цен' (GroupCashRegister groupMachinery) = name(priorityPriceListType(groupMachinery));
+
+priorityPriceListType(GroupCashRegister g) += priorityPriceListType(g);
 
 EXTEND FORM groupCashRegister
     PROPERTIES(grc) namePriorityPriceListType
@@ -18,12 +21,21 @@ DESIGN groupCashRegister {
     }
 }
 
+priorityPriceListType 'Приоритетный вид цен' = DATA PriceListType (GroupScales);
+namePriorityPriceListType 'Приоритетный вид цен' (GroupScales group) = name(priorityPriceListType(group));
+
+priorityPriceListType(GroupScales g) += priorityPriceListType(g);
+
+EXTEND FORM groupScales
+    PROPERTIES(grs) namePriorityPriceListType
+;
+
 hasOverPrice (Barcode b, GroupMachinery m) += TRUE IF priceA(priorityPriceListType(m), sku(b), stock(m), currentDateTime());
 
 skipPriority = ABSTRACT BOOLEAN ();
 
 overCreateMachineryPriceTransaction(GroupMachinery g) + {
-    IF priorityPriceListType(g) AND NOT (skipLastTransaction(g) OR skipPriority()) THEN {
+    IF priorityPriceListType(g) AND NOT skipPriority() THEN {
         price(Barcode barcode) <- priceA(priorityPriceListType(g), sku(barcode), stock(g), currentDateTime())
             WHERE send(barcode) AND priceA(priorityPriceListType(g), sku(barcode), stock(g), currentDateTime());
     }
