@@ -7,6 +7,7 @@ import com.jacob.com.Variant;
 import equ.api.*;
 import equ.api.scales.*;
 import equ.clt.handler.DefaultScalesHandler;
+import equ.clt.handler.cas.DataSocket;
 import lsfusion.base.ExceptionUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -101,7 +102,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                             int globalError = 0;
                             List<String> localErrors = new ArrayList<>();
 
-                            UDPPort port = new UDPPort(scales.port, 1111, 10000);
+                            String[] hostPort = scales.port.split(":");
+                            UDPPort port = hostPort.length == 1 ? new UDPPort(scales.port, 1111, 10000) : new UDPPort(hostPort[0], Integer.parseInt(hostPort[1]), 10000);
 
                             String ip = scales.port;
                             if (ip != null) {
