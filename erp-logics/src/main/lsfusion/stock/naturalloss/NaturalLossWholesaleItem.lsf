@@ -10,11 +10,12 @@ naturalLossWholesaleDetail =
 
 naturalLossWholesaleDetail(Sku sku, NUMERIC[10,5] shelfLife) = naturalLossWholesaleDetail(subNaturalLossGroup(defaultCountry(),sku), shelfLife);
 // Если берем приход 1 числа, а продажа 10. То будет 9 дней, с 1 по 9. 
-countDays = [GROUP SUM 1 IF iterate(DATE date AS DATE , DATE df AS DATE, sum(DATE dt AS DATE,-1)) AND Sku sku AS Sku BY sku, extractMonth(date), df, dt](Sku s, Month m, DATE df, DATE dt) ;
-
+countDays 'К-во дней в периоде' = [GROUP SUM 1 IF iterate(DATE date AS DATE , DATE df AS DATE, sum(DATE dt AS DATE,-1)) AND Sku sku AS Sku BY sku, extractMonth(date), df, dt](Sku s, Month m, DATE df, DATE dt) ;
+countDaysFull 'К-во дней в месяце' = [GROUP SUM 1 IF iterate(DATE date AS DATE , firstDayOfMonth(DATE df AS DATE), lastDayOfMonth(DATE dt))  BY extractMonth(date), df, dt](Month m, DATE df, DATE dt) ;
 // Два варианта, в зависимости от признака Сезон 
 percentNaturalLoss 'Процент' (Sku sku, NUMERIC[10,5] shelfLife) = percent(naturalLossWholesaleDetail(sku, shelfLife));
-percentNaturalLoss 'Процент'(Sku s, DATE dfrom, DATE dto) = NUMERIC[10,5]([GROUP SUM percent(subNaturalLossGroup(defaultCountry(),Sku sku),Month m)*countDays(sku,m,DATE df AS DATE, DATE dt AS DATE) BY sku,df,dt](s,dfrom,dto));
+percentNaturalLoss 'Процент'(Sku s, DATE dfrom, DATE dto) = 
+    NUMERIC[10,5]([GROUP SUM percent(subNaturalLossGroup(defaultCountry(),Sku sku),Month m)*countDays(sku,m,DATE df AS DATE, DATE dt AS DATE)/countDaysFull(m,df,dt) BY sku,df,dt](s,dfrom,dto));
 
 shelfLife 'Срок хранения, дней' (DATETIME dIn, DATETIME dOut) = NUMERIC[10,5](secondsBetweenDates(dOut,dIn) / 86400.0);
 
