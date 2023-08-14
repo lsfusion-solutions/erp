@@ -5,10 +5,14 @@ REQUIRE Invoice;
 NAMESPACE Invoice;
 
 
+selected 'Отм.' = DATA LOCAL NESTED BOOLEAN (Invoice);
+countSelected = GROUP SUM 1 IF selected(Invoice i);
+
 FORM invoice 'Накладная'
-    OBJECTS s = Invoice PANEL SUBREPORT
+    OBJECTS s = Invoice
     PROPERTIES(s) number, date, nameSupplier, nameCustomer, nameCustomerStock, addressCustomerStock, addressSupplierStock, 
-                  countInvoiceDetail, sumInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail
+                  countInvoiceDetail, sumInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail, isReturn
+    FILTERS selected(s)
     
     OBJECTS d = InvoiceDetail
     PROPERTIES(d) index, nameSku, shortNameUOMSku, price, quantity, sum, VATSum, invoicePrice, invoiceSum
@@ -16,9 +20,17 @@ FORM invoice 'Накладная'
 ;
 
 printInvoice 'Накладная' (Invoice i)  { 
-    PRINT invoice OBJECTS s = i ;
+    IF NOT countSelected() THEN
+        selected(i) <- TRUE;
+    
+    PRINT invoice;
+    selected(Invoice ii) <- NULL;
 } IMAGE 'print.png' IN print;
 
-printInvoiceXLSX 'Накладная xlsx' (Invoice i)  { 
-    PRINT invoice OBJECTS s = i XLSX;
+printInvoiceXLSX 'Накладная xlsx' (Invoice i)  {
+    IF NOT countSelected() THEN
+        selected(i) <- TRUE;
+
+    PRINT invoice XLSX;
+    selected(Invoice ii) <- NULL;
 } IMAGE 'print.png' IN print;
