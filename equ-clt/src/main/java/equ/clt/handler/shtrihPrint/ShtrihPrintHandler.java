@@ -102,12 +102,11 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                             int globalError = 0;
                             List<String> localErrors = new ArrayList<>();
 
-                            String[] hostPort = scales.port.split(":");
-                            UDPPort port = hostPort.length == 1 ? new UDPPort(scales.port, 1111, 10000) : new UDPPort(hostPort[0], Integer.parseInt(hostPort[1]), 10000);
-
                             String ip = scales.port;
                             if (ip != null) {
-                                ips.add(scales.port);
+                                ips.add(ip);
+                                String[] hostPort = ip.split(":");
+                                UDPPort port = hostPort.length == 1 ? new UDPPort(ip, 1111, 10000) : new UDPPort(hostPort[0], Integer.parseInt(hostPort[1]), 10000);
 
                                 Map<String, Integer> pluNumbers = getPluNumbersMap(transaction, localErrors);
                                 if (localErrors.isEmpty()) {
