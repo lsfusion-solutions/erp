@@ -547,7 +547,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTIES (s) READONLY PANEL createdNameUser[UserShipment], createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer
 
-        PROPERTIES (s) NEWSESSION NEW[UserShipment], EDIT SHOWIF overShowEdit(s), deletes = DELETE SHOWIF overShowDelete(s) 
+        PROPERTIES (s) NEWSESSION NEW[UserShipment], editS = EDIT SHOWIF overShowEdit(s), deletes = DELETE SHOWIF overShowDelete(s) 
         PROPERTIES (s) copy
         PROPERTIES (s) close[UserShipment] SHOWIF isOpened[UserShipment](s), open SHOWIF isClosed[UserShipment](s)
 
@@ -642,15 +642,27 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
     DESIGN userShipment { historyTabs { caption = 'История'; } }
     edit(UserShipmentDetail d) + {  DIALOG userShipment OBJECTS s = userShipment(d), d = d DOCKED; }
-    
-    show 'Просмотреть'  ABSTRACT LIST  ( ShipmentDetail) TOOLBAR;
-    show(UserShipmentDetail d)  { 
-	NEWSESSION {
+
+    show 'Просмотреть'  ABSTRACT LIST (ShipmentDetail) TOOLBAR;
+    show(UserShipmentDetail d)  {
+	    NEWSESSION {
 	        SHOW userShipment OBJECTS s = userShipment(d), d = d DOCKED READONLY;
 	    }
-}
-    
-    show(UserShipmentDetail d) + {  show(d); }          
+    }
+    show(UserShipmentDetail d) + {  show(d); }
+
+    show 'Просмотреть' ABSTRACT LIST (Shipment) TOOLBAR;
+    show (UserShipment s) {
+        NEWSESSION{
+            SHOW userShipment OBJECTS s = s DOCKED READONLY;
+        }
+    }
+    show(UserShipment s) + {  show(s); }
+
+    showToShow (Shipment s) = is(s) AND NOT overShowEdit(s);
+    EXTEND FORM shipments
+        PROPERTIES SHOWIF showToShow(s) BEFORE editS show(s)
+    ;
     
 END
 
