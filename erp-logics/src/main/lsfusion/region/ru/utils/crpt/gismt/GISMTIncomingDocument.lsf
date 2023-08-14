@@ -31,9 +31,12 @@ NAMESPACE GISMT;
 // get incoming document
 documentNum = DATA LOCAL STRING ();
 documentDate = DATA LOCAL STRING ();
+invoiceNumber = DATA LOCAL STRING ();
+invoiceDate = DATA LOCAL STRING ();
 
 FORM getIncomingDocument
-    PROPERTIES() document_num = documentNum IN body, document_date = documentDate IN body
+    PROPERTIES() IN body document_num = documentNum, document_date = documentDate,
+                         invoiceNumber = invoiceNumber, invoiceDate = invoiceDate
 
     OBJECTS products = INTEGER IN body 
     PROPERTIES(products) uit_code = uit_code
@@ -44,7 +47,11 @@ getIncomingDocument (LegalEntity l, STRING[100] id) {
     
     LOCAL result = JSONFILE();
     TRY {
-        EXTERNAL HTTP GET url() + '/facade/doc/' + id + '/body?limit=10000' HEADERS documentHeaders TO result;
+        IF useTrueAPI() THEN {
+            EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/' + id + '/info?body=true&limit=10000' HEADERS documentHeaders TO result;
+        } ELSE {
+            EXTERNAL HTTP GET url() + '/facade/doc/' + id + '/body?limit=10000' HEADERS documentHeaders TO result;
+        }
     } CATCH {
         logToFile('gismt', messageCaughtException());
         logToFile('gismt', FILE(result()));
@@ -80,8 +87,13 @@ getIncomingDocuments 'Получить входящие документы ГИ�
     
     LOCAL result = JSONFILE();
     TRY {
-        EXTERNAL HTTP GET url() + '/facade/doc/listV2?inputFormat=true&limit=1000' + 
-                                  '&participantInn=' + inn(s) + '&pg=' + id(lt) + '&documentStatus=' + status HEADERS documentHeaders TO result;
+        IF useTrueAPI() THEN {
+            EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/list?inputFormat=true&limit=1000' + 
+                                      '&participantInn=' + inn(s) + '&pg=' + id(lt) + '&documentStatus=' + status HEADERS documentHeaders TO result;
+        } ELSE {
+            EXTERNAL HTTP GET url() + '/facade/doc/listV2?inputFormat=true&limit=1000' + 
+                                      '&participantInn=' + inn(s) + '&pg=' + id(lt) + '&documentStatus=' + status HEADERS documentHeaders TO result;
+        }
     } CATCH {
         logToFile('gismt', messageCaughtException());
         logToFile('gismt', FILE(result()));
@@ -96,6 +108,10 @@ getIncomingDocuments 'Получить входящие документы ГИ�
         getIncomingDocument(l, number(i));
         documentNum(i) <- documentNum();
         documentDate(i) <- documentDate();
+        IF useTrueAPI() THEN {
+            invoiceNumber(i) <- invoiceNumber();
+            invoiceDate(i) <- invoiceDate();
+        }
     }
     
     documentIndex() <- NULL;

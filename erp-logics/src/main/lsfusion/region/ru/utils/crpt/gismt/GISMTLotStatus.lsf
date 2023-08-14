@@ -24,13 +24,26 @@ nameStatus 'Статус' (Lot l, LegalEntity le) = name(status(l, le));
 
 lastDocId 'Последний документ' = DATA STRING (Lot, LegalEntity);
 
+GROUP cisInfo;
+lotStatus = DATA LOCAL STRING(INTEGER);
+
+FORM getLotStatuses
+    OBJECTS value = INTEGER
+    PROPERTIES(value) IN cisInfo lotStatus EXTID 'status'
+;
+
 getStatus 'Получить статус' (Lot l, LegalEntity le) {
     NEWSESSION {
         getToken(le);
         
         LOCAL result = JSONFILE();
         TRY {
-            EXTERNAL HTTP GET url() + '/facade/cis/info?cisId=' + id(l) HEADERS documentHeaders TO result;
+            IF useTrueAPI() THEN {
+                stringToFile('["' + id(l) + '"]','UTF-8','json');
+                EXTERNAL HTTP POST 'https://markirovka.crpt.ru/api/v3/true-api/cises/info' HEADERS documentHeaders PARAMS resultFile() TO result;
+            } ELSE {
+                EXTERNAL HTTP GET url() + '/facade/cis/info?cisId=' + id(l) HEADERS documentHeaders TO result;
+            }
         } CATCH {
             fileToString(FILE(result()));
             LOCAL error = TEXT();
@@ -40,13 +53,22 @@ getStatus 'Получить статус' (Lot l, LegalEntity le) {
             RETURN;
         }
         
-        LOCAL status = STRING();
-        LOCAL lastDocId = STRING();
-        IMPORT JSON FROM result() TO() status, lastDocId;
-        
-        IF lotStatus(status()) THEN {
-            status(l, le) <- lotStatus(status());
-            lastDocId(l, le) <- lastDocId();
+        IF useTrueAPI() THEN {
+            IMPORT getLotStatuses JSON FROM result();
+            
+            IF lotStatus(lotStatus(0)) THEN {
+                status(l, le) <- lotStatus(lotStatus(0));
+                lastDocId(l, le) <- NULL;
+            }
+        } ELSE {
+            LOCAL status = STRING();
+            LOCAL lastDocId = STRING();
+            IMPORT JSON FROM result() TO() status, lastDocId;
+            
+            IF lotStatus(status()) THEN {
+                status(l, le) <- lotStatus(status());
+                lastDocId(l, le) <- lastDocId();
+            }
         }
         
         APPLY;
