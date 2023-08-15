@@ -170,3 +170,33 @@ DESIGN invoices {
         }
     }
 }
+
+defaultInvoiceDetail (batch, UserCreditNote creditNote) = GROUP MAX InvoiceDetail detail IF invoice(detail)=invoice(creditNote)
+BY batch(detail);
+
+defaultInvoiceDetail (batch, UserCreditNote creditNote) = GROUP MAX InvoiceDetail detail IF invoice(detail)=invoice(creditNote)
+BY sku(detail);
+
+defaultInvoiceDetail (UserCreditNoteDetail detail) = OVERRIDE defaultInvoiceDetail(batch(detail), userCreditNote(detail)),
+    defaultInvoiceDetail(sku(detail), userCreditNote(detail));
+
+connectInvoice 'Привязать строку акта расхождения к накладной' (UserCreditNoteDetail detail)  {
+    invoiceDetail(detail) <- defaultInvoiceDetail(detail)
+        WHERE defaultInvoiceDetail(detail);
+} ASON CONTEXTMENU descriptionIndexInvoice[UserCreditNoteDetail];
+
+connectInvoiceAll 'Привязать все строки акта расхождения к накладной' (UserCreditNoteDetail d)  {
+    FOR userCreditNote(UserCreditNoteDetail detail) == userCreditNote(d) DO {
+        EXEC connectInvoice(detail);
+    }
+} ASON CONTEXTMENU descriptionIndexInvoice[UserCreditNoteDetail];
+
+connectInvoice 'Привязать все строки акта расхождения к накладной' (UserCreditNote i)  {
+    FOR userCreditNote(UserCreditNoteDetail detail) == i DO {
+        EXEC connectInvoice(detail);
+    }
+};
+
+WHEN LOCAL FORMS userCreditNote
+    (CHANGED(sku(UserCreditNoteDetail detail)) OR CHANGED(batch(detail))) AND NOT invoiceDetail(detail)
+    DO EXEC connectInvoice(detail);
