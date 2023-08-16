@@ -32,25 +32,18 @@ DESIGN lotOrders {
 
 jsonAttributeCount (STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
 jsonAttributeKey (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
-jsonAttributeValue (STRING s, INTEGER i) = FORMULA TEXT 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
+jsonAttributeValue (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
 
 // для 1 уровня вложенности
 jsonAttributeCount1(STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
 jsonAttributeKey1 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
-jsonAttributeValue1 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
+jsonAttributeValue1 (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
 
 // для 2 уровня вложенности
 jsonAttributeCount2 (STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
 jsonAttributeKey2 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
-jsonAttributeValue2 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
+jsonAttributeValue2 (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
 
-setTokenFromJSON(FILE f) {
-    fileToString(f);
-   
-    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'token' == jsonAttributeKey(resultString(),i) DO {
-        token() <- replace(STRING(jsonAttributeValue(resultString(),i)),'"','');
-    }
-}
 
 ezHeadersAuthorization (TEXT name) = CASE
     WHEN name = 'Content-Type' THEN 'application/x-www-form-urlencoded'; 
@@ -70,9 +63,8 @@ authorization 'Авторизация в ЭЗ' () {
         } CATCH {
         
         }
-        
-        LOCAL orderId = STRING[100] ();
-        setTokenFromJSON(result());
+
+        IMPORT JSON FROM result() TO() token;
         APPLY;
     }
 }
