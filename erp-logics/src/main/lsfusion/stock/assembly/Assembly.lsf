@@ -421,3 +421,8 @@ CONSTRAINT (SET (isPosted(AssemblyDetail d)) OR CHANGED (quantity(d))) AND isPos
 
 CONSTRAINT (SET (isPosted(AssemblyDetail d)) OR CHANGED (price(d))) AND isPosted(d) AND priceFillCheck(operation(d)) AND NOT price(d) > 0
     MESSAGE 'Для текущей операции обязательно заполнение поля "Цена"';
+
+@defineOperationProperty(detailsFillCheck, 'Должны быть строки у документа', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET (isPosted(Assembly doc)) OR DROPPED (countAssemblyDetail(doc))) AND isPosted(doc) AND detailsFillCheck(operation(doc)) AND NOT countAssemblyDetail(doc)
+    MESSAGE 'Для текущей операции обязательно наличие строк спецификации';

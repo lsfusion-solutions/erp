@@ -473,3 +473,8 @@ CONSTRAINT (SET(isPosted(UserInvoice i)) OR DROPPED(series(i))) AND isSeriesInvo
         MESSAGE 'Для накладной должна быть задана серия';
 
 @defineMergeDocumentDetails(invoice, userInvoice, i);
+
+@defineOperationProperty(detailsFillCheck, 'Должны быть строки у документа', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET (isPosted(UserInvoice doc)) OR DROPPED (countUserInvoiceDetail(doc))) AND isPosted(doc) AND detailsFillCheck(operation(doc)) AND NOT countUserInvoiceDetail(doc)
+    MESSAGE 'Для текущей операции обязательно наличие строк спецификации';
