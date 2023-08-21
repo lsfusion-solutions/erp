@@ -9,7 +9,7 @@ NAMESPACE EGAIS;
 actWriteOff = DATA ActWriteOff (LotAdjustment);
 actFixBarCode = DATA ActFixBarCode (LotAdjustment);
 
-process 'Отправить в ЕГАИС' (LotAdjustment a) {
+processWriteOff 'Отправить в ЕГАИС' (LotAdjustment a) {
     NEWSESSION {
         quantity(Lot l) <- GROUP SUM quantity(LotAdjustmentDetail d) IF lotAdjustment(d) == a AND lot(d) == l;
 
@@ -29,9 +29,9 @@ process 'Отправить в ЕГАИС' (LotAdjustment a) {
                 product(ps) <- product(f);
                 f2Reg(ps) <- f;
 
-                FOR [GROUP SUM 1 IF quantity(Lot l) < 0 BY markCode(id(l))](MarkCode mc) AND f2Reg(mc) = f INLINE NEW m = ActWriteOffMark DO {
+                FOR quantity(Lot l) < 0 AND f2Reg(markCode(id(l))) = f INLINE NEW m = ActWriteOffMark DO {
                     actWriteOffPosition(m) <- ps;
-                    markCode(m) <- mc;
+                    markCode(m) <- markCode(id(l));
                 }
             }
             APPLY;
@@ -40,8 +40,16 @@ process 'Отправить в ЕГАИС' (LotAdjustment a) {
                 process(w);
             }
         }
+    }
+}
 
+processFixBarCode 'Отправить в ЕГАИС' (LotAdjustment a) {
+    NEWSESSION {   
         quantity(Lot l) <- GROUP SUM quantity(LotAdjustmentDetail d) IF lotAdjustment(d) == a AND lot(d) == l;
+
+        LOCAL f2Reg = F2Reg (Lot);
+        f2Reg(Lot l) <- (OVERRIDE f2Reg(markCode(id(l))) IF client(f2Reg(markCode(id(l)))) = client(stock(a)),
+                                  GROUP LAST F2Reg r ORDER r WHERE client(r) = client(stock(a)) AND product(r) = product(markCode(id(l)))) WHERE quantity(l); 
 
         IF (GROUP SUM 1 IF quantity(Lot l) > 0) THEN NEW b = ActFixBarCode {
             posted(b) <- TRUE;
@@ -52,30 +60,27 @@ process 'Отправить в ЕГАИС' (LotAdjustment a) {
             client(b) <- client(stock(a));
             note(b) <- 'Фиксации штрихкодов на балансе на основе изменения остатков';
 
-            FOR [GROUP SUM 1 IF quantity(Lot l) > 0 BY f2Reg(markCode(id(l)))](F2Reg f) INLINE NEW ps = ActFixBarCodePosition DO {
+            FOR [GROUP SUM 1 IF quantity(Lot l) > 0 BY f2Reg(l)](F2Reg f) INLINE NEW ps = ActFixBarCodePosition DO {
                 actFixBarCode(ps) <- b;
 
                 product(ps) <- product(f);
                 f2Reg(ps) <- f;
 
-                FOR [GROUP SUM 1 IF quantity(Lot l) > 0 BY markCode(id(l))](MarkCode mc) AND f2Reg(mc) = f INLINE NEW m = ActFixBarCodeMark DO {
+                FOR quantity(Lot l) > 0 IF f2Reg(l) = f INLINE NEW m = ActFixBarCodeMark DO {
                     actFixBarCodePosition(m) <- ps;
-                    markCode(m) <- mc;
+                    markCode(m) <- markCode(id(l));
                 }
             }
             APPLY;
 
             IF NOT canceled() THEN {
                 process(b);
-
             }
         }
     }
 }
 
 EXTEND FORM lotAdjustments 
-    PROPERTIES(i) process SHOWIF isPosted(i) AND NOT (actWriteOff(i) OR actFixBarCode(i)) DRAW i TOOLBAR
-
     OBJECTS a = ActWriteOff PANEL
     PROPERTIES(a) READONLY posted, canceled, number, date // canceled
     FILTERS a = actWriteOff(i)
@@ -83,6 +88,9 @@ EXTEND FORM lotAdjustments
     OBJECTS wp = ActWriteOffPosition
     PROPERTIES(wp) READONLY idProduct, fullNameProduct, idF2Reg, quantity
     FILTERS actWriteOff(wp) = a
+
+    PROPERTIES(i) DRAW wp TOOLBAR
+            processWriteOff SHOWIF isPosted(i) AND NOT activeActWriteOffOutDoc(a)
 
     PROPERTIES READONLY PANEL
         commentsActWriteOffAct 'Комментарий' = comments(actWriteOffOutDoc(a))
@@ -94,6 +102,9 @@ EXTEND FORM lotAdjustments
     OBJECTS bp = ActFixBarCodePosition
     PROPERTIES(bp) READONLY idProduct, fullNameProduct, idF2Reg, countMarkCodes
     FILTERS actFixBarCode(bp) = b
+
+    PROPERTIES(i) DRAW bp TOOLBAR
+        processFixBarCode SHOWIF isPosted(i) AND NOT activeActFixBarCodeOutDoc(b)
 
     PROPERTIES READONLY PANEL
         commentsActFixBarCodeAct 'Комментарий' = comments(actFixBarCodeOutDoc(b))
