@@ -294,21 +294,21 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     }
         
     APPLY;    
-    
-    // получение статусов для марок
-    FOR lotInit(LotInitDetail d) == i DO {
-        FOR quantity(d, Lot l) AND NOT isSend(l) DO {
-           getStatus(l);
-        }
-    } 
-    
-    APPLY;         
 }
 
 addMark 'Отправить отчет'(LotInit i) {
     FOR (STRING[14] gtin) AND ((GROUP SUM 1 IF gtin == gtin(LotInitDetail d) AND i == lotInit(d)) > 0) DO {
         addMark(i, gtin);
     }
+
+    // получение статусов для марок
+    FOR lotInit(LotInitDetail d) == i DO {
+        FOR quantity(d, Lot l) AND NOT isSend(l) DO {
+           getStatus(l);
+        }
+    }
+
+    APPLY;
 }
 
 EXTEND FORM lotInits 
