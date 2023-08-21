@@ -8,11 +8,18 @@ NAMESPACE Lot;
 deviationLot 'Расхождение' (Sku s, Stock st) = currentBalance(s, st) (-) currentBalanceLot(s, st);
 lotAdjustmentDetail (Sku s, LotAdjustment a) = GROUP MAX LotAdjustmentDetail d BY sku(lot(d)), lotAdjustment(d);
 
+filterLotType = DATA LOCAL NESTED LotType ();
+nameFilterLotType 'Тип маркировки' = name(filterLotType()) CHARWIDTH 15;
+
 EXTEND FORM lotAdjustment
+    PROPERTIES () nameFilterLotType
+    
     OBJECTS s = Sku
     PROPERTIES(s) READONLY id, idBarcode, name
     PROPERTIES 'Остаток товара' = currentBalance(s, stock(i)), 'Остаток марок' = currentBalanceLot(s, stock(i)),
         'Расхождение' = deviationLot(s, stock(i))
+    
+    FILTERS lotType(s)=filterLotType() OR NOT filterLotType()
     
     FILTERGROUP deviation
         FILTER 'С расхождением' deviationLot(s, stock(i))
@@ -24,6 +31,10 @@ DESIGN lotAdjustment {
     mainTabbed {
         NEW inventory {
             caption = 'Инвентаризация';
+            NEW topFilter {
+                type = CONTAINERH;
+                MOVE PROPERTY(nameFilterLotType());
+            }
             MOVE BOX(s);
         }
     }
