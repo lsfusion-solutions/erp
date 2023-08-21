@@ -72,7 +72,10 @@ markCode 'Код маркировки' = DATA MarkCode (ActFixBarCodeMark) NONUL
 idMarkCode 'Код маркировки' (ActFixBarCodeMark m) = id(markCode(m));
 
 INDEX markCode(ActFixBarCodeMark m), actFixBarCodePosition(m);
-actFixBarCodePosition (MarkCode c) = GROUP LAST actFixBarCodePosition(ActFixBarCodeMark m) ORDER m BY markCode(m) MATERIALIZED INDEXED;
+actFixBarCodePosition (MarkCode c) = 
+        GROUP LAST actFixBarCodePosition(ActFixBarCodeMark m) ORDER m 
+        WHERE posted(actFixBarCodePosition(m)) AND NOT canceled(actFixBarCodePosition(m)) 
+        BY markCode(m) MATERIALIZED INDEXED;
 f2Reg (MarkCode c) += f2Reg(actFixBarCodePosition(c));
 
 countMarkCodes 'Кол-во марок' (ActFixBarCodePosition p) = GROUP SUM 1 IF actFixBarCodePosition(ActFixBarCodeMark m) = p MATERIALIZED;
