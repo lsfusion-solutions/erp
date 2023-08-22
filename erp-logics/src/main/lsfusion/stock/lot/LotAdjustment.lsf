@@ -35,6 +35,8 @@ idBarcodeSku 'Штрихкод товара' (LotAdjustmentDetail d) = idBarcode
 nameCountrySku 'Страна товара' (LotAdjustmentDetail d) = nameCountry(sku(d));
 
 @defineDocumentDetailQuantity(lotAdjustment);
+quantity(LotAdjustmentDetail l) <- 1 WHEN SET(l IS LotAdjustmentDetail);
+
 quantityLotAdjustmentDetail 'Кол-во марок в документе'  =
     GROUP SUM quantity(LotAdjustmentDetail idetail)
     BY  lot(idetail), lotAdjustment(idetail);
@@ -53,6 +55,9 @@ FORM lotAdjustment 'Изменение остатка марки'
     OBJECTS d = LotAdjustmentDetail
     PROPERTIES(d) index READONLY, id, idBarcodeSku, idSku, nameSku ON CHANGE { changeLot(d); }, shortNameUOMSku, quantity, NEW, DELETE
     FILTERS lotAdjustment(d) = i
+
+    EVENTS
+        ON OK prePost(i)
 
     EDIT LotAdjustment OBJECT i
 ;
@@ -91,6 +96,7 @@ DESIGN lotAdjustment {
                 }
             }
         }
+        PROPERTY(formOk()) { caption = 'Провести'; }
     }
 }
 
