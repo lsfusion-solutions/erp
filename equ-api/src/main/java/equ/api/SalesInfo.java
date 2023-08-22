@@ -27,8 +27,6 @@ public class SalesInfo implements Serializable {
     public String idEmployee;
     public String firstNameContact;
     public String lastNameContact;
-    @Deprecated public BigDecimal sumCard;
-    @Deprecated public BigDecimal sumCash;
     public Map<String, GiftCard> sumGiftCardMap;
     public List<Payment> payments;
     public String barcodeItem;
@@ -52,7 +50,7 @@ public class SalesInfo implements Serializable {
 
     public SalesInfo(boolean isGiftCard, boolean isReturnGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, LocalDate dateZReport,
                      LocalTime timeZReport, Integer numberReceipt, LocalDate dateReceipt, LocalTime timeReceipt, String idEmployee, String firstNameContact,
-                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, List<Payment> payments,
+                     String lastNameContact, Map<String, GiftCard> sumGiftCardMap, List<Payment> payments,
                      String barcodeItem, String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
@@ -70,8 +68,6 @@ public class SalesInfo implements Serializable {
         this.idEmployee = idEmployee;
         this.firstNameContact = firstNameContact;
         this.lastNameContact = lastNameContact;
-        this.sumCard = sumCard;
-        this.sumCash = sumCash;
         this.sumGiftCardMap = sumGiftCardMap;
         this.payments = payments;
         this.barcodeItem = barcodeItem;
