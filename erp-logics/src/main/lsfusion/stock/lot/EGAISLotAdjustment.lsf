@@ -14,7 +14,6 @@ processWriteOff 'Отправить в ЕГАИС' (LotAdjustment a) {
         quantity(Lot l) <- GROUP SUM quantity(LotAdjustmentDetail d) IF lotAdjustment(d) == a AND lot(d) == l;
 
         IF (GROUP SUM 1 IF quantity(Lot l) < 0) THEN NEW w = ActWriteOff {
-            posted(w) <- TRUE;
             actWriteOff(a) <- w;
 
             number(w) <- seriesNumber(a);
@@ -52,7 +51,6 @@ processFixBarCode 'Отправить в ЕГАИС' (LotAdjustment a) {
                                   GROUP LAST F2Reg r ORDER r WHERE client(r) = client(stock(a)) AND product(r) = product(markCode(id(l)))) WHERE quantity(l); 
 
         IF (GROUP SUM 1 IF quantity(Lot l) > 0) THEN NEW b = ActFixBarCode {
-            posted(b) <- TRUE;
             actFixBarCode(a) <- b;
 
             number(b) <- seriesNumber(a);
@@ -141,5 +139,24 @@ DESIGN lotAdjustments {
                 }
             }
         }        
+    }
+}
+
+processActFixBarCodeTicket (Client c, STRING s) + {
+    NEWSESSION {
+        LOCAL barcodes = STRING();
+        barcodes() <- substrFrom(s, strpos(s, 'штрихкодам:') + 12);
+        
+        NEW l = LotAdjustment {
+            isPosted(l) <- TRUE;
+            stock(l) <- stock(c);
+            note(l) <- 'Списание марок по уведомлению о пересортице';
+            FOR iterate(INTEGER i, 1, wordCount(barcodes(), ',')) AND STRING mc = replace(getWord(barcodes(), ',', i), '\n', '') AND trim(mc) != '' DO NEW d = LotAdjustmentDetail {
+                lotAdjustment(d) <- l;
+                lot(d) <- lot(mc);
+                quantity(d) <- -1;
+            }
+        }
+        APPLY;
     }
 }

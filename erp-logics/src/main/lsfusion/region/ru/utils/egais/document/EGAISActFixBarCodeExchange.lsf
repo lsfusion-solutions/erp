@@ -40,10 +40,18 @@ FORM actFixBarCodeOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:A
 
 @defineOutDocTicket(actFixBarCode, d, tabbedPane);
 
+processActFixBarCodeTicket ABSTRACT (Client, TEXT);
 process (Ticket t) + {
     IF docType(t) = 'ActFixBarCode' THEN {
-        IF operationResult(t) = 'Accepted' THEN {
+        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
             posted(actFixBarCode(outDoc(t))) <- TRUE;
+        }
+        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected' THEN {
+            IF utm(outDoc(t)) = utm(inDoc(t)) THEN
+                canceled(actFixBarCode(outDoc(t))) <- TRUE;
+            ELSE { // кто-то списал марки
+                processActFixBarCodeTicket(firstClient(utm(inDoc(t))), operationComment(t));
+            }
         }
         processed() <- TRUE;
     }

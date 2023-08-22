@@ -49,8 +49,11 @@ FORM actWriteOffOutDoc FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Act
 
 process (Ticket t) + {
     IF docType(t) = 'ActWriteOff' THEN {
-        IF operationResult(t) = 'Accepted' THEN {
+        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
             posted(actWriteOff(outDoc(t))) <- TRUE;
+        }
+        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected' THEN {
+            canceled(actWriteOff(outDoc(t))) <- TRUE;
         }
         processed() <- TRUE;
     }
