@@ -709,7 +709,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             try {
                 return Integer.parseInt(idUOM);
             } catch (Exception e) {
-                astronLogger.error("Unable to parse UOM " + idUOM, e);
+                throw new RuntimeException("Unable to cast UOM " + idUOM + " to integer", e);
             }
         }
         return null;
