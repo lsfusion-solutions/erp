@@ -921,10 +921,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
         if (!stopListInfo.exclude) {
 
-            for (String directory : directorySet) {
+            for (String directory : HandlerUtils.getDirectorySet(machinerySet)) {
 
                 UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
                 Integer timeout = ukm4MySQLSettings.getTimeout();

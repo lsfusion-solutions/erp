@@ -155,13 +155,13 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
         if (!stopListInfo.exclude) {
 
             EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
             boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
 
-            for (String directory : directorySet) {
+            for (String directory : HandlerUtils.getDirectorySet(machinerySet)) {
 
                 EQSConnectionString params = new EQSConnectionString(directory);
 

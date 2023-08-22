@@ -91,7 +91,7 @@ public class SendSalesEquipmentServer {
                             (Integer) row.get("overDepartmentNumberGroupCashRegister"), (String) row.get("idStockGroupMachinery"),
                             row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
                             (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"),
-                            (LocalDate) row.get("documentsClosedDate"), (Integer) row.get("priority"));
+                            (LocalDate) row.get("documentsClosedDate"), (Integer) row.get("priority"), false);
                     cashRegisterInfoList.add(c);
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {

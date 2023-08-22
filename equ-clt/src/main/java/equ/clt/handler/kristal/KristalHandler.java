@@ -732,7 +732,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
 
         if (!stopListInfo.exclude) {
             processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
@@ -741,7 +741,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             boolean useIdItem = kristalSettings == null || kristalSettings.getUseIdItem() != null && kristalSettings.getUseIdItem();
             String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
 
-            for (String directory : directorySet) {
+            for (String directory : HandlerUtils.getDirectorySet(machinerySet)) {
 
                 String exchangeDirectory = directory + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
                 makeDirsIfNeeded(exchangeDirectory);

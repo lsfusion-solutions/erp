@@ -15,32 +15,35 @@ public class CashRegisterInfo extends MachineryInfo {
     public String section;
     public LocalDate documentsClosedDate;
     public Integer priority;
+    public boolean useValueIdUOM;
 
     public CashRegisterInfo(Integer numberGroup, Integer number, String handlerModel, String port, String directory,
-                            String section, Integer overDepartNumber) {
-        this(numberGroup, number, handlerModel, port, directory, null, overDepartNumber, null, false, null, null, section, null, null);
+                            String section, Integer overDepartNumber, boolean useValueIdUOM) {
+        this(numberGroup, number, handlerModel, port, directory, null, overDepartNumber, null, false, null, null, section,
+                null, null, useValueIdUOM);
     }
 
     public CashRegisterInfo(Integer numberGroup, Integer number, String handlerModel, String port, String directory,
                             Integer overDepartNumber, String idDepartmentStore, boolean disableSales,
                             String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister, String section) {
         this(true, false, false, numberGroup, number, handlerModel, port, directory, null, overDepartNumber, idDepartmentStore,
-                false,  disableSales,  pieceCodeGroupCashRegister, weightCodeGroupCashRegister, section, null, null);
+                false,  disableSales,  pieceCodeGroupCashRegister, weightCodeGroupCashRegister, section, null, null, false);
     }
 
     public CashRegisterInfo(Integer numberGroup, Integer number, String handlerModel, String port, String directory,
                             LocalDate startDate, Integer overDepartNumber, String idDepartmentStore, boolean disableSales,
                             String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister, String section,
-                            LocalDate documentsClosedDate, Integer priority) {
+                            LocalDate documentsClosedDate, Integer priority, boolean useValueIdUOM) {
         this(true, false, false, numberGroup, number, handlerModel, port, directory, startDate, overDepartNumber, idDepartmentStore,
-                 false,  disableSales,  pieceCodeGroupCashRegister, weightCodeGroupCashRegister, section, documentsClosedDate, priority);
+                 false,  disableSales,  pieceCodeGroupCashRegister, weightCodeGroupCashRegister, section, documentsClosedDate,
+                priority, useValueIdUOM);
     }
 
     public CashRegisterInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number,
                             String handlerModel, String port, String directory, LocalDate startDate,
                             Integer overDepartNumber, String idDepartmentStore, Boolean notDetailed, boolean disableSales,
                             String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister, String section,
-                            LocalDate documentsClosedDate, Integer priority) {
+                            LocalDate documentsClosedDate, Integer priority, boolean useValueIdUOM) {
         super(enabled, cleared, succeeded, numberGroup, number, handlerModel, port, directory);
         this.startDate = startDate;
         this.overDepartNumber = overDepartNumber;
@@ -52,5 +55,6 @@ public class CashRegisterInfo extends MachineryInfo {
         this.section = section;
         this.documentsClosedDate = documentsClosedDate;
         this.priority = priority;
+        this.useValueIdUOM = useValueIdUOM;
     }
 }

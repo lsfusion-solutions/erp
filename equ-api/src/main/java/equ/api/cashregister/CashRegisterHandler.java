@@ -14,7 +14,7 @@ import java.util.Set;
 
 public abstract class CashRegisterHandler<S extends SalesBatch, C extends CashDocumentBatch> extends MachineryHandler<TransactionCashRegisterInfo, CashRegisterInfo, S> {
 
-    public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException;
+    public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException;
 
     public abstract boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo);
 

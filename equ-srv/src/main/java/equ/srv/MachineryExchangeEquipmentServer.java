@@ -155,7 +155,7 @@ public class MachineryExchangeEquipmentServer {
                                 Integer nppCashRegister = (Integer) result.getValue(j).get("nppCashRegister").getValue();
                                 String handlerModelCashRegister = trim((String) result.getValue(j).get("handlerModelCashRegister").getValue());
 
-                                cashRegisterSet.add(new CashRegisterInfo(nppGroupMachinery, nppCashRegister, handlerModelCashRegister, null, directoryCashRegister, null, null));
+                                cashRegisterSet.add(new CashRegisterInfo(nppGroupMachinery, nppCashRegister, handlerModelCashRegister, null, directoryCashRegister, null, null, false));
                             }
 
                             requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), cashRegisterSet, extraCashRegisterSet,

@@ -1,6 +1,7 @@
 package equ.clt.handler;
 
 import com.google.common.base.Throwables;
+import equ.api.MachineryInfo;
 import org.json.JSONObject;
 import org.springframework.util.FileCopyUtils;
 
@@ -8,6 +9,8 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.*;
 
 import static lsfusion.base.BaseUtils.nvl;
@@ -144,5 +147,14 @@ public class HandlerUtils {
         if (file != null && !file.delete()) {
             throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be deleted");
         }
+    }
+
+    public static Set<String> getDirectorySet(Set<MachineryInfo> machineryInfoSet) {
+        Set<String> directorySet = new HashSet<>();
+        for(MachineryInfo machinery : machineryInfoSet) {
+            if(machinery.directory != null)
+                directorySet.add(machinery.directory);
+        }
+        return directorySet;
     }
 }

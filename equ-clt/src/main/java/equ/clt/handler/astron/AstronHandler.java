@@ -246,12 +246,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             if (notInterruptedTransaction(transaction.id)) {
                                 Integer unitUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
-                                exportUnit(conn, params, transaction.itemsList, false, maxBatchSize, unitUpdateNum);
+                                exportUnit(conn, params, transaction.itemsList, null, false, maxBatchSize, unitUpdateNum);
                             }
 
                             if (notInterruptedTransaction(transaction.id)) {
                                 Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
-                                exportPack(conn, params, transaction.itemsList, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
+                                exportPack(conn, params, transaction.itemsList, null, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
                                 astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
                                 exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, packUpdateNum);
                             }
@@ -655,7 +655,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportUnit(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
+    private void exportUnit(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, MachineryInfo machinery, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"UNITID"};
         String[] columns = getColumns(new String[]{"UNITID", "UNITNAME", "UNITFULLNAME", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "UNIT", columns, keys)) {
@@ -665,7 +665,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             int batchCount = 0;
             for (ItemInfo item : itemsList) {
                 if (!Thread.currentThread().isInterrupted()) {
-                    Integer idUOM = parseUOM(item.idUOM);
+                    Integer idUOM = parseUOM(item, machinery);
                     if (!usedUOM.contains(idUOM)) {
                         usedUOM.add(idUOM);
                         if (params.pgsql) {
@@ -700,18 +700,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private Integer parseUOM(String value) {
-        if (value != null) {
+    private Integer parseUOM(ItemInfo item, MachineryInfo machinery) {
+        if(item instanceof StopListItem && machinery instanceof CashRegisterInfo && ((CashRegisterInfo) machinery).useValueIdUOM) {
+            return ((StopListItem) item).innerIdUOM;
+        }
+        String idUOM = item.idUOM;
+        if (idUOM != null) {
             try {
-                return Integer.parseInt(value);
+                return Integer.parseInt(idUOM);
             } catch (Exception e) {
-                astronLogger.error("Unable to parse UOM " + value, e);
+                astronLogger.error("Unable to parse UOM " + idUOM, e);
             }
         }
         return null;
     }
 
-    private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum,
+    private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, MachineryInfo machinery, boolean delFlag, Integer maxBatchSize, Integer updateNum,
                             boolean usePropertyGridFieldInPackTable, boolean specialSplitMode) throws SQLException, UnsupportedEncodingException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(
@@ -726,7 +730,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             int batchCount = 0;
             for (ItemInfo item : itemsList) {
                 if (notInterrupted()) {
-                    Integer idUOM = parseUOM(item.idUOM);
+                    Integer idUOM = parseUOM(item, machinery);
                     Integer idItem = parseIdItem(item);
                     List<Integer> packIds = getPackIds(item);
 
@@ -1662,7 +1666,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private boolean isValidItem(TransactionCashRegisterInfo transaction, Map<String, CashRegisterItem> deleteBarcodeMap, List<CashRegisterItem> usedDeleteBarcodeList, CashRegisterItem item) {
-        boolean isValidItem = parseUOM(item.idUOM) != null && parseIdItem(item) != null;
+        boolean isValidItem = parseUOM(item, null) != null && parseIdItem(item) != null;
         if(isValidItem) {
             if(deleteBarcodeMap != null && deleteBarcodeMap.containsKey(item.idItem)) {
                 CashRegisterItem deleteBarcode = deleteBarcodeMap.get(item.idItem);
@@ -1929,7 +1933,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
         Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
         boolean exportExtraTables = astronSettings.isExportExtraTables();
@@ -1939,64 +1943,68 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
         boolean specialSplitMode = astronSettings.isSpecialSplitMode();
 
-        for (String directory : directorySet) {
-            AstronConnectionString params = new AstronConnectionString(directory);
-            if (params.connectionString != null && !stopListInfo.stopListItemMap.isEmpty()) {
-                Exception exception = waitConnectionSemaphore(params, timeout, true);
-                if((exception != null)) {
-                    throw new RuntimeException("semaphore stopList timeout", exception);
-                } else {
-                    try (Connection conn = getConnection(params)) {
-                        String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
+        Set<String> usedDirectories = new HashSet<>();
+        for (MachineryInfo machinery : machinerySet) {
+            String directory = machinery.directory;
+            if(usedDirectories.add(directory)) {
+                AstronConnectionString params = new AstronConnectionString(directory);
+                if (params.connectionString != null && !stopListInfo.stopListItemMap.isEmpty()) {
+                    Exception exception = waitConnectionSemaphore(params, timeout, true);
+                    if ((exception != null)) {
+                        throw new RuntimeException("semaphore stopList timeout", exception);
+                    } else {
+                        try (Connection conn = getConnection(params)) {
+                            String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
 
-                        Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables, params) : new HashMap<>();
-                        Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
-                        Map<String, Integer> outputUpdateNums = new HashMap<>();
+                            Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables, params) : new HashMap<>();
+                            Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
+                            Map<String, Integer> outputUpdateNums = new HashMap<>();
 
-                        connectionSemaphore.add(params.connectionString);
+                            connectionSemaphore.add(params.connectionString);
 
-                        List<StopListItem> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
+                            List<StopListItem> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
 
-                        String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
+                            String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
-                        Integer artUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
-                        exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize, artUpdateNum);
-                        outputUpdateNums.put("ART", artUpdateNum);
+                            Integer artUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
+                            exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize, artUpdateNum);
+                            outputUpdateNums.put("ART", artUpdateNum);
 
-                        Integer unitUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
-                        exportUnit(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, unitUpdateNum);
-                        outputUpdateNums.put("UNIT", unitUpdateNum);
+                            Integer unitUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
+                            exportUnit(conn, params, itemsList, machinery, !stopListInfo.exclude, maxBatchSize, unitUpdateNum);
+                            outputUpdateNums.put("UNIT", unitUpdateNum);
 
-                        Integer packUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
-                        exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
-                        outputUpdateNums.put("PACK", packUpdateNum);
+                            Integer packUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
+                            exportPack(conn, params, itemsList, machinery, !stopListInfo.exclude, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
+                            outputUpdateNums.put("PACK", packUpdateNum);
 
-                        Integer exBarcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
-                        exportExBarc(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, exBarcUpdateNum);
-                        outputUpdateNums.put("EXBARC", exBarcUpdateNum);
+                            Integer exBarcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
+                            exportExBarc(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, exBarcUpdateNum);
+                            outputUpdateNums.put("EXBARC", exBarcUpdateNum);
 
-                        Integer packPrcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
-                        exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude, maxBatchSize, packPrcUpdateNum);
-                        outputUpdateNums.put("PACKPRC", packPrcUpdateNum);
+                            Integer packPrcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
+                            exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude, maxBatchSize, packPrcUpdateNum);
+                            outputUpdateNums.put("PACKPRC", packPrcUpdateNum);
 
-                        if(versionalScheme) {
-                            astronLogger.info(String.format("stoplist %s, table datapump", stopListInfo.number));
-                            exportUpdateNums(conn, outputUpdateNums);
-                        } else {
-                            astronLogger.info("waiting for processing stopLists");
-                            exportFlags(conn, tables, 1);
+                            if(versionalScheme) {
+                                astronLogger.info(String.format("stoplist %s, table datapump", stopListInfo.number));
+                                exportUpdateNums(conn, outputUpdateNums);
+                            } else {
+                                astronLogger.info("waiting for processing stopLists");
+                                exportFlags(conn, tables, 1);
 
-                            Exception e = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
-                            if (e != null) {
-                                throw e;
+                                Exception e = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
+                                if (e != null) {
+                                    throw e;
+                                }
                             }
-                        }
 
-                    } catch (Exception e) {
-                        astronLogger.error("sendStopListInfo error", e);
-                        throw Throwables.propagate(e);
-                    } finally {
-                        connectionSemaphore.remove(params.connectionString);
+                        } catch (Exception e) {
+                            astronLogger.error("sendStopListInfo error", e);
+                            throw Throwables.propagate(e);
+                        } finally {
+                            connectionSemaphore.remove(params.connectionString);
+                        }
                     }
                 }
             }
@@ -2045,7 +2053,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             truncateTables(conn, params, "DeleteBarcode", new HashSet<>(Arrays.asList("ART", "UNIT", "PACK", "EXBARC")));
                         }
 
-                        deleteBarcode.barcodeList = deleteBarcode.barcodeList.stream().filter(item -> parseUOM(item.idUOM) != null && parseIdItem(item) != null).collect(Collectors.toList());
+                        deleteBarcode.barcodeList = deleteBarcode.barcodeList.stream().filter(item -> parseUOM(item, null) != null && parseIdItem(item) != null).collect(Collectors.toList());
 
                         if (!deleteBarcode.barcodeList.isEmpty()) {
 
@@ -2058,11 +2066,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             outputUpdateNums.put("ART", artUpdateNum);
 
                             Integer unitUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "UNIT");
-                            exportUnit(conn, params, deleteBarcode.barcodeList, true, maxBatchSize, unitUpdateNum);
+                            exportUnit(conn, params, deleteBarcode.barcodeList, null, true, maxBatchSize, unitUpdateNum);
                             outputUpdateNums.put("UNIT", unitUpdateNum);
 
                             Integer packUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "PACK");
-                            exportPack(conn, params, deleteBarcode.barcodeList, true, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
+                            exportPack(conn, params, deleteBarcode.barcodeList, null, true, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
                             outputUpdateNums.put("PACK", packUpdateNum);
 
                             Integer exBarcUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "EXBARC");

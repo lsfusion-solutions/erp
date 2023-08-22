@@ -279,7 +279,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
+        Set<String> directorySet = HandlerUtils.getDirectorySet(machineryInfoSet);
         processStopListLogger.info(logPrefix + "Send StopList # " + stopListInfo.number + " to " + directorySet.size() + " directories.");
         if (!stopListInfo.exclude) {
 

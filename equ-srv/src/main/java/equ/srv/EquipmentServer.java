@@ -2299,7 +2299,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 handlerModelGroupMachinery, portMachinery, directoryCashRegister,
                                 startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
-                                disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, sectionGroupCashRegister, null, null));
+                                disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, sectionGroupCashRegister, null, null, false));
                     }
 
                     List<CashRegisterItem> cashRegisterItemList = new ArrayList<>();

@@ -165,8 +165,10 @@ public class StopListEquipmentServer {
         machineryQuery.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr));
         machineryQuery.addProperty("portMachinery", machineryLM.findProperty("port[Machinery]").getExpr(machineryExpr));
         machineryQuery.addProperty("nppMachinery", machineryLM.findProperty("npp[Machinery]").getExpr(machineryExpr));
-        if(cashRegisterLM != null)
+        if(cashRegisterLM != null) {
             machineryQuery.addProperty("overDepartmentNumber", cashRegisterLM.findProperty("overDepartmentNumber[Machinery]").getExpr(machineryExpr));
+            machineryQuery.addProperty("useValueIdUOM", cashRegisterLM.findProperty("useValueIdUOM[CashRegister]").getExpr(machineryExpr));
+        }
 
         machineryQuery.and(machineryLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
         machineryQuery.and(machineryLM.findProperty("idStock[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
@@ -189,12 +191,14 @@ public class StopListEquipmentServer {
             boolean isScales = machineryClass != null && machineryClass.equals(scalesClass);
             String idStockGroupMachinery = (String) values.get("idStockGroupMachinery").getValue();
             Integer overDepartNumber = (Integer) values.get("overDepartmentNumber").getValue();
+            boolean useValueIdUOM = values.get("useValueIdUOM").getValue() != null;
 
             Map<String, Set<MachineryInfo>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<>();
             if(!handlerMap.containsKey(handlerModel))
                 handlerMap.put(handlerModel, new HashSet<>());
             if(isCashRegister) {
-                handlerMap.get(handlerModel).add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery, overDepartNumber));
+                handlerMap.get(handlerModel).add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, handlerModel, port,
+                        directory, idStockGroupMachinery, overDepartNumber, useValueIdUOM));
             } else if(isScales){
                 handlerMap.get(handlerModel).add(new ScalesInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
             }
@@ -210,11 +214,11 @@ public class StopListEquipmentServer {
         ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev("stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
-                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "infoStopListDetail",
+                "nameSkuGroupStopListDetail", "idUOM", "innerIdUOM", "shortNameUOMSkuStopListDetail", "infoStopListDetail",
                 "splitSkuStopListDetail", "passScalesSkuStopListDetail", "flagsSkuStopListDetail", "valueVATSkuStopListDetail",
                 "barcodes"};
         LP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "overIdSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
-                "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "info[StopListDetail]",
+                "nameSkuGroup[StopListDetail]", "idUOM[StopListDetail]", "innerIdUOM[StopListDetail]", "shortNameUOMSku[StopListDetail]", "info[StopListDetail]",
                 "splitSku[StopListDetail]", "passScalesSku[StopListDetail]", "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]",
                 "barcodes[StopListDetail]");
         for (int i = 0; i < sldProperties.length; i++) {
@@ -235,7 +239,8 @@ public class StopListEquipmentServer {
             String nameItem = trim((String) values.get("nameSkuStopListDetail").getValue());
             String idSkuGroup = trim((String) values.get("idSkuGroupStopListDetail").getValue());
             String nameSkuGroup = trim((String) values.get("nameSkuGroupStopListDetail").getValue());
-            String idUOM = trim((String) values.get("idUOMSkuStopListDetail").getValue());
+            String idUOM = trim((String) values.get("idUOM").getValue());
+            Integer innerIdUOM = (Integer) values.get("innerIdUOM").getValue();
             String shortNameUOM = trim((String) values.get("shortNameUOMSkuStopListDetail").getValue());
             String info = trim((String) values.get("infoStopListDetail").getValue());
             boolean split = values.get("splitSkuStopListDetail").getValue() != null;
@@ -249,7 +254,8 @@ public class StopListEquipmentServer {
                 stockPluNumberMap.put(idStock, pluNumber);
             }
             stopListItemList.put(idBarcode, new StopListItem(stockPluNumberMap, idItem, idBarcode, nameItem, null, split,
-                    null, null, null, passScales, valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM, info, null, barcodeObjectList));
+                    null, null, null, passScales, valueVAT, null, flags, idSkuGroup,
+                    nameSkuGroup, idUOM, shortNameUOM, info, null, barcodeObjectList, innerIdUOM));
         }
         return stopListItemList;
     }

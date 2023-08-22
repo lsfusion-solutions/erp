@@ -109,7 +109,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
 
     }
 
@@ -179,9 +179,8 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
                                      String idSection, Map<String, Object> receiptExtraFields, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
         sumGiftCardMap.put(null, new GiftCard(null));
-        //todo: remove sumCash and sumCard (change equ-api)
         return  new SalesInfo(false, false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, null, null, null, sumGiftCardMap, payments, barcodeItem, idItem, itemObject,
+                idEmployee, firstNameContact, null, sumGiftCardMap, payments, barcodeItem, idItem, itemObject,
                 idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,
                 discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, receiptExtraFields, receiptDetailExtraFields, cashRegisterInfo);
     }
@@ -216,7 +215,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
             (discountSumReceipt != null && discountSumReceipt.compareTo(BigDecimal.valueOf(1000000)) > 0))
             sendSalesLogger.error("Too big value for quantity or sum for detail : " + nppMachinery + " / " + nppMachinery + " / " + " receipt number " + numberReceipt + " idItem " + idItem);
         return new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, null, null, sumGiftCardMap, payments, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
+                idEmployee, firstNameContact, lastNameContact, sumGiftCardMap, payments, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
                 priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename,
                 idSection, skipReceipt, receiptExtraFields, receiptDetailExtraFields, cashRegisterInfo);
     }

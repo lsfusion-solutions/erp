@@ -406,11 +406,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
         if (!stopListInfo.exclude) {
             Document doc = generateStopListXML(stopListInfo);
-            for (String directory : directorySet) {
+            for (String directory : HandlerUtils.getDirectorySet(machinerySet)) {
                 processStopListLogger.info(getLogPrefix() + String.format("Send StopList # %s to url %s", stopListInfo.number, directory));
                 if (!stopListInfo.stopListItemMap.isEmpty()) {
                     try {

@@ -416,8 +416,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
-
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
+        Set<String> directorySet = HandlerUtils.getDirectorySet(machinerySet);
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
         processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number + " to " + directorySet.size() + " directories.");
 
