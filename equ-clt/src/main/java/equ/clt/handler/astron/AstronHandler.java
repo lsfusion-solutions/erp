@@ -591,7 +591,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private void exportExtGrp(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"EXTGRPID"};
-        String[] columns = getColumns(new String[]{"SAREAID", "PARENTEXTGRPID", "EXTGRPNAME", "EXTGRPPICTURE", "DELFLAG"}, updateNum);
+        String[] columns = getColumns(new String[]{"EXTGRPID","SAREAID", "PARENTEXTGRPID", "EXTGRPNAME", "EXTGRPPICTURE", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, EXTGRP, columns, keys)) {
             int offset = columns.length + keys.length;
             for (JSONObject jsonObject : jsonTable) {
@@ -625,7 +625,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private void exportArtExtGrp(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
-        String[] keys = new String[]{"ARTID"};
+        String[] keys = new String[]{"ARTID","EXTGRPID"};
         String[] columns = getColumns(new String[]{"ARTID", "EXTGRPID", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, ARTEXTGRP, columns, keys)) {
             int offset = columns.length + keys.length;
@@ -641,13 +641,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, updateNum, 4); //UPDATENUM
                         }
                     } else {
-                        setObject(ps, extGrpId, 1, offset); //EXTGRPID
                         setObject(ps, 0, 2, offset); //DELFLAG
                         if (updateNum != null) {
                             setObject(ps, updateNum, 3, offset); //UPDATENUM
                         }
 
                         setObject(ps, artId, updateNum != null ? 4 : 3, keys.length); //ARTID
+                        setObject(ps, extGrpId, updateNum != null ? 5 : 4, keys.length); //EXTGRPID
                     }
                     ps.addBatch();
             }
