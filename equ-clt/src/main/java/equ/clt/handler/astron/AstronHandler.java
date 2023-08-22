@@ -317,7 +317,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             List<JSONObject> extGrpJsonTable = jsonTables.get(EXTGRP);
                             if(!extGrpJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, EXTGRP);
-                                exportExtGrp(conn, extGrpJsonTable, updateNum);
+                                exportExtGrp(conn, params, extGrpJsonTable, updateNum);
                             }
 
                             List<JSONObject> artExtGrpJsonTable = jsonTables.get(ARTEXTGRP);
@@ -589,20 +589,34 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportExtGrp(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
-        String[] columns = getColumns(new String[]{"EXTGRPID", "SAREAID", "PARENTEXTGRPID", "EXTGRPNAME", "EXTGRPPICTURE", "DELFLAG"}, updateNum);
-        try (PreparedStatement ps = getPreparedStatement(conn, EXTGRP, columns)) {
+    private void exportExtGrp(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"EXTGRPID"};
+        String[] columns = getColumns(new String[]{"SAREAID", "PARENTEXTGRPID", "EXTGRPNAME", "EXTGRPPICTURE", "DELFLAG"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, params, EXTGRP, columns, keys)) {
+            int offset = columns.length + keys.length;
             for (JSONObject jsonObject : jsonTable) {
-                setObject(ps, jsonObject.getInt("extGrpId"), 1);
-                setObject(ps, jsonObject.getInt("sareaId"), 2);
                 int parentExtGrpId = jsonObject.optInt("parentExtGrpId");
-                setObject(ps, parentExtGrpId > 0 ? parentExtGrpId : null, 3);
-                setObject(ps, trim(jsonObject.getString("extGrpName"), 50), 4);
                 String extGrpPicture = jsonObject.optString("extGrpPicture", null);
-                setObject(ps, extGrpPicture != null ? Base64.decodeBase64(extGrpPicture) : null, 5);
-                setObject(ps, 0, 6);
-                if (updateNum != null) {
-                    setObject(ps, updateNum, 7);
+                if (params.pgsql) {
+                    setObject(ps, jsonObject.getInt("extGrpId"), 1);
+                    setObject(ps, jsonObject.getInt("sareaId"), 2);
+                    setObject(ps, parentExtGrpId > 0 ? parentExtGrpId : null, 3);
+                    setObject(ps, trim(jsonObject.getString("extGrpName"), 50), 4);
+                    setObject(ps, extGrpPicture != null ? Base64.decodeBase64(extGrpPicture) : null, 5);
+                    setObject(ps, 0, 6);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 7);
+                    }
+                } else{
+                    setObject(ps, jsonObject.getInt("sareaId"), 1, offset);
+                    setObject(ps, parentExtGrpId > 0 ? parentExtGrpId : null, 2, offset);
+                    setObject(ps, trim(jsonObject.getString("extGrpName"), 50), 3, offset);
+                    setObject(ps, extGrpPicture != null ? Base64.decodeBase64(extGrpPicture) : null, 4, offset);
+                    setObject(ps, 0, 5, offset);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 6);
+                    }
+                    setObject(ps, jsonObject.getInt("extGrpId"), updateNum != null ? 7 : 6, keys.length);
                 }
                 ps.addBatch();
             }
