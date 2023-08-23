@@ -77,16 +77,19 @@ importTerminalDocumentLot 'Импорт из ТСД' (LotAdjustment a) {
             sku(l) <- sku(terminalDocumentDetail(tl));
         }
 
-        LOCAL quantity = NUMERIC[16,5] (Lot);
-        quantity(Lot l) <- [GROUP SUM quantity(TerminalLotDetail ld) IF include(terminalDocument(ld)) BY id(ld)](id(l));
+        LOCAL quantity = NUMERIC[16,5] (Lot, Stock);
+        LOCAL quantityLot = NUMERIC[16,5] (Sku, Stock);
+        
+        quantity(Lot l, Stock st) <- [GROUP SUM quantity(TerminalLotDetail ld) IF include(terminalDocument(ld)) BY id(ld), stock(terminalDocument(ld))](id(l), st);
+        quantityLot(Sku s, Stock st) <- [GROUP SUM quantity(TerminalLotDetail ld) IF include(terminalDocument(ld)) BY sku(lot(id(ld))), stock(terminalDocument(ld))](s, st);
 
-        FOR quantity(Lot l) AND NOT quantity(l) == currentBalance(l, stock(a)) AND lotAdjustmentDetail(l, a) DO {
+        FOR quantityLot(sku(Lot l), stock(a)) AND (quantity(l, stock(a)) OR currentBalance(l, stock(a))) AND NOT quantity(l, stock(a)) == currentBalance(l, stock(a)) AND lotAdjustmentDetail(l, a) DO {
             IF isPosted(a) THEN 
                 quantity(lotAdjustmentDetail(l, a)) <- quantity(l) (-) currentBalance(l, stock(a)) (+) quantity(lotAdjustmentDetail(l, a));
             ELSE quantity(lotAdjustmentDetail(l, a)) <- quantity(l) (-) currentBalance(l, stock(a));
         }
         
-        FOR quantity(Lot l) AND NOT quantity(l) == currentBalance(l, stock(a)) AND NOT lotAdjustmentDetail(l, a) DO NEW d = LotAdjustmentDetail {
+        FOR quantityLot(sku(Lot l), stock(a)) AND (quantity(l, stock(a)) OR currentBalance(l, stock(a))) AND NOT quantity(l, stock(a)) == currentBalance(l, stock(a)) AND NOT lotAdjustmentDetail(l, a) DO NEW d = LotAdjustmentDetail {
             lotAdjustment(d) <- a;
             lot(d) <- l;
             quantity(d) <- quantity(l) (-) currentBalance(l, stock(a));
