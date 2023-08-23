@@ -10,20 +10,20 @@ isExtraPack(Purchase.UserInvoiceDetail detail) += isExtraPack(detail);
 
 skipExtraPack = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
 
-WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) OR CHANGED(showPack(detail))) DO {
-    isExtraPack(detail) <- TRUE IF extraPack(supplier(detail), sku(detail)) AND showPack(detail) AND NOT skipExtraPack(detail);
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) OR CHANGED(showPack(detail))) AND NOT skipExtraPack(detail)DO {
+    isExtraPack(detail) <- TRUE IF extraPack(supplier(detail), sku(detail)) AND showPack(detail);
 }
-WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) OR SET(isExtraPack(detail))) AND isExtraPack(detail) DO {
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) OR SET(isExtraPack(detail))) AND isExtraPack(detail) AND NOT skipExtraPack(detail) DO {
     barcodePack(detail) <- extraPack(supplier(detail), sku(detail));
 }
-WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) OR SET(isExtraPack(detail))) AND isExtraPack(detail) DO {
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) OR SET(isExtraPack(detail))) AND isExtraPack(detail) AND NOT skipExtraPack(detail) DO {
     amountPack(detail) <- amount(extraPack(supplier(detail), sku(detail)));
 }
-WHEN LOCAL CHANGED(packQuantity(UserInvoiceDetail detail) OR SET(isExtraPack(detail))) AND isExtraPack(detail) DO {
+WHEN LOCAL CHANGED(packQuantity(UserInvoiceDetail detail) OR SET(isExtraPack(detail))) AND isExtraPack(detail) AND NOT skipExtraPack(detail) DO {
     quantity(detail) <- NUMERIC[16,5](packQuantity(detail) * (OVERRIDE amountPack(detail), 1.0));
 }
 
-WHEN LOCAL CHANGED(quantity(UserInvoiceDetail detail) OR SET(isExtraPack(detail))) AND isExtraPack(detail) DO {
+WHEN LOCAL CHANGED(quantity(UserInvoiceDetail detail) OR SET(isExtraPack(detail))) AND isExtraPack(detail) AND NOT skipExtraPack(detail) DO {
     packQuantity(detail) <- NUMERIC[16,5](quantity(detail)/amountPack(detail));
 }
 
