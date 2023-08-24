@@ -406,46 +406,40 @@ priceBatchB 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATE
         WHERE active(ledger, type, stock, batch) AND
               fromDateTime(ledger, type, stock) < dateTime AND NOT toDateTime(ledger, type, stock) < dateTime COMPLEX;
 
+// не использовать, если нужна цена только по партиям
 priceB 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
     IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
         priceBatchB(type, batch, stock, dateTime)
     ELSE
         priceB(type, sku(batch), stock, dateTime) COMPLEX;
 
-batchPriceA 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+priceBatchA 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
      GROUP LAST price(PriceListLedger ledger, type, stock, batch)
            ORDER fromDateTime(ledger, type, stock), ledger
            WHERE active(ledger, type, stock, batch) AND
-                 fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime;
+                 fromDateTime(ledger, type, stock) <= dateTime AND NOT toDateTime(ledger, type, stock) < dateTime COMPLEX;
 
+// не использовать, если нужна цена только по партиям
 priceA 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
     IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
-        batchPriceA(type, batch, stock, dateTime)
+        priceBatchA(type, batch, stock, dateTime)
     ELSE
         priceA(type, sku(batch), stock, dateTime) COMPLEX;
 
+// не использовать, если нужна цена только по партиям
 prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceB(type, batch, stock, dateTime)) CHARWIDTH 7 COMPLEX;
 prevPriceA 'Цена (пред.)' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceA(type, batch, stock, dateTime)) CHARWIDTH 7 COMPLEX;
 
+// Только по партиям
 prevPriceBatchB 'Цена (пред.)' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceBatchB(type, batch, stock, dateTime)) CHARWIDTH 7 COMPLEX;
+prevPriceBatchA 'Цена (пред.)' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceBatchA(type, batch, stock, dateTime)) CHARWIDTH 7 COMPLEX;
 
 prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = PREV(priceB(type, sku, stock, dateTime)) CHARWIDTH 7 COMPLEX;
 prevPriceA 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = PREV(priceA(type, sku, stock, dateTime)) CHARWIDTH 7 COMPLEX;
 
-//-- Только от партии
-priceBBatch 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn) =
-    GROUP
-        LAST price(PriceListLedger ledger, type, stock, batch)
-        ORDER fromDateTime(ledger, type, stock), ledger
-        WHERE active(ledger, type, stock, batch) AND
-            fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
-
-priceABatch 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn) =
-    GROUP
-        LAST price(PriceListLedger ledger, type, stock, batch)
-        ORDER fromDateTime(ledger, type, stock), ledger
-        WHERE active(ledger, type, stock, batch) AND
-            fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
+// Только по партиям, сохранение совместимости
+priceBBatch 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = priceBatchB(type, batch, stock, dateTime);
+priceABatch 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = priceBatchA(type, batch, stock, dateTime);
 
 prevPriceBBatch 'Цена (пред.)' (type, batch, stock, dateTime) = PREV(priceBBatch(type, batch, stock, dateTime)) COMPLEX;
 prevPriceABatch 'Цена (пред.)' (type, batch, stock, dateTime) = PREV(priceABatch(type, batch, stock, dateTime)) COMPLEX;
