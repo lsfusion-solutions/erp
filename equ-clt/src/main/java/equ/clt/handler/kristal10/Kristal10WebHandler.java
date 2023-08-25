@@ -398,6 +398,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             LocalDateTime dateTimeCashDocument = LocalDateTime.parse(readStringXMLAttribute(cashDocumentNode, "regtime"), DateTimeFormatter.ISO_DATE_TIME);
 
             String idCashDocument = numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + numberZReport + "/" + (cashIn ? "introduction" : "withdrawal");
+
+            //todo: remove temp log
+            String idZReport = numberGroup + "_" + numberCashRegister + "_" + numberZReport + "_" + dateTimeCashDocument.toLocalDate().format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+            sendSalesLogger.info(getLogPrefix() + "cashDocument = " + idCashDocument + ", idZReport = " + idZReport);
+
             cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateTimeCashDocument.toLocalDate(), dateTimeCashDocument.toLocalTime(),
                     numberGroup, numberCashRegister, numberZReport, sumCashDocument));
         }
