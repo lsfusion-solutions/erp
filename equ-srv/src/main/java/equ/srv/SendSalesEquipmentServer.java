@@ -198,14 +198,15 @@ public class SendSalesEquipmentServer {
 
                 ImportField idZReportField = new ImportField(cashOperationLM.findProperty("id[ZReport]"));
                 ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) cashOperationLM.findClass("ZReport"), cashOperationLM.findProperty("zReport[STRING[100]]").getMapping(idZReportField));
-                zReportKey.skipKey = true;
 
                 keysIncome.add(zReportKey);
+                propsIncome.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
                 propsIncome.add(new ImportProperty(idZReportField, cashOperationLM.findProperty("zReport[IncomeCashOperation]").getMapping(incomeCashOperationKey),
                         cashOperationLM.object(cashOperationLM.findClass("ZReport")).getMapping(zReportKey)));
                 fieldsIncome.add(idZReportField);
 
                 keysOutcome.add(zReportKey);
+                propsOutcome.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
                 propsOutcome.add(new ImportProperty(idZReportField, cashOperationLM.findProperty("zReport[OutcomeCashOperation]").getMapping(outcomeCashOperationKey),
                         cashOperationLM.object(cashOperationLM.findClass("ZReport")).getMapping(zReportKey)));
                 fieldsOutcome.add(idZReportField);
