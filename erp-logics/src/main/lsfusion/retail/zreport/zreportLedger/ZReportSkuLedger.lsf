@@ -31,15 +31,17 @@ INDEX price(ZReportSaleSkuLedger ledger);
 INDEX ZReportSaleSkuLedger(ZReport zReport, Sku sku, NUMERIC[16,4] price);
 INDEX zReport(ZReportSaleSkuLedger o), sku(o), price(o);
 
-inFixTime'Проводить в SkuLedger 23:59'() = DATA BOOLEAN ();
+inFixTime 'Проводить продажи по SkuLedger в 23:59'() = DATA BOOLEAN () PREREAD;
+inFixTimeReturn 'Проводить возвраты по SkuLedger в 23:59'() = DATA BOOLEAN () PREREAD;
 
 EXTEND FORM options
-    PROPERTIES () inFixTime
+    PROPERTIES () inFixTime, inFixTimeReturn
 ;
     
 DESIGN options {
     zReport {
         MOVE PROPERTY(inFixTime());
+        MOVE PROPERTY(inFixTimeReturn());
     }    
 }   
 
@@ -111,7 +113,8 @@ INDEX price(ZReportReturnSkuLedger ledger);
 INDEX ZReportReturnSkuLedger(ZReport zReport, Sku sku, NUMERIC[16,4] price);
 INDEX zReport(ZReportReturnSkuLedger o), sku(o), price(o);
 
-dateTime[DataSkuLedger] (ZReportReturnSkuLedger ledger) += dateTime(zReport(ledger));
+overDateTime (ZReportReturnSkuLedger ledger) = OVERRIDE dateTimeToDateTime(date(zReport(ledger)),'23:59' IF inFixTimeReturn()), dateTime(zReport(ledger));
+dateTime[DataSkuLedger] (ZReportReturnSkuLedger ledger) += overDateTime(ledger);
 isPosted[DataSkuLedger] (ZReportReturnSkuLedger ledger) += isPosted(zReport(ledger));
 isClosed[DataSkuLedger] (ZReportReturnSkuLedger ledger) += isClosed(zReport(ledger));
 sku[DataSkuLedger] (ZReportReturnSkuLedger ledger) += sku(ledger);
