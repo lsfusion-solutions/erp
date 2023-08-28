@@ -5,10 +5,14 @@ REQUIRE Shipment;
 NAMESPACE Shipment;
 
 
+selected 'Отм.' = DATA LOCAL NESTED BOOLEAN (Shipment);
+countSelectedShipment = GROUP SUM 1 IF selected(Shipment i);
+
 FORM shipment 'Накладная'
-    OBJECTS s = Shipment PANEL SUBREPORT
+    OBJECTS s = Shipment
     PROPERTIES(s) number, date, nameSupplier, nameCustomer, nameCustomerStock, addressCustomerStock, addressSupplierStock,
         countShipmentDetail, sumShipmentDetail
+    FILTERS selected(s)
 
     OBJECTS d = ShipmentDetail
     PROPERTIES(d) index, nameSku, shortNameUOMSku, price, quantity, sum
@@ -16,9 +20,17 @@ FORM shipment 'Накладная'
 ;
 
 printShipment 'Накладная' (Shipment i)  {
-    PRINT shipment OBJECTS s = i ;
+    IF NOT countSelectedShipment() THEN
+        selected(i) <- TRUE;
+
+    PRINT shipment;
+    selected(Shipment ii) <- NULL;
 } IMAGE 'print.png' IN print;
 
-printShipmentXLSX 'Накладная xlsx' (Shipment i)  {
-    PRINT shipment OBJECTS s = i XLSX;
+printShipmentXLSX 'Накладная (xlsx)' (Shipment i)  {
+    IF NOT countSelectedShipment() THEN
+        selected(i) <- TRUE;
+
+    PRINT shipment XLSX;
+    selected(Shipment ii) <- NULL;
 } IMAGE 'print.png' IN print;
