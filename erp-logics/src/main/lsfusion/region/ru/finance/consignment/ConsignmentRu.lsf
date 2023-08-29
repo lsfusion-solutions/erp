@@ -122,13 +122,13 @@ forwarder 'Товар к перевозке принял (экспедитор)'
         overForwarder(consignment), 
         dataForwarder(consignment) IN issuanceConsignment CHARWIDTH 30;
 
-nameForwarder 'Товар принял, ФИО' (Consignment consignment) = 
+nameForwarder 'Товар к перевозке принял, ФИО' (Consignment consignment) = 
     OVERRIDE  
         IF NOT notUseDialogForwarder(consignment) THEN firstShortName(forwarder(consignment)),
         overNameForwarder(consignment),
         dataNameForwarder(consignment) IN issuanceConsignment CHARWIDTH 30;
     
-positionForwarder 'Товар принял, должность' (Consignment consignment) = 
+positionForwarder 'Товар к перевозке принял, должность' (Consignment consignment) = 
     OVERRIDE  
         IF NOT notUseDialogForwarder(consignment) THEN namePosition(dataForwarder(consignment)),
         overPositionForwarder(consignment),
@@ -167,7 +167,7 @@ dataAmountPack 'Кол-во в упаковке' = ABSTRACT NUMERIC[21,6] (Consi
 overAmountPack 'Кол-во в упаковке' = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
 amountPack 'Кол-во в упаковке' (ConsignmentDetail d) = OVERRIDE overAmountPack(d), dataAmountPack(d);
 
-nameTransportPack 'Количество грузовых мест' (ConsignmentDetail d) = name(transportPack(barcode(sku(d))));
+nameTransportPack 'Вид упаковки' (ConsignmentDetail d) = name(transportPack(barcode(sku(d))));
 
 dataGrossWeight 'Масса брутто, кг.' = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 overGrossWeight 'Масса брутто, кг.' = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
@@ -1005,4 +1005,111 @@ FORM consignmentInvoiceRu 'Счет-фактура'
 
 printInvoiceRu 'Счет-фактура' (Consignment c)  {
     PRINT consignmentInvoiceRu OBJECTS c = c;
+} IMAGE 'print.png' IN print;
+
+numberWarrant 'Номер' = DATA STRING[50] (Consignment) IN issuanceConsignment CHARWIDTH 12;
+dateWarrant 'Дата' = DATA DATE (Consignment) IN issuanceConsignment;
+warrantHolder 'Выданная органзацией' = DATA STRING[200] (Consignment) IN issuanceConsignment CHARWIDTH 30;
+deliveryTerm 'Срок доставки груза' = DATA DATE (Consignment) IN issuanceConsignment;
+carModel 'Автомобиль(марка)' = DATA STRING[70](Consignment) IN carConsignment CHARWIDTH 30;
+vehicleNumber 'Гос.номер' = DATA STRING[70](Consignment) IN carConsignment CHARWIDTH 30;
+carWaybill 'Путевой лист'  = DATA STRING[20] (Consignment) IN carConsignment;
+licenseDriver 'Удостоверение №'  = DATA STRING[20] (Consignment) IN carConsignment;
+numberRegistration 'Регистрационный № лицензионной картчоки'  = DATA STRING[20] (Consignment) IN carConsignment;
+seriesLicenseCard 'Серия лицензионной карточки'  = DATA STRING[20] (Consignment) IN carConsignment;
+numberLicenseCard 'Номер лицензионной карточки'  = DATA STRING[20] (Consignment) IN carConsignment;
+typeTransportation 'Вид перевозки'  = DATA STRING[20] (Consignment) IN carConsignment;
+readdressing 'Переадресовка'  = DATA STRING[50] (Consignment) IN carConsignment;
+modelTrailer 'Прицеп(марка)'= DATA STRING[100] (Consignment) IN carConsignment;
+numberTrailer 'Прицеп(гос.номер)'= DATA STRING[100] (Consignment) IN carConsignment;
+numberGarage  'Гаражный номер'= DATA STRING[100] (Consignment) IN carConsignment;
+
+EXTEND FORM consignment
+    PROPERTIES(c) numberWarrant, dateWarrant , warrantHolder, deliveryTerm, carModel, vehicleNumber,
+        carWaybill, nameDriverCar=nameForwarder ON CHANGE changeNameForwarder(c), licenseDriver, numberRegistration, seriesLicenseCard,
+        numberLicenseCard, typeTransportation, readdressing, modelTrailer, numberTrailer, numberGarage
+;
+
+DESIGN consignment {
+    GROUP(issuanceConsignment, c) {
+        NEW warrant {
+            alignment = STRETCH;
+            type = CONTAINERV ;
+            caption = 'По доверенности:';
+            MOVE PROPERTY (numberWarrant(c));
+            MOVE PROPERTY (dateWarrant(c));
+            MOVE PROPERTY (warrantHolder(c));
+        }
+        NEW vv{
+            type = CONTAINERV ;
+            caption = 'Транспортный раздел';
+            NEW delivery {
+                columns = 2;
+                type = CONTAINERV ;
+                caption = 'Данные по транспорту';
+                MOVE PROPERTY (deliveryTerm(c)) {charWidth = 25;};
+                MOVE PROPERTY (carModel(c)) {charWidth = 25;};
+                MOVE PROPERTY (vehicleNumber(c)){charWidth = 25;};
+                MOVE PROPERTY (carWaybill(c)){charWidth = 25;};
+          }
+            NEW truck{
+                columns = 3;
+                type = CONTAINERV ;
+                caption = 'Прицеп';
+                MOVE PROPERTY (modelTrailer(c)){charWidth = 25;};
+                MOVE PROPERTY (numberTrailer(c)){charWidth = 25;};
+                MOVE PROPERTY (numberGarage(c)){charWidth = 25;};
+            }
+            NEW driver{
+                caption = 'Данные водителя';
+                columns = 2;
+                type = CONTAINERV ;
+                MOVE PROPERTY (nameDriverCar){charWidth = 25; caption='Водитель';};
+                MOVE PROPERTY (licenseDriver(c)){charWidth = 25;};
+                MOVE PROPERTY (numberRegistration(c)){charWidth = 25; caption='Регистрационный №';};
+                MOVE PROPERTY (seriesLicenseCard(c)){charWidth = 25;};
+                MOVE PROPERTY (numberLicenseCard(c)){charWidth = 25;};
+                MOVE PROPERTY (typeTransportation(c)){charWidth = 25;};
+            }
+            MOVE PROPERTY (readdressing(c));
+        }
+    }
+}
+
+grossWeightTotal 'Масса брутто, кг.'(Consignment c)= GROUP SUM grossWeight(ConsignmentDetail cd) IF consignment(cd) == c;
+shortNameCustomer 'Cокращенное название'(Consignment c) = shortNameOwnership(customer(c));
+
+FORM consignment1T '1-Т Товарно-транспортная накладная'
+    OBJECTS c=Consignment PANEL
+
+    PROPERTIES (c) date, number, series, numberWarrant, dateWarrant , warrantHolder, fullNameSupplier,  addressSupplier,  phoneSupplier,
+        OKPOSupplier, phoneCustomer, OKPOCustomer, INNCustomer,  fullNameCustomer, addressCustomer,
+        nameIssuanceExecuted, positionIssuanceExecuted, shortNameAccountantSupplier, nameForwarder, positionForwarder, nameGoodsConsignment,
+        positionGoodsConsignment, sumConsignmentDetail
+
+    OBJECTS d=ConsignmentDetail SUBREPORT
+    PROPERTIES(d) nameSku, quantity, barCode, shortNameUOM, shipmentPrice, shipmentSum, grossWeight, netWeight, nameTransportPack, packQuantity
+
+    FILTERS consignment(d) == c,
+        quantity(d),
+        NOT skip(d)
+;
+
+FORM consignment1TVerso '1-Т оборотная сторона'
+    OBJECTS c=Consignment PANEL
+
+    PROPERTIES (c) number, date, numberRegistration, seriesLicenseCard, numberLicenseCard, deliveryTerm, shortNameCustomer, addressCustomer, fullNameCustomer,
+        phoneCustomer, OKPOCustomer, INNCustomer, nameForwarder,licenseDriver, typeTransportation, addressSupplier, phoneSupplier,readdressing,
+        modelTrailer, numberTrailer, numberGarage, carWaybill, carModel, vehicleNumber, grossWeightTotal, positionIssuanceExecuted, nameIssuanceExecuted,
+        positionGoodsConsignment, nameGoodsConsignment
+;
+
+printConsignment1TAll '1-Т ' (Consignment consignment) {
+    PRINT consignment1T OBJECTS c = consignment;
+    PRINT consignment1TVerso OBJECTS c = consignment ;
+} IMAGE 'print.png' IN print;
+
+printConsignment1TAllXls '1-Т (xls)' (Consignment consignment) {
+    PRINT consignment1T OBJECTS c = consignment XLSX;
+    PRINT consignment1TVerso OBJECTS c = consignment XLSX;
 } IMAGE 'print.png' IN print;
