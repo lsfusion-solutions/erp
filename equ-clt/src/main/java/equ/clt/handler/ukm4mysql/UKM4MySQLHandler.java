@@ -863,9 +863,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             if (sum != null) {
                                 String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
                                 cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, numberZReport, sum));
-
-                                String idZReport = cashRegister.numberGroup + "_" + nppMachinery + "_" + numberZReport + "_" + date.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
-                                sendSalesLogger.info(logPrefix + "cashDocument = " + idCashDocument + ", idZReport = " + idZReport);
                             }
                         }
                     }
